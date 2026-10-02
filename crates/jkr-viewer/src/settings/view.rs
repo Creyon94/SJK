@@ -31,7 +31,13 @@ impl SettingsMenu {
             "Changes apply immediately and are saved.",
         );
         self.ui.form_tabs(&layout, &TABS, self.tab);
-        for (row, setting) in settings(self.tab).iter().enumerate() {
+        // Only the rows in the scroll window are drawn and hit-tested.
+        let count = settings(self.tab).len() + usize::from(self.tab == KEYBINDS_TAB);
+        let shown = self.scroll.fit(&layout, count, self.selected);
+        self.scroll.mark(&mut self.ui, &layout);
+        let layout = self.scroll.shifted(layout);
+        let tab = settings(self.tab).iter().enumerate();
+        for (row, setting) in tab.take(shown.end).skip(shown.start) {
             let value = self
                 .editing
                 .as_deref()
@@ -54,8 +60,8 @@ impl SettingsMenu {
                 setting,
             );
         }
-        if self.tab == KEYBINDS_TAB {
-            let row = settings(KEYBINDS_TAB).len();
+        let row = settings(KEYBINDS_TAB).len();
+        if self.tab == KEYBINDS_TAB && shown.contains(&row) {
             let selected = row == self.selected;
             self.ui
                 .form_action_row(&layout, row, selected, "Key bindings", "EDIT  >");
