@@ -6,6 +6,9 @@ use jkr_ui::InputEvent;
 
 impl ViewerConsole {
     pub(crate) fn handle_pointer(&mut self, event: InputEvent) {
+        if self.debug_panel_pointer(event) {
+            return;
+        }
         if self.browser.is_open() {
             let action = self.browser.handle_pointer(event);
             self.browser_action(action);
