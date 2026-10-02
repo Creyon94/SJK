@@ -97,6 +97,7 @@ impl Fontdat {
             glyphs,
             height,
             modern: false,
+            style: super::TextStyle::NEUTRAL,
         }
     }
 
