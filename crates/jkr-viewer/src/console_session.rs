@@ -253,6 +253,7 @@ impl ViewerConsole {
             server_status,
             presentation: ConsolePresentation::new(),
             browser: super::browser::Browser::new(),
+            debug_panel: super::debug_panel::Panel::new(&config_directory),
             userinfo_dirty,
             show_timedelta,
             time_nudge,
