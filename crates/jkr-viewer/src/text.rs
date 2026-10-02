@@ -7,8 +7,8 @@
 //! game fonts for menus and chat ([`crate::game_font`]).
 
 mod bounded;
-pub(crate) mod style;
 pub(crate) mod fontdat;
+pub(crate) mod style;
 pub(crate) use bounded::append_bounded;
 pub(crate) use style::TextStyle;
 

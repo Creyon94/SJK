@@ -9,8 +9,8 @@ use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{KeyCode, PhysicalKey};
 
 mod catalog;
-mod numeric;
 mod display;
+mod numeric;
 mod pointer;
 mod resolution;
 mod resolution_list;
