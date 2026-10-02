@@ -123,7 +123,12 @@ impl ViewerConsole {
             self.set_open(false);
             return true;
         }
-        // These keys end or replace the line, so a dead key shown at its end stays
+        if self.browser.is_open() {
+            let action = self.browser.handle_key(event, self.shift);
+            self.browser_action(action);
+            return true;
+        }
+        // These keys end or replace the line, so a dead key shown at the caret stays
         // typed (see `input::dead_key`).
         if matches!(
             key,
@@ -139,6 +144,11 @@ impl ViewerConsole {
             self.dead_key.settle();
         }
         match key {
+            KeyCode::F3 if !event.repeat => {
+                // The browser takes the keys from here, so a shown dead key stays typed.
+                self.dead_key.settle();
+                self.browser.open(&self.shell);
+            }
             KeyCode::Escape => self.set_open(false),
             KeyCode::Enter | KeyCode::NumpadEnter => self.submit(session),
             KeyCode::Tab => self.complete_command(CompletionKey::Tab),

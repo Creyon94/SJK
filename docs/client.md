@@ -250,6 +250,14 @@ Tab keep a shown dead key as typed. A dead `^` that the system composes into a
 superscript digit (`¹` through xkb on Linux) becomes `^` and the digit. See
 [dead_key.rs](../crates/jkr-viewer/src/input/dead_key.rs).
 
+F3 in the open console, or the bindable `consolebrowser` command, opens a browser of
+every command and cvar with its description, and each cvar's value and default. Typing
+searches names, then descriptions; Tab cycles All, Commands, Cvars and Changed (cvars
+away from their default). Enter edits the selected cvar in place and applies it, or
+starts a console line with the selected command; Delete restores a cvar's default;
+Escape or F3 returns to the console. Read-only cvars are listed but not edited. See
+[console_browser.rs](../crates/jkr-viewer/src/console_browser.rs).
+
 ## Third-person camera
 
 The third-person camera follows codemp `CG_OffsetThirdPersonView`, with the
