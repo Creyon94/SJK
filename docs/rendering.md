@@ -28,6 +28,16 @@ endings. Code that patches a program by text with a pattern spanning a line brea
 normalises it first with [wgsl_source.rs](../crates/jkr-viewer/src/wgsl_source.rs);
 `.gitattributes` keeps `*.wgsl` LF in new checkouts.
 
+wgpu picks the graphics backend; JKR requests none. On Windows Vulkan is enumerated
+first, and `WGPU_BACKEND=dx12` selects DX12, which compiles shaders with FXC
+unless `dxcompiler.dll` is on the `PATH`. FXC can only assign a runtime-indexed
+vector or matrix component (`v[i] = ...`) by unrolling the loops around it, and
+fails (error X3511) when any of those loops has a runtime trip count. Write such
+updates as whole-vector operations, as the skinning loop in
+[gpu_skinning.wgsl](../crates/jkr-viewer/src/gpu_skinning.wgsl) does;
+[world_shader_fxc_tests.rs](../crates/jkr-viewer/src/world_shader_fxc_tests.rs)
+checks the world programs for this pattern.
+
 ## Selected controls
 
 | Cvar | Behavior |
