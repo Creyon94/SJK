@@ -318,6 +318,11 @@ pub(super) const GAME: &[Setting] = &[
         cvar: "ui_menuContrast",
         kind: ValueKind::Choice(&["off", "standard", "strong"]),
     },
+    Setting {
+        label: "Menu style",
+        cvar: crate::menu::style::CVAR,
+        kind: ValueKind::Choice(&crate::menu::style::MenuStyle::NAMES),
+    },
 ];
 pub(super) const NETWORK: &[Setting] = &[
     Setting {

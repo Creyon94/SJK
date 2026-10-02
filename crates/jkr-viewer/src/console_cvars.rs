@@ -178,6 +178,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), jkr_s
             "Menu text contrast over the map: off, standard or strong",
         ),
         CvarDefinition::new(
+            crate::menu::style::CVAR,
+            crate::menu::style::MenuStyle::NAMES[0],
+            archive,
+            "Main menu layout: modern, or classic (after the original Jedi Academy menus)",
+        ),
+        CvarDefinition::new(
             "r_gamma",
             1.0_f64,
             archive,
