@@ -9,6 +9,7 @@ use winit::window::Fullscreen;
 impl GpuState {
     pub(crate) fn sync_runtime_cvars(&mut self) {
         self.sync_post_color();
+        self.sync_menu_style();
         if let (Some(console), Some(window)) = (&mut self.console, &self.window) {
             console.apply_window_options(window);
         }
@@ -17,9 +18,6 @@ impl GpuState {
         };
         if let Some(menu) = &mut self.client_menu {
             menu.set_accent(ui_accent(console));
-            menu.set_menu_style(crate::menu::style::MenuStyle::from_cvar(
-                console.text_value(crate::menu::style::CVAR),
-            ));
         }
         self.ui_font.set_style(crate::text::TextStyle::from_cvars(
             console.float_cvar(crate::text::style::SCALE_CVAR),
