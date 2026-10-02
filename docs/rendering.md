@@ -38,6 +38,13 @@ updates as whole-vector operations, as the skinning loop in
 [world_shader_fxc_tests.rs](../crates/jkr-viewer/src/world_shader_fxc_tests.rs)
 checks the world programs for this pattern.
 
+Material compilation merges a shader's first two stages into one multitextured
+pass under rd-vanilla's `CollapseMultitexture` rules, and never a later pair. The
+colour generators are compared after `ParseStage` defaults: an unset rgbGen is
+identity, or identityLighting when the blend source is `GL_ONE` or `GL_SRC_ALPHA`
+([stage_colour.rs](../crates/jkr-shader/src/stage_colour.rs),
+[world_stage_collapse.rs](../crates/jkr-viewer/src/world_stage_collapse.rs)).
+
 ## Selected controls
 
 | Cvar | Behavior |
