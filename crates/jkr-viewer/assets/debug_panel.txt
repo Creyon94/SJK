@@ -311,6 +311,52 @@ test: Watch for map models moving where nothing should be.
 test: Doors, lifts, items, thrown sabers and dropped bodies still look normal.
 note: If objects still fly: note map and object type.
 
+[material-maps]
+pr: 66
+issue: 65
+status: open
+area: Rendering & effects
+title: Optional rend2-style material maps for world surfaces
+change: Normal, parallax and specular maps on lightmapped world surfaces, in rend2 pack format.
+change: Off by default: r_normalMapping, r_specularMapping, r_parallaxMapping (restart to apply).
+test: With all three at 0 (default) maps look exactly as before; no "material maps" log line.
+test: With a rend2 texture pack in base: r_normalMapping 1, r_specularMapping 1, restart.
+test: Load a map: logs/last-client.log shows "material maps: N stages" with N above 0.
+test: Walls and floors show bumps and highlights; also try jkr_dayNight 1 and r_parallaxMapping 1.
+note: Nothing visible without a rend2 texture pack (or the planned map generator, #65 step 2).
+
+[crlf-shaders]
+pr: 70
+issue: 67
+status: open
+area: Rendering & effects
+title: Shader patching accepts CRLF checkouts
+change: Shader text patches normalise Windows (CRLF) line ends first; *.wgsl is kept LF in Git.
+test: Set jkr_dayNight 1 and restart: the client starts without a "stage program changed" panic.
+test: The sky follows the day tint as the hour changes (jkr_dayHour, or jkr_dayMinutes 2).
+
+[stage-collapse]
+pr: 71
+issue: 69
+status: open
+area: Rendering & effects
+title: Stage collapse follows rd-vanilla's resolved colours
+change: Lightmap + texture pairs merge as in rd-vanilla (unset rgbGen = identity), first pair only.
+test: mp/ffa3 with the JoF night pack: glossyBase surfaces look the same as before.
+test: A cairn map with mp_win02 windows: they look the same as before.
+note: Meant to be render-identical; any visible change on any map is a bug.
+
+[dx12-skinning]
+pr: 72
+issue: 68
+status: open
+area: Rendering & effects
+title: Skinned vertex path compiles on DX12 (FXC)
+change: The GPU skinning loop uses whole-vector updates, which FXC on DX12 can compile.
+test: Default Vulkan backend: players, NPCs and other skinned models look exactly as before.
+test: Optional: WGPU_BACKEND=dx12 now fails on the HUD shader, no longer on skinning (X3511).
+note: DX12 failing on the HUD shader (X3507) is known and not fixed by this PR.
+
 # ---- Open PRs: Audio ----
 
 [anim-event-sounds]

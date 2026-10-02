@@ -342,7 +342,12 @@ mod tests {
     fn embedded_list_covers_the_build() {
         let entries = embedded();
         let listed: HashSet<u32> = entries.iter().flat_map(|entry| entry.prs.clone()).collect();
-        for pr in std::iter::once(6).chain(29..=49).chain(58..=63) {
+        for pr in [6, 66]
+            .into_iter()
+            .chain(29..=49)
+            .chain(58..=63)
+            .chain(70..=72)
+        {
             assert!(listed.contains(&pr), "PR #{pr} is missing");
         }
     }
