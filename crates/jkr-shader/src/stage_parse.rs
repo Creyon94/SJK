@@ -28,6 +28,7 @@ pub(super) fn parse_stage(
         texture_generator: TextureGenerator::Base,
         depth_write: true,
         depth_function: DepthFunction::LessEqual,
+        material: StageMaterial::default(),
     };
     let mut depth_write_explicit = false;
     let mut colour = stage_colour::StageColourParser::default();
@@ -212,11 +213,18 @@ pub(super) fn parse_stage(
                     wave: None,
                 });
             }
+            _ if StageMaterial::is_directive(&directive) => {
+                let start = *cursor;
+                *cursor += stage
+                    .material
+                    .apply(&directive, |offset| tokens.get(start + offset).cloned());
+            }
             _ => {}
         }
     }
     *cursor += 1;
     stage.resolved_colour = colour.finish();
+    stage.material.finish();
     definition.stage_images.extend(stage.images.iter().cloned());
     if stage.glow || stage.blend == StageBlend::Add {
         definition

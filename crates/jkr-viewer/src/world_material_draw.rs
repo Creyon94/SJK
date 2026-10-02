@@ -384,7 +384,7 @@ impl Runtime {
                 stage: stage_index,
             };
             if *last_bind_group != Some(bind) {
-                pass.set_bind_group(1, &stage.bind_group, &[]);
+                pass.set_bind_group(1, stage.color_group(), &[]);
 
                 *last_bind_group = Some(bind);
             }
@@ -511,7 +511,7 @@ impl Runtime {
                     last_pipeline = Some(pipeline);
                 }
                 if last_bind_group != Some(reference) {
-                    pass.set_bind_group(1, &stage.bind_group, &[]);
+                    pass.set_bind_group(1, stage.color_group(), &[]);
 
                     last_bind_group = Some(reference);
                 }
@@ -527,7 +527,7 @@ impl Runtime {
                     last_pipeline = Some(pipeline);
                 }
                 if last_bind_group != Some(reference) {
-                    pass.set_bind_group(1, &stage.bind_group, &[]);
+                    pass.set_bind_group(1, stage.color_group(), &[]);
 
                     last_bind_group = Some(reference);
                 }

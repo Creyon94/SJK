@@ -41,6 +41,8 @@ mod forced_alpha;
 mod forge;
 #[path = "world_material_gpu.rs"]
 mod gpu;
+#[path = "material_maps.rs"]
+pub(crate) mod material_maps;
 #[path = "model_light_grid.rs"]
 mod model_grid;
 #[path = "world_ssao.rs"]
@@ -185,11 +187,21 @@ struct StagePass {
     light_cutout: bool,
     ao_receiver: bool,
     bind_group: wgpu::BindGroup,
+    /// The colour passes' group of a material-mapped stage (`material_maps`): the stage
+    /// entries plus its maps. Other passes keep binding `bind_group`.
+    material_group: Option<wgpu::BindGroup>,
     geometry_group: wgpu::BindGroup,
     pipeline: usize,
     live_pipeline: usize,
     /// `pipeline` and `live_pipeline` under `RF_FORCE_ENT_ALPHA` ([`forced_alpha`]).
     forced_alpha_pipelines: [usize; 2],
+}
+
+impl StagePass {
+    /// The group the stage's own pipelines (`pipeline`, `live_pipeline`) draw with.
+    fn color_group(&self) -> &wgpu::BindGroup {
+        self.material_group.as_ref().unwrap_or(&self.bind_group)
+    }
 }
 
 #[derive(Clone)]
@@ -305,6 +317,8 @@ struct PendingStage {
     secondary_clamp: bool,
     lightmap: wgpu::TextureView,
     key: PipelineKey,
+    /// Decoded material maps; the key then carries `material_maps::PIPELINE_BIT`.
+    maps: Option<material_maps::StageMaps>,
 }
 
 struct PendingMaterial {

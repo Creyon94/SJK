@@ -162,6 +162,7 @@ fn implicit_stage(
         texture_generator: generator,
         depth_write,
         depth_function: DepthFunction::LessEqual,
+        material: Default::default(),
     }
 }
 
