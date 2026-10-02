@@ -319,11 +319,14 @@ area: Rendering & effects
 title: Optional rend2-style material maps for world surfaces
 change: Normal, parallax and specular maps on lightmapped world surfaces, in rend2 pack format.
 change: Off by default: r_normalMapping, r_specularMapping, r_parallaxMapping (restart to apply).
-test: With all three at 0 (default) maps look exactly as before; no "material maps" log line.
-test: With a rend2 texture pack in base: r_normalMapping 1, r_specularMapping 1, restart.
-test: Load a map: logs/last-client.log shows "material maps: N stages" with N above 0.
-test: Walls and floors show bumps and highlights; also try jkr_dayNight 1 and r_parallaxMapping 1.
-note: Nothing visible without a rend2 texture pack (or the planned map generator, #65 step 2).
+change: r_materialMapsDebug shows which surfaces took maps; the load log line lists counts.
+test: Set r_normalMapping 1, r_specularMapping 1 and r_parallaxMapping 1, then restart.
+test: Load a map: the log shows "material maps (normal+specular+parallax): N stages ...".
+test: r_materialMapsDebug 2 tints mapped surfaces: red parallax, green normal, blue specular.
+test: r_materialMapsDebug 3 shows the normal-map relief; r_materialMapsDebug 0 is back to normal.
+test: For visible lighting set jkr_dayNight 1 and jkr_dayHour 7, restart, look at floors and walls.
+note: In baked lighting the effect is small by design.
+note: The generated maps are gentle (average tilt about 4 deg), so expect subtle changes.
 
 [crlf-shaders]
 pr: 70
