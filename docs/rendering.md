@@ -339,6 +339,13 @@ is installed with the option on, or on first use, from
 [game_font.rs](../crates/jkr-viewer/src/game_font.rs); a missing font leaves
 its surface on Inter.
 
+HUD text sizes and `px` layout units scale with the HUD factor: viewport height
+over 1080, clamped to 2/3..4/3, times `cg_hudScale`. The crosshair name keeps
+stock's size in that frame: `CG_DrawCrosshairNames` draws `ergoec` (point size 20)
+at scale 1.0 in the 640x480 screen, so its line is 45 px at 1080p and 60 px at
+1440p, times the layout's `type_scale`. The classic layout uses 0.9 because
+`arialnb` has taller capitals per line than `ergoec`; Inter uses 1.0.
+
 ### Menu readability
 
 Menu screens draw their text straight over the live map, so a left-hand scrim
