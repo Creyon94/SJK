@@ -97,6 +97,40 @@ fn load_or_fallback(
     }
 }
 
+/// One actor's own mesh and its corpse-pool copy, both labelled `appearance`. When
+/// either fails, `scene` is returned to its length before the first.
+fn build_client_meshes(
+    scene: &mut FlattenedScene,
+    actor: PlayerPreview,
+    entity_id: EntityId,
+    appearance: &Appearance,
+    saber_names: &[Option<String>; 2],
+) -> Result<[ActorMesh; 2], Box<dyn Error>> {
+    let lengths = (
+        scene.vertices.len(),
+        scene.indices.len(),
+        scene.materials.len(),
+    );
+    let mut build = |preview, entity, corpse_pool| {
+        build_actor_mesh(
+            scene,
+            preview,
+            entity,
+            corpse_pool,
+            appearance.clone(),
+            saber_names.clone(),
+        )
+    };
+    let built = build(actor.clone(), Some(entity_id), false)
+        .and_then(|own| Ok([own, build(actor, None, true)?]));
+    if built.is_err() {
+        scene.vertices.truncate(lengths.0);
+        scene.indices.truncate(lengths.1);
+        scene.materials.truncate(lengths.2);
+    }
+    built
+}
+
 /// Build the meshes of every client the game state advertises, every actor
 /// already in `world`, and the shared fallback.
 pub(crate) fn load_actor_meshes(
@@ -139,21 +173,26 @@ pub(crate) fn load_actor_meshes(
         let saber_names = client_num
             .map(|client_num| client_saber_names(game_state, client_num))
             .unwrap_or_else(|| [Some("single_1".to_owned()), None]);
-        match load_or_fallback(vfs, &appearance, &fallback) {
-            Ok(actor) => {
-                for (assigned_entity, corpse_pool, preview) in
-                    [(Some(entity_id), false, actor.clone()), (None, true, actor)]
-                {
-                    meshes.push(build_actor_mesh(
-                        scene,
-                        preview,
-                        assigned_entity,
-                        corpse_pool,
-                        appearance.clone(),
-                        saber_names.clone(),
-                    )?);
-                }
+        // A model that loads can still fail to pose (a GLM whose bone count does not
+        // match its GLA): that client gets Kyle too, rather than failing the map load.
+        let built = load_or_fallback(vfs, &appearance, &fallback).and_then(|actor| {
+            build_client_meshes(scene, actor, entity_id, &appearance, &saber_names)
+        });
+        let built = match built {
+            Err(error) if appearance != fallback => {
+                eprintln!(
+                    "could not build actor appearance {}/{}: {error}; using Kyle",
+                    appearance.model, appearance.variant
+                );
+                load_player_appearance(vfs, &fallback.model, &fallback.variant, [0.0; 3], 0.0)
+                    .and_then(|actor| {
+                        build_client_meshes(scene, actor, entity_id, &appearance, &saber_names)
+                    })
             }
+            built => built,
+        };
+        match built {
+            Ok(pair) => meshes.extend(pair),
             Err(error) => eprintln!(
                 "could not load actor appearance {}/{}: {error}",
                 appearance.model, appearance.variant
