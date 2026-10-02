@@ -84,6 +84,8 @@ pub(crate) struct ViewerConsole {
     /// Shift held, for the Shift+Escape console toggle.
     shift: bool,
     input: String,
+    /// Dead key shown at the caret of `input` until its composition arrives.
+    dead_key: crate::input::dead_key::DeadKey,
     history: Vec<String>,
     history_index: Option<usize>,
     scroll_offset: usize,
@@ -427,6 +429,7 @@ impl ViewerConsole {
         }
         self.open = open;
         self.history_index = None;
+        self.dead_key.settle();
     }
 
     fn navigate_history(&mut self, direction: i32) {

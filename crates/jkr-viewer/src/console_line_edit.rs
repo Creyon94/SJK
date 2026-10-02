@@ -138,6 +138,21 @@ impl LineEdit {
         }
         self.cursor = cursor;
     }
+
+    /// Remove `range` of `text` (a dead key withdrawn for its composition), keeping
+    /// the caret and any selection on the same text.
+    pub(super) fn remove(&mut self, text: &mut String, range: Range<usize>) {
+        let shift = |index: usize| {
+            if index >= range.end {
+                index - range.len()
+            } else {
+                index.min(range.start)
+            }
+        };
+        self.cursor = shift(self.cursor(text));
+        self.anchor = self.anchor.map(|anchor| shift(clamp(text, anchor)));
+        text.replace_range(range, "");
+    }
 }
 
 /// `index` moved down to a character boundary within `text`.
@@ -238,6 +253,22 @@ mod tests {
         edit.delete(&mut text, Motion::Right);
         assert_eq!(text, "conct 1");
         assert_eq!(edit.cursor(&text), 3);
+    }
+
+    #[test]
+    fn removal_keeps_the_caret_and_selection_on_their_text() {
+        let mut text = String::from("a^bcd");
+        let mut edit = LineEdit {
+            cursor: 5,
+            anchor: Some(3),
+        };
+        edit.remove(&mut text, 1..2);
+        assert_eq!(text, "abcd");
+        assert_eq!(edit.selection(&text), Some(2..4));
+        let mut edit = edit_at(&text, 2);
+        edit.remove(&mut text, 1..3);
+        assert_eq!(text, "ad");
+        assert_eq!(edit.cursor(&text), 1);
     }
 
     #[test]
