@@ -18,6 +18,10 @@ impl SettingsMenu {
         _scale: f32,
         reveal: f32,
     ) {
+        if self.picker.is_open() {
+            self.append_resolutions(vertices, font, viewport, reveal);
+            return;
+        }
         let layout = FormLayout::new(viewport);
         self.ui.begin_hero(viewport, reveal, Scrim::Full);
         self.ui.form_header(
@@ -122,7 +126,9 @@ fn row_view(ui: &mut MenuCanvas, layout: &FormLayout, state: RowState<'_>, setti
                 .map_or(0.0, |v| ((v - min) / (max - min)) as f32);
             slider(ui, value_zone, value, entry, ratio, value_color, s);
         }
-        ValueKind::Choice(_) => ui.form_cycler(value_zone, value, None, value_color, s),
+        ValueKind::Choice(_) | ValueKind::Resolution | ValueKind::DisplayMode => {
+            ui.form_cycler(value_zone, value, None, value_color, s)
+        }
         ValueKind::Text => {
             ui.form_value(value, value_zone, value_color, s);
             if editing {
