@@ -177,6 +177,10 @@ change: ui_gameFont (Settings > HUD) draws menus in ergoec and chat in ocr_a fro
 test: Settings > HUD > "Game font for menus and chat" on; look at the menus and at chat.
 test: With the JoF HD pack the log shows "game font ergoec: 4096x2048 atlas".
 test: Check legibility, centring in menu rows and chat wrapping; note any hitch when enabling.
+change: Low-res font atlases (chat ocr_a, classic HUD arialnb) now draw sharp at any size (SDF).
+test: At 4K: chat text and cg_classicHudFont 1 HUD numbers have crisp edges, no blur.
+test: Small text (console-size chat) has no shimmer or missing thin strokes.
+note: First enable of the game font may hitch about 0.1 s while fonts convert.
 
 [force-menu]
 pr: 47
