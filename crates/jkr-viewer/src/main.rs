@@ -1561,7 +1561,7 @@ impl GpuState {
 
         timing.mark(Phase::Pose);
         {
-            self.assign_corpse_meshes();
+            self.assign_corpse_meshes(presentation_time);
         }
         {
             if let Err(error) = self.update_actor_animations(presentation_time) {
