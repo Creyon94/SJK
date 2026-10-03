@@ -224,6 +224,19 @@ test: Arrow down past the bottom: the rows follow the selection; wrap to the top
 test: The wheel scrolls one row per notch; hover and click still work after scrolling.
 test: Check the same in the in-game settings menu.
 
+[fps-cap-auto]
+pr: 86, 87
+issue: 80
+status: open
+area: Menus & settings
+title: FPS cap follows the monitor; caps hold their exact rate
+change: com_maxfps defaults to -1 = AUTO (monitor refresh, 125 if unknown); 0 is uncapped.
+change: An old saved 1000 becomes AUTO once. Caps no longer run ~7% low (240 gave 223).
+test: Settings > Video: FPS cap shows AUTO; cg_drawFPS 1 reads your refresh rate (240).
+test: Right from AUTO gives 0 (uncapped), then 25, 50...; dragging to the far left gives AUTO.
+test: com_maxfps 144 then 60: cg_drawFPS holds 144 and 60, not a few frames below.
+test: Record with OBS uncapped vs AUTO: compare skipped frames in the OBS log.
+
 # ---- Open PRs: HUD ----
 
 [crosshair-name]

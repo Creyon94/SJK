@@ -199,7 +199,7 @@ impl SettingsMenu {
             KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Space => {
                 if let Some(setting) = settings(self.tab).get(self.selected) {
                     if matches!(setting.kind, ValueKind::Text) {
-                        self.editing = Some(value_text(console, setting.cvar));
+                        self.editing = Some(value_text(console, setting));
                     } else if matches!(setting.kind, ValueKind::Resolution) {
                         self.open_resolutions(console);
                     } else if key == KeyCode::Space || !self.begin_entry(self.selected) {
@@ -223,10 +223,9 @@ impl SettingsMenu {
             (ValueKind::Bool, Some(CvarValue::Integer(value))) => {
                 if *value != 0 { "0" } else { "1" }.to_owned()
             }
-            (ValueKind::Integer { min, max, step }, Some(CvarValue::Integer(value))) => (*value
-                + i64::from(direction) * step)
-                .clamp(min, max)
-                .to_string(),
+            (ValueKind::Integer { min, max, step }, Some(CvarValue::Integer(value))) => {
+                step_integer(*value, direction, min, max, step).to_string()
+            }
             (ValueKind::Float { min, max, step }, Some(CvarValue::Float(value))) => {
                 ((*value + f64::from(direction) * step).clamp(min, max)).to_string()
             }
@@ -312,8 +311,8 @@ impl SettingsMenu {
         self.values
             .extend(settings(self.tab).iter().map(|setting| match setting.kind {
                 ValueKind::DisplayMode => display.label().to_owned(),
-                ValueKind::Bool => toggle_text(console, setting.cvar),
-                _ => value_text(console, setting.cvar),
+                ValueKind::Bool => toggle_text(console, setting),
+                _ => value_text(console, setting),
             }));
     }
 }
@@ -332,17 +331,38 @@ fn settings(tab: usize) -> &'static [Setting] {
     }
 }
 /// ON/OFF for a toggle row; an integer cvar is on when nonzero.
-fn toggle_text(console: &ViewerConsole, name: &str) -> String {
-    match console.cvar(name) {
+fn toggle_text(console: &ViewerConsole, setting: &Setting) -> String {
+    match console.cvar(setting.cvar) {
         Some(CvarValue::Integer(value)) => if *value != 0 { "ON" } else { "OFF" }.to_owned(),
-        _ => value_text(console, name),
+        _ => value_text(console, setting),
     }
 }
 
-fn value_text(console: &ViewerConsole, name: &str) -> String {
-    console.cvar(name).map_or_else(
+/// A negative minimum on an integer row is one special value below the range,
+/// shown as AUTO (`com_maxfps -1`). Stepping moves between it and zero, then
+/// along the row's step.
+fn step_integer(value: i64, direction: i32, min: i64, max: i64, step: i64) -> i64 {
+    if min < 0 {
+        if value < 0 {
+            return if direction > 0 { 0 } else { min };
+        }
+        if value == 0 && direction < 0 {
+            return min;
+        }
+        return (value + i64::from(direction) * step).clamp(0, max);
+    }
+    (value + i64::from(direction) * step).clamp(min, max)
+}
+
+fn value_text(console: &ViewerConsole, setting: &Setting) -> String {
+    console.cvar(setting.cvar).map_or_else(
         || "?".to_owned(),
         |value| match value {
+            CvarValue::Integer(v)
+                if *v < 0 && matches!(setting.kind, ValueKind::Integer { min, .. } if min < 0) =>
+            {
+                "AUTO".to_owned()
+            }
             CvarValue::Bool(v) => {
                 if *v {
                     "ON".to_owned()
@@ -353,4 +373,26 @@ fn value_text(console: &ViewerConsole, name: &str) -> String {
             _ => value.as_text(),
         },
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::step_integer;
+
+    #[test]
+    fn auto_sits_below_zero_and_steps_join_the_grid() {
+        let step = |value, direction| step_integer(value, direction, -1, 2000, 25);
+        assert_eq!(step(-1, 1), 0);
+        assert_eq!(step(-1, -1), -1);
+        assert_eq!(step(0, -1), -1);
+        assert_eq!(step(0, 1), 25);
+        assert_eq!(step(144, -1), 119);
+        assert_eq!(step(1990, 1), 2000);
+    }
+
+    #[test]
+    fn rows_without_a_special_value_step_as_before() {
+        assert_eq!(step_integer(80, 1, 80, 130, 5), 85);
+        assert_eq!(step_integer(80, -1, 80, 130, 5), 80);
+    }
 }

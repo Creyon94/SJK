@@ -334,6 +334,8 @@ struct GpuState {
     /// Display mode last applied to the window; `None` forces a reapply.
     applied_display: Option<settings::DisplayMode>,
     applied_resolution: [u32; 2],
+    /// Monitor refresh rate behind `com_maxfps -1`, re-read at most once a second.
+    refresh_cap: std::cell::Cell<Option<(Instant, u32)>>,
     frame_pacer: frame_pacing::FramePacer,
     /// Optional per-pass GPU timing printed with the frame-budget report.
     gpu_phases: Option<gpu_phases::Profiler>,
@@ -1109,6 +1111,7 @@ impl GpuState {
             ground_hud,
             applied_display: Some(settings::DisplayMode::Windowed),
             applied_resolution: [size.width, size.height],
+            refresh_cap: std::cell::Cell::new(None),
             frame_pacer: frame_pacing::FramePacer::new(),
             gpu_phases,
             third_person_camera: camera::ThirdPersonCamera::default(),

@@ -90,7 +90,7 @@ impl SettingsMenu {
                 }
                 if let Some(setting) = settings(self.tab).get(row) {
                     if matches!(setting.kind, ValueKind::Text) {
-                        self.editing = Some(value_text(console, setting.cvar));
+                        self.editing = Some(value_text(console, setting));
                     } else if matches!(setting.kind, ValueKind::Resolution) {
                         self.open_resolutions(console);
                     } else if let Some(position) = event.position {

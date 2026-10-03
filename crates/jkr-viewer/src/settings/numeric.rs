@@ -11,6 +11,16 @@ impl ValueKind {
     /// that are not sliders.
     pub(super) fn snapped(self, raw: f64) -> Option<String> {
         match self {
+            Self::Integer { min, max, step } if min < 0 => {
+                // One special value below zero (AUTO, `com_maxfps -1`) is the
+                // rail's left end; the rest snaps to multiples of the step from 0.
+                if raw < 0.0 {
+                    return Some(min.to_string());
+                }
+                let step = step.max(1);
+                let value = ((raw / step as f64).round() as i64).saturating_mul(step);
+                Some(value.clamp(0, max).to_string())
+            }
             Self::Integer { min, max, step } => {
                 let step = step.max(1);
                 let steps = ((raw - min as f64) / step as f64).round();
