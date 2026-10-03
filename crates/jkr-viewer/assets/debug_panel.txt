@@ -293,11 +293,12 @@ pr: 49
 issue: 14
 status: open
 area: Rendering & effects
-title: Optional floating dust motes
-change: jkr_dust (0 to 1, Settings > Game > Dust motes) draws faint dust around the camera.
-test: Set Dust motes to 0.5-1 (or jkr_dust 1); check an indoor and an outdoor map.
-test: First and third person; players stay as visible as with jkr_dust 0.
-test: Optional: JKR_FRAME_BUDGET=1, compare the scene-pass time with jkr_dust 0 and 1.
+title: Sunbeam dust (dust motes only inside godrays)
+change: jkr_dust (0 to 1, Settings > Game > Sunbeam dust) draws dust lit by sunbeams only.
+change: Bishop's rework: no godray volume or sunlight means no dust; needs jkr_volumetrics.
+test: jkr_volumetrics on, jkr_dust 1, on an outdoor map: dust shows only inside sunbeams.
+test: Shadowed air, dark rooms and jkr_volumetrics 0 show no dust at all.
+test: Optional: JKR_FRAME_BUDGET=1, compare the volumetrics phase with jkr_dust 0 and 1.
 
 [entity-types]
 pr: 63

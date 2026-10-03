@@ -103,6 +103,15 @@ Finite image comparisons and workspace/release checks passed; see
 [rendering](rendering.md#submission-and-lighting-work-reduction) for evidence
 and limits. Gameplay and protocol code are unchanged.
 
+
+Optional dust (`jkr_dust`, default off) is restricted to local godray scattering,
+with colour and visibility sampled at each mote's depth. It requires active
+volumetrics and follows their shadows and clarity. Linux workspace/release
+checks, GPU sampling probes and native HDR/SDR captures passed on 2026-10-02
+(Ryzen 5 5500 / RX 9060 XT). The earlier everywhere-dust preview was superseded
+after owner feedback. See [rendering](rendering.md) for
+current verification and remaining visual/readability limits.
+
 ## Open validation and limitations
 
 - Complete server/gameplay parity remains unverified. Audit concrete scenarios
