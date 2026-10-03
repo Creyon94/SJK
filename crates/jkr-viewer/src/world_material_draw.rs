@@ -282,7 +282,6 @@ impl Runtime {
         // draws instead of once per stage of every draw (a pipeline switch is the most
         // expensive state change to encode). Blended and depth-less draws keep their order.
 
-        // Forced-alpha draws are classified out of stage-major traversal when queued.
         let stage_major = |draw: &crate::entity_materials::Draw| draw.stage_major;
         let deepest = draws
             .iter()
