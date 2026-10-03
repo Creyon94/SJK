@@ -217,7 +217,7 @@ impl Runtime {
     }
 
     /// Upload the uniform only when it changed; a disabled effect writes nothing.
-    fn prepare(&mut self, queue: &wgpu::Queue, frame: Frame) {
+    fn prepare(&mut self, queue: &crate::frame_queue::FrameQueue, frame: Frame) {
         if frame.count() != 0 && frame.uniform != self.frame.uniform {
             queue.write_buffer(&self.buffer, 0, bytemuck::bytes_of(&frame.uniform));
         }
