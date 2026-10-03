@@ -1429,6 +1429,13 @@ impl GpuState {
         self.text_vertices.clear();
         self.classic_text_vertices.clear();
         game_font::prepare(self);
+        // The console browser covers the frame and overlay text draws above every
+        // overlay's shapes, so the text of the menus and chat under it is not built:
+        // whatever buffer or font that text would use, none of it shows through.
+        let console_covers_frame = self
+            .console
+            .as_ref()
+            .is_some_and(|console| console.covers_frame());
         let information_visible = (self.live_session.is_some() || self.demo_session.is_some())
             && self
                 .console
@@ -1461,11 +1468,12 @@ impl GpuState {
                 .as_ref()
                 .and_then(|c| c.bool_cvar("cg_drawScores"))
                 .unwrap_or(true);
-        let chat_visible = scoreboard::chat_visible(
-            scoreboard_visible,
-            information_visible,
-            self.chat.wants_history(self.console.as_ref()),
-        );
+        let chat_visible = !console_covers_frame
+            && scoreboard::chat_visible(
+                scoreboard_visible,
+                information_visible,
+                self.chat.wants_history(self.console.as_ref()),
+            );
         if chat_visible {
             self.append_configured_chat(viewport, text_scale);
         }
@@ -1488,7 +1496,7 @@ impl GpuState {
                 viewport,
             );
         }
-        if self.game_menu {
+        if self.game_menu && !console_covers_frame {
             let team_sizes = self.live_session.as_ref().map_or([0, 0], |session| {
                 ingame_menu::team_sizes(session.game_state())
             });
@@ -1512,7 +1520,7 @@ impl GpuState {
         if scoreboard_visible {
             scoreboard::append_overlay(self, viewport, text_scale * 1.05);
         }
-        if let Some(menu) = &mut self.client_menu {
+        if let Some(menu) = self.client_menu.as_mut().filter(|_| !console_covers_frame) {
             let (vertices, font) = self.game_fonts.menu(&mut self.text_vertices, &self.ui_font);
             menu.append_overlay(vertices, font, viewport, text_scale);
         }

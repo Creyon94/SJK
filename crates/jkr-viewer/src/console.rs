@@ -208,6 +208,12 @@ impl ViewerConsole {
         self.open
     }
 
+    /// The command and cvar browser is open and covers the whole frame; overlays
+    /// under it should not build their text.
+    pub(crate) fn covers_frame(&self) -> bool {
+        self.open && (self.browser.is_open() || self.debug_panel.is_open())
+    }
+
     /// Add an application diagnostic to the visible bounded scrollback.
     pub(crate) fn push_log(&mut self, text: impl Into<String>) {
         self.shell.push_log(text);
