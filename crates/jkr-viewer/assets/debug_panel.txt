@@ -41,6 +41,8 @@ test: Enter on cg_drawFPS, type 1, Enter: the value updates. Type abc: the foote
 test: Delete restores the default; Enter on a command puts it on the console line.
 test: Mouse: hover selects, wheel scrolls, drag the scrollbar, click rows, tabs and footer caps.
 test: Esc or F3 returns to the console. Also try it during a live match.
+test: Game font on (ui_gameFont 1): no menu or chat text shows through the browser.
+test: Same with debug_panel open over a menu: no menu text shows through.
 
 [console-editing]
 pr: 33
@@ -116,13 +118,13 @@ status: open
 area: Menus & settings
 title: Type exact values into menu sliders
 change: Click a slider's number, press Enter or type digits; Enter applies, Esc cancels.
-change: Typed values are clamped to the row's range and rounded to its step.
+change: Typed values are kept exact, only clamped to the row's range (review fix).
 test: Settings > Video: click the FPS cap number, type 300, Enter.
-test: Field of view: type 97, it becomes 95; type 500, it becomes 130.
+test: FPS cap: type 142, it stays 142; 333 stays 333; dragging still steps by 25.
+test: Field of view: type 97.4, it stays 97.4; type 500, it becomes 130.
 test: On a selected slider type digits directly; press Esc mid-entry; click another row mid-entry.
 test: Player > Saber: click the Red value and type 300: it becomes 255.
 test: Regression: drag along each rail; Left / Right / Space still step.
-note: Typed values round to the slider step (FPS 144 -> 150), decision pending.
 
 [text-spacing]
 pr: 37
@@ -150,6 +152,7 @@ test: Settings values and inactive tabs are readable; unselected labels still lo
 test: Player screen: the player model is not noticeably darkened.
 test: In-game Esc menu over a bright area: a left fade. ui_menuContrast off restores the old look.
 test: Map picker caption sits on a dark backing; ui_menuContrast strong is close to opaque.
+note: Review fix: reading ui_menuContrast no longer allocates every frame.
 
 [display-modes]
 pr: 45
@@ -188,6 +191,8 @@ test: Switch tabs and come back: the draft is kept. Discard returns to the appli
 test: Change levels, click Apply, then check forcepowers in the console.
 test: Change levels without applying, press Esc and reopen: the changes are gone.
 test: Click each side card and check which powers dim.
+test: Review fix: Character page grid shows all models (207 max), none missing at the end.
+test: Main menu wordmark, map preview and HUD icons still draw right (atlas rows moved).
 
 [classic-menu]
 pr: 48
@@ -253,6 +258,7 @@ test: Force Speed in third person on a local server: copies at about 40% and 20%
 test: Copies spread with speed and collapse at rest; none in first person (except mirrors).
 test: Look at hair and capes on the copies; cg_speedTrail 0 turns them off; NPCs with speed.
 test: Note any hitch on the first Force Speed use.
+test: Review fix: cut-out parts (hair, fringes, belts) stay on the copies, faint with holes.
 
 [death-anim]
 pr: 36
@@ -261,9 +267,11 @@ status: open
 area: Rendering & effects
 title: Bodies continue the death animation after respawn
 change: The body left by a quick respawn keeps playing its death animation instead of snapping.
+change: Review fix: copies the player's pose like OpenJK, next frame on, 150 ms blend.
 test: Local server with a bot: kill it or yourself, respawn as soon as allowed (about 1 s).
 test: The body keeps falling through the rest of the animation, then holds.
 test: Watch for a body swapping to another model (likely fixed too).
+test: Respawn after the death finished: the body stays on the final frame, no jump.
 
 [third-person-camera]
 pr: 38
@@ -372,6 +380,7 @@ title: Animation-event sounds (fast-style taunt)
 change: animevents.cfg sounds play: the fast taunt's saber spin, kicks, katas, punches, falls.
 test: Join a server, select the fast (blue) style and taunt: the twirl whooshes several times.
 test: Try a saber kick and melee punches.
+test: Review fix: npc spawn rancor or change model; no stutter on first appearance.
 
 # ---- Open PRs: Gameplay ----
 
