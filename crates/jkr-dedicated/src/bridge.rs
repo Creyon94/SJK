@@ -3376,3 +3376,6 @@ mod bridge_world_effects;
 pub(crate) use bridge_saber::PlayerSkeleton;
 pub(crate) use bridge_saber_damage::SaberCut;
 pub use bridge_votes::SUPPORTED_VOTES;
+
+#[path = "bridge_continuation.rs"]
+mod continuation;
