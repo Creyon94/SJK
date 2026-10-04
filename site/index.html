@@ -24,6 +24,7 @@
   <a class="nav-brand" href="#top"><img src="assets/emblem.svg" alt="" width="28" height="28"> SJK</a>
   <ul>
     <li><a href="#features">Features</a></li>
+    <li><a href="#goal">Why SJK</a></li>
     <li data-gallery-link hidden><a href="#screenshots">Screenshots</a></li>
     <li><a href="#changelog">Changelog</a></li>
     <li><a href="#install">Install</a></li>
@@ -99,6 +100,17 @@
   </div>
 </section>
 
+<section id="goal" aria-labelledby="goal-title">
+  <h2 id="goal-title"><span>Why SJK</span></h2>
+  <div class="panel goal">
+    <p>SJK aims to be a true JKA+: everything players expect from today's community
+    clients, from the retail look and feel to mod servers such as JA+ and modern screens,
+    in a client that stays clean and fast. No bloat: every feature has to earn its place
+    and its frame time, and the original game's behaviour comes first.</p>
+    <p>Once the client is solid, a JoF edition of SJK will follow for the JoF community.</p>
+  </div>
+</section>
+
 <section id="screenshots" aria-labelledby="screenshots-title" hidden>
   <h2 id="screenshots-title"><span>Screenshots</span></h2>
   <div class="gallery" id="gallery"></div>
@@ -153,10 +165,10 @@
     </li>
     <li class="panel">
       <h3>Your settings</h3>
-      <p>Settings, binds, screenshots and demos live in <code>GameData/jkr/</code>; an
-      earlier JKR profile is imported once. SJK opens on the classic menus; switch in
+      <p>Settings, binds, screenshots and demos live in <code>GameData/SJK/</code>; an
+      earlier JKR profile (<code>GameData/jkr/</code>) is imported once. SJK opens on the classic menus; switch in
       Setup › Game Options › Menu style. To update, replace the executables and keep the
-      <code>jkr</code> folder.</p>
+      <code>SJK</code> folder.</p>
     </li>
     <li class="panel">
       <h3>On JA+ servers</h3>
@@ -178,17 +190,20 @@
   <div class="credits">
     <article class="panel">
       <h3>JKR, by Bishop</h3>
-      <p><a href="https://github.com/Bishop-R">Bishop</a> created
-      <a href="https://github.com/Bishop-R/JKR">JKR</a> and wrote nearly all of it: the Rust
-      engine and renderer, the client and dedicated server, networking, prediction and the
-      game rules. SJK is built on that work and merges it as it grows.</p>
+      <p><a href="https://github.com/Bishop-R">Bishop</a> started
+      <a href="https://github.com/Bishop-R/JKR">JKR</a> as a fast prototype and built its
+      skeleton: the Rust engine and renderer, the client and dedicated server, networking,
+      prediction and the game rules. The project then sat on the side until Bishop
+      open-sourced it so Sol could pick it up. SJK is built on that work.</p>
     </article>
     <article class="panel">
       <h3>SJK, by Sol</h3>
-      <p><a href="https://github.com/Sol-Vulpes">Sol</a> makes SJK and contributes to JKR:
-      many of SJK's changes are offered upstream as
-      <a href="https://github.com/Bishop-R/JKR/pulls?q=is%3Apr+author%3ASol-Vulpes">pull
-      requests</a>. The full record is in
+      <p><a href="https://github.com/Sol-Vulpes">Sol</a> had set out to write a Jedi Academy
+      client from scratch, then learned of Bishop's project. After they talked, JKR went open
+      source, and Sol revived it: by October 2026 Sol had opened 100 of JKR's first 121
+      issues and <a href="https://github.com/Bishop-R/JKR/pulls?q=is%3Apr+author%3ASol-Vulpes">pull
+      requests</a>, fixing much of it together with Bishop, while building SJK alongside.
+      The full record is in
       <a href="https://github.com/Sol-Vulpes/SJK/blob/sol/main/CREDITS.md">CREDITS.md</a>.</p>
     </article>
     <article class="panel">

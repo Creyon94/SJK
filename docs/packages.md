@@ -5,7 +5,8 @@ Windows x64 and Linux x64 ZIPs with optimized client and dedicated-server
 executables at the archive root. Extract the entire platform ZIP directly into
 the installed game's `GameData` directory, beside `base/`, and launch the client.
 Keep the dedicated server beside it for Create game and local devmap. Updating
-the executables does not replace `jkr/` user files.
+the executables does not replace `jkr/` user files (`SJK/` for SJK packages,
+built with `--profile-dir SJK`).
 
 Each ZIP contains installation instructions, the project license, dependency
 license files and a build manifest with the exact revision, target, compiler and
