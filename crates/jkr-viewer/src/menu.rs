@@ -4,6 +4,7 @@ pub(crate) mod address_view;
 pub(crate) mod art;
 mod controller;
 mod pointer;
+pub(crate) mod roq;
 
 mod browser_details;
 pub(crate) mod browser_filters;
@@ -159,6 +160,8 @@ pub(crate) struct ClientMenu {
     create_game: create_game::CreateGameMenu,
     ui: MenuCanvas,
     filter_editing: bool,
+    /// The classic browser's SERVER INFO pop-up is open.
+    classic_info: bool,
     password_target: Option<String>,
     password: String,
     address_editing: bool,
@@ -217,6 +220,7 @@ impl ClientMenu {
             create_game: create_game::CreateGameMenu::new(),
             ui: MenuCanvas::new(),
             filter_editing: false,
+            classic_info: false,
             password_target: None,
             destination_map: None,
             destination_ready: false,
@@ -463,6 +467,7 @@ impl ClientMenu {
 
     /// Close the browser toward wherever it was opened from.
     pub(super) fn close_browser(&mut self) -> MenuAction {
+        self.classic_info = false;
         match self.browser_return {
             ReturnTarget::MainMenu => {
                 self.state.main_menu();
@@ -760,7 +765,10 @@ impl ClientMenu {
                     self.activate_browser_focus()
                 }
                 KeyCode::Escape => {
-                    if self.filter_editing {
+                    if self.classic_info {
+                        self.classic_info = false;
+                        MenuAction::None
+                    } else if self.filter_editing {
                         self.filter_editing = false;
                         MenuAction::None
                     } else {

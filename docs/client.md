@@ -94,16 +94,51 @@ The classic main menu has the retail pages, entries and order:
   swatches are filled with the tint each `playerchoice.txt` entry sets, not its
   swatch image. Escape returns to the profile page, then to the menu.
 
+Join Server opens retail's join-server screen (`ui/jamp/joinserver.menu`) on
+the same browser as the modern style, so the list, favourites, filters and
+sorting carry over between styles. Labels and buttons are in capitals:
+
+- GET NEW LIST and REFRESH LIST both fetch the master list again, as retail's
+  `RefreshServers` behind both did.
+- The selectors box: SOURCE (INTERNET or FAVORITES; Tab also switches),
+  FILTER (retail's mod filter row is JKR's text filter over names and maps;
+  `/` or a click starts typing, Escape ends), TYPE (game-type filter), and the
+  VIEW EMPTY, VIEW FULL and VIEW LOCKED toggles (the archived
+  `ui_browserShow*` cvars; VIEW LOCKED stands where retail's data rate was).
+- The list: SERVER NAME, MAP NAME, PLYRS, TYPE and PING columns over retail's
+  row bands and column frames, ten 26-unit rows, the sorted column filled and
+  its header white with a ^ or v for the direction. Clicking a header sorts by
+  it, again reverses it. TYPE adds JA+, JAPRO or MOD where JKR detects the
+  server's mod, and `*P` for a locked server; favourites carry a gold `*`.
+  The wheel and the scrollbar along the right edge scroll the list.
+- The secondary row: CONNECT IP (where retail had NEW FAVORITE; JKR's direct
+  connect), ADD FAVORITE or DEL. FAVORITE for the selected server, and SERVER
+  INFO, a pop-up of the server's published settings and players (Escape or a
+  click closes it). PASSWORD and FIND PLAYER are dimmed: JKR asks for the
+  password when a locked server is joined, in a retail-style prompt, and has
+  no player search yet.
+- BACK returns to the Play page, EXIT to the quit page (not shown when the
+  browser was opened from the game menu), JOIN joins the selected server (a
+  double-click on a row too).
+
+The status line under the list shows the fetch progress where retail showed
+the refresh time, and the description line shows the hovered item's
+description. The screen is in
+[menu/classic/browser.rs](../crates/jkr-viewer/src/menu/classic/browser.rs).
+
 Retail entries JKR has no screen for yet (Play Demo, Rules, Mods, Defaults) are
 shown dimmed, and their description line says so.
 
 Controls and Setup keep their group list down the left and show the chosen
 group's items in the panel beside it, opening on Movement and Video as retail's
 pages do. The items are the same settings and key bindings as the modern
-screens, drawn the retail way: labels set against a column at retail `textalignx`,
-the value after them, toggles as Yes/No, numbers as the retail slider (`menu/new`
-art) with the value beside it, the focused item on the `menu_blendbox`
-highlight, and the open group's entry in white.
+screens, drawn the retail way: labels in capitals set against a column at retail
+`textalignx`, the value after them, toggles as YES/NO, numbers as the retail slider
+(`menu/new` art) with the value beside it, the focused item on the `menu_blendbox`
+highlight, and the open group's entry in white. A group with more items than the
+panel holds scrolls: the wheel over its items moves the list one item per notch
+(three on a key-binding group), a thin bar shows the position and can be dragged,
+and Up and Down keep the selected item in view.
 
 - Setup: Video (resolution, display mode, sync, frame cap, field of view) and More
   Video (the rest of the VIDEO settings: marks, shadows, gun, readouts, gamma)
@@ -117,8 +152,9 @@ highlight, and the open group's entry in white.
 
 Up and Down move through the items, Left and Right (or Enter) change a value,
 and typing or Enter on a number edits it exactly; clicking a slider sets it.
-Tab moves to the next group (on the key-binding groups, Left and Right do too). A key binding reads "A or B" (retail's `KEYBIND_OR`)
-or `???` when unbound; Enter or a click waits for the new key, shown in red with
+Tab moves to the next group (on the key-binding groups, Left and Right do too). A key binding reads "A OR B" (retail's `KEYBIND_OR`,
+raised to capitals with the key names as retail's `BindingFromName` does) or `???`
+when unbound; Enter or a click waits for the new key, shown in red with
 retail's "Enter new key, or ESC to cancel, BACKSPACE to clear.", and Backspace
 clears every key of the action. Escape closes the page to the main page.
 
@@ -152,14 +188,35 @@ once on a worker thread the first time the classic style is used, and the UI
 renderer uploads it into one texture per image, separate from the shared UI icon
 atlas. Its bind group changes only between draw runs that need a different
 texture, so layer order is kept. Additively blended retail images (glow, title
-band, bar) are converted to alpha at decode time. Animated retail stages (ring
-rotation, scrolling glyphs, logo glint, the logo video) are drawn still. A
-missing image falls back to JKR's own shapes. Retail assets are never bundled.
+band, bar) are converted to alpha at decode time. A missing image falls back to
+JKR's own shapes. Retail assets are never bundled.
+
+The art moves as retail's shaders move it (`shaders/ui.shader`); the `.menu`
+scripts themselves only swap pages at once and show or hide the glows. The main
+page plays `video/ja01` (`gfx/menus/videologo`) in its ring, looping at the
+file's 30 frames per second; an HD replacement in a later PK3 is used. The ring
+turns 5 degrees a second (`tcMod rotate 5`), the side glyph columns climb over
+their `menu_side_text_b` backdrop (`tcMod scroll 0 0.025`), and a quarter of
+`env_logo` drifts through the logo's translucent letters between an opaque and a
+blended pass of the logo, as its three shader stages do. The button and list
+glows, the title band and the in-game bar flicker: retail multiplies the screen
+under them by four scrolling layers of `gfx/hud/static_menu`, which the renderer
+reproduces by recomposing those small images with the noise on the CPU each frame
+they are drawn, over the piece alone because the UI blends with alpha. The video
+is decoded by JKR's RoQ decoder
+([menu/roq.rs](../crates/jkr-viewer/src/menu/roq.rs)) a frame at a time, only
+while the page shows it, and the motion clock and curves are in
+[motion.rs](../crates/jkr-viewer/src/menu/art/motion.rs). The focused entry's
+text pulses between white and 80% of it, as `Item_TextColor` does
+(`PULSE_DIVISOR` 75 ms); the open group's or page's entry stays steady white.
+Labels, buttons, titles and option values are in retail's capitals; descriptions,
+typed text, vote-list names and the about values keep their case.
 
 Outside a match the classic style draws no world. The main pages are opaque
-over the retail background (the centre gap where retail played its logo video
-stays dark), and the modern screens they open (Settings, key bindings, Player,
-server browser, Create game) get the retail backdrop beneath them. The frame
+over the retail background (the main page's logo video plays in the centre gap,
+the sub-pages' gap stays dark), and the modern screens they open (Settings, key
+bindings, Player, Create game) get the retail backdrop beneath them; the classic
+server browser draws its own. The frame
 then clears instead of rendering the map, its secondary views and flares; the
 boot map is still loaded, because the menu world is what joins build on, and
 switching back to `modern` shows it again. Not loading it at all in the classic
@@ -217,8 +274,8 @@ Planned follow-ups, each a new page or screen module, following the retail
 `ui/jamp` menus:
 
 - Classic versions of the screens the classic pages still open in the modern
-  style: Join Server (`joinserver`, `serverinfo`, `findplayer`, `password`,
-  `createfavorite`), Create Server (`createserver`, `advancedcreateserver`),
+  style: Join Server's `findplayer` and `createfavorite` pop-ups, Create
+  Server (`createserver`, `advancedcreateserver`),
   Solo Game (`quickgame`), and the in-game `ingame_playerforce`.
 - Retail option items JKR has no setting for (video quality presets, colour
   depth, geometric and texture detail, EAX, languages) are left out of the
@@ -229,8 +286,8 @@ Planned follow-ups, each a new page or screen module, following the retail
 - The screens with no JKR equivalent yet: Play Demo (`demo`), Rules
   (`rules*`), Mods, Defaults, Add Bot (`ingame_addbot`), Siege objectives and
   voice chat, and the error page (`error`).
-- The retail fonts (`ui_gameFont`, a separate change) and the animated art
-  stages.
+- The retail fonts (`ui_gameFont`, a separate change), and the main page's
+  hover captions (`*_undertext`, drawn in the `aurabesh` font).
 
 The player screen's Character and Saber pages write their cvars as soon as a
 value changes. The Force page edits a draft instead: Apply writes `forcepowers`
