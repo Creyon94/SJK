@@ -40,25 +40,6 @@ test: On a JA+ server: tell <part of a name> hello; then a name that matches sev
 test: Type +button12 in the console, close it: the hook holds. Then type -button12.
 test: bind g +grapple and grapple; releasing should let go of the hook as in EternalJK.
 
-[console-chat-history]
-pr: 100
-status: open
-area: Console & chat
-title: Chat kept in the console; one row per server print line
-change: Chat and team chat are echoed into the console scrollback, not into its notify lines.
-change: Server prints no longer leave a blank console row; multi-line prints get one row each.
-test: Join a local server, send chat: it shows in the chat box and in the console scrollback.
-test: The top-left notify lines show server prints but not the chat lines.
-test: Console scrollback has no empty row after each server print (e.g. a player connecting).
-
-[colour-codes-8-9]
-pr: 105
-status: open
-area: Console & chat
-title: ^8 orange and ^9 grey
-change: ^8 draws orange and ^9 grey as in OpenJK (they were black and red).
-test: say ^8orange ^9grey ^7white: chat, console and your name over the scoreboard.
-
 [wsi-logo]
 pr: 106
 status: open
@@ -226,17 +207,6 @@ test: Right from AUTO gives 0 (uncapped), then 25, 50...; dragging to the far le
 test: com_maxfps 144 then 60: cg_drawFPS holds 144 and 60, not a few frames below.
 test: Record with OBS uncapped vs AUTO: compare skipped frames in the OBS log.
 
-[settings-edit-fixes]
-pr: 101
-status: open
-area: Menus & settings
-title: Text edits stay on their setting; no float noise on sliders
-change: Typing in a text setting (e.g. master server) can no longer land in another row.
-change: Dragging 0.05-step sliders saves clean values (0.35, not 0.35000000000000003).
-test: Settings > NETWORK: edit Master server, move the mouse over other rows, press Enter.
-test: The text lands in Master server only; the other rows are unchanged.
-test: Drag a 0.05-step slider and check the value in the console (cvar name): no long decimals.
-
 # ---- Open PRs: HUD ----
 
 [crosshair-name]
@@ -353,16 +323,6 @@ test: For visible lighting set jkr_dayNight 1 and jkr_dayHour 7, restart, look a
 note: In baked lighting the effect is small by design.
 note: The generated maps are gentle (average tilt about 4 deg), so expect subtle changes.
 
-[crlf-shaders]
-pr: 70
-issue: 67
-status: open
-area: Rendering & effects
-title: Shader patching accepts CRLF checkouts
-change: Shader text patches normalise Windows (CRLF) line ends first; *.wgsl is kept LF in Git.
-test: Set jkr_dayNight 1 and restart: the client starts without a "stage program changed" panic.
-test: The sky follows the day tint as the hour changes (jkr_dayHour, or jkr_dayMinutes 2).
-
 [stage-collapse]
 pr: 71
 issue: 69
@@ -396,17 +356,6 @@ change: Output: %APPDATA%\jkr\generated\zzz_jkr_materials.pk3, never inside the 
 test: cargo run --release -p jkr-materialgen -- --limit 50, then read its printed summary.
 test: JKR_CONTENT=<that folder>, with r_normalMapping 1: the material maps log counts rise.
 test: Its manifest.json lists every source texture with its class, and each skipped shader.
-
-[old-humanoid-models]
-pr: 97
-status: open
-area: Rendering & effects
-title: Old 72-bone player models load instead of failing the join
-change: Models like jarjar, spiderman, oldben use stock's bone remap; other bad models -> Kyle.
-change: Before, one player with such a model on a server made the whole map load fail.
-test: seta model "jarjar" (also spiderman, oldben, sebulba), join a local server: you are jarjar.
-test: In third person check the pose and animations look right (arms, legs, head, face).
-test: Join a public server with custom models: no "map transition failed" in the log.
 
 # ---- Open PRs: Audio ----
 
@@ -477,6 +426,27 @@ test: JA+: two players duel, walk through them; while duelling, walk through a b
 
 # ---- Personal (sol/main only) ----
 
+[classic-scoreboard]
+status: personal
+area: HUD
+title: Classic scoreboard (JoF EJK layout) with client IDs
+change: cg_scoreboardStyle classic (Settings > HUD+): retail/JoF layout with an Id column.
+change: Fades in, rows glide when the order changes, compact rows for full servers.
+test: Settings > HUD+ > scoreboard style classic; hold the scoreboard in FFA, team, CTF.
+test: Ids match /status; your row highlighted; bots BOT; spectators listed last.
+note: Upstream PR pending until the public fork exists again.
+
+[menu-huds]
+status: personal
+area: HUD
+title: Game-data HUD: retail HUD and custom HUD packs (Radial HUD)
+change: cg_hudStyle game draws the HUD from ui/hud.menu: retail, or a pk3 replacing it.
+change: cg_hudFiles picks a HUD list (ui/jahud.txt default; 3 elegance, 4 JoF if mounted).
+test: Settings > HUD style game: your TheRisqe Radial HUD shows (zz_ pk3 in base).
+test: Health, armor, Force, ammo tics and numbers follow damage, pickups and firing.
+test: Move zz_TheRisqe_Radial_HUD.pk3 away: the retail HUD appears instead.
+note: Upstream PR pending until the public fork exists again.
+
 [sjk-branding]
 status: personal
 area: Menus & settings
@@ -519,6 +489,57 @@ test: Tick an entry (Space, Enter or its box), restart the client: the tick is s
 test: Wheel, arrows, PageUp / PageDown, Home / End; Tab cycles TO TEST, TESTED and ALL.
 
 # ---- Merged upstream ----
+
+[console-chat-history]
+pr: 100
+status: merged
+area: Console & chat
+title: Chat kept in the console; one row per server print line
+change: Chat and team chat are echoed into the console scrollback, not into its notify lines.
+change: Server prints no longer leave a blank console row; multi-line prints get one row each.
+test: Join a local server, send chat: it shows in the chat box and in the console scrollback.
+test: The top-left notify lines show server prints but not the chat lines.
+test: Console scrollback has no empty row after each server print (e.g. a player connecting).
+
+[colour-codes-8-9]
+pr: 105
+status: merged
+area: Console & chat
+title: ^8 orange and ^9 grey
+change: ^8 draws orange and ^9 grey as in OpenJK (they were black and red).
+test: say ^8orange ^9grey ^7white: chat, console and your name over the scoreboard.
+
+[settings-edit-fixes]
+pr: 101
+status: merged
+area: Menus & settings
+title: Text edits stay on their setting; no float noise on sliders
+change: Typing in a text setting (e.g. master server) can no longer land in another row.
+change: Dragging 0.05-step sliders saves clean values (0.35, not 0.35000000000000003).
+test: Settings > NETWORK: edit Master server, move the mouse over other rows, press Enter.
+test: The text lands in Master server only; the other rows are unchanged.
+test: Drag a 0.05-step slider and check the value in the console (cvar name): no long decimals.
+
+[crlf-shaders]
+pr: 70
+issue: 67
+status: merged
+area: Rendering & effects
+title: Shader patching accepts CRLF checkouts
+change: Shader text patches normalise Windows (CRLF) line ends first; *.wgsl is kept LF in Git.
+test: Set jkr_dayNight 1 and restart: the client starts without a "stage program changed" panic.
+test: The sky follows the day tint as the hour changes (jkr_dayHour, or jkr_dayMinutes 2).
+
+[old-humanoid-models]
+pr: 97
+status: merged
+area: Rendering & effects
+title: Old 72-bone player models load instead of failing the join
+change: Models like jarjar, spiderman, oldben use stock's bone remap; other bad models -> Kyle.
+change: Before, one player with such a model on a server made the whole map load fail.
+test: seta model "jarjar" (also spiderman, oldben, sebulba), join a local server: you are jarjar.
+test: In third person check the pose and animations look right (arms, legs, head, face).
+test: Join a public server with custom models: no "map transition failed" in the log.
 
 [console-browser]
 pr: 88
