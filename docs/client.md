@@ -505,6 +505,12 @@ Menu navigation keys (W/A/S/D beside the arrows) stay positional. See
 [keys.rs](../crates/jkr-viewer/src/input/keys.rs) and
 [key_names.rs](../crates/jkr-shell/src/key_names.rs).
 
+## Colour codes
+
+Text draws `^0` to `^9` as OpenJK's ten-entry colour table does: `^0`–`^7` are
+the retail colours, `^8` is orange and `^9` grey (retail wrapped them onto black
+and red). The table is `quake_color` in [text.rs](../crates/jkr-viewer/src/text.rs).
+
 ## Useful console commands
 
 Printable console shortcuts open the console but type normally once it is open;
