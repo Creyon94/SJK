@@ -28,36 +28,6 @@
 
 # ---- Open PRs: Console & chat ----
 
-[console-browser]
-pr: 6
-status: open
-area: Console & chat
-title: Searchable command and cvar browser
-change: F3 in the open console (or the consolebrowser command) lists every command and cvar.
-change: Search, ALL/COMMANDS/CVARS/CHANGED tabs, inline cvar editing and reset to default.
-test: Open the console and press F3; type "draw": names that start with it come first.
-test: Tab / Shift+Tab cycle the four tabs; CHANGED lists only cvars off their default.
-test: Enter on cg_drawFPS, type 1, Enter: the value updates. Type abc: the footer shows an error.
-test: Delete restores the default; Enter on a command puts it on the console line.
-test: Mouse: hover selects, wheel scrolls, drag the scrollbar, click rows, tabs and footer caps.
-test: Esc or F3 returns to the console. Also try it during a live match.
-test: Game font on (ui_gameFont 1): no menu or chat text shows through the browser.
-test: Same with debug_panel open over a menu: no menu text shows through.
-
-[console-editing]
-pr: 33
-issue: 12
-status: open
-area: Console & chat
-title: Caret editing and output selection in the console
-change: The input line has a caret: arrows, Ctrl+arrows, Home/End, Shift selects, Ctrl+A/X/V.
-change: Drag over output to select, double-click selects a word, Ctrl+C copies without colours.
-test: Type a command, move with the arrows and Ctrl+arrows, fix a character in the middle.
-test: Drag over an output line, Ctrl+C, then Ctrl+V it into the input line.
-test: Double-click an address such as 127.0.0.1:29070: the whole token is selected.
-test: Click in the input line: the caret lands before the clicked character.
-test: Set ui_letterSpacing 0.05 (Settings > TEXT): caret and highlights stay on their glyphs.
-
 [tell-grapple]
 pr: 34
 issue: 28
@@ -70,31 +40,7 @@ test: On a JA+ server: tell <part of a name> hello; then a name that matches sev
 test: Type +button12 in the console, close it: the hook holds. Then type -button12.
 test: bind g +grapple and grapple; releasing should let go of the hook as in EternalJK.
 
-[server-prints]
-pr: 58
-issue: 52
-status: open
-area: Console & chat
-title: Server prints go to the console, not the chat box
-change: Server print text goes to the console and its top-left notify lines, never the chat box.
-change: Chat still shows in the chat box and is now also kept in the console scrollback.
-test: Join a local server and run a command with a server reply (for example a mod command).
-test: The reply shows in the notify lines and in the console, not in the chat box.
-test: Send chat: it shows in the chat box and the console, not in the notify lines.
-
 # ---- Open PRs: Input ----
-
-[dead-keys]
-pr: 61
-issue: 54
-status: open
-area: Input
-title: Dead keys show at the caret in console and chat
-change: On AZERTY/QWERTZ a dead ^ shows at the caret at once, then composes with the next key.
-test: Switch Windows to French AZERTY, then try the steps below in the console and in chat.
-test: ^ then Shift+1: ^ shows on the first key; the line ends up ^1 and later text is coloured.
-test: ^ then e gives an e with a circumflex; ^ then Backspace removes only the ^.
-test: ^ then Enter in chat sends ^. On a US layout everything behaves as before.
 
 [layout-key-names]
 pr: 62
@@ -110,21 +56,6 @@ test: Switch layout (Alt+Shift) while holding a movement key: it must not stay s
 note: Rebind movement to z/q/s/d: bind w/a/s/d now means the keys labelled W/A/S/D.
 
 # ---- Open PRs: Menus & settings ----
-
-[slider-entry]
-pr: 32
-issue: 10
-status: open
-area: Menus & settings
-title: Type exact values into menu sliders
-change: Click a slider's number, press Enter or type digits; Enter applies, Esc cancels.
-change: Typed values are kept exact, only clamped to the row's range (review fix).
-test: Settings > Video: click the FPS cap number, type 300, Enter.
-test: FPS cap: type 142, it stays 142; 333 stays 333; dragging still steps by 25.
-test: Field of view: type 97.4, it stays 97.4; type 500, it becomes 130.
-test: On a selected slider type digits directly; press Esc mid-entry; click another row mid-entry.
-test: Player > Saber: click the Red value and type 300: it becomes 255.
-test: Regression: drag along each rail; Left / Right / Space still step.
 
 [text-spacing]
 pr: 37
@@ -251,19 +182,6 @@ test: Try 1080p and 1440p if possible, and cg_hudScale; long names end in an ell
 
 # ---- Open PRs: Rendering & effects ----
 
-[chat-bubble]
-pr: 30
-issue: 26
-status: open
-area: Rendering & effects
-title: Talk balloons and connection icons over players
-change: A player with the console, a menu or chat open shows a balloon; a lagging one a net icon.
-change: Latest round: these billboards (and simple item icons) are drawn upright.
-test: Local server, two clients (bots never type): open chat, the console or Esc on one.
-test: The other client sees an upright balloon over that player; it goes when closed.
-test: In third person you see your own balloon. cg_simpleItems 1: item icons are upright.
-test: A client that stops sending commands for over a second shows the connection icon.
-
 [speed-trail]
 pr: 35
 issue: 17
@@ -386,31 +304,43 @@ test: Default Vulkan backend: players, NPCs and other skinned models look exactl
 test: Optional: WGPU_BACKEND=dx12 now fails on the HUD shader, no longer on skinning (X3511).
 note: DX12 failing on the HUD shader (X3507) is known and not fixed by this PR.
 
-# ---- Open PRs: Audio ----
-
-[anim-event-sounds]
-pr: 41
-issue: 27
+[material-generator]
+pr: 78
+issue: 65
 status: open
-area: Audio
-title: Animation-event sounds (fast-style taunt)
-change: animevents.cfg sounds play: the fast taunt's saber spin, kicks, katas, punches, falls.
-test: Join a server, select the fast (blue) style and taunt: the twirl whooshes several times.
-test: Try a saber kick and melee punches.
-test: Review fix: npc spawn rancor or change model; no stutter on first appearance.
+area: Rendering & effects
+title: Local generator of rend2-style material maps (jkr-materialgen)
+change: A command-line tool writes normal and roughness/metal maps for the installed maps.
+change: Output: %APPDATA%\jkr\generated\zzz_jkr_materials.pk3, never inside the game folder.
+test: cargo run --release -p jkr-materialgen -- --limit 50, then read its printed summary.
+test: JKR_CONTENT=<that folder>, with r_normalMapping 1: the material maps log counts rise.
+test: Its manifest.json lists every source texture with its class, and each skipped shader.
+
+[old-humanoid-models]
+pr: 97
+status: open
+area: Rendering & effects
+title: Old 72-bone player models load instead of failing the join
+change: Models like jarjar, spiderman, oldben use stock's bone remap; other bad models -> Kyle.
+change: Before, one player with such a model on a server made the whole map load fail.
+test: seta model "jarjar" (also spiderman, oldben, sebulba), join a local server: you are jarjar.
+test: In third person check the pose and animations look right (arms, legs, head, face).
+test: Join a public server with custom models: no "map transition failed" in the log.
+
+# ---- Open PRs: Audio ----
 
 # ---- Open PRs: Gameplay ----
 
-[noclip]
-pr: 31
-issue: 16
+[join-retries]
+pr: 98
 status: open
 area: Gameplay
-title: noclip cheat on the dedicated server
-change: jkr-dedicated has noclip with the stock cheat checks (needs --cheats or devmap).
-test: Start jkr-dedicated --map mp/ffa3 --bind 127.0.0.1:29071 --cheats and connect.
-test: Type noclip: fly through walls, attack is turbo, no pickups, triggers or damage.
-test: Type noclip again to land. Without --cheats it answers that cheats are not enabled.
+title: Joining resends lost packets and never hangs as a floating camera
+change: getchallenge/connect are resent like stock; a missing gamestate fails after ~15 s.
+change: The log shows each join step (join: Challenge, Connected, Gamestate, FirstSnapshot).
+test: Join several public servers a few times each: no "timed out waiting for challenge".
+test: If a join stalls, it ends with an error within ~15 s instead of floating on the map.
+test: After any failed join, logs\last-client.log shows the last join: step reached.
 
 # ---- Personal (sol/main only) ----
 
@@ -425,6 +355,118 @@ test: Tick an entry (Space, Enter or its box), restart the client: the tick is s
 test: Wheel, arrows, PageUp / PageDown, Home / End; Tab cycles TO TEST, TESTED and ALL.
 
 # ---- Merged upstream ----
+
+[console-browser]
+pr: 88
+status: merged
+area: Console & chat
+title: Searchable command and cvar browser
+change: F3 in the open console (or the consolebrowser command) lists every command and cvar.
+change: Search, ALL/COMMANDS/CVARS/CHANGED tabs, inline cvar editing and reset to default.
+test: Open the console and press F3; type "draw": names that start with it come first.
+test: Tab / Shift+Tab cycle the four tabs; CHANGED lists only cvars off their default.
+test: Enter on cg_drawFPS, type 1, Enter: the value updates. Type abc: the footer shows an error.
+test: Delete restores the default; Enter on a command puts it on the console line.
+test: Mouse: hover selects, wheel scrolls, drag the scrollbar, click rows, tabs and footer caps.
+test: Esc or F3 returns to the console. Also try it during a live match.
+test: Game font on (ui_gameFont 1): no menu or chat text shows through the browser.
+test: Same with debug_panel open over a menu: no menu text shows through.
+note: Bishop's #88 replaced your #6 (you are co-author); some steps may differ.
+
+[console-editing]
+pr: 88
+issue: 12
+status: merged
+area: Console & chat
+title: Caret editing and output selection in the console
+change: The input line has a caret: arrows, Ctrl+arrows, Home/End, Shift selects, Ctrl+A/X/V.
+change: Drag over output to select, double-click selects a word, Ctrl+C copies without colours.
+test: Type a command, move with the arrows and Ctrl+arrows, fix a character in the middle.
+test: Drag over an output line, Ctrl+C, then Ctrl+V it into the input line.
+test: Double-click an address such as 127.0.0.1:29070: the whole token is selected.
+test: Click in the input line: the caret lands before the clicked character.
+test: Set ui_letterSpacing 0.05 (Settings > TEXT): caret and highlights stay on their glyphs.
+note: Bishop's #88 replaced your #33 (you are co-author); some steps may differ.
+
+[server-prints]
+pr: 83
+issue: 52
+status: merged
+area: Console & chat
+title: Server prints go to the console, not the chat box
+change: Server print text goes to the console and its top-left notify lines, never the chat box.
+change: Chat still shows in the chat box and is now also kept in the console scrollback.
+test: Join a local server and run a command with a server reply (for example a mod command).
+test: The reply shows in the notify lines and in the console, not in the chat box.
+test: Send chat: it shows in the chat box and the console, not in the notify lines.
+note: Bishop's #83 keeps prints out of chat; your #58 console extras are not here.
+
+[slider-entry]
+pr: 94
+issue: 10
+status: merged
+area: Menus & settings
+title: Type exact values into menu sliders
+change: Click a slider's number, press Enter or type digits; Enter applies, Esc cancels.
+change: Typed values are kept exact, only clamped to the row's range (review fix).
+test: Settings > Video: click the FPS cap number, type 300, Enter.
+test: FPS cap: type 142, it stays 142; 333 stays 333; dragging still steps by 25.
+test: Field of view: type 97.4, it stays 97.4; type 500, it becomes 130.
+test: On a selected slider type digits directly; press Esc mid-entry; click another row mid-entry.
+test: Player > Saber: click the Red value and type 300: it becomes 255.
+test: Regression: drag along each rail; Left / Right / Space still step.
+note: Bishop's #94 replaced your #32: manual values on every slider.
+
+[chat-bubble]
+pr: 92, 96
+issue: 26
+status: merged
+area: Rendering & effects
+title: Talk balloons and connection icons over players
+change: A player with the console, a menu or chat open shows a balloon; a lagging one a net icon.
+change: Latest round: these billboards (and simple item icons) are drawn upright.
+test: Local server, two clients (bots never type): open chat, the console or Esc on one.
+test: The other client sees an upright balloon over that player; it goes when closed.
+test: In third person you see your own balloon. cg_simpleItems 1: item icons are upright.
+test: A client that stops sending commands for over a second shows the connection icon.
+note: Bishop's #92 and #96 replaced your #30; icons no longer fade by distance.
+
+[anim-event-sounds]
+pr: 90
+issue: 27
+status: merged
+area: Audio
+title: Animation-event sounds (fast-style taunt)
+change: animevents.cfg sounds play: the fast taunt's saber spin, kicks, katas, punches, falls.
+test: Join a server, select the fast (blue) style and taunt: the twirl whooshes several times.
+test: Try a saber kick and melee punches.
+test: Review fix: npc spawn rancor or change model; no stutter on first appearance.
+note: Bishop's #90 replaced your #41 (footsteps and authored sound cues).
+
+[noclip]
+pr: 95
+issue: 16
+status: merged
+area: Gameplay
+title: noclip cheat on the dedicated server
+change: jkr-dedicated has noclip with the stock cheat checks (needs --cheats or devmap).
+test: Start jkr-dedicated --map mp/ffa3 --bind 127.0.0.1:29071 --cheats and connect.
+test: Type noclip: fly through walls, attack is turbo, no pickups, triggers or damage.
+test: Type noclip again to land. Without --cheats it answers that cheats are not enabled.
+note: Bishop's #95 replaced your #31; it also adds a client devmap command.
+
+[dead-keys]
+pr: 88, 92
+issue: 54
+status: merged
+area: Input
+title: Dead keys show at the caret in console and chat
+change: On AZERTY/QWERTZ a dead ^ shows at the caret at once, then composes with the next key.
+test: Switch Windows to French AZERTY, then try the steps below in the console and in chat.
+test: ^ then Shift+1: ^ shows on the first key; the line ends up ^1 and later text is coloured.
+test: ^ then e gives an e with a circumflex; ^ then Backspace removes only the ^.
+test: ^ then Enter in chat sends ^. On a US layout everything behaves as before.
+note: Your #61 is not in this build: upstream types a dead ^ itself (#88, #92).
 
 [baton-sound]
 pr: 29
