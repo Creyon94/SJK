@@ -4,7 +4,7 @@ use crate::menu_widgets::numeric::{EditResult, NumericEdit};
 
 impl SettingsMenu {
     pub(super) fn begin_numeric(&mut self, console: &ViewerConsole, row: usize) -> bool {
-        let Some(setting) = settings(self.tab).get(row) else {
+        let Some(setting) = self.rows().get(row) else {
             return false;
         };
         let (min, max, integer) = match setting.kind {
@@ -27,7 +27,7 @@ impl SettingsMenu {
     /// SJK: typing a number on a selected slider opens entry with what was
     /// typed. False when the row is not a slider or `typed` cannot start a number.
     pub(super) fn begin_typed(&mut self, row: usize, typed: &str) -> bool {
-        let Some(setting) = settings(self.tab).get(row) else {
+        let Some(setting) = self.rows().get(row) else {
             return false;
         };
         let (min, max, integer) = match setting.kind {
@@ -78,7 +78,7 @@ impl SettingsMenu {
 
     fn commit_numeric(&mut self, row: usize, value: f64, console: &mut ViewerConsole) {
         self.numeric = None;
-        let Some(setting) = settings(self.tab).get(row) else {
+        let Some(setting) = self.rows().get(row) else {
             return;
         };
         let value = if matches!(setting.kind, ValueKind::Integer { .. }) {

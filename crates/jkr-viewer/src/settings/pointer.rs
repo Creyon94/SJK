@@ -93,22 +93,19 @@ impl SettingsMenu {
             return SettingsResult::None;
         }
         match token {
-            500.. if usize::from(token - 500) < TABS.len() => {
-                self.tab = usize::from(token - 500);
-                self.selected = 0;
-                self.editing = None;
-                self.refresh(console);
+            500.. if usize::from(token - 500) < self.tabs().len() => {
+                self.select_tab(console, usize::from(token - 500));
             }
-            900 => return SettingsResult::Back,
-            _ if self.tab == KEYBINDS_TAB && usize::from(token) == settings(KEYBINDS_TAB).len() => {
-                return SettingsResult::OpenKeybinds;
+            900 => return self.back(console),
+            _ if self.action().is_some() && usize::from(token) == self.rows().len() => {
+                return self.activate_action(console);
             }
             _ => {
                 let Some(row) = self.setting_row(token) else {
                     return SettingsResult::None;
                 };
                 self.selected = row;
-                if let Some(setting) = settings(self.tab).get(row) {
+                if let Some(setting) = self.rows().get(row) {
                     if matches!(setting.kind, ValueKind::Text) {
                         self.begin_text(console, row);
                     } else if matches!(setting.kind, ValueKind::Resolution) {
@@ -144,7 +141,7 @@ impl SettingsMenu {
             Some(classic) => classic.rows.contains(&row),
             None => true,
         };
-        (row < settings(self.tab).len() && shown).then_some(row)
+        (row < self.rows().len() && shown).then_some(row)
     }
 
     fn set_numeric_from_pointer(
@@ -153,7 +150,7 @@ impl SettingsMenu {
         row: usize,
         pointer_x: f32,
     ) -> bool {
-        let Some(setting) = settings(self.tab).get(row) else {
+        let Some(setting) = self.rows().get(row) else {
             return false;
         };
         let Some(rect) = self.ui.rect_for(row as u16) else {

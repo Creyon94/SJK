@@ -120,7 +120,7 @@ volumetric pass means no dust. Secondary views remain excluded.
 The shader still generates up to 2048 world-space motes in a wrapping 640-unit
 cube, with distance and near-eye fades, depth testing and peak opacity 0.35.
 `jkr_dust` controls density and opacity; it does not enable volumetrics implicitly.
-The Game tab calls it **Sunbeam dust**. Shared froxel parameters and depth mapping
+The renderer settings' IMAGE tab calls it **Sunbeam dust**. Shared froxel parameters and depth mapping
 keep the sampling coordinates aligned with godrays. The pass reuses existing
 volume textures and slice means after their current-frame computation, with no
 extra volume, readback or per-frame CPU light-grid sample. Uniform writes use
@@ -147,6 +147,10 @@ The sampled combined volumetric/dust GPU phase was 0.133 → 0.138 ms on `ffa3`
 and 0.136 → 0.140 ms on `ffa1`. These short fixed-view runs used a frozen shader
 clock for capture, omit populated-match workload, and establish integration and
 indicative GPU cost only. No verification hooks or fixtures are shipped.
+
+These and the other `jkr_*` rendering cvars can also be changed in the client's
+renderer settings page (Settings > VIDEO > Renderer; see
+[client.md](client.md#renderer-settings)), with the same ranges and restart rules.
 
 ## Volumetric silhouette coverage
 

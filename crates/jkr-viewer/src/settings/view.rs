@@ -23,19 +23,25 @@ impl SettingsMenu {
         }
         let layout = FormLayout::new(viewport);
         self.ui.begin_hero(viewport, reveal, Scrim::Full);
-        self.ui.form_header(
-            &layout,
-            "SJK   /   SETTINGS",
-            TABS[self.tab],
-            "Changes apply immediately and are saved.",
-        );
-        self.ui.form_tabs(&layout, &TABS, self.tab);
+        let (title, note) = match self.section {
+            Section::General => (
+                "SJK   /   SETTINGS",
+                "Changes apply immediately and are saved.",
+            ),
+            Section::Renderer => (
+                "SJK   /   RENDERER",
+                "Saved immediately; (restart) rows apply after restarting.",
+            ),
+        };
+        let tabs = self.tabs();
+        self.ui.form_header(&layout, title, tabs[self.tab], note);
+        self.ui.form_tabs(&layout, tabs, self.tab);
         // Only the rows in the scroll window are drawn and hit-tested.
-        let count = settings(self.tab).len() + usize::from(self.tab == KEYBINDS_TAB);
+        let count = self.row_count();
         let shown = self.scroll.fit(&layout, count, self.selected);
         self.scroll.mark(&mut self.ui, &layout);
         let layout = self.scroll.shifted(layout);
-        let tab = settings(self.tab).iter().enumerate();
+        let tab = self.rows().iter().enumerate();
         for (row, setting) in tab.take(shown.end).skip(shown.start) {
             let draft = self.editing.as_ref().filter(|draft| draft.row == row);
             let value = draft
@@ -54,11 +60,17 @@ impl SettingsMenu {
                 self.numeric.as_ref(),
             );
         }
-        let row = settings(KEYBINDS_TAB).len();
-        if self.tab == KEYBINDS_TAB && shown.contains(&row) {
+        let row = self.rows().len();
+        if let Some(action) = self.action()
+            && shown.contains(&row)
+        {
             let selected = row == self.selected;
+            let value = match action {
+                Action::Keybinds => "EDIT  >",
+                Action::Renderer => "OPEN  >",
+            };
             self.ui
-                .form_action_row(&layout, row, selected, "Key bindings", "EDIT  >");
+                .form_action_row(&layout, row, selected, action.label(), value);
         }
         self.ui.form_footer(&layout, &KEY_HINTS);
         self.ui.end_hero();
