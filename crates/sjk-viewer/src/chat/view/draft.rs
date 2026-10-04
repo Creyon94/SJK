@@ -47,7 +47,7 @@ impl ChatOverlay {
             input.layout.rect,
             size,
             if input.text.is_empty() {
-                Color::new(0.62, 0.68, 0.74, 0.8)
+                Color::new(0.809, 0.843, 0.876, 0.905)
             } else {
                 self.ui.theme().foreground
             },

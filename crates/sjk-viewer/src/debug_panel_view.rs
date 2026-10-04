@@ -17,7 +17,7 @@ const NOTE: Color = Color::new(1.0, 0.80, 0.42, 0.96);
 /// Colour of a merged entry's status.
 const MERGED: Color = Color::new(0.52, 0.86, 0.60, 0.95);
 /// Secondary text in rows and the pane.
-const SOFT: Color = Color::new(0.82, 0.88, 0.94, 0.86);
+const SOFT: Color = Color::new(0.916, 0.945, 0.973, 0.936);
 
 impl Panel {
     /// Draw the panel over the whole frame. Overlay text draws above every overlay's
@@ -180,7 +180,7 @@ impl Panel {
             if selected {
                 theme.foreground
             } else if dim {
-                Color::new(0.70, 0.76, 0.82, 0.70)
+                Color::new(0.854, 0.886, 0.916, 0.853)
             } else {
                 SOFT
             },
@@ -195,7 +195,7 @@ impl Panel {
             &entry.meta,
             Rect::new(text_x, rect.y + 31.0 * s, rect.right() - text_x, 16.0 * s),
             11.0 * s,
-            Color::new(0.70, 0.78, 0.86, 0.72),
+            Color::new(0.854, 0.896, 0.936, 0.864),
             FontWeight::Semibold,
             1.2 * s,
         );

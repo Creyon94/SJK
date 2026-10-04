@@ -69,6 +69,24 @@ pub(crate) fn surface_view(
     })
 }
 
+/// Linear-light value of one sRGB-encoded (display) channel.
+pub(crate) fn srgb_to_linear(value: f32) -> f32 {
+    if value <= 0.04045 {
+        value / 12.92
+    } else {
+        ((value + 0.055) / 1.055).powf(2.4)
+    }
+}
+
+/// sRGB-encoded (display) value of one linear-light channel.
+pub(crate) fn linear_to_srgb(value: f32) -> f32 {
+    if value <= 0.003_130_8 {
+        value * 12.92
+    } else {
+        1.055 * value.powf(1.0 / 2.4) - 0.055
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -95,5 +113,18 @@ mod tests {
         );
         assert!(surface_view_formats(F::Bgra8UnormSrgb, false).is_empty());
         assert!(surface_view_formats(F::Bgra8Unorm, true).is_empty());
+    }
+
+    #[test]
+    fn transfer_functions_round_trip_and_hit_reference_points() {
+        for step in 0..=255 {
+            let value = step as f32 / 255.0;
+            assert!((linear_to_srgb(srgb_to_linear(value)) - value).abs() < 1e-5);
+        }
+        // #bcbcbc is relative luminance 0.5; linear 0.5 shows as 188/255.
+        assert!((srgb_to_linear(188.0 / 255.0) - 0.5029).abs() < 1e-3);
+        assert!((linear_to_srgb(0.5) - 0.7354).abs() < 1e-3);
+        assert_eq!(srgb_to_linear(0.0), 0.0);
+        assert!((srgb_to_linear(1.0) - 1.0).abs() < 1e-6);
     }
 }

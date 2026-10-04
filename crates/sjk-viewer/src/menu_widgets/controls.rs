@@ -150,7 +150,7 @@ impl MenuCanvas {
             color: if on {
                 Color::new(0.03, 0.02, 0.02, 0.95)
             } else {
-                Color::new(0.85, 0.89, 0.94, 0.8)
+                Color::new(0.931, 0.95, 0.973, 0.906)
             },
         });
     }
@@ -189,7 +189,7 @@ impl MenuCanvas {
                 thumb_height,
             ),
             radius: track.width * 0.5,
-            color: Color::new(0.62, 0.72, 0.80, 0.55),
+            color: Color::new(0.809, 0.865, 0.906, 0.765),
         });
     }
 }

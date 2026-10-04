@@ -372,7 +372,7 @@ pub(crate) fn append_text_face(
         scale,
         viewport,
         face,
-        [0.92, 0.95, 0.98, 1.0],
+        [0.964, 0.978, 0.991, 1.0],
         0.0,
     )
 }
