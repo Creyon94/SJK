@@ -81,6 +81,7 @@ impl Runtime {
         Self::configured(
             &context.device,
             context.format,
+            context.ui_direct,
             size,
             context.fxaa,
             context.post_color.policy(),
@@ -89,10 +90,13 @@ impl Runtime {
         )
     }
 
+    /// `ui_direct` is [`crate::gpu_context::Context::ui_direct`]: without it the
+    /// 2D layer always goes through an intermediate with a UNORM alias.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn configured(
         device: &wgpu::Device,
         format: wgpu::TextureFormat,
+        ui_direct: bool,
         size: [u32; 2],
         fxaa: bool,
         policy: color::Policy,
@@ -105,11 +109,12 @@ impl Runtime {
             && !policy.tonemap
             && !policy.bloom
             && policy.gamma == 1.0
+            && ui_direct
         {
             return None;
         }
         let mut runtime = Self::pass_hdr(device, format, size, fxaa, policy, hdr, effects);
-        if runtime.scene_effects() && policy.gamma != 1.0 {
+        if runtime.scene_effects() && needs_display_pass(policy.gamma, ui_direct) {
             runtime.display = Some(Box::new(Self::pass(
                 device,
                 format,
@@ -339,25 +344,38 @@ impl Runtime {
         self.effects.as_ref()
     }
 
-    /// Intermediate receiving UI; gamma corrects it without filtering any glyphs.
-    pub(crate) fn hud_target<'a>(&'a self, output: &'a wgpu::TextureView) -> &'a wgpu::TextureView {
+    /// View the 2D layer draws into, always UNORM ([`crate::ui_target`]): the
+    /// display intermediate's alias, which the display pass ramps without
+    /// filtering any glyphs; this pass's own scene alias when it only applies the
+    /// ramp; else `output_ui`, the swapchain image's 2D view.
+    pub(crate) fn hud_target<'a>(
+        &'a self,
+        output_ui: &'a wgpu::TextureView,
+    ) -> &'a wgpu::TextureView {
         if let Some(display) = &self.display {
-            &display.scene
+            &display.inputs.sample
         } else if !self.scene_effects() {
-            &self.scene
+            &self.inputs.sample
         } else {
-            output
+            output_ui
         }
     }
 
     /// Resolve only scene effects here; display gamma is deliberately later.
+    /// The resolve writes linear colour through the sRGB view of the texture
+    /// the 2D layer then draws into.
     pub(crate) fn draw_scene(
         &self,
         encoder: &mut wgpu::CommandEncoder,
         output: &wgpu::TextureView,
     ) {
         if self.scene_effects() {
-            self.draw(encoder, self.hud_target(output));
+            self.draw(
+                encoder,
+                self.display
+                    .as_ref()
+                    .map_or(output, |display| &display.scene),
+            );
         }
     }
 
@@ -423,6 +441,12 @@ impl Runtime {
     }
 }
 
+/// A scene resolve is followed by a separate display pass when the ramp is not
+/// identity, or when the 2D layer cannot draw into the swapchain image directly.
+fn needs_display_pass(gamma: f32, ui_direct: bool) -> bool {
+    gamma != 1.0 || !ui_direct
+}
+
 fn parameters(fxaa: bool, policy: color::Policy) -> [f32; 4] {
     [
         f32::from(u8::from(fxaa)),
@@ -434,4 +458,20 @@ fn parameters(fxaa: bool, policy: color::Policy) -> [f32; 4] {
         },
         if policy.bloom { 0.35 } else { 0.0 },
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::needs_display_pass;
+
+    #[test]
+    fn display_pass_follows_gamma_and_surface_aliasing() {
+        // Default path: the 2D layer draws into the swapchain image's UNORM view.
+        assert!(!needs_display_pass(1.0, true));
+        // r_gamma ramps world and 2D layer together after the overlays.
+        assert!(needs_display_pass(1.2, true));
+        // No UNORM view of the swapchain: the 2D layer uses the intermediate's alias.
+        assert!(needs_display_pass(1.0, false));
+        assert!(needs_display_pass(0.8, false));
+    }
 }

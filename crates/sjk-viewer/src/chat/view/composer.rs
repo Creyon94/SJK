@@ -25,7 +25,7 @@ impl ChatOverlay {
                 if selected || self.ui.token_hovered(token) {
                     tint(channel, 1.0)
                 } else {
-                    Color::new(0.58, 0.65, 0.72, 1.0)
+                    Color::new(0.786, 0.827, 0.865, 1.0)
                 },
                 FontWeight::Semibold,
                 0.0,
@@ -82,7 +82,7 @@ impl ChatOverlay {
                 self.notice,
                 Rect::new(g.left, y + 94.0 * g.scale, g.width, 20.0 * g.scale),
                 11.0 * g.scale,
-                Color::new(0.66, 0.73, 0.79, 0.85),
+                Color::new(0.832, 0.87, 0.901, 0.93),
                 FontWeight::Regular,
                 0.0,
             );

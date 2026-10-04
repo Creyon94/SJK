@@ -80,8 +80,8 @@ pub struct Theme {
 impl Default for Theme {
     fn default() -> Self {
         Self {
-            foreground: Color::new(0.94, 0.97, 1.0, 1.0),
-            muted: Color::new(0.60, 0.68, 0.76, 1.0),
+            foreground: Color::new(0.973, 0.987, 1.0, 1.0),
+            muted: Color::new(0.798, 0.843, 0.886, 1.0),
             surface: Color::new(0.018, 0.035, 0.055, 0.78),
             surface_strong: Color::new(0.012, 0.026, 0.043, 0.92),
             accent: Color::new(1.0, 0.416, 0.239, 1.0),

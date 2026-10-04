@@ -231,13 +231,13 @@ impl ChatOverlay {
                     "Messages hidden on this client",
                     Rect::new(x, body_y, g.width, row_box(g)),
                     15.0 * g.scale,
-                    Color::new(0.64, 0.70, 0.76, alpha * 0.7),
+                    Color::new(0.821, 0.854, 0.886, alpha * 0.853),
                     FontWeight::Regular,
                     0.0,
                 );
             } else {
                 for (row, range) in line.wrap.rows[..line.wrap.len].iter().enumerate() {
-                    let color = Color::new(0.96, 0.97, 0.99, alpha);
+                    let color = Color::new(0.982, 0.987, 0.996, alpha);
                     let truncated = row + 1 == line.wrap.len && range.end < line.body.len();
                     self.ui.text_fmt_aligned(
                         format_args!(

@@ -7,30 +7,42 @@
 //!
 //! - `off`: the original scrims, unchanged.
 //! - `standard` (default): theme body text (the muted colour and the dimmed
-//!   labels) over a backdrop of relative luminance 0.5, about sRGB `#bcbcbc`.
+//!   labels) over a backdrop of relative luminance 0.5, about sRGB `#bcbcbc`;
+//!   the accent keeps the 3:1 large-text and UI-component ratio there.
 //! - `strong`: all enabled text, the accent included, over pure white.
 //!
-//! UI colours are linear values blended into an sRGB or float target, so
-//! relative luminance is computed from them directly. The glyph drop shadow
-//! and the scrim's top and bottom bands are ignored, which only makes the
+//! UI colours are display (sRGB-encoded) values blended in display space
+//! ([`crate::ui_target`]), so relative luminance linearises each channel, and a
+//! scrim or translucent text mixes display values before that. The glyph drop
+//! shadow and the scrim's top and bottom bands are ignored, which only makes the
 //! figures conservative.
 
 use super::MenuCanvas;
+use crate::ui_target::{linear_to_srgb, srgb_to_linear};
 use sjk_ui::{Color, Theme};
 use std::sync::atomic::{AtomicU8, Ordering};
 
 /// WCAG 2 AA minimum contrast ratio for body text.
 pub(crate) const BODY_TEXT_RATIO: f32 = 4.5;
 
-/// Relative luminance of the menus' scrim ink.
-const INK_LUMINANCE: f32 = 0.2126 * 0.005 + 0.7152 * 0.010 + 0.0722 * 0.018;
+/// WCAG 2 AA minimum contrast ratio for large text and UI components.
+pub(crate) const LARGE_TEXT_RATIO: f32 = 3.0;
+
+/// Relative luminance of the menus' scrim ink, display `[0.005, 0.010, 0.018]`
+/// (`hero.rs`); every channel is on the sRGB curve's linear segment.
+const INK_LUMINANCE: f32 = (0.2126 * 0.005 + 0.7152 * 0.010 + 0.0722 * 0.018) / 12.92;
 
 /// The darkest backing a level may ask for, so the world never disappears.
 const MAX_COVERAGE: f32 = 0.95;
 
 /// Text drawn below this opacity is the disabled style, which WCAG exempts;
-/// it keeps its dimmed look.
-const DISABLED_ALPHA: f32 = 0.5;
+/// it keeps its dimmed look. The display-space palette raised every
+/// translucent label to keep its old on-screen lightness: dimmed labels now
+/// start at about 0.77 and disabled styles stay below 0.63.
+const DISABLED_ALPHA: f32 = 0.7;
+
+/// Steps of the opacity search in [`legible`]; 2^-16 of the alpha range.
+const LEGIBLE_STEPS: u32 = 16;
 
 /// The level shared by every menu canvas, published from the cvar once per
 /// frame; a plain atomic so the frame path neither locks nor allocates.
@@ -99,41 +111,63 @@ impl MenuContrast {
     /// Total ink coverage (0 to 1) a text column needs at this level for
     /// `theme`'s colours; 0 when off.
     pub(crate) fn column_coverage(self, theme: &Theme) -> f32 {
-        let weakest = match self {
-            Self::Off => return 0.0,
-            Self::Standard => luminance(theme.muted),
-            Self::Strong => luminance(theme.muted).min(luminance(theme.accent)),
-        };
-        required_coverage(weakest, self.reference_backdrop())
+        let backdrop = self.reference_backdrop();
+        match self {
+            Self::Off => 0.0,
+            Self::Standard => {
+                let muted = required_coverage(luminance(theme.muted), backdrop, BODY_TEXT_RATIO);
+                let accent = required_coverage(luminance(theme.accent), backdrop, LARGE_TEXT_RATIO);
+                muted.max(accent)
+            }
+            Self::Strong => required_coverage(
+                luminance(theme.muted).min(luminance(theme.accent)),
+                backdrop,
+                BODY_TEXT_RATIO,
+            ),
+        }
     }
 
     /// Luminance behind text on a backing of total `coverage` over this
     /// level's reference backdrop.
     pub(crate) fn backing_luminance(self, coverage: f32) -> f32 {
-        let backdrop = self.reference_backdrop();
-        backdrop + (INK_LUMINANCE - backdrop) * coverage
+        backing(self.reference_backdrop(), coverage)
     }
 }
 
-/// WCAG relative luminance of `color`'s RGB, which the UI treats as linear.
+/// WCAG relative luminance of `color`'s RGB, which are display values.
 pub(crate) fn luminance(color: Color) -> f32 {
-    0.2126 * color.r + 0.7152 * color.g + 0.0722 * color.b
+    0.2126 * srgb_to_linear(color.r)
+        + 0.7152 * srgb_to_linear(color.g)
+        + 0.0722 * srgb_to_linear(color.b)
 }
 
-/// Ink coverage that puts opaque text of luminance `text` at
-/// [`BODY_TEXT_RATIO`] over a backdrop of luminance `backdrop`, capped so the
-/// world stays visible.
-pub(crate) fn required_coverage(text: f32, backdrop: f32) -> f32 {
-    let darkest_backing = (text + 0.05) / BODY_TEXT_RATIO - 0.05;
+/// Display value of the grey the scrim ink stands for.
+fn ink_display() -> f32 {
+    linear_to_srgb(INK_LUMINANCE)
+}
+
+/// Luminance of a neutral backdrop of luminance `backdrop` under ink of total
+/// `coverage`, mixed in display space.
+fn backing(backdrop: f32, coverage: f32) -> f32 {
+    let shown = linear_to_srgb(backdrop);
+    srgb_to_linear(shown + (ink_display() - shown) * coverage)
+}
+
+/// Ink coverage that puts opaque text of luminance `text` at `ratio` over a
+/// backdrop of luminance `backdrop`, capped so the world stays visible.
+pub(crate) fn required_coverage(text: f32, backdrop: f32, ratio: f32) -> f32 {
+    let darkest_backing = (text + 0.05) / ratio - 0.05;
     if backdrop <= darkest_backing {
         return 0.0;
     }
-    ((backdrop - darkest_backing) / (backdrop - INK_LUMINANCE).max(f32::EPSILON))
-        .clamp(0.0, MAX_COVERAGE)
+    let shown = linear_to_srgb(backdrop);
+    let target = linear_to_srgb(darkest_backing.max(0.0));
+    ((shown - target) / (shown - ink_display()).max(f32::EPSILON)).clamp(0.0, MAX_COVERAGE)
 }
 
 /// Alpha of one layer that, stacked over a layer of alpha `base`, brings the
-/// total coverage to `total`.
+/// total coverage to `total`. Layers of one ink compose the same way in any
+/// colour space.
 pub(crate) fn layer_alpha(total: f32, base: f32) -> f32 {
     if total <= base {
         return 0.0;
@@ -141,16 +175,37 @@ pub(crate) fn layer_alpha(total: f32, base: f32) -> f32 {
     (1.0 - (1.0 - total) / (1.0 - base).max(f32::EPSILON)).clamp(0.0, 1.0)
 }
 
+/// Luminance of `color` drawn at opacity `alpha` over a neutral backing of
+/// luminance `under`, mixed in display space.
+fn blended_luminance(color: Color, alpha: f32, under: f32) -> f32 {
+    let shown = linear_to_srgb(under);
+    let mix = |channel: f32| shown + (channel - shown) * alpha;
+    luminance(Color::new(mix(color.r), mix(color.g), mix(color.b), 1.0))
+}
+
 /// `color` with just enough opacity to reach [`BODY_TEXT_RATIO`] over a
 /// backing of luminance `under`. Opaque, disabled-style and dark text is
 /// returned unchanged, so hierarchy by colour and weight survives.
 pub(crate) fn legible(color: Color, under: f32) -> Color {
-    let text = luminance(color);
-    if color.a >= 1.0 || color.a < DISABLED_ALPHA || text <= under {
+    if color.a >= 1.0 || color.a < DISABLED_ALPHA || luminance(color) <= under {
         return color;
     }
-    let needed = (BODY_TEXT_RATIO * (under + 0.05) - 0.05 - under) / (text - under);
-    Color::new(color.r, color.g, color.b, needed.clamp(color.a, 1.0))
+    let needed = BODY_TEXT_RATIO * (under + 0.05) - 0.05;
+    if blended_luminance(color, color.a, under) >= needed {
+        return color;
+    }
+    // Bisect the opacity: the blend brightens with alpha for text lighter than
+    // its backing. A fixed step count keeps the per-frame cost constant.
+    let (mut low, mut high) = (color.a, 1.0_f32);
+    for _ in 0..LEGIBLE_STEPS {
+        let middle = 0.5 * (low + high);
+        if blended_luminance(color, middle, under) >= needed {
+            high = middle;
+        } else {
+            low = middle;
+        }
+    }
+    Color::new(color.r, color.g, color.b, high)
 }
 
 /// One horizontal stretch of a scrim fade: x range and ink alpha at its ends.
@@ -277,7 +332,33 @@ mod tests {
         assert!(ratio >= BODY_TEXT_RATIO - 1e-3, "muted {ratio}");
         assert!(contrast_ratio(luminance(theme.foreground), under) > 6.0);
         // The default accent still clears the 3:1 large-text/UI floor.
-        assert!(contrast_ratio(luminance(theme.accent), under) >= 3.0);
+        let accent = contrast_ratio(luminance(theme.accent), under);
+        assert!(accent >= LARGE_TEXT_RATIO - 1e-3, "accent {accent}");
+    }
+
+    #[test]
+    fn luminance_linearises_display_values() {
+        // #bcbcbc is the standard level's luminance 0.5 backdrop.
+        let grey = 188.0 / 255.0;
+        assert!((luminance(Color::new(grey, grey, grey, 1.0)) - 0.5).abs() < 0.01);
+        // The default accent #FF6A3D: 0.2126 + 0.7152 * 0.1441 + 0.0722 * 0.0467.
+        let accent = luminance(Theme::default().accent);
+        assert!((accent - 0.3191).abs() < 1e-3, "{accent}");
+        assert!(ink_display() < 0.01, "{}", ink_display());
+    }
+
+    #[test]
+    fn backing_mixes_display_values() {
+        assert!((backing(0.5, 0.0) - 0.5).abs() < 1e-5);
+        assert!((backing(0.5, 1.0) - INK_LUMINANCE).abs() < 1e-5);
+        // Half ink over #bcbcbc shows display 0.37: luminance 0.11, not the 0.25 of
+        // a linear-light mix.
+        assert!((backing(0.5, 0.5) - 0.113).abs() < 0.005);
+        let text = 0.4;
+        let coverage = required_coverage(text, 0.5, BODY_TEXT_RATIO);
+        let under = backing(0.5, coverage);
+        assert!((contrast_ratio(text, under) - BODY_TEXT_RATIO).abs() < 1e-3);
+        assert_eq!(required_coverage(1.0, 0.1, BODY_TEXT_RATIO), 0.0);
     }
 
     #[test]
@@ -304,17 +385,18 @@ mod tests {
 
     #[test]
     fn dimmed_labels_gain_just_enough_opacity() {
-        let level = MenuContrast::Standard;
-        let under = level.backing_luminance(level.column_coverage(&Theme::default()));
-        let label = Color::new(0.82, 0.88, 0.94, 0.55);
+        // The muted colour's own 4.5:1 floor over the standard backdrop; the
+        // default accent asks for a darker one, where these labels already pass.
+        let under = 0.11;
+        let label = Color::new(0.916, 0.945, 0.973, 0.77);
         let raised = legible(label, under);
-        assert!(raised.a > label.a && raised.a < 1.0);
-        let blended = raised.a * luminance(label) + (1.0 - raised.a) * under;
+        assert!(raised.a > label.a && raised.a < 1.0, "{raised:?}");
+        let blended = blended_luminance(label, raised.a, under);
         assert!((contrast_ratio(blended, under) - BODY_TEXT_RATIO).abs() < 1e-3);
         // Already legible, opaque and disabled-style text keep their alpha.
-        let bright = Color::new(0.82, 0.88, 0.94, 0.95);
+        let bright = Color::new(0.916, 0.945, 0.973, 0.98);
         assert_eq!(legible(bright, under), bright);
-        let disabled = Color::new(0.82, 0.88, 0.94, 0.30);
+        let disabled = Color::new(0.916, 0.945, 0.973, 0.59);
         assert_eq!(legible(disabled, under), disabled);
     }
 

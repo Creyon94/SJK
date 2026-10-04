@@ -887,6 +887,45 @@ scaled desktop it would push 1080-line layouts past the window edges. It only
 sets the resolution the bundled Inter font is rasterized at, and text sized in
 that font's own units is converted from line heights so it does not depend on it.
 
+### UI colour model
+
+The 2D layer (text, retained UI shapes, the shader HUD, the menu-file HUD and the
+scope) works in display values, as retail's 2D drawing did: a colour is the
+sRGB value shown on screen, and alpha mixes display values. `^1` is pure red,
+`ui_accent ff6a3d` shows as `#FF6A3D`, and a black text shadow at 0.55 over
+mid-grey shows 0.225 as in retail. The world, its resolve, bloom, HDR, the effect
+layer and the in-world ground HUD stay in linear light.
+[ui_target.rs](../crates/sjk-viewer/src/ui_target.rs) holds the model:
+
+- Every 2D pipeline targets the display format without its sRGB encode
+  (`Bgra8UnormSrgb` becomes `Bgra8Unorm`) and draws in its own pass after the
+  scene resolve.
+- With `r_gamma 1` that pass writes the swapchain image through a UNORM view.
+  The surface is configured with that view format, and each frame makes one
+  extra view object of the acquired image.
+- With another `r_gamma`, or on an adapter without `SURFACE_VIEW_FORMATS`
+  (Vulkan without `VK_KHR_swapchain_mutable_format`, GLES), the scene resolves
+  into the display intermediate, the 2D layer draws through that texture's UNORM
+  alias, and the display pass applies the ramp to world and UI together, as
+  retail's hardware gamma did. Without aliasing this costs one full-screen pass
+  at `r_gamma 1`.
+- The float `r_hdr` target never receives 2D draws: HDR is encoded by the
+  resolve before the 2D pass.
+- Pictures sampled by the 2D layer (icon atlas, wordmark, classic menu art and
+  video, levelshots, menu-file HUD art, scope art) are `Rgba8Unorm`, so their
+  texels are not decoded. Font atlases contribute only alpha, which no format
+  decodes, so the Inter atlas stays shared with the ground HUD.
+
+Colours chosen by eye for the earlier linear model were re-authored so neutral
+text keeps its on-screen lightness: each grey or white text colour is now the
+value it used to show (the theme's foreground 0.94, 0.97, 1.0 became 0.973,
+0.987, 1.0 and its muted 0.60, 0.68, 0.76 became 0.798, 0.843, 0.886), and a
+translucent one also gained opacity to keep its lightness over a dark backing:
+dimmed labels are now 0.77 to 0.96 opaque, disabled ones 0.58 to 0.63. Chromatic colours (accents, team and status colours, `^` codes,
+retail menu values) keep their authored values and so show at full saturation.
+Scrims and other translucent fills keep theirs: dark ones look darker, and faint
+white washes (separators, borders, hover fills) look fainter than before.
+
 ### Menu readability
 
 Menu screens draw their text straight over the live map, so a left-hand scrim
@@ -896,7 +935,7 @@ darkens the world behind the text column. The archived cvar `ui_menuContrast`
 | Value | Effect |
 | --- | --- |
 | `off` | The original scrims; the in-game menu leaves the match untinted |
-| `standard` (default) | Muted body text reaches WCAG AA (4.5:1) over a backdrop of relative luminance 0.5 (about sRGB `#bcbcbc`) |
+| `standard` (default) | Muted body text reaches WCAG AA (4.5:1) and the accent 3:1 (large text, UI components) over a backdrop of relative luminance 0.5 (about sRGB `#bcbcbc`) |
 | `strong` | All enabled text, the accent included, reaches 4.5:1 over pure white; dark custom accents are capped at 95% darkening |
 
 With a level on, each scrim keeps its original fade but does not drop below
@@ -904,10 +943,14 @@ the required darkness until the right edge of the text column, then eases
 back over 12% of the screen width. The in-game menu gets the player screen's
 column scrim, centred cards and the map picker's caption get the same floor,
 and dimmed labels gain just enough opacity to reach 4.5:1 on that backing.
-Disabled entries (drawn under half opacity) keep their dimmed look. The
-figures treat UI colours as linear values blended into an sRGB or float target
-and ignore the glyph drop shadow, so they are conservative; they are not
-measured on screen. The cvar is read once per frame, menus open or not, and
+Disabled entries (drawn under 0.7 opacity) keep their dimmed look. The
+figures follow the [UI colour model](#ui-colour-model): luminance linearises
+the display values, and scrims and translucent text mix display values as the
+GPU blends them. They ignore the glyph drop shadow, so they are conservative;
+they are not measured on screen. With the default theme the standard column
+needs 60% ink (the accent's 3:1 sets it; muted text alone needs 51%), leaving
+the reference backdrop at luminance 0.073, and the strong column 81%, leaving
+white at 0.032. The cvar is read once per frame, menus open or not, and
 published as an atomic level; that read compares in place and does not
 allocate. See
 [contrast.rs](../crates/sjk-viewer/src/menu_widgets/contrast.rs) and
