@@ -14,6 +14,7 @@ pub(super) fn consume(
     mut console: Option<&mut ViewerConsole>,
     mut adapter: Option<&mut LegacyWorldAdapter>,
     watch: &mut crate::clientinfo_refresh::ClientInfoWatch,
+    remaps: &mut crate::shader_remaps::State,
 ) {
     if let Some(chat) = chat {
         consume_messages(session, localization, chat, console.as_deref_mut());
@@ -64,6 +65,11 @@ pub(super) fn consume(
                     console.request_siege_class();
                 }
             }
+            BaseServerCommandEvent::RemapShader {
+                old,
+                new,
+                time_offset,
+            } => remaps.queue_server_command(&old, &new, &time_offset),
             BaseServerCommandEvent::SiegeProfileMenu => {
                 if let Some(console) = &mut console {
                     console.request_siege_profile();
