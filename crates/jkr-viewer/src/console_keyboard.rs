@@ -105,6 +105,9 @@ impl ViewerConsole {
                 if command.eq_ignore_ascii_case("toggleconsole") {
                     self.execute_bound_command(&command);
                     consumed = true;
+                } else if command.eq_ignore_ascii_case(super::debug_panel::COMMAND) {
+                    self.toggle_debug_panel();
+                    consumed = true;
                 }
             }
             return consumed;
@@ -121,6 +124,9 @@ impl ViewerConsole {
         ) && self.toggles_console(event, key)
         {
             self.set_open(false);
+            return true;
+        }
+        if self.debug_panel_key(event) {
             return true;
         }
         if self.browser.is_open() {

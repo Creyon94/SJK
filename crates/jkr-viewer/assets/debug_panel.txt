@@ -1,0 +1,468 @@
+# Test list shown by the `debug_panel` console command.
+#
+# PERSONAL to Sol's build (branch sol/main on Sol's fork); it is not meant for upstream.
+# The file is built into the client (include_str!) and parsed once at startup. Unit
+# tests in debug_panel_data.rs check it, so `cargo test` catches a broken edit.
+#
+# Format: one block per entry, in display order. A block starts with "[id]"; the
+# lines after it are "key: value". Lines starting with '#' and blank lines are ignored.
+#
+#   [entry-id]   Required. Lowercase letters, digits and '-'. Ticks are saved by this
+#                id, so keep it when editing text or moving the block; a new id
+#                starts untested.
+#   pr:          PR number(s) on Bishop-R/JKR, comma-separated. Required unless
+#                status is personal.
+#   issue:       Optional related issue number(s), comma-separated.
+#   status:      Required. open (open PR), merged (merged upstream) or personal.
+#   area:        Required. Console & chat, Input, Menus & settings, HUD,
+#                Rendering & effects, Audio or Gameplay.
+#   title:       Required. One short line.
+#   change:      What changed, 1-3 lines (repeat the key for each line).
+#   test:        One "To test" step per line (repeat the key); at least one.
+#   note:        Optional, highlighted; repeat for more lines.
+#
+# Text must be ASCII (the menu font draws bytes) and each line at most 96 characters
+# after the key, or it ends in an ellipsis on narrow windows.
+#
+# Order: open PRs grouped by area, then personal entries, then merged upstream.
+
+# ---- Open PRs: Console & chat ----
+
+[console-browser]
+pr: 6
+status: open
+area: Console & chat
+title: Searchable command and cvar browser
+change: F3 in the open console (or the consolebrowser command) lists every command and cvar.
+change: Search, ALL/COMMANDS/CVARS/CHANGED tabs, inline cvar editing and reset to default.
+test: Open the console and press F3; type "draw": names that start with it come first.
+test: Tab / Shift+Tab cycle the four tabs; CHANGED lists only cvars off their default.
+test: Enter on cg_drawFPS, type 1, Enter: the value updates. Type abc: the footer shows an error.
+test: Delete restores the default; Enter on a command puts it on the console line.
+test: Mouse: hover selects, wheel scrolls, drag the scrollbar, click rows, tabs and footer caps.
+test: Esc or F3 returns to the console. Also try it during a live match.
+test: Game font on (ui_gameFont 1): no menu or chat text shows through the browser.
+test: Same with debug_panel open over a menu: no menu text shows through.
+
+[console-editing]
+pr: 33
+issue: 12
+status: open
+area: Console & chat
+title: Caret editing and output selection in the console
+change: The input line has a caret: arrows, Ctrl+arrows, Home/End, Shift selects, Ctrl+A/X/V.
+change: Drag over output to select, double-click selects a word, Ctrl+C copies without colours.
+test: Type a command, move with the arrows and Ctrl+arrows, fix a character in the middle.
+test: Drag over an output line, Ctrl+C, then Ctrl+V it into the input line.
+test: Double-click an address such as 127.0.0.1:29070: the whole token is selected.
+test: Click in the input line: the caret lands before the clicked character.
+test: Set ui_letterSpacing 0.05 (Settings > TEXT): caret and highlights stay on their glyphs.
+
+[tell-grapple]
+pr: 34
+issue: 28
+status: open
+area: Console & chat
+title: tell by player name, typed +button12 and +grapple
+change: tell takes a unique part of a player name; unknown or ambiguous names send nothing.
+change: +button12 typed in the console stays held; +grapple / -grapple are button 12.
+test: On a JA+ server: tell <part of a name> hello; then a name that matches several players.
+test: Type +button12 in the console, close it: the hook holds. Then type -button12.
+test: bind g +grapple and grapple; releasing should let go of the hook as in EternalJK.
+
+[server-prints]
+pr: 58
+issue: 52
+status: open
+area: Console & chat
+title: Server prints go to the console, not the chat box
+change: Server print text goes to the console and its top-left notify lines, never the chat box.
+change: Chat still shows in the chat box and is now also kept in the console scrollback.
+test: Join a local server and run a command with a server reply (for example a mod command).
+test: The reply shows in the notify lines and in the console, not in the chat box.
+test: Send chat: it shows in the chat box and the console, not in the notify lines.
+
+# ---- Open PRs: Input ----
+
+[dead-keys]
+pr: 61
+issue: 54
+status: open
+area: Input
+title: Dead keys show at the caret in console and chat
+change: On AZERTY/QWERTZ a dead ^ shows at the caret at once, then composes with the next key.
+test: Switch Windows to French AZERTY, then try the steps below in the console and in chat.
+test: ^ then Shift+1: ^ shows on the first key; the line ends up ^1 and later text is coloured.
+test: ^ then e gives an e with a circumflex; ^ then Backspace removes only the ^.
+test: ^ then Enter in chat sends ^. On a US layout everything behaves as before.
+
+[layout-key-names]
+pr: 62
+issue: 53
+status: open
+area: Input
+title: Key names follow the active keyboard layout
+change: Binds name character keys by the layout's own character (the AZERTY key labelled W is w).
+change: The digit row stays 0-9; arrows, F-keys, keypad and modifiers keep their stock names.
+test: On AZERTY, Settings > Controls shows z / w for the keys labelled Z / W, < for the ISO key.
+test: bind w +forward moves with the key labelled W; hold and release a movement key.
+test: Switch layout (Alt+Shift) while holding a movement key: it must not stay stuck.
+note: Rebind movement to z/q/s/d: bind w/a/s/d now means the keys labelled W/A/S/D.
+
+# ---- Open PRs: Menus & settings ----
+
+[slider-entry]
+pr: 32
+issue: 10
+status: open
+area: Menus & settings
+title: Type exact values into menu sliders
+change: Click a slider's number, press Enter or type digits; Enter applies, Esc cancels.
+change: Typed values are kept exact, only clamped to the row's range (review fix).
+test: Settings > Video: click the FPS cap number, type 300, Enter.
+test: FPS cap: type 142, it stays 142; 333 stays 333; dragging still steps by 25.
+test: Field of view: type 97.4, it stays 97.4; type 500, it becomes 130.
+test: On a selected slider type digits directly; press Esc mid-entry; click another row mid-entry.
+test: Player > Saber: click the Red value and type 300: it becomes 255.
+test: Regression: drag along each rail; Left / Right / Space still step.
+
+[text-spacing]
+pr: 37
+issue: 9
+status: open
+area: Menus & settings
+title: Text size and spacing for menus and console
+change: Settings > TEXT: menu text size, letter spacing, console text size, console line spacing.
+change: Console rows now default to stock's 16 px pitch (con_lineSpacing 1.15, con_maxLines 32).
+test: Open the console and compare its density with before.
+test: con_lineSpacing 1 and 2, with the console open and with notify lines.
+test: ui_letterSpacing 0.05 with the console open: caret and selection still line up.
+test: ui_textScale 0.8 and 1.2 on every menu screen: labels fit, titles do not collide.
+
+[menu-contrast]
+pr: 44
+issue: 8
+status: open
+area: Menus & settings
+title: Menu contrast floor behind text
+change: ui_menuContrast (off / standard / strong, Settings > GAME) keeps text backings dark enough.
+change: The in-game menu gets a left fade; dimmed labels are raised to a readable opacity.
+test: Main menu and Settings over a bright map: same fade, darker on the right, no band or step.
+test: Settings values and inactive tabs are readable; unselected labels still look dimmer.
+test: Player screen: the player model is not noticeably darkened.
+test: In-game Esc menu over a bright area: a left fade. ui_menuContrast off restores the old look.
+test: Map picker caption sits on a dark backing; ui_menuContrast strong is close to opaque.
+note: Review fix: reading ui_menuContrast no longer allocates every frame.
+
+[display-modes]
+pr: 45
+issue: 11
+status: open
+area: Menus & settings
+title: Named display modes and a resolution list
+change: Video > Display mode: Windowed, Borderless fullscreen or Exclusive fullscreen.
+change: Enter on Resolution opens a list grouped by aspect ratio; unclear rows fixed or renamed.
+test: Settings > VIDEO: Enter on Resolution, pick sizes; the size in use is highlighted.
+test: Cycle Display mode through all three; Alt+Enter returns to the chosen fullscreen kind.
+test: Leaving fullscreen restores the r_resolution window size.
+test: GAME tab: Saber trail and Force Seeing aura now toggle.
+
+[game-font]
+pr: 46
+issue: 13
+status: open
+area: Menus & settings
+title: Optional game font for menus and chat
+change: ui_gameFont (Settings > HUD) draws menus in ergoec and chat in ocr_a from the game data.
+test: Settings > HUD > "Game font for menus and chat" on; look at the menus and at chat.
+test: With the JoF HD pack the log shows "game font ergoec: 4096x2048 atlas".
+test: Check legibility, centring in menu rows and chat wrapping; note any hitch when enabling.
+change: Low-res font atlases (chat ocr_a, classic HUD arialnb) now draw sharp at any size (SDF).
+test: At 4K: chat text and cg_classicHudFont 1 HUD numbers have crisp edges, no blur.
+test: Small text (console-size chat) has no shimmer or missing thin strokes.
+note: First enable of the game font may hitch about 0.1 s while fonts convert.
+
+[force-menu]
+pr: 47
+issue: 23
+status: open
+area: Menus & settings
+title: Force page: Apply, power icons and side cards
+change: The Force page edits a draft: Apply sends it, Discard reverts, closing drops it.
+change: Power cells show holocron icons; Light / Dark side is picked with two cards.
+test: Player > FORCE: change levels; NOT APPLIED appears and Apply lights up.
+test: Switch tabs and come back: the draft is kept. Discard returns to the applied profile.
+test: Change levels, click Apply, then check forcepowers in the console.
+test: Change levels without applying, press Esc and reopen: the changes are gone.
+test: Click each side card and check which powers dim.
+test: Review fix: Character page grid shows all models (207 max), none missing at the end.
+test: Main menu wordmark, map preview and HUD icons still draw right (atlas rows moved).
+
+[classic-menu]
+pr: 48
+issue: 24
+status: open
+area: Menus & settings
+title: Classic menu style, main and in-game
+change: ui_menuStyle classic (Settings > GAME > Menu style) draws retail-style menus and art.
+change: Latest round: in-game Esc bar with pop-ups, every main-menu sub-page, gfx/menus artwork.
+test: Menu style classic (or ui_menuStyle classic): check the main menu and all its pages.
+test: Art at 16:9 and 4:3: alignment, glow and bar, the dimmed map inside the ring.
+test: Controls > a key page opens the key-binding editor; closing it returns to the classic page.
+test: In a match press Esc: retail top bar; Left / Right move along it, pop-ups sit under buttons.
+test: Exit pop-up: Main Menu and Quit Program ask Yes / No, starting on No.
+
+[settings-scroll]
+pr: 60
+issue: 57
+status: open
+area: Menus & settings
+title: Scroll settings tabs that overflow
+change: Tabs with more rows than fit scroll in whole rows; a thin mark shows the position.
+test: Open GAME or HUD (12 or more rows in this build): the last row stays above the footer.
+test: Arrow down past the bottom: the rows follow the selection; wrap to the top and back.
+test: The wheel scrolls one row per notch; hover and click still work after scrolling.
+test: Check the same in the in-game settings menu.
+
+[fps-cap-auto]
+pr: 86, 87
+issue: 80
+status: open
+area: Menus & settings
+title: FPS cap follows the monitor; caps hold their exact rate
+change: com_maxfps defaults to -1 = AUTO (monitor refresh, 125 if unknown); 0 is uncapped.
+change: An old saved 1000 becomes AUTO once. Caps no longer run ~7% low (240 gave 223).
+test: Settings > Video: FPS cap shows AUTO; cg_drawFPS 1 reads your refresh rate (240).
+test: Right from AUTO gives 0 (uncapped), then 25, 50...; dragging to the far left gives AUTO.
+test: com_maxfps 144 then 60: cg_drawFPS holds 144 and 60, not a few frames below.
+test: Record with OBS uncapped vs AUTO: compare skipped frames in the OBS log.
+
+# ---- Open PRs: HUD ----
+
+[crosshair-name]
+pr: 59
+issue: 55
+status: open
+area: HUD
+title: Crosshair name sized like stock
+change: The crosshair name scales with the HUD: a 45 px line at 1080p, like stock ergoec 20.
+test: Aim at another player with the modern HUD, then with the classic HUD font.
+test: Try 1080p and 1440p if possible, and cg_hudScale; long names end in an ellipsis.
+
+# ---- Open PRs: Rendering & effects ----
+
+[chat-bubble]
+pr: 30
+issue: 26
+status: open
+area: Rendering & effects
+title: Talk balloons and connection icons over players
+change: A player with the console, a menu or chat open shows a balloon; a lagging one a net icon.
+change: Latest round: these billboards (and simple item icons) are drawn upright.
+test: Local server, two clients (bots never type): open chat, the console or Esc on one.
+test: The other client sees an upright balloon over that player; it goes when closed.
+test: In third person you see your own balloon. cg_simpleItems 1: item icons are upright.
+test: A client that stops sending commands for over a second shows the connection icon.
+
+[speed-trail]
+pr: 35
+issue: 17
+status: open
+area: Rendering & effects
+title: Force Speed afterimages
+change: Force Speed draws two translucent copies behind players and NPCs (cg_speedTrail 1).
+test: Force Speed in third person on a local server: copies at about 40% and 20% opacity.
+test: Copies spread with speed and collapse at rest; none in first person (except mirrors).
+test: Look at hair and capes on the copies; cg_speedTrail 0 turns them off; NPCs with speed.
+test: Note any hitch on the first Force Speed use.
+test: Review fix: cut-out parts (hair, fringes, belts) stay on the copies, faint with holes.
+
+[death-anim]
+pr: 36
+issue: 21
+status: open
+area: Rendering & effects
+title: Bodies continue the death animation after respawn
+change: The body left by a quick respawn keeps playing its death animation instead of snapping.
+change: Review fix: copies the player's pose like OpenJK, next frame on, 150 ms blend.
+test: Local server with a bot: kill it or yourself, respawn as soon as allowed (about 1 s).
+test: The body keeps falling through the rest of the animation, then holds.
+test: Watch for a body swapping to another model (likely fixed too).
+test: Respawn after the death finished: the body stays on the final frame, no jump.
+
+[third-person-camera]
+pr: 38
+issue: 20
+status: open
+area: Rendering & effects
+title: Third-person camera stays out of walls and the player
+change: Stock 80 degree pitch cap, stiffer damping on fast turns, traces against lifts and doors.
+test: mp/ffa3 in third person: walk along the ship hull while turning quickly.
+test: Back into walls and corners; look fully up and down; ride the lifts.
+test: The camera stays in front of geometry and outside the player model.
+
+[saber-trail]
+pr: 39
+issue: 18
+status: open
+area: Rendering & effects
+title: Saber trail edges and wall-hit sounds
+change: Trails stop at walls, thrown sabers trail, stock triangle order; wall hits replace each other.
+test: Local server: swing in open air; it looks the same as before or smoother.
+test: Swing into and along a wall: the trail stays in front of it, no fragments.
+test: Throw the saber: it trails in flight; catching it draws no long streak.
+test: Hold the blade in a wall: one wall-hit sound restarting about every 100 ms, no pile-up.
+
+[dust-motes]
+pr: 49
+issue: 14
+status: open
+area: Rendering & effects
+title: Sunbeam dust (dust motes only inside godrays)
+change: jkr_dust (0 to 1, Settings > Game > Sunbeam dust) draws dust lit by sunbeams only.
+change: Bishop's rework: no godray volume or sunlight means no dust; needs jkr_volumetrics.
+test: jkr_volumetrics on, jkr_dust 1, on an outdoor map: dust shows only inside sunbeams.
+test: Shadowed air, dark rooms and jkr_volumetrics 0 show no dust at all.
+test: Optional: JKR_FRAME_BUDGET=1, compare the volumetrics phase with jkr_dust 0 and 1.
+
+[entity-types]
+pr: 63
+issue: 56
+status: open
+area: Rendering & effects
+title: Draw modelindex models only where codemp does
+change: Entities show a modelindex model only for the types stock draws (no shield or trigger models).
+test: Join a populated (JA+) server on Academy6 or mp/ffa5.
+test: Watch for map models moving where nothing should be.
+test: Doors, lifts, items, thrown sabers and dropped bodies still look normal.
+note: If objects still fly: note map and object type.
+
+[material-maps]
+pr: 66
+issue: 65
+status: open
+area: Rendering & effects
+title: Optional rend2-style material maps for world surfaces
+change: Normal, parallax and specular maps on lightmapped world surfaces, in rend2 pack format.
+change: Off by default: r_normalMapping, r_specularMapping, r_parallaxMapping (restart to apply).
+change: r_materialMapsDebug shows which surfaces took maps; the load log line lists counts.
+test: Set r_normalMapping 1, r_specularMapping 1 and r_parallaxMapping 1, then restart.
+test: Load a map: the log shows "material maps (normal+specular+parallax): N stages ...".
+test: r_materialMapsDebug 2 tints mapped surfaces: red parallax, green normal, blue specular.
+test: r_materialMapsDebug 3 shows the normal-map relief; r_materialMapsDebug 0 is back to normal.
+test: For visible lighting set jkr_dayNight 1 and jkr_dayHour 7, restart, look at floors and walls.
+note: In baked lighting the effect is small by design.
+note: The generated maps are gentle (average tilt about 4 deg), so expect subtle changes.
+
+[crlf-shaders]
+pr: 70
+issue: 67
+status: open
+area: Rendering & effects
+title: Shader patching accepts CRLF checkouts
+change: Shader text patches normalise Windows (CRLF) line ends first; *.wgsl is kept LF in Git.
+test: Set jkr_dayNight 1 and restart: the client starts without a "stage program changed" panic.
+test: The sky follows the day tint as the hour changes (jkr_dayHour, or jkr_dayMinutes 2).
+
+[stage-collapse]
+pr: 71
+issue: 69
+status: open
+area: Rendering & effects
+title: Stage collapse follows rd-vanilla's resolved colours
+change: Lightmap + texture pairs merge as in rd-vanilla (unset rgbGen = identity), first pair only.
+test: mp/ffa3 with the JoF night pack: glossyBase surfaces look the same as before.
+test: A cairn map with mp_win02 windows: they look the same as before.
+note: Meant to be render-identical; any visible change on any map is a bug.
+
+[dx12-skinning]
+pr: 72
+issue: 68
+status: open
+area: Rendering & effects
+title: Skinned vertex path compiles on DX12 (FXC)
+change: The GPU skinning loop uses whole-vector updates, which FXC on DX12 can compile.
+test: Default Vulkan backend: players, NPCs and other skinned models look exactly as before.
+test: Optional: WGPU_BACKEND=dx12 now fails on the HUD shader, no longer on skinning (X3511).
+note: DX12 failing on the HUD shader (X3507) is known and not fixed by this PR.
+
+# ---- Open PRs: Audio ----
+
+[anim-event-sounds]
+pr: 41
+issue: 27
+status: open
+area: Audio
+title: Animation-event sounds (fast-style taunt)
+change: animevents.cfg sounds play: the fast taunt's saber spin, kicks, katas, punches, falls.
+test: Join a server, select the fast (blue) style and taunt: the twirl whooshes several times.
+test: Try a saber kick and melee punches.
+test: Review fix: npc spawn rancor or change model; no stutter on first appearance.
+
+# ---- Open PRs: Gameplay ----
+
+[noclip]
+pr: 31
+issue: 16
+status: open
+area: Gameplay
+title: noclip cheat on the dedicated server
+change: jkr-dedicated has noclip with the stock cheat checks (needs --cheats or devmap).
+test: Start jkr-dedicated --map mp/ffa3 --bind 127.0.0.1:29071 --cheats and connect.
+test: Type noclip: fly through walls, attack is turbo, no pickups, triggers or damage.
+test: Type noclip again to land. Without --cheats it answers that cheats are not enabled.
+
+# ---- Personal (sol/main only) ----
+
+[debug-panel]
+status: personal
+area: Menus & settings
+title: This test list (debug_panel)
+change: debug_panel toggles this list anywhere; ticks are saved in debug_panel_tested.txt.
+test: Type debug_panel in the console on the main menu and in a match; Esc closes it.
+test: bind F10 debug_panel, close the console: F10 opens and closes it in menus and in game.
+test: Tick an entry (Space, Enter or its box), restart the client: the tick is still there.
+test: Wheel, arrows, PageUp / PageDown, Home / End; Tab cycles TO TEST, TESTED and ALL.
+
+# ---- Merged upstream ----
+
+[baton-sound]
+pr: 29
+issue: 25
+status: merged
+area: Audio
+title: Stun baton fire sound, not on melee
+change: The stun baton plays its fire sound on primary and alt fire; melee no longer plays it.
+test: Local server: fire the stun baton (primary and alt): both make the fire sound.
+test: Swing melee: no baton sound (melee swing sounds come from #41).
+
+[force-lightning-frame]
+pr: 40
+issue: 22
+status: merged
+area: Rendering & effects
+title: Force lightning and drain stay level
+change: The level-3 lightning and drain fans stay horizontal whichever way you face.
+test: Local game with level-3 Force Lightning: fire it facing different directions.
+test: Especially west (-X) with slight up or down aim: the arc stays a horizontal fan.
+test: Drain level 3 behaves the same.
+note: Assumed Force Lightning; tell Claude if a different effect was meant.
+
+[menu-click-sound]
+pr: 42
+issue: 7
+status: merged
+area: Audio
+title: Menu click from short MP3s with an ID3v1 tag
+change: MP3s that end in a 128-byte ID3v1 tag now decode; fixes the silent JoF button click.
+test: With JoF_CosmeticMod.pk3 in base, click any menu button: the click is heard.
+
+[audio-loops]
+pr: 43
+issue: 19
+status: merged
+area: Audio
+title: Looping sounds no longer drop out
+change: Saber hums and ambient loops keep playing while each frame's loops are re-sent.
+test: Stand near looping sounds (your saber, other sabers, map ambience); listen for crackles.
+test: Optional: JKR_TRACE_AUDIO=1; logs/last-client.log shows split loop frames=N every 5 s.

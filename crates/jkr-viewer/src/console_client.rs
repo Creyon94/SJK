@@ -52,6 +52,7 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
         "consolebrowser",
         "Search commands and cvars and edit cvar values (F3 in the console)",
     ),
+    (super::debug_panel::COMMAND, super::debug_panel::HELP),
     ("togglemenu", "Toggle the in-game menu"),
     ("cmd", "Forward arguments as a reliable server command"),
     ("clientinfo", "Print client state and userinfo"),
@@ -356,6 +357,12 @@ impl crate::GpuState {
             "consolebrowser" => {
                 if let Some(console) = &mut self.console {
                     console.open_browser();
+                }
+                self.sync_cursor_policy();
+            }
+            super::debug_panel::COMMAND => {
+                if let Some(console) = &mut self.console {
+                    console.toggle_debug_panel();
                 }
                 self.sync_cursor_policy();
             }
