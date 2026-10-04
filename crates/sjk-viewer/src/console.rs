@@ -50,8 +50,10 @@ pub(crate) mod line_edit;
 #[path = "console_selection.rs"]
 mod selection;
 
+#[path = "console_classic.rs"]
+pub(crate) mod classic;
 #[path = "console_options.rs"]
-mod console_options;
+pub(crate) mod console_options;
 #[path = "console_pointer.rs"]
 mod console_pointer;
 #[path = "console_profile.rs"]
@@ -150,6 +152,14 @@ pub(crate) struct ViewerConsole {
     dead_key: crate::input::dead_key::DeadKey,
     /// Scrollback selection and the pointer gesture editing it or the caret.
     selection: selection::Selection,
+    /// Rows and clocks of the classic console.
+    classic: classic::State,
+    /// Open fraction the console key chose (Ctrl full, Shift a quarter), for the
+    /// classic console; `None` until a console key opened it.
+    open_height: Option<f32>,
+    /// Insert toggled overstrike: typing replaces the character after the caret
+    /// (classic console).
+    overstrike: bool,
 }
 
 impl ViewerConsole {
@@ -462,6 +472,11 @@ impl ViewerConsole {
             return;
         }
         let options = self.options();
+        if options.style == console_options::ConsoleStyle::Classic {
+            // Drawn on its own layer by `append_classic`.
+            self.presentation.clear(viewport);
+            return;
+        }
         let configured = self
             .shell
             .cvars
@@ -534,6 +549,11 @@ impl ViewerConsole {
         }
         if self.history.last() != Some(&command) {
             self.history.push(command.clone());
+            if self.console_style() == console_options::ConsoleStyle::Classic
+                && self.history.len() > classic::HISTORY
+            {
+                self.history.remove(0);
+            }
         }
         self.execute_console_line(&command, session);
     }

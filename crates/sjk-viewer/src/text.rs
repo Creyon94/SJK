@@ -9,12 +9,14 @@
 //! present ([`logo_glyph`]).
 
 mod bounded;
+mod cell;
 pub(crate) mod charset;
 pub(crate) mod fontdat;
 pub(crate) mod logo_glyph;
 pub(crate) mod sdf;
 pub(crate) mod style;
 pub(crate) use bounded::append_bounded;
+pub(crate) use cell::append_cell;
 pub(crate) use logo_glyph::LogoGlyph;
 pub(crate) use style::TextStyle;
 
@@ -287,7 +289,7 @@ pub(crate) fn load_classic(vfs: &VirtualFileSystem) -> Result<FontAtlas, Box<dyn
 /// pure red retail showed. The table has ten entries and `ColorIndex` masks with
 /// `Q_COLOR_BITS` (0xF), so `^8` is orange and `^9` mid grey rather than
 /// retail's `& 7` wrap to black and red.
-fn quake_color(index: u8) -> [f32; 4] {
+pub(crate) fn quake_color(index: u8) -> [f32; 4] {
     match index {
         0 => [0.0, 0.0, 0.0, 1.0],
         1 => [1.0, 0.0, 0.0, 1.0],
@@ -309,7 +311,19 @@ fn push_quad(
     color: [f32; 4],
     viewport: [f32; 2],
 ) {
-    if vertices.len() + 6 > MAX_TEXT_VERTICES {
+    push_quad_within(vertices, rectangle, uv, color, viewport, MAX_TEXT_VERTICES);
+}
+
+/// [`push_quad`] into a batch of at most `limit` vertices.
+fn push_quad_within(
+    vertices: &mut Vec<TextVertex>,
+    rectangle: [f32; 4],
+    uv: [f32; 4],
+    color: [f32; 4],
+    viewport: [f32; 2],
+    limit: usize,
+) {
+    if vertices.len() + 6 > limit {
         return;
     }
     let [x, y, width, height] = rectangle;

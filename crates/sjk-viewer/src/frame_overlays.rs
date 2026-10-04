@@ -17,6 +17,7 @@ impl GpuState {
         let hud = self.live_session.is_some()
             || self.demo_session.is_some()
             || self.console.as_ref().is_some_and(|c| c.is_open())
+            || !self.console_layer.is_empty()
             || self.client_menu.as_ref().is_some_and(|m| m.is_visible());
         let hyperspace = self.local_prediction.hyperspace_shade();
         let flares = hyperspace.is_none()
@@ -163,6 +164,16 @@ impl GpuState {
         // The console's character set goes last so the console covers all text.
         self.game_fonts
             .draw_console(&mut pass, &self.text_pipeline, &self.sdf_text_pipeline);
+        // The classic console's background, then its text, over everything else.
+        self.console_layer.draw(
+            &mut pass,
+            crate::console_backdrop::TextDraw {
+                pipeline: &self.text_pipeline,
+                sdf_pipeline: &self.sdf_text_pipeline,
+                inter: &self.text_bind_group,
+                charset: self.game_fonts.console_atlas(),
+            },
+        );
         drop(pass);
 
         if let Some(aa) = &self.post_aa {

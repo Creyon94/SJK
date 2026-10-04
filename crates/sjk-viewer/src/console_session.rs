@@ -323,6 +323,9 @@ impl ViewerConsole {
             edit: super::line_edit::LineEdit::default(),
             dead_key: Default::default(),
             selection: super::selection::Selection::new(),
+            classic: super::classic::State::default(),
+            open_height: None,
+            overstrike: false,
         })
     }
 

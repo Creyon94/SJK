@@ -212,17 +212,29 @@ pub(crate) fn mip_levels(width: u32, height: u32) -> u32 {
 pub(crate) struct GameFonts {
     enabled: bool,
     attempted: bool,
+    /// The console character set was looked for (the classic console uses it
+    /// whether `ui_gameFont` is on or not).
+    console_attempted: bool,
     menu: Option<Layer>,
     chat: Option<Layer>,
     console: Option<Layer>,
 }
 
 impl GameFonts {
-    /// Fonts for a new world: loaded now when `enabled`, else on first use.
-    pub(crate) fn preload(enabled: bool, vfs: &VirtualFileSystem, gpu: &Device<'_>) -> Self {
+    /// Fonts for a new world: loaded now when `enabled`, else on first use. The
+    /// console character set alone is loaded when `console` (the classic
+    /// console is in use).
+    pub(crate) fn preload(
+        enabled: bool,
+        console: bool,
+        vfs: &VirtualFileSystem,
+        gpu: &Device<'_>,
+    ) -> Self {
         let mut fonts = Self::default();
         if enabled {
             fonts.load(vfs, gpu);
+        } else if console {
+            fonts.load_console(vfs, gpu);
         }
         fonts
     }
@@ -231,7 +243,28 @@ impl GameFonts {
         self.attempted = true;
         self.menu = Layer::load(vfs, MENU_FONT, gpu);
         self.chat = Layer::load(vfs, CHAT_FONT, gpu);
-        self.console = Layer::load_charset(vfs, gpu);
+        self.load_console(vfs, gpu);
+    }
+
+    /// Load the console character set unless it was already looked for.
+    fn load_console(&mut self, vfs: &VirtualFileSystem, gpu: &Device<'_>) {
+        if !self.console_attempted {
+            self.console_attempted = true;
+            self.console = Layer::load_charset(vfs, gpu);
+        }
+    }
+
+    /// The console character set's metrics when it is loaded, whether
+    /// `ui_gameFont` is on or not (the classic console draws with it).
+    pub(crate) fn console_charset(&self) -> Option<&UiFont> {
+        self.console.as_ref().map(|layer| &layer.font)
+    }
+
+    /// The console character set's atlas and whether it is a distance field.
+    pub(crate) fn console_atlas(&self) -> Option<(&wgpu::BindGroup, bool)> {
+        self.console
+            .as_ref()
+            .map(|layer| (&layer.bind_group, layer.distance_field))
     }
 
     fn slot(&self, font: RetailFont) -> &Option<Layer> {
@@ -384,13 +417,15 @@ fn target<'a>(
 /// Call before any text is appended.
 pub(crate) fn prepare(gpu: &mut GpuState) {
     let enabled = enabled(gpu.console.as_ref());
+    let console = classic_console(gpu.console.as_ref());
     let fonts = &mut gpu.game_fonts;
     fonts.enabled = enabled;
     for layer in fonts.layers_mut() {
         layer.vertices.clear();
     }
-    if enabled
-        && !fonts.attempted
+    let load = enabled && !fonts.attempted;
+    let load_console = console && !fonts.console_attempted;
+    if (load || load_console)
         && let Some(vfs) = &gpu.vfs
     {
         let device = Device {
@@ -399,8 +434,20 @@ pub(crate) fn prepare(gpu: &mut GpuState) {
             layout: &gpu.text_layout,
             sampler: &gpu.text_sampler,
         };
-        fonts.load(vfs, &device);
+        if load {
+            fonts.load(vfs, &device);
+        } else {
+            fonts.load_console(vfs, &device);
+        }
     }
+}
+
+/// Whether `console` draws the classic console, which needs the console
+/// character set whatever `ui_gameFont` says.
+pub(crate) fn classic_console(console: Option<&crate::console::ViewerConsole>) -> bool {
+    console.is_some_and(|console| {
+        console.console_style() == crate::console::console_options::ConsoleStyle::Classic
+    })
 }
 
 /// Whether the option is on in `console`, for preloading a world's fonts.

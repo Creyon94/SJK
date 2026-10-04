@@ -2,8 +2,44 @@
 //! notifylines/datetime extend it with TaystJK cl_console.cpp:650-668,1090.
 use super::*;
 
+/// Archived cvar naming the console style.
+pub(crate) const STYLE_CVAR: &str = "con_style";
+
+/// How the console looks and behaves (`con_style`).
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) enum ConsoleStyle {
+    /// JKR's console: Inter text over a tinted panel with a header and hints.
+    Modern,
+    /// After EternalJK (`cl_console.cpp`): the `console` shader's background,
+    /// a monospaced character grid, timestamps, a clock and the version line.
+    /// SJK's default.
+    #[default]
+    Classic,
+}
+
+impl ConsoleStyle {
+    /// Values the settings screen offers, in [`ConsoleStyle`] order.
+    pub(crate) const NAMES: [&'static str; 2] = ["modern", "classic"];
+    /// The `con_style` value of the default style.
+    pub(crate) const DEFAULT_NAME: &'static str = Self::NAMES[1];
+
+    /// Read the cvar value: `modern` (any case) or `0` selects the modern
+    /// console; anything else, a missing or mistyped value included, the
+    /// default classic one.
+    pub(crate) fn from_cvar(value: Option<&str>) -> Self {
+        match value.map(str::trim) {
+            Some(text) if text.eq_ignore_ascii_case("modern") || text == "0" => Self::Modern,
+            _ => Self::Classic,
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 pub(super) struct Options {
+    pub style: ConsoleStyle,
+    /// `con_ratioFix`: a half-height or lower classic console shows the middle
+    /// of its background picture instead of squashing all of it.
+    pub ratio_fix: bool,
     pub height: f32,
     pub scale: f32,
     pub opacity: f32,
@@ -25,6 +61,8 @@ pub(super) struct Options {
 impl Default for Options {
     fn default() -> Self {
         Self {
+            style: ConsoleStyle::Classic,
+            ratio_fix: true,
             height: 0.5,
             scale: 1.0,
             opacity: 1.0,
@@ -64,12 +102,23 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         };
         cvars.register(CvarDefinition::new(name, value, flags, help))?;
     }
+    cvars.register(CvarDefinition::new(
+        STYLE_CVAR,
+        ConsoleStyle::DEFAULT_NAME,
+        CvarFlags::ARCHIVE,
+        "Console style: classic (after EternalJK) or modern",
+    ))?;
     for (name, value, help) in [
         ("con_notifylines", 3_i64, "Maximum visible notify lines"),
         (
             "con_timestamps",
             0,
-            "Timestamps: 0 off, 1 console and notify, 2 console only",
+            "Timestamps: 0 off, 1 console and notify, 2 console only (EternalJK style)",
+        ),
+        (
+            "con_ratioFix",
+            1,
+            "Classic console: a console of half the screen or less shows the middle of              its background instead of squashing it; disable for custom backgrounds",
         ),
     ] {
         cvars.register(CvarDefinition::new(name, value, CvarFlags::ARCHIVE, help))?;
@@ -94,8 +143,15 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
 }
 
 impl ViewerConsole {
+    /// The player's `con_style`.
+    pub(crate) fn console_style(&self) -> ConsoleStyle {
+        ConsoleStyle::from_cvar(self.text_value(STYLE_CVAR))
+    }
+
     pub(super) fn options(&self) -> Options {
         Options {
+            style: self.console_style(),
+            ratio_fix: self.integer_cvar("con_ratioFix").unwrap_or(1) != 0,
             notify_x: self.float_cvar("cl_conxoffset").unwrap_or(0.0) as f32,
             height: self.float_cvar("con_height").unwrap_or(0.5).clamp(0.0, 1.0) as f32,
             scale: self
@@ -188,6 +244,29 @@ mod tests {
         assert_eq!(line_spacing(Some(0.65)), LINE_SPACING_RANGE.0);
         assert_eq!(line_spacing(Some(0.1)), LINE_SPACING_RANGE.0);
         assert_eq!(line_spacing(Some(9.0)), LINE_SPACING_RANGE.1);
+    }
+
+    #[test]
+    fn console_style_defaults_to_classic_and_reads_modern() {
+        assert_eq!(ConsoleStyle::from_cvar(None), ConsoleStyle::Classic);
+        assert_eq!(
+            ConsoleStyle::from_cvar(Some("classic")),
+            ConsoleStyle::Classic
+        );
+        assert_eq!(
+            ConsoleStyle::from_cvar(Some(" Modern ")),
+            ConsoleStyle::Modern
+        );
+        assert_eq!(ConsoleStyle::from_cvar(Some("0")), ConsoleStyle::Modern);
+        // A typo keeps the default rather than an unexpected console.
+        assert_eq!(
+            ConsoleStyle::from_cvar(Some("modren")),
+            ConsoleStyle::Classic
+        );
+        assert_eq!(
+            ConsoleStyle::from_cvar(Some(ConsoleStyle::DEFAULT_NAME)),
+            ConsoleStyle::default()
+        );
     }
 
     #[test]

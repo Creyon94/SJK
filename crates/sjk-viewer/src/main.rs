@@ -28,6 +28,7 @@ mod config_string_refresh;
 mod connection;
 mod connection_commands;
 mod console;
+mod console_backdrop;
 mod console_overlay;
 mod console_runtime;
 mod crosshair_scan;
@@ -339,6 +340,8 @@ struct GpuState {
     field_of_view: f32,
     scope: scope::Zoom,
     scope_mask: Option<scope::Mask>,
+    /// The classic console's background, bar and text, drawn over all other 2D.
+    console_layer: console_backdrop::ConsoleLayer,
     /// The game's menu-file status HUD (`cg_hudStyle game`).
     menu_hud: menu_hud::MenuHud,
     ground_hud: ground_hud::GroundHud,
@@ -787,6 +790,7 @@ impl GpuState {
             });
         let game_fonts = game_font::GameFonts::preload(
             preload_game_fonts || game_font::enabled(console.as_ref()),
+            game_font::classic_console(console.as_ref()),
             &vfs,
             &game_font::Device {
                 device: &device,
@@ -983,6 +987,14 @@ impl GpuState {
         let depth = DepthTarget::new(&device, configuration.width, configuration.height);
         let (ui_shapes, hud) = hud::icons::install(&device, &queue, ui_format, &vfs, &shaders);
         let menu_hud = menu_hud::MenuHud::new(&device, ui_format);
+        let console_layer = console_backdrop::ConsoleLayer::new(
+            device,
+            queue,
+            ui_format,
+            &vfs,
+            &shaders,
+            game_font::classic_console(console.as_ref()),
+        );
         let (scope_mask, ground_hud) = (
             scope::Mask::new(&device, &queue, ui_format, &vfs, &shaders),
             ground_hud::GroundHud::new(device, context.scene_format(), &text_layout),
@@ -1129,6 +1141,7 @@ impl GpuState {
             field_of_view: 90.0,
             scope: scope::Zoom::default(),
             scope_mask,
+            console_layer,
             menu_hud,
             ground_hud,
             applied_display: Some(settings::DisplayMode::Windowed),

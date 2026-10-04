@@ -525,6 +525,27 @@ test: r_gamma 1.2 brightens world and UI together; r_gamma 1 again: colours as a
 test: Classic menu, scoreboard, levelshots, HUD icons and the scope look as in retail.
 note: Faint separators, borders and hover fills are fainter than before; report any too faint.
 
+[classic-console]
+status: personal
+area: Console & chat
+title: Classic console after EternalJK (con_style classic, the default)
+change: EJK console: console shader background, blue bar, charset grid, green clock, corner clock.
+change: Drawn over all other 2D: menu and HUD text no longer show through the console.
+change: Settings > TEXT > Console style; con_style modern brings back the old console.
+test: Open with ~: the JoF picture with moving stars and a blue bar under it, as in EJK.
+test: con_scale 0.5 at 4K: same cell size as EJK. con_opacity 0.79 fades the stars only.
+test: con_timestamps 2: grey HH:MM:SS on every row, wrapped rows too; long lines wrap at words.
+test: Input row: green clock, ] prompt, ^1 shown raw, blinking cursor; Insert gives a block.
+test: Bottom right: the SJK version line, local date and time below it (Sun Oct  4 ... PM).
+test: Shift+~ opens a quarter, Ctrl+~ full screen, Shift+Esc half; Esc closes.
+test: PgUp scrolls 2 lines (Ctrl+PgUp 10), wheel too: a ^ ^ ^ row shows. Ctrl+End: newest.
+test: History: Up/Down, KP8/KP2, Shift+wheel, Ctrl+P/N. Ctrl+L clears. ]cmd echo.
+test: Tab on con_: grey Cmd / Cvar labels, values in grey quotes, green descriptions.
+test: Open over the main menu and in game: no menu, chat or HUD text shows through.
+test: In game, closed: notify lines at the top left; hidden while a menu is open.
+test: con_style modern: the old console, unchanged; con_style classic again.
+note: Your config keeps con_timestamps 0: set 2 for EJK's stamps. con_ratioFix 0 squashes.
+
 [debug-panel]
 status: personal
 area: Menus & settings
