@@ -40,6 +40,17 @@ test: On a JA+ server: tell <part of a name> hello; then a name that matches sev
 test: Type +button12 in the console, close it: the hook holds. Then type -button12.
 test: bind g +grapple and grapple; releasing should let go of the hook as in EternalJK.
 
+[console-chat-history]
+pr: 100
+status: open
+area: Console & chat
+title: Chat kept in the console; one row per server print line
+change: Chat and team chat are echoed into the console scrollback, not into its notify lines.
+change: Server prints no longer leave a blank console row; multi-line prints get one row each.
+test: Join a local server, send chat: it shows in the chat box and in the console scrollback.
+test: The top-left notify lines show server prints but not the chat lines.
+test: Console scrollback has no empty row after each server print (e.g. a player connecting).
+
 # ---- Open PRs: Input ----
 
 [layout-key-names]
@@ -54,6 +65,18 @@ test: On AZERTY, Settings > Controls shows z / w for the keys labelled Z / W, < 
 test: bind w +forward moves with the key labelled W; hold and release a movement key.
 test: Switch layout (Alt+Shift) while holding a movement key: it must not stay stuck.
 note: Rebind movement to z/q/s/d: bind w/a/s/d now means the keys labelled W/A/S/D.
+
+[dead-keys]
+pr: 61
+issue: 54
+status: open
+area: Input
+title: Circumflex letters and dead keys at the caret in console and chat
+change: Reworked on upstream's editors: AZERTY ^ then e types e-circumflex again (upstream: ^e).
+change: Any dead key shows at the caret at once; ^ then a digit still gives a colour code.
+test: Windows French AZERTY: in the console and in chat type ^ then e, a, i, o, u: accented letters.
+test: ^ then Shift+1 gives ^1 (colour code); ^ then Space gives ^; ^ then Backspace removes the ^.
+test: Other dead keys (accent keys) show at the caret before the next key; US layout unchanged.
 
 # ---- Open PRs: Menus & settings ----
 
@@ -171,6 +194,17 @@ test: Settings > Video: FPS cap shows AUTO; cg_drawFPS 1 reads your refresh rate
 test: Right from AUTO gives 0 (uncapped), then 25, 50...; dragging to the far left gives AUTO.
 test: com_maxfps 144 then 60: cg_drawFPS holds 144 and 60, not a few frames below.
 test: Record with OBS uncapped vs AUTO: compare skipped frames in the OBS log.
+
+[settings-edit-fixes]
+pr: 101
+status: open
+area: Menus & settings
+title: Text edits stay on their setting; no float noise on sliders
+change: Typing in a text setting (e.g. master server) can no longer land in another row.
+change: Dragging 0.05-step sliders saves clean values (0.35, not 0.35000000000000003).
+test: Settings > NETWORK: edit Master server, move the mouse over other rows, press Enter.
+test: The text lands in Master server only; the other rows are unchanged.
+test: Drag a 0.05-step slider and check the value in the console (cvar name): no long decimals.
 
 # ---- Open PRs: HUD ----
 
@@ -469,19 +503,6 @@ test: Start jkr-dedicated --map mp/ffa3 --bind 127.0.0.1:29071 --cheats and conn
 test: Type noclip: fly through walls, attack is turbo, no pickups, triggers or damage.
 test: Type noclip again to land. Without --cheats it answers that cheats are not enabled.
 note: Bishop's #95 replaced your #31; it also adds a client devmap command.
-
-[dead-keys]
-pr: 88, 92
-issue: 54
-status: merged
-area: Input
-title: Dead keys show at the caret in console and chat
-change: On AZERTY/QWERTZ a dead ^ shows at the caret at once, then composes with the next key.
-test: Switch Windows to French AZERTY, then try the steps below in the console and in chat.
-test: ^ then Shift+1: ^ shows on the first key; the line ends up ^1 and later text is coloured.
-test: ^ then e gives an e with a circumflex; ^ then Backspace removes only the ^.
-test: ^ then Enter in chat sends ^. On a US layout everything behaves as before.
-note: Your #61 is not in this build: upstream types a dead ^ itself (#88, #92).
 
 [baton-sound]
 pr: 29

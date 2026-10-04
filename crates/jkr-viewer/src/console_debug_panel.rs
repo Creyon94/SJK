@@ -19,6 +19,7 @@ impl ViewerConsole {
             self.set_open(true);
         }
         self.browser.close();
+        self.dead_key.settle();
         self.debug_panel.open(owns_console);
     }
 
