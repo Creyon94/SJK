@@ -544,6 +544,17 @@ test: r_materialMapsDebug 4 shows reflections alone; 5 the scene without; 0 back
 test: r_dayHour 18 then 12: reflections follow the light within a few seconds.
 note: Players and effects never appear in reflections; that is by design.
 
+[floor-reflection-maps]
+status: personal
+area: Rendering & effects
+title: Floor mirrors follow material maps; r_floorReflections cvar
+change: Mirrored floors bend their reflection by the normal map, blur by the map's roughness.
+change: r_floorReflections 0/1 (live, Renderer IMAGE tab) replaces JKR_FLOOR_REFLECTIONS.
+test: Load a map with shiny floors (mp/ffa1 halls); log: Floor mirrors: N planes, M with maps.
+test: r_floorReflections 0 then 1: the mirror image disappears and comes back at once.
+test: On a floor with maps (M above 0) the reflection ripples with the floor's relief.
+note: Floors need generated maps for the mapped look; regenerate the pack after the update.
+
 # ---- Merged upstream ----
 
 [console-chat-history]

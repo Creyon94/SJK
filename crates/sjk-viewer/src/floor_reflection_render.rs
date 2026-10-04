@@ -218,12 +218,17 @@ impl GpuState {
                 pass.set_bind_group(1, &floors.finish.as_ref().unwrap().group, &[]);
                 pass.set_vertex_buffer(0, main.vertices.slice(..));
                 pass.set_index_buffer(main.indices.slice(..), wgpu::IndexFormat::Uint32);
+                let mut bound = None;
                 for face in &floor.plane.faces {
                     if self.world_materials.areas.visible(
                         &face.clusters,
                         floors.cluster,
                         visibility,
                     ) {
+                        if bound != Some(face.maps) {
+                            pass.set_bind_group(2, &floors.map_groups[face.maps], &[]);
+                            bound = Some(face.maps);
+                        }
                         pass.draw_indexed(face.indices.clone(), 0, 0..1);
                     }
                 }

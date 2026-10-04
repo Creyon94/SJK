@@ -102,6 +102,7 @@ work without reducing source count, texture resolution or lighting quality.
 | `r_materialMapsDebug` | Material-mapped surfaces only: 1 mapped normal as colour, 2 tint by maps found, 3 normal-map relief, 4 reflection probes alone, 5 without reflection probes; default 0, live, not archived |
 | `r_cubeMapping` | Reflection probes on specular-mapped surfaces (rend2's name and meaning); default 1, needs `r_specularMapping`, restart required |
 | `r_cubeMapSize` | Reflection probe face size, a power of two 32–512; default 128, restart required |
+| `r_floorReflections` | Polished floors mirror the scene (see [Floor reflections](#floor-reflections)); default 1, live |
 
 See [day_night.rs](../crates/sjk-viewer/src/day_night.rs),
 [sun_shadow_settings.rs](../crates/sjk-viewer/src/sun_shadow_settings.rs) and
@@ -850,6 +851,47 @@ and off. No authored rend2 pack was available for testing. Generated maps on
 real ffa3 data were rendered headless in baked lighting only (above); real-time
 lighting on real content, an in-game image and the frame cost in a match remain
 unverified.
+
+## Floor reflections
+
+Polished floors show a real mirror image of the scene
+([floor_reflections.rs](../crates/sjk-viewer/src/floor_reflections.rs)). A floor
+qualifies at map load when its shader asks for polish the stock way, with a
+`tcGen environment` stage, and is otherwise plain opaque world paint: sorted opaque,
+no light emission, sky, deforms, glow or alpha test
+([floor_reflection_planes.rs](../crates/sjk-viewer/src/floor_reflection_planes.rs)).
+Its triangles must lie in one plane (within 0.02 units) facing up (normal z ≥ 0.7);
+coplanar faces share one mirror. The load log prints `Floor mirrors: N polished
+planes, M with material maps`.
+
+Each frame keeps at most six mirrors, the planes covering most of the screen: a plane
+enters at 1% of the screen and leaves below 0.7%, so it does not flicker at the
+threshold. Every mirror re-renders the whole scene (sky, world, players, effects)
+from the reflected camera at half resolution into a shared target, cropped to the
+plane's screen rectangle; in real-time lighting it is lit in its own light-buffer
+images, so the main view's light stays intact. The finish
+([floor_reflection.wgsl](../crates/sjk-viewer/src/floor_reflection.wgsl)) blends the
+image over the floor with a Schlick rim from 0.12 head-on to 0.70 at grazing angles,
+blurred by a 3×3 kernel whose reach follows roughness 0.4; strength falls by
+`1 − 0.6 × roughness`.
+
+With material maps the finish follows the floor material's maps: the normal map bends
+the mirror lookup (the change of the reflected ray, mirrored back through the floor
+and projected at an assumed 48 units, at most the margin below) and the specular
+map's roughness sets the blur (at most 0.6) and its occlusion dims the reflection.
+Planes with maps render 1.2 roughness units of margin around their rectangle instead
+of 0.4 so the bent and wider lookups stay inside the mirror image. The maps are read
+with the stage's untransformed texture coordinates; floors whose diffuse stage
+scrolls or scales (`tcMod`) read them slightly misaligned. Floors without maps draw
+exactly as before.
+
+`r_floorReflections 0` (live, archived; Settings > VIDEO > Renderer, IMAGE tab, "Floor
+mirrors") leaves polished floors with their ordinary material and renders no mirror.
+The environment variable `JKR_FLOOR_REFLECTIONS=0`, which predates the cvar, still
+forces them off whatever the cvar says; `JKR_FLOOR_COMMANDS=0` disables only the GPU
+visibility commands that skip hidden mirrors. Measured mirror costs are in the
+sections above (depth priming, light-buffer preservation); the material-map finish
+adds two texture reads per mirrored floor pixel and the wider margin.
 
 ## Submission and lighting work reduction
 

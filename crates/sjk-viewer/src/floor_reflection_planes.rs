@@ -4,6 +4,10 @@ use std::collections::HashMap;
 
 pub(super) struct Face {
     pub indices: Range<u32>,
+    /// The flattened scene's material, whose maps (if any) the finish reads.
+    pub material: usize,
+    /// Index into `Floors::map_groups`, 0 the neutral group.
+    pub maps: usize,
     pub clusters: Vec<usize>,
     pub center: Vec3,
     pub radius: f32,
@@ -13,6 +17,8 @@ pub(super) struct Plane {
     pub normal: Vec3,
     pub distance: f32,
     pub faces: Vec<Face>,
+    /// Some face has material maps: the region keeps a wider margin.
+    pub mapped: bool,
 }
 
 /// Authored environment mapping is explicit polished-surface intent, unlike colour.
@@ -85,11 +91,14 @@ pub(super) fn collect(scene: &FlattenedScene, shaders: &ShaderCatalog) -> Vec<Pl
                 normal,
                 distance,
                 faces: Vec::new(),
+                mapped: false,
             });
             i
         });
         planes[index].faces.push(Face {
             indices: draw.indices.clone(),
+            material: draw.material,
+            maps: 0,
             clusters: draw.clusters.clone(),
             center,
             radius,

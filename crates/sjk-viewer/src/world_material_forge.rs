@@ -257,16 +257,17 @@ pub(super) fn build_passes(
             layout: &forge.stage_layout,
             entries: &entries,
         });
-        let material_group = match (&stage.maps, &mut forge.material_maps) {
+        let (material_group, floor_maps) = match (&stage.maps, &mut forge.material_maps) {
             (Some(maps), Some(gpu)) => {
                 let sampler = if maps.clamp {
                     &forge.clamp
                 } else {
                     &forge.repeat
                 };
-                Some(gpu.bind(device, queue, &entries, maps, sampler)?)
+                let group = gpu.bind(device, queue, &entries, maps, sampler)?;
+                (Some(group), Some(gpu.floor_maps(device, queue, maps)))
             }
-            _ => None,
+            _ => (None, None),
         };
         let (pipeline, _) = forge.pipeline_index(stage.key);
         let live_key = super::visible_emission::live_key(stage.key, &stage.gpu);
@@ -305,6 +306,7 @@ pub(super) fn build_passes(
             ),
             bind_group,
             material_group,
+            floor_maps,
             pipeline,
             live_pipeline,
             forced_alpha_pipelines,

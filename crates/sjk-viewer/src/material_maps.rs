@@ -234,6 +234,16 @@ pub(super) struct Params {
     pub(super) control: [f32; 4],
 }
 
+/// A material-mapped stage's maps for the floor mirrors' finish
+/// (`floor_reflection.wgsl`): the uploaded views and the stage's [`Params`] words.
+#[derive(Clone, Debug)]
+pub(crate) struct FloorMaps {
+    pub(crate) normal: wgpu::TextureView,
+    pub(crate) specular: wgpu::TextureView,
+    pub(crate) params: [f32; 12],
+    pub(crate) clamp: bool,
+}
+
 /// The stage has a normal map.
 pub(super) const FLAG_NORMAL: u32 = 1;
 /// The normal map's alpha is a depth map and parallax is enabled.

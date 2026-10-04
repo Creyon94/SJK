@@ -65,6 +65,13 @@ pub(crate) struct Runtime {
     format: wgpu::TextureFormat,
 }
 
+/// Register the floor mirrors' `r_floorReflections`.
+pub(crate) fn register_floor_reflections(
+    cvars: &mut sjk_shell::CvarRegistry,
+) -> Result<(), sjk_shell::CvarError> {
+    floor_reflections::register(cvars)
+}
+
 impl Runtime {
     /// Bind retained mirror suppression resources once the map renderer exists.
     pub(crate) fn configure_floor_commands(
@@ -87,6 +94,7 @@ impl Runtime {
         scene: &FlattenedScene,
         bsp: &Bsp,
         shaders: &ShaderCatalog,
+        floor_maps: &dyn Fn(usize) -> Option<crate::world_materials::material_maps::FloorMaps>,
     ) -> Self {
         let (format, size) = target;
         let mut faces = Vec::new();
@@ -179,6 +187,7 @@ impl Runtime {
                 size,
                 scene,
                 shaders,
+                floor_maps,
             ),
             faces,
             portals,

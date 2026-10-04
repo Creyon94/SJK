@@ -818,6 +818,7 @@ impl GpuState {
             &flattened,
             &bsp,
             &shaders,
+            &|material| world_materials.floor_maps(material).cloned(),
         );
         load_profile.mark("world-materials")?;
         if let Some(timeline) = &mut connect_timeline {

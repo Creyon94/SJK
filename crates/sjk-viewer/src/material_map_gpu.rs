@@ -107,14 +107,14 @@ impl Gpu {
 
     /// The material group of one stage: `stage_entries` (the ordinary group's
     /// entries) plus its maps, the frames, its parameters and the diffuse sampler.
-    pub(in crate::world_materials) fn bind(
+    /// The uploaded views of a stage's normal and specular maps (the neutral texture for a
+    /// missing one), uploading each image once.
+    fn views(
         &mut self,
         device: &wgpu::Device,
         queue: &crate::frame_queue::FrameQueue,
-        stage_entries: &[wgpu::BindGroupEntry<'_>],
         maps: &StageMaps,
-        sampler: &wgpu::Sampler,
-    ) -> Result<wgpu::BindGroup, Box<dyn Error>> {
+    ) -> (wgpu::TextureView, wgpu::TextureView) {
         let mut view = |image: &Option<super::MapImage>| -> wgpu::TextureView {
             image.as_ref().map_or_else(
                 || self.neutral.clone(),
@@ -126,8 +126,34 @@ impl Gpu {
                 },
             )
         };
-        let normal = view(&maps.normal);
-        let specular = view(&maps.specular);
+        (view(&maps.normal), view(&maps.specular))
+    }
+
+    /// A stage's maps as the floor mirrors' finish reads them.
+    pub(in crate::world_materials) fn floor_maps(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &crate::frame_queue::FrameQueue,
+        maps: &StageMaps,
+    ) -> super::FloorMaps {
+        let (normal, specular) = self.views(device, queue, maps);
+        super::FloorMaps {
+            normal,
+            specular,
+            params: bytemuck::cast(maps.params),
+            clamp: maps.clamp,
+        }
+    }
+
+    pub(in crate::world_materials) fn bind(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &crate::frame_queue::FrameQueue,
+        stage_entries: &[wgpu::BindGroupEntry<'_>],
+        maps: &StageMaps,
+        sampler: &wgpu::Sampler,
+    ) -> Result<wgpu::BindGroup, Box<dyn Error>> {
+        let (normal, specular) = self.views(device, queue, maps);
         let params = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("JKR material map parameters"),
             contents: bytemuck::bytes_of(&maps.params),
