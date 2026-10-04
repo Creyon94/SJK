@@ -19,6 +19,7 @@ pub(super) fn parse_stage(
         alpha_function: None,
         rgb_generator: None,
         alpha_generator: None,
+        resolved_colour: StageColour::IDENTITY,
         rgb_wave: None,
         alpha_wave: None,
         texture_modifications: Vec::new(),
@@ -30,6 +31,7 @@ pub(super) fn parse_stage(
         material: StageMaterial::default(),
     };
     let mut depth_write_explicit = false;
+    let mut colour = stage_colour::StageColourParser::default();
     while token(tokens, *cursor, source)? != "}" {
         let directive = tokens[*cursor].to_ascii_lowercase();
         *cursor += 1;
@@ -78,6 +80,7 @@ pub(super) fn parse_stage(
             "blendfunc" => {
                 let first = token(tokens, *cursor, source)?.to_ascii_lowercase();
                 *cursor += 1;
+                colour.blend(&first);
                 stage.blend = match first.as_str() {
                     "add" => StageBlend::Add,
                     "filter" => StageBlend::Filter,
@@ -112,6 +115,7 @@ pub(super) fn parse_stage(
             }
             "rgbgen" => {
                 let (generator, wave) = parse_generator(tokens, cursor, source)?;
+                colour.rgb(&generator);
                 if generator == "const" {
                     stage.rgb_constant = Some(parse_parenthesized_vec3(tokens, cursor, source)?);
                 }
@@ -120,6 +124,7 @@ pub(super) fn parse_stage(
             }
             "alphagen" => {
                 let (generator, wave) = parse_generator(tokens, cursor, source)?;
+                colour.alpha(&generator);
                 if generator == "portal" {
                     let range = tokens
                         .get(*cursor)
@@ -219,6 +224,7 @@ pub(super) fn parse_stage(
     }
     *cursor += 1;
     stage.material.finish();
+    stage.resolved_colour = colour.finish();
     definition.stage_images.extend(stage.images.iter().cloned());
     if stage.glow || stage.blend == StageBlend::Add {
         definition

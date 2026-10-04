@@ -15,12 +15,14 @@ pub use parse::parse_shader_script;
 use parse::*;
 mod deforms;
 mod material;
+mod stage_colour;
 mod stage_parse;
 pub use deforms::Deform;
 pub use material::{
     DEFAULT_NORMAL_SCALE, INITIAL_SPECULAR_SCALE, SPEC_GLOSS_SCALE, SpecularLayout, StageMaterial,
     packed_specular_scale,
 };
+pub use stage_colour::{AlphaGen, RgbGen, StageColour};
 mod surface_sprites;
 use stage_parse::parse_stage;
 pub use surface_sprites::{SpriteFacing, SpriteKind, SurfaceSprites};
@@ -118,6 +120,9 @@ pub struct ShaderStage {
     pub alpha_function: Option<String>,
     pub rgb_generator: Option<String>,
     pub alpha_generator: Option<String>,
+    /// rd-vanilla's resolved generators for this stage as parsed; see [`StageColour`].
+    /// Code that rewrites the generator strings after parsing does not update it.
+    pub resolved_colour: StageColour,
     pub rgb_wave: Option<WaveForm>,
     pub alpha_wave: Option<WaveForm>,
     pub texture_modifications: Vec<TextureModification>,
