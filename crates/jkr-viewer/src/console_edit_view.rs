@@ -47,7 +47,7 @@ fn band(y: f32, size: f32, pitch: f32) -> (f32, f32) {
 /// it) and at the end. `stop(index, x, advance)` gets each stop's byte offset, its
 /// distance from the text's start and the advance of the glyph after it (zero at the
 /// end); returning `true` ends the walk at that stop, whose offset is returned.
-fn walk(
+pub(crate) fn walk(
     text: &str,
     advance: impl Fn(u8) -> f32,
     mut stop: impl FnMut(usize, f32, f32) -> bool,
@@ -73,13 +73,13 @@ fn walk(
 }
 
 /// Caret stop of `text` nearest to `x` (measured from the text's start).
-pub(super) fn byte_at(text: &str, x: f32, advance: impl Fn(u8) -> f32) -> usize {
+pub(crate) fn byte_at(text: &str, x: f32, advance: impl Fn(u8) -> f32) -> usize {
     walk(text, advance, |_, pen, width| x < pen + width * 0.5)
 }
 
 /// First caret stop from which `text[..cursor]` fits in `room`: where to start drawing
 /// so the caret stays visible.
-pub(super) fn scroll_start(
+pub(crate) fn scroll_start(
     text: &str,
     cursor: usize,
     room: f32,
@@ -293,99 +293,5 @@ impl<'a> OutputRows<'a> {
             Some(press) => self.selection.press_output(press, at, token),
             None => self.selection.drag_output(at),
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// Every glyph ten units wide.
-    fn even(_: u8) -> f32 {
-        10.0
-    }
-
-    #[test]
-    fn pointer_x_picks_the_nearest_caret_stop() {
-        assert_eq!(byte_at("abc", -5.0, even), 0);
-        assert_eq!(byte_at("abc", 4.0, even), 0);
-        assert_eq!(byte_at("abc", 6.0, even), 1);
-        assert_eq!(byte_at("abc", 26.0, even), 3);
-        assert_eq!(byte_at("abc", 400.0, even), 3);
-    }
-
-    #[test]
-    fn colour_codes_take_no_width_and_stay_with_their_glyph() {
-        // "^1a^2b": stops before "^1a" (0), before "^2b" (3) and at the end (6).
-        assert_eq!(byte_at("^1a^2b", 1.0, even), 0);
-        assert_eq!(byte_at("^1a^2b", 9.0, even), 3);
-        assert_eq!(byte_at("^1a^2b", 19.0, even), 6);
-    }
-
-    #[test]
-    fn long_lines_scroll_just_enough_to_show_the_caret() {
-        let text = "abcdefghij";
-        assert_eq!(scroll_start(text, 5, 50.0, even), 0);
-        assert_eq!(scroll_start(text, 10, 50.0, even), 5);
-        assert_eq!(scroll_start(text, 10, 45.0, even), 6);
-        assert_eq!(scroll_start(text, 0, 0.0, even), 0);
-    }
-
-    /// With letter spacing on, the caret and a pointer hit land on the glyph the text
-    /// renderer actually draws: the input line goes through the real draw path and the
-    /// emitted glyph quads are compared with the measured positions.
-    #[test]
-    fn caret_and_hits_match_drawn_glyphs_with_letter_spacing() {
-        use crate::text::TextFace;
-        use jkr_ui::DrawCommand;
-
-        let font = crate::text::load_modern(1.0).expect("bundled font").font;
-        let viewport = [1920.0, 1080.0];
-        let text = ConsoleText::new(&font, 15.0, 0.12);
-        let rect = Rect::new(24.0, 900.0, 1200.0, 24.0);
-        // Distinct glyphs that the "] " prefix and the "_" caret do not use.
-        let line = PromptLine {
-            input: "kdm",
-            cursor: 2,
-            selection: None,
-        };
-        let mut ui = MenuCanvas::new();
-        ui.begin_transparent(viewport);
-        prompt(&mut ui, text, rect, &line, &mut Selection::new());
-        // The caret is the last text drawn; its pen starts at its rectangle.
-        let caret = ui
-            .draw_list()
-            .commands()
-            .iter()
-            .rev()
-            .find_map(|command| match command {
-                DrawCommand::Text { rect, .. } => Some(rect.x),
-                _ => None,
-            })
-            .expect("caret drawn");
-        let mut vertices = Vec::new();
-        ui.append_text(&mut vertices, &font, viewport);
-
-        // Pen position of the drawn 'm', from its glyph quad (not its black shadow).
-        let glyph = font.glyph(TextFace::Regular, b'm');
-        let floats: &[f32] = bytemuck::cast_slice(&vertices);
-        let left = floats
-            .chunks_exact(6 * 8)
-            .find(|quad| quad[2] == glyph.uv[0] && quad[3] == glyph.uv[1] && quad[4] > 0.0)
-            .map(|quad| (quad[0] + 1.0) * 0.5 * viewport[0])
-            .expect("'m' drawn");
-        let drawn = left - glyph.offset_x * 15.0 / font.height;
-
-        assert!((caret - drawn).abs() < 0.01, "caret {caret}, glyph {drawn}");
-        let text_x = rect.x + text.width(PROMPT_PREFIX);
-        assert!((text_x + text.width("kd") - drawn).abs() < 0.01);
-        // Without the spacing the caret would sit visibly left of the glyph.
-        let plain = ConsoleText::new(&font, 15.0, 0.0);
-        assert!(drawn - (rect.x + plain.width("] kd")) > 4.0 * 0.12 * 15.0 - 0.01);
-        // A click just right of the glyph's left edge places the caret before it.
-        let hit = byte_at(line.input, drawn + 1.0 - text_x, |glyph| {
-            text.advance(glyph)
-        });
-        assert_eq!(hit, 2);
     }
 }

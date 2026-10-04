@@ -1,7 +1,6 @@
 //! Hero-style settings presentation over the live map: a left column of
 //! box-free rows with inline sliders, toggles and cyclers, a tab strip and a
-//! back cap, all built from the shared form widgets. A slider whose value is
-//! being typed shows the typed text in its value column.
+//! back cap, all built from the shared form widgets.
 
 use super::*;
 use crate::menu_widgets::{FormLayout, MenuCanvas, Scrim};
@@ -45,19 +44,15 @@ impl SettingsMenu {
                 .or_else(|| self.values.get(row).map(String::as_str))
                 .unwrap_or("?");
             let editing = self.editing.is_some() && row == self.selected;
-            let entry = (self.entry.row() == Some(row))
-                .then(|| (self.entry.text(), self.entry.replacing()));
             row_view(
                 &mut self.ui,
                 &layout,
-                RowState {
-                    row,
-                    selected: row == self.selected,
-                    value,
-                    editing,
-                    entry,
-                },
+                row,
+                row == self.selected,
                 setting,
+                value,
+                editing,
+                self.numeric.as_ref(),
             );
         }
         let row = settings(KEYBINDS_TAB).len();
@@ -73,27 +68,18 @@ impl SettingsMenu {
     }
 }
 
-/// What one row shows this frame.
-struct RowState<'a> {
+/// One settings row: label, selection sweep and the value control.
+#[allow(clippy::too_many_arguments)]
+fn row_view(
+    ui: &mut MenuCanvas,
+    layout: &FormLayout,
     row: usize,
     selected: bool,
-    /// Current value text (or the open text edit's buffer).
-    value: &'a str,
-    /// A text row's inline edit is open.
+    setting: &Setting,
+    value: &str,
     editing: bool,
-    /// A slider's typed entry and whether its next key replaces it.
-    entry: Option<(&'a str, bool)>,
-}
-
-/// One settings row: label, selection sweep and the value control.
-fn row_view(ui: &mut MenuCanvas, layout: &FormLayout, state: RowState<'_>, setting: &Setting) {
-    let RowState {
-        row,
-        selected,
-        value,
-        editing,
-        entry,
-    } = state;
+    numeric: Option<&crate::menu_widgets::numeric::NumericEdit>,
+) {
     let s = layout.scale;
     let rect = layout.row_rect(row);
     let theme = ui.theme();
@@ -124,13 +110,13 @@ fn row_view(ui: &mut MenuCanvas, layout: &FormLayout, state: RowState<'_>, setti
             let ratio = value
                 .parse::<f32>()
                 .map_or(0.0, |v| (v - min as f32) / span);
-            slider(ui, value_zone, value, entry, ratio, value_color, s);
+            ui.form_slider(value_zone, row, numeric, value, ratio, value_color, s);
         }
         ValueKind::Float { min, max, .. } => {
             let ratio = value
                 .parse::<f64>()
                 .map_or(0.0, |v| ((v - min) / (max - min)) as f32);
-            slider(ui, value_zone, value, entry, ratio, value_color, s);
+            ui.form_slider(value_zone, row, numeric, value, ratio, value_color, s);
         }
         ValueKind::Choice(_) | ValueKind::Resolution | ValueKind::DisplayMode => {
             ui.form_cycler(value_zone, value, None, value_color, s)
@@ -147,22 +133,5 @@ fn row_view(ui: &mut MenuCanvas, layout: &FormLayout, state: RowState<'_>, setti
                 ui.edit_underline(field, theme.accent, s);
             }
         }
-    }
-}
-
-/// A slider control, showing the typed `entry` instead of `value` while one
-/// is open.
-fn slider(
-    ui: &mut MenuCanvas,
-    zone: Rect,
-    value: &str,
-    entry: Option<(&str, bool)>,
-    ratio: f32,
-    color: jkr_ui::Color,
-    s: f32,
-) {
-    match entry {
-        Some((text, replacing)) => ui.form_slider_entry(zone, text, replacing, ratio, s),
-        None => ui.form_slider(zone, value, ratio, color, s),
     }
 }

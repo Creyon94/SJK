@@ -42,9 +42,6 @@ impl GpuState {
     ) {
         use crate::frame_pacing::budget::Phase;
         timing.mark(Phase::Snapshot);
-        if let Some(audio) = game_audio.as_mut() {
-            audio.set_muted_players(self.chat.muted_players());
-        }
         drain_snapshots(|| {
             let Some(session) = &mut self.live_session else {
                 return false;
@@ -111,13 +108,6 @@ impl GpuState {
             // These may contain cleared player state while a new map is primed.
             if !active_snapshot(&snapshot) {
                 return true;
-            }
-            if self.begin_playable_intermission() {
-                self.finish_resident_attach(game_audio);
-                return false;
-            }
-            if self.live_session.as_ref().is_some_and(|s| !s.is_local()) {
-                self.resident.remember_player(&snapshot.player);
             }
             self.net_timing.snapshot_received(snapshot.server_time);
             self.present_live_snapshot(&snapshot, true, game_audio, visual_now);

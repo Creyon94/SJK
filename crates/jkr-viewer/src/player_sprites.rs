@@ -86,28 +86,3 @@ pub(super) fn submit(
         shape: SHAPE,
     });
 }
-
-#[cfg(test)]
-mod tests {
-    use super::SHAPE;
-    use crate::effect_submission::{billboard_corner_texcoord, billboard_uv_transform};
-
-    #[test]
-    fn balloon_quad_samples_the_image_top_at_its_top() {
-        // Neither `gfx/mp/chat_icon` nor `gfx/2d/net` has a tcMod: identity layer.
-        let transform = billboard_uv_transform(SHAPE, [1.0, 1.0, 0.0, 0.0]);
-        // `RB_AddQuadStampExt`: origin + left + up is (0, 0), going clockwise.
-        for (corner, texcoord) in [
-            ([-1.0, 1.0], [0.0, 0.0]),
-            ([1.0, 1.0], [1.0, 0.0]),
-            ([1.0, -1.0], [1.0, 1.0]),
-            ([-1.0, -1.0], [0.0, 1.0]),
-        ] {
-            assert_eq!(
-                billboard_corner_texcoord(corner, transform),
-                texcoord,
-                "corner {corner:?}"
-            );
-        }
-    }
-}

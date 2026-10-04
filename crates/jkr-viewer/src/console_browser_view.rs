@@ -1,7 +1,9 @@
 //! Drawing of the console browser: hero header, filter tabs, search field and a
 //! two-line row per entry (name, value and default; then its description).
 
-use super::pointer::{ACTIVATE_TOKEN, RESET_TOKEN, ROW_BASE, SCROLLBAR_TOKEN, SEARCH_TOKEN};
+use super::pointer::{
+    ACTIVATE_TOKEN, FILTER_TOKEN, RESET_TOKEN, ROW_BASE, SCROLLBAR_TOKEN, SEARCH_TOKEN,
+};
 use super::{Browser, Entry, Kind, TABS};
 use crate::menu_widgets::{BACK_TOKEN, FormLayout, Scrim};
 use crate::text::{TextVertex, UiFont};
@@ -97,7 +99,7 @@ impl Browser {
                     ACTIVATE_TOKEN,
                 ),
                 ("DEL", "Default", RESET_TOKEN),
-                ("TAB", "Filter", 0),
+                ("TAB", "Filter", FILTER_TOKEN),
                 ("ESC", if editing { "Cancel" } else { "Close" }, BACK_TOKEN),
             ],
         );

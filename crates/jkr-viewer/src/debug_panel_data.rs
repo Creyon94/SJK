@@ -332,6 +332,10 @@ mod tests {
         let mut prs = HashSet::new();
         for entry in &entries {
             assert!(ids.insert(entry.id.as_str()), "id {} twice", entry.id);
+            // One upstream PR can supersede several of Sol's (e.g. #88 for #6 and #33).
+            if entry.status != Status::Open {
+                continue;
+            }
             for pr in &entry.prs {
                 assert!(prs.insert(*pr), "PR #{pr} listed twice");
             }
@@ -342,12 +346,13 @@ mod tests {
     fn embedded_list_covers_the_build() {
         let entries = embedded();
         let listed: HashSet<u32> = entries.iter().flat_map(|entry| entry.prs.clone()).collect();
-        for pr in [6, 66]
-            .into_iter()
-            .chain(29..=49)
-            .chain(58..=63)
-            .chain(70..=72)
-        {
+        // Sol's PRs in this build: open ones, and merged ones not yet dropped.
+        let in_build = [
+            29, 34, 35, 36, 37, 38, 39, 40, 42, 43, 44, 45, 46, 47, 48, 49,
+        ]
+        .into_iter()
+        .chain([59, 60, 62, 63, 66, 70, 71, 72, 78, 86, 87, 97, 98]);
+        for pr in in_build {
             assert!(listed.contains(&pr), "PR #{pr} is missing");
         }
     }

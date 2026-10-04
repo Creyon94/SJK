@@ -42,11 +42,11 @@ mod console_keyboard;
 #[path = "console_text.rs"]
 mod console_text;
 #[path = "console_edit_view.rs"]
-mod edit_view;
+pub(crate) mod edit_view;
 #[path = "console_editing.rs"]
 mod editing;
 #[path = "console_line_edit.rs"]
-mod line_edit;
+pub(crate) mod line_edit;
 #[path = "console_selection.rs"]
 mod selection;
 
@@ -92,8 +92,6 @@ pub(crate) struct ViewerConsole {
     /// Bind names that held keys were pressed under.
     held_keys: crate::input::keys::HeldKeys,
     input: String,
-    /// Dead key shown at the caret of `input` until its composition arrives.
-    dead_key: crate::input::dead_key::DeadKey,
     history: Vec<String>,
     history_index: Option<usize>,
     scroll_offset: usize,
@@ -220,11 +218,6 @@ impl ViewerConsole {
         self.shell.push_log(text);
     }
 
-    /// Add text to the scrollback without showing it among the notify lines.
-    pub(crate) fn push_log_quiet(&mut self, text: impl Into<String>) {
-        self.shell.push_log_quiet(text);
-    }
-
     /// Queue the script bound to a key event. A release runs under the name
     /// its press had, so `+button` binds release even if the layout changed.
     pub(crate) fn queue_bound_key(
@@ -333,7 +326,6 @@ impl ViewerConsole {
                 self.browser.close();
                 self.input = format!("{name} ");
                 self.rebuild_prompt();
-                self.dead_key.settle();
             }
             BrowserAction::Set { name, value } => {
                 let result = self.apply_cvar(&name, &value);
@@ -538,7 +530,6 @@ impl ViewerConsole {
         }
         self.open = open;
         self.history_index = None;
-        self.dead_key.settle();
         if !open {
             self.browser.close();
             self.debug_panel.close();

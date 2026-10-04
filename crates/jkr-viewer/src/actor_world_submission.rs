@@ -102,13 +102,13 @@ pub(crate) fn submit(
         .and_then(|console| console.integer_cvar("cg_saberTrail"))
         .unwrap_or(1)
         != 0;
-    let saber_contact = gpu.effect_aux.saber_contacts.enabled;
     let speed_trail = gpu
         .console
         .as_ref()
         .and_then(|console| console.integer_cvar("cg_speedTrail"))
         .unwrap_or(1)
         != 0;
+    let saber_contact = gpu.effect_aux.saber_contacts.enabled;
     let mut sinks = Sinks {
         flag_meshes: gpu.pickup_catalog.carrier_meshes[flags::model_set(
             game_state

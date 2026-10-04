@@ -1,8 +1,5 @@
 //! Console keyboard capture and editing.
-use super::line_edit::LineEdit;
 use super::*;
-use crate::input::dead_key::TypingField;
-use std::ops::Range;
 
 /// Does `text` (the characters this key press produced) appear in a
 /// `cl_consoleKeys` list? Entries are literal characters or `0x` hex
@@ -122,7 +119,13 @@ impl ViewerConsole {
         if event.state != ElementState::Pressed {
             return true;
         }
-        if self.toggles_console(event, key) {
+        // Printable opening shortcuts belong to text once the console is open.
+        // Keep Escape and non-text bindings available for closing it.
+        if !matches!(
+            event.logical_key,
+            winit::keyboard::Key::Character(_) | winit::keyboard::Key::Dead(_)
+        ) && self.toggles_console(event, key)
+        {
             self.set_open(false);
             return true;
         }
@@ -134,129 +137,22 @@ impl ViewerConsole {
             self.browser_action(action);
             return true;
         }
-        // These keys end or replace the line, so a dead key shown at the caret stays
-        // typed (see `input::dead_key`).
-        if matches!(
-            key,
-            KeyCode::Escape
-                | KeyCode::Enter
-                | KeyCode::NumpadEnter
-                | KeyCode::Backspace
-                | KeyCode::Tab
-                | KeyCode::ArrowUp
-                | KeyCode::ArrowDown
-        ) || event.text.as_deref() == Some("\u{16}")
-        {
-            self.dead_key.settle();
-        }
         match key {
-            KeyCode::F3 if !event.repeat => {
-                // The browser takes the keys from here, so a shown dead key stays typed.
-                self.dead_key.settle();
-                self.browser.open(&self.shell);
-            }
+            KeyCode::F3 if !event.repeat => self.browser.open(&self.shell),
             KeyCode::Escape => self.set_open(false),
             KeyCode::Enter | KeyCode::NumpadEnter => self.submit(session),
             KeyCode::Tab => self.complete_command(CompletionKey::Tab),
             KeyCode::ArrowUp if !event.repeat => self.navigate_history(-1),
             KeyCode::ArrowDown if !event.repeat => self.navigate_history(1),
-            // Caret, deletion and clipboard keys: see `console_editing.rs`. One that
-            // brings text ends a pending dead key, which then stays typed; caret
-            // motion leaves it pending, as the platform does.
-            _ if self.edit_key(event, key) => self.dead_key.other_key(event.text.as_deref()),
-            _ if !event.repeat => self.dead_key.type_key(
-                &mut PromptLine {
-                    text: &mut self.input,
-                    edit: &mut self.edit,
-                },
-                &event.logical_key,
-                event.text.as_deref(),
-            ),
+            // Caret, deletion and clipboard keys: see `console_editing.rs`.
+            _ if self.edit_key(event, key) => {}
+            _ if !event.repeat => {
+                if let Some(text) = event.text.as_deref() {
+                    self.type_text(text);
+                }
+            }
             _ => {}
         }
         true
-    }
-}
-
-/// The console input line with its caret and selection, typed at the caret.
-struct PromptLine<'a> {
-    text: &'a mut String,
-    edit: &'a mut LineEdit,
-}
-
-impl TypingField for PromptLine<'_> {
-    fn line(&self) -> &str {
-        self.text
-    }
-
-    fn caret(&self) -> usize {
-        self.edit.cursor(self.text)
-    }
-
-    fn insert(&mut self, text: &str) {
-        self.edit.insert(self.text, text, INPUT_LIMIT);
-    }
-
-    fn remove(&mut self, range: Range<usize>) {
-        self.edit.remove(self.text, range);
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::input::dead_key::DeadKey;
-    use winit::keyboard::{Key, NamedKey, SmolStr};
-
-    /// `input` with the caret at its end, as after typing it.
-    fn at_end(input: &str) -> (String, LineEdit) {
-        let mut edit = LineEdit::default();
-        edit.to_end(input);
-        (input.to_owned(), edit)
-    }
-
-    #[test]
-    fn prompt_line_types_a_dead_key_colour_code_exactly() {
-        let (mut input, mut edit) = at_end("say ");
-        let mut dead = DeadKey::default();
-        let mut line = PromptLine {
-            text: &mut input,
-            edit: &mut edit,
-        };
-        dead.type_key(&mut line, &Key::Dead(Some('^')), None);
-        assert_eq!(line.line(), "say ^");
-        dead.type_key(&mut line, &Key::Named(NamedKey::Shift), None);
-        dead.type_key(&mut line, &Key::Character(SmolStr::new("1")), Some("^1"));
-        assert_eq!(input, "say ^1");
-        assert_eq!(edit.cursor(&input), input.len());
-    }
-
-    #[test]
-    fn prompt_line_composes_at_a_caret_inside_the_line() {
-        let (mut input, mut edit) = at_end("say hi");
-        edit.place(&input, 4, false);
-        let mut dead = DeadKey::default();
-        let mut line = PromptLine {
-            text: &mut input,
-            edit: &mut edit,
-        };
-        dead.type_key(&mut line, &Key::Dead(Some('^')), None);
-        assert_eq!(line.line(), "say ^hi");
-        dead.type_key(&mut line, &Key::Character(SmolStr::new("1")), Some("^1"));
-        assert_eq!(input, "say ^1hi");
-        assert_eq!(edit.cursor(&input), 6);
-    }
-
-    #[test]
-    fn prompt_line_keeps_its_limit_for_a_dead_key() {
-        let (mut input, mut edit) = at_end(&"x".repeat(INPUT_LIMIT));
-        let mut dead = DeadKey::default();
-        let mut line = PromptLine {
-            text: &mut input,
-            edit: &mut edit,
-        };
-        dead.type_key(&mut line, &Key::Dead(Some('^')), None);
-        assert_eq!(input.len(), INPUT_LIMIT);
-        assert_eq!(dead, DeadKey::default());
     }
 }

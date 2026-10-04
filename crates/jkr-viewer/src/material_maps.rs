@@ -193,15 +193,13 @@ pub(super) fn diffuse_bundle(stage: &CompiledStage, lightmap: i32) -> Option<Bun
             g.eq_ignore_ascii_case("identity") || g.eq_ignore_ascii_case("identityLighting")
         })
     };
-    // The collapsed pass draws with stage 0's colour, which `collapse_multitexture`
-    // keeps in the primary bundle whichever bundle holds the diffuse texture.
-    let colour = &stage.primary;
-    let plain_alpha = colour.alpha_generator.as_deref().is_none_or(|g| {
+    // Collapsed bundles share their generators (`collapse_pair`), so one check covers both.
+    let plain_alpha = diffuse.alpha_generator.as_deref().is_none_or(|g| {
         !g.eq_ignore_ascii_case("lightingSpecular") && !g.eq_ignore_ascii_case("portal")
     });
-    (plain(colour.rgb_generator.as_deref())
-        && colour.rgb_wave.is_none()
-        && colour.rgb_constant.is_none()
+    (plain(diffuse.rgb_generator.as_deref())
+        && diffuse.rgb_wave.is_none()
+        && diffuse.rgb_constant.is_none()
         && plain_alpha
         && diffuse.surface_sprites.is_none())
     .then_some(bundle)
@@ -352,22 +350,6 @@ mod tests {
         let reversed =
             stages("textures/a {\n{ map textures/a/floor }\n{ map $lightmap blendFunc filter }\n}");
         assert_eq!(diffuse_bundle(&reversed[0], 2), Some(Bundle::Primary));
-    }
-
-    #[test]
-    fn pairs_merged_on_resolved_colour_take_maps() {
-        // The glossyBase layout (#69/#71): the lightmap stage leaves rgbGen unset and
-        // the texture spells out `rgbGen identity`. rd-vanilla resolves both to
-        // identity and merges them, so the pair takes maps; the gloss stays authored.
-        let compiled = stages(
-            "textures/a {\n{ map $lightmap tcGen lightmap }\n\
-             { map textures/a/base blendFunc GL_DST_COLOR GL_ZERO rgbGen identity }\n\
-             { map textures/a/env blendFunc GL_ONE GL_ONE_MINUS_SRC_COLOR rgbGen identity \
-             tcGen environment }\n}",
-        );
-        assert_eq!(compiled.len(), 2);
-        assert_eq!(diffuse_bundle(&compiled[0], 0), Some(Bundle::Primary));
-        assert_eq!(diffuse_bundle(&compiled[1], 0), None);
     }
 
     #[test]

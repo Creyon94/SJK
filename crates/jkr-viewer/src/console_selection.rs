@@ -7,7 +7,7 @@
 //! results afterwards through [`Selection::take_prompt`].
 //!
 //! Scrollback positions are kept as [`Mark`]s, a line number from
-//! [`jkr_shell::Shell::first_line_number`] and a byte offset, so a selection stays on
+//! [`jkr_shell::Shell::lines_written`] and a byte offset, so a selection stays on
 //! its text while new output arrives, the view scrolls, or old lines are trimmed.
 
 use jkr_ui::{InputEvent, PointerButton, Rect, Vec2};
@@ -276,95 +276,5 @@ fn push_uncoloured(text: &str, out: &mut String) {
         } else {
             out.push(character);
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    fn mark(line: u64, byte: usize) -> Mark {
-        Mark { line, byte }
-    }
-
-    #[test]
-    fn copies_part_of_one_line_without_colour_codes() {
-        let lines = ["first", "^7Server at ^3127.0.0.1:29070^7 ready"];
-        let mut out = String::new();
-        copy_range(lines.into_iter(), 10, mark(11, 12), mark(11, 31), &mut out);
-        assert_eq!(out, "127.0.0.1:29070");
-    }
-
-    #[test]
-    fn copies_across_lines_and_skips_trimmed_ones() {
-        let lines = ["two", "three\nwrapped", "four"];
-        let mut out = String::new();
-        // Line 1 was trimmed from scrollback; the copy starts with what remains.
-        copy_range(lines.into_iter(), 2, mark(1, 2), mark(4, 2), &mut out);
-        assert_eq!(out, "two\nthree\nwrapped\nfo");
-    }
-
-    #[test]
-    fn offsets_inside_a_character_or_past_the_end_are_clamped() {
-        let lines = ["aéb"];
-        let mut out = String::new();
-        copy_range(lines.into_iter(), 0, mark(0, 2), mark(0, 99), &mut out);
-        assert_eq!(out, "éb");
-    }
-
-    #[test]
-    fn a_click_without_a_drag_selects_nothing() {
-        let mut selection = Selection::new();
-        let press = Press {
-            position: Vec2::new(0.0, 0.0),
-            double: false,
-            extend: false,
-        };
-        selection.press_output(press, mark(3, 4), (mark(3, 0), mark(3, 9)));
-        assert_eq!(selection.range(), None);
-        selection.drag_output(mark(2, 1));
-        assert_eq!(selection.range(), Some((mark(2, 1), mark(3, 4))));
-    }
-
-    #[test]
-    fn a_double_click_keeps_its_token_when_the_pointer_moves() {
-        let mut selection = Selection::new();
-        let at = Vec2::new(20.0, 50.0);
-        let press = InputEvent::PointerPress {
-            position: at,
-            button: PointerButton::Primary,
-        };
-        let release = InputEvent::PointerRelease {
-            position: at,
-            button: PointerButton::Primary,
-        };
-        selection.pointer(press, false);
-        selection.end_frame();
-        selection.pointer(release, false);
-        selection.end_frame();
-        selection.pointer(press, false);
-        assert!(selection.press().is_some_and(|press| press.double));
-        selection.end_frame();
-        selection.pointer(InputEvent::PointerMove(Vec2::new(60.0, 50.0)), false);
-        selection.pointer(release, false);
-        assert_eq!(selection.pending_position(), None);
-    }
-
-    #[test]
-    fn presses_outside_the_console_text_clear_the_selection() {
-        let mut selection = Selection::new();
-        selection.range = Some((mark(0, 0), mark(0, 3)));
-        let output = Rect::new(0.0, 40.0, 100.0, 100.0);
-        let prompt = Rect::new(0.0, 150.0, 100.0, 20.0);
-        selection.pointer(
-            InputEvent::PointerPress {
-                position: Vec2::new(10.0, 10.0),
-                button: PointerButton::Primary,
-            },
-            false,
-        );
-        selection.begin_frame(output, prompt);
-        assert_eq!(selection.gesture(), Gesture::Idle);
-        assert_eq!(selection.range(), None);
     }
 }

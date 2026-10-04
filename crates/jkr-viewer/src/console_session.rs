@@ -162,6 +162,10 @@ impl ViewerConsole {
             ("quit", "Quit the client"),
             ("exit", "Quit the client (alias of quit)"),
             ("connect", "Connect to host[:port]"),
+            (
+                "devmap",
+                "devmap <map>: play a local map with cheats enabled",
+            ),
             ("disconnect", "Leave the current server"),
             ("reconnect", "Reconnect to the last server"),
             ("record", "Begin recording a protocol-26 demo"),
@@ -264,7 +268,6 @@ impl ViewerConsole {
             shift: false,
             held_keys: Default::default(),
             input: String::with_capacity(INPUT_LIMIT),
-            dead_key: Default::default(),
             history: Vec::new(),
             history_index: None,
             scroll_offset: 0,

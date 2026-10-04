@@ -273,6 +273,28 @@ impl Browser {
         }
     }
 
+    /// Apply an active edit, or start editing/inserting the selected entry.
+    fn accept(&mut self) -> BrowserAction {
+        if let Some(value) = self.editing.take() {
+            return self
+                .selected_entry()
+                .map_or(BrowserAction::None, |entry| BrowserAction::Set {
+                    name: entry.name.clone(),
+                    value: value.trim().to_owned(),
+                });
+        }
+        self.activate()
+    }
+
+    /// Cancel only the edit first; otherwise return to the console.
+    fn cancel(&mut self) -> BrowserAction {
+        if self.editing.take().is_some() {
+            BrowserAction::None
+        } else {
+            BrowserAction::Close
+        }
+    }
+
     /// Delete on the selected entry: restore a cvar's default.
     fn reset_selected(&mut self) -> BrowserAction {
         let Some(entry) = self.selected_entry() else {
@@ -301,17 +323,9 @@ impl Browser {
         };
         if let Some(value) = &mut self.editing {
             match key {
-                KeyCode::Escape => self.editing = None,
-                KeyCode::Enter | KeyCode::NumpadEnter => {
-                    let value = std::mem::take(value);
-                    self.editing = None;
-                    if let Some(entry) = self.selected_entry() {
-                        return BrowserAction::Set {
-                            name: entry.name.clone(),
-                            value: value.trim().to_owned(),
-                        };
-                    }
-                }
+                KeyCode::Escape => return self.cancel(),
+                KeyCode::F3 if !event.repeat => return BrowserAction::Close,
+                KeyCode::Enter | KeyCode::NumpadEnter => return self.accept(),
                 KeyCode::Backspace => {
                     value.pop();
                 }

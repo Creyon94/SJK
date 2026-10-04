@@ -1,7 +1,4 @@
-//! Pointer interaction for the retained settings form: hover and the wheel
-//! select rows, a click or drag on a slider's rail sets it, and a click on a
-//! slider's value column opens typed entry. While a value is being typed the
-//! selection stays put; a click elsewhere applies it first.
+//! Pointer interaction for the retained settings form.
 
 use super::*;
 use crate::menu_widgets::cycler_direction;
@@ -23,11 +20,23 @@ impl SettingsMenu {
         let Some(token) = event.token else {
             return SettingsResult::None;
         };
-        let editing = self.entry.row().is_some() || self.editing.is_some();
-        if event.kind == UiEventKind::Wheel {
-            if editing {
+        if event.kind == UiEventKind::Press
+            && crate::menu_widgets::numeric::value_row(token).is_none()
+        {
+            self.numeric = None;
+        }
+        if event.kind == UiEventKind::Activate {
+            if let Some(row) = crate::menu_widgets::numeric::value_row(token) {
+                if self.numeric.as_ref().is_none_or(|edit| edit.row != row) {
+                    self.begin_numeric(console, row);
+                }
                 return SettingsResult::None;
             }
+            self.numeric = None;
+        } else if self.numeric.is_some() {
+            return SettingsResult::None;
+        }
+        if event.kind == UiEventKind::Wheel {
             let direction = event.delta.map_or(0, |delta| -delta.y.signum() as i32);
             let count = settings(self.tab).len() + usize::from(self.tab == KEYBINDS_TAB);
             if direction != 0 && count > 0 {
@@ -36,24 +45,18 @@ impl SettingsMenu {
             return SettingsResult::None;
         }
         if matches!(event.kind, UiEventKind::HoverEnter | UiEventKind::Hover) {
-            if let Some(row) = self.setting_row(token).filter(|_| !editing) {
+            if let Some(row) = self.setting_row(token) {
                 self.selected = row;
             }
             return SettingsResult::None;
         }
-        let row = self.setting_row(token);
-        let in_value = row.is_some_and(|_| self.in_value_column(token, event.position));
-        if event.kind == UiEventKind::Press {
-            let slider = row.filter(|row| self.number_format(*row).is_some());
-            self.entry.press(slider, in_value);
-            return SettingsResult::None;
-        }
         if event.kind == UiEventKind::Drag {
-            if let (Some(row), Some(position)) = (row, event.position) {
-                if !editing && self.entry.drag_moves(row, in_value) {
-                    self.selected = row;
-                    self.set_numeric_from_pointer(console, row, position.x);
-                }
+            if crate::menu_widgets::numeric::value_row(token).is_some() {
+                return SettingsResult::None;
+            }
+            if let (Some(row), Some(position)) = (self.setting_row(token), event.position) {
+                self.selected = row;
+                self.set_numeric_from_pointer(console, row, position.x);
             }
             return SettingsResult::None;
         }
@@ -65,32 +68,20 @@ impl SettingsMenu {
                 self.tab = usize::from(token - 500);
                 self.selected = 0;
                 self.editing = None;
-                self.entry.cancel();
                 self.refresh(console);
             }
             900 => return SettingsResult::Back,
             _ if self.tab == KEYBINDS_TAB && usize::from(token) == settings(KEYBINDS_TAB).len() => {
-                self.commit_edits(console);
                 return SettingsResult::OpenKeybinds;
             }
             _ => {
-                let Some(row) = row else {
+                let Some(row) = self.setting_row(token) else {
                     return SettingsResult::None;
                 };
-                let opens_entry = self.entry.click_opens(row, in_value);
-                let on_open_field = (self.entry.row() == Some(row) && in_value)
-                    || (self.editing.is_some() && row == self.selected);
-                if on_open_field {
-                    return SettingsResult::None;
-                }
-                self.commit_edits(console);
                 self.selected = row;
-                if opens_entry && self.begin_entry(row) {
-                    return SettingsResult::None;
-                }
                 if let Some(setting) = settings(self.tab).get(row) {
                     if matches!(setting.kind, ValueKind::Text) {
-                        self.editing = Some(value_text(console, setting));
+                        self.editing = Some(value_text(console, setting.cvar));
                     } else if matches!(setting.kind, ValueKind::Resolution) {
                         self.open_resolutions(console);
                     } else if let Some(position) = event.position {
@@ -107,14 +98,6 @@ impl SettingsMenu {
         SettingsResult::None
     }
 
-    /// Whether `position` is over the value column of the slider row under
-    /// `token`.
-    fn in_value_column(&self, token: u16, position: Option<jkr_ui::Vec2>) -> bool {
-        position
-            .zip(self.ui.rect_for(token))
-            .is_some_and(|(position, rect)| self.ui.slider_value_hit(rect, position.x))
-    }
-
     /// Which way a click at `x` turns row `row`: a cycler steps the way the
     /// clicked half points, like its `<` and `>`; anything else steps on.
     fn click_direction(&self, kind: ValueKind, row: usize, x: f32) -> i32 {
@@ -127,7 +110,7 @@ impl SettingsMenu {
     }
 
     fn setting_row(&self, token: u16) -> Option<usize> {
-        let row = usize::from(token);
+        let row = crate::menu_widgets::numeric::value_row(token).unwrap_or(usize::from(token));
         (row < settings(self.tab).len()).then_some(row)
     }
 
@@ -143,14 +126,31 @@ impl SettingsMenu {
         let Some(rect) = self.ui.rect_for(row as u16) else {
             return false;
         };
-        let ratio = f64::from(self.ui.slider_ratio(rect, pointer_x));
-        let raw = match setting.kind {
-            ValueKind::Integer { min, max, .. } => min as f64 + (max - min) as f64 * ratio,
-            ValueKind::Float { min, max, .. } => min + (max - min) * ratio,
+        let ratio = self.ui.slider_ratio(rect, pointer_x);
+        let value = match setting.kind {
+            ValueKind::Integer { min, max, step } => {
+                let raw = min as f32 + (max - min) as f32 * ratio;
+                if min < 0 {
+                    // The special value below zero (AUTO) is the rail's left end;
+                    // the rest snaps to multiples of the step from zero.
+                    if raw < 0.0 {
+                        min.to_string()
+                    } else {
+                        ((raw / step as f32).round() as i64 * step)
+                            .clamp(0, max)
+                            .to_string()
+                    }
+                } else {
+                    let snapped = ((raw - min as f32) / step as f32).round() as i64 * step + min;
+                    snapped.clamp(min, max).to_string()
+                }
+            }
+            ValueKind::Float { min, max, step } => {
+                let raw = min + (max - min) * f64::from(ratio);
+                let snapped = ((raw - min) / step).round() * step + min;
+                snapped.clamp(min, max).to_string()
+            }
             _ => return false,
-        };
-        let Some(value) = setting.kind.snapped(raw) else {
-            return false;
         };
         console.set_cvar(setting.cvar, &value);
         self.refresh(console);

@@ -16,6 +16,8 @@ pub(super) const ACTIVATE_TOKEN: u16 = 904;
 pub(super) const SCROLLBAR_TOKEN: u16 = 910;
 /// Rows one wheel notch scrolls.
 const WHEEL_ROWS: isize = 3;
+/// Footer filter action.
+pub(super) const FILTER_TOKEN: u16 = 905;
 
 impl Browser {
     pub(crate) fn handle_pointer(&mut self, event: InputEvent) -> BrowserAction {
@@ -50,13 +52,17 @@ impl Browser {
             return BrowserAction::None;
         }
         match token {
-            BACK_TOKEN => BrowserAction::Close,
+            BACK_TOKEN => self.cancel(),
             SEARCH_TOKEN => {
                 self.editing = None;
                 BrowserAction::None
             }
             RESET_TOKEN => self.reset_selected(),
-            ACTIVATE_TOKEN => self.activate(),
+            ACTIVATE_TOKEN => self.accept(),
+            FILTER_TOKEN => {
+                self.set_tab(self.tab + 1);
+                BrowserAction::None
+            }
             TAB_BASE.. if usize::from(token - TAB_BASE) < TABS.len() => {
                 self.set_tab(usize::from(token - TAB_BASE));
                 BrowserAction::None

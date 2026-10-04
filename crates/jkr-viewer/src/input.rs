@@ -1,7 +1,6 @@
 //! Bind-command interpretation for gameplay input.
 
 use jkr_protocol::UserCommand;
-pub(crate) mod dead_key;
 pub(crate) mod motion;
 
 mod selection_commands;
@@ -97,20 +96,22 @@ impl GameplayInput {
         self.reset_after_buffer = previous.reset_after_buffer;
     }
 
+    /// Losing focus releases held keys as `Key_ClearStates` does; holds typed at
+    /// the console last until their `-` command.
     pub(crate) fn focus(&mut self, focused: bool) {
         self.focused = focused;
         if !focused {
-            self.clear();
+            self.release_keys();
             self.reset_after_buffer = true;
         }
     }
 
     /// Focus can change after a bind was queued but before its script executes.
-    /// Drop that frame's gameplay actions too, including a quick out-and-back.
+    /// Drop that frame's key actions too, including a quick out-and-back.
     pub(crate) fn finish_buffered_input(&mut self) -> bool {
         let reset = std::mem::take(&mut self.reset_after_buffer) || !self.focused;
         if reset {
-            self.clear();
+            self.release_keys();
         }
         reset
     }

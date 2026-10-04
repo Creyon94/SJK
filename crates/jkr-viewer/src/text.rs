@@ -8,9 +8,8 @@
 
 mod bounded;
 pub(crate) mod fontdat;
-pub(crate) mod style;
-
 pub(crate) mod sdf;
+pub(crate) mod style;
 pub(crate) use bounded::append_bounded;
 pub(crate) use style::TextStyle;
 

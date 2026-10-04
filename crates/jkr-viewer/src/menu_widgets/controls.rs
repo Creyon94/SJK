@@ -1,6 +1,5 @@
 //! Box-free value controls for hero-style forms: a hairline slider rail, a
-//! pill toggle and a text-edit underline. None of them own pointer targets;
-//! the enclosing row does.
+//! pill toggle and a text-edit underline. Slider values own an edit target.
 
 use super::MenuCanvas;
 use super::form::SLIDER_VALUE_COLUMN;
@@ -43,51 +42,17 @@ impl MenuCanvas {
 
     /// A numeric row's control: the rail across the value zone with the
     /// value text in a 72-unit column at its right.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn form_slider(
         &mut self,
         zone: Rect,
+        row: usize,
+        editing: Option<&super::numeric::NumericEdit>,
         value: &str,
         ratio: f32,
         color: Color,
         scale: f32,
     ) {
-        let text = self.form_slider_rail(zone, ratio, color, scale);
-        self.form_value(value, text, color, scale);
-    }
-
-    /// [`form_slider`](Self::form_slider) while its value is being typed:
-    /// the typed `value` sits on the text-edit underline, over a faint
-    /// accent fill while `replacing` (the next key replaces the value).
-    pub(crate) fn form_slider_entry(
-        &mut self,
-        zone: Rect,
-        value: &str,
-        replacing: bool,
-        ratio: f32,
-        scale: f32,
-    ) {
-        let accent = self.theme.accent;
-        let text = self.form_slider_rail(zone, ratio, accent, scale);
-        let field = Rect::new(
-            text.x + 8.0 * scale,
-            text.y + 10.0 * scale,
-            text.width - 8.0 * scale,
-            text.height - 18.0 * scale,
-        );
-        if replacing {
-            let _ = self.draw.push(DrawCommand::RoundedRect {
-                rect: field,
-                radius: self.theme.radii.sm,
-                color: dim(accent, 0.18),
-            });
-        }
-        self.edit_underline(field, accent, scale);
-        self.form_value(value, text, self.theme.foreground, scale);
-    }
-
-    /// Rail of a slider row across `zone`; returns the value column right
-    /// of it.
-    fn form_slider_rail(&mut self, zone: Rect, ratio: f32, color: Color, scale: f32) -> Rect {
         let column = SLIDER_VALUE_COLUMN * scale;
         let rail = Rect::new(
             zone.x,
@@ -96,7 +61,17 @@ impl MenuCanvas {
             16.0 * scale,
         );
         self.slider_rail(rail, ratio, color, scale);
-        Rect::new(rail.right(), zone.y, column, zone.height)
+        let text = Rect::new(rail.right(), zone.y, column, zone.height);
+        self.hit_region(super::numeric::VALUE_BASE + row as u16, text);
+        if let Some(edit) = editing.filter(|edit| edit.row == row) {
+            edit.draw(
+                self,
+                Rect::new(text.x, text.y + 16.0 * scale, text.width, 22.0 * scale),
+                scale,
+            );
+        } else {
+            self.form_value(value, text, color, scale);
+        }
     }
 
     /// A row of plain colour chips filling the value zone in equal cells,

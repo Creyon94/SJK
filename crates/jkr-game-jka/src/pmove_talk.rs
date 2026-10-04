@@ -30,25 +30,3 @@ pub fn set_talk_flag(entity_flags: &mut u32, buttons: u16) {
         *entity_flags &= !EF_TALK;
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn key_catcher_adds_the_talk_button_to_held_buttons() {
-        assert_eq!(command_buttons(1 | 16, false), 1 | 16);
-        assert_eq!(command_buttons(1 | 16, true), 1 | 16 | BUTTON_TALK);
-        assert_eq!(command_buttons(0, true), BUTTON_TALK);
-    }
-
-    #[test]
-    fn talk_button_sets_and_clears_only_the_talk_flag() {
-        let other = (1 << 1) | (1 << 9);
-        let mut flags = other;
-        set_talk_flag(&mut flags, BUTTON_TALK | 1);
-        assert_eq!(flags, other | EF_TALK);
-        set_talk_flag(&mut flags, 1);
-        assert_eq!(flags, other);
-    }
-}

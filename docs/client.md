@@ -28,32 +28,10 @@ console, HUD, screenshots, demo recording/playback and a Create game flow.
 Presence here describes implemented surfaces; validation limits are in
 [status.md](status.md).
 
-Sliders in the settings screen and the saber RGB channels of the player screen
-also take typed values: click the number right of the rail, press Enter on the
-row or start typing digits while it is selected. Enter applies the number
-exactly as typed, only clamped to the slider's range (142 FPS stays 142 on a
-slider that steps by 25; integer settings round to whole numbers). Dragging and
-clicking the rail still land on the slider's steps. Escape cancels, a click
-elsewhere applies it and Space still steps the slider.
-See [slider_entry.rs](../crates/jkr-viewer/src/menu_widgets/slider_entry.rs) and
-[the settings rules](../crates/jkr-viewer/src/settings/numeric.rs).
-
 Create game starts a child `jkr-dedicated`, normally found beside the client.
 Set `JKR_DEDICATED` to its executable path if installed elsewhere. The child
 lifetime is managed by the client and defaults to local access; see
 [local_server.rs](../crates/jkr-viewer/src/local_server.rs).
-
-The player screen's Character and Saber pages write their cvars as soon as a
-value changes. The Force page edits a draft instead: Apply writes `forcepowers`
-once, in the stock format and legalized as before, Discard returns to the applied
-profile, and leaving the screen drops unapplied changes. While a draft is pending,
-the page's points line reads NOT APPLIED and the footer's Back cap says that
-leaving drops it. Power icons (`gfx/mp/f_icon_*`) and side emblems
-(`gfx/hud/mpi_jlight`, `gfx/hud/mpi_dklight`) come from the installed game data;
-without them the page shows text only. They take icon-atlas cells of their own
-after the HUD's, so the character grid keeps all 207 of its icon cells. See
-[force.rs](../crates/jkr-viewer/src/player_menu/force.rs) and
-[force_view.rs](../crates/jkr-viewer/src/player_menu/force_view.rs).
 
 ## Menu style
 
@@ -131,6 +109,91 @@ Planned follow-ups, each a new page or screen module, following the retail
 - The retail fonts (`ui_gameFont`, a separate change) and the animated art
   stages.
 
+The player screen's Character and Saber pages write their cvars as soon as a
+value changes. The Force page edits a draft instead: Apply writes `forcepowers`
+once, in the stock format and legalized as before, Discard returns to the applied
+profile, and leaving the screen drops unapplied changes. While a draft is pending,
+the page's points line reads NOT APPLIED and the footer's Back cap says that
+leaving drops it. Power icons (`gfx/mp/f_icon_*`) and side emblems
+(`gfx/hud/mpi_jlight`, `gfx/hud/mpi_dklight`) come from the installed game data;
+without them the page shows text only. They take icon-atlas cells of their own
+after the HUD's, so the character grid keeps all 207 of its icon cells. See
+[force.rs](../crates/jkr-viewer/src/player_menu/force.rs) and
+[force_view.rs](../crates/jkr-viewer/src/player_menu/force_view.rs).
+
+## Animation sounds and voice variants
+
+Footsteps and authored swing/spin sounds follow the evaluated lower/upper Ghoul2
+frames and the model's `animevents.cfg`, including the shared skeleton table and
+`include` directives. The client reads supported sound assets during appearance
+loading and queues decoding on the audio worker; ordinary frame playback performs
+no file reads. A world build shares the skeleton and event assets across matching
+appearances. Active actors release their prefetched encoded bytes after registration.
+
+Ground-contact events trace beneath the animated foot and select the authored
+walk/run sound bank for the surface material. `cg_footsteps 0` mutes them. Frame
+latches prevent repeated playback while an animation frame is held; absent actors,
+teleports, backwards seeks and paused map changes reset the cursor. First-person
+local actors use the same evaluated timing. This restores the blue-stance taunt's
+spin sounds and authored melee/kick swing cues. Custom saber `spinSound` and
+`swingSound1`–`3` override the standard animation samples.
+
+Taunt, flourish and gloat voice choices advance per accepted event, with fallbacks
+based on samples that actually resolved. The expanded taunt bank is used in FFA
+as in TaystJK, rather than restricting ordinary FFA taunts to `taunt.wav`. Selection
+is replay-stable but is not the legacy global random stream; repeats remain
+possible. Animation selection, movement, saber timing and network events are
+unchanged. Animation-driven effect/footprint marks and gameplay event actions
+remain outside this audio adapter.
+
+## Slider values
+
+Every slider in Settings, the saber RGB controls (including the second saber),
+and the Shot panel supports direct numeric entry. Click its displayed value or
+select the row and press Enter, then type a replacement. Enter applies it;
+Escape cancels. Left/Right, Home/End, Backspace and Delete edit the draft.
+Clicking another control discards an unfinished draft. Hovering does not move
+an edit to another setting.
+
+Manual values respect the slider bounds but do not snap to its drag increment:
+for example, the FPS cap accepts 142 and FOV accepts 97.5. Decimal points and
+commas are accepted; integer controls require whole numbers. Invalid or empty
+input stays open with a red underline and does not change the setting. Dragging
+and arrow adjustment outside editing retain their existing behavior.
+
+## Development maps
+
+Run `devmap mp/ffa3` in the client console to start and join an owned local
+FFA server with cheats enabled, no bots and no match limits. Other installed
+maps work too, including `devmap t2_rancor`; `maps/` and `.bsp` are optional.
+The command appears in console completion/help. It uses the same `jkr-dedicated`
+binary lookup as Create game (`JKR_DEDICATED` overrides the adjacent binary).
+
+This starts a fresh game on loopback, without master-server advertising. Once
+launched, it replaces the current connection; it never asks a remote server to
+change maps or allow cheats. Missing map names are reported before leaving the
+current game. Disconnecting, cancelling the join, or exiting stops the owned
+server. Ordinary Create game launches still leave cheats disabled.
+
+The native server implements `noclip`, `give`, `setviewpos`, and `t_use` for
+development. Run `noclip` again to return to ordinary movement; spawning again
+clears it. Normal servers still require their own cheat permission. `god` remains
+unimplemented on the native server.
+
+## Talk balloons
+
+Opening chat, the console or a menu sends the stock talk button and disables
+other movement input while that keyboard catcher is active. Players carrying
+the talk flag have a chatbubble over their heads; the connection-trouble icon
+takes priority when the server marks a lost connection. These are upright frame
+billboards using the existing [sprite orientation](rendering.md#billboard-icons).
+Their texture opacity is preserved near walls even with soft particles enabled.
+Your own bubble is visible in third person, not the first-person view. Mind-tricked
+players, NPC talk flags and intermission do not show talk balloons. Siege voice
+command icons remain unimplemented. See
+[player_sprites.rs](../crates/jkr-viewer/src/player_sprites.rs) and
+[pmove_talk.rs](../crates/jkr-game-jka/src/pmove_talk.rs).
+
 ## Joining and changing maps
 
 The menu's FFA3 gate opens onto the prepared destination world. Map preparation
@@ -142,40 +205,30 @@ is ready. The gate stays closed while required content is unavailable. The
 existing connection notice shows the server address/status and Cancel action
 over the gate during joining; it disappears when the destination is entered.
 
-On a server map change, other players disappear while your player continues in
-an in-process native game on the old map. The ordinary client pipeline still
-presents your model, saber, weapons, HUD, animations and effects. Movement,
-attacks, pickups and doors use the existing dedicated-server gameplay. The last
-predicted player state seeds the continuation. At normal match end, local play
-starts before the first frozen intermission snapshot is presented, preserving the
-pre-intermission character and camera. The real server's scoreboard remains
-visible over local play and disappears when the server changes maps; your player
-continues until the destination is ready. Visible brush-door trajectories are
-carried across.
-The handoff retains the local actor's animation tracks and uses one monotonic
-local command/presentation timeline, without network drift adjustments. Remote
-adoption starts fresh entity samples; a backwards server timestamp also retires
-samples from the provisional server clock before applying the new snapshot.
+On a server map change, gameplay pauses and a loading notice is shown over the
+previous view until the destination and a fresh active snapshot are ready. The
+client then adopts the server's spawn state. Match-end intermission uses the
+server's normal camera, scoreboard and ready-to-exit controls. Player bodies and
+vehicles are hidden there, matching codemp; scripted non-vehicle NPCs remain visible. Local gameplay
+continuation on the old map is suspended while that feature is developed further.
+The viewer no longer prepares an in-process native game for every loaded world.
 
-The remote connection has its own command timer and stays separate from this
-local authority. Local movement, aim and simulation time never go to the waiting
-server. During intermission only, attack/use buttons retain the stock ready-to-exit
-behavior using the remote snapshot clock; once loading begins, commands are neutral.
-Once the destination and a fresh, active remote snapshot are ready, the client adopts
-that world and the server's spawn state. Matching same-map restarts can reuse the
-resident world. These paths have no separate loading screen.
+CPU map preparation and GPU resource installation remain on background workers,
+using the existing GPU context. Archive checksum inventory reads ZIP directories
+without decompressing every asset. Matching same-map restarts can still reuse
+the prepared world, and the gate adopts its already-built destination. The
+waiting connection sends neutral commands during map loading and is kept separate
+from the displayed old world, so new-map entities cannot appear in the wrong BSP.
+Texture mip preparation and lamp extraction use bounded CPU workers; repeated
+texture loads can reuse a bounded process-local mip cache. See
+[load-time rendering preparation](rendering.md#load-time-texture-and-light-preparation)
+for cache limits and unchanged output semantics. The gate animation and server
+readiness still contribute to the time before play begins.
 
-This is a temporary local game, not a copy of a remote mod's hidden state. It
-uses standard native game rules. Unreplicated script state, entity timers,
-remote projectiles and other players are not imported; unseen map entities start
-from their authored state, and an already-thrown saber returns to the hand at
-handoff. Vehicles and custom scripted interactions need further verification.
-Demo recording is unavailable during local continuation. First entry through
-the gate before any server player exists still uses movement-only exploration
-with frozen brush collision. If native world preparation fails, map-change
-continuation also falls back to that path and reports the error in the console.
-The gate's through-door view still uses the existing lightweight rendering path;
-the full lighting path begins when the destination becomes the active world.
+First entry through the gate before a server player exists retains movement-only
+exploration with frozen brush collision. The gate's through-door view uses the
+existing lightweight rendering path; full lighting begins when the destination
+becomes the active world.
 
 Server console output (`print`) goes exclusively to the console, including match
 statistics, command replies and server announcements. It never enters chat history.
@@ -183,14 +236,12 @@ Global, team and private chat retain their conversation overlay. Center-print
 gameplay notices keep their separate HUD presentation. The scoreboard continues
 to use structured server scores rather than parsing printed statistics tables.
 
-Chat remains connected to the real server during intermission and background
-loading, including global/team/private composer messages and console/bound chat
-commands. The scoreboard reserves a separate left column for messages and the
+Chat remains connected to the real server during intermission, including
+global/team/private composer messages and console/bound chat commands. Messages
+received during background loading are retained; its loading notice hides the HUD. The scoreboard reserves a separate left column for messages and the
 composer, temporarily overriding chat position/width while scores are visible.
 Chat visibility/lifetime settings still apply. Typing captures gameplay input as
 usual, and the ordinary chat layout returns after the scoreboard closes.
-If local authority cannot be prepared, intermission keeps the standard remote
-scoreboard/camera rather than switching to movement-only exploration.
 
 Escape opens the normal menu during exploration. Disconnect/cancel abandons the
 pending connection and restores the retained main-menu world. Connection and asset
@@ -200,7 +251,6 @@ shader, network or download latency, and direct command-line startup is separate
 from the already-open menu's transition path.
 
 Implementation: [resident worlds](../crates/jkr-viewer/src/resident_world.rs),
-[local authority](../crates/jkr-viewer/src/resident_game.rs),
 [early exploration](../crates/jkr-viewer/src/resident_walk.rs),
 [world handoff](../crates/jkr-viewer/src/session_transition.rs) and
 [gate destination](../crates/jkr-viewer/src/portal.rs).
@@ -210,6 +260,58 @@ already queued for that frame. Synthetic key events on refocus cannot re-press a
 held modifier such as Alt. This allows a saber throw already sent to the server
 to finish normally after Alt+Tab.
 
+### Chat player actions
+
+Open the chat composer with your chat binding (`messagemode`), then click a
+sender's name. The cursor is free while composing. The player menu offers:
+
+- **whisper:** keeps the current draft and addresses the selected player using
+  the stock `tell` command. Nothing is sent until Enter.
+- **ignore:** hides that player's existing and incoming
+  messages locally for the current map. Opening chat shows a hidden-message row
+  whose name can be clicked to undo the ignore. It does not change server policy
+  or suppress footsteps, saber effects, or other gameplay sounds.
+- **friend:** saves a local name bookmark and adds a
+  small five-point star to the left of that player's name. Bookmarks survive restarts in
+  `chat-friends.txt`, beside `config.cfg`. Names ignore colour codes but otherwise
+  match exactly; these are name bookmarks, not authenticated accounts.
+- **copy:** copies the complete name, including its colour escapes.
+
+The dropdown opens without a highlighted action. Hover follows the pointer;
+keyboard navigation highlights only its current row until the pointer moves.
+Arrow keys/Tab navigate the player menu; Enter selects and Escape dismisses it
+without discarding the draft. The compact square-edged dropdown sits to the left
+of chat, aligned with the clicked name and kept above the composer. It has only
+four labels, no title or description, and never moves the conversation. If the
+left margin is too narrow, it uses the right edge inside the chat lane to avoid
+the scoreboard. Highlighted `ignore`/`friend` rows indicate active toggles; clicking
+again undoes them. Name hover fits the visible username glyph bounds, excluding the star. Dropdown
+row highlights use exactly the same rectangle as their clickable button. There is no
+standing player-options hint or success notice. Opening the composer exposes history even when
+passive chat is hidden with `cg_chatbox 0`.
+
+The draft shares the console's UTF-8 caret and selection rules: arrows/Home/End,
+Ctrl+arrows and Ctrl+Backspace/Delete, Shift-selection, Ctrl+A/C/X/V,
+Ctrl+Insert to copy and Shift+Insert to paste. Click places the caret, drag selects,
+and double-click selects a token. Selected text is highlighted; typing/pasting
+replaces it. Clipboard text keeps colour escapes, strips controls and obeys the
+existing chat byte limit. Pasting never sends a message. The `^` dead key inserts
+a literal colour prefix without affecting the next character.
+
+Actions use server-provided sender slots and current roster generations. Old
+messages cannot address a replacement after an observed departure/name change;
+an invalid whisper recipient leaves the draft open. Unattributed server messages
+remain unclickable rather than guessing a destination from displayed text.
+Legacy servers provide no authenticated account identity; unobserved same-name
+slot reuse cannot be distinguished. No transport or protocol encoding changed.
+
+The leader/opponent portrait and its name/score occupy the top-right corner,
+with a 32-unit top margin and the existing 40-unit right margin at 1080p (scaled
+with the HUD). Optional snapshot diagnostics, inventory and the automatically
+positioned team overlay flow below that block. Explicit team-overlay coordinates
+remain authoritative. Visibility and server-selected leader/opponent rules are
+unchanged.
+
 ## Configuration and content
 
 The Linux configuration is `$XDG_CONFIG_HOME/jkr/config.cfg`, falling back to
@@ -217,6 +319,18 @@ The Linux configuration is `$XDG_CONFIG_HOME/jkr/config.cfg`, falling back to
 Application Support locations in [platform.rs](../crates/jkr-viewer/src/platform.rs).
 Edit settings through the client, or edit the file while the client is stopped
 so autosaving cannot overwrite your changes.
+
+`com_maxfps` defaults to `-1` (AUTO in Settings > Video): frames are capped at the
+refresh rate of the monitor holding the window, rounded to whole hertz and
+re-read once a second, or at stock's 125 when the monitor reports none. `0` is
+uncapped. The old default, 1000, saved in every existing profile, is reset to
+AUTO once on first launch (marker `jkr_maxfpsDefaultVersion`); a cap chosen
+afterwards is kept. The default is not saved to the configuration. On the slider
+AUTO is the rail's left end: arrows step AUTO, 0, 25, 50 and so on, and typing
+`-1` selects it. An uncapped
+client saturates the GPU; screen recorders and streamers sharing it then skip
+frames (OBS reported 83% skipped for encoding lag against an uncapped client at
+4K). See [runtime_settings.rs](../crates/jkr-viewer/src/runtime_settings.rs).
 
 The Video tab's Display mode row offers Windowed, Borderless fullscreen and,
 where the windowing system supports it, Exclusive fullscreen (Wayland does not).
@@ -236,16 +350,6 @@ desktop and uses the size only when windowed. Left and Right step the row within
 its aspect-ratio group. See [display.rs](../crates/jkr-viewer/src/settings/display.rs)
 and [resolution.rs](../crates/jkr-viewer/src/settings/resolution.rs).
 
-`com_maxfps` defaults to `-1` (AUTO in Settings > Video): frames are capped at the
-refresh rate of the monitor holding the window, rounded to whole hertz and
-re-read once a second, or at stock's 125 when the monitor reports none. `0` is
-uncapped. The old default, 1000, saved in every existing profile, is reset to
-AUTO once on first launch (marker `jkr_maxfpsDefaultVersion`); a cap chosen
-afterwards is kept. The default is not saved to the configuration. An uncapped
-client saturates the GPU; screen recorders and streamers sharing it then skip
-frames (OBS reported 83% skipped for encoding lag against an uncapped client at
-4K). See [runtime_settings.rs](../crates/jkr-viewer/src/runtime_settings.rs).
-
 `fs_game`, `fs_basegame` and `fs_homepath` configure content search paths; restart
 the client after changing them. Search precedence and shader protection are owned
 by [asset_search_paths.rs](../crates/jkr-viewer/src/asset_search_paths.rs).
@@ -256,14 +360,22 @@ On Linux the default is `$XDG_DATA_HOME/jkr/downloads/base`, falling back to
 root (the implementation appends `base`). See
 [download_store.rs](../crates/jkr-viewer/src/download_store.rs).
 
-## Chat and console text
+Server reference lists use OpenJK's positional common-prefix rule: extra pak
+names or checksums without a counterpart are ignored, including when one list
+is empty. Download comparison and session cache selection share
+[the compatibility parser](../crates/jkr-client/src/referenced_paks.rs), so a
+connection cannot pass one check only to fail the other on list length.
+Paired checksums, download paths and file contents remain validated; advertised
+BSP checksums are still enforced. This does not change pure-server proofs.
 
-Server text is split as in stock `codemp` cgame. `print` replies go to the
-console and its notify lines (`con_notifytime`, `con_notifylines`), never the chat
-box. Chat (`chat`, `tchat` and their location forms) goes to the chat box and is
-also kept in the console scrollback, but not in the notify lines, like the stock
-`*` print prefix. Centre prints stay on screen only. See
-[server_commands.rs](../crates/jkr-viewer/src/server_commands.rs).
+References are not a mandatory client install manifest. When the server sets
+`sv_allowDownload 0`, or the client sets `cl_allowDownload 0`, UDP transfers are
+skipped and joining proceeds with available content. Missing directory names,
+unsafe download names and retail packs never produce a download request.
+Unavailable referenced archives do not abort world mounting; only locally
+available checksum matches are selected from the cache. The actual map must
+still exist and match its advertised BSP checksum. HTTP downloading remains
+unsupported, and this policy does not disable pure-server admission checks.
 
 ## Key names and binds
 
@@ -281,6 +393,13 @@ Menu navigation keys (W/A/S/D beside the arrows) stay positional. See
 [key_names.rs](../crates/jkr-shell/src/key_names.rs).
 
 ## Useful console commands
+
+Printable console shortcuts open the console but type normally once it is open;
+Escape and non-text toggle bindings can still close it. `^` is a literal colour
+prefix in the console and its browser, including on layouts that report it as a
+dead key, so `set name "^1Bishop"` does not close the console or lose the digit.
+Console transitions and literal dead-key `^` input clear the window's pending
+accent composition. Other dead keys retain normal accent composition.
 
 `connect host:port`, `disconnect` and `reconnect` control the session.
 `record`, `stoprecord`, `demo` and `playdemo` control demos.
@@ -334,22 +453,16 @@ boundaries follow the shell's quote and escape rules, and no completion happens
 inside an open quote. Arguments are not completed. See
 [shell_completion.rs](../crates/jkr-shell/src/shell_completion.rs).
 
-The console line and the chat field show a dead key (the `^` of French AZERTY or
-German QWERTZ) at the caret as soon as it is pressed, and replace it with the
-composed text when the next key arrives, so typing `^1` gives exactly `^1` and
-the colour code previews as on a layout without dead keys. Enter, Backspace and
-Tab keep a shown dead key as typed. A dead `^` that the system composes into a
-superscript digit (`¹` through xkb on Linux) becomes `^` and the digit. See
-[dead_key.rs](../crates/jkr-viewer/src/input/dead_key.rs).
-
 F3 in the open console, or the bindable `consolebrowser` command, opens a browser of
 every command and cvar with its description, and each cvar's value and default. Typing
 searches names, then descriptions; Tab cycles All, Commands, Cvars and Changed (cvars
 away from their default). Enter edits the selected cvar in place and applies it, or
 starts a console line with the selected command; Delete restores a cvar's default;
-Escape or F3 returns to the console. Read-only cvars are listed but not edited. The
-browser covers the whole frame: while it is open, the menus and chat under it build no
-text, since overlay text draws above every overlay's shapes. See
+Escape cancels an active edit first; otherwise Escape or F3 returns to the console.
+The clickable Apply, Cancel and Filter controls follow the same actions as the
+keyboard. Read-only cvars are listed but not edited. The
+browser covers the whole frame: underlying menu shapes/text, chat and the FPS
+counter are suppressed, including both font batches. See
 [console_browser.rs](../crates/jkr-viewer/src/console_browser.rs).
 
 ## Third-person camera
@@ -368,19 +481,6 @@ automatic fade when the camera nears the player. See
 [camera.rs](../crates/jkr-viewer/src/camera.rs).
 
 For graphics controls and diagnostics, see [rendering.md](rendering.md).
-
-## Talk balloon and player sprites
-
-While the console, a menu or the chat field is open, each command carries
-`BUTTON_TALK`, as stock `CL_CmdButtons` sends it. Movement then sets `EF_TALK` and
-discards the player's other input, so a typing player stands still. Over players
-with `EF_TALK` the client floats the chat icon, and over players the server flags
-with `EF_CONNECTION` the connection icon instead, as `CG_PlayerSprites` does. The
-siege voice-command icon is not drawn. Both are frame billboards, upright as
-`RT_SPRITE` draws them (see
-[rendering.md](rendering.md#billboard-icons)). See
-[pmove_talk.rs](../crates/jkr-game-jka/src/pmove_talk.rs) and
-[player_sprites.rs](../crates/jkr-viewer/src/player_sprites.rs).
 
 ## Text size and spacing
 

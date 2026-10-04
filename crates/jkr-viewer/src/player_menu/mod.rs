@@ -5,13 +5,13 @@
 //! is the exception: it edits a draft that only its Apply action writes
 //! (see `force`).
 
-mod channel_entry;
 mod controller;
 mod force;
 mod force_icons;
 mod force_view;
 mod grid;
 mod icons;
+mod numeric;
 mod pointer;
 mod rows;
 mod saber;
@@ -20,7 +20,7 @@ mod team_filter;
 mod view;
 
 use crate::console::ViewerConsole;
-use crate::menu_widgets::{MenuCanvas, SliderEntry};
+use crate::menu_widgets::MenuCanvas;
 use jkr_client::{LegacyAssetCatalog, LegacyAssetCatalogLoader};
 use jkr_ui::DrawList;
 use jkr_vfs::VirtualFileSystem;
@@ -115,9 +115,8 @@ pub(crate) struct PlayerMenu {
     /// Keyboard/pointer selection: a row index on the current page.
     selected: usize,
     name_editing: bool,
+    numeric: Option<crate::menu_widgets::numeric::NumericEdit>,
     name_before_edit: String,
-    /// Typed value of an RGB channel slider, open while one is entered.
-    channel_entry: SliderEntry,
     return_target: ReturnTarget,
     resolved_catalogue: bool,
     page: ProfilePage,
@@ -143,8 +142,8 @@ impl PlayerMenu {
             variants: [0; 4],
             selected: 0,
             name_editing: false,
+            numeric: None,
             name_before_edit: String::with_capacity(32),
-            channel_entry: SliderEntry::new(),
             return_target: ReturnTarget::MainMenu,
             resolved_catalogue: false,
             page: ProfilePage::Character,

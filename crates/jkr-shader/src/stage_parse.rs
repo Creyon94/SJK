@@ -223,8 +223,8 @@ pub(super) fn parse_stage(
         }
     }
     *cursor += 1;
-    stage.resolved_colour = colour.finish();
     stage.material.finish();
+    stage.resolved_colour = colour.finish();
     definition.stage_images.extend(stage.images.iter().cloned());
     if stage.glow || stage.blend == StageBlend::Add {
         definition

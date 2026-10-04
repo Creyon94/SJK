@@ -19,7 +19,6 @@ impl ViewerConsole {
             self.set_open(true);
         }
         self.browser.close();
-        self.dead_key.settle();
         self.debug_panel.open(owns_console);
     }
 
@@ -31,12 +30,15 @@ impl ViewerConsole {
 
     /// Whether the key event's binds run `debug_panel`.
     pub(super) fn bound_to_debug_panel(&self, event: &KeyEvent) -> bool {
-        let Some(key_name) = crate::input::keys::key_name(event) else {
+        let winit::keyboard::PhysicalKey::Code(key) = event.physical_key else {
+            return false;
+        };
+        let Some(key_name) = crate::input::keys::name(crate::input::keys::Source::Key(key)) else {
             return false;
         };
         self.shell
             .binds
-            .commands_for_event(key_name.as_str(), true)
+            .commands_for_event(key_name, true)
             .is_ok_and(|commands| {
                 commands
                     .iter()

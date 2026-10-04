@@ -168,10 +168,7 @@ impl GpuState {
         self.gameplay_input.release_keys();
     }
 
-    /// Whether an overlay owns the keyboard: the in-game menu, the chat field, the
-    /// console or a client menu. These are the stock key catchers (`KEYCATCH_UI`,
-    /// `KEYCATCH_MESSAGE`, `KEYCATCH_CONSOLE`), under which a command carries
-    /// `BUTTON_TALK` (`CL_CmdButtons`, `cl_input.cpp`).
+    /// Keyboard catchers also advertise BUTTON_TALK, as CL_CmdButtons does.
     pub(crate) fn key_catcher_active(&self) -> bool {
         self.game_menu
             || self.chat.is_typing()

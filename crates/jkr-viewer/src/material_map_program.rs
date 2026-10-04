@@ -24,8 +24,8 @@ pub(in crate::world_materials) fn source(realtime: bool) -> String {
     } else {
         STAGE_SHADER
     };
-    // The patterns span line breaks; a CRLF checkout is normalised first (`wgsl_source`).
-    let mut source = crate::wgsl_source::lf(base).into_owned();
+    // Checkouts may carry CRLF line ends (`core.autocrlf`); the patterns use LF.
+    let mut source = base.replace("\r\n", "\n");
     for (from, to) in [
         (
             "    @location(11) @interpolate(flat) animation_index: i32,\n};",

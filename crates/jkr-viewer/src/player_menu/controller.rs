@@ -22,8 +22,8 @@ impl PlayerMenu {
         self.read_console(console);
         self.saber.open(console);
         self.force.open(console);
+        self.numeric = None;
         self.name_editing = false;
-        self.channel_entry.cancel();
         self.page = ProfilePage::Character;
         self.selected = 0;
         self.resolved_catalogue = false;
@@ -298,6 +298,9 @@ impl PlayerMenu {
     /// Enter/click on the selected row: edit the name, flip the Force side,
     /// run a Force action, or step a cycler forward.
     pub(super) fn activate(&mut self, console: &mut ViewerConsole) {
+        if self.begin_numeric(self.selected) {
+            return;
+        }
         match (self.page, self.selected) {
             (ProfilePage::Character, 0) => {
                 self.name_before_edit.clone_from(&self.draft.name);
@@ -318,10 +321,10 @@ impl PlayerMenu {
     }
 
     pub(super) fn set_page(&mut self, page: ProfilePage) {
+        self.numeric = None;
         self.page = page;
         self.selected = 0;
         self.name_editing = false;
-        self.channel_entry.cancel();
     }
 
     pub(crate) fn handle_key(
@@ -335,22 +338,14 @@ impl PlayerMenu {
         let PhysicalKey::Code(key) = event.physical_key else {
             return PlayerMenuResult::None;
         };
+        if self.edit_numeric(key, event.text.as_deref(), console) {
+            return PlayerMenuResult::None;
+        }
         if self.name_editing {
             return self.edit_name(event, key, console);
         }
-        if let Some(row) = self.channel_entry.row() {
-            let text = event.text.as_deref();
-            self.channel_entry_key(row, key, text, event.repeat, console);
-            return PlayerMenuResult::None;
-        }
         if event.repeat {
             return PlayerMenuResult::None;
-        }
-        // Typing a number on a selected RGB channel starts entering it.
-        if let Some(text) = &event.text {
-            if self.begin_typed_channel(text) {
-                return PlayerMenuResult::None;
-            }
         }
         let count = self.row_count().max(1);
         let pages = ProfilePage::ALL.len();
@@ -368,12 +363,7 @@ impl PlayerMenu {
             KeyCode::ArrowDown | KeyCode::KeyS => self.selected = (self.selected + 1) % count,
             KeyCode::ArrowLeft | KeyCode::KeyA => self.adjust(console, -1),
             KeyCode::ArrowRight | KeyCode::KeyD => self.adjust(console, 1),
-            KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Space => {
-                // Enter types an RGB channel's value; Space still steps it.
-                if key == KeyCode::Space || !self.begin_channel_entry(self.selected) {
-                    self.activate(console);
-                }
-            }
+            KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Space => self.activate(console),
             _ => {}
         }
         PlayerMenuResult::None

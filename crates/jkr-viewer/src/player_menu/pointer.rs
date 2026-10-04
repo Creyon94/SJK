@@ -2,8 +2,8 @@
 //! selection, tabs switch pages, a click on a cycler steps it toward the
 //! half of the value zone that was hit, a click on the Force side picker
 //! picks the card under it, a click or drag on a slider sets it from the
-//! pointer, a click on a slider's value column opens typed entry, a click on
-//! a palette picks the chip under it, and the footer's ESC cap goes back.
+//! pointer, a click on a palette picks the chip under it, and the footer's
+//! ESC cap goes back.
 
 use super::force_view::side_direction;
 use super::grid::{GRID_SCROLL_TOKEN, MODEL_ROW, TILE_BASE};
@@ -25,13 +25,28 @@ impl PlayerMenu {
         let Some(token) = event.token else {
             return PlayerMenuResult::None;
         };
+        if event.kind == UiEventKind::Press
+            && crate::menu_widgets::numeric::value_row(token).is_none()
+        {
+            self.numeric = None;
+        }
+        if event.kind == UiEventKind::Activate {
+            if let Some(row) = crate::menu_widgets::numeric::value_row(token) {
+                if self.numeric.as_ref().is_none_or(|edit| edit.row != row) {
+                    self.begin_numeric(row);
+                }
+                return PlayerMenuResult::None;
+            }
+            self.numeric = None;
+        } else if self.numeric.is_some() {
+            return PlayerMenuResult::None;
+        }
         let count = self.row_count();
-        let entering = self.channel_entry.row().is_some();
         if event.kind == UiEventKind::Wheel {
             let direction = event.delta.map_or(0, |delta| -delta.y.signum() as i32);
             if token == GRID_SCROLL_TOKEN {
                 self.scroll_grid(direction);
-            } else if direction != 0 && count > 0 && !entering {
+            } else if direction != 0 && count > 0 {
                 self.selected = (self.selected as i32 + direction)
                     .clamp(0, count.saturating_sub(1) as i32)
                     as usize;
@@ -44,29 +59,20 @@ impl PlayerMenu {
         {
             return self.tile_event(event.kind, usize::from(tile), console);
         }
-        let row = usize::from(token);
+        let row = crate::menu_widgets::numeric::value_row(token).unwrap_or(usize::from(token));
         if matches!(event.kind, UiEventKind::HoverEnter | UiEventKind::Hover) {
-            if row < count && !self.name_editing && !entering {
+            if row < count && !self.name_editing {
                 self.selected = row;
             }
             return PlayerMenuResult::None;
         }
-        let in_value = self.is_channel_row(row)
-            && event
-                .position
-                .zip(self.canvas.rect_for(token))
-                .is_some_and(|(position, rect)| self.canvas.slider_value_hit(rect, position.x));
-        if event.kind == UiEventKind::Press {
-            let slider = self.is_channel_row(row).then_some(row);
-            self.channel_entry.press(slider, in_value);
-            return PlayerMenuResult::None;
-        }
         if event.kind == UiEventKind::Drag {
-            if let Some(position) = event.position.filter(|_| row < count && !entering) {
-                if self.channel_entry.drag_moves(row, in_value) {
-                    self.selected = row;
-                    self.set_slider_from_pointer(console, token, position.x);
-                }
+            if crate::menu_widgets::numeric::value_row(token).is_some() {
+                return PlayerMenuResult::None;
+            }
+            if let Some(position) = event.position.filter(|_| row < count) {
+                self.selected = row;
+                self.set_slider_from_pointer(console, token, position.x);
             }
             return PlayerMenuResult::None;
         }
@@ -74,7 +80,6 @@ impl PlayerMenu {
             return PlayerMenuResult::None;
         }
         if token == BACK_TOKEN {
-            self.channel_entry.cancel();
             return PlayerMenuResult::Back(self.return_target);
         }
         if let Some(page) = (token >= TAB_BASE)
@@ -87,22 +92,12 @@ impl PlayerMenu {
         if row >= count {
             return PlayerMenuResult::None;
         }
-        let opens_entry = self.channel_entry.click_opens(row, in_value);
-        if self.channel_entry.row() == Some(row) && in_value {
-            // A click on the open field keeps typing.
-            return PlayerMenuResult::None;
-        }
-        // A click elsewhere commits a typed channel like Enter would.
-        self.commit_channel_entry(console);
         if self.name_editing {
             // A click elsewhere commits the name like Enter would.
             self.name_editing = false;
             self.apply(console);
         }
         self.selected = row;
-        if opens_entry && self.begin_channel_entry(row) {
-            return PlayerMenuResult::None;
-        }
         if let Some(position) = event.position {
             if self.set_slider_from_pointer(console, token, position.x) {
                 return PlayerMenuResult::None;

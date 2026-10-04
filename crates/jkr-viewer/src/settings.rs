@@ -1,7 +1,7 @@
 //! Retained tabbed settings UI backed directly by archived shell cvars.
 
 use crate::console::ViewerConsole;
-use crate::menu_widgets::{EntryKey, MenuCanvas, NumberFormat, SliderEntry};
+use crate::menu_widgets::MenuCanvas;
 use crate::text::{TextVertex, UiFont};
 use jkr_shell::CvarValue;
 use jkr_ui::{DrawList, Rect};
@@ -36,8 +36,6 @@ pub(crate) struct SettingsMenu {
     scroll: scroll::RowScroll,
     values: Vec<String>,
     editing: Option<String>,
-    /// Typed value of a slider row, open while a number is being entered.
-    entry: SliderEntry,
     /// What the window's monitor offers; asked for each time the screen opens.
     monitor: Option<MonitorModes>,
     /// The screen opened and wants fresh [`MonitorModes`].
@@ -46,6 +44,7 @@ pub(crate) struct SettingsMenu {
     choices: Vec<ResolutionChoice>,
     /// The resolution list, open over the form.
     picker: ResolutionPicker,
+    numeric: Option<crate::menu_widgets::numeric::NumericEdit>,
     ui: MenuCanvas,
 }
 
@@ -57,11 +56,11 @@ impl SettingsMenu {
             scroll: scroll::RowScroll::new(),
             values: Vec::with_capacity(12),
             editing: None,
-            entry: SliderEntry::new(),
             monitor: None,
             wants_monitor: false,
             choices: Vec::with_capacity(48),
             picker: ResolutionPicker::new(),
+            numeric: None,
             ui: MenuCanvas::new(),
         }
     }
@@ -85,9 +84,9 @@ impl SettingsMenu {
         self.tab = tab.min(TABS.len() - 1);
         self.selected = 0;
         self.editing = None;
-        self.entry.cancel();
         self.picker.close();
         self.wants_monitor = true;
+        self.numeric = None;
         self.refresh(console);
     }
 
@@ -130,12 +129,7 @@ impl SettingsMenu {
             self.resolution_key(key, event.repeat, console);
             return SettingsResult::None;
         }
-        if let Some(row) = self.entry.row() {
-            if let EntryKey::Committed(Some(value)) =
-                self.entry.key(key, event.text.as_deref(), event.repeat)
-            {
-                self.set_typed(console, row, value);
-            }
+        if self.edit_numeric(key, event.text.as_deref(), console) {
             return SettingsResult::None;
         }
         if let Some(buffer) = &mut self.editing {
@@ -167,12 +161,6 @@ impl SettingsMenu {
         if event.repeat {
             return SettingsResult::None;
         }
-        // Typing a number on a selected slider starts entering it.
-        if let (Some(format), Some(text)) = (self.number_format(self.selected), &event.text) {
-            if self.entry.begin_typed(self.selected, text, format) {
-                return SettingsResult::None;
-            }
-        }
         let count = settings(self.tab).len() + usize::from(self.tab == KEYBINDS_TAB);
         match key {
             KeyCode::Tab | KeyCode::BracketRight => {
@@ -199,11 +187,10 @@ impl SettingsMenu {
             KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Space => {
                 if let Some(setting) = settings(self.tab).get(self.selected) {
                     if matches!(setting.kind, ValueKind::Text) {
-                        self.editing = Some(value_text(console, setting));
+                        self.editing = Some(value_text(console, setting.cvar));
                     } else if matches!(setting.kind, ValueKind::Resolution) {
                         self.open_resolutions(console);
-                    } else if key == KeyCode::Space || !self.begin_entry(self.selected) {
-                        // Enter types a slider's value; Space still steps it.
+                    } else if !self.begin_numeric(console, self.selected) {
                         self.adjust(console, 1);
                     }
                 }
@@ -254,49 +241,6 @@ impl SettingsMenu {
         self.refresh(console);
     }
 
-    /// Accepted characters of row `row` when it is a slider.
-    fn number_format(&self, row: usize) -> Option<NumberFormat> {
-        settings(self.tab).get(row)?.kind.number_format()
-    }
-
-    /// Open typed entry on slider row `row`, holding its value; false when
-    /// the row is not a slider.
-    fn begin_entry(&mut self, row: usize) -> bool {
-        let Some(format) = self.number_format(row) else {
-            return false;
-        };
-        let current = self.values.get(row).map_or("", String::as_str);
-        self.entry.begin(row, current, format);
-        true
-    }
-
-    /// Set slider row `row` to the typed `value`, exactly as typed but
-    /// clamped to its range.
-    fn set_typed(&mut self, console: &mut ViewerConsole, row: usize, value: f64) {
-        let Some(setting) = settings(self.tab).get(row) else {
-            return;
-        };
-        if let Some(text) = setting.kind.exact(value) {
-            console.set_cvar(setting.cvar, &text);
-            self.refresh(console);
-        }
-    }
-
-    /// Apply whatever is being typed, as Enter would; for a click elsewhere.
-    fn commit_edits(&mut self, console: &mut ViewerConsole) {
-        if let Some(row) = self.entry.row() {
-            if let Some(value) = self.entry.commit() {
-                self.set_typed(console, row, value);
-            }
-        }
-        if let Some(value) = self.editing.take() {
-            if let Some(setting) = settings(self.tab).get(self.selected) {
-                console.set_cvar(setting.cvar, value.trim());
-            }
-            self.refresh(console);
-        }
-    }
-
     /// Whether exclusive fullscreen can be offered; assumed until the
     /// monitor facts arrive, since the window falls back to borderless.
     fn exclusive_available(&self) -> bool {
@@ -311,8 +255,8 @@ impl SettingsMenu {
         self.values
             .extend(settings(self.tab).iter().map(|setting| match setting.kind {
                 ValueKind::DisplayMode => display.label().to_owned(),
-                ValueKind::Bool => toggle_text(console, setting),
-                _ => value_text(console, setting),
+                ValueKind::Bool => toggle_text(console, setting.cvar),
+                _ => row_text(console, setting),
             }));
     }
 }
@@ -330,14 +274,6 @@ fn settings(tab: usize) -> &'static [Setting] {
         _ => &[],
     }
 }
-/// ON/OFF for a toggle row; an integer cvar is on when nonzero.
-fn toggle_text(console: &ViewerConsole, setting: &Setting) -> String {
-    match console.cvar(setting.cvar) {
-        Some(CvarValue::Integer(value)) => if *value != 0 { "ON" } else { "OFF" }.to_owned(),
-        _ => value_text(console, setting),
-    }
-}
-
 /// A negative minimum on an integer row is one special value below the range,
 /// shown as AUTO (`com_maxfps -1`). Stepping moves between it and zero, then
 /// along the row's step.
@@ -354,15 +290,31 @@ fn step_integer(value: i64, direction: i32, min: i64, max: i64, step: i64) -> i6
     (value + i64::from(direction) * step).clamp(min, max)
 }
 
-fn value_text(console: &ViewerConsole, setting: &Setting) -> String {
-    console.cvar(setting.cvar).map_or_else(
+/// The value a row shows: AUTO for the one special value below a negative
+/// minimum (`com_maxfps -1`), otherwise the cvar's text.
+fn row_text(console: &ViewerConsole, setting: &Setting) -> String {
+    match (setting.kind, console.cvar(setting.cvar)) {
+        (ValueKind::Integer { min, .. }, Some(CvarValue::Integer(value)))
+            if min < 0 && *value < 0 =>
+        {
+            "AUTO".to_owned()
+        }
+        _ => value_text(console, setting.cvar),
+    }
+}
+
+/// ON/OFF for a toggle row; an integer cvar is on when nonzero.
+fn toggle_text(console: &ViewerConsole, name: &str) -> String {
+    match console.cvar(name) {
+        Some(CvarValue::Integer(value)) => if *value != 0 { "ON" } else { "OFF" }.to_owned(),
+        _ => value_text(console, name),
+    }
+}
+
+fn value_text(console: &ViewerConsole, name: &str) -> String {
+    console.cvar(name).map_or_else(
         || "?".to_owned(),
         |value| match value {
-            CvarValue::Integer(v)
-                if *v < 0 && matches!(setting.kind, ValueKind::Integer { min, .. } if min < 0) =>
-            {
-                "AUTO".to_owned()
-            }
             CvarValue::Bool(v) => {
                 if *v {
                     "ON".to_owned()
