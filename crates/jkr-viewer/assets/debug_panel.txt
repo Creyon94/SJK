@@ -69,6 +69,16 @@ test: A player with 0xAC (Alt+0172) in the name: scoreboard, chat, crosshair sho
 test: Same with Classic game fonts on and off; the logo sits on the line like a capital.
 note: Others see a stray A-circumflex before it when JKR sends it (UTF-8 on the wire).
 
+[japlus-commands]
+pr: 109
+status: open
+area: Console & chat
+title: JA+ serverconfig and pluginDisable commands
+change: serverconfig lists a JA+ server's jp_cinfo options; forwarded on jaPRO/TaystJK.
+change: pluginDisable lists the 15 JA+ plugin features; pluginDisable <id> toggles one.
+test: On a JA+ server: serverconfig, then pluginDisable and pluginDisable 9 (toggle back).
+test: On a base server: serverconfig says the server runs neither.
+
 # ---- Open PRs: Input ----
 
 [layout-key-names]
@@ -413,6 +423,28 @@ change: The log shows each join step (join: Challenge, Connected, Gamestate, Fir
 test: Join several public servers a few times each: no "timed out waiting for challenge".
 test: If a join stalls, it ends with an error within ~15 s instead of floating on the map.
 test: After any failed join, logs\last-client.log shows the last join: step reached.
+
+[japlus-identity]
+pr: 108
+status: open
+area: Gameplay
+title: SJK joins JA+ servers as a JA+ plugin client
+change: Sends cjp_client 1.4B4 and your cp_pluginDisable; JA+/jaPRO detected before joining.
+change: Scoreboard rows with the plugin's extra deaths field now read correctly.
+test: Join a JA+ server: no "You haven't the JA+ client plugin installed" message.
+test: Scoreboard with several players on JA+: every row shows the right name and score.
+test: Set an RGB saber, join JA+: others (and /sabercolor) see your RGB blade.
+
+[debug-melee]
+pr: 110
+status: open
+area: Gameplay
+title: g_debugMelee kicks and wall holds predicted (stock and JA+)
+change: Melee alt-attack kicks, punches and jump-held wall grabs no longer snap back.
+change: Follows JA+ levels: 1 melee moves, 2 adds the wall hold keeping your view.
+test: JA+ server with g_debugMelee 1 or 2: melee, alt-attack kicks while moving and standing.
+test: Jump into a wall holding jump (level 2): hold is smooth, view does not jump.
+note: Attack+alt-attack grapple can still twitch briefly: only the server computes it.
 
 # ---- Personal (sol/main only) ----
 
