@@ -465,6 +465,29 @@ pub(crate) fn append_text_commands<'a>(
     viewport: [f32; 2],
     style: text::TextStyle,
 ) {
+    append_text_commands_where(
+        draw_list,
+        resolve,
+        |_, _| true,
+        vertices,
+        font,
+        viewport,
+        style,
+    );
+}
+
+/// Append the text commands `keep` accepts (given each command's id and text),
+/// so one draw list can be split between fonts. Opacity and clip scopes apply
+/// to every pass alike, and `style` as in [`append_text_commands`].
+pub(crate) fn append_text_commands_where<'a>(
+    draw_list: &DrawList,
+    resolve: impl Fn(TextId) -> &'a str,
+    keep: impl Fn(TextId, &str) -> bool,
+    vertices: &mut Vec<TextVertex>,
+    font: &UiFont,
+    viewport: [f32; 2],
+    style: text::TextStyle,
+) {
     let mut opacity = [1.0_f32; 8];
     let mut opacity_depth = 0_usize;
     let mut clips = [Rect::new(0.0, 0.0, viewport[0], viewport[1]); 8];
@@ -497,6 +520,9 @@ pub(crate) fn append_text_commands<'a>(
             continue;
         };
         let value = resolve(*id);
+        if !keep(*id, value) {
+            continue;
+        }
         let placement = style.place(*rect, *size, *letter_spacing);
         let rect = placement.bounds;
         let scale = placement.size / font.height.max(1.0);

@@ -1,6 +1,7 @@
 //! Text storage and vector-font submission for [`MenuCanvas`].
 
 use super::MenuCanvas;
+use crate::game_font::{GameFonts, RetailFont};
 use crate::text::{TextStyle, TextVertex, UiFont};
 use crate::ui_renderer;
 use jkr_ui::{Color, DrawCommand, FontWeight, Rect, TextAlign, TextId, TextOverflow};
@@ -113,6 +114,34 @@ impl MenuCanvas {
             viewport,
             style,
         );
+    }
+
+    /// Append retained text, each command in the game font `font_of` names for
+    /// it when that font is on (see [`GameFonts::append_routed`]), the rest to
+    /// `vertices` with `font`. Routed surfaces (chat, scoreboard) are not menus,
+    /// so they draw as laid out ([`TextStyle::NEUTRAL`]).
+    pub(crate) fn append_text_routed(
+        &self,
+        fonts: &mut GameFonts,
+        font_of: impl Fn(TextId, &str) -> Option<RetailFont> + Copy,
+        vertices: &mut Vec<TextVertex>,
+        font: &UiFont,
+        viewport: [f32; 2],
+    ) {
+        fonts.append_routed(
+            &self.draw,
+            |id| self.resolve(id),
+            font_of,
+            (vertices, font),
+            viewport,
+            TextStyle::NEUTRAL,
+        );
+    }
+
+    /// Id the next stored text run will get, to mark where a group of runs
+    /// starts and ends.
+    pub(crate) fn next_text_id(&self) -> u32 {
+        self.text_len as u32
     }
 
     fn store_text(&mut self, value: &str) -> Option<TextId> {
