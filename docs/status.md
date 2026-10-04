@@ -7,6 +7,41 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Actor animation error isolation
+
+Local fix based on `3a70c22` (2026-10-04): a custom glider's run clip ends at
+frame 235 in a 180-frame skeleton. Its evaluation error previously returned
+before the shared joint upload, freezing otherwise healthy actors until the NPC
+disappeared. Preparation and upload now contain errors per actor, retain its last
+uploaded pose, suppress failed-frame animation audio and log once per failure
+episode. Valid animation selection, timing, movement and wire code are unchanged.
+The malformed custom clip is still rejected; no content files are modified.
+
+An external headless Vulkan check on the RX 9060 XT loaded the installed glider
+and Kyle, exercised failure, recovery and removal, and compared both healthy
+actors' uploaded palettes against independently evaluated controls. All 576
+comparisons matched exactly at 8/7/4/3 ms with one/four evaluation lanes. The bad
+actor kept its previous palette and emitted no active animation-audio request;
+only one diagnostic was emitted per failure episode. Native playtesting remains
+open. See [rendering](rendering.md#actor-animation-failures).
+
+## Distributable builds
+
+Windows x64 and Linux x64 release ZIPs for merged source `3a70c22` were built
+and checked on 2026-10-04 using the
+[GameData packages workflow](https://github.com/Bishop-R/JKR/actions/runs/37194839545).
+Both native jobs extracted their archives, started/stopped an isolated loopback
+dedicated server, and verified client discovery and portable settings with
+synthetic assets. The source snapshots match on both platforms; checkout and
+archiving preserve embedded shader line endings.
+
+Final inspection checked archive CRCs, binary hashes, source revision and
+dependency notices. Linux binaries require at most glibc 2.35; Windows imports
+contain only system DLLs, with no separate VC++ or MinGW runtime DLL requirement.
+No retail data, personal settings or debug symbols are packaged. These checks do
+not cover Windows graphical gameplay. See [packages.md](packages.md) for layout,
+runtime requirements and the repeatable build procedure.
+
 ## Drop-in client installation
 
 Local change based on `da8adc9` (2026-10-04): the client discovers game data
