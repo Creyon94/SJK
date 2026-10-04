@@ -341,10 +341,17 @@ Evidence is EternalJK's stock `codemp` code (`cg_players.c`, `cg_ents.c`,
   snapshot's entity list, which never holds the local player). A trickster's
   beam and hand puffs stay visible to its victim, as in stock. See
   [rendering](rendering.md#entity-render-effects).
+- Drain bolt shape: EFX `bounce` now sets an electricity bolt's jaggedness, as
+  `intensity` did; both also set physics, and the bounce default is retail's
+  0.1. This changes the 18 retail electricity primitives using `bounce` (Drain,
+  crystal and scepter respawns, DEMP2 alt detonation, environment sparks, ship
+  damage) and three expensive-physics emitters without a bounce key (`env/beam`,
+  `mp/spawn`, `mp/jedispawn`), which now rebound weakly instead of stopping.
 
-Unit tests cover the selection (own beam levels 2/3/4/5/6, own Grip first and
-third person, own Push, a remote caster, a trickster). Not yet checked in a game
-window. Formatting, locked workspace build/tests and clippy passed.
+Unit tests cover the effect selection (own beam levels 2-6, own Grip in first
+and third person, own Push, a remote caster, a trickster) and parse the retail
+Drain EFX. Not yet checked in a game window. Formatting, locked workspace
+build/tests and clippy passed.
 
 ## g_debugMelee prediction
 

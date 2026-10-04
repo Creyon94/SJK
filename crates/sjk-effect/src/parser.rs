@@ -55,27 +55,21 @@ fn parse_component(cursor: &mut Cursor<'_>, kind: ComponentKind) -> Result<Compo
             }
             "alpha" => component.alpha = parse_curve(cursor, component.alpha)?,
             "rgb" => parse_rgb(cursor, &mut component)?,
-            "intensity" => {
+            // Retail reads both keys into the one `mElasticity` and sets `FX_APPLY_PHYSICS`
+            // (`FxTemplate.cpp:2128-2129`, `ParseElasticity` `:448-458`). That value is a
+            // particle's bounce, an electricity bolt's jaggedness (`FxScheduler.cpp:1502-1508`)
+            // and a camera shake's intensity. `elasticity` and `chaos` are not retail keys.
+            "bounce" | "intensity" => {
                 let elasticity = parse_range(cursor)?;
                 component.elasticity = elasticity;
                 component.chaos = elasticity;
                 component.chaos_authored = true;
-                component.intensity_authored = true;
-                if kind == ComponentKind::CameraShake {
-                    component.intensity = elasticity;
-                }
-            }
-            "chaos" => {
-                component.chaos = parse_range(cursor)?;
-                component.chaos_authored = true;
-            }
-            "bounce" | "elasticity" => {
-                let elasticity = parse_range(cursor)?;
-                component.elasticity = elasticity;
+                component.intensity = elasticity;
                 component.flags.apply_physics = true;
-                component.bounce_authored = true;
-                if kind == ComponentKind::CameraShake {
-                    component.intensity = elasticity;
+                if key.eq_ignore_ascii_case("bounce") {
+                    component.bounce_authored = true;
+                } else {
+                    component.intensity_authored = true;
                 }
             }
             "radius" => component.radius = parse_range(cursor)?,
@@ -290,7 +284,6 @@ fn is_property(token: &str) -> bool {
             | "alpha"
             | "rgb"
             | "intensity"
-            | "chaos"
             | "angle"
             | "angles"
             | "angledelta"
@@ -300,7 +293,6 @@ fn is_property(token: &str) -> bool {
             | "models"
             | "emitfx"
             | "bounce"
-            | "elasticity"
             | "radius"
             | "height"
             | "shader"
@@ -416,5 +408,118 @@ impl<'a> Cursor<'a> {
         token
             .parse()
             .map_err(|_| EffectError::Parse(format!("expected number, found {token:?}")))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{ComponentKind, Range, parse_effect};
+
+    /// The retail `effects/mp/drain.efx` (assets1.pk3), byte for byte apart from tabs.
+    const DRAIN: &str = "Electricity
+{
+	flags				useModel useBBox usePhysics
+	spawnFlags			org2fromTrace
+	count				1
+	life				75
+	bounce				0.8 2
+	rgb
+	{
+		start			1 0 0
+		end				1 0 0
+	}
+	size
+	{
+		start			3 7
+		flags			linear
+	}
+	shaders
+	[
+		gfx/misc/blueLine
+	]
+}
+
+Particle
+{
+	life				30
+	rotation			0 360
+	rgb
+	{
+		start			1 0 0
+		end				0.502 0 0
+	}
+	size
+	{
+		start			14 26
+		flags			random
+	}
+	shaders
+	[
+		gfx/misc/lightningFlash
+	]
+}
+";
+
+    fn single(value: f32) -> Range {
+        Range {
+            minimum: value,
+            maximum: value,
+        }
+    }
+
+    const BOUNCE_RANGE: Range = Range {
+        minimum: 0.8,
+        maximum: 2.0,
+    };
+
+    /// Drain's bolts get `bounce 0.8 2` as their jaggedness, as retail's shared
+    /// `mElasticity` gives them (`FxTemplate.cpp:2128`, `FxScheduler.cpp:1502-1508`),
+    /// not the 0.1 default that drew them almost straight.
+    #[test]
+    fn drain_bounce_is_bolt_jaggedness() {
+        let effect = parse_effect(DRAIN).unwrap();
+        let bolt = &effect.components[0];
+        assert_eq!(bolt.kind, ComponentKind::Electricity);
+        assert_eq!(bolt.chaos, BOUNCE_RANGE);
+        assert!(bolt.chaos_authored);
+        assert_eq!(bolt.elasticity, BOUNCE_RANGE);
+        assert!(bolt.flags.apply_physics);
+        assert!(bolt.flags.use_model);
+        // The flash keeps the retail default of 0.1.
+        let flash = &effect.components[1];
+        assert_eq!(flash.kind, ComponentKind::Particle);
+        assert_eq!(flash.chaos, single(0.1));
+        assert_eq!(flash.elasticity, single(0.1));
+        assert!(!flash.flags.apply_physics);
+    }
+
+    /// `intensity` is the same key as `bounce`: it also sets the bounce and turns on
+    /// physics (`ParseElasticity`, `FxTemplate.cpp:448-458`).
+    #[test]
+    fn intensity_and_bounce_are_one_key() {
+        let bounce = parse_effect("Particle { bounce 0.25 0.5 }").unwrap();
+        let intensity = parse_effect("Particle { intensity 0.25 0.5 }").unwrap();
+        for component in [&bounce.components[0], &intensity.components[0]] {
+            let range = Range {
+                minimum: 0.25,
+                maximum: 0.5,
+            };
+            assert_eq!(component.elasticity, range);
+            assert_eq!(component.chaos, range);
+            assert_eq!(component.intensity, range);
+            assert!(component.flags.apply_physics);
+        }
+        let shake = parse_effect("CameraShake { intensity 3 }").unwrap();
+        assert_eq!(shake.components[0].intensity, single(3.0));
+    }
+
+    /// Retail has no `elasticity` or `chaos` key; it skips them as unknown.
+    #[test]
+    fn non_retail_keys_are_ignored() {
+        let effect = parse_effect("Electricity { elasticity 0.9 chaos 3 count 2 }").unwrap();
+        let bolt = &effect.components[0];
+        assert_eq!(bolt.chaos, single(0.1));
+        assert!(!bolt.flags.apply_physics);
+        assert_eq!(bolt.count, single(2.0));
     }
 }

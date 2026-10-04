@@ -481,6 +481,15 @@ viewer still shows its beam and hand puffs, which stock draws before its
 mind-trick cut-off; only the body push blur is hidden for it. JKR drew none of
 the local player's own effects and hid all of a trickster's; SJK fixes both.
 
+EFX `bounce` and `intensity` are one key in retail: both set a primitive's
+single elasticity value (default 0.1) and its physics flag (`FxTemplate.cpp:44`,
+`:448-458`, `:2128`). A particle bounces by it, an electricity bolt uses it as
+its jaggedness (`FxScheduler.cpp:1502-1508`) and a camera shake as its strength.
+JKR read `bounce` as a particle bounce only, so Drain's `bounce 0.8 2` bolts
+kept a jaggedness of 0.1 and were drawn almost straight; SJK applies it as
+stock. `elasticity` and `chaos`, which JKR also accepted, are not retail keys
+and are ignored.
+
 Set `JKR_FRAME_BUDGET=1` for frame-work and GPU-phase diagnostics. Measurements
 must name the build mode, GPU, resolution, settings, map and population. Separate
 loading/shader warmup from steady frames and CPU work from GPU timings. The
