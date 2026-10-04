@@ -72,6 +72,7 @@ mod frame_split;
 mod frame_target;
 mod game_font;
 mod game_menu_actions;
+mod glow_pass;
 mod gpu_context;
 mod gpu_phases;
 mod gpu_texture;
@@ -2018,6 +2019,8 @@ struct ParticleAtlas {
     bind_group: wgpu::BindGroup,
     animations: HashMap<String, Vec<ParticleAtlasAnimation>>,
     fallback: [f32; 4],
+    /// Some stage is a dynamic glow stage, so effects sort glowing layers apart.
+    any_glow: bool,
 }
 
 struct ParticleAtlasAnimation {
@@ -2029,6 +2032,8 @@ struct ParticleAtlasAnimation {
     alpha_wave: Option<WaveForm>,
     tc_scale: [f32; 2],
     tc_scroll: [f32; 2],
+    /// The stage is drawn into the dynamic glow image too.
+    glow: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -2038,6 +2043,7 @@ struct ParticleLayerSample {
     rgb: f32,
     alpha: f32,
     uv_transform: [f32; 4],
+    glow: bool,
 }
 
 mod particle_atlas_sampling;

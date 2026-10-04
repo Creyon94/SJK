@@ -474,6 +474,24 @@ pub(super) const RENDER_IMAGE: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Dynamic glow (0 off, 2 sabers)",
+        cvar: "r_DynamicGlow",
+        kind: ValueKind::Integer {
+            min: 0,
+            max: 3,
+            step: 1,
+        },
+    },
+    Setting {
+        label: "Glow style (0 retail, 1 Vulkan)",
+        cvar: "r_dynamicGlowStyle",
+        kind: ValueKind::Integer {
+            min: 0,
+            max: 1,
+            step: 1,
+        },
+    },
+    Setting {
         label: "FXAA (restart)",
         cvar: "r_fxaa",
         kind: ValueKind::Bool,

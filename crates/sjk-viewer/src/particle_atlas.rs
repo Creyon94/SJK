@@ -65,6 +65,7 @@ pub(crate) fn create(
         alpha_wave: Option<WaveForm>,
         tc_scale: [f32; 2],
         tc_scroll: [f32; 2],
+        glow: bool,
     }
     let requested_shaders = EFFECT_SHADERS
         .iter()
@@ -113,6 +114,7 @@ pub(crate) fn create(
                         alpha_wave: stage.alpha_wave.clone(),
                         tc_scale,
                         tc_scroll,
+                        glow: stage.glow,
                     });
                 }
             }
@@ -131,6 +133,7 @@ pub(crate) fn create(
                 alpha_wave: None,
                 tc_scale: [1.0; 2],
                 tc_scroll: [0.0; 2],
+                glow: false,
             });
         }
     }
@@ -201,6 +204,7 @@ pub(crate) fn create(
                     alpha_wave: animation.alpha_wave,
                     tc_scale: animation.tc_scale,
                     tc_scroll: animation.tc_scroll,
+                    glow: animation.glow,
                 });
         }
     }
@@ -242,10 +246,15 @@ pub(crate) fn create(
             },
         ],
     });
+    let any_glow = animations
+        .values()
+        .flatten()
+        .any(|animation| animation.glow);
     Ok(ParticleAtlas {
         bind_group,
         animations,
         fallback,
+        any_glow,
     })
 }
 

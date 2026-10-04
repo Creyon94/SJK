@@ -535,6 +535,21 @@ test: bind F10 debug_panel, close the console: F10 opens and closes it in menus 
 test: Tick an entry (Space, Enter or its box), restart the client: the tick is still there.
 test: Wheel, arrows, PageUp / PageDown, Home / End; Tab cycles TO TEST, TESTED and ALL.
 
+[dynamic-glow]
+status: personal
+area: Rendering & effects
+title: Dynamic glow: glow stages get a halo, as in EternalJK
+change: Stages marked glow are drawn again into a glow image, blurred and added (r_DynamicGlow 1).
+change: r_dynamicGlowStyle 1 (default) is EJK Vulkan's blur; 0 is retail's with its glow cvars.
+change: Settings > VIDEO > Renderer > IMAGE: Dynamic glow and Glow style rows.
+test: Possessed Tavion (model tavion_new/possessed): a halo around her whole body.
+test: olol model: the face, mouth and right hand glow; the rest of the body does not.
+test: Ignite a saber: the blade and its trail glow; the white core adds no extra halo.
+test: r_DynamicGlow 0: every halo is gone. 2: only saber blades glow. 3: the glow alone.
+test: r_dynamicGlowStyle 0: retail's softer, wider look; r_DynamicGlowIntensity changes it live.
+test: A map without glow surfaces, sabers off: no halo anywhere, FPS as with r_DynamicGlow 0.
+note: Not yet in portals, sky portals or floor reflections; fog does not dim glow.
+
 [eye-adaptation]
 status: personal
 area: Rendering & effects

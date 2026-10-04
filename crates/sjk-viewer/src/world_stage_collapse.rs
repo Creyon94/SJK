@@ -47,6 +47,7 @@ pub(crate) fn collapse_multitexture(stages: &[ShaderStage]) -> Vec<CompiledStage
             output_blend,
             output_depth_write: first.depth_write,
             output_depth_function: first.depth_function,
+            glow: first.glow,
         });
         rest = tail;
     }
@@ -57,6 +58,7 @@ pub(crate) fn collapse_multitexture(stages: &[ShaderStage]) -> Vec<CompiledStage
         output_blend: stage.blend.clone(),
         output_depth_write: stage.depth_write,
         output_depth_function: stage.depth_function,
+        glow: stage.glow,
     }));
     result
 }

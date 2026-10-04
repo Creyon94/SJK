@@ -14,6 +14,8 @@ pub(crate) struct Policy {
     pub(crate) tonemap: bool,
     /// Add conservative scene brightness bloom, never to HUD elements.
     pub(crate) bloom: bool,
+    /// Dynamic glow resources (`r_DynamicGlow` and the blur size and style).
+    pub(crate) glow: super::glow::Policy,
 }
 
 impl Default for Policy {
@@ -22,21 +24,25 @@ impl Default for Policy {
             gamma: 1.0,
             tonemap: false,
             bloom: false,
+            glow: super::glow::Policy::default(),
         }
     }
 }
 
 /// Snapshot-safe policy shared with console-free world-install workers.
 #[derive(Clone)]
-pub(crate) struct Settings(Arc<[AtomicU32; 3]>);
+pub(crate) struct Settings(Arc<[AtomicU32; 3]>, super::glow::Settings);
 
 impl Default for Settings {
     fn default() -> Self {
-        Self(Arc::new([
-            AtomicU32::new(1.0_f32.to_bits()),
-            AtomicU32::new(0),
-            AtomicU32::new(0),
-        ]))
+        Self(
+            Arc::new([
+                AtomicU32::new(1.0_f32.to_bits()),
+                AtomicU32::new(0),
+                AtomicU32::new(0),
+            ]),
+            super::glow::Settings::default(),
+        )
     }
 }
 
@@ -57,7 +63,7 @@ impl Settings {
             CvarFlags::ARCHIVE,
             "Scene bloom (0 off, 1 on); applies immediately, never blooms HUD",
         ))?;
-        let settings = Self::default();
+        let settings = Self(Self::default().0, super::glow::Settings::bind(cvars)?);
         let gamma = settings.clone();
         cvars.on_change("r_gamma", move |change| {
             if let CvarValue::Float(value) = change.current {
@@ -97,7 +103,13 @@ impl Settings {
             gamma: f32::from_bits(self.0[0].load(Ordering::Relaxed)),
             tonemap: self.0[1].load(Ordering::Relaxed) != 0,
             bloom: self.0[2].load(Ordering::Relaxed) != 0,
+            glow: self.1.policy(),
         }
+    }
+
+    /// Dynamic glow settings, including the per-frame ones.
+    pub(crate) fn glow(&self) -> &super::glow::Settings {
+        &self.1
     }
 }
 
@@ -120,6 +132,7 @@ impl crate::GpuState {
         if let Some(aa) = &mut self.post_aa
             && aa.policy.tonemap == policy.tonemap
             && aa.policy.bloom == policy.bloom
+            && aa.policy.glow == policy.glow
             && aa.policy.gamma != 1.0
             && policy.gamma != 1.0
         {
