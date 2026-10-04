@@ -678,6 +678,14 @@ Menu navigation keys (W/A/S/D beside the arrows) stay positional. See
 [keys.rs](../crates/jkr-viewer/src/input/keys.rs) and
 [key_names.rs](../crates/jkr-shell/src/key_names.rs).
 
+Key names are shown in capitals, as retail's controls menu shows them
+(`BindingFromName` upper-cases with `Q_strupr`): the key binding editor, the
+vote prompt and the console's `bind`, `unbind` and `bindlist` output read `W`,
+`SPACE`, `MOUSE1`. Only ASCII letters change, so layout names such as `é` keep
+their character. `config.cfg` keeps the saved spelling (`bind "w" ...`), and
+`bind` accepts names in any case. See
+[key_names.rs](../crates/jkr-shell/src/key_names.rs).
+
 ## Colour codes
 
 Text draws `^0` to `^9` as OpenJK's ten-entry colour table does: `^0`–`^7` are
