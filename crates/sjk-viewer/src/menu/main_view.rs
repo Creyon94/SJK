@@ -1,8 +1,10 @@
 //! Retained main-menu presentation: a full-bleed hero over the live map with
 //! a left column of box-free entries. Everything scales with viewport height
-//! so 1080p, ultrawide and 4K keep the same proportions.
+//! so 1080p, ultrawide and 4K keep the same proportions. SJK's emblem
+//! ([`super::emblem`]) crowns the title, aligned with the column.
 
-use super::{ClientMenu, MAIN_ITEMS};
+use super::art::motion;
+use super::{ClientMenu, MAIN_ITEMS, emblem};
 use crate::menu_widgets::{HeroColumn, MenuCanvas, Scrim};
 use crate::ui_renderer::{BANNER_SIZE, BANNER_TEXTURE};
 use crate::{TextVertex, UiFont};
@@ -16,6 +18,21 @@ fn list_metrics(viewport: [f32; 2], scale: f32) -> (f32, f32) {
     (viewport[1] * 0.47, 72.0 * scale)
 }
 
+/// Side of the emblem above the title at a scale of 1, and its gaps to the
+/// line under it and to the top of the window.
+const EMBLEM_SIDE: f32 = 128.0;
+const EMBLEM_GAP: f32 = 16.0;
+
+/// Where the emblem sits: over the "JEDI ACADEMY / MULTIPLAYER" line whose
+/// top is `eyebrow_top`, its left edge on the column's. It shrinks to fit
+/// short windows and is left out when under a quarter of its size would fit.
+fn emblem_rect(column: &HeroColumn, eyebrow_top: f32) -> Option<Rect> {
+    let s = column.scale;
+    let bottom = eyebrow_top - EMBLEM_GAP * s;
+    let side = (EMBLEM_SIDE * s).min(bottom - EMBLEM_GAP * s);
+    (side >= EMBLEM_SIDE * s * 0.25).then(|| Rect::new(column.margin, bottom - side, side, side))
+}
+
 /// Build the main menu into `canvas` at `reveal` opacity; shared by the live
 /// client and evidence.
 pub(crate) fn build(canvas: &mut MenuCanvas, viewport: [f32; 2], selection: usize, reveal: f32) {
@@ -26,6 +43,9 @@ pub(crate) fn build(canvas: &mut MenuCanvas, viewport: [f32; 2], selection: usiz
     canvas.begin_hero(viewport, reveal, Scrim::Full);
     let theme = canvas.theme();
     let wordmark_y = height * 0.19;
+    if let Some(rect) = emblem_rect(&column, wordmark_y - 30.0 * s) {
+        emblem::draw(canvas, rect, motion::seconds());
+    }
     canvas.text(
         "JEDI ACADEMY   /   MULTIPLAYER",
         Rect::new(x, wordmark_y - 30.0 * s, width, 18.0 * s),
@@ -93,5 +113,43 @@ impl ClientMenu {
             build(&mut self.ui, viewport, self.main_selection, reveal);
         }
         self.ui.append_text(vertices, font, viewport);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn emblem_crowns_the_title_clear_of_the_entries() {
+        for viewport in [
+            [1_920.0, 1_080.0],
+            [3_840.0, 2_160.0],
+            [2_560.0, 1_080.0],
+            [1_440.0, 1_080.0],
+            [1_280.0, 720.0],
+            [1_024.0, 768.0],
+        ] {
+            let column = HeroColumn::new(viewport);
+            let s = column.scale;
+            let eyebrow_top = viewport[1] * 0.19 - 30.0 * s;
+            let rect = emblem_rect(&column, eyebrow_top).expect("room above the title");
+            assert_eq!(rect.width, rect.height, "{viewport:?}");
+            assert_eq!(rect.x, column.margin, "{viewport:?}");
+            assert!(rect.y >= EMBLEM_GAP * s - 1e-3, "{viewport:?}: {rect:?}");
+            assert!(rect.bottom() <= eyebrow_top - EMBLEM_GAP * s + 1e-3);
+            // Above the entry list, by a wide margin.
+            let (list_top, _) = list_metrics(viewport, s);
+            assert!(rect.bottom() < list_top);
+        }
+        // Full size at 1080 lines and above; 256 pixels at 4K.
+        let at_4k = emblem_rect(&HeroColumn::new([3_840.0, 2_160.0]), 2_160.0 * 0.19 - 60.0);
+        assert_eq!(at_4k.map(|rect| rect.width), Some(256.0));
+        // A very short window shrinks it, then leaves it out.
+        let short = HeroColumn::new([800.0, 560.0]);
+        let rect = emblem_rect(&short, 560.0 * 0.19 - 30.0 * short.scale).expect("shrunk");
+        assert!(rect.width < EMBLEM_SIDE * short.scale && rect.y >= 0.0);
+        let tiny = HeroColumn::new([480.0, 240.0]);
+        assert!(emblem_rect(&tiny, 240.0 * 0.19 - 30.0 * tiny.scale).is_none());
     }
 }

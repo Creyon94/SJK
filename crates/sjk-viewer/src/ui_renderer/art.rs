@@ -10,20 +10,13 @@
 //! of every layer is preserved.
 //!
 //! Animated pieces ([`ArtPiece::dynamic`]) keep their texture writable: a
-//! flickering glow is recomposed on the CPU and the main page's video
-//! decodes its next frames, at most once per frame and only on frames that
-//! draw the piece ([`ArtTextures::animate`]). Pieces whose texture scrolls
-//! are sampled with wrapping ([`ArtPiece::wraps`]).
+//! flickering glow is recomposed on the CPU at most once per frame and only
+//! on frames that draw the piece ([`ArtTextures::animate`]). Pieces whose
+//! texture scrolls are sampled with wrapping ([`ArtPiece::wraps`]).
 
 use crate::menu::art::{ArtPiece, ArtSet, Decoded, motion};
-use crate::menu::roq::RoqDecoder;
+use crate::menu::emblem::EmblemLayer;
 use image::RgbaImage;
-
-/// Longest gap between two drawn frames the video plays through; after a
-/// longer pause (the page was hidden) it simply carries on.
-const VIDEO_MAX_STEP: f64 = 0.25;
-/// Most video frames decoded in one drawn frame; a longer backlog is skipped.
-const VIDEO_CATCH_UP: u32 = 3;
 
 /// How an animated piece rewrites its texture.
 enum Motion {
@@ -34,16 +27,6 @@ enum Motion {
         speeds: [f32; 4],
         pixels: Vec<u8>,
     },
-    /// The main page's logo video.
-    Video {
-        decoder: RoqDecoder<'static>,
-        /// Seconds of video played.
-        clock: f64,
-        /// Frames shown since the start (or the last loop).
-        shown: u64,
-        /// Menu clock of the last frame that drew the video.
-        last: Option<f64>,
-    },
 }
 
 impl Motion {
@@ -51,7 +34,6 @@ impl Motion {
     fn pixels(&self) -> &[u8] {
         match self {
             Self::Flicker { pixels, .. } => pixels,
-            Self::Video { decoder, .. } => decoder.frame(),
         }
     }
 
@@ -66,26 +48,6 @@ impl Motion {
             } => {
                 motion::compose_flicker(base, noise, *speeds, now, pixels);
                 true
-            }
-            Self::Video {
-                decoder,
-                clock,
-                shown,
-                last,
-            } => {
-                let step = last.map_or(0.0, |last| (now - last).clamp(0.0, VIDEO_MAX_STEP));
-                *last = Some(now);
-                *clock += step;
-                let due = (*clock * f64::from(decoder.fps())) as u64;
-                let mut decoded = false;
-                let mut budget = VIDEO_CATCH_UP;
-                while *shown < due && budget > 0 {
-                    decoded |= decoder.next_frame();
-                    *shown += 1;
-                    budget -= 1;
-                }
-                *shown = (*shown).max(due);
-                decoded
             }
         }
     }
@@ -256,22 +218,6 @@ fn animated_piece(
     decoded: &'static Decoded,
     now: f64,
 ) -> Option<(Motion, [u32; 2])> {
-    if piece == ArtPiece::Video {
-        let mut decoder = RoqDecoder::new(decoded.video()?)?;
-        if !decoder.next_frame() {
-            return None;
-        }
-        let size = [decoder.width(), decoder.height()];
-        return Some((
-            Motion::Video {
-                decoder,
-                clock: 0.0,
-                shown: 0,
-                last: None,
-            },
-            size,
-        ));
-    }
     let speeds = motion::flicker(piece)?;
     let (base, noise) = decoded.flicker_base(piece)?;
     let mut pixels = vec![0_u8; (base.width() * base.height() * 4) as usize];
@@ -322,8 +268,18 @@ pub(super) enum Source {
     Atlas,
     /// One classic menu art piece.
     Art(ArtPiece),
+    /// One layer of SJK's menu emblem.
+    Emblem(EmblemLayer),
     /// The map preview's own texture.
     Levelshot,
+}
+
+impl Source {
+    /// Whether the run draws with the additive pipeline: the emblem's glow
+    /// layers. Everything else is alpha blended.
+    pub(super) fn additive(self) -> bool {
+        matches!(self, Self::Emblem(layer) if layer.additive())
+    }
 }
 
 /// A run of consecutive vertices drawn with one bind group.
@@ -398,5 +354,25 @@ mod tests {
         };
         assert!(!switch(&mut runs, 10_000, other));
         assert!(switch(&mut runs, 10_000, last));
+    }
+
+    #[test]
+    fn only_the_emblem_glows_draw_additively() {
+        assert!(!Source::Atlas.additive());
+        assert!(!Source::Levelshot.additive());
+        assert!(!Source::Art(ArtPiece::ButtonBack).additive());
+        assert!(!Source::Emblem(EmblemLayer::Base).additive());
+        assert!(Source::Emblem(EmblemLayer::Core).additive());
+        assert!(Source::Emblem(EmblemLayer::Lights).additive());
+        // Each layer is its own run, so the pipeline can change between them.
+        let mut runs = Vec::with_capacity(MAX_RUNS);
+        runs.push(Run {
+            start: 0,
+            source: Source::Atlas,
+        });
+        for (index, layer) in EmblemLayer::ALL.into_iter().enumerate() {
+            assert!(switch(&mut runs, 6 + index * 6, Source::Emblem(layer)));
+        }
+        assert_eq!(runs.len(), 4);
     }
 }
