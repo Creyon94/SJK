@@ -520,6 +520,21 @@ test: bind F10 debug_panel, close the console: F10 opens and closes it in menus 
 test: Tick an entry (Space, Enter or its box), restart the client: the tick is still there.
 test: Wheel, arrows, PageUp / PageDown, Home / End; Tab cycles TO TEST, TESTED and ALL.
 
+[eye-adaptation]
+status: personal
+area: Rendering & effects
+title: Eye adaptation: exposure follows the view (r_autoExposure)
+change: Dark views brighten over a few seconds (up to +1 EV); bright light darkens a little (-0.5).
+change: Renderer > IMAGE: Eye adaptation, max darken / max brighten. Speeds and key: console.
+test: Walk from a sunlit area into a dark room: it brightens slowly over 2-5 s, no jump.
+test: Step from a dark room into sunlight or look at the sky: it darkens quickly, then settles.
+test: Map load, respawn, following another player, spectating: no flash or slow fade-in.
+test: r_autoExposure 0: the fixed r_hdrExposure image, as before; 1 again adapts at once.
+test: Renderer page open: it holds still; HUD, menus, text and levelshots never change.
+test: r_sceneHdr 0 and restart: dark rooms still brighten, bright views never darken.
+note: Too bright/dark overall on outdoor maps (ffa3)? Tune r_autoExposureKey (default 0.18).
+note: Too slow/fast: r_autoExposureToDark (2.5 s) and r_autoExposureToBright (0.4 s).
+
 # ---- Merged upstream ----
 
 [console-chat-history]
