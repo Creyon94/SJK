@@ -6,7 +6,7 @@
 //!
 //! A passed `leader` vote makes the leader three seconds on. The reference never does:
 //! its `CheckTeamVote` sets the level's own `voteExecuteTime` instead, which runs the last
-//! ordinary vote again; `jkr_stockRules 1` keeps that.
+//! ordinary vote again; `g_stockRules 1` keeps that.
 
 use super::NativeGame;
 use jkr_game_jka::team_vote::{self, LeaderView, TeamVoteOutcome};

@@ -25,12 +25,12 @@ impl Settings {
     pub(crate) fn sample(console: Option<&crate::console::ViewerConsole>) -> Self {
         Self {
             mode: console
-                .and_then(|c| c.integer_cvar("jkr_hdr"))
+                .and_then(|c| c.integer_cvar("r_sceneHdr"))
                 .unwrap_or(1)
                 .clamp(0, 1) as u32,
             exposure: exposure(
                 console
-                    .and_then(|c| c.float_cvar("jkr_hdrExposure"))
+                    .and_then(|c| c.float_cvar("r_hdrExposure"))
                     .unwrap_or(1.0),
             ),
         }
@@ -56,18 +56,18 @@ fn exposure(value: f64) -> f32 {
 /// Own names: HDR is neither stock gamma nor the existing optional filmic LDR grade.
 pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), CvarError> {
     cvars.register(CvarDefinition::new(
-        "jkr_hdr",
+        "r_sceneHdr",
         1_i64,
         CvarFlags::ARCHIVE,
         "Scene HDR: 0 off, 1 RGBA16F; restart required",
     ))?;
     cvars.register(CvarDefinition::new(
-        "jkr_hdrExposure",
+        "r_hdrExposure",
         1.0,
         CvarFlags::ARCHIVE,
         "Fixed HDR exposure 0.25..4 (never automatic); restart required",
     ))?;
-    for name in ["jkr_hdr", "jkr_hdrExposure"] {
+    for name in ["r_sceneHdr", "r_hdrExposure"] {
         cvars.on_change(name, |_| {
             crate::log::progress(format_args!(
                 "HDR setting changed: restart viewer to rebuild scene targets"

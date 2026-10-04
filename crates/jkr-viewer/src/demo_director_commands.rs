@@ -1,15 +1,20 @@
 //! Bindable shot commands; parsing allocates only when a command is issued.
 use super::{Director, motion::Request};
 
-const CAMERA: &str = "jkr_camera front|back|left|right [seconds]; yaw pitch range height [seconds]; orbit degrees/sec; stop; reset [seconds]";
-const SUN: &str = "jkr_sun azimuth elevation [seconds]; orbit degrees/sec; stop; auto [seconds]. Requires jkr_dayNight 1 at launch";
+const CAMERA: &str = "demo_camera front|back|left|right [seconds]; yaw pitch range height [seconds]; orbit degrees/sec; stop; reset [seconds]";
+const SUN: &str = "demo_sun azimuth elevation [seconds]; orbit degrees/sec; stop; auto [seconds]. Requires r_dayNight 1 at launch";
 
 /// Advertise local commands in console completion and help.
 pub(in crate::console) fn register(
     shell: &mut jkr_shell::Shell,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    for (name, help) in [("jkr_camera", CAMERA), ("jkr_sun", SUN)] {
+    for (name, help) in [("demo_camera", CAMERA), ("demo_sun", SUN)] {
         shell.commands.register(name, help, |_| Ok(Vec::new()))?;
+    }
+    for &(old, new) in crate::cvar_renames::RENAMED_COMMANDS {
+        shell
+            .commands
+            .register(old, &format!("JKR's name for {new}"), |_| Ok(Vec::new()))?;
     }
     Ok(())
 }
@@ -45,8 +50,13 @@ impl Director {
     /// Consume locally, including malformed commands; never forward shot controls to servers.
     pub(crate) fn command(&mut self, tokens: &[String]) -> Option<Result<Vec<String>, String>> {
         let name = tokens.first()?;
-        let camera = name.eq_ignore_ascii_case("jkr_camera");
-        if !camera && !name.eq_ignore_ascii_case("jkr_sun") {
+        // JKR's names (`jkr_camera`, `jkr_sun`) still work.
+        let name = crate::cvar_renames::RENAMED_COMMANDS
+            .iter()
+            .find(|(old, _)| name.eq_ignore_ascii_case(old))
+            .map_or(name.as_str(), |&(_, new)| new);
+        let camera = name.eq_ignore_ascii_case("demo_camera");
+        if !camera && !name.eq_ignore_ascii_case("demo_sun") {
             return None;
         }
         let args = &tokens[1..];

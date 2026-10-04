@@ -78,7 +78,7 @@ fn realtime_lightmap(input: VertexOutput, texel: vec4<f32>) -> vec4<f32> {
     let normal = surface_normal(input.world_position, normalize(input.world_normal),
         camera.camera_position);
     let light = buffered_light(input.position, normal);
-    // `jkr_dayDebug` bit 512: no sun highlight or sky rim.
+    // `r_dayDebug` bit 512: no sun highlight or sky rim.
     let gloss = select(stage.emission.w, 0.0, (u32(shadow.realtime.w) & 512u) != 0u);
     return vec4(light.rgb + shadow.realtime.x*(sun_specular(input.world_position, normal,
         light.a, gloss) + sky_reflection(input.world_position, normal, gloss)), texel.a);

@@ -4,14 +4,14 @@ use jkr_shell::{CvarDefinition, CvarError, CvarFlags, CvarRegistry};
 /// Register startup policy; changing attachment dimensions requires a viewer restart.
 pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), CvarError> {
     cvars.register(CvarDefinition::new(
-        "jkr_renderScale",
+        "r_superSample",
         1_i64,
         CvarFlags::ARCHIVE,
         "Scene supersampling: 1 off, 2 or 3 per axis; restart viewer to apply",
     ))?;
-    cvars.on_change("jkr_renderScale", |_| {
+    cvars.on_change("r_superSample", |_| {
         crate::log::progress(format_args!(
-            "jkr_renderScale changed: restart viewer to rebuild scene attachments"
+            "r_superSample changed: restart viewer to rebuild scene attachments"
         ))
     })
 }
@@ -22,7 +22,7 @@ pub(crate) fn requested(console: Option<&crate::console::ViewerConsole>) -> u32 
     std::env::var("JKR_RENDER_SCALE")
         .ok()
         .and_then(|value| value.parse::<i64>().ok())
-        .or_else(|| console.and_then(|c| c.integer_cvar("jkr_renderScale")))
+        .or_else(|| console.and_then(|c| c.integer_cvar("r_superSample")))
         .unwrap_or(1)
         .clamp(1, 3) as u32
 }

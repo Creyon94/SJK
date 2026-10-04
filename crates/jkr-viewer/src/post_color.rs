@@ -44,15 +44,15 @@ impl Settings {
     /// Subscribe before loading archived config. No frame-time name lookup or formatting.
     pub(crate) fn bind(cvars: &mut CvarRegistry) -> Result<Self, CvarError> {
         cvars.register(CvarDefinition::new(
-            "jkr_tonemap",
+            "r_toneCurve",
             0_i64,
             CvarFlags::ARCHIVE,
             "Optional LDR filmic scene curve (0 off, 1 on); applies immediately",
         ))?;
         // The default look keeps authored glow without adding scene-wide bloom.
-        // The optional pass remains available through jkr_bloom 1.
+        // The optional pass remains available through r_sceneBloom 1.
         cvars.register(CvarDefinition::new(
-            "jkr_bloom",
+            "r_sceneBloom",
             0_i64,
             CvarFlags::ARCHIVE,
             "Scene bloom (0 off, 1 on); applies immediately, never blooms HUD",
@@ -65,13 +65,13 @@ impl Settings {
             }
         })?;
         let tone = settings.clone();
-        cvars.on_change("jkr_tonemap", move |change| {
+        cvars.on_change("r_toneCurve", move |change| {
             if let CvarValue::Integer(value) = change.current {
                 tone.0[1].store(u32::from(value != 0), Ordering::Relaxed);
             }
         })?;
         let bloom = settings.clone();
-        cvars.on_change("jkr_bloom", move |change| {
+        cvars.on_change("r_sceneBloom", move |change| {
             if let CvarValue::Integer(value) = change.current {
                 bloom.0[2].store(u32::from(value != 0), Ordering::Relaxed);
             }
@@ -80,7 +80,7 @@ impl Settings {
         // edit, so without this a cvar whose default is on would never reach the renderer until
         // the player toggled it — the runtime state and the cvar default are separate sources of
         // truth and this is the only place they are reconciled.
-        for (name, slot) in [("jkr_tonemap", 1_usize), ("jkr_bloom", 2)] {
+        for (name, slot) in [("r_toneCurve", 1_usize), ("r_sceneBloom", 2)] {
             if let Some(&CvarValue::Integer(value)) = cvars.get(name).map(|cvar| &cvar.value) {
                 settings.0[slot].store(u32::from(value != 0), Ordering::Relaxed);
             }

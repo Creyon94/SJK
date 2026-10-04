@@ -1,6 +1,7 @@
 # Dedicated server
 
 `jkr-dedicated` is JKR's native headless server. It does not launch another engine.
+In SJK the program is named `sjk-server`; the commands below are the same.
 Build it alongside the client as described in [development.md](development.md).
 
 ## Local game

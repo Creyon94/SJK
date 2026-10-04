@@ -32,7 +32,7 @@ impl crate::GpuState {
             Some(format!("Can't find installed map {path}"))
         } else if !local_server::locate_server_binary().is_some_and(|path| path.is_file()) {
             Some(
-                "jkr-dedicated was not found; install it beside the client or set JKR_DEDICATED"
+                "sjk-server was not found; install it beside the client or set JKA_DEDICATED"
                     .to_owned(),
             )
         } else {

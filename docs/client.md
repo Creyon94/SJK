@@ -5,6 +5,13 @@ Jedi Academy `GameData` directory with the retail `base/assets*.pk3` files.
 
 ## Launch
 
+In SJK the client program is `sjk` and the dedicated server `sjk-server`
+(`.exe` on Windows). This page, shared with JKR, uses JKR's names `jkr-viewer`
+and `jkr-dedicated`; the commands are otherwise the same. SJK reads
+`JKA_GAME_DATA` and `JKA_DEDICATED` before JKR's `JKR_GAME_DATA` and
+`JKR_DEDICATED`; developer and diagnostic variables (`JKR_TRACE_*`, `JKR_LAMP_*`,
+`JKR_GPU_*` and the like) keep JKR's names.
+
 Put `jkr-viewer` (`jkr-viewer.exe` on Windows) inside the installed game's
 `GameData` folder, beside `base/`, then launch it to open the main menu. A shortcut
 can use any working directory. No path settings are required. Keep
@@ -26,7 +33,8 @@ Join a server directly:
 Without an explicit positional GameData argument, discovery checks these locations
 in order and uses the first containing `base/assets0.pk3` and `base/assets3.pk3`:
 
-1. `JKR_GAME_DATA`, if set and nonempty.
+1. `JKA_GAME_DATA` (SJK; JKR's `JKR_GAME_DATA` is read when it is unset), if set
+   and nonempty.
 2. The executable's directory, then its `GameData` subdirectory.
 3. The saved `fs_gameData` setting.
 4. The working directory, its `GameData` subdirectory, then its
@@ -38,7 +46,7 @@ while an explicit environment or positional path still overrides it. Invalid
 discovery candidates are skipped; an invalid explicit positional path is an error.
 Discovery does not change the working directory or move any game data.
 
-For a binary kept separately, `JKR_GAME_DATA=/path/to/GameData ./jkr-viewer` opens
+For a binary kept separately, `JKA_GAME_DATA=/path/to/GameData ./sjk` opens
 the main menu. Positional launch also accepts a map path and optional player-model
 directory (`jkr-viewer /path/to/GameData maps/mp/ffa3.bsp`); it remains a direct
 world/viewer launch, whereas no arguments opens the main menu. Demo playback
@@ -52,7 +60,8 @@ Presence here describes implemented surfaces; validation limits are in
 [status.md](status.md).
 
 Create game starts a child `jkr-dedicated`, normally found beside the client.
-Set `JKR_DEDICATED` to its executable path if installed elsewhere. The child
+Set `JKA_DEDICATED` (or JKR's `JKR_DEDICATED`) to its executable path if installed
+elsewhere. The child
 lifetime is managed by the client and defaults to local access; see
 [local_server.rs](../crates/jkr-viewer/src/local_server.rs).
 
@@ -336,7 +345,17 @@ remain outside this audio adapter.
 
 ## Renderer settings
 
-JKR's own rendering cvars (`jkr_*`) have their own settings page. The last row
+SJK gives JKR's own cvars (`jkr_*`) neutral engine names: rendering ones are
+`r_*` (`r_sceneHdr`, `r_toneCurve`, `r_sceneBloom`, `r_superSample`,
+`r_actorSunShadows`, `r_sunShadow*`, `r_dayNight`, `r_liveLighting`, ...), the
+ground HUD is `cg_groundHud` and the dedicated server's are `g_npcNav` and
+`g_stockRules`. Names rend2 or EternalJK use with another meaning are avoided.
+The `jkr_*` names keep working as aliases, so JKR configs and commands still
+apply, and `config.cfg` is saved under the new names; the full list is in
+[cvar_renames.rs](../crates/jkr-viewer/src/cvar_renames.rs). This page otherwise
+uses SJK's names.
+
+These rendering cvars have their own settings page. The last row
 of Settings > VIDEO, "Renderer", opens it, as JoF EJK's advanced renderer page
 opens from its Video setup; Escape or Back returns to that row. With the
 classic menu style, the Setup page's RENDERER entry (after NETWORK, in the main
@@ -345,8 +364,8 @@ returns to the Setup group that was open. The page has three tabs:
 
 | Tab | Settings |
 | --- | --- |
-| IMAGE | HDR scene and exposure, filmic tone curve, bloom, FXAA, supersampling (`jkr_renderScale`), soft particles, sunbeam dust (`jkr_dust`), per-pixel model lighting |
-| LIGHTING | Sun and sky (`jkr_dayNight`), live lighting tier, time of day, day length, sunlight brightness, ambient fill and its corner shading, indirect boost, light shafts (`jkr_volumetrics`) and their clarity |
+| IMAGE | HDR scene and exposure, filmic tone curve, bloom, FXAA, supersampling (`r_superSample`), soft particles, sunbeam dust (`r_dustMotes`), per-pixel model lighting |
+| LIGHTING | Sun and sky (`r_dayNight`), live lighting tier, time of day, day length, sunlight brightness, ambient fill and its corner shading, indirect boost, light shafts (`r_volumetrics`) and their clarity |
 | SHADOWS | World and character sun shadows, shadow resolution, sharp and close cascade distances, filter taps, slit closing, contact shadows |
 
 Rows marked "(restart)" are read when the client starts and apply after a
@@ -354,8 +373,8 @@ restart; "(next map)" applies when a map loads; the rest apply immediately.
 Changing a value saves it like any other setting. Switches over numeric cvars
 show ON/OFF and write 1/0. Defaults are unchanged (see
 [Default visual profile](rendering.md#default-visual-profile)). Diagnostics such
-as `jkr_dayDebug` stay console-only, the ground HUD stays on the HUD tab, and
-exclusive fullscreen (`jkr_exclusiveFullscreen`) stays on VIDEO's display-mode
+as `r_dayDebug` stay console-only, the ground HUD stays on the HUD tab, and
+exclusive fullscreen (`r_exclusiveFullscreen`) stays on VIDEO's display-mode
 row.
 See [catalog.rs](../crates/jkr-viewer/src/settings/catalog.rs).
 
@@ -409,7 +428,7 @@ Run `devmap mp/ffa3` in the client console to start and join an owned local
 FFA server with cheats enabled, no bots and no match limits. Other installed
 maps work too, including `devmap t2_rancor`; `maps/` and `.bsp` are optional.
 The command appears in console completion/help. It uses the same `jkr-dedicated`
-binary lookup as Create game (`JKR_DEDICATED` overrides the adjacent binary).
+binary lookup as Create game (`JKA_DEDICATED` overrides the adjacent binary).
 
 This starts a fresh game on loopback, without master-server advertising. Once
 launched, it replaces the current connection; it never asks a remote server to
@@ -644,7 +663,7 @@ so autosaving cannot overwrite your changes.
 refresh rate of the monitor holding the window, rounded to whole hertz and
 re-read once a second, or at stock's 125 when the monitor reports none. `0` is
 uncapped. The old default, 1000, saved in every existing profile, is reset to
-AUTO once on first launch (marker `jkr_maxfpsDefaultVersion`); a cap chosen
+AUTO once on first launch (marker `com_maxfpsDefaultVersion`); a cap chosen
 afterwards is kept. The default is not saved to the configuration. On the slider
 AUTO is the rail's left end: arrows step AUTO, 0, 25, 50 and so on, and typing
 `-1` selects it. An uncapped
@@ -655,10 +674,10 @@ frames (OBS reported 83% skipped for encoding lag against an uncapped client at
 The Video tab's Display mode row offers Windowed, Borderless fullscreen and,
 where the windowing system supports it, Exclusive fullscreen (Wayland does not).
 Stock `r_fullscreen` keeps its meaning, fullscreen on or off, and Alt+Enter still
-toggles it. `jkr_exclusiveFullscreen` chooses the kind: 0 (default) is a borderless
+toggles it. `r_exclusiveFullscreen` chooses the kind: 0 (default) is a borderless
 window at the desktop size, 1 switches the monitor to the `r_resolution` video
 mode. Stock JA's fullscreen is always the exclusive kind; JKR defaults to
-borderless. Choosing Windowed leaves `jkr_exclusiveFullscreen` alone, so Alt+Enter
+borderless. Choosing Windowed leaves `r_exclusiveFullscreen` alone, so Alt+Enter
 returns to the last fullscreen kind. Exclusive fullscreen without a monitor mode
 of that size falls back to borderless.
 

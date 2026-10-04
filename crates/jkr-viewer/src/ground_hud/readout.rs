@@ -179,7 +179,7 @@ pub(crate) enum Presentation {
 /// Everything [`select`] needs, gathered once per frame.
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct Conditions {
-    /// `jkr_groundHud`.
+    /// `cg_groundHud`.
     pub(crate) enabled: bool,
     /// Third-person view of the local player (not detached, not a backdrop).
     pub(crate) third_person: bool,

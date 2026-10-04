@@ -2,7 +2,7 @@
 //! screen offers choices from.
 //!
 //! Stock `r_fullscreen` keeps its meaning, fullscreen on or off, and Alt+Enter
-//! still toggles it. JKR adds `jkr_exclusiveFullscreen` to say which kind of
+//! still toggles it. JKR adds `r_exclusiveFullscreen` to say which kind of
 //! fullscreen that is: 0 (the default) is borderless at the desktop size, 1 is
 //! an exclusive video mode at `r_resolution`. Stock JA's fullscreen is always
 //! the exclusive kind; JKR keeps borderless as its default because it does
@@ -12,7 +12,7 @@ use crate::console::ViewerConsole;
 use winit::window::Window;
 
 /// Cvar choosing the kind of fullscreen `r_fullscreen 1` gives.
-pub(crate) const EXCLUSIVE_CVAR: &str = "jkr_exclusiveFullscreen";
+pub(crate) const EXCLUSIVE_CVAR: &str = "r_exclusiveFullscreen";
 
 /// How the client window covers the screen.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

@@ -12,7 +12,7 @@ pub(super) const TABS: [&str; 8] = [
 pub(super) const KEYBINDS_TAB: usize = 3;
 /// The tab whose last row opens the renderer settings ([`RENDERER_TABS`]).
 pub(super) const RENDERER_TAB: usize = 0;
-/// Tabs of the renderer settings, JKR's own `jkr_*` rendering cvars, reached
+/// Tabs of the renderer settings, JKR's own rendering cvars (`jkr_*` in JKR), reached
 /// from the last row of [`VIDEO`] as JoF EJK reaches its advanced renderer page
 /// from Video.
 pub(super) const RENDERER_TABS: [&str; 3] = ["IMAGE", "LIGHTING", "SHADOWS"];
@@ -35,7 +35,7 @@ pub(super) enum ValueKind {
     Text,
     /// `r_resolution`: steps within the aspect group, Enter opens the list.
     Resolution,
-    /// `r_fullscreen` with `jkr_exclusiveFullscreen`, as named modes.
+    /// `r_fullscreen` with `r_exclusiveFullscreen`, as named modes.
     DisplayMode,
 }
 
@@ -428,12 +428,12 @@ pub(super) const TEXT: &[Setting] = &[
 pub(super) const RENDER_IMAGE: &[Setting] = &[
     Setting {
         label: "HDR scene (restart)",
-        cvar: "jkr_hdr",
+        cvar: "r_sceneHdr",
         kind: ValueKind::Bool,
     },
     Setting {
         label: "HDR exposure (restart)",
-        cvar: "jkr_hdrExposure",
+        cvar: "r_hdrExposure",
         kind: ValueKind::Float {
             min: 0.25,
             max: 4.0,
@@ -442,22 +442,22 @@ pub(super) const RENDER_IMAGE: &[Setting] = &[
     },
     Setting {
         label: "Filmic tone curve",
-        cvar: "jkr_tonemap",
+        cvar: "r_toneCurve",
         kind: ValueKind::Bool,
     },
     Setting {
         label: "Bloom",
-        cvar: "jkr_bloom",
+        cvar: "r_sceneBloom",
         kind: ValueKind::Bool,
     },
     Setting {
         label: "FXAA (restart)",
-        cvar: "jkr_fxaa",
+        cvar: "r_fxaa",
         kind: ValueKind::Bool,
     },
     Setting {
         label: "Supersampling, 1 off (restart)",
-        cvar: "jkr_renderScale",
+        cvar: "r_superSample",
         kind: ValueKind::Integer {
             min: 1,
             max: 3,
@@ -466,7 +466,7 @@ pub(super) const RENDER_IMAGE: &[Setting] = &[
     },
     Setting {
         label: "Soft particles",
-        cvar: "jkr_softParticles",
+        cvar: "r_softParticles",
         kind: ValueKind::Bool,
     },
     Setting {
@@ -480,7 +480,7 @@ pub(super) const RENDER_IMAGE: &[Setting] = &[
     },
     Setting {
         label: "Per-pixel model lighting",
-        cvar: "jkr_modelDiffusePixels",
+        cvar: "r_modelPixelLight",
         kind: ValueKind::Bool,
     },
 ];
@@ -488,12 +488,12 @@ pub(super) const RENDER_IMAGE: &[Setting] = &[
 pub(super) const RENDER_LIGHTING: &[Setting] = &[
     Setting {
         label: "Sun and sky (restart)",
-        cvar: "jkr_dayNight",
+        cvar: "r_dayNight",
         kind: ValueKind::Bool,
     },
     Setting {
         label: "Live lighting 0-2 (next map)",
-        cvar: "jkr_realtime",
+        cvar: "r_liveLighting",
         kind: ValueKind::Integer {
             min: 0,
             max: 2,
@@ -502,7 +502,7 @@ pub(super) const RENDER_LIGHTING: &[Setting] = &[
     },
     Setting {
         label: "Time of day (hour)",
-        cvar: "jkr_dayHour",
+        cvar: "r_dayHour",
         kind: ValueKind::Float {
             min: 0.0,
             max: 24.0,
@@ -511,7 +511,7 @@ pub(super) const RENDER_LIGHTING: &[Setting] = &[
     },
     Setting {
         label: "Day length, min (0 holds)",
-        cvar: "jkr_dayMinutes",
+        cvar: "r_dayMinutes",
         kind: ValueKind::Float {
             min: 0.0,
             max: 1440.0,
@@ -520,7 +520,7 @@ pub(super) const RENDER_LIGHTING: &[Setting] = &[
     },
     Setting {
         label: "Sunlight brightness",
-        cvar: "jkr_dayBrightness",
+        cvar: "r_dayBrightness",
         kind: ValueKind::Float {
             min: 0.1,
             max: 10.0,
@@ -529,7 +529,7 @@ pub(super) const RENDER_LIGHTING: &[Setting] = &[
     },
     Setting {
         label: "Ambient fill",
-        cvar: "jkr_ambientFill",
+        cvar: "r_ambientFill",
         kind: ValueKind::Float {
             min: 0.0,
             max: 0.2,
@@ -538,7 +538,7 @@ pub(super) const RENDER_LIGHTING: &[Setting] = &[
     },
     Setting {
         label: "Ambient fill corner shading",
-        cvar: "jkr_ambientFillOcclusion",
+        cvar: "r_ambientFillOcclusion",
         kind: ValueKind::Float {
             min: 0.0,
             max: 1.0,
@@ -547,7 +547,7 @@ pub(super) const RENDER_LIGHTING: &[Setting] = &[
     },
     Setting {
         label: "Indirect light boost",
-        cvar: "jkr_indirectBoost",
+        cvar: "r_indirectBoost",
         kind: ValueKind::Float {
             min: 0.0,
             max: 4.0,
@@ -556,7 +556,7 @@ pub(super) const RENDER_LIGHTING: &[Setting] = &[
     },
     Setting {
         label: "Light shafts 0-3 (restart)",
-        cvar: "jkr_volumetrics",
+        cvar: "r_volumetrics",
         kind: ValueKind::Integer {
             min: 0,
             max: 3,
@@ -565,7 +565,7 @@ pub(super) const RENDER_LIGHTING: &[Setting] = &[
     },
     Setting {
         label: "Light shaft clarity",
-        cvar: "jkr_volumetricClarity",
+        cvar: "r_volumetricClarity",
         kind: ValueKind::Float {
             min: 0.0,
             max: 1.0,
@@ -577,17 +577,17 @@ pub(super) const RENDER_LIGHTING: &[Setting] = &[
 pub(super) const RENDER_SHADOWS: &[Setting] = &[
     Setting {
         label: "World sun shadows (restart)",
-        cvar: "jkr_worldSunShadows",
+        cvar: "r_worldSunShadows",
         kind: ValueKind::Bool,
     },
     Setting {
         label: "Character sun shadows (restart)",
-        cvar: "jkr_sunShadows",
+        cvar: "r_actorSunShadows",
         kind: ValueKind::Bool,
     },
     Setting {
         label: "Shadow resolution (restart)",
-        cvar: "jkr_shadowResolution",
+        cvar: "r_sunShadowResolution",
         kind: ValueKind::Integer {
             min: 512,
             max: 4096,
@@ -596,7 +596,7 @@ pub(super) const RENDER_SHADOWS: &[Setting] = &[
     },
     Setting {
         label: "Sharp shadow distance (restart)",
-        cvar: "jkr_shadowDistance",
+        cvar: "r_sunShadowDistance",
         kind: ValueKind::Integer {
             min: 128,
             max: 4096,
@@ -605,7 +605,7 @@ pub(super) const RENDER_SHADOWS: &[Setting] = &[
     },
     Setting {
         label: "Close shadow distance (restart)",
-        cvar: "jkr_shadowNear",
+        cvar: "r_sunShadowNear",
         kind: ValueKind::Integer {
             min: 64,
             max: 1024,
@@ -614,7 +614,7 @@ pub(super) const RENDER_SHADOWS: &[Setting] = &[
     },
     Setting {
         label: "Shadow filter taps (restart)",
-        cvar: "jkr_shadowTaps",
+        cvar: "r_sunShadowTaps",
         kind: ValueKind::Integer {
             min: 4,
             max: 32,
@@ -623,7 +623,7 @@ pub(super) const RENDER_SHADOWS: &[Setting] = &[
     },
     Setting {
         label: "Close shadow slits (units)",
-        cvar: "jkr_shadowGapClose",
+        cvar: "r_sunShadowGapClose",
         kind: ValueKind::Float {
             min: 0.0,
             max: 64.0,
@@ -632,7 +632,7 @@ pub(super) const RENDER_SHADOWS: &[Setting] = &[
     },
     Setting {
         label: "Contact shadows",
-        cvar: "jkr_contactShadows",
+        cvar: "r_contactShadows",
         kind: ValueKind::Bool,
     },
 ];

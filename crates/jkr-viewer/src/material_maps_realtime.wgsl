@@ -16,7 +16,7 @@ fn material_map_lightmap(input: VertexOutput, texel: vec4<f32>) -> vec4<f32> {
     let facing = mix(max(received, 0.0), max(dot(surface.normal, sun), 0.0),
         clamp(4.0*received, 0.0, 1.0));
     var lit = material_map_shade(input.world_position, direct, sun, facing, rest);
-    // `jkr_dayDebug` bit 512: no sun highlight or sky rim.
+    // `r_dayDebug` bit 512: no sun highlight or sky rim.
     let highlights = (u32(shadow.realtime.w) & 512u) == 0u;
     if material_map_layout() == 0u {
         // No specular map: the material's existing gloss, on the mapped normal.

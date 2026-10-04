@@ -15,7 +15,7 @@ fn realtime_light_from_visibility(world: vec3<f32>, normal: vec3<f32>, visibilit
 // `lamps` is the receiver's lamp irradiance, evaluated directly or taken from the cache.
 fn realtime_light_with_lamps(world: vec3<f32>, normal: vec3<f32>, visibility: vec2<f32>,
     lamps: vec3<f32>) -> vec4<f32> {
-    // `jkr_dayDebug` bits leave terms out, live, to name the one behind an artefact.
+    // `r_dayDebug` bits leave terms out, live, to name the one behind an artefact.
     let debug = u32(shadow.realtime.w);
     var sample = visibility;
 

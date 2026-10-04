@@ -340,11 +340,11 @@ issue: 14
 status: open
 area: Rendering & effects
 title: Sunbeam dust (dust motes only inside godrays)
-change: jkr_dust (0 to 1, Settings > Game > Sunbeam dust) draws dust lit by sunbeams only.
-change: Bishop's rework: no godray volume or sunlight means no dust; needs jkr_volumetrics.
-test: jkr_volumetrics on, jkr_dust 1, on an outdoor map: dust shows only inside sunbeams.
-test: Shadowed air, dark rooms and jkr_volumetrics 0 show no dust at all.
-test: Optional: JKR_FRAME_BUDGET=1, compare the volumetrics phase with jkr_dust 0 and 1.
+change: r_dustMotes (0 to 1, Settings > Game > Sunbeam dust) draws dust lit by sunbeams only.
+change: Bishop's rework: no godray volume or sunlight means no dust; needs r_volumetrics.
+test: r_volumetrics on, r_dustMotes 1, on an outdoor map: dust shows only inside sunbeams.
+test: Shadowed air, dark rooms and r_volumetrics 0 show no dust at all.
+test: Optional: JKR_FRAME_BUDGET=1, compare the volumetrics phase with r_dustMotes 0 and 1.
 
 [entity-types]
 pr: 63
@@ -371,7 +371,7 @@ test: Set r_normalMapping 1, r_specularMapping 1 and r_parallaxMapping 1, then r
 test: Load a map: the log shows "material maps (normal+specular+parallax): N stages ...".
 test: r_materialMapsDebug 2 tints mapped surfaces: red parallax, green normal, blue specular.
 test: r_materialMapsDebug 3 shows the normal-map relief; r_materialMapsDebug 0 is back to normal.
-test: For visible lighting set jkr_dayNight 1 and jkr_dayHour 7, restart, look at floors and walls.
+test: For visible lighting set r_dayNight 1 and r_dayHour 7, restart, look at floors and walls.
 note: In baked lighting the effect is small by design.
 note: The generated maps are gentle (average tilt about 4 deg), so expect subtle changes.
 
@@ -558,8 +558,8 @@ status: merged
 area: Rendering & effects
 title: Shader patching accepts CRLF checkouts
 change: Shader text patches normalise Windows (CRLF) line ends first; *.wgsl is kept LF in Git.
-test: Set jkr_dayNight 1 and restart: the client starts without a "stage program changed" panic.
-test: The sky follows the day tint as the hour changes (jkr_dayHour, or jkr_dayMinutes 2).
+test: Set r_dayNight 1 and restart: the client starts without a "stage program changed" panic.
+test: The sky follows the day tint as the hour changes (r_dayHour, or r_dayMinutes 2).
 
 [old-humanoid-models]
 pr: 97
@@ -665,8 +665,8 @@ issue: 16
 status: merged
 area: Gameplay
 title: noclip cheat on the dedicated server
-change: jkr-dedicated has noclip with the stock cheat checks (needs --cheats or devmap).
-test: Start jkr-dedicated --map mp/ffa3 --bind 127.0.0.1:29071 --cheats and connect.
+change: The dedicated server has noclip with the stock cheat checks (needs --cheats or devmap).
+test: Start sjk-server --map mp/ffa3 --bind 127.0.0.1:29071 --cheats and connect.
 test: Type noclip: fly through walls, attack is turbo, no pickups, triggers or damage.
 test: Type noclip again to land. Without --cheats it answers that cheats are not enabled.
 note: Bishop's #95 replaced your #31; it also adds a client devmap command.

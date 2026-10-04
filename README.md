@@ -50,7 +50,9 @@ controls, HUD, audio, screenshots and demo playback.
     more);
   - a personal `debug_panel` console command: an in-game checklist of the
     changes in this build and how to test them.
-- **Names.** The crates and programs keep JKR's names (`jkr-viewer`,
+- **Names.** The programs are `sjk` (the game) and `sjk-server` (the dedicated
+  server). Settings have neutral engine names (`r_*`, `cg_*`), and JKR's `jkr_*`
+  names still work as aliases. The source crates keep JKR's names (`jkr-viewer`,
   `jkr-dedicated`, `jkr-*`), which keeps SJK easy to merge with JKR. The client's
   own folder is `GameData/SJK/`; JKR's `GameData/jkr/` is imported into it once,
   so settings carry over.
@@ -61,7 +63,7 @@ Ready-to-run Windows x64 and Linux x64 builds are on the
 [releases page](https://github.com/Sol-Vulpes/SJK/releases) and the
 [SJK website](https://sol-vulpes.github.io/SJK/). Extract the ZIP for your
 platform into Jedi Academy's `GameData` folder, beside `base`, and launch
-`jkr-viewer`.
+`sjk` (`sjk.exe` on Windows).
 
 Releases are built by the [SJK release workflow](.github/workflows/release.yml)
 when a tag named `sjk-v<version>` (for example `sjk-v0.2.0`) is pushed. It builds
@@ -79,14 +81,17 @@ with working Vulkan or OpenGL graphics drivers.
 cargo build --release -p jkr-viewer -p jkr-dedicated
 ```
 
+This builds `target/release/sjk` and `target/release/sjk-server` (`.exe` on
+Windows).
+
 SJK is developed and tested mainly on Windows 11. JKR's verified platform is
 Linux, and SJK keeps its Linux support, but SJK's own changes are not routinely
 tested there.
 
 ## Game data
 
-A legally obtained Jedi Academy installation is required. Put `jkr-viewer`
-(`jkr-viewer.exe` on Windows) in its `GameData` directory, beside the `base`
+A legally obtained Jedi Academy installation is required. Put `sjk`
+(`sjk.exe` on Windows) in its `GameData` directory, beside the `base`
 folder containing `assets0.pk3` through `assets3.pk3`.
 Game data is not included in this repository.
 
@@ -94,18 +99,18 @@ Game data is not included in this repository.
 
 Launch the client from that folder or a shortcut to open the main menu. No
 game-data path, environment variable or particular working directory is needed.
-Put `jkr-dedicated` (`jkr-dedicated.exe` on Windows) beside it too for Create game
+Put `sjk-server` (`sjk-server.exe` on Windows) beside it too for Create game
 and local `devmap` support.
 
 Connect directly to a server:
 
 ```sh
-./jkr-viewer --connect 127.0.0.1:29070
+./sjk --connect 127.0.0.1:29070
 ```
 
-If keeping the binary elsewhere, use `JKR_GAME_DATA=/path/to/GameData` or the
+If keeping the binary elsewhere, use `JKA_GAME_DATA=/path/to/GameData` or the
 saved game-data setting; known installation locations are also checked. The
-explicit positional form `jkr-viewer /path/to/GameData --connect HOST:PORT`
+explicit positional form `sjk /path/to/GameData --connect HOST:PORT`
 remains supported. See [client launch](docs/client.md#launch) for discovery order.
 Use the in-game menus for controls, graphics, audio and player settings;
 Settings > GAME > Menu style switches between the modern and the classic menus.
@@ -121,7 +126,7 @@ active location. See [configuration and content](docs/client.md#configuration-an
 ## Dedicated server
 
 ```sh
-./target/release/jkr-dedicated \
+./target/release/sjk-server \
   --game-data /path/to/GameData \
   --map mp/ffa3 \
   --bind 0.0.0.0:29070 \
@@ -136,8 +141,8 @@ free-for-all match. UDP port 29070 must be reachable for remote players to join.
 
 All source is under `crates/`:
 
-- `jkr-viewer`: graphical client and platform integration.
-- `jkr-dedicated`: dedicated server and game integration.
+- `jkr-viewer`: graphical client and platform integration (builds `sjk`).
+- `jkr-dedicated`: dedicated server and game integration (builds `sjk-server`).
 - `jkr-game-jka`: shared Jedi Academy game rules and movement.
 - `jkr-client`, `jkr-network`, `jkr-protocol`: client state and legacy networking.
 - `jkr-bsp`, `jkr-scene`, `jkr-runtime`: maps, scene data and world state.

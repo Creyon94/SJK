@@ -1,4 +1,4 @@
-//! What this server lifts of the stock NPC and entity limits outside `jkr_stockRules 1`
+//! What this server lifts of the stock NPC and entity limits outside `g_stockRules 1`
 //! (`bridge_stock_rules`), with the rules in `jkr_game_jka::npc_names`:
 //!
 //! - `npc spawn tauntaun` / `swoop` / any vehicle's name spawns the vehicle, where the

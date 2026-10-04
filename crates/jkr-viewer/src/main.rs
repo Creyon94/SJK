@@ -32,6 +32,7 @@ mod console_overlay;
 mod console_runtime;
 mod crosshair_scan;
 mod cut_trace;
+mod cvar_renames;
 mod damage_feedback;
 mod decal_marks;
 mod decal_store;
@@ -212,7 +213,7 @@ use winit::window::{Window, WindowAttributes, WindowId};
 fn main() {
     log::init();
     if let Err(error) = app_launch::run() {
-        log::progress(format_args!("jkr-viewer: {error}"));
+        log::progress(format_args!("sjk: {error}"));
         std::process::exit(1);
     }
 }

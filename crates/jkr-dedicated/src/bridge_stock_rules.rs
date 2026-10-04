@@ -1,4 +1,4 @@
-//! `jkr_stockRules`: this server's own option (not the reference's). JKR's server lifts
+//! `g_stockRules`: this server's own option (not the reference's). JKR's server lifts
 //! the limits and quirks a stock server has — `0`, the default — and keeps the stock
 //! behaviour exactly with `1`, for operators who want a server indistinguishable from a
 //! stock one. Each place that differs says so where it reads [`NativeGame::stock_rules`]:
@@ -10,12 +10,12 @@
 use super::NativeGame;
 
 /// The option's name.
-pub(super) const STOCK_RULES: &[u8] = b"jkr_stockRules";
+pub(super) const STOCK_RULES: &[u8] = b"g_stockRules";
 
 impl NativeGame {
-    /// `jkr_stockRules` registered (archived: an operator's choice is remembered).
+    /// `g_stockRules` registered (archived: an operator's choice is remembered).
     pub(super) fn register_stock_rules(&mut self) {
-        let about: &[u8] = b"JKR: 1 keeps every stock limit and quirk; 0 (default) lifts them";
+        let about: &[u8] = b"SJK: 1 keeps every stock limit and quirk; 0 (default) lifts them";
         self.cvars
             .get(STOCK_RULES, b"0", crate::cvars::CVAR_ARCHIVE, Some(about));
     }

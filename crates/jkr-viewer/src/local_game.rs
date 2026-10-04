@@ -8,14 +8,14 @@ use super::local_server::{self, HostSettings, LocalServer};
 mod devmap;
 
 impl crate::GpuState {
-    /// Start `jkr-dedicated` for `settings`; the menu follows its start-up.
+    /// Start `sjk-server` for `settings`; the menu follows its start-up.
     pub(crate) fn start_local_game(&mut self, settings: HostSettings) {
         let Some(menu) = &mut self.client_menu else {
             return;
         };
         let Some(program) = local_server::locate_server_binary() else {
             menu.local_server_failed(
-                "jkr-dedicated was not found beside the client or on PATH (set JKR_DEDICATED).",
+                "sjk-server was not found beside the client or on PATH (set JKA_DEDICATED).",
             );
             return;
         };

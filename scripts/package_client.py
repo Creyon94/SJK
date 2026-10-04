@@ -8,10 +8,18 @@ import os
 from pathlib import Path
 import subprocess
 import tempfile
+import tomllib
 import zipfile
 
 # Where the source of a default (JKR) package is published.
 DEFAULT_REPOSITORY = "https://github.com/Bishop-R/JKR"
+
+
+def bin_name(source, crate):
+    """The [[bin]] name declared by crates/<crate>/Cargo.toml, else the crate name."""
+    manifest = tomllib.loads((source / "crates" / crate / "Cargo.toml").read_text(encoding="utf-8"))
+    bins = manifest.get("bin") or []
+    return bins[0]["name"] if bins else crate
 
 
 def command(source, *args):
@@ -26,7 +34,7 @@ def add_file(archive, source, name, executable=False):
     archive.writestr(info, source.read_bytes())
 
 
-def dependency_notices(source, target, archive):
+def dependency_notices(source, target, archive, name="JKR"):
     metadata = json.loads(command(source, "cargo", "metadata", "--locked",
                                   "--format-version", "1", "--filter-platform", target))
     resolved = {node["id"] for node in metadata["resolve"]["nodes"]}
@@ -39,7 +47,7 @@ def dependency_notices(source, target, archive):
                  and p.name.upper().startswith(("LICENSE", "LICENCE", "COPYING", "NOTICE"))]
         if package.get("license_file"):
             files.append(root / package["license_file"])
-        prefix = f'JKR-licenses/{package["name"]}-{package["version"]}'
+        prefix = f'{name}-licenses/{package["name"]}-{package["version"]}'
         for path in sorted(set(files)):
             add_file(archive, path, f"{prefix}/{path.relative_to(root).as_posix()}")
         selected_license = None
@@ -58,16 +66,16 @@ def dependency_notices(source, target, archive):
                         "repository": package["repository"],
                         "selected_license": selected_license,
                         "license_files": len(set(files)) or 1})
-    archive.writestr("JKR-licenses/dependencies.json", json.dumps(notices, indent=2) + "\n")
+    archive.writestr(f"{name}-licenses/dependencies.json", json.dumps(notices, indent=2) + "\n")
 
 
 def instructions(platform, revision, name="JKR", repository=DEFAULT_REPOSITORY, version=None,
-                 profile="jkr"):
+                 profile="jkr", client="jkr-viewer", server="jkr-dedicated"):
     suffix = ".exe" if platform == "windows-x64" else ""
     requirements = ("Windows 10/11 x64 and a working graphics driver. The MSVC runtime is statically linked."
                     if suffix else
                     "Linux x64 with glibc 2.35+, ALSA, Wayland/X11 libraries and a Vulkan or OpenGL driver.\n"
-                    "If your archive extractor drops permissions: chmod +x jkr-viewer jkr-dedicated")
+                    f"If your archive extractor drops permissions: chmod +x {client} {server}")
     label = f"{name} {version}" if version else f"{name} playtest build"
     private_note = ("\nRepository access may be required while the project is private."
                     if repository == DEFAULT_REPOSITORY else "")
@@ -78,8 +86,8 @@ INSTALL
 Extract ALL files from this ZIP directly into Jedi Academy's GameData folder,
 beside its existing base folder. Do not put them inside base or an extra {name} folder.
 The installed game must include base/assets0.pk3 through base/assets3.pk3.
-Launch jkr-viewer{suffix}. No game-data path or environment variable is needed.
-Keep jkr-dedicated{suffix} beside it for Create game and local devmap.
+Launch {client}{suffix}. No game-data path or environment variable is needed.
+Keep {server}{suffix} beside it for Create game and local devmap.
 An existing shortcut must point to this client, not an older named playtest binary.
 
 YOUR FILES
@@ -97,12 +105,12 @@ compatibility on every system. Windows graphical runtime testing is still pendin
 
 SOURCE AND LICENSES
 {repository}/tree/{revision}
-GPL-2.0-only: see JKR-LICENSE.txt. Bundled notices are in JKR-licenses/.
+GPL-2.0-only: see {name}-LICENSE.txt. Bundled notices are in {name}-licenses/.
 The matching source snapshot is distributed separately as {name}-{version or revision[:7]}-source.zip.{private_note}
 """
 
 
-def smoke_check(package, platform, source, profile="jkr"):
+def smoke_check(package, platform, source, profile="jkr", client="jkr-viewer", server="jkr-dedicated"):
     # All scratch stays under the repository target directory, never system /tmp.
     scratch = source / "target/parity-reports"
     scratch.mkdir(parents=True, exist_ok=True)
@@ -114,22 +122,22 @@ def smoke_check(package, platform, source, profile="jkr"):
             assert archive.testzip() is None
             archive.extractall(game)
         suffix = ".exe" if platform == "windows-x64" else ""
-        for name in ("jkr-viewer", "jkr-dedicated"):
+        for name in (client, server):
             (game / (name + suffix)).chmod(0o755)
-        server = subprocess.run([str(game / ("jkr-dedicated" + suffix)),
+        started = subprocess.run([str(game / (server + suffix)),
                                  "--bind", "127.0.0.1:0", "--quit-on-eof"],
                                 cwd=root, input="", text=True,
                                 check=True, capture_output=True, timeout=30)
-        assert "listening on 127.0.0.1:" in server.stdout, server.stderr
+        assert "listening on 127.0.0.1:" in started.stdout, started.stderr
         (game / "base").mkdir()
         for number in (0, 3):
             (game / f"base/assets{number}.pk3").touch()
         env = os.environ.copy()
-        for name in ("JKR_GAME_DATA", "DISPLAY", "WAYLAND_DISPLAY"):
+        for name in ("JKA_GAME_DATA", "JKR_GAME_DATA", "DISPLAY", "WAYLAND_DISPLAY"):
             env.pop(name, None)
         env["XDG_CONFIG_HOME"] = str(root / "profile")
         env["APPDATA"] = str(root / "profile")
-        run = subprocess.run([str(game / ("jkr-viewer" + suffix))], cwd=root,
+        run = subprocess.run([str(game / (client + suffix))], cwd=root,
                              env=env, capture_output=True, text=True, timeout=60)
         assert run.returncode == 1, run.stderr
         assert "was not found in the mounted game data" in run.stderr, run.stderr
@@ -151,8 +159,14 @@ def main():
     parser.add_argument("--repository", default=DEFAULT_REPOSITORY)
     # The client folder the packaged client creates in GameData (SJK uses "SJK").
     parser.add_argument("--profile-dir", default="jkr")
+    # The client and server program names; by default the [[bin]] names the crates
+    # declare (jkr-viewer and jkr-dedicated in JKR, sjk and sjk-server in SJK).
+    parser.add_argument("--client-bin")
+    parser.add_argument("--server-bin")
     args = parser.parse_args()
     source, output = args.source.resolve(), args.output.resolve()
+    args.client_bin = args.client_bin or bin_name(source, "jkr-viewer")
+    args.server_bin = args.server_bin or bin_name(source, "jkr-dedicated")
     if command(source, "git", "status", "--porcelain", "--untracked-files=no"):
         raise SystemExit("Refusing to package a modified source checkout")
     revision = command(source, "git", "rev-parse", "HEAD")
@@ -161,24 +175,24 @@ def main():
     package = output / f"{stem}-{args.platform}.zip"
     suffix = ".exe" if args.platform == "windows-x64" else ""
     binaries = [source / "target" / args.target / "release" / (name + suffix)
-                for name in ("jkr-viewer", "jkr-dedicated")]
+                for name in (args.client_bin, args.server_bin)]
     with zipfile.ZipFile(package, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for binary in binaries:
             add_file(archive, binary, binary.name, executable=True)
         archive.writestr(f"README-{args.name}.txt",
                          instructions(args.platform, revision, args.name, args.repository, args.version,
-                                      args.profile_dir))
-        add_file(archive, source / "LICENSE", "JKR-LICENSE.txt")
-        add_file(archive, source / "crates/jkr-viewer/assets/fonts/LICENSE.txt", "JKR-licenses/Inter-LICENSE.txt")
-        dependency_notices(source, args.target, archive)
-        archive.writestr("JKR-build.json", json.dumps({
+                                      args.profile_dir, args.client_bin, args.server_bin))
+        add_file(archive, source / "LICENSE", f"{args.name}-LICENSE.txt")
+        add_file(archive, source / "crates/jkr-viewer/assets/fonts/LICENSE.txt", f"{args.name}-licenses/Inter-LICENSE.txt")
+        dependency_notices(source, args.target, archive, args.name)
+        archive.writestr(f"{args.name}-build.json", json.dumps({
             "revision": revision, "target": args.target,
             "rustc": command(source, "rustc", "--version"),
             "profile": "release", "rustflags": os.environ.get("RUSTFLAGS", ""),
             "binaries": {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in binaries},
         }, indent=2) + "\n")
     if args.smoke_check:
-        smoke_check(package, args.platform, source, args.profile_dir)
+        smoke_check(package, args.platform, source, args.profile_dir, args.client_bin, args.server_bin)
     source_zip = output / f"{stem}-source.zip"
     subprocess.run(["git", "-c", "core.autocrlf=false", "archive", "--format=zip", f"--prefix={stem}/",
                     f"--output={source_zip}", revision], cwd=source, check=True)

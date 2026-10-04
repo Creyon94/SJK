@@ -10,7 +10,7 @@ description = "JKR's headless server process: platform composition of the native
 path = "src/lib.rs"
 
 [[bin]]
-name = "jkr-dedicated"
+name = "sjk-server"
 path = "src/main.rs"
 
 [dependencies]

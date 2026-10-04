@@ -1,5 +1,5 @@
 //! Create game: the player picks a mode, a map, bots and limits, and the
-//! client starts its own `jkr-dedicated` on this machine and joins it — the
+//! client starts its own `sjk-server` on this machine and joins it — the
 //! stock "Create game" flow on JKR's native server. The choices are kept in
 //! archived `ui_host*` cvars; the server process is owned here, so it lives
 //! exactly as long as the hosted game (see [`crate::connection::local_server`]).
@@ -75,7 +75,7 @@ pub(crate) const INTEGER_CVARS: [(&str, i64, &str); 6] = [
 ];
 /// Text cvars that remember the last choices: (name, default, help).
 pub(crate) const TEXT_CVARS: [(&str, &str, &str); 3] = [
-    ("ui_hostMode", "ffa", "Create game: jkr-dedicated game type"),
+    ("ui_hostMode", "ffa", "Create game: sjk-server game type"),
     ("ui_hostMap", "mp/ffa3", "Create game: map"),
     ("ui_hostName", DEFAULT_HOSTNAME, "Create game: server name"),
 ];

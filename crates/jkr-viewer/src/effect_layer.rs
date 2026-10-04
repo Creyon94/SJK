@@ -53,7 +53,7 @@ pub(crate) struct Layer {
 pub(crate) struct Encoding {
     /// Scene attachment format; every scene target of a context shares it.
     pub(crate) scene: wgpu::TextureFormat,
-    /// `jkr_hdrExposure` for a floating scene.
+    /// `r_hdrExposure` for a floating scene.
     pub(crate) exposure: f32,
 }
 
