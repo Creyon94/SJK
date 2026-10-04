@@ -56,7 +56,7 @@ jobs:
 
           **Install:** extract the whole ZIP for your platform into Jedi Academy's
           \`GameData\` folder, beside \`base\`, then launch \`jkr-viewer\`. Your settings
-          live in \`GameData/jkr/\` and are kept when you update. A legally owned copy
+          live in \`GameData/SJK/\` and are kept when you update. A legally owned copy
           of Jedi Academy is required; no game assets are included.
 
           The \`source\` ZIP is the matching source snapshot (GPL-2.0-only); the
@@ -113,7 +113,7 @@ jobs:
           python source/scripts/package_client.py
           --source source --target ${{ matrix.target }}
           --platform ${{ matrix.platform }} --output dist --smoke-check
-          --name SJK --version ${{ env.VERSION }}
+          --name SJK --version ${{ env.VERSION }} --profile-dir SJK
           --repository ${{ github.server_url }}/${{ github.repository }}
       - name: Upload to the draft release
         shell: bash

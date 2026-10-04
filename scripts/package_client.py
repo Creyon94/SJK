@@ -61,7 +61,8 @@ def dependency_notices(source, target, archive):
     archive.writestr("JKR-licenses/dependencies.json", json.dumps(notices, indent=2) + "\n")
 
 
-def instructions(platform, revision, name="JKR", repository=DEFAULT_REPOSITORY, version=None):
+def instructions(platform, revision, name="JKR", repository=DEFAULT_REPOSITORY, version=None,
+                 profile="jkr"):
     suffix = ".exe" if platform == "windows-x64" else ""
     requirements = ("Windows 10/11 x64 and a working graphics driver. The MSVC runtime is statically linked."
                     if suffix else
@@ -82,12 +83,12 @@ Keep jkr-dedicated{suffix} beside it for Create game and local devmap.
 An existing shortcut must point to this client, not an older named playtest binary.
 
 YOUR FILES
-Settings, marks, screenshots, demos, favorites and friends live in GameData/jkr/.
+Settings, marks, screenshots, demos, favorites and friends live in GameData/{profile}/.
 Existing JKR user files are imported once; originals and existing destination
 files are preserved. Unwritable installations use the per-user profile instead.
 The console command path shows the selected folder. Downloaded PK3s retain their
 separate per-user cache. This archive contains no game assets or personal settings.
-Close JKR before replacing its executables; retain your jkr folder when updating.
+Close {name} before replacing its executables; retain your {profile} folder when updating.
 
 REQUIREMENTS
 {requirements}
@@ -101,7 +102,7 @@ The matching source snapshot is distributed separately as {name}-{version or rev
 """
 
 
-def smoke_check(package, platform, source):
+def smoke_check(package, platform, source, profile="jkr"):
     # All scratch stays under the repository target directory, never system /tmp.
     scratch = source / "target/parity-reports"
     scratch.mkdir(parents=True, exist_ok=True)
@@ -132,7 +133,7 @@ def smoke_check(package, platform, source):
                              env=env, capture_output=True, text=True, timeout=60)
         assert run.returncode == 1, run.stderr
         assert "was not found in the mounted game data" in run.stderr, run.stderr
-        assert (game / "jkr/config.cfg").is_file(), run.stderr
+        assert (game / profile / "config.cfg").is_file(), run.stderr
         print("Extracted client discovered adjacent synthetic assets and saved portable settings; loopback server startup/shutdown passed.")
 
 
@@ -148,6 +149,8 @@ def main():
     parser.add_argument("--name", default="JKR")
     parser.add_argument("--version")
     parser.add_argument("--repository", default=DEFAULT_REPOSITORY)
+    # The client folder the packaged client creates in GameData (SJK uses "SJK").
+    parser.add_argument("--profile-dir", default="jkr")
     args = parser.parse_args()
     source, output = args.source.resolve(), args.output.resolve()
     if command(source, "git", "status", "--porcelain", "--untracked-files=no"):
@@ -163,7 +166,8 @@ def main():
         for binary in binaries:
             add_file(archive, binary, binary.name, executable=True)
         archive.writestr(f"README-{args.name}.txt",
-                         instructions(args.platform, revision, args.name, args.repository, args.version))
+                         instructions(args.platform, revision, args.name, args.repository, args.version,
+                                      args.profile_dir))
         add_file(archive, source / "LICENSE", "JKR-LICENSE.txt")
         add_file(archive, source / "crates/jkr-viewer/assets/fonts/LICENSE.txt", "JKR-licenses/Inter-LICENSE.txt")
         dependency_notices(source, args.target, archive)
@@ -174,7 +178,7 @@ def main():
             "binaries": {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in binaries},
         }, indent=2) + "\n")
     if args.smoke_check:
-        smoke_check(package, args.platform, source)
+        smoke_check(package, args.platform, source, args.profile_dir)
     source_zip = output / f"{stem}-source.zip"
     subprocess.run(["git", "-c", "core.autocrlf=false", "archive", "--format=zip", f"--prefix={stem}/",
                     f"--output={source_zip}", revision], cwd=source, check=True)

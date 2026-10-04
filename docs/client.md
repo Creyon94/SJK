@@ -607,7 +607,8 @@ those files are installed. See
 ## Configuration and content
 
 The default writable client folder is `GameData/jkr/`, under the selected game
-installation. It is independent of the executable's location and working
+installation (SJK uses `GameData/SJK/` instead and imports JKR's `GameData/jkr/`
+before the per-user folder; see [storage.rs](../crates/jkr-viewer/src/platform/storage.rs)). It is independent of the executable's location and working
 directory. The client creates it automatically. Important files include:
 
 | File or folder | Contents |

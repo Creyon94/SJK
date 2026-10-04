@@ -5,6 +5,10 @@ use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 
 const IMPORT_MARKER: &str = ".user-data-imported";
+/// SJK's client folder in `GameData`. JKR names its own `jkr`.
+const CLIENT_FOLDER: &str = "SJK";
+/// JKR's client folder in `GameData`, imported from once like the per-user one.
+const JKR_FOLDER: &str = "jkr";
 
 /// The configuration path shared by the console, menus and storage consumers.
 pub(super) struct Selection {
@@ -15,12 +19,14 @@ pub(super) struct Selection {
 /// Prefer the installation's own client folder; probe actual file creation
 /// rather than permission bits, which do not describe Windows ACLs reliably.
 pub(super) fn select(game_data: &Path, legacy_config: Option<&Path>) -> io::Result<Selection> {
-    let portable = game_data.join("jkr");
+    let portable = game_data.join(CLIENT_FOLDER);
     match writable_directory(&portable) {
         Ok(()) => {
-            if let Some(source) = legacy_config.and_then(Path::parent) {
-                import_profile(source, &portable)?;
-            }
+            // JKR's GameData folder first, then the older per-user folder; a file
+            // imported from the first is not replaced by the second.
+            let jkr = game_data.join(JKR_FOLDER);
+            let sources = [Some(jkr.as_path()), legacy_config.and_then(Path::parent)];
+            import_profile(sources.into_iter().flatten(), &portable)?;
             Ok(Selection {
                 config: portable.join("config.cfg"),
                 fallback_reason: None,
@@ -54,14 +60,27 @@ fn writable_directory(directory: &Path) -> io::Result<()> {
 
 // Import only client-owned file categories. Retail packs, downloads and caches
 // are not profile data. Never follow links or remove the old files.
-fn import_profile(source: &Path, destination: &Path) -> io::Result<()> {
+fn import_profile<'a>(
+    sources: impl IntoIterator<Item = &'a Path>,
+    destination: &Path,
+) -> io::Result<()> {
     let marker = destination.join(IMPORT_MARKER);
-    if marker.try_exists()? || !source.try_exists()? {
+    if marker.try_exists()? {
         return Ok(());
     }
-    if fs::canonicalize(source)? == fs::canonicalize(destination)? {
-        return Ok(());
+    for source in sources {
+        if source.try_exists()? && fs::canonicalize(source)? != fs::canonicalize(destination)? {
+            import_files(source, destination)?;
+        }
     }
+    // Publish only after a complete import. A failed import can be retried;
+    // successful imports never resurrect files the player subsequently deletes.
+    let mut pending = tempfile::NamedTempFile::new_in(destination)?;
+    pending.write_all(b"Imported previous JKR user files. Existing files were retained.\n")?;
+    publish(pending, &marker)
+}
+
+fn import_files(source: &Path, destination: &Path) -> io::Result<()> {
     for entry in fs::read_dir(source)? {
         let entry = entry?;
         let kind = entry.file_type()?;
@@ -80,6 +99,7 @@ fn import_profile(source: &Path, destination: &Path) -> io::Result<()> {
                             | "chat-friends.txt"
                             | "hud.json"
                             | "qconsole.log"
+                            | "debug_panel_tested.txt"
                     )
                 ))
         {
@@ -93,11 +113,7 @@ fn import_profile(source: &Path, destination: &Path) -> io::Result<()> {
             copy_directory(&path, &destination.join(name))?;
         }
     }
-    // Publish only after a complete import. A failed import can be retried;
-    // successful imports never resurrect files the player subsequently deletes.
-    let mut pending = tempfile::NamedTempFile::new_in(destination)?;
-    pending.write_all(b"Imported previous JKR user files. Existing files were retained.\n")?;
-    publish(pending, &marker)
+    Ok(())
 }
 
 fn copy_directory(source: &Path, destination: &Path) -> io::Result<()> {
@@ -148,5 +164,44 @@ fn publish(pending: tempfile::NamedTempFile, destination: &Path) -> io::Result<(
         Ok(_) => Ok(()),
         Err(error) if error.error.kind() == io::ErrorKind::AlreadyExists => Ok(()),
         Err(error) => Err(error.error),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn sjk_folder_imports_jkr_then_per_user_files_once() {
+        let root = tempfile::tempdir().unwrap();
+        let game_data = root.path().join("GameData");
+        let jkr = game_data.join(JKR_FOLDER);
+        let per_user = root.path().join("per-user");
+        fs::create_dir_all(&jkr).unwrap();
+        fs::create_dir_all(&per_user).unwrap();
+        fs::write(jkr.join("config.cfg"), "from jkr").unwrap();
+        fs::write(per_user.join("config.cfg"), "from per-user").unwrap();
+        fs::write(per_user.join("marks.txt"), "marks").unwrap();
+        fs::write(per_user.join("debug_panel_tested.txt"), "ticks").unwrap();
+
+        let selection = select(&game_data, Some(&per_user.join("config.cfg"))).unwrap();
+        let sjk = game_data.join(CLIENT_FOLDER);
+        assert_eq!(selection.config, sjk.join("config.cfg"));
+        assert!(selection.fallback_reason.is_none());
+        // JKR's GameData folder wins; the per-user folder fills in the rest.
+        assert_eq!(
+            fs::read_to_string(sjk.join("config.cfg")).unwrap(),
+            "from jkr"
+        );
+        assert_eq!(fs::read_to_string(sjk.join("marks.txt")).unwrap(), "marks");
+        assert_eq!(
+            fs::read_to_string(sjk.join("debug_panel_tested.txt")).unwrap(),
+            "ticks"
+        );
+        // The originals stay, and a file deleted after the import is not brought back.
+        assert!(jkr.join("config.cfg").is_file());
+        fs::remove_file(sjk.join("marks.txt")).unwrap();
+        select(&game_data, Some(&per_user.join("config.cfg"))).unwrap();
+        assert!(!sjk.join("marks.txt").exists());
     }
 }

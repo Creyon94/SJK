@@ -7,7 +7,7 @@ To add screenshots:
 
 1. Take them in SJK with the `screenshotJPEG` console command (or bind it to a
    key, for example `bind F12 screenshotJPEG`); they are saved in
-   `GameData/jkr/screenshots/`.
+   `GameData/SJK/screenshots/`.
 2. Copy the ones you want here, ideally as `.jpg` at 1920 px wide or less to keep
    the page fast (for example `classic-menu.jpg`).
 3. List each one in `manifest.json` with a short caption:

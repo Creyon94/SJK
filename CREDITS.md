@@ -7,12 +7,15 @@ topic branches merged into `sol/main`.
 
 ## JKR, by Bishop
 
-[Bishop (Bishop-R)](https://github.com/Bishop-R) created JKR and wrote its
-initial source (October 2026) and almost all of it since: the Rust engine, the
-wgpu renderer and its lighting, the native client and dedicated server, protocol
-26 networking, prediction and the shared Jedi Academy game rules, content
-loading (PK3, BSP, models, shaders, sounds), the console, menus, HUD, server
-browser, demos and the project wiki.
+[Bishop (Bishop-R)](https://github.com/Bishop-R) started JKR as a fast
+prototype and wrote its initial source and most of its code: the Rust engine,
+the wgpu renderer and its lighting, the native client and dedicated server,
+protocol 26 networking, prediction and the shared Jedi Academy game rules,
+content loading (PK3, BSP, models, shaders, sounds), the console, menus, HUD,
+server browser, demos and the project wiki. After the first skeleton the project
+sat on the side. Sol had meanwhile set out to write a Jedi Academy client from
+scratch; on learning of JKR the two talked, and Bishop open-sourced it (October
+2026) so Sol could continue and help on it while building SJK.
 
 Bishop's later pull requests to JKR include:
 
@@ -36,7 +39,9 @@ Bishop's later pull requests to JKR include:
 ## Sol's contributions to JKR
 
 Sol ([Sol-Vulpes](https://github.com/Sol-Vulpes)) has contributed to JKR since
-October 2026. Merged into JKR:
+October 2026 and revived the project: by early October 2026 Sol had opened 100 of
+JKR's first 121 issues and pull requests (all 39 issues and 61 of the 82 pull
+requests). Merged into JKR:
 
 - #1 branch, commit and pull request rules; #5 the CI workflow
 - #2 an 8 MiB main-thread stack for the Windows client

@@ -6,6 +6,11 @@ Knight: Jedi Academy** multiplayer created by Bishop. SJK follows JKR closely
 and adds Sol's own changes on top: some are offered to JKR as pull requests,
 others reflect a vision of the game that may stay specific to SJK.
 
+SJK aims to be a true JKA+: everything players expect from today's community
+clients, from the retail look and feel to mod servers such as JA+ and modern
+screens, in a client that stays clean and fast, without the bloat some clients
+have accumulated. Once the client is solid, a JoF edition of SJK will follow.
+
 Like JKR, SJK includes a graphical client and a dedicated server, with support
 for the legacy protocol, PK3 content, maps, models, movement and combat. The
 renderer uses wgpu. The client includes a server browser, console, configurable
@@ -13,6 +18,11 @@ controls, HUD, audio, screenshots and demo playback.
 
 ## SJK and JKR
 
+- **History.** Bishop started JKR as a fast prototype and built its skeleton,
+  then set it aside. Sol, who had set out to write a client from scratch, learned
+  of it; after they talked, Bishop open-sourced JKR so Sol could continue it. Sol
+  revived the project and has since fixed much of it together with Bishop, while
+  building SJK alongside. [CREDITS.md](CREDITS.md) has the details.
 - **Upstream.** JKR is developed by Bishop (Bishop-R) and its contributors. SJK
   merges JKR's main branch after reviewing it, so JKR's work reaches SJK.
 - **What SJK adds.** Sol's changes are written as separate topic branches. Those
@@ -41,10 +51,9 @@ controls, HUD, audio, screenshots and demo playback.
   - a personal `debug_panel` console command: an in-game checklist of the
     changes in this build and how to test them.
 - **Names.** The crates and programs keep JKR's names (`jkr-viewer`,
-  `jkr-dedicated`, `jkr-*`), and the client keeps JKR's configuration folder
-  (`GameData/jkr/`).
-  This keeps SJK easy to merge with JKR, and lets settings carry over between the
-  two.
+  `jkr-dedicated`, `jkr-*`), which keeps SJK easy to merge with JKR. The client's
+  own folder is `GameData/SJK/`; JKR's `GameData/jkr/` is imported into it once,
+  so settings carry over.
 
 ## Download
 
@@ -101,10 +110,11 @@ remains supported. See [client launch](docs/client.md#launch) for discovery orde
 Use the in-game menus for controls, graphics, audio and player settings;
 Settings > GAME > Menu style switches between the modern and the classic menus.
 
-Settings and player-created files live in `GameData/jkr/`: `config.cfg`,
+Settings and player-created files live in `GameData/SJK/`: `config.cfg`,
 `marks.txt`, favorites, friends, screenshots, demos and optional chat logs.
-Existing JKR user files are imported once without overwriting files already
-there; the originals are retained. If that directory cannot be written, the
+Existing JKR user files (`GameData/jkr/`, then the older per-user folder) are
+imported once without overwriting files already there; the originals are
+retained. If that directory cannot be written, the
 client uses its per-user folder instead. The console's `path` command shows the
 active location. See [configuration and content](docs/client.md#configuration-and-content).
 
