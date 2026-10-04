@@ -14,14 +14,22 @@ controls, HUD, audio, screenshots and demo playback.
 ## SJK and JKR
 
 - **Upstream.** JKR is developed by Bishop (Bishop-R) and its contributors. SJK
-  regularly merges JKR's main branch, so JKR's work reaches SJK quickly.
+  merges JKR's main branch after reviewing it, so JKR's work reaches SJK.
 - **What SJK adds.** Sol's changes are written as separate topic branches. Those
   that fit JKR are proposed upstream; once JKR accepts one, it simply becomes part
   of both. At the time of writing, SJK's additions include:
-  - a classic menu style after the retail menus: main, profile, setup and
-    controls pages, retail connect and loading screens, and no map behind the
-    menu;
-  - the optional retail game fonts, kept sharp at high resolutions;
+  - a classic menu style after the retail menus, the default in SJK: main,
+    profile, setup, controls and server browser pages, retail connect and loading
+    screens, the animated logo and glows, and no map behind the menu;
+  - a classic scoreboard with client IDs, and HUDs drawn from the game's own
+    menu files, so the retail HUD and custom HUD packs work;
+  - JA+ support: the client identifies as the JA+ plugin, predicts JA+ movement,
+    saber rules, `g_debugMelee`, the grapple and duel pass-through, and adds
+    `serverconfig` and `pluginDisable`;
+  - the optional retail game fonts on every retail text surface, tighter console
+    and chat rows, and text that scales at high resolutions;
+  - a renderer settings page for JKR's rendering options, sharp levelshots, and
+    MOUSE1, MOUSE2 and ESC locked in the controls editor;
   - more reliable joining of public servers (lost handshake packets and lost
     gamestates are recovered) and support for older 72-bone player models;
   - an FPS cap that follows the monitor's refresh rate by default and holds its
@@ -33,7 +41,8 @@ controls, HUD, audio, screenshots and demo playback.
   - a personal `debug_panel` console command: an in-game checklist of the
     changes in this build and how to test them.
 - **Names.** The crates and programs keep JKR's names (`jkr-viewer`,
-  `jkr-dedicated`, `jkr-*`), and the client keeps JKR's configuration folder.
+  `jkr-dedicated`, `jkr-*`), and the client keeps JKR's configuration folder
+  (`GameData/jkr/`).
   This keeps SJK easy to merge with JKR, and lets settings carry over between the
   two.
 
@@ -129,7 +138,11 @@ code changes.
 
 GPL-2.0-only; see [LICENSE](LICENSE). SJK is a modified version of JKR: JKR is
 the work of Bishop and its contributors, and SJK's changes are by Sol (Sol-Vulpes)
-and contributors, under the same license.
+and contributors, under the same license. [CREDITS.md](CREDITS.md) lists who made
+what. As section 2(a) of the license asks, SJK's changes to JKR's files, with
+their authors and dates, are recorded in this repository's git history. Any SJK
+binaries are built from the source published here, which is their corresponding
+source.
 
 OpenJK and TaystJK are compatibility references for Jedi Academy behavior. The
 bundled Inter fonts retain their
