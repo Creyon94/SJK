@@ -26,10 +26,11 @@ impl SettingsMenu {
                 _ => SettingsResult::None,
             };
         }
-        if event.kind == UiEventKind::Press
-            && crate::menu_widgets::numeric::value_row(token).is_none()
-        {
-            self.numeric = None;
+        if event.kind == UiEventKind::Press {
+            if crate::menu_widgets::numeric::value_row(token).is_none() {
+                self.numeric = None;
+            }
+            self.press_elsewhere(self.setting_row(token));
         }
         if event.kind == UiEventKind::Activate {
             if let Some(row) = crate::menu_widgets::numeric::value_row(token) {
@@ -39,29 +40,16 @@ impl SettingsMenu {
                 return SettingsResult::None;
             }
             self.numeric = None;
-        } else if self.numeric.is_some() {
+        } else if self.drafting() {
             return SettingsResult::None;
         }
         if event.kind == UiEventKind::Wheel {
-            let direction = event.delta.map_or(0, |delta| -delta.y.signum() as i32);
-            if self.classic.is_some() {
-                let span = self.row_span();
-                if direction != 0 && !span.is_empty() {
-                    self.selected = (self.selected as i32 + direction)
-                        .clamp(span.start as i32, span.end as i32 - 1)
-                        as usize;
-                }
-            } else {
-                let count = settings(self.tab).len() + usize::from(self.tab == KEYBINDS_TAB);
-                if direction != 0 && count > 0 {
-                    self.selected = self.scroll.wheel(direction, count, self.selected);
-                }
-            }
+            self.wheel(event.delta.map_or(0, |delta| -delta.y.signum() as i32));
             return SettingsResult::None;
         }
         if matches!(event.kind, UiEventKind::HoverEnter | UiEventKind::Hover) {
             if let Some(row) = self.setting_row(token) {
-                self.selected = row;
+                self.hover_row(row);
             }
             return SettingsResult::None;
         }
@@ -96,7 +84,7 @@ impl SettingsMenu {
                 self.selected = row;
                 if let Some(setting) = settings(self.tab).get(row) {
                     if matches!(setting.kind, ValueKind::Text) {
-                        self.editing = Some(value_text(console, setting.cvar));
+                        self.begin_text(console, row);
                     } else if matches!(setting.kind, ValueKind::Resolution) {
                         self.open_resolutions(console);
                     } else if let Some(position) = event.position {
@@ -145,36 +133,19 @@ impl SettingsMenu {
         let Some(rect) = self.ui.rect_for(row as u16) else {
             return false;
         };
-        let ratio = match &self.classic {
+        let ratio = f64::from(match &self.classic {
             Some(classic) => {
                 crate::menu::classic::panel::slider_ratio(rect, pointer_x, classic.slider_span)
             }
             None => self.ui.slider_ratio(rect, pointer_x),
-        };
-        let value = match setting.kind {
-            ValueKind::Integer { min, max, step } => {
-                let raw = min as f32 + (max - min) as f32 * ratio;
-                if min < 0 {
-                    // The special value below zero (AUTO) is the rail's left end;
-                    // the rest snaps to multiples of the step from zero.
-                    if raw < 0.0 {
-                        min.to_string()
-                    } else {
-                        ((raw / step as f32).round() as i64 * step)
-                            .clamp(0, max)
-                            .to_string()
-                    }
-                } else {
-                    let snapped = ((raw - min as f32) / step as f32).round() as i64 * step + min;
-                    snapped.clamp(min, max).to_string()
-                }
-            }
-            ValueKind::Float { min, max, step } => {
-                let raw = min + (max - min) * f64::from(ratio);
-                let snapped = ((raw - min) / step).round() * step + min;
-                snapped.clamp(min, max).to_string()
-            }
+        });
+        let raw = match setting.kind {
+            ValueKind::Integer { min, max, .. } => min as f64 + (max - min) as f64 * ratio,
+            ValueKind::Float { min, max, .. } => min + (max - min) * ratio,
             _ => return false,
+        };
+        let Some(value) = setting.kind.snapped(raw) else {
+            return false;
         };
         console.set_cvar(setting.cvar, &value);
         self.refresh(console);

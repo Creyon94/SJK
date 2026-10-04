@@ -80,7 +80,12 @@ impl SettingsMenu {
                 ValueKind::Choice(_) | ValueKind::Resolution | ValueKind::DisplayMode => {
                     place.value(&mut self.ui, slot, value, color)
                 }
-                ValueKind::Text => match self.editing.as_deref().filter(|_| focused) {
+                ValueKind::Text => match self
+                    .editing
+                    .as_ref()
+                    .filter(|draft| draft.row == row)
+                    .map(|draft| draft.text.as_str())
+                {
                     Some(buffer) => {
                         place.value_fmt(&mut self.ui, slot, format_args!("{buffer}_"), color)
                     }

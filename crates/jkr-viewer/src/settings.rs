@@ -42,13 +42,20 @@ struct ClassicRows {
     slider_span: (f32, f32),
 }
 
+/// A Text setting being typed. Its row is fixed when typing starts, so Enter
+/// writes the setting that was opened even if the pointer moved meanwhile.
+struct TextDraft {
+    row: usize,
+    text: String,
+}
+
 pub(crate) struct SettingsMenu {
     tab: usize,
     selected: usize,
     /// Which rows show; keeps the selection on screen.
     scroll: scroll::RowScroll,
     values: Vec<String>,
-    editing: Option<String>,
+    editing: Option<TextDraft>,
     /// What the window's monitor offers; asked for each time the screen opens.
     monitor: Option<MonitorModes>,
     /// The screen opened and wants fresh [`MonitorModes`].
@@ -163,13 +170,15 @@ impl SettingsMenu {
         if self.edit_numeric(key, event.text.as_deref(), console) {
             return SettingsResult::None;
         }
-        if let Some(buffer) = &mut self.editing {
+        if let Some(draft) = &mut self.editing {
+            let buffer = &mut draft.text;
             match key {
                 KeyCode::Escape => self.editing = None,
                 KeyCode::Enter | KeyCode::NumpadEnter => {
-                    let value = self.editing.take().unwrap_or_default();
-                    if let Some(setting) = settings(self.tab).get(self.selected) {
-                        console.set_cvar(setting.cvar, value.trim());
+                    if let Some(draft) = self.editing.take()
+                        && let Some(setting) = settings(self.tab).get(draft.row)
+                    {
+                        console.set_cvar(setting.cvar, draft.text.trim());
                     }
                     self.refresh(console);
                 }
@@ -239,7 +248,7 @@ impl SettingsMenu {
             KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Space => {
                 if let Some(setting) = settings(self.tab).get(self.selected) {
                     if matches!(setting.kind, ValueKind::Text) {
-                        self.editing = Some(value_text(console, setting.cvar));
+                        self.begin_text(console, self.selected);
                     } else if matches!(setting.kind, ValueKind::Resolution) {
                         self.open_resolutions(console);
                     } else if !self.begin_numeric(console, self.selected) {
@@ -265,8 +274,11 @@ impl SettingsMenu {
             (ValueKind::Integer { min, max, step }, Some(CvarValue::Integer(value))) => {
                 step_integer(*value, direction, min, max, step).to_string()
             }
-            (ValueKind::Float { min, max, step }, Some(CvarValue::Float(value))) => {
-                ((*value + f64::from(direction) * step).clamp(min, max)).to_string()
+            (ValueKind::Float { .. }, Some(CvarValue::Float(value))) => {
+                match setting.kind.stepped(*value, direction) {
+                    Some(next) => next,
+                    None => return,
+                }
             }
             (ValueKind::Choice(values), Some(CvarValue::Text(value))) => {
                 let index = values
@@ -299,6 +311,68 @@ impl SettingsMenu {
         self.monitor
             .as_ref()
             .is_none_or(|monitor| monitor.exclusive)
+    }
+
+    /// Start typing Text row `row`, keeping an edit already open on it.
+    fn begin_text(&mut self, console: &ViewerConsole, row: usize) {
+        if self.editing.as_ref().is_some_and(|draft| draft.row == row) {
+            return;
+        }
+        let Some(setting) = settings(self.tab).get(row) else {
+            return;
+        };
+        self.numeric = None;
+        self.selected = row;
+        self.editing = Some(TextDraft {
+            row,
+            text: value_text(console, setting.cvar),
+        });
+    }
+
+    /// Whether a typed draft (text or number) is open. While one is, the pointer
+    /// does not move the selection away from it.
+    fn drafting(&self) -> bool {
+        self.editing.is_some() || self.numeric.is_some()
+    }
+
+    /// A press on anything but the text draft's own row discards the draft, as
+    /// clicking another control discards a numeric one.
+    fn press_elsewhere(&mut self, row: Option<usize>) {
+        if self
+            .editing
+            .as_ref()
+            .is_some_and(|draft| Some(draft.row) != row)
+        {
+            self.editing = None;
+        }
+    }
+
+    /// Hover selects `row` unless a draft is open.
+    fn hover_row(&mut self, row: usize) {
+        if !self.drafting() {
+            self.selected = row;
+        }
+    }
+
+    /// The wheel moves the selection by `direction` unless a draft is open: in
+    /// a classic panel within its rows, otherwise through the scrolled tab.
+    fn wheel(&mut self, direction: i32) {
+        if direction == 0 || self.drafting() {
+            return;
+        }
+        if self.classic.is_some() {
+            let span = self.row_span();
+            if !span.is_empty() {
+                self.selected = (self.selected as i32 + direction)
+                    .clamp(span.start as i32, span.end as i32 - 1)
+                    as usize;
+            }
+        } else {
+            let count = settings(self.tab).len() + usize::from(self.tab == KEYBINDS_TAB);
+            if count > 0 {
+                self.selected = self.scroll.wheel(direction, count, self.selected);
+            }
+        }
     }
 
     fn refresh(&mut self, console: &ViewerConsole) {
