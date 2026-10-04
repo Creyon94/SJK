@@ -3,125 +3,215 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Sol JK</title>
-<meta name="description" content="Sol JK (SJK): Sol's flavor of JKR, a Rust engine for Jedi Academy multiplayer.">
-<style>
-  :root {
-    --bg: #0b0f1a;
-    --panel: #121a2b;
-    --line: #22304d;
-    --text: #e6ebf5;
-    --muted: #9aa7c0;
-    --accent: #f4b43a;
-    --accent-2: #5fd0ff;
-  }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    background: radial-gradient(1200px 600px at 50% -10%, #1b2a4a 0%, var(--bg) 60%) fixed, var(--bg);
-    color: var(--text);
-    font: 16px/1.6 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-  }
-  main { max-width: 960px; margin: 0 auto; padding: 0 16px 64px; }
-  header { text-align: center; padding: 72px 0 40px; }
-  .sun {
-    width: 72px; height: 72px; margin: 0 auto 20px; border-radius: 50%;
-    background: radial-gradient(circle at 40% 40%, #ffe7a3, var(--accent) 55%, #c9781a);
-    box-shadow: 0 0 48px rgba(244, 180, 58, .45);
-  }
-  h1 { margin: 0; font-size: clamp(2.4rem, 7vw, 3.6rem); letter-spacing: .04em; }
-  h1 small { display: block; font-size: .35em; letter-spacing: .3em; color: var(--muted); font-weight: 500; }
-  .tagline { color: var(--muted); max-width: 640px; margin: 16px auto 28px; }
-  .buttons { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
-  .button {
-    display: inline-block; padding: 10px 20px; border-radius: 8px; text-decoration: none;
-    color: var(--bg); background: var(--accent); font-weight: 600;
-  }
-  .button.secondary { background: transparent; color: var(--text); border: 1px solid var(--line); }
-  section { margin-top: 48px; }
-  h2 { font-size: 1.3rem; color: var(--accent-2); letter-spacing: .06em; text-transform: uppercase; }
-  .grid { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); }
-  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 20px; }
-  .card h3 { margin: 0 0 6px; font-size: 1.05rem; }
-  .card p { margin: 0; color: var(--muted); }
-  pre {
-    background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
-    padding: 16px; overflow-x: auto; color: var(--text);
-  }
-  a { color: var(--accent-2); }
-  footer { margin-top: 64px; color: var(--muted); font-size: .9rem; text-align: center; }
-</style>
+<title>Sol JK — Jedi Academy multiplayer, classic at heart</title>
+<meta name="description" content="Sol JK (SJK) is Sol's flavor of JKR, a native Rust client and server for Star Wars Jedi Knight: Jedi Academy multiplayer, with the classic menus, scoreboard and HUDs back and JA+ support.">
+<meta name="theme-color" content="#060a14">
+<meta property="og:title" content="Sol JK">
+<meta property="og:description" content="A native Rust client and server for Jedi Academy multiplayer, classic at heart.">
+<meta property="og:type" content="website">
+<link rel="icon" href="assets/emblem.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Exo+2:ital,wght@0,400;0,600;1,400&amp;family=Rajdhani:wght@500;600;700&amp;display=swap">
+<link rel="stylesheet" href="assets/style.css">
+<script src="assets/site.js" defer></script>
 </head>
 <body>
-<main>
-  <header>
-    <div class="sun" aria-hidden="true"></div>
-    <h1>Sol JK <small>SJK</small></h1>
-    <p class="tagline">
-      Sol's flavor of <a href="https://github.com/Bishop-R/JKR">JKR</a>, the Rust engine for
-      Jedi Knight: Jedi Academy multiplayer by Bishop. It follows JKR closely and adds a
-      classic look, reliable joining and many gameplay and presentation fixes.
-    </p>
-    <div class="buttons">
-      <a class="button" href="https://github.com/Sol-Vulpes/JKR/releases">Download</a>
-      <a class="button secondary" href="https://github.com/Sol-Vulpes/JKR">Source code</a>
-      <a class="button secondary" href="https://github.com/Sol-Vulpes/JKR/tree/sol/main/docs">Documentation</a>
+<a class="skip" href="#main">Skip to content</a>
+<div class="stars" aria-hidden="true"></div>
+
+<nav class="nav" aria-label="Sections">
+  <a class="nav-brand" href="#top"><img src="assets/emblem.svg" alt="" width="28" height="28"> SJK</a>
+  <ul>
+    <li><a href="#features">Features</a></li>
+    <li data-gallery-link hidden><a href="#screenshots">Screenshots</a></li>
+    <li><a href="#changelog">Changelog</a></li>
+    <li><a href="#install">Install</a></li>
+    <li><a href="#credits">Credits</a></li>
+  </ul>
+</nav>
+
+<header class="hero" id="top">
+  <div class="emblem" aria-hidden="true">
+    <img src="assets/emblem.svg" alt="" width="148" height="148">
+  </div>
+  <p class="eyebrow">Star Wars Jedi Knight: Jedi Academy multiplayer</p>
+  <h1>Sol JK</h1>
+  <p class="lede">A native Rust client and server for Jedi Academy, classic at heart: the
+  retail menus, scoreboard and HUDs are back, JA+ servers feel right, and the game stays
+  sharp on today's screens.</p>
+  <div class="actions">
+    <a class="button primary" id="download" href="https://github.com/Sol-Vulpes/SJK/releases/latest">Download</a>
+    <a class="button" href="https://github.com/Sol-Vulpes/SJK">Source code</a>
+  </div>
+  <p class="release-note" id="release-note">Windows 10/11 x64 and Linux x64 · requires your own copy of Jedi Academy</p>
+  <p class="release-note" id="release-files" hidden></p>
+</header>
+
+<main id="main">
+
+<section id="features" aria-labelledby="features-title">
+  <h2 id="features-title"><span>What SJK brings</span></h2>
+  <p class="section-lede">SJK follows Bishop's <a href="https://github.com/Bishop-R/JKR">JKR</a>
+  closely and adds Sol's own vision of the game on top.</p>
+  <div class="feature-groups">
+    <article class="panel">
+      <h3>Classic Jedi Academy</h3>
+      <ul>
+        <li><strong>Classic menus by default:</strong> main, profile, setup, controls and the
+        join-server browser laid out like retail, with the logo video, turning ring and
+        glowing highlights.</li>
+        <li><strong>Classic scoreboard</strong> with client IDs, compact rows on full
+        servers and rows that glide when the order changes.</li>
+        <li><strong>Game HUDs from your files:</strong> the original HUD, or any custom HUD
+        pack that replaces <code>ui/hud.menu</code>.</li>
+        <li><strong>Retail fonts</strong> on every surface the original drew with them, the
+        <code>¬</code> logo glyph and the <code>^8</code>/<code>^9</code> colours.</li>
+      </ul>
+    </article>
+    <article class="panel">
+      <h3>Community servers</h3>
+      <ul>
+        <li><strong>JA+ support:</strong> SJK joins as a JA+ plugin client, so RGB sabers and
+        plugin features work.</li>
+        <li><strong>Predicted JA+ moves:</strong> flip kick, yellow DFA, faster grip,
+        <code>g_debugMelee</code> kicks and wall holds, the grapple hook and duel
+        pass-through, without snap-backs.</li>
+        <li><strong><code>serverconfig</code> and <code>pluginDisable</code></strong>
+        console commands, as JA+ players know them.</li>
+        <li><strong>Reliable joining:</strong> lost handshake packets and gamestates are
+        recovered, and old 72-bone player models load.</li>
+      </ul>
+    </article>
+    <article class="panel">
+      <h3>Comfort and clarity</h3>
+      <ul>
+        <li><strong>Renderer settings page</strong> for HDR, bloom, shadows, volumetrics
+        and day/night, in Setup.</li>
+        <li><strong>Sharp at 4K:</strong> HD levelshots keep their resolution and text
+        scales with the window.</li>
+        <li><strong>Safer controls:</strong> MOUSE1, MOUSE2 and ESC can't be rebound by
+        accident, key names in capitals, keyboard-layout aware binds.</li>
+        <li><strong>Smooth pacing:</strong> the FPS cap follows your monitor and holds its
+        exact rate.</li>
+      </ul>
+    </article>
+  </div>
+</section>
+
+<section id="screenshots" aria-labelledby="screenshots-title" hidden>
+  <h2 id="screenshots-title"><span>Screenshots</span></h2>
+  <div class="gallery" id="gallery"></div>
+  <dialog class="lightbox" id="lightbox" aria-label="Screenshot viewer">
+    <figure>
+      <img id="lightbox-image" alt="">
+      <figcaption id="lightbox-caption"></figcaption>
+    </figure>
+    <div class="lightbox-controls">
+      <button type="button" class="button" data-step="-1" aria-label="Previous screenshot">‹ Prev</button>
+      <button type="button" class="button" data-close aria-label="Close viewer">Close</button>
+      <button type="button" class="button" data-step="1" aria-label="Next screenshot">Next ›</button>
     </div>
-  </header>
+  </dialog>
+</section>
 
-  <section>
-    <h2>What SJK adds</h2>
-    <div class="grid">
-      <div class="card">
-        <h3>Classic menu style</h3>
-        <p>Menus after the retail game: profile, setup and controls pages, the original
-        connect and loading screens, and no map behind the menu.</p>
-      </div>
-      <div class="card">
-        <h3>Reliable joining</h3>
-        <p>Lost handshake packets and lost gamestates are recovered, and older 72-bone
-        player models no longer stop you from joining a server.</p>
-      </div>
-      <div class="card">
-        <h3>Sharp retail fonts</h3>
-        <p>The optional game fonts stay crisp at 1440p and 4K.</p>
-      </div>
-      <div class="card">
-        <h3>Smooth frame pacing</h3>
-        <p>The FPS cap follows your monitor's refresh rate by default and holds its exact
-        rate, which also helps recording and streaming.</p>
-      </div>
-      <div class="card">
-        <h3>Material maps</h3>
-        <p>Optional rend2-style normal and specular maps for world surfaces, with a local
-        generator for the maps you have installed.</p>
-      </div>
-      <div class="card">
-        <h3>Gameplay fixes</h3>
-        <p>Third-person camera, Force Speed afterimages, saber trails, death animations,
-        keyboard layouts and more.</p>
-      </div>
-    </div>
-  </section>
+<section id="changelog" aria-labelledby="changelog-title">
+  <h2 id="changelog-title"><span>Changelog</span></h2>
+  <div id="releases" aria-live="polite">
+    <p class="muted">Release notes live on
+    <a href="https://github.com/Sol-Vulpes/SJK/releases">the releases page</a>.</p>
+  </div>
+</section>
 
-  <section>
-    <h2>Getting started</h2>
-    <p>You need a legally obtained copy of Jedi Academy; SJK uses its <code>GameData</code>
-    folder and ships no game assets. To build from source, install Rust 1.88 or newer, then:</p>
-    <pre><code>cargo build --release -p jkr-viewer -p jkr-dedicated
-./target/release/jkr-viewer /path/to/GameData</code></pre>
-    <p>The programs keep JKR's names. See the
-    <a href="https://github.com/Sol-Vulpes/JKR#readme">README</a> for the dedicated server
-    and platform notes.</p>
-  </section>
+<section id="install" aria-labelledby="install-title">
+  <h2 id="install-title"><span>Install</span></h2>
+  <ol class="steps">
+    <li class="panel">
+      <h3>You need</h3>
+      <p>A legally owned copy of <em>Star Wars Jedi Knight: Jedi Academy</em> (Steam, GOG or
+      disc) and Windows 10/11 x64 or Linux x64 with a working graphics driver. SJK ships
+      no game assets.</p>
+    </li>
+    <li class="panel">
+      <h3>Extract into GameData</h3>
+      <p>Download the ZIP for your platform and extract <strong>all</strong> of it into the
+      game's <code>GameData</code> folder, beside <code>base</code>:</p>
+<pre><code>GameData/
+├─ base/          (assets0-3.pk3)
+├─ jkr-viewer.exe    ← start
+├─ jkr-dedicated.exe
+└─ README-SJK.txt</code></pre>
+      <p class="muted">On Steam: right-click Jedi Academy › Manage › Browse local files ›
+      GameData. The programs keep JKR's names.</p>
+    </li>
+    <li class="panel">
+      <h3>Launch</h3>
+      <p>Start <code>jkr-viewer</code>. No path or setting is needed. Windows may warn
+      about an unrecognised app because the builds are not code-signed; choose
+      <em>More info › Run anyway</em> if you trust the download (checksums are in the
+      release).</p>
+    </li>
+    <li class="panel">
+      <h3>Your settings</h3>
+      <p>Settings, binds, screenshots and demos live in <code>GameData/jkr/</code>; an
+      earlier JKR profile is imported once. SJK opens on the classic menus; switch in
+      Setup › Game Options › Menu style. To update, replace the executables and keep the
+      <code>jkr</code> folder.</p>
+    </li>
+    <li class="panel">
+      <h3>On JA+ servers</h3>
+      <p>SJK identifies as a JA+ plugin client. JA+ puts new players in its alternate
+      dimension, where the grapple is off: use <code>/amAltDim</code> to leave it.
+      <code>serverconfig</code> lists the server's JA+ options.</p>
+    </li>
+    <li class="panel">
+      <h3>From source</h3>
+      <p>Install Rust 1.88+, then <code>cargo build --release -p jkr-viewer -p
+      jkr-dedicated</code>. See the <a href="https://github.com/Sol-Vulpes/SJK#build">README</a>
+      for platform notes and the dedicated server.</p>
+    </li>
+  </ol>
+</section>
 
-  <footer>
-    <p>SJK is a modified version of JKR, by Bishop and its contributors, released under
-    GPL-2.0-only. SJK's changes are by Sol (Sol-Vulpes) and contributors.</p>
-    <p>Star Wars, Jedi Knight and Jedi Academy are trademarks of their respective owners.
-    SJK is a fan project and is not affiliated with or endorsed by Lucasfilm, Disney,
-    Raven Software or Activision.</p>
-  </footer>
+<section id="credits" aria-labelledby="credits-title">
+  <h2 id="credits-title"><span>Credits &amp; community</span></h2>
+  <div class="credits">
+    <article class="panel">
+      <h3>JKR, by Bishop</h3>
+      <p><a href="https://github.com/Bishop-R">Bishop</a> created
+      <a href="https://github.com/Bishop-R/JKR">JKR</a> and wrote nearly all of it: the Rust
+      engine and renderer, the client and dedicated server, networking, prediction and the
+      game rules. SJK is built on that work and merges it as it grows.</p>
+    </article>
+    <article class="panel">
+      <h3>SJK, by Sol</h3>
+      <p><a href="https://github.com/Sol-Vulpes">Sol</a> makes SJK and contributes to JKR:
+      many of SJK's changes are offered upstream as
+      <a href="https://github.com/Bishop-R/JKR/pulls?q=is%3Apr+author%3ASol-Vulpes">pull
+      requests</a>. The full record is in
+      <a href="https://github.com/Sol-Vulpes/SJK/blob/sol/main/CREDITS.md">CREDITS.md</a>.</p>
+    </article>
+    <article class="panel">
+      <h3>Get involved</h3>
+      <p>Found a bug or have an idea? Open an issue on the
+      <a href="https://github.com/Sol-Vulpes/SJK/issues">issue tracker</a>. The source is on
+      <a href="https://github.com/Sol-Vulpes/SJK">GitHub</a>.</p>
+    </article>
+  </div>
+  <p class="legal">SJK is free software under the
+  <a href="https://github.com/Sol-Vulpes/SJK/blob/sol/main/LICENSE">GPL-2.0-only</a>
+  license, a modified version of JKR. Every release includes its matching source snapshot,
+  and the full source is on GitHub. Star Wars, Jedi Knight and Jedi Academy are trademarks
+  of their respective owners. SJK is a fan project, not affiliated with or endorsed by
+  Lucasfilm, Disney, Raven Software or Activision. No game assets are included; this site
+  uses no game art.</p>
+</section>
+
 </main>
+
+<footer class="footer">
+  <p>Sol JK · <a href="https://github.com/Sol-Vulpes/SJK">Sol-Vulpes/SJK</a> ·
+  built on <a href="https://github.com/Bishop-R/JKR">JKR</a></p>
+</footer>
 </body>
 </html>

@@ -10,6 +10,9 @@ import subprocess
 import tempfile
 import zipfile
 
+# Where the source of a default (JKR) package is published.
+DEFAULT_REPOSITORY = "https://github.com/Bishop-R/JKR"
+
 
 def command(source, *args):
     return subprocess.check_output(args, cwd=source, text=True).strip()
@@ -58,18 +61,21 @@ def dependency_notices(source, target, archive):
     archive.writestr("JKR-licenses/dependencies.json", json.dumps(notices, indent=2) + "\n")
 
 
-def instructions(platform, revision):
+def instructions(platform, revision, name="JKR", repository=DEFAULT_REPOSITORY, version=None):
     suffix = ".exe" if platform == "windows-x64" else ""
     requirements = ("Windows 10/11 x64 and a working graphics driver. The MSVC runtime is statically linked."
                     if suffix else
                     "Linux x64 with glibc 2.35+, ALSA, Wayland/X11 libraries and a Vulkan or OpenGL driver.\n"
                     "If your archive extractor drops permissions: chmod +x jkr-viewer jkr-dedicated")
-    return f"""JKR playtest build - {platform}
+    label = f"{name} {version}" if version else f"{name} playtest build"
+    private_note = ("\nRepository access may be required while the project is private."
+                    if repository == DEFAULT_REPOSITORY else "")
+    return f"""{label} - {platform}
 Source revision: {revision}
 
 INSTALL
 Extract ALL files from this ZIP directly into Jedi Academy's GameData folder,
-beside its existing base folder. Do not put them inside base or an extra JKR folder.
+beside its existing base folder. Do not put them inside base or an extra {name} folder.
 The installed game must include base/assets0.pk3 through base/assets3.pk3.
 Launch jkr-viewer{suffix}. No game-data path or environment variable is needed.
 Keep jkr-dedicated{suffix} beside it for Create game and local devmap.
@@ -89,10 +95,9 @@ This is a playtest build. Startup checks do not establish full GPU/gameplay
 compatibility on every system. Windows graphical runtime testing is still pending.
 
 SOURCE AND LICENSES
-https://github.com/Bishop-R/JKR/tree/{revision}
+{repository}/tree/{revision}
 GPL-2.0-only: see JKR-LICENSE.txt. Bundled notices are in JKR-licenses/.
-The matching source snapshot is distributed separately as JKR-{revision[:7]}-source.zip.
-Repository access may be required while the project is private.
+The matching source snapshot is distributed separately as {name}-{version or revision[:7]}-source.zip.{private_note}
 """
 
 
@@ -138,20 +143,27 @@ def main():
     parser.add_argument("--platform", choices=("linux-x64", "windows-x64"), required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--smoke-check", action="store_true")
+    # SJK release builds name their files after the product and version and point
+    # the bundled instructions at the repository that publishes the source.
+    parser.add_argument("--name", default="JKR")
+    parser.add_argument("--version")
+    parser.add_argument("--repository", default=DEFAULT_REPOSITORY)
     args = parser.parse_args()
     source, output = args.source.resolve(), args.output.resolve()
     if command(source, "git", "status", "--porcelain", "--untracked-files=no"):
         raise SystemExit("Refusing to package a modified source checkout")
     revision = command(source, "git", "rev-parse", "HEAD")
     output.mkdir(parents=True, exist_ok=True)
-    package = output / f"JKR-{revision[:7]}-{args.platform}.zip"
+    stem = f"{args.name}-{args.version or revision[:7]}"
+    package = output / f"{stem}-{args.platform}.zip"
     suffix = ".exe" if args.platform == "windows-x64" else ""
     binaries = [source / "target" / args.target / "release" / (name + suffix)
                 for name in ("jkr-viewer", "jkr-dedicated")]
     with zipfile.ZipFile(package, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for binary in binaries:
             add_file(archive, binary, binary.name, executable=True)
-        archive.writestr("README-JKR.txt", instructions(args.platform, revision))
+        archive.writestr(f"README-{args.name}.txt",
+                         instructions(args.platform, revision, args.name, args.repository, args.version))
         add_file(archive, source / "LICENSE", "JKR-LICENSE.txt")
         add_file(archive, source / "crates/jkr-viewer/assets/fonts/LICENSE.txt", "JKR-licenses/Inter-LICENSE.txt")
         dependency_notices(source, args.target, archive)
@@ -163,12 +175,13 @@ def main():
         }, indent=2) + "\n")
     if args.smoke_check:
         smoke_check(package, args.platform, source)
-    source_zip = output / f"JKR-{revision[:7]}-source.zip"
-    subprocess.run(["git", "-c", "core.autocrlf=false", "archive", "--format=zip", f"--prefix=JKR-{revision[:7]}/",
+    source_zip = output / f"{stem}-source.zip"
+    subprocess.run(["git", "-c", "core.autocrlf=false", "archive", "--format=zip", f"--prefix={stem}/",
                     f"--output={source_zip}", revision], cwd=source, check=True)
     checksums = "".join(f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}\n"
                         for p in (package, source_zip))
-    (output / f"SHA256SUMS-{args.platform}.txt").write_text(checksums, encoding="utf-8")
+    sums = f"{stem}-SHA256SUMS-{args.platform}.txt" if args.version else f"SHA256SUMS-{args.platform}.txt"
+    (output / sums).write_text(checksums, encoding="utf-8")
     print(package)
 
 
