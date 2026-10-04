@@ -46,6 +46,20 @@ controls, HUD, audio, screenshots and demo playback.
   This keeps SJK easy to merge with JKR, and lets settings carry over between the
   two.
 
+## Download
+
+Ready-to-run Windows x64 and Linux x64 builds are on the
+[releases page](https://github.com/Sol-Vulpes/SJK/releases) and the
+[SJK website](https://sol-vulpes.github.io/SJK/). Extract the ZIP for your
+platform into Jedi Academy's `GameData` folder, beside `base`, and launch
+`jkr-viewer`.
+
+Releases are built by the [SJK release workflow](.github/workflows/release.yml)
+when a tag named `sjk-v<version>` (for example `sjk-v0.2.0`) is pushed. It builds
+the same drop-in ZIPs as the [GameData packages workflow](docs/packages.md),
+smoke check included, names them `SJK-<version>-<platform>.zip`, and publishes
+them with their checksums and the matching source snapshot.
+
 ## Build
 
 Install Rust 1.88 or newer, Cargo, a C/C++ compiler, CMake and pkg-config.

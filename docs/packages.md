@@ -48,3 +48,13 @@ python3 scripts/package_client.py --source . --target x86_64-unknown-linux-gnu -
 Build on the intended distribution baseline: packaging a binary built on a newer
 Linux distribution does not lower its glibc requirement. The workflow is the
 reference environment for the distributed Linux ZIP.
+
+## SJK releases
+
+SJK's [release workflow](../.github/workflows/release.yml) runs the same build and
+`package_client.py` smoke check on each `sjk-v<version>` tag and publishes a GitHub
+Release. It passes `--name SJK --version <version> --repository <repo URL>`, so the
+archives are named `SJK-<version>-<platform>.zip` (with
+`SJK-<version>-source.zip` and `SJK-<version>-SHA256SUMS-<platform>.txt`) and the
+bundled instructions point at SJK's source. Without those options the script
+produces JKR's packages unchanged.
