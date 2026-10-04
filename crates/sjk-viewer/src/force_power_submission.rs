@@ -64,8 +64,13 @@ pub(crate) struct Caster {
 }
 
 impl Caster {
-    /// A remote player or NPC from its snapshot entity.
-    pub(crate) fn from_entity(state: &sjk_protocol::EntityState, viewer: u16) -> Self {
+    /// A remote player or NPC from its snapshot entity, seen by client `viewer` whose
+    /// `forcePowersActive` is `viewer_powers` (Force Sight defeats a trick).
+    pub(crate) fn from_entity(
+        state: &sjk_protocol::EntityState,
+        viewer: u16,
+        viewer_powers: u32,
+    ) -> Self {
         Self {
             active_force_pass: state.raw_field(68).unwrap_or(0) as u8,
             force_powers_active: state.force_powers_active(),
@@ -73,7 +78,11 @@ impl Caster {
             e_flags: state.e_flags(),
             npc_class: state.npc_class(),
             local: false,
-            tricks_viewer: state.client_bitflag(viewer),
+            tricks_viewer: sjk_client::legacy_mind_tricked(
+                sjk_client::legacy_entity_trick_targets(state),
+                viewer,
+                viewer_powers,
+            ),
         }
     }
 
@@ -120,7 +129,14 @@ impl Caster {
             .entities
             .binary_search_by_key(&number, |e| e.number())
             .ok()?;
-        Some(Self::from_entity(&snapshot.entities[index], viewer))
+        let viewer_powers = predicted.map_or(snapshot.player.force_powers_active(), |state| {
+            state.force_powers_active
+        });
+        Some(Self::from_entity(
+            &snapshot.entities[index],
+            viewer,
+            viewer_powers,
+        ))
     }
 }
 
@@ -267,6 +283,62 @@ pub(super) fn submit(
     }
 }
 
+/// `force/confusion_old` over the head of a player the viewer has mind-tricked
+/// (`cg_players.c:11414-11457`): `CG_IsMindTricked` on the viewer's snapshot
+/// `forceMindtrickTargetIndex*`, which the target's active Force Sight defeats. Stock
+/// orients it by the head bolt; the effect spawns on a sphere with `axisFromSphere`,
+/// so the body's rotation stands in for that axis.
+pub(super) fn submit_confusion(
+    sinks: &mut Sinks<'_>,
+    mesh: usize,
+    entity: &sjk_runtime::SceneEntity,
+    transform: sjk_runtime::Transform,
+    snapshot: &Snapshot,
+    time: i32,
+    now: Instant,
+) {
+    const CONFUSION: &str = "force/confusion_old";
+    let number = entity.id.get().saturating_sub(1) as u16;
+    if entity.kind != EntityKind::Actor || number == snapshot.player.client_num() {
+        return;
+    }
+    let Ok(index) = snapshot
+        .entities
+        .binary_search_by_key(&number, |e| e.number())
+    else {
+        return;
+    };
+    if !sjk_client::legacy_mind_tricked(
+        sjk_client::legacy_player_trick_targets(&snapshot.player),
+        number,
+        snapshot.entities[index].force_powers_active(),
+    ) {
+        return;
+    }
+    let Some(head) = sinks.actor_meshes[mesh].force_bones.head else {
+        return;
+    };
+    if !sinks.effects.contains_definition(CONFUSION) || !sinks.effect_aux.continuous.due(now) {
+        return;
+    }
+    let rotation = weapon_view::actor_world_rotation(transform.rotation);
+    let origin = Vec3::from_array(transform.translation)
+        + rotation * (head * Vec3::from_array(transform.scale));
+    effect_runtime::spawn_effect(
+        sinks.particles,
+        sinks.effect_aux,
+        sinks.effects,
+        sinks.vfs,
+        CONFUSION,
+        origin,
+        now,
+        u32::from(number) ^ (time as u32).rotate_left(16),
+        0,
+        sinks.game_audio,
+        rotation,
+    );
+}
+
 #[cfg(test)]
 mod tests {
     use super::{Caster, HandEffect, beam_rotation, select};
@@ -380,6 +452,15 @@ mod tests {
         assert!(!selection.body_push);
     }
 
+    /// The viewer's active Force Sight sees through the trick (`CG_IsMindTricked`).
+    #[test]
+    fn force_sight_shows_a_tricksters_body_push() {
+        let mut player = local_player(0);
+        player.set_raw_field(82, 1 << 14);
+        let snapshot = snapshot(player, vec![remote(0, true)]);
+        assert!(select(Caster::find(&snapshot, REMOTE, None).unwrap(), false).body_push);
+    }
+
     /// `AngleVectors` forward for Quake pitch (positive down) and yaw, in degrees.
     fn forward(pitch: f32, yaw: f32) -> Vec3 {
         let (sp, cp) = pitch.to_radians().sin_cos();
@@ -392,7 +473,7 @@ mod tests {
         for pitch in [-60.0, -15.0, 0.0, 10.0, 45.0] {
             for yaw in [0.0, 37.0, 90.0, 179.0, 180.0, 181.0, 270.0, 359.0] {
                 let frame = beam_rotation(pitch, yaw);
-                let (sy, cy) = (yaw as f32).to_radians().sin_cos();
+                let (sy, cy) = yaw.to_radians().sin_cos();
                 let along = frame * Vec3::X;
                 let left = frame * Vec3::Y;
                 let up = frame * Vec3::Z;

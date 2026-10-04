@@ -347,10 +347,14 @@ Evidence is EternalJK's stock `codemp` code (`cg_players.c`, `cg_ents.c`,
   crystal and scepter respawns, DEMP2 alt detonation, environment sparks, ship
   damage) and three expensive-physics emitters without a bounce key (`env/beam`,
   `mp/spawn`, `mp/jedispawn`), which now rebound weakly instead of stopping.
+- Mind Trick: a trickster fades out for its victims and is then hidden, fading
+  back in when the trick ends; the trickster sees the confusion effect over its
+  victims' heads; active Force Sight sees through it. JKR drew tricksters fully.
 
 Unit tests cover the effect selection (own beam levels 2-6, own Grip in first
-and third person, own Push, a remote caster, a trickster) and parse the retail
-Drain EFX. Not yet checked in a game window. Formatting, locked workspace
+and third person, own Push, a remote caster, a trickster, Force Sight), parse
+the retail Drain EFX, and step the trick fade (fade-out, hiding, fade-in,
+truncation, reset after a second's absence, the Sight exception). Not yet checked in a game window. Formatting, locked workspace
 build/tests and clippy passed.
 
 ## g_debugMelee prediction

@@ -51,6 +51,10 @@ struct Sinks<'a> {
     game_audio: &'a mut Option<GameAudio>,
     force_tracker: &'a sjk_client::LegacyForceOverlayTracker,
     speed_trails: &'a mut speed_trail::Trails,
+    /// `centity_t::trickAlpha` per entity.
+    trick_fades: &'a mut sjk_client::LegacyTrickFades,
+    /// The viewer's `forcePowersActive`, for `CG_IsMindTricked`'s Force Sight check.
+    viewer_force_powers_active: u32,
     /// `cg_speedTrail`.
     speed_trail: bool,
     material_overrides: model_materials::Overrides,
@@ -152,6 +156,13 @@ pub(crate) fn submit(
         game_audio,
         force_tracker: &gpu.force_overlays,
         speed_trails: &mut gpu.speed_trails,
+        trick_fades: &mut gpu.trick_fades,
+        viewer_force_powers_active: gpu
+            .local_prediction
+            .predicted_state()
+            .map(|state| state.force_powers_active)
+            .or_else(|| snapshot.map(|snapshot| snapshot.player.force_powers_active()))
+            .unwrap_or(0),
         speed_trail,
         material_overrides: gpu.model_material_overrides,
         camera_position: gpu.camera_position,
@@ -274,6 +285,7 @@ fn submit_actor(
     }
     // A monster's victim is drawn in its hand or jaw (`cg_players.c:9220-9244`).
     let local = Some(entity.id.get()) == local_entity_id;
+    let trick = trick_fade(sinks, snapshot, state, local, presentation_time);
     if let Some(snapshot) = snapshot.filter(|_| local || state.is_some()) {
         monster_hold::place(
             sinks.world,
@@ -355,7 +367,11 @@ fn submit_actor(
                 held
             });
     }
-    if let Some((equipment, held_mesh)) = equipment.zip(mesh) {
+    // A hidden trickster keeps only a saber in flight (`cg_players.c:11732-11746`).
+    if let Some((equipment, held_mesh)) = equipment
+        .filter(|held| !trick.hidden || held.primary_in_flight)
+        .zip(mesh)
+    {
         submit_equipment(
             sinks,
             entity,
@@ -363,14 +379,33 @@ fn submit_actor(
             held_mesh,
             *transform,
             draw_actor,
+            trick.fading.then_some(trick.alpha),
             presentation_time,
             visual_now,
         );
     }
     let ghosts = match (mesh, snapshot) {
-        (Some(_), Some(snapshot)) => speed_ghosts(sinks, transform, snapshot, state, local),
+        (Some(_), Some(snapshot)) => {
+            speed_ghosts(sinks, transform, snapshot, state, local, trick.fading)
+        }
         _ => [None; 2],
     };
+    // Everything after stock's mind-trick cut-off is skipped for a hidden trickster:
+    // the body, its afterimages and its shells (`cg_players.c:11351-11356`).
+    if trick.hidden {
+        return 0;
+    }
+    if let (Some(mesh), Some(snapshot)) = (mesh, snapshot) {
+        force_powers::submit_confusion(
+            sinks,
+            mesh,
+            entity,
+            *transform,
+            snapshot,
+            presentation_time as i32,
+            visual_now,
+        );
+    }
     if (draw_actor || sinks.portal_view)
         && let Some(mesh) = mesh
     {
@@ -381,7 +416,20 @@ fn submit_actor(
         )
         .with_entity_color(entity.color());
         instance.view_flags = sinks.entity_view_flags | u32::from(!draw_actor);
-        sinks.actor_groups[mesh].push(instance);
+        if trick.fading {
+            // `RF_FORCE_ENT_ALPHA` at `trickAlpha` (`cg_players.c:11358-11367`).
+            if sinks.overrides.len() < sinks.overrides.capacity() {
+                sinks.overrides.push(entity_materials::OverrideInstance {
+                    mesh: entity_materials::OverrideMesh::Actor(mesh),
+                    material: None,
+                    instance: instance.with_forced_alpha(trick.alpha),
+                    no_depth: false,
+                    forced_alpha: true,
+                });
+            }
+        } else {
+            sinks.actor_groups[mesh].push(instance);
+        }
         // The copies share the actor's pose, scale, colour and view flags.
         for ghost in ghosts.into_iter().flatten() {
             if sinks.overrides.len() == sinks.overrides.capacity() {
@@ -433,6 +481,31 @@ fn submit_actor(
     0
 }
 
+/// Run `CG_Player`'s mind-trick fade for one actor. The local player never tricks
+/// itself; others fade while they trick the viewer (`cg_players.c:10191-10345`).
+fn trick_fade(
+    sinks: &mut Sinks<'_>,
+    snapshot: Option<&Snapshot>,
+    state: Option<&sjk_protocol::EntityState>,
+    local: bool,
+    presentation_time: i64,
+) -> sjk_client::LegacyTrickFade {
+    let (Some(snapshot), Some(state)) = (snapshot, state) else {
+        return sjk_client::LegacyTrickFade::OPAQUE;
+    };
+    if local {
+        return sjk_client::LegacyTrickFade::OPAQUE;
+    }
+    let tricked = sjk_client::legacy_mind_tricked(
+        sjk_client::legacy_entity_trick_targets(state),
+        snapshot.player.client_num(),
+        sinks.viewer_force_powers_active,
+    );
+    sinks
+        .trick_fades
+        .advance(state.number(), tricked, presentation_time as i32)
+}
+
 /// Advance the Force Speed trail of one actor that stock passes through
 /// `CG_Player`. The local player is `cg.predictedPlayerEntity`, whose state
 /// comes from the predicted player state; others use their snapshot state.
@@ -442,6 +515,7 @@ fn speed_ghosts(
     snapshot: &Snapshot,
     state: Option<&sjk_protocol::EntityState>,
     local: bool,
+    trick_fading: bool,
 ) -> [Option<speed_trail::Ghost>; 2] {
     // `PW_SPEED`, as `BG_PlayerStateToEntityState` maps powerups to bits.
     const PW_SPEED: usize = 10;
@@ -453,10 +527,8 @@ fn speed_ghosts(
         let trailing = snapshot.player.powerups[PW_SPEED] != 0;
         (local_client, velocity, trailing)
     } else if let Some(state) = state {
-        // `doAlpha` covers more than the trick itself (its fade-in afterwards);
-        // the viewer does not draw that fade, so only the trick suppresses here.
-        let trailing =
-            state.powerups() & (1 << PW_SPEED) != 0 && !state.client_bitflag(local_client);
+        // Stock's `doAlpha`: the trick fade, out and back in (`cg_players.c:10842`).
+        let trailing = state.powerups() & (1 << PW_SPEED) != 0 && !trick_fading;
         (state.number(), state.trajectory_delta(), trailing)
     } else {
         return [None; 2];
@@ -477,6 +549,7 @@ fn submit_equipment(
     actor_mesh: usize,
     transform: sjk_runtime::Transform,
     draw_actor: bool,
+    forced_alpha: Option<u8>,
     presentation_time: i64,
     visual_now: Instant,
 ) {
@@ -527,7 +600,20 @@ fn submit_equipment(
     };
     let mut instance = ActorInstance::new(grip.to_array(), weapon_rotation.to_array(), [1.0; 3]);
     instance.view_flags = sinks.entity_view_flags | u32::from(!draw_actor);
-    sinks.object_groups[weapon_mesh].push(instance);
+    match forced_alpha {
+        // The gun is a bolt-on of the body's Ghoul2 instance in stock, so it fades with it.
+        Some(alpha) if sinks.overrides.len() < sinks.overrides.capacity() => {
+            sinks.overrides.push(entity_materials::OverrideInstance {
+                mesh: entity_materials::OverrideMesh::Object(weapon_mesh),
+                material: None,
+                instance: instance.with_forced_alpha(alpha),
+                no_depth: false,
+                forced_alpha: true,
+            });
+        }
+        Some(_) => {}
+        None => sinks.object_groups[weapon_mesh].push(instance),
+    }
     // The main first-person flash already owns event/audio spawning. A
     // second view must never advance effects or play a second sound.
     if !draw_actor {

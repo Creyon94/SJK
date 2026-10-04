@@ -463,8 +463,8 @@ at alpha 100 and 50, spaced by `(int)(6 * speed * 0.004)` units along the
 recent path, while the entity has `PW_SPEED` and `cg_speedTrail` is nonzero
 ([speed_trail.rs](../crates/sjk-viewer/src/speed_trail.rs), after
 `cg_players.c:10841-10906`). Copies are excluded from shadow casting. The
-mind-trick fade that also suppresses stock trails is not drawn by the viewer,
-so only an active trick suppresses them. The `PW_SPEED` saber trail
+mind-trick fade below suppresses them, out and back in, as in stock. The
+`PW_SPEED` saber trail
 (`cg_players.c:7319`) is not implemented. This has passed unit tests only;
 appearance has not yet been checked on a GPU against the stock client.
 
@@ -489,6 +489,23 @@ JKR read `bounce` as a particle bounce only, so Drain's `bounce 0.8 2` bolts
 kept a jaggedness of 0.1 and were drawn almost straight; SJK applies it as
 stock. `elasticity` and `chaos`, which JKR also accepted, are not retail keys
 and are ignored.
+
+Mind Trick follows `CG_Player` (EternalJK `cg_players.c:10191-10345`, stock
+code; [mind_trick.rs](../crates/sjk-client/src/mind_trick.rs)). A player who
+tricked the viewer fades out at 0.5 alpha per millisecond from 255 (about half
+a second), drawn with `RF_FORCE_ENT_ALPHA` like the speed afterimages, then is
+hidden: no body, held weapon or held saber (a thrown saber still shows), no
+shells or afterimages. It casts no blob shadow while the trick lasts. When the
+trick ends it fades back in at
+1 per millisecond. Its Force beam and hand puffs stay visible throughout, since
+stock draws them before its mind-trick cut-off. A player unseen for over a
+second starts again from opaque. The viewer's active Force Sight, at any level,
+sees through every trick (`CG_IsMindTricked`); the server also ends the trick.
+The trickster sees `force/confusion_old` over the head (`*head_top`, else
+`ceyebrow`) of each player it tricked, unless that player's Sight is active.
+Deviations: a held saber's hilt stays opaque during the fade (blades are opaque
+in stock too), and a fading body casts no sun shadow. JKR drew tricksters fully
+and had no confusion effect; SJK adds both.
 
 Set `JKR_FRAME_BUDGET=1` for frame-work and GPU-phase diagnostics. Measurements
 must name the build mode, GPU, resolution, settings, map and population. Separate
