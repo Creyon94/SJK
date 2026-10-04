@@ -128,6 +128,8 @@ mod platform;
 mod player_animation;
 mod player_assets;
 mod player_menu;
+#[cfg(test)]
+mod player_model_scan;
 mod player_shadows;
 mod pointer_input;
 mod presentation_clock;
