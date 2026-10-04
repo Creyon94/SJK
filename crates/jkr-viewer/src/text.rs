@@ -5,14 +5,17 @@
 //! it never rasterizes a glyph or grows the atlas.  The legacy JKA `fontdat`
 //! reader ([`fontdat`]) feeds the optional classic HUD font and, with the
 //! console character set ([`charset`]), the optional game fonts
-//! ([`crate::game_font`]).
+//! ([`crate::game_font`]). The retail fonts' `¬` logo replaces Inter's when
+//! present ([`logo_glyph`]).
 
 mod bounded;
 pub(crate) mod charset;
 pub(crate) mod fontdat;
+pub(crate) mod logo_glyph;
 pub(crate) mod sdf;
 pub(crate) mod style;
 pub(crate) use bounded::append_bounded;
+pub(crate) use logo_glyph::LogoGlyph;
 pub(crate) use style::TextStyle;
 
 use bytemuck::{Pod, Zeroable};
@@ -143,8 +146,12 @@ struct RasterizedGlyph {
 ///
 /// Latin-1 is deliberately pre-cached: protocol-26 UI strings are byte based,
 /// so this covers the complete wire character range without atlas mutation in
-/// the frame loop.
-pub(crate) fn load_modern(dpi_scale: f64) -> Result<FontAtlas, Box<dyn Error>> {
+/// the frame loop. With the retail `logo` from the game data, byte 0xAC draws
+/// it in both faces instead of Inter's `¬`, as Jedi Academy's fonts do.
+pub(crate) fn load_modern(
+    dpi_scale: f64,
+    logo: Option<&LogoGlyph>,
+) -> Result<FontAtlas, Box<dyn Error>> {
     let fonts = [
         Font::from_bytes(INTER_REGULAR, FontSettings::default())?,
         Font::from_bytes(INTER_SEMIBOLD, FontSettings::default())?,
@@ -167,6 +174,24 @@ pub(crate) fn load_modern(dpi_scale: f64) -> Result<FontAtlas, Box<dyn Error>> {
                 metrics,
                 pixels,
             });
+        }
+    }
+    if let Some(logo) = logo {
+        for face in 0..fonts.len() {
+            let cap_height = rasterized[face * GLYPH_COUNT + usize::from(b'H')]
+                .metrics
+                .height as f32;
+            let glyph = &mut rasterized[face * GLYPH_COUNT + usize::from(logo_glyph::BYTE)];
+            let scaled = logo.rasterize(cap_height);
+            glyph.metrics = Metrics {
+                xmin: scaled.xmin,
+                ymin: scaled.ymin,
+                width: scaled.width,
+                height: scaled.height,
+                advance_width: scaled.advance,
+                ..glyph.metrics
+            };
+            glyph.pixels = scaled.pixels;
         }
     }
 
