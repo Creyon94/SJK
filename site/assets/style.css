@@ -200,14 +200,14 @@ h3 {
 .panel p { margin: 0 0 0.6rem; }
 .panel p:last-child { margin-bottom: 0; }
 
-.feature-groups { display: grid; gap: 1.2rem; grid-template-columns: repeat(auto-fit, minmax(290px, 1fr)); }
+.feature-groups { display: grid; gap: 1.2rem; grid-template-columns: repeat(auto-fit, minmax(min(290px, 100%), 1fr)); }
 .feature-groups ul { margin: 0; padding-left: 1.1rem; }
 .feature-groups li { margin: 0 0 0.6rem; color: var(--muted); }
 .feature-groups li::marker { color: var(--gold); }
 .feature-groups strong { color: var(--text); font-weight: 600; }
 
 /* Gallery */
-.gallery { display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+.gallery { display: grid; gap: 0.9rem; grid-template-columns: repeat(auto-fill, minmax(min(240px, 100%), 1fr)); }
 .shot {
   display: block; padding: 0; cursor: zoom-in;
   background: none; border: 1px solid var(--panel-edge); border-radius: var(--radius);
@@ -240,7 +240,7 @@ h3 {
 .release-body p { margin: 0.4rem 0; }
 
 /* Install steps */
-.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.2rem; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); counter-reset: step; }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.2rem; grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); counter-reset: step; }
 .steps > li { counter-increment: step; }
 .steps h3::before {
   content: counter(step);
@@ -252,7 +252,7 @@ h3 {
 }
 
 /* Credits */
-.credits { display: grid; gap: 1.2rem; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+.credits { display: grid; gap: 1.2rem; grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr)); }
 .legal { margin: 1.6rem auto 0; max-width: 820px; text-align: center; color: var(--muted); font-size: 0.9rem; }
 .footer { text-align: center; color: var(--muted); font-size: 0.9rem; padding: 2rem 1rem 3rem; border-top: 1px solid rgba(232, 184, 74, 0.15); }
 
@@ -270,3 +270,7 @@ h3 {
   .emblem, .stars::before, .stars::after { animation: none; }
   .button, .shot img { transition: none; }
 }
+
+/* Grid items may shrink below their content (the GameData tree scrolls instead). */
+.feature-groups > *, .steps > *, .credits > *, .gallery > * { min-width: 0; }
+pre { max-width: 100%; }
