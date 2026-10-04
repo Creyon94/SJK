@@ -114,6 +114,8 @@ pub(super) fn apply(
     if let Some(palette) = &mut mesh.gpu_palette {
         palette.stage(skinning, matrices)?;
         mesh.force_bones.update(&mesh.preview.animation, matrices);
+        mesh.force_bones
+            .update_head(&mesh.preview.mesh, &mesh.preview.animation, matrices);
         mesh.weapon_attachments = crate::saber::attachments_from_matrices(&mesh.preview, matrices);
         mesh.driver_seat = crate::vehicle_pose::driver_seat(&mesh.preview, matrices);
         mesh.current_frames = (
@@ -131,6 +133,8 @@ pub(super) fn apply(
     mesh.retained_pose
         .update_trace_lod(&mesh.preview.mesh, matrices)?;
     mesh.force_bones.update(&mesh.preview.animation, matrices);
+    mesh.force_bones
+        .update_head(&mesh.preview.mesh, &mesh.preview.animation, matrices);
     mesh.weapon_attachments = crate::saber::attachments_from_matrices(&mesh.preview, matrices);
     mesh.driver_seat = crate::vehicle_pose::driver_seat(&mesh.preview, matrices);
     for range in &mesh.vertex_ranges {

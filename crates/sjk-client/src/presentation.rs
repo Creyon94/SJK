@@ -240,6 +240,11 @@ impl LegacyWorldAdapter {
                             state.powerups(),
                             state.vehicle_entity_num(),
                             state.npc_class(),
+                        )
+                        && !crate::legacy_mind_tricked(
+                            crate::legacy_entity_trick_targets(state),
+                            snapshot.player.client_num(),
+                            snapshot.player.force_powers_active(),
                         ),
                 );
             } else {
@@ -376,7 +381,7 @@ impl LegacyWorldAdapter {
 
 /// `CG_PlayerShadow` (`cg_players.c:4649-4693`) skips the drop shadow for
 /// cloaked, dead, and vehicle-riding players (`NPC_class != CLASS_VEHICLE`).
-/// Mind-tricked entities are not yet excluded.
+/// A player that mind-tricks the viewer is excluded by the caller.
 fn legacy_ground_shadow(flags: u32, powerups: u32, vehicle: u16, npc_class: u8) -> bool {
     const CLASS_VEHICLE: u8 = 53;
     flags & EF_DEAD == 0
