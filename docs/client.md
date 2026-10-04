@@ -40,6 +40,10 @@ and in-game menus: `modern` (default) or `classic`, which is close to the retail
 multiplayer menus in layout and flow without porting their `.menu` scripts. The
 retail 640x480 layout is fitted to the window height and centred.
 
+SJK differs from JKR's documented behavior here: `classic` is the default, and
+only `modern` (or `0`) selects the modern layout; an unknown value falls back to
+`classic`.
+
 The classic main menu has the retail pages, entries and order:
 
 - Main: Play, Profile, Controls and Setup in two columns, Exit below. Exit and
