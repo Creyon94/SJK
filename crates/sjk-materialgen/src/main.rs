@@ -72,6 +72,10 @@ fn report(options: &sjk_materialgen::run::Options, summary: &Summary) {
     if !summary.flat.is_empty() {
         println!("no surface detail, no maps: {}", abbreviated(&summary.flat));
     }
+    println!(
+        "emission maps: {} written for {} textures with signs of light (see the manifest)",
+        summary.emission_written, summary.emission_considered
+    );
     for (image, error) in &summary.failed {
         eprintln!("failed: {image}: {error}");
     }
@@ -100,6 +104,7 @@ fn report(options: &sjk_materialgen::run::Options, summary: &Summary) {
     println!(
         "Then: seta r_normalMapping 1; seta r_specularMapping 1; seta r_parallaxMapping 1; restart."
     );
+    println!("Emission maps show with r_emissiveMaps 1 (the default).");
     println!();
     println!("{NOTICE}");
 }

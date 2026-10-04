@@ -20,6 +20,8 @@ const SPECULAR: u32 = 9;
 const FRAMES: u32 = 10;
 const PARAMS: u32 = 11;
 const SAMPLER: u32 = 12;
+/// After the reflection probes' 13..=16 (`material_maps_reflection.wgsl`).
+const EMISSION: u32 = 17;
 
 /// Map-lifetime material-map resources; exists only when material maps are enabled.
 pub(in crate::world_materials) struct Gpu {
@@ -28,12 +30,20 @@ pub(in crate::world_materials) struct Gpu {
     frames: wgpu::Buffer,
     /// Bound where a stage has no map of a kind; the shader's flags skip it.
     neutral: wgpu::TextureView,
+    /// Black: bound where a stage has no emission map.
+    neutral_emission: wgpu::TextureView,
+    /// Some stage has normal or specular maps: the real-time light pass also writes the
+    /// light's direction for them (`light_buffer`), and the lamp cache bakes it.
+    /// Emission maps alone need neither.
+    pub(in crate::world_materials) directed: bool,
     /// The map's reflection probes, when it has any (`reflections`); stage groups then
     /// bind their cubes, else `neutral_reflections`.
     pub(in crate::world_materials) reflections: Option<super::reflections::gpu::Probes>,
     neutral_reflections: super::reflections::gpu::Shading,
     textures: HashMap<String, wgpu::TextureView>,
     program: OnceCell<(wgpu::PipelineLayout, wgpu::ShaderModule)>,
+    /// The program's dynamic-glow variant (`program::glow_source`).
+    glow_program: OnceCell<wgpu::ShaderModule>,
 }
 
 impl Gpu {
@@ -46,6 +56,7 @@ impl Gpu {
         entries.extend([
             texture(NORMAL),
             texture(SPECULAR),
+            texture(EMISSION),
             wgpu::BindGroupLayoutEntry {
                 binding: FRAMES,
                 visibility: wgpu::ShaderStages::VERTEX,
@@ -82,15 +93,25 @@ impl Gpu {
             device,
             queue,
             &RgbaImage::from_pixel(1, 1, image::Rgba([128, 128, 255, 255])),
+            false,
+        );
+        let neutral_emission = upload(
+            device,
+            queue,
+            &RgbaImage::from_pixel(1, 1, image::Rgba([0, 0, 0, 255])),
+            true,
         );
         Self {
             layout,
             frames: frames_buffer(device, &[[0; 2]]),
             neutral,
+            neutral_emission,
+            directed: false,
             reflections: None,
             neutral_reflections: super::reflections::gpu::Shading::neutral(device),
             textures: HashMap::new(),
             program: OnceCell::new(),
+            glow_program: OnceCell::new(),
         }
     }
 
@@ -105,28 +126,36 @@ impl Gpu {
         }
     }
 
-    /// The material group of one stage: `stage_entries` (the ordinary group's
-    /// entries) plus its maps, the frames, its parameters and the diffuse sampler.
-    /// The uploaded views of a stage's normal and specular maps (the neutral texture for a
-    /// missing one), uploading each image once.
+    /// The uploaded views of a stage's normal, specular and emission maps (the neutral
+    /// texture for a missing one), uploading each image once.
     fn views(
         &mut self,
         device: &wgpu::Device,
         queue: &crate::frame_queue::FrameQueue,
         maps: &StageMaps,
-    ) -> (wgpu::TextureView, wgpu::TextureView) {
-        let mut view = |image: &Option<super::MapImage>| -> wgpu::TextureView {
+    ) -> [wgpu::TextureView; 3] {
+        let mut view = |image: &Option<super::MapImage>, srgb: bool| -> wgpu::TextureView {
             image.as_ref().map_or_else(
-                || self.neutral.clone(),
+                || {
+                    if srgb {
+                        self.neutral_emission.clone()
+                    } else {
+                        self.neutral.clone()
+                    }
+                },
                 |image| {
                     self.textures
                         .entry(image.key.clone())
-                        .or_insert_with(|| upload(device, queue, &image.pixels))
+                        .or_insert_with(|| upload(device, queue, &image.pixels, srgb))
                         .clone()
                 },
             )
         };
-        (view(&maps.normal), view(&maps.specular))
+        [
+            view(&maps.normal, false),
+            view(&maps.specular, false),
+            view(&maps.emission, true),
+        ]
     }
 
     /// A stage's maps as the floor mirrors' finish reads them.
@@ -136,7 +165,7 @@ impl Gpu {
         queue: &crate::frame_queue::FrameQueue,
         maps: &StageMaps,
     ) -> super::FloorMaps {
-        let (normal, specular) = self.views(device, queue, maps);
+        let [normal, specular, _] = self.views(device, queue, maps);
         super::FloorMaps {
             normal,
             specular,
@@ -145,6 +174,8 @@ impl Gpu {
         }
     }
 
+    /// The material group of one stage: `stage_entries` (the ordinary group's
+    /// entries) plus its maps, the frames, its parameters and the diffuse sampler.
     pub(in crate::world_materials) fn bind(
         &mut self,
         device: &wgpu::Device,
@@ -153,7 +184,7 @@ impl Gpu {
         maps: &StageMaps,
         sampler: &wgpu::Sampler,
     ) -> Result<wgpu::BindGroup, Box<dyn Error>> {
-        let (normal, specular) = self.views(device, queue, maps);
+        let [normal, specular, emission] = self.views(device, queue, maps);
         let params = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("JKR material map parameters"),
             contents: bytemuck::bytes_of(&maps.params),
@@ -168,6 +199,10 @@ impl Gpu {
             wgpu::BindGroupEntry {
                 binding: SPECULAR,
                 resource: wgpu::BindingResource::TextureView(&specular),
+            },
+            wgpu::BindGroupEntry {
+                binding: EMISSION,
+                resource: wgpu::BindingResource::TextureView(&emission),
             },
             wgpu::BindGroupEntry {
                 binding: FRAMES,
@@ -227,9 +262,30 @@ impl Gpu {
         (layout, module)
     }
 
+    /// The program's dynamic-glow variant: stages that glow only for their emission
+    /// map write that emission, the rest their colour as before. Same layout.
+    pub(in crate::world_materials) fn glow_program(
+        &self,
+        forge: &Forge,
+    ) -> (&wgpu::PipelineLayout, &wgpu::ShaderModule) {
+        let (layout, _) = self.program(forge);
+        let module = self.glow_program.get_or_init(|| {
+            forge
+                .device
+                .create_shader_module(wgpu::ShaderModuleDescriptor {
+                    label: Some("JKR material-mapped stage glow program"),
+                    source: wgpu::ShaderSource::Wgsl(
+                        super::program::glow_source(forge.model_sun.is_some()).into(),
+                    ),
+                })
+        });
+        (layout, module)
+    }
+
     /// Forget the program: the lighting mode changed (real-time lighting installed).
     pub(in crate::world_materials) fn reset_program(&mut self) {
         self.program = OnceCell::new();
+        self.glow_program = OnceCell::new();
     }
 }
 
@@ -241,12 +297,14 @@ fn frames_buffer(device: &wgpu::Device, packed: &[[u32; 2]]) -> wgpu::Buffer {
     })
 }
 
-/// Upload one map as linear RGBA8 with a full box-filtered mip chain: the maps are
-/// data, never colour, and unfiltered normal maps shimmer at a distance.
+/// Upload one map as RGBA8 with a full box-filtered mip chain, linear (normal and
+/// specular maps are data, never colour) or `srgb` (emission maps are colour, encoded
+/// like the diffuse image). Unfiltered normal maps shimmer at a distance.
 fn upload(
     device: &wgpu::Device,
     queue: &crate::frame_queue::FrameQueue,
     image: &RgbaImage,
+    srgb: bool,
 ) -> wgpu::TextureView {
     let chain = mip_chain(image);
     let texture = device.create_texture(&wgpu::TextureDescriptor {
@@ -259,7 +317,11 @@ fn upload(
         mip_level_count: chain.len() as u32,
         sample_count: 1,
         dimension: wgpu::TextureDimension::D2,
-        format: wgpu::TextureFormat::Rgba8Unorm,
+        format: if srgb {
+            wgpu::TextureFormat::Rgba8UnormSrgb
+        } else {
+            wgpu::TextureFormat::Rgba8Unorm
+        },
         usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
         view_formats: &[],
     });

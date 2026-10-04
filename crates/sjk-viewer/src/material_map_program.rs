@@ -11,8 +11,12 @@
 //!   at the offset texture coordinate;
 //! - the lightmap (or the real-time light buffer) response is replaced by
 //!   `material_map_lightmap`, point lights use the mapped normal, and highlights
-//!   are added after the albedo product and dynamic-light modulation
-//!   (`material_map_finish`, which also draws the `r_materialMapsDebug` views).
+//!   and the emission map's colour are added after the albedo product and
+//!   dynamic-light modulation (`material_map_finish`, which also draws the
+//!   `r_materialMapsDebug` views).
+//!
+//! [`glow_source`] is the same program for the dynamic glow pass: a stage that
+//! glows only for its emission map writes the emission there, not its lit colour.
 
 use super::super::{STAGE_SHADER, world_sun_shader};
 
@@ -99,6 +103,19 @@ pub(in crate::world_materials) fn source(realtime: bool) -> String {
     source
 }
 
+/// [`source`] for the dynamic glow pass (`world_glow.rs`): the final colour goes
+/// through `material_map_glow`, which keeps it for stages with an authored `glow` and
+/// replaces it by the emission for stages drawn there only for their emission map.
+pub(in crate::world_materials) fn glow_source(realtime: bool) -> String {
+    let source = source(realtime);
+    let from = "return material_map_finish(output);";
+    assert_eq!(source.matches(from).count(), 1, "material program changed");
+    source.replace(
+        from,
+        "return material_map_glow(material_map_finish(output));",
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -119,11 +136,30 @@ mod tests {
     #[test]
     fn material_programs_validate_in_both_lighting_modes() {
         for realtime in [false, true] {
-            let source = source(realtime);
-            validate(&source);
-            for entry in ["entity_vertex_main", "fragment_main"] {
-                assert!(source.contains(&format!("fn {entry}(")), "{entry}");
+            for source in [source(realtime), glow_source(realtime)] {
+                validate(&source);
+                for entry in ["entity_vertex_main", "fragment_main"] {
+                    assert!(source.contains(&format!("fn {entry}(")), "{entry}");
+                }
             }
+        }
+    }
+
+    #[test]
+    fn only_the_glow_program_writes_emission_alone() {
+        for realtime in [false, true] {
+            let scene = source(realtime);
+            let glow = glow_source(realtime);
+            assert!(!scene.contains("return material_map_glow("));
+            assert!(glow.contains("return material_map_glow(material_map_finish(output));"));
+            // The glow variant tests the stage's own flag, which `resolve` sets for
+            // stages without an authored glow.
+            assert!(glow.contains(&format!(
+                "(material_map_flags() & {}u) != 0u",
+                super::super::FLAG_EMISSION_GLOW
+            )));
+            // The emission map is sampled under its own flag.
+            assert!(scene.contains(&format!("(flags & {}u) != 0u", super::super::FLAG_EMISSION)));
         }
     }
 

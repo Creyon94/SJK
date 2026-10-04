@@ -666,6 +666,28 @@ test: r_sceneHdr 0 and restart: dark rooms still brighten, bright views never da
 note: Too bright/dark overall on outdoor maps (ffa3)? Tune r_autoExposureKey (default 0.18).
 note: Too slow/fast: r_autoExposureToDark (2.5 s) and r_autoExposureToBright (0.4 s).
 
+[emission-maps]
+status: personal
+area: Rendering & effects
+title: Emission maps: light panels, lamps and screens glow and light the room
+change: sjk-materialgen (generation 3) writes <texture>_e for textures that evidently give light.
+change: Emitting texels are added unlit with a glow halo; shaders that already glow are left alone.
+change: With r_dayNight 1 they also become lamps, unless the surface already lights the room.
+test: Regenerate: cargo run --release -p sjk-materialgen -- --maps <your maps>,tpcv3_ffa,amjh3te
+test: Same --maps also mp/ctf4,mp/siege_desert; copy over base/zzz_jkr_materials.pk3; restart.
+test: Load log: "material maps (...emission): N stages, ..., N emission"; no regenerate note.
+test: mp/ctf4 rooftops and mp/siege_desert: neon signs glow with a halo, text stays crisp.
+test: tpcv3_ffa: red, green and blue light panels glow; in live lighting they light the floor.
+test: amjh3te: glowing wall symbols (jh3-te light_*); log "Emission maps: N area lights ...".
+test: mp/ffa1 strip lights look exactly as before (their shader already glows: no double light).
+test: r_emissionStrength 0 / 1 / 3 (live): emission off / as generated / strong.
+test: r_emissiveGlow 0 (live): emitting texels keep their colour but lose the halo.
+test: r_emissiveLights 0, then reload the map: panels still glow but light nothing around them.
+test: r_materialMapsDebug 6: only the emission maps (black on other mapped surfaces); 0 back.
+test: Settings > VIDEO > Renderer: IMAGE has 3 emission rows, LIGHTING has Emission-map lights.
+note: Misfire? Add "<texture path> emission=off" to sjk-materialgen-overrides.txt, regenerate.
+note: r_emissiveMaps 0 + restart turns it all off; the pack's normal/specular maps are unaffected.
+
 [model-tolerance]
 status: personal
 area: Rendering & effects

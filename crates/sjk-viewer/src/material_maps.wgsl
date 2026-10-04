@@ -2,13 +2,15 @@
 // program of a material-mapped world stage (`material_map_program.rs`). The normal map
 // keeps its encoded normal in RGB and, for parallax, depth (255 - height) in alpha. The
 // specular map was converted at load to rend2's spec/gloss layout or to occlusion,
-// roughness, metalness, specular (`material_map_images.rs`).
+// roughness, metalness, specular (`material_map_images.rs`). The emission map (SJK's `_e`)
+// is an sRGB colour, read linear, added unlit.
 struct MaterialMapParams {
     // rend2 normalScale: x/y strength, z unused, w parallax depth.
     normal_scale: vec4<f32>,
     // rend2 specularScale.
     specular_scale: vec4<f32>,
-    // x flags: 1 normal map, 2 parallax, 4 diffuse in the secondary bundle, 8 two-sided;
+    // x flags: 1 normal map, 2 parallax, 4 diffuse in the secondary bundle, 8 two-sided,
+    // 16 emission map, 32 in the glow pass for the emission only;
     // y specular layout: 0 none, 1 spec/gloss, 2 packed; z parallax bias.
     control: vec4<f32>,
 };
@@ -19,6 +21,7 @@ struct MaterialMapParams {
 @group(1) @binding(10) var<storage, read> material_map_frames: array<vec2<u32>>;
 @group(1) @binding(11) var<uniform> material_map: MaterialMapParams;
 @group(1) @binding(12) var material_map_sampler: sampler;
+@group(1) @binding(17) var material_map_emission: texture_2d<f32>;
 
 struct MaterialMapFrame { tangent: vec4<f32>, light: vec3<f32>, probe: f32 };
 // The frame of vertex `index` turned with its instance (identity for the static world).
@@ -43,6 +46,8 @@ struct MaterialMapSurface {
     uv_offset: vec2<f32>,
     // The specular map's texel at the (offset) diffuse coordinates.
     specular: vec4<f32>,
+    // The emission map's colour (linear) at the same coordinates; black without one.
+    emission: vec3<f32>,
 };
 var<private> material_map_surface: MaterialMapSurface;
 var<private> material_map_albedo: vec3<f32>;
@@ -77,6 +82,10 @@ fn material_map_prepare(input: VertexOutput) {
     if material_map_layout() != 0u {
         specular = textureSample(material_map_specular, material_map_sampler, uv + offset);
     }
+    var emission = vec3(0.0);
+    if (flags & 16u) != 0u {
+        emission = textureSample(material_map_emission, material_map_sampler, uv + offset).rgb;
+    }
     var normal = geometric;
     if framed {
         // `r_normalMapStrength` (`world_lighting_mode.rs`): zero bits are strength 1.
@@ -86,7 +95,7 @@ fn material_map_prepare(input: VertexOutput) {
         n.z = sqrt(clamp((0.25 - n.x*n.x) - n.y*n.y, 0.0, 1.0));
         normal = normalize(n.x*tangent + n.y*bitangent + n.z*geometric);
     }
-    material_map_surface = MaterialMapSurface(geometric, normal, offset, specular);
+    material_map_surface = MaterialMapSurface(geometric, normal, offset, specular, emission);
     material_map_highlight = vec3(0.0);
     // One probe per surface: every vertex carries the same index.
     material_map_probe = u32(round(input.material_light.w));
@@ -259,15 +268,38 @@ fn material_map_point_highlights(input: VertexOutput) {
     }
 }
 
-// The stage's final colour: the highlights added after the albedo product and dynamic-light
-// modulation, or one of the `r_materialMapsDebug` views (lighting-mode bits 8-10,
-// `material_maps::DEBUG_SHIFT`). Only material-mapped stages run this program, so the
-// views leave every other surface as it is. A uniform branch: nothing to pay when off.
+// The emission map's light: unlit, so neither the lightmap nor shadows dim it, scaled by
+// `r_emissionStrength` (lighting-mode bits 24-31, `world_lighting_mode.rs`, where zero
+// bits are strength 1). The fullbright and lightmap views (mode bits 0-1) show none.
+fn material_map_emitted() -> vec3<f32> {
+    let mode = point_lights.metadata.z;
+    if (mode & 3u) != 0u { return vec3(0.0); }
+    let strength = f32((((mode >> 24u) + 32u) & 255u))/32.0;
+    return material_map_surface.emission*strength;
+}
+
+// The dynamic glow pass (`material_map_program::glow_source`): a stage drawn there only for
+// its emission map writes the emission, so only the emitting texels get a halo; a stage
+// with an authored `glow` keeps its colour, as stock draws glowing stages.
+fn material_map_glow(output: vec4<f32>) -> vec4<f32> {
+    if (material_map_flags() & 32u) != 0u { return vec4(material_map_emitted(), output.a); }
+    return output;
+}
+
+// The stage's final colour: the highlights and the emission added after the albedo
+// product and dynamic-light modulation, or one of the `r_materialMapsDebug` views
+// (lighting-mode bits 8-10, `material_maps::DEBUG_SHIFT`). Only material-mapped stages run
+// this program, so the views leave every other surface as it is. A uniform branch:
+// nothing to pay when off.
 fn material_map_finish(output: vec4<f32>) -> vec4<f32> {
-    let lit = vec4(output.rgb + material_map_highlight, output.a);
+    let lit = vec4(output.rgb + material_map_highlight + material_map_emitted(), output.a);
     let view = (point_lights.metadata.z >> 8u) & 7u;
     // 5: the scene without probe reflections (`material_map_reflection`).
     if view == 0u || view == 5u { return lit; }
+    if view == 6u {
+        // The emission map alone (before `r_emissionStrength`), black without one.
+        return vec4(material_map_surface.emission, lit.a);
+    }
     if view == 4u {
         // The probe reflection alone, black where no captured probe serves the surface.
         return vec4(material_map_reflected, lit.a);

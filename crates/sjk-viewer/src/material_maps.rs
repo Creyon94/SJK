@@ -2,16 +2,18 @@
 //! renderer (`codemp/rd-rend2`): normal maps (with height in alpha for parallax)
 //! and specular or packed roughness/metalness/occlusion maps, named by stage
 //! keywords or found next to the diffuse image (`_nh`, `_n`, `_specGloss`,
-//! `_rmo`, `_orm`), so existing rend2 texture packs apply unchanged.
+//! `_rmo`, `_orm`), so existing rend2 texture packs apply unchanged. SJK adds
+//! emission maps (`_e`; rend2 has none): an emitted colour added unlit
+//! ([`Settings::emission`]).
 //!
-//! The controls are `r_normalMapping`, `r_specularMapping` and
-//! `r_parallaxMapping`, sampled at startup like rend2's latched cvars. SJK turns
-//! them on by default (Sol's choice; rend2 and JKR default them off); they act only
-//! where a pack supplies maps. Off, no image is looked up, no layout, buffer or
-//! program exists and every stage compiles exactly as before. On without maps,
-//! a map load only looks the map names up in the file index; no layout, buffer or
-//! program is created either. On, a stage with maps compiles to its own
-//! pipeline key ([`PIPELINE_BIT`]) whose program is the ordinary stage program
+//! The controls are `r_normalMapping`, `r_specularMapping`, `r_parallaxMapping`
+//! and `r_emissiveMaps`, sampled at startup like rend2's latched cvars. SJK turns
+//! them all on by default (Sol's choice; rend2 and JKR default the first three
+//! off); they act only where a pack supplies maps. Off, no image is looked up, no
+//! layout, buffer or program exists and every stage compiles exactly as before. On
+//! without maps, a map load only looks the map names up in the file index; no
+//! layout, buffer or program is created either. On, a stage with maps compiles to
+//! its own pipeline key ([`PIPELINE_BIT`]) whose program is the ordinary stage program
 //! plus the material hooks (`material_map_program.rs`); stages without maps keep
 //! their pipelines, bind groups and stage-table records.
 //!
@@ -54,7 +56,12 @@ pub(crate) const fn without_maps(geometry: u8) -> u8 {
 pub(crate) const DEBUG_SHIFT: u32 = 8;
 
 /// The controls in the order of their [`LATCH`] bits.
-const CONTROLS: [&str; 3] = ["r_normalMapping", "r_specularMapping", "r_parallaxMapping"];
+const CONTROLS: [&str; 4] = [
+    "r_normalMapping",
+    "r_specularMapping",
+    "r_parallaxMapping",
+    "r_emissiveMaps",
+];
 /// [`LATCH`] has been written: the viewer sampled its controls.
 const LATCHED: u8 = 0x80;
 /// The control values the running viewer sampled (bit `i` for `CONTROLS[i]`, plus
@@ -75,6 +82,8 @@ pub(crate) struct Settings {
     pub(crate) specular: bool,
     /// `r_parallaxMapping`: parallax from the height in a normal map's alpha.
     pub(crate) parallax: bool,
+    /// `r_emissiveMaps`: emission maps (`<diffuse>_e`), added unlit; SJK's, on by default.
+    pub(crate) emission: bool,
     /// `r_cubeMapping` with `r_cubeMapSize`: the face size of the reflection probes that
     /// specular-mapped surfaces reflect ([`reflections`]), 0 without them.
     pub(crate) reflections: u32,
@@ -89,9 +98,9 @@ impl Settings {
                 .and_then(|c| c.integer_cvar(name))
                 .map_or(DEFAULT_ON, |value| value != 0)
         };
-        let [normal, specular, parallax] = CONTROLS.map(on);
+        let [normal, specular, parallax, emission] = CONTROLS.map(on);
         if console.is_some() {
-            let bits = [normal, specular, parallax]
+            let bits = [normal, specular, parallax, emission]
                 .iter()
                 .enumerate()
                 .fold(LATCHED, |bits, (index, on)| bits | (u8::from(*on) << index));
@@ -105,11 +114,18 @@ impl Settings {
             parallax: normal && parallax,
             // Probes are reflected through specular maps only.
             reflections: if specular { reflections } else { 0 },
+            emission,
         }
     }
 
     /// Whether any material map may be looked up.
     pub(crate) fn enabled(self) -> bool {
+        self.normal || self.specular || self.emission
+    }
+
+    /// Whether normal or specular maps may be looked up (rend2's kinds): only those need
+    /// vertex frames and the light's direction.
+    pub(crate) fn shading(self) -> bool {
         self.normal || self.specular
     }
 }
@@ -129,6 +145,7 @@ impl std::fmt::Display for Settings {
             (self.specular, "specular"),
             (self.parallax, "parallax"),
             (self.reflections > 0, "reflections"),
+            (self.emission, "emission"),
         ];
         let mut first = true;
         for (_, name) in kinds.iter().filter(|(on, _)| *on) {
@@ -143,35 +160,40 @@ impl std::fmt::Display for Settings {
     }
 }
 
-/// Register the rend2-named controls; a change asks for a restart, like rend2's latch.
+/// Register the rend2-named controls and SJK's emission controls; a change of the
+/// latched ones asks for a restart, like rend2's latch.
 pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), CvarError> {
-    for (index, (name, help)) in [
+    for (index, (name, default, help)) in [
         (
             "r_normalMapping",
+            i64::from(DEFAULT_ON),
             "Normal maps on world surfaces (rend2 _n/_nh images and normalMap keywords); \
              restart required",
         ),
         (
             "r_specularMapping",
+            i64::from(DEFAULT_ON),
             "Specular/roughness maps on world surfaces (rend2 _specGloss/_rmo/_orm images and \
              keywords); restart required",
         ),
         (
             "r_parallaxMapping",
+            i64::from(DEFAULT_ON),
             "Parallax from the height in a normal map's alpha (_nh images, normalHeightMap); \
              needs r_normalMapping; restart required",
+        ),
+        (
+            "r_emissiveMaps",
+            i64::from(DEFAULT_ON),
+            "Emission maps on world surfaces (<texture>_e images): light-emitting texels glow \
+             unlit; restart required",
         ),
     ]
     .into_iter()
     .enumerate()
     {
         debug_assert_eq!(name, CONTROLS[index]);
-        cvars.register(CvarDefinition::new(
-            name,
-            i64::from(DEFAULT_ON),
-            CvarFlags::ARCHIVE,
-            help,
-        ))?;
+        cvars.register(CvarDefinition::new(name, default, CvarFlags::ARCHIVE, help))?;
         cvars.on_change(name, move |change| {
             let on = matches!(change.current, CvarValue::Integer(value) if value != 0);
             if restart_needed(LATCH.load(Ordering::Relaxed), index, on) {
@@ -181,12 +203,83 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), CvarError> {
             }
         })?;
     }
+    lights::register(cvars)?;
     reflections::register(cvars)
 }
 
+/// `r_emissiveLights`: emission-mapped surfaces as light sources of real-time lighting.
+pub(crate) mod lights {
+    use sjk_shell::{CvarDefinition, CvarError, CvarFlags, CvarRegistry, CvarValue};
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    /// The cvar's name.
+    pub(crate) const CVAR: &str = "r_emissiveLights";
+    /// Radiance of white emission (before the multiplier): what an explicit glow stage of
+    /// an undeclared fixture and self-lit fixture paint get (`world_emission.rs`), since
+    /// an emission map shows the same kind of light. An artistic convention, not a
+    /// recovered compiler intensity.
+    pub(crate) const RADIANCE: f32 = 16.;
+    /// Most lamps the emission maps of one map may add, the brightest kept: screens and
+    /// small inserts must not multiply the per-pixel lamp work.
+    pub(crate) const MAX_LAMPS: usize = 1024;
+    /// Most the light power may be multiplied.
+    pub(crate) const MAX: f32 = 4.0;
+    /// The current multiplier's bits (1.0 until registered), read when a map loads.
+    static GAIN: AtomicU32 = AtomicU32::new(0x3f80_0000);
+
+    /// The multiplier a cvar value asks for: 0 (off) to [`MAX`], 1 for a non-number.
+    pub(crate) fn gain_of(value: &CvarValue) -> f32 {
+        let gain = match value {
+            CvarValue::Float(value) => *value as f32,
+            CvarValue::Integer(value) => *value as f32,
+            CvarValue::Bool(on) => f32::from(u8::from(*on)),
+            CvarValue::Text(_) => 1.0,
+        };
+        if gain.is_finite() {
+            gain.clamp(0.0, MAX)
+        } else {
+            1.0
+        }
+    }
+
+    /// The multiplier for the map being loaded.
+    pub(crate) fn gain() -> f32 {
+        f32::from_bits(GAIN.load(Ordering::Relaxed))
+    }
+
+    /// Whether a material's emission map becomes a light: lights are on (`gain`) and the
+    /// material gives none yet (`existing`, from a declared surface light, an inferred
+    /// fixture or self-lit paint), so no surface is counted twice.
+    pub(crate) fn applies(existing: [f32; 3], gain: f32) -> bool {
+        gain > 0. && existing.iter().all(|c| *c <= 0.)
+    }
+
+    /// Keep the [`MAX_LAMPS`] most powerful lamps.
+    pub(crate) fn keep_brightest(lamps: &mut Vec<crate::lamp_lights::Lamp>) {
+        if lamps.len() > MAX_LAMPS {
+            lamps.sort_by(|a, b| b.power.total_cmp(&a.power));
+            lamps.truncate(MAX_LAMPS);
+        }
+    }
+
+    pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), CvarError> {
+        cvars.register(CvarDefinition::new(
+            CVAR,
+            1.0_f64,
+            CvarFlags::ARCHIVE,
+            "Emission-mapped surfaces light their surroundings in real-time lighting \
+             (r_dayNight 1): 0 off, 1 default, up to 4; applies when a map loads",
+        ))?;
+        let set = |value: &CvarValue| GAIN.store(gain_of(value).to_bits(), Ordering::Relaxed);
+        set(&cvars.get(CVAR).expect("registered").value);
+        cvars.on_change(CVAR, move |change| set(&change.current))
+    }
+}
+
 /// The `sjk-materialgen` tuning this client expects (`package::GENERATION` there):
-/// 2 tuned metal for reflection probes and marked polished shaders.
-pub(crate) const GENERATION: u32 = 2;
+/// 2 tuned metal for reflection probes and marked polished shaders, 3 added emission
+/// maps.
+pub(crate) const GENERATION: u32 = 3;
 /// Where the generator's manifest sits in its pk3.
 const MANIFEST: &str = "jkr-materialgen/manifest.json";
 /// The older-pack note was printed: once per run is enough.
@@ -216,7 +309,8 @@ pub(crate) fn report_pack_generation(vfs: &VirtualFileSystem) {
         crate::log::progress(format_args!(
             "material maps: the generated pack is generation {generation} of sjk-materialgen, \
              this client expects {GENERATION} (metal tuned for reflection probes, polished \
-             floors); regenerate it (docs/rendering.md, Generating material maps)"
+             floors, emission maps); regenerate it (docs/rendering.md, Generating material \
+             maps)"
         ));
     }
 }
@@ -305,12 +399,19 @@ pub(super) const FLAG_PARALLAX: u32 = 2;
 pub(super) const FLAG_SECONDARY: u32 = 4;
 /// Two-sided material: shade the side facing the viewer.
 pub(super) const FLAG_TWO_SIDED: u32 = 8;
+/// The stage has an emission map.
+pub(super) const FLAG_EMISSION: u32 = 16;
+/// The stage is drawn into the dynamic glow image only for its emission map (it has no
+/// authored `glow`): the glow program writes the emission, not the lit colour.
+pub(super) const FLAG_EMISSION_GLOW: u32 = 32;
 
 /// The maps of one stage, decoded on a load worker and uploaded with its bind group.
 #[derive(Clone, Debug)]
 pub(super) struct StageMaps {
     pub(super) normal: Option<MapImage>,
     pub(super) specular: Option<MapImage>,
+    /// The emission map (sRGB colour, uploaded as such).
+    pub(super) emission: Option<MapImage>,
     pub(super) params: Params,
     /// Clamp the maps like the diffuse texture.
     pub(super) clamp: bool,
@@ -323,6 +424,7 @@ pub(super) struct Counts {
     pub(super) normal: usize,
     pub(super) parallax: usize,
     pub(super) specular: usize,
+    pub(super) emission: usize,
 }
 
 impl Counts {
@@ -334,6 +436,7 @@ impl Counts {
                 normal: found.normal + usize::from(maps.normal.is_some()),
                 parallax: found.parallax + usize::from(flags & FLAG_PARALLAX != 0),
                 specular: found.specular + usize::from(maps.specular.is_some()),
+                emission: found.emission + usize::from(maps.emission.is_some()),
             }
         })
     }
@@ -363,7 +466,7 @@ pub(super) fn resolve(
         Bundle::Secondary => stage.secondary.as_ref().expect("collapsed stage"),
     };
     let found = images::find(vfs, shaders, settings, diffuse, implicit_name, cache)?;
-    if found.normal.is_none() && found.specular.is_none() {
+    if found.normal.is_none() && found.specular.is_none() && found.emission.is_none() {
         return Ok(None);
     }
     let mut flags = 0;
@@ -378,6 +481,12 @@ pub(super) fn resolve(
     }
     if two_sided {
         flags |= FLAG_TWO_SIDED;
+    }
+    if found.emission.is_some() {
+        flags |= FLAG_EMISSION;
+        if !stage.glow {
+            flags |= FLAG_EMISSION_GLOW;
+        }
     }
     Ok(Some(StageMaps {
         params: Params {
@@ -395,8 +504,30 @@ pub(super) fn resolve(
         },
         normal: found.normal,
         specular: found.specular.map(|(image, _)| image),
+        emission: found.emission,
         clamp: diffuse.clamp,
     }))
+}
+
+impl StageMaps {
+    /// The stage glows only because of its emission map ([`FLAG_EMISSION_GLOW`]).
+    pub(super) fn emission_glow(&self) -> bool {
+        self.params.control[0] as u32 & FLAG_EMISSION_GLOW != 0
+    }
+}
+
+/// Whether a shader already shows light of its own on top of its paint: a glowing,
+/// additive or destination-brightening (`GL_DST_COLOR GL_ONE`) texture stage. Such a
+/// shader takes no emission map, so its light is never shown twice; the generator
+/// skips the same shaders (`sjk-materialgen`'s `emission::shows_light`).
+pub(super) fn shows_light(definition: &sjk_shader::ShaderDefinition) -> bool {
+    definition.stages.iter().any(|stage| {
+        stage.texture_generator == TextureGenerator::Base
+            && (stage.glow
+                || stage.blend == StageBlend::Add
+                || matches!(&stage.blend, StageBlend::Custom { destination, .. }
+                    if destination.eq_ignore_ascii_case("gl_one")))
+    })
 }
 
 #[cfg(test)]
@@ -468,6 +599,7 @@ mod tests {
                 normal: true,
                 specular: true,
                 parallax: true,
+                emission: true,
                 reflections: reflections::DEFAULT_SIZE,
             }
         );
@@ -490,6 +622,7 @@ mod tests {
         let stage = |normal: bool, specular: bool, flags: u32| StageMaps {
             normal: normal.then(|| image.clone()),
             specular: specular.then(|| image.clone()),
+            emission: (flags & FLAG_EMISSION != 0).then(|| image.clone()),
             params: Params {
                 control: [flags as f32, 0.0, 0.0, 0.0],
                 ..Default::default()
@@ -500,16 +633,19 @@ mod tests {
             stage(true, true, FLAG_NORMAL | FLAG_PARALLAX),
             stage(true, false, FLAG_NORMAL),
             stage(false, true, 0),
+            stage(false, false, FLAG_EMISSION | FLAG_EMISSION_GLOW),
         ];
         assert_eq!(
             Counts::of(stages.iter()),
             Counts {
-                stages: 3,
+                stages: 4,
                 normal: 2,
                 parallax: 1,
                 specular: 2,
+                emission: 1,
             }
         );
+        assert!(stages[3].emission_glow() && !stages[0].emission_glow());
     }
 
     #[test]
@@ -520,8 +656,16 @@ mod tests {
             specular: true,
             parallax: true,
             reflections: 0,
+            emission: false,
         };
         assert_eq!(all.to_string(), "normal+specular+parallax");
+        let emission = Settings {
+            emission: true,
+            ..Default::default()
+        };
+        assert_eq!(emission.to_string(), "emission");
+        // Emission alone looks maps up but needs no frames or light directions.
+        assert!(emission.enabled() && !emission.shading());
         let reflecting = Settings {
             specular: true,
             reflections: 128,
@@ -575,6 +719,115 @@ mod tests {
         // Parallax latches its own value, not the effective one: a restart with it
         // on is what the change asks for, even while normal maps are off.
         assert!(restart_needed(LATCHED, 2, true));
+    }
+
+    #[test]
+    fn emission_maps_default_on_and_their_lights_follow_the_cvar() {
+        let mut cvars = CvarRegistry::new();
+        register(&mut cvars).expect("registers");
+        assert_eq!(
+            cvars.get("r_emissiveMaps").expect("registered").value,
+            CvarValue::Integer(1)
+        );
+        // SJK turns the rend2 controls on by default too.
+        for name in CONTROLS.iter().take(3) {
+            assert_eq!(
+                cvars.get(name).expect("registered").value,
+                CvarValue::Integer(1)
+            );
+        }
+        // The light multiplier is read when a map loads; it stays within 0..4.
+        assert_eq!(lights::gain_of(&CvarValue::Float(2.5)), 2.5);
+        assert_eq!(lights::gain_of(&CvarValue::Integer(0)), 0.0);
+        assert_eq!(lights::gain_of(&CvarValue::Float(9.0)), lights::MAX);
+        assert_eq!(lights::gain_of(&CvarValue::Float(-1.0)), 0.0);
+        assert_eq!(lights::gain_of(&CvarValue::Float(f64::NAN)), 1.0);
+        assert_eq!(lights::gain_of(&CvarValue::Text("x".into())), 1.0);
+        // Only a material without light of its own gets one from its emission map.
+        assert!(lights::applies([0.; 3], 1.));
+        assert!(!lights::applies([0.; 3], 0.));
+        assert!(!lights::applies([0.2, 0., 0.], 1.));
+        // Emission latches like the rend2 controls.
+        assert!(restart_needed(LATCHED | 8, 3, false));
+        assert!(!restart_needed(LATCHED | 8, 3, true));
+    }
+
+    #[test]
+    fn emission_map_lights_keep_the_brightest_up_to_the_cap() {
+        let lamp = |power: f32| crate::lamp_lights::Lamp {
+            position: glam::Vec3::ZERO,
+            normal: glam::Vec3::Z,
+            color: [1.; 3],
+            power,
+            radius: 64.,
+            axis_u: glam::Vec3::X,
+            axis_v: glam::Vec3::Y,
+        };
+        let mut few: Vec<_> = [3., 1., 2.].map(lamp).to_vec();
+        lights::keep_brightest(&mut few);
+        // Under the cap the extraction order stays.
+        assert_eq!(
+            few.iter().map(|l| l.power).collect::<Vec<_>>(),
+            [3., 1., 2.]
+        );
+        let mut many: Vec<_> = (0..lights::MAX_LAMPS + 10)
+            .map(|i| lamp(i as f32))
+            .collect();
+        lights::keep_brightest(&mut many);
+        assert_eq!(many.len(), lights::MAX_LAMPS);
+        assert_eq!(many[0].power, (lights::MAX_LAMPS + 9) as f32);
+        assert!(many.iter().all(|l| l.power >= 10.));
+    }
+
+    #[test]
+    fn emission_map_fields_keep_their_mean_and_mask() {
+        // Left half white, right half black: half the area emits.
+        let image = Arc::new(RgbaImage::from_fn(8, 8, |x, _| {
+            image::Rgba(if x < 4 { [255; 4] } else { [0, 0, 0, 255] })
+        }));
+        let stage =
+            &stages("textures/a {\n{ map $lightmap }\n{ map textures/a/b blendFunc filter }\n}")[0];
+        // The diffuse bundle, as `compile_material` picks it.
+        assert_eq!(diffuse_bundle(stage, 0), Some(Bundle::Primary));
+        let field = crate::world_materials::emission::Texture::from_map(
+            &stage.primary,
+            image,
+            lights::RADIANCE,
+        );
+        let mean = field.mean();
+        assert!((mean.x - lights::RADIANCE / 2.).abs() < 1e-3, "{mean}");
+        // Relative to the mean: twice it on the white half, nothing on the black half.
+        let lit = field.sample(glam::Vec2::new(0.25, 0.5), 0);
+        let dark = field.sample(glam::Vec2::new(0.75, 0.5), 0);
+        assert!((lit.x - 2.).abs() < 0.05 && dark.x < 0.05, "{lit} {dark}");
+    }
+
+    #[test]
+    fn shaders_that_show_light_take_no_emission_maps() {
+        let shows = |script: &str| {
+            shows_light(
+                &sjk_shader::parse_shader_script(script.as_bytes(), "scripts/t.shader")
+                    .expect("parses")[0],
+            )
+        };
+        assert!(!shows(
+            "t/a { q3map_surfacelight 900 { map $lightmap } { map t/a blendFunc filter } }"
+        ));
+        assert!(shows(
+            "t/a { { map $lightmap } { map t/a blendFunc filter } { map t/g blendFunc add } }"
+        ));
+        assert!(shows(
+            "t/a { { map $lightmap } { map t/a blendFunc filter } \
+             { map t/g blendFunc GL_DST_COLOR GL_ONE } }"
+        ));
+        assert!(shows(
+            "t/a { { map $lightmap } { map t/a blendFunc filter } { map t/g blendFunc blend glow } }"
+        ));
+        // Reflections are not light.
+        assert!(!shows(
+            "t/a { { map $lightmap } { map t/a blendFunc filter } \
+             { map t/env tcGen environment blendFunc add } }"
+        ));
     }
 
     #[test]

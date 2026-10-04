@@ -193,7 +193,7 @@ pub fn generate(
 
 /// Halve `source` with a 2×2 box while it is larger than `max_size` and both
 /// sides are even (which keeps a tiling texture tiling).
-fn cap_size(source: &RgbaImage, max_size: Option<u32>) -> RgbaImage {
+pub fn cap_size(source: &RgbaImage, max_size: Option<u32>) -> RgbaImage {
     let mut image = source.clone();
     let Some(max_size) = max_size else {
         return image;

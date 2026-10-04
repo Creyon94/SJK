@@ -563,6 +563,20 @@ about 0.01 ms at 1080p and 0.02–0.03 ms at 4K. No client was run: the look in
 play, the default key on real maps and the cost in a full frame are unverified.
 See [rendering](rendering.md#eye-adaptation).
 
+## Emission maps (SJK)
+
+SJK-only branch `personal/emission-maps` (2026-10-05, based on `bcb0b76`): `_e`
+emission maps on lightmapped world surfaces, added unlit with a dynamic-glow halo,
+and, in real-time lighting, lamps for surfaces with no light of their own (capped at
+1,024 per map); `sjk-materialgen` generation 3 writes them from shader, glow-image,
+name and texel evidence. See [Emission maps](rendering.md#emission-maps). Workspace
+build, tests and naga validation of the changed programs passed. A read-only survey of
+the owner's installation (215 readable maps, 5,356 candidate textures) wrote 118
+emission maps, refused 31 keyword or surface-light textures without luminous texels
+and left 619 textures alone whose shaders already glow; on the 23 retail MP maps alone
+it wrote 8 (neon signs, Bespin windows). No client was run: appearance, halo, the
+light added in real-time lighting, load time and frame cost are unverified.
+
 ## Shader remaps (SJK)
 
 SJK-only branch `personal/shader-remaps` (2026-10-05, based on `bcb0b76`) applies
@@ -616,7 +630,8 @@ run: the look and frame cost of the new defaults are unverified.
 - Graphical client with browser, menus/settings, HUD, console, audio, screenshots,
   demos and a Create game flow.
 - wgpu BSP renderer with optional modern lighting and post processing.
-- Offline generator of local rend2-convention material maps (`sjk-materialgen`).
+- Offline generator of local rend2-convention material maps and SJK emission maps
+  (`sjk-materialgen`).
 - Dedicated-server game integration, console/configuration, stock game-type
   options, map entities, bots/NPCs and script integration.
 
