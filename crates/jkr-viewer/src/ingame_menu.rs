@@ -124,7 +124,7 @@ impl InGameMenu {
             active_page: Page::Main,
             siege: siege::State::default(),
             shot: shot::Panel::default(),
-            style: MenuStyle::Modern,
+            style: MenuStyle::default(),
             art: ArtSet::default(),
         }
     }

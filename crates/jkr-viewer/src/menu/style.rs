@@ -2,6 +2,7 @@
 //!
 //! `modern` is the native hero layout ([`super::main_view`]); `classic`
 //! follows the original Jedi Academy multiplayer menus ([`super::classic`]).
+//! SJK starts on `classic`; JKR's default is `modern`.
 //! The in-game menu follows the same setting ([`crate::ingame_menu`]).
 //! Screens without a classic version yet use their modern layout in both.
 
@@ -15,25 +16,26 @@ pub(crate) const CVAR: &str = "ui_menuStyle";
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) enum MenuStyle {
     /// The native layout: one column of entries over the live map.
-    #[default]
     Modern,
     /// Close to the retail menus in layout and flow, for players who know
-    /// where things were in the original game.
+    /// where things were in the original game. SJK's default.
+    #[default]
     Classic,
 }
 
 impl MenuStyle {
-    /// Values the settings screen offers, in [`MenuStyle`] order; the first
-    /// is the default.
+    /// Values the settings screen offers, in [`MenuStyle`] order.
     pub(crate) const NAMES: [&'static str; 2] = ["modern", "classic"];
+    /// The `ui_menuStyle` value of the default style.
+    pub(crate) const DEFAULT_NAME: &'static str = Self::NAMES[1];
 
-    /// Read the cvar value: `classic` (any case) or `1` selects the classic
+    /// Read the cvar value: `modern` (any case) or `0` selects the modern
     /// style; anything else, including a missing or mistyped value, the
-    /// modern one, so a typo never leaves the player without a menu.
+    /// default classic one, so a typo never leaves the player without a menu.
     pub(crate) fn from_cvar(value: Option<&str>) -> Self {
         match value.map(str::trim) {
-            Some(text) if text.eq_ignore_ascii_case("classic") || text == "1" => Self::Classic,
-            _ => Self::Modern,
+            Some(text) if text.eq_ignore_ascii_case("modern") || text == "0" => Self::Modern,
+            _ => Self::Classic,
         }
     }
 }
@@ -121,11 +123,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn classic_needs_an_explicit_value() {
-        assert_eq!(MenuStyle::from_cvar(None), MenuStyle::Modern);
-        assert_eq!(MenuStyle::from_cvar(Some("")), MenuStyle::Modern);
+    fn modern_needs_an_explicit_value() {
+        assert_eq!(MenuStyle::from_cvar(None), MenuStyle::Classic);
+        assert_eq!(MenuStyle::from_cvar(Some("")), MenuStyle::Classic);
         assert_eq!(MenuStyle::from_cvar(Some("modern")), MenuStyle::Modern);
-        assert_eq!(MenuStyle::from_cvar(Some("clasic")), MenuStyle::Modern);
+        assert_eq!(MenuStyle::from_cvar(Some(" Modern ")), MenuStyle::Modern);
+        assert_eq!(MenuStyle::from_cvar(Some("modrn")), MenuStyle::Classic);
         assert_eq!(MenuStyle::from_cvar(Some("0")), MenuStyle::Modern);
         assert_eq!(MenuStyle::from_cvar(Some("classic")), MenuStyle::Classic);
         assert_eq!(MenuStyle::from_cvar(Some(" Classic ")), MenuStyle::Classic);
@@ -136,6 +139,9 @@ mod tests {
     fn offered_names_parse_in_order() {
         let parsed = MenuStyle::NAMES.map(|name| MenuStyle::from_cvar(Some(name)));
         assert_eq!(parsed, [MenuStyle::Modern, MenuStyle::Classic]);
-        assert_eq!(parsed[0], MenuStyle::default());
+        assert_eq!(
+            MenuStyle::from_cvar(Some(MenuStyle::DEFAULT_NAME)),
+            MenuStyle::default()
+        );
     }
 }

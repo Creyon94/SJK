@@ -180,7 +180,7 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), jkr_s
         ),
         CvarDefinition::new(
             crate::menu::style::CVAR,
-            crate::menu::style::MenuStyle::NAMES[0],
+            crate::menu::style::MenuStyle::DEFAULT_NAME,
             archive,
             "Main menu layout: modern, or classic (after the original Jedi Academy menus)",
         ),
