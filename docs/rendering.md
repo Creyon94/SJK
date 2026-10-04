@@ -93,7 +93,7 @@ work without reducing source count, texture resolution or lighting quality.
 | --- | --- |
 | `r_dayNight` | Map-relative sun/sky atmosphere; default 1, restart required |
 | `r_liveLighting` | Lighting tier; default 0. Tier 1 retains world shadow casters between frames; tier 0 also uses available baked indirect light. Applies at map load |
-| `r_dayHour` | Solar hour, updated live when day/night resources are installed |
+| `r_dayHour` | Solar hour; default 12 (noon, SJK); updated live when day/night resources are installed |
 | `r_dayMinutes` | Minutes per simulated day; 0 holds the hour |
 | `r_indirectBoost` | Live sky/bounce illumination multiplier, 0–4; default 1. Does not amplify direct lights or add bounce iterations |
 | `r_ambientFill` | Live material-lighting floor in dark areas, 0–0.2; default 0.025. Fades as existing illumination increases |
@@ -104,10 +104,10 @@ work without reducing source count, texture resolution or lighting quality.
 | `r_autoExposureMin`, `r_autoExposureMax` | Adaptation range in EV around the base: -2–0 (default -0.5) and 0–2 (default 1). Live |
 | `r_autoExposureToBright`, `r_autoExposureToDark` | Seconds to settle when the view gets brighter (default 0.4) or darker (default 2.5); 0 is instant. Live, console only |
 | `r_autoExposureKey` | Metered scene luminance shown at the base exposure, 0.03–0.8, default 0.18; higher is brighter. Live, console only |
-| `r_dustMotes` | Dust in godrays, 0 (off, default) to 1; live; Game settings tab; requires `r_volumetrics` |
-| `r_normalMapping` | Normal maps on lightmapped world surfaces (rend2 convention); default 0, restart required |
-| `r_specularMapping` | Specular, roughness and metalness maps on the same surfaces; default 0, restart required |
-| `r_parallaxMapping` | Parallax from the height in `_nh`/`normalHeightMap` images; needs `r_normalMapping`; default 0, restart required |
+| `r_dustMotes` | Dust in godrays, 0 (off) to 1 (default, SJK); live; renderer IMAGE tab; requires `r_volumetrics` |
+| `r_normalMapping` | Normal maps on lightmapped world surfaces (rend2 convention); default 1 (SJK; rend2 and JKR 0), restart required |
+| `r_specularMapping` | Specular, roughness and metalness maps on the same surfaces; default 1 (SJK; rend2 and JKR 0), restart required |
+| `r_parallaxMapping` | Parallax from the height in `_nh`/`normalHeightMap` images; needs `r_normalMapping`; default 1 (SJK; rend2 and JKR 0), restart required |
 | `r_materialMapsDebug` | Material-mapped surfaces only: 1 mapped normal as colour, 2 tint by maps found, 3 normal-map relief, 4 reflection probes alone, 5 without reflection probes; default 0, live, not archived |
 | `r_normalMapStrength` | Multiplier on the normal maps' relief (their x/y slope, after rend2's `normalScale`), 0–3.98 in steps of 1/64; default 1, live, archived. Material-mapped surfaces only; the floor mirrors' lookup keeps the authored relief |
 | `r_cubeMapping` | Reflection probes on specular-mapped surfaces (rend2's name and meaning); default 1, needs `r_specularMapping`, restart required |
@@ -915,7 +915,9 @@ then `_n` for normals and `_specGloss`, ioquake3's `_s`, `_rmo` then `_orm` for
 specular, as in rend2's `CollapseStagesToGLSL`. ioquake3's typed
 `stage normalMap` stages are not supported. With the cvars off, the parser
 records the keywords and nothing else changes: no image lookup, layout,
-buffer or pipeline is created.
+buffer or pipeline is created. SJK turns the cvars on by default; without a
+pack (or keywords) a map load only checks the candidate names in the file
+index, and no layout, buffer, pipeline or reflection probe is created.
 
 Maps apply to lightmapped world surfaces (static and inline movers) whose
 lightmap and diffuse stages collapse into one opaque pass. On the retail
@@ -1635,25 +1637,33 @@ model is not drawn, as in EternalJK.
 ## Default visual profile
 
 New profiles use the owner-approved rendering setup: day/night enabled at a fixed
-11:00, volumetrics quality 3, actor/world sun shadows at 2048 resolution and
+noon (`r_dayHour 12`), volumetrics quality 3, actor/world sun shadows at 2048 resolution and
 16 filter taps, and lighting tier 0 (available baked indirect light under the
 live sun). Shadow gap closure and screen-space contact shadows are off.
 The scene uses HDR with exposure 1 and SJK's eye adaptation (-0.5 to +1 EV), FXAA,
 SSAO at strength 4, trilinear mipmapping
-and 16× anisotropy where supported. Bloom and the optional LDR tone curve are off.
+and 16× anisotropy where supported. Bloom is on (`r_sceneBloom 1`); the optional
+LDR tone curve is off. Sunbeam dust is on at full density (`r_dustMotes 1`) and
+shows only inside the godrays of `r_volumetrics`.
 Dynamic glow is on with rd-vulkan's blur (SJK; stock defaults it off).
 Soft particles, per-pixel model diffuse lighting and full rendering resolution
-remain enabled. Material maps stay off; reflection probes (`r_cubeMapping 1`, 128²)
-are on but only take effect once `r_specularMapping` is enabled and a map has
-specular maps. These are ordinary cvar defaults, not a config imported at launch.
+remain enabled. Material maps (`r_normalMapping`, `r_specularMapping`,
+`r_parallaxMapping`) and reflection probes (`r_cubeMapping 1`, 128²) are on, but
+take effect only where a pack such as the [generated one](#generating-material-maps)
+supplies maps; without one nothing is drawn differently or created. Noon, bloom,
+dust and material maps are SJK's defaults (Sol's own settings); JKR keeps 11:00 and
+the rest off. These are ordinary cvar defaults, not a config imported at launch.
 
-Saved values take precedence, including explicitly disabled effects. Existing
+Saved values take precedence, including explicitly disabled effects. The client
+saves every archived setting, so a `config.cfg` written before a default changed
+keeps the old value (for example `r_dayHour 11` or `r_sceneBloom 0`); a fresh
+profile is needed to see the new defaults. Existing
 profiles are not silently migrated (the one exception is the old `com_maxfps`
 default, see [client](client.md)). Resolution/window mode, input and keyboard
 layout, FPS caps, audio levels, HUD/crosshair preferences, player identity,
 server history, credentials and filesystem locations retain their independent
-defaults. Stale MSAA/light-scale entries and the parked dust experiment are not
-part of this profile; the active antialiasing path is FXAA.
+defaults. Stale MSAA/light-scale entries are not part of this profile; the active
+antialiasing path is FXAA.
 
 External release/Vulkan validation on RX 9060 XT checks 36 graphics values with
 an empty config, an explicit equivalent config and an existing override config.

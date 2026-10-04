@@ -1,4 +1,5 @@
-//! Optional floating dust motes around the camera (`r_dustMotes`), presentation only.
+//! Floating dust motes around the camera (`r_dustMotes`, on by default in SJK),
+//! presentation only.
 //!
 //! Every mote is generated in `dust_motes.wgsl` from its
 //! instance index and the frame time, so the effect owns no vertex or instance
@@ -35,16 +36,25 @@ pub(crate) const PEAK_ALPHA: f32 = 0.35;
 /// Opacity kept at the lowest nonzero intensity, so sparse motes stay visible.
 const ALPHA_FLOOR: f32 = 0.4;
 
+/// SJK's default intensity: full (Sol's choice). Dust still needs a godray volume.
+const DEFAULT_INTENSITY: f32 = 1.0;
+
 /// Live intensity shared by the console and every installed world.
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub(crate) struct Settings(Arc<AtomicU32>);
 
+impl Default for Settings {
+    fn default() -> Self {
+        Self(Arc::new(AtomicU32::new(DEFAULT_INTENSITY.to_bits())))
+    }
+}
+
 impl Settings {
-    /// Register the archived cvar (default 0, off) and follow its changes.
+    /// Register the archived cvar (default 1, full) and follow its changes.
     pub(crate) fn bind(cvars: &mut CvarRegistry) -> Result<Self, CvarError> {
         cvars.register(CvarDefinition::new(
             CVAR,
-            0.0_f64,
+            f64::from(DEFAULT_INTENSITY),
             CvarFlags::ARCHIVE,
             "Dust in godrays, 0 off to 1; requires r_volumetrics, applies immediately",
         ))?;

@@ -4,10 +4,13 @@
 //! keywords or found next to the diffuse image (`_nh`, `_n`, `_specGloss`,
 //! `_rmo`, `_orm`), so existing rend2 texture packs apply unchanged.
 //!
-//! Everything is opt-in (`r_normalMapping`, `r_specularMapping`,
-//! `r_parallaxMapping`, sampled at startup like rend2's latched cvars). Off, no
-//! image is looked up, no layout, buffer or program exists and every stage
-//! compiles exactly as before. On, a stage with maps compiles to its own
+//! The controls are `r_normalMapping`, `r_specularMapping` and
+//! `r_parallaxMapping`, sampled at startup like rend2's latched cvars. SJK turns
+//! them on by default (Sol's choice; rend2 and JKR default them off); they act only
+//! where a pack supplies maps. Off, no image is looked up, no layout, buffer or
+//! program exists and every stage compiles exactly as before. On without maps,
+//! a map load only looks the map names up in the file index; no layout, buffer or
+//! program is created either. On, a stage with maps compiles to its own
 //! pipeline key ([`PIPELINE_BIT`]) whose program is the ordinary stage program
 //! plus the material hooks (`material_map_program.rs`); stages without maps keep
 //! their pipelines, bind groups and stage-table records.
@@ -59,7 +62,11 @@ const LATCHED: u8 = 0x80;
 /// applied, not changes that need a restart.
 static LATCH: AtomicU8 = AtomicU8::new(0);
 
-/// Startup policy, rend2's names and default-off.
+/// Whether a material-map control is on when nothing sets it: on in SJK.
+const DEFAULT_ON: bool = true;
+
+/// Startup policy under rend2's names. [`Settings::default`] is everything off; the
+/// controls' defaults are [`DEFAULT_ON`].
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct Settings {
     /// `r_normalMapping`: normal maps (and their height, for parallax).
@@ -77,7 +84,11 @@ impl Settings {
     /// Read the registered values once, at context creation, and remember them so a
     /// later change can tell whether it needs a restart.
     pub(crate) fn sample(console: Option<&crate::console::ViewerConsole>) -> Self {
-        let on = |name| console.and_then(|c| c.integer_cvar(name)).unwrap_or(0) != 0;
+        let on = |name| {
+            console
+                .and_then(|c| c.integer_cvar(name))
+                .map_or(DEFAULT_ON, |value| value != 0)
+        };
         let [normal, specular, parallax] = CONTROLS.map(on);
         if console.is_some() {
             let bits = [normal, specular, parallax]
@@ -155,7 +166,12 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), CvarError> {
     .enumerate()
     {
         debug_assert_eq!(name, CONTROLS[index]);
-        cvars.register(CvarDefinition::new(name, 0_i64, CvarFlags::ARCHIVE, help))?;
+        cvars.register(CvarDefinition::new(
+            name,
+            i64::from(DEFAULT_ON),
+            CvarFlags::ARCHIVE,
+            help,
+        ))?;
         cvars.on_change(name, move |change| {
             let on = matches!(change.current, CvarValue::Integer(value) if value != 0);
             if restart_needed(LATCH.load(Ordering::Relaxed), index, on) {
@@ -445,9 +461,17 @@ mod tests {
 
     #[test]
     fn settings_need_normal_maps_for_parallax() {
-        let settings = Settings::sample(None);
-        assert_eq!(settings, Settings::default());
-        assert!(!settings.enabled());
+        // Unset controls take SJK's defaults: every kind on, probes at their default size.
+        assert_eq!(
+            Settings::sample(None),
+            Settings {
+                normal: true,
+                specular: true,
+                parallax: true,
+                reflections: reflections::DEFAULT_SIZE,
+            }
+        );
+        assert!(!Settings::default().enabled());
         assert!(
             Settings {
                 specular: true,

@@ -838,4 +838,40 @@ mod tests {
         assert_eq!(step_integer(80, 1, 80, 130, 5), 85);
         assert_eq!(step_integer(80, -1, 80, 130, 5), 80);
     }
+
+    #[test]
+    fn a_fresh_profile_takes_sols_visual_defaults_and_a_saved_one_keeps_its_values() {
+        use crate::world_materials::shadows::day;
+        let (_directory, console) = console();
+        for cvar in [
+            "r_sceneBloom",
+            "r_normalMapping",
+            "r_specularMapping",
+            "r_parallaxMapping",
+        ] {
+            assert_eq!(console.integer_cvar(cvar), Some(1), "{cvar}");
+        }
+        assert_eq!(console.float_cvar("r_dayHour"), Some(12.0));
+        assert_eq!(console.float_cvar(crate::dust_motes::CVAR), Some(1.0));
+        // The live state the renderer reads starts from the same defaults.
+        assert!(console.post_color.policy().bloom);
+        assert_eq!(console.dust_motes.intensity(), 1.0);
+        assert_eq!(day::Settings::sample(Some(&console)).hour, 12.0);
+        assert_eq!(day::live::Clock::default().values()[0], 12.0);
+
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("config.cfg");
+        std::fs::write(
+            &path,
+            "seta r_dayHour \"11\"\nseta r_sceneBloom \"0\"\nseta r_dustMotes \"0\"\n\
+             seta r_normalMapping \"0\"\n",
+        )
+        .unwrap();
+        let console = ViewerConsole::new(path).unwrap();
+        assert_eq!(console.float_cvar("r_dayHour"), Some(11.0));
+        assert_eq!(console.integer_cvar("r_sceneBloom"), Some(0));
+        assert!(!console.post_color.policy().bloom);
+        assert_eq!(console.dust_motes.intensity(), 0.0);
+        assert_eq!(console.integer_cvar("r_normalMapping"), Some(0));
+    }
 }

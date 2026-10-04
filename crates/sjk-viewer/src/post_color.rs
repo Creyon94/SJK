@@ -39,7 +39,8 @@ impl Default for Settings {
             Arc::new([
                 AtomicU32::new(1.0_f32.to_bits()),
                 AtomicU32::new(0),
-                AtomicU32::new(0),
+                // Bloom, on like the registered `r_sceneBloom` default.
+                AtomicU32::new(1),
             ]),
             super::glow::Settings::default(),
         )
@@ -55,11 +56,11 @@ impl Settings {
             CvarFlags::ARCHIVE,
             "Optional LDR filmic scene curve (0 off, 1 on); applies immediately",
         ))?;
-        // The default look keeps authored glow without adding scene-wide bloom.
-        // The optional pass remains available through r_sceneBloom 1.
+        // SJK's default look adds the conservative scene bloom (Sol's choice); r_sceneBloom 0
+        // keeps authored glow alone.
         cvars.register(CvarDefinition::new(
             "r_sceneBloom",
-            0_i64,
+            1_i64,
             CvarFlags::ARCHIVE,
             "Scene bloom (0 off, 1 on); applies immediately, never blooms HUD",
         ))?;
