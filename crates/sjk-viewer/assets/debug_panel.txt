@@ -487,7 +487,7 @@ change: Programs sjk/sjk-server, crates sjk-*; settings in GameData/SJK, importe
 test: Window title reads Sol JK; the main menu's bottom-right line reads SJK 0.1.0 alpha.
 test: Settings, Play, Host and Player screens show SJK / ... headers; Esc menu: Quit Sol JK.
 test: After the update: GameData/SJK exists with your settings, binds and debug_panel ticks.
-test: play builds as Compiling sjk-...; play <JKR PR number> still builds jkr-viewer.
+test: play builds as Compiling sjk-...; play <JKR PR number> still builds and runs JKR's own client.
 
 [slider-entry-prefs]
 status: personal

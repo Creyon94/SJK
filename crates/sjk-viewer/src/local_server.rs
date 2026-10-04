@@ -20,7 +20,7 @@ use std::time::{Duration, Instant};
 /// File name of the server binary next to the client.
 const SERVER_BINARY: &str = "sjk-server";
 /// JKR's name for the same server, tried after SJK's beside the client.
-const JKR_SERVER_BINARY: &str = "sjk-dedicated";
+const JKR_SERVER_BINARY: &str = "jkr-dedicated";
 /// Environment variable naming the server binary explicitly.
 pub(crate) const SERVER_BINARY_ENV: &str = "JKA_DEDICATED";
 /// JKR's name for [`SERVER_BINARY_ENV`], still read when that is unset.

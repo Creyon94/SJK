@@ -32,7 +32,10 @@ _NAMES = "|".join(c.replace("-", "[-_]") for c in sorted(CRATES, key=len, revers
 # jkr-bsp, jkr_bsp, crates/jkr-bsp; not jkr_server.cfg (the server's saved settings) and
 # not inside a longer identifier (foo_jkr_bsp).
 CRATE_NAME = re.compile(rb"(?<![\w-])jkr([-_](?:" + _NAMES.encode() + rb"))(?!\.cfg)\b")
-RULES_VERSION = 3 # bump when the rules change; every translation must use the same rules
+RULES_VERSION = 4  # bump when the rules change; every translation must use the same rules
+# Text that looks like a crate name but names one of JKR's own programs: kept as written.
+KEEP = [b'JKR_SERVER_BINARY: &str = "jkr-dedicated"',
+        b"jkr-materialgen/manifest.json"]  # the path inside existing material packs
 
 # Files whose ("jkr_old", "new") pairs are SJK's renamed settings and commands. They keep
 # the old names (as aliases), so the setting rule skips them; the crate rule does not.
@@ -84,8 +87,16 @@ def setting_rule(pairs):
 
 
 def rename_text(data, settings=None):
+    kept = {}
+    for i, text in enumerate(KEEP):
+        if text in data:
+            kept[b"\0KEEP%d\0" % i] = text
+            data = data.replace(text, b"\0KEEP%d\0" % i)
     data = CRATE_NAME.sub(rb"sjk\1", data)
-    return settings(data) if settings else data
+    data = settings(data) if settings else data
+    for marker, text in kept.items():
+        data = data.replace(marker, text)
+    return data
 
 
 # --- Cargo.lock: cargo sorts packages by name, so renamed ones must move ----------------
