@@ -52,8 +52,10 @@ controls, HUD, audio, screenshots and demo playback.
     changes in this build and how to test them.
 - **Names.** The programs are `sjk` (the game) and `sjk-server` (the dedicated
   server). Settings have neutral engine names (`r_*`, `cg_*`), and JKR's `jkr_*`
-  names still work as aliases. The source crates keep JKR's names (`jkr-viewer`,
-  `jkr-dedicated`, `jkr-*`), which keeps SJK easy to merge with JKR. The client's
+  names still work as aliases. The source crates are named for SJK too (`sjk-viewer`,
+  `sjk-dedicated`, `sjk-*`); JKR's changes are merged with
+  [scripts/sjk_names.py](scripts/sjk_names.py), which applies the same names to
+  them. The client's
   own folder is `GameData/SJK/`; JKR's `GameData/jkr/` is imported into it once,
   so settings carry over.
 
@@ -78,7 +80,7 @@ On Linux, development packages for ALSA, Wayland and XKB are required, along
 with working Vulkan or OpenGL graphics drivers.
 
 ```sh
-cargo build --release -p jkr-viewer -p jkr-dedicated
+cargo build --release -p sjk-viewer -p sjk-dedicated
 ```
 
 This builds `target/release/sjk` and `target/release/sjk-server` (`.exe` on
@@ -141,12 +143,12 @@ free-for-all match. UDP port 29070 must be reachable for remote players to join.
 
 All source is under `crates/`:
 
-- `jkr-viewer`: graphical client and platform integration (builds `sjk`).
-- `jkr-dedicated`: dedicated server and game integration (builds `sjk-server`).
-- `jkr-game-jka`: shared Jedi Academy game rules and movement.
-- `jkr-client`, `jkr-network`, `jkr-protocol`: client state and legacy networking.
-- `jkr-bsp`, `jkr-scene`, `jkr-runtime`: maps, scene data and world state.
-- `jkr-materialgen`: offline generator of local material maps from installed
+- `sjk-viewer`: graphical client and platform integration (builds `sjk`).
+- `sjk-dedicated`: dedicated server and game integration (builds `sjk-server`).
+- `sjk-game-jka`: shared Jedi Academy game rules and movement.
+- `sjk-client`, `sjk-network`, `sjk-protocol`: client state and legacy networking.
+- `sjk-bsp`, `sjk-scene`, `sjk-runtime`: maps, scene data and world state.
+- `sjk-materialgen`: offline generator of local material maps from installed
   textures (see [rendering](docs/rendering.md#generating-material-maps)).
 - Remaining crates provide formats, content loading, collision, navigation,
   scripting, audio, UI and the console.
@@ -175,7 +177,7 @@ source.
 
 OpenJK and TaystJK are compatibility references for Jedi Academy behavior. The
 bundled Inter fonts retain their
-[license](crates/jkr-viewer/assets/fonts/LICENSE.txt). Other dependencies retain
+[license](crates/sjk-viewer/assets/fonts/LICENSE.txt). Other dependencies retain
 their respective licenses. The code license does not grant rights to retail
 game assets or third-party PK3 content.
 

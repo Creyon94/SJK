@@ -27,14 +27,37 @@ them in place: the upstream merge adds the same text and resolves cleanly.
   release ZIPs, the `GameData/SJK/` folder and messages.
 - New settings get neutral engine names (`r_*`, `cg_*`, `cl_*`, ...), never a
   `jkr_` or `sjk_` prefix, and must not collide with EternalJK or rend2 settings.
-  JKR's old `jkr_*` names are aliases in
-  [cvar_renames.rs](../crates/jkr-viewer/src/cvar_renames.rs).
-- Crates, modules and source identifiers keep JKR's names (`jkr-viewer`,
-  `jkr-*`), so JKR's changes keep merging cleanly.
+  JKR's old `jkr_*` names are aliases in the client's
+  [cvar_renames.rs](../crates/sjk-viewer/src/cvar_renames.rs) and the server's
+  [cvars/mod.rs](../crates/sjk-dedicated/src/cvars/mod.rs) (`RENAMED`).
+- The crates are SJK's too: `crates/sjk-*`, packages `sjk-*` (`cargo build -p
+  sjk-viewer -p sjk-dedicated`) and Rust paths `sjk_*`. JKR's code uses `jkr-*` for
+  the same crates; [sjk_names.py](../scripts/sjk_names.py) holds the mapping.
+- What stays JKR's on purpose: the old names inside the alias tables, the
+  `GameData/jkr` import, `JKR_*` environment variables, the dedicated server's
+  `jkr_server.cfg`, and "JKR" meaning Bishop's project.
 - Public text ([README](../README.md), [CREDITS.md](../CREDITS.md), the site)
   names Sol and Bishop rather than using pronouns, and credits JKR's work to
   Bishop and its contributors. Keep CREDITS.md current when SJK gains notable
   work.
+
+## Merging from JKR
+
+SJK's names differ from JKR's, so JKR's changes are merged with
+[sjk_names.py](../scripts/sjk_names.py), never with a plain `git merge`:
+
+```sh
+python scripts/sjk_names.py merge upstream/main     # or a JKR pull request branch
+python scripts/sjk_names.py continue                # after resolving any conflicts
+```
+
+It translates the JKR commit and the merge base to SJK's names with the same rules
+that renamed SJK, merges three ways and records the JKR commit as the merge's
+second parent. A JKR change therefore conflicts only where it would have without
+the renames. Renaming another setting means adding its pair to an alias table and
+running `python scripts/sjk_names.py apply` on SJK in the same change, so SJK and
+every later translation agree. Check `cargo build --locked` after a merge that
+changed dependencies.
 
 ## Automation
 
@@ -51,6 +74,6 @@ name and notes say "Alpha" instead.
 ## Debug panel
 
 The `debug_panel` console command lists SJK's changes and how to test them, from
-[debug_panel.txt](../crates/jkr-viewer/assets/debug_panel.txt). It is personal to
+[debug_panel.txt](../crates/sjk-viewer/assets/debug_panel.txt). It is personal to
 SJK and never part of a JKR pull request. Update it in the merge that brings a
 change into SJK's `main`.

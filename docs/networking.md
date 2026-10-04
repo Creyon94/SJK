@@ -6,19 +6,19 @@ not authorize a wire change.
 
 ## Ownership
 
-- [jkr-protocol](../crates/jkr-protocol/src/lib.rs) owns message encoding/decoding,
+- [sjk-protocol](../crates/sjk-protocol/src/lib.rs) owns message encoding/decoding,
   gamestates, snapshots and legacy field representations. It has no sockets.
-- [jkr-network](../crates/jkr-network/src/lib.rs) owns transport, discovery and the
+- [sjk-network](../crates/sjk-network/src/lib.rs) owns transport, discovery and the
   legacy endpoints. The server endpoint calls a `LegacyGameHost` interface.
-- [jkr-client](../crates/jkr-client/src/lib.rs) owns live client session state,
+- [sjk-client](../crates/sjk-client/src/lib.rs) owns live client session state,
   reliable commands, snapshot history and client-side integration.
-- [jkr-game-jka](../crates/jkr-game-jka/src/lib.rs) owns game behavior shared by
+- [sjk-game-jka](../crates/sjk-game-jka/src/lib.rs) owns game behavior shared by
   prediction and server simulation.
-- [jkr-dedicated's bridge](../crates/jkr-dedicated/src/bridge.rs) connects those
-  rules to native server storage and legacy replication. `jkr-server` itself
+- [sjk-dedicated's bridge](../crates/sjk-dedicated/src/bridge.rs) connects those
+  rules to native server storage and legacy replication. `sjk-server` itself
   owns worlds/entities, not the JKA game loop or network format.
 
-Client [compatibility profiles](../crates/jkr-client/src/compat_profile.rs)
+Client [compatibility profiles](../crates/sjk-client/src/compat_profile.rs)
 explicitly distinguish BaseJKA, JA+, TaystJK/jaPRO and unknown modules from
 serverinfo, or before connecting from a `getinfo` reply's `game` directory.
 Profile detection and implemented adapter behavior are not a promise that every
@@ -43,9 +43,9 @@ plugin's `serverconfig` and `pluginDisable` commands are client commands (see
 ### Server-dialect movement rules
 
 Prediction follows rules the server advertises in `CS_SERVERINFO`, read by
-[pmove_rules.rs](../crates/jkr-game-jka/src/pmove_rules.rs): the roll fixes of
+[pmove_rules.rs](../crates/sjk-game-jka/src/pmove_rules.rs): the roll fixes of
 JA+ (`jp_cinfo`) and TaystJK/jaPRO, and `g_debugMelee`
-([pmove_debug_melee.rs](../crates/jkr-game-jka/src/pmove_debug_melee.rs)). Stock
+([pmove_debug_melee.rs](../crates/sjk-game-jka/src/pmove_debug_melee.rs)). Stock
 `codemp` turns on the melee kicks, the grapple and holding a grabbed wall at any
 nonzero `g_debugMelee`. JA+ splits the levels (1: melee attacks, 2: also the wall
 hold), never turns a player holding a wall to face it, and kicks forward on an
@@ -57,14 +57,14 @@ pass through each other. A JA+ 2.4 server leaves part of that to client-plugin
 users, sending them a dueller as a solid player box flagged with `bolt1`, so on
 those profiles prediction skips duelling players for a bystander and every player
 or NPC but the opponent for a dueller
-([duel_isolation.rs](../crates/jkr-client/src/duel_isolation.rs), applied where
-[prediction_movers.rs](../crates/jkr-viewer/src/prediction_movers.rs) builds the
+([duel_isolation.rs](../crates/sjk-client/src/duel_isolation.rs), applied where
+[prediction_movers.rs](../crates/sjk-viewer/src/prediction_movers.rs) builds the
 entity solids). Stock and unknown servers keep duellers solid.
 
 ## JA+ grapple hook
 
 On JA+ servers the client predicts the grapple hook (`+button12`) with the rules
-in [pmove_grapple.rs](../crates/jkr-game-jka/src/pmove_grapple.rs); other
+in [pmove_grapple.rs](../crates/sjk-game-jka/src/pmove_grapple.rs); other
 servers, JKR's own included, get no hook movement. The JA+ game fires the hook,
 stores its anchor in `lastHitLoc` and flags the pulled player with `PMF_GRAPPLE`
 (pm_flags bit 15). Each move then aims 16 units short of the anchor along the
@@ -83,7 +83,7 @@ taking hold and letting go, arrive with the next snapshot and cannot be predicte
 ### JA+ movement rules
 
 On a JA+ server, prediction follows the rules
-[pmove_japlus.rs](../crates/jkr-game-jka/src/pmove_japlus.rs) reads from
+[pmove_japlus.rs](../crates/sjk-game-jka/src/pmove_japlus.rs) reads from
 `CS_SERVERINFO`: the dialect and its `jp_cinfo` bits. JA+ is closed source; the
 client side follows EternalJK's reimplementation of the JA+ client plugin and,
 where that and a JA+ 2.4 server disagree, the server as replays observed it.

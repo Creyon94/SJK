@@ -42,7 +42,7 @@ not a Windows GPU or gameplay certification.
 The script can also package an existing clean build locally:
 
 ```sh
-cargo build --locked --release --target x86_64-unknown-linux-gnu -p jkr-viewer -p jkr-dedicated
+cargo build --locked --release --target x86_64-unknown-linux-gnu -p sjk-viewer -p sjk-dedicated
 python3 scripts/package_client.py --source . --target x86_64-unknown-linux-gnu --platform linux-x64 --output target/packages --smoke-check
 ```
 
@@ -60,5 +60,5 @@ archives are named `SJK-<version>-<platform>.zip` (with
 bundled instructions point at SJK's source; `--name` also names the bundled
 `SJK-LICENSE.txt`, `SJK-licenses/` and `SJK-build.json`. The programs packaged are
 the `[[bin]]` names the crates declare (`sjk` and `sjk-server` in SJK,
-`jkr-viewer` and `jkr-dedicated` in JKR; `--client-bin`/`--server-bin` override
+`sjk-viewer` and `sjk-dedicated` in JKR; `--client-bin`/`--server-bin` override
 them). Without those options the script produces JKR's packages unchanged.

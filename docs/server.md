@@ -1,6 +1,6 @@
 # Dedicated server
 
-`jkr-dedicated` is JKR's native headless server. It does not launch another engine.
+`sjk-dedicated` is JKR's native headless server. It does not launch another engine.
 In SJK the program is named `sjk-server`; the commands below are the same.
 Build it alongside the client as described in [development.md](development.md).
 
@@ -9,7 +9,7 @@ Build it alongside the client as described in [development.md](development.md).
 Use an unused loopback port for development:
 
 ```sh
-./target/release/jkr-dedicated \
+./target/release/sjk-dedicated \
   --game-data /path/to/GameData \
   --map mp/ffa3 \
   --bind 127.0.0.1:29071 \
@@ -30,7 +30,7 @@ advertise a map name but does not load that map's content.
 ## Options and configuration
 
 The authoritative option parser and usage text are in
-[main.rs](../crates/jkr-dedicated/src/main.rs).
+[main.rs](../crates/sjk-dedicated/src/main.rs).
 
 | Option | Meaning |
 | --- | --- |
@@ -58,8 +58,8 @@ Without a home, this archive is not written.
 Type commands such as `status`, `map mp/ffa3` and `quit` on stdin. Remote console
 commands require an explicitly configured `rconpassword`; never commit that
 password. The console implementation lives in
-[bridge_console.rs](../crates/jkr-dedicated/src/bridge_console.rs) and the server's
-[command buffer](../crates/jkr-dedicated/src/command_buffer.rs).
+[bridge_console.rs](../crates/sjk-dedicated/src/bridge_console.rs) and the server's
+[command buffer](../crates/sjk-dedicated/src/command_buffer.rs).
 
 Bots retain their slots and bot identity across map changes and `map_restart`.
 They enter the new map immediately because they have no network handshake.
@@ -95,10 +95,10 @@ OpenJK's `ClientCommand`; `setviewpos` also works for spectators.
 
 `give` follows OpenJK's `G_Give`; giving an item by its name (which the reference
 spawns on the player) is not ported and does nothing. See
-[give.rs](../crates/jkr-game-jka/src/give.rs),
-[bridge_commands.rs](../crates/jkr-dedicated/src/bridge_commands.rs),
-[bridge_cheats.rs](../crates/jkr-dedicated/src/bridge_cheats.rs) and
-[bridge_teleport.rs](../crates/jkr-dedicated/src/bridge_teleport.rs).
+[give.rs](../crates/sjk-game-jka/src/give.rs),
+[bridge_commands.rs](../crates/sjk-dedicated/src/bridge_commands.rs),
+[bridge_cheats.rs](../crates/sjk-dedicated/src/bridge_cheats.rs) and
+[bridge_teleport.rs](../crates/sjk-dedicated/src/bridge_teleport.rs).
 
 ## Noclip
 
@@ -112,5 +112,5 @@ Noclip uses the existing OpenJK-compatible movement and snapshot prediction.
 It skips item/trigger contacts, drowning and ordinary damage, retaining the
 reference's earlier DEMP2 shock handling. OpenJK's command scaling quirk remains:
 vertical input alone does not accelerate without forward/sideways input.
-See [bridge_cheats.rs](../crates/jkr-dedicated/src/bridge_cheats.rs) and
-[noclip.rs](../crates/jkr-game-jka/src/noclip.rs).
+See [bridge_cheats.rs](../crates/sjk-dedicated/src/bridge_cheats.rs) and
+[noclip.rs](../crates/sjk-game-jka/src/noclip.rs).

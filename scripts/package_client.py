@@ -70,7 +70,7 @@ def dependency_notices(source, target, archive, name="JKR"):
 
 
 def instructions(platform, revision, name="JKR", repository=DEFAULT_REPOSITORY, version=None,
-                 profile="jkr", client="jkr-viewer", server="jkr-dedicated"):
+                 profile="jkr", client="sjk-viewer", server="sjk-dedicated"):
     suffix = ".exe" if platform == "windows-x64" else ""
     requirements = ("Windows 10/11 x64 and a working graphics driver. The MSVC runtime is statically linked."
                     if suffix else
@@ -110,7 +110,7 @@ The matching source snapshot is distributed separately as {name}-{version or rev
 """
 
 
-def smoke_check(package, platform, source, profile="jkr", client="jkr-viewer", server="jkr-dedicated"):
+def smoke_check(package, platform, source, profile="jkr", client="sjk-viewer", server="sjk-dedicated"):
     # All scratch stays under the repository target directory, never system /tmp.
     scratch = source / "target/parity-reports"
     scratch.mkdir(parents=True, exist_ok=True)
@@ -160,13 +160,13 @@ def main():
     # The client folder the packaged client creates in GameData (SJK uses "SJK").
     parser.add_argument("--profile-dir", default="jkr")
     # The client and server program names; by default the [[bin]] names the crates
-    # declare (jkr-viewer and jkr-dedicated in JKR, sjk and sjk-server in SJK).
+    # declare (sjk and sjk-server in SJK).
     parser.add_argument("--client-bin")
     parser.add_argument("--server-bin")
     args = parser.parse_args()
     source, output = args.source.resolve(), args.output.resolve()
-    args.client_bin = args.client_bin or bin_name(source, "jkr-viewer")
-    args.server_bin = args.server_bin or bin_name(source, "jkr-dedicated")
+    args.client_bin = args.client_bin or bin_name(source, "sjk-viewer")
+    args.server_bin = args.server_bin or bin_name(source, "sjk-dedicated")
     if command(source, "git", "status", "--porcelain", "--untracked-files=no"):
         raise SystemExit("Refusing to package a modified source checkout")
     revision = command(source, "git", "rev-parse", "HEAD")
@@ -183,7 +183,7 @@ def main():
                          instructions(args.platform, revision, args.name, args.repository, args.version,
                                       args.profile_dir, args.client_bin, args.server_bin))
         add_file(archive, source / "LICENSE", f"{args.name}-LICENSE.txt")
-        add_file(archive, source / "crates/jkr-viewer/assets/fonts/LICENSE.txt", f"{args.name}-licenses/Inter-LICENSE.txt")
+        add_file(archive, source / "crates/sjk-viewer/assets/fonts/LICENSE.txt", f"{args.name}-licenses/Inter-LICENSE.txt")
         dependency_notices(source, args.target, archive, args.name)
         archive.writestr(f"{args.name}-build.json", json.dumps({
             "revision": revision, "target": args.target,

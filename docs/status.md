@@ -346,7 +346,7 @@ whose default there is 0. See [networking](networking.md#server-dialect-movement
 Evidence (Windows 11): a scratch harness outside the repository joined a local,
 windowless JA+ 2.4 Build 7 server (EternalJK x86 dedicated, `mp/ffa3`, loopback),
 sent scripted commands at 8/7/4/3 ms, and replayed them offline through
-`jkr-game-jka` exactly as the viewer reseeds from each snapshot, comparing
+`sjk-game-jka` exactly as the viewer reseeds from each snapshot, comparing
 origin, velocity, view, animations, timers, flags, weapon time/state, holster and
 ground per snapshot (about 640 per run). Scenarios: punches, four ground kicks,
 standing alternate attack, the grapple, an air kick after a Force jump, a kick out
@@ -456,7 +456,7 @@ against a public JA+ server or another JA+ version.
 - Graphical client with browser, menus/settings, HUD, console, audio, screenshots,
   demos and a Create game flow.
 - wgpu BSP renderer with optional modern lighting and post processing.
-- Offline generator of local rend2-convention material maps (`jkr-materialgen`).
+- Offline generator of local rend2-convention material maps (`sjk-materialgen`).
 - Dedicated-server game integration, console/configuration, stock game-type
   options, map entities, bots/NPCs and script integration.
 
@@ -727,7 +727,7 @@ remain open.
   custom-model coverage and animation effect/footprint rendering remain open.
 - Snapshot entities draw a model from `modelindex` only for the entity types
   whose codemp cgame function does so; the per-type rules and their reference
-  are in [entity_models.rs](../crates/jkr-client/src/entity_models.rs). Models
+  are in [entity_models.rs](../crates/sjk-client/src/entity_models.rs). Models
   codemp draws that the client still does not: force holocrons, non-brush
   `ET_MOVER` models and a mover's secondary `modelindex2` model, and the
   portable shield (`ET_SPECIAL`) and `ET_BEAM` effects.
@@ -738,7 +738,7 @@ remain open.
 - Windows runtime behavior is largely unverified. Do not infer platform support
   from source conditionals alone. Windows reserves 1 MiB for the main thread and
   the client overflowed it after loading `mp/ffa3`; [the viewer build
-  script](../crates/jkr-viewer/build.rs) now links Windows binaries with the
+  script](../crates/sjk-viewer/build.rs) now links Windows binaries with the
   8 MiB Linux size. On Windows 11 (Rust 1.96, MSVC), release and debug clients
   then loaded `mp/ffa3`, and a release client joined a local JKR server and
   completed its map load. Longer play, other maps and the GNU toolchain are unchecked.

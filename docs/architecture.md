@@ -52,7 +52,7 @@ menu world remains separately owned for cancellation/disconnection.
 PK3 checksum inventory uses the validated ZIP central directory, retaining archive
 entry order, CRCs and zero-length filtering. It does not visit/decompress every
 payload during connection; normal asset reads remain responsible for payload and
-local-header validation. See [pk3_fingerprint.rs](../crates/jkr-vfs/src/pk3_fingerprint.rs).
+local-header validation. See [pk3_fingerprint.rs](../crates/sjk-vfs/src/pk3_fingerprint.rs).
 
 ## Source map
 
@@ -60,27 +60,27 @@ All 21 workspace crates are listed in [Cargo.toml](../Cargo.toml).
 
 | Crate | Responsibility |
 | --- | --- |
-| [jkr-viewer](../crates/jkr-viewer/src/main.rs) | Client executable, GPU, window/input, menus and integration |
-| [jkr-dedicated](../crates/jkr-dedicated/src/main.rs) | Server executable, operator console and game bridge |
-| [jkr-server](../crates/jkr-server/src/lib.rs) | Generic authoritative world/entity ownership |
-| [jkr-runtime](../crates/jkr-runtime/src/lib.rs) | Engine-native world and presentation state |
-| [jkr-game-jka](../crates/jkr-game-jka/src/lib.rs) | JKA movement, combat and game behavior |
-| [jkr-client](../crates/jkr-client/src/lib.rs) | Client sessions, prediction and snapshot presentation data |
-| [jkr-network](../crates/jkr-network/src/lib.rs) | Transport, discovery and legacy client/server sessions |
-| [jkr-protocol](../crates/jkr-protocol/src/lib.rs) | Wire codecs and compatibility data, without sockets |
-| [jkr-vfs](../crates/jkr-vfs/src/lib.rs) | Loose-file and PK3 virtual filesystem |
-| [jkr-bsp](../crates/jkr-bsp/src/lib.rs) | Owned RBSP map data and collision queries |
-| [jkr-scene](../crates/jkr-scene/src/lib.rs) | Renderer-neutral scene construction |
-| [jkr-model](../crates/jkr-model/src/lib.rs) | MD3 and Ghoul2 model/animation data |
-| [jkr-shader](../crates/jkr-shader/src/lib.rs) | Legacy shader-script parsing and resolution |
-| [jkr-entity](../crates/jkr-entity/src/lib.rs) | Map entity dictionaries |
-| [jkr-effect](../crates/jkr-effect/src/lib.rs) | Raven effect definitions |
-| [jkr-nav](../crates/jkr-nav/src/lib.rs) | Navigation graphs and queries with game-supplied world access |
-| [jkr-icarus](../crates/jkr-icarus/src/lib.rs) | Script interpretation with host-provided game operations |
-| [jkr-audio](../crates/jkr-audio/src/lib.rs) | Sound storage, spatialization and mixing |
-| [jkr-ui](../crates/jkr-ui/src/lib.rs) | Retained widgets, layout, input and draw commands |
-| [jkr-shell](../crates/jkr-shell/src/lib.rs) | Cvars, bindings and command processing |
-| [jkr-materialgen](../crates/jkr-materialgen/src/lib.rs) | Offline tool: local material maps from installed textures |
+| [sjk-viewer](../crates/sjk-viewer/src/main.rs) | Client executable, GPU, window/input, menus and integration |
+| [sjk-dedicated](../crates/sjk-dedicated/src/main.rs) | Server executable, operator console and game bridge |
+| [sjk-server](../crates/sjk-server/src/lib.rs) | Generic authoritative world/entity ownership |
+| [sjk-runtime](../crates/sjk-runtime/src/lib.rs) | Engine-native world and presentation state |
+| [sjk-game-jka](../crates/sjk-game-jka/src/lib.rs) | JKA movement, combat and game behavior |
+| [sjk-client](../crates/sjk-client/src/lib.rs) | Client sessions, prediction and snapshot presentation data |
+| [sjk-network](../crates/sjk-network/src/lib.rs) | Transport, discovery and legacy client/server sessions |
+| [sjk-protocol](../crates/sjk-protocol/src/lib.rs) | Wire codecs and compatibility data, without sockets |
+| [sjk-vfs](../crates/sjk-vfs/src/lib.rs) | Loose-file and PK3 virtual filesystem |
+| [sjk-bsp](../crates/sjk-bsp/src/lib.rs) | Owned RBSP map data and collision queries |
+| [sjk-scene](../crates/sjk-scene/src/lib.rs) | Renderer-neutral scene construction |
+| [sjk-model](../crates/sjk-model/src/lib.rs) | MD3 and Ghoul2 model/animation data |
+| [sjk-shader](../crates/sjk-shader/src/lib.rs) | Legacy shader-script parsing and resolution |
+| [sjk-entity](../crates/sjk-entity/src/lib.rs) | Map entity dictionaries |
+| [sjk-effect](../crates/sjk-effect/src/lib.rs) | Raven effect definitions |
+| [sjk-nav](../crates/sjk-nav/src/lib.rs) | Navigation graphs and queries with game-supplied world access |
+| [sjk-icarus](../crates/sjk-icarus/src/lib.rs) | Script interpretation with host-provided game operations |
+| [sjk-audio](../crates/sjk-audio/src/lib.rs) | Sound storage, spatialization and mixing |
+| [sjk-ui](../crates/sjk-ui/src/lib.rs) | Retained widgets, layout, input and draw commands |
+| [sjk-shell](../crates/sjk-shell/src/lib.rs) | Cvars, bindings and command processing |
+| [sjk-materialgen](../crates/sjk-materialgen/src/lib.rs) | Offline tool: local material maps from installed textures |
 
 ## Main flows
 
@@ -89,7 +89,7 @@ owned presentation state → viewer rendering, UI and audio. Local prediction us
 shared movement rules; it does not replace server authority.
 
 Server: UDP → legacy endpoint →
-[game bridge](../crates/jkr-dedicated/src/bridge.rs) → game simulation and native
+[game bridge](../crates/sjk-dedicated/src/bridge.rs) → game simulation and native
 world storage → per-client legacy replication.
 
 Assets: VFS → compatibility parsers → owned map/model/shader data → scene and

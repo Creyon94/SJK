@@ -845,189 +845,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8f42a60cbdf9a97f5d2305f08a87dc4e09308d1276d28c869c684d7777685682"
 
 [[package]]
-name = "jkr-audio"
-version = "0.1.0"
-dependencies = [
- "hound",
- "minimp3_fixed",
-]
-
-[[package]]
-name = "jkr-bsp"
-version = "0.1.0"
-
-[[package]]
-name = "jkr-client"
-version = "0.1.0"
-dependencies = [
- "jkr-audio",
- "jkr-game-jka",
- "jkr-model",
- "jkr-network",
- "jkr-protocol",
- "jkr-runtime",
- "jkr-vfs",
-]
-
-[[package]]
-name = "jkr-dedicated"
-version = "0.1.0"
-dependencies = [
- "getrandom 0.3.4",
- "jkr-bsp",
- "jkr-entity",
- "jkr-game-jka",
- "jkr-icarus",
- "jkr-model",
- "jkr-network",
- "jkr-protocol",
- "jkr-server",
- "jkr-vfs",
-]
-
-[[package]]
-name = "jkr-effect"
-version = "0.1.0"
-dependencies = [
- "jkr-vfs",
-]
-
-[[package]]
-name = "jkr-entity"
-version = "0.1.0"
-
-[[package]]
-name = "jkr-game-jka"
-version = "0.1.0"
-dependencies = [
- "glam",
- "jkr-entity",
- "jkr-icarus",
- "jkr-model",
- "jkr-nav",
- "jkr-protocol",
-]
-
-[[package]]
-name = "jkr-icarus"
-version = "0.1.0"
-
-[[package]]
-name = "jkr-materialgen"
-version = "0.1.0"
-dependencies = [
- "image",
- "jkr-bsp",
- "jkr-shader",
- "jkr-vfs",
- "serde",
- "serde_json",
- "zip",
-]
-
-[[package]]
-name = "jkr-model"
-version = "0.1.0"
-
-[[package]]
-name = "jkr-nav"
-version = "0.1.0"
-
-[[package]]
-name = "jkr-network"
-version = "0.1.0"
-dependencies = [
- "jkr-protocol",
- "md-5",
-]
-
-[[package]]
-name = "jkr-protocol"
-version = "0.1.0"
-
-[[package]]
-name = "jkr-runtime"
-version = "0.1.0"
-
-[[package]]
-name = "jkr-scene"
-version = "0.1.0"
-dependencies = [
- "jkr-bsp",
-]
-
-[[package]]
-name = "jkr-server"
-version = "0.1.0"
-dependencies = [
- "jkr-runtime",
-]
-
-[[package]]
-name = "jkr-shader"
-version = "0.1.0"
-dependencies = [
- "jkr-vfs",
-]
-
-[[package]]
-name = "jkr-shell"
-version = "0.1.0"
-
-[[package]]
-name = "jkr-ui"
-version = "0.1.0"
-dependencies = [
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "jkr-vfs"
-version = "0.1.0"
-dependencies = [
- "md4",
- "zip",
-]
-
-[[package]]
-name = "jkr-viewer"
-version = "0.1.0"
-dependencies = [
- "bytemuck",
- "fontdue",
- "getrandom 0.3.4",
- "glam",
- "half",
- "image",
- "jkr-audio",
- "jkr-bsp",
- "jkr-client",
- "jkr-effect",
- "jkr-entity",
- "jkr-game-jka",
- "jkr-model",
- "jkr-network",
- "jkr-protocol",
- "jkr-runtime",
- "jkr-scene",
- "jkr-shader",
- "jkr-shell",
- "jkr-ui",
- "jkr-vfs",
- "md-5",
- "md4",
- "pollster",
- "ringbuf",
- "rodio",
- "serde_json",
- "tempfile",
- "wgpu",
- "winit",
- "zip",
-]
-
-[[package]]
 name = "jni"
 version = "0.21.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2200,6 +2017,189 @@ name = "simdutf8"
 version = "0.1.5"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e3a9fe34e3e7a50316060351f37187a3f546bce95496156754b601a5fa71b76e"
+
+[[package]]
+name = "sjk-audio"
+version = "0.1.0"
+dependencies = [
+ "hound",
+ "minimp3_fixed",
+]
+
+[[package]]
+name = "sjk-bsp"
+version = "0.1.0"
+
+[[package]]
+name = "sjk-client"
+version = "0.1.0"
+dependencies = [
+ "sjk-audio",
+ "sjk-game-jka",
+ "sjk-model",
+ "sjk-network",
+ "sjk-protocol",
+ "sjk-runtime",
+ "sjk-vfs",
+]
+
+[[package]]
+name = "sjk-dedicated"
+version = "0.1.0"
+dependencies = [
+ "getrandom 0.3.4",
+ "sjk-bsp",
+ "sjk-entity",
+ "sjk-game-jka",
+ "sjk-icarus",
+ "sjk-model",
+ "sjk-network",
+ "sjk-protocol",
+ "sjk-server",
+ "sjk-vfs",
+]
+
+[[package]]
+name = "sjk-effect"
+version = "0.1.0"
+dependencies = [
+ "sjk-vfs",
+]
+
+[[package]]
+name = "sjk-entity"
+version = "0.1.0"
+
+[[package]]
+name = "sjk-game-jka"
+version = "0.1.0"
+dependencies = [
+ "glam",
+ "sjk-entity",
+ "sjk-icarus",
+ "sjk-model",
+ "sjk-nav",
+ "sjk-protocol",
+]
+
+[[package]]
+name = "sjk-icarus"
+version = "0.1.0"
+
+[[package]]
+name = "sjk-materialgen"
+version = "0.1.0"
+dependencies = [
+ "image",
+ "serde",
+ "serde_json",
+ "sjk-bsp",
+ "sjk-shader",
+ "sjk-vfs",
+ "zip",
+]
+
+[[package]]
+name = "sjk-model"
+version = "0.1.0"
+
+[[package]]
+name = "sjk-nav"
+version = "0.1.0"
+
+[[package]]
+name = "sjk-network"
+version = "0.1.0"
+dependencies = [
+ "md-5",
+ "sjk-protocol",
+]
+
+[[package]]
+name = "sjk-protocol"
+version = "0.1.0"
+
+[[package]]
+name = "sjk-runtime"
+version = "0.1.0"
+
+[[package]]
+name = "sjk-scene"
+version = "0.1.0"
+dependencies = [
+ "sjk-bsp",
+]
+
+[[package]]
+name = "sjk-server"
+version = "0.1.0"
+dependencies = [
+ "sjk-runtime",
+]
+
+[[package]]
+name = "sjk-shader"
+version = "0.1.0"
+dependencies = [
+ "sjk-vfs",
+]
+
+[[package]]
+name = "sjk-shell"
+version = "0.1.0"
+
+[[package]]
+name = "sjk-ui"
+version = "0.1.0"
+dependencies = [
+ "serde",
+ "serde_json",
+]
+
+[[package]]
+name = "sjk-vfs"
+version = "0.1.0"
+dependencies = [
+ "md4",
+ "zip",
+]
+
+[[package]]
+name = "sjk-viewer"
+version = "0.1.0"
+dependencies = [
+ "bytemuck",
+ "fontdue",
+ "getrandom 0.3.4",
+ "glam",
+ "half",
+ "image",
+ "md-5",
+ "md4",
+ "pollster",
+ "ringbuf",
+ "rodio",
+ "serde_json",
+ "sjk-audio",
+ "sjk-bsp",
+ "sjk-client",
+ "sjk-effect",
+ "sjk-entity",
+ "sjk-game-jka",
+ "sjk-model",
+ "sjk-network",
+ "sjk-protocol",
+ "sjk-runtime",
+ "sjk-scene",
+ "sjk-shader",
+ "sjk-shell",
+ "sjk-ui",
+ "sjk-vfs",
+ "tempfile",
+ "wgpu",
+ "winit",
+ "zip",
+]
 
 [[package]]
 name = "slab"

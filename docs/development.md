@@ -9,7 +9,7 @@ open. The manifests declare Rust 1.88 or newer and edition 2024.
 Install Rust/Cargo, a C/C++ toolchain, CMake and pkg-config. Linux also needs
 ALSA, Wayland and XKB development libraries and a working graphics driver.
 See [workspace dependencies](../Cargo.toml) and the
-[viewer manifest](../crates/jkr-viewer/Cargo.toml) when diagnosing missing libraries.
+[viewer manifest](../crates/sjk-viewer/Cargo.toml) when diagnosing missing libraries.
 
 From the repository root:
 
@@ -17,7 +17,7 @@ From the repository root:
 cargo fmt --all --check
 cargo build --locked --workspace
 cargo test --locked --workspace
-cargo build --locked --release -p jkr-viewer -p jkr-dedicated
+cargo build --locked --release -p sjk-viewer -p sjk-dedicated
 ```
 
 The first formatting command requires the rustfmt component. Use `-j2` to limit
