@@ -10,7 +10,11 @@ In SJK the client program is `sjk` and the dedicated server `sjk-server`
 and `sjk-dedicated`; the commands are otherwise the same. SJK reads
 `JKA_GAME_DATA` and `JKA_DEDICATED` before JKR's `JKR_GAME_DATA` and
 `JKR_DEDICATED`; developer and diagnostic variables (`JKR_TRACE_*`, `JKR_LAMP_*`,
-`JKR_GPU_*` and the like) keep JKR's names.
+`JKR_GPU_*` and the like) keep JKR's names. On Windows both programs carry SJK's
+icon and call themselves "Sol JK" and "Sol JK dedicated server" in their version
+information; the client also sets the icon on its window (title bar and taskbar
+on Windows, the window icon on X11; Wayland has none). See
+[assets/branding](../assets/branding/README.md).
 
 Put `sjk-viewer` (`sjk-viewer.exe` on Windows) inside the installed game's
 `GameData` folder, beside `base/`, then launch it to open the main menu. A shortcut

@@ -42,5 +42,9 @@ zip.workspace = true
 wgpu = { version = "30.0.1", default-features = false, features = ["dx12", "gles", "std", "vulkan", "wgsl"] }
 winit = { version = "0.30.13", default-features = false, features = ["rwh_06", "wayland", "wayland-dlopen", "x11"] }
 
+[build-dependencies]
+# Windows icon and version resource; the build script uses it only for Windows targets.
+winresource = { version = "0.1.31", default-features = false }
+
 [lints]
 workspace = true

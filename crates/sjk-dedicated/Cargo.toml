@@ -25,6 +25,9 @@ sjk-protocol.workspace = true
 sjk-server.workspace = true
 sjk-vfs.workspace = true
 
+[build-dependencies]
+# Windows icon and version resource; the build script uses it only for Windows targets.
+winresource = { version = "0.1.31", default-features = false }
 
 [lints]
 workspace = true
