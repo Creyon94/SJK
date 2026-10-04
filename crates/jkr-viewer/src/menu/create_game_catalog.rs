@@ -21,7 +21,7 @@ pub(crate) enum ScoreLimit {
 pub(crate) struct GameMode {
     /// Name on the screen.
     pub(crate) label: &'static str,
-    /// `jkr-dedicated --gametype` value.
+    /// `sjk-server --gametype` value.
     pub(crate) server: &'static str,
     /// Keyword in an arena's `type` list.
     pub(crate) arena: &'static str,

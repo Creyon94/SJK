@@ -1,4 +1,4 @@
-//! The client's own game server: a `jkr-dedicated` child process started by
+//! The client's own game server: an `sjk-server` child process started by
 //! the Create game screen, watched until it answers queries, fed its bots
 //! through its console, and stopped when the player leaves.
 //!
@@ -18,9 +18,13 @@ use std::sync::mpsc::{self, Receiver, Sender, TryRecvError};
 use std::time::{Duration, Instant};
 
 /// File name of the server binary next to the client.
-const SERVER_BINARY: &str = "jkr-dedicated";
+const SERVER_BINARY: &str = "sjk-server";
+/// JKR's name for the same server, tried after SJK's beside the client.
+const JKR_SERVER_BINARY: &str = "jkr-dedicated";
 /// Environment variable naming the server binary explicitly.
-pub(crate) const SERVER_BINARY_ENV: &str = "JKR_DEDICATED";
+pub(crate) const SERVER_BINARY_ENV: &str = "JKA_DEDICATED";
+/// JKR's name for [`SERVER_BINARY_ENV`], still read when that is unset.
+pub(crate) const JKR_SERVER_BINARY_ENV: &str = "JKR_DEDICATED";
 /// Environment variable naming the server log file explicitly.
 pub(crate) const SERVER_LOG_ENV: &str = "JKR_SERVER_LOG";
 /// File name of the server log beside the client's own log.
@@ -47,7 +51,7 @@ const MASTER_CVARS: [&str; 5] = [
 pub(crate) struct HostSettings {
     /// Map without `maps/` and `.bsp` (`mp/ffa3`).
     pub(crate) map: String,
-    /// `jkr-dedicated --gametype` name (`ffa`, `ctf`, ...).
+    /// `sjk-server --gametype` name (`ffa`, `ctf`, ...).
     pub(crate) gametype: &'static str,
     /// `sv_hostname`.
     pub(crate) hostname: String,
@@ -149,8 +153,9 @@ pub(crate) fn choose_port(settings: &HostSettings) -> u16 {
 }
 
 /// Where the server binary is: `override_path` if given; else beside the
-/// client (`jkr-dedicated-<suffix>` for a client named `jkr-viewer-<suffix>`,
-/// then plain `jkr-dedicated`); else the first match on `search_path`.
+/// client (`sjk-server-<suffix>` for a client named `sjk-<suffix>`, then plain
+/// `sjk-server`, then JKR's `jkr-dedicated`); else the first `sjk-server` on
+/// `search_path`.
 pub(crate) fn find_server_binary(
     client: &Path,
     override_path: Option<PathBuf>,
@@ -161,16 +166,20 @@ pub(crate) fn find_server_binary(
         return Some(path);
     }
     let file = |name: &str| format!("{name}{}", std::env::consts::EXE_SUFFIX);
-    let mut candidates = Vec::with_capacity(3);
+    let mut candidates = Vec::with_capacity(4);
     if let Some(directory) = client.parent() {
         let stem = client
             .file_stem()
             .and_then(|stem| stem.to_str())
             .unwrap_or_default();
-        if let Some(suffix) = stem.strip_prefix("jkr-viewer-") {
+        if let Some(suffix) = stem
+            .strip_prefix("sjk-")
+            .filter(|suffix| !suffix.starts_with("server"))
+        {
             candidates.push(directory.join(file(&format!("{SERVER_BINARY}-{suffix}"))));
         }
         candidates.push(directory.join(file(SERVER_BINARY)));
+        candidates.push(directory.join(file(JKR_SERVER_BINARY)));
     }
     if let Some(search_path) = search_path {
         candidates
@@ -182,8 +191,10 @@ pub(crate) fn find_server_binary(
 /// [`find_server_binary`] for this process.
 pub(crate) fn locate_server_binary() -> Option<PathBuf> {
     let client = std::env::current_exe().ok()?;
-    let override_path = std::env::var_os(SERVER_BINARY_ENV)
-        .filter(|path| !path.is_empty())
+    let override_path = [SERVER_BINARY_ENV, JKR_SERVER_BINARY_ENV]
+        .into_iter()
+        .filter_map(std::env::var_os)
+        .find(|path| !path.is_empty())
         .map(PathBuf::from);
     find_server_binary(
         &client,
@@ -247,7 +258,7 @@ pub(crate) enum ServerPoll {
     Failed(String),
 }
 
-/// A running `jkr-dedicated` child owned by the client.
+/// A running `sjk-server` child owned by the client.
 pub(crate) struct LocalServer {
     child: Option<Child>,
     stdin: Option<ChildStdin>,

@@ -212,7 +212,7 @@ use winit::window::{Window, WindowAttributes, WindowId};
 fn main() {
     log::init();
     if let Err(error) = app_launch::run() {
-        log::progress(format_args!("jkr-viewer: {error}"));
+        log::progress(format_args!("sjk: {error}"));
         std::process::exit(1);
     }
 }

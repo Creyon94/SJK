@@ -37,7 +37,7 @@ struct Options {
     quit_on_eof: bool,
 }
 
-const USAGE: &str = "jkr-dedicated [--bind ADDRESS:PORT] [--hostname NAME] [--map NAME]
+const USAGE: &str = "sjk-server [--bind ADDRESS:PORT] [--hostname NAME] [--map NAME]
                      [--game-data DIRECTORY] [--wire-clients 0..32] [--peers N]
                      [--team-auto-join] [--spawn-order random|map|map:N] [--cheats]
                      [--gametype ffa|holocron|jm|duel|powerduel|team|siege|ctf|cty] [--fraglimit N] [--duel-fraglimit N] [--timelimit MINUTES]

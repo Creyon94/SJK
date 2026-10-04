@@ -57,5 +57,8 @@ SJK's [release workflow](../.github/workflows/release.yml) runs the same build a
 Release. It passes `--name SJK --version <version> --repository <repo URL>`, so the
 archives are named `SJK-<version>-<platform>.zip` (with
 `SJK-<version>-source.zip` and `SJK-<version>-SHA256SUMS-<platform>.txt`) and the
-bundled instructions point at SJK's source. Without those options the script
-produces JKR's packages unchanged.
+bundled instructions point at SJK's source; `--name` also names the bundled
+`SJK-LICENSE.txt`, `SJK-licenses/` and `SJK-build.json`. The programs packaged are
+the `[[bin]]` names the crates declare (`sjk` and `sjk-server` in SJK,
+`jkr-viewer` and `jkr-dedicated` in JKR; `--client-bin`/`--server-bin` override
+them). Without those options the script produces JKR's packages unchanged.

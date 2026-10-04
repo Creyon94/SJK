@@ -5,6 +5,10 @@ Jedi Academy `GameData` directory with the retail `base/assets*.pk3` files.
 
 ## Launch
 
+In SJK the client program is `sjk` and the dedicated server `sjk-server`
+(`.exe` on Windows). This page, shared with JKR, uses JKR's names `jkr-viewer`
+and `jkr-dedicated`; the commands are otherwise the same.
+
 Put `jkr-viewer` (`jkr-viewer.exe` on Windows) inside the installed game's
 `GameData` folder, beside `base/`, then launch it to open the main menu. A shortcut
 can use any working directory. No path settings are required. Keep

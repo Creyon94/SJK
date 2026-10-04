@@ -665,8 +665,8 @@ issue: 16
 status: merged
 area: Gameplay
 title: noclip cheat on the dedicated server
-change: jkr-dedicated has noclip with the stock cheat checks (needs --cheats or devmap).
-test: Start jkr-dedicated --map mp/ffa3 --bind 127.0.0.1:29071 --cheats and connect.
+change: The dedicated server has noclip with the stock cheat checks (needs --cheats or devmap).
+test: Start sjk-server --map mp/ffa3 --bind 127.0.0.1:29071 --cheats and connect.
 test: Type noclip: fly through walls, attack is turbo, no pickups, triggers or damage.
 test: Type noclip again to land. Without --cheats it answers that cheats are not enabled.
 note: Bishop's #95 replaced your #31; it also adds a client devmap command.

@@ -55,7 +55,7 @@ jobs:
           Sol JK $VERSION for Windows 10/11 x64 and Linux x64.
 
           **Install:** extract the whole ZIP for your platform into Jedi Academy's
-          \`GameData\` folder, beside \`base\`, then launch \`jkr-viewer\`. Your settings
+          \`GameData\` folder, beside \`base\`, then launch \`sjk\`. Your settings
           live in \`GameData/SJK/\` and are kept when you update. A legally owned copy
           of Jedi Academy is required; no game assets are included.
 

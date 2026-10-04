@@ -106,7 +106,7 @@ impl ApplicationHandler for ViewerApplication {
                 self.gpu = Some(gpu);
             }
             Err(error) => {
-                eprintln!("jkr-viewer: failed to initialize graphics: {error}");
+                eprintln!("sjk: failed to initialize graphics: {error}");
                 event_loop.exit();
             }
         }
@@ -212,7 +212,7 @@ impl ApplicationHandler for ViewerApplication {
                     }
                     Ok(None) => {}
                     Err(error) => {
-                        log::progress(format_args!("jkr-viewer: map transition failed: {error}"));
+                        log::progress(format_args!("sjk: map transition failed: {error}"));
                         gpu.fail_world_install(error.to_string());
                     }
                 }

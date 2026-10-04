@@ -150,15 +150,15 @@
       game's <code>GameData</code> folder, beside <code>base</code>:</p>
 <pre><code>GameData/
 ├─ base/          (assets0-3.pk3)
-├─ jkr-viewer.exe    ← start
-├─ jkr-dedicated.exe
+├─ sjk.exe         ← start
+├─ sjk-server.exe
 └─ README-SJK.txt</code></pre>
       <p class="muted">On Steam: right-click Jedi Academy › Manage › Browse local files ›
       GameData. The programs keep JKR's names.</p>
     </li>
     <li class="panel">
       <h3>Launch</h3>
-      <p>Start <code>jkr-viewer</code>. No path or setting is needed. Windows may warn
+      <p>Start <code>sjk</code>. No path or setting is needed. Windows may warn
       about an unrecognised app because the builds are not code-signed; choose
       <em>More info › Run anyway</em> if you trust the download (checksums are in the
       release).</p>
@@ -179,7 +179,7 @@
     <li class="panel">
       <h3>From source</h3>
       <p>Install Rust 1.88+, then <code>cargo build --release -p jkr-viewer -p
-      jkr-dedicated</code>. See the <a href="https://github.com/Sol-Vulpes/SJK#build">README</a>
+      jkr-dedicated</code>, which builds <code>sjk</code> and <code>sjk-server</code>. See the <a href="https://github.com/Sol-Vulpes/SJK#build">README</a>
       for platform notes and the dedicated server.</p>
     </li>
   </ol>
