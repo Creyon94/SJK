@@ -42,6 +42,11 @@ identity, or identityLighting when the blend source is `GL_ONE` or `GL_SRC_ALPHA
 ([stage_colour.rs](../crates/jkr-shader/src/stage_colour.rs),
 [world_stage_collapse.rs](../crates/jkr-viewer/src/world_stage_collapse.rs)).
 
+Programs are embedded with `include_str!`, so they carry the checkout's line
+endings. Code that patches a program by text with a pattern spanning a line break
+normalises it first with [wgsl_source.rs](../crates/jkr-viewer/src/wgsl_source.rs);
+`.gitattributes` keeps `*.wgsl` LF in new checkouts.
+
 ## Load-time texture and light preparation
 
 World installation prepares unique mipmapped texture arrays on up to four CPU
