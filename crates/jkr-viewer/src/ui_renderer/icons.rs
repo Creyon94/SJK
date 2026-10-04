@@ -22,8 +22,11 @@ const HUD_CELLS: u32 = 96;
 pub(crate) const FORCE_ICON_FIRST: u32 = ICON_CELLS + HUD_CELLS;
 /// Force page cells: two atlas rows.
 pub(crate) const FORCE_ICON_CELLS: u32 = 2 * COLUMNS;
+/// First of the 32 classic-scoreboard head-icon cells (one per client slot),
+/// after the Force page cells.
+pub(crate) const SCOREBOARD_ICON_CELLS: u32 = FORCE_ICON_FIRST + FORCE_ICON_CELLS;
 /// Every icon cell; the banner strip lies below the last row.
-pub(crate) const ATLAS_CELLS: u32 = FORCE_ICON_FIRST + FORCE_ICON_CELLS;
+pub(crate) const ATLAS_CELLS: u32 = SCOREBOARD_ICON_CELLS + 32;
 const TOTAL_CELLS: u32 = ATLAS_CELLS;
 const ATLAS_HEIGHT: u32 = TOTAL_CELLS.div_ceil(COLUMNS) * ICON_SIZE + BANNER_SIZE[1];
 /// `TexturedQuad` texture naming the banner strip.
@@ -233,4 +236,21 @@ pub(super) fn push_quad(
         parameters: [0.0, 2.0],
         uv,
     }));
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_cell_lies_above_the_banner_strip() {
+        let last = TOTAL_CELLS - 1;
+        let bottom = (last / COLUMNS + 1) * ICON_SIZE;
+        assert!(
+            bottom <= BANNER_Y,
+            "cells end at {bottom}, banner at {BANNER_Y}"
+        );
+        let (_, end) = uv_range(TextureId(SCOREBOARD_ICON_CELLS + 31));
+        assert!(end[1] <= BANNER_Y as f32 / ATLAS_HEIGHT as f32);
+    }
 }
