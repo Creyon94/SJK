@@ -356,13 +356,20 @@ impl PlayerMenu {
         let PhysicalKey::Code(key) = event.physical_key else {
             return PlayerMenuResult::None;
         };
-        if self.edit_numeric(key, event.text.as_deref(), console) {
+        if self.edit_numeric(key, event.text.as_deref(), event.repeat, console) {
             return PlayerMenuResult::None;
         }
         if self.name_editing {
             return self.edit_name(event, key, console);
         }
         if event.repeat {
+            return PlayerMenuResult::None;
+        }
+        // SJK: a digit typed on a selected RGB row opens entry with it.
+        if let Some(text) = event.text.as_deref()
+            && text.starts_with(|c: char| c.is_ascii_digit())
+            && self.begin_typed(self.selected, text)
+        {
             return PlayerMenuResult::None;
         }
         let count = self.row_count().max(1);
@@ -381,6 +388,8 @@ impl PlayerMenu {
             KeyCode::ArrowDown | KeyCode::KeyS => self.selected = (self.selected + 1) % count,
             KeyCode::ArrowLeft | KeyCode::KeyA => self.adjust(console, -1),
             KeyCode::ArrowRight | KeyCode::KeyD => self.adjust(console, 1),
+            // SJK: Space keeps stepping an RGB row; Enter opens its entry.
+            KeyCode::Space if self.is_channel_row(self.selected) => self.adjust(console, 1),
             KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Space => self.activate(console),
             _ => {}
         }

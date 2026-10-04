@@ -27,8 +27,10 @@ impl SettingsMenu {
             };
         }
         if event.kind == UiEventKind::Press {
-            if crate::menu_widgets::numeric::value_row(token).is_none() {
-                self.numeric = None;
+            // SJK: pressing anything but the draft's own value field applies it.
+            let own = self.numeric.as_ref().map(|edit| edit.row);
+            if crate::menu_widgets::numeric::value_row(token) != own {
+                self.settle_numeric(console);
             }
             self.press_elsewhere(self.setting_row(token));
         }

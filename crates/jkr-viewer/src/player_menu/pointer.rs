@@ -28,10 +28,12 @@ impl PlayerMenu {
         let Some(token) = event.token else {
             return PlayerMenuResult::None;
         };
+        // SJK: pressing anything but the draft's own value field applies it.
         if event.kind == UiEventKind::Press
-            && crate::menu_widgets::numeric::value_row(token).is_none()
+            && crate::menu_widgets::numeric::value_row(token)
+                != self.numeric.as_ref().map(|edit| edit.row)
         {
-            self.numeric = None;
+            self.settle_numeric(console);
         }
         if event.kind == UiEventKind::Activate {
             if let Some(row) = crate::menu_widgets::numeric::value_row(token) {

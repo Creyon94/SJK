@@ -109,7 +109,15 @@ impl GpuState {
         }
         let panel = &mut self.in_game_menu.shot;
         let action = if panel.numeric.is_some() && key != KeyCode::F8 {
-            panel.edit_numeric(key, event.text.as_deref())
+            panel.edit_numeric(key, event.text.as_deref(), event.repeat)
+        } else if !event.repeat
+            && event.text.as_deref().is_some_and(|text| {
+                text.starts_with(|c: char| c.is_ascii_digit() || ".,-".contains(c))
+            })
+            && panel.begin_typed(event.text.as_deref().unwrap_or_default())
+        {
+            // SJK: a number typed on a selected slider opens entry with it.
+            None
         } else {
             match key {
                 KeyCode::F8 | KeyCode::Escape if !event.repeat => Some(Action::Hide),
@@ -126,6 +134,8 @@ impl GpuState {
                     }
                     None
                 }
+                // SJK: Space keeps stepping a slider; Enter opens its entry.
+                KeyCode::Space if !event.repeat && panel.selects_slider() => panel.adjust(1.),
                 KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Space if !event.repeat => {
                     panel.activate(panel.selected)
                 }

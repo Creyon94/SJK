@@ -87,10 +87,13 @@ impl Panel {
     pub(crate) fn pointer(&mut self, canvas: &mut MenuCanvas, event: InputEvent) -> Option<Action> {
         let event = canvas.pointer(event)?;
         let token = event.token?;
+        // SJK: pressing anything but the draft's own value field applies it.
         if event.kind == UiEventKind::Press
-            && crate::menu_widgets::numeric::value_row(token).is_none()
+            && crate::menu_widgets::numeric::value_row(token)
+                != self.numeric.as_ref().map(|edit| edit.row)
+            && let Some(action) = self.settle_numeric()
         {
-            self.numeric = None;
+            return Some(action);
         }
         if event.kind == UiEventKind::Activate {
             if let Some(row) = crate::menu_widgets::numeric::value_row(token) {
