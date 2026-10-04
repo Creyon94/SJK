@@ -14,6 +14,7 @@ mod numeric;
 mod pointer;
 mod resolution;
 mod resolution_list;
+mod scroll;
 mod view;
 
 pub(crate) use catalog::RESOLUTIONS;
@@ -31,6 +32,8 @@ pub(crate) enum SettingsResult {
 pub(crate) struct SettingsMenu {
     tab: usize,
     selected: usize,
+    /// Which rows show; keeps the selection on screen.
+    scroll: scroll::RowScroll,
     values: Vec<String>,
     editing: Option<String>,
     /// What the window's monitor offers; asked for each time the screen opens.
@@ -50,6 +53,7 @@ impl SettingsMenu {
         Self {
             tab: 0,
             selected: 0,
+            scroll: scroll::RowScroll::new(),
             values: Vec::with_capacity(12),
             editing: None,
             monitor: None,
