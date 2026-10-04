@@ -351,11 +351,40 @@ Evidence is EternalJK's stock `codemp` code (`cg_players.c`, `cg_ents.c`,
   back in when the trick ends; the trickster sees the confusion effect over its
   victims' heads; active Force Sight sees through it. JKR drew tricksters fully.
 
+Not done yet, with what each needs:
+
+- Dodge afterimage (`PW_SPEEDBURST`, `cg_players.c:12612-12661`): stock
+  duplicates the Ghoul2 instance frozen at its current frame and draws it at the
+  player's current origin for 254 ms, alpha 254 down to 1. A copy in the live
+  pose, as the speed trail draws, would coincide with the body; it needs a
+  frozen pose, i.e. a second joint palette and vertex range per actor (as
+  corpse-pool bodies have) staged once at the burst, drawn with forced alpha.
+- Force Sight lighting (`cg_players.c:12258-12264`, `tr_light.cpp:351-357`):
+  other players get `RF_MINLIGHT` with `shaderRGBA` 255,255,0, which adds that to
+  their ambient light. Actors are lit per fragment from the light grid or, in
+  real-time mode, the light buffer, not from the instance light, so this needs a
+  per-instance flag through `stage_runtime.wgsl` and a rule for real-time mode.
+  The Sight shell overlay is drawn.
+- `surfaceparm forcesight` surfaces (`tr_main.cpp:1103-1106`,
+  `cg_draw.c:10741-10742`) should draw only while the viewer's Sight is on. The
+  shader parser ignores the parm, so they always draw; it needs a shader flag and
+  a per-frame world draw toggle. No retail MP map uses it (only SP `rift.shader`).
+- Push/Pull refraction (`cg_renderToTextureFX 1`, `CG_ForcePushBlur`
+  `cg_players.c:5264-5395`, `tr_backend.cpp:1085-1130`): stock copies a square
+  of the frame around the hand and draws `models/weaphits/testboom.md3` textured
+  from it with `effects/refraction`, scale 1 to 0.2 (Pull 0.2 to 1) over 500 ms,
+  alpha 244 to 10, fixed in place after 200 ms. SJK keeps the
+  `cg_renderToTextureFX 0` puffs. It needs the scene pass split after opaque
+  entities on frames with a push, a frame-sized copy target made at resize and a
+  distortion pipeline.
+
 Unit tests cover the effect selection (own beam levels 2-6, own Grip in first
 and third person, own Push, a remote caster, a trickster, Force Sight), parse
 the retail Drain EFX, and step the trick fade (fade-out, hiding, fade-in,
-truncation, reset after a second's absence, the Sight exception). Not yet checked in a game window. Formatting, locked workspace
-build/tests and clippy passed.
+truncation, reset after a second's absence, the Sight exception). None of it
+has been checked in a game window yet. Formatting and the locked workspace
+build and tests passed; clippy finds nothing in the changed code apart from
+the four known `sjk-game-jka` deny errors, which stop it otherwise.
 
 ## g_debugMelee prediction
 
