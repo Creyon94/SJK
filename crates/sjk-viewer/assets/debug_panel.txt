@@ -483,10 +483,11 @@ status: personal
 area: Menus & settings
 title: Sol JK (SJK) name in the client
 change: Window title "Sol JK", version line "SJK 0.1.0 alpha", screen headers "SJK / ...", README.
-change: Programs keep JKR's names; settings live in GameData/SJK, imported once from GameData/jkr.
+change: Programs sjk/sjk-server, crates sjk-*; settings in GameData/SJK, imported from GameData/jkr.
 test: Window title reads Sol JK; the main menu's bottom-right line reads SJK 0.1.0 alpha.
 test: Settings, Play, Host and Player screens show SJK / ... headers; Esc menu: Quit Sol JK.
 test: After the update: GameData/SJK exists with your settings, binds and debug_panel ticks.
+test: play builds as Compiling sjk-...; play <JKR PR number> still builds jkr-viewer.
 
 [slider-entry-prefs]
 status: personal
