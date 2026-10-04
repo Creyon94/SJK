@@ -666,6 +666,21 @@ test: r_sceneHdr 0 and restart: dark rooms still brighten, bright views never da
 note: Too bright/dark overall on outdoor maps (ffa3)? Tune r_autoExposureKey (default 0.18).
 note: Too slow/fast: r_autoExposureToDark (2.5 s) and r_autoExposureToBright (0.4 s).
 
+[model-tolerance]
+status: personal
+area: Rendering & effects
+title: Custom player models load as in EternalJK instead of Kyle
+change: Skins are read like rd-vanilla (no commas, stray text); a missing skin uses model_default.
+change: Weights past one, /models/... skeleton names and odd animation.cfg lines no longer fail.
+test: Local game, console: model youngfemale/head_b1|torso_a1|lower_a1: blonde youngling, no Kyle.
+test: model sad_scout: the model itself stands, runs and jumps animated (was Kyle).
+test: model aldrokoon/blue, then model alienyounglings1/head_a1|torso_a1|lower_a1: no Kyle.
+test: model zzzpiza/original (no such skin): Pizarro in his default skin, console names fallback.
+test: model jedi_hm/head_b1|torso_g1|lower_c2 (no lower_c2): jedi_hm in its default skin.
+test: Player screen preview shows the same models; a JoF server: others' custom models, no Kyle.
+note: Models you do not have installed (zabka, figo, ...) are still Kyle, as in EternalJK.
+note: jedi/rgb needs EternalJK's pk3: fs_basegame EternalJK + restart (also loads its menus).
+
 [shader-remaps]
 status: personal
 area: Rendering & effects

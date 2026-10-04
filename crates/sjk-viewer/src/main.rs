@@ -129,7 +129,10 @@ mod platform;
 mod player_animation;
 mod player_assets;
 mod player_menu;
+#[cfg(test)]
+mod player_model_scan;
 mod player_shadows;
+mod player_skin;
 mod pointer_input;
 mod presentation_clock;
 mod projectiles;
