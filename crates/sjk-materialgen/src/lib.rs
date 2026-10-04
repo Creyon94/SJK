@@ -25,7 +25,7 @@
 //! 4. Writes one pk3 ([`package`]) of PNGs at the names rend2's automatic
 //!    lookup tries next to the diffuse image: `<texture>_nh.png` (normal RGB,
 //!    height in alpha) for parallax-worthy classes, `<texture>_n.png`
-//!    otherwise, and `<texture>_rmo.png`, plus `sjk-materialgen/manifest.json`.
+//!    otherwise, and `<texture>_rmo.png`, plus `jkr-materialgen/manifest.json`.
 //!
 //! # Why `_rmo`
 //!

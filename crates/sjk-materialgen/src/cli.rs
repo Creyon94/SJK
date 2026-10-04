@@ -30,7 +30,7 @@ OPTIONS:
 For each world texture that installed maps draw on lightmapped surfaces, the tool
 writes a normal map (<texture>_nh with height for parallax on stone, tiles and
 ground, <texture>_n otherwise) and a packed <texture>_rmo map (roughness,
-metalness, occlusion) into one pk3, plus sjk-materialgen/manifest.json listing
+metalness, occlusion) into one pk3, plus jkr-materialgen/manifest.json listing
 every source, output, skipped shader and setting. Skies, fog, liquids, system and
 interface images, effects, glowing, animated and alpha-tested foliage stages, and
 textures that already have rend2 maps get none. Game data is only read.

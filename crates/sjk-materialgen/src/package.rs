@@ -15,7 +15,7 @@ use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, DateTime, ZipWriter};
 
 /// Where the manifest sits inside the pk3.
-pub const MANIFEST_PATH: &str = "sjk-materialgen/manifest.json";
+pub const MANIFEST_PATH: &str = "jkr-materialgen/manifest.json";
 
 /// The notice repeated in the manifest, the help text and the docs.
 pub const NOTICE: &str = "Generated from the textures of your own Jedi Academy installation. \

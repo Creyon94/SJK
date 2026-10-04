@@ -1097,7 +1097,7 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
   from the albedo and a 0.04 dielectric reflectance by itself, without rend2's
   SDR gloss conversion. Metalness stays at most 0.3: in that path metal loses
   its diffuse share, and nothing reflects the surroundings back into it.
-- **Output.** One pk3 of PNGs plus `sjk-materialgen/manifest.json` (every
+- **Output.** One pk3 of PNGs plus `jkr-materialgen/manifest.json` (every
   source, its outputs, class, maps and shaders, skipped shaders with reasons,
   all settings). The archive is deterministic. The default path is
   `<JKR user data>/generated/zzz_jkr_materials.pk3`, `%APPDATA%\jkr\generated`
