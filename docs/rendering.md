@@ -987,7 +987,11 @@ measure the same fixed advance it draws with. The game fonts load when a world i
 installed with the option on, or on first use, from
 [game_font.rs](../crates/sjk-viewer/src/game_font.rs); a missing font leaves
 its surfaces on Inter. The console font is drawn after all other text, so the
-console stays on top.
+console stays on top. The classic console (`con_style classic`, see
+[client.md](client.md#classic-console)) goes further: its background, bar and
+text are a layer of their own
+([console_backdrop.rs](../crates/sjk-viewer/src/console_backdrop.rs)) drawn after
+every other 2D element, so text under an opaque console is hidden.
 
 The retail atlases are 256–512 texels on the long side, so 1440p and 4K text
 magnifies them several times and bilinear sampling of their coverage blurs every

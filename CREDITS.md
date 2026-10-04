@@ -73,6 +73,7 @@ Changes that stay in SJK, by Sol:
 - the Sol JK name, README, credits and website;
 - SJK's slider entry habits (type to open, Space steps, clicking away applies);
 - the classic menu style as the default;
+- the classic console after EternalJK (`con_style classic`) as the default;
 - the `debug_panel` console command, an in-game checklist of the changes in a
   build and how to test them.
 

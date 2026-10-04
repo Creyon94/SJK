@@ -380,9 +380,14 @@ pub(super) const NETWORK: &[Setting] = &[
         },
     },
 ];
-/// Text size and spacing. Menu rows keep their layout; console rows follow
-/// `con_lineSpacing`.
+/// Text size and spacing, and the console's style. Menu rows keep their layout;
+/// modern console rows follow `con_lineSpacing`.
 pub(super) const TEXT: &[Setting] = &[
+    Setting {
+        label: "Console style",
+        cvar: crate::console::console_options::STYLE_CVAR,
+        kind: ValueKind::Choice(&crate::console::console_options::ConsoleStyle::NAMES),
+    },
     Setting {
         label: "Menu text size",
         cvar: crate::text::style::SCALE_CVAR,

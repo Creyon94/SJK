@@ -167,6 +167,15 @@ impl Shell {
         self.lines_written
     }
 
+    /// The scrollback line numbered `number` (see [`Self::lines_written`]), if it
+    /// is still kept.
+    pub fn line(&self, number: u64) -> Option<&ConsoleLine> {
+        let first = self.lines_written - self.lines.len() as u64;
+        usize::try_from(number.checked_sub(first)?)
+            .ok()
+            .and_then(|index| self.lines.get(index))
+    }
+
     /// Remove every scrollback line.
     pub fn clear_lines(&mut self) {
         self.lines.clear();

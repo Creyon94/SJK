@@ -88,6 +88,14 @@ impl ViewerConsole {
         };
         if !self.open {
             if event.state == ElementState::Pressed && self.toggles_console(event, key) {
+                // `CL_KeyDownEvent`: Ctrl opens the console full screen, Shift a
+                // quarter of it (classic console).
+                self.open_height = Some(super::classic::open_height(
+                    key == KeyCode::Escape,
+                    self.control,
+                    self.shift,
+                    self.options().height,
+                ));
                 self.set_open(true);
                 return true;
             }
@@ -139,6 +147,10 @@ impl ViewerConsole {
             self.browser_action(action);
             return true;
         }
+        let classic = self.console_style() == super::console_options::ConsoleStyle::Classic;
+        if classic && self.classic_key(event, key) {
+            return true;
+        }
         // Keys the console acts on itself end a pending composition when the platform
         // reported text for them (see `input::dead_key`); caret keys leave it pending.
         if matches!(
@@ -168,6 +180,7 @@ impl ViewerConsole {
                     &mut PromptLine {
                         text: &mut self.input,
                         edit: &mut self.edit,
+                        overstrike: classic && self.overstrike,
                     },
                     &event.logical_key,
                     event.text.as_deref(),
@@ -180,10 +193,60 @@ impl ViewerConsole {
     }
 }
 
+impl ViewerConsole {
+    /// Keys only the classic console has (`Console_Key`): Page Up/Down scroll two
+    /// rows (ten with Ctrl), Ctrl+Home/End jump to the top or bottom, keypad 8/2
+    /// (without Num Lock) and Ctrl+P/N walk the history, Ctrl+L clears the
+    /// scrollback and Insert toggles overstrike. `false` leaves the key to the
+    /// shared handling.
+    fn classic_key(&mut self, event: &KeyEvent, key: KeyCode) -> bool {
+        let control = self.control;
+        let control_letter = |letter: &str, code: &str| {
+            event.text.as_deref() == Some(code)
+                || (control
+                    && matches!(&event.logical_key, winit::keyboard::Key::Character(text)
+                        if text.eq_ignore_ascii_case(letter)))
+        };
+        match key {
+            KeyCode::PageUp => self.scroll_rows(super::classic::page_rows(control) as isize),
+            KeyCode::PageDown => {
+                self.scroll_rows(-(super::classic::page_rows(control) as isize));
+            }
+            KeyCode::Home if control => self.scroll_offset = usize::MAX,
+            KeyCode::End if control => self.scroll_offset = 0,
+            KeyCode::Numpad8 if event.text.is_none() && !event.repeat => {
+                self.navigate_history(-1);
+            }
+            KeyCode::Numpad2 if event.text.is_none() && !event.repeat => {
+                self.navigate_history(1);
+            }
+            KeyCode::Insert if !control && !self.shift => self.overstrike = !self.overstrike,
+            _ if control_letter("p", "\u{10}") => self.navigate_history(-1),
+            _ if control_letter("n", "\u{e}") => self.navigate_history(1),
+            _ if control_letter("l", "\u{c}") => {
+                // `Console_Key`: Ctrl+L runs `clear`.
+                self.shell.clear_lines();
+                self.scroll_offset = 0;
+                self.selection.clear();
+            }
+            _ => return false,
+        }
+        true
+    }
+
+    /// Scroll the classic scrollback back by `rows` (forward when negative); the
+    /// view clamps it to the rows there are.
+    pub(super) fn scroll_rows(&mut self, rows: isize) {
+        self.scroll_offset = self.scroll_offset.saturating_add_signed(rows);
+    }
+}
+
 /// The console input line as a field dead-key composition types into.
 struct PromptLine<'a> {
     text: &'a mut String,
     edit: &'a mut super::line_edit::LineEdit,
+    /// Typing replaces the character after the caret (Insert, classic console).
+    overstrike: bool,
 }
 
 impl TypingField for PromptLine<'_> {
@@ -196,7 +259,11 @@ impl TypingField for PromptLine<'_> {
     }
 
     fn insert(&mut self, text: &str) {
-        self.edit.insert(self.text, text, INPUT_LIMIT);
+        if self.overstrike {
+            self.edit.overwrite(self.text, text, INPUT_LIMIT);
+        } else {
+            self.edit.insert(self.text, text, INPUT_LIMIT);
+        }
     }
 
     fn remove(&mut self, range: Range<usize>) {
@@ -220,7 +287,15 @@ mod dead_key_tests {
         logical: Key,
         text: Option<&str>,
     ) {
-        dead.type_key(&mut PromptLine { text: input, edit }, &logical, text);
+        dead.type_key(
+            &mut PromptLine {
+                text: input,
+                edit,
+                overstrike: false,
+            },
+            &logical,
+            text,
+        );
     }
 
     fn character(text: &str) -> Key {

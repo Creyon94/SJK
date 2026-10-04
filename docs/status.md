@@ -105,6 +105,24 @@ Formatting, locked workspace build/tests and the release build passed. Clipboard
 round trips, drag behavior and platform/layout combinations are not exhaustively
 verified.
 
+## Classic console (SJK)
+
+SJK's default console (`con_style classic`) follows EternalJK's: the `console`
+shader's background with its stage motion, `con_ratioFix`, the bar, a monospaced
+character grid with per-row local timestamps (`con_timestamps 2`), word wrap, the
+green-clock input row with overstrike, the version line and corner clock, the
+scrollback arrows, EternalJK's heights and keys, and notify lines; it draws on a
+layer after all other 2D, so text under it is hidden. See
+[client.md](client.md#classic-console). The modern console is unchanged
+(`con_style modern`).
+
+Verification (2026-10-04, Windows 11): formatting, the locked workspace build and
+tests, including unit tests for the grid, background extent, `con_ratioFix`,
+heights, page steps, word wrap with stamps, colour carry-over, overstrike, clock
+formatting, the retail and JoF `console` shaders' stage programs, texture motion
+and colour waves, and `con_style` parsing. The layer was not run on a GPU or in a
+game by the change's author; side-by-side comparison with EternalJK is pending.
+
 ## Accepted client improvements
 
 The owner approved publishing the current playtest improvements on 2026-10-04.

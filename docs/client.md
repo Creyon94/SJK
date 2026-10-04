@@ -745,6 +745,109 @@ Text draws `^0` to `^9` as OpenJK's ten-entry colour table does: `^0`–`^7` are
 the retail colours, `^8` is orange and `^9` grey (retail wrapped them onto black
 and red). The table is `quake_color` in [text.rs](../crates/sjk-viewer/src/text.rs).
 
+## Console styles
+
+`con_style` (Settings, TEXT tab, "Console style") picks how the console looks:
+`classic`, SJK's default, follows EternalJK's console (`cl_console.cpp`,
+`cl_keys.cpp`); `modern` is JKR's console (Inter text on a tinted panel with a
+header and key hints), unchanged. Only `modern` or `0` selects the modern
+console; any other value, a typo included, gives `classic`. Input editing, mouse
+selection, completion, the `]cmd` echo, history (Up and Down) and the F3 browser
+work the same in both. See
+[console_classic.rs](../crates/sjk-viewer/src/console_classic.rs),
+[console_backdrop.rs](../crates/sjk-viewer/src/console_backdrop.rs) and
+[console_options.rs](../crates/sjk-viewer/src/console_options.rs).
+
+### Classic console
+
+Text sits on a grid of character cells drawn with the console character set
+(`gfx/2d/charsgrid_med`, so an HD replacement such as the JoF pack's is used),
+without the glyph shadow other UI text has. The classic console loads the
+character set whether `ui_gameFont` is on or not; without it the cells use Inter.
+A cell is 8 by 16 pixels at 1080 lines and `con_scale 1`, grows with the window
+height like the rest of the UI (with the console's 0.75 floor) and is rounded to
+whole pixels. EternalJK's cells are 8 by 16 screen pixels times `con_scale`, so
+`con_scale 0.5` at 2160 lines matches EternalJK at 4K with its default scale. A
+row holds the screen width in cells minus two, and column `c` is drawn `c + 1`
+cells from the left edge, as `Con_DrawSolidConsole` does.
+
+The background is the game's `console` shader, read from the shader scripts and
+the PK3s like any other, so a pack that overrides it wins as it does in
+EternalJK: the retail one scrolls a star field (alpha blended) and adds the
+pulsing Jedi Academy logo; a cosmetic pack such as JoF's draws an opaque picture
+with scrolling stars over it. Each stage keeps its `blendFunc`, its `tcMod`
+(`scroll`, `scale`, `rotate`, `transform`, `stretch`) and its `rgbGen` and
+`alphaGen` (`wave`, `const`, `vertex`); other generators draw at full strength,
+and an `animMap` shows its first frame. Below full height `alphaGen vertex` is
+`con_opacity`, so the retail stars fade with it while an opaque first stage stays
+opaque; at full height it is 1. Without the shader the console is a dark navy
+panel. The background reaches `480 × fraction − 2` units of the 640×480 virtual
+screen, with a bar two units tall in EternalJK's `console_color` (0.509, 0.609,
+0.847) under it. `con_ratioFix` (1, archived, EternalJK's name and meaning) shows
+the middle of the picture (`t` from `1 − k` to `k`, `k` = 4:3 over the screen's
+aspect) when the console is half the screen or less on a wide screen, instead of
+squashing the whole picture; set 0 for custom backgrounds made for a squashed
+fit.
+
+The classic console has its own 2D layer, drawn after every other 2D element,
+text included, and its own text last, so menu, chat, HUD and frame-rate text
+never shows through an opaque console.
+
+| Key | Classic console |
+| --- | --- |
+| Console key (`cl_consoleKeys`, or the physical key with `cl_consoleUseScanCode`) | Opens to `con_height` (0.5) |
+| Ctrl + console key | Opens full screen |
+| Shift + console key | Opens a quarter of the screen |
+| Shift+Escape | Opens to `con_height`; Escape closes |
+| Page Up, Page Down, mouse wheel | Scroll back or forward two rows; ten with Ctrl |
+| Ctrl+Home, Ctrl+End | Oldest row, newest row |
+| Up, Down, keypad 8 and 2 (Num Lock off), Shift+wheel, Ctrl+P, Ctrl+N | Command history (32 commands) |
+| Ctrl+L | Clear the scrollback |
+| Insert | Toggle overstrike: typing replaces the character after the cursor |
+
+A `toggleconsole` bind reopens at the last height a console key chose. The console
+slides at `scr_conspeed` screens per second and is drawn from its first pixel
+(the modern console waits until it is 8% open). A disconnected client whose menu
+is closed shows the console full screen, as `Con_DrawConsole` does; the map
+viewer without a menu does not.
+
+Scrollback rows are drawn from three cells above the console's bottom edge up to
+the top of the screen (`con_maxLines` is not used). Lines start white (`^7`),
+error lines light red, and a colour code carries on into the rows a line wraps
+onto. Words wrap as `CL_ConsolePrint` wraps them: a word that fits on a row but
+not in what is left of the current one, or would end exactly at its edge, starts
+the next row; a word longer than a row breaks at the edge (EternalJK breaks such
+a word early, at an odd point); colour codes take no room. With `con_timestamps 2`
+(EternalJK's layout) every row, wrapped ones included, starts with the local time
+its line was written in grey, `HH:MM:SS` and a space, and the text wraps in the
+columns after it; `1` also stamps the notify lines and `0` leaves no stamp column.
+Scrolled back, a row of `^` every four columns in the bar colour sits under the
+rows, and new output does not move the view.
+
+The input row is two cells above the bottom edge: the local time in green in
+columns 1 to 8, `]` in column 10, then the input as typed, colour codes shown
+rather than applied, and a cursor that blinks every 256 ms, the character set's
+underscore or, in overstrike mode, its block (Inter cells use `_` and a box). The
+input scrolls sideways to keep the cursor on screen. In the bottom-right corner
+the version line ends one cell from the edge, two and a half rows up, and the
+local date and 12-hour time (`Sun Oct  4 10:52:10 PM`, as EternalJK prints
+`asctime`) sit under it at the edge, both in the bar colour.
+
+Closed, the console draws notify lines while a game, a demo or a map walk runs
+and no menu has focus: of the last `con_notifylines` rows, those written within
+`con_notifytime` seconds and not quiet (chat), from the top edge of the screen,
+one cell plus `cl_conXOffset` pixels from the left. Dragging the mouse selects
+scrollback text and Ctrl+C copies it, as in the modern console; the classic
+console's selection does not include the time column.
+
+Local time comes from the operating system's time zone rules, daylight saving
+included ([local_time.rs](../crates/sjk-shell/src/local_time.rs)); the scrollback's
+stamps, also the modern console's `[HH:MM:SS]` and the log file's, are local time
+too. Differences from EternalJK besides those above: the input never runs past
+the screen's right edge (EternalJK's can), and while the console is open a
+printable console key types its character, as in SJK's modern console; Escape or
+a non-printing `toggleconsole` key closes it.
+
 ## Useful console commands
 
 Printable console shortcuts open the console but type normally once it is open;
@@ -869,8 +972,8 @@ before at the defaults; the console's rows are closer together than before.
 | --- | --- | --- | --- |
 | `ui_textScale` | 1 | 0.8 to 1.2 | Text size on menu screens and the in-game menu |
 | `ui_letterSpacing` | 0 | -0.05 to 0.15 | Extra space after each letter in menus and the console, as a fraction of the text size |
-| `con_scale` | 1 | above 0 (menu: 0.5 to 2) | Size of the whole console: text, margins and rows |
-| `con_lineSpacing` | 0.9 | 0.8 to 2 | Console history and notify row pitch as a multiple of the text size; at 0.8 descenders meet the next row's ascenders |
+| `con_scale` | 1 | above 0 (menu: 0.5 to 2) | Size of the whole console: text, margins and rows; the classic console's character cells |
+| `con_lineSpacing` | 0.9 | 0.8 to 2 | Modern console history and notify row pitch as a multiple of the text size; at 0.8 descenders meet the next row's ascenders |
 
 Menu text grows or shrinks about the centre of its line without moving the
 layout, so the range is limited to what menu rows can hold; that style is
