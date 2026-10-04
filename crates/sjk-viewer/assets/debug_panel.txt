@@ -520,6 +520,18 @@ test: bind F10 debug_panel, close the console: F10 opens and closes it in menus 
 test: Tick an entry (Space, Enter or its box), restart the client: the tick is still there.
 test: Wheel, arrows, PageUp / PageDown, Home / End; Tab cycles TO TEST, TESTED and ALL.
 
+[indoor-normal-light]
+status: personal
+area: Rendering & effects
+title: Normal maps respond to lamps and bounce light (live lighting)
+change: The light pass also stores where lamp, bounce and sky light come from (half-res).
+change: Material maps move that share to the mapped normal; lamps add GGX highlights.
+test: r_dayNight 1, r_normalMapping 1, r_specularMapping 1 (restart); load mp/ffa3.
+test: Walk into a lamp-lit interior: wall and floor relief should catch the lamp light.
+test: Toggle r_dayDebug 1024 / 0: 1024 is the old flat lamp light; 0 shows relief.
+test: r_materialMapsDebug 2 marks mapped surfaces (cyan = normal + specular).
+note: Needs the generated pack (zzz_jkr_materials.pk3); baked lighting is unchanged.
+
 # ---- Merged upstream ----
 
 [console-chat-history]

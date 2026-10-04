@@ -190,6 +190,21 @@ fn material_map_shade(world: vec3<f32>, direct: vec3<f32>, light: vec3<f32>, fac
     return (direct*facing + ambient*response.occlusion)*(1.0 - response.metalness);
 }
 
+// Diffuse light from a light of irradiance `direct` on a surface facing `light`,
+// received with `facing`; its highlight, scaled by `highlight`, goes to
+// `material_map_highlight`. Metal loses the diffuse share, as in `material_map_shade`.
+fn material_map_shade_light(world: vec3<f32>, direct: vec3<f32>, light: vec3<f32>,
+    facing: f32, highlight: f32) -> vec3<f32> {
+    if material_map_layout() == 0u { return direct*facing; }
+    let response = material_map_response();
+    if highlight > 0.0 {
+        let view = normalize(camera.camera_position - world);
+        material_map_highlight += direct*facing*highlight*3.14159265*material_map_brdf(
+            material_map_surface.normal, light, view, response.specular, response.roughness);
+    }
+    return direct*facing*(1.0 - response.metalness);
+}
+
 // A lightmap texel under a material map: rend2's lightmap response (`lightall.glsl`,
 // USE_LIGHTMAP) with the light grid's direction standing in for a deluxemap. The baked
 // light is taken as arriving along that direction, divided by the face's own cosine

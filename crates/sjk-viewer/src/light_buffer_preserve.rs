@@ -15,10 +15,10 @@ impl LightBuffer {
         device: &wgpu::Device,
         enabled: bool,
     ) {
-        self.mirror = enabled.then(|| Images::new(device, self.size));
+        self.mirror = enabled.then(|| Images::new(device, self.size, self.directed));
         self.mirroring.set(false);
         self.receivers
-            .configure_mirror(device, self.mirror.as_ref().map(|images| &images.color));
+            .configure_mirror(device, self.mirror.as_ref());
     }
 }
 

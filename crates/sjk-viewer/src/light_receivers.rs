@@ -76,7 +76,7 @@ pub(in crate::world_materials) struct Direct {
     mirror: Option<wgpu::BindGroup>,
 }
 impl Direct {
-    fn new(device: &wgpu::Device, size: [u32; 2], color: &wgpu::TextureView) -> Self {
+    fn new(device: &wgpu::Device, size: [u32; 2], images: &Images) -> Self {
         use wgpu::util::DeviceExt;
         let list = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("JKR direct-lamp receivers"),
@@ -91,7 +91,7 @@ impl Direct {
             contents: bytemuck::cast_slice(&[0u32, 1, 1, 0]),
             usage: wgpu::BufferUsages::COPY_SRC,
         });
-        let group = direct_group(device, &list, color);
+        let group = direct_group(device, &list, images);
         Self {
             list,
             reset,
@@ -109,54 +109,73 @@ impl Direct {
     }
 }
 
-/// The direct-lamp program's group: `list` and the `color` it lights, as storage.
-fn direct_group(
-    device: &wgpu::Device,
-    list: &wgpu::Buffer,
-    color: &wgpu::TextureView,
-) -> wgpu::BindGroup {
+/// The direct-lamp program's group: `list` and the images it lights, as storage: the
+/// colour, and the directions when the buffer is directed.
+fn direct_group(device: &wgpu::Device, list: &wgpu::Buffer, images: &Images) -> wgpu::BindGroup {
+    let directed = images.directed;
+    let mut entries = vec![
+        wgpu::BindGroupEntry {
+            binding: 8,
+            resource: list.as_entire_binding(),
+        },
+        wgpu::BindGroupEntry {
+            binding: 9,
+            resource: wgpu::BindingResource::TextureView(&images.color),
+        },
+    ];
+    if directed {
+        entries.push(wgpu::BindGroupEntry {
+            binding: 10,
+            resource: wgpu::BindingResource::TextureView(&images.direction),
+        });
+    }
     device.create_bind_group(&wgpu::BindGroupDescriptor {
         label: None,
-        layout: &direct_layout(device),
-        entries: &[
-            wgpu::BindGroupEntry {
-                binding: 8,
-                resource: list.as_entire_binding(),
-            },
-            wgpu::BindGroupEntry {
-                binding: 9,
-                resource: wgpu::BindingResource::TextureView(color),
-            },
-        ],
+        layout: &direct_layout(device, directed),
+        entries: &entries,
     })
 }
 
-/// Group 3 of the direct-lamp program: the receiver list and the light buffer it lights.
-fn direct_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
+/// Group 3 of the direct-lamp program: the receiver list and the light buffer it lights,
+/// with the direction target when `directed`.
+fn direct_layout(device: &wgpu::Device, directed: bool) -> wgpu::BindGroupLayout {
+    let mut entries = vec![
+        wgpu::BindGroupLayoutEntry {
+            binding: 8,
+            visibility: wgpu::ShaderStages::COMPUTE,
+            ty: wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Storage { read_only: true },
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+            count: None,
+        },
+        wgpu::BindGroupLayoutEntry {
+            binding: 9,
+            visibility: wgpu::ShaderStages::COMPUTE,
+            ty: wgpu::BindingType::StorageTexture {
+                access: wgpu::StorageTextureAccess::WriteOnly,
+                format: FORMAT,
+                view_dimension: wgpu::TextureViewDimension::D2,
+            },
+            count: None,
+        },
+    ];
+    if directed {
+        entries.push(wgpu::BindGroupLayoutEntry {
+            binding: 10,
+            visibility: wgpu::ShaderStages::COMPUTE,
+            ty: wgpu::BindingType::StorageTexture {
+                access: wgpu::StorageTextureAccess::WriteOnly,
+                format: DIRECTION_FORMAT,
+                view_dimension: wgpu::TextureViewDimension::D2,
+            },
+            count: None,
+        });
+    }
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         label: Some("JKR direct-lamp receivers"),
-        entries: &[
-            wgpu::BindGroupLayoutEntry {
-                binding: 8,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Storage { read_only: true },
-                    has_dynamic_offset: false,
-                    min_binding_size: None,
-                },
-                count: None,
-            },
-            wgpu::BindGroupLayoutEntry {
-                binding: 9,
-                visibility: wgpu::ShaderStages::COMPUTE,
-                ty: wgpu::BindingType::StorageTexture {
-                    access: wgpu::StorageTextureAccess::WriteOnly,
-                    format: FORMAT,
-                    view_dimension: wgpu::TextureViewDimension::D2,
-                },
-                count: None,
-            },
-        ],
+        entries: &entries,
     })
 }
 
@@ -172,7 +191,7 @@ pub(super) struct Targets {
     pub(in crate::world_materials) direct: Option<Direct>,
 }
 impl Targets {
-    pub(super) fn new(device: &wgpu::Device, size: [u32; 2], color: &wgpu::TextureView) -> Self {
+    pub(super) fn new(device: &wgpu::Device, size: [u32; 2], images: &Images) -> Self {
         let world = target(
             device,
             size,
@@ -212,7 +231,7 @@ impl Targets {
                     wgpu::TextureUsages::RENDER_ATTACHMENT,
                 )
             });
-        let direct = cache.is_some().then(|| Direct::new(device, size, color));
+        let direct = cache.is_some().then(|| Direct::new(device, size, images));
         Self {
             world,
             normal,
@@ -222,14 +241,10 @@ impl Targets {
         }
     }
 
-    /// The direct-lamp group for the light buffer's mirror images (`color`), if any.
-    pub(super) fn configure_mirror(
-        &mut self,
-        device: &wgpu::Device,
-        color: Option<&wgpu::TextureView>,
-    ) {
+    /// The direct-lamp group for the light buffer's mirror images, if any.
+    pub(super) fn configure_mirror(&mut self, device: &wgpu::Device, images: Option<&Images>) {
         if let Some(direct) = &mut self.direct {
-            direct.mirror = color.map(|color| direct_group(device, &direct.list, color));
+            direct.mirror = images.map(|images| direct_group(device, &direct.list, images));
         }
     }
 }
@@ -243,6 +258,8 @@ pub(super) struct Pipelines {
     /// Lamp cache variants, compiled on the first frame of a map that has a cache.
     cached: std::cell::OnceCell<Cached>,
     sources: Sources,
+    /// The lighting passes also write the light buffer's direction target.
+    directed: bool,
 }
 struct Cached {
     attributes: [wgpu::RenderPipeline; 2],
@@ -267,6 +284,7 @@ impl Pipelines {
         receiver: &wgpu::BindGroupLayout,
         world: &wgpu::ShaderModule,
         entity: &wgpu::ShaderModule,
+        directed: bool,
     ) -> Self {
         let sun = sun_layout(device);
         let world_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -329,13 +347,13 @@ impl Pipelines {
             },
             fragment: Some(wgpu::FragmentState {
                 module: world,
-                entry_point: Some("receiver_light"),
+                entry_point: Some(if directed {
+                    "receiver_light_directed"
+                } else {
+                    "receiver_light"
+                }),
                 compilation_options: Default::default(),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: FORMAT,
-                    blend: None,
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
+                targets: light_targets(directed),
             }),
             primitive: Default::default(),
             depth_stencil: None,
@@ -360,6 +378,7 @@ impl Pipelines {
                     layout(device),
                 ],
             },
+            directed,
         }
     }
 
@@ -391,7 +410,7 @@ impl Pipelines {
                 true,
                 true,
             );
-            let cache = crate::world_materials::lamp_cache::Cache::layout(device);
+            let cache = crate::world_materials::lamp_cache::Cache::layout(device, self.directed);
             let light_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: None,
                 bind_group_layouts: &[
@@ -413,13 +432,13 @@ impl Pipelines {
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &from.world,
-                    entry_point: Some("receiver_light_cached"),
+                    entry_point: Some(if self.directed {
+                        "receiver_light_cached_directed"
+                    } else {
+                        "receiver_light_cached"
+                    }),
                     compilation_options: Default::default(),
-                    targets: &[Some(wgpu::ColorTargetState {
-                        format: FORMAT,
-                        blend: None,
-                        write_mask: wgpu::ColorWrites::ALL,
-                    })],
+                    targets: light_targets(self.directed),
                 }),
                 primitive: Default::default(),
                 depth_stencil: None,
@@ -433,7 +452,7 @@ impl Pipelines {
                     Some(&from.light_layout[0]),
                     Some(&from.light_layout[1]),
                     Some(&from.light_layout[2]),
-                    Some(&direct_layout(device)),
+                    Some(&direct_layout(device, self.directed)),
                 ],
                 immediate_size: 0,
             });
@@ -441,7 +460,11 @@ impl Pipelines {
                 label: Some("JKR direct lamps"),
                 layout: Some(&direct_layout),
                 module: &from.world,
-                entry_point: Some("direct_lamps"),
+                entry_point: Some(if self.directed {
+                    "direct_lamps_directed"
+                } else {
+                    "direct_lamps"
+                }),
                 compilation_options: Default::default(),
                 cache: None,
             });
@@ -454,6 +477,23 @@ impl Pipelines {
             }
         })
     }
+}
+
+/// Targets of the deferred lighting pass: the light, then the directions when `directed`.
+fn light_targets(directed: bool) -> &'static [Option<wgpu::ColorTargetState>] {
+    const TARGETS: [Option<wgpu::ColorTargetState>; 2] = [
+        Some(wgpu::ColorTargetState {
+            format: FORMAT,
+            blend: None,
+            write_mask: wgpu::ColorWrites::ALL,
+        }),
+        Some(wgpu::ColorTargetState {
+            format: DIRECTION_FORMAT,
+            blend: None,
+            write_mask: wgpu::ColorWrites::ALL,
+        }),
+    ];
+    &TARGETS[..if directed { 2 } else { 1 }]
 }
 
 /// `cached` adds the lamp cache coordinate target; its static variant reads the page
@@ -629,10 +669,10 @@ impl super::super::super::Runtime {
         if let Some(direct) = direct {
             encoder.copy_buffer_to_buffer(&direct.reset, 0, &direct.list, 0, DIRECT_HEADER);
         }
-        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("JKR deferred lighting"),
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &buffer.images().color,
+        let images = buffer.images();
+        let lit = [&images.color, &images.direction].map(|view| {
+            Some(wgpu::RenderPassColorAttachment {
+                view,
                 resolve_target: None,
                 depth_slice: None,
                 // Not cleared: the pass writes every texel of its scissor (black where
@@ -641,7 +681,11 @@ impl super::super::super::Runtime {
                     load: wgpu::LoadOp::Load,
                     store: wgpu::StoreOp::Store,
                 },
-            })],
+            })
+        });
+        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("JKR deferred lighting"),
+            color_attachments: &lit[..if images.directed { 2 } else { 1 }],
             depth_stencil_attachment: None,
             timestamp_writes: None,
             occlusion_query_set: None,

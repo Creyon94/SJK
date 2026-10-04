@@ -17,6 +17,9 @@ pub(in crate::world_materials) struct LightBuffer {
     pub(super) scene: [u32; 2],
     pub(super) divisor: u32,
     size: [u32; 2],
+    /// The light pass also writes where the non-sun light comes from (`Images::direction`):
+    /// the map has material maps that redistribute it.
+    pub(super) directed: bool,
     /// The main view's images.
     main: Images,
     /// The images mirrors are lit into while floor reflections are enabled, so the main
@@ -34,6 +37,11 @@ pub(in crate::world_materials) struct LightBuffer {
 pub(in crate::world_materials) struct Images {
     pub(super) color: wgpu::TextureView,
     pub(super) depth: wgpu::TextureView,
+    /// Dominant direction of the non-sun light and its directional share
+    /// (`DirectedLight` in `sun_realtime.wgsl`); one texel when the buffer is not directed.
+    pub(super) direction: wgpu::TextureView,
+    /// `direction` covers the buffer: the light pass writes it.
+    pub(super) directed: bool,
     /// Pre-pass normals and the occlusion term computed from them.
     normal: wgpu::TextureView,
     occlusion: wgpu::TextureView,
@@ -42,8 +50,15 @@ pub(in crate::world_materials) struct Images {
 }
 
 impl Images {
-    fn new(device: &wgpu::Device, size: [u32; 2]) -> Self {
+    fn new(device: &wgpu::Device, size: [u32; 2], directed: bool) -> Self {
         let (color, depth) = targets(device, size);
+        let direction = target(
+            device,
+            if directed { size } else { [1, 1] },
+            "JKR light buffer directions",
+            DIRECTION_FORMAT,
+            wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::STORAGE_BINDING,
+        );
         let normal = target(
             device,
             size,
@@ -75,6 +90,8 @@ impl Images {
         Self {
             color,
             depth,
+            direction,
+            directed,
             normal,
             occlusion,
             occlusion_group,
@@ -102,6 +119,7 @@ impl Images {
                 entry(0, &self.color),
                 entry(1, &self.depth),
                 entry(3, &self.normal),
+                entry(DIRECTION, &self.direction),
             ],
         }
     }
@@ -170,7 +188,11 @@ impl Binding<'_> {
 
 /// First light-buffer binding inside the receiver group: colour, depth, then occlusion.
 pub(in crate::world_materials) const BASE: u32 = 20;
+/// The direction target's binding after [`BASE`] (41: past the point-light block, 40).
+pub(in crate::world_materials) const DIRECTION: u32 = 21;
 const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
+/// Octahedral direction, directional share and lamp share of the non-sun light.
+const DIRECTION_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba8Unorm;
 const NORMAL_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgb10a2Unorm;
 const OCCLUSION_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::R8Unorm;
 
@@ -205,10 +227,14 @@ pub(in crate::world_materials) fn layout_entries(
     let depth = texture(1, wgpu::TextureSampleType::Depth);
     let occlusion = texture(2, wgpu::TextureSampleType::Float { filterable: false });
     let normal = texture(3, wgpu::TextureSampleType::Float { filterable: false });
+    let direction = texture(
+        DIRECTION,
+        wgpu::TextureSampleType::Float { filterable: false },
+    );
     match layout {
         Layout::Absent => Vec::new(),
         Layout::Pass => vec![depth, occlusion, normal],
-        Layout::Full => vec![color, depth, normal],
+        Layout::Full => vec![color, depth, normal, direction],
     }
 }
 
@@ -279,10 +305,15 @@ fn targets(device: &wgpu::Device, size: [u32; 2]) -> (wgpu::TextureView, wgpu::T
     )
 }
 
-/// One-texel stand-ins (colour, depth, normal) for groups without a buffer.
+/// One-texel stand-ins (colour, depth, normal, direction) for groups without a buffer.
 pub(in crate::world_materials) fn neutral(
     device: &wgpu::Device,
-) -> (wgpu::TextureView, wgpu::TextureView, wgpu::TextureView) {
+) -> (
+    wgpu::TextureView,
+    wgpu::TextureView,
+    wgpu::TextureView,
+    wgpu::TextureView,
+) {
     let (color, depth) = targets(device, [1, 1]);
     let normal = target(
         device,
@@ -291,20 +322,32 @@ pub(in crate::world_materials) fn neutral(
         NORMAL_FORMAT,
         wgpu::TextureUsages::RENDER_ATTACHMENT,
     );
-    (color, depth, normal)
+    let direction = target(
+        device,
+        [1, 1],
+        "JKR light buffer neutral directions",
+        DIRECTION_FORMAT,
+        wgpu::TextureUsages::RENDER_ATTACHMENT,
+    );
+    (color, depth, normal, direction)
 }
 
 impl LightBuffer {
     /// `divisor` is the scene pixels per buffer texel per axis: two for a native scene,
     /// twice the supersampling factor when the scene is supersampled, so the lighting is
     /// always evaluated at half the display resolution (one for evidence only).
-    pub(super) fn new(device: &wgpu::Device, scene: [u32; 2], divisor: u32) -> Self {
+    pub(super) fn new(
+        device: &wgpu::Device,
+        scene: [u32; 2],
+        divisor: u32,
+        directed: bool,
+    ) -> Self {
         let divisor = divisor.max(1);
         let size = [
             scene[0].div_ceil(divisor).max(1),
             scene[1].div_ceil(divisor).max(1),
         ];
-        let main = Images::new(device, size);
+        let main = Images::new(device, size, directed);
         let scale = [
             size[0] as f32 / scene[0].max(1) as f32,
             size[1] as f32 / scene[1].max(1) as f32,
@@ -344,11 +387,12 @@ impl LightBuffer {
                 },
             ],
         });
-        let receivers = receivers::Targets::new(device, size, &main.color);
+        let receivers = receivers::Targets::new(device, size, &main);
         Self {
             scene,
             divisor,
             size,
+            directed,
             main,
             mirror: None,
             mirroring: std::cell::Cell::new(false),
@@ -422,6 +466,7 @@ impl Pipelines {
         device: &wgpu::Device,
         forge: &Forge,
         receiver: &wgpu::BindGroupLayout,
+        directed: bool,
     ) -> Self {
         // The pre-pass writes the depth the receiver group samples: camera only.
         let prepass_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -602,7 +647,14 @@ impl Pipelines {
             occlusion,
             entity_prepass,
 
-            receivers: receivers::Pipelines::new(device, forge, receiver, &shader, &entity_shader),
+            receivers: receivers::Pipelines::new(
+                device,
+                forge,
+                receiver,
+                &shader,
+                &entity_shader,
+                directed,
+            ),
         }
     }
 }
@@ -915,5 +967,55 @@ impl super::super::Runtime {
             }
             pass.draw_indexed(draw.indices.clone(), 0, draw.instances.clone());
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The light pass program as `Pipelines::new` assembles it.
+    fn program() -> String {
+        format!(
+            "{}{}{}",
+            source(),
+            include_str!("light_receivers.wgsl"),
+            include_str!("light_receivers_shade.wgsl")
+        )
+    }
+
+    #[test]
+    fn light_pass_programs_validate_with_and_without_directions() {
+        let program = program();
+        crate::wgsl_source::validate(&program);
+        for entry in [
+            "receiver_light",
+            "receiver_light_cached",
+            "direct_lamps",
+            "receiver_light_directed",
+            "receiver_light_cached_directed",
+            "direct_lamps_directed",
+        ] {
+            assert!(program.contains(&format!("fn {entry}(")), "{entry}");
+        }
+        crate::wgsl_source::validate(&super::super::super::entity_light_shader());
+    }
+
+    #[test]
+    fn direction_binding_follows_the_point_light_block() {
+        // The material receiver group keeps 40 for the point lights; the material-map
+        // program reads the directions at 41.
+        assert_eq!(BASE + DIRECTION, 41);
+        assert!(
+            include_str!("material_maps_realtime.wgsl")
+                .contains("@group(3) @binding(41) var light_direction")
+        );
+        let full = layout_entries(BASE, Layout::Full);
+        assert!(full.iter().any(|entry| entry.binding == 41));
+        assert!(
+            layout_entries(BASE, Layout::Pass)
+                .iter()
+                .all(|entry| entry.binding != 41)
+        );
     }
 }

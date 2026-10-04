@@ -361,7 +361,8 @@ impl super::Runtime {
             .light
             .as_ref()
             .is_some_and(|l| l.preservation_enabled());
-        let mut light = light_buffer::LightBuffer::new(device, scene, divisor);
+        let directed = self.forge.material_maps.is_some();
+        let mut light = light_buffer::LightBuffer::new(device, scene, divisor, directed);
         light.configure_preservation(device, preserve);
         shadow.light = Some(light);
         shadow.receiver = shadow.build_receiver(device);
@@ -449,7 +450,9 @@ impl super::Runtime {
                 .lamp_cache_pages
                 .as_ref()
                 .filter(|_| self.gi.as_ref().is_some_and(|gi| gi.fixtures.is_some()))
-                .map(|pages| lamp_cache::Cache::new(device, pages));
+                .map(|pages| {
+                    lamp_cache::Cache::new(device, pages, self.forge.material_maps.is_some())
+                });
         }
         shadow.cache_group = cache_group(device, self.lamp_cache.as_ref(), shadow.light.as_ref());
         shadow.environment = environment;

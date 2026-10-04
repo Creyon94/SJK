@@ -24,6 +24,21 @@ pub(crate) fn crlf(source: &str) -> String {
     lf(source).replace('\n', "\r\n")
 }
 
+/// Parse and validate a whole program with naga, as wgpu would, panicking with naga's
+/// own report; tests use it for programs no unit test renders.
+#[cfg(test)]
+pub(crate) fn validate(source: &str) -> wgpu::naga::valid::ModuleInfo {
+    use wgpu::naga;
+    let module = naga::front::wgsl::parse_str(source)
+        .unwrap_or_else(|error| panic!("{}", error.emit_to_string(source)));
+    naga::valid::Validator::new(
+        naga::valid::ValidationFlags::all(),
+        naga::valid::Capabilities::all(),
+    )
+    .validate(&module)
+    .unwrap_or_else(|error| panic!("{}", error.emit_to_string(source)))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

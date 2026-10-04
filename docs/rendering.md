@@ -672,15 +672,53 @@ Shading lives in [material_maps.wgsl](../crates/sjk-viewer/src/material_maps.wgs
 - Real-time lighting (`r_dayNight 1`): the sun share of the half-resolution
   light buffer is moved to the mapped normal per pixel, using the visibility the
   buffer keeps. It fades out toward the terminator, so mapped bumps never light a
-  face turned from the sun or a shadowed texel. Lamps and probe bounce remain as
-  the light pass evaluated them for the geometric normal. Without a specular map,
-  the existing sun highlight and sky rim use the mapped normal.
+  face turned from the sun or a shadowed texel. The rest (lamps, probe bounce and
+  sky) is redistributed the same way through a direction target (below). Without a
+  specular map, the existing sun highlight and sky rim use the mapped normal.
 - Specular maps use rend2's two paths: spec/gloss, and occlusion, roughness,
   metalness and specular with the albedo as metal colour. Highlights use rend2's GGX
   `CalcSpecular` for the sun or grid direction and for dynamic lights. They are
   added after the albedo and dynamic-light modulation. Occlusion darkens only the
   ambient share.
 - Parallax uses rend2's 16 linear and 8 binary steps through the height.
+
+### Lamp and bounce direction in real-time lighting
+
+On a map with material maps the light pass also writes a half-resolution RGBA8
+direction target beside the light buffer
+([sun_realtime.wgsl](../crates/sjk-viewer/src/sun_realtime.wgsl), `DirectedLight`):
+the dominant direction of the non-sun light (octahedral), the share of it that
+arrives from that direction and the lamps' part of that share. Lamps contribute
+the luminance-weighted sum of their directions (each lamp's shadowed irradiance
+times the unit vector to its centre); the probes contribute their L1 irradiance,
+whose `a + b cos` form gives `2b cos` (at most the whole irradiance) as the
+directional part. Both shares are applied to the light as finally shown (after the
+lamp response, gain, fill and occlusion). The lamp cache bakes the same lamp vector
+per texel into an RGB10A2 layer beside its light (`bake_light_directed`), so cached
+receivers read one more bilinear sample instead of walking their lamp lists.
+
+The material program reads the direction through the same depth- and normal-aware
+weights as the light (`material_map_buffered` in
+[material_maps_realtime.wgsl](../crates/sjk-viewer/src/material_maps_realtime.wgsl))
+and treats the directional share as the baked path treats a lightmap texel: divided
+by the face's own cosine (at most 4x), received by the mapped normal, fading toward
+the face's terminator; the remainder stays ambient, so a flat map reproduces the
+buffered light. The lamps' part casts GGX highlights along that direction with the
+stage's roughness and metalness (`material_map_shade_light`); bounce and sky cast
+none (they belong to the reflection probes). Baked lighting is unchanged.
+`r_dayDebug 1024` (live) leaves the non-sun light as the light pass evaluated it, for
+side-by-side comparison. Normal maps
+therefore respond under lamps and in bounce-lit interiors, not only in sunlight.
+
+Cost: only maps with a material-mapped stage get the target and the cache layer;
+others compile and run exactly as before. The target costs 4 bytes per light-buffer
+texel (8 MiB at a 3840×2160 window, twice that with floor-mirror images), the cache
+layer half the lamp cache's size again (the load log prints the total, `Lamp light
+cache: ... with directions`). Per frame the light pass writes the extra target and
+does a little more arithmetic per lamp and probe; material-mapped pixels read four
+more texels. Estimated, not measured: a few hundredths of a millisecond at 4K on a
+current GPU. A single dominant direction cannot represent two lamps on opposite
+sides; their vectors cancel and the light stays ambient, which is the safe failure.
 
 As in rend2, frames come from the untransformed texture coordinates (`tcMod`
 rotation misaligns them) and an `animMap` stage uses its first frame's maps.
@@ -726,7 +764,9 @@ Authored rend2 packs with stronger normal maps respond in proportion to their
 tilt.
 
 Real-time lighting shows normal maps far more clearly: the sun share is moved
-per pixel, and a low sun lights floors at grazing angles. With `r_dayNight 1`
+per pixel, and a low sun lights floors at grazing angles. Indoors, lamps light
+walls and floors at grazing angles too, and their share now follows the mapped
+normal as well. With `r_dayNight 1`
 and `r_dayHour 7`, the sun stands 15° high, so a floor's tan θ is about 3.7
 (2.4 at the default hour 7.5) against 1.5 for baked grid directions. This
 estimate is from the formulas above; no real-time render of real content has

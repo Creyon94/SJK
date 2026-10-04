@@ -93,10 +93,14 @@ pub(super) fn new(
         }
         _ => None,
     };
-    let light = settings
-        .day
-        .enabled
-        .then(|| super::light_buffer::LightBuffer::new(device, scene, light_divisor));
+    let light = settings.day.enabled.then(|| {
+        super::light_buffer::LightBuffer::new(
+            device,
+            scene,
+            light_divisor,
+            forge.material_maps.is_some(),
+        )
+    });
     let receiver_layout = super::super::model_sun::receiver_layout(device);
     let pass_binding = light
         .as_ref()
@@ -159,9 +163,9 @@ pub(super) fn new(
         lamp_shadows.as_ref(),
         &forge.point_lights,
     );
-    let light_pipelines = light
-        .as_ref()
-        .map(|_| super::light_buffer::Pipelines::new(device, forge, &pass_layout));
+    let light_pipelines = light.as_ref().map(|light| {
+        super::light_buffer::Pipelines::new(device, forge, &pass_layout, light.directed)
+    });
     let empty_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
         label: None,
         entries: &[],

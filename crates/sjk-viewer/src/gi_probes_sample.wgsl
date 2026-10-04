@@ -206,3 +206,29 @@ fn probe_irradiance(point: vec3<f32>, normal: vec3<f32>) -> vec3<f32> {
         + probes.sky.rgb*sh_evaluate(component(sh, 4u), normal)
         + sh_evaluate(component(sh, 8u), normal);
 }
+// `probe_irradiance` with the share that arrives from one direction, for material maps:
+// L1 irradiance is a + b·cos about its dominant direction, and a light of intensity I
+// from that direction gives a = I/4, b = I/2, so 2b·cos (at most the whole irradiance)
+// is the directional part on a surface facing `normal`. `vector` is that direction
+// scaled by the directional share of the irradiance's luminance.
+struct ProbeDirected { irradiance: vec3<f32>, vector: vec3<f32> };
+fn probe_irradiance_directed(point: vec3<f32>, normal: vec3<f32>) -> ProbeDirected {
+    let sh = probe_gather(point, normal, true);
+    var c = component(sh, 0u);
+    if COMPONENTS != 4u {
+        for (var k = 0u; k < 4u; k++) {
+            c[k] = probes.sun_color.rgb*probes.sun.w*sh[k] + probes.sky.rgb*sh[4u + k]
+                + sh[8u + k];
+        }
+    }
+    let irradiance = sh_evaluate(c, normal);
+    let weights = vec3(0.2126, 0.7152, 0.0722);
+    let linear = vec3(dot(c[3], weights), dot(c[1], weights), dot(c[2], weights))
+        *2.0943951*0.488603;
+    let b = length(linear);
+    let total = dot(irradiance, weights);
+    if b < 1e-6 || total < 1e-6 { return ProbeDirected(irradiance, vec3(0.0)); }
+    let direction = linear/b;
+    let along = min(2.0*b*max(dot(direction, normal), 0.0), total);
+    return ProbeDirected(irradiance, direction*(along/total));
+}
