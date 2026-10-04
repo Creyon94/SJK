@@ -176,6 +176,13 @@ pub(crate) fn world_sun_shader() -> &'static str {
     )
 }
 
+impl Runtime {
+    /// The map's reflection probes, when material maps placed any.
+    pub(crate) fn reflection_probes(&self) -> Option<&material_maps::reflections::gpu::Probes> {
+        self.forge.material_maps.as_ref()?.reflections.as_ref()
+    }
+}
+
 #[path = "world_draw_ranges.rs"]
 pub(crate) mod draw_ranges;
 #[path = "view_culling.rs"]

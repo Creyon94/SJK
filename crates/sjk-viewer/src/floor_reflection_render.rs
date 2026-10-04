@@ -78,7 +78,7 @@ impl GpuState {
                     &input,
                     None,
                     Some(floor.region),
-                    floors.scale,
+                    [floors.scale; 2],
                     occlusion_region,
                 );
             }

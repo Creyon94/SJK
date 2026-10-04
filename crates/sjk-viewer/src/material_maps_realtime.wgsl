@@ -108,13 +108,19 @@ fn material_map_lightmap(input: VertexOutput, texel: vec4<f32>) -> vec4<f32> {
         let gloss = select(0.0, stage.emission.w, highlights);
         lit += shadow.realtime.x*(sun_specular(input.world_position, surface.normal, light.a,
             gloss) + sky_reflection(input.world_position, surface.normal, gloss));
-    } else if highlights {
-        let response = material_map_response();
-        material_map_highlight += shadow.realtime.x*response.occlusion
-            *mix(vec3(1.0), response.specular, response.metalness)
-            *sky_reflection(input.world_position, surface.normal, 1.0 - response.roughness);
     } else {
-        material_map_highlight = vec3(0.0);
+        // `r_dayDebug` 512 drops the sun and lamp highlights, not the probe reflection.
+        if !highlights { material_map_highlight = vec3(0.0); }
+        let response = material_map_response();
+        let reflection = material_map_reflection(input.world_position, response);
+        if reflection.a > 0.0 {
+            material_map_highlight += reflection.rgb;
+        } else if highlights {
+            // No captured probe: the sky's rim, as before probes existed.
+            material_map_highlight += shadow.realtime.x*response.occlusion
+                *mix(vec3(1.0), response.specular, response.metalness)
+                *sky_reflection(input.world_position, surface.normal, 1.0 - response.roughness);
+        }
     }
     return vec4(lit, texel.a);
 }

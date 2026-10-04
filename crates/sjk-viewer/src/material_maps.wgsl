@@ -14,23 +14,24 @@ struct MaterialMapParams {
 };
 @group(1) @binding(8) var material_map_normal: texture_2d<f32>;
 @group(1) @binding(9) var material_map_specular: texture_2d<f32>;
-// Per flattened world vertex: packed tangent and handedness, packed light-grid direction.
+// Per flattened world vertex: packed tangent and handedness, packed light-grid direction
+// with the surface's reflection probe + 1 in its fourth byte.
 @group(1) @binding(10) var<storage, read> material_map_frames: array<vec2<u32>>;
 @group(1) @binding(11) var<uniform> material_map: MaterialMapParams;
 @group(1) @binding(12) var material_map_sampler: sampler;
 
-struct MaterialMapFrame { tangent: vec4<f32>, light: vec3<f32> };
+struct MaterialMapFrame { tangent: vec4<f32>, light: vec3<f32>, probe: f32 };
 // The frame of vertex `index` turned with its instance (identity for the static world).
 // Vertices past the flattened world (models appended later) have none: no tangent, and
 // a zero light direction that leaves the lightmap's response unchanged.
 fn material_map_frame(index: u32, rotation: vec4<f32>) -> MaterialMapFrame {
     if index >= arrayLength(&material_map_frames) {
-        return MaterialMapFrame(vec4(0.0), vec3(0.0));
+        return MaterialMapFrame(vec4(0.0), vec3(0.0), 0.0);
     }
     let packed = material_map_frames[index];
     let tangent = unpack4x8snorm(packed.x);
     return MaterialMapFrame(vec4(rotate_vector(rotation, tangent.xyz), tangent.w),
-        rotate_vector(rotation, unpack4x8snorm(packed.y).xyz));
+        rotate_vector(rotation, unpack4x8snorm(packed.y).xyz), f32(packed.y >> 24u));
 }
 
 struct MaterialMapSurface {
@@ -85,6 +86,9 @@ fn material_map_prepare(input: VertexOutput) {
     }
     material_map_surface = MaterialMapSurface(geometric, normal, offset, specular);
     material_map_highlight = vec3(0.0);
+    // One probe per surface: every vertex carries the same index.
+    material_map_probe = u32(round(input.material_light.w));
+    material_map_reflected = vec3(0.0);
 }
 
 // rend2 `GetParallaxOffset` and `RayIntersectDisplaceMap`: march the view ray through the
@@ -212,14 +216,20 @@ fn material_map_shade_light(world: vec3<f32>, direct: vec3<f32>, light: vec3<f32
 // ambient. A flat map reproduces the texel exactly.
 fn material_map_baked(input: VertexOutput, texel: vec4<f32>) -> vec4<f32> {
     let surface = material_map_surface;
-    let length_squared = dot(input.material_light, input.material_light);
-    let light = select(surface.geometric, input.material_light*inverseSqrt(max(length_squared,
-        1e-12)), length_squared > 1e-6);
+    let grid = input.material_light.xyz;
+    let length_squared = dot(grid, grid);
+    let light = select(surface.geometric, grid*inverseSqrt(max(length_squared, 1e-12)),
+        length_squared > 1e-6);
     let received = clamp(dot(surface.geometric, light), 0.0, 1.0);
     let direct = texel.rgb/max(received, 0.25);
     let ambient = max(texel.rgb - direct*received, vec3(0.0));
     let facing = clamp(dot(surface.normal, light), 0.0, 1.0);
-    return vec4(material_map_shade(input.world_position, direct, light, facing, ambient), texel.a);
+    let lit = material_map_shade(input.world_position, direct, light, facing, ambient);
+    if material_map_layout() != 0u {
+        material_map_highlight += material_map_reflection(input.world_position,
+            material_map_response()).rgb;
+    }
+    return vec4(lit, texel.a);
 }
 
 // Highlights of the dynamic lights the stage's modulation pass adds (rend2
@@ -248,13 +258,18 @@ fn material_map_point_highlights(input: VertexOutput) {
 }
 
 // The stage's final colour: the highlights added after the albedo product and dynamic-light
-// modulation, or one of the `r_materialMapsDebug` views (lighting-mode bits 8-9,
+// modulation, or one of the `r_materialMapsDebug` views (lighting-mode bits 8-10,
 // `material_maps::DEBUG_SHIFT`). Only material-mapped stages run this program, so the
 // views leave every other surface as it is. A uniform branch: nothing to pay when off.
 fn material_map_finish(output: vec4<f32>) -> vec4<f32> {
     let lit = vec4(output.rgb + material_map_highlight, output.a);
-    let view = (point_lights.metadata.z >> 8u) & 3u;
-    if view == 0u { return lit; }
+    let view = (point_lights.metadata.z >> 8u) & 7u;
+    // 5: the scene without probe reflections (`material_map_reflection`).
+    if view == 0u || view == 5u { return lit; }
+    if view == 4u {
+        // The probe reflection alone, black where no captured probe serves the surface.
+        return vec4(material_map_reflected, lit.a);
+    }
     let surface = material_map_surface;
     if view == 1u {
         // The mapped normal in world space, as an object-space normal map shows it.

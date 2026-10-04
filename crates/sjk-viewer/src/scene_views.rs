@@ -14,6 +14,8 @@ mod floor_reflections;
 mod gpu;
 #[path = "scene_portal_math.rs"]
 mod math;
+#[path = "reflection_capture.rs"]
+mod reflection_capture;
 #[path = "scene_view_render.rs"]
 mod render;
 #[path = "scene_sky_visibility.rs"]

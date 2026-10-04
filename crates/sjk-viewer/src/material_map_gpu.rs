@@ -28,6 +28,10 @@ pub(in crate::world_materials) struct Gpu {
     frames: wgpu::Buffer,
     /// Bound where a stage has no map of a kind; the shader's flags skip it.
     neutral: wgpu::TextureView,
+    /// The map's reflection probes, when it has any (`reflections`); stage groups then
+    /// bind their cubes, else `neutral_reflections`.
+    pub(in crate::world_materials) reflections: Option<super::reflections::gpu::Probes>,
+    neutral_reflections: super::reflections::gpu::Shading,
     textures: HashMap<String, wgpu::TextureView>,
     program: OnceCell<(wgpu::PipelineLayout, wgpu::ShaderModule)>,
 }
@@ -69,6 +73,7 @@ impl Gpu {
                 count: None,
             },
         ]);
+        entries.extend(super::reflections::gpu::Shading::layout_entries());
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("JKR material-mapped stage layout"),
             entries: &entries,
@@ -82,6 +87,8 @@ impl Gpu {
             layout,
             frames: frames_buffer(device, &[[0; 2]]),
             neutral,
+            reflections: None,
+            neutral_reflections: super::reflections::gpu::Shading::neutral(device),
             textures: HashMap::new(),
             program: OnceCell::new(),
         }
@@ -149,6 +156,11 @@ impl Gpu {
                 resource: wgpu::BindingResource::Sampler(sampler),
             },
         ]);
+        let reflections = self
+            .reflections
+            .as_ref()
+            .map_or(&self.neutral_reflections, |probes| &probes.shading);
+        entries.extend(reflections.entries());
         Ok(device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("JKR material-mapped stage"),
             layout: &self.layout,

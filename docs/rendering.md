@@ -99,7 +99,9 @@ work without reducing source count, texture resolution or lighting quality.
 | `r_normalMapping` | Normal maps on lightmapped world surfaces (rend2 convention); default 0, restart required |
 | `r_specularMapping` | Specular, roughness and metalness maps on the same surfaces; default 0, restart required |
 | `r_parallaxMapping` | Parallax from the height in `_nh`/`normalHeightMap` images; needs `r_normalMapping`; default 0, restart required |
-| `r_materialMapsDebug` | Material-mapped surfaces only: 1 mapped normal as colour, 2 tint by maps found, 3 normal-map relief; default 0, live, not archived |
+| `r_materialMapsDebug` | Material-mapped surfaces only: 1 mapped normal as colour, 2 tint by maps found, 3 normal-map relief, 4 reflection probes alone, 5 without reflection probes; default 0, live, not archived |
+| `r_cubeMapping` | Reflection probes on specular-mapped surfaces (rend2's name and meaning); default 1, needs `r_specularMapping`, restart required |
+| `r_cubeMapSize` | Reflection probe face size, a power of two 32–512; default 128, restart required |
 
 See [day_night.rs](../crates/sjk-viewer/src/day_night.rs),
 [sun_shadow_settings.rs](../crates/sjk-viewer/src/sun_shadow_settings.rs) and
@@ -679,7 +681,10 @@ Shading lives in [material_maps.wgsl](../crates/sjk-viewer/src/material_maps.wgs
   metalness and specular with the albedo as metal colour. Highlights use rend2's GGX
   `CalcSpecular` for the sun or grid direction and for dynamic lights. They are
   added after the albedo and dynamic-light modulation. Occlusion darkens only the
-  ambient share.
+  ambient share and the probe reflection.
+- With specular maps, surfaces reflect the nearest reflection probe (below), with
+  rend2's split-sum `CalcIBLContribution`; without a captured probe, real-time
+  lighting keeps its sky rim.
 - Parallax uses rend2's 16 linear and 8 binary steps through the height.
 
 ### Lamp and bounce direction in real-time lighting
@@ -719,6 +724,62 @@ does a little more arithmetic per lamp and probe; material-mapped pixels read fo
 more texels. Estimated, not measured: a few hundredths of a millisecond at 4K on a
 current GPU. A single dominant direction cannot represent two lamps on opposite
 sides; their vectors cancel and the light stays ambient, which is the safe failure.
+
+### Reflection probes
+
+Specular-mapped surfaces reflect prefiltered cube maps captured in the map, after
+rend2's cubemaps ([reflection_probes.rs](../crates/sjk-viewer/src/reflection_probes.rs),
+[reflection_capture.rs](../crates/sjk-viewer/src/reflection_capture.rs)). They exist
+only with `r_specularMapping` and `r_cubeMapping` on, on a map with specular-mapped
+stages; otherwise nothing is placed, allocated or captured.
+
+- **Placement.** Probes stand at the map's `misc_cubemap` entities, else at every
+  player spawn (deathmatch, start, duel and CTF spawns) lifted to eye height, else at
+  the intermission spot, as rend2 picks the first class that has any. Points in solid
+  space are dropped, points within 256 units merge into their mean, and at most 64
+  are kept by farthest-point selection. Each probe measures its room with six axis
+  traces against the world brushes (32–2048 units per side).
+- **Assignment.** Every specular-mapped surface takes, among its four nearest probes,
+  the nearest one a trace from the surface reaches unobstructed (else the nearest),
+  as rend2 assigns cubemaps per surface. The index rides in the spare byte of the
+  vertex frames, so the shader needs no search.
+- **Parallax.** The reflected ray is intersected with the probe's room box and the
+  cube is read toward that point from the probe (Lagarde's box-projected cubemap).
+  rend2 approximates the room by a sphere of one radius; a box fits Quake's
+  axis-aligned rooms and keeps floors and walls aligned with their reflections. A
+  surface outside its probe's box reads the plain reflected direction.
+- **Capture.** Faces are rendered through the ordinary scene path before the main
+  view's light pass, with this frame's sun cascades: in real-time lighting the light
+  pass lights the face in the light buffer's corner, as floor mirrors do; in baked
+  lighting the faces show the lightmaps. Sky, opaque and blended world surfaces and
+  movers are drawn; players, items, effects and fog are not, and captured surfaces do
+  not reflect probes themselves (no reflections of reflections). After map load one
+  whole probe is captured per frame until all are done; surfaces use the sky rim until
+  their probe is ready.
+- **Filtering.** Each captured cube is box-downsampled, then every level of its slot
+  in an RGBA16F cube array is GGX-prefiltered with filtered importance sampling (64
+  samples, rend2's `prefilterEnvMap.glsl`), down to 4×4 texels for roughness 1. The
+  split-sum BRDF table (64², rend2's `R_CreateEnvBrdfLUT`) is computed once on the CPU.
+- **Shading.** The cube's level `roughness × last level`, times `F0 × scale + bias`
+  from the BRDF table, times occlusion, added after the albedo like the other
+  highlights; F0 is the specular colour (packed maps: the dielectric value mixed toward
+  the albedo by metalness).
+- **Time of day.** When the sun turns by half a degree, or the sun, sky colour, light
+  scale or indirect gain change by 2%, all probes are refreshed one face per frame
+  (384 frames for 64 probes); each keeps its old content until its new faces are
+  filtered. With a running day clock (`r_dayMinutes`) reflections therefore trail the
+  sun by a few seconds.
+
+Cost: the cube array takes about 1.05 MiB per probe at 128² (6 faces, 6 levels of
+RGBA16F), plus a scratch cube and a 128² capture target (about 1.2 MiB); 64 probes
+take about 65 MiB, a typical FFA map with 15–30 spawn clusters 16–32 MiB. The load
+log prints `Reflection probes: N at 128x128, ...`. Capturing costs each of the first
+frames after load six small scene renders (a light pass on a 64² corner and a 128²
+colour pass each) and one filter, comparable to six floor mirrors; refreshing costs
+one face per frame. Per pixel, specular-mapped surfaces take two more texture reads
+and a box intersection. These are estimates from the pass structure; nothing was run
+on a GPU. `r_materialMapsDebug 4` shows the reflections alone, 5 the scene without
+them, live.
 
 As in rend2, frames come from the untransformed texture coordinates (`tcMod`
 rotation misaligns them) and an `animMap` stage uses its first frame's maps.
@@ -1180,7 +1241,9 @@ live sun). Shadow gap closure and screen-space contact shadows are off.
 The scene uses HDR with exposure 1, FXAA, SSAO at strength 4, trilinear mipmapping
 and 16× anisotropy where supported. Bloom and the optional LDR tone curve are off.
 Soft particles, per-pixel model diffuse lighting and full rendering resolution
-remain enabled. These are ordinary cvar defaults, not a config imported at launch.
+remain enabled. Material maps stay off; reflection probes (`r_cubeMapping 1`, 128²)
+are on but only take effect once `r_specularMapping` is enabled and a map has
+specular maps. These are ordinary cvar defaults, not a config imported at launch.
 
 Saved values take precedence, including explicitly disabled effects. Existing
 profiles are not silently migrated (the one exception is the old `com_maxfps`

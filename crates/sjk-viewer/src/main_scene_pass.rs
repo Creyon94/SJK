@@ -61,6 +61,11 @@ impl GpuState {
         if let Some(phases) = &self.gpu_phases {
             phases.mark(encoder, "actor-casters");
         }
+        // Reflection probes are captured with this frame's cascades, before the main
+        // view's light pass overwrites the light buffer they borrow.
+        if main_view {
+            self.capture_reflection_probes(encoder, shadows);
+        }
         self.frame_pacer.split.cut(&self.device, encoder);
         if shadows {
             self.world_materials.draw_light_buffer(

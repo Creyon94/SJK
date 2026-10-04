@@ -686,19 +686,20 @@ impl super::super::Runtime {
         input: &FrameDraw<'_>,
         phases: Option<&crate::gpu_phases::Profiler>,
     ) {
-        self.draw_light_buffer_region(encoder, input, phases, None, 1., None);
+        self.draw_light_buffer_region(encoder, input, phases, None, [1., 1.], None);
     }
 
     /// Restrict expensive shading to a reflected floor's normalized screen coverage.
     /// Depth stays complete for neighborhood samples. Occlusion output can be cropped
-    /// independently; its inputs still cover the whole reflected view.
+    /// independently; its inputs still cover the whole reflected view. `raster` is the
+    /// fraction of the buffer (x, y) a packed view draws into, from its upper-left corner.
     pub(crate) fn draw_light_buffer_region(
         &self,
         encoder: &mut wgpu::CommandEncoder,
         input: &FrameDraw<'_>,
         phases: Option<&crate::gpu_phases::Profiler>,
         region: Option<[f32; 4]>,
-        raster_scale: f32,
+        raster: [f32; 2],
         occlusion_region: Option<[f32; 4]>,
     ) {
         let Some(shadow) = &self.shadows else {
@@ -738,8 +739,8 @@ impl super::super::Runtime {
             pass.set_scissor_rect(
                 0,
                 0,
-                (buffer.size[0] as f32 * raster_scale).ceil() as u32,
-                (buffer.size[1] as f32 * raster_scale).ceil() as u32,
+                ((buffer.size[0] as f32 * raster[0]).ceil() as u32).min(buffer.size[0]),
+                ((buffer.size[1] as f32 * raster[1]).ceil() as u32).min(buffer.size[1]),
             );
 
             self.draw_light_geometry(
@@ -786,8 +787,8 @@ impl super::super::Runtime {
                 pass.set_scissor_rect(
                     0,
                     0,
-                    (buffer.size[0] as f32 * raster_scale).ceil() as u32,
-                    (buffer.size[1] as f32 * raster_scale).ceil() as u32,
+                    ((buffer.size[0] as f32 * raster[0]).ceil() as u32).min(buffer.size[0]),
+                    ((buffer.size[1] as f32 * raster[1]).ceil() as u32).min(buffer.size[1]),
                 );
             }
             pass.set_pipeline(&pipelines.occlusion);

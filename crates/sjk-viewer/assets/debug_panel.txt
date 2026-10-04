@@ -532,6 +532,18 @@ test: Toggle r_dayDebug 1024 / 0: 1024 is the old flat lamp light; 0 shows relie
 test: r_materialMapsDebug 2 marks mapped surfaces (cyan = normal + specular).
 note: Needs the generated pack (zzz_jkr_materials.pk3); baked lighting is unchanged.
 
+[cubemap-reflections]
+status: personal
+area: Rendering & effects
+title: Reflection probes on specular-mapped surfaces
+change: Cube maps captured at spawn points (or misc_cubemap), GGX-prefiltered, box-projected.
+change: Specular-mapped surfaces reflect their nearest visible probe; r_cubeMapping 1 default.
+test: r_specularMapping 1 (restart); load mp/ffa3; log: Reflection probes: N at 128x128.
+test: Look at metal and polished floors near spawns: the room should show in them.
+test: r_materialMapsDebug 4 shows reflections alone; 5 the scene without; 0 back.
+test: r_dayHour 18 then 12: reflections follow the light within a few seconds.
+note: Players and effects never appear in reflections; that is by design.
+
 # ---- Merged upstream ----
 
 [console-chat-history]

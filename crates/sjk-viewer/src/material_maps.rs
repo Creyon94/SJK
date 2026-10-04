@@ -24,6 +24,8 @@ pub(super) mod gpu;
 mod images;
 #[path = "material_map_program.rs"]
 pub(super) mod program;
+#[path = "reflection_probes.rs"]
+pub(crate) mod reflections;
 
 use crate::world_stage::{CollapseOperator, CompiledStage};
 use image::RgbaImage;
@@ -66,6 +68,9 @@ pub(crate) struct Settings {
     pub(crate) specular: bool,
     /// `r_parallaxMapping`: parallax from the height in a normal map's alpha.
     pub(crate) parallax: bool,
+    /// `r_cubeMapping` with `r_cubeMapSize`: the face size of the reflection probes that
+    /// specular-mapped surfaces reflect ([`reflections`]), 0 without them.
+    pub(crate) reflections: u32,
 }
 
 impl Settings {
@@ -81,11 +86,14 @@ impl Settings {
                 .fold(LATCHED, |bits, (index, on)| bits | (u8::from(*on) << index));
             LATCH.store(bits, Ordering::Relaxed);
         }
+        let reflections = reflections::sample(console);
         Self {
             normal,
             specular,
             // Parallax reads the normal map's height: nothing to do without normal maps.
             parallax: normal && parallax,
+            // Probes are reflected through specular maps only.
+            reflections: if specular { reflections } else { 0 },
         }
     }
 
@@ -109,6 +117,7 @@ impl std::fmt::Display for Settings {
             (self.normal, "normal"),
             (self.specular, "specular"),
             (self.parallax, "parallax"),
+            (self.reflections > 0, "reflections"),
         ];
         let mut first = true;
         for (_, name) in kinds.iter().filter(|(on, _)| *on) {
@@ -156,7 +165,7 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), CvarError> {
             }
         })?;
     }
-    Ok(())
+    reflections::register(cvars)
 }
 
 /// Which bundle of a collapsed hardware stage holds the diffuse texture.
@@ -439,8 +448,15 @@ mod tests {
             normal: true,
             specular: true,
             parallax: true,
+            reflections: 0,
         };
         assert_eq!(all.to_string(), "normal+specular+parallax");
+        let reflecting = Settings {
+            specular: true,
+            reflections: 128,
+            ..Default::default()
+        };
+        assert_eq!(reflecting.to_string(), "specular+reflections");
         let specular = Settings {
             specular: true,
             ..Default::default()

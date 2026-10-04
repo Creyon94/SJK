@@ -302,6 +302,7 @@ mod tests {
         normal: true,
         specular: true,
         parallax: true,
+        reflections: 0,
     };
 
     fn found(files: &[&str], script: &str, settings: Settings) -> Found {
