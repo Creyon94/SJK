@@ -79,8 +79,10 @@ fn material_map_prepare(input: VertexOutput) {
     }
     var normal = geometric;
     if framed {
+        // `r_normalMapStrength` (`world_lighting_mode.rs`): zero bits are strength 1.
+        let strength = f32((((point_lights.metadata.z >> 16u) + 64u) & 255u))/64.0;
         var n = texel.rgb - vec3(0.5);
-        n = vec3(n.xy*material_map.normal_scale.xy, 0.0);
+        n = vec3(n.xy*material_map.normal_scale.xy*strength, 0.0);
         n.z = sqrt(clamp((0.25 - n.x*n.x) - n.y*n.y, 0.0, 1.0));
         normal = normalize(n.x*tangent + n.y*bitangent + n.z*geometric);
     }

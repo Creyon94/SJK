@@ -530,6 +530,7 @@ test: r_dayNight 1, r_normalMapping 1, r_specularMapping 1 (restart); load mp/ff
 test: Walk into a lamp-lit interior: wall and floor relief should catch the lamp light.
 test: Toggle r_dayDebug 1024 / 0: 1024 is the old flat lamp light; 0 shows relief.
 test: r_materialMapsDebug 2 marks mapped surfaces (cyan = normal + specular).
+test: r_normalMapStrength 2 doubles the relief live, 0 flattens it, 1 restores it.
 note: Needs the generated pack (zzz_jkr_materials.pk3); baked lighting is unchanged.
 
 [cubemap-reflections]

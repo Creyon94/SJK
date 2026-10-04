@@ -100,6 +100,7 @@ work without reducing source count, texture resolution or lighting quality.
 | `r_specularMapping` | Specular, roughness and metalness maps on the same surfaces; default 0, restart required |
 | `r_parallaxMapping` | Parallax from the height in `_nh`/`normalHeightMap` images; needs `r_normalMapping`; default 0, restart required |
 | `r_materialMapsDebug` | Material-mapped surfaces only: 1 mapped normal as colour, 2 tint by maps found, 3 normal-map relief, 4 reflection probes alone, 5 without reflection probes; default 0, live, not archived |
+| `r_normalMapStrength` | Multiplier on the normal maps' relief (their x/y slope, after rend2's `normalScale`), 0–3.98 in steps of 1/64; default 1, live, archived. Material-mapped surfaces only; the floor mirrors' lookup keeps the authored relief |
 | `r_cubeMapping` | Reflection probes on specular-mapped surfaces (rend2's name and meaning); default 1, needs `r_specularMapping`, restart required |
 | `r_cubeMapSize` | Reflection probe face size, a power of two 32–512; default 128, restart required |
 | `r_floorReflections` | Polished floors mirror the scene (see [Floor reflections](#floor-reflections)); default 1, live |
