@@ -23,6 +23,11 @@ mod schedule;
 pub use completion::CompletionKey;
 
 const DEFAULT_LOG_CAPACITY: usize = 256;
+/// Bytes of the `[HH:MM:SS] ` prefix of [`ConsoleLine::stamped_text`].
+const STAMP_PREFIX_BYTES: usize = 11;
+/// Echoed before typed input, as `Console_Key` prints `CONSOLE_PROMPT_CHAR`
+/// straight before the line: `]cmd`.
+pub(crate) const PROMPT: &str = "]";
 
 /// Origin/severity of a console line.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -53,7 +58,8 @@ pub enum CommandSource {
 pub struct ConsoleLine {
     /// Monotonic shell-clock timestamp for expiring notify text.
     pub written_millis: u64,
-    /// Timestamped display copy, prepared once when the line is appended.
+    /// Timestamped display copy, prepared once when the line is appended: the
+    /// local time it was written as `[HH:MM:SS] `, then [`Self::text`].
     pub stamped_text: String,
     /// Origin/severity used by frontends for presentation.
     pub kind: ConsoleLineKind,
@@ -63,6 +69,14 @@ pub struct ConsoleLine {
     /// console is closed. Stock `CL_ConsolePrint` (`cl_console.cpp`) clears this
     /// for text starting with `*` or `[skipnotify]`, which cgame uses for chat.
     pub notify: bool,
+}
+
+impl ConsoleLine {
+    /// The local time the line was written, `HH:MM:SS`, as EternalJK draws it
+    /// in the console's left column.
+    pub fn clock(&self) -> &str {
+        self.stamped_text.get(1..9).unwrap_or("")
+    }
 }
 
 /// Complete portable shell state used by a client frontend.
@@ -236,7 +250,7 @@ impl Shell {
         if input.is_empty() {
             return Ok(());
         }
-        self.push_line(ConsoleLineKind::Input, format!("] {input}"));
+        self.push_line(ConsoleLineKind::Input, format!("{PROMPT}{input}"));
         self.command_buffer.append(input)?;
         Ok(())
     }
@@ -347,16 +361,13 @@ impl Shell {
             self.lines.pop_front();
         }
         let written_millis = self.command_clock_millis();
-        let seconds = std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .unwrap_or_default()
-            .as_secs();
-        let stamped_text = format!(
-            "[{:02}:{:02}:{:02}] {text}",
-            seconds / 3600 % 24,
-            seconds / 60 % 60,
-            seconds % 60
-        );
+        // Local time, as `Com_RealTime` stamps console text; frontends that draw
+        // the stamp on its own read it back from bytes 1..9.
+        let mut stamped_text = String::with_capacity(text.len() + STAMP_PREFIX_BYTES);
+        stamped_text.push('[');
+        crate::local_time::LocalTime::now().push_clock(&mut stamped_text);
+        stamped_text.push_str("] ");
+        stamped_text.push_str(&text);
         let mode = self
             .cvars
             .get("logfile")

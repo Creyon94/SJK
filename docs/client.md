@@ -817,8 +817,13 @@ spacing.
 Tab completes the command or cvar name being typed, after a leading `/` or `\` and
 after the last `;`. A unique name completes with a trailing space; otherwise the
 input extends to the longest shared prefix and the matching commands and cvars,
-with cvar values, are listed. Up to 16 matches also show their descriptions;
-longer listings end with the match count instead. Enter strips one leading `/` or
+with cvar values, are listed as EternalJK prints them (`PrintMatches`,
+`PrintCvarMatches`): a grey `Cmd` or `Cvar` label, the white name, a cvar's value
+in grey quotes and the description in green. Up to 16 matches also show their
+descriptions; longer listings end with the match count instead. Typed lines, and
+the line a listing completes, are echoed into the scrollback as `]cmd`, the
+prompt character straight before the text as in stock. Both are shell behaviour
+and the same in either console style. Enter strips one leading `/` or
 `\` from the line, then applies the same completion while `cl_allowEnterCompletion`
 is set, without listing when the input is already a full name. Nothing strips a
 slash on a command after `;`, so completing that command drops it. Command

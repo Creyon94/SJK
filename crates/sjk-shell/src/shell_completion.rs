@@ -50,7 +50,10 @@ impl Shell {
         let (name, listing) = self.completion(&line[typed.name..], key)?;
         let completed = format!("{}{name}", &line[..typed.replaced]);
         if !listing.is_empty() {
-            self.push_line(ConsoleLineKind::Input, format!("] {completed}"));
+            self.push_line(
+                ConsoleLineKind::Input,
+                format!("{}{completed}", super::PROMPT),
+            );
             for text in listing {
                 self.push_line(ConsoleLineKind::Output, text);
             }
@@ -79,12 +82,9 @@ impl Shell {
         let described = candidates.len() <= DESCRIBED_MATCHES;
         let mut listing = Vec::with_capacity(candidates.len() * 2 + 1);
         for candidate in &candidates {
-            listing.push(match &candidate.value {
-                None => format!("Cmd   {}", candidate.name),
-                Some(value) => format!("Cvar  {} = \"{value}\"", candidate.name),
-            });
+            listing.push(listed(candidate));
             if described && !candidate.description.is_empty() {
-                listing.push(format!("      ^2{}", candidate.description));
+                listing.push(format!("^2      {}", candidate.description));
             }
         }
         if !described {
@@ -206,9 +206,68 @@ fn shared_prefix<'a>(mut names: impl Iterator<Item = &'a str>) -> Option<&'a str
     Some(&first[..length])
 }
 
+/// One candidate's listing line, coloured as `PrintMatches` and
+/// `PrintCvarMatches` (`qcommon/common.cpp`) print it: a grey `Cmd` or `Cvar`
+/// label, the white name and, for a cvar, its value in grey quotes.
+fn listed(candidate: &Candidate<'_>) -> String {
+    match &candidate.value {
+        None => format!("^9Cmd   ^7{}", candidate.name),
+        Some(value) => format!("^9Cvar  ^7{} = ^9\"^7{value}^9\"^7", candidate.name),
+    }
+}
+
 fn listed_value(value: String) -> String {
     match value.char_indices().nth(LISTED_VALUE_CHARS) {
         Some((end, _)) => format!("{}...", &value[..end]),
         None => value,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::{BindTable, CommandRegistry, CvarDefinition, CvarFlags, CvarRegistry, Shell};
+
+    use super::CompletionKey;
+
+    fn shell() -> Shell {
+        let mut cvars = CvarRegistry::new();
+        for (name, help) in [("con_scale", "Console size"), ("con_style", "")] {
+            cvars
+                .register(CvarDefinition::new(name, 1.0, CvarFlags::NONE, help))
+                .unwrap();
+        }
+        let mut shell = Shell::new(cvars, BindTable::new());
+        shell.commands = CommandRegistry::new();
+        shell
+    }
+
+    #[test]
+    fn listing_colours_labels_values_and_descriptions_as_ejk() {
+        let mut shell = shell();
+        shell
+            .commands
+            .register("con_dump", "Dump the console", |_| Ok(Vec::new()))
+            .unwrap();
+        let completed = shell.complete_line("con_", CompletionKey::Tab).unwrap();
+        assert_eq!(completed, "con_");
+        let lines: Vec<_> = shell.lines().map(|line| line.text.as_str()).collect();
+        assert_eq!(
+            lines,
+            [
+                "]con_",
+                "^9Cmd   ^7con_dump",
+                "^2      Dump the console",
+                "^9Cvar  ^7con_scale = ^9\"^71.0^9\"^7",
+                "^2      Console size",
+                "^9Cvar  ^7con_style = ^9\"^71.0^9\"^7",
+            ]
+        );
+    }
+
+    #[test]
+    fn typed_lines_echo_after_a_bare_prompt() {
+        let mut shell = shell();
+        let _ = shell.execute_line("echo hi");
+        assert_eq!(shell.lines().next().unwrap().text, "]echo hi");
     }
 }
