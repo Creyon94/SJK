@@ -51,6 +51,24 @@ test: Join a local server, send chat: it shows in the chat box and in the consol
 test: The top-left notify lines show server prints but not the chat lines.
 test: Console scrollback has no empty row after each server print (e.g. a player connecting).
 
+[colour-codes-8-9]
+pr: 105
+status: open
+area: Console & chat
+title: ^8 orange and ^9 grey
+change: ^8 draws orange and ^9 grey as in OpenJK (they were black and red).
+test: say ^8orange ^9grey ^7white: chat, console and your name over the scoreboard.
+
+[wsi-logo]
+pr: 106
+status: open
+area: Console & chat
+title: Not-sign (0xAC) draws as the retail WSI logo
+change: With the game data, 0xAC in modern-font text draws the boxed WSI fonts logo.
+test: A player with 0xAC (Alt+0172) in the name: scoreboard, chat, crosshair show the logo.
+test: Same with Classic game fonts on and off; the logo sits on the line like a capital.
+note: Others see a stray A-circumflex before it when JKR sends it (UTF-8 on the wire).
+
 # ---- Open PRs: Input ----
 
 [layout-key-names]
@@ -85,11 +103,13 @@ pr: 37
 issue: 9
 status: open
 area: Menus & settings
-title: Text size and spacing for menus and console
+title: Text size and spacing for menus and console; closer console and chat rows
 change: Settings > TEXT: menu text size, letter spacing, console text size, console line spacing.
-change: Console rows now default to stock's 16 px pitch (con_lineSpacing 1.15, con_maxLines 32).
-test: Open the console and compare its density with before.
-test: con_lineSpacing 1 and 2, with the console open and with notify lines.
+change: con_lineSpacing defaults to 0.9 (floor 0.8): 12.6 px console rows at 1080p (was 16.1).
+change: Wrapped chat lines are one line apart (18 px at 1080p, was 27); messages 8 px apart.
+test: Your saved con_lineSpacing 0.65 clamps to 0.8: also try 0.9 (Settings > TEXT reset).
+test: Console with g, p, y over capitals: descenders are not cut off and do not collide.
+test: Long chat messages that wrap, a name line, several messages: tight but readable.
 test: ui_letterSpacing 0.05 with the console open: caret and selection still line up.
 test: ui_textScale 0.8 and 1.2 on every menu screen: labels fit, titles do not collide.
 
@@ -126,15 +146,16 @@ pr: 46
 issue: 13
 status: open
 area: Menus & settings
-title: Optional game font for menus and chat
-change: ui_gameFont (Settings > HUD) draws menus in ergoec and chat in ocr_a from the game data.
-test: Settings > HUD > "Game font for menus and chat" on; look at the menus and at chat.
-test: With the JoF HD pack the log shows "game font ergoec: 4096x2048 atlas".
-test: Check legibility, centring in menu rows and chat wrapping; note any hitch when enabling.
-change: Low-res font atlases (chat ocr_a, classic HUD arialnb) now draw sharp at any size (SDF).
+title: Classic game fonts on every retail text surface
+change: ergoec: menus, crosshair name, centre prints, warmup, timer, scoreboard names.
+change: ocr_a: chat, weapon/Force/item names, scoreboard numbers; low-res atlases drawn sharp.
+change: Console charset charsgrid_med (monospace): console, notify, FPS, vote, kill feed.
+test: Settings > HUD > "Classic game fonts" on; look at the menus and at chat.
+test: Open the console, type, select text: caret and selection follow the characters.
+test: In a match: crosshair name, scoreboard, weapon switch name, FPS, kill feed, vote.
+test: Console stays on top of menus and HUD; F3 command browser stays on the modern font.
 test: At 4K: chat text and cg_classicHudFont 1 HUD numbers have crisp edges, no blur.
-test: Small text (console-size chat) has no shimmer or missing thin strokes.
-note: First enable of the game font may hitch about 0.1 s while fonts convert.
+note: First enable may hitch about 0.1 s while fonts convert. 0xAC is blank in the console.
 
 [force-menu]
 pr: 47
@@ -213,10 +234,22 @@ pr: 59
 issue: 55
 status: open
 area: HUD
-title: Crosshair name sized like stock
+title: Crosshair name sized and placed like stock
 change: The crosshair name scales with the HUD: a 45 px line at 1080p, like stock ergoec 20.
+change: Its top sits at y=170 of 480 like stock: well above the crosshair, not below it.
 test: Aim at another player with the modern HUD, then with the classic HUD font.
-test: Try 1080p and 1440p if possible, and cg_hudScale; long names end in an ellipsis.
+test: The name shows about 157 px above the crosshair at 1080p (exact at 4K with #107).
+test: Try cg_hudScale; long names end in an ellipsis.
+
+[high-res-scale]
+pr: 107
+status: open
+area: HUD
+title: HUD text grows with resolution above 1440 lines
+change: HUD widget text (crosshair name, kill feed, timer, warmup, vote) 1.33x -> 2x at 4K.
+change: FPS and weapon labels 1.35x -> 2x at 4K; Windows display scaling no longer changes them.
+test: At 3840x2160: crosshair name, kill feed, timer, FPS and weapon name are clearly bigger.
+test: cg_hudScale 0.5 and 1.5 at 4K: nothing overflows the screen edges.
 
 # ---- Open PRs: Rendering & effects ----
 
@@ -405,6 +438,14 @@ test: Select a slider, press Space: it steps once; Enter opens the entry instead
 test: Click a value, type 97.5, click another row: the value is applied (an invalid one is not).
 test: FPS cap: type -1 then Enter: AUTO. Type 142.6: 143. Letters and a second '.' are ignored.
 test: Player > Saber RGB and the F8 Shot panel sliders behave the same way.
+
+[sjk-classic-menu]
+status: personal
+area: Menus & settings
+title: SJK starts on the classic menu style
+change: ui_menuStyle defaults to classic; only modern or 0 selects the modern layout.
+test: reset ui_menuStyle (or remove it from config.cfg) and restart: the classic menu opens.
+test: Settings > GAME > Menu style modern still switches to the modern layout.
 
 [debug-panel]
 status: personal
