@@ -365,7 +365,7 @@ status: open
 area: Rendering & effects
 title: Optional rend2-style material maps for world surfaces
 change: Normal, parallax and specular maps on lightmapped world surfaces, in rend2 pack format.
-change: Off by default: r_normalMapping, r_specularMapping, r_parallaxMapping (restart to apply).
+change: r_normalMapping, r_specularMapping, r_parallaxMapping (restart); SJK turns them on.
 change: r_materialMapsDebug shows which surfaces took maps; the load log line lists counts.
 test: Set r_normalMapping 1, r_specularMapping 1 and r_parallaxMapping 1, then restart.
 test: Load a map: the log shows "material maps (normal+specular+parallax): N stages ...".
@@ -737,6 +737,21 @@ test: Explorer: sjk.exe and sjk-server.exe show the emblem (medallion in small v
 test: Window title bar and taskbar show the medallion icon; Task Manager says Sol JK.
 test: After the site deploys: favicon in the tab; a shared link shows the preview card.
 note: Icons of 40 px and under show the medallion (ring, core, blade), not the whole star.
+
+[sol-visual-defaults]
+status: personal
+area: Rendering & effects
+title: Sol's visual defaults: noon sun, bloom, sunbeam dust, material maps on
+change: New defaults: r_dayHour 12, r_sceneBloom 1, r_dustMotes 1 and r_normalMapping,
+change: r_specularMapping, r_parallaxMapping 1. Saved config.cfg values still win (no migration).
+test: Close SJK, rename config.cfg (e.g. config.old.cfg) so a fresh one is made, then start.
+test: Console: r_dayHour 12, r_sceneBloom 1, r_dustMotes 1, r_normalMapping 1 (and the others).
+test: Outdoor map (mp/ffa3): the sun stands at noon, short shadows; Renderer > IMAGE: Bloom ON.
+test: Bright sky and lit walls bloom softly; HUD, menus and text never bloom.
+test: Stand in sunbeams (r_volumetrics 3): dust floats in the beams only, none in shade.
+test: With a material pack: log says "material maps (normal+specular+parallax+reflections): N".
+test: Without a pack: no regenerate note, "no stage of this map has maps", nothing looks different.
+test: Afterwards put the old config.cfg back; its saved values return.
 
 # ---- Merged upstream ----
 

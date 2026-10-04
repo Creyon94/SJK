@@ -44,7 +44,7 @@ impl Settings {
                 .and_then(|c| c.integer_cvar("r_dayNight"))
                 .unwrap_or(1)
                 != 0,
-            hour: number("r_dayHour", 11.).rem_euclid(24.),
+            hour: number("r_dayHour", 12.).rem_euclid(24.),
             minutes: number("r_dayMinutes", 0.).clamp(0., 1440.),
         }
     }
@@ -171,7 +171,7 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), CvarError> {
     for (name, value, help) in [
         (
             "r_dayHour",
-            11.,
+            12.,
             "Solar hour 0..24; live when day/night is installed",
         ),
         (

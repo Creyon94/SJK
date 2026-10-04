@@ -6,13 +6,14 @@
 //! emission maps (`_e`; rend2 has none): an emitted colour added unlit
 //! ([`Settings::emission`]).
 //!
-//! Normal, specular and parallax maps are opt-in (`r_normalMapping`,
-//! `r_specularMapping`, `r_parallaxMapping`); emission maps are on by default
-//! (`r_emissiveMaps`), since only packs that ship `_e` images have any. All are
-//! sampled at startup like rend2's latched cvars. Off, no image is looked up, no
-//! layout, buffer or program exists and every stage compiles exactly as before. On,
-//! a stage with maps compiles to its own pipeline key ([`PIPELINE_BIT`]) whose
-//! program is the ordinary stage program
+//! The controls are `r_normalMapping`, `r_specularMapping`, `r_parallaxMapping`
+//! and `r_emissiveMaps`, sampled at startup like rend2's latched cvars. SJK turns
+//! them all on by default (Sol's choice; rend2 and JKR default the first three
+//! off); they act only where a pack supplies maps. Off, no image is looked up, no
+//! layout, buffer or program exists and every stage compiles exactly as before. On
+//! without maps, a map load only looks the map names up in the file index; no
+//! layout, buffer or program is created either. On, a stage with maps compiles to
+//! its own pipeline key ([`PIPELINE_BIT`]) whose program is the ordinary stage program
 //! plus the material hooks (`material_map_program.rs`); stages without maps keep
 //! their pipelines, bind groups and stage-table records.
 //!
@@ -68,7 +69,11 @@ const LATCHED: u8 = 0x80;
 /// applied, not changes that need a restart.
 static LATCH: AtomicU8 = AtomicU8::new(0);
 
-/// Startup policy, rend2's names and default-off.
+/// Whether a material-map control is on when nothing sets it: on in SJK.
+const DEFAULT_ON: bool = true;
+
+/// Startup policy under rend2's names. [`Settings::default`] is everything off; the
+/// controls' defaults are [`DEFAULT_ON`].
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct Settings {
     /// `r_normalMapping`: normal maps (and their height, for parallax).
@@ -88,7 +93,11 @@ impl Settings {
     /// Read the registered values once, at context creation, and remember them so a
     /// later change can tell whether it needs a restart.
     pub(crate) fn sample(console: Option<&crate::console::ViewerConsole>) -> Self {
-        let on = |name| console.and_then(|c| c.integer_cvar(name)).unwrap_or(0) != 0;
+        let on = |name| {
+            console
+                .and_then(|c| c.integer_cvar(name))
+                .map_or(DEFAULT_ON, |value| value != 0)
+        };
         let [normal, specular, parallax, emission] = CONTROLS.map(on);
         if console.is_some() {
             let bits = [normal, specular, parallax, emission]
@@ -157,25 +166,25 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), CvarError> {
     for (index, (name, default, help)) in [
         (
             "r_normalMapping",
-            0_i64,
+            i64::from(DEFAULT_ON),
             "Normal maps on world surfaces (rend2 _n/_nh images and normalMap keywords); \
              restart required",
         ),
         (
             "r_specularMapping",
-            0,
+            i64::from(DEFAULT_ON),
             "Specular/roughness maps on world surfaces (rend2 _specGloss/_rmo/_orm images and \
              keywords); restart required",
         ),
         (
             "r_parallaxMapping",
-            0,
+            i64::from(DEFAULT_ON),
             "Parallax from the height in a normal map's alpha (_nh images, normalHeightMap); \
              needs r_normalMapping; restart required",
         ),
         (
             "r_emissiveMaps",
-            1,
+            i64::from(DEFAULT_ON),
             "Emission maps on world surfaces (<texture>_e images): light-emitting texels glow \
              unlit; restart required",
         ),
@@ -583,9 +592,18 @@ mod tests {
 
     #[test]
     fn settings_need_normal_maps_for_parallax() {
-        let settings = Settings::sample(None);
-        assert_eq!(settings, Settings::default());
-        assert!(!settings.enabled());
+        // Unset controls take SJK's defaults: every kind on, probes at their default size.
+        assert_eq!(
+            Settings::sample(None),
+            Settings {
+                normal: true,
+                specular: true,
+                parallax: true,
+                emission: true,
+                reflections: reflections::DEFAULT_SIZE,
+            }
+        );
+        assert!(!Settings::default().enabled());
         assert!(
             Settings {
                 specular: true,
@@ -711,10 +729,11 @@ mod tests {
             cvars.get("r_emissiveMaps").expect("registered").value,
             CvarValue::Integer(1)
         );
+        // SJK turns the rend2 controls on by default too.
         for name in CONTROLS.iter().take(3) {
             assert_eq!(
                 cvars.get(name).expect("registered").value,
-                CvarValue::Integer(0)
+                CvarValue::Integer(1)
             );
         }
         // The light multiplier is read when a map loads; it stays within 0..4.

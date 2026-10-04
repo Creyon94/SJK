@@ -612,6 +612,17 @@ was opened: the look on screen, the additive pipeline on a GPU, the window and
 taskbar icons and the X11 icon are unverified, as is the GNU toolchain's
 `windres` path.
 
+## Visual defaults (SJK only)
+
+SJK-only branch `personal/sol-visual-defaults` (2026-10-05, based on `78b8bf7`)
+makes Sol's own settings the defaults: noon sun (`r_dayHour 12`), bloom
+(`r_sceneBloom 1`), sunbeam dust (`r_dustMotes 1`) and material maps
+(`r_normalMapping`, `r_specularMapping`, `r_parallaxMapping` 1, which act only
+where a pack supplies maps). Saved `config.cfg` values still win; nothing is
+migrated. See [Default visual profile](rendering.md#default-visual-profile).
+Formatting, the locked workspace build, tests and Clippy passed. No client was
+run: the look and frame cost of the new defaults are unverified.
+
 ## Implemented scope
 
 - PK3/loose-file content, BSP maps/collision, legacy models and shader scripts.
@@ -711,7 +722,7 @@ Finite image comparisons and workspace/release checks passed; see
 [rendering](rendering.md#submission-and-lighting-work-reduction) for evidence
 and limits. Gameplay and protocol code are unchanged.
 
-Optional dust (`r_dustMotes`, default off) is restricted to local godray scattering,
+Optional dust (`r_dustMotes`, default off in JKR, on in SJK) is restricted to local godray scattering,
 with colour and visibility sampled at each mote's depth. It requires active
 volumetrics and follows their shadows and clarity. Linux workspace/release
 checks, GPU sampling probes and native HDR/SDR captures passed on 2026-10-02
