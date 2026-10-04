@@ -330,6 +330,22 @@ confirmation remains with the owner. Formatting, locked workspace build/tests
 and the optimized client build passed.
 
 
+## Force power presentation
+
+SJK change based on `024c22a` (2026-10-04), fixing gaps inherited from JKR.
+Evidence is EternalJK's stock `codemp` code (`cg_players.c`, `cg_ents.c`,
+`w_force.c`, `FxTemplate.cpp`, `FxScheduler.cpp`) and the retail EFX files.
+
+- Own Force effects: the local player's Lightning and Drain beams, Push/Pull and
+  Grip puffs and body push blur now come from its player state (JKR searched the
+  snapshot's entity list, which never holds the local player). A trickster's
+  beam and hand puffs stay visible to its victim, as in stock. See
+  [rendering](rendering.md#entity-render-effects).
+
+Unit tests cover the selection (own beam levels 2/3/4/5/6, own Grip first and
+third person, own Push, a remote caster, a trickster). Not yet checked in a game
+window. Formatting, locked workspace build/tests and clippy passed.
+
 ## g_debugMelee prediction
 
 Local change based on `da8adc9` (2026-10-04): client prediction reads

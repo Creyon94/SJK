@@ -520,6 +520,18 @@ test: bind F10 debug_panel, close the console: F10 opens and closes it in menus 
 test: Tick an entry (Space, Enter or its box), restart the client: the tick is still there.
 test: Wheel, arrows, PageUp / PageDown, Home / End; Tab cycles TO TEST, TESTED and ALL.
 
+[own-force-effects]
+status: personal
+area: Rendering & effects
+title: Your own Force streams and hand puffs are drawn
+change: Your Drain/Lightning stream and Grip/Push puffs come from your player state (JKR looked
+change: for you in the entity list, where the server never puts you). A trickster's stream shows.
+test: Local game with a bot. Drain 1-2 at the bot: red stream from your left hand, red flash on it.
+test: Same in first and third person (cg_thirdPerson 0 / 1). Drain 1-2 at a wall: no stream.
+test: Drain 3: a red fan. Lightning 1-2: a blue stream; Lightning 3: a blue fan.
+test: Grip the bot: red puffs at your hand in third person only. Push / Pull: grey hand puffs.
+test: A second client watching you sees the same streams and puffs as before.
+
 # ---- Merged upstream ----
 
 [console-chat-history]

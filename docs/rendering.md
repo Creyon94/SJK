@@ -468,6 +468,19 @@ so only an active trick suppresses them. The `PW_SPEED` saber trail
 (`cg_players.c:7319`) is not implemented. This has passed unit tests only;
 appearance has not yet been checked on a GPU against the stock client.
 
+Force hand and body effects
+([force_power_submission.rs](../crates/sjk-viewer/src/force_power_submission.rs))
+follow `CG_Player`: the Lightning (`activeForcePass` 1-3) and Drain (4-6:
+`mp/drain`, `mp/drainwide` at level 3) beams from the left hand, the Push/Pull
+or Grip puffs there while `PW_DISINT_4` is set, and the body push blur for
+`EF_BODYPUSH`. The local player's effects come from its predicted player state,
+since stock rebuilds the local entity from `cg.predictedPlayerState` and the
+server never sends it; in first person they start at the hidden body's left
+hand, and Grip's puffs are third-person only. A player who mind-tricked the
+viewer still shows its beam and hand puffs, which stock draws before its
+mind-trick cut-off; only the body push blur is hidden for it. JKR drew none of
+the local player's own effects and hid all of a trickster's; SJK fixes both.
+
 Set `JKR_FRAME_BUDGET=1` for frame-work and GPU-phase diagnostics. Measurements
 must name the build mode, GPU, resolution, settings, map and population. Separate
 loading/shader warmup from steady frames and CPU work from GPU timings. The
