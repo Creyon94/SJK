@@ -912,6 +912,18 @@ JA+ and TaystJK/jaPRO servers receive it from the connect packet on, and a
 toggle sends a userinfo update ([networking.md](networking.md)).
 See [console_mod_commands.rs](../crates/sjk-viewer/src/console_mod_commands.rs).
 
+`remapShader <old> <new>` draws every surface, model and effect using shader
+`old` with shader `new` until the map changes, as EternalJK's command does;
+`remapShader <old> <old>` restores it. `listRemaps` lists every remap with its
+source (map, server or console), the server's time offset and whether it is in
+effect, and `clearRemaps` (EternalJK's renderer command) removes them all until
+the server sends new ones. The archived `cg_remaps` (EternalJK's name and default
+2) chooses which remaps sent by the server apply: 0 none, 1 all but player-model
+shaders, 2 all; the console's and the map's own always apply. Unlike EternalJK,
+which latches it, a change applies at once. Settings > GAME has it as "Shader
+remaps". See [Shader remaps](rendering.md#shader-remaps) and
+[shader_remaps.rs](../crates/sjk-viewer/src/shader_remaps.rs).
+
 The console input line has a caret, drawn as stock's underscore: Left and Right
 move it, Ctrl+Left and Ctrl+Right by word, Home and End to either end, and Shift
 with any of them selects. Backspace and Delete remove a character, or a word with

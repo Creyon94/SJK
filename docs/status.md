@@ -545,6 +545,20 @@ about 0.01 ms at 1080p and 0.02–0.03 ms at 4K. No client was run: the look in
 play, the default key on real maps and the cost in a full frame are unverified.
 See [rendering](rendering.md#eye-adaptation).
 
+## Shader remaps (SJK)
+
+SJK-only branch `personal/shader-remaps` (2026-10-05, based on `bcb0b76`) applies
+shader remaps from the map's worldspawn keys, the server's `CS_SHADERSTATE` and
+`remapShader` command, and the console's `remapShader`, with EternalJK's
+`cg_remaps` gate (default 2, live instead of latched), `listRemaps` and
+`clearRemaps`. See [Shader remaps](rendering.md#shader-remaps). Unit tests cover
+the table rules (one level, self-remap, latest wins, case and extensions),
+`CS_SHADERSTATE` and `atof` parsing, worldspawn keys, the `cg_remaps` levels, the
+server command and the listing; the locked workspace build and tests passed. No
+game or window was started: the recompiled materials on screen, the cost of a
+remap and server-sent remaps from a real game module (stock maps use none; JoF's
+innercity and expedition do) are unverified, and the time offset is not applied.
+
 ## SJK emblem (SJK only)
 
 SJK-only branch `personal/sjk-logo` (2026-10-05, based on `bcb0b76`) puts Sol's

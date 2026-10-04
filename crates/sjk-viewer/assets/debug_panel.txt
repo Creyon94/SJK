@@ -666,6 +666,23 @@ test: r_sceneHdr 0 and restart: dark rooms still brighten, bright views never da
 note: Too bright/dark overall on outdoor maps (ffa3)? Tune r_autoExposureKey (default 0.18).
 note: Too slow/fast: r_autoExposureToDark (2.5 s) and r_autoExposureToBright (0.4 s).
 
+[shader-remaps]
+status: personal
+area: Rendering & effects
+title: Shader remaps (map, server, console) with EternalJK's cg_remaps
+change: CS_SHADERSTATE, server and console remapShader redraw world, models and effects live.
+change: cg_remaps 2 (default) applies server remaps, 1 skips models/players/, 0 none; not latched.
+change: Commands remapShader <old> <new>, listRemaps, clearRemaps; Settings > GAME > Shader remaps.
+test: devmap mp/ffa3, then: remapShader textures/desert/stucco textures/bespin/u_metalorange
+test: The stucco walls turn orange metal at once, without a map reload.
+test: remapShader textures/desert/stucco textures/desert/stucco puts the stucco back.
+test: remapShader models/map_objects/ships/cart textures/bespin/u_metalorange: the carts change.
+test: listRemaps lists the cart remap as [console]; clearRemaps restores it; listRemaps: none.
+test: remapShader textures/nope textures/desert/stucco prints the R_RemapShader not found warning.
+test: Local eternaljkded on innercity (JoF pack): touch a medpack: the medpack models change look.
+test: Then cg_remaps 0: medpacks look normal at once, listRemaps says (off: cg_remaps); cg_remaps 2.
+note: Not remapped: HUD, saber blades and trails, sky; server time offsets are listed, not used.
+
 [sjk-logo]
 status: personal
 area: Menus & settings

@@ -146,6 +146,7 @@ impl GpuState {
             self.console.as_mut(),
             self.legacy_world_adapter.as_mut(),
             &mut self.clientinfo_watch,
+            &mut self.shader_remaps,
         );
 
         if Instant::now() < self.network_command_due {

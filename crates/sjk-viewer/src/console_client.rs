@@ -110,7 +110,7 @@ pub(super) struct Commands {
 
 /// Register command metadata and only the settings consumed by these services.
 pub(super) fn register(shell: &mut Shell, commands: &Commands) -> Result<(), Box<dyn Error>> {
-    for &(name, help) in COMMANDS {
+    for &(name, help) in COMMANDS.iter().chain(crate::shader_remaps::COMMANDS) {
         if !shell.commands.contains(name) && shell.cvars.get(name).is_none() {
             shell.commands.register(name, help, |_| {
                 Err(sjk_shell::CommandError::Handler(
@@ -171,6 +171,12 @@ pub(super) fn register(shell: &mut Shell, commands: &Commands) -> Result<(), Box
         CvarFlags::ARCHIVE,
         "Stereo separation",
     ))?;
+    shell.cvars.register(CvarDefinition::new(
+        crate::shader_remaps::CVAR,
+        crate::shader_remaps::DEFAULT_LEVEL,
+        CvarFlags::ARCHIVE,
+        crate::shader_remaps::CVAR_HELP,
+    ))?;
     Ok(())
 }
 
@@ -183,6 +189,7 @@ impl Commands {
     ) -> Option<Result<Vec<String>, String>> {
         if !COMMANDS
             .iter()
+            .chain(crate::shader_remaps::COMMANDS)
             .any(|(name, _)| name.eq_ignore_ascii_case(&tokens[0]))
         {
             return None;
@@ -395,6 +402,11 @@ impl crate::GpuState {
                     .as_ref()
                     .ok_or("No window to minimize")?
                     .set_minimized(true);
+            }
+            "remapshader" | "listremaps" | "clearremaps" => {
+                return self
+                    .shader_remap_command(&name, args)
+                    .unwrap_or_else(|| Err(format!("unknown command {name}")));
             }
             "vid_restart" | "snd_restart" | "in_restart" | "modelist" => {
                 return self.restart_command(&name, audio);
