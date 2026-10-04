@@ -551,6 +551,19 @@ EternalJK's name for `+button12`, the JA+/JaPRO grapple hook; on a JA+ server
 releasing it also taps `+use`, as EternalJK does. See
 [input.rs](../crates/jkr-viewer/src/input.rs).
 
+`serverconfig` lists a JA+ server's options from the `jp_cinfo` value in its
+serverinfo (flip kick, roll fix mode, DFA variants, kata, ledge grab, alternate
+dimension and the rest), as the JA+ client plugin and EternalJK print them
+locally; on jaPRO/TaystJK it is forwarded to the server, which answers it, and
+elsewhere it reports that the server runs neither. `pluginDisable` lists the
+fifteen JA+ client-plugin features with `Allowed`/`Disallowed`, and
+`pluginDisable <id>` toggles one bit of the archived userinfo cvar
+`cp_pluginDisable` (a set bit disables the feature). Its default, 1536, disables
+the holstered saber and ledge grab, which need JA+ animations JKR does not have.
+JA+ and TaystJK/jaPRO servers receive it from the connect packet on, and a
+toggle sends a userinfo update ([networking.md](networking.md)).
+See [console_mod_commands.rs](../crates/jkr-viewer/src/console_mod_commands.rs).
+
 The console input line has a caret, drawn as stock's underscore: Left and Right
 move it, Ctrl+Left and Ctrl+Right by word, Home and End to either end, and Shift
 with any of them selects. Backspace and Delete remove a character, or a word with

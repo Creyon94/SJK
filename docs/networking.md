@@ -35,6 +35,10 @@ extra animations. A JA+ server then treats the client as a plugin user: it
 serves custom RGB blades (`cp_sbRGB1`/`cp_sbRGB2`, sent whenever a blade selects
 RGB) and appends a deaths field to each `scores` row (15 fields instead of 14);
 the client reads either row width from the argument count.
+Player blade tints in a player configstring's `c3`/`c4` keys are read for every
+profile; the JA+ 2.4 server module formats both keys too. The JA+ client
+plugin's `serverconfig` and `pluginDisable` commands are client commands (see
+[client.md](client.md#useful-console-commands)).
 
 ## Parity requirements
 
