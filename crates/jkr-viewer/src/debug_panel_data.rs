@@ -348,11 +348,14 @@ mod tests {
         let listed: HashSet<u32> = entries.iter().flat_map(|entry| entry.prs.clone()).collect();
         // Sol's PRs in this build: open ones, and merged ones not yet dropped.
         let in_build = [
-            29, 34, 35, 36, 37, 38, 39, 40, 42, 43, 44, 45, 46, 47, 48, 49,
+            29, 34, 35, 36, 37, 38, 39, 40, 42, 43, 44, 45, 46, 47, 49, 59,
         ]
         .into_iter()
         .chain([
-            59, 60, 61, 62, 63, 66, 70, 71, 72, 78, 86, 87, 97, 98, 100, 101,
+            60, 61, 62, 63, 66, 70, 71, 72, 78, 86, 87, 97, 98, 100, 101, 105,
+        ])
+        .chain([
+            106, 107, 108, 109, 110, 111, 113, 114, 115, 116, 117, 118, 119, 120, 121,
         ]);
         for pr in in_build {
             assert!(listed.contains(&pr), "PR #{pr} is missing");
