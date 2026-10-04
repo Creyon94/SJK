@@ -62,35 +62,9 @@ pub(crate) fn table() -> Vec<[u16; 4]> {
     texels
 }
 
-/// IEEE 754 binary16 of `value`, rounded to nearest even; values past the range
-/// saturate to infinity, tiny ones flush through the subnormals to zero.
+/// IEEE 754 binary16 of `value` (round to nearest even), for the RGBA16F upload.
 pub(crate) fn half(value: f32) -> u16 {
-    let bits = value.to_bits();
-    let sign = ((bits >> 16) & 0x8000) as u16;
-    let exponent = ((bits >> 23) & 0xff) as i32;
-    let mantissa = bits & 0x7f_ffff;
-    if exponent == 0xff {
-        return sign | 0x7c00 | if mantissa != 0 { 0x200 } else { 0 };
-    }
-    let unbiased = exponent - 127 + 15;
-    if unbiased >= 0x1f {
-        return sign | 0x7c00;
-    }
-    if unbiased <= 0 {
-        if unbiased < -10 {
-            return sign;
-        }
-        let full = mantissa | 0x80_0000;
-        let shift = (14 - unbiased) as u32;
-        let rounded = (full + (1 << (shift - 1)) - 1 + ((full >> shift) & 1)) >> shift;
-        return sign | rounded as u16;
-    }
-    let rounded = mantissa + 0xfff + ((mantissa >> 13) & 1);
-    if rounded & 0x80_0000 != 0 {
-        // The mantissa rounded up into the next power of two.
-        return sign | (((unbiased + 1) as u16) << 10);
-    }
-    sign | ((unbiased as u16) << 10) | (rounded >> 13) as u16
+    half::f16::from_f32(value).to_bits()
 }
 
 #[cfg(test)]
