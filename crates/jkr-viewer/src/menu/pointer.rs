@@ -28,34 +28,18 @@ impl ClientMenu {
             return MenuAction::None;
         }
         match self.state.phase() {
-            ClientPhase::Settings => match self.settings.handle_pointer(event, console) {
-                SettingsResult::Back => self.close_settings(),
-                SettingsResult::OpenKeybinds => {
-                    self.keybinds.open(console);
-                    self.keybinds_direct = false;
-                    self.state.open_keybinds();
-                    MenuAction::None
-                }
-                SettingsResult::None => MenuAction::None,
-            },
-            ClientPhase::Keybinds => {
-                if self.keybinds.handle_pointer(event, console) == EditorResult::Back {
-                    self.close_keybinds(console)
-                } else {
-                    MenuAction::None
-                }
+            ClientPhase::Settings => {
+                let result = self.settings.handle_pointer(event, console);
+                self.settings_result(result, console)
             }
-            ClientPhase::Player => match self.player.handle_pointer(event, console) {
-                PlayerMenuResult::None => MenuAction::None,
-                PlayerMenuResult::Back(ReturnTarget::MainMenu) => {
-                    self.state.main_menu();
-                    MenuAction::None
-                }
-                PlayerMenuResult::Back(ReturnTarget::InGame) => {
-                    self.state.entered_game();
-                    MenuAction::ReturnToGameMenu
-                }
-            },
+            ClientPhase::Keybinds => {
+                let result = self.keybinds.handle_pointer(event, console);
+                self.keybinds_result(result, console)
+            }
+            ClientPhase::Player => {
+                let result = self.player.handle_pointer(event, console);
+                self.player_result(result)
+            }
             ClientPhase::CreateGame => {
                 let result = self.create_game.pointer(event, console);
                 self.create_game_result(result)

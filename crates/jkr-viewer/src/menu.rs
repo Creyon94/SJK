@@ -97,6 +97,13 @@ pub(crate) fn upload_menu_images(
             menu.create_game
                 .service_levelshots(|rgba| renderer.upload_levelshot(queue, rgba));
         }
+        ClientPhase::Connecting(_) | ClientPhase::ConnectionError if menu.is_classic() => {
+            let map = menu.loading.map().to_owned();
+            if !map.is_empty() {
+                menu.create_game
+                    .service_levelshot_for(&map, |rgba| renderer.upload_levelshot(queue, rgba));
+            }
+        }
         _ => {}
     }
 }
@@ -125,8 +132,18 @@ pub(crate) struct ClientMenu {
     menu_style: MenuStyle,
     /// Page and entry of the classic main menu.
     classic: classic::ClassicMain,
+    /// The classic option panel on show in the settings or key-binding
+    /// phase, if any.
+    classic_panel: Option<classic::ClassicPanel>,
     /// Retail menu artwork the classic style can draw this frame.
     art: art::ArtSet,
+    /// The classic connect and loading screens' state.
+    loading: classic::loading::ClassicLoading,
+    /// The world is not drawn under the menu this frame (classic style).
+    world_hidden: bool,
+    /// The retail background drawn under the modern screens the classic
+    /// pages open, while the world is hidden.
+    classic_backdrop: MenuCanvas,
     /// The key-binding editor was opened straight from a classic Controls
     /// entry, so closing it leaves the settings screen out.
     keybinds_direct: bool,
@@ -186,7 +203,11 @@ impl ClientMenu {
             main_selection: 0,
             menu_style: MenuStyle::default(),
             classic: classic::ClassicMain::new(),
+            classic_panel: None,
             art: art::ArtSet::default(),
+            loading: classic::loading::ClassicLoading::default(),
+            world_hidden: false,
+            classic_backdrop: MenuCanvas::new(),
             keybinds_direct: false,
             settings: SettingsMenu::new(),
             settings_return: ReturnTarget::MainMenu,
@@ -212,7 +233,11 @@ impl ClientMenu {
     /// return the camera for this frame, once a map is loaded.
     pub(crate) fn drive_backdrop(&mut self, millis: u64) -> Option<Sample> {
         let shot = shot_for(self.state.phase(), &self.player);
-        let gate = connecting(self.state.phase()) && self.destination_ready;
+        // The classic style shows retail's loading screen instead: the gate
+        // stays shut and the joined world appears when it is live.
+        let gate = connecting(self.state.phase())
+            && self.destination_ready
+            && self.menu_style != MenuStyle::Classic;
         if gate != self.gate_logged {
             self.gate_logged = gate;
             crate::log::progress(format_args!(
@@ -239,7 +264,9 @@ impl ClientMenu {
     /// the gate of a map joined for play stands where the server has it.
     pub(crate) fn gate_open(&self, millis: u64) -> f32 {
         match &self.backdrop {
-            Some(backdrop) if connecting(self.state.phase()) => backdrop.gate_open(millis),
+            Some(backdrop) if connecting(self.state.phase()) && !self.is_classic() => {
+                backdrop.gate_open(millis)
+            }
             _ => 0.0,
         }
     }
@@ -248,7 +275,9 @@ impl ClientMenu {
     /// flown through the gate, or there is no gate flight on this map.
     pub(crate) fn gate_crossed(&self, millis: u64) -> bool {
         match &self.backdrop {
-            Some(backdrop) if connecting(self.state.phase()) => backdrop.gate_crossed(millis),
+            Some(backdrop) if connecting(self.state.phase()) && !self.is_classic() => {
+                backdrop.gate_crossed(millis)
+            }
             _ => true,
         }
     }
@@ -282,6 +311,54 @@ impl ClientMenu {
         connecting(self.state.phase())
     }
 
+    /// Whether the classic menu style is on.
+    pub(crate) fn is_classic(&self) -> bool {
+        self.menu_style == MenuStyle::Classic
+    }
+
+    /// Whether the connect or loading screen covers the screen: a connect
+    /// in progress or its failure.
+    pub(crate) fn is_loading_screen(&self) -> bool {
+        matches!(
+            self.state.phase(),
+            ClientPhase::Connecting(_) | ClientPhase::ConnectionError
+        )
+    }
+
+    /// Tell the menu whether the world is drawn under it this frame.
+    pub(crate) fn set_world_hidden(&mut self, hidden: bool) {
+        self.world_hidden = hidden;
+    }
+
+    /// The map the classic loading screen shows (`mp/ffa3`), if known.
+    pub(crate) fn loading_map(&self) -> &str {
+        self.loading.map()
+    }
+
+    /// The classic loading screen's state, for the join to report into.
+    pub(crate) fn loading_mut(&mut self) -> &mut classic::loading::ClassicLoading {
+        &mut self.loading
+    }
+
+    /// The retail background drawn under a modern screen while the world is
+    /// hidden; built in [`Self::append_overlay`].
+    pub(crate) fn backdrop_draw_list(&self) -> Option<&DrawList> {
+        self.backdrop_draw_list_wanted()
+            .then(|| self.classic_backdrop.draw_list())
+    }
+
+    fn backdrop_draw_list_wanted(&self) -> bool {
+        let modern_screen = matches!(
+            self.state.phase(),
+            ClientPhase::Browser
+                | ClientPhase::Settings
+                | ClientPhase::Keybinds
+                | ClientPhase::Player
+                | ClientPhase::CreateGame
+        );
+        self.world_hidden && modern_screen
+    }
+
     /// The map the browser row of the server being joined advertised
     /// (`mp/duel1`), if the join came from a row.
     pub(crate) fn destination_map(&self) -> Option<&str> {
@@ -299,6 +376,11 @@ impl ClientMenu {
     /// route with a stage is active (flying to, parked on, or flying back
     /// from the Player screen).
     pub(crate) fn stage_model(&self) -> Option<(Stage, &str)> {
+        // The classic profile pages draw the model's portrait over retail
+        // art; nothing stands on the stage behind them.
+        if self.player.is_classic() {
+            return None;
+        }
         let stage = self.backdrop.as_ref()?.stage()?;
         Some((stage, self.player.stage_model()))
     }
@@ -405,11 +487,57 @@ impl ClientMenu {
         self.state.open_settings();
     }
 
+    /// Act on what the settings screen asked for.
+    pub(super) fn settings_result(
+        &mut self,
+        result: SettingsResult,
+        console: &mut ViewerConsole,
+    ) -> MenuAction {
+        match result {
+            SettingsResult::Back => self.close_settings(),
+            SettingsResult::OpenKeybinds => {
+                self.keybinds.open(console);
+                self.keybinds_direct = false;
+                self.state.open_keybinds();
+                MenuAction::None
+            }
+            SettingsResult::Classic(index) => self.classic_panel_button(index, console),
+            SettingsResult::ClassicCycle(direction) => {
+                self.classic_panel_cycle(direction, console);
+                MenuAction::None
+            }
+            SettingsResult::None => MenuAction::None,
+        }
+    }
+
+    /// Act on what the key-binding editor asked for.
+    pub(super) fn keybinds_result(
+        &mut self,
+        result: EditorResult,
+        console: &mut ViewerConsole,
+    ) -> MenuAction {
+        match result {
+            EditorResult::Back => self.close_keybinds(console),
+            EditorResult::Classic(index) => self.classic_panel_button(index, console),
+            EditorResult::ClassicCycle(direction) => {
+                self.classic_panel_cycle(direction, console);
+                MenuAction::None
+            }
+            EditorResult::None => MenuAction::None,
+        }
+    }
+
     /// Close the settings screen toward wherever it was opened from.
     pub(super) fn close_settings(&mut self) -> MenuAction {
+        let classic_panel = self.leave_classic_panel();
         match self.settings_return {
             ReturnTarget::MainMenu => {
                 self.state.main_menu();
+                // Escape on a retail Setup or Controls page closes it to the
+                // main page.
+                if classic_panel {
+                    self.classic.show(classic::layout::Page::Main);
+                }
                 MenuAction::None
             }
             ReturnTarget::InGame => {
@@ -641,34 +769,18 @@ impl ClientMenu {
                 }
                 _ => MenuAction::None,
             },
-            ClientPhase::Settings => match self.settings.handle_key(event, console) {
-                SettingsResult::Back => self.close_settings(),
-                SettingsResult::OpenKeybinds => {
-                    self.keybinds.open(console);
-                    self.keybinds_direct = false;
-                    self.state.open_keybinds();
-                    MenuAction::None
-                }
-                SettingsResult::None => MenuAction::None,
-            },
-            ClientPhase::Keybinds => {
-                if matches!(self.keybinds.handle_key(event, console), EditorResult::Back) {
-                    self.close_keybinds(console)
-                } else {
-                    MenuAction::None
-                }
+            ClientPhase::Settings => {
+                let result = self.settings.handle_key(event, console);
+                self.settings_result(result, console)
             }
-            ClientPhase::Player => match self.player.handle_key(event, console) {
-                PlayerMenuResult::None => MenuAction::None,
-                PlayerMenuResult::Back(ReturnTarget::MainMenu) => {
-                    self.state.main_menu();
-                    MenuAction::None
-                }
-                PlayerMenuResult::Back(ReturnTarget::InGame) => {
-                    self.state.entered_game();
-                    MenuAction::ReturnToGameMenu
-                }
-            },
+            ClientPhase::Keybinds => {
+                let result = self.keybinds.handle_key(event, console);
+                self.keybinds_result(result, console)
+            }
+            ClientPhase::Player => {
+                let result = self.player.handle_key(event, console);
+                self.player_result(result)
+            }
             ClientPhase::CreateGame => {
                 let result = self.create_game.key(key, event.text.as_deref(), console);
                 self.create_game_result(result)
@@ -741,9 +853,26 @@ impl ClientMenu {
         self.state.connecting(address);
     }
 
+    /// A join of `address` starts: the classic loading screen starts over,
+    /// with the map the browser row advertised if there was one.
+    pub(crate) fn begin_join(&mut self, address: &str) {
+        let local = self.hosting_local();
+        self.loading.begin(address, local);
+        if let Some(map) = &self.destination_map {
+            self.loading.set_map(map);
+        }
+    }
+
+    /// Whether the client hosts the server it joins (Create game), which
+    /// leaves the server lines off the loading screen as `sv_running` does.
+    pub(crate) fn hosting_local(&self) -> bool {
+        self.create_game.hosting()
+    }
+
     /// Show map preparation using the existing cancellable connection notice.
     pub(crate) fn state_loading(&mut self, map: &str) {
         self.state_connecting(map.to_owned());
+        self.loading.begin_map_load(map);
         self.state.set_status(format!("Loading {map}..."));
     }
 
@@ -760,6 +889,26 @@ impl ClientMenu {
     pub(crate) fn attach_catalogue(&mut self, vfs: std::sync::Arc<jkr_vfs::VirtualFileSystem>) {
         self.create_game.attach_vfs(std::sync::Arc::clone(&vfs));
         self.player.attach_catalogue(vfs);
+    }
+
+    /// Leave or stay on the player screen after one of its events.
+    pub(super) fn player_result(&mut self, result: PlayerMenuResult) -> MenuAction {
+        match result {
+            PlayerMenuResult::None => MenuAction::None,
+            PlayerMenuResult::Back(ReturnTarget::MainMenu) => {
+                self.state.main_menu();
+                MenuAction::None
+            }
+            PlayerMenuResult::Back(ReturnTarget::InGame) => {
+                self.state.entered_game();
+                MenuAction::ReturnToGameMenu
+            }
+            PlayerMenuResult::ClassicPage(page) => {
+                self.state.main_menu();
+                self.classic.show(page);
+                MenuAction::None
+            }
+        }
     }
 
     pub(crate) fn open_player(&mut self, console: &ViewerConsole, target: ReturnTarget) {

@@ -134,14 +134,18 @@ pr: 48
 issue: 24
 status: open
 area: Menus & settings
-title: Classic menu style, main and in-game
+title: Classic menu style: retail pages, no map behind, loading screens
 change: ui_menuStyle classic (Settings > GAME > Menu style) draws retail-style menus and art.
-change: Latest round: in-game Esc bar with pop-ups, every main-menu sub-page, gfx/menus artwork.
-test: Menu style classic (or ui_menuStyle classic): check the main menu and all its pages.
-test: Art at 16:9 and 4:3: alignment, glow and bar, the dimmed map inside the ring.
-test: Controls > a key page opens the key-binding editor; closing it returns to the classic page.
-test: In a match press Esc: retail top bar; Left / Right move along it, pop-ups sit under buttons.
-test: Exit pop-up: Main Menu and Quit Program ask Yes / No, starting on No.
+change: Round 3: no map behind the menu, retail connect/loading screens, no gate glide.
+change: Round 3: retail Profile (player, character and saber creation), Setup and Controls panels.
+test: Menu style classic: main menu and all pages are opaque retail art, no map behind them.
+test: Join a server: connect screen, then levelshot + server lines + load bar until in game.
+test: Profile: name, team colour, head grid, Custom (species/tint/parts), APPLY -> saber page.
+test: Setup: Video/More Video/Sound/Game Options/HUD rows; sliders, Yes/No, typed values work.
+test: Controls: click a binding, press a key; Backspace clears; ESC cancels the capture.
+test: In a match Esc: retail bar; Profile/Setup/Controls open retail pop-up windows.
+test: Switch back to modern: the live map returns behind the menu.
+note: The 3D model is shown as a portrait icon; some species have no portrait (207-icon atlas).
 
 [settings-scroll]
 pr: 60

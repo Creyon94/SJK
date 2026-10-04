@@ -47,12 +47,18 @@ impl ClientMenu {
             self.menu_style = style;
             self.main_selection = 0;
             self.classic.reset();
+            // An open option panel carries on as the modern screen (the
+            // Menu style row itself sits on the Game Options panel).
+            self.leave_classic_panel();
         }
     }
 
-    /// The retail artwork the classic pages can draw this frame.
+    /// The retail artwork the classic pages can draw this frame; the player
+    /// screen follows the style and gets the same pieces.
     pub(crate) fn set_menu_art(&mut self, art: ArtSet) {
         self.art = art;
+        self.player
+            .set_style(self.menu_style == MenuStyle::Classic, art);
     }
 }
 
@@ -78,6 +84,35 @@ impl crate::GpuState {
             menu.set_menu_art(art);
         }
         self.in_game_menu.set_style(style, art);
+        self.sync_classic_loading();
+    }
+
+    /// Feed the classic loading screen this frame's progress: the join's
+    /// destination world (the portal) from the menu, or the map change's
+    /// load on a server world.
+    fn sync_classic_loading(&mut self) {
+        use super::classic::loading::{WorldStage, progress};
+        let Some(menu) = &self.client_menu else {
+            return;
+        };
+        if !menu.is_classic() || !menu.is_loading_screen() {
+            return;
+        }
+        let stage = if self.is_menu_world {
+            self.portal.stage()
+        } else if self.world_install_task.is_some() {
+            Some(WorldStage::Building)
+        } else if self.world_load_task.is_some() {
+            Some(WorldStage::Parsing)
+        } else {
+            None
+        };
+        let joined = self.resident.session.is_some() || self.live_session.is_some();
+        let map = menu.loading_map().to_owned();
+        let (subject, ticks) = progress(&map, stage, joined);
+        if let Some(menu) = &mut self.client_menu {
+            menu.loading_mut().set_progress(&subject, ticks);
+        }
     }
 }
 

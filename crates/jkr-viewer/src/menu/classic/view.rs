@@ -6,10 +6,10 @@
 //! With the player's retail artwork loaded ([`crate::menu::art`]) the pages
 //! are built from it in the retail item order: backdrop, side glyph
 //! columns, the main page's ring and windows or the sub-pages' frames, the
-//! logo and the button glow. The dimmed live map shows where the art is
-//! transparent (retail played its logo video there) and in the pillarbox of
-//! a wide window. Without the art, the same layout is drawn with JKR's own
-//! vector shapes and text.
+//! logo and the button glow, opaque: no world is drawn behind the classic
+//! pages, so the art's transparent centre (where retail played its logo
+//! video) and the pillarbox of a wide window stay dark. Without the art, the
+//! same layout is drawn with JKR's own vector shapes and text.
 
 use super::ClassicMain;
 use super::layout::{CANVAS, HINT_Y, LOGO, Page, Placement, Slot};
@@ -26,7 +26,7 @@ pub(crate) const DISABLED: Color = Color::new(0.5, 0.5, 0.5, 1.0);
 /// Retail page-title colour (`forecolor .695 .760 .861`).
 pub(crate) const TITLE: Color = Color::new(0.695, 0.760, 0.861, 1.0);
 /// Retail description colour (`descColor 1 .682 0 .8`).
-const HINT: Color = Color::new(1.0, 0.682, 0.0, 0.8);
+pub(crate) const HINT: Color = Color::new(1.0, 0.682, 0.0, 0.8);
 const INK: [f32; 3] = [0.004, 0.008, 0.020];
 const WHITE: Color = Color::new(1.0, 1.0, 1.0, 1.0);
 
@@ -83,13 +83,7 @@ pub(crate) fn build(
     let page = menu.page();
     canvas.begin_transparent(viewport);
     canvas.push_opacity(reveal);
-    let textured = art_set.has(ArtPiece::Background);
-    if textured {
-        backdrop_art(canvas, viewport, &place, page, art_set);
-    } else {
-        backdrop(canvas, viewport, &place);
-    }
-    logo(canvas, &place, art_set);
+    page_backdrop(canvas, viewport, &place, page, art_set);
     title(canvas, &place, page, art_set);
     if page == Page::Quit {
         canvas.text_aligned(
@@ -147,9 +141,26 @@ pub(crate) fn build(
     canvas.finish(menu.selection() as u16);
 }
 
+/// The page's backdrop and logo: the retail artwork where it is loaded,
+/// JKR's vector version otherwise.
+pub(crate) fn page_backdrop(
+    canvas: &mut MenuCanvas,
+    viewport: [f32; 2],
+    place: &Placement,
+    page: Page,
+    art_set: ArtSet,
+) {
+    if art_set.has(ArtPiece::Background) {
+        backdrop_art(canvas, viewport, place, page, art_set);
+    } else {
+        backdrop(canvas, viewport, place);
+    }
+    logo(canvas, place, art_set);
+}
+
 /// One entry's label: gold, white while focused, grey when JKR cannot open
 /// it yet.
-fn entry_label(canvas: &mut MenuCanvas, place: &Placement, slot: &Slot, active: bool) {
+pub(crate) fn entry_label(canvas: &mut MenuCanvas, place: &Placement, slot: &Slot, active: bool) {
     let s = place.scale;
     let size = slot.size.text();
     let [x, _, width, _] = slot.target();
@@ -213,9 +224,11 @@ fn backdrop_art(
     let page_rect = place.rect([0.0, 0.0, CANVAS[0], CANVAS[1]]);
     {
         let draw = canvas.draw_list_mut();
+        // Opaque, as retail's: the world is not drawn behind the classic
+        // pages (retail played its logo video in the centre gap instead).
         let _ = draw.push(DrawCommand::SolidRect {
             rect: Rect::new(0.0, 0.0, width, height),
-            color: ink(0.58),
+            color: ink(1.0),
         });
         for side in [
             Rect::new(0.0, 0.0, page_rect.x, height),
@@ -223,7 +236,7 @@ fn backdrop_art(
         ] {
             let _ = draw.push(DrawCommand::SolidRect {
                 rect: side,
-                color: ink(0.82),
+                color: ink(1.0),
             });
         }
     }
@@ -237,6 +250,28 @@ fn backdrop_art(
             art(canvas, *piece, place.rect(*rect));
         }
     }
+}
+
+/// The retail background alone, opaque, under a modern screen a classic
+/// page opened while the world is not drawn: the sub-pages' backdrop and
+/// glyph columns, without their frames.
+pub(crate) fn opaque_backdrop(canvas: &mut MenuCanvas, viewport: [f32; 2], art_set: ArtSet) {
+    let place = Placement::new(viewport);
+    canvas.begin_transparent(viewport);
+    let _ = canvas.draw_list_mut().push(DrawCommand::SolidRect {
+        rect: Rect::new(0.0, 0.0, viewport[0], viewport[1]),
+        color: ink(1.0),
+    });
+    for (piece, rect) in [
+        (ArtPiece::SideLeft, [0.0, 0.0, 160.0, 480.0]),
+        (ArtPiece::SideRight, [480.0, 0.0, 160.0, 480.0]),
+        (ArtPiece::Background, [0.0, 0.0, 640.0, 480.0]),
+    ] {
+        if art_set.has(piece) {
+            art(canvas, piece, place.rect(rect));
+        }
+    }
+    canvas.finish(0);
 }
 
 /// Dim the live map so the page reads as one surface (retail drew an
@@ -338,7 +373,7 @@ pub(crate) fn glow(canvas: &mut MenuCanvas, target: Rect, scale: f32, art_set: A
 }
 
 /// A gold band over `rect`, brightest (`peak` alpha) in the middle.
-fn soft_band(canvas: &mut MenuCanvas, rect: Rect, peak: f32) {
+pub(crate) fn soft_band(canvas: &mut MenuCanvas, rect: Rect, peak: f32) {
     let half = Rect::new(rect.x, rect.y, rect.width * 0.5, rect.height);
     let draw = canvas.draw_list_mut();
     let _ = draw.push(DrawCommand::GradientRect {
