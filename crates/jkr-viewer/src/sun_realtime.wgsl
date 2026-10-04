@@ -1,5 +1,5 @@
 // Real-time lighting for the no-bake mode: sun through the cascades plus probe bounce, in
-// display units where a sunlit white surface is about one, scaled by jkr_lightScale. `shadow.radiance` is the sun radiance,
+// display units where a sunlit white surface is about one, scaled by the shadow pass's light scale. `shadow.radiance` is the sun radiance,
 // `shadow.ambient` the sky radiance, `shadow.realtime` = (scale, buffer scale x, y, unused).
 // Direct sun, lamps and bounce at a point (rgb) and the sun's visibility there (a), for
 // the highlight the caller adds with its material's gloss.

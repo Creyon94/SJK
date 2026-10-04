@@ -50,7 +50,7 @@ impl Director {
     /// Consume locally, including malformed commands; never forward shot controls to servers.
     pub(crate) fn command(&mut self, tokens: &[String]) -> Option<Result<Vec<String>, String>> {
         let name = tokens.first()?;
-        // JKR's names (`jkr_camera`, `jkr_sun`) still work.
+        // JKR's old names (`RENAMED_COMMANDS`) still work.
         let name = crate::cvar_renames::RENAMED_COMMANDS
             .iter()
             .find(|(old, _)| name.eq_ignore_ascii_case(old))

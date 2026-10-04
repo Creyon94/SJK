@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "theme": "jkr_modern",
+  "theme": "modern",
   "widgets": [
     { "id":"bottom_scrim", "kind":"panel", "anchor":"bottom", "offset":{"x":0.0,"y":0.0}, "size":{"width":{"unit":"percent","value":1.0},"height":{"unit":"px","value":340.0}}, "visibility":{"kind":"flag","binding":"draw_status"}, "layer":0, "style":{"background":{"r":0.0,"g":0.0,"b":0.0,"a":0.0},"background_end":{"r":0.0,"g":0.0,"b":0.0,"a":0.75},"radius":0.0} },
 
