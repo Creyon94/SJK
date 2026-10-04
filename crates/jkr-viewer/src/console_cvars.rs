@@ -301,7 +301,7 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), jkr_s
             "s_khz",
             44_i64,
             archive,
-            "Retail sample-rate preset (11/22/44); JKR always mixes at 44.1 kHz",
+            "Retail sample-rate preset (11/22/44); SJK always mixes at 44.1 kHz",
         ),
         CvarDefinition::new("s_doppler", true, archive, "Legacy looping-sound Doppler"),
         CvarDefinition::new("cg_footsteps", true, archive, "Play footstep sounds"),

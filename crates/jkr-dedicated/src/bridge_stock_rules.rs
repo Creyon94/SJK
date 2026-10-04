@@ -15,7 +15,7 @@ pub(super) const STOCK_RULES: &[u8] = b"g_stockRules";
 impl NativeGame {
     /// `g_stockRules` registered (archived: an operator's choice is remembered).
     pub(super) fn register_stock_rules(&mut self) {
-        let about: &[u8] = b"JKR: 1 keeps every stock limit and quirk; 0 (default) lifts them";
+        let about: &[u8] = b"SJK: 1 keeps every stock limit and quirk; 0 (default) lifts them";
         self.cvars
             .get(STOCK_RULES, b"0", crate::cvars::CVAR_ARCHIVE, Some(about));
     }

@@ -100,8 +100,11 @@ fn find_game_data(configured: Option<&Path>) -> Result<PathBuf, LaunchError> {
     let current = env::current_dir().ok();
     let executable = env::current_exe().ok();
     let home = env::var_os("HOME").map(PathBuf::from);
-    let environment = env::var_os("JKR_GAME_DATA")
-        .filter(|path| !path.is_empty())
+    // SJK's neutral name first, then JKR's.
+    let environment = ["JKA_GAME_DATA", "JKR_GAME_DATA"]
+        .into_iter()
+        .filter_map(env::var_os)
+        .find(|path| !path.is_empty())
         .map(PathBuf::from);
     find_game_data_in(
         configured,
@@ -162,7 +165,7 @@ impl Display for LaunchError {
             Self::GameDataNotFound => formatter.write_str(concat!(
                 "Jedi Academy GameData was not found. Put Sol JK in the game's GameData ",
                 "folder beside base/ (containing assets0.pk3 through assets3.pk3), ",
-                "then launch it again. For a separate installation, set JKR_GAME_DATA, ",
+                "then launch it again. For a separate installation, set JKA_GAME_DATA, ",
                 "set fs_gameData in the Sol JK config, or pass GameData as the first argument."
             )),
             Self::InvalidGameData(path) => write!(

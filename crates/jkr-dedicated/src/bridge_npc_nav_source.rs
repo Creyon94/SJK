@@ -36,7 +36,7 @@ pub(super) struct MadeNavigation {
 impl NativeGame {
     /// `g_npcNav` registered (archived: an operator's choice is remembered) and read.
     pub(super) fn npc_nav_source(&mut self) -> NavSource {
-        let about: &[u8] = b"JKR: NPC navigation for maps without their own: 0 stock, 1 bot routes, 2 bot routes or map collision";
+        let about: &[u8] = b"SJK: NPC navigation for maps without their own: 0 stock, 1 bot routes, 2 bot routes or map collision";
         self.cvars
             .get(NPC_NAV, b"0", crate::cvars::CVAR_ARCHIVE, Some(about));
         NavSource::from_setting(self.integer_cvar(NPC_NAV, 0))

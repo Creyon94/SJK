@@ -7,7 +7,10 @@ Jedi Academy `GameData` directory with the retail `base/assets*.pk3` files.
 
 In SJK the client program is `sjk` and the dedicated server `sjk-server`
 (`.exe` on Windows). This page, shared with JKR, uses JKR's names `jkr-viewer`
-and `jkr-dedicated`; the commands are otherwise the same.
+and `jkr-dedicated`; the commands are otherwise the same. SJK reads
+`JKA_GAME_DATA` and `JKA_DEDICATED` before JKR's `JKR_GAME_DATA` and
+`JKR_DEDICATED`; developer and diagnostic variables (`JKR_TRACE_*`, `JKR_LAMP_*`,
+`JKR_GPU_*` and the like) keep JKR's names.
 
 Put `jkr-viewer` (`jkr-viewer.exe` on Windows) inside the installed game's
 `GameData` folder, beside `base/`, then launch it to open the main menu. A shortcut
@@ -30,7 +33,8 @@ Join a server directly:
 Without an explicit positional GameData argument, discovery checks these locations
 in order and uses the first containing `base/assets0.pk3` and `base/assets3.pk3`:
 
-1. `JKR_GAME_DATA`, if set and nonempty.
+1. `JKA_GAME_DATA` (SJK; JKR's `JKR_GAME_DATA` is read when it is unset), if set
+   and nonempty.
 2. The executable's directory, then its `GameData` subdirectory.
 3. The saved `fs_gameData` setting.
 4. The working directory, its `GameData` subdirectory, then its
@@ -42,7 +46,7 @@ while an explicit environment or positional path still overrides it. Invalid
 discovery candidates are skipped; an invalid explicit positional path is an error.
 Discovery does not change the working directory or move any game data.
 
-For a binary kept separately, `JKR_GAME_DATA=/path/to/GameData ./jkr-viewer` opens
+For a binary kept separately, `JKA_GAME_DATA=/path/to/GameData ./sjk` opens
 the main menu. Positional launch also accepts a map path and optional player-model
 directory (`jkr-viewer /path/to/GameData maps/mp/ffa3.bsp`); it remains a direct
 world/viewer launch, whereas no arguments opens the main menu. Demo playback
@@ -56,7 +60,8 @@ Presence here describes implemented surfaces; validation limits are in
 [status.md](status.md).
 
 Create game starts a child `jkr-dedicated`, normally found beside the client.
-Set `JKR_DEDICATED` to its executable path if installed elsewhere. The child
+Set `JKA_DEDICATED` (or JKR's `JKR_DEDICATED`) to its executable path if installed
+elsewhere. The child
 lifetime is managed by the client and defaults to local access; see
 [local_server.rs](../crates/jkr-viewer/src/local_server.rs).
 
@@ -423,7 +428,7 @@ Run `devmap mp/ffa3` in the client console to start and join an owned local
 FFA server with cheats enabled, no bots and no match limits. Other installed
 maps work too, including `devmap t2_rancor`; `maps/` and `.bsp` are optional.
 The command appears in console completion/help. It uses the same `jkr-dedicated`
-binary lookup as Create game (`JKR_DEDICATED` overrides the adjacent binary).
+binary lookup as Create game (`JKA_DEDICATED` overrides the adjacent binary).
 
 This starts a fresh game on loopback, without master-server advertising. Once
 launched, it replaces the current connection; it never asks a remote server to

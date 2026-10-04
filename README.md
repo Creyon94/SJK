@@ -108,7 +108,7 @@ Connect directly to a server:
 ./sjk --connect 127.0.0.1:29070
 ```
 
-If keeping the binary elsewhere, use `JKR_GAME_DATA=/path/to/GameData` or the
+If keeping the binary elsewhere, use `JKA_GAME_DATA=/path/to/GameData` or the
 saved game-data setting; known installation locations are also checked. The
 explicit positional form `sjk /path/to/GameData --connect HOST:PORT`
 remains supported. See [client launch](docs/client.md#launch) for discovery order.

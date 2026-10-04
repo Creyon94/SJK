@@ -245,7 +245,7 @@ fn secondary_buttons(favourite: bool) -> [Button; 5] {
         ),
         button(
             "FIND PLAYER",
-            "Searching for players is not available in JKR yet.",
+            "Searching for players is not available in SJK yet.",
             510.0,
             FIND_PLAYER_TOKEN,
         ),

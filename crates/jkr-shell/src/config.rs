@@ -92,7 +92,7 @@ pub fn save_config(
     cvars: &CvarRegistry,
     binds: &BindTable,
 ) -> Result<(), ConfigError> {
-    let mut contents = String::from("// JKR generated configuration. Edit while JKR is closed.\n");
+    let mut contents = String::from("// SJK generated configuration. Edit while SJK is closed.\n");
     for cvar in cvars
         .iter()
         .filter(|cvar| cvar.flags.contains(CvarFlags::ARCHIVE))

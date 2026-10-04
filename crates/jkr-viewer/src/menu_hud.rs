@@ -108,7 +108,7 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), jkr_shell::CvarEr
         STYLE_CVAR,
         HudStyle::NAMES[0],
         CvarFlags::ARCHIVE,
-        "HUD: modern, classic (JKR layouts) or game (the game's menu-file HUD, cg_hudFiles)",
+        "HUD: modern, classic (SJK layouts) or game (the game's menu-file HUD, cg_hudFiles)",
     ))?;
     cvars.register(CvarDefinition::new(
         FILES_CVAR,
@@ -217,7 +217,7 @@ impl MenuHud {
         let mut layout = Layout::resolve(menus.as_deref().unwrap_or_default());
         if !layout.is_usable() {
             crate::log::progress(format_args!(
-                "warning: game HUD {list} defines no lefthud/righthud menu; keeping the JKR HUD"
+                "warning: game HUD {list} defines no lefthud/righthud menu; keeping the SJK HUD"
             ));
             return;
         }
