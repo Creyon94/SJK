@@ -122,7 +122,7 @@ impl Display for LaunchError {
             Self::GameDataNotFound { searched_from } => write!(
                 formatter,
                 concat!(
-                    "Jedi Academy GameData was not found. Set fs_gameData in the JKR config, ",
+                    "Jedi Academy GameData was not found. Set fs_gameData in the Sol JK config, ",
                     "set JKR_GAME_DATA, or pass the GameData directory as the first argument ",
                     "(searched from {})."
                 ),

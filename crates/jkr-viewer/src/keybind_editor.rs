@@ -250,7 +250,7 @@ impl KeybindEditor {
         self.ui.begin_hero(viewport, reveal, Scrim::Full);
         self.ui.form_header(
             &layout,
-            "JKR   /   SETTINGS",
+            "SJK   /   SETTINGS",
             "KEY BINDINGS",
             if self.capture {
                 "Press a key or mouse button.  Escape cancels; a conflicting bind moves here."

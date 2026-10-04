@@ -46,7 +46,7 @@ impl Panel {
         self.ui.begin_hero(viewport, 1.0, Scrim::Wide);
         self.ui.form_header(
             &layout,
-            "JKR   /   PERSONAL BUILD",
+            "SJK   /   PERSONAL BUILD",
             "TEST LIST",
             &self.summary,
         );

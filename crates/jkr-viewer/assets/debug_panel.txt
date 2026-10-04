@@ -349,6 +349,16 @@ test: After any failed join, logs\last-client.log shows the last join: step reac
 
 # ---- Personal (sol/main only) ----
 
+[sjk-branding]
+status: personal
+area: Menus & settings
+title: Sol JK (SJK) name in the client
+change: Window title "Sol JK", version line "SJK 0.1.0", screen headers "SJK / ...", README.
+change: Programs, crates and the config folder keep JKR's names, so settings carry over.
+test: Window title reads Sol JK; the main menu's bottom-right line reads SJK 0.1.0.
+test: Settings, Play, Host and Player screens show SJK / ... headers; Esc menu: Quit Sol JK.
+test: Your settings, binds and debug_panel ticks are all still there after the update.
+
 [debug-panel]
 status: personal
 area: Menus & settings

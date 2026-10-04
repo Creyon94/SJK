@@ -38,7 +38,7 @@ impl PlayerMenu {
         };
         self.canvas.form_header(
             &layout,
-            "JKR   /   PLAYER",
+            "SJK   /   PLAYER",
             PAGE_TABS[self.page.index()],
             subtitle,
         );

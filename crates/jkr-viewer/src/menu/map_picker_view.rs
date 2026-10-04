@@ -32,7 +32,7 @@ impl CreateGameMenu {
         self.ui.begin_hero(viewport, reveal, Scrim::Full);
         self.ui.form_header(
             &layout,
-            "JKR   /   HOST",
+            "SJK   /   HOST",
             "Choose a map",
             MODES[self.draft.mode].label,
         );
