@@ -198,6 +198,7 @@ pub(crate) fn advance_events_in(
     bounds: ([f32; 3], [f32; 3]),
     legacy_fixes: u32,
     debug_melee: DebugMelee,
+    ja_plus: crate::pmove_japlus::JaPlusRules,
     opponent: Option<crate::pmove_saber_lock::LockOpponent>,
     outcome: &mut crate::pmove_saber_lock::LockOutcome,
 ) -> u16 {
@@ -214,6 +215,7 @@ pub(crate) fn advance_events_in(
         bounds,
         legacy_fixes,
         debug_melee,
+        ja_plus,
         opponent,
         outcome,
     );
@@ -233,6 +235,7 @@ fn advance_command(
     bounds: ([f32; 3], [f32; 3]),
     legacy_fixes: u32,
     debug_melee: DebugMelee,
+    ja_plus: crate::pmove_japlus::JaPlusRules,
     opponent: Option<crate::pmove_saber_lock::LockOpponent>,
     outcome: &mut crate::pmove_saber_lock::LockOutcome,
 ) {
@@ -291,6 +294,7 @@ fn advance_command(
                     bounds,
                     seed: command.server_time,
                     fixed_moves,
+                    ja_plus,
                 };
                 saber.run();
                 command.buttons = saber.command.buttons;
@@ -399,6 +403,7 @@ fn advance_command(
                 bounds,
                 seed: command.server_time,
                 fixed_moves,
+                ja_plus,
             };
             saber.finish_weapon_change();
         } else {

@@ -204,6 +204,8 @@ pub struct MovementConfig {
     pub debug_melee: crate::pmove_debug_melee::DebugMelee,
     /// The server's grapple-hook pull: JA+ only ([`grapple`]).
     pub grapple: Option<grapple::GrappleRules>,
+    /// JA+ server rules selected from `CS_SERVERINFO`; stock on other servers.
+    pub ja_plus: crate::pmove_japlus::JaPlusRules,
 }
 
 impl Default for MovementConfig {
@@ -221,6 +223,7 @@ impl Default for MovementConfig {
             legacy_fixes: 0b111,
             debug_melee: crate::pmove_debug_melee::DebugMelee::default(),
             grapple: None,
+            ja_plus: crate::pmove_japlus::JaPlusRules::default(),
         }
     }
 }
@@ -1193,11 +1196,18 @@ impl Predictor {
     ) {
         // `PmoveSingle` opens by cancelling an attack pressed together with a holdable
         // (`bg_pmove.c:10173-10183`), before anything reads the buttons: a spectator
-        // holding both does not get alt-attack's turbo.
+        // holding both does not get alt-attack's turbo. A JA+ client leaves melee's
+        // buttons alone ([`crate::pmove_japlus`]).
         const USE_HOLDABLE: u16 = 4;
-        for attack in [1, 128] {
-            if command.buttons & attack != 0 && command.buttons & USE_HOLDABLE != 0 {
-                command.buttons &= !(attack | USE_HOLDABLE);
+        if self
+            .config
+            .ja_plus
+            .cancels_attack_with_holdable(self.state.weapon)
+        {
+            for attack in [1, 128] {
+                if command.buttons & attack != 0 && command.buttons & USE_HOLDABLE != 0 {
+                    command.buttons &= !(attack | USE_HOLDABLE);
+                }
             }
         }
         crate::pmove_emplaced::alternate_is_primary(&self.state, &mut command);
@@ -1214,6 +1224,7 @@ impl Predictor {
             millis,
             collision,
             self.animation_lengths.as_deref(),
+            self.config.ja_plus,
         );
         // A rider facing its vehicle's hyperspace point (`bg_pmove.c:10579-10595`).
         self.face_hyperspace(&mut command, millis);
@@ -1485,6 +1496,7 @@ impl Predictor {
                 (bounds.minimums, bounds.maximums),
                 self.config.legacy_fixes,
                 self.config.debug_melee,
+                self.config.ja_plus,
                 opponent,
                 outcome,
             );
