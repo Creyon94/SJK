@@ -169,18 +169,18 @@ pr: 48
 issue: 24
 status: open
 area: Menus & settings
-title: Classic menu style: retail pages, no map behind, loading screens
-change: ui_menuStyle classic (Settings > GAME > Menu style) draws retail-style menus and art.
-change: Round 3: no map behind the menu, retail connect/loading screens, no gate glide.
-change: Round 3: retail Profile (player, character and saber creation), Setup and Controls panels.
-test: Menu style classic: main menu and all pages are opaque retail art, no map behind them.
+title: Classic menu style: retail pages, browser, animation, loading screens
+change: ui_menuStyle classic draws retail-style menus and art, with no map behind them.
+change: Round 4: retail join-server browser; ja01 logo video, ring, glints, glow flicker.
+change: Round 4: capitals on classic labels; Controls list and Setup panels scroll with the wheel.
+test: Menu style classic: main page plays the logo video in the ring; ring turns, glows flicker.
+test: Hover entries: the focused text pulses; labels and buttons are in capitals.
+test: Play > Join Server: sort columns, SOURCE/TYPE/VIEW, favourites, SERVER INFO, JOIN, wheel.
 test: Join a server: connect screen, then levelshot + server lines + load bar until in game.
-test: Profile: name, team colour, head grid, Custom (species/tint/parts), APPLY -> saber page.
-test: Setup: Video/More Video/Sound/Game Options/HUD rows; sliders, Yes/No, typed values work.
-test: Controls: click a binding, press a key; Backspace clears; ESC cancels the capture.
+test: Setup: every group; long panels scroll with the wheel; RENDERER opens the renderer page.
+test: Controls: wheel over the list scrolls; click a binding, press a key; ESC cancels.
 test: In a match Esc: retail bar; Profile/Setup/Controls open retail pop-up windows.
-test: Switch back to modern: the live map returns behind the menu.
-note: The 3D model is shown as a portrait icon; some species have no portrait (207-icon atlas).
+note: FIND PLAYER is dimmed; the 3D model is shown as a portrait icon.
 
 [settings-scroll]
 pr: 60
@@ -425,6 +425,37 @@ change: Walking through players in a private duel (or out of yours) no longer sn
 test: JA+: two players duel, walk through them; while duelling, walk through a bystander.
 
 # ---- Personal (sol/main only) ----
+
+[locked-binds]
+status: personal
+area: Input
+title: MOUSE1, MOUSE2 and ESC locked in the controls editor; key names in capitals
+change: Locked keys can't be captured or cleared there; a click or ESC cancels a capture.
+change: Key names show as W, SPACE, MOUSE1 in the editor, vote prompt and bind/bindlist.
+test: Controls: start a capture, left-click: it cancels and +attack stays on MOUSE1.
+test: Select the MOUSE1 slot, press Delete: nothing is cleared; header says it's locked.
+test: Console: bindlist shows capitals; config.cfg keeps bind "w" spelling.
+note: Branches fix/locked-bind-keys and fix/uppercase-key-names; PR pending (fork).
+
+[renderer-settings]
+status: personal
+area: Rendering & effects
+title: RENDERER settings page for every jkr_ renderer cvar
+change: Video > Renderer (and classic Setup > RENDERER): IMAGE, LIGHTING, SHADOWS tabs.
+change: Saber trail and Force Seeing aura rows now work (int cvars were not toggled).
+test: Open the page from Video and from classic Setup; Back returns where you came from.
+test: Toggle HDR, bloom, FXAA, shadows, volumetrics; restart-marked rows say so.
+test: Game tab: Saber trail cycles and Force Seeing aura toggles ON/OFF.
+note: Branch feat/renderer-settings; PR pending (fork).
+
+[sharp-levelshots]
+status: personal
+area: Menus & settings
+title: Sharp loading-screen and map-picker levelshots
+change: Levelshots keep their own resolution (HD packs included) with mipmaps.
+test: Join a server at 4K: the loading levelshot is sharp (JoF HD wide shots too).
+test: Create game: the map preview is sharp; switching maps updates it.
+note: Branch fix/sharp-levelshots; PR pending (fork).
 
 [classic-scoreboard]
 status: personal
