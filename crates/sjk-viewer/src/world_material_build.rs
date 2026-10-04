@@ -113,6 +113,9 @@ fn build(
             .flat_map(|material| &material.stages)
             .filter_map(|stage| stage.maps.as_ref()),
     );
+    if material_maps.enabled() {
+        super::material_maps::report_pack_generation(vfs);
+    }
     if material_maps.enabled() && found.stages == 0 {
         crate::log::progress(format_args!(
             "material maps ({material_maps}): no stage of this map has maps"

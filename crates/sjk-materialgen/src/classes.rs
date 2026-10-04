@@ -11,10 +11,14 @@
 //!    texture's path below `textures/` (directories and file name, lower case);
 //! 3. `surfaceparm metalsteps` (`SURF_METALSTEPS`) for metal;
 //! 4. [`GENERIC`].
+//!
+//! A shader with a `tcGen environment` stage asks for a polished surface the stock way:
+//! its texture's class is made glossier ([`polished`]). A per-texture overrides file
+//! ([`crate::overrides`]) has the last word.
 
 /// One row of [`CLASSES`]. All values are in the units the generator writes:
 /// normal strength multiplies the height slope, the rest are 0–1 map values.
-#[derive(Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct MaterialClass {
     /// Short name used in the manifest and the dry-run listing.
     pub name: &'static str,
@@ -26,6 +30,8 @@ pub struct MaterialClass {
     pub normal_strength: f32,
     /// Write height for parallax (`_nh`); otherwise a plain normal map (`_n`).
     pub parallax: bool,
+    /// Path keywords that give this class height anyway (metal panels and plates).
+    pub height_keywords: &'static [&'static str],
     /// Base roughness (rend2 packed roughness: 0 mirror, 1 matte).
     pub roughness: f32,
     /// How far local variation, brightness and cavities move the roughness.
@@ -89,6 +95,7 @@ pub const CLASSES: &[MaterialClass] = &[
         ],
         normal_strength: 1.5,
         parallax: false,
+        height_keywords: &[],
         roughness: 0.8,
         roughness_variation: 0.15,
         metalness: 0.0,
@@ -101,6 +108,7 @@ pub const CLASSES: &[MaterialClass] = &[
         keywords: &["glass", "window"],
         normal_strength: 0.5,
         parallax: false,
+        height_keywords: &[],
         roughness: 0.1,
         roughness_variation: 0.1,
         metalness: 0.0,
@@ -123,6 +131,7 @@ pub const CLASSES: &[MaterialClass] = &[
         ],
         normal_strength: 1.5,
         parallax: false,
+        height_keywords: &[],
         roughness: 0.45,
         roughness_variation: 0.25,
         metalness: 0.1,
@@ -135,6 +144,7 @@ pub const CLASSES: &[MaterialClass] = &[
         keywords: &["light", "lamp", "neon", "glow"],
         normal_strength: 1.0,
         parallax: false,
+        height_keywords: &[],
         roughness: 0.4,
         roughness_variation: 0.2,
         metalness: 0.0,
@@ -150,11 +160,17 @@ pub const CLASSES: &[MaterialClass] = &[
         ],
         normal_strength: 2.0,
         parallax: false,
-        roughness: 0.45,
-        roughness_variation: 0.35,
-        // Kept low on purpose: rend2's packed path takes the diffuse share away
-        // from metal, and nothing reflects the surroundings back into it.
-        metalness: 0.3,
+        // Panels, plates and deck plating carry seams and rivets worth parallax;
+        // pipes, grates and railings do not.
+        height_keywords: &["panel", "plate", "floor", "wall", "hull", "deck", "door"],
+        // Brushed rather than polished (0.3 +- 0.3 over the texture), and mostly
+        // metallic. With reflection probes the client now reflects the room into metal,
+        // which loses its diffuse share in rend2's packed path; 0.8 rather than 1 keeps a
+        // fifth of the diffuse light for painted or grimy parts the heuristics call
+        // metal, and the generator still lowers metalness on dark and saturated texels.
+        roughness: 0.3,
+        roughness_variation: 0.3,
+        metalness: 0.8,
         occlusion: 0.4,
         alpha_test_safe: true,
     },
@@ -164,6 +180,7 @@ pub const CLASSES: &[MaterialClass] = &[
         keywords: &["tile", "marble", "mosaic", "polished"],
         normal_strength: 2.5,
         parallax: true,
+        height_keywords: &[],
         roughness: 0.35,
         roughness_variation: 0.35,
         metalness: 0.0,
@@ -179,6 +196,7 @@ pub const CLASSES: &[MaterialClass] = &[
         ],
         normal_strength: 3.0,
         parallax: true,
+        height_keywords: &[],
         roughness: 0.85,
         roughness_variation: 0.2,
         metalness: 0.0,
@@ -191,6 +209,7 @@ pub const CLASSES: &[MaterialClass] = &[
         keywords: &["wood", "plank", "crate", "bark", "timber", "logs"],
         normal_strength: 1.8,
         parallax: false,
+        height_keywords: &[],
         roughness: 0.7,
         roughness_variation: 0.25,
         metalness: 0.0,
@@ -205,6 +224,7 @@ pub const CLASSES: &[MaterialClass] = &[
         ],
         normal_strength: 2.0,
         parallax: true,
+        height_keywords: &[],
         roughness: 0.9,
         roughness_variation: 0.1,
         metalness: 0.0,
@@ -219,6 +239,7 @@ pub const CLASSES: &[MaterialClass] = &[
         ],
         normal_strength: 1.0,
         parallax: false,
+        height_keywords: &[],
         roughness: 0.95,
         roughness_variation: 0.05,
         metalness: 0.0,
@@ -231,6 +252,7 @@ pub const CLASSES: &[MaterialClass] = &[
         keywords: &["plaster", "stucco", "drywall", "adobe", "clay"],
         normal_strength: 1.2,
         parallax: false,
+        height_keywords: &[],
         roughness: 0.9,
         roughness_variation: 0.1,
         metalness: 0.0,
@@ -246,12 +268,39 @@ pub const GENERIC: MaterialClass = MaterialClass {
     keywords: &[],
     normal_strength: 1.5,
     parallax: false,
+    height_keywords: &[],
     roughness: 0.75,
     roughness_variation: 0.25,
     metalness: 0.0,
     occlusion: 0.35,
     alpha_test_safe: false,
 };
+
+/// Base roughness of a polished surface (a `tcGen environment` stage): clear
+/// reflections without a mirror finish.
+pub const POLISHED_ROUGHNESS: f32 = 0.25;
+
+/// `class` for a texture its shader marks as polished: roughness at most
+/// [`POLISHED_ROUGHNESS`], half the variation, so its reflections stay clear.
+pub fn polished(class: &MaterialClass) -> MaterialClass {
+    MaterialClass {
+        roughness: class.roughness.min(POLISHED_ROUGHNESS),
+        roughness_variation: class.roughness_variation * 0.5,
+        ..class.clone()
+    }
+}
+
+/// Whether textures of `class` at `path` get height: the class always does, or the
+/// path names one of its height keywords.
+pub fn wants_height(class: &MaterialClass, path: &str) -> bool {
+    let lower = path.to_ascii_lowercase();
+    let searched = lower.strip_prefix("textures/").unwrap_or(&lower);
+    class.parallax
+        || class
+            .height_keywords
+            .iter()
+            .any(|word| searched.contains(word))
+}
 
 /// Which rule chose a class, for the manifest.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -350,6 +399,33 @@ mod tests {
                 .count();
             assert_eq!(classes, 1, "material id {id}");
         }
+    }
+
+    #[test]
+    fn metal_is_tuned_for_reflection_probes() {
+        let metal = by_name("metal").expect("metal class");
+        assert_eq!((metal.metalness, metal.roughness), (0.8, 0.3));
+        // The roughest texel stays below the dielectric classes' base roughness.
+        assert!(metal.roughness + metal.roughness_variation <= 0.7);
+        assert!(wants_height(metal, "textures/imperial/metal_panel2"));
+        assert!(wants_height(metal, "textures/x/floor_plate"));
+        assert!(!wants_height(metal, "textures/imperial/pipe_rusty"));
+        assert!(wants_height(
+            by_name("stone").unwrap(),
+            "textures/x/anything"
+        ));
+    }
+
+    #[test]
+    fn polished_shaders_get_glossier() {
+        let stone = by_name("stone").expect("stone class");
+        let shiny = polished(stone);
+        assert_eq!(shiny.roughness, POLISHED_ROUGHNESS);
+        assert_eq!(shiny.roughness_variation, stone.roughness_variation * 0.5);
+        assert_eq!((shiny.name, shiny.metalness), (stone.name, stone.metalness));
+        // Already glossier classes keep their roughness.
+        let glass = by_name("glass").expect("glass class");
+        assert_eq!(polished(glass).roughness, glass.roughness);
     }
 
     #[test]

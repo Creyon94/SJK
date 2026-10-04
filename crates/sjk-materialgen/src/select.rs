@@ -9,7 +9,8 @@
 //! surface without a shader script is the implicit lightmapped default shader
 //! of its texture, which qualifies too.
 
-use crate::classes::{ClassSource, MaterialClass, classify};
+use crate::classes::{ClassSource, MaterialClass, classify, polished, wants_height};
+use crate::overrides::Overrides;
 use sjk_bsp::{Bsp, SurfaceKind};
 use sjk_shader::{ShaderCatalog, ShaderDefinition, ShaderStage, StageBlend, TextureGenerator};
 use sjk_vfs::VirtualFileSystem;
@@ -120,8 +121,14 @@ pub struct Candidate {
     pub image: String,
     /// The path without extension, the base of the map names.
     pub base: String,
-    pub class: &'static MaterialClass,
+    /// The class as generated: the table's row, made glossier for polished shaders,
+    /// with height decided and the overrides applied.
+    pub class: MaterialClass,
     pub class_source: ClassSource,
+    /// Some shader using it has a `tcGen environment` stage (`classes::polished`).
+    pub polished: bool,
+    /// Lines of the overrides file that applied.
+    pub overrides: Vec<usize>,
     /// Some shader using it alpha-tests the diffuse stage.
     pub alpha_tested: bool,
     /// Write a normal map (none exists yet).
@@ -246,6 +253,8 @@ pub struct ShaderChoice {
     /// Resolved diffuse image path.
     pub image: String,
     pub alpha_tested: bool,
+    /// The shader has a `tcGen environment` stage: stock polish.
+    pub polished: bool,
 }
 
 /// Decide one shader: its diffuse image, or why it gets no maps.
@@ -276,16 +285,20 @@ pub fn evaluate_shader(
     if shader_use.lightmapped_triangles == 0 {
         return Ok(Err(SkipReason::VertexLit));
     }
-    let (image, alpha_tested) = match catalog.get(name) {
+    let (image, alpha_tested, polished) = match catalog.get(name) {
         Some(definition) => {
             let stage = match diffuse_stage(definition) {
                 Ok(stage) => stage,
                 Err(reason) => return Ok(Err(reason)),
             };
             let image = catalog.resolve_stage_image(vfs, &stage.images[0])?;
-            (image, stage.alpha_function.is_some())
+            let polished = definition
+                .stages
+                .iter()
+                .any(|stage| stage.texture_generator == TextureGenerator::Environment);
+            (image, stage.alpha_function.is_some(), polished)
         }
-        None => (catalog.resolve_image(vfs, name)?, false),
+        None => (catalog.resolve_image(vfs, name)?, false, false),
     };
     let Some(image) = image else {
         return Ok(Err(SkipReason::MissingImage));
@@ -297,6 +310,7 @@ pub fn evaluate_shader(
     Ok(Ok(ShaderChoice {
         image,
         alpha_tested,
+        polished,
     }))
 }
 
@@ -424,22 +438,24 @@ fn check_diffuse(stage: &ShaderStage) -> Result<&ShaderStage, SkipReason> {
     Ok(stage)
 }
 
-/// Select the textures of `uses` that get maps.
+/// Select the textures of `uses` that get maps, tuned by `overrides`.
 pub fn select(
     vfs: &VirtualFileSystem,
     catalog: &ShaderCatalog,
     maps: Vec<String>,
     uses: &BTreeMap<String, ShaderUse>,
+    overrides: &Overrides,
 ) -> Result<Selection, Box<dyn Error>> {
     let mut skipped = Vec::new();
-    // image -> (shaders with their use and alpha test)
-    let mut by_image: BTreeMap<String, Vec<(&str, &ShaderUse, bool)>> = BTreeMap::new();
+    // image -> (shaders with their use, alpha test and polish)
+    let mut by_image: BTreeMap<String, Vec<(&str, &ShaderUse, bool, bool)>> = BTreeMap::new();
     for (name, shader_use) in uses {
         match evaluate_shader(vfs, catalog, name, shader_use)? {
             Ok(choice) => by_image.entry(choice.image).or_default().push((
                 name,
                 shader_use,
                 choice.alpha_tested,
+                choice.polished,
             )),
             Err(reason) => skipped.push(Skipped {
                 name: name.clone(),
@@ -452,7 +468,7 @@ pub fn select(
     let mut candidates = Vec::new();
     for (image, shaders) in by_image {
         // The class follows the shader drawing most of it (then the first name).
-        let (_, primary, _) = shaders
+        let (_, primary, _, _) = shaders
             .iter()
             .max_by(|a, b| {
                 a.1.lightmapped_triangles
@@ -460,15 +476,24 @@ pub fn select(
                     .then_with(|| b.0.cmp(a.0))
             })
             .expect("every image has a shader");
-        let (class, class_source) = classify(&image, primary.surface_flags);
-        let alpha_tested = shaders.iter().any(|(_, _, alpha)| *alpha);
+        let (table_class, class_source) = classify(&image, primary.surface_flags);
+        let alpha_tested = shaders.iter().any(|(_, _, alpha, _)| *alpha);
+        let polish = shaders.iter().any(|(_, _, _, polish)| *polish);
+        let base = strip_extension(&image).to_owned();
+        let mut class = if polish {
+            polished(table_class)
+        } else {
+            table_class.clone()
+        };
+        class.parallax = wants_height(&class, &base);
+        let (class, applied) = overrides.apply(&base, class);
         let triangles = shaders
             .iter()
-            .map(|(_, shader_use, _)| shader_use.lightmapped_triangles)
+            .map(|(_, shader_use, _, _)| shader_use.lightmapped_triangles)
             .sum();
         let maps_used: BTreeSet<String> = shaders
             .iter()
-            .flat_map(|(_, shader_use, _)| shader_use.maps.iter().cloned())
+            .flat_map(|(_, shader_use, _, _)| shader_use.maps.iter().cloned())
             .collect();
         let skip = |reason| Skipped {
             name: image.clone(),
@@ -480,7 +505,6 @@ pub fn select(
             skipped.push(skip(SkipReason::AlphaTested));
             continue;
         }
-        let base = strip_extension(&image).to_owned();
         let existing_with = |suffixes: &[&str]| -> Result<Vec<String>, Box<dyn Error>> {
             let mut found = Vec::new();
             for suffix in suffixes {
@@ -502,13 +526,15 @@ pub fn select(
             existing: normals.into_iter().chain(speculars).collect(),
             shaders: shaders
                 .iter()
-                .map(|(name, _, _)| (*name).to_owned())
+                .map(|(name, _, _, _)| (*name).to_owned())
                 .collect(),
             maps: maps_used,
             image,
             base,
             class,
             class_source,
+            polished: polish,
+            overrides: applied,
             alpha_tested,
             triangles,
         });
@@ -664,7 +690,8 @@ mod tests {
 
     fn library() -> (VirtualFileSystem, ShaderCatalog) {
         let script = "textures/a/wall { surfaceparm metalsteps { map $lightmap } \
-                      { map textures/a/wall blendFunc filter } }\n\
+                      { map textures/a/wall blendFunc filter } \
+                      { map textures/a/env blendFunc add tcGen environment } }\n\
                       textures/a/sky { skyParms - 512 - surfaceparm sky }\n\
                       textures/p/fern { { map textures/p/fern alphaFunc GE128 } \
                       { map $lightmap blendFunc filter alphaFunc GE128 } }\n\
@@ -718,7 +745,10 @@ mod tests {
         walls.surface_flags = crate::classes::bsp::SURF_METALSTEPS;
         uses.insert("textures/a/wall".to_owned(), walls);
 
-        let selection = select(&vfs, &catalog, vec!["mp/a".into()], &uses).expect("selects");
+        let overrides =
+            Overrides::parse("textures/a/half roughness=0.05 height=on").expect("overrides");
+        let selection =
+            select(&vfs, &catalog, vec!["mp/a".into()], &uses, &overrides).expect("selects");
         let images: Vec<&str> = selection
             .candidates
             .iter()
@@ -743,12 +773,19 @@ mod tests {
             (wall.class.name, wall.class_source),
             ("metal", ClassSource::MetalSteps)
         );
+        // Its environment stage marks it polished; a metal wall gets height.
+        assert!(wall.polished && wall.class.roughness == crate::classes::POLISHED_ROUGHNESS);
+        assert!(wall.class.parallax && !rock.polished && rock.class.parallax);
         let grate = &selection.candidates[3];
         assert!(grate.alpha_tested && grate.class.alpha_test_safe);
         // An existing normal map leaves only the packed map to generate.
         let half = &selection.candidates[2];
         assert!(!half.normal && half.packed);
         assert_eq!(half.existing, ["textures/a/half_nh.tga"]);
+        // The overrides file's line 1 applied to it alone.
+        assert_eq!((half.class.roughness, half.class.parallax), (0.05, true));
+        assert_eq!(half.overrides, [1]);
+        assert!(rock.overrides.is_empty());
 
         let reasons: BTreeMap<&str, SkipReason> = selection
             .skipped

@@ -168,6 +168,43 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), CvarError> {
     reflections::register(cvars)
 }
 
+/// The `sjk-materialgen` tuning this client expects (`package::GENERATION` there):
+/// 2 tuned metal for reflection probes and marked polished shaders.
+pub(crate) const GENERATION: u32 = 2;
+/// Where the generator's manifest sits in its pk3.
+const MANIFEST: &str = "jkr-materialgen/manifest.json";
+/// The older-pack note was printed: once per run is enough.
+static GENERATION_REPORTED: std::sync::atomic::AtomicBool =
+    std::sync::atomic::AtomicBool::new(false);
+
+/// The generation of the mounted generated pack: `None` without one, 1 for a manifest
+/// written before generations were recorded.
+pub(crate) fn pack_generation(vfs: &VirtualFileSystem) -> Option<u32> {
+    let asset = vfs.read(MANIFEST).ok()??;
+    let manifest: serde_json::Value = serde_json::from_slice(&asset.bytes).ok()?;
+    Some(
+        manifest
+            .get("generation")
+            .and_then(serde_json::Value::as_u64)
+            .map_or(1, |generation| generation as u32),
+    )
+}
+
+/// Note once when the mounted generated pack predates [`GENERATION`].
+pub(crate) fn report_pack_generation(vfs: &VirtualFileSystem) {
+    let Some(generation) = pack_generation(vfs).filter(|generation| *generation < GENERATION)
+    else {
+        return;
+    };
+    if !GENERATION_REPORTED.swap(true, Ordering::Relaxed) {
+        crate::log::progress(format_args!(
+            "material maps: the generated pack is generation {generation} of sjk-materialgen, \
+             this client expects {GENERATION} (metal tuned for reflection probes, polished \
+             floors); regenerate it (docs/rendering.md, Generating material maps)"
+        ));
+    }
+}
+
 /// Which bundle of a collapsed hardware stage holds the diffuse texture.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum Bundle {
@@ -514,6 +551,24 @@ mod tests {
         // Parallax latches its own value, not the effective one: a restart with it
         // on is what the change asks for, even while normal maps are off.
         assert!(restart_needed(LATCHED, 2, true));
+    }
+
+    #[test]
+    fn generated_packs_report_their_generation() {
+        let mut vfs = VirtualFileSystem::new();
+        assert_eq!(pack_generation(&vfs), None);
+        vfs.mount_memory("old", [(MANIFEST, br#"{"version": "0.1.0"}"#.to_vec())])
+            .expect("mounts");
+        assert_eq!(pack_generation(&vfs), Some(1));
+        vfs.mount_memory(
+            "new",
+            [(
+                MANIFEST,
+                format!(r#"{{"generation": {GENERATION}}}"#).into_bytes(),
+            )],
+        )
+        .expect("mounts");
+        assert_eq!(pack_generation(&vfs), Some(GENERATION));
     }
 
     #[test]

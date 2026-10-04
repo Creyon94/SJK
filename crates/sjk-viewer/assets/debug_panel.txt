@@ -555,6 +555,18 @@ test: r_floorReflections 0 then 1: the mirror image disappears and comes back at
 test: On a floor with maps (M above 0) the reflection ripples with the floor's relief.
 note: Floors need generated maps for the mapped look; regenerate the pack after the update.
 
+[materialgen-metal]
+status: personal
+area: Rendering & effects
+title: materialgen: shinier metal, polished hint, overrides file
+change: Metal class metalness 0.8, roughness 0.3; tcGen environment shaders made glossier.
+change: Metal panels get _nh height; per-texture rules in sjk-materialgen-overrides.txt.
+test: Load mp/ffa3 with the old pack: the log asks to regenerate (generation 1).
+test: Regenerate: sjk-materialgen --maps mp/ffa3,mp/duel1 --out <dir>/zzz_jkr_materials.pk3
+test: Copy it over GameData/base/zzz_jkr_materials.pk3, restart: the note is gone.
+test: Metal walls now reflect the room (r_materialMapsDebug 4 to see the reflection).
+note: --dry-run lists polished textures and applied override lines.
+
 # ---- Merged upstream ----
 
 [console-chat-history]

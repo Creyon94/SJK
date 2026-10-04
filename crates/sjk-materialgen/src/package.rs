@@ -17,6 +17,12 @@ use zip::{CompressionMethod, DateTime, ZipWriter};
 /// Where the manifest sits inside the pk3.
 pub const MANIFEST_PATH: &str = "jkr-materialgen/manifest.json";
 
+/// Which tuning generated a pack. Raised whenever the generated maps change meaning,
+/// so the client can tell a pack needs regenerating (`material_maps::GENERATION`);
+/// manifests without it are generation 1. 2: metal tuned for reflection probes,
+/// polished shaders, metal-panel height, per-texture overrides.
+pub const GENERATION: u32 = 2;
+
 /// The notice repeated in the manifest, the help text and the docs.
 pub const NOTICE: &str = "Generated from the textures of your own Jedi Academy installation. \
 These images are derived from retail game data: keep them on this machine, and do not \
@@ -34,6 +40,7 @@ pub struct Entry {
 pub struct Manifest {
     pub tool: &'static str,
     pub version: &'static str,
+    pub generation: u32,
     pub notice: &'static str,
     pub settings: ManifestSettings,
     pub sources: Vec<SourceEntry>,
@@ -54,6 +61,8 @@ pub struct ManifestSettings {
     pub height_bands: Vec<[f32; 2]>,
     pub coarse_weight: f32,
     pub min_height_range: f32,
+    /// The overrides file read, if any.
+    pub overrides: Option<String>,
 }
 
 /// One source texture and what was written for it.
@@ -66,6 +75,13 @@ pub struct SourceEntry {
     pub height: u32,
     pub class: &'static str,
     pub class_source: String,
+    /// A shader using it has a `tcGen environment` stage (glossier class).
+    pub polished: bool,
+    /// Lines of the overrides file that applied.
+    pub overrides: Vec<usize>,
+    /// Base roughness and metalness it was generated with.
+    pub roughness: f32,
+    pub metalness: f32,
     pub alpha_tested: bool,
     pub shaders: Vec<String>,
     pub maps: Vec<String>,
@@ -162,6 +178,7 @@ mod tests {
         Manifest {
             tool: "sjk-materialgen",
             version: "test",
+            generation: GENERATION,
             notice: NOTICE,
             settings: ManifestSettings {
                 maps: vec!["mp/test".into()],
@@ -175,6 +192,7 @@ mod tests {
                 height_bands: vec![[1.0, 0.5]],
                 coarse_weight: 0.5,
                 min_height_range: 0.1,
+                overrides: None,
             },
             sources: vec![SourceEntry {
                 image: "textures/a/wall.jpg".into(),
@@ -183,6 +201,10 @@ mod tests {
                 height: 4,
                 class: "stone",
                 class_source: "default".into(),
+                polished: false,
+                overrides: Vec::new(),
+                roughness: 0.85,
+                metalness: 0.0,
                 alpha_tested: false,
                 shaders: vec!["textures/a/wall".into()],
                 maps: vec!["mp/test".into()],
@@ -241,6 +263,8 @@ mod tests {
         assert_eq!(value["sources"][0]["image"], "textures/a/wall.jpg");
         assert_eq!(value["sources"][0]["outputs"][0], "textures/a/wall_nh.png");
         assert_eq!(value["settings"]["maps"][0], "mp/test");
+        // The client reads the generation to tell a pack needs regenerating.
+        assert_eq!(value["generation"], GENERATION);
         assert_eq!(value["skipped"][0]["reason"], "sky");
 
         // Mounted like a game pk3, rend2's lookup next to the diffuse finds the maps.

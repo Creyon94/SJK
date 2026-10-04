@@ -1213,10 +1213,12 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
   renderer gives maps to. Skipped, each with a reason in the manifest: sky,
   fog, liquids, nodraw/clip/system shaders, interface and 2D images,
   lightmaps, blend-only effects, `deformVertexes`, glowing, animated,
-  environment-mapped and non-plain colour stages, alpha-tested foliage (grates
-  are allowed), images without relief (flat colours) and textures that already
-  have rend2 maps. With an existing normal map or specular map only the
-  missing kind is written.
+  environment-mapped and non-plain colour diffuse stages, alpha-tested foliage
+  (grates are allowed), images without relief (flat colours) and textures that
+  already have rend2 maps. With an existing normal map or specular map only the
+  missing kind is written. A shader whose diffuse pair is followed by its own
+  `tcGen environment` stage (stock chrome and polished floors) qualifies; the
+  environment stage marks the texture polished (below).
 - **Generation** ([generate.rs](../crates/sjk-materialgen/src/generate.rs)),
   deterministic and wrap-around, so tiling textures stay seamless. Height comes
   from luminance, high-passed twice at 1/8 of the texture to suppress baked
@@ -1233,13 +1235,38 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
   of strength, parallax, roughness, metalness and occlusion per class. A class is
   chosen by the BSP material id (`q3map_material`), then path keywords, then
   `surfaceparm metalsteps`. Stone, tiles and ground get `<texture>_nh`
-  (height in alpha for parallax); the rest `<texture>_n`.
+  (height in alpha for parallax), and so do metal textures whose path names a
+  panel, plate, floor, wall, hull, deck or door (seams and rivets); the rest get
+  `<texture>_n`. A texture whose shader has a `tcGen environment` stage is
+  polished: its roughness is at most 0.25 with half the variation.
+- **Metal.** Metalness 0.8 and roughness 0.3 (±0.3 across the texture), for the
+  reflection probes ([Reflection probes](#reflection-probes)). In rend2's packed
+  path metal loses its diffuse share and takes its reflection from the probe;
+  0.8 rather than 1 keeps a fifth of the diffuse light where the heuristics call
+  painted or grimy parts metal, and metalness still falls on dark and saturated
+  texels. Without probes (`r_cubeMapping 0`) such metal reads darker than its
+  retail look. Earlier packs used 0.3 and 0.45, when nothing reflected the room
+  into metal.
+- **Overrides** ([overrides.rs](../crates/sjk-materialgen/src/overrides.rs)). A text
+  file of per-texture rules fixes what the heuristics get wrong. Each line is a
+  path pattern (the diffuse image without extension, case-insensitive, `*` and `?`
+  wildcards) followed by `class=`, `roughness=`, `metalness=` (0–1) or
+  `height=on|off`; `#` starts a comment. Every matching line applies, in order:
+
+  ```text
+  textures/mp/floor*        class=tiles roughness=0.2
+  textures/kor_*/*metal*    metalness=0.9 height=on
+  ```
+
+  The tool reads `--overrides FILE`, or `sjk-materialgen-overrides.txt` next to the
+  output pk3 when it exists; the manifest records the file and, per texture, the
+  lines that applied, its class, roughness and metalness, and whether it was
+  polished.
 - **Specular layout.** The tool writes `<texture>_rmo` (red roughness, green
   metalness, blue occlusion) rather than `_specGloss`. The heuristics produce
   roughness and metalness directly, and the packed path takes the metal colour
   from the albedo and a 0.04 dielectric reflectance by itself, without rend2's
-  SDR gloss conversion. Metalness stays at most 0.3: in that path metal loses
-  its diffuse share, and nothing reflects the surroundings back into it.
+  SDR gloss conversion.
 - **Output.** One pk3 of PNGs plus `jkr-materialgen/manifest.json` (every
   source, its outputs, class, maps and shaders, skipped shaders with reasons,
   all settings). The archive is deterministic. The default path is
@@ -1247,8 +1274,22 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
   on Windows. The tool refuses to write into the game installation. To use it,
   set `JKR_CONTENT` to that directory (the client mounts it above the game
   data), or copy the pk3 into `GameData/base` by hand; the `zzz_` name loads
-  after the retail pk3s. `--dry-run` lists the choices, and `--limit`
-  takes only the most-used textures.
+  after the retail pk3s. `--dry-run` lists the choices (with polished textures
+  and applied override lines), and `--limit` takes only the most-used textures.
+
+**Regenerating.** The manifest records the generation of the tuning
+(`"generation": 2`; packs without it are generation 1). With material maps on,
+the client logs `material maps: the generated pack is generation 1 of
+sjk-materialgen, this client expects 2 ...` once when the mounted pack is older.
+Run the generator again for the same maps, then replace the old pk3 where the
+client reads it (for example `GameData/base/zzz_jkr_materials.pk3`):
+
+```sh
+cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1 --out <folder>/zzz_jkr_materials.pk3
+```
+
+The tool leaves a pk3 of its output's name out of its input, so the old pack's maps
+do not count as existing rend2 maps. Restart the client after replacing it.
 
 The generated images are derived from retail textures. They stay on the
 player's machine and must not be shared, uploaded or committed; the tests use
