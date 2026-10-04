@@ -199,13 +199,13 @@ const PLAY: [Slot; 11] = {
         centre_row(
             Entry::PlayDemo,
             "PLAY DEMO",
-            "Not in JKR yet: use the demo console command",
+            "Not in SJK yet: use the demo console command",
             296.0,
         ),
         centre_row(
             Entry::Rules,
             "RULES",
-            "Not in JKR yet: no rules pages",
+            "Not in SJK yet: no rules pages",
             331.0,
         ),
         back,
@@ -250,7 +250,7 @@ const CONTROLS: [Slot; 13] = {
         list_row(
             Entry::ForcePowers2,
             "FORCE POWERS 2",
-            "Key bindings: Force powers (one page in JKR)",
+            "Key bindings: Force powers (one page in SJK)",
             281.0,
         ),
         list_row(
@@ -307,13 +307,13 @@ const SETUP: [Slot; 15] = {
         list_row(
             Entry::Mods,
             "MODS",
-            "Not in JKR yet: set fs_game and restart",
+            "Not in SJK yet: set fs_game and restart",
             281.0,
         ),
         list_row(
             Entry::Defaults,
             "DEFAULTS",
-            "Not in JKR yet: the key-binding editor resets keys with R",
+            "Not in SJK yet: the key-binding editor resets keys with R",
             305.0,
         ),
         list_row(

@@ -134,7 +134,7 @@ impl SettingsMenu {
         self.ui.begin_hero(viewport, reveal, Scrim::Full);
         self.ui.form_header(
             &layout,
-            "JKR   /   SETTINGS",
+            "SJK   /   SETTINGS",
             "Resolution",
             self.picker.note(),
         );

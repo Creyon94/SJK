@@ -25,7 +25,7 @@ impl SettingsMenu {
         self.ui.begin_hero(viewport, reveal, Scrim::Full);
         self.ui.form_header(
             &layout,
-            "JKR   /   SETTINGS",
+            "SJK   /   SETTINGS",
             TABS[self.tab],
             "Changes apply immediately and are saved.",
         );

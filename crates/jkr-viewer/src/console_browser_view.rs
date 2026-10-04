@@ -42,7 +42,7 @@ impl Browser {
         self.ui.begin_hero(viewport, 1.0, Scrim::Wide);
         self.ui.form_header(
             &layout,
-            "JKR   /   CONSOLE",
+            "SJK   /   CONSOLE",
             "COMMANDS & CVARS",
             &self.summary,
         );

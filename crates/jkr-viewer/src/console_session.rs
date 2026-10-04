@@ -261,7 +261,7 @@ impl ViewerConsole {
             }
             let _ = shell.cvars.set_text("jkr_maxfpsDefaultVersion", "1");
         }
-        shell.push_log("^5JKR console ready. ^7Type cmdlist for commands.");
+        shell.push_log("^5Sol JK console ready. ^7Type cmdlist for commands.");
         Ok(Self {
             shell,
             open: false,

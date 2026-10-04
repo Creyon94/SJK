@@ -58,7 +58,7 @@ impl ClientMenu {
         };
         self.ui.form_header(
             &layout,
-            "JKR   /   PLAY",
+            "SJK   /   PLAY",
             if tab == 0 { "SERVERS" } else { TABS[1] },
             status,
         );

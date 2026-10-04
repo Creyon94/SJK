@@ -313,7 +313,7 @@ impl InGameMenu {
             }
             Page::Leave => {
                 self.rows[0].push_str("Disconnect  /  back to the main menu");
-                self.rows[1].push_str("Quit JKR");
+                self.rows[1].push_str("Quit Sol JK");
                 self.rows[2].push_str("Back");
                 3
             }
