@@ -90,13 +90,13 @@ const USAGE: &str = "sjk-server [--bind ADDRESS:PORT] [--hostname NAME] [--map N
   --set           any console variable, as `+set` sets it (`sv_fps`, `sv_privateClients`,
                   `g_motd`, ...); after the options above, in order. Every option that
                   names a setting is a console variable set the same way
-  jkr_npcNav      (a console variable, this server's own) NPC navigation for maps that
+  g_npcNav        (a console variable, this server's own) NPC navigation for maps that
                   ship none, server-side only, so stock clients see it too: 0 (the
                   default) the map's own `.nav` or waypoints, exactly as the reference;
                   1 a graph made from the bots' route file (`botroutes/<map>.wnt`); 2 the
                   route file, else a graph sampled from the map's collision. Either way
                   combat points are placed at cover. Read as a level begins (`--set
-                  jkr_npcNav 2`, or `jkr_npcNav 2` then `map_restart`)
+                  g_npcNav 2`, or `g_npcNav 2` then `map_restart`)
   --home          the operator's directory: `exec` looks in its `base` first, and the
                   archived variables are kept in `base/jkr_server.cfg` there (read at
                   start, rewritten when one changes). Without it nothing is written

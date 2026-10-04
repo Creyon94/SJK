@@ -1,5 +1,5 @@
 //! Optional third-person ground HUD: health, armor and Force values placed
-//! around the local player’s feet. Controlled by `jkr_groundHud`.
+//! around the local player’s feet. Controlled by `cg_groundHud`.
 
 mod gpu;
 pub(crate) mod layout;
@@ -15,7 +15,7 @@ use readout::{Conditions, Presentation, Readings};
 /// Codemp `MINS_Z` (`bg_public.h`): the player box's floor below its origin.
 const MINS_Z: f32 = -24.0;
 /// The cvar that turns the ground HUD on.
-pub(crate) const CVAR: &str = "jkr_groundHud";
+pub(crate) const CVAR: &str = "cg_groundHud";
 
 /// Retained ground-HUD state: GPU resources and this frame's decision.
 pub(crate) struct GroundHud {

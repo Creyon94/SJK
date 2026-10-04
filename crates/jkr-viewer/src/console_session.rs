@@ -132,6 +132,8 @@ impl ViewerConsole {
             console_cvars::IntegerSetting::bind(&mut cvars, "cg_smoothClients", 0)?;
         let draw_fog = console_cvars::IntegerSetting::bind(&mut cvars, "r_drawfog", 2)?;
         let packet_dup = console_cvars::IntegerSetting::bind(&mut cvars, "cl_packetdup", 1)?;
+        // JKR's `jkr_*` names become aliases once every setting is registered.
+        crate::cvar_renames::register(&mut cvars)?;
         let userinfo_dirty = Arc::new(AtomicBool::new(true));
         let overlay_dirty = Arc::clone(&userinfo_dirty);
         cvars.on_change("cg_drawTeamOverlay", move |_| {
@@ -221,7 +223,7 @@ impl ViewerConsole {
         if matches!(
             shell
                 .cvars
-                .get("jkr_sensitivityScaleVersion")
+                .get("cl_sensitivityScaleVersion")
                 .map(|cvar| &cvar.value),
             Some(CvarValue::Integer(0))
         ) {
@@ -239,17 +241,17 @@ impl ViewerConsole {
                     .cvars
                     .set_text("sensitivity", &format!("{rescaled:.3}"));
             }
-            let _ = shell.cvars.set_text("jkr_sensitivityScaleVersion", "1");
+            let _ = shell.cvars.set_text("cl_sensitivityScaleVersion", "1");
         }
         if matches!(
             shell
                 .cvars
-                .get("jkr_bindDefaultsVersion")
+                .get("cl_bindDefaultsVersion")
                 .map(|cvar| &cvar.value),
             Some(CvarValue::Integer(0))
         ) {
             keybind_editor::migrate_missing_defaults(&mut shell.binds);
-            let _ = shell.cvars.set_text("jkr_bindDefaultsVersion", "1");
+            let _ = shell.cvars.set_text("cl_bindDefaultsVersion", "1");
         }
         // com_maxfps defaulted to 1000 and every archived cvar was saved, so each
         // existing profile carries that old default. Move it once to the new
@@ -257,7 +259,7 @@ impl ViewerConsole {
         if matches!(
             shell
                 .cvars
-                .get("jkr_maxfpsDefaultVersion")
+                .get("com_maxfpsDefaultVersion")
                 .map(|cvar| &cvar.value),
             Some(CvarValue::Integer(0))
         ) {
@@ -267,7 +269,7 @@ impl ViewerConsole {
             ) {
                 let _ = shell.cvars.reset("com_maxfps");
             }
-            let _ = shell.cvars.set_text("jkr_maxfpsDefaultVersion", "1");
+            let _ = shell.cvars.set_text("com_maxfpsDefaultVersion", "1");
         }
         shell.push_log("^5Sol JK console ready. ^7Type cmdlist for commands.");
         Ok(Self {

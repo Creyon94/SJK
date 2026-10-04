@@ -21,28 +21,25 @@ pub(crate) mod hdr;
 ///
 /// Measured at 0.026 ms per frame at 2560x1080 on an RX 9060 XT (interleaved A/B on a fixed
 /// scene: 0.529/0.531 off against 0.558/0.554 on), so the visual gain is worth the cost by
-/// default. `jkr_fxaa 0` restores the untouched base image exactly.
+/// default. `r_fxaa 0` restores the untouched base image exactly.
 pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), CvarError> {
     hdr::register(cvars)?;
     cvars.register(CvarDefinition::new(
-        "jkr_fxaa",
+        "r_fxaa",
         1_i64,
         CvarFlags::ARCHIVE,
         "Scene FXAA (not MSAA); restart viewer to apply",
     ))?;
-    cvars.on_change("jkr_fxaa", |_| {
+    cvars.on_change("r_fxaa", |_| {
         crate::log::progress(format_args!(
-            "jkr_fxaa changed: restart viewer to apply scene AA"
+            "r_fxaa changed: restart viewer to apply scene AA"
         ));
     })
 }
 
 /// Resolve startup policy; retained by the process context across console-free map installs.
 pub(crate) fn enabled(console: Option<&crate::console::ViewerConsole>) -> bool {
-    console
-        .and_then(|c| c.integer_cvar("jkr_fxaa"))
-        .unwrap_or(1)
-        != 0
+    console.and_then(|c| c.integer_cvar("r_fxaa")).unwrap_or(1) != 0
 }
 
 /// A single-sample scene intermediate and an edge-directed resolve into the final output.

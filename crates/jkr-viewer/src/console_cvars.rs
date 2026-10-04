@@ -489,19 +489,19 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), jkr_s
             "Display incoming chat and prints",
         ),
         CvarDefinition::new(
-            "jkr_sensitivityScaleVersion",
+            "cl_sensitivityScaleVersion",
             0_i64,
             archive,
             "Internal migration marker for the move to stock sensitivity units",
         ),
         CvarDefinition::new(
-            "jkr_maxfpsDefaultVersion",
+            "com_maxfpsDefaultVersion",
             0_i64,
             archive,
             "Internal migration marker for the refresh-rate com_maxfps default",
         ),
         CvarDefinition::new(
-            "jkr_bindDefaultsVersion",
+            "cl_bindDefaultsVersion",
             0_i64,
             archive,
             "Internal stock-bind migration version",

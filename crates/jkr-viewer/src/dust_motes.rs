@@ -1,4 +1,4 @@
-//! Optional floating dust motes around the camera (`jkr_dust`), presentation only.
+//! Optional floating dust motes around the camera (`r_dustMotes`), presentation only.
 //!
 //! Every mote is generated in `dust_motes.wgsl` from its
 //! instance index and the frame time, so the effect owns no vertex or instance
@@ -26,7 +26,7 @@ use std::sync::{
 };
 
 /// Console variable: 0 disables the effect, 1 is full density and opacity.
-pub(crate) const CVAR: &str = "jkr_dust";
+pub(crate) const CVAR: &str = "r_dustMotes";
 /// Motes drawn at intensity 1; lower intensities draw a prefix of the same set,
 /// so changing the value adds or removes motes without moving the others.
 pub(crate) const MAX_MOTES: u32 = 2048;
@@ -46,7 +46,7 @@ impl Settings {
             CVAR,
             0.0_f64,
             CvarFlags::ARCHIVE,
-            "Dust in godrays, 0 off to 1; requires jkr_volumetrics, applies immediately",
+            "Dust in godrays, 0 off to 1; requires r_volumetrics, applies immediately",
         ))?;
         Self::from_registered(cvars)
     }

@@ -1,4 +1,4 @@
-// Optional camera-local dust motes (jkr_dust). Every mote is derived from its
+// Optional camera-local dust motes (r_dustMotes). Every mote is derived from its
 // instance index and the frame time: no vertex or instance buffer exists.
 struct Camera {
     view_projection: mat4x4<f32>,

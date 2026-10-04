@@ -1,5 +1,5 @@
 //! A view fit that does not turn with the camera, so the static casters drawn into it stay
-//! valid while the eye moves a little (`jkr_realtime` 1 and below): the world is drawn into
+//! valid while the eye moves a little (`r_liveLighting` 1 and below): the world is drawn into
 //! a shadow map when the eye leaves the square or the sun turns, not every frame.
 use super::fit::Fit;
 use glam::{Mat4, Vec3};

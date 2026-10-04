@@ -340,7 +340,17 @@ remain outside this audio adapter.
 
 ## Renderer settings
 
-JKR's own rendering cvars (`jkr_*`) have their own settings page. The last row
+SJK gives JKR's own cvars (`jkr_*`) neutral engine names: rendering ones are
+`r_*` (`r_sceneHdr`, `r_toneCurve`, `r_sceneBloom`, `r_superSample`,
+`r_actorSunShadows`, `r_sunShadow*`, `r_dayNight`, `r_liveLighting`, ...), the
+ground HUD is `cg_groundHud` and the dedicated server's are `g_npcNav` and
+`g_stockRules`. Names rend2 or EternalJK use with another meaning are avoided.
+The `jkr_*` names keep working as aliases, so JKR configs and commands still
+apply, and `config.cfg` is saved under the new names; the full list is in
+[cvar_renames.rs](../crates/jkr-viewer/src/cvar_renames.rs). This page otherwise
+uses SJK's names.
+
+These rendering cvars have their own settings page. The last row
 of Settings > VIDEO, "Renderer", opens it, as JoF EJK's advanced renderer page
 opens from its Video setup; Escape or Back returns to that row. With the
 classic menu style, the Setup page's RENDERER entry (after NETWORK, in the main
@@ -349,8 +359,8 @@ returns to the Setup group that was open. The page has three tabs:
 
 | Tab | Settings |
 | --- | --- |
-| IMAGE | HDR scene and exposure, filmic tone curve, bloom, FXAA, supersampling (`jkr_renderScale`), soft particles, sunbeam dust (`jkr_dust`), per-pixel model lighting |
-| LIGHTING | Sun and sky (`jkr_dayNight`), live lighting tier, time of day, day length, sunlight brightness, ambient fill and its corner shading, indirect boost, light shafts (`jkr_volumetrics`) and their clarity |
+| IMAGE | HDR scene and exposure, filmic tone curve, bloom, FXAA, supersampling (`r_superSample`), soft particles, sunbeam dust (`r_dustMotes`), per-pixel model lighting |
+| LIGHTING | Sun and sky (`r_dayNight`), live lighting tier, time of day, day length, sunlight brightness, ambient fill and its corner shading, indirect boost, light shafts (`r_volumetrics`) and their clarity |
 | SHADOWS | World and character sun shadows, shadow resolution, sharp and close cascade distances, filter taps, slit closing, contact shadows |
 
 Rows marked "(restart)" are read when the client starts and apply after a
@@ -358,8 +368,8 @@ restart; "(next map)" applies when a map loads; the rest apply immediately.
 Changing a value saves it like any other setting. Switches over numeric cvars
 show ON/OFF and write 1/0. Defaults are unchanged (see
 [Default visual profile](rendering.md#default-visual-profile)). Diagnostics such
-as `jkr_dayDebug` stay console-only, the ground HUD stays on the HUD tab, and
-exclusive fullscreen (`jkr_exclusiveFullscreen`) stays on VIDEO's display-mode
+as `r_dayDebug` stay console-only, the ground HUD stays on the HUD tab, and
+exclusive fullscreen (`r_exclusiveFullscreen`) stays on VIDEO's display-mode
 row.
 See [catalog.rs](../crates/jkr-viewer/src/settings/catalog.rs).
 
@@ -648,7 +658,7 @@ so autosaving cannot overwrite your changes.
 refresh rate of the monitor holding the window, rounded to whole hertz and
 re-read once a second, or at stock's 125 when the monitor reports none. `0` is
 uncapped. The old default, 1000, saved in every existing profile, is reset to
-AUTO once on first launch (marker `jkr_maxfpsDefaultVersion`); a cap chosen
+AUTO once on first launch (marker `com_maxfpsDefaultVersion`); a cap chosen
 afterwards is kept. The default is not saved to the configuration. On the slider
 AUTO is the rail's left end: arrows step AUTO, 0, 25, 50 and so on, and typing
 `-1` selects it. An uncapped
@@ -659,10 +669,10 @@ frames (OBS reported 83% skipped for encoding lag against an uncapped client at
 The Video tab's Display mode row offers Windowed, Borderless fullscreen and,
 where the windowing system supports it, Exclusive fullscreen (Wayland does not).
 Stock `r_fullscreen` keeps its meaning, fullscreen on or off, and Alt+Enter still
-toggles it. `jkr_exclusiveFullscreen` chooses the kind: 0 (default) is a borderless
+toggles it. `r_exclusiveFullscreen` chooses the kind: 0 (default) is a borderless
 window at the desktop size, 1 switches the monitor to the `r_resolution` video
 mode. Stock JA's fullscreen is always the exclusive kind; JKR defaults to
-borderless. Choosing Windowed leaves `jkr_exclusiveFullscreen` alone, so Alt+Enter
+borderless. Choosing Windowed leaves `r_exclusiveFullscreen` alone, so Alt+Enter
 returns to the last fullscreen kind. Exclusive fullscreen without a monitor mode
 of that size falls back to borderless.
 

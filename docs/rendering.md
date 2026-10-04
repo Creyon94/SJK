@@ -86,16 +86,16 @@ work without reducing source count, texture resolution or lighting quality.
 
 | Cvar | Behavior |
 | --- | --- |
-| `jkr_dayNight` | Map-relative sun/sky atmosphere; default 1, restart required |
-| `jkr_realtime` | Lighting tier; default 0. Tier 1 retains world shadow casters between frames; tier 0 also uses available baked indirect light. Applies at map load |
-| `jkr_dayHour` | Solar hour, updated live when day/night resources are installed |
-| `jkr_dayMinutes` | Minutes per simulated day; 0 holds the hour |
-| `jkr_indirectBoost` | Live sky/bounce illumination multiplier, 0–4; default 1. Does not amplify direct lights or add bounce iterations |
-| `jkr_ambientFill` | Live material-lighting floor in dark areas, 0–0.2; default 0.025. Fades as existing illumination increases |
-| `jkr_ambientFillOcclusion` | Fraction of ambient occlusion applied to the readability fill, 0–1; default 1 preserves the previous response. Real indirect lighting keeps full occlusion |
-| `jkr_hdr` | Scene precision: 0 display format, 1 RGBA16F (default); restart required |
-| `jkr_hdrExposure` | Fixed exposure multiplier, 0.25–4; restart required |
-| `jkr_dust` | Dust in godrays, 0 (off, default) to 1; live; Game settings tab; requires `jkr_volumetrics` |
+| `r_dayNight` | Map-relative sun/sky atmosphere; default 1, restart required |
+| `r_liveLighting` | Lighting tier; default 0. Tier 1 retains world shadow casters between frames; tier 0 also uses available baked indirect light. Applies at map load |
+| `r_dayHour` | Solar hour, updated live when day/night resources are installed |
+| `r_dayMinutes` | Minutes per simulated day; 0 holds the hour |
+| `r_indirectBoost` | Live sky/bounce illumination multiplier, 0–4; default 1. Does not amplify direct lights or add bounce iterations |
+| `r_ambientFill` | Live material-lighting floor in dark areas, 0–0.2; default 0.025. Fades as existing illumination increases |
+| `r_ambientFillOcclusion` | Fraction of ambient occlusion applied to the readability fill, 0–1; default 1 preserves the previous response. Real indirect lighting keeps full occlusion |
+| `r_sceneHdr` | Scene precision: 0 display format, 1 RGBA16F (default); restart required |
+| `r_hdrExposure` | Fixed exposure multiplier, 0.25–4; restart required |
+| `r_dustMotes` | Dust in godrays, 0 (off, default) to 1; live; Game settings tab; requires `r_volumetrics` |
 | `r_normalMapping` | Normal maps on lightmapped world surfaces (rend2 convention); default 0, restart required |
 | `r_specularMapping` | Specular, roughness and metalness maps on the same surfaces; default 0, restart required |
 | `r_parallaxMapping` | Parallax from the height in `_nh`/`normalHeightMap` images; needs `r_normalMapping`; default 0, restart required |
@@ -119,7 +119,7 @@ volumetric pass means no dust. Secondary views remain excluded.
 
 The shader still generates up to 2048 world-space motes in a wrapping 640-unit
 cube, with distance and near-eye fades, depth testing and peak opacity 0.35.
-`jkr_dust` controls density and opacity; it does not enable volumetrics implicitly.
+`r_dustMotes` controls density and opacity; it does not enable volumetrics implicitly.
 The renderer settings' IMAGE tab calls it **Sunbeam dust**. Shared froxel parameters and depth mapping
 keep the sampling coordinates aligned with godrays. The pass reuses existing
 volume textures and slice means after their current-frame computation, with no
@@ -328,8 +328,8 @@ receiver after probe sampling, so boosted energy never feeds back into the probe
 solver. World-space probe visibility and wall rejection remain unchanged.
 
 Defaults retain the previous lighting response. Start a comparison with
-`jkr_indirectBoost 2`, leaving `jkr_ambientFill 0.025` and
-`jkr_ambientFillOcclusion 1`. For a separate, stronger readability comparison, try
+`r_indirectBoost 2`, leaving `r_ambientFill 0.025` and
+`r_ambientFillOcclusion 1`. For a separate, stronger readability comparison, try
 fill `0.05` and fill occlusion `0.5`. These are experimental settings, not new
 recommended defaults. Restore all three values to `1`, `0.025`, `1` respectively
 for the original response. Controls are live and archived.
@@ -405,7 +405,7 @@ correcting for the receiver plane at each texel. Its reach is 24 world units,
 expanded if needed for the minimum reconstruction footprint; it no longer clips
 the close cascade's broad penumbrae at twelve tiny shadow texels. Reconstruction
 uses a truncated Gaussian disk to reduce the visible rim of an equal-weight disk.
-`jkr_shadowTaps` (4–32) supplies the base count, with up to four times that budget
+`r_sunShadowTaps` (4–32) supplies the base count, with up to four times that budget
 for broad filters and a fractional final tap for continuous count changes.
 The full-texel slope correction and small normal offset remain unchanged.
 
@@ -669,7 +669,7 @@ Shading lives in [material_maps.wgsl](../crates/jkr-viewer/src/material_maps.wgs
   divided by the face's own cosine (at most 4x) and received by the mapped normal;
   the remainder stays ambient. A flat normal map reproduces the texel. Retail BSPs
   have no deluxemaps, so this is an approximation.
-- Real-time lighting (`jkr_dayNight 1`): the sun share of the half-resolution
+- Real-time lighting (`r_dayNight 1`): the sun share of the half-resolution
   light buffer is moved to the mapped normal per pixel, using the visibility the
   buffer keeps. It fades out toward the terminator, so mapped bumps never light a
   face turned from the sun or a shadowed texel. Lamps and probe bounce remain as
@@ -726,8 +726,8 @@ Authored rend2 packs with stronger normal maps respond in proportion to their
 tilt.
 
 Real-time lighting shows normal maps far more clearly: the sun share is moved
-per pixel, and a low sun lights floors at grazing angles. With `jkr_dayNight 1`
-and `jkr_dayHour 7`, the sun stands 15° high, so a floor's tan θ is about 3.7
+per pixel, and a low sun lights floors at grazing angles. With `r_dayNight 1`
+and `r_dayHour 7`, the sun stands 15° high, so a floor's tan θ is about 3.7
 (2.4 at the default hour 7.5) against 1.5 for baked grid directions. This
 estimate is from the formulas above; no real-time render of real content has
 been measured.
@@ -1039,7 +1039,7 @@ matched, while ordinary FX transforms were unchanged. Native visual confirmation
 of the correction remains pending.
 
 World icons (talk/connection and simple-item sprites) preserve their authored
-texture alpha even when `jkr_softParticles` is enabled. They use a distinct
+texture alpha even when `r_softParticles` is enabled. They use a distinct
 instance kind to bypass the 16-unit intersection fade, while retaining ordinary
 depth testing, orientation and bounded effect-pass coverage. Smoke and other FX
 quads still soften against nearby surfaces. Applying the smoke fade to icons

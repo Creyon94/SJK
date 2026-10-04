@@ -57,13 +57,13 @@ pub(super) struct Runtime {
     time: std::cell::Cell<f32>,
     day: std::cell::Cell<day::Settings>,
     director_sun: std::cell::Cell<Option<(Vec3, f32)>>,
-    /// Live `jkr_volumetricClarity`; only the medium reads it.
+    /// Live `r_volumetricClarity`; only the medium reads it.
     clarity: std::cell::Cell<f32>,
-    /// Live `jkr_dayBrightness` for the real-time lighting mode.
+    /// Live `r_dayBrightness` for the real-time lighting mode.
     light_scale: std::cell::Cell<f32>,
     ambient_fill: std::cell::Cell<f32>,
     indirect_readability: std::cell::Cell<[f32; 2]>,
-    /// Live `jkr_dayDebug` bitmask, handed to the shaders in `Parameters.realtime.w`.
+    /// Live `r_dayDebug` bitmask, handed to the shaders in `Parameters.realtime.w`.
     pub(in crate::world_materials) debug: std::cell::Cell<u32>,
     filter_reference: std::cell::Cell<bool>,
     depth: wgpu::TextureView,
@@ -102,9 +102,9 @@ pub(super) struct Runtime {
     lamps: crate::lamp_lights::Gpu,
     /// Shadow maps of the nearest lamps; day mode only.
     lamp_shadows: Option<lamp_shadows::Runtime>,
-    /// Slit closing over every cascade after it renders (`jkr_shadowGapClose`).
+    /// Slit closing over every cascade after it renders (`r_sunShadowGapClose`).
     gap_close: gap_close::Runtime,
-    /// Live `jkr_shadowGapClose`: holes narrower than this many units stop passing sun.
+    /// Live `r_sunShadowGapClose`: holes narrower than this many units stop passing sun.
     gap_width: std::cell::Cell<f32>,
     caster: wgpu::RenderPipeline,
     world_caster: wgpu::RenderPipeline,
@@ -294,7 +294,7 @@ impl super::Runtime {
         self.sky
             .update_day_clock(queue, [values[0], values[1]], day::azimuth(&shadow.sun));
     }
-    /// Live `jkr_dayDebug` (terms to leave out of the real-time light).
+    /// Live `r_dayDebug` (terms to leave out of the real-time light).
     pub(crate) fn set_day_debug(&self, bits: u32) {
         if let Some(shadow) = &self.shadows {
             shadow.debug.set(bits);
@@ -320,7 +320,7 @@ impl super::Runtime {
         }
     }
 
-    /// Live `jkr_shadowGapClose` width in world units.
+    /// Live `r_sunShadowGapClose` width in world units.
     pub(crate) fn set_gap_close(&self, width: f32) {
         if let Some(shadow) = &self.shadows {
             shadow.gap_width.set(width);
@@ -1123,7 +1123,7 @@ impl super::Runtime {
         target: &wgpu::TextureView,
         depth: &wgpu::BindGroup,
     ) {
-        // `jkr_dayDebug` bit 256: no volumetric composite.
+        // `r_dayDebug` bit 256: no volumetric composite.
         if let Some(medium) = self
             .shadows
             .as_ref()

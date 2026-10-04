@@ -19,7 +19,7 @@ impl Settings {
     /// Seed from the registered value before subscribing; do not rely on a change event.
     pub(crate) fn bind(cvars: &mut CvarRegistry) -> Result<Self, CvarError> {
         cvars.register(CvarDefinition::new(
-            "jkr_softParticles",
+            "r_softParticles",
             1_i64,
             CvarFlags::ARCHIVE,
             "Depth-softened world particle quads (16 world units); applies immediately",
@@ -30,9 +30,9 @@ impl Settings {
     /// Attach to the actual registry value, including a preconfigured value in tests.
     pub(super) fn from_registered(cvars: &mut CvarRegistry) -> Result<Self, CvarError> {
         let settings = Self::default();
-        settings.set(&cvars.get("jkr_softParticles").unwrap().value);
+        settings.set(&cvars.get("r_softParticles").unwrap().value);
         let changed = settings.clone();
-        cvars.on_change("jkr_softParticles", move |change| {
+        cvars.on_change("r_softParticles", move |change| {
             changed.set(&change.current)
         })?;
         Ok(settings)

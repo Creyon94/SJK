@@ -1,4 +1,4 @@
-//! `jkr_npcNav`, this server's own option (not the reference's): navigation for NPCs on a
+//! `g_npcNav`, this server's own option (not the reference's): navigation for NPCs on a
 //! level that has none of its own. Server-side only, so stock clients see NPCs that hunt,
 //! flank and take cover on maps that never shipped NPC navigation.
 //!
@@ -19,7 +19,7 @@ use jkr_game_jka::npc_roster::NpcRoster;
 use jkr_game_jka::npc_spawn::NpcHost;
 
 /// The option's name.
-pub(super) const NPC_NAV: &[u8] = b"jkr_npcNav";
+pub(super) const NPC_NAV: &[u8] = b"g_npcNav";
 
 /// What the level was given: where from, its nodes and links, the combat points at
 /// cover, and how long the making took.
@@ -34,7 +34,7 @@ pub(super) struct MadeNavigation {
 }
 
 impl NativeGame {
-    /// `jkr_npcNav` registered (archived: an operator's choice is remembered) and read.
+    /// `g_npcNav` registered (archived: an operator's choice is remembered) and read.
     pub(super) fn npc_nav_source(&mut self) -> NavSource {
         let about: &[u8] = b"JKR: NPC navigation for maps without their own: 0 stock, 1 bot routes, 2 bot routes or map collision";
         self.cvars
@@ -124,7 +124,7 @@ impl MadeNavigation {
             "the map's collision"
         };
         format!(
-            "navigation: jkr_npcNav {} made {} nodes and {} links from {from}, and {} combat points at cover, in {:.0} ms",
+            "navigation: g_npcNav {} made {} nodes and {} links from {from}, and {} combat points at cover, in {:.0} ms",
             match self.source {
                 NavSource::Stock => 0,
                 NavSource::BotRoutes => 1,

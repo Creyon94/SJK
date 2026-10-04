@@ -713,23 +713,25 @@ mod tests {
     }
 
     #[test]
-    fn the_renderer_tabs_hold_every_jkr_rendering_cvar() {
+    fn the_renderer_tabs_hold_every_renamed_rendering_cvar() {
         // Bookkeeping, diagnostics, the ground HUD (on the HUD tab) and exclusive
         // fullscreen (the Video tab's display-mode row) stay off it.
         const NOT_RENDERER: [&str; 6] = [
-            "jkr_bindDefaultsVersion",
-            "jkr_sensitivityScaleVersion",
-            "jkr_maxfpsDefaultVersion",
-            "jkr_dayDebug",
-            "jkr_groundHud",
-            "jkr_exclusiveFullscreen",
+            "cl_bindDefaultsVersion",
+            "cl_sensitivityScaleVersion",
+            "com_maxfpsDefaultVersion",
+            "r_dayDebug",
+            "cg_groundHud",
+            "r_exclusiveFullscreen",
         ];
         let (_directory, console) = console();
         let renderer: Vec<_> = (0..RENDERER_TABS.len())
             .flat_map(|tab| section_settings(Section::Renderer, tab))
             .map(|setting| setting.cvar)
             .collect();
-        for name in console.cvar_names().filter(|name| name.starts_with("jkr_")) {
+        // JKR's own `jkr_*` cvars, under SJK's names.
+        for &(_, name) in crate::cvar_renames::RENAMED {
+            assert!(console.cvar(name).is_some(), "{name} is not registered");
             if !NOT_RENDERER.contains(&name) {
                 assert!(
                     renderer.contains(&name),
@@ -796,7 +798,7 @@ mod tests {
         let mut menu = SettingsMenu::new();
         menu.open_tab(&console, RENDERER_TAB);
         menu.enter_renderer(&console);
-        for (tab, cvar) in [(0, "jkr_bloom"), (2, "jkr_contactShadows")] {
+        for (tab, cvar) in [(0, "r_sceneBloom"), (2, "r_contactShadows")] {
             menu.select_tab(&console, tab);
             menu.selected = menu
                 .rows()

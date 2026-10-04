@@ -41,11 +41,11 @@ impl Settings {
         };
         Self {
             enabled: console
-                .and_then(|c| c.integer_cvar("jkr_dayNight"))
+                .and_then(|c| c.integer_cvar("r_dayNight"))
                 .unwrap_or(1)
                 != 0,
-            hour: number("jkr_dayHour", 11.).rem_euclid(24.),
-            minutes: number("jkr_dayMinutes", 0.).clamp(0., 1440.),
+            hour: number("r_dayHour", 11.).rem_euclid(24.),
+            minutes: number("r_dayMinutes", 0.).clamp(0., 1440.),
         }
     }
 
@@ -139,29 +139,29 @@ pub(super) fn authored_hour(authored: jkr_shader::SunParms) -> f32 {
     6. + direction.z.clamp(0., 1.).asin() * 12. / std::f32::consts::PI
 }
 
-/// How much of the lighting is computed live (`jkr_realtime`): 2 everything, 0 baked
+/// How much of the lighting is computed live (`r_liveLighting`): 2 everything, 0 baked
 /// indirect light under a live sun. `JKR_REALTIME` overrides the cvar for one run.
 pub(crate) fn realtime_tier(console: Option<&crate::console::ViewerConsole>) -> i64 {
     std::env::var("JKR_REALTIME")
         .ok()
         .and_then(|tier| tier.parse().ok())
-        .or_else(|| console.and_then(|console| console.integer_cvar("jkr_realtime")))
+        .or_else(|| console.and_then(|console| console.integer_cvar("r_liveLighting")))
         .unwrap_or(0)
 }
 
 /// Enabling allocates at startup; hour and cycle rate update installed day resources live.
 pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), CvarError> {
-    if cvars.get("jkr_dayNight").is_some() {
+    if cvars.get("r_dayNight").is_some() {
         return Ok(());
     }
     cvars.register(CvarDefinition::new(
-        "jkr_dayNight",
+        "r_dayNight",
         1_i64,
         CvarFlags::ARCHIVE,
         "Map-relative sun and sky atmosphere; implies world shadows; restart required",
     ))?;
     cvars.register(CvarDefinition::new(
-        "jkr_realtime",
+        "r_liveLighting",
         0_i64,
         CvarFlags::ARCHIVE,
         "How much of the lighting is computed live: 2 everything; 1 the same with the world's \
@@ -170,43 +170,43 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), CvarError> {
     ))?;
     for (name, value, help) in [
         (
-            "jkr_dayHour",
+            "r_dayHour",
             11.,
             "Solar hour 0..24; live when day/night is installed",
         ),
         (
-            "jkr_dayMinutes",
+            "r_dayMinutes",
             0.,
             "Minutes per day, 0 holds hour, 1..1440 cycles; live",
         ),
         (
-            "jkr_volumetricClarity",
+            "r_volumetricClarity",
             1.,
             "Light shafts show only contrast in sunlit air: 1 = clear when fully lit, \
              0 = plain in-scatter haze; live",
         ),
         (
-            "jkr_dayBrightness",
+            "r_dayBrightness",
             1.,
             "Real-time lighting brightness 0.1..10 relative to the sun; live",
         ),
         (
-            "jkr_ambientFill",
+            "r_ambientFill",
             0.025,
             "Subtle fill in dark areas, 0 off..0.2; fades in existing light; live",
         ),
         (
-            "jkr_indirectBoost",
+            "r_indirectBoost",
             1.,
             "Indirect sky and bounce brightness 0..4, 1 original; direct lights unchanged; live",
         ),
         (
-            "jkr_ambientFillOcclusion",
+            "r_ambientFillOcclusion",
             1.,
             "Corner shading on readability fill: 1 original, 0 unoccluded; live",
         ),
         (
-            "jkr_dayDebug",
+            "r_dayDebug",
             0.,
             "Real-time lighting diagnostics, bits: 1 no occlusion, 2 no contact shadows, \
              4 no lamps, 8 no far cascade, 16 no bounce, 32 no sun shadow maps, \
@@ -214,12 +214,12 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), CvarError> {
              512 no sun highlight; live",
         ),
         (
-            "jkr_shadowGapClose",
+            "r_sunShadowGapClose",
             0.,
             "Sun shadow maps close slits narrower than this many units (0 off); live",
         ),
         (
-            "jkr_contactShadows",
+            "r_contactShadows",
             0.,
             "Screen-space contact shadows toward the sun (off: self-shadowing on curved \
              ground and false shadows at a distance are still being worked out); live",
@@ -227,7 +227,7 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), CvarError> {
     ] {
         cvars.register(CvarDefinition::new(name, value, CvarFlags::ARCHIVE, help))?;
     }
-    for name in ["jkr_dayNight"] {
+    for name in ["r_dayNight"] {
         cvars.on_change(name, |_| {
             crate::log::progress(format_args!(
                 "Day/night setting changed; restart viewer to apply"

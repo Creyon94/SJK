@@ -1,4 +1,4 @@
-//! Navigation for levels that ship none: a JKR server option (`jkr_npcNav`), not the
+//! Navigation for levels that ship none: a JKR server option (`g_npcNav`), not the
 //! reference's. The stock multiplayer maps carry no usable NPC navigation (their `.nav`
 //! files are other maps' graphs or empty, and they place no waypoints), so the reference's NPCs mostly stand and shoot.
 //! With the option on, a level without navigation of its own is given a graph made from
@@ -20,7 +20,7 @@
 //! directed ([`jkr_nav::Graph::set_directed`]).
 //!
 //! The numbers here are this game's: an NPC's standing box, `STEPSIZE`, `MIN_WALK_NORMAL`,
-//! the view heights. `jkr_npcNav 0` changes nothing.
+//! the view heights. `g_npcNav 0` changes nothing.
 
 use crate::npc_combat_points::{CPF_DUCK, CombatPoint, MAX_COMBAT_POINTS};
 use crate::npc_navigator::{CONTENTS_BOTCLIP, CONTENTS_MONSTERCLIP, MASK_SOLID, new_graph};
@@ -30,7 +30,7 @@ use jkr_nav::cover::{CoverRules, find_cover};
 use jkr_nav::walk::{Lattice, Sweep, Walker, flood_lattice, walked_links};
 pub use jkr_nav::walk::{SweepWorld, Walkways};
 
-/// Where a level without navigation of its own gets it (`jkr_npcNav`).
+/// Where a level without navigation of its own gets it (`g_npcNav`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NavSource {
     /// 0: the map's own navigation only, as the reference.

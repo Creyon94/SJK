@@ -21,7 +21,7 @@ pub(crate) struct Settings {
     pub(crate) taps: u32,
     /// Zero disables media; 1..3 select fixed froxel grids and imply world shadows.
     pub(crate) volumetrics: u32,
-    /// Keep the static casters of the view cascades between frames (`jkr_realtime` 1 and
+    /// Keep the static casters of the view cascades between frames (`r_liveLighting` 1 and
     /// below): fits that do not turn with the camera, a little coarser, drawn rarely.
     pub(crate) held: bool,
 }
@@ -30,19 +30,19 @@ impl Settings {
     pub(crate) fn sample(console: Option<&crate::console::ViewerConsole>) -> Self {
         let day = super::day::Settings::sample(console);
         let volumetrics = console
-            .and_then(|c| c.integer_cvar("jkr_volumetrics"))
+            .and_then(|c| c.integer_cvar("r_volumetrics"))
             .unwrap_or(3)
             .clamp(0, 3) as u32;
         let world = day.enabled
             || volumetrics > 0
             || console
-                .and_then(|c| c.integer_cvar("jkr_worldSunShadows"))
+                .and_then(|c| c.integer_cvar("r_worldSunShadows"))
                 .unwrap_or(1)
                 != 0;
         Self {
             enabled: world
                 || console
-                    .and_then(|c| c.integer_cvar("jkr_sunShadows"))
+                    .and_then(|c| c.integer_cvar("r_actorSunShadows"))
                     .unwrap_or(1)
                     != 0,
             world,
@@ -50,19 +50,19 @@ impl Settings {
             day,
             held: super::day::realtime_tier(console) <= 1,
             distance: console
-                .and_then(|c| c.integer_cvar("jkr_shadowDistance"))
+                .and_then(|c| c.integer_cvar("r_sunShadowDistance"))
                 .unwrap_or(1024)
                 .clamp(128, 4096) as f32,
             near: console
-                .and_then(|c| c.integer_cvar("jkr_shadowNear"))
+                .and_then(|c| c.integer_cvar("r_sunShadowNear"))
                 .unwrap_or(256)
                 .clamp(64, 1024) as f32,
             resolution: console
-                .and_then(|c| c.integer_cvar("jkr_shadowResolution"))
+                .and_then(|c| c.integer_cvar("r_sunShadowResolution"))
                 .unwrap_or(2048)
                 .clamp(512, 4096) as u32,
             taps: console
-                .and_then(|c| c.integer_cvar("jkr_shadowTaps"))
+                .and_then(|c| c.integer_cvar("r_sunShadowTaps"))
                 .unwrap_or(16)
                 .clamp(4, 32) as u32,
         }
@@ -73,37 +73,37 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), CvarError> {
     super::day::register(cvars)?;
     for (name, value, description) in [
         (
-            "jkr_sunShadows",
+            "r_actorSunShadows",
             1,
             "Opaque actor sun shadows on diffuse world; restart required",
         ),
         (
-            "jkr_worldSunShadows",
+            "r_worldSunShadows",
             1,
             "World and actor sun shadows; restart required",
         ),
         (
-            "jkr_shadowDistance",
+            "r_sunShadowDistance",
             1024,
             "Sharp sun-shadow cascade depth 128..4096, map-wide beyond; restart required",
         ),
         (
-            "jkr_shadowNear",
+            "r_sunShadowNear",
             256,
             "Close sun-shadow cascade depth 64..1024, finest texels; restart required",
         ),
         (
-            "jkr_shadowResolution",
+            "r_sunShadowResolution",
             2048,
             "Sun shadow map width 512..4096; restart required",
         ),
         (
-            "jkr_shadowTaps",
+            "r_sunShadowTaps",
             16,
             "Sun shadow base PCF taps 4..32 (up to 4x on soft edges); restart required",
         ),
         (
-            "jkr_volumetrics",
+            "r_volumetrics",
             3,
             "Froxel sun media 0..3; implies world shadows; restart required",
         ),

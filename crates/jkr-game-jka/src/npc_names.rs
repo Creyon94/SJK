@@ -1,6 +1,6 @@
 //! What `npc spawn <name>` finds beyond the reference's exact lookup.
 //! These are this server's own names, outside the stock rules
-//! (`jkr_stockRules 0`); the reference takes a name exactly as `NPC_ParseParms` reads it
+//! (`g_stockRules 0`); the reference takes a name exactly as `NPC_ParseParms` reads it
 //! (`Q_stricmp`), refuses a vehicle's name without `vehicle` ("NPC_ParseParms: ... is a
 //! vehicle"), and refuses an NPC with no `playerModel` ("MD3 MODEL NPC'S ARE NOT
 //! SUPPORTED IN MP!", `NPC_stats.c:3540`).

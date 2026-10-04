@@ -269,7 +269,7 @@ fn sun_visibility(world: vec3<f32>, normal: vec3<f32>, eye: vec3<f32>,
 // in uniform control flow, then omit filters whose result is multiplied by zero.
 fn sun_visibility_masked(world: vec3<f32>, normal: vec3<f32>, eye: vec3<f32>,
     forward: vec3<f32>, fully_occluded: bool) -> vec2<f32> {
-    // `jkr_dayDebug` bit 32: no sun shadow maps at all (everything the sun faces is lit).
+    // `r_dayDebug` bit 32: no sun shadow maps at all (everything the sun faces is lit).
     let debug = u32(shadow.realtime.w);
     if (debug & 32u) != 0u { return vec2(1.0, 1.0); }
     var coverage = 1.0;

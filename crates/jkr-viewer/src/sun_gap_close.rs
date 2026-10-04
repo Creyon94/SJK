@@ -1,7 +1,7 @@
 //! Closing of slits in the sun shadow maps (`sun_gap_close.wgsl`): four separable
 //! passes (minimum across, minimum down, maximum across, maximum down) through a scratch
 //! depth texture, after a cascade is rendered. The radius in texels comes from the live
-//! `jkr_shadowGapClose` width in world units and the cascade's texel size.
+//! `r_sunShadowGapClose` width in world units and the cascade's texel size.
 
 pub(super) struct Runtime {
     pipeline: wgpu::RenderPipeline,

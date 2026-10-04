@@ -32,6 +32,7 @@ mod console_overlay;
 mod console_runtime;
 mod crosshair_scan;
 mod cut_trace;
+mod cvar_renames;
 mod damage_feedback;
 mod decal_marks;
 mod decal_store;

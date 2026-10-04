@@ -14,16 +14,16 @@ pub(crate) struct Clock(Arc<[AtomicU32; 10]>);
 
 /// Names in slot order; every slot is a live cvar registered by `day::register`.
 pub(crate) const LIVE_CVARS: [&str; 10] = [
-    "jkr_dayHour",
-    "jkr_dayMinutes",
-    "jkr_volumetricClarity",
-    "jkr_dayBrightness",
-    "jkr_dayDebug",
-    "jkr_contactShadows",
-    "jkr_shadowGapClose",
-    "jkr_ambientFill",
-    "jkr_indirectBoost",
-    "jkr_ambientFillOcclusion",
+    "r_dayHour",
+    "r_dayMinutes",
+    "r_volumetricClarity",
+    "r_dayBrightness",
+    "r_dayDebug",
+    "r_contactShadows",
+    "r_sunShadowGapClose",
+    "r_ambientFill",
+    "r_indirectBoost",
+    "r_ambientFillOcclusion",
 ];
 
 impl Default for Clock {
@@ -46,7 +46,7 @@ impl Default for Clock {
 impl Clock {
     /// Seed archived values before subscribing; no callback is needed for the initial state.
     pub(crate) fn bind(cvars: &mut CvarRegistry) -> Result<Self, CvarError> {
-        if cvars.get("jkr_dayNight").is_none() {
+        if cvars.get("r_dayNight").is_none() {
             super::register(cvars)?;
         }
         let clock = Self::default();
@@ -88,7 +88,7 @@ impl Clock {
         [0, 1, 2, 3].map(|i| f32::from_bits(self.0[i].load(Ordering::Relaxed)))
     }
 
-    /// `jkr_shadowGapClose`: holes in the shadow maps narrower than this many world units
+    /// `r_sunShadowGapClose`: holes in the shadow maps narrower than this many world units
     /// are closed.
     pub(crate) fn gap_close(&self) -> f32 {
         f32::from_bits(self.0[6].load(Ordering::Relaxed))
@@ -104,7 +104,7 @@ impl Clock {
         [8, 9].map(|i| f32::from_bits(self.0[i].load(Ordering::Relaxed)))
     }
 
-    /// `jkr_dayDebug` plus the contact shadow toggle folded into bit 2: which real-time
+    /// `r_dayDebug` plus the contact shadow toggle folded into bit 2: which real-time
     /// terms to leave out (see `day::register`).
     pub(crate) fn debug(&self) -> u32 {
         let bits = f32::from_bits(self.0[4].load(Ordering::Relaxed)) as u32;

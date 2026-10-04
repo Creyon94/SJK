@@ -197,7 +197,7 @@ impl Runtime {
         let light = light_buffered
             .then(|| self.shadows.as_ref()?.light.as_ref())
             .flatten();
-        // `jkr_dayDebug` bit 1 (no occlusion) covers this pass too.
+        // `r_dayDebug` bit 1 (no occlusion) covers this pass too.
         if light.is_some()
             && self
                 .shadows

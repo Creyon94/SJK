@@ -15,17 +15,17 @@ impl Settings {
     pub(crate) fn bind(cvars: &mut CvarRegistry) -> Result<Self, CvarError> {
         // Default on: spatial grid sampling makes lighting vary across a body, which single-point
         // sampling cannot. Measured 0.018 ms with three characters at 2560x1080 on an
-        // RX 9060 XT (0.0427 off against 0.0610 on). `jkr_modelDiffusePixels 0` opts out.
-        cvars.register(CvarDefinition::new("jkr_modelDiffusePixels", 1_i64, CvarFlags::ARCHIVE,
+        // RX 9060 XT (0.0427 off against 0.0610 on). `r_modelPixelLight 0` opts out.
+        cvars.register(CvarDefinition::new("r_modelPixelLight", 1_i64, CvarFlags::ARCHIVE,
             "Sample model light grid at each pixel's world position (0 legacy); applies immediately"))?;
         Self::from_registered(cvars)
     }
 
     fn from_registered(cvars: &mut CvarRegistry) -> Result<Self, CvarError> {
         let settings = Self::default();
-        settings.set(&cvars.get("jkr_modelDiffusePixels").unwrap().value);
+        settings.set(&cvars.get("r_modelPixelLight").unwrap().value);
         let changed = settings.clone();
-        cvars.on_change("jkr_modelDiffusePixels", move |change| {
+        cvars.on_change("r_modelPixelLight", move |change| {
             changed.set(&change.current)
         })?;
         Ok(settings)
