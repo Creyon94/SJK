@@ -18,11 +18,11 @@ controls, HUD, audio, screenshots and demo playback.
 
 ## SJK and JKR
 
-- **History.** Bishop started JKR as a fast prototype and built its skeleton,
-  then set it aside. Sol, who had set out to write a client from scratch, learned
-  of it; after they talked, Bishop open-sourced JKR so Sol could continue it. Sol
-  revived the project and has since fixed much of it together with Bishop, while
-  building SJK alongside. [CREDITS.md](CREDITS.md) has the details.
+- **History.** Bishop created JKR and has developed it continuously since, over
+  weeks of work before anyone else joined. Sol, who had set out to write a client
+  from scratch, learned of it; after they talked, Sol began contributing, and
+  Bishop made JKR open source in October 2026. Sol has since fixed much of it
+  together with Bishop, while building SJK alongside. [CREDITS.md](CREDITS.md) has the details.
 - **Upstream.** JKR is developed by Bishop (Bishop-R) and its contributors. SJK
   merges JKR's main branch after reviewing it, so JKR's work reaches SJK.
 - **What SJK adds.** Sol's changes are written as separate topic branches. Those
