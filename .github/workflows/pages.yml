@@ -5,7 +5,7 @@ name: Pages
 # Pages with "GitHub Actions" as the source (Settings > Pages) and re-run this.
 on:
   push:
-    branches: [sol/main]
+    branches: [main]
     paths: [site/**, .github/workflows/pages.yml]
   workflow_dispatch:
 

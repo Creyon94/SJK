@@ -161,7 +161,7 @@ covers architecture, development, the client, the dedicated server, rendering
 and networking. Start with [current status and priorities](docs/status.md) for
 verified behavior and open work. [AGENTS.md](AGENTS.md) contains shared
 contributor and AI guidance, including updating relevant documentation alongside
-code changes.
+code changes; [SJK conventions](docs/sjk.md) adds the rules specific to SJK.
 
 ## License and credits
 

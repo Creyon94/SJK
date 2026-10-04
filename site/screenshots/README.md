@@ -19,7 +19,7 @@ To add screenshots:
 ]
 ```
 
-4. Commit on `sol/main`; the Pages workflow publishes `site/` automatically.
+4. Commit on `main`; the Pages workflow publishes `site/` automatically.
 
 Only use your own SJK screenshots. Images of the game are fine to show, but do
 not add extracted game files (textures, logos, fonts) to the site.

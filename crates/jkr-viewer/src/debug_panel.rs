@@ -1,7 +1,7 @@
 //! Test list of every change in Sol's build, toggled with the `debug_panel` console
 //! command.
 //!
-//! **Personal to Sol's build (branch `sol/main`); not meant for upstream.** Each entry
+//! **Personal to Sol's build (SJK's `main` branch); not meant for upstream.** Each entry
 //! names its pull request and status (open PR, merged upstream or personal), says in
 //! a line or two what changed and lists the steps to test it. Entries can be ticked
 //! as tested; the ticks are saved by entry id in `debug_panel_tested.txt` beside
