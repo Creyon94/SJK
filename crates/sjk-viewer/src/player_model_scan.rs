@@ -356,7 +356,11 @@ mod reference {
             return Err("rejects: GLM version is not 6 (R_LoadMDXM)".to_owned());
         }
         let animation_name = name_at(&mesh, 72).unwrap_or_default();
-        let Some(animation) = read(&format!("{animation_name}.gla")) else {
+        // FS_FOpenFileRead (files.cpp) drops one leading slash.
+        let animation_path = animation_name
+            .strip_prefix(['/', '\\'])
+            .unwrap_or(&animation_name);
+        let Some(animation) = read(&format!("{animation_path}.gla")) else {
             return Err("rejects: missing animation file (R_LoadMDXM)".to_owned());
         };
         if animation.get(..4) != Some(b"2LGA") || i32_at(&animation, 4) != Some(6) {
