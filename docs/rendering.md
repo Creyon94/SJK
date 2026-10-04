@@ -105,7 +105,11 @@ work without reducing source count, texture resolution or lighting quality.
 | `r_normalMapping` | Normal maps on lightmapped world surfaces (rend2 convention); default 0, restart required |
 | `r_specularMapping` | Specular, roughness and metalness maps on the same surfaces; default 0, restart required |
 | `r_parallaxMapping` | Parallax from the height in `_nh`/`normalHeightMap` images; needs `r_normalMapping`; default 0, restart required |
-| `r_materialMapsDebug` | Material-mapped surfaces only: 1 mapped normal as colour, 2 tint by maps found, 3 normal-map relief; default 0, live, not archived |
+| `r_materialMapsDebug` | Material-mapped surfaces only: 1 mapped normal as colour, 2 tint by maps found, 3 normal-map relief, 4 reflection probes alone, 5 without reflection probes; default 0, live, not archived |
+| `r_normalMapStrength` | Multiplier on the normal maps' relief (their x/y slope, after rend2's `normalScale`), 0–3.98 in steps of 1/64; default 1, live, archived. Material-mapped surfaces only; the floor mirrors' lookup keeps the authored relief |
+| `r_cubeMapping` | Reflection probes on specular-mapped surfaces (rend2's name and meaning); default 1, needs `r_specularMapping`, restart required |
+| `r_cubeMapSize` | Reflection probe face size, a power of two 32–512; default 128, restart required |
+| `r_floorReflections` | Polished floors mirror the scene (see [Floor reflections](#floor-reflections)); default 1, live |
 | `r_DynamicGlow` | Halo around `glow` shader stages: 0 off, 1 on (default), 2 saber blades only, 3 the glow alone (debug); live. See [Dynamic glow](#dynamic-glow) |
 | `r_dynamicGlowStyle` | Glow blur: 1 EternalJK rd-vulkan's (default), 0 retail rd-vanilla's; live |
 
@@ -878,15 +882,112 @@ Shading lives in [material_maps.wgsl](../crates/sjk-viewer/src/material_maps.wgs
 - Real-time lighting (`r_dayNight 1`): the sun share of the half-resolution
   light buffer is moved to the mapped normal per pixel, using the visibility the
   buffer keeps. It fades out toward the terminator, so mapped bumps never light a
-  face turned from the sun or a shadowed texel. Lamps and probe bounce remain as
-  the light pass evaluated them for the geometric normal. Without a specular map,
-  the existing sun highlight and sky rim use the mapped normal.
+  face turned from the sun or a shadowed texel. The rest (lamps, probe bounce and
+  sky) is redistributed the same way through a direction target (below). Without a
+  specular map, the existing sun highlight and sky rim use the mapped normal.
 - Specular maps use rend2's two paths: spec/gloss, and occlusion, roughness,
   metalness and specular with the albedo as metal colour. Highlights use rend2's GGX
   `CalcSpecular` for the sun or grid direction and for dynamic lights. They are
   added after the albedo and dynamic-light modulation. Occlusion darkens only the
-  ambient share.
+  ambient share and the probe reflection.
+- With specular maps, surfaces reflect the nearest reflection probe (below), with
+  rend2's split-sum `CalcIBLContribution`; without a captured probe, real-time
+  lighting keeps its sky rim.
 - Parallax uses rend2's 16 linear and 8 binary steps through the height.
+
+### Lamp and bounce direction in real-time lighting
+
+On a map with material maps the light pass also writes a half-resolution RGBA8
+direction target beside the light buffer
+([sun_realtime.wgsl](../crates/sjk-viewer/src/sun_realtime.wgsl), `DirectedLight`):
+the dominant direction of the non-sun light (octahedral), the share of it that
+arrives from that direction and the lamps' part of that share. Lamps contribute
+the luminance-weighted sum of their directions (each lamp's shadowed irradiance
+times the unit vector to its centre); the probes contribute their L1 irradiance,
+whose `a + b cos` form gives `2b cos` (at most the whole irradiance) as the
+directional part. Both shares are applied to the light as finally shown (after the
+lamp response, gain, fill and occlusion). The lamp cache bakes the same lamp vector
+per texel into an RGB10A2 layer beside its light (`bake_light_directed`), so cached
+receivers read one more bilinear sample instead of walking their lamp lists.
+
+The material program reads the direction through the same depth- and normal-aware
+weights as the light (`material_map_buffered` in
+[material_maps_realtime.wgsl](../crates/sjk-viewer/src/material_maps_realtime.wgsl))
+and treats the directional share as the baked path treats a lightmap texel: divided
+by the face's own cosine (at most 4x), received by the mapped normal, fading toward
+the face's terminator; the remainder stays ambient, so a flat map reproduces the
+buffered light. The lamps' part casts GGX highlights along that direction with the
+stage's roughness and metalness (`material_map_shade_light`); bounce and sky cast
+none (they belong to the reflection probes). Baked lighting is unchanged.
+`r_dayDebug 1024` (live) leaves the non-sun light as the light pass evaluated it, for
+side-by-side comparison. Normal maps
+therefore respond under lamps and in bounce-lit interiors, not only in sunlight.
+
+Cost: only maps with a material-mapped stage get the target and the cache layer;
+others compile and run exactly as before. The target costs 4 bytes per light-buffer
+texel (8 MiB at a 3840×2160 window, twice that with floor-mirror images), the cache
+layer half the lamp cache's size again (the load log prints the total, `Lamp light
+cache: ... with directions`). Per frame the light pass writes the extra target and
+does a little more arithmetic per lamp and probe; material-mapped pixels read four
+more texels. Estimated, not measured: a few hundredths of a millisecond at 4K on a
+current GPU. A single dominant direction cannot represent two lamps on opposite
+sides; their vectors cancel and the light stays ambient, which is the safe failure.
+
+### Reflection probes
+
+Specular-mapped surfaces reflect prefiltered cube maps captured in the map, after
+rend2's cubemaps ([reflection_probes.rs](../crates/sjk-viewer/src/reflection_probes.rs),
+[reflection_capture.rs](../crates/sjk-viewer/src/reflection_capture.rs)). They exist
+only with `r_specularMapping` and `r_cubeMapping` on, on a map with specular-mapped
+stages; otherwise nothing is placed, allocated or captured.
+
+- **Placement.** Probes stand at the map's `misc_cubemap` entities, else at every
+  player spawn (deathmatch, start, duel and CTF spawns) lifted to eye height, else at
+  the intermission spot, as rend2 picks the first class that has any. Points in solid
+  space are dropped, points within 256 units merge into their mean, and at most 64
+  are kept by farthest-point selection. Each probe measures its room with six axis
+  traces against the world brushes (32–2048 units per side).
+- **Assignment.** Every specular-mapped surface takes, among its four nearest probes,
+  the nearest one a trace from the surface reaches unobstructed (else the nearest),
+  as rend2 assigns cubemaps per surface. The index rides in the spare byte of the
+  vertex frames, so the shader needs no search.
+- **Parallax.** The reflected ray is intersected with the probe's room box and the
+  cube is read toward that point from the probe (Lagarde's box-projected cubemap).
+  rend2 approximates the room by a sphere of one radius; a box fits Quake's
+  axis-aligned rooms and keeps floors and walls aligned with their reflections. A
+  surface outside its probe's box reads the plain reflected direction.
+- **Capture.** Faces are rendered through the ordinary scene path before the main
+  view's light pass, with this frame's sun cascades: in real-time lighting the light
+  pass lights the face in the light buffer's corner, as floor mirrors do; in baked
+  lighting the faces show the lightmaps. Sky, opaque and blended world surfaces and
+  movers are drawn; players, items, effects and fog are not, and captured surfaces do
+  not reflect probes themselves (no reflections of reflections). After map load one
+  whole probe is captured per frame until all are done; surfaces use the sky rim until
+  their probe is ready.
+- **Filtering.** Each captured cube is box-downsampled, then every level of its slot
+  in an RGBA16F cube array is GGX-prefiltered with filtered importance sampling (64
+  samples, rend2's `prefilterEnvMap.glsl`), down to 4×4 texels for roughness 1. The
+  split-sum BRDF table (64², rend2's `R_CreateEnvBrdfLUT`) is computed once on the CPU.
+- **Shading.** The cube's level `roughness × last level`, times `F0 × scale + bias`
+  from the BRDF table, times occlusion, added after the albedo like the other
+  highlights; F0 is the specular colour (packed maps: the dielectric value mixed toward
+  the albedo by metalness).
+- **Time of day.** When the sun turns by half a degree, or the sun, sky colour, light
+  scale or indirect gain change by 2%, all probes are refreshed one face per frame
+  (384 frames for 64 probes); each keeps its old content until its new faces are
+  filtered. With a running day clock (`r_dayMinutes`) reflections therefore trail the
+  sun by a few seconds.
+
+Cost: the cube array takes about 1.05 MiB per probe at 128² (6 faces, 6 levels of
+RGBA16F), plus a scratch cube and a 128² capture target (about 1.2 MiB); 64 probes
+take about 65 MiB, a typical FFA map with 15–30 spawn clusters 16–32 MiB. The load
+log prints `Reflection probes: N at 128x128, ...`. Capturing costs each of the first
+frames after load six small scene renders (a light pass on a 64² corner and a 128²
+colour pass each) and one filter, comparable to six floor mirrors; refreshing costs
+one face per frame. Per pixel, specular-mapped surfaces take two more texture reads
+and a box intersection. These are estimates from the pass structure; nothing was run
+on a GPU. `r_materialMapsDebug 4` shows the reflections alone, 5 the scene without
+them, live.
 
 As in rend2, frames come from the untransformed texture coordinates (`tcMod`
 rotation misaligns them) and an `animMap` stage uses its first frame's maps.
@@ -932,7 +1033,9 @@ Authored rend2 packs with stronger normal maps respond in proportion to their
 tilt.
 
 Real-time lighting shows normal maps far more clearly: the sun share is moved
-per pixel, and a low sun lights floors at grazing angles. With `r_dayNight 1`
+per pixel, and a low sun lights floors at grazing angles. Indoors, lamps light
+walls and floors at grazing angles too, and their share now follows the mapped
+normal as well. With `r_dayNight 1`
 and `r_dayHour 7`, the sun stands 15° high, so a floor's tan θ is about 3.7
 (2.4 at the default hour 7.5) against 1.5 for baked grid directions. This
 estimate is from the formulas above; no real-time render of real content has
@@ -955,6 +1058,47 @@ and off. No authored rend2 pack was available for testing. Generated maps on
 real ffa3 data were rendered headless in baked lighting only (above); real-time
 lighting on real content, an in-game image and the frame cost in a match remain
 unverified.
+
+## Floor reflections
+
+Polished floors show a real mirror image of the scene
+([floor_reflections.rs](../crates/sjk-viewer/src/floor_reflections.rs)). A floor
+qualifies at map load when its shader asks for polish the stock way, with a
+`tcGen environment` stage, and is otherwise plain opaque world paint: sorted opaque,
+no light emission, sky, deforms, glow or alpha test
+([floor_reflection_planes.rs](../crates/sjk-viewer/src/floor_reflection_planes.rs)).
+Its triangles must lie in one plane (within 0.02 units) facing up (normal z ≥ 0.7);
+coplanar faces share one mirror. The load log prints `Floor mirrors: N polished
+planes, M with material maps`.
+
+Each frame keeps at most six mirrors, the planes covering most of the screen: a plane
+enters at 1% of the screen and leaves below 0.7%, so it does not flicker at the
+threshold. Every mirror re-renders the whole scene (sky, world, players, effects)
+from the reflected camera at half resolution into a shared target, cropped to the
+plane's screen rectangle; in real-time lighting it is lit in its own light-buffer
+images, so the main view's light stays intact. The finish
+([floor_reflection.wgsl](../crates/sjk-viewer/src/floor_reflection.wgsl)) blends the
+image over the floor with a Schlick rim from 0.12 head-on to 0.70 at grazing angles,
+blurred by a 3×3 kernel whose reach follows roughness 0.4; strength falls by
+`1 − 0.6 × roughness`.
+
+With material maps the finish follows the floor material's maps: the normal map bends
+the mirror lookup (the change of the reflected ray, mirrored back through the floor
+and projected at an assumed 48 units, at most the margin below) and the specular
+map's roughness sets the blur (at most 0.6) and its occlusion dims the reflection.
+Planes with maps render 1.2 roughness units of margin around their rectangle instead
+of 0.4 so the bent and wider lookups stay inside the mirror image. The maps are read
+with the stage's untransformed texture coordinates; floors whose diffuse stage
+scrolls or scales (`tcMod`) read them slightly misaligned. Floors without maps draw
+exactly as before.
+
+`r_floorReflections 0` (live, archived; Settings > VIDEO > Renderer, IMAGE tab, "Floor
+mirrors") leaves polished floors with their ordinary material and renders no mirror.
+The environment variable `JKR_FLOOR_REFLECTIONS=0`, which predates the cvar, still
+forces them off whatever the cvar says; `JKR_FLOOR_COMMANDS=0` disables only the GPU
+visibility commands that skip hidden mirrors. Measured mirror costs are in the
+sections above (depth priming, light-buffer preservation); the material-map finish
+adds two texture reads per mirrored floor pixel and the wider margin.
 
 ## Submission and lighting work reduction
 
@@ -1323,10 +1467,12 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
   renderer gives maps to. Skipped, each with a reason in the manifest: sky,
   fog, liquids, nodraw/clip/system shaders, interface and 2D images,
   lightmaps, blend-only effects, `deformVertexes`, glowing, animated,
-  environment-mapped and non-plain colour stages, alpha-tested foliage (grates
-  are allowed), images without relief (flat colours) and textures that already
-  have rend2 maps. With an existing normal map or specular map only the
-  missing kind is written.
+  environment-mapped and non-plain colour diffuse stages, alpha-tested foliage
+  (grates are allowed), images without relief (flat colours) and textures that
+  already have rend2 maps. With an existing normal map or specular map only the
+  missing kind is written. A shader whose diffuse pair is followed by its own
+  `tcGen environment` stage (stock chrome and polished floors) qualifies; the
+  environment stage marks the texture polished (below).
 - **Generation** ([generate.rs](../crates/sjk-materialgen/src/generate.rs)),
   deterministic and wrap-around, so tiling textures stay seamless. Height comes
   from luminance, high-passed twice at 1/8 of the texture to suppress baked
@@ -1343,13 +1489,38 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
   of strength, parallax, roughness, metalness and occlusion per class. A class is
   chosen by the BSP material id (`q3map_material`), then path keywords, then
   `surfaceparm metalsteps`. Stone, tiles and ground get `<texture>_nh`
-  (height in alpha for parallax); the rest `<texture>_n`.
+  (height in alpha for parallax), and so do metal textures whose path names a
+  panel, plate, floor, wall, hull, deck or door (seams and rivets); the rest get
+  `<texture>_n`. A texture whose shader has a `tcGen environment` stage is
+  polished: its roughness is at most 0.25 with half the variation.
+- **Metal.** Metalness 0.8 and roughness 0.3 (±0.3 across the texture), for the
+  reflection probes ([Reflection probes](#reflection-probes)). In rend2's packed
+  path metal loses its diffuse share and takes its reflection from the probe;
+  0.8 rather than 1 keeps a fifth of the diffuse light where the heuristics call
+  painted or grimy parts metal, and metalness still falls on dark and saturated
+  texels. Without probes (`r_cubeMapping 0`) such metal reads darker than its
+  retail look. Earlier packs used 0.3 and 0.45, when nothing reflected the room
+  into metal.
+- **Overrides** ([overrides.rs](../crates/sjk-materialgen/src/overrides.rs)). A text
+  file of per-texture rules fixes what the heuristics get wrong. Each line is a
+  path pattern (the diffuse image without extension, case-insensitive, `*` and `?`
+  wildcards) followed by `class=`, `roughness=`, `metalness=` (0–1) or
+  `height=on|off`; `#` starts a comment. Every matching line applies, in order:
+
+  ```text
+  textures/mp/floor*        class=tiles roughness=0.2
+  textures/kor_*/*metal*    metalness=0.9 height=on
+  ```
+
+  The tool reads `--overrides FILE`, or `sjk-materialgen-overrides.txt` next to the
+  output pk3 when it exists; the manifest records the file and, per texture, the
+  lines that applied, its class, roughness and metalness, and whether it was
+  polished.
 - **Specular layout.** The tool writes `<texture>_rmo` (red roughness, green
   metalness, blue occlusion) rather than `_specGloss`. The heuristics produce
   roughness and metalness directly, and the packed path takes the metal colour
   from the albedo and a 0.04 dielectric reflectance by itself, without rend2's
-  SDR gloss conversion. Metalness stays at most 0.3: in that path metal loses
-  its diffuse share, and nothing reflects the surroundings back into it.
+  SDR gloss conversion.
 - **Output.** One pk3 of PNGs plus `jkr-materialgen/manifest.json` (every
   source, its outputs, class, maps and shaders, skipped shaders with reasons,
   all settings). The archive is deterministic. The default path is
@@ -1357,8 +1528,22 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
   on Windows. The tool refuses to write into the game installation. To use it,
   set `JKR_CONTENT` to that directory (the client mounts it above the game
   data), or copy the pk3 into `GameData/base` by hand; the `zzz_` name loads
-  after the retail pk3s. `--dry-run` lists the choices, and `--limit`
-  takes only the most-used textures.
+  after the retail pk3s. `--dry-run` lists the choices (with polished textures
+  and applied override lines), and `--limit` takes only the most-used textures.
+
+**Regenerating.** The manifest records the generation of the tuning
+(`"generation": 2`; packs without it are generation 1). With material maps on,
+the client logs `material maps: the generated pack is generation 1 of
+sjk-materialgen, this client expects 2 ...` once when the mounted pack is older.
+Run the generator again for the same maps, then replace the old pk3 where the
+client reads it (for example `GameData/base/zzz_jkr_materials.pk3`):
+
+```sh
+cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1 --out <folder>/zzz_jkr_materials.pk3
+```
+
+The tool leaves a pk3 of its output's name out of its input, so the old pack's maps
+do not count as existing rend2 maps. Restart the client after replacing it.
 
 The generated images are derived from retail textures. They stay on the
 player's machine and must not be shared, uploaded or committed; the tests use
@@ -1395,7 +1580,9 @@ SSAO at strength 4, trilinear mipmapping
 and 16× anisotropy where supported. Bloom and the optional LDR tone curve are off.
 Dynamic glow is on with rd-vulkan's blur (SJK; stock defaults it off).
 Soft particles, per-pixel model diffuse lighting and full rendering resolution
-remain enabled. These are ordinary cvar defaults, not a config imported at launch.
+remain enabled. Material maps stay off; reflection probes (`r_cubeMapping 1`, 128²)
+are on but only take effect once `r_specularMapping` is enabled and a map has
+specular maps. These are ordinary cvar defaults, not a config imported at launch.
 
 Saved values take precedence, including explicitly disabled effects. Existing
 profiles are not silently migrated (the one exception is the old `com_maxfps`

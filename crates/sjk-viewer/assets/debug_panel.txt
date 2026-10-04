@@ -556,6 +556,54 @@ test: bind F10 debug_panel, close the console: F10 opens and closes it in menus 
 test: Tick an entry (Space, Enter or its box), restart the client: the tick is still there.
 test: Wheel, arrows, PageUp / PageDown, Home / End; Tab cycles TO TEST, TESTED and ALL.
 
+[indoor-normal-light]
+status: personal
+area: Rendering & effects
+title: Normal maps respond to lamps and bounce light (live lighting)
+change: The light pass also stores where lamp, bounce and sky light come from (half-res).
+change: Material maps move that share to the mapped normal; lamps add GGX highlights.
+test: r_dayNight 1, r_normalMapping 1, r_specularMapping 1 (restart); load mp/ffa3.
+test: Walk into a lamp-lit interior: wall and floor relief should catch the lamp light.
+test: Toggle r_dayDebug 1024 / 0: 1024 is the old flat lamp light; 0 shows relief.
+test: r_materialMapsDebug 2 marks mapped surfaces (cyan = normal + specular).
+test: r_normalMapStrength 2 doubles the relief live, 0 flattens it, 1 restores it.
+note: Needs the generated pack (zzz_jkr_materials.pk3); baked lighting is unchanged.
+
+[cubemap-reflections]
+status: personal
+area: Rendering & effects
+title: Reflection probes on specular-mapped surfaces
+change: Cube maps captured at spawn points (or misc_cubemap), GGX-prefiltered, box-projected.
+change: Specular-mapped surfaces reflect their nearest visible probe; r_cubeMapping 1 default.
+test: r_specularMapping 1 (restart); load mp/ffa3; log: Reflection probes: N at 128x128.
+test: Look at metal and polished floors near spawns: the room should show in them.
+test: r_materialMapsDebug 4 shows reflections alone; 5 the scene without; 0 back.
+test: r_dayHour 18 then 12: reflections follow the light within a few seconds.
+note: Players and effects never appear in reflections; that is by design.
+
+[floor-reflection-maps]
+status: personal
+area: Rendering & effects
+title: Floor mirrors follow material maps; r_floorReflections cvar
+change: Mirrored floors bend their reflection by the normal map, blur by the map's roughness.
+change: r_floorReflections 0/1 (live, Renderer IMAGE tab) replaces JKR_FLOOR_REFLECTIONS.
+test: Load a map with shiny floors (mp/ffa1 halls); log: Floor mirrors: N planes, M with maps.
+test: r_floorReflections 0 then 1: the mirror image disappears and comes back at once.
+test: On a floor with maps (M above 0) the reflection ripples with the floor's relief.
+note: Floors need generated maps for the mapped look; regenerate the pack after the update.
+
+[materialgen-metal]
+status: personal
+area: Rendering & effects
+title: materialgen: shinier metal, polished hint, overrides file
+change: Metal class metalness 0.8, roughness 0.3; tcGen environment shaders made glossier.
+change: Metal panels get _nh height; per-texture rules in sjk-materialgen-overrides.txt.
+test: Load mp/ffa3 with the old pack: the log asks to regenerate (generation 1).
+test: Regenerate: sjk-materialgen --maps mp/ffa3,mp/duel1 --out <dir>/zzz_jkr_materials.pk3
+test: Copy it over GameData/base/zzz_jkr_materials.pk3, restart: the note is gone.
+test: Metal walls now reflect the room (r_materialMapsDebug 4 to see the reflection).
+note: --dry-run lists polished textures and applied override lines.
+
 [own-force-effects]
 status: personal
 area: Rendering & effects

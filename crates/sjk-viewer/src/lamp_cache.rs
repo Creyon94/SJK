@@ -30,6 +30,10 @@ const MAX_RESOLUTION: u32 = 2048;
 const BUDGET_BYTES: u64 = 512 * 1024 * 1024;
 const FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgba16Float;
 const TEXEL_BYTES: u64 = 8;
+/// The direction layers of a directed cache (`bake_light_directed`): a unit-luminance
+/// vector as unsigned colour, filtered like the light.
+const DIRECTION_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Rgb10a2Unorm;
+const DIRECTION_TEXEL_BYTES: u64 = 4;
 /// Receiver attribute targets: two RGBA32F plus the RGBA32F cache coordinates.
 pub(crate) const ATTACHMENT_BYTES: u32 = 48;
 
@@ -144,6 +148,23 @@ impl Pages {
     }
 }
 
+/// Colour targets of the bake and rim passes: the light, then the directions.
+fn targets(directed: bool) -> &'static [Option<wgpu::ColorTargetState>] {
+    const TARGETS: [Option<wgpu::ColorTargetState>; 2] = [
+        Some(wgpu::ColorTargetState {
+            format: FORMAT,
+            blend: None,
+            write_mask: wgpu::ColorWrites::ALL,
+        }),
+        Some(wgpu::ColorTargetState {
+            format: DIRECTION_FORMAT,
+            blend: None,
+            write_mask: wgpu::ColorWrites::ALL,
+        }),
+    ];
+    &TARGETS[..if directed { 2 } else { 1 }]
+}
+
 fn join(mut ranges: Vec<Range<u32>>) -> Vec<Range<u32>> {
     ranges.sort_by_key(|range| range.start);
     let mut joined: Vec<Range<u32>> = Vec::new();
@@ -165,6 +186,8 @@ pub(crate) struct Cache {
     pub(crate) pages: wgpu::Buffer,
     array: wgpu::TextureView,
     layers: Vec<wgpu::TextureView>,
+    /// Where each texel's lamp light comes from, for material maps (`Cache::new`).
+    directions: Option<(wgpu::TextureView, Vec<wgpu::TextureView>)>,
     sampler: wgpu::Sampler,
     baked: std::cell::Cell<bool>,
 }
@@ -177,45 +200,55 @@ struct Bake {
 }
 
 impl Cache {
-    pub(crate) fn new(device: &wgpu::Device, pages: &Pages) -> Self {
+    /// `directed` also bakes where the lamp light comes from: the map has material maps
+    /// that move it to their mapped normals (`light_buffer::LightBuffer::directed`).
+    pub(crate) fn new(device: &wgpu::Device, pages: &Pages, directed: bool) -> Self {
         use wgpu::util::DeviceExt;
-        let texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("JKR lamp light cache"),
-            size: wgpu::Extent3d {
-                width: pages.resolution,
-                height: pages.resolution,
-                depth_or_array_layers: pages.runs.len() as u32,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: FORMAT,
-            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING,
-            view_formats: &[],
-        });
-        let array = texture.create_view(&wgpu::TextureViewDescriptor {
-            dimension: Some(wgpu::TextureViewDimension::D2Array),
-            ..Default::default()
-        });
-        let layers = (0..pages.runs.len() as u32)
-            .map(|layer| {
-                texture.create_view(&wgpu::TextureViewDescriptor {
-                    dimension: Some(wgpu::TextureViewDimension::D2),
-                    base_array_layer: layer,
-                    array_layer_count: Some(1),
-                    ..Default::default()
+        let layered = |label, format| {
+            let texture = device.create_texture(&wgpu::TextureDescriptor {
+                label: Some(label),
+                size: wgpu::Extent3d {
+                    width: pages.resolution,
+                    height: pages.resolution,
+                    depth_or_array_layers: pages.runs.len() as u32,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format,
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT
+                    | wgpu::TextureUsages::TEXTURE_BINDING,
+                view_formats: &[],
+            });
+            let array = texture.create_view(&wgpu::TextureViewDescriptor {
+                dimension: Some(wgpu::TextureViewDimension::D2Array),
+                ..Default::default()
+            });
+            let layers = (0..pages.runs.len() as u32)
+                .map(|layer| {
+                    texture.create_view(&wgpu::TextureViewDescriptor {
+                        dimension: Some(wgpu::TextureViewDimension::D2),
+                        base_array_layer: layer,
+                        array_layer_count: Some(1),
+                        ..Default::default()
+                    })
                 })
-            })
-            .collect();
+                .collect::<Vec<_>>();
+            (array, layers)
+        };
+        let (array, layers) = layered("JKR lamp light cache", FORMAT);
+        let directions = directed.then(|| layered("JKR lamp light directions", DIRECTION_FORMAT));
+        let texel_bytes = TEXEL_BYTES + if directed { DIRECTION_TEXEL_BYTES } else { 0 };
         crate::log::progress(format_args!(
-            "Lamp light cache: {} layers of {}x{} texels, {:.1} MiB",
+            "Lamp light cache: {} layers of {}x{} texels{}, {:.1} MiB",
             pages.runs.len(),
             pages.resolution,
             pages.resolution,
+            if directed { " with directions" } else { "" },
             pages.runs.len() as f64
                 * f64::from(pages.resolution)
                 * f64::from(pages.resolution)
-                * TEXEL_BYTES as f64
+                * texel_bytes as f64
                 / 1048576.
         ));
         Self {
@@ -223,6 +256,7 @@ impl Cache {
             runs: pages.runs.clone(),
             array,
             layers,
+            directions,
             pages: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
                 label: Some("JKR lamp cache pages"),
                 contents: bytemuck::cast_slice(&pages.stream),
@@ -248,8 +282,9 @@ impl Cache {
         }
     }
 
-    /// Group of the cached fullscreen light program: receiver coordinates, cache, sampler.
-    pub(crate) fn layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
+    /// Group of the cached fullscreen light program: receiver coordinates, cache, sampler,
+    /// and with `directed` the direction layers.
+    pub(crate) fn layout(device: &wgpu::Device, directed: bool) -> wgpu::BindGroupLayout {
         let texture = |binding, filterable, view_dimension| wgpu::BindGroupLayoutEntry {
             binding,
             visibility: wgpu::ShaderStages::FRAGMENT,
@@ -260,29 +295,33 @@ impl Cache {
             },
             count: None,
         };
+        let mut entries = vec![
+            texture(0, false, wgpu::TextureViewDimension::D2),
+            texture(1, true, wgpu::TextureViewDimension::D2Array),
+            wgpu::BindGroupLayoutEntry {
+                binding: 2,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                count: None,
+            },
+            // Receivers the cache cannot serve (`receivers::Direct`).
+            wgpu::BindGroupLayoutEntry {
+                binding: 3,
+                visibility: wgpu::ShaderStages::FRAGMENT,
+                ty: wgpu::BindingType::Buffer {
+                    ty: wgpu::BufferBindingType::Storage { read_only: false },
+                    has_dynamic_offset: false,
+                    min_binding_size: None,
+                },
+                count: None,
+            },
+        ];
+        if directed {
+            entries.push(texture(4, true, wgpu::TextureViewDimension::D2Array));
+        }
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("JKR lamp cache receivers"),
-            entries: &[
-                texture(0, false, wgpu::TextureViewDimension::D2),
-                texture(1, true, wgpu::TextureViewDimension::D2Array),
-                wgpu::BindGroupLayoutEntry {
-                    binding: 2,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
-                    count: None,
-                },
-                // Receivers the cache cannot serve (`receivers::Direct`).
-                wgpu::BindGroupLayoutEntry {
-                    binding: 3,
-                    visibility: wgpu::ShaderStages::FRAGMENT,
-                    ty: wgpu::BindingType::Buffer {
-                        ty: wgpu::BufferBindingType::Storage { read_only: false },
-                        has_dynamic_offset: false,
-                        min_binding_size: None,
-                    },
-                    count: None,
-                },
-            ],
+            entries: &entries,
         })
     }
 
@@ -292,27 +331,34 @@ impl Cache {
         coordinates: &wgpu::TextureView,
         direct: &wgpu::Buffer,
     ) -> wgpu::BindGroup {
+        let mut entries = vec![
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(coordinates),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: wgpu::BindingResource::TextureView(&self.array),
+            },
+            wgpu::BindGroupEntry {
+                binding: 2,
+                resource: wgpu::BindingResource::Sampler(&self.sampler),
+            },
+            wgpu::BindGroupEntry {
+                binding: 3,
+                resource: direct.as_entire_binding(),
+            },
+        ];
+        if let Some((directions, _)) = &self.directions {
+            entries.push(wgpu::BindGroupEntry {
+                binding: 4,
+                resource: wgpu::BindingResource::TextureView(directions),
+            });
+        }
         device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: None,
-            layout: &Self::layout(device),
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(coordinates),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::TextureView(&self.array),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 2,
-                    resource: wgpu::BindingResource::Sampler(&self.sampler),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 3,
-                    resource: direct.as_entire_binding(),
-                },
-            ],
+            layout: &Self::layout(device, self.directions.is_some()),
+            entries: &entries,
         })
     }
 
@@ -388,6 +434,14 @@ impl Cache {
             depth_usage,
         );
         let rim = scratch("JKR lamp cache rim", FORMAT, depth_usage);
+        let directed = self.directions.is_some();
+        let rim_direction = directed.then(|| {
+            scratch(
+                "JKR lamp cache rim directions",
+                DIRECTION_FORMAT,
+                depth_usage,
+            )
+        });
 
         let uniform_entry = |binding| wgpu::BindGroupLayoutEntry {
             binding,
@@ -490,11 +544,7 @@ impl Cache {
                     module: shader,
                     entry_point: Some(entry),
                     compilation_options: Default::default(),
-                    targets: &[Some(wgpu::ColorTargetState {
-                        format: FORMAT,
-                        blend: None,
-                        write_mask: wgpu::ColorWrites::ALL,
-                    })],
+                    targets: targets(directed),
                 }),
                 primitive: wgpu::PrimitiveState {
                     cull_mode: None,
@@ -530,22 +580,27 @@ impl Cache {
             "JKR lamp cache light",
             &light_layout,
             &light_shader,
-            Some("bake_light"),
+            Some(if directed {
+                "bake_light_directed"
+            } else {
+                "bake_light"
+            }),
             None,
         );
 
+        let rim_entry = |binding| wgpu::BindGroupLayoutEntry {
+            binding,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            ty: wgpu::BindingType::Texture {
+                sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                view_dimension: wgpu::TextureViewDimension::D2,
+                multisampled: false,
+            },
+            count: None,
+        };
         let rim_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: None,
-            entries: &[wgpu::BindGroupLayoutEntry {
-                binding: 0,
-                visibility: wgpu::ShaderStages::FRAGMENT,
-                ty: wgpu::BindingType::Texture {
-                    sample_type: wgpu::TextureSampleType::Float { filterable: false },
-                    view_dimension: wgpu::TextureViewDimension::D2,
-                    multisampled: false,
-                },
-                count: None,
-            }],
+            entries: &[rim_entry(0), rim_entry(1)][..if directed { 2 } else { 1 }],
         });
         let rim_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("JKR lamp cache rim"),
@@ -577,11 +632,7 @@ impl Cache {
                     module: &rim_shader,
                     entry_point: Some(entry),
                     compilation_options: Default::default(),
-                    targets: &[Some(wgpu::ColorTargetState {
-                        format: FORMAT,
-                        blend: None,
-                        write_mask: wgpu::ColorWrites::ALL,
-                    })],
+                    targets: targets(directed),
                 }),
                 primitive: Default::default(),
                 depth_stencil: None,
@@ -590,18 +641,28 @@ impl Cache {
                 cache: None,
             })
         };
-        let (steep_pipeline, rim_pipeline) = (post("steep"), post("rim"));
-        let rim_group = |view: &wgpu::TextureView| {
+        let (steep_pipeline, rim_pipeline) = if directed {
+            (post("steep_directed"), post("rim_directed"))
+        } else {
+            (post("steep"), post("rim"))
+        };
+        let rim_group = |view: &wgpu::TextureView, direction: Option<&wgpu::TextureView>| {
+            let entries = [view]
+                .into_iter()
+                .chain(direction)
+                .enumerate()
+                .map(|(binding, view)| wgpu::BindGroupEntry {
+                    binding: binding as u32,
+                    resource: wgpu::BindingResource::TextureView(view),
+                })
+                .collect::<Vec<_>>();
             device.create_bind_group(&wgpu::BindGroupDescriptor {
                 label: None,
                 layout: &rim_layout,
-                entries: &[wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(view),
-                }],
+                entries: &entries,
             })
         };
-        let from_rim = rim_group(&rim);
+        let from_rim = rim_group(&rim, rim_direction.as_ref());
 
         let color = |view| {
             Some(wgpu::RenderPassColorAttachment {
@@ -614,7 +675,8 @@ impl Cache {
                 },
             })
         };
-        for (layer, runs) in self.layers.iter().zip(&self.runs) {
+        for (index, (layer, runs)) in self.layers.iter().zip(&self.runs).enumerate() {
+            let direction = self.directions.as_ref().map(|(_, layers)| &layers[index]);
             for (target, clear, pipeline) in [
                 (&nearest, 1., &near_pipeline),
                 (&farthest, 0., &far_pipeline),
@@ -645,7 +707,11 @@ impl Cache {
             {
                 let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some("JKR lamp cache light"),
-                    color_attachments: &[color(layer)],
+                    color_attachments: &[Some(layer), direction]
+                        .into_iter()
+                        .flatten()
+                        .map(color)
+                        .collect::<Vec<_>>(),
                     depth_stencil_attachment: None,
                     timestamp_writes: None,
                     occlusion_query_set: None,
@@ -660,14 +726,18 @@ impl Cache {
                 }
             }
             // Poison texels too steep to interpolate, then add one texel of rim.
-            let from_layer = rim_group(layer);
-            for (target, source, pipeline) in [
-                (&rim, &from_layer, &steep_pipeline),
-                (layer, &from_rim, &rim_pipeline),
+            let from_layer = rim_group(layer, direction);
+            for (target, target_direction, source, pipeline) in [
+                (&rim, rim_direction.as_ref(), &from_layer, &steep_pipeline),
+                (layer, direction, &from_rim, &rim_pipeline),
             ] {
                 let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                     label: Some("JKR lamp cache rim"),
-                    color_attachments: &[color(target)],
+                    color_attachments: &[Some(target), target_direction]
+                        .into_iter()
+                        .flatten()
+                        .map(color)
+                        .collect::<Vec<_>>(),
                     depth_stencil_attachment: None,
                     timestamp_writes: None,
                     occlusion_query_set: None,
@@ -682,5 +752,29 @@ impl Cache {
             "Lamp light cache: bake encoded in {:.1} ms",
             started.elapsed().as_secs_f64() * 1000.
         ));
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn bake_and_rim_programs_validate_with_directions() {
+        let light = format!(
+            "{}{}{}",
+            include_str!("lamp_cache_bake.wgsl"),
+            crate::lamp_lights::source(0, 0, false),
+            include_str!("lamp_cache_light.wgsl")
+        );
+        crate::wgsl_source::validate(&light);
+        assert!(light.contains("fn bake_light_directed("));
+        let rim = format!(
+            "{}{}",
+            include_str!("lamp_response.wgsl"),
+            include_str!("lamp_cache_rim.wgsl")
+        );
+        crate::wgsl_source::validate(&rim);
+        for entry in ["steep", "rim", "steep_directed", "rim_directed"] {
+            assert!(rim.contains(&format!("fn {entry}(")), "{entry}");
+        }
     }
 }

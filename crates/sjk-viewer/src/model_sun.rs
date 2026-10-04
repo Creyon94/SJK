@@ -110,9 +110,10 @@ pub(super) fn receiver_layout_with(
     })
 }
 
-/// Bindings consumed by `sun_realtime_buffer.wgsl`, shared by lit world and models.
+/// Bindings consumed by `sun_realtime_buffer.wgsl`, shared by lit world and models, and
+/// the light directions the material-map program reads (41).
 fn material_binding(binding: u32) -> bool {
-    matches!(binding, 2 | 20 | 21 | 23)
+    matches!(binding, 2 | 20 | 21 | 23 | 41)
 }
 
 /// The point-light block in the material receiver group (stage table program only).
@@ -185,7 +186,7 @@ pub(super) fn receiver_group(
         (Binding::Buffer(buffer) | Binding::Pass(buffer), _) => {
             entries.extend(buffer.entries(LIGHT_BASE, light.layout()))
         }
-        (Binding::Neutral, Some((color, depth, normal))) => entries.extend([
+        (Binding::Neutral, Some((color, depth, normal, direction))) => entries.extend([
             wgpu::BindGroupEntry {
                 binding: LIGHT_BASE,
                 resource: wgpu::BindingResource::TextureView(color),
@@ -197,6 +198,10 @@ pub(super) fn receiver_group(
             wgpu::BindGroupEntry {
                 binding: LIGHT_BASE + 3,
                 resource: wgpu::BindingResource::TextureView(normal),
+            },
+            wgpu::BindGroupEntry {
+                binding: LIGHT_BASE + super::shadows::light_buffer::DIRECTION,
+                resource: wgpu::BindingResource::TextureView(direction),
             },
         ]),
         _ => {}

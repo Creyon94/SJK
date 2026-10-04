@@ -6,6 +6,7 @@ use crate::generate::{
     Settings, generate,
 };
 use crate::mount::mount_game_data;
+use crate::overrides::Overrides;
 use crate::package::{
     Entry, Manifest, ManifestSettings, NOTICE, SkippedEntry, SourceEntry, png_rgb, png_rgba,
     write_pk3,
@@ -29,6 +30,10 @@ pub struct Options {
     /// Generate only the this many most-used textures.
     pub limit: Option<usize>,
     pub settings: Settings,
+    /// Per-texture class overrides (`--overrides`, or the file beside the output).
+    pub overrides: Overrides,
+    /// Where the overrides came from, for the manifest.
+    pub overrides_file: Option<PathBuf>,
     pub dry_run: bool,
     pub out: PathBuf,
 }
@@ -76,7 +81,13 @@ pub fn run(options: &Options) -> Result<Summary, Box<dyn Error>> {
     for (map, error) in &map_uses.unreadable {
         eprintln!("warning: skipping map {map}: {error}");
     }
-    let mut selection = select(&vfs, &catalog, map_uses.read, &map_uses.uses)?;
+    let mut selection = select(
+        &vfs,
+        &catalog,
+        map_uses.read,
+        &map_uses.uses,
+        &options.overrides,
+    )?;
     if let Some(limit) = options.limit {
         selection.candidates.truncate(limit);
     }
@@ -109,6 +120,10 @@ pub fn run(options: &Options) -> Result<Summary, Box<dyn Error>> {
                     height: output.height,
                     class: candidate.class.name,
                     class_source: candidate.class_source.describe(),
+                    polished: candidate.polished,
+                    overrides: candidate.overrides.clone(),
+                    roughness: candidate.class.roughness,
+                    metalness: candidate.class.metalness,
                     alpha_tested: candidate.alpha_tested,
                     shaders: candidate.shaders.iter().cloned().collect(),
                     maps: candidate.maps.iter().cloned().collect(),
@@ -140,6 +155,7 @@ pub fn run(options: &Options) -> Result<Summary, Box<dyn Error>> {
     let manifest = Manifest {
         tool: env!("CARGO_PKG_NAME"),
         version: env!("CARGO_PKG_VERSION"),
+        generation: crate::package::GENERATION,
         notice: NOTICE,
         settings: ManifestSettings {
             maps: selection.maps.clone(),
@@ -154,6 +170,10 @@ pub fn run(options: &Options) -> Result<Summary, Box<dyn Error>> {
             height_bands: BANDS.iter().map(|(r, w)| [*r, *w]).collect(),
             coarse_weight: COARSE_WEIGHT,
             min_height_range: MIN_HEIGHT_RANGE,
+            overrides: options
+                .overrides_file
+                .as_ref()
+                .map(|path| path.display().to_string()),
         },
         sources,
         skipped,
@@ -231,7 +251,7 @@ fn generate_one(
         .map_err(|error| error.to_string())?
         .ok_or("image disappeared")?;
     let source = decode(&candidate.image, &asset.bytes)?;
-    let maps = generate(&source, candidate.class, candidate.alpha_tested, settings);
+    let maps = generate(&source, &candidate.class, candidate.alpha_tested, settings);
     let mut entries = Vec::new();
     if maps.flat {
         return Ok(Output {
@@ -294,7 +314,7 @@ fn archive_name(mount: &str) -> String {
 
 /// One line per candidate for `--dry-run` and verbose listings.
 pub fn describe_candidate(candidate: &Candidate) -> String {
-    let class: &MaterialClass = candidate.class;
+    let class: &MaterialClass = &candidate.class;
     let mut outputs = Vec::new();
     if candidate.normal {
         outputs.push(if class.parallax && !candidate.alpha_tested {
@@ -306,13 +326,26 @@ pub fn describe_candidate(candidate: &Candidate) -> String {
     if candidate.packed {
         outputs.push(PACKED_SUFFIX);
     }
+    let mut tuned = Vec::new();
+    if candidate.polished {
+        tuned.push("polished".to_owned());
+    }
+    if !candidate.overrides.is_empty() {
+        let lines: Vec<String> = candidate.overrides.iter().map(usize::to_string).collect();
+        tuned.push(format!("overrides line {}", lines.join(",")));
+    }
     format!(
-        "{:>7} tris  {:<11} {:<24} {:<10} {}",
+        "{:>7} tris  {:<11} {:<24} {:<10} {}{}",
         candidate.triangles,
         class.name,
         candidate.class_source.describe(),
         outputs.join(","),
-        candidate.image
+        candidate.image,
+        if tuned.is_empty() {
+            String::new()
+        } else {
+            format!(" ({})", tuned.join("; "))
+        }
     )
 }
 

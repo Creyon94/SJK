@@ -100,6 +100,32 @@ fn lamp_light(world: vec3<f32>, normal: vec3<f32>) -> vec3<f32> {
     }
     return sum;
 }
+// Lamp irradiance (`light`) with the sum of the directions it arrives from, each weighted
+// by its luminance (`vector`): the vector's length over the light's luminance is the share
+// that arrives from one direction. Material maps move that share to the mapped normal.
+struct LampLight { light: vec3<f32>, vector: vec3<f32> };
+fn lamp_luminance(rgb: vec3<f32>) -> f32 { return dot(rgb, vec3(0.2126, 0.7152, 0.0722)); }
+// Unit direction from `world` toward the centre of lamp list entry `k`.
+fn lamp_direction(k: u32, world: vec3<f32>) -> vec3<f32> {
+    let lamp = lamp_data[lamp_grid.offsets.y + k/4u][k & 3u]*5u;
+    let to = bitcast<vec4<f32>>(lamp_data[lamp]).xyz - world;
+    return to*inverseSqrt(max(dot(to, to), 1e-6));
+}
+fn lamp_light_directed(world: vec3<f32>, normal: vec3<f32>) -> LampLight {
+    let at = lamp_cell(world);
+    if at.w < 0 { return LampLight(vec3(0.0), vec3(0.0)); }
+    let entry = lamp_entry(world, at.xyz);
+    let threshold = lamp_importance_threshold(world, at.xyz);
+    var sum = vec3(0.0);
+    var vector = vec3(0.0);
+    for (var i = 0u; i < entry.y; i++) {
+        let light = lamp_term(entry.x + i, world, normal, threshold);
+        if light.w <= 0.0 { continue; }
+        sum += light.xyz*light.w;
+        vector += lamp_direction(entry.x + i, world)*lamp_luminance(light.xyz*light.w);
+    }
+    return LampLight(sum, vector);
+}
 // LAMP_SHADOWS_BEGIN
 // Immutable static visibility multiplied by the optional actor-shadow slot.
 struct LampShadowTable { lamps: array<vec4<u32>, 2>, count: vec4<u32>, weights: array<vec4<f32>, 2>, vp: array<mat4x4<f32>, 48> };

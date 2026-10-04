@@ -532,3 +532,26 @@ impl Runtime {
         self.live_count
     }
 }
+
+#[cfg(test)]
+mod program_tests {
+    use super::*;
+
+    #[test]
+    fn probe_update_program_validates() {
+        // The update program reads the full three-component table, where the directed
+        // irradiance combines the components under the current sun and sky.
+        let source = format!(
+            "{}{}{}{}",
+            include_str!("gi_trace.wgsl"),
+            SAMPLE_SHADER.replace(
+                "var<storage, read> probe_",
+                "var<storage, read_write> probe_"
+            ),
+            crate::lamp_lights::source(1, LAMP_BASE, false),
+            include_str!("gi_probes.wgsl")
+        );
+        crate::wgsl_source::validate(&source);
+        assert!(source.contains("fn probe_irradiance_directed("));
+    }
+}

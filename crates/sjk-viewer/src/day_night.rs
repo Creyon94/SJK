@@ -211,7 +211,7 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), CvarError> {
             "Real-time lighting diagnostics, bits: 1 no occlusion, 2 no contact shadows, \
              4 no lamps, 8 no far cascade, 16 no bounce, 32 no sun shadow maps, \
              64 no close cascade, 128 sun visibility as the light, 256 no volumetrics, \
-             512 no sun highlight; live",
+             512 no sun highlight, 1024 material maps ignore lamp/bounce direction; live",
         ),
         (
             "r_sunShadowGapClose",

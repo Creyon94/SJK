@@ -529,6 +529,16 @@ pub(super) const RENDER_IMAGE: &[Setting] = &[
         cvar: "r_modelPixelLight",
         kind: ValueKind::Bool,
     },
+    Setting {
+        label: "Reflection probes (restart)",
+        cvar: "r_cubeMapping",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Floor mirrors",
+        cvar: "r_floorReflections",
+        kind: ValueKind::Bool,
+    },
 ];
 
 pub(super) const RENDER_LIGHTING: &[Setting] = &[

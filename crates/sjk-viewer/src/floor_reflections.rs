@@ -23,6 +23,34 @@ const MAX_MIRRORS: usize = 6;
 const ENTER: f32 = 0.010;
 const LEAVE: f32 = 0.007;
 
+/// Live `r_floorReflections`; `JKR_FLOOR_REFLECTIONS=0` still forces mirrors off.
+static ENABLED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
+
+/// Register `r_floorReflections` (default 1, live): polished floors mirror the scene.
+pub(crate) fn register(cvars: &mut sjk_shell::CvarRegistry) -> Result<(), sjk_shell::CvarError> {
+    use std::sync::atomic::Ordering;
+    cvars.register(sjk_shell::CvarDefinition::new(
+        "r_floorReflections",
+        1_i64,
+        sjk_shell::CvarFlags::ARCHIVE,
+        "Polished floors (environment-mapped shaders) mirror the scene; 0 keeps their \
+         ordinary material; live",
+    ))?;
+    let on = |value: &sjk_shell::CvarValue| !matches!(value, sjk_shell::CvarValue::Integer(0));
+    ENABLED.store(
+        on(&cvars.get("r_floorReflections").expect("registered").value),
+        Ordering::Relaxed,
+    );
+    cvars.on_change("r_floorReflections", move |change| {
+        ENABLED.store(on(&change.current), Ordering::Relaxed)
+    })
+}
+
+/// Mirrors are drawn: the cvar is on and the environment override does not forbid them.
+fn enabled(environment: bool) -> bool {
+    environment && ENABLED.load(std::sync::atomic::Ordering::Relaxed)
+}
+
 struct Floor {
     plane: planes::Plane,
     camera: resources::Camera,
@@ -40,6 +68,8 @@ pub(super) struct Floors {
     pub(super) target: Option<gpu::Target>,
     finish: Option<finish::Finish>,
     finish_layout: wgpu::BindGroupLayout,
+    /// Floor material maps groups; 0 is the neutral one (`Face::maps`).
+    map_groups: Vec<wgpu::BindGroup>,
     scale: f32,
     roughness: f32,
     pipeline: wgpu::RenderPipeline,
@@ -49,6 +79,7 @@ pub(super) struct Floors {
     commands_disabled: std::cell::Cell<bool>,
 }
 impl Floors {
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn new(
         device: &wgpu::Device,
         camera: &wgpu::BindGroupLayout,
@@ -57,8 +88,24 @@ impl Floors {
         size: [u32; 2],
         scene: &FlattenedScene,
         shaders: &ShaderCatalog,
+        maps: &dyn Fn(usize) -> Option<crate::world_materials::material_maps::FloorMaps>,
     ) -> Self {
-        let floors = planes::collect(scene, shaders)
+        let maps_layout = resources::maps_layout(device);
+        let mut map_groups = vec![resources::maps_group(device, &maps_layout, None)];
+        let mut by_material = std::collections::HashMap::new();
+        let mut planes = planes::collect(scene, shaders);
+        for plane in &mut planes {
+            for face in &mut plane.faces {
+                face.maps = *by_material.entry(face.material).or_insert_with(|| {
+                    maps(face.material).map_or(0, |found| {
+                        map_groups.push(resources::maps_group(device, &maps_layout, Some(&found)));
+                        map_groups.len() - 1
+                    })
+                });
+                plane.mapped |= face.maps != 0;
+            }
+        }
+        let floors = planes
             .into_iter()
             .map(|plane| Floor {
                 plane,
@@ -71,8 +118,9 @@ impl Floors {
             })
             .collect::<Vec<_>>();
         crate::log::progress(format_args!(
-            "Floor mirrors: {} polished planes",
-            floors.len()
+            "Floor mirrors: {} polished planes, {} with material maps",
+            floors.len(),
+            floors.iter().filter(|floor| floor.plane.mapped).count()
         ));
         let target =
             (!floors.is_empty()).then(|| gpu::Target::new(device, camera, sample, format, size));
@@ -80,7 +128,7 @@ impl Floors {
         let finish = target
             .as_ref()
             .map(|t| finish::Finish::new(device, &finish_layout, &t.color));
-        let pipeline = resources::pipeline(device, camera, &finish_layout, format);
+        let pipeline = resources::pipeline(device, camera, &finish_layout, &maps_layout, format);
         let visibility = visibility::Visibility::new(device, camera, &floors);
         Self {
             commands_disabled: std::cell::Cell::new(
@@ -90,11 +138,13 @@ impl Floors {
             target,
             finish,
             finish_layout,
+            map_groups,
             scale: finish::SCALE,
             roughness: finish::ROUGHNESS,
             floors,
             pipeline,
             cluster: None,
+            // `JKR_FLOOR_REFLECTIONS=0` predates the cvar and still forces mirrors off.
             enabled: std::env::var_os("JKR_FLOOR_REFLECTIONS").is_none_or(|v| v != "0"),
         }
     }
@@ -147,7 +197,7 @@ impl Floors {
         for floor in &mut self.floors {
             let p = &floor.plane;
             floor.visible = false;
-            if !self.enabled || p.normal.dot(eye) <= p.distance + 0.05 {
+            if !enabled(self.enabled) || p.normal.dot(eye) <= p.distance + 0.05 {
                 continue;
             }
             let mut region = [1., 1., 0., 0.];
@@ -177,7 +227,11 @@ impl Floors {
                 floor.region,
                 self.target.as_ref().unwrap().size,
                 self.scale,
-                self.roughness,
+                if p.mapped {
+                    finish::MAPPED_MARGIN
+                } else {
+                    self.roughness
+                },
             );
             let reflected = math::reflect_plane(p.normal, p.distance, view, eye);
             let clip = crate::portal::clip::oblique_projection(
@@ -228,5 +282,35 @@ impl Floors {
     }
     pub(super) fn active(&self) -> bool {
         self.floors.iter().any(|f| f.visible)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn floor_program_validates() {
+        crate::wgsl_source::validate(concat!(
+            include_str!("vertex_transform.wgsl"),
+            include_str!("floor_reflection.wgsl")
+        ));
+        // The shader's blur and lookup limits fit the margin the region keeps.
+        assert!(
+            include_str!("floor_reflection.wgsl").contains("const FLOOR_MAX_ROUGHNESS: f32 = 0.6;")
+        );
+        assert!((finish::MAPPED_MARGIN - 2. * 0.6).abs() < 1e-6);
+    }
+
+    #[test]
+    fn the_cvar_switches_mirrors_and_the_environment_still_overrides() {
+        let mut cvars = sjk_shell::CvarRegistry::new();
+        register(&mut cvars).expect("registers");
+        assert!(enabled(true));
+        assert!(!enabled(false));
+        cvars.set_text("r_floorReflections", "0").expect("set");
+        assert!(!enabled(true));
+        cvars.set_text("r_floorReflections", "1").expect("set");
+        assert!(enabled(true));
     }
 }

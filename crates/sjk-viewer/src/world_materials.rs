@@ -178,6 +178,24 @@ pub(crate) fn world_sun_shader() -> &'static str {
     )
 }
 
+impl Runtime {
+    /// The material maps of world material `source` (an index into the flattened
+    /// scene's materials), for a floor mirror drawn over its surfaces.
+    pub(crate) fn floor_maps(&self, source: usize) -> Option<&material_maps::FloorMaps> {
+        let index = *self.source_to_runtime.get(source)?;
+        self.materials
+            .get(index)?
+            .stages
+            .iter()
+            .find_map(|stage| stage.floor_maps.as_ref())
+    }
+
+    /// The map's reflection probes, when material maps placed any.
+    pub(crate) fn reflection_probes(&self) -> Option<&material_maps::reflections::gpu::Probes> {
+        self.forge.material_maps.as_ref()?.reflections.as_ref()
+    }
+}
+
 #[path = "world_draw_ranges.rs"]
 pub(crate) mod draw_ranges;
 #[path = "view_culling.rs"]
@@ -195,6 +213,8 @@ struct StagePass {
     /// The colour passes' group of a material-mapped stage (`material_maps`): the stage
     /// entries plus its maps. Other passes keep binding `bind_group`.
     material_group: Option<wgpu::BindGroup>,
+    /// The maps of a material-mapped stage again, for the floor mirrors' finish.
+    floor_maps: Option<material_maps::FloorMaps>,
     geometry_group: wgpu::BindGroup,
     pipeline: usize,
     live_pipeline: usize,

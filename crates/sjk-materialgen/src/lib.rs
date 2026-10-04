@@ -37,9 +37,19 @@
 //! `_rmo` needs no colour guesswork and no conversion to undo. Its red,
 //! green and blue are roughness, metalness and occlusion; JKR reorders them to
 //! occlusion, roughness, metalness at load, as rend2's swizzle does.
-//! Metalness stays low (at most 0.3 for the metal class): in that path metal
-//! loses its diffuse light and nothing reflects the surroundings back into
-//! it, so fully metallic retail textures would turn dark.
+//! In that path metal loses its diffuse light; the client's reflection probes
+//! (`r_cubeMapping`) reflect the room back into it, so the metal class is
+//! mostly metallic (0.8) and brushed (roughness 0.3). Without probes such
+//! metal reads darker than its retail look.
+//!
+//! # Tuning
+//!
+//! Shaders with a `tcGen environment` stage are stock polish and get a glossier
+//! class ([`classes::polished`]). A text file of per-texture rules
+//! ([`overrides`], `--overrides`) sets the class, roughness, metalness or
+//! height of textures the heuristics get wrong. The manifest records the
+//! generation of the tuning ([`package::GENERATION`]); the client reports a pack
+//! from an older one, which should be regenerated.
 //!
 //! # Using the output
 //!
@@ -61,6 +71,7 @@ pub mod cli;
 pub mod filters;
 pub mod generate;
 pub mod mount;
+pub mod overrides;
 pub mod package;
 pub mod run;
 pub mod select;

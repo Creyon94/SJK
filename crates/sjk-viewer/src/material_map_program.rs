@@ -31,13 +31,13 @@ pub(in crate::world_materials) fn source(realtime: bool) -> String {
             "    @location(11) @interpolate(flat) animation_index: i32,\n};",
             "    @location(11) @interpolate(flat) animation_index: i32,\n    \
              @location(12) material_tangent: vec4<f32>,\n    \
-             @location(13) material_light: vec3<f32>,\n};",
+             @location(13) material_light: vec4<f32>,\n};",
         ),
         (
             "    if (instance.view_flags & 8u) != 0u { output.animation_index",
             "    let material_map_vertex = material_map_frame(index, instance.rotation);\n    \
              output.material_tangent = material_map_vertex.tangent;\n    \
-             output.material_light = material_map_vertex.light;\n    \
+             output.material_light = vec4(material_map_vertex.light, material_map_vertex.probe);\n    \
              if (instance.view_flags & 8u) != 0u { output.animation_index",
         ),
         (
@@ -90,6 +90,7 @@ pub(in crate::world_materials) fn source(realtime: bool) -> String {
         source = source.replace(from, to);
     }
     source.push_str(include_str!("material_maps.wgsl"));
+    source.push_str(include_str!("material_maps_reflection.wgsl"));
     source.push_str(if realtime {
         include_str!("material_maps_realtime.wgsl")
     } else {
@@ -129,12 +130,13 @@ mod tests {
     #[test]
     fn debug_views_read_the_lighting_mode_bits_the_cvar_writes() {
         let shift = format!(
-            "(point_lights.metadata.z >> {}u) & 3u",
+            "(point_lights.metadata.z >> {}u) & 7u",
             super::super::DEBUG_SHIFT
         );
         for realtime in [false, true] {
             let source = source(realtime);
-            assert_eq!(source.matches(&shift).count(), 1, "{shift}");
+            // The final view and the reflection's opt-out read the same bits.
+            assert_eq!(source.matches(&shift).count(), 2, "{shift}");
             // The views replace the final colour after every other hook ran.
             assert!(source.contains("return material_map_finish(output);"));
         }

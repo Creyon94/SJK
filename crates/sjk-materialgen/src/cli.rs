@@ -2,6 +2,7 @@
 
 use crate::generate::Settings;
 use crate::mount::{DEFAULT_FILE_NAME, default_output, find_game_data, is_inside};
+use crate::overrides::Overrides;
 use crate::run::{Options, normalize_map};
 use std::path::{Path, PathBuf};
 
@@ -22,16 +23,20 @@ OPTIONS:
     --strength F      multiply every class's normal strength (default 1.0)
     --max-size N      halve textures larger than N texels before generating
                       (default: keep the source resolution)
+    --overrides FILE  per-texture class, roughness, metalness and height rules (see the
+                      crate documentation); default: sjk-materialgen-overrides.txt
+                      next to the output pk3, when it exists
     --dry-run         list what would be generated and what is skipped; write nothing
     --out FILE        output pk3 (default: <JKR user data>/generated/zzz_jkr_materials.pk3,
                       i.e. %APPDATA%\\jkr\\generated on Windows); never inside GameData
     -h, --help        print this help
 
 For each world texture that installed maps draw on lightmapped surfaces, the tool
-writes a normal map (<texture>_nh with height for parallax on stone, tiles and
-ground, <texture>_n otherwise) and a packed <texture>_rmo map (roughness,
+writes a normal map (<texture>_nh with height for parallax on stone, tiles, ground
+and metal panels, <texture>_n otherwise) and a packed <texture>_rmo map (roughness,
 metalness, occlusion) into one pk3, plus jkr-materialgen/manifest.json listing
-every source, output, skipped shader and setting. Skies, fog, liquids, system and
+every source, output, skipped shader and setting. Shaders with a tcGen environment
+stage are treated as polished (glossier). Skies, fog, liquids, system and
 interface images, effects, glowing, animated and alpha-tested foliage stages, and
 textures that already have rend2 maps get none. Game data is only read.
 
@@ -60,6 +65,7 @@ pub fn parse(arguments: impl IntoIterator<Item = String>) -> Result<Command, Str
     let mut settings = Settings::default();
     let mut dry_run = false;
     let mut out = None;
+    let mut overrides_file = None;
     while let Some(argument) = arguments.next() {
         let mut value = |name: &str| {
             arguments
@@ -105,6 +111,7 @@ pub fn parse(arguments: impl IntoIterator<Item = String>) -> Result<Command, Str
                     .ok_or("--max-size needs a whole number of at least 16")?;
                 settings.max_size = Some(size);
             }
+            "--overrides" => overrides_file = Some(PathBuf::from(value("--overrides")?)),
             "--dry-run" => dry_run = true,
             "--out" => out = Some(PathBuf::from(value("--out")?)),
             other => return Err(format!("unknown argument {other:?}; see --help")),
@@ -117,16 +124,33 @@ pub fn parse(arguments: impl IntoIterator<Item = String>) -> Result<Command, Str
         None => default_output()?,
     };
     check_output(&out, &game_data)?;
+    let overrides_file = overrides_file.or_else(|| {
+        let beside = out.with_file_name(OVERRIDES_FILE_NAME);
+        beside.is_file().then_some(beside)
+    });
+    let overrides = match &overrides_file {
+        Some(path) => {
+            let text = std::fs::read_to_string(path)
+                .map_err(|error| format!("cannot read {}: {error}", path.display()))?;
+            Overrides::parse(&text).map_err(|error| format!("{}: {error}", path.display()))?
+        }
+        None => Overrides::default(),
+    };
     Ok(Command::Run(Options {
         game_data,
         fs_game,
         maps,
         limit,
         settings,
+        overrides,
+        overrides_file,
         dry_run,
         out,
     }))
 }
+
+/// The overrides file read by default, next to the output pk3.
+pub const OVERRIDES_FILE_NAME: &str = "sjk-materialgen-overrides.txt";
 
 /// The output must be a `.pk3` outside the game installation.
 fn check_output(out: &Path, game_data: &Path) -> Result<(), String> {

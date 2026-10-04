@@ -113,6 +113,9 @@ fn build(
             .flat_map(|material| &material.stages)
             .filter_map(|stage| stage.maps.as_ref()),
     );
+    if material_maps.enabled() {
+        super::material_maps::report_pack_generation(vfs);
+    }
     if material_maps.enabled() && found.stages == 0 {
         crate::log::progress(format_args!(
             "material maps ({material_maps}): no stage of this map has maps"
@@ -123,10 +126,24 @@ fn build(
         let mut gpu = super::material_maps::gpu::Gpu::new(device, queue);
         let grid = crate::entity_lighting::EntityLighting::from_world(bsp).layout();
         let tangents = super::material_maps::frames::tangents(geometry.0, geometry.1);
-        let frames = super::material_maps::frames::pack(geometry.0, &tangents, |point| {
+        let mut frames = super::material_maps::frames::pack(geometry.0, &tangents, |point| {
             grid.map(|grid| grid.sample(bsp.render(), point, |_| [255.0; 3]).direction)
         });
         drop(tangents);
+        if material_maps.reflections > 0 && found.specular > 0 {
+            gpu.reflections = reflection_probes(
+                device,
+                queue,
+                camera_layout,
+                format,
+                bsp,
+                draws,
+                &compiled_materials,
+                geometry.1,
+                &mut frames,
+                material_maps.reflections,
+            );
+        }
         gpu.set_frames(device, &frames);
         forge.material_maps = Some(gpu);
         crate::log::progress(format_args!(
@@ -371,6 +388,85 @@ fn build(
         finished.duration_since(images_done).as_secs_f64() * 1_000.0,
     ));
     Ok(result)
+}
+
+/// Place the map's reflection probes and give every specular-mapped surface the nearest
+/// one it can see, in its vertex frames (`reflection_probes.rs`). `None` when the map
+/// offers no probe position.
+#[allow(clippy::too_many_arguments)]
+fn reflection_probes(
+    device: &wgpu::Device,
+    queue: &crate::frame_queue::FrameQueue,
+    camera_layout: &wgpu::BindGroupLayout,
+    format: wgpu::TextureFormat,
+    bsp: &Bsp,
+    draws: &[DrawBatch],
+    compiled: &[Option<super::forge::CompiledMaterial>],
+    indices: &[u32],
+    frames: &mut [[u32; 2]],
+    size: u32,
+) -> Option<super::material_maps::reflections::gpu::Probes> {
+    use super::material_maps::reflections;
+    let started = Instant::now();
+    let probes = reflections::place(bsp);
+    if probes.is_empty() {
+        crate::log::progress(format_args!(
+            "Reflection probes: none (no misc_cubemap or spawn point in open space)"
+        ));
+        return None;
+    }
+    let reflective: Vec<bool> = compiled
+        .iter()
+        .map(|material| {
+            material.as_ref().is_some_and(|material| {
+                material.stages.iter().any(|stage| {
+                    stage
+                        .maps
+                        .as_ref()
+                        .is_some_and(|maps| maps.specular.is_some())
+                })
+            })
+        })
+        .collect();
+    const CONTENTS_SOLID: u32 = 1;
+    let mut scratch = bsp.trace_scratch();
+    let mut surfaces = 0;
+    for draw in draws {
+        if !reflective.get(draw.material).copied().unwrap_or(false)
+            || !draw.bounds.iter().flatten().all(|v| v.is_finite())
+        {
+            continue;
+        }
+        let centre =
+            (glam::Vec3::from_array(draw.bounds[0]) + glam::Vec3::from_array(draw.bounds[1])) * 0.5;
+        let probe = reflections::nearest(&probes, centre, |from, to| {
+            // From just off the surface toward the probe; a wall between them hides it.
+            let start = from + (to - from).normalize_or_zero() * 4.;
+            let trace = bsp.trace_box_with(
+                &mut scratch,
+                start.to_array(),
+                to.to_array(),
+                sjk_bsp::Aabb::POINT,
+                CONTENTS_SOLID,
+            );
+            !trace.start_solid && trace.fraction >= 1.
+        });
+        reflections::mark_vertices(frames, indices, draw.indices.clone(), probe);
+        surfaces += 1;
+    }
+    crate::log::progress(format_args!(
+        "Reflection probes: {} placed, {surfaces} surfaces assigned in {:.1} ms",
+        probes.len(),
+        started.elapsed().as_secs_f64() * 1e3
+    ));
+    Some(reflections::gpu::Probes::new(
+        device,
+        queue,
+        camera_layout,
+        format,
+        probes,
+        size,
+    ))
 }
 
 /// Compile every material on a pool of threads (each with its own image cache; the

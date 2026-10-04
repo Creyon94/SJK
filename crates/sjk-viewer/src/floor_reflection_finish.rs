@@ -4,6 +4,10 @@ use wgpu::util::DeviceExt;
 
 pub(super) const SCALE: f32 = 0.5;
 pub(super) const ROUGHNESS: f32 = 0.4;
+/// Region margin, in roughness units, of a plane whose material has maps: the widest
+/// blur the shader allows (0.6, `FLOOR_MAX_ROUGHNESS`) plus as much again for the
+/// lookup a normal map bends.
+pub(super) const MAPPED_MARGIN: f32 = 1.2;
 
 /// Keep the shared light buffer's pixel coordinates valid while shading a smaller
 /// raster. X/Y pack into the upper-left region; depth and the oblique clip stay intact.

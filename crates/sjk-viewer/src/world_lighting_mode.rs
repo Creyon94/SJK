@@ -7,10 +7,20 @@ use std::sync::{
 
 use super::material_maps::DEBUG_SHIFT;
 /// The bits of the material-map view in the mode word.
-const DEBUG_BITS: u32 = 3 << DEBUG_SHIFT;
+const DEBUG_BITS: u32 = 7 << DEBUG_SHIFT;
+/// `r_normalMapStrength` in the mode word: bits 16..24 hold `(64·strength + 192) mod
+/// 256`, so a word without them (zero) means strength 1. Steps of 1/64 up to 3.98.
+pub(crate) const STRENGTH_SHIFT: u32 = 16;
+const STRENGTH_BITS: u32 = 255 << STRENGTH_SHIFT;
+
+/// The mode word's bits for normal-map strength `value` (clamped to 0..3.98).
+fn strength_bits(value: f64) -> u32 {
+    let steps = (value.clamp(0., 255. / 64.) * 64.).round() as u32;
+    ((steps + 192) & 255) << STRENGTH_SHIFT
+}
 
 /// Two independent stock controls and the material-map view (`r_materialMapsDebug`,
-/// bits [`DEBUG_SHIFT`]..+2) packed into the existing scene-light uniform.
+/// bits [`DEBUG_SHIFT`]..+3) packed into the existing scene-light uniform.
 #[derive(Clone, Default)]
 pub(crate) struct Settings(Arc<AtomicU32>);
 
@@ -37,7 +47,15 @@ impl Settings {
             CvarFlags::NONE,
             "Material-map surfaces (r_normalMapping/r_specularMapping): 1 mapped normal \
              as colour, 2 tint by maps found (green normal, blue specular, red parallax), \
-             3 normal-map relief x4 on grey; other surfaces unchanged; live",
+             3 normal-map relief x4 on grey, 4 reflection probes alone, 5 without \
+             reflection probes; other surfaces unchanged; live",
+        ))?;
+        cvars.register(CvarDefinition::new(
+            "r_normalMapStrength",
+            1.0_f64,
+            CvarFlags::ARCHIVE,
+            "Multiplier on normal-map relief of material-mapped surfaces, 0 flat .. 3.98; \
+             1 as authored; live",
         ))?;
         Self::from_registered(cvars)
     }
@@ -54,19 +72,39 @@ impl Settings {
         cvars.on_change("r_materialMapsDebug", move |change| {
             changed.set_debug(&change.current)
         })?;
+        settings.set_strength(&cvars.get("r_normalMapStrength").unwrap().value);
+        let changed = settings.clone();
+        cvars.on_change("r_normalMapStrength", move |change| {
+            changed.set_strength(&change.current)
+        })?;
         Ok(settings)
     }
 
-    /// `r_materialMapsDebug` 0..3; other values show the scene unchanged.
+    /// `r_materialMapsDebug` 0..5; other values show the scene unchanged.
     fn set_debug(&self, value: &CvarValue) {
         let view = match value {
-            CvarValue::Integer(value @ 0..=3) => *value as u32,
+            CvarValue::Integer(value @ 0..=5) => *value as u32,
             _ => 0,
         };
         let _ = self
             .0
             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |bits| {
                 Some(bits & !DEBUG_BITS | view << DEBUG_SHIFT)
+            });
+    }
+
+    /// `r_normalMapStrength`; a non-number leaves strength 1.
+    fn set_strength(&self, value: &CvarValue) {
+        let strength = match value {
+            CvarValue::Float(value) => *value,
+            CvarValue::Integer(value) => *value as f64,
+            _ => 1.,
+        };
+        let bits = strength_bits(strength);
+        let _ = self
+            .0
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |word| {
+                Some(word & !STRENGTH_BITS | bits)
             });
     }
 
@@ -107,11 +145,37 @@ mod tests {
         assert_eq!(settings.bits() & 3, 1);
         cvars.set_text("r_materialMapsDebug", "3").expect("set");
         assert_eq!(settings.bits() >> DEBUG_SHIFT, 3);
+        cvars.set_text("r_materialMapsDebug", "5").expect("set");
+        assert_eq!(settings.bits() >> DEBUG_SHIFT, 5);
         // Out of range shows the scene unchanged rather than another view.
         cvars.set_text("r_materialMapsDebug", "7").expect("set");
         assert_eq!(settings.bits(), 1);
         cvars.set_text("r_fullbright", "0").expect("set");
         cvars.set_text("r_materialMapsDebug", "1").expect("set");
         assert_eq!(settings.bits(), 1 << DEBUG_SHIFT);
+    }
+
+    #[test]
+    fn normal_strength_one_is_the_empty_word() {
+        let mut cvars = CvarRegistry::new();
+        let settings = Settings::bind(&mut cvars).expect("registers");
+        // The default leaves the word as it was: zero bits decode to strength 1.
+        assert_eq!(settings.bits(), 0);
+        let decode = |bits: u32| ((((bits >> STRENGTH_SHIFT) + 64) & 255) as f32) / 64.;
+        cvars.set_text("r_normalMapStrength", "2").expect("set");
+        assert_eq!(decode(settings.bits()), 2.0);
+        cvars.set_text("r_normalMapStrength", "0").expect("set");
+        assert_eq!(decode(settings.bits()), 0.0);
+        cvars.set_text("r_normalMapStrength", "9").expect("set");
+        assert_eq!(decode(settings.bits()), 255. / 64.);
+        cvars.set_text("r_normalMapStrength", "0.5").expect("set");
+        cvars.set_text("r_materialMapsDebug", "2").expect("set");
+        assert_eq!(decode(settings.bits()), 0.5);
+        assert_eq!(settings.bits() >> DEBUG_SHIFT & 7, 2);
+        // The shader decodes the same bits.
+        assert!(
+            include_str!("material_maps.wgsl")
+                .contains("(((point_lights.metadata.z >> 16u) + 64u) & 255u)")
+        );
     }
 }

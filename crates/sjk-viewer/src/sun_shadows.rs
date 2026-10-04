@@ -235,6 +235,38 @@ impl crate::GpuState {
 }
 
 impl super::Runtime {
+    /// The lighting reflection probes are captured under: sun direction and intensity,
+    /// sky colour, light scale and indirect gain (`reflection_probes::relit`). Constant
+    /// zero without the real-time model.
+    pub(crate) fn lighting_signature(&self) -> super::material_maps::reflections::Signature {
+        let Some(shadow) = &self.shadows else {
+            return [0.; 9];
+        };
+        let frame = shadow.light_frame(shadow.time.get());
+        let [x, y, z] = frame.sun.direction;
+        let [r, g, b] = frame.ambient;
+        [
+            x,
+            y,
+            z,
+            frame.sun.intensity,
+            r,
+            g,
+            b,
+            shadow.light_scale.get(),
+            shadow.indirect_readability.get()[0],
+        ]
+    }
+
+    /// Whether the main view's light buffer is fitted to `scene` (probe captures pack
+    /// their faces into its corner).
+    pub(crate) fn light_buffer_fits(&self, scene: [u32; 2]) -> bool {
+        self.shadows
+            .as_ref()
+            .and_then(|shadow| shadow.light.as_ref())
+            .is_some_and(|light| light.scene == scene)
+    }
+
     /// Current rendered or automatic sunlight for seeding the shot panel.
     pub(crate) fn shot_sun(&self, natural: bool) -> Option<Vec3> {
         self.shadows
@@ -361,7 +393,8 @@ impl super::Runtime {
             .light
             .as_ref()
             .is_some_and(|l| l.preservation_enabled());
-        let mut light = light_buffer::LightBuffer::new(device, scene, divisor);
+        let directed = self.forge.material_maps.is_some();
+        let mut light = light_buffer::LightBuffer::new(device, scene, divisor, directed);
         light.configure_preservation(device, preserve);
         shadow.light = Some(light);
         shadow.receiver = shadow.build_receiver(device);
@@ -449,7 +482,9 @@ impl super::Runtime {
                 .lamp_cache_pages
                 .as_ref()
                 .filter(|_| self.gi.as_ref().is_some_and(|gi| gi.fixtures.is_some()))
-                .map(|pages| lamp_cache::Cache::new(device, pages));
+                .map(|pages| {
+                    lamp_cache::Cache::new(device, pages, self.forge.material_maps.is_some())
+                });
         }
         shadow.cache_group = cache_group(device, self.lamp_cache.as_ref(), shadow.light.as_ref());
         shadow.environment = environment;
@@ -538,7 +573,7 @@ impl super::Runtime {
     }
     /// Mirror the main-view shader's live-material gate, including neutral resources
     /// before a valid frame. Secondary views select their legacy pipelines separately.
-    pub(super) fn realtime_materials_active(&self) -> bool {
+    pub(crate) fn realtime_materials_active(&self) -> bool {
         self.shadows
             .as_ref()
             .is_some_and(|s| s.settings.day.enabled && s.light.is_some())

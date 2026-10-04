@@ -28,6 +28,10 @@ pub(in crate::world_materials) struct Gpu {
     frames: wgpu::Buffer,
     /// Bound where a stage has no map of a kind; the shader's flags skip it.
     neutral: wgpu::TextureView,
+    /// The map's reflection probes, when it has any (`reflections`); stage groups then
+    /// bind their cubes, else `neutral_reflections`.
+    pub(in crate::world_materials) reflections: Option<super::reflections::gpu::Probes>,
+    neutral_reflections: super::reflections::gpu::Shading,
     textures: HashMap<String, wgpu::TextureView>,
     program: OnceCell<(wgpu::PipelineLayout, wgpu::ShaderModule)>,
 }
@@ -69,6 +73,7 @@ impl Gpu {
                 count: None,
             },
         ]);
+        entries.extend(super::reflections::gpu::Shading::layout_entries());
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("JKR material-mapped stage layout"),
             entries: &entries,
@@ -82,6 +87,8 @@ impl Gpu {
             layout,
             frames: frames_buffer(device, &[[0; 2]]),
             neutral,
+            reflections: None,
+            neutral_reflections: super::reflections::gpu::Shading::neutral(device),
             textures: HashMap::new(),
             program: OnceCell::new(),
         }
@@ -100,14 +107,14 @@ impl Gpu {
 
     /// The material group of one stage: `stage_entries` (the ordinary group's
     /// entries) plus its maps, the frames, its parameters and the diffuse sampler.
-    pub(in crate::world_materials) fn bind(
+    /// The uploaded views of a stage's normal and specular maps (the neutral texture for a
+    /// missing one), uploading each image once.
+    fn views(
         &mut self,
         device: &wgpu::Device,
         queue: &crate::frame_queue::FrameQueue,
-        stage_entries: &[wgpu::BindGroupEntry<'_>],
         maps: &StageMaps,
-        sampler: &wgpu::Sampler,
-    ) -> Result<wgpu::BindGroup, Box<dyn Error>> {
+    ) -> (wgpu::TextureView, wgpu::TextureView) {
         let mut view = |image: &Option<super::MapImage>| -> wgpu::TextureView {
             image.as_ref().map_or_else(
                 || self.neutral.clone(),
@@ -119,8 +126,34 @@ impl Gpu {
                 },
             )
         };
-        let normal = view(&maps.normal);
-        let specular = view(&maps.specular);
+        (view(&maps.normal), view(&maps.specular))
+    }
+
+    /// A stage's maps as the floor mirrors' finish reads them.
+    pub(in crate::world_materials) fn floor_maps(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &crate::frame_queue::FrameQueue,
+        maps: &StageMaps,
+    ) -> super::FloorMaps {
+        let (normal, specular) = self.views(device, queue, maps);
+        super::FloorMaps {
+            normal,
+            specular,
+            params: bytemuck::cast(maps.params),
+            clamp: maps.clamp,
+        }
+    }
+
+    pub(in crate::world_materials) fn bind(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &crate::frame_queue::FrameQueue,
+        stage_entries: &[wgpu::BindGroupEntry<'_>],
+        maps: &StageMaps,
+        sampler: &wgpu::Sampler,
+    ) -> Result<wgpu::BindGroup, Box<dyn Error>> {
+        let (normal, specular) = self.views(device, queue, maps);
         let params = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("JKR material map parameters"),
             contents: bytemuck::bytes_of(&maps.params),
@@ -149,6 +182,11 @@ impl Gpu {
                 resource: wgpu::BindingResource::Sampler(sampler),
             },
         ]);
+        let reflections = self
+            .reflections
+            .as_ref()
+            .map_or(&self.neutral_reflections, |probes| &probes.shading);
+        entries.extend(reflections.entries());
         Ok(device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("JKR material-mapped stage"),
             layout: &self.layout,
