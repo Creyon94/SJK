@@ -1,3 +1,5 @@
+<p align="center"><img src="assets/branding/sjk-logo-512.png" alt="Sol JK emblem" width="240"></p>
+
 # Sol JK (SJK)
 
 **Sol JK**, or **SJK** for short, is Sol's flavor of
@@ -30,7 +32,8 @@ controls, HUD, audio, screenshots and demo playback.
   of both. At the time of writing, SJK's additions include:
   - a classic menu style after the retail menus, the default in SJK: main,
     profile, setup, controls and server browser pages, retail connect and loading
-    screens, the animated logo and glows, and no map behind the menu;
+    screens, the animated logo and glows with the SJK emblem in the ring, and no
+    map behind the menu;
   - a classic scoreboard with client IDs, and HUDs drawn from the game's own
     menu files, so the retail HUD and custom HUD packs work;
   - JA+ support: the client identifies as the JA+ plugin, predicts JA+ movement,

@@ -52,6 +52,8 @@ jobs:
             exit 0
           fi
           cat > notes.md <<EOF
+          <p align="center"><img src="https://raw.githubusercontent.com/${{ github.repository }}/refs/tags/$TAG/assets/branding/sjk-logo-512.png" alt="Sol JK emblem" width="200"></p>
+
           Sol JK $VERSION for Windows 10/11 x64 and Linux x64.
 
           **Install:** extract the whole ZIP for your platform into Jedi Academy's
