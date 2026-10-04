@@ -75,6 +75,14 @@ pub(in crate::world_materials) fn compile_material(
     let mut emission_texture = super::emission::Texture::default();
     let mut fallback_emission = super::emission::Texture::default();
     let mut debug_end = false;
+    // A shader that shows its own light takes no emission map: never the light twice.
+    let material_maps = crate::world_materials::material_maps::Settings {
+        emission: material_maps.emission
+            && !definition.is_some_and(crate::world_materials::material_maps::shows_light),
+        ..material_maps
+    };
+    // The first emission map and the diffuse stage it belongs to, for the light it gives.
+    let mut emission_map = None;
     for (index, stage) in hardware_stages.iter().take(MAX_SHADER_STAGES).enumerate() {
         if index > 0
             && stage.primary.texture_generator != sjk_shader::TextureGenerator::Lightmap
@@ -172,6 +180,19 @@ pub(in crate::world_materials) fn compile_material(
         } else {
             None
         };
+        if emission_map.is_none()
+            && let Some(image) = maps.as_ref().and_then(|maps| maps.emission.as_ref())
+            && let Some(bundle) =
+                crate::world_materials::material_maps::diffuse_bundle(stage, key.lightmap)
+        {
+            let diffuse = match bundle {
+                crate::world_materials::material_maps::Bundle::Primary => &stage.primary,
+                crate::world_materials::material_maps::Bundle::Secondary => {
+                    stage.secondary.as_ref().expect("collapsed stage")
+                }
+            };
+            emission_map = Some((diffuse.clone(), Arc::clone(&image.pixels)));
+        }
         compiled.push(PendingStage {
             allow_ssao: super::ssao::authored_diffuse(definition),
             glow: stage.glow,
@@ -248,10 +269,29 @@ pub(in crate::world_materials) fn compile_material(
             image_cache,
         )?;
     }
+    // An emission map lights the room only where nothing else already does: a declared
+    // surface light or an inferred fixture keeps its own (`r_emissiveLights`).
+    let gain = crate::world_materials::material_maps::lights::gain();
+    let mut mapped_emission = false;
+    if let Some((stage, image)) = emission_map
+        && crate::world_materials::material_maps::lights::applies(emission, gain)
+    {
+        let texture = super::emission::Texture::from_map(
+            &stage,
+            image,
+            crate::world_materials::material_maps::lights::RADIANCE * gain,
+        );
+        if texture.mean().max_element() > 0. {
+            emission = texture.mean().to_array();
+            emission_texture = texture;
+            mapped_emission = true;
+        }
+    }
     Ok(CompiledMaterial {
         sort,
         emission,
         emission_texture,
+        mapped_emission,
         stages: compiled,
         resolved,
     })

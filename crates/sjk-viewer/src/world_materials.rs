@@ -222,6 +222,8 @@ struct StagePass {
     forced_alpha_pipelines: [usize; 2],
     /// Drawn again into the dynamic glow target ([`glow`]).
     glow: bool,
+    /// Drawn there only for its emission map (`r_emissiveGlow` can leave it out).
+    emission_glow: bool,
 }
 
 impl StagePass {
@@ -366,6 +368,8 @@ struct PendingMaterial {
     /// Bounce colour and emission for global illumination.
     surface: crate::gi_voxels::Surface,
     emission_texture: emission::Texture,
+    /// The emission comes from an emission map: its lamps are capped separately.
+    mapped_emission: bool,
     sort: f32,
     stages: Vec<PendingStage>,
     static_draws: Vec<StaticDraw>,

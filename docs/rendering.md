@@ -105,7 +105,11 @@ work without reducing source count, texture resolution or lighting quality.
 | `r_normalMapping` | Normal maps on lightmapped world surfaces (rend2 convention); default 0, restart required |
 | `r_specularMapping` | Specular, roughness and metalness maps on the same surfaces; default 0, restart required |
 | `r_parallaxMapping` | Parallax from the height in `_nh`/`normalHeightMap` images; needs `r_normalMapping`; default 0, restart required |
-| `r_materialMapsDebug` | Material-mapped surfaces only: 1 mapped normal as colour, 2 tint by maps found, 3 normal-map relief, 4 reflection probes alone, 5 without reflection probes; default 0, live, not archived |
+| `r_materialMapsDebug` | Material-mapped surfaces only: 1 mapped normal as colour, 2 tint by maps found, 3 normal-map relief, 4 reflection probes alone, 5 without reflection probes, 6 emission maps alone; default 0, live, not archived |
+| `r_emissiveMaps` | Emission maps (`<texture>_e`, SJK's) on lightmapped world surfaces; default 1, restart required. See [Emission maps](#emission-maps) |
+| `r_emissionStrength` | Brightness of emission maps, 0 (off) to 7.97 in steps of 1/32; default 1, live, archived |
+| `r_emissiveGlow` | Dynamic-glow halo around emitting texels (with `r_DynamicGlow 1`); default 1, live, archived |
+| `r_emissiveLights` | Emission-mapped surfaces as lamps of real-time lighting, a power multiplier 0 (off) to 4; default 1, applies when a map loads, archived |
 | `r_normalMapStrength` | Multiplier on the normal maps' relief (their x/y slope, after rend2's `normalScale`), 0–3.98 in steps of 1/64; default 1, live, archived. Material-mapped surfaces only; the floor mirrors' lookup keeps the authored relief |
 | `r_cubeMapping` | Reflection probes on specular-mapped surfaces (rend2's name and meaning); default 1, needs `r_specularMapping`, restart required |
 | `r_cubeMapSize` | Reflection probe face size, a power of two 32–512; default 128, restart required |
@@ -820,8 +824,10 @@ All are archived and keep stock's names (lookups ignore case, so the retail menu
 for `r_DynamicGlow` and `r_dynamicGlowStyle`. SJK's classic menus have no
 counterpart of the retail Setup page's glow toggle.
 
-Not drawn into the glow image: the sky, flares, the menu stage, and secondary
-views (portals, sky portals, floor reflections), which show no glow yet. Stock's
+Emission-mapped world stages are drawn too, writing only their emission (see
+[Emission maps](#emission-maps)). Not drawn into the glow image: the sky, flares, the
+menu stage, and secondary views (portals, sky portals, floor reflections), which show
+no glow yet. Stock's
 glow pass fogs towards black, SJK's does not, so glow inside fog is brighter than
 stock's. Decals never glow. The image holds unexposed display values, equal to the
 scene's at `r_hdrExposure 1`: an exposure belongs on the world's glowing stages
@@ -847,6 +853,7 @@ texture packs apply without conversion. Stage keywords (`ParseStage` in
 `normalHeightMap`, `specMap`/`specularMap`, the packed `rmoMap`, `moxrMap` and
 `ormMap` families, and `specularReflectance`, `specularExponent`, `gloss`,
 `roughness`, `normalScale`, `specularScale`, `parallaxDepth` and `parallaxBias`.
+SJK adds emission maps (`<diffuse>_e`, below), which rend2 does not have.
 Their order-dependent overrides are kept. rend2 selects a packed layout by
 comparing the image name with the keyword, so `rmosMap`, `mosrMap` and `ormsMap`
 load the three-channel layouts; JKR does the same. Without keywords,
@@ -1058,6 +1065,75 @@ and off. No authored rend2 pack was available for testing. Generated maps on
 real ffa3 data were rendered headless in baked lighting only (above); real-time
 lighting on real content, an in-game image and the frame cost in a match remain
 unverified.
+
+### Emission maps
+
+A light panel, lamp or screen painted into an ordinary lightmapped texture shows only
+as bright as the light falling on it. An emission map makes it glow: `<diffuse>_e`
+next to the diffuse image (found like rend2's automatic maps, through
+[the lookup](../crates/sjk-viewer/src/material_map_images.rs)) holds the emitted
+colour, sRGB-encoded like the diffuse image; black emits nothing. rend2 has no
+emission map and no stage keyword for one (its `glow` stage flag only feeds its glow
+buffer), so the name is SJK's; it matches the `_e` emission images some community
+packs already ship for model textures (which this lookup, on world surfaces only, does
+not read). [sjk-materialgen](#generating-material-maps) writes them.
+
+- **Which surfaces.** The same stages as the other material maps (lightmap and
+  diffuse collapsed into one opaque pass). A shader that already shows light of its
+  own over its paint (a `glow`, additive or `GL_DST_COLOR GL_ONE` texture stage)
+  takes no emission map, whatever images exist, so its light is never drawn twice;
+  the generator skips the same shaders. `r_emissiveMaps` is on by default because it
+  only acts where a pack has `_e` images; with nothing else enabled, a stage with an
+  emission map takes the material program with a flat normal and no specular map,
+  which reproduces the ordinary lit colour exactly, and the map needs no vertex frames
+  and no light-direction target.
+- **Surface.** The material program samples the map at the diffuse coordinates and
+  adds it after lighting, highlights and dynamic lights (`material_map_finish` in
+  [material_maps.wgsl](../crates/sjk-viewer/src/material_maps.wgsl)): no lightmap,
+  light buffer, shadow or ambient occlusion dims it. `r_emissionStrength` scales it
+  live (bits 24-31 of the scene lighting-mode word, so no buffer changes). It is
+  added in the scene's linear units, so HDR, `r_hdrExposure` and eye adaptation treat
+  it like any other bright surface. `r_fullbright` and `r_lightmap` show none.
+- **Halo.** A stage with an emission map and no authored `glow` is drawn into the
+  [dynamic glow](#dynamic-glow) image through a glow variant of the material program
+  that writes only its emission, so only the emitting texels get a halo.
+  `r_emissiveGlow 0` leaves these stages out of the glow pass (a bit test per glowing
+  pass and frame); a stage with an authored `glow` keeps glowing as before.
+- **Light, baked lighting.** The lightmaps already hold the light of the map's
+  sources, and an emission map adds none: in baked lighting it is only seen.
+- **Light, real-time lighting.** With `r_dayNight 1` the lightmaps are replaced by live
+  light, so a surface whose emission map is its only light becomes a source.
+  `compile_material` ([world_material_compile.rs](../crates/sjk-viewer/src/world_material_compile.rs))
+  turns the map into the same textured emission field the
+  [fixture inference](#inferring-fixture-light-from-legacy-materials) builds from
+  glow stages: the map's colour times 16 (the radiance an explicit glow stage of an
+  undeclared fixture gets) times `r_emissiveLights`, laid out by the diffuse stage's
+  texture transforms. The existing lamp extraction then integrates it over the
+  surface (texture-aware patches merged within 96 units, finite rectangles, the lamp
+  grid, static visibility and the lamp cache), and the material's emission enters
+  the GI voxels like any fixture's, so probes see it too; GI rays that hit a lamp
+  face see no emission, as for other fixtures. A material that already emits (a
+  declared `q3map_surfacelight`, an inferred glow fixture or self-lit paint) keeps its
+  own light and its emission map adds none. Emission-map lamps are extracted
+  separately and capped at the 1,024 most powerful per map (`lights::keep_brightest`
+  in [material_maps.rs](../crates/sjk-viewer/src/material_maps.rs)); the load log
+  prints `Emission maps: N area lights from M materials (K before the cap of 1024)`.
+
+Cost: without `_e` images, map load does one more image lookup per collapsed stage
+and nothing else changes. With them, each emitting stage reads one more texture
+(uploaded as sRGB RGBA8 with mips) and draws through the material program; the glow
+pass, when one of them is on screen, redraws those stages and runs the blur (see
+[Dynamic glow](#dynamic-glow)); in real-time lighting each added lamp costs what an
+inferred fixture costs, bounded by the cap and by the lamp grid's per-cell selection.
+Load time grows by the patch extraction of the emitting surfaces. Estimates from the
+code paths; nothing was measured on a GPU. `r_materialMapsDebug 6` shows the emission
+maps alone (black on mapped stages without one).
+
+Unit tests cover the lookup (synthetic images), the shader rule, the light gate and
+the lamp cap, the emission field's mean and mask, the strength and glow bits, and naga
+validation of the material program and its glow variant in both lighting modes. No
+emission map has been rendered: appearance, halo and the light added in real-time
+lighting are unverified.
 
 ## Floor reflections
 
@@ -1607,9 +1683,10 @@ SSAO at strength 4, trilinear mipmapping
 and 16× anisotropy where supported. Bloom and the optional LDR tone curve are off.
 Dynamic glow is on with rd-vulkan's blur (SJK; stock defaults it off).
 Soft particles, per-pixel model diffuse lighting and full rendering resolution
-remain enabled. Material maps stay off; reflection probes (`r_cubeMapping 1`, 128²)
-are on but only take effect once `r_specularMapping` is enabled and a map has
-specular maps. These are ordinary cvar defaults, not a config imported at launch.
+remain enabled. Normal, specular and parallax maps stay off; reflection probes
+(`r_cubeMapping 1`, 128²) are on but only take effect once `r_specularMapping` is
+enabled and a map has specular maps. Emission maps (`r_emissiveMaps 1`) are on and
+only act where a pack has `_e` images. These are ordinary cvar defaults, not a config imported at launch.
 
 Saved values take precedence, including explicitly disabled effects. Existing
 profiles are not silently migrated (the one exception is the old `com_maxfps`

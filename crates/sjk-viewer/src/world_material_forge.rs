@@ -141,6 +141,14 @@ impl Forge {
         }
     }
 
+    /// Whether the real-time light pass also writes the light's direction (and the lamp
+    /// cache bakes it): some stage of the map has normal or specular maps to move it to.
+    pub(super) fn directed_light(&self) -> bool {
+        self.material_maps
+            .as_ref()
+            .is_some_and(|maps| maps.directed)
+    }
+
     /// Index of `key` in the pipeline lists, registering it when new.
     pub(super) fn pipeline_index(&mut self, key: PipelineKey) -> (usize, bool) {
         match self.pipeline_keys.iter().position(|known| *known == key) {
@@ -179,6 +187,8 @@ pub(super) struct CompiledMaterial {
     /// Light supplied by textured emissive stages, independent of the diffuse paint.
     pub(super) emission: [f32; 3],
     pub(super) emission_texture: super::emission::Texture,
+    /// The emission comes from an emission map (`material_maps::lights`).
+    pub(super) mapped_emission: bool,
     pub(super) stages: Vec<PendingStage>,
     pub(super) resolved: usize,
 }
@@ -278,8 +288,10 @@ pub(super) fn build_passes(
                 .pipeline_index(super::forced_alpha::key(key, alpha_tested))
                 .0
         });
+        let emission_glow = stage.maps.as_ref().is_some_and(|maps| maps.emission_glow());
         passes.push(StagePass {
-            glow: stage.glow,
+            glow: stage.glow || emission_glow,
+            emission_glow,
             table: Some(super::stage_table::Source {
                 gpu: stage.gpu,
                 primary: primary.clone(),

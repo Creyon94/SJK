@@ -33,6 +33,17 @@ impl Texture {
         self.reference
     }
 
+    /// The field of an emission map (`material_maps`): its sRGB colour times `radiance`,
+    /// laid out by the diffuse `stage` it belongs to (texture transforms and clamping).
+    pub(crate) fn from_map(stage: &ShaderStage, image: Arc<RgbaImage>, radiance: f32) -> Self {
+        let layer = Layer::new(stage, &[image], Vec3::splat(radiance), false);
+        let reference = layer.mean.truncate() * layer.gain;
+        Self {
+            layers: vec![layer],
+            reference,
+        }
+    }
+
     /// Follow source-stage composition while preserving its luminous pixels.
     pub(crate) fn observe(
         &mut self,
