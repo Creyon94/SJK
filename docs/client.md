@@ -109,6 +109,18 @@ Planned follow-ups, each a new page or screen module, following the retail
 - The retail fonts (`ui_gameFont`, a separate change) and the animated art
   stages.
 
+The player screen's Character and Saber pages write their cvars as soon as a
+value changes. The Force page edits a draft instead: Apply writes `forcepowers`
+once, in the stock format and legalized as before, Discard returns to the applied
+profile, and leaving the screen drops unapplied changes. While a draft is pending,
+the page's points line reads NOT APPLIED and the footer's Back cap says that
+leaving drops it. Power icons (`gfx/mp/f_icon_*`) and side emblems
+(`gfx/hud/mpi_jlight`, `gfx/hud/mpi_dklight`) come from the installed game data;
+without them the page shows text only. They take icon-atlas cells of their own
+after the HUD's, so the character grid keeps all 207 of its icon cells. See
+[force.rs](../crates/jkr-viewer/src/player_menu/force.rs) and
+[force_view.rs](../crates/jkr-viewer/src/player_menu/force_view.rs).
+
 ## Animation sounds and voice variants
 
 Footsteps and authored swing/spin sounds follow the evaluated lower/upper Ghoul2

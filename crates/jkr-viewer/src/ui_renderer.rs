@@ -9,7 +9,8 @@ mod icons;
 use art::{ArtTextures, Run, Source};
 use icons::IconAtlas;
 pub(crate) use icons::{
-    BANNER_SIZE, BANNER_TEXTURE, ICON_CELLS, ICON_SIZE, LEVELSHOT_SIZE, LEVELSHOT_TEXTURE,
+    ATLAS_CELLS, BANNER_SIZE, BANNER_TEXTURE, FORCE_ICON_CELLS, FORCE_ICON_FIRST, ICON_CELLS,
+    ICON_SIZE, LEVELSHOT_SIZE, LEVELSHOT_TEXTURE,
 };
 
 /// Main-menu wordmark: the Jedi Knight saber emblem laid horizontal, white
