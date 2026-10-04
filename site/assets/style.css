@@ -1,5 +1,5 @@
 /* Sol JK site: retail Jedi Academy mood (deep space, menu gold, pale blue
-   titles, soft glows), drawn with CSS and SVG only; no game assets. */
+   titles, soft glows), drawn with CSS and SJK's own emblem; no game assets. */
 :root {
   --space: #060a14;
   --space-2: #0b1430;
@@ -111,13 +111,14 @@ pre code { background: none; padding: 0; color: var(--text); }
 
 /* Hero */
 .hero { text-align: center; padding: 4.5rem 1rem 3.5rem; max-width: 820px; margin: 0 auto; }
+/* The emblem's glow breathes once every 4.2 s, as its core does in the client's menu. */
 .emblem {
-  width: 148px; height: 148px; margin: 0 auto 1.4rem;
-  filter: drop-shadow(0 0 28px rgba(242, 196, 92, 0.45));
-  animation: orbit 72s linear infinite;
+  width: 176px; height: 176px; margin: 0 auto 1.4rem;
+  filter: drop-shadow(0 0 22px rgba(242, 150, 60, 0.35));
+  animation: breathe 2.1s ease-in-out infinite alternate;
 }
 .emblem img { display: block; width: 100%; height: 100%; }
-@keyframes orbit { to { transform: rotate(360deg); } }
+@keyframes breathe { to { filter: drop-shadow(0 0 34px rgba(255, 170, 70, 0.6)); } }
 .eyebrow {
   margin: 0;
   font: 600 0.9rem/1.3 Rajdhani, sans-serif;
@@ -261,7 +262,7 @@ h3 {
   .nav { flex-direction: column; align-items: flex-start; gap: 0.4rem; }
   .nav ul { gap: 0.2rem 0.9rem; }
   .hero { padding-top: 2.5rem; }
-  .emblem { width: 112px; height: 112px; }
+  .emblem { width: 128px; height: 128px; }
   .panel { padding: 1.1rem; }
 }
 

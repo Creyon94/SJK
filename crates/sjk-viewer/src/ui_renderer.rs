@@ -5,9 +5,11 @@ use bytemuck::{Pod, Zeroable};
 use sjk_ui::{Color, DrawCommand, DrawList, FontWeight, Rect, TextAlign, TextId};
 
 mod art;
+mod emblem;
 mod icons;
 mod levelshot;
 use art::{ArtTextures, Run, Source};
+use emblem::EmblemTextures;
 use icons::IconAtlas;
 pub(crate) use icons::{
     ATLAS_CELLS, BANNER_SIZE, BANNER_TEXTURE, FORCE_ICON_CELLS, FORCE_ICON_FIRST, ICON_CELLS,
@@ -54,9 +56,27 @@ impl ShapeVertex {
     }
 }
 
+/// Colour adds as light (`src * alpha + dst`) and the target's alpha is
+/// kept: the menu emblem's glow layers, whose black adds nothing.
+const ADDITIVE_BLENDING: wgpu::BlendState = wgpu::BlendState {
+    color: wgpu::BlendComponent {
+        src_factor: wgpu::BlendFactor::SrcAlpha,
+        dst_factor: wgpu::BlendFactor::One,
+        operation: wgpu::BlendOperation::Add,
+    },
+    alpha: wgpu::BlendComponent {
+        src_factor: wgpu::BlendFactor::Zero,
+        dst_factor: wgpu::BlendFactor::One,
+        operation: wgpu::BlendOperation::Add,
+    },
+};
+
 /// Fixed-capacity WGPU shape renderer. GPU ownership never leaks into `sjk-ui`.
 pub(crate) struct ShapeRenderer {
     pipeline: wgpu::RenderPipeline,
+    /// The same shapes blended additively ([`ADDITIVE_BLENDING`]), for the
+    /// runs of the menu emblem's glow layers.
+    additive_pipeline: wgpu::RenderPipeline,
     vertex_buffer: wgpu::Buffer,
     vertices: Vec<ShapeVertex>,
     icons: IconAtlas,
@@ -66,6 +86,8 @@ pub(crate) struct ShapeRenderer {
     texture_layout: wgpu::BindGroupLayout,
     /// The player's retail menu artwork, one texture per piece.
     art: ArtTextures,
+    /// SJK's menu emblem, one texture per layer.
+    emblem: EmblemTextures,
     /// The current map preview at its own resolution.
     levelshot: LevelshotTexture,
 }
@@ -99,37 +121,45 @@ impl ShapeRenderer {
             bind_group_layouts: &[Some(&texture_layout)],
             immediate_size: 0,
         });
-        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("JKR retained UI shape pipeline"),
-            layout: Some(&layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: Some("vertex_main"),
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                buffers: &[Some(ShapeVertex::layout())],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: Some("fragment_main"),
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format,
-                    blend: Some(wgpu::BlendState::ALPHA_BLENDING),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-            }),
-            primitive: wgpu::PrimitiveState::default(),
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: depth_format,
-                depth_write_enabled: Some(false),
-                depth_compare: Some(wgpu::CompareFunction::Always),
-                stencil: Default::default(),
-                bias: Default::default(),
-            }),
-            multisample: wgpu::MultisampleState::default(),
-            multiview_mask: None,
-            cache: None,
-        });
+        let create_pipeline = |label, blend| {
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some(label),
+                layout: Some(&layout),
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: Some("vertex_main"),
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    buffers: &[Some(ShapeVertex::layout())],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: Some("fragment_main"),
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format,
+                        blend: Some(blend),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                }),
+                primitive: wgpu::PrimitiveState::default(),
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: depth_format,
+                    depth_write_enabled: Some(false),
+                    depth_compare: Some(wgpu::CompareFunction::Always),
+                    stencil: Default::default(),
+                    bias: Default::default(),
+                }),
+                multisample: wgpu::MultisampleState::default(),
+                multiview_mask: None,
+                cache: None,
+            })
+        };
+        let pipeline = create_pipeline(
+            "JKR retained UI shape pipeline",
+            wgpu::BlendState::ALPHA_BLENDING,
+        );
+        let additive_pipeline =
+            create_pipeline("SJK retained UI additive shape pipeline", ADDITIVE_BLENDING);
         let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("JKR retained UI shape vertices"),
             size: (MAX_SHAPE_VERTICES * std::mem::size_of::<ShapeVertex>()) as u64,
@@ -144,12 +174,14 @@ impl ShapeRenderer {
         }
         let mut renderer = Self {
             pipeline,
+            additive_pipeline,
             vertex_buffer,
             vertices: Vec::with_capacity(MAX_SHAPE_VERTICES),
             icons,
             runs: Vec::with_capacity(art::MAX_RUNS),
             texture_layout,
             art: ArtTextures::new(),
+            emblem: EmblemTextures::new(),
             levelshot,
         };
         // Artwork decoded for an earlier world is uploaded with this one, on
@@ -170,6 +202,22 @@ impl ShapeRenderer {
         }
         if let Some(decoded) = crate::menu::art::decoded() {
             self.art
+                .install(device, queue, &self.texture_layout, decoded);
+        }
+    }
+
+    /// Upload SJK's menu emblem once its decode has finished; does nothing
+    /// before that or after it has been installed.
+    pub(crate) fn install_emblem(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &crate::frame_queue::FrameQueue,
+    ) {
+        if self.emblem.installed() {
+            return;
+        }
+        if let Some(decoded) = crate::menu::emblem::decoded() {
+            self.emblem
                 .install(device, queue, &self.texture_layout, decoded);
         }
     }
@@ -295,7 +343,9 @@ impl ShapeRenderer {
                         continue;
                     };
                     let uv = match source {
-                        Source::Art(_) | Source::Levelshot => ([0.0, 0.0], [1.0, 1.0]),
+                        Source::Art(_) | Source::Emblem(_) | Source::Levelshot => {
+                            ([0.0, 0.0], [1.0, 1.0])
+                        }
                         Source::Atlas => icons::uv_range(texture),
                     };
                     icons::push_quad(
@@ -321,7 +371,7 @@ impl ShapeRenderer {
                     // the quad is not clipped, as clipping would need its
                     // coordinates cut to match.
                     let uv = match source {
-                        Source::Art(_) | Source::Levelshot => uv,
+                        Source::Art(_) | Source::Emblem(_) | Source::Levelshot => uv,
                         Source::Atlas => {
                             let (low, high) = icons::uv_range(texture);
                             uv.map(|[s, t]| {
@@ -369,7 +419,11 @@ impl ShapeRenderer {
             }
             Some(_) => return None,
             None if texture == LEVELSHOT_TEXTURE => Source::Levelshot,
-            None => Source::Atlas,
+            None => match crate::menu::emblem::EmblemLayer::from_texture(texture) {
+                Some(layer) if self.emblem.group(layer).is_some() => Source::Emblem(layer),
+                Some(_) => return None,
+                None => Source::Atlas,
+            },
         };
         art::switch(&mut self.runs, self.vertices.len(), source).then_some(source)
     }
@@ -381,14 +435,24 @@ impl ShapeRenderer {
         }
         pass.set_pipeline(&self.pipeline);
         pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+        let mut additive = false;
         let total = self.vertices.len() as u32;
         for (index, run) in self.runs.iter().enumerate() {
             let end = self.runs.get(index + 1).map_or(total, |next| next.start);
             if end <= run.start {
                 continue;
             }
+            if run.source.additive() != additive {
+                additive = run.source.additive();
+                pass.set_pipeline(if additive {
+                    &self.additive_pipeline
+                } else {
+                    &self.pipeline
+                });
+            }
             let group = match run.source {
                 Source::Art(piece) => self.art.group(piece),
+                Source::Emblem(layer) => self.emblem.group(layer),
                 Source::Levelshot => Some(self.levelshot.bind_group()),
                 Source::Atlas => None,
             };

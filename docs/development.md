@@ -29,6 +29,11 @@ On Windows, Git's `core.autocrlf` checks text out with CRLF line endings.
 it existed keeps CRLF `.wgsl` files until they are checked out again, for example
 by deleting them and running `git checkout -- '*.wgsl'`. The viewer accepts either.
 
+SJK's Windows builds embed the programs' icon and version information with the
+Windows SDK's resource compiler (`rc.exe`, installed with the MSVC build tools;
+`windres` for the GNU toolchain), through the `winresource` build dependency.
+Without one the build prints a warning and the programs have no icon.
+
 The repository currently has no bundled regression suite. `cargo test` checks
 its test/doc-test build targets but is not evidence of gameplay or wire parity.
 Some source comments refer to external reference harnesses; those paths are not

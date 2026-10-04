@@ -161,6 +161,7 @@ mod ui_scale;
 mod ui_target;
 mod weapon_view;
 mod wgsl_source;
+mod window_icon;
 mod world_materials;
 mod world_props;
 mod world_stage;
