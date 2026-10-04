@@ -74,6 +74,9 @@ impl crate::GpuState {
             return;
         };
         let style = MenuStyle::from_cvar(console.text_value(CVAR));
+        // SJK's emblem is on both styles' main page.
+        crate::menu::emblem::request();
+        self.ui_shapes.install_emblem(&self.device, &self.queue);
         if style == MenuStyle::Classic {
             if let Some(vfs) = &self.vfs {
                 art::request(vfs);

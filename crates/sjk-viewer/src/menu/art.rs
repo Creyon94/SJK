@@ -16,10 +16,11 @@
 //! Retail animates some pieces in their shaders (`shaders/ui.shader`); the
 //! classic views and the renderer reproduce that motion ([`motion`]): the
 //! ring turns, the side glyphs and the logo's reflection scroll (their
-//! textures wrap, [`ArtPiece::wraps`]), the glows flicker with
-//! `gfx/hud/static_menu` and the main page plays `video/ja01`
-//! ([`super::roq`]). The flickering pieces keep their raw image for that
-//! ([`Decoded::flicker_base`]).
+//! textures wrap, [`ArtPiece::wraps`]) and the glows flicker with
+//! `gfx/hud/static_menu`. The flickering pieces keep their raw image for that
+//! ([`Decoded::flicker_base`]). Retail's ring played the `video/ja01` logo;
+//! SJK shows its own emblem there instead ([`super::emblem`]), so the video
+//! is not read.
 
 pub(crate) mod motion;
 
@@ -39,10 +40,6 @@ const MAX_SIDE: u32 = 4_096;
 const MAX_FLICKER_SIDE: u32 = 512;
 /// The noise retail's glow shaders multiply the screen by.
 const STATIC_PATH: &str = "gfx/hud/static_menu";
-/// The main page's logo video (`gfx/menus/videologo`'s `videoMap`).
-const VIDEO_PATH: &str = "video/ja01";
-/// Largest video file read; retail's is 6 MiB, HD replacements about 14.
-const MAX_VIDEO_BYTES: usize = 64 << 20;
 
 /// How the retail shader blends a piece over the screen.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -146,14 +143,11 @@ pub(crate) enum ArtPiece {
     LogoBase,
     /// `env_logo`: the reflection scrolling through the logo's letters.
     EnvLogo,
-    /// `video/ja01`: the spinning logo the main page plays in its ring
-    /// (`background_video`), decoded frame by frame by the renderer.
-    Video,
 }
 
 impl ArtPiece {
     /// Every piece, in [`ArtPiece`] order.
-    pub(crate) const ALL: [Self; 42] = [
+    pub(crate) const ALL: [Self; 41] = [
         Self::Background,
         Self::SideLeft,
         Self::SideRight,
@@ -195,7 +189,6 @@ impl ArtPiece {
         Self::SideBase,
         Self::LogoBase,
         Self::EnvLogo,
-        Self::Video,
     ];
     pub(crate) const COUNT: usize = Self::ALL.len();
 
@@ -242,7 +235,6 @@ impl ArtPiece {
             Self::SideBase => "gfx/menus/menu_side_text_b",
             Self::LogoBase => "gfx/menus/jediacademy",
             Self::EnvLogo => "gfx/menus/env_logo",
-            Self::Video => VIDEO_PATH,
         }
     }
 
@@ -253,9 +245,9 @@ impl ArtPiece {
     }
 
     /// Whether the renderer rewrites the piece's texture as it animates:
-    /// the flickering glows and the video.
+    /// the flickering glows.
     pub(crate) fn dynamic(self) -> bool {
-        self == Self::Video || motion::flicker(self).is_some()
+        motion::flicker(self).is_some()
     }
 
     /// Blend of the piece's retail shader (`shaders/ui.shader`).
@@ -315,8 +307,6 @@ pub(crate) struct Decoded {
     flicker_bases: [Option<RgbaImage>; ArtPiece::COUNT],
     /// `gfx/hud/static_menu`, the flicker noise.
     noise: Option<RgbaImage>,
-    /// The `video/ja01.roq` file.
-    video: Option<Vec<u8>>,
 }
 
 impl Decoded {
@@ -332,11 +322,6 @@ impl Decoded {
             self.flicker_bases[piece.index()].as_ref()?,
             self.noise.as_ref()?,
         ))
-    }
-
-    /// The main page's RoQ video file, if game data has it.
-    pub(crate) fn video(&self) -> Option<&[u8]> {
-        self.video.as_deref()
     }
 }
 
@@ -374,12 +359,7 @@ pub(crate) fn decoded() -> Option<&'static Decoded> {
 }
 
 fn decode_all(vfs: &VirtualFileSystem) -> Decoded {
-    let raw = ArtPiece::ALL.map(|piece| {
-        if piece == ArtPiece::Video {
-            return None;
-        }
-        read_image(vfs, piece.path())
-    });
+    let raw = ArtPiece::ALL.map(|piece| read_image(vfs, piece.path()));
     let flicker_bases = std::array::from_fn(|index| {
         motion::flicker(ArtPiece::ALL[index])?;
         raw[index]
@@ -396,7 +376,6 @@ fn decode_all(vfs: &VirtualFileSystem) -> Decoded {
         images,
         flicker_bases,
         noise: read_image(vfs, STATIC_PATH),
-        video: read_video(vfs),
     }
 }
 
@@ -443,13 +422,6 @@ fn prepare(piece: ArtPiece, mut image: RgbaImage) -> RgbaImage {
         additive_to_alpha(&mut image);
     }
     image
-}
-
-/// Read the main page's video, if game data has a reasonably sized one.
-fn read_video(vfs: &VirtualFileSystem) -> Option<Vec<u8>> {
-    let path = format!("{VIDEO_PATH}.roq");
-    let asset = vfs.read(&path).ok()??;
-    (asset.bytes.len() <= MAX_VIDEO_BYTES).then_some(asset.bytes)
 }
 
 /// Re-express an additively blended image for alpha blending: the

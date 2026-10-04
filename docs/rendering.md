@@ -21,6 +21,7 @@ BSP geometry, PVS visibility, lightmaps, shader stages and legacy models.
 | Frame timing | [frame_pacing.rs](../crates/sjk-viewer/src/frame_pacing.rs) |
 | HUD integration | [hud.rs](../crates/sjk-viewer/src/hud.rs) |
 | Material map generator (tool) | [sjk-materialgen](../crates/sjk-materialgen/src/lib.rs) |
+| Shader remaps | [shader_remaps.rs](../crates/sjk-viewer/src/shader_remaps.rs), [world_material_remaps.rs](../crates/sjk-viewer/src/world_material_remaps.rs), [sjk-shader remap.rs](../crates/sjk-shader/src/remap.rs) |
 
 The normal BSP path supports additional lighting, shadows, GI probes, ambient
 occlusion, reflections and post processing. Feature presence does not establish
@@ -599,6 +600,63 @@ must name the build mode, GPU, resolution, settings, map and population. Separat
 loading/shader warmup from steady frames and CPU work from GPU timings. The
 500+ FPS target remains open; neither a single GPU timestamp nor an uncapped
 empty scene demonstrates it.
+
+## Shader remaps
+
+A shader remap draws everything that uses one shader with another shader's
+definition: Quake 3's `R_RemapShader`, used by maps and game mods to switch lights
+off, swap screens or recolour surfaces mid-match. rd-vanilla stores the target in
+`shader_t::remappedShader` and swaps it in when a surface starts drawing
+(`tr_shade.cpp` `RB_BeginSurface`), so a remap is one level deep (with `a -> b` and
+`b -> c`, `a` draws `b`'s own stages), remapping a shader to itself clears its
+remap, and names compare without case, with `\` as `/` and without an extension.
+A remap naming a shader that has neither a definition nor an image is dropped
+with rd-vanilla's warning. The rules and their tests are in
+[remap.rs](../crates/sjk-shader/src/remap.rs).
+
+Sources, as in JoF EternalJK (OpenJK `codemp`):
+
+| Source | Reference | Gated by `cg_remaps` |
+| --- | --- | --- |
+| Worldspawn keys `remapshader*` = `old;new`, read when the map loads | `tr_bsp.cpp` `R_LoadEntities` | No |
+| `CS_SHADERSTATE` (configstring 24), `old=new:timeOffset@...`, written by the game module when a `targetShaderName` entity fires | `g_utils.c` `AddRemap`/`BuildShaderStateConfig`, `cg_servercmds.c` `CG_ShaderStateChanged` | Yes |
+| Server command `remapShader <old> <new> <timeOffset>` (mods) | JoF `cg_servercmds.c` `CG_RemapShader_f` | Yes |
+| Console `remapShader <old> <new>` | JoF `cg_consolecmds.c` `CG_RemapShader_f` | No |
+
+`cg_remaps` keeps EternalJK's name, meaning and default (JoF EJK `cg_xcvar.h`:
+"2", archived): 0 ignores server-sent remaps, 1 applies them except to
+`models/players/` shaders ("Map Only"), 2 applies them all ("Map + Model"). JoF
+latches it until a `vid_restart`; SJK keeps every remap with its source and
+applies a change at once, and disabling a source shows the remap it had hidden
+(the latest remap of a shader wins, as when every source wrote the same field).
+`vertexremapshader` keys need `r_vertexLight`, which SJK does not have. JoF's
+built-in ffa3 fixes (`airpure_fixed`, `cart_fixed` in `cg_main.c`) are disabled
+there (`#if 0`) and need shaders no JoF pack ships, and its crosshair a/j swap
+has nothing to act on, since SJK draws crosshairs itself; neither is carried
+over.
+
+Applying a remap changes no geometry. Every material slot (one per BSP shader
+and lightmap, one per model surface) remembers the shader it was built from;
+when the effective table changes, slots whose shader is now remapped are
+recompiled from the target with their own lightmap and their original stages are
+kept aside, slots no longer remapped get them back, and the draw orders, sort
+keys and stage table are rebuilt ([world_material_remaps.rs](../crates/sjk-viewer/src/world_material_remaps.rs)).
+Effect shaders point at the target's stages in the effect atlas, which loads a
+missing target first. This happens once per change, never per frame; the frame
+loop only compares a generation counter. It covers world surfaces, inline movers,
+models (players, NPCs, weapons, items, misc models, custom-shader overrides) and
+effects.
+
+Not covered: the time offset is listed but not applied, so a remapped animated
+shader starts its animation at map time 0 instead of at the remap (rd-vanilla's
+`shaderTime = time - timeOffset`); what the original shader decided at load
+stays (lamps and bounce colour, fog, material maps, surface sprites, flares,
+the sky, shadow hulls, the light pre-pass set, which a remap may only leave, and
+a surface the original did not draw at all, such as a sky or stage-less shader);
+HUD pictures, saber blades and trails and the menu's player stage are not
+remapped. A new map starts with no remaps; a reload of the same map
+(`map_restart`) keeps the console's. Demos replay `CS_SHADERSTATE` but not the
+`remapShader` server command.
 
 ## Saber trails
 
@@ -1263,9 +1321,12 @@ layer and the in-world ground HUD stay in linear light.
   at `r_gamma 1`.
 - The float `r_hdr` target never receives 2D draws: HDR is encoded by the
   resolve before the 2D pass.
-- Pictures sampled by the 2D layer (icon atlas, wordmark, classic menu art and
-  video, levelshots, menu-file HUD art, scope art) are `Rgba8Unorm`, so their
-  texels are not decoded. Font atlases contribute only alpha, which no format
+- Pictures sampled by the 2D layer (icon atlas, wordmark, classic menu art,
+  SJK's menu emblem, levelshots, menu-file HUD art, scope art) are `Rgba8Unorm`,
+  so their texels are not decoded.
+- SJK's menu emblem adds its two glow layers as light (`src * alpha + dst`) in
+  display values, through a second, additively blended pipeline of the shape
+  renderer; everything else in the 2D layer is alpha blended. Font atlases contribute only alpha, which no format
   decodes, so the Inter atlas stays shared with the ground HUD.
 
 Colours chosen by eye for the earlier linear model were re-authored so neutral

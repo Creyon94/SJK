@@ -10,7 +10,11 @@ In SJK the client program is `sjk` and the dedicated server `sjk-server`
 and `sjk-dedicated`; the commands are otherwise the same. SJK reads
 `JKA_GAME_DATA` and `JKA_DEDICATED` before JKR's `JKR_GAME_DATA` and
 `JKR_DEDICATED`; developer and diagnostic variables (`JKR_TRACE_*`, `JKR_LAMP_*`,
-`JKR_GPU_*` and the like) keep JKR's names.
+`JKR_GPU_*` and the like) keep JKR's names. On Windows both programs carry SJK's
+icon and call themselves "Sol JK" and "Sol JK dedicated server" in their version
+information; the client also sets the icon on its window (title bar and taskbar
+on Windows, the window icon on X11; Wayland has none). See
+[assets/branding](../assets/branding/README.md).
 
 Put `sjk-viewer` (`sjk-viewer.exe` on Windows) inside the installed game's
 `GameData` folder, beside `base/`, then launch it to open the main menu. A shortcut
@@ -209,9 +213,20 @@ band, bar) are converted to alpha at decode time. A missing image falls back to
 JKR's own shapes. Retail assets are never bundled.
 
 The art moves as retail's shaders move it (`shaders/ui.shader`); the `.menu`
-scripts themselves only swap pages at once and show or hide the glows. The main
-page plays `video/ja01` (`gfx/menus/videologo`) in its ring, looping at the
-file's 30 frames per second; an HD replacement in a later PK3 is used. The ring
+scripts themselves only swap pages at once and show or hide the glows. JKR's
+main page plays `video/ja01` (`gfx/menus/videologo`) in its ring, as retail did.
+SJK shows its own emblem there instead and does not read the video: the gold
+starburst with the JK blade, centred in the centre window's opening and drawn
+over the frames, 176 of the 640x480 canvas's units across (about 400 pixels at
+1080 lines, 790 at 2160), with or without the retail art. Its orange core and
+ring breathe (glow strength 0.08 to 0.45 every 4.2 seconds) and the blade's cyan
+lights shimmer (0.30 ± 0.15 from two sines of 0.9 and 0.37 seconds), drawn as
+additive glow layers over the still emblem. The emblem is bundled
+([assets/branding](../assets/branding/README.md), drawn by
+[menu/emblem.rs](../crates/sjk-viewer/src/menu/emblem.rs)) and decoded with its
+mip chain on a worker thread when the first menu shows. The modern main page
+shows it too, 128 units (pixels at 1080 lines) high above its title line and
+aligned with the entry column; it shrinks in short windows. The ring
 turns 5 degrees a second (`tcMod rotate 5`), the side glyph columns climb over
 their `menu_side_text_b` backdrop (`tcMod scroll 0 0.025`), and a quarter of
 `env_logo` drifts through the logo's translucent letters between an opaque and a
@@ -219,10 +234,8 @@ blended pass of the logo, as its three shader stages do. The button and list
 glows, the title band and the in-game bar flicker: retail multiplies the screen
 under them by four scrolling layers of `gfx/hud/static_menu`, which the renderer
 reproduces by recomposing those small images with the noise on the CPU each frame
-they are drawn, over the piece alone because the UI blends with alpha. The video
-is decoded by JKR's RoQ decoder
-([menu/roq.rs](../crates/sjk-viewer/src/menu/roq.rs)) a frame at a time, only
-while the page shows it, and the motion clock and curves are in
+they are drawn, over the piece alone because the UI blends with alpha. The
+motion clock and curves, the emblem's included, are in
 [motion.rs](../crates/sjk-viewer/src/menu/art/motion.rs). The focused entry's
 text pulses between white and 80% of it, as `Item_TextColor` does
 (`PULSE_DIVISOR` 75 ms); the open group's or page's entry stays steady white.
@@ -230,7 +243,7 @@ Labels, buttons, titles and option values are in retail's capitals; descriptions
 typed text, vote-list names and the about values keep their case.
 
 Outside a match the classic style draws no world. The main pages are opaque
-over the retail background (the main page's logo video plays in the centre gap,
+over the retail background (in SJK the main page's emblem fills the centre gap,
 the sub-pages' gap stays dark), and the modern screens they open (Settings, key
 bindings, Player, Create game) get the retail backdrop beneath them; the classic
 server browser draws its own. The frame
@@ -959,6 +972,18 @@ the holstered saber and ledge grab, which need JA+ animations JKR does not have.
 JA+ and TaystJK/jaPRO servers receive it from the connect packet on, and a
 toggle sends a userinfo update ([networking.md](networking.md)).
 See [console_mod_commands.rs](../crates/sjk-viewer/src/console_mod_commands.rs).
+
+`remapShader <old> <new>` draws every surface, model and effect using shader
+`old` with shader `new` until the map changes, as EternalJK's command does;
+`remapShader <old> <old>` restores it. `listRemaps` lists every remap with its
+source (map, server or console), the server's time offset and whether it is in
+effect, and `clearRemaps` (EternalJK's renderer command) removes them all until
+the server sends new ones. The archived `cg_remaps` (EternalJK's name and default
+2) chooses which remaps sent by the server apply: 0 none, 1 all but player-model
+shaders, 2 all; the console's and the map's own always apply. Unlike EternalJK,
+which latches it, a change applies at once. Settings > GAME has it as "Shader
+remaps". See [Shader remaps](rendering.md#shader-remaps) and
+[shader_remaps.rs](../crates/sjk-viewer/src/shader_remaps.rs).
 
 The console input line has a caret, drawn as stock's underscore: Left and Right
 move it, Ctrl+Left and Ctrl+Right by word, Home and End to either end, and Shift
