@@ -52,8 +52,10 @@ controls, HUD, audio, screenshots and demo playback.
     changes in this build and how to test them.
 - **Names.** The programs are `sjk` (the game) and `sjk-server` (the dedicated
   server). Settings have neutral engine names (`r_*`, `cg_*`), and JKR's `jkr_*`
-  names still work as aliases. The source crates keep JKR's names (`sjk-viewer`,
-  `sjk-dedicated`, `jkr-*`), which keeps SJK easy to merge with JKR. The client's
+  names still work as aliases. The source crates are named for SJK too (`sjk-viewer`,
+  `sjk-dedicated`, `sjk-*`); JKR's changes are merged with
+  [scripts/sjk_names.py](scripts/sjk_names.py), which applies the same names to
+  them. The client's
   own folder is `GameData/SJK/`; JKR's `GameData/jkr/` is imported into it once,
   so settings carry over.
 

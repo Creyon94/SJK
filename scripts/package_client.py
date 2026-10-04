@@ -160,7 +160,7 @@ def main():
     # The client folder the packaged client creates in GameData (SJK uses "SJK").
     parser.add_argument("--profile-dir", default="jkr")
     # The client and server program names; by default the [[bin]] names the crates
-    # declare (sjk-viewer and sjk-dedicated in JKR, sjk and sjk-server in SJK).
+    # declare (sjk and sjk-server in SJK).
     parser.add_argument("--client-bin")
     parser.add_argument("--server-bin")
     args = parser.parse_args()
