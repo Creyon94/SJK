@@ -7,8 +7,9 @@
 //
 // ENCODING: 0 the scene stores display values already (UNORM target), 1 it is an sRGB
 // target sampled as linear, 2 it is a floating HDR scene shown through `hdr_encoded`.
+// Every encoding shows the scene under `post_hdr.wgsl`'s `scene_exposure`, as the
+// final resolve does.
 override ENCODING: u32 = 1u;
-override HDR_EXPOSURE: f32 = 1.0;
 @group(0) @binding(0) var source: texture_2d<f32>;
 // Declared for `post_hdr.wgsl`'s colour cube helper; never read by this shader.
 @group(0) @binding(1) var linear_clamp: sampler;
@@ -18,18 +19,13 @@ override HDR_EXPOSURE: f32 = 1.0;
     return vec4<f32>(p * 2.0 - 1.0, 0.0, 1.0);
 }
 
-fn srgb_encode(c: vec3<f32>) -> vec3<f32> {
-    return select(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.055, c > vec3(0.0031308));
-}
-
-fn srgb_decode(c: vec3<f32>) -> vec3<f32> {
-    return select(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), c > vec3(0.04045));
-}
-
 // The display value the final resolve shows for scene colour `c`, before any colour cube.
 fn display(c: vec3<f32>) -> vec3<f32> {
-    if ENCODING == 0u { return clamp(c, vec3(0.0), vec3(1.0)); }
-    if ENCODING == 1u { return srgb_encode(clamp(c, vec3(0.0), vec3(1.0))); }
+    let unit = clamp(c, vec3(0.0), vec3(1.0));
+    if ENCODING == 0u { return clamp(ldr_exposed(unit), vec3(0.0), vec3(1.0)); }
+    if ENCODING == 1u {
+        return srgb_encode(clamp(ldr_expose(unit, scene_exposure.exposure), vec3(0.0), vec3(1.0)));
+    }
     return clamp(hdr_encoded(c), vec3(0.0), vec3(1.0));
 }
 
@@ -45,9 +41,9 @@ fn hdr_unmap(m: vec3<f32>) -> vec3<f32> {
 
 // Scene colour that `display` shows as `g` (secondary views only).
 fn scene_value(g: vec3<f32>) -> vec3<f32> {
-    if ENCODING == 0u { return g; }
-    if ENCODING == 1u { return srgb_decode(g); }
-    return hdr_unmap(srgb_decode(g)) / HDR_EXPOSURE;
+    if ENCODING == 0u { return ldr_unexposed(g); }
+    if ENCODING == 1u { return ldr_unexpose(srgb_decode(g), scene_exposure.exposure); }
+    return hdr_unmap(srgb_decode(g)) / scene_exposure.exposure;
 }
 
 struct Encoded {

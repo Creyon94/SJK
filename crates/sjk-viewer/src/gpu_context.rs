@@ -35,6 +35,8 @@ pub(crate) struct Context {
     pub(crate) soft_particles: crate::particle_draw::settings::Settings,
     /// Live default-off dust-mote intensity, independent of a particular map.
     pub(crate) dust_motes: crate::dust_motes::Settings,
+    /// Live eye adaptation and base exposure, independent of a particular map.
+    pub(crate) exposure: crate::frame_target::aa::exposure::Settings,
     /// Retained default-off main-world SSAO policy.
     pub(crate) ssao: crate::world_materials::ssao::settings::Settings,
     /// Startup filtering survives map installs, whose inputs deliberately contain no console.
@@ -180,6 +182,7 @@ impl Context {
                 .map(|c| c.soft_particles.clone())
                 .unwrap_or_default(),
             dust_motes: console.map(|c| c.dust_motes.clone()).unwrap_or_default(),
+            exposure: console.map(|c| c.exposure.clone()).unwrap_or_default(),
             ssao: console.map(|c| c.ssao.clone()).unwrap_or_default(),
             filtering: crate::world_materials::filtering::Policy::sample(console, maximum),
             material_maps: crate::world_materials::material_maps::Settings::sample(console),

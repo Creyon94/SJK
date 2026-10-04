@@ -1,12 +1,13 @@
 //! Startup scene precision and a highlight-only, RGB-ratio-preserving display shoulder.
 use sjk_shell::{CvarDefinition, CvarError, CvarFlags, CvarRegistry};
 
-/// No automatic exposure: camera contents never change the visibility of another player.
+/// Scene precision, sampled at startup. Exposure is live: `r_hdrExposure` is the base
+/// that eye adaptation ([`super::exposure`]) adjusts, unless `r_autoExposure` is 0.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Settings {
     /// Zero preserves the display format; one selects RGBA16F.
     pub(crate) mode: u32,
-    /// Fixed linear scene multiplier, before bloom and display mapping.
+    /// Startup linear scene multiplier, shown until the first frame reads the live one.
     pub(crate) exposure: f32,
 }
 
@@ -65,14 +66,11 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), CvarError> {
         "r_hdrExposure",
         1.0,
         CvarFlags::ARCHIVE,
-        "Fixed HDR exposure 0.25..4 (never automatic); restart required",
+        "HDR exposure 0.25..4, the base r_autoExposure adjusts; applies immediately",
     ))?;
-    for name in ["r_sceneHdr", "r_hdrExposure"] {
-        cvars.on_change(name, |_| {
-            crate::log::progress(format_args!(
-                "HDR setting changed: restart viewer to rebuild scene targets"
-            ))
-        })?;
-    }
-    Ok(())
+    cvars.on_change("r_sceneHdr", |_| {
+        crate::log::progress(format_args!(
+            "HDR setting changed: restart viewer to rebuild scene targets"
+        ))
+    })
 }

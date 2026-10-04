@@ -114,6 +114,8 @@ pub(crate) struct ViewerConsole {
     pub(crate) soft_particles: crate::particle_draw::settings::Settings,
     /// Optional dust-mote intensity shared with graphics contexts.
     pub(crate) dust_motes: crate::dust_motes::Settings,
+    /// Eye adaptation and base exposure shared with graphics contexts.
+    pub(crate) exposure: crate::frame_target::aa::exposure::Settings,
     /// Optional ambient correction for supported main-view world surfaces.
     pub(crate) ssao: crate::world_materials::ssao::settings::Settings,
     pub(crate) director: director::Director,

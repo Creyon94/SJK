@@ -1270,6 +1270,7 @@ impl GpuState {
             menu.set_world_hidden(world_hidden);
         }
         self.update_menu_stage(visual_now);
+        self.prepare_eye_adaptation(delta_seconds, backdrop_view);
         let local_view = self
             .demo_session
             .as_ref()

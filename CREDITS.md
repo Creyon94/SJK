@@ -73,6 +73,8 @@ Changes that stay in SJK, by Sol:
 - the Sol JK name, README, credits and website;
 - SJK's slider entry habits (type to open, Space steps, clicking away applies);
 - the classic menu style as the default;
+- eye adaptation (`r_autoExposure`), an exposure that follows the view within a
+  small range;
 - the `debug_panel` console command, an in-game checklist of the changes in a
   build and how to test them.
 

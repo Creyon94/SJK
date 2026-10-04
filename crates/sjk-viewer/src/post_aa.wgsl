@@ -3,7 +3,9 @@
 // Filter perceptual color through a UNORM alias. Decode only for an sRGB output attachment.
 override SRGB_OUTPUT: bool = true;
 override HDR_INPUT: bool = false;
-override HDR_EXPOSURE: f32 = 1.0;
+// A scene resolve, exposed through `post_hdr.wgsl`'s `scene_exposure` (binding 4); off
+// for the display gamma pass, whose input already holds the HUD.
+override SCENE_EXPOSURE: bool = false;
 @group(0) @binding(0) var scene: texture_2d<f32>;
 @group(0) @binding(1) var linear_clamp: sampler;
 @group(0) @binding(2) var<uniform> controls: vec4<f32>;
@@ -28,6 +30,7 @@ fn sample_at(uv: vec2<f32>) -> vec3<f32> {
         }
         return hdr_encoded(c);
     }
+    if SCENE_EXPOSURE { return ldr_exposed(c); }
     return c;
 }
 fn luma(rgb: vec3<f32>) -> f32 {
@@ -69,7 +72,11 @@ fn output_color(rgb: vec3<f32>, alpha: f32, uv: vec2<f32>) -> vec4<f32> {
     let pixel = 1.0 / vec2<f32>(textureDimensions(scene));
     let uv = position.xy * pixel;
     var center = textureLoad(scene, vec2<i32>(position.xy), 0);
-    if HDR_INPUT { center = vec4(sample_at(uv), center.a); }
+    if HDR_INPUT {
+        center = vec4(sample_at(uv), center.a);
+    } else if SCENE_EXPOSURE {
+        center = vec4(ldr_exposed(center.rgb), center.a);
+    }
     if controls.x == 0.0 { return output_color(center.rgb, center.a, uv); }
     let nw = luma(sample_at(uv + vec2<f32>(-1.0, -1.0) * pixel));
     let ne = luma(sample_at(uv + vec2<f32>(1.0, -1.0) * pixel));

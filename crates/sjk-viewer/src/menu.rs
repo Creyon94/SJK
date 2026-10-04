@@ -582,6 +582,13 @@ impl ClientMenu {
         self.state.is_overlay_visible()
     }
 
+    /// The Renderer settings page is on show; eye adaptation holds still under it.
+    pub(crate) fn renderer_settings_open(&self) -> bool {
+        self.is_visible()
+            && matches!(self.state.phase(), ClientPhase::Settings)
+            && self.settings.renderer_open()
+    }
+
     pub(crate) fn poll(&mut self) {
         if matches!(self.state.phase(), ClientPhase::Player) || !self.player.is_resolved() {
             self.player.poll();

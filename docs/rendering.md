@@ -16,6 +16,7 @@ BSP geometry, PVS visibility, lightmaps, shader stages and legacy models.
 | Secondary views | [scene_views.rs](../crates/sjk-viewer/src/scene_views.rs) |
 | Sun and real-time lighting | [sun_shadows.rs](../crates/sjk-viewer/src/sun_shadows.rs) |
 | Post processing | [post_aa.rs](../crates/sjk-viewer/src/post_aa.rs) |
+| Eye adaptation | [post_exposure.rs](../crates/sjk-viewer/src/post_exposure.rs) |
 | Frame timing | [frame_pacing.rs](../crates/sjk-viewer/src/frame_pacing.rs) |
 | HUD integration | [hud.rs](../crates/sjk-viewer/src/hud.rs) |
 | Material map generator (tool) | [sjk-materialgen](../crates/sjk-materialgen/src/lib.rs) |
@@ -94,7 +95,11 @@ work without reducing source count, texture resolution or lighting quality.
 | `r_ambientFill` | Live material-lighting floor in dark areas, 0–0.2; default 0.025. Fades as existing illumination increases |
 | `r_ambientFillOcclusion` | Fraction of ambient occlusion applied to the readability fill, 0–1; default 1 preserves the previous response. Real indirect lighting keeps full occlusion |
 | `r_sceneHdr` | Scene precision: 0 display format, 1 RGBA16F (default); restart required |
-| `r_hdrExposure` | Fixed exposure multiplier, 0.25–4; restart required |
+| `r_hdrExposure` | Base exposure multiplier, 0.25–4; live. Eye adaptation adjusts around it; `r_sceneHdr 0` ignores it |
+| `r_autoExposure` | Eye adaptation, default 1 (on); 0 holds `r_hdrExposure`. Live; see [eye adaptation](#eye-adaptation) |
+| `r_autoExposureMin`, `r_autoExposureMax` | Adaptation range in EV around the base: -2–0 (default -0.5) and 0–2 (default 1). Live |
+| `r_autoExposureToBright`, `r_autoExposureToDark` | Seconds to settle when the view gets brighter (default 0.4) or darker (default 2.5); 0 is instant. Live, console only |
+| `r_autoExposureKey` | Metered scene luminance shown at the base exposure, 0.03–0.8, default 0.18; higher is brighter. Live, console only |
 | `r_dustMotes` | Dust in godrays, 0 (off, default) to 1; live; Game settings tab; requires `r_volumetrics` |
 | `r_normalMapping` | Normal maps on lightmapped world surfaces (rend2 convention); default 0, restart required |
 | `r_specularMapping` | Specular, roughness and metalness maps on the same surfaces; default 0, restart required |
@@ -151,6 +156,79 @@ indicative GPU cost only. No verification hooks or fixtures are shipped.
 These and the other `jkr_*` rendering cvars can also be changed in the client's
 renderer settings page (Settings > VIDEO > Renderer; see
 [client.md](client.md#renderer-settings)), with the same ranges and restart rules.
+
+## Eye adaptation
+
+SJK adapts the exposure to what the camera sees, as eyes do: in a dark area the
+view brightens over a few seconds, and stepping or looking into bright light
+darkens it a little, quickly, before it settles. This is SJK's choice and a
+deliberate departure from JKR, whose exposure is fixed so that camera contents
+never change how visible another player is. That concern is real: brightening
+a dark room shows a player in its shadows sooner, and darkening after a bright
+sky hides one for a moment. SJK therefore keeps the range small by default
+(-0.5 to +1 EV around `r_hdrExposure`), puts the switch on the Renderer page
+(IMAGE tab, "Eye adaptation"), and `r_autoExposure 0` restores the fixed
+exposure exactly.
+
+How it works ([post_exposure.rs](../crates/sjk-viewer/src/post_exposure.rs),
+[post_exposure.wgsl](../crates/sjk-viewer/src/post_exposure.wgsl)):
+
+- After the main view's resolve, a compute pass meters the scene target in
+  8×8-pixel cells (four bilinear taps each) into a 64-bin histogram of log2
+  luminance, weighting the centre of the screen four times the edges. It reads
+  the scene before exposure, the legacy effect layer, HUD and text, so sabers,
+  particles and the interface never drive it, and its result cannot feed back.
+- A one-thread pass averages the histogram between the 30th and 97th
+  percentiles (dark corners and small bright sources such as lamps and sun
+  glints are ignored), takes the target `log2(r_autoExposureKey) − mean`,
+  clamps it to the range and moves the current value towards it in EV:
+  `e += (target − e)(1 − exp(−dt/τ))`, with τ `r_autoExposureToBright` when the
+  view got brighter and `r_autoExposureToDark` otherwise. Near-black cells are
+  left out; a frame with almost nothing else (a cleared or black frame) changes
+  nothing.
+- The result, `r_hdrExposure × 2^e`, stays in a 16-byte GPU buffer that the
+  resolve and the effect layer's encode and write-back read the next frame.
+  There is no readback, and a frame records two fixed compute dispatches and
+  one 32-byte parameter upload through `FrameQueue`; everything is created with
+  the scene targets.
+
+The adaptation snaps to its target instead of easing when the view cuts: on a
+new map or scene targets (map load, `vid_restart`, resize, toggling bloom or the
+tone curve), when the followed player changes, on respawn and teleport
+(`EF_TELEPORT_BIT`), and on entering spectating or intermission. It holds still
+while the world is hidden or replaced (classic menus, loading, the hyperspace
+flash) and while the Renderer settings page is open, so `r_hdrExposure`
+comparisons there are not blurred. Without a match, demo or explored map (the
+menu world) it holds plain `r_hdrExposure`. Demos have no seek, so starting one
+is a map load. Black frames never count, so a first cleared frame cannot drive
+the exposure to the maximum.
+
+With `r_sceneHdr 0` the scene is 8-bit and already clipped at white, so
+darkening would only grey its highlights: the minimum is 0 EV (it only
+brightens), `r_hdrExposure` still does not apply, and brightening uses a
+shoulder that keeps white at white (identity up to an exposed value of 0.5,
+then a rational curve). Darkening needs `r_sceneHdr 1`, the default.
+
+Menus, HUD, text, levelshots and the display gamma pass are never exposed.
+Screenshots and captures show the adapted image, as the screen does.
+
+Verification (2026-10-04, Windows 11, RTX 5080, Vulkan and DX12, headless
+compute/render probes outside the repository; no client was run): with exposure
+1 the new resolve (HDR and 8-bit, FXAA on and off) and the effect layer's encode
+and write-back (all three encodings) matched the previous programs byte for
+byte, as did HDR at exposure 1.5 against the old fixed constant. Metering a
+uniform mid-grey (0.18) scene gave a mean of log2 0.18 within one bin (target
++0.002 EV); two stops darker clamped to +1 EV; a black frame left the state and
+its pending snap unchanged; a 2% patch at 50× brightness did not move the
+target; an 8-bit scene decoded to the same mean; the smoothing followed the
+expected exponentials. The 8-bit curve was monotonic, identity at 1 and
+inverted to within 1.4e-6. Timestamps for both passes on a synthetic scene were
+about 0.01 ms at 1920×1080 and 0.02–0.03 ms at 3840×2160. Unit tests cover the
+cvars and their ranges, the smoothing step, the 8-bit clamp, the snap and freeze
+decisions, and translate the three programs to SPIR-V and HLSL. How it looks in
+play, the default key on real maps and its cost inside a full frame are
+unverified; the key was chosen so a typical sunlit outdoor view (`mp/ffa3`)
+stays near 0 EV and needs in-game tuning.
 
 ## Volumetric silhouette coverage
 
@@ -339,8 +417,8 @@ fill retains half its unoccluded contribution. Physical sky/bounce stays fully
 occluded. Fill remains material-modulated, so black materials stay black. A room
 with almost no indirect energy may change little under the multiplier alone;
 blindly increasing it can brighten outdoor shade before fixing that room.
-Automatic exposure, local exposure and player-specific contrast effects are not
-part of this experiment.
+Local exposure and player-specific contrast effects are not part of this
+experiment; [eye adaptation](#eye-adaptation) is separate and scales the result.
 
 Verification of the local change based on `8f692ac` (2026-10-03): Linux/Vulkan,
 Radeon RX 9060 XT, external release captures at 1280×720, fixed 11:00 sun.
@@ -1180,7 +1258,8 @@ New profiles use the owner-approved rendering setup: day/night enabled at a fixe
 11:00, volumetrics quality 3, actor/world sun shadows at 2048 resolution and
 16 filter taps, and lighting tier 0 (available baked indirect light under the
 live sun). Shadow gap closure and screen-space contact shadows are off.
-The scene uses HDR with exposure 1, FXAA, SSAO at strength 4, trilinear mipmapping
+The scene uses HDR with exposure 1 and SJK's eye adaptation (-0.5 to +1 EV), FXAA,
+SSAO at strength 4, trilinear mipmapping
 and 16× anisotropy where supported. Bloom and the optional LDR tone curve are off.
 Soft particles, per-pixel model diffuse lighting and full rendering resolution
 remain enabled. These are ordinary cvar defaults, not a config imported at launch.

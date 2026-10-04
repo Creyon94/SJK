@@ -432,12 +432,35 @@ pub(super) const RENDER_IMAGE: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
-        label: "HDR exposure (restart)",
+        label: "HDR exposure",
         cvar: "r_hdrExposure",
         kind: ValueKind::Float {
             min: 0.25,
             max: 4.0,
             step: 0.05,
+        },
+    },
+    Setting {
+        label: "Eye adaptation",
+        cvar: crate::frame_target::aa::exposure::ENABLED,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Adaptation: max darken, EV (HDR)",
+        cvar: crate::frame_target::aa::exposure::MIN_EV,
+        kind: ValueKind::Float {
+            min: -2.0,
+            max: 0.0,
+            step: 0.25,
+        },
+    },
+    Setting {
+        label: "Adaptation: max brighten, EV",
+        cvar: crate::frame_target::aa::exposure::MAX_EV,
+        kind: ValueKind::Float {
+            min: 0.0,
+            max: 2.0,
+            step: 0.25,
         },
     },
     Setting {
