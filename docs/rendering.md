@@ -16,6 +16,7 @@ BSP geometry, PVS visibility, lightmaps, shader stages and legacy models.
 | Secondary views | [scene_views.rs](../crates/sjk-viewer/src/scene_views.rs) |
 | Sun and real-time lighting | [sun_shadows.rs](../crates/sjk-viewer/src/sun_shadows.rs) |
 | Post processing | [post_aa.rs](../crates/sjk-viewer/src/post_aa.rs) |
+| Dynamic glow | [post_glow.rs](../crates/sjk-viewer/src/post_glow.rs), [glow_pass.rs](../crates/sjk-viewer/src/glow_pass.rs) |
 | Frame timing | [frame_pacing.rs](../crates/sjk-viewer/src/frame_pacing.rs) |
 | HUD integration | [hud.rs](../crates/sjk-viewer/src/hud.rs) |
 | Material map generator (tool) | [sjk-materialgen](../crates/sjk-materialgen/src/lib.rs) |
@@ -100,6 +101,8 @@ work without reducing source count, texture resolution or lighting quality.
 | `r_specularMapping` | Specular, roughness and metalness maps on the same surfaces; default 0, restart required |
 | `r_parallaxMapping` | Parallax from the height in `_nh`/`normalHeightMap` images; needs `r_normalMapping`; default 0, restart required |
 | `r_materialMapsDebug` | Material-mapped surfaces only: 1 mapped normal as colour, 2 tint by maps found, 3 normal-map relief; default 0, live, not archived |
+| `r_DynamicGlow` | Halo around `glow` shader stages: 0 off, 1 on (default), 2 saber blades only, 3 the glow alone (debug); live. See [Dynamic glow](#dynamic-glow) |
+| `r_dynamicGlowStyle` | Glow blur: 1 EternalJK rd-vulkan's (default), 0 retail rd-vanilla's; live |
 
 See [day_night.rs](../crates/sjk-viewer/src/day_night.rs),
 [sun_shadow_settings.rs](../crates/sjk-viewer/src/sun_shadow_settings.rs) and
@@ -628,6 +631,92 @@ guard accordingly. Paired 3,330-frame 4K runs reduced the AO pass from 0.369 to
 differing by 12/255 and all others by at most 8/255. These are measurements on the
 same Vulkan setup, not exhaustive equivalence across all maps and backends.
 
+## Dynamic glow
+
+Shader stages marked `glow` get a blurred halo, as in stock Jedi Academy and
+EternalJK (`r_DynamicGlow`). Stock draws the frame's surfaces a second time with
+only their glowing stages into a black image that shares the scene's depth, blurs
+it and adds it to the frame (rd-vanilla `tr_backend.cpp:1736-1800`). SJK does the
+same for the main view:
+
+1. **Glow flags.** The parser keeps each stage's `glow`. A hardware pass carries the
+   flag of its first source stage: `CollapseMultitexture` moves only texture
+   bundles, so a glowing stage merged under a non-glowing lightmap stage does not
+   glow, as in stock ([world_stage_collapse.rs](../crates/sjk-viewer/src/world_stage_collapse.rs)).
+   A material glows when any pass does (`hasGlow`). Effect shaders keep the flag per
+   stage; saber blades glow and their cores do not (`sabers.shader`: the `*_glow`
+   sprites, `saberBlur` and `swordTrail` carry `glow`, the `*_line` cores do not).
+2. **Glow pass** ([glow_pass.rs](../crates/sjk-viewer/src/glow_pass.rs),
+   [world_glow.rs](../crates/sjk-viewer/src/world_glow.rs)). After the main view's
+   effects, the glowing passes of visible world surfaces (opaque, then blended) and
+   the glowing stages of the frame's entities draw into a scene-sized 8-bit image,
+   cleared to black, with the scene's depth attached read-only. They use the scene
+   pass's vertex paths, bind groups and blend with glow variants of the stage
+   pipelines (the image's sRGB view, no depth write), compiled on first use like
+   the scene's entity pipelines. Glowing billboards, cylinders, lines and
+   electricity, saber blades and trails then draw through the image's plain view
+   with their ordinary effect-layer pipelines. Within each effect blend slot the
+   glowing layers are emitted after the others, so the glow pass draws one tail
+   range per slot; this only reorders layers within one slot, which leaves additive
+   and modulating blends unchanged (alpha-blended layers stay back to front within
+   each part). Nothing glowing on screen means no pass, no blur and no composite
+   work; a frame only walks the glowing world passes and the entity queue to decide.
+3. **Blur** ([post_glow.rs](../crates/sjk-viewer/src/post_glow.rs)), in 8-bit images
+   that clamp after every pass as stock's framebuffer copies did:
+   - `r_dynamicGlowStyle 1` (default), rd-vulkan's: a four-level pyramid at 1/2,
+     1/4, 1/8 and 1/16 of the window, each level a three-tap horizontal then
+     vertical blur of the previous level, taps 1.2 texels apart, weights 6/16 and
+     5/16 each raised by 0.15 (`blur.frag`, `vk_pipelines.cpp:1713`). The four
+     levels are summed and scaled by `r_DynamicGlowIntensity - 1` (within 0.01-4,
+     `vk_pipelines.cpp:1519-1523`) at half size, then added. This is what EternalJK
+     players with `cl_renderer rd-vulkan` see; rd-vulkan sums the levels at full
+     size, so the three smaller levels are slightly softer here.
+   - `r_dynamicGlowStyle 0`, rd-vanilla's `RB_BlurGlowTexture`: `r_DynamicGlowPasses`
+     passes at `r_DynamicGlowScale` of the window (or `r_DynamicGlowWidth` x
+     `r_DynamicGlowHeight` when both are positive), each summing four diagonal taps
+     (0.1 + pass x `r_DynamicGlowDelta`) texels away, weighted
+     `r_DynamicGlowIntensity` / 4; the first pass reads the full-size image.
+4. **Composite** in the final resolve ([post_aa.wgsl](../crates/sjk-viewer/src/post_aa.wgsl),
+   `with_glow`), after the effect layer and before the `r_gamma` ramp, on display
+   values with `r_sceneHdr` 0 or 1: retail with `r_DynamicGlowSoft 1` screens
+   (`e + g - e*g`, `GL_ONE, GL_ONE_MINUS_SRC_COLOR`); otherwise the glow is added and
+   clamped (rd-vulkan always adds). `r_DynamicGlow 0` builds none of this.
+
+| Cvar | Default | Behavior |
+| --- | --- | --- |
+| `r_DynamicGlow` | 1 | 0 off, 1 on, 2 saber blades only (JoF EternalJK), 3 the blurred glow without the scene (debug); live, 0 frees the images |
+| `r_dynamicGlowStyle` | 1 | 1 rd-vulkan pyramid, 0 retail kernel; rebuilds the blur |
+| `r_DynamicGlowIntensity` | 1.13 | Retail per-pass gain; rd-vulkan scales its level sum by Intensity - 1; live |
+| `r_DynamicGlowPasses` | 5 | Retail passes, 1-32; live |
+| `r_DynamicGlowDelta` | 0.8 | Retail tap spread added per pass; live |
+| `r_DynamicGlowSoft` | 1 | Retail screen composite (1) or additive (0); live |
+| `r_DynamicGlowScale` | 0.25 | Retail blur size relative to the window; rebuilds the blur |
+| `r_DynamicGlowWidth`, `r_DynamicGlowHeight` | 0 | Retail blur size in pixels when both are positive; rebuild |
+
+All are archived and keep stock's names (lookups ignore case, so the retail menu's
+`r_dynamicglow` is the same cvar); `r_dynamicGlowStyle` is SJK's. Stock defaults
+`r_DynamicGlow` to 0; SJK turns it on. The renderer settings' IMAGE tab has rows
+for `r_DynamicGlow` and `r_dynamicGlowStyle`. SJK's classic menus have no
+counterpart of the retail Setup page's glow toggle.
+
+Not drawn into the glow image: the sky, flares, the menu stage, and secondary
+views (portals, sky portals, floor reflections), which show no glow yet. Stock's
+glow pass fogs towards black, SJK's does not, so glow inside fog is brighter than
+stock's. Decals never glow. The image holds unexposed display values, equal to the
+scene's at `r_hdrExposure 1`: an exposure belongs on the world's glowing stages
+before they are encoded (see `world_format` in post_glow.rs), not on effects, which
+are display values already.
+
+Cost: a frame that glows clears and fills a scene-sized RGBA8 image (33 MB at
+3840x2160) and redraws only the glowing passes; rd-vulkan's blur then runs eight
+small passes and the level sum (about 2.8 million pixels at 4K, three or four
+texture reads each), retail's five passes at a quarter size. The images take about
+55 MB at 4K with rd-vulkan's style and 39 MB with retail's. These are estimates, not
+measurements: no GPU timing has been recorded. Unit tests cover the glow flags
+(Tavion's possessed skin, olol, the collapse quirk), the saber blade/core split,
+cvar parsing and the kernels; the programs are validated with naga. On-screen
+appearance is unverified.
+
 ## Material maps
 
 The optional material maps follow OpenJK rend2 (`codemp/rd-rend2`), so rend2
@@ -1139,6 +1228,7 @@ New profiles use the owner-approved rendering setup: day/night enabled at a fixe
 live sun). Shadow gap closure and screen-space contact shadows are off.
 The scene uses HDR with exposure 1, FXAA, SSAO at strength 4, trilinear mipmapping
 and 16× anisotropy where supported. Bloom and the optional LDR tone curve are off.
+Dynamic glow is on with rd-vulkan's blur (SJK; stock defaults it off).
 Soft particles, per-pixel model diffuse lighting and full rendering resolution
 remain enabled. These are ordinary cvar defaults, not a config imported at launch.
 

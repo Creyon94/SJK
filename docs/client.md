@@ -364,7 +364,7 @@ returns to the Setup group that was open. The page has three tabs:
 
 | Tab | Settings |
 | --- | --- |
-| IMAGE | HDR scene and exposure, filmic tone curve, bloom, FXAA, supersampling (`r_superSample`), soft particles, sunbeam dust (`r_dustMotes`), per-pixel model lighting |
+| IMAGE | HDR scene and exposure, filmic tone curve, bloom, dynamic glow (`r_DynamicGlow` 0-3) and its blur style (`r_dynamicGlowStyle`), FXAA, supersampling (`r_superSample`), soft particles, sunbeam dust (`r_dustMotes`), per-pixel model lighting |
 | LIGHTING | Sun and sky (`r_dayNight`), live lighting tier, time of day, day length, sunlight brightness, ambient fill and its corner shading, indirect boost, light shafts (`r_volumetrics`) and their clarity |
 | SHADOWS | World and character sun shadows, shadow resolution, sharp and close cascade distances, filter taps, slit closing, contact shadows |
 

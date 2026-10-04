@@ -60,6 +60,12 @@ pub(crate) struct CompiledStage {
     pub(crate) output_blend: StageBlend,
     pub(crate) output_depth_write: bool,
     pub(crate) output_depth_function: DepthFunction,
+    /// rd-vanilla `shaderStage_t::glow` of the hardware pass: drawn again into the
+    /// dynamic glow target ([`crate::frame_target::aa::glow`]). A collapsed pass keeps
+    /// stage 0's flag (`CollapseMultitexture` moves only the texture bundles), so a
+    /// glowing second stage merged under a non-glowing first one does not glow, as in
+    /// stock. `primary.glow` keeps the source stage's own flag for emission inference.
+    pub(crate) glow: bool,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]

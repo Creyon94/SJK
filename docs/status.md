@@ -279,6 +279,17 @@ not bundled with the source. No windows, game instances or servers were opened;
 visual playtesting remains with the owner. Formatting, locked workspace build/tests
 and the optimized build passed.
 
+## Dynamic glow (SJK)
+
+SJK-only branch `personal/dynamic-glow` (2026-10-04, based on `024c22a`) draws
+stock's dynamic glow: `glow` shader stages get a blurred halo, with rd-vulkan's
+blur by default and rd-vanilla's as `r_dynamicGlowStyle 0`. See
+[Dynamic glow](rendering.md#dynamic-glow). Unit tests (glow flags through the
+multitexture collapse, saber blade/core split, cvars, kernels) and naga validation
+of the changed programs passed with the locked workspace build and tests. No game
+or window was started: appearance, GPU cost and the first-use pipeline compile
+remain to be checked on screen. Secondary views and fog do not affect glow yet.
+
 ## Client devmap preview
 
 Local `devmap1` preview (2026-10-04, based on `7155455`) exposes `devmap <map>`
