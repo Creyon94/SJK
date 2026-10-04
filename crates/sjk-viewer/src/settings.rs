@@ -135,6 +135,11 @@ pub(crate) struct SettingsMenu {
 }
 
 impl SettingsMenu {
+    /// The renderer section is the one on show.
+    pub(crate) fn renderer_open(&self) -> bool {
+        self.section == Section::Renderer
+    }
+
     pub(crate) fn new() -> Self {
         Self {
             section: Section::General,

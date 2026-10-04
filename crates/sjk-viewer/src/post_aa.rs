@@ -17,6 +17,9 @@ pub(crate) mod effects;
 /// Scene precision and a colour-ratio-preserving display shoulder.
 pub(crate) mod hdr;
 
+#[path = "post_exposure.rs"]
+/// Eye adaptation: the scene exposure, metered and smoothed on the GPU.
+pub(crate) mod exposure;
 #[path = "post_glow.rs"]
 /// Dynamic glow (`r_DynamicGlow`): the glowing stages' image, its blur and settings.
 pub(crate) mod glow;
@@ -63,6 +66,8 @@ pub(crate) struct Runtime {
     effects: Option<effects::Layer>,
     /// Dynamic glow image and blur, merged by this resolve; production only, when enabled.
     glow: Option<glow::Glow>,
+    /// Eye adaptation of a scene resolve; none for a display-only pass.
+    exposure: Option<exposure::Exposure>,
     /// Retained inputs to rebuild [`Self::bind`] when the effect layer is resized.
     inputs: Inputs,
 }
@@ -73,6 +78,8 @@ struct Inputs {
     sampler: wgpu::Sampler,
 
     effect_encoding: effects::Encoding,
+    /// The exposure state bound at binding 4 here and in the effect layer.
+    exposure_state: wgpu::Buffer,
 
     /// The resolve pipeline was built to merge an effect layer.
     merge: bool,
@@ -89,6 +96,7 @@ impl Runtime {
         Self::configured(
             &context.device,
             context.format,
+            context.ui_direct,
             size,
             context.fxaa,
             context.post_color.policy(),
@@ -97,10 +105,13 @@ impl Runtime {
         )
     }
 
+    /// `ui_direct` is [`crate::gpu_context::Context::ui_direct`]: without it the
+    /// 2D layer always goes through an intermediate with a UNORM alias.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn configured(
         device: &wgpu::Device,
         format: wgpu::TextureFormat,
+        ui_direct: bool,
         size: [u32; 2],
         fxaa: bool,
         policy: color::Policy,
@@ -113,11 +124,12 @@ impl Runtime {
             && !policy.tonemap
             && !policy.bloom
             && policy.gamma == 1.0
+            && ui_direct
         {
             return None;
         }
         let mut runtime = Self::pass_hdr(device, format, size, fxaa, policy, hdr, effects);
-        if runtime.scene_effects() && policy.gamma != 1.0 {
+        if runtime.scene_effects() && needs_display_pass(policy.gamma, ui_direct) {
             runtime.display = Some(Box::new(Self::pass(
                 device,
                 format,
@@ -161,6 +173,9 @@ impl Runtime {
         effects: Option<[u32; 2]>,
     ) -> Self {
         let scene_format = hdr.format(format);
+        // As `scene_effects`: this pass resolves the scene before the HUD.
+        let resolves_scene =
+            hdr.mode != 0 || fxaa || policy.tonemap || policy.bloom || effects.is_some();
         let sample_format = scene_format.remove_srgb_suffix();
         let usage = wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING;
 
@@ -212,7 +227,7 @@ impl Runtime {
                     constants: &[
                         ("SRGB_OUTPUT", if format.is_srgb() { 1.0 } else { 0.0 }),
                         ("HDR_INPUT", if hdr.mode != 0 { 1.0 } else { 0.0 }),
-                        ("HDR_EXPOSURE", f64::from(hdr.exposure)),
+                        ("SCENE_EXPOSURE", f64::from(u8::from(resolves_scene))),
                         ("EFFECTS", f64::from(u8::from(effects.is_some()))),
                         ("GLOW", f64::from(u8::from(glow.is_some()))),
                     ],
@@ -245,19 +260,32 @@ impl Runtime {
             contents: bytemuck::cast_slice(&values),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
+        let exposure = resolves_scene.then(|| {
+            exposure::Exposure::new(device, &sample, &sampler, size, hdr.mode != 0, hdr.exposure)
+        });
+        let exposure_state = exposure
+            .as_ref()
+            .map_or_else(|| exposure::neutral(device), |e| e.state().clone());
         let inputs = Inputs {
             sample,
             sampler,
 
             effect_encoding: effects::Encoding {
                 scene: scene_format,
-                exposure: hdr.exposure,
             },
+            exposure_state,
 
             merge: effects.is_some(),
             frame: size,
         };
-        let layer = effects.map(|scene| effects::Layer::new(device, scene, inputs.effect_encoding));
+        let layer = effects.map(|scene| {
+            effects::Layer::new(
+                device,
+                scene,
+                inputs.effect_encoding,
+                &inputs.exposure_state,
+            )
+        });
         let bind = Self::bind(
             device,
             &pipeline,
@@ -279,6 +307,7 @@ impl Runtime {
             bloom,
             effects: layer,
             glow,
+            exposure,
             inputs,
         }
     }
@@ -311,6 +340,10 @@ impl Runtime {
                 resource: parameters.as_entire_binding(),
             },
             view(3, bloom.map_or(&inputs.sample, |b| &b.output)),
+            wgpu::BindGroupEntry {
+                binding: 4,
+                resource: inputs.exposure_state.as_entire_binding(),
+            },
             view(5, blended),
             view(6, original),
             wgpu::BindGroupEntry {
@@ -348,7 +381,12 @@ impl Runtime {
         {
             return;
         }
-        let layer = effects::Layer::new(device, scene, self.inputs.effect_encoding);
+        let layer = effects::Layer::new(
+            device,
+            scene,
+            self.inputs.effect_encoding,
+            &self.inputs.exposure_state,
+        );
         // The glow image shares the scene's depth, so it follows the scene's size too.
         if self.glow.is_some() {
             self.glow = Some(glow::Glow::new(
@@ -381,25 +419,42 @@ impl Runtime {
         self.glow.as_ref()
     }
 
-    /// Intermediate receiving UI; gamma corrects it without filtering any glyphs.
-    pub(crate) fn hud_target<'a>(&'a self, output: &'a wgpu::TextureView) -> &'a wgpu::TextureView {
+    /// View the 2D layer draws into, always UNORM ([`crate::ui_target`]): the
+    /// display intermediate's alias, which the display pass ramps without
+    /// filtering any glyphs; this pass's own scene alias when it only applies the
+    /// ramp; else `output_ui`, the swapchain image's 2D view.
+    pub(crate) fn hud_target<'a>(
+        &'a self,
+        output_ui: &'a wgpu::TextureView,
+    ) -> &'a wgpu::TextureView {
         if let Some(display) = &self.display {
-            &display.scene
+            &display.inputs.sample
         } else if !self.scene_effects() {
-            &self.scene
+            &self.inputs.sample
         } else {
-            output
+            output_ui
         }
     }
 
     /// Resolve only scene effects here; display gamma is deliberately later.
+    /// The resolve writes linear colour through the sRGB view of the texture
+    /// the 2D layer then draws into.
     pub(crate) fn draw_scene(
         &self,
         encoder: &mut wgpu::CommandEncoder,
         output: &wgpu::TextureView,
     ) {
         if self.scene_effects() {
-            self.draw(encoder, self.hud_target(output));
+            self.draw(
+                encoder,
+                self.display
+                    .as_ref()
+                    .map_or(output, |display| &display.scene),
+            );
+            // After every reader of this frame's exposure; the next frame shows the result.
+            if let Some(exposure) = &self.exposure {
+                exposure.record(encoder);
+            }
         }
     }
 
@@ -468,6 +523,12 @@ impl Runtime {
     }
 }
 
+/// A scene resolve is followed by a separate display pass when the ramp is not
+/// identity, or when the 2D layer cannot draw into the swapchain image directly.
+fn needs_display_pass(gamma: f32, ui_direct: bool) -> bool {
+    gamma != 1.0 || !ui_direct
+}
+
 fn parameters(fxaa: bool, policy: color::Policy) -> [f32; 4] {
     [
         f32::from(u8::from(fxaa)),
@@ -479,4 +540,20 @@ fn parameters(fxaa: bool, policy: color::Policy) -> [f32; 4] {
         },
         if policy.bloom { 0.35 } else { 0.0 },
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::needs_display_pass;
+
+    #[test]
+    fn display_pass_follows_gamma_and_surface_aliasing() {
+        // Default path: the 2D layer draws into the swapchain image's UNORM view.
+        assert!(!needs_display_pass(1.0, true));
+        // r_gamma ramps world and 2D layer together after the overlays.
+        assert!(needs_display_pass(1.2, true));
+        // No UNORM view of the swapchain: the 2D layer uses the intermediate's alias.
+        assert!(needs_display_pass(1.0, false));
+        assert!(needs_display_pass(0.8, false));
+    }
 }

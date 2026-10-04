@@ -207,7 +207,7 @@ impl PlayerMenu {
             if chosen {
                 theme.foreground
             } else {
-                Color::new(0.82, 0.88, 0.94, 0.55)
+                Color::new(0.916, 0.945, 0.973, 0.767)
             },
             FontWeight::Semibold,
             2.0 * s,
@@ -240,9 +240,9 @@ impl PlayerMenu {
         }
         let zone = layout.value_zone(cell);
         let name_color = match (available, selected) {
-            (false, _) => Color::new(0.82, 0.88, 0.94, 0.3),
+            (false, _) => Color::new(0.916, 0.945, 0.973, 0.583),
             (true, true) => theme.foreground,
-            (true, false) => Color::new(0.82, 0.88, 0.94, 0.78),
+            (true, false) => Color::new(0.916, 0.945, 0.973, 0.896),
         };
         self.canvas.text(
             name,
@@ -355,7 +355,7 @@ impl PlayerMenu {
             if enabled {
                 theme.foreground
             } else {
-                Color::new(0.82, 0.88, 0.94, 0.35)
+                Color::new(0.916, 0.945, 0.973, 0.625)
             },
             FontWeight::Semibold,
             2.0 * s,

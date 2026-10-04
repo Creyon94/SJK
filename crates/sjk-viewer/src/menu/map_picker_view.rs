@@ -186,7 +186,7 @@ impl CreateGameMenu {
                 if selected {
                     theme.foreground
                 } else {
-                    Color::new(0.82, 0.88, 0.94, 0.78)
+                    Color::new(0.916, 0.945, 0.973, 0.896)
                 },
                 if selected {
                     FontWeight::Semibold

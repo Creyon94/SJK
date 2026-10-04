@@ -82,7 +82,7 @@ pub(super) fn build(
                 26.0 * s,
             ),
             20.0 * s,
-            Color::new(0.82, 0.88, 0.94, 0.80),
+            Color::new(0.916, 0.945, 0.973, 0.906),
             FontWeight::Regular,
             0.2 * s,
         );

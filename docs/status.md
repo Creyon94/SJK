@@ -460,6 +460,17 @@ EternalJK never reads, the Jedi Outcast red DFA, a changed `jp_gripSpeedScale`
 and holds for JA+'s extra animations. Not run in the client, and not checked
 against a public JA+ server or another JA+ version.
 
+## Eye adaptation (SJK only)
+
+SJK's exposure follows the view (`r_autoExposure`, on by default, -0.5 to +1 EV
+around `r_hdrExposure`, only brightening with `r_sceneHdr 0`); JKR's stays fixed.
+Headless Vulkan and DX12 probes on 2026-10-04 (Windows 11, RTX 5080) showed the
+resolve and effect layer byte-identical to the fixed exposure at exposure 1 and
+checked metering, snapping and smoothing on synthetic scenes; both passes took
+about 0.01 ms at 1080p and 0.02–0.03 ms at 4K. No client was run: the look in
+play, the default key on real maps and the cost in a full frame are unverified.
+See [rendering](rendering.md#eye-adaptation).
+
 ## Implemented scope
 
 - PK3/loose-file content, BSP maps/collision, legacy models and shader scripts.
