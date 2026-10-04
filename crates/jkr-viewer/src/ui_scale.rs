@@ -55,7 +55,7 @@ mod tests {
     #[test]
     fn raw_text_size_ignores_the_display_scale() {
         for display_scale in [1.0, 1.5, 2.0] {
-            let font = crate::text::load_modern(display_scale).unwrap().font;
+            let font = crate::text::load_modern(display_scale, None).unwrap().font;
             let line = font.height * glyph_scale(&font, 42.6, 2.0);
             assert!((line - 85.2).abs() < 1e-3, "{display_scale}: {line}");
         }
