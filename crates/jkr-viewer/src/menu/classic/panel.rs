@@ -240,10 +240,27 @@ impl PanelFrame {
             Frame::Main => Some(slot.target()),
             Frame::InGame => {
                 let row = self.list_row(index)?;
-                let [x, y, width, height] = IN_GAME_LIST;
+                let [x, y, width, height] = self.in_game_list();
                 Some([x, y + row as f32 * height, width, height])
             }
         }
+    }
+
+    /// The pop-up's group list rectangle of its first row: retail's 30-unit
+    /// rows, tightened when the page has more groups than fit in the box
+    /// (Setup gains JKR's RENDERER after retail's groups).
+    fn in_game_list(&self) -> [f32; 4] {
+        let [x, y, width, height] = IN_GAME_LIST;
+        let [_, box_y, _, box_height] = IN_GAME_BOX;
+        let groups = self
+            .page
+            .slots()
+            .iter()
+            .filter(|slot| slot.size == Size::List)
+            .count()
+            .max(1);
+        let fit = (box_y + box_height - y) / groups as f32;
+        [x, y, width, height.min(fit)]
     }
 
     /// Row of page slot `index` in the pop-up's group list.
@@ -295,7 +312,7 @@ impl PanelFrame {
         let Some(row) = self.list_row(index) else {
             return;
         };
-        let [x, y, width, height] = IN_GAME_LIST;
+        let [x, y, width, height] = self.in_game_list();
         let size = Size::List.text();
         let top = y + row as f32 * height + (height - size * 1.2) * 0.5;
         canvas.text_fmt_aligned(
@@ -656,7 +673,7 @@ mod tests {
                 .filter(|slot| slot.size == Size::List)
                 .count();
             assert_eq!(rows, (0..groups).collect::<Vec<_>>());
-            let [_, y, _, height] = IN_GAME_LIST;
+            let [_, y, _, height] = frame.in_game_list();
             let [_, box_y, _, box_height] = IN_GAME_BOX;
             assert!(y + groups as f32 * height <= box_y + box_height, "{page:?}");
         }

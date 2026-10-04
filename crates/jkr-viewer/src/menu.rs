@@ -136,6 +136,9 @@ pub(crate) struct ClientMenu {
     /// The classic option panel on show in the settings or key-binding
     /// phase, if any.
     classic_panel: Option<classic::ClassicPanel>,
+    /// The classic panel the renderer settings were opened from, reopened when
+    /// they close.
+    renderer_panel: Option<classic::ClassicPanel>,
     /// Retail menu artwork the classic style can draw this frame.
     art: art::ArtSet,
     /// The classic connect and loading screens' state.
@@ -207,6 +210,7 @@ impl ClientMenu {
             menu_style: MenuStyle::default(),
             classic: classic::ClassicMain::new(),
             classic_panel: None,
+            renderer_panel: None,
             art: art::ArtSet::default(),
             loading: classic::loading::ClassicLoading::default(),
             world_hidden: false,
@@ -488,6 +492,7 @@ impl ClientMenu {
         tab: usize,
     ) {
         self.settings.open_tab(console, tab);
+        self.renderer_panel = None;
         self.settings_return = target;
         self.state.open_settings();
     }
@@ -499,7 +504,13 @@ impl ClientMenu {
         console: &mut ViewerConsole,
     ) -> MenuAction {
         match result {
-            SettingsResult::Back => self.close_settings(),
+            SettingsResult::Back => {
+                if let Some(panel) = self.renderer_panel.take() {
+                    self.reopen_classic_panel(console, panel);
+                    return MenuAction::None;
+                }
+                self.close_settings()
+            }
             SettingsResult::OpenKeybinds => {
                 self.keybinds.open(console);
                 self.keybinds_direct = false;

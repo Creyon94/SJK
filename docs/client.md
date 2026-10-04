@@ -330,12 +330,14 @@ remain outside this audio adapter.
 
 JKR's own rendering cvars (`jkr_*`) have their own settings page. The last row
 of Settings > VIDEO, "Renderer", opens it, as JoF EJK's advanced renderer page
-opens from its Video setup; Escape or Back returns to that row. The page has
-three tabs:
+opens from its Video setup; Escape or Back returns to that row. With the
+classic menu style, the Setup page's RENDERER entry (after NETWORK, in the main
+menu and the in-game pop-up) opens the same page directly, and Escape or Back
+returns to the Setup group that was open. The page has three tabs:
 
 | Tab | Settings |
 | --- | --- |
-| IMAGE | HDR scene and exposure, filmic tone curve, bloom, FXAA, supersampling (`jkr_renderScale`), soft particles, per-pixel model lighting |
+| IMAGE | HDR scene and exposure, filmic tone curve, bloom, FXAA, supersampling (`jkr_renderScale`), soft particles, sunbeam dust (`jkr_dust`), per-pixel model lighting |
 | LIGHTING | Sun and sky (`jkr_dayNight`), live lighting tier, time of day, day length, sunlight brightness, ambient fill and its corner shading, indirect boost, light shafts (`jkr_volumetrics`) and their clarity |
 | SHADOWS | World and character sun shadows, shadow resolution, sharp and close cascade distances, filter taps, slit closing, contact shadows |
 
@@ -344,7 +346,9 @@ restart; "(next map)" applies when a map loads; the rest apply immediately.
 Changing a value saves it like any other setting. Switches over numeric cvars
 show ON/OFF and write 1/0. Defaults are unchanged (see
 [Default visual profile](rendering.md#default-visual-profile)). Diagnostics such
-as `jkr_dayDebug` stay console-only, and the ground HUD stays on the HUD tab.
+as `jkr_dayDebug` stay console-only, the ground HUD stays on the HUD tab, and
+exclusive fullscreen (`jkr_exclusiveFullscreen`) stays on VIDEO's display-mode
+row.
 See [catalog.rs](../crates/jkr-viewer/src/settings/catalog.rs).
 
 ## Slider values

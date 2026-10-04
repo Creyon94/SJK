@@ -63,6 +63,8 @@ pub(crate) enum Entry {
     Hud,
     MoreHud,
     Network,
+    /// JKR's renderer settings, after retail's Setup groups.
+    Renderer,
     Back,
     No,
     Yes,
@@ -215,6 +217,7 @@ impl Entry {
             Self::Hud => Outcome::Settings("HUD"),
             Self::MoreHud => Outcome::Settings("HUD+"),
             Self::Network => Outcome::Settings("NETWORK"),
+            Self::Renderer => Outcome::Open(MainDestination::Renderer),
             Self::PlayDemo | Self::Rules | Self::Mods | Self::Defaults => Outcome::Unavailable,
         }
     }
@@ -421,6 +424,7 @@ mod tests {
                 Entry::OtherControls
             ]
         );
+        assert_eq!(entries(Page::Setup)[13], Entry::Renderer);
         assert_eq!(
             entries(Page::Setup)[4..10],
             [
@@ -547,12 +551,10 @@ mod tests {
                 "{page:?}"
             );
             for slot in page.slots().iter().filter(|slot| slot.size == Size::List) {
-                assert_eq!(
-                    slot.entry.panel().is_some(),
-                    slot.enabled(),
-                    "{:?}",
-                    slot.entry
-                );
+                // A group shows a panel; RENDERER opens its own screen.
+                let opens = slot.entry.panel().is_some()
+                    || slot.entry.outcome() == Outcome::Open(MainDestination::Renderer);
+                assert_eq!(opens, slot.enabled(), "{:?}", slot.entry);
                 if let Some(Panel::Settings { caption, .. }) = slot.entry.panel() {
                     assert!(SettingsMenu::tab_index(caption).is_some(), "{caption}");
                 }

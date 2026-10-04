@@ -265,6 +265,13 @@ impl SettingsMenu {
         self.refresh(console);
     }
 
+    /// Open the renderer settings on their own; backing out leaves the screen.
+    pub(crate) fn open_renderer(&mut self, console: &ViewerConsole) {
+        self.open_tab(console, RENDERER_TAB);
+        self.enter_renderer(console);
+        self.renderer_direct = true;
+    }
+
     /// Whether the screen wants [`Self::set_monitor_modes`] (it just opened).
     pub(crate) fn wants_monitor_modes(&self) -> bool {
         self.wants_monitor
@@ -767,6 +774,20 @@ mod tests {
             (Section::General, RENDERER_TAB, VIDEO.len())
         );
         assert!(matches!(menu.back(&console), SettingsResult::Back));
+    }
+
+    #[test]
+    fn the_renderer_opened_on_its_own_backs_out_of_the_screen() {
+        let (_directory, console) = console();
+        let mut menu = SettingsMenu::new();
+        menu.open_renderer(&console);
+        assert_eq!((menu.section, menu.tab), (Section::Renderer, 0));
+        assert_eq!(menu.action(), None);
+        assert!(matches!(menu.back(&console), SettingsResult::Back));
+        // A later ordinary open is the general screen again.
+        menu.open_tab(&console, RENDERER_TAB);
+        assert_eq!(menu.section, Section::General);
+        assert_eq!(menu.action(), Some(Action::Renderer));
     }
 
     #[test]

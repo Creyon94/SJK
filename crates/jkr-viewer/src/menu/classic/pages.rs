@@ -272,7 +272,7 @@ const CONTROLS: [Slot; 13] = {
 
 /// Retail `setup.menu`: the option pages down the left, then the settings
 /// JKR adds (HUD, network) after them.
-const SETUP: [Slot; 15] = {
+const SETUP: [Slot; 16] = {
     let [play, profile, controls, setup] = nav_row();
     let [back, exit] = back_exit();
     [
@@ -333,6 +333,12 @@ const SETUP: [Slot; 15] = {
             "NETWORK",
             "Master server and connection rates",
             377.0,
+        ),
+        list_row(
+            Entry::Renderer,
+            "RENDERER",
+            "HDR, bloom, lighting, shadows and day/night",
+            401.0,
         ),
         back,
         exit,

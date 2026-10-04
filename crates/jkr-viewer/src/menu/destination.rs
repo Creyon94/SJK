@@ -14,6 +14,8 @@ pub(crate) enum MainDestination {
     Player,
     /// The settings screen, on tab `tab`.
     Settings { tab: usize },
+    /// The renderer settings on their own, closing straight back.
+    Renderer,
     /// The key-binding editor on category tab `category`, closing straight
     /// back to the main menu.
     Keybinds { category: usize },
@@ -58,6 +60,13 @@ impl ClientMenu {
             }
             MainDestination::Settings { tab } => {
                 self.open_settings_from(console, ReturnTarget::MainMenu, tab);
+                MenuAction::None
+            }
+            MainDestination::Renderer => {
+                self.renderer_panel = None;
+                self.settings_return = ReturnTarget::MainMenu;
+                self.settings.open_renderer(console);
+                self.state.open_settings();
                 MenuAction::None
             }
             MainDestination::Keybinds { category } => {

@@ -186,8 +186,15 @@ impl ClientMenu {
             None => return false,
         }
         self.settings_return = target;
+        self.renderer_panel = None;
         self.classic_panel = Some(ClassicPanel { page, entry, frame });
         true
+    }
+
+    /// Show `panel` again, as it was before a screen it opened.
+    pub(super) fn reopen_classic_panel(&mut self, console: &ViewerConsole, panel: ClassicPanel) {
+        let target = self.settings_return;
+        self.open_classic_panel(console, panel.page, panel.entry, panel.frame, target);
     }
 
     /// The in-game bar's Setup or Controls: the pop-up on its first group.
@@ -245,6 +252,15 @@ impl ClientMenu {
                     self.state.main_menu();
                     self.classic.show(page);
                 }
+                MenuAction::None
+            }
+            // The renderer settings return to this panel, in game too.
+            Outcome::Open(MainDestination::Renderer) => {
+                self.leave_classic_panel();
+                self.settings.open_renderer(console);
+                self.settings_return = target;
+                self.renderer_panel = Some(panel);
+                self.state.open_settings();
                 MenuAction::None
             }
             Outcome::Open(destination) => {
