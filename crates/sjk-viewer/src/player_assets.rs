@@ -132,7 +132,7 @@ pub(super) fn load_player_appearance_with(
         }
         let mut combined = Skin::default();
         for part in parts {
-            combined.merge(Skin::parse(&read(&format!("{directory}/{part}.skin"))?)?);
+            combined.append(&read(&format!("{directory}/{part}.skin"))?);
         }
         combined
     } else {
@@ -149,7 +149,7 @@ pub(super) fn load_player_appearance_with(
                 None => Err(error),
             }
         })?;
-        Skin::parse(&bytes)?
+        Skin::parse(&bytes)
     };
     let animation_directory = mesh
         .animation_name

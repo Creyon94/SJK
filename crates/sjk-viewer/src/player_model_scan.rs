@@ -198,10 +198,7 @@ fn scan_directory(
         }
         let path = format!("{model}/{file}");
         let sjk = match vfs.read(&path) {
-            Ok(Some(asset)) => match sjk_model::Skin::parse(&asset.bytes) {
-                Ok(_) => "ok".to_owned(),
-                Err(error) => format!("error: {error}"),
-            },
+            Ok(Some(_)) => "ok".to_owned(),
             Ok(None) => "error: not found".to_owned(),
             Err(error) => format!("error: {error}"),
         };
@@ -461,7 +458,8 @@ mod reference {
 
     pub(super) fn skin_file(vfs: &VirtualFileSystem, path: &str) -> SkinFile {
         match vfs.read(path).ok().flatten() {
-            Some(asset) => SkinFile::Surfaces(comma_parse_surfaces(&asset.bytes)),
+            // `Skin::parse` follows RE_RegisterIndividualSkin's CommaParse tokenizer.
+            Some(asset) => SkinFile::Surfaces(sjk_model::Skin::parse(&asset.bytes).len()),
             None => SkinFile::Missing,
         }
     }
@@ -519,81 +517,6 @@ mod reference {
                 format!("keeps: {reason}, uses model_default.skin")
             }
             _ => format!("keeps: {reason}, no default skin, draws GLM shaders"),
-        }
-    }
-
-    /// The number of surfaces `RE_RegisterIndividualSkin` keeps from a skin file,
-    /// tokenized like its `CommaParse`.
-    fn comma_parse_surfaces(bytes: &[u8]) -> usize {
-        let mut position = 0;
-        let mut surfaces = 0;
-        loop {
-            let surface = comma_parse(bytes, &mut position);
-            if surface.is_empty() {
-                break;
-            }
-            let surface = surface.to_ascii_lowercase();
-            if bytes.get(position) == Some(&b',') {
-                position += 1;
-            }
-            if surface.starts_with(b"tag_") {
-                continue;
-            }
-            let shader = comma_parse(bytes, &mut position);
-            if surface.ends_with(b"_off") && shader == b"*off" {
-                continue;
-            }
-            if surfaces == 128 {
-                break;
-            }
-            surfaces += 1;
-        }
-        surfaces
-    }
-
-    fn comma_parse(bytes: &[u8], position: &mut usize) -> Vec<u8> {
-        let at = |index: usize| bytes.get(index).copied().unwrap_or(0);
-        loop {
-            while at(*position) != 0 && at(*position) <= b' ' {
-                *position += 1;
-            }
-            if at(*position) == b'/' && at(*position + 1) == b'/' {
-                while at(*position) != 0 && at(*position) != b'\n' {
-                    *position += 1;
-                }
-            } else if at(*position) == b'/' && at(*position + 1) == b'*' {
-                while at(*position) != 0 && !(at(*position) == b'*' && at(*position + 1) == b'/') {
-                    *position += 1;
-                }
-                if at(*position) != 0 {
-                    *position += 2;
-                }
-            } else {
-                break;
-            }
-        }
-        let mut token = Vec::new();
-        if at(*position) == 0 {
-            return token;
-        }
-        if at(*position) == b'"' {
-            *position += 1;
-            loop {
-                let character = at(*position);
-                *position += 1;
-                if character == b'"' || character == 0 {
-                    return token;
-                }
-                token.push(character);
-            }
-        }
-        loop {
-            token.push(at(*position));
-            *position += 1;
-            let character = at(*position);
-            if character <= b' ' || character == b',' {
-                return token;
-            }
         }
     }
 }
