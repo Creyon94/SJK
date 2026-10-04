@@ -23,8 +23,8 @@ OPTIONS:
     --strength F      multiply every class's normal strength (default 1.0)
     --max-size N      halve textures larger than N texels before generating
                       (default: keep the source resolution)
-    --overrides FILE  per-texture class, roughness, metalness and height rules (see the
-                      crate documentation); default: sjk-materialgen-overrides.txt
+    --overrides FILE  per-texture class, roughness, metalness, height and emission rules
+                      (see the crate documentation); default: sjk-materialgen-overrides.txt
                       next to the output pk3, when it exists
     --dry-run         list what would be generated and what is skipped; write nothing
     --out FILE        output pk3 (default: <JKR user data>/generated/zzz_jkr_materials.pk3,
@@ -35,14 +35,18 @@ For each world texture that installed maps draw on lightmapped surfaces, the too
 writes a normal map (<texture>_nh with height for parallax on stone, tiles, ground
 and metal panels, <texture>_n otherwise) and a packed <texture>_rmo map (roughness,
 metalness, occlusion) into one pk3, plus jkr-materialgen/manifest.json listing
-every source, output, skipped shader and setting. Shaders with a tcGen environment
-stage are treated as polished (glossier). Skies, fog, liquids, system and
+every source, output, skipped shader and setting. Textures that give light
+(q3map_surfacelight, an authored _glow image, light, lamp or screen names) also get
+an emission map <texture>_e of their luminous texels, unless their shader already
+glows; emission=on|off|<strength> in the overrides file decides per texture.
+Shaders with a tcGen environment stage are treated as polished (glossier). Skies, fog, liquids, system and
 interface images, effects, glowing, animated and alpha-tested foliage stages, and
 textures that already have rend2 maps get none. Game data is only read.
 
 To use the maps, either point the client at the output directory
 (JKR_CONTENT=<directory>) or copy the pk3 into GameData/base yourself, then enable
-r_normalMapping, r_specularMapping and optionally r_parallaxMapping.
+r_normalMapping, r_specularMapping and optionally r_parallaxMapping. Emission maps
+show with r_emissiveMaps (on by default).
 
 The generated images are derived from your retail textures. Keep them on your
 machine: do not share, upload or commit them.

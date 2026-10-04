@@ -3,13 +3,13 @@
 use crate::classes::MaterialClass;
 use crate::generate::{
     BANDS, COARSE_WEIGHT, GRADIENT_PASSES, GRADIENT_RADIUS, MIN_HEIGHT_RANGE, PACKED_SUFFIX,
-    Settings, generate,
+    Settings, cap_size, generate,
 };
 use crate::mount::mount_game_data;
 use crate::overrides::Overrides;
 use crate::package::{
-    Entry, Manifest, ManifestSettings, NOTICE, SkippedEntry, SourceEntry, png_rgb, png_rgba,
-    write_pk3,
+    EmissionEntry, Entry, Manifest, ManifestSettings, NOTICE, SkippedEntry, SourceEntry, png_rgb,
+    png_rgba, write_pk3,
 };
 use crate::select::{Candidate, Selection, installed_maps, select, shader_uses};
 use sjk_shader::ShaderCatalog;
@@ -50,6 +50,9 @@ pub struct Summary {
     pub failed: Vec<(String, String)>,
     /// Textures without relief, which got no maps.
     pub flat: Vec<String>,
+    /// Emission maps written, and textures whose evidence was looked at.
+    pub emission_written: usize,
+    pub emission_considered: usize,
     /// Archive size in bytes (0 for a dry run).
     pub bytes: u64,
     pub elapsed: Duration,
@@ -98,6 +101,8 @@ pub fn run(options: &Options) -> Result<Summary, Box<dyn Error>> {
             images: 0,
             failed: Vec::new(),
             flat: Vec::new(),
+            emission_written: 0,
+            emission_considered: 0,
             bytes: 0,
             elapsed: started.elapsed(),
             excluded,
@@ -109,9 +114,29 @@ pub fn run(options: &Options) -> Result<Summary, Box<dyn Error>> {
     let mut sources = Vec::new();
     let mut failed = Vec::new();
     let mut flat = Vec::new();
+    let mut emission_skipped = Vec::new();
+    let (mut emission_written, mut emission_considered) = (0, 0);
     for (candidate, result) in selection.candidates.iter().zip(results) {
+        let emission = match &result {
+            Ok(output) => emission_entry(candidate, output.emission.as_ref()),
+            Err(_) => None,
+        };
+        if let Some(entry) = &emission {
+            emission_considered += 1;
+            emission_written += usize::from(entry.result == WRITTEN);
+        }
         match result {
-            Ok(output) if output.entries.is_empty() => flat.push(candidate.image.clone()),
+            Ok(output) if output.entries.is_empty() => {
+                if output.flat {
+                    flat.push(candidate.image.clone());
+                }
+                if let Some(entry) = emission {
+                    emission_skipped.push(SkippedEntry {
+                        name: candidate.image.clone(),
+                        reason: format!("no emission map: {}", entry.result),
+                    });
+                }
+            }
             Ok(output) => {
                 sources.push(SourceEntry {
                     image: candidate.image.clone(),
@@ -130,6 +155,7 @@ pub fn run(options: &Options) -> Result<Summary, Box<dyn Error>> {
                     triangles: candidate.triangles,
                     outputs: output.entries.iter().map(|e| e.path.clone()).collect(),
                     existing: candidate.existing.clone(),
+                    emission,
                 });
                 entries.extend(output.entries);
             }
@@ -152,6 +178,7 @@ pub fn run(options: &Options) -> Result<Summary, Box<dyn Error>> {
         name: image.clone(),
         reason: format!("image could not be decoded: {error}"),
     }));
+    skipped.extend(emission_skipped);
     let manifest = Manifest {
         tool: env!("CARGO_PKG_NAME"),
         version: env!("CARGO_PKG_VERSION"),
@@ -165,6 +192,8 @@ pub fn run(options: &Options) -> Result<Summary, Box<dyn Error>> {
             normal_convention: "tangent space, red +s (right), green +t (down the image), \
                                 (128,128,255) flat; _nh alpha is height (255 high)",
             packed_layout: "_rmo: red roughness, green metalness, blue occlusion",
+            emission_layout: "_e: RGB emitted colour, sRGB like the diffuse image, black \
+                              emits nothing; added unlit by the client",
             gradient_radius: GRADIENT_RADIUS,
             gradient_passes: GRADIENT_PASSES,
             height_bands: BANDS.iter().map(|(r, w)| [*r, *w]).collect(),
@@ -186,6 +215,8 @@ pub fn run(options: &Options) -> Result<Summary, Box<dyn Error>> {
         images,
         failed,
         flat,
+        emission_written,
+        emission_considered,
         bytes,
         elapsed: started.elapsed(),
         excluded,
@@ -205,6 +236,39 @@ struct Output {
     width: u32,
     height: u32,
     entries: Vec<Entry>,
+    /// The texture has no relief: no normal or packed map.
+    flat: bool,
+    /// The emission map's coverage and gain, or why none was written; `None` without a plan.
+    emission: Option<Result<(f32, f32), String>>,
+}
+
+/// The [`EmissionEntry::result`] of a written emission map.
+const WRITTEN: &str = "written";
+
+/// The manifest's emission entry of `candidate`, from its plan or note and the outcome.
+fn emission_entry(
+    candidate: &Candidate,
+    outcome: Option<&Result<(f32, f32), String>>,
+) -> Option<EmissionEntry> {
+    match (&candidate.emission, outcome) {
+        (Some(plan), Some(outcome)) => Some(EmissionEntry {
+            evidence: Some(plan.evidence.describe()),
+            result: match outcome {
+                Ok(_) => WRITTEN.to_owned(),
+                Err(reason) => reason.clone(),
+            },
+            coverage: outcome.as_ref().ok().map(|(coverage, _)| *coverage),
+            gain: outcome.as_ref().ok().map(|(_, gain)| *gain),
+            strength: plan.strength,
+        }),
+        _ => candidate.emission_note.map(|note| EmissionEntry {
+            evidence: None,
+            result: note.to_owned(),
+            coverage: None,
+            gain: None,
+            strength: 1.0,
+        }),
+    }
 }
 
 /// Generate every candidate on all cores; results keep the candidates' order.
@@ -251,39 +315,57 @@ fn generate_one(
         .map_err(|error| error.to_string())?
         .ok_or("image disappeared")?;
     let source = decode(&candidate.image, &asset.bytes)?;
-    let maps = generate(&source, &candidate.class, candidate.alpha_tested, settings);
     let mut entries = Vec::new();
-    if maps.flat {
-        return Ok(Output {
-            archive: archive_name(&asset.source.mount_name),
-            width: maps.packed.width(),
-            height: maps.packed.height(),
-            entries,
-        });
-    }
-    if candidate.normal {
-        let bytes = if maps.normal_alpha {
-            png_rgba(&maps.normal)
-        } else {
-            png_rgb(&image::DynamicImage::ImageRgba8(maps.normal.clone()).to_rgb8())
+    let mut flat = false;
+    if candidate.normal || candidate.packed {
+        let maps = generate(&source, &candidate.class, candidate.alpha_tested, settings);
+        flat = maps.flat;
+        if candidate.normal && !flat {
+            let bytes = if maps.normal_alpha {
+                png_rgba(&maps.normal)
+            } else {
+                png_rgb(&image::DynamicImage::ImageRgba8(maps.normal.clone()).to_rgb8())
+            }
+            .map_err(|error| error.to_string())?;
+            entries.push(Entry {
+                path: format!("{}{}.png", candidate.base, maps.normal_kind.suffix()),
+                bytes,
+            });
         }
-        .map_err(|error| error.to_string())?;
-        entries.push(Entry {
-            path: format!("{}{}.png", candidate.base, maps.normal_kind.suffix()),
-            bytes,
-        });
+        if candidate.packed && !flat {
+            entries.push(Entry {
+                path: format!("{}{PACKED_SUFFIX}.png", candidate.base),
+                bytes: png_rgb(&maps.packed).map_err(|error| error.to_string())?,
+            });
+        }
     }
-    if candidate.packed {
+    let sized = cap_size(&source, settings.max_size);
+    // A light panel of one flat colour has no relief but may still emit.
+    let emission = candidate.emission.as_ref().map(|plan| {
+        let glow = match &plan.glow_image {
+            Some(path) => {
+                let asset = vfs
+                    .read(path)
+                    .map_err(|error| error.to_string())?
+                    .ok_or("glow image disappeared")?;
+                Some(decode(path, &asset.bytes)?)
+            }
+            None => None,
+        };
+        let emission = crate::emission::generate(&sized, glow.as_ref(), plan)?;
         entries.push(Entry {
-            path: format!("{}{PACKED_SUFFIX}.png", candidate.base),
-            bytes: png_rgb(&maps.packed).map_err(|error| error.to_string())?,
+            path: format!("{}{}.png", candidate.base, crate::emission::SUFFIX),
+            bytes: png_rgb(&emission.image).map_err(|error| error.to_string())?,
         });
-    }
+        Ok((emission.coverage, emission.gain))
+    });
     Ok(Output {
         archive: archive_name(&asset.source.mount_name),
-        width: maps.packed.width(),
-        height: maps.packed.height(),
+        width: sized.width(),
+        height: sized.height(),
         entries,
+        flat,
+        emission,
     })
 }
 
@@ -326,7 +408,15 @@ pub fn describe_candidate(candidate: &Candidate) -> String {
     if candidate.packed {
         outputs.push(PACKED_SUFFIX);
     }
+    if candidate.emission.is_some() {
+        outputs.push(crate::emission::SUFFIX);
+    }
     let mut tuned = Vec::new();
+    if let Some(plan) = &candidate.emission {
+        tuned.push(format!("emission: {}", plan.evidence.describe()));
+    } else if let Some(note) = candidate.emission_note {
+        tuned.push(format!("no emission: {note}"));
+    }
     if candidate.polished {
         tuned.push("polished".to_owned());
     }

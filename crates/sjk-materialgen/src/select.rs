@@ -9,7 +9,8 @@
 //! surface without a shader script is the implicit lightmapped default shader
 //! of its texture, which qualifies too.
 
-use crate::classes::{ClassSource, MaterialClass, classify, polished, wants_height};
+use crate::classes::{ClassSource, MaterialClass, bsp, classify, polished, wants_height};
+use crate::emission::{self, Plan, ShaderLight};
 use crate::overrides::Overrides;
 use sjk_bsp::{Bsp, SurfaceKind};
 use sjk_shader::{ShaderCatalog, ShaderDefinition, ShaderStage, StageBlend, TextureGenerator};
@@ -135,6 +136,10 @@ pub struct Candidate {
     pub normal: bool,
     /// Write a packed `_rmo` map (no specular map exists yet).
     pub packed: bool,
+    /// Write an emission map (`_e`) when its texels allow ([`crate::emission`]).
+    pub emission: Option<Plan>,
+    /// Why a texture with some sign of light gets no emission map.
+    pub emission_note: Option<&'static str>,
     /// Existing maps found next to the image, by name.
     pub existing: Vec<String>,
     pub shaders: BTreeSet<String>,
@@ -255,6 +260,8 @@ pub struct ShaderChoice {
     pub alpha_tested: bool,
     /// The shader has a `tcGen environment` stage: stock polish.
     pub polished: bool,
+    /// Its surface light and whether it already shows light over the diffuse pair.
+    pub light: ShaderLight,
 }
 
 /// Decide one shader: its diffuse image, or why it gets no maps.
@@ -285,7 +292,7 @@ pub fn evaluate_shader(
     if shader_use.lightmapped_triangles == 0 {
         return Ok(Err(SkipReason::VertexLit));
     }
-    let (image, alpha_tested, polished) = match catalog.get(name) {
+    let (image, alpha_tested, polished, light) = match catalog.get(name) {
         Some(definition) => {
             let stage = match diffuse_stage(definition) {
                 Ok(stage) => stage,
@@ -296,9 +303,19 @@ pub fn evaluate_shader(
                 .stages
                 .iter()
                 .any(|stage| stage.texture_generator == TextureGenerator::Environment);
-            (image, stage.alpha_function.is_some(), polished)
+            (
+                image,
+                stage.alpha_function.is_some(),
+                polished,
+                ShaderLight::of(definition),
+            )
         }
-        None => (catalog.resolve_image(vfs, name)?, false, false),
+        None => (
+            catalog.resolve_image(vfs, name)?,
+            false,
+            false,
+            ShaderLight::default(),
+        ),
     };
     let Some(image) = image else {
         return Ok(Err(SkipReason::MissingImage));
@@ -311,6 +328,7 @@ pub fn evaluate_shader(
         image,
         alpha_tested,
         polished,
+        light,
     }))
 }
 
@@ -447,16 +465,14 @@ pub fn select(
     overrides: &Overrides,
 ) -> Result<Selection, Box<dyn Error>> {
     let mut skipped = Vec::new();
-    // image -> (shaders with their use, alpha test and polish)
-    let mut by_image: BTreeMap<String, Vec<(&str, &ShaderUse, bool, bool)>> = BTreeMap::new();
+    // image -> the shaders drawing it, with their use and choice
+    let mut by_image: BTreeMap<String, Vec<(&str, &ShaderUse, ShaderChoice)>> = BTreeMap::new();
     for (name, shader_use) in uses {
         match evaluate_shader(vfs, catalog, name, shader_use)? {
-            Ok(choice) => by_image.entry(choice.image).or_default().push((
-                name,
-                shader_use,
-                choice.alpha_tested,
-                choice.polished,
-            )),
+            Ok(choice) => by_image
+                .entry(choice.image.clone())
+                .or_default()
+                .push((name, shader_use, choice)),
             Err(reason) => skipped.push(Skipped {
                 name: name.clone(),
                 reason,
@@ -468,7 +484,7 @@ pub fn select(
     let mut candidates = Vec::new();
     for (image, shaders) in by_image {
         // The class follows the shader drawing most of it (then the first name).
-        let (_, primary, _, _) = shaders
+        let (_, primary, _) = shaders
             .iter()
             .max_by(|a, b| {
                 a.1.lightmapped_triangles
@@ -477,8 +493,8 @@ pub fn select(
             })
             .expect("every image has a shader");
         let (table_class, class_source) = classify(&image, primary.surface_flags);
-        let alpha_tested = shaders.iter().any(|(_, _, alpha, _)| *alpha);
-        let polish = shaders.iter().any(|(_, _, _, polish)| *polish);
+        let alpha_tested = shaders.iter().any(|(_, _, choice)| choice.alpha_tested);
+        let polish = shaders.iter().any(|(_, _, choice)| choice.polished);
         let base = strip_extension(&image).to_owned();
         let mut class = if polish {
             polished(table_class)
@@ -489,11 +505,11 @@ pub fn select(
         let (class, applied) = overrides.apply(&base, class);
         let triangles = shaders
             .iter()
-            .map(|(_, shader_use, _, _)| shader_use.lightmapped_triangles)
+            .map(|(_, shader_use, _)| shader_use.lightmapped_triangles)
             .sum();
         let maps_used: BTreeSet<String> = shaders
             .iter()
-            .flat_map(|(_, shader_use, _, _)| shader_use.maps.iter().cloned())
+            .flat_map(|(_, shader_use, _)| shader_use.maps.iter().cloned())
             .collect();
         let skip = |reason| Skipped {
             name: image.clone(),
@@ -516,17 +532,42 @@ pub fn select(
         };
         let normals = existing_with(&NORMAL_SUFFIXES)?;
         let speculars = existing_with(&SPECULAR_SUFFIXES)?;
-        if !normals.is_empty() && !speculars.is_empty() {
+        let emissions = existing_with(&[emission::SUFFIX])?;
+        let lights: Vec<ShaderLight> = shaders.iter().map(|(_, _, choice)| choice.light).collect();
+        let computer = shaders
+            .iter()
+            .any(|(_, shader_use, _)| shader_use.surface_flags & bsp::MASK == bsp::COMPUTER);
+        let glow_image = existing_with(&emission::GLOW_SUFFIXES)?.into_iter().next();
+        let decision = emission::decide(
+            &base,
+            &lights,
+            computer,
+            glow_image.as_deref(),
+            overrides.emission(&base),
+        );
+        let (emission, emission_note) = match decision {
+            Ok(_) if !emissions.is_empty() => (None, Some("already has an emission map")),
+            Ok(plan) => (Some(plan), None),
+            Err(note) => (None, note),
+        };
+        // Textures with every rend2 map may still need an emission map.
+        if !normals.is_empty() && !speculars.is_empty() && emission.is_none() {
             skipped.push(skip(SkipReason::HasMaps));
             continue;
         }
         candidates.push(Candidate {
             normal: normals.is_empty(),
             packed: speculars.is_empty(),
-            existing: normals.into_iter().chain(speculars).collect(),
+            emission,
+            emission_note,
+            existing: normals
+                .into_iter()
+                .chain(speculars)
+                .chain(emissions)
+                .collect(),
             shaders: shaders
                 .iter()
-                .map(|(name, _, _, _)| (*name).to_owned())
+                .map(|(name, _, _)| (*name).to_owned())
                 .collect(),
             maps: maps_used,
             image,
@@ -797,6 +838,93 @@ mod tests {
         assert_eq!(reasons["textures/a/missing"], SkipReason::MissingImage);
         assert_eq!(reasons["textures/a/done.tga"], SkipReason::HasMaps);
         assert_eq!(reasons["textures/p/fern.tga"], SkipReason::AlphaTested);
+    }
+
+    #[test]
+    fn emission_plans_follow_the_evidence() {
+        let script = "textures/e/panel { q3map_surfacelight 2000 { map $lightmap } \
+                      { map textures/e/panel blendFunc filter } }\n\
+                      textures/e/strip { q3map_surfacelight 2000 { map $lightmap } \
+                      { map textures/e/strip blendFunc filter } \
+                      { map textures/e/strip_glow blendFunc add glow } }";
+        let mut vfs = VirtualFileSystem::new();
+        vfs.mount_memory(
+            "test",
+            [
+                ("shaders/e.shader", script.as_bytes().to_vec()),
+                ("textures/e/panel.jpg", vec![0]),
+                ("textures/e/strip.jpg", vec![0]),
+                ("textures/e/strip_glow.jpg", vec![0]),
+                ("textures/e/wall.jpg", vec![0]),
+                ("textures/e/wall_glow.jpg", vec![0]),
+                ("textures/e/lamp1.jpg", vec![0]),
+                ("textures/e/door.jpg", vec![0]),
+                ("textures/e/terminal.jpg", vec![0]),
+                ("textures/e/screen1.jpg", vec![0]),
+                ("textures/e/screen1_e.png", vec![0]),
+                ("textures/e/lightbox.jpg", vec![0]),
+                ("textures/e/lightbox_n.png", vec![0]),
+                ("textures/e/lightbox_rmo.png", vec![0]),
+                ("textures/e/plainbox.jpg", vec![0]),
+                ("textures/e/plainbox_n.png", vec![0]),
+                ("textures/e/plainbox_rmo.png", vec![0]),
+            ],
+        )
+        .expect("memory mount");
+        let catalog = ShaderCatalog::load(&vfs).expect("catalog");
+        let mut uses = BTreeMap::new();
+        for name in [
+            "panel", "strip", "wall", "lamp1", "door", "screen1", "lightbox", "plainbox",
+        ] {
+            uses.insert(format!("textures/e/{name}"), lit(&["mp/e"], 4));
+        }
+        let mut terminal = lit(&["mp/e"], 4);
+        terminal.surface_flags = crate::classes::bsp::COMPUTER;
+        uses.insert("textures/e/terminal".to_owned(), terminal);
+        let overrides = Overrides::parse("textures/e/door emission=off").expect("overrides");
+        let selection =
+            select(&vfs, &catalog, vec!["mp/e".into()], &uses, &overrides).expect("selects");
+        let find = |name: &str| {
+            selection
+                .candidates
+                .iter()
+                .find(|c| c.base == format!("textures/e/{name}"))
+                .unwrap_or_else(|| panic!("{name} selected"))
+        };
+        let evidence = |name: &str| find(name).emission.as_ref().map(|p| p.evidence.clone());
+        assert_eq!(
+            evidence("panel"),
+            Some(emission::Evidence::SurfaceLight(2000.0))
+        );
+        // The strip's shader shows its glow already.
+        assert_eq!(evidence("strip"), None);
+        assert_eq!(
+            find("strip").emission_note,
+            Some("its shaders already show their light")
+        );
+        let wall = find("wall").emission.as_ref().expect("wall glows");
+        assert_eq!(wall.glow_image.as_deref(), Some("textures/e/wall_glow.jpg"));
+        assert_eq!(evidence("lamp1"), Some(emission::Evidence::Keyword("lamp")));
+        assert_eq!(evidence("terminal"), Some(emission::Evidence::Computer));
+        assert_eq!(evidence("door"), None);
+        assert_eq!(
+            find("door").emission_note,
+            Some("emission=off in the overrides")
+        );
+        assert_eq!(evidence("screen1"), None);
+        assert_eq!(
+            find("screen1").emission_note,
+            Some("already has an emission map")
+        );
+        // Every rend2 map exists: only the emission map is left to write, or nothing.
+        let lightbox = find("lightbox");
+        assert!(!lightbox.normal && !lightbox.packed && lightbox.emission.is_some());
+        assert!(
+            selection
+                .skipped
+                .iter()
+                .any(|s| s.name == "textures/e/plainbox.jpg" && s.reason == SkipReason::HasMaps)
+        );
     }
 
     #[test]

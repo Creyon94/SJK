@@ -1447,8 +1447,8 @@ made opaque bubble interiors transparent near geometry.
 `sjk-materialgen` writes normal, height and roughness/metalness/occlusion maps
 for the world textures of the player's own installation, in the rend2 naming
 that the optional material maps (`r_normalMapping`, `r_specularMapping`,
-`r_parallaxMapping`) look up next to a diffuse image. It runs offline and only
-reads the game data; [its crate documentation](../crates/sjk-materialgen/src/lib.rs)
+`r_parallaxMapping`) look up next to a diffuse image, and SJK's emission maps
+(`_e`, `r_emissiveMaps`). It runs offline and only reads the game data; [its crate documentation](../crates/sjk-materialgen/src/lib.rs)
 and `--help` are the reference.
 
 ```sh
@@ -1501,15 +1501,39 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
   texels. Without probes (`r_cubeMapping 0`) such metal reads darker than its
   retail look. Earlier packs used 0.3 and 0.45, when nothing reflected the room
   into metal.
+- **Emission** ([emission.rs](../crates/sjk-materialgen/src/emission.rs)). A texture
+  gets `<texture>_e` when there is evidence that it gives light, strongest first: the
+  overrides file; `q3map_surfacelight` on a shader drawing it (`q3map_lightRGB` only
+  colours such a light and `q3map_lightImage` only averages an image for its colour,
+  so neither counts alone); an authored glow image next to it (`<texture>_glow`,
+  `<texture>glow`, `<texture>_glw`, the black-backed overlays retail shaders add with
+  `blendFunc add` and `glow`); a fixture or screen word in its file name (`light`,
+  `lamp`, `bulb`, `neon`, `screen`, `monitor`, `display`, `console`, `computer`,
+  `comp_`, `holo`, `glow`; not `lightning`, `highlight`, `flight`, `lightgr…`,
+  `lightsab…`, `clamp`, `switch`, nor names with an `off`, `broken`, `dead`, `unlit`
+  or `dark` part); or the BSP material `computer`. Textures whose every shader already
+  shows light (a `glow`, additive or `GL_DST_COLOR GL_ONE` stage) and textures with an
+  `_e` image get none. With a glow image, the emission is that image. Otherwise the
+  texels that emit are near-white or saturated ones clearly brighter than most of the
+  texture (above its median value plus 0.2, at least 0.6; near-white needs 0.75);
+  surface lights and overrides take any texel above the median plus 0.1 (at least
+  0.45); a texture whose median is 0.8 or brighter is a light panel whose bright texels
+  all emit. The emitted colour is the texel's, lifted so the brightest emitting part
+  reaches about full brightness (at most 3x). Nothing luminous, no map; the manifest
+  records each decision (`emission`: evidence, `written` or the reason, coverage, gain).
 - **Overrides** ([overrides.rs](../crates/sjk-materialgen/src/overrides.rs)). A text
   file of per-texture rules fixes what the heuristics get wrong. Each line is a
   path pattern (the diffuse image without extension, case-insensitive, `*` and `?`
-  wildcards) followed by `class=`, `roughness=`, `metalness=` (0–1) or
-  `height=on|off`; `#` starts a comment. Every matching line applies, in order:
+  wildcards) followed by `class=`, `roughness=`, `metalness=` (0–1),
+  `height=on|off` or `emission=on|off|<strength>` (0–4, the emitted colour's
+  multiplier; 0 is off); `#` starts a comment. Every matching line applies, in order
+  (for `emission` the last that sets it):
 
   ```text
   textures/mp/floor*        class=tiles roughness=0.2
   textures/kor_*/*metal*    metalness=0.9 height=on
+  textures/x/lightwall      emission=off
+  textures/x/console2       emission=1.5
   ```
 
   The tool reads `--overrides FILE`, or `sjk-materialgen-overrides.txt` next to the
@@ -1532,9 +1556,12 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
   and applied override lines), and `--limit` takes only the most-used textures.
 
 **Regenerating.** The manifest records the generation of the tuning
-(`"generation": 2`; packs without it are generation 1). With material maps on,
-the client logs `material maps: the generated pack is generation 1 of
-sjk-materialgen, this client expects 2 ...` once when the mounted pack is older.
+(`"generation": 3` since emission maps; packs without it are generation 1). With
+material maps or emission maps on, the client logs `material maps: the generated pack
+is generation 1 of sjk-materialgen, this client expects 3 ...` once when the mounted
+pack is older. Emission decisions depend on every map read: a texture drawn plainly on
+one map and through a glowing shader on another gets its `_e`, and the client ignores
+it where the shader glows.
 Run the generator again for the same maps, then replace the old pk3 where the
 client reads it (for example `GameData/base/zzz_jkr_materials.pk3`):
 
