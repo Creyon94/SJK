@@ -129,6 +129,7 @@ impl crate::GpuState {
         self.post_aa = super::Runtime::configured(
             &self.device,
             self.configuration.format,
+            self.context.ui_direct,
             [self.configuration.width, self.configuration.height],
             self.context.fxaa,
             policy,

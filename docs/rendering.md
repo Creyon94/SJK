@@ -887,6 +887,35 @@ scaled desktop it would push 1080-line layouts past the window edges. It only
 sets the resolution the bundled Inter font is rasterized at, and text sized in
 that font's own units is converted from line heights so it does not depend on it.
 
+### UI colour model
+
+The 2D layer (text, retained UI shapes, the shader HUD, the menu-file HUD and the
+scope) works in display values, as retail's 2D drawing did: a colour is the
+sRGB value shown on screen, and alpha mixes display values. `^1` is pure red,
+`ui_accent ff6a3d` shows as `#FF6A3D`, and a black text shadow at 0.55 over
+mid-grey shows 0.225 as in retail. The world, its resolve, bloom, HDR, the effect
+layer and the in-world ground HUD stay in linear light.
+[ui_target.rs](../crates/sjk-viewer/src/ui_target.rs) holds the model:
+
+- Every 2D pipeline targets the display format without its sRGB encode
+  (`Bgra8UnormSrgb` becomes `Bgra8Unorm`) and draws in its own pass after the
+  scene resolve.
+- With `r_gamma 1` that pass writes the swapchain image through a UNORM view.
+  The surface is configured with that view format, and each frame makes one
+  extra view object of the acquired image.
+- With another `r_gamma`, or on an adapter without `SURFACE_VIEW_FORMATS`
+  (Vulkan without `VK_KHR_swapchain_mutable_format`, GLES), the scene resolves
+  into the display intermediate, the 2D layer draws through that texture's UNORM
+  alias, and the display pass applies the ramp to world and UI together, as
+  retail's hardware gamma did. Without aliasing this costs one full-screen pass
+  at `r_gamma 1`.
+- The float `r_hdr` target never receives 2D draws: HDR is encoded by the
+  resolve before the 2D pass.
+- Pictures sampled by the 2D layer (icon atlas, wordmark, classic menu art and
+  video, levelshots, menu-file HUD art, scope art) are `Rgba8Unorm`, so their
+  texels are not decoded. Font atlases contribute only alpha, which no format
+  decodes, so the Inter atlas stays shared with the ground HUD.
+
 ### Menu readability
 
 Menu screens draw their text straight over the live map, so a left-hand scrim

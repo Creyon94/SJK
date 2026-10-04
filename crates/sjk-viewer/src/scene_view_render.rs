@@ -12,6 +12,7 @@ impl GpuState {
             self.post_aa = crate::frame_target::aa::Runtime::configured(
                 &self.device,
                 self.configuration.format,
+                self.context.ui_direct,
                 [size.width, size.height],
                 self.context.fxaa,
                 self.context.post_color.policy(),
