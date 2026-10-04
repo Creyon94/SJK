@@ -6,7 +6,8 @@
 //! `<diffuse>_nh` (normal plus height) before `<diffuse>_n`, and `_specGloss`
 //! before the packed `_rmo` and `_orm`. ioquake3's rend2, which OpenJK's grew
 //! from, named specular maps `_s`; older packs use it, so it is tried after
-//! `_specGloss` with the same meaning.
+//! `_specGloss` with the same meaning. SJK's emission map is `<diffuse>_e`, an
+//! sRGB colour like the diffuse image (rend2 has no emission map or keyword).
 //!
 //! Conversion happens once at load. Normal maps keep RGB and turn their height
 //! into depth (`255 - alpha`), as rend2 does on upload. Gloss maps get rend2's
@@ -41,6 +42,9 @@ const SPECULAR_SUFFIXES: [(&str, SpecularLayout); 4] = [
     ("_orm", SpecularLayout::Orm),
 ];
 
+/// The emission map's name after the diffuse image's path (`sjk-materialgen` writes it).
+pub(super) const EMISSION_SUFFIX: &str = "_e";
+
 /// What one stage's lookup found, with rend2's scales for how each map was found.
 pub(super) struct Found {
     pub(super) normal: Option<MapImage>,
@@ -51,6 +55,8 @@ pub(super) struct Found {
     pub(super) specular: Option<(MapImage, u32)>,
     pub(super) specular_scale: [f32; 4],
     pub(super) parallax_bias: f32,
+    /// The emission map: the emitted colour, sRGB, alpha unused.
+    pub(super) emission: Option<MapImage>,
 }
 
 /// Resolve the maps of `diffuse`, the stage whose texture they belong to.
@@ -76,6 +82,7 @@ pub(super) fn find(
         specular: None,
         specular_scale: material.specular_scale,
         parallax_bias: material.parallax_bias,
+        emission: None,
     };
     if settings.normal {
         let choice = match (&material.normal_map, &base) {
@@ -134,7 +141,22 @@ pub(super) fn find(
             }
         }
     }
+    if settings.emission
+        && let Some(base) = &base
+        && let Some(path) = exists(&format!("{base}{EMISSION_SUFFIX}"))?
+    {
+        found.emission = load(vfs, &path, "emission", cache, convert_emission)?;
+    }
     Ok(found)
+}
+
+/// The emitted colour stays as authored (sRGB); alpha means nothing.
+pub(super) fn convert_emission(source: &RgbaImage) -> RgbaImage {
+    let mut pixels = source.clone();
+    for pixel in pixels.pixels_mut() {
+        pixel.0[3] = 255;
+    }
+    pixels
 }
 
 fn is_white(name: &str) -> bool {
@@ -303,6 +325,7 @@ mod tests {
         specular: true,
         parallax: true,
         reflections: 0,
+        emission: true,
     };
 
     fn found(files: &[&str], script: &str, settings: Settings) -> Found {
@@ -426,6 +449,55 @@ mod tests {
         assert_eq!(code, SPECULAR_GLOSS);
         assert_eq!(white.pixels.dimensions(), (1, 1));
         assert_eq!(result.specular_scale, [0.25, 0.25, 0.25, 0.0]);
+    }
+
+    #[test]
+    fn emission_maps_are_found_next_to_the_diffuse_image_alone() {
+        let files = [
+            "textures/a/floor.jpg",
+            "textures/a/floor_e.png",
+            "textures/a/floor_n.png",
+        ];
+        let result = found(&files, PLAIN, ALL);
+        let emission = result.emission.expect("emission map");
+        assert!(emission.key.ends_with("floor_e.png"), "{}", emission.key);
+        assert!(emission.key.starts_with("material:emission:"));
+        // The colour is kept as authored; alpha means nothing.
+        assert_eq!(emission.pixels.get_pixel(0, 0).0, [128, 128, 255, 255]);
+        // Emission maps need only their own control.
+        let alone = found(
+            &files,
+            PLAIN,
+            Settings {
+                emission: true,
+                ..Default::default()
+            },
+        );
+        assert!(alone.emission.is_some() && alone.normal.is_none() && alone.specular.is_none());
+        let off = found(
+            &files,
+            PLAIN,
+            Settings {
+                emission: false,
+                ..ALL
+            },
+        );
+        assert!(off.emission.is_none() && off.normal.is_some());
+        // No `_e` image, no emission map; generated diffuse images have none either.
+        assert!(
+            found(&["textures/a/floor.jpg"], PLAIN, ALL)
+                .emission
+                .is_none()
+        );
+        assert!(
+            found(
+                &["textures/a/floor_e.png"],
+                "textures/a { { map $whiteimage } }",
+                ALL
+            )
+            .emission
+            .is_none()
+        );
     }
 
     #[test]

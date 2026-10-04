@@ -26,6 +26,10 @@
 //!    lookup tries next to the diffuse image: `<texture>_nh.png` (normal RGB,
 //!    height in alpha) for parallax-worthy classes, `<texture>_n.png`
 //!    otherwise, and `<texture>_rmo.png`, plus `jkr-materialgen/manifest.json`.
+//! 5. Writes `<texture>_e.png`, an emission map, for textures that evidently give
+//!    light (surface lights, authored glow images, fixture and screen names) and
+//!    only for their luminous texels ([`emission`]); shaders that already show
+//!    their light through a glowing or additive stage get none.
 //!
 //! # Why `_rmo`
 //!
@@ -58,7 +62,8 @@
 //! `JKR_CONTENT` to that directory, which the client mounts above the game
 //! data, or copy the pk3 into `GameData/base` (the `zzz_` name sorts after the
 //! retail `assets*.pk3`). Then set `r_normalMapping 1`, `r_specularMapping 1`
-//! and optionally `r_parallaxMapping 1` and restart.
+//! and optionally `r_parallaxMapping 1` and restart. Emission maps need only
+//! `r_emissiveMaps`, which is on by default.
 //!
 //! # Retail data
 //!
@@ -68,6 +73,7 @@
 
 pub mod classes;
 pub mod cli;
+pub mod emission;
 pub mod filters;
 pub mod generate;
 pub mod mount;

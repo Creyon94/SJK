@@ -94,12 +94,7 @@ pub(super) fn new(
         _ => None,
     };
     let light = settings.day.enabled.then(|| {
-        super::light_buffer::LightBuffer::new(
-            device,
-            scene,
-            light_divisor,
-            forge.material_maps.is_some(),
-        )
+        super::light_buffer::LightBuffer::new(device, scene, light_divisor, forge.directed_light())
     });
     let receiver_layout = super::super::model_sun::receiver_layout(device);
     let pass_binding = light

@@ -20,8 +20,9 @@ pub const MANIFEST_PATH: &str = "jkr-materialgen/manifest.json";
 /// Which tuning generated a pack. Raised whenever the generated maps change meaning,
 /// so the client can tell a pack needs regenerating (`material_maps::GENERATION`);
 /// manifests without it are generation 1. 2: metal tuned for reflection probes,
-/// polished shaders, metal-panel height, per-texture overrides.
-pub const GENERATION: u32 = 2;
+/// polished shaders, metal-panel height, per-texture overrides. 3: emission maps
+/// (`_e`, [`crate::emission`]).
+pub const GENERATION: u32 = 3;
 
 /// The notice repeated in the manifest, the help text and the docs.
 pub const NOTICE: &str = "Generated from the textures of your own Jedi Academy installation. \
@@ -56,6 +57,7 @@ pub struct ManifestSettings {
     pub limit: Option<usize>,
     pub normal_convention: &'static str,
     pub packed_layout: &'static str,
+    pub emission_layout: &'static str,
     pub gradient_radius: f32,
     pub gradient_passes: usize,
     pub height_bands: Vec<[f32; 2]>,
@@ -87,8 +89,28 @@ pub struct SourceEntry {
     pub maps: Vec<String>,
     pub triangles: u64,
     pub outputs: Vec<String>,
-    /// rend2 maps that already existed and were left alone.
+    /// rend2 maps (and emission maps) that already existed and were left alone.
     pub existing: Vec<String>,
+    /// The emission decision, for textures with some sign of light.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub emission: Option<EmissionEntry>,
+}
+
+/// What became of a texture's emission evidence ([`crate::emission`]).
+#[derive(Clone, Debug, Serialize)]
+pub struct EmissionEntry {
+    /// The evidence, or `None` when a veto came first.
+    pub evidence: Option<String>,
+    /// `written`, or why no emission map was written.
+    pub result: String,
+    /// Fraction of the texture that emits.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub coverage: Option<f32>,
+    /// Lift of the emitting texels' colour.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gain: Option<f32>,
+    /// The overrides strength (1 without).
+    pub strength: f32,
 }
 
 /// One shader or texture without maps, and why.
@@ -187,6 +209,7 @@ mod tests {
                 limit: None,
                 normal_convention: "test",
                 packed_layout: "test",
+                emission_layout: "test",
                 gradient_radius: 32.0,
                 gradient_passes: 2,
                 height_bands: vec![[1.0, 0.5]],
@@ -214,6 +237,13 @@ mod tests {
                     "textures/a/wall_rmo.png".into(),
                 ],
                 existing: Vec::new(),
+                emission: Some(EmissionEntry {
+                    evidence: Some("keyword \"light\"".into()),
+                    result: "written".into(),
+                    coverage: Some(0.25),
+                    gain: Some(1.5),
+                    strength: 1.0,
+                }),
             }],
             skipped: vec![SkippedEntry {
                 name: "textures/skies/x".into(),
@@ -266,6 +296,8 @@ mod tests {
         // The client reads the generation to tell a pack needs regenerating.
         assert_eq!(value["generation"], GENERATION);
         assert_eq!(value["skipped"][0]["reason"], "sky");
+        assert_eq!(value["sources"][0]["emission"]["result"], "written");
+        assert_eq!(value["sources"][0]["emission"]["coverage"], 0.25);
 
         // Mounted like a game pk3, rend2's lookup next to the diffuse finds the maps.
         let mut vfs = VirtualFileSystem::new();

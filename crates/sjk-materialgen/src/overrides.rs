@@ -9,6 +9,8 @@
 //! textures/mp/floor*             class=tiles roughness=0.2
 //! textures/kor_*/*metal*         metalness=0.9 height=on
 //! */plain_wall                   class=plaster height=off
+//! textures/kejim/lightpanel*      emission=on
+//! textures/x/lightgreen_wall      emission=off
 //! ```
 //!
 //! The pattern is matched against the diffuse image's path without extension
@@ -19,9 +21,13 @@
 //!   texture takes that class's whole row.
 //! - `roughness`, `metalness`: the class's base roughness and metalness, 0–1.
 //! - `height`: `on` writes `_nh` (height for parallax), `off` a plain `_n`.
+//! - `emission`: `on` writes an emission map (`_e`) whatever the evidence, `off`
+//!   never writes one, and a number from 0 to 4 is `on` with that strength (the
+//!   emitted colour's multiplier; 0 is `off`). See [`crate::emission`].
 //!
 //! Every matching rule applies, in file order, so a broad rule can come first and a
-//! narrower one refine it. The manifest lists the line numbers that applied.
+//! narrower one refine it; for `emission` the last matching rule that sets it wins.
+//! The manifest lists the line numbers that applied.
 
 use crate::classes::{MaterialClass, by_name};
 
@@ -34,6 +40,8 @@ pub struct Rule {
     pub roughness: Option<f32>,
     pub metalness: Option<f32>,
     pub height: Option<bool>,
+    /// Emission strength: 0 off, 1 on (`on`), up to [`crate::emission::MAX_STRENGTH`].
+    pub emission: Option<f32>,
     /// 1-based line in the file.
     pub line: usize,
 }
@@ -62,6 +70,7 @@ impl Overrides {
                 roughness: None,
                 metalness: None,
                 height: None,
+                emission: None,
                 line: line_number,
             };
             let mut any = false;
@@ -94,6 +103,21 @@ impl Overrides {
                             _ => {
                                 return Err(format!("line {line_number}: height needs on or off"));
                             }
+                        })
+                    }
+                    "emission" => {
+                        rule.emission = Some(match value.to_ascii_lowercase().as_str() {
+                            "on" | "yes" | "true" => 1.0,
+                            "off" | "no" | "false" => 0.0,
+                            number => number
+                                .parse::<f32>()
+                                .ok()
+                                .filter(|v| (0.0..=crate::emission::MAX_STRENGTH).contains(v))
+                                .ok_or_else(|| {
+                                    format!(
+                                        "line {line_number}: emission needs on, off or a strength from 0 to 4"
+                                    )
+                                })?,
                         })
                     }
                     other => return Err(format!("line {line_number}: unknown key {other:?}")),
@@ -130,6 +154,17 @@ impl Overrides {
             lines.push(rule.line);
         }
         (class, lines)
+    }
+
+    /// The emission setting for `base` (the image path without extension): the last
+    /// matching rule that sets one, `None` when no rule does.
+    pub fn emission(&self, base: &str) -> Option<f32> {
+        let path = base.to_ascii_lowercase();
+        self.rules
+            .iter()
+            .filter(|rule| glob(&rule.pattern, &path))
+            .filter_map(|rule| rule.emission)
+            .next_back()
     }
 }
 
@@ -193,6 +228,8 @@ mod tests {
             ("x height=maybe", "on or off"),
             ("x shiny", "key=value"),
             ("x colour=red", "unknown key"),
+            ("x emission=bright", "emission needs on, off"),
+            ("x emission=5", "emission needs on, off"),
             ("x", "without settings"),
         ] {
             let error = Overrides::parse(bad).expect_err(bad);
@@ -221,6 +258,32 @@ mod tests {
         assert_eq!(
             (class.name, class.roughness, lines),
             ("generic", 0.6, vec![1])
+        );
+    }
+
+    #[test]
+    fn emission_rules_switch_and_scale_and_the_last_wins() {
+        let overrides = Overrides::parse(
+            "textures/kejim/light* emission=on\n\
+             textures/kejim/lightpanel2 emission=off\n\
+             textures/kejim/lightstrip emission=2.5 roughness=0.3\n\
+             textures/* roughness=0.5\n",
+        )
+        .expect("parses");
+        assert_eq!(overrides.emission("textures/kejim/lightpanel"), Some(1.0));
+        assert_eq!(overrides.emission("Textures/Kejim/LightPanel2"), Some(0.0));
+        assert_eq!(overrides.emission("textures/kejim/lightstrip"), Some(2.5));
+        assert_eq!(overrides.emission("textures/kejim/wall"), None);
+        // An emission-only rule changes no class value but is recorded as applied.
+        let (class, lines) = overrides.apply(
+            "textures/kejim/lightpanel2",
+            crate::classes::GENERIC.clone(),
+        );
+        assert_eq!(lines, vec![1, 2, 4]);
+        assert_eq!(class.roughness, 0.5);
+        assert_eq!(
+            Overrides::parse("x emission=0").expect("parses").rules[0].emission,
+            Some(0.0)
         );
     }
 }

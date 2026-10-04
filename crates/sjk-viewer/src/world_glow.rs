@@ -22,7 +22,8 @@ pub(super) fn has_glow(passes: impl IntoIterator<Item = bool>) -> bool {
     passes.into_iter().any(|glow| glow)
 }
 
-/// The glowing colour passes of the scene's opaque then blended order, without fog.
+/// The glowing colour passes of the scene's opaque then blended order, without fog. They
+/// include stages that glow only for their emission map (`StagePass::emission_glow`).
 pub(super) fn order(
     materials: &[Material],
     opaque: &[PassRef],
@@ -73,6 +74,12 @@ pub(super) fn key(key: PipelineKey) -> PipelineKey {
 }
 
 impl Runtime {
+    /// Whether emission-mapped stages draw their halo (`r_emissiveGlow`, read from the
+    /// lighting-mode word the frame already published).
+    fn emission_glow(&self) -> bool {
+        self.lighting_mode.get() & super::lighting_mode::NO_EMISSIVE_GLOW == 0
+    }
+
     /// The glow pipeline of key `index`, compiled on first use.
     fn glow_pipeline(&self, index: usize, depth: bool) -> &wgpu::RenderPipeline {
         let slots = if depth {
@@ -82,7 +89,14 @@ impl Runtime {
         };
         slots[index].get_or_init(|| {
             let scene_key = self.forge.pipeline_keys[index];
-            let (layout, shader) = self.forge.program_for(scene_key);
+            // Material-mapped stages draw through the glow variant of their program, which
+            // writes only the emission of stages drawn here for their emission map.
+            let (layout, shader) = match &self.forge.material_maps {
+                Some(maps) if scene_key.geometry & super::material_maps::PIPELINE_BIT != 0 => {
+                    maps.glow_program(&self.forge)
+                }
+                _ => self.forge.program_for(scene_key),
+            };
             create_entity_pipeline(
                 &self.forge.device,
                 layout,
@@ -112,12 +126,16 @@ impl Runtime {
         if self.glow_order.is_empty() {
             return false;
         }
+        let emission_glow = self.emission_glow();
         let active = self.active_materials(frame.source_cluster, frame.visibility);
         self.glow_order.iter().any(|reference| {
             if !active.flags[reference.material] {
                 return false;
             }
             let material = &self.materials[reference.material];
+            if !emission_glow && material.stages[reference.stage].emission_glow {
+                return false;
+            }
             material.mover_draws.iter().any(|draw| {
                 frame
                     .mover_ranges
@@ -150,6 +168,7 @@ impl Runtime {
         let mut last_pipeline = None;
         let mut last_bind_group = None;
         if !self.glow_order.is_empty() {
+            let emission_glow = self.emission_glow();
             let active = self.active_materials(frame.source_cluster, frame.visibility);
             for &reference in &self.glow_order {
                 if !active.flags[reference.material] {
@@ -157,6 +176,9 @@ impl Runtime {
                 }
                 let material = &self.materials[reference.material];
                 let stage = &material.stages[reference.stage];
+                if !emission_glow && stage.emission_glow {
+                    continue;
+                }
                 let index = if live_emission {
                     stage.live_pipeline
                 } else {

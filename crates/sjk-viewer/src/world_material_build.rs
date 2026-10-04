@@ -116,7 +116,9 @@ fn build(
     if material_maps.enabled() {
         super::material_maps::report_pack_generation(vfs);
     }
-    if material_maps.enabled() && found.stages == 0 {
+    // Emission maps are on by default and most maps have none: say so only when rend2's
+    // kinds were asked for.
+    if material_maps.shading() && found.stages == 0 {
         crate::log::progress(format_args!(
             "material maps ({material_maps}): no stage of this map has maps"
         ));
@@ -124,12 +126,17 @@ fn build(
     if found.stages > 0 {
         let frames_started = Instant::now();
         let mut gpu = super::material_maps::gpu::Gpu::new(device, queue);
-        let grid = crate::entity_lighting::EntityLighting::from_world(bsp).layout();
-        let tangents = super::material_maps::frames::tangents(geometry.0, geometry.1);
-        let mut frames = super::material_maps::frames::pack(geometry.0, &tangents, |point| {
-            grid.map(|grid| grid.sample(bsp.render(), point, |_| [255.0; 3]).direction)
-        });
-        drop(tangents);
+        // Emission maps alone need no frames (a flat surface reads none) and no light
+        // direction: they are added unlit.
+        gpu.directed = found.normal + found.specular > 0;
+        let mut frames = Vec::new();
+        if gpu.directed {
+            let grid = crate::entity_lighting::EntityLighting::from_world(bsp).layout();
+            let tangents = super::material_maps::frames::tangents(geometry.0, geometry.1);
+            frames = super::material_maps::frames::pack(geometry.0, &tangents, |point| {
+                grid.map(|grid| grid.sample(bsp.render(), point, |_| [255.0; 3]).direction)
+            });
+        }
         if material_maps.reflections > 0 && found.specular > 0 {
             gpu.reflections = reflection_probes(
                 device,
@@ -147,13 +154,14 @@ fn build(
         gpu.set_frames(device, &frames);
         forge.material_maps = Some(gpu);
         crate::log::progress(format_args!(
-            "material maps ({material_maps}): {} stages, {} normal, {} parallax, {} specular; \
-             frames for {} vertices in {:.1} ms",
+            "material maps ({material_maps}): {} stages, {} normal, {} parallax, {} specular, \
+             {} emission; frames for {} vertices in {:.1} ms",
             found.stages,
             found.normal,
             found.parallax,
             found.specular,
-            geometry.0.len(),
+            found.emission,
+            frames.len(),
             frames_started.elapsed().as_secs_f64() * 1e3
         ));
     }
@@ -257,6 +265,7 @@ fn build(
             source_index: material_index,
             surface,
             emission_texture: compiled.emission_texture,
+            mapped_emission: compiled.mapped_emission,
             sort: compiled.sort,
             stages: compiled.stages,
             static_draws,
@@ -276,10 +285,8 @@ fn build(
         .iter()
         .map(|v| (v.position, v.normal, v.texture_coordinates))
         .collect();
-    let emitters: Vec<crate::lamp_lights::Emitter> = pending
-        .iter()
-        .filter(|material| material.surface.emission.iter().any(|c| *c > 0.))
-        .map(|material| crate::lamp_lights::Emitter {
+    fn emitter(material: &PendingMaterial) -> crate::lamp_lights::Emitter<'_> {
+        crate::lamp_lights::Emitter {
             shared_reach: false,
             omnidirectional: material.sort != SORT_OPAQUE,
             radiance: material.surface.emission,
@@ -289,9 +296,37 @@ fn build(
                 .iter()
                 .map(|draw| draw.indices.clone())
                 .collect(),
-        })
+        }
+    }
+    let emitting = |material: &&PendingMaterial| material.surface.emission.iter().any(|c| *c > 0.);
+    let emitters: Vec<crate::lamp_lights::Emitter> = pending
+        .iter()
+        .filter(emitting)
+        .filter(|material| !material.mapped_emission)
+        .map(emitter)
         .collect();
-    let mut extra = effect_lamps::extract(bsp, vfs, shaders)?;
+    // Emission-mapped surfaces (`r_emissiveLights`): the same area lights, at most
+    // `MAX_LAMPS` of them, the most powerful kept.
+    let mapped: Vec<crate::lamp_lights::Emitter> = pending
+        .iter()
+        .filter(emitting)
+        .filter(|material| material.mapped_emission)
+        .map(emitter)
+        .collect();
+    let mut extra = Vec::new();
+    if !mapped.is_empty() {
+        let mut lamps = crate::lamp_lights::collect_patches(&positions, geometry.1, &mapped);
+        let found = lamps.len();
+        super::material_maps::lights::keep_brightest(&mut lamps);
+        crate::log::progress(format_args!(
+            "Emission maps: {} area lights from {} materials ({found} before the cap of {})",
+            lamps.len(),
+            mapped.len(),
+            super::material_maps::lights::MAX_LAMPS
+        ));
+        extra = lamps;
+    }
+    extra.extend(effect_lamps::extract(bsp, vfs, shaders)?);
     extra.extend(static_lamps::extract(
         bsp,
         vfs,

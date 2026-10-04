@@ -549,6 +549,25 @@ pub(super) const RENDER_IMAGE: &[Setting] = &[
         cvar: "r_floorReflections",
         kind: ValueKind::Bool,
     },
+    Setting {
+        label: "Emission maps (restart)",
+        cvar: "r_emissiveMaps",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Emission strength (0 off)",
+        cvar: "r_emissionStrength",
+        kind: ValueKind::Float {
+            min: 0.0,
+            max: 4.0,
+            step: 0.25,
+        },
+    },
+    Setting {
+        label: "Emission glow halo",
+        cvar: "r_emissiveGlow",
+        kind: ValueKind::Bool,
+    },
 ];
 
 pub(super) const RENDER_LIGHTING: &[Setting] = &[
@@ -618,6 +637,15 @@ pub(super) const RENDER_LIGHTING: &[Setting] = &[
             min: 0.0,
             max: 4.0,
             step: 0.1,
+        },
+    },
+    Setting {
+        label: "Emission-map lights (next map)",
+        cvar: "r_emissiveLights",
+        kind: ValueKind::Float {
+            min: 0.0,
+            max: 4.0,
+            step: 0.25,
         },
     },
     Setting {
