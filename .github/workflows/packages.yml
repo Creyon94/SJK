@@ -65,7 +65,7 @@ jobs:
           key: packages-${{ matrix.target }}
       - name: Build optimized client and dedicated server
         working-directory: source
-        run: cargo build --locked --release --target ${{ matrix.target }} -p jkr-viewer -p jkr-dedicated
+        run: cargo build --locked --release --target ${{ matrix.target }} -p sjk-viewer -p sjk-dedicated
       - name: Package and smoke-check extracted executables
         run: >-
           python packaging/scripts/package_client.py

@@ -10,7 +10,7 @@ multiplayer. Read [docs/status.md](docs/status.md),
 - Preserve OpenJK multiplayer `codemp` movement, weapon/saber timing and
   animation behavior. Gameplay changes need reference evidence, not visual guesses.
   Cover integer command steps of 8/7/4/3 ms (125/142/250/333 FPS).
-- Protocol 26 is fixed. Encode/decode changes in `jkr-protocol` or `jkr-network`
+- Protocol 26 is fixed. Encode/decode changes in `sjk-protocol` or `sjk-network`
   need OpenJK-emitted or captured byte fixtures. Never infer wire correctness
   from a successful connection alone. Use `codemp`, not the single-player `code` tree.
 - Keep legacy formats, identifiers and limits in compatibility adapters.
@@ -18,7 +18,7 @@ multiplayer. Read [docs/status.md](docs/status.md),
 - Community PK3 maps and models are compatibility inputs, just like retail assets.
   Modern rendering and UI must preserve gameplay and content semantics.
 - Write small, named modules with rustdoc for public APIs. Keep new viewer work
-  out of `crates/jkr-viewer/src/main.rs`; use focused modules instead.
+  out of `crates/sjk-viewer/src/main.rs`; use focused modules instead.
 - Avoid new allocation, locking and quadratic work in per-frame paths. Measure
   performance-sensitive changes in release builds; 500+ FPS is a target, not a
   blanket claim about current performance.

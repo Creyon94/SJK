@@ -86,7 +86,7 @@ coding assistant; such commits carry a `Co-Authored-By: Claude` trailer.
 OpenJK (`codemp`), EternalJK, JoF EJK and TaystJK/jaPRO are compatibility
 references for Jedi Academy behaviour; JKR and SJK reimplement that behaviour and
 do not include their code. The bundled Inter fonts keep their
-[license](crates/jkr-viewer/assets/fonts/LICENSE.txt), and other dependencies keep
+[license](crates/sjk-viewer/assets/fonts/LICENSE.txt), and other dependencies keep
 their respective licenses.
 
 Star Wars, Jedi Knight and Jedi Academy are trademarks of their respective

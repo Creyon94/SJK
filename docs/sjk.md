@@ -28,8 +28,8 @@ them in place: the upstream merge adds the same text and resolves cleanly.
 - New settings get neutral engine names (`r_*`, `cg_*`, `cl_*`, ...), never a
   `jkr_` or `sjk_` prefix, and must not collide with EternalJK or rend2 settings.
   JKR's old `jkr_*` names are aliases in
-  [cvar_renames.rs](../crates/jkr-viewer/src/cvar_renames.rs).
-- Crates, modules and source identifiers keep JKR's names (`jkr-viewer`,
+  [cvar_renames.rs](../crates/sjk-viewer/src/cvar_renames.rs).
+- Crates, modules and source identifiers keep JKR's names (`sjk-viewer`,
   `jkr-*`), so JKR's changes keep merging cleanly.
 - Public text ([README](../README.md), [CREDITS.md](../CREDITS.md), the site)
   names Sol and Bishop rather than using pronouns, and credits JKR's work to
@@ -51,6 +51,6 @@ name and notes say "Alpha" instead.
 ## Debug panel
 
 The `debug_panel` console command lists SJK's changes and how to test them, from
-[debug_panel.txt](../crates/jkr-viewer/assets/debug_panel.txt). It is personal to
+[debug_panel.txt](../crates/sjk-viewer/assets/debug_panel.txt). It is personal to
 SJK and never part of a JKR pull request. Update it in the merge that brings a
 change into SJK's `main`.

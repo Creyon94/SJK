@@ -1,6 +1,6 @@
 # Rendering and UI
 
-The wgpu renderer lives in `jkr-viewer`. JKA content enters through owned BSP,
+The wgpu renderer lives in `sjk-viewer`. JKA content enters through owned BSP,
 model and shader data; GPU resources stay in the viewer. The renderer consumes
 BSP geometry, PVS visibility, lightmaps, shader stages and legacy models.
 
@@ -8,17 +8,17 @@ BSP geometry, PVS visibility, lightmaps, shader stages and legacy models.
 
 | Area | Entry point |
 | --- | --- |
-| GPU/device setup | [gpu_context.rs](../crates/jkr-viewer/src/gpu_context.rs) |
-| World loading | [world_load.rs](../crates/jkr-viewer/src/world_load.rs) |
-| World materials | [world_materials.rs](../crates/jkr-viewer/src/world_materials.rs) |
-| Optional material maps | [material_maps.rs](../crates/jkr-viewer/src/material_maps.rs) |
-| Main scene passes | [main_scene_pass.rs](../crates/jkr-viewer/src/main_scene_pass.rs) |
-| Secondary views | [scene_views.rs](../crates/jkr-viewer/src/scene_views.rs) |
-| Sun and real-time lighting | [sun_shadows.rs](../crates/jkr-viewer/src/sun_shadows.rs) |
-| Post processing | [post_aa.rs](../crates/jkr-viewer/src/post_aa.rs) |
-| Frame timing | [frame_pacing.rs](../crates/jkr-viewer/src/frame_pacing.rs) |
-| HUD integration | [hud.rs](../crates/jkr-viewer/src/hud.rs) |
-| Material map generator (tool) | [jkr-materialgen](../crates/jkr-materialgen/src/lib.rs) |
+| GPU/device setup | [gpu_context.rs](../crates/sjk-viewer/src/gpu_context.rs) |
+| World loading | [world_load.rs](../crates/sjk-viewer/src/world_load.rs) |
+| World materials | [world_materials.rs](../crates/sjk-viewer/src/world_materials.rs) |
+| Optional material maps | [material_maps.rs](../crates/sjk-viewer/src/material_maps.rs) |
+| Main scene passes | [main_scene_pass.rs](../crates/sjk-viewer/src/main_scene_pass.rs) |
+| Secondary views | [scene_views.rs](../crates/sjk-viewer/src/scene_views.rs) |
+| Sun and real-time lighting | [sun_shadows.rs](../crates/sjk-viewer/src/sun_shadows.rs) |
+| Post processing | [post_aa.rs](../crates/sjk-viewer/src/post_aa.rs) |
+| Frame timing | [frame_pacing.rs](../crates/sjk-viewer/src/frame_pacing.rs) |
+| HUD integration | [hud.rs](../crates/sjk-viewer/src/hud.rs) |
+| Material map generator (tool) | [sjk-materialgen](../crates/sjk-materialgen/src/lib.rs) |
 
 The normal BSP path supports additional lighting, shadows, GI probes, ambient
 occlusion, reflections and post processing. Feature presence does not establish
@@ -31,20 +31,20 @@ unless `dxcompiler.dll` is on the `PATH`. FXC can only assign a runtime-indexed
 vector or matrix component (`v[i] = ...`) by unrolling the loops around it, and
 fails (error X3511) when any of those loops has a runtime trip count. Write such
 updates as whole-vector operations, as the skinning loop in
-[gpu_skinning.wgsl](../crates/jkr-viewer/src/gpu_skinning.wgsl) does;
-[world_shader_fxc_tests.rs](../crates/jkr-viewer/src/world_shader_fxc_tests.rs)
+[gpu_skinning.wgsl](../crates/sjk-viewer/src/gpu_skinning.wgsl) does;
+[world_shader_fxc_tests.rs](../crates/sjk-viewer/src/world_shader_fxc_tests.rs)
 checks the world programs for this pattern.
 
 Material compilation merges a shader's first two stages into one multitextured
 pass under rd-vanilla's `CollapseMultitexture` rules, and never a later pair. The
 colour generators are compared after `ParseStage` defaults: an unset rgbGen is
 identity, or identityLighting when the blend source is `GL_ONE` or `GL_SRC_ALPHA`
-([stage_colour.rs](../crates/jkr-shader/src/stage_colour.rs),
-[world_stage_collapse.rs](../crates/jkr-viewer/src/world_stage_collapse.rs)).
+([stage_colour.rs](../crates/sjk-shader/src/stage_colour.rs),
+[world_stage_collapse.rs](../crates/sjk-viewer/src/world_stage_collapse.rs)).
 
 Programs are embedded with `include_str!`, so they carry the checkout's line
 endings. Code that patches a program by text with a pattern spanning a line break
-normalises it first with [wgsl_source.rs](../crates/jkr-viewer/src/wgsl_source.rs);
+normalises it first with [wgsl_source.rs](../crates/sjk-viewer/src/wgsl_source.rs);
 `.gitattributes` keeps `*.wgsl` LF in new checkouts.
 
 ## Actor animation failures
@@ -56,7 +56,7 @@ Other actors still evaluate and upload their joint palettes. This includes
 custom NPC packs whose animation ranges exceed their skeleton's frame count;
 the renderer does not rewrite their files or relax frame bounds checks. The
 per-actor work lives in
-[actor_pose_steps.rs](../crates/jkr-viewer/src/actor_pose_steps.rs).
+[actor_pose_steps.rs](../crates/sjk-viewer/src/actor_pose_steps.rs).
 
 ## Load-time texture and light preparation
 
@@ -101,13 +101,13 @@ work without reducing source count, texture resolution or lighting quality.
 | `r_parallaxMapping` | Parallax from the height in `_nh`/`normalHeightMap` images; needs `r_normalMapping`; default 0, restart required |
 | `r_materialMapsDebug` | Material-mapped surfaces only: 1 mapped normal as colour, 2 tint by maps found, 3 normal-map relief; default 0, live, not archived |
 
-See [day_night.rs](../crates/jkr-viewer/src/day_night.rs),
-[sun_shadow_settings.rs](../crates/jkr-viewer/src/sun_shadow_settings.rs) and
-[post_hdr.rs](../crates/jkr-viewer/src/post_hdr.rs). A lighting tier alone does not
+See [day_night.rs](../crates/sjk-viewer/src/day_night.rs),
+[sun_shadow_settings.rs](../crates/sjk-viewer/src/sun_shadow_settings.rs) and
+[post_hdr.rs](../crates/sjk-viewer/src/post_hdr.rs). A lighting tier alone does not
 enable the day/night system. HDR here describes the scene buffer and display
 mapping, not a claim of HDR monitor output.
 
-Dust motes ([dust_motes.rs](../crates/jkr-viewer/src/dust_motes.rs)) appear only
+Dust motes ([dust_motes.rs](../crates/sjk-viewer/src/dust_motes.rs)) appear only
 in the current main-view godray volume. Each mote samples local sunlit scattering
 and subtracts the same wide slice mean used by volumetric clarity. This is a
 sample at the mote's depth, not accumulated brightness along the whole screen
@@ -444,12 +444,12 @@ exhaustive quality/map coverage remain open.
 ## Entity render effects
 
 cgame custom shaders on actors (force shells, pickup placeholders) are extra
-instances of the same mesh in [entity_materials.rs](../crates/jkr-viewer/src/entity_materials.rs).
+instances of the same mesh in [entity_materials.rs](../crates/sjk-viewer/src/entity_materials.rs).
 The same path also draws rd-vanilla's `RF_FORCE_ENT_ALPHA`: the mesh keeps its
 own surface shaders, the stage program replaces vertex alpha with the
 instance's alpha, and each stage uses an alpha-blended, depth-tested,
 non-depth-writing variant of its pipeline
-([world_forced_alpha.rs](../crates/jkr-viewer/src/world_forced_alpha.rs)).
+([world_forced_alpha.rs](../crates/sjk-viewer/src/world_forced_alpha.rs)).
 Like rd-vanilla's fixed `GL_State`, the variant has no alpha test: the stage
 program is specialized to skip it, so a GE128 cut-out whose forced alpha is
 below one half stays visible, and blending still hides its transparent texels.
@@ -461,7 +461,7 @@ keys with ordinary blended stages.
 The Force Speed afterimages use it: two copies of the actor in its current pose
 at alpha 100 and 50, spaced by `(int)(6 * speed * 0.004)` units along the
 recent path, while the entity has `PW_SPEED` and `cg_speedTrail` is nonzero
-([speed_trail.rs](../crates/jkr-viewer/src/speed_trail.rs), after
+([speed_trail.rs](../crates/sjk-viewer/src/speed_trail.rs), after
 `cg_players.c:10841-10906`). Copies are excluded from shadow casting. The
 mind-trick fade that also suppresses stock trails is not drawn by the viewer,
 so only an active trick suppresses them. The `PW_SPEED` saber trail
@@ -476,7 +476,7 @@ empty scene demonstrates it.
 
 ## Saber trails
 
-[saber_trail.rs](../crates/jkr-viewer/src/saber_trail.rs) follows codemp
+[saber_trail.rs](../crates/sjk-viewer/src/saber_trail.rs) follows codemp
 `CG_AddSaberBlade` and `CTrail`: every frame at least 3 ms after the last, a
 blade adds one slice from its remembered muzzle and tip to the current ones.
 A slice lives `trailLen / 5` ms of the current `saberMove` (30–40 ms for most
@@ -485,13 +485,13 @@ blur texture, not by alpha. The short visible arc is stock behavior; frame rate
 changes the slice count, not the arc's duration. Slices split along new tip to
 old muzzle as `CTrail::Draw` does. With `cg_saberContact` on, the tip stops at
 the first world surface the blade enters
-([saber_trail_edge.rs](../crates/jkr-viewer/src/saber_trail_edge.rs)); stock
+([saber_trail_edge.rs](../crates/sjk-viewer/src/saber_trail_edge.rs)); stock
 also stops it at solid brush entities, which JKR does not trace yet. A flying
 primary saber trails and shares the owner's blade state, as in stock. Not yet
 drawn: the extra trails stock adds while `PW_SPEED` is set with `cg_speedTrail`
 and during super-break win animations.
 
-Blade/wall contact ([saber_contacts.rs](../crates/jkr-viewer/src/saber_contacts.rs))
+Blade/wall contact ([saber_contacts.rs](../crates/sjk-viewer/src/saber_contacts.rs))
 plays a wall-hit sound once a blade has stayed in the wall since the previous
 frame, at most every 100 ms per blade. Like stock's `S_StartSound(..., -1,
 CHAN_WEAPON, ...)`, all wall hits share one source and channel, so each new hit
@@ -633,14 +633,14 @@ same Vulkan setup, not exhaustive equivalence across all maps and backends.
 The optional material maps follow OpenJK rend2 (`codemp/rd-rend2`), so rend2
 texture packs apply without conversion. Stage keywords (`ParseStage` in
 `tr_shader.cpp`) are parsed by
-[jkr-shader](../crates/jkr-shader/src/material.rs): `normalMap`,
+[sjk-shader](../crates/sjk-shader/src/material.rs): `normalMap`,
 `normalHeightMap`, `specMap`/`specularMap`, the packed `rmoMap`, `moxrMap` and
 `ormMap` families, and `specularReflectance`, `specularExponent`, `gloss`,
 `roughness`, `normalScale`, `specularScale`, `parallaxDepth` and `parallaxBias`.
 Their order-dependent overrides are kept. rend2 selects a packed layout by
 comparing the image name with the keyword, so `rmosMap`, `mosrMap` and `ormsMap`
 load the three-channel layouts; JKR does the same. Without keywords,
-[the lookup](../crates/jkr-viewer/src/material_map_images.rs) tries `<diffuse>_nh`
+[the lookup](../crates/sjk-viewer/src/material_map_images.rs) tries `<diffuse>_nh`
 then `_n` for normals and `_specGloss`, ioquake3's `_s`, `_rmo` then `_orm` for
 specular, as in rend2's `CollapseStagesToGLSL`. ioquake3's typed
 `stage normalMap` stages are not supported. With the cvars off, the parser
@@ -655,14 +655,14 @@ effect stages, deforms, sprites and models (MD3, Ghoul2) keep their authored sha
 Each material-mapped stage compiles to its own pipeline key and a second bind
 group; ordinary stages keep their pipelines, groups and stage-table records.
 
-Map load computes [vertex frames](../crates/jkr-viewer/src/material_map_frames.rs)
+Map load computes [vertex frames](../crates/sjk-viewer/src/material_map_frames.rs)
 for the flattened world only when a stage has maps: a tangent with handedness,
 averaged over the triangles of patch and triangle-soup vertices, and the
 light-grid direction (`R_CalcVertexLightDirs`/`R_LightDirForPoint`). They use 8
 bytes per vertex. Building them for `mp/ffa3` (114,088 vertices) took about 24 ms
 in a release test build. Maps are uploaded as linear RGBA8 with box-filtered mips.
 
-Shading lives in [material_maps.wgsl](../crates/jkr-viewer/src/material_maps.wgsl):
+Shading lives in [material_maps.wgsl](../crates/sjk-viewer/src/material_maps.wgsl):
 
 - Baked lighting: rend2's lightmap response, with the light-grid direction in
   place of a deluxemap. The texel is taken as arriving along that direction,
@@ -711,7 +711,7 @@ direction. A face whose grid direction is more than 78° from its normal falls
 back to that normal (`R_LightDirForPoint`) and then only darkens by 1 − cos α. On
 the retail `mp/ffa3`, 59% of lightmapped vertices have a usable grid direction
 (55% on `mp/duel1`), with a mean tan θ of 1.5 there. Maps generated for ffa3
-and duel1 by `jkr-materialgen` (strength 1) are gentle: their normals tilt 3.8°
+and duel1 by `sjk-materialgen` (strength 1) are gentle: their normals tilt 3.8°
 on average (90th percentile 4–17° per image), so lighting changes by about 5%
 on the surfaces that respond. A local headless render (not committed) of six
 ffa3 spawn views at 960×540 (Vulkan, RTX 5080), with the generated maps and an
@@ -759,9 +759,9 @@ Only one handed-off frame can remain outstanding. With an offscreen scene target
 swapchain acquisition happens after world recording; direct-to-surface rendering
 still acquires its image first. Resize, out-of-band submissions and teardown wait
 for the outstanding batch. `JKR_SUBMIT_THREAD=0` selects inline submission as a
-fallback. See [frame_queue.rs](../crates/jkr-viewer/src/frame_queue.rs),
-[frame_split.rs](../crates/jkr-viewer/src/frame_split.rs) and
-[frame_target.rs](../crates/jkr-viewer/src/frame_target.rs).
+fallback. See [frame_queue.rs](../crates/sjk-viewer/src/frame_queue.rs),
+[frame_split.rs](../crates/sjk-viewer/src/frame_split.rs) and
+[frame_target.rs](../crates/sjk-viewer/src/frame_target.rs).
 
 Upload staging reuses byte and operation storage after warmup. Queue clones share
 a synchronized recording; this replaces immediate wgpu upload work on the render
@@ -858,9 +858,9 @@ versioned source.
 
 ## UI ownership
 
-`jkr-ui` provides renderer-independent retained widgets. The viewer supplies GPU
+`sjk-ui` provides renderer-independent retained widgets. The viewer supplies GPU
 and text integration and binds client state to the HUD. Layouts are data in
-[assets/hud](../crates/jkr-viewer/assets/hud); menus and HUD may be modern while
+[assets/hud](../crates/sjk-viewer/assets/hud); menus and HUD may be modern while
 movement, combat and network behavior remain compatible.
 
 HUD text sizes and `px` layout units scale with the HUD factor: viewport height
@@ -876,7 +876,7 @@ over 1080 (720 to 2700 lines at `cg_hudScale 1`); outside it, the name keeps
 the HUD's clamped frame, like the other HUD text.
 
 2D layouts are authored in pixels of a 1080-line screen and scale with the
-window height ([ui_scale.rs](../crates/jkr-viewer/src/ui_scale.rs)), as retail's
+window height ([ui_scale.rs](../crates/sjk-viewer/src/ui_scale.rs)), as retail's
 640×480 virtual screen did: 1440 lines draw them at 1.33× and 2160 lines at 2×.
 The scale is clamped to 0.6–2.5 (648–2700 lines); the console keeps a 0.75
 floor, the HUD 2/3 and the frame-rate and weapon labels 0.85. `cg_hudScale` and
@@ -910,11 +910,11 @@ and ignore the glyph drop shadow, so they are conservative; they are not
 measured on screen. The cvar is read once per frame, menus open or not, and
 published as an atomic level; that read compares in place and does not
 allocate. See
-[contrast.rs](../crates/jkr-viewer/src/menu_widgets/contrast.rs) and
-[hero.rs](../crates/jkr-viewer/src/menu_widgets/hero.rs).
+[contrast.rs](../crates/sjk-viewer/src/menu_widgets/contrast.rs) and
+[hero.rs](../crates/sjk-viewer/src/menu_widgets/hero.rs).
 
 UI text uses the bundled Inter font, rasterized once per display scale in
-[text.rs](../crates/jkr-viewer/src/text.rs). Two options switch surfaces to
+[text.rs](../crates/sjk-viewer/src/text.rs). Two options switch surfaces to
 the game's own fonts, read from the player's game data and never bundled:
 `cg_classicHudFont` draws the status HUD with `arialnb`, and `ui_gameFont`
 ("Classic game fonts", off by default) draws every surface the retail game drew
@@ -927,29 +927,29 @@ with its own fonts in that font, following OpenJK `codemp`:
 | Console character set `gfx/2d/charsgrid_med` | Console and notify lines, FPS, snapshot, vote, team overlay, connection interrupted, kill feed |
 
 The routing is per text run: the HUD maps its text ids in
-[text_values.rs](../crates/jkr-viewer/src/hud/text_values.rs), chat marks its
+[text_values.rs](../crates/sjk-viewer/src/hud/text_values.rs), chat marks its
 centre-print rows, and the scoreboard sends text made only of digits, `-` and `/`
 to the small font. Everything else, including the command browser and overhead
 names, stays on Inter (or `arialnb` for the status HUD). The `.fontdat` metrics
-are read by [fontdat.rs](../crates/jkr-viewer/src/text/fontdat.rs); the atlas is
+are read by [fontdat.rs](../crates/sjk-viewer/src/text/fontdat.rs); the atlas is
 the highest-priority `fonts/<name>.tga` (or `.png`/`.jpg`), so an HD replacement
 atlas in a later PK3 is used with the retail metrics and is mipmapped down to the
 retail 512-texel size. The console character set
-([charset.rs](../crates/jkr-viewer/src/text/charset.rs)) is a 16×16 grid of
+([charset.rs](../crates/sjk-viewer/src/text/charset.rs)) is a 16×16 grid of
 Latin-1 cells; like `SCR_DrawSmallChar` and `CG_DrawChar`, each character is the
 left half of its cell drawn twice as tall as wide, every character advances one
 cell (the console is monospaced), and a space draws nothing. The console keeps its
 own sizes (`con_scale`, row pitch), and its caret, selection and pointer hits
 measure the same fixed advance it draws with. The game fonts load when a world is
 installed with the option on, or on first use, from
-[game_font.rs](../crates/jkr-viewer/src/game_font.rs); a missing font leaves
+[game_font.rs](../crates/sjk-viewer/src/game_font.rs); a missing font leaves
 its surfaces on Inter. The console font is drawn after all other text, so the
 console stays on top.
 
 The retail atlases are 256–512 texels on the long side, so 1440p and 4K text
 magnifies them several times and bilinear sampling of their coverage blurs every
 edge over several pixels. Atlases under 2048 texels are therefore converted at
-load into signed distance fields by [sdf.rs](../crates/jkr-viewer/src/text/sdf.rs)
+load into signed distance fields by [sdf.rs](../crates/sjk-viewer/src/text/sdf.rs)
 and drawn by the text shader's `fragment_sdf`, which rebuilds each edge one screen
 pixel wide at any scale. The edge is the 0.5 contour of the bilinearly interpolated
 coverage, found on a grid of about 2048 texels with an exact Euclidean distance
@@ -975,7 +975,7 @@ In the Inter atlas, byte 0xAC (`¬`) is an exception: the retail `ergoec` and
 `ocr_a` fonts draw it as the boxed "WSI fonts" foundry logo, which players use in
 names, so when the game data provides either font the atlas takes that glyph
 instead of Inter's not-sign
-([logo_glyph.rs](../crates/jkr-viewer/src/text/logo_glyph.rs)). It is cropped
+([logo_glyph.rs](../crates/sjk-viewer/src/text/logo_glyph.rs)). It is cropped
 from the mounted atlas (an HD replacement included), scaled so the retail
 font's `H` matches Inter's cap height, and spliced into both faces at atlas
 build and DPI rebuild; nothing is read or rasterized per frame. Without the
@@ -987,7 +987,7 @@ may draw a stray `Â` before the logo.
 
 `cg_hudStyle game` replaces JKR's health, armor, Force and ammo widgets with the
 status HUD the game's own menu files describe, as retail Jedi Academy draws it
-([menu_hud.rs](../crates/jkr-viewer/src/menu_hud.rs)). `cg_hudFiles` (retail
+([menu_hud.rs](../crates/sjk-viewer/src/menu_hud.rs)). `cg_hudFiles` (retail
 default `ui/jahud.txt`) names a list of `loadMenu` files; the stock list loads
 `ui/hud.menu`, so a PK3 that replaces that file (a custom HUD pack) or a list
 naming other menus changes the HUD with no JKR-specific format. A nonzero
@@ -996,11 +996,11 @@ list and `3`/`4` name `ui/elegance_hud.txt`/`ui/jof_hud.txt`. A missing list
 falls back to the default one, as `CG_LoadMenus` does; files without a
 `lefthud` or `righthud` menu leave JKR's HUD in place.
 
-The reader ([parse.rs](../crates/jkr-viewer/src/menu_hud/parse.rs)) keeps the
+The reader ([parse.rs](../crates/sjk-viewer/src/menu_hud/parse.rs)) keeps the
 window fields HUDs use (`name`, `rect`, `visible`, `style`, `background`,
 `forecolor`, `backcolor`) and skips other keywords with their arguments.
 Drawing follows OpenJK codemp `CG_DrawHUD` and its helpers in `cg_draw.c`
-([frame.rs](../crates/jkr-viewer/src/menu_hud/frame.rs)): the menus' visible
+([frame.rs](../crates/sjk-viewer/src/menu_hud/frame.rs)): the menus' visible
 filled/shader backgrounds (`Menu_Paint`), `scanline` and `frame`, four tics per
 meter with the partial one faded, the low-armor blink of the last armor tic,
 three-cell numbers from the `gfx/2d/numbers/t_*` digits (`CG_DrawNumField`),
@@ -1047,15 +1047,15 @@ made opaque bubble interiors transparent near geometry.
 
 ## Generating material maps
 
-`jkr-materialgen` writes normal, height and roughness/metalness/occlusion maps
+`sjk-materialgen` writes normal, height and roughness/metalness/occlusion maps
 for the world textures of the player's own installation, in the rend2 naming
 that the optional material maps (`r_normalMapping`, `r_specularMapping`,
 `r_parallaxMapping`) look up next to a diffuse image. It runs offline and only
-reads the game data; [its crate documentation](../crates/jkr-materialgen/src/lib.rs)
+reads the game data; [its crate documentation](../crates/sjk-materialgen/src/lib.rs)
 and `--help` are the reference.
 
 ```sh
-cargo run --release -p jkr-materialgen -- --maps mp/ffa3,mp/duel1
+cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
 ```
 
 - **Input.** GameData is found like the client finds it (`--game-data`,
@@ -1064,7 +1064,7 @@ cargo run --release -p jkr-materialgen -- --maps mp/ffa3,mp/duel1
   the client's order, case-insensitive. The tool's own earlier output is left
   out. The installed maps (or `--maps`) supply the shaders actually drawn: BSP
   shader lumps and surfaces plus the shader scripts.
-- **Selection** ([select.rs](../crates/jkr-materialgen/src/select.rs)). A texture
+- **Selection** ([select.rs](../crates/sjk-materialgen/src/select.rs)). A texture
   qualifies when a shader draws it on lightmapped surfaces with lightmap and
   diffuse stages that collapse into one opaque pass. These are the stages the
   renderer gives maps to. Skipped, each with a reason in the manifest: sky,
@@ -1074,7 +1074,7 @@ cargo run --release -p jkr-materialgen -- --maps mp/ffa3,mp/duel1
   are allowed), images without relief (flat colours) and textures that already
   have rend2 maps. With an existing normal map or specular map only the
   missing kind is written.
-- **Generation** ([generate.rs](../crates/jkr-materialgen/src/generate.rs)),
+- **Generation** ([generate.rs](../crates/sjk-materialgen/src/generate.rs)),
   deterministic and wrap-around, so tiling textures stay seamless. Height comes
   from luminance, high-passed twice at 1/8 of the texture to suppress baked
   lighting gradients. It is then weighted by scale band and normalised.
@@ -1086,7 +1086,7 @@ cargo run --release -p jkr-materialgen -- --maps mp/ffa3,mp/duel1
   metalness only on bright, unsaturated texels; and cavity occlusion. Source
   resolution is kept unless `--max-size` caps it, and alpha-tested textures
   keep their alpha in the normal map.
-- **Classes** ([classes.rs](../crates/jkr-materialgen/src/classes.rs)): one table
+- **Classes** ([classes.rs](../crates/sjk-materialgen/src/classes.rs)): one table
   of strength, parallax, roughness, metalness and occlusion per class. A class is
   chosen by the BSP material id (`q3map_material`), then path keywords, then
   `surfaceparm metalsteps`. Stone, tiles and ground get `<texture>_nh`
@@ -1097,7 +1097,7 @@ cargo run --release -p jkr-materialgen -- --maps mp/ffa3,mp/duel1
   from the albedo and a 0.04 dielectric reflectance by itself, without rend2's
   SDR gloss conversion. Metalness stays at most 0.3: in that path metal loses
   its diffuse share, and nothing reflects the surroundings back into it.
-- **Output.** One pk3 of PNGs plus `jkr-materialgen/manifest.json` (every
+- **Output.** One pk3 of PNGs plus `sjk-materialgen/manifest.json` (every
   source, its outputs, class, maps and shaders, skipped shaders with reasons,
   all settings). The archive is deterministic. The default path is
   `<JKR user data>/generated/zzz_jkr_materials.pk3`, `%APPDATA%\jkr\generated`
@@ -1121,7 +1121,7 @@ layout. A read-only run on `mp/ffa3` and `mp/duel1` of a Windows installation
 with high-resolution texture packs took 11 s for 110 textures (160 MiB) and is
 described in the generator's pull request. No in-game image has been checked.
 
-JA+ grapple ropes ([grapple_rope.rs](../crates/jkr-viewer/src/grapple_rope.rs))
+JA+ grapple ropes ([grapple_rope.rs](../crates/sjk-viewer/src/grapple_rope.rs))
 follow EternalJK's `CG_Missile`: on a JA+ server each `WP_STUN_BATON` missile is a
 hook, drawn as `CG_TestLine` draws it, a one-unit-wide near-black (RGB 6, 0, 0)
 `white` line from the hooked player's right hand to the hook, rebuilt every frame

@@ -1,26 +1,26 @@
 [workspace]
 members = [
-    "crates/jkr-bsp",
-    "crates/jkr-dedicated",
-    "crates/jkr-audio",
-    "crates/jkr-client",
-    "crates/jkr-entity",
-    "crates/jkr-game-jka",
-    "crates/jkr-icarus",
-    "crates/jkr-materialgen",
-    "crates/jkr-effect",
-    "crates/jkr-model",
-    "crates/jkr-nav",
-    "crates/jkr-network",
-    "crates/jkr-protocol",
-    "crates/jkr-runtime",
-    "crates/jkr-scene",
-    "crates/jkr-server",
-    "crates/jkr-shader",
-    "crates/jkr-shell",
-    "crates/jkr-ui",
-    "crates/jkr-vfs",
-    "crates/jkr-viewer",
+    "crates/sjk-bsp",
+    "crates/sjk-dedicated",
+    "crates/sjk-audio",
+    "crates/sjk-client",
+    "crates/sjk-entity",
+    "crates/sjk-game-jka",
+    "crates/sjk-icarus",
+    "crates/sjk-materialgen",
+    "crates/sjk-effect",
+    "crates/sjk-model",
+    "crates/sjk-nav",
+    "crates/sjk-network",
+    "crates/sjk-protocol",
+    "crates/sjk-runtime",
+    "crates/sjk-scene",
+    "crates/sjk-server",
+    "crates/sjk-shader",
+    "crates/sjk-shell",
+    "crates/sjk-ui",
+    "crates/sjk-vfs",
+    "crates/sjk-viewer",
 ]
 resolver = "3"
 
@@ -31,24 +31,24 @@ rust-version = "1.88"
 version = "0.1.0"
 
 [workspace.dependencies]
-jkr-bsp = { path = "crates/jkr-bsp" }
-jkr-audio = { path = "crates/jkr-audio" }
-jkr-client = { path = "crates/jkr-client" }
-jkr-entity = { path = "crates/jkr-entity" }
-jkr-game-jka = { path = "crates/jkr-game-jka" }
-jkr-icarus = { path = "crates/jkr-icarus" }
-jkr-effect = { path = "crates/jkr-effect" }
-jkr-model = { path = "crates/jkr-model" }
-jkr-nav = { path = "crates/jkr-nav" }
-jkr-network = { path = "crates/jkr-network" }
-jkr-protocol = { path = "crates/jkr-protocol" }
-jkr-runtime = { path = "crates/jkr-runtime" }
-jkr-scene = { path = "crates/jkr-scene" }
-jkr-server = { path = "crates/jkr-server" }
-jkr-shader = { path = "crates/jkr-shader" }
-jkr-shell = { path = "crates/jkr-shell" }
-jkr-ui = { path = "crates/jkr-ui" }
-jkr-vfs = { path = "crates/jkr-vfs" }
+sjk-bsp = { path = "crates/sjk-bsp" }
+sjk-audio = { path = "crates/sjk-audio" }
+sjk-client = { path = "crates/sjk-client" }
+sjk-entity = { path = "crates/sjk-entity" }
+sjk-game-jka = { path = "crates/sjk-game-jka" }
+sjk-icarus = { path = "crates/sjk-icarus" }
+sjk-effect = { path = "crates/sjk-effect" }
+sjk-model = { path = "crates/sjk-model" }
+sjk-nav = { path = "crates/sjk-nav" }
+sjk-network = { path = "crates/sjk-network" }
+sjk-protocol = { path = "crates/sjk-protocol" }
+sjk-runtime = { path = "crates/sjk-runtime" }
+sjk-scene = { path = "crates/sjk-scene" }
+sjk-server = { path = "crates/sjk-server" }
+sjk-shader = { path = "crates/sjk-shader" }
+sjk-shell = { path = "crates/sjk-shell" }
+sjk-ui = { path = "crates/sjk-ui" }
+sjk-vfs = { path = "crates/sjk-vfs" }
 glam = "0.33.0"
 md4 = "0.10.2"
 md-5 = "0.10.6"
