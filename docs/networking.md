@@ -40,6 +40,18 @@ profile; the JA+ 2.4 server module formats both keys too. The JA+ client
 plugin's `serverconfig` and `pluginDisable` commands are client commands (see
 [client.md](client.md#useful-console-commands)).
 
+### Server-dialect movement rules
+
+Prediction follows rules the server advertises in `CS_SERVERINFO`, read by
+[pmove_rules.rs](../crates/jkr-game-jka/src/pmove_rules.rs): the roll fixes of
+JA+ (`jp_cinfo`) and TaystJK/jaPRO, and `g_debugMelee`
+([pmove_debug_melee.rs](../crates/jkr-game-jka/src/pmove_debug_melee.rs)). Stock
+`codemp` turns on the melee kicks, the grapple and holding a grabbed wall at any
+nonzero `g_debugMelee`. JA+ splits the levels (1: melee attacks, 2: also the wall
+hold), never turns a player holding a wall to face it, and kicks forward on an
+alternate attack standing still. JKR's server does not simulate `g_debugMelee`;
+its default there is 0, which keeps prediction on the stock behavior.
+
 ## Parity requirements
 
 Movement includes integer-millisecond user-command quantization. Validate common
