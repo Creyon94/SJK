@@ -14,6 +14,7 @@ impl ParticleAtlas {
                 rgb: 1.0,
                 alpha: 1.0,
                 uv_transform: [1.0, 1.0, 0.0, 0.0],
+                glow: false,
             })
     }
 
@@ -34,6 +35,7 @@ impl ParticleAtlas {
                     animation.tc_scroll,
                     age_seconds,
                 ),
+                glow: animation.glow,
             };
         }
         let raw = (age_seconds.max(0.0) * animation.frequency).floor() as usize;
@@ -52,6 +54,7 @@ impl ParticleAtlas {
                 animation.tc_scroll,
                 age_seconds,
             ),
+            glow: animation.glow,
         }
     }
 

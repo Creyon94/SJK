@@ -3,7 +3,9 @@
 // Filter perceptual color through a UNORM alias. Decode only for an sRGB output attachment.
 override SRGB_OUTPUT: bool = true;
 override HDR_INPUT: bool = false;
-override HDR_EXPOSURE: f32 = 1.0;
+// A scene resolve, exposed through `post_hdr.wgsl`'s `scene_exposure` (binding 4); off
+// for the display gamma pass, whose input already holds the HUD.
+override SCENE_EXPOSURE: bool = false;
 @group(0) @binding(0) var scene: texture_2d<f32>;
 @group(0) @binding(1) var linear_clamp: sampler;
 @group(0) @binding(2) var<uniform> controls: vec4<f32>;
@@ -15,6 +17,11 @@ override EFFECTS: bool = false;
 @group(0) @binding(6) var effects_original: texture_2d<f32>;
 // Texture-space rectangle [u0, v0, u1, v1] the effects can touch this frame.
 @group(0) @binding(7) var<uniform> effects_region: vec4<f32>;
+// Dynamic glow (`post_glow.rs`): the blurred glow image, display values, and its
+// controls [drawn this frame, soft composite, glow alone (r_DynamicGlow 3), unused].
+override GLOW: bool = false;
+@group(0) @binding(8) var glow_image: texture_2d<f32>;
+@group(0) @binding(9) var<uniform> glow_controls: vec4<f32>;
 
 @vertex fn vs_main(@builtin(vertex_index) index: u32) -> @builtin(position) vec4<f32> {
     let p = vec2<f32>(f32((index << 1u) & 2u), f32(index & 2u));
@@ -28,6 +35,7 @@ fn sample_at(uv: vec2<f32>) -> vec3<f32> {
         }
         return hdr_encoded(c);
     }
+    if SCENE_EXPOSURE { return ldr_exposed(c); }
     return c;
 }
 fn luma(rgb: vec3<f32>) -> f32 {
@@ -42,8 +50,20 @@ fn with_effects(rgb: vec3<f32>, uv: vec2<f32>) -> vec3<f32> {
     return select(clamp(rgb + changed, vec3<f32>(0.0), vec3<f32>(1.0)), blended,
         (blended >= vec3<f32>(1.0) | blended <= vec3<f32>(0.0)) & changed != vec3<f32>(0.0));
 }
+// rd-vanilla RB_DrawGlowOverlay on display values: r_DynamicGlowSoft's GL_ONE,
+// GL_ONE_MINUS_SRC_COLOR is a screen blend; otherwise GL_ONE GL_ONE, clamped.
+fn with_glow(rgb: vec3<f32>, uv: vec2<f32>) -> vec3<f32> {
+    // Nothing glowed: the frame is untouched, and the image is not read.
+    if !GLOW || (glow_controls.x == 0.0 && glow_controls.z == 0.0) { return rgb; }
+    var glow = vec3<f32>(0.0);
+    if glow_controls.x != 0.0 { glow = textureSampleLevel(glow_image, linear_clamp, uv, 0.0).rgb; }
+    if glow_controls.z != 0.0 { return glow; }
+    let scene = clamp(rgb, vec3<f32>(0.0), vec3<f32>(1.0));
+    if glow_controls.y != 0.0 { return scene + glow - scene * glow; }
+    return min(scene + glow, vec3<f32>(1.0));
+}
 fn output_color(rgb: vec3<f32>, alpha: f32, uv: vec2<f32>) -> vec4<f32> {
-    var encoded = with_effects(rgb, uv);
+    var encoded = with_glow(with_effects(rgb, uv), uv);
     if controls.z != 1.0 {
         // OpenJK tr_image.cpp R_SetColorMappings: byte lookup, rounded, no overbright.
         let index = floor(clamp(encoded, vec3<f32>(0.0), vec3<f32>(1.0)) * 255.0 + 0.5);
@@ -69,7 +89,11 @@ fn output_color(rgb: vec3<f32>, alpha: f32, uv: vec2<f32>) -> vec4<f32> {
     let pixel = 1.0 / vec2<f32>(textureDimensions(scene));
     let uv = position.xy * pixel;
     var center = textureLoad(scene, vec2<i32>(position.xy), 0);
-    if HDR_INPUT { center = vec4(sample_at(uv), center.a); }
+    if HDR_INPUT {
+        center = vec4(sample_at(uv), center.a);
+    } else if SCENE_EXPOSURE {
+        center = vec4(ldr_exposed(center.rgb), center.a);
+    }
     if controls.x == 0.0 { return output_color(center.rgb, center.a, uv); }
     let nw = luma(sample_at(uv + vec2<f32>(-1.0, -1.0) * pixel));
     let ne = luma(sample_at(uv + vec2<f32>(1.0, -1.0) * pixel));

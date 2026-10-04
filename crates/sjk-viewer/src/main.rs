@@ -73,6 +73,7 @@ mod frame_split;
 mod frame_target;
 mod game_font;
 mod game_menu_actions;
+mod glow_pass;
 mod gpu_context;
 mod gpu_phases;
 mod gpu_texture;
@@ -267,6 +268,7 @@ struct GpuState {
     saber_states: saber_trail::StateSlab,
     saber_trail_segments: saber_trail::SegmentPool,
     speed_trails: actor_world_submission::speed_trail::Trails,
+    trick_fades: sjk_client::LegacyTrickFades,
     projectiles: Vec<projectiles::Presented>,
     missile_effects: LegacyMissileEffects,
     dynamic_lights: dynamic_lights::PointLightList,
@@ -1067,6 +1069,7 @@ impl GpuState {
             saber_states: saber_trail::StateSlab::default(),
             saber_trail_segments: saber_trail::SegmentPool::default(),
             speed_trails: Default::default(),
+            trick_fades: Default::default(),
             projectiles: Vec::with_capacity(sjk_protocol::MAX_LEGACY_ENTITIES),
             missile_effects,
             dynamic_lights: dynamic_lights::PointLightList::default(),
@@ -1283,6 +1286,7 @@ impl GpuState {
             menu.set_world_hidden(world_hidden);
         }
         self.update_menu_stage(visual_now);
+        self.prepare_eye_adaptation(delta_seconds, backdrop_view);
         let local_view = self
             .demo_session
             .as_ref()
@@ -2030,6 +2034,8 @@ struct ParticleAtlas {
     bind_group: wgpu::BindGroup,
     animations: HashMap<String, Vec<ParticleAtlasAnimation>>,
     fallback: [f32; 4],
+    /// Some stage is a dynamic glow stage, so effects sort glowing layers apart.
+    any_glow: bool,
 }
 
 struct ParticleAtlasAnimation {
@@ -2041,6 +2047,8 @@ struct ParticleAtlasAnimation {
     alpha_wave: Option<WaveForm>,
     tc_scale: [f32; 2],
     tc_scroll: [f32; 2],
+    /// The stage is drawn into the dynamic glow image too.
+    glow: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -2050,6 +2058,7 @@ struct ParticleLayerSample {
     rgb: f32,
     alpha: f32,
     uv_transform: [f32; 4],
+    glow: bool,
 }
 
 mod particle_atlas_sampling;

@@ -556,6 +556,68 @@ test: bind F10 debug_panel, close the console: F10 opens and closes it in menus 
 test: Tick an entry (Space, Enter or its box), restart the client: the tick is still there.
 test: Wheel, arrows, PageUp / PageDown, Home / End; Tab cycles TO TEST, TESTED and ALL.
 
+[own-force-effects]
+status: personal
+area: Rendering & effects
+title: Your own Force streams and hand puffs are drawn
+change: Your Drain/Lightning stream and Grip/Push puffs come from your player state (JKR looked
+change: for you in the entity list, where the server never puts you). A trickster's stream shows.
+test: Local game with a bot. Drain 1-2 at the bot: red stream from your left hand, red flash on it.
+test: Same in first and third person (cg_thirdPerson 0 / 1). Drain 1-2 at a wall: no stream.
+test: Drain 3: a red fan. Lightning 1-2: a blue stream; Lightning 3: a blue fan.
+test: Grip the bot: red puffs at your hand in third person only. Push / Pull: grey hand puffs.
+test: A second client watching you sees the same streams and puffs as before.
+
+[drain-bolt-shape]
+status: personal
+area: Rendering & effects
+title: Drain bolts are jagged like stock
+change: EFX bounce also sets an electricity bolt's jaggedness, as in retail (JKR: almost straight).
+test: Local game with a bot. Drain 1-2 at it: the red stream zigzags like Lightning, not a line.
+test: Drain 3: the red fan's bolts are jagged too. Lightning looks as before.
+
+[mind-trick-fade]
+status: personal
+area: Rendering & effects
+title: Mind Trick hides the trickster; confusion over your victims
+change: A trickster fades out (~0.5 s) for its victims, then is hidden; it fades back in after.
+change: You see a blue confusion swirl over the heads of players you tricked. JKR had neither.
+test: Local server, two clients A and B. A mind-tricks B: on B, A fades out then disappears.
+test: On B: A's saber blades and gun go too; a thrown saber stays. A's Lightning still shows.
+test: On A: a blue swirl over B's head while the trick lasts; B's Force Sight on: swirl stops.
+test: On B: turn Force Sight on while tricked: A reappears (fades back in over ~0.25 s).
+test: A speed-runs (Force Speed) while tricked: no afterimages on B, normal on others.
+
+[dynamic-glow]
+status: personal
+area: Rendering & effects
+title: Dynamic glow: glow stages get a halo, as in EternalJK
+change: Stages marked glow are drawn again into a glow image, blurred and added (r_DynamicGlow 1).
+change: r_dynamicGlowStyle 1 (default) is EJK Vulkan's blur; 0 is retail's with its glow cvars.
+change: Settings > VIDEO > Renderer > IMAGE: Dynamic glow and Glow style rows.
+test: Possessed Tavion (model tavion_new/possessed): a halo around her whole body.
+test: olol model: the face, mouth and right hand glow; the rest of the body does not.
+test: Ignite a saber: the blade and its trail glow; the white core adds no extra halo.
+test: r_DynamicGlow 0: every halo is gone. 2: only saber blades glow. 3: the glow alone.
+test: r_dynamicGlowStyle 0: retail's softer, wider look; r_DynamicGlowIntensity changes it live.
+test: A map without glow surfaces, sabers off: no halo anywhere, FPS as with r_DynamicGlow 0.
+note: Not yet in portals, sky portals or floor reflections; fog does not dim glow.
+
+[eye-adaptation]
+status: personal
+area: Rendering & effects
+title: Eye adaptation: exposure follows the view (r_autoExposure)
+change: Dark views brighten over a few seconds (up to +1 EV); bright light darkens a little (-0.5).
+change: Renderer > IMAGE: Eye adaptation, max darken / max brighten. Speeds and key: console.
+test: Walk from a sunlit area into a dark room: it brightens slowly over 2-5 s, no jump.
+test: Step from a dark room into sunlight or look at the sky: it darkens quickly, then settles.
+test: Map load, respawn, following another player, spectating: no flash or slow fade-in.
+test: r_autoExposure 0: the fixed r_hdrExposure image, as before; 1 again adapts at once.
+test: Renderer page open: it holds still; HUD, menus, text and levelshots never change.
+test: r_sceneHdr 0 and restart: dark rooms still brighten, bright views never darken.
+note: Too bright/dark overall on outdoor maps (ffa3)? Tune r_autoExposureKey (default 0.18).
+note: Too slow/fast: r_autoExposureToDark (2.5 s) and r_autoExposureToBright (0.4 s).
+
 # ---- Merged upstream ----
 
 [console-chat-history]

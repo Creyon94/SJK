@@ -17,6 +17,13 @@ pub(crate) mod effects;
 /// Scene precision and a colour-ratio-preserving display shoulder.
 pub(crate) mod hdr;
 
+#[path = "post_exposure.rs"]
+/// Eye adaptation: the scene exposure, metered and smoothed on the GPU.
+pub(crate) mod exposure;
+#[path = "post_glow.rs"]
+/// Dynamic glow (`r_DynamicGlow`): the glowing stages' image, its blur and settings.
+pub(crate) mod glow;
+
 /// Register an honestly named post-process control, on by default.
 ///
 /// Measured at 0.026 ms per frame at 2560x1080 on an RX 9060 XT (interleaved A/B on a fixed
@@ -57,6 +64,10 @@ pub(crate) struct Runtime {
     bloom: Option<bloom::Bloom>,
     /// rd-vanilla's blended-effect framebuffer, merged by this resolve; production only.
     effects: Option<effects::Layer>,
+    /// Dynamic glow image and blur, merged by this resolve; production only, when enabled.
+    glow: Option<glow::Glow>,
+    /// Eye adaptation of a scene resolve; none for a display-only pass.
+    exposure: Option<exposure::Exposure>,
     /// Retained inputs to rebuild [`Self::bind`] when the effect layer is resized.
     inputs: Inputs,
 }
@@ -67,9 +78,13 @@ struct Inputs {
     sampler: wgpu::Sampler,
 
     effect_encoding: effects::Encoding,
+    /// The exposure state bound at binding 4 here and in the effect layer.
+    exposure_state: wgpu::Buffer,
 
     /// The resolve pipeline was built to merge an effect layer.
     merge: bool,
+    /// Window size, which sizes the glow blur.
+    frame: [u32; 2],
 }
 
 impl Runtime {
@@ -158,6 +173,9 @@ impl Runtime {
         effects: Option<[u32; 2]>,
     ) -> Self {
         let scene_format = hdr.format(format);
+        // As `scene_effects`: this pass resolves the scene before the HUD.
+        let resolves_scene =
+            hdr.mode != 0 || fxaa || policy.tonemap || policy.bloom || effects.is_some();
         let sample_format = scene_format.remove_srgb_suffix();
         let usage = wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING;
 
@@ -176,6 +194,10 @@ impl Runtime {
             view_formats: &[sample_format],
         });
         let scene = texture.create_view(&Default::default());
+        // Only the production resolve, which merges the effect layer, draws glow.
+        let glow = effects
+            .filter(|_| policy.glow.enabled)
+            .map(|scene| glow::Glow::new(device, scene, size, scene_format, policy.glow));
         let bloom = policy
             .bloom
             .then(|| bloom::Bloom::new(device, &scene, size));
@@ -205,8 +227,9 @@ impl Runtime {
                     constants: &[
                         ("SRGB_OUTPUT", if format.is_srgb() { 1.0 } else { 0.0 }),
                         ("HDR_INPUT", if hdr.mode != 0 { 1.0 } else { 0.0 }),
-                        ("HDR_EXPOSURE", f64::from(hdr.exposure)),
+                        ("SCENE_EXPOSURE", f64::from(u8::from(resolves_scene))),
                         ("EFFECTS", f64::from(u8::from(effects.is_some()))),
+                        ("GLOW", f64::from(u8::from(glow.is_some()))),
                     ],
                     ..Default::default()
                 },
@@ -237,18 +260,32 @@ impl Runtime {
             contents: bytemuck::cast_slice(&values),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
+        let exposure = resolves_scene.then(|| {
+            exposure::Exposure::new(device, &sample, &sampler, size, hdr.mode != 0, hdr.exposure)
+        });
+        let exposure_state = exposure
+            .as_ref()
+            .map_or_else(|| exposure::neutral(device), |e| e.state().clone());
         let inputs = Inputs {
             sample,
             sampler,
 
             effect_encoding: effects::Encoding {
                 scene: scene_format,
-                exposure: hdr.exposure,
             },
+            exposure_state,
 
             merge: effects.is_some(),
+            frame: size,
         };
-        let layer = effects.map(|scene| effects::Layer::new(device, scene, inputs.effect_encoding));
+        let layer = effects.map(|scene| {
+            effects::Layer::new(
+                device,
+                scene,
+                inputs.effect_encoding,
+                &inputs.exposure_state,
+            )
+        });
         let bind = Self::bind(
             device,
             &pipeline,
@@ -256,6 +293,7 @@ impl Runtime {
             bloom.as_ref(),
             &inputs,
             layer.as_ref(),
+            glow.as_ref(),
         );
         Self {
             scene,
@@ -268,6 +306,8 @@ impl Runtime {
             display: None,
             bloom,
             effects: layer,
+            glow,
+            exposure,
             inputs,
         }
     }
@@ -279,6 +319,7 @@ impl Runtime {
         bloom: Option<&bloom::Bloom>,
         inputs: &Inputs,
         effects: Option<&effects::Layer>,
+        glow: Option<&glow::Glow>,
     ) -> wgpu::BindGroup {
         let view = |binding, view| wgpu::BindGroupEntry {
             binding,
@@ -299,12 +340,25 @@ impl Runtime {
                 resource: parameters.as_entire_binding(),
             },
             view(3, bloom.map_or(&inputs.sample, |b| &b.output)),
+            wgpu::BindGroupEntry {
+                binding: 4,
+                resource: inputs.exposure_state.as_entire_binding(),
+            },
             view(5, blended),
             view(6, original),
             wgpu::BindGroupEntry {
                 binding: 7,
                 resource: effects
                     .map_or(parameters, |layer| layer.region())
+                    .as_entire_binding(),
+            },
+            // Without glow the composite is compiled out; the scene and the colour
+            // controls stand in for its image and controls.
+            view(8, glow.map_or(&inputs.sample, |glow| glow.output())),
+            wgpu::BindGroupEntry {
+                binding: 9,
+                resource: glow
+                    .map_or(parameters, |glow| glow.controls())
                     .as_entire_binding(),
             },
         ];
@@ -327,7 +381,22 @@ impl Runtime {
         {
             return;
         }
-        let layer = effects::Layer::new(device, scene, self.inputs.effect_encoding);
+        let layer = effects::Layer::new(
+            device,
+            scene,
+            self.inputs.effect_encoding,
+            &self.inputs.exposure_state,
+        );
+        // The glow image shares the scene's depth, so it follows the scene's size too.
+        if self.glow.is_some() {
+            self.glow = Some(glow::Glow::new(
+                device,
+                scene,
+                self.inputs.frame,
+                self.inputs.effect_encoding.scene,
+                self.policy.glow,
+            ));
+        }
         self.bind = Self::bind(
             device,
             &self.pipeline,
@@ -335,6 +404,7 @@ impl Runtime {
             self.bloom.as_ref(),
             &self.inputs,
             Some(&layer),
+            self.glow.as_ref(),
         );
         self.effects = Some(layer);
     }
@@ -342,6 +412,11 @@ impl Runtime {
     /// The legacy effect layer shared by every view this frame, when the resolve merges one.
     pub(crate) const fn effect_layer(&self) -> Option<&effects::Layer> {
         self.effects.as_ref()
+    }
+
+    /// The dynamic glow image the main view draws into, when glow is enabled.
+    pub(crate) const fn glow(&self) -> Option<&glow::Glow> {
+        self.glow.as_ref()
     }
 
     /// View the 2D layer draws into, always UNORM ([`crate::ui_target`]): the
@@ -376,6 +451,10 @@ impl Runtime {
                     .as_ref()
                     .map_or(output, |display| &display.scene),
             );
+            // After every reader of this frame's exposure; the next frame shows the result.
+            if let Some(exposure) = &self.exposure {
+                exposure.record(encoder);
+            }
         }
     }
 
@@ -418,6 +497,9 @@ impl Runtime {
     pub(crate) fn draw(&self, encoder: &mut wgpu::CommandEncoder, output: &wgpu::TextureView) {
         if let Some(bloom) = &self.bloom {
             bloom.draw(encoder);
+        }
+        if let Some(glow) = &self.glow {
+            glow.blur(encoder);
         }
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("JKR FXAA resolve"),

@@ -225,6 +225,34 @@ impl Runtime {
         }
     }
 
+    /// Draw this frame's glowing cylinders, lines and electricity into the dynamic glow
+    /// image with the ordinary effect pipelines (decals never glow here).
+    pub(crate) fn draw_glow<'a>(
+        &'a self,
+        pass: &mut wgpu::RenderPass<'a>,
+        camera: &'a wgpu::BindGroup,
+        atlas: &'a wgpu::BindGroup,
+    ) {
+        if !self.has_glow() {
+            return;
+        }
+        pass.set_bind_group(0, camera, &[]);
+        pass.set_bind_group(1, atlas, &[]);
+        pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+        pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+        for (pipeline, range) in self.pipelines.iter().zip(self.mesh.glow_ranges()) {
+            if !range.is_empty() {
+                pass.set_pipeline(pipeline);
+                pass.draw_indexed(range.clone(), 0, 0..1);
+            }
+        }
+    }
+
+    /// Whether any glowing geometry was built this frame.
+    pub(crate) fn has_glow(&self) -> bool {
+        self.stats.indices != 0 && self.mesh.glow_ranges().iter().any(|r| !r.is_empty())
+    }
+
     pub(crate) fn stats(&self) -> crate::effect_geometry::Stats {
         self.stats
     }

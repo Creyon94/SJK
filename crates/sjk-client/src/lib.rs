@@ -45,6 +45,7 @@ mod loop_sounds;
 mod maintained_sounds;
 mod map_effects;
 mod match_info;
+mod mind_trick;
 mod missile_effects;
 mod muzzle_effects;
 mod npc_identity;
@@ -157,6 +158,10 @@ pub use maintained_sounds::{
 };
 pub use map_effects::{LegacyMapEffectMetrics, LegacyMapEffectRequest, LegacyMapEffects};
 pub use match_info::{MatchClock, WarmupText, legacy_match_clock, legacy_warmup_text};
+pub use mind_trick::{
+    LegacyTrickFade, LegacyTrickFades, legacy_entity_trick_targets, legacy_mind_tricked,
+    legacy_player_trick_targets,
+};
 pub use missile_effects::{
     LegacyMissileEffectMetrics, LegacyMissileEffectRequest, LegacyMissileEffects,
     LegacyMissileLight, legacy_missile_mode,

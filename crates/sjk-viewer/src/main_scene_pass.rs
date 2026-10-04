@@ -244,6 +244,10 @@ impl GpuState {
         if let Some(phases) = &self.gpu_phases {
             phases.mark(encoder, "scene-pass");
         }
+        self.encode_glow(encoder, main_view, source_cluster, particle_ranges);
+        if let Some(phases) = &self.gpu_phases {
+            phases.mark(encoder, "glow");
+        }
         if shadows {
             self.world_materials.draw_volumetrics(
                 encoder,
@@ -267,6 +271,7 @@ impl GpuState {
         encoder: &mut wgpu::CommandEncoder,
         target_view: &wgpu::TextureView,
     ) {
+        self.clear_glow();
         let _pass = scene_pass(
             encoder,
             target_view,
