@@ -60,6 +60,30 @@ pub enum BaseServerCommandEvent {
     SiegeProfileMenu,
     /// Open Siege class selection (`scl`), with no operands.
     SiegeClassSelect,
+    /// `remapShader <old> <new> <timeOffset>` from a game mod (JoF EJK
+    /// `cg_servercmds.c` `CG_RemapShader_f`); the offset is kept as sent, for `atof`.
+    RemapShader {
+        old: String,
+        new: String,
+        time_offset: String,
+    },
+}
+
+/// Parse the server's `remapShader` command. Like cgame, which acts only when
+/// `Cmd_Argc() == 4`, any other argument count is ignored.
+pub(crate) fn parse_remap_shader(arguments: &[Vec<u8>]) -> Option<BaseServerCommandEvent> {
+    let [name, old, new, time_offset] = arguments else {
+        return None;
+    };
+    if !name.eq_ignore_ascii_case(b"remapShader") {
+        return None;
+    }
+    let text = |bytes: &[u8]| String::from_utf8_lossy(bytes).into_owned();
+    Some(BaseServerCommandEvent::RemapShader {
+        old: text(old),
+        new: text(new),
+        time_offset: text(time_offset),
+    })
 }
 
 /// Operand-free UI commands (TaystJK codemp/cgame/cg_servercmds.c:1468-1484).
@@ -128,4 +152,27 @@ pub fn parse_restore_client_ghoul(name: &[u8], arguments: &[Vec<u8>]) -> Option<
             light_side: legacy_atoi(argument(arguments, 4)) != 0,
         }),
     })
+}
+
+#[cfg(test)]
+mod remap_shader_tests {
+    use super::{BaseServerCommandEvent, parse_remap_shader};
+    use crate::tokenize_command;
+
+    #[test]
+    fn remap_shader_needs_exactly_three_arguments() {
+        let parse = |command: &str| parse_remap_shader(&tokenize_command(command.as_bytes()));
+        assert_eq!(
+            parse("remapShader textures/a/light textures/a/light_off \" 5.20\""),
+            Some(BaseServerCommandEvent::RemapShader {
+                old: "textures/a/light".into(),
+                new: "textures/a/light_off".into(),
+                time_offset: " 5.20".into(),
+            })
+        );
+        assert!(parse("REMAPSHADER a b 0").is_some());
+        assert_eq!(parse("remapShader a b"), None);
+        assert_eq!(parse("remapShader a b 0 extra"), None);
+        assert_eq!(parse("remap a b 0"), None);
+    }
 }

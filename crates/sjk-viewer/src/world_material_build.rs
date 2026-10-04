@@ -351,6 +351,8 @@ fn build(
     ));
     let mut result = finish_runtime(device, queue, forge, sky, fog, pending, resolved)?;
     result.0.lamps = lamps;
+    result.0.origins = materials.to_vec();
+    result.0.lightmaps = lightmaps;
     // The static lamp cache covers lightmapped, light-buffered surfaces of the static world.
     if !result.0.lamps.lamps.is_empty() {
         let surfaces: Vec<super::lamp_cache::Surface> = draws

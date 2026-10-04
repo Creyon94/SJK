@@ -15,6 +15,12 @@
 //!   [`compose_flicker`];
 //! - the focused item's text breathes between its colour and 80% of it
 //!   (`Item_TextColor`, `PULSE_DIVISOR` 75), see [`pulse`].
+//!
+//! SJK adds its own: the menu emblem ([`crate::menu::emblem`]) that stands
+//! where retail played its logo video. Its orange core and ring breathe on a
+//! slow sine ([`emblem_core_glow`]) and the blade's cyan lights shimmer
+//! faster and less ([`emblem_lights_glow`]); both are the strengths of
+//! additive glow layers over the still emblem.
 
 use super::ArtPiece;
 use image::RgbaImage;
@@ -31,6 +37,17 @@ pub(crate) const LOGO_REFLECTION_SCROLL: [f32; 2] = [0.03, 0.05];
 pub(crate) const LOGO_REFLECTION_ALPHA: f32 = 0.25;
 /// `PULSE_DIVISOR` (`q_shared.h`): milliseconds per radian of the focus pulse.
 const PULSE_DIVISOR: f64 = 75.0;
+/// Seconds per breath of the emblem's core glow.
+pub(crate) const EMBLEM_CORE_PERIOD: f64 = 4.2;
+/// Weakest and strongest core glow; the cycle starts at the weakest, so the
+/// glow swells as the menu appears.
+pub(crate) const EMBLEM_CORE_RANGE: [f32; 2] = [0.08, 0.45];
+/// Mean strength of the blade lights' glow and how far it strays from it.
+pub(crate) const EMBLEM_LIGHTS_BASE: f32 = 0.30;
+pub(crate) const EMBLEM_LIGHTS_DEPTH: f32 = 0.15;
+/// Periods, in seconds, of the two sines the shimmer sums; their ratio is
+/// not a simple fraction, so the pattern does not visibly repeat.
+const EMBLEM_LIGHTS_PERIODS: [f64; 2] = [0.9, 0.37];
 
 /// Seconds on the menu clock, which starts the first time it is read.
 pub(crate) fn seconds() -> f64 {
@@ -50,6 +67,23 @@ pub(crate) fn pulse(color: Color, seconds: f64) -> Color {
         color.b * factor,
         color.a * factor,
     )
+}
+
+/// Strength of the emblem's orange core glow at `seconds`: a raised cosine
+/// between [`EMBLEM_CORE_RANGE`] with period [`EMBLEM_CORE_PERIOD`].
+pub(crate) fn emblem_core_glow(seconds: f64) -> f32 {
+    let [low, high] = EMBLEM_CORE_RANGE;
+    let swell = 0.5 - 0.5 * (std::f64::consts::TAU * seconds / EMBLEM_CORE_PERIOD).cos();
+    low + (high - low) * swell as f32
+}
+
+/// Strength of the emblem's cyan blade-light glow at `seconds`: a quick,
+/// shallow shimmer of [`EMBLEM_LIGHTS_DEPTH`] about [`EMBLEM_LIGHTS_BASE`].
+pub(crate) fn emblem_lights_glow(seconds: f64) -> f32 {
+    let [fast, faster] =
+        EMBLEM_LIGHTS_PERIODS.map(|period| std::f64::consts::TAU * seconds / period);
+    let wave = 0.6 * fast.sin() + 0.4 * (faster + 1.3).sin();
+    EMBLEM_LIGHTS_BASE + EMBLEM_LIGHTS_DEPTH * wave as f32
 }
 
 /// Corner texture coordinates (top-left, top-right, bottom-right,
@@ -197,11 +231,63 @@ mod tests {
     }
 
     #[test]
+    fn emblem_core_breathes_slowly_within_its_range() {
+        let [low, high] = EMBLEM_CORE_RANGE;
+        assert!((emblem_core_glow(0.0) - low).abs() < 1e-6);
+        assert!((emblem_core_glow(EMBLEM_CORE_PERIOD * 0.5) - high).abs() < 1e-5);
+        let (mut least, mut most) = (f32::MAX, f32::MIN);
+        for step in 0..10_000 {
+            let glow = emblem_core_glow(f64::from(step) * 0.001);
+            least = least.min(glow);
+            most = most.max(glow);
+        }
+        assert!(least >= low - 1e-6 && most <= high + 1e-6);
+        // One breath per period, even after an hour on the menu.
+        let late = 3_600.0 + 1.234;
+        assert!(
+            (emblem_core_glow(late) - emblem_core_glow(late + EMBLEM_CORE_PERIOD)).abs() < 1e-4
+        );
+        // Gentle: no more than a 0.05 change in a 60 Hz frame's worth of time.
+        for step in 0..1_000 {
+            let at = f64::from(step) * 0.01;
+            assert!((emblem_core_glow(at + 1.0 / 60.0) - emblem_core_glow(at)).abs() < 0.05);
+        }
+    }
+
+    #[test]
+    fn emblem_lights_shimmer_faster_and_shallower_than_the_core() {
+        let (mut least, mut most) = (f32::MAX, f32::MIN);
+        let (mut lights_travel, mut core_travel) = (0.0_f32, 0.0_f32);
+        let mut previous = (emblem_lights_glow(0.0), emblem_core_glow(0.0));
+        for step in 1..20_000 {
+            let at = f64::from(step) * 0.001;
+            let now = (emblem_lights_glow(at), emblem_core_glow(at));
+            least = least.min(now.0);
+            most = most.max(now.0);
+            lights_travel += (now.0 - previous.0).abs();
+            core_travel += (now.1 - previous.1).abs();
+            previous = now;
+        }
+        let bound = EMBLEM_LIGHTS_DEPTH + 1e-6;
+        assert!(least >= EMBLEM_LIGHTS_BASE - bound && most <= EMBLEM_LIGHTS_BASE + bound);
+        assert!(least > 0.0 && most < 1.0);
+        // It moves: most of its depth is used.
+        assert!(most - least > EMBLEM_LIGHTS_DEPTH);
+        // Shallower swing than the core, but more motion over the same time.
+        let [low, high] = EMBLEM_CORE_RANGE;
+        assert!(most - least < high - low);
+        assert!(
+            lights_travel > core_travel * 2.0,
+            "{lights_travel} vs {core_travel}"
+        );
+    }
+
+    #[test]
     fn only_the_static_shaders_flicker() {
         assert_eq!(flicker(ArtPiece::ButtonBack), Some([-1.0, 1.0, -1.3, 1.3]));
         assert!(flicker(ArtPiece::TopBar).is_some());
         assert!(flicker(ArtPiece::Ring).is_none());
-        assert!(ArtPiece::ButtonBack.dynamic() && ArtPiece::Video.dynamic());
+        assert!(ArtPiece::ButtonBack.dynamic());
         assert!(!ArtPiece::Logo.dynamic());
     }
 

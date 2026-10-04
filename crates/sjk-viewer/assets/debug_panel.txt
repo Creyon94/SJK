@@ -193,7 +193,7 @@ title: Classic menu style: retail pages, browser, animation, loading screens
 change: ui_menuStyle classic draws retail-style menus and art, with no map behind them.
 change: Round 4: retail join-server browser; ja01 logo video, ring, glints, glow flicker.
 change: Round 4: capitals on classic labels; Controls list and Setup panels scroll with the wheel.
-test: Menu style classic: main page plays the logo video in the ring; ring turns, glows flicker.
+test: Menu style classic: ring turns, glows flicker (SJK shows its emblem in the ring: sjk-logo).
 test: Hover entries: the focused text pulses; labels and buttons are in capitals.
 test: Play > Join Server: sort columns, SOURCE/TYPE/VIEW, favourites, SERVER INFO, JOIN, wheel.
 test: Join a server: connect screen, then levelshot + server lines + load bar until in game.
@@ -687,6 +687,56 @@ test: r_materialMapsDebug 6: only the emission maps (black on other mapped surfa
 test: Settings > VIDEO > Renderer: IMAGE has 3 emission rows, LIGHTING has Emission-map lights.
 note: Misfire? Add "<texture path> emission=off" to sjk-materialgen-overrides.txt, regenerate.
 note: r_emissiveMaps 0 + restart turns it all off; the pack's normal/specular maps are unaffected.
+
+[model-tolerance]
+status: personal
+area: Rendering & effects
+title: Custom player models load as in EternalJK instead of Kyle
+change: Skins are read like rd-vanilla (no commas, stray text); a missing skin uses model_default.
+change: Weights past one, /models/... skeleton names and odd animation.cfg lines no longer fail.
+test: Local game, console: model youngfemale/head_b1|torso_a1|lower_a1: blonde youngling, no Kyle.
+test: model sad_scout: the model itself stands, runs and jumps animated (was Kyle).
+test: model aldrokoon/blue, then model alienyounglings1/head_a1|torso_a1|lower_a1: no Kyle.
+test: model zzzpiza/original (no such skin): Pizarro in his default skin, console names fallback.
+test: model jedi_hm/head_b1|torso_g1|lower_c2 (no lower_c2): jedi_hm in its default skin.
+test: Player screen preview shows the same models; a JoF server: others' custom models, no Kyle.
+note: Models you do not have installed (zabka, figo, ...) are still Kyle, as in EternalJK.
+note: jedi/rgb needs EternalJK's pk3: fs_basegame EternalJK + restart (also loads its menus).
+
+[shader-remaps]
+status: personal
+area: Rendering & effects
+title: Shader remaps (map, server, console) with EternalJK's cg_remaps
+change: CS_SHADERSTATE, server and console remapShader redraw world, models and effects live.
+change: cg_remaps 2 (default) applies server remaps, 1 skips models/players/, 0 none; not latched.
+change: Commands remapShader <old> <new>, listRemaps, clearRemaps; Settings > GAME > Shader remaps.
+test: devmap mp/ffa3, then: remapShader textures/desert/stucco textures/bespin/u_metalorange
+test: The stucco walls turn orange metal at once, without a map reload.
+test: remapShader textures/desert/stucco textures/desert/stucco puts the stucco back.
+test: remapShader models/map_objects/ships/cart textures/bespin/u_metalorange: the carts change.
+test: listRemaps lists the cart remap as [console]; clearRemaps restores it; listRemaps: none.
+test: remapShader textures/nope textures/desert/stucco prints the R_RemapShader not found warning.
+test: Local eternaljkded on innercity (JoF pack): touch a medpack: the medpack models change look.
+test: Then cg_remaps 0: medpacks look normal at once, listRemaps says (off: cg_remaps); cg_remaps 2.
+note: Not remapped: HUD, saber blades and trails, sky; server time offsets are listed, not used.
+
+[sjk-logo]
+status: personal
+area: Menus & settings
+title: SJK emblem: classic menu ring, modern menu, program and window icons, site
+change: Classic main menu: the SJK emblem replaces the ja01 logo video in the ring (not read).
+change: Its orange core pulses slowly (4.2 s), the cyan blade lights shimmer; modern menu too.
+change: sjk.exe and sjk-server.exe have the icon; the window sets it; site favicon + preview card.
+test: Classic main menu: emblem centred in the ring, inside the frames; ring still turns.
+test: Watch 10 s: the orange core and ring brighten and fade gently; blade lights shimmer.
+test: The Jedi Academy title is still at the top with its drifting reflection.
+test: Resize: 16:9, 21:9, 4:3 and 4K keep the emblem in the ring, sharp, no dark fringe.
+test: Sub-pages (Play, Setup, ...): no emblem, the centre stays dark as before.
+test: Menu style modern: the emblem sits above JEDI ACADEMY / MULTIPLAYER, pulsing too.
+test: Explorer: sjk.exe and sjk-server.exe show the emblem (medallion in small views).
+test: Window title bar and taskbar show the medallion icon; Task Manager says Sol JK.
+test: After the site deploys: favicon in the tab; a shared link shows the preview card.
+note: Icons of 40 px and under show the medallion (ring, core, blade), not the whole star.
 
 # ---- Merged upstream ----
 

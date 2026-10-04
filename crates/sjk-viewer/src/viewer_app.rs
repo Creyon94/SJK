@@ -44,9 +44,11 @@ impl ApplicationHandler for ViewerApplication {
         } else {
             "Sol JK world viewer"
         };
-        let attributes = WindowAttributes::default()
-            .with_title(title)
-            .with_inner_size(PhysicalSize::new(1280, 720));
+        let attributes = window_icon::with_icons(
+            WindowAttributes::default()
+                .with_title(title)
+                .with_inner_size(PhysicalSize::new(1280, 720)),
+        );
         let result = (|| -> Result<GpuState, Box<dyn Error>> {
             let window = Arc::new(event_loop.create_window(attributes)?);
             let scene = self

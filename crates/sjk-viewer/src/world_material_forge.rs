@@ -466,7 +466,9 @@ impl Runtime {
                 camera_ranges: Default::default(),
                 static_draws_by_cluster: Vec::new(),
                 mover_draws: Vec::new(),
+                remapped: None,
             });
+            self.origins.push(key.clone());
         }
         for key in self.forge.pipeline_keys[known..].to_vec() {
             self.push_pipelines(device, key);

@@ -308,6 +308,24 @@ of the changed programs passed with the locked workspace build and tests. No gam
 or window was started: appearance, GPU cost and the first-use pipeline compile
 remain to be checked on screen. Secondary views and fog do not affect glow yet.
 
+## Player model tolerance (SJK)
+
+SJK-only branch `personal/model-tolerance` (2026-10-05, based on `bcb0b76`) loads
+player models, skins and animation tables as rd-vanilla and the retail cgame do
+instead of drawing Kyle; see [player models](client.md#player-models). The
+headless `player_model_scan` ran on a local Windows 11 install (782 model
+directories in `base`, 5064 model/skin rows including one uninstalled skin per
+model): SJK failures fell from 887 to 2, and from 796 rows (700 directories)
+where rd-vanilla keeps the model to none. Fixed classes: skins without commas or
+outside UTF-8 (the young* Jedi packs, aldrokoon), missing skins and parts falling
+back to `model_default.skin`, weights past one (sad_scout), slash-prefixed
+skeleton names and nameless or zero-frame animation lines (vehicle and creature
+packs). With `EternalJK` and `japlus` mounted, every row loads. The two remaining
+rows are the dianoga creature, whose animations lie past its skeleton's frames;
+retail refuses it as a player model too. Unit tests cover each class on synthetic
+files. No game or window was started: how the fixed models look and animate in
+play, and the GPU skinning of the rescued meshes, remain to be checked.
+
 ## Client devmap preview
 
 Local `devmap1` preview (2026-10-04, based on `7155455`) exposes `devmap <map>`
@@ -558,6 +576,41 @@ emission maps, refused 31 keyword or surface-light textures without luminous tex
 and left 619 textures alone whose shaders already glow; on the 23 retail MP maps alone
 it wrote 8 (neon signs, Bespin windows). No client was run: appearance, halo, the
 light added in real-time lighting, load time and frame cost are unverified.
+
+## Shader remaps (SJK)
+
+SJK-only branch `personal/shader-remaps` (2026-10-05, based on `bcb0b76`) applies
+shader remaps from the map's worldspawn keys, the server's `CS_SHADERSTATE` and
+`remapShader` command, and the console's `remapShader`, with EternalJK's
+`cg_remaps` gate (default 2, live instead of latched), `listRemaps` and
+`clearRemaps`. See [Shader remaps](rendering.md#shader-remaps). Unit tests cover
+the table rules (one level, self-remap, latest wins, case and extensions),
+`CS_SHADERSTATE` and `atof` parsing, worldspawn keys, the `cg_remaps` levels, the
+server command and the listing; the locked workspace build and tests passed. No
+game or window was started: the recompiled materials on screen, the cost of a
+remap and server-sent remaps from a real game module (stock maps use none; JoF's
+innercity and expedition do) are unverified, and the time offset is not applied.
+
+## SJK emblem (SJK only)
+
+SJK-only branch `personal/sjk-logo` (2026-10-05, based on `bcb0b76`) puts Sol's
+emblem in the classic main menu's ring, where the `ja01` logo video played (the
+video is no longer read), and above the modern main menu's title, with a pulsing
+core and shimmering blade lights drawn as additive layers. `sjk.exe` and
+`sjk-server.exe` carry it as their Windows icon, the client sets it as its window
+icon, and the README, release notes and site use it. See
+[client.md](client.md#menu-style) and [assets/branding](../assets/branding/README.md).
+
+Verification (2026-10-05, Windows 11, MSVC): formatting, the locked workspace
+build and tests, including unit tests for the glow curves, the emblem's place in
+the ring at six window sizes and above the modern title, its texture ids, the
+alpha-weighted mips, the additive runs and the decoding of every bundled picture
+and window icon; the optimized build, whose executables were checked to contain
+the 10-size icon group and the version strings. The menu was composited offline
+from the retail art at two scales and three animation phases. No client window
+was opened: the look on screen, the additive pipeline on a GPU, the window and
+taskbar icons and the X11 icon are unverified, as is the GNU toolchain's
+`windres` path.
 
 ## Implemented scope
 
