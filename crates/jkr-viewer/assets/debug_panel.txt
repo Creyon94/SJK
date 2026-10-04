@@ -446,6 +446,35 @@ test: JA+ server with g_debugMelee 1 or 2: melee, alt-attack kicks while moving 
 test: Jump into a wall holding jump (level 2): hold is smooth, view does not jump.
 note: Attack+alt-attack grapple can still twitch briefly: only the server computes it.
 
+[japlus-movement]
+pr: 114
+status: open
+area: Gameplay
+title: JA+ movement and saber rules predicted on JA+ servers
+change: Flip kick, yellow DFA, faster grip, staff front kick, free taunts/meditate, wall runs.
+change: Follows the server's jp_cinfo options; other servers keep stock rules.
+test: JA+: yellow DFA while turning the mouse; grip someone while walking.
+test: Staff alt-attack standing; bow/meditate while moving; wall flip off a player beside you.
+test: Wall run-up right after a Force-jump flip: no snap back.
+
+[japlus-grapple]
+pr: 113
+status: open
+area: Gameplay
+title: JA+ grapple hook predicted and its rope drawn
+change: +grapple pull and the rope hang after release no longer snap back; use cancels.
+change: A thin dark rope is drawn from the player's right hand to the hook.
+test: JA+: /amAltDim first if the hook does nothing (default alt dimension disables it).
+test: Hold +grapple onto a wall, release, hang, then press use to drop: smooth, rope visible.
+
+[japlus-duel]
+pr: 111
+status: open
+area: Gameplay
+title: JA+ duellers pass through other players in prediction
+change: Walking through players in a private duel (or out of yours) no longer snaps back.
+test: JA+: two players duel, walk through them; while duelling, walk through a bystander.
+
 # ---- Personal (sol/main only) ----
 
 [sjk-branding]
