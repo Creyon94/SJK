@@ -106,7 +106,8 @@ impl Insets {
     }
 }
 
-/// Straight-alpha linear color token.
+/// Straight-alpha color token in display (sRGB-encoded) values: the viewer draws
+/// the 2D layer without a hardware sRGB encode and blends these values as retail did.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct Color {
     /// Red channel.

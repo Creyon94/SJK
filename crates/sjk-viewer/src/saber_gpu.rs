@@ -13,6 +13,9 @@ pub(crate) mod glow_integral;
 
 pub(crate) struct Runtime {
     pipeline: wgpu::RenderPipeline,
+    /// The glow capsules alone, for the dynamic glow image: the retail `*_glow` blade
+    /// shaders carry `glow`, the `*_line` cores do not (`sabers.shader`).
+    glow_pipeline: wgpu::RenderPipeline,
     materials: Vec<wgpu::BindGroup>,
     instance_buffer: wgpu::Buffer,
     ranges: [Range<u32>; crate::saber_rgb::MATERIAL_COUNT],
@@ -56,40 +59,44 @@ impl Runtime {
             bind_group_layouts: &[Some(camera_layout), Some(&texture_layout)],
             immediate_size: 0,
         });
-        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("JKR saber pipeline"),
-            layout: Some(&layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: Some("vertex_main"),
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                buffers: &[Some(Instance::layout())],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: Some("fragment_main"),
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format,
-                    blend: Some(wgpu::BlendState::ADDITIVE),
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-            }),
-            primitive: wgpu::PrimitiveState {
-                cull_mode: None,
-                ..Default::default()
-            },
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: DepthTarget::FORMAT,
-                depth_write_enabled: Some(false),
-                depth_compare: Some(wgpu::CompareFunction::LessEqual),
-                stencil: Default::default(),
-                bias: Default::default(),
-            }),
-            multisample: wgpu::MultisampleState::default(),
-            multiview_mask: None,
-            cache: None,
-        });
+        let create = |fragment| {
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("JKR saber pipeline"),
+                layout: Some(&layout),
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: Some("vertex_main"),
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    buffers: &[Some(Instance::layout())],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: Some(fragment),
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format,
+                        blend: Some(wgpu::BlendState::ADDITIVE),
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    cull_mode: None,
+                    ..Default::default()
+                },
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: DepthTarget::FORMAT,
+                    depth_write_enabled: Some(false),
+                    depth_compare: Some(wgpu::CompareFunction::LessEqual),
+                    stencil: Default::default(),
+                    bias: Default::default(),
+                }),
+                multisample: wgpu::MultisampleState::default(),
+                multiview_mask: None,
+                cache: None,
+            })
+        };
+        let pipeline = create("fragment_main");
+        let glow_pipeline = create("fragment_glow");
         let instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("JKR saber instances"),
             size: (saber::MAX_BLADE_INSTANCES * std::mem::size_of::<Instance>()) as u64,
@@ -98,6 +105,7 @@ impl Runtime {
         });
         Ok(Self {
             pipeline,
+            glow_pipeline,
             materials,
             instance_buffer,
             ranges: std::array::from_fn(|_| 0..0),
@@ -132,10 +140,39 @@ impl Runtime {
         camera: &'pass wgpu::BindGroup,
     ) {
         self.trails.draw(pass, camera);
+        self.draw_blades(pass, camera, &self.pipeline);
+    }
+
+    /// Draw into the dynamic glow image: the trails (`saberBlur`/`swordTrail` glow)
+    /// unless `blades_only` (`r_DynamicGlow 2`, stock's `RT_SABER_GLOW` test), then the
+    /// blades' glow capsules without their cores.
+    pub(crate) fn draw_glow<'pass>(
+        &'pass self,
+        pass: &mut wgpu::RenderPass<'pass>,
+        camera: &'pass wgpu::BindGroup,
+        blades_only: bool,
+    ) {
+        if !blades_only {
+            self.trails.draw(pass, camera);
+        }
+        self.draw_blades(pass, camera, &self.glow_pipeline);
+    }
+
+    /// Whether the glow image gets any saber this frame.
+    pub(crate) fn has_glow(&self, blades_only: bool) -> bool {
+        (!blades_only && self.trails.has_draws()) || self.ranges.iter().any(|r| !r.is_empty())
+    }
+
+    fn draw_blades<'pass>(
+        &'pass self,
+        pass: &mut wgpu::RenderPass<'pass>,
+        camera: &'pass wgpu::BindGroup,
+        pipeline: &'pass wgpu::RenderPipeline,
+    ) {
         if self.ranges.iter().all(Range::is_empty) {
             return;
         }
-        pass.set_pipeline(&self.pipeline);
+        pass.set_pipeline(pipeline);
         pass.set_bind_group(0, camera, &[]);
         pass.set_vertex_buffer(0, self.instance_buffer.slice(..));
         for (material, instances) in self.materials.iter().zip(self.ranges.iter().cloned()) {

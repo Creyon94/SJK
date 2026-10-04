@@ -35,6 +35,8 @@ pub(crate) struct Context {
     pub(crate) soft_particles: crate::particle_draw::settings::Settings,
     /// Live default-off dust-mote intensity, independent of a particular map.
     pub(crate) dust_motes: crate::dust_motes::Settings,
+    /// Live eye adaptation and base exposure, independent of a particular map.
+    pub(crate) exposure: crate::frame_target::aa::exposure::Settings,
     /// Retained default-off main-world SSAO policy.
     pub(crate) ssao: crate::world_materials::ssao::settings::Settings,
     /// Startup filtering survives map installs, whose inputs deliberately contain no console.
@@ -47,6 +49,9 @@ pub(crate) struct Context {
     pub(crate) device: wgpu::Device,
     pub(crate) queue: crate::frame_queue::FrameQueue,
     pub(crate) format: wgpu::TextureFormat,
+    /// The 2D layer draws straight into the swapchain image through a UNORM view
+    /// ([`crate::ui_target::direct`]); otherwise it goes through the display pass.
+    pub(crate) ui_direct: bool,
     pub(crate) alpha_mode: wgpu::CompositeAlphaMode,
     pub(crate) present_modes: Vec<wgpu::PresentMode>,
     pub(crate) surface_usages: wgpu::TextureUsages,
@@ -153,11 +158,12 @@ impl Context {
                         .find(wgpu::TextureFormat::is_srgb)
                         .unwrap_or(capabilities.formats[0])
                 });
-        let maximum = if adapter
-            .get_downlevel_capabilities()
-            .flags
-            .contains(wgpu::DownlevelFlags::ANISOTROPIC_FILTERING)
-        {
+        let downlevel = adapter.get_downlevel_capabilities().flags;
+        let ui_direct = crate::ui_target::direct(
+            format,
+            surface.is_some() && downlevel.contains(wgpu::DownlevelFlags::SURFACE_VIEW_FORMATS),
+        );
+        let maximum = if downlevel.contains(wgpu::DownlevelFlags::ANISOTROPIC_FILTERING) {
             16
         } else {
             1
@@ -176,6 +182,7 @@ impl Context {
                 .map(|c| c.soft_particles.clone())
                 .unwrap_or_default(),
             dust_motes: console.map(|c| c.dust_motes.clone()).unwrap_or_default(),
+            exposure: console.map(|c| c.exposure.clone()).unwrap_or_default(),
             ssao: console.map(|c| c.ssao.clone()).unwrap_or_default(),
             filtering: crate::world_materials::filtering::Policy::sample(console, maximum),
             material_maps: crate::world_materials::material_maps::Settings::sample(console),
@@ -185,6 +192,7 @@ impl Context {
             device,
             queue: crate::frame_queue::FrameQueue::new(queue),
             format,
+            ui_direct,
             alpha_mode: capabilities
                 .as_ref()
                 .map_or(wgpu::CompositeAlphaMode::Opaque, |value| {

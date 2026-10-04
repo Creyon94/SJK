@@ -279,6 +279,17 @@ not bundled with the source. No windows, game instances or servers were opened;
 visual playtesting remains with the owner. Formatting, locked workspace build/tests
 and the optimized build passed.
 
+## Dynamic glow (SJK)
+
+SJK-only branch `personal/dynamic-glow` (2026-10-04, based on `024c22a`) draws
+stock's dynamic glow: `glow` shader stages get a blurred halo, with rd-vulkan's
+blur by default and rd-vanilla's as `r_dynamicGlowStyle 0`. See
+[Dynamic glow](rendering.md#dynamic-glow). Unit tests (glow flags through the
+multitexture collapse, saber blade/core split, cvars, kernels) and naga validation
+of the changed programs passed with the locked workspace build and tests. No game
+or window was started: appearance, GPU cost and the first-use pipeline compile
+remain to be checked on screen. Secondary views and fog do not affect glow yet.
+
 ## Client devmap preview
 
 Local `devmap1` preview (2026-10-04, based on `7155455`) exposes `devmap <map>`
@@ -504,6 +515,17 @@ prediction ended a run up the wall) is unexplained. Not predicted: the options
 EternalJK never reads, the Jedi Outcast red DFA, a changed `jp_gripSpeedScale`
 and holds for JA+'s extra animations. Not run in the client, and not checked
 against a public JA+ server or another JA+ version.
+
+## Eye adaptation (SJK only)
+
+SJK's exposure follows the view (`r_autoExposure`, on by default, -0.5 to +1 EV
+around `r_hdrExposure`, only brightening with `r_sceneHdr 0`); JKR's stays fixed.
+Headless Vulkan and DX12 probes on 2026-10-04 (Windows 11, RTX 5080) showed the
+resolve and effect layer byte-identical to the fixed exposure at exposure 1 and
+checked metering, snapping and smoothing on synthetic scenes; both passes took
+about 0.01 ms at 1080p and 0.02–0.03 ms at 4K. No client was run: the look in
+play, the default key on real maps and the cost in a full frame are unverified.
+See [rendering](rendering.md#eye-adaptation).
 
 ## Implemented scope
 

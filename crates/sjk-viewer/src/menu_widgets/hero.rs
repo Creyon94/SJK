@@ -220,7 +220,7 @@ impl MenuCanvas {
                 label,
                 Rect::new(rect.x, rect.y + 8.0 * scale, rect.width, 40.0 * scale),
                 34.0 * scale,
-                Color::new(0.82, 0.88, 0.94, 0.30),
+                Color::new(0.916, 0.945, 0.973, 0.583),
                 FontWeight::Regular,
                 0.4 * scale,
             );
@@ -234,9 +234,9 @@ impl MenuCanvas {
         let foreground = if selected {
             self.theme.foreground
         } else if hovered {
-            Color::new(0.94, 0.97, 1.0, 0.92)
+            Color::new(0.973, 0.987, 1.0, 0.964)
         } else {
-            Color::new(0.82, 0.88, 0.94, 0.70)
+            Color::new(0.916, 0.945, 0.973, 0.854)
         };
         self.text(
             label,
@@ -350,7 +350,7 @@ impl MenuCanvas {
             key,
             Rect::new(cap.x, cap.y + 3.5 * scale, cap.width, 14.0 * scale),
             12.0 * scale,
-            Color::new(0.90, 0.94, 0.98, 0.92),
+            Color::new(0.955, 0.973, 0.991, 0.964),
             FontWeight::Semibold,
             0.6 * scale,
             TextAlign::Center,

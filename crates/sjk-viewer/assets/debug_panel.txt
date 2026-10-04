@@ -510,6 +510,21 @@ change: ui_menuStyle defaults to classic; only modern or 0 selects the modern la
 test: reset ui_menuStyle (or remove it from config.cfg) and restart: the classic menu opens.
 test: Settings > GAME > Menu style modern still switches to the modern layout.
 
+[ui-display-colors]
+status: personal
+area: Menus & settings
+title: Text and UI colours drawn as retail did (saturated, not washed out)
+change: Text, HUD and menus draw display colours and blend them like retail; the world is unchanged.
+change: ^0-^9 use OpenJK's full table (^1 pure red, ^8 orange 1 .5 0, ^9 grey .5).
+change: Grey and white text keeps its lightness; ui_menuContrast is computed in display space.
+test: say ^1red ^2green ^3yellow ^4blue ^5cyan ^6magenta ^7white ^8orange ^9grey: matches retail.
+test: ui_accent ff6a3d: menu accent and selection bar show #FF6A3D, not a pale salmon.
+test: Text shadows and the menu scrim look as dark as retail over a bright wall.
+test: Menu labels, console and chat text are not dimmer; disabled entries still look dimmed.
+test: r_gamma 1.2 brightens world and UI together; r_gamma 1 again: colours as above.
+test: Classic menu, scoreboard, levelshots, HUD icons and the scope look as in retail.
+note: Faint separators, borders and hover fills are fainter than before; report any too faint.
+
 [debug-panel]
 status: personal
 area: Menus & settings
@@ -551,6 +566,36 @@ test: On B: A's saber blades and gun go too; a thrown saber stays. A's Lightning
 test: On A: a blue swirl over B's head while the trick lasts; B's Force Sight on: swirl stops.
 test: On B: turn Force Sight on while tricked: A reappears (fades back in over ~0.25 s).
 test: A speed-runs (Force Speed) while tricked: no afterimages on B, normal on others.
+
+[dynamic-glow]
+status: personal
+area: Rendering & effects
+title: Dynamic glow: glow stages get a halo, as in EternalJK
+change: Stages marked glow are drawn again into a glow image, blurred and added (r_DynamicGlow 1).
+change: r_dynamicGlowStyle 1 (default) is EJK Vulkan's blur; 0 is retail's with its glow cvars.
+change: Settings > VIDEO > Renderer > IMAGE: Dynamic glow and Glow style rows.
+test: Possessed Tavion (model tavion_new/possessed): a halo around her whole body.
+test: olol model: the face, mouth and right hand glow; the rest of the body does not.
+test: Ignite a saber: the blade and its trail glow; the white core adds no extra halo.
+test: r_DynamicGlow 0: every halo is gone. 2: only saber blades glow. 3: the glow alone.
+test: r_dynamicGlowStyle 0: retail's softer, wider look; r_DynamicGlowIntensity changes it live.
+test: A map without glow surfaces, sabers off: no halo anywhere, FPS as with r_DynamicGlow 0.
+note: Not yet in portals, sky portals or floor reflections; fog does not dim glow.
+
+[eye-adaptation]
+status: personal
+area: Rendering & effects
+title: Eye adaptation: exposure follows the view (r_autoExposure)
+change: Dark views brighten over a few seconds (up to +1 EV); bright light darkens a little (-0.5).
+change: Renderer > IMAGE: Eye adaptation, max darken / max brighten. Speeds and key: console.
+test: Walk from a sunlit area into a dark room: it brightens slowly over 2-5 s, no jump.
+test: Step from a dark room into sunlight or look at the sky: it darkens quickly, then settles.
+test: Map load, respawn, following another player, spectating: no flash or slow fade-in.
+test: r_autoExposure 0: the fixed r_hdrExposure image, as before; 1 again adapts at once.
+test: Renderer page open: it holds still; HUD, menus, text and levelshots never change.
+test: r_sceneHdr 0 and restart: dark rooms still brighten, bright views never darken.
+note: Too bright/dark overall on outdoor maps (ffa3)? Tune r_autoExposureKey (default 0.18).
+note: Too slow/fast: r_autoExposureToDark (2.5 s) and r_autoExposureToBright (0.4 s).
 
 # ---- Merged upstream ----
 

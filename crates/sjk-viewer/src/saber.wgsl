@@ -153,6 +153,13 @@ fn glow_capsule(input: VertexOutput) -> vec3<f32> {
     return sum + glow(hilt.x, hilt.y);
 }
 
+// Dynamic glow: the glow capsule only; the core line's shader has no `glow` stage.
+@fragment
+fn fragment_glow(input: VertexOutput) -> @location(0) vec4<f32> {
+    if input.hilt <= 0.0 { discard; }
+    return vec4(glow_capsule(input) * input.color, 1.0);
+}
+
 @fragment
 fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
     // v runs from the tip (0) to behind the hilt (1), as DoLine's texture coordinates do.

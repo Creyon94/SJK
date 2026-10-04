@@ -364,7 +364,7 @@ returns to the Setup group that was open. The page has three tabs:
 
 | Tab | Settings |
 | --- | --- |
-| IMAGE | HDR scene and exposure, filmic tone curve, bloom, FXAA, supersampling (`r_superSample`), soft particles, sunbeam dust (`r_dustMotes`), per-pixel model lighting |
+| IMAGE | HDR scene and exposure, eye adaptation (`r_autoExposure`) and its range in EV, filmic tone curve, bloom, dynamic glow (`r_DynamicGlow` 0-3) and its blur style (`r_dynamicGlowStyle`), FXAA, supersampling (`r_superSample`), soft particles, sunbeam dust (`r_dustMotes`), per-pixel model lighting |
 | LIGHTING | Sun and sky (`r_dayNight`), live lighting tier, time of day, day length, sunlight brightness, ambient fill and its corner shading, indirect boost, light shafts (`r_volumetrics`) and their clarity |
 | SHADOWS | World and character sun shadows, shadow resolution, sharp and close cascade distances, filter taps, slit closing, contact shadows |
 
@@ -373,9 +373,11 @@ restart; "(next map)" applies when a map loads; the rest apply immediately.
 Changing a value saves it like any other setting. Switches over numeric cvars
 show ON/OFF and write 1/0. Defaults are unchanged (see
 [Default visual profile](rendering.md#default-visual-profile)). Diagnostics such
-as `r_dayDebug` stay console-only, the ground HUD stays on the HUD tab, and
-exclusive fullscreen (`r_exclusiveFullscreen`) stays on VIDEO's display-mode
-row.
+as `r_dayDebug` stay console-only, as do the speeds and key of
+[eye adaptation](rendering.md#eye-adaptation); the ground HUD stays on the HUD
+tab, and exclusive fullscreen (`r_exclusiveFullscreen`) stays on VIDEO's
+display-mode row. Eye adaptation holds still while this page is open, so
+exposure changes made here show at once instead of being eased.
 See [catalog.rs](../crates/sjk-viewer/src/settings/catalog.rs).
 
 ## Slider values

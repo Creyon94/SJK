@@ -38,6 +38,8 @@ pub(crate) struct Layer {
     write_back: wgpu::RenderPipeline,
     write_back_bind: wgpu::BindGroup,
     source_layout: wgpu::BindGroupLayout,
+    /// The scene exposure (`post_exposure.rs`), bound with every source.
+    exposure: wgpu::Buffer,
     /// Scene views already bound for encoding, replaced only when a target is rebuilt.
     sources: RefCell<[Option<(wgpu::TextureView, wgpu::BindGroup)>; SOURCES]>,
     next_source: std::cell::Cell<usize>,
@@ -53,8 +55,6 @@ pub(crate) struct Layer {
 pub(crate) struct Encoding {
     /// Scene attachment format; every scene target of a context shares it.
     pub(crate) scene: wgpu::TextureFormat,
-    /// `r_hdrExposure` for a floating scene.
-    pub(crate) exposure: f32,
 }
 
 impl Encoding {
@@ -74,7 +74,13 @@ impl Encoding {
 
 impl Layer {
     /// Allocate both images and the three pipelines; called at startup and resize only.
-    pub(crate) fn new(device: &wgpu::Device, size: [u32; 2], encoding: Encoding) -> Self {
+    /// `exposure` is the scene exposure state the final resolve reads.
+    pub(crate) fn new(
+        device: &wgpu::Device,
+        size: [u32; 2],
+        encoding: Encoding,
+        exposure: &wgpu::Buffer,
+    ) -> Self {
         let texture = |label| {
             device
                 .create_texture(&wgpu::TextureDescriptor {
@@ -116,19 +122,25 @@ impl Layer {
                 sample_type: wgpu::TextureSampleType::Float { filterable: false },
             },
         };
+        let exposure_entry = wgpu::BindGroupLayoutEntry {
+            binding: 4,
+            visibility: wgpu::ShaderStages::FRAGMENT,
+            count: None,
+            ty: wgpu::BindingType::Buffer {
+                ty: wgpu::BufferBindingType::Storage { read_only: true },
+                has_dynamic_offset: false,
+                min_binding_size: None,
+            },
+        };
         let source_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("JKR effect layer source"),
-            entries: &[entry(0)],
+            entries: &[entry(0), exposure_entry],
         });
         let drain_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("JKR effect layer write-back"),
-            entries: &[entry(0), entry(2)],
+            entries: &[entry(0), entry(2), exposure_entry],
         });
-        let mut constants = Vec::new();
-        constants.extend([
-            ("ENCODING", encoding.mode()),
-            ("HDR_EXPOSURE", f64::from(encoding.exposure)),
-        ]);
+        let constants = [("ENCODING", encoding.mode())];
         let pipeline = |layout: &wgpu::BindGroupLayout,
                         entry_point,
                         targets: &[Option<wgpu::ColorTargetState>]| {
@@ -188,6 +200,10 @@ impl Layer {
                     binding: 2,
                     resource: wgpu::BindingResource::TextureView(&original),
                 },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: exposure.as_entire_binding(),
+                },
             ],
         });
         let region = device.create_buffer(&wgpu::BufferDescriptor {
@@ -204,6 +220,7 @@ impl Layer {
             write_back,
             write_back_bind,
             source_layout,
+            exposure: exposure.clone(),
             sources: RefCell::new(Default::default()),
             next_source: Default::default(),
             view_projection: std::cell::Cell::new(glam::Mat4::IDENTITY.to_cols_array_2d()),
@@ -390,10 +407,16 @@ impl Layer {
         let bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
             label: Some("JKR effect layer source"),
             layout: &self.source_layout,
-            entries: &[wgpu::BindGroupEntry {
-                binding: 0,
-                resource: wgpu::BindingResource::TextureView(scene),
-            }],
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(scene),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: self.exposure.as_entire_binding(),
+                },
+            ],
         });
         let slot = self.next_source.get();
         self.next_source.set((slot + 1) % SOURCES);
