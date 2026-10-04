@@ -58,7 +58,9 @@ Other actors still evaluate and upload their joint palettes. This includes
 custom NPC packs whose animation ranges exceed their skeleton's frame count;
 the renderer does not rewrite their files or relax frame bounds checks. The
 per-actor work lives in
-[actor_pose_steps.rs](../crates/sjk-viewer/src/actor_pose_steps.rs).
+[actor_pose_steps.rs](../crates/sjk-viewer/src/actor_pose_steps.rs). Which
+models load at all, and when a player is drawn as Kyle instead, is described in
+[player models](client.md#player-models).
 
 ## Load-time texture and light preparation
 

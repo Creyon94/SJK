@@ -308,6 +308,24 @@ of the changed programs passed with the locked workspace build and tests. No gam
 or window was started: appearance, GPU cost and the first-use pipeline compile
 remain to be checked on screen. Secondary views and fog do not affect glow yet.
 
+## Player model tolerance (SJK)
+
+SJK-only branch `personal/model-tolerance` (2026-10-05, based on `bcb0b76`) loads
+player models, skins and animation tables as rd-vanilla and the retail cgame do
+instead of drawing Kyle; see [player models](client.md#player-models). The
+headless `player_model_scan` ran on a local Windows 11 install (782 model
+directories in `base`, 5064 model/skin rows including one uninstalled skin per
+model): SJK failures fell from 887 to 2, and from 796 rows (700 directories)
+where rd-vanilla keeps the model to none. Fixed classes: skins without commas or
+outside UTF-8 (the young* Jedi packs, aldrokoon), missing skins and parts falling
+back to `model_default.skin`, weights past one (sad_scout), slash-prefixed
+skeleton names and nameless or zero-frame animation lines (vehicle and creature
+packs). With `EternalJK` and `japlus` mounted, every row loads. The two remaining
+rows are the dianoga creature, whose animations lie past its skeleton's frames;
+retail refuses it as a player model too. Unit tests cover each class on synthetic
+files. No game or window was started: how the fixed models look and animate in
+play, and the GPU skinning of the rescued meshes, remain to be checked.
+
 ## Client devmap preview
 
 Local `devmap1` preview (2026-10-04, based on `7155455`) exposes `devmap <map>`

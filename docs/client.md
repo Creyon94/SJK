@@ -318,6 +318,67 @@ after the HUD's, so the character grid keeps all 207 of its icon cells. See
 [force.rs](../crates/sjk-viewer/src/player_menu/force.rs) and
 [force_view.rs](../crates/sjk-viewer/src/player_menu/force_view.rs).
 
+## Player models
+
+A player's or NPC's appearance (`models/players/<model>/<skin>`) loads its
+`model.glm`, the skeleton the mesh names (`<name>.gla`), that skeleton's
+`animation.cfg` and a skin; if the model cannot be loaded or built, the client
+draws Kyle for that player instead
+([player_assets.rs](../crates/sjk-viewer/src/player_assets.rs),
+[actor_load.rs](../crates/sjk-viewer/src/actor_load.rs)). Files are read as
+rd-vanilla and the retail cgame read them, so a model EternalJK draws and
+animates is not swapped for Kyle:
+
+- Skins are read with rd-vanilla's `CommaParse` loop (`RE_RegisterIndividualSkin`,
+  `tr_skin.cpp`): tokens in surface/shader pairs, comments, missing commas, stray
+  text and bytes outside UTF-8 change nothing about what loads, `tag_` entries
+  are skipped, `_off` is stripped from surface names, the first entry for a
+  surface wins and a skin keeps at most 128 entries
+  ([skin.rs](../crates/sjk-model/src/skin.rs)).
+- A skin never costs the model (`CG_RegisterClientModelname`, `cg_players.c`):
+  when the requested skin is missing, has a missing part or names no surface,
+  the model wears `model_default.skin`, and without one its surfaces' own
+  shaders. A name is a three-part skin only when it has `|` and says `head`,
+  `torso` and `lower`; the console notes each fallback
+  ([player_skin.rs](../crates/sjk-viewer/src/player_skin.rs)).
+- One leading slash on the mesh's skeleton name is dropped, as the filesystem
+  drops it (`FS_FOpenFileRead`); vertex weights adding up past one are used as
+  written (`G2_GetVertBoneWeight`); a mesh whose header bone count differs from
+  its skeleton's loads when its bone references name skeleton bones.
+- `animation.cfg` lines that name no animation, and sequences with no frames,
+  are left out as `BG_ParseAnimationFile` leaves them; a table that then names
+  nothing holds frame 0, as `G2_TransformBone` does.
+
+Still drawn as Kyle: a model whose `model.glm` or skeleton is not installed or is
+not version 6, a mesh referencing a bone past its skeleton, an `animation.cfg`
+line naming an animation with other than five fields, and a model whose standing
+animation lies past its skeleton's frames (rd-vanilla clamps such frames to 0).
+SJK is more lenient than retail in two places: it keeps non-humanoid skeletons
+and models without the hand, head or lumbar bolts the retail cgame checks for a
+player, and a surface a skin does not name draws the mesh's own shader where
+rd-vanilla draws its default shader.
+
+SJK mounts `base` and, when set, `fs_basegame` and `fs_game`. EternalJK mounts its
+own `EternalJK` folder by default (`fs_basegame EternalJK`), so skins shipped
+there, such as `jedi/model_rgb.skin` in `japro-assets.pk3`, exist for EternalJK
+and fall back to the default skin in SJK. Setting `fs_basegame EternalJK` and
+restarting mounts it in SJK as well, together with that folder's menu, HUD and
+string files.
+
+The ignored test `player_model_scan` loads every installed model and skin through
+this path without opening a window and compares each with what rd-vanilla and the
+retail cgame would do:
+
+```sh
+JKA_GAME_DATA="/path/to/GameData" cargo test --release -p sjk-viewer \
+    player_model_scan -- --ignored --nocapture
+```
+
+`JKA_MODEL_SCAN_GAMES=EternalJK` (comma-separated) mounts further folders above
+`base` and reports only the models with files there. The table goes to
+`target/parity-reports/player-models/`; see
+[player_model_scan.rs](../crates/sjk-viewer/src/player_model_scan.rs).
+
 ## Animation sounds and voice variants
 
 Footsteps and authored swing/spin sounds follow the evaluated lower/upper Ghoul2

@@ -14,7 +14,7 @@
 //! directories that have files in them. Results go to
 //! `target/parity-reports/player-models/<base[+game...]>.tsv` in the workspace,
 //! one row per model and skin, with a summary on standard output. See
-//! [client.md](../../../docs/client.md#player-model-tolerance) for the rules the
+//! [client.md](../../../docs/client.md#player-models) for the rules the
 //! reference column follows.
 
 use crate::actor_load::build_actor_mesh;
