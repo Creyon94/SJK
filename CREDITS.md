@@ -3,7 +3,7 @@
 Sol JK (SJK) is a modified version of [JKR](https://github.com/Bishop-R/JKR).
 This page records who made what. The git history is the authoritative record:
 every commit carries its author, and SJK's own changes are kept as separate
-topic branches merged into `sol/main`.
+topic branches merged into SJK's `main`.
 
 ## JKR, by Bishop
 

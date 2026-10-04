@@ -14,6 +14,7 @@ and changed together. Begin with the status page, then the architecture.
 | [Dedicated server](server.md) | Hosting, configuration and local testing |
 | [Rendering](rendering.md) | BSP rendering, lighting, UI and measurement |
 | [Networking and gameplay](networking.md) | Protocol 26, prediction and server authority |
+| [SJK conventions](sjk.md) | SJK branches, names, workflows and debug panel |
 
 [AGENTS.md](../AGENTS.md) defines the documentation maintenance rules. Update the
 page that owns a fact rather than adding a second account elsewhere. New facts

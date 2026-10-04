@@ -1,6 +1,6 @@
 # Test list shown by the `debug_panel` console command.
 #
-# PERSONAL to Sol's build (branch sol/main on Sol's fork); it is not meant for upstream.
+# PERSONAL to Sol's build (branch main of Sol-Vulpes/SJK); it is not meant for upstream.
 # The file is built into the client (include_str!) and parsed once at startup. Unit
 # tests in debug_panel_data.rs check it, so `cargo test` catches a broken edit.
 #
@@ -476,7 +476,7 @@ title: JA+ duellers pass through other players in prediction
 change: Walking through players in a private duel (or out of yours) no longer snaps back.
 test: JA+: two players duel, walk through them; while duelling, walk through a bystander.
 
-# ---- Personal (sol/main only) ----
+# ---- Personal (SJK only) ----
 
 [sjk-branding]
 status: personal
