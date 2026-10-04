@@ -244,22 +244,31 @@ remain outside this audio adapter.
 
 ## Slider values
 
-Every slider in Settings, the saber RGB controls (including the second saber),
-and the Shot panel supports direct numeric entry. Click its displayed value or
-select the row and press Enter, then type a replacement. Enter applies it;
-Escape cancels. Left/Right, Home/End, Backspace and Delete edit the draft.
-Clicking another control discards an unfinished draft. Hovering does not move
-an edit to another setting.
-Text settings such as the master server follow the same rule, and Enter
-writes the setting whose edit was opened.
+Every slider in Settings (including the classic Setup panels), the saber RGB
+controls (including the second saber), and the Shot panel supports direct
+numeric entry. Click its displayed value, select the row and press Enter, or
+just type a number on the selected row: the draft starts with what was typed.
+Enter applies it; Escape cancels. Left/Right, Home/End, Backspace and Delete
+edit the draft. Space still steps a selected slider instead of opening entry.
+Hovering does not move an edit to another setting. Text settings such as the
+master server keep their edit on the row that opened it, and Enter writes that
+setting.
+
+SJK differs from JKR's documented behavior here: pressing anything else while a
+numeric draft is open applies the draft when it is a valid number (an invalid
+one is discarded) instead of always discarding it, typing on a selected slider
+opens entry, Space steps rather than opening entry, and integer sliders round a
+typed fraction (142.6 becomes 143) instead of refusing it.
 
 Manual values respect the slider bounds but do not snap to its drag increment:
-for example, the FPS cap accepts 142 and FOV accepts 97.5. Decimal points and
-commas are accepted; integer controls require whole numbers. Invalid or empty
-input stays open with a red underline and does not change the setting. Dragging
-and arrow adjustment outside editing retain their existing behavior.
-Values they write are rounded to the step's decimals, so a 0.05-step slider
-stores 0.35 rather than 0.35000000000000003.
+for example, the FPS cap accepts 142 and FOV accepts 97.5. A draft takes
+digits, one decimal point (a comma counts as one), a minus sign only first and
+only on sliders that go below zero (the FPS cap's `-1` is AUTO), and at most ten
+characters; a held key does not repeat typed characters. Invalid or empty input
+stays open with a red underline and does not change the setting. Dragging and
+arrow adjustment outside editing retain their existing behavior. Values they
+write are rounded to the step's decimals, so a 0.05-step slider stores 0.35
+rather than 0.35000000000000003.
 
 ## Development maps
 

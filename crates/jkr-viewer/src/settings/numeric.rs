@@ -24,31 +24,70 @@ impl SettingsMenu {
         true
     }
 
+    /// SJK: typing a number on a selected slider opens entry with what was
+    /// typed. False when the row is not a slider or `typed` cannot start a number.
+    pub(super) fn begin_typed(&mut self, row: usize, typed: &str) -> bool {
+        let Some(setting) = settings(self.tab).get(row) else {
+            return false;
+        };
+        let (min, max, integer) = match setting.kind {
+            ValueKind::Integer { min, max, .. } => (min as f64, max as f64, true),
+            ValueKind::Float { min, max, .. } => (min, max, false),
+            _ => return false,
+        };
+        let Some(edit) = NumericEdit::typed(row, typed, min, max, integer) else {
+            return false;
+        };
+        self.editing = None;
+        self.selected = row;
+        self.numeric = Some(edit);
+        true
+    }
+
     pub(super) fn edit_numeric(
         &mut self,
         key: KeyCode,
         text: Option<&str>,
+        repeat: bool,
         console: &mut ViewerConsole,
     ) -> bool {
         let Some(edit) = &mut self.numeric else {
             return false;
         };
-        match edit.key(key, text) {
+        match edit.key(key, text, repeat) {
             EditResult::Pending => {}
             EditResult::Cancel => self.numeric = None,
             EditResult::Commit(value) => {
-                let setting = &settings(self.tab)[edit.row];
-                let value = if matches!(setting.kind, ValueKind::Integer { .. }) {
-                    (value as i64).to_string()
-                } else {
-                    value.to_string()
-                };
-                console.set_cvar(setting.cvar, &value);
-                self.numeric = None;
-                self.refresh(console);
+                let row = edit.row;
+                self.commit_numeric(row, value, console);
             }
         }
         true
+    }
+
+    /// SJK: a press away from an open draft applies it when it is a valid
+    /// number and discards it otherwise.
+    pub(super) fn settle_numeric(&mut self, console: &mut ViewerConsole) {
+        let Some(edit) = self.numeric.take() else {
+            return;
+        };
+        if let Some(value) = edit.committed() {
+            self.commit_numeric(edit.row, value, console);
+        }
+    }
+
+    fn commit_numeric(&mut self, row: usize, value: f64, console: &mut ViewerConsole) {
+        self.numeric = None;
+        let Some(setting) = settings(self.tab).get(row) else {
+            return;
+        };
+        let value = if matches!(setting.kind, ValueKind::Integer { .. }) {
+            (value as i64).to_string()
+        } else {
+            value.to_string()
+        };
+        console.set_cvar(setting.cvar, &value);
+        self.refresh(console);
     }
 }
 

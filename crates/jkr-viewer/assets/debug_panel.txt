@@ -393,6 +393,19 @@ test: Window title reads Sol JK; the main menu's bottom-right line reads SJK 0.1
 test: Settings, Play, Host and Player screens show SJK / ... headers; Esc menu: Quit Sol JK.
 test: Your settings, binds and debug_panel ticks are all still there after the update.
 
+[slider-entry-prefs]
+status: personal
+area: Menus & settings
+title: SJK slider entry: type to open, Space steps, clicking away applies
+change: Typing a digit on a selected slider or saber RGB row opens entry with that digit.
+change: Space steps the slider; clicking elsewhere applies a valid draft (JKR discards it).
+change: Integer rows round 142.6 to 143; drafts take one '.', '-' only below zero, 10 chars.
+test: Settings > VIDEO: select FPS cap, type 142 then Enter: it reads 142 (no need for Enter first).
+test: Select a slider, press Space: it steps once; Enter opens the entry instead.
+test: Click a value, type 97.5, click another row: the value is applied (an invalid one is not).
+test: FPS cap: type -1 then Enter: AUTO. Type 142.6: 143. Letters and a second '.' are ignored.
+test: Player > Saber RGB and the F8 Shot panel sliders behave the same way.
+
 [debug-panel]
 status: personal
 area: Menus & settings

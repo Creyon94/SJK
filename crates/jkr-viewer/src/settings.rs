@@ -167,7 +167,7 @@ impl SettingsMenu {
             self.resolution_key(key, event.repeat, console);
             return SettingsResult::None;
         }
-        if self.edit_numeric(key, event.text.as_deref(), console) {
+        if self.edit_numeric(key, event.text.as_deref(), event.repeat, console) {
             return SettingsResult::None;
         }
         if let Some(draft) = &mut self.editing {
@@ -208,6 +208,14 @@ impl SettingsMenu {
                 _ => SettingsResult::None,
             };
         }
+        // SJK: a digit (or '.', ',' and '-' where the slider allows them) typed
+        // on a selected slider opens entry with it.
+        if let Some(text) = event.text.as_deref()
+            && text.starts_with(|c: char| c.is_ascii_digit() || ".,-".contains(c))
+            && self.begin_typed(self.selected, text)
+        {
+            return SettingsResult::None;
+        }
         let classic = self.classic.is_some();
         match key {
             KeyCode::Tab | KeyCode::BracketRight if classic => {
@@ -244,6 +252,19 @@ impl SettingsMenu {
                 if self.tab == KEYBINDS_TAB && self.selected == settings(KEYBINDS_TAB).len() =>
             {
                 return SettingsResult::OpenKeybinds;
+            }
+            // SJK: Space keeps stepping a slider; Enter opens its entry.
+            KeyCode::Space
+                if settings(self.tab)
+                    .get(self.selected)
+                    .is_some_and(|setting| {
+                        matches!(
+                            setting.kind,
+                            ValueKind::Integer { .. } | ValueKind::Float { .. }
+                        )
+                    }) =>
+            {
+                self.adjust(console, 1);
             }
             KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Space => {
                 if let Some(setting) = settings(self.tab).get(self.selected) {
