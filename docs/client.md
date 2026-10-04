@@ -33,6 +33,82 @@ Set `JKR_DEDICATED` to its executable path if installed elsewhere. The child
 lifetime is managed by the client and defaults to local access; see
 [local_server.rs](../crates/jkr-viewer/src/local_server.rs).
 
+## Menu style
+
+`ui_menuStyle` (Settings, GAME tab, "Menu style") picks the layout of the main
+and in-game menus: `modern` (default) or `classic`, which is close to the retail
+multiplayer menus in layout and flow without porting their `.menu` scripts. The
+retail 640x480 layout is fitted to the window height and centred.
+
+The classic main menu has the retail pages, entries and order:
+
+- Main: Play, Profile, Controls and Setup in two columns, Exit below. Exit and
+  Escape ask before quitting.
+- Play: Solo Game, Join Server, Create Server, Play Demo and Rules. Solo Game
+  and Create Server both open Create game, which hosts a local match with bots.
+- Controls: Movement, Interaction, Weapons, Force Powers 1 and 2 and Other open
+  the key-binding editor on that tab (both Force pages on its one Force tab);
+  Mouse/Joystick opens Settings on the CONTROLS tab. The editor opened this way
+  closes back to the classic page.
+- Setup: Video and More Video open Settings on VIDEO, Sound on AUDIO and Game
+  Options on GAME; HUD and Network follow as JKR additions.
+- Every sub-page repeats the retail navigation row (Play, Profile, Controls,
+  Setup) and has Back and Exit. Profile opens the Player screen.
+
+Retail entries JKR has no screen for yet (Play Demo, Rules, Mods, Defaults) are
+shown dimmed, and their description line says so.
+
+The classic in-game menu (Escape during a match) is the retail top bar: About,
+Join, Profile, Add Bot, Controls, Setup, Vote, Call Vote and Exit. Each opens a
+pop-up under it or the matching screen. About shows the server info. Join picks
+a team, or opens the class list in Siege. Vote is Yes/No. Call Vote opens the
+call-vote lists. Exit offers Main Menu, Restart Match and Quit Program, each
+with a Yes/No confirmation. Profile, Controls and Setup open the Player screen
+and Settings. Siege swaps in Objectives and V Chat as retail does. Add Bot,
+Objectives, V Chat and Restart Match are dimmed with a note, because the client
+cannot add bots or restart a match it does not host. Left and Right move along
+the bar; Escape closes a pop-up, then the menu. The JKR-only Server browser and
+Shot controls entries are in the modern style only.
+
+With the player's retail game data mounted, the classic menus draw its own
+artwork: the backdrop, side glyph columns, ring, windows, logo, sub-page frames,
+button glow, in-game bar and pop-up boxes from `gfx/menus`. The art is decoded
+once on a worker thread the first time the classic style is used, and the UI
+renderer uploads it into one texture per image, separate from the shared UI icon
+atlas. Its bind group changes only between draw runs that need a different
+texture, so layer order is kept. Additively blended retail images (glow, title
+band, bar) are converted to alpha at decode time. Animated retail stages (ring
+rotation, scrolling glyphs, logo glint, the logo video) are drawn still. A
+missing image falls back to JKR's own shapes. Retail assets are never bundled.
+
+The code is in [menu/classic.rs](../crates/jkr-viewer/src/menu/classic.rs): the
+page tables are in [pages.rs](../crates/jkr-viewer/src/menu/classic/pages.rs),
+types and geometry in [layout.rs](../crates/jkr-viewer/src/menu/classic/layout.rs)
+and drawing in [view.rs](../crates/jkr-viewer/src/menu/classic/view.rs). The
+in-game version is in
+[ingame_menu/classic.rs](../crates/jkr-viewer/src/ingame_menu/classic.rs), with
+[classic_view.rs](../crates/jkr-viewer/src/ingame_menu/classic_view.rs) and
+[classic_actions.rs](../crates/jkr-viewer/src/ingame_menu/classic_actions.rs).
+The artwork is loaded in [menu/art.rs](../crates/jkr-viewer/src/menu/art.rs) and
+bound in [ui_renderer/art.rs](../crates/jkr-viewer/src/ui_renderer/art.rs). The
+style is read in [style.rs](../crates/jkr-viewer/src/menu/style.rs). Shared exits
+are in [destination.rs](../crates/jkr-viewer/src/menu/destination.rs).
+
+Planned follow-ups, each a new page or screen module, following the retail
+`ui/jamp` menus:
+
+- Classic versions of the screens the classic pages still open in the modern
+  style: Join Server (`joinserver`, `serverinfo`, `findplayer`, `password`,
+  `createfavorite`), Create Server (`createserver`, `advancedcreateserver`),
+  Solo Game (`quickgame`), Profile (`player`, `player2`, `saber`), the
+  controls and setup option panels, and the in-game `ingame_player`,
+  `ingame_controls` and `ingame_setup`.
+- The screens with no JKR equivalent yet: Play Demo (`demo`), Rules
+  (`rules*`), Mods, Defaults, Add Bot (`ingame_addbot`), Siege objectives and
+  voice chat, and the connect and error screens (`connect`, `error`).
+- The retail fonts (`ui_gameFont`, a separate change) and the animated art
+  stages.
+
 ## Animation sounds and voice variants
 
 Footsteps and authored swing/spin sounds follow the evaluated lower/upper Ghoul2

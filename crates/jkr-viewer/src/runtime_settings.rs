@@ -10,6 +10,7 @@ use winit::window::Fullscreen;
 impl GpuState {
     pub(crate) fn sync_runtime_cvars(&mut self) {
         self.sync_post_color();
+        self.sync_menu_style();
         if let (Some(console), Some(window)) = (&mut self.console, &self.window) {
             console.apply_window_options(window);
         }

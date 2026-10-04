@@ -32,6 +32,7 @@ impl ClientMenu {
                 SettingsResult::Back => self.close_settings(),
                 SettingsResult::OpenKeybinds => {
                     self.keybinds.open(console);
+                    self.keybinds_direct = false;
                     self.state.open_keybinds();
                     MenuAction::None
                 }
@@ -39,10 +40,10 @@ impl ClientMenu {
             },
             ClientPhase::Keybinds => {
                 if self.keybinds.handle_pointer(event, console) == EditorResult::Back {
-                    self.settings.open(console);
-                    self.state.open_settings();
+                    self.close_keybinds(console)
+                } else {
+                    MenuAction::None
                 }
-                MenuAction::None
             }
             ClientPhase::Player => match self.player.handle_pointer(event, console) {
                 PlayerMenuResult::None => MenuAction::None,
@@ -75,6 +76,14 @@ impl ClientMenu {
             return MenuAction::None;
         };
         match self.state.phase() {
+            ClientPhase::MainMenu if self.menu_style == MenuStyle::Classic => {
+                self.classic.select(usize::from(token));
+                if event.kind == UiEventKind::Activate {
+                    self.activate_classic(console)
+                } else {
+                    MenuAction::None
+                }
+            }
             ClientPhase::MainMenu => {
                 if usize::from(token) < MAIN_ITEMS.len() {
                     self.main_selection = usize::from(token);
