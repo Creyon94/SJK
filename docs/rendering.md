@@ -849,7 +849,7 @@ and text integration and binds client state to the HUD. Layouts are data in
 movement, combat and network behavior remain compatible.
 
 HUD text sizes and `px` layout units scale with the HUD factor: viewport height
-over 1080, clamped to 2/3..4/3, times `cg_hudScale`. The crosshair name keeps
+over 1080, clamped to 2/3..2.5, times `cg_hudScale`. The crosshair name keeps
 stock's size in that frame: `CG_DrawCrosshairNames` draws `ergoec` (point size 20)
 at scale 1.0 in the 640x480 screen, so its line is 45 px at 1080p and 60 px at
 1440p, times the layout's `type_scale`. The classic layout uses 0.9 because
@@ -857,8 +857,20 @@ at scale 1.0 in the 640x480 screen, so its line is 45 px at 1080p and 60 px at
 position is stock's too: the line top sits at y = 170 of the 480-line screen,
 above the crosshair, so both layouts place it 157.5 px above the centre in the
 1080-line frame. That matches stock wherever the HUD factor equals the height
-over 1080 (720 to 1440 lines at `cg_hudScale 1`); outside it, the name keeps
+over 1080 (720 to 2700 lines at `cg_hudScale 1`); outside it, the name keeps
 the HUD's clamped frame, like the other HUD text.
+
+2D layouts are authored in pixels of a 1080-line screen and scale with the
+window height ([ui_scale.rs](../crates/jkr-viewer/src/ui_scale.rs)), as retail's
+640×480 virtual screen did: 1440 lines draw them at 1.33× and 2160 lines at 2×.
+The scale is clamped to 0.6–2.5 (648–2700 lines); the console keeps a 0.75
+floor, the HUD 2/3 and the frame-rate and weapon labels 0.85. `cg_hudScale` and
+`con_scale` multiply it. The operating system's display
+scale (Windows scaling) is not applied: a fullscreen window already covers
+the display, so it would count the density twice, and in a small window on a
+scaled desktop it would push 1080-line layouts past the window edges. It only
+sets the resolution the bundled Inter font is rasterized at, and text sized in
+that font's own units is converted from line heights so it does not depend on it.
 
 ### Menu readability
 

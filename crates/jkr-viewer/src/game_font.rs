@@ -380,12 +380,6 @@ fn target<'a>(
     }
 }
 
-/// Text `size` (a line-box height in physical pixels) as a glyph scale for
-/// `font`, for callers that place text with the bare text functions.
-pub(crate) fn scale_for(font: &UiFont, size: f32) -> f32 {
-    size / font.height.max(1.0)
-}
-
 /// Read the option, load the fonts on first use and clear last frame's text.
 /// Call before any text is appended.
 pub(crate) fn prepare(gpu: &mut GpuState) {
@@ -480,7 +474,9 @@ mod tests {
     }
 
     #[test]
-    fn size_becomes_a_glyph_scale() {
-        assert_eq!(scale_for(&text::charset::font(), 24.0), 1.5);
+    fn line_heights_become_glyph_scales_in_any_font() {
+        // 16-pixel console characters drawn on a 24-pixel line at 1080 lines.
+        let scale = crate::ui_scale::glyph_scale(&text::charset::font(), 24.0, 1.0);
+        assert_eq!(scale, 1.5);
     }
 }

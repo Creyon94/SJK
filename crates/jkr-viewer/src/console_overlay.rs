@@ -30,9 +30,9 @@ impl GpuState {
             console.append_overlay(vertices, font, viewport, text_scale);
         }
         if !covers_frame && hud::family::fps(self.console.as_ref()) {
-            // CG_DrawFPS draws console characters (CG_DrawBigString).
-            let size = self.ui_font.height * text_scale * 0.8;
-            let scale = game_font::scale_for(font, size);
+            // CG_DrawFPS draws console characters (CG_DrawBigString). The line is
+            // 0.8 times Inter's 38.7-pixel line at 1080 lines, in any font.
+            let scale = ui_scale::glyph_scale(font, 31.0, text_scale);
             append_text(
                 vertices,
                 font,

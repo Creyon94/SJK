@@ -152,6 +152,7 @@ mod snapshot_presentation;
 mod static_models;
 mod text;
 mod ui_renderer;
+mod ui_scale;
 mod weapon_view;
 mod wgsl_source;
 mod world_materials;
@@ -1367,7 +1368,7 @@ impl GpuState {
             self.configuration.width as f32,
             self.configuration.height as f32,
         ];
-        let text_scale = (self.configuration.height as f32 / 1_080.0).clamp(0.85, 1.35);
+        let text_scale = ui_scale::height_scale(viewport[1]).max(0.85);
         hud_runtime::update(
             self,
             view_position,
@@ -1483,13 +1484,13 @@ impl GpuState {
             && !self.weapon_selection_label.is_empty()
         {
             // CG_DrawWeaponSelect names the weapon with UI_SMALLFONT (FONT_SMALL).
-            let size = self.ui_font.height * text_scale * 1.1;
             let (vertices, font) = self.game_fonts.target(
                 game_font::RetailFont::Small,
                 &mut self.text_vertices,
                 &self.ui_font,
             );
-            let scale = game_font::scale_for(font, size);
+            // 1.1 times Inter's 38.7-pixel line at 1080 lines, in any font.
+            let scale = ui_scale::glyph_scale(font, 42.6, text_scale);
             let width = visible_text_width(font, &self.weapon_selection_label, scale);
             append_text(
                 vertices,
