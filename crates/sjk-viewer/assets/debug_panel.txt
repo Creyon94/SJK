@@ -193,7 +193,7 @@ title: Classic menu style: retail pages, browser, animation, loading screens
 change: ui_menuStyle classic draws retail-style menus and art, with no map behind them.
 change: Round 4: retail join-server browser; ja01 logo video, ring, glints, glow flicker.
 change: Round 4: capitals on classic labels; Controls list and Setup panels scroll with the wheel.
-test: Menu style classic: main page plays the logo video in the ring; ring turns, glows flicker.
+test: Menu style classic: ring turns, glows flicker (SJK shows its emblem in the ring: sjk-logo).
 test: Hover entries: the focused text pulses; labels and buttons are in capitals.
 test: Play > Join Server: sort columns, SOURCE/TYPE/VIEW, favourites, SERVER INFO, JOIN, wheel.
 test: Join a server: connect screen, then levelshot + server lines + load bar until in game.
@@ -665,6 +665,24 @@ test: Renderer page open: it holds still; HUD, menus, text and levelshots never 
 test: r_sceneHdr 0 and restart: dark rooms still brighten, bright views never darken.
 note: Too bright/dark overall on outdoor maps (ffa3)? Tune r_autoExposureKey (default 0.18).
 note: Too slow/fast: r_autoExposureToDark (2.5 s) and r_autoExposureToBright (0.4 s).
+
+[sjk-logo]
+status: personal
+area: Menus & settings
+title: SJK emblem: classic menu ring, modern menu, program and window icons, site
+change: Classic main menu: the SJK emblem replaces the ja01 logo video in the ring (not read).
+change: Its orange core pulses slowly (4.2 s), the cyan blade lights shimmer; modern menu too.
+change: sjk.exe and sjk-server.exe have the icon; the window sets it; site favicon + preview card.
+test: Classic main menu: emblem centred in the ring, inside the frames; ring still turns.
+test: Watch 10 s: the orange core and ring brighten and fade gently; blade lights shimmer.
+test: The Jedi Academy title is still at the top with its drifting reflection.
+test: Resize: 16:9, 21:9, 4:3 and 4K keep the emblem in the ring, sharp, no dark fringe.
+test: Sub-pages (Play, Setup, ...): no emblem, the centre stays dark as before.
+test: Menu style modern: the emblem sits above JEDI ACADEMY / MULTIPLAYER, pulsing too.
+test: Explorer: sjk.exe and sjk-server.exe show the emblem (medallion in small views).
+test: Window title bar and taskbar show the medallion icon; Task Manager says Sol JK.
+test: After the site deploys: favicon in the tab; a shared link shows the preview card.
+note: Icons of 40 px and under show the medallion (ring, core, blade), not the whole star.
 
 # ---- Merged upstream ----
 

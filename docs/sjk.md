@@ -33,6 +33,11 @@ them in place: the upstream merge adds the same text and resolves cleanly.
 - The crates are SJK's too: `crates/sjk-*`, packages `sjk-*` (`cargo build -p
   sjk-viewer -p sjk-dedicated`) and Rust paths `sjk_*`. JKR's code uses `jkr-*` for
   the same crates; [sjk_names.py](../scripts/sjk_names.py) holds the mapping.
+- SJK's emblem (Sol's) is its picture: the classic and modern main menus, the
+  programs' and window's icons, the README, release notes and site. Every image
+  of it is generated from one original by the scripts in
+  [assets/branding](../assets/branding/README.md); regenerate them rather than
+  editing one by hand.
 - What stays JKR's on purpose: the old names inside the alias tables, the
   `GameData/jkr` import, `JKR_*` environment variables, the dedicated server's
   `jkr_server.cfg`, and "JKR" meaning Bishop's project.

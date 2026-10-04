@@ -545,6 +545,27 @@ about 0.01 ms at 1080p and 0.02–0.03 ms at 4K. No client was run: the look in
 play, the default key on real maps and the cost in a full frame are unverified.
 See [rendering](rendering.md#eye-adaptation).
 
+## SJK emblem (SJK only)
+
+SJK-only branch `personal/sjk-logo` (2026-10-05, based on `bcb0b76`) puts Sol's
+emblem in the classic main menu's ring, where the `ja01` logo video played (the
+video is no longer read), and above the modern main menu's title, with a pulsing
+core and shimmering blade lights drawn as additive layers. `sjk.exe` and
+`sjk-server.exe` carry it as their Windows icon, the client sets it as its window
+icon, and the README, release notes and site use it. See
+[client.md](client.md#menu-style) and [assets/branding](../assets/branding/README.md).
+
+Verification (2026-10-05, Windows 11, MSVC): formatting, the locked workspace
+build and tests, including unit tests for the glow curves, the emblem's place in
+the ring at six window sizes and above the modern title, its texture ids, the
+alpha-weighted mips, the additive runs and the decoding of every bundled picture
+and window icon; the optimized build, whose executables were checked to contain
+the 10-size icon group and the version strings. The menu was composited offline
+from the retail art at two scales and three animation phases. No client window
+was opened: the look on screen, the additive pipeline on a GPU, the window and
+taskbar icons and the X11 icon are unverified, as is the GNU toolchain's
+`windres` path.
+
 ## Implemented scope
 
 - PK3/loose-file content, BSP maps/collision, legacy models and shader scripts.
