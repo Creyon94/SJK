@@ -989,7 +989,7 @@ impl Glm {
 
         let mut mesh = Self {
             name: reader.name(8, 64, "GLM name")?,
-            animation_name: reader.name(72, 64, "GLM animation name")?,
+            animation_name: skeleton_path(reader.name(72, 64, "GLM animation name")?),
             bone_count,
             hierarchy,
             lods,
@@ -1353,6 +1353,16 @@ fn parse_glm_surface(
         triangles,
         bone_references,
     })
+}
+
+/// A GLM's skeleton name as a file path. `R_LoadMDXM` registers `<name>.gla`
+/// through the filesystem, which drops one leading slash (`FS_FOpenFileRead`,
+/// `files.cpp`): several vehicle packs name `/models/players/<x>/<x>`.
+fn skeleton_path(name: String) -> String {
+    match name.strip_prefix(['/', '\\']) {
+        Some(relative) => relative.to_owned(),
+        None => name,
+    }
 }
 
 fn optional_index(raw: i32, count: usize, offset: usize) -> Result<Option<usize>, ModelError> {

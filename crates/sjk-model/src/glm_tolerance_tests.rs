@@ -105,3 +105,18 @@ fn weights_adding_up_past_one_are_kept_as_written() {
     assert_eq!(weights[1].weight, 1.0);
     assert_eq!(weights[2].weight, -1.0);
 }
+
+#[test]
+fn a_leading_slash_on_the_skeleton_name_is_dropped() {
+    for name in ["/models/players/v-19/v-19", r"\models/players/v-19/v-19"] {
+        let glm = crate::Glm::parse(
+            &TestGlm {
+                animation_name: name,
+                ..TestGlm::default()
+            }
+            .bytes(),
+        )
+        .expect("parse");
+        assert_eq!(glm.animation_name, "models/players/v-19/v-19");
+    }
+}
