@@ -16,6 +16,8 @@ BSP geometry, PVS visibility, lightmaps, shader stages and legacy models.
 | Secondary views | [scene_views.rs](../crates/sjk-viewer/src/scene_views.rs) |
 | Sun and real-time lighting | [sun_shadows.rs](../crates/sjk-viewer/src/sun_shadows.rs) |
 | Post processing | [post_aa.rs](../crates/sjk-viewer/src/post_aa.rs) |
+| Dynamic glow | [post_glow.rs](../crates/sjk-viewer/src/post_glow.rs), [glow_pass.rs](../crates/sjk-viewer/src/glow_pass.rs) |
+| Eye adaptation | [post_exposure.rs](../crates/sjk-viewer/src/post_exposure.rs) |
 | Frame timing | [frame_pacing.rs](../crates/sjk-viewer/src/frame_pacing.rs) |
 | HUD integration | [hud.rs](../crates/sjk-viewer/src/hud.rs) |
 | Material map generator (tool) | [sjk-materialgen](../crates/sjk-materialgen/src/lib.rs) |
@@ -94,7 +96,11 @@ work without reducing source count, texture resolution or lighting quality.
 | `r_ambientFill` | Live material-lighting floor in dark areas, 0–0.2; default 0.025. Fades as existing illumination increases |
 | `r_ambientFillOcclusion` | Fraction of ambient occlusion applied to the readability fill, 0–1; default 1 preserves the previous response. Real indirect lighting keeps full occlusion |
 | `r_sceneHdr` | Scene precision: 0 display format, 1 RGBA16F (default); restart required |
-| `r_hdrExposure` | Fixed exposure multiplier, 0.25–4; restart required |
+| `r_hdrExposure` | Base exposure multiplier, 0.25–4; live. Eye adaptation adjusts around it; `r_sceneHdr 0` ignores it |
+| `r_autoExposure` | Eye adaptation, default 1 (on); 0 holds `r_hdrExposure`. Live; see [eye adaptation](#eye-adaptation) |
+| `r_autoExposureMin`, `r_autoExposureMax` | Adaptation range in EV around the base: -2–0 (default -0.5) and 0–2 (default 1). Live |
+| `r_autoExposureToBright`, `r_autoExposureToDark` | Seconds to settle when the view gets brighter (default 0.4) or darker (default 2.5); 0 is instant. Live, console only |
+| `r_autoExposureKey` | Metered scene luminance shown at the base exposure, 0.03–0.8, default 0.18; higher is brighter. Live, console only |
 | `r_dustMotes` | Dust in godrays, 0 (off, default) to 1; live; Game settings tab; requires `r_volumetrics` |
 | `r_normalMapping` | Normal maps on lightmapped world surfaces (rend2 convention); default 0, restart required |
 | `r_specularMapping` | Specular, roughness and metalness maps on the same surfaces; default 0, restart required |
@@ -104,6 +110,8 @@ work without reducing source count, texture resolution or lighting quality.
 | `r_cubeMapping` | Reflection probes on specular-mapped surfaces (rend2's name and meaning); default 1, needs `r_specularMapping`, restart required |
 | `r_cubeMapSize` | Reflection probe face size, a power of two 32–512; default 128, restart required |
 | `r_floorReflections` | Polished floors mirror the scene (see [Floor reflections](#floor-reflections)); default 1, live |
+| `r_DynamicGlow` | Halo around `glow` shader stages: 0 off, 1 on (default), 2 saber blades only, 3 the glow alone (debug); live. See [Dynamic glow](#dynamic-glow) |
+| `r_dynamicGlowStyle` | Glow blur: 1 EternalJK rd-vulkan's (default), 0 retail rd-vanilla's; live |
 
 See [day_night.rs](../crates/sjk-viewer/src/day_night.rs),
 [sun_shadow_settings.rs](../crates/sjk-viewer/src/sun_shadow_settings.rs) and
@@ -155,6 +163,79 @@ indicative GPU cost only. No verification hooks or fixtures are shipped.
 These and the other `jkr_*` rendering cvars can also be changed in the client's
 renderer settings page (Settings > VIDEO > Renderer; see
 [client.md](client.md#renderer-settings)), with the same ranges and restart rules.
+
+## Eye adaptation
+
+SJK adapts the exposure to what the camera sees, as eyes do: in a dark area the
+view brightens over a few seconds, and stepping or looking into bright light
+darkens it a little, quickly, before it settles. This is SJK's choice and a
+deliberate departure from JKR, whose exposure is fixed so that camera contents
+never change how visible another player is. That concern is real: brightening
+a dark room shows a player in its shadows sooner, and darkening after a bright
+sky hides one for a moment. SJK therefore keeps the range small by default
+(-0.5 to +1 EV around `r_hdrExposure`), puts the switch on the Renderer page
+(IMAGE tab, "Eye adaptation"), and `r_autoExposure 0` restores the fixed
+exposure exactly.
+
+How it works ([post_exposure.rs](../crates/sjk-viewer/src/post_exposure.rs),
+[post_exposure.wgsl](../crates/sjk-viewer/src/post_exposure.wgsl)):
+
+- After the main view's resolve, a compute pass meters the scene target in
+  8×8-pixel cells (four bilinear taps each) into a 64-bin histogram of log2
+  luminance, weighting the centre of the screen four times the edges. It reads
+  the scene before exposure, the legacy effect layer, HUD and text, so sabers,
+  particles and the interface never drive it, and its result cannot feed back.
+- A one-thread pass averages the histogram between the 30th and 97th
+  percentiles (dark corners and small bright sources such as lamps and sun
+  glints are ignored), takes the target `log2(r_autoExposureKey) − mean`,
+  clamps it to the range and moves the current value towards it in EV:
+  `e += (target − e)(1 − exp(−dt/τ))`, with τ `r_autoExposureToBright` when the
+  view got brighter and `r_autoExposureToDark` otherwise. Near-black cells are
+  left out; a frame with almost nothing else (a cleared or black frame) changes
+  nothing.
+- The result, `r_hdrExposure × 2^e`, stays in a 16-byte GPU buffer that the
+  resolve and the effect layer's encode and write-back read the next frame.
+  There is no readback, and a frame records two fixed compute dispatches and
+  one 32-byte parameter upload through `FrameQueue`; everything is created with
+  the scene targets.
+
+The adaptation snaps to its target instead of easing when the view cuts: on a
+new map or scene targets (map load, `vid_restart`, resize, toggling bloom or the
+tone curve), when the followed player changes, on respawn and teleport
+(`EF_TELEPORT_BIT`), and on entering spectating or intermission. It holds still
+while the world is hidden or replaced (classic menus, loading, the hyperspace
+flash) and while the Renderer settings page is open, so `r_hdrExposure`
+comparisons there are not blurred. Without a match, demo or explored map (the
+menu world) it holds plain `r_hdrExposure`. Demos have no seek, so starting one
+is a map load. Black frames never count, so a first cleared frame cannot drive
+the exposure to the maximum.
+
+With `r_sceneHdr 0` the scene is 8-bit and already clipped at white, so
+darkening would only grey its highlights: the minimum is 0 EV (it only
+brightens), `r_hdrExposure` still does not apply, and brightening uses a
+shoulder that keeps white at white (identity up to an exposed value of 0.5,
+then a rational curve). Darkening needs `r_sceneHdr 1`, the default.
+
+Menus, HUD, text, levelshots and the display gamma pass are never exposed.
+Screenshots and captures show the adapted image, as the screen does.
+
+Verification (2026-10-04, Windows 11, RTX 5080, Vulkan and DX12, headless
+compute/render probes outside the repository; no client was run): with exposure
+1 the new resolve (HDR and 8-bit, FXAA on and off) and the effect layer's encode
+and write-back (all three encodings) matched the previous programs byte for
+byte, as did HDR at exposure 1.5 against the old fixed constant. Metering a
+uniform mid-grey (0.18) scene gave a mean of log2 0.18 within one bin (target
++0.002 EV); two stops darker clamped to +1 EV; a black frame left the state and
+its pending snap unchanged; a 2% patch at 50× brightness did not move the
+target; an 8-bit scene decoded to the same mean; the smoothing followed the
+expected exponentials. The 8-bit curve was monotonic, identity at 1 and
+inverted to within 1.4e-6. Timestamps for both passes on a synthetic scene were
+about 0.01 ms at 1920×1080 and 0.02–0.03 ms at 3840×2160. Unit tests cover the
+cvars and their ranges, the smoothing step, the 8-bit clamp, the snap and freeze
+decisions, and translate the three programs to SPIR-V and HLSL. How it looks in
+play, the default key on real maps and its cost inside a full frame are
+unverified; the key was chosen so a typical sunlit outdoor view (`mp/ffa3`)
+stays near 0 EV and needs in-game tuning.
 
 ## Volumetric silhouette coverage
 
@@ -343,8 +424,8 @@ fill retains half its unoccluded contribution. Physical sky/bounce stays fully
 occluded. Fill remains material-modulated, so black materials stay black. A room
 with almost no indirect energy may change little under the multiplier alone;
 blindly increasing it can brighten outdoor shade before fixing that room.
-Automatic exposure, local exposure and player-specific contrast effects are not
-part of this experiment.
+Local exposure and player-specific contrast effects are not part of this
+experiment; [eye adaptation](#eye-adaptation) is separate and scales the result.
 
 Verification of the local change based on `8f692ac` (2026-10-03): Linux/Vulkan,
 Radeon RX 9060 XT, external release captures at 1280×720, fixed 11:00 sun.
@@ -467,10 +548,49 @@ at alpha 100 and 50, spaced by `(int)(6 * speed * 0.004)` units along the
 recent path, while the entity has `PW_SPEED` and `cg_speedTrail` is nonzero
 ([speed_trail.rs](../crates/sjk-viewer/src/speed_trail.rs), after
 `cg_players.c:10841-10906`). Copies are excluded from shadow casting. The
-mind-trick fade that also suppresses stock trails is not drawn by the viewer,
-so only an active trick suppresses them. The `PW_SPEED` saber trail
+mind-trick fade below suppresses them, out and back in, as in stock. The
+`PW_SPEED` saber trail
 (`cg_players.c:7319`) is not implemented. This has passed unit tests only;
 appearance has not yet been checked on a GPU against the stock client.
+
+Force hand and body effects
+([force_power_submission.rs](../crates/sjk-viewer/src/force_power_submission.rs))
+follow `CG_Player`: the Lightning (`activeForcePass` 1-3) and Drain (4-6:
+`mp/drain`, `mp/drainwide` at level 3) beams from the left hand, the Push/Pull
+or Grip puffs there while `PW_DISINT_4` is set, and the body push blur for
+`EF_BODYPUSH`. The local player's effects come from its predicted player state,
+since stock rebuilds the local entity from `cg.predictedPlayerState` and the
+server never sends it; in first person they start at the hidden body's left
+hand, and Grip's puffs are third-person only. A player who mind-tricked the
+viewer still shows its beam and hand puffs, which stock draws before its
+mind-trick cut-off; only the body push blur is hidden for it. JKR drew none of
+the local player's own effects and hid all of a trickster's; SJK fixes both.
+
+EFX `bounce` and `intensity` are one key in retail: both set a primitive's
+single elasticity value (default 0.1) and its physics flag (`FxTemplate.cpp:44`,
+`:448-458`, `:2128`). A particle bounces by it, an electricity bolt uses it as
+its jaggedness (`FxScheduler.cpp:1502-1508`) and a camera shake as its strength.
+JKR read `bounce` as a particle bounce only, so Drain's `bounce 0.8 2` bolts
+kept a jaggedness of 0.1 and were drawn almost straight; SJK applies it as
+stock. `elasticity` and `chaos`, which JKR also accepted, are not retail keys
+and are ignored.
+
+Mind Trick follows `CG_Player` (EternalJK `cg_players.c:10191-10345`, stock
+code; [mind_trick.rs](../crates/sjk-client/src/mind_trick.rs)). A player who
+tricked the viewer fades out at 0.5 alpha per millisecond from 255 (about half
+a second), drawn with `RF_FORCE_ENT_ALPHA` like the speed afterimages, then is
+hidden: no body, held weapon or held saber (a thrown saber still shows), no
+shells or afterimages. It casts no blob shadow while the trick lasts. When the
+trick ends it fades back in at
+1 per millisecond. Its Force beam and hand puffs stay visible throughout, since
+stock draws them before its mind-trick cut-off. A player unseen for over a
+second starts again from opaque. The viewer's active Force Sight, at any level,
+sees through every trick (`CG_IsMindTricked`); the server also ends the trick.
+The trickster sees `force/confusion_old` over the head (`*head_top`, else
+`ceyebrow`) of each player it tricked, unless that player's Sight is active.
+Deviations: a held saber's hilt stays opaque during the fade (blades are opaque
+in stock too), and a fading body casts no sun shadow. JKR drew tricksters fully
+and had no confusion effect; SJK adds both.
 
 Set `JKR_FRAME_BUDGET=1` for frame-work and GPU-phase diagnostics. Measurements
 must name the build mode, GPU, resolution, settings, map and population. Separate
@@ -631,6 +751,92 @@ guard accordingly. Paired 3,330-frame 4K runs reduced the AO pass from 0.369 to
 0.023 and 0.026 ms. Twenty captures retained the scene appearance, with one pixel
 differing by 12/255 and all others by at most 8/255. These are measurements on the
 same Vulkan setup, not exhaustive equivalence across all maps and backends.
+
+## Dynamic glow
+
+Shader stages marked `glow` get a blurred halo, as in stock Jedi Academy and
+EternalJK (`r_DynamicGlow`). Stock draws the frame's surfaces a second time with
+only their glowing stages into a black image that shares the scene's depth, blurs
+it and adds it to the frame (rd-vanilla `tr_backend.cpp:1736-1800`). SJK does the
+same for the main view:
+
+1. **Glow flags.** The parser keeps each stage's `glow`. A hardware pass carries the
+   flag of its first source stage: `CollapseMultitexture` moves only texture
+   bundles, so a glowing stage merged under a non-glowing lightmap stage does not
+   glow, as in stock ([world_stage_collapse.rs](../crates/sjk-viewer/src/world_stage_collapse.rs)).
+   A material glows when any pass does (`hasGlow`). Effect shaders keep the flag per
+   stage; saber blades glow and their cores do not (`sabers.shader`: the `*_glow`
+   sprites, `saberBlur` and `swordTrail` carry `glow`, the `*_line` cores do not).
+2. **Glow pass** ([glow_pass.rs](../crates/sjk-viewer/src/glow_pass.rs),
+   [world_glow.rs](../crates/sjk-viewer/src/world_glow.rs)). After the main view's
+   effects, the glowing passes of visible world surfaces (opaque, then blended) and
+   the glowing stages of the frame's entities draw into a scene-sized 8-bit image,
+   cleared to black, with the scene's depth attached read-only. They use the scene
+   pass's vertex paths, bind groups and blend with glow variants of the stage
+   pipelines (the image's sRGB view, no depth write), compiled on first use like
+   the scene's entity pipelines. Glowing billboards, cylinders, lines and
+   electricity, saber blades and trails then draw through the image's plain view
+   with their ordinary effect-layer pipelines. Within each effect blend slot the
+   glowing layers are emitted after the others, so the glow pass draws one tail
+   range per slot; this only reorders layers within one slot, which leaves additive
+   and modulating blends unchanged (alpha-blended layers stay back to front within
+   each part). Nothing glowing on screen means no pass, no blur and no composite
+   work; a frame only walks the glowing world passes and the entity queue to decide.
+3. **Blur** ([post_glow.rs](../crates/sjk-viewer/src/post_glow.rs)), in 8-bit images
+   that clamp after every pass as stock's framebuffer copies did:
+   - `r_dynamicGlowStyle 1` (default), rd-vulkan's: a four-level pyramid at 1/2,
+     1/4, 1/8 and 1/16 of the window, each level a three-tap horizontal then
+     vertical blur of the previous level, taps 1.2 texels apart, weights 6/16 and
+     5/16 each raised by 0.15 (`blur.frag`, `vk_pipelines.cpp:1713`). The four
+     levels are summed and scaled by `r_DynamicGlowIntensity - 1` (within 0.01-4,
+     `vk_pipelines.cpp:1519-1523`) at half size, then added. This is what EternalJK
+     players with `cl_renderer rd-vulkan` see; rd-vulkan sums the levels at full
+     size, so the three smaller levels are slightly softer here.
+   - `r_dynamicGlowStyle 0`, rd-vanilla's `RB_BlurGlowTexture`: `r_DynamicGlowPasses`
+     passes at `r_DynamicGlowScale` of the window (or `r_DynamicGlowWidth` x
+     `r_DynamicGlowHeight` when both are positive), each summing four diagonal taps
+     (0.1 + pass x `r_DynamicGlowDelta`) texels away, weighted
+     `r_DynamicGlowIntensity` / 4; the first pass reads the full-size image.
+4. **Composite** in the final resolve ([post_aa.wgsl](../crates/sjk-viewer/src/post_aa.wgsl),
+   `with_glow`), after the effect layer and before the `r_gamma` ramp, on display
+   values with `r_sceneHdr` 0 or 1: retail with `r_DynamicGlowSoft 1` screens
+   (`e + g - e*g`, `GL_ONE, GL_ONE_MINUS_SRC_COLOR`); otherwise the glow is added and
+   clamped (rd-vulkan always adds). `r_DynamicGlow 0` builds none of this.
+
+| Cvar | Default | Behavior |
+| --- | --- | --- |
+| `r_DynamicGlow` | 1 | 0 off, 1 on, 2 saber blades only (JoF EternalJK), 3 the blurred glow without the scene (debug); live, 0 frees the images |
+| `r_dynamicGlowStyle` | 1 | 1 rd-vulkan pyramid, 0 retail kernel; rebuilds the blur |
+| `r_DynamicGlowIntensity` | 1.13 | Retail per-pass gain; rd-vulkan scales its level sum by Intensity - 1; live |
+| `r_DynamicGlowPasses` | 5 | Retail passes, 1-32; live |
+| `r_DynamicGlowDelta` | 0.8 | Retail tap spread added per pass; live |
+| `r_DynamicGlowSoft` | 1 | Retail screen composite (1) or additive (0); live |
+| `r_DynamicGlowScale` | 0.25 | Retail blur size relative to the window; rebuilds the blur |
+| `r_DynamicGlowWidth`, `r_DynamicGlowHeight` | 0 | Retail blur size in pixels when both are positive; rebuild |
+
+All are archived and keep stock's names (lookups ignore case, so the retail menu's
+`r_dynamicglow` is the same cvar); `r_dynamicGlowStyle` is SJK's. Stock defaults
+`r_DynamicGlow` to 0; SJK turns it on. The renderer settings' IMAGE tab has rows
+for `r_DynamicGlow` and `r_dynamicGlowStyle`. SJK's classic menus have no
+counterpart of the retail Setup page's glow toggle.
+
+Not drawn into the glow image: the sky, flares, the menu stage, and secondary
+views (portals, sky portals, floor reflections), which show no glow yet. Stock's
+glow pass fogs towards black, SJK's does not, so glow inside fog is brighter than
+stock's. Decals never glow. The image holds unexposed display values, equal to the
+scene's at `r_hdrExposure 1`: an exposure belongs on the world's glowing stages
+before they are encoded (see `world_format` in post_glow.rs), not on effects, which
+are display values already.
+
+Cost: a frame that glows clears and fills a scene-sized RGBA8 image (33 MB at
+3840x2160) and redraws only the glowing passes; rd-vulkan's blur then runs eight
+small passes and the level sum (about 2.8 million pixels at 4K, three or four
+texture reads each), retail's five passes at a quarter size. The images take about
+55 MB at 4K with rd-vulkan's style and 39 MB with retail's. These are estimates, not
+measurements: no GPU timing has been recorded. Unit tests cover the glow flags
+(Tavion's possessed skin, olol, the collapse quirk), the saber blade/core split,
+cvar parsing and the kernels; the programs are validated with naga. On-screen
+appearance is unverified.
 
 ## Material maps
 
@@ -1031,6 +1237,45 @@ scaled desktop it would push 1080-line layouts past the window edges. It only
 sets the resolution the bundled Inter font is rasterized at, and text sized in
 that font's own units is converted from line heights so it does not depend on it.
 
+### UI colour model
+
+The 2D layer (text, retained UI shapes, the shader HUD, the menu-file HUD and the
+scope) works in display values, as retail's 2D drawing did: a colour is the
+sRGB value shown on screen, and alpha mixes display values. `^1` is pure red,
+`ui_accent ff6a3d` shows as `#FF6A3D`, and a black text shadow at 0.55 over
+mid-grey shows 0.225 as in retail. The world, its resolve, bloom, HDR, the effect
+layer and the in-world ground HUD stay in linear light.
+[ui_target.rs](../crates/sjk-viewer/src/ui_target.rs) holds the model:
+
+- Every 2D pipeline targets the display format without its sRGB encode
+  (`Bgra8UnormSrgb` becomes `Bgra8Unorm`) and draws in its own pass after the
+  scene resolve.
+- With `r_gamma 1` that pass writes the swapchain image through a UNORM view.
+  The surface is configured with that view format, and each frame makes one
+  extra view object of the acquired image.
+- With another `r_gamma`, or on an adapter without `SURFACE_VIEW_FORMATS`
+  (Vulkan without `VK_KHR_swapchain_mutable_format`, GLES), the scene resolves
+  into the display intermediate, the 2D layer draws through that texture's UNORM
+  alias, and the display pass applies the ramp to world and UI together, as
+  retail's hardware gamma did. Without aliasing this costs one full-screen pass
+  at `r_gamma 1`.
+- The float `r_hdr` target never receives 2D draws: HDR is encoded by the
+  resolve before the 2D pass.
+- Pictures sampled by the 2D layer (icon atlas, wordmark, classic menu art and
+  video, levelshots, menu-file HUD art, scope art) are `Rgba8Unorm`, so their
+  texels are not decoded. Font atlases contribute only alpha, which no format
+  decodes, so the Inter atlas stays shared with the ground HUD.
+
+Colours chosen by eye for the earlier linear model were re-authored so neutral
+text keeps its on-screen lightness: each grey or white text colour is now the
+value it used to show (the theme's foreground 0.94, 0.97, 1.0 became 0.973,
+0.987, 1.0 and its muted 0.60, 0.68, 0.76 became 0.798, 0.843, 0.886), and a
+translucent one also gained opacity to keep its lightness over a dark backing:
+dimmed labels are now 0.77 to 0.96 opaque, disabled ones 0.58 to 0.63. Chromatic colours (accents, team and status colours, `^` codes,
+retail menu values) keep their authored values and so show at full saturation.
+Scrims and other translucent fills keep theirs: dark ones look darker, and faint
+white washes (separators, borders, hover fills) look fainter than before.
+
 ### Menu readability
 
 Menu screens draw their text straight over the live map, so a left-hand scrim
@@ -1040,7 +1285,7 @@ darkens the world behind the text column. The archived cvar `ui_menuContrast`
 | Value | Effect |
 | --- | --- |
 | `off` | The original scrims; the in-game menu leaves the match untinted |
-| `standard` (default) | Muted body text reaches WCAG AA (4.5:1) over a backdrop of relative luminance 0.5 (about sRGB `#bcbcbc`) |
+| `standard` (default) | Muted body text reaches WCAG AA (4.5:1) and the accent 3:1 (large text, UI components) over a backdrop of relative luminance 0.5 (about sRGB `#bcbcbc`) |
 | `strong` | All enabled text, the accent included, reaches 4.5:1 over pure white; dark custom accents are capped at 95% darkening |
 
 With a level on, each scrim keeps its original fade but does not drop below
@@ -1048,10 +1293,14 @@ the required darkness until the right edge of the text column, then eases
 back over 12% of the screen width. The in-game menu gets the player screen's
 column scrim, centred cards and the map picker's caption get the same floor,
 and dimmed labels gain just enough opacity to reach 4.5:1 on that backing.
-Disabled entries (drawn under half opacity) keep their dimmed look. The
-figures treat UI colours as linear values blended into an sRGB or float target
-and ignore the glyph drop shadow, so they are conservative; they are not
-measured on screen. The cvar is read once per frame, menus open or not, and
+Disabled entries (drawn under 0.7 opacity) keep their dimmed look. The
+figures follow the [UI colour model](#ui-colour-model): luminance linearises
+the display values, and scrims and translucent text mix display values as the
+GPU blends them. They ignore the glyph drop shadow, so they are conservative;
+they are not measured on screen. With the default theme the standard column
+needs 60% ink (the accent's 3:1 sets it; muted text alone needs 51%), leaving
+the reference backdrop at luminance 0.073, and the strong column 81%, leaving
+white at 0.032. The cvar is read once per frame, menus open or not, and
 published as an atomic level; that read compares in place and does not
 allocate. See
 [contrast.rs](../crates/sjk-viewer/src/menu_widgets/contrast.rs) and
@@ -1088,7 +1337,11 @@ measure the same fixed advance it draws with. The game fonts load when a world i
 installed with the option on, or on first use, from
 [game_font.rs](../crates/sjk-viewer/src/game_font.rs); a missing font leaves
 its surfaces on Inter. The console font is drawn after all other text, so the
-console stays on top.
+console stays on top. The classic console (`con_style classic`, see
+[client.md](client.md#classic-console)) goes further: its background, bar and
+text are a layer of their own
+([console_backdrop.rs](../crates/sjk-viewer/src/console_backdrop.rs)) drawn after
+every other 2D element, so text under an opaque console is hidden.
 
 The retail atlases are 256–512 texels on the long side, so 1440p and 4K text
 magnifies them several times and bilinear sampling of their coverage blurs every
@@ -1322,8 +1575,10 @@ New profiles use the owner-approved rendering setup: day/night enabled at a fixe
 11:00, volumetrics quality 3, actor/world sun shadows at 2048 resolution and
 16 filter taps, and lighting tier 0 (available baked indirect light under the
 live sun). Shadow gap closure and screen-space contact shadows are off.
-The scene uses HDR with exposure 1, FXAA, SSAO at strength 4, trilinear mipmapping
+The scene uses HDR with exposure 1 and SJK's eye adaptation (-0.5 to +1 EV), FXAA,
+SSAO at strength 4, trilinear mipmapping
 and 16× anisotropy where supported. Bloom and the optional LDR tone curve are off.
+Dynamic glow is on with rd-vulkan's blur (SJK; stock defaults it off).
 Soft particles, per-pixel model diffuse lighting and full rendering resolution
 remain enabled. Material maps stay off; reflection probes (`r_cubeMapping 1`, 128²)
 are on but only take effect once `r_specularMapping` is enabled and a map has

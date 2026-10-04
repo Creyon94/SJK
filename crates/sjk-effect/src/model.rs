@@ -150,6 +150,9 @@ pub struct Component {
     pub angle_delta: VectorRange,
     pub density: Range,
     pub variance: Range,
+    /// Retail's one `mElasticity` (`bounce` or `intensity`, default 0.1) is kept as three
+    /// copies: `elasticity` (a particle's bounce), `chaos` (an electricity bolt's
+    /// jaggedness) and `intensity` (a camera shake's strength). The parser sets all three.
     pub elasticity: Range,
     pub bounce_authored: bool,
     pub intensity_authored: bool,
@@ -210,7 +213,11 @@ impl Component {
                 maximum: 10.0,
             },
             variance: Range::ONE,
-            elasticity: Range::ZERO,
+            // `mElasticity.SetRange(0.1f, 0.1f)` (`FxTemplate.cpp:44`).
+            elasticity: Range {
+                minimum: 0.1,
+                maximum: 0.1,
+            },
             bounce_authored: false,
             intensity_authored: false,
             cull_range: None,

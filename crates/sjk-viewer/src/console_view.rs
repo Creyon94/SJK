@@ -36,6 +36,29 @@ impl ConsolePresentation {
         self.ui.draw_list()
     }
 
+    /// Move the open fraction towards `target` by `speed` screens per second
+    /// since the last frame (`Con_RunConsole`), and return it.
+    pub(super) fn slide(&mut self, target: f32, speed: f32) -> f32 {
+        let delta = self.tick.elapsed().as_secs_f32();
+        self.tick = std::time::Instant::now();
+        let step = speed * delta;
+        self.fraction += (target - self.fraction).clamp(-step, step);
+        self.fraction
+    }
+
+    /// Set the open fraction at once, as a full-screen console is drawn.
+    pub(super) fn snap(&mut self, fraction: f32) -> f32 {
+        self.tick = std::time::Instant::now();
+        self.fraction = fraction;
+        fraction
+    }
+
+    /// Leave no shapes or text for this frame: another style draws the console.
+    pub(super) fn clear(&mut self, viewport: [f32; 2]) {
+        self.ui.begin_transparent(viewport);
+        self.ui.finish(u16::MAX);
+    }
+
     pub(crate) fn append<'a>(
         &mut self,
         lines: impl DoubleEndedIterator<Item = &'a ConsoleLine>,
@@ -103,11 +126,7 @@ impl ConsolePresentation {
         open: bool,
         now: u64,
     ) {
-        let delta = self.tick.elapsed().as_secs_f32();
-        self.tick = std::time::Instant::now();
-        let target = if open { options.height } else { 0.0 };
-        let step = options.speed * delta;
-        self.fraction += (target - self.fraction).clamp(-step, step);
+        self.slide(if open { options.height } else { 0.0 }, options.speed);
         self.options = options;
         self.options.height = self.fraction;
         let seconds = std::time::SystemTime::now()

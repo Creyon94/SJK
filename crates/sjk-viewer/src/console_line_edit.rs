@@ -140,6 +140,33 @@ impl LineEdit {
     }
 }
 
+impl LineEdit {
+    /// Type `value` over the line (Insert's overstrike mode, `Field_CharEvent`):
+    /// each character replaces the one after the caret, and past the end the line
+    /// grows. A selection is replaced as [`Self::insert`] does; control characters
+    /// are dropped and the line stays within `limit` bytes.
+    pub(crate) fn overwrite(&mut self, text: &mut String, value: &str, limit: usize) {
+        if self.selection(text).is_some() {
+            self.insert(text, value, limit);
+            return;
+        }
+        self.anchor = None;
+        let mut cursor = self.cursor(text);
+        for character in value.chars().filter(|character| !character.is_control()) {
+            let replaced = text[cursor..].chars().next().map_or(0, char::len_utf8);
+            if text.len() - replaced + character.len_utf8() > limit {
+                break;
+            }
+            text.replace_range(
+                cursor..cursor + replaced,
+                character.encode_utf8(&mut [0; 4]),
+            );
+            cursor += character.len_utf8();
+        }
+        self.cursor = cursor;
+    }
+}
+
 /// `index` moved down to a character boundary within `text`.
 fn clamp(text: &str, index: usize) -> usize {
     let mut index = index.min(text.len());

@@ -139,9 +139,9 @@ impl MenuCanvas {
                 if index == active {
                     theme.foreground
                 } else if hovered {
-                    Color::new(0.94, 0.97, 1.0, 0.9)
+                    Color::new(0.973, 0.987, 1.0, 0.955)
                 } else {
-                    Color::new(0.82, 0.88, 0.94, 0.55)
+                    Color::new(0.916, 0.945, 0.973, 0.767)
                 },
                 FontWeight::Semibold,
                 2.2 * s,
@@ -187,7 +187,7 @@ impl MenuCanvas {
             if selected {
                 theme.foreground
             } else {
-                Color::new(0.82, 0.88, 0.94, 0.78)
+                Color::new(0.916, 0.945, 0.973, 0.896)
             },
             if selected {
                 FontWeight::Semibold

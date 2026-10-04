@@ -77,6 +77,7 @@ pub(crate) const STOCK_EFFECTS: &[&str] = &[
     "mp/itemcone",
     "force/lightning",
     "force/lightningwide",
+    "force/confusion_old",
     "mp/spawn",
     "mp/jedispawn",
     "chunks/grateexplode",

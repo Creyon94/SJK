@@ -9,12 +9,14 @@
 //! present ([`logo_glyph`]).
 
 mod bounded;
+mod cell;
 pub(crate) mod charset;
 pub(crate) mod fontdat;
 pub(crate) mod logo_glyph;
 pub(crate) mod sdf;
 pub(crate) mod style;
 pub(crate) use bounded::append_bounded;
+pub(crate) use cell::append_cell;
 pub(crate) use logo_glyph::LogoGlyph;
 pub(crate) use style::TextStyle;
 
@@ -280,24 +282,25 @@ pub(crate) fn load_classic(vfs: &VirtualFileSystem) -> Result<FontAtlas, Box<dyn
     })
 }
 
-/// Colour of the `^<digit>` code `index` (0-9).
+/// Colour of the `^<digit>` code `index` (0-9), as a display value.
 ///
-/// OpenJK's `g_color_table` (`shared/qcommon/q_color.c`) has ten entries and
-/// `ColorIndex` masks with `Q_COLOR_BITS` (0xF), so `^8` is orange and `^9` grey
-/// rather than retail's `& 7` wrap to black and red. Saturated colours keep their
-/// zero channels lifted for legibility on dark backdrops, as the other entries do.
-fn quake_color(index: u8) -> [f32; 4] {
+/// OpenJK's `g_color_table` (`shared/qcommon/q_color.c`) at full strength: the
+/// 2D layer draws display values ([`crate::ui_target`]), so `^1` is the same
+/// pure red retail showed. The table has ten entries and `ColorIndex` masks with
+/// `Q_COLOR_BITS` (0xF), so `^8` is orange and `^9` mid grey rather than
+/// retail's `& 7` wrap to black and red.
+pub(crate) fn quake_color(index: u8) -> [f32; 4] {
     match index {
         0 => [0.0, 0.0, 0.0, 1.0],
-        1 => [1.0, 0.2, 0.2, 1.0],
-        2 => [0.25, 1.0, 0.25, 1.0],
-        3 => [1.0, 0.82, 0.24, 1.0],
-        4 => [0.25, 0.45, 1.0, 1.0],
-        5 => [0.20, 0.82, 1.0, 1.0],
-        6 => [1.0, 0.25, 1.0, 1.0],
-        8 => [1.0, 0.5, 0.2, 1.0],
+        1 => [1.0, 0.0, 0.0, 1.0],
+        2 => [0.0, 1.0, 0.0, 1.0],
+        3 => [1.0, 1.0, 0.0, 1.0],
+        4 => [0.0, 0.0, 1.0, 1.0],
+        5 => [0.0, 1.0, 1.0, 1.0],
+        6 => [1.0, 0.0, 1.0, 1.0],
+        8 => [1.0, 0.5, 0.0, 1.0],
         9 => [0.5, 0.5, 0.5, 1.0],
-        _ => [0.92, 0.95, 0.98, 1.0],
+        _ => [1.0, 1.0, 1.0, 1.0],
     }
 }
 
@@ -308,7 +311,19 @@ fn push_quad(
     color: [f32; 4],
     viewport: [f32; 2],
 ) {
-    if vertices.len() + 6 > MAX_TEXT_VERTICES {
+    push_quad_within(vertices, rectangle, uv, color, viewport, MAX_TEXT_VERTICES);
+}
+
+/// [`push_quad`] into a batch of at most `limit` vertices.
+fn push_quad_within(
+    vertices: &mut Vec<TextVertex>,
+    rectangle: [f32; 4],
+    uv: [f32; 4],
+    color: [f32; 4],
+    viewport: [f32; 2],
+    limit: usize,
+) {
+    if vertices.len() + 6 > limit {
         return;
     }
     let [x, y, width, height] = rectangle;
@@ -371,7 +386,7 @@ pub(crate) fn append_text_face(
         scale,
         viewport,
         face,
-        [0.92, 0.95, 0.98, 1.0],
+        [0.964, 0.978, 0.991, 1.0],
         0.0,
     )
 }
@@ -503,12 +518,29 @@ mod tests {
 
     #[test]
     fn colour_codes_eight_and_nine_are_orange_and_grey() {
-        assert_eq!(quake_color(8), [1.0, 0.5, 0.2, 1.0]);
+        assert_eq!(quake_color(8), [1.0, 0.5, 0.0, 1.0]);
         assert_eq!(quake_color(9), [0.5, 0.5, 0.5, 1.0]);
         // No longer the retail `& 7` wrap onto black and red.
         assert_ne!(quake_color(8), quake_color(0));
         assert_ne!(quake_color(9), quake_color(1));
-        assert_eq!(quake_color(7), [0.92, 0.95, 0.98, 1.0]);
+    }
+
+    #[test]
+    fn colour_codes_zero_to_seven_match_the_retail_table() {
+        // OpenJK `g_color_table`, shared/qcommon/q_color.c.
+        let retail = [
+            [0.0, 0.0, 0.0, 1.0],
+            [1.0, 0.0, 0.0, 1.0],
+            [0.0, 1.0, 0.0, 1.0],
+            [1.0, 1.0, 0.0, 1.0],
+            [0.0, 0.0, 1.0, 1.0],
+            [0.0, 1.0, 1.0, 1.0],
+            [1.0, 0.0, 1.0, 1.0],
+            [1.0, 1.0, 1.0, 1.0],
+        ];
+        for (index, colour) in retail.iter().enumerate() {
+            assert_eq!(quake_color(index as u8), *colour, "^{index}");
+        }
     }
 
     fn test_font() -> UiFont {
@@ -545,7 +577,7 @@ mod tests {
         );
         // Each glyph emits a shadow quad then the glyph quad, six vertices each.
         assert_eq!(vertices.len(), 24);
-        assert_eq!(vertices[6].color, [1.0, 0.5, 0.2, 1.0]);
+        assert_eq!(vertices[6].color, [1.0, 0.5, 0.0, 1.0]);
         assert_eq!(vertices[18].color, [0.5, 0.5, 0.5, 1.0]);
     }
 }

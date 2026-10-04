@@ -380,9 +380,14 @@ pub(super) const NETWORK: &[Setting] = &[
         },
     },
 ];
-/// Text size and spacing. Menu rows keep their layout; console rows follow
-/// `con_lineSpacing`.
+/// Text size and spacing, and the console's style. Menu rows keep their layout;
+/// modern console rows follow `con_lineSpacing`.
 pub(super) const TEXT: &[Setting] = &[
+    Setting {
+        label: "Console style",
+        cvar: crate::console::console_options::STYLE_CVAR,
+        kind: ValueKind::Choice(&crate::console::console_options::ConsoleStyle::NAMES),
+    },
     Setting {
         label: "Menu text size",
         cvar: crate::text::style::SCALE_CVAR,
@@ -432,12 +437,35 @@ pub(super) const RENDER_IMAGE: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
-        label: "HDR exposure (restart)",
+        label: "HDR exposure",
         cvar: "r_hdrExposure",
         kind: ValueKind::Float {
             min: 0.25,
             max: 4.0,
             step: 0.05,
+        },
+    },
+    Setting {
+        label: "Eye adaptation",
+        cvar: crate::frame_target::aa::exposure::ENABLED,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Adaptation: max darken, EV (HDR)",
+        cvar: crate::frame_target::aa::exposure::MIN_EV,
+        kind: ValueKind::Float {
+            min: -2.0,
+            max: 0.0,
+            step: 0.25,
+        },
+    },
+    Setting {
+        label: "Adaptation: max brighten, EV",
+        cvar: crate::frame_target::aa::exposure::MAX_EV,
+        kind: ValueKind::Float {
+            min: 0.0,
+            max: 2.0,
+            step: 0.25,
         },
     },
     Setting {
@@ -449,6 +477,24 @@ pub(super) const RENDER_IMAGE: &[Setting] = &[
         label: "Bloom",
         cvar: "r_sceneBloom",
         kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Dynamic glow (0 off, 2 sabers)",
+        cvar: "r_DynamicGlow",
+        kind: ValueKind::Integer {
+            min: 0,
+            max: 3,
+            step: 1,
+        },
+    },
+    Setting {
+        label: "Glow style (0 retail, 1 Vulkan)",
+        cvar: "r_dynamicGlowStyle",
+        kind: ValueKind::Integer {
+            min: 0,
+            max: 1,
+            step: 1,
+        },
     },
     Setting {
         label: "FXAA (restart)",

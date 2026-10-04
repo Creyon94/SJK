@@ -105,6 +105,24 @@ Formatting, locked workspace build/tests and the release build passed. Clipboard
 round trips, drag behavior and platform/layout combinations are not exhaustively
 verified.
 
+## Classic console (SJK)
+
+SJK's default console (`con_style classic`) follows EternalJK's: the `console`
+shader's background with its stage motion, `con_ratioFix`, the bar, a monospaced
+character grid with per-row local timestamps (`con_timestamps 2`), word wrap, the
+green-clock input row with overstrike, the version line and corner clock, the
+scrollback arrows, EternalJK's heights and keys, and notify lines; it draws on a
+layer after all other 2D, so text under it is hidden. See
+[client.md](client.md#classic-console). The modern console is unchanged
+(`con_style modern`).
+
+Verification (2026-10-04, Windows 11): formatting, the locked workspace build and
+tests, including unit tests for the grid, background extent, `con_ratioFix`,
+heights, page steps, word wrap with stamps, colour carry-over, overstrike, clock
+formatting, the retail and JoF `console` shaders' stage programs, texture motion
+and colour waves, and `con_style` parsing. The layer was not run on a GPU or in a
+game by the change's author; side-by-side comparison with EternalJK is pending.
+
 ## Accepted client improvements
 
 The owner approved publishing the current playtest improvements on 2026-10-04.
@@ -279,6 +297,17 @@ not bundled with the source. No windows, game instances or servers were opened;
 visual playtesting remains with the owner. Formatting, locked workspace build/tests
 and the optimized build passed.
 
+## Dynamic glow (SJK)
+
+SJK-only branch `personal/dynamic-glow` (2026-10-04, based on `024c22a`) draws
+stock's dynamic glow: `glow` shader stages get a blurred halo, with rd-vulkan's
+blur by default and rd-vanilla's as `r_dynamicGlowStyle 0`. See
+[Dynamic glow](rendering.md#dynamic-glow). Unit tests (glow flags through the
+multitexture collapse, saber blade/core split, cvars, kernels) and naga validation
+of the changed programs passed with the locked workspace build and tests. No game
+or window was started: appearance, GPU cost and the first-use pipeline compile
+remain to be checked on screen. Secondary views and fog do not affect glow yet.
+
 ## Client devmap preview
 
 Local `devmap1` preview (2026-10-04, based on `7155455`) exposes `devmap <map>`
@@ -329,6 +358,62 @@ particles still faded at close gaps. No windows were opened. Native visual
 confirmation remains with the owner. Formatting, locked workspace build/tests
 and the optimized client build passed.
 
+
+## Force power presentation
+
+SJK change based on `024c22a` (2026-10-04), fixing gaps inherited from JKR.
+Evidence is EternalJK's stock `codemp` code (`cg_players.c`, `cg_ents.c`,
+`w_force.c`, `FxTemplate.cpp`, `FxScheduler.cpp`) and the retail EFX files.
+
+- Own Force effects: the local player's Lightning and Drain beams, Push/Pull and
+  Grip puffs and body push blur now come from its player state (JKR searched the
+  snapshot's entity list, which never holds the local player). A trickster's
+  beam and hand puffs stay visible to its victim, as in stock. See
+  [rendering](rendering.md#entity-render-effects).
+- Drain bolt shape: EFX `bounce` now sets an electricity bolt's jaggedness, as
+  `intensity` did; both also set physics, and the bounce default is retail's
+  0.1. This changes the 18 retail electricity primitives using `bounce` (Drain,
+  crystal and scepter respawns, DEMP2 alt detonation, environment sparks, ship
+  damage) and three expensive-physics emitters without a bounce key (`env/beam`,
+  `mp/spawn`, `mp/jedispawn`), which now rebound weakly instead of stopping.
+- Mind Trick: a trickster fades out for its victims and is then hidden, fading
+  back in when the trick ends; the trickster sees the confusion effect over its
+  victims' heads; active Force Sight sees through it. JKR drew tricksters fully.
+
+Not done yet, with what each needs:
+
+- Dodge afterimage (`PW_SPEEDBURST`, `cg_players.c:12612-12661`): stock
+  duplicates the Ghoul2 instance frozen at its current frame and draws it at the
+  player's current origin for 254 ms, alpha 254 down to 1. A copy in the live
+  pose, as the speed trail draws, would coincide with the body; it needs a
+  frozen pose, i.e. a second joint palette and vertex range per actor (as
+  corpse-pool bodies have) staged once at the burst, drawn with forced alpha.
+- Force Sight lighting (`cg_players.c:12258-12264`, `tr_light.cpp:351-357`):
+  other players get `RF_MINLIGHT` with `shaderRGBA` 255,255,0, which adds that to
+  their ambient light. Actors are lit per fragment from the light grid or, in
+  real-time mode, the light buffer, not from the instance light, so this needs a
+  per-instance flag through `stage_runtime.wgsl` and a rule for real-time mode.
+  The Sight shell overlay is drawn.
+- `surfaceparm forcesight` surfaces (`tr_main.cpp:1103-1106`,
+  `cg_draw.c:10741-10742`) should draw only while the viewer's Sight is on. The
+  shader parser ignores the parm, so they always draw; it needs a shader flag and
+  a per-frame world draw toggle. No retail MP map uses it (only SP `rift.shader`).
+- Push/Pull refraction (`cg_renderToTextureFX 1`, `CG_ForcePushBlur`
+  `cg_players.c:5264-5395`, `tr_backend.cpp:1085-1130`): stock copies a square
+  of the frame around the hand and draws `models/weaphits/testboom.md3` textured
+  from it with `effects/refraction`, scale 1 to 0.2 (Pull 0.2 to 1) over 500 ms,
+  alpha 244 to 10, fixed in place after 200 ms. SJK keeps the
+  `cg_renderToTextureFX 0` puffs. It needs the scene pass split after opaque
+  entities on frames with a push, a frame-sized copy target made at resize and a
+  distortion pipeline.
+
+Unit tests cover the effect selection (own beam levels 2-6, own Grip in first
+and third person, own Push, a remote caster, a trickster, Force Sight), parse
+the retail Drain EFX, and step the trick fade (fade-out, hiding, fade-in,
+truncation, reset after a second's absence, the Sight exception). None of it
+has been checked in a game window yet. Formatting and the locked workspace
+build and tests passed; clippy finds nothing in the changed code apart from
+the four known `sjk-game-jka` deny errors, which stop it otherwise.
 
 ## g_debugMelee prediction
 
@@ -448,6 +533,17 @@ prediction ended a run up the wall) is unexplained. Not predicted: the options
 EternalJK never reads, the Jedi Outcast red DFA, a changed `jp_gripSpeedScale`
 and holds for JA+'s extra animations. Not run in the client, and not checked
 against a public JA+ server or another JA+ version.
+
+## Eye adaptation (SJK only)
+
+SJK's exposure follows the view (`r_autoExposure`, on by default, -0.5 to +1 EV
+around `r_hdrExposure`, only brightening with `r_sceneHdr 0`); JKR's stays fixed.
+Headless Vulkan and DX12 probes on 2026-10-04 (Windows 11, RTX 5080) showed the
+resolve and effect layer byte-identical to the fixed exposure at exposure 1 and
+checked metering, snapping and smoothing on synthetic scenes; both passes took
+about 0.01 ms at 1080p and 0.02–0.03 ms at 4K. No client was run: the look in
+play, the default key on real maps and the cost in a full frame are unverified.
+See [rendering](rendering.md#eye-adaptation).
 
 ## Implemented scope
 

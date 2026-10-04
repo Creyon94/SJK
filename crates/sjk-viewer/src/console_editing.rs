@@ -129,7 +129,11 @@ impl ViewerConsole {
         let Some((start, end)) = self.selection.range() else {
             return false;
         };
-        let stamped = self.options().timestamps != 0;
+        // The classic console draws stamps beside the text, so its marks count
+        // bytes of the text alone.
+        let options = self.options();
+        let stamped = options.timestamps != 0
+            && options.style == super::console_options::ConsoleStyle::Modern;
         let lines = self.shell.lines().map(|line| {
             if stamped {
                 line.stamped_text.as_str()

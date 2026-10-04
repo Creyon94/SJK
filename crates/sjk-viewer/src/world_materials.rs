@@ -39,6 +39,8 @@ mod fog_gpu;
 mod forced_alpha;
 #[path = "world_material_forge.rs"]
 mod forge;
+#[path = "world_glow.rs"]
+mod glow;
 #[path = "world_material_gpu.rs"]
 mod gpu;
 #[path = "material_maps.rs"]
@@ -218,6 +220,8 @@ struct StagePass {
     live_pipeline: usize,
     /// `pipeline` and `live_pipeline` under `RF_FORCE_ENT_ALPHA` ([`forced_alpha`]).
     forced_alpha_pipelines: [usize; 2],
+    /// Drawn again into the dynamic glow target ([`glow`]).
+    glow: bool,
 }
 
 impl StagePass {
@@ -257,6 +261,8 @@ struct Material {
     /// tinted glass: bright before a sunlit wall, dark before a shadow.
     light_cutout: bool,
     sort: f32,
+    /// rd-vanilla `shader_t::hasGlow`: at least one stage glows.
+    has_glow: bool,
     stages: Vec<StagePass>,
     static_draws: Vec<StaticDraw>,
     camera_ranges: draw_ranges::Cache,
@@ -316,6 +322,10 @@ pub(crate) struct Runtime {
     entity_no_depth_pipelines: Vec<std::cell::OnceCell<wgpu::RenderPipeline>>,
     opaque_order: Vec<PassRef>,
     blended_order: Vec<PassRef>,
+    /// The glowing passes of `opaque_order` then `blended_order`, for the glow pass.
+    glow_order: Vec<PassRef>,
+    /// Glow-target variants of the pipeline keys, compiled on first glow draw.
+    glow_pipelines: glow::Pipelines,
     dynamic_light_buffer: wgpu::Buffer,
     lighting_mode: std::cell::Cell<u32>,
     forge: Forge,
@@ -331,6 +341,8 @@ type ImageCache = std::collections::HashMap<String, Arc<RgbaImage>>;
 
 struct PendingStage {
     allow_ssao: bool,
+    /// The hardware pass glows ([`CompiledStage::glow`]).
+    glow: bool,
     gpu: GpuStage,
     primary_pixels: Vec<Arc<RgbaImage>>,
     primary_key: String,
@@ -425,6 +437,7 @@ fn finish_runtime(
                 && !material.flare
                 && passes.first().is_some_and(|stage| stage.light_cutout),
             sort: material.sort,
+            has_glow: glow::has_glow(passes.iter().map(|stage| stage.glow)),
             stages: passes,
             static_draws: material.static_draws,
             camera_ranges: Default::default(),
@@ -447,6 +460,7 @@ fn finish_runtime(
         .collect();
     let opaque_order = build_draw_order(&runtime_materials, false);
     let blended_order = build_draw_order(&runtime_materials, true);
+    let glow_order = glow::order(&runtime_materials, &opaque_order, &blended_order);
     let keys = forge.pipeline_keys.clone();
     let fog_surfaces = opaque_fog.len();
     fog_draws::compact(&mut opaque_fog);
@@ -488,6 +502,8 @@ fn finish_runtime(
         entity_no_depth_pipelines: Vec::with_capacity(keys.len()),
         opaque_order,
         blended_order,
+        glow_order,
+        glow_pipelines: glow::Pipelines::default(),
         dynamic_light_buffer,
         lighting_mode: std::cell::Cell::new(0),
         forge,

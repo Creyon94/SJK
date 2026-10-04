@@ -279,6 +279,7 @@ pub(super) fn build_passes(
                 .0
         });
         passes.push(StagePass {
+            glow: stage.glow,
             table: Some(super::stage_table::Source {
                 gpu: stage.gpu,
                 primary: primary.clone(),
@@ -447,6 +448,7 @@ impl Runtime {
                 fog_draws: Vec::new(),
                 blended: material.sort > SORT_OPAQUE,
                 sort: material.sort,
+                has_glow: super::glow::has_glow(stages.iter().map(|stage| stage.glow)),
                 stages,
                 static_draws: Vec::new(),
                 camera_ranges: Default::default(),
@@ -469,6 +471,7 @@ impl Runtime {
         self.entity_pipelines.push(std::cell::OnceCell::new());
         self.entity_no_depth_pipelines
             .push(std::cell::OnceCell::new());
+        self.glow_pipelines.push();
     }
 
     /// Create every variant of `key` now (late cgame materials are few).

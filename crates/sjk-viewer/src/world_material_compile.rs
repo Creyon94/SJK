@@ -59,6 +59,7 @@ pub(in crate::world_materials) fn compile_material(
             .iter()
             .cloned()
             .map(|primary| CompiledStage {
+                glow: primary.glow,
                 output_blend: primary.blend.clone(),
                 output_depth_write: primary.depth_write,
                 output_depth_function: primary.depth_function,
@@ -173,6 +174,7 @@ pub(in crate::world_materials) fn compile_material(
         };
         compiled.push(PendingStage {
             allow_ssao: super::ssao::authored_diffuse(definition),
+            glow: stage.glow,
             gpu: {
                 let mut gpu = compile_hardware_stage(stage);
                 super::visible_emission::configure(

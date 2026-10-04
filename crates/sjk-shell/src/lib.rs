@@ -13,6 +13,7 @@ mod command_buffer;
 mod config;
 mod cvar;
 pub mod key_names;
+pub mod local_time;
 
 mod shell;
 mod shell_error;

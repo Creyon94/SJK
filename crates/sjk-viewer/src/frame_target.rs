@@ -11,7 +11,16 @@ pub(crate) mod aa;
 /// Single-sample scene supersampling, resolved before postprocessing and HUD.
 pub(crate) mod scale;
 
-type Output = (Option<wgpu::SurfaceTexture>, wgpu::TextureView);
+/// This frame's swapchain image, its default (scene) view and its 2D view.
+pub(crate) struct Output {
+    pub(crate) frame: Option<wgpu::SurfaceTexture>,
+    /// Default view: linear results are encoded by the sRGB format.
+    pub(crate) view: wgpu::TextureView,
+    /// UNORM view the 2D layer draws display values through
+    /// ([`crate::ui_target`]); the default view when the image is not sRGB,
+    /// or when the surface cannot alias it and the 2D layer uses the display pass.
+    pub(crate) ui: wgpu::TextureView,
+}
 
 /// Scene target and any swapchain image acquired before recording the world.
 pub(crate) struct Prepared {
@@ -26,7 +35,7 @@ pub(crate) fn prepare(gpu: &mut GpuState) -> Result<Prepared, FrameStatus> {
     } else {
         let early = gpu.acquire_output()?;
         Ok(Prepared {
-            scene: early.1.clone(),
+            scene: early.view.clone(),
             early: Some(early),
         })
     }
@@ -40,14 +49,7 @@ impl Prepared {
         gpu: &mut GpuState,
         encoder: wgpu::CommandEncoder,
         timing: &mut crate::frame_pacing::budget::Timer,
-    ) -> Result<
-        (
-            Option<wgpu::SurfaceTexture>,
-            wgpu::TextureView,
-            wgpu::CommandEncoder,
-        ),
-        FrameStatus,
-    > {
+    ) -> Result<(Output, wgpu::CommandEncoder), FrameStatus> {
         use crate::frame_pacing::budget::Phase;
         let output = match self.early {
             Some(output) => output,
@@ -65,16 +67,14 @@ impl Prepared {
                 }
             }
         };
-        Ok((output.0, output.1, encoder))
+        Ok((output, encoder))
     }
 }
 
 /// Acquire this frame's colour target. `Err` is the status to report
 /// instead of rendering (the surface needs reconfiguring, or the frame is
 /// skipped).
-pub(crate) fn acquire(
-    gpu: &GpuState,
-) -> Result<(Option<wgpu::SurfaceTexture>, wgpu::TextureView), FrameStatus> {
+pub(crate) fn acquire(gpu: &GpuState) -> Result<Output, FrameStatus> {
     let frame = if let Some(surface) = &gpu.context.surface {
         match surface.get_current_texture() {
             wgpu::CurrentSurfaceTexture::Success(frame) => Some(frame),
@@ -89,12 +89,11 @@ pub(crate) fn acquire(
     } else {
         return Err(FrameStatus::Skip);
     };
-    let view = frame
-        .as_ref()
-        .expect("surface acquired")
-        .texture
-        .create_view(&wgpu::TextureViewDescriptor::default());
-    Ok((frame, view))
+    let texture = &frame.as_ref().expect("surface acquired").texture;
+    let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+    let ui = crate::ui_target::surface_view(texture, gpu.context.format, gpu.context.ui_direct)
+        .unwrap_or_else(|| view.clone());
+    Ok(Output { frame, view, ui })
 }
 
 /// How the world pass starts on its colour target: cleared to the night
@@ -115,9 +114,7 @@ pub(crate) fn world_load(portal: crate::portal::View) -> wgpu::LoadOp<wgpu::Colo
 impl GpuState {
     /// Wait until the previous frame is submitted and presented, map its readbacks, then
     /// acquire this frame's swapchain image.
-    fn acquire_output(
-        &mut self,
-    ) -> Result<(Option<wgpu::SurfaceTexture>, wgpu::TextureView), FrameStatus> {
+    fn acquire_output(&mut self) -> Result<Output, FrameStatus> {
         self.frame_pacer.split.wait_previous();
         if let Some(phases) = &self.gpu_phases {
             phases.after_submit();

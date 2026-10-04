@@ -132,12 +132,12 @@ pub(crate) fn crosshair_color(console: Option<&ViewerConsole>) -> [f32; 4] {
             .and_then(|word| word.parse::<f32>().ok())
             .filter(|v| v.is_finite())
         else {
-            return [0.92, 0.98, 1.0, 1.0];
+            return [0.964, 0.991, 1.0, 1.0];
         };
         *slot = if value < 1.0 { 0.0 } else { value.min(255.0) };
     }
     if rgba[..3] == [0.0; 3] {
-        return [0.92, 0.98, 1.0, rgba[3] / 255.0];
+        return [0.964, 0.991, 1.0, rgba[3] / 255.0];
     }
     rgba.map(|value| value / 255.0)
 }

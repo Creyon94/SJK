@@ -28,6 +28,7 @@ mod config_string_refresh;
 mod connection;
 mod connection_commands;
 mod console;
+mod console_backdrop;
 mod console_overlay;
 mod console_runtime;
 mod crosshair_scan;
@@ -72,6 +73,7 @@ mod frame_split;
 mod frame_target;
 mod game_font;
 mod game_menu_actions;
+mod glow_pass;
 mod gpu_context;
 mod gpu_phases;
 mod gpu_texture;
@@ -155,6 +157,7 @@ mod static_models;
 mod text;
 mod ui_renderer;
 mod ui_scale;
+mod ui_target;
 mod weapon_view;
 mod wgsl_source;
 mod world_materials;
@@ -265,6 +268,7 @@ struct GpuState {
     saber_states: saber_trail::StateSlab,
     saber_trail_segments: saber_trail::SegmentPool,
     speed_trails: actor_world_submission::speed_trail::Trails,
+    trick_fades: sjk_client::LegacyTrickFades,
     projectiles: Vec<projectiles::Presented>,
     missile_effects: LegacyMissileEffects,
     dynamic_lights: dynamic_lights::PointLightList,
@@ -336,6 +340,8 @@ struct GpuState {
     field_of_view: f32,
     scope: scope::Zoom,
     scope_mask: Option<scope::Mask>,
+    /// The classic console's background, bar and text, drawn over all other 2D.
+    console_layer: console_backdrop::ConsoleLayer,
     /// The game's menu-file status HUD (`cg_hudStyle game`).
     menu_hud: menu_hud::MenuHud,
     ground_hud: ground_hud::GroundHud,
@@ -550,7 +556,7 @@ impl GpuState {
             present_mode,
             desired_maximum_frame_latency: 2,
             alpha_mode: context.alpha_mode,
-            view_formats: Vec::new(),
+            view_formats: ui_target::surface_view_formats(format, context.ui_direct),
         };
         if console.is_some()
             && let Some(surface) = &surface
@@ -784,6 +790,7 @@ impl GpuState {
             });
         let game_fonts = game_font::GameFonts::preload(
             preload_game_fonts || game_font::enabled(console.as_ref()),
+            game_font::classic_console(console.as_ref()),
             &vfs,
             &game_font::Device {
                 device: &device,
@@ -865,6 +872,8 @@ impl GpuState {
             frame_target::aa::effects::FORMAT,
         )?;
         let dust_motes = dust_motes::Runtime::new(&device, &camera_layout, context.scene_format());
+        // Every 2D pipeline writes display values through a UNORM view (`ui_target.rs`).
+        let ui_format = ui_target::format(format);
         let hud_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("JKR HUD shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("hud.wgsl").into()),
@@ -888,7 +897,7 @@ impl GpuState {
                 entry_point: Some("fragment_main"),
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
                 targets: &[Some(wgpu::ColorTargetState {
-                    format,
+                    format: ui_format,
                     blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
@@ -931,7 +940,7 @@ impl GpuState {
                     entry_point: Some(fragment_entry),
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                     targets: &[Some(wgpu::ColorTargetState {
-                        format,
+                        format: ui_format,
                         blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
@@ -977,10 +986,18 @@ impl GpuState {
             mapped_at_creation: false,
         });
         let depth = DepthTarget::new(&device, configuration.width, configuration.height);
-        let (ui_shapes, hud) = hud::icons::install(&device, &queue, format, &vfs, &shaders);
-        let menu_hud = menu_hud::MenuHud::new(&device, format);
+        let (ui_shapes, hud) = hud::icons::install(&device, &queue, ui_format, &vfs, &shaders);
+        let menu_hud = menu_hud::MenuHud::new(&device, ui_format);
+        let console_layer = console_backdrop::ConsoleLayer::new(
+            device,
+            queue,
+            ui_format,
+            &vfs,
+            &shaders,
+            game_font::classic_console(console.as_ref()),
+        );
         let (scope_mask, ground_hud) = (
-            scope::Mask::new(&device, &queue, format, &vfs, &shaders),
+            scope::Mask::new(&device, &queue, ui_format, &vfs, &shaders),
             ground_hud::GroundHud::new(device, context.scene_format(), &text_layout),
         );
         load_profile.mark("pipelines-ui")?;
@@ -1053,6 +1070,7 @@ impl GpuState {
             saber_states: saber_trail::StateSlab::default(),
             saber_trail_segments: saber_trail::SegmentPool::default(),
             speed_trails: Default::default(),
+            trick_fades: Default::default(),
             projectiles: Vec::with_capacity(sjk_protocol::MAX_LEGACY_ENTITIES),
             missile_effects,
             dynamic_lights: dynamic_lights::PointLightList::default(),
@@ -1124,6 +1142,7 @@ impl GpuState {
             field_of_view: 90.0,
             scope: scope::Zoom::default(),
             scope_mask,
+            console_layer,
             menu_hud,
             ground_hud,
             applied_display: Some(settings::DisplayMode::Windowed),
@@ -1268,6 +1287,7 @@ impl GpuState {
             menu.set_world_hidden(world_hidden);
         }
         self.update_menu_stage(visual_now);
+        self.prepare_eye_adaptation(delta_seconds, backdrop_view);
         let local_view = self
             .demo_session
             .as_ref()
@@ -1975,7 +1995,7 @@ impl GpuState {
                 has_entity_instances,
             );
         }
-        let (frame, output_view, mut encoder) = match target.finish(self, encoder, timing) {
+        let (output, mut encoder) = match target.finish(self, encoder, timing) {
             Ok(output) => output,
             Err(status) => return status,
         };
@@ -1984,7 +2004,8 @@ impl GpuState {
         self.draw_frame_overlays(
             &mut encoder,
             &target_view,
-            &output_view,
+            &output.view,
+            &output.ui,
             source_cluster,
             visibility,
             text_vertex_count,
@@ -1994,7 +2015,7 @@ impl GpuState {
         if let Some(phases) = &self.gpu_phases {
             phases.mark(&mut encoder, "overlays+post+hud");
         }
-        self.encode_console_screenshot(&mut encoder, frame.as_ref());
+        self.encode_console_screenshot(&mut encoder, output.frame.as_ref());
         if let Some(phases) = &self.gpu_phases {
             phases.mark(&mut encoder, "capture");
             phases.finish(&mut encoder);
@@ -2002,7 +2023,7 @@ impl GpuState {
         timing.mark(Phase::Submit);
         self.frame_pacer
             .split
-            .submit(&self.queue, encoder, frame, timing);
+            .submit(&self.queue, encoder, output.frame, timing);
         timing.mark(Phase::Present);
         timing.mark(Phase::Other);
         self.complete_render_transition(game_audio);
@@ -2014,6 +2035,8 @@ struct ParticleAtlas {
     bind_group: wgpu::BindGroup,
     animations: HashMap<String, Vec<ParticleAtlasAnimation>>,
     fallback: [f32; 4],
+    /// Some stage is a dynamic glow stage, so effects sort glowing layers apart.
+    any_glow: bool,
 }
 
 struct ParticleAtlasAnimation {
@@ -2025,6 +2048,8 @@ struct ParticleAtlasAnimation {
     alpha_wave: Option<WaveForm>,
     tc_scale: [f32; 2],
     tc_scroll: [f32; 2],
+    /// The stage is drawn into the dynamic glow image too.
+    glow: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -2034,6 +2059,7 @@ struct ParticleLayerSample {
     rgb: f32,
     alpha: f32,
     uv_transform: [f32; 4],
+    glow: bool,
 }
 
 mod particle_atlas_sampling;

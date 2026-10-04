@@ -244,7 +244,7 @@ fn label(ui: &mut MenuCanvas, text: &str, rect: Rect, size: f32, strong: bool) {
         if strong {
             ui.theme().foreground
         } else {
-            Color::new(0.72, 0.80, 0.88, 1.)
+            Color::new(0.865, 0.906, 0.945, 1.0)
         },
         if strong {
             FontWeight::Semibold

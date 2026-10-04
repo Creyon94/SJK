@@ -20,6 +20,12 @@ pub(crate) struct ForceBones {
     pub(crate) origins: [Option<Vec3>; 8],
     /// Raw lower-lumbar bolt from this pose, shared by carried-flag submission.
     pub(crate) lumbar: Option<crate::bolt::BoltMatrix>,
+    /// `ceyebrow`, stock's head bolt when a model has no `*head_top` tag
+    /// (`cg_players.c:671-675`).
+    eyebrow: Option<usize>,
+    /// Model-space head bolt (`ci->bolt_head`) from the latest pose, for the confusion
+    /// effect over a mind-tricked player's head.
+    pub(crate) head: Option<Vec3>,
 }
 
 impl ForceBones {
@@ -34,6 +40,11 @@ impl ForceBones {
             }),
             origins: [None; 8],
             lumbar: None,
+            eyebrow: animation
+                .bones
+                .iter()
+                .position(|bone| bone.name.eq_ignore_ascii_case("ceyebrow")),
+            head: None,
         }
     }
 
@@ -64,5 +75,29 @@ impl ForceBones {
                 })))
             });
         }
+    }
+}
+
+impl ForceBones {
+    /// Update [`Self::head`]: the `*head_top` tag, else the `ceyebrow` joint.
+    pub(crate) fn update_head(
+        &mut self,
+        mesh: &sjk_model::Glm,
+        animation: &Gla,
+        matrices: &[[[f32; 4]; 3]],
+    ) {
+        self.head = match mesh.surface_bolt_matrix("*head_top", 0, matrices) {
+            Ok(Some(bolt)) => Some(Vec3::from_array(crate::bolt::column(&bolt, 3))),
+            _ => self.eyebrow.and_then(|index| {
+                let matrix = matrices.get(index)?;
+                let bind = animation.bones.get(index)?.base_pose;
+                Some(Vec3::from_array(std::array::from_fn(|row| {
+                    matrix[row][3]
+                        + (0..3)
+                            .map(|axis| matrix[row][axis] * bind[axis][3])
+                            .sum::<f32>()
+                })))
+            }),
+        };
     }
 }

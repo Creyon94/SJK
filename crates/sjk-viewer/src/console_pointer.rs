@@ -14,6 +14,26 @@ impl ViewerConsole {
             self.browser_action(action);
             return;
         }
+        if self.console_style() == super::console_options::ConsoleStyle::Classic {
+            // `Console_Key`: the wheel pages like Page Up/Down (Ctrl five times
+            // as far), and with Shift walks the history.
+            if let InputEvent::PointerWheel { delta, .. } = event {
+                match (self.shift, delta.y > 0.0, delta.y < 0.0) {
+                    (true, true, _) => self.navigate_history(-1),
+                    (true, _, true) => self.navigate_history(1),
+                    (false, true, _) => {
+                        self.scroll_rows(super::classic::page_rows(self.control) as isize);
+                    }
+                    (false, _, true) => {
+                        self.scroll_rows(-(super::classic::page_rows(self.control) as isize));
+                    }
+                    _ => {}
+                }
+            } else {
+                self.selection.pointer(event, self.shift);
+            }
+            return;
+        }
         let Some(delta) = self.presentation.pointer(event) else {
             self.selection.pointer(event, self.shift);
             return;

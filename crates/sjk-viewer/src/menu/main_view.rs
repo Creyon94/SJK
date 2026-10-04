@@ -9,7 +9,7 @@ use crate::{TextVertex, UiFont};
 use sjk_ui::{DrawCommand, FontWeight, Rect, TextAlign};
 
 /// Build version, bottom right; the only footer text the main menu carries.
-pub(super) const VERSION_LINE: &str = concat!("SJK ", env!("CARGO_PKG_VERSION"), " alpha");
+pub(crate) const VERSION_LINE: &str = concat!("SJK ", env!("CARGO_PKG_VERSION"), " alpha");
 
 /// Top of the entry list and the height of one entry.
 fn list_metrics(viewport: [f32; 2], scale: f32) -> (f32, f32) {

@@ -159,7 +159,7 @@ impl Default for State {
         Self {
             policy: Policy::read(None),
             position: String::with_capacity(384),
-            color: [0.92, 0.98, 1.0, 1.0],
+            color: [0.964, 0.991, 1.0, 1.0],
 
             dynamic_offset: None,
         }

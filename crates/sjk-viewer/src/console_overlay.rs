@@ -15,6 +15,7 @@ impl GpuState {
             self.text_vertices.clear();
             self.classic_text_vertices.clear();
         }
+        self.append_classic_console(viewport, covers_frame);
         // The console and its notify lines draw with the retail console character
         // set when `ui_gameFont` has it; the full-frame browser keeps Inter.
         let (vertices, font) = if covers_frame {
@@ -42,5 +43,42 @@ impl GpuState {
                 viewport,
             );
         }
+    }
+
+    /// Lay out and upload the classic console's own layer
+    /// ([`console_backdrop`]), drawn after all other 2D text; empty for the
+    /// modern console or under the full-frame browser.
+    fn append_classic_console(&mut self, viewport: [f32; 2], covers_frame: bool) {
+        let classic = !covers_frame && game_font::classic_console(self.console.as_ref());
+        let Some(console) = self.console.as_mut().filter(|_| classic) else {
+            self.console_layer.clear();
+            return;
+        };
+        if self.console_layer.needs_loading()
+            && let Some(vfs) = &self.vfs
+        {
+            self.console_layer
+                .ensure_loaded(&self.device, &self.queue, vfs, &self.shaders);
+        }
+        let (font, atlas) = match self.game_fonts.console_charset() {
+            Some(font) => (font, console_backdrop::TextAtlas::Charset),
+            None => (&self.ui_font, console_backdrop::TextAtlas::Inter),
+        };
+        let in_game =
+            self.live_session.is_some() || self.demo_session.is_some() || self.resident.exploring();
+        let menu_visible = self
+            .client_menu
+            .as_ref()
+            .is_some_and(|menu| menu.is_visible());
+        let env = console::classic::ClassicEnv {
+            in_game,
+            menu_focus: menu_visible || self.game_menu,
+            // Only the game client, whose menu is merely closed, not a map viewer
+            // without one.
+            full_screen: !in_game && !self.game_menu && self.client_menu.is_some() && !menu_visible,
+        };
+        let frame = self.console_layer.begin_frame();
+        console.append_classic(frame, font, atlas, viewport, env);
+        self.console_layer.upload(&self.queue, viewport);
     }
 }

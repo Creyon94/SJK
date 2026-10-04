@@ -68,6 +68,8 @@ pub(crate) struct Mesh {
     ranges: [Range<u32>; crate::effect_blend::PIPELINE_COUNT],
     /// World decals per blend slot; drawn with the polygon-offset pipelines.
     decal_ranges: [Range<u32>; crate::effect_blend::PIPELINE_COUNT],
+    /// The dynamic glow layers at the end of each of `ranges`.
+    glow_ranges: [Range<u32>; crate::effect_blend::PIPELINE_COUNT],
     dropped: usize,
     /// Per particle, the blend slots it draws into this frame; storage reused across frames.
     slots: Vec<u8>,
@@ -81,6 +83,7 @@ impl Default for Mesh {
             indices: Vec::with_capacity(MAX_INDICES),
             ranges: std::array::from_fn(|_| 0..0),
             decal_ranges: std::array::from_fn(|_| 0..0),
+            glow_ranges: std::array::from_fn(|_| 0..0),
             dropped: 0,
             slots: Vec::new(),
         }
@@ -116,6 +119,7 @@ impl Mesh {
         if !has_geometry && !decals.has_polys() {
             self.ranges.fill(0..0);
             self.decal_ranges.fill(0..0);
+            self.glow_ranges.fill(0..0);
             return Stats::default();
         }
 
@@ -147,27 +151,43 @@ impl Mesh {
                     mask | 1 << crate::effect_blend::slot(layer.blend)
                 })
         }));
+        // With glowing stages in the atlas, each slot emits its other layers first and
+        // its glowing ones last, so the glow pass draws one tail range per slot.
+        let parts: &[Option<bool>] = if atlas.any_glow {
+            &[Some(false), Some(true)]
+        } else {
+            &[None]
+        };
         for blend_index in 0..crate::effect_blend::PIPELINE_COUNT {
             let range_start = self.counts().1 as u32;
-
-            for (particle, _) in particles
-                .iter_mut()
-                .zip(&slots)
-                .filter(|(_, mask)| **mask >> blend_index & 1 == 1)
-            {
-                self.append_particle(
-                    particle,
-                    atlas,
-                    now,
-                    global_seconds,
-                    camera,
-                    field_of_view,
-                    bsp,
-                    scratch,
-                    blend_index,
-                );
+            let mut glow_start = range_start;
+            for &glow in parts {
+                glow_start = self.counts().1 as u32;
+                for (particle, _) in particles
+                    .iter_mut()
+                    .zip(&slots)
+                    .filter(|(_, mask)| **mask >> blend_index & 1 == 1)
+                {
+                    self.append_particle(
+                        particle,
+                        atlas,
+                        now,
+                        global_seconds,
+                        camera,
+                        field_of_view,
+                        bsp,
+                        scratch,
+                        blend_index,
+                        glow,
+                    );
+                }
             }
             self.ranges[blend_index] = range_start..self.counts().1 as u32;
+            self.glow_ranges[blend_index] = if atlas.any_glow {
+                glow_start..self.counts().1 as u32
+            } else {
+                0..0
+            };
 
             let decal_start = self.counts().1 as u32;
             decals.emit(now, |draw| {
@@ -196,6 +216,7 @@ impl Mesh {
         bsp: &Bsp,
         scratch: &mut TraceScratch,
         blend_index: usize,
+        glow: Option<bool>,
     ) {
         // Sprite shading belongs to effect_submission. This pass emits only
         // cylinders/electricity; sampling sprite envelopes and shader stages
@@ -226,10 +247,10 @@ impl Mesh {
             &particle.shader,
             particle.shader_seconds(seconds, global_seconds),
         );
-        for layer in layers
-            .iter()
-            .filter(|layer| crate::effect_blend::slot(layer.blend) == blend_index)
-        {
+        for layer in layers.iter().filter(|layer| {
+            crate::effect_blend::slot(layer.blend) == blend_index
+                && glow.is_none_or(|glow| layer.glow == glow)
+        }) {
             let layer_color = [
                 color[0] * layer.rgb,
                 color[1] * layer.rgb,
@@ -470,5 +491,10 @@ impl Mesh {
 
     pub(crate) fn decal_ranges(&self) -> &[Range<u32>; crate::effect_blend::PIPELINE_COUNT] {
         &self.decal_ranges
+    }
+
+    /// Per blend slot, the glowing tail of [`Self::ranges`].
+    pub(crate) fn glow_ranges(&self) -> &[Range<u32>; crate::effect_blend::PIPELINE_COUNT] {
+        &self.glow_ranges
     }
 }
