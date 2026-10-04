@@ -8,6 +8,7 @@ impl GpuState {
         encoder: &mut wgpu::CommandEncoder,
         target: &wgpu::TextureView,
         output: &wgpu::TextureView,
+        output_ui: &wgpu::TextureView,
         cluster: Option<usize>,
         visibility: Option<&sjk_bsp::Visibility>,
         text: u32,
@@ -76,55 +77,50 @@ impl GpuState {
             &self.depth.sample_bind_group,
             &self.text_bind_group,
         );
-        if self.post_aa.is_some() || self.render_scale.is_some() {
-            drop(pass);
-
-            if let Some(scale) = &self.render_scale {
-                scale.draw(
-                    encoder,
-                    self.post_aa.as_ref().map_or(output, |aa| &aa.scene),
-                );
-            }
-            if let Some(aa) = &self.post_aa {
-                aa.draw_scene(encoder, output);
-            }
-
-            if !hud {
-                if let Some(aa) = &self.post_aa {
-                    aa.draw_display(encoder, output);
-                }
-                return;
-            }
-            pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("JKR unfiltered HUD after FXAA"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: self
-                        .post_aa
-                        .as_ref()
-                        .map_or(output, |aa| aa.hud_target(output)),
-                    resolve_target: None,
-                    depth_slice: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Load,
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
-                    view: self
-                        .render_scale
-                        .as_ref()
-                        .map_or(&self.depth.view, |scale| &scale.hud_depth.view),
-                    depth_ops: None,
-                    stencil_ops: None,
-                }),
-                timestamp_writes: None,
-                occlusion_query_set: None,
-                multiview_mask: None,
-            });
+        drop(pass);
+        if let Some(scale) = &self.render_scale {
+            scale.draw(
+                encoder,
+                self.post_aa.as_ref().map_or(output, |aa| &aa.scene),
+            );
+        }
+        if let Some(aa) = &self.post_aa {
+            aa.draw_scene(encoder, output);
         }
         if !hud {
+            if let Some(aa) = &self.post_aa {
+                aa.draw_display(encoder, output);
+            }
             return;
         }
+        // The 2D layer draws display values through a UNORM view (`ui_target.rs`),
+        // so it gets its own pass after the linear world and its resolve.
+        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("JKR unfiltered HUD after FXAA"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: self
+                    .post_aa
+                    .as_ref()
+                    .map_or(output_ui, |aa| aa.hud_target(output_ui)),
+                resolve_target: None,
+                depth_slice: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Load,
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: self
+                    .render_scale
+                    .as_ref()
+                    .map_or(&self.depth.view, |scale| &scale.hud_depth.view),
+                depth_ops: None,
+                stencil_ops: None,
+            }),
+            timestamp_writes: None,
+            occlusion_query_set: None,
+            multiview_mask: None,
+        });
         pass.set_pipeline(&self.hud_pipeline);
         pass.set_bind_group(0, &self.hud_bind_group, &[]);
         match self.hud_scissors {

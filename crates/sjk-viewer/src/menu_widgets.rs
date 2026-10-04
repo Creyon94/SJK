@@ -277,7 +277,7 @@ impl MenuCanvas {
         let foreground = if style.enabled {
             self.theme.foreground
         } else {
-            Color::new(0.48, 0.54, 0.60, 0.82)
+            Color::new(0.722, 0.761, 0.798, 0.915)
         };
         let badge_width = if style.badge.is_some() { 84.0 } else { 0.0 };
         self.text(

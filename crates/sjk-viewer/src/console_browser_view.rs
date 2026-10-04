@@ -197,7 +197,7 @@ impl Browser {
             if selected {
                 theme.foreground
             } else {
-                Color::new(0.82, 0.88, 0.94, 0.86)
+                Color::new(0.916, 0.945, 0.973, 0.936)
             },
             if selected {
                 FontWeight::Semibold
@@ -252,7 +252,7 @@ impl Browser {
             format_args!("{}{}", tag(entry), entry.description),
             line(0.0, 1.0, true),
             13.0 * s,
-            Color::new(0.70, 0.78, 0.86, 0.72),
+            Color::new(0.854, 0.896, 0.936, 0.864),
             FontWeight::Regular,
             0.2 * s,
             TextAlign::Start,

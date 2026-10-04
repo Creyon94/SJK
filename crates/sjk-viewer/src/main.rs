@@ -155,6 +155,7 @@ mod static_models;
 mod text;
 mod ui_renderer;
 mod ui_scale;
+mod ui_target;
 mod weapon_view;
 mod wgsl_source;
 mod world_materials;
@@ -550,7 +551,7 @@ impl GpuState {
             present_mode,
             desired_maximum_frame_latency: 2,
             alpha_mode: context.alpha_mode,
-            view_formats: Vec::new(),
+            view_formats: ui_target::surface_view_formats(format, context.ui_direct),
         };
         if console.is_some()
             && let Some(surface) = &surface
@@ -864,6 +865,8 @@ impl GpuState {
             frame_target::aa::effects::FORMAT,
         )?;
         let dust_motes = dust_motes::Runtime::new(&device, &camera_layout, context.scene_format());
+        // Every 2D pipeline writes display values through a UNORM view (`ui_target.rs`).
+        let ui_format = ui_target::format(format);
         let hud_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
             label: Some("JKR HUD shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("hud.wgsl").into()),
@@ -887,7 +890,7 @@ impl GpuState {
                 entry_point: Some("fragment_main"),
                 compilation_options: wgpu::PipelineCompilationOptions::default(),
                 targets: &[Some(wgpu::ColorTargetState {
-                    format,
+                    format: ui_format,
                     blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                     write_mask: wgpu::ColorWrites::ALL,
                 })],
@@ -930,7 +933,7 @@ impl GpuState {
                     entry_point: Some(fragment_entry),
                     compilation_options: wgpu::PipelineCompilationOptions::default(),
                     targets: &[Some(wgpu::ColorTargetState {
-                        format,
+                        format: ui_format,
                         blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                         write_mask: wgpu::ColorWrites::ALL,
                     })],
@@ -976,10 +979,10 @@ impl GpuState {
             mapped_at_creation: false,
         });
         let depth = DepthTarget::new(&device, configuration.width, configuration.height);
-        let (ui_shapes, hud) = hud::icons::install(&device, &queue, format, &vfs, &shaders);
-        let menu_hud = menu_hud::MenuHud::new(&device, format);
+        let (ui_shapes, hud) = hud::icons::install(&device, &queue, ui_format, &vfs, &shaders);
+        let menu_hud = menu_hud::MenuHud::new(&device, ui_format);
         let (scope_mask, ground_hud) = (
-            scope::Mask::new(&device, &queue, format, &vfs, &shaders),
+            scope::Mask::new(&device, &queue, ui_format, &vfs, &shaders),
             ground_hud::GroundHud::new(device, context.scene_format(), &text_layout),
         );
         load_profile.mark("pipelines-ui")?;
@@ -1975,7 +1978,7 @@ impl GpuState {
                 has_entity_instances,
             );
         }
-        let (frame, output_view, mut encoder) = match target.finish(self, encoder, timing) {
+        let (output, mut encoder) = match target.finish(self, encoder, timing) {
             Ok(output) => output,
             Err(status) => return status,
         };
@@ -1984,7 +1987,8 @@ impl GpuState {
         self.draw_frame_overlays(
             &mut encoder,
             &target_view,
-            &output_view,
+            &output.view,
+            &output.ui,
             source_cluster,
             visibility,
             text_vertex_count,
@@ -1994,7 +1998,7 @@ impl GpuState {
         if let Some(phases) = &self.gpu_phases {
             phases.mark(&mut encoder, "overlays+post+hud");
         }
-        self.encode_console_screenshot(&mut encoder, frame.as_ref());
+        self.encode_console_screenshot(&mut encoder, output.frame.as_ref());
         if let Some(phases) = &self.gpu_phases {
             phases.mark(&mut encoder, "capture");
             phases.finish(&mut encoder);
@@ -2002,7 +2006,7 @@ impl GpuState {
         timing.mark(Phase::Submit);
         self.frame_pacer
             .split
-            .submit(&self.queue, encoder, frame, timing);
+            .submit(&self.queue, encoder, output.frame, timing);
         timing.mark(Phase::Present);
         timing.mark(Phase::Other);
         self.complete_render_transition(game_audio);
