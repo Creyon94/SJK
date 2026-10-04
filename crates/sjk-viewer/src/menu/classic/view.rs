@@ -7,19 +7,22 @@
 //! are built from it in the retail item order: backdrop, side glyph
 //! columns, the main page's ring and windows or the sub-pages' frames, the
 //! logo and the button glow, opaque: no world is drawn behind the classic
-//! pages, so the art's transparent centre (where retail played its logo
-//! video), and the pillarbox of a wide window stay dark. Without the art, the
-//! same layout is drawn with JKR's own vector shapes and text.
+//! pages, so the art's transparent centre and the pillarbox of a wide window
+//! stay dark. Where retail played its logo video in that centre, the main
+//! page shows SJK's emblem ([`emblem`]), over the frames, with or without
+//! the art. Without the art, the same layout is drawn with JKR's own vector
+//! shapes and text.
 //!
-//! The artwork moves as retail's shaders move it ([`motion`]): the logo
-//! video plays in the ring, the ring turns, the side glyphs climb over their
-//! backdrop, a reflection drifts through the logo, the glows flicker (the
-//! renderer recomposes those), and the focused entry's text pulses. Labels
-//! and buttons are in retail's capitals ([`Caps`]).
+//! The artwork moves as retail's shaders move it ([`motion`]): the ring
+//! turns, the side glyphs climb over their backdrop, a reflection drifts
+//! through the logo, the glows flicker (the renderer recomposes those), and
+//! the focused entry's text pulses. The emblem's core glows and its blade
+//! lights shimmer. Labels and buttons are in retail's capitals ([`Caps`]).
 
 use super::ClassicMain;
 use super::layout::{CANVAS, HINT_Y, LOGO, Page, Placement, Slot};
 use crate::menu::art::{ArtPiece, ArtSet, motion};
+use crate::menu::emblem;
 use crate::menu_widgets::MenuCanvas;
 use sjk_ui::{Color, DrawCommand, FontWeight, Gradient, Rect, TextAlign};
 
@@ -36,10 +39,10 @@ pub(crate) const HINT: Color = Color::new(1.0, 0.682, 0.0, 0.8);
 const INK: [f32; 3] = [0.004, 0.008, 0.020];
 const WHITE: Color = Color::new(1.0, 1.0, 1.0, 1.0);
 
-/// Retail `main.menu` artwork in draw order, with its canvas rectangles:
-/// `background_video` first, under everything.
-const MAIN_ART: [(ArtPiece, [f32; 4]); 8] = [
-    (ArtPiece::Video, [200.0, 144.0, 256.0, 256.0]),
+/// Retail `main.menu` artwork in draw order, with its canvas rectangles.
+/// Retail's `background_video` (the `ja01` logo) came first, under
+/// everything; SJK draws its emblem after these instead.
+const MAIN_ART: [(ArtPiece, [f32; 4]); 7] = [
     (ArtPiece::SideLeft, [0.0, 0.0, 160.0, 480.0]),
     (ArtPiece::SideRight, [480.0, 0.0, 160.0, 480.0]),
     (ArtPiece::Background, [0.0, 0.0, 640.0, 480.0]),
@@ -236,6 +239,9 @@ pub(crate) fn page_backdrop(
     } else {
         backdrop(canvas, viewport, place);
     }
+    if page == Page::Main {
+        emblem::draw(canvas, place.rect(emblem::CLASSIC_RING), motion::seconds());
+    }
     logo(canvas, place, art_set);
 }
 
@@ -316,7 +322,8 @@ fn backdrop_art(
     {
         let draw = canvas.draw_list_mut();
         // Opaque, as retail's: the world is not drawn behind the classic
-        // pages (retail played its logo video in the centre gap instead).
+        // pages (retail played its logo video in the centre gap, SJK shows
+        // its emblem there).
         let _ = draw.push(DrawCommand::SolidRect {
             rect: Rect::new(0.0, 0.0, width, height),
             color: ink(1.0),

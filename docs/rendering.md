@@ -1261,9 +1261,12 @@ layer and the in-world ground HUD stay in linear light.
   at `r_gamma 1`.
 - The float `r_hdr` target never receives 2D draws: HDR is encoded by the
   resolve before the 2D pass.
-- Pictures sampled by the 2D layer (icon atlas, wordmark, classic menu art and
-  video, levelshots, menu-file HUD art, scope art) are `Rgba8Unorm`, so their
-  texels are not decoded. Font atlases contribute only alpha, which no format
+- Pictures sampled by the 2D layer (icon atlas, wordmark, classic menu art,
+  SJK's menu emblem, levelshots, menu-file HUD art, scope art) are `Rgba8Unorm`,
+  so their texels are not decoded.
+- SJK's menu emblem adds its two glow layers as light (`src * alpha + dst`) in
+  display values, through a second, additively blended pipeline of the shape
+  renderer; everything else in the 2D layer is alpha blended. Font atlases contribute only alpha, which no format
   decodes, so the Inter atlas stays shared with the ground HUD.
 
 Colours chosen by eye for the earlier linear model were re-authored so neutral
