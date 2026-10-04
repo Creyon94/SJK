@@ -752,6 +752,14 @@ remain open.
   fails with X3511.
 - The 500+ FPS / roughly 2 ms frame target is not certified. Measure representative
   release workloads, including populated matches and chosen graphics settings.
+- SJK material-map work (2026-10-04, Windows 11, change based on `024c22a`): the
+  lamp/bounce direction target, reflection probes, material-mapped floor mirrors,
+  `r_normalMapStrength` and materialgen generation 2 pass the workspace build and
+  tests, and naga validates every new or changed program; a dry run of the generator
+  on `mp/ffa3`/`mp/duel1` picked 19 metal textures and one polished texture. None
+  of it has run on a GPU: appearance, wgpu validation at run time, capture load time
+  and frame cost in a match are unverified (estimates are in
+  [rendering](rendering.md#reflection-probes)).
 - The repository does not bundle a regression suite. Required reference evidence
   must be supplied externally until an in-repository verification approach is agreed.
 
