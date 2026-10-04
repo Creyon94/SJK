@@ -1,7 +1,7 @@
 //! Fixed-size texture atlas used by generic retained UI textured quads:
 //! a grid of [`ICON_SIZE`] cells for icons, plus one wide banner strip along
-//! the bottom for the menu wordmark and, beside it, one map-preview slot
-//! (the Create game screen's levelshot).
+//! the bottom for the menu wordmark. Map previews have their own texture
+//! ([`super::levelshot`]).
 
 use super::ShapeVertex;
 use jkr_ui::{Color, Rect, TextureId};
@@ -31,11 +31,6 @@ const TOTAL_CELLS: u32 = ATLAS_CELLS;
 const ATLAS_HEIGHT: u32 = TOTAL_CELLS.div_ceil(COLUMNS) * ICON_SIZE + BANNER_SIZE[1];
 /// `TexturedQuad` texture naming the banner strip.
 pub(crate) const BANNER_TEXTURE: TextureId = TextureId(u32::MAX);
-/// Pixel size of the map-preview slot right of the banner (4:3, as the
-/// stock UI shows levelshots).
-pub(crate) const LEVELSHOT_SIZE: [u32; 2] = [ATLAS_SIZE - BANNER_SIZE[0], BANNER_SIZE[1]];
-/// `TexturedQuad` texture naming the map-preview slot.
-pub(crate) const LEVELSHOT_TEXTURE: TextureId = TextureId(u32::MAX - 1);
 
 pub(super) struct IconAtlas {
     texture: wgpu::Texture,
@@ -129,12 +124,6 @@ impl IconAtlas {
         self.upload_region(queue, [0, BANNER_Y], BANNER_SIZE, rgba);
     }
 
-    /// Upload the [`LEVELSHOT_SIZE`] RGBA map preview drawn by
-    /// [`LEVELSHOT_TEXTURE`].
-    pub(super) fn upload_levelshot(&self, queue: &crate::frame_queue::FrameQueue, rgba: &[u8]) {
-        self.upload_region(queue, [BANNER_SIZE[0], BANNER_Y], LEVELSHOT_SIZE, rgba);
-    }
-
     fn upload_region(
         &self,
         queue: &crate::frame_queue::FrameQueue,
@@ -172,8 +161,11 @@ impl IconAtlas {
     }
 }
 
-/// Atlas UV corners of `texture`.
+/// Atlas UV corners of `texture`; the map preview spans its own texture.
 pub(super) fn uv_range(texture: TextureId) -> ([f32; 2], [f32; 2]) {
+    if texture == super::LEVELSHOT_TEXTURE {
+        return ([0.0, 0.0], [1.0, 1.0]);
+    }
     let atlas = ATLAS_SIZE as f32;
     if texture == BANNER_TEXTURE {
         let [width, height] = BANNER_SIZE;
@@ -184,16 +176,6 @@ pub(super) fn uv_range(texture: TextureId) -> ([f32; 2], [f32; 2]) {
                 width as f32 / atlas,
                 uv0[1] + height as f32 / ATLAS_HEIGHT as f32,
             ],
-        );
-    }
-    if texture == LEVELSHOT_TEXTURE {
-        // Half a texel in, so filtering never picks up the banner beside it.
-        let [width, height] = LEVELSHOT_SIZE;
-        let uv = |x: f32, y: f32| [x / atlas, y / ATLAS_HEIGHT as f32];
-        let (x, y) = (BANNER_SIZE[0] as f32 + 0.5, BANNER_Y as f32 + 0.5);
-        return (
-            uv(x, y),
-            uv(x + width as f32 - 1.0, y + height as f32 - 1.0),
         );
     }
     let index = texture.0.min(TOTAL_CELLS - 1);

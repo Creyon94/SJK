@@ -325,17 +325,24 @@ impl CreateGameMenu {
     }
 
     /// Ask for the shown map's preview and hand a freshly decoded one to
-    /// `upload` (the UI atlas' preview slot); once per frame.
-    pub(crate) fn service_levelshots(&mut self, upload: impl FnMut(&[u8])) {
+    /// `upload` (the UI renderer's levelshot texture); once per frame.
+    pub(crate) fn service_levelshots(
+        &mut self,
+        upload: impl FnMut(&super::levelshot::LevelshotImage),
+    ) {
         self.levelshots
             .want(shown_map(&self.picker, &self.catalogue, &self.draft));
         self.levelshots.service(upload);
     }
 
     /// Ask for `map`'s levelshot for another screen (the classic loading
-    /// screen) through the same cache, which owns the atlas' one preview
-    /// slot, and hand a freshly decoded one to `upload`.
-    pub(crate) fn service_levelshot_for(&mut self, map: &str, upload: impl FnMut(&[u8])) {
+    /// screen) through the same cache, which owns the renderer's one preview
+    /// texture, and hand a freshly decoded one to `upload`.
+    pub(crate) fn service_levelshot_for(
+        &mut self,
+        map: &str,
+        upload: impl FnMut(&super::levelshot::LevelshotImage),
+    ) {
         self.levelshots.want(map);
         self.levelshots.service(upload);
     }

@@ -322,6 +322,8 @@ pub(super) enum Source {
     Atlas,
     /// One classic menu art piece.
     Art(ArtPiece),
+    /// The map preview's own texture.
+    Levelshot,
 }
 
 /// A run of consecutive vertices drawn with one bind group.

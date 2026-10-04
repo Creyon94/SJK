@@ -6,12 +6,15 @@ use jkr_ui::{Color, DrawCommand, DrawList, FontWeight, Rect, TextAlign, TextId};
 
 mod art;
 mod icons;
+mod levelshot;
 use art::{ArtTextures, Run, Source};
 use icons::IconAtlas;
 pub(crate) use icons::{
     ATLAS_CELLS, BANNER_SIZE, BANNER_TEXTURE, FORCE_ICON_CELLS, FORCE_ICON_FIRST, ICON_CELLS,
-    ICON_SIZE, LEVELSHOT_SIZE, LEVELSHOT_TEXTURE, SCOREBOARD_ICON_CELLS,
+    ICON_SIZE, SCOREBOARD_ICON_CELLS,
 };
+pub(crate) use levelshot::LEVELSHOT_TEXTURE;
+use levelshot::LevelshotTexture;
 
 /// Main-menu wordmark: the Jedi Knight saber emblem laid horizontal, white
 /// on transparent, tinted by the player's accent at draw time.
@@ -63,6 +66,8 @@ pub(crate) struct ShapeRenderer {
     texture_layout: wgpu::BindGroupLayout,
     /// The player's retail menu artwork, one texture per piece.
     art: ArtTextures,
+    /// The current map preview at its own resolution.
+    levelshot: LevelshotTexture,
 }
 
 impl ShapeRenderer {
@@ -132,6 +137,7 @@ impl ShapeRenderer {
             mapped_at_creation: false,
         });
         let icons = IconAtlas::new(device, &texture_layout);
+        let levelshot = LevelshotTexture::new(device, &texture_layout);
         match image::load_from_memory(MENU_WORDMARK) {
             Ok(wordmark) => icons.upload_banner(queue, &wordmark.into_rgba8()),
             Err(error) => eprintln!("menu wordmark: {error}"),
@@ -144,6 +150,7 @@ impl ShapeRenderer {
             runs: Vec::with_capacity(art::MAX_RUNS),
             texture_layout,
             art: ArtTextures::new(),
+            levelshot,
         };
         // Artwork decoded for an earlier world is uploaded with this one, on
         // the install worker rather than the frame thread.
@@ -288,7 +295,7 @@ impl ShapeRenderer {
                         continue;
                     };
                     let uv = match source {
-                        Source::Art(_) => ([0.0, 0.0], [1.0, 1.0]),
+                        Source::Art(_) | Source::Levelshot => ([0.0, 0.0], [1.0, 1.0]),
                         Source::Atlas => icons::uv_range(texture),
                     };
                     icons::push_quad(
@@ -314,7 +321,7 @@ impl ShapeRenderer {
                     // the quad is not clipped, as clipping would need its
                     // coordinates cut to match.
                     let uv = match source {
-                        Source::Art(_) => uv,
+                        Source::Art(_) | Source::Levelshot => uv,
                         Source::Atlas => {
                             let (low, high) = icons::uv_range(texture);
                             uv.map(|[s, t]| {
@@ -361,6 +368,7 @@ impl ShapeRenderer {
                 Source::Art(piece)
             }
             Some(_) => return None,
+            None if texture == LEVELSHOT_TEXTURE => Source::Levelshot,
             None => Source::Atlas,
         };
         art::switch(&mut self.runs, self.vertices.len(), source).then_some(source)
@@ -381,6 +389,7 @@ impl ShapeRenderer {
             }
             let group = match run.source {
                 Source::Art(piece) => self.art.group(piece),
+                Source::Levelshot => Some(self.levelshot.bind_group()),
                 Source::Atlas => None,
             };
             pass.set_bind_group(0, group.unwrap_or(self.icons.bind_group()), &[]);
@@ -477,10 +486,16 @@ impl ShapeRenderer {
         self.icons.upload(queue, texture, rgba);
     }
 
-    /// Upload the one [`LEVELSHOT_SIZE`] RGBA map preview sampled by
-    /// `TexturedQuad` commands naming [`LEVELSHOT_TEXTURE`].
-    pub(crate) fn upload_levelshot(&self, queue: &crate::frame_queue::FrameQueue, rgba: &[u8]) {
-        self.icons.upload_levelshot(queue, rgba);
+    /// Replace the map preview sampled by `TexturedQuad` commands naming
+    /// [`LEVELSHOT_TEXTURE`] with `image`, at its own resolution.
+    pub(crate) fn upload_levelshot(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &crate::frame_queue::FrameQueue,
+        image: &crate::menu::levelshot::LevelshotImage,
+    ) {
+        self.levelshot
+            .upload(device, queue, &self.texture_layout, image);
     }
 }
 

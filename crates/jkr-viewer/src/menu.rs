@@ -17,7 +17,7 @@ mod create_game_pointer;
 mod create_game_view;
 mod destination;
 mod hosting;
-mod levelshot;
+pub(crate) mod levelshot;
 pub(crate) mod main_view;
 mod map_picker;
 mod map_picker_view;
@@ -84,11 +84,12 @@ pub(crate) fn attach_world(
     }
 }
 
-/// Feed decoded menu images to the UI atlas while their screen is up: the
+/// Feed decoded menu images to the UI renderer while their screen is up: the
 /// player screen's model icons, Create game's map preview.
 pub(crate) fn upload_menu_images(
     menu: &mut Option<ClientMenu>,
-    renderer: &crate::ui_renderer::ShapeRenderer,
+    renderer: &mut crate::ui_renderer::ShapeRenderer,
+    device: &wgpu::Device,
     queue: &crate::frame_queue::FrameQueue,
 ) {
     let Some(menu) = menu else { return };
@@ -96,13 +97,14 @@ pub(crate) fn upload_menu_images(
         ClientPhase::Player => menu.player.upload_icons(renderer, queue),
         ClientPhase::CreateGame => {
             menu.create_game
-                .service_levelshots(|rgba| renderer.upload_levelshot(queue, rgba));
+                .service_levelshots(|image| renderer.upload_levelshot(device, queue, image));
         }
         ClientPhase::Connecting(_) | ClientPhase::ConnectionError if menu.is_classic() => {
             let map = menu.loading.map().to_owned();
             if !map.is_empty() {
-                menu.create_game
-                    .service_levelshot_for(&map, |rgba| renderer.upload_levelshot(queue, rgba));
+                menu.create_game.service_levelshot_for(&map, |image| {
+                    renderer.upload_levelshot(device, queue, image);
+                });
             }
         }
         _ => {}
