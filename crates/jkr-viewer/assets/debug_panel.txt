@@ -336,6 +336,7 @@ pr: 98
 status: open
 area: Gameplay
 title: Joining resends lost packets and never hangs as a floating camera
+change: A lost gamestate is resent (the floating-camera stall on Siege servers).
 change: getchallenge/connect are resent like stock; a missing gamestate fails after ~15 s.
 change: The log shows each join step (join: Challenge, Connected, Gamestate, FirstSnapshot).
 test: Join several public servers a few times each: no "timed out waiting for challenge".
