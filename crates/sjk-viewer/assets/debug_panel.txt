@@ -1104,6 +1104,16 @@ test: Classic main menu: click CHANGELOG; pick 2026.1005.1; scroll with the whee
 test: Modern menus (ui_menuStyle modern): Changelog sits above Quit and opens the same page.
 test: In a match, type changelog in the console; Escape closes the page and the console.
 test: At 4K with 150% scaling the text wraps inside the pane and nothing overlaps.
+[center-print-names]
+status: personal
+area: Console & chat
+title: Duel challenges from names with symbols: no crash, symbol shown (SJK PR #2, Creyon)
+change: Centre prints wrap at 50 characters, not UTF-8 bytes; a name with x-sign crashed it.
+change: print and cp text is decoded as legacy bytes, as chat is, so the symbol is not ?.
+test: On a server with a player named with a symbol (Alt+0215), challenge them to a duel.
+test: No crash; the centre print and console show the symbol, not ?.
+test: Have them challenge you: same result.
+
 [flipkick]
 status: personal
 area: Input

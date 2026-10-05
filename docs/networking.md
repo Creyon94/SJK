@@ -53,7 +53,8 @@ packet's userinfo, every reliable command (chat, `userinfo` updates, forwarded
 console commands) and `rcon` lines, so retail and EternalJK players read `ø` as
 `ø`, not `Ã¸`. Text with any other character (Cyrillic, CJK, emoji) is still sent
 as UTF-8, which only SJK clients decode; EternalJK's Windows-1251 and
-Windows-1250 mappings are not reproduced. Incoming text is decoded by
+Windows-1250 mappings are not reproduced. Incoming text, including the
+names servers embed in `print` and `cp` commands, is decoded by
 [decode_legacy](../crates/sjk-client/src/legacy_text.rs): valid UTF-8 as UTF-8,
 anything else as Latin-1. A byte in 0x80..=0x9F therefore stays the C1 character
 of that value, draws the font glyph of that byte and is sent back as the same

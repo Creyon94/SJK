@@ -833,7 +833,10 @@ server's closing newline would leave. Global, team and private chat retain their
 conversation overlay, and are also kept in the console scrollback but not among
 its notify lines, as stock cgame echoes chat with the `*` print prefix that
 `CL_ConsolePrint` keeps out of the notify area. Center-print
-gameplay notices keep their separate HUD presentation. The scoreboard continues
+gameplay notices keep their separate HUD presentation. As `CG_DrawCenterString`
+does, a centre-print row longer than 50 characters wraps at its last space; retail
+counts bytes of its one-byte code page, so the limit counts characters, and a name
+with `×` or `é` (two bytes in UTF-8) in a duel challenge wraps like any other. The scoreboard continues
 to use structured server scores rather than parsing printed statistics tables.
 
 Chat remains connected to the real server during intermission, including
