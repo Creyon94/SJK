@@ -791,6 +791,19 @@ test: Same in game (Escape > Profile > Custom): lit like you are; nothing appear
 test: Lightsaber creation: your model holds the lit sabers; change hilt, colour, Dual, Staff.
 note: The preview is new GPU code: if it shows wrong colours, black or nothing, say what you see.
 
+[model-grid]
+status: personal
+area: Menus & settings
+title: Model grid: every head icon shows (no black tiles), search box
+change: Icons load as tiles are drawn (207 atlas cells as a cache): all 900+ models get icons.
+change: Profile: Search right of Team Color filters the heads; modern Player screen: Search row.
+change: Fix: clicking a head past the 200th could pick a part, tint or hilt instead.
+test: Profile: scroll the whole head grid: no black tiles (a moment to load each screenful).
+test: Click Search, type "kyle": only Kyle skins, count at the right; "desann dark" narrows more.
+test: Escape clears the search; Enter keeps it; hover a head: its name in the bottom line.
+test: Scroll far down, click a head: that model is chosen (nothing else changes).
+test: ui_menuStyle modern > Player: Search row under Team colour filters the grid the same way.
+
 [jof-cosmetics]
 status: personal
 area: Menus & settings

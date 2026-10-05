@@ -25,6 +25,8 @@ impl PlayerMenu {
         self.cosmetics.open(console, self.icon_vfs.as_ref());
         self.numeric = None;
         self.name_editing = false;
+        self.search_editing = false;
+        self.search.clear();
         self.page = ProfilePage::Character;
         self.selected = 0;
         self.resolved_catalogue = false;
@@ -298,7 +300,7 @@ impl PlayerMenu {
                     return;
                 }
                 match row {
-                    CharacterRow::Name => return,
+                    CharacterRow::Name | CharacterRow::Search => return,
                     CharacterRow::Team => self.cycle_team(direction),
                     CharacterRow::Model => self.cycle_model(direction),
                     _ => self.cycle_variant(row.axis().unwrap_or(0), direction),
@@ -341,11 +343,15 @@ impl PlayerMenu {
         if self.begin_numeric(self.selected) {
             return;
         }
+        let search_row = self.page == ProfilePage::Character
+            && self.character_rows().get(self.selected) == Some(&CharacterRow::Search);
         match (self.page, self.selected) {
             (ProfilePage::Character, 0) => {
                 self.name_before_edit.clone_from(&self.draft.name);
+                self.search_editing = false;
                 self.name_editing = true;
             }
+            _ if search_row => self.begin_search(),
             (ProfilePage::Force, FORCE_SIDE_ROW) => {
                 let direction = match self.force.allocation().side {
                     ForceSide::Light => 1,
@@ -365,6 +371,7 @@ impl PlayerMenu {
         self.page = page;
         self.selected = 0;
         self.name_editing = false;
+        self.search_editing = false;
     }
 
     pub(crate) fn handle_key(
@@ -386,6 +393,10 @@ impl PlayerMenu {
         }
         if self.name_editing {
             return self.edit_name(event, key, console);
+        }
+        if self.search_editing {
+            self.edit_search(event, key);
+            return PlayerMenuResult::None;
         }
         if event.repeat {
             return PlayerMenuResult::None;

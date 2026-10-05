@@ -12,8 +12,7 @@ use super::{BLADE_SWATCHES, ClassicPage, Frame};
 use crate::menu::art::ArtPiece;
 use crate::menu::classic::layout::{CANVAS, HINT_Y, LOGO, Placement};
 use crate::menu::classic::view::{FOCUS, GOLD, art, glow, ink};
-use crate::player_menu::grid::{GRID_SCROLL_TOKEN, TILE_BASE};
-use crate::player_menu::icons::IconLoader;
+use crate::player_menu::grid::{GRID_SCROLL_TOKEN, MAX_VISIBLE_TILES, TILE_BASE};
 use crate::player_menu::part_icons::Part;
 use crate::player_menu::saber::{SaberStyle, allowed};
 use crate::player_menu::team_filter::TeamSkin;
@@ -565,14 +564,14 @@ impl PlayerMenu {
                 texture: crate::ui_renderer::PREVIEW_TEXTURE,
                 color: FOCUS,
             });
-        } else if self.icons.is_ready(absolute) {
+        } else if let Some(texture) = self.icons.icon(absolute) {
             // The portrait is square: centred in a taller or wider spot.
             let [x, y, w, h] = canvas;
             let side = w.min(h);
             let square = [x + (w - side) * 0.5, y + (h - side) * 0.5, side, side];
             let _ = self.canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
                 rect: place.rect(square),
-                texture: IconLoader::texture_of(absolute),
+                texture,
                 color: FOCUS,
             });
         }
@@ -826,7 +825,7 @@ impl PlayerMenu {
     /// Whether the pointer is over one of `item`'s cells.
     fn sub_hovered(&self, item: Item) -> bool {
         let range = match item {
-            Item::Models => TILE_BASE..TILE_BASE + 200,
+            Item::Models => TILE_BASE..TILE_BASE + MAX_VISIBLE_TILES,
             Item::Parts => PART_BASE..PART_BASE + 60,
             Item::Tints => TINT_BASE..TINT_BASE + 40,
             Item::Hilts => HILT_BASE[0]..HILT_BASE[0] + 100,
@@ -979,6 +978,7 @@ impl PlayerMenu {
                     TextAlign::Start,
                 );
             }
+            Item::Search => self.search_field(place, canvas, active),
             Item::Models => self.head_grid(place, frame, canvas, active),
             Item::Custom | Item::SaberButton | Item::ForceButton => {
                 let piece = match item {
@@ -1081,6 +1081,61 @@ impl PlayerMenu {
         let _ = page;
     }
 
+    /// SJK's search over the head grid: a list box holding the typed words
+    /// (a prompt while empty), underlined while typed, and how many models
+    /// match at its right end.
+    fn search_field(&mut self, place: &Placement, canvas: [f32; 4], active: bool) {
+        let s = place.scale;
+        let editing = self.search_editing;
+        let lit = active || editing;
+        self.fill(place, canvas, LIST_BACK);
+        self.border(place, canvas, if lit { FOCUS } else { LIST_BORDER }, 1.0);
+        let [x, y, w, h] = canvas;
+        let size = (h - 4.0).clamp(9.0, 12.0);
+        let count_width = 28.0;
+        let search = std::mem::take(&mut self.search);
+        if search.is_empty() && !editing {
+            let prompt = Color::new(VALUE.r, VALUE.g, VALUE.b, 0.6);
+            self.label(
+                place,
+                [x + 4.0, y, w - 8.0, h],
+                "Search models",
+                size,
+                prompt,
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+        } else {
+            let caret = if editing { "_" } else { "" };
+            self.label_fmt(
+                place,
+                [x + 4.0, y, w - count_width - 8.0, h],
+                format_args!("{search}{caret}"),
+                size,
+                if lit { FOCUS } else { VALUE },
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+        }
+        if !search.is_empty() {
+            let found = self.tiles.len();
+            self.label_fmt(
+                place,
+                [x + w - count_width - 4.0, y, count_width, h],
+                format_args!("{found}"),
+                size,
+                LABEL,
+                FontWeight::Regular,
+                TextAlign::End,
+            );
+        }
+        self.search = search;
+        if editing {
+            let accent = self.canvas.theme().accent;
+            self.canvas.edit_underline(place.rect(canvas), accent, s);
+        }
+    }
+
     /// The head grid: model portraits in 64-unit cells, scrolled by rows.
     fn head_grid(&mut self, place: &Placement, frame: Frame, canvas: [f32; 4], active: bool) {
         let s = place.scale;
@@ -1109,8 +1164,11 @@ impl PlayerMenu {
         self.grid_scroll = self.grid_scroll.min(self.grid_max_scroll);
         self.canvas
             .scroll_region(GRID_SCROLL_TOKEN, place.rect(canvas));
+        self.hovered_entry = None;
         let first = self.grid_scroll * GRID_COLUMNS;
-        let last = (first + rows * GRID_COLUMNS).min(tiles);
+        let last = (first + rows * GRID_COLUMNS)
+            .min(tiles)
+            .min(first + usize::from(MAX_VISIBLE_TILES));
         for slot in first..last {
             let local = slot - first;
             let cell = [
@@ -1120,20 +1178,35 @@ impl PlayerMenu {
                 GRID_CELL - 2.0,
             ];
             let rect = place.rect(cell);
-            let token = TILE_BASE + slot as u16;
+            let token = TILE_BASE + local as u16;
             let hovered = self.canvas.token_hovered(token);
             let absolute = self.tiles[slot];
-            if self.icons.is_ready(absolute) {
-                let shade = if current == Some(slot) || hovered {
-                    1.0
-                } else {
-                    0.8
-                };
-                let _ = self.canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
-                    rect,
-                    texture: IconLoader::texture_of(absolute),
-                    color: Color::new(shade, shade, shade, 1.0),
-                });
+            if hovered {
+                self.hovered_entry = Some(absolute);
+            }
+            match self.icons.icon(absolute) {
+                Some(texture) => {
+                    let shade = if current == Some(slot) || hovered {
+                        1.0
+                    } else {
+                        0.8
+                    };
+                    let _ = self.canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
+                        rect,
+                        texture,
+                        color: Color::new(shade, shade, shade, 1.0),
+                    });
+                }
+                // An icon that cannot be decoded: the model's name instead.
+                None if self.icons.failed(absolute) => {
+                    let color = if current == Some(slot) || hovered {
+                        FOCUS
+                    } else {
+                        VALUE
+                    };
+                    self.tile_name(absolute, rect, 9.0 * s, color, 0.3 * s);
+                }
+                None => {}
             }
             if current == Some(slot) {
                 self.border(place, cell, GOLD, 2.0);
@@ -1450,12 +1523,23 @@ impl PlayerMenu {
                 [x + w * 0.5, bottom]
             }
         };
-        let text = match self.status() {
+        let status = self.status();
+        // SJK: a head under the pointer names its model.
+        let hovered = self
+            .hovered_entry
+            .filter(|_| item == Some(Item::Models))
+            .and_then(|entry| {
+                catalog_of(&self.loader)
+                    .and_then(|catalog| crate::player_menu::grid::entry_name(catalog, entry))
+            });
+        let text = match status {
             sjk_client::LegacyCatalogStatus::Idle | sjk_client::LegacyCatalogStatus::Loading => {
                 "Reading the character catalogue..."
             }
             sjk_client::LegacyCatalogStatus::Failed => "The character catalogue is unavailable.",
-            sjk_client::LegacyCatalogStatus::Ready => item.map_or("", Item::hint),
+            sjk_client::LegacyCatalogStatus::Ready => {
+                hovered.unwrap_or_else(|| item.map_or("", Item::hint))
+            }
         };
         self.canvas.text_aligned(
             text,

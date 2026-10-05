@@ -12,7 +12,7 @@ use super::view::{
 };
 use super::{BLADE_SWATCHES, Item};
 use crate::console::ViewerConsole;
-use crate::player_menu::grid::{GRID_SCROLL_TOKEN, TILE_BASE};
+use crate::player_menu::grid::{GRID_SCROLL_TOKEN, MAX_VISIBLE_TILES, TILE_BASE};
 use crate::player_menu::saber::{SaberStyle, allowed};
 use crate::player_menu::{PlayerMenu, PlayerMenuResult, catalog_of};
 use sjk_client::CosmeticSlot;
@@ -72,7 +72,7 @@ fn target(token: u16) -> Option<Target> {
         token if token >= PART_BASE && token < PART_BASE + 60 => {
             Target::Part(usize::from(token - PART_BASE))
         }
-        token if token >= TILE_BASE && token < TILE_BASE + 200 => {
+        token if token >= TILE_BASE && token < TILE_BASE + MAX_VISIBLE_TILES => {
             Target::Tile(usize::from(token - TILE_BASE))
         }
         token if token < 64 => Target::Entry(usize::from(token)),
@@ -122,7 +122,7 @@ impl PlayerMenu {
             Target::Scroll(_) => None,
         };
         if matches!(event.kind, UiEventKind::HoverEnter | UiEventKind::Hover) {
-            let typing = self.name_editing || self.force_templates.editing;
+            let typing = self.name_editing || self.force_templates.editing || self.search_editing;
             if let Some(index) = owner.filter(|_| !typing) {
                 self.classic.focus = index;
             }
@@ -157,14 +157,17 @@ impl PlayerMenu {
             self.name_editing = false;
             self.apply(console);
         }
-        // A click elsewhere ends typing a template name, keeping it.
+        // A click elsewhere ends typing a template name or the search,
+        // keeping it.
         self.force_templates.editing = false;
+        self.search_editing = false;
         if let Some(index) = owner {
             self.classic.focus = index;
         }
         match target {
             Target::Entry(_) => self.classic_activate(console),
-            Target::Tile(slot) => {
+            Target::Tile(local) => {
+                let slot = self.visible_slot(local);
                 self.pick_tile(console, slot);
                 PlayerMenuResult::None
             }

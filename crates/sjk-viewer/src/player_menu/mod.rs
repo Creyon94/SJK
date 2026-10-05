@@ -14,6 +14,7 @@ mod force_templates;
 mod force_view;
 mod grid;
 mod icons;
+mod model_icons;
 mod numeric;
 mod part_icons;
 mod pointer;
@@ -111,7 +112,8 @@ pub(crate) struct PlayerMenu {
     loader: Option<LegacyAssetCatalogLoader>,
     /// Where the model icons come from once the catalogue is known.
     icon_vfs: Option<Arc<VirtualFileSystem>>,
-    icons: icons::IconLoader,
+    /// The character grid's icons, loaded as tiles are drawn.
+    icons: model_icons::ModelIcons,
     /// The Force page's power icons and side emblems.
     force_icons: icons::IconLoader,
     /// Character creation's part icons and tint base, for the species edited.
@@ -119,8 +121,15 @@ pub(crate) struct PlayerMenu {
     /// Skin set the grid lists (retail's Team Color chooser).
     team: TeamSkin,
     /// Catalogue indices (characters first, then species) the grid shows,
-    /// rebuilt when the team or the catalogue changes.
+    /// rebuilt when the team, the search or the catalogue changes.
     tiles: Vec<usize>,
+    /// Words a listed model's name must contain (SJK's model search).
+    search: String,
+    /// The search is being typed.
+    search_editing: bool,
+    /// Catalogue entry of the grid tile under the pointer, for the classic
+    /// description line.
+    hovered_entry: Option<usize>,
     /// First visible tile row of the model grid.
     grid_scroll: usize,
     /// Largest `grid_scroll` the last frame's layout allowed.
@@ -163,11 +172,14 @@ impl PlayerMenu {
             canvas: MenuCanvas::new(),
             loader: None,
             icon_vfs: None,
-            icons: icons::IconLoader::new(),
+            icons: model_icons::ModelIcons::new(),
             force_icons: icons::IconLoader::new(),
             part_icons: part_icons::PartIcons::new(),
             team: TeamSkin::default(),
             tiles: Vec::with_capacity(icons::MAX_ICONS),
+            search: String::with_capacity(32),
+            search_editing: false,
+            hovered_entry: None,
             grid_scroll: 0,
             grid_max_scroll: 0,
             grid_follow: true,
@@ -232,19 +244,20 @@ impl PlayerMenu {
         self.selected
     }
 
-    /// Move a few decoded model and Force icons into the UI atlas.
+    /// Move a few decoded model and Force icons into the UI atlas, and ask
+    /// for the model icons this frame's tiles lacked.
     pub(crate) fn upload_icons(
         &mut self,
         renderer: &crate::ui_renderer::ShapeRenderer,
         queue: &crate::frame_queue::FrameQueue,
     ) {
-        self.icons.upload_batch(renderer, queue, 32);
+        self.icons.end_frame(renderer, queue, 32);
         self.force_icons.upload_batch(renderer, queue, 32);
         self.part_icons.upload(renderer, queue);
     }
 
-    /// Start decoding the Force icons once the VFS is known, and the model
-    /// icons once the catalogue is too.
+    /// Start decoding the Force icons once the VFS is known, and serve the
+    /// model icons once the catalogue is too.
     fn request_icons_if_ready(&mut self) {
         if let Some(vfs) = self
             .icon_vfs
@@ -254,12 +267,12 @@ impl PlayerMenu {
             self.force_icons
                 .request_paths(Arc::clone(vfs), force_icons::requests());
         }
-        if !self.icons.is_idle() {
-            return;
-        }
-        let catalog = catalog_of(&self.loader);
+        let catalog = self
+            .loader
+            .as_ref()
+            .and_then(LegacyAssetCatalogLoader::catalog);
         if let (Some(vfs), Some(catalog)) = (&self.icon_vfs, catalog) {
-            self.icons.request(Arc::clone(vfs), catalog);
+            self.icons.attach(vfs, catalog);
         }
     }
 

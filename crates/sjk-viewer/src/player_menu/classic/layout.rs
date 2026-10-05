@@ -24,6 +24,8 @@ pub(crate) enum Item {
     NavSetup,
     Name,
     Team,
+    /// SJK: the head grid's search field.
+    Search,
     /// The head grid (`FEEDER_Q3HEADS`).
     Models,
     /// The Custom button leading to character creation.
@@ -117,6 +119,7 @@ impl Item {
             Self::NavSetup => "SETUP",
             Self::Name => "Name:",
             Self::Team => "Team Color:",
+            Self::Search => "Search:",
             Self::PartHead => "HEAD",
             Self::PartTorso => "TORSO",
             Self::PartLegs => "LEGS",
@@ -164,6 +167,7 @@ impl Item {
             Self::NavSetup => "Configure game settings.",
             Self::Name => "Enter your name here.",
             Self::Team => "Choose the color for your model's skin.",
+            Self::Search => "Type part of a model's name to list only the models matching it.",
             Self::Models => "Choose the model for your character.",
             Self::Custom => "Create your own character.",
             Self::SaberButton => "Configure your lightsaber.",
@@ -236,13 +240,14 @@ pub(crate) const SABER_POWERS: [u8; 3] = [15, 16, 17];
 pub(crate) const LIGHT_POWERS: [u8; 5] = [10, 0, 9, 5, 11];
 pub(crate) const DARK_POWERS: [u8; 5] = [6, 13, 7, 8, 12];
 
-const PLAYER_FULL: [Item; 12] = [
+const PLAYER_FULL: [Item; 13] = [
     Item::NavPlay,
     Item::NavProfile,
     Item::NavControls,
     Item::NavSetup,
     Item::Name,
     Item::Team,
+    Item::Search,
     Item::Models,
     Item::Custom,
     Item::ForceButton,
@@ -250,9 +255,10 @@ const PLAYER_FULL: [Item; 12] = [
     Item::Exit,
     Item::Apply,
 ];
-const PLAYER_IN_GAME: [Item; 8] = [
+const PLAYER_IN_GAME: [Item; 9] = [
     Item::Name,
     Item::Team,
+    Item::Search,
     Item::Models,
     Item::Custom,
     Item::CosmeticsButton,
@@ -574,6 +580,9 @@ pub(crate) fn rect(item: Item, page: ClassicPage, frame: Frame, dual: bool) -> [
         (InGame, Player, Item::Name) => [20.0, 31.0, 300.0, 22.0],
         (Full, Player, Item::Team) => [50.0, 205.0, 160.0, 19.0],
         (InGame, Player, Item::Team) => [50.0, 77.0, 160.0, 13.0],
+        // SJK: the search field right of Team Color, over the grid's right half.
+        (Full, Player, Item::Search) => [250.0, 205.0, 184.0, 18.0],
+        (InGame, Player, Item::Search) => [250.0, 78.0, 174.0, 12.0],
         (Full, Player, Item::Models) => [30.0, 224.0, 404.0, 194.0],
         (InGame, Player, Item::Models) => [20.0, 90.0, 404.0, 194.0],
         // SJK: Custom and Force side by side over the Cosmetics button.

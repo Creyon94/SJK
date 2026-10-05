@@ -79,6 +79,7 @@ Changes that stay in SJK, by Sol:
 - the classic console after EternalJK (`con_style classic`) as the default;
 - eye adaptation (`r_autoExposure`), an exposure that follows the view within a
   small range;
+- the model grids' icons for catalogues of any size, and the model search;
 - the classic profile's Force page and Force summary, and hats and capes after
   JoF EJK's (the Cosmetics window, the `cosmetics` command and the pieces drawn
   on players);

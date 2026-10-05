@@ -3,19 +3,22 @@
 //! `team_filter`) under the Model row, scrolled by rows when more tiles are
 //! listed than fit above the species rows.
 
-use super::icons::IconLoader;
 use super::*;
 use crate::menu_widgets::FormLayout;
-use sjk_ui::{Color, DrawCommand, Rect};
+use sjk_ui::{Color, DrawCommand, FontWeight, Rect, TextAlign};
 
-/// First tile token; tile `i` answers to `TILE_BASE + i`.
+/// First tile token; the `i`th tile on screen answers to `TILE_BASE + i`
+/// (counted from the first visible one, so a long list never runs into
+/// other tokens).
 pub(super) const TILE_BASE: u16 = 100;
+/// Tile tokens there are room for, from [`TILE_BASE`].
+pub(super) const MAX_VISIBLE_TILES: u16 = 200;
 /// Token of the wheel target covering the grid.
 pub(super) const GRID_SCROLL_TOKEN: u16 = 902;
 /// Row index of the Model row the grid belongs to.
-pub(super) const MODEL_ROW: usize = 2;
+pub(super) const MODEL_ROW: usize = 3;
 /// Row index of the first row under the grid (a species' head, else the hat).
-pub(super) const PART_ROW: usize = 3;
+pub(super) const PART_ROW: usize = 4;
 /// Tiles per grid row.
 pub(super) const COLUMNS: usize = 8;
 
@@ -101,6 +104,20 @@ impl PlayerMenu {
         self.grid_scroll = target.min(self.grid_max_scroll);
     }
 
+    /// Tiles per row of the grid on show.
+    fn grid_columns(&self) -> usize {
+        if self.classic_style {
+            super::classic::GRID_COLUMNS
+        } else {
+            COLUMNS
+        }
+    }
+
+    /// Slot in [`Self::tiles`] of the `local`th tile on screen.
+    pub(super) fn visible_slot(&self, local: usize) -> usize {
+        self.grid_scroll * self.grid_columns() + local
+    }
+
     /// Draw the tiles, the scrollbar and their pointer targets.
     pub(super) fn append_grid(&mut self, layout: &FormLayout, grid: &GridLayout) {
         let s = layout.scale;
@@ -118,12 +135,15 @@ impl PlayerMenu {
         }
         self.grid_scroll = self.grid_scroll.min(self.grid_max_scroll);
         self.canvas.scroll_region(GRID_SCROLL_TOKEN, grid.rect);
+        self.hovered_entry = None;
         let first = self.grid_scroll * COLUMNS;
-        let last = (first + grid.visible_rows * COLUMNS).min(tiles);
+        let last = (first + grid.visible_rows * COLUMNS)
+            .min(tiles)
+            .min(first + usize::from(MAX_VISIBLE_TILES));
         for slot in first..last {
             let rect = grid.tile_rect(slot - first);
             let absolute = self.tiles[slot];
-            self.append_tile(rect, slot, absolute, current == Some(slot), s);
+            self.append_tile(rect, slot - first, absolute, current == Some(slot), s);
         }
         if grid.total_rows > grid.visible_rows {
             let track = Rect::new(
@@ -142,28 +162,34 @@ impl PlayerMenu {
         }
     }
 
-    /// One tile: grid `slot` answers to the pointer, catalogue entry
-    /// `absolute` names its icon.
-    fn append_tile(&mut self, rect: Rect, slot: usize, absolute: usize, current: bool, s: f32) {
-        let token = TILE_BASE + slot as u16;
+    /// One tile: the `local`th on screen answers to the pointer, catalogue
+    /// entry `absolute` names its icon.
+    fn append_tile(&mut self, rect: Rect, local: usize, absolute: usize, current: bool, s: f32) {
+        let token = TILE_BASE + local as u16;
         let hovered = self.canvas.token_hovered(token);
+        if hovered {
+            self.hovered_entry = Some(absolute);
+        }
         let radius = 4.0 * s;
         let theme = self.canvas.theme();
-        let draw = self.canvas.draw_list_mut();
-        let _ = draw.push(DrawCommand::RoundedRect {
+        let icon = self.icons.icon(absolute);
+        let _ = self.canvas.draw_list_mut().push(DrawCommand::RoundedRect {
             rect,
             radius,
             color: Color::new(0.0, 0.0, 0.0, 0.35),
         });
-        if self.icons.is_ready(absolute) {
-            let _ = draw.push(DrawCommand::TexturedQuad {
+        if let Some(texture) = icon {
+            let _ = self.canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
                 rect,
-                texture: IconLoader::texture_of(absolute),
+                texture,
                 color: Color::new(1.0, 1.0, 1.0, if current || hovered { 1.0 } else { 0.82 }),
             });
+        } else if self.icons.failed(absolute) {
+            let color = Color::new(0.916, 0.945, 0.973, 0.8);
+            self.tile_name(absolute, rect, 11.0 * s, color, 0.2 * s);
         }
         if current || hovered {
-            let _ = draw.push(DrawCommand::Border {
+            let _ = self.canvas.draw_list_mut().push(DrawCommand::Border {
                 rect,
                 radius,
                 width: if current { 2.0 * s } else { 1.0 * s },
@@ -175,5 +201,50 @@ impl PlayerMenu {
             });
         }
         self.canvas.hit_region(token, rect);
+    }
+
+    /// The model's name in two lines (model, then skin) across a tile whose
+    /// icon cannot be shown.
+    pub(super) fn tile_name(
+        &mut self,
+        absolute: usize,
+        rect: Rect,
+        size: f32,
+        color: Color,
+        tracking: f32,
+    ) {
+        let Some(name) = catalog_of(&self.loader).and_then(|catalog| entry_name(catalog, absolute))
+        else {
+            return;
+        };
+        let (model, skin) = name.split_once('/').unwrap_or((name, ""));
+        let line = size * 1.25;
+        let top = rect.y + (rect.height - line * 2.0) * 0.5;
+        for (index, text) in [model, skin].into_iter().enumerate() {
+            self.canvas.text_aligned(
+                text,
+                Rect::new(rect.x, top + index as f32 * line, rect.width, line),
+                size,
+                color,
+                FontWeight::Regular,
+                tracking,
+                TextAlign::Center,
+            );
+        }
+    }
+}
+
+/// What the grid calls catalogue entry `absolute`: a character's `model/skin`
+/// or a species' model.
+pub(super) fn entry_name(
+    catalog: &sjk_client::LegacyAssetCatalog,
+    absolute: usize,
+) -> Option<&str> {
+    match catalog.characters.get(absolute) {
+        Some(character) => Some(&character.cvar_value),
+        None => catalog
+            .species
+            .get(absolute - catalog.characters.len())
+            .map(|species| species.model.as_str()),
     }
 }

@@ -105,7 +105,13 @@ The classic main menu has the retail pages, entries and order:
     sets Custom beside a Force button (retail's in-game `configforce` art) to
     the right of the grid, with the Force profile at a glance under them
     (mastery, side, points left and the holocrons of the powers with a level,
-    a pip per level), then JoF EJK's Cosmetics button and what is worn.
+    a pip per level), then JoF EJK's Cosmetics button and what is worn. SJK
+    also adds a model search right of Team Color: Enter or a click starts
+    typing, and the grid then lists only the models of the team whose
+    `model/skin` name (a species' model name) contains every typed word,
+    ignoring case, with the count at the field's end; Enter or a click
+    elsewhere keeps the search, Escape clears it, and it is cleared when the
+    screen opens. The description line names the model under the pointer.
   - Character creation: species, skin tint swatches, the Head, Torso and Legs
     lists, Back and APPLY. Entering it from an ordinary character puts on the
     first species, as retail's Custom did.
@@ -394,6 +400,18 @@ without them the page shows text only. They take icon-atlas cells of their own
 after the HUD's, so the character grid keeps all 207 of its icon cells. See
 [force.rs](../crates/sjk-viewer/src/player_menu/force.rs) and
 [force_view.rs](../crates/sjk-viewer/src/player_menu/force_view.rs).
+
+The Character page's grid (and the classic head grid) can list far more models
+than those 207 cells: an installation with community packs lists over 900. The
+cells are therefore a cache ([model_icons.rs](../crates/sjk-viewer/src/player_menu/model_icons.rs)):
+a tile asks for its icon when it is drawn, a worker thread decodes it (without
+the shared image cache, so the whole catalogue is never held at full size) into
+a free cell or the one drawn least recently, and tiles on screen keep theirs.
+Before SJK did this, every model past the 207th was a black tile. A model whose
+icon file cannot be decoded shows its name in the tile instead. Tiles answer to
+the pointer by their place on screen, so a long list never runs into other
+controls' pointer tokens. The Search row under Team colour (Enter to type)
+filters the grid as the classic profile's search does (see above).
 
 ## Player models
 
