@@ -5,18 +5,34 @@ use std::io::Write;
 use std::process::{Command, Stdio};
 
 /// Commands that read text to copy from their standard input, tried in order.
+///
+/// Windows tools talk in the console's OEM code page unless told otherwise, so
+/// `clip` and a plain `Get-Clipboard` turned `€` or `’` into `?` or bytes that are
+/// not UTF-8. PowerShell is used both ways with UTF-8 stated explicitly: copy
+/// reads its input as raw UTF-8 bytes, and paste writes UTF-8 without a BOM.
 const COPY: [&[&str]; 4] = [
     &["wl-copy"],
     &["xclip", "-selection", "clipboard"],
     &["pbcopy"],
-    &["clip"],
+    &[
+        "powershell",
+        "-NoProfile",
+        "-Command",
+        "$m = New-Object IO.MemoryStream; [Console]::OpenStandardInput().CopyTo($m); \
+         Set-Clipboard -Value ([Text.Encoding]::UTF8.GetString($m.ToArray()))",
+    ],
 ];
 /// Commands that print the clipboard's text.
 const PASTE: [&[&str]; 4] = [
     &["wl-paste", "--no-newline"],
     &["xclip", "-selection", "clipboard", "-o"],
     &["pbpaste"],
-    &["powershell", "-NoProfile", "-Command", "Get-Clipboard"],
+    &[
+        "powershell",
+        "-NoProfile",
+        "-Command",
+        "[Console]::OutputEncoding = New-Object Text.UTF8Encoding $false; Get-Clipboard",
+    ],
 ];
 
 /// Put `text` on the clipboard; `false` if no tool took it.
@@ -49,9 +65,25 @@ pub(crate) fn paste() -> Option<String> {
             .stderr(Stdio::null())
             .output()
             .ok()?;
-        output
-            .status
-            .success()
-            .then(|| String::from_utf8_lossy(&output.stdout).into_owned())
+        output.status.success().then(|| pasted_text(&output.stdout))
     })
+}
+
+/// A paste tool's output as text, without a leading byte-order mark.
+fn pasted_text(output: &[u8]) -> String {
+    let text = String::from_utf8_lossy(output);
+    text.strip_prefix('\u{feff}').unwrap_or(&text).to_owned()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::pasted_text;
+
+    #[test]
+    fn pasted_utf8_keeps_its_symbols() {
+        let symbols = "name a×¥’¡²³‘€½¼©ñæ…";
+        assert_eq!(pasted_text(symbols.as_bytes()), symbols);
+        let with_mark = [b"\xef\xbb\xbf".as_slice(), symbols.as_bytes()].concat();
+        assert_eq!(pasted_text(&with_mark), symbols);
+    }
 }

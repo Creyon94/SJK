@@ -44,6 +44,16 @@ contributor challenged a player named with `×` on a live server; with the wrapp
 fix the challenge showed without a crash, but with `?` for each `×`; with both
 fixes it read `You have challenged ×jof.jk.belyash×`. Merged into SJK `main` from
 SJK pull request #2 (Creyon94, 06/10/2026).
+## Clipboard symbols on Windows
+
+Branch `fix/windows-clipboard-text` (06/10/2026, based on `86ad1be`): pasting
+`a×¥’€…` into the console on Windows 11 gave `a??'???` and, once said in chat,
+`ï¿½` on screen: `Get-Clipboard` wrote the console's OEM code page and the client
+read it as UTF-8, and `clip` read copied text the same way. Paste now asks
+PowerShell for UTF-8 output without a BOM and copy passes raw UTF-8 bytes to
+`Set-Clipboard`. A unit test covers decoding the pasted bytes; the PowerShell
+commands themselves were not run on Linux, so a Windows paste and copy remain to
+be checked in game.
 
 ## Worldspawn shader remaps and remap order
 
