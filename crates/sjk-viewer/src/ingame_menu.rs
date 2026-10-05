@@ -18,6 +18,7 @@ mod classic_view;
 pub(crate) mod shot;
 mod siege;
 pub(crate) mod siege_data;
+pub(crate) mod sjk;
 mod view;
 pub(crate) use callvote::Action as CallVoteAction;
 
@@ -31,6 +32,8 @@ pub(crate) enum Page {
     Team,
     /// Map/theme constrained Siege class selection.
     Siege,
+    /// SJK's own screens ([`sjk`]): the changelog, more later.
+    Sjk,
     /// Host, map, game type and limits (`ingame_about` in the stock UI).
     About,
     /// Disconnect or quit, with the choice as the confirmation (classic:
@@ -71,6 +74,7 @@ fn hint_for(view: &View<'_>) -> impl Fn(usize) -> &'static str {
     let (page, vote_active) = (view.page, view.vote_active);
     move |row| match page {
         Page::Main => main_hint(row, vote_active),
+        Page::Sjk => sjk::ENTRIES.get(row).map_or("", |entry| entry.hint),
         _ => "",
     }
 }
@@ -82,13 +86,14 @@ fn main_hint(row: usize, vote_active: bool) -> &'static str {
         1 => "Pick a side or spectate",
         2 => "Find another server; joining leaves this one",
         3 => "Name, model, saber, colours and Force",
-        4 => "Host, map, game type and limits",
-        5 => "Video, audio, HUD, game and network",
-        6 => "Key bindings",
-        7 => "Map, game type, kick, limits",
-        8 | 9 if vote_active => "Cast your vote on the current call",
-        8 if !vote_active => "Camera framing and smooth sunlight for recording",
-        10 if vote_active => "Camera framing and smooth sunlight for recording",
+        4 => "SJK's changelog, and more to come",
+        5 => "Host, map, game type and limits",
+        6 => "Video, audio, HUD, game and network",
+        7 => "Key bindings",
+        8 => "Map, game type, kick, limits",
+        9 | 10 if vote_active => "Cast your vote on the current call",
+        9 if !vote_active => "Camera framing and smooth sunlight for recording",
+        11 if vote_active => "Camera framing and smooth sunlight for recording",
         _ => "Disconnect or quit",
     }
 }
@@ -288,6 +293,7 @@ impl InGameMenu {
                     "Join / change team",
                     "Server browser",
                     "Player profile",
+                    "SJK",
                     "Server info",
                     "Settings",
                     "Controls",
@@ -310,6 +316,13 @@ impl InGameMenu {
             Page::About => {
                 self.rows[0].push_str("Back");
                 1
+            }
+            Page::Sjk => {
+                for (row, entry) in sjk::ENTRIES.iter().enumerate() {
+                    self.rows[row].push_str(entry.label);
+                }
+                self.rows[sjk::ENTRIES.len()].push_str("Back");
+                sjk::ENTRIES.len() + 1
             }
             Page::Leave => {
                 self.rows[0].push_str("Disconnect  /  back to the main menu");
@@ -386,14 +399,15 @@ pub(crate) fn row_count(page: Page, team_game: bool, vote_active: bool) -> usize
     match page {
         Page::Main => {
             if vote_active {
-                12
+                13
             } else {
-                10
+                11
             }
         }
         Page::Team if team_game => 5,
         Page::Team => 3,
         Page::About => 1,
+        Page::Sjk => sjk::ENTRIES.len() + 1,
         Page::Leave => 3,
         _ => 0,
     }

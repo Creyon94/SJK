@@ -24,16 +24,16 @@ use sjk_shell::CommandSource;
 use sjk_ui::{Color, DrawCommand, FontWeight, Rect, TextAlign};
 
 /// Retail title colour (`forecolor .549 .854 1`).
-const LABEL: Color = Color::new(0.549, 0.854, 1.0, 1.0);
+pub(in crate::console) const LABEL: Color = Color::new(0.549, 0.854, 1.0, 1.0);
 /// Retail field value colour (`forecolor .615 .615 .956`).
-const VALUE: Color = Color::new(0.615, 0.615, 0.956, 1.0);
+pub(in crate::console) const VALUE: Color = Color::new(0.615, 0.615, 0.956, 1.0);
 /// Retail option label colour (`setup.menu` items, `.65 .65 1`).
-const OPTION: Color = Color::new(0.65, 0.65, 1.0, 1.0);
+pub(in crate::console) const OPTION: Color = Color::new(0.65, 0.65, 1.0, 1.0);
 /// Retail frame blue (`bordercolor .298 .305 .690`).
-const FRAME: Color = Color::new(0.298, 0.305, 0.690, 1.0);
+pub(in crate::console) const FRAME: Color = Color::new(0.298, 0.305, 0.690, 1.0);
 /// Retail list box (`backcolor .66 .66 1 .25`, border `.66 .66 1`).
-const LIST_BACK: Color = Color::new(0.66, 0.66, 1.0, 0.25);
-const LIST_BORDER: Color = Color::new(0.66, 0.66, 1.0, 1.0);
+pub(in crate::console) const LIST_BACK: Color = Color::new(0.66, 0.66, 1.0, 0.25);
+pub(in crate::console) const LIST_BORDER: Color = Color::new(0.66, 0.66, 1.0, 1.0);
 /// A refused edit or unknown value, in retail's warning red.
 const ERROR: Color = Color::new(1.0, 0.3, 0.3, 1.0);
 
@@ -653,7 +653,12 @@ fn wrap<const N: usize>(text: &str, chars: usize) -> [&str; N] {
 
 /// The scrollbar thumb inside `track` for a window of `visible` rows from `first`
 /// over `total`, at least as tall as the bar is wide.
-fn thumb(track: [f32; 4], first: usize, visible: usize, total: usize) -> [f32; 4] {
+pub(in crate::console) fn thumb(
+    track: [f32; 4],
+    first: usize,
+    visible: usize,
+    total: usize,
+) -> [f32; 4] {
     let [x, y, width, height] = track;
     let length = (height * visible as f32 / total.max(visible).max(1) as f32).max(width * 3.0);
     let travel = (height - length).max(0.0);
@@ -666,17 +671,17 @@ fn thumb(track: [f32; 4], first: usize, visible: usize, total: usize) -> [f32; 4
     ]
 }
 
-fn with_alpha(color: Color, alpha: f32) -> Color {
+pub(in crate::console) fn with_alpha(color: Color, alpha: f32) -> Color {
     Color::new(color.r, color.g, color.b, color.a * alpha)
 }
 
-fn fill(canvas: &mut MenuCanvas, rect: Rect, color: Color) {
+pub(in crate::console) fn fill(canvas: &mut MenuCanvas, rect: Rect, color: Color) {
     let _ = canvas
         .draw_list_mut()
         .push(DrawCommand::SolidRect { rect, color });
 }
 
-fn border(canvas: &mut MenuCanvas, rect: Rect, scale: f32, color: Color) {
+pub(in crate::console) fn border(canvas: &mut MenuCanvas, rect: Rect, scale: f32, color: Color) {
     let _ = canvas.draw_list_mut().push(DrawCommand::Border {
         rect,
         radius: 0.0,
@@ -687,7 +692,7 @@ fn border(canvas: &mut MenuCanvas, rect: Rect, scale: f32, color: Color) {
 
 /// Text at canvas size `size`, centred vertically in canvas box `box_`.
 #[allow(clippy::too_many_arguments)]
-fn text(
+pub(in crate::console) fn text(
     canvas: &mut MenuCanvas,
     place: &Placement,
     content: std::fmt::Arguments<'_>,

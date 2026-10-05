@@ -7,14 +7,18 @@
 //! match; opened with the console closed, it closes the console again with
 //! itself. Releases are listed newest first on the left; the selected one's
 //! introduction and changes, each followed by its credit, are wrapped on a
-//! scrolling pane on the right.
+//! scrolling pane on the right. With `ui_menuStyle classic` the page takes the
+//! classic+ look of the command browser's pop-up (`changelog_classic.rs`).
 
+use crate::menu::art::ArtSet;
 use crate::menu_widgets::{BACK_TOKEN, FormLayout, MenuCanvas, Scrim};
 use crate::text::{TextFace, TextVertex, UiFont, visible_text_width_style};
 use sjk_ui::{Color, FontWeight, InputEvent, Rect, TextAlign, UiEventKind};
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{KeyCode, PhysicalKey};
 
+#[path = "changelog_classic.rs"]
+mod classic;
 #[path = "changelog_data.rs"]
 mod data;
 
@@ -102,6 +106,9 @@ pub(crate) struct Panel {
     /// Pane lines the last frame showed, for Page Up / Page Down.
     page_lines: usize,
     summary: String,
+    /// The classic+ look, with the retail menu art it can draw.
+    classic: bool,
+    art: ArtSet,
     ui: MenuCanvas,
 }
 
@@ -133,12 +140,25 @@ impl Panel {
             max_scroll: 0,
             page_lines: 1,
             summary,
+            classic: false,
+            art: ArtSet::default(),
             ui: MenuCanvas::with_text_capacity(256),
         }
     }
 
     pub(crate) fn is_open(&self) -> bool {
         self.open
+    }
+
+    /// Choose the look: classic+ with the retail `art` it can draw, or modern.
+    pub(crate) fn set_look(&mut self, classic: bool, art: ArtSet) {
+        self.classic = classic;
+        self.art = art;
+    }
+
+    /// Whether the classic+ look is drawn, so its text can use the retail font.
+    pub(crate) fn is_classic(&self) -> bool {
+        self.classic
     }
 
     /// Show the page; `owns_console` when the console was closed before it.
@@ -185,7 +205,7 @@ impl Panel {
         };
         if event.kind == UiEventKind::Wheel {
             let direction = event.delta.map_or(0, |delta| -delta.y.signum() as isize);
-            if event.token == Some(PANE_TOKEN) {
+            if matches!(event.token, Some(PANE_TOKEN | PANE_BAR_TOKEN)) {
                 self.scroll_pane(direction * WHEEL_LINES as isize);
             } else {
                 let last_first = self.releases.len().saturating_sub(self.rows);
@@ -234,9 +254,10 @@ impl Panel {
             .min(self.max_scroll);
     }
 
-    /// Wrap the selected release for a pane `width` wide at text `scale`.
-    fn wrap(&mut self, font: &UiFont, width: f32, scale: f32) {
-        let key = (self.selected, width.to_bits(), scale.to_bits());
+    /// Wrap the selected release for a pane `width` wide, in body text of
+    /// `size` and `spacing` with changes indented by `indent` (pixels).
+    fn wrap(&mut self, font: &UiFont, width: f32, size: f32, spacing: f32, indent: f32) {
+        let key = (self.selected, width.to_bits(), size.to_bits());
         if self.wrapped_for == Some(key) {
             return;
         }
@@ -256,7 +277,7 @@ impl Panel {
                 placement.letter_spacing,
             )
         };
-        let body = |text: &str| measure(text, BODY_SIZE * scale, 0.2 * scale, TextFace::Regular);
+        let body = |text: &str| measure(text, size, spacing, TextFace::Regular);
         for paragraph in &release.intro {
             for line in wrap_words(paragraph, width, body) {
                 self.lines.push(Line {
@@ -269,7 +290,6 @@ impl Panel {
                 text: String::new(),
             });
         }
-        let indent = BULLET_INDENT * scale;
         for change in &release.changes {
             for (index, line) in wrap_words(&change.text, width - indent, body)
                 .into_iter()
@@ -296,6 +316,21 @@ impl Panel {
         self.lines.pop();
     }
 
+    /// Set the last scroll that still fills a pane `available` high, the lines
+    /// being `height` high, and keep the scroll within it.
+    fn fit_scroll(&mut self, available: f32, height: impl Fn(LineKind) -> f32) {
+        let mut total = 0.0;
+        self.max_scroll = self.lines.len();
+        for (index, line) in self.lines.iter().enumerate().rev() {
+            total += height(line.kind);
+            if total > available {
+                break;
+            }
+            self.max_scroll = index;
+        }
+        self.scroll = self.scroll.min(self.max_scroll);
+    }
+
     /// Draw the page over the whole frame. As with the debug panel, text other
     /// overlays appended earlier this frame is dropped rather than shown through.
     pub(crate) fn append(
@@ -304,6 +339,10 @@ impl Panel {
         font: &UiFont,
         viewport: [f32; 2],
     ) {
+        if self.classic {
+            self.append_classic(vertices, font, viewport);
+            return;
+        }
         vertices.clear();
         let mut layout = FormLayout::new(viewport);
         let s = layout.scale;
@@ -438,19 +477,9 @@ impl Panel {
         );
         y += 52.0 * s;
 
-        self.wrap(font, width, s);
-        // The last scroll that still fills the pane: the lines after it fit.
+        self.wrap(font, width, BODY_SIZE * s, 0.2 * s, BULLET_INDENT * s);
         let available = bottom - y;
-        let mut height = 0.0;
-        self.max_scroll = self.lines.len();
-        for (index, line) in self.lines.iter().enumerate().rev() {
-            height += line.kind.height() * s;
-            if height > available {
-                break;
-            }
-            self.max_scroll = index;
-        }
-        self.scroll = self.scroll.min(self.max_scroll);
+        self.fit_scroll(available, |kind| kind.height() * s);
 
         let indent = BULLET_INDENT * s;
         let mut shown = 0_usize;

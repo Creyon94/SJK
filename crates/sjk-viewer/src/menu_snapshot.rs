@@ -842,11 +842,17 @@ fn changelog(shots: &Snapshot, art: ArtSet) {
     let mut console =
         crate::console::ViewerConsole::new(directory.path().join("config.cfg")).expect("console");
     console.open_changelog();
-    for (name, release) in [("changelog-unreleased", 0), ("changelog-release", 1)] {
+    for (name, release, classic) in [
+        ("changelog-unreleased", 0, false),
+        ("changelog-release", 1, false),
+        ("changelog-classic", 1, true),
+        ("changelog-classic-alpha1", 3, true),
+    ] {
+        console.set_changelog_look(classic, art);
         console.changelog_mut().select(release);
         let mut vertices = Vec::new();
         console.append_overlay(&mut vertices, &shots.font.font, VIEWPORT, 1.0);
-        shots.save(name, console.draw_list(), &vertices, false);
+        shots.save(name, console.draw_list(), &vertices, classic);
     }
     let mut canvas = crate::menu_widgets::MenuCanvas::new();
     let mut classic = crate::menu::classic::ClassicMain::new();
@@ -864,8 +870,9 @@ fn changelog(shots: &Snapshot, art: ArtSet) {
 
 fn in_game_menu(shots: &Snapshot, art: ArtSet) {
     use crate::ingame_menu::{InGameMenu, Page as Popup, View};
-    let pages: [(&str, Popup, usize, bool); 5] = [
+    let pages: [(&str, Popup, usize, bool); 6] = [
         ("ingame-bar", Popup::Main, 2, true),
+        ("ingame-sjk", Popup::Sjk, 0, true),
         ("ingame-join", Popup::Team, 1, true),
         ("ingame-vote", Popup::Vote, 0, true),
         ("ingame-exit", Popup::Leave, 0, false),

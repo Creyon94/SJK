@@ -149,6 +149,7 @@ fn page_title(page: Page) -> &'static str {
         Page::Shot => "Shot controls",
         Page::Team => "Join / team",
         Page::Siege => "Choose your class",
+        Page::Sjk => "SJK",
         Page::About => "Server info",
         Page::Leave => "Leave",
         Page::Vote => "Vote",
