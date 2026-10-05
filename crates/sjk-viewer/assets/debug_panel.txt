@@ -1093,6 +1093,18 @@ change: The big title word on the modern main menu (ui_menuStyle modern) reads S
 test: Set the modern menu style, go to the main menu: the large title reads SJK, not JK::R.
 test: It sits where JK::R was, over the saber emblem, and nothing overlaps it.
 
+[flipkick]
+status: personal
+area: Input
+title: flipkick command from JoF EJK: one press, a run of jump taps
+change: flipkick toggles jump on every user command for cg_fkDuration commands (50 = 1.25 s).
+change: cg_fkFirstJumpDuration / cg_fkSecondJumpDelay shape the first jump, as in JoF EJK.
+change: Bindable in Controls > Movement ("Flip kick (JoF)"); servers can forbid it (restricts bit 7).
+test: On a JA+ server with flip kick on (serverconfig): bind f flipkick, jump at a player, press f.
+test: The kick chains off the player without holding jump; after the run jump is released.
+test: Controls > Movement shows "Flip kick (JoF)"; binding a key there writes bind <key> flipkick.
+note: SJK sends a command every 25 ms, so EJK's 50 frames last longer here; lower cg_fkDuration.
+
 # ---- Merged upstream ----
 
 [jkr-vehicles]

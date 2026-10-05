@@ -301,6 +301,21 @@ impl ViewerConsole {
         }
     }
 
+    /// `cg_fkDuration`, `cg_fkFirstJumpDuration` and `cg_fkSecondJumpDelay`.
+    pub(crate) fn flip_kick_timing(&self) -> crate::input::flip_kick::Timing {
+        use crate::input::flip_kick::*;
+        let count = |name, default| {
+            self.integer_cvar(name)
+                .map_or(default, |value| value.clamp(0, i64::from(u32::MAX)) as u32)
+        };
+        let defaults = Timing::default();
+        Timing {
+            duration: count(DURATION_CVAR, defaults.duration),
+            first_jump: count(FIRST_JUMP_CVAR, defaults.first_jump),
+            second_jump_delay: count(SECOND_JUMP_CVAR, defaults.second_jump_delay),
+        }
+    }
+
     pub(crate) fn float_cvar(&self, name: &str) -> Option<f64> {
         match self.cvar(name) {
             Some(CvarValue::Float(value)) => Some(*value),

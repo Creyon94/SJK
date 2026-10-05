@@ -3,6 +3,7 @@
 use sjk_protocol::UserCommand;
 pub(crate) mod alt_code;
 pub(crate) mod dead_key;
+pub(crate) mod flip_kick;
 pub(crate) mod motion;
 
 mod selection_commands;
@@ -63,6 +64,8 @@ pub(crate) enum InputAction {
     MlookReleased,
     /// `-grapple`: on JA+ servers EternalJK also taps `+use` to let go of the hook.
     GrappleReleased,
+    /// `flipkick`: start JoF EJK's run of jump taps ([`flip_kick`]).
+    FlipKick,
 }
 
 /// Current logical gameplay-input state.
@@ -73,6 +76,8 @@ pub(crate) struct GameplayInput {
     pub(crate) selection: sjk_client::selection::Selection,
     /// `+useforce` on a selected JoF pseudo-slot, with its press edges.
     force_wheel_use: sjk_client::force_wheel::UseRemap,
+    /// A `flipkick` run, stepped once per sent user command.
+    pub(crate) flip_kick: flip_kick::FlipKick,
     held: [state::KeyState; 32],
     pub(crate) motion: motion::Motion,
     /// `cl_run`: the walk key toggles walking instead of running.
@@ -88,6 +93,7 @@ impl Default for GameplayInput {
             view_authority: view_authority::Authority::default(),
             selection: sjk_client::selection::Selection::default(),
             force_wheel_use: sjk_client::force_wheel::UseRemap::default(),
+            flip_kick: flip_kick::FlipKick::default(),
             held: [state::KeyState::default(); 32],
             motion: motion::Motion::default(),
             always_run: true,
@@ -132,6 +138,7 @@ impl GameplayInput {
     pub(crate) fn clear(&mut self) {
         self.held = [state::KeyState::default(); 32];
         self.motion.clear();
+        self.flip_kick.stop();
     }
 
     /// Release keys when the console, a menu or chat takes the keyboard, as
@@ -146,6 +153,20 @@ impl GameplayInput {
     /// Set `button` in the next user command only, like a `+` and `-` one frame apart.
     pub(crate) fn tap(&mut self, button: GameButton) {
         self.held[button.slot()].pressed = true;
+    }
+
+    /// Give `command` the `flipkick` run's jump state. Like EJK's `+moveup` and
+    /// `-moveup`, the run overrides a held jump key, and its end lets go of it.
+    pub(crate) fn apply_flip_kick(&mut self, command: &mut UserCommand, timing: flip_kick::Timing) {
+        let jump = match self.flip_kick.step(timing) {
+            flip_kick::Step::Idle => return,
+            flip_kick::Step::Jump(jump) => jump,
+            flip_kick::Step::End => {
+                self.held[GameButton::Up.slot()].event(false, None, self.motion.now);
+                false
+            }
+        };
+        command.up_move = if jump { 127 } else { command.up_move.min(0) };
     }
 
     /// Latch `cl_run` (retail default 1); see `user_command`.
@@ -199,6 +220,7 @@ impl GameplayInput {
                     | "joinmenu"
                     | "vote"
                     | "weapon"
+                    | "flipkick"
             )
     }
 
@@ -308,6 +330,7 @@ impl GameplayInput {
             "invnext" => Some(InputAction::SelectionCycle(true, 1)),
             "invprev" => Some(InputAction::SelectionCycle(true, -1)),
             "teammenu" | "joinmenu" => Some(InputAction::TeamMenu),
+            "flipkick" => Some(InputAction::FlipKick),
             "vote" => match words.next().map(str::to_ascii_lowercase).as_deref() {
                 Some("yes" | "y" | "1") => Some(InputAction::Vote(true)),
                 Some("no" | "n" | "0") => Some(InputAction::Vote(false)),
@@ -400,6 +423,20 @@ impl super::GpuState {
                     )
                 }) {
                     self.gameplay_input.tap(GameButton::Button(5));
+                }
+            }
+            Some(InputAction::FlipKick) => {
+                let restricted = self.live_session.as_ref().is_some_and(|session| {
+                    session
+                        .game_state()
+                        .config_string(0)
+                        .and_then(|bytes| std::str::from_utf8(bytes).ok())
+                        .and_then(|text| sjk_protocol::InfoString::parse(text).ok())
+                        .and_then(|info| info.get_i32("restricts"))
+                        .is_some_and(|bits| bits & flip_kick::RESTRICT_BIT != 0)
+                });
+                if !restricted {
+                    self.gameplay_input.flip_kick.start();
                 }
             }
             Some(InputAction::Weapon(weapon)) => self.select_weapon(weapon),

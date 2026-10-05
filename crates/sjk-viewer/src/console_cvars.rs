@@ -369,6 +369,25 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             archive,
             "Draw SJK's version, build date and commit at the top of the screen",
         ),
+        // JoF EJK's `flipkick` run (`cg_xcvar.h`), counted in user commands.
+        CvarDefinition::new(
+            crate::input::flip_kick::DURATION_CVAR,
+            50_i64,
+            archive,
+            "flipkick: user commands the run of jump taps lasts",
+        ),
+        CvarDefinition::new(
+            crate::input::flip_kick::FIRST_JUMP_CVAR,
+            0_i64,
+            archive,
+            "flipkick: user commands the first jump stays held",
+        ),
+        CvarDefinition::new(
+            crate::input::flip_kick::SECOND_JUMP_CVAR,
+            0_i64,
+            archive,
+            "flipkick: user command at which the second jump starts",
+        ),
         CvarDefinition::new(
             "cg_lagometer",
             false,

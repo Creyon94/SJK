@@ -65,6 +65,8 @@ pub(crate) const ACTIONS: &[BindableAction] = &[
     action(Movement, "Look down", "+lookdown", "PGDN"),
     action(Movement, "Strafe modifier", "+strafe", "z"),
     action(Movement, "Mouse look", "+mlook", "/"),
+    // JoF EJK's `controls.menu` "FlipKick:" row: one press, a run of jump taps.
+    action(Movement, "Flip kick (JoF)", "flipkick", ""),
     // INTERACTION
     action(Interaction, "Attack", "+attack", "MOUSE1"),
     action(Interaction, "Alternate attack", "+altattack", "MOUSE2"),
