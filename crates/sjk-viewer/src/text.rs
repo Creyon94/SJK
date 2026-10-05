@@ -282,22 +282,16 @@ pub(crate) fn load_classic(vfs: &VirtualFileSystem) -> Result<FontAtlas, Box<dyn
     })
 }
 
-/// Display value of `^0` text: SJK's near-black instead of retail's pure black,
-/// which vanished on the console, chat and scoreboard backgrounds. 0.3 read as
-/// grey (Sol, 05/10/2026); at 0.12 it reads as black yet stays just off a black
-/// background, well apart from `^9`'s mid grey (0.5).
-pub(crate) const BLACK_TEXT: f32 = 0.12;
-
 /// Colour of the `^<digit>` code `index` (0-9), as a display value.
 ///
 /// OpenJK's `g_color_table` (`shared/qcommon/q_color.c`) at full strength: the
 /// 2D layer draws display values ([`crate::ui_target`]), so `^1` is the same
 /// pure red retail showed. The table has ten entries and `ColorIndex` masks with
 /// `Q_COLOR_BITS` (0xF), so `^8` is orange and `^9` mid grey rather than
-/// retail's `& 7` wrap to black and red. Only `^0` differs, as [`BLACK_TEXT`].
+/// retail's `& 7` wrap to black and red.
 pub(crate) fn quake_color(index: u8) -> [f32; 4] {
     match index {
-        0 => [BLACK_TEXT, BLACK_TEXT, BLACK_TEXT, 1.0],
+        0 => [0.0, 0.0, 0.0, 1.0],
         1 => [1.0, 0.0, 0.0, 1.0],
         2 => [0.0, 1.0, 0.0, 1.0],
         3 => [1.0, 1.0, 0.0, 1.0],
@@ -532,16 +526,10 @@ mod tests {
     }
 
     #[test]
-    fn black_text_is_a_dark_grey_apart_from_the_other_codes() {
-        assert_eq!(quake_color(0), [BLACK_TEXT, BLACK_TEXT, BLACK_TEXT, 1.0]);
-        assert!(BLACK_TEXT > 0.0 && BLACK_TEXT < quake_color(9)[0]);
-    }
-
-    #[test]
-    fn colour_codes_one_to_seven_match_the_retail_table() {
-        // OpenJK `g_color_table`, shared/qcommon/q_color.c; `^0` is SJK's grey.
+    fn colour_codes_zero_to_seven_match_the_retail_table() {
+        // OpenJK `g_color_table`, shared/qcommon/q_color.c.
         let retail = [
-            [BLACK_TEXT, BLACK_TEXT, BLACK_TEXT, 1.0],
+            [0.0, 0.0, 0.0, 1.0],
             [1.0, 0.0, 0.0, 1.0],
             [0.0, 1.0, 0.0, 1.0],
             [1.0, 1.0, 0.0, 1.0],
