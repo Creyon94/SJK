@@ -316,6 +316,11 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Shield hit sphere",
+        cvar: "cg_shieldSphere",
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Force Seeing aura",
         cvar: "cg_auraShell",
         kind: ValueKind::Bool,

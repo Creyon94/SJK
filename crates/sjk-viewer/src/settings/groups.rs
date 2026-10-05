@@ -53,6 +53,7 @@ impl Group {
                 "cg_saberTrail",
                 "cg_speedTrail",
                 "cg_auraShell",
+                "cg_shieldSphere",
                 "cg_remaps",
                 "cg_thirdPersonCameraDamp",
                 "cg_thirdPersonTargetDamp",

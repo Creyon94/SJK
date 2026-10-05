@@ -234,6 +234,10 @@ const HELP: &[(&str, &str)] = &[
         "The glowing shell Force Sight shows around other players.",
     ),
     (
+        "cg_shieldSphere",
+        "Off: a shield hit flashes on the body, like single player. On: multiplayer's sphere around the player.",
+    ),
+    (
         "cg_remaps",
         "Lets the server swap textures: 0 never, 1 all but player models, 2 always. Maps' own always apply.",
     ),

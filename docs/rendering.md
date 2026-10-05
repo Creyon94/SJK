@@ -623,6 +623,11 @@ but particle effects still composite after them. Model materials compile these
 variants at map load (depth-tested only); stages without an alpha test share
 keys with ordinary blended stages.
 
+A shield hit (`EV_SHIELD_HIT`, timer in `shield_hit.rs`) is drawn as the body
+re-drawn with `gfx/misc/personalshield`, like single player. `cg_shieldSphere 1`
+draws stock multiplayer's `halfShieldShell` sphere instead
+([force_overlay_submission.rs](../crates/sjk-viewer/src/force_overlay_submission.rs)).
+
 The Force Speed afterimages use it: two copies of the actor in its current pose
 at alpha 100 and 50, spaced by `(int)(6 * speed * 0.004)` units along the
 recent path, while the entity has `PW_SPEED` and `cg_speedTrail` is nonzero

@@ -27,6 +27,7 @@ pub(crate) fn submit(
     aura_shell: bool,
     predicted_force_powers_active: Option<u32>,
     shield_mesh: Option<usize>,
+    shield_sphere: bool,
 ) -> usize {
     let number = u16::try_from(entity_id.get().saturating_sub(1)).unwrap_or(u16::MAX);
     let actor = if number == snapshot.player.client_num() {
@@ -67,28 +68,45 @@ pub(crate) fn submit(
             .find(|e| e.number() == number)
             .is_some_and(|e| e.e_flags() & 1 == 0 && e.npc_class() != 53)
     };
-    if visible
-        && output.len() < output.capacity()
-        && let Some(mesh) = shield_mesh
-        && let Some(material) = materials.force("halfShieldShell")
-        && let Some((brightness, scale)) = tracker.shield(number).sample(now, random.unit())
-    {
-        let direction = glam::Vec3::from_array(tracker.shield(number).direction);
-        let yaw = direction.y.atan2(direction.x);
-        let pitch = (-direction.z).atan2(direction.truncate().length());
-        let rotation = glam::Quat::from_rotation_z(yaw) * glam::Quat::from_rotation_y(pitch);
-        let mut origin = instance.position;
-        origin[2] += 10.0;
-        let mut shell = ActorInstance::new(origin, rotation.to_array(), [scale; 3])
-            .with_entity_color([brightness, brightness, brightness, 255]);
-        shell.view_flags = instance.view_flags;
-        output.push(OverrideInstance {
-            mesh: OverrideMesh::Object(mesh),
-            material: Some(material),
-            instance: shell,
-            no_depth: false,
-            forced_alpha: false,
-        });
+    let shield = if visible && output.len() < output.capacity() {
+        tracker.shield(number).sample(now, random.unit())
+    } else {
+        None
+    };
+    if let Some((brightness, scale)) = shield {
+        if shield_sphere {
+            if let Some(mesh) = shield_mesh
+                && let Some(material) = materials.force("halfShieldShell")
+            {
+                let direction = glam::Vec3::from_array(tracker.shield(number).direction);
+                let yaw = direction.y.atan2(direction.x);
+                let pitch = (-direction.z).atan2(direction.truncate().length());
+                let rotation =
+                    glam::Quat::from_rotation_z(yaw) * glam::Quat::from_rotation_y(pitch);
+                let mut origin = instance.position;
+                origin[2] += 10.0;
+                let mut shell = ActorInstance::new(origin, rotation.to_array(), [scale; 3])
+                    .with_entity_color([brightness, brightness, brightness, 255]);
+                shell.view_flags = instance.view_flags;
+                output.push(OverrideInstance {
+                    mesh: OverrideMesh::Object(mesh),
+                    material: Some(material),
+                    instance: shell,
+                    no_depth: false,
+                    forced_alpha: false,
+                });
+            }
+        } else if let Some(material) = materials.force("gfx/misc/personalshield") {
+            // Single player's form-fitting shell: the body model re-drawn with the
+            // shield shader, as multiplayer does for PW_SHIELDHIT.
+            output.push(OverrideInstance {
+                mesh: OverrideMesh::Actor(mesh),
+                material: Some(material),
+                instance: instance.with_entity_color([brightness, brightness, brightness, 255]),
+                no_depth: false,
+                forced_alpha: false,
+            });
+        }
     }
     for request in requests.iter() {
         if output.len() == output.capacity() {
