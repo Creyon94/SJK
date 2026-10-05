@@ -68,6 +68,14 @@ pub(crate) enum PlayerMenuResult {
     ClassicPage(crate::menu::classic::layout::Page),
 }
 
+/// Where the classic profile shows the live model ([`crate::menu_stage::preview`]):
+/// its rectangle on the 640x480 canvas and the animation it plays.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct ModelPreview {
+    pub(crate) rect: [f32; 4],
+    pub(crate) stance: &'static str,
+}
+
 /// Which catalogue entry the `model` cvar currently names.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Choice {
@@ -142,6 +150,8 @@ pub(crate) struct PlayerMenu {
     /// The character draft changed on entering a classic page and is not
     /// written yet.
     classic_dirty: bool,
+    /// The model preview has a frame to show (set by the renderer).
+    preview_ready: bool,
 }
 
 impl PlayerMenu {
@@ -175,6 +185,7 @@ impl PlayerMenu {
             classic_style: false,
             classic: classic::ClassicState::default(),
             classic_dirty: false,
+            preview_ready: false,
         }
     }
 

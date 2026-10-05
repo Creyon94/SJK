@@ -137,6 +137,19 @@ list's own pointer region, registered after its cells, took the click and
 stepped to the next entry. See [client.md](client.md#menu-style) and
 [Hats and capes](client.md#hats-and-capes).
 
+Follow-ups on the same branch: retail's Force templates (`forcecfg`, the
+player's own saved beside `config.cfg`; `sjk-vfs` gains `original_name` for
+the capitalised names packs ship), part icons and tint-base swatches in
+character creation (64 more UI atlas cells), Hat and Cape rows on the modern
+player screen and the pieces on its stage model, and a live model preview
+on character creation and in the cosmetics window: the stage actor drawn
+offscreen with its own camera into a scene-format target and encoded for
+the UI ([rendering](rendering.md#classic-model-preview)). Unit tests cover the
+template listing, naming and loading, the original names, the part-icon
+cells, the preview's target sizes and camera framing. The preview pass is
+new GPU code that has not run on any GPU: its validation, colours, lighting
+and framing are untested.
+
 Verification (2026-10-05, Windows 11): formatting, the locked workspace build
 and tests, including unit tests for the level costs against spending, the
 draft's next-level status and one-step level setting, the Force page's

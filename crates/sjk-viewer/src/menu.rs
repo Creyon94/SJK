@@ -395,6 +395,25 @@ impl ClientMenu {
         Some((stage, self.player.stage_model()))
     }
 
+    /// The model the classic profile's preview shows, with the stage it
+    /// may stand on: only while the profile is on screen and its page shows
+    /// one.
+    pub(crate) fn preview_model(
+        &self,
+    ) -> Option<(Option<Stage>, &str, crate::player_menu::ModelPreview)> {
+        if !self.is_visible() || !matches!(self.state.phase(), ClientPhase::Player) {
+            return None;
+        }
+        let preview = self.player.model_preview()?;
+        let stage = self.backdrop.as_ref().and_then(|backdrop| backdrop.stage());
+        Some((stage, self.player.stage_model(), preview))
+    }
+
+    /// Whether the renderer has a preview frame for the profile to show.
+    pub(crate) fn set_preview_ready(&mut self, ready: bool) {
+        self.player.set_preview_ready(ready);
+    }
+
     /// The sabers in the stage model's hands.
     pub(crate) fn stage_sabers(&self) -> crate::player_menu::StageSabers<'_> {
         let open = matches!(self.state.phase(), ClientPhase::Player);

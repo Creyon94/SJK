@@ -272,6 +272,8 @@ pub(super) enum Source {
     Emblem(EmblemLayer),
     /// The map preview's own texture.
     Levelshot,
+    /// The classic profile's model preview.
+    Preview,
 }
 
 impl Source {

@@ -507,6 +507,24 @@ pub(crate) fn power_row(index: u8) -> Option<[f32; 4]> {
         .or_else(|| column(&DARK_POWERS, force::RIGHT, 138.0))
 }
 
+/// Where a page shows the live model, on the canvas: character creation's
+/// model item (`player2` 393 104 220 220, `ingame_player2` 300 84 110 110)
+/// and the cosmetics window's column right of its lists.
+pub(crate) fn preview_rect(page: ClassicPage, frame: Frame) -> Option<[f32; 4]> {
+    let local = match (page, frame) {
+        (ClassicPage::Character, Frame::Full) => return Some([393.0, 104.0, 220.0, 220.0]),
+        (ClassicPage::Character, Frame::InGame) => [300.0, 84.0, 110.0, 110.0],
+        (ClassicPage::Cosmetics, _) => COSMETICS_MODEL,
+        _ => return None,
+    };
+    Some(place(page, frame, local))
+}
+
+/// The cosmetics window's preview column and the model inside it, relative
+/// to the window.
+pub(crate) const COSMETICS_PREVIEW: [f32; 4] = [285.0, 40.0, 130.0, 244.0];
+pub(crate) const COSMETICS_MODEL: [f32; 4] = [287.0, 42.0, 126.0, 220.0];
+
 /// Navigation row: `player.menu` puts it under the logo at y 126, the
 /// creation pages along the top at y 16.
 fn nav(page: ClassicPage, index: usize) -> [f32; 4] {
@@ -535,8 +553,8 @@ pub(crate) fn rect(item: Item, page: ClassicPage, frame: Frame, dual: bool) -> [
         (_, Force, Item::TemplateSave) => force::TEMPLATE_SAVE,
         (Full, Force, Item::Back) => [59.0, 444.0, 130.0, 24.0],
         // The cosmetics window (JoF EJK's `ingame_cosmetics`, lists side by side).
-        (_, Cosmetics, Item::Hats) => [15.0, 60.0, 195.0, 224.0],
-        (_, Cosmetics, Item::Capes) => [220.0, 60.0, 195.0, 224.0],
+        (_, Cosmetics, Item::Hats) => [15.0, 60.0, 130.0, 224.0],
+        (_, Cosmetics, Item::Capes) => [150.0, 60.0, 130.0, 224.0],
         (_, Cosmetics, Item::CosmeticsShow) => [115.0, 312.0, 200.0, 20.0],
         (_, Cosmetics, Item::CosmeticsClear) => [20.0, 345.0, 110.0, 32.0],
         (_, Cosmetics, Item::Apply) => [300.0, 345.0, 110.0, 32.0],

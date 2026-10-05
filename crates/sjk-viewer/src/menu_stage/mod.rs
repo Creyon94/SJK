@@ -4,9 +4,11 @@
 //! through the shared material runtime. Changing the model rebuilds the
 //! buffers on the spot, so the swap is visible the same frame. The sabers
 //! in its hands live in [`sabers`]; the Saber tab's throw in [`throw`]; the
-//! hat and cape it wears in [`cosmetics`].
+//! hat and cape it wears in [`cosmetics`]. The classic profile shows the
+//! same actor in a preview of its own ([`preview`]) instead of on the stage.
 
 mod cosmetics;
+pub(crate) mod preview;
 mod sabers;
 mod throw;
 
@@ -57,6 +59,10 @@ pub(crate) struct MenuStage {
     cosmetic_request: cosmetics::Request,
     /// The pieces need placing on the current pose.
     cosmetics_dirty: bool,
+    /// The actor is for the classic profile's preview, not the stage: the
+    /// world pass and the blade list leave it out.
+    preview_only: bool,
+    preview: preview::Preview,
 }
 
 struct StageActor {
@@ -90,32 +96,67 @@ impl GpuState {
             &self.device,
             &self.queue,
         );
-        let wanted = menu_backdrop::standalone_menu_visible(self)
+        // Last frame's preview, if any, is what the profile can show now.
+        let ready = self.menu_stage.preview_ready();
+        if let Some(menu) = &mut self.client_menu {
+            menu.set_preview_ready(ready);
+        }
+        let staged = menu_backdrop::standalone_menu_visible(self)
             .then(|| {
                 self.client_menu
                     .as_ref()
                     .and_then(menu::ClientMenu::stage_model)
             })
-            .flatten();
-        let Some((stage, model)) = wanted else {
+            .flatten()
+            .map(|(stage, model)| (Some(stage), model, None));
+        // Otherwise the classic profile's preview may want the actor.
+        // In a match the menu world's stage is not in this world.
+        let sessions = self.live_session.is_some() || self.demo_session.is_some();
+        let wanted = staged.or_else(|| {
+            let (stage, model, preview) = self
+                .client_menu
+                .as_ref()
+                .and_then(menu::ClientMenu::preview_model)?;
+            Some((stage.filter(|_| !sessions), model, Some(preview)))
+        });
+        let Some((stage, model, preview)) = wanted else {
             self.menu_stage.actor = None;
+            self.menu_stage.preview.wanted = None;
             return;
         };
-        let wanted = self
-            .client_menu
-            .as_ref()
-            .map(menu::ClientMenu::stage_sabers);
+        self.menu_stage.preview_only = preview.is_some();
+        self.menu_stage.preview.wanted = preview.map(|preview| {
+            let viewport = [
+                self.configuration.width as f32,
+                self.configuration.height as f32,
+            ];
+            let rect = crate::menu::classic::layout::Placement::new(viewport).rect(preview.rect);
+            [rect.width.round() as u32, rect.height.round() as u32]
+        });
+        // The preview holds no sabers (retail's and JoF's held none).
+        let wanted = match preview {
+            Some(_) => None,
+            None => self
+                .client_menu
+                .as_ref()
+                .map(menu::ClientMenu::stage_sabers),
+        };
         let thrown = wanted.as_ref().is_some_and(|sabers| sabers.thrown);
         let focus = self
             .client_menu
             .as_ref()
             .and_then(menu::ClientMenu::saber_focus);
-        let (stance, request) = match wanted {
-            Some(sabers) => (
+        let (stance, request) = match (wanted, preview) {
+            (Some(sabers), _) => (
                 Some(sabers.stance),
                 (!self.menu_stage.request.matches(&sabers)).then(|| sabers::Request::from(&sabers)),
             ),
-            None => (None, None),
+            (None, Some(preview)) => (
+                Some(preview.stance),
+                (self.menu_stage.request != sabers::Request::default())
+                    .then(sabers::Request::default),
+            ),
+            (None, None) => (None, None),
         };
         let loaded = self
             .menu_stage
@@ -174,7 +215,7 @@ impl GpuState {
 
     fn build_stage_actor(
         &mut self,
-        stage: Stage,
+        stage: Option<Stage>,
         model: &str,
         now: Instant,
     ) -> Result<StageActor, Box<dyn Error>> {
@@ -240,10 +281,12 @@ impl GpuState {
         );
         let geometry_binding =
             crate::shared_geometry::quads::bind(&self.device, &vertex_buffer, &quads);
-        let origin = self.stage_floor(stage);
-        let rotation = weapon_view::actor_world_rotation(
-            Quat::from_rotation_z(stage.yaw.to_radians()).to_array(),
-        );
+        let (origin, yaw) = match stage {
+            Some(stage) => (self.stage_floor(stage), stage.yaw),
+            None => (self.preview_origin(), 0.0),
+        };
+        let rotation =
+            weapon_view::actor_world_rotation(Quat::from_rotation_z(yaw.to_radians()).to_array());
         let light = self.entity_lighting.sample(&self.bsp, origin, &[]);
         let mut instance = ActorInstance::new(origin, rotation.to_array(), [1.0; 3]);
         instance.set_light(light);
@@ -273,6 +316,22 @@ impl GpuState {
             current_frame: frame,
             started,
         })
+    }
+
+    /// Where a preview actor stands without a stage, so the map lights it:
+    /// the local player's origin in a match, else the camera's position.
+    fn preview_origin(&self) -> [f32; 3] {
+        self.live_session
+            .as_ref()
+            .map(ClientSession::latest_snapshot)
+            .or_else(|| {
+                self.demo_session
+                    .as_ref()
+                    .map(demo_playback::Session::latest_snapshot)
+            })
+            .map_or(self.camera_position.to_array(), |snapshot| {
+                snapshot.player.origin()
+            })
     }
 
     /// Settle the stage origin onto the floor just below the authored point
@@ -335,8 +394,27 @@ impl GpuState {
 }
 
 impl MenuStage {
-    /// Draw the stage model's opaque or blended surfaces into the world pass.
+    /// Draw the stage model's opaque or blended surfaces into the world
+    /// pass (nothing while the actor is the classic preview's).
     pub(crate) fn draw<'pass>(
+        &'pass self,
+        pass: &mut wgpu::RenderPass<'pass>,
+        world_materials: &'pass world_materials::Runtime,
+        camera: &'pass wgpu::BindGroup,
+        blended: bool,
+    ) {
+        if !self.preview_only {
+            self.draw_parts(pass, world_materials, camera, blended);
+        }
+    }
+
+    /// Whether the classic preview has a frame for the UI to show.
+    pub(crate) fn preview_ready(&self) -> bool {
+        self.preview_only && self.preview.ready
+    }
+
+    /// The actor, its hilts and its cosmetics, with `camera`.
+    fn draw_parts<'pass>(
         &'pass self,
         pass: &mut wgpu::RenderPass<'pass>,
         world_materials: &'pass world_materials::Runtime,

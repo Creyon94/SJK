@@ -555,13 +555,23 @@ impl PlayerMenu {
         }
     }
 
-    /// Where retail drew the live model: the model's portrait and name.
-    fn model_portrait(&mut self, place: &Placement, canvas: [f32; 4]) {
+    /// Where retail drew the live model: the live preview once the renderer
+    /// has drawn one, else the model's portrait; the name under it.
+    pub(super) fn model_portrait(&mut self, place: &Placement, canvas: [f32; 4]) {
         let absolute = self.choice_index();
-        if self.icons.is_ready(absolute) {
-            let rect = place.rect(canvas);
+        if self.preview_ready {
             let _ = self.canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
-                rect,
+                rect: place.rect(canvas),
+                texture: crate::ui_renderer::PREVIEW_TEXTURE,
+                color: FOCUS,
+            });
+        } else if self.icons.is_ready(absolute) {
+            // The portrait is square: centred in a taller or wider spot.
+            let [x, y, w, h] = canvas;
+            let side = w.min(h);
+            let square = [x + (w - side) * 0.5, y + (h - side) * 0.5, side, side];
+            let _ = self.canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
+                rect: place.rect(square),
                 texture: IconLoader::texture_of(absolute),
                 color: FOCUS,
             });

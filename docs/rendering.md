@@ -1375,6 +1375,27 @@ scaled desktop it would push 1080-line layouts past the window edges. It only
 sets the resolution the bundled Inter font is rasterized at, and text sized in
 that font's own units is converted from line heights so it does not depend on it.
 
+### Classic model preview
+
+The classic profile's live model ([menu_stage/preview.rs](../crates/sjk-viewer/src/menu_stage/preview.rs))
+is the menu stage's actor drawn into a target of its own: a colour texture in
+the scene's format and a `Depth32Float` depth at the preview's size on screen
+(sides rounded up to 16 pixels, at most 1024), so the world material
+pipelines draw into it unchanged, with a camera of its own that frames the
+whole body from in front and turns round it. `preview.wgsl` then writes the
+8-bit texture the UI draws as `PREVIEW_TEXTURE`: display values as the
+effect layer's `display` makes them for each scene format, at a neutral
+exposure, with coverage from depth (an edge pixel averages its covered 3x3
+neighbours and takes their share as alpha). The pass runs after the scene
+and before the UI, only while a classic page shows a preview.
+
+The actor is the stage's, marked preview-only so the world pass and the
+saber blade list leave it out; it holds no sabers. On the main menu it
+stands on the backdrop's stage when the map has one; in a match, at the
+local player's origin, so the map's light grid and lights shade it as the
+player is shaded. It wears the stage's cosmetics. Not drawn into it: saber
+blades and trails, dynamic glow, shadows and fog.
+
 ### UI colour model
 
 The 2D layer (text, retained UI shapes, the shader HUD, the menu-file HUD and the

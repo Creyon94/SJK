@@ -141,7 +141,8 @@ The classic main menu has the retail pages, entries and order:
     The main menu shows the window over the backdrop with the navigation row
     and Back.
   - Cosmetics (SJK, JoF EJK's `ingame_cosmetics`): the installed hats and
-    capes side by side where JoF drew its preview model, the worn row filled.
+    capes side by side and the live model wearing them in a column on the
+    right, the worn row filled.
     A click wears a piece and a second takes it off; the wheel and Left/Right
     move through a list and Enter wears. Show Cosmetics cycles `cg_cosmetics`
     (On, Only Me, Off), Remove All takes both off and Apply returns to the
@@ -149,9 +150,16 @@ The classic main menu has the retail pages, entries and order:
     catalogue has pieces that are not installed the list ends with its note.
     See [Hats and capes](#hats-and-capes).
 
-  Retail drew a live 3D model and a spinning saber. With no world behind the
-  pages yet, the model's portrait and a drawn hilt and blade stand in. The
-  part lists show each variant's icon (`models/players/<species>/icon_<part>`,
+  Character creation shows the live model where retail drew its
+  `ITEM_TYPE_MODEL`: the player's model, wearing their hat and cape, walking
+  in place (`BOTH_WALK1`) while the view turns round it at retail's
+  `model_rotation 50` (20 degrees a second), drawn without sabers as retail's
+  was; the cosmetics window shows it standing (`BOTH_STAND1`) in a column
+  beside the lists, where JoF EJK drew its model. The model's portrait shows
+  until the first preview frame is drawn. See
+  [model preview](rendering.md#classic-model-preview). Lightsaber creation
+  still draws a hilt and blade where retail spun the saber model. The part
+  lists show each variant's icon (`models/players/<species>/icon_<part>`,
   `.jpg`, `.png` or `.tga`) as retail did, its name when there is none, and
   the swatches are the species' tint base (`gfx/menus/players/<species>/`
   `*tintbase`) multiplied by each `playerchoice.txt` colour, as the swatch
@@ -365,9 +373,9 @@ Planned follow-ups, each a new page or screen module, following the retail
 - Retail option items JKR has no setting for (video quality presets, colour
   depth, geometric and texture detail, EAX, languages) are left out of the
   panels, and the video restart confirmation is not needed.
-- On the profile pages: a rendered 3D model and saber (and the cosmetics
-  window's preview model), and portraits for every model (the atlas holds
-  207, so species after the characters show none).
+- On the profile pages: a rendered spinning saber on lightsaber creation
+  (the preview draws no blades yet), and portraits for every model (the atlas
+  holds 207, so species after the characters show none).
 - The screens with no JKR equivalent yet: Play Demo (`demo`), Rules
   (`rules*`), Mods, Defaults, Add Bot (`ingame_addbot`), Siege objectives and
   voice chat, and the error page (`error`).

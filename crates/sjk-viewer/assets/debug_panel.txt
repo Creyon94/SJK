@@ -770,6 +770,22 @@ test: In game (Escape > Profile): Force button in The Force box opens the window
 test: Profile page: click a head tile, a part, a tint, a hilt or a blade swatch: that one is picked.
 note: Was: clicking a cell picked the next entry instead (the list's own region was on top).
 
+[classic-profile-extras]
+status: personal
+area: Menus & settings
+title: Classic profile: Force templates, part icons, live model preview
+change: Force page lists forcecfg templates (retail + packs + yours); Save Template writes yours.
+change: Character creation shows each part's icon and tint swatches made of the species' tint base.
+change: Character creation and the Cosmetics window show your model live, turning (offscreen view).
+test: Force page: templates on the left; click Knight: powers change, row filled, Discard undoes.
+test: Type a name, Save Template: "Saved as ..."; it is first in the list, tagged yours.
+test: Check GameData/SJK/forcecfg/light/<name>.fcf exists; JoF's "^2Side Mission" keeps capitals.
+test: Profile > Custom: heads/torsos/legs show pictures, the swatches are round tinted images.
+test: Character creation: your model walks in place and turns slowly where the portrait was.
+test: Cosmetics: the model stands in the right column; wear a hat: it appears on the model.
+test: Same in game (Escape > Profile > Custom): lit like you are; nothing appears in the world.
+note: The preview is new GPU code: if it shows wrong colours, black or nothing, say what you see.
+
 [jof-cosmetics]
 status: personal
 area: Menus & settings
@@ -784,7 +800,7 @@ test: Local server, cg_thirdPerson 1: the hat sits on your head; a cape on your 
 test: Saber page: change the blade colour: color1 keeps the hat (e.g. 2santahat).
 test: JoF EJK client with a hat on the same local server: SJK shows it, right saber colour.
 test: Show Cosmetics: Only Me hides others', Off hides all; Remove All takes both off.
-note: No preview model yet: check in third person. Modern style has no Cosmetics screen (use cmd).
+test: ui_menuStyle modern: Player screen has Hat and Cape rows; the stage model wears them.
 
 # ---- Merged upstream ----
 

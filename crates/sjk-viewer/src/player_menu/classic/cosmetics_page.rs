@@ -50,8 +50,8 @@ impl PlayerMenu {
         self.window_box(place, page, frame);
         self.band_title(place, at([35.0, 5.0, 360.0, 28.0]), "Cosmetics", 15.0);
         for (text, canvas) in [
-            ("Hats", [15.0, 40.0, 195.0, 18.0]),
-            ("Capes", [220.0, 40.0, 195.0, 18.0]),
+            ("Hats", [15.0, 40.0, 130.0, 18.0]),
+            ("Capes", [150.0, 40.0, 130.0, 18.0]),
         ] {
             self.label(
                 place,
@@ -63,6 +63,11 @@ impl PlayerMenu {
                 TextAlign::Start,
             );
         }
+        // Where JoF EJK drew the model wearing them: the live preview.
+        let preview = at(layout::COSMETICS_PREVIEW);
+        self.fill(place, preview, Color::new(0.0, 0.0, 0.0, 0.35));
+        self.border(place, preview, LIST_BORDER, 1.0);
+        self.model_portrait(place, at(layout::COSMETICS_MODEL));
         let line = at([15.0, 290.0, 400.0, 16.0]);
         let hat = self.cosmetics.worn_label(CosmeticSlot::Hat);
         let cape = self.cosmetics.worn_label(CosmeticSlot::Cape);

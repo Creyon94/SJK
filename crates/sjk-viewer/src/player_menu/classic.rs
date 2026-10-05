@@ -98,6 +98,30 @@ impl PlayerMenu {
         self.classic_style
     }
 
+    /// The live model the page on show wants: character creation's, walking
+    /// in place as retail's did (`BOTH_WALK1`), and the cosmetics window's,
+    /// standing as JoF's does (`BOTH_STAND1`).
+    pub(crate) fn model_preview(&self) -> Option<ModelPreview> {
+        if !self.classic_style {
+            return None;
+        }
+        let page = self.classic.page;
+        let stance = match page {
+            ClassicPage::Character => "BOTH_WALK1",
+            ClassicPage::Cosmetics => "BOTH_STAND1",
+            _ => return None,
+        };
+        Some(ModelPreview {
+            rect: layout::preview_rect(page, self.frame())?,
+            stance,
+        })
+    }
+
+    /// Whether the renderer has a preview frame to show.
+    pub(crate) fn set_preview_ready(&mut self, ready: bool) {
+        self.preview_ready = ready;
+    }
+
     pub(super) fn frame(&self) -> Frame {
         match self.return_target {
             ReturnTarget::MainMenu => Frame::Full,
