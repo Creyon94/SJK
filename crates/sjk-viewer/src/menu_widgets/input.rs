@@ -77,6 +77,12 @@ impl MenuCanvas {
         &self.tokens
     }
 
+    /// Text runs stored this frame and the slots there are (tests).
+    #[cfg(test)]
+    pub(crate) fn text_budget(&self) -> (usize, usize) {
+        (self.text_len, self.text.len())
+    }
+
     pub(crate) fn hit_region(&mut self, token: MenuToken, rect: Rect) {
         self.interactive(token, rect, true, false);
     }
@@ -96,6 +102,7 @@ impl MenuCanvas {
         scrollable: bool,
     ) {
         if self.tokens.len() >= MAX_WIDGETS {
+            self.dropped += 1;
             return;
         }
         let id = WidgetId(self.tokens.len() as u32);

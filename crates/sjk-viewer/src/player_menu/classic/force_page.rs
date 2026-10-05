@@ -828,8 +828,16 @@ mod drawing_tests {
     const OWNER: &str = "7-2-031330310000030333";
 
     /// The Force page drawn on `frame` for `side`, focused on `focus`, with all
-    /// retail art and every Force icon uploaded.
-    fn drawn(frame: Frame, dark: bool, focus: u8) -> PlayerMenu {
+    /// retail art and every Force icon uploaded, `templates` of the player's own
+    /// templates listed on each side and the list scrolled to `scroll`. Drawing
+    /// panics in a debug build if the canvas runs out of storage.
+    fn drawn_with(
+        frame: Frame,
+        dark: bool,
+        focus: u8,
+        templates: usize,
+        scroll: usize,
+    ) -> PlayerMenu {
         let mut menu = PlayerMenu::new();
         menu.return_target = match frame {
             Frame::Full => ReturnTarget::MainMenu,
@@ -842,18 +850,26 @@ mod drawing_tests {
         for (texture, _) in crate::player_menu::force_icons::requests() {
             menu.force_icons.mark_ready(texture);
         }
-        menu.force.load_template("owner", OWNER);
         menu.show_classic(ClassicPage::Force);
+        for side in [ForceSide::Light, ForceSide::Dark] {
+            menu.force_templates.list.fill(side, templates);
+        }
+        menu.force.load_template("owner", OWNER);
         menu.choose_side(if dark {
             ForceSide::Dark
         } else {
             ForceSide::Light
         });
+        menu.force_templates.scroll = scroll;
         menu.snapshot_focus_power(focus);
         let font = crate::text::load_modern(1.0, None).unwrap().font;
         let mut vertices = Vec::new();
         menu.append_classic(&mut vertices, &font, [1920.0, 1080.0], 1.0);
         menu
+    }
+
+    fn drawn(frame: Frame, dark: bool, focus: u8) -> PlayerMenu {
+        drawn_with(frame, dark, focus, 0, 0)
     }
 
     /// Colours of the textured quads drawing `texture`, in order.
@@ -880,12 +896,19 @@ mod drawing_tests {
             .collect()
     }
 
+    /// No templates, then 60 of the player's own (each row with its tag): the
+    /// list at the top, in the middle and scrolled past its end.
+    const LISTS: [(usize, usize); 4] = [(0, 0), (60, 0), (60, 23), (60, 100)];
+
     #[test]
     fn every_power_row_draws_a_readable_holocron_and_three_readable_stars() {
         let stars = star_textures();
         for frame in [Frame::Full, Frame::InGame] {
-            for (dark, side) in [(false, LIGHT_POWERS), (true, DARK_POWERS)] {
-                let menu = drawn(frame, dark, side[0]);
+            for ((dark, side), (templates, scroll)) in [(false, LIGHT_POWERS), (true, DARK_POWERS)]
+                .into_iter()
+                .flat_map(|column| LISTS.map(|list| (column, list)))
+            {
+                let menu = drawn_with(frame, dark, side[0], templates, scroll);
                 let shown = NEUTRAL_POWERS.iter().chain(&SABER_POWERS).chain(&side);
                 for &power in shown {
                     let index = usize::from(power);
@@ -930,6 +953,15 @@ mod drawing_tests {
                 );
                 let list = menu.canvas.draw_list();
                 assert!(list.len() < list.limit(), "the draw list is full");
+                // Only the visible template rows take pointer areas, so the page
+                // keeps its headroom whatever the list holds.
+                let areas = menu.canvas.widget_count();
+                assert!(
+                    areas <= 84,
+                    "{frame:?} {templates} templates: {areas} areas"
+                );
+                let (text, slots) = menu.canvas.text_budget();
+                assert!(text * 2 <= slots, "{frame:?}: {text} of {slots} text runs");
             }
         }
     }

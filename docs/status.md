@@ -465,7 +465,12 @@ with centred titles (retail's overhung them), and the in-game APPLY is centred o
 band. Unit tests draw the Force page on both frames and sides for that profile and
 check every row's holocron opacity, all 39 stars readable and pointable, the detail
 panel's holocron for the two powers, and draw-list headroom; the menu snapshot now
-draws the profile pages and the Force page. Not seen in the client: whether the
+draws the profile pages and the Force page. The Force page's storage does not grow
+with the template list: with 60 of the player's own templates, scrolled anywhere, it
+uses 81 of 96 pointer areas (76 in game), 67 of 160 text runs and 151 of 512 draw
+commands, since only the 14 visible rows register; past a limit the menu canvas now
+panics in debug builds (logs once in release) instead of dropping areas or labels
+silently, and the tests cover both. Not seen in the client: whether the
 in-game renderer showed the same faded rows Sol saw is inferred, not reproduced.
 
 ## Model grid icons and search (SJK)

@@ -93,7 +93,10 @@ Each rule names a page that already follows it.
    retail's model stood). A retail control never loses part of its target.
 9. **Cheap and robust.** Nothing needs the retail art; frames do not allocate
    (`label_fmt` with `format_args!`, fixed storage); pictures decode on worker
-   threads; the page works with the keyboard alone.
+   threads; the page works with the keyboard alone. A frame that outgrows the
+   canvas's fixed storage (96 pointer areas, its text runs, its draw commands)
+   stops a debug build, so the page's tests catch it, and is logged once in a
+   release build; a list registers pointer areas only for its visible rows.
 10. **One group per subject.** Retail split a subject over two pages when a page
     ran out of items (Video and More Video, Force Powers 1 and 2); a classic+
     panel scrolls and explains its items, so it shows the subject as one group,

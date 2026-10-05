@@ -145,7 +145,10 @@ impl MenuCanvas {
     }
 
     fn store_text(&mut self, value: &str) -> Option<TextId> {
-        let slot = self.text.get_mut(self.text_len)?;
+        let Some(slot) = self.text.get_mut(self.text_len) else {
+            self.dropped += 1;
+            return None;
+        };
         slot.clear();
         slot.push_str(value);
         let id = TextId(self.text_len as u32);
@@ -154,7 +157,10 @@ impl MenuCanvas {
     }
 
     fn store_format(&mut self, value: Arguments<'_>) -> Option<TextId> {
-        let slot = self.text.get_mut(self.text_len)?;
+        let Some(slot) = self.text.get_mut(self.text_len) else {
+            self.dropped += 1;
+            return None;
+        };
         slot.clear();
         let _ = slot.write_fmt(value);
         let id = TextId(self.text_len as u32);
