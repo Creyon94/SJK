@@ -677,6 +677,14 @@ test: Drain 3: a red fan. Lightning 1-2: a blue stream; Lightning 3: a blue fan.
 test: Grip the bot: red puffs at your hand in third person only. Push / Pull: grey hand puffs.
 test: A second client watching you sees the same streams and puffs as before.
 
+[melee-viewmodel]
+status: personal
+area: Rendering & effects
+title: First-person melee shows no stun baton
+change: With melee selected, the first-person view no longer draws the stun baton, as in retail.
+test: First person, select melee (fists): no weapon in view; punches and kicks work as before.
+test: Select the stun baton: the baton and its three spinning parts show as before.
+
 [drain-bolt-shape]
 status: personal
 area: Rendering & effects
