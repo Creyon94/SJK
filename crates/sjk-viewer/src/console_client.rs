@@ -20,6 +20,8 @@ mod info;
 mod mod_commands;
 #[path = "console_queries.rs"]
 mod queries;
+#[path = "console_remaps.rs"]
+mod remaps;
 #[path = "console_restarts.rs"]
 mod restarts;
 
@@ -27,6 +29,11 @@ pub(super) use identity::color_chat;
 
 /// Completion/help inventory for commands owned by viewer services.
 pub(super) const COMMANDS: &[(&str, &str)] = &[
+    (
+        "remapShader",
+        "Replace a local shader: remapShader <old> <new>",
+    ),
+    ("listRemaps", "List server and local shader replacements"),
     ("speedometer", "Configure supported speedometer flags"),
     ("strafehelper", "Configure supported airborne CGAZ flags"),
     ("play", "Play local sound files"),
@@ -110,10 +117,7 @@ pub(super) struct Commands {
 
 /// Register command metadata and only the settings consumed by these services.
 pub(super) fn register(shell: &mut Shell, commands: &Commands) -> Result<(), Box<dyn Error>> {
-    for &(name, help) in COMMANDS
-        .iter()
-        .chain(crate::cosmetics::command::COMMANDS)
-    {
+    for &(name, help) in COMMANDS.iter().chain(crate::cosmetics::command::COMMANDS) {
         if !shell.commands.contains(name) && shell.cvars.get(name).is_none() {
             shell.commands.register(name, help, |_| {
                 Err(sjk_shell::CommandError::Handler(
@@ -186,7 +190,7 @@ impl Commands {
     ) -> Option<Result<Vec<String>, String>> {
         if !COMMANDS
             .iter()
-                .chain(crate::cosmetics::command::COMMANDS)
+            .chain(crate::cosmetics::command::COMMANDS)
             .any(|(name, _)| name.eq_ignore_ascii_case(&tokens[0]))
         {
             return None;
@@ -337,6 +341,7 @@ impl crate::GpuState {
         let name = tokens[0].to_ascii_lowercase();
         let args = &tokens[1..];
         match name.as_str() {
+            "remapshader" | "listremaps" => return self.remap_command(&name, args),
             "speedometer" | "strafehelper" => {
                 return hud_commands::execute(
                     self.console.as_mut().ok_or("Console unavailable")?,

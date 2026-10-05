@@ -52,6 +52,8 @@ pub(crate) mod ssao;
 #[path = "world_texture_prepare.rs"]
 mod texture_prepare;
 
+#[path = "world_shader_remaps.rs"]
+mod remaps;
 use fog_draws::FogDraw;
 pub(crate) use fog_draws::FrameDraw;
 use fog_gpu::FogGpu;
@@ -331,6 +333,7 @@ pub(crate) struct Runtime {
     dynamic_light_buffer: wgpu::Buffer,
     lighting_mode: std::cell::Cell<u32>,
     forge: Forge,
+    remaps: remaps::State,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -511,6 +514,7 @@ fn finish_runtime(
         dynamic_light_buffer,
         lighting_mode: std::cell::Cell::new(0),
         forge,
+        remaps: Default::default(),
     };
     // One thread per key was measured twice as no faster on RADV (cold cache, 88
     // pipelines: 98 s sequential, 106 s parallel): the driver serialises. Sequential,
