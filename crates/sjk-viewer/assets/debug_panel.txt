@@ -550,6 +550,18 @@ test: In game, closed: notify lines at the top left; hidden while a menu is open
 test: con_style modern: the old console, unchanged; con_style classic again.
 note: Your config keeps con_timestamps 0: set 2 for EJK's stamps. con_ratioFix 0 squashes.
 
+[legacy-text]
+status: personal
+area: Console & chat
+title: Chat and names leave in Windows-1252, readable by EJK and retail players
+change: Text whose characters all fit Windows-1252 is sent as those bytes, not UTF-8,
+change: so an o-stroke shows as itself for EternalJK/retail players instead of two letters.
+change: Covers chat, names (userinfo), forwarded console commands and rcon.
+test: On a server with an EternalJK player: say a line with accents (e, o-stroke, section sign).
+test: Ask them (or check an EJK client) that it reads correctly, without stray A-tilde letters.
+test: Set a name with an accent: others and the scoreboard show it correctly.
+note: Text with other characters (Cyrillic, emoji) still goes as UTF-8: only SJK reads it.
+
 [debug-panel]
 status: personal
 area: Menus & settings
