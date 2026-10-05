@@ -308,8 +308,13 @@ fn json_match<'a>(object: &'a serde_json::Value, name: &str) -> Option<&'a serde
         .iter()
         .filter(|(_, entry)| entry.is_object())
         .filter_map(|(key, entry)| {
-            let prefix = &key[..key.find('*')?];
-            (name.len() >= prefix.len() && name[..prefix.len()].eq_ignore_ascii_case(prefix))
+            let prefix = &key.as_bytes()[..key.find('*')?];
+            // Compare bytes, as `Q_stricmpn` does: a player's model name may hold a
+            // multi-byte character across the prefix length, and slicing the string
+            // there panicked.
+            name.as_bytes()
+                .get(..prefix.len())
+                .is_some_and(|start| start.eq_ignore_ascii_case(prefix))
                 .then_some((prefix.len(), entry))
         })
         .max_by_key(|(length, _)| *length)
@@ -381,6 +386,15 @@ pub(crate) fn placement_at(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn wildcard_keys_match_model_names_with_symbols() {
+        let json = serde_json::json!({ "abc*": { "x": 1 } });
+        // `×` covers bytes 2..4, across the three-byte prefix: this panicked.
+        assert!(json_match(&json, "ab×").is_none());
+        assert!(json_match(&json, "abc×").is_some());
+        assert!(json_match(&json, "ABcd").is_some());
+    }
 
     #[test]
     fn display_names_read_as_jof_lists_them() {

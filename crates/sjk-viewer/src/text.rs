@@ -534,7 +534,7 @@ mod tests {
 
     #[test]
     fn typed_and_received_symbols_draw_their_windows_1252_glyph() {
-        let symbols = "×¥’¡²³‘€½¼©ñæ§®™£°µ·«»ÄäÖöÜüßÆØøÑ";
+        let symbols = "×¥’¡²³‘€½¼©ñæ§®™£°µ·«»ÄäÖöÜüßÆØøÑ…";
         let expected = sjk_protocol::encode_legacy_text(symbols);
         // Typed here: Unicode characters.
         assert_eq!(glyph_bytes(symbols), *expected);
