@@ -304,9 +304,22 @@ impl Snapshot {
         vertices: &[crate::text::TextVertex],
         over_match: bool,
     ) {
+        self.save_at(name, list, vertices, over_match, VIEWPORT);
+    }
+
+    /// [`Self::save`] at another `viewport` size, for screens that depend on the
+    /// aspect ratio.
+    fn save_at(
+        &self,
+        name: &str,
+        list: &DrawList,
+        vertices: &[crate::text::TextVertex],
+        over_match: bool,
+        viewport: [f32; 2],
+    ) {
         let directory = workspace_root().join("target/menu-snapshots");
         std::fs::create_dir_all(&directory).expect("create the snapshot directory");
-        let size = (VIEWPORT[0] as u32, VIEWPORT[1] as u32);
+        let size = (viewport[0] as u32, viewport[1] as u32);
         let mut image = match (&self.in_match, over_match) {
             (Some(shot), true) => {
                 image::imageops::resize(shot, size.0, size.1, image::imageops::FilterType::Triangle)
@@ -487,6 +500,107 @@ fn menu_snapshot() {
         shots.save(name, editor.draw_list(), &vertices, frame == Frame::InGame);
     }
     in_game_menu(&shots, art);
+    weapon_select(&mut shots, &vfs);
+}
+
+/// The weapon selection row (`crate::weapon_select`) over the match, before (SJK's
+/// old name line) and after, at 4:3 and 16:9; the name is in the bundled font here.
+fn weapon_select(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
+    use crate::weapon_select as row;
+    let icon = |weapon: u8| match weapon {
+        3 => "lightsaber",
+        4 => "blaster_pistol",
+        5 => "blaster",
+        6 => "disruptor",
+        7 => "bowcaster",
+        8 => "repeater",
+        9 => "demp2",
+        10 => "flechette",
+        11 => "merrsonn",
+        12 => "thermal",
+        _ => "c_rifle",
+    };
+    let owned = [3_u8, 4, 5, 6, 7, 8, 9, 10, 11, 12, 15];
+    for &weapon in &owned {
+        let path = format!("gfx/hud/w_icon_{}", icon(weapon));
+        for (texture, suffix) in [(9_000, ""), (9_100, "_na")] {
+            if let Some(image) = decode(vfs, &format!("{path}{suffix}.tga")) {
+                shots.icons.insert(texture + u32::from(weapon), image);
+            }
+        }
+    }
+    let mut inventory = sjk_client::LegacyWeaponInventory {
+        owned: owned.iter().fold(0, |bits, weapon| bits | 1 << weapon),
+        ammo: [100; 16],
+        detpack_planted: false,
+        following: false,
+        spectator: false,
+        emplaced: false,
+    };
+    inventory.ammo[3] = 0; // Out of power cells: disruptor, bowcaster, DEMP2.
+    let selected = 5;
+    let font = &shots.font.font;
+    let names = row::State::new();
+    for (label, viewport) in [("4x3", VIEWPORT), ("16x9", [1920.0, 1080.0])] {
+        let mut list = DrawList::new(32);
+        let side = row::side_max(viewport, 0);
+        let shown = row::row(&inventory, selected, side).expect("weapons owned");
+        row::place_icons(&shown, selected, viewport, 1.0, |weapon, rect| {
+            let empty = !row::has_ammo(&inventory, weapon);
+            let _ = list.push(DrawCommand::TexturedQuad {
+                rect,
+                texture: sjk_ui::TextureId(if empty { 9_100 } else { 9_000 } + u32::from(weapon)),
+                color: sjk_ui::Color::new(1.0, 1.0, 1.0, 1.0),
+            });
+        });
+        let mut vertices = Vec::new();
+        let (x, baseline, line) = row::name_placement(viewport, 1.0);
+        let scale = crate::ui_scale::glyph_scale(font, line, 1.0);
+        let name = "E11-Blaster Rifle";
+        let width = crate::text::visible_text_width(font, name, scale);
+        let ink = font.glyph(crate::text::TextFace::Regular, b'H');
+        crate::text::append_text_style(
+            &mut vertices,
+            font,
+            name,
+            [
+                x - width * 0.5,
+                baseline - (ink.offset_y + ink.height) * scale,
+            ],
+            scale,
+            viewport,
+            crate::text::TextFace::Regular,
+            row::NAME_COLOR,
+            0.0,
+        );
+        shots.save_at(
+            &format!("weapon-select-{label}"),
+            &list,
+            &vertices,
+            true,
+            viewport,
+        );
+        // Before: only the name, `^3`, 0.78 of the height down, 42.6 px at 1080.
+        let mut before = Vec::new();
+        let scale = crate::ui_scale::glyph_scale(font, 42.6, viewport[1] / 1_080.0);
+        let old = format!("^3{}", names.name(selected));
+        let width = crate::text::visible_text_width(font, &old, scale);
+        crate::text::append_text(
+            &mut before,
+            font,
+            &old,
+            [(viewport[0] - width) * 0.5, viewport[1] * 0.78],
+            scale,
+            viewport,
+        );
+        shots.save_at(
+            &format!("weapon-select-before-{label}"),
+            &DrawList::new(1),
+            &before,
+            true,
+            viewport,
+        );
+    }
 }
 
 /// The classic in-game bar and its pop-ups over the match.

@@ -403,6 +403,8 @@ impl super::GpuState {
                         direction,
                         use_held,
                     );
+                    // CG_Draw2D shows only the most recent selector.
+                    self.weapon_selected_at = None;
                 }
             }
             Some(InputAction::RequestScores) => {
@@ -481,10 +483,6 @@ impl super::GpuState {
             }
             self.selected_weapon = Some(weapon);
             self.weapon_selected_at = Some(std::time::Instant::now());
-            self.weapon_selection_label.clear();
-            self.weapon_selection_label.push_str("^3");
-            self.weapon_selection_label
-                .push_str(crate::ingame_menu::weapon_name(weapon));
         }
     }
 }

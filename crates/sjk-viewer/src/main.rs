@@ -167,6 +167,7 @@ mod ui_renderer;
 mod ui_scale;
 mod ui_target;
 mod version_overlay;
+mod weapon_select;
 mod weapon_view;
 mod wgsl_source;
 mod window_icon;
@@ -214,7 +215,7 @@ use std::ops::Range;
 use std::path::PathBuf;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
-use text::{MAX_TEXT_VERTICES, TextVertex, UiFont, append_text, visible_text_width};
+use text::{MAX_TEXT_VERTICES, TextVertex, UiFont, append_text};
 use ui_renderer::ShapeRenderer;
 use wgpu::util::DeviceExt;
 use winit::application::ApplicationHandler;
@@ -403,7 +404,6 @@ struct GpuState {
 
     selected_weapon: Option<u8>,
     weapon_selected_at: Option<Instant>,
-    weapon_selection_label: String,
     pending_generic_command: u8,
     vfs: Option<Arc<VirtualFileSystem>>,
     pending_map_reload: bool,
@@ -1195,7 +1195,6 @@ impl GpuState {
 
             selected_weapon: None,
             weapon_selected_at: None,
-            weapon_selection_label: String::with_capacity(40),
             pending_generic_command: 0,
             effects,
             sound_prefetch,
@@ -1430,6 +1429,8 @@ impl GpuState {
         } else {
             &self.ui_font
         };
+        self.hud.weapon_select.shown =
+            self.sample_weapon_select(hud_visibility.menu_hud, intermission_view.is_some());
         let hud_layout = self.hud.layout(
             hud_font,
             menu_hud::HudStyle::read(self.console.as_ref()) == menu_hud::HudStyle::Classic,
@@ -1539,29 +1540,7 @@ impl GpuState {
         if chat_visible {
             self.append_configured_chat(viewport, text_scale, scoreboard_visible);
         }
-        if self
-            .weapon_selected_at
-            .is_some_and(|selected| selected.elapsed() < Duration::from_secs(2))
-            && !self.weapon_selection_label.is_empty()
-        {
-            // CG_DrawWeaponSelect names the weapon with UI_SMALLFONT (FONT_SMALL).
-            let (vertices, font) = self.game_fonts.target(
-                game_font::RetailFont::Small,
-                &mut self.text_vertices,
-                &self.ui_font,
-            );
-            // 1.1 times Inter's 38.7-pixel line at 1080 lines, in any font.
-            let scale = ui_scale::glyph_scale(font, 42.6, text_scale);
-            let width = visible_text_width(font, &self.weapon_selection_label, scale);
-            append_text(
-                vertices,
-                font,
-                &self.weapon_selection_label,
-                [(viewport[0] - width) * 0.5, viewport[1] * 0.78],
-                scale,
-                viewport,
-            );
-        }
+        self.append_weapon_select_name(viewport);
         if self.game_menu && !self.console_covers_frame() {
             let team_sizes = self.live_session.as_ref().map_or([0, 0], |session| {
                 ingame_menu::team_sizes(session.game_state())

@@ -978,6 +978,21 @@ test: Pick Text only, then SJK classic, SJK modern: each shows in game; Escape c
 test: Same from the in-game Setup (Escape > Setup > HUD) over the match.
 note: Your config.cfg keeps cg_hudStyle modern; only new configs start on the game HUD.
 
+[weapon-select-row]
+status: personal
+area: HUD
+title: Weapon switch shows retail's icon row and gold name, sized as in JoF EJK
+change: Game HUD: switching weapons shows the icon row (big selected icon, small ones beside it).
+change: Name in gold FONT_SMALL at the bottom (retail names, e.g. E11-Blaster Rifle), 1.4 s.
+change: 5 icons per side at 16:9 (3 at 4:3, 7 ultra-wide); empty weapons use their _na icon.
+test: Game HUD on, a JoF server or devmap with several weapons: switch with the wheel/keys.
+test: The row sits at the bottom centre, same size as in JoF EJK (compare a screenshot side by side).
+test: Empty a weapon: its icon turns to the _na art; empty thermals/trip mines leave the row.
+test: Staff or dual saber stance: the saber icon shows a staff or two sabers.
+test: Cycle Force powers right after a switch: the weapon row disappears (most recent selector).
+test: cg_hudScale 1.5: the row grows from the bottom centre; scoreboard held: no row.
+note: SJK's own modern/classic layouts keep their weapon-name widget instead of the row.
+
 [credit-notice]
 status: personal
 area: Console & chat
