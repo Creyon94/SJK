@@ -4,10 +4,12 @@
 //! stars numbered with what each level costs (`UI_DrawForceStars`). SJK adds
 //! the side cards with their emblems, a points meter that previews a
 //! hovered star's cost, a holocron icon on every power, two columns, and a
-//! panel describing the focused power.
+//! panel describing the focused power. Retail's templates column (the
+//! `FEEDER_FORCECFG` list, the name field and Save) keeps its place on the
+//! left.
 
 use super::layout::{self, Item, force};
-use super::view::{FRAME, LABEL, STAR_BASE, VALUE};
+use super::view::{FRAME, LABEL, STAR_BASE, TEMPLATE_BASE, TEMPLATES_SCROLL, VALUE};
 use super::{ClassicPage, Frame};
 use crate::menu::art::ArtPiece;
 use crate::menu::classic::layout::Placement;
@@ -32,6 +34,15 @@ const DARK_TINT: Color = Color::new(1.0, 0.33, 0.28, 1.0);
 const SHORT: Color = Color::new(1.0, 0.4, 0.3, 1.0);
 /// Retail's grey for a power that cannot be bought (`grColor`).
 const UNUSABLE: Color = Color::new(0.2, 0.2, 0.2, 1.0);
+/// The template list (`fcflist`: `backcolor 0 0 .5 .25`, `bordercolor .5
+/// .5 .5`, the chosen row `outlinecolor .25 .464 .578 .5`).
+const TEMPLATE_BACK: Color = Color::new(0.0, 0.0, 0.5, 0.25);
+const TEMPLATE_BORDER: Color = Color::new(0.5, 0.5, 0.5, 1.0);
+const TEMPLATE_CHOSEN: Color = Color::new(0.25, 0.464, 0.578, 0.5);
+/// A save that worked.
+const SAVED: Color = Color::new(0.45, 0.9, 0.45, 1.0);
+/// Most template rows a token range names.
+pub(super) const MAX_TEMPLATE_ROWS: usize = 128;
 
 /// The page's power names (`MENUS_FORCE_*`), in `forcePowers_t` order.
 pub(super) const POWER_LABELS: [&str; 18] = [
@@ -116,7 +127,7 @@ impl PlayerMenu {
         self.window_box(place, page, frame);
         self.band_title(
             place,
-            at([20.0, 5.0, 390.0, 28.0]),
+            at([20.0, 5.0, 560.0, 28.0]),
             "Choose your Force Training",
             15.0,
         );
@@ -125,7 +136,7 @@ impl PlayerMenu {
         let side = allocation.side;
         self.label_fmt(
             place,
-            at([15.0, 36.0, 400.0, 16.0]),
+            at([15.0, 36.0, 570.0, 16.0]),
             format_args!("Force Mastery: {}", mastery(rank)),
             14.0,
             GOLD,
@@ -137,6 +148,8 @@ impl PlayerMenu {
             ForceSide::Light => ("Light Side", ArtPiece::BlendBox),
             ForceSide::Dark => ("Dark Side", ArtPiece::BlendBoxRed),
         };
+        self.column_heading(place, at(force::TEMPLATES_HEAD), "Force Templates", None);
+        self.template_note(place, at(force::TEMPLATE_NOTE));
         self.column_heading(place, at(force::NEUTRAL_HEAD), "Neutral", None);
         self.column_heading(place, at(force::SIDE_HEAD), side_text, Some(side_band));
         self.column_heading(place, at(force::SABER_HEAD), "Lightsaber", None);
@@ -248,6 +261,27 @@ impl PlayerMenu {
             Item::SideLight => self.side_card(place, canvas, ForceSide::Light, active),
             Item::SideDark => self.side_card(place, canvas, ForceSide::Dark, active),
             Item::Power(index) => self.power_row(place, usize::from(index), canvas, active),
+            Item::Templates => self.template_list(place, canvas, active),
+            Item::TemplateName => self.template_name(place, canvas, active),
+            Item::TemplateSave => {
+                if active {
+                    glow(
+                        &mut self.canvas,
+                        place.rect(canvas),
+                        place.scale,
+                        self.classic.art,
+                    );
+                }
+                self.label(
+                    place,
+                    canvas,
+                    item.label(),
+                    14.0,
+                    if active { FOCUS } else { GOLD },
+                    FontWeight::Semibold,
+                    TextAlign::Center,
+                );
+            }
             Item::ForceReset | Item::ForceDiscard | Item::ForceApply => {
                 let enabled = item == Item::ForceReset || self.force.is_dirty();
                 if active && enabled {
@@ -424,6 +458,163 @@ impl PlayerMenu {
             self.canvas
                 .hit_region(star_token(index, star_level), place.rect(rect));
         }
+    }
+
+    /// The side's templates, 16-unit rows: the player's own tagged, the one
+    /// the draft holds filled.
+    fn template_list(&mut self, place: &Placement, canvas: [f32; 4], active: bool) {
+        self.fill(place, canvas, TEMPLATE_BACK);
+        self.border(
+            place,
+            canvas,
+            if active { FOCUS } else { TEMPLATE_BORDER },
+            1.0,
+        );
+        self.canvas
+            .scroll_region(TEMPLATES_SCROLL, place.rect(canvas));
+        let [x, y, w, h] = canvas;
+        let rows = (h / force::TEMPLATE_ROW).floor() as usize;
+        let side = self.force.allocation().side;
+        let count = self
+            .force_templates
+            .list
+            .of(side)
+            .len()
+            .min(MAX_TEMPLATE_ROWS);
+        if count == 0 {
+            self.label(
+                place,
+                [x + 4.0, y + 6.0, w - 8.0, force::TEMPLATE_ROW],
+                "No templates for this side.",
+                11.0,
+                VALUE,
+                FontWeight::Regular,
+                TextAlign::Center,
+            );
+            return;
+        }
+        let chosen = self.template_row();
+        let state = &mut self.force_templates;
+        if let Some(row) = chosen {
+            if row < state.scroll {
+                state.scroll = row;
+            } else if row >= state.scroll + rows {
+                state.scroll = row + 1 - rows;
+            }
+        }
+        state.scroll = state.scroll.min(count.saturating_sub(rows));
+        let first = state.scroll;
+        for row in first..(first + rows).min(count) {
+            let cell = [
+                x + 1.0,
+                y + 1.0 + (row - first) as f32 * force::TEMPLATE_ROW,
+                w - 2.0,
+                force::TEMPLATE_ROW,
+            ];
+            let token = TEMPLATE_BASE + row as u16;
+            let hovered = self.canvas.token_hovered(token);
+            if chosen == Some(row) {
+                self.fill(place, cell, TEMPLATE_CHOSEN);
+            }
+            if hovered {
+                self.piece(place, ArtPiece::BlendBox2, cell);
+            }
+            let Some((name, own)) = self
+                .force_templates
+                .list
+                .of(side)
+                .get(row)
+                .map(|template| (template.name.clone(), template.own))
+            else {
+                continue;
+            };
+            let [cx, cy, cw, ch] = cell;
+            let color = if hovered || chosen == Some(row) {
+                FOCUS
+            } else {
+                VALUE
+            };
+            let tag = if own { 34.0 } else { 0.0 };
+            self.label(
+                place,
+                [cx + 4.0, cy, cw - 8.0 - tag, ch],
+                &name,
+                11.0,
+                color,
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+            if own {
+                self.label(
+                    place,
+                    [cx + cw - tag - 4.0, cy, tag, ch],
+                    "yours",
+                    9.0,
+                    GOLD,
+                    FontWeight::Semibold,
+                    TextAlign::End,
+                );
+            }
+            self.canvas.hit_region(token, place.rect(cell));
+        }
+        if count > rows {
+            let track = place.rect([x + w - 5.0, y + 2.0, 3.0, h - 4.0]);
+            self.canvas
+                .scrollbar(TEMPLATES_SCROLL, track, first, rows, count);
+        }
+    }
+
+    /// The name field (`ui_SaveFCF`), underlined while it takes typing.
+    fn template_name(&mut self, place: &Placement, canvas: [f32; 4], active: bool) {
+        let s = place.scale;
+        let editing = self.force_templates.editing;
+        if active && !editing {
+            glow(&mut self.canvas, place.rect(canvas), s, self.classic.art);
+        }
+        let name = self.force_templates.name.clone();
+        let color = if active || editing { FOCUS } else { VALUE };
+        if name.is_empty() && !editing {
+            self.label(
+                place,
+                canvas,
+                "Name: (type a name)",
+                12.0,
+                with_alpha(color, 0.7),
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+        } else {
+            self.label_fmt(
+                place,
+                canvas,
+                format_args!("Name: {name}"),
+                12.0,
+                color,
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+        }
+        if editing {
+            let accent = self.canvas.theme().accent;
+            self.canvas.edit_underline(place.rect(canvas), accent, s);
+        }
+    }
+
+    /// How the last save went, under Save.
+    fn template_note(&mut self, place: &Placement, canvas: [f32; 4]) {
+        let Some((text, saved)) = self.force_templates.note.clone() else {
+            return;
+        };
+        let [x, y, w, _] = canvas;
+        self.label(
+            place,
+            [x, y, w, 14.0],
+            &text,
+            10.0,
+            if saved { SAVED } else { SHORT },
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
     }
 
     /// The panel under the side column: the hovered or focused power's

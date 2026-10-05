@@ -63,6 +63,8 @@ pub(super) struct ForceMenu {
     applied: ForceAllocation,
     rules: ForceLegalizeRules,
     encoded: String,
+    /// The template the draft was last loaded from, until it is edited.
+    template: Option<String>,
 }
 
 impl ForceMenu {
@@ -73,6 +75,7 @@ impl ForceMenu {
             applied: allocation.clone(),
             allocation,
             rules: ForceLegalizeRules::default(),
+            template: None,
         }
     }
 
@@ -101,7 +104,21 @@ impl ForceMenu {
         self.allocation = legalize_force_powers(&allocation.encode(), self.rules).allocation;
         // What was read counts as applied: opening never writes the cvar.
         self.applied.clone_from(&self.allocation);
+        self.template = None;
         self.refresh_encoded();
+    }
+
+    /// Load a template's `forcepowers` into the draft, legalized under the
+    /// server's rules at the draft's rank (`UI_ForceConfigHandle`).
+    pub(super) fn load_template(&mut self, name: &str, value: &str) {
+        self.allocation = legalize_force_powers(value, self.rules).allocation;
+        self.template = Some(name.to_owned());
+        self.refresh_encoded();
+    }
+
+    /// The template the draft holds unedited, if any.
+    pub(super) fn template(&self) -> Option<&str> {
+        self.template.as_deref()
     }
 
     pub(super) fn allocation(&self) -> &ForceAllocation {
@@ -210,6 +227,7 @@ impl ForceMenu {
         if self.allocation.side == side {
             return;
         }
+        self.template = None;
         self.allocation.side = side;
         self.allocation = legalize_force_powers(&self.allocation.encode(), self.rules).allocation;
         self.refresh_encoded();
@@ -231,6 +249,7 @@ impl ForceMenu {
                 self.allocation = before;
                 return false;
             }
+            self.template = None;
             self.refresh_encoded();
         }
         changed
@@ -238,6 +257,7 @@ impl ForceMenu {
 
     /// Clear every level on the draft (the free minima stay).
     pub(super) fn reset(&mut self) {
+        self.template = None;
         let side = self.allocation.side;
         self.allocation = ForceAllocation {
             rank: self.rules.max_rank,
@@ -250,6 +270,7 @@ impl ForceMenu {
 
     /// Return the draft to the applied profile.
     pub(super) fn discard(&mut self) {
+        self.template = None;
         self.allocation.clone_from(&self.applied);
         self.refresh_encoded();
     }
@@ -323,6 +344,30 @@ mod tests {
         let menu = menu("7-1-030000100000001000");
         assert!(!menu.is_dirty());
         assert_eq!(menu.allocation().levels[6], 0);
+    }
+
+    #[test]
+    fn a_template_loads_legalized_at_the_drafts_rank() {
+        // Rank 3 (20 points): retail's Knight is cut down to fit.
+        let mut menu = menu("3-1-000000000000000000");
+        menu.load_template("Knight", "7-1-331322000200003322");
+        assert_eq!(menu.allocation().rank, 3);
+        assert!(menu.remaining_points() <= 20);
+        assert_eq!(menu.template(), Some("Knight"));
+        assert!(menu.is_dirty());
+        // Any edit leaves the template behind.
+        menu.reset();
+        assert_eq!(menu.template(), None);
+        let mut menu = menu_at_master();
+        menu.load_template("Destroyer", "7-2-012320333000030321");
+        assert_eq!(menu.allocation().side, ForceSide::Dark);
+        assert_eq!(menu.allocation().levels[7], 3); // Lightning
+        menu.set_side(ForceSide::Light);
+        assert_eq!(menu.template(), None);
+    }
+
+    fn menu_at_master() -> ForceMenu {
+        menu(DEFAULT_FORCEPOWERS)
     }
 
     #[test]

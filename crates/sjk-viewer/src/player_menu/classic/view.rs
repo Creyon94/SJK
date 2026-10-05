@@ -60,6 +60,9 @@ pub(super) const HAT_BASE: u16 = 1000;
 pub(super) const CAPE_BASE: u16 = 1400;
 pub(super) const HATS_SCROLL: u16 = 907;
 pub(super) const CAPES_SCROLL: u16 = 908;
+/// First token of the Force page's template rows, and the list's wheel target.
+pub(super) const TEMPLATE_BASE: u16 = 1700;
+pub(super) const TEMPLATES_SCROLL: u16 = 909;
 
 /// Blade swatch art, in [`BLADE_SWATCHES`] order.
 const SWATCH_ART: [ArtPiece; 6] = [
@@ -807,6 +810,9 @@ impl PlayerMenu {
                 let first = super::force_page::star_token(usize::from(power), 1);
                 first..first + 3
             }
+            Item::Templates => {
+                TEMPLATE_BASE..TEMPLATE_BASE + super::force_page::MAX_TEMPLATE_ROWS as u16
+            }
             Item::Hats => HAT_BASE..HAT_BASE + super::cosmetics_page::MAX_ROWS as u16,
             Item::Capes => CAPE_BASE..CAPE_BASE + super::cosmetics_page::MAX_ROWS as u16,
             _ => return false,
@@ -845,7 +851,10 @@ impl PlayerMenu {
             | Item::Power(_)
             | Item::ForceReset
             | Item::ForceDiscard
-            | Item::ForceApply => self.force_entry(place, item, canvas, active),
+            | Item::ForceApply
+            | Item::Templates
+            | Item::TemplateName
+            | Item::TemplateSave => self.force_entry(place, item, canvas, active),
             Item::Hats | Item::Capes | Item::CosmeticsShow => {
                 self.cosmetics_entry(place, item, canvas, active)
             }

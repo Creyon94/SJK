@@ -123,6 +123,11 @@ impl PlayerMenu {
     pub(super) fn show_classic(&mut self, page: ClassicPage) {
         self.numeric = None;
         self.name_editing = false;
+        self.force_templates.editing = false;
+        if page == ClassicPage::Force {
+            self.force_templates.list.ensure(self.icon_vfs.as_ref());
+            self.force_templates.note = None;
+        }
         self.classic.page = page;
         let items = self.classic_items();
         self.classic.focus = items.iter().position(|item| !item.is_nav()).unwrap_or(0);
@@ -200,6 +205,12 @@ impl PlayerMenu {
                 });
                 return;
             }
+            // Browsing the templates loads each into the draft.
+            Item::Templates => {
+                self.step_template(direction);
+                return;
+            }
+            Item::TemplateName | Item::TemplateSave => return,
             // The Force page edits a draft; only Apply Powers writes it.
             Item::Power(index) => {
                 self.force.step(usize::from(index), direction > 0);
@@ -343,6 +354,20 @@ impl PlayerMenu {
                 self.force.reset();
                 PlayerMenuResult::None
             }
+            Item::Templates => {
+                if self.template_row().is_none() {
+                    self.step_template(1);
+                }
+                PlayerMenuResult::None
+            }
+            Item::TemplateName => {
+                self.begin_template_name();
+                PlayerMenuResult::None
+            }
+            Item::TemplateSave => {
+                self.save_template();
+                PlayerMenuResult::None
+            }
             Item::ForceDiscard => {
                 self.force.discard();
                 PlayerMenuResult::None
@@ -460,6 +485,9 @@ impl PlayerMenu {
         };
         if self.name_editing {
             return self.edit_name(event, key, console);
+        }
+        if self.force_templates.editing {
+            return self.edit_template_name(event, key);
         }
         self.write_if_dirty(console);
         let count = self.classic_items().len().max(1);

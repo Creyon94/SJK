@@ -8,7 +8,7 @@ use super::cosmetics_page::{self, list_of};
 use super::force_page::star_of;
 use super::view::{
     BLADE_BASE, CAPES_SCROLL, HATS_SCROLL, HILT_BASE, HILTS_SCROLL, PART_BASE, PARTS_SCROLL,
-    TINT_BASE, TINTS_SCROLL,
+    TEMPLATE_BASE, TEMPLATES_SCROLL, TINT_BASE, TINTS_SCROLL,
 };
 use super::{BLADE_SWATCHES, Item};
 use crate::console::ViewerConsole;
@@ -31,6 +31,8 @@ enum Target {
     Star(usize, u8),
     /// A row of the hat or cape list.
     Cosmetic(CosmeticSlot, usize),
+    /// A row of the Force template list.
+    Template(usize),
     Scroll(u16),
 }
 
@@ -41,10 +43,16 @@ fn target(token: u16) -> Option<Target> {
     if let Some((power, level)) = star_of(token) {
         return Some(Target::Star(power, level));
     }
+    if let Some(row) = token
+        .checked_sub(TEMPLATE_BASE)
+        .map(usize::from)
+        .filter(|row| *row < super::force_page::MAX_TEMPLATE_ROWS)
+    {
+        return Some(Target::Template(row));
+    }
     Some(match token {
-        GRID_SCROLL_TOKEN | PARTS_SCROLL | TINTS_SCROLL | HATS_SCROLL | CAPES_SCROLL => {
-            Target::Scroll(token)
-        }
+        GRID_SCROLL_TOKEN | PARTS_SCROLL | TINTS_SCROLL | HATS_SCROLL | CAPES_SCROLL
+        | TEMPLATES_SCROLL => Target::Scroll(token),
         token if HILTS_SCROLL.contains(&token) => Target::Scroll(token),
         token if token >= BLADE_BASE[1] && token < BLADE_BASE[1] + 6 => {
             Target::Blade(true, usize::from(token - BLADE_BASE[1]))
@@ -110,10 +118,12 @@ impl PlayerMenu {
             }
             Target::Star(power, _) => self.focus_of(Item::Power(power as u8)),
             Target::Cosmetic(slot, _) => self.focus_of(list_of(slot).0),
+            Target::Template(_) => self.focus_of(Item::Templates),
             Target::Scroll(_) => None,
         };
         if matches!(event.kind, UiEventKind::HoverEnter | UiEventKind::Hover) {
-            if let Some(index) = owner.filter(|_| !self.name_editing) {
+            let typing = self.name_editing || self.force_templates.editing;
+            if let Some(index) = owner.filter(|_| !typing) {
                 self.classic.focus = index;
             }
             if let Target::Cosmetic(slot, row) = target {
@@ -147,6 +157,8 @@ impl PlayerMenu {
             self.name_editing = false;
             self.apply(console);
         }
+        // A click elsewhere ends typing a template name, keeping it.
+        self.force_templates.editing = false;
         if let Some(index) = owner {
             self.classic.focus = index;
         }
@@ -190,6 +202,10 @@ impl PlayerMenu {
                 self.cosmetics.toggle(console, slot, row);
                 PlayerMenuResult::None
             }
+            Target::Template(row) => {
+                self.load_template_row(row);
+                PlayerMenuResult::None
+            }
             Target::Scroll(_) => PlayerMenuResult::None,
         }
     }
@@ -223,6 +239,11 @@ impl PlayerMenu {
             Target::Scroll(HATS_SCROLL) => self.scroll_cosmetics(CosmeticSlot::Hat, rows),
             Target::Scroll(CAPES_SCROLL) => self.scroll_cosmetics(CosmeticSlot::Cape, rows),
             Target::Cosmetic(slot, _) => self.scroll_cosmetics(slot, rows),
+            // The template list scrolls its view; loading takes a click.
+            Target::Scroll(TEMPLATES_SCROLL) | Target::Template(_) => {
+                let state = &mut self.force_templates;
+                state.scroll = state.scroll.saturating_add_signed(rows as isize);
+            }
             _ => {}
         }
     }

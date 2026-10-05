@@ -116,8 +116,16 @@ The classic main menu has the retail pages, entries and order:
     frames, editing the same draft as the modern Force tab. It keeps retail's
     frame, title band, gold mastery line, blue and red side bars and level
     stars, each numbered with what that level costs (`UI_DrawForceStars`:
-    `forcestarN` once bought, `forcecircleN` before). SJK lays the powers out
-    in two columns, the neutral powers over the saber skills and the chosen
+    `forcestarN` once bought, `forcecircleN` before), and retail's templates
+    down the left: the side's `forcecfg/light` or `forcecfg/dark` `.fcf`
+    files from the game data (retail's Blademaster, Knight and others, and
+    any pack's, under their own capitalised names) and the player's own,
+    which come first and are tagged. A click or Left/Right loads a template
+    into the draft, legalized at the draft's rank as `UI_ForceConfigHandle`
+    does, and the row stays filled until the draft is edited; Name and Save
+    Template write the draft to `forcecfg/<side>/<name>.fcf` in the client's
+    user folder (beside `config.cfg`). The window is as wide as the in-game
+    profile. SJK lays the powers out in two columns, the neutral powers over the saber skills and the chosen
     side's five beside them, each with its holocron (`gfx/mp/f_icon_*`), and
     adds Light and Dark cards with the side emblems, a points meter that shows
     a hovered star's price (red when the points left cannot pay it) and a
@@ -348,8 +356,7 @@ Planned follow-ups, each a new page or screen module, following the retail
 - Classic versions of the screens the classic pages still open in the modern
   style: Join Server's `findplayer` and `createfavorite` pop-ups, Create
   Server (`createserver`, `advancedcreateserver`),
-  Solo Game (`quickgame`), and the Force page's templates (retail's
-  `forcecfg` list and Save).
+  Solo Game (`quickgame`).
 - Retail option items JKR has no setting for (video quality presets, colour
   depth, geometric and texture detail, EAX, languages) are left out of the
   panels, and the video restart confirmation is not needed.

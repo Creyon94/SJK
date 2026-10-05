@@ -267,6 +267,20 @@ impl VirtualFileSystem {
         listed
     }
 
+    /// The name `path` is stored under in the highest-priority source that
+    /// holds it, with its original letter case (paths are matched without
+    /// case, so [`Self::list_files`] gives them in lowercase): the archive's
+    /// entry name, the loose file's relative path on disk, or the name a
+    /// memory mount was given. Separators are `/`.
+    pub fn original_name(&self, path: &str) -> Option<String> {
+        let path = VirtualPath::new(path).ok()?;
+        self.mounts
+            .iter()
+            .rev()
+            .find(|mount| mount.source.contains(&path))
+            .and_then(|mount| mount.source.original_name(&path))
+    }
+
     /// Returns the normalized union of paths visible across all mounts.
     pub fn paths(&self) -> Vec<VirtualPath> {
         let mut paths = BTreeSet::new();
@@ -312,6 +326,8 @@ trait AssetSourceBackend: Send + Sync {
     fn contains(&self, path: &VirtualPath) -> bool;
     fn entry_count(&self) -> usize;
     fn append_paths(&self, output: &mut BTreeSet<VirtualPath>);
+    /// The name `path` has in this source, letter case kept.
+    fn original_name(&self, path: &VirtualPath) -> Option<String>;
     /// Every path in the source's own order: an archive's central directory, else sorted.
     fn append_in_order(&self, output: &mut Vec<VirtualPath>) {
         let mut paths = BTreeSet::new();
@@ -323,6 +339,7 @@ trait AssetSourceBackend: Send + Sync {
 struct MemorySource {
     name: Arc<str>,
     files: HashMap<VirtualPath, Vec<u8>>,
+    originals: HashMap<VirtualPath, String>,
 }
 
 impl MemorySource {
@@ -333,11 +350,18 @@ impl MemorySource {
         B: Into<Vec<u8>>,
     {
         let mut files = HashMap::new();
+        let mut originals = HashMap::new();
         for (path, bytes) in entries {
+            let original = path.as_ref().replace('\\', "/");
             let path = VirtualPath::new(path.as_ref())?;
+            originals.insert(path.clone(), original);
             files.insert(path, bytes.into());
         }
-        Ok(Self { name, files })
+        Ok(Self {
+            name,
+            files,
+            originals,
+        })
     }
 }
 
@@ -363,6 +387,10 @@ impl AssetSourceBackend for MemorySource {
 
     fn append_paths(&self, output: &mut BTreeSet<VirtualPath>) {
         output.extend(self.files.keys().cloned());
+    }
+
+    fn original_name(&self, path: &VirtualPath) -> Option<String> {
+        self.originals.get(path).cloned()
     }
 }
 
@@ -468,6 +496,20 @@ impl AssetSourceBackend for DirectorySource {
     fn append_paths(&self, output: &mut BTreeSet<VirtualPath>) {
         output.extend(self.files.keys().cloned());
     }
+
+    fn original_name(&self, path: &VirtualPath) -> Option<String> {
+        // The host path ends in as many components as the virtual path has.
+        let host = self.files.get(path)?;
+        let depth = path.as_str().split('/').count();
+        let mut components: Vec<&str> = host
+            .components()
+            .rev()
+            .take(depth)
+            .filter_map(|component| component.as_os_str().to_str())
+            .collect();
+        components.reverse();
+        Some(components.join("/"))
+    }
 }
 
 struct Pk3Source {
@@ -567,6 +609,14 @@ impl AssetSourceBackend for Pk3Source {
 
     fn append_paths(&self, output: &mut BTreeSet<VirtualPath>) {
         output.extend(self.entries.keys().cloned());
+    }
+
+    fn original_name(&self, path: &VirtualPath) -> Option<String> {
+        let index = self.entries.get(path).copied()?;
+        let archive = self.archive.lock().ok()?;
+        archive
+            .name_for_index(index)
+            .map(|name| name.replace('\\', "/"))
     }
 
     fn append_in_order(&self, output: &mut Vec<VirtualPath>) {
@@ -702,5 +752,30 @@ impl Error for VfsError {
 impl From<VirtualPathError> for VfsError {
     fn from(value: VirtualPathError) -> Self {
         Self::VirtualPath(value)
+    }
+}
+
+#[cfg(test)]
+mod original_name_tests {
+    use super::*;
+
+    #[test]
+    fn listed_names_are_lowercase_but_the_original_case_is_kept() {
+        let mut vfs = VirtualFileSystem::new();
+        vfs.mount_memory(
+            "base",
+            [("forcecfg/light/^2Side Mission.fcf", b"7-1-0".to_vec())],
+        )
+        .unwrap();
+        assert_eq!(
+            vfs.list_files("forcecfg/light", ".fcf"),
+            ["^2side mission.fcf"]
+        );
+        assert_eq!(
+            vfs.original_name("FORCECFG/light/^2side mission.fcf")
+                .as_deref(),
+            Some("forcecfg/light/^2Side Mission.fcf")
+        );
+        assert_eq!(vfs.original_name("forcecfg/light/none.fcf"), None);
     }
 }

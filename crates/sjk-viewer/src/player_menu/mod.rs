@@ -10,6 +10,7 @@ mod controller;
 mod cosmetics;
 mod force;
 mod force_icons;
+mod force_templates;
 mod force_view;
 mod grid;
 mod icons;
@@ -127,6 +128,8 @@ pub(crate) struct PlayerMenu {
     page: ProfilePage,
     saber: saber::SaberMenu,
     force: force::ForceMenu,
+    /// The classic Force page's templates (retail's `forcecfg`).
+    force_templates: force_templates::TemplateState,
     /// JoF EJK's hats and capes (the classic cosmetics window).
     cosmetics: cosmetics::CosmeticsMenu,
     /// `ui_menuStyle classic`: the retail profile pages instead of the
@@ -163,6 +166,7 @@ impl PlayerMenu {
             page: ProfilePage::Character,
             saber: saber::SaberMenu::new(),
             force: force::ForceMenu::new(),
+            force_templates: force_templates::TemplateState::default(),
             cosmetics: cosmetics::CosmeticsMenu::new(),
             classic_style: false,
             classic: classic::ClassicState::default(),
