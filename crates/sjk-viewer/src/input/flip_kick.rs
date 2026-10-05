@@ -6,9 +6,23 @@
 //! EJK counts cgame frames and sends `+moveup`/`-moveup` once per frame, one user
 //! command each. SJK sends a user command every 25 ms, so the run counts user
 //! commands instead: each one carries the run's jump state, which is what the
-//! server sees. `cg_fkDuration` 50 is therefore 1.25 s here (0.4 s at EJK's
-//! 125 fps). A server forbids the bind with bit 7 of serverinfo `restricts`
-//! (`RESTRICT_FLIPKICKBIND`).
+//! server sees. The cvars stay in EJK's frames and are read as time at EJK's
+//! 125 fps ([`commands`]): `cg_fkDuration` 50 is 0.4 s, 16 commands. Counted as
+//! commands it would run 1.25 s, past the end of a missed kick's jump, and jump
+//! again on landing. A server forbids the bind with bit 7 of serverinfo
+//! `restricts` (`RESTRICT_FLIPKICKBIND`).
+
+/// Milliseconds of one EJK frame at the 125 fps its defaults were tuned for.
+const FRAME_MILLIS: u64 = 8;
+/// Milliseconds between the user commands SJK sends.
+const COMMAND_MILLIS: u64 = 25;
+
+/// User commands that last as long as `frames` EJK frames, rounded up.
+pub(crate) fn commands(frames: u32) -> u32 {
+    (u64::from(frames) * FRAME_MILLIS)
+        .div_ceil(COMMAND_MILLIS)
+        .min(u64::from(u32::MAX)) as u32
+}
 
 /// The run's length and its first press, in user commands
 /// (`cg_fkDuration`, `cg_fkFirstJumpDuration`, `cg_fkSecondJumpDelay`).
@@ -22,10 +36,10 @@ pub(crate) struct Timing {
 }
 
 impl Default for Timing {
-    /// EJK's defaults (`cg_xcvar.h`): 50, 0, 0.
+    /// EJK's defaults (`cg_xcvar.h`): 50, 0, 0 frames.
     fn default() -> Self {
         Self {
-            duration: 50,
+            duration: commands(50),
             first_jump: 0,
             second_jump_delay: 0,
         }
@@ -107,6 +121,22 @@ impl FlipKick {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn frames_are_read_as_time_at_125_fps() {
+        assert_eq!(commands(0), 0);
+        assert_eq!(commands(50), 16, "0.4 s");
+        assert_eq!(commands(1), 1);
+        assert!(commands(u32::MAX) > 1_000_000_000, "no overflow");
+        assert_eq!(Timing::default().duration, 16);
+    }
+
+    #[test]
+    fn the_default_run_ends_before_a_missed_jump_lands() {
+        // A jump stays in the air well over half a second (25 ms per command).
+        let steps = run(Timing::default());
+        assert!(steps.len() as u64 * COMMAND_MILLIS < 500);
+    }
 
     fn run(timing: Timing) -> Vec<Step> {
         let mut kick = FlipKick::default();
