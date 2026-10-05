@@ -419,6 +419,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             archive,
             "Show a shield hit as multiplayer's sphere (1) instead of a shell on the body (0)",
         ),
+        CvarDefinition::new(
+            "cg_shieldBrightness",
+            4_i64,
+            archive,
+            "How bright a shield hit shows on the body, 1 (stock) to 12; ignored by the sphere",
+        ),
         // JoF EJK's: 1 shows your own movement from the server, 2 also its angles.
         CvarDefinition::new(
             "cg_noPredict",

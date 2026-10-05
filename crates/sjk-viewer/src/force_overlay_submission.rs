@@ -28,6 +28,7 @@ pub(crate) fn submit(
     predicted_force_powers_active: Option<u32>,
     shield_mesh: Option<usize>,
     shield_sphere: bool,
+    shield_passes: u32,
 ) -> usize {
     let number = u16::try_from(entity_id.get().saturating_sub(1)).unwrap_or(u16::MAX);
     let actor = if number == snapshot.player.client_num() {
@@ -69,7 +70,13 @@ pub(crate) fn submit(
             .is_some_and(|e| e.e_flags() & 1 == 0 && e.npc_class() != 53)
     };
     let shield = if visible && output.len() < output.capacity() {
-        tracker.shield(number).sample(now, random.unit())
+        let hit = tracker.shield(number);
+        let unit = random.unit();
+        // The sphere keeps stock's fixed fade; the body shell fades over its own hit.
+        hit.sample(now, unit).map(|(brightness, scale)| {
+            let body = hit.body_brightness(now, unit).unwrap_or(brightness);
+            (if shield_sphere { brightness } else { body }, scale)
+        })
     } else {
         None
     };
@@ -98,14 +105,21 @@ pub(crate) fn submit(
             }
         } else if let Some(material) = materials.force("gfx/misc/personalshield") {
             // Single player's form-fitting shell: the body model re-drawn with the
-            // shield shader, as multiplayer does for PW_SHIELDHIT.
-            output.push(OverrideInstance {
-                mesh: OverrideMesh::Actor(mesh),
-                material: Some(material),
-                instance: instance.with_entity_color([brightness, brightness, brightness, 255]),
-                no_depth: false,
-                forced_alpha: false,
-            });
+            // shield shader, as multiplayer does for PW_SHIELDHIT. The shader blends
+            // `GL_DST_COLOR GL_ONE`, a bare multiply of what is behind it, so each extra
+            // pass lifts it again (`cg_shieldBrightness`).
+            for _ in 0..shield_passes.max(1) {
+                if output.len() == output.capacity() {
+                    break;
+                }
+                output.push(OverrideInstance {
+                    mesh: OverrideMesh::Actor(mesh),
+                    material: Some(material),
+                    instance: instance.with_entity_color([brightness, brightness, brightness, 255]),
+                    no_depth: false,
+                    forced_alpha: false,
+                });
+            }
         }
     }
     for request in requests.iter() {

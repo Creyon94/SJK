@@ -238,6 +238,10 @@ const HELP: &[(&str, &str)] = &[
         "Off: a shield hit flashes on the body, like single player. On: multiplayer's sphere around the player.",
     ),
     (
+        "cg_shieldBrightness",
+        "How bright the shield flash on the body is: 1 is the stock look, 12 the strongest. Not used by the sphere.",
+    ),
+    (
         "cg_remaps",
         "Lets the server swap textures: 0 never, 1 all but player models, 2 always. Maps' own always apply.",
     ),

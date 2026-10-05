@@ -54,6 +54,7 @@ impl Group {
                 "cg_speedTrail",
                 "cg_auraShell",
                 "cg_shieldSphere",
+                "cg_shieldBrightness",
                 "cg_remaps",
                 "cg_thirdPersonCameraDamp",
                 "cg_thirdPersonTargetDamp",

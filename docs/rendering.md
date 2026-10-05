@@ -627,6 +627,9 @@ A shield hit (`EV_SHIELD_HIT`, timer in `shield_hit.rs`) is drawn as the body
 re-drawn with `gfx/misc/personalshield`, like single player. `cg_shieldSphere 1`
 draws stock multiplayer's `halfShieldShell` sphere instead
 ([force_overlay_submission.rs](../crates/sjk-viewer/src/force_overlay_submission.rs)).
+The shader blends `GL_DST_COLOR GL_ONE`, a bare multiply of the pixels behind it, so the body
+shell is faint; it is drawn `cg_shieldBrightness` times (default 4) and fades over its own
+hit's length (`LegacyShieldHit::body_brightness`), where the sphere keeps stock's fixed 2 s.
 
 The Force Speed afterimages use it: two copies of the actor in its current pose
 at alpha 100 and 50, spaced by `(int)(6 * speed * 0.004)` units along the

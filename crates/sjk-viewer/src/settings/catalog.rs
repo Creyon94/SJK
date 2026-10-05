@@ -321,6 +321,15 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Shield hit brightness",
+        cvar: "cg_shieldBrightness",
+        kind: ValueKind::Integer {
+            min: 1,
+            max: 12,
+            step: 1,
+        },
+    },
+    Setting {
         label: "Force Seeing aura",
         cvar: "cg_auraShell",
         kind: ValueKind::Bool,
