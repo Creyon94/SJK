@@ -12,6 +12,8 @@ pub(super) struct Look {
     light_cutout: bool,
     fog_pass: FogPass,
     fog_pipeline: Option<usize>,
+    /// Some stage draws into the dynamic glow image (SJK's `r_DynamicGlow`).
+    has_glow: bool,
 }
 
 impl Look {
@@ -25,6 +27,7 @@ impl Look {
             light_cutout,
             fog_pass,
             fog_pipeline,
+            has_glow,
         } = self;
         std::mem::swap(stages, &mut material.stages);
         std::mem::swap(sort, &mut material.sort);
@@ -34,6 +37,7 @@ impl Look {
         std::mem::swap(light_cutout, &mut material.light_cutout);
         std::mem::swap(fog_pass, &mut material.fog_pass);
         std::mem::swap(fog_pipeline, &mut material.fog_pipeline);
+        std::mem::swap(has_glow, &mut material.has_glow);
     }
 }
 
@@ -174,6 +178,7 @@ impl Runtime {
             light_cutout: !blended && stages.first().is_some_and(|s| s.light_cutout),
             fog_pass,
             fog_pipeline,
+            has_glow: glow::has_glow(stages.iter().map(|stage| stage.glow)),
             stages,
         };
         self.show(source, &mut look);

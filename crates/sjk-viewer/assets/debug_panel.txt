@@ -425,6 +425,7 @@ test: devmap mp/ffa3, then: remapShader textures/desert/stucco textures/bespin/u
 test: The stucco walls turn orange metal at once, without a map reload.
 test: remapShader textures/desert/stucco textures/desert/stucco puts the stucco back.
 test: Remap it again; listRemaps shows it as local:; clearRemaps restores the walls.
+test: Join the JoF server where the client crashed on load (world_glow.rs): it loads, no crash.
 test: JoF server on innercity: medpacks look different (server remaps); cg_remaps 0: normal now.
 test: Settings > Game options: the Shader remaps row (0 / 1 / 2) and its help line.
 note: HUD pictures, saber blades and trails and surface sprites still ignore remaps.

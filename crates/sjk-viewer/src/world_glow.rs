@@ -133,7 +133,10 @@ impl Runtime {
                 return false;
             }
             let material = &self.materials[reference.material];
-            if !emission_glow && material.stages[reference.stage].emission_glow {
+            let Some(stage) = material.stages.get(reference.stage) else {
+                return false;
+            };
+            if !emission_glow && stage.emission_glow {
                 return false;
             }
             material.mover_draws.iter().any(|draw| {
@@ -175,7 +178,9 @@ impl Runtime {
                     continue;
                 }
                 let material = &self.materials[reference.material];
-                let stage = &material.stages[reference.stage];
+                let Some(stage) = material.stages.get(reference.stage) else {
+                    continue;
+                };
                 if !emission_glow && stage.emission_glow {
                     continue;
                 }
