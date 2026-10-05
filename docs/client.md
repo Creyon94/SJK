@@ -1113,7 +1113,7 @@ their character. `config.cfg` keeps the saved spelling (`bind "w" ...`), and
 
 Text draws `^0` to `^9` as OpenJK's ten-entry colour table does: `^1`–`^7` are
 the retail colours, `^8` is orange and `^9` grey (retail wrapped them onto black
-and red). `^0` is SJK's dark grey (0.3) instead of retail's pure black, which
+and red). `^0` is SJK's near-black (0.12) instead of retail's pure black, which
 disappeared on the console, chat and scoreboard backgrounds; it still reads as
 black. The table is `quake_color` in [text.rs](../crates/sjk-viewer/src/text.rs).
 

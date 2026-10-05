@@ -282,11 +282,11 @@ pub(crate) fn load_classic(vfs: &VirtualFileSystem) -> Result<FontAtlas, Box<dyn
     })
 }
 
-/// Display value of `^0` text: SJK's dark grey instead of retail's pure black,
-/// which vanished on the console, chat and scoreboard backgrounds. At 0.3 it
-/// still reads as black but stands about 2.5:1 off a black background, and it
-/// stays well apart from `^9`'s mid grey (0.5).
-pub(crate) const BLACK_TEXT: f32 = 0.3;
+/// Display value of `^0` text: SJK's near-black instead of retail's pure black,
+/// which vanished on the console, chat and scoreboard backgrounds. 0.3 read as
+/// grey (Sol, 05/10/2026); at 0.12 it reads as black yet stays just off a black
+/// background, well apart from `^9`'s mid grey (0.5).
+pub(crate) const BLACK_TEXT: f32 = 0.12;
 
 /// Colour of the `^<digit>` code `index` (0-9), as a display value.
 ///
