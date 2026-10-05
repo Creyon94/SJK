@@ -55,7 +55,7 @@ pub(crate) fn build(canvas: &mut MenuCanvas, viewport: [f32; 2], selection: usiz
         3.2 * s,
     );
     canvas.text(
-        "JK::R",
+        "SJK",
         Rect::new(x - 6.0 * s, wordmark_y, width, 140.0 * s),
         132.0 * s,
         theme.foreground,
