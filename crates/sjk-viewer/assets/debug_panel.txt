@@ -566,6 +566,15 @@ test: r_gamma 1.2 brightens world and UI together; r_gamma 1 again: colours as a
 test: Classic menu, scoreboard, levelshots, HUD icons and the scope look as in retail.
 note: Faint separators, borders and hover fills are fainter than before; report any too faint.
 
+[black-text]
+status: personal
+area: Console & chat
+title: Black (^0) text is a dark grey so it stays readable
+change: ^0 draws as a dark grey (0.3) instead of pure black; every other colour code is unchanged.
+test: Console: say ^0black^7white: the black word is dark grey, readable on the console.
+test: JoF names with ^0 parts ({JoF} tags) read on the scoreboard, chat and crosshair names.
+test: ^9 still looks a lighter grey than ^0.
+
 [classic-console]
 status: personal
 area: Console & chat
