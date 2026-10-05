@@ -32,7 +32,7 @@ _NAMES = "|".join(c.replace("-", "[-_]") for c in sorted(CRATES, key=len, revers
 # jkr-bsp, jkr_bsp, crates/jkr-bsp; not jkr_server.cfg (the server's saved settings) and
 # not inside a longer identifier (foo_jkr_bsp).
 CRATE_NAME = re.compile(rb"(?<![\w-])jkr([-_](?:" + _NAMES.encode() + rb"))(?!\.cfg)\b")
-RULES_VERSION = 4  # bump when the rules change; every translation must use the same rules
+RULES_VERSION = 5  # bump when the rules change; every translation must use the same rules
 # Text that looks like a crate name but names one of JKR's own programs: kept as written.
 KEEP = [b'JKR_SERVER_BINARY: &str = "jkr-dedicated"',
         b"jkr-materialgen/manifest.json"]  # the path inside existing material packs
@@ -42,7 +42,9 @@ KEEP = [b'JKR_SERVER_BINARY: &str = "jkr-dedicated"',
 RENAME_TABLES = ["crates/{viewer}/src/cvar_renames.rs", "crates/{dedicated}/src/cvars/mod.rs"]
 # This file describes the rules with examples, which must stay as written.
 SKIP = {"scripts/sjk_names.py"}
-TABLE_PAIR = re.compile(r'\(b?"(jkr_\w+)",\s*b?"(\w+)"\)')
+# A table entry is a tuple of its own, `("jkr_old", "new"),`; a call such as
+# `cvars.set(b"jkr_stockRules", b"1")` in the tables' tests is not one.
+TABLE_PAIR = re.compile(r'(?<![\w.])\(b?"(jkr_\w+)",\s*b?"(\w+)"\)')
 
 STATE = "SJK_NAMES_MERGE"
 
@@ -73,7 +75,9 @@ def setting_renames(root):
     pairs = {}
     for rel in table_paths(root):
         text = open(os.path.join(root, rel), encoding="utf-8").read()
-        pairs.update(TABLE_PAIR.findall(text))
+        for old, new in TABLE_PAIR.findall(text):
+            if pairs.setdefault(old, new) != new:
+                sys.exit(f"{old} has two names in the alias tables: {pairs[old]} and {new}")
     if not pairs:
         sys.exit("No setting renames found: are the alias tables where RENAME_TABLES says?")
     return pairs
