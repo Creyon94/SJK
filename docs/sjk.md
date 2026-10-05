@@ -46,6 +46,17 @@ them in place: the upstream merge adds the same text and resolves cleanly.
   Bishop and its contributors. Keep CREDITS.md current when SJK gains notable
   work.
 
+## Copyright notice
+
+[NOTICE](../NOTICE) is SJK's copyright notice: Sol-Vulpes, Bishop-R and the JKR
+contributors, under GPL-2.0-only. The client
+([notice.rs](../crates/sjk-viewer/src/notice.rs), printed to its log and console
+by `app_launch.rs`) and the dedicated server (`NOTICE` in its `main.rs`) announce
+the copyright and the absence of warranty at startup, so GPLv2 section 2(c)
+requires modified versions to keep announcing them. Keep the two copies of the
+lines in step. SJK packages put `NOTICE` first in `LICENSES-SJK.txt`. The SJK
+names and emblem are not licensed with the code (see `NOTICE`).
+
 ## Merging from JKR
 
 SJK's names differ from JKR's, so JKR's changes are merged with

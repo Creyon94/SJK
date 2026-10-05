@@ -178,6 +178,13 @@ their authors and dates, are recorded in this repository's git history. Any SJK
 binaries are built from the source published here, which is their corresponding
 source.
 
+[NOTICE](NOTICE) holds the copyright notice. The license requires every copy and
+modified version to keep it, and, under section 2(c), to keep the copyright and
+no-warranty announcement the client and server print when they start. The
+"Sol JK" and "SJK" names and the SJK emblem are not licensed with the code: a
+modified version uses its own name and emblem and credits SJK and JKR as its
+origin.
+
 OpenJK and TaystJK are compatibility references for Jedi Academy behavior. The
 bundled Inter fonts retain their
 [license](crates/sjk-viewer/assets/fonts/LICENSE.txt). Other dependencies retain

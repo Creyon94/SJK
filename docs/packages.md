@@ -12,6 +12,7 @@ Each installation ZIP contains exactly four files: `sjk-viewer`, `sjk-dedicated`
 (both with `.exe` on Windows), `README.txt` and `LICENSES.txt`. The last file
 consolidates the complete project, font and dependency notices with their source
 labels and attribution inventory; no original notice text is discarded.
+A source with a `NOTICE` file (SJK) has it as the first section.
 The build manifest is a separate `JKR-<revision>-<platform>-build.json` artifact
 with the exact revision, target, compiler and binary hashes. The installation ZIP
 contains no retail assets, personal configuration, generated
