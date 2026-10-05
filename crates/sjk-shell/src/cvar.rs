@@ -89,7 +89,15 @@ impl CvarValue {
             Self::Bool(value) => if *value { "1" } else { "0" }.to_owned(),
             Self::Integer(value) => value.to_string(),
             Self::Float(value) => {
-                let mut text = value.to_string();
+                // A value that came from an `f32` (a default such as 0.9_f32) is
+                // printed as that `f32`'s shortest form, "0.9", not its widened
+                // binary value 0.8999999761581421.
+                let narrow = *value as f32;
+                let mut text = if f64::from(narrow) == *value {
+                    narrow.to_string()
+                } else {
+                    value.to_string()
+                };
                 if !text.contains(['.', 'e', 'E']) {
                     text.push_str(".0");
                 }
@@ -393,3 +401,18 @@ impl Display for CvarError {
 }
 
 impl std::error::Error for CvarError {}
+
+#[cfg(test)]
+mod float_text_tests {
+    use super::CvarValue;
+
+    #[test]
+    fn floats_from_f32_print_their_shortest_form() {
+        assert_eq!(CvarValue::Float(f64::from(0.9_f32)).as_text(), "0.9");
+        assert_eq!(CvarValue::Float(f64::from(0.75_f32)).as_text(), "0.75");
+        assert_eq!(CvarValue::Float(3.0).as_text(), "3.0");
+        // A value no f32 holds keeps its full form.
+        assert_eq!(CvarValue::Float(0.1).as_text(), "0.1");
+        assert_eq!(CvarValue::Float(1.0 / 3.0).as_text(), "0.3333333333333333");
+    }
+}

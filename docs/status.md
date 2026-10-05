@@ -380,6 +380,18 @@ formatting, the retail and JoF `console` shaders' stage programs, texture motion
 and colour waves, and `con_style` parsing. The layer was not run on a GPU or in a
 game by the change's author; side-by-side comparison with EternalJK is pending.
 
+The console key closes the console again (05/10/2026, Sol's request): as in
+EternalJK, a `cl_consoleKeys` character (or the scan-code key) toggles either
+console style and never types; holding it toggles once. Unit tests cover the
+open-console decision and the key list; not tried in a game.
+
+With the classic console the F3 command browser is classic+ (05/10/2026): the
+in-game pop-up frame, retail buttons and list box, and a detail box; the menus'
+retail font under `ui_gameFont`. Layout tests check that every part lies inside
+the box without overlapping; menu snapshots (`console-browser-classic`,
+`console-browser-modern`) were looked at. Not tried in a game: the retail font's
+fit in the rows and pointer use are unverified.
+
 ## Alt codes (SJK)
 
 SJK-only branch `personal/alt-codes` (2026-10-05, based on `2696590`) types
@@ -1078,8 +1090,8 @@ passed. No game was started: the first-person view is unverified on screen.
 ## Readable `^0` text (SJK)
 
 SJK-only branch `personal/black-text` (05/10/2026, based on `3f57938`): `^0`
-text draws as a dark grey (0.3 display value) instead of pure black, so black
-parts of names and chat stay readable on dark backgrounds; every coloured-text
+text draws as a near-black (0.12 display value; 0.3 read as grey) instead of pure
+black, so black parts of names and chat stay readable on dark backgrounds; every coloured-text
 path uses the one table (`quake_color`). Unit tests check the new value and that
 `^1`-`^9` are unchanged; the locked workspace build and tests passed. No game was
 started: how it looks on the console, chat and scoreboard is unverified.

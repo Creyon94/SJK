@@ -1113,7 +1113,7 @@ their character. `config.cfg` keeps the saved spelling (`bind "w" ...`), and
 
 Text draws `^0` to `^9` as OpenJK's ten-entry colour table does: `^1`–`^7` are
 the retail colours, `^8` is orange and `^9` grey (retail wrapped them onto black
-and red). `^0` is SJK's dark grey (0.3) instead of retail's pure black, which
+and red). `^0` is SJK's near-black (0.12) instead of retail's pure black, which
 disappeared on the console, chat and scoreboard backgrounds; it still reads as
 black. The table is `quake_color` in [text.rs](../crates/sjk-viewer/src/text.rs).
 
@@ -1218,14 +1218,18 @@ Local time comes from the operating system's time zone rules, daylight saving
 included ([local_time.rs](../crates/sjk-shell/src/local_time.rs)); the scrollback's
 stamps, also the modern console's `[HH:MM:SS]` and the log file's, are local time
 too. Differences from EternalJK besides those above: the input never runs past
-the screen's right edge (EternalJK's can), and while the console is open a
-printable console key types its character, as in SJK's modern console; Escape or
-a non-printing `toggleconsole` key closes it.
+the screen's right edge (EternalJK's can).
 
 ## Useful console commands
 
-Printable console shortcuts open the console but type normally once it is open;
-Escape and non-text toggle bindings can still close it. On layouts with dead keys
+The console key opens and closes either console style and never types its
+character, as in EternalJK (`IN_IsConsoleKey` turns it into `A_CONSOLE`): a
+`cl_consoleKeys` character such as `~` or `²`, or the physical key with
+`cl_consoleUseScanCode`. Holding it toggles once. Escape and Shift+Escape close
+the console too, and so does a key bound to `toggleconsole` that prints nothing;
+a printable key bound to it types while the console is open
+([console_keyboard.rs](../crates/sjk-viewer/src/console_keyboard.rs)). The chat
+composer still types `~` when the console is closed. On layouts with dead keys
 (`^` on French AZERTY and German QWERTZ, `'` on US International), the console
 line and the chat draft show a dead key at the caret at once and replace it with
 what the platform composes on the next key, so typing reads as on a layout without
@@ -1331,8 +1335,19 @@ Escape cancels an active edit first; otherwise Escape or F3 returns to the conso
 The clickable Apply, Cancel and Filter controls follow the same actions as the
 keyboard. Read-only cvars are listed but not edited. The
 browser covers the whole frame: underlying menu shapes/text, chat and the FPS
-counter are suppressed, including both font batches. See
+counter are suppressed, including every font batch. See
 [console_browser.rs](../crates/sjk-viewer/src/console_browser.rs).
+
+With the classic console (`con_style classic`) the browser is drawn classic+
+([classic-plus.md](classic-plus.md)): the in-game pop-up's retail box and title
+band over the dimmed screen, the four filters and Edit (Insert, Apply), Default,
+Filter and Close as retail gold buttons with the `menu_buttonback` glow, a retail
+list box whose selected row sits on `menu_blendbox2` (a changed cvar's value in
+gold with its default beside it), a detail box with the selected entry's kind,
+value, default and whole description, and the description line under the box.
+It uses the menus' retail font when `ui_gameFont` is on, and works without the
+retail art. Keys, pointer and wheel act as in the modern look
+([console_browser_classic.rs](../crates/sjk-viewer/src/console_browser_classic.rs)).
 
 For graphics controls and diagnostics, see [rendering.md](rendering.md).
 

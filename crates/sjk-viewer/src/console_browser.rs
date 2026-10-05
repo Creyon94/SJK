@@ -1,12 +1,16 @@
 //! Searchable browser of console commands and cvars, opened with F3 in the open console
 //! or with `consolebrowser`: names, descriptions, cvar values and defaults, and inline
-//! editing of the selected cvar. Drawing is in `console_browser_view.rs`.
+//! editing of the selected cvar. Drawing is in `console_browser_view.rs`, and in
+//! `console_browser_classic.rs` for the classic+ look the classic console uses.
 
+use crate::menu::art::ArtSet;
 use crate::menu_widgets::MenuCanvas;
 use sjk_shell::{CommandSource, CvarFlags, Shell};
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{KeyCode, PhysicalKey};
 
+#[path = "console_browser_classic.rs"]
+mod classic;
 #[path = "console_browser_pointer.rs"]
 mod pointer;
 #[path = "console_browser_view.rs"]
@@ -108,6 +112,10 @@ pub(crate) struct Browser {
     status: String,
     status_error: bool,
     ui: MenuCanvas,
+    /// Draw the classic+ look ([`classic`]) rather than the modern one.
+    classic: bool,
+    /// The retail menu art the classic+ look can draw.
+    art: ArtSet,
 }
 
 impl Browser {
@@ -126,7 +134,29 @@ impl Browser {
             status: String::new(),
             status_error: false,
             ui: MenuCanvas::with_text_capacity(256),
+            classic: false,
+            art: ArtSet::default(),
         }
+    }
+
+    /// Choose the look: the classic+ one with the retail `art` it can draw, or the
+    /// modern one.
+    pub(crate) fn set_look(&mut self, classic: bool, art: ArtSet) {
+        self.classic = classic;
+        self.art = art;
+    }
+
+    /// Search for `filter` as if it had been typed, for the menu snapshots.
+    #[cfg(test)]
+    pub(crate) fn search_for_snapshot(&mut self, filter: &str) {
+        self.filter.clear();
+        self.filter.push_str(filter);
+        self.rebuild_visible(None);
+    }
+
+    /// Whether the classic+ look is drawn, so its text can use the retail font.
+    pub(crate) fn is_classic(&self) -> bool {
+        self.classic
     }
 
     pub(crate) fn is_open(&self) -> bool {

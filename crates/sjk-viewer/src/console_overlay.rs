@@ -11,14 +11,22 @@ impl GpuState {
     pub(super) fn append_console_overlay(&mut self, viewport: [f32; 2], text_scale: f32) {
         let covers_frame = self.console_covers_frame();
         if covers_frame {
-            // Both font batches must be cleared: text is drawn above all UI shapes.
+            // Every font batch must be cleared: text is drawn above all UI shapes.
             self.text_vertices.clear();
             self.classic_text_vertices.clear();
+            self.game_fonts.clear_text();
         }
         self.append_classic_console(viewport, covers_frame);
         // The console and its notify lines draw with the retail console character
-        // set when `ui_gameFont` has it; the full-frame browser keeps Inter.
-        let (vertices, font) = if covers_frame {
+        // set when `ui_gameFont` has it; the full-frame browser keeps Inter, or
+        // the menus' retail font when it is the classic+ one.
+        let classic_browser = self
+            .console
+            .as_ref()
+            .is_some_and(crate::console::ViewerConsole::classic_browser_open);
+        let (vertices, font) = if covers_frame && classic_browser {
+            self.game_fonts.menu(&mut self.text_vertices, &self.ui_font)
+        } else if covers_frame {
             (&mut self.text_vertices, &self.ui_font)
         } else {
             self.game_fonts.target(

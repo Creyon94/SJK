@@ -518,6 +518,26 @@ impl ViewerConsole {
         self.apply_prompt_pointer();
     }
 
+    /// The command browser follows the console style: the classic console's is
+    /// drawn classic+, with the retail menu `art` it can use.
+    pub(crate) fn set_browser_art(&mut self, art: crate::menu::art::ArtSet) {
+        let classic = self.console_style() == console_options::ConsoleStyle::Classic;
+        self.browser.set_look(classic, art);
+    }
+
+    /// Open the command browser on a search, for the menu snapshots.
+    #[cfg(test)]
+    pub(crate) fn open_browser_on(&mut self, filter: &str) {
+        self.set_open(true);
+        self.open_browser();
+        self.browser.search_for_snapshot(filter);
+    }
+
+    /// Whether the open browser is the classic+ one, drawn in the menus' font.
+    pub(crate) fn classic_browser_open(&self) -> bool {
+        self.open && self.browser.is_open() && self.browser.is_classic()
+    }
+
     pub(crate) fn draw_list(&self) -> &sjk_ui::DrawList {
         if let Some(draw_list) = self.debug_panel_draw_list() {
             return draw_list;

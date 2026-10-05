@@ -26,6 +26,34 @@ pub(crate) fn is_console_key(list: &str, text: &str) -> bool {
     })
 }
 
+/// What a pressed key does to the open console before any editing.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum OpenConsoleKey {
+    /// Close the console.
+    Close,
+    /// Neither close it nor type: a held console key.
+    Swallow,
+    /// Leave the key to the console's own handling.
+    Edit,
+}
+
+/// EternalJK turns a console key into `A_CONSOLE` before any text is made
+/// (`IN_TranslateSDLToJKKey` and `IN_IsConsoleKey`, `shared/sdl/sdl_input.cpp`), and
+/// `CL_KeyDownEvent` toggles the console on it, so a console key closes the open
+/// console and never types its character; its repeats do nothing. A key bound to
+/// `toggleconsole` closes it only when it prints nothing: a printable one types.
+pub(crate) fn open_console_key(
+    console_key: bool,
+    non_printing_toggle: bool,
+    repeat: bool,
+) -> OpenConsoleKey {
+    match (console_key || non_printing_toggle, repeat) {
+        (true, false) => OpenConsoleKey::Close,
+        (true, true) => OpenConsoleKey::Swallow,
+        (false, _) => OpenConsoleKey::Edit,
+    }
+}
+
 impl ViewerConsole {
     /// Stock console keys: a `cl_consoleKeys` character, Shift+Escape
     /// (`cl_keys.cpp:1318`), or a key the user explicitly bound to
@@ -59,9 +87,11 @@ impl ViewerConsole {
     }
 
     fn toggles_console(&self, event: &KeyEvent, key: KeyCode) -> bool {
-        if self.configured_console_key(key, event.text.as_deref()) {
-            return true;
-        }
+        self.configured_console_key(key, event.text.as_deref()) || self.bound_to_toggle(event, key)
+    }
+
+    /// A key bound to `toggleconsole` (Escape never counts: it has its own meaning).
+    fn bound_to_toggle(&self, event: &KeyEvent, key: KeyCode) -> bool {
         if key == KeyCode::Escape {
             return false;
         }
@@ -87,7 +117,11 @@ impl ViewerConsole {
             return self.open;
         };
         if !self.open {
-            if event.state == ElementState::Pressed && self.toggles_console(event, key) {
+            // A held console key does not reopen the console it just closed.
+            if event.state == ElementState::Pressed
+                && !event.repeat
+                && self.toggles_console(event, key)
+            {
                 // `CL_KeyDownEvent`: Ctrl opens the console full screen, Shift a
                 // quarter of it (classic console).
                 self.open_height = Some(super::classic::open_height(
@@ -129,15 +163,21 @@ impl ViewerConsole {
         if event.state != ElementState::Pressed {
             return true;
         }
-        // Printable opening shortcuts belong to text once the console is open.
-        // Keep Escape and non-text bindings available for closing it.
-        if !matches!(
+        let printable = matches!(
             event.logical_key,
             winit::keyboard::Key::Character(_) | winit::keyboard::Key::Dead(_)
-        ) && self.toggles_console(event, key)
-        {
-            self.set_open(false);
-            return true;
+        );
+        match open_console_key(
+            self.configured_console_key(key, event.text.as_deref()),
+            !printable && self.bound_to_toggle(event, key),
+            event.repeat,
+        ) {
+            OpenConsoleKey::Close => {
+                self.set_open(false);
+                return true;
+            }
+            OpenConsoleKey::Swallow => return true,
+            OpenConsoleKey::Edit => {}
         }
         if self.debug_panel_key(event) {
             return true;
@@ -358,5 +398,39 @@ mod dead_key_tests {
         press(&mut input, &mut edit, &mut dead, Key::Dead(Some('^')), None);
         assert_eq!(input.len(), INPUT_LIMIT);
         assert_eq!(dead, DeadKey::default());
+    }
+}
+
+#[cfg(test)]
+mod open_console_tests {
+    use super::{OpenConsoleKey, is_console_key, open_console_key};
+
+    #[test]
+    fn the_console_key_closes_the_open_console_without_typing() {
+        // `~` or `²` in cl_consoleKeys: EternalJK's A_CONSOLE, never a character.
+        assert_eq!(open_console_key(true, false, false), OpenConsoleKey::Close);
+        assert_eq!(open_console_key(true, true, false), OpenConsoleKey::Close);
+    }
+
+    #[test]
+    fn a_held_console_key_neither_closes_nor_types() {
+        assert_eq!(open_console_key(true, false, true), OpenConsoleKey::Swallow);
+    }
+
+    #[test]
+    fn a_non_printing_toggle_binding_closes_and_printable_text_types() {
+        assert_eq!(open_console_key(false, true, false), OpenConsoleKey::Close);
+        assert_eq!(open_console_key(false, false, false), OpenConsoleKey::Edit);
+        assert_eq!(open_console_key(false, false, true), OpenConsoleKey::Edit);
+    }
+
+    #[test]
+    fn console_key_list_entries_are_characters_or_hex_codepoints() {
+        let list = "~ ` 0x7e 0xb2";
+        for typed in ["~", "`", "²"] {
+            assert!(is_console_key(list, typed), "{typed}");
+        }
+        assert!(!is_console_key(list, "^"));
+        assert!(!is_console_key(list, "~~"));
     }
 }
