@@ -508,17 +508,23 @@ pub(crate) fn power_row(index: u8) -> Option<[f32; 4]> {
 }
 
 /// Where a page shows the live model, on the canvas: character creation's
-/// model item (`player2` 393 104 220 220, `ingame_player2` 300 84 110 110)
-/// and the cosmetics window's column right of its lists.
+/// model item (`player2` 393 104 220 220, `ingame_player2` 300 84 110 110),
+/// the cosmetics window's column right of its lists, and lightsaber
+/// creation's band under its boxes, where retail spun the hilt.
 pub(crate) fn preview_rect(page: ClassicPage, frame: Frame) -> Option<[f32; 4]> {
     let local = match (page, frame) {
         (ClassicPage::Character, Frame::Full) => return Some([393.0, 104.0, 220.0, 220.0]),
         (ClassicPage::Character, Frame::InGame) => [300.0, 84.0, 110.0, 110.0],
+        (ClassicPage::Saber, Frame::Full) => return Some(SABER_PREVIEW),
+        (ClassicPage::Saber, Frame::InGame) => [40.0, 226.0, 350.0, 130.0],
         (ClassicPage::Cosmetics, _) => COSMETICS_MODEL,
         _ => return None,
     };
     Some(place(page, frame, local))
 }
+
+/// Lightsaber creation's preview band, on the canvas.
+pub(crate) const SABER_PREVIEW: [f32; 4] = [120.0, 232.0, 400.0, 206.0];
 
 /// The cosmetics window's preview column and the model inside it, relative
 /// to the window.

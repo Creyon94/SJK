@@ -26,6 +26,9 @@ impl ViewerConsole {
         userinfo.plugin_disable = self
             .integer_cvar("cp_pluginDisable")
             .and_then(|bits| u32::try_from(bits).ok());
+        userinfo.japro_cosmetics = self
+            .integer_cvar("cp_cosmetics")
+            .and_then(|bits| u32::try_from(bits).ok());
         self.force_profile.apply_to_userinfo(&mut userinfo);
         Ok(userinfo)
     }

@@ -20,7 +20,14 @@ pub(crate) struct Runtime {
     instance_buffer: wgpu::Buffer,
     ranges: [Range<u32>; crate::saber_rgb::MATERIAL_COUNT],
     trails: crate::saber_trail_gpu::Runtime,
+    /// The classic model preview's blades, kept apart from the world's.
+    preview_buffer: wgpu::Buffer,
+    preview_ranges: [Range<u32>; crate::saber_rgb::MATERIAL_COUNT],
 }
+
+/// Blade instances the model preview can draw: two sabers of eight blades,
+/// two instances each.
+pub(crate) const PREVIEW_BLADES: usize = 2 * 8 * 2;
 
 impl Runtime {
     pub(crate) fn new(
@@ -103,11 +110,19 @@ impl Runtime {
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
+        let preview_buffer = device.create_buffer(&wgpu::BufferDescriptor {
+            label: Some("SJK model preview saber instances"),
+            size: (PREVIEW_BLADES * std::mem::size_of::<Instance>()) as u64,
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+            mapped_at_creation: false,
+        });
         Ok(Self {
             pipeline,
             glow_pipeline,
             materials,
             instance_buffer,
+            preview_buffer,
+            preview_ranges: std::array::from_fn(|_| 0..0),
             ranges: std::array::from_fn(|_| 0..0),
             trails: crate::saber_trail_gpu::Runtime::new(
                 device,
@@ -143,6 +158,36 @@ impl Runtime {
         self.draw_blades(pass, camera, &self.pipeline);
     }
 
+    /// Upload the model preview's blades (at most [`PREVIEW_BLADES`]).
+    pub(crate) fn prepare_preview(
+        &mut self,
+        queue: &crate::frame_queue::FrameQueue,
+        blades: &mut [Instance],
+    ) {
+        let count = blades.len().min(PREVIEW_BLADES);
+        let blades = &mut blades[..count];
+        self.preview_ranges = saber::material_ranges(blades);
+        if !blades.is_empty() {
+            queue.write_buffer(&self.preview_buffer, 0, bytemuck::cast_slice(blades));
+        }
+    }
+
+    /// Draw the model preview's blades with the preview's `camera`.
+    pub(crate) fn draw_preview<'pass>(
+        &'pass self,
+        pass: &mut wgpu::RenderPass<'pass>,
+        camera: &'pass wgpu::BindGroup,
+    ) {
+        draw_instances(
+            pass,
+            camera,
+            &self.pipeline,
+            &self.materials,
+            &self.preview_buffer,
+            &self.preview_ranges,
+        );
+    }
+
     /// Draw into the dynamic glow image: the trails (`saberBlur`/`swordTrail` glow)
     /// unless `blades_only` (`r_DynamicGlow 2`, stock's `RT_SABER_GLOW` test), then the
     /// blades' glow capsules without their cores.
@@ -169,19 +214,14 @@ impl Runtime {
         camera: &'pass wgpu::BindGroup,
         pipeline: &'pass wgpu::RenderPipeline,
     ) {
-        if self.ranges.iter().all(Range::is_empty) {
-            return;
-        }
-        pass.set_pipeline(pipeline);
-        pass.set_bind_group(0, camera, &[]);
-        pass.set_vertex_buffer(0, self.instance_buffer.slice(..));
-        for (material, instances) in self.materials.iter().zip(self.ranges.iter().cloned()) {
-            if instances.is_empty() {
-                continue;
-            }
-            pass.set_bind_group(1, material, &[]);
-            pass.draw(0..6, instances);
-        }
+        draw_instances(
+            pass,
+            camera,
+            pipeline,
+            &self.materials,
+            &self.instance_buffer,
+            &self.ranges,
+        );
     }
 
     /// Add this frame's trail quads to the effect layer's screen bounds.
@@ -197,5 +237,29 @@ impl Runtime {
     /// Whether this frame has any blade or trail to draw.
     pub(crate) fn has_draws(&self) -> bool {
         self.trails.has_draws() || self.ranges.iter().any(|range| !range.is_empty())
+    }
+}
+
+/// Draw the blade instances of `buffer`, a run per material.
+fn draw_instances<'pass>(
+    pass: &mut wgpu::RenderPass<'pass>,
+    camera: &'pass wgpu::BindGroup,
+    pipeline: &'pass wgpu::RenderPipeline,
+    materials: &'pass [wgpu::BindGroup],
+    buffer: &'pass wgpu::Buffer,
+    ranges: &[Range<u32>],
+) {
+    if ranges.iter().all(Range::is_empty) {
+        return;
+    }
+    pass.set_pipeline(pipeline);
+    pass.set_bind_group(0, camera, &[]);
+    pass.set_vertex_buffer(0, buffer.slice(..));
+    for (material, instances) in materials.iter().zip(ranges.iter().cloned()) {
+        if instances.is_empty() {
+            continue;
+        }
+        pass.set_bind_group(1, material, &[]);
+        pass.draw(0..6, instances);
     }
 }

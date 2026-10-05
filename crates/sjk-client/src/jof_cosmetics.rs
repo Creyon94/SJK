@@ -97,6 +97,66 @@ pub fn worn_cosmetic(clientinfo: &[u8], slot: CosmeticSlot) -> Option<&str> {
     split_color_value(value).1
 }
 
+/// jaPRO's race-unlock hats (`JAPRO_COSMETIC_*`), by bit: the name JoF
+/// EJK's `cosmetics unlocks` lists and the model in `models/players/hats/`.
+/// A jaPRO-family server grants them in the player's `c5` clientinfo (their
+/// `cp_cosmetics`, checked against the unlocks earned).
+pub const JAPRO_HATS: [(&str, &str); 7] = [
+    ("Santa hat", "santahat"),
+    ("Jack-o'-lantern", "pumpkin"),
+    ("Bass Pro Shops baseball cap", "cap"),
+    ("Indiana Jones", "fedora"),
+    ("Kane's Kringe Kap", "cringe"),
+    ("Sombrero", "sombrero"),
+    ("Top hat", "tophat"),
+];
+
+/// `cg_stylePlayer`'s `JAPRO_STYLE_SEASONALCOSMETICS`: seasonal hats, and
+/// jaPRO's hats on JA+ and base servers too.
+pub const STYLE_SEASONAL_COSMETICS: u32 = 1 << 21;
+
+/// The `c5` cosmetic bits of a clientinfo (`atoi`).
+pub fn japro_cosmetic_bits(clientinfo: &[u8]) -> u32 {
+    let value = crate::LegacyClientInfo::new(clientinfo)
+        .text("c5")
+        .unwrap_or_default();
+    u32::try_from(split_color_value(value).0).unwrap_or(0)
+}
+
+/// The hat `bits` draws: the lowest bit's, as `CG_Player`'s chain tests them.
+pub fn japro_hat(bits: u32) -> Option<&'static str> {
+    JAPRO_HATS
+        .iter()
+        .enumerate()
+        .find(|(bit, _)| bits & (1 << bit) != 0)
+        .map(|(_, (_, model))| *model)
+}
+
+/// JoF EJK's seasonal hat on `month` (1 to 12) and `day`, for a player
+/// with no jaPRO cosmetic (`CG_NewClientInfo`): a Santa hat from 22 November
+/// to 7 January, a pumpkin on 31 October.
+pub fn seasonal_hat(month: u8, day: u8) -> Option<&'static str> {
+    match (month, day) {
+        (11, 22..) | (12, _) | (1, ..=7) => Some("santahat"),
+        (10, 31) => Some("pumpkin"),
+        _ => None,
+    }
+}
+
+/// jaPRO's name for movement style `style` (`IntegerToRaceName`), as the
+/// unlock requirements print it.
+pub fn race_style_name(style: i16) -> &'static str {
+    const STYLES: [&str; 15] = [
+        "siege", "jka", "qw", "cpm", "q3", "pjk", "wsw", "rjq3", "rjcpm", "swoop", "jetpack",
+        "speed", "sp", "slick", "botcpm",
+    ];
+    usize::try_from(style)
+        .ok()
+        .and_then(|style| STYLES.get(style))
+        .copied()
+        .unwrap_or("co-op")
+}
+
 /// `color1`/`color2` for saber colour `colour` wearing `cosmetic` (when it
 /// is a valid name), as JoF EJK's `UI_SetCosmetic` writes it.
 pub fn join_color_value(colour: i64, cosmetic: Option<&str>) -> String {
@@ -143,6 +203,27 @@ mod tests {
         assert_eq!(worn_cosmetic(info, CosmeticSlot::Hat), Some("santahat"));
         assert_eq!(worn_cosmetic(info, CosmeticSlot::Cape), None);
         assert_eq!(worn_cosmetic(br"n\Sol", CosmeticSlot::Hat), None);
+    }
+
+    #[test]
+    fn japro_hats_follow_the_lowest_bit_and_the_season() {
+        assert_eq!(japro_hat(0), None);
+        assert_eq!(japro_hat(1), Some("santahat"));
+        assert_eq!(japro_hat(0b110), Some("pumpkin"));
+        assert_eq!(japro_hat(1 << 6), Some("tophat"));
+        assert_eq!(japro_hat(1 << 7), None);
+        assert_eq!(japro_cosmetic_bits(br"n\Sol\c5\4"), 4);
+        assert_eq!(japro_cosmetic_bits(br"n\Sol"), 0);
+        assert_eq!(seasonal_hat(11, 21), None);
+        assert_eq!(seasonal_hat(11, 22), Some("santahat"));
+        assert_eq!(seasonal_hat(12, 31), Some("santahat"));
+        assert_eq!(seasonal_hat(1, 7), Some("santahat"));
+        assert_eq!(seasonal_hat(1, 8), None);
+        assert_eq!(seasonal_hat(10, 31), Some("pumpkin"));
+        assert_eq!(seasonal_hat(10, 30), None);
+        assert_eq!(race_style_name(1), "jka");
+        assert_eq!(race_style_name(14), "botcpm");
+        assert_eq!(race_style_name(15), "co-op");
     }
 
     #[test]

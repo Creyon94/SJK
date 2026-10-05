@@ -1386,15 +1386,21 @@ whole body from in front and turns round it. `preview.wgsl` then writes the
 8-bit texture the UI draws as `PREVIEW_TEXTURE`: display values as the
 effect layer's `display` makes them for each scene format, at a neutral
 exposure, with coverage from depth (an edge pixel averages its covered 3x3
-neighbours and takes their share as alpha). The pass runs after the scene
-and before the UI, only while a classic page shows a preview.
+neighbours and takes their share as alpha). On lightsaber creation the lit
+blades of the actor's hilts go through the game's blade renderer into an
+8-bit texture of their own (its own instance buffer, against the model's
+depth), and the encode adds them: over the body they add to it, beyond it
+their brightest channel becomes the alpha, so the glow shows over any page.
+The passes run after the scene and before the UI, only while a classic page
+shows a preview.
 
 The actor is the stage's, marked preview-only so the world pass and the
-saber blade list leave it out; it holds no sabers. On the main menu it
+saber blade list leave it out; it holds sabers only on lightsaber creation
+(never thrown). On the main menu it
 stands on the backdrop's stage when the map has one; in a match, at the
 local player's origin, so the map's light grid and lights shade it as the
 player is shaded. It wears the stage's cosmetics. Not drawn into it: saber
-blades and trails, dynamic glow, shadows and fog.
+trails, dynamic glow, shadows and fog.
 
 A failure turns the preview off rather than the client: the pipeline and
 textures are made inside wgpu validation and out-of-memory scopes, and the

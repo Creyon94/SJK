@@ -144,7 +144,11 @@ character creation (64 more UI atlas cells), Hat and Cape rows on the modern
 player screen and the pieces on its stage model, and a live model preview
 on character creation and in the cosmetics window: the stage actor drawn
 offscreen with its own camera into a scene-format target and encoded for
-the UI ([rendering](rendering.md#classic-model-preview)). Unit tests cover the
+the UI ([rendering](rendering.md#classic-model-preview)), on lightsaber
+creation holding the lit sabers (blades through the game's blade renderer
+into a texture of their own), and jaPRO's race-unlock hats (`c5`,
+`cp_cosmetics` sent from a cvar instead of a constant 0, `cosmetics unlocks`,
+`cg_stylePlayer`'s seasonal bit). Unit tests cover the
 template listing, naming and loading, the original names, the part-icon
 cells, the preview's target sizes and camera framing. The preview pass is
 new GPU code that has not run on any GPU: its validation, colours, lighting
