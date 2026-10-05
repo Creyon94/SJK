@@ -75,6 +75,17 @@ Workspace formatting, locked build of all targets and tests passed on Windows 11
 including a unit test for the clear logic. Not run in the client: material
 restoration after `clearRemaps` and the Settings row were not checked in game.
 
+## Leading-slash asset paths
+
+Change on `af65396` (2026-10-05, Windows 11): VFS reads (`read`, `contains`,
+`read_from_mount`, cache identity) drop one leading `/` or `\` before the lookup,
+as OpenJK `FS_FOpenFileRead` (`codemp/qcommon/files.cpp`) does. A JoF map's
+`/models/items/a_pwr_converter.md3` item model failed to load with "virtual path
+must be relative". Mounted names, PK3 entries and directory listings keep refusing
+a leading slash, and a second one still fails as before. Unit tests cover the path
+rule and a read through a mounted source; formatting, the locked workspace build
+and tests passed. Not run in the client: the item on that map is unverified.
+
 ## Server shader remaps
 
 Local changes on `dc36792`, verified on Linux/RADV on 2026-10-05, add initial and
