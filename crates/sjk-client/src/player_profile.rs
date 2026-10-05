@@ -182,8 +182,6 @@ impl PlayerProfile {
             cosmetics: self.cosmetics.clone(),
             // Set from the player's cvar and applied per server profile.
             plugin_disable: None,
-            // The player's jaPRO cosmetics, added per server profile too.
-            japro_cosmetics: None,
             password,
             // Stamped per server when the connection is made.
             guid: None,

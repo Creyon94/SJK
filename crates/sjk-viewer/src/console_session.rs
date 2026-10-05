@@ -72,14 +72,6 @@ impl ViewerConsole {
                 user,
                 "JA+ plugin features this client disables (bits; see pluginDisable)",
             ),
-            // jaPRO's race-unlock hat the player wears (one bit; see
-            // `cosmetics unlocks`); sent to TaystJK/jaPRO servers.
-            CvarDefinition::new(
-                "cp_cosmetics",
-                0_i64,
-                user,
-                "jaPRO race-unlock cosmetic worn (bits; see cosmetics unlocks)",
-            ),
             CvarDefinition::new("handicap", 100_i64, user, "Starting health percentage"),
             CvarDefinition::new("sex", "male", user, "Player voice sex token"),
             CvarDefinition::new("cg_predictItems", true, user, "Predict local item pickups"),

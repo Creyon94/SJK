@@ -2,13 +2,11 @@
 //! resolved when their actor mesh is built or their clientinfo changes
 //! ([`Worn::invalidate`]): the names in `c1`/`c2`, the models (loaded into
 //! the rigid-model set like a mid-match configstring model) and the fitting
-//! offsets for the model worn. Without a hat of their choosing, a player
-//! wears jaPRO's race-unlock hat their `c5` bits grant, or JoF's seasonal
-//! one, where `CG_Player` draws those. Each evaluated pose then refreshes the bolts
+//! offsets for the model worn. Each evaluated pose then refreshes the bolts
 //! of the worn slots only, and [`submit`] places the pieces with the body,
 //! following `CG_DrawCosmeticOnPlayer`'s rules.
 
-use super::{STYLE_CVAR, Visibility, fitting_offset, japro_hat_path, model_path, placement};
+use super::{Visibility, fitting_offset, model_path, placement};
 use crate::actor_instance::ActorInstance;
 use crate::bolt::BoltMatrix;
 use sjk_client::CosmeticSlot;
@@ -98,22 +96,7 @@ impl crate::GpuState {
         };
         let names =
             CosmeticSlot::ALL.map(|slot| sjk_client::worn_cosmetic(info, slot).map(str::to_owned));
-        let style = self
-            .console
-            .as_ref()
-            .and_then(|console| console.integer_cvar(STYLE_CVAR))
-            .and_then(|style| u32::try_from(style).ok())
-            .unwrap_or(0);
-        let unlock = unlock_hat(
-            sjk_client::japro_cosmetic_bits(info),
-            style & sjk_client::STYLE_SEASONAL_COSMETICS != 0,
-            game_state.map(sjk_client::CompatProfile::from_game_state),
-            || {
-                let now = sjk_shell::local_time::LocalTime::now();
-                (now.month, now.day)
-            },
-        );
-        if names.iter().all(Option::is_none) && unlock.is_none() {
+        if names.iter().all(Option::is_none) {
             return;
         }
         let Some(vfs) = self.vfs.clone() else {
@@ -138,17 +121,6 @@ impl crate::GpuState {
             let offset = fitting_offset(&vfs, slot, name, &model, &skin);
             pieces[slot.index()] = Some(WornPiece { mesh, offset });
         }
-        // A chosen hat this client has wins; jaPRO's hats carry no offsets.
-        if pieces[CosmeticSlot::Hat.index()].is_none()
-            && let Some(mesh) = unlock
-                .and_then(|name| japro_hat_path(&vfs, name))
-                .and_then(|path| self.cosmetic_mesh(&path))
-        {
-            pieces[CosmeticSlot::Hat.index()] = Some(WornPiece {
-                mesh,
-                offset: [0.0; 3],
-            });
-        }
         self.actor_meshes[index].cosmetics.pieces = pieces;
     }
 
@@ -171,34 +143,6 @@ impl crate::GpuState {
             return None;
         }
         find(&self.object_meshes)
-    }
-}
-
-/// The jaPRO hat a player with cosmetic bits `bits` wears where `CG_Player`
-/// draws one: on a server that is neither JA+ nor base, or anywhere with
-/// seasonal cosmetics on; with no bits, the seasonal hat of `today`
-/// (month, day) when those are on (`CG_NewClientInfo`).
-fn unlock_hat(
-    bits: u32,
-    seasonal: bool,
-    profile: Option<sjk_client::CompatProfile>,
-    today: impl FnOnce() -> (u8, u8),
-) -> Option<&'static str> {
-    use sjk_client::CompatProfile;
-    let mod_server = !matches!(
-        profile,
-        Some(CompatProfile::BaseJka | CompatProfile::JaPlus { .. })
-    );
-    if !seasonal && !mod_server {
-        return None;
-    }
-    match bits {
-        0 if seasonal => {
-            let (month, day) = today();
-            sjk_client::seasonal_hat(month, day)
-        }
-        0 => None,
-        bits => sjk_client::japro_hat(bits),
     }
 }
 
@@ -276,38 +220,6 @@ mod tests {
             ],
             bolts: [Some(bolt), Some(bolt)],
         }
-    }
-
-    #[test]
-    fn japro_hats_show_where_cg_player_draws_them() {
-        use sjk_client::CompatProfile;
-        let december = || (12, 24);
-        let june = || (6, 1);
-        let ja_plus = Some(CompatProfile::JaPlus { version: None });
-        // A jaPRO server draws the granted hat; JA+ and base need the style bit.
-        assert_eq!(
-            unlock_hat(1 << 6, false, Some(CompatProfile::TaystJk), june),
-            Some("tophat")
-        );
-        assert_eq!(unlock_hat(1 << 6, false, ja_plus.clone(), june), None);
-        assert_eq!(
-            unlock_hat(1 << 6, true, ja_plus.clone(), june),
-            Some("tophat")
-        );
-        assert_eq!(
-            unlock_hat(1 << 6, false, Some(CompatProfile::BaseJka), june),
-            None
-        );
-        // No bits: the season's hat, only with the style bit.
-        assert_eq!(
-            unlock_hat(0, true, ja_plus.clone(), december),
-            Some("santahat")
-        );
-        assert_eq!(unlock_hat(0, true, ja_plus, june), None);
-        assert_eq!(
-            unlock_hat(0, false, Some(CompatProfile::TaystJk), december),
-            None
-        );
     }
 
     #[test]

@@ -24,22 +24,6 @@ use sjk_vfs::VirtualFileSystem;
 
 /// `cg_cosmetics` (JoF EJK, archived, default 1).
 pub(crate) const VISIBILITY_CVAR: &str = "cg_cosmetics";
-/// `cg_stylePlayer` (jaPRO), for its seasonal-cosmetics bit
-/// ([`sjk_client::STYLE_SEASONAL_COSMETICS`]).
-pub(crate) const STYLE_CVAR: &str = "cg_stylePlayer";
-
-/// Where jaPRO's race-unlock hats are (`cgs.media.cosmetics`).
-const JAPRO_HAT_FOLDER: &str = "models/players/hats";
-
-/// The model of jaPRO hat `name`: in `models/players/hats/`, where JoF and
-/// jaPRO register them, else wherever [`model_path`] finds it.
-pub(crate) fn japro_hat_path(vfs: &VirtualFileSystem, name: &str) -> Option<String> {
-    let path = format!("{JAPRO_HAT_FOLDER}/{name}.md3");
-    if vfs.contains(&path).ok()? {
-        return Some(path);
-    }
-    model_path(vfs, CosmeticSlot::Hat, name)
-}
 
 /// Whose cosmetics are drawn (`JAPRO_COSMETICS_*`).
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
