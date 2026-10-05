@@ -81,6 +81,7 @@ impl Group {
                 "cg_crosshairSize",
                 "cg_drawCrosshairNames",
                 "cg_drawTimer",
+                crate::version_overlay::CVAR,
                 "cg_speedometer",
                 "cg_drawTeamOverlay",
                 "cg_lagometer",

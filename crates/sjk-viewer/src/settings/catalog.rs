@@ -233,6 +233,11 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Version and date",
+        cvar: crate::version_overlay::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Lagometer",
         cvar: "cg_lagometer",
         kind: ValueKind::Bool,

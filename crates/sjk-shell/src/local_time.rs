@@ -12,10 +12,6 @@ use chrono::{Datelike, Local, Timelike};
 
 /// Short English day names, as C's `asctime` prints them.
 const DAYS: [&str; 7] = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-/// Short English month names, as C's `asctime` prints them.
-const MONTHS: [&str; 12] = [
-    "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",
-];
 
 /// A local calendar time, to the second.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -66,27 +62,22 @@ impl LocalTime {
         out.extend(self.clock().map(char::from));
     }
 
-    /// Append the date and 12-hour time EternalJK draws in the console's corner
-    /// (`Con_DrawSolidConsole`): the first 19 characters of `asctime` after the
-    /// hour is moved onto the 12-hour clock, then `AM` or `PM` and a space, as
-    /// in `Sun Oct  4 10:52:10 PM `.
+    /// Append the day, date and time the console draws in its corner, where
+    /// EternalJK draws `asctime` on a 12-hour clock (`Con_DrawSolidConsole`). SJK
+    /// writes dates day first and times on the 24-hour clock (`docs/sjk.md`,
+    /// "Dates and times"), then a space, as in `Sun 04/10/2026 22:52:10 `.
     pub fn push_corner_clock(&self, out: &mut String) {
         use std::fmt::Write as _;
-        let pm = self.hour >= 12;
-        let hour = match self.hour % 12 {
-            0 => 12,
-            hour => hour,
-        };
         let _ = write!(
             out,
-            "{} {} {:2} {hour:02}:{:02}:{:02} {} ",
+            "{} {:02}/{:02}/{:04} ",
             DAYS[usize::from(self.weekday % 7)],
-            MONTHS[usize::from(self.month.clamp(1, 12) - 1)],
             self.day,
-            self.minute,
-            self.second,
-            if pm { "PM" } else { "AM" },
+            self.month,
+            self.year,
         );
+        self.push_clock(out);
+        out.push(' ');
     }
 }
 
@@ -116,21 +107,21 @@ mod tests {
     }
 
     #[test]
-    fn corner_clock_matches_ejk_asctime_layout() {
+    fn corner_clock_is_day_first_on_the_24_hour_clock() {
         let mut text = String::new();
         at(22, 52, 10).push_corner_clock(&mut text);
-        assert_eq!(text, "Sun Oct  4 10:52:10 PM ");
+        assert_eq!(text, "Sun 04/10/2026 22:52:10 ");
         text.clear();
-        // Midnight and noon on the 12-hour clock; two-digit days need no pad.
+        // Midnight and noon, with no AM or PM.
         let mut midnight = at(0, 1, 2);
         midnight.day = 25;
         midnight.weekday = 3;
         midnight.month = 12;
         midnight.push_corner_clock(&mut text);
-        assert_eq!(text, "Wed Dec 25 12:01:02 AM ");
+        assert_eq!(text, "Wed 25/12/2026 00:01:02 ");
         text.clear();
         at(12, 0, 0).push_corner_clock(&mut text);
-        assert_eq!(text, "Sun Oct  4 12:00:00 PM ");
+        assert_eq!(text, "Sun 04/10/2026 12:00:00 ");
     }
 
     #[test]

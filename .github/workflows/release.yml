@@ -87,6 +87,9 @@ jobs:
       CARGO_INCREMENTAL: 0
       RUSTFLAGS: ${{ matrix.rustflags }}
       VERSION: ${{ needs.draft.outputs.version }}
+      # The programs' build scripts name the build after the tag's version
+      # (scripts/build_version.rs); a build without it says <version>-dev.
+      SJK_VERSION: ${{ needs.draft.outputs.version }}
     steps:
       - name: Preserve source and embedded shader line endings
         run: git config --global core.autocrlf false

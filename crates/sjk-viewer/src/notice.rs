@@ -4,10 +4,11 @@
 //! and the absence of warranty when it starts; the client prints these lines to
 //! its log and console, so modified versions must keep showing them.
 
-/// Copyright line: SJK's authors, and JKR's whose work it builds on.
+/// Copyright line: SJK's authors, and JKR's whose work it builds on. The version
+/// is the build's ([`crate::build_info::VERSION`]).
 pub(crate) const COPYRIGHT: &str = concat!(
     "Sol JK ",
-    env!("CARGO_PKG_VERSION"),
+    env!("SJK_BUILD_VERSION"),
     ", Copyright (C) 2026 Sol-Vulpes, Bishop-R and the JKR contributors"
 );
 

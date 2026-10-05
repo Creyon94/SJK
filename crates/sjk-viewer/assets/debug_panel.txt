@@ -785,6 +785,20 @@ test: Window title bar and taskbar show the medallion icon; Task Manager says So
 test: After the site deploys: favicon in the tab; a shared link shows the preview card.
 note: Icons of 40 px and under show the medallion (ring, core, blade), not the whole star.
 
+[version-label]
+status: personal
+area: HUD
+title: Version, build date and commit at the top of the screen, for screenshots
+change: Top centre, small: SJK <version> . <dd/mm/yyyy HH:MM> . <commit>, in menus and in play.
+change: cg_drawVersion 0 (Settings > HUD > Version and date) hides it; the log has it too.
+change: The classic console's clock reads Sun 04/10/2026 22:52:10 (24 h, day first).
+test: Main menu and a match: the label sits at the top centre, small, over nothing else.
+test: Check it with your HUD, the FPS counter (top right) and chat lines (top left).
+test: Settings > HUD > Version and date off: it disappears at once; on brings it back.
+test: Open the classic console: the label hides, the corner clock is day first, 24-hour.
+test: logs\last-client.log, near the top: "build: SJK 0.1.0-dev ..." with today's commit.
+note: A local build says 0.1.0-dev; release builds say the release version.
+
 [sol-visual-defaults]
 status: personal
 area: Rendering & effects

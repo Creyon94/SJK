@@ -1039,6 +1039,20 @@ was opened: the look on screen, the additive pipeline on a GPU, the window and
 taskbar icons and the X11 icon are unverified, as is the GNU toolchain's
 `windres` path.
 
+## Version label and dates (SJK)
+
+SJK-only branch `personal/version-overlay` (05/10/2026, based on `3f57938`): the
+client draws `SJK <version> · <dd/mm/yyyy HH:MM> · <commit>` at the top centre of
+every frame (`cg_drawVersion`, default on) and logs it at startup; the version
+comes from one build script for both programs (`SJK_VERSION` in releases,
+`<package>-dev` otherwise), and the classic console's corner clock reads
+`Sun 04/10/2026 22:52:10` instead of EternalJK's 12-hour `asctime`. See
+[version label](client.md#version-label) and [SJK conventions](sjk.md#version).
+Unit tests cover the date formatting, the label's parts and the console clock;
+the locked workspace build, tests and workspace clippy passed. No client was
+started: the label's place over each HUD, menu and screen size, and a release
+build's version from the workflow, are unverified.
+
 ## Visual defaults (SJK only)
 
 SJK-only branch `personal/sol-visual-defaults` (2026-10-05, based on `78b8bf7`)

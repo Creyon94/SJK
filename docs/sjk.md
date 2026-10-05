@@ -57,6 +57,29 @@ requires modified versions to keep announcing them. Keep the two copies of the
 lines in step. SJK packages put `NOTICE` first in `LICENSES-SJK.txt`. The SJK
 names and emblem are not licensed with the code (see `NOTICE`).
 
+## Version
+
+One file decides the programs' version: [build_version.rs](../scripts/build_version.rs),
+which both programs' `build.rs` include. A release build gets the version of its
+`sjk-v<version>` tag through `SJK_VERSION`, which the release workflow sets; any
+other build has the Cargo package version with `-dev` (`0.1.0-dev`), so a local
+build never passes for a release. The source commit's short hash and committer
+time come from git when the source is a checkout, else from `SJK_COMMIT` and
+`SJK_COMMIT_TIME`, else they are left out. A build is redone when `HEAD` moves;
+uncommitted edits keep the last commit's label. The client shows
+`SJK <version> · <dd/mm/yyyy HH:MM> · <commit>` at the top of the screen
+([client.md](client.md#version-label)) and in its log, the menus and console show
+`SJK <version>`, and both startup notices carry the version.
+
+## Dates and times
+
+Dates that players see, and dates in SJK's own text (release notes, Discord posts,
+SJK's own pages), are written day first, `dd/mm/yyyy`, and times on the 24-hour
+clock, `HH:MM`, with no AM or PM (Sol's rule, 05/10/2026). The version label and the
+classic console's clock follow it. Machine formats are exempt: git tags, ISO 8601
+timestamps in logs and JSON, and file names meant to sort. Pages shared with JKR
+keep their own style.
+
 ## Merging from JKR
 
 SJK's names differ from JKR's, so JKR's changes are merged with
