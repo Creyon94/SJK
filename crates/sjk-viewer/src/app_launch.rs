@@ -34,6 +34,10 @@ pub(super) fn run() -> Result<(), Box<dyn Error>> {
     };
     platform::initialize_storage(&game_data)?;
     let mut console = console::ViewerConsole::new(platform::user_config_file()?)?;
+    for line in notice::LINES {
+        log::progress(format_args!("{line}"));
+        console.push_log_quiet(line);
+    }
     assets::search_paths::initialize(&console)?;
     // The menu goes up first so its master-server fetch runs while the map
     // loads: the browser has servers by the time the main menu is on screen.

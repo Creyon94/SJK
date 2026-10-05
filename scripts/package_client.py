@@ -206,6 +206,9 @@ def main():
                                       args.profile_dir, args.client_bin, args.server_bin))
         notices = [(f"{args.name}/LICENSE", (source / "LICENSE").read_bytes()),
                    ("Inter/LICENSE.txt", (source / "crates/sjk-viewer/assets/fonts/LICENSE.txt").read_bytes())]
+        # SJK's copyright notice leads the file; JKR has none.
+        if (source / "NOTICE").is_file():
+            notices.insert(0, (f"{args.name}/NOTICE", (source / "NOTICE").read_bytes()))
         notices.extend(dependency_notices(source, args.target, args.name))
         archive.writestr(text_name("LICENSES", args.name), license_text(notices, args.name))
     manifest = output / f"{stem}-{args.platform}-build.json"

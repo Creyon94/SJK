@@ -274,7 +274,22 @@ fn startup_configs(cvars: &mut Cvars, files: &mut ConfigFiles) {
     }
 }
 
+/// The copyright and licence announcement printed at startup (GPLv2 §2(c));
+/// the client prints the same lines (`sjk-viewer`'s `notice`).
+const NOTICE: [&str; 2] = [
+    concat!(
+        "Sol JK server ",
+        env!("CARGO_PKG_VERSION"),
+        ", Copyright (C) 2026 Sol-Vulpes, Bishop-R and the JKR contributors"
+    ),
+    "Based on JKR by Bishop. Free software under the GNU GPL v2, \
+     with ABSOLUTELY NO WARRANTY; see LICENSE and CREDITS.md",
+];
+
 fn main() -> Result<(), Box<dyn Error>> {
+    for line in NOTICE {
+        println!("{line}");
+    }
     let options = options()?;
     let mut secret = [0; 16];
     getrandom::fill(&mut secret)

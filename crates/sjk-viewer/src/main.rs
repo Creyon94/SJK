@@ -109,6 +109,7 @@ mod movement_collision;
 mod movers;
 mod muzzle_effects;
 mod muzzle_flash;
+mod notice;
 mod npc_refresh;
 mod object_meshes;
 mod particle_atlas;
