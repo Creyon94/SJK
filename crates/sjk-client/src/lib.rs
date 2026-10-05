@@ -149,9 +149,8 @@ pub use information::{
 };
 pub use intermission::{IntermissionView, PM_INTERMISSION, suppresses_movement};
 pub use jof_cosmetics::{
-    CosmeticSlot, JAPRO_HATS, MAX_COSMETIC_NAME, STYLE_SEASONAL_COSMETICS, japro_cosmetic_bits,
-    japro_hat, join_color_value, race_style_name, seasonal_hat, split_color_value,
-    valid_cosmetic_name, worn_cosmetic,
+    CosmeticSlot, MAX_COSMETIC_NAME, join_color_value, split_color_value, valid_cosmetic_name,
+    worn_cosmetic,
 };
 pub use lagometer::{LAG_SAMPLES, LagometerSamples, SnapshotSample, connection_interrupted};
 pub use legacy_text::decode_legacy;

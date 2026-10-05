@@ -147,10 +147,6 @@ pub struct LegacyUserInfo {
     /// plugin feature off for this client), sent only when set; the client's
     /// compatibility profile sets it for plugin servers and clears it elsewhere.
     pub plugin_disable: Option<u32>,
-    /// jaPRO's `cp_cosmetics` bits (the race-unlock hat the player wears),
-    /// sent only when set; the compatibility profile sets it for TaystJK and
-    /// jaPRO servers.
-    pub japro_cosmetics: Option<u32>,
     /// Optional stock `CVAR_USERINFO` server password (`cl_main.cpp:2850`).
     pub password: Option<String>,
     /// Stock `ja_guid`: the client's identity for this server
@@ -180,7 +176,6 @@ impl LegacyUserInfo {
             char_color: [255; 3],
             saber_rgb: [None; 2],
             plugin_disable: None,
-            japro_cosmetics: None,
             password: None,
             guid: None,
         }
@@ -759,9 +754,6 @@ pub fn legacy_userinfo_payload_with_extensions(
     if let Some(bits) = user.plugin_disable {
         result.push_str(&format!("\\cp_pluginDisable\\{bits}"));
     }
-    if let Some(bits) = user.japro_cosmetics {
-        result.push_str(&format!("\\cp_cosmetics\\{bits}"));
-    }
     for (key, value) in extensions {
         result.push('\\');
         result.push_str(key);
@@ -813,7 +805,6 @@ fn stock_userinfo_key(key: &str) -> bool {
         "cp_sbRGB1",
         "cp_sbRGB2",
         "cp_pluginDisable",
-        "cp_cosmetics",
         "protocol",
         "qport",
         "challenge",
