@@ -955,6 +955,21 @@ retail's colours and highlight art on the classic menus and the theme's on the
 modern ones. "Game HUD files" stays on the tab for lists the picker does not
 find.
 
+## Version label
+
+The client draws its build label small at the top centre of every frame, in
+menus and in play, so a screenshot says which build it shows:
+`SJK <version> · <dd/mm/yyyy HH:MM> · <commit>`, the release version (a date
+version such as `2026.1005.1`, or `dev` for a local build), the source commit's date and time on the 24-hour
+clock, and its short hash ([version_overlay.rs](../crates/sjk-viewer/src/version_overlay.rs),
+[build_info.rs](../crates/sjk-viewer/src/build_info.rs)). The top centre is free in
+the stock and game-data HUDs (gauges at the bottom corners, the FPS counter and
+timer at the top right, notify and vote lines at the top left). It is left out
+while the console is open, which shows the version in its own corner.
+`cg_drawVersion 0` (Settings > HUD > "Version and date") hides it. The log names
+the same build at startup (`build: SJK ...`). How the version is decided is in
+[SJK conventions](sjk.md#version).
+
 ## Configuration and content
 
 The default writable client folder is `GameData/jkr/`, under the selected game
@@ -1164,8 +1179,10 @@ rather than applied, and a cursor that blinks every 256 ms, the character set's
 underscore or, in overstrike mode, its block (Inter cells use `_` and a box). The
 input scrolls sideways to keep the cursor on screen. In the bottom-right corner
 the version line ends one cell from the edge, two and a half rows up, and the
-local date and 12-hour time (`Sun Oct  4 10:52:10 PM`, as EternalJK prints
-`asctime`) sit under it at the edge, both in the bar colour.
+local day, date and time sit under it at the edge, both in the bar colour. Where
+EternalJK prints `asctime` on a 12-hour clock (`Sun Oct  4 10:52:10 PM`), SJK writes
+the date day first on the 24-hour clock (`Sun 04/10/2026 22:52:10`; see
+[SJK conventions](sjk.md#dates-and-times)).
 
 Closed, the console draws notify lines while a game, a demo or a map walk runs
 and no menu has focus: of the last `con_notifylines` rows, those written within

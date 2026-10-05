@@ -275,11 +275,12 @@ fn startup_configs(cvars: &mut Cvars, files: &mut ConfigFiles) {
 }
 
 /// The copyright and licence announcement printed at startup (GPLv2 §2(c));
-/// the client prints the same lines (`sjk-viewer`'s `notice`).
+/// the client prints the same lines (`sjk-viewer`'s `notice`). The version is
+/// the build's, from `scripts/build_version.rs`.
 const NOTICE: [&str; 2] = [
     concat!(
         "Sol JK server ",
-        env!("CARGO_PKG_VERSION"),
+        env!("SJK_BUILD_VERSION"),
         ", Copyright (C) 2026 Sol-Vulpes, Bishop-R and the JKR contributors"
     ),
     "Based on JKR by Bishop. Free software under the GNU GPL v2, \

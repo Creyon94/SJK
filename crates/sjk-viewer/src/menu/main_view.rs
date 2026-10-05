@@ -10,8 +10,9 @@ use crate::ui_renderer::{BANNER_SIZE, BANNER_TEXTURE};
 use crate::{TextVertex, UiFont};
 use sjk_ui::{DrawCommand, FontWeight, Rect, TextAlign};
 
-/// Build version, bottom right; the only footer text the main menu carries.
-pub(crate) const VERSION_LINE: &str = concat!("SJK ", env!("CARGO_PKG_VERSION"), " alpha");
+/// Build version ([`crate::build_info::VERSION`]), bottom right; the only footer
+/// text the main menu carries. The classic menus and console show it too.
+pub(crate) const VERSION_LINE: &str = concat!("SJK ", env!("SJK_BUILD_VERSION"));
 
 /// Top of the entry list and the height of one entry.
 fn list_metrics(viewport: [f32; 2], scale: f32) -> (f32, f32) {

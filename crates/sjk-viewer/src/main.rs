@@ -11,6 +11,7 @@ mod audio;
 mod audio_output;
 mod auto_switch;
 mod bolt;
+mod build_info;
 mod camera;
 mod camera_uniform;
 mod capture;
@@ -165,6 +166,7 @@ mod text;
 mod ui_renderer;
 mod ui_scale;
 mod ui_target;
+mod version_overlay;
 mod weapon_view;
 mod wgsl_source;
 mod window_icon;
@@ -1589,6 +1591,7 @@ impl GpuState {
             menu.append_overlay(vertices, font, viewport, text_scale);
         }
         self.append_console_overlay(viewport, text_scale);
+        self.append_version_overlay(viewport, text_scale);
         let layers = [
             information_visible.then(|| &self.hud.identification.list),
             information_visible.then(|| self.hud.draw_list()),

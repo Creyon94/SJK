@@ -1,6 +1,7 @@
 name: SJK release
 
-# SJK only. Pushing a tag named sjk-v<version> (for example sjk-v0.2.0) builds the
+# SJK only. Pushing a tag named sjk-v<version> (for example sjk-v2026.1005.1, a
+# date version, docs/sjk.md "Version") builds the
 # Windows x64 and Linux x64 drop-in ZIPs exactly as the GameData packages workflow
 # does (scripts/package_client.py, with its smoke check), names them
 # SJK-<version>-<platform>.zip and publishes them as a GitHub Release with the
@@ -24,6 +25,8 @@ concurrency:
 
 env:
   TAG: ${{ inputs.tag || github.ref_name }}
+  # SJK's development stage, shown in the release title ("Sol JK <version> (Alpha)").
+  STAGE: Alpha
 
 jobs:
   draft:
@@ -65,7 +68,7 @@ jobs:
           \`SHA256SUMS\` files list the checksums.
           EOF
           gh release create "$TAG" --verify-tag --draft \
-            --title "Sol JK $VERSION" --notes-file notes.md --generate-notes
+            --title "Sol JK $VERSION${STAGE:+ ($STAGE)}" --notes-file notes.md --generate-notes
 
   package:
     name: Package (${{ matrix.platform }})
@@ -87,6 +90,9 @@ jobs:
       CARGO_INCREMENTAL: 0
       RUSTFLAGS: ${{ matrix.rustflags }}
       VERSION: ${{ needs.draft.outputs.version }}
+      # The programs' build scripts name the build after the tag's version
+      # (scripts/build_version.rs); a build without it says <version>-dev.
+      SJK_VERSION: ${{ needs.draft.outputs.version }}
     steps:
       - name: Preserve source and embedded shader line endings
         run: git config --global core.autocrlf false

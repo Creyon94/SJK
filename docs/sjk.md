@@ -57,6 +57,33 @@ requires modified versions to keep announcing them. Keep the two copies of the
 lines in step. SJK packages put `NOTICE` first in `LICENSES-SJK.txt`. The SJK
 names and emblem are not licensed with the code (see `NOTICE`).
 
+## Version
+
+One file decides the programs' version: [build_version.rs](../scripts/build_version.rs),
+which both programs' `build.rs` include. Releases are numbered by date and a
+counter, `YYYY.MMDD.N`: the first release of 05/10/2026 is `2026.1005.1`, a second
+one that day `2026.1005.2` (Sol's choice, 05/10/2026). The form sorts, is a valid
+Cargo and Windows version, and is tagged `sjk-v2026.1005.1`; people see the date
+itself day first in the label below. A release build gets the version of its tag
+through `SJK_VERSION`, which the release workflow sets; any other build says `dev`,
+so a local build never passes for a release. The Cargo package version (`0.1.0`)
+is not the release number. The source commit's short hash and committer
+time come from git when the source is a checkout, else from `SJK_COMMIT` and
+`SJK_COMMIT_TIME`, else they are left out. A build is redone when `HEAD` moves;
+uncommitted edits keep the last commit's label. The client shows
+`SJK <version> · <dd/mm/yyyy HH:MM> · <commit>` at the top of the screen
+([client.md](client.md#version-label)) and in its log, the menus and console show
+`SJK <version>`, and both startup notices carry the version.
+
+## Dates and times
+
+Dates that players see, and dates in SJK's own text (release notes, Discord posts,
+SJK's own pages), are written day first, `dd/mm/yyyy`, and times on the 24-hour
+clock, `HH:MM`, with no AM or PM (Sol's rule, 05/10/2026). The version label and the
+classic console's clock follow it. Machine formats are exempt: git tags, ISO 8601
+timestamps in logs and JSON, and file names meant to sort. Pages shared with JKR
+keep their own style.
+
 ## Merging from JKR
 
 SJK's names differ from JKR's, so JKR's changes are merged with
@@ -83,9 +110,10 @@ changed dependencies.
 | [Pages](../.github/workflows/pages.yml) | Pushes to `main` changing `site/` or the workflow | Publishes `site/` to https://sol-vulpes.github.io/SJK/ |
 | [SJK release](../.github/workflows/release.yml) | Tags `sjk-v<version>` | Builds and publishes the release ZIPs |
 
-Release tags exist only on SJK and are created by Sol. Alphas are not marked as
-pre-releases, so the site's download link (`releases/latest`) finds them; their
-name and notes say "Alpha" instead.
+Release tags exist only on SJK and are created on Sol's request. The release
+title carries the stage, "Sol JK 2026.1005.1 (Alpha)" (`STAGE` in the workflow).
+Alphas are not marked as pre-releases, so the site's download link
+(`releases/latest`) finds them; their name and notes say "Alpha" instead.
 
 ## Debug panel
 

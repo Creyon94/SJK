@@ -38,6 +38,8 @@ pub(super) fn run() -> Result<(), Box<dyn Error>> {
         log::progress(format_args!("{line}"));
         console.push_log_quiet(line);
     }
+    // The build's commit and date too, so a log names exactly what ran.
+    log::progress(format_args!("build: {}", crate::build_info::label()));
     assets::search_paths::initialize(&console)?;
     // The menu goes up first so its master-server fetch runs while the map
     // loads: the browser has servers by the time the main menu is on screen.

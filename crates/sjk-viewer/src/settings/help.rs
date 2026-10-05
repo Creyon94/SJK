@@ -174,6 +174,10 @@ const HELP: &[(&str, &str)] = &[
     ),
     ("cg_drawTimer", "Shows the match time."),
     (
+        crate::version_overlay::CVAR,
+        "Shows SJK's version, build date and commit at the top, so screenshots say which build.",
+    ),
+    (
         "cg_lagometer",
         "A small graph of interpolation and snapshot delay, for spotting network trouble.",
     ),

@@ -523,9 +523,9 @@ test: JA+: two players duel, walk through them; while duelling, walk through a b
 status: personal
 area: Menus & settings
 title: Sol JK (SJK) name in the client
-change: Window title "Sol JK", version line "SJK 0.1.0 alpha", screen headers "SJK / ...", README.
+change: Window title "Sol JK", version line "SJK <version>", screen headers "SJK / ...", README.
 change: Programs sjk/sjk-server, crates sjk-*; settings in GameData/SJK, imported from GameData/jkr.
-test: Window title reads Sol JK; the main menu's bottom-right line reads SJK 0.1.0 alpha.
+test: Window title reads Sol JK; the main menu's bottom-right line reads SJK <version>.
 test: Settings, Play, Host and Player screens show SJK / ... headers; Esc menu: Quit Sol JK.
 test: After the update: GameData/SJK exists with your settings, binds and debug_panel ticks.
 test: play builds as Compiling sjk-...; play <JKR PR number> still builds and runs JKR's own client.
@@ -822,6 +822,20 @@ test: Explorer: sjk.exe and sjk-server.exe show the emblem (medallion in small v
 test: Window title bar and taskbar show the medallion icon; Task Manager says Sol JK.
 test: After the site deploys: favicon in the tab; a shared link shows the preview card.
 note: Icons of 40 px and under show the medallion (ring, core, blade), not the whole star.
+
+[version-label]
+status: personal
+area: HUD
+title: Version, build date and commit at the top of the screen, for screenshots
+change: Top centre, small: SJK <version> . <dd/mm/yyyy HH:MM> . <commit>, in menus and in play.
+change: cg_drawVersion 0 (Settings > HUD > Version and date) hides it; the log has it too.
+change: The classic console's clock reads Sun 04/10/2026 22:52:10 (24 h, day first).
+test: Main menu and a match: the label sits at the top centre, small, over nothing else.
+test: Check it with your HUD, the FPS counter (top right) and chat lines (top left).
+test: Settings > HUD > Version and date off: it disappears at once; on brings it back.
+test: Open the classic console: the label hides, the corner clock is day first, 24-hour.
+test: logs\last-client.log, near the top: "build: SJK dev ..." with today's commit.
+note: A local build says dev; a release says its date version, such as 2026.1005.1.
 
 [sol-visual-defaults]
 status: personal

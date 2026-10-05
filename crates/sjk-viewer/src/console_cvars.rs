@@ -364,6 +364,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         ),
         CvarDefinition::new("cg_drawTimer", false, archive, "Display elapsed match time"),
         CvarDefinition::new(
+            crate::version_overlay::CVAR,
+            true,
+            archive,
+            "Draw SJK's version, build date and commit at the top of the screen",
+        ),
+        CvarDefinition::new(
             "cg_lagometer",
             false,
             archive,
