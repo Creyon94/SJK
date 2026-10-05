@@ -265,7 +265,9 @@ fn row_box(g: &Geometry) -> f32 {
 }
 
 /// CG_DrawCenterString wraps rows longer than this at whitespace ([BugFix19]).
-const CENTER_WRAP_BYTES: usize = 50;
+/// Retail counts bytes of its one-byte code page, so the limit counts characters:
+/// `×` or `é` in a name is one byte there but two in UTF-8.
+const CENTER_WRAP_CHARS: usize = 50;
 
 /// Rows of a centre print: explicit `\n` breaks, then whitespace wrapping of
 /// over-long rows, without allocating.
@@ -286,17 +288,52 @@ impl<'a> Iterator for WrapRow<'a> {
         if self.rest.is_empty() {
             return None;
         }
-        let mut cut = self.rest.len();
-        if cut > CENTER_WRAP_BYTES {
-            cut = self.rest[..CENTER_WRAP_BYTES]
-                .rfind(char::is_whitespace)
-                .map_or(CENTER_WRAP_BYTES, |index| index + 1);
-            while !self.rest.is_char_boundary(cut) {
-                cut -= 1;
-            }
-        }
+        // Byte offset of the first character past the limit, if the row is longer.
+        // Slicing at a fixed byte count panicked when it fell inside a character.
+        let cut = match self.rest.char_indices().nth(CENTER_WRAP_CHARS) {
+            Some((limit, _)) => self.rest[..limit]
+                .char_indices()
+                .rev()
+                .find(|(_, character)| character.is_whitespace())
+                .map_or(limit, |(index, space)| index + space.len_utf8()),
+            None => self.rest.len(),
+        };
         let (head, tail) = self.rest.split_at(cut);
         self.rest = tail.trim_start();
         Some(head.trim_end())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::center_rows;
+
+    #[test]
+    fn center_rows_wrap_long_rows_at_a_space() {
+        let text = format!("{} {}", "a".repeat(30), "b".repeat(30));
+        let rows: Vec<_> = center_rows(&text).collect();
+        assert_eq!(rows, ["a".repeat(30), "b".repeat(30)]);
+    }
+
+    #[test]
+    fn center_rows_do_not_split_a_character_at_the_limit() {
+        // 49 ASCII bytes put `×` across UTF-8 bytes 49..51: a byte limit of 50
+        // sliced inside it and crashed on a duel challenge from such a name.
+        let name = format!("{}×", "x".repeat(49));
+        let text = format!("{name} has challenged you to a duel!");
+        let rows: Vec<_> = center_rows(&text).collect();
+        assert_eq!(rows, [name.as_str(), "has challenged you to a duel!"]);
+    }
+
+    #[test]
+    fn center_rows_count_characters_as_retail_counts_bytes() {
+        // Fifty two-byte characters fit one retail row of fifty bytes.
+        let row = "é".repeat(50);
+        assert_eq!(center_rows(&row).collect::<Vec<_>>(), [row.as_str()]);
+        let longer = "é".repeat(51);
+        assert_eq!(
+            center_rows(&longer).collect::<Vec<_>>(),
+            ["é".repeat(50), "é".to_owned()]
+        );
     }
 }
