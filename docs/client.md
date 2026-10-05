@@ -462,7 +462,12 @@ A player's or NPC's appearance (`models/players/<model>/<skin>`) loads its
 `animation.cfg` and a skin; if the model cannot be loaded or built, the client
 draws Kyle for that player instead
 ([player_assets.rs](../crates/sjk-viewer/src/player_assets.rs),
-[actor_load.rs](../crates/sjk-viewer/src/actor_load.rs)). Files are read as
+[actor_load.rs](../crates/sjk-viewer/src/actor_load.rs)). That includes a model
+changed during the match (`/model`, or a new player in a used slot), as
+`CG_LoadClientInfo` falls back to `DEFAULT_MODEL`: the player is not left in
+their previous model, and the log says `client N Kyle in place of <model>`. A
+model that failed is not loaded again until the next map
+([clientinfo_refresh.rs](../crates/sjk-viewer/src/clientinfo_refresh.rs)). Files are read as
 rd-vanilla and the retail cgame read them, so a model EternalJK draws and
 animates is not swapped for Kyle:
 
