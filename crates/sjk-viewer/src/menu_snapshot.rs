@@ -503,6 +503,53 @@ fn menu_snapshot() {
     console_browser(&shots, art);
     weapon_select(&mut shots, &vfs);
     force_wheel(&mut shots, &vfs);
+    profile_saber(&shots, art, &vfs, &mut console);
+}
+
+/// The classic profile's lightsaber creation page, full screen and in game,
+/// single, dual (the first blade a custom RGB) and staff. The live 3D
+/// preview needs the renderer, so the drawn saber that stands in for it
+/// before its first frame is what shows here.
+fn profile_saber(
+    shots: &Snapshot,
+    art: ArtSet,
+    vfs: &Arc<sjk_vfs::VirtualFileSystem>,
+    console: &mut crate::console::ViewerConsole,
+) {
+    let setups: [(&str, bool, &str, &str, &str, &str); 4] = [
+        ("profile-saber-single", false, "single_1", "none", "4", "0"),
+        (
+            "profile-saber-dual-rgb",
+            false,
+            "single_1",
+            "single_2",
+            "6",
+            "3",
+        ),
+        ("profile-saber-staff", false, "dual_1", "none", "0", "0"),
+        (
+            "profile-saber-dual-ingame",
+            true,
+            "single_1",
+            "single_2",
+            "6",
+            "3",
+        ),
+    ];
+    for (name, in_game, saber1, saber2, color1, color2) in setups {
+        console.set_cvar("saber1", saber1);
+        console.set_cvar("saber2", saber2);
+        console.set_cvar("color1", color1);
+        console.set_cvar("color2", color2);
+        // Orange-pink: 255 96 160.
+        let packed = sjk_client::pack_saber_rgb([255, 96, 160]);
+        console.set_cvar("cp_sbRGB1", &packed.to_string());
+        let mut menu = crate::player_menu::PlayerMenu::new();
+        menu.open_classic_saber_for_snapshot(console, Arc::clone(vfs), art, in_game);
+        let mut vertices = Vec::new();
+        menu.append(&mut vertices, &shots.font.font, VIEWPORT, 1.0);
+        shots.save(name, menu.draw_list(), &vertices, in_game);
+    }
 }
 
 /// The weapon selection row (`crate::weapon_select`) over the match, before (SJK's

@@ -47,6 +47,9 @@ pub(crate) enum Item {
     Hilts2,
     Blades,
     Blades2,
+    /// SJK (JoF EJK): a custom blade colour slider, the first saber's red,
+    /// green and blue (0..3), then the second's (3..6).
+    Channel(u8),
     Exit,
     Back,
     /// APPLY: on to the next page, or back to the match in game.
@@ -154,7 +157,8 @@ impl Item {
             | Self::Hilts
             | Self::Hilts2
             | Self::Blades
-            | Self::Blades2 => "",
+            | Self::Blades2
+            | Self::Channel(_) => "",
         }
     }
 
@@ -184,6 +188,7 @@ impl Item {
             Self::Hilts2 => "Select a second hilt.",
             Self::Blades => "Select a blade color.",
             Self::Blades2 => "Select a second blade color.",
+            Self::Channel(index) => CHANNEL_HINTS[usize::from(index % 3)],
             Self::Exit => "Leave Jedi Academy.",
             Self::Back => "Back to profile menu.",
             Self::Apply => "Apply changes to player and go to saber selection.",
@@ -209,6 +214,13 @@ impl Item {
         }
     }
 }
+
+/// The custom colour sliders' descriptions, red, green and blue.
+const CHANNEL_HINTS: [&str; 3] = [
+    "Red of your own blade color; a swatch brings a stock color back.",
+    "Green of your own blade color; a swatch brings a stock color back.",
+    "Blue of your own blade color; a swatch brings a stock color back.",
+];
 
 /// Retail power descriptions (`descText` of `ingame_playerforce.menu`), in
 /// `forcePowers_t` order.
@@ -290,7 +302,7 @@ const CHARACTER_IN_GAME: [Item; 8] = [
     Item::Back,
     Item::Apply,
 ];
-const SABER_FULL: [Item; 12] = [
+const SABER_FULL: [Item; 15] = [
     Item::NavPlay,
     Item::NavProfile,
     Item::NavControls,
@@ -300,11 +312,14 @@ const SABER_FULL: [Item; 12] = [
     Item::Staff,
     Item::Hilts,
     Item::Blades,
+    Item::Channel(0),
+    Item::Channel(1),
+    Item::Channel(2),
     Item::Exit,
     Item::Apply,
     Item::ApplyMain,
 ];
-const SABER_FULL_DUAL: [Item; 14] = [
+const SABER_FULL_DUAL: [Item; 20] = [
     Item::NavPlay,
     Item::NavProfile,
     Item::NavControls,
@@ -316,26 +331,41 @@ const SABER_FULL_DUAL: [Item; 14] = [
     Item::Hilts2,
     Item::Blades,
     Item::Blades2,
+    Item::Channel(0),
+    Item::Channel(1),
+    Item::Channel(2),
+    Item::Channel(3),
+    Item::Channel(4),
+    Item::Channel(5),
     Item::Exit,
     Item::Apply,
     Item::ApplyMain,
 ];
-const SABER_IN_GAME: [Item; 6] = [
+const SABER_IN_GAME: [Item; 9] = [
     Item::Single,
     Item::Dual,
     Item::Staff,
     Item::Hilts,
     Item::Blades,
+    Item::Channel(0),
+    Item::Channel(1),
+    Item::Channel(2),
     Item::Apply,
 ];
-const SABER_IN_GAME_DUAL: [Item; 8] = [
+const SABER_IN_GAME_DUAL: [Item; 14] = [
     Item::Single,
     Item::Dual,
     Item::Staff,
     Item::Hilts,
     Item::Hilts2,
     Item::Blades,
+    Item::Channel(0),
+    Item::Channel(1),
+    Item::Channel(2),
     Item::Blades2,
+    Item::Channel(3),
+    Item::Channel(4),
+    Item::Channel(5),
     Item::Apply,
 ];
 
@@ -516,21 +546,23 @@ pub(crate) fn power_row(index: u8) -> Option<[f32; 4]> {
 /// Where a page shows the live model, on the canvas: character creation's
 /// model item (`player2` 393 104 220 220, `ingame_player2` 300 84 110 110),
 /// the cosmetics window's column right of its lists, and lightsaber
-/// creation's band under its boxes, where retail spun the hilt.
+/// creation's band under its boxes, where retail spun the hilt, left of the
+/// colour sliders (full page) or under them (in game).
 pub(crate) fn preview_rect(page: ClassicPage, frame: Frame) -> Option<[f32; 4]> {
     let local = match (page, frame) {
         (ClassicPage::Character, Frame::Full) => return Some([393.0, 104.0, 220.0, 220.0]),
         (ClassicPage::Character, Frame::InGame) => [300.0, 84.0, 110.0, 110.0],
         (ClassicPage::Saber, Frame::Full) => return Some(SABER_PREVIEW),
-        (ClassicPage::Saber, Frame::InGame) => [40.0, 226.0, 350.0, 130.0],
+        (ClassicPage::Saber, Frame::InGame) => [40.0, 286.0, 350.0, 70.0],
         (ClassicPage::Cosmetics, _) => COSMETICS_MODEL,
         _ => return None,
     };
     Some(place(page, frame, local))
 }
 
-/// Lightsaber creation's preview band, on the canvas.
-pub(crate) const SABER_PREVIEW: [f32; 4] = [120.0, 232.0, 400.0, 206.0];
+/// Lightsaber creation's preview band, on the canvas: the lower box's left,
+/// the colour sliders taking its right.
+pub(crate) const SABER_PREVIEW: [f32; 4] = [24.0, 244.0, 420.0, 168.0];
 
 /// The cosmetics window's preview column and the model inside it, relative
 /// to the window.
@@ -625,6 +657,7 @@ pub(crate) fn rect(item: Item, page: ClassicPage, frame: Frame, dual: bool) -> [
         (InGame, Saber, Item::Hilts) if dual => [200.0, 50.0, 160.0, 55.0],
         (InGame, Saber, Item::Hilts) => [200.0, 56.0, 160.0, 120.0],
         (InGame, Saber, Item::Hilts2) => [200.0, 120.0, 160.0, 55.0],
+        (frame, Saber, Item::Channel(index)) => super::saber_rgb::rect(frame, index),
         (Full, Saber, Item::Blades) => [446.0, 124.0, 159.0, 24.0],
         (Full, Saber, Item::Blades2) => [446.0, 170.0, 159.0, 24.0],
         (InGame, Saber, Item::Blades) => [15.0, 197.0, 149.0, 24.0],

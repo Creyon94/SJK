@@ -461,6 +461,23 @@ of a JoF clientinfo, the installed-piece scan (new and old folders), the
 change's author: the pages' look, a piece's fit on a model and other clients
 seeing it are untested.
 
+### Lightsaber creation: sabers alone and custom colour (SJK)
+
+SJK-only branch `personal/saber-page` (05/10/2026, based on `af2656f`), from
+Sol's testing: the classic lightsaber creation preview shows only the sabers,
+lit, laid on their side and turning about their length as retail's `isSaber`
+items did (`Item_Model_Paint`), instead of the model holding them; and the page
+gains JoF EJK's red, green and blue sliders per saber, writing `color1`/`color2`
+6 and `cp_sbRGB1`/`cp_sbRGB2` as JoF EJK does. The preview band moves to the
+lower box's left (full page) or under the sliders (in game). Unit tests cover
+the showcase (span over hilt and blades, centring at any turn, dual stacking,
+the camera taking in the whole saber with its blade to the right, the turn's
+start) and the sliders (tokens, channels, pointer values, row room); the
+locked workspace build, tests and clippy passed. Offscreen menu snapshots of
+the page (single, dual with a custom colour, staff, in game) were looked at;
+they show the drawn stand-in saber, since the 3D preview needs the renderer:
+the showcase on a GPU is unverified, as is another client seeing the colour.
+
 ## Model grid icons and search (SJK)
 
 SJK-only branch `personal/model-grid` (2026-10-05, based on `0fc6e24`): the

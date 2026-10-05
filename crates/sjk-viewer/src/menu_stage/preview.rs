@@ -77,6 +77,9 @@ pub(crate) struct Preview {
     failed: bool,
     /// This frame's blades in the actor's hands (`begin_saber_instances`).
     pub(super) blades: Vec<crate::saber::Instance>,
+    /// This frame's showcase of the sabers alone, which the camera frames
+    /// instead of the actor (`begin_saber_instances`).
+    pub(super) showcase: Option<super::showcase::View>,
 }
 
 /// Run `create` inside validation and out-of-memory scopes: `None`, with the
@@ -411,7 +414,10 @@ impl GpuState {
         // facing turn (`weapon_view::actor_world_rotation`).
         let facing = actor.rotation * Quat::from_rotation_z(-std::f32::consts::FRAC_PI_2) * Vec3::X;
         let aspect = target.size[0] as f32 / target.size[1] as f32;
-        let (view_projection, eye, forward) = camera(actor.origin, facing, aspect, seconds);
+        let (view_projection, eye, forward) = match preview.showcase {
+            Some(showcase) if self.menu_stage.showcase => showcase.camera(aspect),
+            _ => camera(actor.origin, facing, aspect, seconds),
+        };
         let uniform = CameraUniform {
             view_projection: view_projection.to_cols_array_2d(),
             camera_position: eye.to_array(),

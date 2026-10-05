@@ -2,10 +2,12 @@
 //! its cells focuses it, a click activates the entry or picks the cell, and
 //! the wheel scrolls the list under it. On the Force page a click on a star
 //! sets the power to that level (on its own top star, one below), and the
-//! right button lowers a power a level, as retail's did.
+//! right button lowers a power a level, as retail's did. A click or a drag on
+//! a colour slider's bar sets it from the pointer, and the wheel steps it.
 
 use super::cosmetics_page::{self, list_of};
 use super::force_page::star_of;
+use super::saber_rgb;
 use super::view::{
     BLADE_BASE, CAPES_SCROLL, HATS_SCROLL, HILT_BASE, HILTS_SCROLL, PART_BASE, PARTS_SCROLL,
     TEMPLATE_BASE, TEMPLATES_SCROLL, TINT_BASE, TINTS_SCROLL,
@@ -33,6 +35,8 @@ enum Target {
     Cosmetic(CosmeticSlot, usize),
     /// A row of the Force template list.
     Template(usize),
+    /// A custom colour slider's bar.
+    Channel(u8),
     Scroll(u16),
 }
 
@@ -42,6 +46,9 @@ fn target(token: u16) -> Option<Target> {
     }
     if let Some((power, level)) = star_of(token) {
         return Some(Target::Star(power, level));
+    }
+    if let Some(index) = saber_rgb::of_token(token) {
+        return Some(Target::Channel(index));
     }
     if let Some(row) = token
         .checked_sub(TEMPLATE_BASE)
@@ -119,6 +126,7 @@ impl PlayerMenu {
             Target::Star(power, _) => self.focus_of(Item::Power(power as u8)),
             Target::Cosmetic(slot, _) => self.focus_of(list_of(slot).0),
             Target::Template(_) => self.focus_of(Item::Templates),
+            Target::Channel(index) => self.focus_of(Item::Channel(index)),
             Target::Scroll(_) => None,
         };
         if matches!(event.kind, UiEventKind::HoverEnter | UiEventKind::Hover) {
@@ -146,6 +154,22 @@ impl PlayerMenu {
                     self.classic.focus = index;
                 }
                 self.force.step(power, false);
+            }
+            return PlayerMenuResult::None;
+        }
+        // A click or a drag along a colour slider sets it from the pointer.
+        if let (Target::Channel(index), UiEventKind::Activate | UiEventKind::Drag) =
+            (target, event.kind)
+        {
+            let token = saber_rgb::RGB_BASE + u16::from(index);
+            if let (Some(position), Some(bar)) = (event.position, self.canvas.rect_for(token)) {
+                if let Some(focus) = owner {
+                    self.classic.focus = focus;
+                }
+                let (second, channel) = saber_rgb::channel(index);
+                self.saber
+                    .set_channel(second, channel, saber_rgb::value_at(bar, position.x));
+                self.saber.apply(console);
             }
             return PlayerMenuResult::None;
         }
@@ -209,7 +233,7 @@ impl PlayerMenu {
                 self.load_template_row(row);
                 PlayerMenuResult::None
             }
-            Target::Scroll(_) => PlayerMenuResult::None,
+            Target::Channel(_) | Target::Scroll(_) => PlayerMenuResult::None,
         }
     }
 
@@ -246,6 +270,13 @@ impl PlayerMenu {
             Target::Scroll(TEMPLATES_SCROLL) | Target::Template(_) => {
                 let state = &mut self.force_templates;
                 state.scroll = state.scroll.saturating_add_signed(rows as isize);
+            }
+            // Over a colour slider the wheel steps it, as the arrows do.
+            Target::Channel(index) => {
+                let catalog = catalog_of(&self.loader);
+                self.saber
+                    .adjust(saber_rgb::row(index), rows as isize, catalog);
+                self.saber.apply(console);
             }
             _ => {}
         }

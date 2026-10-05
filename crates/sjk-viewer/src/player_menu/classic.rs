@@ -11,8 +11,8 @@
 //! [`layout`], drawing in [`view`], pointer routing in [`pointer`].
 //!
 //! Retail drew a live 3D model on character creation and a spinning saber on
-//! lightsaber creation. Without a world behind the menu there is nothing to
-//! render them into yet, so the model's portrait and a drawn blade stand in.
+//! lightsaber creation; so does SJK ([`crate::menu_stage::preview`]), with the
+//! model's portrait and a drawn blade standing in until a frame is drawn.
 //!
 //! SJK adds two pages retail's main menu lacked: the Force page (retail's
 //! in-game `ingame_playerforce`, on both frames, editing the same draft as
@@ -23,6 +23,7 @@ mod cosmetics_page;
 mod force_page;
 mod layout;
 mod pointer;
+mod saber_rgb;
 mod view;
 
 use super::controller::wrap;
@@ -101,8 +102,8 @@ impl PlayerMenu {
 
     /// The live model the page on show wants: character creation's, walking
     /// in place as retail's did (`BOTH_WALK1`), the cosmetics window's,
-    /// standing as JoF's does (`BOTH_STAND1`), and lightsaber creation's,
-    /// holding the lit sabers in their stance where retail spun the hilt.
+    /// standing as JoF's does (`BOTH_STAND1`), and lightsaber creation's
+    /// sabers alone, lit and turning, as retail spun the hilt.
     pub(crate) fn model_preview(&self) -> Option<ModelPreview> {
         if !self.classic_style {
             return None;
@@ -118,6 +119,7 @@ impl PlayerMenu {
             rect: layout::preview_rect(page, self.frame())?,
             stance,
             sabers,
+            showcase: sabers,
         })
     }
 
@@ -306,6 +308,12 @@ impl PlayerMenu {
                     super::rows::SaberRow::SecondHilt
                 };
                 self.saber.adjust(row, direction, catalog);
+                self.saber.apply(console);
+                return;
+            }
+            Item::Channel(index) => {
+                let catalog = catalog_of(&self.loader);
+                self.saber.adjust(saber_rgb::row(index), direction, catalog);
                 self.saber.apply(console);
                 return;
             }
