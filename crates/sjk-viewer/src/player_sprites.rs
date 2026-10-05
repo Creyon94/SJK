@@ -1,6 +1,8 @@
 //! `CG_PlayerSprites` / `CG_PlayerFloatSprite` (`codemp/cgame/cg_players.c`): the
 //! connection icon or talk balloon over a player's head, as a frame billboard in the
-//! effect pool that `pickups::simple::append_frame` clears on the next frame.
+//! effect pool that `pickups::simple::append_frame` clears on the next frame. It
+//! uses the pool's billboard reserve ([`crate::particle_types::FRAME_BILLBOARD_RESERVE`]),
+//! so effects filling the pool do not hide it.
 use super::*;
 use crate::particle_types::PrimitiveShape;
 
@@ -48,7 +50,7 @@ pub(super) fn submit(
     let Some(sprite) = sjk_client::legacy_player_sprite(flags, entity_type, mind_tricked) else {
         return;
     };
-    if sinks.particles.len() == sinks.particles.capacity() {
+    if !crate::particle_types::frame_billboard_fits(sinks.particles.len()) {
         return;
     }
     let constant = |value| {

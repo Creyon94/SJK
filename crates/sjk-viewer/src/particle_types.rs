@@ -82,7 +82,27 @@ impl Particle {
     }
 }
 
+/// Effect particles (EFX, impacts, muzzle flashes, Force puffs) stop at this count.
 pub(crate) const MAX_PARTICLES: usize = 2_048;
+
+/// Pool slots only per-frame billboards may use: player sprites (talk balloon,
+/// connection icon), simple pickup icons and hook ropes.
+///
+/// Those are cleared and appended again every frame (`pickups::simple::append_frame`),
+/// so effects spawned in between (map effects, other players' muzzle flashes during
+/// actor submission) used to take the slots they had just freed, and a pool saturated
+/// by effects dropped every balloon at once. Stock draws `CG_PlayerFloatSprite` as a
+/// scene entity that effects never compete with (`codemp/cgame/cg_players.c`).
+pub(crate) const FRAME_BILLBOARD_RESERVE: usize = 256;
+
+/// The pool's allocated size; nothing appends past it, so it never reallocates.
+pub(crate) const PARTICLE_POOL: usize = MAX_PARTICLES + FRAME_BILLBOARD_RESERVE;
+
+/// Whether a per-frame billboard still fits in a pool holding `len` particles.
+/// Effects stop at [`MAX_PARTICLES`], so the reserve stays for billboards.
+pub(crate) fn frame_billboard_fits(len: usize) -> bool {
+    len < PARTICLE_POOL
+}
 const MAX_PARTICLE_SHADER_STAGES: usize = 8;
 
 /// Borrowed stage selection; iteration evaluates at most eight original stages.
@@ -159,5 +179,34 @@ pub(crate) fn fade(use_alpha: bool, life_envelope: f32) -> (f32, f32) {
         (1.0, life_envelope)
     } else {
         (life_envelope, 1.0)
+    }
+}
+
+#[cfg(test)]
+mod pool_tests {
+    use super::*;
+
+    /// The frame that hid every balloon at once: a pool saturated by effects,
+    /// billboards cleared, effects (another player's muzzle flash) refilling the
+    /// freed slots up to their cap, then the billboards appended again.
+    #[test]
+    fn effects_refilling_the_pool_leave_room_for_every_billboard() {
+        let billboards = 32 + 32 + 96; // balloons, hook ropes, pickup icons
+        let mut len = MAX_PARTICLES;
+        len -= billboards; // `pickups::simple::append_frame` clears them
+        while len < MAX_PARTICLES {
+            len += 1; // the effect spawners' own guard
+        }
+        for _ in 0..billboards {
+            assert!(frame_billboard_fits(len));
+            len += 1;
+        }
+        assert!(len <= PARTICLE_POOL);
+    }
+
+    #[test]
+    fn billboards_stop_at_the_allocated_pool() {
+        assert!(frame_billboard_fits(PARTICLE_POOL - 1));
+        assert!(!frame_billboard_fits(PARTICLE_POOL));
     }
 }

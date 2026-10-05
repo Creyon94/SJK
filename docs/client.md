@@ -756,8 +756,10 @@ takes priority when the server marks a lost connection. These are upright frame
 billboards using the existing [sprite orientation](rendering.md#billboard-icons).
 Their texture opacity is preserved near walls even with soft particles enabled.
 Your own bubble is visible in third person, not the first-person view. Mind-tricked
-players, NPC talk flags and intermission do not show talk balloons. Siege voice
-command icons remain unimplemented. See
+players, NPC talk flags and intermission do not show talk balloons. The balloons,
+pickup icons and hook ropes have their own share of the effect particle pool, so a
+scene full of effects no longer hides every balloon at once. Siege voice command
+icons remain unimplemented. See
 [player_sprites.rs](../crates/sjk-viewer/src/player_sprites.rs) and
 [pmove_talk.rs](../crates/sjk-game-jka/src/pmove_talk.rs).
 

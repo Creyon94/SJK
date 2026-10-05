@@ -100,7 +100,7 @@ pub(super) fn submit(sinks: &mut Sinks<'_>, client: u16, hand: Vec3, now: Instan
     };
     let hooks = sinks.hooks;
     for hook in hooks.of(client) {
-        if sinks.particles.len() == sinks.particles.capacity() {
+        if !crate::particle_types::frame_billboard_fits(sinks.particles.len()) {
             return;
         }
         sinks.particles.push(Particle {

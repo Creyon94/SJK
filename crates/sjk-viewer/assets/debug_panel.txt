@@ -893,6 +893,15 @@ test: JoF EJK client with a hat on the same local server: SJK shows it, right sa
 test: Show Cosmetics: Only Me hides others', Off hides all; Remove All takes both off.
 test: ui_menuStyle modern: Player screen has Hat and Cape rows; the stage model wears them.
 
+[talk-balloon-pool]
+status: personal
+area: HUD
+title: Talk balloons no longer vanish over everyone at once in busy fights
+change: Balloons, pickup icons and hook ropes get their own share of the effect pool,
+change: so muzzle flashes and map effects filling it cannot hide them any more.
+test: Crowded JoF server, people typing while others shoot blasters: balloons stay steady.
+test: A map with heavy effects (rain, fire): balloons and item icons stay up.
+
 [hud-picker]
 status: personal
 area: HUD

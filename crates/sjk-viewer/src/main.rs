@@ -1209,7 +1209,7 @@ impl GpuState {
             lagometer: sjk_client::LagometerSamples::new(),
             auto_switch: auto_switch::Tracker::default(),
             previous_particle_events: HashMap::new(),
-            particles: Vec::with_capacity(effect_runtime::MAX_PARTICLES),
+            particles: Vec::with_capacity(particle_types::PARTICLE_POOL),
             pending_particle_effects: particle_physics::PendingEffects::new(),
             impacts: impacts::Pool::new(),
             last_first_person_flash: None,
