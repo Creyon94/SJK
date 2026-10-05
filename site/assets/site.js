@@ -30,7 +30,21 @@ function inline(escaped) {
   return text.replace(/\u0000(\d+)\u0000/g, (_, i) => codes[Number(i)]);
 }
 
-/** A small markdown subset for release notes: headings, lists, paragraphs. */
+/** The `<img>` tags of a raw HTML line, rebuilt from their https src, alt and width. */
+function htmlImages(raw) {
+  const images = [];
+  for (const [tag] of raw.matchAll(/<img\b[^>]*>/gi)) {
+    const attr = (name) => (tag.match(new RegExp(`\\s${name}\\s*=\\s*"([^"]*)"`, "i")) || [])[1];
+    const src = attr("src");
+    if (!src || !/^https:\/\//i.test(src)) continue;
+    const width = /^\d+$/.test(attr("width") || "") ? ` width="${attr("width")}"` : "";
+    images.push(`<img src="${escapeHtml(src)}" alt="${escapeHtml(attr("alt") || "")}"${width}>`);
+  }
+  return images;
+}
+
+/** A small markdown subset for release notes: headings, lists, paragraphs.
+ * A line of raw HTML keeps only its images; any other markup is dropped. */
 function renderMarkdown(source) {
   const out = [];
   let list = false;
@@ -44,6 +58,12 @@ function renderMarkdown(source) {
     list = false;
   };
   for (const raw of String(source || "").replace(/\r\n?/g, "\n").split("\n")) {
+    if (raw.trim().startsWith("<")) {
+      flush(); closeList();
+      const images = htmlImages(raw);
+      if (images.length) out.push(`<p class="release-image">${images.join(" ")}</p>`);
+      continue;
+    }
     const line = escapeHtml(raw.trimEnd());
     const heading = line.match(/^#{1,6}\s+(.*)$/);
     const item = line.match(/^\s*[-*]\s+(.*)$/);
