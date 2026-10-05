@@ -58,8 +58,8 @@ fn wear(
     let pieces = catalog.pieces(slot);
     if pieces.is_empty() {
         return Ok(vec![format!(
-            "No {category} installed. Add JoF EJK's cosmetics (models/cosmetics/{category}/) \
-             or set fs_basegame EternalJK and restart."
+            "No {category} installed. Install JoF EJK's cosmetics (GameData/EternalJK) or put a \
+             pack with models/cosmetics/{category}/ in base, then restart."
         )]);
     }
     let worn = worn(console, slot);

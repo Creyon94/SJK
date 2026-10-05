@@ -5,8 +5,18 @@ use sjk_vfs::VirtualFileSystem;
 use std::error::Error;
 use std::path::{Path, PathBuf};
 use std::sync::OnceLock;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 static STARTUP: OnceLock<Options> = OnceLock::new();
+/// The cosmetics packs were named in the log (every world mounts them).
+static COSMETICS_LOGGED: AtomicBool = AtomicBool::new(false);
+
+/// The folder JoF EJK and EternalJK keep their own content in, where JoF's
+/// launcher installs hat and cape packs.
+const COSMETICS_GAME: &str = "EternalJK";
+/// Where a pack's hats and capes are; a PK3 with models there is a
+/// cosmetics pack.
+const COSMETIC_FOLDERS: [&str; 2] = ["models/cosmetics/hats", "models/cosmetics/capes"];
 
 /// Immutable startup settings shared by world-loading workers.
 pub(crate) struct Options {
@@ -142,6 +152,25 @@ impl Options {
         Ok(paths)
     }
 
+    /// The PK3s in `install/EternalJK` that carry hats or capes
+    /// (`models/cosmetics/`), lowest priority first: JoF EJK's cosmetics,
+    /// found without mounting the rest of that folder (its menus, HUD and
+    /// strings). None when the folder is a game directory already.
+    pub(crate) fn cosmetic_packs(&self, install: &Path) -> Vec<PathBuf> {
+        let mounted = [self.basegame.as_str(), self.game.as_str()]
+            .iter()
+            .any(|game| game.eq_ignore_ascii_case(COSMETICS_GAME));
+        let directory = install.join(COSMETICS_GAME);
+        if mounted || !directory.is_dir() {
+            return Vec::new();
+        }
+        sjk_vfs::pk3_search_order(&directory)
+            .unwrap_or_default()
+            .into_iter()
+            .filter(|archive| carries_cosmetics(archive))
+            .collect()
+    }
+
     /// Mount existing directories; unreadable archives warn without discarding other packs.
     pub(crate) fn mount(&self, install: &Path) -> Result<VirtualFileSystem, Box<dyn Error>> {
         // Large offline imports may opt into a higher per-asset ceiling. Keep the
@@ -156,6 +185,22 @@ impl Options {
             .ok_or("JKR_MAX_ASSET_MIB must be positive and fit in u64")?;
         let mut vfs = VirtualFileSystem::with_max_asset_bytes(limit);
         vfs.set_read_diagnostics(self.debug);
+        // JoF EJK's hats and capes, below everything else so they never
+        // replace other content.
+        let log = !COSMETICS_LOGGED.swap(true, Ordering::Relaxed);
+        for pack in self.cosmetic_packs(install) {
+            match vfs.mount_pk3(&pack) {
+                Ok(_) if log => crate::log::progress(format_args!(
+                    "cosmetics: hats and capes from {}",
+                    pack.display(),
+                )),
+                Ok(_) => {}
+                Err(error) => crate::log::progress(format_args!(
+                    "warning: skipping cosmetics PK3 {}: {error}",
+                    pack.display(),
+                )),
+            }
+        }
         for directory in self.directories(install)? {
             if !directory.is_dir() {
                 continue;
@@ -200,6 +245,15 @@ impl Options {
     }
 }
 
+/// Whether `archive` holds hat or cape models.
+fn carries_cosmetics(archive: &Path) -> bool {
+    let mut probe = VirtualFileSystem::new();
+    probe.mount_pk3(archive).is_ok()
+        && COSMETIC_FOLDERS
+            .iter()
+            .any(|folder| !probe.list_files(folder, ".md3").is_empty())
+}
+
 fn validate_directory(name: &str) -> Result<(), Box<dyn Error>> {
     if name == "."
         || name.contains("..")
@@ -212,4 +266,58 @@ fn validate_directory(name: &str) -> Result<(), Box<dyn Error>> {
         );
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write as _;
+
+    fn pk3(path: &Path, entries: &[&str]) {
+        let file = std::fs::File::create(path).unwrap();
+        let mut zip = zip::ZipWriter::new(file);
+        for entry in entries {
+            zip.start_file(*entry, zip::write::SimpleFileOptions::default())
+                .unwrap();
+            zip.write_all(b"x").unwrap();
+        }
+        zip.finish().unwrap();
+    }
+
+    #[test]
+    fn only_eternaljk_packs_with_hats_or_capes_are_found() {
+        let install = tempfile::tempdir().unwrap();
+        let folder = install.path().join("EternalJK");
+        std::fs::create_dir_all(&folder).unwrap();
+        pk3(
+            &folder.join("zzz_jof_cosmetics.pk3"),
+            &[
+                "models/cosmetics/hats/santahat.md3",
+                "shaders/japro_hats.shader",
+            ],
+        );
+        pk3(
+            &folder.join("capes_only.pk3"),
+            &["models/cosmetics/capes/royalcape.md3"],
+        );
+        pk3(&folder.join("menus.pk3"), &["ui/jamp/main.menu"]);
+        let options = Options::default();
+        let names: Vec<String> = options
+            .cosmetic_packs(install.path())
+            .iter()
+            .map(|path| path.file_name().unwrap().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(names.len(), 2, "{names:?}");
+        assert!(names.iter().all(|name| name != "menus.pk3"));
+        // The hats reach the mounted file system, the menus do not.
+        let vfs = options.mount(install.path()).unwrap();
+        assert!(vfs.contains("models/cosmetics/hats/santahat.md3").unwrap());
+        assert!(!vfs.contains("ui/jamp/main.menu").unwrap());
+        // With the folder as a game directory, it is mounted whole instead.
+        let whole = Options {
+            basegame: "EternalJK".to_owned(),
+            ..Options::default()
+        };
+        assert!(whole.cosmetic_packs(install.path()).is_empty());
+    }
 }
