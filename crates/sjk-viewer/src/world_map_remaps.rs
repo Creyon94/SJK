@@ -63,6 +63,11 @@ impl MapRemaps {
     pub(crate) fn clear_local(&mut self) {
         self.local.clear();
     }
+    /// Forget every remap of the map, worldspawn keys included, for `clearRemaps`.
+    pub(crate) fn clear(&mut self) {
+        self.worldspawn.clear();
+        self.local.clear();
+    }
     /// Whether any source names this shader, so its material may need a refresh.
     pub(crate) fn affects(&self, name: &str, server: Option<&ShaderRemapTable>) -> bool {
         self.worldspawn.contains_key(name)

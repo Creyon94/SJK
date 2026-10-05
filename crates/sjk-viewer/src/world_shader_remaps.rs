@@ -192,6 +192,12 @@ impl Runtime {
     ) -> Vec<String> {
         self.remaps.map.listing(server)
     }
+    /// Drop the map's and the console's remaps for `clearRemaps`, as EternalJK's
+    /// renderer command resets every shader, worldspawn remaps included.
+    pub(crate) fn clear_local_remaps(&mut self) {
+        self.remaps.map.clear();
+        self.remaps.applied = None;
+    }
 }
 
 /// What a slot drawing `applied` needs in order to show `target` at `offset`.

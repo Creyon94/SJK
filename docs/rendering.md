@@ -84,7 +84,8 @@ map reload; a server remap it excludes reveals the earlier remap it had replaced
 `listRemaps` lists the map's, the enabled server and the local remaps in the order
 they were applied, with their source, and marks those a later remap overrides.
 `remapShader <old> <new>` sets a temporary local remap for the loaded map, without
-sending anything to the server or saving it to config.
+sending anything to the server or saving it to config. `clearRemaps` drops every
+active remap, the map's included, until the server sends new entries.
 
 Material recompilation and draw/fog/table invalidation happen on changes, not
 per frame. Late-loaded entity materials also receive the current remaps.
