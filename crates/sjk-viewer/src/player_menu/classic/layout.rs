@@ -302,7 +302,7 @@ const CHARACTER_IN_GAME: [Item; 8] = [
     Item::Back,
     Item::Apply,
 ];
-const SABER_FULL: [Item; 15] = [
+const SABER_FULL: [Item; 14] = [
     Item::NavPlay,
     Item::NavProfile,
     Item::NavControls,
@@ -316,10 +316,11 @@ const SABER_FULL: [Item; 15] = [
     Item::Channel(1),
     Item::Channel(2),
     Item::Exit,
-    Item::Apply,
+    // Retail's `saber.menu` has only EXIT and one Apply: its middle `apply`
+    // button (255 444) sits in a commented-out block.
     Item::ApplyMain,
 ];
-const SABER_FULL_DUAL: [Item; 20] = [
+const SABER_FULL_DUAL: [Item; 19] = [
     Item::NavPlay,
     Item::NavProfile,
     Item::NavControls,
@@ -338,7 +339,6 @@ const SABER_FULL_DUAL: [Item; 20] = [
     Item::Channel(4),
     Item::Channel(5),
     Item::Exit,
-    Item::Apply,
     Item::ApplyMain,
 ];
 const SABER_IN_GAME: [Item; 9] = [
@@ -664,7 +664,6 @@ pub(crate) fn rect(item: Item, page: ClassicPage, frame: Frame, dual: bool) -> [
         (Full, Saber, Item::Blades2) => [446.0, 170.0, 159.0, 24.0],
         (InGame, Saber, Item::Blades) => [15.0, 197.0, 149.0, 24.0],
         (InGame, Saber, Item::Blades2) => [270.0, 197.0, 149.0, 24.0],
-        (Full, Saber, Item::Apply) => [255.0, 444.0, 130.0, 24.0],
         (Full, Saber, Item::ApplyMain) => [455.0, 444.0, 130.0, 24.0],
         (InGame, Saber, Item::Apply) => [160.0, 360.0, 110.0, 32.0],
         _ => [0.0, 0.0, 0.0, 0.0],
@@ -697,6 +696,17 @@ pub(crate) fn swatch_step(frame: Frame) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_full_saber_page_has_one_apply_as_retail_draws_it() {
+        for items in [&SABER_FULL[..], &SABER_FULL_DUAL[..]] {
+            let applies = items
+                .iter()
+                .filter(|item| matches!(item, Item::Apply | Item::ApplyMain))
+                .count();
+            assert_eq!(applies, 1);
+        }
+    }
 
     const PAGES: [ClassicPage; 5] = [
         ClassicPage::Player,
