@@ -14,7 +14,7 @@ pub(super) fn pair(
     let red = (200.0 + ((time as f32 * 0.004).sin() * 0.08 + 0.1) * 255.0).min(255.0);
     for side in 0..2 {
         // Puffs are effect particles: they leave the billboard reserve alone.
-        if particles.len() >= crate::particle_types::MAX_PARTICLES {
+        if !crate::particle_room::effect_fits(particles.len()) {
             break;
         }
         let color = if !grip {

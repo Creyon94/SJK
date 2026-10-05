@@ -82,8 +82,14 @@ impl Particle {
     }
 }
 
-/// Effect particles (EFX, impacts, muzzle flashes, Force puffs) stop at this count.
-pub(crate) const MAX_PARTICLES: usize = 2_048;
+/// Effect particles (EFX, impacts, muzzle flashes, Force puffs) stop at this count;
+/// past it [`crate::particle_room::Room`] makes room by ending the oldest smoke early.
+/// JoF's HD `rocket/shot` keeps about 1,200 particles alive per rocket in flight, so
+/// 4,096 holds three full trails before anything is cut. In the offline barrage test
+/// (`particle_room_barrage.rs`, release, 2 ms frames) a full pool costs about 0.35 to
+/// 0.45 ms of effect update and 55 us of depth sort per frame, against 0.2 ms and
+/// 25 us at the former 2,048.
+pub(crate) const MAX_PARTICLES: usize = 4_096;
 
 /// Pool slots only per-frame billboards may use: player sprites (talk balloon,
 /// connection icon), simple pickup icons and hook ropes.
@@ -97,6 +103,13 @@ pub(crate) const FRAME_BILLBOARD_RESERVE: usize = 256;
 
 /// The pool's allocated size; nothing appends past it, so it never reallocates.
 pub(crate) const PARTICLE_POOL: usize = MAX_PARTICLES + FRAME_BILLBOARD_RESERVE;
+
+/// Entity instances a frame can draw: room for every pool slot's billboard at its
+/// shader's full eight stages (one instance per stage), so a full pool never loses a
+/// layer, plus the opaque placeholder entities that share the buffer. It used to be
+/// 1,024 in all, and the newest particles (a rocket's fresh trail puffs, last in the
+/// pool) were the ones left out once older smoke filled it.
+pub(crate) const INSTANCE_CAPACITY: usize = MAX_PARTICLE_SHADER_STAGES * PARTICLE_POOL + 1_024;
 
 /// Whether a per-frame billboard still fits in a pool holding `len` particles.
 /// Effects stop at [`MAX_PARTICLES`], so the reserve stays for billboards.
@@ -202,6 +215,16 @@ mod pool_tests {
             len += 1;
         }
         assert!(len <= PARTICLE_POOL);
+    }
+
+    #[test]
+    fn every_pool_slot_can_draw_all_its_layers() {
+        const { assert!(INSTANCE_CAPACITY >= MAX_PARTICLE_SHADER_STAGES * PARTICLE_POOL + 1_024) };
+        // The instance buffer stays a few megabytes.
+        let bytes = INSTANCE_CAPACITY * std::mem::size_of::<EntityInstance>();
+        assert!(bytes < 4 << 20, "{bytes} bytes");
+        assert_eq!(MAX_PARTICLES, 4_096);
+        assert_eq!(PARTICLE_POOL, MAX_PARTICLES + FRAME_BILLBOARD_RESERVE);
     }
 
     #[test]

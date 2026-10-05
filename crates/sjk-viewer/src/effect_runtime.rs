@@ -8,7 +8,7 @@
 use super::*;
 pub(crate) use crate::effect_library::EffectLibrary;
 pub(crate) use crate::particle_types::{
-    MAX_PARTICLES, Particle, ParticleLayerSamples, blend_for_stage as particle_blend_for_stage,
+    Particle, ParticleLayerSamples, blend_for_stage as particle_blend_for_stage,
     fade as particle_fade,
 };
 
@@ -149,7 +149,7 @@ pub(crate) fn spawn_effect(
     audio: &mut Option<GameAudio>,
     rotation: Quat,
 ) {
-    if depth >= 4 || particles.len() >= MAX_PARTICLES {
+    if depth >= 4 || !crate::particle_room::effect_fits(particles.len()) {
         return;
     }
 
@@ -271,7 +271,7 @@ pub(crate) fn spawn_effect(
         let count_unit = random_unit(mix_seed(seed, component_index as u32, 0));
         let count = component.count.sample(count_unit).round().max(0.0) as usize;
         for particle_index in 0..count {
-            if particles.len() >= MAX_PARTICLES {
+            if !crate::particle_room::effect_fits(particles.len()) {
                 return;
             }
             let particle_seed = mix_seed(seed, component_index as u32, particle_index as u32 + 1);

@@ -655,6 +655,20 @@ kept a jaggedness of 0.1 and were drawn almost straight; SJK applies it as
 stock. `elasticity` and `chaos`, which JKR also accepted, are not retail keys
 and are ignored.
 
+Effect particles share one pool of 4,096 slots, plus 256 kept for per-frame
+billboards (talk balloons, pickup icons, hook ropes)
+([particle_types.rs](../crates/sjk-viewer/src/particle_types.rs)). Stock caps its
+FX list at 1,800 (`MAX_EFFECTS`, `FxPrimitives.h`) and, once full, frees and reuses
+`effectList[0]` for every new primitive (`FX_GetValidEffect`, `FxUtil.cpp`), so each
+new puff replaces the last and rocket trails vanish in a barrage. SJK instead makes
+room at the start of each frame: when fewer than 256 to 1,024 slots are free (the
+amount grows after a frame that ran out), the effect particles closest to the end of
+their lives are removed early, so new trail puffs and impacts always spawn and old
+smoke trails get shorter
+([particle_room.rs](../crates/sjk-viewer/src/particle_room.rs)). The instance buffer
+holds every slot's billboard at eight shader stages; it used to hold 1,024 instances
+in all and dropped the newest particles first.
+
 Mind Trick follows `CG_Player` (EternalJK `cg_players.c:10191-10345`, stock
 code; [mind_trick.rs](../crates/sjk-client/src/mind_trick.rs)). A player who
 tricked the viewer fades out at 0.5 alpha per millisecond from 255 (about half
