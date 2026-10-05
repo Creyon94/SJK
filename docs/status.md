@@ -7,6 +7,17 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## EternalJK's character set
+
+Branch `feat/eternaljk-charset`: when `GameData/EternalJK` holds a PK3 with
+`gfx/2d/charsgrid_med` (jaPRO's `japro-assets.pk3`), that one image is mounted above
+the game's, as EternalJK mounts its folder above `base`. It has `¬`, `¥`, `²`, `½`
+and the rest of Latin-1, which the retail set lacks. It replaces the set for all text
+that uses it (the console and the character-set text of `game_font.rs`), as in
+EternalJK. A unit test covers that it overrides the base set and mounts nothing else
+from the pack. Checked in game on Windows 11: the console shows `¬¬¬` and `¥²½` as in
+EternalJK.
+
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the
