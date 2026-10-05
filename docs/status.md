@@ -57,7 +57,9 @@ other control bytes in names. A slot with no glyph (the vertical tab some player
 put in names, or an unassigned Windows-1252 byte) draws `.` in both the modern font
 and retail `.fontdat` fonts, as OpenJK `RE_Font_DrawString` does, so
 `{JoF}\vToxiee\v{C}.ak` reads `{JoF}.Toxiee.{C}.ak` as in EternalJK instead of
-showing Inter's missing-glyph box. Wildcard keys of JoF cosmetic
+showing Inter's missing-glyph box. The classic console's input line drew `?` for
+typed `’`, `‘` and `€`; it now uses their Windows-1252 cells too, which the retail
+console character set leaves empty, as EternalJK's console shows them. Wildcard keys of JoF cosmetic
 offsets now compare bytes, so a model name with a multi-byte character across the
 prefix length no longer panics. Unit tests cover every byte's round trip, a list of
 common name symbols typed and received, and the cosmetic match. An audit of

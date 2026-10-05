@@ -346,7 +346,7 @@ impl Painter<'_> {
     /// included) in `color`.
     fn raw(&self, frame: &mut ConsoleFrame, text: &str, column: usize, y: f32, color: [f32; 4]) {
         for (offset, character) in text.chars().enumerate() {
-            let byte = u8::try_from(u32::from(character)).unwrap_or(b'?');
+            let byte = console_byte(character);
             self.glyph(frame, byte, self.grid.x(column + offset), y, color);
         }
     }
@@ -354,7 +354,7 @@ impl Painter<'_> {
     /// Draw `text` raw from `x` (pixels) on, in the bar colour.
     fn right(&self, frame: &mut ConsoleFrame, text: &str, x: f32, y: f32) {
         for (offset, character) in text.chars().enumerate() {
-            let byte = u8::try_from(u32::from(character)).unwrap_or(b'?');
+            let byte = console_byte(character);
             let left = x + offset as f32 * self.grid.width;
             self.glyph(frame, byte, left, y, BAR_COLOR);
         }
@@ -802,9 +802,22 @@ impl ViewerConsole {
     }
 }
 
+/// The character-set cell that draws `character`: its Windows-1252 byte, as
+/// [`crate::text::glyph_byte_at`] picks it, so a typed `’` uses cell 0x92 like
+/// the same byte from another player; `?` for a character with no such byte.
+fn console_byte(character: char) -> u8 {
+    sjk_protocol::windows_1252_byte(character).unwrap_or(b'?')
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn typed_symbols_use_their_windows_1252_cells() {
+        let cells: Vec<u8> = "a×’‘€…♥".chars().map(console_byte).collect();
+        assert_eq!(cells, [b'a', 0xd7, 0x92, 0x91, 0x80, 0x85, b'?']);
+    }
 
     fn rows(text: &str, width: usize) -> Vec<String> {
         let mut out = Vec::new();
