@@ -143,11 +143,69 @@ pub(crate) enum ArtPiece {
     LogoBase,
     /// `env_logo`: the reflection scrolling through the logo's letters.
     EnvLogo,
+    /// `menu_blendboxr`: the red band behind the dark side's Force powers.
+    BlendBoxRed,
+    /// `configforce`: the in-game profile's Force configuration button.
+    ConfigForce,
+    /// `forcestar0` to `forcestar8`: a bought Force level, numbered with
+    /// what it cost (`uiForceStarShaders`, `ui_force.c`); `forcestar0` also
+    /// stands for a free level not yet bought.
+    ForceStar0,
+    ForceStar1,
+    ForceStar2,
+    ForceStar3,
+    ForceStar4,
+    ForceStar5,
+    ForceStar6,
+    ForceStar7,
+    ForceStar8,
+    /// `forcecircle1` to `forcecircle8`: a Force level not bought yet,
+    /// numbered with what it costs.
+    ForceCircle1,
+    ForceCircle2,
+    ForceCircle3,
+    ForceCircle4,
+    ForceCircle5,
+    ForceCircle6,
+    ForceCircle7,
+    ForceCircle8,
 }
 
+/// The stars of [`ArtPiece::force_level`], by cost.
+const FORCE_STARS: [ArtPiece; 9] = [
+    ArtPiece::ForceStar0,
+    ArtPiece::ForceStar1,
+    ArtPiece::ForceStar2,
+    ArtPiece::ForceStar3,
+    ArtPiece::ForceStar4,
+    ArtPiece::ForceStar5,
+    ArtPiece::ForceStar6,
+    ArtPiece::ForceStar7,
+    ArtPiece::ForceStar8,
+];
+/// The circles of [`ArtPiece::force_level`], by cost (`forcestar0` for 0).
+const FORCE_CIRCLES: [ArtPiece; 9] = [
+    ArtPiece::ForceStar0,
+    ArtPiece::ForceCircle1,
+    ArtPiece::ForceCircle2,
+    ArtPiece::ForceCircle3,
+    ArtPiece::ForceCircle4,
+    ArtPiece::ForceCircle5,
+    ArtPiece::ForceCircle6,
+    ArtPiece::ForceCircle7,
+    ArtPiece::ForceCircle8,
+];
+
 impl ArtPiece {
+    /// The image retail draws for a Force level costing `cost` points:
+    /// the star once `bought`, the circle before (`UI_DrawForceStars`).
+    pub(crate) fn force_level(cost: u8, bought: bool) -> Self {
+        let table = if bought { &FORCE_STARS } else { &FORCE_CIRCLES };
+        table[usize::from(cost).min(table.len() - 1)]
+    }
+
     /// Every piece, in [`ArtPiece`] order.
-    pub(crate) const ALL: [Self; 41] = [
+    pub(crate) const ALL: [Self; 60] = [
         Self::Background,
         Self::SideLeft,
         Self::SideRight,
@@ -189,6 +247,25 @@ impl ArtPiece {
         Self::SideBase,
         Self::LogoBase,
         Self::EnvLogo,
+        Self::BlendBoxRed,
+        Self::ConfigForce,
+        Self::ForceStar0,
+        Self::ForceStar1,
+        Self::ForceStar2,
+        Self::ForceStar3,
+        Self::ForceStar4,
+        Self::ForceStar5,
+        Self::ForceStar6,
+        Self::ForceStar7,
+        Self::ForceStar8,
+        Self::ForceCircle1,
+        Self::ForceCircle2,
+        Self::ForceCircle3,
+        Self::ForceCircle4,
+        Self::ForceCircle5,
+        Self::ForceCircle6,
+        Self::ForceCircle7,
+        Self::ForceCircle8,
     ];
     pub(crate) const COUNT: usize = Self::ALL.len();
 
@@ -235,6 +312,25 @@ impl ArtPiece {
             Self::SideBase => "gfx/menus/menu_side_text_b",
             Self::LogoBase => "gfx/menus/jediacademy",
             Self::EnvLogo => "gfx/menus/env_logo",
+            Self::BlendBoxRed => "gfx/menus/menu_blendboxr",
+            Self::ConfigForce => "gfx/menus/configforce",
+            Self::ForceStar0 => "gfx/menus/forcestar0",
+            Self::ForceStar1 => "gfx/menus/forcestar1",
+            Self::ForceStar2 => "gfx/menus/forcestar2",
+            Self::ForceStar3 => "gfx/menus/forcestar3",
+            Self::ForceStar4 => "gfx/menus/forcestar4",
+            Self::ForceStar5 => "gfx/menus/forcestar5",
+            Self::ForceStar6 => "gfx/menus/forcestar6",
+            Self::ForceStar7 => "gfx/menus/forcestar7",
+            Self::ForceStar8 => "gfx/menus/forcestar8",
+            Self::ForceCircle1 => "gfx/menus/forcecircle1",
+            Self::ForceCircle2 => "gfx/menus/forcecircle2",
+            Self::ForceCircle3 => "gfx/menus/forcecircle3",
+            Self::ForceCircle4 => "gfx/menus/forcecircle4",
+            Self::ForceCircle5 => "gfx/menus/forcecircle5",
+            Self::ForceCircle6 => "gfx/menus/forcecircle6",
+            Self::ForceCircle7 => "gfx/menus/forcecircle7",
+            Self::ForceCircle8 => "gfx/menus/forcecircle8",
         }
     }
 
@@ -262,7 +358,11 @@ impl ArtPiece {
             | Self::LoadCapLeft
             | Self::BlendBox2
             | Self::Slider
-            | Self::SliderThumb => Blend::Additive,
+            | Self::SliderThumb
+            | Self::BlendBoxRed => Blend::Additive,
+            piece if FORCE_STARS.contains(&piece) || FORCE_CIRCLES.contains(&piece) => {
+                Blend::Additive
+            }
             _ => Blend::Alpha,
         }
     }
@@ -468,6 +568,18 @@ mod tests {
             .iter()
             .fold(ArtSet::default(), |set, piece| set.with(*piece));
         assert!(ArtPiece::ALL.iter().all(|piece| all.has(*piece)));
+    }
+
+    #[test]
+    fn force_levels_draw_their_cost_as_retail_does() {
+        assert_eq!(ArtPiece::force_level(3, true), ArtPiece::ForceStar3);
+        assert_eq!(ArtPiece::force_level(3, false), ArtPiece::ForceCircle3);
+        // `uiForceStarShaders[0]` is `forcestar0` both ways.
+        assert_eq!(ArtPiece::force_level(0, false), ArtPiece::ForceStar0);
+        assert_eq!(ArtPiece::force_level(0, true), ArtPiece::ForceStar0);
+        assert_eq!(ArtPiece::force_level(9, false), ArtPiece::ForceCircle8);
+        assert_eq!(ArtPiece::ForceCircle8.blend(), Blend::Additive);
+        assert_eq!(ArtPiece::ConfigForce.blend(), Blend::Alpha);
     }
 
     #[test]

@@ -75,9 +75,10 @@ impl PlayerMenu {
         };
         let mut bottom = grid.rect.bottom();
         for (index, row) in rows.iter().enumerate() {
-            let rect = match row.axis() {
-                Some(axis) => grid.part_cell(layout, axis),
-                None => layout.row_rect(index),
+            let rect = if index >= PART_ROW {
+                grid.part_cell(layout, index - PART_ROW)
+            } else {
+                layout.row_rect(index)
             };
             bottom = bottom.max(rect.bottom());
             let selected = index == self.selected;
@@ -108,6 +109,17 @@ impl PlayerMenu {
                         _ => species.map_or(self.draft.model.as_str(), |species| &species.model),
                     };
                     self.canvas.form_cycler(zone, label, None, color, s);
+                }
+                CharacterRow::Hat | CharacterRow::Cape => {
+                    let slot = row.cosmetic().unwrap_or(sjk_client::CosmeticSlot::Hat);
+                    let label = self.cosmetics.worn_label(slot);
+                    self.canvas.form_cycler(
+                        zone,
+                        label.as_deref().unwrap_or("None"),
+                        None,
+                        color,
+                        s,
+                    );
                 }
                 CharacterRow::Skin => {
                     // The legacy entries are tint-icon shader paths; the chip

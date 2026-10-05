@@ -1,9 +1,17 @@
 //! Entries and geometry of the classic profile pages, from the retail
 //! `ui/jamp` menus: `player.menu`, `player2.menu` and `saber.menu` (full
-//! screen), `ingame_player.menu`, `ingame_player2.menu` and
-//! `ingame_saber.menu` (windows over a match). Rectangles are the retail
+//! screen), `ingame_player.menu`, `ingame_player2.menu`,
+//! `ingame_saber.menu` and `ingame_playerforce.menu` (windows over a
+//! match), and JoF EJK's `ingame_cosmetics.menu`. Rectangles are the retail
 //! item rectangles on the 640x480 canvas; in-game ones are given relative to
 //! their window, as retail wrote them, and offset by [`window`].
+//!
+//! SJK departs from retail where it adds to it: the Force page is a window
+//! on both frames (retail had it in game only), as wide as the in-game
+//! profile, with retail's templates down its left and the powers in two
+//! columns with a detail panel; the profile page gains the Force and
+//! Cosmetics buttons, and the cosmetics window lists hats and capes side by
+//! side where JoF EJK drew its preview model.
 
 use super::{ClassicPage, Frame};
 
@@ -43,6 +51,34 @@ pub(crate) enum Item {
     Apply,
     /// The saber page's second Apply: back to the main menu.
     ApplyMain,
+    /// The profile's Force button (`configforce`): on to the Force page.
+    ForceButton,
+    /// The profile's Cosmetics button (JoF EJK): on to the cosmetics window.
+    CosmeticsButton,
+    /// The Force page's Light and Dark side cards.
+    SideLight,
+    SideDark,
+    /// One power row of the Force page, by `forcePowers_t` index.
+    Power(u8),
+    /// Clear every level of the Force draft.
+    ForceReset,
+    /// Return the Force draft to the applied profile.
+    ForceDiscard,
+    /// Write the Force draft and return to the profile page.
+    ForceApply,
+    /// The Force page's template list (`FEEDER_FORCECFG`).
+    Templates,
+    /// The name a template is saved as (`ui_SaveFCF`).
+    TemplateName,
+    /// Save the draft as a template.
+    TemplateSave,
+    /// The cosmetics window's hat and cape lists.
+    Hats,
+    Capes,
+    /// `cg_cosmetics`: whose cosmetics are drawn.
+    CosmeticsShow,
+    /// Take the hat and the cape off.
+    CosmeticsClear,
 }
 
 impl Item {
@@ -59,6 +95,14 @@ impl Item {
             Self::PartHead => Some(0),
             Self::PartTorso => Some(1),
             Self::PartLegs => Some(2),
+            _ => None,
+        }
+    }
+
+    /// The Force power a power row edits.
+    pub(crate) fn power(self) -> Option<usize> {
+        match self {
+            Self::Power(index) => Some(usize::from(index)),
             _ => None,
         }
     }
@@ -83,7 +127,22 @@ impl Item {
             Self::Back => "Back",
             Self::Apply => "APPLY",
             Self::ApplyMain => "Apply",
-            Self::Models
+            Self::CosmeticsButton => "Cosmetics",
+            Self::ForceReset => "Reset",
+            Self::ForceDiscard => "Discard",
+            Self::ForceApply => "Apply Powers",
+            Self::TemplateName => "Name:",
+            Self::TemplateSave => "Save Template",
+            Self::CosmeticsClear => "Remove All",
+            Self::ForceButton
+            | Self::SideLight
+            | Self::SideDark
+            | Self::Power(_)
+            | Self::Templates
+            | Self::Hats
+            | Self::Capes
+            | Self::CosmeticsShow
+            | Self::Models
             | Self::Custom
             | Self::SaberButton
             | Self::Species
@@ -125,11 +184,59 @@ impl Item {
             Self::Back => "Back to profile menu.",
             Self::Apply => "Apply changes to player and go to saber selection.",
             Self::ApplyMain => "Apply saber changes and return to Main Menu.",
+            Self::ForceButton => "Set up the Force Abilities for your character.",
+            Self::CosmeticsButton => "Wear a hat or a cape.",
+            Self::SideLight | Self::SideDark => {
+                "Choose the path of the Light Side or the Dark Side."
+            }
+            Self::Power(index) => POWER_HINTS
+                .get(usize::from(index))
+                .copied()
+                .unwrap_or_default(),
+            Self::ForceReset => "Take back every point and start over.",
+            Self::ForceDiscard => "Return to the powers you last applied.",
+            Self::ForceApply => "Make these changes to your character's Force Abilities.",
+            Self::Templates => "Choose a pre-made allocation of Force powers.",
+            Self::TemplateName => "Enter the title for your template.",
+            Self::TemplateSave => "Save the current Force setup as a template.",
+            Self::Hats | Self::Capes => "Click to wear, click again to take off.",
+            Self::CosmeticsShow => "Show cosmetics on everyone, only yourself, or nobody.",
+            Self::CosmeticsClear => "Take off the hat and the cape.",
         }
     }
 }
 
-const PLAYER_FULL: [Item; 10] = [
+/// Retail power descriptions (`descText` of `ingame_playerforce.menu`), in
+/// `forcePowers_t` order.
+const POWER_HINTS: [&str; 18] = [
+    "Heal your body with the Force.",
+    "Leap to amazing heights by holding the Jump button.",
+    "Move at an accelerated rate.",
+    "Push your foes away and repel projectiles.",
+    "Pull your foes to you.",
+    "Render yourself invisible to selected targets.",
+    "Immobilize opponents in an agonizing grip of death.",
+    "Unleash deadly electrical attacks against your foes.",
+    "Become a nearly unstoppable juggernaut.",
+    "Create an aura that protects from physical attacks.",
+    "Protect against Force attacks and gain power from them.",
+    "Channel the Force to heal your allies.",
+    "Channel the Force to boost the power of your allies.",
+    "Drain the force power of opponents to add to your health.",
+    "See enemies at all times, and even dodge sniper shots.",
+    "Use more powerful lightsaber attacks. (Required to possess saber)",
+    "Use the lightsaber to deflect incoming saber attacks and projectiles.",
+    "Throw your lightsaber to damage distant targets.",
+];
+
+/// The Force page's power columns, in `forcePowers_t` indices and retail
+/// row order: the neutral powers, the saber skills, and each side's five.
+pub(crate) const NEUTRAL_POWERS: [u8; 5] = [1, 3, 4, 2, 14];
+pub(crate) const SABER_POWERS: [u8; 3] = [15, 16, 17];
+pub(crate) const LIGHT_POWERS: [u8; 5] = [10, 0, 9, 5, 11];
+pub(crate) const DARK_POWERS: [u8; 5] = [6, 13, 7, 8, 12];
+
+const PLAYER_FULL: [Item; 12] = [
     Item::NavPlay,
     Item::NavProfile,
     Item::NavControls,
@@ -138,14 +245,18 @@ const PLAYER_FULL: [Item; 10] = [
     Item::Team,
     Item::Models,
     Item::Custom,
+    Item::ForceButton,
+    Item::CosmeticsButton,
     Item::Exit,
     Item::Apply,
 ];
-const PLAYER_IN_GAME: [Item; 6] = [
+const PLAYER_IN_GAME: [Item; 8] = [
     Item::Name,
     Item::Team,
     Item::Models,
     Item::Custom,
+    Item::CosmeticsButton,
+    Item::ForceButton,
     Item::SaberButton,
     Item::Apply,
 ];
@@ -222,9 +333,71 @@ const SABER_IN_GAME_DUAL: [Item; 8] = [
     Item::Apply,
 ];
 
-/// The page's entries in focus order (retail item order).
-pub(crate) fn items(page: ClassicPage, frame: Frame, dual: bool) -> &'static [Item] {
+/// The Force page's entries for one side: the side cards, the left column
+/// (neutral powers, then the saber skills), the side's column, and the
+/// buttons; `nav` adds the main menu's navigation row and Back.
+const fn force_items<const N: usize>(side: [u8; 5], nav: bool) -> [Item; N] {
+    // A full-screen page ends on Back, which the array starts filled with.
+    let mut items = [Item::Back; N];
+    let mut at = 0;
+    if nav {
+        items[0] = Item::NavPlay;
+        items[1] = Item::NavProfile;
+        items[2] = Item::NavControls;
+        items[3] = Item::NavSetup;
+        at = 4;
+    }
+    items[at] = Item::SideLight;
+    items[at + 1] = Item::SideDark;
+    items[at + 2] = Item::Templates;
+    items[at + 3] = Item::TemplateName;
+    items[at + 4] = Item::TemplateSave;
+    at += 5;
+    let mut index = 0;
+    while index < NEUTRAL_POWERS.len() {
+        items[at] = Item::Power(NEUTRAL_POWERS[index]);
+        at += 1;
+        index += 1;
+    }
+    index = 0;
+    while index < SABER_POWERS.len() {
+        items[at] = Item::Power(SABER_POWERS[index]);
+        at += 1;
+        index += 1;
+    }
+    index = 0;
+    while index < side.len() {
+        items[at] = Item::Power(side[index]);
+        at += 1;
+        index += 1;
+    }
+    items[at] = Item::ForceReset;
+    items[at + 1] = Item::ForceDiscard;
+    items[at + 2] = Item::ForceApply;
+    items
+}
+
+const FORCE_LIGHT_IN_GAME: [Item; 21] = force_items(LIGHT_POWERS, false);
+const FORCE_DARK_IN_GAME: [Item; 21] = force_items(DARK_POWERS, false);
+const FORCE_LIGHT_FULL: [Item; 26] = force_items(LIGHT_POWERS, true);
+const FORCE_DARK_FULL: [Item; 26] = force_items(DARK_POWERS, true);
+const COSMETICS: [Item; 5] = [
+    Item::Hats,
+    Item::Capes,
+    Item::CosmeticsShow,
+    Item::CosmeticsClear,
+    Item::Apply,
+];
+
+/// The page's entries in focus order (retail item order). `dark` picks the
+/// Force page's side column.
+pub(crate) fn items(page: ClassicPage, frame: Frame, dual: bool, dark: bool) -> &'static [Item] {
     match (page, frame, dual) {
+        (ClassicPage::Force, Frame::Full, _) if dark => &FORCE_DARK_FULL,
+        (ClassicPage::Force, Frame::Full, _) => &FORCE_LIGHT_FULL,
+        (ClassicPage::Force, Frame::InGame, _) if dark => &FORCE_DARK_IN_GAME,
+        (ClassicPage::Force, Frame::InGame, _) => &FORCE_LIGHT_IN_GAME,
+        (ClassicPage::Cosmetics, _, _) => &COSMETICS,
         (ClassicPage::Player, Frame::Full, _) => &PLAYER_FULL,
         (ClassicPage::Player, Frame::InGame, _) => &PLAYER_IN_GAME,
         (ClassicPage::Character, Frame::Full, _) => &CHARACTER_FULL,
@@ -237,10 +410,16 @@ pub(crate) fn items(page: ClassicPage, frame: Frame, dual: bool) -> &'static [It
 }
 
 /// The retail window of an in-game page on the 640x480 canvas
-/// (`ingame_player` 20 25 600 440, the others 105 40 430 425); the full
-/// screen for the main menu's pages.
+/// (`ingame_player` 20 25 600 440, the others 105 40 430 425, JoF EJK's
+/// `ingame_cosmetics` 105 40 430 400); the full screen for the main menu's
+/// pages, except the Force page and the cosmetics window, which are windows
+/// there too. The Force page is as wide as `ingame_player` (shortened on the
+/// main menu to clear its bottom row).
 pub(crate) fn window(page: ClassicPage, frame: Frame) -> [f32; 4] {
     match (frame, page) {
+        (_, ClassicPage::Cosmetics) => [105.0, 40.0, 430.0, 400.0],
+        (Frame::Full, ClassicPage::Force) => [20.0, 46.0, 600.0, 392.0],
+        (Frame::InGame, ClassicPage::Force) => [20.0, 28.0, 600.0, 425.0],
         (Frame::Full, _) => [0.0, 0.0, 640.0, 480.0],
         (Frame::InGame, ClassicPage::Player) => [20.0, 25.0, 600.0, 440.0],
         (Frame::InGame, _) => [105.0, 40.0, 430.0, 425.0],
@@ -252,6 +431,99 @@ pub(crate) fn place(page: ClassicPage, frame: Frame, [x, y, w, h]: [f32; 4]) -> 
     let [wx, wy, _, _] = window(page, frame);
     [wx + x, wy + y, w, h]
 }
+
+/// Whether `item` sits on the canvas itself rather than in the page's
+/// window: the navigation row, Exit, and the Force page's Back.
+pub(crate) fn on_canvas(item: Item, page: ClassicPage, frame: Frame) -> bool {
+    item.is_nav()
+        || item == Item::Exit
+        || (item == Item::Back && page == ClassicPage::Force && frame == Frame::Full)
+}
+
+/// Force page geometry, relative to its window.
+pub(crate) mod force {
+    /// Left edge of the left power column and of the side column, and the
+    /// columns' width.
+    pub(crate) const LEFT: f32 = 195.0;
+    pub(crate) const RIGHT: f32 = 395.0;
+    pub(crate) const COLUMN: f32 = 190.0;
+    /// Side cards.
+    pub(crate) const LIGHT_CARD: [f32; 4] = [LEFT, 56.0, COLUMN, 34.0];
+    pub(crate) const DARK_CARD: [f32; 4] = [RIGHT, 56.0, COLUMN, 34.0];
+    /// The points line and its meter.
+    pub(crate) const POINTS: [f32; 4] = [LEFT, 94.0, RIGHT + COLUMN - LEFT, 14.0];
+    pub(crate) const METER: [f32; 4] = [LEFT, 110.0, RIGHT + COLUMN - LEFT, 6.0];
+    /// Column headings: templates, neutral, the side's, the saber skills'.
+    pub(crate) const TEMPLATES_HEAD: [f32; 4] = [15.0, 56.0, 170.0, 14.0];
+    pub(crate) const NEUTRAL_HEAD: [f32; 4] = [LEFT, 122.0, COLUMN, 14.0];
+    pub(crate) const SIDE_HEAD: [f32; 4] = [RIGHT, 122.0, COLUMN, 14.0];
+    pub(crate) const SABER_HEAD: [f32; 4] = [LEFT, 262.0, COLUMN, 14.0];
+    /// The focused power's panel under the side column.
+    pub(crate) const DETAIL: [f32; 4] = [RIGHT, 262.0, COLUMN, 86.0];
+    /// The template list, the name field, Save, and the line saying how a
+    /// save went.
+    pub(crate) const TEMPLATES: [f32; 4] = [15.0, 74.0, 170.0, 224.0];
+    pub(crate) const TEMPLATE_NAME: [f32; 4] = [15.0, 304.0, 170.0, 20.0];
+    pub(crate) const TEMPLATE_SAVE: [f32; 4] = [15.0, 328.0, 170.0, 26.0];
+    pub(crate) const TEMPLATE_NOTE: [f32; 4] = [15.0, 358.0, 170.0, 30.0];
+    /// Row height of the template list.
+    pub(crate) const TEMPLATE_ROW: f32 = 16.0;
+    /// Height of a power row and the step between rows.
+    pub(crate) const ROW: f32 = 22.0;
+    pub(crate) const ROW_STEP: f32 = 24.0;
+    /// Side of a level star (`UI_DrawForceStars`: 16, 4 apart) and the step.
+    pub(crate) const STAR: f32 = 16.0;
+    pub(crate) const STAR_STEP: f32 = 20.0;
+
+    /// Row `row` of the column starting at `top`, `x` from the left.
+    pub(crate) fn row(x: f32, top: f32, row: usize) -> [f32; 4] {
+        [x, top + row as f32 * ROW_STEP, COLUMN, ROW]
+    }
+
+    /// Where level `level` (1 to 3) of the row `row` draws its star.
+    pub(crate) fn star(row: [f32; 4], level: u8) -> [f32; 4] {
+        let [x, y, w, h] = row;
+        let right = x + w - 4.0;
+        let left = right - 3.0 * STAR_STEP + (STAR_STEP - STAR);
+        [
+            left + f32::from(level.saturating_sub(1)) * STAR_STEP,
+            y + (h - STAR) * 0.5,
+            STAR,
+            STAR,
+        ]
+    }
+}
+
+/// Window-relative row of Force power `index`.
+pub(crate) fn power_row(index: u8) -> Option<[f32; 4]> {
+    let column = |list: &[u8], x: f32, top: f32| {
+        list.iter()
+            .position(|power| *power == index)
+            .map(|row| force::row(x, top, row))
+    };
+    column(&NEUTRAL_POWERS, force::LEFT, 138.0)
+        .or_else(|| column(&SABER_POWERS, force::LEFT, 278.0))
+        .or_else(|| column(&LIGHT_POWERS, force::RIGHT, 138.0))
+        .or_else(|| column(&DARK_POWERS, force::RIGHT, 138.0))
+}
+
+/// Where a page shows the live model, on the canvas: character creation's
+/// model item (`player2` 393 104 220 220, `ingame_player2` 300 84 110 110)
+/// and the cosmetics window's column right of its lists.
+pub(crate) fn preview_rect(page: ClassicPage, frame: Frame) -> Option<[f32; 4]> {
+    let local = match (page, frame) {
+        (ClassicPage::Character, Frame::Full) => return Some([393.0, 104.0, 220.0, 220.0]),
+        (ClassicPage::Character, Frame::InGame) => [300.0, 84.0, 110.0, 110.0],
+        (ClassicPage::Cosmetics, _) => COSMETICS_MODEL,
+        _ => return None,
+    };
+    Some(place(page, frame, local))
+}
+
+/// The cosmetics window's preview column and the model inside it, relative
+/// to the window.
+pub(crate) const COSMETICS_PREVIEW: [f32; 4] = [285.0, 40.0, 130.0, 244.0];
+pub(crate) const COSMETICS_MODEL: [f32; 4] = [287.0, 42.0, 126.0, 220.0];
 
 /// Navigation row: `player.menu` puts it under the logo at y 126, the
 /// creation pages along the top at y 16.
@@ -266,9 +538,26 @@ fn nav(page: ClassicPage, index: usize) -> [f32; 4] {
 
 /// The item's pointer target on the canvas (window offset applied).
 pub(crate) fn rect(item: Item, page: ClassicPage, frame: Frame, dual: bool) -> [f32; 4] {
-    use ClassicPage::{Character, Player, Saber};
+    use ClassicPage::{Character, Cosmetics, Force, Player, Saber};
     use Frame::{Full, InGame};
     let local = match (frame, page, item) {
+        // The Force page (window-relative on both frames).
+        (_, Force, Item::SideLight) => force::LIGHT_CARD,
+        (_, Force, Item::SideDark) => force::DARK_CARD,
+        (_, Force, Item::Power(index)) => power_row(index).unwrap_or_default(),
+        (_, Force, Item::ForceReset) => [195.0, 360.0, 120.0, 28.0],
+        (_, Force, Item::ForceDiscard) => [330.0, 360.0, 120.0, 28.0],
+        (_, Force, Item::ForceApply) => [465.0, 360.0, 120.0, 28.0],
+        (_, Force, Item::Templates) => force::TEMPLATES,
+        (_, Force, Item::TemplateName) => force::TEMPLATE_NAME,
+        (_, Force, Item::TemplateSave) => force::TEMPLATE_SAVE,
+        (Full, Force, Item::Back) => [59.0, 444.0, 130.0, 24.0],
+        // The cosmetics window (JoF EJK's `ingame_cosmetics`, lists side by side).
+        (_, Cosmetics, Item::Hats) => [15.0, 60.0, 130.0, 224.0],
+        (_, Cosmetics, Item::Capes) => [150.0, 60.0, 130.0, 224.0],
+        (_, Cosmetics, Item::CosmeticsShow) => [115.0, 312.0, 200.0, 20.0],
+        (_, Cosmetics, Item::CosmeticsClear) => [20.0, 345.0, 110.0, 32.0],
+        (_, Cosmetics, Item::Apply) => [300.0, 345.0, 110.0, 32.0],
         (_, _, Item::NavPlay) => nav(page, 0),
         (_, _, Item::NavProfile) => nav(page, 1),
         (_, _, Item::NavControls) => nav(page, 2),
@@ -281,8 +570,13 @@ pub(crate) fn rect(item: Item, page: ClassicPage, frame: Frame, dual: bool) -> [
         (InGame, Player, Item::Team) => [50.0, 77.0, 160.0, 13.0],
         (Full, Player, Item::Models) => [30.0, 224.0, 404.0, 194.0],
         (InGame, Player, Item::Models) => [20.0, 90.0, 404.0, 194.0],
-        (Full, Player, Item::Custom) => [480.0, 280.0, 96.0, 96.0],
+        // SJK: Custom and Force side by side over the Cosmetics button.
+        (Full, Player, Item::Custom) => [442.0, 234.0, 80.0, 80.0],
         (InGame, Player, Item::Custom) => [465.0, 160.0, 75.0, 75.0],
+        (Full, Player, Item::ForceButton) => [537.0, 234.0, 80.0, 80.0],
+        (InGame, Player, Item::ForceButton) => [275.0, 320.0, 75.0, 75.0],
+        (Full, Player, Item::CosmeticsButton) => [449.0, 366.0, 160.0, 26.0],
+        (InGame, Player, Item::CosmeticsButton) => [425.0, 250.0, 160.0, 26.0],
         (_, Player, Item::SaberButton) => [465.0, 322.0, 75.0, 75.0],
         (Full, Player, Item::Apply) => [455.0, 444.0, 130.0, 24.0],
         (InGame, Player, Item::Apply) => [5.0, 412.0, 105.0, 28.0],
@@ -325,7 +619,7 @@ pub(crate) fn rect(item: Item, page: ClassicPage, frame: Frame, dual: bool) -> [
         (InGame, Saber, Item::Apply) => [160.0, 360.0, 110.0, 32.0],
         _ => [0.0, 0.0, 0.0, 0.0],
     };
-    if item.is_nav() || item == Item::Exit {
+    if on_canvas(item, page, frame) {
         return local;
     }
     place(page, frame, local)
@@ -354,10 +648,12 @@ pub(crate) fn swatch_step(frame: Frame) -> f32 {
 mod tests {
     use super::*;
 
-    const PAGES: [ClassicPage; 3] = [
+    const PAGES: [ClassicPage; 5] = [
         ClassicPage::Player,
         ClassicPage::Character,
         ClassicPage::Saber,
+        ClassicPage::Force,
+        ClassicPage::Cosmetics,
     ];
 
     fn overlaps(a: [f32; 4], b: [f32; 4]) -> bool {
@@ -368,14 +664,22 @@ mod tests {
     fn every_entry_has_a_place_inside_its_window_and_none_overlap() {
         for page in PAGES {
             for frame in [Frame::Full, Frame::InGame] {
-                for dual in [false, true] {
-                    let list = items(page, frame, dual);
+                for (dual, dark) in [(false, false), (true, false), (false, true)] {
+                    let list = items(page, frame, dual, dark);
                     let [wx, wy, ww, wh] = window(page, frame);
                     for (index, item) in list.iter().enumerate() {
                         let r = rect(*item, page, frame, dual);
                         assert!(r[2] > 0.0 && r[3] > 0.0, "{page:?} {frame:?} {item:?}");
-                        assert!(r[0] >= wx && r[1] >= wy, "{page:?} {frame:?} {item:?}");
-                        assert!(r[0] + r[2] <= wx + ww + 0.5 && r[1] + r[3] <= wy + wh + 0.5);
+                        if on_canvas(*item, page, frame) {
+                            assert!(r[0] >= 0.0 && r[1] >= 0.0);
+                            assert!(r[0] + r[2] <= 640.0 && r[1] + r[3] <= 480.0);
+                        } else {
+                            assert!(r[0] >= wx && r[1] >= wy, "{page:?} {frame:?} {item:?}");
+                            assert!(
+                                r[0] + r[2] <= wx + ww + 0.5 && r[1] + r[3] <= wy + wh + 0.5,
+                                "{page:?} {frame:?} {item:?}"
+                            );
+                        }
                         for other in &list[index + 1..] {
                             let o = rect(*other, page, frame, dual);
                             assert!(!overlaps(r, o), "{page:?} {frame:?}: {item:?} / {other:?}");
@@ -384,6 +688,34 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn force_page_lists_every_power_of_its_side_once() {
+        for (dark, side) in [(false, LIGHT_POWERS), (true, DARK_POWERS)] {
+            for frame in [Frame::Full, Frame::InGame] {
+                let list = items(ClassicPage::Force, frame, false, dark);
+                let powers: Vec<usize> = list.iter().filter_map(|item| item.power()).collect();
+                assert_eq!(powers.len(), 13);
+                for power in NEUTRAL_POWERS.iter().chain(&SABER_POWERS).chain(&side) {
+                    let count = powers.iter().filter(|p| **p == usize::from(*power)).count();
+                    assert_eq!(count, 1);
+                }
+                assert_eq!(list.contains(&Item::Back), frame == Frame::Full);
+                assert_eq!(list.contains(&Item::NavPlay), frame == Frame::Full);
+            }
+        }
+        // Every power belongs to exactly one column, and has a hint.
+        for index in 0..18_u8 {
+            assert!(power_row(index).is_some());
+            assert!(!Item::Power(index).hint().is_empty());
+        }
+        // The stars fit inside their row, right of the name.
+        let row = force::row(force::LEFT, 138.0, 0);
+        let first = force::star(row, 1);
+        let last = force::star(row, 3);
+        assert!(first[0] > row[0] + 100.0);
+        assert!(last[0] + last[2] <= row[0] + row[2]);
     }
 
     #[test]

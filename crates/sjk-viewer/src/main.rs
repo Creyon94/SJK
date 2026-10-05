@@ -32,6 +32,7 @@ mod console;
 mod console_backdrop;
 mod console_overlay;
 mod console_runtime;
+mod cosmetics;
 mod crosshair_scan;
 mod cut_trace;
 mod cvar_renames;
@@ -312,6 +313,9 @@ struct GpuState {
     player_shadows: player_shadows::State,
     camera_buffer: wgpu::Buffer,
     camera_bind_group: wgpu::BindGroup,
+    /// The camera uniform's layout, for views with a camera of their own
+    /// (the classic profile's model preview).
+    camera_layout: wgpu::BindGroupLayout,
     hud_buffer: wgpu::Buffer,
     /// Where this frame's HUD program can draw (`hud_runtime::HudScissors`).
     hud_scissors: hud_runtime::HudScissors,
@@ -1125,6 +1129,7 @@ impl GpuState {
             player_shadows: player_shadows::State::default(),
             camera_buffer,
             camera_bind_group,
+            camera_layout: camera_layout.clone(),
             hud_buffer,
             hud_scissors: None,
             hud_bind_group,
@@ -2014,6 +2019,7 @@ impl GpuState {
                 has_entity_instances,
             );
         }
+        self.encode_stage_preview(&mut encoder);
         let (output, mut encoder) = match target.finish(self, encoder, timing) {
             Ok(output) => output,
             Err(status) => return status,

@@ -225,7 +225,8 @@ impl GpuState {
     pub(crate) fn begin_saber_instances(&mut self) {
         self.saber_instances.clear();
         let stage = &mut self.menu_stage;
-        let Some(actor) = &stage.actor else {
+        // The classic preview's actor is not on the stage (and holds none).
+        let Some(actor) = stage.actor.as_ref().filter(|_| !stage.preview_only) else {
             return;
         };
         for (hand, saber) in stage.sabers.iter().enumerate() {

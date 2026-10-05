@@ -118,6 +118,7 @@ pub(super) fn apply(
             .update_head(&mesh.preview.mesh, &mesh.preview.animation, matrices);
         mesh.weapon_attachments = crate::saber::attachments_from_matrices(&mesh.preview, matrices);
         mesh.driver_seat = crate::vehicle_pose::driver_seat(&mesh.preview, matrices);
+        mesh.cosmetics.update_bolts(&mesh.preview.mesh, matrices);
         mesh.current_frames = (
             state.lower.forced_frame.unwrap_or(state.lower.clip),
             state.upper.forced_frame.unwrap_or(state.upper.clip),
@@ -137,6 +138,7 @@ pub(super) fn apply(
         .update_head(&mesh.preview.mesh, &mesh.preview.animation, matrices);
     mesh.weapon_attachments = crate::saber::attachments_from_matrices(&mesh.preview, matrices);
     mesh.driver_seat = crate::vehicle_pose::driver_seat(&mesh.preview, matrices);
+    mesh.cosmetics.update_bolts(&mesh.preview.mesh, matrices);
     for range in &mesh.vertex_ranges {
         if mesh.gpu_palette.is_some() {
             break;

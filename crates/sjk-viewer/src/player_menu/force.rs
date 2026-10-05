@@ -37,12 +37,34 @@ const DEFAULT_FORCEPOWERS: &str = "7-1-032330000000001333";
 /// `GT_TEAM` (`bg_public.h`): team powers are legal from here on.
 const GT_TEAM: i32 = 6;
 
+/// What buying the next level of a power would take.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum NextLevel {
+    /// The power is at level 3.
+    Mastered,
+    /// The next level comes without points.
+    Free,
+    /// The next level costs this many points and the draft has them.
+    Costs(u8),
+    /// The next level costs this many points, more than are left.
+    Short(u8),
+    /// The other side's power.
+    OtherSide,
+    /// A team power outside team games.
+    TeamOnly,
+    /// Saber Defense or Throw without Saber Offense, which legalization
+    /// clears (`UI_ForcePowerRank_HandleKey`).
+    NeedsOffense,
+}
+
 pub(super) struct ForceMenu {
     allocation: ForceAllocation,
     /// The profile `forcepowers` holds: read on open, replaced on Apply.
     applied: ForceAllocation,
     rules: ForceLegalizeRules,
     encoded: String,
+    /// The template the draft was last loaded from, until it is edited.
+    template: Option<String>,
 }
 
 impl ForceMenu {
@@ -53,6 +75,7 @@ impl ForceMenu {
             applied: allocation.clone(),
             allocation,
             rules: ForceLegalizeRules::default(),
+            template: None,
         }
     }
 
@@ -81,7 +104,21 @@ impl ForceMenu {
         self.allocation = legalize_force_powers(&allocation.encode(), self.rules).allocation;
         // What was read counts as applied: opening never writes the cvar.
         self.applied.clone_from(&self.allocation);
+        self.template = None;
         self.refresh_encoded();
+    }
+
+    /// Load a template's `forcepowers` into the draft, legalized under the
+    /// server's rules at the draft's rank (`UI_ForceConfigHandle`).
+    pub(super) fn load_template(&mut self, name: &str, value: &str) {
+        self.allocation = legalize_force_powers(value, self.rules).allocation;
+        self.template = Some(name.to_owned());
+        self.refresh_encoded();
+    }
+
+    /// The template the draft holds unedited, if any.
+    pub(super) fn template(&self) -> Option<&str> {
+        self.template.as_deref()
     }
 
     pub(super) fn allocation(&self) -> &ForceAllocation {
@@ -107,10 +144,90 @@ impl ForceMenu {
         self.allocation != self.applied
     }
 
+    /// Points the draft's rank grants in all.
+    pub(super) fn total_points(&self) -> u16 {
+        sjk_client::mastery_points(self.allocation.rank)
+    }
+
+    /// Whether Saber Offense and Defense start at level 1 for free.
+    pub(super) fn free_saber(&self) -> bool {
+        self.rules.free_saber
+    }
+
+    /// What raising power `index` one level would take.
+    pub(super) fn next_level(&self, index: usize) -> NextLevel {
+        let Some(power) = ForcePower::ALL.get(index).copied() else {
+            return NextLevel::Mastered;
+        };
+        if power
+            .side()
+            .is_some_and(|side| side != self.allocation.side)
+        {
+            return NextLevel::OtherSide;
+        }
+        if power.is_team_power() && self.rules.gametype < GT_TEAM {
+            return NextLevel::TeamOnly;
+        }
+        if matches!(power, ForcePower::SaberDefense | ForcePower::SaberThrow)
+            && self.allocation.levels[ForcePower::SaberOffense as usize] == 0
+        {
+            return NextLevel::NeedsOffense;
+        }
+        let level = self.allocation.levels[index];
+        if level >= 3 {
+            return NextLevel::Mastered;
+        }
+        if power.level_is_free(level + 1, self.rules.free_saber) {
+            return NextLevel::Free;
+        }
+        let cost = power.level_cost(level + 1);
+        if u16::from(cost) > self.remaining_points() {
+            NextLevel::Short(cost)
+        } else {
+            NextLevel::Costs(cost)
+        }
+    }
+
+    /// Points that raising power `index` from its level to `level` would
+    /// cost (0 when `level` is not above it).
+    pub(super) fn cost_to(&self, index: usize, level: u8) -> u16 {
+        let Some(power) = ForcePower::ALL.get(index).copied() else {
+            return 0;
+        };
+        let current = self.allocation.levels[index];
+        (current + 1..=level.min(3))
+            .filter(|level| !power.level_is_free(*level, self.rules.free_saber))
+            .map(|level| u16::from(power.level_cost(level)))
+            .sum()
+    }
+
+    /// Move power `index` straight to `level`, one legal step at a time;
+    /// when a step fails the draft is left as it was.
+    pub(super) fn set_level(&mut self, index: usize, level: u8) -> bool {
+        let Some(current) = self.allocation.levels.get(index).copied() else {
+            return false;
+        };
+        let level = level.min(3);
+        if level == current {
+            return false;
+        }
+        let before = self.allocation.clone();
+        let raise = level > current;
+        for _ in 0..current.abs_diff(level) {
+            if !self.step(index, raise) {
+                self.allocation = before;
+                self.refresh_encoded();
+                return false;
+            }
+        }
+        true
+    }
+
     pub(super) fn set_side(&mut self, side: ForceSide) {
         if self.allocation.side == side {
             return;
         }
+        self.template = None;
         self.allocation.side = side;
         self.allocation = legalize_force_powers(&self.allocation.encode(), self.rules).allocation;
         self.refresh_encoded();
@@ -132,6 +249,7 @@ impl ForceMenu {
                 self.allocation = before;
                 return false;
             }
+            self.template = None;
             self.refresh_encoded();
         }
         changed
@@ -139,6 +257,7 @@ impl ForceMenu {
 
     /// Clear every level on the draft (the free minima stay).
     pub(super) fn reset(&mut self) {
+        self.template = None;
         let side = self.allocation.side;
         self.allocation = ForceAllocation {
             rank: self.rules.max_rank,
@@ -151,6 +270,7 @@ impl ForceMenu {
 
     /// Return the draft to the applied profile.
     pub(super) fn discard(&mut self) {
+        self.template = None;
         self.allocation.clone_from(&self.applied);
         self.refresh_encoded();
     }
@@ -224,6 +344,68 @@ mod tests {
         let menu = menu("7-1-030000100000001000");
         assert!(!menu.is_dirty());
         assert_eq!(menu.allocation().levels[6], 0);
+    }
+
+    #[test]
+    fn a_template_loads_legalized_at_the_drafts_rank() {
+        // Rank 3 (20 points): retail's Knight is cut down to fit.
+        let mut menu = menu("3-1-000000000000000000");
+        menu.load_template("Knight", "7-1-331322000200003322");
+        assert_eq!(menu.allocation().rank, 3);
+        assert!(menu.remaining_points() <= 20);
+        assert_eq!(menu.template(), Some("Knight"));
+        assert!(menu.is_dirty());
+        // Any edit leaves the template behind.
+        menu.reset();
+        assert_eq!(menu.template(), None);
+        let mut menu = menu_at_master();
+        menu.load_template("Destroyer", "7-2-012320333000030321");
+        assert_eq!(menu.allocation().side, ForceSide::Dark);
+        assert_eq!(menu.allocation().levels[7], 3); // Lightning
+        menu.set_side(ForceSide::Light);
+        assert_eq!(menu.template(), None);
+    }
+
+    fn menu_at_master() -> ForceMenu {
+        menu(DEFAULT_FORCEPOWERS)
+    }
+
+    #[test]
+    fn next_level_says_what_it_takes() {
+        // Stock profile: Jump 3, Speed 2, Push and Pull 3, the saber 3s;
+        // 82 of 100 points spent.
+        let mut menu = menu(DEFAULT_FORCEPOWERS);
+        assert_eq!(menu.next_level(3), NextLevel::Mastered); // Push 3
+        assert_eq!(menu.next_level(6), NextLevel::OtherSide); // Grip, dark
+        assert_eq!(menu.next_level(11), NextLevel::TeamOnly);
+        assert_eq!(menu.next_level(2), NextLevel::Costs(6)); // Speed 2 -> 3
+        assert_eq!(menu.cost_to(0, 3), 12); // Heal 0 -> 3: 2 + 4 + 6
+        menu.reset();
+        assert_eq!(menu.next_level(16), NextLevel::NeedsOffense);
+        assert_eq!(menu.next_level(1), NextLevel::Costs(2)); // Jump 1 -> 2
+        let poor = self::menu("1-1-000000000000000000"); // 5 points
+        assert_eq!(poor.next_level(5), NextLevel::Costs(4)); // Mind Trick 1
+        assert_eq!(poor.next_level(7), NextLevel::OtherSide);
+        assert_eq!(poor.next_level(9), NextLevel::Costs(2));
+        let mut broke = self::menu("1-1-000000000000000000");
+        assert!(broke.set_level(5, 1)); // 4 of 5 spent
+        assert_eq!(broke.next_level(9), NextLevel::Short(2));
+    }
+
+    #[test]
+    fn set_level_moves_in_one_go_or_not_at_all() {
+        let mut menu = menu("1-1-000000000000000000"); // 5 points
+        assert!(!menu.set_level(0, 2)); // Heal 2 costs 2 + 4
+        assert_eq!(menu.allocation().levels[0], 0);
+        let mut menu = self::menu("2-1-000000000000000000"); // 10 points
+        assert!(menu.set_level(0, 2)); // Heal 2 costs 6
+        assert_eq!(menu.allocation().levels[0], 2);
+        assert!(!menu.set_level(0, 3)); // 6 more needed, 4 left
+        assert_eq!(menu.allocation().levels[0], 2);
+        assert!(menu.set_level(0, 0));
+        assert_eq!(menu.remaining_points(), 10);
+        assert!(!menu.set_level(1, 0)); // Jump keeps its free level
+        assert_eq!(menu.allocation().levels[1], 1);
     }
 
     #[test]

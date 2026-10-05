@@ -87,8 +87,10 @@ pub(super) fn saber_color_from_config(config: &[u8], saber: usize) -> [u8; 3] {
     const NUM_SABER_COLORS: i32 = 12;
     const SABER_RGB: i32 = 6;
     let (index_key, rgb_key) = KEYS[saber];
-    let color = legacy_info_i32(config, index_key)
-        .unwrap_or(4)
+    // `atoi`, as `CG_NewClientInfo` reads it: JoF EJK appends the worn hat or
+    // cape to the digits (`8santahat`), which leaves the colour untouched.
+    let color = legacy_info_value(config, index_key)
+        .map_or(4, legacy_atoi)
         .rem_euclid(NUM_SABER_COLORS);
     if color < SABER_RGB {
         return legacy_blade_rgb(color);
@@ -111,14 +113,6 @@ pub(super) fn legacy_blade_rgb(color: i32) -> [u8; 3] {
         4 => [51, 102, 255],
         _ => [230, 51, 255],
     }
-}
-
-/// Read a decimal integer from a legacy info string.
-pub(super) fn legacy_info_i32(config: &[u8], wanted: &[u8]) -> Option<i32> {
-    std::str::from_utf8(legacy_info_value(config, wanted)?)
-        .ok()?
-        .parse()
-        .ok()
 }
 
 /// Raw value of `wanted` in a legacy info string, if the key is present.
@@ -150,5 +144,22 @@ pub(super) fn legacy_atoi(value: &[u8]) -> i32 {
         magnitude.wrapping_neg()
     } else {
         magnitude
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_worn_cosmetic_leaves_the_saber_colour_alone() {
+        // JoF EJK's `c1 "4santahat"`: blue wearing a Santa hat.
+        let config = br"n\Sol\c1\4santahat\c2\0royalcape";
+        assert_eq!(saber_color_from_config(config, 0), legacy_blade_rgb(4));
+        assert_eq!(saber_color_from_config(config, 1), legacy_blade_rgb(0));
+        // Past purple without a packed tint, the colour rolls over as before.
+        let config = br"c1\8santahat";
+        assert_eq!(saber_color_from_config(config, 0), legacy_blade_rgb(2));
+        assert_eq!(saber_color_from_config(br"n\x", 0), legacy_blade_rgb(4));
     }
 }

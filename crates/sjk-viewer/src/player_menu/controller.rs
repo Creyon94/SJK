@@ -22,6 +22,7 @@ impl PlayerMenu {
         self.read_console(console);
         self.saber.open(console);
         self.force.open(console);
+        self.cosmetics.open(console, self.icon_vfs.as_ref());
         self.numeric = None;
         self.name_editing = false;
         self.page = ProfilePage::Character;
@@ -64,6 +65,26 @@ impl PlayerMenu {
         self.request_icons_if_ready();
         self.icons.poll();
         self.force_icons.poll();
+        self.request_part_icons();
+        self.part_icons.poll();
+    }
+
+    /// Character creation shows the species' part pictures: load them for
+    /// the species being edited.
+    fn request_part_icons(&mut self) {
+        if !self.classic_style || self.classic.page != super::classic::ClassicPage::Character {
+            return;
+        }
+        let Some(Choice::Species(index)) = self.choice else {
+            return;
+        };
+        let (Some(vfs), Some(species)) = (
+            self.icon_vfs.as_ref(),
+            catalog_of(&self.loader).and_then(|catalog| catalog.species.get(index)),
+        ) else {
+            return;
+        };
+        self.part_icons.show(vfs, index, species);
     }
 
     pub(super) fn reconcile_saber_style(&mut self) {
@@ -272,6 +293,10 @@ impl PlayerMenu {
                 let Some(row) = self.character_rows().get(self.selected).copied() else {
                     return;
                 };
+                if let Some(slot) = row.cosmetic() {
+                    self.cosmetics.cycle(console, slot, direction);
+                    return;
+                }
                 match row {
                     CharacterRow::Name => return,
                     CharacterRow::Team => self.cycle_team(direction),

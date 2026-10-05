@@ -1,6 +1,8 @@
 //! Drawing of the classic profile pages in retail item order: backdrop art,
 //! frames and titles, then the entries, lists and the description line.
-//! Colours are the retail `forecolor`/`backcolor` values of the items.
+//! Colours are the retail `forecolor`/`backcolor` values of the items. The
+//! Force page and the cosmetics window draw in [`super::force_page`] and
+//! [`super::cosmetics_page`] with the helpers here.
 
 use super::layout::{
     self, GRID_CELL, GRID_COLUMNS, HILT_ROW, Item, PART_CELL, SWATCH, TINT_CELL, place, rect,
@@ -12,6 +14,7 @@ use crate::menu::classic::layout::{CANVAS, HINT_Y, LOGO, Placement};
 use crate::menu::classic::view::{FOCUS, GOLD, art, glow, ink};
 use crate::player_menu::grid::{GRID_SCROLL_TOKEN, TILE_BASE};
 use crate::player_menu::icons::IconLoader;
+use crate::player_menu::part_icons::Part;
 use crate::player_menu::saber::{SaberStyle, allowed};
 use crate::player_menu::team_filter::TeamSkin;
 use crate::player_menu::{PlayerMenu, catalog_of};
@@ -19,18 +22,21 @@ use crate::text::{TextVertex, UiFont};
 use sjk_ui::{Color, DrawCommand, FontWeight, Gradient, Rect, TextAlign};
 
 /// Retail section label colour (`forecolor .549 .854 1`).
-const LABEL: Color = Color::new(0.549, 0.854, 1.0, 1.0);
+pub(super) const LABEL: Color = Color::new(0.549, 0.854, 1.0, 1.0);
 /// Retail field value colour (`forecolor .615 .615 .956`).
-const VALUE: Color = Color::new(0.615, 0.615, 0.956, 1.0);
+pub(super) const VALUE: Color = Color::new(0.615, 0.615, 0.956, 1.0);
 /// Retail frame blue (`bordercolor`/`backcolor .298 .305 .690`).
-const FRAME: Color = Color::new(0.298, 0.305, 0.690, 1.0);
+pub(super) const FRAME: Color = Color::new(0.298, 0.305, 0.690, 1.0);
 /// Saber type entries not chosen (`setitemcolor ... .65 .65 1`).
 const UNCHOSEN: Color = Color::new(0.65, 0.65, 1.0, 1.0);
 /// Retail description colour (`descColor 1 .682 0 .8`).
 const HINT: Color = Color::new(1.0, 0.682, 0.0, 0.8);
 /// List boxes of character creation (`backcolor .66 .66 1 .25`).
-const LIST_BACK: Color = Color::new(0.66, 0.66, 1.0, 0.25);
-const LIST_BORDER: Color = Color::new(0.66, 0.66, 1.0, 1.0);
+pub(super) const LIST_BACK: Color = Color::new(0.66, 0.66, 1.0, 0.25);
+pub(super) const LIST_BORDER: Color = Color::new(0.66, 0.66, 1.0, 1.0);
+/// Light and dark side tints of the profile's Force summary.
+const LIGHT_SIDE: Color = Color::new(0.5, 0.5, 1.0, 1.0);
+const DARK_SIDE: Color = Color::new(1.0, 0.35, 0.3, 1.0);
 /// Hilt list box (`backcolor 0 0 .5 .25`, `bordercolor 0 0 .8 1`).
 const HILT_BACK: Color = Color::new(0.0, 0.0, 0.5, 0.25);
 const HILT_BORDER: Color = Color::new(0.0, 0.0, 0.8, 1.0);
@@ -47,6 +53,17 @@ pub(super) const BLADE_BASE: [u16; 2] = [600, 610];
 pub(super) const PARTS_SCROLL: u16 = 903;
 pub(super) const TINTS_SCROLL: u16 = 904;
 pub(super) const HILTS_SCROLL: [u16; 2] = [905, 906];
+/// First token of the Force page's level stars (three per power).
+pub(super) const STAR_BASE: u16 = 620;
+/// First token of the cosmetics window's hat and cape rows, and the
+/// lists' wheel targets.
+pub(super) const HAT_BASE: u16 = 1000;
+pub(super) const CAPE_BASE: u16 = 1400;
+pub(super) const HATS_SCROLL: u16 = 907;
+pub(super) const CAPES_SCROLL: u16 = 908;
+/// First token of the Force page's template rows, and the list's wheel target.
+pub(super) const TEMPLATE_BASE: u16 = 1700;
+pub(super) const TEMPLATES_SCROLL: u16 = 909;
 
 /// Blade swatch art, in [`BLADE_SWATCHES`] order.
 const SWATCH_ART: [ArtPiece; 6] = [
@@ -56,18 +73,6 @@ const SWATCH_ART: [ArtPiece; 6] = [
     ArtPiece::SaberPurple,
     ArtPiece::SaberYellow,
     ArtPiece::SaberRed,
-];
-
-/// Force mastery names (`forceMasteryLevels`, `mp_ingame.str`).
-const MASTERY: [&str; 8] = [
-    "Uninitiated",
-    "Initiate",
-    "Padawan",
-    "Jedi",
-    "Jedi Adept",
-    "Jedi Guardian",
-    "Jedi Knight",
-    "Jedi Master",
 ];
 
 impl PlayerMenu {
@@ -90,21 +95,26 @@ impl PlayerMenu {
             ClassicPage::Player => self.player_page(&place, frame),
             ClassicPage::Character => self.character_page(&place, frame),
             ClassicPage::Saber => self.saber_page(&place, frame),
+            ClassicPage::Force => self.force_page(&place, frame),
+            ClassicPage::Cosmetics => self.cosmetics_page(&place, frame),
         }
         let described = self.entries(&place, page, frame);
+        if page == ClassicPage::Force {
+            self.force_detail(&place, frame, described);
+        }
         self.description(&place, page, frame, described);
         self.canvas.pop_opacity();
         self.canvas.finish(self.classic.focus as u16);
         self.canvas.append_text(vertices, font, viewport);
     }
 
-    fn piece(&mut self, place: &Placement, piece: ArtPiece, canvas: [f32; 4]) {
+    pub(super) fn piece(&mut self, place: &Placement, piece: ArtPiece, canvas: [f32; 4]) {
         if self.classic.art.has(piece) {
             art(&mut self.canvas, piece, place.rect(canvas));
         }
     }
 
-    fn fill(&mut self, place: &Placement, canvas: [f32; 4], color: Color) {
+    pub(super) fn fill(&mut self, place: &Placement, canvas: [f32; 4], color: Color) {
         let rect = place.rect(canvas);
         let _ = self
             .canvas
@@ -112,7 +122,7 @@ impl PlayerMenu {
             .push(DrawCommand::SolidRect { rect, color });
     }
 
-    fn border(&mut self, place: &Placement, canvas: [f32; 4], color: Color, width: f32) {
+    pub(super) fn border(&mut self, place: &Placement, canvas: [f32; 4], color: Color, width: f32) {
         let rect = place.rect(canvas);
         let _ = self.canvas.draw_list_mut().push(DrawCommand::Border {
             rect,
@@ -123,7 +133,7 @@ impl PlayerMenu {
     }
 
     #[allow(clippy::too_many_arguments)]
-    fn label(
+    pub(super) fn label(
         &mut self,
         place: &Placement,
         canvas: [f32; 4],
@@ -134,16 +144,37 @@ impl PlayerMenu {
         align: TextAlign,
     ) {
         let s = place.scale;
-        // Centre a one-line box on the item's middle.
-        let line = size * 1.25;
-        let [x, y, w, h] = canvas;
-        let rect = place.rect([x, y + (h - line) * 0.5, w, line]);
+        let rect = line_rect(place, canvas, size);
         self.canvas
             .text_aligned(text, rect, size * s, color, weight, 0.6 * s, align);
     }
 
+    /// [`Self::label`] for formatted text, without allocating.
+    #[allow(clippy::too_many_arguments)]
+    pub(super) fn label_fmt(
+        &mut self,
+        place: &Placement,
+        canvas: [f32; 4],
+        text: std::fmt::Arguments<'_>,
+        size: f32,
+        color: Color,
+        weight: FontWeight,
+        align: TextAlign,
+    ) {
+        let s = place.scale;
+        let rect = line_rect(place, canvas, size);
+        self.canvas
+            .text_fmt_aligned(text, rect, size * s, color, weight, 0.6 * s, align);
+    }
+
     /// Title over a `menu_blendbox` band.
-    fn band_title(&mut self, place: &Placement, canvas: [f32; 4], text: &str, size: f32) {
+    pub(super) fn band_title(
+        &mut self,
+        place: &Placement,
+        canvas: [f32; 4],
+        text: &str,
+        size: f32,
+    ) {
         self.piece(place, ArtPiece::BlendBox, canvas);
         self.label(
             place,
@@ -205,15 +236,22 @@ impl PlayerMenu {
                     FontWeight::Semibold,
                     TextAlign::Center,
                 );
-                self.label(
-                    place,
-                    [425.0, 250.0, 200.0, 26.0],
-                    "Custom",
-                    15.0,
-                    LABEL,
-                    FontWeight::Semibold,
-                    TextAlign::Center,
-                );
+                for (text, canvas) in [
+                    ("Custom", [434.0, 212.0, 95.0, 20.0]),
+                    ("Force", [529.0, 212.0, 95.0, 20.0]),
+                ] {
+                    self.label(
+                        place,
+                        canvas,
+                        text,
+                        15.0,
+                        LABEL,
+                        FontWeight::Semibold,
+                        TextAlign::Center,
+                    );
+                }
+                self.force_glance(place, [434.0, 318.0, 190.0, 44.0]);
+                self.worn_line(place, [434.0, 396.0, 190.0, 14.0]);
             }
             Frame::InGame => {
                 self.window_box(place, page, frame);
@@ -278,44 +316,176 @@ impl PlayerMenu {
         }
     }
 
-    /// The in-game profile's Force lines (retail ownerdraws
-    /// `UI_FORCE_RANK`, `UI_FORCE_SIDE`, `UI_FORCE_POINTS`).
+    /// The in-game profile's Force box: retail's mastery, side and points
+    /// lines (`UI_FORCE_RANK`, `UI_FORCE_SIDE`, `UI_FORCE_POINTS`) beside the
+    /// side's emblem, over a strip of the known powers' holocrons.
     fn force_summary(&mut self, place: &Placement, frame: Frame) {
         let page = ClassicPage::Player;
-        let allocation = self.force.allocation().clone();
-        let rank = MASTERY[usize::from(allocation.rank).min(MASTERY.len() - 1)];
-        let side = match allocation.side {
-            sjk_client::ForceSide::Light => "Light",
-            sjk_client::ForceSide::Dark => "Dark",
+        let allocation = self.force.allocation();
+        let side = allocation.side;
+        let (side_text, side_color) = match side {
+            sjk_client::ForceSide::Light => ("Light", LIGHT_SIDE),
+            sjk_client::ForceSide::Dark => ("Dark", DARK_SIDE),
+        };
+        let rank = super::force_page::mastery(allocation.rank);
+        let points = self.force.remaining_points();
+        let pending = if self.force.is_dirty() {
+            " (not applied)"
+        } else {
+            ""
+        };
+        let emblem = crate::player_menu::force_icons::side_texture(side);
+        let mut x = 20.0;
+        if self.force_icons.is_texture_ready(emblem) {
+            let _ = self.canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
+                rect: place.rect(place_in(page, frame, [20.0, 322.0, 40.0, 40.0])),
+                texture: emblem,
+                color: FOCUS,
+            });
+            x = 68.0;
+        }
+        let gold = Color::new(1.0, 0.682, 0.0, 0.8);
+        let line = |row: f32| place_in(page, frame, [x, 320.0 + row * 16.0, 200.0, 15.0]);
+        self.label_fmt(
+            place,
+            line(0.0),
+            format_args!("Force Mastery: {rank}"),
+            12.0,
+            gold,
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+        self.label_fmt(
+            place,
+            line(1.0),
+            format_args!("Force side: {side_text}"),
+            12.0,
+            side_color,
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+        self.label_fmt(
+            place,
+            line(2.0),
+            format_args!("Points Remaining: {points}{pending}"),
+            12.0,
+            gold,
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+        self.holocron_strip(place, place_in(page, frame, [20.0, 372.0, 250.0, 16.0]));
+    }
+
+    /// The holocrons of every power with a level, in the Force page's
+    /// order, each with a pip per level under it.
+    fn holocron_strip(&mut self, place: &Placement, canvas: [f32; 4]) {
+        let [x, y, w, h] = canvas;
+        let levels = self.force.allocation().levels;
+        let side_powers = match self.force.allocation().side {
+            sjk_client::ForceSide::Light => layout::LIGHT_POWERS,
+            sjk_client::ForceSide::Dark => layout::DARK_POWERS,
+        };
+        let order = layout::NEUTRAL_POWERS
+            .iter()
+            .chain(&side_powers)
+            .chain(&layout::SABER_POWERS)
+            .map(|power| usize::from(*power))
+            .filter(|power| levels[*power] > 0);
+        let step = h + 3.0;
+        for (slot, power) in order.enumerate() {
+            let left = x + slot as f32 * step;
+            if left + h > x + w {
+                break;
+            }
+            let icon = crate::player_menu::force_icons::power_texture(power);
+            if self.force_icons.is_texture_ready(icon) {
+                let _ = self.canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
+                    rect: place.rect([left, y, h, h]),
+                    texture: icon,
+                    color: FOCUS,
+                });
+            }
+            for pip in 0..levels[power] {
+                let pip_x = left + 2.0 + f32::from(pip) * (h - 4.0) / 3.0;
+                self.fill(
+                    place,
+                    [pip_x, y + h + 2.0, (h - 4.0) / 3.0 - 1.0, 2.0],
+                    Color::new(1.0, 0.682, 0.0, 0.9),
+                );
+            }
+        }
+    }
+
+    /// The full-screen profile's Force line under its button: mastery and
+    /// side, the points left, and the known powers' holocrons.
+    fn force_glance(&mut self, place: &Placement, canvas: [f32; 4]) {
+        let [x, y, w, _] = canvas;
+        let allocation = self.force.allocation();
+        let rank = super::force_page::mastery(allocation.rank);
+        let (side, color) = match allocation.side {
+            sjk_client::ForceSide::Light => ("Light", LIGHT_SIDE),
+            sjk_client::ForceSide::Dark => ("Dark", DARK_SIDE),
         };
         let points = self.force.remaining_points();
-        let lines = [
-            ("Force Mastery:", rank.to_owned()),
-            ("Force side:", side.to_owned()),
-            ("Points Remaining:", points.to_string()),
-        ];
-        let color = Color::new(1.0, 0.682, 0.0, 0.8);
-        for (index, (caption, value)) in lines.iter().enumerate() {
-            let canvas = place_in(
-                page,
-                frame,
-                [20.0, 320.0 + index as f32 * 20.0, 240.0, 16.0],
-            );
-            let text = format!("{caption} {value}");
-            self.label(
+        self.label_fmt(
+            place,
+            [x, y, w, 14.0],
+            format_args!("{rank} \u{b7} {side}"),
+            12.0,
+            color,
+            FontWeight::Semibold,
+            TextAlign::Center,
+        );
+        self.label_fmt(
+            place,
+            [x, y + 14.0, w, 13.0],
+            format_args!("{points} points remaining"),
+            11.0,
+            VALUE,
+            FontWeight::Regular,
+            TextAlign::Center,
+        );
+        self.holocron_strip(place, [x + 4.0, y + 29.0, w - 8.0, 12.0]);
+    }
+
+    /// What the player wears, under the Cosmetics button.
+    fn worn_line(&mut self, place: &Placement, canvas: [f32; 4]) {
+        use sjk_client::CosmeticSlot;
+        let hat = self.cosmetics.worn_label(CosmeticSlot::Hat);
+        let cape = self.cosmetics.worn_label(CosmeticSlot::Cape);
+        match (hat, cape) {
+            (None, None) => self.label(
                 place,
                 canvas,
-                &text,
-                12.0,
-                color,
+                "No hat or cape",
+                11.0,
+                VALUE,
                 FontWeight::Regular,
-                TextAlign::Start,
-            );
+                TextAlign::Center,
+            ),
+            (hat, cape) => self.label_fmt(
+                place,
+                canvas,
+                format_args!(
+                    "{}{}{}",
+                    hat.as_deref().unwrap_or_default(),
+                    if hat.is_some() && cape.is_some() {
+                        " \u{b7} "
+                    } else {
+                        ""
+                    },
+                    cape.as_deref().unwrap_or_default()
+                ),
+                11.0,
+                VALUE,
+                FontWeight::Regular,
+                TextAlign::Center,
+            ),
         }
     }
 
     /// The retail in-game window (`menu_box_ingame`).
-    fn window_box(&mut self, place: &Placement, page: ClassicPage, frame: Frame) {
+    pub(super) fn window_box(&mut self, place: &Placement, page: ClassicPage, frame: Frame) {
         let canvas = window(page, frame);
         if self.classic.art.has(ArtPiece::PopupBox) {
             self.piece(place, ArtPiece::PopupBox, canvas);
@@ -385,13 +555,23 @@ impl PlayerMenu {
         }
     }
 
-    /// Where retail drew the live model: the model's portrait and name.
-    fn model_portrait(&mut self, place: &Placement, canvas: [f32; 4]) {
+    /// Where retail drew the live model: the live preview once the renderer
+    /// has drawn one, else the model's portrait; the name under it.
+    pub(super) fn model_portrait(&mut self, place: &Placement, canvas: [f32; 4]) {
         let absolute = self.choice_index();
-        if self.icons.is_ready(absolute) {
-            let rect = place.rect(canvas);
+        if self.preview_ready {
             let _ = self.canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
-                rect,
+                rect: place.rect(canvas),
+                texture: crate::ui_renderer::PREVIEW_TEXTURE,
+                color: FOCUS,
+            });
+        } else if self.icons.is_ready(absolute) {
+            // The portrait is square: centred in a taller or wider spot.
+            let [x, y, w, h] = canvas;
+            let side = w.min(h);
+            let square = [x + (w - side) * 0.5, y + (h - side) * 0.5, side, side];
+            let _ = self.canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
+                rect: place.rect(square),
                 texture: IconLoader::texture_of(absolute),
                 color: FOCUS,
             });
@@ -608,7 +788,7 @@ impl PlayerMenu {
     /// description shows: the hovered one, else the focused one.
     fn entries(&mut self, place: &Placement, page: ClassicPage, frame: Frame) -> Option<Item> {
         let dual = self.saber.style() == SaberStyle::Dual;
-        let items = layout::items(page, frame, dual);
+        let items = self.classic_items();
         let mut described = items.get(self.classic.focus).copied();
         for (index, item) in items.iter().enumerate() {
             let token = index as u16;
@@ -619,8 +799,10 @@ impl PlayerMenu {
                 described = Some(*item);
             }
             let active = index == self.classic.focus || hovered;
-            self.entry(place, page, frame, *item, canvas, active);
+            // The entry's own region first: the canvas gives the pointer to
+            // the region registered last, so a list's cells, drawn next, win.
             self.canvas.hit_region(token, target);
+            self.entry(place, page, frame, *item, canvas, active);
         }
         described
     }
@@ -635,6 +817,15 @@ impl PlayerMenu {
             Item::Hilts2 => HILT_BASE[1]..HILT_BASE[1] + 100,
             Item::Blades => BLADE_BASE[0]..BLADE_BASE[0] + 6,
             Item::Blades2 => BLADE_BASE[1]..BLADE_BASE[1] + 6,
+            Item::Power(power) => {
+                let first = super::force_page::star_token(usize::from(power), 1);
+                first..first + 3
+            }
+            Item::Templates => {
+                TEMPLATE_BASE..TEMPLATE_BASE + super::force_page::MAX_TEMPLATE_ROWS as u16
+            }
+            Item::Hats => HAT_BASE..HAT_BASE + super::cosmetics_page::MAX_ROWS as u16,
+            Item::Capes => CAPE_BASE..CAPE_BASE + super::cosmetics_page::MAX_ROWS as u16,
             _ => return false,
         };
         range
@@ -666,17 +857,35 @@ impl PlayerMenu {
                     TextAlign::Center,
                 );
             }
+            Item::SideLight
+            | Item::SideDark
+            | Item::Power(_)
+            | Item::ForceReset
+            | Item::ForceDiscard
+            | Item::ForceApply
+            | Item::Templates
+            | Item::TemplateName
+            | Item::TemplateSave => self.force_entry(place, item, canvas, active),
+            Item::Hats | Item::Capes | Item::CosmeticsShow => {
+                self.cosmetics_entry(place, item, canvas, active)
+            }
             Item::NavPlay
             | Item::NavControls
             | Item::NavSetup
             | Item::Exit
             | Item::Back
             | Item::Apply
-            | Item::ApplyMain => {
+            | Item::ApplyMain
+            | Item::CosmeticsButton
+            | Item::CosmeticsClear => {
                 if active {
                     glow(&mut self.canvas, place.rect(canvas), s, self.classic.art);
                 }
-                let size = if frame == Frame::InGame { 15.0 } else { 17.0 };
+                let size = match (item, frame) {
+                    (Item::CosmeticsButton | Item::CosmeticsClear, _) => 15.0,
+                    (_, Frame::InGame) => 15.0,
+                    _ => 17.0,
+                };
                 // Both of the saber page's buttons read "Apply" (`@MENUS_APPLY`);
                 // the profile pages' APPLY is `@MENUS_APPLY_CAPS`.
                 let text = match (item, page, frame) {
@@ -755,11 +964,11 @@ impl PlayerMenu {
                 );
             }
             Item::Models => self.head_grid(place, frame, canvas, active),
-            Item::Custom | Item::SaberButton => {
-                let piece = if item == Item::Custom {
-                    ArtPiece::CustomPlayer
-                } else {
-                    ArtPiece::SaberOnly
+            Item::Custom | Item::SaberButton | Item::ForceButton => {
+                let piece = match item {
+                    Item::Custom => ArtPiece::CustomPlayer,
+                    Item::SaberButton => ArtPiece::SaberOnly,
+                    _ => ArtPiece::ConfigForce,
                 };
                 let rect = place.rect(canvas);
                 if self.classic.art.has(piece) {
@@ -771,10 +980,10 @@ impl PlayerMenu {
                     });
                 } else {
                     self.border(place, canvas, if active { FOCUS } else { FRAME }, 2.0);
-                    let text = if item == Item::Custom {
-                        "Custom"
-                    } else {
-                        "Saber"
+                    let text = match item {
+                        Item::Custom => "Custom",
+                        Item::SaberButton => "Saber",
+                        _ => "Force",
                     };
                     self.label(
                         place,
@@ -960,7 +1169,20 @@ impl PlayerMenu {
                 TINT_CELL - 4.0,
             ];
             let [r, g, b] = rgb.map(|c| f32::from(c) / 255.0);
-            self.fill(place, cell, Color::new(r, g, b, 1.0));
+            // Retail's swatch: the species' tint base times the colour.
+            match self
+                .current_species()
+                .and_then(|species| self.part_icons.tint_base(species))
+            {
+                Some(texture) => {
+                    let _ = self.canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
+                        rect: place.rect(cell),
+                        texture,
+                        color: Color::new(r, g, b, 1.0),
+                    });
+                }
+                None => self.fill(place, cell, Color::new(r, g, b, 1.0)),
+            }
             let token = TINT_BASE + index as u16;
             if self.variants[3] == index {
                 self.border(place, cell, FOCUS, 2.0);
@@ -971,8 +1193,8 @@ impl PlayerMenu {
         }
     }
 
-    /// The selected part's variants in 72-unit cells (retail drew each
-    /// variant's icon; the names stand in until those are loaded).
+    /// The selected part's variants in 72-unit cells: each variant's icon,
+    /// as retail drew it, or its name while there is none.
     fn part_list(&mut self, place: &Placement, canvas: [f32; 4], active: bool) {
         let s = place.scale;
         self.fill(place, canvas, LIST_BACK);
@@ -1019,6 +1241,29 @@ impl PlayerMenu {
                 VALUE
             };
             let rect = place.rect(cell);
+            let part = [Part::Head, Part::Torso, Part::Legs][axis.min(2)];
+            if let Some(texture) = self
+                .current_species()
+                .and_then(|species| self.part_icons.part(species, part, index))
+            {
+                let shade = if index == chosen || hovered {
+                    1.0
+                } else {
+                    0.75
+                };
+                let _ = self.canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
+                    rect,
+                    texture,
+                    color: Color::new(shade, shade, shade, 1.0),
+                });
+                if index == chosen {
+                    self.border(place, cell, FOCUS, 2.0);
+                } else if hovered {
+                    self.border(place, cell, Color::new(1.0, 1.0, 1.0, 0.5), 1.0);
+                }
+                self.canvas.hit_region(token, rect);
+                continue;
+            }
             self.canvas.text_aligned(
                 name,
                 Rect::new(
@@ -1169,6 +1414,11 @@ impl PlayerMenu {
     ) {
         let s = place.scale;
         let center = match frame {
+            // The cosmetics window keeps JoF's line inside its bottom edge.
+            _ if page == ClassicPage::Cosmetics => {
+                let [x, y, w, h] = window(page, frame);
+                [x + w * 0.5, y + h - 22.0]
+            }
             // The profile and creation pages frame the screen down to y 431,
             // so their line sits between the bottom buttons; the saber page
             // has a button there and room above.
@@ -1201,6 +1451,13 @@ impl PlayerMenu {
             TextAlign::Center,
         );
     }
+}
+
+/// A one-line box of text size `size` centred on the item's middle.
+fn line_rect(place: &Placement, canvas: [f32; 4], size: f32) -> Rect {
+    let line = size * 1.25;
+    let [x, y, w, h] = canvas;
+    place.rect([x, y + (h - line) * 0.5, w, line])
 }
 
 /// A window-relative retail rectangle on the canvas (full-screen pages are

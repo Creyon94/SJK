@@ -37,8 +37,8 @@ impl ViewerConsole {
             self.text_cvar("sex")?,
             self.text_cvar("saber1")?,
             self.text_cvar("saber2")?,
-            self.integer_cvar("color1").unwrap_or(4),
-            self.integer_cvar("color2").unwrap_or(4),
+            self.text_value("color1").unwrap_or("4"),
+            self.text_value("color2").unwrap_or("4"),
             [
                 self.integer_cvar("cp_sbRGB1").unwrap_or(0),
                 self.integer_cvar("cp_sbRGB2").unwrap_or(0),

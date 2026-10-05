@@ -89,6 +89,9 @@ pub struct PlayerProfile {
     pub force: ForceAllocation,
     /// Starting-health percentage requested from the server.
     pub handicap: u8,
+    /// JoF EJK's worn hat and cape, carried after the colour digits of
+    /// `color1` and `color2` (see [`crate::split_color_value`]).
+    pub cosmetics: [Option<String>; 2],
 }
 
 impl Default for PlayerProfile {
@@ -106,12 +109,15 @@ impl Default for PlayerProfile {
             character_color: [255; 3],
             force: ForceAllocation::default(),
             handicap: 100,
+            cosmetics: [None, None],
         }
     }
 }
 
 impl PlayerProfile {
     /// Construct a profile from the text forms stored by the cvar registry.
+    /// `color1` and `color2` are read as the legacy game reads them, the
+    /// colour with `atoi` and a JoF EJK cosmetic name after its digits.
     #[allow(clippy::too_many_arguments)]
     pub fn from_cvar_values(
         name: &str,
@@ -119,13 +125,15 @@ impl PlayerProfile {
         sex: &str,
         saber1: &str,
         saber2: &str,
-        color1: i64,
-        color2: i64,
+        color1: &str,
+        color2: &str,
         saber_rgb: [i64; 2],
         character_color: [i64; 3],
         forcepowers: &str,
         handicap: i64,
     ) -> Result<Self, PlayerProfileError> {
+        let (color1, hat) = crate::split_color_value(color1);
+        let (color2, cape) = crate::split_color_value(color2);
         Ok(Self {
             name: required(name, "name")?,
             model: required(model, "model")?,
@@ -143,6 +151,7 @@ impl PlayerProfile {
             ],
             force: ForceAllocation::parse(forcepowers)?,
             handicap: to_u8(handicap, "handicap")?,
+            cosmetics: [hat.map(str::to_owned), cape.map(str::to_owned)],
         })
     }
 
@@ -170,6 +179,7 @@ impl PlayerProfile {
             saber2: self.saber2.clone(),
             char_color: self.character_color,
             saber_rgb: [rgb(self.color1, self.rgb1), rgb(self.color2, self.rgb2)],
+            cosmetics: self.cosmetics.clone(),
             // Set from the player's cvar and applied per server profile.
             plugin_disable: None,
             password,

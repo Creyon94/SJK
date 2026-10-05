@@ -110,7 +110,11 @@ pub(super) struct Commands {
 
 /// Register command metadata and only the settings consumed by these services.
 pub(super) fn register(shell: &mut Shell, commands: &Commands) -> Result<(), Box<dyn Error>> {
-    for &(name, help) in COMMANDS.iter().chain(crate::shader_remaps::COMMANDS) {
+    for &(name, help) in COMMANDS
+        .iter()
+        .chain(crate::shader_remaps::COMMANDS)
+        .chain(crate::cosmetics::command::COMMANDS)
+    {
         if !shell.commands.contains(name) && shell.cvars.get(name).is_none() {
             shell.commands.register(name, help, |_| {
                 Err(sjk_shell::CommandError::Handler(
@@ -190,6 +194,7 @@ impl Commands {
         if !COMMANDS
             .iter()
             .chain(crate::shader_remaps::COMMANDS)
+            .chain(crate::cosmetics::command::COMMANDS)
             .any(|(name, _)| name.eq_ignore_ascii_case(&tokens[0]))
         {
             return None;
@@ -403,6 +408,7 @@ impl crate::GpuState {
                     .ok_or("No window to minimize")?
                     .set_minimized(true);
             }
+            "cosmetics" => return self.cosmetics_command(args),
             "remapshader" | "listremaps" | "clearremaps" => {
                 return self
                     .shader_remap_command(&name, args)

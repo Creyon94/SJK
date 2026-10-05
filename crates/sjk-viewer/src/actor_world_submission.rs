@@ -57,6 +57,8 @@ struct Sinks<'a> {
     viewer_force_powers_active: u32,
     /// `cg_speedTrail`.
     speed_trail: bool,
+    /// `cg_cosmetics`: whose hats and capes are drawn.
+    cosmetics: crate::cosmetics::Visibility,
     material_overrides: model_materials::Overrides,
     camera_position: Vec3,
     camera_yaw: f32,
@@ -117,6 +119,12 @@ pub(crate) fn submit(
         .and_then(|console| console.integer_cvar("cg_speedTrail"))
         .unwrap_or(1)
         != 0;
+    let cosmetics = crate::cosmetics::Visibility::from_cvar(
+        gpu.console
+            .as_ref()
+            .and_then(|console| console.integer_cvar(crate::cosmetics::VISIBILITY_CVAR))
+            .unwrap_or(1),
+    );
     let saber_contact = gpu.effect_aux.saber_contacts.enabled;
     let mut sinks = Sinks {
         flag_meshes: gpu.pickup_catalog.carrier_meshes[flags::model_set(
@@ -164,6 +172,7 @@ pub(crate) fn submit(
             .or_else(|| snapshot.map(|snapshot| snapshot.player.force_powers_active()))
             .unwrap_or(0),
         speed_trail,
+        cosmetics,
         material_overrides: gpu.model_material_overrides,
         camera_position: gpu.camera_position,
         camera_yaw: gpu.camera_yaw,
@@ -429,6 +438,29 @@ fn submit_actor(
             }
         } else {
             sinks.actor_groups[mesh].push(instance);
+        }
+        // JoF EJK's hat and cape, on the body's bolts (`CG_Player`).
+        if entity.kind == EntityKind::Actor {
+            // `EF_DEAD`; the local player's flags are its player state's.
+            const EF_DEAD: u32 = 1 << 1;
+            let flags = if local {
+                snapshot.map(|snapshot| snapshot.player.entity_flags())
+            } else {
+                state.map(sjk_protocol::EntityState::e_flags)
+            };
+            crate::cosmetics::actors::submit(
+                &sinks.actor_meshes[mesh].cosmetics,
+                &crate::cosmetics::actors::Frame {
+                    transform: *transform,
+                    visibility: sinks.cosmetics,
+                    local,
+                    draw_actor,
+                    view_flags: sinks.entity_view_flags,
+                    tricked: trick.fading,
+                    dead: flags.is_some_and(|flags| flags & EF_DEAD != 0),
+                },
+                sinks.object_groups,
+            );
         }
         // The copies share the actor's pose, scale, colour and view flags.
         for ghost in ghosts.into_iter().flatten() {

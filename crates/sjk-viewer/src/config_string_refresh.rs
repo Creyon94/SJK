@@ -177,9 +177,13 @@ impl GpuState {
             }
         });
         self.refresh_npc_actors();
+        self.refresh_cosmetics();
     }
 
-    fn load_config_model(&mut self, appearance: &Appearance) -> Result<(), Box<dyn Error>> {
+    pub(crate) fn load_config_model(
+        &mut self,
+        appearance: &Appearance,
+    ) -> Result<(), Box<dyn Error>> {
         if appearance.model.starts_with(['*', '$', '@'])
             || sjk_client::legacy_npc_body_model(&appearance.model)
             || self

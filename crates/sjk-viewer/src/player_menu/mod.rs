@@ -7,12 +7,15 @@
 
 mod classic;
 mod controller;
+mod cosmetics;
 mod force;
 mod force_icons;
+mod force_templates;
 mod force_view;
 mod grid;
 mod icons;
 mod numeric;
+mod part_icons;
 mod pointer;
 mod rows;
 mod saber;
@@ -65,6 +68,14 @@ pub(crate) enum PlayerMenuResult {
     ClassicPage(crate::menu::classic::layout::Page),
 }
 
+/// Where the classic profile shows the live model ([`crate::menu_stage::preview`]):
+/// its rectangle on the 640x480 canvas and the animation it plays.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct ModelPreview {
+    pub(crate) rect: [f32; 4],
+    pub(crate) stance: &'static str,
+}
+
 /// Which catalogue entry the `model` cvar currently names.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Choice {
@@ -100,6 +111,8 @@ pub(crate) struct PlayerMenu {
     icons: icons::IconLoader,
     /// The Force page's power icons and side emblems.
     force_icons: icons::IconLoader,
+    /// Character creation's part icons and tint base, for the species edited.
+    part_icons: part_icons::PartIcons,
     /// Skin set the grid lists (retail's Team Color chooser).
     team: TeamSkin,
     /// Catalogue indices (characters first, then species) the grid shows,
@@ -126,6 +139,10 @@ pub(crate) struct PlayerMenu {
     page: ProfilePage,
     saber: saber::SaberMenu,
     force: force::ForceMenu,
+    /// The classic Force page's templates (retail's `forcecfg`).
+    force_templates: force_templates::TemplateState,
+    /// JoF EJK's hats and capes (the classic cosmetics window).
+    cosmetics: cosmetics::CosmeticsMenu,
     /// `ui_menuStyle classic`: the retail profile pages instead of the
     /// hero form.
     classic_style: bool,
@@ -133,6 +150,8 @@ pub(crate) struct PlayerMenu {
     /// The character draft changed on entering a classic page and is not
     /// written yet.
     classic_dirty: bool,
+    /// The model preview has a frame to show (set by the renderer).
+    preview_ready: bool,
 }
 
 impl PlayerMenu {
@@ -143,6 +162,7 @@ impl PlayerMenu {
             icon_vfs: None,
             icons: icons::IconLoader::new(),
             force_icons: icons::IconLoader::new(),
+            part_icons: part_icons::PartIcons::new(),
             team: TeamSkin::default(),
             tiles: Vec::with_capacity(icons::MAX_ICONS),
             grid_scroll: 0,
@@ -160,9 +180,12 @@ impl PlayerMenu {
             page: ProfilePage::Character,
             saber: saber::SaberMenu::new(),
             force: force::ForceMenu::new(),
+            force_templates: force_templates::TemplateState::default(),
+            cosmetics: cosmetics::CosmeticsMenu::new(),
             classic_style: false,
             classic: classic::ClassicState::default(),
             classic_dirty: false,
+            preview_ready: false,
         }
     }
 
@@ -214,6 +237,7 @@ impl PlayerMenu {
     ) {
         self.icons.upload_batch(renderer, queue, 32);
         self.force_icons.upload_batch(renderer, queue, 32);
+        self.part_icons.upload(renderer, queue);
     }
 
     /// Start decoding the Force icons once the VFS is known, and the model

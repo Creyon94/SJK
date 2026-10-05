@@ -38,8 +38,20 @@ impl ViewerConsole {
                 user,
                 "Force rank, side, and power allocation",
             ),
-            CvarDefinition::new("color1", 4_i64, user, "Primary saber colour index"),
-            CvarDefinition::new("color2", 4_i64, user, "Secondary saber colour index"),
+            // Text, as in the legacy game: JoF EJK appends the worn hat
+            // (`color1`) and cape (`color2`) to the colour (`4santahat`).
+            CvarDefinition::new(
+                "color1",
+                "4",
+                user,
+                "Primary saber colour index, then the worn hat",
+            ),
+            CvarDefinition::new(
+                "color2",
+                "4",
+                user,
+                "Secondary saber colour index, then the worn cape",
+            ),
             CvarDefinition::new(
                 "cp_sbRGB1",
                 0_i64,

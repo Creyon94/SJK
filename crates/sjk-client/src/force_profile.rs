@@ -124,6 +124,32 @@ impl ForcePower {
     pub const fn is_team_power(self) -> bool {
         matches!(self, Self::TeamHeal | Self::TeamForce)
     }
+
+    /// Points level `level` (1 to 3) of this power costs in
+    /// `bgForcePowerCost`, the figure the legacy menu prints on its star;
+    /// 0 for any other level. See [`Self::level_is_free`] for the levels
+    /// granted without spending it.
+    pub const fn level_cost(self, level: u8) -> u8 {
+        if level == 0 || level > 3 {
+            return 0;
+        }
+        POWER_COSTS[self.index()][level as usize]
+    }
+
+    /// Whether `level` comes without points: Jump's first level always,
+    /// Saber Offense's and Defense's under free saber.
+    pub const fn level_is_free(self, level: u8, free_saber: bool) -> bool {
+        level == 1
+            && (matches!(self, Self::Levitation)
+                || free_saber && matches!(self, Self::SaberOffense | Self::SaberDefense))
+    }
+}
+
+/// Points a mastery rank (0 to 7, higher ranks clamp) grants to spend
+/// (`forceMasteryPoints`, `bg_misc.c`).
+pub const fn mastery_points(rank: u8) -> u16 {
+    let rank = if rank > 7 { 7 } else { rank };
+    MASTERY_POINTS[rank as usize]
 }
 
 /// Parsed player-selected Force allocation.
@@ -446,6 +472,33 @@ impl std::error::Error for ForceProfileError {}
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The published costs add up to what spending charges.
+    #[test]
+    fn level_costs_match_spending() {
+        assert_eq!(ForcePower::Push.level_cost(3), 6);
+        assert_eq!(ForcePower::Telepathy.level_cost(1), 4);
+        assert_eq!(ForcePower::Levitation.level_cost(1), 0);
+        assert_eq!(ForcePower::Heal.level_cost(0), 0);
+        assert_eq!(ForcePower::Heal.level_cost(4), 0);
+        assert!(ForcePower::Levitation.level_is_free(1, false));
+        assert!(!ForcePower::SaberOffense.level_is_free(1, false));
+        assert!(ForcePower::SaberDefense.level_is_free(1, true));
+        assert!(!ForcePower::SaberDefense.level_is_free(2, true));
+        assert_eq!(mastery_points(7), 100);
+        assert_eq!(mastery_points(9), 100);
+        for free_saber in [false, true] {
+            for power in ForcePower::ALL {
+                let mut levels = [0; FORCE_POWER_COUNT];
+                levels[power.index()] = 3;
+                let charged: u16 = (1..=3)
+                    .filter(|level| !power.level_is_free(*level, free_saber))
+                    .map(|level| u16::from(power.level_cost(level)))
+                    .sum();
+                assert_eq!(used_points(&levels, free_saber), charged, "{power:?}");
+            }
+        }
+    }
 
     /// `side` and `is_team_power` must agree with what legalization strips.
     #[test]

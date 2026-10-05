@@ -1,6 +1,6 @@
 //! Draft state and catalogue filtering for the saber page.
 
-use super::controller::{cvar_u8, wrap};
+use super::controller::wrap;
 use super::rows::SaberRow;
 use super::*;
 use crate::saber::Color;
@@ -107,8 +107,8 @@ impl SaberMenu {
             .unwrap_or("single_1")
             .to_owned();
         self.draft.secondary = console.text_value("saber2").unwrap_or("none").to_owned();
-        self.draft.color1 = cvar_u8(console, "color1", 4).min(RGB_COLOR_INDEX);
-        self.draft.color2 = cvar_u8(console, "color2", 4).min(RGB_COLOR_INDEX);
+        self.draft.color1 = colour_cvar(console, "color1").min(RGB_COLOR_INDEX);
+        self.draft.color2 = colour_cvar(console, "color2").min(RGB_COLOR_INDEX);
         for (slot, cvar) in self.draft.rgb.iter_mut().zip(["cp_sbRGB1", "cp_sbRGB2"]) {
             let packed = console
                 .integer_cvar(cvar)
@@ -334,8 +334,16 @@ impl SaberMenu {
     pub(super) fn apply(&mut self, console: &mut ViewerConsole) {
         console.set_cvar("saber1", &self.draft.primary);
         console.set_cvar("saber2", &self.draft.secondary);
-        console.set_cvar("color1", &self.draft.color1.to_string());
-        console.set_cvar("color2", &self.draft.color2.to_string());
+        // The colour keys also carry the worn hat and cape (JoF EJK's
+        // `CG_SetSaberColorCvar` keeps them the same way).
+        for (cvar, colour) in [("color1", self.draft.color1), ("color2", self.draft.color2)] {
+            let worn = console
+                .text_value(cvar)
+                .and_then(|value| sjk_client::split_color_value(value).1)
+                .map(str::to_owned);
+            let value = sjk_client::join_color_value(i64::from(colour), worn.as_deref());
+            console.set_cvar(cvar, &value);
+        }
         for (slot, cvar) in self.draft.rgb.iter().zip(["cp_sbRGB1", "cp_sbRGB2"]) {
             let packed = slot.map_or(0, pack_saber_rgb);
             console.set_cvar(cvar, &packed.to_string());
@@ -354,6 +362,16 @@ impl SaberMenu {
             .filter(|hilt| allowed(hilt, style))
             .count()
     }
+}
+
+/// The saber colour of a `color1`/`color2` value (`atoi`, so a worn
+/// cosmetic after the digits does not change it); blue when unset.
+fn colour_cvar(console: &ViewerConsole, cvar: &str) -> u8 {
+    console
+        .text_value(cvar)
+        .map(|value| sjk_client::split_color_value(value).0)
+        .and_then(|colour| u8::try_from(colour).ok())
+        .unwrap_or(4)
 }
 
 fn find_hilt<'a>(catalog: &'a LegacyAssetCatalog, name: &str) -> Option<&'a LegacySaberDefinition> {

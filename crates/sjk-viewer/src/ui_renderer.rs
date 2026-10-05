@@ -13,9 +13,13 @@ use emblem::EmblemTextures;
 use icons::IconAtlas;
 pub(crate) use icons::{
     ATLAS_CELLS, BANNER_SIZE, BANNER_TEXTURE, FORCE_ICON_CELLS, FORCE_ICON_FIRST, ICON_CELLS,
-    ICON_SIZE, SCOREBOARD_ICON_CELLS,
+    ICON_SIZE, PART_ICON_CELLS, PART_ICON_FIRST, SCOREBOARD_ICON_CELLS,
 };
 pub(crate) use levelshot::LEVELSHOT_TEXTURE;
+
+/// `TexturedQuad` texture naming the classic profile's model preview
+/// (`menu_stage::preview`), bound by [`ShapeRenderer::set_preview`].
+pub(crate) const PREVIEW_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(u32::MAX - 2);
 use levelshot::LevelshotTexture;
 
 /// Main-menu wordmark: the Jedi Knight saber emblem laid horizontal, white
@@ -90,6 +94,9 @@ pub(crate) struct ShapeRenderer {
     emblem: EmblemTextures,
     /// The current map preview at its own resolution.
     levelshot: LevelshotTexture,
+    /// The model preview's display texture, once one exists.
+    preview: Option<wgpu::BindGroup>,
+    preview_sampler: wgpu::Sampler,
 }
 
 impl ShapeRenderer {
@@ -183,6 +190,13 @@ impl ShapeRenderer {
             art: ArtTextures::new(),
             emblem: EmblemTextures::new(),
             levelshot,
+            preview: None,
+            preview_sampler: device.create_sampler(&wgpu::SamplerDescriptor {
+                label: Some("SJK model preview sampler"),
+                mag_filter: wgpu::FilterMode::Linear,
+                min_filter: wgpu::FilterMode::Linear,
+                ..Default::default()
+            }),
         };
         // Artwork decoded for an earlier world is uploaded with this one, on
         // the install worker rather than the frame thread.
@@ -343,9 +357,10 @@ impl ShapeRenderer {
                         continue;
                     };
                     let uv = match source {
-                        Source::Art(_) | Source::Emblem(_) | Source::Levelshot => {
-                            ([0.0, 0.0], [1.0, 1.0])
-                        }
+                        Source::Art(_)
+                        | Source::Emblem(_)
+                        | Source::Levelshot
+                        | Source::Preview => ([0.0, 0.0], [1.0, 1.0]),
                         Source::Atlas => icons::uv_range(texture),
                     };
                     icons::push_quad(
@@ -371,7 +386,10 @@ impl ShapeRenderer {
                     // the quad is not clipped, as clipping would need its
                     // coordinates cut to match.
                     let uv = match source {
-                        Source::Art(_) | Source::Emblem(_) | Source::Levelshot => uv,
+                        Source::Art(_)
+                        | Source::Emblem(_)
+                        | Source::Levelshot
+                        | Source::Preview => uv,
                         Source::Atlas => {
                             let (low, high) = icons::uv_range(texture);
                             uv.map(|[s, t]| {
@@ -419,6 +437,10 @@ impl ShapeRenderer {
             }
             Some(_) => return None,
             None if texture == LEVELSHOT_TEXTURE => Source::Levelshot,
+            None if texture == PREVIEW_TEXTURE => match self.preview {
+                Some(_) => Source::Preview,
+                None => return None,
+            },
             None => match crate::menu::emblem::EmblemLayer::from_texture(texture) {
                 Some(layer) if self.emblem.group(layer).is_some() => Source::Emblem(layer),
                 Some(_) => return None,
@@ -454,6 +476,7 @@ impl ShapeRenderer {
                 Source::Art(piece) => self.art.group(piece),
                 Source::Emblem(layer) => self.emblem.group(layer),
                 Source::Levelshot => Some(self.levelshot.bind_group()),
+                Source::Preview => self.preview.as_ref(),
                 Source::Atlas => None,
             };
             pass.set_bind_group(0, group.unwrap_or(self.icons.bind_group()), &[]);
@@ -548,6 +571,25 @@ impl ShapeRenderer {
         rgba: &[u8],
     ) {
         self.icons.upload(queue, texture, rgba);
+    }
+
+    /// Sample `view` for `TexturedQuad` commands naming [`PREVIEW_TEXTURE`]
+    /// (the model preview's display texture, after it is made or resized).
+    pub(crate) fn set_preview(&mut self, device: &wgpu::Device, view: &wgpu::TextureView) {
+        self.preview = Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
+            label: Some("SJK model preview UI binding"),
+            layout: &self.texture_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(&self.preview_sampler),
+                },
+            ],
+        }));
     }
 
     /// Replace the map preview sampled by `TexturedQuad` commands naming
