@@ -31,6 +31,7 @@ impl GpuState {
             }
             Page::ConfirmLeave => self.disconnect_to_menu(),
             Page::ConfirmQuit => self.quit_requested = true,
+            Page::Sjk => self.activate_sjk_row(),
             Page::Vote => {
                 // Retail votes and closes the menu (`uiScript closeingame`).
                 self.send_vote(row == YES);
@@ -59,6 +60,7 @@ impl GpuState {
             return;
         }
         match tab {
+            Tab::Sjk => self.open_game_menu_page(Page::Sjk),
             Tab::About => {
                 let game_state = self.live_session.as_ref().map(ClientSession::game_state);
                 self.in_game_menu

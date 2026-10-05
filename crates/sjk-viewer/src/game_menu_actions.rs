@@ -64,6 +64,7 @@ impl GpuState {
                 _ => self.game_menu_row = 0,
             },
             GameMenuPage::About => self.open_game_menu_page(GameMenuPage::Main),
+            GameMenuPage::Sjk => self.activate_sjk_row(),
             GameMenuPage::Leave => self.activate_leave_row(),
             page if page.is_vote_page() => self.activate_callvote_row(page),
             _ => {}
@@ -81,7 +82,8 @@ impl GpuState {
             }
             2 => self.open_browser_from_game(),
             3 => self.open_player_menu_from_game(),
-            4 => {
+            4 => self.open_game_menu_page(GameMenuPage::Sjk),
+            5 => {
                 let game_state = self
                     .live_session
                     .as_ref()
@@ -90,9 +92,9 @@ impl GpuState {
                     .refresh_about(game_state, self.last_connect_address.as_deref());
                 self.open_game_menu_page(GameMenuPage::About);
             }
-            5 => self.open_settings_from_game(0),
-            6 => self.open_settings_from_game(crate::settings::SettingsMenu::keybinds_tab()),
-            7 => {
+            6 => self.open_settings_from_game(0),
+            7 => self.open_settings_from_game(crate::settings::SettingsMenu::keybinds_tab()),
+            8 => {
                 let game_state = self
                     .live_session
                     .as_ref()
@@ -101,13 +103,28 @@ impl GpuState {
                     .refresh_callvote(game_state, self.vfs.as_deref());
                 self.open_game_menu_page(GameMenuPage::CallVote);
             }
-            8 if active => self.send_vote(true),
-            9 if active => self.send_vote(false),
-            row if row == if active { 10 } else { 8 } => self.open_shot_panel(),
-            row if row == if active { 11 } else { 9 } => {
+            9 if active => self.send_vote(true),
+            10 if active => self.send_vote(false),
+            row if row == if active { 11 } else { 9 } => self.open_shot_panel(),
+            row if row == if active { 12 } else { 10 } => {
                 self.open_game_menu_page(GameMenuPage::Leave)
             }
             _ => {}
+        }
+    }
+
+    /// An entry of the SJK pop-up ([`ingame_menu::sjk`]); past them, Back.
+    pub(crate) fn activate_sjk_row(&mut self) {
+        match self.game_menu_row {
+            ingame_menu::sjk::CHANGELOG => {
+                // Drawn by the console over the game menu, which shows again
+                // when the page closes.
+                if let Some(console) = &mut self.console {
+                    console.open_changelog();
+                }
+                self.sync_cursor_policy();
+            }
+            _ => self.back_or_close_game_menu(),
         }
     }
 

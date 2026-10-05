@@ -1114,6 +1114,17 @@ test: On a server with a player named with a symbol (Alt+0215), challenge them t
 test: No crash; the centre print and console show the symbol, not ?.
 test: Have them challenge you: same result.
 
+[sjk-ingame-menu]
+status: personal
+area: Menus & settings
+title: Classic+ changelog page, and an in-game SJK button with the changelog
+change: With classic menus the changelog page has the classic+ pop-up look (retail font and art).
+change: In-game bar: SJK button left of About opens a pop-up with Changelog (modern: SJK row).
+test: Classic menus: main menu > CHANGELOG shows the blue pop-up; scroll a long release.
+test: In a match, Escape: SJK is the first bar button; its pop-up's Changelog opens the page.
+test: Escape closes the page back to the bar; Escape again closes the pop-up, then the menu.
+test: ui_menuStyle modern: the game menu's SJK row opens Changelog / Back.
+
 [flipkick]
 status: personal
 area: Input

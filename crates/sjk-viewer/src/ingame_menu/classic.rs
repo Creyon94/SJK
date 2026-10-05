@@ -1,6 +1,7 @@
 //! Classic in-game menu (`ui_menuStyle classic`), after the retail
 //! `ui/jamp/ingame.menu`: a bar of nine buttons along the top of the screen
 //! (About, Join, Profile, Add Bot, Controls, Setup, Vote, Call Vote, Exit),
+//! after SJK's own button left of About (its pop-up is [`super::sjk`]),
 //! each opening a small pop-up under it, laid out like the retail
 //! `ingame_*.menu` files.
 //!
@@ -19,12 +20,17 @@ use super::{Page, View};
 pub(crate) const BAR_TOKEN: u16 = 200;
 /// Height of the retail bar (`menu_top_mp`, `0 0 640 32`).
 pub(crate) const BAR_HEIGHT: f32 = 32.0;
+/// Width of the SJK button, and of each retail button beside it.
+const SJK_WIDTH: f32 = 45.0;
+const RETAIL_WIDTH: f32 = 65.0;
 /// Top of every pop-up (`rect x 40 ...` in the retail pop-up menus).
 pub(crate) const POPUP_TOP: f32 = 40.0;
 
 /// One button of the bar, in retail order.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Tab {
+    /// SJK: SJK's own screens.
+    Sjk,
     About,
     /// Join a team (or, in Siege, choose a class).
     Join,
@@ -41,7 +47,8 @@ pub(crate) enum Tab {
 
 impl Tab {
     /// Every button, left to right.
-    pub(crate) const ALL: [Self; 9] = [
+    pub(crate) const ALL: [Self; 10] = [
+        Self::Sjk,
         Self::About,
         Self::Join,
         Self::Profile,
@@ -66,6 +73,7 @@ impl Tab {
     /// Retail caption; Siege swaps two buttons as retail does.
     pub(crate) fn label(self, siege: bool) -> &'static str {
         match (self, siege) {
+            (Self::Sjk, _) => "SJK",
             (Self::About, _) => "About",
             (Self::Join, _) => "Join",
             (Self::Profile, false) => "Profile",
@@ -90,15 +98,25 @@ impl Tab {
         }
     }
 
-    /// Canvas rectangle of the button (retail `5 + 70 i, 0, 70, 32`).
+    /// Canvas rectangle of the button. Retail's nine are `5 + 70 i, 0, 70, 32`;
+    /// SJK's narrower button takes the left end and the nine close up to fit.
     pub(crate) fn rect(self) -> [f32; 4] {
-        [5.0 + 70.0 * self.index() as f32, 0.0, 70.0, BAR_HEIGHT]
+        match self.index() {
+            0 => [5.0, 0.0, SJK_WIDTH, BAR_HEIGHT],
+            index => [
+                5.0 + SJK_WIDTH + RETAIL_WIDTH * (index - 1) as f32,
+                0.0,
+                RETAIL_WIDTH,
+                BAR_HEIGHT,
+            ],
+        }
     }
 
     /// The bar button whose pop-up `page` is, if it has one.
     pub(crate) fn of_page(page: Page) -> Option<Self> {
         match page {
             Page::Main | Page::Shot => None,
+            Page::Sjk => Some(Self::Sjk),
             Page::About => Some(Self::About),
             Page::Team | Page::Siege => Some(Self::Join),
             Page::Vote => Some(Self::Vote),
@@ -141,6 +159,8 @@ const RESTART_NOTE: &str = "Not in SJK yet: call a vote to restart (Call Vote)";
 pub(crate) fn row_count(page: Page, team_game: bool) -> Option<usize> {
     match page {
         Page::Main => Some(Tab::ALL.len()),
+        // Retail pop-ups have no Back button.
+        Page::Sjk => Some(super::sjk::ENTRIES.len()),
         Page::Leave => Some(3),
         Page::Vote | Page::ConfirmLeave | Page::ConfirmQuit => Some(2),
         // Retail's join pop-up has no Back button.
@@ -160,6 +180,12 @@ pub(super) fn prepare(view: &View<'_>, rows: &mut [String], enabled: &mut [bool]
                 enabled[index] = tab.unavailable(view.siege).is_none();
             }
             return Some(Tab::ALL.len());
+        }
+        Page::Sjk => {
+            for (index, entry) in super::sjk::ENTRIES.iter().enumerate() {
+                rows[index].push_str(entry.label);
+            }
+            return Some(super::sjk::ENTRIES.len());
         }
         Page::Leave => &["Main Menu", "Restart Match", "Quit Program"],
         Page::Vote | Page::ConfirmLeave | Page::ConfirmQuit => &["Yes", "No"],
@@ -206,6 +232,7 @@ pub(crate) const INFO_LINE: f32 = 20.0;
 /// read-only lines, at the retail pop-up positions.
 pub(crate) fn popup(page: Page, rows: usize, info: usize) -> [f32; 4] {
     let (x, width) = match page {
+        Page::Sjk => (5.0, 150.0),
         Page::About => (10.0, 380.0),
         Page::Team => (55.0, 128.0),
         Page::Siege => (55.0, 240.0),
@@ -243,6 +270,7 @@ mod tests {
         assert_eq!(
             labels,
             [
+                "SJK",
                 "About",
                 "Join",
                 "Profile",
@@ -291,6 +319,7 @@ mod tests {
     fn prepared_rows_match_row_counts() {
         for (page, team_game) in [
             (Page::Main, false),
+            (Page::Sjk, false),
             (Page::Leave, false),
             (Page::Vote, false),
             (Page::ConfirmLeave, false),
@@ -325,6 +354,7 @@ mod tests {
     #[test]
     fn every_popup_sits_under_its_button_on_the_canvas() {
         for page in [
+            Page::Sjk,
             Page::About,
             Page::Team,
             Page::Siege,

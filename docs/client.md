@@ -311,8 +311,13 @@ back to the bar. Switching the Menu style (on Interface) while a panel is
 open continues on the modern settings screen.
 
 The classic in-game menu (Escape during a match) is the retail top bar: About,
-Join, Profile, Add Bot, Controls, Setup, Vote, Call Vote and Exit. Each opens a
-pop-up under it or the matching screen. About shows the server info. Join picks
+Join, Profile, Add Bot, Controls, Setup, Vote, Call Vote and Exit, after SJK's
+own SJK button at its left end (the retail nine close up to 65 units to make
+room). Each opens a pop-up under it or the matching screen. SJK's pop-up holds
+SJK's own screens, for now the [changelog page](#changelog-page)
+([ingame_menu/sjk.rs](../crates/sjk-viewer/src/ingame_menu/sjk.rs) lists them);
+the modern game menu has the same pop-up as its SJK row, before Server info.
+About shows the server info. Join picks
 a team, or opens the class list in Siege; in a team game Team Red and Team Blue
 carry their flag (`gfx/hud/mpi_rflag`, `mpi_bflag`) and the team's player count. Vote is Yes/No. Call Vote opens the
 call-vote lists. Exit offers Main Menu, Restart Match and Quit Program, each
@@ -997,8 +1002,8 @@ the same build at startup (`build: SJK ...`). How the version is decided is in
 ## Changelog page
 
 The main menu's Changelog entry (modern list, and a CHANGELOG button under
-PROFILE on the classic page) and the `changelog` console command show every SJK
-release from [CHANGELOG.md](../CHANGELOG.md), built into the client
+PROFILE on the classic page), the in-game SJK pop-up's Changelog and the
+`changelog` console command show every SJK release from [CHANGELOG.md](../CHANGELOG.md), built into the client
 ([changelog.rs](../crates/sjk-viewer/src/changelog.rs), parsed by
 [changelog_data.rs](../crates/sjk-viewer/src/changelog_data.rs)). Releases are
 listed newest first on the left, "Unreleased" (the changes on `main` since the
@@ -1007,8 +1012,13 @@ and its changes, wrapped to the pane, each followed by its credit in capitals.
 Up and Down (or a click) pick a release; Page Up, Page Down, the wheel over the
 pane and its scrollbar scroll it; Escape closes. Like the `debug_panel` list the
 page lives in the console and is drawn in its place, so it opens over the menus
-and in a match, and closes the console with itself when it opened it. How the
-file is kept is in [SJK conventions](sjk.md#changelog).
+and in a match, and closes the console with itself when it opened it. With
+`ui_menuStyle classic` it takes the classic+ look of the command browser's
+pop-up ([changelog_classic.rs](../crates/sjk-viewer/src/changelog_classic.rs)):
+the in-game pop-up box and title band, a retail list box of releases, a detail
+box with the release and its credits in gold, a Close button and the
+description line, in the menus' retail font. How the file is kept is in
+[SJK conventions](sjk.md#changelog).
 
 ## Force wheel
 

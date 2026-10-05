@@ -548,6 +548,12 @@ impl ViewerConsole {
         self.browser.set_look(classic, art);
     }
 
+    /// The changelog page follows the menu style: classic+ with the classic
+    /// menus, with the retail menu `art` it can use.
+    pub(crate) fn set_changelog_look(&mut self, classic: bool, art: crate::menu::art::ArtSet) {
+        self.changelog.set_look(classic, art);
+    }
+
     /// Open the command browser on a search, for the menu snapshots.
     #[cfg(test)]
     pub(crate) fn open_browser_on(&mut self, filter: &str) {
@@ -556,8 +562,12 @@ impl ViewerConsole {
         self.browser.search_for_snapshot(filter);
     }
 
-    /// Whether the open browser is the classic+ one, drawn in the menus' font.
+    /// Whether the open full-frame page (the browser or the changelog) is the
+    /// classic+ one, drawn in the menus' font.
     pub(crate) fn classic_browser_open(&self) -> bool {
+        if self.changelog.is_open() {
+            return self.open && self.changelog.is_classic();
+        }
         self.open && self.browser.is_open() && self.browser.is_classic()
     }
 

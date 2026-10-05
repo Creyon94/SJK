@@ -409,6 +409,19 @@ the box without overlapping; menu snapshots (`console-browser-classic`,
 `console-browser-modern`) were looked at. Not tried in a game: the retail font's
 fit in the rows and pointer use are unverified.
 
+## In-game SJK menu and classic+ changelog (SJK)
+
+SJK-only branch `personal/sjk-menu` (06/10/2026, based on `75bec2e`): the
+changelog page takes the classic+ pop-up look with the classic menus, and the
+in-game menu gains an SJK button left of About on the classic bar (an SJK row in
+the modern menu) whose pop-up opens the changelog; more SJK screens are to be
+added there ([ingame_menu/sjk.rs](../crates/sjk-viewer/src/ingame_menu/sjk.rs)).
+See [client.md](client.md#changelog-page). Unit tests cover the bar's order and
+fit, the pop-up's rows and position, and the classic page's geometry; the
+sjk-viewer tests and clippy passed. Off-screen snapshots drew the classic+ page
+and the bar with the SJK pop-up. No game was started: both are unverified in the
+running client.
+
 ## Changelog page (SJK)
 
 SJK-only branch `personal/changelog` (06/10/2026, based on `86ad1be`) adds
