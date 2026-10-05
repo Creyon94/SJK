@@ -5,8 +5,8 @@
 //! The programs read three variables at compile time:
 //!
 //! - `SJK_BUILD_VERSION`: `SJK_VERSION` when the build sets it (the release
-//!   workflow sets it from the `sjk-v<version>` tag), otherwise the Cargo package
-//!   version with `-dev`, so a local build never passes for a release;
+//!   workflow sets it from the `sjk-v<version>` tag, a date version such as
+//!   `2026.1005.1`), otherwise `dev`, so a local build never passes for a release;
 //! - `SJK_BUILD_COMMIT`: the source commit's short hash;
 //! - `SJK_BUILD_COMMIT_TIME`: its committer time, strict ISO 8601 with offset.
 //!
@@ -25,12 +25,7 @@ pub fn emit() -> String {
     }
     let manifest = std::env::var("CARGO_MANIFEST_DIR").unwrap_or_else(|_| ".".into());
     let directory = Path::new(&manifest);
-    let version = variable("SJK_VERSION").unwrap_or_else(|| {
-        format!(
-            "{}-dev",
-            std::env::var("CARGO_PKG_VERSION").unwrap_or_else(|_| "0.0.0".into())
-        )
-    });
+    let version = variable("SJK_VERSION").unwrap_or_else(|| "dev".into());
     let commit = git(directory, &["rev-parse", "--short=7", "HEAD"])
         .or_else(|| variable("SJK_COMMIT"))
         .unwrap_or_default();

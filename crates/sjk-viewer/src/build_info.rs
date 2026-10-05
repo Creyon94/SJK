@@ -82,14 +82,11 @@ mod tests {
     #[test]
     fn label_leaves_out_what_the_build_did_not_know() {
         assert_eq!(
-            format_label("0.1.0-alpha.3", "2026-10-05T19:56:05+02:00", "474caf6"),
-            "SJK 0.1.0-alpha.3 \u{b7} 05/10/2026 19:56 \u{b7} 474caf6"
+            format_label("2026.1005.1", "2026-10-05T19:56:05+02:00", "474caf6"),
+            "SJK 2026.1005.1 \u{b7} 05/10/2026 19:56 \u{b7} 474caf6"
         );
-        assert_eq!(format_label("0.1.0-dev", "", ""), "SJK 0.1.0-dev");
-        assert_eq!(
-            format_label("0.1.0-dev", "", "474caf6"),
-            "SJK 0.1.0-dev \u{b7} 474caf6"
-        );
+        assert_eq!(format_label("dev", "", ""), "SJK dev");
+        assert_eq!(format_label("dev", "", "474caf6"), "SJK dev \u{b7} 474caf6");
     }
 
     #[test]

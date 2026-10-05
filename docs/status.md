@@ -1045,7 +1045,7 @@ SJK-only branch `personal/version-overlay` (05/10/2026, based on `3f57938`): the
 client draws `SJK <version> · <dd/mm/yyyy HH:MM> · <commit>` at the top centre of
 every frame (`cg_drawVersion`, default on) and logs it at startup; the version
 comes from one build script for both programs (`SJK_VERSION` in releases,
-`<package>-dev` otherwise), and the classic console's corner clock reads
+`dev` otherwise; releases are numbered by date, see [SJK conventions](sjk.md#version)), and the classic console's corner clock reads
 `Sun 04/10/2026 22:52:10` instead of EternalJK's 12-hour `asctime`. See
 [version label](client.md#version-label) and [SJK conventions](sjk.md#version).
 Unit tests cover the date formatting, the label's parts and the console clock;

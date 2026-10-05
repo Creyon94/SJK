@@ -60,10 +60,14 @@ names and emblem are not licensed with the code (see `NOTICE`).
 ## Version
 
 One file decides the programs' version: [build_version.rs](../scripts/build_version.rs),
-which both programs' `build.rs` include. A release build gets the version of its
-`sjk-v<version>` tag through `SJK_VERSION`, which the release workflow sets; any
-other build has the Cargo package version with `-dev` (`0.1.0-dev`), so a local
-build never passes for a release. The source commit's short hash and committer
+which both programs' `build.rs` include. Releases are numbered by date and a
+counter, `YYYY.MMDD.N`: the first release of 05/10/2026 is `2026.1005.1`, a second
+one that day `2026.1005.2` (Sol's choice, 05/10/2026). The form sorts, is a valid
+Cargo and Windows version, and is tagged `sjk-v2026.1005.1`; people see the date
+itself day first in the label below. A release build gets the version of its tag
+through `SJK_VERSION`, which the release workflow sets; any other build says `dev`,
+so a local build never passes for a release. The Cargo package version (`0.1.0`)
+is not the release number. The source commit's short hash and committer
 time come from git when the source is a checkout, else from `SJK_COMMIT` and
 `SJK_COMMIT_TIME`, else they are left out. A build is redone when `HEAD` moves;
 uncommitted edits keep the last commit's label. The client shows
@@ -106,9 +110,10 @@ changed dependencies.
 | [Pages](../.github/workflows/pages.yml) | Pushes to `main` changing `site/` or the workflow | Publishes `site/` to https://sol-vulpes.github.io/SJK/ |
 | [SJK release](../.github/workflows/release.yml) | Tags `sjk-v<version>` | Builds and publishes the release ZIPs |
 
-Release tags exist only on SJK and are created by Sol. Alphas are not marked as
-pre-releases, so the site's download link (`releases/latest`) finds them; their
-name and notes say "Alpha" instead.
+Release tags exist only on SJK and are created on Sol's request. The release
+title carries the stage, "Sol JK 2026.1005.1 (Alpha)" (`STAGE` in the workflow).
+Alphas are not marked as pre-releases, so the site's download link
+(`releases/latest`) finds them; their name and notes say "Alpha" instead.
 
 ## Debug panel
 

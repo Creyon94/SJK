@@ -951,8 +951,8 @@ find.
 
 The client draws its build label small at the top centre of every frame, in
 menus and in play, so a screenshot says which build it shows:
-`SJK <version> · <dd/mm/yyyy HH:MM> · <commit>`, the release version (or the
-package version with `-dev`), the source commit's date and time on the 24-hour
+`SJK <version> · <dd/mm/yyyy HH:MM> · <commit>`, the release version (a date
+version such as `2026.1005.1`, or `dev` for a local build), the source commit's date and time on the 24-hour
 clock, and its short hash ([version_overlay.rs](../crates/sjk-viewer/src/version_overlay.rs),
 [build_info.rs](../crates/sjk-viewer/src/build_info.rs)). The top centre is free in
 the stock and game-data HUDs (gauges at the bottom corners, the FPS counter and
