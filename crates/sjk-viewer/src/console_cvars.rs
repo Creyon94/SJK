@@ -394,6 +394,20 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             archive,
             "Display the Force Seeing aura shell on other players",
         ),
+        // JoF EJK's: 1 shows your own movement from the server, 2 also its angles.
+        CvarDefinition::new(
+            "cg_noPredict",
+            0_i64,
+            CvarFlags::NONE,
+            "Skip movement prediction: 1 shows the server's position, 2 its angles too",
+        ),
+        // JoF EJK's `/fakenoclip`: fly locally while the server sees you standing still.
+        CvarDefinition::new(
+            "cg_fakeNoclip",
+            0_i64,
+            CvarFlags::NONE,
+            "Fly client-side while the server sees you standing still (use /fakenoclip)",
+        ),
         // JoF EJK's: 0 hides all hats and capes, 1 shows everyone's, 2 only yours.
         CvarDefinition::new(
             crate::cosmetics::VISIBILITY_CVAR,

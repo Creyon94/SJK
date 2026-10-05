@@ -72,6 +72,7 @@ mod frame_pacing;
 mod frame_queue;
 mod frame_split;
 
+mod fake_noclip;
 mod frame_target;
 mod game_font;
 mod game_menu_actions;

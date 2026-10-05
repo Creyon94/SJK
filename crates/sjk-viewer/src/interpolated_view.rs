@@ -3,7 +3,28 @@
 
 use super::GpuState;
 use glam::Vec3;
-use sjk_protocol::{GameState, Snapshot};
+use sjk_game_jka::prediction_policy::{self, Interpolation, NoPredict};
+use sjk_protocol::{GameState, PlayerState, Snapshot};
+
+/// Whether the local view is the server's rather than predicted, and how
+/// (`CG_PredictPlayerState`): following, a synchronous server, `cg_noPredict`, or a
+/// JA+ kick victim.
+pub(crate) fn mode(
+    console: Option<&crate::console::ViewerConsole>,
+    game: &GameState,
+    player: &PlayerState,
+) -> Option<Interpolation> {
+    let no_predict = console
+        .and_then(|console| console.integer_cvar("cg_noPredict"))
+        .unwrap_or(0);
+    prediction_policy::interpolation(
+        player,
+        NoPredict(no_predict),
+        !crate::local_prediction::predicts_local_view(player.movement_flags()),
+        server_synchronous(game),
+        || sjk_game_jka::pmove_japlus::JaPlusRules::from_game_state(game).enabled,
+    )
+}
 
 pub(crate) fn server_synchronous(game: &GameState) -> bool {
     game.config_string(1)
@@ -57,17 +78,16 @@ pub(crate) fn present(gpu: &mut GpuState, time: i32) {
     if matches!(latest.player.movement_type(), 7 | 8) {
         return;
     }
-    let following = latest.player.movement_flags() & 4096 != 0;
-    if !following && !server_synchronous(session.game_state()) {
+    let Some(mode) = mode(gpu.console.as_ref(), session.game_state(), &latest.player) else {
         return;
-    }
+    };
     let previous = session.snapshot_at_or_before(time);
     let next = session
         .snapshot_after(previous.server_time)
         .unwrap_or(previous);
     let (eye, angles) = sample(previous, next, time);
     gpu.camera_position = Vec3::from_array(eye);
-    if following {
+    if mode == Interpolation::ServerAngles {
         gpu.camera_pitch = -angles[0].to_radians();
         gpu.camera_yaw = angles[1].to_radians();
     }

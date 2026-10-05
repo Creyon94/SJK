@@ -17,6 +17,7 @@ impl LocalPrediction {
             player.client_num(),
             player.vehicle_entity_num(),
         );
+        let snapping_back = std::mem::take(&mut self.snap_back);
         let teleported =
             self.previous_player
                 .replace(current)
@@ -24,13 +25,32 @@ impl LocalPrediction {
                     (flags ^ current.0) & EF_TELEPORT_BIT != 0
                         || client != current.1
                         || vehicle != current.2
-                });
+                })
+                || snapping_back;
         if teleported {
             // A teleport can skip the old command endpoint entirely. Clear
             // existing view error now, and do not smooth this discontinuity.
             self.error = PredictionErrorDecay::new(self.error.decay_millis());
         }
         let acknowledged = player.command_time();
+        if self.fake_noclip {
+            // `cg_predict.c:1355-1390`: the predicted state is not reseeded from the snapshot,
+            // so the flight is not pulled back. The commands it acknowledges are done with.
+            self.pending
+                .retain(|command| command.server_time > acknowledged);
+            self.last_acknowledged = acknowledged;
+            self.physics_movers.update(snapshot, self.presentation_time);
+            self.physics_movers
+                .present_boxes(&self.render_movers, self.presentation_time);
+            self.last_sample = PredictionSample {
+                pending: self.pending.len(),
+                ..PredictionSample::default()
+            };
+            return self.predictor.as_ref().map_or_else(
+                || Vec3::from_array(player.origin()) + Vec3::Z * self.view_height,
+                |predictor| Vec3::from_array(predictor.state().origin) + Vec3::Z * self.view_height,
+            );
+        }
         let status = CommandStatus::classify(
             acknowledged,
             self.last_acknowledged,

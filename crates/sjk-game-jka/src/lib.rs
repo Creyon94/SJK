@@ -265,6 +265,7 @@ pub mod pmove_locomotion;
 pub mod pmove_posture;
 pub mod pmove_roll;
 pub mod pmove_talk;
+pub mod prediction_policy;
 pub mod vote;
 
 pub mod arenas;

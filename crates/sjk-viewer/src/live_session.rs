@@ -212,15 +212,19 @@ impl GpuState {
         if let Some(console) = &self.console {
             session.set_packet_dup(console.packet_dup());
         }
-        if let Err(error) = session.send_command(&command) {
+        let sent = self.local_prediction.command_for_server(command);
+        if let Err(error) = session.send_command(&sent) {
             self.session_disconnected(error.to_string());
             return;
         }
         self.gameplay_input.finish_command();
         if !intermission
-            && let Some(position) =
-                self.local_prediction
-                    .apply_command(command, &self.bsp, &mut self.trace_scratch)
+            && let Some(position) = self.local_prediction.apply_command(
+                command,
+                sent,
+                &self.bsp,
+                &mut self.trace_scratch,
+            )
         {
             self.camera_position = position;
         }

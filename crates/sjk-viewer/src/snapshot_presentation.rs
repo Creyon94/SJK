@@ -255,12 +255,18 @@ impl GpuState {
         if !self.live_presentation_ready() || !crate::live_session::active_snapshot(snapshot) {
             return;
         }
+        self.sync_fake_noclip(&snapshot.player);
         let Some(session) = self.live_session.as_ref() else {
             return;
         };
         let intermission = sjk_client::IntermissionView::from_player_state(&snapshot.player);
         if self.live_presentation_ready() {
-            self.world_materials.areas.update(&snapshot.area_mask);
+            let mask = if self.local_prediction.fake_noclip() {
+                std::borrow::Cow::Owned(vec![0; snapshot.area_mask.len()])
+            } else {
+                std::borrow::Cow::Borrowed(snapshot.area_mask.as_slice())
+            };
+            self.world_materials.areas.update(&mask);
         }
         // A server-owned frozen selection scene handles admission itself. Once
         // entered, later freecam elimination must not open the ordinary join UI.
@@ -344,10 +350,15 @@ impl GpuState {
             self.camera_position = Vec3::from_array(view.origin);
             self.camera_pitch = -view.angles[0].to_radians();
             self.camera_yaw = view.angles[1].to_radians();
-        } else if !crate::local_prediction::predicts_local_view(snapshot.player.movement_flags())
-            || crate::prediction_preview::interpolated::server_synchronous(session.game_state())
+        } else if crate::prediction_preview::interpolated::mode(
+            self.console.as_ref(),
+            session.game_state(),
+            &snapshot.player,
+        )
+        .is_some()
         {
-            // Follow and synchronous movement are interpolated each rendered frame.
+            // Follow, synchronous, `cg_noPredict` and JA+ kick movement are interpolated
+            // each rendered frame.
             let view_height = snapshot.player.view_height() as f32;
             self.local_prediction.stop(view_height);
             self.camera_position =

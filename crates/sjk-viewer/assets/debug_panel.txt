@@ -1307,3 +1307,11 @@ title: Looping sounds no longer drop out
 change: Saber hums and ambient loops keep playing while each frame's loops are re-sent.
 test: Stand near looping sounds (your saber, other sabers, map ambience); listen for crackles.
 test: Optional: JKR_TRACE_AUDIO=1; logs/last-client.log shows split loop frames=N every 5 s.
+
+[ejk-prediction]
+status: open
+area: Prediction
+title: EternalJK prediction: ghost flag, JA+ kick fallback, cg_noPredict, /fakenoclip
+change: On JA+ servers a ghosted player passes through others without stutter and a kicked player no longer shakes the camera; cg_noPredict 1/2 skips prediction; /fakenoclip flies locally while the server sees you standing still.
+test: On a JA+ server, amghost and walk into another player: no blocking or rubber-banding. Get side-kicked: the view stays steady.
+test: cg_noPredict 1 then 2: movement is the server's; set 0 to return. /fakenoclip: fly through walls (attack = turbo, jump/crouch = up/down); others see you standing with the chat balloon; /fakenoclip again snaps back.
