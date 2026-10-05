@@ -1005,6 +1005,15 @@ skips a stage that no longer exists. The locked workspace build of all targets a
 the workspace tests passed. No game was started: remaps on screen, from a JoF
 server or a map with worldspawn remaps, are unverified in this combination.
 
+## First-person melee shows no baton (SJK)
+
+SJK-only branch `personal/melee-viewmodel` (05/10/2026, based on `3f57938`): with
+melee selected, the first-person view drew the stun baton on the baton's hand rig.
+Stock registers no hand rig for `WP_MELEE`, which leaves the baton behind the eye,
+so melee now has no view model. A unit test checks melee has none and the stun
+baton keeps its model and three barrels; the locked workspace build and tests
+passed. No game was started: the first-person view is unverified on screen.
+
 ## Outgoing text encoding (SJK)
 
 SJK-only branch `personal/legacy-text` (2026-10-05, based on `2696590`) sends

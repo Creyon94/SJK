@@ -678,6 +678,16 @@ loading/shader warmup from steady frames and CPU work from GPU timings. The
 500+ FPS target remains open; neither a single GPU timestamp nor an uncapped
 empty scene demonstrates it.
 
+### First-person view weapon
+
+The first-person gun hangs on its `_hand.md3` tag rig, as `CG_AddViewWeapon` places
+it ([first_person_weapon.rs](../crates/sjk-viewer/src/first_person_weapon.rs), policy
+in [view_weapon.rs](../crates/sjk-client/src/view_weapon.rs)). Melee shows no
+weapon: `WP_MELEE` registers no hand rig (`CG_RegisterWeapon`), so stock hangs the
+baton view model of its item on handle 0, whose identity tag puts it at the view
+origin with all of its geometry behind the eye. SJK used to draw it on the stun
+baton's rig, so first-person melee showed a baton.
+
 ## Saber trails
 
 [saber_trail.rs](../crates/sjk-viewer/src/saber_trail.rs) follows codemp
