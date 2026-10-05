@@ -350,9 +350,22 @@ fn build(
         lamps.origin
     ));
     let mut result = finish_runtime(device, queue, forge, sky, fog, pending, resolved)?;
+    result.0.remaps.sources = materials
+        .iter()
+        .enumerate()
+        .map(|(index, key)| remaps::Source {
+            key: key.clone(),
+            name: sjk_client::shader_name(&key.shader),
+            lightmap: lightmaps
+                .get(&key.lightmap)
+                .unwrap_or(&result.0.forge.fallback_lightmap)
+                .clone(),
+            fog: fog_draws::collect(bsp, draws, mover_meshes, index, Some(0)),
+            applied: None,
+        })
+        .collect();
+    result.0.remaps.map = super::map_remaps::MapRemaps::load(bsp, vfs, shaders);
     result.0.lamps = lamps;
-    result.0.origins = materials.to_vec();
-    result.0.lightmaps = lightmaps;
     // The static lamp cache covers lightmapped, light-buffered surfaces of the static world.
     if !result.0.lamps.lamps.is_empty() {
         let surfaces: Vec<super::lamp_cache::Surface> = draws

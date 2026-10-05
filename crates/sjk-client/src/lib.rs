@@ -9,6 +9,10 @@ mod animation_selection;
 mod asset_catalog;
 mod base_server_commands;
 mod body_animation;
+mod shader_remaps;
+pub use shader_remaps::{
+    SHADER_STATE_CONFIG, ShaderRemapTable, ShaderRemaps, next_remap_order, shader_name,
+};
 mod catalog_tokens;
 mod character_catalog;
 mod chat;
@@ -325,6 +329,7 @@ pub struct ClientSession {
     connection: Option<LegacyConnection>,
     game_state: GameState,
     config_string_dirty: sjk_protocol::ConfigStringDirty,
+    shader_remaps: ShaderRemaps,
     server_id: i32,
     latest_snapshot: Snapshot,
     history: VecDeque<Snapshot>,
@@ -871,6 +876,7 @@ impl ClientSession {
                     self.retired_world.get_or_insert_with(|| {
                         (self.game_state.clone(), self.latest_snapshot.clone())
                     });
+                    self.shader_remaps.reset(&initial.game_state);
                     self.game_state = initial.game_state;
                     self.config_string_dirty.mark_all();
                     self.pending_big_config_string = None;
@@ -1085,6 +1091,9 @@ impl ClientSession {
             });
             return Ok(());
         }
+        if self.shader_remaps.command(&arguments) {
+            return Ok(());
+        }
         if name == b"scores" {
             self.apply_scores(&arguments);
             return Ok(());
@@ -1124,13 +1133,6 @@ impl ClientSession {
             self.base_command_events.push_back(event);
             return Ok(());
         }
-        // cgame looks server commands up without case (`Q_stricmp`).
-        if name.eq_ignore_ascii_case(b"remapShader") {
-            if let Some(event) = base_server_commands::parse_remap_shader(&arguments) {
-                self.base_command_events.push_back(event);
-            }
-            return Ok(());
-        }
         if name == b"cosmetics" {
             apply_taystjk_cosmetics(
                 &self.compat_profile,
@@ -1145,6 +1147,10 @@ impl ClientSession {
             &mut self.config_string_dirty,
             &mut self.pending_big_config_string,
         )? {
+            if index == SHADER_STATE_CONFIG {
+                self.shader_remaps
+                    .apply_config(self.game_state.config_string(index).unwrap_or_default());
+            }
             if index == 1 {
                 self.refresh_server_id()?;
             }
@@ -1498,5 +1504,16 @@ mod score_tests {
             0 5 40 1 0 0 0 0 0 0 0 0 0 0 7 \
             1 3 60 2 0 0 0 0 0 0 0 0 0 0 9";
         assert_eq!(rows(command), [(0, 5, 40), (1, 3, 60)]);
+    }
+}
+
+impl ClientSession {
+    /// Persistent shader aliases supplied by this server and gamestate.
+    pub fn shader_remaps(&self) -> &ShaderRemaps {
+        &self.shader_remaps
+    }
+    /// Local `clearRemaps`; nothing is sent to the server.
+    pub fn clear_shader_remaps(&mut self) {
+        self.shader_remaps.clear();
     }
 }

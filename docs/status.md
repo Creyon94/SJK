@@ -7,6 +7,109 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Worldspawn shader remaps and remap order
+
+Local change against `af65396` (2026-10-05, Windows 11): a map's worldspawn
+`remapshader` keys now apply when its world loads, as rd-vanilla `R_LoadEntities`
+does, and the latest of a shader's map, server and local remaps wins, as in
+rd-vanilla. A local restore no longer blocks later server remaps, each shader-state
+update re-applies its entries, and a server remap that a live `cg_remaps` change
+excludes reveals the remap it had replaced. Server time offsets are parsed like C
+`atof`; `listRemaps` shows map remaps and marks overridden entries. See
+[rendering](rendering.md#server-shader-remaps).
+
+Unit tests cover worldspawn key parsing (prefix, first `;`, the C scan stops),
+ordering across sources, self-restore, `cg_remaps` gating and `atof`. Workspace
+formatting, the locked build of all targets and the locked tests passed on
+Windows 11. Not run in the client: no map with worldspawn remaps, server or demo
+has exercised this change, and `vertexremapshader` keys stay unsupported.
+
+## Effect shader remaps
+
+Local change on `af65396` (2026-10-05, Windows 11): effects drawn from the effect
+atlas (EFX particles, missile trails, muzzle flashes, beams, impact marks and blob
+shadows) follow server shader remaps and local `remapShader` overrides, with the
+world materials' precedence. A remapped entry samples a copy of its target's
+original stages and time offset, loading a missing target into the atlas first;
+removal, a self-remap or `cg_remaps 0` restores it. This runs after the world
+applies a remap change, never per frame; sampling adds one subtraction per stage.
+No wire code changed. See [rendering scope and limitations](rendering.md#server-shader-remaps).
+
+Workspace formatting, the locked build of all targets and locked tests passed.
+New unit tests cover remap planning through the shared world lookup (aliases,
+extensions, destination clocks, local overrides, self-remaps, `cg_remaps 0`) and
+copying/restoring atlas stages. Unverified: nothing was run in the client, so no
+server, demo or visual check exercised remapped effects, atlas growth or the time
+offset, and the rebuild time of a grown atlas was not measured. HUD pictures,
+saber blades and trails, surface sprites and menu previews still ignore remaps.
+
+## Shader remap restore
+
+Change on `af65396` (2026-10-05, Windows 11): undoing a remap (self-remap,
+`cg_remaps 0`, gamestate reset, cleared local override) recompiled the slot through
+the replacement path, which treats every slot as a map material. Late entity
+materials came back with world gloss, view bounds and light-pass classification,
+and sky or colourless shaders lost their loaded stages. The first replacement now
+keeps the slot's stages, sort and draw/fog classification aside, with their bind
+groups and pipeline indices; restoring swaps them back, followed by the existing
+order, fog, range, stage-table, SSAO and caster rebuilds. Native users of a
+destination at offset zero are no longer recompiled; a nonzero offset still is.
+Replacements and stamps are unchanged, and slots never replaced keep no copy.
+
+Formatting, the locked workspace build (all targets) and tests passed on Windows 11,
+including a unit test of the keep/restore/replace decision. Not run in the client:
+restores on a live server and their visual result remain unverified.
+
+## Shader remap clearing and setting
+
+Local change against `af65396` (2026-10-05, Windows 11) adds EternalJK's
+`clearRemaps` console command and a Settings > GAME row for `cg_remaps`
+(0 off / 1 map / 2 all; the default stays 1). EternalJK's `R_ClearRemaps_f`
+(`codemp/rd-vanilla/tr_init.cpp`) resets every renderer shader's remap and keeps
+destination time offsets. JKR clears the live or demo session's server remaps and
+local overrides the same way, sends nothing to the server, and lets a later
+shader-state change, reliable `remapShader` command or new gamestate apply again.
+See [shader remap controls](client.md#shader-remap-controls).
+
+Workspace formatting, locked build of all targets and tests passed on Windows 11,
+including a unit test for the clear logic. Not run in the client: material
+restoration after `clearRemaps` and the Settings row were not checked in game.
+
+## Server shader remaps
+
+Local changes on `dc36792`, verified on Linux/RADV on 2026-10-05, add initial and
+live multiplayer shader-state consumption, reliable `remapShader` commands,
+demo playback support, destination animation offsets and Tayst-style controls.
+`cg_remaps` defaults to 1 (exclude player-texture configstring remaps); 0 disables
+server remaps and 2 includes player textures. The setting applies live.
+`listRemaps` and temporary local `remapShader` overrides are available.
+See [rendering scope and limitations](rendering.md#server-shader-remaps).
+
+External evidence used the unmodified OpenJK multiplayer
+`CG_ShaderStateChanged` function: 6,000 valid entries matched the compatibility
+parser's result, including extension/case variants, repeated sources, shared
+clocks and truncated tails. Separate checks covered one-hop aliases, self-reset,
+empty configstrings, nonfinite offsets, policy filtering and gamestate reset.
+A 400-snapshot synthetic demo derived from a local recording exercised a direct
+remap command followed by reapplication of an unchanged shader-state string.
+Both its decoded state and offscreen blue-to-green rendering passed.
+
+An isolated local Tayst server and an original small BSP verified join-time green
+replacement, live pulsing material, self-reset to red, enable/disable, translucent
+local replacement, and the default/player-inclusive policies (24 player material
+slots changed when enabled). Automated checks used an ALSA null sink and isolated
+zero-volume settings. Simple remap updates measured 0.5–0.8 ms. One settled
+2,048-frame sample at 1280×720 measured 0.419 ms mean and 0.609 ms p99 CPU frame
+work; this is a small fixture, not a populated-server benchmark, and excludes cold
+pipeline compilation. No wire, movement or combat rules changed. Workspace
+formatting, locked build/tests and the optimized Linux viewer build passed.
+
+Shader replacement does not imply geometry editing. Existing server entity and
+sub-BSP paths were inspected but not changed. Arbitrary HUD and generated sprite
+remaps, full lighting reconstruction and broad custom-map parity remain outside
+this implementation (effects: see above); these limitations are recorded on the
+rendering page.
+
 ## Third-person camera collision and vehicle framing
 
 Local change against `dc36792` (2026-10-04): restore the multiplayer camera's
@@ -875,19 +978,17 @@ and left 619 textures alone whose shaders already glow; on the 23 retail MP maps
 it wrote 8 (neon signs, Bespin windows). No client was run: appearance, halo, the
 light added in real-time lighting, load time and frame cost are unverified.
 
-## Shader remaps (SJK)
+## Shader remaps from JKR (SJK)
 
-SJK-only branch `personal/shader-remaps` (2026-10-05, based on `bcb0b76`) applies
-shader remaps from the map's worldspawn keys, the server's `CS_SHADERSTATE` and
-`remapShader` command, and the console's `remapShader`, with EternalJK's
-`cg_remaps` gate (default 2, live instead of latched), `listRemaps` and
-`clearRemaps`. See [Shader remaps](rendering.md#shader-remaps). Unit tests cover
-the table rules (one level, self-remap, latest wins, case and extensions),
-`CS_SHADERSTATE` and `atof` parsing, worldspawn keys, the `cg_remaps` levels, the
-server command and the listing; the locked workspace build and tests passed. No
-game or window was started: the recompiled materials on screen, the cost of a
-remap and server-sent remaps from a real game module (stock maps use none; JoF's
-innercity and expedition do) are unverified, and the time offset is not applied.
+SJK branch `personal/jkr-remaps` (2026-10-05, based on `7969f0b`) drops SJK's own
+shader remap implementation (`personal/shader-remaps`) for JKR's: `main` at
+`af65396` (#127) and Sol's open JKR follow-ups #128-#131, merged in that order.
+The follow-ups overlap: #129's shared lookup and #131's `clearRemaps` were adapted
+to #128's map remaps (latest remap wins), and `clearRemaps` also drops the map's
+worldspawn remaps, as EternalJK's renderer command does. SJK keeps `cg_remaps 2`
+(EternalJK's default; JKR's is 1). The locked workspace build of all targets and
+the workspace tests passed. No game was started: remaps on screen, from a JoF
+server or a map with worldspawn remaps, are unverified in this combination.
 
 ## Outgoing text encoding (SJK)
 

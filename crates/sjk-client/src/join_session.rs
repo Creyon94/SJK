@@ -131,6 +131,7 @@ impl ClientSession {
             pending_download: None,
             downloaded_message: None,
             connection: Some(connection),
+            shader_remaps: ShaderRemaps::from_game_state(&initial.game_state),
             game_state: initial.game_state,
             config_string_dirty: sjk_protocol::ConfigStringDirty::default(),
             server_id,

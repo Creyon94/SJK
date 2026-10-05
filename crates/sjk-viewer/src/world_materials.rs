@@ -52,9 +52,14 @@ pub(crate) mod ssao;
 #[path = "world_texture_prepare.rs"]
 mod texture_prepare;
 
+#[path = "world_map_remaps.rs"]
+pub(crate) mod map_remaps;
+#[path = "world_shader_remaps.rs"]
+mod remaps;
 use fog_draws::FogDraw;
 pub(crate) use fog_draws::FrameDraw;
 use fog_gpu::FogGpu;
+pub(crate) use remaps::remap_target;
 use sjk_shader::{FogPass, ShaderCull};
 
 use super::{DrawBatch, ViewerMaterial, create_rgba8_texture};
@@ -270,8 +275,6 @@ struct Material {
     camera_ranges: draw_ranges::Cache,
     static_draws_by_cluster: Vec<Vec<StaticDraw>>,
     mover_draws: Vec<MoverDraw>,
-    /// The original stages while a shader remap draws this slot as another shader.
-    remapped: Option<Box<remaps::Remapped>>,
 }
 
 /// Immutable map-lifetime stage tables, textures, pipelines, and draw lists.
@@ -333,10 +336,7 @@ pub(crate) struct Runtime {
     dynamic_light_buffer: wgpu::Buffer,
     lighting_mode: std::cell::Cell<u32>,
     forge: Forge,
-    /// The shader and lightmap each source slot was built from, for shader remaps.
-    origins: Vec<ViewerMaterial>,
-    /// The map's lightmaps by index, for recompiling a remapped slot.
-    lightmaps: std::collections::HashMap<i32, wgpu::TextureView>,
+    remaps: remaps::State,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -384,9 +384,6 @@ struct PendingMaterial {
 
 #[path = "world_material_build.rs"]
 mod build;
-#[path = "world_material_remaps.rs"]
-mod remaps;
-pub(crate) use remaps::Applied as AppliedRemaps;
 #[path = "world_emission.rs"]
 pub(crate) mod emission;
 #[path = "world_visible_emission.rs"]
@@ -456,7 +453,6 @@ fn finish_runtime(
             camera_ranges: Default::default(),
             static_draws_by_cluster: Vec::new(),
             mover_draws: material.mover_draws,
-            remapped: None,
         });
     }
     let source_order = source_to_runtime
@@ -521,8 +517,7 @@ fn finish_runtime(
         dynamic_light_buffer,
         lighting_mode: std::cell::Cell::new(0),
         forge,
-        origins: Vec::new(),
-        lightmaps: std::collections::HashMap::new(),
+        remaps: Default::default(),
     };
     // One thread per key was measured twice as no faster on RADV (cold cache, 88
     // pipelines: 98 s sequential, 106 s parallel): the driver serialises. Sequential,

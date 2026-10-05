@@ -428,6 +428,14 @@ impl Runtime {
                 &self.dynamic_light_buffer,
                 material.stages,
             )?;
+            self.remaps.applied = None;
+            self.remaps.sources.push(remaps::Source {
+                key: key.clone(),
+                name: sjk_client::shader_name(&key.shader),
+                lightmap: lightmap.clone(),
+                fog: Vec::new(),
+                applied: None,
+            });
             self.source_to_runtime.push(self.materials.len());
             self.source_order.push((
                 material.sort,
@@ -466,9 +474,7 @@ impl Runtime {
                 camera_ranges: Default::default(),
                 static_draws_by_cluster: Vec::new(),
                 mover_draws: Vec::new(),
-                remapped: None,
             });
-            self.origins.push(key.clone());
         }
         for key in self.forge.pipeline_keys[known..].to_vec() {
             self.push_pipelines(device, key);

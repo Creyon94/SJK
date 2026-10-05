@@ -8,8 +8,6 @@ enum Consumer {
     ServerInfo,
     SystemInfo,
     Music,
-    /// `CS_SHADERSTATE`: the game module's shader remaps.
-    ShaderState,
     Sound,
     Model(i16),
     Player(u16),
@@ -21,7 +19,6 @@ fn consumer(index: usize) -> Option<Consumer> {
         0 => Consumer::ServerInfo,
         1 => Consumer::SystemInfo,
         2 => Consumer::Music,
-        sjk_shader::CS_SHADERSTATE => Consumer::ShaderState,
         32 | 37..=292 | 811..=1066 => Consumer::Sound,
         298..=809 => Consumer::Model((index - 298) as i16),
         1131..=1162 => Consumer::Player((index - 1131) as u16),
@@ -34,12 +31,15 @@ fn consumer(index: usize) -> Option<Consumer> {
 /// to skip assets already built by the world-install worker.
 pub(crate) struct ConfigStringRefresh {
     values: Vec<Vec<u8>>,
+    initial_remaps: sjk_client::ShaderRemaps,
 }
 
 impl ConfigStringRefresh {
     /// Seed from the exact gamestate used by the world builder.
     pub(crate) fn new(game_state: Option<&GameState>) -> Self {
         Self {
+            initial_remaps: game_state
+                .map_or_else(Default::default, sjk_client::ShaderRemaps::from_game_state),
             values: (0..MAX_CONFIGSTRINGS)
                 .map(|index| {
                     game_state
@@ -49,6 +49,11 @@ impl ConfigStringRefresh {
                 })
                 .collect(),
         }
+    }
+
+    /// `clearRemaps` without a session clears the remaps this world was built with.
+    pub(crate) fn clear_remaps(&mut self) {
+        self.initial_remaps.clear();
     }
 
     /// Remember changed bytes; untouched and already-built slots require no work.
@@ -142,7 +147,6 @@ impl GpuState {
                         audio.refresh_music(game, vfs);
                     }
                 }
-                Consumer::ShaderState => self.shader_remaps.queue_shader_state(bytes),
                 Consumer::Sound => {
                     if let (Some(audio), Some(vfs)) = (audio.as_mut(), &self.vfs) {
                         audio.refresh_sound_table(index, game, vfs);
@@ -194,6 +198,44 @@ impl GpuState {
         });
         self.refresh_npc_actors();
         self.refresh_cosmetics();
+        let remaps = self
+            .live_session
+            .as_ref()
+            .map(ClientSession::shader_remaps)
+            .or_else(|| {
+                self.demo_session
+                    .as_ref()
+                    .map(demo_playback::Session::shader_remaps)
+            })
+            .unwrap_or(&self.config_string_refresh.initial_remaps);
+        if let Some(vfs) = self.vfs.as_ref() {
+            let mode = self.console.as_ref().map_or(1, |c| c.remap_mode());
+            if let Err(error) = self.world_materials.refresh_remaps(
+                &self.device,
+                &self.queue,
+                vfs,
+                &self.shaders,
+                remaps,
+                mode,
+                self.bsp.render().visibility(),
+            ) {
+                log::progress(format_args!("shader remap failed: {error}"));
+            }
+            let (world, table) = (&self.world_materials, remaps.table(mode));
+            if let Err(error) = self.particle_atlas.refresh_remaps(
+                &self.device,
+                &self.queue,
+                vfs,
+                &self.shaders,
+                world.remap_generation(),
+                |name| {
+                    let (target, offset) = world.remap_target(table, name);
+                    (target.to_owned(), offset)
+                },
+            ) {
+                log::progress(format_args!("effect shader remap failed: {error}"));
+            }
+        }
     }
 
     pub(crate) fn load_config_model(

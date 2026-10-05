@@ -194,6 +194,16 @@ pub(super) fn program_source(source: &str) -> String {
 }
 
 impl Table {
+    /// Repack changed material records while retaining compiled pipeline variants.
+    pub(super) fn rebuild(&mut self, device: &wgpu::Device, forge: &Forge, materials: &[Material]) {
+        self.records.clear();
+        self.table.clear();
+        self.images.clear();
+        self.lightmaps.clear();
+        self.group = None;
+        self.append(device, forge, materials);
+    }
+
     /// `None`: the device lacks binding arrays, the table is switched off, or the map has
     /// no stage it could serve.
     pub(super) fn build(
@@ -324,21 +334,6 @@ impl Table {
             &self.images,
             &self.lightmaps,
         ));
-    }
-
-    /// Take every material's stages again, after shader remaps replaced some of them.
-    /// Record numbers change; draws look theirs up each frame.
-    pub(super) fn rebuild(&mut self, device: &wgpu::Device, forge: &Forge, materials: &[Material]) {
-        let previous = self.group.take();
-        self.records.clear();
-        self.table.clear();
-        self.images.clear();
-        self.lightmaps.clear();
-        self.append(device, forge, materials);
-        // No stage left on the table: no record names the old group's contents.
-        if self.group.is_none() {
-            self.group = previous;
-        }
     }
 
     fn bind(

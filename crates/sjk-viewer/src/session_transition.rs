@@ -483,10 +483,6 @@ impl GpuState {
         loaded.world_load_map.clear();
         loaded.world_load_map.push_str(&self.world_load_map);
         loaded.resident.map.clone_from(&loaded.world_load_map);
-        // rd-vanilla keeps console remaps over a map restart, not over a new map.
-        if !self.resident.map.is_empty() && self.resident.map == loaded.resident.map {
-            loaded.shader_remaps.inherit_console(&self.shader_remaps);
-        }
         loaded
     }
 

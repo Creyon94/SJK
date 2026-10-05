@@ -316,9 +316,9 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
-        // EternalJK's "Remaps": Off, Map Only (no player models), Map + Model.
-        label: "Shader remaps (0 off, 1 map only, 2 all)",
-        cvar: crate::shader_remaps::CVAR,
+        // SJK defaults to 2 (EternalJK); 1 excludes player-texture configstring remaps.
+        label: "Shader remaps (0 off / 1 map / 2 all)",
+        cvar: "cg_remaps",
         kind: ValueKind::Integer {
             min: 0,
             max: 2,

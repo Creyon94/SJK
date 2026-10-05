@@ -50,6 +50,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
     let archive = CvarFlags::ARCHIVE;
     let definitions = [
         CvarDefinition::new(
+            "cg_remaps",
+            2_i64,
+            archive,
+            "Shader remaps: 0 off, 1 skip player textures, 2 all (default, as EternalJK)",
+        ),
+        CvarDefinition::new(
             "cg_forceEnemyModel",
             "none",
             archive,

@@ -1235,18 +1235,6 @@ JA+ and TaystJK/jaPRO servers receive it from the connect packet on, and a
 toggle sends a userinfo update ([networking.md](networking.md)).
 See [console_mod_commands.rs](../crates/sjk-viewer/src/console_mod_commands.rs).
 
-`remapShader <old> <new>` draws every surface, model and effect using shader
-`old` with shader `new` until the map changes, as EternalJK's command does;
-`remapShader <old> <old>` restores it. `listRemaps` lists every remap with its
-source (map, server or console), the server's time offset and whether it is in
-effect, and `clearRemaps` (EternalJK's renderer command) removes them all until
-the server sends new ones. The archived `cg_remaps` (EternalJK's name and default
-2) chooses which remaps sent by the server apply: 0 none, 1 all but player-model
-shaders, 2 all; the console's and the map's own always apply. Unlike EternalJK,
-which latches it, a change applies at once. Settings > GAME has it as "Shader
-remaps". See [Shader remaps](rendering.md#shader-remaps) and
-[shader_remaps.rs](../crates/sjk-viewer/src/shader_remaps.rs).
-
 The console input line has a caret, drawn as stock's underscore: Left and Right
 move it, Ctrl+Left and Ctrl+Right by word, Home and End to either end, and Shift
 with any of them selects. Backspace and Delete remove a character, or a word with
@@ -1362,3 +1350,22 @@ Community NPCs need their model PK3 mounted by both the server and client. An NP
 definition alone cannot supply a missing mesh. JKR does not distribute those
 packs. The animation-error isolation described in [rendering.md](rendering.md#actor-animation-failures)
 protects other actors from malformed custom clips, but does not repair the clip.
+
+## Shader remap controls
+
+Server map recolors and material replacements are enabled by default. SJK
+defaults to `cg_remaps 2`, EternalJK's default, which includes player-texture
+configstring remaps; `cg_remaps 1` is TaystJK's (and JKR's) default policy
+excluding them, and `cg_remaps 0` disables server remaps.
+Settings > GAME > "Shader remaps" sets the same cvar and applies at once.
+A map's own worldspawn remaps always apply. `listRemaps` lists the map's, the
+enabled server and the temporary local remaps in the order they were applied, each
+labelled `map:`, `server:` or `local:`, and marks those a later remap overrides.
+`remapShader <old> <new>` replaces a shader locally for the loaded map; remapping
+it to itself restores the original. The latest remap of a shader wins, so a later
+server remap replaces a local one. `clearRemaps`, EternalJK's renderer command,
+drops every active remap whatever its origin, the map's included, without telling
+the server; the world draws its own shaders until the server sends new remaps (a
+shader-state change or a `remapShader` command) or a new map loads. As in
+EternalJK, destination time offsets are kept. See [rendering](rendering.md#server-shader-remaps)
+for scope and remaining limitations. These controls do not edit map geometry.
