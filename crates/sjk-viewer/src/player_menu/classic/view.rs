@@ -661,7 +661,7 @@ impl PlayerMenu {
                         TextAlign::Start,
                     );
                 }
-                self.drawn_saber(place, [80.0, 300.0, 480.0, 60.0], dual);
+                self.saber_model(place, frame, [80.0, 300.0, 480.0, 60.0], dual);
             }
             Frame::InGame => {
                 self.window_box(place, page, frame);
@@ -719,13 +719,29 @@ impl PlayerMenu {
                         TextAlign::Start,
                     );
                 }
-                self.drawn_saber(place, at([40.0, 255.0, 350.0, 60.0]), dual);
+                self.saber_model(place, frame, at([40.0, 255.0, 350.0, 60.0]), dual);
             }
         }
     }
 
     /// Where retail spun the saber model: a hilt and its glowing blade in
     /// the draft's colours (two for Dual, a blade out of each end for Staff).
+    /// Where retail spun the saber model: the live preview of the model
+    /// holding the lit sabers once the renderer has drawn one, else a drawn
+    /// hilt and blade in `fallback`.
+    fn saber_model(&mut self, place: &Placement, frame: Frame, fallback: [f32; 4], dual: bool) {
+        match layout::preview_rect(ClassicPage::Saber, frame).filter(|_| self.preview_ready) {
+            Some(rect) => {
+                let _ = self.canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
+                    rect: place.rect(rect),
+                    texture: crate::ui_renderer::PREVIEW_TEXTURE,
+                    color: FOCUS,
+                });
+            }
+            None => self.drawn_saber(place, fallback, dual),
+        }
+    }
+
     fn drawn_saber(&mut self, place: &Placement, canvas: [f32; 4], dual: bool) {
         let [x, y, w, h] = canvas;
         let saber = |menu: &mut Self, cy: f32, second: bool| {

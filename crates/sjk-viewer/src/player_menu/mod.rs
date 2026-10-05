@@ -74,6 +74,9 @@ pub(crate) enum PlayerMenuResult {
 pub(crate) struct ModelPreview {
     pub(crate) rect: [f32; 4],
     pub(crate) stance: &'static str,
+    /// The model holds the saber draft's sabers, lit, in their style's
+    /// stance (`stance` is then unused).
+    pub(crate) sabers: bool,
 }
 
 /// Which catalogue entry the `model` cvar currently names.

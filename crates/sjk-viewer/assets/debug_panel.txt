@@ -784,6 +784,7 @@ test: Profile > Custom: heads/torsos/legs show pictures, the swatches are round 
 test: Character creation: your model walks in place and turns slowly where the portrait was.
 test: Cosmetics: the model stands in the right column; wear a hat: it appears on the model.
 test: Same in game (Escape > Profile > Custom): lit like you are; nothing appears in the world.
+test: Lightsaber creation: your model holds the lit sabers; change hilt, colour, Dual, Staff.
 note: The preview is new GPU code: if it shows wrong colours, black or nothing, say what you see.
 
 [jof-cosmetics]

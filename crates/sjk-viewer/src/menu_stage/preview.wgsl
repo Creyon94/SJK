@@ -3,13 +3,16 @@
 // (as `effect_layer.wgsl`'s `display` does, at a neutral exposure). Coverage
 // comes from depth, so the background is transparent; an edge pixel averages
 // its covered 3x3 neighbours and takes their share as alpha, which smooths the
-// silhouette by a pixel.
+// silhouette by a pixel. The lit blades, already in display values, are added
+// last: over the body they add to it, beyond it their brightest channel is the
+// alpha (as additive menu art becomes alpha), so the glow shows on any backdrop.
 //
 // ENCODING: 0 the scene stores display values already (UNORM target), 1 it is
 // an sRGB target sampled as linear, 2 it is a floating HDR scene.
 override ENCODING: u32 = 2u;
 @group(0) @binding(0) var scene: texture_2d<f32>;
 @group(0) @binding(1) var depth: texture_depth_2d;
+@group(0) @binding(2) var blades: texture_2d<f32>;
 
 @vertex fn vs_main(@builtin(vertex_index) index: u32) -> @builtin(position) vec4<f32> {
     let p = vec2<f32>(f32((index << 1u) & 2u), f32(index & 2u));
@@ -39,8 +42,8 @@ fn covered(at: vec2<i32>) -> bool {
     return textureLoad(depth, at, 0) < 1.0;
 }
 
-@fragment fn fs_main(@builtin(position) p: vec4<f32>) -> @location(0) vec4<f32> {
-    let at = vec2<i32>(p.xy);
+// The body's display colour and coverage at `at`.
+fn body(at: vec2<i32>) -> vec4<f32> {
     let size = vec2<i32>(textureDimensions(scene));
     if covered(at) {
         return vec4(display(textureLoad(scene, at, 0).rgb), 1.0);
@@ -58,4 +61,15 @@ fn covered(at: vec2<i32>) -> bool {
     }
     if count == 0.0 { return vec4(0.0); }
     return vec4(display(sum / count), count / 9.0);
+}
+
+@fragment fn fs_main(@builtin(position) p: vec4<f32>) -> @location(0) vec4<f32> {
+    let at = vec2<i32>(p.xy);
+    let model = body(at);
+    let light = textureLoad(blades, at, 0).rgb;
+    // Premultiplied: the body's colour by its coverage, plus the added light.
+    let colour = model.rgb * model.a + light;
+    let alpha = clamp(max(model.a, max(light.r, max(light.g, light.b))), 0.0, 1.0);
+    if alpha <= 0.0 { return vec4(0.0); }
+    return vec4(clamp(colour / alpha, vec3(0.0), vec3(1.0)), alpha);
 }

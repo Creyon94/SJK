@@ -133,15 +133,17 @@ impl GpuState {
             let rect = crate::menu::classic::layout::Placement::new(viewport).rect(preview.rect);
             [rect.width.round() as u32, rect.height.round() as u32]
         });
-        // The preview holds no sabers (retail's and JoF's held none).
+        // The preview holds no sabers (retail's and JoF's held none) but on
+        // lightsaber creation.
         let wanted = match preview {
-            Some(_) => None,
-            None => self
+            Some(preview) if !preview.sabers => None,
+            _ => self
                 .client_menu
                 .as_ref()
                 .map(menu::ClientMenu::stage_sabers),
         };
-        let thrown = wanted.as_ref().is_some_and(|sabers| sabers.thrown);
+        // Only the modern Saber tab throws the saber to its shot.
+        let thrown = preview.is_none() && wanted.as_ref().is_some_and(|sabers| sabers.thrown);
         let focus = self
             .client_menu
             .as_ref()

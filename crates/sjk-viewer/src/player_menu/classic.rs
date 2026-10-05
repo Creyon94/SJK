@@ -99,21 +99,24 @@ impl PlayerMenu {
     }
 
     /// The live model the page on show wants: character creation's, walking
-    /// in place as retail's did (`BOTH_WALK1`), and the cosmetics window's,
-    /// standing as JoF's does (`BOTH_STAND1`).
+    /// in place as retail's did (`BOTH_WALK1`), the cosmetics window's,
+    /// standing as JoF's does (`BOTH_STAND1`), and lightsaber creation's,
+    /// holding the lit sabers in their stance where retail spun the hilt.
     pub(crate) fn model_preview(&self) -> Option<ModelPreview> {
         if !self.classic_style {
             return None;
         }
         let page = self.classic.page;
-        let stance = match page {
-            ClassicPage::Character => "BOTH_WALK1",
-            ClassicPage::Cosmetics => "BOTH_STAND1",
+        let (stance, sabers) = match page {
+            ClassicPage::Character => ("BOTH_WALK1", false),
+            ClassicPage::Cosmetics => ("BOTH_STAND1", false),
+            ClassicPage::Saber => ("BOTH_STAND2", true),
             _ => return None,
         };
         Some(ModelPreview {
             rect: layout::preview_rect(page, self.frame())?,
             stance,
+            sabers,
         })
     }
 

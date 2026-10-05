@@ -5,8 +5,11 @@
 //! as a quad ([`crate::ui_renderer::PREVIEW_TEXTURE`]).
 //!
 //! The colour target has the scene's format and a `Depth32Float` depth, so
-//! the world material pipelines draw into it unchanged; `preview.wgsl` makes
-//! the display values and takes coverage from depth. The camera frames the
+//! the world material pipelines draw into it unchanged. Lit blades, when the
+//! page shows sabers, go into an 8-bit texture of their own through the
+//! game's blade renderer, against the model's depth, as the effect layer
+//! takes them. `preview.wgsl` makes the display values, takes coverage from
+//! depth and adds the blades, their glow beyond the body becoming alpha. The camera frames the
 //! whole body from in front and turns around it at retail's
 //! `model_rotation 50` (a degree every 50 ms). The actor is lit by the map
 //! where it stands, as the stage model is.
@@ -49,6 +52,8 @@ struct Target {
     size: [u32; 2],
     color: wgpu::TextureView,
     depth: wgpu::TextureView,
+    /// The blades, in the effect layer's 8-bit display values.
+    blades: wgpu::TextureView,
     display: wgpu::TextureView,
     camera: wgpu::Buffer,
     camera_bind: wgpu::BindGroup,
@@ -70,6 +75,8 @@ pub(crate) struct Preview {
     probed: bool,
     /// Making or drawing the preview failed; it stays off.
     failed: bool,
+    /// This frame's blades in the actor's hands (`begin_saber_instances`).
+    pub(super) blades: Vec<crate::saber::Instance>,
 }
 
 /// Run `create` inside validation and out-of-memory scopes: `None`, with the
@@ -148,6 +155,16 @@ impl Encode {
                         multisampled: false,
                         view_dimension: wgpu::TextureViewDimension::D2,
                         sample_type: wgpu::TextureSampleType::Depth,
+                    },
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 2,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    count: None,
+                    ty: wgpu::BindingType::Texture {
+                        multisampled: false,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        sample_type: wgpu::TextureSampleType::Float { filterable: false },
                     },
                 },
             ],
@@ -233,6 +250,11 @@ impl Target {
             wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING;
         let color = texture("SJK model preview colour", encode.format, attachment);
         let depth = texture("SJK model preview depth", DepthTarget::FORMAT, attachment);
+        let blades = texture(
+            "SJK model preview blades",
+            crate::frame_target::aa::effects::FORMAT,
+            attachment,
+        );
         let display = texture(
             "SJK model preview display",
             crate::ui_target::TEXTURE_FORMAT,
@@ -264,12 +286,17 @@ impl Target {
                     binding: 1,
                     resource: wgpu::BindingResource::TextureView(&depth),
                 },
+                wgpu::BindGroupEntry {
+                    binding: 2,
+                    resource: wgpu::BindingResource::TextureView(&blades),
+                },
             ],
         });
         Self {
             size,
             color,
             depth,
+            blades,
             display,
             camera,
             camera_bind,
@@ -302,6 +329,9 @@ impl GpuState {
             .preview
             .started
             .get_or_insert_with(Instant::now);
+        let mut blades = std::mem::take(&mut self.menu_stage.preview.blades);
+        self.saber_gpu.prepare_preview(&self.queue, &mut blades);
+        self.menu_stage.preview.blades = blades;
         if self.menu_stage.preview.probed {
             self.record_stage_preview(encoder);
             self.menu_stage.preview.ready = true;
@@ -422,6 +452,35 @@ impl GpuState {
                     &target.camera_bind,
                     blended,
                 );
+            }
+        }
+        {
+            // The blades, hidden behind the body as the model's depth says.
+            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: Some("SJK model preview blades"),
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &target.blades,
+                    depth_slice: None,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                        store: wgpu::StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                    view: &target.depth,
+                    depth_ops: Some(wgpu::Operations {
+                        load: wgpu::LoadOp::Load,
+                        store: wgpu::StoreOp::Store,
+                    }),
+                    stencil_ops: None,
+                }),
+                timestamp_writes: None,
+                occlusion_query_set: None,
+                multiview_mask: None,
+            });
+            if !preview.blades.is_empty() {
+                self.saber_gpu.draw_preview(&mut pass, &target.camera_bind);
             }
         }
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {

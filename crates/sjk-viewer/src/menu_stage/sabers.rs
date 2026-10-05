@@ -225,8 +225,10 @@ impl GpuState {
     pub(crate) fn begin_saber_instances(&mut self) {
         self.saber_instances.clear();
         let stage = &mut self.menu_stage;
-        // The classic preview's actor is not on the stage (and holds none).
-        let Some(actor) = stage.actor.as_ref().filter(|_| !stage.preview_only) else {
+        stage.preview.blades.clear();
+        // The classic preview's blades are drawn into it, not into the world.
+        let preview = stage.preview_only;
+        let Some(actor) = &stage.actor else {
             return;
         };
         for (hand, saber) in stage.sabers.iter().enumerate() {
@@ -260,8 +262,12 @@ impl GpuState {
             {
                 let blade =
                     saber::world_blade(grip, rotation, blade.socket, blade.length, blade.radius);
-                self.saber_instances
-                    .extend(saber::Instance::pair(blade, saber.color));
+                let pair = saber::Instance::pair(blade, saber.color);
+                if preview {
+                    stage.preview.blades.extend(pair);
+                } else {
+                    self.saber_instances.extend(pair);
+                }
             }
         }
         stage.sabers_dirty = false;

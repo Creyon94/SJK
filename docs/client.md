@@ -156,9 +156,11 @@ The classic main menu has the retail pages, entries and order:
   `model_rotation 50` (20 degrees a second), drawn without sabers as retail's
   was; the cosmetics window shows it standing (`BOTH_STAND1`) in a column
   beside the lists, where JoF EJK drew its model. The model's portrait shows
-  until the first preview frame is drawn. See
-  [model preview](rendering.md#classic-model-preview). Lightsaber creation
-  still draws a hilt and blade where retail spun the saber model. The part
+  until the first preview frame is drawn. Lightsaber creation shows it in
+  the band under its boxes, where retail spun the bare hilt model, holding
+  the draft's sabers lit in their style's stance, so hilts and blade colours
+  are seen as they will be carried; a drawn hilt and blade stand in until
+  then. See [model preview](rendering.md#classic-model-preview). The part
   lists show each variant's icon (`models/players/<species>/icon_<part>`,
   `.jpg`, `.png` or `.tga`) as retail did, its name when there is none, and
   the swatches are the species' tint base (`gfx/menus/players/<species>/`
@@ -373,9 +375,8 @@ Planned follow-ups, each a new page or screen module, following the retail
 - Retail option items JKR has no setting for (video quality presets, colour
   depth, geometric and texture detail, EAX, languages) are left out of the
   panels, and the video restart confirmation is not needed.
-- On the profile pages: a rendered spinning saber on lightsaber creation
-  (the preview draws no blades yet), and portraits for every model (the atlas
-  holds 207, so species after the characters show none).
+- On the profile pages: portraits for every model (the atlas holds 207, so
+  species after the characters show none).
 - The screens with no JKR equivalent yet: Play Demo (`demo`), Rules
   (`rules*`), Mods, Defaults, Add Bot (`ingame_addbot`), Siege objectives and
   voice chat, and the error page (`error`).
