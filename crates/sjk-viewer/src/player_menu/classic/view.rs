@@ -659,7 +659,8 @@ impl PlayerMenu {
                         TextAlign::Start,
                     );
                 }
-                self.saber_model(place, frame, [80.0, 300.0, 480.0, 60.0], dual);
+                self.channel_headings(place, dual);
+                self.saber_model(place, frame, [44.0, 298.0, 380.0, 60.0], dual);
             }
             Frame::InGame => {
                 self.window_box(place, page, frame);
@@ -717,16 +718,15 @@ impl PlayerMenu {
                         TextAlign::Start,
                     );
                 }
-                self.saber_model(place, frame, at([40.0, 255.0, 350.0, 60.0]), dual);
+                self.saber_model(place, frame, at([40.0, 291.0, 350.0, 60.0]), dual);
             }
         }
     }
 
-    /// Where retail spun the saber model: a hilt and its glowing blade in
-    /// the draft's colours (two for Dual, a blade out of each end for Staff).
-    /// Where retail spun the saber model: the live preview of the model
-    /// holding the lit sabers once the renderer has drawn one, else a drawn
-    /// hilt and blade in `fallback`.
+    /// Where retail spun the saber model: the live preview of the lit sabers
+    /// alone, turning, once the renderer has drawn one, else a drawn hilt and
+    /// blade in `fallback` in the draft's colours (two for Dual, a blade out
+    /// of each end for Staff).
     fn saber_model(&mut self, place: &Placement, frame: Frame, fallback: [f32; 4], dual: bool) {
         match layout::preview_rect(ClassicPage::Saber, frame).filter(|_| self.preview_ready) {
             Some(rect) => {
@@ -831,6 +831,10 @@ impl PlayerMenu {
             Item::Hilts2 => HILT_BASE[1]..HILT_BASE[1] + 100,
             Item::Blades => BLADE_BASE[0]..BLADE_BASE[0] + 6,
             Item::Blades2 => BLADE_BASE[1]..BLADE_BASE[1] + 6,
+            Item::Channel(index) => {
+                let token = super::saber_rgb::RGB_BASE + u16::from(index);
+                token..token + 1
+            }
             Item::Power(power) => {
                 let first = super::force_page::star_token(usize::from(power), 1);
                 first..first + 3
@@ -1076,6 +1080,7 @@ impl PlayerMenu {
             Item::Blades | Item::Blades2 => {
                 self.blade_swatches(place, frame, canvas, item == Item::Blades2, active)
             }
+            Item::Channel(index) => self.channel_row(place, canvas, index, active),
         }
         let _ = page;
     }

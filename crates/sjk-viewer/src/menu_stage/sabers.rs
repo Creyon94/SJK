@@ -2,8 +2,11 @@
 //! (the shared object buffers only exist inside a session) parked on the
 //! hand bolt of the pose the stage was skinned with, and its blades go
 //! through the same glow/core renderer as in-game sabers, so the menu shows
-//! exactly the hilt, sockets and colours the player will carry.
+//! exactly the hilt, sockets and colours the player will carry. On
+//! lightsaber creation's preview the hilts leave the hands for the
+//! [`showcase`](super::showcase).
 
+use super::showcase::{self, Line, View};
 use super::throw::{Pose, Throw};
 use super::*;
 use crate::menu_backdrop::Focus;
@@ -44,6 +47,8 @@ pub(super) struct StageSaber {
     color: BladeColor,
     blades: [Option<HiltBlade>; 8],
     num_blades: u8,
+    /// Where the hilt lies on the showcase; `None` without a blade.
+    line: Option<Line>,
     draws: Vec<DetachedDraw>,
     materials: DetachedMaterials,
     vertex_buffer: wgpu::Buffer,
@@ -117,6 +122,8 @@ impl GpuState {
         let sockets = hilt_sockets(&model)?;
         let mut flattened = FlattenedScene::default();
         let draws = append_static_glm_mesh(&mut flattened, &model)?;
+        let blades = hilt_blades(&definition, &sockets);
+        let line = showcase_line(&blades, definition.num_blades, &flattened.vertices);
         let materials = self.world_materials.compile_detached(
             &self.device,
             &self.queue,
@@ -163,8 +170,9 @@ impl GpuState {
             });
         Ok(StageSaber {
             color,
-            blades: hilt_blades(&definition, &sockets),
+            blades,
             num_blades: definition.num_blades,
+            line,
             draws,
             materials,
             vertex_buffer,
@@ -229,20 +237,54 @@ impl GpuState {
         // The classic preview's blades are drawn into it, not into the world.
         let preview = stage.preview_only;
         let Some(actor) = &stage.actor else {
+            stage.preview.showcase = None;
             return;
         };
+        // Lightsaber creation lays the sabers out on their own, turning, in
+        // front of the preview camera (the model faces its yaw, as there).
+        let showcase = (preview && stage.showcase).then(|| {
+            let facing =
+                actor.rotation * Quat::from_rotation_z(-std::f32::consts::FRAC_PI_2) * Vec3::X;
+            View::new(
+                actor.origin + Vec3::Z * showcase::FOCUS_ABOVE_ORIGIN,
+                facing,
+                stage
+                    .sabers
+                    .each_ref()
+                    .map(|saber| saber.as_ref().and_then(|saber| saber.line)),
+            )
+        });
+        stage.preview.showcase = showcase;
+        let shown = stage
+            .sabers
+            .iter()
+            .flatten()
+            .filter(|saber| saber.line.is_some())
+            .count();
+        let roll = showcase::roll_degrees(crate::menu::art::motion::seconds() as f32);
         for (hand, saber) in stage.sabers.iter().enumerate() {
-            let (Some(saber), Some(attachment)) = (saber, actor.hands[hand]) else {
+            let Some(saber) = saber else {
                 continue;
             };
-            let (grip, rotation) = match stage.flying[hand] {
-                Some(pose) => (pose.grip, pose.rotation),
-                None => saber::world_attachment(actor.origin, actor.rotation, attachment),
+            let pose = match (&showcase, actor.hands[hand]) {
+                (Some(view), _) => saber
+                    .line
+                    .map(|line| view.pose(&line, View::offset(hand, shown), roll)),
+                (None, Some(attachment)) => Some(match stage.flying[hand] {
+                    Some(pose) => (pose.grip, pose.rotation),
+                    None => saber::world_attachment(actor.origin, actor.rotation, attachment),
+                }),
+                (None, None) => None,
             };
-            if stage.sabers_dirty {
-                // In the hand the hilt shares the model's light sample; out of
-                // it, the grid is read where the hilt actually is.
-                let light = match stage.flying[hand] {
+            let Some((grip, rotation)) = pose else {
+                continue;
+            };
+            // The showcase turns every frame.
+            if stage.sabers_dirty || showcase.is_some() {
+                // In the hand (and on the showcase) the hilt shares the
+                // model's light sample; thrown, the grid is read where the
+                // hilt actually is.
+                let light = match stage.flying[hand].filter(|_| showcase.is_none()) {
                     Some(pose) => self
                         .entity_lighting
                         .sample(&self.bsp, pose.grip.to_array(), &[]),
@@ -292,6 +334,27 @@ fn float_offset(hand: usize, held: usize) -> f32 {
     } else {
         (hand as f32 - 0.5) * FLOAT_SPACING
     }
+}
+
+/// Where a hilt lies on the showcase: along its first used blade, its span
+/// taken over the mesh and every used blade's root and tip.
+fn showcase_line(blades: &[Option<HiltBlade>; 8], used: u8, mesh: &[GpuVertex]) -> Option<Line> {
+    let used = blades.iter().take(usize::from(used)).flatten();
+    let first = used.clone().next()?;
+    let ends = used.flat_map(|blade| {
+        let root = Vec3::from_array(blade.socket.origin);
+        let direction = Vec3::from_array(blade.socket.direction).normalize_or_zero();
+        [root, root + direction * blade.length]
+    });
+    let points = mesh
+        .iter()
+        .map(|vertex| Vec3::from_array(vertex.position))
+        .chain(ends);
+    Line::new(
+        Vec3::from_array(first.socket.origin),
+        Vec3::from_array(first.socket.direction),
+        points,
+    )
 }
 
 /// Both hand bolts of the whole-body frame the stage was skinned with.

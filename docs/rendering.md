@@ -1421,8 +1421,16 @@ The passes run after the scene and before the UI, only while a classic page
 shows a preview.
 
 The actor is the stage's, marked preview-only so the world pass and the
-saber blade list leave it out; it holds sabers only on lightsaber creation
-(never thrown). On the main menu it
+saber blade list leave it out; it wears no sabers on character creation and
+in the cosmetics window. Lightsaber creation shows its hilts alone
+([menu_stage/showcase.rs](../crates/sjk-viewer/src/menu_stage/showcase.rs)):
+the actor is not drawn (nor animated) and only lends its position and light
+sample; each hilt lies along the camera's horizontal, its first blade to the
+right, centred on its whole length (mesh and every used blade's root and tip,
+measured along that blade once when the hilt loads), turned about its own
+blade line, the second of two 14 units under the first, and the camera
+stands back just far enough for the longest saber across the preview's
+width. On the main menu it
 stands on the backdrop's stage when the map has one; in a match, at the
 local player's origin, so the map's light grid and lights shade it as the
 player is shaded. It wears the stage's cosmetics. Not drawn into it: saber

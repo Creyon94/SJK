@@ -929,8 +929,21 @@ test: Profile > Custom: heads/torsos/legs show pictures, the swatches are round 
 test: Character creation: your model walks in place and turns slowly where the portrait was.
 test: Cosmetics: the model stands in the right column; wear a hat: it appears on the model.
 test: Same in game (Escape > Profile > Custom): lit like you are; nothing appears in the world.
-test: Lightsaber creation: your model holds the lit sabers; change hilt, colour, Dual, Staff.
+test: Lightsaber creation: the lit sabers turn on their own (see saber-page-rgb).
 note: The preview is new GPU code: if it shows wrong colours, black or nothing, say what you see.
+
+[saber-page-rgb]
+status: personal
+area: Menus & settings
+title: Lightsaber creation: the saber alone in 3D, and custom RGB colour sliders
+change: The preview shows only the lit saber(s), lying flat and turning, as retail spun the hilt.
+change: R/G/B sliders per saber (JoF EJK): moving one makes the colour yours (cp_sbRGB1/2).
+test: Profile > Saber (classic): no model, the saber turns on its length, blade to the right.
+test: Dual: two sabers, the first above; Staff: both blades show, the staff centred.
+test: Drag the R slider: the blade and the chip change live; the swatch frame goes away.
+test: Click a swatch: stock colour back, the sliders jump to its tint. Wheel and arrows step 5.
+test: Same in game (Escape > Profile > Saber): sliders under each colour row, saber below.
+note: Others see your RGB colour only with a client that reads cp_sbRGB (JA+, EJK, SJK).
 
 [model-grid]
 status: personal

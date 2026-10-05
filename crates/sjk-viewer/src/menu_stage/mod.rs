@@ -5,11 +5,13 @@
 //! buffers on the spot, so the swap is visible the same frame. The sabers
 //! in its hands live in [`sabers`]; the Saber tab's throw in [`throw`]; the
 //! hat and cape it wears in [`cosmetics`]. The classic profile shows the
-//! same actor in a preview of its own ([`preview`]) instead of on the stage.
+//! same actor in a preview of its own ([`preview`]) instead of on the stage;
+//! lightsaber creation's preview shows the sabers alone ([`showcase`]).
 
 mod cosmetics;
 pub(crate) mod preview;
 mod sabers;
+mod showcase;
 mod throw;
 
 use super::*;
@@ -62,6 +64,9 @@ pub(crate) struct MenuStage {
     /// The actor is for the classic profile's preview, not the stage: the
     /// world pass and the blade list leave it out.
     preview_only: bool,
+    /// The preview shows the sabers alone, laid out as retail's lightsaber
+    /// creation spun its hilt; the actor only lends them its light.
+    showcase: bool,
     preview: preview::Preview,
 }
 
@@ -127,6 +132,7 @@ impl GpuState {
             return;
         };
         self.menu_stage.preview_only = preview.is_some();
+        self.menu_stage.showcase = preview.is_some_and(|preview| preview.showcase);
         self.menu_stage.preview.wanted = preview.map(|preview| {
             let viewport = [
                 self.configuration.width as f32,
@@ -192,6 +198,10 @@ impl GpuState {
         if let Some(stance) = stance {
             let held = self.menu_stage.throw.iter().all(throw::Throw::is_held);
             self.set_stage_stance(if held { stance } else { THROW_STANCE }, now);
+        }
+        // The showcase draws no actor: its pose and what it wears can wait.
+        if self.menu_stage.showcase {
+            return;
         }
         if let Err(error) = self.animate_stage_actor(now) {
             eprintln!("player stage animation stopped: {error}");
@@ -417,7 +427,8 @@ impl MenuStage {
         self.preview_only && self.preview.ready
     }
 
-    /// The actor, its hilts and its cosmetics, with `camera`.
+    /// The actor, its hilts and its cosmetics, with `camera`; the hilts
+    /// alone for the showcase.
     fn draw_parts<'pass>(
         &'pass self,
         pass: &mut wgpu::RenderPass<'pass>,
@@ -428,6 +439,12 @@ impl MenuStage {
         let Some(actor) = &self.actor else {
             return;
         };
+        if self.showcase {
+            for saber in self.sabers.iter().flatten() {
+                saber.draw(pass, world_materials, camera, blended);
+            }
+            return;
+        }
         world_materials.draw_detached(
             pass,
             camera,

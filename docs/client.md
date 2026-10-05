@@ -119,7 +119,16 @@ The classic main menu has the retail pages, entries and order:
     first species, as retail's Custom did.
   - Lightsaber creation: saber type, the hilt list (two for Dual Sabers), the
     six blade colour swatches (two rows for Dual), Apply, and Apply back to the
-    main menu.
+    main menu. SJK adds JoF EJK's custom colour: a red, green and blue slider
+    per saber (`ingame_saber.menu`'s "RGB Color Creation"), right of the live
+    sabers in the lower box under a "Custom color" heading with a chip of the
+    colour (framed white while it is the saber's own), or under each saber's
+    swatches in the in-game window. The sliders show the blade as it is drawn,
+    a stock colour's own tint included; a click or drag on a bar, the wheel
+    over it or Left/Right (steps of 5) makes the colour the saber's own:
+    `color1`/`color2` 6 (`SABER_RGB`) and the tint in `cp_sbRGB1`/`cp_sbRGB2`
+    (`r | g << 8 | b << 16`), as JoF EJK's `UI_UpdateSaberColor` writes them.
+    A swatch brings a stock colour back.
   - Force (SJK): retail's in-game `ingame_playerforce` window, here on both
     frames, editing the same draft as the modern Force tab. It keeps retail's
     frame, title band, gold mastery line, blue and red side bars and level
@@ -164,11 +173,14 @@ The classic main menu has the retail pages, entries and order:
   `model_rotation 50` (20 degrees a second), drawn without sabers as retail's
   was; the cosmetics window shows it standing (`BOTH_STAND1`) in a column
   beside the lists, where JoF EJK drew its model. The model's portrait shows
-  until the first preview frame is drawn. Lightsaber creation shows it in
-  the band under its boxes, where retail spun the bare hilt model, holding
-  the draft's sabers lit in their style's stance, so hilts and blade colours
-  are seen as they will be carried; a drawn hilt and blade stand in until
-  then. See [model preview](rendering.md#classic-model-preview). The part
+  until the first preview frame is drawn. Lightsaber creation shows the
+  sabers alone in the band under its boxes, as retail spun the bare hilt
+  model (`isSaber` items, `Item_Model_Paint`): lit, laid on their side and
+  turning about their length at retail's `model_rotation 20` (50 degrees a
+  second, from `model_angle 180`), each centred on its whole length so a
+  staff fills the band as a single saber does, the second of a pair below
+  the first; a drawn hilt and blade stand in until the first frame. See
+  [model preview](rendering.md#classic-model-preview). The part
   lists show each variant's icon (`models/players/<species>/icon_<part>`,
   `.jpg`, `.png` or `.tga`) as retail did, its name when there is none, and
   the swatches are the species' tint base (`gfx/menus/players/<species>/`

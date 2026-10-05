@@ -78,6 +78,9 @@ pub(crate) struct ModelPreview {
     /// The model holds the saber draft's sabers, lit, in their style's
     /// stance (`stance` is then unused).
     pub(crate) sabers: bool,
+    /// Only the sabers are drawn, laid on their side and turning as
+    /// retail's lightsaber creation spun its hilt.
+    pub(crate) showcase: bool,
 }
 
 /// Which catalogue entry the `model` cvar currently names.
@@ -287,6 +290,35 @@ fn catalog_of(loader: &Option<LegacyAssetCatalogLoader>) -> Option<&LegacyAssetC
         .as_ref()
         .and_then(LegacyAssetCatalogLoader::catalog)
         .map(Arc::as_ref)
+}
+
+#[cfg(test)]
+impl PlayerMenu {
+    /// Open the classic lightsaber creation page on `vfs`'s catalogue as
+    /// `console` sets it up, for the menu snapshots: the catalogue is waited
+    /// for (a minute at most).
+    pub(crate) fn open_classic_saber_for_snapshot(
+        &mut self,
+        console: &ViewerConsole,
+        vfs: Arc<sjk_vfs::VirtualFileSystem>,
+        art: crate::menu::art::ArtSet,
+        in_game: bool,
+    ) {
+        self.attach_catalogue(vfs);
+        self.set_style(true, art);
+        let target = if in_game {
+            ReturnTarget::InGame
+        } else {
+            ReturnTarget::MainMenu
+        };
+        self.open(console, target);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+        while !self.is_resolved() && std::time::Instant::now() < deadline {
+            self.poll();
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        self.show_classic(classic::ClassicPage::Saber);
+    }
 }
 
 impl crate::GpuState {
