@@ -53,7 +53,7 @@ impl Group {
                 "cg_saberTrail",
                 "cg_speedTrail",
                 "cg_auraShell",
-                crate::shader_remaps::CVAR,
+                "cg_remaps",
                 "cg_thirdPersonCameraDamp",
                 "cg_thirdPersonTargetDamp",
                 "cg_errorDecay",

@@ -253,7 +253,6 @@ pub(crate) fn create(
     Ok(ParticleAtlas {
         bind_group,
         animations,
-        remapped: HashMap::new(),
         fallback,
         any_glow,
     })
@@ -280,66 +279,6 @@ impl GpuState {
             &self.shaders,
             &required,
         )?;
-        // A new atlas starts from the original stages: remap them again.
-        if !self.shader_remaps.table().is_empty() {
-            self.apply_effect_remaps();
-        }
         Ok(())
-    }
-}
-
-impl ParticleAtlas {
-    /// Every shader the atlas holds, under its original name.
-    pub(crate) fn shader_names(&self) -> BTreeSet<String> {
-        self.animations.keys().cloned().collect()
-    }
-
-    /// Remap targets of atlas shaders that the atlas does not hold yet.
-    pub(crate) fn missing_remap_targets(
-        &self,
-        remaps: &sjk_shader::ShaderRemaps,
-    ) -> BTreeSet<String> {
-        if remaps.is_empty() {
-            return BTreeSet::new();
-        }
-        self.animations
-            .keys()
-            .chain(self.remapped.keys())
-            .filter_map(|name| remaps.target(name))
-            .filter(|target| !self.animations.contains_key(*target))
-            .map(str::to_owned)
-            .collect()
-    }
-
-    /// Make every remapped shader sample its target's stages (rd-vanilla swaps the
-    /// whole shader), restoring shaders no longer remapped. Returns how many shaders
-    /// are remapped now. Runs when the remap table or the atlas changes.
-    pub(crate) fn apply_remaps(&mut self, remaps: &sjk_shader::ShaderRemaps) -> usize {
-        for (name, original) in self.remapped.drain() {
-            self.animations.insert(name, original);
-        }
-        if remaps.is_empty() {
-            return 0;
-        }
-        let swaps: Vec<(String, Vec<ParticleAtlasAnimation>)> = self
-            .animations
-            .keys()
-            .filter_map(|name| {
-                let target = self.animations.get(remaps.target(name)?)?;
-                Some((name.clone(), target.clone()))
-            })
-            .collect();
-        let count = swaps.len();
-        for (name, animations) in swaps {
-            if let Some(original) = self.animations.insert(name.clone(), animations) {
-                self.remapped.insert(name, original);
-            }
-        }
-        self.any_glow = self
-            .animations
-            .values()
-            .flatten()
-            .any(|animation| animation.glow);
-        count
     }
 }

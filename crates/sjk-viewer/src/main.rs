@@ -19,7 +19,6 @@ mod chat;
 mod client_guid;
 mod client_state;
 mod clientinfo_refresh;
-mod shader_remaps;
 
 mod shader_image;
 
@@ -310,8 +309,6 @@ struct GpuState {
     config_string_refresh: config_string_refresh::ConfigStringRefresh,
     /// Parsed shader catalogue, kept for materials compiled after map load.
     shaders: ShaderCatalog,
-    /// The map's shader remaps (`R_RemapShader`), applied to materials and effects.
-    shader_remaps: shader_remaps::State,
     decal_surfaces: decal_marks::DecalSurfaces,
     player_shadows: player_shadows::State,
     camera_buffer: wgpu::Buffer,
@@ -541,17 +538,6 @@ impl GpuState {
             config_string_refresh::ConfigStringRefresh::new(active_game_state);
         let map_effects = active_game_state
             .map_or_else(LegacyMapEffects::empty, LegacyMapEffects::from_game_state);
-        let mut shader_remaps = shader_remaps::State::new(shader_remaps::level(
-            console
-                .as_ref()
-                .and_then(|console| console.integer_cvar(shader_remaps::CVAR)),
-        ));
-        shader_remaps.queue_worldspawn(&bsp);
-        if let Some(value) =
-            active_game_state.and_then(|state| state.config_string(sjk_shader::CS_SHADERSTATE))
-        {
-            shader_remaps.queue_shader_state(value);
-        }
         let missile_effects = missile_trails::load(active_game_state, &vfs);
         let size = PhysicalSize::new(target_size[0].max(1), target_size[1].max(1));
         let localization = Localization::load(&vfs);
@@ -1127,7 +1113,6 @@ impl GpuState {
             clientinfo_watch: clientinfo_refresh::ClientInfoWatch::new(),
             config_string_refresh,
             shaders,
-            shader_remaps,
             decal_surfaces,
             player_shadows: player_shadows::State::default(),
             camera_buffer,
@@ -2047,14 +2032,11 @@ impl GpuState {
 struct ParticleAtlas {
     bind_group: wgpu::BindGroup,
     animations: HashMap<String, Vec<ParticleAtlasAnimation>>,
-    /// Original stages of the shaders a shader remap points elsewhere.
-    remapped: HashMap<String, Vec<ParticleAtlasAnimation>>,
     fallback: [f32; 4],
     /// Some stage is a dynamic glow stage, so effects sort glowing layers apart.
     any_glow: bool,
 }
 
-#[derive(Clone)]
 struct ParticleAtlasAnimation {
     frames: Vec<[f32; 4]>,
     frequency: f32,

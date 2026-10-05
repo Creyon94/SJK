@@ -112,7 +112,6 @@ pub(super) struct Commands {
 pub(super) fn register(shell: &mut Shell, commands: &Commands) -> Result<(), Box<dyn Error>> {
     for &(name, help) in COMMANDS
         .iter()
-        .chain(crate::shader_remaps::COMMANDS)
         .chain(crate::cosmetics::command::COMMANDS)
     {
         if !shell.commands.contains(name) && shell.cvars.get(name).is_none() {
@@ -175,12 +174,6 @@ pub(super) fn register(shell: &mut Shell, commands: &Commands) -> Result<(), Box
         CvarFlags::ARCHIVE,
         "Stereo separation",
     ))?;
-    shell.cvars.register(CvarDefinition::new(
-        crate::shader_remaps::CVAR,
-        crate::shader_remaps::DEFAULT_LEVEL,
-        CvarFlags::ARCHIVE,
-        crate::shader_remaps::CVAR_HELP,
-    ))?;
     Ok(())
 }
 
@@ -193,8 +186,7 @@ impl Commands {
     ) -> Option<Result<Vec<String>, String>> {
         if !COMMANDS
             .iter()
-            .chain(crate::shader_remaps::COMMANDS)
-            .chain(crate::cosmetics::command::COMMANDS)
+                .chain(crate::cosmetics::command::COMMANDS)
             .any(|(name, _)| name.eq_ignore_ascii_case(&tokens[0]))
         {
             return None;
@@ -409,11 +401,6 @@ impl crate::GpuState {
                     .set_minimized(true);
             }
             "cosmetics" => return self.cosmetics_command(args),
-            "remapshader" | "listremaps" | "clearremaps" => {
-                return self
-                    .shader_remap_command(&name, args)
-                    .unwrap_or_else(|| Err(format!("unknown command {name}")));
-            }
             "vid_restart" | "snd_restart" | "in_restart" | "modelist" => {
                 return self.restart_command(&name, audio);
             }

@@ -8,8 +8,6 @@ enum Consumer {
     ServerInfo,
     SystemInfo,
     Music,
-    /// `CS_SHADERSTATE`: the game module's shader remaps.
-    ShaderState,
     Sound,
     Model(i16),
     Player(u16),
@@ -21,7 +19,6 @@ fn consumer(index: usize) -> Option<Consumer> {
         0 => Consumer::ServerInfo,
         1 => Consumer::SystemInfo,
         2 => Consumer::Music,
-        sjk_shader::CS_SHADERSTATE => Consumer::ShaderState,
         32 | 37..=292 | 811..=1066 => Consumer::Sound,
         298..=809 => Consumer::Model((index - 298) as i16),
         1131..=1162 => Consumer::Player((index - 1131) as u16),
@@ -142,7 +139,6 @@ impl GpuState {
                         audio.refresh_music(game, vfs);
                     }
                 }
-                Consumer::ShaderState => self.shader_remaps.queue_shader_state(bytes),
                 Consumer::Sound => {
                     if let (Some(audio), Some(vfs)) = (audio.as_mut(), &self.vfs) {
                         audio.refresh_sound_table(index, game, vfs);

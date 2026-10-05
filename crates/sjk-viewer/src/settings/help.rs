@@ -230,7 +230,7 @@ const HELP: &[(&str, &str)] = &[
         "The glowing shell Force Sight shows around other players.",
     ),
     (
-        crate::shader_remaps::CVAR,
+        "cg_remaps",
         "Lets servers and maps swap textures: 0 never, 1 everywhere but player models, 2 always.",
     ),
     (

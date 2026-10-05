@@ -1124,13 +1124,6 @@ impl ClientSession {
             self.base_command_events.push_back(event);
             return Ok(());
         }
-        // cgame looks server commands up without case (`Q_stricmp`).
-        if name.eq_ignore_ascii_case(b"remapShader") {
-            if let Some(event) = base_server_commands::parse_remap_shader(&arguments) {
-                self.base_command_events.push_back(event);
-            }
-            return Ok(());
-        }
         if name == b"cosmetics" {
             apply_taystjk_cosmetics(
                 &self.compat_profile,

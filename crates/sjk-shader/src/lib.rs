@@ -11,13 +11,8 @@ mod fog;
 pub use fog::{FogPass, infer_sort};
 mod parse;
 mod recovery;
-mod remap;
 pub use parse::parse_shader_script;
 use parse::*;
-pub use remap::{
-    CS_SHADERSTATE, MAX_SERVER_REMAPS, RemapEntry, RemapLevel, RemapSource, ShaderRemaps,
-    ShaderStateEntry, atof, parse_shader_state, remap_key, worldspawn_remaps,
-};
 mod deforms;
 mod material;
 mod stage_colour;
