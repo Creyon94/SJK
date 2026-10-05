@@ -902,6 +902,16 @@ change: so muzzle flashes and map effects filling it cannot hide them any more.
 test: Crowded JoF server, people typing while others shoot blasters: balloons stay steady.
 test: A map with heavy effects (rain, fire): balloons and item icons stay up.
 
+[away-talk-balloon]
+status: personal
+area: HUD
+title: Your chat balloon shows while you are alt-tabbed or minimised (EternalJK)
+change: Losing focus or minimising sends the talk button, so others see you are away.
+change: cl_unfocusedChatbox 0 / cl_minimizedChatbox 0 turn either case off (both 1).
+test: On a server with a friend: alt-tab away; they see your chat balloon until you return.
+test: Minimise the window: same. Back in the game you move normally at once.
+test: cl_unfocusedChatbox 0, alt-tab again: no balloon.
+
 [hud-picker]
 status: personal
 area: HUD

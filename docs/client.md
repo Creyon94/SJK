@@ -750,7 +750,9 @@ unimplemented on the native server.
 ## Talk balloons
 
 Opening chat, the console or a menu sends the stock talk button and disables
-other movement input while that keyboard catcher is active. Players carrying
+other movement input while that keyboard catcher is active. As in EternalJK, so
+does a window you alt-tab away from or minimise, so others see you are away:
+`cl_unfocusedChatbox` and `cl_minimizedChatbox` (archived, both 1) turn that off. Players carrying
 the talk flag have a chatbubble over their heads; the connection-trouble icon
 takes priority when the server marks a lost connection. These are upright frame
 billboards using the existing [sprite orientation](rendering.md#billboard-icons).

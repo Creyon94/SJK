@@ -1,4 +1,5 @@
-//! Window events and cached focus-dependent frame caps; no simulation policy.
+//! Window events, cached focus-dependent frame caps and the away talk balloon; no
+//! simulation policy.
 use super::console_cvars::IntegerSetting;
 use super::*;
 
@@ -6,6 +7,8 @@ use super::*;
 pub(super) struct Options {
     unfocused_cap: IntegerSetting,
     minimized_cap: IntegerSetting,
+    unfocused_chatbox: IntegerSetting,
+    minimized_chatbox: IntegerSetting,
     unfocused: bool,
     minimized: bool,
     alt: bool,
@@ -26,6 +29,16 @@ impl Options {
                 "com_maxfpsMinimized",
                 50,
                 "Minimized frame cap; zero uses the normal cap",
+            ),
+            (
+                "cl_unfocusedChatbox",
+                1,
+                "Show your chat balloon while the game window is unfocused",
+            ),
+            (
+                "cl_minimizedChatbox",
+                1,
+                "Show your chat balloon while the game window is minimised",
             ),
         ] {
             cvars.register(CvarDefinition::new(name, default, CvarFlags::ARCHIVE, help))?;
@@ -67,6 +80,8 @@ impl Options {
         Ok(Self {
             unfocused_cap: IntegerSetting::bind(cvars, "com_maxfpsUnfocused", 0)?,
             minimized_cap: IntegerSetting::bind(cvars, "com_maxfpsMinimized", 50)?,
+            unfocused_chatbox: IntegerSetting::bind(cvars, "cl_unfocusedChatbox", 1)?,
+            minimized_chatbox: IntegerSetting::bind(cvars, "cl_minimizedChatbox", 1)?,
             unfocused: false,
             minimized: false,
             alt: false,
@@ -110,6 +125,20 @@ impl ViewerConsole {
             return normal;
         };
         cap.min(i64::from(u32::MAX)) as u32
+    }
+
+    /// Whether commands carry `BUTTON_TALK` because the window is away: EternalJK's
+    /// `cl_unfocusedChatbox` / `cl_minimizedChatbox` (both on by default) in
+    /// `CL_CmdButtons` (`codemp/client/cl_input.cpp`), so other players see the
+    /// balloon over someone who alt-tabbed.
+    pub(crate) fn window_talk(&self) -> bool {
+        let options = &self.window_options;
+        away_talk(
+            options.unfocused,
+            options.minimized,
+            options.unfocused_chatbox.value(),
+            options.minimized_chatbox.value(),
+        )
     }
 
     /// Update modifier state from the same native event used by console shortcuts.
@@ -211,4 +240,33 @@ fn contains_ascii(text: &str, word: &str) -> bool {
             .as_bytes()
             .windows(word.len())
             .any(|part| part.eq_ignore_ascii_case(word.as_bytes()))
+}
+
+/// `CL_CmdButtons`' away test: unfocused with `cl_unfocusedChatbox`, or minimised
+/// with `cl_minimizedChatbox`, each enabled by any nonzero value.
+fn away_talk(
+    unfocused: bool,
+    minimized: bool,
+    unfocused_chatbox: i64,
+    minimized_chatbox: i64,
+) -> bool {
+    unfocused && unfocused_chatbox != 0 || minimized && minimized_chatbox != 0
+}
+
+#[cfg(test)]
+mod away_talk_tests {
+    use super::away_talk;
+
+    #[test]
+    fn an_away_window_talks_unless_its_setting_is_off() {
+        assert!(!away_talk(false, false, 1, 1));
+        assert!(away_talk(true, false, 1, 1));
+        assert!(away_talk(true, true, 1, 1));
+        assert!(!away_talk(true, false, 0, 1));
+        // A minimised window is usually unfocused too; either setting raises it.
+        assert!(away_talk(true, true, 0, 1));
+        assert!(away_talk(true, true, 1, 0));
+        assert!(!away_talk(true, true, 0, 0));
+        assert!(away_talk(false, true, 0, 2));
+    }
 }

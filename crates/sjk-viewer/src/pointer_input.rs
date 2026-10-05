@@ -182,6 +182,16 @@ impl GpuState {
                 .is_some_and(|menu| menu.is_visible())
     }
 
+    /// Commands carry `BUTTON_TALK`: a key catcher is open, or the window is away
+    /// (alt-tabbed or minimised, see [`crate::console::ViewerConsole::window_talk`]).
+    pub(crate) fn talk_button(&self) -> bool {
+        self.key_catcher_active()
+            || self
+                .console
+                .as_ref()
+                .is_some_and(|console| console.window_talk())
+    }
+
     pub(crate) fn sync_cursor_policy(&mut self) {
         let overlay = self.key_catcher_active();
         let desired = self.cursor_policy.desired(

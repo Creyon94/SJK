@@ -801,6 +801,11 @@ now keeps 256 slots that only those billboards use (`particle_types.rs`); effect
 still stop at 2,048. Unit tests replay that frame. No game was started: the busy
 scene Sol saw is not reproduced on screen.
 
+The same branch raises your balloon while the window is unfocused or minimised, as
+EternalJK's `cl_unfocusedChatbox` / `cl_minimizedChatbox` do in `CL_CmdButtons`
+(both 1). A unit test covers the settings; whether commands keep flowing while
+Windows has the window minimised (which the minimised case needs) is unverified.
+
 ## Force power presentation
 
 SJK change based on `024c22a` (2026-10-04), fixing gaps inherited from JKR.
