@@ -429,6 +429,26 @@ test: JoF server on innercity: medpacks look different (server remaps); cg_remap
 test: Settings > Game options: the Shader remaps row (0 / 1 / 2) and its help line.
 note: HUD pictures, saber blades and trails and surface sprites still ignore remaps.
 
+[leading-slash-paths]
+pr: 133
+status: open
+area: Rendering & effects
+title: Assets named with a leading slash load, as in retail (JoF map items)
+change: A read drops one leading / or \ from the path, as FS_FOpenFileRead does.
+change: Fixes "could not load network model /models/items/a_pwr_converter.md3".
+test: Join a JoF server on the map that logged that line (see logs\last-client.log).
+test: The power converter item has its model; the log no longer has that line.
+note: Mounted names and pk3 entries still refuse a leading slash; only reads accept one.
+
+[forced-model-log]
+pr: 134
+status: open
+area: Rendering & effects
+title: No more 32 "force-model client N: no game state" lines at every connect
+change: The forced-model policy is recorded but not applied until there is a game state.
+test: Connect to a server; logs\last-client.log has no "force-model client" lines.
+test: cg_forceModel 1 in a match: other players still switch to your model at once.
+
 # ---- Open PRs: Audio ----
 
 # ---- Open PRs: Gameplay ----
