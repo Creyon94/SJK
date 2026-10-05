@@ -108,6 +108,12 @@ pub(crate) struct LocalPrediction {
     miss_log: telemetry::MissLog,
     /// The vehicle the local player pilots, predicted with it.
     rides: ride::Rides,
+    /// `cg_fakeNoclip`: the predictor flies on its own while the server is sent a still player.
+    fake_noclip: bool,
+    /// The next snapshot ends a fake noclip: snap to the server's position without smoothing.
+    snap_back: bool,
+    /// The view angles the server is sent while flying: the ones held when it began.
+    frozen_angles: [i32; 3],
 }
 
 impl LocalPrediction {
@@ -175,6 +181,46 @@ impl LocalPrediction {
             last_sample: PredictionSample::default(),
             miss_log: telemetry::MissLog::default(),
             rides: ride::Rides::new(vfs),
+            fake_noclip: false,
+            snap_back: false,
+            frozen_angles: [0; 3],
+        }
+    }
+
+    /// Start or end `cg_fakeNoclip`. Ending it returns to the server's position on the next
+    /// snapshot, with no error smoothing across the jump.
+    pub(crate) fn set_fake_noclip(&mut self, on: bool) {
+        if self.fake_noclip == on {
+            return;
+        }
+        if on && let Some(latest) = self.latest_input {
+            self.frozen_angles = latest.angles;
+        }
+        self.fake_noclip = on;
+        self.snap_back = !on;
+        for predictor in self.predictor.iter_mut().chain(self.preview.iter_mut()) {
+            predictor.set_fake_noclip(on);
+        }
+    }
+
+    pub(crate) fn fake_noclip(&self) -> bool {
+        self.fake_noclip
+    }
+
+    /// What the server is sent for `command`: while flying, a player with the talk balloon
+    /// up, standing still with a frozen view (`CL_WritePacket`, `cl_input.cpp:2175-2196`).
+    /// The time stays, so command timing keeps in step.
+    pub(crate) fn command_for_server(&self, command: UserCommand) -> UserCommand {
+        if !self.fake_noclip {
+            return command;
+        }
+        UserCommand {
+            angles: self.frozen_angles,
+            buttons: sjk_game_jka::pmove_talk::BUTTON_TALK,
+            forward_move: 0,
+            right_move: 0,
+            up_move: 0,
+            ..command
         }
     }
 
@@ -315,11 +361,13 @@ impl LocalPrediction {
         self.rides.resolve(snapshot, game_state);
     }
 
-    /// Queue and predict a freshly issued user command; returns the eye
-    /// position when prediction is active.
+    /// Queue the command `sent` to the server and predict `command`, the same command unless
+    /// a fake noclip sends the server a still player; returns the eye position when
+    /// prediction is active.
     pub(crate) fn apply_command(
         &mut self,
         command: UserCommand,
+        sent: UserCommand,
         bsp: &Bsp,
         scratch: &mut TraceScratch,
     ) -> Option<Vec3> {
@@ -327,7 +375,9 @@ impl LocalPrediction {
         if self.pending.len() == COMMAND_BACKUP {
             self.pending.pop_front();
         }
-        self.pending.push_back(command);
+        // What the server was sent is what a re-prediction replays; a fake noclip's own
+        // flight is only the predictor's (`cg_predict.c:1355`).
+        self.pending.push_back(sent);
         let predictor = self.predictor.as_mut()?;
         let collision =
             BspMovementCollision::with_movers(bsp, scratch, &self.physics_movers.colliders);
@@ -422,4 +472,61 @@ use triggers::touch_triggers;
 /// cg_predict.c:952: only following another player bypasses live prediction.
 pub(crate) fn predicts_local_view(movement_flags: u16) -> bool {
     movement_flags & 4096 == 0 // PMF_FOLLOW, not the spectator team/type.
+}
+
+#[cfg(test)]
+mod fake_noclip_tests {
+    use super::*;
+
+    fn prediction() -> LocalPrediction {
+        LocalPrediction::new(None, None, None, &VirtualFileSystem::new())
+    }
+
+    fn command() -> UserCommand {
+        UserCommand {
+            server_time: 100,
+            angles: [10, 20, 30],
+            buttons: 1,
+            forward_move: 127,
+            right_move: -127,
+            up_move: 127,
+            ..UserCommand::default()
+        }
+    }
+
+    #[test]
+    fn the_server_is_sent_the_command_unchanged_when_not_flying() {
+        assert_eq!(prediction().command_for_server(command()), command());
+    }
+
+    #[test]
+    fn a_flying_player_is_sent_still_with_the_talk_balloon_and_the_starting_view() {
+        let mut prediction = prediction();
+        prediction.latest_input = Some(command());
+        prediction.set_fake_noclip(true);
+        // The view moves on; the server keeps seeing the one held when the flight began.
+        let moved = UserCommand {
+            angles: [90, 91, 92],
+            server_time: 150,
+            ..command()
+        };
+        let sent = prediction.command_for_server(moved);
+        assert_eq!(sent.angles, [10, 20, 30]);
+        assert_eq!(sent.buttons, sjk_game_jka::pmove_talk::BUTTON_TALK);
+        assert_eq!(
+            (sent.forward_move, sent.right_move, sent.up_move),
+            (0, 0, 0)
+        );
+        assert_eq!(sent.server_time, 150, "command timing stays in step");
+    }
+
+    #[test]
+    fn ending_the_flight_snaps_back_without_smoothing() {
+        let mut prediction = prediction();
+        prediction.set_fake_noclip(true);
+        assert!(!prediction.snap_back);
+        prediction.set_fake_noclip(false);
+        assert!(prediction.snap_back);
+        assert_eq!(prediction.command_for_server(command()), command());
+    }
 }

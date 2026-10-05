@@ -58,6 +58,7 @@ pub(crate) fn frame_seconds(millis: i32) -> f32 {
 }
 /// `pmtype_t::PM_DEAD` (`codemp/game/bg_public.h`).
 const PM_DEAD: u8 = 5;
+const PM_NOCLIP: u8 = 3;
 /// `DEFAULT_VIEWHEIGHT` = `DEFAULT_MAXS_2 + STANDARD_VIEWHEIGHT_OFFSET` = 40 - 4
 /// (`codemp/game/bg_public.h:75-80`; the `//26` comment there is stale).
 const STANDING_VIEW_HEIGHT: i32 = 36;
@@ -731,6 +732,9 @@ pub struct Predictor {
     /// This slice is a server's first of a player's command, whose `pmove_t` the game has
     /// just cleared: its box before `PM_CheckDuck` is zero ([`wall_moves`]).
     cleared_box: bool,
+    /// JoF EternalJK's `cg_fakeNoclip`: this client-side predictor flies in noclip while
+    /// the server is told the player stands still (`pm->fakeNoclip`). Never set on a server.
+    fake_noclip: bool,
     /// The water level as the slice began (`pml.previous_waterlevel`, taken right after
     /// `PM_SetWaterLevel`, `bg_pmove.c:10705-10707`), which `PM_WaterEvents` compares with.
     water_entry: u8,
@@ -770,6 +774,7 @@ impl Predictor {
             gametype: 0,
             npc: None,
             cleared_box: false,
+            fake_noclip: false,
             water_entry: 0,
             slow_fall: false,
             vehicle: None,
@@ -800,6 +805,7 @@ impl Predictor {
             gametype: 0,
             npc: None,
             cleared_box: false,
+            fake_noclip: false,
             water_entry: 0,
             slow_fall: false,
             vehicle: None,
@@ -815,6 +821,12 @@ impl Predictor {
     /// Update server-advertised roll policy without changing predicted state.
     pub fn set_roll_rules(&mut self, rules: crate::pmove_roll::RollRules) {
         self.config.roll_rules = rules;
+    }
+
+    /// Fly in noclip from the next command on, as `cg_fakeNoclip` does
+    /// (`cg_predict.c:1721-1727`): the move type is forced to `PM_NOCLIP` each command.
+    pub fn set_fake_noclip(&mut self, on: bool) {
+        self.fake_noclip = on;
     }
 
     /// Refresh movement policy without discarding the replay state.
@@ -1143,7 +1155,23 @@ impl Predictor {
         }
         let mut repeated_command = command;
         // The trace mask is chosen once per command: a dead player's leaves bodies out.
+        if self.fake_noclip && !self.config.authoritative {
+            self.state.movement_type = PM_NOCLIP;
+        }
         let dead = self.state.movement_type == PM_DEAD;
+        // A player the server walks through others (`GHOST_KNOWN_FLAG`: amghost, the grace
+        // after unghosting inside someone, a duel's walk-apart) loses `CONTENTS_BODY` and
+        // `CONTENTS_PLAYERCLIP` too (`cg_predict.c:1299-1313`); a client that kept them
+        // stops dead where the server walks on, and the corrections shake the view.
+        let left_out = if dead {
+            Some(flight::BODY)
+        } else if !self.config.authoritative
+            && crate::prediction_policy::passes_through_players(self.state.force_powers_known)
+        {
+            Some(flight::BODY_AND_PLAYER_CLIP)
+        } else {
+            None
+        };
         // `ClientThink_real` clears its `pmove_t` for every command (`g_active.c:2754`) and
         // gives only an NPC its entity's box (`:3007-3010`); a client's persists.
         self.cleared_box =
@@ -1161,11 +1189,11 @@ impl Predictor {
             let opponent = lock
                 .as_deref_mut()
                 .and_then(|lock| lock.opponent(context.saber_offense));
-            if dead {
+            if let Some(left_out) = left_out {
                 self.pmove_single_with(
                     slice,
                     millis,
-                    &flight::WithoutBodies(collision),
+                    &flight::WithoutBodies(collision, left_out),
                     context,
                     opponent,
                     outcome,

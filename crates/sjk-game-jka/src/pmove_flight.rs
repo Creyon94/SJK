@@ -12,7 +12,7 @@ impl Predictor {
         let seconds = super::frame_seconds(millis);
         match self.state.movement_type {
             4 => {
-                let collision = WithoutBodies(collision);
+                let collision = WithoutBodies(collision, BODY);
                 let bounds = self.check_duck(command, &collision);
                 self.box_bounds = (bounds.minimums, bounds.maximums);
                 let ground = GroundState::air(MovementTrace::miss(self.state.origin));
@@ -108,6 +108,22 @@ impl Predictor {
         self.state.velocity = velocity.to_array();
     }
 
+    /// `PM_CmdScale` with `upmove` counted, so jump and crouch alone fly up and down
+    /// (`bg_pmove.c:5017-5035`, `pm->fakeNoclip`).
+    fn fake_noclip_scale(&self, command: &UserCommand) -> f32 {
+        let (forward, right, up) = (
+            i32::from(command.forward_move),
+            i32::from(command.right_move),
+            i32::from(command.up_move),
+        );
+        let maximum = forward.abs().max(right.abs()).max(up.abs());
+        if maximum == 0 {
+            return 0.0;
+        }
+        let total = ((forward * forward + right * right + up * up) as f32).sqrt();
+        self.state.speed * maximum as f32 / (127.0 * total)
+    }
+
     /// PM_NoclipMove, bg_pmove.c:3487-3552: full view axes, no collision.
     fn noclip_move(&mut self, command: &UserCommand, seconds: f32) {
         self.state.view_height = STANDING_VIEW_HEIGHT;
@@ -119,7 +135,14 @@ impl Predictor {
             let drop = speed.max(STOP_SPEED) * (FRICTION * 1.5) * seconds;
             (velocity * ((speed - drop).max(0.0) / speed)).to_array()
         };
-        let mut scale = self.command_scale(command);
+        let mut scale = if self.fake_noclip {
+            self.fake_noclip_scale(command)
+        } else {
+            self.command_scale(command)
+        };
+        let turbo = [1, 128]
+            .into_iter()
+            .any(|button| command.buttons & button != 0);
         for button in [1, 128] {
             if command.buttons & button != 0 {
                 scale *= 10.0;
@@ -129,23 +152,35 @@ impl Predictor {
         let wish = forward * f32::from(command.forward_move)
             + right * f32::from(command.right_move)
             + Vec3::Z * f32::from(command.up_move);
-        self.accelerate(
-            wish.normalize_or_zero(),
-            wish.length() * scale,
-            GROUND_ACCELERATION,
-            seconds,
-        );
+        if self.fake_noclip && turbo && wish.length() * scale > 0.0 {
+            // Turbo flies exactly along the aim: `PM_Accelerate` never cancels sideways
+            // speed, so aiming up at speed would barely climb (`bg_pmove.c:5063-5075`).
+            self.state.velocity = (wish.normalize_or_zero() * (wish.length() * scale)).to_array();
+        } else {
+            self.accelerate(
+                wish.normalize_or_zero(),
+                wish.length() * scale,
+                GROUND_ACCELERATION,
+                seconds,
+            );
+        }
         self.state.origin = (Vec3::from_array(self.state.origin)
             + seconds * Vec3::from_array(self.state.velocity))
         .to_array();
     }
 }
 
-/// The movement's collision with player bodies left out (`MASK_PLAYERSOLID &
-/// ~CONTENTS_BODY`): free spectators (cg_predict.c:1007-1008) and the dead
+/// The movement's collision with some contents left out (`MASK_PLAYERSOLID &
+/// ~CONTENTS_BODY` for player bodies): free spectators (cg_predict.c:1007-1008) and the dead
 /// (`ClientThink_real`, `g_active.c:2823-2825`; cg_predict.c the same) collide with walls,
 /// not with players.
-pub(crate) struct WithoutBodies<'a, C>(pub(crate) &'a C);
+pub(crate) struct WithoutBodies<'a, C>(pub(crate) &'a C, pub(crate) u32);
+
+/// `CONTENTS_BODY`.
+pub(crate) const BODY: u32 = 0x100;
+/// `CONTENTS_BODY | CONTENTS_PLAYERCLIP`: what a player the server walks through others
+/// (`GHOST_KNOWN_FLAG`) loses from the trace mask.
+pub(crate) const BODY_AND_PLAYER_CLIP: u32 = 0x100 | 0x10;
 
 impl<C: MovementCollision> MovementCollision for WithoutBodies<'_, C> {
     fn point_contents(&self, point: [f32; 3]) -> u32 {
@@ -160,7 +195,7 @@ impl<C: MovementCollision> MovementCollision for WithoutBodies<'_, C> {
         end: [f32; 3],
         mask: u32,
     ) -> MovementTrace {
-        self.0.trace(start, mins, maxs, end, mask & !0x100)
+        self.0.trace(start, mins, maxs, end, mask & !self.1)
     }
 }
 
@@ -192,4 +227,113 @@ pub fn angles_to_axis(angles: [f32; 3]) -> [[f32; 3]; 3] {
         [-right[0], -right[1], -right[2]],
         [cr * sp * cy + sr * sy, cr * sp * sy - sr * cy, cr * cp],
     ]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::cell::Cell;
+
+    /// Everything solid, recording every content mask a move traced with.
+    struct Solid(Cell<u32>);
+
+    impl MovementCollision for Solid {
+        fn trace(
+            &self,
+            start: [f32; 3],
+            _: [f32; 3],
+            _: [f32; 3],
+            _: [f32; 3],
+            mask: u32,
+        ) -> MovementTrace {
+            self.0.set(self.0.get() | mask);
+            MovementTrace {
+                fraction: 0.0,
+                end_position: start,
+                start_solid: true,
+                all_solid: true,
+                ..MovementTrace::miss(start)
+            }
+        }
+    }
+
+    fn player(force_powers_known: u32) -> sjk_protocol::PlayerState {
+        let mut player = sjk_protocol::PlayerState::default();
+        player.set_raw_field(51, force_powers_known);
+        player.set_raw_field(37, 250); // base speed
+        player
+    }
+
+    fn masks_traced(force_powers_known: u32) -> u32 {
+        let player = player(force_powers_known);
+        let mut predictor = Predictor::from_player_state(&player, MovementConfig::default());
+        let world = Solid(Cell::new(0));
+        predictor.predict_command(
+            UserCommand {
+                server_time: player.command_time() + 8,
+                forward_move: 127,
+                ..UserCommand::default()
+            },
+            &world,
+        );
+        world.0.get()
+    }
+
+    #[test]
+    fn a_ghost_loses_bodies_and_player_clip_from_every_trace() {
+        let normal = masks_traced(0);
+        assert_eq!(normal & BODY_AND_PLAYER_CLIP, BODY_AND_PLAYER_CLIP);
+        let ghost = masks_traced(crate::prediction_policy::GHOST_KNOWN_FLAG);
+        assert_ne!(ghost, 0, "the move traced");
+        assert_eq!(ghost & BODY_AND_PLAYER_CLIP, 0);
+    }
+
+    #[test]
+    fn fake_noclip_flies_through_solid_and_fills_the_up_axis() {
+        let player = player(0);
+        let mut predictor = Predictor::from_player_state(&player, MovementConfig::default());
+        predictor.set_fake_noclip(true);
+        let start = predictor.state().origin;
+        let world = Solid(Cell::new(0));
+        let mut time = player.command_time();
+        for _ in 0..10 {
+            time += 8;
+            // Jump alone: a plain noclip's scale ignores it and would stand still.
+            predictor.predict_command(
+                UserCommand {
+                    server_time: time,
+                    up_move: 127,
+                    ..UserCommand::default()
+                },
+                &world,
+            );
+        }
+        let state = predictor.state();
+        assert_eq!(state.movement_type, 3);
+        assert!(
+            state.origin[2] > start[2] + 1.0,
+            "flew up: {:?}",
+            state.origin
+        );
+    }
+
+    #[test]
+    fn fake_noclip_turbo_follows_the_aim_exactly() {
+        let player = player(0);
+        let mut predictor = Predictor::from_player_state(&player, MovementConfig::default());
+        predictor.set_fake_noclip(true);
+        predictor.predict_command(
+            UserCommand {
+                server_time: player.command_time() + 8,
+                forward_move: 127,
+                buttons: 1,
+                ..UserCommand::default()
+            },
+            &Solid(Cell::new(0)),
+        );
+        // 250 * 10 along the view, the aim being straight ahead (+X).
+        let velocity = predictor.state().velocity;
+        assert!((velocity[0] - 2500.0).abs() < 1.0, "{velocity:?}");
+        assert!(velocity[1].abs() < 1e-3 && velocity[2].abs() < 1e-3);
+    }
 }

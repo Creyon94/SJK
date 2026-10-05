@@ -135,6 +135,33 @@ grab, alternate dimension, macro scan), the Jedi Outcast red DFA
 (`jp_jk2RedDFA`, off by default), a changed `jp_gripSpeedScale` (not published)
 and the animation holds for JA+'s extra GLA animations.
 
+### When prediction steps aside
+
+Three cases show the server's state instead of predicting, as JoF EternalJK's
+`CG_PredictPlayerState` does
+([prediction_policy.rs](../crates/sjk-game-jka/src/prediction_policy.rs), applied by
+[interpolated_view.rs](../crates/sjk-viewer/src/interpolated_view.rs)):
+
+- `cg_noPredict 1`: the view takes the server's position and keeps the mouse; `2` takes its
+  angles too. Following another player and `g_synchronousClients` behave the same way.
+- On a JA+ server, the victim of an added side or back kick (`forceDodgeAnim` 4 or 5, or
+  the `BOTH_BACK_FALLING` and `BOTH_JUMP_BACKFLIP_ATCKEE` animations): the server runs
+  knockdown rules the client's pmove lacks, so predicting shakes the camera. With
+  `cg_noPredict 1` the server's angles are also taken while JA+ holds the view locked
+  (kick, get-up, kiss, ledge).
+
+A JA+ server that walks a player through others (amghost, the grace after unghosting
+inside someone, a duel's walk-apart) sets `GHOST_KNOWN_FLAG`, bit 31 of
+`fd.forcePowersKnown`; prediction then drops `CONTENTS_BODY` and `CONTENTS_PLAYERCLIP` from
+its trace mask, so the client no longer stops where the server walks on.
+
+`/fakenoclip` (`cg_fakeNoclip`, EternalJK's debugging aid) flies the local predictor in
+noclip while the server is sent a still player: zero movement, `BUTTON_TALK` and the view
+held from the moment it began, with the command time intact. The predicted state is not
+reseeded from snapshots, every map area is drawn, and turning it off (or dying,
+spectating or boarding a vehicle) snaps back to the server's position without error
+smoothing. Turbo (attack held) sets the velocity along the aim directly.
+
 ## Parity requirements
 
 Movement includes integer-millisecond user-command quantization. Validate common

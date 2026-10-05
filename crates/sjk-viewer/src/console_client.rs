@@ -94,6 +94,10 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
     ("addFavorite", "Add an address to browser favorites"),
     ("rcon", "Execute a remote console command"),
     ("afk", "Toggle the AFK name prefix"),
+    (
+        "fakenoclip",
+        "Fly locally while the server sees you standing still (toggle)",
+    ),
     ("colorname", "Apply selected name colors"),
     ("colorstring", "Configure outgoing chat colors"),
     ("vid_restart", "Reapply video settings (device is retained)"),
@@ -418,6 +422,7 @@ impl crate::GpuState {
                     .ok_or("No window to minimize")?
                     .set_minimized(true);
             }
+            "fakenoclip" => return self.fake_noclip_command(),
             "cosmetics" => return self.cosmetics_command(args),
             "vid_restart" | "snd_restart" | "in_restart" | "modelist" => {
                 return self.restart_command(&name, audio);
