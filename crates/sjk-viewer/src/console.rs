@@ -4,12 +4,16 @@ use super::{TextVertex, UiFont};
 use crate::keybind_editor;
 #[path = "console_browser.rs"]
 mod browser;
+#[path = "changelog.rs"]
+pub(crate) mod changelog;
 #[path = "console_chat_log.rs"]
 mod chat_log;
 #[path = "console_client_options.rs"]
 mod client_options;
 #[path = "clipboard.rs"]
 pub(crate) mod clipboard;
+#[path = "console_changelog.rs"]
+mod console_changelog;
 #[path = "console_connect.rs"]
 mod console_connect;
 #[path = "console_cvars.rs"]
@@ -102,6 +106,7 @@ pub(crate) struct ViewerConsole {
     browser: browser::Browser,
     /// Personal test list of Sol's build, drawn in place of the console while open.
     debug_panel: debug_panel::Panel,
+    changelog: changelog::Panel,
     userinfo_dirty: Arc<AtomicBool>,
     show_timedelta: crate::net_timing::CvarSetting,
     time_nudge: crate::presentation_clock::CvarSetting,
@@ -215,7 +220,8 @@ impl ViewerConsole {
     /// The command and cvar browser is open and covers the whole frame; overlays
     /// under it should not build their text.
     pub(crate) fn covers_frame(&self) -> bool {
-        self.open && (self.browser.is_open() || self.debug_panel.is_open())
+        self.open
+            && (self.browser.is_open() || self.debug_panel.is_open() || self.changelog.is_open())
     }
 
     /// Add an application diagnostic to the visible bounded scrollback.
@@ -470,7 +476,9 @@ impl ViewerConsole {
     ) {
         // Overlay text draws above every overlay's shapes, so the browser replaces the
         // console's drawing rather than covering it.
-        if self.append_debug_panel(vertices, font, viewport) {
+        if self.append_changelog(vertices, font, viewport)
+            || self.append_debug_panel(vertices, font, viewport)
+        {
             return;
         }
         if self.open && self.browser.is_open() {
@@ -539,6 +547,9 @@ impl ViewerConsole {
     }
 
     pub(crate) fn draw_list(&self) -> &sjk_ui::DrawList {
+        if let Some(draw_list) = self.changelog_draw_list() {
+            return draw_list;
+        }
         if let Some(draw_list) = self.debug_panel_draw_list() {
             return draw_list;
         }
@@ -597,6 +608,7 @@ impl ViewerConsole {
         if !open {
             self.browser.close();
             self.debug_panel.close();
+            self.changelog.close();
         }
     }
 

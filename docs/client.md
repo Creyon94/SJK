@@ -991,6 +991,22 @@ while the console is open, which shows the version in its own corner.
 the same build at startup (`build: SJK ...`). How the version is decided is in
 [SJK conventions](sjk.md#version).
 
+## Changelog page
+
+The main menu's Changelog entry (modern list, and a CHANGELOG button under
+PROFILE on the classic page) and the `changelog` console command show every SJK
+release from [CHANGELOG.md](../CHANGELOG.md), built into the client
+([changelog.rs](../crates/sjk-viewer/src/changelog.rs), parsed by
+[changelog_data.rs](../crates/sjk-viewer/src/changelog_data.rs)). Releases are
+listed newest first on the left, "Unreleased" (the changes on `main` since the
+last release) on top; the right pane shows the selected release's introduction
+and its changes, wrapped to the pane, each followed by its credit in capitals.
+Up and Down (or a click) pick a release; Page Up, Page Down, the wheel over the
+pane and its scrollbar scroll it; Escape closes. Like the `debug_panel` list the
+page lives in the console and is drawn in its place, so it opens over the menus
+and in a match, and closes the console with itself when it opened it. How the
+file is kept is in [SJK conventions](sjk.md#changelog).
+
 ## Force wheel
 
 With the `game` and `classic` HUD styles, `forcenext`/`forceprev` show JoF

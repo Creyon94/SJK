@@ -46,6 +46,8 @@ pub(crate) enum Entry {
     Controls,
     Setup,
     Exit,
+    /// SJK: the changelog page.
+    Changelog,
     SoloGame,
     JoinServer,
     CreateServer,
@@ -214,6 +216,7 @@ impl Entry {
             Self::Controls => Outcome::Page(Page::Controls),
             Self::Setup => Outcome::Page(Page::Setup),
             Self::Exit => Outcome::Page(Page::Quit),
+            Self::Changelog => Outcome::Open(MainDestination::Changelog),
             Self::Back | Self::No => Outcome::Page(Page::Main),
             Self::SetupBack => Outcome::Page(Page::Setup),
             Self::Profile => Outcome::Open(MainDestination::Player),
@@ -408,7 +411,8 @@ mod tests {
                 Entry::Profile,
                 Entry::Controls,
                 Entry::Setup,
-                Entry::Exit
+                Entry::Exit,
+                Entry::Changelog
             ]
         );
         assert_eq!(

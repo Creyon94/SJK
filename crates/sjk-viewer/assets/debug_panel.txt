@@ -1093,6 +1093,18 @@ change: The big title word on the modern main menu (ui_menuStyle modern) reads S
 test: Set the modern menu style, go to the main menu: the large title reads SJK, not JK::R.
 test: It sits where JK::R was, over the saber emblem, and nothing overlaps it.
 
+[changelog-page]
+status: personal
+area: Menus & settings
+title: Changelog page: every SJK release with its changes and credits
+change: Main menu > Changelog (classic: CHANGELOG button under PROFILE) and the changelog command.
+change: Releases newest first on the left; changes wrapped on the right, each with its credit.
+change: The list is CHANGELOG.md at the repository root, built into the client.
+test: Classic main menu: click CHANGELOG; pick 2026.1005.1; scroll with the wheel and Page Down.
+test: Modern menus (ui_menuStyle modern): Changelog sits above Quit and opens the same page.
+test: In a match, type changelog in the console; Escape closes the page and the console.
+test: At 4K with 150% scaling the text wraps inside the pane and nothing overlaps.
+
 # ---- Merged upstream ----
 
 [jkr-vehicles]

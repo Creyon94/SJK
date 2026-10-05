@@ -19,6 +19,8 @@ pub(crate) enum MainDestination {
     /// The key-binding editor on category tab `category`, closing straight
     /// back to the main menu.
     Keybinds { category: usize },
+    /// The changelog page, drawn by the console over the menu.
+    Changelog,
     /// Exit to the desktop.
     Quit,
 }
@@ -74,6 +76,10 @@ impl ClientMenu {
                 self.keybinds.open_category(console, category);
                 self.keybinds_direct = true;
                 self.state.open_keybinds();
+                MenuAction::None
+            }
+            MainDestination::Changelog => {
+                console.open_changelog();
                 MenuAction::None
             }
             MainDestination::Quit => MenuAction::Quit,
