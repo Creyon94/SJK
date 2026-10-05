@@ -867,6 +867,19 @@ game or window was started: the recompiled materials on screen, the cost of a
 remap and server-sent remaps from a real game module (stock maps use none; JoF's
 innercity and expedition do) are unverified, and the time offset is not applied.
 
+## Outgoing text encoding (SJK)
+
+SJK-only branch `personal/legacy-text` (2026-10-05, based on `2696590`) sends
+names, chat, forwarded commands and `rcon` text in Windows-1252 when every
+character fits, as retail and EternalJK do, instead of UTF-8; other text stays
+UTF-8. See [player text](networking.md#player-text). Unit tests cover the
+encoder (ASCII borrowed, Latin-1, the Windows-1252 typography bytes, C1
+round-trip, non-Windows-1252 text left as UTF-8), the reliable-command path, a
+name decoded from the wire going back byte-exact, and the compressed connect
+packet and `rcon` datagram bytes; the locked workspace build and tests passed. No
+game was started: how a retail or EternalJK client shows SJK's chat and names on
+a live server is unverified.
+
 ## SJK emblem (SJK only)
 
 SJK-only branch `personal/sjk-logo` (2026-10-05, based on `bcb0b76`) puts Sol's

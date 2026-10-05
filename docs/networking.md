@@ -40,6 +40,25 @@ profile; the JA+ 2.4 server module formats both keys too. The JA+ client
 plugin's `serverconfig` and `pluginDisable` commands are client commands (see
 [client.md](client.md#useful-console-commands)).
 
+### Player text
+
+Names, chat and other typed text travel as byte strings that every client draws
+through a 256-glyph codepage font. The retail client, a Win32 ANSI program, sends
+the `WM_CHAR` bytes of the Windows code page; EternalJK sends one byte per
+character (`ConvertUTF32ToExpectedCharset`). SJK sends text whose every character
+has a Windows-1252 byte (ASCII, Latin-1, and Windows-1252's `€`, `™`, `œ`, curly
+quotes and dashes) as those bytes rather than UTF-8
+([legacy_text.rs](../crates/sjk-protocol/src/legacy_text.rs)), in the connect
+packet's userinfo, every reliable command (chat, `userinfo` updates, forwarded
+console commands) and `rcon` lines, so retail and EternalJK players read `ø` as
+`ø`, not `Ã¸`. Text with any other character (Cyrillic, CJK, emoji) is still sent
+as UTF-8, which only SJK clients decode; EternalJK's Windows-1251 and
+Windows-1250 mappings are not reproduced. Incoming text is decoded by
+[decode_legacy](../crates/sjk-client/src/legacy_text.rs): valid UTF-8 as UTF-8,
+anything else as Latin-1. A byte in 0x80..=0x9F therefore stays the C1 character
+of that value, draws the font glyph of that byte and is sent back as the same
+byte, so a name copied from the game round-trips exactly.
+
 ### Server-dialect movement rules
 
 Prediction follows rules the server advertises in `CS_SERVERINFO`, read by
