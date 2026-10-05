@@ -1,16 +1,22 @@
 //! Pointer routing on the classic profile pages: hovering an entry or one of
 //! its cells focuses it, a click activates the entry or picks the cell, and
-//! the wheel scrolls the list under it.
+//! the wheel scrolls the list under it. On the Force page a click on a star
+//! sets the power to that level (on its own top star, one below), and the
+//! right button lowers a power a level, as retail's did.
 
+use super::cosmetics_page::{self, list_of};
+use super::force_page::star_of;
 use super::view::{
-    BLADE_BASE, HILT_BASE, HILTS_SCROLL, PART_BASE, PARTS_SCROLL, TINT_BASE, TINTS_SCROLL,
+    BLADE_BASE, CAPES_SCROLL, HATS_SCROLL, HILT_BASE, HILTS_SCROLL, PART_BASE, PARTS_SCROLL,
+    TINT_BASE, TINTS_SCROLL,
 };
 use super::{BLADE_SWATCHES, Item};
 use crate::console::ViewerConsole;
 use crate::player_menu::grid::{GRID_SCROLL_TOKEN, TILE_BASE};
 use crate::player_menu::saber::{SaberStyle, allowed};
 use crate::player_menu::{PlayerMenu, PlayerMenuResult, catalog_of};
-use sjk_ui::{InputEvent, UiEventKind};
+use sjk_client::CosmeticSlot;
+use sjk_ui::{InputEvent, PointerButton, UiEventKind};
 
 /// What a pointer token names on a classic page.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -21,12 +27,24 @@ enum Target {
     Tint(usize),
     Hilt(bool, usize),
     Blade(bool, usize),
+    /// A Force power's level star.
+    Star(usize, u8),
+    /// A row of the hat or cape list.
+    Cosmetic(CosmeticSlot, usize),
     Scroll(u16),
 }
 
 fn target(token: u16) -> Option<Target> {
+    if let Some((slot, row)) = cosmetics_page::row_of(token) {
+        return Some(Target::Cosmetic(slot, row));
+    }
+    if let Some((power, level)) = star_of(token) {
+        return Some(Target::Star(power, level));
+    }
     Some(match token {
-        GRID_SCROLL_TOKEN | PARTS_SCROLL | TINTS_SCROLL => Target::Scroll(token),
+        GRID_SCROLL_TOKEN | PARTS_SCROLL | TINTS_SCROLL | HATS_SCROLL | CAPES_SCROLL => {
+            Target::Scroll(token)
+        }
         token if HILTS_SCROLL.contains(&token) => Target::Scroll(token),
         token if token >= BLADE_BASE[1] && token < BLADE_BASE[1] + 6 => {
             Target::Blade(true, usize::from(token - BLADE_BASE[1]))
@@ -60,6 +78,13 @@ impl PlayerMenu {
         event: InputEvent,
         console: &mut ViewerConsole,
     ) -> PlayerMenuResult {
+        let secondary = matches!(
+            event,
+            InputEvent::PointerRelease {
+                button: PointerButton::Secondary,
+                ..
+            }
+        );
         let Some(event) = self.canvas.pointer(event) else {
             return PlayerMenuResult::None;
         };
@@ -83,11 +108,34 @@ impl PlayerMenu {
             Target::Blade(second, _) => {
                 self.focus_of(if second { Item::Blades2 } else { Item::Blades })
             }
+            Target::Star(power, _) => self.focus_of(Item::Power(power as u8)),
+            Target::Cosmetic(slot, _) => self.focus_of(list_of(slot).0),
             Target::Scroll(_) => None,
         };
         if matches!(event.kind, UiEventKind::HoverEnter | UiEventKind::Hover) {
             if let Some(index) = owner.filter(|_| !self.name_editing) {
                 self.classic.focus = index;
+            }
+            if let Target::Cosmetic(slot, row) = target {
+                self.cosmetics.cursor[slot.index()] = row;
+            }
+            return PlayerMenuResult::None;
+        }
+        // The right button (a click that is not an activation) lowers a power.
+        if secondary && event.kind == UiEventKind::Click {
+            let power = match target {
+                Target::Star(power, _) => Some(power),
+                Target::Entry(index) => self
+                    .classic_items()
+                    .get(index)
+                    .and_then(|item| item.power()),
+                _ => None,
+            };
+            if let Some(power) = power {
+                if let Some(index) = owner {
+                    self.classic.focus = index;
+                }
+                self.force.step(power, false);
             }
             return PlayerMenuResult::None;
         }
@@ -132,6 +180,16 @@ impl PlayerMenu {
                 }
                 PlayerMenuResult::None
             }
+            Target::Star(power, level) => {
+                let current = self.force.allocation().levels[power];
+                let wanted = if level == current { level - 1 } else { level };
+                self.force.set_level(power, wanted);
+                PlayerMenuResult::None
+            }
+            Target::Cosmetic(slot, row) => {
+                self.cosmetics.toggle(console, slot, row);
+                PlayerMenuResult::None
+            }
             Target::Scroll(_) => PlayerMenuResult::None,
         }
     }
@@ -161,8 +219,18 @@ impl PlayerMenu {
                 self.scroll_hilts(token == HILTS_SCROLL[1], rows, console);
             }
             Target::Hilt(second, _) => self.scroll_hilts(second, rows, console),
+            // The cosmetic lists scroll their view; wearing takes a click.
+            Target::Scroll(HATS_SCROLL) => self.scroll_cosmetics(CosmeticSlot::Hat, rows),
+            Target::Scroll(CAPES_SCROLL) => self.scroll_cosmetics(CosmeticSlot::Cape, rows),
+            Target::Cosmetic(slot, _) => self.scroll_cosmetics(slot, rows),
             _ => {}
         }
+    }
+
+    /// Wheel over a cosmetic list moves its cursor, which the view keeps
+    /// in sight.
+    fn scroll_cosmetics(&mut self, slot: CosmeticSlot, rows: i32) {
+        self.cosmetics.move_cursor(slot, rows as isize);
     }
 
     /// Wheel over a hilt list steps the chosen hilt, as the list follows

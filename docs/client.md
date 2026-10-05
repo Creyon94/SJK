@@ -101,19 +101,55 @@ The classic main menu has the retail pages, entries and order:
 - Profile opens the retail profile pages (`player`, `player2`, `saber`), which
   edit the same drafts as the modern Player screen and write them at once:
   - Profile: name, team colour and the head grid (six 64-unit cells per row),
-    Custom to character creation, APPLY on to lightsaber creation, Exit.
+    Custom to character creation, APPLY on to lightsaber creation, Exit. SJK
+    sets Custom beside a Force button (retail's in-game `configforce` art) to
+    the right of the grid, with the Force profile at a glance under them
+    (mastery, side, points left and the holocrons of the powers with a level,
+    a pip per level), then JoF EJK's Cosmetics button and what is worn.
   - Character creation: species, skin tint swatches, the Head, Torso and Legs
     lists, Back and APPLY. Entering it from an ordinary character puts on the
     first species, as retail's Custom did.
   - Lightsaber creation: saber type, the hilt list (two for Dual Sabers), the
     six blade colour swatches (two rows for Dual), Apply, and Apply back to the
     main menu.
+  - Force (SJK): retail's in-game `ingame_playerforce` window, here on both
+    frames, editing the same draft as the modern Force tab. It keeps retail's
+    frame, title band, gold mastery line, blue and red side bars and level
+    stars, each numbered with what that level costs (`UI_DrawForceStars`:
+    `forcestarN` once bought, `forcecircleN` before). SJK lays the powers out
+    in two columns, the neutral powers over the saber skills and the chosen
+    side's five beside them, each with its holocron (`gfx/mp/f_icon_*`), and
+    adds Light and Dark cards with the side emblems, a points meter that shows
+    a hovered star's price (red when the points left cannot pay it) and a
+    panel for the hovered or focused power: its holocron, level, the next
+    level's cost or why it cannot be bought (other side, team games only,
+    Saber Attack 1 needed), every level's cost and what it has taken. A click
+    on a power raises it a level and the right button lowers it, as retail's
+    did; a click on a star sets that level (on the power's top star, one
+    below). Left and Right step the focused power. Reset, Discard and Apply
+    Powers act on the draft; the points line says "not applied" until it is
+    written, Escape keeps the draft until the screen closes, and the profile
+    page's APPLY (or Apply on lightsaber creation) writes a pending draft too.
+    The main menu shows the window over the backdrop with the navigation row
+    and Back.
+  - Cosmetics (SJK, JoF EJK's `ingame_cosmetics`): the installed hats and
+    capes side by side where JoF drew its preview model, the worn row filled.
+    A click wears a piece and a second takes it off; the wheel and Left/Right
+    move through a list and Enter wears. Show Cosmetics cycles `cg_cosmetics`
+    (On, Only Me, Off), Remove All takes both off and Apply returns to the
+    profile. An empty list says where cosmetics come from; when JoF's
+    catalogue has pieces that are not installed the list ends with its note.
+    See [Hats and capes](#hats-and-capes).
 
   Retail drew a live 3D model and a spinning saber. With no world behind the
   pages yet, the model's portrait and a drawn hilt and blade stand in, and the
   part lists show variant names where retail showed each variant's icon. The
   swatches are filled with the tint each `playerchoice.txt` entry sets, not its
-  swatch image. Escape returns to the profile page, then to the menu.
+  swatch image. Escape returns to the profile page, then to the menu. A click
+  on a cell of the head grid, the part, tint and hilt lists or the blade
+  swatches picks that cell; each list registers its own pointer region before
+  its cells, since the menu canvas gives the pointer to the region registered
+  last.
 
 Join Server opens retail's join-server screen (`ui/jamp/joinserver.menu`) on
 the same browser as the modern style, so the list, favourites, filters and
@@ -193,8 +229,10 @@ call-vote lists. Exit offers Main Menu, Restart Match and Quit Program, each
 with a Yes/No confirmation. Profile opens the retail in-game profile window
 (`ingame_player`: name, team colour, head grid, Custom, Saber and the Force
 summary, then `ingame_player2` and `ingame_saber`); its Apply returns to the
-match. Its Join Red, Join Blue and Spectate buttons are left to the Join tab,
-and the Force configuration button is not there yet. Controls and Setup open
+match. The Force box shows the side's emblem beside retail's mastery, side and
+points lines and the known powers' holocrons, and its `configforce` button
+opens the Force window; the Cosmetics button sits under Custom, as in JoF EJK.
+Its Join Red, Join Blue and Spectate buttons are left to the Join tab. Controls and Setup open
 the option panels described above. Siege swaps in Objectives and V Chat as retail does. Add Bot,
 Objectives, V Chat and Restart Match are dimmed with a note, because the client
 cannot add bots or restart a match it does not host. Left and Right move along
@@ -280,8 +318,12 @@ The profile pages are in
 [player_menu/classic.rs](../crates/sjk-viewer/src/player_menu/classic.rs), with
 entries and retail geometry in
 [layout.rs](../crates/sjk-viewer/src/player_menu/classic/layout.rs), drawing in
-[view.rs](../crates/sjk-viewer/src/player_menu/classic/view.rs) and pointer
-routing in [pointer.rs](../crates/sjk-viewer/src/player_menu/classic/pointer.rs).
+[view.rs](../crates/sjk-viewer/src/player_menu/classic/view.rs) (the Force page
+in [force_page.rs](../crates/sjk-viewer/src/player_menu/classic/force_page.rs),
+the cosmetics window in
+[cosmetics_page.rs](../crates/sjk-viewer/src/player_menu/classic/cosmetics_page.rs))
+and pointer routing in
+[pointer.rs](../crates/sjk-viewer/src/player_menu/classic/pointer.rs).
 The main menu code is in [menu/classic.rs](../crates/sjk-viewer/src/menu/classic.rs): the
 page tables are in [pages.rs](../crates/sjk-viewer/src/menu/classic/pages.rs),
 types and geometry in [layout.rs](../crates/sjk-viewer/src/menu/classic/layout.rs)
@@ -306,13 +348,16 @@ Planned follow-ups, each a new page or screen module, following the retail
 - Classic versions of the screens the classic pages still open in the modern
   style: Join Server's `findplayer` and `createfavorite` pop-ups, Create
   Server (`createserver`, `advancedcreateserver`),
-  Solo Game (`quickgame`), and the in-game `ingame_playerforce`.
+  Solo Game (`quickgame`), and the Force page's templates (retail's
+  `forcecfg` list and Save).
 - Retail option items JKR has no setting for (video quality presets, colour
   depth, geometric and texture detail, EAX, languages) are left out of the
   panels, and the video restart confirmation is not needed.
-- On the profile pages: a rendered 3D model and saber, part icons and tint
-  images in character creation, and portraits for every model (the shared UI
-  icon atlas holds 207, so species after the characters show none).
+- On the profile pages: a rendered 3D model and saber (and the cosmetics
+  window's preview model), part icons and tint images in character creation
+  (they need atlas cells the shared UI icon atlas does not have free), and
+  portraits for every model (the atlas holds 207, so species after the
+  characters show none).
 - The screens with no JKR equivalent yet: Play Demo (`demo`), Rules
   (`rules*`), Mods, Defaults, Add Bot (`ingame_addbot`), Siege objectives and
   voice chat, and the error page (`error`).
@@ -391,6 +436,52 @@ JKA_GAME_DATA="/path/to/GameData" cargo test --release -p sjk-viewer \
 `base` and reports only the models with files there. The table goes to
 `target/parity-reports/player-models/`; see
 [player_model_scan.rs](../crates/sjk-viewer/src/player_model_scan.rs).
+
+## Hats and capes
+
+SJK wears JoF EJK's free-choice cosmetics
+([cosmetics.rs](../crates/sjk-viewer/src/cosmetics.rs)). A hat is any `.md3`
+in `models/cosmetics/hats/`, a cape any in `models/cosmetics/capes/`
+(`models/players/hats/` and `capes/` when the new folders are empty, as older
+packs used them); names of JoF's catalogue are found in either. A name is at
+most 13 letters, digits, `_` or `-` and does not start with a digit. JoF's
+pack is `zzz_jof_cosmetics.pk3` in the `EternalJK` folder, which SJK mounts
+only with `fs_basegame EternalJK` (see [Player models](#player-models)); a copy
+in `base` works too.
+
+What a player wears travels in the saber colour keys, as JoF EJK sends it:
+`color1 "4santahat"` is blue blade 4 wearing the hat `santahat`, and `color2`
+carries the cape. SJK's `color1`/`color2` are therefore text cvars read with
+`atoi`; the profile writes them as `<colour><name>`, the saber page keeps the
+name when it changes the colour, and the userinfo carries the name after the
+digits only when it follows the rule above
+([jof_cosmetics.rs](../crates/sjk-client/src/jof_cosmetics.rs)). Servers copy
+the keys to the `c1`/`c2` clientinfo untouched (cut to 15 bytes), and other
+clients' `atoi` reads only the colour. SJK reads another player's blade
+colour with `atoi` too: before, `c1 "8santahat"` failed to parse and drew blue.
+
+Each player's pieces are resolved when their actor is built or their
+clientinfo changes: the names, the models (loaded mid-match like a
+configstring model, on first use) and the fitting offset from
+`settings/cosmetics/<hats|capes>/<name>.cosmetic`, JoF's and TaystJK's JSON of
+per-model and per-skin `xOffset`/`yOffset`/`zOffset` (exact keys, else the
+longest `prefix*` key; the skin's entry wins, the model's applies with
+`"modelFallback": true`). Each evaluated pose then reads the `*head_top` and
+`*back` bolts of the worn slots only. A piece is drawn with the body as
+`CG_DrawCosmeticOnPlayer` places it: the bolt's axes, two units down its up
+axis, plus the offset along the world axes, never on the dead, the
+mind-tricked or a scaled model, and on the local first-person player only in
+mirrors and portals. A piece this client does not have is not drawn.
+`cg_cosmetics` (archived, 1) draws everyone's (1), only yours (2) or none (0).
+
+`cosmetics hats` and `cosmetics capes` list the installed pieces, with a
+number or a name they wear one (the same again takes it off), `cosmetics
+clear` takes both off and `cosmetics visibility [off|on|onlyme]` shows or sets
+`cg_cosmetics` ([command.rs](../crates/sjk-viewer/src/cosmetics/command.rs)).
+The classic profile's Cosmetics window does the same. Not done yet: the
+modern player screen has no cosmetics row and its stage model wears none,
+the jaPRO race-unlock hats (`cp_cosmetics`, `cosmetics unlocks`) are not
+drawn, and JoF's preview model in the window is not drawn.
 
 ## Animation sounds and voice variants
 

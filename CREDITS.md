@@ -79,6 +79,9 @@ Changes that stay in SJK, by Sol:
 - the classic console after EternalJK (`con_style classic`) as the default;
 - eye adaptation (`r_autoExposure`), an exposure that follows the view within a
   small range;
+- the classic profile's Force page and Force summary, and hats and capes after
+  JoF EJK's (the Cosmetics window, the `cosmetics` command and the pieces drawn
+  on players);
 - the `debug_panel` console command, an in-game checklist of the changes in a
   build and how to test them.
 

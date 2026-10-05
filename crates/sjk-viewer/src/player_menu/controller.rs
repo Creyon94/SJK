@@ -22,6 +22,7 @@ impl PlayerMenu {
         self.read_console(console);
         self.saber.open(console);
         self.force.open(console);
+        self.cosmetics.read_worn(console);
         self.numeric = None;
         self.name_editing = false;
         self.page = ProfilePage::Character;

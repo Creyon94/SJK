@@ -753,6 +753,39 @@ test: With a material pack: log says "material maps (normal+specular+parallax+re
 test: Without a pack: no regenerate note, "no stage of this map has maps", nothing looks different.
 test: Afterwards put the old config.cfg back; its saved values return.
 
+[classic-force-page]
+status: personal
+area: Menus & settings
+title: Classic profile: Force page with holocrons and cost stars, Force summary
+change: Profile gets a Force button (configforce art); its window: side cards, points meter,
+change: holocron per power, stars numbered with each level's cost, detail panel, Apply Powers.
+change: Profile page sums up the Force (emblem, mastery, points, known holocrons). Cells clickable.
+test: ui_menuStyle classic, main menu > Profile: Force button right of Custom, summary under it.
+test: Force: Light/Dark cards switch the side column; Grip etc. appear on Dark, Heal on Light.
+test: Hover a star: meter shows its price in white (red if too dear); detail panel lists costs.
+test: Click a star: the power jumps to that level; its top star again: one lower; right-click: -1.
+test: Defend/Throw with Saber Attack 0: grey, "Requires Saber Attack 1"; Team Heal: team games only.
+test: Points line says "not applied" until Apply Powers; Discard/Reset work; Escape keeps the draft.
+test: In game (Escape > Profile): Force button in The Force box opens the window over the match.
+test: Profile page: click a head tile, a part, a tint, a hilt or a blade swatch: that one is picked.
+note: Was: clicking a cell picked the next entry instead (the list's own region was on top).
+
+[jof-cosmetics]
+status: personal
+area: Menus & settings
+title: JoF EJK hats and capes: Cosmetics window, cosmetics command, drawn on players
+change: Profile > Cosmetics lists hats and capes; a click wears (color1 4santahat), again takes off.
+change: Hats on *head_top, capes on *back of every player wearing them; cg_cosmetics 0/1/2.
+change: Command cosmetics hats|capes [num|name], clear, visibility. Fix: c1 8santahat is not blue.
+test: The pack is in GameData/EternalJK: fs_basegame EternalJK + restart (or copy it to base).
+test: Profile > Cosmetics: both lists filled; click Santahat: filled row, "worn", Wearing line.
+test: Console: color1 reads 4santahat (your saber colour first); cosmetics hats lists [X].
+test: Local server, cg_thirdPerson 1: the hat sits on your head; a cape on your back; dies with you.
+test: Saber page: change the blade colour: color1 keeps the hat (e.g. 2santahat).
+test: JoF EJK client with a hat on the same local server: SJK shows it, right saber colour.
+test: Show Cosmetics: Only Me hides others', Off hides all; Remove All takes both off.
+note: No preview model yet: check in third person. Modern style has no Cosmetics screen (use cmd).
+
 # ---- Merged upstream ----
 
 [console-chat-history]

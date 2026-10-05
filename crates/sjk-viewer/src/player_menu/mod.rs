@@ -7,6 +7,7 @@
 
 mod classic;
 mod controller;
+mod cosmetics;
 mod force;
 mod force_icons;
 mod force_view;
@@ -126,6 +127,8 @@ pub(crate) struct PlayerMenu {
     page: ProfilePage,
     saber: saber::SaberMenu,
     force: force::ForceMenu,
+    /// JoF EJK's hats and capes (the classic cosmetics window).
+    cosmetics: cosmetics::CosmeticsMenu,
     /// `ui_menuStyle classic`: the retail profile pages instead of the
     /// hero form.
     classic_style: bool,
@@ -160,6 +163,7 @@ impl PlayerMenu {
             page: ProfilePage::Character,
             saber: saber::SaberMenu::new(),
             force: force::ForceMenu::new(),
+            cosmetics: cosmetics::CosmeticsMenu::new(),
             classic_style: false,
             classic: classic::ClassicState::default(),
             classic_dirty: false,

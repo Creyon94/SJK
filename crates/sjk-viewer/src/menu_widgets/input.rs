@@ -125,3 +125,35 @@ impl MenuCanvas {
         .flatten()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::MenuCanvas;
+    use sjk_ui::{InputEvent, PointerButton, Rect, UiEventKind, Vec2};
+
+    /// Overlapping regions: the one registered last takes the pointer, so a
+    /// list registers its own region before its cells.
+    #[test]
+    fn the_region_registered_last_takes_the_pointer() {
+        let mut canvas = MenuCanvas::new();
+        canvas.begin_transparent([100.0, 100.0]);
+        canvas.hit_region(1, Rect::new(0.0, 0.0, 100.0, 100.0));
+        canvas.hit_region(2, Rect::new(10.0, 10.0, 20.0, 20.0));
+        canvas.finish(1);
+        let position = Vec2::new(15.0, 15.0);
+        let button = PointerButton::Primary;
+        let _ = canvas.pointer(InputEvent::PointerPress { position, button });
+        let event = canvas
+            .pointer(InputEvent::PointerRelease { position, button })
+            .expect("routed");
+        assert_eq!(event.kind, UiEventKind::Activate);
+        assert_eq!(event.token, Some(2));
+        // Elsewhere the outer region still answers.
+        let position = Vec2::new(80.0, 80.0);
+        let _ = canvas.pointer(InputEvent::PointerPress { position, button });
+        let event = canvas
+            .pointer(InputEvent::PointerRelease { position, button })
+            .expect("routed");
+        assert_eq!(event.token, Some(1));
+    }
+}

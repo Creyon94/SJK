@@ -13,7 +13,14 @@
 //! Retail drew a live 3D model on character creation and a spinning saber on
 //! lightsaber creation. Without a world behind the menu there is nothing to
 //! render them into yet, so the model's portrait and a drawn blade stand in.
+//!
+//! SJK adds two pages retail's main menu lacked: the Force page (retail's
+//! in-game `ingame_playerforce`, on both frames, editing the same draft as
+//! the modern Force tab), and JoF EJK's cosmetics window for hats and capes.
+//! The profile page reaches both and sums up the Force profile.
 
+mod cosmetics_page;
+mod force_page;
 mod layout;
 mod pointer;
 mod view;
@@ -24,6 +31,7 @@ use super::*;
 use crate::menu::art::ArtSet;
 use crate::menu::classic::layout::Page as MainPage;
 use layout::Item;
+use sjk_client::{CosmeticSlot, ForceSide};
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{KeyCode, PhysicalKey};
 
@@ -37,6 +45,10 @@ pub(super) enum ClassicPage {
     Character,
     /// `saber` / `ingame_saber`: saber type, hilts and blade colours.
     Saber,
+    /// `ingame_playerforce`: side, powers and their levels.
+    Force,
+    /// JoF EJK's `ingame_cosmetics`: hats and capes.
+    Cosmetics,
 }
 
 /// Where the pages are drawn: full screen from the main menu, or as the
@@ -99,6 +111,7 @@ impl PlayerMenu {
             self.classic.page,
             self.frame(),
             self.saber.style() == SaberStyle::Dual,
+            self.force.allocation().side == ForceSide::Dark,
         )
     }
 
@@ -160,12 +173,69 @@ impl PlayerMenu {
         self.select_choice(characters + next);
     }
 
+    /// Choose the Force side and keep focus on its card (the side column's
+    /// powers change under it).
+    fn choose_side(&mut self, side: ForceSide) {
+        self.force.set_side(side);
+        let card = match side {
+            ForceSide::Light => Item::SideLight,
+            ForceSide::Dark => Item::SideDark,
+        };
+        if let Some(index) = self.classic_items().iter().position(|item| *item == card) {
+            self.classic.focus = index;
+        }
+    }
+
     /// Step the focused entry left or right and write the change.
     pub(super) fn classic_adjust(&mut self, console: &mut ViewerConsole, direction: isize) {
         let Some(item) = self.classic_focused() else {
             return;
         };
         match item {
+            Item::SideLight | Item::SideDark => {
+                self.choose_side(if direction < 0 {
+                    ForceSide::Light
+                } else {
+                    ForceSide::Dark
+                });
+                return;
+            }
+            // The Force page edits a draft; only Apply Powers writes it.
+            Item::Power(index) => {
+                self.force.step(usize::from(index), direction > 0);
+                return;
+            }
+            // Left and right walk the button row.
+            Item::ForceReset | Item::ForceDiscard | Item::ForceApply => {
+                self.classic.focus = self
+                    .classic
+                    .focus
+                    .saturating_add_signed(direction)
+                    .min(self.classic_items().len() - 1);
+                if !matches!(
+                    self.classic_focused(),
+                    Some(Item::ForceReset | Item::ForceDiscard | Item::ForceApply)
+                ) {
+                    self.classic.focus = self
+                        .classic
+                        .focus
+                        .saturating_add_signed(-direction)
+                        .min(self.classic_items().len() - 1);
+                }
+                return;
+            }
+            Item::Hats => {
+                self.cosmetics.move_cursor(CosmeticSlot::Hat, direction);
+                return;
+            }
+            Item::Capes => {
+                self.cosmetics.move_cursor(CosmeticSlot::Cape, direction);
+                return;
+            }
+            Item::CosmeticsShow => {
+                self.cosmetics.cycle_visibility(console, direction);
+                return;
+            }
             Item::Team => self.cycle_team(direction),
             Item::Models => {
                 self.cycle_model(direction);
@@ -247,6 +317,60 @@ impl PlayerMenu {
                 self.show_classic(ClassicPage::Saber);
                 PlayerMenuResult::None
             }
+            Item::ForceButton => {
+                self.show_classic(ClassicPage::Force);
+                PlayerMenuResult::None
+            }
+            Item::CosmeticsButton => {
+                self.cosmetics.open(console, self.icon_vfs.as_ref());
+                self.show_classic(ClassicPage::Cosmetics);
+                PlayerMenuResult::None
+            }
+            Item::SideLight => {
+                self.choose_side(ForceSide::Light);
+                PlayerMenuResult::None
+            }
+            Item::SideDark => {
+                self.choose_side(ForceSide::Dark);
+                PlayerMenuResult::None
+            }
+            // A click raises a power a level, as retail's did.
+            Item::Power(index) => {
+                self.force.step(usize::from(index), true);
+                PlayerMenuResult::None
+            }
+            Item::ForceReset => {
+                self.force.reset();
+                PlayerMenuResult::None
+            }
+            Item::ForceDiscard => {
+                self.force.discard();
+                PlayerMenuResult::None
+            }
+            // `applyjoin`: write the powers and go back to the profile.
+            Item::ForceApply => {
+                self.force.apply(console);
+                self.show_classic(ClassicPage::Player);
+                PlayerMenuResult::None
+            }
+            Item::Hats | Item::Capes => {
+                let slot = if item == Item::Hats {
+                    CosmeticSlot::Hat
+                } else {
+                    CosmeticSlot::Cape
+                };
+                let row = self.cosmetics.cursor[slot.index()];
+                self.cosmetics.toggle(console, slot, row);
+                PlayerMenuResult::None
+            }
+            Item::CosmeticsShow => {
+                self.cosmetics.cycle_visibility(console, 1);
+                PlayerMenuResult::None
+            }
+            Item::CosmeticsClear => {
+                self.cosmetics.clear(console);
+                PlayerMenuResult::None
+            }
             Item::PartHead | Item::PartTorso | Item::PartLegs => {
                 self.classic.part_axis = item.part_axis().unwrap_or(0);
                 self.classic.part_scroll = 0;
@@ -259,16 +383,28 @@ impl PlayerMenu {
                 self.show_classic(ClassicPage::Player);
                 PlayerMenuResult::None
             }
-            // Changes are already written; Apply moves on as retail's did.
+            // Changes are already written but a Force draft; Apply writes
+            // that too and moves on as retail's did.
             Item::Apply => match (frame, self.classic.page) {
+                (_, ClassicPage::Cosmetics) => {
+                    self.show_classic(ClassicPage::Player);
+                    PlayerMenuResult::None
+                }
                 (Frame::Full, ClassicPage::Player | ClassicPage::Character) => {
+                    self.force.apply(console);
                     self.show_classic(ClassicPage::Saber);
                     PlayerMenuResult::None
                 }
-                (Frame::Full, ClassicPage::Saber) => PlayerMenuResult::None,
-                (Frame::InGame, _) => PlayerMenuResult::Back(ReturnTarget::InGame),
+                (Frame::Full, _) => PlayerMenuResult::None,
+                (Frame::InGame, _) => {
+                    self.force.apply(console);
+                    PlayerMenuResult::Back(ReturnTarget::InGame)
+                }
             },
-            Item::ApplyMain => PlayerMenuResult::Back(ReturnTarget::MainMenu),
+            Item::ApplyMain => {
+                self.force.apply(console);
+                PlayerMenuResult::Back(ReturnTarget::MainMenu)
+            }
             _ => {
                 self.classic_adjust(console, 1);
                 PlayerMenuResult::None
@@ -298,8 +434,9 @@ impl PlayerMenu {
         }
     }
 
-    /// Escape: back to the profile page from the others; from the profile
-    /// page, back to where the screen was opened.
+    /// Escape: back to the profile page from the others (a Force draft is
+    /// kept until the screen closes); from the profile page, back to where
+    /// the screen was opened.
     fn classic_escape(&mut self) -> PlayerMenuResult {
         if self.classic.page == ClassicPage::Player {
             return PlayerMenuResult::Back(self.return_target);
@@ -364,29 +501,51 @@ mod tests {
         menu.classic_style = true;
         menu.show_classic(ClassicPage::Player);
         assert_eq!(menu.classic_focused(), Some(Item::Name));
-        let full = items(ClassicPage::Player, Frame::Full, false);
+        let full = items(ClassicPage::Player, Frame::Full, false, false);
         assert!(full.contains(&Item::Custom) && full.contains(&Item::Apply));
         assert!(full.contains(&Item::NavPlay) && full.contains(&Item::Exit));
-        let in_game = items(ClassicPage::Player, Frame::InGame, false);
+        let in_game = items(ClassicPage::Player, Frame::InGame, false, false);
         assert!(
             !in_game
                 .iter()
                 .any(|item| item.is_nav() || *item == Item::Exit)
         );
         assert!(in_game.contains(&Item::SaberButton));
+        assert!(full.contains(&Item::ForceButton) && in_game.contains(&Item::ForceButton));
+        assert!(full.contains(&Item::CosmeticsButton) && in_game.contains(&Item::CosmeticsButton));
         assert_eq!(
             menu.classic_escape(),
             PlayerMenuResult::Back(ReturnTarget::MainMenu)
         );
-        menu.show_classic(ClassicPage::Saber);
-        assert_eq!(menu.classic_escape(), PlayerMenuResult::None);
-        assert_eq!(menu.classic.page, ClassicPage::Player);
+        for page in [
+            ClassicPage::Saber,
+            ClassicPage::Force,
+            ClassicPage::Cosmetics,
+        ] {
+            menu.show_classic(page);
+            assert_eq!(menu.classic_escape(), PlayerMenuResult::None);
+            assert_eq!(menu.classic.page, ClassicPage::Player);
+        }
+    }
+
+    #[test]
+    fn the_force_page_follows_the_side_chosen() {
+        let mut menu = PlayerMenu::new();
+        menu.return_target = ReturnTarget::InGame;
+        menu.classic_style = true;
+        menu.show_classic(ClassicPage::Force);
+        assert_eq!(menu.classic_focused(), Some(Item::SideLight));
+        assert!(menu.classic_items().contains(&Item::Power(0))); // Heal
+        menu.choose_side(ForceSide::Dark);
+        assert_eq!(menu.classic_focused(), Some(Item::SideDark));
+        assert!(!menu.classic_items().contains(&Item::Power(0)));
+        assert!(menu.classic_items().contains(&Item::Power(6))); // Grip
     }
 
     #[test]
     fn second_saber_entries_follow_dual() {
-        let single = items(ClassicPage::Saber, Frame::Full, false);
-        let dual = items(ClassicPage::Saber, Frame::Full, true);
+        let single = items(ClassicPage::Saber, Frame::Full, false, false);
+        let dual = items(ClassicPage::Saber, Frame::Full, true, false);
         assert!(!single.contains(&Item::Hilts2) && !single.contains(&Item::Blades2));
         assert!(dual.contains(&Item::Hilts2) && dual.contains(&Item::Blades2));
     }

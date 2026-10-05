@@ -123,6 +123,32 @@ formatting, the retail and JoF `console` shaders' stage programs, texture motion
 and colour waves, and `con_style` parsing. The layer was not run on a GPU or in a
 game by the change's author; side-by-side comparison with EternalJK is pending.
 
+## Classic profile Force page and cosmetics (SJK)
+
+The classic profile gains a Force page (retail's `ingame_playerforce`, on both
+frames, with holocrons, cost-numbered level stars, side cards, a points meter
+and a detail panel), a Force summary and button on the profile page, and JoF
+EJK's hats and capes: the Cosmetics window, the `cosmetics` command,
+`cg_cosmetics`, the name carried after the colour in `color1`/`color2`, and the
+pieces drawn on players' `*head_top` and `*back` bolts. Another player's blade
+colour is now read with `atoi`, so JoF's `c1 "8santahat"` no longer draws
+blue. Clicking a cell of the profile pages' lists picks that cell; before, the
+list's own pointer region, registered after its cells, took the click and
+stepped to the next entry. See [client.md](client.md#menu-style) and
+[Hats and capes](client.md#hats-and-capes).
+
+Verification (2026-10-05, Windows 11): formatting, the locked workspace build
+and tests, including unit tests for the level costs against spending, the
+draft's next-level status and one-step level setting, the Force page's
+entries, geometry and star tokens, the region order of the menu canvas, the
+colour and name split and join, userinfo with a worn name, the saber colour
+of a JoF clientinfo, the installed-piece scan (new and old folders), the
+`.cosmetic` offset rules, the bolt placement, the drawing rules and the
+`cosmetics` command. The behaviour was compared with JoF EJK's source
+(`4eb081be`) by reading it. Nothing was run in the client or on a GPU by the
+change's author: the pages' look, a piece's fit on a model and other clients
+seeing it are untested.
+
 ## Accepted client improvements
 
 The owner approved publishing the current playtest improvements on 2026-10-04.
