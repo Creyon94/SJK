@@ -79,6 +79,19 @@ impl Templates {
         self.listed = Some(Arc::clone(vfs));
     }
 
+    /// Replace `side`'s list with `count` of the player's own templates
+    /// (tests: the most the page has to list).
+    #[cfg(test)]
+    pub(super) fn fill(&mut self, side: ForceSide, count: usize) {
+        self.sides[slot(side)] = (0..count)
+            .map(|index| Template {
+                name: format!("My saved template {index:02}"),
+                value: "7-2-031330310000030333".to_owned(),
+                own: true,
+            })
+            .collect();
+    }
+
     /// `side`'s templates: the player's own first, then the game data's,
     /// each by name.
     pub(super) fn of(&self, side: ForceSide) -> &[Template] {

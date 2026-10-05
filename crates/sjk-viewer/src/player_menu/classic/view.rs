@@ -224,11 +224,13 @@ impl PlayerMenu {
                 ] {
                     self.piece(place, piece, canvas);
                 }
+                // Retail's bar (`15 186 610 20`) overhung its frame (`13 186 610
+                // 245`) by two units; it sits flush on the frame's top edge here.
                 self.border(place, [13.0, 186.0, 610.0, 245.0], FRAME, 2.0);
-                self.fill(place, [15.0, 186.0, 610.0, 20.0], FRAME);
+                self.fill(place, [13.0, 186.0, 610.0, 20.0], FRAME);
                 self.label(
                     place,
-                    [15.0, 186.0, 610.0, 20.0],
+                    [13.0, 186.0, 610.0, 20.0],
                     "Character Model",
                     15.0,
                     LABEL,
@@ -265,11 +267,15 @@ impl PlayerMenu {
                     FontWeight::Semibold,
                     TextAlign::Center,
                 );
-                self.border(place, at([15.0, 65.0, 570.0, 230.0]), FRAME, 2.0);
-                self.fill(place, at([17.0, 57.0, 570.0, 20.0]), FRAME);
+                // Retail's bar (`17 57 570 20`) stood above its frame (`15 65 570
+                // 230`) and past its right edge, with the title centred on `3 52
+                // 570`; the frame here starts at the bar, the bar fills its top
+                // edge and the title is centred on the bar.
+                self.border(place, at([15.0, 57.0, 570.0, 238.0]), FRAME, 2.0);
+                self.fill(place, at([15.0, 57.0, 570.0, 20.0]), FRAME);
                 self.label(
                     place,
-                    at([3.0, 57.0, 570.0, 20.0]),
+                    at([15.0, 57.0, 570.0, 20.0]),
                     "Character Model",
                     15.0,
                     LABEL,
@@ -285,16 +291,18 @@ impl PlayerMenu {
                     FontWeight::Semibold,
                     TextAlign::Center,
                 );
+                // Retail's bars (`17 300 410 18`, `432 300 155 18`) stood two units
+                // right of their boxes; flush with them here, titles centred on them.
                 for (box_rect, bar) in [
-                    ([15.0, 299.0, 410.0, 100.0], [17.0, 300.0, 410.0, 18.0]),
-                    ([430.0, 299.0, 155.0, 100.0], [432.0, 300.0, 155.0, 18.0]),
+                    ([15.0, 299.0, 410.0, 100.0], [15.0, 299.0, 410.0, 18.0]),
+                    ([430.0, 299.0, 155.0, 100.0], [430.0, 299.0, 155.0, 18.0]),
                 ] {
                     self.border(place, at(box_rect), FRAME, 2.0);
                     self.fill(place, at(bar), FRAME);
                 }
                 self.label(
                     place,
-                    at([17.0, 300.0, 410.0, 18.0]),
+                    at([15.0, 299.0, 410.0, 18.0]),
                     "The Force",
                     15.0,
                     LABEL,
@@ -303,7 +311,7 @@ impl PlayerMenu {
                 );
                 self.label(
                     place,
-                    at([432.0, 300.0, 155.0, 18.0]),
+                    at([430.0, 299.0, 155.0, 18.0]),
                     "Saber",
                     15.0,
                     LABEL,

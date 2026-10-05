@@ -71,6 +71,10 @@ pub(crate) struct MenuCanvas {
     contrast: MenuContrast,
     /// Luminance behind text once this frame has drawn a readability backing.
     backing: Option<f32>,
+    /// Pointer areas and text runs this frame had no room for.
+    dropped: u32,
+    /// Whether a release build has logged an overflow of this canvas yet.
+    overflow_logged: bool,
 }
 
 impl MenuCanvas {
@@ -104,6 +108,8 @@ impl MenuCanvas {
             viewport: [1.0, 1.0],
             contrast: MenuContrast::Off,
             backing: None,
+            dropped: 0,
+            overflow_logged: false,
         }
     }
 
@@ -127,6 +133,7 @@ impl MenuCanvas {
         self.contrast = MenuContrast::current();
         self.backing = None;
         self.draw.clear();
+        self.dropped = 0;
         self.tree.clear();
         self.rects.clear();
         self.tokens.clear();
@@ -323,6 +330,7 @@ impl MenuCanvas {
 
     /// Finish focus ordering and restore semantic selection.
     pub(crate) fn finish(&mut self, selected_token: MenuToken) {
+        self.check_storage();
         self.input.begin_frame(&self.tree);
         if let Some(index) = self
             .tokens
@@ -335,6 +343,30 @@ impl MenuCanvas {
 
     pub(crate) fn draw_list(&self) -> &DrawList {
         &self.draw
+    }
+
+    /// A frame past the fixed storage loses pointer areas, text or draw
+    /// commands without a trace (a row that cannot be clicked, a missing label
+    /// or picture). Debug builds stop on it, so a screen's tests catch it;
+    /// release builds log it once per canvas.
+    fn check_storage(&mut self) {
+        let full = self.draw.len() >= self.draw.limit();
+        if self.dropped == 0 && !full {
+            return;
+        }
+        let message = format!(
+            "menu canvas overflow: {} pointer areas or text runs dropped              (limits {MAX_WIDGETS} areas, {} text runs), {} of {} draw commands",
+            self.dropped,
+            self.text.len(),
+            self.draw.len(),
+            self.draw.limit()
+        );
+        if cfg!(debug_assertions) {
+            panic!("{message}");
+        }
+        if !std::mem::replace(&mut self.overflow_logged, true) {
+            crate::log::progress(format_args!("{message}"));
+        }
     }
 
     /// The frame's command list, for screens that push commands the widget
@@ -359,5 +391,54 @@ impl MenuCanvas {
     /// Override the theme accent (the player's `ui_accent`).
     pub(crate) fn set_accent(&mut self, accent: Color) {
         self.theme.accent = accent;
+    }
+}
+
+#[cfg(test)]
+mod storage_tests {
+    use super::*;
+
+    /// A frame past the canvas's fixed storage stops a debug build instead of
+    /// dropping a row's pointer area (or a label) without a trace.
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "menu canvas overflow")]
+    fn running_out_of_pointer_areas_is_not_silent() {
+        let mut canvas = MenuCanvas::new();
+        canvas.begin_transparent([640.0, 480.0]);
+        for token in 0..=MAX_WIDGETS as MenuToken {
+            canvas.hit_region(token, Rect::new(0.0, 0.0, 1.0, 1.0));
+        }
+        canvas.finish(0);
+    }
+
+    #[test]
+    #[cfg(debug_assertions)]
+    #[should_panic(expected = "menu canvas overflow")]
+    fn running_out_of_text_runs_is_not_silent() {
+        let mut canvas = MenuCanvas::with_capacities(2, 16, 64);
+        canvas.begin_transparent([640.0, 480.0]);
+        for _ in 0..3 {
+            canvas.text(
+                "label",
+                Rect::new(0.0, 0.0, 10.0, 10.0),
+                12.0,
+                Color::new(1.0, 1.0, 1.0, 1.0),
+                FontWeight::Regular,
+                0.0,
+            );
+        }
+        canvas.finish(0);
+    }
+
+    #[test]
+    fn a_frame_within_its_storage_finishes_quietly() {
+        let mut canvas = MenuCanvas::new();
+        canvas.begin_transparent([640.0, 480.0]);
+        for token in 0..MAX_WIDGETS as MenuToken {
+            canvas.hit_region(token, Rect::new(0.0, 0.0, 1.0, 1.0));
+        }
+        canvas.finish(0);
+        assert_eq!(canvas.widget_count(), MAX_WIDGETS);
     }
 }

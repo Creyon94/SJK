@@ -32,8 +32,14 @@ const LIGHT_TINT: Color = Color::new(0.36, 0.66, 1.0, 1.0);
 const DARK_TINT: Color = Color::new(1.0, 0.33, 0.28, 1.0);
 /// A level the points left cannot pay for.
 const SHORT: Color = Color::new(1.0, 0.4, 0.3, 1.0);
-/// Retail's grey for a power that cannot be bought (`grColor`).
-const UNUSABLE: Color = Color::new(0.2, 0.2, 0.2, 1.0);
+/// Stars of a power that cannot be bought here (a team power outside team
+/// games, Saber Defend or Throw without Attack). Retail's `grColor` (0.2) all
+/// but vanished on the window, hiding the costs; this grey still reads as
+/// unavailable.
+const UNUSABLE: Color = Color::new(0.55, 0.55, 0.55, 1.0);
+/// Holocron opacity of such a power; one that can be bought is drawn whole,
+/// bought or not, so its picture never fades into the window.
+const UNUSABLE_ICON: f32 = 0.55;
 /// The template list (`fcflist`: `backcolor 0 0 .5 .25`, `bordercolor .5
 /// .5 .5`, the chosen row `outlinecolor .25 .464 .578 .5`).
 const TEMPLATE_BACK: Color = Color::new(0.0, 0.0, 0.5, 0.25);
@@ -379,11 +385,7 @@ impl PlayerMenu {
         }
         let icon = power_texture(index);
         if self.force_icons.is_texture_ready(icon) {
-            let alpha = match (usable, level > 0) {
-                (false, _) => 0.25,
-                (true, true) => 1.0,
-                (true, false) => 0.6,
-            };
+            let alpha = if usable { 1.0 } else { UNUSABLE_ICON };
             let _ = self.canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
                 rect: place.rect([x + 1.0, y + 1.0, h - 2.0, h - 2.0]),
                 texture: icon,
@@ -809,5 +811,174 @@ mod tests {
         assert_eq!(mastery(0), "Uninitiated");
         assert_eq!(mastery(7), "Jedi Master");
         assert_eq!(mastery(9), "Jedi Master");
+    }
+}
+
+#[cfg(test)]
+mod drawing_tests {
+    use super::super::layout::{DARK_POWERS, LIGHT_POWERS, NEUTRAL_POWERS, SABER_POWERS};
+    use super::super::{ClassicPage, Frame};
+    use super::*;
+    use crate::menu::art::ArtSet;
+    use crate::player_menu::ReturnTarget;
+    use sjk_ui::TextureId;
+
+    /// An owner's profile: dark side, every point spent, Dark Rage and Team
+    /// Energize still at level 0, in a free-for-all (no team powers).
+    const OWNER: &str = "7-2-031330310000030333";
+
+    /// The Force page drawn on `frame` for `side`, focused on `focus`, with all
+    /// retail art and every Force icon uploaded, `templates` of the player's own
+    /// templates listed on each side and the list scrolled to `scroll`. Drawing
+    /// panics in a debug build if the canvas runs out of storage.
+    fn drawn_with(
+        frame: Frame,
+        dark: bool,
+        focus: u8,
+        templates: usize,
+        scroll: usize,
+    ) -> PlayerMenu {
+        let mut menu = PlayerMenu::new();
+        menu.return_target = match frame {
+            Frame::Full => ReturnTarget::MainMenu,
+            Frame::InGame => ReturnTarget::InGame,
+        };
+        menu.classic_style = true;
+        menu.classic.art = ArtPiece::ALL
+            .iter()
+            .fold(ArtSet::default(), |set, piece| set.with(*piece));
+        for (texture, _) in crate::player_menu::force_icons::requests() {
+            menu.force_icons.mark_ready(texture);
+        }
+        menu.show_classic(ClassicPage::Force);
+        for side in [ForceSide::Light, ForceSide::Dark] {
+            menu.force_templates.list.fill(side, templates);
+        }
+        menu.force.load_template("owner", OWNER);
+        menu.choose_side(if dark {
+            ForceSide::Dark
+        } else {
+            ForceSide::Light
+        });
+        menu.force_templates.scroll = scroll;
+        menu.snapshot_focus_power(focus);
+        let font = crate::text::load_modern(1.0, None).unwrap().font;
+        let mut vertices = Vec::new();
+        menu.append_classic(&mut vertices, &font, [1920.0, 1080.0], 1.0);
+        menu
+    }
+
+    fn drawn(frame: Frame, dark: bool, focus: u8) -> PlayerMenu {
+        drawn_with(frame, dark, focus, 0, 0)
+    }
+
+    /// Colours of the textured quads drawing `texture`, in order.
+    fn quads(menu: &PlayerMenu, texture: TextureId) -> Vec<Color> {
+        menu.canvas
+            .draw_list()
+            .commands()
+            .iter()
+            .filter_map(|command| match command {
+                DrawCommand::TexturedQuad {
+                    texture: drawn,
+                    color,
+                    ..
+                } if *drawn == texture => Some(*color),
+                _ => None,
+            })
+            .collect()
+    }
+
+    fn star_textures() -> Vec<TextureId> {
+        (0..=8)
+            .flat_map(|cost| [true, false].map(|bought| ArtPiece::force_level(cost, bought)))
+            .map(ArtPiece::texture)
+            .collect()
+    }
+
+    /// No templates, then 60 of the player's own (each row with its tag): the
+    /// list at the top, in the middle and scrolled past its end.
+    const LISTS: [(usize, usize); 4] = [(0, 0), (60, 0), (60, 23), (60, 100)];
+
+    #[test]
+    fn every_power_row_draws_a_readable_holocron_and_three_readable_stars() {
+        let stars = star_textures();
+        for frame in [Frame::Full, Frame::InGame] {
+            for ((dark, side), (templates, scroll)) in [(false, LIGHT_POWERS), (true, DARK_POWERS)]
+                .into_iter()
+                .flat_map(|column| LISTS.map(|list| (column, list)))
+            {
+                let menu = drawn_with(frame, dark, side[0], templates, scroll);
+                let shown = NEUTRAL_POWERS.iter().chain(&SABER_POWERS).chain(&side);
+                for &power in shown {
+                    let index = usize::from(power);
+                    let holocron = quads(&menu, power_texture(index));
+                    let row = holocron.first().copied();
+                    let alpha = row.map_or(0.0, |color| color.a);
+                    let usable = !matches!(
+                        menu.force.next_level(index),
+                        NextLevel::OtherSide | NextLevel::TeamOnly | NextLevel::NeedsOffense
+                    ) || menu.force.allocation().levels[index] > 0;
+                    let wanted = if usable { 1.0 } else { UNUSABLE_ICON };
+                    assert_eq!(alpha, wanted, "{frame:?} {} holocron", POWER_LABELS[index]);
+                    let registered = menu.canvas.widget_tokens();
+                    for level in 1..=3 {
+                        assert!(
+                            registered.contains(&star_token(index, level)),
+                            "{frame:?} {} star {level} cannot be pointed at",
+                            POWER_LABELS[index]
+                        );
+                    }
+                }
+                let drawn_stars: Vec<Color> = menu
+                    .canvas
+                    .draw_list()
+                    .commands()
+                    .iter()
+                    .filter_map(|command| match command {
+                        DrawCommand::TexturedQuad { texture, color, .. }
+                            if stars.contains(texture) =>
+                        {
+                            Some(*color)
+                        }
+                        _ => None,
+                    })
+                    .collect();
+                assert_eq!(drawn_stars.len(), 3 * 13, "{frame:?} dark {dark}");
+                assert!(
+                    drawn_stars
+                        .iter()
+                        .all(|color| color.r >= 0.5 && color.a >= 0.5),
+                    "{frame:?} dark {dark}: a star fades into the window"
+                );
+                let list = menu.canvas.draw_list();
+                assert!(list.len() < list.limit(), "the draw list is full");
+                // Only the visible template rows take pointer areas, so the page
+                // keeps its headroom whatever the list holds.
+                let areas = menu.canvas.widget_count();
+                assert!(
+                    areas <= 84,
+                    "{frame:?} {templates} templates: {areas} areas"
+                );
+                let (text, slots) = menu.canvas.text_budget();
+                assert!(text * 2 <= slots, "{frame:?}: {text} of {slots} text runs");
+            }
+        }
+    }
+
+    #[test]
+    fn the_detail_panel_shows_the_focused_powers_holocron() {
+        // Dark Rage (8) and Team Energize (12), the dark column's last rows.
+        for power in [8_u8, 12] {
+            let menu = drawn(Frame::InGame, true, power);
+            let holocron = quads(&menu, power_texture(usize::from(power)));
+            assert_eq!(
+                holocron.len(),
+                2,
+                "{} row and panel",
+                POWER_LABELS[power as usize]
+            );
+            assert_eq!(holocron[1], FOCUS);
+        }
     }
 }

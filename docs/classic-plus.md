@@ -81,7 +81,10 @@ Each rule names a page that already follows it.
    page shows text and stays usable.
 6. **Explain empty and unavailable states.** "No templates for this side.";
    an empty cosmetics list says where cosmetics come from; a power that cannot
-   be bought is grey and the panel says why.
+   be bought (a team power outside team games, Saber Defend or Throw without
+   Attack) is grey and the panel says why. Grey stays readable: its holocron at
+   55% and its stars a 0.55 grey, where retail's near-black `grColor` hid what
+   they cost. A power that can be bought shows its holocron whole, bought or not.
 7. **Group inside the retail window.** Column headings over a thin `FRAME` rule,
    side cards, a second column: structure is added within the window retail had,
    not by growing it past retail's frame.
@@ -90,7 +93,10 @@ Each rule names a page that already follows it.
    retail's model stood). A retail control never loses part of its target.
 9. **Cheap and robust.** Nothing needs the retail art; frames do not allocate
    (`label_fmt` with `format_args!`, fixed storage); pictures decode on worker
-   threads; the page works with the keyboard alone.
+   threads; the page works with the keyboard alone. A frame that outgrows the
+   canvas's fixed storage (96 pointer areas, its text runs, its draw commands)
+   stops a debug build, so the page's tests catch it, and is logged once in a
+   release build; a list registers pointer areas only for its visible rows.
 10. **One group per subject.** Retail split a subject over two pages when a page
     ran out of items (Video and More Video, Force Powers 1 and 2); a classic+
     panel scrolls and explains its items, so it shows the subject as one group,
@@ -112,6 +118,8 @@ Values are canvas units of the 640x480 canvas.
 | Text field | "Name: value"; an empty one shows a prompt at 70% alpha; underlined while typing |
 | Detail panel | `ink(0.45)` fill, `FRAME` border; a 44-unit picture at the top left; title `GOLD` 14 semibold; lines `VALUE` 11-12, 13-14 units apart |
 | Description line | `HINT` 12-13, centred on retail's description position |
+| Bar over a box | Flush with the box's top edge, same left edge and width, title centred on the bar (retail's bars overhung their boxes by two units) |
+| Button on a band | Centred on the band it sits on, not on retail's taller button rectangle |
 
 ## Code recipe
 
@@ -170,8 +178,10 @@ JKA_GAME_DATA="/path/to/GameData" cargo test --release -p sjk-viewer \
 
 The pictures go to `target/menu-snapshots/`. They approximate the UI renderer
 (no rounded corners, art without its motion, Inter text only, atlas icons only
-where the test decodes them, as it does for the key bindings), which is enough
-to catch overlaps, cut-off labels and empty space. The in-game frames and the
+where the test decodes them, as it does for the key bindings and the profile's
+Force holocrons), which is enough to catch overlaps, cut-off labels and empty
+space. The profile pages are drawn on both frames, the Force page on both sides
+with a dark-side profile that has spent every point. The in-game frames and the
 in-game bar's pop-ups are drawn over a retail levelshot standing for the match.
 Add a screen to the test when building a page.
 
