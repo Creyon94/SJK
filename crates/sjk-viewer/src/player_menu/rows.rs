@@ -5,6 +5,7 @@ use super::*;
 use sjk_client::SaberColor;
 
 /// Rows of the character page; the part rows only exist for a species.
+/// JoF EJK's hat and cape follow, on every model.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum CharacterRow {
     Name,
@@ -14,6 +15,8 @@ pub(super) enum CharacterRow {
     Torso,
     Legs,
     Skin,
+    Hat,
+    Cape,
 }
 
 impl CharacterRow {
@@ -26,6 +29,17 @@ impl CharacterRow {
             Self::Torso => "Torso",
             Self::Legs => "Legs",
             Self::Skin => "Skin colour",
+            Self::Hat => "Hat",
+            Self::Cape => "Cape",
+        }
+    }
+
+    /// The cosmetic slot this row wears, if it is the Hat or Cape row.
+    pub(super) fn cosmetic(self) -> Option<sjk_client::CosmeticSlot> {
+        match self {
+            Self::Hat => Some(sjk_client::CosmeticSlot::Hat),
+            Self::Cape => Some(sjk_client::CosmeticSlot::Cape),
+            _ => None,
         }
     }
 
@@ -36,14 +50,19 @@ impl CharacterRow {
             Self::Torso => Some(1),
             Self::Legs => Some(2),
             Self::Skin => Some(3),
-            Self::Name | Self::Team | Self::Model => None,
+            Self::Name | Self::Team | Self::Model | Self::Hat | Self::Cape => None,
         }
     }
 }
 
-const CHARACTER_ROWS: [CharacterRow; 3] =
-    [CharacterRow::Name, CharacterRow::Team, CharacterRow::Model];
-const SPECIES_ROWS: [CharacterRow; 7] = [
+const CHARACTER_ROWS: [CharacterRow; 5] = [
+    CharacterRow::Name,
+    CharacterRow::Team,
+    CharacterRow::Model,
+    CharacterRow::Hat,
+    CharacterRow::Cape,
+];
+const SPECIES_ROWS: [CharacterRow; 9] = [
     CharacterRow::Name,
     CharacterRow::Team,
     CharacterRow::Model,
@@ -51,6 +70,8 @@ const SPECIES_ROWS: [CharacterRow; 7] = [
     CharacterRow::Torso,
     CharacterRow::Legs,
     CharacterRow::Skin,
+    CharacterRow::Hat,
+    CharacterRow::Cape,
 ];
 
 /// Rows of the saber page; the second-saber rows only exist for Dual. The

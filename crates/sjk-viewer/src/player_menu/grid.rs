@@ -14,7 +14,7 @@ pub(super) const TILE_BASE: u16 = 100;
 pub(super) const GRID_SCROLL_TOKEN: u16 = 902;
 /// Row index of the Model row the grid belongs to.
 pub(super) const MODEL_ROW: usize = 2;
-/// Row index of the first species part row (head).
+/// Row index of the first row under the grid (a species' head, else the hat).
 pub(super) const PART_ROW: usize = 3;
 /// Tiles per grid row.
 pub(super) const COLUMNS: usize = 8;
@@ -79,7 +79,8 @@ impl GridLayout {
         self.total_rows.saturating_sub(self.visible_rows)
     }
 
-    /// Cell of species part row `PART_ROW + axis`: two columns under the grid.
+    /// Cell of row `PART_ROW + axis` (the species parts, then the hat and
+    /// cape): two columns under the grid.
     pub(super) fn part_cell(&self, layout: &FormLayout, axis: usize) -> Rect {
         let s = layout.scale;
         let gap = PART_COLUMN_GAP * s;

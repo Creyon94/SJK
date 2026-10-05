@@ -3,8 +3,10 @@
 //! its own vertex/index buffers, lit from the map like any actor, and drawn
 //! through the shared material runtime. Changing the model rebuilds the
 //! buffers on the spot, so the swap is visible the same frame. The sabers
-//! in its hands live in [`sabers`]; the Saber tab's throw in [`throw`].
+//! in its hands live in [`sabers`]; the Saber tab's throw in [`throw`]; the
+//! hat and cape it wears in [`cosmetics`].
 
+mod cosmetics;
 mod sabers;
 mod throw;
 
@@ -50,6 +52,11 @@ pub(crate) struct MenuStage {
     /// Each hand's throw, and its hilt's pose while it is out of the hand.
     throw: [throw::Throw; 2],
     flying: [Option<throw::Pose>; 2],
+    /// The hat and cape `color1`/`color2` wear, and what they were loaded for.
+    cosmetics: [Option<cosmetics::StageCosmetic>; 2],
+    cosmetic_request: cosmetics::Request,
+    /// The pieces need placing on the current pose.
+    cosmetics_dirty: bool,
 }
 
 struct StageActor {
@@ -121,7 +128,10 @@ impl GpuState {
             }
             let model = model.to_owned();
             match self.build_stage_actor(stage, &model, now) {
-                Ok(actor) => self.menu_stage.actor = Some(actor),
+                Ok(actor) => {
+                    self.menu_stage.actor = Some(actor);
+                    self.menu_stage.cosmetics_dirty = true;
+                }
                 Err(error) => {
                     eprintln!("player stage could not load {model}: {error}");
                     self.menu_stage.failed = Some(model);
@@ -132,6 +142,7 @@ impl GpuState {
         if let Some(request) = request {
             self.sync_stage_sabers(request);
         }
+        self.sync_stage_cosmetics();
         self.advance_stage_throw(thrown, focus, now);
         if let Some(stance) = stance {
             let held = self.menu_stage.throw.iter().all(throw::Throw::is_held);
@@ -141,6 +152,7 @@ impl GpuState {
             eprintln!("player stage animation stopped: {error}");
             self.menu_stage.actor = None;
         }
+        self.place_stage_cosmetics();
     }
 
     /// Restart the actor in `stance` when the menu's style changed it. A
@@ -317,6 +329,7 @@ impl GpuState {
         actor.hands = sabers::hand_attachments(preview, frame);
         actor.current_frame = frame;
         self.menu_stage.sabers_dirty = true;
+        self.menu_stage.cosmetics_dirty = true;
         Ok(())
     }
 }
@@ -346,6 +359,9 @@ impl MenuStage {
         );
         for saber in self.sabers.iter().flatten() {
             saber.draw(pass, world_materials, camera, blended);
+        }
+        for cosmetic in self.cosmetics.iter().flatten() {
+            cosmetic.draw(pass, world_materials, camera, blended);
         }
     }
 }

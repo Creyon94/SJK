@@ -326,8 +326,27 @@ fn offsets(node: &serde_json::Value) -> Option<[f32; 3]> {
 /// `CG_DrawCosmeticOnPlayer`'s axes from `G2API_GetBoltMatrix`, its origin
 /// two units down the bolt's up axis, then `offset` along the world axes.
 pub(crate) fn placement(
-    mut raw: BoltMatrix,
+    raw: BoltMatrix,
     transform: sjk_runtime::Transform,
+    offset: [f32; 3],
+) -> Option<ActorInstance> {
+    placement_at(
+        raw,
+        Vec3::from_array(transform.translation),
+        crate::weapon_view::actor_world_rotation(transform.rotation),
+        Vec3::from_array(transform.scale),
+        offset,
+    )
+}
+
+/// [`placement`] for an actor whose world rotation already includes the
+/// Ghoul2 facing turn ([`crate::weapon_view::actor_world_rotation`]), as the
+/// menu stage keeps it.
+pub(crate) fn placement_at(
+    mut raw: BoltMatrix,
+    origin: Vec3,
+    rotation: Quat,
+    scale: Vec3,
     offset: [f32; 3],
 ) -> Option<ActorInstance> {
     // G2API_GetBoltMatrix normalizes the three basis rows (as `flag_carrier`).
@@ -340,7 +359,6 @@ pub(crate) fn placement(
         }
     }
     let game = bolt::game_facing(raw);
-    let rotation = crate::weapon_view::actor_world_rotation(transform.rotation);
     let axis = |index| rotation * Vec3::from_array(bolt::column(&game, index));
     let forward = axis(0).normalize_or_zero();
     let left = axis(1);
@@ -349,8 +367,7 @@ pub(crate) fn placement(
     if forward.length_squared() < 0.5 || left.length_squared() < 0.5 {
         return None;
     }
-    let origin = Vec3::from_array(transform.translation)
-        + rotation * (Vec3::from_array(bolt::column(&game, 3)) * Vec3::from_array(transform.scale))
+    let origin = origin + rotation * (Vec3::from_array(bolt::column(&game, 3)) * scale)
         - axis(2).normalize_or_zero() * 2.0
         + Vec3::from_array(offset);
     let quaternion = Quat::from_mat3(&Mat3::from_cols(forward, left, up));

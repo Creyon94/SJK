@@ -488,10 +488,13 @@ mirrors and portals. A piece this client does not have is not drawn.
 number or a name they wear one (the same again takes it off), `cosmetics
 clear` takes both off and `cosmetics visibility [off|on|onlyme]` shows or sets
 `cg_cosmetics` ([command.rs](../crates/sjk-viewer/src/cosmetics/command.rs)).
-The classic profile's Cosmetics window does the same. Not done yet: the
-modern player screen has no cosmetics row and its stage model wears none,
-the jaPRO race-unlock hats (`cp_cosmetics`, `cosmetics unlocks`) are not
-drawn, and JoF's preview model in the window is not drawn.
+The classic profile's Cosmetics window does the same, and the modern player
+screen's Character page has Hat and Cape rows under its grid (None, then
+each installed piece). The menu stage model wears what `color1` and `color2`
+name, placed on the bolts of the pose it is skinned with like its hilts
+([menu_stage/cosmetics.rs](../crates/sjk-viewer/src/menu_stage/cosmetics.rs)),
+unless `cg_cosmetics` is 0. Not done: the jaPRO race-unlock hats
+(`cp_cosmetics`, `cosmetics unlocks`) are not drawn.
 
 ## Animation sounds and voice variants
 

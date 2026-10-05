@@ -22,7 +22,7 @@ impl PlayerMenu {
         self.read_console(console);
         self.saber.open(console);
         self.force.open(console);
-        self.cosmetics.read_worn(console);
+        self.cosmetics.open(console, self.icon_vfs.as_ref());
         self.numeric = None;
         self.name_editing = false;
         self.page = ProfilePage::Character;
@@ -293,6 +293,10 @@ impl PlayerMenu {
                 let Some(row) = self.character_rows().get(self.selected).copied() else {
                     return;
                 };
+                if let Some(slot) = row.cosmetic() {
+                    self.cosmetics.cycle(console, slot, direction);
+                    return;
+                }
                 match row {
                     CharacterRow::Name => return,
                     CharacterRow::Team => self.cycle_team(direction),
