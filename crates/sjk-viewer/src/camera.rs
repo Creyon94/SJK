@@ -150,11 +150,21 @@ pub(crate) fn damped_third_person(
     };
     // Movers are evaluated at the same presentation time as their drawn geometry.
     // Packed player/vehicle bodies are excluded by stock MASK_CAMERACLIP.
-    let solids = crate::first_person_view::presented_snapshot(
+    let game = state
+        .live_session
+        .as_ref()
+        .map(sjk_client::ClientSession::game_state)
+        .or_else(|| {
+            state
+                .demo_session
+                .as_ref()
+                .map(crate::demo_playback::Session::game_state)
+        });
+    let solids = game.zip(crate::first_person_view::presented_snapshot(
         state.live_session.as_ref(),
         state.demo_session.as_ref(),
         presentation_time as i32,
-    );
+    ));
     state.third_person_camera.update(frame, |start, end| {
         movement_collision::camera_trace(
             &state.bsp,

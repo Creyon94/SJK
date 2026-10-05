@@ -1005,6 +1005,20 @@ skips a stage that no longer exists. The locked workspace build of all targets a
 the workspace tests passed. No game was started: remaps on screen, from a JoF
 server or a map with worldspawn remaps, are unverified in this combination.
 
+## Server BSP instances in edited maps (SJK)
+
+SJK branch `personal/misc-bsp-maps` (05/10/2026, based on `3f57938`). JoF's server
+places retail map pieces (`maps/mp/duel1.bsp`, `maps/academy2.bsp`) in a map's void
+as `misc_bsp` entities (codemp `SP_misc_bsp`): `EF_PERMANENT` `ET_MOVER`s with the
+sub-BSP's world as their inline model, sent only in the baselines. Prediction
+already clipped against them, but the third-person camera and the crosshair name
+trace read only snapshot entities, so the camera went through an instance's walls.
+Both now use the snapshot plus the visible permanent baselines, as stock `CG_Trace`
+does through `CG_BuildSolidList`. Unit tests build a main map and an appended
+sub-BSP placed at x 8000 and check the camera stops at the instance wall and a
+predicted player stands on its floor (`bsp_instance_tests`). Not checked in a game:
+no server with these instances was joined.
+
 ## Outgoing text encoding (SJK)
 
 SJK-only branch `personal/legacy-text` (2026-10-05, based on `2696590`) sends

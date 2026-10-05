@@ -86,7 +86,9 @@ impl State {
         let mut nearest = ray.distance * world.fraction;
         let local = snapshot.player.client_num();
         let mut hit = None;
-        for entity in &snapshot.entities {
+        // CG_Trace clips against cg_solidEntities, which holds the permanent
+        // baselines too (`CG_BuildSolidList`): a `misc_bsp` wall hides a player.
+        for entity in sjk_client::legacy_scene_entities(game, snapshot) {
             if entity.number() == local {
                 continue;
             }
