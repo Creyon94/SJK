@@ -30,6 +30,7 @@ use super::saber::SaberStyle;
 use super::*;
 use crate::menu::art::ArtSet;
 use crate::menu::classic::layout::Page as MainPage;
+pub(super) use layout::GRID_COLUMNS;
 use layout::Item;
 use sjk_client::{CosmeticSlot, ForceSide};
 use winit::event::{ElementState, KeyEvent};
@@ -150,6 +151,7 @@ impl PlayerMenu {
     pub(super) fn show_classic(&mut self, page: ClassicPage) {
         self.numeric = None;
         self.name_editing = false;
+        self.search_editing = false;
         self.force_templates.editing = false;
         if page == ClassicPage::Force {
             self.force_templates.list.ensure(self.icon_vfs.as_ref());
@@ -343,7 +345,12 @@ impl PlayerMenu {
             Item::Exit => PlayerMenuResult::ClassicPage(MainPage::Quit),
             Item::Name => {
                 self.name_before_edit.clone_from(&self.draft.name);
+                self.search_editing = false;
                 self.name_editing = true;
+                PlayerMenuResult::None
+            }
+            Item::Search => {
+                self.begin_search();
                 PlayerMenuResult::None
             }
             Item::Custom => {
@@ -512,6 +519,10 @@ impl PlayerMenu {
         };
         if self.name_editing {
             return self.edit_name(event, key, console);
+        }
+        if self.search_editing {
+            self.edit_search(event, key);
+            return PlayerMenuResult::None;
         }
         if self.force_templates.editing {
             return self.edit_template_name(event, key);

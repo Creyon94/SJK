@@ -10,6 +10,8 @@ use sjk_client::SaberColor;
 pub(super) enum CharacterRow {
     Name,
     Team,
+    /// SJK: words the grid's models must contain.
+    Search,
     Model,
     Head,
     Torso,
@@ -24,6 +26,7 @@ impl CharacterRow {
         match self {
             Self::Name => "Name",
             Self::Team => "Team colour",
+            Self::Search => "Search",
             Self::Model => "Model",
             Self::Head => "Head",
             Self::Torso => "Torso",
@@ -50,21 +53,23 @@ impl CharacterRow {
             Self::Torso => Some(1),
             Self::Legs => Some(2),
             Self::Skin => Some(3),
-            Self::Name | Self::Team | Self::Model | Self::Hat | Self::Cape => None,
+            Self::Name | Self::Team | Self::Search | Self::Model | Self::Hat | Self::Cape => None,
         }
     }
 }
 
-const CHARACTER_ROWS: [CharacterRow; 5] = [
+const CHARACTER_ROWS: [CharacterRow; 6] = [
     CharacterRow::Name,
     CharacterRow::Team,
+    CharacterRow::Search,
     CharacterRow::Model,
     CharacterRow::Hat,
     CharacterRow::Cape,
 ];
-const SPECIES_ROWS: [CharacterRow; 9] = [
+const SPECIES_ROWS: [CharacterRow; 10] = [
     CharacterRow::Name,
     CharacterRow::Team,
+    CharacterRow::Search,
     CharacterRow::Model,
     CharacterRow::Head,
     CharacterRow::Torso,
@@ -218,7 +223,7 @@ impl PlayerMenu {
             ProfilePage::Character => self
                 .character_rows()
                 .get(self.selected)
-                .is_some_and(|row| *row != CharacterRow::Name),
+                .is_some_and(|row| !matches!(row, CharacterRow::Name | CharacterRow::Search)),
             ProfilePage::Saber => self
                 .saber_rows()
                 .get(self.selected)

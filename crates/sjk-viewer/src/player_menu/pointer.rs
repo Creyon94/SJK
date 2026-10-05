@@ -66,7 +66,7 @@ impl PlayerMenu {
         }
         let row = crate::menu_widgets::numeric::value_row(token).unwrap_or(usize::from(token));
         if matches!(event.kind, UiEventKind::HoverEnter | UiEventKind::Hover) {
-            if row < count && !self.name_editing {
+            if row < count && !self.name_editing && !self.search_editing {
                 self.selected = row;
             }
             return PlayerMenuResult::None;
@@ -102,6 +102,8 @@ impl PlayerMenu {
             self.name_editing = false;
             self.apply(console);
         }
+        // A click elsewhere ends typing the search, keeping it.
+        self.search_editing = false;
         self.selected = row;
         if let Some(position) = event.position {
             if self.set_slider_from_pointer(console, token, position.x) {
@@ -165,7 +167,9 @@ impl PlayerMenu {
         console: &mut ViewerConsole,
     ) -> PlayerMenuResult {
         match kind {
-            UiEventKind::HoverEnter | UiEventKind::Hover if !self.name_editing => {
+            UiEventKind::HoverEnter | UiEventKind::Hover
+                if !self.name_editing && !self.search_editing =>
+            {
                 self.selected = MODEL_ROW;
             }
             UiEventKind::Activate => {
@@ -173,8 +177,10 @@ impl PlayerMenu {
                     self.name_editing = false;
                     self.apply(console);
                 }
+                self.search_editing = false;
                 self.selected = MODEL_ROW;
-                self.pick_tile(console, tile);
+                let slot = self.visible_slot(tile);
+                self.pick_tile(console, slot);
             }
             _ => {}
         }

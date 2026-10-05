@@ -100,6 +100,34 @@ impl PlayerMenu {
                     self.canvas
                         .form_cycler(zone, self.team.label(), None, color, s);
                 }
+                CharacterRow::Search => {
+                    let value = Rect::new(zone.x, zone.y + 16.0 * s, zone.width, 20.0 * s);
+                    if self.search.is_empty() && !self.search_editing {
+                        let muted = self.canvas.theme().muted;
+                        self.canvas
+                            .form_value("Enter, then type a name", zone, muted, s);
+                    } else {
+                        let search = std::mem::take(&mut self.search);
+                        let caret = if self.search_editing { "_" } else { "" };
+                        let found = self.tiles.len();
+                        self.canvas.text_fmt_aligned(
+                            format_args!("{search}{caret}   ·   {found}"),
+                            value,
+                            15.0 * s,
+                            color,
+                            FontWeight::Semibold,
+                            0.3 * s,
+                            sjk_ui::TextAlign::End,
+                        );
+                        self.search = search;
+                    }
+                    if self.search_editing {
+                        let field =
+                            Rect::new(zone.x, rect.y + 6.0 * s, zone.width, rect.height - 12.0 * s);
+                        let accent = self.canvas.theme().accent;
+                        self.canvas.edit_underline(field, accent, s);
+                    }
+                }
                 CharacterRow::Model => {
                     let label = match (self.choice, catalog) {
                         (Some(Choice::Character(index)), Some(catalog)) => catalog

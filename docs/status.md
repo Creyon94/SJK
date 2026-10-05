@@ -165,6 +165,24 @@ of a JoF clientinfo, the installed-piece scan (new and old folders), the
 change's author: the pages' look, a piece's fit on a model and other clients
 seeing it are untested.
 
+## Model grid icons and search (SJK)
+
+SJK-only branch `personal/model-grid` (2026-10-05, based on `0fc6e24`): the
+character grids' icons are a cache over the 207 atlas cells instead of the
+first 207 catalogue entries, so every model shows its icon; tiles answer to the
+pointer by their place on screen (in the classic profile, a click on a head past
+the 200th used to pick a part, tint or hilt). Both profile styles gain a model
+search. See [menu style](client.md#menu-style).
+
+Verification (2026-10-05, Windows 11): formatting, the locked workspace build
+and tests, including unit tests for the icon cache (four times as many models
+as cells, scrolled through a screenful at a time; tiles on screen keep their
+cells; a new catalogue empties it) and the search (words, case, the team
+filter). A temporary check against the owner's installation (not bundled)
+listed 844 characters and 72 species whose icons all decode, so the black tiles
+were only the cell limit. No client window was opened: the grid on screen and
+the cache while scrolling are untested.
+
 ## Accepted client improvements
 
 The owner approved publishing the current playtest improvements on 2026-10-04.
