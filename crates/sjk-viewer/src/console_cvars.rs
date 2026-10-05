@@ -425,6 +425,18 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             archive,
             "How bright a shield hit shows on the body, 1 (stock) to 12; ignored by the sphere",
         ),
+        CvarDefinition::new(
+            "cl_autoUpdate",
+            true,
+            archive,
+            "Look for a newer SJK release when the client starts (the Update page installs it)",
+        ),
+        CvarDefinition::new(
+            "cl_updateAs",
+            "",
+            CvarFlags::NONE,
+            "Pretend to be this release version when checking for updates (testing a local build)",
+        ),
         // JoF EJK's: 1 shows your own movement from the server, 2 also its angles.
         CvarDefinition::new(
             "cg_noPredict",

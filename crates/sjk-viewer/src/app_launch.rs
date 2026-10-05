@@ -38,6 +38,7 @@ pub(super) fn run() -> Result<(), Box<dyn Error>> {
         log::progress(format_args!("{line}"));
         console.push_log_quiet(line);
     }
+    console.check_for_updates_at_launch();
     // The build's commit and date too, so a log names exactly what ran.
     log::progress(format_args!("build: {}", crate::build_info::label()));
     assets::search_paths::initialize(&console)?;

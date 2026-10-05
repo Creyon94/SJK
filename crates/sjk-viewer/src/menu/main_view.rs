@@ -14,6 +14,15 @@ use sjk_ui::{DrawCommand, FontWeight, Rect, TextAlign};
 /// text the main menu carries. The classic menus and console show it too.
 pub(crate) const VERSION_LINE: &str = concat!("SJK ", env!("SJK_BUILD_VERSION"));
 
+/// The version line the menus show: the version, and a newer release the update
+/// check found.
+pub(crate) fn version_line() -> std::borrow::Cow<'static, str> {
+    match crate::update::available_version() {
+        Some(version) => format!("{VERSION_LINE}   /   update {version} available").into(),
+        None => VERSION_LINE.into(),
+    }
+}
+
 /// Top of the entry list and the height of one entry.
 fn list_metrics(viewport: [f32; 2], scale: f32) -> (f32, f32) {
     (viewport[1] * 0.47, 72.0 * scale)
@@ -83,11 +92,11 @@ pub(crate) fn build(canvas: &mut MenuCanvas, viewport: [f32; 2], selection: usiz
     }
     let footer_y = height - 64.0 * s;
     canvas.text_aligned(
-        VERSION_LINE,
+        &version_line(),
         Rect::new(
-            viewport[0] - x - 320.0 * s,
+            viewport[0] - x - 520.0 * s,
             footer_y + 3.0 * s,
-            320.0 * s,
+            520.0 * s,
             16.0 * s,
         ),
         12.0 * s,

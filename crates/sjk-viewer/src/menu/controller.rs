@@ -101,7 +101,8 @@ impl ClientMenu {
             2 => MainDestination::Player,
             3 => MainDestination::Settings { tab: 0 },
             4 => MainDestination::Changelog,
-            5 => MainDestination::Quit,
+            5 => MainDestination::Update,
+            6 => MainDestination::Quit,
             _ => return MenuAction::None,
         };
         self.open_main_destination(destination, console)

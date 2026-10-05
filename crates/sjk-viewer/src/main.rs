@@ -168,6 +168,7 @@ mod text;
 mod ui_renderer;
 mod ui_scale;
 mod ui_target;
+mod update;
 mod version_overlay;
 mod weapon_select;
 mod weapon_view;
@@ -232,6 +233,8 @@ fn main() {
         log::progress(format_args!("sjk: {error}"));
         std::process::exit(1);
     }
+    // After the settings were saved on the way out, start an installed update.
+    update::restart_if_requested();
 }
 mod gpu_vertex;
 use gpu_vertex::GpuVertex;

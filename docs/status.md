@@ -421,6 +421,20 @@ selection and scrolling; the sjk-viewer tests and workspace clippy passed.
 Off-screen snapshots (`menu_snapshot`) drew the page and both main menus with the
 new entry. No game was started: the page in the running client is unverified.
 
+## Self-update (SJK)
+
+SJK-only branch `personal/self-update` (06/10/2026, based on `f61230b`) adds an
+update check at start-up (`cl_autoUpdate`, default on) and an Update page (main
+menu > Update, or the `update` command) that downloads the latest release ZIP,
+verifies its SHA-256 and swaps the programs, starting the new one when the client
+exits; see [client.md](client.md#updates). New dependencies: `ureq` 3 (rustls)
+and `sha2`. Unit tests cover version ordering, the release answer, checksum
+lookup, ZIP names, a swap that keeps `.old` files and one that rejects a folder
+path; the sjk-viewer tests and workspace formatting passed and the new files add
+no clippy warnings. Not verified: a real download and install against a published
+release (none newer than the build exists yet), the page in the running client, and
+a Linux swap. No game was started.
+
 ## Alt codes (SJK)
 
 SJK-only branch `personal/alt-codes` (2026-10-05, based on `2696590`) types

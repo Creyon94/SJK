@@ -21,6 +21,8 @@ pub(crate) enum MainDestination {
     Keybinds { category: usize },
     /// The changelog page, drawn by the console over the menu.
     Changelog,
+    /// The update page, drawn by the console over the menu.
+    Update,
     /// Exit to the desktop.
     Quit,
 }
@@ -80,6 +82,10 @@ impl ClientMenu {
             }
             MainDestination::Changelog => {
                 console.open_changelog();
+                MenuAction::None
+            }
+            MainDestination::Update => {
+                console.open_update_panel();
                 MenuAction::None
             }
             MainDestination::Quit => MenuAction::Quit,

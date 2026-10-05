@@ -67,6 +67,7 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
     ),
     (super::debug_panel::COMMAND, super::debug_panel::HELP),
     (super::changelog::COMMAND, super::changelog::HELP),
+    (super::update_panel::COMMAND, super::update_panel::HELP),
     ("togglemenu", "Toggle the in-game menu"),
     ("cmd", "Forward arguments as a reliable server command"),
     ("clientinfo", "Print client state and userinfo"),
@@ -400,6 +401,12 @@ impl crate::GpuState {
             super::changelog::COMMAND => {
                 if let Some(console) = &mut self.console {
                     console.toggle_changelog();
+                }
+                self.sync_cursor_policy();
+            }
+            super::update_panel::COMMAND => {
+                if let Some(console) = &mut self.console {
+                    console.toggle_update_panel();
                 }
                 self.sync_cursor_policy();
             }

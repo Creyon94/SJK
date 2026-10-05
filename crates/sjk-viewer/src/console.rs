@@ -20,12 +20,16 @@ mod console_connect;
 mod console_cvars;
 #[path = "console_debug_panel.rs"]
 mod console_debug_panel;
+#[path = "console_update.rs"]
+mod console_update;
 #[path = "debug_panel.rs"]
 pub(crate) mod debug_panel;
 #[path = "demo_director.rs"]
 pub(crate) mod director;
 #[path = "console_qcommon.rs"]
 mod qcommon;
+#[path = "update_panel.rs"]
+pub(crate) mod update_panel;
 #[path = "console_window_options.rs"]
 mod window_options;
 pub(crate) use qcommon::wait_control;
@@ -107,6 +111,8 @@ pub(crate) struct ViewerConsole {
     /// Personal test list of Sol's build, drawn in place of the console while open.
     debug_panel: debug_panel::Panel,
     changelog: changelog::Panel,
+    /// The Update page, drawn in place of the console while open.
+    update_panel: update_panel::Panel,
     userinfo_dirty: Arc<AtomicBool>,
     show_timedelta: crate::net_timing::CvarSetting,
     time_nudge: crate::presentation_clock::CvarSetting,
@@ -221,7 +227,10 @@ impl ViewerConsole {
     /// under it should not build their text.
     pub(crate) fn covers_frame(&self) -> bool {
         self.open
-            && (self.browser.is_open() || self.debug_panel.is_open() || self.changelog.is_open())
+            && (self.browser.is_open()
+                || self.debug_panel.is_open()
+                || self.changelog.is_open()
+                || self.update_panel.is_open())
     }
 
     /// Add an application diagnostic to the visible bounded scrollback.
@@ -492,6 +501,7 @@ impl ViewerConsole {
         // Overlay text draws above every overlay's shapes, so the browser replaces the
         // console's drawing rather than covering it.
         if self.append_changelog(vertices, font, viewport)
+            || self.append_update_panel(vertices, font, viewport)
             || self.append_debug_panel(vertices, font, viewport)
         {
             return;
@@ -565,6 +575,9 @@ impl ViewerConsole {
         if let Some(draw_list) = self.changelog_draw_list() {
             return draw_list;
         }
+        if let Some(draw_list) = self.update_panel_draw_list() {
+            return draw_list;
+        }
         if let Some(draw_list) = self.debug_panel_draw_list() {
             return draw_list;
         }
@@ -624,6 +637,7 @@ impl ViewerConsole {
             self.browser.close();
             self.debug_panel.close();
             self.changelog.close();
+            self.update_panel.close();
         }
     }
 
