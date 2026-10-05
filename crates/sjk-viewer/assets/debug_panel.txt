@@ -909,6 +909,14 @@ test: Open chat, type Alt+0167 and send it; try with Num Lock on and off.
 test: In a match (console and chat closed), hold Alt and press keypad keys: their binds act.
 note: AltGr (right Alt on AZERTY) and Ctrl+Alt do not compose, as in Windows.
 
+[sjk-wordmark]
+status: personal
+area: Menus & settings
+title: The modern main menu says SJK instead of JK::R
+change: The big title word on the modern main menu (ui_menuStyle modern) reads SJK.
+test: Set the modern menu style, go to the main menu: the large title reads SJK, not JK::R.
+test: It sits where JK::R was, over the saber emblem, and nothing overlaps it.
+
 # ---- Merged upstream ----
 
 [jkr-vehicles]
