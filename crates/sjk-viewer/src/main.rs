@@ -2035,8 +2035,10 @@ struct ParticleAtlas {
     fallback: [f32; 4],
     /// Some stage is a dynamic glow stage, so effects sort glowing layers apart.
     any_glow: bool,
+    remaps: effect_remaps::State,
 }
 
+#[derive(Clone)]
 struct ParticleAtlasAnimation {
     frames: Vec<[f32; 4]>,
     frequency: f32,
@@ -2048,6 +2050,8 @@ struct ParticleAtlasAnimation {
     tc_scroll: [f32; 2],
     /// The stage is drawn into the dynamic glow image too.
     glow: bool,
+    /// Remap destination clock, subtracted from the sampled shader time.
+    time_offset: f32,
 }
 
 #[derive(Clone, Copy)]
@@ -2060,6 +2064,7 @@ struct ParticleLayerSample {
     glow: bool,
 }
 
+mod effect_remaps;
 mod particle_atlas_sampling;
 
 mod depth_target;

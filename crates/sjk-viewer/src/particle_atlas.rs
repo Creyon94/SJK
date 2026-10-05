@@ -205,6 +205,7 @@ pub(crate) fn create(
                     tc_scale: animation.tc_scale,
                     tc_scroll: animation.tc_scroll,
                     glow: animation.glow,
+                    time_offset: 0.,
                 });
         }
     }
@@ -255,6 +256,7 @@ pub(crate) fn create(
         animations,
         fallback,
         any_glow,
+        remaps: Default::default(),
     })
 }
 

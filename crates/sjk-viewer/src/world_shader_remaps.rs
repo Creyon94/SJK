@@ -17,6 +17,19 @@ pub(super) struct State {
     pub sources: Vec<Source>,
     pub map: MapRemaps,
     pub applied: Option<(u64, u64, i64)>,
+    pub generation: u64,
+}
+
+/// Visible shader and destination clock offset for an original shader name: the
+/// target of its latest remap ([`MapRemaps::target`](crate::world_materials::map_remaps::MapRemaps::target))
+/// and the server's clock for that target.
+pub(crate) fn remap_target<'a>(
+    map: &'a crate::world_materials::map_remaps::MapRemaps,
+    server: Option<&'a sjk_client::ShaderRemapTable>,
+    name: &'a str,
+) -> (&'a str, f32) {
+    let target = map.target(name, server);
+    (target, server.map_or(0., |r| r.time_offset(target)))
 }
 
 impl Runtime {
@@ -54,8 +67,7 @@ impl Runtime {
             if !self.remaps.map.affects(&name, remaps) && original.applied.is_none() {
                 continue;
             }
-            let target = self.remaps.map.target(&name, remaps);
-            let offset = remaps.map_or(0., |r| r.time_offset(target));
+            let (target, offset) = remap_target(&self.remaps.map, remaps, &name);
             if original
                 .applied
                 .as_ref()
@@ -109,7 +121,21 @@ impl Runtime {
             self.sky
                 .refresh_remaps(device, queue, vfs, shaders, remaps, &self.remaps.map);
         self.remaps.applied = Some(stamp);
+        self.remaps.generation = self.remaps.generation.wrapping_add(1);
         sky_result
+    }
+
+    /// Counts applied remap states, including local edits and late materials.
+    pub(crate) fn remap_generation(&self) -> u64 {
+        self.remaps.generation
+    }
+    /// This world's remap target for a shader name, shared by effects.
+    pub(crate) fn remap_target<'a>(
+        &'a self,
+        server: Option<&'a sjk_client::ShaderRemapTable>,
+        name: &'a str,
+    ) -> (&'a str, f32) {
+        remap_target(&self.remaps.map, server, name)
     }
 
     fn rebuild_remapped_fog(&mut self, visibility: Option<&Visibility>) {

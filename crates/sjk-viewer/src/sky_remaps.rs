@@ -17,7 +17,7 @@ impl Runtime {
             if !map.affects(&name, remaps) && material.remapped.is_none() {
                 continue;
             }
-            let target = map.target(&name, remaps);
+            let (target, _) = crate::world_materials::remap_target(map, remaps, &name);
             if material.remapped.as_deref() == Some(target) {
                 continue;
             }

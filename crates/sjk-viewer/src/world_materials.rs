@@ -59,6 +59,7 @@ mod remaps;
 use fog_draws::FogDraw;
 pub(crate) use fog_draws::FrameDraw;
 use fog_gpu::FogGpu;
+pub(crate) use remaps::remap_target;
 use sjk_shader::{FogPass, ShaderCull};
 
 use super::{DrawBatch, ViewerMaterial, create_rgba8_texture};
