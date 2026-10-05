@@ -394,6 +394,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             archive,
             "Display the Force Seeing aura shell on other players",
         ),
+        CvarDefinition::new(
+            "cg_shieldSphere",
+            0_i64,
+            archive,
+            "Show a shield hit as multiplayer's sphere (1) instead of a shell on the body (0)",
+        ),
         // JoF EJK's: 0 hides all hats and capes, 1 shows everyone's, 2 only yours.
         CvarDefinition::new(
             crate::cosmetics::VISIBILITY_CVAR,

@@ -1307,3 +1307,10 @@ title: Looping sounds no longer drop out
 change: Saber hums and ambient loops keep playing while each frame's loops are re-sent.
 test: Stand near looping sounds (your saber, other sabers, map ambience); listen for crackles.
 test: Optional: JKR_TRACE_AUDIO=1; logs/last-client.log shows split loop frames=N every 5 s.
+
+[shield-body]
+status: open
+area: Rendering
+title: Shield hits hug the body like single player
+change: A shield hit now flashes a shell on the player body; cg_shieldSphere 1 (Game options: Shield hit sphere) restores multiplayer's sphere.
+test: Get hit with armor against another player or bot: the body flashes. Set cg_shieldSphere 1 and repeat: the sphere appears.

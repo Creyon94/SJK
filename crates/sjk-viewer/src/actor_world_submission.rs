@@ -28,6 +28,7 @@ mod grapple_rope;
 struct Sinks<'a> {
     flag_meshes: [Option<usize>; 2],
     shield_mesh: Option<usize>,
+    shield_sphere: bool,
     world: &'a sjk_runtime::World,
     actor_meshes: &'a [ActorMesh],
     object_meshes: &'a [StaticModelMesh],
@@ -108,6 +109,13 @@ pub(crate) fn submit(
         .and_then(|console| console.integer_cvar("cg_auraShell"))
         .unwrap_or(1)
         != 0;
+    // 1 draws multiplayer's sphere around a shield hit; 0 hugs the body like single player.
+    let shield_sphere = gpu
+        .console
+        .as_ref()
+        .and_then(|console| console.integer_cvar("cg_shieldSphere"))
+        .unwrap_or(0)
+        != 0;
     let trails = gpu
         .console
         .as_ref()
@@ -138,6 +146,7 @@ pub(crate) fn submit(
             .object_meshes
             .iter()
             .position(|mesh| mesh.appearance.model == "models/weaphits/testboom.md3"),
+        shield_sphere,
         world: active_world,
         actor_meshes: &gpu.actor_meshes,
         object_meshes: &gpu.object_meshes,
@@ -501,6 +510,7 @@ fn submit_actor(
                 aura_shell,
                 sinks.predicted_force_powers_active,
                 sinks.shield_mesh,
+                sinks.shield_sphere,
             );
         }
     } else if draw_actor {
