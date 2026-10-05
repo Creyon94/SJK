@@ -11,6 +11,7 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 mod catalog;
 mod classic_view;
 mod display;
+mod groups;
 mod help;
 mod numeric;
 mod pointer;
@@ -24,6 +25,7 @@ use catalog::*;
 pub(crate) use display::{
     DisplayMode, EXCLUSIVE_CVAR, MonitorModes, exclusive_supported, exclusive_video_mode,
 };
+pub(crate) use groups::Group;
 use resolution::{PickResult, ResolutionChoice, ResolutionPicker};
 pub(crate) enum SettingsResult {
     None,
@@ -91,6 +93,8 @@ enum Section {
     General,
     /// JKR's renderer settings ([`RENDERER_TABS`]).
     Renderer,
+    /// A classic Setup group gathering rows of several tabs ([`Group`]).
+    Group(Group),
 }
 
 /// A row after a tab's settings that opens another screen.
@@ -174,12 +178,6 @@ impl SettingsMenu {
         KEYBINDS_TAB
     }
 
-    /// Rows of tab `tab` (without the key-bindings row).
-    #[cfg(test)]
-    pub(crate) fn tab_len(tab: usize) -> usize {
-        settings(tab).len()
-    }
-
     /// Index of the tab captioned `caption` (`"AUDIO"`), if there is one.
     pub(crate) fn tab_index(caption: &str) -> Option<usize> {
         TABS.iter().position(|tab| *tab == caption)
@@ -234,6 +232,7 @@ impl SettingsMenu {
         match self.section {
             Section::General => &TABS,
             Section::Renderer => &RENDERER_TABS,
+            Section::Group(group) => group.tabs(),
         }
     }
 
@@ -606,6 +605,7 @@ fn section_settings(section: Section, tab: usize) -> &'static [Setting] {
             2 => RENDER_SHADOWS,
             _ => &[],
         },
+        Section::Group(group) => group.rows(),
     }
 }
 
@@ -648,8 +648,19 @@ fn row_text(console: &ViewerConsole, setting: &Setting) -> String {
         {
             "AUTO".to_owned()
         }
+        (ValueKind::Float { .. }, Some(CvarValue::Float(value))) => float_text(*value),
         _ => value_text(console, setting.cvar),
     }
+}
+
+/// A slider's number to four decimals at most, keeping one (`0.9`, not
+/// `0.8999999761581421` from a single-precision default; `100.0`).
+fn float_text(value: f64) -> String {
+    let mut text = format!("{value:.4}");
+    while text.ends_with('0') && !text.ends_with(".0") {
+        text.pop();
+    }
+    text
 }
 
 /// Whether a switch row's cvar is on: true, or any nonzero number.
@@ -691,6 +702,14 @@ fn value_text(console: &ViewerConsole, name: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn slider_numbers_lose_float_noise() {
+        assert_eq!(float_text(f64::from(0.9_f32)), "0.9");
+        assert_eq!(float_text(100.0), "100.0");
+        assert_eq!(float_text(0.005), "0.005");
+        assert_eq!(float_text(-2.5), "-2.5");
+    }
 
     const SECTIONS: [(Section, usize); 2] = [
         (Section::General, TABS.len()),

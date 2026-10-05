@@ -534,6 +534,26 @@ lines and the scrollbar moving to the panel's edge (in the in-game pop-up it
 covered the values). No client window was opened: the panels' pointer and
 keyboard behaviour on screen are untested.
 
+A second pass (same day) merges what retail split for room: one Video group,
+one Force Powers group, and Interface, HUD and Scoreboard groups gathering
+JKR's GAME, HUD, HUD+ and TEXT rows by subject (switching to the modern style
+from a group continues on the tab holding its row). Key bindings carry the
+retail picture of the weapon, item or Force power they select, in a column and
+in the detail box, and the weapon rows are named. Join's team rows in the
+in-game bar show their flag and player count, and the profile's Force strip
+shrinks its holocrons instead of dropping the last known power. Settings whose
+label overflowed the in-game label column have a short row name (the detail box
+keeps the full one), and slider numbers read `0.9` rather than a
+single-precision default's `0.8999999761581421`. Unit tests
+cover the groups (every listed cvar is a setting, each GAME, HUD, HUD+ and TEXT
+row in exactly one group), the binding pictures (cells, sharing, every weapon
+and power pictured), the strip's fit, every row label fitting its column and
+the slider numbers; the snapshots, now with atlas icons and
+the in-game bar's pop-ups over a levelshot, showed the in-game panels, bindings
+and Join pop-up. `cargo clippy --no-deps` on the viewer added no finding in the
+changed code; clippy on the workspace stops on `sjk-game-jka` lints merged from
+JKR. No client window was opened.
+
 ## Client devmap preview
 
 Local `devmap1` preview (2026-10-04, based on `7155455`) exposes `devmap <map>`

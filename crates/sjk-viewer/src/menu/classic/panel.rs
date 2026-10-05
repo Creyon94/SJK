@@ -18,7 +18,7 @@ use super::layout::{CANVAS, Entry, HINT_Y, Page, Placement, Size, Slot};
 use super::view::{self, Caps, DISABLED, FOCUS, GOLD, HINT};
 use crate::menu::art::{ArtPiece, ArtSet};
 use crate::menu_widgets::MenuCanvas;
-use sjk_ui::{Color, DrawCommand, FontWeight, Rect, TextAlign};
+use sjk_ui::{Color, DrawCommand, FontWeight, Rect, TextAlign, TextureId};
 
 /// Pointer tokens of the screen's own buttons (navigation row, group list,
 /// Back and Exit): `CHROME_BASE` plus the button's index in its page's
@@ -61,6 +61,8 @@ const SLIDER: [f32; 2] = [96.0, 16.0];
 const THUMB: [f32; 2] = [12.0, 20.0];
 /// Retail gap between an item's label and its value (`textRect.w + 8`).
 const VALUE_GAP: f32 = 8.0;
+/// Space between a label and its row picture.
+const ICON_GAP: f32 = 6.0;
 
 /// Where a panel screen is shown.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -145,6 +147,8 @@ pub(crate) struct Detail<'a> {
     pub(crate) facts: &'a str,
     /// The console name, at the facts line's end.
     pub(crate) name: &'a str,
+    /// A picture of the item (an atlas cell), beside its lines.
+    pub(crate) icon: Option<TextureId>,
 }
 
 /// The in-game pop-up box (`background_pic` `0 0 570 335` of a menu at
@@ -204,6 +208,8 @@ pub(crate) struct PanelPlace {
     art: ArtSet,
     /// Description of the chrome button under the pointer, if any.
     hovered_hint: Option<(&'static str, bool)>,
+    /// Whether the rows keep a picture column between labels and values.
+    icons: bool,
 }
 
 impl PanelFrame {
@@ -265,6 +271,7 @@ impl PanelFrame {
             frame: self.frame,
             art: self.art,
             hovered_hint,
+            icons: false,
         }
     }
 
@@ -424,6 +431,32 @@ impl PanelPlace {
     /// Item rows the panel holds.
     pub(crate) fn capacity(&self) -> usize {
         self.frame.capacity()
+    }
+
+    /// Keep a picture column between the labels and the values
+    /// ([`Self::row_icon`]), for panels whose items have pictures.
+    pub(crate) fn with_icon_column(mut self) -> Self {
+        self.icons = true;
+        self
+    }
+
+    /// Side of a row picture, in canvas units.
+    fn icon_side(&self) -> f32 {
+        self.geometry().row_height - 2.0
+    }
+
+    /// Row `slot`'s picture, in the column after the label.
+    pub(crate) fn row_icon(&self, canvas: &mut MenuCanvas, slot: usize, texture: TextureId) {
+        let geometry = self.geometry();
+        let side = self.icon_side();
+        let top = geometry.first_row + slot as f32 * geometry.row_height + 1.0;
+        let _ = canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
+            rect: self
+                .place
+                .rect([geometry.label_end + ICON_GAP, top, side, side]),
+            texture,
+            color: Color::new(1.0, 1.0, 1.0, 1.0),
+        });
     }
 
     /// Window scale of one canvas unit.
@@ -597,11 +630,29 @@ impl PanelPlace {
             FontWeight::Regular,
             TextAlign::End,
         );
+        // The picture fills the box under the rule; the lines follow it.
+        let text_x = match detail.icon {
+            Some(texture) => {
+                let side = h - 24.0;
+                let _ = canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
+                    rect: self.place.rect([x + 6.0, y + 21.0, side, side]),
+                    texture,
+                    color: Color::new(1.0, 1.0, 1.0, 1.0),
+                });
+                x + 12.0 + side
+            }
+            None => x + 6.0,
+        };
         for (index, text) in detail.lines.iter().enumerate() {
             line(
                 canvas,
                 format_args!("{text}"),
-                [x + 6.0, y + 21.0 + index as f32 * 12.5, w - 12.0, 12.0],
+                [
+                    text_x,
+                    y + 21.0 + index as f32 * 12.5,
+                    x + w - 6.0 - text_x,
+                    12.0,
+                ],
                 10.5,
                 DETAIL_TEXT,
                 FontWeight::Regular,
@@ -612,7 +663,7 @@ impl PanelPlace {
         line(
             canvas,
             format_args!("{}", detail.facts),
-            [x + 6.0, facts_y, w * 0.72 - 6.0, 12.0],
+            [text_x, facts_y, x + w * 0.72 - text_x, 12.0],
             10.0,
             PANEL_TITLE,
             FontWeight::Regular,
@@ -629,9 +680,15 @@ impl PanelPlace {
         );
     }
 
-    /// Canvas x where an item's value starts.
+    /// Canvas x where an item's value starts: after the picture column
+    /// when the panel keeps one.
     fn value_x(&self) -> f32 {
-        self.geometry().label_end + VALUE_GAP
+        let column = if self.icons {
+            ICON_GAP + self.icon_side()
+        } else {
+            0.0
+        };
+        self.geometry().label_end + VALUE_GAP + column
     }
 
     /// Right edge of the panel's text, inside its box.

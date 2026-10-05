@@ -74,6 +74,47 @@ impl SettingsMenu {
         });
     }
 
+    /// Show classic Setup group `group`'s rows as a classic option panel.
+    pub(crate) fn open_classic_group(
+        &mut self,
+        console: &ViewerConsole,
+        group: Group,
+        frame: crate::menu::classic::panel::Frame,
+    ) {
+        self.open_tab(console, 0);
+        self.section = Section::Group(group);
+        self.tab = 0;
+        self.refresh(console);
+        self.selected = 0;
+        self.classic = Some(ClassicRows {
+            rows: 0..self.rows().len(),
+            slider_span: frame.slider_span(),
+            first: 0,
+            visible: frame.capacity(),
+        });
+    }
+
+    /// Carry on as the modern screen after the menu style changed under a
+    /// classic panel: a classic group's row is shown on the modern tab that
+    /// holds it.
+    pub(crate) fn continue_modern(&mut self, console: &ViewerConsole) {
+        let Section::Group(_) = self.section else {
+            return;
+        };
+        let cvar = self.rows().get(self.selected).map(|setting| setting.cvar);
+        let found = (0..TABS.len()).find_map(|tab| {
+            let row = settings(tab)
+                .iter()
+                .position(|setting| Some(setting.cvar) == cvar)?;
+            Some((tab, row))
+        });
+        let (tab, row) = found.unwrap_or((0, 0));
+        self.section = Section::General;
+        self.tab = tab;
+        self.selected = row;
+        self.refresh(console);
+    }
+
     /// Back to the full tabbed screen, keeping the tab.
     pub(crate) fn leave_classic(&mut self) {
         if self.classic.take().is_some() {
@@ -139,7 +180,7 @@ impl SettingsMenu {
             };
             let focused = row == self.selected;
             let color = if focused { focus_text() } else { OPTION };
-            let (label, timing) = help::row_label(setting.label);
+            let (label, timing) = help::classic_label(setting.cvar, setting.label);
             place.label_marked(&mut self.ui, slot, label, color, timing != Timing::Now);
             if self
                 .defaults
@@ -338,6 +379,7 @@ fn detail_of<'a>(
         lines: help::lines(help::help(setting.cvar).unwrap_or_default()),
         facts,
         name: setting.cvar,
+        icon: None,
     }
 }
 

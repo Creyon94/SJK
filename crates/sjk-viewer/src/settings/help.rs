@@ -53,6 +53,38 @@ pub(super) fn row_label(label: &str) -> (&str, Timing) {
     (short, timing)
 }
 
+/// Longest row label, in characters, that fits the in-game pop-up's label
+/// column.
+const ROW_LABEL_CHARS: usize = 23;
+
+/// Classic row names of settings whose label is longer than the label
+/// column; the detail box still shows the whole label.
+const SHORT_LABELS: &[(&str, &str)] = &[
+    ("cg_drawFps", "FPS readout"),
+    ("cg_forceModel", "Everyone as my model"),
+    ("cg_thirdPersonCameraDamp", "Camera damping"),
+    ("cg_thirdPersonTargetDamp", "Target damping"),
+    ("cg_errorDecay", "Error smoothing"),
+    (crate::frame_target::aa::exposure::MIN_EV, "Max darken, EV"),
+    (
+        crate::frame_target::aa::exposure::MAX_EV,
+        "Max brighten, EV",
+    ),
+    ("r_modelPixelLight", "Pixel model lighting"),
+    ("r_ambientFillOcclusion", "Ambient fill shading"),
+];
+
+/// What a classic+ row calls setting `cvar` labelled `label`: its short name
+/// if it has one, else [`row_label`].
+pub(super) fn classic_label<'a>(cvar: &str, label: &'a str) -> (&'a str, Timing) {
+    let (row, timing) = row_label(label);
+    let short = SHORT_LABELS
+        .iter()
+        .find(|(name, _)| name.eq_ignore_ascii_case(cvar))
+        .map_or(row, |(_, short)| *short);
+    (short, timing)
+}
+
 /// The description of setting `cvar`.
 pub(super) fn help(cvar: &str) -> Option<&'static str> {
     HELP.iter()
@@ -470,6 +502,29 @@ mod tests {
                 "{cvar} is described but not on any page"
             );
         }
+    }
+
+    #[test]
+    fn every_row_label_fits_the_label_column() {
+        for setting in every_row() {
+            let (label, _) = classic_label(setting.cvar, setting.label);
+            assert!(
+                label.chars().count() <= ROW_LABEL_CHARS,
+                "{}: {label}",
+                setting.cvar
+            );
+        }
+        for (cvar, _) in SHORT_LABELS {
+            assert!(
+                every_row().any(|setting| setting.cvar.eq_ignore_ascii_case(cvar)),
+                "{cvar} has a short label but no row"
+            );
+        }
+        // A short name keeps the timing of the full label.
+        assert_eq!(
+            classic_label("cg_errorDecay", "Prediction error smoothing (restart)"),
+            ("Error smoothing", Timing::Restart)
+        );
     }
 
     #[test]

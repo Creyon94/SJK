@@ -74,8 +74,11 @@ Each rule names a page that already follows it.
    button lowers it; the wheel scrolls the list under the pointer; numbers can
    be typed (the option panels' sliders).
 5. **Pictures from the game data.** Holocrons and side emblems, part icons, the
-   live model (character creation, cosmetics, lightsaber creation), levelshots.
-   When a picture is missing the page shows text and stays usable.
+   live model (character creation, cosmetics, lightsaber creation), levelshots,
+   the weapon, item and Force pictures of the key bindings, the team flags of
+   Join. A picture goes where it names what the row does (the HUD icon of the
+   weapon a key selects), never as decoration. When a picture is missing the
+   page shows text and stays usable.
 6. **Explain empty and unavailable states.** "No templates for this side.";
    an empty cosmetics list says where cosmetics come from; a power that cannot
    be bought is grey and the panel says why.
@@ -88,6 +91,11 @@ Each rule names a page that already follows it.
 9. **Cheap and robust.** Nothing needs the retail art; frames do not allocate
    (`label_fmt` with `format_args!`, fixed storage); pictures decode on worker
    threads; the page works with the keyboard alone.
+10. **One group per subject.** Retail split a subject over two pages when a page
+    ran out of items (Video and More Video, Force Powers 1 and 2); a classic+
+    panel scrolls and explains its items, so it shows the subject as one group,
+    and sorts JKR's additions by what they are about (Interface, HUD,
+    Scoreboard) rather than by the tab they came from.
 
 ## Layout conventions
 
@@ -161,9 +169,11 @@ JKA_GAME_DATA="/path/to/GameData" cargo test --release -p sjk-viewer \
 ```
 
 The pictures go to `target/menu-snapshots/`. They approximate the UI renderer
-(no rounded corners, art without its motion, Inter text only, no atlas icons),
-which is enough to catch overlaps, cut-off labels and empty space. Add a screen
-to the test when building a page.
+(no rounded corners, art without its motion, Inter text only, atlas icons only
+where the test decodes them, as it does for the key bindings), which is enough
+to catch overlaps, cut-off labels and empty space. The in-game frames and the
+in-game bar's pop-ups are drawn over a retail levelshot standing for the match.
+Add a screen to the test when building a page.
 
 ## Checklist
 
@@ -189,5 +199,6 @@ to the test when building a page.
 | Cosmetics | JoF EJK's `ingame_cosmetics` | Hats and capes side by side, live model, worn tags, explained empty lists |
 | Character creation | `player2`, `ingame_player2` | Live model where retail's stood, part icons, tinted swatches |
 | Lightsaber creation | `saber`, `ingame_saber` | The model holding the lit sabers |
-| Setup, Controls | `setup.menu`, `controls.menu`, `ingame_setup`, `ingame_controls` | A detail box for the focused setting or binding (what it does, default, range, when it applies, console name, keys shared with other actions); changed and applies-later marks; Backspace or the right button for the default; key hints |
+| Setup, Controls | `setup.menu`, `controls.menu`, `ingame_setup`, `ingame_controls` | A detail box for the focused setting or binding (what it does, default, range, when it applies, console name, keys shared with other actions); changed and applies-later marks; Backspace or the right button for the default; key hints; one Video and one Force Powers group; Interface, HUD and Scoreboard groups; weapon, item and Force pictures and weapon names on the bindings |
+| In-game bar | `ingame.menu` and its pop-ups | Join's team rows with their flag and player count |
 | Renderer | none (SJK's renderer settings) | The renderer settings as a `setup.menu`-style page with IMAGE, LIGHTING and SHADOWS groups, on both frames, with the same panels |

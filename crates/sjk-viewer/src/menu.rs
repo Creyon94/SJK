@@ -85,7 +85,8 @@ pub(crate) fn attach_world(
 }
 
 /// Feed decoded menu images to the UI renderer while their screen is up: the
-/// player screen's model icons, Create game's map preview.
+/// player screen's model icons, the key bindings' pictures, Create game's map
+/// preview.
 pub(crate) fn upload_menu_images(
     menu: &mut Option<ClientMenu>,
     renderer: &mut crate::ui_renderer::ShapeRenderer,
@@ -95,6 +96,7 @@ pub(crate) fn upload_menu_images(
     let Some(menu) = menu else { return };
     match menu.state.phase() {
         ClientPhase::Player => menu.player.upload_icons(renderer, queue),
+        ClientPhase::Keybinds => menu.keybinds.upload_icons(renderer, queue),
         ClientPhase::CreateGame => {
             menu.create_game
                 .service_levelshots(|image| renderer.upload_levelshot(device, queue, image));
@@ -624,6 +626,9 @@ impl ClientMenu {
         if matches!(self.state.phase(), ClientPhase::Player) || !self.player.is_resolved() {
             self.player.poll();
         }
+        if matches!(self.state.phase(), ClientPhase::Keybinds) {
+            self.keybinds.poll_icons();
+        }
         self.poll_local_server();
         let browser_visible = matches!(self.state.phase(), ClientPhase::Browser);
         if browser_visible {
@@ -947,6 +952,7 @@ impl ClientMenu {
 
     pub(crate) fn attach_catalogue(&mut self, vfs: std::sync::Arc<sjk_vfs::VirtualFileSystem>) {
         self.create_game.attach_vfs(std::sync::Arc::clone(&vfs));
+        self.keybinds.attach_vfs(std::sync::Arc::clone(&vfs));
         self.player.attach_catalogue(vfs);
     }
 

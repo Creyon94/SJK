@@ -106,7 +106,8 @@ The classic main menu has the retail pages, entries and order:
     sets Custom beside a Force button (retail's in-game `configforce` art) to
     the right of the grid, with the Force profile at a glance under them
     (mastery, side, points left and the holocrons of the powers with a level,
-    a pip per level), then JoF EJK's Cosmetics button and what is worn.
+    a pip per level; a Jedi with more powers than fit gets smaller holocrons,
+    never a missing one), then JoF EJK's Cosmetics button and what is worn.
   - Character creation: species, skin tint swatches, the Head, Torso and Legs
     lists, Back and APPLY. Entering it from an ordinary character puts on the
     first species, as retail's Custom did.
@@ -236,18 +237,38 @@ applies later has a gold `*` after its label, and a row changed from its default
 or the right button returns the focused setting to its default (resolution and
 display mode excepted). The description line names the keys of the focused row.
 
-- Setup: Video (resolution, display mode, sync, frame cap, field of view) and More
-  Video (the rest of the VIDEO settings: marks, shadows, gun, readouts, gamma)
-  split the VIDEO tab as retail splits its two video groups; Sound is AUDIO and
-  Game Options is GAME. HUD, More HUD (the HUD+ tab) and Network follow as JKR
-  additions. RENDERER opens SJK's renderer page: the same layout with the
-  renderer settings' IMAGE, LIGHTING and SHADOWS groups down the left, its title
-  RENDERER OPTIONS, and Back (or Escape) returning to Setup. In game it is the
-  same pop-up with those three groups.
-- Controls: Movement, Interaction, Weapons and Other are the key-binding
-  categories; Force Powers 1 holds the use/next/previous power and push, pull,
-  speed and seeing binds, as retail's first Force page does, and Force Powers 2
-  the rest. Mouse/Joystick shows the CONTROLS settings.
+Retail split video and the Force binds over two pages because a page held few
+items; classic+ panels scroll and explain the focused item, so SJK shows each as
+one group and regroups JKR's GAME, HUD, HUD+ and TEXT tabs by subject
+([settings/groups.rs](../crates/sjk-viewer/src/settings/groups.rs)):
+
+- Setup: Video is the whole VIDEO tab (resolution, display, frame rate, field of
+  view, marks, shadows, gamma), Sound is AUDIO. Game Options holds the gameplay
+  rows (simple items, forced models, saber and speed trails, aura shell, shader
+  remaps, third-person camera, prediction smoothing). Mods and Defaults stay
+  dimmed as retail entries SJK lacks. Interface gathers the menus' and console's
+  look (menu style, accent, contrast, game fonts, menu text size and spacing,
+  console style, text size and line spacing); HUD the HUD style, files and scale,
+  status, weapon bar, crosshair and its size, names, timer, speedometer, team
+  overlay, lagometer, chat and ground readout; Scoreboard its style, client
+  numbers, head icons and small rows. Network follows. RENDERER opens SJK's
+  renderer page: the same layout with the renderer settings' IMAGE, LIGHTING and
+  SHADOWS groups down the left, its title RENDERER OPTIONS, and Back (or Escape)
+  returning to Setup. In game it is the same pop-up with those three groups.
+- Controls: Movement, Interaction, Weapons, Force Powers (retail's two Force
+  pages as one) and Other are the key-binding categories. Mouse/Joystick shows
+  the CONTROLS settings. The weapon rows name their weapon (Saber / melee,
+  Blaster pistol, ... Explosives) rather than `weapon N`.
+
+Key bindings carry the retail HUD picture of what they select or use
+([keybind_editor/icons.rs](../crates/sjk-viewer/src/keybind_editor/icons.rs)):
+each weapon's `gfx/hud/w_icon_*`, each Force power's holocron
+(`gfx/mp/f_icon_*`), the items' `i_icon_*` (bacta, seeker, sentry, force field,
+binoculars), the saber toggle and style, and the team menu's flag. They sit in
+a column between the labels and the keys and, larger, in the detail box. They
+are read from the player's game data on a worker thread when the key bindings
+first open, into two atlas rows of their own; a picture the game data lacks is
+left out.
 
 Up and Down move through the items, Left and Right (or Enter) change a value,
 and typing or Enter on a number edits it exactly; clicking a slider sets it.
@@ -261,13 +282,14 @@ renderer page to Setup).
 The classic in-game bar's Setup and Controls open the same panels as retail's
 `ingame_setup` and `ingame_controls` pop-ups: a box under the bar with the
 group list and panel at their in-game positions and no navigation row, closing
-back to the bar. Switching the Menu style (on Game Options) while a panel is
+back to the bar. Switching the Menu style (on Interface) while a panel is
 open continues on the modern settings screen.
 
 The classic in-game menu (Escape during a match) is the retail top bar: About,
 Join, Profile, Add Bot, Controls, Setup, Vote, Call Vote and Exit. Each opens a
 pop-up under it or the matching screen. About shows the server info. Join picks
-a team, or opens the class list in Siege. Vote is Yes/No. Call Vote opens the
+a team, or opens the class list in Siege; in a team game Team Red and Team Blue
+carry their flag (`gfx/hud/mpi_rflag`, `mpi_bflag`) and the team's player count. Vote is Yes/No. Call Vote opens the
 call-vote lists. Exit offers Main Menu, Restart Match and Quit Program, each
 with a Yes/No confirmation. Profile opens the retail in-game profile window
 (`ingame_player`: name, team colour, head grid, Custom, Saber and the Force

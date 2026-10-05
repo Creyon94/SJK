@@ -21,14 +21,14 @@ pub(super) const MODEL_ICONS: usize = MAX_ICONS - 1;
 const TRACKED_CELLS: usize = crate::ui_renderer::ATLAS_CELLS as usize;
 
 /// One icon to decode: its atlas cell and the paths to try, in order.
-pub(super) type IconRequest = (TextureId, Vec<String>);
+pub(crate) type IconRequest = (TextureId, Vec<String>);
 
 struct DecodedIcon {
     id: TextureId,
     rgba: Vec<u8>,
 }
 
-pub(super) struct IconLoader {
+pub(crate) struct IconLoader {
     receiver: Option<Receiver<Vec<DecodedIcon>>>,
     decoded: Vec<DecodedIcon>,
     uploaded: usize,
@@ -38,7 +38,7 @@ pub(super) struct IconLoader {
 }
 
 impl IconLoader {
-    pub(super) fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
             receiver: None,
             decoded: Vec::new(),
@@ -68,8 +68,17 @@ impl IconLoader {
         index < MODEL_ICONS && self.is_texture_ready(Self::texture_of(index))
     }
 
+    /// Count atlas cell `texture` as uploaded (snapshots draw without a GPU).
+    #[cfg(test)]
+    pub(crate) fn mark_ready(&mut self, texture: TextureId) {
+        let cell = texture.0 as usize;
+        if cell < TRACKED_CELLS {
+            self.ready[cell / 64] |= 1 << (cell % 64);
+        }
+    }
+
     /// Whether atlas cell `texture` holds a finished upload of this loader.
-    pub(super) fn is_texture_ready(&self, texture: TextureId) -> bool {
+    pub(crate) fn is_texture_ready(&self, texture: TextureId) -> bool {
         let cell = texture.0 as usize;
         cell < TRACKED_CELLS && self.ready[cell / 64] & (1 << (cell % 64)) != 0
     }
@@ -100,7 +109,7 @@ impl IconLoader {
     }
 
     /// Decode `requests` off-thread; each takes the first path that decodes.
-    pub(super) fn request_paths(
+    pub(crate) fn request_paths(
         &mut self,
         vfs: Arc<VirtualFileSystem>,
         requests: Vec<IconRequest>,
@@ -124,7 +133,7 @@ impl IconLoader {
         self.receiver = Some(receiver);
     }
 
-    pub(super) fn poll(&mut self) {
+    pub(crate) fn poll(&mut self) {
         let Some(receiver) = &self.receiver else {
             return;
         };
@@ -139,7 +148,7 @@ impl IconLoader {
     }
 
     /// Upload up to `limit` decoded icons into the atlas.
-    pub(super) fn upload_batch(
+    pub(crate) fn upload_batch(
         &mut self,
         renderer: &ShapeRenderer,
         queue: &crate::frame_queue::FrameQueue,

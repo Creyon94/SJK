@@ -15,22 +15,26 @@
 //! 1440x1080 (the 640x480 canvas at 2.25 units per pixel). The drawing is an
 //! approximation of the UI renderer: flat rectangles without rounded corners,
 //! nearest-texel art without its motion and flicker, the Inter font only, and
-//! no icons from the UI atlas. Text is drawn over every shape, as on screen.
+//! only the atlas icons a screen's test supplies. Text is drawn over every shape,
+//! as on screen. The in-game menus are drawn over a retail levelshot standing for
+//! the match.
 
-use crate::keybind_editor::KeybindEditor;
+use crate::keybind_editor::{Category, KeybindEditor};
 use crate::menu::art::{ArtPiece, ArtSet};
 use crate::menu::classic::layout::{Entry, Page, Panel, Span};
 use crate::menu::classic::panel::{Frame, PanelFrame};
 use crate::settings::SettingsMenu;
 use image::{Rgba, RgbaImage};
 use sjk_ui::{DrawCommand, DrawList, Rect};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 const VIEWPORT: [f32; 2] = [1440.0, 1080.0];
 
-/// The retail menu art of the installation in `JKA_GAME_DATA`, decoded.
-fn art() -> ArtSet {
+/// The retail menu art of the installation in `JKA_GAME_DATA`, decoded, and
+/// the installation's files.
+fn art() -> (ArtSet, Arc<sjk_vfs::VirtualFileSystem>) {
     let game = PathBuf::from(
         std::env::var_os("JKA_GAME_DATA").expect("set JKA_GAME_DATA to the GameData directory"),
     );
@@ -41,10 +45,11 @@ fn art() -> ArtSet {
         std::thread::sleep(std::time::Duration::from_millis(20));
     }
     let decoded = crate::menu::art::decoded().expect("menu art decoded");
-    ArtPiece::ALL
+    let set = ArtPiece::ALL
         .into_iter()
         .filter(|piece| decoded.image(*piece).is_some())
-        .fold(ArtSet::default(), |set, piece| set.with(piece))
+        .fold(ArtSet::default(), |set, piece| set.with(piece));
+    (set, vfs)
 }
 
 fn blend(image: &mut RgbaImage, x: i64, y: i64, color: [f32; 4]) {
@@ -53,10 +58,10 @@ fn blend(image: &mut RgbaImage, x: i64, y: i64, color: [f32; 4]) {
     }
     let pixel = image.get_pixel_mut(x as u32, y as u32);
     let alpha = color[3].clamp(0.0, 1.0);
-    for channel in 0..3 {
-        let below = f32::from(pixel.0[channel]) / 255.0;
-        let value = color[channel].clamp(0.0, 1.0) * alpha + below * (1.0 - alpha);
-        pixel.0[channel] = (value * 255.0).round() as u8;
+    for (channel, source) in pixel.0.iter_mut().zip(color).take(3) {
+        let below = f32::from(*channel) / 255.0;
+        let value = source.clamp(0.0, 1.0) * alpha + below * (1.0 - alpha);
+        *channel = (value * 255.0).round() as u8;
     }
 }
 
@@ -117,14 +122,17 @@ fn raster(
     list: &DrawList,
     vertices: &[crate::text::TextVertex],
     atlas: &RgbaImage,
+    icons: &HashMap<u32, RgbaImage>,
 ) {
     let decoded = crate::menu::art::decoded();
     let full = Rect::new(0.0, 0.0, image.width() as f32, image.height() as f32);
     let mut clips = vec![full];
     let mut opacity = vec![1.0_f32];
     let color = |c: sjk_ui::Color, o: f32| [c.r, c.g, c.b, c.a * o];
-    let art = |texture| {
-        let piece = ArtPiece::from_texture(texture)?;
+    let art = |texture: sjk_ui::TextureId| {
+        let Some(piece) = ArtPiece::from_texture(texture) else {
+            return icons.get(&texture.0).map(|icon| (icon, false));
+        };
         Some((decoded?.image(piece)?, piece.wraps()))
     };
     for command in list.commands() {
@@ -277,51 +285,105 @@ fn workspace_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR")).join("../..")
 }
 
-/// Draw one screen over a dark backdrop and write it as `name`.png.
-fn save(
-    name: &str,
-    list: &DrawList,
-    vertices: &[crate::text::TextVertex],
-    atlas: &RgbaImage,
-) -> PathBuf {
-    let directory = workspace_root().join("target/menu-snapshots");
-    std::fs::create_dir_all(&directory).expect("create the snapshot directory");
-    let mut image = RgbaImage::from_pixel(
-        VIEWPORT[0] as u32,
-        VIEWPORT[1] as u32,
-        Rgba([18, 22, 30, 255]),
-    );
-    raster(&mut image, list, vertices, atlas);
-    let path = directory.join(format!("{name}.png"));
-    image.save(&path).expect("write the snapshot");
-    path
+/// What a snapshot is drawn with: the menu font, the UI atlas icons the
+/// screen uses (by texture id), and the backdrop.
+struct Snapshot {
+    font: crate::text::FontAtlas,
+    icons: HashMap<u32, RgbaImage>,
+    /// A match under the in-game menus: the first retail levelshot found.
+    in_match: Option<RgbaImage>,
+}
+
+impl Snapshot {
+    /// Draw one screen over the menu backdrop (or the match) and write it as
+    /// `name`.png.
+    fn save(
+        &self,
+        name: &str,
+        list: &DrawList,
+        vertices: &[crate::text::TextVertex],
+        over_match: bool,
+    ) {
+        let directory = workspace_root().join("target/menu-snapshots");
+        std::fs::create_dir_all(&directory).expect("create the snapshot directory");
+        let size = (VIEWPORT[0] as u32, VIEWPORT[1] as u32);
+        let mut image = match (&self.in_match, over_match) {
+            (Some(shot), true) => {
+                image::imageops::resize(shot, size.0, size.1, image::imageops::FilterType::Triangle)
+            }
+            _ => RgbaImage::from_pixel(size.0, size.1, Rgba([18, 22, 30, 255])),
+        };
+        raster(&mut image, list, vertices, &self.font.image, &self.icons);
+        let path = directory.join(format!("{name}.png"));
+        image.save(&path).expect("write the snapshot");
+        println!("{}", path.display());
+    }
+}
+
+/// Image `path` of the game data, decoded.
+fn decode(vfs: &sjk_vfs::VirtualFileSystem, path: &str) -> Option<RgbaImage> {
+    let asset = vfs.read(path).ok().flatten()?;
+    Some(crate::decode_image(&asset.bytes, path).ok()?.into_rgba8())
+}
+
+/// A retail levelshot to stand for the match behind the in-game menus.
+fn match_backdrop(vfs: &sjk_vfs::VirtualFileSystem) -> Option<RgbaImage> {
+    ["levelshots/mp/ffa3.jpg", "levelshots/mp/ffa5.jpg"]
+        .into_iter()
+        .find_map(|path| decode(vfs, path))
 }
 
 #[test]
 #[ignore = "reads the installed game data named by JKA_GAME_DATA"]
 fn menu_snapshot() {
-    let art = art();
-    let font = crate::text::load_modern(1.0, None).expect("build the menu font");
+    let (art, vfs) = art();
+    let mut shots = Snapshot {
+        font: crate::text::load_modern(1.0, None).expect("build the menu font"),
+        icons: HashMap::new(),
+        in_match: match_backdrop(&vfs),
+    };
+    let font = &shots.font;
     let directory = tempfile::tempdir().expect("scratch profile");
     let mut console =
         crate::console::ViewerConsole::new(directory.path().join("config.cfg")).expect("console");
     // A changed setting shows its mark and its default.
     console.set_cvar("r_hdrExposure", "1.5");
     // The classic option panels, focused on a row with something to say.
-    let panels: [(&str, Page, Entry, Frame, &str); 6] = [
+    let panels: [(&str, Page, Entry, Frame, &str); 9] = [
         (
-            "setup-video",
+            "setup-video-ingame",
             Page::Setup,
             Entry::Video,
-            Frame::Main,
+            Frame::InGame,
             "cg_fov",
         ),
         (
-            "setup-hud",
+            "setup-hud-ingame",
             Page::Setup,
             Entry::Hud,
-            Frame::Main,
+            Frame::InGame,
             "cg_hudScale",
+        ),
+        (
+            "setup-interface",
+            Page::Setup,
+            Entry::Interface,
+            Frame::Main,
+            "ui_menuStyle",
+        ),
+        (
+            "setup-game-ingame",
+            Page::Setup,
+            Entry::GameOptions,
+            Frame::InGame,
+            "cg_saberTrail",
+        ),
+        (
+            "setup-scoreboard",
+            Page::Setup,
+            Entry::Scoreboard,
+            Frame::Main,
+            "cg_showClientIDs",
         ),
         (
             "setup-sound-ingame",
@@ -360,6 +422,7 @@ fn menu_snapshot() {
                 menu.open_classic(&console, tab, span, frame);
             }
             Some(Panel::Renderer { tab }) => menu.open_classic_renderer(&console, tab, frame),
+            Some(Panel::Group(group)) => menu.open_classic_group(&console, group, frame),
             other => panic!("{entry:?} has no settings panel: {other:?}"),
         }
         menu.select_cvar(cvar);
@@ -371,30 +434,87 @@ fn menu_snapshot() {
         };
         let mut vertices = Vec::new();
         menu.append_classic(&mut vertices, &font.font, VIEWPORT, 1.0, &panel);
-        println!(
-            "{}",
-            save(name, menu.draw_list(), &vertices, &font.image).display()
-        );
+        shots.save(name, menu.draw_list(), &vertices, frame == Frame::InGame);
     }
-    // A key-binding panel.
-    let mut editor = KeybindEditor::new();
-    editor.open_classic(&console, 0, Span::ALL);
-    let panel = PanelFrame {
-        frame: Frame::Main,
-        page: Page::Controls,
-        active: Entry::Movement,
-        art,
-    };
-    let mut vertices = Vec::new();
-    editor.append_classic(&mut vertices, &font.font, VIEWPORT, 1.0, &panel);
-    println!(
-        "{}",
-        save(
+    // Key-binding panels.
+    let binds: [(&str, Entry, Category, Frame, &str); 4] = [
+        (
             "controls-movement",
-            editor.draw_list(),
-            &vertices,
-            &font.image
-        )
-        .display()
-    );
+            Entry::Movement,
+            Category::Movement,
+            Frame::Main,
+            "+moveup",
+        ),
+        (
+            "controls-weapons-ingame",
+            Entry::Weapons,
+            Category::Weapons,
+            Frame::InGame,
+            "weapon 4",
+        ),
+        (
+            "controls-force-ingame",
+            Entry::ForcePowers,
+            Category::Force,
+            Frame::InGame,
+            "+force_grip",
+        ),
+        (
+            "controls-interaction",
+            Entry::Interaction,
+            Category::Interaction,
+            Frame::Main,
+            "use_bacta",
+        ),
+    ];
+    for (name, entry, category, frame, command) in binds {
+        let mut editor = KeybindEditor::new();
+        for (texture, paths) in editor.snapshot_icons() {
+            if let Some(image) = decode(&vfs, &paths[0]) {
+                shots.icons.insert(texture.0, image);
+            }
+        }
+        editor.open_classic(&console, category as usize, Span::ALL);
+        editor.select_command(command);
+        let panel = PanelFrame {
+            frame,
+            page: Page::Controls,
+            active: entry,
+            art,
+        };
+        let mut vertices = Vec::new();
+        editor.append_classic(&mut vertices, &shots.font.font, VIEWPORT, 1.0, &panel);
+        shots.save(name, editor.draw_list(), &vertices, frame == Frame::InGame);
+    }
+    in_game_menu(&shots, art);
+}
+
+/// The classic in-game bar and its pop-ups over the match.
+fn in_game_menu(shots: &Snapshot, art: ArtSet) {
+    use crate::ingame_menu::{InGameMenu, Page as Popup, View};
+    let pages: [(&str, Popup, usize, bool); 5] = [
+        ("ingame-bar", Popup::Main, 2, true),
+        ("ingame-join", Popup::Team, 1, true),
+        ("ingame-vote", Popup::Vote, 0, true),
+        ("ingame-exit", Popup::Leave, 0, false),
+        ("ingame-callvote", Popup::CallVote, 0, true),
+    ];
+    for (name, page, selected_row, team_game) in pages {
+        let mut menu = InGameMenu::new();
+        menu.set_style(crate::menu::style::MenuStyle::Classic, art);
+        let view = View {
+            page,
+            selected_row,
+            team: 1,
+            team_game,
+            siege: false,
+            red_players: 3,
+            blue_players: 2,
+            vote_active: page == Popup::Vote,
+            _frame: std::marker::PhantomData,
+        };
+        let mut vertices = Vec::new();
+        menu.append(view, &mut vertices, &shots.font.font, VIEWPORT);
+        shots.save(name, menu.draw_list(), &vertices, true);
+    }
 }

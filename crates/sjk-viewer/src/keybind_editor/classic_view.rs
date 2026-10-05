@@ -70,7 +70,10 @@ impl KeybindEditor {
         frame: &PanelFrame,
     ) {
         let rows = self.rows();
-        let place = frame.begin(&mut self.ui, viewport, reveal);
+        let mut place = frame.begin(&mut self.ui, viewport, reveal);
+        if icons::any(rows.clone()) {
+            place = place.with_icon_column();
+        }
         self.visible = place.capacity();
         self.first = self.first.min(rows.len().saturating_sub(self.visible));
         let shown = rows.start + self.first..rows.end.min(rows.start + self.first + self.visible);
@@ -90,6 +93,9 @@ impl KeybindEditor {
             let focused = action == self.selected;
             let color = if focused { focus_text() } else { OPTION };
             place.label(&mut self.ui, slot, ACTIONS[action].label, color);
+            if let Some(texture) = self.icons.ready(action) {
+                place.row_icon(&mut self.ui, slot, texture);
+            }
             if self
                 .keys
                 .get(action)
@@ -138,6 +144,7 @@ impl KeybindEditor {
                 lines: [&self.detail[1], &self.detail[2]],
                 facts: &self.detail[3],
                 name: "",
+                icon: self.icons.ready(action),
             },
             None => Detail::default(),
         };

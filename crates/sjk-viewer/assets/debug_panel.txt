@@ -773,6 +773,20 @@ test: Controls > Movement: box shows keys, command, default; bind W twice: "W al
 test: In game (Escape > Setup): same panels; the renderer pop-up has its three groups.
 note: The guide for this style is docs/classic-plus.md.
 
+[classic-plus-groups]
+status: personal
+area: Menus & settings
+title: Classic+ groups and pictures: merged Setup/Controls groups, binding icons, Join flags
+change: One Video and one Force Powers group; new Interface, HUD and Scoreboard groups.
+change: Key bindings show weapon, item and Force pictures; weapon rows are named.
+change: In-game Join: Team Red/Blue show their flag and player count. Profile shows every holocron.
+test: Setup lists Video, Sound, Game Options, Mods, Defaults, Interface, HUD, Scoreboard, Network.
+test: Setup > Interface: Menu style row; switch it to modern: settings screen stays on that row.
+test: Controls > Weapons: named rows with weapon icons; detail box shows the big icon.
+test: Controls > Force Powers: all powers in one list, each with its holocron.
+test: In a team game, Escape > Join: flags and counts on Team Red and Team Blue.
+test: Profile with 13 powers known: the Force strip shows all holocrons.
+
 [classic-force-page]
 status: personal
 area: Menus & settings

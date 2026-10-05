@@ -9,6 +9,7 @@
 
 use crate::keybind_editor::Category;
 use crate::menu::destination::MainDestination;
+use crate::settings::Group;
 use sjk_ui::{Rect, TextAlign};
 
 /// Size of the canvas the retail menus are authored on.
@@ -53,18 +54,21 @@ pub(crate) enum Entry {
     Movement,
     Interaction,
     Weapons,
-    ForcePowers1,
-    ForcePowers2,
+    /// Retail's Force Powers 1 and 2 pages, one group in classic+.
+    ForcePowers,
     MouseJoystick,
     OtherControls,
+    /// Retail's Video and More Video, one group in classic+.
     Video,
-    MoreVideo,
     Sound,
     GameOptions,
     Mods,
     Defaults,
+    /// SJK: the menus' and console's look.
+    Interface,
     Hud,
-    MoreHud,
+    /// SJK: the scoreboard (JKR's HUD+ settings regrouped).
+    Scoreboard,
     Network,
     /// JKR's renderer settings, after retail's Setup groups: the renderer page.
     Renderer,
@@ -221,14 +225,15 @@ impl Entry {
             Self::Movement => Outcome::Keybinds(Category::Movement),
             Self::Interaction => Outcome::Keybinds(Category::Interaction),
             Self::Weapons => Outcome::Keybinds(Category::Weapons),
-            Self::ForcePowers1 | Self::ForcePowers2 => Outcome::Keybinds(Category::Force),
+            Self::ForcePowers => Outcome::Keybinds(Category::Force),
             Self::OtherControls => Outcome::Keybinds(Category::Other),
             Self::MouseJoystick => Outcome::Settings("CONTROLS"),
-            Self::Video | Self::MoreVideo => Outcome::Settings("VIDEO"),
+            Self::Video => Outcome::Settings("VIDEO"),
             Self::Sound => Outcome::Settings("AUDIO"),
             Self::GameOptions => Outcome::Settings("GAME"),
+            Self::Interface => Outcome::Settings("TEXT"),
             Self::Hud => Outcome::Settings("HUD"),
-            Self::MoreHud => Outcome::Settings("HUD+"),
+            Self::Scoreboard => Outcome::Settings("HUD+"),
             Self::Network => Outcome::Settings("NETWORK"),
             Self::Renderer => Outcome::Page(Page::Renderer),
             // Each opens its panel ([`Entry::panel`]); the modern screen otherwise.
@@ -255,10 +260,6 @@ impl Span {
         end: usize::MAX,
     };
 
-    const fn new(start: usize, end: usize) -> Self {
-        Self { start, end }
-    }
-
     /// The absolute rows of this span inside a group of `len` rows that
     /// starts at row `base`.
     pub(crate) fn within(self, base: usize, len: usize) -> std::ops::Range<usize> {
@@ -278,20 +279,18 @@ pub(crate) enum Panel {
     Keybinds { category: Category, span: Span },
     /// Every row of renderer settings tab `tab` (IMAGE, LIGHTING, SHADOWS).
     Renderer { tab: usize },
+    /// A classic Setup group gathering rows of several settings tabs.
+    Group(Group),
 }
-
-/// Rows of the settings VIDEO tab that retail's Video group covers
-/// (resolution, display mode, sync, frame cap, field of view); More Video
-/// holds the rest (marks, shadows, gamma), as retail's second video group
-/// holds brightness and wall marks.
-const VIDEO_ROWS: usize = 5;
-/// Retail's Force Powers 1 page binds push, pull, speed and seeing and the
-/// use/next/previous power commands: the first seven Force actions.
-const FORCE_PAGE_ONE: usize = 7;
 
 impl Entry {
     /// The option group this entry shows in the classic panel; `None` for
     /// entries that are not option groups, or that JKR cannot show yet.
+    ///
+    /// Retail split video and the Force binds over two pages each because a
+    /// page held few items; classic+ panels scroll and explain the focused
+    /// item, so SJK shows each as one group, and regroups JKR's GAME, HUD,
+    /// HUD+ and TEXT tabs by subject ([`Group`]).
     pub(crate) fn panel(self) -> Option<Panel> {
         let settings = |caption| Panel::Settings {
             caption,
@@ -302,31 +301,18 @@ impl Entry {
             span: Span::ALL,
         };
         Some(match self {
-            Self::Video => Panel::Settings {
-                caption: "VIDEO",
-                span: Span::new(0, VIDEO_ROWS),
-            },
-            Self::MoreVideo => Panel::Settings {
-                caption: "VIDEO",
-                span: Span::new(VIDEO_ROWS, usize::MAX),
-            },
+            Self::Video => settings("VIDEO"),
             Self::Sound => settings("AUDIO"),
-            Self::GameOptions => settings("GAME"),
-            Self::Hud => settings("HUD"),
-            Self::MoreHud => settings("HUD+"),
+            Self::GameOptions => Panel::Group(Group::GameOptions),
+            Self::Interface => Panel::Group(Group::Interface),
+            Self::Hud => Panel::Group(Group::Hud),
+            Self::Scoreboard => Panel::Group(Group::Scoreboard),
             Self::Network => settings("NETWORK"),
             Self::MouseJoystick => settings("CONTROLS"),
             Self::Movement => keybinds(Category::Movement),
             Self::Interaction => keybinds(Category::Interaction),
             Self::Weapons => keybinds(Category::Weapons),
-            Self::ForcePowers1 => Panel::Keybinds {
-                category: Category::Force,
-                span: Span::new(0, FORCE_PAGE_ONE),
-            },
-            Self::ForcePowers2 => Panel::Keybinds {
-                category: Category::Force,
-                span: Span::new(FORCE_PAGE_ONE, usize::MAX),
-            },
+            Self::ForcePowers => keybinds(Category::Force),
             Self::OtherControls => keybinds(Category::Other),
             Self::RenderImage => Panel::Renderer { tab: 0 },
             Self::RenderLighting => Panel::Renderer { tab: 1 },
@@ -436,23 +422,21 @@ mod tests {
             ]
         );
         assert_eq!(
-            entries(Page::Controls)[4..11],
+            entries(Page::Controls)[4..10],
             [
                 Entry::Movement,
                 Entry::Interaction,
                 Entry::Weapons,
-                Entry::ForcePowers1,
-                Entry::ForcePowers2,
+                Entry::ForcePowers,
                 Entry::MouseJoystick,
                 Entry::OtherControls
             ]
         );
         assert_eq!(entries(Page::Setup)[13], Entry::Renderer);
         assert_eq!(
-            entries(Page::Setup)[4..10],
+            entries(Page::Setup)[4..9],
             [
                 Entry::Video,
-                Entry::MoreVideo,
                 Entry::Sound,
                 Entry::GameOptions,
                 Entry::Mods,
@@ -589,54 +573,31 @@ mod tests {
     }
 
     #[test]
-    fn video_groups_split_the_video_tab() {
-        let tab = SettingsMenu::tab_index("VIDEO").unwrap();
-        let len = SettingsMenu::tab_len(tab);
-        let rows = |entry: Entry| match entry.panel() {
-            Some(Panel::Settings { span, .. }) => span.within(0, len),
-            other => panic!("{other:?}"),
-        };
-        let video = rows(Entry::Video);
-        let more = rows(Entry::MoreVideo);
-        assert_eq!(video.start, 0);
-        assert_eq!(video.end, more.start);
-        assert_eq!(more.end, len);
-        assert!(!video.is_empty() && !more.is_empty());
-    }
-
-    #[test]
-    fn force_pages_bind_retail_commands() {
-        let rows = |entry: Entry| match entry.panel() {
-            Some(Panel::Keybinds { category, span }) => {
-                let all = crate::keybind_editor::category_range(category as usize);
-                span.within(all.start, all.len())
-            }
-            other => panic!("{other:?}"),
-        };
-        let commands = |entry| -> Vec<&str> {
-            rows(entry)
-                .map(|row| crate::keybind_editor::ACTIONS[row].command)
-                .collect()
-        };
-        let mut first = commands(Entry::ForcePowers1);
-        first.sort_unstable();
+    fn merged_groups_show_whole_tabs() {
+        // Retail's Video / More Video and Force Powers 1 / 2 pairs are one
+        // group each.
         assert_eq!(
-            first,
-            [
-                "+useforce",
-                "force_pull",
-                "force_seeing",
-                "force_speed",
-                "force_throw",
-                "forcenext",
-                "forceprev"
-            ]
+            Entry::Video.panel(),
+            Some(Panel::Settings {
+                caption: "VIDEO",
+                span: Span::ALL
+            })
         );
-        let all = crate::keybind_editor::category_range(Category::Force as usize);
         assert_eq!(
-            rows(Entry::ForcePowers1).len() + rows(Entry::ForcePowers2).len(),
-            all.len()
+            Entry::ForcePowers.panel(),
+            Some(Panel::Keybinds {
+                category: Category::Force,
+                span: Span::ALL
+            })
         );
+        let groups: Vec<_> = entries(Page::Setup)
+            .into_iter()
+            .filter_map(|entry| match entry.panel() {
+                Some(Panel::Group(group)) => Some(group),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(groups, Group::ALL);
     }
 
     #[test]

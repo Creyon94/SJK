@@ -190,6 +190,12 @@ impl ClientMenu {
                 self.keybinds_direct = false;
                 self.state.open_settings();
             }
+            Some(Panel::Group(group)) => {
+                self.keybinds.leave_classic();
+                self.settings.open_classic_group(console, group, frame);
+                self.keybinds_direct = false;
+                self.state.open_settings();
+            }
             None => return false,
         }
         self.settings_return = target;
@@ -357,7 +363,7 @@ mod tests {
         assert_eq!(menu.outcome(), Some(Outcome::Page(Page::Controls)));
         menu.show(Page::Controls);
         assert_eq!(menu.outcome(), Some(Outcome::Keybinds(Category::Movement)));
-        focus(&mut menu, Entry::ForcePowers2);
+        focus(&mut menu, Entry::ForcePowers);
         assert_eq!(menu.outcome(), Some(Outcome::Keybinds(Category::Force)));
         focus(&mut menu, Entry::MouseJoystick);
         assert_eq!(menu.outcome(), Some(Outcome::Settings("CONTROLS")));
