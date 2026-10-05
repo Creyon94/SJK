@@ -978,6 +978,18 @@ and left 619 textures alone whose shaders already glow; on the 23 retail MP maps
 it wrote 8 (neon signs, Bespin windows). No client was run: appearance, halo, the
 light added in real-time lighting, load time and frame cost are unverified.
 
+## Shader remaps from JKR (SJK)
+
+SJK branch `personal/jkr-remaps` (2026-10-05, based on `7969f0b`) drops SJK's own
+shader remap implementation (`personal/shader-remaps`) for JKR's: `main` at
+`af65396` (#127) and Sol's open JKR follow-ups #128-#131, merged in that order.
+The follow-ups overlap: #129's shared lookup and #131's `clearRemaps` were adapted
+to #128's map remaps (latest remap wins), and `clearRemaps` also drops the map's
+worldspawn remaps, as EternalJK's renderer command does. SJK keeps `cg_remaps 2`
+(EternalJK's default; JKR's is 1). The locked workspace build of all targets and
+the workspace tests passed. No game was started: remaps on screen, from a JoF
+server or a map with worldspawn remaps, are unverified in this combination.
+
 ## Outgoing text encoding (SJK)
 
 SJK-only branch `personal/legacy-text` (2026-10-05, based on `2696590`) sends

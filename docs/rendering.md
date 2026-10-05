@@ -76,9 +76,9 @@ each `CS_SHADERSTATE` update applies all its entries again, as `CG_ShaderStateCh
 does. The session keeps the server state and stamps each entry; the displayed map
 keeps its worldspawn and local remaps and picks the latest of the three.
 
-`cg_remaps` follows Tayst's policy: **0** disables server remaps, **1** (default)
-accepts them while excluding player-texture configstring entries, and **2**
-includes those entries. Like Tayst, a reliable `remapShader` command is accepted
+`cg_remaps` follows Tayst's policy: **0** disables server remaps, **1** (JKR's
+default) accepts them while excluding player-texture configstring entries, and
+**2** (SJK's default, as in EternalJK) includes those entries. Like Tayst, a reliable `remapShader` command is accepted
 in either nonzero mode. JKR applies this preference live rather than requiring a
 map reload; a server remap it excludes reveals the earlier remap it had replaced.
 `listRemaps` lists the map's, the enabled server and the local remaps in the order

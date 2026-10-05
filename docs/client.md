@@ -1353,9 +1353,10 @@ protects other actors from malformed custom clips, but does not repair the clip.
 
 ## Shader remap controls
 
-Server map recolors and material replacements are enabled by default. Use
-`cg_remaps 0` to disable them, `cg_remaps 1` for Tayst's default policy excluding
-player-texture configstring remaps, or `cg_remaps 2` to include those textures.
+Server map recolors and material replacements are enabled by default. SJK
+defaults to `cg_remaps 2`, EternalJK's default, which includes player-texture
+configstring remaps; `cg_remaps 1` is TaystJK's (and JKR's) default policy
+excluding them, and `cg_remaps 0` disables server remaps.
 Settings > GAME > "Shader remaps" sets the same cvar and applies at once.
 A map's own worldspawn remaps always apply. `listRemaps` lists the map's, the
 enabled server and the temporary local remaps in the order they were applied, each

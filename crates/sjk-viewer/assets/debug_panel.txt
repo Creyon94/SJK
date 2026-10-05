@@ -413,6 +413,22 @@ test: cargo run --release -p sjk-materialgen -- --limit 50, then read its printe
 test: JKR_CONTENT=<that folder>, with r_normalMapping 1: the material maps log counts rise.
 test: Its manifest.json lists every source texture with its class, and each skipped shader.
 
+[jkr-shader-remaps]
+pr: 128, 129, 130, 131
+status: open
+area: Rendering & effects
+title: Shader remaps are now JKR's (#127) plus your #128-#131; SJK's own version is gone
+change: Map worldspawn, server (CS_SHADERSTATE, remapShader) and console remaps; latest one wins.
+change: Effects and skies follow remaps; undoing one restores the material; clearRemaps.
+change: SJK keeps cg_remaps 2 (EternalJK's default); JKR defaults to 1.
+test: devmap mp/ffa3, then: remapShader textures/desert/stucco textures/bespin/u_metalorange
+test: The stucco walls turn orange metal at once, without a map reload.
+test: remapShader textures/desert/stucco textures/desert/stucco puts the stucco back.
+test: Remap it again; listRemaps shows it as local:; clearRemaps restores the walls.
+test: JoF server on innercity: medpacks look different (server remaps); cg_remaps 0: normal now.
+test: Settings > Game options: the Shader remaps row (0 / 1 / 2) and its help line.
+note: HUD pictures, saber blades and trails and surface sprites still ignore remaps.
+
 # ---- Open PRs: Audio ----
 
 # ---- Open PRs: Gameplay ----
