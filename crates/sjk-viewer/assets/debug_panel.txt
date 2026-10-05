@@ -781,6 +781,19 @@ test: Player screen preview shows the same models; a JoF server: others' custom 
 note: Models you do not have installed (zabka, figo, ...) are still Kyle, as in EternalJK.
 note: jedi/rgb needs EternalJK's pk3: fs_basegame EternalJK + restart (also loads its menus).
 
+[server-bsp-instances]
+status: personal
+area: Rendering & effects
+title: Map pieces a server adds stop the camera; server props have their scale
+change: Third-person camera and crosshair name trace now hit server-placed map pieces (misc_bsp).
+change: Props a server spawns with a model scale (JA+ admin models) are drawn at that size.
+test: On the JoF server, go to an added map piece (the duel arena, the academy piece).
+test: Third person: back the camera into a wall of the piece: it stops at the wall.
+test: Stand on the piece's floor and walk: no jitter or flicker of your position.
+test: A player behind a wall of the piece shows no crosshair name.
+test: Server props placed bigger or smaller than normal now show at that size, as in EternalJK.
+note: Light there still wrong or flickering? Write down the server, map and spot.
+
 [model-fallback]
 status: personal
 area: Rendering & effects

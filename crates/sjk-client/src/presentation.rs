@@ -29,6 +29,7 @@ const EF_TELEPORT_BIT: u32 = 1 << 3;
 const EF_DEAD: u32 = 1 << 1;
 /// `PW_CLOAKED` (`bg_public.h` powerup enum).
 const PW_CLOAKED: usize = 11;
+const ET_GENERAL: u8 = 0; // codemp/game/bg_public.h
 const ET_MOVER: u8 = 6; // codemp/game/bg_public.h:1251
 const EF_NODRAW: u32 = 1 << 8; // codemp/game/bg_public.h:645
 const SOLID_BMODEL: u32 = 0x00ff_ffff; // codemp/game/q_shared.h:371
@@ -167,7 +168,7 @@ impl LegacyWorldAdapter {
                     self.smooth_clients,
                 ),
                 rotation: legacy_angles_to_quaternion(angles),
-                scale: [1.0; 3],
+                scale: legacy_general_scale(state),
             };
             let sample = MotionSample {
                 time_millis: i64::from(snapshot.server_time),
@@ -525,6 +526,19 @@ pub fn legacy_predicted_equipment(
     Some(equipment)
 }
 
+/// The model scale `CG_General` gives an `ET_GENERAL` entity (`cg_ents.c`): a nonzero
+/// `iModelScale` is a percentage applied to all three axes, as a server's spawned or
+/// placed prop (`modelscale`) sends it. Players, NPCs and bodies are scaled where their
+/// actors are drawn, and a mover's brush model is never scaled.
+fn legacy_general_scale(state: &EntityState) -> [f32; 3] {
+    let percent = state.model_scale_percent();
+    if state.entity_type() == ET_GENERAL && percent != 0 {
+        [percent as f32 / 100.0; 3]
+    } else {
+        [1.0; 3]
+    }
+}
+
 fn legacy_entity_kind(entity_type: u8) -> EntityKind {
     match entity_type {
         1 | 13 => EntityKind::Actor,
@@ -554,4 +568,28 @@ pub fn legacy_angles_to_quaternion(angles: [f32; 3]) -> [f32; 4] {
         roll_cosine * pitch_cosine * yaw_sine - roll_sine * pitch_sine * yaw_cosine,
         roll_cosine * pitch_cosine * yaw_cosine + roll_sine * pitch_sine * yaw_sine,
     ]
+}
+
+#[cfg(test)]
+mod general_scale_tests {
+    use super::*;
+    use sjk_protocol::LEGACY_ENTITY_FIELDS;
+
+    fn entity(entity_type: u8, percent: u32) -> EntityState {
+        let mut state = EntityState::zero(100, &LEGACY_ENTITY_FIELDS);
+        state.set_raw_field(8, u32::from(entity_type));
+        state.set_raw_field(76, percent);
+        state
+    }
+
+    #[test]
+    fn general_models_take_the_servers_model_scale() {
+        assert_eq!(legacy_general_scale(&entity(ET_GENERAL, 250)), [2.5; 3]);
+        assert_eq!(legacy_general_scale(&entity(ET_GENERAL, 50)), [0.5; 3]);
+        // Zero is "no custom scale" (CG_General clears modelScale).
+        assert_eq!(legacy_general_scale(&entity(ET_GENERAL, 0)), [1.0; 3]);
+        // Movers, players and the rest are scaled elsewhere or not at all.
+        assert_eq!(legacy_general_scale(&entity(ET_MOVER, 250)), [1.0; 3]);
+        assert_eq!(legacy_general_scale(&entity(1, 250)), [1.0; 3]);
+    }
 }

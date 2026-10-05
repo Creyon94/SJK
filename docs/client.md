@@ -581,7 +581,11 @@ granted by a server. jaPRO's race-unlock hats (the `c5` clientinfo,
 
 Third-person framing follows OpenJK multiplayer `CG_OffsetThirdPersonView`.
 The camera uses a four-unit collision hull against solid/terrain/player-clip
-surfaces and presented inline models, including moving doors and platforms.
+surfaces and presented inline models, including moving doors and platforms and
+the permanent ones the server sends only in its baselines, such as the `misc_bsp`
+map pieces a server places in a map's void: stock `CG_BuildSolidList` adds them
+from `cg_permanents` (`cg_predict.c`), so the camera stops at their walls. The
+crosshair name trace uses the same list, so such a wall hides a player behind it.
 Player and vehicle bodies do not obstruct this camera trace. When geometry
 collapses the camera onto its target, the view uses the intended forward direction
 instead of constructing an undefined look-at matrix.

@@ -1052,6 +1052,30 @@ path uses the one table (`quake_color`). Unit tests check the new value and that
 `^1`-`^9` are unchanged; the locked workspace build and tests passed. No game was
 started: how it looks on the console, chat and scoreboard is unverified.
 
+## Server BSP instances in edited maps (SJK)
+
+SJK branch `personal/misc-bsp-maps` (05/10/2026, based on `3f57938`). JoF's server
+places retail map pieces (`maps/mp/duel1.bsp`, `maps/academy2.bsp`) in a map's void
+as `misc_bsp` entities (codemp `SP_misc_bsp`): `EF_PERMANENT` `ET_MOVER`s with the
+sub-BSP's world as their inline model, sent only in the baselines. Prediction
+already clipped against them, but the third-person camera and the crosshair name
+trace read only snapshot entities, so the camera went through an instance's walls.
+Both now use the snapshot plus the visible permanent baselines, as stock `CG_Trace`
+does through `CG_BuildSolidList`. Unit tests build a main map and an appended
+sub-BSP placed at x 8000 and check the camera stops at the instance wall and a
+predicted player stands on its floor (`bsp_instance_tests`). Not checked in a game:
+no server with these instances was joined.
+
+Props a server spawns or places (JA+ admin models, `ET_GENERAL` entities with
+`iModelScale`) were drawn at scale 1: the client built every entity's transform
+unscaled. They now take `iModelScale / 100` on all three axes, as `CG_General`
+does; players, NPCs and bodies keep their own scaling and brush models stay
+unscaled (`general_models_take_the_servers_model_scale`). Map-placed
+`misc_model_static` props already matched `SP_misc_model_static`. Lighting at the
+instances was not changed: their surfaces use their own lightmaps, and models on
+them sample the main map's light grid outside its bounds, clamped as rd-vanilla
+does; SJK's real-time light caches cover only the main map.
+
 ## Outgoing text encoding (SJK)
 
 SJK-only branch `personal/legacy-text` (2026-10-05, based on `2696590`) sends
@@ -1376,8 +1400,10 @@ remain open.
   custom-model coverage and animation effect/footprint rendering remain open.
 - Snapshot entities draw a model from `modelindex` only for the entity types
   whose codemp cgame function does so; the per-type rules and their reference
-  are in [entity_models.rs](../crates/sjk-client/src/entity_models.rs). Models
-  codemp draws that the client still does not: force holocrons, non-brush
+  are in [entity_models.rs](../crates/sjk-client/src/entity_models.rs). An
+  `ET_GENERAL` model takes the server's `iModelScale` (a percentage) as
+  `CG_General` does, so a prop a server spawns with `modelscale` has its size
+  (SJK, `presentation.rs`). Models codemp draws that the client still does not: force holocrons, non-brush
   `ET_MOVER` models and a mover's secondary `modelindex2` model, and the
   portable shield (`ET_SPECIAL`) and `ET_BEAM` effects.
 - Mod compatibility is scoped by explicit profiles; broad BaseJKA/JA+/TaystJK

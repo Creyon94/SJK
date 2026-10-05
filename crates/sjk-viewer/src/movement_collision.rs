@@ -104,12 +104,39 @@ impl MovementCollision for BspMovementCollision<'_> {
     }
 }
 
-/// CG_Trace camera hull, including presented inline doors/platforms. BODY is
+/// CG_Trace camera hull, including presented inline doors/platforms and the
+/// baseline-only permanent ones, such as a server's `misc_bsp` instances, which
+/// `CG_BuildSolidList` adds from `cg_permanents` (`cg_predict.c`). BODY is
 /// deliberately absent: the local rider and vehicle cannot occlude their own view.
 pub(crate) fn camera_trace(
     bsp: &Bsp,
     scratch: &mut sjk_bsp::TraceScratch,
-    snapshot: Option<&sjk_protocol::Snapshot>,
+    solids: Option<(&sjk_protocol::GameState, &sjk_protocol::Snapshot)>,
+    time: i32,
+    start: Vec3,
+    end: Vec3,
+) -> Vec3 {
+    match solids {
+        Some((game, snapshot)) => camera_trace_through(
+            bsp,
+            scratch,
+            sjk_client::legacy_scene_entities(game, snapshot),
+            snapshot.player.client_num(),
+            time,
+            start,
+            end,
+        ),
+        None => camera_trace_through(bsp, scratch, [], u16::MAX, time, start, end),
+    }
+}
+
+/// [`camera_trace`] against the world and the inline-model solids among `entities`,
+/// skipping the local client `local`.
+fn camera_trace_through<'a>(
+    bsp: &Bsp,
+    scratch: &mut sjk_bsp::TraceScratch,
+    entities: impl IntoIterator<Item = &'a sjk_protocol::EntityState>,
+    local: u16,
     time: i32,
     start: Vec3,
     end: Vec3,
@@ -118,30 +145,28 @@ pub(crate) fn camera_trace(
     const MASK: u32 = 0x1001 | 0x10;
     let bounds = Aabb::new([-4.0; 3], [4.0; 3]).expect("valid camera hull");
     let mut best = bsp.trace_box_with(scratch, start.to_array(), end.to_array(), bounds, MASK);
-    if let Some(snapshot) = snapshot {
-        for entity in &snapshot.entities {
-            if entity.solid() != 0x00ff_ffff || entity.number() == snapshot.player.client_num() {
-                continue;
-            }
-            let Some(collider) = Collider::from_entity(entity, time, time, false) else {
-                continue;
-            };
-            let hit = inline::trace(
-                bsp,
-                &collider,
-                start.to_array(),
-                end.to_array(),
-                bounds,
-                MASK,
-            );
-            if hit.all_solid || hit.fraction < best.fraction {
-                best.fraction = hit.fraction;
-                best.end_position = hit.end_position;
-                best.all_solid = hit.all_solid;
-            }
-            if best.all_solid {
-                break;
-            }
+    for entity in entities {
+        if entity.solid() != 0x00ff_ffff || entity.number() == local {
+            continue;
+        }
+        let Some(collider) = Collider::from_entity(entity, time, time, false) else {
+            continue;
+        };
+        let hit = inline::trace(
+            bsp,
+            &collider,
+            start.to_array(),
+            end.to_array(),
+            bounds,
+            MASK,
+        );
+        if hit.all_solid || hit.fraction < best.fraction {
+            best.fraction = hit.fraction;
+            best.end_position = hit.end_position;
+            best.all_solid = hit.all_solid;
+        }
+        if best.all_solid {
+            break;
         }
     }
     Vec3::from_array(best.end_position)
@@ -164,4 +189,116 @@ pub(super) fn mover_supports_feet(bsp: &Bsp, mover: &Collider, origin: [f32; 3])
         sjk_client::pmove::PLAYER_CONTENT_MASK,
     );
     hit.fraction != 1.0 || hit.start_solid
+}
+
+#[cfg(test)]
+mod bsp_instance_tests {
+    //! A server's `misc_bsp` (codemp `SP_misc_bsp`) is an `EF_PERMANENT` `ET_MOVER`
+    //! whose model is a sub-BSP's world, sent only in the baselines. Prediction and
+    //! `CG_Trace` clip against it through `CG_BuildSolidList`'s permanents.
+    use super::*;
+    use crate::local_prediction::movers::Movers;
+    use sjk_bsp::{CollisionBrush, CollisionShader, box_brush, write_collision_map};
+    use sjk_protocol::{EntityState, LEGACY_ENTITY_FIELDS, PlayerState, Snapshot};
+
+    /// Where the instance stands: in the main map's void, as JoF places its arenas.
+    const ORIGIN: [f32; 3] = [8000.0, 0.0, 0.0];
+    const INSTANCE: u16 = 300;
+
+    fn map(brushes: &[CollisionBrush]) -> Bsp {
+        let shaders = [CollisionShader {
+            name: "textures/test/solid".into(),
+            surface_flags: 0,
+            content_flags: 1,
+        }];
+        let entities = "{
+\"classname\" \"worldspawn\"
+}
+";
+        Bsp::parse(&write_collision_map(entities, &shaders, brushes)).expect("valid map")
+    }
+
+    /// A main map with a floor at its centre and, appended after it as `CM_LoadSubBSP`
+    /// does, a sub-BSP with a floor and a wall at local x 200..256.
+    fn world() -> (Bsp, usize) {
+        let mut main = map(&[box_brush([-512.0, -512.0, -64.0], [512.0, 512.0, 0.0], 0)]);
+        let arena = map(&[
+            box_brush([-256.0, -256.0, -32.0], [256.0, 256.0, 0.0], 0),
+            box_brush([200.0, -256.0, 0.0], [256.0, 256.0, 256.0], 0),
+        ]);
+        let models = main.append_model_asset(arena).expect("append the sub-BSP");
+        (main, models.start)
+    }
+
+    fn instance(model: usize) -> EntityState {
+        let mut state = EntityState::zero(INSTANCE, &LEGACY_ENTITY_FIELDS);
+        state.set_raw_field(8, 6); // ET_MOVER
+        state.set_raw_field(19, 1 << 7); // EF_PERMANENT
+        state.set_raw_field(26, 0x00ff_ffff); // SOLID_BMODEL
+        state.set_raw_field(46, model as u32);
+        // `trajectory_base` reads fields 2, 1 and 4 as x, y and z.
+        state.set_raw_field(2, ORIGIN[0].to_bits());
+        state.set_raw_field(1, ORIGIN[1].to_bits());
+        state.set_raw_field(4, ORIGIN[2].to_bits());
+        state
+    }
+
+    #[test]
+    fn the_camera_stops_at_a_permanent_bsp_instance_wall() {
+        let (bsp, model) = world();
+        let mut scratch = bsp.trace_scratch();
+        let state = instance(model);
+        let start = Vec3::new(ORIGIN[0], 0.0, 64.0);
+        let end = Vec3::new(ORIGIN[0] + 400.0, 0.0, 64.0);
+        // A snapshot never carries the instance: on its own the camera crosses the wall.
+        assert_eq!(
+            camera_trace_through(&bsp, &mut scratch, [], 0, 0, start, end),
+            end
+        );
+        let blocked = camera_trace_through(&bsp, &mut scratch, [&state], 0, 0, start, end);
+        assert!(
+            blocked.x > ORIGIN[0] + 190.0 && blocked.x < ORIGIN[0] + 200.0,
+            "{blocked}"
+        );
+    }
+
+    #[test]
+    fn prediction_stands_on_a_permanent_bsp_instance_floor() {
+        let (bsp, model) = world();
+        let mut scratch = bsp.trace_scratch();
+        let mut player = PlayerState::zero();
+        player.set_client_num(0);
+        player.set_origin([ORIGIN[0], 0.0, 64.0]);
+        let snapshot = Snapshot {
+            message_sequence: 1,
+            reliable_acknowledge: 0,
+            server_commands: Vec::new(),
+            server_time: 1_000,
+            delta_from: None,
+            flags: 0,
+            area_mask: Vec::new(),
+            player,
+            vehicle_player: None,
+            entities: Vec::new(),
+            consumed_bits: 0,
+        };
+        let mut movers = Movers::new();
+        movers.set_permanent_states(vec![instance(model)]);
+        movers.update(&snapshot, 1_000);
+        let collision = BspMovementCollision::with_movers(&bsp, &mut scratch, &movers.colliders);
+        let down = collision.trace(
+            [ORIGIN[0], 0.0, 64.0],
+            [-15.0, -15.0, -24.0],
+            [15.0, 15.0, 40.0],
+            [ORIGIN[0], 0.0, -64.0],
+            sjk_client::pmove::PLAYER_CONTENT_MASK,
+        );
+        assert!(down.fraction < 1.0, "fell through the instance floor");
+        assert_eq!(down.entity_number, INSTANCE);
+        assert!(
+            (down.end_position[2] - 24.0).abs() < 0.2,
+            "{:?}",
+            down.end_position
+        );
+    }
 }

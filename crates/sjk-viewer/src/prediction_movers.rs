@@ -267,6 +267,13 @@ impl Movers {
         self.set_duel_isolation(game);
     }
 
+    /// [`Self::set_permanents`] from a list rather than a gamestate's baselines.
+    #[cfg(test)]
+    pub(crate) fn set_permanent_states(&mut self, states: Vec<EntityState>) {
+        self.permanents = states.into_boxed_slice();
+        self.sequence = None;
+    }
+
     /// Follow the server's private-duel policy from its serverinfo.
     pub(crate) fn set_duel_isolation(&mut self, game: Option<&sjk_protocol::GameState>) {
         self.duel_isolation = game
