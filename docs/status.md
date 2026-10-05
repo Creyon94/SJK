@@ -997,7 +997,11 @@ shader remap implementation (`personal/shader-remaps`) for JKR's: `main` at
 The follow-ups overlap: #129's shared lookup and #131's `clearRemaps` were adapted
 to #128's map remaps (latest remap wins), and `clearRemaps` also drops the map's
 worldspawn remaps, as EternalJK's renderer command does. SJK keeps `cg_remaps 2`
-(EternalJK's default; JKR's is 1). The locked workspace build of all targets and
+(EternalJK's default; JKR's is 1). JKR's remap path did not know SJK's dynamic
+glow: a remap that changed a material's stages left the glow pass with a stale
+stage index, and joining a JoF server crashed (`world_glow.rs`, 05/10/2026). The
+remap now rebuilds the glow order and the material's glow flag, and the glow pass
+skips a stage that no longer exists. The locked workspace build of all targets and
 the workspace tests passed. No game was started: remaps on screen, from a JoF
 server or a map with worldspawn remaps, are unverified in this combination.
 
