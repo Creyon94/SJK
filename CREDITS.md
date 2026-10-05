@@ -89,7 +89,8 @@ Changes that stay in SJK, by Sol:
 - the game-data (retail) HUD as the default, and the HUD picker with previews
   of every installed HUD (`cg_hudPack`);
 - the `debug_panel` console command, an in-game checklist of the changes in a
-  build and how to test them.
+  build and how to test them;
+- the changelog ([CHANGELOG.md](CHANGELOG.md)) and its page in the client.
 
 ## Tools
 

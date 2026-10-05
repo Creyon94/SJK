@@ -60,11 +60,12 @@ const PROFILE_HINT: &str = "Name, model, saber and Force";
 const CONTROLS_HINT: &str = "Key bindings and mouse";
 const SETUP_HINT: &str = "Video, sound and game options";
 const EXIT_HINT: &str = "Leave the game";
+const CHANGELOG_HINT: &str = "What changed in each SJK release, and who made it";
 const BACK_HINT: &str = "Return to the main menu";
 
 /// Retail `main.menu`: two columns either side of the centre window, Exit
 /// below.
-const MAIN: [Slot; 5] = [
+const MAIN: [Slot; 6] = [
     button(
         Entry::Play,
         "PLAY",
@@ -104,6 +105,15 @@ const MAIN: [Slot; 5] = [
         [320.0, 456.0],
         190.0,
         Size::Large,
+    ),
+    // SJK: under PROFILE, clear of the centre window and Exit.
+    button(
+        Entry::Changelog,
+        "CHANGELOG",
+        CHANGELOG_HINT,
+        [101.0, 456.0],
+        150.0,
+        Size::Medium,
     ),
 ];
 

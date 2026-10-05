@@ -115,6 +115,19 @@ title carries the stage, "Sol JK 2026.1005.1 (Alpha)" (`STAGE` in the workflow).
 Alphas are not marked as pre-releases, so the site's download link
 (`releases/latest`) finds them; their name and notes say "Alpha" instead.
 
+## Changelog
+
+[CHANGELOG.md](../CHANGELOG.md) lists every release, newest first, each change
+closed by its credit: who made it (Sol, Bishop) and "after <client>" when it
+follows another client's behaviour (EternalJK, JoF EJK). The client builds the
+file in and shows it on its changelog page (main menu > Changelog, or the
+`changelog` command; [client.md](client.md#changelog-page)), and its tests reject
+a change without a credit, a date that is not `dd/mm/yyyy` or a non-ASCII
+character. The merge that brings a player-visible change into `main` adds its line
+under "Unreleased"; tagging a release renames that section to
+`<version> | <dd/mm/yyyy>` and its lines become the release notes' "New since"
+list. The Discord changelog posts are made from the same file.
+
 ## Debug panel
 
 The `debug_panel` console command lists SJK's changes and how to test them, from

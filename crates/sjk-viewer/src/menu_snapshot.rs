@@ -501,6 +501,7 @@ fn menu_snapshot() {
     }
     in_game_menu(&shots, art);
     console_browser(&shots, art);
+    changelog(&shots, art);
     weapon_select(&mut shots, &vfs);
     force_wheel(&mut shots, &vfs);
     profile_saber(&shots, art, &vfs, &mut console);
@@ -832,6 +833,33 @@ fn console_browser(shots: &Snapshot, art: ArtSet) {
         console.append_overlay(&mut vertices, &shots.font.font, VIEWPORT, 1.0);
         shots.save(name, console.draw_list(), &vertices, true);
     }
+}
+
+/// The changelog page on the unreleased changes and on a full release, and
+/// both main menus with their Changelog entry.
+fn changelog(shots: &Snapshot, art: ArtSet) {
+    let directory = tempfile::tempdir().expect("scratch profile");
+    let mut console =
+        crate::console::ViewerConsole::new(directory.path().join("config.cfg")).expect("console");
+    console.open_changelog();
+    for (name, release) in [("changelog-unreleased", 0), ("changelog-release", 1)] {
+        console.changelog_mut().select(release);
+        let mut vertices = Vec::new();
+        console.append_overlay(&mut vertices, &shots.font.font, VIEWPORT, 1.0);
+        shots.save(name, console.draw_list(), &vertices, false);
+    }
+    let mut canvas = crate::menu_widgets::MenuCanvas::new();
+    let mut classic = crate::menu::classic::ClassicMain::new();
+    classic.select(5);
+    crate::menu::classic::view::build(&mut canvas, VIEWPORT, &classic, 1.0, art);
+    let mut vertices = Vec::new();
+    canvas.append_text(&mut vertices, &shots.font.font, VIEWPORT);
+    shots.save("main-classic", canvas.draw_list(), &vertices, false);
+    let mut canvas = crate::menu_widgets::MenuCanvas::new();
+    crate::menu::main_view::build(&mut canvas, VIEWPORT, 4, 1.0);
+    let mut vertices = Vec::new();
+    canvas.append_text(&mut vertices, &shots.font.font, VIEWPORT);
+    shots.save("main-modern", canvas.draw_list(), &vertices, false);
 }
 
 fn in_game_menu(shots: &Snapshot, art: ArtSet) {

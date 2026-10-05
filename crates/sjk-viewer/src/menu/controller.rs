@@ -100,7 +100,8 @@ impl ClientMenu {
             1 => MainDestination::CreateGame,
             2 => MainDestination::Player,
             3 => MainDestination::Settings { tab: 0 },
-            4 => MainDestination::Quit,
+            4 => MainDestination::Changelog,
+            5 => MainDestination::Quit,
             _ => return MenuAction::None,
         };
         self.open_main_destination(destination, console)

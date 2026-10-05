@@ -392,6 +392,18 @@ the box without overlapping; menu snapshots (`console-browser-classic`,
 `console-browser-modern`) were looked at. Not tried in a game: the retail font's
 fit in the rows and pointer use are unverified.
 
+## Changelog page (SJK)
+
+SJK-only branch `personal/changelog` (06/10/2026, based on `86ad1be`) adds
+[CHANGELOG.md](../CHANGELOG.md) (every release, each change with its credit) and
+the client's changelog page: main menu > Changelog on both menu styles, or the
+`changelog` command; see [client.md](client.md#changelog-page) and
+[SJK conventions](sjk.md#changelog). Unit tests parse the built-in file (every
+change credited, EU dates, ASCII) and cover word wrapping and the page's
+selection and scrolling; the sjk-viewer tests and workspace clippy passed.
+Off-screen snapshots (`menu_snapshot`) drew the page and both main menus with the
+new entry. No game was started: the page in the running client is unverified.
+
 ## Alt codes (SJK)
 
 SJK-only branch `personal/alt-codes` (2026-10-05, based on `2696590`) types

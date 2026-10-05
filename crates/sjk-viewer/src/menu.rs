@@ -45,7 +45,7 @@ pub(crate) struct MainItem {
     pub(crate) hint: &'static str,
 }
 
-const MAIN_ITEMS: [MainItem; 5] = [
+const MAIN_ITEMS: [MainItem; 6] = [
     MainItem {
         label: "Play",
         hint: "Browse and join servers",
@@ -61,6 +61,10 @@ const MAIN_ITEMS: [MainItem; 5] = [
     MainItem {
         label: "Settings",
         hint: "Video, audio, controls and keys",
+    },
+    MainItem {
+        label: "Changelog",
+        hint: "What changed in each SJK release, and who made it",
     },
     MainItem {
         label: "Quit",

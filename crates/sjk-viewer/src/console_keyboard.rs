@@ -179,7 +179,7 @@ impl ViewerConsole {
             OpenConsoleKey::Swallow => return true,
             OpenConsoleKey::Edit => {}
         }
-        if self.debug_panel_key(event) {
+        if self.changelog_key(event) || self.debug_panel_key(event) {
             return true;
         }
         if self.browser.is_open() {
