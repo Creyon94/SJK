@@ -530,6 +530,18 @@ impl ClientMenu {
                     self.reopen_classic_panel(console, panel);
                     return MenuAction::None;
                 }
+                // The classic renderer page backs out to Setup, as its Back does.
+                if let Some(panel) = self
+                    .classic_panel
+                    .filter(|panel| panel.page == classic::layout::Page::Renderer)
+                {
+                    let setup = classic::layout::Page::Renderer.escape();
+                    if let Some(entry) = setup.opening_panel() {
+                        let target = self.settings_return;
+                        self.open_classic_panel(console, setup, entry, panel.frame, target);
+                        return MenuAction::None;
+                    }
+                }
                 self.close_settings()
             }
             SettingsResult::OpenKeybinds => {

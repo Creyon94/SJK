@@ -64,6 +64,9 @@ pub(crate) struct KeybindEditor {
     keys: Vec<[String; 2]>,
     /// `ACTIONS` rows of a classic option panel, while the screen is one.
     classic: Option<Range<usize>>,
+    /// The classic+ detail box's value, command, shared-key and default
+    /// lines, rewritten each frame.
+    detail: [String; 4],
     ui: MenuCanvas,
 }
 
@@ -78,6 +81,7 @@ impl KeybindEditor {
             binding_slot: 0,
             keys: Vec::with_capacity(ACTIONS.len()),
             classic: None,
+            detail: std::array::from_fn(|_| String::with_capacity(48)),
             ui: MenuCanvas::new(),
         }
     }

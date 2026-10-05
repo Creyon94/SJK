@@ -98,6 +98,8 @@ mod main_scene_pass;
 mod menu;
 mod menu_backdrop;
 mod menu_hud;
+#[cfg(test)]
+mod menu_snapshot;
 mod menu_stage;
 mod menu_widgets;
 mod menu_world;

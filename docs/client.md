@@ -218,14 +218,32 @@ screens, drawn the retail way: labels in capitals set against a column at retail
 (`menu/new` art) with the value beside it, the focused item on the `menu_blendbox`
 highlight, and the open group's entry in white. A group with more items than the
 panel holds scrolls: the wheel over its items moves the list one item per notch
-(three on a key-binding group), a thin bar shows the position and can be dragged,
-and Up and Down keep the selected item in view.
+(three on a key-binding group), a thin bar along the panel's right edge shows the
+position and can be dragged, and Up and Down keep the selected item in view.
+
+SJK makes these panels [classic+](classic-plus.md): the items fill the panel's
+upper part (11 rows on the main menu, 9 in game, where retail's taller panel held
+15 and 12) and a detail box under them describes the focused item. For a setting
+it shows the full name and value, what the setting does
+([help.rs](../crates/sjk-viewer/src/settings/help.rs), one or two lines for
+every setting), its default, its range (or how many choices it has), "applies
+after a restart" or "applies on the next map", and its console name. For a key
+binding it shows the keys, the console command, which other actions those keys
+also do, and the default key. Row labels drop their bracketed notes and their
+"(restart)" or "(next map)", which the detail box says instead; a setting that
+applies later has a gold `*` after its label, and a row changed from its default
+(a binding off its default key) has a small gold mark at its left end. Backspace
+or the right button returns the focused setting to its default (resolution and
+display mode excepted). The description line names the keys of the focused row.
 
 - Setup: Video (resolution, display mode, sync, frame cap, field of view) and More
   Video (the rest of the VIDEO settings: marks, shadows, gun, readouts, gamma)
   split the VIDEO tab as retail splits its two video groups; Sound is AUDIO and
   Game Options is GAME. HUD, More HUD (the HUD+ tab) and Network follow as JKR
-  additions.
+  additions. RENDERER opens SJK's renderer page: the same layout with the
+  renderer settings' IMAGE, LIGHTING and SHADOWS groups down the left, its title
+  RENDERER OPTIONS, and Back (or Escape) returning to Setup. In game it is the
+  same pop-up with those three groups.
 - Controls: Movement, Interaction, Weapons and Other are the key-binding
   categories; Force Powers 1 holds the use/next/previous power and push, pull,
   speed and seeing binds, as retail's first Force page does, and Force Powers 2
@@ -237,7 +255,8 @@ Tab moves to the next group (on the key-binding groups, Left and Right do too). 
 raised to capitals with the key names as retail's `BindingFromName` does) or `???`
 when unbound; Enter or a click waits for the new key, shown in red with
 retail's "Enter new key, or ESC to cancel, BACKSPACE to clear.", and Backspace
-clears every key of the action. Escape closes the page to the main page.
+clears every key of the action. Escape closes the page to the main page (the
+renderer page to Setup).
 
 The classic in-game bar's Setup and Controls open the same panels as retail's
 `ingame_setup` and `ingame_controls` pop-ups: a box under the bar with the

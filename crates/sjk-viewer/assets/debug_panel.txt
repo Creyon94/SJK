@@ -757,6 +757,22 @@ test: With a material pack: log says "material maps (normal+specular+parallax+re
 test: Without a pack: no regenerate note, "no stage of this map has maps", nothing looks different.
 test: Afterwards put the old config.cfg back; its saved values return.
 
+[classic-plus-setup]
+status: personal
+area: Menus & settings
+title: Classic+ Setup/Controls: detail box, default marks; renderer as a classic page
+change: Under the rows, a box says what the focused setting does, its default, range, restart.
+change: Gold mark = changed from default, * = applies later; Backspace/right-click = default.
+change: Setup > RENDERER opens a classic page: IMAGE, LIGHTING, SHADOWS groups (in game too).
+test: Setup > Video: move through rows; the box under them follows, with default and range.
+test: Change Field of view: a gold mark appears left of it; Backspace puts the default back.
+test: Right-click a changed row: back to its default. Resolution and display mode are not reset.
+test: Setup > RENDERER: IMAGE first; HDR scene has a * and says "applies after a restart".
+test: Tab cycles IMAGE, LIGHTING, SHADOWS; Back or Escape returns to Setup.
+test: Controls > Movement: box shows keys, command, default; bind W twice: "W also does: ...".
+test: In game (Escape > Setup): same panels; the renderer pop-up has its three groups.
+note: The guide for this style is docs/classic-plus.md.
+
 [classic-force-page]
 status: personal
 area: Menus & settings

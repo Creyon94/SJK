@@ -75,7 +75,9 @@ Changes that stay in SJK, by Sol:
   retail logo video) and above the modern menu's title, as the programs' and
   window's icons, and on the README, release notes and site;
 - SJK's slider entry habits (type to open, Space steps, clicking away applies);
-- the classic menu style as the default;
+- the classic menu style as the default, and classic+ (the classic style
+  modernised: the guide, the option panels' detail box and default marks, and
+  the classic renderer page);
 - the classic console after EternalJK (`con_style classic`) as the default;
 - eye adaptation (`r_autoExposure`), an exposure that follows the view within a
   small range;

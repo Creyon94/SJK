@@ -7,8 +7,9 @@
 //!
 //! Implemented: the main menu with its Play (multiplayer) and quit pages,
 //! the Setup and Controls option panels ([`panel`]) on the main menu and as
-//! the in-game pop-ups, the server browser ([`browser`]) and the in-game
-//! menu ([`crate::ingame_menu`]). The other screens these pages open
+//! the in-game pop-ups, SJK's renderer page in the same layout (its groups
+//! open from Setup's RENDERER), the server browser ([`browser`]) and the
+//! in-game menu ([`crate::ingame_menu`]). The other screens these pages open
 //! (Create game, Player) are still the modern ones; the follow-up plan is
 //! kept in `docs/client.md`.
 
@@ -32,9 +33,9 @@ use sjk_ui::AbstractAction;
 /// the open group, and where it is drawn.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct ClassicPanel {
-    page: Page,
+    pub(super) page: Page,
     entry: Entry,
-    frame: Frame,
+    pub(super) frame: Frame,
 }
 
 /// Page and focused entry of the classic main menu.
@@ -182,6 +183,12 @@ impl ClientMenu {
                 self.keybinds.open_classic(console, category as usize, span);
                 self.keybinds_direct = true;
                 self.state.open_keybinds();
+            }
+            Some(Panel::Renderer { tab }) => {
+                self.keybinds.leave_classic();
+                self.settings.open_classic_renderer(console, tab, frame);
+                self.keybinds_direct = false;
+                self.state.open_settings();
             }
             None => return false,
         }
@@ -365,6 +372,29 @@ mod tests {
         assert_eq!(menu.outcome(), Some(Outcome::Settings("AUDIO")));
         focus(&mut menu, Entry::Mods);
         assert_eq!(menu.outcome(), Some(Outcome::Unavailable));
+    }
+
+    #[test]
+    fn the_renderer_page_holds_the_renderer_groups_and_returns_to_setup() {
+        let mut menu = ClassicMain::new();
+        menu.show(Page::Setup);
+        focus(&mut menu, Entry::Renderer);
+        assert_eq!(menu.outcome(), Some(Outcome::Page(Page::Renderer)));
+        assert_eq!(Page::Renderer.opening_panel(), Some(Entry::RenderImage));
+        let groups: Vec<_> = Page::Renderer
+            .slots()
+            .iter()
+            .filter_map(|slot| slot.entry.panel())
+            .collect();
+        assert_eq!(
+            groups,
+            [0, 1, 2].map(|tab| Panel::Renderer { tab }).to_vec(),
+            "IMAGE, LIGHTING and SHADOWS, in the renderer tabs' order"
+        );
+        menu.show(Page::Renderer);
+        focus(&mut menu, Entry::SetupBack);
+        assert_eq!(menu.outcome(), Some(Outcome::Page(Page::Setup)));
+        assert_eq!(Page::Renderer.escape(), Page::Setup);
     }
 
     #[test]

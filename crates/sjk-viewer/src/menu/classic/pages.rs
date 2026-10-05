@@ -345,6 +345,43 @@ const SETUP: [Slot; 16] = {
     ]
 };
 
+/// SJK's renderer page (classic+): `setup.menu`'s layout with the renderer
+/// settings' three groups down the left; Back returns to Setup.
+const RENDERER: [Slot; 9] = {
+    let [play, profile, controls, setup] = nav_row();
+    let [back, exit] = back_exit();
+    [
+        play,
+        profile,
+        controls,
+        setup,
+        list_row(
+            Entry::RenderImage,
+            "IMAGE",
+            "HDR, exposure, bloom, glow, edge smoothing, reflections and emission",
+            185.0,
+        ),
+        list_row(
+            Entry::RenderLighting,
+            "LIGHTING",
+            "Sun and sky, live lighting, fill light and light shafts",
+            209.0,
+        ),
+        list_row(
+            Entry::RenderShadows,
+            "SHADOWS",
+            "Sun shadows: on or off, detail, distance and edges",
+            233.0,
+        ),
+        Slot {
+            entry: Entry::SetupBack,
+            hint: "Return to the setup options",
+            ..back
+        },
+        exit,
+    ]
+};
+
 /// Retail `quit.menu`: No bottom left, Yes bottom right.
 const QUIT: [Slot; 6] = {
     let [play, profile, controls, setup] = nav_row();
@@ -379,6 +416,7 @@ pub(super) fn slots(page: Page) -> &'static [Slot] {
         Page::Play => &PLAY,
         Page::Controls => &CONTROLS,
         Page::Setup => &SETUP,
+        Page::Renderer => &RENDERER,
         Page::Quit => &QUIT,
     }
 }

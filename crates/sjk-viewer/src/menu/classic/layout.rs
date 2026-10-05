@@ -30,6 +30,9 @@ pub(crate) enum Page {
     Controls,
     /// Retail "setup" menu: video, sound and game options.
     Setup,
+    /// SJK's renderer options behind Setup's RENDERER, a classic+ page in
+    /// the retail setup layout: its groups down the left, the panel beside.
+    Renderer,
     /// Retail quit confirmation behind Exit and Escape.
     Quit,
 }
@@ -63,8 +66,14 @@ pub(crate) enum Entry {
     Hud,
     MoreHud,
     Network,
-    /// JKR's renderer settings, after retail's Setup groups.
+    /// JKR's renderer settings, after retail's Setup groups: the renderer page.
     Renderer,
+    /// The renderer page's groups.
+    RenderImage,
+    RenderLighting,
+    RenderShadows,
+    /// The renderer page's Back, to the setup options.
+    SetupBack,
     Back,
     No,
     Yes,
@@ -144,6 +153,7 @@ impl Page {
             Self::Play => Entry::SoloGame,
             Self::Controls => Entry::Movement,
             Self::Setup => Entry::Video,
+            Self::Renderer => Entry::RenderImage,
             Self::Quit => Entry::No,
         };
         self.index_of(entry).unwrap_or(0)
@@ -161,15 +171,17 @@ impl Page {
             Self::Play => ("START PLAYING", 172.0),
             Self::Controls => ("CONFIGURE CONTROLS", 172.0),
             Self::Setup => ("SETUP OPTIONS", 172.0),
+            Self::Renderer => ("RENDERER OPTIONS", 172.0),
             Self::Quit => ("QUIT", 172.0),
         }
     }
 
     /// Where Escape leads: the main page asks to quit, as retail does;
-    /// every other page returns to the main page.
+    /// the renderer page returns to Setup, every other page to the main page.
     pub(crate) fn escape(self) -> Page {
         match self {
             Self::Main => Self::Quit,
+            Self::Renderer => Self::Setup,
             _ => Self::Main,
         }
     }
@@ -199,6 +211,7 @@ impl Entry {
             Self::Setup => Outcome::Page(Page::Setup),
             Self::Exit => Outcome::Page(Page::Quit),
             Self::Back | Self::No => Outcome::Page(Page::Main),
+            Self::SetupBack => Outcome::Page(Page::Setup),
             Self::Profile => Outcome::Open(MainDestination::Player),
             Self::JoinServer => Outcome::Open(MainDestination::Browser),
             // Retail's Solo Game is a local match with bots, which is what
@@ -217,7 +230,11 @@ impl Entry {
             Self::Hud => Outcome::Settings("HUD"),
             Self::MoreHud => Outcome::Settings("HUD+"),
             Self::Network => Outcome::Settings("NETWORK"),
-            Self::Renderer => Outcome::Open(MainDestination::Renderer),
+            Self::Renderer => Outcome::Page(Page::Renderer),
+            // Each opens its panel ([`Entry::panel`]); the modern screen otherwise.
+            Self::RenderImage | Self::RenderLighting | Self::RenderShadows => {
+                Outcome::Open(MainDestination::Renderer)
+            }
             Self::PlayDemo | Self::Rules | Self::Mods | Self::Defaults => Outcome::Unavailable,
         }
     }
@@ -259,6 +276,8 @@ pub(crate) enum Panel {
     Settings { caption: &'static str, span: Span },
     /// Rows of a key-binding category.
     Keybinds { category: Category, span: Span },
+    /// Every row of renderer settings tab `tab` (IMAGE, LIGHTING, SHADOWS).
+    Renderer { tab: usize },
 }
 
 /// Rows of the settings VIDEO tab that retail's Video group covers
@@ -309,6 +328,9 @@ impl Entry {
                 span: Span::new(FORCE_PAGE_ONE, usize::MAX),
             },
             Self::OtherControls => keybinds(Category::Other),
+            Self::RenderImage => Panel::Renderer { tab: 0 },
+            Self::RenderLighting => Panel::Renderer { tab: 1 },
+            Self::RenderShadows => Panel::Renderer { tab: 2 },
             _ => return None,
         })
     }
@@ -321,6 +343,7 @@ impl Page {
         match self {
             Self::Setup => Some(Entry::Video),
             Self::Controls => Some(Entry::Movement),
+            Self::Renderer => Some(Entry::RenderImage),
             _ => None,
         }
     }
@@ -545,15 +568,15 @@ mod tests {
 
     #[test]
     fn every_group_has_a_panel_or_says_why_not() {
-        for page in [Page::Setup, Page::Controls] {
+        for page in [Page::Setup, Page::Controls, Page::Renderer] {
             assert!(
                 page.opening_panel().and_then(Entry::panel).is_some(),
                 "{page:?}"
             );
             for slot in page.slots().iter().filter(|slot| slot.size == Size::List) {
-                // A group shows a panel; RENDERER opens its own screen.
+                // A group shows a panel; RENDERER opens the renderer page.
                 let opens = slot.entry.panel().is_some()
-                    || slot.entry.outcome() == Outcome::Open(MainDestination::Renderer);
+                    || slot.entry.outcome() == Outcome::Page(Page::Renderer);
                 assert_eq!(opens, slot.enabled(), "{:?}", slot.entry);
                 if let Some(Panel::Settings { caption, .. }) = slot.entry.panel() {
                     assert!(SettingsMenu::tab_index(caption).is_some(), "{caption}");

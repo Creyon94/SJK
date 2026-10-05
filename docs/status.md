@@ -511,6 +511,29 @@ retail refuses it as a player model too. Unit tests cover each class on syntheti
 files. No game or window was started: how the fixed models look and animate in
 play, and the GPU skinning of the rescued meshes, remain to be checked.
 
+## Classic+ option panels and renderer page (SJK)
+
+SJK-only branch `personal/classic-plus` (2026-10-05, based on `7643ca4`) writes
+down how SJK modernises classic pages ([Classic+ menus](classic-plus.md)) and
+applies it to the option panels: a detail box under the Setup and Controls rows
+describes the focused setting or binding, rows changed from their default and
+settings that apply later are marked, Backspace or the right button restores a
+setting's default, and Setup's RENDERER opens a classic renderer page with
+IMAGE, LIGHTING and SHADOWS groups instead of the modern form. See
+[menu style](client.md#menu-style).
+
+Verification (2026-10-05, Windows 11): formatting, the locked workspace build
+and tests, including unit tests for the panel geometry (rows, detail box,
+retail bounds), the help text (every setting described in two lines, label
+notes), the detail box's facts and defaults, reset to default, the binding
+detail and its shared-key line, and the renderer page's groups and way back.
+The new [menu snapshots](classic-plus.md#seeing-a-page-without-the-game) drew
+Setup, Controls and the renderer page on both frames from the owner's
+installation; looking at them led to shorter row labels, wider description
+lines and the scrollbar moving to the panel's edge (in the in-game pop-up it
+covered the values). No client window was opened: the panels' pointer and
+keyboard behaviour on screen are untested.
+
 ## Client devmap preview
 
 Local `devmap1` preview (2026-10-04, based on `7155455`) exposes `devmap <map>`

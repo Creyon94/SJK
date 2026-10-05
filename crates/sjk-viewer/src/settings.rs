@@ -11,6 +11,7 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 mod catalog;
 mod classic_view;
 mod display;
+mod help;
 mod numeric;
 mod pointer;
 mod resolution;
@@ -119,6 +120,12 @@ pub(crate) struct SettingsMenu {
     /// Which rows show; keeps the selection on screen.
     scroll: scroll::RowScroll,
     values: Vec<String>,
+    /// Each row's default and whether its value differs (classic+ panels).
+    defaults: Vec<classic_view::RowDefault>,
+    /// The classic+ detail box's facts line and the description line's keys,
+    /// rewritten each frame.
+    detail_facts: String,
+    key_hint: String,
     editing: Option<TextDraft>,
     /// What the window's monitor offers; asked for each time the screen opens.
     monitor: Option<MonitorModes>,
@@ -148,6 +155,9 @@ impl SettingsMenu {
             selected: 0,
             scroll: scroll::RowScroll::new(),
             values: Vec::with_capacity(12),
+            defaults: Vec::with_capacity(20),
+            detail_facts: String::with_capacity(96),
+            key_hint: String::with_capacity(96),
             editing: None,
             monitor: None,
             wants_monitor: false,
@@ -310,6 +320,14 @@ impl SettingsMenu {
         }
     }
 
+    /// Select the row of setting `cvar` (menu snapshots).
+    #[cfg(test)]
+    pub(crate) fn select_cvar(&mut self, cvar: &str) {
+        if let Some(row) = self.rows().iter().position(|setting| setting.cvar == cvar) {
+            self.selected = row;
+        }
+    }
+
     pub(crate) fn visual_selection(&self) -> (usize, bool) {
         (self.selected, false)
     }
@@ -438,6 +456,10 @@ impl SettingsMenu {
                 }
             }
             KeyCode::Escape => return self.back(console),
+            // Classic+: back to the default.
+            KeyCode::Backspace | KeyCode::Delete if classic => {
+                self.reset_to_default(console, self.selected);
+            }
             _ => {}
         }
         SettingsResult::None
@@ -565,6 +587,12 @@ impl SettingsMenu {
                 ValueKind::Bool => toggle_text(console, setting.cvar),
                 _ => row_text(console, setting),
             }));
+        self.defaults.clear();
+        self.defaults.extend(
+            self.rows()
+                .iter()
+                .map(|setting| classic_view::row_default(console, setting)),
+        );
     }
 }
 

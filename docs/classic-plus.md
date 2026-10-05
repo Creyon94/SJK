@@ -138,11 +138,32 @@ The profile pages show the pattern
 - **Module documentation** names the retail menu and its files, and says what
   SJK adds ("SJK adds the side cards, ...").
 
-The option panels (Setup, Controls and the renderer pages) are drawn by
+The option panels (Setup, Controls and the renderer page) are drawn by
 [menu/classic/panel.rs](../crates/sjk-viewer/src/menu/classic/panel.rs), with
 their rows by the settings screen and the key-binding editor
 ([settings/classic_view.rs](../crates/sjk-viewer/src/settings/classic_view.rs),
 [keybind_editor/classic_view.rs](../crates/sjk-viewer/src/keybind_editor/classic_view.rs)).
+`PanelPlace::detail` draws their detail box from a `Detail` (title, value, two
+lines, facts, console name); `label_marked` and `changed_mark` draw the rows'
+marks. What each setting does is in
+[settings/help.rs](../crates/sjk-viewer/src/settings/help.rs), which a test keeps
+complete: a new setting needs its line there.
+
+## Seeing a page without the game
+
+[menu_snapshot.rs](../crates/sjk-viewer/src/menu_snapshot.rs) draws menu screens
+into PNGs on the CPU, with the installation's retail art and the menu font, so a
+layout can be checked without opening a window:
+
+```sh
+JKA_GAME_DATA="/path/to/GameData" cargo test --release -p sjk-viewer \
+    menu_snapshot -- --ignored --nocapture
+```
+
+The pictures go to `target/menu-snapshots/`. They approximate the UI renderer
+(no rounded corners, art without its motion, Inter text only, no atlas icons),
+which is enough to catch overlaps, cut-off labels and empty space. Add a screen
+to the test when building a page.
 
 ## Checklist
 
@@ -154,7 +175,8 @@ their rows by the settings screen and the key-binding editor
   detail panel.
 - It works without the retail art, with the keyboard alone, on both frames, and
   at 4:3 and wide windows.
-- Layout and token tests; no game window is opened to verify it.
+- Layout and token tests, and a look at it in the menu snapshots; no game window
+  is opened to verify it.
 - [client.md](client.md#menu-style) describes what the page shows,
   [status.md](status.md) records the verification, the `debug_panel` list says
   how to test it, and [CREDITS.md](../CREDITS.md) names notable work.
@@ -167,3 +189,5 @@ their rows by the settings screen and the key-binding editor
 | Cosmetics | JoF EJK's `ingame_cosmetics` | Hats and capes side by side, live model, worn tags, explained empty lists |
 | Character creation | `player2`, `ingame_player2` | Live model where retail's stood, part icons, tinted swatches |
 | Lightsaber creation | `saber`, `ingame_saber` | The model holding the lit sabers |
+| Setup, Controls | `setup.menu`, `controls.menu`, `ingame_setup`, `ingame_controls` | A detail box for the focused setting or binding (what it does, default, range, when it applies, console name, keys shared with other actions); changed and applies-later marks; Backspace or the right button for the default; key hints |
+| Renderer | none (SJK's renderer settings) | The renderer settings as a `setup.menu`-style page with IMAGE, LIGHTING and SHADOWS groups, on both frames, with the same panels |

@@ -6,6 +6,13 @@
 //! list and the panel box) and gives the item rows their retail geometry.
 //! The settings screen and the key-binding editor draw the items, so the
 //! options behave the same in both menu styles.
+//!
+//! SJK makes the panels classic+ (`docs/classic-plus.md`): the item rows take
+//! the panel's upper part and a detail box under them describes the focused
+//! item (what it does, its value, default and range, when a change applies,
+//! its console name), where retail's taller panel had room for more rows. A
+//! row changed from its default carries a small mark at its left end, and a
+//! setting that applies later a `*` after its label.
 
 use super::layout::{CANVAS, Entry, HINT_Y, Page, Placement, Size, Slot};
 use super::view::{self, Caps, DISABLED, FOCUS, GOLD, HINT};
@@ -42,6 +49,12 @@ const PANEL_FILL: Color = Color::new(0.0, 0.0, 0.6, 0.5);
 const PANEL_BORDER: Color = Color::new(0.0, 0.0, 0.6, 1.0);
 /// Retail panel title colour (`forecolor .549 .854 1`).
 const PANEL_TITLE: Color = Color::new(0.549, 0.854, 1.0, 1.0);
+/// Classic+ detail box: retail's frame blue (`bordercolor .298 .305 .690`)
+/// and field value colour (`forecolor .615 .615 .956`).
+const DETAIL_BORDER: Color = Color::new(0.298, 0.305, 0.690, 1.0);
+const DETAIL_TEXT: Color = Color::new(0.615, 0.615, 0.956, 1.0);
+/// Width of the label column's end kept for a row's `*` mark.
+const MARK_WIDTH: f32 = 7.0;
 /// Retail slider art size (`SLIDER_WIDTH`, `SLIDER_HEIGHT`,
 /// `SLIDER_THUMB_WIDTH`, `SLIDER_THUMB_HEIGHT` in `ui_shared.h`).
 const SLIDER: [f32; 2] = [96.0, 16.0];
@@ -79,39 +92,60 @@ struct Geometry {
     title: [f32; 4],
     /// Centre of the description line.
     hint: [f32; 2],
+    /// The classic+ detail box under the rows.
+    detail: [f32; 4],
 }
 
 /// `setup.menu`: panel `260 185 340 225`, items `260 188+14n 340 14`
-/// labelled up to `textalignx 174`, title band `100 164 440 16`.
+/// labelled up to `textalignx 174`, title band `100 164 440 16`. Classic+
+/// keeps eleven rows in the panel's upper part and the detail box in the
+/// rest of retail's panel.
 const MAIN: Geometry = Geometry {
-    panel: [260.0, 185.0, 340.0, 227.0],
+    panel: [260.0, 185.0, 340.0, 160.0],
     row_x: 260.0,
     row_width: 340.0,
     first_row: 188.0,
     row_height: 14.0,
-    rows: 15,
+    rows: 11,
     label_end: 434.0,
     text: 11.0,
     title: [100.0, 164.0, 440.0, 16.0],
     hint: [CANVAS[0] * 0.5, HINT_Y],
+    detail: [260.0, 349.0, 340.0, 63.0],
 };
 
 /// `ingame_setup.menu` (menu rect `45 35 550 335`): box `0 0 570 335`,
 /// group list `20 43+30n 170 30`, panel `210 41 350 250`, items
 /// `220 41+20n 300 20` labelled up to `textalignx 165`, title band
-/// `20 5 510 28`, description at `305 347`.
+/// `20 5 510 28`, description at `305 347`. Classic+ keeps nine rows and
+/// the detail box under them, inside retail's panel.
 const IN_GAME: Geometry = Geometry {
-    panel: [45.0 + 210.0, 35.0 + 41.0, 350.0, 250.0],
+    panel: [45.0 + 210.0, 35.0 + 41.0, 350.0, 185.0],
     row_x: 45.0 + 220.0,
     row_width: 300.0,
     first_row: 35.0 + 43.0,
     row_height: 20.0,
-    rows: 12,
+    rows: 9,
     label_end: 45.0 + 385.0,
     text: 12.0,
     title: [45.0 + 20.0, 35.0 + 5.0, 510.0, 28.0],
     hint: [45.0 + 305.0, 35.0 + 347.0],
+    detail: [45.0 + 210.0, 35.0 + 230.0, 350.0, 61.0],
 };
+
+/// What the classic+ detail box says about the focused item.
+#[derive(Clone, Copy, Debug, Default)]
+pub(crate) struct Detail<'a> {
+    /// The item's name, drawn in capitals, and its value.
+    pub(crate) title: &'a str,
+    pub(crate) value: &'a str,
+    /// What it does, in up to two lines.
+    pub(crate) lines: [&'a str; 2],
+    /// Default, range and when a change applies.
+    pub(crate) facts: &'a str,
+    /// The console name, at the facts line's end.
+    pub(crate) name: &'a str,
+}
 
 /// The in-game pop-up box (`background_pic` `0 0 570 335` of a menu at
 /// `45 35`).
@@ -193,6 +227,7 @@ impl PanelFrame {
         let title = match (self.frame, self.page) {
             (Frame::Main, page) => page.title().0,
             (Frame::InGame, Page::Controls) => "CONTROLS",
+            (Frame::InGame, Page::Renderer) => "RENDERER",
             (Frame::InGame, _) => "SETUP",
         };
         self.title(canvas, &place, geometry, title);
@@ -434,14 +469,162 @@ impl PanelPlace {
     /// An item's label in capitals, set against the label column's right
     /// edge.
     pub(crate) fn label(&self, canvas: &mut MenuCanvas, slot: usize, text: &str, color: Color) {
+        self.label_marked(canvas, slot, text, color, false);
+    }
+
+    /// [`Self::label`], with classic+'s gold `*` closing the label column
+    /// when `later` (the setting applies after a restart or on the next map).
+    pub(crate) fn label_marked(
+        &self,
+        canvas: &mut MenuCanvas,
+        slot: usize,
+        text: &str,
+        color: Color,
+        later: bool,
+    ) {
         let geometry = self.geometry();
+        let end = if later {
+            geometry.label_end - MARK_WIDTH
+        } else {
+            geometry.label_end
+        };
         canvas.text_fmt_aligned(
             format_args!("{}", Caps(text)),
-            self.text_rect(slot, geometry.row_x, geometry.label_end),
+            self.text_rect(slot, geometry.row_x, end),
             geometry.text * self.place.scale,
             color,
             FontWeight::Regular,
             0.4 * self.place.scale,
+            TextAlign::End,
+        );
+        if later {
+            canvas.text_aligned(
+                "*",
+                self.text_rect(slot, end + 1.0, geometry.label_end),
+                geometry.text * self.place.scale,
+                GOLD,
+                FontWeight::Semibold,
+                0.0,
+                TextAlign::Start,
+            );
+        }
+    }
+
+    /// The scrollbar of a list showing `rows` rows: along the panel's right
+    /// edge, clear of the values (in the in-game pop-up the rows end well
+    /// inside the panel).
+    pub(crate) fn scrollbar_track(&self, rows: usize) -> Rect {
+        let geometry = self.geometry();
+        let [x, _, width, _] = geometry.panel;
+        self.place.rect([
+            x + width - 5.0,
+            geometry.first_row,
+            3.0,
+            rows as f32 * geometry.row_height,
+        ])
+    }
+
+    /// Classic+'s mark of a row changed from its default: a small gold
+    /// square at the row's left end.
+    pub(crate) fn changed_mark(&self, canvas: &mut MenuCanvas, slot: usize) {
+        let geometry = self.geometry();
+        let side = 3.0;
+        let top = geometry.first_row
+            + slot as f32 * geometry.row_height
+            + (geometry.row_height - side) * 0.5;
+        let _ = canvas.draw_list_mut().push(DrawCommand::SolidRect {
+            rect: self.place.rect([geometry.row_x + 4.0, top, side, side]),
+            color: Color::new(GOLD.r, GOLD.g, GOLD.b, 0.85),
+        });
+    }
+
+    /// The classic+ detail box: `detail`'s title and value over a rule,
+    /// its two lines, and its facts line with the console name at the end.
+    pub(crate) fn detail(&self, canvas: &mut MenuCanvas, detail: &Detail<'_>) {
+        let [x, y, w, h] = self.geometry().detail;
+        let s = self.place.scale;
+        let rect = self.place.rect([x, y, w, h]);
+        let draw = canvas.draw_list_mut();
+        let _ = draw.push(DrawCommand::SolidRect {
+            rect,
+            color: view::ink(0.45),
+        });
+        let _ = draw.push(DrawCommand::Border {
+            rect,
+            radius: 0.0,
+            width: s.max(1.0),
+            color: DETAIL_BORDER,
+        });
+        let _ = draw.push(DrawCommand::SolidRect {
+            rect: self.place.rect([x + 6.0, y + 18.0, w - 12.0, 1.0]),
+            color: Color::new(DETAIL_BORDER.r, DETAIL_BORDER.g, DETAIL_BORDER.b, 0.7),
+        });
+        let line = |canvas: &mut MenuCanvas,
+                    text: std::fmt::Arguments<'_>,
+                    box_: [f32; 4],
+                    size: f32,
+                    color: Color,
+                    weight: FontWeight,
+                    align: TextAlign| {
+            let [bx, by, bw, bh] = box_;
+            let height = size * 1.25;
+            canvas.text_fmt_aligned(
+                text,
+                self.place.rect([bx, by + (bh - height) * 0.5, bw, height]),
+                size * s,
+                color,
+                weight,
+                0.3 * s,
+                align,
+            );
+        };
+        let split = x + w * 0.6;
+        line(
+            canvas,
+            format_args!("{}", Caps(detail.title)),
+            [x + 6.0, y + 3.0, split - x - 8.0, 14.0],
+            11.5,
+            GOLD,
+            FontWeight::Semibold,
+            TextAlign::Start,
+        );
+        line(
+            canvas,
+            format_args!("{}", Caps(detail.value)),
+            [split, y + 3.0, x + w - split - 6.0, 14.0],
+            11.0,
+            FOCUS,
+            FontWeight::Regular,
+            TextAlign::End,
+        );
+        for (index, text) in detail.lines.iter().enumerate() {
+            line(
+                canvas,
+                format_args!("{text}"),
+                [x + 6.0, y + 21.0 + index as f32 * 12.5, w - 12.0, 12.0],
+                10.5,
+                DETAIL_TEXT,
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+        }
+        let facts_y = y + h - 15.0;
+        line(
+            canvas,
+            format_args!("{}", detail.facts),
+            [x + 6.0, facts_y, w * 0.72 - 6.0, 12.0],
+            10.0,
+            PANEL_TITLE,
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+        line(
+            canvas,
+            format_args!("{}", detail.name),
+            [x + w * 0.72, facts_y, w * 0.28 - 6.0, 12.0],
+            9.5,
+            Color::new(DETAIL_TEXT.r, DETAIL_TEXT.g, DETAIL_TEXT.b, 0.6),
+            FontWeight::Regular,
             TextAlign::End,
         );
     }
@@ -630,6 +813,21 @@ mod tests {
             assert!(last <= top + height, "{frame:?}: {last} > {}", top + height);
             let (offset, width) = frame.slider_span();
             assert!(offset > 0.0 && offset + width < 1.0, "{frame:?}");
+            // The classic+ detail box sits under the rows, as wide as the
+            // panel, within retail's panel box (`setup.menu` ends at 412,
+            // `ingame_setup.menu` at 326) and above the description line.
+            let [detail_x, detail_y, detail_w, detail_h] = geometry.detail;
+            let [panel_x, _, panel_w, _] = geometry.panel;
+            assert!(detail_y > top + height, "{frame:?}");
+            assert_eq!((detail_x, detail_w), (panel_x, panel_w), "{frame:?}");
+            let retail_bottom = match frame {
+                Frame::Main => 412.0,
+                Frame::InGame => 35.0 + 41.0 + 250.0,
+            };
+            assert!(detail_y + detail_h <= retail_bottom, "{frame:?}");
+            assert!(detail_y + detail_h < geometry.hint[1], "{frame:?}");
+            // Its four lines fit: title 3..17, two lines from 21, facts at h - 15.
+            assert!(21.0 + 2.0 * 12.5 <= detail_h - 15.0 + 0.5, "{frame:?}");
         }
     }
 
