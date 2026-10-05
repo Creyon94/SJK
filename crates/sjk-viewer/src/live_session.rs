@@ -114,7 +114,7 @@ impl GpuState {
             true
         });
         timing.mark(Phase::Commands);
-        let talking = self.key_catcher_active();
+        let talking = self.talk_button();
         let Some(session) = &mut self.live_session else {
             return;
         };

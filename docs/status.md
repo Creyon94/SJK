@@ -789,6 +789,23 @@ confirmation remains with the owner. Formatting, locked workspace build/tests
 and the optimized client build passed.
 
 
+## Talk balloons in busy scenes (SJK)
+
+SJK-only branch `personal/talk-balloon` (05/10/2026, based on `3f57938`): talk
+balloons sometimes vanished over every player at once. Player sprites, pickup icons
+and hook ropes are per-frame billboards in the effect particle pool: cleared and
+appended again every frame, they lost the slots they had freed to effects spawned in
+between (map effects before them, other players' muzzle flashes during actor
+submission), and a pool that effects held at its 2,048 cap dropped them all. The pool
+now keeps 256 slots that only those billboards use (`particle_types.rs`); effects
+still stop at 2,048. Unit tests replay that frame. No game was started: the busy
+scene Sol saw is not reproduced on screen.
+
+The same branch raises your balloon while the window is unfocused or minimised, as
+EternalJK's `cl_unfocusedChatbox` / `cl_minimizedChatbox` do in `CL_CmdButtons`
+(both 1). A unit test covers the settings; whether commands keep flowing while
+Windows has the window minimised (which the minimised case needs) is unverified.
+
 ## Force power presentation
 
 SJK change based on `024c22a` (2026-10-04), fixing gaps inherited from JKR.

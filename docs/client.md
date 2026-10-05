@@ -750,14 +750,18 @@ unimplemented on the native server.
 ## Talk balloons
 
 Opening chat, the console or a menu sends the stock talk button and disables
-other movement input while that keyboard catcher is active. Players carrying
+other movement input while that keyboard catcher is active. As in EternalJK, so
+does a window you alt-tab away from or minimise, so others see you are away:
+`cl_unfocusedChatbox` and `cl_minimizedChatbox` (archived, both 1) turn that off. Players carrying
 the talk flag have a chatbubble over their heads; the connection-trouble icon
 takes priority when the server marks a lost connection. These are upright frame
 billboards using the existing [sprite orientation](rendering.md#billboard-icons).
 Their texture opacity is preserved near walls even with soft particles enabled.
 Your own bubble is visible in third person, not the first-person view. Mind-tricked
-players, NPC talk flags and intermission do not show talk balloons. Siege voice
-command icons remain unimplemented. See
+players, NPC talk flags and intermission do not show talk balloons. The balloons,
+pickup icons and hook ropes have their own share of the effect particle pool, so a
+scene full of effects no longer hides every balloon at once. Siege voice command
+icons remain unimplemented. See
 [player_sprites.rs](../crates/sjk-viewer/src/player_sprites.rs) and
 [pmove_talk.rs](../crates/sjk-game-jka/src/pmove_talk.rs).
 

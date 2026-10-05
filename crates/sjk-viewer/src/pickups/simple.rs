@@ -108,7 +108,7 @@ pub(crate) fn append_frame(gpu: &mut crate::GpuState, now: Instant) {
         &mut gpu.pickup_override_instances,
     );
     for item in gpu.pickups.iter().filter(|item| item.simple) {
-        if gpu.particles.len() == gpu.particles.capacity() {
+        if !crate::particle_types::frame_billboard_fits(gpu.particles.len()) {
             break;
         }
         // Force-boon placeholders are omitted by the stock sprite branch.
