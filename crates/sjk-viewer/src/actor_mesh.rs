@@ -28,4 +28,6 @@ pub(crate) struct ActorMesh {
     /// This frame's CPU skinning result, shared with visual point queries after upload.
     pub(crate) retained_pose: crate::actor_pose::RetainedPose,
     pub(crate) force_bones: crate::actor_pose::ForceBones,
+    /// JoF EJK's hat and cape this player wears, and their bolts.
+    pub(crate) cosmetics: crate::cosmetics::actors::Worn,
 }

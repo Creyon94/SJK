@@ -32,6 +32,7 @@ mod console;
 mod console_backdrop;
 mod console_overlay;
 mod console_runtime;
+mod cosmetics;
 mod crosshair_scan;
 mod cut_trace;
 mod cvar_renames;

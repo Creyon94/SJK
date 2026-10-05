@@ -170,6 +170,8 @@ impl GpuState {
             .position(|mesh| !mesh.corpse_pool && mesh.entity_id == Some(entity_id));
         if let Some(index) = index {
             self.actor_meshes[index].saber_names = saber_names.clone();
+            // `c1`/`c2` may name another hat or cape (JoF EJK).
+            self.actor_meshes[index].cosmetics.invalidate();
             if self.actor_meshes[index].appearance == appearance {
                 return Ok(());
             }

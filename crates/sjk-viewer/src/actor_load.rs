@@ -74,6 +74,7 @@ pub(crate) fn build_actor_mesh(
         pose_vertices: Vec::with_capacity(pose_vertex_capacity),
         gpu_palette: None,
         retained_pose,
+        cosmetics: Default::default(),
     })
 }
 

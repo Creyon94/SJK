@@ -34,6 +34,7 @@ mod gamestate_probe;
 mod ghoul2_pose;
 mod impact_events;
 mod information;
+mod jof_cosmetics;
 use sjk_game_jka::intermission;
 mod join_bootstrap;
 mod join_session;
@@ -128,7 +129,7 @@ pub use force_overlays::{
 };
 pub use force_profile::{
     FORCE_POWER_COUNT, ForceAllocation, ForceLegalizeRules, ForcePower, ForceProfileError,
-    ForceSide, LegalizedForcePowers, legalize_force_powers,
+    ForceSide, LegalizedForcePowers, legalize_force_powers, mastery_points,
 };
 pub use force_profile_negotiation::{
     EnterPlayOutcome, ForceProfileNegotiator, RejoinOutput, enter_play, server_legal_forcepowers,
@@ -147,6 +148,10 @@ pub use information::{
     legacy_saber_style_name,
 };
 pub use intermission::{IntermissionView, PM_INTERMISSION, suppresses_movement};
+pub use jof_cosmetics::{
+    CosmeticSlot, MAX_COSMETIC_NAME, join_color_value, split_color_value, valid_cosmetic_name,
+    worn_cosmetic,
+};
 pub use lagometer::{LAG_SAMPLES, LagometerSamples, SnapshotSample, connection_interrupted};
 pub use legacy_text::decode_legacy;
 pub use loop_sounds::{

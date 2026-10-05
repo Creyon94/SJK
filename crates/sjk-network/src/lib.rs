@@ -120,6 +120,12 @@ pub struct LegacyUserInfo {
     pub color1: u8,
     /// Secondary saber colour index.
     pub color2: u8,
+    /// JoF EJK's worn hat and cape, written after the colour digits of
+    /// `color1` and `color2` (`color1 "4santahat"`), where servers pass them
+    /// through to `c1`/`c2` untouched and other clients' `atoi` stops before
+    /// them. A name that is not 1 to 13 letters, digits, `_` or `-` with no
+    /// leading digit is left out.
+    pub cosmetics: [Option<String>; 2],
     /// Player starting-health percentage.
     pub handicap: u8,
     /// Player sex token used by legacy voice selection.
@@ -161,6 +167,7 @@ impl LegacyUserInfo {
             forcepowers: "7-1-032330000000001333".to_owned(),
             color1: 4,
             color2: 4,
+            cosmetics: [None, None],
             handicap: 100,
             sex: "male".to_owned(),
             predict_items: true,
@@ -722,8 +729,14 @@ pub fn legacy_userinfo_payload_with_extensions(
     let rate = user.rate;
     let snaps = user.snaps;
     let forcepowers = &user.forcepowers;
-    let color1 = user.color1;
-    let color2 = user.color2;
+    let cosmetic = |slot: usize| {
+        user.cosmetics[slot]
+            .as_deref()
+            .filter(|name| valid_cosmetic_name(name))
+            .unwrap_or("")
+    };
+    let color1 = format!("{}{}", user.color1, cosmetic(0));
+    let color2 = format!("{}{}", user.color2, cosmetic(1));
     let handicap = user.handicap;
     let sex = &user.sex;
     let predict_items = u8::from(user.predict_items);
@@ -756,6 +769,16 @@ pub fn legacy_userinfo_payload_with_extensions(
         result.push_str(password);
     }
     Ok(result)
+}
+
+/// JoF EJK's cosmetic name rule (`MAX_COSMETIC_LENGTH` 14 with the
+/// terminator, no leading digit for the receiving `atoi` to swallow).
+fn valid_cosmetic_name(name: &str) -> bool {
+    (1..=13).contains(&name.len())
+        && !name.as_bytes()[0].is_ascii_digit()
+        && name
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_' || byte == b'-')
 }
 
 fn valid_userinfo_value(value: &str) -> bool {
@@ -1445,5 +1468,23 @@ mod handshake_resend_tests {
         assert_eq!(connects, 2);
         // Getchallenge may have been repeated once while connect waited.
         assert!(challenges >= 1);
+    }
+}
+
+#[cfg(test)]
+mod cosmetic_userinfo_tests {
+    use super::*;
+
+    /// JoF EJK sends its `color1`/`color2` cvars verbatim, so a worn hat is
+    /// the text after the colour digits (`UI_SetCosmetic`, `"%d%s"`).
+    #[test]
+    fn worn_cosmetics_follow_the_colour_digits() {
+        let mut user = LegacyUserInfo::with_name("Sol");
+        user.cosmetics = [Some("santahat".to_owned()), None];
+        let info = legacy_userinfo(1, 2, &user).unwrap();
+        assert!(info.contains(r"\color1\4santahat\color2\4\"), "{info}");
+        user.cosmetics = [Some("bad\name".to_owned()), Some("2cape".to_owned())];
+        let info = legacy_userinfo(1, 2, &user).unwrap();
+        assert!(info.contains(r"\color1\4\color2\4\"), "{info}");
     }
 }
