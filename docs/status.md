@@ -51,13 +51,21 @@ typed with `€`, `’`, `‘`, `™`, `—` or another Windows-1252 typographic
 drew `?`, because a glyph was chosen by Unicode value below 256; the same symbols
 received from other clients (bytes 0x80..=0x9F) drew blank in the modern font,
 whose slots held C1 controls. Glyphs are now chosen by Windows-1252 byte and the
-modern font's slots hold the Windows-1252 characters. Wildcard keys of JoF cosmetic
+modern font's slots hold the Windows-1252 characters. Chat also dropped those
+symbols, because they decode to C1 control characters; it now keeps them, and keeps
+other control bytes in names. A slot with no glyph (the vertical tab some players
+put in names, or an unassigned Windows-1252 byte) draws `.` in both the modern font
+and retail `.fontdat` fonts, as OpenJK `RE_Font_DrawString` does, so
+`{JoF}\vToxiee\v{C}.ak` reads `{JoF}.Toxiee.{C}.ak` as in EternalJK instead of
+showing Inter's missing-glyph box. Wildcard keys of JoF cosmetic
 offsets now compare bytes, so a model name with a multi-byte character across the
 prefix length no longer panics. Unit tests cover every byte's round trip, a list of
 common name symbols typed and received, and the cosmetic match. An audit of
 client-side string slicing on player and server text found no other site that can
 split a character. Formatting, the locked workspace build, tests and clippy passed
-on Linux. In-game appearance on Windows is unverified.
+on Linux. On Windows 11, before these last changes, a live server showed `?` for
+typed symbols, dropped `’‘€` from chat and drew Inter's missing-glyph box for
+the vertical tabs; the corrected build awaits the same in-game check.
 
 ## Worldspawn shader remaps and remap order
 

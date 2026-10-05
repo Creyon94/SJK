@@ -170,7 +170,7 @@ pub(crate) fn load_modern(
         for byte in 0..GLYPH_COUNT {
             // Slot `byte` holds the Windows-1252 character of that byte, as JKA's
             // own fonts do, so 0x80 is `€` rather than an invisible C1 control.
-            let character = sjk_protocol::windows_1252_char(byte as u8);
+            let character = slot_character(font, byte as u8);
             let (metrics, pixels) = font.rasterize(character, pixel_size);
             rasterized.push(RasterizedGlyph {
                 face,
@@ -451,6 +451,21 @@ pub(crate) fn append_text_style(
     lines
 }
 
+/// The character the modern atlas draws in slot `byte`: the Windows-1252 character of
+/// that byte, or `.` where Inter has no glyph for it (a control byte such as the 0x0B
+/// some players put in names, or one of Windows-1252's five unassigned bytes).
+/// OpenJK's `RE_Font_DrawString` draws `.` for every glyph its font lacks, so retail
+/// and EternalJK show those names with dots; line feed, carriage return and space keep
+/// their own (empty) slots.
+fn slot_character(font: &Font, byte: u8) -> char {
+    let character = sjk_protocol::windows_1252_char(byte);
+    if matches!(byte, b'\n' | b'\r' | b' ') || font.lookup_glyph_index(character) != 0 {
+        character
+    } else {
+        '.'
+    }
+}
+
 /// Take the atlas index that draws the character at `index`, and its UTF-8 length.
 ///
 /// The atlas holds 256 glyphs indexed by Windows-1252 byte, matching how JKA's own fonts are
@@ -542,6 +557,18 @@ mod tests {
         let received: String = expected.iter().map(|&byte| char::from(byte)).collect();
         assert_eq!(glyph_bytes(&received), *expected);
         assert_eq!(glyph_bytes("♥"), [b'?']);
+    }
+
+    #[test]
+    fn slots_inter_lacks_draw_a_dot_as_retail_does() {
+        let font = Font::from_bytes(INTER_REGULAR, FontSettings::default()).unwrap();
+        assert_eq!(slot_character(&font, 0x0b), '.');
+        assert_eq!(slot_character(&font, 0x81), '.');
+        assert_eq!(slot_character(&font, b' '), ' ');
+        assert_eq!(slot_character(&font, b'\n'), '\n');
+        for (byte, character) in [(0x80, '€'), (0x85, '…'), (0x92, '’'), (0xd7, '×')] {
+            assert_eq!(slot_character(&font, byte), character);
+        }
     }
 
     #[test]

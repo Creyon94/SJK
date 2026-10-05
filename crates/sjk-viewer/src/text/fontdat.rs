@@ -83,7 +83,13 @@ impl Fontdat {
     /// below the line top, for a line `height` tall.
     pub(crate) fn into_font(self, height: f32, baseline_from_top: f32) -> UiFont {
         let mut glyphs = [[FontGlyph::default(); GLYPH_COUNT]; 2];
-        for (target, source) in glyphs[0].iter_mut().zip(self.glyphs) {
+        let dot = self.glyphs[usize::from(b'.')];
+        for (byte, (target, mut source)) in glyphs[0].iter_mut().zip(self.glyphs).enumerate() {
+            // `RE_Font_DrawString` draws `.` for a glyph with no width; line feed,
+            // carriage return and space are handled before that lookup.
+            if source.width == 0.0 && !matches!(byte as u8, b'\n' | b'\r' | b' ') {
+                source = dot;
+            }
             *target = FontGlyph {
                 width: source.width,
                 height: source.height,

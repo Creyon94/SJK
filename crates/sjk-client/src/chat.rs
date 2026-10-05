@@ -132,27 +132,33 @@ pub fn chat_plain_text(value: &str) -> String {
     while let Some(c) = chars.next() {
         if c == '^' && chars.peek().is_some_and(char::is_ascii_digit) {
             chars.next();
-        } else if c == '\n' || c == '\r' || c == '\t' {
-            output.push(' ');
-        } else if !c.is_control() {
-            output.push(c);
+        } else {
+            push_chat_char(&mut output, c);
         }
     }
     output
 }
 
-/// Display chat text: drop the stock 0x19 separators and control characters
-/// but keep `^n` colour escapes, which the text renderer applies per glyph.
+/// Display chat text: drop the stock 0x19 separators but keep `^n` colour
+/// escapes, which the text renderer applies per glyph.
 pub fn chat_display_text(value: &str) -> String {
     let mut output = String::with_capacity(value.len());
     for c in value.chars() {
-        if c == '\n' || c == '\r' || c == '\t' {
-            output.push(' ');
-        } else if !c.is_control() {
-            output.push(c);
-        }
+        push_chat_char(&mut output, c);
     }
     output
+}
+
+/// Line breaks and tabs become spaces and the 0x19 separator is dropped. Other
+/// control characters stay: a byte in 0x80..=0x9F decodes to the C1 control of
+/// that value and is a Windows-1252 symbol (`€`, `’`, `…`), and a C0 control in
+/// a name draws `.`, as it does in retail and EternalJK.
+fn push_chat_char(output: &mut String, c: char) {
+    match c {
+        '\n' | '\r' | '\t' => output.push(' '),
+        '\u{19}' | '\0' => {}
+        _ => output.push(c),
+    }
 }
 
 /// Chars of `value` with `^n` colour escapes skipped, as `(byte index, char)`.
@@ -267,4 +273,23 @@ pub(crate) fn server_chat_event(arguments: &[Vec<u8>]) -> Option<ServerEvent> {
         crate::legacy_text::decode_legacy(arguments.get(1)?).into_owned()
     };
     Some(ServerEvent { kind, text, sender })
+}
+
+#[cfg(test)]
+mod display_text_tests {
+    use super::{chat_display_text, chat_plain_text};
+
+    #[test]
+    fn chat_keeps_windows_1252_symbols_and_name_controls() {
+        // Bytes 0x92, 0x91, 0x80 and 0x85 from another client, decoded as Latin-1.
+        let received = "^6a\u{92}\u{91}\u{80}\u{85}×";
+        assert_eq!(chat_display_text(received), received);
+        assert_eq!(chat_plain_text(received), "a\u{92}\u{91}\u{80}\u{85}×");
+        // A vertical tab in a name stays (drawn as `.`); the 0x19 separator and
+        // line breaks do not.
+        assert_eq!(
+            chat_display_text("{JoF}\u{b}Toxiee\u{19}: hi\nthere"),
+            "{JoF}\u{b}Toxiee: hi there"
+        );
+    }
 }
