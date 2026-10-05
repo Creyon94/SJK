@@ -587,6 +587,14 @@ test: In game, closed: notify lines at the top left; hidden while a menu is open
 test: con_style modern: the old console, unchanged; con_style classic again.
 note: Your config keeps con_timestamps 0: set 2 for EJK's stamps. con_ratioFix 0 squashes.
 
+[score-display]
+status: personal
+area: HUD
+title: A negative score shows as negative, not 65535
+change: Score, health and ammo from the server are read as signed numbers, as retail reads them.
+test: In a match, kill yourself (/kill) at score 0: the HUD and scoreboard show -1, not 65535.
+test: Die with negative health (a big explosion): the death camera turns as on a normal death.
+
 [legacy-text]
 status: personal
 area: Console & chat
