@@ -14,13 +14,13 @@ use std::fmt;
 /// `codemp/cgame/cg_xcvar.h:195-207` at TaystJK commit 5802c999, minus
 /// `cp_sbRGB1`/`cp_sbRGB2`, which the profile adapter emits itself when a
 /// blade colour selects RGB (see `PlayerProfile::legacy_userinfo`), and
-/// `cp_pluginDisable`, the player's own setting ([`CompatProfile::userinfo_for`]).
-const TAYSTJK_USERINFO: [(&str, &str); 5] = [
+/// `cp_pluginDisable` and `cp_cosmetics`, the player's own settings
+/// ([`CompatProfile::userinfo_for`]).
+const TAYSTJK_USERINFO: [(&str, &str); 4] = [
     ("cg_displayCameraPosition", "1 80 16"),
     ("cg_displayNetSettings", "125 0 125"),
     ("cjp_client", "1.4JAPRO"),
     ("cp_clanPwd", "none"),
-    ("cp_cosmetics", "0"),
 ];
 
 /// JA+ client-plugin USERINFO keys, by which a JA+ server recognises a plugin
@@ -86,6 +86,11 @@ impl CompatProfile {
                 Some(userinfo.plugin_disable.unwrap_or(PLUGIN_DISABLE_DEFAULT))
             }
             Self::BaseJka | Self::Unknown(_) => None,
+        };
+        // jaPRO's race-unlock cosmetic, 0 when the player chose none.
+        userinfo.japro_cosmetics = match self {
+            Self::TaystJk => Some(userinfo.japro_cosmetics.unwrap_or(0)),
+            Self::BaseJka | Self::JaPlus { .. } | Self::Unknown(_) => None,
         };
         userinfo
     }
@@ -259,6 +264,25 @@ mod tests {
         assert_eq!(parsed.get("cp_sbRGB2"), None);
         // Far inside the 1024-byte MAX_INFO_STRING with stock values.
         assert!(payload.len() < 512, "{} bytes", payload.len());
+    }
+
+    #[test]
+    fn japro_cosmetics_follow_the_player_on_taystjk_only() {
+        let value = |profile: &CompatProfile, user: &sjk_network::LegacyUserInfo| {
+            let payload = sjk_network::legacy_userinfo_payload_with_extensions(
+                &profile.userinfo_for(user),
+                profile.userinfo_extensions(),
+            )
+            .unwrap();
+            assert!(payload.matches("cp_cosmetics").count() <= 1);
+            info(&payload).get("cp_cosmetics").map(str::to_owned)
+        };
+        let mut user = sjk_network::LegacyUserInfo::with_name("Sol");
+        assert_eq!(value(&CompatProfile::TaystJk, &user).as_deref(), Some("0"));
+        user.japro_cosmetics = Some(4);
+        assert_eq!(value(&CompatProfile::TaystJk, &user).as_deref(), Some("4"));
+        assert_eq!(value(&CompatProfile::JaPlus { version: None }, &user), None);
+        assert_eq!(value(&CompatProfile::BaseJka, &user), None);
     }
 
     #[test]

@@ -1,10 +1,18 @@
 //! JoF EJK's `cosmetics` console command (`CG_Cosmetics_f`): list the
 //! installed hats or capes, wear or take one off by number or name, take
-//! both off, and set whose cosmetics are drawn.
+//! both off, set whose cosmetics are drawn, and list or choose jaPRO's
+//! race-unlock hats (`CG_Cosmetics_Unlocks_f`, `cp_cosmetics`).
 
 use super::{Catalog, VISIBILITY_CVAR, Visibility};
 use crate::console::ViewerConsole;
-use sjk_client::CosmeticSlot;
+use sjk_client::{CompatProfile, CosmeticSlot, CosmeticUnlockTable};
+
+/// The userinfo cvar holding the jaPRO cosmetic worn.
+const UNLOCKS_CVAR: &str = "cp_cosmetics";
+
+/// What the server tells about jaPRO's unlocks: its profile and the
+/// requirements its `cosmetics` command sent.
+pub(crate) type Server<'a> = Option<(&'a CompatProfile, &'a CosmeticUnlockTable)>;
 
 /// Completion and help entry.
 pub(crate) const COMMANDS: &[(&str, &str)] = &[(
@@ -12,18 +20,20 @@ pub(crate) const COMMANDS: &[(&str, &str)] = &[(
     "List, wear or take off hats and capes: cosmetics <hats|capes|clear|visibility> [value]",
 )];
 
-const USAGE: [&str; 5] = [
-    "Usage: ^3cosmetics <hats|capes|clear|visibility> [value]^7",
+const USAGE: [&str; 6] = [
+    "Usage: ^3cosmetics <hats|capes|clear|visibility|unlocks> [value]^7",
     "  ^3hats^7 [num|name]    list hats, or wear one (again takes it off)",
     "  ^3capes^7 [num|name]   list capes, or wear one (again takes it off)",
     "  ^3clear^7              take off the hat and the cape",
     "  ^3visibility^7 [off|on|onlyme]   whose cosmetics are drawn",
+    "  ^3unlocks^7 [num]      jaPRO server-granted cosmetics",
 ];
 
 /// Run `cosmetics` with `args` against the installed `catalog`.
 pub(crate) fn run(
     console: &mut ViewerConsole,
     catalog: &Catalog,
+    server: Server<'_>,
     args: &[String],
 ) -> Result<Vec<String>, String> {
     let Some(category) = args.first() else {
@@ -39,6 +49,7 @@ pub(crate) fn run(
             Ok(vec!["Hat and cape removed.".to_owned()])
         }
         "visibility" => visibility(console, args.get(1)),
+        "unlocks" => unlocks(console, server, args.get(1)),
         _ => Err(format!(
             "Unknown category '{category}'. Run ^3cosmetics^7 for usage."
         )),
@@ -138,6 +149,69 @@ fn visibility(
     Ok(vec![format!("Cosmetics visibility: ^3{}^7", next.label())])
 }
 
+/// `cosmetics unlocks [num]`: jaPRO's hats, the one worn marked and each
+/// one's requirement when the server sent it; a number wears that one alone
+/// or, worn already, takes it off.
+fn unlocks(
+    console: &mut ViewerConsole,
+    server: Server<'_>,
+    argument: Option<&String>,
+) -> Result<Vec<String>, String> {
+    let Some((_, table)) = server.filter(|(profile, _)| **profile == CompatProfile::TaystJk) else {
+        return Ok(vec!["This server has no cosmetic unlocks.".to_owned()]);
+    };
+    let bits = console
+        .integer_cvar(UNLOCKS_CVAR)
+        .and_then(|bits| u32::try_from(bits).ok())
+        .unwrap_or(0);
+    let hats = sjk_client::JAPRO_HATS;
+    let Some(argument) = argument else {
+        return Ok(hats
+            .iter()
+            .enumerate()
+            .map(|(index, (name, _))| {
+                let mark = if bits & (1 << index) != 0 { "X" } else { " " };
+                let requirement = table
+                    .active()
+                    .find(|row| usize::from(row.bitvalue) == index)
+                    .map(|row| {
+                        let style = sjk_client::race_style_name(row.style);
+                        match row.duration {
+                            0 => format!(" ^3(requires {} {style})^7", row.map_name()),
+                            millis => format!(
+                                " ^3(requires {} {style} in under {:.3} seconds)^7",
+                                row.map_name(),
+                                f64::from(millis) * 0.001
+                            ),
+                        }
+                    })
+                    .unwrap_or_default();
+                format!("{index:2} [{mark}] {name}{requirement}")
+            })
+            .collect());
+    };
+    let index = argument
+        .parse::<usize>()
+        .ok()
+        .filter(|index| *index < hats.len())
+        .ok_or_else(|| {
+            format!(
+                "cosmetics unlocks: Invalid range: {argument} [0, {}]",
+                hats.len() - 1
+            )
+        })?;
+    // One at a time, as JoF's radio buttons.
+    let bit = 1_u32 << index;
+    let worn = bits & bit == 0;
+    let value = if worn { bit } else { 0 };
+    console.set_cvar(UNLOCKS_CVAR, &value.to_string());
+    Ok(vec![format!(
+        "{} {}^7",
+        hats[index].0,
+        if worn { "^2Enabled" } else { "^1Disabled" }
+    )])
+}
+
 fn worn(console: &ViewerConsole, slot: CosmeticSlot) -> Option<String> {
     let value = console.text_value(slot.cvar())?;
     sjk_client::split_color_value(value).1.map(str::to_owned)
@@ -155,8 +229,12 @@ impl crate::GpuState {
     pub(crate) fn cosmetics_command(&mut self, args: &[String]) -> Result<Vec<String>, String> {
         let vfs = self.vfs.clone().ok_or("No game data mounted")?;
         let catalog = Catalog::scan(&vfs);
+        let server = self
+            .live_session
+            .as_ref()
+            .map(|session| (session.compat_profile(), session.cosmetic_unlocks()));
         let console = self.console.as_mut().ok_or("Console unavailable")?;
-        run(console, &catalog, args)
+        run(console, &catalog, server, args)
     }
 }
 
@@ -186,23 +264,66 @@ mod tests {
         let catalog = catalog();
         console.set_cvar("color1", "3");
         let args = |list: &[&str]| list.iter().map(|arg| (*arg).to_owned()).collect::<Vec<_>>();
-        run(&mut console, &catalog, &args(&["hats", "1"])).unwrap();
+        run(&mut console, &catalog, None, &args(&["hats", "1"])).unwrap();
         assert_eq!(console.text_value("color1"), Some("3tophat"));
-        run(&mut console, &catalog, &args(&["hats", "SantaHat"])).unwrap();
+        run(&mut console, &catalog, None, &args(&["hats", "SantaHat"])).unwrap();
         assert_eq!(console.text_value("color1"), Some("3santahat"));
         // The same piece again takes it off.
-        run(&mut console, &catalog, &args(&["hats", "santahat"])).unwrap();
+        run(&mut console, &catalog, None, &args(&["hats", "santahat"])).unwrap();
         assert_eq!(console.text_value("color1"), Some("3"));
-        run(&mut console, &catalog, &args(&["capes", "0"])).unwrap();
+        run(&mut console, &catalog, None, &args(&["capes", "0"])).unwrap();
         assert_eq!(console.text_value("color2"), Some("4royalcape"));
-        let listed = run(&mut console, &catalog, &args(&["capes"])).unwrap();
+        let listed = run(&mut console, &catalog, None, &args(&["capes"])).unwrap();
         assert!(listed.iter().any(|line| line.contains("^2[X]^7 royalcape")));
-        run(&mut console, &catalog, &args(&["clear"])).unwrap();
+        run(&mut console, &catalog, None, &args(&["clear"])).unwrap();
         assert_eq!(console.text_value("color2"), Some("4"));
-        assert!(run(&mut console, &catalog, &args(&["hats", "9"])).is_err());
-        assert!(run(&mut console, &catalog, &args(&["hats", "crown"])).is_err());
-        run(&mut console, &catalog, &args(&["visibility", "onlyme"])).unwrap();
+        assert!(run(&mut console, &catalog, None, &args(&["hats", "9"])).is_err());
+        assert!(run(&mut console, &catalog, None, &args(&["hats", "crown"])).is_err());
+        run(
+            &mut console,
+            &catalog,
+            None,
+            &args(&["visibility", "onlyme"]),
+        )
+        .unwrap();
         assert_eq!(console.integer_cvar(VISIBILITY_CVAR), Some(2));
+    }
+
+    #[test]
+    fn unlocks_list_and_choose_one_on_japro_only() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        let catalog = catalog();
+        let mut table = CosmeticUnlockTable::default();
+        table.apply_payload(b"6:mp/ffa3:1:12500");
+        let japro = CompatProfile::TaystJk;
+        let server = Some((&japro, &table));
+        let args = |list: &[&str]| list.iter().map(|arg| (*arg).to_owned()).collect::<Vec<_>>();
+        let listed = run(&mut console, &catalog, server, &args(&["unlocks"])).unwrap();
+        assert_eq!(listed.len(), 7);
+        assert_eq!(listed[0], " 0 [ ] Santa hat");
+        assert_eq!(
+            listed[6],
+            " 6 [ ] Top hat ^3(requires mp/ffa3 jka in under 12.500 seconds)^7"
+        );
+        run(&mut console, &catalog, server, &args(&["unlocks", "6"])).unwrap();
+        assert_eq!(console.integer_cvar(UNLOCKS_CVAR), Some(64));
+        let listed = run(&mut console, &catalog, server, &args(&["unlocks"])).unwrap();
+        assert!(listed[6].starts_with(" 6 [X] Top hat"));
+        // Another one replaces it; the same one again takes it off.
+        run(&mut console, &catalog, server, &args(&["unlocks", "1"])).unwrap();
+        assert_eq!(console.integer_cvar(UNLOCKS_CVAR), Some(2));
+        run(&mut console, &catalog, server, &args(&["unlocks", "1"])).unwrap();
+        assert_eq!(console.integer_cvar(UNLOCKS_CVAR), Some(0));
+        assert!(run(&mut console, &catalog, server, &args(&["unlocks", "7"])).is_err());
+        let ja_plus = CompatProfile::JaPlus { version: None };
+        let other = run(
+            &mut console,
+            &catalog,
+            Some((&ja_plus, &table)),
+            &args(&["unlocks"]),
+        );
+        assert_eq!(other.unwrap(), ["This server has no cosmetic unlocks."]);
     }
 
     #[test]

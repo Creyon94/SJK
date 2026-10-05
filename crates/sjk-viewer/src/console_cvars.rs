@@ -376,6 +376,14 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             archive,
             "Display the Force Seeing aura shell on other players",
         ),
+        // jaPRO's player style bits; SJK reads only bit 21 (2097152), JoF EJK's
+        // seasonal cosmetics (`JAPRO_STYLE_SEASONALCOSMETICS`).
+        CvarDefinition::new(
+            crate::cosmetics::STYLE_CVAR,
+            0_i64,
+            archive,
+            "Player style bits (jaPRO); bit 21 (2097152): seasonal and jaPRO hats everywhere",
+        ),
         // JoF EJK's: 0 hides all hats and capes, 1 shows everyone's, 2 only yours.
         CvarDefinition::new(
             crate::cosmetics::VISIBILITY_CVAR,

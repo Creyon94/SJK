@@ -502,8 +502,23 @@ screen's Character page has Hat and Cape rows under its grid (None, then
 each installed piece). The menu stage model wears what `color1` and `color2`
 name, placed on the bolts of the pose it is skinned with like its hilts
 ([menu_stage/cosmetics.rs](../crates/sjk-viewer/src/menu_stage/cosmetics.rs)),
-unless `cg_cosmetics` is 0. Not done: the jaPRO race-unlock hats
-(`cp_cosmetics`, `cosmetics unlocks`) are not drawn.
+unless `cg_cosmetics` is 0.
+
+jaPRO's race-unlock hats are drawn as JoF EJK's `CG_Player` draws them: a
+player without a hat of their choosing (or one this client lacks) wears the
+hat their `c5` clientinfo grants, the lowest of its bits (Santa hat,
+Jack-o'-lantern, cap, fedora, Kringe Kap, sombrero, top hat, from
+`models/players/hats/`, without fitting offsets), on servers that are neither
+JA+ nor base. Bit 21 of `cg_stylePlayer` (2097152, jaPRO's
+`JAPRO_STYLE_SEASONALCOSMETICS`; SJK reads no other bit) draws them on those
+servers too and gives a player with no bits JoF's seasonal hat: a Santa hat
+from 22 November to 7 January and a pumpkin on 31 October, by local date.
+The player's own choice is `cp_cosmetics` (archived, userinfo), sent to
+TaystJK/jaPRO servers, which grant it against the unlocks earned:
+`cosmetics unlocks` lists the seven with the one worn and, where the server
+sent its unlock table, what each takes ("requires mp/ffa3 jka in under 12.500
+seconds"); `cosmetics unlocks <num>` wears that one alone, again takes it
+off. Other servers answer "This server has no cosmetic unlocks."
 
 ## Animation sounds and voice variants
 

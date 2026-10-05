@@ -802,6 +802,8 @@ test: Saber page: change the blade colour: color1 keeps the hat (e.g. 2santahat)
 test: JoF EJK client with a hat on the same local server: SJK shows it, right saber colour.
 test: Show Cosmetics: Only Me hides others', Off hides all; Remove All takes both off.
 test: ui_menuStyle modern: Player screen has Hat and Cape rows; the stage model wears them.
+test: On a local TaystJK/jaPRO server: cosmetics unlocks lists 7 hats; cosmetics unlocks 6.
+test: cg_stylePlayer 2097152, from 22 Nov to 7 Jan: hatless players wear a Santa hat (JA+ too).
 
 # ---- Merged upstream ----
 
