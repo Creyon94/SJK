@@ -1309,6 +1309,15 @@ EternalJK's name for `+button12`, the JA+/JaPRO grapple hook; on a JA+ server
 releasing it also taps `+use`, as EternalJK does. See
 [input.rs](../crates/sjk-viewer/src/input.rs).
 
+`flipkick` is JoF EJK's flip-kick bind: one press starts a run of jump taps, jump
+held in one user command and released in the next, overriding a held jump key and
+letting go of it when the run ends. EJK counts frames; SJK counts user commands
+(one every 25 ms), so `cg_fkDuration` (default 50) lasts 1.25 s here.
+`cg_fkFirstJumpDuration` holds the first jump for that many commands and
+`cg_fkSecondJumpDelay` starts the second jump at that command (both 0). A server
+forbids it with bit 7 (`RESTRICT_FLIPKICKBIND`) of serverinfo `restricts`. See
+[flip_kick.rs](../crates/sjk-viewer/src/input/flip_kick.rs).
+
 `serverconfig` lists a JA+ server's options from the `jp_cinfo` value in its
 serverinfo (flip kick, roll fix mode, DFA variants, kata, ledge grab, alternate
 dimension and the rest), as the JA+ client plugin and EternalJK print them

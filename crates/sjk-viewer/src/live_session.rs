@@ -197,6 +197,12 @@ impl GpuState {
             snapshot.player.selected_force_power(),
             self.pending_generic_command,
         );
+        let flip_kick = self
+            .console
+            .as_ref()
+            .map(crate::console::ViewerConsole::flip_kick_timing)
+            .unwrap_or_default();
+        self.gameplay_input.apply_flip_kick(&mut command, flip_kick);
         command.buttons = sjk_game_jka::pmove_talk::command_buttons(command.buttons, talking);
         // JoF EJK's Force wheel: a selected Stasis, Repulse or Dash takes `+useforce`.
         let known = snapshot.player.raw_field(51).unwrap_or(0);

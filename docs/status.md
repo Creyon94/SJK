@@ -415,6 +415,17 @@ keys, Shift, key repeat and focus loss; the locked workspace build and tests
 passed. No game was started: typing a code in the running client is unverified.
 Codes without a leading 0 always use code page 437, not the system OEM page.
 
+## Flip kick bind (SJK)
+
+SJK-only branch `personal/flipkick` (06/10/2026, based on `86ad1be`) ports JoF
+EJK's `flipkick` command and its `cg_fkDuration`, `cg_fkFirstJumpDuration` and
+`cg_fkSecondJumpDelay` cvars: one press starts a run of jump taps, stepped once
+per user command (EJK steps per frame), forbidden by serverinfo `restricts` bit 7.
+It is bindable in Controls > Movement. See [client.md](client.md) (`flipkick`).
+Unit tests cover the run (alternation, first-jump hold, second-jump delay,
+restart); the sjk-viewer tests and workspace clippy passed. No game was started:
+a flip kick on a live JA+ server is unverified.
+
 ## Force wheel (SJK)
 
 SJK-only branch `personal/force-wheel` (05/10/2026, based on `3f57938`) ports
