@@ -1026,6 +1026,15 @@ so melee now has no view model. A unit test checks melee has none and the stun
 baton keeps its model and three barrels; the locked workspace build and tests
 passed. No game was started: the first-person view is unverified on screen.
 
+## Readable `^0` text (SJK)
+
+SJK-only branch `personal/black-text` (05/10/2026, based on `3f57938`): `^0`
+text draws as a dark grey (0.3 display value) instead of pure black, so black
+parts of names and chat stay readable on dark backgrounds; every coloured-text
+path uses the one table (`quake_color`). Unit tests check the new value and that
+`^1`-`^9` are unchanged; the locked workspace build and tests passed. No game was
+started: how it looks on the console, chat and scoreboard is unverified.
+
 ## Outgoing text encoding (SJK)
 
 SJK-only branch `personal/legacy-text` (2026-10-05, based on `2696590`) sends
