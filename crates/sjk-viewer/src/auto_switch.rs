@@ -178,8 +178,5 @@ impl crate::GpuState {
     pub(crate) fn choose_auto_weapon(&mut self, weapon: u8) {
         self.selected_weapon = Some(weapon);
         self.weapon_selected_at = Some(std::time::Instant::now());
-        self.weapon_selection_label.clear();
-        self.weapon_selection_label
-            .push_str(crate::ingame_menu::weapon_name(weapon));
     }
 }

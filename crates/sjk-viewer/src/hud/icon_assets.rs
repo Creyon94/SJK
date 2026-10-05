@@ -4,8 +4,15 @@ use sjk_shader::ShaderCatalog;
 use sjk_ui::TextureId;
 use sjk_vfs::VirtualFileSystem;
 
-/// Existing item catalogue, then 43 cause-of-death cells, then two CTY flag variants.
-pub(super) const COUNT: usize = 96;
+/// Existing item catalogue, then 43 cause-of-death cells, then two CTY flag variants,
+/// then the weapon selection row's art: each weapon's `_na` (no ammo) icon and the
+/// staff and dual saber icons.
+pub(super) const COUNT: usize = 117;
+/// First of the 19 `_na` weapon icons, by weapon (`cgs.media.weaponIcons_NA`).
+pub(super) const EMPTY_WEAPONS: usize = 96;
+/// `cgs.media.weaponIconsStaff` and `weaponIconsAkimbo` (JoF EJK `cg_main.c`).
+pub(super) const SABER_STAFF: usize = 115;
+pub(super) const SABER_DUAL: usize = 116;
 
 /// Stock weapon ordinals -> existing bg_itemlist entries (bg_misc.c:1241-1619).
 pub(super) const WEAPONS: [usize; 19] = [
@@ -97,7 +104,17 @@ pub(super) fn load(
             0..=50 => items[slot].to_owned(),
             51..=93 => format!("hud/mod/{}", MOD_NAMES[slot - 51]),
             94 => "gfx/hud/mpi_rflag_ys".to_owned(),
-            _ => "gfx/hud/mpi_bflag_ys".to_owned(),
+            95 => "gfx/hud/mpi_bflag_ys".to_owned(),
+            EMPTY_WEAPONS..SABER_STAFF => {
+                let icon = items[WEAPONS[slot - EMPTY_WEAPONS]];
+                if icon.is_empty() {
+                    String::new()
+                } else {
+                    format!("{icon}_na")
+                }
+            }
+            SABER_STAFF => "gfx/hud/w_icon_saberstaff".to_owned(),
+            _ => "gfx/hud/w_icon_duallightsaber".to_owned(),
         };
         if name.is_empty() {
             return None;

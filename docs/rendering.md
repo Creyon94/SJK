@@ -1629,6 +1629,25 @@ which the retail and the checked custom HUDs do not use.
 the existing behavior, where `cg_classicHudFont` also selects the classic layout.
 JKR defaults to `modern`; SJK to `game`.
 
+With the game-data HUD, a weapon change shows retail's weapon selection row for
+1.4 s (`WEAPON_SELECT_TIME`), as `CG_DrawWeaponSelect` draws it and JoF EternalJK
+keeps it square on wide screens ([weapon_select.rs](../crates/sjk-viewer/src/weapon_select.rs)):
+the selected weapon's icon (80 units) between 40-unit icons 12 units apart, the
+centre at 320 and the icons at `y` 400 and 420 of 480, with Concussion between
+Flechette and Rocket, empty thermal detonators and trip mines left out, and an
+empty weapon drawn with its `_na` icon (the saber with its staff or dual icon).
+EternalJK's icons per side apply: 3 up to 16:10, 5 up to 16:9 and 7 wider, one
+more with the text HUD. The name is retail's (`SP_INGAME_<item>` from
+`strings/english/sp_ingame.str`, such as "E11-Blaster Rifle") in gold
+(0.875, 0.718, 0.121), `FONT_SMALL` at scale 1 with its baseline 6 units above
+the bottom (`ocr_a` with the game fonts on, otherwise the bundled font at that
+size). Units are those of the game HUD, `cg_hudScale` included, growing from the
+bottom centre. The row needs `cg_draw2D`, a living player who is not spectating,
+following or on an emplaced gun, and no held scoreboard; a Force or inventory
+cycle after it hides it, since `CG_Draw2D` shows only the most recent selector.
+SJK's own layouts keep their weapon-name widget instead of the row. Unlike
+retail, the name has SJK's text shadow.
+
 ## Billboard icons
 
 Frame billboard icons follow OpenJK's `RT_SPRITE` image orientation: texture v=0

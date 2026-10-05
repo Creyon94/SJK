@@ -15,8 +15,8 @@ pub(crate) const BANNER_SIZE: [u32; 2] = [1_536, 384];
 const BANNER_Y: u32 = ATLAS_HEIGHT - BANNER_SIZE[1];
 /// Original menu-cell reservation; HUD cells follow without reducing menu capacity.
 pub(crate) const ICON_CELLS: u32 = COLUMNS * ((ATLAS_SIZE - BANNER_SIZE[1]) / ICON_SIZE);
-/// HUD icon cells, right after the menu cells.
-const HUD_CELLS: u32 = 96;
+/// HUD icon cells, right after the menu cells (`hud::icons::assets::COUNT`).
+const HUD_CELLS: u32 = 117;
 /// First of the player screen's Force page cells, after the HUD cells, so the
 /// Force art never takes cells from the character grid.
 pub(crate) const FORCE_ICON_FIRST: u32 = ICON_CELLS + HUD_CELLS;

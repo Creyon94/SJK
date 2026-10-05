@@ -58,6 +58,7 @@ pub(crate) fn install(
     hud.icons.handles = assets::load(vfs, shaders, |id, rgba| {
         renderer.upload_icon(queue, id, rgba)
     });
+    hud.weapon_select = crate::weapon_select::State::load(vfs);
     (renderer, hud)
 }
 
@@ -78,6 +79,29 @@ pub(crate) struct Icons {
 }
 
 impl Icons {
+    /// The weapon selection row's icon of `weapon` (`weaponIcon` in JoF EJK's
+    /// `cg_weapons.c`): its `_na` icon when `empty`, else the staff or dual saber
+    /// icon for those `saber_style`s, else its own; a missing variant falls back
+    /// to the weapon's own icon.
+    pub(crate) fn weapon_select(
+        &self,
+        weapon: u8,
+        empty: bool,
+        saber_style: u8,
+    ) -> Option<TextureId> {
+        let own = *assets::WEAPONS.get(usize::from(weapon))?;
+        let variant = if empty {
+            assets::EMPTY_WEAPONS + usize::from(weapon)
+        } else if saber_style == crate::weapon_select::SS_STAFF {
+            assets::SABER_STAFF
+        } else if saber_style == crate::weapon_select::SS_DUAL {
+            assets::SABER_DUAL
+        } else {
+            own
+        };
+        self.handles[variant].or(self.handles[own])
+    }
+
     /// The loaded icon of timed powerup `power` (`PW_REDFLAG` is 4), if any.
     pub(crate) fn powerup(&self, power: usize) -> Option<TextureId> {
         let item = *assets::POWERS.get(power)?;

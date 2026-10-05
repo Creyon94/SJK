@@ -145,6 +145,8 @@ pub(crate) struct HudOverlay {
     style_value: String,
     /// HUD time of the last weapon change; drives the weapon-name fade.
     weapon_shown_ms: Option<u64>,
+    /// Retail's weapon selection row (`crate::weapon_select`) and its names.
+    pub(crate) weapon_select: crate::weapon_select::State,
     weapon_alpha: f32,
     team_revision: u64,
     team_side: u8,
@@ -201,6 +203,7 @@ impl HudOverlay {
             .and_then(|path| load_override(&path));
         Self {
             icons: icons::Icons::default(),
+            weapon_select: crate::weapon_select::State::new(),
             tints: tints::State::default(),
             guides: movement::Guides::default(),
             family: family::Policy::default(),
@@ -422,6 +425,11 @@ impl HudOverlay {
             self.icons
                 .emit(&mut self.draw_list, viewport, visibility, self.family.upper);
             self.guides.emit(&mut self.draw_list, viewport);
+        }
+        // CG_DrawWeaponSelect does not follow cg_drawHud: only the row's own
+        // conditions (`GpuState::sample_weapon_select`) decide.
+        if let Some(shown) = &self.weapon_select.shown {
+            crate::weapon_select::emit_icons(&mut self.draw_list, &self.icons, shown, viewport);
         }
         output
     }

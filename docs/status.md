@@ -689,6 +689,22 @@ bottom corners, the Radial HUD around the crosshair, over the retail `ffa3`
 levelshot. No client window was opened: the picker on screen, the preview
 texture upload and the live HUD switching are untested.
 
+## Weapon selection row (SJK)
+
+SJK-only branch `personal/weapon-select-style` (05/10/2026, based on `3f57938`):
+with the game-data HUD, a weapon change shows retail's `CG_DrawWeaponSelect` row
+as JoF EternalJK draws it (square icons, 3/5/7 per side by aspect ratio, `_na`
+and staff/dual saber icons, gold `SP_INGAME` name in `FONT_SMALL`, 1.4 s)
+instead of SJK's former name line (`^3`, 0.78 of the height down, 42.6 px at
+1080 lines, 2 s, no icons). See [game-data HUD](rendering.md#game-data-hud). Unit
+tests cover the row order (outward walk, wrap, Concussion between Flechette and
+Rocket, empty thermals and mines), the `_na` ammo test, icons per side at 4:3,
+16:10, 16:9 and 21:9, and the pixel geometry at 1080 and 2160 lines with
+`cg_hudScale`; offscreen snapshots (`menu_snapshot`, the bundled font) drew the
+row at 4:3 and 16:9 over a levelshot. The locked workspace build, tests and
+clippy passed. No game was started: the row in play, the `ocr_a` name and the
+row against a JoF EternalJK screenshot are unverified.
+
 ## Classic+ option panels and renderer page (SJK)
 
 SJK-only branch `personal/classic-plus` (2026-10-05, based on `7643ca4`) writes
