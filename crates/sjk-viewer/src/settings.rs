@@ -11,6 +11,7 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 mod catalog;
 mod classic_view;
 mod display;
+mod hud_picker;
 mod numeric;
 mod pointer;
 mod resolution;
@@ -128,6 +129,8 @@ pub(crate) struct SettingsMenu {
     choices: Vec<ResolutionChoice>,
     /// The resolution list, open over the form.
     picker: ResolutionPicker,
+    /// The HUD picker, open over the form.
+    hud: hud_picker::HudPicker,
     numeric: Option<crate::menu_widgets::numeric::NumericEdit>,
     /// Set while the screen is a classic option panel.
     classic: Option<ClassicRows>,
@@ -153,6 +156,7 @@ impl SettingsMenu {
             wants_monitor: false,
             choices: Vec::with_capacity(48),
             picker: ResolutionPicker::new(),
+            hud: hud_picker::HudPicker::default(),
             numeric: None,
             classic: None,
             ui: MenuCanvas::new(),
@@ -187,6 +191,7 @@ impl SettingsMenu {
         self.selected = 0;
         self.editing = None;
         self.picker.close();
+        self.hud.mark_stale();
         self.wants_monitor = true;
         self.numeric = None;
         self.classic = None;
@@ -328,6 +333,10 @@ impl SettingsMenu {
         let PhysicalKey::Code(key) = event.physical_key else {
             return SettingsResult::None;
         };
+        if self.hud.is_open() {
+            self.hud_picker_key(key, event.repeat, console);
+            return SettingsResult::None;
+        }
         if self.picker.is_open() {
             self.resolution_key(key, event.repeat, console);
             return SettingsResult::None;
@@ -432,6 +441,8 @@ impl SettingsMenu {
                         self.begin_text(console, self.selected);
                     } else if matches!(setting.kind, ValueKind::Resolution) {
                         self.open_resolutions(console);
+                    } else if matches!(setting.kind, ValueKind::HudPicker) {
+                        self.open_hud_picker(console);
                     } else if !self.begin_numeric(console, self.selected) {
                         self.adjust(console, 1);
                     }
@@ -471,6 +482,10 @@ impl SettingsMenu {
             }
             (ValueKind::Resolution, _) => {
                 self.step_resolution(console, direction);
+                return;
+            }
+            (ValueKind::HudPicker, _) => {
+                self.step_hud(console, direction);
                 return;
             }
             (ValueKind::DisplayMode, _) => {
@@ -558,10 +573,13 @@ impl SettingsMenu {
 
     fn refresh(&mut self, console: &ViewerConsole) {
         let display = DisplayMode::requested(console).effective(self.exclusive_available());
+        self.hud.read(console);
+        let hud = self.hud.label();
         self.values.clear();
         self.values
             .extend(self.rows().iter().map(|setting| match setting.kind {
                 ValueKind::DisplayMode => display.label().to_owned(),
+                ValueKind::HudPicker => hud.clone(),
                 ValueKind::Bool => toggle_text(console, setting.cvar),
                 _ => row_text(console, setting),
             }));
@@ -685,8 +703,11 @@ mod tests {
     fn every_row_names_a_registered_cvar_of_its_kind() {
         let (_directory, console) = console();
         for setting in rows() {
-            // Rows whose value is not one cvar's (resolution, display mode).
-            if matches!(setting.kind, ValueKind::Resolution | ValueKind::DisplayMode) {
+            // Rows whose value is not one cvar's (resolution, display mode, HUD).
+            if matches!(
+                setting.kind,
+                ValueKind::Resolution | ValueKind::DisplayMode | ValueKind::HudPicker
+            ) {
                 continue;
             }
             let value = console

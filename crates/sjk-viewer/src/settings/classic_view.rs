@@ -53,6 +53,10 @@ impl SettingsMenu {
         reveal: f32,
         frame: &PanelFrame,
     ) {
+        if self.hud.is_open() {
+            self.append_hud_picker(vertices, font, viewport, reveal, Some(frame.art));
+            return;
+        }
         let rows = self.row_span();
         let place = frame.begin(&mut self.ui, viewport, reveal);
         let visible = place.capacity();
@@ -105,9 +109,10 @@ impl SettingsMenu {
                         None => place.slider_value(&mut self.ui, slot, value, color),
                     }
                 }
-                ValueKind::Choice(_) | ValueKind::Resolution | ValueKind::DisplayMode => {
-                    place.value(&mut self.ui, slot, value, color)
-                }
+                ValueKind::Choice(_)
+                | ValueKind::Resolution
+                | ValueKind::DisplayMode
+                | ValueKind::HudPicker => place.value(&mut self.ui, slot, value, color),
                 ValueKind::Text => match self
                     .editing
                     .as_ref()

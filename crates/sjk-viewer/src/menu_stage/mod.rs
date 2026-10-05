@@ -95,6 +95,8 @@ impl GpuState {
             &mut self.ui_shapes,
             &self.device,
             &self.queue,
+            self.vfs.as_ref(),
+            &self.shaders,
         );
         // Last frame's preview, if any, is what the profile can show now.
         let ready = self.menu_stage.preview_ready();

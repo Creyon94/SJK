@@ -803,6 +803,20 @@ test: JoF EJK client with a hat on the same local server: SJK shows it, right sa
 test: Show Cosmetics: Only Me hides others', Off hides all; Remove All takes both off.
 test: ui_menuStyle modern: Player screen has Hat and Cape rows; the stage model wears them.
 
+[hud-picker]
+status: personal
+area: HUD
+title: HUD picker with previews; the classic (game) HUD is the default
+change: Settings > HUD > HUD look: Left/Right step HUDs, Enter opens the picker with a preview.
+change: Lists Jedi Academy, each pk3 with ui/hud.menu, HUD lists, Text only, SJK classic/modern.
+change: cg_hudPack uses one pk3's HUD over later packs; new configs start on cg_hudStyle game.
+test: Setup > HUD: HUD look reads TheRisqe Radial HUD (yours is installed last).
+test: Enter: the list, a picture of the highlighted HUD; move with arrows/mouse, pictures change.
+test: Pick Jedi Academy: in a match the original HUD shows, Radial still installed.
+test: Pick Text only, then SJK classic, SJK modern: each shows in game; Escape changes nothing.
+test: Same from the in-game Setup (Escape > Setup > HUD) over the match.
+note: Your config.cfg keeps cg_hudStyle modern; only new configs start on the game HUD.
+
 # ---- Merged upstream ----
 
 [console-chat-history]

@@ -811,13 +811,31 @@ allocated per frame; the text and draw storage is reserved for 32 clients.
 
 ## HUD style
 
-Settings > HUD > "HUD style" (`cg_hudStyle`) chooses JKR's `modern` or `classic`
-layout or `game`, the status HUD of the game's own menu files: the original Jedi
-Academy HUD, or a custom HUD pack that replaces `ui/hud.menu`. "Game HUD files"
-(`cg_hudFiles`) names the menu list, `ui/jahud.txt` by default; `1` gives the
-text-only HUD and EternalJK's `3`/`4` name its elegance and JoF HUD lists when
-those files are installed. See
-[game-data HUD](rendering.md#game-data-hud) for what is drawn.
+`cg_hudStyle` chooses `game`, the status HUD of the game's own menu files (the
+original Jedi Academy HUD, or a custom HUD pack that replaces `ui/hud.menu`),
+or SJK's own `modern` or `classic` layout. SJK starts on `game`, the classic
+HUD; JKR's default is `modern`, and a saved `cg_hudStyle` is kept. `cg_hudFiles`
+names the menu list, `ui/jahud.txt` by default; `1` gives the text-only HUD and
+EternalJK's `3`/`4` name its elegance and JoF HUD lists when those files are
+installed. `cg_hudPack` names the PK3 whose HUD to use when several replace
+`ui/hud.menu` (`assets1.pk3` is the original); empty, the one installed last
+wins, as in the game. See [game-data HUD](rendering.md#game-data-hud) for what
+is drawn.
+
+Settings > HUD > "HUD look" shows the HUD in use; Left and Right step through
+every HUD that can be used and Enter (or a click) opens the HUD picker
+([hud_picker.rs](../crates/sjk-viewer/src/settings/hud_picker.rs)): the list on
+the left, a picture of the highlighted HUD on the right, drawn for a sample
+player over a retail levelshot, and its PK3 or list file under it, the HUD in
+use marked. The list holds each installed PK3 that ships `ui/hud.menu` in
+install order (the game's own archives as "Jedi Academy", others by file name
+without a `zz_` load-order prefix), every other `ui/*hud*.txt` list that
+describes a HUD, the text-only HUD, and SJK's classic and modern layouts, which
+have a note instead of a picture. Arrows, the wheel or the pointer highlight;
+Enter or a click uses the HUD and closes; Escape closes. The picker takes
+retail's colours and highlight art on the classic menus and the theme's on the
+modern ones. "Game HUD files" stays on the tab for lists the picker does not
+find.
 
 ## Configuration and content
 

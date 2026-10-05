@@ -230,6 +230,23 @@ impl VirtualFileSystem {
             }))
     }
 
+    /// This file system without the mounts in `hidden`: what reads would see had
+    /// they never been mounted. The other sources are shared, not reopened, and
+    /// keep their cache identities.
+    pub fn without_mounts(&self, hidden: &[MountId]) -> Self {
+        Self {
+            mounts: self
+                .mounts
+                .iter()
+                .filter(|mount| !hidden.contains(&mount.id))
+                .cloned()
+                .collect(),
+            next_mount_id: self.next_mount_id,
+            max_asset_bytes: self.max_asset_bytes,
+            read_diagnostics: self.read_diagnostics,
+        }
+    }
+
     pub fn mounts(&self) -> impl DoubleEndedIterator<Item = MountSummary> + '_ {
         self.mounts.iter().map(|mount| MountSummary {
             id: mount.id,
@@ -777,5 +794,36 @@ mod original_name_tests {
             Some("forcecfg/light/^2Side Mission.fcf")
         );
         assert_eq!(vfs.original_name("forcecfg/light/none.fcf"), None);
+    }
+}
+
+#[cfg(test)]
+mod without_mounts_tests {
+    use super::*;
+
+    #[test]
+    fn hidden_mounts_are_skipped_and_the_rest_keep_their_order() {
+        let mut vfs = VirtualFileSystem::new();
+        let base = vfs
+            .mount_memory("base", [("ui/hud.menu", b"base".to_vec())])
+            .unwrap();
+        let pack = vfs
+            .mount_memory("pack", [("ui/hud.menu", b"pack".to_vec())])
+            .unwrap();
+        let read = |vfs: &VirtualFileSystem| vfs.read("ui/hud.menu").unwrap().unwrap().bytes;
+        assert_eq!(read(&vfs), b"pack");
+        let view = vfs.without_mounts(&[pack]);
+        assert_eq!(read(&view), b"base");
+        assert_eq!(
+            view.mounts().map(|mount| mount.id).collect::<Vec<_>>(),
+            [base]
+        );
+        assert_eq!(read(&vfs), b"pack", "the original keeps every mount");
+        assert!(
+            vfs.without_mounts(&[base, pack])
+                .read("ui/hud.menu")
+                .unwrap()
+                .is_none()
+        );
     }
 }

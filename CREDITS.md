@@ -82,6 +82,8 @@ Changes that stay in SJK, by Sol:
 - the classic profile's Force page and Force summary, and hats and capes after
   JoF EJK's (the Cosmetics window, the `cosmetics` command and the pieces drawn
   on players);
+- the game-data (retail) HUD as the default, and the HUD picker with previews
+  of every installed HUD (`cg_hudPack`);
 - the `debug_panel` console command, an in-game checklist of the changes in a
   build and how to test them.
 

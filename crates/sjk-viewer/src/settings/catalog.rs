@@ -37,6 +37,9 @@ pub(super) enum ValueKind {
     Resolution,
     /// `r_fullscreen` with `r_exclusiveFullscreen`, as named modes.
     DisplayMode,
+    /// The HUD in use (`cg_hudStyle`, `cg_hudFiles`, `cg_hudPack`): steps
+    /// through the HUDs, Enter opens the HUD picker with its previews.
+    HudPicker,
 }
 
 #[derive(Clone, Copy)]
@@ -240,9 +243,9 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
-        label: "HUD style",
+        label: "HUD look (Enter: pick)",
         cvar: crate::menu_hud::STYLE_CVAR,
-        kind: ValueKind::Choice(&crate::menu_hud::HudStyle::NAMES),
+        kind: ValueKind::HudPicker,
     },
     Setting {
         label: "Game HUD files",

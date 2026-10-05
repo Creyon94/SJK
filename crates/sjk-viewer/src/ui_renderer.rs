@@ -20,6 +20,9 @@ pub(crate) use levelshot::LEVELSHOT_TEXTURE;
 /// `TexturedQuad` texture naming the classic profile's model preview
 /// (`menu_stage::preview`), bound by [`ShapeRenderer::set_preview`].
 pub(crate) const PREVIEW_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(u32::MAX - 2);
+/// `TexturedQuad` texture naming the settings' HUD picker preview, uploaded by
+/// [`ShapeRenderer::upload_hud_preview`].
+pub(crate) const HUD_PREVIEW_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(u32::MAX - 3);
 use levelshot::LevelshotTexture;
 
 /// Main-menu wordmark: the Jedi Knight saber emblem laid horizontal, white
@@ -94,6 +97,8 @@ pub(crate) struct ShapeRenderer {
     emblem: EmblemTextures,
     /// The current map preview at its own resolution.
     levelshot: LevelshotTexture,
+    /// The HUD picker's preview of the highlighted HUD.
+    hud_preview: LevelshotTexture,
     /// The model preview's display texture, once one exists.
     preview: Option<wgpu::BindGroup>,
     preview_sampler: wgpu::Sampler,
@@ -175,6 +180,7 @@ impl ShapeRenderer {
         });
         let icons = IconAtlas::new(device, &texture_layout);
         let levelshot = LevelshotTexture::new(device, &texture_layout);
+        let hud_preview = LevelshotTexture::new(device, &texture_layout);
         match image::load_from_memory(MENU_WORDMARK) {
             Ok(wordmark) => icons.upload_banner(queue, &wordmark.into_rgba8()),
             Err(error) => eprintln!("menu wordmark: {error}"),
@@ -190,6 +196,7 @@ impl ShapeRenderer {
             art: ArtTextures::new(),
             emblem: EmblemTextures::new(),
             levelshot,
+            hud_preview,
             preview: None,
             preview_sampler: device.create_sampler(&wgpu::SamplerDescriptor {
                 label: Some("SJK model preview sampler"),
@@ -360,6 +367,7 @@ impl ShapeRenderer {
                         Source::Art(_)
                         | Source::Emblem(_)
                         | Source::Levelshot
+                        | Source::HudPreview
                         | Source::Preview => ([0.0, 0.0], [1.0, 1.0]),
                         Source::Atlas => icons::uv_range(texture),
                     };
@@ -389,6 +397,7 @@ impl ShapeRenderer {
                         Source::Art(_)
                         | Source::Emblem(_)
                         | Source::Levelshot
+                        | Source::HudPreview
                         | Source::Preview => uv,
                         Source::Atlas => {
                             let (low, high) = icons::uv_range(texture);
@@ -437,6 +446,7 @@ impl ShapeRenderer {
             }
             Some(_) => return None,
             None if texture == LEVELSHOT_TEXTURE => Source::Levelshot,
+            None if texture == HUD_PREVIEW_TEXTURE => Source::HudPreview,
             None if texture == PREVIEW_TEXTURE => match self.preview {
                 Some(_) => Source::Preview,
                 None => return None,
@@ -476,6 +486,7 @@ impl ShapeRenderer {
                 Source::Art(piece) => self.art.group(piece),
                 Source::Emblem(layer) => self.emblem.group(layer),
                 Source::Levelshot => Some(self.levelshot.bind_group()),
+                Source::HudPreview => Some(self.hud_preview.bind_group()),
                 Source::Preview => self.preview.as_ref(),
                 Source::Atlas => None,
             };
@@ -601,6 +612,18 @@ impl ShapeRenderer {
         image: &crate::menu::levelshot::LevelshotImage,
     ) {
         self.levelshot
+            .upload(device, queue, &self.texture_layout, image);
+    }
+
+    /// Replace the HUD picker's preview sampled by `TexturedQuad` commands
+    /// naming [`HUD_PREVIEW_TEXTURE`] with `image`.
+    pub(crate) fn upload_hud_preview(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &crate::frame_queue::FrameQueue,
+        image: &crate::menu::levelshot::LevelshotImage,
+    ) {
+        self.hud_preview
             .upload(device, queue, &self.texture_layout, image);
     }
 }

@@ -274,6 +274,8 @@ pub(super) enum Source {
     Levelshot,
     /// The classic profile's model preview.
     Preview,
+    /// The settings' HUD picker preview.
+    HudPreview,
 }
 
 impl Source {

@@ -10,6 +10,10 @@ impl SettingsMenu {
         event: InputEvent,
         console: &mut ViewerConsole,
     ) -> SettingsResult {
+        if self.hud.is_open() {
+            self.hud_picker_pointer(event, console);
+            return SettingsResult::None;
+        }
         if self.picker.is_open() {
             self.resolution_pointer(event, console);
             return SettingsResult::None;
@@ -110,6 +114,8 @@ impl SettingsMenu {
                         self.begin_text(console, row);
                     } else if matches!(setting.kind, ValueKind::Resolution) {
                         self.open_resolutions(console);
+                    } else if matches!(setting.kind, ValueKind::HudPicker) {
+                        self.open_hud_picker(console);
                     } else if let Some(position) = event.position {
                         if !self.set_numeric_from_pointer(console, row, position.x) {
                             let direction = self.click_direction(setting.kind, row, position.x);
