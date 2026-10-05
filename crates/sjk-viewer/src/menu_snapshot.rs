@@ -502,6 +502,120 @@ fn menu_snapshot() {
     in_game_menu(&shots, art);
     weapon_select(&mut shots, &vfs);
     force_wheel(&mut shots, &vfs);
+    classic_profile(&mut shots, &vfs, art);
+}
+
+/// The classic profile pages (`player_menu::classic`) on both frames: the
+/// profile page with its bars and Apply, character creation, cosmetics, and the
+/// Force page on both sides focused on the side column's last powers, for a
+/// dark-side Jedi Master who has spent every point with Dark Rage and Team
+/// Energize at level 0 (an owner's profile).
+fn classic_profile(shots: &mut Snapshot, vfs: &Arc<sjk_vfs::VirtualFileSystem>, art: ArtSet) {
+    use crate::player_menu::{PlayerMenu, ReturnTarget};
+    let profile = tempfile::tempdir().expect("scratch profile");
+    let mut console =
+        crate::console::ViewerConsole::new(profile.path().join("config.cfg")).expect("console");
+    console.set_cvar("forcepowers", "7-2-031330310000030333");
+    let pages: [(&str, &str, bool, Option<u8>, ReturnTarget); 10] = [
+        (
+            "profile-player",
+            "player",
+            false,
+            None,
+            ReturnTarget::MainMenu,
+        ),
+        (
+            "profile-player-ingame",
+            "player",
+            false,
+            None,
+            ReturnTarget::InGame,
+        ),
+        (
+            "profile-character",
+            "character",
+            false,
+            None,
+            ReturnTarget::MainMenu,
+        ),
+        (
+            "profile-character-ingame",
+            "character",
+            false,
+            None,
+            ReturnTarget::InGame,
+        ),
+        (
+            "profile-cosmetics",
+            "cosmetics",
+            false,
+            None,
+            ReturnTarget::MainMenu,
+        ),
+        (
+            "profile-cosmetics-ingame",
+            "cosmetics",
+            false,
+            None,
+            ReturnTarget::InGame,
+        ),
+        (
+            "profile-force-dark",
+            "force",
+            true,
+            Some(8),
+            ReturnTarget::MainMenu,
+        ),
+        (
+            "profile-force-dark-ingame",
+            "force",
+            true,
+            Some(12),
+            ReturnTarget::InGame,
+        ),
+        (
+            "profile-force-light",
+            "force",
+            false,
+            Some(11),
+            ReturnTarget::MainMenu,
+        ),
+        (
+            "profile-force-light-ingame",
+            "force",
+            false,
+            Some(5),
+            ReturnTarget::InGame,
+        ),
+    ];
+    for (name, page, dark, focus, target) in pages {
+        let mut menu = PlayerMenu::new();
+        menu.attach_catalogue(Arc::clone(vfs));
+        menu.set_style(true, art);
+        menu.open(&console, target);
+        for (texture, paths) in menu.snapshot_page(page, dark) {
+            if let Some(image) = paths.iter().find_map(|path| decode(vfs, path)) {
+                shots.icons.insert(texture.0, image);
+            }
+        }
+        if let Some(power) = focus {
+            menu.snapshot_focus_power(power);
+        }
+        let mut vertices = Vec::new();
+        menu.append(&mut vertices, &shots.font.font, VIEWPORT, 1.0);
+        println!(
+            "{name}: {} of {} draws, {} widgets",
+            menu.draw_list().len(),
+            menu.draw_list().limit(),
+            menu.snapshot_widgets()
+        );
+        shots.save(
+            name,
+            menu.draw_list(),
+            &vertices,
+            target == ReturnTarget::InGame,
+        );
+    }
 }
 
 /// The weapon selection row (`crate::weapon_select`) over the match, before (SJK's

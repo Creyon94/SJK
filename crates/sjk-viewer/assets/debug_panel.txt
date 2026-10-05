@@ -899,6 +899,20 @@ test: In game (Escape > Profile): Force button in The Force box opens the window
 test: Profile page: click a head tile, a part, a tint, a hilt or a blade swatch: that one is picked.
 note: Was: clicking a cell picked the next entry instead (the list's own region was on top).
 
+[profile-force-readable]
+status: personal
+area: Menus & settings
+title: Force page: every holocron and star readable; profile bars and Apply aligned
+change: A power you can buy shows its holocron whole, bought or not (Dark Rage at level 0).
+change: Team powers outside team games: holocron and stars in a readable grey, not near-black.
+change: Character Model, The Force and Saber bars flush on their boxes; in-game Apply centred.
+test: Profile > Force on the dark side: Dark Rage and Team Energize show holocron and 3 stars.
+test: Hover Dark Rage and Team Energize: the panel shows the big holocron and the costs.
+test: Team Energize in FFA: grey but readable, the panel says Team games only.
+test: Profile page (main menu and in game): bars flush with their frames, titles centred.
+test: In game: Apply sits in the middle of the bottom bar, level with the description line.
+note: With all 100 points spent, Dark Rage cannot be raised until another power is lowered.
+
 [force-wheel]
 status: personal
 area: HUD

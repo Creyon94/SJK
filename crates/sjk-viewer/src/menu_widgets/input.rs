@@ -65,6 +65,18 @@ impl MenuCanvas {
         self.interactive(token, rect, false, true);
     }
 
+    /// Pointer widgets registered this frame (snapshots check the cap).
+    #[cfg(test)]
+    pub(crate) fn widget_count(&self) -> usize {
+        self.tokens.len()
+    }
+
+    /// The tokens registered this frame, in order (snapshots).
+    #[cfg(test)]
+    pub(crate) fn widget_tokens(&self) -> &[MenuToken] {
+        &self.tokens
+    }
+
     pub(crate) fn hit_region(&mut self, token: MenuToken, rect: Rect) {
         self.interactive(token, rect, true, false);
     }

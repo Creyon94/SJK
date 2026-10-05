@@ -548,6 +548,55 @@ impl PlayerMenu {
     }
 }
 
+/// Menu snapshots (`menu_snapshot`) show a classic page without a running
+/// client: the page by name, the Force side, and every Force icon counted as
+/// uploaded. Returns the Force icons' atlas cells and the files to draw in them.
+#[cfg(test)]
+impl PlayerMenu {
+    pub(crate) fn snapshot_page(
+        &mut self,
+        page: &str,
+        dark: bool,
+    ) -> Vec<crate::player_menu::icons::IconRequest> {
+        let page = match page {
+            "force" => ClassicPage::Force,
+            "saber" => ClassicPage::Saber,
+            "character" => ClassicPage::Character,
+            "cosmetics" => ClassicPage::Cosmetics,
+            _ => ClassicPage::Player,
+        };
+        self.show_classic(page);
+        if page == ClassicPage::Force {
+            self.choose_side(if dark {
+                ForceSide::Dark
+            } else {
+                ForceSide::Light
+            });
+        }
+        let requests = super::force_icons::requests();
+        for (texture, _) in &requests {
+            self.force_icons.mark_ready(*texture);
+        }
+        requests
+    }
+
+    /// Pointer widgets the last frame registered.
+    pub(crate) fn snapshot_widgets(&self) -> usize {
+        self.canvas.widget_count()
+    }
+
+    /// Focus the Force page's row of power `index`, as a pointer hover would.
+    pub(crate) fn snapshot_focus_power(&mut self, index: u8) {
+        if let Some(at) = self
+            .classic_items()
+            .iter()
+            .position(|item| *item == Item::Power(index))
+        {
+            self.classic.focus = at;
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::layout::{Item, items};

@@ -114,6 +114,10 @@ The classic main menu has the retail pages, entries and order:
     ignoring case, with the count at the field's end; Enter or a click
     elsewhere keeps the search, Escape clears it, and it is cleared when the
     screen opens. The description line names the model under the pointer.
+    Retail's Character Model, The Force and Saber bars overhung their boxes by
+    two units (the in-game one also stood above its box with its title off
+    centre); SJK sets each flush on its box with the title centred, and the
+    in-game APPLY on the bottom band it sits on.
   - Character creation: species, skin tint swatches, the Head, Torso and Legs
     lists, Back and APPLY. Entering it from an ordinary character puts on the
     first species, as retail's Custom did.
@@ -134,7 +138,10 @@ The classic main menu has the retail pages, entries and order:
     Template write the draft to `forcecfg/<side>/<name>.fcf` in the client's
     user folder (beside `config.cfg`). The window is as wide as the in-game
     profile. SJK lays the powers out in two columns, the neutral powers over the saber skills and the chosen
-    side's five beside them, each with its holocron (`gfx/mp/f_icon_*`), and
+    side's five beside them, each with its holocron (`gfx/mp/f_icon_*`), whole
+    whenever the power can be bought (a team power outside team games, or
+    Saber Defend or Throw without Attack, keeps its holocron at 55% and its
+    stars a readable grey, where retail's near-black hid their costs), and
     adds Light and Dark cards with the side emblems, a points meter that shows
     a hovered star's price (red when the points left cannot pay it) and a
     panel for the hovered or focused power: its holocron, level, the next

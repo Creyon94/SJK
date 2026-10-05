@@ -449,6 +449,25 @@ of a JoF clientinfo, the installed-piece scan (new and old folders), the
 change's author: the pages' look, a piece's fit on a model and other clients
 seeing it are untested.
 
+## Classic profile Force page readability and bars (SJK)
+
+SJK-only branch `personal/profile-force-fixes` (05/10/2026, based on `af2656f`).
+Sol reported Dark Rage and Team Energize without holocrons or visible costs on the
+Force page. With Sol's profile (`7-2-031330310000030333`: dark side, all 100 points
+spent, both powers at level 0, a free-for-all) the menu snapshot showed both rows
+drawn but faded: an unbought holocron at 60% (dark red on the dark window), and Team
+Energize, a team power outside team games, at 25% with retail's 0.2-grey stars. No
+draw, text or pointer cap is reached (138 of 512 draws and 81 of 96 pointer widgets
+with retail's 14 templates listed). A power that can be bought now shows its holocron
+whole, bought or not; one that cannot keeps its holocron at 55% and its stars a 0.55
+grey. The profile's Character Model, The Force and Saber bars sit flush on their boxes
+with centred titles (retail's overhung them), and the in-game APPLY is centred on its
+band. Unit tests draw the Force page on both frames and sides for that profile and
+check every row's holocron opacity, all 39 stars readable and pointable, the detail
+panel's holocron for the two powers, and draw-list headroom; the menu snapshot now
+draws the profile pages and the Force page. Not seen in the client: whether the
+in-game renderer showed the same faded rows Sol saw is inferred, not reproduced.
+
 ## Model grid icons and search (SJK)
 
 SJK-only branch `personal/model-grid` (2026-10-05, based on `0fc6e24`): the

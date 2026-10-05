@@ -594,7 +594,9 @@ pub(crate) fn rect(item: Item, page: ClassicPage, frame: Frame, dual: bool) -> [
         (InGame, Player, Item::CosmeticsButton) => [425.0, 250.0, 160.0, 26.0],
         (_, Player, Item::SaberButton) => [465.0, 322.0, 75.0, 75.0],
         (Full, Player, Item::Apply) => [455.0, 444.0, 130.0, 24.0],
-        (InGame, Player, Item::Apply) => [5.0, 412.0, 105.0, 28.0],
+        // Retail's 32-unit button (`5 412 105 32`) began above the 20-unit band
+        // (`0 420 600 20`) it sits on, so its word hung high; centred on the band.
+        (InGame, Player, Item::Apply) => [5.0, 420.0, 105.0, 20.0],
         // player2.menu / ingame_player2.menu
         (Full, Character, Item::Species) => [176.0, 92.0, 150.0, 16.0],
         (InGame, Character, Item::Species) => [161.0, 52.0, 150.0, 16.0],
