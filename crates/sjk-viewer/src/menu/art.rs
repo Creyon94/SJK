@@ -169,6 +169,11 @@ pub(crate) enum ArtPiece {
     ForceCircle6,
     ForceCircle7,
     ForceCircle8,
+    /// `gfx/hud/mpi_rflag`: the red team's flag, beside Team Red in the
+    /// in-game Join pop-up (classic+).
+    RedFlag,
+    /// `gfx/hud/mpi_bflag`: the blue team's flag, beside Team Blue.
+    BlueFlag,
 }
 
 /// The stars of [`ArtPiece::force_level`], by cost.
@@ -205,7 +210,7 @@ impl ArtPiece {
     }
 
     /// Every piece, in [`ArtPiece`] order.
-    pub(crate) const ALL: [Self; 60] = [
+    pub(crate) const ALL: [Self; 62] = [
         Self::Background,
         Self::SideLeft,
         Self::SideRight,
@@ -266,6 +271,8 @@ impl ArtPiece {
         Self::ForceCircle6,
         Self::ForceCircle7,
         Self::ForceCircle8,
+        Self::RedFlag,
+        Self::BlueFlag,
     ];
     pub(crate) const COUNT: usize = Self::ALL.len();
 
@@ -331,6 +338,8 @@ impl ArtPiece {
             Self::ForceCircle6 => "gfx/menus/forcecircle6",
             Self::ForceCircle7 => "gfx/menus/forcecircle7",
             Self::ForceCircle8 => "gfx/menus/forcecircle8",
+            Self::RedFlag => "gfx/hud/mpi_rflag",
+            Self::BlueFlag => "gfx/hud/mpi_bflag",
         }
     }
 

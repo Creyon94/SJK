@@ -36,6 +36,10 @@ impl SettingsMenu {
                 "SJK   /   RENDERER",
                 "Saved immediately; (restart) rows apply after restarting.",
             ),
+            Section::Group(_) => (
+                "SJK   /   SETTINGS",
+                "Changes apply immediately and are saved.",
+            ),
         };
         let tabs = self.tabs();
         self.ui.form_header(&layout, title, tabs[self.tab], note);

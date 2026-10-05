@@ -8,6 +8,7 @@
 
 use super::ClientMenu;
 use super::art::{self, ArtSet};
+use crate::console::ViewerConsole;
 
 /// Archived cvar naming the menu style.
 pub(crate) const CVAR: &str = "ui_menuStyle";
@@ -44,14 +45,16 @@ impl ClientMenu {
     /// Apply the player's `ui_menuStyle`. A change puts the main menu back on
     /// its first page and entry, since selections do not carry across
     /// layouts.
-    pub(crate) fn set_menu_style(&mut self, style: MenuStyle) {
+    pub(crate) fn set_menu_style(&mut self, style: MenuStyle, console: &ViewerConsole) {
         if style != self.menu_style {
             self.menu_style = style;
             self.main_selection = 0;
             self.classic.reset();
             // An open option panel carries on as the modern screen (the
-            // Menu style row itself sits on the Game Options panel).
+            // Menu style row itself sits on the Interface panel), on the tab
+            // holding the row.
             self.leave_classic_panel();
+            self.settings.continue_modern(console);
         }
     }
 
@@ -85,7 +88,7 @@ impl crate::GpuState {
         }
         let art = self.ui_shapes.menu_art();
         if let Some(menu) = &mut self.client_menu {
-            menu.set_menu_style(style);
+            menu.set_menu_style(style, console);
             menu.set_menu_art(art);
         }
         self.in_game_menu.set_style(style, art);

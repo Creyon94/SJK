@@ -376,7 +376,9 @@ impl PlayerMenu {
     }
 
     /// The holocrons of every power with a level, in the Force page's
-    /// order, each with a pip per level under it.
+    /// order, each with a pip per level under it. A Jedi knowing more powers
+    /// than fit at full size gets smaller holocrons rather than a missing
+    /// one.
     fn holocron_strip(&mut self, place: &Placement, canvas: [f32; 4]) {
         let [x, y, w, h] = canvas;
         let levels = self.force.allocation().levels;
@@ -390,25 +392,22 @@ impl PlayerMenu {
             .chain(&layout::SABER_POWERS)
             .map(|power| usize::from(*power))
             .filter(|power| levels[*power] > 0);
-        let step = h + 3.0;
+        let [step, size] = strip_fit(order.clone().count(), w, h);
         for (slot, power) in order.enumerate() {
             let left = x + slot as f32 * step;
-            if left + h > x + w {
-                break;
-            }
             let icon = crate::player_menu::force_icons::power_texture(power);
             if self.force_icons.is_texture_ready(icon) {
                 let _ = self.canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
-                    rect: place.rect([left, y, h, h]),
+                    rect: place.rect([left, y, size, size]),
                     texture: icon,
                     color: FOCUS,
                 });
             }
             for pip in 0..levels[power] {
-                let pip_x = left + 2.0 + f32::from(pip) * (h - 4.0) / 3.0;
+                let pip_x = left + 2.0 + f32::from(pip) * (size - 4.0) / 3.0;
                 self.fill(
                     place,
-                    [pip_x, y + h + 2.0, (h - 4.0) / 3.0 - 1.0, 2.0],
+                    [pip_x, y + size + 2.0, (size - 4.0) / 3.0 - 1.0, 2.0],
                     Color::new(1.0, 0.682, 0.0, 0.9),
                 );
             }
@@ -1564,4 +1563,29 @@ fn line_rect(place: &Placement, canvas: [f32; 4], size: f32) -> Rect {
 /// already on it).
 fn place_in(page: ClassicPage, frame: Frame, canvas: [f32; 4]) -> [f32; 4] {
     place(page, frame, canvas)
+}
+
+/// The step and side of `count` holocrons in a strip `w` wide and `h` high:
+/// full size with a 3-unit gap, or the step that fills the width with the
+/// gap shrunk in proportion.
+fn strip_fit(count: usize, w: f32, h: f32) -> [f32; 2] {
+    // The gap is the step's last 3/(h+3): `count` steps less one gap fill w.
+    let gap_share = 3.0 / (h + 3.0);
+    let step = (h + 3.0).min(w / (count.max(1) as f32 - gap_share));
+    [step, step * (1.0 - gap_share)]
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_known_holocron_fits_its_strip() {
+        // Thirteen powers (neutral, one side's, saber) in the full-screen
+        // profile's strip shrink; a short list keeps full size.
+        let [step, size] = strip_fit(13, 182.0, 12.0);
+        assert!(12.0 * step + size <= 182.0 + 0.01);
+        assert!(size > 10.0);
+        assert_eq!(strip_fit(4, 182.0, 12.0), [15.0, 12.0]);
+    }
 }

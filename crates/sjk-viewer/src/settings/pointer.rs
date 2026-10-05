@@ -2,7 +2,7 @@
 
 use super::*;
 use crate::menu_widgets::cycler_direction;
-use sjk_ui::{InputEvent, UiEventKind};
+use sjk_ui::{InputEvent, PointerButton, UiEventKind};
 
 impl SettingsMenu {
     pub(crate) fn handle_pointer(
@@ -18,6 +18,13 @@ impl SettingsMenu {
             self.resolution_pointer(event, console);
             return SettingsResult::None;
         }
+        let secondary = matches!(
+            event,
+            InputEvent::PointerRelease {
+                button: PointerButton::Secondary,
+                ..
+            }
+        );
         let Some(event) = self.ui.pointer(event) else {
             return SettingsResult::None;
         };
@@ -29,6 +36,14 @@ impl SettingsMenu {
                 UiEventKind::Activate if self.classic.is_some() => SettingsResult::Classic(slot),
                 _ => SettingsResult::None,
             };
+        }
+        // Classic+: the right button returns a row to its default.
+        if secondary && event.kind == UiEventKind::Click && self.classic.is_some() {
+            if let Some(row) = self.setting_row(token) {
+                self.selected = row;
+                self.reset_to_default(console, row);
+            }
+            return SettingsResult::None;
         }
         if event.kind == UiEventKind::Press {
             // SJK: pressing anything but the draft's own value field applies it.

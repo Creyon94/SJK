@@ -85,8 +85,9 @@ pub(crate) fn attach_world(
 }
 
 /// Feed decoded menu images to the UI renderer while their screen is up: the
-/// player screen's model icons, Create game's map preview, the HUD picker's
-/// preview (drawn from `vfs` and `shaders`, the files the HUD reads).
+/// player screen's model icons, the key bindings' pictures, Create game's map
+/// preview, the HUD picker's preview (drawn from `vfs` and `shaders`, the
+/// files the HUD reads).
 pub(crate) fn upload_menu_images(
     menu: &mut Option<ClientMenu>,
     renderer: &mut crate::ui_renderer::ShapeRenderer,
@@ -98,6 +99,7 @@ pub(crate) fn upload_menu_images(
     let Some(menu) = menu else { return };
     match menu.state.phase() {
         ClientPhase::Player => menu.player.upload_icons(renderer, queue),
+        ClientPhase::Keybinds => menu.keybinds.upload_icons(renderer, queue),
         ClientPhase::Settings => menu.settings.service_hud_picker(vfs, shaders, |image| {
             renderer.upload_hud_preview(device, queue, image);
         }),
@@ -536,6 +538,18 @@ impl ClientMenu {
                     self.reopen_classic_panel(console, panel);
                     return MenuAction::None;
                 }
+                // The classic renderer page backs out to Setup, as its Back does.
+                if let Some(panel) = self
+                    .classic_panel
+                    .filter(|panel| panel.page == classic::layout::Page::Renderer)
+                {
+                    let setup = classic::layout::Page::Renderer.escape();
+                    if let Some(entry) = setup.opening_panel() {
+                        let target = self.settings_return;
+                        self.open_classic_panel(console, setup, entry, panel.frame, target);
+                        return MenuAction::None;
+                    }
+                }
                 self.close_settings()
             }
             SettingsResult::OpenKeybinds => {
@@ -617,6 +631,9 @@ impl ClientMenu {
     pub(crate) fn poll(&mut self) {
         if matches!(self.state.phase(), ClientPhase::Player) || !self.player.is_resolved() {
             self.player.poll();
+        }
+        if matches!(self.state.phase(), ClientPhase::Keybinds) {
+            self.keybinds.poll_icons();
         }
         self.poll_local_server();
         let browser_visible = matches!(self.state.phase(), ClientPhase::Browser);
@@ -941,6 +958,7 @@ impl ClientMenu {
 
     pub(crate) fn attach_catalogue(&mut self, vfs: std::sync::Arc<sjk_vfs::VirtualFileSystem>) {
         self.create_game.attach_vfs(std::sync::Arc::clone(&vfs));
+        self.keybinds.attach_vfs(std::sync::Arc::clone(&vfs));
         self.player.attach_catalogue(vfs);
     }
 

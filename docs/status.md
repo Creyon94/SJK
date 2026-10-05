@@ -553,6 +553,55 @@ bottom corners, the Radial HUD around the crosshair, over the retail `ffa3`
 levelshot. No client window was opened: the picker on screen, the preview
 texture upload and the live HUD switching are untested.
 
+## Classic+ option panels and renderer page (SJK)
+
+SJK-only branch `personal/classic-plus` (2026-10-05, based on `7643ca4`) writes
+down how SJK modernises classic pages ([Classic+ menus](classic-plus.md)) and
+applies it to the option panels: a detail box under the Setup and Controls rows
+describes the focused setting or binding, rows changed from their default and
+settings that apply later are marked, Backspace or the right button restores a
+setting's default, and Setup's RENDERER opens a classic renderer page with
+IMAGE, LIGHTING and SHADOWS groups instead of the modern form. See
+[menu style](client.md#menu-style).
+
+Verification (2026-10-05, Windows 11): formatting, the locked workspace build
+and tests, including unit tests for the panel geometry (rows, detail box,
+retail bounds), the help text (every setting described in two lines, label
+notes), the detail box's facts and defaults, reset to default, the binding
+detail and its shared-key line, and the renderer page's groups and way back.
+The new [menu snapshots](classic-plus.md#seeing-a-page-without-the-game) drew
+Setup, Controls and the renderer page on both frames from the owner's
+installation; looking at them led to shorter row labels, wider description
+lines and the scrollbar moving to the panel's edge (in the in-game pop-up it
+covered the values). No client window was opened: the panels' pointer and
+keyboard behaviour on screen are untested.
+
+A second pass (same day) merges what retail split for room: one Video group,
+one Force Powers group, and Interface, HUD and Scoreboard groups gathering
+JKR's GAME, HUD, HUD+ and TEXT rows by subject (switching to the modern style
+from a group continues on the tab holding its row). Key bindings carry the
+retail picture of the weapon, item or Force power they select, in a column and
+in the detail box, and the weapon rows are named. Join's team rows in the
+in-game bar show their flag and player count, and the profile's Force strip
+shrinks its holocrons instead of dropping the last known power. Settings whose
+label overflowed the in-game label column have a short row name (the detail box
+keeps the full one), and slider numbers read `0.9` rather than a
+single-precision default's `0.8999999761581421`. Unit tests
+cover the groups (every listed cvar is a setting, each GAME, HUD, HUD+ and TEXT
+row in exactly one group), the binding pictures (cells, sharing, every weapon
+and power pictured), the strip's fit, every row label fitting its column and
+the slider numbers; the snapshots, now with atlas icons and
+the in-game bar's pop-ups over a levelshot, showed the in-game panels, bindings
+and Join pop-up. `cargo clippy --no-deps` on the viewer added no finding in the
+changed code; clippy on the workspace stops on four `sjk-game-jka` errors merged
+from JKR, which Sol's JKR PR #123 fixes. No client window was opened.
+
+Merged into SJK main with `personal/hud-picker` and `personal/model-grid`
+(2026-10-05): the HUD picker's "HUD look" row sits in the classic HUD group,
+where LEFT and RIGHT step through the HUDs and ENTER opens the picker; it has
+no default mark, since two cvars select the HUD together. The locked workspace
+build and tests passed on the merged tree.
+
 ## Client devmap preview
 
 Local `devmap1` preview (2026-10-04, based on `7155455`) exposes `devmap <map>`

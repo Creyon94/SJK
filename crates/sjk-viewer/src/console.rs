@@ -275,6 +275,11 @@ impl ViewerConsole {
         self.shell.cvars.get(name).map(|cvar| &cvar.value)
     }
 
+    /// The value a cvar starts with in a fresh profile.
+    pub(crate) fn cvar_default(&self, name: &str) -> Option<&CvarValue> {
+        self.shell.cvars.get(name).map(|cvar| &cvar.default)
+    }
+
     /// Every registered cvar name, for checks against the registry.
     #[cfg(test)]
     pub(crate) fn cvar_names(&self) -> impl Iterator<Item = &str> {

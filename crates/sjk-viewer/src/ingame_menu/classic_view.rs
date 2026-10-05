@@ -232,6 +232,9 @@ fn popup(
                 align,
             );
         }
+        if let Some((flag, players)) = team_row(view, row) {
+            team_badge(canvas, place, art_set, target, flag, players, enabled);
+        }
         canvas.hit_region(token, target);
     }
     if let Some((first, total)) = rows.scroll {
@@ -256,6 +259,53 @@ fn popup(
             TextAlign::Center,
         );
     }
+}
+
+/// The flag and player count of Join's team row `row`, in a team game
+/// (classic+).
+fn team_row(view: &View<'_>, row: usize) -> Option<(ArtPiece, usize)> {
+    match (view.page, view.team_game, row) {
+        (Page::Team, true, 1) => Some((ArtPiece::RedFlag, view.red_players)),
+        (Page::Team, true, 2) => Some((ArtPiece::BlueFlag, view.blue_players)),
+        _ => None,
+    }
+}
+
+/// A team row's flag at its left end and its player count at its right.
+fn team_badge(
+    canvas: &mut MenuCanvas,
+    place: &Placement,
+    art_set: ArtSet,
+    target: Rect,
+    flag: ArtPiece,
+    players: usize,
+    enabled: bool,
+) {
+    let s = place.scale;
+    let side = 18.0 * s;
+    let top = target.y + (target.height - side) * 0.5;
+    if art_set.has(flag) {
+        let _ = canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
+            rect: Rect::new(target.x + 6.0 * s, top, side, side),
+            texture: flag.texture(),
+            color: sjk_ui::Color::new(1.0, 1.0, 1.0, if enabled { 1.0 } else { 0.45 }),
+        });
+    }
+    let line = 11.0 * 1.2 * s;
+    canvas.text_fmt_aligned(
+        format_args!("{players}"),
+        Rect::new(
+            target.right() - 26.0 * s,
+            target.y + (target.height - line) * 0.5,
+            20.0 * s,
+            line,
+        ),
+        11.0 * s,
+        DISABLED,
+        FontWeight::Semibold,
+        0.0,
+        TextAlign::End,
+    );
 }
 
 /// One "label  /  value" line of the about pop-up, laid out as retail's

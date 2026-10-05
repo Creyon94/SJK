@@ -13,7 +13,7 @@ mod force_icons;
 mod force_templates;
 mod force_view;
 mod grid;
-mod icons;
+pub(crate) mod icons;
 mod model_icons;
 mod numeric;
 mod part_icons;

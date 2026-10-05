@@ -5,6 +5,7 @@ use crate::console::ViewerConsole;
 use crate::menu_widgets::{BACK_TOKEN, FormLayout, MenuCanvas, Scrim, TAB_BASE};
 mod catalog;
 mod classic_view;
+mod icons;
 mod pointer;
 
 use catalog::CATEGORIES;
@@ -64,6 +65,11 @@ pub(crate) struct KeybindEditor {
     keys: Vec<[String; 2]>,
     /// `ACTIONS` rows of a classic option panel, while the screen is one.
     classic: Option<Range<usize>>,
+    /// The classic+ detail box's value, command, shared-key and default
+    /// lines, rewritten each frame.
+    detail: [String; 4],
+    /// The actions' weapon, item and Force pictures.
+    icons: icons::BindIcons,
     ui: MenuCanvas,
 }
 
@@ -78,8 +84,45 @@ impl KeybindEditor {
             binding_slot: 0,
             keys: Vec::with_capacity(ACTIONS.len()),
             classic: None,
+            detail: std::array::from_fn(|_| String::with_capacity(48)),
+            icons: icons::BindIcons::new(),
             ui: MenuCanvas::new(),
         }
+    }
+
+    /// The game data the actions' pictures come from.
+    pub(crate) fn attach_vfs(&mut self, vfs: std::sync::Arc<sjk_vfs::VirtualFileSystem>) {
+        self.icons.attach_vfs(vfs);
+    }
+
+    /// Decode the pictures (once) and collect them, while the screen is up.
+    pub(crate) fn poll_icons(&mut self) {
+        self.icons.poll();
+    }
+
+    /// Focus the action bound to `command`.
+    #[cfg(test)]
+    pub(crate) fn select_command(&mut self, command: &str) {
+        if let Some(action) = ACTIONS.iter().position(|action| action.command == command) {
+            self.selected = action;
+        }
+    }
+
+    /// The pictures' cells and files, for snapshots, which count them as
+    /// uploaded.
+    #[cfg(test)]
+    pub(crate) fn snapshot_icons(&mut self) -> Vec<crate::player_menu::icons::IconRequest> {
+        self.icons.assume_ready();
+        icons::requests()
+    }
+
+    /// Move a few decoded pictures into the UI atlas.
+    pub(crate) fn upload_icons(
+        &mut self,
+        renderer: &crate::ui_renderer::ShapeRenderer,
+        queue: &crate::frame_queue::FrameQueue,
+    ) {
+        self.icons.upload(renderer, queue);
     }
 
     pub(crate) fn open(&mut self, console: &ViewerConsole) {

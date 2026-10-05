@@ -215,7 +215,8 @@ const PLAY: [Slot; 11] = {
 
 /// Retail `controls.menu`: the binding pages down the left. Each opens the
 /// key-binding editor on its tab; Mouse/Joystick opens the mouse options.
-const CONTROLS: [Slot; 13] = {
+/// Retail's two Force Powers pages are one group (classic+).
+const CONTROLS: [Slot; 12] = {
     let [play, profile, controls, setup] = nav_row();
     let [back, exit] = back_exit();
     [
@@ -238,32 +239,26 @@ const CONTROLS: [Slot; 13] = {
         list_row(
             Entry::Weapons,
             "WEAPONS",
-            "Key bindings: weapon selection",
+            "Key bindings: every weapon",
             233.0,
         ),
         list_row(
-            Entry::ForcePowers1,
-            "FORCE POWERS 1",
-            "Key bindings: Force powers",
+            Entry::ForcePowers,
+            "FORCE POWERS",
+            "Key bindings: every Force power",
             257.0,
-        ),
-        list_row(
-            Entry::ForcePowers2,
-            "FORCE POWERS 2",
-            "Key bindings: Force powers (one page in SJK)",
-            281.0,
         ),
         list_row(
             Entry::MouseJoystick,
             "MOUSE/JOYSTICK",
             "Mouse sensitivity, inversion and always run",
-            305.0,
+            281.0,
         ),
         list_row(
             Entry::OtherControls,
             "OTHER",
             "Key bindings: chat, scores, votes and emotes",
-            329.0,
+            305.0,
         ),
         back,
         exit,
@@ -271,7 +266,9 @@ const CONTROLS: [Slot; 13] = {
 };
 
 /// Retail `setup.menu`: the option pages down the left, then the settings
-/// JKR adds (HUD, network) after them.
+/// JKR adds after them. Classic+ shows retail's two video pages as one and
+/// regroups the rest by subject: the menus and console, the HUD, the
+/// scoreboard.
 const SETUP: [Slot; 16] = {
     let [play, profile, controls, setup] = nav_row();
     let [back, exit] = back_exit();
@@ -283,49 +280,49 @@ const SETUP: [Slot; 16] = {
         list_row(
             Entry::Video,
             "VIDEO",
-            "Resolution, display mode, sync and frame rate",
+            "Resolution, display, frame rate, field of view and brightness",
             185.0,
-        ),
-        list_row(
-            Entry::MoreVideo,
-            "MORE VIDEO",
-            "Gamma, marks and shadows (on the video settings)",
-            209.0,
         ),
         list_row(
             Entry::Sound,
             "SOUND",
-            "Effects, music and voice volume",
-            233.0,
+            "Effects and music volume, footsteps",
+            209.0,
         ),
         list_row(
             Entry::GameOptions,
             "GAME OPTIONS",
-            "Pickups, saber trail, camera and menu options",
-            257.0,
+            "Pickups, models, saber and Force trails, camera",
+            233.0,
         ),
         list_row(
             Entry::Mods,
             "MODS",
             "Not in SJK yet: set fs_game and restart",
-            281.0,
+            257.0,
         ),
         list_row(
             Entry::Defaults,
             "DEFAULTS",
-            "Not in SJK yet: the key-binding editor resets keys with R",
+            "Not in SJK yet: BACKSPACE on a setting restores its default",
+            281.0,
+        ),
+        list_row(
+            Entry::Interface,
+            "INTERFACE",
+            "Menu style, colours and fonts, the console's look",
             305.0,
         ),
         list_row(
             Entry::Hud,
             "HUD",
-            "HUD elements, scale and crosshair",
+            "HUD style and scale, status, crosshair, readouts and chat",
             329.0,
         ),
         list_row(
-            Entry::MoreHud,
-            "MORE HUD",
-            "Crosshair size, team status and speed readout",
+            Entry::Scoreboard,
+            "SCOREBOARD",
+            "Scoreboard style, client numbers, head icons and row size",
             353.0,
         ),
         list_row(
@@ -341,6 +338,43 @@ const SETUP: [Slot; 16] = {
             401.0,
         ),
         back,
+        exit,
+    ]
+};
+
+/// SJK's renderer page (classic+): `setup.menu`'s layout with the renderer
+/// settings' three groups down the left; Back returns to Setup.
+const RENDERER: [Slot; 9] = {
+    let [play, profile, controls, setup] = nav_row();
+    let [back, exit] = back_exit();
+    [
+        play,
+        profile,
+        controls,
+        setup,
+        list_row(
+            Entry::RenderImage,
+            "IMAGE",
+            "HDR, exposure, bloom, glow, edge smoothing, reflections and emission",
+            185.0,
+        ),
+        list_row(
+            Entry::RenderLighting,
+            "LIGHTING",
+            "Sun and sky, live lighting, fill light and light shafts",
+            209.0,
+        ),
+        list_row(
+            Entry::RenderShadows,
+            "SHADOWS",
+            "Sun shadows: on or off, detail, distance and edges",
+            233.0,
+        ),
+        Slot {
+            entry: Entry::SetupBack,
+            hint: "Return to the setup options",
+            ..back
+        },
         exit,
     ]
 };
@@ -379,6 +413,7 @@ pub(super) fn slots(page: Page) -> &'static [Slot] {
         Page::Play => &PLAY,
         Page::Controls => &CONTROLS,
         Page::Setup => &SETUP,
+        Page::Renderer => &RENDERER,
         Page::Quit => &QUIT,
     }
 }

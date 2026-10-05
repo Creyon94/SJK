@@ -11,6 +11,8 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 mod catalog;
 mod classic_view;
 mod display;
+mod groups;
+mod help;
 mod hud_picker;
 mod numeric;
 mod pointer;
@@ -24,6 +26,7 @@ use catalog::*;
 pub(crate) use display::{
     DisplayMode, EXCLUSIVE_CVAR, MonitorModes, exclusive_supported, exclusive_video_mode,
 };
+pub(crate) use groups::Group;
 use resolution::{PickResult, ResolutionChoice, ResolutionPicker};
 pub(crate) enum SettingsResult {
     None,
@@ -91,6 +94,8 @@ enum Section {
     General,
     /// JKR's renderer settings ([`RENDERER_TABS`]).
     Renderer,
+    /// A classic Setup group gathering rows of several tabs ([`Group`]).
+    Group(Group),
 }
 
 /// A row after a tab's settings that opens another screen.
@@ -120,6 +125,12 @@ pub(crate) struct SettingsMenu {
     /// Which rows show; keeps the selection on screen.
     scroll: scroll::RowScroll,
     values: Vec<String>,
+    /// Each row's default and whether its value differs (classic+ panels).
+    defaults: Vec<classic_view::RowDefault>,
+    /// The classic+ detail box's facts line and the description line's keys,
+    /// rewritten each frame.
+    detail_facts: String,
+    key_hint: String,
     editing: Option<TextDraft>,
     /// What the window's monitor offers; asked for each time the screen opens.
     monitor: Option<MonitorModes>,
@@ -151,6 +162,9 @@ impl SettingsMenu {
             selected: 0,
             scroll: scroll::RowScroll::new(),
             values: Vec::with_capacity(12),
+            defaults: Vec::with_capacity(20),
+            detail_facts: String::with_capacity(96),
+            key_hint: String::with_capacity(96),
             editing: None,
             monitor: None,
             wants_monitor: false,
@@ -166,12 +180,6 @@ impl SettingsMenu {
     /// Index of the tab that carries the "Key bindings" row.
     pub(crate) fn keybinds_tab() -> usize {
         KEYBINDS_TAB
-    }
-
-    /// Rows of tab `tab` (without the key-bindings row).
-    #[cfg(test)]
-    pub(crate) fn tab_len(tab: usize) -> usize {
-        settings(tab).len()
     }
 
     /// Index of the tab captioned `caption` (`"AUDIO"`), if there is one.
@@ -229,6 +237,7 @@ impl SettingsMenu {
         match self.section {
             Section::General => &TABS,
             Section::Renderer => &RENDERER_TABS,
+            Section::Group(group) => group.tabs(),
         }
     }
 
@@ -312,6 +321,14 @@ impl SettingsMenu {
         let selected = self.selected;
         if let Some(classic) = &mut self.classic {
             classic.reveal(selected);
+        }
+    }
+
+    /// Select the row of setting `cvar` (menu snapshots).
+    #[cfg(test)]
+    pub(crate) fn select_cvar(&mut self, cvar: &str) {
+        if let Some(row) = self.rows().iter().position(|setting| setting.cvar == cvar) {
+            self.selected = row;
         }
     }
 
@@ -449,6 +466,10 @@ impl SettingsMenu {
                 }
             }
             KeyCode::Escape => return self.back(console),
+            // Classic+: back to the default.
+            KeyCode::Backspace | KeyCode::Delete if classic => {
+                self.reset_to_default(console, self.selected);
+            }
             _ => {}
         }
         SettingsResult::None
@@ -583,6 +604,12 @@ impl SettingsMenu {
                 ValueKind::Bool => toggle_text(console, setting.cvar),
                 _ => row_text(console, setting),
             }));
+        self.defaults.clear();
+        self.defaults.extend(
+            self.rows()
+                .iter()
+                .map(|setting| classic_view::row_default(console, setting)),
+        );
     }
 }
 
@@ -596,6 +623,7 @@ fn section_settings(section: Section, tab: usize) -> &'static [Setting] {
             2 => RENDER_SHADOWS,
             _ => &[],
         },
+        Section::Group(group) => group.rows(),
     }
 }
 
@@ -638,8 +666,19 @@ fn row_text(console: &ViewerConsole, setting: &Setting) -> String {
         {
             "AUTO".to_owned()
         }
+        (ValueKind::Float { .. }, Some(CvarValue::Float(value))) => float_text(*value),
         _ => value_text(console, setting.cvar),
     }
+}
+
+/// A slider's number to four decimals at most, keeping one (`0.9`, not
+/// `0.8999999761581421` from a single-precision default; `100.0`).
+fn float_text(value: f64) -> String {
+    let mut text = format!("{value:.4}");
+    while text.ends_with('0') && !text.ends_with(".0") {
+        text.pop();
+    }
+    text
 }
 
 /// Whether a switch row's cvar is on: true, or any nonzero number.
@@ -681,6 +720,14 @@ fn value_text(console: &ViewerConsole, name: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn slider_numbers_lose_float_noise() {
+        assert_eq!(float_text(f64::from(0.9_f32)), "0.9");
+        assert_eq!(float_text(100.0), "100.0");
+        assert_eq!(float_text(0.005), "0.005");
+        assert_eq!(float_text(-2.5), "-2.5");
+    }
 
     const SECTIONS: [(Section, usize); 2] = [
         (Section::General, TABS.len()),
