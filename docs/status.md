@@ -874,6 +874,38 @@ confirmation remains with the owner. Formatting, locked workspace build/tests
 and the optimized client build passed.
 
 
+## Rocket trails in a barrage (SJK)
+
+SJK-only branch `personal/effect-pool` (05/10/2026, based on `771cb43`): rocket trails
+vanished when many rockets flew. JoF's HD `rocket/shot` (it overrides retail in
+`JoF_HDWeaponEffects.pk3`) keeps about 1,200 particles alive per rocket: six fire puffs
+for half a second and two or three physics smoke puffs for two to three seconds, played
+every 8 ms. Two caps cut them. The effect pool (2,048) refused new particles from the
+second rocket on, and the instance buffer (1,024 instances, shared with opaque
+entities) drew particles oldest first and left out the newest, the trail head, even
+with one rocket. Stock has the same problem in another form (`MAX_EFFECTS` 1,800; a full
+list reuses `effectList[0]`, so each new puff replaces the last, `FxUtil.cpp`).
+
+The pool is now 4,096, the instance buffer holds every slot at eight shader stages
+(35,840 instances, 3.1 MB), and `particle_room.rs` frees room each frame by ending the
+particles closest to the end of their lives (linear selection over preallocated
+scratch; per-frame billboards are never removed). An ignored offline test
+(`particle_room_barrage.rs`) flies rockets around an `mp/ffa3` spawn with the installed
+effect and real physics at 2 ms frames, in release:
+
+| Rockets | Trail heads, 2,048, no room | Heads, 4,096 + room | Update + sort per frame |
+| --- | --- | --- | --- |
+| 1 | 100% | 100% | 0.09 + 0.015 ms |
+| 3 | 91% | 100% | 0.29 + 0.05 ms |
+| 4 | 67% | 100% | 0.33 + 0.05 ms |
+| 8 | 33% | 100% | 0.44 + 0.05 ms |
+
+At 2,048 the same scene cost about 0.2 + 0.025 ms per frame; making room costs about
+20 us. Unit tests cover the eviction order, billboards, the headroom and the capacity.
+The billboard count above ignores the 1,024-instance limit, which hid trail heads
+earlier still. No game was started: the barrage on screen, GPU time for 4,000
+billboards and other heavy effects (map smoke, explosions) are unverified.
+
 ## Talk balloons in busy scenes (SJK)
 
 SJK-only branch `personal/talk-balloon` (05/10/2026, based on `3f57938`): talk
@@ -883,7 +915,7 @@ appended again every frame, they lost the slots they had freed to effects spawne
 between (map effects before them, other players' muzzle flashes during actor
 submission), and a pool that effects held at its 2,048 cap dropped them all. The pool
 now keeps 256 slots that only those billboards use (`particle_types.rs`); effects
-still stop at 2,048. Unit tests replay that frame. No game was started: the busy
+stop at their own cap (4,096 since the rocket-trail change below). Unit tests replay that frame. No game was started: the busy
 scene Sol saw is not reproduced on screen.
 
 The same branch raises your balloon while the window is unfocused or minimised, as

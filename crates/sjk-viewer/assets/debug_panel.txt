@@ -1021,6 +1021,17 @@ change: so muzzle flashes and map effects filling it cannot hide them any more.
 test: Crowded JoF server, people typing while others shoot blasters: balloons stay steady.
 test: A map with heavy effects (rain, fire): balloons and item icons stay up.
 
+[rocket-trails]
+status: personal
+area: Rendering & effects
+title: Rocket trails stay visible when many rockets fly (bigger effect pool, old smoke ends early)
+change: The effect pool is 4,096 (was 2,048) and the draw buffer holds all of it (was 1,024).
+change: When it is full, the oldest smoke ends early so new trail puffs always appear.
+test: Fire rocket after rocket (or with friends): every rocket keeps its fire and smoke head.
+test: One rocket: the trail starts right at the rocket, no gap behind it.
+test: Many rockets: older smoke trails get shorter instead of new trails vanishing.
+note: Watch the FPS counter during a barrage; send logs\last-client.log if it drops a lot.
+
 [away-talk-balloon]
 status: personal
 area: HUD

@@ -126,6 +126,7 @@ mod live_session;
 mod net_timing;
 mod particle_motion;
 mod particle_physics;
+mod particle_room;
 mod particle_spawn;
 mod particle_types;
 mod pickups;
@@ -419,6 +420,8 @@ struct GpuState {
     auto_switch: auto_switch::Tracker,
     previous_particle_events: HashMap<u16, u16>,
     particles: Vec<Particle>,
+    /// Frees the old end of the effect pool for each frame's new particles.
+    particle_room: particle_room::Room,
     pending_particle_effects: particle_physics::PendingEffects,
     impacts: impacts::Pool,
     /// `cg.lastFPFlashPoint`: the view gun's flash point of the last frame.
@@ -988,7 +991,8 @@ impl GpuState {
         });
         let entity_instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("JKR dynamic entity instances"),
-            size: (1_024 * std::mem::size_of::<EntityInstance>()) as u64,
+            size: (particle_types::INSTANCE_CAPACITY * std::mem::size_of::<EntityInstance>())
+                as u64,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -1098,9 +1102,11 @@ impl GpuState {
             mover_groups,
             movers: Vec::with_capacity(sjk_protocol::MAX_LEGACY_ENTITIES),
             pickups: Vec::with_capacity(sjk_protocol::MAX_LEGACY_ENTITIES),
-            entity_instances: Vec::with_capacity(1_024),
+            entity_instances: Vec::with_capacity(particle_types::INSTANCE_CAPACITY),
             saber_instances: Vec::with_capacity(saber::MAX_BLADE_INSTANCES),
-            particle_groups: std::array::from_fn(|_| Vec::with_capacity(1_024)),
+            particle_groups: std::array::from_fn(|_| {
+                Vec::with_capacity(particle_types::PARTICLE_POOL)
+            }),
             actor_instances: Vec::with_capacity(1_024),
             actor_instance_ranges: Vec::with_capacity(64),
             object_instance_ranges: Vec::with_capacity(256),
@@ -1211,6 +1217,7 @@ impl GpuState {
             auto_switch: auto_switch::Tracker::default(),
             previous_particle_events: HashMap::new(),
             particles: Vec::with_capacity(particle_types::PARTICLE_POOL),
+            particle_room: particle_room::Room::default(),
             pending_particle_effects: particle_physics::PendingEffects::new(),
             impacts: impacts::Pool::new(),
             last_first_person_flash: None,
@@ -1275,6 +1282,12 @@ impl GpuState {
         use frame_pacing::budget::Phase;
         timing.mark(Phase::Shell);
         self.prepare_timed_frame(game_audio);
+        // Before anything spawns this frame: trail puffs and impacts always fit.
+        self.particle_room.make_room(
+            &mut self.particles,
+            Instant::now(),
+            particle_room::take_refused(),
+        );
         let now = Instant::now();
         let delta_seconds = now.duration_since(self.last_frame).as_secs_f32().min(0.05);
         self.last_frame = now;

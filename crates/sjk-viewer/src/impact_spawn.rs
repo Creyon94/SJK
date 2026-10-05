@@ -8,7 +8,7 @@
 //! previous frame (`cg.lastFPFlashPoint`, `cg_event.c:2442-2500`).
 
 use super::*;
-use crate::particle_types::{MAX_PARTICLES, PrimitiveShape};
+use crate::particle_types::PrimitiveShape;
 use sjk_client::LegacyImpactKind;
 use sjk_protocol::Snapshot;
 
@@ -143,7 +143,7 @@ pub(crate) fn spawn_line(
     now: Instant,
     seed: u32,
 ) {
-    if particles.len() >= MAX_PARTICLES {
+    if !crate::particle_room::effect_fits(particles.len()) {
         return;
     }
     let linear = sjk_effect::CurveFlags {

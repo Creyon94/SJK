@@ -86,7 +86,8 @@ pub(crate) fn prepare(timing: &mut frame_pacing::budget::Timer, inputs: Inputs<'
     );
     timing.mark(frame_pacing::budget::Phase::EffectBillboards);
 
-    let capacity = 1_024_usize.saturating_sub(inputs.entity_instances.len());
+    let capacity =
+        crate::particle_types::INSTANCE_CAPACITY.saturating_sub(inputs.entity_instances.len());
     'particles: for particle in inputs.particles.iter() {
         if !matches!(
             particle.shape,
