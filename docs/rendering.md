@@ -1551,8 +1551,8 @@ from the mounted atlas (an HD replacement included), scaled so the retail
 font's `H` matches Inter's cap height, and spliced into both faces at atlas
 build and DPI rebuild; nothing is read or rasterized per frame. Without the
 retail fonts `¬` stays Inter's. The console character set leaves 0xAC blank, as
-retail did. Outgoing chat and names are still sent as UTF-8, so other clients
-may draw a stray `Â` before the logo.
+retail did. Outgoing chat and names send `¬` as the single byte 0xAC
+([player text](networking.md#player-text)), so other clients draw the logo too.
 
 ### Game-data HUD
 

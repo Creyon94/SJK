@@ -19,6 +19,7 @@ mod info_bytes;
 mod info_string;
 mod legacy_client_numbers;
 mod legacy_entity_numbers;
+mod legacy_text;
 mod message;
 mod snapshot;
 mod usercmd;
@@ -49,6 +50,7 @@ pub use legacy_client_numbers::{LEGACY_MAX_CLIENTS, LegacyClientNumbers};
 pub use legacy_entity_numbers::{
     LEGACY_FIRST_GAME_ENTITY, LEGACY_GAME_ENTITIES, LEGACY_GAME_ENTITY_CEILING, LegacyEntityNumbers,
 };
+pub use legacy_text::encode_legacy_text;
 pub use message::{MessageError, MessageReader, MessageWriter, ServiceCommand};
 pub use snapshot::write::{
     SnapshotHeader, SnapshotPlayer, SnapshotWriteError, SnapshotWriter, player_state_as_received,

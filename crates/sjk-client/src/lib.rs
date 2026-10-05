@@ -673,12 +673,17 @@ impl ClientSession {
     /// (see [`reliable_pacing`]); a command that cannot go out immediately is
     /// released by a later `send_command`, `receive_snapshot` or
     /// [`Self::pump_reliable_commands`] call.
+    ///
+    /// A command that is UTF-8 text leaves as legacy clients read it: in
+    /// Windows-1252 when every character has a byte there, as UTF-8 otherwise
+    /// ([`sjk_protocol::encode_legacy_text`]). Other bytes pass unchanged.
     pub fn send_reliable_command(&mut self, command: &[u8]) -> Result<(), ClientError> {
+        let command = legacy_text::legacy_command(command);
         if let Some(local) = &mut self.local {
-            local.reliable(command);
+            local.reliable(&command);
             return Ok(());
         }
-        if !self.command_pacer.push(command.to_vec()) {
+        if !self.command_pacer.push(command.into_owned()) {
             return Err(ClientError::ReliableCommandOverflow);
         }
         self.pump_reliable_commands(Instant::now())

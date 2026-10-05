@@ -629,13 +629,18 @@ pub struct ServerMessage {
     pub payload: Vec<u8>,
 }
 
+/// Builds an out-of-band command datagram.
+///
+/// Text an `rcon` line carries leaves in Windows-1252 when it fits
+/// ([`sjk_protocol::encode_legacy_text`]), as a retail client sends it.
 pub fn connectionless_packet(command: &str) -> Result<Vec<u8>, NetworkError> {
     if command.as_bytes().contains(&0) || command.contains('\n') || command.contains('\r') {
         return Err(NetworkError::InvalidCommand);
     }
+    let command = sjk_protocol::encode_legacy_text(command);
     let mut packet = Vec::with_capacity(4 + command.len());
     packet.extend_from_slice(&OOB_PREFIX);
-    packet.extend_from_slice(command.as_bytes());
+    packet.extend_from_slice(&command);
     Ok(packet)
 }
 
@@ -643,12 +648,14 @@ pub fn connectionless_packet(command: &str) -> Result<Vec<u8>, NetworkError> {
 ///
 /// Bytes through `connect ` remain plain text. OpenJK's `Huff_Compress` then
 /// compresses the opening quote, userinfo, and closing quote as one block.
+/// The userinfo (the player's name) leaves in Windows-1252 when it fits
+/// ([`sjk_protocol::encode_legacy_text`]).
 pub fn connect_packet(userinfo: &str) -> Result<Vec<u8>, NetworkError> {
     if userinfo.contains(['\0', '\n', '\r', '"']) {
         return Err(NetworkError::InvalidUserInfo);
     }
     let quoted = format!("\"{userinfo}\"");
-    let compressed = compress_connect_block(quoted.as_bytes())?;
+    let compressed = compress_connect_block(&sjk_protocol::encode_legacy_text(&quoted))?;
     let mut packet = Vec::with_capacity(12 + compressed.len());
     packet.extend_from_slice(&OOB_PREFIX);
     packet.extend_from_slice(b"connect ");
@@ -1486,5 +1493,27 @@ mod cosmetic_userinfo_tests {
         user.cosmetics = [Some("bad\name".to_owned()), Some("2cape".to_owned())];
         let info = legacy_userinfo(1, 2, &user).unwrap();
         assert!(info.contains(r"\color1\4\color2\4\"), "{info}");
+    }
+}
+
+#[cfg(test)]
+mod legacy_text_packet_tests {
+    use super::*;
+
+    /// A name a retail or EternalJK player can read: `ø` is the single
+    /// Windows-1252 byte 0xF8 inside the compressed block, not UTF-8's C3 B8.
+    #[test]
+    fn connect_userinfo_name_leaves_in_windows_1252() {
+        let userinfo = legacy_userinfo(1234, 5678, &LegacyUserInfo::with_name("j^6ø^7f")).unwrap();
+        let decoded = decode_connect_packet(&connect_packet(&userinfo).unwrap()).unwrap();
+        let name = b"\\name\\j^6\xf8^7f\\";
+        assert!(decoded.windows(name.len()).any(|window| window == name));
+        assert!(!decoded.contains(&0xc3));
+    }
+
+    #[test]
+    fn rcon_text_leaves_in_windows_1252() {
+        let packet = connectionless_packet("rcon secret say ¤").unwrap();
+        assert_eq!(packet, b"\xff\xff\xff\xffrcon secret say \xa4");
     }
 }
