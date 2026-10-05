@@ -874,6 +874,19 @@ test: Launch, open the console: the two notice lines are near the top of the scr
 test: They do not flash over the main menu at launch (they are quiet console lines).
 test: logs\last-client.log has the same two lines near the top.
 
+[alt-codes]
+status: personal
+area: Input
+title: Alt codes (Alt + numeric keypad) type characters in text fields
+change: Hold Alt, type a number on the numeric keypad, release Alt: that character is typed.
+change: Leading 0 = Windows-1252 (Alt+0248 o-stroke), else code page 437 (Alt+21 section sign).
+change: Works in the console, chat and menu fields; in play the keypad keeps its binds.
+test: Open the console, type Alt+0248, Alt+0183, then Alt+21: the three characters appear.
+test: Classic console: Alt+08 and Alt+02 type nothing and do not walk the command history.
+test: Open chat, type Alt+0167 and send it; try with Num Lock on and off.
+test: In a match (console and chat closed), hold Alt and press keypad keys: their binds act.
+note: AltGr (right Alt on AZERTY) and Ctrl+Alt do not compose, as in Windows.
+
 # ---- Merged upstream ----
 
 [jkr-vehicles]

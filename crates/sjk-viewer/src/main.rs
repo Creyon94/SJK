@@ -373,6 +373,8 @@ struct GpuState {
     third_person_camera: camera::State,
     far_plane: f32,
     gameplay_input: input::GameplayInput,
+    /// Windows Alt code being typed into a text field.
+    alt_code: input::alt_code::AltCode,
     pointer_captured: bool,
     cursor_policy: pointer_input::CursorPolicy,
     cursor_position: [f32; 2],
@@ -1179,6 +1181,7 @@ impl GpuState {
             third_person_camera: camera::State::default(),
             far_plane,
             gameplay_input: input::GameplayInput::default(),
+            alt_code: input::alt_code::AltCode::default(),
             pointer_captured: false,
             cursor_policy: pointer_input::CursorPolicy::new(),
             cursor_position: [0.0; 2],

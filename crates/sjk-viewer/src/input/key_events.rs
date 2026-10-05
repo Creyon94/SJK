@@ -1,8 +1,36 @@
 //! Native keyboard routing into UI and the console command buffer.
+use super::alt_code;
 use crate::*;
 
 impl GpuState {
     pub(crate) fn keyboard(&mut self, event: KeyEvent) {
+        let typing = self.text_has_keyboard();
+        match self.alt_code.key(&event, typing) {
+            alt_code::Step::Pass => self.route_keyboard(event),
+            alt_code::Step::Withhold => {}
+            alt_code::Step::Type(character) => {
+                let typed = alt_code::typed_event(&event, character);
+                self.route_keyboard(event);
+                self.route_keyboard(typed);
+            }
+        }
+    }
+
+    /// A text field has the keyboard: the console, the chat composer or a menu,
+    /// rather than the gameplay bindings.
+    fn text_has_keyboard(&self) -> bool {
+        self.console
+            .as_ref()
+            .is_some_and(console::ViewerConsole::is_open)
+            || self.chat.is_typing()
+            || self
+                .client_menu
+                .as_ref()
+                .is_some_and(|menu| menu.is_visible())
+            || self.game_menu
+    }
+
+    fn route_keyboard(&mut self, event: KeyEvent) {
         // A modern composer must be able to type `~`, unlike stock, where the
         // console key precedes the message catcher (`cl_keys.cpp:1318`).
         let console_open = self
