@@ -512,6 +512,51 @@ Every installed hat and cape is open to everyone: nothing is unlocked or
 granted by a server. jaPRO's race-unlock hats (the `c5` clientinfo,
 `cp_cosmetics`, `cosmetics unlocks`) are left out on purpose.
 
+## Third-person camera
+
+Third-person framing follows OpenJK multiplayer `CG_OffsetThirdPersonView`.
+The camera uses a four-unit collision hull against solid/terrain/player-clip
+surfaces and presented inline models, including moving doors and platforms.
+Player and vehicle bodies do not obstruct this camera trace. When geometry
+collapses the camera onto its target, the view uses the intended forward direction
+instead of constructing an undefined look-at matrix.
+
+Pitch limits, pitch-offset direction and turn-dependent damping follow the
+multiplayer reference. View changes, teleports, followed-player changes and
+mounting/dismounting reset the presentation history. The ordinary range, height,
+angle and damping cvars remain available; `cg_thirdPersonHorzOffset` controls the
+stock sideways offset.
+
+Vehicle appearances cache their `.veh` camera settings when loaded. Mounted
+views use the authored range, height, pitch and sideways offsets, including the
+pitch-dependent and fighter-strafe adjustments. Vehicle targets follow immediately
+and camera damping follows the stock vehicle policy. These are presentation
+changes; movement, vehicle physics and protocol serialization are unchanged.
+
+The locally piloted vehicle is drawn at the same predicted origin and angles as
+its movement, following `CG_AddPacketEntities` and `CG_CalcEntityLerpPositions`.
+Its rider seat uses that same root with the current animated driver bolt. This
+avoids the camera advancing ahead while the mount and rider trail behind on
+snapshot interpolation. Remote vehicles, passengers without local vehicle
+prediction, and demo playback retain their snapshot presentation. The camera's
+animated seat is evaluated every rendered frame. Prediction-error smoothing uses
+the vehicle root while piloting, avoiding false corrections from rider animation.
+The movement collision adapter excludes the piloted vehicle's own snapshot body
+and its owned objects, matching the stock skip/ownership rules; dismounted and
+foreign vehicles remain solid.
+Snapshot replay also retains the same ride's local vehicle timers, including turbo
+expiry and recharge, while refreshing its networked state. A different vehicle,
+pilot or definition starts with fresh local state. This prevents exhausted boost
+input from predicting a new burst after every snapshot.
+
+In SJK the decaying prediction error moves the camera's focus before the
+collision traces, as `CG_CalcViewValues` adds it to the view origin before
+`CG_OffsetThirdPersonView`, rather than shifting the finished camera, which could
+put it inside a wall. `cg_thirdPersonAlpha` is not implemented; stock multiplayer
+has no automatic fade when the camera nears the player. See
+[camera.rs](../crates/sjk-viewer/src/camera.rs) and
+[camera_motion.rs](../crates/sjk-viewer/src/camera_motion.rs).
+
 ## Animation sounds and voice variants
 
 Footsteps and authored swing/spin sounds follow the evaluated lower/upper Ghoul2
@@ -1154,21 +1199,6 @@ browser covers the whole frame: underlying menu shapes/text, chat and the FPS
 counter are suppressed, including both font batches. See
 [console_browser.rs](../crates/sjk-viewer/src/console_browser.rs).
 
-## Third-person camera
-
-The third-person camera follows codemp `CG_OffsetThirdPersonView`, with the
-`cg_thirdPersonRange`, `cg_thirdPersonVertOffset`, `cg_thirdPersonAngle`,
-`cg_thirdPersonPitchOffset`, `cg_thirdPersonCameraDamp` and
-`cg_thirdPersonTargetDamp` cvars. The focus pitch, offset included, is capped
-at 80 degrees, and fast yaw turns stiffen the camera damping. The target and
-the camera then sweep an 8-unit cube against `MASK_CAMERACLIP` (solid, terrain
-and player clip) through the world and solid brush entities such as lifts and
-doors, as `CG_Trace` does; players do not block it. The prediction-error offset
-moves the traced focus rather than the finished camera. `cg_thirdPersonAlpha`
-and `cg_thirdPersonHorzOffset` are not implemented; stock multiplayer has no
-automatic fade when the camera nears the player. See
-[camera.rs](../crates/sjk-viewer/src/camera.rs).
-
 For graphics controls and diagnostics, see [rendering.md](rendering.md).
 
 ## Text size and spacing
@@ -1218,3 +1248,20 @@ pixels apart, `CG_ChatBox_DrawStrings`), and descenders clear the next row by
 0.18 of the box. A sender's name line advances 20 px to the body (was 26) and
 messages are 8 px apart (were 10 after a named message, 14 otherwise); see
 [chat/layout.rs](../crates/sjk-viewer/src/chat/layout.rs).
+
+## Vehicle and creature assets
+
+Vehicle appearances use the shared multiplayer `.veh` parser, including its
+comment handling, model/skin selection and camera fields. Example definitions
+inside block comments cannot replace the real vehicle model.
+
+Vehicle projectile trails resolve their vehicle-weapon index through `.vwp`
+definitions in model-registration order. Their authored EFX and optional rigid
+models are preloaded when the vehicle is registered; an effect-only laser does
+not acquire the ordinary rocket model. Custom vehicle flight-loop sounds remain
+a separate audio gap.
+
+Community NPCs need their model PK3 mounted by both the server and client. An NPC
+definition alone cannot supply a missing mesh. JKR does not distribute those
+packs. The animation-error isolation described in [rendering.md](rendering.md#actor-animation-failures)
+protects other actors from malformed custom clips, but does not repair the clip.

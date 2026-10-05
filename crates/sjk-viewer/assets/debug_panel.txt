@@ -311,16 +311,20 @@ test: The body keeps falling through the rest of the animation, then holds.
 test: Watch for a body swapping to another model (likely fixed too).
 test: Respawn after the death finished: the body stays on the final frame, no jump.
 
-[third-person-camera]
+[third-person-camera-jkr]
 pr: 38
 issue: 20
 status: open
 area: Rendering & effects
 title: Third-person camera stays out of walls and the player
-change: Stock 80 degree pitch cap, stiffer damping on fast turns, traces against lifts and doors.
+change: Now Bishop's camera from JKR #125 (same stock rules plus vehicle framing): new id, retest.
+change: Kept from PR 38: the prediction error moves the focus before the wall traces.
+change: cg_thirdPersonPitchOffset now tilts the stock way (PR 38 had the sign backwards).
 test: mp/ffa3 in third person: walk along the ship hull while turning quickly.
 test: Back into walls and corners; look fully up and down; ride the lifts.
 test: The camera stays in front of geometry and outside the player model.
+test: cg_thirdPersonPitchOffset 20: the camera looks down more; cg_thirdPersonHorzOffset 30 too.
+note: If this holds, PR 38 can be closed upstream as superseded by #125.
 
 [saber-trail]
 pr: 39
@@ -804,6 +808,28 @@ test: Show Cosmetics: Only Me hides others', Off hides all; Remove All takes bot
 test: ui_menuStyle modern: Player screen has Hat and Cape rows; the stage model wears them.
 
 # ---- Merged upstream ----
+
+[jkr-vehicles]
+pr: 125
+status: merged
+area: Gameplay
+title: Riding vehicles without jitter; vehicle cameras and models (Bishop)
+change: Your vehicle and its rider are drawn where prediction puts them, every frame.
+change: Your own vehicle no longer collides with itself in prediction; boost survives snapshots.
+change: .veh camera framing, TIE fighter model (was an X-wing), .vwp shots, land to board.
+test: devmap mp/ffa3, then npc spawn vehicle tauntaun (also swoop_mp, atst_vehicle): ride it.
+test: Turn and boost while riding: no jitter or snapping back; the rider stays in the saddle.
+test: The camera uses the vehicle's own framing; jump onto an empty one: you board it.
+test: AT-ST: primary and alt fire show their own shot effects, not rockets.
+
+[sand-creature]
+pr: 126
+status: merged
+area: Gameplay
+title: Sand creatures burrow, hunt and ambush on SJK servers (Bishop)
+change: With g_stockRules 0 (default) a spawned sand creature hunts moving players underground.
+test: devmap mp/ffa3, npc spawn sand_creature, step away and run: it breaches and attacks.
+test: Stand still: it loses you. g_stockRules 1 before the map: the old generic NPC.
 
 [console-chat-history]
 pr: 100

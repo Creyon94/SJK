@@ -26,6 +26,12 @@ def command(source, *args):
     return subprocess.check_output(args, cwd=source, text=True).strip()
 
 
+def text_name(stem, name):
+    """README.txt and LICENSES.txt for JKR; README-SJK.txt and LICENSES-SJK.txt for SJK,
+    so the two can share a GameData folder without replacing each other's files."""
+    return f"{stem}.txt" if name == "JKR" else f"{stem}-{name}.txt"
+
+
 def add_file(archive, source, name, executable=False):
     info = zipfile.ZipInfo(name)
     info.create_system = 3
@@ -34,7 +40,8 @@ def add_file(archive, source, name, executable=False):
     archive.writestr(info, source.read_bytes())
 
 
-def dependency_notices(source, target, archive, name="JKR"):
+def dependency_notices(source, target, name="JKR"):
+    """Yield original dependency license texts and their attribution inventory."""
     metadata = json.loads(command(source, "cargo", "metadata", "--locked",
                                   "--format-version", "1", "--filter-platform", target))
     resolved = {node["id"] for node in metadata["resolve"]["nodes"]}
@@ -49,7 +56,7 @@ def dependency_notices(source, target, archive, name="JKR"):
             files.append(root / package["license_file"])
         prefix = f'{name}-licenses/{package["name"]}-{package["version"]}'
         for path in sorted(set(files)):
-            add_file(archive, path, f"{prefix}/{path.relative_to(root).as_posix()}")
+            yield f"{prefix}/{path.relative_to(root).as_posix()}", path.read_bytes()
         selected_license = None
         if not files:
             # Some crates declare Apache-2.0 but omit its text from their crate.
@@ -57,16 +64,26 @@ def dependency_notices(source, target, archive, name="JKR"):
             # the original package manifest (authors and license declaration).
             if package["license"] not in ("Apache-2.0", "MIT OR Apache-2.0"):
                 raise RuntimeError(f"No supplied license text for {prefix}: {package['license']}")
-            add_file(archive, Path(__file__).parent / "licenses/Apache-2.0.txt",
-                     f"{prefix}/LICENSE-APACHE-2.0.txt")
-            add_file(archive, Path(package["manifest_path"]), f"{prefix}/Cargo.toml")
+            yield (f"{prefix}/LICENSE-APACHE-2.0.txt",
+                   (Path(__file__).parent / "licenses/Apache-2.0.txt").read_bytes())
+            yield f"{prefix}/Cargo.toml", Path(package["manifest_path"]).read_bytes()
             selected_license = "Apache-2.0"
         notices.append({"name": package["name"], "version": package["version"],
                         "license": package["license"], "authors": package["authors"],
                         "repository": package["repository"],
                         "selected_license": selected_license,
                         "license_files": len(set(files)) or 1})
-    archive.writestr(f"{name}-licenses/dependencies.json", json.dumps(notices, indent=2) + "\n")
+    yield "Dependency inventory", (json.dumps(notices, indent=2) + "\n").encode("utf-8")
+
+
+def license_text(entries, name="JKR"):
+    """Consolidate notices without altering or dropping their original bytes."""
+    parts = [f"{name} - licenses and third-party notices\n".encode("utf-8"),
+             b"Each section identifies its original source file.\n"]
+    for label, content in entries:
+        parts.extend([f"\n{'=' * 72}\n{label}\n{'=' * 72}\n".encode("utf-8"),
+                      content, b"\n"])
+    return b"".join(parts)
 
 
 def instructions(platform, revision, name="JKR", repository=DEFAULT_REPOSITORY, version=None,
@@ -77,8 +94,6 @@ def instructions(platform, revision, name="JKR", repository=DEFAULT_REPOSITORY, 
                     "Linux x64 with glibc 2.35+, ALSA, Wayland/X11 libraries and a Vulkan or OpenGL driver.\n"
                     f"If your archive extractor drops permissions: chmod +x {client} {server}")
     label = f"{name} {version}" if version else f"{name} playtest build"
-    private_note = ("\nRepository access may be required while the project is private."
-                    if repository == DEFAULT_REPOSITORY else "")
     return f"""{label} - {platform}
 Source revision: {revision}
 
@@ -105,12 +120,14 @@ compatibility on every system. Windows graphical runtime testing is still pendin
 
 SOURCE AND LICENSES
 {repository}/tree/{revision}
-GPL-2.0-only: see {name}-LICENSE.txt. Bundled notices are in {name}-licenses/.
-The matching source snapshot is distributed separately as {name}-{version or revision[:7]}-source.zip.{private_note}
+GPL-2.0-only: see {text_name("LICENSES", name)}, including all bundled dependency notices.
+The matching source snapshot is distributed separately as {name}-{version or revision[:7]}-source.zip.
+Build metadata and SHA-256 checksums are distributed separately from this install ZIP.
 """
 
 
-def smoke_check(package, platform, source, profile="jkr", client="sjk-viewer", server="sjk-dedicated"):
+def smoke_check(package, platform, source, profile="jkr", client="sjk-viewer", server="sjk-dedicated",
+                name="JKR"):
     # All scratch stays under the repository target directory, never system /tmp.
     scratch = source / "target/parity-reports"
     scratch.mkdir(parents=True, exist_ok=True)
@@ -120,6 +137,11 @@ def smoke_check(package, platform, source, profile="jkr", client="sjk-viewer", s
         game.mkdir(parents=True)
         with zipfile.ZipFile(package) as archive:
             assert archive.testzip() is None
+            suffix = ".exe" if platform == "windows-x64" else ""
+            assert set(archive.namelist()) == {
+                client + suffix, server + suffix,
+                text_name("README", name), text_name("LICENSES", name),
+            }
             archive.extractall(game)
         suffix = ".exe" if platform == "windows-x64" else ""
         for name in (client, server):
@@ -179,25 +201,28 @@ def main():
     with zipfile.ZipFile(package, "w", zipfile.ZIP_DEFLATED, compresslevel=9) as archive:
         for binary in binaries:
             add_file(archive, binary, binary.name, executable=True)
-        archive.writestr(f"README-{args.name}.txt",
+        archive.writestr(text_name("README", args.name),
                          instructions(args.platform, revision, args.name, args.repository, args.version,
                                       args.profile_dir, args.client_bin, args.server_bin))
-        add_file(archive, source / "LICENSE", f"{args.name}-LICENSE.txt")
-        add_file(archive, source / "crates/sjk-viewer/assets/fonts/LICENSE.txt", f"{args.name}-licenses/Inter-LICENSE.txt")
-        dependency_notices(source, args.target, archive, args.name)
-        archive.writestr(f"{args.name}-build.json", json.dumps({
-            "revision": revision, "target": args.target,
-            "rustc": command(source, "rustc", "--version"),
-            "profile": "release", "rustflags": os.environ.get("RUSTFLAGS", ""),
-            "binaries": {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in binaries},
-        }, indent=2) + "\n")
+        notices = [(f"{args.name}/LICENSE", (source / "LICENSE").read_bytes()),
+                   ("Inter/LICENSE.txt", (source / "crates/sjk-viewer/assets/fonts/LICENSE.txt").read_bytes())]
+        notices.extend(dependency_notices(source, args.target, args.name))
+        archive.writestr(text_name("LICENSES", args.name), license_text(notices, args.name))
+    manifest = output / f"{stem}-{args.platform}-build.json"
+    manifest.write_text(json.dumps({
+        "revision": revision, "target": args.target,
+        "rustc": command(source, "rustc", "--version"),
+        "profile": "release", "rustflags": os.environ.get("RUSTFLAGS", ""),
+        "binaries": {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in binaries},
+    }, indent=2) + "\n", encoding="utf-8")
     if args.smoke_check:
-        smoke_check(package, args.platform, source, args.profile_dir, args.client_bin, args.server_bin)
+        smoke_check(package, args.platform, source, args.profile_dir, args.client_bin, args.server_bin,
+                    args.name)
     source_zip = output / f"{stem}-source.zip"
     subprocess.run(["git", "-c", "core.autocrlf=false", "archive", "--format=zip", f"--prefix={stem}/",
                     f"--output={source_zip}", revision], cwd=source, check=True)
     checksums = "".join(f"{hashlib.sha256(p.read_bytes()).hexdigest()}  {p.name}\n"
-                        for p in (package, source_zip))
+                        for p in (package, source_zip, manifest))
     sums = f"{stem}-SHA256SUMS-{args.platform}.txt" if args.version else f"SHA256SUMS-{args.platform}.txt"
     (output / sums).write_text(checksums, encoding="utf-8")
     print(package)

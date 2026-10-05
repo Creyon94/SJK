@@ -8,9 +8,13 @@ Keep the dedicated server beside it for Create game and local devmap. Updating
 the executables does not replace `jkr/` user files (`SJK/` for SJK packages,
 built with `--profile-dir SJK`).
 
-Each ZIP contains installation instructions, the project license, dependency
-license files and a build manifest with the exact revision, target, compiler and
-binary hashes. It contains no retail assets, personal configuration, generated
+Each installation ZIP contains exactly four files: `sjk-viewer`, `sjk-dedicated`
+(both with `.exe` on Windows), `README.txt` and `LICENSES.txt`. The last file
+consolidates the complete project, font and dependency notices with their source
+labels and attribution inventory; no original notice text is discarded.
+The build manifest is a separate `JKR-<revision>-<platform>-build.json` artifact
+with the exact revision, target, compiler and binary hashes. The installation ZIP
+contains no retail assets, personal configuration, generated
 test files, source tree or debug symbols. Each artifact also provides SHA-256
 checksums and a matching source snapshot ZIP; the source snapshot is for
 contributors and is not needed in GameData.
@@ -56,9 +60,11 @@ SJK's [release workflow](../.github/workflows/release.yml) runs the same build a
 `package_client.py` smoke check on each `sjk-v<version>` tag and publishes a GitHub
 Release. It passes `--name SJK --version <version> --repository <repo URL>`, so the
 archives are named `SJK-<version>-<platform>.zip` (with
-`SJK-<version>-source.zip` and `SJK-<version>-SHA256SUMS-<platform>.txt`) and the
-bundled instructions point at SJK's source; `--name` also names the bundled
-`SJK-LICENSE.txt`, `SJK-licenses/` and `SJK-build.json`. The programs packaged are
+`SJK-<version>-source.zip`, `SJK-<version>-<platform>-build.json` and
+`SJK-<version>-SHA256SUMS-<platform>.txt`) and the bundled instructions point at
+SJK's source. With a `--name` other than JKR the two text files in the ZIP are
+`README-SJK.txt` and `LICENSES-SJK.txt`, so SJK and JKR can be extracted into the
+same GameData folder without replacing each other's files. The programs packaged are
 the `[[bin]]` names the crates declare (`sjk` and `sjk-server` in SJK,
 `sjk-viewer` and `sjk-dedicated` in JKR; `--client-bin`/`--server-bin` override
 them). Without those options the script produces JKR's packages unchanged.
