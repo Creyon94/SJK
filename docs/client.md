@@ -532,7 +532,9 @@ packs used them); names of JoF's catalogue are found in either. A name is at
 most 13 letters, digits, `_` or `-` and does not start with a digit. JoF's
 launcher installs its pack (`zzz_jof_cosmetics.pk3`) in the `EternalJK` folder:
 SJK mounts every PK3 there that has models in `models/cosmetics/hats/` or
-`capes/`, below all other content, without mounting the rest of that folder
+`capes/`, or JoF's client pictures in `gfx/jof/` (`jofclient-assets.pk3`, which
+also holds the sounds JoF servers play, see [Force wheel](#force-wheel)),
+below all other content, without mounting the rest of that folder
 (its menus, HUD and strings come only with `fs_basegame EternalJK`, see
 [Player models](#player-models)); the log names each pack. A pack in `base`
 works too ([asset_search_paths.rs](../crates/sjk-viewer/src/asset_search_paths.rs)).
@@ -969,6 +971,27 @@ while the console is open, which shows the version in its own corner.
 `cg_drawVersion 0` (Settings > HUD > "Version and date") hides it. The log names
 the same build at startup (`build: SJK ...`). How the version is decided is in
 [SJK conventions](sjk.md#version).
+
+## Force wheel
+
+With the `game` and `classic` HUD styles, `forcenext`/`forceprev` show JoF
+EternalJK's Force wheel: retail's Force selection bar (`CG_DrawForceSelect`),
+the selected power large in the middle above the HUD with up to three
+neighbours on each side and its name under it, for 1.4 seconds as in retail.
+It scales with `cg_hudScale`; the `modern` style keeps its list of names. On a
+JoF JA+ server that grants them, the wheel also holds Stasis and Repulse (after
+Sense) and Dash (before Speed), from spare `forcePowersKnown` bits, as in JoF EJK
+([force_wheel.rs](../crates/sjk-client/src/force_wheel.rs)). They are never sent
+as the selected power: with one selected, `+useforce` engages Stasis (the
+usercmd button the server reads) or sends `force_repulse` or `force_dash` once
+per press, and the selection stays until the server takes the ability away. The
+binds `force_dash`, `+force_stasis` and `force_repulse` (Settings > Key
+bindings > Force powers) work without the wheel; `+force_stasis` does nothing
+where Stasis is not granted. On JA+, merc mode shows Lightning as the
+flamethrower until the player is seen using real lightning. Repulse, Dash and
+the flamethrower use JoF EJK's pictures from `EternalJK/jofclient-assets.pk3`;
+Stasis has none and shows Jump's. Power names are retail's (Dark Rage, Sense).
+See [hud/force_wheel.rs](../crates/sjk-viewer/src/hud/force_wheel.rs).
 
 ## Configuration and content
 

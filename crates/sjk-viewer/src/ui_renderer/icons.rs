@@ -33,10 +33,15 @@ pub(crate) const PART_ICON_CELLS: u32 = 4 * COLUMNS;
 /// First of the key-binding panel's cells (weapon, item and Force icons),
 /// after character creation's.
 pub(crate) const BIND_ICON_FIRST: u32 = PART_ICON_FIRST + PART_ICON_CELLS;
-/// Key-binding panel cells: two atlas rows.
-pub(crate) const BIND_ICON_CELLS: u32 = 2 * COLUMNS;
+/// Key-binding panel cells: three atlas rows.
+pub(crate) const BIND_ICON_CELLS: u32 = 3 * COLUMNS;
+/// First of the HUD Force wheel's cells (the selection bar's power icons and
+/// JoF's), after the key-binding panel's.
+pub(crate) const FORCE_WHEEL_ICON_FIRST: u32 = BIND_ICON_FIRST + BIND_ICON_CELLS;
+/// Force wheel cells: two atlas rows.
+pub(crate) const FORCE_WHEEL_ICON_CELLS: u32 = 2 * COLUMNS;
 /// Every icon cell; the banner strip lies below the last row.
-pub(crate) const ATLAS_CELLS: u32 = BIND_ICON_FIRST + BIND_ICON_CELLS;
+pub(crate) const ATLAS_CELLS: u32 = FORCE_WHEEL_ICON_FIRST + FORCE_WHEEL_ICON_CELLS;
 const TOTAL_CELLS: u32 = ATLAS_CELLS;
 const ATLAS_HEIGHT: u32 = TOTAL_CELLS.div_ceil(COLUMNS) * ICON_SIZE + BANNER_SIZE[1];
 /// `TexturedQuad` texture naming the banner strip.

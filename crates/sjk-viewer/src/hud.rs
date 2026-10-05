@@ -4,6 +4,7 @@ mod data_source;
 use data_source::*;
 pub(crate) mod enemy_info;
 pub(crate) mod family;
+pub(crate) mod force_wheel;
 pub(crate) mod icons;
 pub(crate) mod identification;
 mod info;
@@ -130,6 +131,14 @@ pub(crate) struct HudOverlay {
 
     inventory_bits: u32,
     selector: Option<sjk_client::selection::SelectionView>,
+    /// The Force selector is the retail icon bar ([`force_wheel`]), not the list.
+    force_wheel_bar: bool,
+    /// The bar's map-lifetime pictures.
+    force_wheel_icons: [Option<sjk_ui::TextureId>; force_wheel::ICONS],
+    /// JA+ merc mode's flamethrower, latched across snapshots.
+    flamethrower: sjk_client::force_wheel::FlamethrowerOverride,
+    /// The selector shows Force Lightning as the flamethrower.
+    flamethrower_shown: bool,
 
     values: Option<ClientHudData>,
     health: String,
@@ -229,6 +238,10 @@ impl HudOverlay {
             weapon_shown_ms: None,
             weapon_alpha: 0.0,
             selector: None,
+            force_wheel_bar: false,
+            force_wheel_icons: [None; force_wheel::ICONS],
+            flamethrower: Default::default(),
+            flamethrower_shown: false,
 
             team_revision: 0,
             team_side: 0,
@@ -413,14 +426,27 @@ impl HudOverlay {
         }
         if visibility.hud {
             self.speed.emit(&mut self.draw_list, self.theme, viewport);
-            selection::emit(
-                &mut self.draw_list,
-                self.selector
-                    .filter(|s| !s.inventory || self.family.inventory),
-                self.theme,
-                viewport,
-                user_scale,
-            );
+            let selector = self
+                .selector
+                .filter(|s| !s.inventory || self.family.inventory);
+            match selector {
+                Some(view) if !view.inventory && self.force_wheel_bar => force_wheel::emit(
+                    &mut self.draw_list,
+                    view,
+                    &self.force_wheel_icons,
+                    self.flamethrower_shown,
+                    viewport,
+                    user_scale,
+                ),
+                view => selection::emit(
+                    &mut self.draw_list,
+                    view,
+                    self.flamethrower_shown,
+                    self.theme,
+                    viewport,
+                    user_scale,
+                ),
+            }
             self.emit_family(viewport);
             self.icons
                 .emit(&mut self.draw_list, viewport, visibility, self.family.upper);

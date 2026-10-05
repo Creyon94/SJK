@@ -17,6 +17,10 @@ const COSMETICS_GAME: &str = "EternalJK";
 /// Where a pack's hats and capes are; a PK3 with models there is a
 /// cosmetics pack.
 const COSMETIC_FOLDERS: [&str; 2] = ["models/cosmetics/hats", "models/cosmetics/capes"];
+/// JoF EJK's client pictures (`jofclient-assets.pk3`): the Force wheel's Repulse,
+/// Dash and flamethrower icons. The pack also holds the sounds and effects JoF
+/// servers play, such as `sound/jof/repulse.mp3`.
+const JOF_CLIENT_FOLDER: &str = "gfx/jof";
 
 /// Immutable startup settings shared by world-loading workers.
 pub(crate) struct Options {
@@ -153,9 +157,10 @@ impl Options {
     }
 
     /// The PK3s in `install/EternalJK` that carry hats or capes
-    /// (`models/cosmetics/`), lowest priority first: JoF EJK's cosmetics,
-    /// found without mounting the rest of that folder (its menus, HUD and
-    /// strings). None when the folder is a game directory already.
+    /// (`models/cosmetics/`) or JoF's client pictures (`gfx/jof/`), lowest
+    /// priority first: JoF EJK's cosmetics and client assets, found without
+    /// mounting the rest of that folder (its menus, HUD and strings). None
+    /// when the folder is a game directory already.
     pub(crate) fn cosmetic_packs(&self, install: &Path) -> Vec<PathBuf> {
         let mounted = [self.basegame.as_str(), self.game.as_str()]
             .iter()
@@ -167,7 +172,7 @@ impl Options {
         sjk_vfs::pk3_search_order(&directory)
             .unwrap_or_default()
             .into_iter()
-            .filter(|archive| carries_cosmetics(archive))
+            .filter(|archive| carries_jof_content(archive))
             .collect()
     }
 
@@ -191,7 +196,7 @@ impl Options {
         for pack in self.cosmetic_packs(install) {
             match vfs.mount_pk3(&pack) {
                 Ok(_) if log => crate::log::progress(format_args!(
-                    "cosmetics: hats and capes from {}",
+                    "JoF EJK content (hats, capes, client assets) from {}",
                     pack.display(),
                 )),
                 Ok(_) => {}
@@ -246,12 +251,13 @@ impl Options {
 }
 
 /// Whether `archive` holds hat or cape models.
-fn carries_cosmetics(archive: &Path) -> bool {
+fn carries_jof_content(archive: &Path) -> bool {
     let mut probe = VirtualFileSystem::new();
     probe.mount_pk3(archive).is_ok()
-        && COSMETIC_FOLDERS
+        && (COSMETIC_FOLDERS
             .iter()
             .any(|folder| !probe.list_files(folder, ".md3").is_empty())
+            || !probe.list_files(JOF_CLIENT_FOLDER, "").is_empty())
 }
 
 fn validate_directory(name: &str) -> Result<(), Box<dyn Error>> {
@@ -285,7 +291,7 @@ mod tests {
     }
 
     #[test]
-    fn only_eternaljk_packs_with_hats_or_capes_are_found() {
+    fn only_eternaljk_packs_with_hats_capes_or_jof_pictures_are_found() {
         let install = tempfile::tempdir().unwrap();
         let folder = install.path().join("EternalJK");
         std::fs::create_dir_all(&folder).unwrap();
@@ -301,17 +307,22 @@ mod tests {
             &["models/cosmetics/capes/royalcape.md3"],
         );
         pk3(&folder.join("menus.pk3"), &["ui/jamp/main.menu"]);
+        pk3(
+            &folder.join("jofclient-assets.pk3"),
+            &["gfx/jof/force_dash.tga", "sound/jof/repulse.mp3"],
+        );
         let options = Options::default();
         let names: Vec<String> = options
             .cosmetic_packs(install.path())
             .iter()
             .map(|path| path.file_name().unwrap().to_string_lossy().into_owned())
             .collect();
-        assert_eq!(names.len(), 2, "{names:?}");
+        assert_eq!(names.len(), 3, "{names:?}");
         assert!(names.iter().all(|name| name != "menus.pk3"));
         // The hats reach the mounted file system, the menus do not.
         let vfs = options.mount(install.path()).unwrap();
         assert!(vfs.contains("models/cosmetics/hats/santahat.md3").unwrap());
+        assert!(vfs.contains("gfx/jof/force_dash.tga").unwrap());
         assert!(!vfs.contains("ui/jamp/main.menu").unwrap());
         // With the folder as a game directory, it is mounted whole instead.
         let whole = Options {

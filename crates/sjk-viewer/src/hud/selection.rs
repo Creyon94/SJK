@@ -1,12 +1,15 @@
 //! Hero selectors: readable names, selected accent, no tinted backplate.
 use super::HudOverlay;
-use sjk_client::selection::{FORCE_ORDER, Selection, SelectionView};
+use sjk_client::force_wheel;
+use sjk_client::selection::{Selection, SelectionView};
 use sjk_protocol::PlayerState;
 use sjk_ui::{
     Color, DrawCommand, DrawList, FontWeight, Rect, TextAlign, TextId, TextOverflow, Theme,
 };
 
-const POWERS: [&str; 18] = [
+/// Retail's `SP_INGAME_*2` names in `forcePowers_t` order, then JoF EJK's wheel
+/// entries and the JA+ flamethrower.
+const POWERS: [&str; 22] = [
     "Heal",
     "Jump",
     "Speed",
@@ -15,17 +18,25 @@ const POWERS: [&str; 18] = [
     "Mind Trick",
     "Grip",
     "Lightning",
-    "Rage",
+    "Dark Rage",
     "Protect",
     "Absorb",
     "Team Heal",
     "Team Energize",
     "Drain",
-    "Seeing",
+    "Sense",
     "Saber Offense",
     "Saber Defense",
     "Saber Throw",
+    "Stasis",
+    "Repulse",
+    "Dash",
+    "Flamethrower",
 ];
+/// Name of the flamethrower in [`POWERS`].
+const FLAMETHROWER_NAME: u32 = 21;
+/// `FP_LIGHTNING`.
+const LIGHTNING: u8 = 7;
 const ITEMS: [&str; 12] = [
     "",
     "Seeker Drone",
@@ -42,14 +53,35 @@ const ITEMS: [&str; 12] = [
 ];
 
 impl HudOverlay {
-    /// Project the local selector without allocating or owning input state.
+    /// Project the local selector without allocating or owning input state;
+    /// `ja_plus` is a JA+ server, whose merc mode shows Lightning as a flamethrower.
     pub(crate) fn update_selection(
         &mut self,
         selection: &Selection,
         player: &PlayerState,
         time: i32,
+        ja_plus: bool,
     ) {
         self.selector = selection.view(player, time);
+        self.flamethrower.observe(player, ja_plus);
+        self.flamethrower_shown = self
+            .flamethrower
+            .shows_flamethrower(LIGHTNING, player, ja_plus);
+    }
+
+    /// Draw the Force selector as the retail icon bar (classic and game HUD
+    /// styles) rather than the modern list.
+    pub(crate) fn set_force_wheel_bar(&mut self, bar: bool) {
+        self.force_wheel_bar = bar;
+    }
+}
+
+/// The name of wheel entry `slot`; `flamethrower` names Lightning the flamethrower.
+pub(super) fn name_id(slot: u8, flamethrower: bool) -> TextId {
+    if flamethrower && slot == LIGHTNING {
+        TextId(1000 + FLAMETHROWER_NAME)
+    } else {
+        TextId(1000 + u32::from(slot))
     }
 }
 
@@ -58,7 +90,7 @@ pub(super) fn text(id: TextId) -> &'static str {
     match id.0 {
         1200 => "FORCE",
         1201 => "INVENTORY",
-        1000..=1017 => POWERS[(id.0 - 1000) as usize],
+        1000..=1021 => POWERS[(id.0 - 1000) as usize],
         1100..=1111 => ITEMS[(id.0 - 1100) as usize],
         _ => "",
     }
@@ -68,6 +100,7 @@ pub(super) fn text(id: TextId) -> &'static str {
 pub(super) fn emit(
     draw: &mut DrawList,
     view: Option<SelectionView>,
+    flamethrower: bool,
     theme: Theme,
     viewport: [f32; 2],
     user_scale: f32,
@@ -88,20 +121,30 @@ pub(super) fn emit(
         20.0 * scale,
         fade(theme.muted),
     );
+    let name = |tag: u8| {
+        if view.inventory {
+            TextId(base + u32::from(tag))
+        } else {
+            name_id(tag, flamethrower)
+        }
+    };
     label(
         draw,
         Rect::new(x, y + 25.0 * scale, 440.0 * scale, 42.0 * scale),
-        TextId(base + view.selected as u32),
+        name(view.selected),
         44.0 * scale,
         fade(theme.foreground),
     );
+    // Force walks JoF EJK's wheel order (stock order plus JoF's entries).
+    let (wheel, wheel_count) = force_wheel::build(view.available);
+    let items: [u8; 18] = std::array::from_fn(|tag| tag as u8);
+    let tags = if view.inventory {
+        &items[..]
+    } else {
+        &wheel[..wheel_count]
+    };
     let mut row = 0;
-    for index in 0..18 {
-        let tag = if view.inventory {
-            index as u8
-        } else {
-            FORCE_ORDER[index]
-        };
+    for &tag in tags {
         if view.available & (1 << tag) == 0 {
             continue;
         }
@@ -127,7 +170,7 @@ pub(super) fn emit(
         label(
             draw,
             rect,
-            TextId(base + tag as u32),
+            name(tag),
             26.0 * scale,
             fade(if selected { theme.accent } else { theme.muted }),
         );

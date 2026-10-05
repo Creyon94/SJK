@@ -131,10 +131,15 @@ pub(crate) fn update(
         );
         gpu.hud
             .update_family(snapshot, session.game_state(), gpu.console.as_ref());
+        let ja_plus = matches!(
+            session.compat_profile(),
+            sjk_client::CompatProfile::JaPlus { .. }
+        );
         gpu.hud.update_selection(
             &gpu.gameplay_input.selection,
             &snapshot.player,
             presentation_time,
+            ja_plus,
         );
         gpu.lagometer
             .add_frame(presentation_time - snapshot.server_time);
@@ -207,10 +212,17 @@ pub(crate) fn update(
         );
         gpu.hud
             .update_family(snapshot, session.game_state(), gpu.console.as_ref());
+        // Only merc mode needs the server's mod; read it from the demo's gamestate then.
+        let ja_plus = snapshot.player.entity_flags() & 0x1000 != 0
+            && matches!(
+                sjk_client::CompatProfile::from_game_state(session.game_state()),
+                sjk_client::CompatProfile::JaPlus { .. }
+            );
         gpu.hud.update_selection(
             &gpu.gameplay_input.selection,
             &snapshot.player,
             presentation_time,
+            ja_plus,
         );
         gpu.lagometer
             .add_frame(presentation_time - snapshot.server_time);

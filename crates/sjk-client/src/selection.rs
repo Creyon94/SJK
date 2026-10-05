@@ -1,4 +1,6 @@
-//! Stock local Force/holdable selection (codemp/cgame/cg_main.c:2720-2867).
+//! Stock local Force/holdable selection (codemp/cgame/cg_main.c:2720-2867),
+//! walking JoF EJK's Force wheel ([`crate::force_wheel`]).
+use crate::force_wheel;
 use sjk_protocol::PlayerState;
 
 /// Stock display/cycle order, codemp/game/bg_misc.c:200-220.
@@ -15,6 +17,9 @@ pub struct Selection {
     pub force: Option<u8>,
     /// None sends stock's -1 sentinel, leaving the server item unchanged.
     pub inventory: Option<u8>,
+    /// A selected JoF pseudo-slot ([`force_wheel::STASIS`] and the others): shown
+    /// and used by `+useforce`, never sent, kept while the server grants it.
+    pseudo: Option<u8>,
     force_time: Option<i32>,
     item_time: Option<i32>,
 }
@@ -48,8 +53,9 @@ impl Selection {
         }
         self.sync(player, time);
         let known = player.raw_field(51).unwrap_or(0);
-        // CG_NoUseableForce checks known bits only, not energy or force levels.
-        if inventory || use_held || known & FORCE_MASK == 0 {
+        // CG_NoUseableForce checks known bits only, not energy or force levels;
+        // JoF EJK counts the granted pseudo-slots as usable.
+        if inventory || use_held || known & (FORCE_MASK | force_wheel::PSEUDO_MASK) == 0 {
             let current = self.inventory.unwrap_or_else(|| item_tag(player));
             let mut next = current as i32;
             // BG_CycleInven's bounded scan includes the empty initial selection.
@@ -76,8 +82,21 @@ impl Selection {
                 self.item_time = Some(time);
             }
         } else {
-            let current = self.force.unwrap_or_else(|| player.selected_force_power());
-            if let Some(index) = FORCE_ORDER.iter().position(|&p| p == current) {
+            let current = self
+                .pseudo
+                .unwrap_or_else(|| self.force.unwrap_or_else(|| player.selected_force_power()));
+            // JoF EJK's CG_NextForcePower_f walks its wheel, pseudo-slots included.
+            if let Some(next) = force_wheel::step(known, current, direction) {
+                if force_wheel::is_pseudo(next) {
+                    self.pseudo = Some(next);
+                } else {
+                    self.pseudo = None;
+                    self.force = Some(next);
+                }
+                self.force_time = Some(time);
+            } else if let Some(index) = FORCE_ORDER.iter().position(|&p| p == current) {
+                // A selection that is not on the wheel: stock scans on from its place.
+                self.pseudo = None;
                 for step in 1..18 {
                     let offset = if direction > 0 { step } else { 18 - step };
                     let next = FORCE_ORDER[(index + offset) % 18];
@@ -91,11 +110,32 @@ impl Selection {
                     self.force_time = Some(time);
                 }
             }
+            if self.force_time != Some(time) {
+                // Only pseudo-slots granted: JoF EJK starts at the wheel's first entry.
+                let (slots, count) = force_wheel::build(known);
+                if count > 0 && force_wheel::is_pseudo(slots[0]) {
+                    self.pseudo = Some(slots[0]);
+                    self.force_time = Some(time);
+                }
+            }
         }
     }
 
+    /// The selected JoF pseudo-slot, which `+useforce` uses instead of a power.
+    pub fn wheel_pseudo(&self) -> Option<u8> {
+        self.pseudo
+    }
+
     /// Reset expired Force overrides and consumed items to authoritative selection.
+    /// A pseudo-slot outlives the selector, as in JoF EJK, until the server revokes it.
     pub fn sync(&mut self, player: &PlayerState, time: i32) {
+        let known = player.raw_field(51).unwrap_or(0);
+        if self
+            .pseudo
+            .is_some_and(|slot| !force_wheel::valid(known, slot))
+        {
+            self.pseudo = None;
+        }
         if self
             .force_time
             .is_some_and(|at| time < at || time - at > SELECT_MS)
@@ -136,12 +176,13 @@ impl Selection {
             available: if inventory {
                 player.stats[2] & ITEM_MASK
             } else {
-                player.raw_field(51).unwrap_or(0) & FORCE_MASK
+                player.raw_field(51).unwrap_or(0) & (FORCE_MASK | force_wheel::PSEUDO_MASK)
             },
             selected: if inventory {
                 self.inventory.unwrap_or_else(|| item_tag(player))
             } else {
-                self.force.unwrap_or_else(|| player.selected_force_power())
+                self.pseudo
+                    .unwrap_or_else(|| self.force.unwrap_or_else(|| player.selected_force_power()))
             },
             alpha: ((SELECT_MS - age) as f32 / 300.0).clamp(0.0, 1.0),
         };
@@ -155,5 +196,60 @@ fn item_tag(player: &PlayerState) -> u8 {
         (player.stats[1] - 3) as u8
     } else {
         0
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::force_wheel::{REPULSE, STASIS};
+
+    fn player(known: u32, selected: u8) -> PlayerState {
+        let mut player = PlayerState::default();
+        player.set_raw_field(51, known);
+        player.set_raw_field(54, u32::from(selected));
+        player.stats[0] = 100;
+        player
+    }
+
+    #[test]
+    fn cycling_walks_the_wheel_through_pseudo_slots() {
+        // Heal and Push known, Stasis granted: the wheel is Heal, Push, Stasis.
+        let player = player(1 | (1 << 3) | (1 << STASIS), 0);
+        let mut selection = Selection::default();
+        selection.cycle(Some(&player), 100, false, 1, false);
+        assert_eq!((selection.force, selection.wheel_pseudo()), (Some(3), None));
+        selection.cycle(Some(&player), 110, false, 1, false);
+        // Stasis is shown and used, but Push stays the selection that is sent.
+        assert_eq!(
+            (selection.force, selection.wheel_pseudo()),
+            (Some(3), Some(STASIS))
+        );
+        assert_eq!(selection.view(&player, 120).unwrap().selected, STASIS);
+        selection.cycle(Some(&player), 130, false, 1, false);
+        assert_eq!((selection.force, selection.wheel_pseudo()), (Some(0), None));
+        selection.cycle(Some(&player), 140, false, -1, false);
+        assert_eq!(selection.wheel_pseudo(), Some(STASIS));
+    }
+
+    #[test]
+    fn a_pseudo_slot_outlives_the_selector_until_revoked() {
+        let granted = player((1 << 3) | (1 << REPULSE), 3);
+        let mut selection = Selection::default();
+        selection.cycle(Some(&granted), 0, false, 1, false);
+        assert_eq!(selection.wheel_pseudo(), Some(REPULSE));
+        selection.sync(&granted, SELECT_MS + 10);
+        assert_eq!(selection.wheel_pseudo(), Some(REPULSE));
+        selection.sync(&player(1 << 3, 3), SELECT_MS + 20);
+        assert_eq!(selection.wheel_pseudo(), None);
+    }
+
+    #[test]
+    fn granted_pseudo_slots_alone_are_usable_force() {
+        let only = player(1 << REPULSE, 0);
+        let mut selection = Selection::default();
+        selection.cycle(Some(&only), 0, false, 1, false);
+        assert_eq!(selection.wheel_pseudo(), Some(REPULSE));
+        assert_eq!(selection.inventory, None);
     }
 }

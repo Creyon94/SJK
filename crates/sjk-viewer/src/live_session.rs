@@ -198,6 +198,17 @@ impl GpuState {
             self.pending_generic_command,
         );
         command.buttons = sjk_game_jka::pmove_talk::command_buttons(command.buttons, talking);
+        // JoF EJK's Force wheel: a selected Stasis, Repulse or Dash takes `+useforce`.
+        let known = snapshot.player.raw_field(51).unwrap_or(0);
+        let (buttons, wheel_command) = self
+            .gameplay_input
+            .force_wheel_buttons(command.buttons, known);
+        command.buttons = buttons;
+        if let Some(wheel_command) = wheel_command
+            && let Err(error) = session.send_reliable_command(wheel_command.as_bytes())
+        {
+            eprintln!("failed to send {wheel_command}: {error}");
+        }
         if let Some(console) = &self.console {
             session.set_packet_dup(console.packet_dup());
         }

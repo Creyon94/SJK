@@ -59,6 +59,9 @@ pub(crate) fn install(
         renderer.upload_icon(queue, id, rgba)
     });
     hud.weapon_select = crate::weapon_select::State::load(vfs);
+    hud.force_wheel_icons = super::force_wheel::load(vfs, shaders, |id, rgba| {
+        renderer.upload_icon(queue, id, rgba)
+    });
     (renderer, hud)
 }
 
