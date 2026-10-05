@@ -150,14 +150,15 @@ impl PlayerMenu {
         let count = self.cosmetics.count(slot).min(MAX_ROWS);
         if count == 0 {
             let (empty, folder) = match slot {
-                CosmeticSlot::Hat => ("No hats installed.", "models/cosmetics/hats"),
-                CosmeticSlot::Cape => ("No capes installed.", "models/cosmetics/capes"),
+                CosmeticSlot::Hat => ("No hats installed.", "models/cosmetics/hats in base."),
+                CosmeticSlot::Cape => ("No capes installed.", "models/cosmetics/capes in base."),
             };
-            let lines: [(&str, f32); 4] = [
+            let lines: [(&str, f32); 5] = [
                 (empty, 12.0),
-                ("Add JoF EJK's cosmetics to", 11.0),
+                ("Install JoF EJK's cosmetics", 11.0),
+                ("(GameData/EternalJK), or a pack", 11.0),
+                ("with", 11.0),
                 (folder, 11.0),
-                ("or set fs_basegame EternalJK.", 11.0),
             ];
             for (row, (text, size)) in lines.into_iter().enumerate() {
                 self.label(

@@ -794,7 +794,7 @@ title: JoF EJK hats and capes: Cosmetics window, cosmetics command, drawn on pla
 change: Profile > Cosmetics lists hats and capes; a click wears (color1 4santahat), again takes off.
 change: Hats on *head_top, capes on *back of every player wearing them; cg_cosmetics 0/1/2.
 change: Command cosmetics hats|capes [num|name], clear, visibility. Fix: c1 8santahat is not blue.
-test: The pack is in GameData/EternalJK: fs_basegame EternalJK + restart (or copy it to base).
+test: JoF's pack in GameData/EternalJK is found alone: log says "cosmetics: hats and capes from".
 test: Profile > Cosmetics: both lists filled; click Santahat: filled row, "worn", Wearing line.
 test: Console: color1 reads 4santahat (your saber colour first); cosmetics hats lists [X].
 test: Local server, cg_thirdPerson 1: the hat sits on your head; a cape on your back; dies with you.

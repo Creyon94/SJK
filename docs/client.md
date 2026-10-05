@@ -465,9 +465,12 @@ in `models/cosmetics/hats/`, a cape any in `models/cosmetics/capes/`
 (`models/players/hats/` and `capes/` when the new folders are empty, as older
 packs used them); names of JoF's catalogue are found in either. A name is at
 most 13 letters, digits, `_` or `-` and does not start with a digit. JoF's
-pack is `zzz_jof_cosmetics.pk3` in the `EternalJK` folder, which SJK mounts
-only with `fs_basegame EternalJK` (see [Player models](#player-models)); a copy
-in `base` works too.
+launcher installs its pack (`zzz_jof_cosmetics.pk3`) in the `EternalJK` folder:
+SJK mounts every PK3 there that has models in `models/cosmetics/hats/` or
+`capes/`, below all other content, without mounting the rest of that folder
+(its menus, HUD and strings come only with `fs_basegame EternalJK`, see
+[Player models](#player-models)); the log names each pack. A pack in `base`
+works too ([asset_search_paths.rs](../crates/sjk-viewer/src/asset_search_paths.rs)).
 
 What a player wears travels in the saber colour keys, as JoF EJK sends it:
 `color1 "4santahat"` is blue blade 4 wearing the hat `santahat`, and `color2`
