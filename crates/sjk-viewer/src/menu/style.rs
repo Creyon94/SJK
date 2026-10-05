@@ -69,18 +69,20 @@ impl ClientMenu {
 
 impl crate::GpuState {
     /// Apply `ui_menuStyle` to the main and in-game menus. While the
-    /// classic style is on, the player's retail menu artwork is decoded
-    /// (once, on a worker) and uploaded when ready; both menus are told
-    /// which pieces they can draw.
+    /// classic style is on, or the classic console (whose command browser is
+    /// classic+), the player's retail menu artwork is decoded (once, on a
+    /// worker) and uploaded when ready; the menus and the console's browser
+    /// are told which pieces they can draw.
     pub(crate) fn sync_menu_style(&mut self) {
         let Some(console) = &self.console else {
             return;
         };
         let style = MenuStyle::from_cvar(console.text_value(CVAR));
+        let classic_console = crate::game_font::classic_console(Some(console));
         // SJK's emblem is on both styles' main page.
         crate::menu::emblem::request();
         self.ui_shapes.install_emblem(&self.device, &self.queue);
-        if style == MenuStyle::Classic {
+        if style == MenuStyle::Classic || classic_console {
             if let Some(vfs) = &self.vfs {
                 art::request(vfs);
             }
@@ -92,6 +94,9 @@ impl crate::GpuState {
             menu.set_menu_art(art);
         }
         self.in_game_menu.set_style(style, art);
+        if let Some(console) = &mut self.console {
+            console.set_browser_art(art);
+        }
         self.sync_classic_loading();
     }
 

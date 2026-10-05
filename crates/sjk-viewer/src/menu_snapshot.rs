@@ -500,6 +500,7 @@ fn menu_snapshot() {
         shots.save(name, editor.draw_list(), &vertices, frame == Frame::InGame);
     }
     in_game_menu(&shots, art);
+    console_browser(&shots, art);
     weapon_select(&mut shots, &vfs);
     force_wheel(&mut shots, &vfs);
 }
@@ -648,6 +649,27 @@ fn force_wheel(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
             crate::text::TextStyle::NEUTRAL,
         );
         shots.save(name, &list, &vertices, true);
+    }
+}
+
+/// The console's command browser in both looks: the modern one and the
+/// classic+ one the classic console uses (`console_browser_classic.rs`).
+fn console_browser(shots: &Snapshot, art: ArtSet) {
+    for (name, style) in [
+        ("console-browser-modern", "modern"),
+        ("console-browser-classic", "classic"),
+    ] {
+        let directory = tempfile::tempdir().expect("scratch profile");
+        let mut console = crate::console::ViewerConsole::new(directory.path().join("config.cfg"))
+            .expect("console");
+        console.set_cvar("con_style", style);
+        // A changed cvar shows its default beside it.
+        console.set_cvar("con_height", "0.75");
+        console.set_browser_art(art);
+        console.open_browser_on("con_");
+        let mut vertices = Vec::new();
+        console.append_overlay(&mut vertices, &shots.font.font, VIEWPORT, 1.0);
+        shots.save(name, console.draw_list(), &vertices, true);
     }
 }
 

@@ -21,6 +21,10 @@ impl Browser {
         font: &UiFont,
         viewport: [f32; 2],
     ) {
+        if self.classic {
+            self.append_classic(vertices, font, viewport);
+            return;
+        }
         vertices.clear();
 
         let mut layout = FormLayout::new(viewport);

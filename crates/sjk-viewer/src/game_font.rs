@@ -308,6 +308,14 @@ impl GameFonts {
         target(enabled, self.slot_mut(font), vertices, inter)
     }
 
+    /// Drop the text every retail font holds this frame, for a screen that covers
+    /// the frame (the console's command browser).
+    pub(crate) fn clear_text(&mut self) {
+        for layer in self.layers_mut() {
+            layer.vertices.clear();
+        }
+    }
+
     /// Text target for menus ([`RetailFont::Medium`]).
     pub(crate) fn menu<'a>(
         &'a mut self,

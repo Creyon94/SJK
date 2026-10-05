@@ -607,6 +607,19 @@ test: Hold the console key: it opens once and stays open, no flicker.
 test: Same with con_style modern. In chat (console closed), ~ still types in the chat line.
 test: AZERTY: ^ then 1 in the console still gives ^1; Esc and Shift+Esc still close it.
 
+[console-browser-classic]
+status: personal
+area: Console & chat
+title: F3 browser in the classic+ style with the classic console
+change: Retail pop-up box, gold filter and action buttons, retail list box and a detail box.
+change: The detail box shows the selected entry's kind, value, default and whole description.
+test: Classic console open, F3: the retail box over a dimmed screen, COMMANDS & CVARS title.
+test: Type con_: rows filter; Up/Down move the blue-lit row; the box below describes it.
+test: Hover ALL/COMMANDS/CVARS/CHANGED and the buttons: glow, and the line under the box explains.
+test: Enter on a cvar, type a value, Enter: it turns gold with "default ..." at the row's end.
+test: Wheel and the gold scrollbar scroll; Esc or F3 returns to the console.
+test: con_style modern: F3 shows the old full-screen browser, unchanged.
+
 [score-display]
 status: personal
 area: HUD

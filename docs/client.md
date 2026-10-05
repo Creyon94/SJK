@@ -1335,8 +1335,19 @@ Escape cancels an active edit first; otherwise Escape or F3 returns to the conso
 The clickable Apply, Cancel and Filter controls follow the same actions as the
 keyboard. Read-only cvars are listed but not edited. The
 browser covers the whole frame: underlying menu shapes/text, chat and the FPS
-counter are suppressed, including both font batches. See
+counter are suppressed, including every font batch. See
 [console_browser.rs](../crates/sjk-viewer/src/console_browser.rs).
+
+With the classic console (`con_style classic`) the browser is drawn classic+
+([classic-plus.md](classic-plus.md)): the in-game pop-up's retail box and title
+band over the dimmed screen, the four filters and Edit (Insert, Apply), Default,
+Filter and Close as retail gold buttons with the `menu_buttonback` glow, a retail
+list box whose selected row sits on `menu_blendbox2` (a changed cvar's value in
+gold with its default beside it), a detail box with the selected entry's kind,
+value, default and whole description, and the description line under the box.
+It uses the menus' retail font when `ui_gameFont` is on, and works without the
+retail art. Keys, pointer and wheel act as in the modern look
+([console_browser_classic.rs](../crates/sjk-viewer/src/console_browser_classic.rs)).
 
 For graphics controls and diagnostics, see [rendering.md](rendering.md).
 
