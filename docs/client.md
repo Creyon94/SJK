@@ -1010,6 +1010,36 @@ page lives in the console and is drawn in its place, so it opens over the menus
 and in a match, and closes the console with itself when it opened it. How the
 file is kept is in [SJK conventions](sjk.md#changelog).
 
+## Updates
+
+The client looks for a newer SJK release when it starts and from the Update page
+([update.rs](../crates/sjk-viewer/src/update.rs) does the work,
+[update_panel.rs](../crates/sjk-viewer/src/update_panel.rs) draws the page).
+
+- `cl_autoUpdate` (default 1; Settings > Network > Check for updates at start)
+  asks `api.github.com/repos/Sol-Vulpes/SJK/releases/latest` once at start-up on
+  a worker thread. A newer version shows on the main menus' version line
+  ("update 2026.1010.1 available"). The check sends the request GitHub needs and
+  nothing else; turn it off to send none.
+- Main menu > Update (an UPDATE button under SETUP on the classic page) or the
+  `update` command opens the page. It shows the state and offers Install (Enter),
+  Check again (C) and Release notes (N); Escape closes. Opening it with nothing
+  checked yet checks at once.
+- Install downloads `SJK-<version>-<platform>.zip`, refuses it unless its SHA-256
+  is the one in the release's `SJK-<version>-SHA256SUMS-<platform>.txt`, writes the
+  ZIP's files beside the running program as `<name>.new` and renames each running
+  file to `<name>.old` before the new one takes its name (a Windows program can be
+  renamed while it runs, not overwritten). A failed step puts the old files back.
+  Only plain file names are taken from the ZIP. The `.old` files are deleted at
+  the next start. Settings in `GameData/SJK/` are not touched.
+- The new version starts when the client exits, after it saved its settings:
+  "Restart now" on the page quits, or the player keeps playing and restarts later.
+- Nothing is installed without Install. When the program's folder is not writable
+  (a Program Files install) the page offers the release page instead.
+- A local build says `dev`, which has no release number to compare, so it reports
+  that and never offers an update. `cl_updateAs 2026.1001.1` makes it check as if
+  it were that release, to try the page without a release build.
+
 ## Force wheel
 
 With the `game` and `classic` HUD styles, `forcenext`/`forceprev` show JoF

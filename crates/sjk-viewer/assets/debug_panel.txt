@@ -1150,6 +1150,18 @@ test: Set cg_noPredict 1, then 2: movement is the server's; set 0 to return.
 test: /fakenoclip: fly through walls (attack = turbo, jump/crouch = up/down).
 test: Others see you standing with the chat balloon; /fakenoclip again snaps back.
 
+[self-update]
+status: personal
+area: Menus & settings
+title: Self-update: launch check and Update page
+change: At start the client checks GitHub for a newer release (cl_autoUpdate, default on).
+change: Main menu > Update (classic: UPDATE under SETUP) or /update: check, install, release notes.
+change: Install verifies the ZIP's SHA-256, swaps the programs (.old files) and restarts on exit.
+test: A play build says "development build"; run cl_updateAs 2026.1001.1, then /update.
+test: It offers the latest release and the version line on the main menu says update available.
+test: Do not press Install on a play build unless you accept it replaces that build's sjk.exe.
+note: Install against a real release and the Linux swap are untested.
+
 # ---- Merged upstream ----
 
 [jkr-vehicles]

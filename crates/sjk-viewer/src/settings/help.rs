@@ -272,6 +272,10 @@ const HELP: &[(&str, &str)] = &[
         "The master server the server browser asks for its list of servers.",
     ),
     (
+        "cl_autoUpdate",
+        "Looks for a newer SJK release at start and says so on the main menu. Install it from the Update page.",
+    ),
+    (
         "rate",
         "Most data per second the server may send you; raise it on a fast connection.",
     ),

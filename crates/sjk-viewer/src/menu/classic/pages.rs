@@ -61,11 +61,12 @@ const CONTROLS_HINT: &str = "Key bindings and mouse";
 const SETUP_HINT: &str = "Video, sound and game options";
 const EXIT_HINT: &str = "Leave the game";
 const CHANGELOG_HINT: &str = "What changed in each SJK release, and who made it";
+const UPDATE_HINT: &str = "Check for a newer SJK release and install it";
 const BACK_HINT: &str = "Return to the main menu";
 
 /// Retail `main.menu`: two columns either side of the centre window, Exit
 /// below.
-const MAIN: [Slot; 6] = [
+const MAIN: [Slot; 7] = [
     button(
         Entry::Play,
         "PLAY",
@@ -112,6 +113,15 @@ const MAIN: [Slot; 6] = [
         "CHANGELOG",
         CHANGELOG_HINT,
         [101.0, 456.0],
+        150.0,
+        Size::Medium,
+    ),
+    // SJK: under SETUP, mirroring Changelog.
+    button(
+        Entry::Update,
+        "UPDATE",
+        UPDATE_HINT,
+        [521.0, 456.0],
         150.0,
         Size::Medium,
     ),

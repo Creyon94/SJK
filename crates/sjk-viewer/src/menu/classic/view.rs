@@ -208,11 +208,11 @@ pub(crate) fn build(
     }
     let muted = canvas.theme().muted;
     canvas.text_aligned(
-        super::super::main_view::VERSION_LINE,
+        &super::super::main_view::version_line(),
         Rect::new(
-            viewport[0] - 336.0 * s,
+            viewport[0] - 536.0 * s,
             viewport[1] - 26.0 * s,
-            320.0 * s,
+            520.0 * s,
             16.0 * s,
         ),
         6.0 * s,

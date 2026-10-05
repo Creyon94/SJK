@@ -393,7 +393,7 @@ mod tests {
         assert_eq!(panel.first, last + 1 - 5);
         panel.apply(Step::Page(-1));
         assert_eq!(panel.selected, last - 5);
-        panel.scroll_by(-100);
+        panel.scroll_by(isize::MIN / 2);
         assert_eq!(panel.first, 0);
         panel.scroll_to_ratio(1.0);
         assert_eq!(panel.first, last + 1 - 5);

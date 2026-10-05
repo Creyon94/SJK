@@ -394,6 +394,11 @@ pub(super) const NETWORK: &[Setting] = &[
         kind: ValueKind::Text,
     },
     Setting {
+        label: "Check for updates",
+        cvar: "cl_autoUpdate",
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Rate (bytes/s)",
         cvar: "rate",
         kind: ValueKind::Integer {
