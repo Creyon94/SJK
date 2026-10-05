@@ -1,6 +1,7 @@
 //! Bind-command interpretation for gameplay input.
 
 use sjk_protocol::UserCommand;
+pub(crate) mod alt_code;
 pub(crate) mod dead_key;
 pub(crate) mod motion;
 

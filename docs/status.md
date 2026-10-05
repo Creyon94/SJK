@@ -266,6 +266,17 @@ formatting, the retail and JoF `console` shaders' stage programs, texture motion
 and colour waves, and `con_style` parsing. The layer was not run on a GPU or in a
 game by the change's author; side-by-side comparison with EternalJK is pending.
 
+## Alt codes (SJK)
+
+SJK-only branch `personal/alt-codes` (2026-10-05, based on `2696590`) types
+Windows Alt codes (Alt + numeric keypad) in the console, chat and menu fields,
+which winit 0.30 drops; see [client typing](client.md#useful-console-commands).
+Unit tests cover the code page 1252 and 437 tables, modulo 256, control codes,
+withheld keypad digits, play keeping the keypad, AltGr and Ctrl+Alt, cancelling
+keys, Shift, key repeat and focus loss; the locked workspace build and tests
+passed. No game was started: typing a code in the running client is unverified.
+Codes without a leading 0 always use code page 437, not the system OEM page.
+
 ## Classic profile Force page and cosmetics (SJK)
 
 The classic profile gains a Force page (retail's `ingame_playerforce`, on both

@@ -1183,6 +1183,20 @@ field takes a dead `^` as a literal colour prefix. Opening or closing the consol
 clears the window's pending accent composition, so a dead toggle key such as `^`
 on a German layout does not combine with the next letter.
 
+Alt codes type as in other Windows programs: hold Alt, type a number on the
+numeric keypad and release Alt. A number starting with 0 is a Windows-1252 code
+(`Alt+0248` gives `ø`), any other a code page 437 one (`Alt+21` gives `§`,
+`Alt+130` gives `é`), counted modulo 256; a code naming a control character types
+nothing. They work wherever text is typed (the console line and browser search,
+the chat draft, menu fields) and not during play, where the keypad keeps its
+bindings; the keypad digits of a code reach no field, so the classic console's
+keypad 8/2 do not walk the history. AltGr and Ctrl+Alt do not compose. Windows
+composes these itself, but winit drops the resulting character, so the client
+composes them with the same rules
+([alt_code.rs](../crates/sjk-viewer/src/input/alt_code.rs)). Codes without a
+leading 0 always use code page 437, the US OEM page, even where Windows uses
+another OEM page (850 in much of Western Europe).
+
 `connect host:port`, `disconnect` and `reconnect` control the session.
 `record`, `stoprecord`, `demo` and `playdemo` control demos.
 `screenshot` and `screenshotJPEG` request captures; `condump filename` saves
