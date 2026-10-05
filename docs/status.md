@@ -1161,6 +1161,14 @@ instances was not changed: their surfaces use their own lightmaps, and models on
 them sample the main map's light grid outside its bounds, clamped as rd-vanilla
 does; SJK's real-time light caches cover only the main map.
 
+## Lightsaber creation: one Apply (SJK)
+
+The classic lightsaber creation page drew two "Apply" buttons; the middle one did
+nothing. Retail's `ui/jamp/saber.menu` keeps that button (`apply`, 255 444) inside a
+commented-out block, so retail shows only EXIT and one Apply, which writes the saber
+and returns to the main menu. SJK now draws the same (05/10/2026); a unit test keeps
+one Apply on the page. Not checked in the running client.
+
 ## Outgoing text encoding (SJK)
 
 SJK-only branch `personal/legacy-text` (2026-10-05, based on `2696590`) sends

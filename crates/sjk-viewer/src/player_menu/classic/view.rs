@@ -912,10 +912,9 @@ impl PlayerMenu {
                     (_, Frame::InGame) => 15.0,
                     _ => 17.0,
                 };
-                // Both of the saber page's buttons read "Apply" (`@MENUS_APPLY`);
+                // The saber page's one button reads "Apply" (`@MENUS_APPLY`, Item::ApplyMain);
                 // the profile pages' APPLY is `@MENUS_APPLY_CAPS`.
                 let text = match (item, page, frame) {
-                    (Item::Apply, ClassicPage::Saber, Frame::Full) => "Apply",
                     // `ingame_saber`'s button is `@MENUS_APPLY_CHANGES`.
                     (Item::Apply, ClassicPage::Saber, Frame::InGame) => "APPLY CHANGES",
                     (Item::Apply, _, Frame::InGame) => "Apply",
