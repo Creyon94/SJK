@@ -586,7 +586,7 @@ test: Open with ~: the JoF picture with moving stars and a blue bar under it, as
 test: con_scale 0.5 at 4K: same cell size as EJK. con_opacity 0.79 fades the stars only.
 test: con_timestamps 2: grey HH:MM:SS on every row, wrapped rows too; long lines wrap at words.
 test: Input row: green clock, ] prompt, ^1 shown raw, blinking cursor; Insert gives a block.
-test: Bottom right: the SJK version line, local date and time below it (Sun Oct  4 ... PM).
+test: Bottom right: the SJK version line, local date and time below it (Sun 05/10/2026 22:52:10).
 test: Shift+~ opens a quarter, Ctrl+~ full screen, Shift+Esc half; Esc closes.
 test: PgUp scrolls 2 lines (Ctrl+PgUp 10), wheel too: a ^ ^ ^ row shows. Ctrl+End: newest.
 test: History: Up/Down, KP8/KP2, Shift+wheel, Ctrl+P/N. Ctrl+L clears. ]cmd echo.
@@ -595,6 +595,17 @@ test: Open over the main menu and in game: no menu, chat or HUD text shows throu
 test: In game, closed: notify lines at the top left; hidden while a menu is open.
 test: con_style modern: the old console, unchanged; con_style classic again.
 note: Your config keeps con_timestamps 0: set 2 for EJK's stamps. con_ratioFix 0 squashes.
+
+[console-key-closes]
+status: personal
+area: Console & chat
+title: The console key closes the console again, as in EternalJK
+change: The key that opens the console (~, or your cl_consoleKeys key) now closes it and types nothing.
+change: Holding it toggles once; a printable key bound to toggleconsole still types in the console.
+test: Press ~ (or your console key): the console opens. Press it again: it closes, no ~ typed.
+test: Hold the console key: it opens once and stays open, no flicker.
+test: Same with con_style modern. In chat (console closed), ~ still types in the chat line.
+test: AZERTY: ^ then 1 in the console still gives ^1; Esc and Shift+Esc still close it.
 
 [score-display]
 status: personal

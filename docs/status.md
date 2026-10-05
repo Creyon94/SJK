@@ -380,6 +380,11 @@ formatting, the retail and JoF `console` shaders' stage programs, texture motion
 and colour waves, and `con_style` parsing. The layer was not run on a GPU or in a
 game by the change's author; side-by-side comparison with EternalJK is pending.
 
+The console key closes the console again (05/10/2026, Sol's request): as in
+EternalJK, a `cl_consoleKeys` character (or the scan-code key) toggles either
+console style and never types; holding it toggles once. Unit tests cover the
+open-console decision and the key list; not tried in a game.
+
 ## Alt codes (SJK)
 
 SJK-only branch `personal/alt-codes` (2026-10-05, based on `2696590`) types

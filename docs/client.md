@@ -1218,14 +1218,18 @@ Local time comes from the operating system's time zone rules, daylight saving
 included ([local_time.rs](../crates/sjk-shell/src/local_time.rs)); the scrollback's
 stamps, also the modern console's `[HH:MM:SS]` and the log file's, are local time
 too. Differences from EternalJK besides those above: the input never runs past
-the screen's right edge (EternalJK's can), and while the console is open a
-printable console key types its character, as in SJK's modern console; Escape or
-a non-printing `toggleconsole` key closes it.
+the screen's right edge (EternalJK's can).
 
 ## Useful console commands
 
-Printable console shortcuts open the console but type normally once it is open;
-Escape and non-text toggle bindings can still close it. On layouts with dead keys
+The console key opens and closes either console style and never types its
+character, as in EternalJK (`IN_IsConsoleKey` turns it into `A_CONSOLE`): a
+`cl_consoleKeys` character such as `~` or `²`, or the physical key with
+`cl_consoleUseScanCode`. Holding it toggles once. Escape and Shift+Escape close
+the console too, and so does a key bound to `toggleconsole` that prints nothing;
+a printable key bound to it types while the console is open
+([console_keyboard.rs](../crates/sjk-viewer/src/console_keyboard.rs)). The chat
+composer still types `~` when the console is closed. On layouts with dead keys
 (`^` on French AZERTY and German QWERTZ, `'` on US International), the console
 line and the chat draft show a dead key at the caret at once and replace it with
 what the platform composes on the next key, so typing reads as on a layout without
