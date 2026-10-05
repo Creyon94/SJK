@@ -39,7 +39,7 @@ pub fn encode_legacy_text(text: &str) -> Cow<'_, [u8]> {
     }
     let mut bytes = Vec::with_capacity(text.len());
     for character in text.chars() {
-        match legacy_byte(character) {
+        match windows_1252_byte(character) {
             Some(byte) => bytes.push(byte),
             None => return Cow::Borrowed(text.as_bytes()),
         }
@@ -48,13 +48,25 @@ pub fn encode_legacy_text(text: &str) -> Cow<'_, [u8]> {
 }
 
 /// The Windows-1252 byte of `character`, if it has one.
-fn legacy_byte(character: char) -> Option<u8> {
+///
+/// The renderer uses it too: JKA's fonts hold one glyph per byte, so the character
+/// a player typed (`€`) and the byte another client sent (0x80) select one glyph.
+pub fn windows_1252_byte(character: char) -> Option<u8> {
     u8::try_from(u32::from(character)).ok().or_else(|| {
         WINDOWS_1252_HIGH
             .iter()
             .position(|&mapped| mapped == character)
             .map(|index| 0x80 + index as u8)
     })
+}
+
+/// The character Windows-1252 assigns to `byte`: the byte's own value, except the
+/// 27 typographic characters in 0x80..=0x9F. The inverse of [`windows_1252_byte`].
+pub fn windows_1252_char(byte: u8) -> char {
+    match byte {
+        0x80..=0x9f => WINDOWS_1252_HIGH[usize::from(byte - 0x80)],
+        _ => char::from(byte),
+    }
 }
 
 #[cfg(test)]
@@ -113,5 +125,32 @@ mod tests {
             let text = character.to_string();
             assert_eq!(&*encode_legacy_text(&text), [0x80 + index as u8]);
         }
+    }
+}
+
+#[cfg(test)]
+mod windows_1252_tests {
+    use super::{windows_1252_byte, windows_1252_char};
+
+    #[test]
+    fn every_byte_round_trips_through_its_character() {
+        for byte in 0..=u8::MAX {
+            assert_eq!(windows_1252_byte(windows_1252_char(byte)), Some(byte));
+        }
+    }
+
+    #[test]
+    fn typographic_characters_have_their_bytes() {
+        for (character, byte) in [
+            ('€', 0x80),
+            ('’', 0x92),
+            ('‘', 0x91),
+            ('™', 0x99),
+            ('—', 0x97),
+        ] {
+            assert_eq!(windows_1252_byte(character), Some(byte));
+            assert_eq!(windows_1252_char(byte), character);
+        }
+        assert_eq!(windows_1252_byte('♥'), None);
     }
 }

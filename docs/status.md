@@ -44,6 +44,20 @@ contributor challenged a player named with `×` on a live server; with the wrapp
 fix the challenge showed without a crash, but with `?` for each `×`; with both
 fixes it read `You have challenged ×jof.jk.belyash×`. Merged into SJK `main` from
 SJK pull request #2 (Creyon94, 06/10/2026).
+## Windows-1252 symbols on screen
+
+Branch `fix/windows-1252-display` (06/10/2026, based on `86ad1be`): text a player
+typed with `€`, `’`, `‘`, `™`, `—` or another Windows-1252 typographic character
+drew `?`, because a glyph was chosen by Unicode value below 256; the same symbols
+received from other clients (bytes 0x80..=0x9F) drew blank in the modern font,
+whose slots held C1 controls. Glyphs are now chosen by Windows-1252 byte and the
+modern font's slots hold the Windows-1252 characters. Wildcard keys of JoF cosmetic
+offsets now compare bytes, so a model name with a multi-byte character across the
+prefix length no longer panics. Unit tests cover every byte's round trip, a list of
+common name symbols typed and received, and the cosmetic match. An audit of
+client-side string slicing on player and server text found no other site that can
+split a character. Formatting, the locked workspace build, tests and clippy passed
+on Linux. In-game appearance on Windows is unverified.
 
 ## Worldspawn shader remaps and remap order
 

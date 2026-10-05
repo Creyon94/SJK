@@ -168,7 +168,9 @@ pub(crate) fn load_modern(
     let mut rasterized = Vec::with_capacity(GLYPH_COUNT * fonts.len());
     for (face, font) in fonts.iter().enumerate() {
         for byte in 0..GLYPH_COUNT {
-            let character = char::from_u32(byte as u32).unwrap_or('\u{fffd}');
+            // Slot `byte` holds the Windows-1252 character of that byte, as JKA's
+            // own fonts do, so 0x80 is `€` rather than an invisible C1 control.
+            let character = sjk_protocol::windows_1252_char(byte as u8);
             let (metrics, pixels) = font.rasterize(character, pixel_size);
             rasterized.push(RasterizedGlyph {
                 face,
@@ -451,18 +453,20 @@ pub(crate) fn append_text_style(
 
 /// Take the atlas index that draws the character at `index`, and its UTF-8 length.
 ///
-/// The atlas holds 256 glyphs indexed by Latin-1 codepoint, matching how JKA's own fonts are
+/// The atlas holds 256 glyphs indexed by Windows-1252 byte, matching how JKA's own fonts are
 /// laid out. Text reaching the renderer is a Rust `str`, so any character above ASCII occupies
 /// several UTF-8 bytes, and indexing the atlas with those bytes drew one character as two
 /// glyphs: `ñ` became `Ã±`, and U+FFFD became `ï¿½` — the trailing `½` players kept seeing in
-/// names. Characters outside Latin-1 have no glyph in a 256-entry atlas and fall back to `?`.
+/// names. A character is drawn with the glyph of its Windows-1252 byte, so `€` typed here and
+/// byte 0x80 from another client (decoded as U+0080) both draw slot 0x80. Characters with no
+/// Windows-1252 byte have no glyph in a 256-entry atlas and fall back to `?`.
 ///
 /// `index` must be a character boundary, which holds because every caller advances by whole
 /// characters or by an ASCII colour escape.
 pub(crate) fn glyph_byte_at(text: &str, index: usize) -> (u8, usize) {
     match text[index..].chars().next() {
         Some(character) => (
-            u8::try_from(u32::from(character)).unwrap_or(b'?'),
+            sjk_protocol::windows_1252_byte(character).unwrap_or(b'?'),
             character.len_utf8(),
         ),
         None => (b'?', 1),
@@ -515,6 +519,30 @@ pub(crate) fn visible_text_width_style(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Glyph bytes of `text`, walking it as the renderer does.
+    fn glyph_bytes(text: &str) -> Vec<u8> {
+        let mut bytes = Vec::new();
+        let mut index = 0;
+        while index < text.len() {
+            let (byte, step) = glyph_byte_at(text, index);
+            bytes.push(byte);
+            index += step;
+        }
+        bytes
+    }
+
+    #[test]
+    fn typed_and_received_symbols_draw_their_windows_1252_glyph() {
+        let symbols = "×¥’¡²³‘€½¼©ñæ§®™£°µ·«»ÄäÖöÜüßÆØøÑ";
+        let expected = sjk_protocol::encode_legacy_text(symbols);
+        // Typed here: Unicode characters.
+        assert_eq!(glyph_bytes(symbols), *expected);
+        // Received from a legacy client: the same bytes, decoded as Latin-1.
+        let received: String = expected.iter().map(|&byte| char::from(byte)).collect();
+        assert_eq!(glyph_bytes(&received), *expected);
+        assert_eq!(glyph_bytes("♥"), [b'?']);
+    }
 
     #[test]
     fn colour_codes_eight_and_nine_are_orange_and_grey() {
