@@ -86,7 +86,8 @@ retail 640x480 layout is fitted to the window height and centred.
 
 SJK differs from JKR's documented behavior here: `classic` is the default, and
 only `modern` (or `0`) selects the modern layout; an unknown value falls back to
-`classic`.
+`classic`. SJK's own classic pages keep the retail look and add modern help
+inside it; the rules are in [Classic+ menus](classic-plus.md).
 
 The classic main menu has the retail pages, entries and order:
 
