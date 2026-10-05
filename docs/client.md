@@ -1314,10 +1314,12 @@ releasing it also taps `+use`, as EternalJK does. See
 
 `flipkick` is JoF EJK's flip-kick bind: one press starts a run of jump taps, jump
 held in one user command and released in the next, overriding a held jump key and
-letting go of it when the run ends. EJK counts frames; SJK counts user commands
-(one every 25 ms), so `cg_fkDuration` (default 50) lasts 1.25 s here.
-`cg_fkFirstJumpDuration` holds the first jump for that many commands and
-`cg_fkSecondJumpDelay` starts the second jump at that command (both 0). A server
+letting go of it when the run ends. EJK counts frames; SJK sends a user command
+every 25 ms and reads the cvars as time at EJK's 125 fps (8 ms a frame), so
+`cg_fkDuration` (default 50) lasts 0.4 s, 16 commands; counted as commands it
+outlasted a missed kick's jump and jumped again on landing.
+`cg_fkFirstJumpDuration` holds the first jump for that many frames and
+`cg_fkSecondJumpDelay` starts the second jump at that frame (both 0). A server
 forbids it with bit 7 (`RESTRICT_FLIPKICKBIND`) of serverinfo `restricts`. See
 [flip_kick.rs](../crates/sjk-viewer/src/input/flip_kick.rs).
 

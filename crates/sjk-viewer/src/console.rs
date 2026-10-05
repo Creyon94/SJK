@@ -314,11 +314,11 @@ impl ViewerConsole {
             self.integer_cvar(name)
                 .map_or(default, |value| value.clamp(0, i64::from(u32::MAX)) as u32)
         };
-        let defaults = Timing::default();
+        // The cvars are EJK's frames; the run counts user commands.
         Timing {
-            duration: count(DURATION_CVAR, defaults.duration),
-            first_jump: count(FIRST_JUMP_CVAR, defaults.first_jump),
-            second_jump_delay: count(SECOND_JUMP_CVAR, defaults.second_jump_delay),
+            duration: commands(count(DURATION_CVAR, 50)),
+            first_jump: commands(count(FIRST_JUMP_CVAR, 0)),
+            second_jump_delay: commands(count(SECOND_JUMP_CVAR, 0)),
         }
     }
 
