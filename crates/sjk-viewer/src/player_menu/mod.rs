@@ -15,6 +15,7 @@ mod force_view;
 mod grid;
 mod icons;
 mod numeric;
+mod part_icons;
 mod pointer;
 mod rows;
 mod saber;
@@ -102,6 +103,8 @@ pub(crate) struct PlayerMenu {
     icons: icons::IconLoader,
     /// The Force page's power icons and side emblems.
     force_icons: icons::IconLoader,
+    /// Character creation's part icons and tint base, for the species edited.
+    part_icons: part_icons::PartIcons,
     /// Skin set the grid lists (retail's Team Color chooser).
     team: TeamSkin,
     /// Catalogue indices (characters first, then species) the grid shows,
@@ -149,6 +152,7 @@ impl PlayerMenu {
             icon_vfs: None,
             icons: icons::IconLoader::new(),
             force_icons: icons::IconLoader::new(),
+            part_icons: part_icons::PartIcons::new(),
             team: TeamSkin::default(),
             tiles: Vec::with_capacity(icons::MAX_ICONS),
             grid_scroll: 0,
@@ -222,6 +226,7 @@ impl PlayerMenu {
     ) {
         self.icons.upload_batch(renderer, queue, 32);
         self.force_icons.upload_batch(renderer, queue, 32);
+        self.part_icons.upload(renderer, queue);
     }
 
     /// Start decoding the Force icons once the VFS is known, and the model

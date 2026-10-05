@@ -25,8 +25,13 @@ pub(crate) const FORCE_ICON_CELLS: u32 = 2 * COLUMNS;
 /// First of the 32 classic-scoreboard head-icon cells (one per client slot),
 /// after the Force page cells.
 pub(crate) const SCOREBOARD_ICON_CELLS: u32 = FORCE_ICON_FIRST + FORCE_ICON_CELLS;
+/// First of the character creation cells (one species' part icons and tint
+/// base), after the scoreboard's.
+pub(crate) const PART_ICON_FIRST: u32 = SCOREBOARD_ICON_CELLS + 32;
+/// Character creation cells: four atlas rows.
+pub(crate) const PART_ICON_CELLS: u32 = 4 * COLUMNS;
 /// Every icon cell; the banner strip lies below the last row.
-pub(crate) const ATLAS_CELLS: u32 = SCOREBOARD_ICON_CELLS + 32;
+pub(crate) const ATLAS_CELLS: u32 = PART_ICON_FIRST + PART_ICON_CELLS;
 const TOTAL_CELLS: u32 = ATLAS_CELLS;
 const ATLAS_HEIGHT: u32 = TOTAL_CELLS.div_ceil(COLUMNS) * ICON_SIZE + BANNER_SIZE[1];
 /// `TexturedQuad` texture naming the banner strip.

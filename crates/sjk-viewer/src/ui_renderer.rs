@@ -13,7 +13,7 @@ use emblem::EmblemTextures;
 use icons::IconAtlas;
 pub(crate) use icons::{
     ATLAS_CELLS, BANNER_SIZE, BANNER_TEXTURE, FORCE_ICON_CELLS, FORCE_ICON_FIRST, ICON_CELLS,
-    ICON_SIZE, SCOREBOARD_ICON_CELLS,
+    ICON_SIZE, PART_ICON_CELLS, PART_ICON_FIRST, SCOREBOARD_ICON_CELLS,
 };
 pub(crate) use levelshot::LEVELSHOT_TEXTURE;
 use levelshot::LevelshotTexture;

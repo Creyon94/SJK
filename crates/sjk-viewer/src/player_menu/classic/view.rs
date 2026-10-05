@@ -14,6 +14,7 @@ use crate::menu::classic::layout::{CANVAS, HINT_Y, LOGO, Placement};
 use crate::menu::classic::view::{FOCUS, GOLD, art, glow, ink};
 use crate::player_menu::grid::{GRID_SCROLL_TOKEN, TILE_BASE};
 use crate::player_menu::icons::IconLoader;
+use crate::player_menu::part_icons::Part;
 use crate::player_menu::saber::{SaberStyle, allowed};
 use crate::player_menu::team_filter::TeamSkin;
 use crate::player_menu::{PlayerMenu, catalog_of};
@@ -1158,7 +1159,20 @@ impl PlayerMenu {
                 TINT_CELL - 4.0,
             ];
             let [r, g, b] = rgb.map(|c| f32::from(c) / 255.0);
-            self.fill(place, cell, Color::new(r, g, b, 1.0));
+            // Retail's swatch: the species' tint base times the colour.
+            match self
+                .current_species()
+                .and_then(|species| self.part_icons.tint_base(species))
+            {
+                Some(texture) => {
+                    let _ = self.canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
+                        rect: place.rect(cell),
+                        texture,
+                        color: Color::new(r, g, b, 1.0),
+                    });
+                }
+                None => self.fill(place, cell, Color::new(r, g, b, 1.0)),
+            }
             let token = TINT_BASE + index as u16;
             if self.variants[3] == index {
                 self.border(place, cell, FOCUS, 2.0);
@@ -1169,8 +1183,8 @@ impl PlayerMenu {
         }
     }
 
-    /// The selected part's variants in 72-unit cells (retail drew each
-    /// variant's icon; the names stand in until those are loaded).
+    /// The selected part's variants in 72-unit cells: each variant's icon,
+    /// as retail drew it, or its name while there is none.
     fn part_list(&mut self, place: &Placement, canvas: [f32; 4], active: bool) {
         let s = place.scale;
         self.fill(place, canvas, LIST_BACK);
@@ -1217,6 +1231,29 @@ impl PlayerMenu {
                 VALUE
             };
             let rect = place.rect(cell);
+            let part = [Part::Head, Part::Torso, Part::Legs][axis.min(2)];
+            if let Some(texture) = self
+                .current_species()
+                .and_then(|species| self.part_icons.part(species, part, index))
+            {
+                let shade = if index == chosen || hovered {
+                    1.0
+                } else {
+                    0.75
+                };
+                let _ = self.canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
+                    rect,
+                    texture,
+                    color: Color::new(shade, shade, shade, 1.0),
+                });
+                if index == chosen {
+                    self.border(place, cell, FOCUS, 2.0);
+                } else if hovered {
+                    self.border(place, cell, Color::new(1.0, 1.0, 1.0, 0.5), 1.0);
+                }
+                self.canvas.hit_region(token, rect);
+                continue;
+            }
             self.canvas.text_aligned(
                 name,
                 Rect::new(

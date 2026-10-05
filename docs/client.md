@@ -150,10 +150,15 @@ The classic main menu has the retail pages, entries and order:
     See [Hats and capes](#hats-and-capes).
 
   Retail drew a live 3D model and a spinning saber. With no world behind the
-  pages yet, the model's portrait and a drawn hilt and blade stand in, and the
-  part lists show variant names where retail showed each variant's icon. The
-  swatches are filled with the tint each `playerchoice.txt` entry sets, not its
-  swatch image. Escape returns to the profile page, then to the menu. A click
+  pages yet, the model's portrait and a drawn hilt and blade stand in. The
+  part lists show each variant's icon (`models/players/<species>/icon_<part>`,
+  `.jpg`, `.png` or `.tga`) as retail did, its name when there is none, and
+  the swatches are the species' tint base (`gfx/menus/players/<species>/`
+  `*tintbase`) multiplied by each `playerchoice.txt` colour, as the swatch
+  shaders draw them (a flat colour without the image). The species being
+  edited is loaded into 64 cells of the UI icon atlas of its own (four rows,
+  about 4 MiB), again when the species changes. Escape returns to the
+  profile page, then to the menu. A click
   on a cell of the head grid, the part, tint and hilt lists or the blade
   swatches picks that cell; each list registers its own pointer region before
   its cells, since the menu canvas gives the pointer to the region registered
@@ -361,10 +366,8 @@ Planned follow-ups, each a new page or screen module, following the retail
   depth, geometric and texture detail, EAX, languages) are left out of the
   panels, and the video restart confirmation is not needed.
 - On the profile pages: a rendered 3D model and saber (and the cosmetics
-  window's preview model), part icons and tint images in character creation
-  (they need atlas cells the shared UI icon atlas does not have free), and
-  portraits for every model (the atlas holds 207, so species after the
-  characters show none).
+  window's preview model), and portraits for every model (the atlas holds
+  207, so species after the characters show none).
 - The screens with no JKR equivalent yet: Play Demo (`demo`), Rules
   (`rules*`), Mods, Defaults, Add Bot (`ingame_addbot`), Siege objectives and
   voice chat, and the error page (`error`).
