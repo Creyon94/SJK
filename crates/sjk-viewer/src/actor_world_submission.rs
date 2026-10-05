@@ -29,6 +29,7 @@ struct Sinks<'a> {
     flag_meshes: [Option<usize>; 2],
     shield_mesh: Option<usize>,
     shield_sphere: bool,
+    shield_passes: u32,
     world: &'a sjk_runtime::World,
     actor_meshes: &'a [ActorMesh],
     object_meshes: &'a [StaticModelMesh],
@@ -116,6 +117,12 @@ pub(crate) fn submit(
         .and_then(|console| console.integer_cvar("cg_shieldSphere"))
         .unwrap_or(0)
         != 0;
+    let shield_passes = gpu
+        .console
+        .as_ref()
+        .and_then(|console| console.integer_cvar("cg_shieldBrightness"))
+        .unwrap_or(4)
+        .clamp(1, 12) as u32;
     let trails = gpu
         .console
         .as_ref()
@@ -147,6 +154,7 @@ pub(crate) fn submit(
             .iter()
             .position(|mesh| mesh.appearance.model == "models/weaphits/testboom.md3"),
         shield_sphere,
+        shield_passes,
         world: active_world,
         actor_meshes: &gpu.actor_meshes,
         object_meshes: &gpu.object_meshes,
@@ -511,6 +519,7 @@ fn submit_actor(
                 sinks.predicted_force_powers_active,
                 sinks.shield_mesh,
                 sinks.shield_sphere,
+                sinks.shield_passes,
             );
         }
     } else if draw_actor {

@@ -1132,8 +1132,10 @@ area: Rendering & effects
 title: Shield hits hug the body like single player
 change: A shield hit flashes a shell on the player's body instead of multiplayer's sphere.
 change: cg_shieldSphere 1 (Game options: Shield hit sphere) brings the sphere back.
+change: cg_shieldBrightness 1-12 (default 4) sets how bright the body shell is.
 test: Take armor damage from another player or bot: the body flashes.
 test: Set cg_shieldSphere 1 and repeat: the sphere appears.
+test: Set cg_shieldBrightness 1, then 12: the body flash goes from faint to very strong.
 
 [ejk-prediction]
 status: personal
