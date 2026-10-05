@@ -707,6 +707,17 @@ test: Player screen preview shows the same models; a JoF server: others' custom 
 note: Models you do not have installed (zabka, figo, ...) are still Kyle, as in EternalJK.
 note: jedi/rgb needs EternalJK's pk3: fs_basegame EternalJK + restart (also loads its menus).
 
+[model-fallback]
+status: personal
+area: Rendering & effects
+title: A model this client cannot load shows Kyle instead of the old model
+change: A /model (or a new player in a used slot) naming a model you lack now shows Kyle,
+change: as retail does, instead of leaving the previous model; corpses follow it.
+test: Third person in a match: /model desann, then /model <a model you lack>: Kyle shows.
+test: (Before, you stayed Desann.) /model desann again: Desann is back at once.
+test: logs\last-client.log: "client N Kyle in place of models/players/<name>/default".
+note: If /model still shows no change for an installed model, send logs\last-client.log.
+
 [shader-remaps]
 status: personal
 area: Rendering & effects

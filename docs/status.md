@@ -540,6 +540,17 @@ retail refuses it as a player model too. Unit tests cover each class on syntheti
 files. No game or window was started: how the fixed models look and animate in
 play, and the GPU skinning of the rescued meshes, remain to be checked.
 
+## Player model fallback during a match (SJK)
+
+SJK-only branch `personal/model-fallback` (2026-10-05, based on `2696590`): a
+player whose clientinfo names a model this client cannot load now shows Kyle, as
+`CG_LoadClientInfo` falls back to `DEFAULT_MODEL`, instead of keeping the slot's
+previous model; body copies of that player use the same stand-in. It is the only
+mechanism found for a `/model` change others see while the local player keeps
+the old model (logged as `cs <1131+n>: clientinfo failed`); see
+[player models](client.md#player-models). The locked workspace build and tests
+passed; there is no unit test of the GPU-side rebuild, and no game was started.
+
 ## HUD picker (SJK)
 
 SJK-only branch `personal/hud-picker` (2026-10-05, based on `0fc6e24`): the

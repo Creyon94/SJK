@@ -30,7 +30,8 @@ pub(crate) struct ClientInfoWatch {
     forced_model: String,
     overrides: [String; 3],
     local_identity: (i32, i32),
-    /// Appearances whose load failed; not retried until the string changes.
+    /// Appearances whose load failed; players wearing one show Kyle, and the
+    /// load is not retried in this world.
     pub(crate) failed: BTreeSet<Appearance>,
 }
 
@@ -176,16 +177,7 @@ impl GpuState {
                 return Ok(());
             }
         }
-        if self.clientinfo_watch.failed.contains(&appearance) {
-            return Ok(());
-        }
-        let mesh = match self.build_live_actor(&appearance, entity_id, saber_names) {
-            Ok(mesh) => mesh,
-            Err(error) => {
-                self.clientinfo_watch.failed.insert(appearance.clone());
-                return Err(error);
-            }
-        };
+        let mesh = self.build_live_actor_or_kyle(&appearance, entity_id, saber_names)?;
         match index {
             Some(index) => self.actor_meshes[index] = mesh,
             None => {
@@ -193,11 +185,56 @@ impl GpuState {
                 self.actor_groups.push(Vec::with_capacity(4));
             }
         }
+        let wears = if self.clientinfo_watch.failed.contains(&appearance) {
+            "Kyle in place of"
+        } else {
+            "now wears"
+        };
         log::progress(format_args!(
-            "client {client} now wears {}/{}",
+            "client {client} {wears} {}/{}",
             appearance.model, appearance.variant
         ));
         Ok(())
+    }
+
+    /// [`Self::build_live_actor`], or Kyle standing in for an appearance that
+    /// cannot be loaded here.
+    ///
+    /// `CG_LoadClientInfo` (`codemp/cgame/cg_players.c`) registers
+    /// `DEFAULT_MODEL` when a player's model fails, so a model this client lacks
+    /// does not leave the slot showing its previous model. The stand-in carries
+    /// the requested appearance, as at world load (`actor_load`), so an
+    /// unchanged clientinfo does not rebuild it and a body copy of that player
+    /// reuses it. A failed appearance is only tried once per world.
+    pub(crate) fn build_live_actor_or_kyle(
+        &mut self,
+        appearance: &Appearance,
+        entity_id: EntityId,
+        saber_names: [Option<String>; 2],
+    ) -> Result<ActorMesh, Box<dyn Error>> {
+        if !self.clientinfo_watch.failed.contains(appearance) {
+            match self.build_live_actor(appearance, entity_id, saber_names.clone()) {
+                Ok(mesh) => return Ok(mesh),
+                Err(error) => {
+                    log::progress(format_args!(
+                        "could not load {}/{}: {error}; using Kyle",
+                        appearance.model, appearance.variant
+                    ));
+                    self.clientinfo_watch.failed.insert(appearance.clone());
+                }
+            }
+        }
+        let kyle = crate::actor_load::fallback_appearance();
+        let vfs = self.vfs.clone().ok_or("no VFS")?;
+        let preview = load_player_appearance_with(
+            &vfs,
+            &kyle.model,
+            &kyle.variant,
+            [0.0; 3],
+            0.0,
+            &mut self.clientinfo_watch.gla_cache,
+        )?;
+        self.upload_actor(preview, appearance, entity_id, saber_names)
     }
 
     /// Load `appearance` for `entity_id` and append it to the shared buffers.
