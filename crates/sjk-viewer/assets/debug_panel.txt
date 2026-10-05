@@ -847,6 +847,22 @@ test: In game (Escape > Profile): Force button in The Force box opens the window
 test: Profile page: click a head tile, a part, a tint, a hilt or a blade swatch: that one is picked.
 note: Was: clicking a cell picked the next entry instead (the list's own region was on top).
 
+[force-wheel]
+status: personal
+area: HUD
+title: JoF EJK's Force wheel: retail icon bar, Stasis, Repulse, Dash and the flamethrower
+change: Game and classic HUD: forcenext/forceprev show the retail icon bar with the power name.
+change: On JoF JA+, Stasis and Repulse (after Sense) and Dash (before Speed) are on the wheel;
+change: +useforce on them uses the ability. Binds: force_dash, +force_stasis, force_repulse.
+test: cg_hudStyle game, in a match: forcenext / forceprev: icon bar above the HUD, name below.
+test: cg_hudScale 0.7: the bar shrinks and stays centred at the bottom; modern style: name list.
+test: JoF JA+ server with Repulse/Dash/Stasis: they appear on the wheel with their icons.
+test: Select Repulse, press +useforce: Repulse fires once per press, no real power is used.
+test: Select Stasis, hold +useforce: Stasis engages; bind +force_stasis to a key: same.
+test: JA+ merc mode: Lightning shows as Flamethrower on the wheel.
+note: Repulse/Dash/flamethrower icons come from EternalJK/jofclient-assets.pk3 (now mounted).
+note: The log line "JoF EJK content ... jofclient-assets.pk3" at startup confirms it.
+
 [classic-profile-extras]
 status: personal
 area: Menus & settings

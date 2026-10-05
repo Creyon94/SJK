@@ -119,6 +119,11 @@ pub(crate) const ACTIONS: &[BindableAction] = &[
     action(Force, "Drain (hold)", "+force_drain", "F12"),
     action(Force, "Team heal", "force_healother", "]"),
     action(Force, "Team energize", "force_forcepowerother", "\\"),
+    // JoF JA+ abilities, as JoF EJK's `controls.menu` lists them: Dash and Repulse
+    // are server commands, Stasis the held usercmd button (`input::GameButton`).
+    action(Force, "Dash (JoF)", "force_dash", ""),
+    action(Force, "Stasis (JoF, hold)", "+force_stasis", ""),
+    action(Force, "Repulse (JoF)", "force_repulse", ""),
     // OTHER
     // Server commands (`codemp/game/g_cmds.c:3402-3404`); the console forwards
     // them, but they were unbindable from this screen until now.

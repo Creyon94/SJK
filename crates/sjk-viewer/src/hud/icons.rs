@@ -58,6 +58,9 @@ pub(crate) fn install(
     hud.icons.handles = assets::load(vfs, shaders, |id, rgba| {
         renderer.upload_icon(queue, id, rgba)
     });
+    hud.force_wheel_icons = super::force_wheel::load(vfs, shaders, |id, rgba| {
+        renderer.upload_icon(queue, id, rgba)
+    });
     (renderer, hud)
 }
 

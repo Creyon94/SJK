@@ -15,7 +15,7 @@ use std::sync::Arc;
 /// action with a picture. `weapon N` selects weapon `N + 2` of
 /// `weapon_t` (`weapon 1` the saber, else melee; `weapon 10` cycles the
 /// explosives), as `legacy_direct_weapon` reads it.
-const ICONS: [(&str, &str); 34] = [
+const ICONS: [(&str, &str); 37] = [
     // INTERACTION
     ("sv_saberswitch", "gfx/hud/w_icon_lightsaber.tga"),
     ("saberAttackCycle", "gfx/hud/saber_med.tga"),
@@ -52,6 +52,11 @@ const ICONS: [(&str, &str); 34] = [
     ("+force_drain", "gfx/mp/f_icon_dk_drain.tga"),
     ("force_healother", "gfx/mp/f_icon_lt_healother.tga"),
     ("force_forcepowerother", "gfx/mp/f_icon_dk_forceother.tga"),
+    // JoF EJK's Force wheel pictures (`jofclient-assets.pk3`); Stasis has none
+    // of its own and borrows Jump's, as on the wheel.
+    ("force_dash", "gfx/jof/force_dash.tga"),
+    ("+force_stasis", "gfx/mp/f_icon_levitation.tga"),
+    ("force_repulse", "gfx/jof/force_repulse.tga"),
     // OTHER
     ("teammenu", "gfx/hud/mpi_rflag.tga"),
 ];

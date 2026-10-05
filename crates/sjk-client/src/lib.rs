@@ -83,6 +83,7 @@ mod saber_clash_flare;
 mod saber_definitions;
 mod saber_move;
 use sjk_game_jka::saber_move_data;
+pub mod force_wheel;
 pub mod selection;
 mod server_address;
 mod server_clock;

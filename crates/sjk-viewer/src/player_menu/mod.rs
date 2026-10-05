@@ -9,7 +9,7 @@ mod classic;
 mod controller;
 mod cosmetics;
 mod force;
-mod force_icons;
+pub(crate) mod force_icons;
 mod force_templates;
 mod force_view;
 mod grid;

@@ -391,6 +391,22 @@ keys, Shift, key repeat and focus loss; the locked workspace build and tests
 passed. No game was started: typing a code in the running client is unverified.
 Codes without a leading 0 always use code page 437, not the system OEM page.
 
+## Force wheel (SJK)
+
+SJK-only branch `personal/force-wheel` (05/10/2026, based on `3f57938`) ports
+JoF EJK's Force wheel: the retail Force selection bar for the game and classic
+HUD styles, JoF JA+'s Stasis, Repulse and Dash pseudo-slots with their
+`+useforce` handling and binds, and JA+ merc mode's flamethrower; SJK now also
+mounts `EternalJK/jofclient-assets.pk3` for its pictures. See
+[Force wheel](client.md#force-wheel). Unit tests cover the wheel order
+(`CG_BuildForceWheel`), stepping, the use remap (Stasis button, Repulse and Dash
+once per press, revoked slots), the flamethrower latch, selection through
+pseudo-slots, the bar's retail geometry and side counts, and pack discovery;
+the workspace build, tests and clippy (0 errors) passed. An off-screen snapshot
+(`menu_snapshot`) drew the bar with the installed pictures. No game was started:
+the bar in a match, and Stasis, Repulse and Dash on a live JoF JA+ server, are
+unverified.
+
 ## Classic profile Force page and cosmetics (SJK)
 
 The classic profile gains a Force page (retail's `ingame_playerforce`, on both

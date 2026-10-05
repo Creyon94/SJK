@@ -55,7 +55,7 @@ impl HudOverlay {
 pub(super) fn retail_font(id: TextId) -> Option<RetailFont> {
     match id.0 {
         310..=312 | 318 | 319 => Some(RetailFont::Medium),
-        1000..=1017 | 1100..=1111 => Some(RetailFont::Small),
+        1000..=1021 | 1100..=1111 => Some(RetailFont::Small),
         101..=138 | 200..=204 | 300..=307 | 313 | 316 => Some(RetailFont::Console),
         _ => None,
     }

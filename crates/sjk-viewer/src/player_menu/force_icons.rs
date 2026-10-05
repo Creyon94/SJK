@@ -9,8 +9,9 @@ use super::icons::{FORCE_CELLS, IconLoader, IconRequest};
 use sjk_client::{FORCE_POWER_COUNT, ForceSide};
 use sjk_ui::TextureId;
 
-/// Shader names in `forcePowers_t` order.
-const POWER_ICONS: [&str; FORCE_POWER_COUNT] = [
+/// Shader names in `forcePowers_t` order (`HolocronIcons`, also the HUD
+/// Force wheel's `forcePowerIcons`).
+pub(crate) const POWER_ICONS: [&str; FORCE_POWER_COUNT] = [
     "gfx/mp/f_icon_lt_heal",
     "gfx/mp/f_icon_levitation",
     "gfx/mp/f_icon_speed",

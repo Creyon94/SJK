@@ -115,6 +115,7 @@ impl GameButton {
             Self::Lookdown => 27,
             Self::Strafe => 28,
             Self::Mlook => 29,
+            Self::ForceStasis => 30,
         }
     }
 }

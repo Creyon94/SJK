@@ -34,6 +34,9 @@ pub(crate) enum GameButton {
     Strafe,
     Mlook,
     Button(u8),
+    /// `+force_stasis` (JoF EJK `cl_input.cpp`): the usercmd Stasis button, sent
+    /// only where a JoF JA+ server granted Stasis ([`sjk_client::force_wheel`]).
+    ForceStasis,
 }
 
 /// One-shot action emitted by a non-button bind command.
@@ -68,6 +71,8 @@ pub(crate) struct GameplayInput {
     pub(crate) view_authority: view_authority::Authority,
     /// Selection survives acknowledgement/replay and ordinary input releases.
     pub(crate) selection: sjk_client::selection::Selection,
+    /// `+useforce` on a selected JoF pseudo-slot, with its press edges.
+    force_wheel_use: sjk_client::force_wheel::UseRemap,
     held: [state::KeyState; 32],
     pub(crate) motion: motion::Motion,
     /// `cl_run`: the walk key toggles walking instead of running.
@@ -82,6 +87,7 @@ impl Default for GameplayInput {
         Self {
             view_authority: view_authority::Authority::default(),
             selection: sjk_client::selection::Selection::default(),
+            force_wheel_use: sjk_client::force_wheel::UseRemap::default(),
             held: [state::KeyState::default(); 32],
             motion: motion::Motion::default(),
             always_run: true,
@@ -149,6 +155,20 @@ impl GameplayInput {
 
     pub(crate) fn held(&self, button: GameButton) -> bool {
         self.held[button.slot()].active
+    }
+
+    /// Give `+useforce` and `+force_stasis` to a selected or granted JoF ability
+    /// (`known` is the player's `forcePowersKnown`); returns the command's
+    /// buttons and a server command to send with it.
+    pub(crate) fn force_wheel_buttons(
+        &mut self,
+        buttons: u16,
+        known: u32,
+    ) -> (u16, Option<&'static str>) {
+        let stasis = &self.held[GameButton::ForceStasis.slot()];
+        let stasis = stasis.active || stasis.pressed;
+        self.force_wheel_use
+            .apply(buttons, self.selection.wheel_pseudo(), known, stasis)
     }
 
     /// Return whether a buffered console command belongs to gameplay input.
@@ -335,6 +355,7 @@ fn button_for_command(command: &str) -> Option<GameButton> {
         // EternalJK cg_consolecmds.c:1003-1015 (`+grapple`): `+button12`, the
         // JA+/JaPRO grapple hook.
         "grapple" => Some(GameButton::Button(12)),
+        "force_stasis" => Some(GameButton::ForceStasis),
         "scores" => Some(GameButton::Scores),
         _ => None,
     }

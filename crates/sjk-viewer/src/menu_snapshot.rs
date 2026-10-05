@@ -487,9 +487,56 @@ fn menu_snapshot() {
         shots.save(name, editor.draw_list(), &vertices, frame == Frame::InGame);
     }
     in_game_menu(&shots, art);
+    force_wheel(&mut shots, &vfs);
 }
 
 /// The classic in-game bar and its pop-ups over the match.
+/// The HUD's Force wheel (JoF EJK's retail icon bar) over the match: JoF JA+'s
+/// Repulse selected among real powers and the other JoF entries, then JA+ merc
+/// mode's flamethrower in Lightning's place. Names draw in the menu font here.
+fn force_wheel(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
+    use crate::hud::force_wheel::{ICONS, picture_names, snapshot};
+    use sjk_client::force_wheel::{DASH, REPULSE, STASIS};
+    let mut icons = [None; ICONS];
+    for (slot, name) in picture_names() {
+        let image = ["tga", "png", "jpg"]
+            .into_iter()
+            .find_map(|extension| decode(vfs, &format!("{name}.{extension}")));
+        if let Some(image) = image {
+            let id = sjk_ui::TextureId(crate::ui_renderer::FORCE_WHEEL_ICON_FIRST + slot as u32);
+            shots.icons.insert(id.0, image);
+            icons[slot] = Some(id);
+        }
+    }
+    // Heal, Speed, Push, Pull, Mind Trick, Sense, Lightning, Grip, Drain.
+    let powers = [0, 2, 3, 4, 5, 14, 7, 6, 13]
+        .iter()
+        .fold(0_u32, |bits, p| bits | 1 << p);
+    let jof = (1 << STASIS) | (1 << REPULSE) | (1 << DASH);
+    for (name, selected, flamethrower) in [
+        ("hud-force-wheel-jof", REPULSE, false),
+        ("hud-force-wheel-merc", 7, true),
+    ] {
+        let view = sjk_client::selection::SelectionView {
+            inventory: false,
+            available: powers | jof,
+            selected,
+            alpha: 1.0,
+        };
+        let (list, names) = snapshot(view, &icons, flamethrower, VIEWPORT);
+        let mut vertices = Vec::new();
+        crate::ui_renderer::append_text_commands(
+            &list,
+            names,
+            &mut vertices,
+            &shots.font.font,
+            VIEWPORT,
+            crate::text::TextStyle::NEUTRAL,
+        );
+        shots.save(name, &list, &vertices, true);
+    }
+}
+
 fn in_game_menu(shots: &Snapshot, art: ArtSet) {
     use crate::ingame_menu::{InGameMenu, Page as Popup, View};
     let pages: [(&str, Popup, usize, bool); 5] = [
