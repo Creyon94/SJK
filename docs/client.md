@@ -1257,7 +1257,11 @@ work the same in both. See
 
 Text sits on a grid of character cells drawn with the console character set
 (`gfx/2d/charsgrid_med`, so an HD replacement such as the JoF pack's is used),
-without the glyph shadow other UI text has. The classic console loads the
+without the glyph shadow other UI text has. When `GameData/EternalJK` holds a PK3
+with its own character set (jaPRO's `japro-assets.pk3`), that image is used instead,
+as EternalJK draws its console with it: unlike the retail set it has `¬`, `¥`,
+`²`, `½` and the rest of Latin-1. Only the image is taken from that pack
+([asset_search_paths.rs](../crates/sjk-viewer/src/asset_search_paths.rs)). The classic console loads the
 character set whether `ui_gameFont` is on or not; without it the cells use Inter.
 A cell is 8 by 16 pixels at 1080 lines and `con_scale 1`, grows with the window
 height like the rest of the UI (with the console's 0.75 floor) and is rounded to

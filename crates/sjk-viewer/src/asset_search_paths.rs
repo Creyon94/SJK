@@ -176,6 +176,37 @@ impl Options {
             .collect()
     }
 
+    /// EternalJK's console character set: `gfx/2d/charsgrid_med` from the
+    /// highest-priority PK3 in `install/EternalJK` that has one (jaPRO's
+    /// `japro-assets.pk3`), as `(archive, path, image bytes)`. EternalJK draws its
+    /// console with it, and unlike the retail set it has `¬`, `¥`, `²`, `½` and
+    /// the rest of Latin-1. None when the folder is a game directory already.
+    pub(crate) fn eternaljk_console_charset(
+        &self,
+        install: &Path,
+    ) -> Option<(PathBuf, String, Vec<u8>)> {
+        let mounted = [self.basegame.as_str(), self.game.as_str()]
+            .iter()
+            .any(|game| game.eq_ignore_ascii_case(COSMETICS_GAME));
+        let directory = install.join(COSMETICS_GAME);
+        if mounted || !directory.is_dir() {
+            return None;
+        }
+        sjk_vfs::pk3_search_order(&directory)
+            .unwrap_or_default()
+            .into_iter()
+            .rev()
+            .find_map(|archive| {
+                let mut probe = VirtualFileSystem::new();
+                probe.mount_pk3(&archive).ok()?;
+                ["tga", "png", "jpg"].iter().find_map(|extension| {
+                    let path = format!("{}.{extension}", crate::text::charset::PATH);
+                    let asset = probe.read(&path).ok()??;
+                    Some((archive.clone(), path, asset.bytes))
+                })
+            })
+    }
+
     /// Mount existing directories; unreadable archives warn without discarding other packs.
     pub(crate) fn mount(&self, install: &Path) -> Result<VirtualFileSystem, Box<dyn Error>> {
         // Large offline imports may opt into a higher per-asset ceiling. Keep the
@@ -222,6 +253,18 @@ impl Options {
             if self.directory_first {
                 vfs.mount_directory(&directory)?;
             }
+        }
+        // EternalJK's console character set over the game's own, as EternalJK
+        // itself mounts its folder above `base`; only that image, nothing else
+        // from the pack.
+        if let Some((archive, path, bytes)) = self.eternaljk_console_charset(install) {
+            if log {
+                crate::log::progress(format_args!(
+                    "console character set {path} from {}",
+                    archive.display(),
+                ));
+            }
+            vfs.mount_memory("EternalJK console character set", [(path, bytes)])?;
         }
         // `JKR_CONTENT=<dir>[:<dir>...]`: further content directories (loose files and
         // PK3s), above the installation: locally made content that has no place in it.
@@ -330,5 +373,33 @@ mod tests {
             ..Options::default()
         };
         assert!(whole.cosmetic_packs(install.path()).is_empty());
+    }
+
+    #[test]
+    fn eternaljk_console_charset_overrides_the_base_one_alone() {
+        let install = tempfile::tempdir().unwrap();
+        let base = install.path().join("base");
+        let folder = install.path().join("EternalJK");
+        std::fs::create_dir_all(&base).unwrap();
+        std::fs::create_dir_all(&folder).unwrap();
+        pk3(
+            &base.join("hd_fonts.pk3"),
+            &["gfx/2d/charsgrid_med.tga", "ui/jamp/main.menu"],
+        );
+        pk3(
+            &folder.join("japro-assets.pk3"),
+            &["gfx/2d/charsgrid_med.tga", "ui/jamp/ingame.menu"],
+        );
+        let options = Options::default();
+        let (archive, path, _) = options.eternaljk_console_charset(install.path()).unwrap();
+        assert!(archive.ends_with("japro-assets.pk3"));
+        assert_eq!(path, "gfx/2d/charsgrid_med.tga");
+        let vfs = options.mount(install.path()).unwrap();
+        let charset = vfs.read("gfx/2d/charsgrid_med.tga").unwrap().unwrap();
+        assert!(vfs.mounts().any(|mount| mount.id == charset.source.mount_id
+            && &*mount.name == "EternalJK console character set"));
+        // Nothing else from that pack is mounted.
+        assert!(!vfs.contains("ui/jamp/ingame.menu").unwrap());
+        assert!(vfs.contains("ui/jamp/main.menu").unwrap());
     }
 }
