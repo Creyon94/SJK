@@ -1078,13 +1078,7 @@ impl ClientSession {
             _ => None,
         };
         if let Some(kind) = event_kind {
-            let text = arguments
-                .get(1..)
-                .unwrap_or_default()
-                .iter()
-                .map(|argument| String::from_utf8_lossy(argument))
-                .collect::<Vec<_>>()
-                .join(" ");
+            let text = server_text(arguments.get(1..).unwrap_or_default());
             self.events.push_back(ServerEvent {
                 kind,
                 text,
@@ -1516,5 +1510,38 @@ impl ClientSession {
     /// Local `clearRemaps`; nothing is sent to the server.
     pub fn clear_shader_remaps(&mut self) {
         self.shader_remaps.clear();
+    }
+}
+
+/// Join the arguments of a `print` or `cp` command as display text.
+///
+/// Servers embed player names in these as legacy bytes, so a name with `×` or `é` is
+/// decoded as [`decode_legacy`] decodes it in chat and the scoreboard; reading it as
+/// UTF-8 replaced each such byte with U+FFFD, drawn as `?`.
+fn server_text(arguments: &[Vec<u8>]) -> String {
+    arguments
+        .iter()
+        .map(|argument| decode_legacy(argument))
+        .collect::<Vec<_>>()
+        .join(" ")
+}
+
+#[cfg(test)]
+mod server_text_tests {
+    use super::server_text;
+
+    #[test]
+    fn server_text_reads_legacy_name_bytes_as_latin_1() {
+        let arguments = [b"You have challenged \xd7jof.jk.belyash\xd7\n".to_vec()];
+        assert_eq!(
+            server_text(&arguments),
+            "You have challenged ×jof.jk.belyash×\n"
+        );
+    }
+
+    #[test]
+    fn server_text_keeps_utf8_and_joins_arguments() {
+        let arguments = [b"gg".to_vec(), "ø".as_bytes().to_vec()];
+        assert_eq!(server_text(&arguments), "gg ø");
     }
 }

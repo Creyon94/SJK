@@ -7,6 +7,22 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Centre prints with non-ASCII names
+
+Branch `fix/center-print-utf8` (05/10/2026, based on `86ad1be`): a centre print
+with a row over 50 bytes crashed the client when byte 50 fell inside a non-ASCII
+character, for example a duel challenge (`cp`, `PLDUELCHALLENGE`) from a player
+named with `×`. Rows now wrap at 50 characters, as OpenJK `CG_DrawCenterString`
+wraps 50 code-page bytes. Unit tests cover the wrap at a space, a two-byte
+character across the old byte limit (it panicked before the change) and 50 two-byte
+characters on one row. `print` and `cp` text was also read as UTF-8, so the same
+name showed `?` for each `×`; it is now decoded as legacy text like chat and the
+scoreboard (unit-tested). Formatting, the locked workspace build, tests and clippy
+passed on Linux and Windows 11. On Windows 11 the old build crashed when the
+contributor challenged a player named with `×` on a live server; with the wrapping
+fix the challenge showed without a crash, but with `?` for each `×`. The decoding
+fix awaits the same in-game check.
+
 ## Worldspawn shader remaps and remap order
 
 Local change against `af65396` (2026-10-05, Windows 11): a map's worldspawn
