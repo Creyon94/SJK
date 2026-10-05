@@ -10,7 +10,14 @@ pub(super) struct Source {
     pub name: Option<String>,
     pub lightmap: wgpu::TextureView,
     pub fog: Vec<FogDraw>,
-    pub applied: Option<(String, f32)>,
+    /// The replacement drawn instead of the slot's own shader; `None` as loaded.
+    pub applied: Option<Box<Applied>>,
+}
+/// A drawn replacement, and the slot's own compiled state kept aside for its restore.
+pub(super) struct Applied {
+    target: String,
+    offset: f32,
+    own: material::Look,
 }
 #[derive(Default)]
 pub(super) struct State {
@@ -68,24 +75,27 @@ impl Runtime {
                 continue;
             }
             let (target, offset) = remap_target(&self.remaps.map, remaps, &name);
-            if original
+            let applied = original
                 .applied
-                .as_ref()
-                .is_some_and(|(n, t)| n == target && *t == offset)
-            {
-                continue;
-            }
+                .as_deref()
+                .map(|a| (a.target.as_str(), a.offset));
+            let next = step(&name, applied, target, offset);
             let target = target.to_owned();
-            match self.replace_remapped_material(
-                source,
-                &target,
-                offset,
-                device,
-                queue,
-                vfs,
-                shaders,
-                &mut images,
-            ) {
+            let result = match next {
+                Step::Keep => continue,
+                Step::Restore => Ok(self.restore_remapped_material(source)),
+                Step::Replace => self.replace_remapped_material(
+                    source,
+                    &target,
+                    offset,
+                    device,
+                    queue,
+                    vfs,
+                    shaders,
+                    &mut images,
+                ),
+            };
+            match result {
                 Ok(true) => changed += 1,
                 Ok(false) => {}
                 Err(error) => {
@@ -181,5 +191,46 @@ impl Runtime {
         server: Option<&sjk_client::ShaderRemapTable>,
     ) -> Vec<String> {
         self.remaps.map.listing(server)
+    }
+}
+
+/// What a slot drawing `applied` needs in order to show `target` at `offset`.
+#[derive(Debug, PartialEq)]
+enum Step {
+    Keep,
+    Restore,
+    Replace,
+}
+
+/// Load compiles every slot from its own name at shader time zero: only that state is
+/// restored as kept. A native user retimed by its own shader's offset is recompiled.
+fn step(name: &str, applied: Option<(&str, f32)>, target: &str, offset: f32) -> Step {
+    if target == name && offset == 0. {
+        if applied.is_some() {
+            Step::Restore
+        } else {
+            Step::Keep
+        }
+    } else if applied == Some((target, offset)) {
+        Step::Keep
+    } else {
+        Step::Replace
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn only_the_load_state_is_restored_without_compiling() {
+        assert_eq!(step("a", None, "a", 0.), Step::Keep);
+        assert_eq!(step("a", Some(("b", 0.)), "a", 0.), Step::Restore);
+        assert_eq!(step("a", Some(("a", 2.)), "a", 0.), Step::Restore);
+        assert_eq!(step("a", None, "a", 2.), Step::Replace);
+        assert_eq!(step("a", Some(("a", 2.)), "a", 3.), Step::Replace);
+        assert_eq!(step("a", Some(("b", 2.)), "b", 2.), Step::Keep);
+        assert_eq!(step("a", Some(("b", 2.)), "b", 3.), Step::Replace);
+        assert_eq!(step("a", Some(("b", 0.)), "c", 0.), Step::Replace);
     }
 }
