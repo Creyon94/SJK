@@ -1005,6 +1005,18 @@ skips a stage that no longer exists. The locked workspace build of all targets a
 the workspace tests passed. No game was started: remaps on screen, from a JoF
 server or a map with worldspawn remaps, are unverified in this combination.
 
+## Signed player-state arrays (SJK)
+
+SJK-only branch `personal/score-display` (05/10/2026, based on `3f57938`): the
+score showed about 65000 after it went below zero. The client decoded the
+snapshot's 16-bit `stats`, `persistant` and `ammo` entries unsigned, where codemp's
+`MSG_ReadShort` sign-extends them; they are now signed, as in codemp. This also
+makes negative health count as dead for the death camera and ammo's -1 sentinel
+read as -1. Unit tests round-trip negative and positive entries and an unsigned
+weapon bitset through the player-state writer and reader; the locked workspace
+build and tests passed. No game was started: a negative score on a live server
+is unverified on screen.
+
 ## Outgoing text encoding (SJK)
 
 SJK-only branch `personal/legacy-text` (2026-10-05, based on `2696590`) sends

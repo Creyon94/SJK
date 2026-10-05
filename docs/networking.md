@@ -59,6 +59,15 @@ anything else as Latin-1. A byte in 0x80..=0x9F therefore stays the C1 character
 of that value, draws the font glyph of that byte and is sent back as the same
 byte, so a name copied from the game round-trips exactly.
 
+### Player-state arrays
+
+The snapshot's `stats`, `persistant` and `ammo` arrays carry 16-bit entries that
+codemp reads with `MSG_ReadShort` (`MSG_ReadDeltaPlayerstate`), sign-extending
+them into the int fields; only `STAT_WEAPONS` is an unsigned 19-bit field.
+[snapshot.rs](../crates/sjk-protocol/src/snapshot.rs) decodes them the same way, so
+a score of -1 after a suicide, negative health on death and ammo's -1 sentinel
+read as -1, not 65535.
+
 ### Server-dialect movement rules
 
 Prediction follows rules the server advertises in `CS_SERVERINFO`, read by
