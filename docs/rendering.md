@@ -1396,6 +1396,12 @@ local player's origin, so the map's light grid and lights shade it as the
 player is shaded. It wears the stage's cosmetics. Not drawn into it: saber
 blades and trails, dynamic glow, shadows and fog.
 
+A failure turns the preview off rather than the client: the pipeline and
+textures are made inside wgpu validation and out-of-memory scopes, and the
+first frame is a probe recorded in an encoder of its own and submitted
+inside a scope (`FrameQueue::submit`, once). On any error the log says why
+and the profile keeps the model's portrait for the rest of the session.
+
 ### UI colour model
 
 The 2D layer (text, retained UI shapes, the shader HUD, the menu-file HUD and the
