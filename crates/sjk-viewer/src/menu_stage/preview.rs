@@ -10,6 +10,12 @@
 //! whole body from in front and turns around it at retail's
 //! `model_rotation 50` (a degree every 50 ms). The actor is lit by the map
 //! where it stands, as the stage model is.
+//!
+//! A failure must not take the client down with it: the pipeline and
+//! textures are made inside a validation scope, and the first frame is a
+//! probe recorded in an encoder of its own, finished and submitted inside
+//! one too. Any error turns the preview off for the session (the profile
+//! keeps the model's portrait) and is logged once.
 
 use super::*;
 use crate::camera_uniform::CameraUniform;
@@ -59,6 +65,30 @@ pub(crate) struct Preview {
     started: Option<Instant>,
     /// The target holds a drawn frame the UI can show.
     pub(super) ready: bool,
+    /// The probe frame went through: later frames record into the frame's
+    /// own encoder.
+    probed: bool,
+    /// Making or drawing the preview failed; it stays off.
+    failed: bool,
+}
+
+/// Run `create` inside validation and out-of-memory scopes: `None`, with the
+/// error logged, when wgpu reported one.
+fn guarded<T>(device: &wgpu::Device, what: &str, create: impl FnOnce() -> T) -> Option<T> {
+    let memory = device.push_error_scope(wgpu::ErrorFilter::OutOfMemory);
+    let validation = device.push_error_scope(wgpu::ErrorFilter::Validation);
+    let value = create();
+    let invalid = pollster::block_on(validation.pop());
+    let exhausted = pollster::block_on(memory.pop());
+    match invalid.or(exhausted) {
+        Some(error) => {
+            crate::log::progress(format_args!(
+                "warning: model preview off, {what} failed: {error}"
+            ));
+            None
+        }
+        None => Some(value),
+    }
 }
 
 /// The target size for `wanted` pixels on screen: no side over
@@ -253,24 +283,62 @@ impl GpuState {
     /// actor into the preview target with the preview camera, then the
     /// display texture the UI samples.
     pub(crate) fn encode_stage_preview(&mut self, encoder: &mut wgpu::CommandEncoder) {
-        let wanted = self
-            .menu_stage
-            .preview
-            .wanted
-            .filter(|_| self.menu_stage.preview_only && self.menu_stage.actor.is_some());
+        let wanted = self.menu_stage.preview.wanted.filter(|_| {
+            self.menu_stage.preview_only
+                && self.menu_stage.actor.is_some()
+                && !self.menu_stage.preview.failed
+        });
         let Some(wanted) = wanted else {
             self.menu_stage.preview.ready = false;
             self.menu_stage.preview.started = None;
             return;
         };
+        if !self.prepare_stage_preview(wanted) {
+            self.menu_stage.preview.failed = true;
+            self.menu_stage.preview.ready = false;
+            return;
+        }
+        self.menu_stage
+            .preview
+            .started
+            .get_or_insert_with(Instant::now);
+        if self.menu_stage.preview.probed {
+            self.record_stage_preview(encoder);
+            self.menu_stage.preview.ready = true;
+            return;
+        }
+        // The first frame goes on its own, inside a scope, so an
+        // incompatibility is caught here rather than by the frame's submit.
+        let device = self.device.clone();
+        let probed = guarded(&device, "drawing it", || {
+            let mut own = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                label: Some("SJK model preview probe"),
+            });
+            self.record_stage_preview(&mut own);
+            self.queue.submit([own.finish()]);
+        });
+        let preview = &mut self.menu_stage.preview;
+        preview.probed = probed.is_some();
+        preview.failed = probed.is_none();
+        preview.ready = probed.is_some();
+    }
+
+    /// Make the encode pipeline and the target for `wanted` pixels unless
+    /// they exist; false when wgpu refused them.
+    fn prepare_stage_preview(&mut self, wanted: [u32; 2]) -> bool {
         let format = self.context.scene_format();
+        let device = self.device.clone();
         let preview = &mut self.menu_stage.preview;
         if preview
             .encode
             .as_ref()
             .is_none_or(|encode| encode.format != format)
         {
-            preview.encode = Some(Encode::new(&self.device, format));
+            let Some(encode) = guarded(&device, "its pipeline", || Encode::new(&device, format))
+            else {
+                return false;
+            };
+            preview.encode = Some(encode);
             preview.target = None;
         }
         let size = target_size(wanted);
@@ -280,31 +348,40 @@ impl GpuState {
             .is_none_or(|target| target.size != size)
         {
             let Some(encode) = preview.encode.as_ref() else {
-                return;
+                return false;
             };
-            let target = Target::new(&self.device, encode, &self.camera_layout, size);
-            self.ui_shapes.set_preview(&self.device, &target.display);
+            let camera_layout = &self.camera_layout;
+            let Some(target) = guarded(&device, "its target", || {
+                Target::new(&device, encode, camera_layout, size)
+            }) else {
+                return false;
+            };
+            self.ui_shapes.set_preview(&device, &target.display);
             preview.target = Some(target);
             preview.ready = false;
         }
-        let started = *preview.started.get_or_insert_with(Instant::now);
+        true
+    }
+
+    /// Record the preview's two passes: the actor with the preview camera,
+    /// then the encode into the display texture.
+    fn record_stage_preview(&self, encoder: &mut wgpu::CommandEncoder) {
+        let preview = &self.menu_stage.preview;
         let (Some(actor), Some(target), Some(encode)) = (
             self.menu_stage.actor.as_ref(),
-            self.menu_stage.preview.target.as_ref(),
-            self.menu_stage.preview.encode.as_ref(),
+            preview.target.as_ref(),
+            preview.encode.as_ref(),
         ) else {
             return;
         };
+        let seconds = preview
+            .started
+            .map_or(0.0, |started| started.elapsed().as_secs_f32());
         // The model faces its yaw; the actor's rotation includes the Ghoul2
         // facing turn (`weapon_view::actor_world_rotation`).
         let facing = actor.rotation * Quat::from_rotation_z(-std::f32::consts::FRAC_PI_2) * Vec3::X;
         let aspect = target.size[0] as f32 / target.size[1] as f32;
-        let (view_projection, eye, forward) = camera(
-            actor.origin,
-            facing,
-            aspect,
-            started.elapsed().as_secs_f32(),
-        );
+        let (view_projection, eye, forward) = camera(actor.origin, facing, aspect, seconds);
         let uniform = CameraUniform {
             view_projection: view_projection.to_cols_array_2d(),
             camera_position: eye.to_array(),
@@ -347,28 +424,25 @@ impl GpuState {
                 );
             }
         }
-        {
-            let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("SJK model preview encode"),
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &target.display,
-                    depth_slice: None,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
-                        store: wgpu::StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-                multiview_mask: None,
-            });
-            pass.set_pipeline(&encode.pipeline);
-            pass.set_bind_group(0, &target.encode_bind, &[]);
-            pass.draw(0..3, 0..1);
-        }
-        self.menu_stage.preview.ready = true;
+        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("SJK model preview encode"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &target.display,
+                depth_slice: None,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+            multiview_mask: None,
+        });
+        pass.set_pipeline(&encode.pipeline);
+        pass.set_bind_group(0, &target.encode_bind, &[]);
+        pass.draw(0..3, 0..1);
     }
 }
 
