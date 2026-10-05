@@ -53,10 +53,6 @@ pub(super) fn row_label(label: &str) -> (&str, Timing) {
     (short, timing)
 }
 
-/// Longest row label, in characters, that fits the in-game pop-up's label
-/// column.
-const ROW_LABEL_CHARS: usize = 23;
-
 /// Classic row names of settings whose label is longer than the label
 /// column; the detail box still shows the whole label.
 const SHORT_LABELS: &[(&str, &str)] = &[
@@ -503,6 +499,10 @@ mod tests {
             );
         }
     }
+
+    /// Longest row label, in characters, that fits the in-game pop-up's
+    /// label column.
+    const ROW_LABEL_CHARS: usize = 23;
 
     #[test]
     fn every_row_label_fits_the_label_column() {
