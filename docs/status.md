@@ -529,6 +529,30 @@ retail refuses it as a player model too. Unit tests cover each class on syntheti
 files. No game or window was started: how the fixed models look and animate in
 play, and the GPU skinning of the rescued meshes, remain to be checked.
 
+## HUD picker (SJK)
+
+SJK-only branch `personal/hud-picker` (2026-10-05, based on `0fc6e24`): the
+game-data HUD (`cg_hudStyle game`, the retail HUD unless a HUD pack is
+installed) is SJK's default for new configs. `cg_hudPack` uses one PK3's
+`ui/hud.menu` and pictures as if the HUD packs mounted after it were not
+installed. Settings > HUD > "HUD look" steps through every usable HUD, and
+Enter opens a picker with a picture of each game-data HUD drawn for a sample
+player. See [HUD style](client.md#hud-style) and
+[game-data HUD](rendering.md#game-data-hud).
+
+Verification (2026-10-05, Windows 11): formatting, the locked workspace build
+and tests, including unit tests for the HUD choices (install order, labels, the
+cvars finding their choice, a pack read without the later ones), the preview
+(each pack drawn from its own pictures, mirroring, the text HUD's runs), the
+picker (row stepping, opening on the HUD in use, one upload per preview, Escape
+and Enter) and `without_mounts`. A temporary check against the owner's
+installation (not bundled) listed Jedi Academy, JoF AssetsExtra, TheRisqe
+Radial HUD, Text only and SJK's two layouts, rendered each game-data preview in
+24-54 ms (release) and wrote them to PNG: the retail and JoF frames in the
+bottom corners, the Radial HUD around the crosshair, over the retail `ffa3`
+levelshot. No client window was opened: the picker on screen, the preview
+texture upload and the live HUD switching are untested.
+
 ## Client devmap preview
 
 Local `devmap1` preview (2026-10-04, based on `7155455`) exposes `devmap <map>`

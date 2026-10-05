@@ -85,16 +85,22 @@ pub(crate) fn attach_world(
 }
 
 /// Feed decoded menu images to the UI renderer while their screen is up: the
-/// player screen's model icons, Create game's map preview.
+/// player screen's model icons, Create game's map preview, the HUD picker's
+/// preview (drawn from `vfs` and `shaders`, the files the HUD reads).
 pub(crate) fn upload_menu_images(
     menu: &mut Option<ClientMenu>,
     renderer: &mut crate::ui_renderer::ShapeRenderer,
     device: &wgpu::Device,
     queue: &crate::frame_queue::FrameQueue,
+    vfs: Option<&std::sync::Arc<sjk_vfs::VirtualFileSystem>>,
+    shaders: &sjk_shader::ShaderCatalog,
 ) {
     let Some(menu) = menu else { return };
     match menu.state.phase() {
         ClientPhase::Player => menu.player.upload_icons(renderer, queue),
+        ClientPhase::Settings => menu.settings.service_hud_picker(vfs, shaders, |image| {
+            renderer.upload_hud_preview(device, queue, image);
+        }),
         ClientPhase::CreateGame => {
             menu.create_game
                 .service_levelshots(|image| renderer.upload_levelshot(device, queue, image));

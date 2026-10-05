@@ -9,31 +9,46 @@
 //! integer `cg_hudFiles` selects the stock text-only HUD instead.
 //!
 //! `cg_hudStyle` chooses between JKR's own modern and classic layouts and
-//! this game-data HUD (`game`). In `game` mode the JKR status widgets hide
-//! ([`crate::hud::HudVisibility::menu_hud`]) and everything else the JKR HUD
-//! shows (crosshair, obituaries, timers, chat) stays. Files that cannot be
-//! read, or that define no HUD menus, leave JKR's HUD in place.
+//! this game-data HUD (`game`, SJK's default). In `game` mode the JKR status
+//! widgets hide ([`crate::hud::HudVisibility::menu_hud`]) and everything else
+//! the JKR HUD shows (crosshair, obituaries, timers, chat) stays. Files that
+//! cannot be read, or that define no HUD menus, leave JKR's HUD in place.
+//!
+//! Several installed HUD packs replace the same `ui/hud.menu` (and often the
+//! retail pictures too); the last one mounted wins, as in the game.
+//! `cg_hudPack` names the PK3 whose HUD to use instead: the files are then read
+//! as if the HUD packs mounted after it were not installed, so the retail HUD
+//! (`assets1.pk3`) or any pack can be chosen without uninstalling the others.
+//! [`choices`] lists what can be picked and [`preview`] draws a picture of each
+//! for the settings' HUD picker.
 //!
 //! Files are parsed and pictures packed when the mode is first used and
-//! again when `cg_hudFiles` changes; each frame only fills fixed storage.
+//! again when `cg_hudFiles` or `cg_hudPack` changes; each frame only fills
+//! fixed storage.
 
+pub(crate) mod choices;
 mod frame;
 mod gpu;
 mod layout;
 mod parse;
+pub(crate) mod preview;
 
 use crate::GpuState;
 use frame::{Frame, Readout, Timers};
 use layout::{Layout, Side};
 use sjk_shell::{CvarDefinition, CvarFlags, CvarRegistry};
-use sjk_vfs::VirtualFileSystem;
+use sjk_vfs::{MountId, MountSummary, VirtualFileSystem};
 
 /// Which HUD the player sees.
 pub(crate) const STYLE_CVAR: &str = "cg_hudStyle";
 /// The menu list (or text-HUD switch) of the game-data HUD.
 pub(crate) const FILES_CVAR: &str = "cg_hudFiles";
+/// The PK3 whose HUD the game-data HUD uses; empty for the one installed last.
+pub(crate) const PACK_CVAR: &str = "cg_hudPack";
 /// The retail `cg_hudFiles` default.
-const DEFAULT_LIST: &str = "ui/jahud.txt";
+pub(crate) const DEFAULT_LIST: &str = "ui/jahud.txt";
+/// The menu a HUD pack replaces (`ui/jahud.txt` loads it).
+pub(crate) const HUD_MENU: &str = "ui/hud.menu";
 /// `gfx/2d/numbers/t_*`, the `NUM_FONT_SMALL` digits, then the minus sign.
 const DIGITS: [&str; 11] = [
     "gfx/2d/numbers/t_zero",
@@ -58,20 +73,33 @@ pub(crate) enum HudStyle {
     Modern,
     /// JKR's classic layout in either font.
     Classic,
-    /// The game-data HUD of `cg_hudFiles`.
+    /// The game-data HUD of `cg_hudFiles`: SJK's default, the retail HUD
+    /// unless a HUD pack is installed.
     Game,
 }
 
 impl HudStyle {
-    /// Settings choices, in [`HudStyle`] order; the first is the default.
+    /// Settings choices, in [`HudStyle`] order.
     pub(crate) const NAMES: [&'static str; 3] = ["modern", "classic", "game"];
+    /// The style of a fresh profile.
+    pub(crate) const DEFAULT: Self = Self::Game;
+
+    /// The cvar value naming this style.
+    pub(crate) fn name(self) -> &'static str {
+        match self {
+            Self::Modern => Self::NAMES[0],
+            Self::Classic => Self::NAMES[1],
+            Self::Game => Self::NAMES[2],
+        }
+    }
 
     /// Read the cvar; anything unknown is the default.
     pub(crate) fn from_cvar(value: Option<&str>) -> Self {
         match value.map(str::trim) {
+            Some(text) if text.eq_ignore_ascii_case("modern") => Self::Modern,
             Some(text) if text.eq_ignore_ascii_case("classic") => Self::Classic,
             Some(text) if text.eq_ignore_ascii_case("game") => Self::Game,
-            _ => Self::Modern,
+            _ => Self::DEFAULT,
         }
     }
 
@@ -82,14 +110,14 @@ impl HudStyle {
 
 /// What `cg_hudFiles` selects.
 #[derive(Debug, Eq, PartialEq)]
-enum Source<'a> {
+pub(crate) enum Source<'a> {
     /// The stock text HUD (`cg_hudFiles.integer` nonzero in `CG_DrawHUD`).
     Text,
     /// A menu list or menu file.
     Menus(&'a str),
 }
 
-fn source(value: &str) -> Source<'_> {
+pub(crate) fn source(value: &str) -> Source<'_> {
     let value = value.trim();
     match value.parse::<i64>() {
         // EternalJK reads 0 as the default list and 3/4 as its bundled
@@ -106,9 +134,9 @@ fn source(value: &str) -> Source<'_> {
 pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarError> {
     cvars.register(CvarDefinition::new(
         STYLE_CVAR,
-        HudStyle::NAMES[0],
+        HudStyle::DEFAULT.name(),
         CvarFlags::ARCHIVE,
-        "HUD: modern, classic (SJK layouts) or game (the game's menu-file HUD, cg_hudFiles)",
+        "HUD: game (the game's menu-file HUD, cg_hudFiles), modern or classic (SJK layouts)",
     ))?;
     cvars.register(CvarDefinition::new(
         FILES_CVAR,
@@ -116,7 +144,43 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         CvarFlags::ARCHIVE,
         "Game HUD menu list (ui/jahud.txt); 1 or 2 is the text HUD, 3/4 EternalJK's HUDs",
     ))?;
+    cvars.register(CvarDefinition::new(
+        PACK_CVAR,
+        "",
+        CvarFlags::ARCHIVE,
+        "PK3 whose ui/hud.menu the game HUD uses (assets1.pk3 = retail); empty: the last installed",
+    ))?;
     Ok(())
+}
+
+/// Mounts that ship [`HUD_MENU`], lowest priority first: the game's own
+/// assets, then each HUD pack.
+pub(crate) fn hud_packs(vfs: &VirtualFileSystem) -> Vec<MountSummary> {
+    vfs.mounts()
+        .filter(|mount| matches!(vfs.read_from_mount(mount.id, HUD_MENU), Ok(Some(_))))
+        .collect()
+}
+
+/// The file name of mount `name` (`zz_hud.pk3`), which `cg_hudPack` holds.
+pub(crate) fn mount_file_name(name: &str) -> &str {
+    name.rsplit(['/', '\\']).next().unwrap_or(name)
+}
+
+/// What the game HUD reads for `cg_hudPack` value `pack`: the files without
+/// the HUD packs mounted after it, so its menu and pictures win as if it had
+/// been installed last. `None` for an empty value or a pack that is not
+/// mounted: the files as installed.
+pub(crate) fn pack_view(vfs: &VirtualFileSystem, pack: &str) -> Option<VirtualFileSystem> {
+    let pack = pack.trim();
+    if pack.is_empty() {
+        return None;
+    }
+    let packs = hud_packs(vfs);
+    let chosen = packs
+        .iter()
+        .position(|mount| mount_file_name(&mount.name).eq_ignore_ascii_case(pack))?;
+    let hidden: Vec<MountId> = packs[chosen + 1..].iter().map(|mount| mount.id).collect();
+    Some(vfs.without_mounts(&hidden))
 }
 
 enum Loaded {
@@ -134,8 +198,9 @@ enum Loaded {
 pub(crate) struct MenuHud {
     gpu: gpu::Gpu,
     loaded: Loaded,
-    /// `cg_hudFiles` the current load was made for; `None` before any.
-    loaded_for: Option<String>,
+    /// `cg_hudFiles` and `cg_hudPack` the current load was made for; `None`
+    /// before any.
+    loaded_for: Option<(String, String)>,
     frame: Frame,
     timers: Timers,
     score_label: String,
@@ -164,33 +229,44 @@ impl MenuHud {
         self.active
     }
 
-    /// Follow `cg_hudStyle` and `cg_hudFiles`, loading on first use or change.
+    /// Follow `cg_hudStyle`, `cg_hudFiles` and `cg_hudPack`, loading on first
+    /// use or change.
     pub(crate) fn sync(gpu: &mut GpuState) {
         let style = HudStyle::read(gpu.console.as_ref());
         if style != HudStyle::Game {
             gpu.menu_hud.active = false;
             return;
         }
-        let files = gpu
-            .console
-            .as_ref()
-            .and_then(|console| console.text_value(FILES_CVAR))
-            .unwrap_or(DEFAULT_LIST);
-        if gpu.menu_hud.loaded_for.as_deref() != Some(files) {
-            let files = files.to_owned();
+        let text = |name, fallback| {
+            gpu.console
+                .as_ref()
+                .and_then(|console| console.text_value(name))
+                .unwrap_or(fallback)
+        };
+        let (files, pack) = (text(FILES_CVAR, DEFAULT_LIST), text(PACK_CVAR, ""));
+        let current =
+            gpu.menu_hud
+                .loaded_for
+                .as_ref()
+                .is_some_and(|(loaded_files, loaded_pack)| {
+                    loaded_files == files && loaded_pack == pack
+                });
+        if !current {
+            let (files, pack) = (files.to_owned(), pack.to_owned());
             let Some(vfs) = gpu.vfs.clone() else {
                 return;
             };
             gpu.menu_hud
-                .load(&gpu.device, &gpu.queue, &vfs, &gpu.shaders, &files);
+                .load(&gpu.device, &gpu.queue, &vfs, &gpu.shaders, &files, &pack);
             if let Some(label) = gpu.localization.strings.get("SCORE") {
                 gpu.menu_hud.score_label.clone_from(label);
             }
-            gpu.menu_hud.loaded_for = Some(files);
+            gpu.menu_hud.loaded_for = Some((files, pack));
         }
         gpu.menu_hud.active = !matches!(gpu.menu_hud.loaded, Loaded::None);
     }
 
+    #[allow(clippy::too_many_arguments)]
     fn load(
         &mut self,
         device: &wgpu::Device,
@@ -198,7 +274,15 @@ impl MenuHud {
         vfs: &VirtualFileSystem,
         shaders: &sjk_shader::ShaderCatalog,
         files: &str,
+        pack: &str,
     ) {
+        let view = pack_view(vfs, pack);
+        if view.is_none() && !pack.trim().is_empty() {
+            crate::log::progress(format_args!(
+                "warning: game HUD pack {pack} is not installed; using the HUD installed last"
+            ));
+        }
+        let vfs = view.as_ref().unwrap_or(vfs);
         self.timers = Timers::default();
         self.gpu.unload();
         self.loaded = Loaded::None;
@@ -244,7 +328,9 @@ impl MenuHud {
             .gpu
             .load(device, queue, vfs, shaders, &layout.pictures, &largest);
         crate::log::progress(format_args!(
-            "game HUD: {list}, {found} of {} pictures",
+            "game HUD: {list}{}{}, {found} of {} pictures",
+            if view.is_some() { " from " } else { "" },
+            if view.is_some() { pack.trim() } else { "" },
             layout.pictures.len()
         ));
         self.loaded = Loaded::Menus {
@@ -446,15 +532,19 @@ mod tests {
     }
 
     #[test]
-    fn style_defaults_to_modern() {
-        assert_eq!(HudStyle::from_cvar(None), HudStyle::Modern);
+    fn style_defaults_to_the_game_hud() {
+        assert_eq!(HudStyle::from_cvar(None), HudStyle::Game);
         assert_eq!(HudStyle::from_cvar(Some("GAME")), HudStyle::Game);
         assert_eq!(HudStyle::from_cvar(Some("classic")), HudStyle::Classic);
-        assert_eq!(HudStyle::from_cvar(Some("retro")), HudStyle::Modern);
+        assert_eq!(HudStyle::from_cvar(Some("retro")), HudStyle::Game);
+        assert_eq!(HudStyle::from_cvar(Some(" Modern ")), HudStyle::Modern);
         let parsed = HudStyle::NAMES.map(|name| HudStyle::from_cvar(Some(name)));
         assert_eq!(
             parsed,
             [HudStyle::Modern, HudStyle::Classic, HudStyle::Game]
         );
+        for style in parsed {
+            assert_eq!(HudStyle::from_cvar(Some(style.name())), style);
+        }
     }
 }

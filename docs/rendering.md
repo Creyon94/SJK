@@ -1556,16 +1556,31 @@ may draw a stray `Â` before the logo.
 
 ### Game-data HUD
 
-`cg_hudStyle game` replaces JKR's health, armor, Force and ammo widgets with the
-status HUD the game's own menu files describe, as retail Jedi Academy draws it
-([menu_hud.rs](../crates/sjk-viewer/src/menu_hud.rs)). `cg_hudFiles` (retail
-default `ui/jahud.txt`) names a list of `loadMenu` files; the stock list loads
-`ui/hud.menu`, so a PK3 that replaces that file (a custom HUD pack) or a list
-naming other menus changes the HUD with no JKR-specific format. A nonzero
-integer selects the stock text-only HUD; as in EternalJK, `0` is the default
-list and `3`/`4` name `ui/elegance_hud.txt`/`ui/jof_hud.txt`. A missing list
-falls back to the default one, as `CG_LoadMenus` does; files without a
-`lefthud` or `righthud` menu leave JKR's HUD in place.
+`cg_hudStyle game` (SJK's default) replaces JKR's health, armor, Force and ammo
+widgets with the status HUD the game's own menu files describe, as retail Jedi
+Academy draws it ([menu_hud.rs](../crates/sjk-viewer/src/menu_hud.rs)).
+`cg_hudFiles` (retail default `ui/jahud.txt`) names a list of `loadMenu` files;
+the stock list loads `ui/hud.menu`, so a PK3 that replaces that file (a custom
+HUD pack) or a list naming other menus changes the HUD with no JKR-specific
+format. A nonzero integer selects the stock text-only HUD; as in EternalJK, `0`
+is the default list and `3`/`4` name `ui/elegance_hud.txt`/`ui/jof_hud.txt`. A
+missing list falls back to the default one, as `CG_LoadMenus` does; files
+without a `lefthud` or `righthud` menu leave JKR's HUD in place.
+
+When several PK3s replace `ui/hud.menu`, the one mounted last wins, and packs
+usually replace the retail pictures (`gfx/hud/hudleft` ...) under the same names
+too. `cg_hudPack` names the PK3 whose HUD to use instead: the HUD's menus and
+pictures are then read from the files without the PK3s mounted after it that
+ship `ui/hud.menu` (`VirtualFileSystem::without_mounts`), as if they were not
+installed, so `assets1.pk3` gives the original HUD with a HUD pack still
+installed. An empty value, or a PK3 that is not mounted, reads the files as
+installed. The settings' HUD picker lists the choices
+([choices.rs](../crates/sjk-viewer/src/menu_hud/choices.rs)) and shows each
+game-data HUD composited on the CPU at 1280x720 for a sample player (health 74,
+armor 46, Force 63, medium saber style) over a dimmed levelshot read from the
+game's own `assets*.pk3`, with the HUD's text drawn by the menu
+([preview.rs](../crates/sjk-viewer/src/menu_hud/preview.rs)); it renders on a
+worker thread and is uploaded into a texture of its own.
 
 The reader ([parse.rs](../crates/sjk-viewer/src/menu_hud/parse.rs)) keeps the
 window fields HUDs use (`name`, `rect`, `visible`, `style`, `background`,
@@ -1596,6 +1611,7 @@ which the retail and the checked custom HUDs do not use.
 
 `cg_hudStyle classic` selects JKR's classic layout in either font; `modern` keeps
 the existing behavior, where `cg_classicHudFont` also selects the classic layout.
+JKR defaults to `modern`; SJK to `game`.
 
 ## Billboard icons
 
