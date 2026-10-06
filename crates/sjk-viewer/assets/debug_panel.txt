@@ -867,6 +867,23 @@ test: With a material pack: log says "material maps (normal+specular+parallax+re
 test: Without a pack: no regenerate note, "no stage of this map has maps", nothing looks different.
 test: Afterwards put the old config.cfg back; its saved values return.
 
+[sjk-gameplay-defaults]
+status: personal
+area: Menus & settings
+title: New defaults: classic scoreboard, game fonts, timer, team overlay, limbs, snaps, idle FPS
+change: cg_scoreboardStyle classic, ui_gameFont 1, cg_drawTimer 1, cg_drawTeamOverlay 1.
+change: cg_dismember 2, snaps 120 (Settings slider now to 125), com_maxfpsUnfocused 30.
+change: Saved config.cfg values still win (no migration).
+test: Close SJK, rename config.cfg so a fresh one is made, then start and join a server.
+test: Console: cg_scoreboardStyle classic, ui_gameFont 1, cg_drawTimer 1, snaps 120 (and the others).
+test: Tab shows the classic scoreboard; menus, chat and console draw in the retail fonts.
+test: The match time shows; in a team game your teammates are listed; in FFA no overlay appears.
+test: Settings > Network: Snapshots per second reads 120 and the slider reaches 125.
+test: Alt-tab out of the game: the frame rate drops to about 30; back in it returns to normal.
+test: On a server with g_dismember on, cut a player: the limb flies off without setting cg_dismember.
+test: Afterwards put the old config.cfg back; its saved values return.
+note: Whether a server above 40 snaps feels better, and the limb scan's frame cost, are untested.
+
 [classic-plus-setup]
 status: personal
 area: Menus & settings
@@ -1393,7 +1410,7 @@ change: g_dismember 0-100 set in the console is handed to games you host (Create
 test: Host with g_dismember 100 and set cg_dismember 3: cut a bot with the saber; limbs fly and smoke.
 test: The body keeps its stump caps; a cut right arm or hand takes the weapon with it.
 test: Kill a bot with the disruptor: it freezes and burns away with a glowing edge, gone in 1.5 s.
-test: cg_dismember 0 (default): no limbs are shown, the whole body stays.
+test: cg_dismember 0: no limbs are shown, the whole body stays (SJK's default is now 2).
 note: Creyon94 checked it before the last review changes (snapshot borrow, fullbright colours).
 
 [wheel-bind]

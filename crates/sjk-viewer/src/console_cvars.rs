@@ -298,7 +298,7 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         ),
         CvarDefinition::new(
             crate::game_font::CVAR,
-            false,
+            true,
             archive,
             "Draw text with the game's own fonts where retail did (menus, chat, HUD text, scoreboard, console), else Inter",
         ),
@@ -362,10 +362,11 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         ),
         CvarDefinition::new("cg_marks", true, archive, "Leave impact marks on the world"),
         CvarDefinition::new("cg_shadows", true, archive, "Draw player shadows"),
-        // EternalJK's `cg_dismember` (`cg_xcvar.h`): off by default.
+        // EternalJK's `cg_dismember` (`cg_xcvar.h`) is off by default; SJK shows
+        // every cut limb.
         CvarDefinition::new(
             crate::dismember::CVAR,
-            0_i64,
+            2_i64,
             archive,
             "Show cut-off limbs: 0 none, 1 no heads or waists, 2 all",
         ),
@@ -401,7 +402,7 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             archive,
             "Display the name under the crosshair",
         ),
-        CvarDefinition::new("cg_drawTimer", false, archive, "Display elapsed match time"),
+        CvarDefinition::new("cg_drawTimer", true, archive, "Display elapsed match time"),
         CvarDefinition::new(
             crate::version_overlay::CVAR,
             true,
@@ -563,7 +564,7 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         ),
         CvarDefinition::new(
             "cg_drawTeamOverlay",
-            0_i64,
+            1_i64,
             archive,
             "Team status: 0 off, 1 on",
         ),
@@ -601,9 +602,9 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         ),
         CvarDefinition::new(
             crate::scoreboard::style::CVAR,
-            crate::scoreboard::style::ScoreboardStyle::NAMES[0],
+            crate::scoreboard::style::ScoreboardStyle::DEFAULT_NAME,
             archive,
-            "Scoreboard layout: modern, or classic (after the retail scoreboard)",
+            "Scoreboard layout: classic (after the retail scoreboard), or modern",
         ),
         CvarDefinition::new(
             "cg_smallScoreboard",

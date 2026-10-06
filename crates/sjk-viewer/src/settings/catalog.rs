@@ -531,7 +531,7 @@ pub(super) const NETWORK: &[Setting] = &[
         cvar: "snaps",
         kind: ValueKind::Integer {
             min: 10,
-            max: 60,
+            max: 125,
             step: 5,
         },
     },

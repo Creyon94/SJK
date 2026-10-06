@@ -91,7 +91,7 @@ impl Scoreboard {
             max_clients: 0,
             gametype: 0,
             fraglimit: 0,
-            style: style::ScoreboardStyle::Modern,
+            style: style::ScoreboardStyle::default(),
             motion: motion::Motion::default(),
             icons: icons::HeadIcons::default(),
             killer: None,
