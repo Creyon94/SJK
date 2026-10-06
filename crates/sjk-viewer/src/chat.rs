@@ -34,6 +34,8 @@ enum Channel {
     Global,
     Team,
     Whisper,
+    /// A world note (`world_notes`): never sent, saved locally.
+    Note,
 }
 
 struct ChatLine {
@@ -73,6 +75,8 @@ pub(crate) struct ChatOverlay {
     clock: Instant,
     opened_ms: u64,
     notice: &'static str,
+    /// What a note composer writes about (`Channel::Note`).
+    note_subject: String,
     ui: MenuCanvas,
     visible_targets: [Option<ChatTarget>; MAX_VISIBLE],
     pressed_action: Option<(u16, Option<ChatTarget>)>,
@@ -106,6 +110,7 @@ impl ChatOverlay {
             clock: Instant::now(),
             opened_ms: 0,
             notice: "",
+            note_subject: String::new(),
             ui: MenuCanvas::with_text_capacity(512),
             visible_targets: [None; MAX_VISIBLE],
             pressed_action: None,
@@ -217,6 +222,15 @@ impl ChatOverlay {
         self.input.is_some()
     }
 
+    /// Open the composer for a world note about `subject` (`world_notes`).
+    pub(crate) fn open_note(&mut self, subject: String) {
+        self.open(false);
+        let input = self.input.as_mut().expect("opened composer");
+        input.channel = Channel::Note;
+        self.note_subject = subject;
+        self.notice = "Note for Claude: Enter saves it with a screenshot, Escape drops it.";
+    }
+
     /// Toggle a whisper composer only for a currently occupied roster slot.
     pub(crate) fn whisper_to(&mut self, slot: Option<u16>) -> bool {
         let Some(target) = self.roster.target(slot) else {
@@ -287,4 +301,6 @@ impl ChatOverlay {
 pub(crate) enum ChatInputResult {
     None,
     Submit(String),
+    /// A world note's text, for `world_notes`.
+    Note(String),
 }

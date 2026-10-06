@@ -1795,6 +1795,18 @@ test: r_dayNight 1 there too: the relief still follows the sun.
 test: A switch or door lock (imperial, kejim): its red/green lights glow, not its paint.
 note: Blended terrain layers over a mapped base stay flat; tell Claude if seams show.
 
+[world-notes]
+status: personal
+area: Interaction
+title: World notes: inspect a surface, write a note, Claude reads it later
+change: X (inspect) on a wall, floor or object names it; X again opens a note line.
+change: Enter saves the note with surface, shader, position and a screenshot (notes.jsonl).
+test: Aim at a wall (no player): X shows its shader and surface; X again opens Note:.
+test: Type a note, Enter: console says note kept; GameData/screenshots has note_*.jpg.
+test: Aim at a door: X names the func_door and its shaders. Escape in the note drops it.
+test: On a player, X still pins their card; with a card pinned, X unpins it.
+note: Notes go to GameData/SJK/notes.jsonl and notes.txt: tell Claude to read them.
+
 # ---- Merged upstream ----
 
 [actor-instance-cap]

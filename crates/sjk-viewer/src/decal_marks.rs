@@ -103,6 +103,48 @@ impl DecalSurfaces {
             })
     }
 
+    /// The nearest world triangle the ray from `origin` along unit `direction` meets
+    /// within `reach`, either side (`world_notes`).
+    pub(crate) fn ray_hit(&self, origin: Vec3, direction: Vec3, reach: f32) -> Option<RayHit> {
+        let mut nearest: Option<RayHit> = None;
+        for surface in 0..self.ranges.len() {
+            for triangle in self.triangles(surface) {
+                let [a, b, c] = triangle.map(|index| Vec3::from_array(self.positions[index]));
+                // Moeller-Trumbore.
+                let (edge1, edge2) = (b - a, c - a);
+                let p = direction.cross(edge2);
+                let determinant = edge1.dot(p);
+                if determinant.abs() < 1e-8 {
+                    continue;
+                }
+                let inverse = 1.0 / determinant;
+                let s = origin - a;
+                let u = s.dot(p) * inverse;
+                if !(0.0..=1.0).contains(&u) {
+                    continue;
+                }
+                let q = s.cross(edge1);
+                let v = direction.dot(q) * inverse;
+                if v < 0.0 || u + v > 1.0 {
+                    continue;
+                }
+                let distance = edge2.dot(q) * inverse;
+                if distance <= 0.0
+                    || distance > reach
+                    || nearest.as_ref().is_some_and(|hit| hit.distance <= distance)
+                {
+                    continue;
+                }
+                nearest = Some(RayHit {
+                    surface,
+                    distance,
+                    normal: self.triangle_normal(triangle),
+                });
+            }
+        }
+        nearest
+    }
+
     /// Outward triangle normal, oriented by the stored vertex normal so the
     /// facing test does not depend on the tessellator's winding.
     fn triangle_normal(&self, triangle: [usize; 3]) -> Vec3 {
@@ -114,6 +156,16 @@ impl DecalSurfaces {
             normal
         }
     }
+}
+
+/// Where a ray met the world ([`DecalSurfaces::ray_hit`]).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct RayHit {
+    /// BSP draw-surface index.
+    pub(crate) surface: usize,
+    pub(crate) distance: f32,
+    /// The triangle's outward normal.
+    pub(crate) normal: Vec3,
 }
 
 /// Fixed-capacity buffers reused by every projection.
