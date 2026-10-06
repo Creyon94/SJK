@@ -38,12 +38,19 @@ struct LegacyTrackSelection {
 impl LegacyAnimationSelection {
     /// Decode an on-wire entity exactly as `CG_PlayerAnimation` consumes it.
     pub(crate) fn from_entity(state: &EntityState) -> Self {
-        let lower_clip = usize::from(state.leg_animation());
-        let upper_clip = usize::from(state.torso_animation());
+        let (legs, torso) = ejk_animation_fixes(
+            state.leg_animation(),
+            state.torso_animation(),
+            state.weapon(),
+            state.saber_in_flight(),
+            state.entity_type() == crate::npc_identity::ET_NPC,
+        );
+        let lower_clip = usize::from(legs);
+        let upper_clip = usize::from(torso);
         Self {
             lower: LegacyTrackSelection {
                 clip: lower_clip,
-                revision: animation_revision(state.leg_animation(), state.leg_flip()),
+                revision: animation_revision(legs, state.leg_flip()),
                 speed_milli: legacy_animation_speed(
                     lower_clip,
                     state.force_powers_active(),
@@ -54,7 +61,7 @@ impl LegacyAnimationSelection {
             },
             upper: LegacyTrackSelection {
                 clip: upper_clip,
-                revision: animation_revision(state.torso_animation(), state.torso_flip()),
+                revision: animation_revision(torso, state.torso_flip()),
                 speed_milli: legacy_animation_speed(
                     upper_clip,
                     state.force_powers_active(),
@@ -69,12 +76,19 @@ impl LegacyAnimationSelection {
 
     /// Decode the local player fields copied by `BG_PlayerStateToEntityState`.
     pub(crate) fn from_player(state: &PlayerState) -> Self {
-        let lower_clip = usize::from(state.leg_animation());
-        let upper_clip = usize::from(state.torso_animation());
+        let (legs, torso) = ejk_animation_fixes(
+            state.leg_animation(),
+            state.torso_animation(),
+            state.weapon(),
+            state.saber_in_flight(),
+            false,
+        );
+        let lower_clip = usize::from(legs);
+        let upper_clip = usize::from(torso);
         Self {
             lower: LegacyTrackSelection {
                 clip: lower_clip,
-                revision: animation_revision(state.leg_animation(), state.leg_flip()),
+                revision: animation_revision(legs, state.leg_flip()),
                 speed_milli: legacy_animation_speed(
                     lower_clip,
                     state.force_powers_active(),
@@ -85,7 +99,7 @@ impl LegacyAnimationSelection {
             },
             upper: LegacyTrackSelection {
                 clip: upper_clip,
-                revision: animation_revision(state.torso_animation(), state.torso_flip()),
+                revision: animation_revision(torso, state.torso_flip()),
                 speed_milli: legacy_animation_speed(
                     upper_clip,
                     state.force_powers_active(),
@@ -100,12 +114,19 @@ impl LegacyAnimationSelection {
 
     /// Decode the predicted fields copied by `BG_PlayerStateToEntityState`.
     fn from_movement(state: &MovementState) -> Self {
-        let lower_clip = usize::from(state.legs_anim);
-        let upper_clip = usize::from(state.torso_anim);
+        let (legs, torso) = ejk_animation_fixes(
+            state.legs_anim,
+            state.torso_anim,
+            state.weapon,
+            state.saber_in_flight,
+            false,
+        );
+        let lower_clip = usize::from(legs);
+        let upper_clip = usize::from(torso);
         Self {
             lower: LegacyTrackSelection {
                 clip: lower_clip,
-                revision: animation_revision(state.legs_anim, state.legs_flip),
+                revision: animation_revision(legs, state.legs_flip),
                 speed_milli: legacy_animation_speed(
                     lower_clip,
                     state.force_powers_active,
@@ -116,7 +137,7 @@ impl LegacyAnimationSelection {
             },
             upper: LegacyTrackSelection {
                 clip: upper_clip,
-                revision: animation_revision(state.torso_anim, state.torso_flip),
+                revision: animation_revision(torso, state.torso_flip),
                 speed_milli: legacy_animation_speed(
                     upper_clip,
                     state.force_powers_active,
@@ -179,6 +200,64 @@ pub fn legacy_predicted_animation_inputs(
             synchronized_phase(previous, selection.upper.clip, true, command_time),
         ),
     ]
+}
+
+/// EternalJK's "hack to fix bugged player animations" (`cg_players.c`, `CG_Player`),
+/// applied to a player's `legsAnim`/`torsoAnim` before they are presented. For a
+/// player (not an NPC) without a saber in hand (any other weapon, or the saber thrown):
+/// the two-handed and dual runs and walks play as the ordinary ones; the staff ones
+/// too (EternalJK keeps them only in jaPRO race mode, which this client does not
+/// play); a thrown saber's standing torso follows the legs; the old Bryar's
+/// `BOTH_STAND1` (servers without `g_fixWeaponAttackAnim` fire it with that, arm
+/// hanging) shows as `BOTH_ATTACK2`, its arm raised; and the concussion rifle's
+/// `BOTH_ATTACK2` as `BOTH_ATTACK3`. The revision follows the mapped animation, so
+/// the Bryar's mapped stand does not restart its attack.
+pub(crate) fn ejk_animation_fixes(
+    legs: u16,
+    torso: u16,
+    weapon: u8,
+    saber_in_flight: bool,
+    npc: bool,
+) -> (u16, u16) {
+    const WP_SABER: u8 = 3;
+    const WP_CONCUSSION: u8 = 15;
+    const WP_BRYAR_OLD: u8 = 16;
+    const BOTH_STAND1: u16 = 915;
+    const BOTH_ATTACK2: u16 = 114;
+    const BOTH_ATTACK3: u16 = 115;
+    const RUN1: u16 = 1111;
+    const RUNBACK1: u16 = 1136;
+    const WALK1: u16 = 1102;
+    const WALKBACK1: u16 = 1134;
+    if npc || (weapon == WP_SABER && !saber_in_flight) {
+        return (legs, torso);
+    }
+    let ordinary = |animation: u16| match animation {
+        // BOTH_RUN2, BOTH_RUN_DUAL, BOTH_RUN_STAFF.
+        1114 | 1120 | 1118 => RUN1,
+        // BOTH_RUNBACK2, BOTH_RUNBACK_DUAL, BOTH_RUNBACK_STAFF.
+        1137 | 1121 | 1119 => RUNBACK1,
+        // BOTH_WALK2, BOTH_WALK_DUAL, BOTH_WALK_STAFF.
+        1103 | 1106 | 1104 => WALK1,
+        // BOTH_WALKBACK2, BOTH_WALKBACK_DUAL, BOTH_WALKBACK_STAFF.
+        1135 | 1107 | 1105 => WALKBACK1,
+        other => other,
+    };
+    let (mut legs, mut torso) = (ordinary(legs), ordinary(torso));
+    if saber_in_flight && torso == BOTH_STAND1 {
+        torso = legs;
+    }
+    if weapon == WP_BRYAR_OLD && torso == BOTH_STAND1 {
+        torso = BOTH_ATTACK2;
+    } else if weapon == WP_CONCUSSION {
+        if legs == BOTH_ATTACK2 {
+            legs = BOTH_ATTACK3;
+        }
+        if torso == BOTH_ATTACK2 {
+            torso = BOTH_ATTACK3;
+        }
+    }
+    (legs, torso)
 }
 
 fn animation_revision(animation: u16, flip: bool) -> u64 {
@@ -414,4 +493,36 @@ fn trace_selection(
         selection.upper.clip,
         crate::legacy_animation_name(selection.upper.clip).unwrap_or("<unknown>"),
     );
+}
+
+#[cfg(test)]
+mod ejk_fix_tests {
+    use super::ejk_animation_fixes;
+
+    #[test]
+    fn the_old_bryar_keeps_its_arm_raised_between_shots() {
+        // An unfixed server fires the old Bryar (16) with BOTH_STAND1 (915).
+        assert_eq!(ejk_animation_fixes(915, 915, 16, false, false), (915, 114));
+        // The legs still stand; an NPC is left alone.
+        assert_eq!(ejk_animation_fixes(915, 915, 16, false, true), (915, 915));
+    }
+
+    #[test]
+    fn the_concussion_fires_with_its_own_attack() {
+        assert_eq!(ejk_animation_fixes(114, 114, 15, false, false), (115, 115));
+    }
+
+    #[test]
+    fn a_held_saber_keeps_its_runs_and_a_gun_takes_the_ordinary_ones() {
+        assert_eq!(
+            ejk_animation_fixes(1114, 1114, 3, false, false),
+            (1114, 1114)
+        );
+        assert_eq!(
+            ejk_animation_fixes(1114, 1137, 5, false, false),
+            (1111, 1136)
+        );
+        // A thrown saber's standing torso follows the legs.
+        assert_eq!(ejk_animation_fixes(1102, 915, 3, true, false), (1102, 1102));
+    }
 }

@@ -105,6 +105,17 @@ pub use actor_color::{TeamColorPolicy, legacy_body_color, legacy_player_color};
 pub use ambient_sets::{AmbientSet, AmbientSetKind, AmbientSets};
 pub use ambient_world::{CS_GLOBAL_AMBIENT_SET, LegacyAmbientShot, LegacyRandom};
 pub use animation_selection::legacy_predicted_animation_inputs;
+/// EternalJK's player animation fixes for the viewer's own predicted player
+/// ([`animation_selection::ejk_animation_fixes`]); returns `(legs, torso)`.
+pub fn legacy_ejk_animation_fixes(
+    legs: u16,
+    torso: u16,
+    weapon: u8,
+    saber_in_flight: bool,
+) -> (u16, u16) {
+    animation_selection::ejk_animation_fixes(legs, torso, weapon, saber_in_flight, false)
+}
+
 pub use asset_catalog::{
     LEGACY_SABER_COLORS, LegacyAssetCatalog, LegacyAssetCatalogLoader, LegacyCatalogStatus,
     legacy_asset_catalog,
