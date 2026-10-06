@@ -417,6 +417,7 @@ cvar every frame, including with no snapshot, and log nothing while off.
 Unit tests cover the flag following the cvars and resetting without a console.
 The workspace checks passed on Windows 11 (06/10/2026). Unverified: the log
 output in a running client.
+
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the
