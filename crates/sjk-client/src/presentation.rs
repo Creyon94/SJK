@@ -555,13 +555,19 @@ fn legacy_entity_kind(entity_type: u8) -> EntityKind {
     }
 }
 
-/// Convert codemp pitch/yaw/roll Euler degrees into the runtime quaternion
-/// used by the presentation boundary.
 /// A trip mine or det pack (`ET_GENERAL`, a Ghoul2 `*_w.glm`) faces along its
-/// angles, which the game sets to the surface it sticks to (`vectoangles` of the
-/// normal). Its Ghoul2 model is authored with its top along -Y, not +X, so it is
-/// turned a quarter about its own Z first: it then lies flat against the wall or
-/// floor, facing out, as JoF EternalJK shows it, with the beam along the same facing.
+/// angles, which the game sets to the surface it sticks to (`laserTrapStick`,
+/// `g_weapon.c`: `vectoangles` of the plane normal). The result is `rotation` turned
+/// a quarter about the entity's own Z first, so the model lies flat against the wall
+/// or floor, facing out, with the beam along the same facing.
+///
+/// Evidence: none for the quarter turn itself. It matches EternalJK's look (the
+/// charge seen flat against the surface), and no source was found for it. EternalJK
+/// draws the entity from `AnglesToAxis(cent->lerpAngles)` alone (`cg_ents.c:1544`,
+/// `CG_SetGhoul2Info` `cg_ents.c:565-572`) and its Ghoul2 renderer builds the world
+/// matrix from the same angles with no extra rotation (`rd-vanilla/G2_misc.cpp:1608-1664`),
+/// so the offset can only come from the retail `.glm`'s rest pose or from how
+/// this client orients Ghoul2 models; it should be re-derived from the model data.
 fn placed_charge_rotation(state: &EntityState, rotation: [f32; 4]) -> [f32; 4] {
     const WP_TRIP_MINE: u8 = 13;
     const WP_DET_PACK: u8 = 14;
@@ -582,6 +588,8 @@ fn placed_charge_rotation(state: &EntityState, rotation: [f32; 4]) -> [f32; 4] {
     ]
 }
 
+/// Convert codemp pitch/yaw/roll Euler degrees into the runtime quaternion
+/// used by the presentation boundary.
 pub fn legacy_angles_to_quaternion(angles: [f32; 3]) -> [f32; 4] {
     let [pitch, yaw, roll] = angles.map(|angle| angle.to_radians() * 0.5);
     let (pitch_sine, pitch_cosine) = pitch.sin_cos();

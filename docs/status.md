@@ -9,30 +9,44 @@ claiming complete parity from the presence of an implementation.
 
 ## Weapon world effects
 
-Branch `feat/weapon-world-effects`:
+Branch `feat/weapon-world-effects` (06/10/2026, based on `99bd31d`):
 
-- Stuck trip mines and det packs lie flat against the surface they stick to,
-  facing out: their Ghoul2 models are authored with their top along -Y, so they
-  are turned a quarter about Z before their facing.
+- Stuck trip mines and det packs are turned a quarter about their own Z before
+  their facing, so they lie flat against the surface they stick to, facing out.
+  The quarter turn matches EternalJK's look; no source for it was found
+  (EternalJK's cgame and Ghoul2 renderer add no rotation), so it is unverified
+  against the model data.
 - An armed trip mine plays its beam (`CG_General`, `cg_ents.c:1789-1814`):
-  `tripMine/laserMP`, or `tripMine/glowbit` in proximity mode, from 6.6 units out
-  along its facing. The beam's line is an `org2fromTrace` primitive and is
+  `tripMine/laserMP`, or `tripMine/glowbit` in proximity mode, from 6.6 units
+  out along its facing. The beam's line is an `org2fromTrace` primitive and is
   stretched to the solid its facing hits. A stuck mine does not move, so each
-  mine's trace is kept while its position and facing stay the same; at most four
-  new traces run per cgame tick, and a mine beyond that budget shows its beam on
-  a later tick.
-- Charging weapons glow at the muzzle as `CG_AddPlayerWeapon` draws it: the Bryar
-  pistols' alt fire (`bryarFrontFlash`), the bowcaster (`greenFrontFlash`) and the
-  DEMP2's alt fire (`lightningFlash`, 1.75 times), growing over a second.
+  mine's trace is kept while its position and facing stay the same. At most
+  four new traces run per cgame tick; a mine beyond that budget shows its beam
+  on a later tick. A beam whose traced segment is more than 8192 units from
+  the camera is not played.
+- Charging weapons glow at the muzzle as `CG_AddPlayerWeapon` draws it: the
+  Bryar pistols' alt fire (`bryarFrontFlash`), the bowcaster
+  (`greenFrontFlash`) and the DEMP2's alt fire (`lightningFlash`, 1.75 times),
+  growing over a second.
 - The concussion rifle's alt fire draws its beam (`EV_CONC_ALT_IMPACT`,
-  `cg_event.c:2860-2881`): rings every 64 units, `FX_ConcAltShot`'s `blueLine` and
-  `whiteline2`, the wall hit and the disruptor's alt miss. At most 128 rings are
-  drawn (the game's 8192-unit range); a non-finite or longer shot draws nothing.
+  `cg_event.c:2860-2881`): rings every 64 units, `FX_ConcAltShot`'s `blueLine`
+  and `whiteline2`, the wall hit and the disruptor's alt miss. The rings are
+  one run in the impact plan, not one visual each. A shot longer than
+  EternalJK's `shotRange` of 16384 (`g_weapon.c`, `WP_FireConcussionAlt`) is
+  clamped to it, so at most 256 rings are drawn; a non-finite shot vector,
+  start or ring direction draws nothing. Stock OpenJK servers fire 8192 at
+  most.
 
 Unit tests cover which mines draw a beam, the kept traces and the budget, the
-placed charges' facing, the charge glow's sizes and the concussion ring cap.
-Checked in game on Windows 11 on a JoF server, before the trace budget and the
-ring cap were added; those two are covered by the unit tests only.
+beam cull, the placed charges' facing, the charge glow's sizes, the concussion
+ring count, clamp and rejected shots, and the ordinary impact plans' visuals.
+
+Verification: the beam, placed charges, charge glow and concussion beam were
+checked in game on Windows 11 on a JoF server by the PR author before the
+trace budget, the ring cap, the clamp and the beam cull were added. Those
+four, and the plan restructuring, are covered by the unit tests and
+`cargo fmt`, `build`, `test` and `clippy` on Windows 11 (06/10/2026) only;
+they have not been checked in game.
 
 ## Classic Settings hub (SJK)
 

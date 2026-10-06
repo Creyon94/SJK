@@ -109,32 +109,49 @@ pub(crate) fn spawn_impact(
 ) -> usize {
     impact.start = local.beam_start(impact);
     let mut spawned = 0;
-    for (visual_index, visual) in impacts::plan(impact).iter().enumerate() {
-        spawned += 1;
-        let seed =
-            u32::from(impact.entity_number) | (u32::from(impact.event) << 16) | visual_index as u32;
+    for visual in impacts::plan(impact).iter() {
+        // Each effect of a run has its own seed, as if it were its own visual.
+        let seed = |visual_index: usize| {
+            u32::from(impact.entity_number)
+                | (u32::from(impact.event) << 16)
+                | (spawned + visual_index) as u32
+        };
         match visual {
-            impacts::Visual::Effect {
-                name,
-                direction,
-                origin,
-            } => effect_runtime::spawn_effect(
+            impacts::Visual::Effect { name, direction } => effect_runtime::spawn_effect(
                 sinks.particles,
                 sinks.auxiliary,
                 sinks.effects,
                 sinks.vfs,
                 name,
-                Vec3::from_array(origin.unwrap_or(impact.origin)),
+                Vec3::from_array(impact.origin),
                 now,
-                seed,
+                seed(0),
                 0,
                 sinks.audio,
                 combat_effects::rotation_from_direction(direction),
             ),
+            impacts::Visual::EffectRun(run) => {
+                for index in 0..run.count {
+                    effect_runtime::spawn_effect(
+                        sinks.particles,
+                        sinks.auxiliary,
+                        sinks.effects,
+                        sinks.vfs,
+                        run.name,
+                        Vec3::from_array(run.position(index)),
+                        now,
+                        seed(index),
+                        0,
+                        sinks.audio,
+                        combat_effects::rotation_from_direction(run.direction),
+                    );
+                }
+            }
             impacts::Visual::Line(line) => {
-                spawn_line(sinks.particles, sinks.effects, line, now, seed);
+                spawn_line(sinks.particles, sinks.effects, line, now, seed(0));
             }
         }
+        spawned += visual.count();
     }
     spawned
 }

@@ -1728,6 +1728,7 @@ impl GpuState {
                 snapshot,
                 &self.bsp,
                 &mut self.trace_scratch,
+                self.camera_position,
                 &mut self.particles,
                 &mut self.effect_aux,
                 &mut self.effects,

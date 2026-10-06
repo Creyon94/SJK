@@ -12,13 +12,18 @@ use sjk_client::{LegacyImpactEvent, LegacyImpactKind, LegacyImpactTracker};
 use sjk_protocol::Snapshot;
 
 const MAX_SNAPSHOT_IMPACTS: usize = 1_024;
-/// Room for the concussion alt shot: two beam lines, a wall effect, the disruptor
-/// miss it borrows and its rings, one every 64 units along an 8192-unit shot.
-const MAX_VISUALS_PER_IMPACT: usize = 4 + MAX_CONCUSSION_RINGS;
-/// `WP_FireConcussionAlt`'s range (`codemp/game/g_weapon.c:3088`, `shotRange`).
-const CONCUSSION_ALT_RANGE: f32 = 8_192.0;
-/// One ring per 64 units of the longest shot.
-const MAX_CONCUSSION_RINGS: usize = 128;
+/// The largest plan is the concussion alt shot: its wall effect, one ring run, two
+/// beam lines and the disruptor miss it borrows. Rings are a run, not one visual
+/// each, so a plan stays a few hundred bytes.
+const MAX_VISUALS_PER_IMPACT: usize = 6;
+/// `WP_FireConcussionAlt`'s `shotRange` (`g_weapon.c`, `int shotRange = 16384`
+/// in EternalJK's `WP_FireConcussionAlt`; 8192 in stock OpenJK servers, which never
+/// send a longer shot). A longer vector from a modified server is clamped to it.
+const CONCUSSION_ALT_RANGE: f32 = 16_384.0;
+/// Distance between the rings of a concussion alt shot (`cg_event.c:2869`).
+const CONCUSSION_RING_SPACING: f32 = 64.0;
+/// One ring per 64 units of the longest shot; bounds the effects one event spawns.
+const MAX_CONCUSSION_RINGS: usize = (CONCUSSION_ALT_RANGE / CONCUSSION_RING_SPACING) as usize;
 
 /// One visual primitive selected by codemp for an impact event.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -26,11 +31,41 @@ pub(crate) enum Visual {
     Effect {
         name: &'static str,
         direction: [f32; 3],
-        /// Where to play it; `None` is the event's own position.
-        origin: Option<[f32; 3]>,
     },
+    /// Evenly spaced copies of one effect (the concussion alt shot's rings).
+    EffectRun(EffectRun),
     /// `FX_AddLine` with linear size and alpha (`fx_disruptor.c`).
     Line(Line),
+}
+
+impl Visual {
+    /// How many effects or lines this visual spawns.
+    pub(crate) fn count(&self) -> usize {
+        match self {
+            Visual::EffectRun(run) => run.count,
+            _ => 1,
+        }
+    }
+}
+
+/// `count` plays of one effect at `start + unit * (index * spacing)`, all facing
+/// `direction`; never more than [`MAX_CONCUSSION_RINGS`].
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct EffectRun {
+    pub(crate) name: &'static str,
+    pub(crate) start: [f32; 3],
+    pub(crate) unit: [f32; 3],
+    pub(crate) spacing: f32,
+    pub(crate) count: usize,
+    pub(crate) direction: [f32; 3],
+}
+
+impl EffectRun {
+    /// Where the `index`th copy plays.
+    pub(crate) fn position(&self, index: usize) -> [f32; 3] {
+        let along = index as f32 * self.spacing;
+        std::array::from_fn(|axis| self.start[axis] + self.unit[axis] * along)
+    }
 }
 
 /// One `FX_AddLine` call: a beam of constant colour whose half-width and
@@ -67,23 +102,15 @@ impl Plan {
 
     fn effect(mut self, name: &'static str, direction: [f32; 3]) -> Self {
         if self.len < self.visuals.len() {
-            self.visuals[self.len] = Some(Visual::Effect {
-                name,
-                direction,
-                origin: None,
-            });
+            self.visuals[self.len] = Some(Visual::Effect { name, direction });
             self.len += 1;
         }
         self
     }
 
-    fn effect_at(mut self, name: &'static str, origin: [f32; 3], direction: [f32; 3]) -> Self {
+    fn run(mut self, run: EffectRun) -> Self {
         if self.len < self.visuals.len() {
-            self.visuals[self.len] = Some(Visual::Effect {
-                name,
-                direction,
-                origin: Some(origin),
-            });
+            self.visuals[self.len] = Some(Visual::EffectRun(run));
             self.len += 1;
         }
         self
@@ -226,11 +253,10 @@ fn disruptor_sniper_shot(event: LegacyImpactEvent) -> Plan {
 /// the last ring, and the disruptor's alt miss at the end.
 fn concussion_alt_shot(event: LegacyImpactEvent, direction: [f32; 3]) -> Plan {
     let [x, y, z] = event.shot;
-    let distance = (x * x + y * y + z * z).sqrt();
-    // The game's shot is at most 8192 units (`WP_FireConcussionAlt`). A
-    // non-finite or longer vector from a modified server draws nothing.
-    if !distance.is_finite()
-        || distance > CONCUSSION_ALT_RANGE
+    let length = (x * x + y * y + z * z).sqrt();
+    // A non-finite vector from a modified server draws nothing; a longer one than
+    // `WP_FireConcussionAlt` can fire is clamped to its range.
+    if !length.is_finite()
         || !event
             .start
             .iter()
@@ -239,43 +265,45 @@ fn concussion_alt_shot(event: LegacyImpactEvent, direction: [f32; 3]) -> Plan {
     {
         return Plan::new();
     }
-    let unit = if distance > 0.0 {
-        [x / distance, y / distance, z / distance]
+    let distance = length.min(CONCUSSION_ALT_RANGE);
+    let unit = if length > 0.0 {
+        [x / length, y / length, z / length]
     } else {
         [0.0, 0.0, 0.0]
     };
-    let at = |along: f32| std::array::from_fn(|axis| event.start[axis] + unit[axis] * along);
-    let mut plan = Plan::new().effect("concussion/explosion", direction);
-    let mut spot = event.start;
-    // One ring every 64 units, never more than the plan holds.
-    for ring in 0..MAX_CONCUSSION_RINGS {
-        let along = ring as f32 * 64.0;
-        if along >= distance {
-            break;
-        }
-        spot = at(along);
-        plan = plan.effect_at("concussion/alt_ring", spot, event.ring_direction);
-    }
-    plan.line(Line {
+    let rings = EffectRun {
+        name: "concussion/alt_ring",
         start: event.start,
-        end: spot,
-        size: [0.1, 10.0],
-        alpha: [1.0, 0.0],
-        color: WHITE,
-        lifetime_millis: 175,
-        shader: "gfx/effects/blueLine",
-    })
-    .line(Line {
-        start: event.start,
-        end: spot,
-        size: [0.1, 7.0],
-        alpha: [1.0, 0.0],
-        // `BRIGHT` (`fx_bryarpistol.c:242`).
-        color: [0.75, 0.5, 1.0],
-        lifetime_millis: 150,
-        shader: "gfx/misc/whiteline2",
-    })
-    .effect("disruptor/alt_miss", direction)
+        unit,
+        spacing: CONCUSSION_RING_SPACING,
+        // `for (dist = 0; dist < shotDist; dist += 64)`; the divisor is a power of two.
+        count: ((distance / CONCUSSION_RING_SPACING).ceil() as usize).min(MAX_CONCUSSION_RINGS),
+        direction: event.ring_direction,
+    };
+    let last = rings.position(rings.count.saturating_sub(1));
+    Plan::new()
+        .effect("concussion/explosion", direction)
+        .run(rings)
+        .line(Line {
+            start: event.start,
+            end: last,
+            size: [0.1, 10.0],
+            alpha: [1.0, 0.0],
+            color: WHITE,
+            lifetime_millis: 175,
+            shader: "gfx/effects/blueLine",
+        })
+        .line(Line {
+            start: event.start,
+            end: last,
+            size: [0.1, 7.0],
+            alpha: [1.0, 0.0],
+            // `BRIGHT` (`fx_bryarpistol.c:242`).
+            color: [0.75, 0.5, 1.0],
+            lifetime_millis: 150,
+            shader: "gfx/misc/whiteline2",
+        })
+        .effect("disruptor/alt_miss", direction)
 }
 
 fn missile_player(event: LegacyImpactEvent, direction: [f32; 3]) -> Plan {
@@ -328,52 +356,191 @@ fn missile_wall(event: LegacyImpactEvent, direction: [f32; 3]) -> Plan {
 }
 
 #[cfg(test)]
-mod concussion_tests {
+mod tests {
     use super::*;
 
-    fn shot(shot: [f32; 3]) -> LegacyImpactEvent {
+    fn event(kind: LegacyImpactKind, weapon: u8) -> LegacyImpactEvent {
         LegacyImpactEvent {
             entity_number: 1,
-            event: 84, // EV_CONC_ALT_IMPACT
-            kind: LegacyImpactKind::ConcussionAltShot,
-            origin: [0.0; 3],
+            event: 84,
+            kind,
+            origin: [10.0, 20.0, 30.0],
             start: [0.0; 3],
             direction: [0.0, 0.0, 1.0],
             event_parameter: 0,
-            weapon: 15,
-            alternate: true,
+            weapon,
+            alternate: false,
             charge: 0,
             full_charge: false,
-            shot,
+            shot: [0.0; 3],
             ring_direction: [1.0, 0.0, 0.0],
+        }
+    }
+
+    fn shot(shot: [f32; 3]) -> LegacyImpactEvent {
+        LegacyImpactEvent {
+            shot,
+            alternate: true,
+            ..event(LegacyImpactKind::ConcussionAltShot, 15)
         }
     }
 
     fn rings(plan: &Plan) -> usize {
         plan.iter()
-            .filter(|visual| {
-                matches!(visual, Visual::Effect { name, .. } if *name == "concussion/alt_ring")
+            .map(|visual| match visual {
+                Visual::EffectRun(run) if run.name == "concussion/alt_ring" => run.count,
+                _ => 0,
             })
-            .count()
+            .sum()
+    }
+
+    /// The rings, lines and effects of the shot the way a visual per ring would list
+    /// them, `WP_FireConcussionAlt`'s `for (dist = 0; dist < shotDist; dist += 64)`.
+    fn expected_rings(start: [f32; 3], shot: [f32; 3], range: f32) -> Vec<[f32; 3]> {
+        let length = shot.iter().map(|v| v * v).sum::<f32>().sqrt();
+        let unit = shot.map(|v| v / length);
+        let distance = length.min(range);
+        let mut spots = Vec::new();
+        let mut along = 0.0_f32;
+        while along < distance {
+            spots.push(std::array::from_fn(|axis| start[axis] + unit[axis] * along));
+            along += 64.0;
+        }
+        spots
+    }
+
+    #[test]
+    fn plans_stay_small() {
+        // The by-value builder moves a `Plan` per call; a ring per slot made it ~10 KB.
+        assert!(std::mem::size_of::<Plan>() < 1_024);
+    }
+
+    #[test]
+    fn ordinary_impacts_keep_their_visuals() {
+        let mut flesh = event(LegacyImpactKind::MissileHitPlayer, 5);
+        flesh.direction = [1.0, 0.0, 0.0];
+        assert_eq!(
+            plan(flesh).iter().collect::<Vec<_>>(),
+            [Visual::Effect {
+                name: "blaster/flesh_impact",
+                direction: [1.0, 0.0, 0.0]
+            }]
+        );
+        let thermal = plan(event(LegacyImpactKind::MissileHitWall, 12));
+        assert_eq!(
+            thermal.iter().collect::<Vec<_>>(),
+            [
+                Visual::Effect {
+                    name: "thermal/explosion",
+                    direction: [0.0, 0.0, 1.0]
+                },
+                Visual::Effect {
+                    name: "thermal/shockwave",
+                    direction: [0.0, 0.0, 1.0]
+                },
+            ]
+        );
+        let mut sniper = event(LegacyImpactKind::DisruptorSniperShot, 0);
+        sniper.full_charge = true;
+        let lines: Vec<_> = plan(sniper).iter().collect();
+        assert_eq!(lines.len(), 2);
+        assert!(matches!(
+            lines[0],
+            Visual::Line(Line {
+                shader: "gfx/effects/redLine",
+                end: [10.0, 20.0, 30.0],
+                ..
+            })
+        ));
+        let mut blood = event(LegacyImpactKind::SaberHit, 0);
+        blood.event_parameter = 16;
+        assert_eq!(plan(blood).iter().count(), 6);
+        assert!(
+            plan(event(LegacyImpactKind::SaberClashFlare, 0))
+                .iter()
+                .next()
+                .is_none()
+        );
     }
 
     #[test]
     fn rings_follow_the_shot_up_to_its_range() {
         assert_eq!(rings(&plan(shot([640.0, 0.0, 0.0]))), 10);
+        assert_eq!(rings(&plan(shot([650.0, 0.0, 0.0]))), 11);
+        assert_eq!(rings(&plan(shot([8_192.0, 0.0, 0.0]))), 128);
+        assert_eq!(rings(&plan(shot([0.0, 0.0, 0.0]))), 0);
+    }
+
+    #[test]
+    fn a_shot_of_the_reference_range_keeps_its_whole_effect() {
+        // `shotRange` 16384 in EternalJK's `WP_FireConcussionAlt`.
+        let long = plan(shot([0.0, 16_384.0, 0.0]));
+        assert_eq!(rings(&long), MAX_CONCUSSION_RINGS);
+        assert_eq!(MAX_CONCUSSION_RINGS, 256);
+        let visuals: Vec<_> = long.iter().collect();
+        assert_eq!(visuals.len(), 5);
+        // Both lines end at the last ring (16384 - 64), `FX_ConcAltShot(origin2, spot)`.
+        for visual in &visuals[2..4] {
+            let Visual::Line(line) = visual else {
+                panic!("{visual:?}")
+            };
+            assert_eq!(line.end, [0.0, 16_320.0, 0.0]);
+        }
+    }
+
+    #[test]
+    fn a_longer_shot_is_clamped_to_the_range() {
+        let clamped = plan(shot([0.0, 1.0e9, 0.0]));
+        assert_eq!(rings(&clamped), MAX_CONCUSSION_RINGS);
+        let Visual::Line(line) = clamped.iter().nth(2).unwrap() else {
+            panic!()
+        };
+        assert_eq!(line.end, [0.0, 16_320.0, 0.0]);
         assert_eq!(
-            rings(&plan(shot([8_192.0, 0.0, 0.0]))),
+            clamped.iter().collect::<Vec<_>>(),
+            plan(shot([0.0, 16_384.0, 0.0])).iter().collect::<Vec<_>>()
+        );
+        assert_eq!(
+            rings(&plan(shot([16_385.0, 0.0, 0.0]))),
             MAX_CONCUSSION_RINGS
         );
     }
 
     #[test]
-    fn oversized_or_non_finite_shots_draw_nothing() {
+    fn non_finite_shots_draw_nothing() {
         for bad in [
-            [1.0e9, 0.0, 0.0],
             [f32::INFINITY, 0.0, 0.0],
+            [f32::NEG_INFINITY, 0.0, 0.0],
             [f32::NAN, 0.0, 0.0],
+            [0.0, f32::MAX, f32::MAX], // the squared length overflows to infinity
         ] {
             assert_eq!(plan(shot(bad)).iter().count(), 0, "{bad:?}");
         }
+        let mut start = shot([640.0, 0.0, 0.0]);
+        start.start = [f32::NAN, 0.0, 0.0];
+        assert_eq!(plan(start).iter().count(), 0);
+        let mut ring = shot([640.0, 0.0, 0.0]);
+        ring.ring_direction = [0.0, f32::INFINITY, 0.0];
+        assert_eq!(plan(ring).iter().count(), 0);
+    }
+
+    #[test]
+    fn a_ring_run_lists_the_same_positions_as_a_visual_per_ring() {
+        let mut event = shot([300.0, -400.0, 120.0]);
+        event.start = [5.0, 6.0, 7.0];
+        let visuals: Vec<_> = plan(event).iter().collect();
+        let Visual::EffectRun(run) = visuals[1] else {
+            panic!("{:?}", visuals[1])
+        };
+        let want = expected_rings(event.start, event.shot, CONCUSSION_ALT_RANGE);
+        assert_eq!(run.count, want.len());
+        for (index, spot) in want.iter().enumerate() {
+            assert_eq!(run.position(index), *spot, "ring {index}");
+        }
+        assert_eq!(run.direction, event.ring_direction);
+        assert_eq!(
+            visuals.iter().map(Visual::count).sum::<usize>(),
+            want.len() + 4
+        );
     }
 }

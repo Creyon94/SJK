@@ -2,7 +2,8 @@
 //! (`ET_GENERAL`, `WP_TRIP_MINE`, `time == -1`) with `EF_FIRING` plays
 //! `tripMine/laserMP` (or `tripMine/glowbit` in proximity mode, `bolt2 == 1`) every
 //! cgame frame, 6.6 units out along its facing, pointed along `pos.trDelta`, the
-//! surface normal the game stores there.
+//! surface normal the game stores there. Beams far from the camera are not played
+//! (`CULL_DISTANCE`).
 
 use crate::effect_runtime::EffectLibrary;
 use crate::{GameAudio, Particle, combat_effects, effect_runtime};
@@ -139,6 +140,24 @@ fn trace_end(
     )
 }
 
+/// Beyond this distance from the viewer to any point of the beam it is not played:
+/// a beam a few units wide is far under a pixel by then, and a map holds a handful
+/// of mines. The test is on the whole traced segment, not the mine, because a beam
+/// reaches up to [`TRACE_DISTANCE`] away from it.
+const CULL_DISTANCE: f32 = 8_192.0;
+
+/// Whether any point of the segment `start..end` is within [`CULL_DISTANCE`] of `eye`.
+fn near_eye(eye: Vec3, start: Vec3, end: Vec3) -> bool {
+    let along = end - start;
+    let length_squared = along.length_squared();
+    let t = if length_squared > 0.0 {
+        ((eye - start).dot(along) / length_squared).clamp(0.0, 1.0)
+    } else {
+        0.0
+    };
+    (start + along * t).distance_squared(eye) <= CULL_DISTANCE * CULL_DISTANCE
+}
+
 /// Play every armed mine's beam on the reference cgame cadence (`effect_cadence.rs`).
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn spawn(
@@ -146,6 +165,7 @@ pub(crate) fn spawn(
     snapshot: &Snapshot,
     bsp: &sjk_bsp::Bsp,
     scratch: &mut sjk_bsp::TraceScratch,
+    eye: Vec3,
     particles: &mut Vec<Particle>,
     auxiliary: &mut crate::effect_aux::Runtime,
     effects: &mut EffectLibrary,
@@ -168,6 +188,9 @@ pub(crate) fn spawn(
         }) else {
             continue;
         };
+        if !near_eye(eye, origin, end) {
+            continue;
+        }
         let first = particles.len();
         effect_runtime::spawn_effect(
             particles,
@@ -210,6 +233,25 @@ mod tests {
         assert!(beam(&mine(EF_FIRING, 0, 0)).is_none());
         assert_eq!(beam(&mine(EF_FIRING, -1, 0)).unwrap().effect, LASER);
         assert_eq!(beam(&mine(EF_FIRING, -1, 1)).unwrap().effect, GLOW);
+    }
+
+    #[test]
+    fn far_beams_are_not_played() {
+        let start = Vec3::ZERO;
+        let end = Vec3::new(16_384.0, 0.0, 0.0);
+        // Near the mine, near the far end and beside the middle of a long beam.
+        for eye in [
+            Vec3::new(100.0, 0.0, 0.0),
+            Vec3::new(16_000.0, 500.0, 0.0),
+            Vec3::new(8_000.0, 8_000.0, 0.0),
+        ] {
+            assert!(near_eye(eye, start, end), "{eye}");
+        }
+        assert!(!near_eye(Vec3::new(8_000.0, 9_000.0, 0.0), start, end));
+        assert!(!near_eye(Vec3::new(-9_000.0, 0.0, 0.0), start, end));
+        // A beam that stops at a wall beside the mine is a point.
+        assert!(near_eye(Vec3::new(0.0, 0.0, 100.0), start, start));
+        assert!(!near_eye(Vec3::new(0.0, 0.0, 9_000.0), start, start));
     }
 
     #[test]
