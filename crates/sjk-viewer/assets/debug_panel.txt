@@ -857,7 +857,7 @@ status: personal
 area: Rendering & effects
 title: Sol's visual defaults: noon sun, bloom, sunbeam dust, material maps on
 change: New defaults: r_dayHour 12, r_sceneBloom 1, r_dustMotes 1 and r_normalMapping,
-change: r_specularMapping, r_parallaxMapping 1. Saved config.cfg values still win (no migration).
+change: r_specularMapping 1 (r_parallaxMapping 0 since 07/10). Saved config.cfg values still win.
 test: Close SJK, rename config.cfg (e.g. config.old.cfg) so a fresh one is made, then start.
 test: Console: r_dayHour 12, r_sceneBloom 1, r_dustMotes 1, r_normalMapping 1 (and the others).
 test: Outdoor map (mp/ffa3): the sun stands at noon, short shadows; Renderer > IMAGE: Bloom ON.

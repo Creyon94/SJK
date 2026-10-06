@@ -209,7 +209,7 @@ work without reducing source count, texture resolution or lighting quality.
 | `r_clouds` | Volumetric clouds over open sky, 1 (default) or 0; live |
 | `r_normalMapping` | Normal maps on lightmapped world surfaces (rend2 convention); default 1 (SJK; rend2 and JKR 0), restart required |
 | `r_specularMapping` | Specular, roughness and metalness maps on the same surfaces; default 1 (SJK; rend2 and JKR 0), restart required |
-| `r_parallaxMapping` | Parallax from the height in `_nh`/`normalHeightMap` images; needs `r_normalMapping`; default 1 (SJK; rend2 and JKR 0), restart required |
+| `r_parallaxMapping` | Parallax from the height in `_nh`/`normalHeightMap` images; needs `r_normalMapping`; default 0 (SJK turned it off on 07/10/2026: generated height is a guess from paint), restart required |
 | `r_materialMapsDebug` | Material-mapped surfaces only: 1 mapped normal as colour, 2 tint by maps found, 3 normal-map relief, 4 reflection probes alone, 5 without reflection probes, 6 emission maps alone; default 0, live, not archived |
 | `r_emissiveMaps` | Emission maps (`<texture>_e`, SJK's) on lightmapped world surfaces; default 1, restart required. See [Emission maps](#emission-maps) |
 | `r_emissionStrength` | Brightness of emission maps, 0 (off) to 7.97 in steps of 1/32; default 1, live, archived |
@@ -1069,7 +1069,7 @@ then `_n` for normals and `_specGloss`, ioquake3's `_s`, `_rmo` then `_orm` for
 specular, as in rend2's `CollapseStagesToGLSL`. ioquake3's typed
 `stage normalMap` stages are not supported. With the cvars off, the parser
 records the keywords and nothing else changes: no image lookup, layout,
-buffer or pipeline is created. SJK turns the cvars on by default; without a
+buffer or pipeline is created. SJK turns the cvars on by default (parallax off); without a
 pack (or keywords) a map load only checks the candidate names in the file
 index, and no layout, buffer, pipeline or reflection probe is created.
 
@@ -2220,8 +2220,8 @@ LDR tone curve is off. Sunbeam dust is on at full density (`r_dustMotes 1`) and
 shows only inside the godrays of `r_volumetrics`.
 Dynamic glow is on with rd-vulkan's blur (SJK; stock defaults it off).
 Soft particles, per-pixel model diffuse lighting and full rendering resolution
-remain enabled. Material maps (`r_normalMapping`, `r_specularMapping`,
-`r_parallaxMapping`) and reflection probes (`r_cubeMapping 1`, 128²) are on, but
+remain enabled. Material maps (`r_normalMapping`, `r_specularMapping`; not
+`r_parallaxMapping` since 07/10/2026) and reflection probes (`r_cubeMapping 1`, 128²) are on, but
 take effect only where a pack such as the [generated one](#generating-material-maps)
 supplies maps; without one nothing is drawn differently or created. Noon, bloom,
 dust and material maps are SJK's defaults (Sol's own settings); JKR keeps 11:00 and
