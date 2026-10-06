@@ -55,7 +55,10 @@ JoF server). SJK used stock damping per 50 ms; EternalJK damps per frame of
 SJK now does the same, with the same cvar and default; below 15 keeps stock damping.
 Unit tests check that one step at 125 fps equals EternalJK's per-frame formula and
 that the result does not depend on the frame rate. Formatting, the locked workspace
-build, tests and clippy passed on Linux. The feel in game is unverified.
+build, tests and clippy passed on Linux. On Windows 11 the camera then followed as
+EternalJK's but stuttered slightly: the damping was timed by the presentation clock
+while the focus moves with the predicted command time; it now uses the command
+time, as EternalJK does. That correction is unverified in game.
 
 ## Worldspawn shader remaps and remap order
 

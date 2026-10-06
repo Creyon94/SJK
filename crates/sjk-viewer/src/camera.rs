@@ -135,6 +135,15 @@ pub(crate) fn damped_third_person(
             let start = p.vehicle_fields().hyperspace_time;
             start != 0 && presentation_time - i64::from(start) < 4000
         });
+    // EternalJK times its damping by the predicted player's command time
+    // (`cg.predictedPlayerState.commandTime`), the clock the focus moves on.
+    // Timing it by the presentation clock instead made the focus move in one
+    // frame while that clock barely advanced, and the camera stuttered.
+    let eternal = camera_fps >= motion::CAMERA_MIN_FPS;
+    let time = match state.local_prediction.predicted_state() {
+        Some(predicted) if eternal => i64::from(predicted.command_time),
+        _ => presentation_time,
+    };
     let frame = motion::Frame {
         focus: state.camera_position + focus_offset,
         yaw,
@@ -144,7 +153,7 @@ pub(crate) fn damped_third_person(
         horizontal,
         camera_damp,
         target_damp,
-        time: presentation_time,
+        time,
         identity,
         unrestrained,
         hyperspace,
