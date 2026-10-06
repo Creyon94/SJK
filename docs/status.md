@@ -12,8 +12,10 @@ claiming complete parity from the presence of an implementation.
 Branch `fix/bind-mouse-wheel`: the mouse wheel binds in Settings > Key bindings
 (for example `flipkick` under Movement). A notch while a slot waited for a key
 scrolled the list instead; it now binds `MWHEELUP` or `MWHEELDOWN`, as the retail
-controls menu binds any key event. A unit test covers both directions and that the
-wheel does nothing to the form when no slot waits. Checked in game on Windows 11.
+controls menu binds any key event. Wheel deltas under half a notch (small trackpad
+pixel deltas) do not bind. Unit tests cover both directions, that the wheel does
+nothing to the form when no slot waits, and the threshold. Checked in game on
+Windows 11 before the threshold was added; the threshold is covered by unit tests only.
 
 ## Classic Settings hub (SJK)
 

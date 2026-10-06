@@ -130,13 +130,13 @@ impl GpuState {
 
     pub(crate) fn pointer_wheel(&mut self, delta: MouseScrollDelta) {
         let delta = normalize_wheel(delta);
-        if delta.y != 0.0
+        if let Some(up) = wheel_binding_direction(delta.y)
             && self
                 .client_menu
                 .as_ref()
                 .is_some_and(|menu| menu.is_visible())
             && match (&mut self.client_menu, &mut self.console) {
-                (Some(menu), Some(console)) => menu.handle_wheel_binding(delta.y > 0.0, console),
+                (Some(menu), Some(console)) => menu.handle_wheel_binding(up, console),
                 _ => false,
             }
         {
@@ -343,9 +343,46 @@ pub(crate) fn normalize_button_event(
     })
 }
 
+/// Smallest normalized vertical wheel delta that binds a waiting key slot: half
+/// a notch (a [`MouseScrollDelta::LineDelta`] notch normalizes to 40), so the
+/// small pixel deltas of a trackpad do not bind by accident.
+const WHEEL_BIND_MIN_DELTA: f32 = 20.0;
+
+/// The direction a normalized wheel delta binds while a slot waits for a key:
+/// `Some(true)` for `MWHEELUP` (positive y, away from the player, as
+/// `route_gameplay_wheel` maps it), `Some(false)` for `MWHEELDOWN`, `None` below
+/// [`WHEEL_BIND_MIN_DELTA`].
+fn wheel_binding_direction(vertical: f32) -> Option<bool> {
+    (vertical.abs() >= WHEEL_BIND_MIN_DELTA).then_some(vertical > 0.0)
+}
+
 fn normalize_wheel(delta: MouseScrollDelta) -> Vec2 {
     match delta {
         MouseScrollDelta::LineDelta(x, y) => Vec2::new(x * 40.0, y * 40.0),
         MouseScrollDelta::PixelDelta(position) => Vec2::new(position.x as f32, position.y as f32),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_notch_binds_but_a_tiny_trackpad_delta_does_not() {
+        let vertical = |delta| normalize_wheel(delta).y;
+        assert_eq!(
+            wheel_binding_direction(vertical(MouseScrollDelta::LineDelta(0.0, 1.0))),
+            Some(true)
+        );
+        assert_eq!(
+            wheel_binding_direction(vertical(MouseScrollDelta::LineDelta(0.0, -1.0))),
+            Some(false)
+        );
+        for pixels in [0.0, 1.0, -3.5, 19.0, -19.9] {
+            let delta = MouseScrollDelta::PixelDelta(PhysicalPosition::new(0.0, pixels));
+            assert_eq!(wheel_binding_direction(vertical(delta)), None, "{pixels}");
+        }
+        let swipe = MouseScrollDelta::PixelDelta(PhysicalPosition::new(0.0, 60.0));
+        assert_eq!(wheel_binding_direction(vertical(swipe)), Some(true));
     }
 }
