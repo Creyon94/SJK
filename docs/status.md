@@ -7,6 +7,34 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Classic crosshair pictures
+
+Branch `feat/classic-crosshair`: the crosshair is retail's picture,
+`gfx/2d/crosshaira`..`j`, drawn as EternalJK's `CG_DrawCrosshair` draws it
+(`cg_draw.c:6665-7060`), instead of the procedural cross.
+
+- `cg_drawCrosshair` is an integer clamped to 0..=10: 0 hides the crosshair, the
+  picture is the value `% 10`, with `crosshaira` and `crosshairj` swapped as
+  EternalJK swaps them with `R_RemapShader`, and 10 is EternalJK's white dot of
+  `cg_crosshairSize` pixels. The settings entry is a 0-10 picker.
+- `cg_crosshairSize` (default 24, as `cg_xcvar.h:234`) is in 480-line virtual
+  units with `cg_crosshairSizeScale 1` (default 1), so 24 * height / 480 pixels,
+  kept square on wide screens as `widthRatioCoef` keeps it; it is in pixels
+  without scaling and for 10.
+- The picture follows the dynamic crosshair and `cg_crosshairX/Y` and takes the
+  existing target colours. With the default `cg_crosshairColor` "0 0 0 255" and no
+  target it is drawn white, in its own colours, as EternalJK's `R_SetColor(NULL)`.
+- EternalJK's own `crosshaira` and `crosshairj` from `EternalJK/japro-assets.pk3`
+  replace the base ones, and nothing else from that pack.
+- When a picture is missing, or the HUD draw list is full, the procedural cross is
+  drawn instead.
+
+Not done: EternalJK's doubled size in a vehicle, the vehicle's own crosshair and
+the item-pickup pulse of `cg_dynamicCrosshair 3`. Unit tests cover the picture
+order, the clamp, sizes, the missing-picture and full-list fallbacks and the
+EternalJK pack override. Checked in game on Windows 11 before the clamp and the
+full-list fallback were added.
+
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the
@@ -44,28 +72,6 @@ contributor challenged a player named with `×` on a live server; with the wrapp
 fix the challenge showed without a crash, but with `?` for each `×`; with both
 fixes it read `You have challenged ×jof.jk.belyash×`. Merged into SJK `main` from
 SJK pull request #2 (Creyon94, 06/10/2026).
-
-## Classic crosshair pictures
-
-Branch `feat/classic-crosshair` (06/10/2026, based on `5c66ccd`): the crosshair is
-now retail's picture, `gfx/2d/crosshaira`..`j`, drawn as EternalJK's
-`CG_DrawCrosshair` draws it, instead of the procedural cross. `cg_drawCrosshair` is
-an integer again: 0 hides the crosshair and the picture is
-`cg_drawCrosshair % 10`, with `crosshaira` and `crosshairj` swapped as EternalJK
-swaps them with `R_RemapShader` (so 10 is its pixel-sized dot). `cg_crosshairSize`
-is in 480-line virtual units and stays square on wide screens with
-`cg_crosshairSizeScale 1`, and in pixels without it or for picture 10. The picture
-follows the dynamic crosshair and `cg_crosshairX/Y`, and is tinted with the existing
-target colours; the default `cg_crosshairColor` sentinel now draws it untinted, as
-`R_SetColor(NULL)`. EternalJK's own `crosshaira`/`crosshairj` from
-`EternalJK/japro-assets.pk3` replace the base ones, and nothing else from that
-pack. When a picture is missing the procedural cross stays as the fallback. The
-settings entry is now a 0-10 picker. Not done: EternalJK's doubled size in a
-vehicle, the vehicle's own crosshair, and the item-pickup pulse of
-`cg_dynamicCrosshair 3`. Unit tests cover the picture order, sizes and the
-fallback, and the EternalJK pack override. Formatting, the locked workspace build,
-tests and clippy (no new warnings) passed on Linux; in-game check on Windows 11
-pending.
 
 ## Worldspawn shader remaps and remap order
 

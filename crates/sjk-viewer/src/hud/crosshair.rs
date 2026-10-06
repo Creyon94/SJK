@@ -52,9 +52,26 @@ pub(crate) struct Look {
 }
 
 impl Look {
+    /// `cg_drawCrosshair` clamped to 0..=10. EternalJK indexes its pictures with the
+    /// raw value `% NUM_CROSSHAIRS` and treats 10 specially; a value outside 0..=10
+    /// would pick a picture there (or index out of range when negative) while
+    /// differing from 10, so it is clamped once here and every test reads the result.
+    pub(crate) fn new(shape: i64, size: f32, scaled: bool) -> Self {
+        Self {
+            shape: shape.clamp(0, PICTURES as i64),
+            size,
+            scaled,
+        }
+    }
+
     /// The picture slot, as `cg_drawCrosshair.integer % NUM_CROSSHAIRS`.
     fn slot(self) -> usize {
-        self.shape.rem_euclid(PICTURES as i64) as usize
+        self.shape as usize % PICTURES
+    }
+
+    /// EternalJK's 10: the `j` dot, white and sized in pixels.
+    fn dot(self) -> bool {
+        self.shape == PICTURES as i64
     }
 }
 
@@ -64,7 +81,7 @@ impl Look {
 /// screens as `widthRatioCoef` keeps it; without it, or for picture 10, it is
 /// `size` pixels.
 pub(crate) fn rect(look: Look, center: [f32; 2], viewport: [f32; 2]) -> Rect {
-    let side = if look.scaled && look.shape != 10 {
+    let side = if look.scaled && !look.dot() {
         look.size * viewport[1] / 480.0
     } else {
         look.size
@@ -94,13 +111,13 @@ pub(crate) fn emit(
         return true;
     }
     // Picture 10 is EternalJK's pixel-sized white dot, whatever the target.
-    let [r, g, b, a] = if look.shape == 10 { [1.0; 4] } else { color };
-    let _ = list.push(DrawCommand::TexturedQuad {
+    let [r, g, b, a] = if look.dot() { [1.0; 4] } else { color };
+    // A full draw list keeps the procedural crosshair rather than showing none.
+    list.push(DrawCommand::TexturedQuad {
         rect: rect(look, center, viewport),
         texture,
         color: Color::new(r, g, b, a),
-    });
-    true
+    })
 }
 
 #[cfg(test)]
@@ -113,14 +130,13 @@ mod tests {
         assert_eq!(picture_name(1), "gfx/2d/crosshairb");
         assert_eq!(picture_name(8), "gfx/2d/crosshairi");
         assert_eq!(picture_name(9), "gfx/2d/crosshaira");
-        let look = |shape| Look {
-            shape,
-            size: 24.0,
-            scaled: true,
-        };
+        let look = |shape| Look::new(shape, 24.0, true);
         assert_eq!(look(1).slot(), 1);
         assert_eq!(look(10).slot(), 0);
-        assert_eq!(look(-1).slot(), 9);
+        assert!(look(10).dot());
+        // Out of range values are clamped once: no negative slot, and 11 is the dot.
+        assert_eq!(look(-1), look(0));
+        assert_eq!(look(11), look(10));
     }
 
     #[test]
@@ -176,5 +192,21 @@ mod tests {
             [640.0, 480.0]
         ));
         assert_eq!(list.commands().len(), 1);
+    }
+
+    #[test]
+    fn a_full_draw_list_keeps_the_procedural_crosshair() {
+        let mut list = DrawList::new(0);
+        let mut pictures = [None; PICTURES];
+        pictures[1] = Some(TextureId(7));
+        let look = Look::new(1, 24.0, true);
+        assert!(!emit(
+            &mut list,
+            &pictures,
+            look,
+            [0.5, 0.5],
+            [1.0; 4],
+            [640.0, 480.0]
+        ));
     }
 }

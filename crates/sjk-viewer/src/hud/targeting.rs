@@ -111,13 +111,13 @@ impl Policy {
             showpos: b("cg_showpos", false),
             lagometer: [f("cg_lagometerx", 48.0), f("cg_lagometery", 144.0)],
             color: crate::cgame_options::crosshair_color(console),
-            look: super::crosshair::Look {
-                shape: console
+            look: super::crosshair::Look::new(
+                console
                     .and_then(|c| c.integer_cvar("cg_drawcrosshair"))
                     .unwrap_or(1),
-                size: super::options::crosshair_size(console, true),
-                scaled: b("cg_crosshairsizescale", true),
-            },
+                super::options::crosshair_size(console, true),
+                b("cg_crosshairsizescale", true),
+            ),
         }
     }
 
