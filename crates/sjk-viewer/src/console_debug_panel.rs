@@ -20,6 +20,7 @@ impl ViewerConsole {
         }
         self.browser.close();
         self.changelog.close();
+        self.credits.close();
         self.dead_key.settle();
         self.debug_panel.open(owns_console);
     }

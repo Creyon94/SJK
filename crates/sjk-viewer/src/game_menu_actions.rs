@@ -124,6 +124,12 @@ impl GpuState {
                 }
                 self.sync_cursor_policy();
             }
+            ingame_menu::sjk::CREDITS => {
+                if let Some(console) = &mut self.console {
+                    console.open_credits();
+                }
+                self.sync_cursor_policy();
+            }
             _ => self.back_or_close_game_menu(),
         }
     }

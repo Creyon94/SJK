@@ -48,6 +48,8 @@ pub(crate) enum Entry {
     Exit,
     /// SJK: the changelog page.
     Changelog,
+    /// SJK: the credits page.
+    Credits,
     /// SJK: the update page.
     Update,
     SoloGame,
@@ -219,6 +221,7 @@ impl Entry {
             Self::Setup => Outcome::Page(Page::Setup),
             Self::Exit => Outcome::Page(Page::Quit),
             Self::Changelog => Outcome::Open(MainDestination::Changelog),
+            Self::Credits => Outcome::Open(MainDestination::Credits),
             Self::Update => Outcome::Open(MainDestination::Update),
             Self::Back | Self::No => Outcome::Page(Page::Main),
             Self::SetupBack => Outcome::Page(Page::Setup),
@@ -416,6 +419,7 @@ mod tests {
                 Entry::Setup,
                 Entry::Exit,
                 Entry::Changelog,
+                Entry::Credits,
                 Entry::Update
             ]
         );

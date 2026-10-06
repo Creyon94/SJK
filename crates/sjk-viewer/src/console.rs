@@ -16,12 +16,16 @@ pub(crate) mod clipboard;
 mod console_changelog;
 #[path = "console_connect.rs"]
 mod console_connect;
+#[path = "console_credits.rs"]
+mod console_credits;
 #[path = "console_cvars.rs"]
 mod console_cvars;
 #[path = "console_debug_panel.rs"]
 mod console_debug_panel;
 #[path = "console_update.rs"]
 mod console_update;
+#[path = "credits.rs"]
+pub(crate) mod credits;
 #[path = "debug_panel.rs"]
 pub(crate) mod debug_panel;
 #[path = "demo_director.rs"]
@@ -111,6 +115,7 @@ pub(crate) struct ViewerConsole {
     /// Personal test list of Sol's build, drawn in place of the console while open.
     debug_panel: debug_panel::Panel,
     changelog: changelog::Panel,
+    credits: credits::Panel,
     /// The Update page, drawn in place of the console while open.
     update_panel: update_panel::Panel,
     userinfo_dirty: Arc<AtomicBool>,
@@ -230,6 +235,7 @@ impl ViewerConsole {
             && (self.browser.is_open()
                 || self.debug_panel.is_open()
                 || self.changelog.is_open()
+                || self.credits.is_open()
                 || self.update_panel.is_open())
     }
 
@@ -500,7 +506,8 @@ impl ViewerConsole {
     ) {
         // Overlay text draws above every overlay's shapes, so the browser replaces the
         // console's drawing rather than covering it.
-        if self.append_changelog(vertices, font, viewport)
+        if self.append_credits(vertices, font, viewport)
+            || self.append_changelog(vertices, font, viewport)
             || self.append_update_panel(vertices, font, viewport)
             || self.append_debug_panel(vertices, font, viewport)
         {
@@ -575,6 +582,9 @@ impl ViewerConsole {
     /// Whether the open full-frame page (the browser or the changelog) is the
     /// classic+ one, drawn in the menus' font.
     pub(crate) fn classic_browser_open(&self) -> bool {
+        if self.credits.is_open() {
+            return self.open && self.credits.is_classic();
+        }
         if self.changelog.is_open() {
             return self.open && self.changelog.is_classic();
         }
@@ -582,6 +592,9 @@ impl ViewerConsole {
     }
 
     pub(crate) fn draw_list(&self) -> &sjk_ui::DrawList {
+        if let Some(draw_list) = self.credits_draw_list() {
+            return draw_list;
+        }
         if let Some(draw_list) = self.changelog_draw_list() {
             return draw_list;
         }
@@ -647,6 +660,7 @@ impl ViewerConsole {
             self.browser.close();
             self.debug_panel.close();
             self.changelog.close();
+            self.credits.close();
             self.update_panel.close();
         }
     }

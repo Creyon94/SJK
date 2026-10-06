@@ -543,7 +543,7 @@ impl Panel {
 
 /// Split `text` at spaces into lines no wider than `width`; a word wider than
 /// the line stays whole (the renderer ends it in an ellipsis).
-fn wrap_words(text: &str, width: f32, measure: impl Fn(&str) -> f32) -> Vec<&str> {
+pub(crate) fn wrap_words(text: &str, width: f32, measure: impl Fn(&str) -> f32) -> Vec<&str> {
     let mut lines = Vec::new();
     let mut start = 0;
     let mut end = 0;

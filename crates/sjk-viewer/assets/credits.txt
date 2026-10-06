@@ -1,0 +1,53 @@
+# Credits shown by the credits page (main menu > Credits, the in-game SJK menu, or
+# the `credits` console command). The file is built into the client
+# (include_str!) and parsed once; unit tests in credits_data.rs check it, so
+# `cargo test` catches a broken edit. CREDITS.md stays the full written record.
+#
+# Format, in display order:
+#
+#   == Section title   Starts a section (a later "== Supporters" needs no code).
+#   [Name]             Starts a card in the current section.
+#   github: handle     Optional GitHub account, shown as @handle.
+#   role: text         Required: one line under the name.
+#   did: text          One contribution per line (repeat the key); optional.
+#
+# Lines starting with '#' and blank lines are ignored. ASCII only: the menu fonts
+# draw bytes. Add a person when their first change lands; add lines as they code.
+
+== The team
+
+[Sol]
+github: Sol-Vulpes
+role: Creator and maintainer of Sol JK
+did: Sol JK itself: its name, emblem, website and releases
+did: The classic menus and classic+, the retail-look console and the HUD picker
+did: JA+ and JoF server support: movement, sabers, grapple, Force wheel, flip kick
+did: Player profile, model grid, lightsaber creation, hats and capes
+did: Eye adaptation, dynamic glow, metal materials and many renderer fixes
+did: Opened most of JKR's early issues and pull requests
+
+[Bishop]
+github: Bishop-R
+role: Creator of JKR, the engine Sol JK is built on
+did: The Rust engine and the wgpu renderer with its lighting
+did: The native client, the dedicated server and protocol 26 networking
+did: Prediction and the shared Jedi Academy game rules
+did: Content loading: PK3, BSP, models, shaders and sounds
+did: The console, menus, HUD, server browser and demos
+
+== Contributors
+
+[Creyon]
+github: Creyon94
+role: Contributor and tester
+did: First pull request (SJK #2): duel challenges from names with symbols no longer crash the client
+
+== Made with
+
+[Claude]
+role: Coding assistant, by Anthropic
+did: Wrote many of Sol's changes together with Sol
+
+[OpenJK, EternalJK, JoF EJK, TaystJK and jaPRO]
+role: References for how Jedi Academy behaves
+did: SJK reimplements their behaviour and includes none of their code

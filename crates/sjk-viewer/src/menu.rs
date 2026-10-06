@@ -45,7 +45,7 @@ pub(crate) struct MainItem {
     pub(crate) hint: &'static str,
 }
 
-const MAIN_ITEMS: [MainItem; 7] = [
+const MAIN_ITEMS: [MainItem; 8] = [
     MainItem {
         label: "Play",
         hint: "Browse and join servers",
@@ -65,6 +65,10 @@ const MAIN_ITEMS: [MainItem; 7] = [
     MainItem {
         label: "Changelog",
         hint: "What changed in each SJK release, and who made it",
+    },
+    MainItem {
+        label: "Credits",
+        hint: "The people who make Sol JK",
     },
     MainItem {
         label: "Update",
