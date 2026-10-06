@@ -50,6 +50,12 @@ pub(super) fn emit(
     if binding == Some("weapon_value") {
         foreground.a *= context.data.weapon_alpha;
     }
+    // A saber-style label with no colour of its own takes the style's.
+    if binding == Some("style_value") && widget.style.foreground.is_none() {
+        if let Some(style) = context.data.saber_style {
+            foreground = super::radial::saber_style_color(style);
+        }
+    }
     let radius = widget.style.radius.unwrap_or(theme.radii.sm);
     match widget.kind {
         HudWidgetKind::Panel => emit_panel(draw_list, theme, widget, rect, radius),

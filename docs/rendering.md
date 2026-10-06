@@ -1762,11 +1762,16 @@ JKR defaults to `modern`; SJK to `game`.
 `cg_hudStyle radial` (picker name "SJK radial") is SJK's own take on the TheRisqe Radial
 HUD, drawn by the engine with no PK3: health (red, outer) and armor (green, inner) as
 arcs left of the screen centre, Force (blue, outer) and ammunition (amber, inner) right of
-it, each cut into four segments that fill in turn. The rings are centred 0.69 of the screen
+it, each cut into four segments that fill in turn, every segment on a dark shadow outline
+(the widget's `border` and `border_width`). The rings are centred 0.69 of the screen
 height down, below the crosshair, where TheRisqe's bars sit (their picture's middle is 92.6 of
-480 lines under the centre). Each side has a pill beside its bars, level with their middle: the
-health and armor numbers on the left, Force and ammunition on the right (the saber style
-replaces the ammunition). The weapon-name transient rests between the bars.
+480 lines under the centre). Each side has a pill running through its bars at their middle
+height, with the numbers on it: health outside the left bars and armor inside them,
+ammunition inside the right bars and Force outside. With a saber the ammunition's bars
+become one full line in the saber style's colour (the `style_ratio` binding; Fast blue,
+Medium yellow, Strong red, Dual green, Staff magenta, as TheRisqe's style pictures are) and
+the style's name replaces the number, in the same colour. The weapon-name transient rests in
+the hollow between the bars, above the pills.
 It is the layout document [radial.json](../crates/sjk-viewer/assets/hud/radial.json): the
 modern layout's other widgets (crosshair, team rows, votes, kill feed, timer, lagometer)
 plus `arc` widgets, which `hud.json` overrides cannot yet replace for this style.
@@ -1780,7 +1785,7 @@ so they stay smooth at any resolution and scale with the HUD scale. Segment geom
 distance function are in [arc.rs](../crates/sjk-ui/src/arc.rs) (unit-tested; the shader
 evaluates the same expression); the ammunition ratio is the weapon's pool over
 `ammoData[].max`, doubled with the Double Ammo rune ([radial.rs](../crates/sjk-viewer/src/hud/radial.rs)).
-Health pulses red at 25 or less, as the modern HUD does. `menu_snapshot` renders the four
+Health pulses red at 25 or less, as the modern HUD does. `menu_snapshot` renders the
 sample states to `target/menu-snapshots/hud-radial-*.png` with a CPU copy of the shader.
 
 In every HUD style, a weapon change shows retail's weapon selection row for
