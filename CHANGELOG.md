@@ -21,6 +21,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- Protect and Absorb used together show one cyan shell on the body, as in single player (`cg_spProtAbsColor`, Settings > Game), instead of a green and a blue one _(Sol, after JoF EJK)_
 - Nameplates like an online RPG over players: a small name from afar, and up close a framed plate with health, shield (teammates) and estimated Force bars under the name, in the classic font with its colours; shrink and fade with distance, ease out behind walls, anchored to the head, optional NPC plates; Settings > HUD has a row for each (`cg_nameplate*`); the plain `cg_drawPlayerNames` stays _(Sol)_
 - SJK updates itself: it checks for a newer release at start (`cl_autoUpdate`), and main menu > Update (or the `update` command) downloads it, verifies it and installs it _(Sol)_
 - A Changelog page in the main menu (and the `changelog` command) lists every release with its credits, in the classic+ look with the classic menus _(Sol)_

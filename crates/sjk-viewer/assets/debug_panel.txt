@@ -1240,6 +1240,17 @@ test: cg_nameplateDebug 1, then logs/last-client.log: other players' health/max;
 test: cg_nameplateWalls 1 behind a wall; cg_nameplateNpcs 1 with NPCs; open a menu: plates hide.
 note: Never started in a game yet: font size, plate layout and the FP estimate are unchecked.
 
+[protect-absorb-combo]
+status: personal
+area: Rendering & effects
+title: Protect + Absorb together show one cyan shell
+change: With both powers on, one cyan body shell replaces the green protect and blue absorb pair.
+change: Setting cg_spProtAbsColor (Settings > Game), default on, as in JoF EJK and single player.
+test: In third person press Protect (green), then Absorb as well: the shell turns cyan.
+test: A second client doing the same shows cyan on them too; Absorb alone is blue only on yourself.
+test: cg_spProtAbsColor 0: back to green plus blue.
+note: Never started in a game yet.
+
 # ---- Merged upstream ----
 
 [jkr-vehicles]

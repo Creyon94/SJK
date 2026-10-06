@@ -25,6 +25,7 @@ pub(crate) fn submit(
     now: i32,
     third_person: bool,
     aura_shell: bool,
+    combined_protect_absorb: bool,
     predicted_force_powers_active: Option<u32>,
     shield_mesh: Option<usize>,
     shield_sphere: bool,
@@ -49,6 +50,7 @@ pub(crate) fn submit(
         third_person,
         aura_shell,
     );
+    context.combined_protect_absorb = combined_protect_absorb;
     // `CG_Player` uses `cg.predictedPlayerState` for the local absorb gate
     // (`codemp/cgame/cg_players.c:10953-10958`). Other overlay inputs remain
     // snapshot/currentState driven.

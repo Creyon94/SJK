@@ -110,6 +110,11 @@ pub(crate) fn submit(
         .and_then(|console| console.integer_cvar("cg_auraShell"))
         .unwrap_or(1)
         != 0;
+    let combined_protect_absorb = gpu
+        .console
+        .as_ref()
+        .and_then(|console| console.bool_cvar("cg_spprotabscolor"))
+        .unwrap_or(true);
     // 1 draws multiplayer's sphere around a shield hit; 0 hugs the body like single player.
     let shield_sphere = gpu
         .console
@@ -243,6 +248,7 @@ pub(crate) fn submit(
                 presentation_time,
                 visual_now,
                 aura_shell,
+                combined_protect_absorb,
             );
         } else if thrown_saber::submit(&mut sinks, thrown.as_ref(), entity, transform) {
             // The flying hilt is owned by this branch, including its blades.
@@ -273,6 +279,7 @@ fn submit_actor(
     presentation_time: i64,
     visual_now: Instant,
     aura_shell: bool,
+    combined_protect_absorb: bool,
 ) -> usize {
     let draw_actor = sinks.third_person || Some(entity.id.get()) != local_entity_id;
     if Some(entity.id.get()) == local_entity_id && !sinks.detached_camera {
@@ -516,6 +523,7 @@ fn submit_actor(
                 presentation_time as i32,
                 sinks.third_person,
                 aura_shell,
+                combined_protect_absorb,
                 sinks.predicted_force_powers_active,
                 sinks.shield_mesh,
                 sinks.shield_sphere,

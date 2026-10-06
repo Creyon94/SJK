@@ -275,6 +275,10 @@ const HELP: &[(&str, &str)] = &[
         "The glowing shell Force Sight shows around other players.",
     ),
     (
+        "cg_spProtAbsColor",
+        "Protect and Absorb at once show one cyan shell like single player, not green plus blue.",
+    ),
+    (
         "cg_shieldSphere",
         "Off: a shield hit flashes on the body, like single player. On: multiplayer's sphere around the player.",
     ),

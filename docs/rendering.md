@@ -631,6 +631,16 @@ The shader blends `GL_DST_COLOR GL_ONE`, a bare multiply of the pixels behind it
 shell is faint; it is drawn `cg_shieldBrightness` times (default 4) and fades over its own
 hit's length (`LegacyShieldHit::body_brightness`), where the sphere keeps stock's fixed 2 s.
 
+Force Protect is a green `gfx/misc/forceprotect` shell on the body and Force Absorb
+a blue `gfx/misc/personalshield` one (stock draws that only on your own body, and on
+team-power hits). With `cg_spProtAbsColor 1` (default, JoF EJK's `cg_spprotabscolor`),
+a player with both Protect and Absorb active gets a single cyan protect shell instead
+of the green and blue pair, as single player draws it. Another player's Absorb is read
+from their entity's own power bit, so the combined shell shows on them too; without
+the combination their Absorb is not drawn, as in stock
+([force_overlays.rs](../crates/sjk-client/src/force_overlays.rs)). JoF EJK's cvar
+`cg_alwaysShowAbsorb` and its base-enhanced server check are not ported.
+
 The Force Speed afterimages use it: two copies of the actor in its current pose
 at alpha 100 and 50, spaced by `(int)(6 * speed * 0.004)` units along the
 recent path, while the entity has `PW_SPEED` and `cg_speedTrail` is nonzero

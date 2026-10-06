@@ -53,6 +53,7 @@ impl Group {
                 "cg_saberTrail",
                 "cg_speedTrail",
                 "cg_auraShell",
+                "cg_spProtAbsColor",
                 "cg_shieldSphere",
                 "cg_shieldBrightness",
                 "cg_remaps",
