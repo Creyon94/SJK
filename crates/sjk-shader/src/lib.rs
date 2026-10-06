@@ -265,11 +265,12 @@ impl ShaderCatalog {
                     return Ok(Some(VirtualPath::new(&candidate).map_err(VfsError::from)?));
                 }
                 // Retail scripts often name a .tga while the packaged image
-                // is a .jpg. The original loader tries sibling extensions.
+                // is a .jpg. The original loader tries sibling extensions, in
+                // its loader order (`R_LoadImage`, rd-common `tr_image_load.cpp`).
                 let stem = candidate
                     .rsplit_once('.')
                     .map_or(candidate.as_str(), |(stem, _)| stem);
-                for extension in [".tga", ".jpg", ".png"] {
+                for extension in IMAGE_EXTENSIONS {
                     let path = format!("{stem}{extension}");
                     if vfs.contains(&path)? {
                         return Ok(Some(VirtualPath::new(&path).map_err(VfsError::from)?));
@@ -277,7 +278,7 @@ impl ShaderCatalog {
                 }
                 continue;
             }
-            for extension in [".tga", ".jpg", ".png"] {
+            for extension in IMAGE_EXTENSIONS {
                 let path = format!("{candidate}{extension}");
                 if vfs.contains(&path)? {
                     return Ok(Some(VirtualPath::new(&path).map_err(VfsError::from)?));
@@ -312,9 +313,9 @@ impl ShaderCatalog {
                 .map_or(candidate.as_str(), |(stem, _)| stem);
             for path in [
                 candidate.clone(),
-                format!("{stem}.tga"),
                 format!("{stem}.jpg"),
                 format!("{stem}.png"),
+                format!("{stem}.tga"),
             ] {
                 if vfs.contains(&path)? {
                     return Ok(Some(VirtualPath::new(&path).map_err(VfsError::from)?));
@@ -336,9 +337,9 @@ fn resolve_concrete_image(
         .map_or(candidate.clone(), |(stem, _)| stem.to_owned());
     for path in [
         candidate,
-        format!("{stem}.tga"),
         format!("{stem}.jpg"),
         format!("{stem}.png"),
+        format!("{stem}.tga"),
     ] {
         if vfs.contains(&path)? {
             return Ok(Some(VirtualPath::new(&path).map_err(VfsError::from)?));
@@ -346,6 +347,13 @@ fn resolve_concrete_image(
     }
     Ok(None)
 }
+
+/// The order OpenJK and EternalJK try image types (`R_ImageLoader_Init` in
+/// rd-common `tr_image_load.cpp`): JPEG, then PNG, then TGA. `R_LoadImage` still
+/// tries the extension named first, so this order only applies when the named
+/// file is missing or the name has no extension. A `.png` beside a base `.tga`
+/// therefore wins for an extensionless name, not for a name that says `.tga`.
+const IMAGE_EXTENSIONS: [&str; 3] = [".jpg", ".png", ".tga"];
 
 fn is_concrete_image(image: &str) -> bool {
     !image.starts_with('$') && image != "-"
@@ -405,5 +413,72 @@ impl Error for ShaderError {
 impl From<VfsError> for ShaderError {
     fn from(value: VfsError) -> Self {
         Self::Vfs(value)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn vfs(files: &[&str]) -> VirtualFileSystem {
+        let mut vfs = VirtualFileSystem::new();
+        vfs.mount_memory("test", files.iter().map(|path| (*path, vec![0_u8])))
+            .expect("memory mount");
+        vfs
+    }
+
+    fn resolved(vfs: &VirtualFileSystem, name: &str) -> Option<String> {
+        ShaderCatalog::default()
+            .resolve_image(vfs, name)
+            .expect("lookup")
+            .map(|path| path.as_str().to_owned())
+    }
+
+    #[test]
+    fn extensionless_name_tries_jpg_then_png_then_tga() {
+        let all = vfs(&["textures/a/b.tga", "textures/a/b.png", "textures/a/b.jpg"]);
+        assert_eq!(
+            resolved(&all, "textures/a/b").as_deref(),
+            Some("textures/a/b.jpg")
+        );
+        let png_tga = vfs(&["textures/a/b.tga", "textures/a/b.png"]);
+        assert_eq!(
+            resolved(&png_tga, "textures/a/b").as_deref(),
+            Some("textures/a/b.png")
+        );
+        let tga = vfs(&["textures/a/b.tga"]);
+        assert_eq!(
+            resolved(&tga, "textures/a/b").as_deref(),
+            Some("textures/a/b.tga")
+        );
+    }
+
+    #[test]
+    fn named_extension_wins_when_the_file_exists() {
+        // `R_LoadImage` tries the named extension first, so a base `.tga` beside
+        // an HD `.png` is still used when the script names the `.tga`.
+        let both = vfs(&["textures/a/b.tga", "textures/a/b.png"]);
+        assert_eq!(
+            resolved(&both, "textures/a/b.tga").as_deref(),
+            Some("textures/a/b.tga")
+        );
+        assert_eq!(
+            resolved(&both, "textures/a/b.png").as_deref(),
+            Some("textures/a/b.png")
+        );
+    }
+
+    #[test]
+    fn missing_named_extension_falls_back_in_loader_order() {
+        let files = vfs(&["textures/a/b.tga", "textures/a/b.png"]);
+        assert_eq!(
+            resolved(&files, "textures/a/b.jpg").as_deref(),
+            Some("textures/a/b.png")
+        );
+        let stage = ShaderCatalog::default()
+            .resolve_stage_image(&files, "textures/a/b.jpeg")
+            .expect("lookup")
+            .map(|path| path.as_str().to_owned());
+        assert_eq!(stage.as_deref(), Some("textures/a/b.png"));
     }
 }
