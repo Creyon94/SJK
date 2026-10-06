@@ -1797,7 +1797,7 @@ note: Blended terrain layers over a mapped base stay flat; tell Claude if seams 
 
 [world-notes]
 status: personal
-area: Interaction
+area: Input
 title: World notes: inspect a surface, write a note, Claude reads it later
 change: X (inspect) on a wall, floor or object names it; X again opens a note line.
 change: Enter saves the note with surface, shader, position and a screenshot (notes.jsonl).
