@@ -1190,6 +1190,19 @@ fn player_card(shots: &mut Snapshot) {
     }
 }
 
+/// Only the radial HUD, for a quicker look than the whole set.
+#[test]
+#[ignore = "reads the installed game data named by JKA_GAME_DATA"]
+fn radial_hud_snapshot() {
+    let (_, vfs) = art();
+    let mut shots = Snapshot {
+        font: crate::text::load_modern(1.0, None).expect("build the menu font"),
+        icons: HashMap::from([(crate::ui_renderer::LOGO_TEXTURE.0, logo_icon())]),
+        in_match: match_backdrop(&vfs),
+    };
+    radial_hud(&mut shots);
+}
+
 fn radial_hud(shots: &mut Snapshot) {
     use crate::hud::{HudLook, HudOverlay, HudVisibility};
     let visibility = HudVisibility {
@@ -1211,6 +1224,17 @@ fn radial_hud(shots: &mut Snapshot) {
         ("hud-radial-saber", 83, 40, 100, 3, None, Some(2), 0.0),
         ("hud-radial-strong", 61, 15, 45, 3, None, Some(3), 0.0),
         ("hud-radial-fast", 100, 100, 100, 3, None, Some(1), 0.0),
+        // Just spawned (125) over a large shield picked up at 99 (199).
+        (
+            "hud-radial-overheal",
+            125,
+            199,
+            100,
+            5,
+            Some(300),
+            None,
+            1.0,
+        ),
     ];
     // The 4:3 frame, then the same states on a 16:9 screen: the rings keep their place
     // relative to the screen's height.

@@ -46,9 +46,11 @@ impl HudOverlay {
     ) -> ClientHudData {
         let maximum = player.max_health().max(1) as f32;
         self.icons.weapon(values.weapon);
+        // Health and armour run to twice the maximum (125 at spawn, a large shield on a
+        // full one): the meters draw what lies over it as a second, deeper band.
         let targets = [
-            (values.health as f32 / maximum).clamp(0.0, 1.0),
-            (values.armor as f32 / maximum).clamp(0.0, 1.0),
+            (values.health as f32 / maximum).clamp(0.0, 2.0),
+            (values.armor as f32 / maximum).clamp(0.0, 2.0),
             f32::from(values.force) / 100.0,
         ];
         let ammo_target = radial::ammo_ratio(
