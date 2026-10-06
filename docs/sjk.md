@@ -133,6 +133,17 @@ changed dependencies.
 | [Pages](../.github/workflows/pages.yml) | Pushes to `main` changing `site/` or the workflow | Publishes `site/` to https://sol-vulpes.github.io/SJK/ |
 | [SJK release](../.github/workflows/release.yml) | Tags `sjk-v<version>` | Builds and publishes the release ZIPs |
 
+The site is static: `index.html`, `assets/style.css` and `assets/site.js` (release
+list, download button, screenshot gallery). `assets/effects.js` adds the hero's
+WebGPU effects (golden god rays, a sunburst behind the emblem, drifting dust and a
+saber trail on the pointer) with the MIT-licensed
+[Shaders](https://github.com/shader-effects-inc/shaders) library, vendored as
+`assets/vendor/shaders/shaders-4.0.0.js` with its license so no other server is
+contacted; its telemetry is turned off. Without WebGPU, or when the visitor asks
+for reduced motion, the script adds nothing and the CSS starfield stays. To
+update the library, replace the vendored file with a release's
+`dist/js/bundle.js` and check that `disableTelemetry` still stops its telemetry.
+
 Release tags exist only on SJK and are created on Sol's request. The release
 title carries the stage, "Sol JK 2026.1005.1 (Alpha)" (`STAGE` in the workflow).
 Alphas are not marked as pre-releases, so the site's download link

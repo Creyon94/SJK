@@ -268,6 +268,20 @@ h3 {
   .panel { padding: 1.1rem; }
 }
 
+/* WebGPU effects (effects.js): the hero's rays, dust and saber trail. They fade
+   in once drawing, never take the pointer, and are only added when the browser
+   has WebGPU and motion is welcome. */
+.fx {
+  display: block; pointer-events: none; z-index: -1;
+  opacity: 0; transition: opacity 1.6s ease;
+}
+.fx.fx-ready { opacity: 1; }
+.fx-hero {
+  position: absolute; top: 0; left: 0; width: 100%; height: 900px;
+  -webkit-mask-image: linear-gradient(#000 70%, transparent);
+  mask-image: linear-gradient(#000 70%, transparent);
+}
+
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .emblem, .stars::before, .stars::after { animation: none; }
