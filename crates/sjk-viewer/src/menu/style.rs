@@ -99,6 +99,10 @@ impl crate::GpuState {
             console.set_changelog_look(style == MenuStyle::Classic, art);
             console.set_credits_look(style == MenuStyle::Classic);
         }
+        // The first start's Quick setup waits for the style, so it opens in the right one.
+        if let (Some(menu), Some(console)) = (&mut self.client_menu, &mut self.console) {
+            menu.offer_quick_setup(console);
+        }
         self.sync_classic_loading();
     }
 

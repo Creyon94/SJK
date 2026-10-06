@@ -433,6 +433,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "How bright a shield hit shows on the body, 1 (stock) to 12; ignored by the sphere",
         ),
         CvarDefinition::new(
+            "ui_quickSetup",
+            0_i64,
+            archive,
+            "1 once the first-start Quick setup screen has been shown (the quicksetup command opens it again)",
+        ),
+        CvarDefinition::new(
             "cl_autoUpdate",
             true,
             archive,

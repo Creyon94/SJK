@@ -34,7 +34,7 @@ use sjk_ui::AbstractAction;
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) struct ClassicPanel {
     pub(super) page: Page,
-    entry: Entry,
+    pub(super) entry: Entry,
     pub(super) frame: Frame,
 }
 

@@ -274,7 +274,8 @@ items; classic+ panels scroll and explain the focused item, so SJK shows each as
 one group and regroups JKR's GAME, HUD, HUD+ and TEXT tabs by subject
 ([settings/groups.rs](../crates/sjk-viewer/src/settings/groups.rs)):
 
-- OPTIONS: Video is the whole VIDEO tab (resolution, display, frame rate, field of
+- OPTIONS: Quick setup (first in the list) is the QUICK tab's rows as a group (see
+  [Quick setup](#quick-setup)); Video is the whole VIDEO tab (resolution, display, frame rate, field of
   view, marks, shadows, gamma), Sound is AUDIO, Mouse the CONTROLS settings
   (retail's Mouse/Joystick, moved here from the key bindings). Game Options holds
   the gameplay rows (simple items, forced models, saber and speed trails, aura
@@ -749,6 +750,31 @@ tab, and exclusive fullscreen (`r_exclusiveFullscreen`) stays on VIDEO's
 display-mode row. Eye adaptation holds still while this page is open, so
 exposure changes made here show at once instead of being eased.
 See [catalog.rs](../crates/sjk-viewer/src/settings/catalog.rs).
+
+## Quick setup
+
+The modern settings screen's last tab, QUICK
+([quick.rs](../crates/sjk-viewer/src/settings/quick.rs)), gathers the settings worth
+choosing on a first start: resolution, display mode, vsync, field of view, mouse
+sensitivity and inversion, always run, effects and music volume, the HUD look and
+scale, the crosshair, the nameplates and their bars, Force bar and power icons, the
+Force aura and the combined Protect+Absorb shell, and the update and identity
+opt-ins, ending in a Key bindings row. Its rows are the catalogue's own, looked up
+by cvar, so a change there is the same change the other tabs make; it is the last
+tab so the other tabs keep their numbers.
+
+With the classic menus (the default) the same rows are the first group of the
+Setup page, QUICK SETUP (`Group::Quick`, [groups.rs](../crates/sjk-viewer/src/settings/groups.rs)),
+drawn as a classic+ option panel like the others, with search, descriptions and
+defaults; the modern style shows the QUICK tab.
+
+On the first start (`ui_quickSetup` 0, archived), once the main menu is up and the
+menu style is known, it opens in the active style and sets the cvar to 1, so leaving
+it with Escape dismisses it for good (setting the cvar back to 0 shows it again at
+the main menu). The `quicksetup` console command opens it too, over the main menu
+or from a running game, in the active style
+([quick_setup.rs](../crates/sjk-viewer/src/menu/quick_setup.rs)). Not yet run in a
+game window.
 
 ## Slider values
 

@@ -1263,6 +1263,19 @@ test: Third person, a second client casts Absorb: blue shell on them with no for
 test: Get hit while shielded: the body glow reads green. Respawn: the beam stands on the ground.
 note: Never started in a game yet.
 
+[quick-setup]
+status: personal
+area: Menus & settings
+title: Quick setup for first-time settings
+change: Setup page: a QUICK SETUP group first in the list (classic); QUICK tab on modern menus.
+change: Opens by itself once on a first start (ui_quickSetup 0); Escape dismisses it for good.
+change: Console command quicksetup opens it any time, in the menu or in a game.
+test: Set ui_quickSetup 0, restart: the main menu opens on QUICK SETUP; Esc, restart: not again.
+test: Settings > Options: QUICK SETUP is the first group; change cg_nameplate there, then in HUD.
+test: In a game type quicksetup in the console: the Quick setup panel opens over the game.
+test: Set ui_menuStyle modern and repeat: the QUICK tab shows the same rows.
+note: Never started in a game yet.
+
 [settings-search-both]
 status: personal
 area: Menus & settings

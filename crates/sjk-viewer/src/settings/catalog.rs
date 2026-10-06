@@ -5,9 +5,11 @@
 //! not offered. Player identity
 //! (name, model, sabers) lives in the Player menu, not here.
 
-pub(super) const TABS: [&str; 8] = [
-    "VIDEO", "AUDIO", "HUD", "CONTROLS", "GAME", "NETWORK", "HUD+", "TEXT",
+pub(super) const TABS: [&str; 9] = [
+    "VIDEO", "AUDIO", "HUD", "CONTROLS", "GAME", "NETWORK", "HUD+", "TEXT", "QUICK",
 ];
+/// The first-start tab (`settings/quick.rs`); last, so the other tabs keep their numbers.
+pub(super) const QUICK_TAB: usize = 8;
 /// The tab whose last row opens the key-binding editor.
 pub(super) const KEYBINDS_TAB: usize = 3;
 /// The tab whose last row opens the renderer settings ([`RENDERER_TABS`]).
