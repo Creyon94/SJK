@@ -1762,8 +1762,10 @@ JKR defaults to `modern`; SJK to `game`.
 `cg_hudStyle radial` (picker name "SJK radial") is SJK's own take on the TheRisqe Radial
 HUD, drawn by the engine with no PK3: health (red, outer) and armor (green, inner) as
 arcs left of the screen centre, Force (blue, outer) and ammunition (amber, inner) right of
-it, each cut into four segments that fill in turn, every segment on a dark shadow outline
-(the widget's `border` and `border_width`). The rings are centred 0.69 of the screen
+it, each cut into four segments that fill in turn, the whole meter on one rounded dark
+shadow band that follows its curve (the widget's `border` and `border_width`, a margin round
+the bars). Widgets paint in document order, so the pills come first in the layout, then each
+meter's shadow and bars, then the text. The rings are centred 0.69 of the screen
 height down, below the crosshair, where TheRisqe's bars sit (their picture's middle is 92.6 of
 480 lines under the centre). Each side has a pill running through its bars at their middle
 height, with the numbers on it: health outside the left bars and armor inside them,

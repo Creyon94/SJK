@@ -13,8 +13,8 @@
 //!
 //! They are written to `target/menu-snapshots/` in the workspace at
 //! 1440x1080 (the 640x480 canvas at 2.25 units per pixel). The drawing is an
-//! approximation of the UI renderer: flat rectangles without rounded corners,
-//! nearest-texel art without its motion and flicker, the Inter font only, and
+//! approximation of the UI renderer: rounded rectangles anti-aliased over one
+//! pixel, nearest-texel art without its motion and flicker, the Inter font only, and
 //! only the atlas icons a screen's test supplies. Text is drawn over every shape,
 //! as on screen. The in-game menus are drawn over a retail levelshot standing for
 //! the match.
@@ -72,6 +72,39 @@ fn span(rect: Rect, clip: Rect) -> (std::ops::Range<i64>, std::ops::Range<i64>) 
     let x1 = rect.right().min(clip.right()).round() as i64;
     let y1 = rect.bottom().min(clip.bottom()).round() as i64;
     (x0..x1, y0..y1)
+}
+
+/// `rect` filled with its corners rounded to `radius`, edges anti-aliased over a pixel.
+fn fill_rounded(image: &mut RgbaImage, rect: Rect, radius: f32, clip: Rect, color: [f32; 4]) {
+    let radius = radius.min(rect.width * 0.5).min(rect.height * 0.5);
+    if radius < 0.5 {
+        return fill(image, rect, clip, color);
+    }
+    let grown = Rect::new(
+        rect.x - 1.0,
+        rect.y - 1.0,
+        rect.width + 2.0,
+        rect.height + 2.0,
+    );
+    let (xs, ys) = span(grown, clip);
+    let half = [rect.width * 0.5 - radius, rect.height * 0.5 - radius];
+    let middle = [rect.x + rect.width * 0.5, rect.y + rect.height * 0.5];
+    for y in ys {
+        for x in xs.clone() {
+            let qx = (x as f32 + 0.5 - middle[0]).abs() - half[0];
+            let qy = (y as f32 + 0.5 - middle[1]).abs() - half[1];
+            let distance = qx.max(0.0).hypot(qy.max(0.0)) + qx.max(qy).min(0.0) - radius;
+            let coverage = (0.5 - distance).clamp(0.0, 1.0);
+            if coverage > 0.0 {
+                blend(
+                    image,
+                    x,
+                    y,
+                    [color[0], color[1], color[2], color[3] * coverage],
+                );
+            }
+        }
+    }
 }
 
 fn fill(image: &mut RgbaImage, rect: Rect, clip: Rect, color: [f32; 4]) {
@@ -139,9 +172,15 @@ fn raster(
         let clip = *clips.last().unwrap_or(&full);
         let o = *opacity.last().unwrap_or(&1.0);
         match command {
-            DrawCommand::SolidRect { rect, color: c }
-            | DrawCommand::RoundedRect { rect, color: c, .. } => {
+            DrawCommand::SolidRect { rect, color: c } => {
                 fill(image, *rect, clip, color(*c, o));
+            }
+            DrawCommand::RoundedRect {
+                rect,
+                radius,
+                color: c,
+            } => {
+                fill_rounded(image, *rect, *radius, clip, color(*c, o));
             }
             DrawCommand::GradientRect { rect, gradient, .. } => {
                 const STEPS: usize = 32;
