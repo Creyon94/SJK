@@ -17,16 +17,10 @@ impl GpuState {
         object_ranges.clear();
         mover_ranges.clear();
         for group in actors.iter() {
-            let start = u32::try_from(instances.len()).unwrap_or(1_024);
-            instances.extend(group.iter().copied());
-            let end = u32::try_from(instances.len()).unwrap_or(1_024);
-            actor_ranges.push(start..end);
+            actor_ranges.push(crate::actor_instance::append_group(instances, group));
         }
         for group in objects.iter() {
-            let start = u32::try_from(instances.len()).unwrap_or(1_024);
-            instances.extend(group.iter().copied());
-            let end = u32::try_from(instances.len()).unwrap_or(1_024);
-            object_ranges.push(start..end);
+            object_ranges.push(crate::actor_instance::append_group(instances, group));
         }
         movers::append_groups(instances, movers, mover_ranges);
     }

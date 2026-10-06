@@ -1020,7 +1020,7 @@ impl GpuState {
         });
         let actor_instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("JKR actor instances"),
-            size: (1_024 * std::mem::size_of::<ActorInstance>()) as u64,
+            size: (actor_instance::CAPACITY * std::mem::size_of::<ActorInstance>()) as u64,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
@@ -1129,7 +1129,7 @@ impl GpuState {
             particle_groups: std::array::from_fn(|_| {
                 Vec::with_capacity(particle_types::PARTICLE_POOL)
             }),
-            actor_instances: Vec::with_capacity(1_024),
+            actor_instances: Vec::with_capacity(actor_instance::CAPACITY),
             actor_instance_ranges: Vec::with_capacity(64),
             object_instance_ranges: Vec::with_capacity(256),
             pickup_override_ranges: Vec::with_capacity(sjk_protocol::MAX_LEGACY_ENTITIES),
