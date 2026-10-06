@@ -1766,6 +1766,7 @@ test: Optional: JKR_TRACE_AUDIO=1; logs/last-client.log shows split loop frames=
 status: personal
 area: Rendering
 title: No crash when a frame draws more than 1024 entities
-change: The actor instance buffer holds 4096 instead of 1024 and packing stops at its capacity; a frame used to abort with "Instance 1026 extends beyond limit 1024".
-test: Play a long session on a busy JoF server or a map with many movers and pickups; the client keeps running.
-note: What produced the 1026 instances was not captured; if it still crashes, send logs/last-client.log with the map name.
+change: The actor instance buffer holds 4096 instead of 1024 and packing stops at its capacity.
+test: Play a long session on a busy JoF server or a map with many movers; the client keeps running.
+note: A frame used to abort with "Instance 1026 extends beyond limit 1024".
+note: The cause of the 1026 instances was not captured; if it still crashes, send last-client.log.
