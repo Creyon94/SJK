@@ -627,7 +627,7 @@ fn menu_snapshot() {
     weapon_select(&mut shots, &vfs);
     radial_hud(&mut shots);
     player_card(&mut shots);
-    quick_wheels(&shots);
+    quick_wheels(&mut shots);
     identity_page(&shots, art);
     force_wheel(&mut shots, &vfs);
     profile_saber(&shots, art, &vfs, &mut console);
@@ -1196,18 +1196,26 @@ fn player_card(shots: &mut Snapshot) {
 #[ignore = "reads the installed game data named by JKA_GAME_DATA"]
 fn quick_wheel_snapshot() {
     let (_, vfs) = art();
-    let shots = Snapshot {
+    let mut shots = Snapshot {
         font: crate::text::load_modern(1.0, None).expect("build the menu font"),
         icons: HashMap::new(),
         in_match: match_backdrop(&vfs),
     };
-    quick_wheels(&shots);
+    quick_wheels(&mut shots);
 }
 
 /// Both quick wheels over a match, the mouse pushed towards one choice, the choices in
 /// effect marked, in SJK's default accent.
-fn quick_wheels(shots: &Snapshot) {
-    use crate::quick_wheel::{QuickWheel, WHEELS, wheel};
+fn quick_wheels(shots: &mut Snapshot) {
+    use crate::quick_wheel::{ICONS, QuickWheel, WHEELS, wheel};
+    for (index, (_, bytes)) in ICONS.iter().enumerate() {
+        let icon = image::load_from_memory(bytes)
+            .expect("a wheel icon")
+            .into_rgba8();
+        shots
+            .icons
+            .insert(crate::ui_renderer::wheel_icon(index).0, icon);
+    }
     let accent = sjk_ui::Color::new(1.0, 0.416, 0.239, 1.0);
     let cases: [(&str, &str, [f32; 2], &[usize]); 3] = [
         ("quick-wheel-general", "general", [60.0, -60.0], &[1, 2]),
