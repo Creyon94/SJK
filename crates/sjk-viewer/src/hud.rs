@@ -43,9 +43,12 @@ use std::path::Path;
 const WIDGET_LIMIT: usize = 64;
 const DRAW_LIMIT: usize = 320;
 const DEFAULT_LAYOUT: &str = include_str!("../assets/hud/default.json");
-/// The weapon name stays fully visible this long after a switch, then fades.
-const WEAPON_HOLD_MS: u64 = 2_000;
+/// The weapon name fades over this long at the end of its life.
 const WEAPON_FADE_MS: u64 = 600;
+/// The weapon name stays fully visible this long after a switch, then fades. Name and
+/// fade together last as long as the weapon selection row (`WEAPON_SELECT_TIME`), which
+/// replaces the name while it shows, so the name never appears after the row ends.
+const WEAPON_HOLD_MS: u64 = crate::weapon_select::SHOW.as_millis() as u64 - WEAPON_FADE_MS;
 /// The newest obituary stays this long at the top left, then fades.
 const KILL_HOLD_MS: u64 = 2_500;
 const KILL_FADE_MS: u64 = 700;

@@ -211,16 +211,15 @@ impl Icons {
         let [w, h] = viewport;
         let s = crate::ui_scale::height_scale(h);
         let white = Color::new(1.0, 1.0, 1.0, 1.0);
-        // Retail's weapon selection row takes the bottom centre while it shows;
-        // these small weapon and ammo icons would sit behind its selected icon.
+        // Retail's weapon selection row takes the bottom centre while it shows; the
+        // held weapon's icon would sit behind its selected icon.
         if self.enabled && visibility.status && self.alive && !weapon_row {
             let item = assets::WEAPONS
                 .get(self.weapon as usize)
                 .copied()
                 .unwrap_or(0);
-            // The held weapon's icon shows after a change and fades like its name,
-            // and there is no ammo picture beside it: EternalJK draws neither at the
-            // bottom centre (Sol's request).
+            // The held weapon's icon shows after a change and fades like its name
+            // (no ammo picture: EternalJK draws neither at the bottom centre).
             if weapon_alpha > 0.0 {
                 self.quad(
                     list,
@@ -230,16 +229,16 @@ impl Icons {
                     Color::new(1.0, 1.0, 1.0, weapon_alpha),
                 );
             }
-            if !self.models {
-                for power in 4..=6 {
-                    if self.seconds[power] >= 0 {
-                        self.quad(
-                            list,
-                            assets::POWERS[power],
-                            Rect::new(420.0 * s, h - 128.0 * s, 64.0 * s, 64.0 * s),
-                            white,
-                        );
-                    }
+        }
+        if self.enabled && visibility.status && self.alive && !self.models {
+            for power in 4..=6 {
+                if self.seconds[power] >= 0 {
+                    self.quad(
+                        list,
+                        assets::POWERS[power],
+                        Rect::new(420.0 * s, h - 128.0 * s, 64.0 * s, 64.0 * s),
+                        white,
+                    );
                 }
             }
         }

@@ -10,12 +10,21 @@ claiming complete parity from the presence of an implementation.
 ## Weapon selection row in every HUD
 
 Branch `feat/hud-weapon-row`: retail's weapon selection row shows after a weapon
-change in every HUD style, as in EternalJK, not only with the game-data HUD.
-While it shows, SJK's own layouts hide their weapon name, ammo and bottom-centre
-icons, which sat behind its selected icon. SJK's layouts no longer draw an ammo
-picture at the bottom centre; the weapon icon sits beside the ammo count and fades
-with the weapon name after a change (asked by Sol after comparing with
-EternalJK). See [rendering.md](rendering.md). Checked in game on Windows 11.
+change in every HUD style (game-data, classic, modern and radial), as in
+EternalJK, not only with the game-data HUD. While it shows, SJK's own layouts
+hide their weapon-name widget and the held-weapon icon at the bottom centre; the
+ammunition count, the radial ammunition arc and pill, the classic ammunition line
+and the Force power timer icons stay visible. The name transient lasts as long as
+the row (1.4 s), so it does not appear after the row ends. SJK's layouts no
+longer draw an ammo picture at the bottom centre. See
+[rendering.md](rendering.md).
+
+Verified (06/10/2026, Windows 11): `cargo fmt --all --check`, `cargo build
+--locked --workspace`, `cargo test --locked --workspace` and `cargo clippy
+--locked --workspace --all-targets`. Not verified: the row and the layouts in the
+running client (no game was started), including the row's placement against the
+radial layout's widgets, and the conditions that hide it (spectating, emplaced
+guns).
 
 ## Classic Settings hub (SJK)
 

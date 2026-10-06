@@ -34,7 +34,8 @@ pub(super) struct WidgetData<'a> {
     pub(super) style: bool,
     /// Current opacity of the weapon-name transient.
     pub(super) weapon_alpha: f32,
-    /// Retail's weapon selection row shows; it replaces the weapon name and ammo.
+    /// Retail's weapon selection row shows; it draws the weapon name itself, so the
+    /// layouts' own weapon-name widgets step aside. Ammunition never does.
     pub(super) weapon_row: bool,
     /// team len binding supplied by the owning HUD.
     pub(super) team_len: usize,
@@ -94,12 +95,14 @@ impl HudDataSource for WidgetData<'_> {
                     && !self.weapon_row
                     && self.weapon_alpha > 0.0,
             ),
+            // The ammunition count and arc stay while the selection row shows, as the
+            // retail HUD menus keep theirs (EternalJK's row never hides the ammo).
             "draw_ammo" => Some(
-                self.visibility.weapon
-                    && !self.visibility.menu_hud
-                    && !self.weapon_row
-                    && !self.ammo_value.is_empty(),
+                self.visibility.weapon && !self.visibility.menu_hud && !self.ammo_value.is_empty(),
             ),
+            // The classic layout's ammunition (or saber style) line, which has no
+            // numeric value to test.
+            "draw_ammo_text" => Some(self.visibility.weapon && !self.visibility.menu_hud),
             "draw_style" => Some(
                 self.visibility.status
                     && !self.visibility.ground_hud
