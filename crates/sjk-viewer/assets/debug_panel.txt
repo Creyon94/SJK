@@ -1212,6 +1212,117 @@ test: It offers the latest release and the version line on the main menu says up
 test: Do not press Install on a play build unless you accept it replaces that build's sjk.exe.
 note: Install against a real release and the Linux swap are untested.
 
+[identity]
+status: personal
+area: Menus & settings
+title: Player identity: key, SJK hub, scoreboard marks and Identity page
+change: cl_identity (default on) makes identity.key; cl_hubUrl (empty by default) is the hub.
+change: With a hub set, the scoreboard marks known players SJK, or gold VERIFIED if vouched for.
+change: The Identity page (in-game SJK menu or /identity) shows your profile and who is known here.
+test: Run sjk-hub serve (SJK-hub repo, local), then set cl_hubUrl http://127.0.0.1:8787.
+test: Join a local server and hold the scoreboard: your own row says SJK within a few seconds.
+test: /identity name Sol, /identity key, then sjk-hub verify <key id>: the row turns gold VERIFIED.
+test: /identity opens the page (also in-game menu > SJK > Identity); check 4K and classic menus.
+test: Set cl_identity 0: nothing is sent and the page says identity is off.
+note: Never started in a game yet: the scoreboard mark and the page layout are unchecked.
+
+[nameplates]
+status: personal
+area: HUD
+title: MMO-style nameplates: name from afar, bars up close (HP, shield, estimated FP)
+change: A small name far away; inside cg_nameplateNear a framed plate fades in under the name.
+change: Bars: health, shield (teammates, from tinfo) and an estimated Force bar, thin and outlined.
+change: Classic HUD font and colour codes; shrink and fade with distance; cg_drawPlayerNames is plain.
+test: Join a local server with a bot or second client: the name floats over them; walk close (<800).
+test: Up close the plate fades in under the name; the Force bar drops when they use powers or jump.
+test: Team game with cg_nameplateBars 1: teammates show health and shield; enemies only the name.
+test: cg_nameplateDebug 1, then logs/last-client.log: other players' health/max; regen pace; own FP.
+test: Up close, a player using Protect, Speed or Lightning shows its icon over the name (max 4).
+test: cg_nameplateWalls 1 behind a wall; cg_nameplateNpcs 1 with NPCs; open a menu: plates hide.
+note: Never started in a game yet: font size, plate layout and the FP estimate are unchecked.
+
+[protect-absorb-combo]
+status: personal
+area: Rendering & effects
+title: Protect + Absorb together show one cyan shell
+change: With both powers on, one cyan body shell replaces the green protect and blue absorb pair.
+change: Setting cg_spProtAbsColor (Settings > Game), default on, as in JoF EJK and single player.
+test: In third person press Protect (green), then Absorb as well: the shell turns cyan.
+test: A second client doing the same shows cyan on them too; Absorb alone is blue on everyone.
+test: cg_spProtAbsColor 0: back to green plus blue.
+note: Never started in a game yet.
+
+[fx-fixes]
+status: personal
+area: Rendering & effects
+title: Absorb on every player, greener body shield, spawn flash on the floor
+change: The blue Absorb shell shows on every player holding Absorb, as in JoF EJK (always on).
+change: The body shield hit glow is tinted towards green (was bluish).
+change: The spawn / teleport green beam plays on the floor under the player, as stock, not at the waist.
+test: Third person, a second client casts Absorb: blue shell on them with no force power used on it.
+test: Get hit while shielded: the body glow reads green. Respawn: the beam stands on the ground.
+note: Never started in a game yet.
+
+[quick-setup]
+status: personal
+area: Menus & settings
+title: Quick setup for first-time settings
+change: Setup page: a QUICK SETUP group first in the list (classic); QUICK tab on modern menus.
+change: Opens by itself once on a first start (ui_quickSetup 0); Escape dismisses it for good.
+change: Console command quicksetup opens it any time, in the menu or in a game.
+test: Set ui_quickSetup 0, restart: the main menu opens on QUICK SETUP; Esc, restart: not again.
+test: Settings > Options: QUICK SETUP is the first group; change cg_nameplate there, then in HUD.
+test: In a game type quicksetup in the console: the Quick setup panel opens over the game.
+test: Set ui_menuStyle modern and repeat: the QUICK tab shows the same rows.
+note: Never started in a game yet.
+
+[settings-search-both]
+status: personal
+area: Menus & settings
+title: One search across Options and Key bindings
+change: Typing in Settings' SEARCH field also counts matches on the other tab in the hint line.
+change: Switching tab (click, Tab or [ ]) carries the search text to the other tab.
+test: Classic menus, Settings > Options: type "jump" in SEARCH; the hint names key bindings.
+test: Click the KEY BINDINGS tab: SEARCH holds "jump" and lists Jump. Click OPTIONS: it returns.
+test: Search "fov" on KEY BINDINGS: nothing found there, the list says it is on OPTIONS.
+note: Never started in a game yet.
+
+[culling-fix]
+status: personal
+area: Rendering & effects
+title: Walls no longer pop out in third person
+change: Map visibility (PVS) now starts from the camera position, not the player's eye.
+change: Before, a third-person camera in another room section culled walls it could see.
+test: Third person (cg_thirdPerson 1): walk along walls, corners and doorways; watch for pop-out.
+test: Compare with first person in the same spots: nothing should vanish in either view.
+note: Never started in a game yet.
+
+[native-radial-hud]
+status: personal
+area: HUD
+title: SJK radial HUD, arcs around the crosshair, no PK3
+change: New HUD look "SJK radial" (Settings > HUD > HUD look): health, armor, Force, ammo as arcs.
+change: Drawn by the engine (smooth at any resolution); the TheRisqe PK3 is not needed.
+test: Settings > HUD > HUD look: pick SJK radial. Red/green arcs left, blue/amber right of aim.
+test: Take damage and spend Force/ammo: arcs empty segment by segment; health pulses at 25 or less.
+test: Switch to a saber: the ammo arc hides and the saber style shows in the readout pill.
+test: Try cg_hudScale 0.7 and 1.5 and a wide window: arcs stay centred on the crosshair.
+note: Never started in a game yet.
+
+[player-card]
+status: personal
+area: HUD
+title: Player card beside a player you look at, and the SJK emblem on the scoreboard
+change: A steady look at a player for 1.5 s (cg_playerCardDelay) shows a card beside their head.
+change: It lists model, saber hilts and colours, duel record; hub players add emblem and name.
+change: The scoreboard marks hub players with the SJK emblem (gold when verified).
+test: Join a server, aim at a player and keep the view still: the card fades in beside them.
+test: Turn the view or look away for a moment: the card fades out; aim again to restart the wait.
+test: Set cg_playerCard 0, then 1; try cg_playerCardDelay 0.5 and 3 (Settings > HUD+).
+test: Check it at 4K / 150% and near the right screen edge (the card flips to the left).
+test: With the local hub and cl_hubUrl set, your own scoreboard row shows the gold SJK emblem.
+note: Never started in a game yet: only off-screen renders were checked, not the live layout.
+
 # ---- Merged upstream ----
 
 [jkr-vehicles]

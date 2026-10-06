@@ -25,9 +25,10 @@ const ICON_BLUE: [f32; 4] = [0.567, 0.685, 1.0, 0.75];
 const HUD_ORANGE: [f32; 4] = [1.0, 0.658, 0.062, 1.0];
 
 /// `weaponData[].ammoIndex` (`bg_weapons.c`), by `weapon_t`.
-const AMMO_INDEX: [usize; 19] = [0, 0, 0, 0, 2, 2, 3, 3, 4, 3, 4, 5, 7, 8, 9, 4, 2, 0, 0];
+pub(crate) const AMMO_INDEX: [usize; 19] =
+    [0, 0, 0, 0, 2, 2, 3, 3, 4, 3, 4, 5, 7, 8, 9, 4, 2, 0, 0];
 /// `ammoData[].max` (`bg_weapons.c`), by `ammo_t`.
-const AMMO_MAX: [i32; 10] = [0, 100, 300, 300, 300, 25, 800, 10, 10, 10];
+pub(crate) const AMMO_MAX: [i32; 10] = [0, 100, 300, 300, 300, 25, 800, 10, 10, 10];
 /// Weapons whose `energyPerShot` and `altEnergyPerShot` are both zero: the
 /// stun baton, melee, saber, the Bryar pistol, the emplaced gun and turret.
 const fn infinite_ammo(weapon: u8) -> bool {

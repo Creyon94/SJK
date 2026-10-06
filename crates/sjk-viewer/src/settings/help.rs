@@ -172,6 +172,59 @@ const HELP: &[(&str, &str)] = &[
         "cg_drawCrosshairNames",
         "Shows the name of the player under your crosshair.",
     ),
+    (
+        "cg_drawPlayerNames",
+        "Plain names above players: 0 off, 1 names, 2 with a health strip. Nameplates replace it.",
+    ),
+    (
+        "cg_drawPlayerNamesScale",
+        "Size of the plain names above players.",
+    ),
+    (
+        "cg_playerCard",
+        "Look at a player without moving and a card shows their model, sabers and SJK profile.",
+    ),
+    (
+        "cg_playerCardDelay",
+        "Seconds you must keep looking at a player, steady, before the card shows.",
+    ),
+    (
+        "cg_drawFriend",
+        "A marker over allies: your team, your duel partner, or Jedi Master's foes.",
+    ),
+    (
+        "cg_nameplate",
+        "MMO-style nameplates: a name far away, with bars and a frame up close.",
+    ),
+    (
+        "cg_nameplateRange",
+        "How far away, in game units, a nameplate still shows. It fades near the end.",
+    ),
+    (
+        "cg_nameplateNear",
+        "Inside this distance the bars fade in under the name; beyond it just the name.",
+    ),
+    ("cg_nameplateScale", "Size of the nameplate text."),
+    (
+        "cg_nameplateBars",
+        "Bars under the name: 0 none, 1 allies only, 2 everyone.",
+    ),
+    (
+        "cg_nameplateForce",
+        "Force bar under the name, estimated from the powers the player uses.",
+    ),
+    (
+        "cg_nameplateIcons",
+        "Icons of the Force powers a player has on, over the name when close.",
+    ),
+    (
+        "cg_nameplateWalls",
+        "Shows nameplates of players behind walls, dimmed. Off hides them.",
+    ),
+    (
+        "cg_nameplateNpcs",
+        "Nameplates on NPCs with their class and health, such as Stormtrooper.",
+    ),
     ("cg_drawTimer", "Shows the match time."),
     (
         crate::version_overlay::CVAR,
@@ -234,6 +287,10 @@ const HELP: &[(&str, &str)] = &[
         "The glowing shell Force Sight shows around other players.",
     ),
     (
+        "cg_spProtAbsColor",
+        "Protect and Absorb at once show one cyan shell like single player, not green plus blue.",
+    ),
+    (
         "cg_shieldSphere",
         "Off: a shield hit flashes on the body, like single player. On: multiplayer's sphere around the player.",
     ),
@@ -274,6 +331,14 @@ const HELP: &[(&str, &str)] = &[
     (
         "cl_autoUpdate",
         "Looks for a newer SJK release at start and says so on the main menu. Install it from the Update page.",
+    ),
+    (
+        "cl_identity",
+        "Makes an identity key and tells the SJK hub where you play, so SJK players see your badge. Off sends nothing.",
+    ),
+    (
+        "cl_hubUrl",
+        "The SJK hub's address (https://...). Empty means no hub: nothing is sent.",
     ),
     (
         "rate",

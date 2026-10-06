@@ -1,0 +1,148 @@
+//! The hub's wire format (`PROTOCOL.md` in Sol-Vulpes/SJK-hub): signed
+//! requests, the JSON the hub answers with, and how a claim's name is matched
+//! to the name the game shows.
+
+use crate::keys::Identity;
+use base64::Engine;
+use base64::engine::general_purpose::URL_SAFE_NO_PAD as B64;
+use serde::Deserialize;
+use sha2::{Digest, Sha256};
+
+/// A player's public profile as the hub serves it.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct Profile {
+    /// First 16 hex digits of the SHA-256 of the public key.
+    pub key_id: String,
+    /// The public key, unpadded base64url.
+    pub key: String,
+    /// Display name; empty until the player sets one.
+    pub name: String,
+    /// Free text the player wrote about themselves.
+    pub bio: String,
+    /// Whether the hub's operator vouches for this key.
+    pub verified: bool,
+    /// Registration time, unix seconds.
+    pub created: i64,
+}
+
+/// One live claim on a game server and who made it.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct Presence {
+    /// The game slot the claimant says they hold.
+    pub slot: u8,
+    /// The name the claimant says the game shows for them.
+    pub claimed_name: String,
+    /// The claimant's key id.
+    pub key_id: String,
+    /// The claimant's display name.
+    pub name: String,
+    /// Whether the hub's operator vouches for the claimant.
+    pub verified: bool,
+}
+
+/// The text a request's signature covers.
+pub fn signed_text(
+    method: &str,
+    path_and_query: &str,
+    ts: i64,
+    nonce: &str,
+    body: &[u8],
+) -> String {
+    let hex: String = Sha256::digest(body)
+        .iter()
+        .map(|byte| format!("{byte:02x}"))
+        .collect();
+    format!("SJK-HUB-v1\n{method}\n{path_and_query}\n{ts}\n{nonce}\n{hex}")
+}
+
+/// The `Authorization` header value for a request signed by `identity`.
+pub fn authorization(
+    identity: &Identity,
+    method: &str,
+    path_and_query: &str,
+    body: &[u8],
+    ts: i64,
+    nonce_bytes: [u8; 12],
+) -> String {
+    let nonce = B64.encode(nonce_bytes);
+    let signature = identity.sign_text(&signed_text(method, path_and_query, ts, &nonce, body));
+    format!(
+        "SJK-Sig key={}, ts={ts}, nonce={nonce}, sig={signature}",
+        identity.public_key_text()
+    )
+}
+
+/// The form two player names are compared in: lower case, Quake colour codes
+/// removed, only letters and digits kept (the hub uses the same rule for
+/// display names).
+pub fn normal_form(name: &str) -> String {
+    let mut out = String::new();
+    let mut chars = name.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '^' {
+            // `Q_IsColorString`: `^` plus any character but another `^`.
+            if chars.peek().is_some_and(|&next| next != '^') {
+                let _ = chars.next();
+            }
+        } else if c.is_alphanumeric() {
+            out.extend(c.to_lowercase());
+        }
+    }
+    out
+}
+
+/// Whether a claim's name and the name the game shows are one player's name.
+///
+/// The game server cleans names (length, spaces, duplicates), so the exact text
+/// can differ; the normal forms must agree and must not be empty.
+pub fn names_match(claimed: &str, shown: &str) -> bool {
+    let claimed = normal_form(claimed);
+    !claimed.is_empty() && claimed == normal_form(shown)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A request every implementation of `PROTOCOL.md` must sign to this exact
+    /// header; the hub's tests carry the same vector.
+    #[test]
+    fn the_known_answer_header_matches_the_protocol() {
+        let identity = Identity::from_seed([7; 32]);
+        assert_eq!(
+            authorization(
+                &identity,
+                "POST",
+                "/v1/claim",
+                br#"{"server":"1.2.3.4:29070","slot":3,"name":"Sol"}"#,
+                1_000_000,
+                [1; 12]
+            ),
+            KNOWN_ANSWER
+        );
+    }
+
+    const KNOWN_ANSWER: &str = "SJK-Sig key=6kpsY-KcUgq-9VB7Ey7F-ZVHdq6-vnuSQh7qaRRG0iw, ts=1000000, nonce=AQEBAQEBAQEBAQEB, sig=IKLlpqaSWIXqXK7Q77SsGJiE4BIdUTjkSWv2zyr0951WKByhEShSL-Ow70Rgc3znokl0Sf4rQK2VjNkPEm9uCQ";
+
+    #[test]
+    fn names_match_through_colours_and_case() {
+        assert!(names_match("^1Sol", "sol"));
+        assert!(names_match("S.o.l", "^2SOL"));
+        assert!(!names_match("Sol", "Fox"));
+        assert!(!names_match("^1^2", "^3"));
+    }
+
+    #[test]
+    fn profiles_and_presence_parse() {
+        let profile: Profile = serde_json::from_str(
+            r#"{"key_id":"aa","key":"bb","name":"Sol","bio":"","verified":true,"created":5}"#,
+        )
+        .unwrap();
+        assert!(profile.verified);
+        let presence: Presence = serde_json::from_str(
+            r#"{"slot":3,"claimed_name":"x","key_id":"aa","name":"Sol","verified":false}"#,
+        )
+        .unwrap();
+        assert_eq!(presence.slot, 3);
+    }
+}

@@ -630,6 +630,21 @@ draws stock multiplayer's `halfShieldShell` sphere instead
 The shader blends `GL_DST_COLOR GL_ONE`, a bare multiply of the pixels behind it, so the body
 shell is faint; it is drawn `cg_shieldBrightness` times (default 4) and fades over its own
 hit's length (`LegacyShieldHit::body_brightness`), where the sphere keeps stock's fixed 2 s.
+The body shell's tint is weighted to green (`(0.3b, b, 0.3b)`), as the texture itself reads blue.
+
+Force Protect is a green `gfx/misc/forceprotect` shell on the body and Force Absorb
+a blue `gfx/misc/personalshield` one, drawn on every player holding Absorb (JoF EJK's
+`cg_alwaysShowAbsorb`, always on here; stock draws it only on your own body and on
+team-power hits). With `cg_spProtAbsColor 1` (default, JoF EJK's `cg_spprotabscolor`),
+a player with both Protect and Absorb active gets a single cyan protect shell instead
+of the green and blue pair, as single player draws it. Another player's Absorb is read
+from their entity's own power bit, so both the combined and the plain shell show on them
+([force_overlays.rs](../crates/sjk-client/src/force_overlays.rs)). JoF EJK's
+base-enhanced server check is not ported.
+
+`EV_PLAYER_TELEPORT_IN/OUT` play `mp/spawn` where the player's box (mins z -16, maxs z 40)
+lands when dropped up to 4096 units, as `cg_event.c` does, not at the player's centre;
+over a void no effect plays.
 
 The Force Speed afterimages use it: two copies of the actor in its current pose
 at alpha 100 and 50, spaced by `(int)(6 * speed * 0.004)` units along the
@@ -753,6 +768,12 @@ polygon offsets and special depth/blend modes keep their ordinary path. Depth
 priming reuses the existing visibility ranges and indirect argument storage,
 with direct draws as a fallback. It is limited to active real-time lighting;
 reflections use their own camera, depth target, receiver frustum and scissor.
+
+The main view's PVS source cluster is the leaf of the camera actually used for the picture
+(`view_position`, as `refdef.vieworg` in stock), not of the player's eye. In third person
+the camera sits behind and above the eye, often in another cluster; taking the eye's cluster
+culled walls the camera could see. Reflection, portal and scene views already used their own
+eye.
 
 Camera-range caches also retain their PVS/area selection independently of the
 camera frustum. Turning or moving within a cluster rechecks bounds but reuses
@@ -1669,6 +1690,23 @@ which the retail and the checked custom HUDs do not use.
 the existing behavior, where `cg_classicHudFont` also selects the classic layout.
 JKR defaults to `modern`; SJK to `game`.
 
+`cg_hudStyle radial` (picker name "SJK radial") is SJK's own take on the TheRisqe Radial
+HUD, drawn by the engine with no PK3: health (red, outer) and armor (green, inner) as
+arcs left of the crosshair, Force (blue, outer) and ammunition (amber, inner) right of
+it, each cut into four segments that fill in turn, with a readout pill of the four
+numbers (the saber style replaces the ammunition) and the weapon-name transient below.
+It is the layout document [radial.json](../crates/sjk-viewer/assets/hud/radial.json): the
+modern layout's other widgets (crosshair, team rows, votes, kill feed, timer, lagometer)
+plus `arc` widgets, which `hud.json` overrides cannot yet replace for this style.
+The arcs are the new `sjk-ui` draw command `DrawCommand::Arc`: one quad per stroke whose
+fragment shader (`ui_shapes.wgsl`, mode 3) takes the signed distance to a round-capped arc,
+so they stay smooth at any resolution and scale with the HUD scale. Segment geometry and the
+distance function are in [arc.rs](../crates/sjk-ui/src/arc.rs) (unit-tested; the shader
+evaluates the same expression); the ammunition ratio is the weapon's pool over
+`ammoData[].max`, doubled with the Double Ammo rune ([radial.rs](../crates/sjk-viewer/src/hud/radial.rs)).
+Health pulses red at 25 or less, as the modern HUD does. `menu_snapshot` renders the four
+sample states to `target/menu-snapshots/hud-radial-*.png` with a CPU copy of the shader.
+
 In every HUD style, a weapon change shows retail's weapon selection row for
 1.4 s (`WEAPON_SELECT_TIME`), as `CG_DrawWeaponSelect` draws it and JoF EternalJK
 keeps it square on wide screens ([weapon_select.rs](../crates/sjk-viewer/src/weapon_select.rs)):
@@ -1682,13 +1720,20 @@ more with the text HUD. The name is retail's (`SP_INGAME_<item>` from
 (0.875, 0.718, 0.121), `FONT_SMALL` at scale 1 with its baseline 6 units above
 the bottom (`ocr_a` with the game fonts on, otherwise the bundled font at that
 size). Units are those of the game HUD, `cg_hudScale` included, growing from the
-bottom centre. While it shows, SJK's own layouts hide their weapon name, ammo and
-bottom-centre weapon and ammo icons, which would sit behind it. The row needs
-`cg_draw2D`, a living player who is not spectating,
+bottom centre. The row needs `cg_draw2D`, a living player who is not spectating,
 following or on an emplaced gun, and no held scoreboard; a Force or inventory
 cycle after it hides it, since `CG_Draw2D` shows only the most recent selector.
-SJK's own layouts show no ammo picture at the bottom centre; their weapon icon sits beside the ammo count and fades with the weapon name. Unlike
-retail, the name has SJK's text shadow.
+
+SJK's own layouts (classic, modern and radial) draw their weapon name as a transient
+that holds 0.8 s and fades over 0.6 s, as long as the row; while the row shows they
+hide it, since the row names the weapon, so it only appears when the row cannot (for
+example while following a player). The ammunition count, the ammunition arc and
+the pill of the radial layout, and the classic layout's ammunition line, stay
+visible during the row, as in EternalJK, where nothing hides the ammunition while
+`CG_DrawWeaponSelect` draws. The small held-weapon icon beside the ammo count shares
+the name's timing and is hidden while the row shows; there is no ammo picture at the
+bottom centre. The Force power timer icons keep showing during the row. Unlike
+retail, the row's name has SJK's text shadow.
 
 ## Billboard icons
 

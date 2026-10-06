@@ -131,6 +131,32 @@ impl SettingsMenu {
         }
     }
 
+    /// What is typed in the search field.
+    pub(crate) fn search_text(&self) -> &str {
+        &self.search
+    }
+
+    /// How many options match `text`, for the other tab's search.
+    pub(crate) fn count_matches(text: &str) -> usize {
+        if text.trim().is_empty() {
+            0
+        } else {
+            search::count(text)
+        }
+    }
+
+    /// Key bindings that match the search, for the panel to offer.
+    pub(crate) fn set_elsewhere(&mut self, bindings: usize) {
+        self.elsewhere = bindings;
+    }
+
+    /// Carry a search typed on the other tab over to this panel.
+    pub(crate) fn carry_search(&mut self, console: &ViewerConsole, text: &str) {
+        if self.classic.is_some() && !text.trim().is_empty() {
+            self.set_search(console, text.to_owned());
+        }
+    }
+
     /// Search for `text` as if it had been typed, for the menu snapshots.
     #[cfg(test)]
     pub(crate) fn search_for_snapshot(&mut self, console: &ViewerConsole, text: &str) {
@@ -398,6 +424,14 @@ impl SettingsMenu {
         }
         if lines.is_empty() && found.is_some() {
             place.value_plain(&mut self.ui, 0, "No option matches the search.", OPTION);
+            if self.elsewhere > 0 {
+                place.value_fmt(
+                    &mut self.ui,
+                    1,
+                    format_args!("{} on KEY BINDINGS: click its tab.", self.elsewhere),
+                    OPTION,
+                );
+            }
         }
         if let Some(slot) = lines[shown_lines.clone()]
             .iter()
@@ -621,6 +655,15 @@ impl SettingsMenu {
             hint.push_str("Type to find any option   \u{b7}   ENTER to the results, ESC to clear");
             return;
         }
+        if self.elsewhere > 0 && !self.search.trim().is_empty() {
+            let _ = write!(
+                hint,
+                "{} key binding{} match too: click the KEY BINDINGS tab, the search goes with you",
+                self.elsewhere,
+                if self.elsewhere == 1 { "" } else { "s" }
+            );
+            return;
+        }
         let Some(setting) = section_settings(self.section, self.tab).get(self.selected) else {
             return;
         };
@@ -785,6 +828,29 @@ mod tests {
             .iter()
             .position(|setting| setting.cvar == cvar)
             .unwrap()
+    }
+
+    #[test]
+    fn a_search_from_the_key_bindings_tab_is_counted_and_carried_over() {
+        let (_directory, console) = console();
+        assert_eq!(SettingsMenu::count_matches("  "), 0);
+        assert!(SettingsMenu::count_matches("fov") >= 1);
+        let mut menu = SettingsMenu::new();
+        menu.open_classic_group(
+            &console,
+            Group::Hud,
+            crate::menu::classic::panel::Frame::Main,
+        );
+        menu.carry_search(&console, "  ");
+        assert_eq!(menu.search_text(), "", "a blank search is not carried");
+        menu.carry_search(&console, "fov");
+        assert_eq!(menu.search_text(), "fov");
+        let shown = menu.classic.as_ref().unwrap().rows().count();
+        assert_eq!(shown, SettingsMenu::count_matches("fov"));
+        // The panel names what the other tab found.
+        menu.set_elsewhere(3);
+        menu.write_key_hint();
+        assert!(menu.key_hint.starts_with("3 key bindings match too"));
     }
 
     #[test]

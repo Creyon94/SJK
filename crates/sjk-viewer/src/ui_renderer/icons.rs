@@ -40,8 +40,11 @@ pub(crate) const BIND_ICON_CELLS: u32 = 3 * COLUMNS;
 pub(crate) const FORCE_WHEEL_ICON_FIRST: u32 = BIND_ICON_FIRST + BIND_ICON_CELLS;
 /// Force wheel cells: two atlas rows.
 pub(crate) const FORCE_WHEEL_ICON_CELLS: u32 = 2 * COLUMNS;
+/// The cell holding SJK's emblem (`ui_renderer::LOGO_TEXTURE`), after the Force
+/// wheel's: the scoreboard and the player card mark SJK players with it.
+pub(crate) const LOGO_ICON: u32 = FORCE_WHEEL_ICON_FIRST + FORCE_WHEEL_ICON_CELLS;
 /// Every icon cell; the banner strip lies below the last row.
-pub(crate) const ATLAS_CELLS: u32 = FORCE_WHEEL_ICON_FIRST + FORCE_WHEEL_ICON_CELLS;
+pub(crate) const ATLAS_CELLS: u32 = LOGO_ICON + 1;
 const TOTAL_CELLS: u32 = ATLAS_CELLS;
 const ATLAS_HEIGHT: u32 = TOTAL_CELLS.div_ceil(COLUMNS) * ICON_SIZE + BANNER_SIZE[1];
 /// `TexturedQuad` texture naming the banner strip.

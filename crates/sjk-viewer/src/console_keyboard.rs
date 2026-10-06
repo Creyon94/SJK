@@ -182,6 +182,7 @@ impl ViewerConsole {
         if self.credits_key(event)
             || self.changelog_key(event)
             || self.update_panel_key(event)
+            || self.identity_panel_key(event)
             || self.debug_panel_key(event)
         {
             return true;

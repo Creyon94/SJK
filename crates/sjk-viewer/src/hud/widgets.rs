@@ -58,18 +58,19 @@ pub(super) fn emit(
         }
         HudWidgetKind::Text => {
             let Some(text) = text_id(binding) else { return };
-            let align = if matches!(
-                binding,
-                Some(
-                    "weapon_text"
-                        | "ammo_text"
-                        | "weapon_value"
-                        | "ammo_value"
-                        | "match_timer"
-                        | "warmup_text"
-                        | "connection_interrupted"
-                )
-            ) {
+            let align = if widget.style.centered
+                || matches!(
+                    binding,
+                    Some(
+                        "weapon_text"
+                            | "ammo_text"
+                            | "weapon_value"
+                            | "ammo_value"
+                            | "match_timer"
+                            | "warmup_text"
+                            | "connection_interrupted"
+                    )
+                ) {
                 TextAlign::Center
             } else if binding == Some("style_value") {
                 TextAlign::End
@@ -131,6 +132,7 @@ pub(super) fn emit(
             emit_lagometer(draw_list, theme, widget, rect, context)
         }
         HudWidgetKind::Repeater => emit_team(draw_list, theme, widget, rect, context),
+        HudWidgetKind::Arc => super::radial::emit(draw_list, theme, widget, rect, context),
         HudWidgetKind::Image => {
             let _ = draw_list.push(DrawCommand::TexturedQuad {
                 rect,

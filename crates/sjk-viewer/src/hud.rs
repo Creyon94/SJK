@@ -4,13 +4,19 @@ mod data_source;
 use data_source::*;
 pub(crate) mod enemy_info;
 pub(crate) mod family;
+mod force_estimate;
 pub(crate) mod force_wheel;
 pub(crate) mod icons;
 pub(crate) mod identification;
 mod info;
 pub(crate) mod movement;
+pub(crate) mod nameplate;
+mod nameplate_math;
+mod npc_class;
 pub(crate) mod options;
+pub(crate) mod player_card;
 pub(crate) mod portrait;
+mod radial;
 mod selection;
 pub(crate) mod targeting;
 mod text_values;
@@ -53,6 +59,7 @@ fn transient_alpha(age_ms: u64, hold: u64, fade: u64) -> f32 {
     }
 }
 const CLASSIC_LAYOUT: &str = include_str!("../assets/hud/classic.json");
+const RADIAL_LAYOUT: &str = include_str!("../assets/hud/radial.json");
 
 /// Independent visibility switches used by widget predicates and the HUD shader.
 #[derive(Clone, Copy)]
@@ -122,6 +129,10 @@ pub(crate) struct HudOverlay {
     pub(crate) tints: tints::State,
     /// World-projected labels, sharing the chat roster's retained names.
     pub(crate) identification: identification::State,
+    /// The card shown beside a player looked at for a moment.
+    pub(crate) card: player_card::State,
+    /// MMO-style nameplates, drawn in the classic font; they replace the labels above.
+    pub(crate) nameplate: nameplate::State,
     guides: movement::Guides,
     family: family::Policy,
     pub(crate) targeting: targeting::State,
@@ -194,6 +205,20 @@ pub(crate) struct HudOverlay {
     theme: Theme,
     ratios: [Tween; 3],
     displayed_ratios: [f32; 3],
+    ammo_ratio: Tween,
+    displayed_ammo: f32,
+    radial_document: HudLayoutDocument,
+}
+
+/// Which bundled layout document the status HUD is drawn from.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum HudLook {
+    /// SJK's modern layout (the classic one without the modern font).
+    Modern,
+    /// SJK's classic layout.
+    Classic,
+    /// SJK's radial layout: arcs around the crosshair.
+    Radial,
 }
 
 /// Pixel-space geometry consumed by the existing fullscreen HUD renderer.
@@ -205,6 +230,11 @@ pub(crate) struct HudLayout {
 }
 
 impl HudOverlay {
+    /// The Force power pictures, by `forcePowers_t` index, which the nameplates reuse.
+    pub(crate) fn power_icons(&self) -> [Option<sjk_ui::TextureId>; force_wheel::ICONS] {
+        self.force_wheel_icons
+    }
+
     pub(crate) fn new() -> Self {
         let override_document = crate::platform::user_config_file()
             .ok()
@@ -219,6 +249,8 @@ impl HudOverlay {
             targeting: targeting::State::default(),
             enemy_info: enemy_info::State::default(),
             identification: identification::State::default(),
+            card: player_card::State::default(),
+            nameplate: nameplate::State::default(),
             score_text: String::with_capacity(80),
             snapshot_text: String::with_capacity(96),
 
@@ -286,6 +318,10 @@ impl HudOverlay {
                 Tween::settled(1.0),
             ],
             displayed_ratios: [1.0, 0.0, 1.0],
+            ammo_ratio: Tween::settled(0.0),
+            displayed_ammo: 0.0,
+            radial_document: HudLayoutDocument::from_json(RADIAL_LAYOUT)
+                .expect("bundled radial HUD document is valid"),
         }
     }
 
@@ -294,13 +330,14 @@ impl HudOverlay {
     pub(crate) fn layout(
         &mut self,
         font: &UiFont,
-        classic_layout: bool,
+        look: HudLook,
         viewport: [f32; 2],
         user_scale: f32,
         visibility: HudVisibility,
         time_ms: u64,
     ) -> HudLayout {
         self.displayed_ratios = self.ratios.map(|tween| tween.sample(time_ms));
+        self.displayed_ammo = self.ammo_ratio.sample(time_ms);
         self.weapon_alpha = self.weapon_shown_ms.map_or(0.0, |shown| {
             transient_alpha(
                 time_ms.saturating_sub(shown),
@@ -308,17 +345,19 @@ impl HudOverlay {
                 WEAPON_FADE_MS,
             )
         });
-        let modern = font.is_modern() && !classic_layout;
-        let document = if modern {
-            self.override_document
+        let document = match look {
+            HudLook::Radial => &self.radial_document,
+            HudLook::Classic => &self.classic_document,
+            HudLook::Modern if font.is_modern() => self
+                .override_document
                 .as_ref()
-                .unwrap_or(&self.default_document)
-        } else {
-            &self.classic_document
+                .unwrap_or(&self.default_document),
+            HudLook::Modern => &self.classic_document,
         };
         let data = WidgetData {
             visibility,
             ratios: self.displayed_ratios,
+            ammo_ratio: self.displayed_ammo,
             health: &self.health,
             armor: &self.armor,
             force: &self.force,
@@ -465,6 +504,14 @@ impl HudOverlay {
             crate::weapon_select::emit_icons(&mut self.draw_list, &self.icons, shown, viewport);
         }
         output
+    }
+
+    /// Settle the status values and meters on a fixed state, for the layout snapshots.
+    #[cfg(test)]
+    pub(crate) fn preview_values(&mut self, values: ClientHudData, ratios: [f32; 4]) {
+        self.format_values(values);
+        self.ratios = [ratios[0], ratios[1], ratios[2]].map(Tween::settled);
+        self.ammo_ratio = Tween::settled(ratios[3]);
     }
 
     pub(crate) fn displayed_ratios(&self) -> [f32; 3] {

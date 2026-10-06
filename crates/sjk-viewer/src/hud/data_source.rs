@@ -8,6 +8,8 @@ pub(super) struct WidgetData<'a> {
     pub(super) visibility: HudVisibility,
     /// ratios binding supplied by the owning HUD.
     pub(super) ratios: [f32; 3],
+    /// How full the current weapon's ammunition is, `0..=1`; zero without ammunition.
+    pub(super) ammo_ratio: f32,
     /// health binding supplied by the owning HUD.
     pub(super) health: &'a str,
     /// armor binding supplied by the owning HUD.
@@ -58,6 +60,7 @@ impl HudDataSource for WidgetData<'_> {
             "health_ratio" => Some(self.ratios[0]),
             "armor_ratio" => Some(self.ratios[1]),
             "force_ratio" => Some(self.ratios[2]),
+            "ammo_ratio" => Some(self.ammo_ratio),
             _ => None,
         }
     }

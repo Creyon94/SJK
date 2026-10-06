@@ -123,6 +123,8 @@ mod surface_tables;
 mod viewer_app;
 use object_meshes::StaticModelMesh;
 mod gi_voxels;
+mod identity_command;
+mod identity_frame;
 mod live_session;
 mod net_timing;
 mod particle_motion;
@@ -134,6 +136,7 @@ mod pickups;
 mod platform;
 mod player_animation;
 mod player_assets;
+mod player_identity;
 mod player_menu;
 #[cfg(test)]
 mod player_model_scan;
@@ -233,6 +236,8 @@ fn main() {
         log::progress(format_args!("sjk: {error}"));
         std::process::exit(1);
     }
+    // Withdraw the identity claim on the hub, if the player had one.
+    player_identity::shutdown();
     // After the settings were saved on the way out, start an installed update.
     update::restart_if_requested();
 }
@@ -1299,6 +1304,7 @@ impl GpuState {
         self.local_prediction
             .begin_frame(visual_now.duration_since(self.ui_epoch).as_millis() as i32);
         self.update_live_session(game_audio, visual_now, timing);
+        self.update_identity();
         timing.mark(Phase::Preview);
         self.update_demo_playback(game_audio, visual_now);
         let presentation_time = self.demo_session.as_ref().map_or_else(
@@ -1449,11 +1455,17 @@ impl GpuState {
         self.hud.weapon_select.shown = self.sample_weapon_select(intermission_view.is_some());
         let hud_style = menu_hud::HudStyle::read(self.console.as_ref());
         // JoF EJK's Force wheel (the retail icon bar) with the retail-looking HUDs.
-        self.hud
-            .set_force_wheel_bar(hud_style != menu_hud::HudStyle::Modern);
+        self.hud.set_force_wheel_bar(!matches!(
+            hud_style,
+            menu_hud::HudStyle::Modern | menu_hud::HudStyle::Radial
+        ));
         let hud_layout = self.hud.layout(
             hud_font,
-            hud_style == menu_hud::HudStyle::Classic,
+            match hud_style {
+                menu_hud::HudStyle::Radial => hud::HudLook::Radial,
+                menu_hud::HudStyle::Classic => hud::HudLook::Classic,
+                _ => hud::HudLook::Modern,
+            },
             viewport,
             runtime_settings::hud_scale(self.console.as_ref()),
             hud_visibility,
@@ -1592,7 +1604,9 @@ impl GpuState {
         self.append_console_overlay(viewport, text_scale);
         self.append_version_overlay(viewport, text_scale);
         let layers = [
+            information_visible.then(|| &self.hud.nameplate.list),
             information_visible.then(|| &self.hud.identification.list),
+            information_visible.then(|| &self.hud.card.list),
             information_visible.then(|| self.hud.draw_list()),
             chat_visible.then(|| self.chat.draw_list()),
             scoreboard_visible.then(|| self.scoreboard.draw_list()),
@@ -1639,7 +1653,10 @@ impl GpuState {
         }
 
         timing.mark(Phase::World);
-        let leaf_index = self.bsp.leaf_at(self.camera_position.to_array());
+        // PVS and the area mask belong to where the picture is taken from (`refdef.vieworg`),
+        // not to the player's eye: a third-person camera sits behind and above it, often in
+        // another cluster, and the eye's visible set then culled walls in plain view.
+        let leaf_index = self.bsp.leaf_at(view_position.to_array());
         let camera_cluster = self.bsp.leaves()[leaf_index].cluster;
         let source_cluster = usize::try_from(camera_cluster).ok();
         if camera_cluster != self.last_cluster {

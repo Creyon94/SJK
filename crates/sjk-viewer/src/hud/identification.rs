@@ -47,6 +47,12 @@ pub(crate) struct Camera {
 impl Camera {
     /// Reject behind-camera/off-screen positions before emitting an overhead HUD element.
     pub(crate) fn project(self, point: Vec3) -> Option<[f32; 2]> {
+        self.project_within(point, 1.0)
+    }
+
+    /// Like [`Camera::project`], but keeps points up to `limit` half-screens
+    /// from the centre (1.0 is the screen edge).
+    pub(crate) fn project_within(self, point: Vec3, limit: f32) -> Option<[f32; 2]> {
         let forward = (self.target - self.eye).normalize_or_zero();
         let right = forward.cross(self.up).normalize_or_zero();
         let up = right.cross(forward);
@@ -58,7 +64,7 @@ impl Camera {
         let half = (self.fov.to_radians() * 0.5).tan() * depth;
         let x = delta.dot(right) / (half * self.viewport[0] / self.viewport[1]);
         let y = delta.dot(up) / half;
-        if !x.is_finite() || !y.is_finite() || x.abs() > 1.0 || y.abs() > 1.0 {
+        if !x.is_finite() || !y.is_finite() || x.abs() > limit || y.abs() > limit {
             return None;
         }
         Some([
@@ -266,7 +272,7 @@ impl State {
 }
 
 // TaystJK cg_players.c:11074-11155: team, Power Duel, and Jedi Master are distinct.
-fn friend_icon(
+pub(super) fn friend_icon(
     mode: i32,
     local: i32,
     team: i32,
@@ -294,12 +300,12 @@ fn friend_icon(
     })
 }
 
-fn info_number(bytes: Option<&[u8]>, key: &str) -> i32 {
+pub(super) fn info_number(bytes: Option<&[u8]>, key: &str) -> i32 {
     bytes
         .and_then(|b| sjk_client::LegacyClientInfo::new(b).integer(key))
         .unwrap_or(0)
 }
 
-fn unoccluded(fraction: f32, start_solid: bool, all_solid: bool) -> bool {
+pub(super) fn unoccluded(fraction: f32, start_solid: bool, all_solid: bool) -> bool {
     fraction >= 1.0 && !start_solid && !all_solid
 }

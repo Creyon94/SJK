@@ -16,6 +16,7 @@ mod help;
 mod hud_picker;
 mod numeric;
 mod pointer;
+pub(crate) mod quick;
 mod resolution;
 mod resolution_list;
 mod scroll;
@@ -222,6 +223,9 @@ pub(crate) struct SettingsMenu {
     search: String,
     searching: bool,
     search_return: Option<SearchReturn>,
+    /// Key bindings matching the search typed here, which the panel offers
+    /// through the KEY BINDINGS tab (0 when none or no search).
+    elsewhere: usize,
     /// The classic panel's dropdown, while one is open.
     dropdown: Option<Dropdown>,
     ui: MenuCanvas,
@@ -255,9 +259,15 @@ impl SettingsMenu {
             search: String::new(),
             searching: false,
             search_return: None,
+            elsewhere: 0,
             dropdown: None,
             ui: MenuCanvas::new(),
         }
+    }
+
+    /// Index of the first-start QUICK tab.
+    pub(crate) fn quick_tab() -> usize {
+        QUICK_TAB
     }
 
     /// Index of the tab that carries the "Key bindings" row.
@@ -337,7 +347,7 @@ impl SettingsMenu {
             return None;
         }
         match (self.section, self.tab) {
-            (Section::General, KEYBINDS_TAB) => Some(Action::Keybinds),
+            (Section::General, KEYBINDS_TAB | QUICK_TAB) => Some(Action::Keybinds),
             (Section::General, RENDERER_TAB) => Some(Action::Renderer),
             _ => None,
         }
@@ -767,6 +777,7 @@ fn settings(tab: usize) -> &'static [Setting] {
         5 => NETWORK,
         6 => HUD_OPTIONS,
         7 => TEXT,
+        QUICK_TAB => quick::rows(),
         _ => &[],
     }
 }

@@ -22,6 +22,7 @@ sjk-client.workspace = true
 sjk-game-jka.workspace = true
 sjk-entity.workspace = true
 sjk-effect.workspace = true
+sjk-identity.workspace = true
 sjk-model.workspace = true
 sjk-network.workspace = true
 sjk-protocol.workspace = true

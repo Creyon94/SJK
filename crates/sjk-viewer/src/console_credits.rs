@@ -24,6 +24,7 @@ impl ViewerConsole {
         self.browser.close();
         self.debug_panel.close();
         self.changelog.close();
+        self.identity_panel.close();
         self.dead_key.settle();
         self.credits.open(owns_console);
     }

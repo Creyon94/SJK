@@ -21,6 +21,9 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- Nameplates show the holocron icons of the Force powers a player has on (lightning, grip, protect, absorb, speed and more) over the name when close (`cg_nameplateIcons`) _(Sol)_
+- Protect and Absorb used together show one cyan shell on the body, as in single player (`cg_spProtAbsColor`, Settings > Game), instead of a green and a blue one _(Sol, after JoF EJK)_
+- Nameplates like an online RPG over players: a small name from afar, and up close a framed plate with health, shield (teammates) and estimated Force bars under the name, in the classic font with its colours; shrink and fade with distance, ease out behind walls, anchored to the head, optional NPC plates; Settings > HUD has a row for each (`cg_nameplate*`); the plain `cg_drawPlayerNames` stays _(Sol)_
 - SJK updates itself: it checks for a newer release at start (`cl_autoUpdate`), and main menu > Update (or the `update` command) downloads it, verifies it and installs it _(Sol)_
 - A Changelog page in the main menu (and the `changelog` command) lists every release with its credits, in the classic+ look with the classic menus _(Sol)_
 - The classic profile's Force page shows every power's holocron and level numbers again (Dark Rage and Team Energize were missing, and a hover hid a Lightning number) _(Sol)_
@@ -29,6 +32,8 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - An SJK button left of About on the in-game bar (an SJK row in the modern game menu) opens SJK's own screens, starting with the changelog _(Sol)_
 - A duel challenge from a player whose name has a symbol such as the multiplication sign no longer crashes the client, and the name shows that symbol instead of `?` _(Creyon)_
 - `flipkick`: one press starts a run of jump taps for JA+ flip kicks (`cg_fkDuration`, `cg_fkFirstJumpDuration`, `cg_fkSecondJumpDelay`; bindable in Controls > Movement) _(Sol, after JoF EJK)_
+- Player identity: SJK keeps an identity key and, once a hub address is set (`cl_hubUrl`), marks players the hub knows as `SJK` or gold `VERIFIED` on the scoreboard; the Identity page (the in-game SJK menu or the `identity` command) shows your profile and who is known on the server _(Sol)_
+- Player card: look at a player with a steady view for 1.5 seconds (`cg_playerCard`, `cg_playerCardDelay`) and a card beside them shows their model, sabers and duel record, and for SJK hub players the SJK emblem, hub name and a gold VERIFIED; the scoreboard marks hub players with the emblem too _(Sol)_
 
 ## 2026.1005.1 (Alpha) | 05/10/2026
 
