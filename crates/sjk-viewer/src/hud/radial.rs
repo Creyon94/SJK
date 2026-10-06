@@ -69,7 +69,7 @@ impl Ring {
 /// Alpha of the soft halo drawn behind the filled part of an arc.
 const GLOW_ALPHA: f32 = 0.16;
 /// How much wider than the stroke the halo is. It stays inside the shadow band (a margin of
-/// 4 px round a 7 px bar is 15/7 times the stroke), so the shadow is the outermost layer.
+/// 7 px round a 7 px bar makes it 3 times the stroke), so the shadow is the outermost layer.
 const GLOW_WIDTH: f32 = 2.0;
 
 pub(super) fn emit(
@@ -364,8 +364,8 @@ mod tests {
             // Health, armor, Force and ammunition (or the style).
             assert_eq!(shadows.len(), 4);
             for shadow in shadows {
-                // 4 logical pixels all round a 7-pixel bar.
-                assert!((shadow.width / placed.stroke - 15.0 / 7.0).abs() < 1e-3);
+                // 7 logical pixels all round a 7-pixel bar.
+                assert!((shadow.width / placed.stroke - 21.0 / 7.0).abs() < 1e-3);
                 // One band over the whole meter: its 68 degrees less a cap at each end,
                 // so the round caps sit concentric with the end bars' own.
                 let inset = 2.0 * (placed.stroke * 0.5 / shadow.radius);
