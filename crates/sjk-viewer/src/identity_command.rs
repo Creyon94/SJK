@@ -1,6 +1,7 @@
 //! The `identity` console command: `identity` opens the Identity page, and its
-//! words edit the player's hub profile and list who the hub knows on this server
-//! (`docs/identity.md`).
+//! words set the player's bio and list who the hub knows on this server
+//! (`docs/identity.md`). There is no name to set: the hub takes the name the
+//! player plays under.
 
 use crate::player_identity;
 use sjk_identity::{Snapshot, Status};
@@ -8,10 +9,12 @@ use sjk_identity::{Snapshot, Status};
 /// Console command name.
 pub(crate) const COMMAND: &str = "identity";
 /// Help text for completion and `cmdlist`.
-pub(crate) const HELP: &str =
-    "Your SJK identity: open its page; name, bio, key and who subcommands";
+pub(crate) const HELP: &str = "Your SJK identity: open its page; bio, key and who subcommands";
 
-const USAGE: &str = "identity [name <text> | bio <text> | key | who [slot]]";
+const USAGE: &str = "identity [bio <text> | key | who [slot]]";
+/// The answer to `identity name`, which no longer exists.
+const NAME_FROM_GAME: &str =
+    "Your SJK name is the name you play under: change it with /name <text>.";
 
 /// What the player asked for.
 #[derive(Debug, Eq, PartialEq)]
@@ -22,8 +25,6 @@ pub(crate) enum Action {
     Key,
     /// List the players the hub knows on this server, or one of them.
     Who(Option<u8>),
-    /// Set the display name at the hub.
-    Name(String),
     /// Set the bio at the hub.
     Bio(String),
 }
@@ -43,9 +44,8 @@ pub(crate) fn parse(args: &[String]) -> Result<Action, String> {
                 .map(|slot| Action::Who(Some(slot)))
                 .map_err(|_| format!("who takes a client number, not \"{slot}\"")),
         },
-        "name" if args.len() > 1 => Ok(Action::Name(text())),
         "bio" => Ok(Action::Bio(text())),
-        "name" => Err("identity name needs the name to use".to_owned()),
+        "name" => Err(NAME_FROM_GAME.to_owned()),
         _ => Err(format!("usage: {USAGE}")),
     }
 }
@@ -115,23 +115,6 @@ pub(crate) fn profile_blocker(snapshot: Option<&Snapshot>) -> Option<&'static st
     }
 }
 
-/// `name` and `bio` for the profile after a change to one of them.
-pub(crate) fn merged_profile(
-    snapshot: &Snapshot,
-    name: Option<String>,
-    bio: Option<String>,
-) -> Result<(String, String), String> {
-    let current = snapshot.me.as_ref();
-    let name = name
-        .or_else(|| current.map(|me| me.name.clone()))
-        .filter(|name| !name.is_empty())
-        .ok_or("Set a name first: identity name <text>")?;
-    let bio = bio
-        .or_else(|| current.map(|me| me.bio.clone()))
-        .unwrap_or_default();
-    Ok((name, bio))
-}
-
 impl crate::GpuState {
     /// `identity <words>`: the subcommands that are not "open the page".
     pub(crate) fn identity_command(&mut self, args: &[String]) -> Result<Vec<String>, String> {
@@ -151,26 +134,16 @@ impl crate::GpuState {
                 Some(snapshot) => Ok(who_lines(snapshot, slot)),
                 None => Err("Identity is off: turn cl_identity on.".to_owned()),
             },
-            Action::Name(text) => self.send_profile(snapshot, Some(text), None),
-            Action::Bio(text) => self.send_profile(snapshot, None, Some(text)),
+            Action::Bio(text) => {
+                if let Some(reason) = profile_blocker(snapshot.as_ref()) {
+                    return Err(reason.to_owned());
+                }
+                player_identity::set_bio(text);
+                Ok(vec![
+                    "Sent to the hub; the Identity page shows the result.".to_owned(),
+                ])
+            }
         }
-    }
-
-    fn send_profile(
-        &mut self,
-        snapshot: Option<Snapshot>,
-        name: Option<String>,
-        bio: Option<String>,
-    ) -> Result<Vec<String>, String> {
-        if let Some(reason) = profile_blocker(snapshot.as_ref()) {
-            return Err(reason.to_owned());
-        }
-        let snapshot = snapshot.ok_or("Identity is off: turn cl_identity on.")?;
-        let (name, bio) = merged_profile(&snapshot, name, bio)?;
-        player_identity::set_profile(name, bio);
-        Ok(vec![
-            "Sent to the hub; the Identity page shows the result.".to_owned(),
-        ])
     }
 }
 
@@ -195,6 +168,7 @@ mod tests {
                 bio: "hi".to_owned(),
                 verified: false,
                 created: 0,
+                names: Vec::new(),
             }),
             server: None,
             players: vec![Presence {
@@ -217,11 +191,12 @@ mod tests {
         assert_eq!(parse(&words("WHO")), Ok(Action::Who(None)));
         assert_eq!(parse(&words("who 3")), Ok(Action::Who(Some(3))));
         assert_eq!(
-            parse(&words("name Sol the Fox")),
-            Ok(Action::Name("Sol the Fox".to_owned()))
+            parse(&words("bio Sol the Fox")),
+            Ok(Action::Bio("Sol the Fox".to_owned()))
         );
         assert_eq!(parse(&words("bio")), Ok(Action::Bio(String::new())));
-        assert!(parse(&words("name")).is_err());
+        // The name is the in-game one: the old word explains where it went.
+        assert_eq!(parse(&words("name Sol")), Err(NAME_FROM_GAME.to_owned()));
         assert!(parse(&words("who x")).is_err());
         assert!(
             parse(&words("frobnicate"))
@@ -258,26 +233,11 @@ mod tests {
                 bio: "line one\nline two".to_owned(),
                 verified: true,
                 created: 0,
+                names: Vec::new(),
             },
         );
         let lines = who_lines(&shown, Some(3));
         assert_eq!(lines[1..], ["    line one", "    line two"]);
-    }
-
-    #[test]
-    fn a_profile_change_keeps_the_other_field_and_needs_a_name() {
-        assert_eq!(
-            merged_profile(&snapshot(), Some("Vulpes".into()), None),
-            Ok(("Vulpes".to_owned(), "hi".to_owned()))
-        );
-        assert_eq!(
-            merged_profile(&snapshot(), None, Some("new".into())),
-            Ok(("Sol".to_owned(), "new".to_owned()))
-        );
-        let mut unnamed = snapshot();
-        unnamed.me.as_mut().unwrap().name.clear();
-        assert!(merged_profile(&unnamed, None, Some("x".into())).is_err());
-        assert!(merged_profile(&unnamed, Some("Sol".into()), None).is_ok());
     }
 
     #[test]

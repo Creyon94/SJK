@@ -1276,6 +1276,20 @@ test: The bot switches weapon or stance: the icon follows; a saber's ring is blu
 test: Log line "pain events" says Honest once you were hit; Masked on a g_stopHealthESP server.
 note: Never started in a game: estimates only unit-tested on synthetic snapshots.
 
+[identity-auto]
+status: personal
+area: HUD
+title: Identity without setup, gold verified badge on nameplates, your own nameplate
+change: The hub gets your key with the name you wear and keeps the names you wore; no name field.
+change: Verified players get a gold seal with a tick after their name on nameplates.
+change: cg_nameplateSelf 1 draws your own plate over your head in third person.
+test: Fresh profile, join a server: the Identity page shows your in-game name, nothing to fill.
+test: Change /name, wait a minute: the Identity page lists the old name under Also known as.
+test: Have Sol verify your key (SM or sjk-hub verify): a gold badge follows your name.
+test: cg_nameplateSelf 1 and third person: your plate over your head, with your real bars.
+test: Type a bio on the Identity page and Save: "Last change: saved" (needs the new hub).
+note: The new hub is committed, not deployed: until it is, worn names and bio saves fail.
+
 [protect-absorb-combo]
 status: personal
 area: Rendering & effects

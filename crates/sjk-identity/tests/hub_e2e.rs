@@ -18,34 +18,31 @@ fn hub() -> HttpHub {
 
 #[test]
 #[ignore = "needs a running hub (SJK_HUB_TEST_URL)"]
-fn a_player_registers_names_themselves_claims_and_leaves() {
+fn a_player_registers_with_the_name_they_wear_claims_and_leaves() {
     let mut hub = hub();
     let me = Identity::generate().unwrap();
     let other = Identity::generate().unwrap();
     let suffix = &me.key_id()[..8];
-    let name = format!("Test{suffix}");
+    let name = format!("^1Test{suffix}");
 
-    let profile = hub.register(&me).unwrap();
+    let profile = hub.register(&me, Some(&name)).unwrap();
     assert_eq!(profile.key_id, me.key_id());
     assert!(!profile.verified);
+    assert_eq!(profile.name, name, "the worn name is the display name");
+    assert_eq!(profile.names[0].name, name);
+    let again = hub.register(&me, None).unwrap();
     assert_eq!(
-        hub.register(&me).unwrap(),
-        profile,
-        "registering again changes nothing"
+        (again.created, again.name.as_str()),
+        (profile.created, name.as_str()),
+        "registering again keeps the profile"
     );
 
-    let saved = hub.set_profile(&me, &name, "line one\nline two").unwrap();
-    assert_eq!(saved.name, name);
+    let saved = hub.set_bio(&me, "line one\nline two").unwrap();
+    assert_eq!(saved.name, name, "a bio change keeps the name");
     assert_eq!(hub.profile(&me.key_id()).unwrap().bio, "line one\nline two");
 
-    hub.register(&other).unwrap();
-    let clash = hub
-        .set_profile(&other, &name.to_uppercase(), "")
-        .unwrap_err();
-    assert!(
-        matches!(clash, HubError::Rejected { ref code, .. } if code == "name_taken"),
-        "{clash:?}"
-    );
+    // Two keys may wear the same name: the name proves nothing, the key does.
+    hub.register(&other, Some(&name)).unwrap();
 
     let server = format!("10.99.{}.{}:29070", &suffix[..2].len(), 7);
     hub.claim(&me, &server, 3, "^1Test").unwrap();
@@ -72,7 +69,7 @@ fn a_player_registers_names_themselves_claims_and_leaves() {
 fn an_ipv6_server_address_round_trips() {
     let mut hub = hub();
     let me = Identity::generate().unwrap();
-    hub.register(&me).unwrap();
+    hub.register(&me, None).unwrap();
     hub.claim(&me, "[2001:db8::7]:29070", 1, "v6").unwrap();
     assert_eq!(hub.presence("[2001:db8::7]:29070").unwrap().len(), 1);
     hub.release(&me, "[2001:db8::7]:29070").unwrap();

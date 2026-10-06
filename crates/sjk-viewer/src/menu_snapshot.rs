@@ -631,6 +631,117 @@ fn menu_snapshot() {
     force_wheel(&mut shots, &vfs);
     profile_saber(&shots, art, &vfs, &mut console);
     classic_profile(&mut shots, &vfs, art);
+    nameplates(&mut shots, &vfs);
+}
+
+/// Only the nameplates, for a quicker look than the whole set.
+#[test]
+#[ignore = "reads the installed game data named by JKA_GAME_DATA"]
+fn nameplate_snapshot() {
+    let (_, vfs) = art();
+    let mut shots = Snapshot {
+        font: crate::text::load_modern(1.0, None).expect("build the menu font"),
+        icons: HashMap::from([(crate::ui_renderer::LOGO_TEXTURE.0, logo_icon())]),
+        in_match: match_backdrop(&vfs),
+    };
+    nameplates(&mut shots, &vfs);
+}
+
+/// Nameplates over a match: a verified saber player in medium stance with an exact
+/// health bar and estimated shield and Force (grey haze), an unsure enemy with a
+/// gun, a staff player farther off, and the player's own plate (`cg_nameplateSelf`).
+fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
+    use crate::hud::nameplate::{PreviewPlate, State};
+    use sjk_ui::TextureId;
+    let badge = RgbaImage::from_raw(128, 128, crate::ui_renderer::verified_badge_pixels())
+        .expect("a full cell");
+    shots
+        .icons
+        .insert(crate::ui_renderer::VERIFIED_TEXTURE.0, badge);
+    let mut weapons = Vec::new();
+    for (index, (weapon, path)) in [
+        (3_u8, "gfx/hud/w_icon_lightsaber.tga"),
+        (5, "gfx/hud/w_icon_blaster.tga"),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        if let Some(image) = decode(vfs, path) {
+            let texture = TextureId(900_000 + index as u32);
+            let cell =
+                image::imageops::resize(&image, 128, 128, image::imageops::FilterType::Triangle);
+            shots.icons.insert(texture.0, cell);
+            weapons.push((weapon, texture));
+        }
+    }
+    let icons = crate::hud::icons::Icons::with_weapons(&weapons);
+    let plates = [
+        PreviewPlate {
+            slot: 1,
+            point: [360.0, 330.0],
+            distance: 260.0,
+            health: Some([0.72, 0.72, 0.72]),
+            shield: Some([0.05, 0.18, 0.25]),
+            force: Some([0.35, 0.8, 0.85]),
+            weapon: 3,
+            style: 2,
+            verified: true,
+            team: None,
+        },
+        PreviewPlate {
+            slot: 2,
+            point: [800.0, 360.0],
+            distance: 420.0,
+            health: Some([0.3, 0.55, 1.0]),
+            shield: Some([0.0, 0.25, 0.6]),
+            force: Some([0.1, 0.45, 0.6]),
+            weapon: 5,
+            style: 0,
+            verified: false,
+            team: Some(true),
+        },
+        PreviewPlate {
+            slot: 3,
+            point: [1170.0, 300.0],
+            distance: 700.0,
+            health: Some([0.9, 0.9, 0.9]),
+            shield: None,
+            force: Some([1.0, 1.0, 1.0]),
+            weapon: 3,
+            style: 7,
+            verified: true,
+            team: None,
+        },
+        PreviewPlate {
+            slot: 0,
+            point: [720.0, 720.0],
+            distance: 120.0,
+            health: Some([1.0, 1.0, 1.0]),
+            shield: Some([0.25, 0.25, 0.25]),
+            force: Some([0.64, 0.64, 0.64]),
+            weapon: 3,
+            style: 3,
+            verified: true,
+            team: Some(false),
+        },
+    ];
+    let names = [
+        "^1Sol^7 (you)",
+        "^5Kit^7 Fisto",
+        "^1Bounty",
+        "^3Darth^7Staff",
+    ];
+    let mut state = State::default();
+    let mut vertices = Vec::new();
+    state.preview(
+        &plates,
+        &names,
+        &icons,
+        &shots.font.font,
+        &mut vertices,
+        VIEWPORT,
+    );
+    shots.save("nameplates", &state.list, &vertices, true);
 }
 
 /// The classic profile's lightsaber creation page, full screen and in game,
@@ -897,12 +1008,12 @@ fn weapon_select(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
 /// Repulse selected among real powers and the other JoF entries, then JA+ merc
 /// mode's flamethrower in Lightning's place. Names draw in the menu font here.
 /// SJK's radial HUD with a full, a hurt and an empty-handed (saber) state.
-/// The Identity page: switched off, online with a profile and known players, and a new
-/// player who has not chosen a name yet.
+/// The Identity page: switched off, online with a profile, earlier names and known
+/// players, and a new player the hub knows by the name they wear.
 fn identity_page(shots: &Snapshot, art: ArtSet) {
     use crate::console::identity_panel::{Inputs, Panel};
-    use sjk_identity::{Presence, Profile, Snapshot as Hub, Status};
-    let hub = |status: Status, name: &str| Hub {
+    use sjk_identity::{Presence, Profile, Snapshot as Hub, Status, WornName};
+    let hub = |status: Status, name: &str, earlier: &[&str]| Hub {
         status,
         key_id: "44f3d0b36c9b2510".to_owned(),
         me: Some(Profile {
@@ -912,6 +1023,14 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
             bio: String::new(),
             verified: false,
             created: 0,
+            names: std::iter::once(name)
+                .chain(earlier.iter().copied())
+                .map(|name| WornName {
+                    name: name.to_owned(),
+                    first_seen: 0,
+                    last_seen: 0,
+                })
+                .collect(),
         }),
         server: None,
         players: vec![
@@ -934,14 +1053,15 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
         notice: Some("saved".to_owned()),
         revision: 0,
     };
-    let online = hub(Status::Online, "Sol");
-    let unnamed = hub(Status::Online, "");
+    let online = hub(Status::Online, "^1Sol", &["^4Vulpes", "Padawan"]);
+    let fresh = hub(Status::Online, "Padawan", &[]);
     let refused = hub(
         Status::Failed(
             "cannot reach the hub: io: No connection could be made because the target machine actively refused it. (os error 10061)"
                 .to_owned(),
         ),
         "Sol",
+        &[],
     );
     let key_file =
         "C:/Program Files (x86)/Steam/steamapps/common/Jedi Academy/GameData/SJK/identity.key";
@@ -949,7 +1069,6 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
         name: &'a str,
         enabled: bool,
         snapshot: Option<&'a Hub>,
-        typed: &'a str,
         bio: &'a str,
         focus: &'a str,
         message: &'a str,
@@ -960,7 +1079,6 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
             name: "identity-off",
             enabled: false,
             snapshot: None,
-            typed: "",
             bio: "",
             focus: "toggle",
             message: "",
@@ -970,27 +1088,24 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
             name: "identity-online",
             enabled: true,
             snapshot: Some(&online),
-            typed: "Sol",
             bio: "I make SJK and I play on JA+ servers. Come say hi, I am usually around in the evening and I love a good duel.",
             focus: "bio",
             message: "",
             hub_url: "https://sjk.dfox.app",
         },
         Case {
-            name: "identity-noname",
+            name: "identity-new",
             enabled: true,
-            snapshot: Some(&unnamed),
-            typed: "",
+            snapshot: Some(&fresh),
             bio: "",
-            focus: "save",
-            message: "Give yourself a name first.",
+            focus: "toggle",
+            message: "",
             hub_url: "https://sjk.dfox.app",
         },
         Case {
             name: "identity-hub",
             enabled: true,
             snapshot: Some(&refused),
-            typed: "Sol",
             bio: "",
             focus: "hub",
             message: "",
@@ -1001,7 +1116,7 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
         let mut panel = Panel::new();
         panel.open(false);
         panel.set_look(classic, art);
-        panel.preview(case.typed, case.bio, case.focus, case.message);
+        panel.preview(case.bio, case.focus, case.message);
         let inputs = Inputs {
             enabled: case.enabled,
             hub_url: case.hub_url,

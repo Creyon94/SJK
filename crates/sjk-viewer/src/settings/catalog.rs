@@ -337,6 +337,11 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "My own nameplate",
+        cvar: "cg_nameplateSelf",
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Plates through walls",
         cvar: "cg_nameplateWalls",
         kind: ValueKind::Bool,

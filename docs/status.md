@@ -1020,6 +1020,27 @@ the off-screen snapshots (`menu_snapshot`, `identity-*-classic`) drew the classi
 states. Not verified: the classic+ page in the running client (retail font and art, typing,
 the pointer).
 
+## Automatic identity, verified badge and own nameplate (SJK)
+
+SJK-only branch `personal/identity-auto` (07/10/2026): a player no longer chooses a hub
+name. The client registers its key with the in-game name it wears and registers again
+when the name changes; the hub (Sol-Vulpes/SJK-hub `19ddcdd`) keeps each key's worn
+names (also from claims) and serves the latest as the profile's name unless the
+operator set another; verification stays the operator's. The Identity page and the
+`identity` command lose the name (the page shows the worn name and up to three earlier
+ones; the bio stays, optional). Nameplates put a gold verified badge (a seal with a
+tick, computed into an icon cell) after a verified player's name, and
+`cg_nameplateSelf` draws the local player's own plate in third person with their real
+bars. See [identity.md](identity.md) and [client.md](client.md#nameplates).
+
+Verified: the sjk-identity tests (the worn name sent with the registration and again on
+a change, retried after a failure; bio-only saves), the sjk-viewer tests, the badge's
+pixels, and the client's end-to-end suite against the new hub run on this machine. The
+off-screen snapshot `nameplate_snapshot` drew verified, unsure and own plates over a
+match. Not verified: the badge and the own plate in the running client; the new hub is
+committed but not deployed, so until it is, the deployed hub ignores the worn name
+(new players show as "Registered") and refuses a bio-only save.
+
 ## Alt codes (SJK)
 
 SJK-only branch `personal/alt-codes` (2026-10-05, based on `2696590`) types

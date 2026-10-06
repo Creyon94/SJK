@@ -1127,6 +1127,14 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   colour (`fireflag`, which carries `fd.saberAnimLevel`; the Radial HUD's colours:
   fast blue, medium yellow, strong red, dual green, staff magenta), dimmed while
   the blade is put away.
+- **Verified badge:** a player the SJK hub's operator vouches for (see
+  [Identity](#identity)) gets a gold seal with a white tick after the name, drawn at
+  start into an icon cell ([verified_badge.rs](../crates/sjk-viewer/src/ui_renderer/verified_badge.rs)).
+  Which slots are verified is read from the identity service once a second.
+- `cg_nameplateSelf` (off): your own plate over your head in third person, with your
+  real health, shield and Force (the server sends you those), your weapon and your
+  badge when your key is verified. In first person it is not drawn: it would sit in
+  the camera.
 - `cg_nameplateBars`: 0 none, 1 allies only, 2 everyone (default). `cg_nameplateScale`
   sets the text size, `cg_nameplateForce` the Force bar, `cg_nameplatePredict` the
   estimated health and shield, `cg_nameplateWalls` shows
@@ -1308,8 +1316,9 @@ are in [identity.md](identity.md).
   key id, the file to back up, whether the hub's operator vouches for the player, the
   hub's status and the players it knows on the current server, and has
   - a switch for `cl_identity` ("Share my identity with the SJK hub", ON or OFF);
-  - fields for the name (24 characters at most) and the bio (500 at most), saved to the
-    hub with Save or Enter; a name is needed, and the page says so;
+  - an optional bio field (500 characters at most), saved to the hub with Save or Enter.
+    There is no name field: the hub takes the name the player plays under (`name`), and
+    the page shows it with up to three earlier names. A new player has nothing to do;
   - "Copy my key id" (for the operator to verify the player);
   - "Use the official hub", shown only while `cl_hubUrl` is another address (a hub tried
     on this PC, say): it sets `cl_hubUrl` back to `https://sjk.dfox.app`. A saved
@@ -1322,10 +1331,11 @@ are in [identity.md](identity.md).
 
   Tab, Shift+Tab and the arrow keys move between the controls, Enter or Space works the
   switch and the buttons, letters type into the focused field (Ctrl+V pastes) and Escape
-  closes; the pointer works too. The fields follow the hub's copy of the profile until the
-  player types in them. The modern main menu has no entry (its list is full); reach it from
-  the in-game menu or the command there. The commands remain: `identity name <text>` and
-  `identity bio <text>` change the profile, `identity key` prints the key id and file,
+  closes; the pointer works too. The bio field follows the hub's copy until the player
+  types in it. The modern main menu has no entry (its list is full); reach it from the
+  in-game menu or the command there. The commands remain: `identity bio <text>` changes
+  the bio (`identity name` says the name is the one played under), `identity key` prints
+  the key id and file,
   `identity who [slot]` lists known players (with a slot, that player's bio).
 - The scoreboard (both styles) draws SJK's emblem at the end of the name of a
   player the hub knows, in gold when the hub's operator vouches for them. It trusts

@@ -113,6 +113,19 @@ impl Icons {
         let item = *assets::POWERS.get(power)?;
         (item != 0).then(|| self.handles[item]).flatten()
     }
+
+    /// Icons with only `weapons`' own pictures, as `(weapon, texture)`, for the
+    /// off-screen snapshots.
+    #[cfg(test)]
+    pub(crate) fn with_weapons(weapons: &[(u8, TextureId)]) -> Self {
+        let mut icons = Self::default();
+        for (weapon, texture) in weapons {
+            if let Some(slot) = assets::WEAPONS.get(usize::from(*weapon)) {
+                icons.handles[*slot] = Some(*texture);
+            }
+        }
+        icons
+    }
 }
 
 impl Default for Icons {

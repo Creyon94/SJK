@@ -46,8 +46,8 @@ impl ViewerConsole {
             PanelAction::SetEnabled(enabled) => {
                 self.set_cvar("cl_identity", if enabled { "1" } else { "0" });
             }
-            PanelAction::Save { name, bio } => {
-                if !crate::player_identity::set_profile(name, bio) {
+            PanelAction::Save { bio } => {
+                if !crate::player_identity::set_bio(bio) {
                     self.identity_panel.set_message(
                         "Not ready yet: the identity is starting, try again in a moment.",
                     );

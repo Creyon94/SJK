@@ -7,8 +7,8 @@
 //! keyboard and the pointer serve both looks.
 
 use super::{
-    BACK_TOKEN, BIO_TOKEN, COPY_TOKEN, Focus, HUB_TOKEN, Inputs, NAME_TOKEN, Panel, SAVE_TOKEN,
-    TOGGLE_TOKEN, fit_tail, view as page_view,
+    BACK_TOKEN, BIO_TOKEN, COPY_TOKEN, Focus, HUB_TOKEN, Inputs, Panel, SAVE_TOKEN, TOGGLE_TOKEN,
+    fit_tail, view as page_view,
 };
 use crate::console::browser::classic::{
     FRAME, LABEL, LIST_BACK, LIST_BORDER, OPTION, VALUE, border, fill, text, with_alpha,
@@ -54,8 +54,7 @@ const _: () = assert!(BOTTOM < CLOSE[1]);
 struct Layout {
     status: [f32; 4],
     toggle: [f32; 4],
-    /// The name field's row, the bio's, the buttons' and the message line, with the fields on.
-    name: Option<[f32; 4]>,
+    /// The bio field's row, the buttons' and the message line, with the fields on.
     bio: Option<[f32; 4]>,
     buttons: Option<[f32; 4]>,
     message: Option<[f32; 4]>,
@@ -70,10 +69,8 @@ fn layout(lines: usize, fields: bool, players: usize) -> Layout {
     let mut y = TOP + status_height + GAP;
     let toggle = [LEFT, y, WIDTH, ROW];
     y += ROW + GAP;
-    let (mut name, mut bio, mut buttons, mut message) = (None, None, None, None);
+    let (mut bio, mut buttons, mut message) = (None, None, None);
     if fields {
-        name = Some([LEFT, y, WIDTH, ROW]);
-        y += ROW + GAP;
         bio = Some([LEFT, y, WIDTH, ROW]);
         y += ROW + GAP;
         buttons = Some([LEFT, y, WIDTH, ROW]);
@@ -87,7 +84,6 @@ fn layout(lines: usize, fields: bool, players: usize) -> Layout {
     Layout {
         status,
         toggle,
-        name,
         bio,
         buttons,
         message,
@@ -151,8 +147,8 @@ impl Panel {
         }
 
         self.classic_toggle(&place, rows.toggle, &mut hint);
-        if let (Some(name), Some(bio), Some(buttons)) = (rows.name, rows.bio, rows.buttons) {
-            self.classic_fields(&place, name, bio, &mut hint);
+        if let (Some(bio), Some(buttons)) = (rows.bio, rows.buttons) {
+            self.classic_bio(&place, bio, &mut hint);
             self.classic_buttons(&place, buttons, &mut hint);
         }
         if let Some(message) = rows.message
@@ -248,7 +244,7 @@ impl Panel {
         }
         if hovered {
             *hint = Some(
-                "Share your name and the server you play on with the SJK hub, or switch it all off.",
+                "Share your in-game name and the server you play on with the SJK hub, or switch it all off.",
             );
         }
         let [x, y, width, height] = row;
@@ -275,39 +271,20 @@ impl Panel {
         self.ui.hit_region(TOGGLE_TOKEN, place.rect(row));
     }
 
-    /// The name and bio fields, retail list boxes with their label at the left.
-    fn classic_fields(
-        &mut self,
-        place: &Placement,
-        name: [f32; 4],
-        bio: [f32; 4],
-        hint: &mut Option<&'static str>,
-    ) {
-        let name_text = std::mem::take(&mut self.name);
+    /// The optional bio field, a retail list box with its label at the left.
+    fn classic_bio(&mut self, place: &Placement, bio: [f32; 4], hint: &mut Option<&'static str>) {
         let bio_text = std::mem::take(&mut self.bio);
-        for (label, row, token, text, prompt, focus, help) in [
-            (
-                "Name",
-                name,
-                NAME_TOKEN,
-                &name_text,
-                "Your name",
-                Focus::Name,
-                "The name other SJK players see (24 characters at most). Enter saves.",
-            ),
-            (
-                "About you",
-                bio,
-                BIO_TOKEN,
-                &bio_text,
-                "A few words about you",
-                Focus::Bio,
-                "A few words about you (500 characters at most). Enter saves.",
-            ),
-        ] {
-            self.classic_field(place, label, row, token, text, prompt, focus, help, hint);
-        }
-        self.name = name_text;
+        self.classic_field(
+            place,
+            "About you",
+            bio,
+            BIO_TOKEN,
+            &bio_text,
+            "Optional: a few words about you",
+            Focus::Bio,
+            "A few words about you (optional, 500 characters at most). Enter saves.",
+            hint,
+        );
         self.bio = bio_text;
     }
 
@@ -433,7 +410,7 @@ impl Panel {
             "Save",
             [x, y, 90.0, height],
             focus == Focus::Save,
-            "Send your name and bio to the hub.",
+            "Send your bio to the hub.",
             hint,
         );
         self.classic_button(
@@ -551,7 +528,6 @@ mod tests {
         [
             Some(layout.status),
             Some(layout.toggle),
-            layout.name,
             layout.bio,
             layout.buttons,
             layout.message,
