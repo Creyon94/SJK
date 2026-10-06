@@ -185,6 +185,8 @@ impl GpuState {
                     }
                 }
                 Consumer::Effect => {
+                    // `*` names are weather commands (`CG_ParseWeatherEffect`).
+                    self.weather.refresh_server(game);
                     self.missile_effects.refresh_config_string(index, game);
                     let name = self
                         .map_effects

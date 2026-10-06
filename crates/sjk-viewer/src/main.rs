@@ -180,6 +180,7 @@ mod update;
 mod version_overlay;
 mod weapon_select;
 mod weapon_view;
+mod weather;
 mod wgsl_source;
 mod window_icon;
 mod world_materials;
@@ -278,6 +279,8 @@ struct GpuState {
     sdf_text_pipeline: wgpu::RenderPipeline,
     saber_gpu: saber_gpu::Runtime,
     dust_motes: dust_motes::Runtime,
+    /// The map's rain, snow and mist (`weather.rs`).
+    weather: weather::Runtime,
     geometry: SharedGeometry,
     entity_instance_buffer: wgpu::Buffer,
     actor_instance_buffer: wgpu::Buffer,
@@ -318,7 +321,8 @@ struct GpuState {
     pickup_override_ranges: Vec<entity_materials::OverrideRange>,
     entity_draw_queue: entity_materials::Queue,
     mover_instance_ranges: Vec<Range<u32>>,
-    bsp: Bsp,
+    /// Shared with the weather's cover survey thread.
+    bsp: Arc<Bsp>,
     trace_scratch: TraceScratch,
     entity_lighting: entity_lighting::EntityLighting,
     /// Live player model behind the Player screen.
@@ -912,6 +916,7 @@ impl GpuState {
             frame_target::aa::effects::FORMAT,
         )?;
         let dust_motes = dust_motes::Runtime::new(&device, &camera_layout, context.scene_format());
+        let weather = weather::Runtime::new(active_game_state, &bsp);
         // Every 2D pipeline writes display values through a UNORM view (`ui_target.rs`).
         let ui_format = ui_target::format(format);
         let hud_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -1094,6 +1099,7 @@ impl GpuState {
             sdf_text_pipeline,
             saber_gpu,
             dust_motes,
+            weather,
             geometry,
             entity_instance_buffer,
             actor_instance_buffer,
@@ -1138,7 +1144,7 @@ impl GpuState {
             entity_draw_queue: entity_materials::Queue::new(),
             mover_instance_ranges: Vec::with_capacity(bsp.render().models().len()),
             crosshair_scan: crosshair_scan::State::new(&bsp),
-            bsp,
+            bsp: Arc::new(bsp),
             trace_scratch,
             entity_lighting,
             menu_stage: menu_stage::MenuStage::default(),

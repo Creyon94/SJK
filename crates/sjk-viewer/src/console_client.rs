@@ -66,6 +66,7 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
         "Search commands and cvars and edit cvar values (F3 in the console)",
     ),
     (super::debug_panel::COMMAND, super::debug_panel::HELP),
+    (crate::weather::COMMAND, crate::weather::HELP),
     (super::changelog::COMMAND, super::changelog::HELP),
     (super::credits::COMMAND, super::credits::HELP),
     (super::update_panel::COMMAND, super::update_panel::HELP),
@@ -432,6 +433,7 @@ impl crate::GpuState {
                 self.sync_cursor_policy();
             }
             crate::identity_command::COMMAND => return self.identity_command(args),
+            crate::weather::COMMAND => return self.weather_command(args),
             crate::menu::quick_setup::COMMAND => {
                 if let Some(console) = &mut self.console {
                     console.set_open(false);

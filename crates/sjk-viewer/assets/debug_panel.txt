@@ -1604,6 +1604,21 @@ test: Minimise and restore the window: the same.
 test: Mute in background off, alt-tab out: sound keeps playing.
 note: The gain drops without a fade; listen for a click when switching away.
 
+[weather]
+status: personal
+area: Rendering & effects
+title: Weather: rain, snow and mist that stay under open sky
+change: Maps' weather (fx_rain, fx_snow, fx_wind) now draws: streaks, splashes, far rain, mist.
+change: A surveyed cover keeps it under open sky: it stops on roofs, never shows indoors.
+change: r_weather 0/1, r_weatherDensity (1 original, 2 default); r_we <command> adds weather.
+test: devmap t1_rail: heavy slanted rain and streaming mist outside; none inside the train.
+test: Look out of a door or window from inside: rain is cut at the frame, splashes outside.
+test: Stand under an overhang: rain stops at its edge; none falls through the roof.
+test: Any outdoor map: r_we heavyrain, then r_we snow, r_we clear; r_we hail lists commands.
+test: hoth2 (or r_we snow): flakes drift; r_weatherDensity 4 then 0.25 changes the amount.
+note: Never looked at on screen: brightness, splash size and far rain are first guesses.
+note: Optional: JKR_FRAME_BUDGET=1 and compare r_weather 0 and 1 for its cost.
+
 # ---- Merged upstream ----
 
 [actor-instance-cap]
