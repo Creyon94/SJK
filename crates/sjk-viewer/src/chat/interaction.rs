@@ -102,6 +102,12 @@ impl ChatOverlay {
             KeyCode::Enter | KeyCode::NumpadEnter => return self.submit(),
             KeyCode::PageUp | KeyCode::ArrowUp => self.scroll_by(3),
             KeyCode::PageDown | KeyCode::ArrowDown => self.scroll_by(-3),
+            // A note stays a note: it is never turned into chat.
+            KeyCode::Tab
+                if self
+                    .input
+                    .as_ref()
+                    .is_some_and(|i| i.channel == Channel::Note) => {}
             KeyCode::Tab => {
                 let channel = self.input.as_ref().expect("active input").channel;
                 self.activate(if channel == Channel::Global {
@@ -128,6 +134,14 @@ impl ChatOverlay {
     fn submit(&mut self) -> ChatInputResult {
         let input = self.input.as_ref().expect("active input");
         let destination = match input.channel {
+            Channel::Note => {
+                let note = input.text.clone();
+                self.input = None;
+                self.scroll = 0;
+                self.unread = 0;
+                self.notice = "";
+                return ChatInputResult::Note(note);
+            }
             Channel::Global => ChatDestination::Global,
             Channel::Team => ChatDestination::Team,
             Channel::Whisper => {
@@ -255,7 +269,7 @@ impl ChatOverlay {
     pub(super) fn activate(&mut self, token: u16) {
         match token {
             GLOBAL | TEAM => {
-                if let Some(input) = &mut self.input {
+                if let Some(input) = self.input.as_mut().filter(|i| i.channel != Channel::Note) {
                     input.channel = if token == GLOBAL {
                         Channel::Global
                     } else {
@@ -289,12 +303,16 @@ impl crate::GpuState {
         {
             self.chat.update_roster(session.game_state());
         }
-        if let ChatInputResult::Submit(command) = self.chat.handle_key(event) {
-            let command = self.console.as_ref().map_or_else(
-                || command.clone(),
-                |console| console.color_chat_command(&command),
-            );
-            self.send_chat_command(&command);
+        match self.chat.handle_key(event) {
+            ChatInputResult::Submit(command) => {
+                let command = self.console.as_ref().map_or_else(
+                    || command.clone(),
+                    |console| console.color_chat_command(&command),
+                );
+                self.send_chat_command(&command);
+            }
+            ChatInputResult::Note(note) => self.save_world_note(&note),
+            ChatInputResult::None => {}
         }
         self.sync_cursor_policy();
     }

@@ -1415,6 +1415,16 @@ glance at the scoreboard would not: no health, Force or position.
   screen), and a second press hides it; it also drops when the player leaves or the map
   changes. After hiding it, the card does not return until the crosshair leaves that
   player. Behind you, the card is not drawn but stays pinned.
+- World notes (SJK): with no card pinned and no player under the crosshair, `inspect`
+  selects the world surface under the crosshair, or the mover whose bounds the view ray
+  meets first, and names it in a centre print (shader, BSP surface, lightmap or vertex
+  lighting, distance). A second press within 20 seconds opens a note line in the chat
+  composer (amber, `Note:` and the subject; Tab and the channel tabs do not turn it into
+  chat). Enter appends the note to `notes.jsonl` (one JSON object: map, UTC time,
+  `setviewpos`, camera pose, hit point and normal, draw surface, collision flags,
+  nearest map entity, screenshot path) and a readable line to `notes.txt` in the config
+  directory, and takes a silent JPEG of the same view (`note_<unix seconds>.jpg` in the
+  screenshots folder). Escape drops it. [world_notes.rs](../crates/sjk-viewer/src/world_notes.rs).
 - The crosshair scan that names players under the crosshair finds the target. The card
   is anchored in the world beside the top of the player's box (the box height the server
   sends, as the nameplates use), a body width clear of them in screen pixels, so it

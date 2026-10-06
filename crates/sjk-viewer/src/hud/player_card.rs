@@ -397,6 +397,11 @@ impl State {
         self.delay_ms = (seconds.clamp(0.3, 10.0) * 1_000.0) as i32;
     }
 
+    /// A card is pinned: the next `inspect` unpins it.
+    pub(crate) fn pinned(&self) -> bool {
+        self.pin.target().is_some()
+    }
+
     /// `inspect`: pin the card to the player under the crosshair, or unpin it.
     pub(crate) fn inspect(&mut self) {
         self.pin.request();

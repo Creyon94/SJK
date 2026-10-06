@@ -185,6 +185,7 @@ mod weather;
 mod wgsl_source;
 mod window_icon;
 mod world_materials;
+mod world_notes;
 mod world_props;
 mod world_stage;
 use actor_instance::ActorInstance;
@@ -327,6 +328,8 @@ struct GpuState {
     /// Shared with the weather's cover survey thread.
     bsp: Arc<Bsp>,
     trace_scratch: TraceScratch,
+    /// `inspect` on the world: the selection and the note being written.
+    world_notes: world_notes::Notes,
     entity_lighting: entity_lighting::EntityLighting,
     /// Live player model behind the Player screen.
     menu_stage: menu_stage::MenuStage,
@@ -1150,6 +1153,7 @@ impl GpuState {
             crosshair_scan: crosshair_scan::State::new(&bsp),
             bsp: Arc::new(bsp),
             trace_scratch,
+            world_notes: world_notes::Notes::default(),
             entity_lighting,
             menu_stage: menu_stage::MenuStage::default(),
             clientinfo_watch: clientinfo_refresh::ClientInfoWatch::new(),
