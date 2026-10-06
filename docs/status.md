@@ -524,6 +524,26 @@ host behind HTTPS; behaviour when the hub's clock and the client's differ by mor
 than a minute outside the retry; a Linux build. Not built: a main-menu entry, the
 confirmed badge from SJK's own server, assets, music, video and chat.
 
+## Player card and scoreboard emblem (SJK)
+
+SJK-only branch `personal/player-card` (06/10/2026, based on `663083b`): looking at
+a player with a steady view for `cg_playerCardDelay` seconds shows a card beside
+their head (name, model, saber hilts and blade colours, duel record or bot skill,
+and for hub players SJK's emblem, hub name and VERIFIED), and the scoreboard marks
+hub players with SJK's emblem instead of text; see [client.md](client.md#player-card).
+The emblem is one more cell of the UI icon atlas, uploaded at start.
+
+Verified: unit tests for the dwell rules (steady look, a turn restarting the wait,
+a forgiven 0.3 s gap, a clock that goes back), the card's content from real
+player-string shapes (cosmetic text after the colour digit, dual sabers, duels,
+bots, hub fields), placement near the screen edges and the emblem's position on a
+scoreboard row; the sjk-viewer tests pass. The off-screen snapshots
+(`menu_snapshot`, `player-card-*`) drew the card for a verified, a registered, a
+plain and an edge-of-screen player; that drawing is an approximation of the
+renderer (flat corners, one font). Not verified: the card and the emblem in the
+running client (no game was started), their scaling at 4K, the target tracking on
+a live server and demos. Not built: the hub bio on the card.
+
 ## Alt codes (SJK)
 
 SJK-only branch `personal/alt-codes` (2026-10-05, based on `2696590`) types

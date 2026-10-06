@@ -1607,6 +1607,7 @@ impl GpuState {
         let layers = [
             information_visible.then(|| &self.hud.nameplate.list),
             information_visible.then(|| &self.hud.identification.list),
+            information_visible.then(|| &self.hud.card.list),
             information_visible.then(|| self.hud.draw_list()),
             chat_visible.then(|| self.chat.draw_list()),
             scoreboard_visible.then(|| self.scoreboard.draw_list()),

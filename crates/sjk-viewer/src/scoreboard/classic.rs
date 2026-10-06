@@ -701,27 +701,25 @@ impl RowDraw<'_> {
         let name_size = frame.text(MEDIUM_CAP * 0.9 * scale);
         let number_size = frame.text(SMALL_CAP * scale);
         let text_rect = |x: f32, width: f32| frame.rect(x, y, width, line + 2.0);
+        let name_rect = text_rect(name_x, self.columns.score - name_x - 8.0);
+        let name_rect = if let Some(tag) = row.identity {
+            let side = frame.height(line.min(18.0));
+            let _ = ui
+                .draw_list_mut()
+                .push(super::identity_mark::logo(name_rect, side, tag));
+            super::identity_mark::narrowed(name_rect, side)
+        } else {
+            name_rect
+        };
         ui.text_aligned(
             &row.name,
-            text_rect(name_x, self.columns.score - name_x - 8.0),
+            name_rect,
             name_size,
             WHITE,
             FontWeight::Semibold,
             0.0,
             TextAlign::Start,
         );
-        if let Some(tag) = row.identity {
-            let (label, mark_color) = super::identity_mark::mark(tag);
-            ui.text_aligned(
-                label,
-                text_rect(name_x, self.columns.score - name_x - 8.0),
-                number_size,
-                mark_color,
-                FontWeight::Semibold,
-                0.0,
-                TextAlign::End,
-            );
-        }
         let numbers = |ui: &mut MenuCanvas, args: std::fmt::Arguments<'_>, x: f32, color: Color| {
             ui.text_fmt_aligned(
                 args,

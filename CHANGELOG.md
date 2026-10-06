@@ -33,6 +33,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - A duel challenge from a player whose name has a symbol such as the multiplication sign no longer crashes the client, and the name shows that symbol instead of `?` _(Creyon)_
 - `flipkick`: one press starts a run of jump taps for JA+ flip kicks (`cg_fkDuration`, `cg_fkFirstJumpDuration`, `cg_fkSecondJumpDelay`; bindable in Controls > Movement) _(Sol, after JoF EJK)_
 - Player identity: SJK keeps an identity key and, once a hub address is set (`cl_hubUrl`), marks players the hub knows as `SJK` or gold `VERIFIED` on the scoreboard; the Identity page (the in-game SJK menu or the `identity` command) shows your profile and who is known on the server _(Sol)_
+- Player card: look at a player with a steady view for 1.5 seconds (`cg_playerCard`, `cg_playerCardDelay`) and a card beside them shows their model, sabers and duel record, and for SJK hub players the SJK emblem, hub name and a gold VERIFIED; the scoreboard marks hub players with the emblem too _(Sol)_
 
 ## 2026.1005.1 (Alpha) | 05/10/2026
 

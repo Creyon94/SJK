@@ -1309,6 +1309,20 @@ test: Switch to a saber: the ammo arc hides and the saber style shows in the rea
 test: Try cg_hudScale 0.7 and 1.5 and a wide window: arcs stay centred on the crosshair.
 note: Never started in a game yet.
 
+[player-card]
+status: personal
+area: HUD
+title: Player card beside a player you look at, and the SJK emblem on the scoreboard
+change: A steady look at a player for 1.5 s (cg_playerCardDelay) shows a card beside their head.
+change: It lists model, saber hilts and colours, duel record; hub players add emblem and name.
+change: The scoreboard marks hub players with the SJK emblem (gold when verified).
+test: Join a server, aim at a player and keep the view still: the card fades in beside them.
+test: Turn the view or look away for a moment: the card fades out; aim again to restart the wait.
+test: Set cg_playerCard 0, then 1; try cg_playerCardDelay 0.5 and 3 (Settings > HUD+).
+test: Check it at 4K / 150% and near the right screen edge (the card flips to the left).
+test: With the local hub and cl_hubUrl set, your own scoreboard row shows the gold SJK emblem.
+note: Never started in a game yet: only off-screen renders were checked, not the live layout.
+
 # ---- Merged upstream ----
 
 [jkr-vehicles]

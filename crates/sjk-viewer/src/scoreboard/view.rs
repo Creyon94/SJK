@@ -151,18 +151,21 @@ fn player_row(ui: &mut MenuCanvas, row: &ScoreRow, local: u16, rect: Rect, s: f3
     } else {
         theme.foreground
     };
-    ui.text(&row.name, name, 22.0 * s, color, FontWeight::Regular, 0.0);
     if let Some(tag) = row.identity {
-        let (label, mark_color) = super::identity_mark::mark(tag);
-        ui.text_aligned(
-            label,
-            name,
-            13.0 * s,
-            mark_color,
-            FontWeight::Semibold,
-            1.0 * s,
-            TextAlign::End,
+        let side = 22.0 * s;
+        let _ = ui
+            .draw_list_mut()
+            .push(super::identity_mark::logo(name, side, tag));
+        ui.text(
+            &row.name,
+            super::identity_mark::narrowed(name, side),
+            22.0 * s,
+            color,
+            FontWeight::Regular,
+            0.0,
         );
+    } else {
+        ui.text(&row.name, name, 22.0 * s, color, FontWeight::Regular, 0.0);
     }
     for (value, target) in [(row.score, score), (row.ping, ping), (row.time, time)] {
         if target == score

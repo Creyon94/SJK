@@ -34,6 +34,9 @@ pub(crate) fn append(
     gpu.hud
         .identification
         .append(&gpu.chat, &mut gpu.text_vertices, &gpu.ui_font, viewport);
+    gpu.hud
+        .card
+        .append(&mut gpu.text_vertices, &gpu.ui_font, viewport);
     if classic && let Some(font) = &gpu.classic_hud_font {
         gpu.hud.append(
             &mut gpu.game_fonts,
@@ -121,6 +124,7 @@ pub(crate) fn update(
         });
     gpu.hud.identification.sample(gpu.console.as_ref());
     gpu.hud.nameplate.sample(gpu.console.as_ref());
+    gpu.hud.card.sample(gpu.console.as_ref());
     // Nameplate text is in the classic stream, which draws over the menus' text.
     let plates_hidden = labels_hidden
         || gpu.game_menu
@@ -215,6 +219,16 @@ pub(crate) fn update(
         } else {
             None
         };
+        gpu.hud.card.update(hud::player_card::Input {
+            seen: gpu.crosshair_scan.hit_now(presentation_time),
+            game: session.game_state(),
+            world: &gpu.live_world,
+            now: presentation_time,
+            camera,
+            hidden: plates_hidden,
+            hub: &player_identity::hub_info,
+            hub_revision: player_identity::revision(),
+        });
         gpu.hud.update(
             session,
             &gpu.localization,
@@ -309,6 +323,16 @@ pub(crate) fn update(
         } else {
             None
         };
+        gpu.hud.card.update(hud::player_card::Input {
+            seen: gpu.crosshair_scan.hit_now(presentation_time),
+            game: session.game_state(),
+            world: session.world(),
+            now: presentation_time,
+            camera,
+            hidden: plates_hidden,
+            hub: &player_identity::hub_info,
+            hub_revision: player_identity::revision(),
+        });
         gpu.hud
             .update_player(&snapshot.player, presentation_time.max(0) as u64);
         gpu.hud.update_demo_votes(
@@ -344,6 +368,7 @@ pub(crate) fn update(
         } else {
             gpu.hud.identification.list.clear();
             gpu.hud.nameplate.clear();
+            gpu.hud.card.clear();
         }
     }
     if let Some(game) = game {

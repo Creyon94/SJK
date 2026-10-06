@@ -52,6 +52,12 @@ impl State {
         }
     }
 
+    /// The player the crosshair is on this frame, with no retention: the one
+    /// the last [`State::scan`] at `now` found.
+    pub(crate) fn hit_now(&self, now: i32) -> Option<u16> {
+        self.client.filter(|_| self.acquired_at == now)
+    }
+
     /// Stock `CG_CrosshairPlayer` retains a target for at most one second.
     pub(crate) fn chat_client(&self, now: i32) -> Option<u16> {
         self.client
