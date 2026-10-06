@@ -1354,8 +1354,10 @@ Branch `personal/radial-shadow` (2026-10-06, based on `787cdbb`) fixes what that
 the pills were painted over the bars (widgets paint in document order) and now come first,
 and the per-segment outlines became one rounded shadow band per meter that follows its curve
 (`arc_span` gives the span). `menu_snapshot` now draws rounded rectangles with their corner
-radius, so its renders show the pills as the renderer draws them. Not verified: the layout
-in a running client.
+radius, so its renders show the pills as the renderer draws them. Branch
+`personal/radial-thick` then widens the band to a 7 px margin round the 7 px bars (it was 4),
+a clear outline, and moves the numbers and pills outwards to keep their clearance from it.
+Not verified: the layout in a running client.
 
 ## HUD picker (SJK)
 
