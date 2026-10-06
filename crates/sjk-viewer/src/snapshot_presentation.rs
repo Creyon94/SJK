@@ -30,6 +30,8 @@ pub(crate) struct Sinks<'a> {
     pub(crate) previous_particle_events: &'a mut HashMap<u16, u16>,
     pub(crate) muzzle_effects: &'a mut sjk_client::LegacyMuzzleEffects,
     pub(crate) force_overlays: &'a mut sjk_client::LegacyForceOverlayTracker,
+    /// The nameplates' Force, health and shield estimates.
+    pub(crate) nameplate: &'a mut hud::nameplate::State,
     pub(crate) obituaries: &'a mut sjk_client::ObituaryTracker,
     pub(crate) lagometer: &'a mut sjk_client::LagometerSamples,
     pub(crate) console: &'a mut Option<console::ViewerConsole>,
@@ -87,6 +89,7 @@ pub(crate) fn observe(
     );
     sinks.muzzle_effects.observe(snapshot);
     sinks.force_overlays.observe_snapshot(snapshot);
+    sinks.nameplate.observe_snapshot(snapshot, game_state);
     let obituary_before = sinks.obituaries.decoded();
     sinks.obituaries.observe(snapshot, game_state);
     let obituary_count = sinks.obituaries.decoded() - obituary_before;
@@ -221,6 +224,7 @@ impl GpuState {
                     previous_particle_events: &mut self.previous_particle_events,
                     muzzle_effects: &mut self.muzzle_effects,
                     force_overlays: &mut self.force_overlays,
+                    nameplate: &mut self.hud.nameplate,
                     obituaries: &mut self.obituaries,
                     lagometer: &mut self.lagometer,
                     console: &mut self.console,
@@ -313,6 +317,7 @@ impl GpuState {
                     previous_particle_events: &mut self.previous_particle_events,
                     muzzle_effects: &mut self.muzzle_effects,
                     force_overlays: &mut self.force_overlays,
+                    nameplate: &mut self.hud.nameplate,
                     obituaries: &mut self.obituaries,
                     lagometer: &mut self.lagometer,
                     console: &mut self.console,

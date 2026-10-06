@@ -106,6 +106,8 @@ impl Group {
                 "cg_nameplateScale",
                 "cg_nameplateBars",
                 "cg_nameplateForce",
+                "cg_nameplatePredict",
+                "cg_nameplateWeapon",
                 "cg_nameplateIcons",
                 "cg_nameplateWalls",
                 "cg_nameplateNpcs",

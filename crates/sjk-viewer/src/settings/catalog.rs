@@ -322,6 +322,16 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Health estimate",
+        cvar: "cg_nameplatePredict",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Weapon icon",
+        cvar: "cg_nameplateWeapon",
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Plates through walls",
         cvar: "cg_nameplateWalls",
         kind: ValueKind::Bool,

@@ -1261,6 +1261,21 @@ test: Up close, a player using Protect, Speed or Lightning shows its icon over t
 test: cg_nameplateWalls 1 behind a wall; cg_nameplateNpcs 1 with NPCs; open a menu: plates hide.
 note: Never started in a game yet: font size, plate layout and the FP estimate are unchecked.
 
+[nameplate-predict]
+status: personal
+area: HUD
+title: Nameplates: estimated health and shield, an uncertainty haze, HUD Force colour, weapon icon
+change: Enemy health and shield are estimated from spawns, pains, shield/saber hits, falls, pickups.
+change: Each estimated bar shows its uncertainty as a grey haze around the bar's edge.
+change: Force bar in the HUD's Force colour; weapon icon left of the plate, saber ringed by stance.
+test: Local server with a bot, cg_nameplateBars 2: the bot's plate has health and shield bars.
+test: Hit the bot with a saber: health snaps to its real value at each pain (cg_nameplateDebug 1).
+test: Light hits and idle: the haze widens, then narrows; a fresh spawn shows 125 health, 25 shield.
+test: Change cg_hudStyle (radial, classic, modern, game): the Force bar follows the HUD's colour.
+test: The bot switches weapon or stance: the icon follows; a saber's ring is blue/yellow/red.
+test: Log line "pain events" says Honest once you were hit; Masked on a g_stopHealthESP server.
+note: Never started in a game: estimates only unit-tested on synthetic snapshots.
+
 [protect-absorb-combo]
 status: personal
 area: Rendering & effects

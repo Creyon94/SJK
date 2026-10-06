@@ -71,8 +71,14 @@ pub(super) fn health_color(ratio: f32) -> Color {
 
 /// Shield (armour) bar fill.
 pub(super) const SHIELD_COLOR: Color = Color::new(0.35, 0.65, 1.0, 1.0);
-/// Estimated Force bar fill; drawn thinner and see-through, and outlined.
-pub(super) const FORCE_COLOR: Color = Color::new(0.7, 0.45, 1.0, 0.8);
+/// Force bar fill until the HUD in use names its own: the retail HUD's light blue.
+pub(super) const FORCE_COLOR: Color = Color::new(0.36, 0.7, 1.0, 1.0);
+
+/// `color` mixed `share` of the way to white, at opacity `alpha`: a bar's outline.
+pub(super) fn lighter(color: Color, share: f32, alpha: f32) -> Color {
+    let mix = |channel: f32| channel + (1.0 - channel) * share.clamp(0.0, 1.0);
+    Color::new(mix(color.r), mix(color.g), mix(color.b), alpha)
+}
 
 /// Which bars a plate holds.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -206,6 +212,13 @@ mod tests {
         assert!(full.g > full.r);
         assert!(half.r > 0.9 && half.g > 0.9);
         assert!(low.r > low.g);
+    }
+
+    #[test]
+    fn outlines_are_a_lighter_shade() {
+        let outline = lighter(Color::new(0.2, 0.4, 1.0, 1.0), 0.5, 0.75);
+        assert!((outline.r - 0.6).abs() < 1e-5 && (outline.g - 0.7).abs() < 1e-5);
+        assert_eq!((outline.b, outline.a), (1.0, 0.75));
     }
 
     #[test]

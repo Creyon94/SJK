@@ -4,6 +4,7 @@ mod data_source;
 use data_source::*;
 pub(crate) mod crosshair;
 pub(crate) mod enemy_info;
+mod estimate;
 pub(crate) mod family;
 mod force_estimate;
 pub(crate) mod force_wheel;
@@ -23,6 +24,7 @@ pub(crate) mod targeting;
 mod text_values;
 pub(crate) mod tints;
 mod update;
+mod vitals_estimate;
 mod vote;
 mod widgets;
 
@@ -368,6 +370,14 @@ impl HudOverlay {
                 .unwrap_or(&self.default_document),
             HudLook::Modern => &self.classic_document,
         };
+        // The nameplates' Force bar wears this HUD's Force colour.
+        self.nameplate.set_force_color(
+            document
+                .widgets
+                .iter()
+                .find(|widget| widget.binding.as_deref() == Some("force_ratio"))
+                .and_then(|widget| widget.style.foreground),
+        );
         let data = WidgetData {
             visibility,
             ratios: self.displayed_ratios,
