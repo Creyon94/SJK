@@ -1034,7 +1034,9 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   before, from the rendered eye; changes ease over 120 ms), and `cg_nameplateNpcs`
   adds NPC plates (class name, health; at most 16; vehicles skipped).
 - `cg_nameplateDebug` logs, every two seconds, what the server sends about each other
-  player (health, `tinfo`, active powers, the Force estimate) to `logs\last-client.log`.
+  player (health, `tinfo`, active powers, the Force estimate) to `logs\last-client.log`,
+  with the regen pace in use and where it came from, the server's Force-related info
+  keys, and your own real Force next to the estimate for yourself.
 - While a menu is open the plates hide: their text is in the classic stream, which
   draws over the menus' text.
 
@@ -1051,8 +1053,9 @@ Where the numbers come from, and what is not known:
 - **Force** is never sent for other players, so it is estimated
   ([force_estimate.rs](../crates/sjk-viewer/src/hud/force_estimate.rs)) from their
   entity state with the server's own rules: a full pool at spawn, a point per
-  `g_forceRegenTime` (200 ms unless the server's info string carries it; six times
-  as fast with the boon) while no power but drain is on and no saber is thrown, the
+  regen pace (measured from your own pool while you idle, which the server does send,
+  else `g_forceRegenTime` from the server's info string, else 200 ms; six times as
+  fast with the boon) while no power but drain is on and no saber is thrown or in a special move, the
   price of each power when it switches on (level 3 prices; the level is not sent),
   protect, absorb, grip and lightning running costs, half a level-3 price per force
   jump, and push, pull and saber throw at their price. It misses being drained,

@@ -6,13 +6,14 @@
 //! their colour codes; the layout maths is in [`super::nameplate_math`] and the
 //! Force estimate in [`super::force_estimate`]. The plain TaystJK names stay in
 //! [`super::identification`] (`cg_drawPlayerNames`); a nameplate replaces them.
-use super::force_estimate::{self, Estimator};
+use super::force_estimate::{self, Calibration, Estimator};
 use super::identification::{Camera, friend_icon, info_number, unoccluded};
 use super::nameplate_math::{self as math, Rows, Stack};
 use crate::{TextVertex, UiFont, chat::ChatOverlay, console::ViewerConsole};
 use glam::Vec3;
 use sjk_bsp::{Aabb, Bsp, TraceScratch};
 use sjk_client::TeamInfoTable;
+use sjk_game_jka::force_powers::FP_DRAIN;
 use sjk_protocol::{GameState, Snapshot};
 use sjk_shell::{CvarDefinition, CvarFlags, CvarRegistry};
 use sjk_ui::{Color, DrawCommand, DrawList, FontWeight, Rect, TextAlign, TextId, TextOverflow};
@@ -26,6 +27,8 @@ const EF_DEAD: u32 = 2;
 const PW_FORCE_BOON: u32 = 14;
 /// `GT_JEDIMASTER` and the first team game type.
 const GT_JEDIMASTER: i32 = 2;
+/// `WP_SABER`.
+const WP_SABER: u8 = 3;
 const GT_TEAM: i32 = 6;
 /// Tags drawn at most: every client slot, plus a bounded number of NPCs.
 const MAX_PLAYER_TAGS: usize = 32;
@@ -192,6 +195,9 @@ pub(crate) struct State {
     last_update: i64,
     last_debug: i64,
     force: Estimator,
+    calibration: Calibration,
+    /// Where the Force regeneration pace came from, for the debug log.
+    regen_source: &'static str,
 }
 
 impl Default for State {
@@ -204,6 +210,8 @@ impl Default for State {
             last_update: 0,
             last_debug: 0,
             force: Estimator::default(),
+            calibration: Calibration::default(),
+            regen_source: "default",
         }
     }
 }
@@ -279,11 +287,11 @@ impl State {
         let mode = info_number(game.config_string(0), "g_gametype");
         let local = snapshot.player.client_num();
         if settings.force && settings.bars != 0 {
-            self.observe_force(snapshot, game, mode, local);
+            self.observe_force(snapshot, game, mode);
         }
         if settings.debug && now - self.last_debug >= 2_000 {
             self.last_debug = now;
-            self.log_players(snapshot, team_info);
+            self.log_players(snapshot, game, team_info);
         }
         if hidden {
             return;
@@ -426,10 +434,38 @@ impl State {
 
     /// `cg_nameplateDebug`: what the server sends about each other player, to
     /// settle whether enemy health reaches the client.
-    fn log_players(&self, snapshot: &Snapshot, team_info: &TeamInfoTable) {
+    fn log_players(&self, snapshot: &Snapshot, game: &GameState, team_info: &TeamInfoTable) {
+        let force_keys: Vec<String> = game
+            .config_string(0)
+            .map(|info| {
+                String::from_utf8_lossy(info)
+                    .trim_start_matches('\\')
+                    .split('\\')
+                    .collect::<Vec<_>>()
+                    .chunks(2)
+                    .filter(|pair| {
+                        let key = pair[0].to_ascii_lowercase();
+                        key.contains("force") || key.contains("regen")
+                    })
+                    .map(|pair| pair.join("="))
+                    .collect()
+            })
+            .unwrap_or_default();
+        eprintln!(
+            "nameplate: regen pace {:.0} ms/point ({}; measured {:?}), server info force keys {force_keys:?}",
+            self.force.regen_millis(),
+            self.regen_source,
+            self.calibration.millis_per_point().map(f32::round),
+        );
+        let local = snapshot.player.client_num();
+        eprintln!(
+            "nameplate: own Force actual {} estimated {:?}",
+            snapshot.player.force_power(),
+            self.force.ratio(local).map(|r| (r * 100.0).round()),
+        );
         for entity in &snapshot.entities {
             let number = entity.number();
-            if entity.entity_type() != ET_PLAYER || number >= 32 {
+            if entity.entity_type() != ET_PLAYER || number >= 32 || number == local {
                 continue;
             }
             let team = team_info
@@ -447,16 +483,42 @@ impl State {
         }
     }
 
-    /// Feed every other player's Force use to the estimator, shown or not.
-    fn observe_force(&mut self, snapshot: &Snapshot, game: &GameState, mode: i32, local: u16) {
-        self.force.set_regen_millis(
-            game.config_string(0)
-                .and_then(|b| sjk_client::LegacyClientInfo::new(b).integer("g_forceRegenTime"))
-                .map(|millis| millis as f32),
+    /// Feed every player's Force use to the estimator, shown or not, and
+    /// measure the server's regeneration pace from the local player's own pool.
+    ///
+    /// The local player is tracked too, but never shown: its estimate is
+    /// compared with its real pool in the `cg_nameplateDebug` log.
+    fn observe_force(&mut self, snapshot: &Snapshot, game: &GameState, mode: i32) {
+        let time = snapshot.server_time;
+        let player = &snapshot.player;
+        let boon = player.powerup_active(PW_FORCE_BOON as usize, time);
+        let master = mode == GT_JEDIMASTER && player.is_jedi_master();
+        self.calibration.observe(
+            time,
+            i32::from(player.force_power()),
+            player.force_powers_active() & !(1 << FP_DRAIN) == 0
+                && !player.saber_in_flight()
+                && !(player.weapon() == WP_SABER
+                    && sjk_game_jka::saber_rules::in_special(player.saber_move()))
+                && !boon
+                && !master,
         );
+        let info = game
+            .config_string(0)
+            .and_then(|b| sjk_client::LegacyClientInfo::new(b).integer("g_forceRegenTime"))
+            .map(|millis| millis as f32);
+        let measured = self.calibration.millis_per_point();
+        self.regen_source = if measured.is_some() {
+            "measured"
+        } else if info.is_some() {
+            "serverinfo"
+        } else {
+            "default"
+        };
+        self.force.set_regen_millis(measured.or(info));
         for entity in &snapshot.entities {
             let number = entity.number();
-            if entity.entity_type() != ET_PLAYER || number >= 32 || number == local {
+            if entity.entity_type() != ET_PLAYER || number >= 32 {
                 continue;
             }
             let regen_multiplier = if entity.powerups() & (1 << PW_FORCE_BOON) != 0 {
@@ -469,10 +531,12 @@ impl State {
             self.force.observe(
                 number,
                 force_estimate::Observation {
-                    time: snapshot.server_time,
+                    time,
                     active: entity.force_powers_active(),
                     torso_animation: entity.torso_animation(),
                     saber_in_flight: entity.saber_in_flight(),
+                    saber_special: entity.weapon() == WP_SABER
+                        && sjk_game_jka::saber_rules::in_special(entity.saber_move()),
                     regen_multiplier,
                     dead: entity.e_flags() & EF_DEAD != 0,
                 },
