@@ -214,7 +214,15 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         "cg_nameplateForce",
-        "Force bar under the name, estimated from the powers the player uses.",
+        "Force bar under the name, estimated from the powers the player uses. The grey haze shows how unsure the estimate is.",
+    ),
+    (
+        "cg_nameplatePredict",
+        "Health and shield of other players, estimated from their hits and pains; grey haze: how unsure.",
+    ),
+    (
+        "cg_nameplateWeapon",
+        "The weapon a player holds, left of the nameplate. A saber is ringed in its stance's colour.",
     ),
     (
         "cg_nameplateIcons",

@@ -1,14 +1,20 @@
 //! MMO-style nameplates over players (and, optionally, NPCs).
 //!
 //! Far away a player shows only a small, dim name. Closer, the name rises and a
-//! framed plate fades in beneath it with health, shield and estimated Force bars.
+//! framed plate fades in beneath it with health, shield and Force bars, and the
+//! weapon the player holds beside it, haloed in the saber stance's colour.
 //! Names come from the chat roster and are drawn in the classic HUD font with
-//! their colour codes; the layout maths is in [`super::nameplate_math`] and the
-//! Force estimate in [`super::force_estimate`]. The plain TaystJK names stay in
-//! [`super::identification`] (`cg_drawPlayerNames`); a nameplate replaces them.
+//! their colour codes; the layout maths is in [`super::nameplate_math`]. What the
+//! server does not send is estimated, once per snapshot: Force in
+//! [`super::force_estimate`], health and shield in [`super::vitals_estimate`],
+//! each as a range whose uncertainty the bar shows as a grey haze. The plain
+//! TaystJK names stay in [`super::identification`] (`cg_drawPlayerNames`); a
+//! nameplate replaces them.
+use super::estimate::Range;
 use super::force_estimate::{self, Calibration, Estimator};
 use super::identification::{Camera, friend_icon, info_number, unoccluded};
 use super::nameplate_math::{self as math, Rows, Stack};
+use super::vitals_estimate;
 use crate::{TextVertex, UiFont, chat::ChatOverlay, console::ViewerConsole};
 use glam::Vec3;
 use sjk_bsp::{Aabb, Bsp, TraceScratch};
@@ -17,7 +23,8 @@ use sjk_game_jka::force_powers::FP_DRAIN;
 use sjk_protocol::{GameState, Snapshot};
 use sjk_shell::{CvarDefinition, CvarFlags, CvarRegistry};
 use sjk_ui::{
-    Color, DrawCommand, DrawList, FontWeight, Rect, TextAlign, TextId, TextOverflow, TextureId,
+    Color, DrawCommand, DrawList, FontWeight, Gradient, Rect, TextAlign, TextId, TextOverflow,
+    TextureId,
 };
 
 /// Text ids below this are player slots; above it, `NPC_TEXT + class_t`.
@@ -60,6 +67,16 @@ const ICON_POWERS: [u8; 11] = [7, 6, 13, 8, 9, 10, 2, 0, 12, 5, 14];
 const NEUTRAL_ACCENT: Color = Color::new(0.78, 0.82, 0.9, 0.9);
 /// Frame colour of NPC plates.
 const NPC_ACCENT: Color = Color::new(0.95, 0.8, 0.35, 0.9);
+/// The grey haze over a bar's uncertain stretch, at its thickest.
+const HAZE: Color = Color::new(0.8, 0.82, 0.86, 0.6);
+/// A range narrower than this share of the bar is drawn sharp.
+const HAZE_MIN_WIDTH: f32 = 0.02;
+/// Backdrop of the power and weapon icons.
+const ICON_BACKDROP: Color = Color::new(0.03, 0.04, 0.06, 0.55);
+/// Halo opacity of a holstered saber, as a share of a lit one's.
+const HOLSTERED_HALO: f32 = 0.4;
+/// `WP_NONE`.
+const WP_NONE: u8 = 0;
 
 /// Register the nameplate settings.
 pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarError> {
@@ -100,6 +117,18 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         "Nameplate Force bar, estimated from the player's powers",
     ))?;
     cvars.register(CvarDefinition::new(
+        "cg_nameplatePredict",
+        true,
+        CvarFlags::ARCHIVE,
+        "Estimate the health and shield the server does not send, from the hits, pains and pickups it does",
+    ))?;
+    cvars.register(CvarDefinition::new(
+        "cg_nameplateWeapon",
+        true,
+        CvarFlags::ARCHIVE,
+        "Icon of the weapon a player holds beside the nameplate, a saber's haloed in its stance's colour",
+    ))?;
+    cvars.register(CvarDefinition::new(
         "cg_nameplateIcons",
         true,
         CvarFlags::ARCHIVE,
@@ -135,6 +164,8 @@ struct Settings {
     scale: f32,
     bars: i64,
     force: bool,
+    predict: bool,
+    weapon: bool,
     walls: bool,
     npcs: bool,
     icons: bool,
@@ -151,6 +182,8 @@ impl Default for Settings {
             scale: 0.5,
             bars: 2,
             force: true,
+            predict: true,
+            weapon: true,
             walls: false,
             npcs: false,
             icons: true,
@@ -181,9 +214,15 @@ struct Entry {
     /// Force powers to show icons for (`forcePowers_t` indices), `power_count` of them.
     powers: [u8; MAX_ICONS],
     power_count: u8,
-    health: Option<f32>,
-    shield: Option<f32>,
-    force: Option<f32>,
+    /// Shares of a full bar.
+    health: Option<Range>,
+    shield: Option<Range>,
+    force: Option<Range>,
+    /// The weapon held (`WP_NONE` for no icon), the saber style (`fireflag`, which
+    /// carries `fd.saberAnimLevel`) and whether the blade is put away.
+    weapon: u8,
+    style: u8,
+    holstered: bool,
     accent: Color,
     icon: Option<Color>,
     names_allowed: bool,
@@ -219,12 +258,15 @@ pub(crate) struct State {
     calibration: Calibration,
     /// Where the Force regeneration pace came from, for the debug log.
     regen_source: &'static str,
+    vitals: vitals_estimate::Estimator,
+    /// The Force colour of the HUD in use, which the Force bar takes.
+    force_color: Color,
 }
 
 impl Default for State {
     fn default() -> Self {
         Self {
-            list: DrawList::new(MAX_TAGS * 24 + 8),
+            list: DrawList::new(MAX_TAGS * 40 + 8),
             settings: Settings::default(),
             entries: Vec::with_capacity(MAX_TAGS),
             fades: Box::new([Fade::default(); ENTITY_SLOTS]),
@@ -233,6 +275,8 @@ impl Default for State {
             force: Estimator::default(),
             calibration: Calibration::default(),
             regen_source: "default",
+            vitals: vitals_estimate::Estimator::default(),
+            force_color: math::FORCE_COLOR,
         }
     }
 }
@@ -256,6 +300,8 @@ impl State {
                 .and_then(|c| c.integer_cvar("cg_nameplatebars"))
                 .unwrap_or(2),
             force: flag("cg_nameplateforce", true),
+            predict: flag("cg_nameplatepredict", true),
+            weapon: flag("cg_nameplateweapon", true),
             walls: flag("cg_nameplatewalls", false),
             npcs: flag("cg_nameplatenpcs", false),
             icons: flag("cg_nameplateicons", true),
@@ -267,6 +313,26 @@ impl State {
     /// Whether nameplates replace the plain overhead names.
     pub(crate) fn enabled(&self) -> bool {
         self.settings.enabled
+    }
+
+    /// Take the Force bar's colour from the HUD in use; `None` for one that names
+    /// none (the game-data HUD draws pictures), which gets the retail blue.
+    pub(crate) fn set_force_color(&mut self, color: Option<Color>) {
+        self.force_color = color.unwrap_or(math::FORCE_COLOR);
+    }
+
+    /// Feed one accepted snapshot to the estimates. Every snapshot is observed
+    /// once, in order, whether or not plates are shown, so no event is missed.
+    pub(crate) fn observe_snapshot(&mut self, snapshot: &Snapshot, game: &GameState) {
+        let mode = info_number(game.config_string(0), "g_gametype");
+        self.vitals.observe(snapshot, game, mode);
+        self.observe_force(snapshot, game, mode);
+        let drained = self.vitals.drained();
+        for slot in 0..32_u16 {
+            if drained & (1 << slot) != 0 {
+                self.force.drained(slot);
+            }
+        }
     }
 
     /// Drop every collected plate and drawn shape.
@@ -308,9 +374,6 @@ impl State {
         }
         let mode = info_number(game.config_string(0), "g_gametype");
         let local = snapshot.player.client_num();
-        if settings.force && settings.bars != 0 {
-            self.observe_force(snapshot, game, mode);
-        }
         if settings.debug && now - self.last_debug >= 2_000 {
             self.last_debug = now;
             self.log_players(snapshot, game, team_info);
@@ -411,7 +474,8 @@ impl State {
             }
             let bars = names_allowed && (settings.bars == 2 || (settings.bars == 1 && ally));
             let (health, shield) = if bars {
-                bar_values(entity, number, ally && player, team_info)
+                let predicted = (player && settings.predict).then_some(&self.vitals);
+                bar_values(entity, number, ally && player, team_info, predicted)
             } else {
                 (None, None)
             };
@@ -449,6 +513,13 @@ impl State {
                 health,
                 shield,
                 force,
+                weapon: if player && settings.weapon && names_allowed {
+                    entity.weapon()
+                } else {
+                    WP_NONE
+                },
+                style: entity.fire_flag(),
+                holstered: entity.saber_holstered() != 0,
                 accent,
                 icon,
                 names_allowed,
@@ -482,16 +553,17 @@ impl State {
             })
             .unwrap_or_default();
         eprintln!(
-            "nameplate: regen pace {:.0} ms/point ({}; measured {:?}), server info force keys {force_keys:?}",
+            "nameplate: regen pace {:.0} ms/point ({}; measured {:?}), server info force keys {force_keys:?}, pain events {:?}",
             self.force.regen_millis(),
             self.regen_source,
             self.calibration.millis_per_point().map(f32::round),
+            self.vitals.pain_report(),
         );
         let local = snapshot.player.client_num();
         eprintln!(
-            "nameplate: own Force actual {} estimated {:?}",
+            "nameplate: own Force actual {} estimated {}",
             snapshot.player.force_power(),
-            self.force.ratio(local).map(|r| (r * 100.0).round()),
+            shown(self.force.ratio(local).map(|r| r.map(|v| v * 100.0))),
         );
         for entity in &snapshot.entities {
             let number = entity.number();
@@ -504,11 +576,15 @@ impl State {
                 .find(|row| u16::from(row.client_num) == number)
                 .map(|row| (row.health, row.armor));
             eprintln!(
-                "nameplate: client {number} health {} max {} powers {:#x} fp~{:?} tinfo {team:?}",
+                "nameplate: client {number} health {} max {} hp~{} armor~{} powers {:#x} fp~{} weapon {} style {} tinfo {team:?}",
                 entity.health(),
                 entity.max_health(),
+                shown(self.vitals.health(number)),
+                shown(self.vitals.armor(number)),
                 entity.force_powers_active(),
-                self.force.ratio(number).map(|r| (r * 100.0).round()),
+                shown(self.force.ratio(number).map(|r| r.map(|v| v * 100.0))),
+                entity.weapon(),
+                entity.fire_flag(),
             );
         }
     }
@@ -545,7 +621,8 @@ impl State {
         } else {
             "default"
         };
-        self.force.set_regen_millis(measured.or(info));
+        self.force
+            .set_regen_millis(measured.or(info), measured.is_some());
         for entity in &snapshot.entities {
             let number = entity.number();
             if entity.entity_type() != ET_PLAYER || number >= 32 {
@@ -584,7 +661,13 @@ impl State {
     }
 
     /// Lay the collected plates out as shapes and text commands.
-    fn build(&mut self, chat: &ChatOverlay, icons: &[Option<TextureId>], viewport: [f32; 2]) {
+    fn build(
+        &mut self,
+        chat: &ChatOverlay,
+        icons: &[Option<TextureId>],
+        weapons: &super::icons::Icons,
+        viewport: [f32; 2],
+    ) {
         self.list.clear();
         let unit = crate::ui_scale::height_scale(viewport[1]);
         for index in 0..self.entries.len() {
@@ -635,14 +718,89 @@ impl State {
             if entry.power_count > 0 && entry.proximity > 0.01 {
                 self.power_row(&entry, icons, [x, top], size, u, viewport);
             }
+            // The weapon sits left of the plate, or of where it would be beside the name.
+            let mut weapon_centre = top + line * 0.5;
             if rows.any() && entry.detail > 0.01 {
                 let stack = Stack::new(x, bottom, rows, u, viewport);
+                weapon_centre = stack.frame.y + stack.frame.height * 0.5;
                 let _ = self.list.push(DrawCommand::PushOpacity(entry.detail));
                 self.plate(&entry, &stack, u);
                 let _ = self.list.push(DrawCommand::PopOpacity);
             }
+            if entry.weapon != WP_NONE && entry.proximity > 0.01 {
+                self.weapon_icon(&entry, weapons, [x, weapon_centre], u, viewport);
+            }
             let _ = self.list.push(DrawCommand::PopOpacity);
         }
+    }
+
+    /// The held weapon's icon, centred vertically on `centre_y` left of the plate,
+    /// in a round backdrop; a saber's is ringed and haloed in its stance's colour
+    /// (the Radial HUD's), dimmed while the blade is put away.
+    fn weapon_icon(
+        &mut self,
+        entry: &Entry,
+        weapons: &super::icons::Icons,
+        [x, centre_y]: [f32; 2],
+        u: f32,
+        viewport: [f32; 2],
+    ) {
+        let Some(texture) = weapons.weapon_select(entry.weapon, false, entry.style) else {
+            return;
+        };
+        let side = 22.0 * u;
+        let width = Stack::WIDTH * u;
+        let plate_left = (x - width * 0.5).clamp(0.0, (viewport[0] - width).max(0.0));
+        let rect = Rect::new(
+            (plate_left - 4.0 * u - side).max(0.0),
+            centre_y - side * 0.5,
+            side,
+            side,
+        );
+        let radius = side * 0.5;
+        let halo = (entry.weapon == WP_SABER && entry.style != 0).then(|| {
+            let strength = if entry.holstered { HOLSTERED_HALO } else { 1.0 };
+            (super::radial::saber_style_color(entry.style), strength)
+        });
+        let _ = self.list.push(DrawCommand::PushOpacity(entry.proximity));
+        if let Some((color, strength)) = halo {
+            let grow = 3.0 * u;
+            let _ = self.list.push(DrawCommand::RoundedRect {
+                rect: Rect::new(
+                    rect.x - grow,
+                    rect.y - grow,
+                    side + grow * 2.0,
+                    side + grow * 2.0,
+                ),
+                radius: radius + grow,
+                color: Color::new(color.r, color.g, color.b, 0.3 * strength),
+            });
+        }
+        let _ = self.list.push(DrawCommand::RoundedRect {
+            rect,
+            radius,
+            color: ICON_BACKDROP,
+        });
+        if let Some((color, strength)) = halo {
+            let _ = self.list.push(DrawCommand::Border {
+                rect,
+                radius,
+                width: (1.6 * u).max(1.0),
+                color: Color::new(color.r, color.g, color.b, 0.95 * strength),
+            });
+        }
+        let inset = 3.5 * u;
+        let _ = self.list.push(DrawCommand::TexturedQuad {
+            rect: Rect::new(
+                rect.x + inset,
+                rect.y + inset,
+                side - inset * 2.0,
+                side - inset * 2.0,
+            ),
+            texture,
+            color: Color::new(1.0, 1.0, 1.0, 1.0),
+        });
+        let _ = self.list.push(DrawCommand::PopOpacity);
     }
 
     /// The row of power icons centred over the name, whose top edge is `[x, top]`.
@@ -676,7 +834,7 @@ impl State {
             let _ = self.list.push(DrawCommand::RoundedRect {
                 rect: cell,
                 radius: 3.0 * u,
-                color: Color::new(0.03, 0.04, 0.06, 0.55),
+                color: ICON_BACKDROP,
             });
             let inset = u.max(1.0);
             let _ = self.list.push(DrawCommand::TexturedQuad {
@@ -707,22 +865,23 @@ impl State {
             width: (1.2 * u).max(1.0),
             color: entry.accent,
         });
-        for (bar, ratio, color, outline) in [
+        let force = self.force_color;
+        for (bar, range, color, outline) in [
             (
                 stack.health,
                 entry.health,
-                entry.health.map(math::health_color),
+                entry.health.map(|range| math::health_color(range.best)),
                 None,
             ),
             (stack.shield, entry.shield, Some(math::SHIELD_COLOR), None),
             (
                 stack.force,
                 entry.force,
-                Some(math::FORCE_COLOR),
-                Some(Color::new(0.8, 0.6, 1.0, 0.75)),
+                Some(force),
+                Some(math::lighter(force, 0.4, 0.75)),
             ),
         ] {
-            let (Some(rect), Some(ratio), Some(color)) = (bar, ratio, color) else {
+            let (Some(rect), Some(range), Some(color)) = (bar, range, color) else {
                 continue;
             };
             let radius = rect.height * 0.5;
@@ -731,18 +890,19 @@ impl State {
                 radius,
                 color: Color::new(0.0, 0.0, 0.0, 0.6),
             });
-            if ratio > 0.01 {
+            if range.best > 0.01 {
                 let _ = self.list.push(DrawCommand::RoundedRect {
                     rect: Rect::new(
                         rect.x,
                         rect.y,
-                        (rect.width * ratio).max(rect.height),
+                        (rect.width * range.best).max(rect.height),
                         rect.height,
                     ),
                     radius,
                     color,
                 });
             }
+            self.haze(rect, range);
             let _ = self.list.push(DrawCommand::Border {
                 rect,
                 radius,
@@ -752,17 +912,49 @@ impl State {
         }
     }
 
+    /// The grey haze over the uncertain stretch of a bar: thickest at the guess,
+    /// fading out towards either bound, so the bar's edge looks as blurred as the
+    /// estimate is loose.
+    fn haze(&mut self, rect: Rect, range: Range) {
+        if range.width() < HAZE_MIN_WIDTH {
+            return;
+        }
+        let at = |share: f32| rect.x + rect.width * share;
+        let clear = Color::new(HAZE.r, HAZE.g, HAZE.b, 0.0);
+        let _ = self.list.push(DrawCommand::PushClip(rect));
+        for (from, to, start, end) in [
+            (range.low, range.best, clear, HAZE),
+            (range.best, range.high, HAZE, clear),
+        ] {
+            let width = at(to) - at(from);
+            if width < 0.5 {
+                continue;
+            }
+            let _ = self.list.push(DrawCommand::GradientRect {
+                rect: Rect::new(at(from), rect.y, width, rect.height),
+                radius: 0.0,
+                gradient: Gradient {
+                    start,
+                    end,
+                    vertical: false,
+                },
+            });
+        }
+        let _ = self.list.push(DrawCommand::PopClip);
+    }
+
     /// Build the plates from the existing roster text at submission, never
     /// allocating another name store.
     pub(crate) fn append(
         &mut self,
         chat: &ChatOverlay,
         icons: &[Option<TextureId>],
+        weapons: &super::icons::Icons,
         vertices: &mut Vec<TextVertex>,
         font: &UiFont,
         viewport: [f32; 2],
     ) {
-        self.build(chat, icons, viewport);
+        self.build(chat, icons, weapons, viewport);
         crate::ui_renderer::append_text_commands(
             &self.list,
             |id| label(chat, id),
@@ -790,25 +982,50 @@ fn icon_powers(active: u32) -> ([u8; MAX_ICONS], u8) {
 
 /// Health and shield shares of `entity`: a teammate's from the team overlay
 /// (points out of a full 100), anyone's from the entity state when the server
-/// sends health there.
+/// sends health there, else the `predicted` estimate. A shield known to be empty
+/// gets no bar.
 fn bar_values(
     entity: &sjk_protocol::EntityState,
     number: u16,
     teammate: bool,
     team_info: &TeamInfoTable,
-) -> (Option<f32>, Option<f32>) {
+    predicted: Option<&vitals_estimate::Estimator>,
+) -> (Option<Range>, Option<Range>) {
     if teammate
         && let Some(row) = team_info
             .entries()
             .iter()
             .find(|row| u16::from(row.client_num) == number)
     {
-        let share = |points: i32| (points as f32 / FULL_POINTS).clamp(0.0, 1.0);
+        let share = |points: i32| Range::exact(points as f32).share(FULL_POINTS);
         return (Some(share(row.health)), Some(share(row.armor)));
     }
     let maximum = entity.max_health() as f32;
-    let health = (maximum > 0.0).then(|| (entity.health() as f32 / maximum).clamp(0.0, 1.0));
-    (health, None)
+    if maximum > 0.0 {
+        return (
+            Some(Range::exact(entity.health() as f32).share(maximum)),
+            None,
+        );
+    }
+    let Some(vitals) = predicted else {
+        return (None, None);
+    };
+    let full = vitals.full();
+    (
+        vitals.health(number).map(|range| range.share(full)),
+        vitals
+            .armor(number)
+            .filter(|range| range.high >= 0.5)
+            .map(|range| range.share(full)),
+    )
+}
+
+/// A range in points for the debug log.
+fn shown(range: Option<Range>) -> String {
+    range.map_or_else(
+        || "-".to_owned(),
+        |range| format!("{:.0}[{:.0}..{:.0}]", range.best, range.low, range.high),
+    )
 }
 
 /// Frame colour for a player on `team` in game type `mode`: red or blue in

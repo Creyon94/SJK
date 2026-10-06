@@ -1112,10 +1112,24 @@ that font is not loaded), whatever `cg_classicHudFont` says.
 - **Far:** only the name, small and dim. Plates shrink with distance (to 60% at the
   range) and fade over the last quarter of `cg_nameplateRange` (3000 units).
 - **Near:** inside `cg_nameplateNear` (1000 units) the name rises and a plate fades
-  in under it, framed in red or blue in team games: a health bar, a shield bar and
-  an estimated Force bar, each shown only when known.
+  in under it, framed in red or blue in team games: a health bar, a shield bar
+  (left out when the shield is known to be empty) and a Force bar. The Force bar
+  takes the Force colour of the HUD in use (the layout's `force_ratio` widget; the
+  retail light blue for the game-data HUD, which draws pictures).
+- **Uncertainty:** an estimated bar is a range ([estimate.rs](../crates/sjk-viewer/src/hud/estimate.rs)):
+  the lowest and highest the value can be and the best guess. The bar fills to the
+  guess, and a grey haze, thickest at the guess and fading out towards either bound,
+  covers the uncertain stretch, so a loose estimate reads as a blurred edge and an
+  exact one as a sharp edge.
+- `cg_nameplateWeapon` (on): the held weapon's icon (the weapon selection row's art,
+  the staff and dual saber icons for those styles) left of the plate, or left of
+  the name when there is no plate. A saber's is ringed and haloed in its stance's
+  colour (`fireflag`, which carries `fd.saberAnimLevel`; the Radial HUD's colours:
+  fast blue, medium yellow, strong red, dual green, staff magenta), dimmed while
+  the blade is put away.
 - `cg_nameplateBars`: 0 none, 1 allies only, 2 everyone (default). `cg_nameplateScale`
-  sets the text size, `cg_nameplateForce` the Force bar, `cg_nameplateWalls` shows
+  sets the text size, `cg_nameplateForce` the Force bar, `cg_nameplatePredict` the
+  estimated health and shield, `cg_nameplateWalls` shows
   players behind walls at 35% opacity instead of fading them (the same BSP trace as
   before, from the rendered eye; changes ease over 120 ms), and `cg_nameplateNpcs`
   adds NPC plates (class name, health; at most 16; vehicles skipped).
@@ -1126,9 +1140,11 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   jump, push, pull and the saber powers are left out because they last a moment. The
   pictures are the Force bar's, loaded with the map.
 - `cg_nameplateDebug` logs, every two seconds, what the server sends about each other
-  player (health, `tinfo`, active powers, the Force estimate) to `logs\last-client.log`,
-  with the regen pace in use and where it came from, the server's Force-related info
-  keys, and your own real Force next to the estimate for yourself.
+  player (health, `tinfo`, active powers, weapon and stance) and the estimates (health,
+  armour and Force as `guess[low..high]`) to `logs\last-client.log`, with the regen
+  pace in use and where it came from, the server's Force-related info keys, whether
+  its pain events carry real health, and your own real Force next to the estimate
+  for yourself.
 - While a menu is open the plates hide: their text is in the classic stream, which
   draws over the menus' text.
 
@@ -1137,28 +1153,59 @@ Where the numbers come from, and what is not known:
 - **Teammates** in team games: health and shield from the team overlay's `tinfo`
   command, exact. The client asks for it (`teamoverlay` userinfo) whenever nameplate
   bars are on, not only with `cg_drawTeamOverlay`.
-- **Everyone else:** health only from `entityState_t::health`/`maxhealth`, which the
-  SJK server sets for NPCs, breakables and emplaced guns but not for clients (stock
-  JKA does not either, as far as read). Without it there is no health bar for enemies
-  and the plate shows the Force bar alone. Not verified against a stock or JA+
-  server: run `cg_nameplateDebug 1` and read the log.
+- **NPCs** (and any entity whose `entityState_t::health`/`maxhealth` the server
+  sets): exact. The SJK server sets them for NPCs, breakables and emplaced guns, not
+  for clients; stock JKA does not either.
+- **Everyone else's health and shield** are estimated
+  ([vitals_estimate.rs](../crates/sjk-viewer/src/hud/vitals_estimate.rs)) once per
+  snapshot (every one, so no event is missed) from what the server sends everyone,
+  with its own rules:
+  - spawn at a quarter over the maximum health with a quarter of it as shield (125
+    and 25; 100 and none in Duel), learnt from your own spawns for mods that change
+    it; health and shield over the maximum lose a point a second;
+  - `EV_PAIN` carries the health left after a hit of ten or more (at most every
+    700 ms): exact. `EV_SHIELD_HIT` carries the shield a hit took: exact.
+    `EV_SABER_HIT` sizes the damage (under 5, under 20, more); a missile striking
+    (`EV_MISSILE_HIT`) is a hit of unknown size. With no pain after a hit outside the
+    700 ms, it was under ten. A hit with no shield flash met no shield;
+  - when you hit someone, the server tells you their health and shield before the
+    hit (`PERS_ATTACKEE_ARMOR`), matched to them when only one player fits (your
+    saber's victim, your duel opponent, or the only estimate that allows the values);
+  - falls (`EV_FALL`/`EV_ROLL`, exact), medpack and shield pickups
+    (`EV_ITEM_PICKUP`), Force heal (its sound at the player: 5 to 25), drain healing
+    the drainer, deaths (`EF_DEAD`, `EV_OBITUARY`) and the respawn after one; a spawn
+    with no death seen toggles `EF_TELEPORT_BIT`, as a teleport does, so it only
+    raises the high bound;
+  - a player first seen, or back after time out of view, gets a wide range that the
+    next pain closes.
+
+  Servers can hide the pain values: JAPro's `g_stopHealthESP` (off by default) sends a
+  fixed 50 or no pain event at all, and scrambles `PERS_ATTACKEE_ARMOR`. Your own pain
+  events are checked against your real health: until one has been, pain values are
+  trusted but their absence proves nothing; if they do not match (or every pain says
+  50), they are ignored and a pain only says ten or more landed. JA+ is closed source
+  and not verified.
 - **Force** is never sent for other players, so it is estimated
   ([force_estimate.rs](../crates/sjk-viewer/src/hud/force_estimate.rs)) from their
   entity state with the server's own rules: a full pool at spawn, a point per
   regen pace (measured from your own pool while you idle, which the server does send,
   else `g_forceRegenTime` from the server's info string, else 200 ms; six times as
-  fast with the boon) while no power but drain is on and no saber is thrown or in a special move, the
-  price of each power when it switches on (level 3 prices; the level is not sent),
-  protect, absorb, grip and lightning running costs, half a level-3 price per force
-  jump, and push, pull and saber throw at their price. It misses being drained,
+  fast with the boon) while no power but drain is on and no saber is thrown or in a
+  special move, the price of each power when it switches on, protect, absorb, grip
+  and lightning running costs, force jumps, push, pull and saber throw at their
+  price, and being drained (`EV_FORCE_DRAINED`). Power levels are not sent, so the
+  low bound pays each power at its dearest level and the high bound at its cheapest
+  (the guess at level 3); a force jump costs anything up to its price; until the pace
+  is measured the bounds refill a little slower and faster than the guess. A power
+  starting proves the pool held its price, which raises the low bound. It misses
   saber blocks in some mods and anything that changes costs. It refills while a
-  player idles, so errors heal within about twenty seconds, and the bar is drawn
-  thin, see-through and outlined to read as an estimate.
+  player idles, so the range closes within about twenty seconds.
 
 `cg_drawPlayerNames` keeps TaystJK's plain overhead names (0 off, 1 names, 2 adds a
 health strip, text only, off by default); they are hidden while nameplates are on.
 `cg_drawFriend` draws the ally marker for either. At most 32 players and 16 NPCs are
-tagged and nothing is allocated per frame. Not tested in game yet.
+tagged and nothing is allocated per frame. Not tested in game yet; the estimates
+are unit-tested against synthetic snapshots only.
 
 ## Version label
 
