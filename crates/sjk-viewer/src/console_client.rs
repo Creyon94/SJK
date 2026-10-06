@@ -433,14 +433,18 @@ impl crate::GpuState {
             }
             crate::identity_command::COMMAND => return self.identity_command(args),
             crate::menu::quick_setup::COMMAND => {
-                let tab = crate::settings::SettingsMenu::quick_tab();
                 if let Some(console) = &mut self.console {
                     console.set_open(false);
                 }
-                if self.live_session.is_some() {
-                    self.open_settings_from_game(tab);
-                } else if let (Some(menu), Some(console)) = (&mut self.client_menu, &self.console) {
-                    menu.open_quick_setup(console, crate::player_menu::ReturnTarget::MainMenu);
+                let in_game = self.live_session.is_some();
+                if let (Some(menu), Some(console)) = (&mut self.client_menu, &self.console) {
+                    let target = if in_game {
+                        crate::player_menu::ReturnTarget::InGame
+                    } else {
+                        crate::player_menu::ReturnTarget::MainMenu
+                    };
+                    menu.open_quick_setup(console, target);
+                    self.game_menu = false;
                 }
                 self.sync_cursor_policy();
             }

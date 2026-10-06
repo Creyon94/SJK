@@ -70,17 +70,7 @@ impl ClassicList {
             let heading_hit = heading.to_ascii_lowercase().contains(&query);
             let mut first = true;
             for action in category_range(category) {
-                let hit = query.is_empty()
-                    || heading_hit
-                    || ACTIONS[action].label.to_ascii_lowercase().contains(&query)
-                    || ACTIONS[action]
-                        .command
-                        .to_ascii_lowercase()
-                        .contains(&query)
-                    || keys.get(action).is_some_and(|keys| {
-                        keys.iter().any(|key| key.eq_ignore_ascii_case(&query))
-                    });
-                if !hit {
+                if !action_hit(action, heading_hit, &query, keys) {
                     continue;
                 }
                 if std::mem::take(&mut first) {
@@ -120,6 +110,18 @@ impl ClassicList {
             ListRow::Heading(_) => None,
         })
     }
+}
+
+/// Whether action `action` answers `query` (lower case, trimmed): its name,
+/// console command or key, or its category's heading (`heading_hit`).
+fn action_hit(action: usize, heading_hit: bool, query: &str, keys: &[[String; 2]]) -> bool {
+    query.is_empty()
+        || heading_hit
+        || ACTIONS[action].label.to_ascii_lowercase().contains(query)
+        || ACTIONS[action].command.to_ascii_lowercase().contains(query)
+        || keys
+            .get(action)
+            .is_some_and(|keys| keys.iter().any(|key| key.eq_ignore_ascii_case(query)))
 }
 
 /// Retail `WAITING_FOR_NEW_KEY` (`mp_ingame.str`).
@@ -176,6 +178,43 @@ impl KeybindEditor {
     #[cfg(test)]
     pub(crate) fn search_for_snapshot(&mut self, text: &str) {
         self.set_search(text.to_owned());
+    }
+
+    /// What is typed in the search field (empty when the list is closed).
+    pub(crate) fn search_text(&self) -> &str {
+        self.classic
+            .as_ref()
+            .map_or("", |list| list.search.as_str())
+    }
+
+    /// How many actions match `text`, for the options tab's search.
+    pub(crate) fn count_matches(&self, text: &str) -> usize {
+        let query = text.trim().to_ascii_lowercase();
+        if query.is_empty() {
+            return 0;
+        }
+        HEADINGS
+            .iter()
+            .enumerate()
+            .map(|(category, heading)| {
+                let heading_hit = heading.to_ascii_lowercase().contains(&query);
+                category_range(category)
+                    .filter(|action| action_hit(*action, heading_hit, &query, &self.keys))
+                    .count()
+            })
+            .sum()
+    }
+
+    /// Options that match the search, for the panel to offer.
+    pub(crate) fn set_elsewhere(&mut self, options: usize) {
+        self.elsewhere = options;
+    }
+
+    /// Carry a search typed on the options tab over to this list.
+    pub(crate) fn carry_search(&mut self, text: &str) {
+        if self.classic.is_some() && !text.trim().is_empty() {
+            self.set_search(text.to_owned());
+        }
     }
 
     /// The category of the selected action, for the group list's mark.
@@ -409,6 +448,14 @@ impl KeybindEditor {
         }
         if list.rows.is_empty() {
             place.value_plain(&mut self.ui, 0, "No action matches the search.", OPTION);
+            if self.elsewhere > 0 {
+                place.value_fmt(
+                    &mut self.ui,
+                    1,
+                    format_args!("{} on OPTIONS: click its tab.", self.elsewhere),
+                    OPTION,
+                );
+            }
         }
         for (slot, row) in list.rows[shown.clone()].iter().enumerate() {
             let action = match *row {
@@ -479,12 +526,29 @@ impl KeybindEditor {
             None => Detail::default(),
         };
         place.detail(&mut self.ui, &detail);
+        self.hint.clear();
+        let searched = self
+            .classic
+            .as_ref()
+            .is_some_and(|list| !list.search.trim().is_empty());
+        if !self.capture && !searching && self.elsewhere > 0 && searched {
+            let _ = std::fmt::Write::write_fmt(
+                &mut self.hint,
+                format_args!(
+                    "{} option{} match too: click the OPTIONS tab, the search goes with you",
+                    self.elsewhere,
+                    if self.elsewhere == 1 { "" } else { "s" }
+                ),
+            );
+        }
         place.finish(
             &mut self.ui,
             Some(if self.capture {
                 WAITING
             } else if searching {
                 SEARCHING
+            } else if !self.hint.is_empty() {
+                &self.hint
             } else {
                 KEYS
             }),
@@ -600,6 +664,29 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
         (directory, console)
+    }
+
+    #[test]
+    fn another_tabs_search_is_counted_and_carried_over() {
+        let (_directory, console) = console();
+        let mut editor = KeybindEditor::new();
+        editor.open_classic(&console, 0, Span::ALL);
+        assert_eq!(editor.count_matches("   "), 0);
+        assert_eq!(editor.count_matches("no such action at all"), 0);
+        // A heading finds all of its category, an action's name only itself.
+        assert_eq!(
+            editor.count_matches("weapons"),
+            category_range(Category::Weapons as usize).len()
+        );
+        assert!(editor.count_matches("jump") >= 1);
+        assert_eq!(editor.search_text(), "");
+        editor.carry_search("jump");
+        assert_eq!(editor.search_text(), "jump");
+        let list = editor.classic.as_ref().unwrap();
+        assert_eq!(list.actions(), editor.count_matches("jump"));
+        // Nothing carries when the other tab had no search.
+        editor.carry_search("  ");
+        assert_eq!(editor.search_text(), "jump");
     }
 
     #[test]

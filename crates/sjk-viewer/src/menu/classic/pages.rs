@@ -264,7 +264,7 @@ const CONTROLS: [Slot; 11] = {
 /// options over from Controls, regroups JKR's additions by subject (the menus
 /// and console, the HUD, the scoreboard) and leaves out retail's Mods and
 /// Defaults, which SJK cannot offer (Backspace restores one default).
-const SETUP: [Slot; 15] = {
+const SETUP: [Slot; 16] = {
     let [play, profile, settings, sjk] = nav_row();
     let [back, exit] = back_exit();
     [
@@ -273,58 +273,64 @@ const SETUP: [Slot; 15] = {
         settings,
         sjk,
         list_row(
+            Entry::QuickSetup,
+            "QUICK SETUP",
+            "The settings worth choosing first: display, aim, sound, HUD, nameplates",
+            185.0,
+        ),
+        list_row(
             Entry::Video,
             "VIDEO",
             "Resolution, display, frame rate, field of view and brightness",
-            185.0,
+            209.0,
         ),
         list_row(
             Entry::Sound,
             "SOUND",
             "Effects and music volume, footsteps",
-            209.0,
+            233.0,
         ),
         list_row(
             Entry::MouseJoystick,
             "MOUSE",
             "Mouse sensitivity, inversion and always run",
-            233.0,
+            257.0,
         ),
         list_row(
             Entry::GameOptions,
             "GAME OPTIONS",
             "Pickups, models, saber and Force trails, camera",
-            257.0,
+            281.0,
         ),
         list_row(
             Entry::Interface,
             "INTERFACE",
             "Menu style, colours and fonts, the console's look",
-            281.0,
+            305.0,
         ),
         list_row(
             Entry::Hud,
             "HUD",
             "HUD style and scale, status, crosshair, readouts and chat",
-            305.0,
+            329.0,
         ),
         list_row(
             Entry::Scoreboard,
             "SCOREBOARD",
             "Scoreboard style, client numbers, head icons and row size",
-            329.0,
+            353.0,
         ),
         list_row(
             Entry::Network,
             "NETWORK",
             "Master server and connection rates",
-            353.0,
+            377.0,
         ),
         list_row(
             Entry::Renderer,
             "RENDERER",
             "HDR, bloom, lighting, shadows and day/night",
-            377.0,
+            401.0,
         ),
         back,
         exit,

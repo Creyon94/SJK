@@ -79,6 +79,8 @@ pub(crate) enum Entry {
     Hud,
     /// SJK: the scoreboard (JKR's HUD+ settings regrouped).
     Scoreboard,
+    /// SJK: the settings worth choosing on a first start.
+    QuickSetup,
     Network,
     /// JKR's renderer settings, after retail's Setup groups: the renderer page.
     Renderer,
@@ -249,6 +251,7 @@ impl Entry {
             Self::Interface => Outcome::Settings("TEXT"),
             Self::Hud => Outcome::Settings("HUD"),
             Self::Scoreboard => Outcome::Settings("HUD+"),
+            Self::QuickSetup => Outcome::Settings("QUICK"),
             Self::Network => Outcome::Settings("NETWORK"),
             Self::Renderer => Outcome::Page(Page::Renderer),
             // Each opens its panel ([`Entry::panel`]); the modern screen otherwise.
@@ -322,6 +325,7 @@ impl Entry {
             Self::Interface => Panel::Group(Group::Interface),
             Self::Hud => Panel::Group(Group::Hud),
             Self::Scoreboard => Panel::Group(Group::Scoreboard),
+            Self::QuickSetup => Panel::Group(Group::Quick),
             Self::Network => settings("NETWORK"),
             Self::MouseJoystick => settings("CONTROLS"),
             Self::Movement => keybinds(Category::Movement),
@@ -482,8 +486,9 @@ mod tests {
             ]
         );
         assert_eq!(
-            entries(Page::Setup)[4..13],
+            entries(Page::Setup)[4..14],
             [
+                Entry::QuickSetup,
                 Entry::Video,
                 Entry::Sound,
                 Entry::MouseJoystick,
@@ -679,7 +684,8 @@ mod tests {
                 _ => None,
             })
             .collect();
-        assert_eq!(groups, Group::ALL);
+        let expected: Vec<_> = std::iter::once(Group::Quick).chain(Group::ALL).collect();
+        assert_eq!(groups, expected);
     }
 
     #[test]

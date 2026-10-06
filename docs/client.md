@@ -274,7 +274,8 @@ items; classic+ panels scroll and explain the focused item, so SJK shows each as
 one group and regroups JKR's GAME, HUD, HUD+ and TEXT tabs by subject
 ([settings/groups.rs](../crates/sjk-viewer/src/settings/groups.rs)):
 
-- OPTIONS: Video is the whole VIDEO tab (resolution, display, frame rate, field of
+- OPTIONS: Quick setup (first in the list) is the QUICK tab's rows as a group (see
+  [Quick setup](#quick-setup)); Video is the whole VIDEO tab (resolution, display, frame rate, field of
   view, marks, shadows, gamma), Sound is AUDIO, Mouse the CONTROLS settings
   (retail's Mouse/Joystick, moved here from the key bindings). Game Options holds
   the gameplay rows (simple items, forced models, saber and speed trails, aura
@@ -305,6 +306,13 @@ the renderer's included, by name, console name, description and group
 the results under their groups' headings, the detail box adding "In <group>";
 opening a group clears the search. On KEY BINDINGS it finds actions by name,
 console command, category or bound key (`space` finds Jump).
+
+The two tabs' searches reach each other: while text is typed, the description line
+says how many entries of the other tab match it ("3 key bindings match too: click the
+KEY BINDINGS tab"), and a search with no result here names them in the list. Clicking
+the other tab (or Tab, or `[` and `]`, across the tab boundary) carries the search text
+to it, so one query walks every setting and binding
+([menu/classic.rs](../crates/sjk-viewer/src/menu/classic.rs), `sync_cross_search`).
 
 A choice (a switch, a choice row, the display mode) does not change on a click
 or Enter: they open a dropdown under the value in the retail list box's look,
@@ -755,11 +763,18 @@ opt-ins, ending in a Key bindings row. Its rows are the catalogue's own, looked 
 by cvar, so a change there is the same change the other tabs make; it is the last
 tab so the other tabs keep their numbers.
 
-On the first start (`ui_quickSetup` 0, archived) the main menu opens on this tab
-once and sets the cvar to 1, so leaving it with Escape dismisses it for good. The
-`quicksetup` console command opens it again, over the main menu or from a running
-game ([quick_setup.rs](../crates/sjk-viewer/src/menu/quick_setup.rs)). Not yet run
-in a game window.
+With the classic menus (the default) the same rows are the first group of the
+Setup page, QUICK SETUP (`Group::Quick`, [groups.rs](../crates/sjk-viewer/src/settings/groups.rs)),
+drawn as a classic+ option panel like the others, with search, descriptions and
+defaults; the modern style shows the QUICK tab.
+
+On the first start (`ui_quickSetup` 0, archived), once the main menu is up and the
+menu style is known, it opens in the active style and sets the cvar to 1, so leaving
+it with Escape dismisses it for good (setting the cvar back to 0 shows it again at
+the main menu). The `quicksetup` console command opens it too, over the main menu
+or from a running game, in the active style
+([quick_setup.rs](../crates/sjk-viewer/src/menu/quick_setup.rs)). Not yet run in a
+game window.
 
 ## Slider values
 

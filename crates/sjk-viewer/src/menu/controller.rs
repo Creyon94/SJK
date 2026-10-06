@@ -42,6 +42,7 @@ impl ClientMenu {
             }
             ClientPhase::Settings => match self.classic_panel_frame() {
                 Some(frame) => {
+                    self.sync_cross_search();
                     let reveal = self.screen_reveal();
                     self.settings
                         .append_classic(vertices, font, viewport, reveal, &frame);
@@ -51,9 +52,11 @@ impl ClientMenu {
             ClientPhase::Keybinds => {
                 let reveal = self.screen_reveal();
                 match self.classic_panel_frame() {
-                    Some(frame) => self
-                        .keybinds
-                        .append_classic(vertices, font, viewport, reveal, &frame),
+                    Some(frame) => {
+                        self.sync_cross_search();
+                        self.keybinds
+                            .append_classic(vertices, font, viewport, reveal, &frame)
+                    }
                     None => self.keybinds.append(vertices, font, viewport, reveal),
                 }
             }

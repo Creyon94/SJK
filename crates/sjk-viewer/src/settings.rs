@@ -223,6 +223,9 @@ pub(crate) struct SettingsMenu {
     search: String,
     searching: bool,
     search_return: Option<SearchReturn>,
+    /// Key bindings matching the search typed here, which the panel offers
+    /// through the KEY BINDINGS tab (0 when none or no search).
+    elsewhere: usize,
     /// The classic panel's dropdown, while one is open.
     dropdown: Option<Dropdown>,
     ui: MenuCanvas,
@@ -256,6 +259,7 @@ impl SettingsMenu {
             search: String::new(),
             searching: false,
             search_return: None,
+            elsewhere: 0,
             dropdown: None,
             ui: MenuCanvas::new(),
         }
