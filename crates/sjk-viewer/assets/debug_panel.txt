@@ -1263,6 +1263,16 @@ test: Third person, a second client casts Absorb: blue shell on them with no for
 test: Get hit while shielded: the body glow reads green. Respawn: the beam stands on the ground.
 note: Never started in a game yet.
 
+[culling-fix]
+status: personal
+area: Rendering & effects
+title: Walls no longer pop out in third person
+change: Map visibility (PVS) now starts from the camera position, not the player's eye.
+change: Before, a third-person camera in another room section culled walls it could see.
+test: Third person (cg_thirdPerson 1): walk along walls, corners and doorways; watch for pop-out.
+test: Compare with first person in the same spots: nothing should vanish in either view.
+note: Never started in a game yet.
+
 # ---- Merged upstream ----
 
 [jkr-vehicles]
