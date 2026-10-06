@@ -1337,6 +1337,19 @@ test: The model icon shows beside the name; a player in a hat or cape shows a Ha
 test: Stand close and far from a player: the card is next to their head, not floating above.
 note: Never started in a game yet.
 
+[console-socket]
+status: personal
+area: Console & chat
+title: Console socket for external apps (Sol's Archive, chat tools)
+change: cl_consoleSocket <port> streams the console and chat to a local app and runs its commands.
+change: cl_consoleSocketPassword is required; without it the socket stays closed.
+test: Type consolesocket (explains it). Then cl_consoleSocketPassword <pw> and cl_consoleSocket 29071.
+test: The console says "listening on 127.0.0.1:29071". Point Sol's Archive at that port and password.
+test: Join a server and chat: the app shows the chat line; quotes and the !sa bot work again.
+test: Send a command from the app (Cmd mode, or chat mode "say hi"): it runs in the game.
+test: A wrong password in the app is refused. cl_consoleSocket 0 closes the socket.
+note: Never started in a game yet; covered by unit tests over loopback only.
+
 # ---- Merged upstream ----
 
 [jkr-vehicles]

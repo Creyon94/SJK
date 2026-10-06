@@ -12,6 +12,7 @@ impl GpuState {
         };
         let mut actions = [None; MAX_ACTIONS_PER_FRAME];
         console.advance_command_frame();
+        console.pump_console_socket();
         let mut action_count = 0;
         let gameplay = &mut self.gameplay_input;
         for command in console.drain_input() {

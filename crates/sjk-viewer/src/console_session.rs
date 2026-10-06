@@ -146,6 +146,7 @@ impl ViewerConsole {
         let remaps = console_cvars::IntegerSetting::bind(&mut cvars, "cg_remaps", 2)?;
         let draw_fog = console_cvars::IntegerSetting::bind(&mut cvars, "r_drawfog", 2)?;
         let packet_dup = console_cvars::IntegerSetting::bind(&mut cvars, "cl_packetdup", 1)?;
+        let socket = super::socket::State::bind(&mut cvars)?;
         // JKR's `jkr_*` names become aliases once every setting is registered.
         crate::cvar_renames::register(&mut cvars)?;
         let userinfo_dirty = Arc::new(AtomicBool::new(true));
@@ -167,6 +168,7 @@ impl ViewerConsole {
         let mut shell = Shell::new(cvars, keybind_editor::default_bindings());
         crate::input::settings::register_commands(&mut shell)?;
         director::register(&mut shell)?;
+        super::socket::register_command(&mut shell, &socket)?;
         let client_commands = console_client::Commands::default();
         console_client::register(&mut shell, &client_commands)?;
         shell.set_command_frame(0);
@@ -298,6 +300,7 @@ impl ViewerConsole {
             history_index: None,
             scroll_offset: 0,
             server_status,
+            socket,
             presentation: ConsolePresentation::new(),
             browser: super::browser::Browser::new(),
             debug_panel: super::debug_panel::Panel::new(&config_directory),
