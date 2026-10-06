@@ -79,7 +79,7 @@ pub(crate) const ACTIONS: &[BindableAction] = &[
     action(Interaction, "Engage duel", "engage_duel", "k"),
     action(Interaction, "Binoculars", "zoom", ""),
     // SJK: pin the player card to the player under the crosshair; press again to hide.
-    action(Interaction, "Inspect player", "inspect", ""),
+    action(Interaction, "Inspect player", "inspect", "x"),
     action(Interaction, "Item: Bacta", "use_bacta", ""),
     action(Interaction, "Item: Seeker drone", "use_seeker", ""),
     action(Interaction, "Item: Sentry gun", "use_sentry", ""),

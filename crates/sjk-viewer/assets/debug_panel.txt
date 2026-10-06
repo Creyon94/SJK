@@ -1328,9 +1328,9 @@ status: personal
 area: HUD
 title: Player card: model icon, hat and cape, inspect key, anchored to the player
 change: The card shows the model's head icon and a Hat / Cape line; it sits beside the head now.
-change: New key "Inspect player" (Key bindings > Interaction, or bind <key> inspect), unbound.
+change: New key "Inspect player" (Key bindings > Interaction, or bind <key> inspect), default X.
 change: Inspect pins the card to the player under the crosshair at once; press again to hide.
-test: Bind a key to inspect. Aim at a player and press it: the card shows at once.
+test: Aim at a player and press X (default key): the card shows at once.
 test: Look away, walk off: the card stays and follows them, inside the screen. Press again: gone.
 test: Inspect with nobody under the crosshair does nothing. A pinned player who leaves: card gone.
 test: The model icon shows beside the name; a player in a hat or cape shows a Hat / Cape line.

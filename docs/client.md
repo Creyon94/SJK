@@ -1228,7 +1228,7 @@ glance at the scoreboard would not: no health, Force or position.
   the crosshair must stay on the player before the card fades in. Turning the view
   more than 6 degrees, or losing the player for over 0.3 seconds, starts the wait
   again and the card fades out.
-- `inspect` (Settings > Key bindings > Interaction > Inspect player; unbound by default,
+- `inspect` (Settings > Key bindings > Interaction > Inspect player; bound to X by default,
   or `bind <key> inspect`) pins the card to the player under the crosshair at once, with
   no wait. It stays when you look away or the player moves, follows them (kept inside the
   screen), and a second press hides it; it also drops when the player leaves or the map
