@@ -1137,6 +1137,17 @@ test: Modern menus: Credits sits under Changelog and opens the same page in them
 test: In a match, Escape > SJK > Credits; Escape closes the page, then the pop-up.
 test: Watch for a few seconds: smooth motion, no flicker, readable text at 4K 150%.
 
+[ui-texture-switches]
+status: personal
+area: Menus & settings
+title: Force page: every holocron and level number drawn (renderer limit raised)
+change: The UI drew at most 48 texture switches a frame; the Force page needs 59, so the last
+change: rows (Dark Rage, Team Energize) lost their pictures. Now 512, and 16384 shape vertices.
+change: If a frame still runs out, the log says "UI shapes dropped" once.
+test: Profile > Force, dark side: Rage and Team Energize show holocron and three numbered circles.
+test: Hover around the page: no number disappears (Lightning's kept vanishing before).
+test: After playing a while, logs/last-client.log has no "UI shapes dropped" line.
+
 [flipkick]
 status: personal
 area: Input

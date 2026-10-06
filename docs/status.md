@@ -409,6 +409,20 @@ the box without overlapping; menu snapshots (`console-browser-classic`,
 `console-browser-modern`) were looked at. Not tried in a game: the retail font's
 fit in the rows and pointer use are unverified.
 
+## UI texture-switch limit (SJK)
+
+Branch `personal/ui-runs` (06/10/2026, based on `16f1b20`): the UI shape renderer
+allowed 48 texture switches (bind-group runs) per frame across every layer and
+dropped art quads past them without a trace. The classic profile's Force page
+switches between the icon atlas (holocrons) and the retail star art on every
+row, 59 times for its page alone, so Dark Rage's and Team Energize's holocrons
+and numbered stars were dropped, and a hover glow pushed a Lightning star out.
+The limit is now 512 switches and 16,384 shape vertices (was 4,096), and a frame
+that still runs out logs "UI shapes dropped" once. A unit test counts the page's
+switches as the renderer does (`ui_renderer::texture_switches`) and keeps them
+under a third of the limit. Workspace tests and clippy passed; not checked in
+game.
+
 ## Credits page (SJK)
 
 SJK-only branch `personal/credits` (06/10/2026, based on `5f14439`) adds the

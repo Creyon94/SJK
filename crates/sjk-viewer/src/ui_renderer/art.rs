@@ -293,9 +293,12 @@ pub(super) struct Run {
     pub(super) source: Source,
 }
 
-/// Most bind-group switches one frame may make; art quads past it are
-/// dropped rather than growing the run list on the frame path.
-pub(super) const MAX_RUNS: usize = 48;
+/// Most bind-group switches one frame may make, across every layer; art quads
+/// past it are dropped rather than growing the run list on the frame path.
+/// The classic Force page alone switches about three times per power (holocron
+/// from the icon atlas, then the retail star art), which ran past the old 48
+/// and dropped the last powers' pictures.
+pub(crate) const MAX_RUNS: usize = 512;
 
 /// Begin a new run for `source` at vertex `start` unless the current run
 /// already samples it. Untextured shapes never call this: they draw the same

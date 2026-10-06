@@ -966,6 +966,29 @@ mod drawing_tests {
         }
     }
 
+    /// Holocrons come from the icon atlas and stars from the retail art, so
+    /// each row switches textures; the old limit of 48 switches dropped the
+    /// pictures of the last rows (Dark Rage, Team Energize) and, with a hover
+    /// glow, a Lightning star. The page keeps well under the renderer's limit,
+    /// with room for the HUD and console drawn in the same frame.
+    #[test]
+    fn the_page_fits_the_renderers_texture_switches() {
+        for frame in [Frame::Full, Frame::InGame] {
+            for dark in [false, true] {
+                let menu = drawn_with(frame, dark, 0, 60, 0);
+                let switches = crate::ui_renderer::texture_switches(&[menu.canvas.draw_list()]);
+                assert!(
+                    switches > 48,
+                    "{frame:?}: {switches} switches (the old limit held)"
+                );
+                assert!(
+                    switches * 3 <= crate::ui_renderer::art::MAX_RUNS,
+                    "{frame:?} dark {dark}: {switches} texture switches"
+                );
+            }
+        }
+    }
+
     #[test]
     fn the_detail_panel_shows_the_focused_powers_holocron() {
         // Dark Rage (8) and Team Energize (12), the dark column's last rows.
