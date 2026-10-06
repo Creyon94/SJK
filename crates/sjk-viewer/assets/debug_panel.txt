@@ -1783,6 +1783,8 @@ test: Hold R, push right to RAIN, let go: rain starts (forced); R then MAP'S OWN
 test: While holding, the view does not turn; W/A/S/D still move.
 test: Hold Q and press Escape, or let go without moving: nothing happens.
 note: The pointer's dead zone and reach are in raw mouse counts: tell Claude if too twitchy.
+test: Each choice is a round metal icon; the one pointed at grows, ringed in the accent colour.
+test: Its name shows in the middle; GAME MENU and FIRST SETUP are plain discs with text.
 
 [vertex-lit-maps]
 status: personal

@@ -31,6 +31,15 @@ pub(crate) const LOGO_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(LOGO_ICON);
 /// `TexturedQuad` texture naming the gold verified badge, drawn once at start.
 pub(crate) const VERIFIED_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(icons::VERIFIED_ICON);
 
+/// Atlas cells reserved for the quick wheels' icons.
+pub(crate) const WHEEL_ICON_CELLS: usize = icons::WHEEL_ICON_CELLS as usize;
+
+/// `TexturedQuad` texture naming quick wheel icon `index` (`quick_wheel::ICONS`).
+pub(crate) fn wheel_icon(index: usize) -> sjk_ui::TextureId {
+    debug_assert!(index < WHEEL_ICON_CELLS);
+    sjk_ui::TextureId(icons::WHEEL_ICON_FIRST + index as u32)
+}
+
 /// The verified badge's pixels in one cell, as the renderer uploads them, for the
 /// off-screen snapshots.
 #[cfg(test)]
@@ -263,6 +272,17 @@ impl ShapeRenderer {
             VERIFIED_TEXTURE,
             &verified_badge::pixels(icons::ICON_SIZE),
         );
+        for (index, (name, bytes)) in crate::quick_wheel::ICONS.iter().enumerate() {
+            match image::load_from_memory(bytes) {
+                Ok(icon) => {
+                    let icon = icon.into_rgba8();
+                    if icon.dimensions() == (icons::ICON_SIZE, icons::ICON_SIZE) {
+                        icons.upload(queue, wheel_icon(index), icon.as_raw());
+                    }
+                }
+                Err(error) => eprintln!("quick wheel icon {name}: {error}"),
+            }
+        }
         let mut renderer = Self {
             pipeline,
             additive_pipeline,
