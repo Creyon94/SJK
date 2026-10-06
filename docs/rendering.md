@@ -2087,7 +2087,10 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
   `lamp`, `bulb`, `neon`, `screen`, `monitor`, `display`, `console`, `computer`,
   `comp_`, `holo`, `glow`; not `lightning`, `highlight`, `flight`, `lightgr…`,
   `lightsab…`, `clamp`, `switch`, nor names with an `off`, `broken`, `dead`, `unlit`
-  or `dark` part); or the BSP material `computer`. Textures whose every shader already
+  or `dark` part); the BSP material `computer`; or a control's name (`switch`,
+  `control`, `onoff`, `keypad`, `keyport`, `terminal`, `button`, `comm_`, `locked`),
+  whose painted indicator lights emit: only saturated, clearly bright texels, and no
+  map when more than 15% of the texture would emit (that is paint, not lights). Textures whose every shader already
   shows light (a `glow`, additive or `GL_DST_COLOR GL_ONE` stage) and textures with an
   `_e` image get none. With a glow image, the emission is that image. Otherwise the
   texels that emit are near-white or saturated ones clearly brighter than most of the
