@@ -9,7 +9,7 @@ use std::process::{Command, Stdio};
 /// Windows tools talk in the console's OEM code page unless told otherwise, so
 /// `clip` and a plain `Get-Clipboard` turned `€` or `’` into `?` or bytes that are
 /// not UTF-8. PowerShell is used both ways with UTF-8 stated explicitly: copy
-/// reads its input as raw UTF-8 bytes, and paste writes UTF-8 without a BOM.
+/// reads its input as raw UTF-8 bytes, and paste writes the text's UTF-8 bytes.
 const COPY: [&[&str]; 4] = [
     &["wl-copy"],
     &["xclip", "-selection", "clipboard"],
@@ -31,7 +31,10 @@ const PASTE: [&[&str]; 4] = [
         "powershell",
         "-NoProfile",
         "-Command",
-        "[Console]::OutputEncoding = New-Object Text.UTF8Encoding $false; Get-Clipboard",
+        // UTF-8 bytes straight to standard output. Setting `[Console]::OutputEncoding`
+        // would also change the code page of a console SJK was started from.
+        "$t = Get-Clipboard -Raw; if ($t) { $b = [Text.Encoding]::UTF8.GetBytes($t); \
+         $o = [Console]::OpenStandardOutput(); $o.Write($b, 0, $b.Length); $o.Flush() }",
     ],
 ];
 
@@ -51,13 +54,48 @@ pub(crate) fn copy(text: &str) -> bool {
             .stdin
             .take()
             .is_some_and(|mut input| input.write_all(text.as_bytes()).is_ok());
-        // The tool keeps serving the selection after it has the text; it is not waited for.
+        // `wl-copy` and `xclip` keep serving the selection after they have the text, so
+        // the copy does not wait. Tools that exit once the clipboard is set (PowerShell,
+        // `pbcopy`) are remembered, and the next paste waits for them, so a quick copy
+        // and paste never reads the old clipboard.
+        if written
+            && EXITS_WHEN_SET.contains(&tool[0])
+            && let Ok(mut pending) = PENDING_COPY.lock()
+        {
+            *pending = Some(child);
+        }
         written
     })
 }
 
+/// Copy tools that exit once the clipboard holds the text.
+const EXITS_WHEN_SET: [&str; 2] = ["powershell", "pbcopy"];
+/// The last copy that may still be setting the clipboard.
+static PENDING_COPY: std::sync::Mutex<Option<std::process::Child>> = std::sync::Mutex::new(None);
+/// How long a paste waits for that copy to finish.
+const COPY_WAIT: std::time::Duration = std::time::Duration::from_secs(3);
+
+/// Wait (up to [`COPY_WAIT`]) for the last copy to finish setting the clipboard.
+fn finish_pending_copy() {
+    let Some(mut child) = PENDING_COPY
+        .lock()
+        .ok()
+        .and_then(|mut pending| pending.take())
+    else {
+        return;
+    };
+    let started = std::time::Instant::now();
+    while started.elapsed() < COPY_WAIT {
+        match child.try_wait() {
+            Ok(None) => std::thread::sleep(std::time::Duration::from_millis(5)),
+            _ => return,
+        }
+    }
+}
+
 /// The clipboard's text, if a tool gave any.
 pub(crate) fn paste() -> Option<String> {
+    finish_pending_copy();
     PASTE.iter().find_map(|tool| {
         let output = Command::new(tool[0])
             .args(&tool[1..])

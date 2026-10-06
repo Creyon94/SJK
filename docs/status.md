@@ -7,6 +7,21 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Clipboard symbols on Windows
+
+Branch `fix/windows-clipboard-text`: on Windows the clipboard is reached through
+PowerShell with UTF-8 in both directions, so `€`, `’`, `×` and other symbols keep
+their characters. Paste had `Get-Clipboard` write the console's OEM code page,
+which SJK read as UTF-8 (`a×¥’€…` pasted as `a??'???`); it now writes the text's
+UTF-8 bytes to standard output, without changing the code page of a console SJK
+was started from. Copy passes the text's UTF-8 bytes to `Set-Clipboard`. Copy does
+not wait for the tool, since `wl-copy` and `xclip` keep running; a copy through
+PowerShell or `pbcopy` is remembered and the next paste waits up to 3 s for it to
+finish, so a quick copy and paste reads the new text. A unit test covers decoding
+the pasted bytes. On Windows 11 the earlier version of this change pasted and
+copied the symbols correctly; the standard-output paste and the wait were not run
+on Windows.
+
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the
@@ -44,16 +59,6 @@ contributor challenged a player named with `×` on a live server; with the wrapp
 fix the challenge showed without a crash, but with `?` for each `×`; with both
 fixes it read `You have challenged ×jof.jk.belyash×`. Merged into SJK `main` from
 SJK pull request #2 (Creyon94, 06/10/2026).
-## Clipboard symbols on Windows
-
-Branch `fix/windows-clipboard-text` (06/10/2026, based on `86ad1be`): pasting
-`a×¥’€…` into the console on Windows 11 gave `a??'???` and, once said in chat,
-`ï¿½` on screen: `Get-Clipboard` wrote the console's OEM code page and the client
-read it as UTF-8, and `clip` read copied text the same way. Paste now asks
-PowerShell for UTF-8 output without a BOM and copy passes raw UTF-8 bytes to
-`Set-Clipboard`. A unit test covers decoding the pasted bytes; the PowerShell
-commands themselves were not run on Linux, so a Windows paste and copy remain to
-be checked in game.
 
 ## Worldspawn shader remaps and remap order
 
