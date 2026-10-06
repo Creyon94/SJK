@@ -229,6 +229,23 @@ impl KeybindEditor {
         true
     }
 
+    /// While a slot awaits a key, a wheel notch binds `MWHEELUP` or `MWHEELDOWN`
+    /// (`up` = away from the player), as the retail controls menu takes any key
+    /// event; without this the notch only scrolled the list. False when not
+    /// capturing, so the wheel scrolls as usual.
+    pub(crate) fn capture_wheel(&mut self, up: bool, console: &mut ViewerConsole) -> bool {
+        if !self.capture {
+            return false;
+        }
+        let Some(key) = crate::input::keys::name(crate::input::keys::Source::Wheel(up)) else {
+            return true;
+        };
+        console.rebind_action(ACTIONS[self.selected].command, self.binding_slot, key);
+        self.capture = false;
+        self.refresh(console);
+        true
+    }
+
     /// Whether the selected action's chosen slot holds a locked key.
     fn selected_slot_locked(&self) -> bool {
         self.keys
@@ -503,6 +520,34 @@ mod tests {
         editor.binding_slot = 1;
         editor.begin_capture();
         assert!(editor.capture);
+    }
+
+    #[test]
+    fn a_wheel_notch_binds_while_capturing_and_scrolls_otherwise() {
+        let (_directory, mut console) = console();
+        let mut editor = KeybindEditor::new();
+        editor.open(&console);
+        editor.selected = action("+moveup");
+        editor.binding_slot = 1;
+        assert!(!editor.capture_wheel(true, &mut console));
+        editor.begin_capture();
+        assert!(editor.capture_wheel(true, &mut console));
+        assert!(!editor.capture);
+        assert!(
+            console
+                .keys_for_command("+moveup")
+                .iter()
+                .any(|key| key == "MWHEELUP")
+        );
+        editor.binding_slot = 0;
+        editor.begin_capture();
+        assert!(editor.capture_wheel(false, &mut console));
+        assert!(
+            console
+                .keys_for_command("+moveup")
+                .iter()
+                .any(|key| key == "MWHEELDOWN")
+        );
     }
 
     #[test]

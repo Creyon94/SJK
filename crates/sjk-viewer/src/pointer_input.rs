@@ -130,6 +130,18 @@ impl GpuState {
 
     pub(crate) fn pointer_wheel(&mut self, delta: MouseScrollDelta) {
         let delta = normalize_wheel(delta);
+        if delta.y != 0.0
+            && self
+                .client_menu
+                .as_ref()
+                .is_some_and(|menu| menu.is_visible())
+            && match (&mut self.client_menu, &mut self.console) {
+                (Some(menu), Some(console)) => menu.handle_wheel_binding(delta.y > 0.0, console),
+                _ => false,
+            }
+        {
+            return;
+        }
         let event = InputEvent::PointerWheel {
             position: Vec2::new(self.cursor_position[0], self.cursor_position[1]),
             delta,
