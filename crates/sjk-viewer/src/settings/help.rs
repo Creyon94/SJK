@@ -174,36 +174,44 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         "cg_drawPlayerNames",
-        "Names above players: 0 off, 1 names, 2 names with a health bar.",
-    ),
-    ("cg_drawPlayerNamesScale", "Size of the tags above players."),
-    (
-        "cg_nametagPlate",
-        "Draws each name on a plate framed in the team colour; off is plain text.",
+        "Plain names above players: 0 off, 1 names, 2 with a health strip. Nameplates replace it.",
     ),
     (
-        "cg_nametagRange",
-        "How far away, in game units, a tag still shows. It fades near the end.",
-    ),
-    (
-        "cg_nametagShrink",
-        "Distant tags get smaller, like nameplates in an online RPG.",
-    ),
-    (
-        "cg_nametagMinScale",
-        "How small a tag at the end of its range gets, as a share of full size.",
-    ),
-    (
-        "cg_nametagWalls",
-        "Shows tags of players behind walls, dimmed. Off hides them.",
+        "cg_drawPlayerNamesScale",
+        "Size of the plain names above players.",
     ),
     (
         "cg_drawFriend",
         "A marker over allies: your team, your duel partner, or Jedi Master's foes.",
     ),
     (
-        "cg_nametagNpcs",
-        "Tags on NPCs with their class and health, such as Stormtrooper.",
+        "cg_nameplate",
+        "MMO-style nameplates: a name far away, with bars and a frame up close.",
+    ),
+    (
+        "cg_nameplateRange",
+        "How far away, in game units, a nameplate still shows. It fades near the end.",
+    ),
+    (
+        "cg_nameplateNear",
+        "Inside this distance the bars fade in under the name; beyond it just the name.",
+    ),
+    ("cg_nameplateScale", "Size of the nameplate text."),
+    (
+        "cg_nameplateBars",
+        "Bars under the name: 0 none, 1 allies only, 2 everyone.",
+    ),
+    (
+        "cg_nameplateForce",
+        "Force bar under the name, estimated from the powers the player uses.",
+    ),
+    (
+        "cg_nameplateWalls",
+        "Shows nameplates of players behind walls, dimmed. Off hides them.",
+    ),
+    (
+        "cg_nameplateNpcs",
+        "Nameplates on NPCs with their class and health, such as Stormtrooper.",
     ),
     ("cg_drawTimer", "Shows the match time."),
     (

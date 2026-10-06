@@ -4,12 +4,14 @@ mod data_source;
 use data_source::*;
 pub(crate) mod enemy_info;
 pub(crate) mod family;
+mod force_estimate;
 pub(crate) mod force_wheel;
 pub(crate) mod icons;
 pub(crate) mod identification;
 mod info;
 pub(crate) mod movement;
-mod nametag;
+pub(crate) mod nameplate;
+mod nameplate_math;
 mod npc_class;
 pub(crate) mod options;
 pub(crate) mod portrait;
@@ -124,6 +126,8 @@ pub(crate) struct HudOverlay {
     pub(crate) tints: tints::State,
     /// World-projected labels, sharing the chat roster's retained names.
     pub(crate) identification: identification::State,
+    /// MMO-style nameplates, drawn in the classic font; they replace the labels above.
+    pub(crate) nameplate: nameplate::State,
     guides: movement::Guides,
     family: family::Policy,
     pub(crate) targeting: targeting::State,
@@ -221,6 +225,7 @@ impl HudOverlay {
             targeting: targeting::State::default(),
             enemy_info: enemy_info::State::default(),
             identification: identification::State::default(),
+            nameplate: nameplate::State::default(),
             score_text: String::with_capacity(80),
             snapshot_text: String::with_capacity(96),
 

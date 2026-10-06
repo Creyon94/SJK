@@ -7,6 +7,7 @@ use std::fmt::Write;
 /// Register supported options and the old crosshair spelling before config restoration.
 pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarError> {
     super::identification::register(cvars)?;
+    super::nameplate::register(cvars)?;
     super::tints::register(cvars)?;
     super::enemy_info::register(cvars)?;
     cvars.register(CvarDefinition::new(
