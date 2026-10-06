@@ -9,15 +9,13 @@ claiming complete parity from the presence of an implementation.
 
 ## Effect diagnostics
 
-Branch `feat/effect-debug-cvars`: two diagnostics, off by default and not archived.
-`fx_debug 1` logs each effect as it plays (at most once a second per effect name)
-with every component's kind, life, size and shaders, and the effect atlas logs
-once per shader when an effect shader has no image. `cg_debugMissiles 1` logs,
-once a second, the missiles in the snapshot (number, weapon, flags,
-`otherEntityNum2`, trajectory type) and whether their trail effects loaded. Both
-were used to trace the concussion shot and the white squares fixed in other
-branches; they change nothing when off.
-
+Implemented: `fx_debug` and `cg_debugMissiles`, two console diagnostics that
+are 0 by default and not archived ([rendering.md](rendering.md#entity-render-effects),
+[effect_debug.rs](../crates/sjk-viewer/src/effect_debug.rs)). Both follow their
+cvar every frame, including with no snapshot, and log nothing while off.
+Unit tests cover the flag following the cvars and resetting without a console.
+The workspace checks passed on Windows 11 (06/10/2026). Unverified: the log
+output in a running client.
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the

@@ -46,6 +46,7 @@ mod dynamic_lights;
 mod effect_assets;
 mod effect_aux;
 mod effect_blend;
+mod effect_debug;
 mod effect_electricity;
 mod effect_emitter;
 mod effect_envelope;
@@ -1669,6 +1670,7 @@ impl GpuState {
         self.begin_saber_instances();
         self.particle_groups.iter_mut().for_each(Vec::clear);
         self.dynamic_lights.clear();
+        let debug_missiles = effect_debug::sync(self.console.as_ref());
         let active_snapshot = first_person_view::presented_snapshot(
             self.live_session.as_ref(),
             self.demo_session.as_ref(),
@@ -1714,21 +1716,7 @@ impl GpuState {
                 &mut self.dynamic_lights,
                 visual_now,
             );
-            effect_runtime::FX_DEBUG.store(
-                self.console
-                    .as_ref()
-                    .and_then(|c| c.integer_cvar("fx_debug"))
-                    .unwrap_or(0)
-                    != 0,
-                std::sync::atomic::Ordering::Relaxed,
-            );
-            if self
-                .console
-                .as_ref()
-                .and_then(|c| c.integer_cvar("cg_debugMissiles"))
-                .unwrap_or(0)
-                != 0
-            {
+            if debug_missiles {
                 missile_trails::debug_report(
                     &self.missile_effects,
                     missile_metrics,

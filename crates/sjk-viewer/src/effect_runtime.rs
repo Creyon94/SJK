@@ -157,7 +157,7 @@ pub(crate) fn spawn_effect(
         return;
     };
     if depth == 0 {
-        debug_report(effect_name, &definition);
+        crate::effect_debug::report_effect(effect_name, &definition);
     }
     for (component_index, component) in definition.components.iter().enumerate() {
         if component.kind == ComponentKind::Sound {
@@ -492,46 +492,4 @@ fn random_unit(mut seed: u32) -> f32 {
     seed = seed.wrapping_mul(0x846c_a68b);
     seed ^= seed >> 16;
     (seed as f64 / u32::MAX as f64) as f32
-}
-
-/// `fx_debug 1`: the console's switch for [`debug_report`].
-pub(crate) static FX_DEBUG: std::sync::atomic::AtomicBool =
-    std::sync::atomic::AtomicBool::new(false);
-
-/// `fx_debug 1`: log each effect as it plays (at most once a second per name) with
-/// every component's kind, shaders, life and size, to trace a wrong-looking sprite
-/// back to the effect and shader that drew it.
-fn debug_report(effect_name: &str, definition: &sjk_effect::EffectDefinition) {
-    use std::sync::atomic::Ordering;
-    if !FX_DEBUG.load(Ordering::Relaxed) {
-        return;
-    }
-    static LAST: std::sync::Mutex<Option<HashMap<String, Instant>>> = std::sync::Mutex::new(None);
-    let now = Instant::now();
-    {
-        let Ok(mut last) = LAST.lock() else { return };
-        let last = last.get_or_insert_with(HashMap::new);
-        if last
-            .get(effect_name)
-            .is_some_and(|at| now.duration_since(*at).as_secs_f32() < 1.0)
-        {
-            return;
-        }
-        last.insert(effect_name.to_owned(), now);
-    }
-    let mut line = format!("fx {effect_name}:");
-    for component in &definition.components {
-        line.push_str(&format!(
-            " [{:?} life {}-{} size {}-{} -> {}-{} {}]",
-            component.kind,
-            component.life.minimum,
-            component.life.maximum,
-            component.size.start.minimum,
-            component.size.start.maximum,
-            component.size.end.minimum,
-            component.size.end.maximum,
-            component.shaders.join(","),
-        ));
-    }
-    log::progress(format_args!("{line}"));
 }

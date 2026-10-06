@@ -119,7 +119,10 @@ pub(crate) fn create(
                 }
             }
         }
-        if pending.len() == before && shaders.resolve_image(vfs, shader)?.is_none() {
+        if effect_debug::enabled()
+            && pending.len() == before
+            && shaders.resolve_image(vfs, shader)?.is_none()
+        {
             static REPORTED: std::sync::Mutex<BTreeSet<String>> =
                 std::sync::Mutex::new(BTreeSet::new());
             if REPORTED

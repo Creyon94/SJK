@@ -146,7 +146,7 @@ pub(crate) fn debug_report(
     for state in snapshot
         .entities
         .iter()
-        .filter(|state| state.entity_type() == 3)
+        .filter(|state| state.entity_type() == crate::projectiles::ET_MISSILE)
         .take(4)
     {
         crate::log::progress(format_args!(

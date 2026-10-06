@@ -677,6 +677,17 @@ smoke trails get shorter
 holds every slot's billboard at eight shader stages; it used to hold 1,024 instances
 in all and dropped the newest particles first.
 
+Two console diagnostics trace a wrong-looking or missing effect; both are 0 by
+default, not archived, and change nothing while off
+([effect_debug.rs](../crates/sjk-viewer/src/effect_debug.rs)):
+
+| Cvar | Effect |
+| --- | --- |
+| `fx_debug` | Logs each effect as it plays, at most once a second per effect name, with every component's kind, life, size and shaders. The effect atlas also logs once per shader that an effect shader has no image, when it is built or expanded while the cvar is on |
+| `cg_debugMissiles` | Once a second logs the missiles in the snapshot (number, weapon, flags, `otherEntityNum2`, trajectory type) and whether their trail effects loaded |
+
+Both follow the cvar every frame, so they stop when it is set to 0 or the
+session ends.
 Mind Trick follows `CG_Player` (EternalJK `cg_players.c:10191-10345`, stock
 code; [mind_trick.rs](../crates/sjk-client/src/mind_trick.rs)). A player who
 tricked the viewer fades out at 0.5 alpha per millisecond from 255 (about half
