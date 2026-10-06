@@ -1419,9 +1419,7 @@ Text sits on a grid of character cells drawn with the console character set
 without the glyph shadow other UI text has. The retail character set has no
 Windows-1252 typographic characters (`€`, `’`, `‘`, `…`, bytes 0x80..=0x9E); the
 classic console gives them no cell, like colour codes, so rows close up as in
-EternalJK, while the text keeps them. The classic console loads the
-
-without the glyph shadow other UI text has. When `GameData/EternalJK` holds a PK3
+EternalJK, while the text keeps them. When `GameData/EternalJK` holds a PK3
 with its own character set (jaPRO's `japro-assets.pk3`), that image replaces
 `gfx/2d/charsgrid_med` for everything that draws with it (the console and the
 character-set text of [game_font.rs](../crates/sjk-viewer/src/game_font.rs)), as in
