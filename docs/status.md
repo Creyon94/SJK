@@ -7,6 +7,16 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Image extension order
+
+Branch `fix/image-extension-order`: an image name with no file of its own is
+tried as `.jpg`, `.png` and then `.tga`, the order rd-common's `R_LoadImage`
+registers its loaders (`tr_image_load.cpp`), instead of `.tga` first. HD packs
+rely on it: JoF's packs ship a `.png` or `.jpg` beside the base `.tga`, which
+EternalJK shows and SJK did not (for example the disruptor scope in
+`JoF_HDWeaponScopeTrue.pk3`). The existing shader catalog tests pass; checked in
+game on Windows 11 with the JoF HD packs.
+
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the
