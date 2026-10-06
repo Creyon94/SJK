@@ -1133,8 +1133,16 @@ Sol is reviewing every retail world shader on the test maps of
   classifies by texture set (generic 560 -> 65 textures); the client limits
   parallax at grazing angles and distance, adds specular anti-aliasing and halves
   the bump tilt of probe reflections. Not yet looked at in game.
-- Open: 629 textures drawn only on vertex-lit surfaces (terrain, `_phong` sand and
-  rock) get no material maps, because the material program needs a lightmap.
+- 07/10/2026: parallax is off by default (Sol: focus on normal, specular and
+  emission maps). Vertex-lit paint (opaque `rgbGen vertex`: terrain, `_phong` sand
+  and rock) takes material maps, its vertex colour standing in for the lightmap;
+  generation 5 of the generator covers it (1,199 textures on the retail MP maps and
+  the test maps, 145 of them vertex-lit). Open: 180 vertex-lit shaders whose base is
+  not opaque vertex paint, chiefly blended terrain layers, stay unmapped.
+- Controls' painted indicator lights are emission evidence now, but on retail data it
+  finds nothing new: nearly every switch and door control already glows through its
+  shader, and the three that do not have no lights painted. 31 textures emit.
+  Not yet looked at in game.
 - Open: decals flicker on every map (Sol). Their bias matches rd-vanilla; only the
   fog pass lacked it (fixed). The cause outside fog needs a reproduction (map,
   decal, distance).
