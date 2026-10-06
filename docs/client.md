@@ -646,7 +646,12 @@ collapses the camera onto its target, the view uses the intended forward directi
 instead of constructing an undefined look-at matrix.
 
 Pitch limits, pitch-offset direction and turn-dependent damping follow the
-multiplayer reference. View changes, teleports, followed-player changes and
+multiplayer reference. How fast the camera closes the gap follows EternalJK's
+`cg_cameraFPS` (default 125, as EternalJK): the damping cvars apply per frame of
+that rate whatever the real frame rate, and the ideal point's own movement is
+compensated (EternalJK `CG_DampPosition`), so the camera stays close behind a
+fast-moving player. Stock multiplayer applies them per 50 ms, which trails about
+six times further at the same settings; `cg_cameraFPS` below 15 restores that. View changes, teleports, followed-player changes and
 mounting/dismounting reset the presentation history. The ordinary range, height,
 angle and damping cvars remain available; `cg_thirdPersonHorzOffset` controls the
 stock sideways offset.

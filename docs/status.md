@@ -45,6 +45,18 @@ fix the challenge showed without a crash, but with `?` for each `×`; with both
 fixes it read `You have challenged ×jof.jk.belyash×`. Merged into SJK `main` from
 SJK pull request #2 (Creyon94, 06/10/2026).
 
+## EternalJK camera damping
+
+Branch `feat/camera-fps` (06/10/2026, based on `5c66ccd`): SJK's third-person
+camera trailed far behind fast movement compared with EternalJK at the same
+`cg_thirdPersonCameraDamp`/`TargetDamp` (side-by-side Windows 11 videos on a live
+JoF server). SJK used stock damping per 50 ms; EternalJK damps per frame of
+`cg_cameraFPS` (default 125) with compensation for the ideal point's movement.
+SJK now does the same, with the same cvar and default; below 15 keeps stock damping.
+Unit tests check that one step at 125 fps equals EternalJK's per-frame formula and
+that the result does not depend on the frame rate. Formatting, the locked workspace
+build, tests and clippy passed on Linux. The feel in game is unverified.
+
 ## Worldspawn shader remaps and remap order
 
 Local change against `af65396` (2026-10-05, Windows 11): a map's worldspawn
@@ -446,7 +458,7 @@ game.
 
 ## Credits page (SJK)
 
-SJK-only branch `personal/credits` (06/10/2026, based on `5f14439`) adds the
+SJK-only branch `personal/credits` (06/10/2026, based on `5c66ccd`) adds the
 animated credits page and its file
 ([credits.txt](../crates/sjk-viewer/assets/credits.txt): Sol, Bishop, Creyon,
 then Claude and the reference clients), opened from the main menu, the in-game

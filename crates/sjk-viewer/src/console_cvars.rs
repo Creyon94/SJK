@@ -266,13 +266,20 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "cg_thirdPersonCameraDamp",
             0.3_f64,
             archive,
-            "Third-person camera easing per 50 ms; 1 or more snaps to the ideal position",
+            "Third-person camera easing per cg_cameraFPS frame (per 50 ms below 15); 1 or more snaps to the ideal position",
         ),
         CvarDefinition::new(
             "cg_thirdPersonTargetDamp",
             0.5_f64,
             archive,
-            "Third-person look-target easing per 50 ms; 1 or more snaps",
+            "Third-person look-target easing per cg_cameraFPS frame (per 50 ms below 15); 1 or more snaps",
+        ),
+        CvarDefinition::new(
+            "cg_cameraFPS",
+            125_i64,
+            archive,
+            "Third-person camera easing as EternalJK: damping per frame at this rate, \
+             independent of the real frame rate; below 15 uses the original per-50 ms easing",
         ),
         CvarDefinition::new(
             "com_maxfps",

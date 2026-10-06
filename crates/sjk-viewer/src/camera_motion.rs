@@ -11,6 +11,11 @@ pub(crate) struct State {
 struct Previous {
     position: Vec3,
     target: Vec3,
+    /// Undamped target and camera location of this frame (`cam.*.ideal`).
+    ideal_target: Vec3,
+    ideal_position: Vec3,
+    /// Traced camera location before the sideways offset.
+    traced_position: Vec3,
     yaw: f32,
     time: i64,
     identity: (u16, u16, u32),
@@ -30,6 +35,26 @@ pub(crate) struct Frame {
     pub(crate) identity: (u16, u16, u32),
     pub(crate) unrestrained: bool,
     pub(crate) hyperspace: bool,
+    /// `cg_cameraFPS`: below [`CAMERA_MIN_FPS`] the stock damping per 50 ms,
+    /// otherwise EternalJK's frame-rate independent damping at this rate.
+    pub(crate) camera_fps: f32,
+}
+
+/// EternalJK's `CAMERA_MIN_FPS`: lower `cg_cameraFPS` values keep stock damping.
+pub(crate) const CAMERA_MIN_FPS: f32 = 15.0;
+
+/// EternalJK's `CG_DampPosition` with `cg_cameraFPS`: the offset `damp` from the
+/// ideal point decays by `remaining` (the part left per emulated frame) over
+/// `milliseconds`, and the ideal point's own movement (`ideal_delta` since the
+/// last frame) is compensated, so the result does not depend on the frame rate.
+/// With a steady frame rate equal to `fps` it equals the per-frame original.
+fn damp_offset(damp: Vec3, ideal_delta: Vec3, remaining: f32, milliseconds: f32, fps: f32) -> Vec3 {
+    if milliseconds <= 0.0 {
+        return damp;
+    }
+    let frames = milliseconds * fps / 1000.0;
+    let shift = ideal_delta / frames * (remaining / (1.0 - remaining));
+    (damp + shift) * remaining.powf(frames) - shift
 }
 
 /// Fraction remaining after `cg.time - cameraLastFrame`, in milliseconds.
@@ -74,7 +99,17 @@ impl State {
             } else {
                 f.target_damp
             };
-            let target = if target_damp < 0.0 {
+            let eternal = f.camera_fps >= CAMERA_MIN_FPS;
+            let target = if eternal && target_damp > 0.0 && target_damp < 1.0 {
+                ideal_target
+                    + damp_offset(
+                        p.target - p.ideal_target,
+                        ideal_target - p.ideal_target,
+                        1.0 - target_damp,
+                        dt,
+                        f.camera_fps,
+                    )
+            } else if target_damp < 0.0 {
                 p.target
             } else {
                 ideal_target + (p.target - ideal_target) * remaining(target_damp, dt)
@@ -97,7 +132,16 @@ impl State {
                 let damp = base + (1.0 - base) * (pitch.to_degrees().abs() / 115.0).powi(2);
                 damp + (1.0 - damp) * stiff
             };
-            let position = if damp < 0.0 {
+            let position = if eternal && damp > 0.0 && damp < 1.0 {
+                ideal_position
+                    + damp_offset(
+                        p.traced_position - p.ideal_position,
+                        ideal_position - p.ideal_position,
+                        1.0 - damp,
+                        dt,
+                        f.camera_fps,
+                    )
+            } else if damp < 0.0 {
                 p.position
             } else {
                 ideal_position + (p.position - ideal_position) * remaining(damp, dt)
@@ -120,14 +164,49 @@ impl State {
             f.yaw.cos(),
             0.0,
         ));
+        let traced_position = position;
         let position = position + left * f.horizontal;
         self.previous = Some(Previous {
             position,
             target,
+            ideal_target,
+            ideal_position,
+            traced_position,
             yaw: f.yaw,
             time: f.time,
             identity: f.identity,
         });
         (position, position + direction)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn eternal_damping_matches_the_per_frame_original_at_its_rate() {
+        // One frame of 8 ms at 125 fps: damp_{n+1} = f * (damp_n - delta).
+        let damp = Vec3::new(10.0, 0.0, 0.0);
+        let delta = Vec3::new(2.0, 0.0, 0.0);
+        let one = damp_offset(damp, delta, 0.7, 8.0, 125.0);
+        assert!((one - (damp - delta) * 0.7).length() < 1e-4, "{one}");
+    }
+
+    #[test]
+    fn eternal_damping_does_not_depend_on_the_frame_rate() {
+        // A still ideal point: 40 ms in one step or in five equal the same decay.
+        let damp = Vec3::new(30.0, -6.0, 4.0);
+        let whole = damp_offset(damp, Vec3::ZERO, 0.7, 40.0, 125.0);
+        let mut steps = damp;
+        for _ in 0..5 {
+            steps = damp_offset(steps, Vec3::ZERO, 0.7, 8.0, 125.0);
+        }
+        assert!((whole - steps).length() < 1e-3, "{whole} {steps}");
+        // And it catches up far faster than stock's 50 ms intervals.
+        assert!(whole.length() < damp.length() * 0.2);
+        assert!(remaining(0.3, 40.0) > 0.7);
+        // No time passed: nothing moves.
+        assert_eq!(damp_offset(damp, Vec3::ONE, 0.7, 0.0, 125.0), damp);
     }
 }
