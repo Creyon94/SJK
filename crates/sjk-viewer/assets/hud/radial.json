@@ -11,6 +11,10 @@
     "x": 0.0,
     "y": 0.0
    },
+   "offset_fraction": {
+    "x": 0.0,
+    "y": 0.19
+   },
    "size": {
     "width": {
      "unit": "px",
@@ -56,6 +60,10 @@
    "offset": {
     "x": 0.0,
     "y": 0.0
+   },
+   "offset_fraction": {
+    "x": 0.0,
+    "y": 0.19
    },
    "size": {
     "width": {
@@ -103,6 +111,10 @@
     "x": 0.0,
     "y": 0.0
    },
+   "offset_fraction": {
+    "x": 0.0,
+    "y": 0.19
+   },
    "size": {
     "width": {
      "unit": "px",
@@ -149,6 +161,10 @@
     "x": 0.0,
     "y": 0.0
    },
+   "offset_fraction": {
+    "x": 0.0,
+    "y": 0.19
+   },
    "size": {
     "width": {
      "unit": "px",
@@ -187,17 +203,58 @@
    }
   },
   {
-   "id": "readout_pill",
+   "id": "left_pill",
    "kind": "panel",
    "anchor": "center",
    "offset": {
+    "x": -310.0,
+    "y": 0.0
+   },
+   "offset_fraction": {
     "x": 0.0,
-    "y": 166.0
+    "y": 0.19
    },
    "size": {
     "width": {
      "unit": "px",
-     "value": 440.0
+     "value": 176.0
+    },
+    "height": {
+     "unit": "px",
+     "value": 44.0
+    }
+   },
+   "visibility": {
+    "kind": "flag",
+    "binding": "draw_status"
+   },
+   "layer": 1,
+   "style": {
+    "background": {
+     "r": 0,
+     "g": 0,
+     "b": 0,
+     "a": 0.5
+    },
+    "radius": 22.0
+   }
+  },
+  {
+   "id": "right_pill",
+   "kind": "panel",
+   "anchor": "center",
+   "offset": {
+    "x": 310.0,
+    "y": 0.0
+   },
+   "offset_fraction": {
+    "x": 0.0,
+    "y": 0.19
+   },
+   "size": {
+    "width": {
+     "unit": "px",
+     "value": 176.0
     },
     "height": {
      "unit": "px",
@@ -225,13 +282,17 @@
    "binding": "health_value",
    "anchor": "center",
    "offset": {
-    "x": -160.0,
-    "y": 166.0
+    "x": -266.0,
+    "y": 0.0
+   },
+   "offset_fraction": {
+    "x": 0.0,
+    "y": 0.19
    },
    "size": {
     "width": {
      "unit": "px",
-     "value": 76.0
+     "value": 80.0
     },
     "height": {
      "unit": "px",
@@ -261,13 +322,17 @@
    "binding": "armor_value",
    "anchor": "center",
    "offset": {
-    "x": -80.0,
-    "y": 166.0
+    "x": -354.0,
+    "y": 0.0
+   },
+   "offset_fraction": {
+    "x": 0.0,
+    "y": 0.19
    },
    "size": {
     "width": {
      "unit": "px",
-     "value": 76.0
+     "value": 80.0
     },
     "height": {
      "unit": "px",
@@ -297,13 +362,17 @@
    "binding": "ammo_value",
    "anchor": "center",
    "offset": {
-    "x": 80.0,
-    "y": 166.0
+    "x": 354.0,
+    "y": 0.0
+   },
+   "offset_fraction": {
+    "x": 0.0,
+    "y": 0.19
    },
    "size": {
     "width": {
      "unit": "px",
-     "value": 76.0
+     "value": 80.0
     },
     "height": {
      "unit": "px",
@@ -333,13 +402,17 @@
    "binding": "force_value",
    "anchor": "center",
    "offset": {
-    "x": 160.0,
-    "y": 166.0
+    "x": 266.0,
+    "y": 0.0
+   },
+   "offset_fraction": {
+    "x": 0.0,
+    "y": 0.19
    },
    "size": {
     "width": {
      "unit": "px",
-     "value": 76.0
+     "value": 80.0
     },
     "height": {
      "unit": "px",
@@ -369,13 +442,17 @@
    "binding": "style_value",
    "anchor": "center",
    "offset": {
-    "x": 80.0,
-    "y": 166.0
+    "x": 354.0,
+    "y": 0.0
+   },
+   "offset_fraction": {
+    "x": 0.0,
+    "y": 0.19
    },
    "size": {
     "width": {
      "unit": "px",
-     "value": 130.0
+     "value": 96.0
     },
     "height": {
      "unit": "px",
@@ -406,12 +483,16 @@
    "anchor": "center",
    "offset": {
     "x": 0.0,
-    "y": 210.0
+    "y": 0.0
+   },
+   "offset_fraction": {
+    "x": 0.0,
+    "y": 0.19
    },
    "size": {
     "width": {
      "unit": "px",
-     "value": 280.0
+     "value": 300.0
     },
     "height": {
      "unit": "px",

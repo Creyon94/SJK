@@ -921,6 +921,16 @@ shader (`menu_snapshot`) at 1440x1080. Not verified: the GPU shader and the layo
 running client (no game window was started), other aspect ratios and `cg_hudScale`
 values, and the placement against the in-game crosshair.
 
+Branch `personal/radial-layout` (2026-10-06, based on `30134b4`) moves the rings to
+0.69 of the screen height, where TheRisqe's bars sit (the first version centred them on
+the crosshair), and puts the numbers in a pill beside each pair of bars instead of one
+pill below. Layout widgets gained `offset_fraction` (a fraction of the screen added to
+the pixel `offset`) for the drop. Unit tests place the HUD at nine window sizes, an 8K
+one past the UI scale's clamp and `cg_hudScale` 0.5, 1 and 1.5 and check the ring centre
+and the position of the numbers, pills and weapon name against the bars; sample layouts
+were rendered to PNG through `menu_snapshot`. Not verified: the layout in a running
+client, and whether 0.69 and the pill placement suit the player's taste.
+
 ## HUD picker (SJK)
 
 SJK-only branch `personal/hud-picker` (2026-10-05, based on `0fc6e24`): the

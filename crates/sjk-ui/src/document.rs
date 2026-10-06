@@ -42,6 +42,14 @@ pub struct HudWidget {
     /// Logical-pixel offset from the anchor.
     #[serde(default)]
     pub offset: Vec2,
+    /// Offset from the anchor as a fraction of the screen, `x` of its width and `y` of its
+    /// height, added to [`offset`](Self::offset).
+    ///
+    /// Pixel offsets follow the UI scale, which stops growing and shrinking at its limits
+    /// and grows with `cg_hudScale`; this one keeps a widget at the same spot of the screen
+    /// at every size.
+    #[serde(default)]
+    pub offset_fraction: Vec2,
     /// Preferred and constrained widget size.
     pub size: SizeSpec,
     /// Data/cvar visibility rule evaluated by the adapter.
