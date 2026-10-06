@@ -209,4 +209,72 @@ mod tests {
         // No time passed: nothing moves.
         assert_eq!(damp_offset(damp, Vec3::ONE, 0.7, 0.0, 125.0), damp);
     }
+
+    #[test]
+    fn eternal_damping_follows_a_moving_ideal_at_any_frame_rate() {
+        // The ideal point moves 3 units per 8 ms: one 40 ms step equals five 8 ms steps.
+        let damp = Vec3::new(20.0, 5.0, 0.0);
+        let per_frame = Vec3::new(3.0, 0.0, 1.0);
+        let whole = damp_offset(damp, per_frame * 5.0, 0.7, 40.0, 125.0);
+        let mut steps = damp;
+        for _ in 0..5 {
+            steps = damp_offset(steps, per_frame, 0.7, 8.0, 125.0);
+        }
+        assert!((whole - steps).length() < 1e-3, "{whole} {steps}");
+    }
+
+    fn frame(focus: Vec3, time: i64, camera_fps: f32) -> Frame {
+        Frame {
+            focus,
+            yaw: 0.3,
+            pitch: 0.1,
+            range: 80.0,
+            vertical: 16.0,
+            horizontal: 0.0,
+            camera_damp: 0.3,
+            target_damp: 0.5,
+            time,
+            identity: (0, 0, 0),
+            unrestrained: false,
+            hyperspace: false,
+            camera_fps,
+        }
+    }
+
+    /// Two frames 50 ms apart with the focus moved; no collision.
+    fn second_position(camera_fps: f32) -> (Vec3, Vec3, Vec3) {
+        let mut state = State::default();
+        let (first, _) = state.update(frame(Vec3::ZERO, 1_000, camera_fps), |_, end| end);
+        let moved = Vec3::new(40.0, 10.0, 0.0);
+        let (second, _) = state.update(frame(moved, 1_050, camera_fps), |_, end| end);
+        let ideal = state.previous.as_ref().unwrap().ideal_position;
+        (first, second, ideal)
+    }
+
+    #[test]
+    fn camera_fps_zero_keeps_the_stock_damping() {
+        let (first, second, ideal) = second_position(0.0);
+        // CG_DampPosition's stock path: one 50 ms step keeps (1 - damp) of the offset,
+        // damp raised by the pitch term.
+        let damp = 0.3 + 0.7 * (0.1_f32.to_degrees() / 115.0).powi(2);
+        let expected = ideal + (first - ideal) * (1.0 - damp);
+        assert!((second - expected).length() < 1e-3, "{second} {expected}");
+        // The EternalJK path lands elsewhere for the same movement.
+        let (_, eternal, _) = second_position(125.0);
+        assert!((eternal - second).length() > 0.1);
+    }
+
+    #[test]
+    fn no_elapsed_time_leaves_the_camera_where_it_was() {
+        for camera_fps in [0.0, 125.0] {
+            let mut state = State::default();
+            let (first, _) = state.update(frame(Vec3::ZERO, 1_000, camera_fps), |_, end| end);
+            let (same, look) = state.update(frame(Vec3::ZERO, 1_000, camera_fps), |_, end| end);
+            assert!(same.is_finite() && look.is_finite());
+            assert!(
+                (same - first).length() < 1e-4,
+                "{camera_fps}: {same} {first}"
+            );
+        }
+    }
 }

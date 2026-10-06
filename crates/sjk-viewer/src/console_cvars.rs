@@ -276,7 +276,9 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         ),
         CvarDefinition::new(
             "cg_cameraFPS",
-            125_i64,
+            // A float: the camera reads it with `float_cvar`, so an integer value
+            // was never seen and `cg_cameraFPS 0` did nothing.
+            125.0_f64,
             archive,
             "Third-person camera easing as EternalJK: damping per frame at this rate, \
              independent of the real frame rate; below 15 uses the original per-50 ms easing",
