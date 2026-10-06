@@ -413,6 +413,13 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             archive,
             "Display the Force Seeing aura shell on other players",
         ),
+        // JoF EJK's `cg_spprotabscolor` (cg_xcvar.h), same default.
+        CvarDefinition::new(
+            "cg_spProtAbsColor",
+            true,
+            archive,
+            "Protect and Absorb together show one cyan shell, as in single player",
+        ),
         CvarDefinition::new(
             "cg_shieldSphere",
             0_i64,

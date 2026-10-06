@@ -414,6 +414,11 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Protect+Absorb combo",
+        cvar: "cg_spProtAbsColor",
+        kind: ValueKind::Bool,
+    },
+    Setting {
         // SJK defaults to 2 (EternalJK); 1 excludes player-texture configstring remaps.
         label: "Shader remaps (0 off / 1 map / 2 all)",
         cvar: "cg_remaps",
