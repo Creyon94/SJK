@@ -7,6 +7,18 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Scoreboard rows on full servers
+
+Branch `fix/scoreboard-rows`: on servers with more than 20 players, many scoreboard
+rows showed one player's name (client 0) with score, ping and time 0. The `scores`
+count is every connected client, but the game sends at most 20 rows
+(`MAX_CLIENT_SCORE_SEND`, `DeathmatchScoreboardMessage`), so the check that picked
+jaPRO's 15-field rows (with deaths) failed, and they were read as 14 fields, shifting
+every later row. The row width now comes from the fields actually sent; when both
+widths divide them, the one whose rows read as players wins. See
+[networking.md](networking.md). Unit tests cover full stock and jaPRO servers and a
+length both widths divide. Checked in game on Windows 11 on JoF's full server.
+
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the
@@ -764,17 +776,6 @@ A temporary CPU render of the draw list (free-for-all at 1920x1080, team game at
 3440x1440, 26 clients) checked placement and was then deleted. Not run in the
 client; head icons, flag icons and the game-font option's retail fonts on this
 layout are unverified on screen.
-
-## Scoreboard rows on full servers
-
-On servers with more than 20 players, many scoreboard rows showed one player's
-name (client 0) with score, ping and time 0. The `scores` count is every connected
-client, but the game sends at most 20 rows (`MAX_CLIENT_SCORE_SEND`,
-`DeathmatchScoreboardMessage`), so the check that picked jaPRO's 15-field rows
-(with deaths) failed and they were read as 14 fields, shifting every later row.
-The row width now comes from the rows actually sent, and when both widths divide
-them, the one whose rows read as real players wins. Unit tests cover full stock and
-jaPRO servers and a length both widths divide. Found by creyon on JoF's server.
 
 ## Leader HUD placement preview
 
