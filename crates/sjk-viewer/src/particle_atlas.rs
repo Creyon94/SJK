@@ -299,15 +299,6 @@ impl GpuState {
         Ok(())
     }
 }
-#[cfg(test)]
-mod shader_tests {
-    /// The atlas samplers take explicit gradients; both programs must still validate.
-    #[test]
-    fn atlas_sampling_programs_validate() {
-        crate::wgsl_source::validate(include_str!("effect_geometry.wgsl"));
-        crate::wgsl_source::validate(include_str!("entity.wgsl"));
-    }
-}
 
 /// `rgbGen const` / `alphaGen const` as a flat wave, so effect layers take a stage's
 /// constant colour and opacity. JoF's HD scorch marks, for example, are drawn at 15%
@@ -434,5 +425,15 @@ mod mip_tests {
                 assert_eq!(*last.get_pixel(cell + x, y), image::Rgba([0, 0, 255, 255]));
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod shader_tests {
+    /// The atlas samplers take explicit gradients; both programs must still validate.
+    #[test]
+    fn atlas_sampling_programs_validate() {
+        crate::wgsl_source::validate(include_str!("effect_geometry.wgsl"));
+        crate::wgsl_source::validate(include_str!("entity.wgsl"));
     }
 }
