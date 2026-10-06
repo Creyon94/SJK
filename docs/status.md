@@ -60,6 +60,18 @@ EternalJK's `widthRatioCoef`, so it stays round on wide screens (`CG_SaberClashF
 `cg_draw.c:7149-7208`). Checked in game on Windows 11 on a JoF server: a clash shows a
 short glow where the sabers meet.
 
+## Scoreboard rows on full servers
+
+Branch `fix/scoreboard-rows`: on servers with more than 20 players, many scoreboard
+rows showed one player's name (client 0) with score, ping and time 0. The `scores`
+count is every connected client, but the game sends at most 20 rows
+(`MAX_CLIENT_SCORE_SEND`, `DeathmatchScoreboardMessage`), so the check that picked
+jaPRO's 15-field rows (with deaths) failed, and they were read as 14 fields, shifting
+every later row. The row width now comes from the fields actually sent; when both
+widths divide them, the one whose rows read as players wins. See
+[networking.md](networking.md). Unit tests cover full stock and jaPRO servers and a
+length both widths divide. Checked in game on Windows 11 on JoF's full server.
+
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the
