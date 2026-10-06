@@ -96,6 +96,35 @@ pub(crate) fn aspect_adjusted_fov(horizontal_degrees: f32, aspect: f32) -> f32 {
 }
 
 impl GpuState {
+    /// `cg_view.c` `CG_DrawActiveFrame`: "always force first person when zoomed".
+    /// While the predicted (or demo) player is zoomed, the third-person camera
+    /// steps aside, so the disruptor scope shows; the player's camera choice comes
+    /// back when the zoom ends.
+    pub(crate) fn force_first_person_while_zoomed(&mut self, time: i32) {
+        let snapshot_mode = self
+            .live_session
+            .as_ref()
+            .map(|s| s.latest_snapshot().player.zoom_mode())
+            .or_else(|| {
+                self.demo_session
+                    .as_ref()
+                    .map(|s| s.snapshot_at_or_before(time).player.zoom_mode())
+            })
+            .unwrap_or(0);
+        let mode = self
+            .live_session
+            .as_ref()
+            .and_then(|_| self.local_prediction.predicted_state())
+            .map_or(snapshot_mode, |state| state.zoom_mode);
+        if mode != 0 && self.third_person {
+            self.third_person = false;
+            self.zoom_forced_first_person = true;
+        } else if mode == 0 && self.zoom_forced_first_person {
+            self.third_person = true;
+            self.zoom_forced_first_person = false;
+        }
+    }
+
     /// Calculate the legacy horizontal zoom before converting to the renderer's vertical FOV.
     pub(crate) fn scope_fov(&mut self, time: i32, audio: &mut Option<GameAudio>) -> f32 {
         let snapshot = self

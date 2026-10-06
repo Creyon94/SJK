@@ -177,6 +177,16 @@ impl Runtime {
         });
     }
 
+    /// Pending shake requests, for [`Self::drop_shakes_since`].
+    pub(crate) fn pending_shakes(&self) -> usize {
+        self.pending_shakes.len()
+    }
+
+    /// Forget shake requests queued after `count` (see `muzzle_effects::spawn`).
+    pub(crate) fn drop_shakes_since(&mut self, count: usize) {
+        self.pending_shakes.truncate(count);
+    }
+
     /// Resolve pending requests against the local viewer, like
     /// `CG_DoCameraShake`. Remote presentation cameras are never mutated.
     pub(crate) fn resolve_shakes(&mut self, local_origin: Vec3, now: Instant, local_view: bool) {

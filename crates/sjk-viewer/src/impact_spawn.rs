@@ -114,13 +114,17 @@ pub(crate) fn spawn_impact(
         let seed =
             u32::from(impact.entity_number) | (u32::from(impact.event) << 16) | visual_index as u32;
         match visual {
-            impacts::Visual::Effect { name, direction } => effect_runtime::spawn_effect(
+            impacts::Visual::Effect {
+                name,
+                direction,
+                origin,
+            } => effect_runtime::spawn_effect(
                 sinks.particles,
                 sinks.auxiliary,
                 sinks.effects,
                 sinks.vfs,
                 name,
-                Vec3::from_array(impact.origin),
+                Vec3::from_array(origin.unwrap_or(impact.origin)),
                 now,
                 seed,
                 0,

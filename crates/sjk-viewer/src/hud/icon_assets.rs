@@ -166,17 +166,3 @@ pub(super) fn tint(method: usize) -> [f32; 3] {
         _ => [1.0; 3],
     }
 }
-
-/// BG_FindItemForAmmo mapping used for the current weapon's ammo slot.
-pub(super) fn ammo(weapon: u8) -> usize {
-    match weapon {
-        4 | 5 | 16 => 41,
-        6 | 7 | 9 => 42,
-        8 | 10 | 15 => 43,
-        11 => 44,
-        12 => 32,
-        13 => 33,
-        14 => 34,
-        _ => 0,
-    }
-}

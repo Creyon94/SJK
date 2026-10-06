@@ -117,6 +117,8 @@ pub(crate) struct Inputs {
     pub(crate) weapon: u8,
     pub(crate) frames: LegacyViewWeaponFrames,
     pub(crate) pose: LegacyViewWeaponPose,
+    /// EternalJK's `cg_fovViewmodel` factor on the hand's forward axis.
+    pub(crate) forward_scale: f32,
 }
 
 /// First-person view of the local player: eye origin and look angles.
@@ -165,7 +167,21 @@ pub(crate) fn frame_inputs(
         let (yaw, pitch) = camera.map_or((state.camera_yaw, state.camera_pitch), |camera| {
             (camera.yaw, camera.pitch)
         });
-        inputs.pose.origin = offsets::apply(inputs.pose.origin, yaw, pitch, state.console.as_ref());
+        let aspect = state.configuration.width as f32 / state.configuration.height.max(1) as f32;
+        // `cg.refdef.fov_x` from the vertical FOV the last frame rendered with.
+        let horizontal = 2.0
+            * ((state.field_of_view.to_radians() * 0.5).tan() * aspect)
+                .atan()
+                .to_degrees();
+        let fov = offsets::view_model_fov(state.console.as_ref(), horizontal, aspect);
+        inputs.pose.origin = offsets::apply(
+            inputs.pose.origin,
+            yaw,
+            pitch,
+            state.console.as_ref(),
+            fov.drop,
+        );
+        inputs.forward_scale = fov.forward_scale;
         inputs
     })
 }
@@ -177,7 +193,7 @@ fn inputs_with_weapon(
     third_person: bool,
     view: View,
     landing: f32,
-    torso_frame: Option<f32>,
+    torso_frame: Option<(usize, f32)>,
     presentation_time: i64,
     predicted_weapon: Option<&sjk_client::pmove::MovementState>,
 ) -> Option<Inputs> {
@@ -187,9 +203,7 @@ fn inputs_with_weapon(
     };
     let state = &snapshot.player;
     let frames = match (&catalog.animations, torso_frame) {
-        (Some(animations), Some(frame)) => {
-            animations.frames(usize::from(state.torso_animation()), frame)
-        }
+        (Some(animations), Some((clip, frame))) => animations.frames(clip, frame),
         _ => legacy_view_weapon_frames("", 0, 0.0),
     };
     // Quake angles: positive pitch looks down (`AngleVectors`, `q_math.c`).
@@ -197,6 +211,7 @@ fn inputs_with_weapon(
     Some(Inputs {
         weapon,
         frames,
+        forward_scale: offsets::ViewModelFov::NONE.forward_scale,
         pose: legacy_view_weapon_pose(
             view.origin.to_array(),
             view_angles,
@@ -210,17 +225,23 @@ fn inputs_with_weapon(
     })
 }
 
-/// Fractional torso frame of the local actor's posed mesh, for `inputs`.
+/// The local actor's posed torso animation and fractional frame, for `inputs`.
+/// The animation comes from the same posed track as the frame (stock reads
+/// `lower_lumbar`'s frame with the predicted `torsoAnim`), not from the older
+/// server snapshot, whose animation can still be the previous one while the
+/// predicted shot already plays; mixing the two put the hand on the wrong frames.
 pub(crate) fn local_torso_frame(
     meshes: &[ActorMesh],
     local_entity: Option<u64>,
     presentation_time: i64,
-) -> Option<f32> {
+) -> Option<(usize, f32)> {
     let mesh = meshes
         .iter()
         .find(|mesh| mesh.entity_id.map(|entity| entity.get()) == local_entity)?;
-    mesh.animator
-        .torso_frame(&mesh.preview.animation, presentation_time)
+    let frame = mesh
+        .animator
+        .torso_frame(&mesh.preview.animation, presentation_time)?;
+    Some((mesh.animator.torso_clip()?, frame))
 }
 
 /// Push the gun and barrel instances for `inputs`; returns how many.
@@ -248,8 +269,15 @@ pub(crate) fn submit(
             frames.frame as usize,
             front_lerp,
         );
-        let (origin, rotation) = position_on_tag(hand_origin, hand_rotation, &tag);
-        let mut instance = ActorInstance::new(origin.to_array(), rotation.to_array(), [1.0; 3]);
+        let (origin, rotation) =
+            position_on_tag(hand_origin, hand_rotation, inputs.forward_scale, &tag);
+        // The tag's axes stay close to the hand's, so the hand's forward scale
+        // carries over to the gun's own forward axis.
+        let mut instance = ActorInstance::new(
+            origin.to_array(),
+            rotation.to_array(),
+            [inputs.forward_scale, 1.0, 1.0],
+        );
         instance.depth_hack = 1.0;
         object_groups[mesh].push(instance);
         submitted += 1;
@@ -273,8 +301,10 @@ pub(crate) fn flash_socket(catalog: &Catalog, inputs: Inputs) -> Option<muzzle_f
         frames.frame as usize,
         1.0 - frames.back_lerp,
     );
-    let (gun_origin, gun_rotation) = position_on_tag(hand_origin, hand_rotation, &tag_weapon);
-    let (origin, rotation) = position_on_tag(gun_origin, gun_rotation, flash);
+    let scale = inputs.forward_scale;
+    let (gun_origin, gun_rotation) =
+        position_on_tag(hand_origin, hand_rotation, scale, &tag_weapon);
+    let (origin, rotation) = position_on_tag(gun_origin, gun_rotation, scale, flash);
     Some(muzzle_flash::Socket {
         origin: origin.to_array(),
         direction: (rotation * Vec3::X).to_array(),
@@ -290,9 +320,16 @@ fn hand_frame(inputs: Inputs) -> (Vec3, Quat) {
 
 /// `CG_PositionEntityOnTag` (`cg_ents.c:48-71`): the child origin is the
 /// parent origin plus the tag origin along the parent axes, and the child
-/// axes are the tag axes composed with the parent axes.
-fn position_on_tag(parent_origin: Vec3, parent_rotation: Quat, tag: &Md3Tag) -> (Vec3, Quat) {
-    let origin = parent_origin + parent_rotation * Vec3::from_array(tag.origin);
+/// axes are the tag axes composed with the parent axes. `forward_scale` is the
+/// parent's forward axis length (EternalJK's view-model FOV scales it).
+fn position_on_tag(
+    parent_origin: Vec3,
+    parent_rotation: Quat,
+    forward_scale: f32,
+    tag: &Md3Tag,
+) -> (Vec3, Quat) {
+    let [x, y, z] = tag.origin;
+    let origin = parent_origin + parent_rotation * Vec3::new(x * forward_scale, y, z);
     let tag_rotation = Quat::from_mat3(&Mat3::from_cols(
         Vec3::from_array(tag.axes[0]),
         Vec3::from_array(tag.axes[1]),

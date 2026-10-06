@@ -57,6 +57,7 @@ pub(crate) const STOCK_EFFECTS: &[&str] = &[
     "demp2/projectile",
     "concussion/muzzle_flash",
     "concussion/altmuzzle_flash",
+    "concussion/alt_ring",
     "bryar/muzzle_flash",
     "blaster/muzzle_flash",
     "disruptor/muzzle_flash",
@@ -96,9 +97,13 @@ pub(crate) const CODE_SHADERS: &[&str] = &[
     "gfx/effects/saberFlare",
     "gfx/effects/redLine",
     "gfx/misc/whiteline2",
+    "gfx/effects/blueLine",
     "white",
     sjk_client::LegacyPlayerSprite::ConnectionInterrupted.shader(),
     sjk_client::LegacyPlayerSprite::Talk.shader(),
+    crate::charge_flash::SHADERS[0],
+    crate::charge_flash::SHADERS[1],
+    crate::charge_flash::SHADERS[2],
 ];
 
 pub(crate) fn required_shaders<'a>(

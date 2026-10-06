@@ -12,7 +12,9 @@ use sjk_client::{LegacyImpactEvent, LegacyImpactKind, LegacyImpactTracker};
 use sjk_protocol::Snapshot;
 
 const MAX_SNAPSHOT_IMPACTS: usize = 1_024;
-const MAX_VISUALS_PER_IMPACT: usize = 6;
+/// Room for the concussion alt shot: two beam lines, a wall effect, the disruptor
+/// miss it borrows and its rings, one every 64 units along an 8192-unit shot.
+const MAX_VISUALS_PER_IMPACT: usize = 4 + 128;
 
 /// One visual primitive selected by codemp for an impact event.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -20,6 +22,8 @@ pub(crate) enum Visual {
     Effect {
         name: &'static str,
         direction: [f32; 3],
+        /// Where to play it; `None` is the event's own position.
+        origin: Option<[f32; 3]>,
     },
     /// `FX_AddLine` with linear size and alpha (`fx_disruptor.c`).
     Line(Line),
@@ -59,7 +63,23 @@ impl Plan {
 
     fn effect(mut self, name: &'static str, direction: [f32; 3]) -> Self {
         if self.len < self.visuals.len() {
-            self.visuals[self.len] = Some(Visual::Effect { name, direction });
+            self.visuals[self.len] = Some(Visual::Effect {
+                name,
+                direction,
+                origin: None,
+            });
+            self.len += 1;
+        }
+        self
+    }
+
+    fn effect_at(mut self, name: &'static str, origin: [f32; 3], direction: [f32; 3]) -> Self {
+        if self.len < self.visuals.len() {
+            self.visuals[self.len] = Some(Visual::Effect {
+                name,
+                direction,
+                origin: Some(origin),
+            });
             self.len += 1;
         }
         self
@@ -150,6 +170,7 @@ pub(crate) fn plan(event: LegacyImpactEvent) -> Plan {
             },
             direction,
         ),
+        LegacyImpactKind::ConcussionAltShot => concussion_alt_shot(event, direction),
         LegacyImpactKind::MissileHitPlayer => missile_player(event, direction),
         LegacyImpactKind::MissileHitWall | LegacyImpactKind::MissileHitMetal => {
             missile_wall(event, direction)
@@ -194,6 +215,48 @@ fn disruptor_sniper_shot(event: LegacyImpactEvent) -> Plan {
         lifetime_millis: 150,
         shader: "gfx/misc/whiteline2",
     })
+}
+
+/// `EV_CONC_ALT_IMPACT` (`cg_event.c:2860-2881`): rings every 64 units along the
+/// shot, the wall hit, `FX_ConcAltShot`'s two lines (`fx_bryarpistol.c:244-259`) to
+/// the last ring, and the disruptor's alt miss at the end.
+fn concussion_alt_shot(event: LegacyImpactEvent, direction: [f32; 3]) -> Plan {
+    let [x, y, z] = event.shot;
+    let distance = (x * x + y * y + z * z).sqrt();
+    let unit = if distance > 0.0 {
+        [x / distance, y / distance, z / distance]
+    } else {
+        [0.0, 0.0, 0.0]
+    };
+    let at = |along: f32| std::array::from_fn(|axis| event.start[axis] + unit[axis] * along);
+    let mut plan = Plan::new().effect("concussion/explosion", direction);
+    let mut along = 0.0;
+    let mut spot = event.start;
+    while along < distance {
+        spot = at(along);
+        plan = plan.effect_at("concussion/alt_ring", spot, event.ring_direction);
+        along += 64.0;
+    }
+    plan.line(Line {
+        start: event.start,
+        end: spot,
+        size: [0.1, 10.0],
+        alpha: [1.0, 0.0],
+        color: WHITE,
+        lifetime_millis: 175,
+        shader: "gfx/effects/blueLine",
+    })
+    .line(Line {
+        start: event.start,
+        end: spot,
+        size: [0.1, 7.0],
+        alpha: [1.0, 0.0],
+        // `BRIGHT` (`fx_bryarpistol.c:242`).
+        color: [0.75, 0.5, 1.0],
+        lifetime_millis: 150,
+        shader: "gfx/misc/whiteline2",
+    })
+    .effect("disruptor/alt_miss", direction)
 }
 
 fn missile_player(event: LegacyImpactEvent, direction: [f32; 3]) -> Plan {

@@ -265,11 +265,12 @@ impl ShaderCatalog {
                     return Ok(Some(VirtualPath::new(&candidate).map_err(VfsError::from)?));
                 }
                 // Retail scripts often name a .tga while the packaged image
-                // is a .jpg. The original loader tries sibling extensions.
+                // is a .jpg. The original loader tries sibling extensions, in
+                // its loader order (`R_LoadImage`, rd-common `tr_image_load.cpp`).
                 let stem = candidate
                     .rsplit_once('.')
                     .map_or(candidate.as_str(), |(stem, _)| stem);
-                for extension in [".tga", ".jpg", ".png"] {
+                for extension in IMAGE_EXTENSIONS {
                     let path = format!("{stem}{extension}");
                     if vfs.contains(&path)? {
                         return Ok(Some(VirtualPath::new(&path).map_err(VfsError::from)?));
@@ -277,7 +278,7 @@ impl ShaderCatalog {
                 }
                 continue;
             }
-            for extension in [".tga", ".jpg", ".png"] {
+            for extension in IMAGE_EXTENSIONS {
                 let path = format!("{candidate}{extension}");
                 if vfs.contains(&path)? {
                     return Ok(Some(VirtualPath::new(&path).map_err(VfsError::from)?));
@@ -312,9 +313,9 @@ impl ShaderCatalog {
                 .map_or(candidate.as_str(), |(stem, _)| stem);
             for path in [
                 candidate.clone(),
-                format!("{stem}.tga"),
                 format!("{stem}.jpg"),
                 format!("{stem}.png"),
+                format!("{stem}.tga"),
             ] {
                 if vfs.contains(&path)? {
                     return Ok(Some(VirtualPath::new(&path).map_err(VfsError::from)?));
@@ -336,9 +337,9 @@ fn resolve_concrete_image(
         .map_or(candidate.clone(), |(stem, _)| stem.to_owned());
     for path in [
         candidate,
-        format!("{stem}.tga"),
         format!("{stem}.jpg"),
         format!("{stem}.png"),
+        format!("{stem}.tga"),
     ] {
         if vfs.contains(&path)? {
             return Ok(Some(VirtualPath::new(&path).map_err(VfsError::from)?));
@@ -346,6 +347,11 @@ fn resolve_concrete_image(
     }
     Ok(None)
 }
+
+/// The order OpenJK and EternalJK try image types when a name has no file of its
+/// own (`R_ImageLoader_Add` in rd-common `tr_image_load.cpp`): JPEG, then PNG, then
+/// TGA. HD packs rely on it: a `.png` beside a base `.tga` replaces it.
+const IMAGE_EXTENSIONS: [&str; 3] = [".jpg", ".png", ".tga"];
 
 fn is_concrete_image(image: &str) -> bool {
     !image.starts_with('$') && image != "-"

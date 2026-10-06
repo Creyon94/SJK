@@ -72,6 +72,7 @@ mod frame_pacing;
 mod frame_queue;
 mod frame_split;
 
+mod charge_flash;
 mod fake_noclip;
 mod frame_target;
 mod game_font;
@@ -120,6 +121,7 @@ mod prediction_preview;
 mod scene_views;
 mod scope;
 mod surface_tables;
+mod trip_mine_lasers;
 mod viewer_app;
 use object_meshes::StaticModelMesh;
 mod gi_voxels;
@@ -403,6 +405,9 @@ struct GpuState {
     local_prediction: LocalPrediction,
     local_actor_state: local_actor_state::Tracker,
     third_person: bool,
+    /// The third-person camera stepped aside for a zoom
+    /// ([`GpuState::force_first_person_while_zoomed`]) and comes back after it.
+    zoom_forced_first_person: bool,
     /// Evidence cameras (spectate/look-at/orbit) leave the local actor at
     /// its entity transform instead of pinning it under the camera.
     detached_camera: bool,
@@ -1201,6 +1206,7 @@ impl GpuState {
             local_prediction,
             local_actor_state: local_actor_state::Tracker::default(),
             third_person,
+            zoom_forced_first_person: false,
             detached_camera: false,
 
             selected_weapon: None,
@@ -1323,8 +1329,7 @@ impl GpuState {
             .demo_session
             .as_ref()
             .is_none_or(|session| !matches!(session.camera(), demo_playback::Camera::Spectate(_)));
-        self.effect_aux
-            .resolve_shakes(self.camera_position, visual_now, local_view);
+        self.force_first_person_while_zoomed(presentation_time as i32);
         let intermission_view = self
             .live_session
             .as_ref()
@@ -1384,6 +1389,14 @@ impl GpuState {
             (if backdrop_view { "backdrop" } else { "free" }, free)
         };
         cut_trace::tick(self, branch, (view_position, view_target), visual_now);
+        // `CG_DoCameraShake` measures from the rendered view (`cg.refdef.vieworg`),
+        // so a muzzle flash's short-range shake (radius 60) reaches a first-person
+        // eye but not the third-person camera behind the player.
+        self.effect_aux.resolve_shakes(
+            view_position,
+            visual_now,
+            local_view && cgame_options::screen_shake(self.console.as_ref()),
+        );
         // The third-person camera already traced from the shifted origin.
         let error_offset = if branch == "third-person" {
             Vec3::ZERO
@@ -1446,8 +1459,7 @@ impl GpuState {
         } else {
             &self.ui_font
         };
-        self.hud.weapon_select.shown =
-            self.sample_weapon_select(hud_visibility.menu_hud, intermission_view.is_some());
+        self.hud.weapon_select.shown = self.sample_weapon_select(intermission_view.is_some());
         let hud_style = menu_hud::HudStyle::read(self.console.as_ref());
         // JoF EJK's Force wheel (the retail icon bar) with the retail-looking HUDs.
         self.hud
@@ -1700,7 +1712,7 @@ impl GpuState {
                 game_audio,
                 visual_now,
             );
-            missile_trails::update_and_spawn(
+            let missile_metrics = missile_trails::update_and_spawn(
                 &mut self.missile_effects,
                 snapshot,
                 presentation_time as i32,
@@ -1713,6 +1725,66 @@ impl GpuState {
                 game_audio,
                 &mut self.dynamic_lights,
                 visual_now,
+            );
+            if self
+                .console
+                .as_ref()
+                .and_then(|c| c.integer_cvar("cg_debugMissiles"))
+                .unwrap_or(0)
+                != 0
+            {
+                missile_trails::debug_report(
+                    &self.missile_effects,
+                    missile_metrics,
+                    snapshot,
+                    &mut self.effects,
+                    self.vfs
+                        .as_ref()
+                        .expect("live sessions retain their mounted VFS"),
+                    presentation_time as i32,
+                );
+            }
+            if self
+                .console
+                .as_ref()
+                .and_then(|c| c.integer_cvar("cg_debugTorso"))
+                .unwrap_or(0)
+                != 0
+            {
+                // Once a quarter second: the predicted and the server's torso animation,
+                // to trace a pose that differs from EternalJK's.
+                use std::sync::atomic::{AtomicI32, Ordering};
+                static LAST: AtomicI32 = AtomicI32::new(i32::MIN);
+                let tick = (presentation_time as i32).div_euclid(250);
+                if LAST.swap(tick, Ordering::Relaxed) != tick {
+                    let name = |anim: u16| {
+                        sjk_client::legacy_animation_name(usize::from(anim)).unwrap_or("?")
+                    };
+                    let predicted = self.local_prediction.predicted_state();
+                    crate::log::progress(format_args!(
+                        "torso: predicted {} (timer {}, weapon {} state {} time {}), server {}",
+                        predicted.map_or("-", |state| name(state.torso_anim)),
+                        predicted.map_or(0, |state| state.torso_timer),
+                        predicted.map_or(0, |state| state.weapon),
+                        predicted.map_or(0, |state| state.weapon_state),
+                        predicted.map_or(0, |state| state.weapon_time),
+                        name(snapshot.player.torso_animation()),
+                    ));
+                }
+            }
+            trip_mine_lasers::spawn(
+                snapshot,
+                &self.bsp,
+                &mut self.trace_scratch,
+                &mut self.particles,
+                &mut self.effect_aux,
+                &mut self.effects,
+                self.vfs
+                    .as_ref()
+                    .expect("live sessions retain their mounted VFS"),
+                game_audio,
+                visual_now,
+                presentation_time as i32,
             );
             projectiles::collect(snapshot, presentation_time as i32, &mut self.projectiles);
             movers::collect(snapshot, presentation_time as i32, &mut self.movers);
@@ -1747,6 +1819,14 @@ impl GpuState {
             local_entity_id,
             presentation_time,
         );
+        let first_person_charge = view_weapon.and(active_snapshot).and_then(|snapshot| {
+            let predicted = self
+                .live_session
+                .as_ref()
+                .and_then(|_| self.local_prediction.predicted_state());
+            charge_flash::Charges::collect(Some(snapshot), predicted)
+                .of(snapshot.player.client_num())
+        });
         if let Some(inputs) = view_weapon {
             first_person_weapon::submit(&self.first_person_weapon, inputs, &mut self.object_groups);
             // `CG_AddPlayerWeapon` records the view gun's `tag_flash` for
@@ -1777,6 +1857,21 @@ impl GpuState {
         movers::append_frame(self, presentation_time, visual_now);
         self.static_models.append_instances(&mut self.object_groups);
         pickups::simple::append_frame(self, visual_now);
+        // The charge glow on the view gun's muzzle (`cg_weapons.c` charge bits), after
+        // this frame's sprites were cleared.
+        if let (Some(origin), Some(charge)) = (
+            view_weapon.and(self.last_first_person_flash),
+            first_person_charge,
+        ) {
+            charge_flash::push(
+                &mut self.particles,
+                &mut self.effects,
+                charge,
+                Vec3::from_array(origin),
+                presentation_time as i32,
+                visual_now,
+            );
+        }
         self.force_overlays_last = actor_world_submission::submit(
             self,
             local_entity_id,

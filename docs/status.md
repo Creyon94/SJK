@@ -27,6 +27,66 @@ workspace clippy (no new warnings) passed. Off-screen snapshots drew the main
 and SJK pages, the option search, dropdowns on both frames, the bindings list
 and search, and the in-game bar. No game was started: typing in the search
 field, the dropdown's pointer handling and the in-game pop-up are unverified.
+## Weapons like EternalJK
+
+Branch `fix/weapons-like-eternaljk` (06/10/2026, based on `5c66ccd`), after the
+contributor's video of SJK and JoF EternalJK side by side:
+
+- Firing no longer shakes the third-person camera. Muzzle-flash effects carry a
+  `CameraShake` of radius 60; `CG_DoCameraShake` measures it from the rendered view,
+  and SJK measured from the player's eye, so every shot shook the camera behind
+  the player. EternalJK's `cg_screenShake` (default 2; 0 turns effect shakes off)
+  is registered.
+- Zooming in third person (disruptor) switches to first person while zoomed, as
+  `CG_DrawActiveFrame` does, so the scope shows; the camera choice returns after.
+  Toggling the camera during a zoom keeps first person.
+- Image names without a file of their own are tried as `.jpg`, `.png` then `.tga`,
+  the order of rd-common `R_LoadImage`, instead of `.tga` first; with JoF's HD
+  packs a `.png` beside a base `.tga` now wins, as in EternalJK. The scope mask is
+  looked up as the image `gfx/2d/cropcircle2` in that order, so JoF's HD scope
+  (`JoF_HDWeaponScopeTrue.pk3`) shows as in EternalJK; looking it up through its
+  shader drew a full-screen white picture.
+- Muzzle-flash effects no longer shake the camera in first person either: JoF
+  EternalJK shows no shake when firing in the contributor's recordings, so the
+  flash's `CameraShake` is dropped; explosions still shake.
+- Stuck trip mines and det packs lie flat against the surface they stick to, facing
+  out (their Ghoul2 models are authored with their top along -Y, so they are turned
+  a quarter about Z before their facing), and an armed trip mine plays its beam,
+  `tripMine/laserMP` (`tripMine/glowbit` in proximity mode), from 6.6 units out
+  along its facing.
+- Charging weapons glow at the muzzle as `CG_AddPlayerWeapon` draws it: the Bryar
+  pistols' alt fire (`bryarFrontFlash`), the bowcaster (`greenFrontFlash`) and the
+  DEMP2's alt fire (`lightningFlash`, 1.75 times), growing over a second.
+- SJK's own HUD no longer shows an ammo picture beside the weapon icon at the
+  bottom centre, and the weapon icon fades two seconds after a change, as
+  requested by Sol after comparing with EternalJK.
+- An armed trip mine's beam reaches the wall its facing hits: the beam's line is
+  an `org2fromTrace` primitive, which SJK drew as a zero-length dot.
+- The concussion rifle's alt fire draws its beam (`EV_CONC_ALT_IMPACT`): rings
+  every 64 units, `FX_ConcAltShot`'s `blueLine` and `whiteline2`, the wall hit and
+  the borrowed disruptor miss.
+- Crouching no longer bumps the first-person view: the duck smoothing follows the
+  predicted view height (`CG_TransitionPlayerState` after prediction), where it
+  also followed the later snapshot and lifted the view again after each crouch.
+- The HUD weapon icon sits beside the ammo count instead of under it.
+- `cg_debugTorso 1` logs the predicted and server torso animation, to trace the
+  Bryar pistol's third-person arm.
+- `cg_debugMissiles 1` logs, once a second, the missiles in the snapshot and
+  whether their trail effects loaded, to trace shots that do not show in flight.
+- The first-person weapon follows EternalJK's `cg_fovViewmodel` (default 80),
+  `cg_fovViewmodelAdjust` and `cg_fovAspectAdjust`: its forward axis is scaled by
+  `tan(viewmodel/2) / tan(fov_x/2)` and it drops at view-model FOVs over 90.
+- The hand rig's frames are chosen from the posed torso animation and its frame
+  together; the snapshot's older torso animation paired with the predicted frame
+  made the hand jump between the idle and fire frames on each shot.
+- The weapon selection row shows in every HUD style, as in EternalJK, and SJK's
+  layouts hide their weapon name, ammo and bottom-centre icons while it shows.
+
+Unit tests cover the view-model FOV terms, which mines draw a beam, the placed mines' facing and the charge glow's sizes. Formatting, the locked workspace build,
+tests and clippy (no new warnings) passed on Linux. Not checked in game yet; not
+addressed: odd weapon sounds and a transparency effect when firing, which need a
+`mark` where they happen, the Bryar pistol's third-person arm, shots not showing
+in flight, and the dark concussion rifle and map models in the contributor's video.
 
 ## Centre prints with non-ASCII names
 

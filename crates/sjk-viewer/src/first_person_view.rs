@@ -131,6 +131,13 @@ pub(crate) fn deliver_events(state: &mut GpuState, audio: &mut Option<GameAudio>
         return;
     };
     let snapshot = session.latest_snapshot();
+    if let Some(predicted) = state.local_prediction.predicted_state() {
+        let view_height = predicted.view_height;
+        state
+            .first_person_view
+            .view
+            .observe_predicted_view_height(view_height, time);
+    }
     let mode = state
         .console
         .as_ref()
