@@ -1764,7 +1764,7 @@ test: Optional: JKR_TRACE_AUDIO=1; logs/last-client.log shows split loop frames=
 
 [actor-instance-cap]
 status: personal
-area: Rendering
+area: Rendering & effects
 title: No crash when a frame draws more than 1024 entities
 change: The actor instance buffer holds 4096 instead of 1024 and packing stops at its capacity.
 test: Play a long session on a busy JoF server or a map with many movers; the client keeps running.
