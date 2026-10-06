@@ -22,7 +22,11 @@ fn material_map_reflection(world: vec3<f32>, response: MaterialMapResponse) -> v
     }
     let probe = reflection_probes.probes[min(material_map_probe - 1u, 63u)];
     if probe.centre.w <= 0.0 { return vec4(0.0); }
-    let normal = material_map_surface.normal;
+    // Half the mapped tilt bends the reflected room: generated normal maps guess relief
+    // from paint, and at full tilt every guessed bump warps the box-projected room like
+    // a funhouse mirror that ripples as the view moves.
+    let surface = material_map_surface;
+    let normal = normalize(mix(surface.geometric, surface.normal, 0.5));
     let view = normalize(camera.camera_position - world);
     let facing = clamp(dot(normal, view), 0.0, 1.0);
     let ray = reflect(-view, normal);

@@ -50,6 +50,9 @@ struct MaterialMapSurface {
     emission: vec3<f32>,
 };
 var<private> material_map_surface: MaterialMapSurface;
+// Squared GGX roughness the normal map's variation within the pixel adds (specular
+// anti-aliasing, `material_map_prepare`).
+var<private> material_map_kernel: f32;
 var<private> material_map_albedo: vec3<f32>;
 // Specular light, added after the albedo product and dynamic-light modulation.
 var<private> material_map_highlight: vec3<f32>;
@@ -95,6 +98,14 @@ fn material_map_prepare(input: VertexOutput) {
         n.z = sqrt(clamp((0.25 - n.x*n.x) - n.y*n.y, 0.0, 1.0));
         normal = normalize(n.x*tangent + n.y*bitangent + n.z*geometric);
     }
+    // Specular anti-aliasing (Kaplanyan and Hoffman 2016, as Tokuyoshi and Kaplanyan
+    // 2019 bound it): bumps finer than a pixel cannot be shown, so their spread of
+    // normals widens the highlight and blurs the reflection instead of sparkling and
+    // swimming as the view moves. The normal's screen-space variation is the variance
+    // added to the squared roughness, at most 0.18.
+    let dx = dpdx(normal);
+    let dy = dpdy(normal);
+    material_map_kernel = min(0.5*(dot(dx, dx) + dot(dy, dy)), 0.18);
     material_map_surface = MaterialMapSurface(geometric, normal, offset, specular, emission);
     material_map_highlight = vec3(0.0);
     // One probe per surface: every vertex carries the same index.
@@ -113,9 +124,15 @@ fn material_map_parallax(uv: vec2<f32>, view: vec3<f32>, tangent: vec3<f32>,
     let direction = normalize(tangent_view*square);
     let dx = dpdx(uv);
     let dy = dpdy(uv);
-    // Grazing or from behind: no offset.
-    if direction.z <= 0.01 { return vec2(0.0); }
-    let ds = direction.xy*(-material_map.normal_scale.w/direction.z);
+    // rend2 offsets by depth / cos, which grows without bound toward grazing views and
+    // makes the texture swim as the view moves; and where the height map is minified
+    // the march reads mip levels that no longer hold the relief. The depth fades out
+    // below about 20 degrees above the surface and from 1.5 to 4 texels per pixel, and
+    // the offset is limited to depth / 0.35 (Welsh's offset limiting) on the way.
+    let texels = max(length(dx*size), length(dy*size));
+    let fade = smoothstep(0.15, 0.35, direction.z)*(1.0 - smoothstep(1.5, 4.0, texels));
+    if fade <= 0.0 { return vec2(0.0); }
+    let ds = direction.xy*(-material_map.normal_scale.w*fade/max(direction.z, 0.35));
     let bias = material_map.control.z;
     let start = uv - bias*ds;
     var size_step = 1.0/16.0;
@@ -165,12 +182,17 @@ fn material_map_response() -> MaterialMapResponse {
     let texel = material_map_surface.specular;
     let scale = material_map.specular_scale;
     if material_map_layout() == 1u {
-        return MaterialMapResponse(texel.rgb*scale.xyz, mix(1.0, 0.01, texel.a*(1.0 - scale.w)),
-            1.0, 0.0);
+        return MaterialMapResponse(texel.rgb*scale.xyz,
+            material_map_filtered(mix(1.0, 0.01, texel.a*(1.0 - scale.w))), 1.0, 0.0);
     }
     let orms = texel*scale.zwxy;
     return MaterialMapResponse(mix(vec3(0.08*orms.w), material_map_albedo, orms.z),
-        mix(0.01, 1.0, orms.y), orms.x, orms.z);
+        material_map_filtered(mix(0.01, 1.0, orms.y)), orms.x, orms.z);
+}
+
+// `roughness` widened by the pixel's spread of mapped normals (`material_map_kernel`).
+fn material_map_filtered(roughness: f32) -> f32 {
+    return min(sqrt(roughness*roughness + material_map_kernel), 1.0);
 }
 
 // rend2 `CalcSpecular`: GGX distribution, joint Smith visibility, its Schlick variant.
