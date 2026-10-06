@@ -480,7 +480,7 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "ui_quickSetup",
             0_i64,
             archive,
-            "1 once the first-start Quick setup screen has been shown (the quicksetup command opens it again)",
+            "1 once the first-start First setup screen has been shown (the firstsetup command opens it again)",
         ),
         CvarDefinition::new(
             "cl_autoUpdate",

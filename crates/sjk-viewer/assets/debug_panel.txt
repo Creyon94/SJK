@@ -1718,6 +1718,18 @@ test: Look down from a height: rings and wet spots lie flat on the ground.
 test: A pool or puddle in rain: ripples on the water, no ground rings there.
 note: Sizes and brightness are first guesses; tell Claude bigger/smaller/brighter.
 
+[settings-groups]
+status: personal
+area: Menus & settings
+title: Settings: First setup, Graphics and Gameplay pages
+change: Options lists First setup (was Quick setup), Graphics, Sound and Gameplay.
+change: Graphics: Video, Image, Lighting, Shadows, Weather. Gameplay: Mouse to Network.
+test: Settings > Options: four entries; First setup's panel opens first.
+test: Graphics, then each group; Back and Escape return to Options. Same for Gameplay.
+test: In game, the Settings pop-up shows the same pages.
+test: firstsetup (and quicksetup) in the console open First setup.
+test: Modern style: Video > Renderer has a WEATHER tab with the weather rows.
+
 # ---- Merged upstream ----
 
 [actor-instance-cap]

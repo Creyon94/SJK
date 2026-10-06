@@ -23,8 +23,8 @@ mod scroll;
 mod search;
 mod view;
 
-pub(crate) use catalog::RESOLUTIONS;
 use catalog::*;
+pub(crate) use catalog::{FIRST_SETUP_CAPTION, RESOLUTIONS};
 pub(crate) use display::{
     DisplayMode, EXCLUSIVE_CVAR, MonitorModes, exclusive_supported, exclusive_video_mode,
 };
@@ -265,7 +265,7 @@ impl SettingsMenu {
         }
     }
 
-    /// Index of the first-start QUICK tab.
+    /// Index of the first-start FIRST SETUP tab.
     pub(crate) fn quick_tab() -> usize {
         QUICK_TAB
     }
@@ -759,6 +759,7 @@ fn section_settings(section: Section, tab: usize) -> &'static [Setting] {
             0 => RENDER_IMAGE,
             1 => RENDER_LIGHTING,
             2 => RENDER_SHADOWS,
+            3 => RENDER_WEATHER,
             _ => &[],
         },
         Section::Group(group) => group.rows(),
@@ -981,7 +982,7 @@ mod tests {
         );
         assert_eq!(menu.tabs(), &RENDERER_TABS);
         assert_eq!(menu.values.len(), RENDER_IMAGE.len());
-        menu.select_tab(&console, 3);
+        menu.select_tab(&console, RENDERER_TABS.len());
         assert_eq!(menu.tab, 0, "renderer tabs wrap within their own section");
         assert!(matches!(menu.back(&console), SettingsResult::None));
         assert_eq!(

@@ -100,7 +100,7 @@ impl crate::GpuState {
             console.set_credits_look(style == MenuStyle::Classic);
             console.set_identity_look(style == MenuStyle::Classic, art);
         }
-        // The first start's Quick setup waits for the style, so it opens in the right one.
+        // The first start's First setup waits for the style, so it opens in the right one.
         if let (Some(menu), Some(console)) = (&mut self.client_menu, &mut self.console) {
             menu.offer_quick_setup(console);
         }

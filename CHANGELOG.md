@@ -21,6 +21,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- Settings regrouped (classic menus): Options now lists First setup (the old Quick setup), Graphics, Sound and Gameplay; Graphics holds Video, the renderer's Image, Lighting and Shadows and a new Weather group (also a Weather tab in the modern renderer settings); Gameplay holds Mouse, Game options, Interface, HUD, Scoreboard and Network _(Sol)_
 - V cycles the nameplates: off, names only, bars on the player you aim at and your duel opponent, bars on everyone; the mode's name shows for a moment (`nameplates` command, Controls > Other) _(Sol)_
 - Rain splashes are now 3D: a ring and a wet spot on the ground, a crown of water that rises and collapses, and drops thrown out on arcs, all placed in the world so they hold their shape from any angle; on water, widening ripples _(Sol)_
 - The nameplate health estimate counts a JA+ grapple hook hit as exactly one point _(Sol)_

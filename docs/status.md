@@ -1113,6 +1113,18 @@ forced weather, the storm and fog parameters, the noise volume's range and tilin
 the cloud uniform and drift, and both shaders' translation to SPIR-V and HLSL. No
 game was started: how the fog and clouds look and what they cost are unverified.
 
+## Settings grouped into Graphics and Gameplay (SJK)
+
+SJK-only branch `personal/settings-groups` (06/10/2026, based on `9145a86`), Sol's
+regrouping of the classic Setup page: OPTIONS lists First setup (Quick setup
+renamed, the `firstsetup` command, `quicksetup` still accepted), Graphics (Video,
+the renderer's Image, Lighting and Shadows, and a new Weather group, also a WEATHER
+tab of the modern renderer screen), Sound and Gameplay (Mouse, Game options,
+Interface, HUD, Scoreboard, Network); Graphics and Gameplay are pages with Back to
+OPTIONS, as the renderer page was. See [client.md](client.md). The modern screen's
+flat tabs are unchanged apart from FIRST SETUP and WEATHER. The sjk-viewer tests
+cover the pages, their groups, Back and Escape; no game was started.
+
 ## Force wheel (SJK)
 
 SJK-only branch `personal/force-wheel` (05/10/2026, based on `3f57938`) ports

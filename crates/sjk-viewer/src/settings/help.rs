@@ -591,9 +591,14 @@ mod tests {
 
     fn every_row() -> impl Iterator<Item = &'static Setting> {
         let general = (0..TABS.len()).flat_map(super::super::settings);
-        let renderer = [RENDER_IMAGE, RENDER_LIGHTING, RENDER_SHADOWS]
-            .into_iter()
-            .flatten();
+        let renderer = [
+            RENDER_IMAGE,
+            RENDER_LIGHTING,
+            RENDER_SHADOWS,
+            RENDER_WEATHER,
+        ]
+        .into_iter()
+        .flatten();
         general.chain(renderer)
     }
 

@@ -243,7 +243,7 @@ Settings (Backspace restores one setting's default).
 Settings' two tabs sit on the panel's title band, KEY BINDINGS on the left and
 OPTIONS on the right; a click switches, and Tab walks through the groups of both
 tabs in turn. Each tab keeps its group list down the left and shows the chosen
-group's items in the panel beside it, opening on Video (OPTIONS) and Movement
+group's items in the panel beside it, opening on First setup (OPTIONS) and Movement
 (KEY BINDINGS). The items are the same settings and key bindings as the modern
 screens, drawn the retail way: labels in capitals set against a column at retail
 `textalignx`, the value after them, toggles as YES/NO, numbers as the retail slider
@@ -274,22 +274,27 @@ items; classic+ panels scroll and explain the focused item, so SJK shows each as
 one group and regroups JKR's GAME, HUD, HUD+ and TEXT tabs by subject
 ([settings/groups.rs](../crates/sjk-viewer/src/settings/groups.rs)):
 
-- OPTIONS: Quick setup (first in the list) is the QUICK tab's rows as a group (see
-  [Quick setup](#quick-setup)); Video is the whole VIDEO tab (resolution, display, frame rate, field of
-  view, marks, shadows, gamma), Sound is AUDIO, Mouse the CONTROLS settings
-  (retail's Mouse/Joystick, moved here from the key bindings). Game Options holds
-  the gameplay rows (simple items, forced models, saber and speed trails, aura
-  shell, shader remaps, third-person camera, prediction smoothing). Interface
-  gathers the menus' and console's
-  look (menu style, accent, contrast, game fonts, menu text size and spacing,
-  console style, text size and line spacing); HUD the HUD style, files and scale,
-  status, weapon bar, crosshair and its size, names, nameplates, timer, speedometer, team
-  overlay, lagometer, chat and ground readout; Scoreboard its style, client
-  numbers, head icons and small rows. Network follows. RENDERER opens SJK's
-  renderer page: the same layout with the renderer settings' IMAGE, LIGHTING and
-  SHADOWS groups down the left, the OPTIONS tab still marked, and Back (or
-  Escape) returning to OPTIONS. In game it is the same pop-up with those three
-  groups.
+- OPTIONS lists First setup, Graphics, Sound and Gameplay (Sol's grouping,
+  06/10/2026). First setup is the FIRST SETUP tab's rows as a group (see
+  [First setup](#first-setup)); Sound is AUDIO. Graphics and Gameplay open pages
+  of their own in the same layout, their groups down the left, the OPTIONS tab
+  still marked, and Back (or Escape) returning to OPTIONS; in game they are the
+  same pop-up.
+  - Graphics: Video is the whole VIDEO tab (resolution, display, frame rate,
+    field of view, marks, shadows, gamma); Image, Lighting and Shadows are the
+    renderer settings' tabs; Weather is the renderer settings' WEATHER tab
+    (weather, density, quality, forced weather, ground fog, clouds; see
+    [Weather](rendering.md#weather)).
+  - Gameplay: Mouse is the CONTROLS settings (retail's Mouse/Joystick, moved
+    here from the key bindings). Game Options holds the gameplay rows (simple
+    items, forced models, saber and speed trails, aura shell, shader remaps,
+    third-person camera, prediction smoothing). Interface gathers the menus' and
+    console's look (menu style, accent, contrast, game fonts, menu text size and
+    spacing, console style, text size and line spacing); HUD the HUD style, files
+    and scale, status, weapon bar, crosshair and its size, names, nameplates,
+    timer, speedometer, team overlay, lagometer, chat and ground readout;
+    Scoreboard its style, client numbers, head icons and small rows. Network
+    follows.
 - KEY BINDINGS: every binding is in one list, under the headings Movement,
   Interaction, Weapons, Force powers (retail's two Force pages as one) and Other.
   The categories down the left jump to their heading, and the one holding the
@@ -340,7 +345,7 @@ raised to capitals with the key names as retail's `BindingFromName` does) or `??
 when unbound; Enter or a click waits for the new key, shown in red with
 retail's "Enter new key, or ESC to cancel, BACKSPACE to clear.", and Backspace
 clears every key of the action. Escape closes the page to the main page (the
-renderer page to OPTIONS).
+Graphics and Gameplay pages to OPTIONS).
 
 The classic in-game bar's Settings opens the same panels as retail's
 `ingame_setup` and `ingame_controls` pop-ups, with the two tabs on the pop-up's
@@ -779,15 +784,15 @@ uses SJK's names.
 These rendering cvars have their own settings page. The last row
 of Settings > VIDEO, "Renderer", opens it, as JoF EJK's advanced renderer page
 opens from its Video setup; Escape or Back returns to that row. With the
-classic menu style, the Setup page's RENDERER entry (after NETWORK, in the main
-menu and the in-game pop-up) opens the same page directly, and Escape or Back
-returns to the Setup group that was open. The page has three tabs:
+classic menu style its tabs are groups of the Setup page's GRAPHICS page (in the
+main menu and the in-game pop-up), after Video. The page has four tabs:
 
 | Tab | Settings |
 | --- | --- |
-| IMAGE | HDR scene and exposure, eye adaptation (`r_autoExposure`) and its range in EV, filmic tone curve, bloom, dynamic glow (`r_DynamicGlow` 0-3) and its blur style (`r_dynamicGlowStyle`), FXAA, supersampling (`r_superSample`), soft particles, sunbeam dust (`r_dustMotes`), weather (`r_weather`), its density (`r_weatherDensity`), quality (`r_weatherQuality`), forced weather (`r_weatherForce`) and ground fog (`r_weatherFog`), volumetric clouds (`r_clouds`), per-pixel model lighting, reflection probes (`r_cubeMapping`), floor mirrors (`r_floorReflections`), emission maps (`r_emissiveMaps`), their strength (`r_emissionStrength`) and glow halo (`r_emissiveGlow`) |
+| IMAGE | HDR scene and exposure, eye adaptation (`r_autoExposure`) and its range in EV, filmic tone curve, bloom, dynamic glow (`r_DynamicGlow` 0-3) and its blur style (`r_dynamicGlowStyle`), FXAA, supersampling (`r_superSample`), soft particles, sunbeam dust (`r_dustMotes`), per-pixel model lighting, reflection probes (`r_cubeMapping`), floor mirrors (`r_floorReflections`), emission maps (`r_emissiveMaps`), their strength (`r_emissionStrength`) and glow halo (`r_emissiveGlow`) |
 | LIGHTING | Sun and sky (`r_dayNight`), live lighting tier, time of day, day length, sunlight brightness, ambient fill and its corner shading, indirect boost, emission-map lights (`r_emissiveLights`), light shafts (`r_volumetrics`) and their clarity |
 | SHADOWS | World and character sun shadows, shadow resolution, sharp and close cascade distances, filter taps, slit closing, contact shadows |
+| WEATHER | Weather (`r_weather`), its density (`r_weatherDensity`), quality (`r_weatherQuality`), forced weather (`r_weatherForce`), ground fog (`r_weatherFog`) and volumetric clouds (`r_clouds`); see [Weather](rendering.md#weather) |
 
 Rows marked "(restart)" are read when the client starts and apply after a
 restart; "(next map)" applies when a map loads; the rest apply immediately.
@@ -801,9 +806,10 @@ display-mode row. Eye adaptation holds still while this page is open, so
 exposure changes made here show at once instead of being eased.
 See [catalog.rs](../crates/sjk-viewer/src/settings/catalog.rs).
 
-## Quick setup
+## First setup
 
-The modern settings screen's last tab, QUICK
+The modern settings screen's last tab, FIRST SETUP (called Quick setup before
+06/10/2026)
 ([quick.rs](../crates/sjk-viewer/src/settings/quick.rs)), gathers the settings worth
 choosing on a first start: resolution, display mode, vsync, field of view, mouse
 sensitivity and inversion, always run, effects and music volume, the HUD look and
@@ -814,14 +820,14 @@ by cvar, so a change there is the same change the other tabs make; it is the las
 tab so the other tabs keep their numbers.
 
 With the classic menus (the default) the same rows are the first group of the
-Setup page, QUICK SETUP (`Group::Quick`, [groups.rs](../crates/sjk-viewer/src/settings/groups.rs)),
+Setup page, FIRST SETUP (`Group::Quick`, [groups.rs](../crates/sjk-viewer/src/settings/groups.rs)),
 drawn as a classic+ option panel like the others, with search, descriptions and
-defaults; the modern style shows the QUICK tab.
+defaults; the modern style shows the FIRST SETUP tab.
 
 On the first start (`ui_quickSetup` 0, archived), once the main menu is up and the
 menu style is known, it opens in the active style and sets the cvar to 1, so leaving
 it with Escape dismisses it for good (setting the cvar back to 0 shows it again at
-the main menu). The `quicksetup` console command opens it too, over the main menu
+the main menu). The `firstsetup` console command (or its old name `quicksetup`) opens it too, over the main menu
 or from a running game, in the active style
 ([quick_setup.rs](../crates/sjk-viewer/src/menu/quick_setup.rs)). Not yet run in a
 game window.

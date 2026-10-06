@@ -29,7 +29,7 @@ impl SettingsMenu {
         self.ui.begin_hero(viewport, reveal, Scrim::Full);
         let (title, note) = match self.section {
             Section::General if self.tab == QUICK_TAB => (
-                "SJK   /   QUICK SETUP",
+                "SJK   /   FIRST SETUP",
                 "The settings worth a look first. Every one is also on its own tab.",
             ),
             Section::General => (
