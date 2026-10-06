@@ -28,6 +28,10 @@
 //!   and 100 armour when the duel starts and the winner to 100 and 25 when it ends;
 //!   stock JKA leaves the start alone and heals the winner to the maximum. The start
 //!   values are learnt from the local player's own duels when it has had one.
+//! - **Chat protection** (JA+): a player with the chat balloon up (`EF_TALK`, for any
+//!   reason) takes no damage unless they are in the middle of an action (a saber
+//!   swing, a kick, a punch, a grab), so a hit seen on them without a pain or a shield
+//!   flash takes nothing, nor does a fall. A pain or shield flash still counts.
 //! - **Deaths** (`EF_DEAD`, `EV_OBITUARY`) and the respawn after one. A spawn
 //!   with no death seen (a round or map restart) toggles `EF_TELEPORT_BIT`, as a
 //!   teleport does, so that only raises the high bound to the spawn values.
@@ -50,6 +54,23 @@ const ET_ITEM: u8 = 2;
 const ET_EVENTS: u8 = 18;
 const EF_DEAD: u32 = 2;
 const EF_TELEPORT_BIT: u32 = 1 << 3;
+/// `EF_TALK`: the chat balloon.
+const EF_TALK: u32 = 1 << 13;
+/// Melee animations that count as an action against JA+'s chat protection, beside
+/// saber swings and kicks: punches, kicks of the melee weapon and the grabs.
+const MELEE_ACTIONS: [&str; 11] = [
+    "BOTH_MELEE1",
+    "BOTH_MELEE2",
+    "BOTH_MELEE_BACKKICK",
+    "BOTH_MELEE_SPINKICK",
+    "BOTH_KYLE_GRAB",
+    "BOTH_KYLE_MISS",
+    "BOTH_KYLE_PA_1",
+    "BOTH_KYLE_PA_2",
+    "BOTH_PLAYER_PA_1",
+    "BOTH_PLAYER_PA_2",
+    "BOTH_PLAYER_PA_FLY",
+];
 const EVENT_MASK: u16 = 0xff;
 const EV_FALL: u16 = 11;
 const EV_PRIVATE_DUEL: u16 = 15;
@@ -208,6 +229,8 @@ struct Step {
     duel: DuelRules,
     /// Somebody died about now, so a duel ending now was won.
     death_nearby: bool,
+    /// JA+'s chat protection holds: the balloon is up and no action is under way.
+    chat_protected: bool,
 }
 
 /// Fixed-capacity estimator for every client slot, observed once per snapshot.
@@ -229,6 +252,8 @@ pub(super) struct Estimator {
     own_duel: bool,
     /// The local player died in the last observed snapshot.
     own_died_now: bool,
+    /// Animation numbers of [`MELEE_ACTIONS`].
+    melee_actions: [Option<u16>; MELEE_ACTIONS.len()],
     /// When a player or the local player was last seen to die.
     last_death: Option<i32>,
     last_time: i32,
@@ -257,6 +282,10 @@ impl Default for Estimator {
             own_died: false,
             own_duel: false,
             own_died_now: false,
+            melee_actions: MELEE_ACTIONS.map(|name| {
+                sjk_game_jka::legacy_animation_index(name)
+                    .and_then(|index| u16::try_from(index).ok())
+            }),
             last_death: None,
             last_time: i32::MIN,
             drained: 0,
@@ -341,6 +370,13 @@ impl Estimator {
         } else {
             DuelRules::default()
         };
+        // The server is read only when somebody has the balloon up.
+        let chat_rule = snapshot
+            .entities
+            .iter()
+            .any(|entity| entity.entity_type() == ET_PLAYER && entity.e_flags() & EF_TALK != 0)
+            && ja_plus(game);
+        let melee_actions = self.melee_actions;
         self.drained = facts
             .iter()
             .enumerate()
@@ -361,6 +397,9 @@ impl Estimator {
             teleport: entity.e_flags() & EF_TELEPORT_BIT != 0,
             duel,
             death_nearby,
+            chat_protected: chat_rule
+                && entity.e_flags() & EF_TALK != 0
+                && !in_action(entity, &melee_actions),
         };
         for entity in &snapshot.entities {
             let number = entity.number();
@@ -385,10 +424,7 @@ impl Estimator {
     /// What private duels do on this server: learnt from the local player's own
     /// duel start where it had one, else JA+'s or stock JKA's rules.
     fn duel_rules(&self, game: &GameState) -> DuelRules {
-        let ja_plus = matches!(
-            sjk_client::CompatProfile::from_game_state(game),
-            sjk_client::CompatProfile::JaPlus { .. }
-        );
+        let ja_plus = ja_plus(game);
         DuelRules {
             start: self
                 .profile
@@ -643,6 +679,32 @@ fn is_heal_sound(game: &GameState, index: u8) -> bool {
         .is_some_and(|tail| tail.eq_ignore_ascii_case(HEAL_SOUND))
 }
 
+/// Whether the server runs JA+.
+fn ja_plus(game: &GameState) -> bool {
+    matches!(
+        sjk_client::CompatProfile::from_game_state(game),
+        sjk_client::CompatProfile::JaPlus { .. }
+    )
+}
+
+/// Whether `entity` is in the middle of an action that lifts JA+'s chat protection:
+/// a saber swing (its start, the swing, a transition or its return, or a special),
+/// a kick, or a punch, melee kick or grab (`melee`, animation numbers).
+fn in_action(entity: &EntityState, melee: &[Option<u16>]) -> bool {
+    use sjk_game_jka::saber_rules;
+    let saber_move = entity.saber_move();
+    let torso = entity.torso_animation();
+    let legs = entity.leg_animation();
+    saber_rules::in_attack(saber_move)
+        || saber_rules::in_special(saber_move)
+        || saber_rules::in_transition_any(saber_move)
+        || [torso, legs].into_iter().any(|animation| {
+            saber_rules::kicking(animation)
+                || saber_rules::special_attack(animation)
+                || melee.contains(&Some(animation))
+        })
+}
+
 /// The health a pain sound means (`*pain25.wav` to `*pain100.wav`, which a server
 /// hiding the pain value plays for 25 or less, 50 or less, 75 or less, or more).
 fn pain_sound(game: &GameState, index: u8) -> Option<(f32, f32)> {
@@ -809,7 +871,10 @@ fn hurt(track: &mut Track, facts: &Facts, step: Step) {
         track.health = Range::exact(health);
         track.armor = Range::exact(armor);
     }
-    if let Some(hit) = facts.hit {
+    // Under JA+'s chat protection a hit lands only if the server says so (a pain or
+    // a shield flash); a hit seen alone took nothing.
+    let shielded = step.chat_protected && facts.pain.is_none() && !facts.shield_hit;
+    if let Some(hit) = facts.hit.filter(|_| !shielded) {
         let absorbed = facts.absorbed;
         if facts.shield_hit {
             // The armour held at least what it took.
@@ -848,7 +913,7 @@ fn hurt(track: &mut Track, facts: &Facts, step: Step) {
             -facts.absorbed,
         );
     }
-    if facts.fall > 0.0 {
+    if facts.fall > 0.0 && !step.chat_protected {
         track.health = track.health.add(-facts.fall, -facts.fall, -facts.fall);
     }
     for item in &facts.pickups[..usize::from(facts.pickup_count)] {
@@ -940,6 +1005,7 @@ mod tests {
             teleport: false,
             duel: DuelRules::default(),
             death_nearby: false,
+            chat_protected: false,
         }
     }
 
@@ -1355,6 +1421,50 @@ mod tests {
             Range::exact(100.0),
             "the stock start sets nothing"
         );
+    }
+
+    #[test]
+    fn a_player_chatting_on_ja_plus_takes_nothing_unless_the_server_says_so() {
+        let mut track = spawned(10_000);
+        track.health = Range::exact(80.0);
+        track.armor = Range::exact(0.0);
+        let mut chatting = step(10_050);
+        chatting.chat_protected = true;
+        let struck = Facts {
+            hit: Some(Range::new(20.0, 40.0, 150.0)),
+            fall: 9.0,
+            ..Facts::default()
+        };
+        advance(&mut track, &struck, false, chatting);
+        assert_eq!(track.health, Range::exact(80.0));
+        // A pain is the server saying it landed after all.
+        let felt = Facts {
+            pain: Some(55),
+            ..struck
+        };
+        chatting.time = 10_100;
+        advance(&mut track, &felt, false, chatting);
+        assert_eq!(track.health, Range::exact(55.0));
+    }
+
+    #[test]
+    fn a_swing_a_kick_or_a_grab_is_an_action() {
+        use sjk_protocol::LEGACY_ENTITY_FIELDS;
+        let melee = Estimator::default().melee_actions;
+        assert!(
+            melee.iter().all(Option::is_some),
+            "every name is an animation"
+        );
+        let mut entity = EntityState::zero(3, &LEGACY_ENTITY_FIELDS);
+        assert!(!in_action(&entity, &melee), "standing still");
+        entity.set_raw_field(17, u32::from(melee[0].unwrap()));
+        assert!(in_action(&entity, &melee), "a punch");
+        entity.set_raw_field(17, 0);
+        let attack = (0..200_u32)
+            .find(|saber_move| sjk_game_jka::saber_rules::in_attack(*saber_move))
+            .unwrap();
+        entity.set_raw_field(43, attack);
+        assert!(in_action(&entity, &melee), "a swing");
     }
 
     #[test]

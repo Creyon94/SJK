@@ -1302,6 +1302,16 @@ test: Wait: the core shrinks a point a second; at 100 it is gone.
 test: cg_hudStyle modern and classic: the same band inside the bars.
 note: Never started in a game: only hud-radial-overheal (radial_hud_snapshot) was looked at.
 
+[chat-protect]
+status: personal
+area: HUD
+title: Nameplate estimate: JA+ chat protection (no damage with the chat balloon up)
+change: On JA+, a chatting player not mid-action takes nothing from hits seen or from falls.
+change: Swings, kicks, punches and grabs count as action; a pain or shield flash still counts.
+test: JA+ server: a bot or friend types in chat; hit them: their health bar does not drop.
+test: Same player swings while chatting and gets hit: the bar drops as usual.
+note: Never started in a game; JA+ behaviour is from Sol, JA+ is closed source.
+
 [identity-auto]
 status: personal
 area: HUD

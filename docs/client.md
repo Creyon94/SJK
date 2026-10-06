@@ -1208,6 +1208,12 @@ Where the numbers come from, and what is not known:
     a death was won; one ending otherwise (called off, too far apart) changes
     nothing. The start values are learnt from your own duels once you have had one,
     for servers that set others (jaPRO's `g_duelStartHealth`);
+  - JA+'s chat protection: a player with the chat balloon up (`EF_TALK`, whatever
+    opened it) takes no damage unless in the middle of an action (a saber swing,
+    its transitions or a special, a kick, a punch or a melee grab, read from the
+    saber move and the torso and legs animations). On JA+ a hit seen on such a player
+    without a pain or a shield flash takes nothing, and a fall takes nothing; a pain
+    or a shield flash still counts, since the server only sends one when damage landed;
   - a player first seen, or back after time out of view, gets a wide range that the
     next pain closes.
 
