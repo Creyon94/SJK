@@ -376,7 +376,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Chance (0-100) that games you host cut off limbs",
         ),
         CvarDefinition::new("cg_drawGun", true, archive, "Draw the first-person weapon"),
-        CvarDefinition::new("cg_drawCrosshair", true, archive, "Display crosshair"),
+        CvarDefinition::new(
+            "cg_drawCrosshair",
+            1_i64,
+            archive,
+            "Crosshair picture 0-10: 0 hides it, 1-8 gfx/2d/crosshairb-i, 9 a, 10 j, a white dot of cg_crosshairSize pixels",
+        ),
         // Stock defaults from `codemp/cgame/cg_xcvar.h:60,72,102`.
         CvarDefinition::new(
             "cg_drawCrosshairNames",

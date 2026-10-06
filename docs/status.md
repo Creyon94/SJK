@@ -228,6 +228,40 @@ code-unit paste round-trip correctly. A PowerShell copy takes about 0.25 s.
 Unverified: a machine whose Constrained Language Mode comes from AppLocker/WDAC
 policy (it was simulated with `$ExecutionContext.SessionState.LanguageMode`),
 `pwsh` as the only PowerShell, and Linux and macOS tools.
+
+## Classic crosshair pictures
+
+Branch `feat/classic-crosshair`: the crosshair is retail's picture,
+`gfx/2d/crosshaira`..`j`, drawn as EternalJK's `CG_DrawCrosshair` draws it
+(`cg_draw.c:6665-7060`), instead of the procedural cross.
+
+- `cg_drawCrosshair` is an integer clamped to 0..=10: 0 hides the crosshair, the
+  picture is the value `% 10`, with `crosshaira` and `crosshairj` swapped as
+  EternalJK swaps them with `R_RemapShader`, and 10 is EternalJK's white dot of
+  `cg_crosshairSize` pixels. The settings entry is a 0-10 picker.
+- `cg_crosshairSize` (default 24, as `cg_xcvar.h:234`) is in 480-line virtual
+  units with `cg_crosshairSizeScale 1` (default 1), so 24 * height / 480 pixels,
+  kept square on wide screens as `widthRatioCoef` keeps it; it is in pixels
+  without scaling and for 10.
+- The picture follows the dynamic crosshair and `cg_crosshairX/Y` and takes the
+  existing target colours. With the default `cg_crosshairColor` "0 0 0 255" and no
+  target it is drawn white, in its own colours, as EternalJK's `R_SetColor(NULL)`.
+- The default crosshair colour changed from the old bluish tint (0.964, 0.991, 1.0)
+  to white (1, 1, 1): `crosshair_color` returns white for the all-black default and
+  for an unparsable `cg_crosshairColor`, and the targeting state starts white. The
+  procedural fallback cross takes the same colour, so it is white too.
+- EternalJK's own `crosshaira` and `crosshairj` from `EternalJK/japro-assets.pk3`
+  replace the base ones, and nothing else from that pack.
+- When a picture is missing, or the HUD draw list is full, the procedural cross is
+  drawn instead.
+
+Not done: EternalJK's doubled size in a vehicle, the vehicle's own crosshair and
+the item-pickup pulse of `cg_dynamicCrosshair 3`. Unit tests cover the picture
+order, the clamp, sizes, the missing-picture and full-list fallbacks and the
+EternalJK pack override. Checked in game on Windows 11 before the later
+changes, which were not re-tested in game and rest on unit tests and the workspace
+checks: the `cg_drawCrosshair` clamp, the full-list fallback, and the merge with
+`main` (the crosshair cells now follow `LOGO_ICON` in the icon atlas).
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the

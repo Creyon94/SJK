@@ -86,6 +86,8 @@ pub(crate) struct Policy {
     showpos: bool,
     lagometer: [f32; 2],
     color: [f32; 4],
+    /// The classic crosshair's picture and size.
+    pub(crate) look: super::crosshair::Look,
 }
 
 impl Policy {
@@ -111,6 +113,13 @@ impl Policy {
             showpos: b("cg_showpos", false),
             lagometer: [f("cg_lagometerx", 48.0), f("cg_lagometery", 144.0)],
             color: crate::cgame_options::crosshair_color(console),
+            look: super::crosshair::Look::new(
+                console
+                    .and_then(|c| c.integer_cvar("cg_drawcrosshair"))
+                    .unwrap_or(1),
+                super::options::crosshair_size(console, true),
+                b("cg_crosshairsizescale", true),
+            ),
         }
     }
 
@@ -161,7 +170,7 @@ impl Default for State {
         Self {
             policy: Policy::read(None),
             position: String::with_capacity(384),
-            color: [0.964, 0.991, 1.0, 1.0],
+            color: [1.0, 1.0, 1.0, 1.0],
 
             dynamic_offset: None,
         }
@@ -212,6 +221,14 @@ impl State {
             parameters[1] = offset[1];
         }
         parameters
+    }
+
+    /// Where the crosshair's middle goes, as a fraction of the viewport from the
+    /// top left: the dynamic muzzle point or the `cg_crosshairX/Y` offset.
+    pub(crate) fn center(&self, viewport: [f32; 2]) -> [f32; 2] {
+        let [x, y, ..] = self.parameters(viewport);
+        // Shader UVs increase upward; the draw list's rows run down.
+        [0.5 + x, 0.5 - y]
     }
 
     pub(super) fn emit(&self, list: &mut DrawList, viewport: [f32; 2], theme: Theme) {

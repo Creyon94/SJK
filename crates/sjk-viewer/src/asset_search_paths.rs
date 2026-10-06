@@ -182,6 +182,16 @@ impl Options {
             .collect()
     }
 
+    /// The `install/EternalJK` folder when its PK3s are to be probed for single
+    /// pictures: None when it is absent or already a game directory.
+    fn eternaljk_directory(&self, install: &Path) -> Option<PathBuf> {
+        let mounted = [self.basegame.as_str(), self.game.as_str()]
+            .iter()
+            .any(|game| game.eq_ignore_ascii_case(COSMETICS_GAME));
+        let directory = install.join(COSMETICS_GAME);
+        (!mounted && directory.is_dir()).then_some(directory)
+    }
+
     /// EternalJK's console character set: `gfx/2d/charsgrid_med` from the
     /// highest-priority PK3 in `install/EternalJK` that has one (jaPRO's
     /// `japro-assets.pk3`), as `(archive, path, image bytes)`. EternalJK draws its
@@ -189,13 +199,7 @@ impl Options {
     /// the rest of Latin-1. None when the folder is a game directory already.
     /// The PK3s are probed once per installation path for the life of the process.
     pub(crate) fn eternaljk_console_charset(&self, install: &Path) -> Option<ConsoleCharset> {
-        let mounted = [self.basegame.as_str(), self.game.as_str()]
-            .iter()
-            .any(|game| game.eq_ignore_ascii_case(COSMETICS_GAME));
-        let directory = install.join(COSMETICS_GAME);
-        if mounted || !directory.is_dir() {
-            return None;
-        }
+        let directory = self.eternaljk_directory(install)?;
         let mut cache = CHARSET_PROBE
             .lock()
             .unwrap_or_else(std::sync::PoisonError::into_inner);
@@ -207,6 +211,39 @@ impl Options {
                 found
             }
         }
+    }
+
+    /// EternalJK's own crosshair pictures, `gfx/2d/crosshaira` and `crosshairj`,
+    /// from the highest-priority PK3 in `install/EternalJK` that has each (jaPRO's
+    /// `japro-assets.pk3`), as `(archive, path, image bytes)`. EternalJK mounts that
+    /// folder above `base`, so these replace the base pictures there. Empty when
+    /// the folder is a game directory already.
+    pub(crate) fn eternaljk_crosshairs(&self, install: &Path) -> Vec<(PathBuf, String, Vec<u8>)> {
+        let Some(directory) = self.eternaljk_directory(install) else {
+            return Vec::new();
+        };
+        let archives: Vec<(PathBuf, VirtualFileSystem)> = sjk_vfs::pk3_search_order(&directory)
+            .unwrap_or_default()
+            .into_iter()
+            .rev()
+            .filter_map(|archive| {
+                let mut probe = VirtualFileSystem::new();
+                probe.mount_pk3(&archive).ok()?;
+                Some((archive, probe))
+            })
+            .collect();
+        ["a", "j"]
+            .iter()
+            .filter_map(|letter| {
+                archives.iter().find_map(|(archive, probe)| {
+                    ["tga", "png", "jpg"].iter().find_map(|extension| {
+                        let path = format!("gfx/2d/crosshair{letter}.{extension}");
+                        let asset = probe.read(&path).ok()??;
+                        Some((archive.clone(), path, asset.bytes))
+                    })
+                })
+            })
+            .collect()
     }
 
     /// Mount existing directories; unreadable archives warn without discarding other packs.
@@ -265,6 +302,24 @@ impl Options {
             }
         }
         mount_console_charset(&mut vfs, charset.take(), log)?;
+        // EternalJK's crosshair pictures over the game's own, as EternalJK itself
+        // mounts its folder above `base`; only those images, nothing else from
+        // the pack.
+        let crosshairs = self.eternaljk_crosshairs(install);
+        if !crosshairs.is_empty() {
+            if log {
+                for (archive, path, _) in &crosshairs {
+                    crate::log::progress(format_args!(
+                        "crosshair picture {path} from {}",
+                        archive.display(),
+                    ));
+                }
+            }
+            vfs.mount_memory(
+                "EternalJK crosshairs",
+                crosshairs.into_iter().map(|(_, path, bytes)| (path, bytes)),
+            )?;
+        }
         // `JKR_CONTENT=<dir>[:<dir>...]`: further content directories (loose files and
         // PK3s), above the installation: locally made content that has no place in it.
         for directory in std::env::var_os("JKR_CONTENT")
@@ -498,5 +553,50 @@ mod tests {
             .position(|name| name.ends_with("assets0.pk3"))
             .expect("base pack is mounted");
         assert!(base_pack < charset && charset < mod_pack, "{names:?}");
+    }
+
+    #[test]
+    fn eternaljk_crosshairs_override_the_base_ones_alone() {
+        let install = tempfile::tempdir().unwrap();
+        let base = install.path().join("base");
+        let folder = install.path().join("EternalJK");
+        std::fs::create_dir_all(&base).unwrap();
+        std::fs::create_dir_all(&folder).unwrap();
+        pk3(
+            &base.join("hd_icons.pk3"),
+            &[
+                "gfx/2d/crosshaira.tga",
+                "gfx/2d/crosshairb.tga",
+                "gfx/2d/crosshairj.tga",
+            ],
+        );
+        pk3(
+            &folder.join("japro-assets.pk3"),
+            &[
+                "gfx/2d/crosshaira.tga",
+                "gfx/2d/crosshairj.tga",
+                "ui/jamp/ingame.menu",
+            ],
+        );
+        let options = Options::default();
+        let found: Vec<String> = options
+            .eternaljk_crosshairs(install.path())
+            .into_iter()
+            .map(|(_, path, _)| path)
+            .collect();
+        assert_eq!(found, ["gfx/2d/crosshaira.tga", "gfx/2d/crosshairj.tga"]);
+        let vfs = options.mount(install.path()).unwrap();
+        let from = |path: &str| {
+            let asset = vfs.read(path).unwrap().unwrap();
+            vfs.mounts()
+                .find(|mount| mount.id == asset.source.mount_id)
+                .map(|mount| mount.name.to_string())
+                .unwrap()
+        };
+        assert_eq!(from("gfx/2d/crosshaira.tga"), "EternalJK crosshairs");
+        assert_eq!(from("gfx/2d/crosshairj.tga"), "EternalJK crosshairs");
+        assert_ne!(from("gfx/2d/crosshairb.tga"), "EternalJK crosshairs");
+        // Nothing else from that pack is mounted.
+        assert!(!vfs.contains("ui/jamp/ingame.menu").unwrap());
     }
 }

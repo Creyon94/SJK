@@ -167,7 +167,10 @@ const HELP: &[(&str, &str)] = &[
         "cg_drawWeapon",
         "The weapon bar shown while you change weapons.",
     ),
-    ("cg_crosshair", "The crosshair at the centre of the screen."),
+    (
+        "cg_crosshair",
+        "Crosshair picture: 0 hides it, 1 to 9 pick a picture, 10 is a white dot.",
+    ),
     (
         "cg_drawCrosshairNames",
         "Shows the name of the player under your crosshair.",
