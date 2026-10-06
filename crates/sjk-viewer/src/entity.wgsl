@@ -134,13 +134,17 @@ fn vertex_main(
 }
 
 fn particle_color(input: VertexOutput) -> vec4<f32> {
+    // Mip level from the unwrapped coordinates, taken before any branch.
+    let unwrapped = input.effect_local_uv * input.effect_uv_transform.xy
+        + input.effect_uv_transform.zw;
+    let span = input.effect_uv_rect.zw - input.effect_uv_rect.xy;
+    let gradient_x = dpdx(unwrapped) * span;
+    let gradient_y = dpdy(unwrapped) * span;
     if input.particle > 0.5 {
-        let transformed_uv = fract(
-            input.effect_local_uv * input.effect_uv_transform.xy
-                + input.effect_uv_transform.zw,
-        );
+        let transformed_uv = fract(unwrapped);
         let effect_uv = mix(input.effect_uv_rect.xy, input.effect_uv_rect.zw, transformed_uv);
-        let texel = textureSample(effect_atlas, effect_sampler, effect_uv);
+        let texel = textureSampleGrad(effect_atlas, effect_sampler, effect_uv,
+            gradient_x, gradient_y);
         let coverage = texel.a;
         if coverage < 0.01 {
             discard;

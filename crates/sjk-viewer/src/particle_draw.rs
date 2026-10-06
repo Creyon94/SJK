@@ -141,6 +141,8 @@ impl GpuState {
         ranges: &effect_submission::Ranges,
         depth: Option<&'a wgpu::BindGroup>,
     ) {
+        self.effect_geometry
+            .draw_decals(pass, camera, &self.particle_atlas.bind_group);
         pass.set_bind_group(0, camera, &[]);
         pass.set_bind_group(1, &self.particle_atlas.bind_group, &[]);
         if let Some(depth) = depth {

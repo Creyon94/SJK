@@ -100,6 +100,19 @@ Effect atlas shader names are looked up regardless of capitals, as shader names
 are case-insensitive in the engine: the atlas keys them in lower case, and the saber
 clash flare asks for `gfx/effects/saberFlare`.
 
+Impact marks (decals) are drawn before every other effect, as rd-vanilla sorts mark
+shaders (`sort decal`) ahead of blended effects, so an explosion's fire and smoke
+cover its own scorch mark. Effect atlas stages honour `alphaGen const` and a grey
+`rgbGen const` (JoF's HD scorch marks are 15% grey at 80% opacity). A coloured
+`rgbGen const` is ignored: effect layers carry one brightness, so only a grey
+constant is taken. Both constants are applied as a flat brightness and alpha
+multiplier on the effect's own colour and alpha, not a replacement of them as in
+rd-vanilla. The atlas has five mip levels: each 128-pixel picture sits in a
+160-pixel cell whose 16-pixel border repeats its edge texels, so filtering at the
+smallest level never reaches the next picture, and each level averages its 2x2
+parents weighted by alpha. The effect mips are generated premultiplied, unlike the
+plain `box_mip_chain` of the other mipmapped path.
+
 Effects drawn from the effect atlas (EFX particles, missile trails, muzzle
 flashes, beams, impact marks and blob shadows) follow the same remaps and local
 overrides, as rd-vanilla `RB_BeginSurface` swaps the shader for every surface.

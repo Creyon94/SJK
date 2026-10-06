@@ -196,7 +196,18 @@ pub(crate) fn upload_display_image_mipmapped(
     label: &str,
     rgba: &image::RgbaImage,
 ) -> wgpu::TextureView {
-    let chain = box_mip_chain(rgba);
+    upload_levels(device, queue, label, &box_mip_chain(rgba))
+}
+
+/// Upload an `Rgba8Unorm` texture whose mip levels were made by the caller; `chain[0]`
+/// is the full-size image and each next one half its size.
+pub(crate) fn upload_levels(
+    device: &wgpu::Device,
+    queue: &crate::frame_queue::FrameQueue,
+    label: &str,
+    chain: &[image::RgbaImage],
+) -> wgpu::TextureView {
+    let rgba = &chain[0];
     let texture = device.create_texture(&wgpu::TextureDescriptor {
         label: Some(label),
         size: wgpu::Extent3d {
