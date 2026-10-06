@@ -21,6 +21,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- The nameplate health estimate knows JA+'s chat protection: a player with the chat balloon up takes no damage unless swinging, kicking, punching or grabbing _(Sol)_
 - Your HUD shows overheal and overshield like the nameplates: health and armour over 100 (125 at spawn, up to 199 armour) fill a thinner, deeper band inside their meter, in the radial, modern and classic HUDs _(Sol)_
 - Weather, round two: rain splashes stay where they land instead of following you, and rain is a faint blue-grey instead of white; rain and snow leave a haze outdoors and the maps' fog becomes real ground fog that drifts with the wind (never indoors); 3D clouds drift over every map with sky, lit by its sun and darker in a storm; Settings > Renderer adds Weather quality (`r_weatherQuality`), Force weather (`r_weatherForce`: drizzle, rain, storm or snow on any map with sky), Ground fog (`r_weatherFog`) and Volumetric clouds (`r_clouds`) _(Sol)_
 - Nameplate bars: shield on top, always shown (broken grey when empty), in your HUD's green, and health in its red; health and shield over the maximum (125 at spawn, up to 199 shield) show as a deeper second band; a yellow "?" stands over a bar the estimate cannot place yet; the estimate follows JA+ private duels (100 and 100 at the start, 100 and 25 for the winner) and the pain sounds servers play when they hide health _(Sol)_

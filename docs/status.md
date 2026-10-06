@@ -1053,7 +1053,13 @@ the maximum; start values learnt from the local player's own duels) and the pain
 sounds a server plays when it hides the pain value (`*pain25` to `*pain100`). See
 [client.md](client.md#nameplates).
 
+`personal/chat-protect` adds JA+'s chat protection: a player with the chat balloon up
+takes no damage unless mid-action (saber swing, kick, punch, grab), so on JA+ a hit seen
+without a pain or a shield flash, and a fall, change nothing for them (Sol's account of
+JA+, which is closed source).
+
 Verified: the sjk-viewer tests (duel start, a duel called off, a JA+ and a stock win,
+a chatting player hit with and without a pain, what counts as an action,
 the pain-sound quarters, the overflow shade, the broken bar's dashes, the stack order);
 the off-screen snapshot `nameplate_snapshot` (overheal, an empty shield, the "?", a
 199 shield); its pixels show the overflow green apart from the base green. Not
