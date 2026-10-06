@@ -29,6 +29,13 @@ use sjk_ui::{
 
 /// Text ids below this are player slots; above it, `NPC_TEXT + class_t`.
 const NPC_TEXT: u32 = 1024;
+/// Text id of the "?" over a bar the estimate cannot fill.
+const UNKNOWN_TEXT: u32 = 1000;
+/// A health or shield range this wide (shares of a full bar) is too unsure to show:
+/// the bar dims and a "?" stands over it until something narrows it.
+const UNSURE_WIDTH: f32 = 0.6;
+/// A shield whose high bound is under this share is known to be empty.
+const EMPTY_SHARE: f32 = 0.005;
 /// `ET_PLAYER` and `ET_NPC` entity types, `EF_DEAD`, and `PW_FORCE_BOON`.
 const ET_PLAYER: u8 = 1;
 const ET_NPC: u8 = 13;
@@ -272,8 +279,8 @@ pub(crate) struct State {
     /// Where the Force regeneration pace came from, for the debug log.
     regen_source: &'static str,
     vitals: vitals_estimate::Estimator,
-    /// The Force colour of the HUD in use, which the Force bar takes.
-    force_color: Color,
+    /// The health, shield and Force colours of the HUD in use, which the bars take.
+    colors: BarColors,
     /// Slots the hub's operator vouches for, as bits, and when they were last read.
     verified: u32,
     verified_read: Option<i64>,
@@ -294,7 +301,7 @@ impl Default for State {
             calibration: Calibration::default(),
             regen_source: "default",
             vitals: vitals_estimate::Estimator::default(),
-            force_color: math::FORCE_COLOR,
+            colors: BarColors::default(),
             verified: 0,
             verified_read: None,
             own_origin: None,
@@ -337,10 +344,20 @@ impl State {
         self.settings.enabled
     }
 
-    /// Take the Force bar's colour from the HUD in use; `None` for one that names
-    /// none (the game-data HUD draws pictures), which gets the retail blue.
-    pub(crate) fn set_force_color(&mut self, color: Option<Color>) {
-        self.force_color = color.unwrap_or(math::FORCE_COLOR);
+    /// Take the bars' colours from the HUD in use (its health, armour and Force
+    /// meters); `None` for one it names none for (the game-data HUD draws
+    /// pictures), which gets the retail colour.
+    pub(crate) fn set_hud_colors(
+        &mut self,
+        health: Option<Color>,
+        shield: Option<Color>,
+        force: Option<Color>,
+    ) {
+        self.colors = BarColors {
+            health: health.unwrap_or(math::HEALTH_COLOR),
+            shield: shield.unwrap_or(math::SHIELD_COLOR),
+            force: force.unwrap_or(math::FORCE_COLOR),
+        };
     }
 
     /// Read which slots are verified (`read` asks the identity service) at most once a
@@ -617,8 +634,8 @@ impl State {
         }
         let bars = settings.bars != 0;
         let full = player.max_health().max(1) as f32;
-        let exact = |value: i32, full: f32| Range::exact(value.max(0) as f32).share(full);
-        let shield = (player.armor() > 0).then(|| exact(player.armor(), full));
+        let exact = |value: i32, full: f32| Range::exact(value.max(0) as f32).share_over(full);
+        let shield = Some(exact(player.armor(), full));
         let entry = Entry {
             number: local,
             npc_class: 0,
@@ -1019,49 +1036,118 @@ impl State {
             width: (1.2 * u).max(1.0),
             color: entry.accent,
         });
-        let force = self.force_color;
-        for (bar, range, color, outline) in [
-            (
-                stack.health,
-                entry.health,
-                entry.health.map(|range| math::health_color(range.best)),
-                None,
-            ),
-            (stack.shield, entry.shield, Some(math::SHIELD_COLOR), None),
-            (
-                stack.force,
-                entry.force,
-                Some(force),
-                Some(math::lighter(force, 0.4, 0.75)),
-            ),
+        let colors = self.colors;
+        for (bar, range, color, meter) in [
+            (stack.shield, entry.shield, colors.shield, Meter::Shield),
+            (stack.health, entry.health, colors.health, Meter::Health),
+            (stack.force, entry.force, colors.force, Meter::Force),
         ] {
-            let (Some(rect), Some(range), Some(color)) = (bar, range, color) else {
-                continue;
-            };
-            let radius = rect.height * 0.5;
-            let _ = self.list.push(DrawCommand::RoundedRect {
-                rect,
-                radius,
-                color: Color::new(0.0, 0.0, 0.0, 0.6),
-            });
-            if range.best > 0.01 {
-                let _ = self.list.push(DrawCommand::RoundedRect {
+            if let (Some(rect), Some(range)) = (bar, range) {
+                self.meter(rect, range, color, meter, u);
+            }
+        }
+    }
+
+    /// One bar: its track, the fill to the guess with the haze over the uncertain
+    /// stretch, and over a full bar (overheal, overshield) a second layer in a
+    /// deeper shade from the left. An empty shield is a broken grey bar; health or
+    /// shield too unsure to show dims under a yellow "?".
+    fn meter(&mut self, rect: Rect, range: Range, color: Color, meter: Meter, u: f32) {
+        let radius = rect.height * 0.5;
+        let _ = self.list.push(DrawCommand::RoundedRect {
+            rect,
+            radius,
+            color: Color::new(0.0, 0.0, 0.0, 0.6),
+        });
+        let outline = match meter {
+            Meter::Force => math::lighter(color, 0.4, 0.75),
+            _ => Color::new(1.0, 1.0, 1.0, 0.3),
+        };
+        if meter == Meter::Shield && range.high < EMPTY_SHARE {
+            for (start, end) in math::broken_dashes() {
+                let _ = self.list.push(DrawCommand::SolidRect {
                     rect: Rect::new(
-                        rect.x,
-                        rect.y,
-                        (rect.width * range.best).max(rect.height),
-                        rect.height,
+                        rect.x + rect.width * start,
+                        rect.y + rect.height * 0.2,
+                        rect.width * (end - start),
+                        rect.height * 0.6,
                     ),
-                    radius,
-                    color,
+                    color: math::EMPTY_SHIELD,
                 });
             }
-            self.haze(rect, range);
             let _ = self.list.push(DrawCommand::Border {
                 rect,
                 radius,
                 width: u.max(1.0),
-                color: outline.unwrap_or(Color::new(1.0, 1.0, 1.0, 0.3)),
+                color: Color::new(1.0, 1.0, 1.0, 0.15),
+            });
+            return;
+        }
+        let unsure = meter != Meter::Force && range.width() >= UNSURE_WIDTH;
+        let _ = self
+            .list
+            .push(DrawCommand::PushOpacity(if unsure { 0.35 } else { 1.0 }));
+        let layers = [
+            (range.clamp(0.0, 1.0), color),
+            (
+                range.map(|share| (share - 1.0).clamp(0.0, 1.0)),
+                math::saturated(color),
+            ),
+        ];
+        for (index, (layer, shade)) in layers.into_iter().enumerate() {
+            if index == 1 && range.high <= 1.0 {
+                break;
+            }
+            // The second layer is an inner band, so the full bar shows round it.
+            let band = if index == 0 {
+                rect
+            } else {
+                let inset = rect.height * 0.22;
+                Rect::new(
+                    rect.x,
+                    rect.y + inset,
+                    rect.width,
+                    rect.height - inset * 2.0,
+                )
+            };
+            if layer.best > 0.01 {
+                let _ = self.list.push(DrawCommand::RoundedRect {
+                    rect: Rect::new(
+                        band.x,
+                        band.y,
+                        (band.width * layer.best).max(band.height),
+                        band.height,
+                    ),
+                    radius: band.height * 0.5,
+                    color: shade,
+                });
+            }
+            self.haze(band, layer);
+        }
+        let _ = self.list.push(DrawCommand::PopOpacity);
+        let _ = self.list.push(DrawCommand::Border {
+            rect,
+            radius,
+            width: u.max(1.0),
+            color: outline,
+        });
+        if unsure {
+            // Sized to its bar, so the marks of two unsure bars do not meet.
+            let size = rect.height * 1.3 + 2.5 * u;
+            let _ = self.list.push(DrawCommand::Text {
+                rect: Rect::new(
+                    rect.x,
+                    rect.y + (rect.height - size * 1.15) * 0.5,
+                    rect.width,
+                    size * 1.15,
+                ),
+                text: TextId(UNKNOWN_TEXT),
+                size,
+                color: math::UNKNOWN_MARK,
+                align: TextAlign::Center,
+                overflow: TextOverflow::Ellipsis,
+                weight: FontWeight::Semibold,
+                letter_spacing: 0.0,
             });
         }
     }
@@ -1134,10 +1220,10 @@ fn icon_powers(active: u32) -> ([u8; MAX_ICONS], u8) {
     (powers, count)
 }
 
-/// Health and shield shares of `entity`: a teammate's from the team overlay
-/// (points out of a full 100), anyone's from the entity state when the server
-/// sends health there, else the `predicted` estimate. A shield known to be empty
-/// gets no bar.
+/// Health and shield shares of `entity` (up to 2: a second bar's worth over the
+/// maximum): a teammate's from the team overlay (points out of a full 100), anyone's
+/// from the entity state when the server sends health there, else the `predicted`
+/// estimate.
 fn bar_values(
     entity: &sjk_protocol::EntityState,
     number: u16,
@@ -1151,7 +1237,7 @@ fn bar_values(
             .iter()
             .find(|row| u16::from(row.client_num) == number)
     {
-        let share = |points: i32| Range::exact(points as f32).share(FULL_POINTS);
+        let share = |points: i32| Range::exact(points as f32).share_over(FULL_POINTS);
         return (Some(share(row.health)), Some(share(row.armor)));
     }
     let maximum = entity.max_health() as f32;
@@ -1166,11 +1252,8 @@ fn bar_values(
     };
     let full = vitals.full();
     (
-        vitals.health(number).map(|range| range.share(full)),
-        vitals
-            .armor(number)
-            .filter(|range| range.high >= 0.5)
-            .map(|range| range.share(full)),
+        vitals.health(number).map(|range| range.share_over(full)),
+        vitals.armor(number).map(|range| range.share_over(full)),
     )
 }
 
@@ -1192,8 +1275,37 @@ fn team_accent(mode: i32, team: i32) -> Color {
     }
 }
 
-/// Text of a plate: a roster name, or an NPC class name.
+/// The bars' colours.
+#[derive(Clone, Copy, Debug)]
+struct BarColors {
+    health: Color,
+    shield: Color,
+    force: Color,
+}
+
+impl Default for BarColors {
+    fn default() -> Self {
+        Self {
+            health: math::HEALTH_COLOR,
+            shield: math::SHIELD_COLOR,
+            force: math::FORCE_COLOR,
+        }
+    }
+}
+
+/// Which bar [`State::meter`] draws.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+enum Meter {
+    Shield,
+    Health,
+    Force,
+}
+
+/// Text of a plate: a roster name, an NPC class name, or the "?" over a bar.
 fn label(chat: &ChatOverlay, id: TextId) -> &str {
+    if id.0 == UNKNOWN_TEXT {
+        return "?";
+    }
     match id.0.checked_sub(NPC_TEXT) {
         None => chat.player_label(id.0 as u16),
         Some(class) => super::npc_class::name(class as u8).unwrap_or(""),
@@ -1259,7 +1371,13 @@ impl State {
                 verified: plate.verified,
             });
         }
-        let label = |id: TextId| names.get(id.0 as usize).copied().unwrap_or("");
+        let label = |id: TextId| {
+            if id.0 == UNKNOWN_TEXT {
+                "?"
+            } else {
+                names.get(id.0 as usize).copied().unwrap_or("")
+            }
+        };
         self.build(&label, &[], weapons, font, viewport);
         crate::ui_renderer::append_text_commands(
             &self.list,

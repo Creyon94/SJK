@@ -1112,10 +1112,21 @@ that font is not loaded), whatever `cg_classicHudFont` says.
 - **Far:** only the name, small and dim. Plates shrink with distance (to 60% at the
   range) and fade over the last quarter of `cg_nameplateRange` (3000 units).
 - **Near:** inside `cg_nameplateNear` (1000 units) the name rises and a plate fades
-  in under it, framed in red or blue in team games: a health bar, a shield bar
-  (left out when the shield is known to be empty) and a Force bar. The Force bar
-  takes the Force colour of the HUD in use (the layout's `force_ratio` widget; the
-  retail light blue for the game-data HUD, which draws pictures).
+  in under it, framed in red or blue in team games: the shield bar on top, then
+  health, then Force. The bars take the HUD's own colours (the layout's
+  `armor_ratio`, `health_ratio` and `force_ratio` widgets: the Radial HUD's green
+  shield, red health and blue Force; the retail green, red and light blue for the
+  game-data HUD, which draws pictures). Health is always that red, whatever is left.
+- **Empty shield:** a player's shield bar is always there; known to be empty it is
+  drawn broken, grey dashes on the dark track.
+- **Overheal and overshield:** health and shield go to twice the maximum (125 at
+  spawn; 199 shield from a large shield picked up at 99). The bar shows 0 to the
+  maximum; what lies over it is a second, inner band in a deeper shade of the same
+  colour, from the left (125 health: a full red bar with a deep red first quarter).
+  Both decay a point a second back to the maximum, as the server does.
+- **Unsure:** a health or shield estimate whose range spans 60 or more (a player
+  first seen, or back from long out of view) dims and gets a yellow "?" over it until
+  a pain, a shield hit or another clue narrows it.
 - **Uncertainty:** an estimated bar is a range ([estimate.rs](../crates/sjk-viewer/src/hud/estimate.rs)):
   the lowest and highest the value can be and the best guess. The bar fills to the
   guess, and a grey haze, thickest at the guess and fading out towards either bound,
@@ -1184,11 +1195,21 @@ Where the numbers come from, and what is not known:
     the drainer, deaths (`EF_DEAD`, `EV_OBITUARY`) and the respawn after one; a spawn
     with no death seen toggles `EF_TELEPORT_BIT`, as a teleport does, so it only
     raises the high bound;
+  - private duels (`EV_PRIVATE_DUEL`, 1 at the start, 0 at the end): on JA+ both
+    duellists are set to 100 health and 100 shield when it starts, and the winner to
+    100 and 25 when it ends, whatever they had left; on stock JKA the start changes
+    nothing and the winner is healed to the maximum. A duel ending within a second of
+    a death was won; one ending otherwise (called off, too far apart) changes
+    nothing. The start values are learnt from your own duels once you have had one,
+    for servers that set others (jaPRO's `g_duelStartHealth`);
   - a player first seen, or back after time out of view, gets a wide range that the
     next pain closes.
 
   Servers can hide the pain values: JAPro's `g_stopHealthESP` (off by default) sends a
-  fixed 50 or no pain event at all, and scrambles `PERS_ATTACKEE_ARMOR`. Your own pain
+  fixed 50 or no pain event at all, and scrambles `PERS_ATTACKEE_ARMOR`. At 2 it plays
+  the pain sound instead (`EV_ENTITY_SOUND` of `*pain25` to `*pain100`, chosen by the
+  health left), which bounds the health to its quarter: 25 or less, 50 or less, 75 or
+  less, or more. Your own pain
   events are checked against your real health: until one has been, pain values are
   trusted but their absence proves nothing; if they do not match (or every pain says
   50), they are ignored and a pain only says ten or more landed. JA+ is closed source

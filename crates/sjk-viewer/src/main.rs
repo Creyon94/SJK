@@ -1507,8 +1507,8 @@ impl GpuState {
             presentation_time.max(0) as u64,
         );
         if hud_style == menu_hud::HudStyle::Game {
-            // The game-data HUD draws its Force as pictures, not one of the layouts.
-            self.hud.nameplate.set_force_color(None);
+            // The game-data HUD draws its meters as pictures, not one of the layouts.
+            self.hud.nameplate.set_hud_colors(None, None, None);
         }
         let [health_ratio, armor_ratio, force_ratio] = self.hud.displayed_ratios();
         let (menu_kind, visual_menu_row) = self

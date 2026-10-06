@@ -647,9 +647,10 @@ fn nameplate_snapshot() {
     nameplates(&mut shots, &vfs);
 }
 
-/// Nameplates over a match: a verified saber player in medium stance with an exact
-/// health bar and estimated shield and Force (grey haze), an unsure enemy with a
-/// gun, a staff player farther off, and the player's own plate (`cg_nameplateSelf`).
+/// Nameplates over a match: a verified saber player in medium stance just spawned
+/// (overheal, 125) with estimated Force (grey haze), an enemy with a gun the estimate
+/// cannot place (yellow "?"), a staff player farther off with an empty shield (broken
+/// grey), and the player's own plate (`cg_nameplateSelf`) over a large shield (199).
 fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
     use crate::hud::nameplate::{PreviewPlate, State};
     use sjk_ui::TextureId;
@@ -680,8 +681,8 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
             slot: 1,
             point: [360.0, 330.0],
             distance: 260.0,
-            health: Some([0.72, 0.72, 0.72]),
-            shield: Some([0.05, 0.18, 0.25]),
+            health: Some([1.25, 1.25, 1.25]),
+            shield: Some([0.25, 0.25, 0.25]),
             force: Some([0.35, 0.8, 0.85]),
             weapon: 3,
             style: 2,
@@ -692,8 +693,8 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
             slot: 2,
             point: [800.0, 360.0],
             distance: 420.0,
-            health: Some([0.3, 0.55, 1.0]),
-            shield: Some([0.0, 0.25, 0.6]),
+            health: Some([0.01, 1.0, 1.25]),
+            shield: Some([0.0, 0.25, 1.0]),
             force: Some([0.1, 0.45, 0.6]),
             weapon: 5,
             style: 0,
@@ -704,8 +705,8 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
             slot: 3,
             point: [1170.0, 300.0],
             distance: 700.0,
-            health: Some([0.9, 0.9, 0.9]),
-            shield: None,
+            health: Some([0.45, 0.5, 0.55]),
+            shield: Some([0.0, 0.0, 0.0]),
             force: Some([1.0, 1.0, 1.0]),
             weapon: 3,
             style: 7,
@@ -717,7 +718,7 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
             point: [720.0, 720.0],
             distance: 120.0,
             health: Some([1.0, 1.0, 1.0]),
-            shield: Some([0.25, 0.25, 0.25]),
+            shield: Some([1.99, 1.99, 1.99]),
             force: Some([0.64, 0.64, 0.64]),
             weapon: 3,
             style: 3,

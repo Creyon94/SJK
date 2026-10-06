@@ -1041,6 +1041,25 @@ match. Not verified: the badge and the own plate in the running client; the new 
 committed but not deployed, so until it is, the deployed hub ignores the worn name
 (new players show as "Registered") and refuses a bio-only save.
 
+## Nameplate bars and duel rules (SJK)
+
+SJK-only branch `personal/nameplate-bars` (07/10/2026): the shield bar sits on top and
+is always drawn (grey dashes when known to be empty); health and shield take the HUD's
+`health_ratio` and `armor_ratio` colours (red and green on the Radial HUD), health no
+longer ramps through yellow; values over the maximum show as a deeper inner band; a
+health or shield range 60 or wider dims under a yellow "?". The estimate reads JA+
+private duels (100/100 at the start, 100/25 for the winner; stock heals the winner to
+the maximum; start values learnt from the local player's own duels) and the pain
+sounds a server plays when it hides the pain value (`*pain25` to `*pain100`). See
+[client.md](client.md#nameplates).
+
+Verified: the sjk-viewer tests (duel start, a duel called off, a JA+ and a stock win,
+the pain-sound quarters, the overflow shade, the broken bar's dashes, the stack order);
+the off-screen snapshot `nameplate_snapshot` (overheal, an empty shield, the "?", a
+199 shield); its pixels show the overflow green apart from the base green. Not
+verified: any of it in the running client or on a JA+ server; JA+'s duel values are
+Sol's account, not read from code (JA+ is closed source).
+
 ## Alt codes (SJK)
 
 SJK-only branch `personal/alt-codes` (2026-10-05, based on `2696590`) types

@@ -370,14 +370,20 @@ impl HudOverlay {
                 .unwrap_or(&self.default_document),
             HudLook::Modern => &self.classic_document,
         };
-        // The nameplates' Force bar wears this HUD's Force colour.
-        self.nameplate.set_force_color(
+        // The nameplates' bars wear this HUD's health, armour and Force colours.
+        let meter = |binding: &str| {
             document
                 .widgets
                 .iter()
-                .find(|widget| widget.binding.as_deref() == Some("force_ratio"))
-                .and_then(|widget| widget.style.foreground),
+                .find(|widget| widget.binding.as_deref() == Some(binding))
+                .and_then(|widget| widget.style.foreground)
+        };
+        let (health, armor, force) = (
+            meter("health_ratio"),
+            meter("armor_ratio"),
+            meter("force_ratio"),
         );
+        self.nameplate.set_hud_colors(health, armor, force);
         let data = WidgetData {
             visibility,
             ratios: self.displayed_ratios,
