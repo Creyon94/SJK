@@ -262,6 +262,56 @@ EternalJK pack override. Checked in game on Windows 11 before the later
 changes, which were not re-tested in game and rest on unit tests and the workspace
 checks: the `cg_drawCrosshair` clamp, the full-list fallback, and the merge with
 `main` (the crosshair cells now follow `LOGO_ICON` in the icon atlas).
+
+## First-person weapon field of view
+
+Implemented: the first-person weapon follows EternalJK's `cg_fovViewmodel`
+(default 80), `cg_fovViewmodelAdjust` (default 1) and `cg_fovAspectAdjust`
+(`CG_AddViewWeapon`, `cg_weapons.c:951-1042` in JoF EternalJK). It is drawn with
+the world's projection, its forward axis scaled by
+`tan(viewmodel/2) / tan(fov_x/2)` (the view-model FOV widened to the screen when
+aspect adjustment is on), and it drops by 0.2 units per degree of view-model FOV
+over 90. `cg_fovViewmodel 0` draws it with `cg_fov`.
+
+The default 80 is EternalJK's and changes the first-person look for everyone
+compared with retail and OpenJK, which have no such cvar and draw the weapon
+as with `cg_fovViewmodel 0` (about 0.84 of the depth at the default settings).
+Set `cg_fovViewmodel 0` to get the retail look back.
+
+Gun and muzzle: EternalJK scales only the hand's `axis[0]`, and the gun, barrels
+and flash inherit that through the tag matrices (`CG_PositionEntityOnTag`,
+`cg_ents.c:48-66`), so the whole view model is squashed along the hand's forward
+axis. The tag origin is scaled exactly. A rendered instance can only scale its
+own axes, so the gun and barrels scale the axis of their frame closest to the
+hand's forward axis, and the muzzle socket goes through the same transform
+as the gun instance, so socket and barrel stay together. This is exact for the
+retail hand rigs whose `tag_weapon` only rolls about the forward axis (bowcaster,
+repeater, concussion, disruptor and others). The blaster and pistol rigs tilt
+their `tag_weapon` by about 13 degrees, so at the default settings their flash
+ends up about 0.45 units from where EternalJK places it (12 units out), against
+about 1.9 for scaling the gun's own x. Removing that remainder needs a
+per-instance matrix in the actor shaders.
+
+The hand rig's frames are chosen from the posed torso animation together with its
+frame, in the same change because the view weapon reads both for each frame:
+`CG_AddViewWeapon` reads `lower_lumbar`'s frame with the predicted `torsoAnim`,
+and pairing the frame with the snapshot's older torso animation put the hand on
+idle frames while the predicted shot already played. This is a separate fix from
+the FOV scale and could be its own change.
+
+Verified: unit tests for the FOV terms (21:9 screen, equal FOVs at 4:3, the `0`
+fallback, the drop) and for the tag composition (unit scale equals the plain
+composition; the roll tag matches an independent row-matrix model of the engine
+within 0.05 units; the blaster tag stays within 0.5 units; the muzzle socket
+equals the rendered gun's flash point for both tags and several scales).
+`cargo fmt --all --check`, `cargo build --locked --workspace`,
+`cargo test --locked --workspace` and
+`cargo clippy --locked --workspace --all-targets` on Windows 11 (06/10/2026).
+
+Not verified: the author reports a side-by-side check in game against JoF
+EternalJK at the same settings; that was not repeated for this review. The
+muzzle-flash effect and crosshair were not compared in game at `cg_fovViewmodel`
+values other than 80.
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the

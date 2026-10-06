@@ -5,7 +5,9 @@
 //! item `view_model` hangs off `tag_weapon`, and the torso animation picks
 //! the hand frame through `CG_MapTorsoToWeaponFrame` (`:157-216`). The gun
 //! placement follows `CG_CalculateWeaponPosition` (`:225-270`) with the
-//! default cvars `cg_weaponBob 1`, `cg_gunX/Y/Z 0`, `cg_fovViewmodel 0`.
+//! default cvars `cg_weaponBob 1` and `cg_gunX/Y/Z 0`. SJK's `cg_fovViewmodel`
+//! defaults to EternalJK's 80 (retail has no such cvar, which behaves as 0), so
+//! the first-person view differs from retail unless it is set to 0.
 //! Model paths are `bg_itemlist` `view_model` entries
 //! (`codemp/game/bg_misc.c:1092-1456`); the `_hand` / `_barrel` derivations
 //! come from `CG_RegisterWeapon` (`cg_weaponinit.c:97-126`).
