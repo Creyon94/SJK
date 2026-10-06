@@ -87,6 +87,33 @@ still and a moving ideal point, the stock path at 0 and no elapsed time. Checked
 game on Windows 11 on a JoF server next to EternalJK, with the default 125;
 `cg_cameraFPS 0` was not tried in game.
 
+## Windows-1252 symbols on screen
+
+Branch `fix/windows-1252-display`:
+
+- Glyphs are chosen by Windows-1252 byte and the modern font's slots 0x80..=0x9F
+  hold the Windows-1252 characters. Typed `€`, `’`, `‘`, `™` or `—` drew `?` (the
+  glyph was chosen by Unicode value below 256), and the same symbols received from
+  other clients drew blank.
+- Chat keeps those symbols and other control bytes in names for display; it
+  dropped them as control characters. The chat roster keys each player by the name
+  with bytes 0x80..=0x9F mapped to their characters and other controls removed, so
+  Friend and `tell <name>` work for those players.
+- A slot with no glyph (a vertical tab in a name, an unassigned byte) draws `.` in
+  the modern font and the retail `.fontdat` fonts, as OpenJK `RE_Font_DrawString`
+  does: `{JoF}\vToxiee\v{C}.ak` reads `{JoF}.Toxiee.{C}.ak` as in EternalJK.
+- The classic console leaves typographic characters (0x80..=0x9E), which the retail
+  console character set lacks, out of the row as EternalJK's console does, while
+  the text keeps them.
+- JoF cosmetic wildcard keys compare bytes, so a model name with a multi-byte
+  character across the prefix length no longer panics. An audit of client-side
+  slicing of player and server text found no other site that can split a character.
+
+Unit tests cover every byte's round trip, common name symbols typed and received,
+roster keys and `tell` lookups, and the cosmetic match. Checked in game on Windows
+11 on a JoF server, before the roster keys were added; those are covered by the
+unit tests only.
+
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the

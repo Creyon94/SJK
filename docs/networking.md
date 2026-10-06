@@ -62,7 +62,11 @@ names servers embed in `print` and `cp` commands, is decoded by
 [decode_legacy](../crates/sjk-client/src/legacy_text.rs): valid UTF-8 as UTF-8,
 anything else as Latin-1. A byte in 0x80..=0x9F therefore stays the C1 character
 of that value, draws the font glyph of that byte and is sent back as the same
-byte, so a name copied from the game round-trips exactly.
+byte, so a name copied from the game round-trips exactly. The renderer picks a
+glyph by Windows-1252 byte ([text.rs](../crates/sjk-viewer/src/text.rs)), so a
+typed `€` or `’` draws the same glyph as byte 0x80 or 0x92 from another client,
+and the modern font fills those slots with the Windows-1252 characters instead
+of blank C1 controls.
 
 ### Player-state arrays
 
