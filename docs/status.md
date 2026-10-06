@@ -7,6 +7,24 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Dismemberment and disintegration
+
+Branch `feat/dismember-disintegrate`: cut-off limbs (`cg_dismember`, EternalJK's
+`CG_General` limb case) and bodies burning away (`EF_DISINTEGRATION`,
+`CG_Disintegration`), as described in
+[client.md](client.md#dismemberment-and-disintegration). `cg_dismember` defaults to
+0, as in EternalJK; disintegration is always on, with no cvar, as in EternalJK and
+OpenJK. At `cg_dismember 0` with nothing cut the limb update returns at once; it
+borrows the presented snapshot and never copies it. Disintegration colours are final:
+the real-time sun and fullbright leave them as they are. Surface state is copied from
+a player to a body, or to a pooled limb, only between meshes with the same surfaces
+and draws. Unit tests cover the surface rules (caps, stump, limb root, root-surface
+variants, reattaching, matching layouts), the frozen disintegration pose and the burn
+radius; the composed stage shader passes naga validation. Checked in game on Windows
+11 on a local server with `g_dismember 100` and `cg_dismember 3`, before the review
+changes (snapshot borrow, fullbright colours, layout check), which are covered by the
+unit tests only.
+
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the
@@ -764,16 +782,6 @@ A temporary CPU render of the draw list (free-for-all at 1920x1080, team game at
 3440x1440, 26 clients) checked placement and was then deleted. Not run in the
 client; head icons, flag icons and the game-font option's retail fonts on this
 layout are unverified on screen.
-
-## Dismemberment and disintegration
-
-Branch `feat/dismember-disintegrate`: cut-off limbs (`cg_dismember`, EternalJK's
-`CG_General` limb case) and bodies burning away (`EF_DISINTEGRATION`,
-`CG_Disintegration`), described in [client.md](client.md#dismemberment-and-disintegration).
-Asked for by creyon to match JoF EternalJK. Unit tests cover the surface rules (caps,
-stump, limb root, root-surface variants, reattaching), the frozen disintegration pose
-and the burn radius; the WGSL passes naga validation. Not yet seen in game: the look of
-limbs and burning bodies, limb pivots and smoke placement are unverified on screen.
 
 ## Leader HUD placement preview
 
