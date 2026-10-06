@@ -5,6 +5,7 @@
 //! GPU integration deliberately remain with the consuming application.
 
 mod animation;
+mod arc;
 mod document;
 mod draw;
 mod geometry;
@@ -15,8 +16,9 @@ mod theme;
 mod tree;
 
 pub use animation::{Easing, Tween};
+pub use arc::{ArcSegment, MAX_ARC_SEGMENTS, arc_distance, segments as arc_segments};
 pub use document::{
-    HudLayoutDocument, HudWidget, HudWidgetKind, StyleOverrides, VisibilityCondition,
+    ArcStyle, HudLayoutDocument, HudWidget, HudWidgetKind, StyleOverrides, VisibilityCondition,
 };
 pub use draw::{
     DrawCommand, DrawList, FontWeight, Gradient, TextAlign, TextId, TextOverflow, TextureId,

@@ -69,7 +69,15 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
     (super::changelog::COMMAND, super::changelog::HELP),
     (super::credits::COMMAND, super::credits::HELP),
     (super::update_panel::COMMAND, super::update_panel::HELP),
+    (
+        crate::identity_command::COMMAND,
+        crate::identity_command::HELP,
+    ),
     ("togglemenu", "Toggle the in-game menu"),
+    (
+        crate::menu::quick_setup::COMMAND,
+        crate::menu::quick_setup::HELP,
+    ),
     ("cmd", "Forward arguments as a reliable server command"),
     ("clientinfo", "Print client state and userinfo"),
     ("userinfo", "Print userinfo"),
@@ -414,6 +422,29 @@ impl crate::GpuState {
             super::update_panel::COMMAND => {
                 if let Some(console) = &mut self.console {
                     console.toggle_update_panel();
+                }
+                self.sync_cursor_policy();
+            }
+            crate::identity_command::COMMAND if args.is_empty() => {
+                if let Some(console) = &mut self.console {
+                    console.toggle_identity_panel();
+                }
+                self.sync_cursor_policy();
+            }
+            crate::identity_command::COMMAND => return self.identity_command(args),
+            crate::menu::quick_setup::COMMAND => {
+                if let Some(console) = &mut self.console {
+                    console.set_open(false);
+                }
+                let in_game = self.live_session.is_some();
+                if let (Some(menu), Some(console)) = (&mut self.client_menu, &self.console) {
+                    let target = if in_game {
+                        crate::player_menu::ReturnTarget::InGame
+                    } else {
+                        crate::player_menu::ReturnTarget::MainMenu
+                    };
+                    menu.open_quick_setup(console, target);
+                    self.game_menu = false;
                 }
                 self.sync_cursor_policy();
             }

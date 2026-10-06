@@ -1,7 +1,7 @@
 //! What the settings' HUD picker offers: every game-data HUD installed (the
 //! retail HUD, each HUD pack replacing `ui/hud.menu`, and other HUD lists
 //! such as EternalJK's `ui/elegance_hud.txt`), the text-only HUD, and SJK's
-//! own two layouts. A choice is the `cg_hudStyle`, `cg_hudFiles` and
+//! own three layouts. A choice is the `cg_hudStyle`, `cg_hudFiles` and
 //! `cg_hudPack` values that select it.
 
 use super::layout::Layout;
@@ -96,6 +96,7 @@ pub(crate) fn list(vfs: &VirtualFileSystem) -> Vec<HudChoice> {
         "1",
         "",
     ));
+    choices.push(HudChoice::own("SJK radial", HudStyle::Radial));
     choices.push(HudChoice::own("SJK classic", HudStyle::Classic));
     choices.push(HudChoice::own("SJK modern", HudStyle::Modern));
     choices
@@ -117,7 +118,9 @@ pub(crate) fn current(
     let position = |wanted: &dyn Fn(&HudChoice) -> bool| choices.iter().position(wanted);
     let game = |choice: &HudChoice| choice.style == HudStyle::Game;
     match style {
-        HudStyle::Modern | HudStyle::Classic => position(&|choice| choice.style == style),
+        HudStyle::Modern | HudStyle::Classic | HudStyle::Radial => {
+            position(&|choice| choice.style == style)
+        }
         HudStyle::Game => match source(files) {
             Source::Text => {
                 position(&|choice| game(choice) && source(&choice.files) == Source::Text)
@@ -275,6 +278,7 @@ pub(crate) mod tests {
                 "TheRisqe Radial HUD",
                 "Elegance HUD",
                 "Text only",
+                "SJK radial",
                 "SJK classic",
                 "SJK modern",
             ]
@@ -284,7 +288,7 @@ pub(crate) mod tests {
         assert_eq!(choices[3].files, "ui/elegance_hud.txt");
         assert!(choices[3].pack.is_empty());
         assert!(choices[..5].iter().all(HudChoice::has_preview));
-        assert!(!choices[5].has_preview() && !choices[6].has_preview());
+        assert!(choices[5..].iter().all(|choice| !choice.has_preview()));
     }
 
     #[test]
@@ -302,8 +306,9 @@ pub(crate) mod tests {
         // EternalJK's 3 is the elegance list; 1 and 2 are the text HUD.
         assert_eq!(find(HudStyle::Game, "3", ""), Some(3));
         assert_eq!(find(HudStyle::Game, "2", ""), Some(4));
-        assert_eq!(find(HudStyle::Classic, "1", ""), Some(5));
-        assert_eq!(find(HudStyle::Modern, "", ""), Some(6));
+        assert_eq!(find(HudStyle::Radial, "1", ""), Some(5));
+        assert_eq!(find(HudStyle::Classic, "1", ""), Some(6));
+        assert_eq!(find(HudStyle::Modern, "", ""), Some(7));
         assert_eq!(find(HudStyle::Game, "ui/other.txt", ""), None);
     }
 

@@ -171,6 +171,9 @@ pub struct LegacyForceOverlayContext {
     pub third_person: bool,
     /// Runtime value of `cg_auraShell`.
     pub aura_shell: bool,
+    /// Runtime value of `cg_spProtAbsColor`: protect and absorb together show as
+    /// one cyan shell, as in single player, instead of a green and a blue one.
+    pub combined_protect_absorb: bool,
 }
 
 impl LegacyForceOverlayContext {
@@ -196,6 +199,7 @@ impl LegacyForceOverlayContext {
             ),
             third_person,
             aura_shell,
+            combined_protect_absorb: false,
         }
     }
 }
@@ -255,7 +259,14 @@ pub fn legacy_force_overlays(
             false,
         ));
     }
-    if actor.force_powers_active & FP_PROTECT != 0 {
+    // JoF EJK `CG_Player` with `cg_spprotabscolor 1` (cg_players.c, "absorb + protect is
+    // represented by cyan"): the two shells merge into one cyan protect shell.
+    let protecting = actor.force_powers_active & FP_PROTECT != 0;
+    let team_absorb = team_power.until > context.now && team_power.kind == 3;
+    let combined = context.combined_protect_absorb
+        && protecting
+        && (actor.force_powers_active & FP_ABSORB != 0 || team_absorb);
+    if protecting && !combined {
         output.push(request(
             "gfx/misc/forceprotect",
             [0, 128, 0, 254],
@@ -263,13 +274,26 @@ pub fn legacy_force_overlays(
             false,
         ));
     }
-    if (local && context.local_force_powers_active & FP_ABSORB != 0)
-        || (team_power.until > context.now && team_power.kind == 3)
-    {
+    // JoF EJK `cg_alwaysShowAbsorb`: every player holding Absorb wears the shell, not only the
+    // local one. The local bit is the predicted one (`CG_Player`, `cg_players.c:10953`).
+    let absorbing = if local {
+        context.local_force_powers_active & FP_ABSORB != 0
+    } else {
+        actor.force_powers_active & FP_ABSORB != 0
+    };
+    if (absorbing && !(context.combined_protect_absorb && protecting)) || team_absorb {
         legs_alpha = 254;
         output.push(request(
             "gfx/misc/personalshield",
             [0, 0, 255, 254],
+            LegacyOverlayTint::Shader,
+            false,
+        ));
+    }
+    if combined {
+        output.push(request(
+            "gfx/misc/forceprotect",
+            [0, 255, 255, 254],
             LegacyOverlayTint::Shader,
             false,
         ));
@@ -377,4 +401,97 @@ fn info_int(info: &[u8], key: &str) -> i32 {
         }
     }
     0
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct NoRandom;
+
+    impl LegacyOverlayRandom for NoRandom {
+        fn unit(&mut self) -> f32 {
+            0.0
+        }
+        fn bit(&mut self) -> bool {
+            false
+        }
+        fn byte_1_255(&mut self) -> u8 {
+            1
+        }
+    }
+
+    fn shells(active: u32, local: bool, combined: bool) -> Vec<(&'static str, [u8; 4])> {
+        let actor = LegacyActorOverlayState {
+            number: 1,
+            force_powers_active: active,
+            base_alpha: 255,
+            ..LegacyActorOverlayState::default()
+        };
+        let context = LegacyForceOverlayContext {
+            local_client: if local { 1 } else { 0 },
+            local_force_powers_active: if local { active } else { 0 },
+            combined_protect_absorb: combined,
+            ..LegacyForceOverlayContext::default()
+        };
+        legacy_force_overlays(
+            actor,
+            LegacyTeamPowerEffect::default(),
+            context,
+            &mut NoRandom,
+        )
+        .iter()
+        .map(|request| (request.shader, request.rgba))
+        .collect()
+    }
+
+    #[test]
+    fn protect_and_absorb_together_are_one_cyan_shell_when_combined() {
+        let both = FP_PROTECT | FP_ABSORB;
+        assert_eq!(
+            shells(both, true, true),
+            [("gfx/misc/forceprotect", [0, 255, 255, 254])]
+        );
+        // Another player's absorb counts through the entity's own bit.
+        assert_eq!(
+            shells(both, false, true),
+            [("gfx/misc/forceprotect", [0, 255, 255, 254])]
+        );
+    }
+
+    #[test]
+    fn without_the_combo_protect_is_green_and_the_local_absorb_blue() {
+        let both = FP_PROTECT | FP_ABSORB;
+        assert_eq!(
+            shells(both, true, false),
+            [
+                ("gfx/misc/forceprotect", [0, 128, 0, 254]),
+                ("gfx/misc/personalshield", [0, 0, 255, 254]),
+            ]
+        );
+        // Another player's absorb is drawn too (EJK `cg_alwaysShowAbsorb`).
+        assert_eq!(
+            shells(both, false, false),
+            [
+                ("gfx/misc/forceprotect", [0, 128, 0, 254]),
+                ("gfx/misc/personalshield", [0, 0, 255, 254]),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_single_power_keeps_its_own_shell_with_the_combo_on() {
+        assert_eq!(
+            shells(FP_PROTECT, true, true),
+            [("gfx/misc/forceprotect", [0, 128, 0, 254])]
+        );
+        assert_eq!(
+            shells(FP_ABSORB, true, true),
+            [("gfx/misc/personalshield", [0, 0, 255, 254])]
+        );
+        assert_eq!(
+            shells(FP_ABSORB, false, true),
+            [("gfx/misc/personalshield", [0, 0, 255, 254])]
+        );
+    }
 }

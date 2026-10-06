@@ -28,6 +28,10 @@ impl SettingsMenu {
         let layout = FormLayout::new(viewport);
         self.ui.begin_hero(viewport, reveal, Scrim::Full);
         let (title, note) = match self.section {
+            Section::General if self.tab == QUICK_TAB => (
+                "SJK   /   QUICK SETUP",
+                "The settings worth a look first. Every one is also on its own tab.",
+            ),
             Section::General => (
                 "SJK   /   SETTINGS",
                 "Changes apply immediately and are saved.",

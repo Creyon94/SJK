@@ -24,6 +24,10 @@ Branch `feat/classic-crosshair`: the crosshair is retail's picture,
 - The picture follows the dynamic crosshair and `cg_crosshairX/Y` and takes the
   existing target colours. With the default `cg_crosshairColor` "0 0 0 255" and no
   target it is drawn white, in its own colours, as EternalJK's `R_SetColor(NULL)`.
+- The default crosshair colour changed from the old bluish tint (0.964, 0.991, 1.0)
+  to white (1, 1, 1): `crosshair_color` returns white for the all-black default and
+  for an unparsable `cg_crosshairColor`, and the targeting state starts white. The
+  procedural fallback cross takes the same colour, so it is white too.
 - EternalJK's own `crosshaira` and `crosshairj` from `EternalJK/japro-assets.pk3`
   replace the base ones, and nothing else from that pack.
 - When a picture is missing, or the HUD draw list is full, the procedural cross is
@@ -32,8 +36,10 @@ Branch `feat/classic-crosshair`: the crosshair is retail's picture,
 Not done: EternalJK's doubled size in a vehicle, the vehicle's own crosshair and
 the item-pickup pulse of `cg_dynamicCrosshair 3`. Unit tests cover the picture
 order, the clamp, sizes, the missing-picture and full-list fallbacks and the
-EternalJK pack override. Checked in game on Windows 11 before the clamp and the
-full-list fallback were added.
+EternalJK pack override. Checked in game on Windows 11 before the later
+changes, which were not re-tested in game and rest on unit tests and the workspace
+checks: the `cg_drawCrosshair` clamp, the full-list fallback, and the merge with
+`main` (the crosshair cells now follow `LOGO_ICON` in the icon atlas).
 
 ## Classic Settings hub (SJK)
 
@@ -524,6 +530,54 @@ no clippy warnings. Not verified: a real download and install against a publishe
 release (none newer than the build exists yet), the page in the running client, and
 a Linux swap. No game was started.
 
+## Player identity (SJK)
+
+SJK-only branch `personal/identity` (06/10/2026, based on `5f14439`) adds the
+`sjk-identity` crate (Ed25519 key file, signed hub requests, an HTTPS hub client and
+a background service), `cl_identity` and `cl_hubUrl`, an `SJK`/`VERIFIED` mark on both
+scoreboard styles, an Identity page (in-game SJK menu, `identity` command) and
+`identity name|bio|key|who`; see [identity.md](identity.md) and
+[client.md](client.md#identity). The hub is a separate repository
+(Sol-Vulpes/SJK-hub, private). New dependencies: `ed25519-dalek`,
+`getrandom` and `base64`.
+
+Verified: the crate's unit tests (key file, signing, address rules, a fake-hub
+service run with an explicit clock) and the viewer's tests; the hub's 32 tests; a
+signed-request test vector that the hub and client both produce byte for byte; and
+an ignored end-to-end suite (`crates/sjk-identity/tests/hub_e2e.rs`) in which the
+real client and the real service registered, named, claimed, read the roster,
+matched a badge by slot and name, and withdrew the claim on shutdown against a hub
+running on this machine. Workspace formatting, `--locked` build and tests passed (855
+tests, 7 ignored); clippy adds no warnings in the new files, and the workspace's
+existing warnings in other crates (`sjk-nav`, `sjk-icarus`, `sjk-model`, the viewer's
+`surface_tables.rs` and others) are unchanged.
+
+Not verified: the scoreboard mark, the Identity page and the SJK menu entry in the
+running client (no game was started; their layout is unchecked); a hub on a real
+host behind HTTPS; behaviour when the hub's clock and the client's differ by more
+than a minute outside the retry; a Linux build. Not built: a main-menu entry, the
+confirmed badge from SJK's own server, assets, music, video and chat.
+
+## Player card and scoreboard emblem (SJK)
+
+SJK-only branch `personal/player-card` (06/10/2026, based on `663083b`): looking at
+a player with a steady view for `cg_playerCardDelay` seconds shows a card beside
+their head (name, model, saber hilts and blade colours, duel record or bot skill,
+and for hub players SJK's emblem, hub name and VERIFIED), and the scoreboard marks
+hub players with SJK's emblem instead of text; see [client.md](client.md#player-card).
+The emblem is one more cell of the UI icon atlas, uploaded at start.
+
+Verified: unit tests for the dwell rules (steady look, a turn restarting the wait,
+a forgiven 0.3 s gap, a clock that goes back), the card's content from real
+player-string shapes (cosmetic text after the colour digit, dual sabers, duels,
+bots, hub fields), placement near the screen edges and the emblem's position on a
+scoreboard row; the sjk-viewer tests pass. The off-screen snapshots
+(`menu_snapshot`, `player-card-*`) drew the card for a verified, a registered, a
+plain and an edge-of-screen player; that drawing is an approximation of the
+renderer (flat corners, one font). Not verified: the card and the emblem in the
+running client (no game was started), their scaling at 4K, the target tracking on
+a live server and demos. Not built: the hub bio on the card.
+
 ## Alt codes (SJK)
 
 SJK-only branch `personal/alt-codes` (2026-10-05, based on `2696590`) types
@@ -876,6 +930,17 @@ mechanism found for a `/model` change others see while the local player keeps
 the old model (logged as `cs <1131+n>: clientinfo failed`); see
 [player models](client.md#player-models). The locked workspace build and tests
 passed; there is no unit test of the GPU-side rebuild, and no game was started.
+
+## Native radial HUD (SJK)
+
+SJK-only branch `personal/native-radial-hud` (2026-10-06, based on `de7380b`): the
+`radial` HUD style, a cleaned-up TheRisqe Radial HUD drawn by the engine with no PK3
+([rendering](rendering.md#hud-style)). Verified: unit tests for the arc geometry,
+distance function, ammunition ratio, picker order and style names; the WGSL passes
+naga validation; four sample layouts were rendered to PNG through the CPU copy of the
+shader (`menu_snapshot`) at 1440x1080. Not verified: the GPU shader and the layout in a
+running client (no game window was started), other aspect ratios and `cg_hudScale`
+values, and the placement against the in-game crosshair.
 
 ## HUD picker (SJK)
 

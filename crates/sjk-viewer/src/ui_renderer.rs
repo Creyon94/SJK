@@ -14,8 +14,8 @@ use icons::IconAtlas;
 pub(crate) use icons::{
     ATLAS_CELLS, BANNER_SIZE, BANNER_TEXTURE, BIND_ICON_CELLS, BIND_ICON_FIRST,
     CROSSHAIR_ICON_CELLS, CROSSHAIR_ICON_FIRST, FORCE_ICON_CELLS, FORCE_ICON_FIRST,
-    FORCE_WHEEL_ICON_CELLS, FORCE_WHEEL_ICON_FIRST, ICON_CELLS, ICON_SIZE, PART_ICON_CELLS,
-    PART_ICON_FIRST, SCOREBOARD_ICON_CELLS,
+    FORCE_WHEEL_ICON_CELLS, FORCE_WHEEL_ICON_FIRST, ICON_CELLS, ICON_SIZE, LOGO_ICON,
+    PART_ICON_CELLS, PART_ICON_FIRST, SCOREBOARD_ICON_CELLS,
 };
 pub(crate) use levelshot::LEVELSHOT_TEXTURE;
 
@@ -25,14 +25,22 @@ pub(crate) const PREVIEW_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(u32::MAX
 /// `TexturedQuad` texture naming the settings' HUD picker preview, uploaded by
 /// [`ShapeRenderer::upload_hud_preview`].
 pub(crate) const HUD_PREVIEW_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(u32::MAX - 3);
+/// `TexturedQuad` texture naming SJK's emblem, uploaded once at start.
+pub(crate) const LOGO_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(LOGO_ICON);
 use levelshot::LevelshotTexture;
 
 /// Main-menu wordmark: the Jedi Knight saber emblem laid horizontal, white
 /// on transparent, tinted by the player's accent at draw time.
 const MENU_WORDMARK: &[u8] = include_bytes!("../assets/menu/jk-wordmark.png");
 
+/// SJK's emblem, scaled into one icon cell at start.
+const SJK_EMBLEM: &[u8] = include_bytes!("../../../assets/branding/sjk-logo-512.png");
+
 /// Shape vertices one frame may draw (six per quad), across every layer.
 const MAX_SHAPE_VERTICES: usize = 16_384;
+
+/// `parameters.y` value that selects the arc shader path (`ui_shapes.wgsl`).
+const ARC_MODE: f32 = 3.0;
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -227,6 +235,18 @@ impl ShapeRenderer {
         match image::load_from_memory(MENU_WORDMARK) {
             Ok(wordmark) => icons.upload_banner(queue, &wordmark.into_rgba8()),
             Err(error) => eprintln!("menu wordmark: {error}"),
+        }
+        match image::load_from_memory(SJK_EMBLEM) {
+            Ok(emblem) => {
+                let cell = image::imageops::resize(
+                    &emblem.into_rgba8(),
+                    icons::ICON_SIZE,
+                    icons::ICON_SIZE,
+                    image::imageops::FilterType::Lanczos3,
+                );
+                icons.upload(queue, LOGO_TEXTURE, cell.as_raw());
+            }
+            Err(error) => eprintln!("SJK emblem: {error}"),
         }
         let mut renderer = Self {
             pipeline,
@@ -463,6 +483,25 @@ impl ShapeRenderer {
                         MAX_SHAPE_VERTICES,
                     );
                 }
+                DrawCommand::Arc {
+                    center,
+                    radius,
+                    width,
+                    start,
+                    sweep,
+                    color,
+                } => {
+                    self.push_arc(
+                        center,
+                        radius,
+                        width,
+                        start,
+                        sweep,
+                        color,
+                        opacity[opacity_depth],
+                        viewport,
+                    );
+                }
                 DrawCommand::Text { .. }
                 | DrawCommand::PushClip(_)
                 | DrawCommand::PushOpacity(_) => {}
@@ -598,6 +637,53 @@ impl ShapeRenderer {
             opacity,
             viewport,
         );
+    }
+
+    /// A round-capped arc stroke as one quad around its circle; the shader cuts out
+    /// the stroke from a signed distance (mode 3, geometry in `end_color`).
+    #[allow(clippy::too_many_arguments)]
+    fn push_arc(
+        &mut self,
+        center: [f32; 2],
+        radius: f32,
+        width: f32,
+        start: f32,
+        sweep: f32,
+        color: Color,
+        opacity: f32,
+        viewport: [f32; 2],
+    ) {
+        // One pixel of margin leaves room for the anti-aliased edge.
+        let extent = radius + width * 0.5 + 1.0;
+        let rect = Rect::new(
+            center[0] - extent,
+            center[1] - extent,
+            extent * 2.0,
+            extent * 2.0,
+        );
+        if radius <= 0.0 || width <= 0.0 || self.vertices.len() + 6 > MAX_SHAPE_VERTICES {
+            return;
+        }
+        let position = |x: f32, y: f32| [x / viewport[0] * 2.0 - 1.0, 1.0 - y / viewport[1] * 2.0];
+        let tint = [color.r, color.g, color.b, color.a * opacity];
+        let points = [
+            ([rect.x, rect.y], [0.0, 0.0]),
+            ([rect.right(), rect.y], [1.0, 0.0]),
+            ([rect.right(), rect.bottom()], [1.0, 1.0]),
+            ([rect.x, rect.y], [0.0, 0.0]),
+            ([rect.right(), rect.bottom()], [1.0, 1.0]),
+            ([rect.x, rect.bottom()], [0.0, 1.0]),
+        ];
+        self.vertices
+            .extend(points.map(|(pixel, local)| ShapeVertex {
+                position: position(pixel[0], pixel[1]),
+                local,
+                size: [rect.width, rect.height],
+                start_color: tint,
+                end_color: [radius, width, start, sweep],
+                parameters: [0.0, ARC_MODE],
+                uv: local,
+            }));
     }
 
     fn push_shape(

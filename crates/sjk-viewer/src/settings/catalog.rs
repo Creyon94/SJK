@@ -5,9 +5,11 @@
 //! not offered. Player identity
 //! (name, model, sabers) lives in the Player menu, not here.
 
-pub(super) const TABS: [&str; 8] = [
-    "VIDEO", "AUDIO", "HUD", "CONTROLS", "GAME", "NETWORK", "HUD+", "TEXT",
+pub(super) const TABS: [&str; 9] = [
+    "VIDEO", "AUDIO", "HUD", "CONTROLS", "GAME", "NETWORK", "HUD+", "TEXT", "QUICK",
 ];
+/// The first-start tab (`settings/quick.rs`); last, so the other tabs keep their numbers.
+pub(super) const QUICK_TAB: usize = 8;
 /// The tab whose last row opens the key-binding editor.
 pub(super) const KEYBINDS_TAB: usize = 3;
 /// The tab whose last row opens the renderer settings ([`RENDERER_TABS`]).
@@ -232,6 +234,104 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Overhead names",
+        cvar: "cg_drawPlayerNames",
+        kind: ValueKind::Integer {
+            min: 0,
+            max: 2,
+            step: 1,
+        },
+    },
+    Setting {
+        label: "Name size",
+        cvar: "cg_drawPlayerNamesScale",
+        kind: ValueKind::Float {
+            min: 0.2,
+            max: 1.5,
+            step: 0.1,
+        },
+    },
+    Setting {
+        label: "Ally markers",
+        cvar: "cg_drawFriend",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Player card",
+        cvar: "cg_playerCard",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Card delay (s)",
+        cvar: "cg_playerCardDelay",
+        kind: ValueKind::Float {
+            min: 0.5,
+            max: 5.0,
+            step: 0.5,
+        },
+    },
+    Setting {
+        label: "Nameplates",
+        cvar: "cg_nameplate",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Nameplate range",
+        cvar: "cg_nameplateRange",
+        kind: ValueKind::Integer {
+            min: 500,
+            max: 10000,
+            step: 250,
+        },
+    },
+    Setting {
+        label: "Bars distance",
+        cvar: "cg_nameplateNear",
+        kind: ValueKind::Integer {
+            min: 0,
+            max: 5000,
+            step: 100,
+        },
+    },
+    Setting {
+        label: "Nameplate size",
+        cvar: "cg_nameplateScale",
+        kind: ValueKind::Float {
+            min: 0.2,
+            max: 1.5,
+            step: 0.1,
+        },
+    },
+    Setting {
+        label: "Nameplate bars",
+        cvar: "cg_nameplateBars",
+        kind: ValueKind::Integer {
+            min: 0,
+            max: 2,
+            step: 1,
+        },
+    },
+    Setting {
+        label: "Power icons",
+        cvar: "cg_nameplateIcons",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Force bar (estimated)",
+        cvar: "cg_nameplateForce",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Plates through walls",
+        cvar: "cg_nameplateWalls",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "NPC nameplates",
+        cvar: "cg_nameplateNpcs",
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Match timer",
         cvar: "cg_drawTimer",
         kind: ValueKind::Bool,
@@ -339,6 +439,11 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Protect+Absorb combo",
+        cvar: "cg_spProtAbsColor",
+        kind: ValueKind::Bool,
+    },
+    Setting {
         // SJK defaults to 2 (EternalJK); 1 excludes player-texture configstring remaps.
         label: "Shader remaps (0 off / 1 map / 2 all)",
         cvar: "cg_remaps",
@@ -401,6 +506,16 @@ pub(super) const NETWORK: &[Setting] = &[
         label: "Check for updates",
         cvar: "cl_autoUpdate",
         kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "SJK identity",
+        cvar: "cl_identity",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "SJK hub",
+        cvar: "cl_hubUrl",
+        kind: ValueKind::Text,
     },
     Setting {
         label: "Rate (bytes/s)",

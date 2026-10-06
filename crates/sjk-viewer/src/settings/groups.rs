@@ -19,6 +19,9 @@ pub(crate) enum Group {
     Hud,
     /// The scoreboard's style and columns.
     Scoreboard,
+    /// The first-start settings ([`super::quick`]); gathers rows the other groups
+    /// and tabs already hold, so it is not one of [`Group::ALL`].
+    Quick,
 }
 
 impl Group {
@@ -30,13 +33,22 @@ impl Group {
     ];
 
     /// The group's name, as the one tab of the modern screen showing it.
-    const CAPTIONS: [&'static str; 4] = ["GAME OPTIONS", "INTERFACE", "HUD", "SCOREBOARD"];
+    const CAPTIONS: [&'static str; 5] = [
+        "GAME OPTIONS",
+        "INTERFACE",
+        "HUD",
+        "SCOREBOARD",
+        "QUICK SETUP",
+    ];
 
     fn index(self) -> usize {
-        Self::ALL
-            .iter()
-            .position(|group| *group == self)
-            .unwrap_or(0)
+        match self {
+            Self::Quick => Self::ALL.len(),
+            _ => Self::ALL
+                .iter()
+                .position(|group| *group == self)
+                .unwrap_or(0),
+        }
     }
 
     /// The tab list of a screen showing the group: its name alone.
@@ -53,6 +65,7 @@ impl Group {
                 "cg_saberTrail",
                 "cg_speedTrail",
                 "cg_auraShell",
+                "cg_spProtAbsColor",
                 "cg_shieldSphere",
                 "cg_shieldBrightness",
                 "cg_remaps",
@@ -82,6 +95,20 @@ impl Group {
                 "cg_crosshair",
                 "cg_crosshairSize",
                 "cg_drawCrosshairNames",
+                "cg_drawPlayerNames",
+                "cg_drawPlayerNamesScale",
+                "cg_drawFriend",
+                "cg_playerCard",
+                "cg_playerCardDelay",
+                "cg_nameplate",
+                "cg_nameplateRange",
+                "cg_nameplateNear",
+                "cg_nameplateScale",
+                "cg_nameplateBars",
+                "cg_nameplateForce",
+                "cg_nameplateIcons",
+                "cg_nameplateWalls",
+                "cg_nameplateNpcs",
                 "cg_drawTimer",
                 crate::version_overlay::CVAR,
                 "cg_speedometer",
@@ -96,11 +123,15 @@ impl Group {
                 "cg_drawScoreboardIcons",
                 "cg_smallScoreboard",
             ],
+            Self::Quick => &[],
         }
     }
 
     /// The group's settings, looked up in the catalogue once.
     pub(super) fn rows(self) -> &'static [Setting] {
+        if self == Self::Quick {
+            return super::quick::rows();
+        }
         static ROWS: [OnceLock<Vec<Setting>>; 4] = [
             OnceLock::new(),
             OnceLock::new(),

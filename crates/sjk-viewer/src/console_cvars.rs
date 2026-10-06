@@ -418,6 +418,13 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             archive,
             "Display the Force Seeing aura shell on other players",
         ),
+        // JoF EJK's `cg_spprotabscolor` (cg_xcvar.h), same default.
+        CvarDefinition::new(
+            "cg_spProtAbsColor",
+            true,
+            archive,
+            "Protect and Absorb together show one cyan shell, as in single player",
+        ),
         CvarDefinition::new(
             "cg_shieldSphere",
             0_i64,
@@ -431,10 +438,28 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "How bright a shield hit shows on the body, 1 (stock) to 12; ignored by the sphere",
         ),
         CvarDefinition::new(
+            "ui_quickSetup",
+            0_i64,
+            archive,
+            "1 once the first-start Quick setup screen has been shown (the quicksetup command opens it again)",
+        ),
+        CvarDefinition::new(
             "cl_autoUpdate",
             true,
             archive,
             "Look for a newer SJK release when the client starts (the Update page installs it)",
+        ),
+        CvarDefinition::new(
+            "cl_identity",
+            true,
+            archive,
+            "Keep an identity key and tell the SJK hub which game server you are on, so other SJK players see your badge (sends nothing without cl_hubUrl)",
+        ),
+        CvarDefinition::new(
+            "cl_hubUrl",
+            crate::player_identity::DEFAULT_HUB_URL,
+            archive,
+            "Address of the SJK hub (https://...); empty means no hub",
         ),
         CvarDefinition::new(
             "cl_updateAs",

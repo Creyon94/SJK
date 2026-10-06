@@ -22,6 +22,8 @@ mod console_credits;
 mod console_cvars;
 #[path = "console_debug_panel.rs"]
 mod console_debug_panel;
+#[path = "console_identity_page.rs"]
+mod console_identity_page;
 #[path = "console_update.rs"]
 mod console_update;
 #[path = "credits.rs"]
@@ -30,6 +32,8 @@ pub(crate) mod credits;
 pub(crate) mod debug_panel;
 #[path = "demo_director.rs"]
 pub(crate) mod director;
+#[path = "identity_panel.rs"]
+pub(crate) mod identity_panel;
 #[path = "console_qcommon.rs"]
 mod qcommon;
 #[path = "update_panel.rs"]
@@ -118,6 +122,8 @@ pub(crate) struct ViewerConsole {
     credits: credits::Panel,
     /// The Update page, drawn in place of the console while open.
     update_panel: update_panel::Panel,
+    /// The Identity page, drawn in place of the console while open.
+    identity_panel: identity_panel::Panel,
     userinfo_dirty: Arc<AtomicBool>,
     show_timedelta: crate::net_timing::CvarSetting,
     time_nudge: crate::presentation_clock::CvarSetting,
@@ -236,7 +242,8 @@ impl ViewerConsole {
                 || self.debug_panel.is_open()
                 || self.changelog.is_open()
                 || self.credits.is_open()
-                || self.update_panel.is_open())
+                || self.update_panel.is_open()
+                || self.identity_panel.is_open())
     }
 
     /// Add an application diagnostic to the visible bounded scrollback.
@@ -509,6 +516,7 @@ impl ViewerConsole {
         if self.append_credits(vertices, font, viewport)
             || self.append_changelog(vertices, font, viewport)
             || self.append_update_panel(vertices, font, viewport)
+            || self.append_identity_panel(vertices, font, viewport)
             || self.append_debug_panel(vertices, font, viewport)
         {
             return;
@@ -601,6 +609,9 @@ impl ViewerConsole {
         if let Some(draw_list) = self.update_panel_draw_list() {
             return draw_list;
         }
+        if let Some(draw_list) = self.identity_panel_draw_list() {
+            return draw_list;
+        }
         if let Some(draw_list) = self.debug_panel_draw_list() {
             return draw_list;
         }
@@ -662,6 +673,7 @@ impl ViewerConsole {
             self.changelog.close();
             self.credits.close();
             self.update_panel.close();
+            self.identity_panel.close();
         }
     }
 

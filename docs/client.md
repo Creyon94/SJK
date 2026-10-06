@@ -274,7 +274,8 @@ items; classic+ panels scroll and explain the focused item, so SJK shows each as
 one group and regroups JKR's GAME, HUD, HUD+ and TEXT tabs by subject
 ([settings/groups.rs](../crates/sjk-viewer/src/settings/groups.rs)):
 
-- OPTIONS: Video is the whole VIDEO tab (resolution, display, frame rate, field of
+- OPTIONS: Quick setup (first in the list) is the QUICK tab's rows as a group (see
+  [Quick setup](#quick-setup)); Video is the whole VIDEO tab (resolution, display, frame rate, field of
   view, marks, shadows, gamma), Sound is AUDIO, Mouse the CONTROLS settings
   (retail's Mouse/Joystick, moved here from the key bindings). Game Options holds
   the gameplay rows (simple items, forced models, saber and speed trails, aura
@@ -282,7 +283,7 @@ one group and regroups JKR's GAME, HUD, HUD+ and TEXT tabs by subject
   gathers the menus' and console's
   look (menu style, accent, contrast, game fonts, menu text size and spacing,
   console style, text size and line spacing); HUD the HUD style, files and scale,
-  status, weapon bar, crosshair and its size, names, timer, speedometer, team
+  status, weapon bar, crosshair and its size, names, nameplates, timer, speedometer, team
   overlay, lagometer, chat and ground readout; Scoreboard its style, client
   numbers, head icons and small rows. Network follows. RENDERER opens SJK's
   renderer page: the same layout with the renderer settings' IMAGE, LIGHTING and
@@ -305,6 +306,13 @@ the renderer's included, by name, console name, description and group
 the results under their groups' headings, the detail box adding "In <group>";
 opening a group clears the search. On KEY BINDINGS it finds actions by name,
 console command, category or bound key (`space` finds Jump).
+
+The two tabs' searches reach each other: while text is typed, the description line
+says how many entries of the other tab match it ("3 key bindings match too: click the
+KEY BINDINGS tab"), and a search with no result here names them in the list. Clicking
+the other tab (or Tab, or `[` and `]`, across the tab boundary) carries the search text
+to it, so one query walks every setting and binding
+([menu/classic.rs](../crates/sjk-viewer/src/menu/classic.rs), `sync_cross_search`).
 
 A choice (a switch, a choice row, the display mode) does not change on a click
 or Enter: they open a dropdown under the value in the retail list box's look,
@@ -743,6 +751,31 @@ display-mode row. Eye adaptation holds still while this page is open, so
 exposure changes made here show at once instead of being eased.
 See [catalog.rs](../crates/sjk-viewer/src/settings/catalog.rs).
 
+## Quick setup
+
+The modern settings screen's last tab, QUICK
+([quick.rs](../crates/sjk-viewer/src/settings/quick.rs)), gathers the settings worth
+choosing on a first start: resolution, display mode, vsync, field of view, mouse
+sensitivity and inversion, always run, effects and music volume, the HUD look and
+scale, the crosshair, the nameplates and their bars, Force bar and power icons, the
+Force aura and the combined Protect+Absorb shell, and the update and identity
+opt-ins, ending in a Key bindings row. Its rows are the catalogue's own, looked up
+by cvar, so a change there is the same change the other tabs make; it is the last
+tab so the other tabs keep their numbers.
+
+With the classic menus (the default) the same rows are the first group of the
+Setup page, QUICK SETUP (`Group::Quick`, [groups.rs](../crates/sjk-viewer/src/settings/groups.rs)),
+drawn as a classic+ option panel like the others, with search, descriptions and
+defaults; the modern style shows the QUICK tab.
+
+On the first start (`ui_quickSetup` 0, archived), once the main menu is up and the
+menu style is known, it opens in the active style and sets the cvar to 1, so leaving
+it with Escape dismisses it for good (setting the cvar back to 0 shows it again at
+the main menu). The `quicksetup` console command opens it too, over the main menu
+or from a running game, in the active style
+([quick_setup.rs](../crates/sjk-viewer/src/menu/quick_setup.rs)). Not yet run in a
+game window.
+
 ## Slider values
 
 Every slider in Settings (including the classic Setup panels), the saber RGB
@@ -989,7 +1022,7 @@ allocated per frame; the text and draw storage is reserved for 32 clients.
 
 `cg_hudStyle` chooses `game`, the status HUD of the game's own menu files (the
 original Jedi Academy HUD, or a custom HUD pack that replaces `ui/hud.menu`),
-or SJK's own `modern` or `classic` layout. SJK starts on `game`, the classic
+or SJK's own `modern`, `classic` or `radial` layout. SJK starts on `game`, the classic
 HUD; JKR's default is `modern`, and a saved `cg_hudStyle` is kept. `cg_hudFiles`
 names the menu list, `ui/jahud.txt` by default; `1` gives the text-only HUD and
 EternalJK's `3`/`4` name its elegance and JoF HUD lists when those files are
@@ -1012,6 +1045,67 @@ Enter or a click uses the HUD and closes; Escape closes. The picker takes
 retail's colours and highlight art on the classic menus and the theme's on the
 modern ones. "Game HUD files" stays on the tab for lists the picker does not
 find.
+
+## Nameplates
+
+`cg_nameplate` (on by default) draws MMO-style nameplates over players
+([nameplate.rs](../crates/sjk-viewer/src/hud/nameplate.rs); layout in
+[nameplate_math.rs](../crates/sjk-viewer/src/hud/nameplate_math.rs)): 2D HUD shapes
+and text at the projected point 8 units above the head of the player's box (decoded
+from `entityState_t::solid`, so a crouching player's plate drops). Names come from the
+chat roster with their colour codes and are drawn in the classic HUD font (Inter when
+that font is not loaded), whatever `cg_classicHudFont` says.
+
+- **Far:** only the name, small and dim. Plates shrink with distance (to 60% at the
+  range) and fade over the last quarter of `cg_nameplateRange` (3000 units).
+- **Near:** inside `cg_nameplateNear` (1000 units) the name rises and a plate fades
+  in under it, framed in red or blue in team games: a health bar, a shield bar and
+  an estimated Force bar, each shown only when known.
+- `cg_nameplateBars`: 0 none, 1 allies only, 2 everyone (default). `cg_nameplateScale`
+  sets the text size, `cg_nameplateForce` the Force bar, `cg_nameplateWalls` shows
+  players behind walls at 35% opacity instead of fading them (the same BSP trace as
+  before, from the rendered eye; changes ease over 120 ms), and `cg_nameplateNpcs`
+  adds NPC plates (class name, health; at most 16; vehicles skipped).
+- `cg_nameplateIcons` (on): up close, a row of the holocron icons of the Force powers a
+  player has on sits over the name, at most four, dark side first (lightning, grip,
+  drain, rage, then protect, absorb, speed, heal, team force, mind trick, sight). They
+  come from `forcePowersActive`, so every player's powers are known without a request;
+  jump, push, pull and the saber powers are left out because they last a moment. The
+  pictures are the Force bar's, loaded with the map.
+- `cg_nameplateDebug` logs, every two seconds, what the server sends about each other
+  player (health, `tinfo`, active powers, the Force estimate) to `logs\last-client.log`,
+  with the regen pace in use and where it came from, the server's Force-related info
+  keys, and your own real Force next to the estimate for yourself.
+- While a menu is open the plates hide: their text is in the classic stream, which
+  draws over the menus' text.
+
+Where the numbers come from, and what is not known:
+
+- **Teammates** in team games: health and shield from the team overlay's `tinfo`
+  command, exact. The client asks for it (`teamoverlay` userinfo) whenever nameplate
+  bars are on, not only with `cg_drawTeamOverlay`.
+- **Everyone else:** health only from `entityState_t::health`/`maxhealth`, which the
+  SJK server sets for NPCs, breakables and emplaced guns but not for clients (stock
+  JKA does not either, as far as read). Without it there is no health bar for enemies
+  and the plate shows the Force bar alone. Not verified against a stock or JA+
+  server: run `cg_nameplateDebug 1` and read the log.
+- **Force** is never sent for other players, so it is estimated
+  ([force_estimate.rs](../crates/sjk-viewer/src/hud/force_estimate.rs)) from their
+  entity state with the server's own rules: a full pool at spawn, a point per
+  regen pace (measured from your own pool while you idle, which the server does send,
+  else `g_forceRegenTime` from the server's info string, else 200 ms; six times as
+  fast with the boon) while no power but drain is on and no saber is thrown or in a special move, the
+  price of each power when it switches on (level 3 prices; the level is not sent),
+  protect, absorb, grip and lightning running costs, half a level-3 price per force
+  jump, and push, pull and saber throw at their price. It misses being drained,
+  saber blocks in some mods and anything that changes costs. It refills while a
+  player idles, so errors heal within about twenty seconds, and the bar is drawn
+  thin, see-through and outlined to read as an estimate.
+
+`cg_drawPlayerNames` keeps TaystJK's plain overhead names (0 off, 1 names, 2 adds a
+health strip, text only, off by default); they are hidden while nameplates are on.
+`cg_drawFriend` draws the ally marker for either. At most 32 players and 16 NPCs are
+tagged and nothing is allocated per frame. Not tested in game yet.
 
 ## Version label
 
@@ -1096,6 +1190,48 @@ blue and the menus' retail font. Arrow keys, Page Up and Page Down, Space and th
 wheel scroll it; Escape, Enter or CLOSE closes it. Like the changelog it lives
 in the console, so it opens over the menus and in a match. How the file is kept
 is in [SJK conventions](sjk.md#credits).
+
+## Identity
+
+SJK keeps an identity key and can mark other SJK players on a server with SJK's
+emblem on the scoreboard and in a card beside them; the design, limits and privacy
+are in [identity.md](identity.md).
+
+- `cl_identity` (default 1; Settings > Network > SJK identity) makes the key
+  (`identity.key` beside `config.cfg`) the first time it is on and lets the client
+  talk to the hub. Off sends nothing and makes no key.
+- `cl_hubUrl` (default empty; Settings > Network > SJK hub) is the hub's
+  `https://` address. Empty means no hub, so nothing is sent.
+- The `identity` command opens the Identity page: the key id, the profile at the
+  hub (name, whether it is verified, bio), the hub's status and the players it knows
+  on the current server. The in-game SJK menu has an Identity entry too. `identity
+  name <text>` and `identity bio <text>` change the profile, `identity key` prints
+  the key id and file, `identity who [slot]` lists known players (with a slot, that
+  player's bio).
+- The scoreboard (both styles) draws SJK's emblem at the end of the name of a
+  player the hub knows, in gold when the hub's operator vouches for them. It trusts
+  a claim only when the claimed name matches the name the game shows in that slot.
+- Back up `identity.key`: losing it loses the identity.
+
+### Player card
+
+Look at a player, keeping the view steady, and a card appears beside their head
+([player_card.rs](../crates/sjk-viewer/src/hud/player_card.rs)). It shows what the
+server already publishes to every client (name with its colour codes, model, saber
+hilts with their blade colours, duel record or bot skill) and, when the hub knows
+the player, SJK's emblem, their hub name and a gold VERIFIED. It adds nothing a
+glance at the scoreboard would not: no health, Force or position.
+
+- `cg_playerCard` (default 1; Settings > HUD+ > Player card) turns it on.
+- `cg_playerCardDelay` (default 1.5; Settings > HUD+ > Card delay) is the seconds
+  the crosshair must stay on the player before the card fades in. Turning the view
+  more than 6 degrees, or losing the player for over 0.3 seconds, starts the wait
+  again and the card fades out.
+- The crosshair scan that names players under the crosshair finds the target, and
+  the card sits where the overhead names do (the player's head, from the same
+  camera). It goes to the player's left near the right edge of the screen and hides
+  under the scoreboard, menus, the console and intermission.
+- A hub bio is not shown yet.
 
 ## Force wheel
 

@@ -412,6 +412,7 @@ impl ViewerConsole {
             || self.changelog.is_open()
             || self.credits.is_open()
             || self.update_panel.is_open()
+            || self.identity_panel.is_open()
         {
             // The test list is drawn alone, as over the modern console.
             return;

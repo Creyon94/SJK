@@ -25,6 +25,7 @@ pub(crate) fn submit(
     now: i32,
     third_person: bool,
     aura_shell: bool,
+    combined_protect_absorb: bool,
     predicted_force_powers_active: Option<u32>,
     shield_mesh: Option<usize>,
     shield_sphere: bool,
@@ -49,6 +50,7 @@ pub(crate) fn submit(
         third_person,
         aura_shell,
     );
+    context.combined_protect_absorb = combined_protect_absorb;
     // `CG_Player` uses `cg.predictedPlayerState` for the local absorb gate
     // (`codemp/cgame/cg_players.c:10953-10958`). Other overlay inputs remain
     // snapshot/currentState driven.
@@ -108,6 +110,9 @@ pub(crate) fn submit(
             // shield shader, as multiplayer does for PW_SHIELDHIT. The shader blends
             // `GL_DST_COLOR GL_ONE`, a bare multiply of what is behind it, so each extra
             // pass lifts it again (`cg_shieldBrightness`).
+            // The shield texture reads blue; weighting the tint to green keeps the same
+            // brightness but pulls the glow towards green.
+            let side = (f32::from(brightness) * 0.3) as u8;
             for _ in 0..shield_passes.max(1) {
                 if output.len() == output.capacity() {
                     break;
@@ -115,7 +120,7 @@ pub(crate) fn submit(
                 output.push(OverrideInstance {
                     mesh: OverrideMesh::Actor(mesh),
                     material: Some(material),
-                    instance: instance.with_entity_color([brightness, brightness, brightness, 255]),
+                    instance: instance.with_entity_color([side, brightness, side, 255]),
                     no_depth: false,
                     forced_alpha: false,
                 });
