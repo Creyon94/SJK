@@ -407,6 +407,16 @@ trace budget, the ring cap, the clamp and the beam cull were added. Those
 four, and the plan restructuring, are covered by the unit tests and
 `cargo fmt`, `build`, `test` and `clippy` on Windows 11 (06/10/2026) only;
 they have not been checked in game.
+
+## Effect diagnostics
+
+Implemented: `fx_debug` and `cg_debugMissiles`, two console diagnostics that
+are 0 by default and not archived ([rendering.md](rendering.md#entity-render-effects),
+[effect_debug.rs](../crates/sjk-viewer/src/effect_debug.rs)). Both follow their
+cvar every frame, including with no snapshot, and log nothing while off.
+Unit tests cover the flag following the cvars and resetting without a console.
+The workspace checks passed on Windows 11 (06/10/2026). Unverified: the log
+output in a running client.
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the

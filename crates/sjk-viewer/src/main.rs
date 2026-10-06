@@ -48,6 +48,7 @@ mod dynamic_lights;
 mod effect_assets;
 mod effect_aux;
 mod effect_blend;
+mod effect_debug;
 mod effect_electricity;
 mod effect_emitter;
 mod effect_envelope;
@@ -1709,6 +1710,7 @@ impl GpuState {
         self.begin_saber_instances();
         self.particle_groups.iter_mut().for_each(Vec::clear);
         self.dynamic_lights.clear();
+        let debug_missiles = effect_debug::sync(self.console.as_ref());
         let active_snapshot = first_person_view::presented_snapshot(
             self.live_session.as_ref(),
             self.demo_session.as_ref(),
@@ -1740,7 +1742,7 @@ impl GpuState {
                 game_audio,
                 visual_now,
             );
-            missile_trails::update_and_spawn(
+            let missile_metrics = missile_trails::update_and_spawn(
                 &mut self.missile_effects,
                 snapshot,
                 presentation_time as i32,
@@ -1754,6 +1756,18 @@ impl GpuState {
                 &mut self.dynamic_lights,
                 visual_now,
             );
+            if debug_missiles {
+                missile_trails::debug_report(
+                    &self.missile_effects,
+                    missile_metrics,
+                    snapshot,
+                    &mut self.effects,
+                    self.vfs
+                        .as_ref()
+                        .expect("live sessions retain their mounted VFS"),
+                    presentation_time as i32,
+                );
+            }
             projectiles::collect(snapshot, presentation_time as i32, &mut self.projectiles);
             movers::collect(snapshot, presentation_time as i32, &mut self.movers);
             self.local_prediction

@@ -188,6 +188,9 @@ pub(crate) fn spawn_effect(
     let Some(definition) = effects.definition(vfs, effect_name) else {
         return;
     };
+    if depth == 0 {
+        crate::effect_debug::report_effect(effect_name, &definition);
+    }
     for (component_index, component) in definition.components.iter().enumerate() {
         if component.kind == ComponentKind::Sound {
             if !component.sounds.is_empty() {
