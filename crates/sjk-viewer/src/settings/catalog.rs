@@ -292,6 +292,11 @@ pub(super) const HUD: &[Setting] = &[
         },
     },
     Setting {
+        label: "Power icons",
+        cvar: "cg_nameplateIcons",
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Force bar (estimated)",
         cvar: "cg_nameplateForce",
         kind: ValueKind::Bool,

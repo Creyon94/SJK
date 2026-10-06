@@ -92,6 +92,7 @@ impl Group {
                 "cg_nameplateScale",
                 "cg_nameplateBars",
                 "cg_nameplateForce",
+                "cg_nameplateIcons",
                 "cg_nameplateWalls",
                 "cg_nameplateNpcs",
                 "cg_drawTimer",

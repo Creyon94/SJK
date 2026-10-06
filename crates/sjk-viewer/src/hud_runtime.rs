@@ -14,16 +14,22 @@ pub(crate) fn append(
 ) {
     // Nameplates use the classic HUD font whatever `cg_classicHudFont` says,
     // and fall back to Inter when that font is not loaded.
+    let power_icons = gpu.hud.power_icons();
     match &gpu.classic_hud_font {
-        Some(font) => {
-            gpu.hud
-                .nameplate
-                .append(&gpu.chat, &mut gpu.classic_text_vertices, font, viewport)
-        }
-        None => gpu
-            .hud
-            .nameplate
-            .append(&gpu.chat, &mut gpu.text_vertices, &gpu.ui_font, viewport),
+        Some(font) => gpu.hud.nameplate.append(
+            &gpu.chat,
+            &power_icons,
+            &mut gpu.classic_text_vertices,
+            font,
+            viewport,
+        ),
+        None => gpu.hud.nameplate.append(
+            &gpu.chat,
+            &power_icons,
+            &mut gpu.text_vertices,
+            &gpu.ui_font,
+            viewport,
+        ),
     }
     gpu.hud
         .identification
