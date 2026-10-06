@@ -71,8 +71,30 @@ const BOTH_MELEE2: u16 = 123;
 /// `WeaponAttackAnim` (`bg_misc.c:297-317`): the torso animation each weapon fires
 /// with; the table lists seventeen and the two emplaced weapons read its zeros.
 const WEAPON_ATTACK_ANIM: [u16; LEGACY_WEAPON_COUNT] = [
-    113, 115, 115, 917, 114, 115, 115, 115, 115, 115, 115, 115, 125, 115, 115, 115, 114, 0, 0,
+    113, 115, 115, 917, 114, 115, 115, 115, 115, 115, 115, 115, 125, 115, 115, 115, 114, 915, 113,
 ];
+
+/// `WeaponAttackAnim` as the server runs it: `BG_FixWeaponAttackAnim`
+/// (`bg_misc.c:323-345`) corrects the table's shifted tail only with
+/// `LEGACYFIX_WEAPONATTACKANIM` (`CS_LEGACY_FIXES` bit 1, `g_fixWeaponAttackAnim`).
+/// Without it the old Bryar fires with `BOTH_STAND1`, the concussion rifle with
+/// `BOTH_ATTACK2`; predicting otherwise made the snapshot restart the torso.
+fn weapon_attack_anim(weapon: u8, legacy_fixes: u32) -> u16 {
+    if legacy_fixes & (1 << 1) == 0 {
+        match weapon {
+            WP_CONCUSSION => return 114,
+            WP_BRYAR_OLD => return 915,
+            // WP_EMPLACED_GUN, WP_TURRET.
+            17 => return 113,
+            18 => return 114,
+            _ => {}
+        }
+    }
+    WEAPON_ATTACK_ANIM
+        .get(usize::from(weapon))
+        .copied()
+        .unwrap_or(0)
+}
 
 /// Whether this bounded port owns the current command's weapon result.
 ///
@@ -323,7 +345,7 @@ fn advance_command(
         && matches!(state.weapon, WP_THERMAL | WP_TRIP_MINE | WP_DET_PACK)
     {
         let early = if state.weapon == WP_THERMAL { 200 } else { 700 };
-        if state.torso_anim == WEAPON_ATTACK_ANIM[usize::from(state.weapon)]
+        if state.torso_anim == weapon_attack_anim(state.weapon, legacy_fixes)
             && state.weapon_time - early <= 0
         {
             crate::pmove_anim::start_torso(
@@ -483,7 +505,7 @@ fn advance_command(
             }
         }
     } else {
-        crate::pmove_anim::start_torso(state, WEAPON_ATTACK_ANIM[usize::from(state.weapon)]);
+        crate::pmove_anim::start_torso(state, weapon_attack_anim(state.weapon, legacy_fixes));
     }
     state.weapon_state = WEAPON_FIRING;
     if state.client_num < MAX_CLIENTS && state.ammo[data.ammo_index] != -1 {
@@ -571,4 +593,20 @@ fn alternate_is_predicted(weapon: u8) -> bool {
             | WP_CONCUSSION
             | WP_BRYAR_OLD
     )
+}
+
+#[cfg(test)]
+mod attack_anim_tests {
+    use super::weapon_attack_anim;
+
+    #[test]
+    fn the_attack_table_follows_the_servers_fix() {
+        // Fixed: the old Bryar fires BOTH_ATTACK2, the concussion BOTH_ATTACK3.
+        assert_eq!(weapon_attack_anim(16, 1 << 1), 114);
+        assert_eq!(weapon_attack_anim(15, 1 << 1), 115);
+        // Unfixed (JoF): BOTH_STAND1 and BOTH_ATTACK2; the rest are the same.
+        assert_eq!(weapon_attack_anim(16, 0), 915);
+        assert_eq!(weapon_attack_anim(15, 0), 114);
+        assert_eq!(weapon_attack_anim(4, 0), 114);
+    }
 }

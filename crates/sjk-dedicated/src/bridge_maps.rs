@@ -272,6 +272,9 @@ pub(super) fn fixed(strings: &[(usize, Vec<u8>)]) -> impl Iterator<Item = (usize
 pub(super) fn authoritative() -> sjk_game_jka::pmove::MovementConfig {
     sjk_game_jka::pmove::MovementConfig {
         authoritative: true,
+        // `g_fixWeaponAttackAnim` "1" (`g_xcvar.h`): the corrected attack table, which
+        // this server always ran, now published so clients predict it.
+        legacy_fixes: 1 << 1,
         ..Default::default()
     }
 }
