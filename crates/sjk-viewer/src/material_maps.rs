@@ -42,8 +42,11 @@ use std::error::Error;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU8, Ordering};
 
-/// [`crate::world_stage::PipelineKey::geometry`] bit of a material-mapped stage.
-pub(crate) const PIPELINE_BIT: u8 = 16;
+/// [`crate::world_stage::PipelineKey::geometry`] bit of a material-mapped stage. It was
+/// 16, which [`crate::world_stage::FORCED_ALPHA`] also is: an alpha-tested stage drawn
+/// with forced alpha (a fading afterimage, a duel ghost) then read as mapped, took the
+/// material program's layout with the plain stage group, and wgpu rejected the draw.
+pub(crate) const PIPELINE_BIT: u8 = 32;
 
 /// Geometry bits without [`PIPELINE_BIT`]: material maps change shading only, so a
 /// mapped stage still casts sun shadows, fills the light buffer and receives SSAO.
@@ -681,11 +684,29 @@ mod tests {
 
     #[test]
     fn pipeline_bit_only_separates_shading() {
-        // Distinct from deforms (1), sprites (2), live emission (4) and polygon offset (8).
+        // Distinct from deforms (1), sprites (2), live emission (4), polygon offset (8)
+        // and forced entity alpha (16).
         assert_eq!(
-            PIPELINE_BIT & (1 | 2 | 4 | crate::world_stage::POLYGON_OFFSET),
+            PIPELINE_BIT
+                & (1 | 2
+                    | 4
+                    | crate::world_stage::POLYGON_OFFSET
+                    | crate::world_stage::FORCED_ALPHA),
             0
         );
+        // A forced-alpha key of a plain stage is not taken for a mapped one.
+        let forced = super::super::forced_alpha::key(
+            crate::world_stage::PipelineKey {
+                geometry: 0,
+                source: wgpu::BlendFactor::One,
+                destination: wgpu::BlendFactor::Zero,
+                depth_write: true,
+                depth: wgpu::CompareFunction::LessEqual,
+                cull: None,
+            },
+            true,
+        );
+        assert_eq!(forced.geometry & PIPELINE_BIT, 0);
         let stage = &stages(
             "textures/a {
 { map $lightmap }

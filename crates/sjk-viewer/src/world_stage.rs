@@ -79,7 +79,8 @@ pub(crate) enum CollapseOperator {
 pub(crate) struct PipelineKey {
     /// Specialization bits: 1 geometry deforms, 2 surface sprites, 4 live emission,
     /// 8 `polygonOffset` (a depth bias, no shader work), 16 forced entity alpha
-    /// (no alpha test).
+    /// (no alpha test), 32 material maps (`material_maps::PIPELINE_BIT`). Each bit is
+    /// its own: a shared one makes two kinds of stage share a pipeline layout.
     /// Zero strips the extra work out of ordinary material pipelines.
     pub(crate) geometry: u8,
     pub(crate) source: wgpu::BlendFactor,
