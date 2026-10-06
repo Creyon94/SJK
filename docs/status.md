@@ -72,6 +72,21 @@ widths divide them, the one whose rows read as players wins. See
 [networking.md](networking.md). Unit tests cover full stock and jaPRO servers and a
 length both widths divide. Checked in game on Windows 11 on JoF's full server.
 
+## EternalJK camera damping
+
+Branch `feat/camera-fps`: the third-person camera damps as EternalJK's does. Stock
+damping eases the camera once per 50 ms; EternalJK eases once per frame of
+`cg_cameraFPS` (default 125), compensating for the ideal point's own movement, so
+the result does not depend on the frame rate. SJK registers `cg_cameraFPS` (a
+float) and follows EternalJK above 15; `cg_cameraFPS 0` (below 15) keeps the stock
+damping. The damping is timed by the predicted command time, the clock the focus
+moves on; timing it by the presentation clock made the camera stutter. EternalJK's
+look also needs `cg_fov 90` and `cg_thirdPersonRange 80`. Unit tests cover one
+125 fps step against EternalJK's per-frame formula, frame-rate independence with a
+still and a moving ideal point, the stock path at 0 and no elapsed time. Checked in
+game on Windows 11 on a JoF server next to EternalJK, with the default 125;
+`cg_cameraFPS 0` was not tried in game.
+
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the

@@ -654,10 +654,18 @@ collapses the camera onto its target, the view uses the intended forward directi
 instead of constructing an undefined look-at matrix.
 
 Pitch limits, pitch-offset direction and turn-dependent damping follow the
-multiplayer reference. View changes, teleports, followed-player changes and
-mounting/dismounting reset the presentation history. The ordinary range, height,
-angle and damping cvars remain available; `cg_thirdPersonHorzOffset` controls the
-stock sideways offset.
+multiplayer reference. How fast the camera closes the gap follows EternalJK's
+`cg_cameraFPS` (default 125, as EternalJK): the damping cvars apply per frame of
+that rate whatever the real frame rate, and the ideal point's own movement is
+compensated (EternalJK `CG_DampPosition`), so the camera stays close behind a
+fast-moving player. As in EternalJK the damping is timed by the predicted
+player's command time, the clock the focus moves on; timed by the presentation
+clock it stuttered. Stock multiplayer applies them once per 50 ms step, against
+8 ms per step at the default 125, so the same damping value closes the gap in
+steps 6.25 times shorter; `cg_cameraFPS` below 15 restores the stock behaviour.
+View changes, teleports, followed-player changes and mounting/dismounting reset
+the presentation history. The ordinary range, height, angle and damping cvars
+remain available; `cg_thirdPersonHorzOffset` controls the stock sideways offset.
 
 Vehicle appearances cache their `.veh` camera settings when loaded. Mounted
 views use the authored range, height, pitch and sideways offsets, including the
