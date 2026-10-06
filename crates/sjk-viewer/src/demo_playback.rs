@@ -41,6 +41,16 @@ impl Camera {
         )
     }
 
+    /// Cameras that show the recorded player's own view, which that player's zoom
+    /// puts in first person; the director's cameras (spectate, look-at, orbit,
+    /// free) are not overridden by it.
+    pub(crate) fn follows_player_view(self) -> bool {
+        matches!(
+            self,
+            Self::FirstPerson | Self::FirstPersonPitch(_) | Self::FollowThirdPerson
+        )
+    }
+
     /// Cameras that leave the local player's position: the local actor must
     /// stay at its entity transform instead of being pinned under the camera.
     pub(crate) fn detached(self) -> bool {

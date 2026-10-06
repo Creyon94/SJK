@@ -9,31 +9,38 @@ claiming complete parity from the presence of an implementation.
 
 ## Zoom, scope and effect camera shakes
 
-Branch `feat/zoom-scope-camera`:
+Implemented, described in [rendering.md](rendering.md#zoom-scope-and-camera-shakes):
 
 - Effect camera shakes are measured from the rendered view, as `CG_DoCameraShake`
-  measures from `cg.refdef.vieworg`; SJK measured from the player's eye, so a
-  short-range shake reached the third-person camera too. EternalJK's
-  `cg_screenShake` (default 2; 0 turns effect shakes off) is registered.
-- Muzzle-flash effects never shake the camera. JoF's HD muzzle flashes carry a
-  `CameraShake` of radius 60, and JoF EternalJK showed no shake when firing in
-  the contributor's recordings, in first or third person; explosions and other
-  effects still shake.
-- While the player is zoomed (disruptor) the third-person camera steps aside, as
-  `CG_DrawActiveFrame` forces first person when zoomed, so the scope shows; the
-  camera choice returns when the zoom ends. Toggling the camera during a zoom
-  keeps first person.
-- The scope mask is looked up as the image `gfx/2d/cropcircle2` in the engine's
-  image order instead of through its shader, whose other stage drew a full-screen
-  white picture, so JoF's HD scope shows as in EternalJK.
-- The first-person duck smoothing follows the predicted view height
-  (`CG_TransitionPlayerState` after prediction, `cg_playerstate.c:539-543`); it
-  also followed the later snapshot and lifted the view again after each crouch.
+  measures from `cg.refdef.vieworg`. `cg_screenShake` (default 2) gates effect-file
+  shakes: 0 off, nonzero on. Not implemented: EternalJK's level 2 shakes of a
+  charging or just-fired weapon (`cg_weapons.c:793,801,2466`) and the damage view
+  kick being switched off by 0 (`cg_view.c:1145`).
+- The viewer's own muzzle flash never shakes the camera; other players' flashes and
+  explosions do, by distance, as in the reference.
+- A zoom puts the view in first person (`CG_DrawActiveFrame`), in EternalJK's order:
+  a living player on an emplaced gun, or riding a vehicle with a weapon other than
+  saber or melee, is not forced. The effective `third_person` is derived every
+  frame from the player's camera choice, so nothing is rewritten or left behind
+  when the zoom ends. A demo's spectate, look-at, orbit and free cameras ignore
+  the recorded player's zoom. EternalJK also forces third person for the
+  knockdown, grapple and fall states; SJK does not.
+- The scope mask is the image `gfx/2d/cropcircle2` in the engine's image order
+  instead of its shader, whose other stage drew a full-screen white picture.
+  **Depends on #17** (image order): without it `.tga` is tried first and JoF's HD
+  `cropcircle2.png` does not show. Merge #17 first.
+- Included, unrelated to the zoom: the first-person duck smoothing follows the
+  predicted view height (`CG_TransitionPlayerState` after prediction,
+  `cg_playerstate.c:539-543`); it also followed the later snapshot and lifted the
+  view again after each crouch.
 
-A unit test covers the predicted duck smoothing. Checked in game on Windows 11
-on a JoF server: no shake when firing, the disruptor scope in third person, the
-HD scope picture and crouching without a bump.
-
+Verified: unit tests cover the zoom decision (disruptor, saber/melee, emplaced
+gun, vehicle, dead player, the choice surviving a zoom, the demo cameras) and the
+predicted duck smoothing; the workspace checks passed on Windows 11
+(06/10/2026). The contributor reported in-game checks of the first version on a
+JoF server (no shake when firing, the disruptor scope in third person, the HD
+scope picture, no crouch bump); the derived camera choice and the own-flash
+narrowing were not run in a game, and the HD scope needs #17.
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the

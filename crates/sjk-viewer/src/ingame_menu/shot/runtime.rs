@@ -179,7 +179,7 @@ impl GpuState {
                             panel.values[..4].try_into().unwrap(),
                             duration,
                         ));
-                        self.third_person = true;
+                        self.third_person_choice = true;
                     }
                     if panel.dirty[1] && panel.sun_available {
                         console.director.set_sun(Request::Target(
@@ -193,7 +193,7 @@ impl GpuState {
                 if sun_tab {
                     console.director.set_sun(Request::Orbit(panel.values[7]));
                 } else {
-                    self.third_person = true;
+                    self.third_person_choice = true;
                     console.director.set_camera(Request::Orbit(panel.values[7]));
                 }
                 panel.dirty[usize::from(sun_tab)] = false;

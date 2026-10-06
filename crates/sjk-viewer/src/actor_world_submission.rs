@@ -411,6 +411,7 @@ fn submit_actor(
             held_mesh,
             *transform,
             draw_actor,
+            local,
             trick.fading.then_some(trick.alpha),
             presentation_time,
             visual_now,
@@ -606,6 +607,7 @@ fn submit_equipment(
     actor_mesh: usize,
     transform: sjk_runtime::Transform,
     draw_actor: bool,
+    local: bool,
     forced_alpha: Option<u8>,
     presentation_time: i64,
     visual_now: Instant,
@@ -690,6 +692,7 @@ fn submit_equipment(
             sinks.game_audio,
             request,
             socket,
+            local,
             visual_now,
             presentation_time as i32,
         );

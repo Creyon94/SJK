@@ -37,7 +37,7 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         (
             "cg_screenShake",
             2,
-            "Camera shakes from effects such as explosions: 0 off (muzzle flashes never shake, as in JoF EternalJK)",
+            "Camera shakes from effect files (explosions): 0 off, else on. EternalJK's level 2 charge and recoil shakes, and 0 switching off the damage kick, are not implemented. Your own muzzle flash never shakes",
         ),
     ] {
         cvars.register(CvarDefinition::new(
@@ -115,7 +115,9 @@ pub(crate) fn scalar(console: Option<&ViewerConsole>, name: &str, default: f64) 
 }
 
 /// EternalJK `cg_screenShake`: nonzero lets effect files shake the camera
-/// (`CG_FX_CameraShake`).
+/// (`CG_FX_CameraShake`, `cg_main.c:3828-3832`). Only that is implemented: the
+/// level 2 shakes of a charging or just-fired weapon (`cg_weapons.c:793,801,2466`) and the
+/// switch that turns the damage view kick off (`cg_view.c:1145`) are not.
 pub(crate) fn screen_shake(console: Option<&ViewerConsole>) -> bool {
     console
         .and_then(|c| c.integer_cvar("cg_screenshake"))

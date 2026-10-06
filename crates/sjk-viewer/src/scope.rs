@@ -95,34 +95,104 @@ pub(crate) fn aspect_adjusted_fov(horizontal_degrees: f32, aspect: f32) -> f32 {
     half.atan().to_degrees() * 2.0
 }
 
-impl GpuState {
-    /// `cg_view.c` `CG_DrawActiveFrame`: "always force first person when zoomed".
-    /// While the predicted (or demo) player is zoomed, the third-person camera
-    /// steps aside, so the disruptor scope shows; the player's camera choice comes
-    /// back when the zoom ends.
-    pub(crate) fn force_first_person_while_zoomed(&mut self, time: i32) {
-        let snapshot_mode = self
-            .live_session
-            .as_ref()
-            .map(|s| s.latest_snapshot().player.zoom_mode())
-            .or_else(|| {
-                self.demo_session
-                    .as_ref()
-                    .map(|s| s.snapshot_at_or_before(time).player.zoom_mode())
-            })
-            .unwrap_or(0);
-        let mode = self
-            .live_session
-            .as_ref()
-            .and_then(|_| self.local_prediction.predicted_state())
-            .map_or(snapshot_mode, |state| state.zoom_mode);
-        if mode != 0 && self.third_person {
-            self.third_person = false;
-            self.zoom_forced_first_person = true;
-        } else if mode == 0 && self.zoom_forced_first_person {
-            self.third_person = true;
-            self.zoom_forced_first_person = false;
+/// The player-state fields `CG_DrawActiveFrame` reads to decide whether a zoom
+/// forces first person (`cg_view.c:3101-3131`, EternalJK).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) struct ZoomView {
+    pub(crate) health: i32,
+    pub(crate) zoom_mode: u8,
+    pub(crate) weapon: u8,
+    pub(crate) emplaced_index: u16,
+    pub(crate) vehicle_entity_num: u16,
+}
+
+impl ZoomView {
+    const WP_MELEE: u8 = 2;
+    const WP_SABER: u8 = 3;
+    const WP_EMPLACED_GUN: u8 = 17;
+
+    /// The view of a snapshot's (or a demo's recorded) player state.
+    pub(crate) fn from_player(player: &sjk_protocol::PlayerState) -> Self {
+        Self {
+            health: player.health(),
+            zoom_mode: player.zoom_mode(),
+            weapon: player.weapon(),
+            emplaced_index: player.emplaced_index(),
+            vehicle_entity_num: player.vehicle_entity_num(),
         }
+    }
+
+    /// The view of the locally predicted player state (`cg.predictedPlayerState`).
+    pub(crate) fn from_predicted(state: &sjk_client::pmove::MovementState) -> Self {
+        Self {
+            health: state.health,
+            zoom_mode: state.zoom_mode,
+            weapon: state.weapon,
+            emplaced_index: state.emplaced_index,
+            vehicle_entity_num: state.vehicle_entity_num,
+        }
+    }
+
+    /// Whether the zoom forces first person, in EternalJK's order: a living player on
+    /// an emplaced gun is third person whatever the zoom; a saber or melee zoom (the
+    /// binoculars) is first person; riding a vehicle is third person; any other zoom
+    /// (the disruptor) is first person. SJK does not force third person for the
+    /// emplaced gun and vehicles (or for the knockdown, grapple and fall states that
+    /// also force it in EternalJK), so there the zoom leaves the player's choice alone.
+    pub(crate) fn forces_first_person(self) -> bool {
+        if self.zoom_mode == 0 || self.health <= 0 {
+            return false;
+        }
+        if self.weapon == Self::WP_EMPLACED_GUN && self.emplaced_index != 0 {
+            return false;
+        }
+        if matches!(self.weapon, Self::WP_MELEE | Self::WP_SABER) {
+            return true;
+        }
+        self.vehicle_entity_num == 0
+    }
+}
+
+/// The third-person state the frame renders: the player's choice, unless a zoom
+/// forces first person this frame. A pure function of this frame's inputs.
+pub(crate) fn rendering_third_person(choice: bool, zoom_first_person: bool) -> bool {
+    choice && !zoom_first_person
+}
+impl GpuState {
+    /// Derives this frame's `third_person` from the player's camera choice
+    /// (`third_person_choice`) and the zoom: nothing is remembered between frames, so
+    /// the choice cannot be lost or left behind when the zoom ends, a demo or a
+    /// session changes, or the player follows someone else.
+    ///
+    /// Call it once a frame before anything reads `third_person`.
+    pub(crate) fn update_zoom_view(&mut self, time: i32) {
+        self.zoom_first_person = self
+            .zoom_view(time)
+            .is_some_and(ZoomView::forces_first_person);
+        self.third_person =
+            rendering_third_person(self.third_person_choice, self.zoom_first_person);
+    }
+
+    /// The player state the zoom decision reads: the predicted one in a live session
+    /// (the snapshot's while following another player, which bypasses prediction,
+    /// `cg_predict.c:952`), the recorded one in a demo whose camera is the player's
+    /// own. A demo's detached or director camera (spectate, look-at, orbit, free) is
+    /// not the player's view, so the recorded player's zoom leaves it alone.
+    fn zoom_view(&self, time: i32) -> Option<ZoomView> {
+        if let Some(session) = &self.live_session {
+            let player = &session.latest_snapshot().player;
+            let predicted = crate::local_prediction::predicts_local_view(player.movement_flags())
+                .then(|| self.local_prediction.predicted_state())
+                .flatten();
+            return Some(
+                predicted.map_or_else(|| ZoomView::from_player(player), ZoomView::from_predicted),
+            );
+        }
+        let session = self.demo_session.as_ref()?;
+        session
+            .camera()
+            .follows_player_view()
+            .then(|| ZoomView::from_player(&session.snapshot_at_or_before(time).player))
     }
 
     /// Calculate the legacy horizontal zoom before converting to the renderer's vertical FOV.
@@ -145,10 +215,13 @@ impl GpuState {
         };
         let player = &snapshot.player;
         // Demo playback keeps the initial predictor, so only a live session may
-        // read zoom mode from the predicted state (stock cg.predictedPlayerState).
+        // read zoom mode from the predicted state (stock cg.predictedPlayerState),
+        // and not while following another player (`cg_predict.c:952`), the same
+        // choice `update_zoom_view` makes.
         let predicted = self
             .live_session
             .as_ref()
+            .filter(|_| crate::local_prediction::predicts_local_view(player.movement_flags()))
             .and_then(|_| self.local_prediction.predicted_state());
         let mode = predicted.map_or(player.zoom_mode(), |state| state.zoom_mode);
         let base = self
@@ -226,5 +299,111 @@ impl GpuState {
         self.field_of_view =
             (2.0 * ((horizontal.to_radians() * 0.5).tan() / aspect).atan()).to_degrees();
         self.field_of_view
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const WP_BRYAR_PISTOL: u8 = 4;
+    const WP_DISRUPTOR: u8 = 6;
+
+    fn zoomed(weapon: u8) -> ZoomView {
+        ZoomView {
+            health: 100,
+            zoom_mode: 1,
+            weapon,
+            emplaced_index: 0,
+            vehicle_entity_num: 0,
+        }
+    }
+
+    #[test]
+    fn a_disruptor_zoom_forces_first_person_and_no_zoom_does_not() {
+        assert!(zoomed(WP_DISRUPTOR).forces_first_person());
+        let unzoomed = ZoomView {
+            zoom_mode: 0,
+            ..zoomed(WP_DISRUPTOR)
+        };
+        assert!(!unzoomed.forces_first_person());
+    }
+
+    #[test]
+    fn the_binoculars_zoom_with_saber_or_melee_forces_first_person() {
+        assert!(zoomed(ZoomView::WP_SABER).forces_first_person());
+        assert!(zoomed(ZoomView::WP_MELEE).forces_first_person());
+    }
+
+    #[test]
+    fn an_emplaced_gun_stays_third_person_under_zoom() {
+        // `cg_view.c:3103-3107`: tested before the zoom.
+        let gunner = ZoomView {
+            emplaced_index: 7,
+            ..zoomed(ZoomView::WP_EMPLACED_GUN)
+        };
+        assert!(!gunner.forces_first_person());
+        // The emplaced weapon without a gun (`emplacedIndex` 0) is an ordinary zoom.
+        assert!(zoomed(ZoomView::WP_EMPLACED_GUN).forces_first_person());
+    }
+
+    #[test]
+    fn a_vehicle_stays_third_person_under_zoom_unless_the_weapon_is_saber_or_melee() {
+        // `cg_view.c:3108-3126`: the vehicle test comes before the plain zoom test.
+        let rider = ZoomView {
+            vehicle_entity_num: 12,
+            ..zoomed(WP_BRYAR_PISTOL)
+        };
+        assert!(!rider.forces_first_person());
+        let saber_rider = ZoomView {
+            weapon: ZoomView::WP_SABER,
+            ..rider
+        };
+        assert!(saber_rider.forces_first_person());
+    }
+
+    #[test]
+    fn a_dead_player_is_not_forced_into_first_person() {
+        let dead = ZoomView {
+            health: 0,
+            ..zoomed(WP_DISRUPTOR)
+        };
+        assert!(!dead.forces_first_person());
+    }
+
+    #[test]
+    fn the_choice_survives_a_zoom_without_a_flicker() {
+        // Frame by frame: the zoom comes and goes, the player never touches the camera.
+        let zoom = [false, true, true, true, false, false];
+        let seen: Vec<bool> = zoom
+            .iter()
+            .map(|&zoomed| rendering_third_person(true, zoomed))
+            .collect();
+        assert_eq!(seen, [true, false, false, false, true, true]);
+        // A first-person player stays first person throughout.
+        assert!(zoom.iter().all(|&z| !rendering_third_person(false, z)));
+        // A camera toggle during the zoom takes effect when the zoom ends.
+        let choice_after_toggle = false;
+        assert!(!rendering_third_person(choice_after_toggle, true));
+        assert!(!rendering_third_person(choice_after_toggle, false));
+    }
+
+    #[test]
+    fn only_the_players_own_demo_cameras_follow_the_recorded_zoom() {
+        use crate::demo_playback::Camera;
+        assert!(Camera::FirstPerson.follows_player_view());
+        assert!(Camera::FirstPersonPitch(10).follows_player_view());
+        assert!(Camera::FollowThirdPerson.follows_player_view());
+        assert!(!Camera::Spectate(3).follows_player_view());
+        assert!(!Camera::LookAt(3).follows_player_view());
+        assert!(!Camera::Orbit(3).follows_player_view());
+        assert!(
+            !Camera::Free {
+                origin: [0.0; 3],
+                yaw: 0.0,
+                pitch: 0.0,
+            }
+            .follows_player_view()
+        );
     }
 }
