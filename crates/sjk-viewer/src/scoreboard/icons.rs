@@ -15,7 +15,7 @@ const SLOTS: usize = 32;
 const DECODES_PER_FRAME: usize = 2;
 
 /// Resolved head icons by client slot.
-pub(super) struct HeadIcons {
+pub(crate) struct HeadIcons {
     models: [Vec<u8>; SLOTS],
     ready: [bool; SLOTS],
     /// The model bytes changed and the icon is not resolved yet.
@@ -34,13 +34,43 @@ impl Default for HeadIcons {
 
 impl HeadIcons {
     /// The icon to draw for `client`, once resolved.
-    pub(super) fn texture(&self, client: u8) -> Option<TextureId> {
+    pub(crate) fn texture(&self, client: u8) -> Option<TextureId> {
         let slot = usize::from(client);
         self.ready
             .get(slot)
             .copied()
             .unwrap_or(false)
             .then(|| TextureId(SCOREBOARD_ICON_CELLS + slot as u32))
+    }
+
+    /// Resolve `client`'s icon on its own (the player card wants one while the scoreboard
+    /// is closed): note a model change, then decode it through `resolve` if pending.
+    pub(crate) fn ensure(
+        &mut self,
+        game: &GameState,
+        client: u8,
+        mut resolve: impl FnMut(&str, TextureId) -> bool,
+    ) {
+        let slot = usize::from(client);
+        if slot >= SLOTS {
+            return;
+        }
+        let model = game
+            .config_string(CS_PLAYERS + slot)
+            .and_then(|bytes| sjk_client::LegacyClientInfo::new(bytes).bytes("model"))
+            .unwrap_or_default();
+        if self.models[slot] != model {
+            self.models[slot].clear();
+            self.models[slot].extend_from_slice(model);
+            self.ready[slot] = false;
+            self.pending[slot] = !model.is_empty();
+        }
+        if self.pending[slot] {
+            self.pending[slot] = false;
+            if let Some(path) = crate::hud::portrait::icon_path(&self.models[slot]) {
+                self.ready[slot] = resolve(&path, TextureId(SCOREBOARD_ICON_CELLS + slot as u32));
+            }
+        }
     }
 
     /// Note model changes, then resolve up to [`DECODES_PER_FRAME`] pending

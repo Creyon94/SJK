@@ -66,6 +66,8 @@ pub(crate) enum InputAction {
     GrappleReleased,
     /// `flipkick`: start JoF EJK's run of jump taps ([`flip_kick`]).
     FlipKick,
+    /// `inspect`: pin the player card to the player under the crosshair, or unpin it.
+    Inspect,
 }
 
 /// Current logical gameplay-input state.
@@ -221,6 +223,7 @@ impl GameplayInput {
                     | "vote"
                     | "weapon"
                     | "flipkick"
+                    | "inspect"
             )
     }
 
@@ -331,6 +334,7 @@ impl GameplayInput {
             "invprev" => Some(InputAction::SelectionCycle(true, -1)),
             "teammenu" | "joinmenu" => Some(InputAction::TeamMenu),
             "flipkick" => Some(InputAction::FlipKick),
+            "inspect" => Some(InputAction::Inspect),
             "vote" => match words.next().map(str::to_ascii_lowercase).as_deref() {
                 Some("yes" | "y" | "1") => Some(InputAction::Vote(true)),
                 Some("no" | "n" | "0") => Some(InputAction::Vote(false)),
@@ -425,6 +429,7 @@ impl super::GpuState {
                     self.gameplay_input.tap(GameButton::Button(5));
                 }
             }
+            Some(InputAction::Inspect) => self.hud.card.inspect(),
             Some(InputAction::FlipKick) => {
                 let restricted = self.live_session.as_ref().is_some_and(|session| {
                     session

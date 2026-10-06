@@ -219,6 +219,7 @@ pub(crate) fn update(
         } else {
             None
         };
+        let head_icons = &gpu.scoreboard;
         gpu.hud.card.update(hud::player_card::Input {
             seen: gpu.crosshair_scan.hit_now(presentation_time),
             game: session.game_state(),
@@ -228,7 +229,25 @@ pub(crate) fn update(
             hidden: plates_hidden,
             hub: &player_identity::hub_info,
             hub_revision: player_identity::revision(),
+            entities: &snapshot.entities,
+            icon: &|slot| head_icons.head_icon(slot),
         });
+        if let (Some(client), Some(vfs)) = (
+            gpu.hud
+                .card
+                .shown_client()
+                .and_then(|client| u8::try_from(client).ok()),
+            &gpu.vfs,
+        ) {
+            gpu.scoreboard.ensure_head_icon(
+                session.game_state(),
+                client,
+                vfs,
+                &gpu.shaders,
+                &gpu.ui_shapes,
+                &gpu.queue,
+            );
+        }
         gpu.hud.update(
             session,
             &gpu.localization,
@@ -323,6 +342,7 @@ pub(crate) fn update(
         } else {
             None
         };
+        let head_icons = &gpu.scoreboard;
         gpu.hud.card.update(hud::player_card::Input {
             seen: gpu.crosshair_scan.hit_now(presentation_time),
             game: session.game_state(),
@@ -332,7 +352,25 @@ pub(crate) fn update(
             hidden: plates_hidden,
             hub: &player_identity::hub_info,
             hub_revision: player_identity::revision(),
+            entities: &snapshot.entities,
+            icon: &|slot| head_icons.head_icon(slot),
         });
+        if let (Some(client), Some(vfs)) = (
+            gpu.hud
+                .card
+                .shown_client()
+                .and_then(|client| u8::try_from(client).ok()),
+            &gpu.vfs,
+        ) {
+            gpu.scoreboard.ensure_head_icon(
+                session.game_state(),
+                client,
+                vfs,
+                &gpu.shaders,
+                &gpu.ui_shapes,
+                &gpu.queue,
+            );
+        }
         gpu.hud
             .update_player(&snapshot.player, presentation_time.max(0) as u64);
         gpu.hud.update_demo_votes(

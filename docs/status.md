@@ -531,6 +531,9 @@ a player with a steady view for `cg_playerCardDelay` seconds shows a card beside
 their head (name, model, saber hilts and blade colours, duel record or bot skill,
 and for hub players SJK's emblem, hub name and VERIFIED), and the scoreboard marks
 hub players with SJK's emblem instead of text; see [client.md](client.md#player-card).
+`personal/card-inspect` adds the model's head icon and the worn hat and cape, an
+`inspect` key that pins the card to the player under the crosshair, and anchors the card
+beside the top of the player's box instead of 70 units above the origin.
 The emblem is one more cell of the UI icon atlas, uploaded at start.
 
 Verified: unit tests for the dwell rules (steady look, a turn restarting the wait,

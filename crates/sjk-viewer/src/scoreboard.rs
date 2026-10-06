@@ -320,6 +320,32 @@ const PERS_TEAM: usize = 3;
 const STAT_CLIENTS_READY: usize = 7;
 const PM_INTERMISSION: u8 = 6;
 
+impl Scoreboard {
+    /// The resolved model icon of `client`'s slot.
+    pub(crate) fn head_icon(&self, client: u8) -> Option<sjk_ui::TextureId> {
+        self.icons.texture(client)
+    }
+
+    /// Resolve one client's model icon for the player card, with the scoreboard closed.
+    pub(crate) fn ensure_head_icon(
+        &mut self,
+        game: &GameState,
+        client: u8,
+        vfs: &sjk_vfs::VirtualFileSystem,
+        shaders: &sjk_shader::ShaderCatalog,
+        renderer: &crate::ui_renderer::ShapeRenderer,
+        queue: &crate::frame_queue::FrameQueue,
+    ) {
+        self.icons.ensure(game, client, |path, texture| {
+            let Some(pixels) = crate::hud::icons::assets::decode(vfs, shaders, path) else {
+                return false;
+            };
+            renderer.upload_icon(queue, texture, pixels.as_raw());
+            true
+        });
+    }
+}
+
 /// Append the current server scoreboard.
 pub(crate) fn append_overlay(gpu: &mut crate::GpuState, viewport: [f32; 2], scale: f32) {
     let Some(session) = gpu.resident.session.as_ref().or(gpu.live_session.as_ref()) else {
