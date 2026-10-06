@@ -113,6 +113,7 @@ impl HudPicker {
         match self.selected.style {
             Some(HudStyle::Modern) => "SJK modern",
             Some(HudStyle::Classic) => "SJK classic",
+            Some(HudStyle::Radial) => "SJK radial",
             _ => "Game HUD",
         }
         .to_owned()
@@ -673,7 +674,13 @@ mod tests {
         assert_eq!(menu.values[row], "Elegance HUD");
         assert_eq!(console.text_value(FILES_CVAR), Some("ui/elegance_hud.txt"));
         assert_eq!(console.text_value(PACK_CVAR), Some(""));
-        for _ in 0..4 {
+        // Text only, then SJK's radial HUD, which needs no pack.
+        for _ in 0..2 {
+            menu.adjust(&mut console, 1);
+        }
+        assert_eq!(menu.values[row], "SJK radial");
+        assert_eq!(console.text_value(STYLE_CVAR), Some("radial"));
+        for _ in 0..3 {
             menu.adjust(&mut console, 1);
         }
         assert_eq!(menu.values[row], "Jedi Academy");

@@ -1263,6 +1263,18 @@ test: Third person, a second client casts Absorb: blue shell on them with no for
 test: Get hit while shielded: the body glow reads green. Respawn: the beam stands on the ground.
 note: Never started in a game yet.
 
+[native-radial-hud]
+status: personal
+area: HUD
+title: SJK radial HUD, arcs around the crosshair, no PK3
+change: New HUD look "SJK radial" (Settings > HUD > HUD look): health, armor, Force, ammo as arcs.
+change: Drawn by the engine (smooth at any resolution); the TheRisqe PK3 is not needed.
+test: Settings > HUD > HUD look: pick SJK radial. Red/green arcs left, blue/amber right of aim.
+test: Take damage and spend Force/ammo: arcs empty segment by segment; health pulses at 25 or less.
+test: Switch to a saber: the ammo arc hides and the saber style shows in the readout pill.
+test: Try cg_hudScale 0.7 and 1.5 and a wide window: arcs stay centred on the crosshair.
+note: Never started in a game yet.
+
 # ---- Merged upstream ----
 
 [jkr-vehicles]

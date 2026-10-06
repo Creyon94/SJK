@@ -208,6 +208,33 @@ fn raster(
                     textured(image, *rect, full, source, *uv, color(*c, o), wraps);
                 }
             }
+            DrawCommand::Arc {
+                center,
+                radius,
+                width,
+                start,
+                sweep,
+                color: c,
+            } => {
+                let extent = radius + width * 0.5 + 1.0;
+                let area = Rect::new(
+                    center[0] - extent,
+                    center[1] - extent,
+                    extent * 2.0,
+                    extent * 2.0,
+                );
+                let (xs, ys) = span(area, clip);
+                for y in ys {
+                    for x in xs.clone() {
+                        let point = [x as f32 + 0.5 - center[0], y as f32 + 0.5 - center[1]];
+                        let distance = sjk_ui::arc_distance(point, *radius, *width, *start, *sweep);
+                        let coverage = (0.5 - distance).clamp(0.0, 1.0);
+                        if coverage > 0.0 {
+                            blend(image, x, y, color(*c, o * coverage));
+                        }
+                    }
+                }
+            }
             DrawCommand::PushClip(rect) => {
                 let x = rect.x.max(clip.x);
                 let y = rect.y.max(clip.y);
@@ -541,6 +568,7 @@ fn menu_snapshot() {
     console_browser(&shots, art);
     changelog(&shots, art);
     weapon_select(&mut shots, &vfs);
+    radial_hud(&mut shots);
     force_wheel(&mut shots, &vfs);
     profile_saber(&shots, art, &vfs, &mut console);
     classic_profile(&mut shots, &vfs, art);
@@ -809,6 +837,67 @@ fn weapon_select(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
 /// The HUD's Force wheel (JoF EJK's retail icon bar) over the match: JoF JA+'s
 /// Repulse selected among real powers and the other JoF entries, then JA+ merc
 /// mode's flamethrower in Lightning's place. Names draw in the menu font here.
+/// SJK's radial HUD with a full, a hurt and an empty-handed (saber) state.
+fn radial_hud(shots: &mut Snapshot) {
+    use crate::hud::{HudLook, HudOverlay, HudVisibility};
+    let visibility = HudVisibility {
+        hud: true,
+        status: true,
+        weapon: true,
+        crosshair: true,
+        crosshair_names: false,
+        timer: false,
+        lagometer: false,
+        team_overlay: false,
+        ground_hud: false,
+        menu_hud: false,
+    };
+    let states = [
+        ("hud-radial-full", 100, 100, 100, 5, Some(300), None, 1.0),
+        ("hud-radial-hurt", 38, 20, 62, 5, Some(120), None, 0.4),
+        ("hud-radial-low", 18, 0, 8, 5, Some(4), None, 0.013),
+        ("hud-radial-saber", 83, 40, 100, 3, None, Some(2), 0.0),
+    ];
+    for (name, health, armor, force, weapon, ammo, style, ammo_ratio) in states {
+        let mut hud = HudOverlay::new();
+        let values = sjk_client::HudDataSource {
+            health,
+            armor,
+            force,
+            weapon,
+            ammo,
+            saber_style: style,
+        };
+        hud.preview_values(
+            values,
+            [
+                health as f32 / 100.0,
+                armor as f32 / 100.0,
+                force as f32 / 100.0,
+                ammo_ratio,
+            ],
+        );
+        let _ = hud.layout(
+            &shots.font.font,
+            HudLook::Radial,
+            VIEWPORT,
+            1.0,
+            visibility,
+            0,
+        );
+        let mut vertices = Vec::new();
+        crate::ui_renderer::append_text_commands(
+            hud.draw_list(),
+            |id| hud.resolve_text(id),
+            &mut vertices,
+            &shots.font.font,
+            VIEWPORT,
+            crate::text::TextStyle::NEUTRAL,
+        );
+        shots.save(name, hud.draw_list(), &vertices, true);
+    }
+}
+
 fn force_wheel(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
     use crate::hud::force_wheel::{ICONS, picture_names, snapshot};
     use sjk_client::force_wheel::{DASH, REPULSE, STASIS};

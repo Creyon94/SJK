@@ -877,6 +877,17 @@ the old model (logged as `cs <1131+n>: clientinfo failed`); see
 [player models](client.md#player-models). The locked workspace build and tests
 passed; there is no unit test of the GPU-side rebuild, and no game was started.
 
+## Native radial HUD (SJK)
+
+SJK-only branch `personal/native-radial-hud` (2026-10-06, based on `de7380b`): the
+`radial` HUD style, a cleaned-up TheRisqe Radial HUD drawn by the engine with no PK3
+([rendering](rendering.md#hud-style)). Verified: unit tests for the arc geometry,
+distance function, ammunition ratio, picker order and style names; the WGSL passes
+naga validation; four sample layouts were rendered to PNG through the CPU copy of the
+shader (`menu_snapshot`) at 1440x1080. Not verified: the GPU shader and the layout in a
+running client (no game window was started), other aspect ratios and `cg_hudScale`
+values, and the placement against the in-game crosshair.
+
 ## HUD picker (SJK)
 
 SJK-only branch `personal/hud-picker` (2026-10-05, based on `0fc6e24`): the

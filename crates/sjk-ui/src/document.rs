@@ -69,6 +69,38 @@ pub enum HudWidgetKind {
     Image,
     /// A repeated row supplied by the adapter.
     Repeater,
+    /// A numeric meter drawn as arcs of a circle inscribed in the widget's
+    /// rectangle, shaped by [`StyleOverrides::arc`].
+    Arc,
+}
+
+/// Shape of an [`HudWidgetKind::Arc`] meter: a track of `segments` arcs, filled in
+/// order by the bound ratio.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ArcStyle {
+    /// Angle of the first segment's start, in degrees, 0 pointing right and
+    /// positive turning clockwise on screen.
+    pub start_degrees: f32,
+    /// Total angle the segments and their gaps cover, in degrees; a negative
+    /// value runs counter-clockwise.
+    pub sweep_degrees: f32,
+    /// Stroke thickness in logical pixels.
+    pub width: f32,
+    /// How many separate segments the track is cut into (at least one).
+    #[serde(default = "ArcStyle::default_segments")]
+    pub segments: u8,
+    /// Empty angle between segments, in degrees.
+    #[serde(default)]
+    pub gap_degrees: f32,
+    /// The ratio runs from the end of the sweep towards its start.
+    #[serde(default)]
+    pub reversed: bool,
+}
+
+impl ArcStyle {
+    fn default_segments() -> u8 {
+        1
+    }
 }
 
 /// Serializable visibility expression.
@@ -131,4 +163,10 @@ pub struct StyleOverrides {
     /// Additional tracking in logical pixels.
     #[serde(default)]
     pub letter_spacing: Option<f32>,
+    /// Centre a text widget's run in its rectangle, whatever its binding.
+    #[serde(default)]
+    pub centered: bool,
+    /// Shape of an arc meter.
+    #[serde(default)]
+    pub arc: Option<ArcStyle>,
 }
