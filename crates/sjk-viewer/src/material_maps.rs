@@ -180,8 +180,10 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), CvarError> {
              keywords); restart required",
         ),
         (
+            // Off in SJK since 07/10/2026: generated height is a guess from paint, and
+            // Sol preferred normal, specular and emission maps without it.
             "r_parallaxMapping",
-            i64::from(DEFAULT_ON),
+            0,
             "Parallax from the height in a normal map's alpha (_nh images, normalHeightMap); \
              needs r_normalMapping; restart required",
         ),

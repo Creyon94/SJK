@@ -102,7 +102,7 @@ fn report(options: &sjk_materialgen::run::Options, summary: &Summary) {
         options.game_data.display()
     );
     println!(
-        "Then: seta r_normalMapping 1; seta r_specularMapping 1; seta r_parallaxMapping 1; restart."
+        "Then: seta r_normalMapping 1; seta r_specularMapping 1; restart."
     );
     println!("Emission maps show with r_emissiveMaps 1 (the default).");
     println!();
