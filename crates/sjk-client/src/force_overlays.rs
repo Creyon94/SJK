@@ -274,11 +274,14 @@ pub fn legacy_force_overlays(
             false,
         ));
     }
-    if (local
-        && context.local_force_powers_active & FP_ABSORB != 0
-        && !(context.combined_protect_absorb && protecting))
-        || team_absorb
-    {
+    // JoF EJK `cg_alwaysShowAbsorb`: every player holding Absorb wears the shell, not only the
+    // local one. The local bit is the predicted one (`CG_Player`, `cg_players.c:10953`).
+    let absorbing = if local {
+        context.local_force_powers_active & FP_ABSORB != 0
+    } else {
+        actor.force_powers_active & FP_ABSORB != 0
+    };
+    if (absorbing && !(context.combined_protect_absorb && protecting)) || team_absorb {
         legs_alpha = 254;
         output.push(request(
             "gfx/misc/personalshield",
@@ -466,10 +469,13 @@ mod tests {
                 ("gfx/misc/personalshield", [0, 0, 255, 254]),
             ]
         );
-        // Another player's absorb is not drawn without the combo, as in stock.
+        // Another player's absorb is drawn too (EJK `cg_alwaysShowAbsorb`).
         assert_eq!(
             shells(both, false, false),
-            [("gfx/misc/forceprotect", [0, 128, 0, 254])]
+            [
+                ("gfx/misc/forceprotect", [0, 128, 0, 254]),
+                ("gfx/misc/personalshield", [0, 0, 255, 254]),
+            ]
         );
     }
 
@@ -483,6 +489,9 @@ mod tests {
             shells(FP_ABSORB, true, true),
             [("gfx/misc/personalshield", [0, 0, 255, 254])]
         );
-        assert!(shells(FP_ABSORB, false, true).is_empty());
+        assert_eq!(
+            shells(FP_ABSORB, false, true),
+            [("gfx/misc/personalshield", [0, 0, 255, 254])]
+        );
     }
 }

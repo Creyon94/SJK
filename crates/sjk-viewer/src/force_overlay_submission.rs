@@ -110,6 +110,9 @@ pub(crate) fn submit(
             // shield shader, as multiplayer does for PW_SHIELDHIT. The shader blends
             // `GL_DST_COLOR GL_ONE`, a bare multiply of what is behind it, so each extra
             // pass lifts it again (`cg_shieldBrightness`).
+            // The shield texture reads blue; weighting the tint to green keeps the same
+            // brightness but pulls the glow towards green.
+            let side = (f32::from(brightness) * 0.3) as u8;
             for _ in 0..shield_passes.max(1) {
                 if output.len() == output.capacity() {
                     break;
@@ -117,7 +120,7 @@ pub(crate) fn submit(
                 output.push(OverrideInstance {
                     mesh: OverrideMesh::Actor(mesh),
                     material: Some(material),
-                    instance: instance.with_entity_color([brightness, brightness, brightness, 255]),
+                    instance: instance.with_entity_color([side, brightness, side, 255]),
                     no_depth: false,
                     forced_alpha: false,
                 });

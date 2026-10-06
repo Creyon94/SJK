@@ -35,6 +35,8 @@ pub(crate) struct Sinks<'a> {
     pub(crate) console: &'a mut Option<console::ViewerConsole>,
     pub(crate) localization: &'a Localization,
     pub(crate) counters: &'a mut Counters,
+    pub(crate) bsp: &'a sjk_bsp::Bsp,
+    pub(crate) trace_scratch: &'a mut sjk_bsp::TraceScratch,
 }
 
 /// Observe one accepted snapshot through every snapshot-driven presentation
@@ -80,6 +82,8 @@ pub(crate) fn observe(
         sinks.effects,
         sinks.audio,
         visual_now,
+        sinks.bsp,
+        sinks.trace_scratch,
     );
     sinks.muzzle_effects.observe(snapshot);
     sinks.force_overlays.observe_snapshot(snapshot);
@@ -222,6 +226,8 @@ impl GpuState {
                     console: &mut self.console,
                     localization: &self.localization,
                     counters: &mut self.snapshot_observations,
+                    bsp: &self.bsp,
+                    trace_scratch: &mut self.trace_scratch,
                 },
             );
         });
@@ -312,6 +318,8 @@ impl GpuState {
                     console: &mut self.console,
                     localization: &self.localization,
                     counters: &mut self.snapshot_observations,
+                    bsp: &self.bsp,
+                    trace_scratch: &mut self.trace_scratch,
                 },
             );
         }

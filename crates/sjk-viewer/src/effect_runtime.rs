@@ -36,6 +36,8 @@ pub(crate) fn spawn_snapshot_particles(
     effects: &mut EffectLibrary,
     audio: &mut Option<GameAudio>,
     now: Instant,
+    bsp: &sjk_bsp::Bsp,
+    trace_scratch: &mut sjk_bsp::TraceScratch,
 ) {
     for entity in &snapshot.entities {
         if entity.entity_type() == 17 {
@@ -83,6 +85,16 @@ pub(crate) fn spawn_snapshot_particles(
         } else {
             Vec3::from_array(entity.trajectory_base())
         };
+        let origin = if matches!(raw_event, 64 | 65) {
+            // `EV_PLAYER_TELEPORT_IN/OUT` (`cg_event.c:3470-3490`) drop the player box
+            // 4096 units onto the floor and play `mp/spawn` there; nothing below, no effect.
+            match teleport_floor(bsp, trace_scratch, origin) {
+                Some(floor) => floor,
+                None => continue,
+            }
+        } else {
+            origin
+        };
         spawn_effect(
             particles,
             auxiliary,
@@ -105,6 +117,26 @@ pub(crate) fn spawn_snapshot_particles(
             .binary_search_by_key(number, |entity| entity.number())
             .is_ok()
     });
+}
+
+/// Where `mp/spawn` plays: `origin` dropped onto the floor with the player's box (mins z
+/// `DEFAULT_MINS_2 + 8`), or `None` over a void.
+fn teleport_floor(
+    bsp: &sjk_bsp::Bsp,
+    scratch: &mut sjk_bsp::TraceScratch,
+    origin: Vec3,
+) -> Option<Vec3> {
+    const CONTENTS_SOLID: u32 = 1;
+    let bounds = sjk_bsp::Aabb::new([-15.0, -15.0, -16.0], [15.0, 15.0, 40.0]).ok()?;
+    let end = origin - Vec3::Z * 4096.0;
+    let trace = bsp.trace_box_with(
+        scratch,
+        origin.to_array(),
+        end.to_array(),
+        bounds,
+        CONTENTS_SOLID,
+    );
+    (trace.fraction < 1.0).then(|| Vec3::from_array(trace.end_position))
 }
 
 /// Play the requests produced by the legacy ET_FX adapter through the same
