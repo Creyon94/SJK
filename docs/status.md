@@ -1036,7 +1036,8 @@ Codes without a leading 0 always use code page 437, not the system OEM page.
 SJK-only branch `personal/flipkick` (06/10/2026, based on `86ad1be`) ports JoF
 EJK's `flipkick` command and its `cg_fkDuration`, `cg_fkFirstJumpDuration` and
 `cg_fkSecondJumpDelay` cvars: one press starts a run of jump taps, stepped once
-per user command (EJK steps per frame), forbidden by serverinfo `restricts` bit 7.
+per user command (EJK steps per frame; both run at 125 a second since
+`personal/cmd-rate`), forbidden by serverinfo `restricts` bit 7.
 It is bindable in Controls > Movement. See [client.md](client.md) (`flipkick`).
 Unit tests cover the run (alternation, first-jump hold, second-jump delay,
 restart); the sjk-viewer tests and workspace clippy passed. No game was started:
@@ -1957,6 +1958,24 @@ repository's dedicated server,
 the reference); other servers' handling was not checked. Not measured: the
 per-frame cost of the limb scan now that `cg_dismember` is not 0 by default (one
 pass over the snapshot's entities). No client was run; Sol tests through `play`.
+
+## 125 Hz user commands and cl_maxpackets (SJK)
+
+SJK-only branch `personal/cmd-rate` (06/10/2026, based on `3b620bb`) replaces
+JKR's fixed one user command per packet every 25 ms (40 a second) with JoF
+EJK's `cl_cmdratecap`: a command every 8 ms on an 8 ms grid of server time,
+batched into packets paced by `cl_maxpackets` (now working, SJK default 125,
+was 63 and unused), with `cl_packetdup` repeating earlier packets rather than
+earlier commands; see [networking.md](networking.md#user-commands-and-move-packets).
+Prediction keeps 128 pending commands instead of 64, and the flip kick's frame
+cvars count one command per EJK frame again. Unit tests cover the grid (one
+command per slot, catch-up after a slow frame capped at four, a restarted
+timeline, unanchored stamps of 0), packet pacing and its clamp, and batching
+(commands since the last packet, packet-based duplicates, the 32-command limit,
+stale stamps). Formatting, workspace clippy, and the sjk-client, sjk-network and
+sjk-viewer tests passed. No client was run: movement, prediction and the input
+loss on a JoF `pmove_fixed` server are unverified in game, as is the replay cost
+of three times as many pending commands at high ping.
 
 ## Implemented scope
 

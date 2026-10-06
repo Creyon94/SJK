@@ -170,6 +170,33 @@ reseeded from snapshots, every map area is drawn, and turning it off (or dying,
 spectating or boarding a vehicle) snaps back to the server's position without error
 smoothing. Turbo (attack held) sets the velocity along the aim directly.
 
+## User commands and move packets
+
+The client makes a user command every 8 ms, 125 a second, whatever its frame rate,
+as JoF EternalJK's `cl_cmdratecap 1` does; the server then moves the player in the
+steps of a 125 FPS client. Each command is stamped on an 8 ms boundary of server
+time, one per slot ([command_rate.rs](../crates/sjk-client/src/command_rate.rs)).
+Above 125 FPS a stock client makes a command per frame, and a `pmove_fixed` server,
+which rounds a command's time up to its `pmove_msec` grid, drops the one that lands
+in a slot it already ran (`msec < 1` in `ClientThink_real`), button presses
+included; the 8 ms grid never shares a slot. A frame slower than 8 ms makes a
+command for each slot it passed, up to four; after a longer hitch the older slots
+are skipped instead of sent as a burst. Until the clock is anchored on the new
+timeline (a map load), commands are stamped 0 and still made every 8 ms of real
+time, so packets keep acknowledging the server. Every command is predicted when
+it is made; between commands the frame presents a preview through its own input
+([prediction_preview.rs](../crates/sjk-viewer/src/prediction_preview.rs)).
+
+Commands wait for a move packet. `cl_maxpackets` (SJK default 125, clamped 15 to
+1000 like JoF EternalJK) sets how often one may leave: at most every
+`1000 / cl_maxpackets` whole milliseconds, carrying every command made since the
+previous packet, and with `cl_packetdup` (0 to 5) the commands of that many earlier
+packets as well, at most 32 (`MAX_PACKET_USERCMDS`)
+([command_history.rs](../crates/sjk-client/src/command_history.rs)). At 125 or
+more each command leaves in a packet of its own; stock's 30 batches about four.
+Losing window focus lets the next packet leave at once with the released keys.
+Prediction keeps 128 unacknowledged commands, about a second.
+
 ## Parity requirements
 
 Movement includes integer-millisecond user-command quantization. Validate common

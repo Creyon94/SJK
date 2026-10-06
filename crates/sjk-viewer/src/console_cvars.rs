@@ -4,6 +4,10 @@ use sjk_shell::{CvarDefinition, CvarFlags, CvarRegistry};
 use std::sync::Arc;
 use std::sync::atomic::{AtomicI64, Ordering};
 
+/// `cl_maxpackets` default: one packet per user command (125 a second), as
+/// JoF EJK. Stock's 30 and EternalJK's 63 batch two to four commands a packet.
+pub(crate) const DEFAULT_MAX_PACKETS: i64 = 125;
+
 /// Change-callback cache for integer values; frame reads never look up a name.
 pub(super) struct IntegerSetting(Arc<AtomicI64>);
 
@@ -523,18 +527,19 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             archive,
             "Draw worn hats and capes: 0 none, 1 everyone, 2 only yours",
         ),
+        // Clamped 15..1000 like JoF EJK and EternalJK (`CL_ReadyToSendPacket`).
         CvarDefinition::new(
             "cl_maxpackets",
-            63_i64,
+            DEFAULT_MAX_PACKETS,
             archive,
-            "Saved packet-rate preference; scheduler integration pending",
+            "Most move packets sent a second (15 to 1000); user commands are made 125 times a second and wait for the next packet",
         ),
         // Stock default "1", clamped 0..5 (`codemp/client/cl_input.cpp:1539`).
         CvarDefinition::new(
             "cl_packetdup",
             1_i64,
             archive,
-            "Repeat the previous N usercmds in every packet (0 to 5) so lost packets drop no move",
+            "Repeat the previous N packets' usercmds in every packet (0 to 5) so lost packets drop no move",
         ),
         CvarDefinition::new(
             "cl_timeNudge",

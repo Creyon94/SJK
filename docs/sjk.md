@@ -61,6 +61,7 @@ values and nothing is migrated. Where each is documented:
 | `cg_dismember` | 2 | 0 | [Dismemberment](client.md#dismemberment-and-disintegration) |
 | `snaps` | 120 (slider to 125) | 40 (slider to 60) | [status.md](status.md#gameplay-and-interface-defaults-sjk-only) |
 | `com_maxfpsUnfocused` | 30 | 0 | [Configuration](client.md#configuration-and-content) |
+| `cl_maxpackets` | 125 | 63 (unused) | [User commands and move packets](networking.md#user-commands-and-move-packets) |
 | rendering profile | noon, bloom, dust, material maps | 11:00, off | [Default visual profile](rendering.md#default-visual-profile) |
 
 The HUD look (`cg_hudStyle game`) and the console (`con_style classic`) are SJK

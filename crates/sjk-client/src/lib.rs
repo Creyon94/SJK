@@ -19,6 +19,7 @@ mod chat;
 mod client_commands;
 mod client_info;
 pub mod command_history;
+pub mod command_rate;
 mod compat_profile;
 mod crosshair_target;
 mod demo_playback;
@@ -635,13 +636,36 @@ impl ClientSession {
         }
     }
 
+    /// Send `command` in a packet of its own (with the `cl_packetdup` repeats).
     pub fn send_command(&mut self, command: &UserCommand) -> Result<(), ClientError> {
+        self.queue_command(command);
+        self.send_queued_commands()
+    }
+
+    /// Hold `command` for the next move packet (see [`command_history`]).
+    pub fn queue_command(&mut self, command: &UserCommand) {
         if let Some(local) = &mut self.local {
             local.command(command);
-            return Ok(());
+            return;
         }
         if self.pending_download.is_some() {
-            return Ok(()); // Stay CS_PRIMED until donedl; never enter while downloading.
+            return; // Stay CS_PRIMED until donedl; never enter while downloading.
+        }
+        self.command_history.queue(*command);
+    }
+
+    /// Commands waiting for a move packet.
+    pub fn queued_commands(&self) -> usize {
+        self.command_history.unsent()
+    }
+
+    /// Send one move packet with every queued command; nothing when none waits.
+    pub fn send_queued_commands(&mut self) -> Result<(), ClientError> {
+        if self.local.is_some()
+            || self.pending_download.is_some()
+            || self.command_history.unsent() == 0
+        {
+            return Ok(());
         }
         self.pump_reliable_commands(Instant::now())?;
         let pending = self.pending_client_commands.iter().collect::<Vec<_>>();
@@ -649,7 +673,7 @@ impl ClientSession {
             .iter()
             .map(|(sequence, command)| (*sequence, command.as_slice()))
             .collect::<Vec<_>>();
-        let batch = self.command_history.push(*command);
+        let batch = self.command_history.take_packet();
         self.gamestate_probe.sample(
             Instant::now(),
             gamestate_probe::MovePacketHead {
@@ -679,7 +703,7 @@ impl ClientSession {
         Ok(())
     }
 
-    /// Set how many earlier commands each move packet repeats
+    /// Set how many earlier packets' commands each move packet repeats
     /// (`cl_packetdup`, clamped to the stock 0..=5).
     pub fn set_packet_dup(&mut self, packet_dup: usize) {
         self.command_history.set_packet_dup(packet_dup);

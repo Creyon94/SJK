@@ -20,6 +20,7 @@ mod console_connect;
 mod console_credits;
 #[path = "console_cvars.rs"]
 mod console_cvars;
+pub(crate) use console_cvars::DEFAULT_MAX_PACKETS;
 #[path = "console_debug_panel.rs"]
 mod console_debug_panel;
 #[path = "console_identity_page.rs"]
@@ -135,6 +136,7 @@ pub(crate) struct ViewerConsole {
     draw_fog: console_cvars::IntegerSetting,
     remaps: console_cvars::IntegerSetting,
     packet_dup: console_cvars::IntegerSetting,
+    max_packets: console_cvars::IntegerSetting,
     pub(crate) geometry_controls: crate::shared_geometry::environment::Cvars,
     pub(crate) post_color: crate::frame_target::aa::color::Settings,
     /// Seeded scene-light control shared with graphics contexts and map-install workers.
@@ -210,6 +212,11 @@ impl ViewerConsole {
         self.packet_dup
             .value()
             .clamp(0, sjk_client::command_history::MAX_PACKET_DUP as i64) as usize
+    }
+
+    /// Cached `cl_maxpackets`; [`sjk_client::command_rate::PacketPacer`] clamps it.
+    pub(crate) fn max_packets(&self) -> i64 {
+        self.max_packets.value()
     }
 
     pub(crate) fn config_directory(&self) -> &std::path::Path {

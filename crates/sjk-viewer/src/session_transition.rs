@@ -435,7 +435,8 @@ impl GpuState {
         to.server_clock = std::mem::replace(&mut self.server_clock, ServerClock::unanchored(now));
         if was_local {
             to.server_clock.reset_connection(now);
-            to.network_command_due = now;
+            to.command_schedule.reset();
+            to.packet_pacer.reset();
         }
         if to.resident.bound {
             to.server_clock.activate();

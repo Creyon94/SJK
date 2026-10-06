@@ -148,7 +148,18 @@ impl GpuState {
             &mut self.clientinfo_watch,
         );
 
-        if Instant::now() < self.network_command_due {
+        // User commands are made on the 125 Hz grid and wait for the next
+        // `cl_maxpackets` packet (`command_rate`).
+        let now = Instant::now();
+        let server_time = self.server_clock.server_time(now);
+        let due = self
+            .command_schedule
+            .due(server_time, self.server_clock.anchored(), now);
+        if let Some(console) = &self.console {
+            session.set_packet_dup(console.packet_dup());
+        }
+        if due.as_slice().is_empty() {
+            self.send_due_packet(now);
             return;
         }
         let intermission =
@@ -178,68 +189,83 @@ impl GpuState {
             .view_authority
             .command_delta()
             .unwrap_or(snapshot.player.delta_angles());
-        self.gameplay_input.selection.sync(
-            &snapshot.player,
-            self.server_clock.server_time(Instant::now()),
-        );
+        self.gameplay_input
+            .selection
+            .sync(&snapshot.player, server_time);
         // At an emplaced gun, a view past its arc is turned back (`CG_EmplacedView`).
         // The camera's yaw is in radians, the game's in degrees.
         if let Some(yaw) = emplaced_view::forced_yaw(snapshot, self.camera_yaw.to_degrees()) {
             self.camera_yaw = yaw.to_radians();
         }
-        let mut command = self.gameplay_input.user_command(
-            self.server_clock.server_time(Instant::now()),
-            self.camera_pitch,
-            self.camera_yaw,
-            delta_angles,
-            self.selected_weapon
-                .unwrap_or_else(|| snapshot.player.weapon()),
-            snapshot.player.selected_force_power(),
-            self.pending_generic_command,
-        );
+        let weapon = self
+            .selected_weapon
+            .unwrap_or_else(|| snapshot.player.weapon());
+        let force_power = snapshot.player.selected_force_power();
+        let known = snapshot.player.raw_field(51).unwrap_or(0);
         let flip_kick = self
             .console
             .as_ref()
             .map(crate::console::ViewerConsole::flip_kick_timing)
             .unwrap_or_default();
-        self.gameplay_input.apply_flip_kick(&mut command, flip_kick);
-        command.buttons = sjk_game_jka::pmove_talk::command_buttons(command.buttons, talking);
-        // JoF EJK's Force wheel: a selected Stasis, Repulse or Dash takes `+useforce`.
-        let known = snapshot.player.raw_field(51).unwrap_or(0);
-        let (buttons, wheel_command) = self
-            .gameplay_input
-            .force_wheel_buttons(command.buttons, known);
-        command.buttons = buttons;
-        if let Some(wheel_command) = wheel_command
-            && let Err(error) = session.send_reliable_command(wheel_command.as_bytes())
-        {
-            eprintln!("failed to send {wheel_command}: {error}");
+        // A frame slower than 8 ms makes a command for each slot it passed; the
+        // first carries the frame's presses, the rest the keys still held.
+        for &stamp in due.as_slice() {
+            let mut command = self.gameplay_input.user_command(
+                stamp,
+                self.camera_pitch,
+                self.camera_yaw,
+                delta_angles,
+                weapon,
+                force_power,
+                self.pending_generic_command,
+            );
+            self.gameplay_input.apply_flip_kick(&mut command, flip_kick);
+            command.buttons = sjk_game_jka::pmove_talk::command_buttons(command.buttons, talking);
+            // JoF EJK's Force wheel: a selected Stasis, Repulse or Dash takes `+useforce`.
+            let (buttons, wheel_command) = self
+                .gameplay_input
+                .force_wheel_buttons(command.buttons, known);
+            command.buttons = buttons;
+            if let Some(wheel_command) = wheel_command
+                && let Err(error) = session.send_reliable_command(wheel_command.as_bytes())
+            {
+                eprintln!("failed to send {wheel_command}: {error}");
+            }
+            let sent = self.local_prediction.command_for_server(command);
+            session.queue_command(&sent);
+            self.gameplay_input.finish_command();
+            if !intermission
+                && let Some(position) = self.local_prediction.apply_command(
+                    command,
+                    sent,
+                    &self.bsp,
+                    &mut self.trace_scratch,
+                )
+            {
+                self.camera_position = position;
+            }
+            self.pending_generic_command = 0;
         }
-        if let Some(console) = &self.console {
-            session.set_packet_dup(console.packet_dup());
+        self.send_due_packet(now);
+    }
+
+    /// Send the queued user commands once `cl_maxpackets` allows a packet.
+    fn send_due_packet(&mut self, now: Instant) {
+        let Some(session) = &mut self.live_session else {
+            return;
+        };
+        let max_packets = self.console.as_ref().map_or(
+            crate::console::DEFAULT_MAX_PACKETS,
+            crate::console::ViewerConsole::max_packets,
+        );
+        if session.queued_commands() == 0 || !self.packet_pacer.ready(now, max_packets) {
+            return;
         }
-        let sent = self.local_prediction.command_for_server(command);
-        if let Err(error) = session.send_command(&sent) {
+        if let Err(error) = session.send_queued_commands() {
             self.session_disconnected(error.to_string());
             return;
         }
-        self.gameplay_input.finish_command();
-        if !intermission
-            && let Some(position) = self.local_prediction.apply_command(
-                command,
-                sent,
-                &self.bsp,
-                &mut self.trace_scratch,
-            )
-        {
-            self.camera_position = position;
-        }
-        self.pending_generic_command = 0;
-        self.network_command_due += Duration::from_millis(25);
-        let now = Instant::now();
-        if self.network_command_due + Duration::from_millis(100) < now {
-            self.network_command_due = now;
-        }
+        self.packet_pacer.sent(now);
     }
 }
 

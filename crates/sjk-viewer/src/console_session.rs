@@ -146,6 +146,11 @@ impl ViewerConsole {
         let remaps = console_cvars::IntegerSetting::bind(&mut cvars, "cg_remaps", 2)?;
         let draw_fog = console_cvars::IntegerSetting::bind(&mut cvars, "r_drawfog", 2)?;
         let packet_dup = console_cvars::IntegerSetting::bind(&mut cvars, "cl_packetdup", 1)?;
+        let max_packets = console_cvars::IntegerSetting::bind(
+            &mut cvars,
+            "cl_maxpackets",
+            console_cvars::DEFAULT_MAX_PACKETS,
+        )?;
         let socket = super::socket::State::bind(&mut cvars)?;
         // JKR's `jkr_*` names become aliases once every setting is registered.
         crate::cvar_renames::register(&mut cvars)?;
@@ -315,6 +320,7 @@ impl ViewerConsole {
             draw_fog,
             remaps,
             packet_dup,
+            max_packets,
             post_color,
             dynamic_light_settings,
             soft_particles,

@@ -404,7 +404,9 @@ struct GpuState {
     legacy_world_adapter: Option<LegacyWorldAdapter>,
     presentation_clock: presentation_clock::SnapshotPresentationClock,
     net_timing: net_timing::NetTiming,
-    network_command_due: Instant,
+    /// The 125 Hz user-command clock and the `cl_maxpackets` packet pace.
+    command_schedule: sjk_client::command_rate::CommandSchedule,
+    packet_pacer: sjk_client::command_rate::PacketPacer,
     intermission_score_request_time: Option<i32>,
     /// Server-time estimate that stamps outgoing user commands.
     server_clock: ServerClock,
@@ -1211,7 +1213,8 @@ impl GpuState {
             legacy_world_adapter,
             presentation_clock,
             net_timing: net_timing::NetTiming::default(),
-            network_command_due: Instant::now(),
+            command_schedule: Default::default(),
+            packet_pacer: Default::default(),
             intermission_score_request_time: None,
             server_clock,
             clock_trace: clock_trace::ClockTrace::new(),
