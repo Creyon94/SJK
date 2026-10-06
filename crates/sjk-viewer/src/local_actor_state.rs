@@ -94,6 +94,13 @@ pub(crate) fn pose(
     let Some(predicted) = predicted else {
         return authoritative;
     };
+    // EternalJK remaps the animations before `CG_G2PlayerAngles` reads them.
+    let (legs_animation, torso_animation) = sjk_client::legacy_ejk_animation_fixes(
+        predicted.legs_anim,
+        predicted.torso_anim,
+        predicted.weapon,
+        predicted.saber_in_flight,
+    );
     sjk_client::legacy_predicted_pose(
         authoritative,
         sjk_client::PredictedPoseFields {
@@ -101,8 +108,8 @@ pub(crate) fn pose(
             velocity: predicted.velocity,
             ground_entity_num: predicted.ground_entity_number,
             movement_direction: predicted.movement_direction,
-            legs_animation: predicted.legs_anim,
-            torso_animation: predicted.torso_anim,
+            legs_animation,
+            torso_animation,
             vehicle_entity_num: predicted.vehicle_entity_num,
             weapon: predicted.weapon,
             entity_flags: predicted.entity_flags,

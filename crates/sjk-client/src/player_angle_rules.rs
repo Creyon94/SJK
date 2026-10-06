@@ -72,14 +72,22 @@ pub(super) fn resolved(fields: PredictedPoseFields, force_frame: u16) -> PoseSta
 }
 
 pub(super) fn entity_pose(state: &EntityState, view_angles: [f32; 3]) -> PoseState {
+    // EternalJK remaps the animations before `CG_G2PlayerAngles` reads them.
+    let (legs_animation, torso_animation) = crate::animation_selection::ejk_animation_fixes(
+        state.leg_animation(),
+        state.torso_animation(),
+        state.weapon(),
+        state.saber_in_flight(),
+        state.entity_type() == crate::npc_identity::ET_NPC,
+    );
     let mut pose = resolved(
         PredictedPoseFields {
             view_angles_degrees: view_angles,
             velocity: state.trajectory_delta(),
             movement_direction: state.movement_direction(),
             ground_entity_num: state.ground_entity_num(),
-            legs_animation: state.leg_animation(),
-            torso_animation: state.torso_animation(),
+            legs_animation,
+            torso_animation,
             vehicle_entity_num: state.vehicle_entity_num(),
             weapon: state.weapon(),
             entity_flags: state.e_flags(),
@@ -97,14 +105,21 @@ pub(super) fn entity_pose(state: &EntityState, view_angles: [f32; 3]) -> PoseSta
 }
 
 pub(super) fn player_pose(state: &PlayerState) -> PoseState {
+    let (legs_animation, torso_animation) = crate::animation_selection::ejk_animation_fixes(
+        state.leg_animation(),
+        state.torso_animation(),
+        state.weapon(),
+        state.saber_in_flight(),
+        false,
+    );
     let mut pose = resolved(
         PredictedPoseFields {
             view_angles_degrees: state.view_angles(),
             velocity: state.velocity(),
             movement_direction: state.movement_direction(),
             ground_entity_num: state.ground_entity_num(),
-            legs_animation: state.leg_animation(),
-            torso_animation: state.torso_animation(),
+            legs_animation,
+            torso_animation,
             vehicle_entity_num: state.vehicle_entity_num(),
             weapon: state.weapon(),
             entity_flags: state.entity_flags(),

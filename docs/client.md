@@ -640,6 +640,15 @@ Every installed hat and cape is open to everyone: nothing is unlocked or
 granted by a server. jaPRO's race-unlock hats (the `c5` clientinfo,
 `cp_cosmetics`, `cosmetics unlocks`) are left out on purpose.
 
+## EternalJK animation fixes
+
+Players' animations are remapped before they are shown, as EternalJK's `CG_Player`
+does: without a saber in hand, two-handed, dual and staff runs and walks play as the
+ordinary ones; the old Bryar's `BOTH_STAND1` (servers without `g_fixWeaponAttackAnim`,
+such as JoF's, fire it that way, arm hanging between shots) shows as `BOTH_ATTACK2`
+with the arm raised; the concussion rifle's `BOTH_ATTACK2` shows as `BOTH_ATTACK3`.
+NPCs are left as the server sends them.
+
 ## Third-person camera
 
 Third-person framing follows OpenJK multiplayer `CG_OffsetThirdPersonView`.

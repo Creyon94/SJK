@@ -126,6 +126,40 @@ EternalJK. Unit tests cover that it overrides the base set, that a mod's own set
 overrides it, and that nothing else is mounted from the pack. Checked in game on Windows 11: the console shows `¬¬¬` and `¥²½` as in
 EternalJK.
 
+## EternalJK player animation fixes
+
+Implemented:
+
+- Players' animations are remapped before they are shown, as EternalJK's
+  `CG_Player` does (`cg_players.c:10665-10730` at EternalJK a40e793): without a
+  saber in hand, two-handed, dual and staff runs and walks play as the ordinary
+  ones; a thrown saber's standing torso follows the legs; the old Bryar's
+  `BOTH_STAND1` shows as `BOTH_ATTACK2`; the concussion rifle's `BOTH_ATTACK2` as
+  `BOTH_ATTACK3`. NPCs are left as sent. The own player's pose reads the remapped
+  animations too.
+- Prediction fires with the attack table the server runs: OpenJK's
+  `BG_FixWeaponAttackAnim` (`codemp/game/bg_misc.c:297-346` at OpenJK 260c59c)
+  changes four entries (concussion, old Bryar, emplaced gun, turret) only with
+  `CS_LEGACY_FIXES` bit 1 (`g_fixWeaponAttackAnim`). SJK always predicted the fixed
+  table, so against a server without the fix the torso restarted on every snapshot.
+  The fixed entries for the emplaced gun and turret (915, 113) are OpenJK's and
+  EternalJK's (`bg_misc.c:433-458`). SJK's own server publishes `CS_LEGACY_FIXES` 7
+  (all fixes) and runs the fixed table.
+
+Verified: unit tests cover the remaps, both attack tables and the weapon-animation
+prediction at command steps of 8, 7, 4 and 3 ms (old Bryar and concussion, fixed and
+unfixed table, two seconds of held fire: the shot count and the shot's torso
+animation). The table values were checked against OpenJK 260c59c (read on GitHub) and
+EternalJK's source tree. `cargo fmt`, build, test and clippy pass (06/10/2026,
+Windows 11).
+
+Not verified: no run in game and no run against a stock, JoF or SJK server by this
+revision, so which servers publish which `CS_LEGACY_FIXES` value is taken from the
+sources, not from a capture; the remaps are checked only by unit tests against
+`CG_Player`'s logic. Windows CI and the parity evidence in `docs/development.md`
+were not run. The emplaced gun's fire is `pmove_emplaced`'s and the turret is not
+predicted, so their table entries are not exercised by prediction.
+
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the
