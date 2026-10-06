@@ -30,14 +30,18 @@ pub(crate) enum Page {
     /// Settings' KEY BINDINGS tab (retail's "controls" menu): every binding
     /// in one list, its categories down the left.
     Controls,
-    /// Settings' OPTIONS tab (retail's "setup" menu): video, sound, mouse,
-    /// game, interface, HUD, scoreboard, network and renderer options.
+    /// Settings' OPTIONS tab (retail's "setup" menu): first setup, and the
+    /// graphics, sound and gameplay options.
     Setup,
     /// SJK's own page: the changelog, the credits and updates.
     Sjk,
-    /// SJK's renderer options behind Setup's RENDERER, a classic+ page in
-    /// the retail setup layout: its groups down the left, the panel beside.
-    Renderer,
+    /// Setup's GRAPHICS, a classic+ page in the retail setup layout (its
+    /// groups down the left, the panel beside): video, the renderer's image,
+    /// lighting and shadows, and the weather.
+    Graphics,
+    /// Setup's GAMEPLAY, laid out as [`Page::Graphics`]: mouse, game options,
+    /// interface, HUD, scoreboard and network.
+    Gameplay,
     /// Retail quit confirmation behind Exit and Escape.
     Quit,
 }
@@ -82,15 +86,18 @@ pub(crate) enum Entry {
     /// SJK: the scoreboard (JKR's HUD+ settings regrouped).
     Scoreboard,
     /// SJK: the settings worth choosing on a first start.
-    QuickSetup,
+    FirstSetup,
     Network,
-    /// JKR's renderer settings, after retail's Setup groups: the renderer page.
-    Renderer,
-    /// The renderer page's groups.
+    /// SJK: Setup's two sub-pages.
+    Graphics,
+    Gameplay,
+    /// The renderer settings' groups, on the graphics page.
     RenderImage,
     RenderLighting,
     RenderShadows,
-    /// The renderer page's Back, to the setup options.
+    /// SJK: rain, fog and clouds (the renderer settings' WEATHER tab).
+    Weather,
+    /// A sub-page's Back, to the setup options.
     SetupBack,
     Back,
     No,
@@ -170,9 +177,10 @@ impl Page {
             Self::Main => Entry::Play,
             Self::Play => Entry::SoloGame,
             Self::Controls => Entry::Movement,
-            Self::Setup => Entry::Video,
+            Self::Setup => Entry::FirstSetup,
             Self::Sjk => Entry::Changelog,
-            Self::Renderer => Entry::RenderImage,
+            Self::Graphics => Entry::Video,
+            Self::Gameplay => Entry::MouseJoystick,
             Self::Quit => Entry::No,
         };
         self.index_of(entry).unwrap_or(0)
@@ -191,19 +199,25 @@ impl Page {
             Self::Controls => ("KEY BINDINGS", 172.0),
             Self::Setup => ("OPTIONS", 172.0),
             Self::Sjk => ("SOL JK", 172.0),
-            Self::Renderer => ("RENDERER OPTIONS", 172.0),
+            Self::Graphics => ("GRAPHICS", 172.0),
+            Self::Gameplay => ("GAMEPLAY", 172.0),
             Self::Quit => ("QUIT", 172.0),
         }
     }
 
     /// Where Escape leads: the main page asks to quit, as retail does;
-    /// the renderer page returns to Setup, every other page to the main page.
+    /// Setup's sub-pages return to Setup, every other page to the main page.
     pub(crate) fn escape(self) -> Page {
         match self {
             Self::Main => Self::Quit,
-            Self::Renderer => Self::Setup,
+            Self::Graphics | Self::Gameplay => Self::Setup,
             _ => Self::Main,
         }
+    }
+
+    /// One of Setup's sub-pages, whose Back and Escape return to Setup.
+    pub(crate) fn is_setup_child(self) -> bool {
+        matches!(self, Self::Graphics | Self::Gameplay)
     }
 }
 
@@ -254,11 +268,12 @@ impl Entry {
             Self::Interface => Outcome::Settings("TEXT"),
             Self::Hud => Outcome::Settings("HUD"),
             Self::Scoreboard => Outcome::Settings("HUD+"),
-            Self::QuickSetup => Outcome::Settings("QUICK"),
+            Self::FirstSetup => Outcome::Settings(crate::settings::FIRST_SETUP_CAPTION),
             Self::Network => Outcome::Settings("NETWORK"),
-            Self::Renderer => Outcome::Page(Page::Renderer),
+            Self::Graphics => Outcome::Page(Page::Graphics),
+            Self::Gameplay => Outcome::Page(Page::Gameplay),
             // Each opens its panel ([`Entry::panel`]); the modern screen otherwise.
-            Self::RenderImage | Self::RenderLighting | Self::RenderShadows => {
+            Self::RenderImage | Self::RenderLighting | Self::RenderShadows | Self::Weather => {
                 Outcome::Open(MainDestination::Renderer)
             }
             Self::PlayDemo | Self::Rules => Outcome::Unavailable,
@@ -298,7 +313,8 @@ pub(crate) enum Panel {
     Settings { caption: &'static str, span: Span },
     /// Rows of a key-binding category.
     Keybinds { category: Category, span: Span },
-    /// Every row of renderer settings tab `tab` (IMAGE, LIGHTING, SHADOWS).
+    /// Every row of renderer settings tab `tab` (IMAGE, LIGHTING, SHADOWS,
+    /// WEATHER).
     Renderer { tab: usize },
     /// A classic Setup group gathering rows of several settings tabs.
     Group(Group),
@@ -328,7 +344,7 @@ impl Entry {
             Self::Interface => Panel::Group(Group::Interface),
             Self::Hud => Panel::Group(Group::Hud),
             Self::Scoreboard => Panel::Group(Group::Scoreboard),
-            Self::QuickSetup => Panel::Group(Group::Quick),
+            Self::FirstSetup => Panel::Group(Group::Quick),
             Self::Network => settings("NETWORK"),
             Self::MouseJoystick => settings("CONTROLS"),
             Self::Movement => keybinds(Category::Movement),
@@ -339,6 +355,7 @@ impl Entry {
             Self::RenderImage => Panel::Renderer { tab: 0 },
             Self::RenderLighting => Panel::Renderer { tab: 1 },
             Self::RenderShadows => Panel::Renderer { tab: 2 },
+            Self::Weather => Panel::Renderer { tab: 3 },
             _ => return None,
         })
     }
@@ -361,11 +378,11 @@ impl Entry {
 
 impl Page {
     /// The Settings tab a panel page belongs to: KEY BINDINGS (0) or OPTIONS
-    /// (1, the renderer page too); `None` outside Settings.
+    /// (1, Setup's sub-pages too); `None` outside Settings.
     pub(crate) fn settings_tab(self) -> Option<usize> {
         match self {
             Self::Controls => Some(0),
-            Self::Setup | Self::Renderer => Some(1),
+            Self::Setup | Self::Graphics | Self::Gameplay => Some(1),
             _ => None,
         }
     }
@@ -383,9 +400,10 @@ impl Page {
     /// shows Video and Movement; `None` for pages without a panel.
     pub(crate) fn opening_panel(self) -> Option<Entry> {
         match self {
-            Self::Setup => Some(Entry::Video),
+            Self::Setup => Some(Entry::FirstSetup),
             Self::Controls => Some(Entry::Movement),
-            Self::Renderer => Some(Entry::RenderImage),
+            Self::Graphics => Some(Entry::Video),
+            Self::Gameplay => Some(Entry::MouseJoystick),
             _ => None,
         }
     }
@@ -439,11 +457,13 @@ mod tests {
     use super::*;
     use crate::settings::SettingsMenu;
 
-    const PAGES: [Page; 6] = [
+    const PAGES: [Page; 8] = [
         Page::Main,
         Page::Play,
         Page::Controls,
         Page::Setup,
+        Page::Graphics,
+        Page::Gameplay,
         Page::Sjk,
         Page::Quit,
     ];
@@ -489,18 +509,33 @@ mod tests {
             ]
         );
         assert_eq!(
-            entries(Page::Setup)[4..14],
+            entries(Page::Setup)[4..8],
             [
-                Entry::QuickSetup,
-                Entry::Video,
+                Entry::FirstSetup,
+                Entry::Graphics,
                 Entry::Sound,
+                Entry::Gameplay
+            ]
+        );
+        assert_eq!(
+            entries(Page::Graphics)[4..9],
+            [
+                Entry::Video,
+                Entry::RenderImage,
+                Entry::RenderLighting,
+                Entry::RenderShadows,
+                Entry::Weather
+            ]
+        );
+        assert_eq!(
+            entries(Page::Gameplay)[4..10],
+            [
                 Entry::MouseJoystick,
                 Entry::GameOptions,
                 Entry::Interface,
                 Entry::Hud,
                 Entry::Scoreboard,
-                Entry::Network,
-                Entry::Renderer
+                Entry::Network
             ]
         );
         assert_eq!(
@@ -576,6 +611,10 @@ mod tests {
         ] {
             assert_eq!(page.escape(), Page::Main);
         }
+        for page in [Page::Graphics, Page::Gameplay] {
+            assert_eq!(page.escape(), Page::Setup);
+            assert!(page.is_setup_child());
+        }
     }
 
     #[test]
@@ -648,15 +687,18 @@ mod tests {
 
     #[test]
     fn every_group_has_a_panel_or_says_why_not() {
-        for page in [Page::Setup, Page::Controls, Page::Renderer] {
+        for page in [Page::Setup, Page::Controls, Page::Graphics, Page::Gameplay] {
             assert!(
                 page.opening_panel().and_then(Entry::panel).is_some(),
                 "{page:?}"
             );
             for slot in page.slots().iter().filter(|slot| slot.size == Size::List) {
-                // A group shows a panel; RENDERER opens the renderer page.
+                // A group shows a panel; GRAPHICS and GAMEPLAY open their pages.
                 let opens = slot.entry.panel().is_some()
-                    || slot.entry.outcome() == Outcome::Page(Page::Renderer);
+                    || matches!(
+                        slot.entry.outcome(),
+                        Outcome::Page(Page::Graphics | Page::Gameplay)
+                    );
                 assert_eq!(opens, slot.enabled(), "{:?}", slot.entry);
                 if let Some(Panel::Settings { caption, .. }) = slot.entry.panel() {
                     assert!(SettingsMenu::tab_index(caption).is_some(), "{caption}");
@@ -686,8 +728,9 @@ mod tests {
                 span: Span::ALL
             })
         );
-        let groups: Vec<_> = entries(Page::Setup)
+        let groups: Vec<_> = [Page::Setup, Page::Gameplay]
             .into_iter()
+            .flat_map(entries)
             .filter_map(|entry| match entry.panel() {
                 Some(Panel::Group(group)) => Some(group),
                 _ => None,

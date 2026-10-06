@@ -159,7 +159,7 @@ The profile pages show the pattern
 - **Module documentation** names the retail menu and its files, and says what
   SJK adds ("SJK adds the side cards, ...").
 
-The option panels (Settings' OPTIONS and KEY BINDINGS tabs and the renderer page) are drawn by
+The option panels (Settings' OPTIONS and KEY BINDINGS tabs and the Graphics and Gameplay pages) are drawn by
 [menu/classic/panel.rs](../crates/sjk-viewer/src/menu/classic/panel.rs), with
 their rows by the settings screen and the key-binding editor
 ([settings/classic_view.rs](../crates/sjk-viewer/src/settings/classic_view.rs),

@@ -79,6 +79,10 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
         crate::menu::quick_setup::COMMAND,
         crate::menu::quick_setup::HELP,
     ),
+    (
+        crate::menu::quick_setup::OLD_COMMAND,
+        crate::menu::quick_setup::OLD_HELP,
+    ),
     ("cmd", "Forward arguments as a reliable server command"),
     ("clientinfo", "Print client state and userinfo"),
     ("userinfo", "Print userinfo"),
@@ -434,7 +438,7 @@ impl crate::GpuState {
             }
             crate::identity_command::COMMAND => return self.identity_command(args),
             crate::weather::COMMAND => return self.weather_command(args),
-            crate::menu::quick_setup::COMMAND => {
+            crate::menu::quick_setup::COMMAND | crate::menu::quick_setup::OLD_COMMAND => {
                 if let Some(console) = &mut self.console {
                     console.set_open(false);
                 }

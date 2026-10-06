@@ -310,7 +310,7 @@ impl ClientMenu {
             return MenuAction::None;
         };
         if let Some(tab) = panel::settings_tab_slot(index) {
-            if panel.page.settings_tab() != Some(tab) || panel.page == Page::Renderer {
+            if panel.page.settings_tab() != Some(tab) || panel.page.is_setup_child() {
                 let page = Page::of_settings_tab(tab);
                 if let Some(entry) = page.opening_panel() {
                     let target = self.settings_return;
@@ -454,14 +454,15 @@ mod tests {
         assert_eq!(menu.outcome(), Some(Outcome::Page(Page::Sjk)));
         assert_eq!(Page::Controls.settings_tab(), Some(0));
         assert_eq!(Page::Setup.settings_tab(), Some(1));
-        assert_eq!(Page::Renderer.settings_tab(), Some(1));
+        assert_eq!(Page::Graphics.settings_tab(), Some(1));
+        assert_eq!(Page::Gameplay.settings_tab(), Some(1));
         assert_eq!(Page::of_settings_tab(0), Page::Controls);
         menu.show(Page::Controls);
         assert_eq!(menu.outcome(), Some(Outcome::Keybinds(Category::Movement)));
         focus(&mut menu, Entry::ForcePowers);
         assert_eq!(menu.outcome(), Some(Outcome::Keybinds(Category::Force)));
-        // The mouse options moved to OPTIONS.
-        menu.show(Page::Setup);
+        // The mouse options moved to OPTIONS, under GAMEPLAY.
+        menu.show(Page::Gameplay);
         focus(&mut menu, Entry::MouseJoystick);
         assert_eq!(menu.outcome(), Some(Outcome::Settings("CONTROLS")));
     }
@@ -470,7 +471,10 @@ mod tests {
     fn setup_pages_open_settings_tabs() {
         let mut menu = ClassicMain::new();
         menu.show(Page::Setup);
-        assert_eq!(menu.outcome(), Some(Outcome::Settings("VIDEO")));
+        assert_eq!(
+            menu.outcome(),
+            Some(Outcome::Settings(crate::settings::FIRST_SETUP_CAPTION))
+        );
         focus(&mut menu, Entry::Sound);
         assert_eq!(menu.outcome(), Some(Outcome::Settings("AUDIO")));
         // Retail's Mods and Defaults are gone: every OPTIONS group opens.
@@ -478,26 +482,31 @@ mod tests {
     }
 
     #[test]
-    fn the_renderer_page_holds_the_renderer_groups_and_returns_to_setup() {
+    fn the_graphics_page_holds_video_the_renderer_and_weather_and_returns_to_setup() {
         let mut menu = ClassicMain::new();
         menu.show(Page::Setup);
-        focus(&mut menu, Entry::Renderer);
-        assert_eq!(menu.outcome(), Some(Outcome::Page(Page::Renderer)));
-        assert_eq!(Page::Renderer.opening_panel(), Some(Entry::RenderImage));
-        let groups: Vec<_> = Page::Renderer
+        focus(&mut menu, Entry::Graphics);
+        assert_eq!(menu.outcome(), Some(Outcome::Page(Page::Graphics)));
+        focus(&mut menu, Entry::Gameplay);
+        assert_eq!(menu.outcome(), Some(Outcome::Page(Page::Gameplay)));
+        assert_eq!(Page::Graphics.opening_panel(), Some(Entry::Video));
+        let groups: Vec<_> = Page::Graphics
             .slots()
             .iter()
             .filter_map(|slot| slot.entry.panel())
+            .skip(1)
             .collect();
         assert_eq!(
             groups,
-            [0, 1, 2].map(|tab| Panel::Renderer { tab }).to_vec(),
-            "IMAGE, LIGHTING and SHADOWS, in the renderer tabs' order"
+            [0, 1, 2, 3].map(|tab| Panel::Renderer { tab }).to_vec(),
+            "IMAGE, LIGHTING, SHADOWS and WEATHER, in the renderer tabs' order"
         );
-        menu.show(Page::Renderer);
-        focus(&mut menu, Entry::SetupBack);
-        assert_eq!(menu.outcome(), Some(Outcome::Page(Page::Setup)));
-        assert_eq!(Page::Renderer.escape(), Page::Setup);
+        for page in [Page::Graphics, Page::Gameplay] {
+            menu.show(page);
+            focus(&mut menu, Entry::SetupBack);
+            assert_eq!(menu.outcome(), Some(Outcome::Page(Page::Setup)));
+            assert_eq!(page.escape(), Page::Setup);
+        }
     }
 
     #[test]

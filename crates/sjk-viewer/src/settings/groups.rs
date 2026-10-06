@@ -38,7 +38,7 @@ impl Group {
         "INTERFACE",
         "HUD",
         "SCOREBOARD",
-        "QUICK SETUP",
+        super::catalog::FIRST_SETUP_CAPTION,
     ];
 
     fn index(self) -> usize {

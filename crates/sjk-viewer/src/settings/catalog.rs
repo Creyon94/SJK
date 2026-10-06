@@ -6,8 +6,18 @@
 //! (name, model, sabers) lives in the Player menu, not here.
 
 pub(super) const TABS: [&str; 9] = [
-    "VIDEO", "AUDIO", "HUD", "CONTROLS", "GAME", "NETWORK", "HUD+", "TEXT", "QUICK",
+    "VIDEO",
+    "AUDIO",
+    "HUD",
+    "CONTROLS",
+    "GAME",
+    "NETWORK",
+    "HUD+",
+    "TEXT",
+    FIRST_SETUP_CAPTION,
 ];
+/// The first-start tab's caption, also the classic Setup group's name.
+pub(crate) const FIRST_SETUP_CAPTION: &str = "FIRST SETUP";
 /// The first-start tab (`settings/quick.rs`); last, so the other tabs keep their numbers.
 pub(super) const QUICK_TAB: usize = 8;
 /// The tab whose last row opens the key-binding editor.
@@ -17,7 +27,7 @@ pub(super) const RENDERER_TAB: usize = 0;
 /// Tabs of the renderer settings, JKR's own rendering cvars (`jkr_*` in JKR), reached
 /// from the last row of [`VIDEO`] as JoF EJK reaches its advanced renderer page
 /// from Video.
-pub(super) const RENDERER_TABS: [&str; 3] = ["IMAGE", "LIGHTING", "SHADOWS"];
+pub(super) const RENDERER_TABS: [&str; 4] = ["IMAGE", "LIGHTING", "SHADOWS", "WEATHER"];
 
 #[derive(Clone, Copy)]
 pub(super) enum ValueKind {
@@ -701,52 +711,6 @@ pub(super) const RENDER_IMAGE: &[Setting] = &[
         },
     },
     Setting {
-        label: "Weather (rain, snow, mist)",
-        cvar: crate::weather::CVAR,
-        kind: ValueKind::Bool,
-    },
-    Setting {
-        label: "Weather density (1 original)",
-        cvar: crate::weather::DENSITY_CVAR,
-        kind: ValueKind::Float {
-            min: 0.25,
-            max: 4.0,
-            step: 0.25,
-        },
-    },
-    Setting {
-        label: "Weather quality (0 low, 3 ultra)",
-        cvar: crate::weather::QUALITY_CVAR,
-        kind: ValueKind::Integer {
-            min: 0,
-            max: 3,
-            step: 1,
-        },
-    },
-    Setting {
-        label: "Force weather (0 the map's)",
-        cvar: crate::weather::FORCE_CVAR,
-        kind: ValueKind::Integer {
-            min: 0,
-            max: crate::weather::settings::FORCE_MAX,
-            step: 1,
-        },
-    },
-    Setting {
-        label: "Ground fog (0 off, 1 map, 2 always)",
-        cvar: crate::weather::FOG_CVAR,
-        kind: ValueKind::Integer {
-            min: 0,
-            max: 2,
-            step: 1,
-        },
-    },
-    Setting {
-        label: "Volumetric clouds",
-        cvar: crate::weather::CLOUDS_CVAR,
-        kind: ValueKind::Bool,
-    },
-    Setting {
         label: "Per-pixel model lighting",
         cvar: "r_modelPixelLight",
         kind: ValueKind::Bool,
@@ -939,6 +903,56 @@ pub(super) const RENDER_SHADOWS: &[Setting] = &[
     Setting {
         label: "Contact shadows",
         cvar: "r_contactShadows",
+        kind: ValueKind::Bool,
+    },
+];
+
+/// The weather: rain, snow and fog (`weather.rs`) and the clouds.
+pub(super) const RENDER_WEATHER: &[Setting] = &[
+    Setting {
+        label: "Weather (rain, snow, mist)",
+        cvar: crate::weather::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Weather density (1 original)",
+        cvar: crate::weather::DENSITY_CVAR,
+        kind: ValueKind::Float {
+            min: 0.25,
+            max: 4.0,
+            step: 0.25,
+        },
+    },
+    Setting {
+        label: "Weather quality (0 low, 3 ultra)",
+        cvar: crate::weather::QUALITY_CVAR,
+        kind: ValueKind::Integer {
+            min: 0,
+            max: 3,
+            step: 1,
+        },
+    },
+    Setting {
+        label: "Force weather (0 the map's)",
+        cvar: crate::weather::FORCE_CVAR,
+        kind: ValueKind::Integer {
+            min: 0,
+            max: crate::weather::settings::FORCE_MAX,
+            step: 1,
+        },
+    },
+    Setting {
+        label: "Ground fog (0 off, 1 map, 2 always)",
+        cvar: crate::weather::FOG_CVAR,
+        kind: ValueKind::Integer {
+            min: 0,
+            max: 2,
+            step: 1,
+        },
+    },
+    Setting {
+        label: "Volumetric clouds",
+        cvar: crate::weather::CLOUDS_CVAR,
         kind: ValueKind::Bool,
     },
 ];

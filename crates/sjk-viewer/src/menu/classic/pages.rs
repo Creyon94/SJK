@@ -261,11 +261,11 @@ const CONTROLS: [Slot; 11] = {
 };
 
 /// Settings' OPTIONS tab (retail `setup.menu`): the option groups down the
-/// left. Classic+ shows retail's two video pages as one, brings the mouse
-/// options over from Controls, regroups JKR's additions by subject (the menus
-/// and console, the HUD, the scoreboard) and leaves out retail's Mods and
+/// left. Classic+ starts with the first-start settings, gathers the video and
+/// renderer groups under GRAPHICS and everything about play and its screens
+/// under GAMEPLAY, keeps retail's Sound, and leaves out retail's Mods and
 /// Defaults, which SJK cannot offer (Backspace restores one default).
-const SETUP: [Slot; 16] = {
+const SETUP: [Slot; 10] = {
     let [play, profile, settings, sjk] = nav_row();
     let [back, exit] = back_exit();
     [
@@ -274,15 +274,15 @@ const SETUP: [Slot; 16] = {
         settings,
         sjk,
         list_row(
-            Entry::QuickSetup,
-            "QUICK SETUP",
+            Entry::FirstSetup,
+            "FIRST SETUP",
             "The settings worth choosing first: display, aim, sound, HUD, nameplates",
             185.0,
         ),
         list_row(
-            Entry::Video,
-            "VIDEO",
-            "Resolution, display, frame rate, field of view and brightness",
+            Entry::Graphics,
+            "GRAPHICS",
+            "Video, the renderer's image, lighting and shadows, and the weather",
             209.0,
         ),
         list_row(
@@ -292,55 +292,20 @@ const SETUP: [Slot; 16] = {
             233.0,
         ),
         list_row(
-            Entry::MouseJoystick,
-            "MOUSE",
-            "Mouse sensitivity, inversion and always run",
+            Entry::Gameplay,
+            "GAMEPLAY",
+            "Mouse, game options, interface, HUD, scoreboard and network",
             257.0,
-        ),
-        list_row(
-            Entry::GameOptions,
-            "GAME OPTIONS",
-            "Pickups, models, saber and Force trails, camera",
-            281.0,
-        ),
-        list_row(
-            Entry::Interface,
-            "INTERFACE",
-            "Menu style, colours and fonts, the console's look",
-            305.0,
-        ),
-        list_row(
-            Entry::Hud,
-            "HUD",
-            "HUD style and scale, status, crosshair, readouts and chat",
-            329.0,
-        ),
-        list_row(
-            Entry::Scoreboard,
-            "SCOREBOARD",
-            "Scoreboard style, client numbers, head icons and row size",
-            353.0,
-        ),
-        list_row(
-            Entry::Network,
-            "NETWORK",
-            "Master server and connection rates",
-            377.0,
-        ),
-        list_row(
-            Entry::Renderer,
-            "RENDERER",
-            "HDR, bloom, lighting, shadows and day/night",
-            401.0,
         ),
         back,
         exit,
     ]
 };
 
-/// SJK's renderer page (classic+): `setup.menu`'s layout with the renderer
-/// settings' three groups down the left; Back returns to Setup.
-const RENDERER: [Slot; 9] = {
+/// Setup's GRAPHICS (classic+): `setup.menu`'s layout with retail's video
+/// group (its two pages as one), the renderer settings' three groups and the
+/// weather down the left; Back returns to Setup.
+const GRAPHICS: [Slot; 11] = {
     let [play, profile, settings, sjk] = nav_row();
     let [back, exit] = back_exit();
     [
@@ -349,22 +314,34 @@ const RENDERER: [Slot; 9] = {
         settings,
         sjk,
         list_row(
+            Entry::Video,
+            "VIDEO",
+            "Resolution, display, frame rate, field of view and brightness",
+            185.0,
+        ),
+        list_row(
             Entry::RenderImage,
             "IMAGE",
             "HDR, exposure, bloom, glow, edge smoothing, reflections and emission",
-            185.0,
+            209.0,
         ),
         list_row(
             Entry::RenderLighting,
             "LIGHTING",
             "Sun and sky, live lighting, fill light and light shafts",
-            209.0,
+            233.0,
         ),
         list_row(
             Entry::RenderShadows,
             "SHADOWS",
             "Sun shadows: on or off, detail, distance and edges",
-            233.0,
+            257.0,
+        ),
+        list_row(
+            Entry::Weather,
+            "WEATHER",
+            "Rain, snow, fog and clouds: quality, amount, forced weather",
+            281.0,
         ),
         Slot {
             entry: Entry::SetupBack,
@@ -375,6 +352,61 @@ const RENDERER: [Slot; 9] = {
     ]
 };
 
+/// Setup's GAMEPLAY (classic+), laid out as [`GRAPHICS`]: the mouse options
+/// brought over from Controls, and JKR's additions regrouped by subject (game
+/// options, the menus and console, the HUD, the scoreboard), then the network.
+const GAMEPLAY: [Slot; 12] = {
+    let [play, profile, settings, sjk] = nav_row();
+    let [back, exit] = back_exit();
+    [
+        play,
+        profile,
+        settings,
+        sjk,
+        list_row(
+            Entry::MouseJoystick,
+            "MOUSE",
+            "Mouse sensitivity, inversion and always run",
+            185.0,
+        ),
+        list_row(
+            Entry::GameOptions,
+            "GAME OPTIONS",
+            "Pickups, models, saber and Force trails, camera",
+            209.0,
+        ),
+        list_row(
+            Entry::Interface,
+            "INTERFACE",
+            "Menu style, colours and fonts, the console's look",
+            233.0,
+        ),
+        list_row(
+            Entry::Hud,
+            "HUD",
+            "HUD style and scale, status, crosshair, readouts and chat",
+            257.0,
+        ),
+        list_row(
+            Entry::Scoreboard,
+            "SCOREBOARD",
+            "Scoreboard style, client numbers, head icons and row size",
+            281.0,
+        ),
+        list_row(
+            Entry::Network,
+            "NETWORK",
+            "Master server and connection rates",
+            305.0,
+        ),
+        Slot {
+            entry: Entry::SetupBack,
+            hint: "Return to the setup options",
+            ..back
+        },
+        exit,
+    ]
+};
 /// SJK's page behind its button: the start-playing list's layout, holding
 /// SJK's own screens.
 const SJK: [Slot; 10] = {
@@ -429,7 +461,8 @@ pub(super) fn slots(page: Page) -> &'static [Slot] {
         Page::Controls => &CONTROLS,
         Page::Setup => &SETUP,
         Page::Sjk => &SJK,
-        Page::Renderer => &RENDERER,
+        Page::Graphics => &GRAPHICS,
+        Page::Gameplay => &GAMEPLAY,
         Page::Quit => &QUIT,
     }
 }

@@ -195,9 +195,9 @@ work without reducing source count, texture resolution or lighting quality.
 | `r_autoExposureToBright`, `r_autoExposureToDark` | Seconds to settle when the view gets brighter (default 0.4) or darker (default 2.5); 0 is instant. Live, console only |
 | `r_autoExposureKey` | Metered scene luminance shown at the base exposure, 0.03–0.8, default 0.18; higher is brighter. Live, console only |
 | `r_dustMotes` | Dust in godrays, 0 (off) to 1 (default, SJK); live; renderer IMAGE tab; requires `r_volumetrics` |
-| `r_weather` | The map's rain, snow and mist, 1 (default) or 0; live; renderer IMAGE tab. See [Weather](#weather) |
-| `r_weatherDensity` | Weather particle count, 0.25–4; 1 is the original game's, default 2 (SJK); live; renderer IMAGE tab |
-| `r_weatherQuality` | Weather quality, 0 low to 3 ultra, default 2; live; renderer IMAGE tab. See [Weather](#weather) |
+| `r_weather` | The map's rain, snow and mist, 1 (default) or 0; live; renderer WEATHER tab. See [Weather](#weather) |
+| `r_weatherDensity` | Weather particle count, 0.25–4; 1 is the original game's, default 2 (SJK); live; renderer WEATHER tab |
+| `r_weatherQuality` | Weather quality, 0 low to 3 ultra, default 2; live; renderer WEATHER tab. See [Weather](#weather) |
 | `r_weatherForce` | Weather on every map with sky instead of the map's: 0 (default) the map's, 1 drizzle, 2 rain, 3 storm, 4 snow; live |
 | `r_weatherFog` | Ground fog: 0 none, 1 the map's (default), 2 on every map with sky; live |
 | `r_clouds` | Volumetric clouds over open sky, 1 (default) or 0; live |

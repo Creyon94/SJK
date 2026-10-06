@@ -62,7 +62,7 @@ mod tests {
 
     #[test]
     fn the_tab_is_last_so_the_other_tabs_keep_their_numbers() {
-        assert_eq!(TABS[QUICK_TAB], "QUICK");
+        assert_eq!(TABS[QUICK_TAB], FIRST_SETUP_CAPTION);
         assert_eq!(QUICK_TAB, TABS.len() - 1);
     }
 }

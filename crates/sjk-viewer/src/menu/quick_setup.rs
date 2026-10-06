@@ -1,5 +1,5 @@
-//! The Quick setup screen: Settings' QUICK tab, offered once on a first start and
-//! opened again by the `quicksetup` command.
+//! The First setup screen: Settings' FIRST SETUP tab, offered once on a first start
+//! and opened again by the `firstsetup` command (`quicksetup`, its old name).
 
 use super::classic::layout::{Entry, Page};
 use super::classic::panel::Frame;
@@ -7,13 +7,16 @@ use super::*;
 use crate::settings::quick::SEEN_CVAR;
 
 /// Console command that opens the screen.
-pub(crate) const COMMAND: &str = "quicksetup";
+pub(crate) const COMMAND: &str = "firstsetup";
+/// The command's name before the screen was renamed (Quick setup), still accepted.
+pub(crate) const OLD_COMMAND: &str = "quicksetup";
+pub(crate) const OLD_HELP: &str = "Old name of firstsetup";
 /// Help text for completion and `cmdlist`.
-pub(crate) const HELP: &str = "Open Quick setup: the settings worth choosing on a first start";
+pub(crate) const HELP: &str = "Open First setup: the settings worth choosing on a first start";
 
 impl ClientMenu {
-    /// Open the Quick setup screen, returning to `target` when it closes: the
-    /// classic Setup panel's QUICK SETUP group under the classic style, the QUICK
+    /// Open the First setup screen, returning to `target` when it closes: the
+    /// classic Setup panel's FIRST SETUP group under the classic style, the FIRST SETUP
     /// tab of the modern screen otherwise.
     pub(crate) fn open_quick_setup(&mut self, console: &ViewerConsole, target: ReturnTarget) {
         if self.menu_style == MenuStyle::Classic {
@@ -21,7 +24,7 @@ impl ClientMenu {
                 ReturnTarget::MainMenu => Frame::Main,
                 ReturnTarget::InGame => Frame::InGame,
             };
-            if self.open_classic_panel(console, Page::Setup, Entry::QuickSetup, frame, target) {
+            if self.open_classic_panel(console, Page::Setup, Entry::FirstSetup, frame, target) {
                 return;
             }
         }
@@ -74,7 +77,7 @@ mod tests {
         menu.open_quick_setup(&console, ReturnTarget::MainMenu);
         assert_eq!(*menu.state.phase(), ClientPhase::Settings);
         let panel = menu.classic_panel.expect("a classic panel");
-        assert_eq!((panel.page, panel.entry), (Page::Setup, Entry::QuickSetup));
+        assert_eq!((panel.page, panel.entry), (Page::Setup, Entry::FirstSetup));
         assert_eq!(panel.frame, Frame::Main);
         // In a game it is the in-game frame.
         menu.open_quick_setup(&console, ReturnTarget::InGame);
@@ -85,7 +88,7 @@ mod tests {
     }
 
     #[test]
-    fn the_modern_style_opens_the_quick_tab() {
+    fn the_modern_style_opens_the_first_setup_tab() {
         let (_directory, console) = console();
         let mut menu = ClientMenu::new(true, String::new());
         menu.menu_style = MenuStyle::Modern;
