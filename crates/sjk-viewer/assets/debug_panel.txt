@@ -1060,7 +1060,9 @@ test: Empty a weapon: its icon turns to the _na art; empty thermals/trip mines l
 test: Staff or dual saber stance: the saber icon shows a staff or two sabers.
 test: Cycle Force powers right after a switch: the weapon row disappears (most recent selector).
 test: cg_hudScale 1.5: the row grows from the bottom centre; scoreboard held: no row.
-note: SJK's own modern/classic layouts keep their weapon-name widget instead of the row.
+test: Classic, modern and radial HUD looks (SJK PR #19): the same row shows there after a switch.
+test: In those looks the ammo count, arc and Force timer icons stay visible while the row shows.
+note: Since SJK PR #19 the row also shows in SJK's own layouts, which hide their weapon-name widget.
 
 [credit-notice]
 status: personal
@@ -1349,6 +1351,195 @@ test: Join a server and chat: the app shows the chat line; quotes and the !sa bo
 test: Send a command from the app (Cmd mode, or chat mode "say hi"): it runs in the game.
 test: A wrong password in the app is refused. cl_consoleSocket 0 closes the socket.
 note: Never started in a game yet; covered by unit tests over loopback only.
+
+[ejk-camera-fps]
+status: personal
+area: Gameplay
+title: Third-person camera damps per frame like EternalJK, cg_cameraFPS (SJK PR #3)
+change: The third-person camera eases once per frame of cg_cameraFPS (default 125), as EternalJK.
+change: Frame-rate independent; cg_cameraFPS 0 (or under 15) keeps the stock 50 ms damping.
+test: Third person on a JoF server, cg_fov 90, cg_thirdPersonRange 80: run and turn, compare with EJK.
+test: Change the frame rate (com_maxfps / vsync): the camera lag stays the same.
+test: cg_cameraFPS 0: the stock camera lag returns; cg_cameraFPS 125 again: EternalJK's.
+note: cg_cameraFPS 0 was not tried in a game by Creyon94.
+
+[ejk-crosshairs]
+status: personal
+area: HUD
+title: Retail crosshair pictures drawn as EternalJK does, cg_drawCrosshair 0-10 (SJK PR #4)
+change: cg_drawCrosshair 0 hides, 1-8 are crosshairb-i, 9 is a, 10 a white dot; picker in Settings.
+change: cg_crosshairSize 24 is in 480-line units (cg_crosshairSizeScale); default colour is white.
+change: EternalJK's own crosshaira/j from EternalJK/japro-assets.pk3 replace the base ones.
+test: Settings > HUD (or console): step cg_drawCrosshair 0..10 in a game: each picture shows; 0 hides.
+test: cg_crosshairSize 16 and 40, and at 4K: the picture scales and stays square on a wide window.
+test: Aim at a player: the target colour still applies; with default colours the picture is white.
+test: With GameData/EternalJK/japro-assets.pk3 installed, crosshair 9 and 10 use EJK's own pictures.
+note: cg_dynamicCrosshair and cg_crosshairX/Y are unchanged; the vehicle crosshair is not done.
+
+[dismember-disintegrate]
+status: personal
+area: Gameplay
+title: Cut-off limbs (cg_dismember) and bodies burning away, as EternalJK (SJK PR #5)
+change: cg_dismember 1 (no heads or waists) or 2+ (all): cut limbs fly off as their own models.
+change: Disruptor kills and shot corpses burn away from the hit point (always on, no cvar).
+change: g_dismember 0-100 set in the console is handed to games you host (Create game, devmap).
+test: Host with g_dismember 100 and set cg_dismember 3: cut a bot with the saber; limbs fly and smoke.
+test: The body keeps its stump caps; a cut right arm or hand takes the weapon with it.
+test: Kill a bot with the disruptor: it freezes and burns away with a glowing edge, gone in 1.5 s.
+test: cg_dismember 0 (default): no limbs are shown, the whole body stays.
+note: Creyon94 checked it before the last review changes (snapshot borrow, fullbright colours).
+
+[wheel-bind]
+status: personal
+area: Input
+title: Mouse wheel binds in the key-binding form (SJK PR #6)
+change: A wheel notch while a slot waits for a key binds MWHEELUP or MWHEELDOWN.
+change: Small trackpad deltas (under half a notch) do not bind; the wheel scrolls as before otherwise.
+test: Settings > Key bindings: select a slot (e.g. flipkick), turn the wheel: it binds MWHEELUP/DOWN.
+test: Wheel with no slot waiting: the list scrolls as before.
+test: With a trackpad, a tiny scroll does not bind by accident.
+
+[center-print-space]
+status: personal
+area: Console & chat
+title: Centre-print rows break only at a space (SJK PR #7)
+change: A vertical tab in a name no longer splits the row; only the space breaks it, as in EJK.
+test: Be named {JoF}\vToxiee\v{C}.ak (or meet one) when a centre print shows the name: it stays whole.
+
+[win1252-symbols]
+status: personal
+area: Console & chat
+title: Windows-1252 symbols and hidden name codes shown as JKA does (SJK PR #13)
+change: Euro, quotes, trademark and dashes typed or received show instead of ? or blanks.
+change: A vertical tab or unassigned byte in a name draws a dot; chat keeps those symbols.
+change: Friend and tell <name> work for players whose names carry those symbols.
+test: Type say with an euro sign and curly quotes (alt codes or paste): the chat line shows them.
+test: Meet a name such as {JoF}\vToxiee\v{C}.ak: it reads {JoF}.Toxiee.{C}.ak, as in EJK.
+test: tell <part of such a name> hello reaches the player; the classic console closes up those cells.
+
+[ejk-charset]
+status: personal
+area: Console & chat
+title: EternalJK's character set used when installed (SJK PR #22)
+change: GameData/EternalJK/japro-assets.pk3's charsgrid_med replaces the retail set (console, text).
+change: Mounted above base and below the mod directory; nothing else is taken from that pack.
+test: With that pk3 installed, print the text of Latin-1 symbols in the classic console: they draw.
+test: Remove the pk3 (or fs_game with its own set): the retail set returns.
+note: Needs GameData/EternalJK/japro-assets.pk3 (jaPRO).
+
+[clipboard-symbols]
+status: personal
+area: Console & chat
+title: Windows clipboard keeps symbols when copying and pasting (SJK PR #14)
+change: Copy and paste go through PowerShell in UTF-8, so symbols and emoji keep their characters.
+change: Works in PowerShell Constrained Language Mode; a failed copy is reported.
+test: Copy text with symbols from a web page into the console (Ctrl+V): the symbols arrive intact.
+test: Copy from the console or chat and paste into Notepad: the same symbols come back.
+test: Copy several times quickly, then paste: no stale or lost text, no freeze.
+
+[saber-clash-flare]
+status: personal
+area: Rendering & effects
+title: Saber clash no longer flashes the whole screen (SJK PR #10)
+change: The flare shader is found case-insensitively and scaled round on wide screens.
+test: Clash sabers with a bot or player on a JoF server: a short glow shows where the blades meet.
+test: No full-screen yellow-white flash at any clash, at 16:9 and ultra-wide.
+
+[scoreboard-rows]
+status: personal
+area: Console & chat
+title: Every scoreboard row is read on full servers (SJK PR #11)
+change: With more than 20 players, rows no longer show client 0 with zero score and ping.
+change: The row width (14 or 15 fields) comes from the fields actually sent.
+test: Join a server with more than 20 players (JoF's): open the scoreboard; names, scores, pings fine.
+test: A small server (stock or jaPRO): the scoreboard still reads correctly.
+
+[effect-mipmaps]
+status: personal
+area: Rendering & effects
+title: Effect atlas has mipmaps; impact marks draw under explosions (SJK PR #8)
+change: Five mip levels with a border per cell: small or far marks no longer show as black dots.
+change: Impact marks draw before other effects; grey rgbGen const and alphaGen const are honoured.
+test: Shoot a wall from far away: scorch marks are soft, not hard black dots.
+test: Fire a rocket at a wall: the explosion's fire and smoke cover its own scorch mark.
+test: With JoF's HD marks, scorch marks are faint grey (15% at 80% opacity), not solid black.
+note: The border, alpha weighting, draw order and constants were not checked in game yet.
+
+[ejk-animation-fixes]
+status: personal
+area: Gameplay
+title: EternalJK's player animation fixes; attack animations predicted as served (SJK PR #9)
+change: Without a saber, two-handed, dual and staff runs and walks play as the ordinary ones.
+change: The old Bryar's stand shows as ATTACK2 (arm raised); the concussion rifle's as ATTACK3.
+change: Prediction uses the attack table the server runs (CS_LEGACY_FIXES bit 1).
+test: On a JoF server, hold fire with the old Bryar pistol and the concussion rifle: no torso restart.
+test: Run with a weapon out after a saber stance: the run animation is the ordinary one.
+test: Same on a stock server and on SJK's own server: the torso does not jitter on held fire.
+note: Never started in a game; only unit tests (command steps 8/7/4/3 ms) cover it.
+
+[efx-bare-key]
+status: personal
+area: Rendering & effects
+title: EFX blocks keep their closing brace after a bare key (SJK PR #15)
+change: JoF's HD concussion shot.efx has a bare key; the effect used to be rejected.
+test: With JoF_HDWeaponEffects.pk3: fire the concussion rifle's main shot: the trail shows in flight.
+
+[image-order]
+status: personal
+area: Rendering & effects
+title: Images are tried as jpg, png, tga like the engine (SJK PR #17)
+change: A name with no file of its own is tried .jpg, .png, then .tga; a named extension goes first.
+test: With JoF_HDWeaponScopeTrue.pk3, zoom with the disruptor: the HD scope mask shows.
+test: Skim a few maps and HUD icons: nothing turned blank or changed unexpectedly.
+note: Touches every image lookup; watch for HD packs with both .png and .tga of one name.
+
+[view-model-fov]
+status: personal
+area: Rendering & effects
+title: First-person weapon scaled by cg_fovViewmodel (default 80) as EternalJK (SJK PR #16)
+change: The view weapon is drawn with the world projection, its depth scaled by cg_fovViewmodel.
+change: cg_fovViewmodelAdjust and cg_fovAspectAdjust follow EternalJK; 0 draws it with cg_fov.
+change: The hand rig's frames follow the posed torso animation (no idle hand under a shot).
+test: First person, default settings: the gun looks like JoF EJK's side by side.
+test: cg_fovViewmodel 0: the retail look returns; try 60 and 100, and a 21:9 window.
+test: Fire the blaster and pistol: the muzzle flash sits at the barrel; the hand animates on shots.
+note: The default 80 changes the first-person look for everyone; the blaster flash may be 0.45 off.
+
+[zoom-scope]
+status: personal
+area: Rendering & effects
+title: Zoom goes first person, HD scope mask, camera shakes from the view (SJK PR #18)
+change: A zoom (disruptor, binoculars) forces first person; the camera choice returns after it.
+change: The scope mask is gfx/2d/cropcircle2 in engine image order (needs the image-order entry).
+change: cg_screenShake (default 2) gates shakes; they are measured from the rendered view.
+test: Third person, zoom the disruptor: the view goes first person with the scope; unzoom: back.
+test: With the HD scope pack: the round HD mask shows, not a full-screen white picture.
+test: Standing near an explosion: the view shakes; cg_screenShake 0 turns the shakes off.
+test: Fire your own gun: no camera shake from your muzzle flash; crouch: no bump after standing.
+note: The derived camera choice and the muzzle shake rule were not run in a game.
+
+[weapon-world-effects]
+status: personal
+area: Rendering & effects
+title: Trip mine beams, placed charges, charge glow and the concussion beam (SJK PR #20)
+change: Armed trip mines play their laser beam, stretched to the wall; stuck mines lie flat.
+change: Charging Bryar alt fire, bowcaster and DEMP2 alt fire glow at the muzzle.
+change: The concussion rifle's alt fire draws its rings and beam, and the wall hit.
+test: Stick a trip mine on a wall: it lies flat and shows its beam; proximity mode shows glowbit.
+test: Place det packs: they sit flat against the surface, facing out.
+test: Hold the Bryar alt fire, bowcaster and DEMP2 alt: a glow grows at the muzzle for a second.
+test: Fire the concussion rifle's alt fire: rings along the shot, a beam and a wall hit.
+note: The trace budget, ring cap and beam cull were not checked in a game.
+
+[effect-debug]
+status: personal
+area: Console & chat
+title: fx_debug and cg_debugMissiles log effects and missile trails (SJK PR #21)
+change: fx_debug 1 logs each effect as it plays, with shaders and sizes; both default to 0.
+change: cg_debugMissiles 1 logs missile trails once a second. Not archived.
+test: fx_debug 1, fire a weapon: the log lists the effects; fx_debug 0 stops it.
+test: cg_debugMissiles 1, fire rockets: one log line per second about the trails; then set 0.
+note: The log output was not checked in a running client.
 
 # ---- Merged upstream ----
 
