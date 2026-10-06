@@ -11,10 +11,18 @@ pub(crate) struct Entry {
 }
 
 /// The pop-up's entries, top to bottom; the modern page adds Back after them.
-pub(crate) const ENTRIES: [Entry; 1] = [Entry {
-    label: "Changelog",
-    hint: "What changed in each SJK release, and who made it",
-}];
+pub(crate) const ENTRIES: [Entry; 2] = [
+    Entry {
+        label: "Changelog",
+        hint: "What changed in each SJK release, and who made it",
+    },
+    Entry {
+        label: "Identity",
+        hint: "Your SJK key and profile, and the players the hub knows here",
+    },
+];
 
 /// Row of the Changelog entry.
 pub(crate) const CHANGELOG: usize = 0;
+/// Row of the Identity entry.
+pub(crate) const IDENTITY: usize = 1;

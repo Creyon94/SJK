@@ -432,6 +432,18 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Look for a newer SJK release when the client starts (the Update page installs it)",
         ),
         CvarDefinition::new(
+            "cl_identity",
+            true,
+            archive,
+            "Keep an identity key and tell the SJK hub which game server you are on, so other SJK players see your badge (sends nothing without cl_hubUrl)",
+        ),
+        CvarDefinition::new(
+            "cl_hubUrl",
+            crate::player_identity::DEFAULT_HUB_URL,
+            archive,
+            "Address of the SJK hub (https://...); empty means no hub",
+        ),
+        CvarDefinition::new(
             "cl_updateAs",
             "",
             CvarFlags::NONE,

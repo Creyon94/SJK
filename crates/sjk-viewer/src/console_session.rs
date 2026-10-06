@@ -301,6 +301,7 @@ impl ViewerConsole {
             debug_panel: super::debug_panel::Panel::new(&config_directory),
             changelog: super::changelog::Panel::new(),
             update_panel: super::update_panel::Panel::new(),
+            identity_panel: super::identity_panel::Panel::new(),
             userinfo_dirty,
             show_timedelta,
             time_nudge,

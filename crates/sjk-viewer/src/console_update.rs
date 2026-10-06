@@ -27,6 +27,7 @@ impl ViewerConsole {
         self.browser.close();
         self.debug_panel.close();
         self.changelog.close();
+        self.identity_panel.close();
         self.dead_key.settle();
         self.update_panel.open(owns_console);
         if matches!(crate::update::state(), crate::update::State::Idle) {

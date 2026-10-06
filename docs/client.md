@@ -1050,6 +1050,28 @@ The client looks for a newer SJK release when it starts and from the Update page
   that and never offers an update. `cl_updateAs 2026.1001.1` makes it check as if
   it were that release, to try the page without a release build.
 
+## Identity
+
+SJK keeps an identity key and can show other SJK players on a server as `SJK` or
+`VERIFIED` on the scoreboard; the design, limits and privacy are in
+[identity.md](identity.md).
+
+- `cl_identity` (default 1; Settings > Network > SJK identity) makes the key
+  (`identity.key` beside `config.cfg`) the first time it is on and lets the client
+  talk to the hub. Off sends nothing and makes no key.
+- `cl_hubUrl` (default empty; Settings > Network > SJK hub) is the hub's
+  `https://` address. Empty means no hub, so nothing is sent.
+- The `identity` command opens the Identity page: the key id, the profile at the
+  hub (name, whether it is verified, bio), the hub's status and the players it knows
+  on the current server. The in-game SJK menu has an Identity entry too. `identity
+  name <text>` and `identity bio <text>` change the profile, `identity key` prints
+  the key id and file, `identity who [slot]` lists known players (with a slot, that
+  player's bio).
+- The scoreboard (both styles) writes `SJK` after the name of a player the hub
+  knows, or `VERIFIED` in gold when the hub's operator vouches for them. It trusts a
+  claim only when the claimed name matches the name the game shows in that slot.
+- Back up `identity.key`: losing it loses the identity.
+
 ## Force wheel
 
 With the `game` and `classic` HUD styles, `forcenext`/`forceprev` show JoF

@@ -7,6 +7,7 @@ members = [
     "crates/sjk-entity",
     "crates/sjk-game-jka",
     "crates/sjk-icarus",
+    "crates/sjk-identity",
     "crates/sjk-materialgen",
     "crates/sjk-effect",
     "crates/sjk-model",
@@ -37,6 +38,7 @@ sjk-client = { path = "crates/sjk-client" }
 sjk-entity = { path = "crates/sjk-entity" }
 sjk-game-jka = { path = "crates/sjk-game-jka" }
 sjk-icarus = { path = "crates/sjk-icarus" }
+sjk-identity = { path = "crates/sjk-identity" }
 sjk-effect = { path = "crates/sjk-effect" }
 sjk-model = { path = "crates/sjk-model" }
 sjk-nav = { path = "crates/sjk-nav" }
