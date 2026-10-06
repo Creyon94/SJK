@@ -45,6 +45,7 @@ struct Runtime {
     key_error: Option<String>,
     sent_settings: Option<Settings>,
     sent_location: Option<Location>,
+    sent_name: Option<String>,
     next_sync: Option<Instant>,
 }
 
@@ -53,6 +54,7 @@ static RUNTIME: Mutex<Runtime> = Mutex::new(Runtime {
     key_error: None,
     sent_settings: None,
     sent_location: None,
+    sent_name: None,
     next_sync: None,
 });
 
@@ -107,8 +109,15 @@ pub(crate) fn due() -> bool {
     true
 }
 
-/// Bring the service in line with the settings and the player's place.
-pub(crate) fn apply(config_directory: &Path, settings: Settings, location: Option<Location>) {
+/// Bring the service in line with the settings, the in-game `name` the player wears
+/// (the `name` setting, which the hub keeps in the key's name history: the player
+/// chooses nothing) and the player's place.
+pub(crate) fn apply(
+    config_directory: &Path,
+    settings: Settings,
+    name: String,
+    location: Option<Location>,
+) {
     let mut runtime = lock();
     if runtime.service.is_none() {
         if !settings.enabled || runtime.key_error.is_some() {
@@ -134,6 +143,10 @@ pub(crate) fn apply(config_directory: &Path, settings: Settings, location: Optio
     let Some(service) = runtime.service.as_ref() else {
         return;
     };
+    if runtime.sent_name.as_ref() != Some(&name) {
+        service.set_name(name.clone());
+        runtime.sent_name = Some(name);
+    }
     if runtime.sent_settings.as_ref() != Some(&settings) {
         service.configure(settings.clone());
         runtime.sent_settings = Some(settings);
@@ -187,13 +200,41 @@ pub(crate) fn hub_info(slot: u8, shown: &str) -> Option<crate::hud::player_card:
     })
 }
 
-/// Ask the hub to change the player's display name and bio. The result shows in
+/// The slots of the players the hub's operator vouches for on this server, as bits:
+/// each one whose claim names the name the game shows there, and the local player's
+/// own slot when its key is verified. For the nameplates' verified badge.
+pub(crate) fn verified_slots(game_state: &GameState) -> u32 {
+    let runtime = lock();
+    let Some(service) = runtime.service.as_ref() else {
+        return 0;
+    };
+    service.with_snapshot(|snapshot| {
+        let mut slots = snapshot
+            .players
+            .iter()
+            .filter(|player| player.verified && usize::from(player.slot) < MAX_CLIENTS)
+            .filter(|player| {
+                shown_name(game_state, usize::from(player.slot))
+                    .is_some_and(|shown| sjk_identity::names_match(&player.claimed_name, &shown))
+            })
+            .fold(0_u32, |bits, player| bits | 1 << player.slot);
+        if snapshot.me.as_ref().is_some_and(|me| me.verified)
+            && let Ok(own) = u32::try_from(game_state.client_num)
+            && own < MAX_CLIENTS as u32
+        {
+            slots |= 1 << own;
+        }
+        slots
+    })
+}
+
+/// Ask the hub to change the player's bio. The result shows in
 /// [`Snapshot::notice`].
-pub(crate) fn set_profile(name: String, bio: String) -> bool {
+pub(crate) fn set_bio(bio: String) -> bool {
     lock()
         .service
         .as_ref()
-        .map(|service| service.set_profile(name, bio))
+        .map(|service| service.set_bio(bio))
         .is_some()
 }
 
@@ -222,5 +263,6 @@ mod tests {
         assert_eq!(tag(3, "Sol"), None);
         assert_eq!(revision(), 0);
         assert!(snapshot().is_none());
+        assert_eq!(verified_slots(&GameState::empty_local(0)), 0);
     }
 }

@@ -2,10 +2,12 @@
 
 SJK players can be recognised across servers without accounts or passwords. Each
 install keeps an Ed25519 key; a small web service, the SJK hub, maps public keys to
-a display name, a bio and a "verified" flag its operator sets; and while a player is
-on a game server, their client tells the hub which slot they are in, so other SJK
-clients can put a badge on that scoreboard row. The game works without the hub; the
-badges and profiles are an extra.
+the in-game names they have worn, an optional bio and a "verified" flag its operator
+sets; and while a player is on a game server, their client tells the hub which slot
+they are in, so other SJK clients can mark that player on the scoreboard and put a
+gold verified badge after a verified player's nameplate. A player does nothing: the
+key is made, registered and kept up to date on its own, under the name they play
+with. The game works without the hub; the badges and profiles are an extra.
 
 This page is the design and the current limits. The player-facing summary is
 [client.md](client.md#identity).
@@ -29,15 +31,25 @@ vector that both test suites check, so a drift in either shows as a failing test
 1. With `cl_identity` on (the default), the first start creates `identity.key` in
    the settings folder beside `config.cfg`. With it off, no key is made.
 2. With `cl_hubUrl` set, a worker thread registers the key at the hub (a request
-   signed by the key, which proves the client holds it) and fetches its profile.
+   signed by the key, which proves the client holds it) with the in-game name the
+   player wears (the `name` setting), and fetches its profile. When the name changes
+   it registers again with the new one. The hub keeps each key's worn names (20 most
+   recent, with when it first and last saw each), and a profile's name is the one
+   worn last unless the operator gave the key another. Nobody chooses a hub name, so
+   two keys may wear one name: the name proves nothing, the key does.
 3. While the client is in a live, non-local session, the thread repeats a *claim*
    every 45 seconds: "this key is in slot N of server S, shown as NAME". Claims
    live 90 seconds at the hub and are withdrawn when the player leaves or quits.
 4. The thread reads the hub's list of claims for the server every 15 seconds. The
-   scoreboard marks a row with SJK's emblem, in gold when verified, and the player
-   card shows the hub name, when a claim names that slot and its claimed name
-   matches the name the game shows there (compared after lower-casing and dropping
-   colour codes and symbols).
+   scoreboard marks a row with SJK's emblem, in gold when verified, the player card
+   shows the hub name, and a verified player's nameplate gets a gold badge after the
+   name (`ui_renderer/verified_badge.rs`, read once a second), when a claim names
+   that slot and its claimed name matches the name the game shows there (compared
+   after lower-casing and dropping colour codes and symbols). The local player's own
+   plate (`cg_nameplateSelf`) has the badge when their own key is verified.
+
+Verification is the operator's alone (the hub's `verify` command or SM's SJK screen,
+which list every key with its worn names); a player asks for nothing and sets nothing.
 
 Nothing blocks a frame: the viewer compares settings and place with what the thread
 was last told twice a second, and the scoreboard re-derives its marks only when the
@@ -60,10 +72,11 @@ is planned, not implemented.
 
 ## Privacy
 
-With `cl_identity` on and `cl_hubUrl` set the hub receives the player's public key,
-the game server address, slot and in-game name for as long as they play, and sees
-their IP address. Claims are deleted 90 seconds after they stop being repeated;
-profiles stay until the operator removes them. With either setting off the client
+With `cl_identity` on and `cl_hubUrl` set the hub receives the player's public key
+and in-game name at start and whenever the name changes, the game server address,
+slot and in-game name for as long as they play, and sees their IP address. Claims
+are deleted 90 seconds after they stop being repeated; profiles and the worn-name
+history stay until the operator removes them. With either setting off the client
 sends nothing. Since 06/10/2026 `cl_hubUrl` defaults to `https://sjk.dfox.app` so players
 set nothing: a default install makes a key and tells that hub where it plays. The
 Identity page, the setting's help and the changelog say what is sent and that
@@ -76,11 +89,13 @@ Identity page, the setting's help and the changelog say what is sent and that
   It must be `https://host[:port]` with no path; plain `http://` is accepted for
   localhost only.
 - The Identity page (main menu > SJK > IDENTITY, the in-game SJK menu, or the `identity`
-  command) is the interface: the on/off switch, the name and bio fields with Save, a button
-  that copies the key id, the key file's location and the players the hub knows here. The
-  words do the same without it: `identity name <text>` and `identity bio <text>` set the
-  profile at the hub, `identity key` shows the key id and file, `identity who [slot]` lists
-  the players the hub knows here (with a slot, their bio).
+  command) shows what the hub knows: the name worn now and up to three earlier ones,
+  whether the key is verified, the key file's location and the players the hub knows here.
+  Its controls are optional: the on/off switch, a bio field with Save, a button that copies
+  the key id. The words do the same without it: `identity bio <text>` sets the bio,
+  `identity key` shows the key id and file, `identity who [slot]` lists the players the hub
+  knows here (with a slot, their bio). `identity name` explains that the name is the one
+  played under (`/name`).
 
 ## The key file
 

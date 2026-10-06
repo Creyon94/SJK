@@ -16,4 +16,4 @@ pub mod wire;
 pub use hub::{HttpHub, Hub, HubError, valid_base_url};
 pub use keys::{Identity, KeyError};
 pub use service::{HubFactory, Location, Service, Settings, Snapshot, Status};
-pub use wire::{Presence, Profile, names_match, normal_form};
+pub use wire::{Presence, Profile, WornName, names_match, normal_form};

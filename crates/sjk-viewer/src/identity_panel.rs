@@ -1,6 +1,7 @@
-//! The Identity page: switch the SJK identity on or off, choose the name and bio other SJK
-//! players see, copy the key id, and see who the hub knows on the server (state and work in
-//! `player_identity.rs`; the same things can be typed with `identity_command.rs`).
+//! The Identity page: switch the SJK identity on or off, write an optional bio, copy the key
+//! id, and see who the hub knows on the server (state and work in `player_identity.rs`; the
+//! same things can be typed with `identity_command.rs`). There is no name to choose: the hub
+//! takes the name the player plays under, so a new player has nothing to do here.
 //!
 //! Opened by the main menu's SJK page, the in-game SJK menu or the `identity` console
 //! command. Like the Update page it lives in the console and is drawn in place of it. Tab,
@@ -21,14 +22,14 @@ mod classic;
 
 /// Most known players the page lists.
 const PLAYERS_SHOWN: usize = 5;
-/// The hub's limits, in characters.
-pub(crate) const NAME_LIMIT: usize = 24;
+/// The hub's limit on a bio, in characters.
 pub(crate) const BIO_LIMIT: usize = 500;
+/// Earlier names the page lists after the current one.
+const EARLIER_NAMES: usize = 3;
 /// How long "Copied" stays after the key id went to the clipboard.
 const COPIED_FOR: Duration = Duration::from_millis(1500);
 
 const TOGGLE_TOKEN: u16 = 930;
-const NAME_TOKEN: u16 = 931;
 const BIO_TOKEN: u16 = 932;
 const SAVE_TOKEN: u16 = 933;
 const COPY_TOKEN: u16 = 934;
@@ -41,9 +42,8 @@ pub(crate) enum PanelAction {
     Close,
     /// Switch the identity (`cl_identity`) on or off.
     SetEnabled(bool),
-    /// Send the name and bio to the hub.
+    /// Send the bio to the hub.
     Save {
-        name: String,
         bio: String,
     },
     /// Put the key id on the clipboard.
@@ -56,7 +56,6 @@ pub(crate) enum PanelAction {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum Focus {
     Toggle,
-    Name,
     Bio,
     Save,
     Copy,
@@ -68,7 +67,6 @@ impl Focus {
     fn token(self) -> u16 {
         match self {
             Self::Toggle => TOGGLE_TOKEN,
-            Self::Name => NAME_TOKEN,
             Self::Bio => BIO_TOKEN,
             Self::Save => SAVE_TOKEN,
             Self::Copy => COPY_TOKEN,
@@ -80,9 +78,8 @@ impl Focus {
 /// The controls Tab visits, in order: with the identity off only the switch exists, and
 /// the way back to SJK's own hub only while it is offered.
 fn order(fields: bool, hub: bool) -> &'static [Focus] {
-    const ALL: [Focus; 6] = [
+    const ALL: [Focus; 5] = [
         Focus::Toggle,
-        Focus::Name,
         Focus::Bio,
         Focus::Save,
         Focus::Copy,
@@ -90,7 +87,7 @@ fn order(fields: bool, hub: bool) -> &'static [Focus] {
     ];
     match (fields, hub) {
         (false, _) => &ALL[..1],
-        (true, false) => &ALL[..5],
+        (true, false) => &ALL[..4],
         (true, true) => &ALL,
     }
 }
@@ -141,8 +138,7 @@ pub(crate) struct Panel {
     owns_console: bool,
     ui: MenuCanvas,
     focus: Focus,
-    /// The name and bio being typed.
-    name: String,
+    /// The bio being typed.
     bio: String,
     /// Something was typed since the hub's copy was last the same: the hub's copy then
     /// does not replace the draft.
@@ -278,6 +274,20 @@ fn view(inputs: &Inputs<'_>) -> View {
     view
 }
 
+/// `name` without its Quake colour codes, as a line of the page shows it.
+fn plain_name(name: &str) -> String {
+    let mut out = String::new();
+    let mut chars = name.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '^' && chars.peek().is_some_and(|next| *next != '^') {
+            chars.next();
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
 fn online(snapshot: &Snapshot, key: String, backup: [String; 2]) -> View {
     let mut lines = vec![key];
     let headline = match &snapshot.me {
@@ -285,17 +295,30 @@ fn online(snapshot: &Snapshot, key: String, backup: [String; 2]) -> View {
             lines.push(if me.verified {
                 "Verified: the hub's operator vouches for this key.".to_owned()
             } else {
-                "Not verified.".to_owned()
+                "Not verified yet. Nothing to do: the hub's operator verifies players.".to_owned()
             });
+            let earlier: Vec<String> = me
+                .names
+                .iter()
+                .map(|worn| plain_name(&worn.name))
+                .filter(|name| *name != plain_name(&me.name))
+                .take(EARLIER_NAMES)
+                .collect();
+            if !earlier.is_empty() {
+                lines.push(format!("Also known as: {}", earlier.join(", ")));
+            }
             if me.name.is_empty() {
-                "Registered: choose a name below".to_owned()
+                "Registered".to_owned()
             } else {
-                me.name.clone()
+                plain_name(&me.name)
             }
         }
         None => "Registered".to_owned(),
     };
     lines.extend(backup);
+    lines.push(
+        "Your SJK name is the name you play under; the hub keeps the names you wear.".to_owned(),
+    );
     lines
         .push("The hub gets your public key, your in-game name and the server and slot".to_owned());
     lines.push("you play in, while you play. Switching the identity off stops it.".to_owned());
@@ -313,7 +336,6 @@ impl Panel {
             owns_console: false,
             ui: MenuCanvas::with_capacities(160, 640, 512),
             focus: Focus::Toggle,
-            name: String::new(),
             bio: String::new(),
             edited: false,
             enabled: false,
@@ -373,16 +395,10 @@ impl Panel {
         self.copied_until = Some(Instant::now() + COPIED_FOR);
     }
 
-    /// Send what was typed, if it can be sent.
+    /// Send the bio that was typed.
     fn save(&mut self) -> PanelAction {
-        let name = self.name.trim().to_owned();
-        if name.is_empty() {
-            self.message = "Give yourself a name first.".to_owned();
-            return PanelAction::None;
-        }
         self.message.clear();
         PanelAction::Save {
-            name,
             bio: self.bio.trim().to_owned(),
         }
     }
@@ -391,7 +407,7 @@ impl Panel {
     fn activate(&mut self) -> PanelAction {
         match self.focus {
             Focus::Toggle => PanelAction::SetEnabled(!self.enabled),
-            Focus::Name | Focus::Bio | Focus::Save => self.save(),
+            Focus::Bio | Focus::Save => self.save(),
             Focus::Copy => PanelAction::CopyKeyId,
             Focus::Hub => PanelAction::UseDefaultHub,
         }
@@ -399,7 +415,6 @@ impl Panel {
 
     fn field(&mut self) -> Option<(&mut String, usize)> {
         match self.focus {
-            Focus::Name if self.fields => Some((&mut self.name, NAME_LIMIT)),
             Focus::Bio if self.fields => Some((&mut self.bio, BIO_LIMIT)),
             _ => None,
         }
@@ -459,10 +474,7 @@ impl Panel {
                 self.focus = Focus::Toggle;
                 PanelAction::SetEnabled(!self.enabled)
             }
-            Some(NAME_TOKEN) if self.fields => {
-                self.focus = Focus::Name;
-                PanelAction::None
-            }
+
             Some(BIO_TOKEN) if self.fields => {
                 self.focus = Focus::Bio;
                 PanelAction::None
@@ -483,7 +495,7 @@ impl Panel {
         }
     }
 
-    /// Take the hub's copy of the profile into the fields unless the player is typing.
+    /// Take the hub's copy of the bio into its field unless the player is typing.
     fn sync(&mut self, inputs: &Inputs<'_>) {
         self.enabled = inputs.enabled && inputs.key_error.is_none();
         self.fields = self.enabled && inputs.snapshot.is_some();
@@ -495,10 +507,9 @@ impl Panel {
             self.focus = Focus::Copy;
         }
         if let Some(me) = inputs.snapshot.and_then(|snapshot| snapshot.me.as_ref()) {
-            if self.name == me.name && self.bio == me.bio {
+            if self.bio == me.bio {
                 self.edited = false;
             } else if !self.edited {
-                self.name.clone_from(&me.name);
                 self.bio.clone_from(&me.bio);
             }
         }
@@ -576,7 +587,7 @@ impl Panel {
         let pad = 24.0 * s;
         let line = 22.0 * s;
         let fields_height = if self.fields {
-            2.0 * 76.0 * s + 56.0 * s
+            76.0 * s + 56.0 * s
         } else {
             0.0
         };
@@ -628,38 +639,26 @@ impl Panel {
         );
         y += 58.0 * s;
         if self.fields {
-            let name = std::mem::take(&mut self.name);
             let bio = std::mem::take(&mut self.bio);
-            for (label, token, text, hint, focus) in [
-                (
-                    "Your name (up to 24 characters, what other SJK players see)",
-                    NAME_TOKEN,
-                    &name,
-                    "Your name",
-                    Focus::Name,
-                ),
-                (
-                    "About you (up to 500 characters)",
-                    BIO_TOKEN,
-                    &bio,
-                    "Say something about yourself",
-                    Focus::Bio,
-                ),
-            ] {
-                self.ui.text(
-                    label,
-                    Rect::new(left, y, inner, 18.0 * s),
-                    12.0 * s,
-                    theme.muted,
-                    FontWeight::Semibold,
-                    0.4 * s,
-                );
-                let rect = Rect::new(left, y + 20.0 * s, inner, 44.0 * s);
-                let focused = self.focus == focus;
-                self.draw_field(rect, token, text, hint, focused, s);
-                y += 76.0 * s;
-            }
-            self.name = name;
+            self.ui.text(
+                "About you (optional, up to 500 characters)",
+                Rect::new(left, y, inner, 18.0 * s),
+                12.0 * s,
+                theme.muted,
+                FontWeight::Semibold,
+                0.4 * s,
+            );
+            let rect = Rect::new(left, y + 20.0 * s, inner, 44.0 * s);
+            let focused = self.focus == Focus::Bio;
+            self.draw_field(
+                rect,
+                BIO_TOKEN,
+                &bio,
+                "Say something about yourself",
+                focused,
+                s,
+            );
+            y += 76.0 * s;
             self.bio = bio;
             let save = Rect::new(left, y, 150.0 * s, 44.0 * s);
             self.ui.button_styled(
@@ -753,7 +752,7 @@ impl Panel {
         }
         let enter = match self.focus {
             Focus::Toggle => "Switch",
-            Focus::Name | Focus::Bio | Focus::Save => "Save",
+            Focus::Bio | Focus::Save => "Save",
             Focus::Copy => "Copy",
             Focus::Hub => "Use",
         };
@@ -773,16 +772,14 @@ impl Panel {
 
 #[cfg(test)]
 impl Panel {
-    /// The page as if the player had typed `name` and `bio` and the keyboard were on `focus`
-    /// (`name`, `bio`, `save`, `copy`, anything else is the switch), for the off-screen
-    /// snapshots (`menu_snapshot.rs`).
-    pub(crate) fn preview(&mut self, name: &str, bio: &str, focus: &str, message: &str) {
-        self.name = name.to_owned();
+    /// The page as if the player had typed `bio` and the keyboard were on `focus` (`bio`,
+    /// `save`, `copy`, anything else is the switch), for the off-screen snapshots
+    /// (`menu_snapshot.rs`).
+    pub(crate) fn preview(&mut self, bio: &str, focus: &str, message: &str) {
         self.bio = bio.to_owned();
         self.edited = true;
         self.message = message.to_owned();
         self.focus = match focus {
-            "name" => Focus::Name,
             "bio" => Focus::Bio,
             "save" => Focus::Save,
             "copy" => Focus::Copy,
@@ -829,6 +826,7 @@ mod tests {
             bio: bio.to_owned(),
             verified: false,
             created: 0,
+            names: Vec::new(),
         }
     }
 
@@ -910,12 +908,32 @@ mod tests {
     }
 
     #[test]
-    fn a_player_without_a_name_is_asked_for_one() {
+    fn the_headline_is_the_name_worn_in_game_and_earlier_names_follow() {
         let mut state = snapshot(Status::Online);
         state.me = Some(me("", ""));
-        assert_eq!(
-            view(&inputs(Some(&state))).headline,
-            "Registered: choose a name below"
+        let shown = view(&inputs(Some(&state)));
+        assert_eq!(shown.headline, "Registered");
+        assert!(
+            shown
+                .lines
+                .iter()
+                .any(|line| line.contains("Nothing to do"))
+        );
+        let worn = |name: &str, seen| sjk_identity::WornName {
+            name: name.to_owned(),
+            first_seen: seen,
+            last_seen: seen,
+        };
+        state.me = Some(Profile {
+            names: vec![worn("^1Sol", 9), worn("^2Fox", 5), worn("Padawan", 1)],
+            ..me("^1Sol", "")
+        });
+        let shown = view(&inputs(Some(&state)));
+        assert_eq!(shown.headline, "Sol");
+        assert!(
+            shown
+                .lines
+                .contains(&"Also known as: Fox, Padawan".to_owned())
         );
     }
 
@@ -945,10 +963,10 @@ mod tests {
 
     #[test]
     fn tab_walks_the_controls_and_wraps_and_the_switch_stands_alone_when_off() {
-        assert_eq!(step(Focus::Toggle, true, true, false), Focus::Name);
+        assert_eq!(step(Focus::Toggle, true, true, false), Focus::Bio);
         assert_eq!(step(Focus::Copy, true, true, false), Focus::Toggle);
         assert_eq!(step(Focus::Toggle, false, true, false), Focus::Copy);
-        assert_eq!(step(Focus::Bio, false, true, false), Focus::Name);
+        assert_eq!(step(Focus::Bio, false, true, false), Focus::Toggle);
         assert_eq!(step(Focus::Bio, true, false, false), Focus::Toggle);
     }
 
@@ -1020,16 +1038,13 @@ mod tests {
     }
 
     #[test]
-    fn saving_needs_a_name_and_trims_what_it_sends() {
+    fn saving_sends_the_trimmed_bio_even_an_empty_one() {
         let mut panel = Panel::new();
-        assert_eq!(panel.save(), PanelAction::None);
-        assert!(panel.message.contains("name"));
-        panel.name = "  Sol  ".to_owned();
+        assert_eq!(panel.save(), PanelAction::Save { bio: String::new() });
         panel.bio = " hi \n".to_owned();
         assert_eq!(
             panel.save(),
             PanelAction::Save {
-                name: "Sol".to_owned(),
                 bio: "hi".to_owned()
             }
         );
@@ -1037,27 +1052,24 @@ mod tests {
     }
 
     #[test]
-    fn the_hubs_copy_fills_the_fields_until_the_player_types() {
+    fn the_hubs_copy_fills_the_bio_until_the_player_types() {
         let mut panel = Panel::new();
         let mut state = snapshot(Status::Online);
         state.me = Some(me("Sol", "about"));
         panel.sync(&inputs(Some(&state)));
-        assert_eq!((panel.name.as_str(), panel.bio.as_str()), ("Sol", "about"));
+        assert_eq!(panel.bio, "about");
         // The player edits: the hub's copy no longer replaces the draft.
-        panel.name = "Sol Vulpes".to_owned();
+        panel.bio = "about me".to_owned();
         panel.edited = true;
         panel.sync(&inputs(Some(&state)));
-        assert_eq!(panel.name, "Sol Vulpes");
+        assert_eq!(panel.bio, "about me");
         // Once the hub has the same text, the draft follows the hub again.
-        state.me = Some(me("Sol Vulpes", "about"));
+        state.me = Some(me("Sol", "about me"));
         panel.sync(&inputs(Some(&state)));
         assert!(!panel.edited);
-        state.me = Some(me("Elsewhere", "changed in SM"));
+        state.me = Some(me("Sol", "changed in SM"));
         panel.sync(&inputs(Some(&state)));
-        assert_eq!(
-            (panel.name.as_str(), panel.bio.as_str()),
-            ("Elsewhere", "changed in SM")
-        );
+        assert_eq!(panel.bio, "changed in SM");
     }
 
     #[test]

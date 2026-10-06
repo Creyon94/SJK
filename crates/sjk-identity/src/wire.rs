@@ -15,7 +15,8 @@ pub struct Profile {
     pub key_id: String,
     /// The public key, unpadded base64url.
     pub key: String,
-    /// Display name; empty until the player sets one.
+    /// Display name: the name the operator gave the key, else the in-game name it
+    /// last wore; empty while the hub has seen neither.
     pub name: String,
     /// Free text the player wrote about themselves.
     pub bio: String,
@@ -23,6 +24,21 @@ pub struct Profile {
     pub verified: bool,
     /// Registration time, unix seconds.
     pub created: i64,
+    /// In-game names the key has worn, most recent first (absent from hubs older
+    /// than the name history).
+    #[serde(default)]
+    pub names: Vec<WornName>,
+}
+
+/// One in-game name a key has worn, as the hub saw it in registrations and claims.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct WornName {
+    /// The name with its colour codes.
+    pub name: String,
+    /// When the hub first saw it, unix seconds.
+    pub first_seen: i64,
+    /// When the hub last saw it, unix seconds.
+    pub last_seen: i64,
 }
 
 /// One live claim on a game server and who made it.
@@ -139,6 +155,13 @@ mod tests {
         )
         .unwrap();
         assert!(profile.verified);
+        assert!(profile.names.is_empty(), "an older hub sends no history");
+        let profile: Profile = serde_json::from_str(
+            r#"{"key_id":"aa","key":"bb","name":"Sol","bio":"","verified":false,"created":5,
+                "names":[{"name":"^1Sol","first_seen":1,"last_seen":9}]}"#,
+        )
+        .unwrap();
+        assert_eq!(profile.names[0].name, "^1Sol");
         let presence: Presence = serde_json::from_str(
             r#"{"slot":3,"claimed_name":"x","key_id":"aa","name":"Sol","verified":false}"#,
         )

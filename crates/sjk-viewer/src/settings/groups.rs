@@ -108,6 +108,7 @@ impl Group {
                 "cg_nameplateForce",
                 "cg_nameplatePredict",
                 "cg_nameplateWeapon",
+                "cg_nameplateSelf",
                 "cg_nameplateIcons",
                 "cg_nameplateWalls",
                 "cg_nameplateNpcs",

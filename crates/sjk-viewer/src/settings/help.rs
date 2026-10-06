@@ -225,6 +225,10 @@ const HELP: &[(&str, &str)] = &[
         "Health and shield of other players, estimated from their hits and pains; grey haze: how unsure.",
     ),
     (
+        "cg_nameplateSelf",
+        "Your own nameplate over your head in third person, with your real bars.",
+    ),
+    (
         "cg_nameplateWeapon",
         "The weapon a player holds, left of the nameplate. A saber is ringed in its stance's colour.",
     ),

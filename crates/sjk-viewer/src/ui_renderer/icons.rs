@@ -48,8 +48,11 @@ pub(crate) const LOGO_ICON: u32 = FORCE_WHEEL_ICON_FIRST + FORCE_WHEEL_ICON_CELL
 pub(crate) const CROSSHAIR_ICON_FIRST: u32 = LOGO_ICON + 1;
 /// Crosshair cells: one per retail picture (`NUM_CROSSHAIRS`).
 pub(crate) const CROSSHAIR_ICON_CELLS: u32 = 10;
+/// The cell holding the verified badge (`ui_renderer::VERIFIED_TEXTURE`), after the
+/// crosshairs'.
+pub(crate) const VERIFIED_ICON: u32 = CROSSHAIR_ICON_FIRST + CROSSHAIR_ICON_CELLS;
 /// Every icon cell; the banner strip lies below the last row.
-pub(crate) const ATLAS_CELLS: u32 = CROSSHAIR_ICON_FIRST + CROSSHAIR_ICON_CELLS;
+pub(crate) const ATLAS_CELLS: u32 = VERIFIED_ICON + 1;
 const TOTAL_CELLS: u32 = ATLAS_CELLS;
 const ATLAS_HEIGHT: u32 = TOTAL_CELLS.div_ceil(COLUMNS) * ICON_SIZE + BANNER_SIZE[1];
 /// `TexturedQuad` texture naming the banner strip.

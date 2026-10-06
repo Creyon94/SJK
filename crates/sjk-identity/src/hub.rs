@@ -45,15 +45,12 @@ impl std::error::Error for HubError {}
 
 /// What the client asks of a hub (`PROTOCOL.md`, "Endpoints").
 pub trait Hub: Send {
-    /// Register the identity's key, or fetch its profile if it is known.
-    fn register(&mut self, identity: &Identity) -> Result<Profile, HubError>;
-    /// Set the identity's display name and bio.
-    fn set_profile(
-        &mut self,
-        identity: &Identity,
-        name: &str,
-        bio: &str,
-    ) -> Result<Profile, HubError>;
+    /// Register the identity's key, or fetch its profile if it is known, telling
+    /// the hub the in-game `name` the player wears, which it keeps in the key's
+    /// name history.
+    fn register(&mut self, identity: &Identity, name: Option<&str>) -> Result<Profile, HubError>;
+    /// Set the identity's bio (the name is the one worn in game).
+    fn set_bio(&mut self, identity: &Identity, bio: &str) -> Result<Profile, HubError>;
     /// Any player's public profile.
     fn profile(&mut self, key_id: &str) -> Result<Profile, HubError>;
     /// Say the identity's player is in `slot` of `server` as `name`.
@@ -232,17 +229,16 @@ fn parse<T: DeserializeOwned>(value: Value) -> Result<T, HubError> {
 }
 
 impl Hub for HttpHub {
-    fn register(&mut self, identity: &Identity) -> Result<Profile, HubError> {
-        parse(self.send(Some(identity), "POST", "/v1/register", Some(json!({})))?)
+    fn register(&mut self, identity: &Identity, name: Option<&str>) -> Result<Profile, HubError> {
+        let body = match name {
+            Some(name) => json!({ "name": name }),
+            None => json!({}),
+        };
+        parse(self.send(Some(identity), "POST", "/v1/register", Some(body))?)
     }
 
-    fn set_profile(
-        &mut self,
-        identity: &Identity,
-        name: &str,
-        bio: &str,
-    ) -> Result<Profile, HubError> {
-        let body = json!({"name": name, "bio": bio});
+    fn set_bio(&mut self, identity: &Identity, bio: &str) -> Result<Profile, HubError> {
+        let body = json!({ "bio": bio });
         parse(self.send(Some(identity), "PUT", "/v1/profile", Some(body))?)
     }
 

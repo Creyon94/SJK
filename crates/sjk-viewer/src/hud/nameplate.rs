@@ -77,6 +77,8 @@ const ICON_BACKDROP: Color = Color::new(0.03, 0.04, 0.06, 0.55);
 const HOLSTERED_HALO: f32 = 0.4;
 /// `WP_NONE`.
 const WP_NONE: u8 = 0;
+/// Milliseconds between reads of which players are verified.
+const VERIFIED_EVERY: i64 = 1_000;
 
 /// Register the nameplate settings.
 pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarError> {
@@ -147,6 +149,12 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         "Nameplates on NPCs: their class and health",
     ))?;
     cvars.register(CvarDefinition::new(
+        "cg_nameplateSelf",
+        false,
+        CvarFlags::ARCHIVE,
+        "Your own nameplate over your head in third person, with your real bars",
+    ))?;
+    cvars.register(CvarDefinition::new(
         "cg_nameplateDebug",
         false,
         CvarFlags::NONE,
@@ -170,6 +178,8 @@ struct Settings {
     npcs: bool,
     icons: bool,
     friends: bool,
+    /// The local player's own plate, in third person.
+    own: bool,
     debug: bool,
 }
 
@@ -188,6 +198,7 @@ impl Default for Settings {
             npcs: false,
             icons: true,
             friends: true,
+            own: false,
             debug: false,
         }
     }
@@ -226,6 +237,8 @@ struct Entry {
     accent: Color,
     icon: Option<Color>,
     names_allowed: bool,
+    /// The SJK hub's operator vouches for this player: the gold badge after the name.
+    verified: bool,
 }
 
 impl Entry {
@@ -261,6 +274,11 @@ pub(crate) struct State {
     vitals: vitals_estimate::Estimator,
     /// The Force colour of the HUD in use, which the Force bar takes.
     force_color: Color,
+    /// Slots the hub's operator vouches for, as bits, and when they were last read.
+    verified: u32,
+    verified_read: Option<i64>,
+    /// Where the local player stands, while their own plate may show (third person).
+    own_origin: Option<Vec3>,
 }
 
 impl Default for State {
@@ -277,6 +295,9 @@ impl Default for State {
             regen_source: "default",
             vitals: vitals_estimate::Estimator::default(),
             force_color: math::FORCE_COLOR,
+            verified: 0,
+            verified_read: None,
+            own_origin: None,
         }
     }
 }
@@ -306,6 +327,7 @@ impl State {
             npcs: flag("cg_nameplatenpcs", false),
             icons: flag("cg_nameplateicons", true),
             friends: flag("cg_drawfriend", true),
+            own: flag("cg_nameplateself", false),
             debug: flag("cg_nameplatedebug", false),
         };
     }
@@ -319,6 +341,25 @@ impl State {
     /// none (the game-data HUD draws pictures), which gets the retail blue.
     pub(crate) fn set_force_color(&mut self, color: Option<Color>) {
         self.force_color = color.unwrap_or(math::FORCE_COLOR);
+    }
+
+    /// Read which slots are verified (`read` asks the identity service) at most once a
+    /// second, so the names it compares are not rebuilt every frame.
+    pub(crate) fn refresh_verified(&mut self, now: i64, read: impl FnOnce() -> u32) {
+        if self
+            .verified_read
+            .is_some_and(|last| (0..VERIFIED_EVERY).contains(&(now - last)))
+        {
+            return;
+        }
+        self.verified_read = Some(now);
+        self.verified = read();
+    }
+
+    /// Where the local player stands, for their own plate; `None` hides it (first
+    /// person, where it would sit inside the camera).
+    pub(crate) fn set_own_origin(&mut self, origin: Option<[f32; 3]>) {
+        self.own_origin = origin.map(Vec3::from_array);
     }
 
     /// Feed one accepted snapshot to the estimates. Every snapshot is observed
@@ -523,14 +564,106 @@ impl State {
                 accent,
                 icon,
                 names_allowed,
+                verified: player && self.verified & (1 << number) != 0,
             });
             if self.entries.len() == MAX_TAGS {
                 break;
             }
         }
+        if settings.own {
+            self.own_plate(snapshot, mode, now, camera, step);
+        }
         // Far plates first, so a near plate covers a far one.
         self.entries
             .sort_unstable_by(|a, b| b.distance.total_cmp(&a.distance));
+    }
+
+    /// `cg_nameplateSelf`: the local player's own plate over their head in third
+    /// person, with the real health, shield and Force the server sends them.
+    fn own_plate(&mut self, snapshot: &Snapshot, mode: i32, now: i64, camera: Camera, step: f32) {
+        let settings = self.settings;
+        let player = &snapshot.player;
+        let Some(origin) = self.own_origin else {
+            return;
+        };
+        if player.health() <= 0 || player.is_spectator() || self.entries.len() >= MAX_TAGS {
+            return;
+        }
+        let local = player.client_num();
+        let distance = origin.distance(camera.eye);
+        if distance >= settings.range {
+            return;
+        }
+        // `CROUCH_VIEWHEIGHT` is 12, the standing one 36: the box top drops to 16.
+        let head = if player.view_height() < 24 {
+            16.0
+        } else {
+            math::head_height(0)
+        };
+        let Some(point) = camera.project_within(
+            origin + Vec3::Z * (head + math::HEAD_CLEARANCE),
+            SCREEN_MARGIN,
+        ) else {
+            return;
+        };
+        let alpha = self.fade(
+            local,
+            math::distance_fade(distance, settings.range),
+            now,
+            step,
+        );
+        if alpha < 0.02 {
+            return;
+        }
+        let bars = settings.bars != 0;
+        let full = player.max_health().max(1) as f32;
+        let exact = |value: i32, full: f32| Range::exact(value.max(0) as f32).share(full);
+        let shield = (player.armor() > 0).then(|| exact(player.armor(), full));
+        let entry = Entry {
+            number: local,
+            npc_class: 0,
+            point,
+            distance,
+            scale: math::distance_scale(distance, settings.range, MIN_SCALE),
+            alpha,
+            detail: if bars {
+                math::detail(distance, settings.near)
+            } else {
+                0.0
+            },
+            proximity: math::detail(distance, settings.near),
+            powers: [0; MAX_ICONS],
+            power_count: 0,
+            health: bars.then(|| exact(player.health(), full)),
+            shield: shield.filter(|_| bars),
+            force: (bars && settings.force).then(|| {
+                exact(
+                    i32::from(player.force_power()),
+                    sjk_game_jka::force_powers::FORCE_POWER_MAX as f32,
+                )
+            }),
+            weapon: if settings.weapon {
+                player.weapon()
+            } else {
+                WP_NONE
+            },
+            style: player.saber_style(),
+            holstered: player.saber_holstered() != 0,
+            accent: team_accent(mode, player.team() as i32),
+            icon: None,
+            names_allowed: true,
+            verified: self.verified & (1 << local) != 0,
+        };
+        let (powers, power_count) = if settings.icons {
+            icon_powers(player.force_powers_active())
+        } else {
+            ([0; MAX_ICONS], 0)
+        };
+        self.entries.push(Entry {
+            powers,
+            power_count,
+            ..entry
+        });
     }
 
     /// `cg_nameplateDebug`: what the server sends about each other player, to
@@ -661,11 +794,12 @@ impl State {
     }
 
     /// Lay the collected plates out as shapes and text commands.
-    fn build(
+    fn build<'a>(
         &mut self,
-        chat: &ChatOverlay,
+        label: &dyn Fn(TextId) -> &'a str,
         icons: &[Option<TextureId>],
         weapons: &super::icons::Icons,
+        font: &UiFont,
         viewport: [f32; 2],
     ) {
         self.list.clear();
@@ -695,7 +829,7 @@ impl State {
             // The name rises as the plate fades in beneath it.
             let line = size * 1.15;
             let top = bottom - stack_height * entry.detail - line;
-            if entry.names_allowed && !label(chat, id).is_empty() {
+            if entry.names_allowed && !label(id).is_empty() {
                 let width = (320.0 * unit).min(viewport[0]);
                 let left = (x - width * 0.5).clamp(0.0, (viewport[0] - width).max(0.0));
                 let opacity = FAR_NAME_OPACITY + (1.0 - FAR_NAME_OPACITY) * entry.proximity;
@@ -714,6 +848,26 @@ impl State {
                     weight: FontWeight::Regular,
                     letter_spacing: 0.0,
                 });
+                if entry.verified {
+                    let text = crate::text::visible_text_width(
+                        font,
+                        label(id),
+                        size / font.height.max(1.0),
+                    )
+                    .min(width);
+                    let side = size * 0.95;
+                    let badge = Rect::new(
+                        (left + (width + text) * 0.5 + size * 0.15).min(viewport[0] - side),
+                        top + (line - side) * 0.5,
+                        side,
+                        side,
+                    );
+                    let _ = self.list.push(DrawCommand::TexturedQuad {
+                        rect: badge,
+                        texture: crate::ui_renderer::VERIFIED_TEXTURE,
+                        color: Color::new(1.0, 1.0, 1.0, opacity),
+                    });
+                }
             }
             if entry.power_count > 0 && entry.proximity > 0.01 {
                 self.power_row(&entry, icons, [x, top], size, u, viewport);
@@ -954,7 +1108,7 @@ impl State {
         font: &UiFont,
         viewport: [f32; 2],
     ) {
-        self.build(chat, icons, weapons, viewport);
+        self.build(&|id| label(chat, id), icons, weapons, font, viewport);
         crate::ui_renderer::append_text_commands(
             &self.list,
             |id| label(chat, id),
@@ -1043,6 +1197,78 @@ fn label(chat: &ChatOverlay, id: TextId) -> &str {
     match id.0.checked_sub(NPC_TEXT) {
         None => chat.player_label(id.0 as u16),
         Some(class) => super::npc_class::name(class as u8).unwrap_or(""),
+    }
+}
+
+/// A plate for the off-screen snapshots (`menu_snapshot.rs`), its bars as shares of
+/// a full one: `[low, guess, high]`.
+#[cfg(test)]
+pub(crate) struct PreviewPlate {
+    pub(crate) slot: u16,
+    pub(crate) point: [f32; 2],
+    pub(crate) distance: f32,
+    pub(crate) health: Option<[f32; 3]>,
+    pub(crate) shield: Option<[f32; 3]>,
+    pub(crate) force: Option<[f32; 3]>,
+    pub(crate) weapon: u8,
+    pub(crate) style: u8,
+    pub(crate) verified: bool,
+    /// The frame's colour: red or blue team, else neutral.
+    pub(crate) team: Option<bool>,
+}
+
+#[cfg(test)]
+impl State {
+    /// Lay out `plates` as [`State::append`] does, naming slot `n` `names[n]`.
+    pub(crate) fn preview(
+        &mut self,
+        plates: &[PreviewPlate],
+        names: &[&str],
+        weapons: &super::icons::Icons,
+        font: &UiFont,
+        vertices: &mut Vec<TextVertex>,
+        viewport: [f32; 2],
+    ) {
+        let range = |share: [f32; 3]| Range::new(share[0], share[1], share[2]);
+        self.entries.clear();
+        for plate in plates {
+            let proximity = math::detail(plate.distance, self.settings.near);
+            self.entries.push(Entry {
+                number: plate.slot,
+                npc_class: 0,
+                point: plate.point,
+                distance: plate.distance,
+                scale: math::distance_scale(plate.distance, self.settings.range, MIN_SCALE),
+                alpha: 1.0,
+                detail: proximity,
+                proximity,
+                powers: [0; MAX_ICONS],
+                power_count: 0,
+                health: plate.health.map(range),
+                shield: plate.shield.map(range),
+                force: plate.force.map(range),
+                weapon: plate.weapon,
+                style: plate.style,
+                holstered: false,
+                accent: match plate.team {
+                    Some(red) => team_accent(GT_TEAM, if red { 1 } else { 2 }),
+                    None => NEUTRAL_ACCENT,
+                },
+                icon: None,
+                names_allowed: true,
+                verified: plate.verified,
+            });
+        }
+        let label = |id: TextId| names.get(id.0 as usize).copied().unwrap_or("");
+        self.build(&label, &[], weapons, font, viewport);
+        crate::ui_renderer::append_text_commands(
+            &self.list,
+            label,
+            vertices,
+            font,
+            viewport,
+            crate::text::TextStyle::NEUTRAL,
+        );
     }
 }
 

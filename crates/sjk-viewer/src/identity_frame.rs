@@ -22,9 +22,14 @@ impl GpuState {
                 .trim()
                 .to_owned(),
         };
+        let name = console
+            .text_cvar("name")
+            .unwrap_or_default()
+            .trim()
+            .to_owned();
         let location = self.live_session.as_ref().and_then(|session| {
             player_identity::location(session.server(), session.is_local(), session.game_state())
         });
-        player_identity::apply(console.config_directory(), settings, location);
+        player_identity::apply(console.config_directory(), settings, name, location);
     }
 }

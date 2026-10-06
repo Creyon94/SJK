@@ -8,6 +8,7 @@ pub(crate) mod art;
 mod emblem;
 mod icons;
 mod levelshot;
+mod verified_badge;
 use art::{ArtTextures, Run, Source};
 use emblem::EmblemTextures;
 use icons::IconAtlas;
@@ -27,6 +28,15 @@ pub(crate) const PREVIEW_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(u32::MAX
 pub(crate) const HUD_PREVIEW_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(u32::MAX - 3);
 /// `TexturedQuad` texture naming SJK's emblem, uploaded once at start.
 pub(crate) const LOGO_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(LOGO_ICON);
+/// `TexturedQuad` texture naming the gold verified badge, drawn once at start.
+pub(crate) const VERIFIED_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(icons::VERIFIED_ICON);
+
+/// The verified badge's pixels in one cell, as the renderer uploads them, for the
+/// off-screen snapshots.
+#[cfg(test)]
+pub(crate) fn verified_badge_pixels() -> Vec<u8> {
+    verified_badge::pixels(icons::ICON_SIZE)
+}
 use levelshot::LevelshotTexture;
 
 /// Main-menu wordmark: the Jedi Knight saber emblem laid horizontal, white
@@ -248,6 +258,11 @@ impl ShapeRenderer {
             }
             Err(error) => eprintln!("SJK emblem: {error}"),
         }
+        icons.upload(
+            queue,
+            VERIFIED_TEXTURE,
+            &verified_badge::pixels(icons::ICON_SIZE),
+        );
         let mut renderer = Self {
             pipeline,
             additive_pipeline,

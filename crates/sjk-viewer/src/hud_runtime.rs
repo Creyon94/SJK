@@ -164,6 +164,16 @@ pub(crate) fn update(
             &mut gpu.trace_scratch,
             labels_hidden,
         );
+        gpu.hud
+            .nameplate
+            .refresh_verified(i64::from(presentation_time), || {
+                player_identity::verified_slots(session.game_state())
+            });
+        gpu.hud.nameplate.set_own_origin(gpu.third_person.then(|| {
+            gpu.local_prediction
+                .predicted_state()
+                .map_or(snapshot.player.origin(), |state| state.origin)
+        }));
         gpu.hud.nameplate.update(
             snapshot,
             session.game_state(),
@@ -285,6 +295,9 @@ pub(crate) fn update(
             &mut gpu.trace_scratch,
             labels_hidden,
         );
+        gpu.hud
+            .nameplate
+            .set_own_origin(gpu.third_person.then(|| snapshot.player.origin()));
         gpu.hud.nameplate.update(
             snapshot,
             session.game_state(),

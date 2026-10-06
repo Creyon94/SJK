@@ -111,7 +111,9 @@ enum Command {
     Configure(Settings),
     Enter(Location),
     Leave,
-    SetProfile { name: String, bio: String },
+    /// The in-game name the player now wears.
+    Name(String),
+    SetBio(String),
     LookUp(String),
     Stop,
 }
@@ -130,8 +132,12 @@ struct Worker {
     /// The server address the hub holds a claim for, to withdraw it.
     claimed: Option<String>,
     registered: bool,
+    /// The in-game name the player wears, and the one the hub was last told.
+    name: Option<String>,
+    name_sent: Option<String>,
     snapshot: Arc<Mutex<Snapshot>>,
     due_register: Instant,
+    due_name: Instant,
     due_claim: Instant,
     due_poll: Instant,
     backoff: Duration,
@@ -159,8 +165,11 @@ impl Worker {
             location: None,
             claimed: None,
             registered: false,
+            name: None,
+            name_sent: None,
             snapshot,
             due_register: now,
+            due_name: now,
             due_claim: now,
             due_poll: now,
             backoff: RETRY_MIN,
@@ -210,7 +219,14 @@ impl Worker {
                 self.release();
                 self.location = None;
             }
-            Command::SetProfile { name, bio } => self.set_profile(&name, &bio),
+            Command::Name(name) => {
+                let name = Some(name).filter(|name| !name.trim().is_empty());
+                if name != self.name {
+                    self.name = name;
+                    self.due_name = now;
+                }
+            }
+            Command::SetBio(bio) => self.set_bio(&bio),
             Command::LookUp(key_id) => self.lookups.push(key_id),
             Command::Stop => self.release(),
         }
@@ -225,6 +241,7 @@ impl Worker {
         self.release();
         self.hub = None;
         self.registered = false;
+        self.name_sent = None;
         self.update(|snapshot| snapshot.me = None);
         if settings.enabled && !settings.hub_url.trim().is_empty() {
             match (self.make_hub)(settings.hub_url.trim()) {
@@ -241,9 +258,9 @@ impl Worker {
         self.due_poll = now;
     }
 
-    fn set_profile(&mut self, name: &str, bio: &str) {
+    fn set_bio(&mut self, bio: &str) {
         let outcome = match (self.hub.as_mut(), self.registered) {
-            (Some(hub), true) => hub.set_profile(&self.identity, name, bio),
+            (Some(hub), true) => hub.set_bio(&self.identity, bio),
             _ => {
                 self.update(|snapshot| {
                     snapshot.notice = Some("not connected to the hub".to_owned())
@@ -281,10 +298,15 @@ impl Worker {
                     snapshot.status = Status::Registering;
                 }
             });
-            let outcome = self.hub.as_mut().map(|hub| hub.register(&self.identity));
+            let name = self.name.clone();
+            let outcome = self
+                .hub
+                .as_mut()
+                .map(|hub| hub.register(&self.identity, name.as_deref()));
             match outcome {
                 Some(Ok(profile)) => {
                     self.registered = true;
+                    self.name_sent = name;
                     self.backoff = RETRY_MIN;
                     self.update(|snapshot| {
                         snapshot.me = Some(profile);
@@ -305,16 +327,33 @@ impl Worker {
                 .min(self.due_claim.saturating_duration_since(now))
                 .min(self.due_poll.saturating_duration_since(now));
         }
+        if self.name != self.name_sent {
+            wait = wait.min(self.due_name.saturating_duration_since(now));
+        }
         if !self.lookups.is_empty() {
             wait = Duration::ZERO;
         }
         wait
     }
 
-    /// The claim, the roster read and the pending lookups, where due.
+    /// A new name, the claim, the roster read and the pending lookups, where due.
     fn run_due(&mut self, now: Instant) {
         let Some(hub) = self.hub.as_mut() else { return };
         let mut error = None;
+        // A name worn since registering joins the key's history at the hub (a
+        // registration of a known key only adds the name). A failure waits and retries.
+        if self.name != self.name_sent && now >= self.due_name {
+            match hub.register(&self.identity, self.name.as_deref()) {
+                Ok(profile) => {
+                    self.name_sent = self.name.clone();
+                    lock(&self.snapshot).me = Some(profile);
+                }
+                Err(failure) => {
+                    self.due_name = now + self.backoff;
+                    error = Some(failure);
+                }
+            }
+        }
         if let Some(location) = self.location.clone() {
             let server = location.server.to_string();
             if now >= self.due_claim {
@@ -432,9 +471,15 @@ impl Service {
         let _ = self.commands.send(Command::Leave);
     }
 
-    /// Change the player's display name and bio at the hub.
-    pub fn set_profile(&self, name: String, bio: String) {
-        let _ = self.commands.send(Command::SetProfile { name, bio });
+    /// The in-game name the player wears: sent with the registration and again
+    /// whenever it changes, for the key's name history at the hub.
+    pub fn set_name(&self, name: String) {
+        let _ = self.commands.send(Command::Name(name));
+    }
+
+    /// Change the player's bio at the hub.
+    pub fn set_bio(&self, bio: String) {
+        let _ = self.commands.send(Command::SetBio(bio));
     }
 
     /// Fetch a player's profile (their bio) into [`Snapshot::profiles`].
@@ -500,15 +545,21 @@ mod tests {
             bio: String::new(),
             verified: false,
             created: 0,
+            names: Vec::new(),
         }
     }
 
     impl Hub for Fake {
-        fn register(&mut self, _: &Identity) -> Result<Profile, HubError> {
-            self.note("register".to_owned()).map(|()| profile(""))
+        fn register(&mut self, _: &Identity, name: Option<&str>) -> Result<Profile, HubError> {
+            match name {
+                Some(name) => self
+                    .note(format!("register {name}"))
+                    .map(|()| profile(name)),
+                None => self.note("register".to_owned()).map(|()| profile("")),
+            }
         }
-        fn set_profile(&mut self, _: &Identity, name: &str, _: &str) -> Result<Profile, HubError> {
-            self.note(format!("profile {name}")).map(|()| profile(name))
+        fn set_bio(&mut self, _: &Identity, bio: &str) -> Result<Profile, HubError> {
+            self.note(format!("bio {bio}")).map(|()| profile(""))
         }
         fn profile(&mut self, key_id: &str) -> Result<Profile, HubError> {
             self.note(format!("lookup {key_id}"))
@@ -716,33 +767,52 @@ mod tests {
     }
 
     #[test]
-    fn profile_changes_and_lookups_go_through_the_hub() {
+    fn bio_changes_and_lookups_go_through_the_hub() {
         let fake = Fake::default();
         let t0 = Instant::now();
         let (mut worker, snapshot) = worker(&fake, t0);
-        worker.handle(
-            Command::SetProfile {
-                name: "x".into(),
-                bio: String::new(),
-            },
-            t0,
-        );
+        worker.handle(Command::SetBio("x".into()), t0);
         assert_eq!(
             lock(&snapshot).notice.as_deref(),
             Some("not connected to the hub")
         );
         worker.handle(Command::Configure(on("https://hub")), t0);
         worker.tick(t0);
-        worker.handle(
-            Command::SetProfile {
-                name: "Sol".into(),
-                bio: String::new(),
-            },
-            t0,
-        );
-        assert_eq!(lock(&snapshot).me.as_ref().unwrap().name, "Sol");
+        worker.handle(Command::SetBio("hello".into()), t0);
+        assert_eq!(fake.log().last().unwrap(), "bio hello");
+        assert_eq!(lock(&snapshot).notice.as_deref(), Some("saved"));
         worker.handle(Command::LookUp("0123456789abcdef".into()), t0);
         worker.tick(t0);
         assert!(lock(&snapshot).profiles.contains_key("0123456789abcdef"));
+    }
+
+    #[test]
+    fn the_worn_name_goes_with_the_registration_and_again_when_it_changes() {
+        let fake = Fake::default();
+        let t0 = Instant::now();
+        let (mut worker, snapshot) = worker(&fake, t0);
+        worker.handle(Command::Name("^1Sol".into()), t0);
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.tick(t0);
+        assert_eq!(fake.log(), ["register ^1Sol"]);
+        assert_eq!(lock(&snapshot).me.as_ref().unwrap().name, "^1Sol");
+        // The same name again sends nothing; an empty one is no name.
+        worker.handle(Command::Name("^1Sol".into()), t0);
+        worker.tick(t0);
+        assert_eq!(fake.log().len(), 1);
+        worker.handle(Command::Name("Fox".into()), t0);
+        let wait = worker.tick(t0);
+        assert_eq!(fake.log().last().unwrap(), "register Fox");
+        assert_eq!(wait, IDLE_MAX, "nothing else is due");
+        // A failure retries after the backoff, not at once.
+        fake.fail.store(true, Ordering::SeqCst);
+        worker.handle(Command::Name("Wolf".into()), t0);
+        worker.tick(t0);
+        let count = fake.log().len();
+        worker.tick(t0 + Duration::from_secs(1));
+        assert_eq!(fake.log().len(), count);
+        fake.fail.store(false, Ordering::SeqCst);
+        worker.tick(t0 + Duration::from_secs(30));
+        assert_eq!(fake.log().last().unwrap(), "register Wolf");
     }
 }
