@@ -11,6 +11,7 @@
 //! */plain_wall                   class=plaster height=off
 //! textures/kejim/lightpanel*      emission=on
 //! textures/x/lightgreen_wall      emission=off
+//! textures/desert/s_floor1        relief=inverted
 //! ```
 //!
 //! The pattern is matched against the diffuse image's path without extension
@@ -24,12 +25,15 @@
 //! - `emission`: `on` writes an emission map (`_e`) whatever the evidence, `off`
 //!   never writes one, and a number from 0 to 4 is `on` with that strength (the
 //!   emitted colour's multiplier; 0 is `off`). See [`crate::emission`].
+//! - `relief`: `inverted` makes the dark parts high (a texture whose relief reads
+//!   pushed in), `normal` keeps bright high, `auto` lets the painted shading decide
+//!   ([`crate::classes::Relief`]).
 //!
 //! Every matching rule applies, in file order, so a broad rule can come first and a
 //! narrower one refine it; for `emission` the last matching rule that sets it wins.
 //! The manifest lists the line numbers that applied.
 
-use crate::classes::{MaterialClass, by_name};
+use crate::classes::{MaterialClass, Relief, by_name};
 
 /// One parsed rule.
 #[derive(Clone, Debug, PartialEq)]
@@ -40,6 +44,7 @@ pub struct Rule {
     pub roughness: Option<f32>,
     pub metalness: Option<f32>,
     pub height: Option<bool>,
+    pub relief: Option<Relief>,
     /// Emission strength: 0 off, 1 on (`on`), up to [`crate::emission::MAX_STRENGTH`].
     pub emission: Option<f32>,
     /// 1-based line in the file.
@@ -70,6 +75,7 @@ impl Overrides {
                 roughness: None,
                 metalness: None,
                 height: None,
+                relief: None,
                 emission: None,
                 line: line_number,
             };
@@ -102,6 +108,18 @@ impl Overrides {
                             "off" | "0" | "no" | "false" => false,
                             _ => {
                                 return Err(format!("line {line_number}: height needs on or off"));
+                            }
+                        })
+                    }
+                    "relief" => {
+                        rule.relief = Some(match value.to_ascii_lowercase().as_str() {
+                            "inverted" | "invert" | "in" => Relief::Inverted,
+                            "normal" | "keep" | "out" => Relief::Keep,
+                            "auto" => Relief::Auto,
+                            _ => {
+                                return Err(format!(
+                                    "line {line_number}: relief needs inverted, normal or auto"
+                                ));
                             }
                         })
                     }
@@ -150,6 +168,9 @@ impl Overrides {
             if let Some(height) = rule.height {
                 class.parallax = height;
                 class.height_keywords = &[];
+            }
+            if let Some(relief) = rule.relief {
+                class.relief = relief;
             }
             lines.push(rule.line);
         }
@@ -213,7 +234,7 @@ mod tests {
             "# metal floors\n\
              textures/MP/floor*  class=tiles roughness=0.2   # shiny\n\
              \n\
-             *metal* metalness=0.9 height=on\n",
+             *metal* metalness=0.9 height=on relief=inverted\n",
         )
         .expect("parses");
         assert_eq!(overrides.rules.len(), 2);
@@ -222,10 +243,12 @@ mod tests {
         assert_eq!(first.class.map(|c| c.name), Some("tiles"));
         assert_eq!((first.roughness, first.line), (Some(0.2), 2));
         assert_eq!(overrides.rules[1].height, Some(true));
+        assert_eq!(overrides.rules[1].relief, Some(Relief::Inverted));
         for (bad, message) in [
             ("x class=chrome", "unknown class"),
             ("x roughness=2", "from 0 to 1"),
             ("x height=maybe", "on or off"),
+            ("x relief=up", "inverted, normal or auto"),
             ("x shiny", "key=value"),
             ("x colour=red", "unknown key"),
             ("x emission=bright", "emission needs on, off"),
@@ -245,7 +268,7 @@ mod tests {
         let overrides = Overrides::parse(
             "textures/* roughness=0.6\n\
              textures/mp/floor* class=metal\n\
-             textures/mp/floor1 roughness=0.1 height=off\n",
+             textures/mp/floor1 roughness=0.1 height=off relief=normal\n",
         )
         .expect("parses");
         let generic = crate::classes::GENERIC.clone();
@@ -253,6 +276,7 @@ mod tests {
         assert_eq!(class.name, "metal");
         assert_eq!(class.roughness, 0.1);
         assert!(!class.parallax && class.height_keywords.is_empty());
+        assert_eq!(class.relief, Relief::Keep);
         assert_eq!(lines, vec![1, 2, 3]);
         let (class, lines) = overrides.apply("textures/mp/wall", generic);
         assert_eq!(

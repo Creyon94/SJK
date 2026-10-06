@@ -2025,7 +2025,17 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
 - **Generation** ([generate.rs](../crates/sjk-materialgen/src/generate.rs)),
   deterministic and wrap-around, so tiling textures stay seamless. Height comes
   from luminance, high-passed twice at 1/8 of the texture to suppress baked
-  lighting gradients. It is then weighted by scale band and normalised.
+  lighting gradients. It is then weighted by scale band (the class's fine-detail
+  weight on the two finest bands: metal keeps a quarter, painted panels 0.4, so
+  the grain of the HD texture packs does not ripple their reflections) and
+  normalised. Bright is high unless the paint says otherwise: retail textures are
+  painted lit from above, so where the light rims of the painting fall on the
+  edges of the dark regions rather than the bright ones (dark studs on a lighter
+  plate, inset panels lighter than their frame), the height is turned upside down
+  (`painted_relief`, below -0.1; never for alpha-tested textures or ones that are
+  more than 40% near-black, whose dark parts are holes). On the retail MP maps
+  about one texture in twenty is turned; most HD textures show too little painted
+  light to tell, and the overrides' `relief=` decides those.
   Normals are Scharr slopes (red +s, green +t down the image, rend2's frame),
   scaled by the class strength. Above 512 texels they are taken per 1/512 of
   the texture, so high-resolution replacements do not turn texel noise into
@@ -2037,10 +2047,16 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
 - **Classes** ([classes.rs](../crates/sjk-materialgen/src/classes.rs)): one table
   of strength, parallax, roughness, metalness and occlusion per class. A class is
   chosen by the BSP material id (`q3map_material`), then path keywords, then
-  `surfaceparm metalsteps`. Stone, tiles and ground get `<texture>_nh`
-  (height in alpha for parallax), and so do metal textures whose path names a
-  panel, plate, floor, wall, hull, deck or door (seams and rivets); the rest get
-  `<texture>_n`. A texture whose shader has a `tcGen environment` stage is
+  `surfaceparm metalsteps`, then the texture set: the Imperial, Rebel and
+  industrial sets (`imperial`, `byss`, `kejim`, `vjun`, `hoth`, `bespin` and
+  others) are `panel`, painted metal (metalness 0.35, roughness 0.5), and
+  `korriban`, `yavin`, `rift` and `rocky_ruins` stone. Names add metal words
+  (beam, brace, casing, hull, tank, barrel, hangar, elevator), electronics
+  (control, switch, onoff, terminal) and panel words (panel, trim, door, plate,
+  lift, gate, walkway). Stone, tiles and ground get `<texture>_nh` (height in
+  alpha for parallax); the rest get `<texture>_n`. Metal gets no height: a
+  height guessed from paint made metal panels swim. A texture whose shader has a
+  `tcGen environment` stage is
   polished: its roughness is at most 0.25 with half the variation.
 - **Metal.** Metalness 0.8 and roughness 0.3 (±0.3 across the texture), for the
   reflection probes ([Reflection probes](#reflection-probes)). In rend2's packed
@@ -2074,8 +2090,9 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
   file of per-texture rules fixes what the heuristics get wrong. Each line is a
   path pattern (the diffuse image without extension, case-insensitive, `*` and `?`
   wildcards) followed by `class=`, `roughness=`, `metalness=` (0–1),
-  `height=on|off` or `emission=on|off|<strength>` (0–4, the emitted colour's
-  multiplier; 0 is off); `#` starts a comment. Every matching line applies, in order
+  `height=on|off`, `relief=inverted|normal|auto` (dark parts high, bright parts
+  high, or the painted light decides) or `emission=on|off|<strength>` (0–4, the
+  emitted colour's multiplier; 0 is off); `#` starts a comment. Every matching line applies, in order
   (for `emission` the last that sets it):
 
   ```text
@@ -2083,6 +2100,7 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
   textures/kor_*/*metal*    metalness=0.9 height=on
   textures/x/lightwall      emission=off
   textures/x/console2       emission=1.5
+  textures/desert/s_floor1  relief=inverted
   ```
 
   The tool reads `--overrides FILE`, or `sjk-materialgen-overrides.txt` next to the
@@ -2105,9 +2123,10 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
   and applied override lines), and `--limit` takes only the most-used textures.
 
 **Regenerating.** The manifest records the generation of the tuning
-(`"generation": 3` since emission maps; packs without it are generation 1). With
+(`"generation": 4` since the relief orientation and smoother metal, 3 added
+emission maps; packs without it are generation 1). With
 material maps or emission maps on, the client logs `material maps: the generated pack
-is generation 1 of sjk-materialgen, this client expects 3 ...` once when the mounted
+is generation 1 of sjk-materialgen, this client expects 4 ...` once when the mounted
 pack is older. Emission decisions depend on every map read: a texture drawn plainly on
 one map and through a glowing shader on another gets its `_e`, and the client ignores
 it where the shader glows.

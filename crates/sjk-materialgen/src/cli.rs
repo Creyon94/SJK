@@ -32,8 +32,8 @@ OPTIONS:
     -h, --help        print this help
 
 For each world texture that installed maps draw on lightmapped surfaces, the tool
-writes a normal map (<texture>_nh with height for parallax on stone, tiles, ground
-and metal panels, <texture>_n otherwise) and a packed <texture>_rmo map (roughness,
+writes a normal map (<texture>_nh with height for parallax on stone, tiles and
+ground, <texture>_n otherwise) and a packed <texture>_rmo map (roughness,
 metalness, occlusion) into one pk3, plus jkr-materialgen/manifest.json listing
 every source, output, skipped shader and setting. Textures that give light
 (q3map_surfacelight, an authored _glow image, light, lamp or screen names) also get
