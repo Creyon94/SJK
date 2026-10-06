@@ -1741,6 +1741,17 @@ test: In game, the Settings pop-up shows the same pages.
 test: firstsetup (and quicksetup) in the console open First setup.
 test: Modern style: Video > Renderer has a WEATHER tab with the weather rows.
 
+[shader-testmap]
+status: personal
+area: Rendering & effects
+title: Shader test maps: every retail world shader on a labelled pad
+change: scripts/shader_testmap.py builds sjk_shaders_a to _e (by shader file) and _s (skies).
+change: Each pad has an ID label (A001); index.txt next to the pk3 maps IDs to shaders.
+test: devmap sjk_shaders_a, noclip; turn around: the wall lists sections and their setviewpos.
+test: Walk the rows; tell Claude the IDs that look wrong (compare in EternalJK if unsure).
+test: Same for _b to _e, then devmap sjk_shaders_s: one sky per room off the corridors.
+note: The pk3 is GameData/base/sjk_shadertest.pk3; delete it when done.
+
 # ---- Merged upstream ----
 
 [actor-instance-cap]
