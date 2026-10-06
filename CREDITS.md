@@ -90,7 +90,14 @@ Changes that stay in SJK, by Sol:
   of every installed HUD (`cg_hudPack`);
 - the `debug_panel` console command, an in-game checklist of the changes in a
   build and how to test them;
-- the changelog ([CHANGELOG.md](CHANGELOG.md)) and its page in the client.
+- the changelog ([CHANGELOG.md](CHANGELOG.md)) and its page in the client;
+- the in-game credits page, fed by
+  [credits.txt](crates/sjk-viewer/assets/credits.txt).
+
+## Contributors to SJK
+
+- Creyon ([Creyon94](https://github.com/Creyon94)): SJK pull request #2, duel
+  challenges from names with symbols no longer crash the client.
 
 ## Tools
 

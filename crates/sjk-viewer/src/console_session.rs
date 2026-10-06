@@ -300,6 +300,7 @@ impl ViewerConsole {
             browser: super::browser::Browser::new(),
             debug_panel: super::debug_panel::Panel::new(&config_directory),
             changelog: super::changelog::Panel::new(),
+            credits: super::credits::Panel::new(),
             update_panel: super::update_panel::Panel::new(),
             userinfo_dirty,
             show_timedelta,

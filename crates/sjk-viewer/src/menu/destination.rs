@@ -21,6 +21,8 @@ pub(crate) enum MainDestination {
     Keybinds { category: usize },
     /// The changelog page, drawn by the console over the menu.
     Changelog,
+    /// The credits page, drawn by the console over the menu.
+    Credits,
     /// The update page, drawn by the console over the menu.
     Update,
     /// Exit to the desktop.
@@ -82,6 +84,10 @@ impl ClientMenu {
             }
             MainDestination::Changelog => {
                 console.open_changelog();
+                MenuAction::None
+            }
+            MainDestination::Credits => {
+                console.open_credits();
                 MenuAction::None
             }
             MainDestination::Update => {

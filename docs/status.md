@@ -409,6 +409,19 @@ the box without overlapping; menu snapshots (`console-browser-classic`,
 `console-browser-modern`) were looked at. Not tried in a game: the retail font's
 fit in the rows and pointer use are unverified.
 
+## Credits page (SJK)
+
+SJK-only branch `personal/credits` (06/10/2026, based on `5f14439`) adds the
+animated credits page and its file
+([credits.txt](../crates/sjk-viewer/assets/credits.txt): Sol, Bishop, Creyon,
+then Claude and the reference clients), opened from the main menu, the in-game
+SJK pop-up or `credits`; see [client.md](client.md#credits-page). Unit tests
+parse the built-in file and its errors, keep scrolling in range and check the
+sparks spread across the width; the sjk-viewer tests and clippy passed.
+Off-screen snapshots drew the page in both palettes, scrolled and at 21:9; the
+snapshot rasterizer has no emblem texture and draws rounded shapes square, so
+the halo and card corners are unverified, as is the motion. No game was started.
+
 ## In-game SJK menu and classic+ changelog (SJK)
 
 SJK-only branch `personal/sjk-menu` (06/10/2026, based on `75bec2e`): the

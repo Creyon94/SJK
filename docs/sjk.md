@@ -128,6 +128,16 @@ under "Unreleased"; tagging a release renames that section to
 `<version> | <dd/mm/yyyy>` and its lines become the release notes' "New since"
 list. The Discord changelog posts are made from the same file.
 
+## Credits
+
+[credits.txt](../crates/sjk-viewer/assets/credits.txt) feeds the client's credits
+page ([client.md](client.md#credits-page)); [CREDITS.md](../CREDITS.md) stays
+the full written record. A person gets a card in the merge that brings their
+first change into `main` (Creyon with SJK pull request #2), and lines are added
+as they keep contributing. Sections are free: a later "Supporters" section is a
+`== Supporters` heading and its cards, with no code. The tests reject a card
+without a role, an unknown key or a non-ASCII character.
+
 ## Debug panel
 
 The `debug_panel` console command lists SJK's changes and how to test them, from

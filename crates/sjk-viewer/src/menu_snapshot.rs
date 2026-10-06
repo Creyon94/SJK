@@ -854,9 +854,23 @@ fn changelog(shots: &Snapshot, art: ArtSet) {
         console.append_overlay(&mut vertices, &shots.font.font, VIEWPORT, 1.0);
         shots.save(name, console.draw_list(), &vertices, classic);
     }
+    console.open_credits();
+    for (name, classic, scroll, viewport) in [
+        ("credits", false, 0.0, VIEWPORT),
+        ("credits-scrolled", false, 600.0, VIEWPORT),
+        ("credits-classic", true, 0.0, VIEWPORT),
+        ("credits-wide", false, 0.0, [2560.0, 1080.0]),
+    ] {
+        console.set_credits_look(classic);
+        console.credits_mut().settle();
+        console.credits_mut().scroll_to(scroll);
+        let mut vertices = Vec::new();
+        console.append_overlay(&mut vertices, &shots.font.font, viewport, 1.0);
+        shots.save_at(name, console.draw_list(), &vertices, false, viewport);
+    }
     let mut canvas = crate::menu_widgets::MenuCanvas::new();
     let mut classic = crate::menu::classic::ClassicMain::new();
-    classic.select(5);
+    classic.select(6);
     crate::menu::classic::view::build(&mut canvas, VIEWPORT, &classic, 1.0, art);
     let mut vertices = Vec::new();
     canvas.append_text(&mut vertices, &shots.font.font, VIEWPORT);

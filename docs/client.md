@@ -1050,6 +1050,25 @@ The client looks for a newer SJK release when it starts and from the Update page
   that and never offers an update. `cl_updateAs 2026.1001.1` makes it check as if
   it were that release, to try the page without a release build.
 
+## Credits page
+
+The main menu's Credits entry (modern list, and a CREDITS button above
+CHANGELOG on the classic page), the in-game SJK pop-up's Credits and the
+`credits` console command show who makes Sol JK, from
+[credits.txt](../crates/sjk-viewer/assets/credits.txt), built into the client
+([credits.rs](../crates/sjk-viewer/src/credits.rs), parsed by
+[credits_data.rs](../crates/sjk-viewer/src/credits_data.rs)). Each section of
+the file (the team, contributors, ...) is a heading with its people on cards in
+rows of up to three: name, GitHub handle, role and contributions, the first
+section's names larger. The page is animated from the clock alone: light beams
+drift across the backdrop, sparks rise through it, SJK's emblem breathes in a
+halo above a title a glint crosses, the cards rise into place as the page opens
+and their edges glow in turn. With the classic menus it takes retail's gold and
+blue and the menus' retail font. Arrow keys, Page Up and Page Down, Space and the
+wheel scroll it; Escape, Enter or CLOSE closes it. Like the changelog it lives
+in the console, so it opens over the menus and in a match. How the file is kept
+is in [SJK conventions](sjk.md#credits).
+
 ## Force wheel
 
 With the `game` and `classic` HUD styles, `forcenext`/`forceprev` show JoF
