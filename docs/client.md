@@ -632,6 +632,27 @@ Every installed hat and cape is open to everyone: nothing is unlocked or
 granted by a server. jaPRO's race-unlock hats (the `c5` clientinfo,
 `cp_cosmetics`, `cosmetics unlocks`) are left out on purpose.
 
+## Dismemberment and disintegration
+
+Both follow EternalJK's cgame (`cg_ents.c`, `cg_players.c`) and rd-vanilla's renderer.
+
+- **Cut-off limbs.** A server with `g_dismember` above 0 sends each cut limb as its
+  own entity. With `cg_dismember` 1 (no heads or waists) or 2 and up (everything) the
+  client copies the owner's model for the limb, draws only the limb and its cap, and
+  turns the limb off on the owner with the stump's cap on; a cut right arm, right hand
+  or waist takes the weapon with it. Both cuts smoke, and a flying limb trails smoke.
+  A body left behind keeps the missing limbs; the player is whole again once alive.
+  `cg_dismember` defaults to 0, as in EternalJK. `g_dismember` (0 to 100) set in the
+  console is handed to games this client hosts (Create game and `devmap`).
+- **Disintegration** (`EF_DISINTEGRATION`): a disruptor kill, or a corpse shot or cut
+  until it gives way, freezes the pose and burns the body away from the hit point:
+  the model is eaten away with a blackened edge and `gfx/effects/burn` glows on what
+  remains, with `disruptor/death_smoke` for the first second. A player is gone after
+  1.5 s; a body draws until the server removes it. The stage program does rd-vanilla's
+  per-vertex work (`RB_CalcDisintegrateColors`, `RB_CalcDisintegrateVertDeform`).
+
+Model cap surfaces (`*_cap_*`) are carried in every actor mesh, hidden until a cut.
+
 ## Third-person camera
 
 Third-person framing follows OpenJK multiplayer `CG_OffsetThirdPersonView`.

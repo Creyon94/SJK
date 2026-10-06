@@ -44,7 +44,14 @@ pub(crate) fn build_actor_mesh(
     let frame = preview.sequence.first_frame;
     let sample = (frame, frame, 0.0);
     let weapon_attachments = saber::actor_attachments(&preview, sample, sample);
+    // Cap surfaces ride along, hidden until a limb is cut (`dismember`).
+    let default_flags = crate::dismember::reveal_caps(&mut preview.mesh.hierarchy);
     let (draws, vertex_ranges) = append_actor_mesh(scene, &preview, frame)?;
+    let surfaces = crate::dismember::Surfaces::new(
+        &preview.mesh.hierarchy,
+        default_flags,
+        vertex_ranges.iter().map(|range| range.surface_index),
+    );
     let pose_vertex_capacity = vertex_ranges
         .iter()
         .map(|range| range.vertices.len())
@@ -76,6 +83,8 @@ pub(crate) fn build_actor_mesh(
         retained_pose,
         cosmetics: Default::default(),
         disintegration: None,
+        surfaces,
+        limb: None,
     })
 }
 

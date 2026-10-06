@@ -140,6 +140,15 @@ impl LegacyGhoul2Animator {
         Ok(body)
     }
 
+    /// `G2API_DuplicateGhoul2Instance` for a cut-off limb (`CG_General`, `cg_ents.c`):
+    /// the copy keeps playing the overrides it was duplicated with and ignores the
+    /// owner's later animation tracks.
+    pub fn detached_copy(&self) -> Self {
+        let mut copy = self.clone();
+        copy.body = true;
+        copy
+    }
+
     /// `EF_DISINTEGRATION` (`cg_players.c`, before `CG_Disintegration`): hold the pose
     /// at the legs frame presented now, as cgame's `BONE_ANIM_OVERRIDE_FREEZE` on
     /// `model_root`, `lower_lumbar` (unless `noLumbar`) and humanoid `Motion`. The

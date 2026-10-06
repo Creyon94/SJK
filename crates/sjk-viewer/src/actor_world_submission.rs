@@ -244,6 +244,8 @@ pub(crate) fn submit(
                 visual_now,
                 aura_shell,
             );
+        } else if submit_limb(&mut sinks, entity, &transform, visual_now) {
+            // A cut-off limb draws its own copy of the owner (`dismember`).
         } else if thrown_saber::submit(&mut sinks, thrown.as_ref(), entity, transform) {
             // The flying hilt is owned by this branch, including its blades.
         } else if let Some(mesh) = entity.appearance().and_then(|appearance| {
@@ -409,6 +411,10 @@ fn submit_actor(
                 held.primary_in_flight = false;
                 held
             });
+    }
+    // The weapon went with a cut-off arm, hand or waist (`CG_General`).
+    if mesh.is_some_and(|index| sinks.actor_meshes[index].surfaces.weapon_lost) {
+        equipment = None;
     }
     // A hidden trickster keeps only a saber in flight (`cg_players.c:11732-11746`).
     if let Some((equipment, held_mesh)) = equipment
@@ -786,4 +792,49 @@ fn submit_disintegration(
             combat_effects::rotation_from_direction([0.0, 1.0, 0.0]),
         );
     }
+}
+
+/// A cut-off limb (`CG_General`'s client-limb case): its own mesh, rooted at the limb
+/// surface and pivoting about its bone at the entity's origin, smoking from the cut
+/// while it flies. Returns whether `entity` was a limb this viewer draws.
+fn submit_limb(
+    sinks: &mut Sinks<'_>,
+    entity: &sjk_runtime::SceneEntity,
+    transform: &sjk_runtime::Transform,
+    visual_now: Instant,
+) -> bool {
+    let meshes = sinks.actor_meshes;
+    let Some((index, limb)) = meshes.iter().enumerate().find_map(|(index, mesh)| {
+        mesh.limb
+            .as_ref()
+            .filter(|_| mesh.entity_id == Some(entity.id))
+            .map(|limb| (index, limb))
+    }) else {
+        return false;
+    };
+    let (position, rotation) = crate::dismember::limb_instance(limb, transform);
+    let mut instance =
+        ActorInstance::new(position.to_array(), rotation.to_array(), transform.scale)
+            .with_entity_color(entity.color());
+    instance.view_flags = sinks.entity_view_flags;
+    sinks.actor_groups[index].push(instance);
+    meshes[index]
+        .retained_pose
+        .mark_drawn(entity.id, sinks.presentation_time);
+    if crate::dismember::trail_due(limb, transform.translation, sinks.presentation_time) {
+        effect_runtime::spawn_effect(
+            sinks.particles,
+            sinks.effect_aux,
+            sinks.effects,
+            sinks.vfs,
+            crate::dismember::SMOKE,
+            Vec3::from_array(transform.translation),
+            visual_now,
+            (entity.id.get() as u32) ^ (sinks.presentation_time as u32).rotate_left(9),
+            0,
+            sinks.game_audio,
+            combat_effects::rotation_from_direction([0.0, 1.0, 0.0]),
+        );
+    }
+    true
 }

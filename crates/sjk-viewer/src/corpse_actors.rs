@@ -68,6 +68,7 @@ impl GpuState {
                 Some(animator) => animator,
                 None => crate::actor_pose::storage(&mesh.preview.animation)?,
             };
+            self.copy_body_surfaces(client_num, index);
             return Ok(());
         }
         let preview = self
@@ -91,10 +92,34 @@ impl GpuState {
             mesh.body_copied = true;
         }
         mesh.body_identity = Some(body);
+        let client_num = mesh.body_identity.as_ref().map(|body| body.client_num);
         self.release_body_slot(id);
         self.actor_meshes.push(mesh);
         self.actor_groups.push(Vec::with_capacity(4));
+        if let Some(client_num) = client_num {
+            self.copy_body_surfaces(client_num, self.actor_meshes.len() - 1);
+        }
         Ok(())
+    }
+
+    /// `CG_BodyQueueCopy` duplicates the instance, so the body keeps the limbs its
+    /// player lost (`dismember`); other bodies start whole.
+    fn copy_body_surfaces(&mut self, client_num: u8, body: usize) {
+        let source_id = EntityId::new(u64::from(client_num) + 1);
+        let source = self
+            .actor_meshes
+            .iter()
+            .find(|mesh| {
+                !mesh.corpse_pool && mesh.limb.is_none() && mesh.entity_id == Some(source_id)
+            })
+            .filter(|mesh| mesh.appearance == self.actor_meshes[body].appearance)
+            .map(|mesh| mesh.surfaces.clone());
+        let mesh = &mut self.actor_meshes[body];
+        mesh.surfaces.reset(&mesh.preview.mesh.hierarchy);
+        if let Some(source) = source {
+            mesh.surfaces
+                .copy_from(&source, &mesh.preview.mesh.hierarchy);
+        }
     }
 
     /// Return the bodies drawn for entity `id` to the pool under their own appearance.

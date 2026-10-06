@@ -353,6 +353,19 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         ),
         CvarDefinition::new("cg_marks", true, archive, "Leave impact marks on the world"),
         CvarDefinition::new("cg_shadows", true, archive, "Draw player shadows"),
+        // EternalJK's `cg_dismember` (`cg_xcvar.h`): off by default.
+        CvarDefinition::new(
+            crate::dismember::CVAR,
+            0_i64,
+            archive,
+            "Show cut-off limbs: 0 none, 1 no heads or waists, 2 all",
+        ),
+        CvarDefinition::new(
+            crate::dismember::SERVER_CVAR,
+            0_i64,
+            archive,
+            "Chance (0-100) that games you host cut off limbs",
+        ),
         CvarDefinition::new("cg_drawGun", true, archive, "Draw the first-person weapon"),
         CvarDefinition::new("cg_drawCrosshair", true, archive, "Display crosshair"),
         // Stock defaults from `codemp/cgame/cg_xcvar.h:60,72,102`.

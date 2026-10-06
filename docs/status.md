@@ -765,6 +765,16 @@ A temporary CPU render of the draw list (free-for-all at 1920x1080, team game at
 client; head icons, flag icons and the game-font option's retail fonts on this
 layout are unverified on screen.
 
+## Dismemberment and disintegration
+
+Branch `feat/dismember-disintegrate`: cut-off limbs (`cg_dismember`, EternalJK's
+`CG_General` limb case) and bodies burning away (`EF_DISINTEGRATION`,
+`CG_Disintegration`), described in [client.md](client.md#dismemberment-and-disintegration).
+Asked for by creyon to match JoF EternalJK. Unit tests cover the surface rules (caps,
+stump, limb root, root-surface variants, reattaching), the frozen disintegration pose
+and the burn radius; the WGSL passes naga validation. Not yet seen in game: the look of
+limbs and burning bodies, limb pivots and smoke placement are unverified on screen.
+
 ## Leader HUD placement preview
 
 Local preview `leader1` moves the portrait and leader/opponent name/score from the
