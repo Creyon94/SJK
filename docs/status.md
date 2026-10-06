@@ -7,6 +7,17 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## EFX keys without a value
+
+Branch `fix/efx-bare-key-brace`: in an EFX block, a key with no value no longer
+consumes the block's closing brace. JoF's HD `effects/concussion/shot.efx` has a
+bare `linear` inside its Light's `size { }`; the parser skipped the next token as
+its value, took the `}` with it and rejected the effect ("unterminated effect
+component"), so the concussion rifle's main shot drew no trail. Retail's
+line-based parser ignores such a key. With the fix all 139 effect files of
+`JoF_HDWeaponEffects.pk3` parse. A unit test parses the HD block. Checked in game
+on Windows 11: the concussion shot shows in flight.
+
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the

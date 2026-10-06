@@ -310,6 +310,10 @@ fn skip_value(cursor: &mut Cursor<'_>) {
     match cursor.peek() {
         Some("{") => skip_balanced(cursor, "{", "}"),
         Some("[") => skip_balanced(cursor, "[", "]"),
+        // A key with no value (the JoF HD `concussion/shot.efx` has a bare `linear` on its
+        // own line inside `size { }`). Retail's line-based parser ignores it; never let it
+        // swallow the closing brace of the block it sits in.
+        Some("}" | "]") => {}
         Some(_) => {
             cursor.next();
             while cursor
@@ -521,5 +525,19 @@ Particle
         assert_eq!(bolt.chaos, single(0.1));
         assert!(!bolt.flags.apply_physics);
         assert_eq!(bolt.count, single(2.0));
+    }
+
+    /// JoF HD Weapon Effects `effects/concussion/shot.efx`: a bare `linear` key sits on its
+    /// own line inside the Light's `size` block. It used to eat the block's closing brace and
+    /// the whole effect failed with "unterminated effect component" (no concussion trail).
+    const HD_CONCUSSION_LIGHT: &str = "repeatDelay 300\r\nLight\r\n{\r\n\trgb\r\n\t{\r\n\t\tstart 0.1882 0 0.749 0.6863 0.1686 1\r\n\t}\r\n\tsize\r\n\t{\r\n\t\tstart 80 90\r\n\t\tlinear\r\n\t}\r\n}\r\nParticle\r\n{\r\n\tsize\r\n\t{\r\n\t\tstart 12 13\r\n\t}\r\n}";
+
+    #[test]
+    fn bare_key_does_not_swallow_closing_brace() {
+        let effect = parse_effect(HD_CONCUSSION_LIGHT).expect("HD concussion shot parses");
+        assert_eq!(effect.components.len(), 2);
+        assert_eq!(effect.components[0].size.start.minimum, 80.0);
+        assert_eq!(effect.components[0].size.start.maximum, 90.0);
+        assert_eq!(effect.components[1].size.start.minimum, 12.0);
     }
 }
