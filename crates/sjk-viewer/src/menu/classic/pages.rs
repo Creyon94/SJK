@@ -117,12 +117,12 @@ const MAIN: [Slot; 8] = [
         150.0,
         Size::Medium,
     ),
-    // SJK: above Changelog, under the left window.
+    // SJK: above Changelog, left of the description line.
     button(
         Entry::Credits,
         "CREDITS",
         CREDITS_HINT,
-        [101.0, 404.0],
+        [101.0, 420.0],
         150.0,
         Size::Medium,
     ),

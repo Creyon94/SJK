@@ -870,7 +870,7 @@ fn changelog(shots: &Snapshot, art: ArtSet) {
     }
     let mut canvas = crate::menu_widgets::MenuCanvas::new();
     let mut classic = crate::menu::classic::ClassicMain::new();
-    classic.select(5);
+    classic.select(6);
     crate::menu::classic::view::build(&mut canvas, VIEWPORT, &classic, 1.0, art);
     let mut vertices = Vec::new();
     canvas.append_text(&mut vertices, &shots.font.font, VIEWPORT);
