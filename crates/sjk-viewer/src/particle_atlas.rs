@@ -119,6 +119,16 @@ pub(crate) fn create(
                 }
             }
         }
+        if pending.len() == before && shaders.resolve_image(vfs, shader)?.is_none() {
+            static REPORTED: std::sync::Mutex<BTreeSet<String>> =
+                std::sync::Mutex::new(BTreeSet::new());
+            if REPORTED
+                .lock()
+                .is_ok_and(|mut seen| seen.insert(shader.clone()))
+            {
+                log::progress(format_args!("effect shader {shader}: no image found"));
+            }
+        }
         if pending.len() == before
             && let Some(path) = shaders.resolve_image(vfs, shader)?
         {

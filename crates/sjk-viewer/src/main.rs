@@ -1726,6 +1726,14 @@ impl GpuState {
                 &mut self.dynamic_lights,
                 visual_now,
             );
+            effect_runtime::FX_DEBUG.store(
+                self.console
+                    .as_ref()
+                    .and_then(|c| c.integer_cvar("fx_debug"))
+                    .unwrap_or(0)
+                    != 0,
+                std::sync::atomic::Ordering::Relaxed,
+            );
             if self
                 .console
                 .as_ref()
