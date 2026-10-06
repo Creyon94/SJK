@@ -21,6 +21,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- A radial HUD look, "SJK radial" (Settings > HUD > HUD look, or `cg_hudStyle radial`): health and armor as segmented arcs left of the crosshair, Force and ammunition right of it, low on the screen and sized with the window height, each on a rounded shadow, with the numbers on a pill through the bars and a saber's style as one full line in its colour (Fast blue, Medium yellow, Strong red, Dual green, Staff magenta); drawn by the engine, no HUD pack needed _(Sol, after TheRisqe's Radial HUD)_
 - A console socket for external apps: `cl_consoleSocket <port>` streams the console, chat included, to a program on this computer and runs the commands it sends, as JoF EJK does, so Sol's Archive and chat tools work again; it needs `cl_consoleSocketPassword`, and `consolesocket` explains it _(Sol, after JoF EJK)_
 - Nameplates show the holocron icons of the Force powers a player has on (lightning, grip, protect, absorb, speed and more) over the name when close (`cg_nameplateIcons`) _(Sol)_
 - Protect and Absorb used together show one cyan shell on the body, as in single player (`cg_spProtAbsColor`, Settings > Game), instead of a green and a blue one _(Sol, after JoF EJK)_

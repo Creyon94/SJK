@@ -312,7 +312,7 @@ test: Watch for a body swapping to another model (likely fixed too).
 test: Respawn after the death finished: the body stays on the final frame, no jump.
 
 [third-person-camera-jkr]
-pr: 38
+pr: 132
 issue: 20
 status: open
 area: Rendering & effects
@@ -324,7 +324,7 @@ test: mp/ffa3 in third person: walk along the ship hull while turning quickly.
 test: Back into walls and corners; look fully up and down; ride the lifts.
 test: The camera stays in front of geometry and outside the player model.
 test: cg_thirdPersonPitchOffset 20: the camera looks down more; cg_thirdPersonHorzOffset 30 too.
-note: If this holds, PR 38 can be closed upstream as superseded by #125.
+note: PR 38 was closed upstream: #125 has the camera, #132 the prediction-error part.
 
 [saber-trail]
 pr: 39
