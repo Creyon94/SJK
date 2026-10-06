@@ -410,6 +410,12 @@ struct GpuState {
     local_prediction: LocalPrediction,
     local_actor_state: local_actor_state::Tracker,
     third_person: bool,
+    /// The player's camera choice (the camera key, a demo's camera); `third_person`
+    /// is derived from it every frame by [`GpuState::update_zoom_view`] and is what
+    /// the camera, HUD and scope read.
+    third_person_choice: bool,
+    /// A zoom forces first person this frame (`ZoomView::forces_first_person`).
+    zoom_first_person: bool,
     /// Evidence cameras (spectate/look-at/orbit) leave the local actor at
     /// its entity transform instead of pinning it under the camera.
     detached_camera: bool,
@@ -1208,6 +1214,8 @@ impl GpuState {
             local_prediction,
             local_actor_state: local_actor_state::Tracker::default(),
             third_person,
+            third_person_choice: third_person,
+            zoom_first_person: false,
             detached_camera: false,
 
             selected_weapon: None,
@@ -1331,8 +1339,7 @@ impl GpuState {
             .demo_session
             .as_ref()
             .is_none_or(|session| !matches!(session.camera(), demo_playback::Camera::Spectate(_)));
-        self.effect_aux
-            .resolve_shakes(self.camera_position, visual_now, local_view);
+        self.update_zoom_view(presentation_time as i32);
         let intermission_view = self
             .live_session
             .as_ref()
@@ -1392,6 +1399,14 @@ impl GpuState {
             (if backdrop_view { "backdrop" } else { "free" }, free)
         };
         cut_trace::tick(self, branch, (view_position, view_target), visual_now);
+        // `CG_DoCameraShake` measures from the rendered view (`cg.refdef.vieworg`),
+        // so an effect's short-range shake reaches a first-person eye but not the
+        // third-person camera behind the player.
+        self.effect_aux.resolve_shakes(
+            view_position,
+            visual_now,
+            local_view && cgame_options::screen_shake(self.console.as_ref()),
+        );
         // The third-person camera already traced from the shifted origin.
         let error_offset = if branch == "third-person" {
             Vec3::ZERO
@@ -1789,6 +1804,7 @@ impl GpuState {
                     game_audio,
                     request,
                     socket,
+                    true,
                     visual_now,
                     presentation_time as i32,
                 );

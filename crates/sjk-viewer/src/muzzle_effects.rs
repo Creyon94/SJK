@@ -8,6 +8,8 @@ use super::*;
 /// the flash window (`codemp/cgame/cg_weapons.c:733-762`). Each call schedules
 /// fresh primitive copies; there is no cross-call collapse
 /// (`codemp/client/FxScheduler.cpp:790-983`).
+///
+/// `own` is set for the viewer's own weapon, whose flash does not shake the camera.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn spawn(
     particles: &mut Vec<Particle>,
@@ -17,6 +19,7 @@ pub(crate) fn spawn(
     audio: &mut Option<GameAudio>,
     request: sjk_client::LegacyMuzzleEffectRequest,
     socket: muzzle_flash::Socket,
+    own: bool,
     now: Instant,
     presentation_time: i32,
 ) {
@@ -24,6 +27,7 @@ pub(crate) fn spawn(
     if !auxiliary.continuous.due(now) {
         return;
     }
+    let shakes = auxiliary.pending_shakes();
     effect_runtime::spawn_effect(
         particles,
         auxiliary,
@@ -37,4 +41,14 @@ pub(crate) fn spawn(
         audio,
         combat_effects::rotation_from_direction(socket.direction),
     );
+    // Muzzle flashes carry a short `CameraShake` (JoF's HD weapon effects: radius
+    // 60). JoF EternalJK shows no shake when the viewer fires, in first or third person
+    // (frame-to-frame motion measured on the contributor's recordings), so the
+    // flash of the viewer's own weapon drops its shake. Other players' flashes keep
+    // theirs: `CG_FX_CameraShake` shakes by distance from the view for any effect
+    // (`cg_main.c:3828-3832`, `cg_view.c:2338-2358`), so one fired within the
+    // radius still reaches the view, as do explosions and other effects.
+    if own {
+        auxiliary.drop_shakes_since(shakes);
+    }
 }

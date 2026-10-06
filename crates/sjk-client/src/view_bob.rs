@@ -80,6 +80,8 @@ pub struct LegacyFirstPersonView {
     land: Option<(i32, f32)>,
     step: Option<(i32, f32)>,
     previous_view_height: Option<i32>,
+    /// The predicted view height last seen, for [`Self::observe_predicted_view_height`].
+    previous_predicted_view_height: Option<i32>,
     event_sequence: i32,
 }
 
@@ -92,7 +94,12 @@ impl LegacyFirstPersonView {
         self.predicted_events
             .identity(player.client_num(), player.entity_flags());
         let view_height = player.view_height();
-        if let Some(previous) = self.previous_view_height
+        // With prediction the duck smoothing follows the predicted state
+        // ([`Self::observe_predicted_view_height`]); the snapshot's view height
+        // arrives later, and smoothing from it too lifted the view back up for
+        // a moment after every crouch, as a stutter.
+        if !predicting
+            && let Some(previous) = self.previous_view_height
             && previous != view_height
         {
             self.duck = Some((time, (view_height - previous) as f32));
@@ -118,6 +125,18 @@ impl LegacyFirstPersonView {
             }
         }
         self.event_sequence = sequence;
+    }
+
+    /// `CG_TransitionPlayerState` after prediction (`cg_predict.c:1429`,
+    /// `cg_playerstate.c:539-543`): a change of the predicted view height starts the
+    /// duck smoothing, at the frame it happens.
+    pub fn observe_predicted_view_height(&mut self, view_height: i32, time: i32) {
+        if let Some(previous) = self.previous_predicted_view_height
+            && previous != view_height
+        {
+            self.duck = Some((time, (view_height - previous) as f32));
+        }
+        self.previous_predicted_view_height = Some(view_height);
     }
 
     /// Apply a locally predicted movement event to the same landing/step timelines.
@@ -282,4 +301,21 @@ fn forward_left(angles: [f32; 3]) -> ([f32; 3], [f32; 3]) {
 
 fn dot(a: [f32; 3], b: [f32; 3]) -> f32 {
     a[0] * b[0] + a[1] * b[1] + a[2] * b[2]
+}
+
+#[cfg(test)]
+mod predicted_duck_tests {
+    use super::*;
+
+    #[test]
+    fn a_predicted_crouch_starts_the_duck_smoothing_once() {
+        let mut view = LegacyFirstPersonView::default();
+        view.observe_predicted_view_height(40, 1_000);
+        assert_eq!(view.duck, None);
+        view.observe_predicted_view_height(12, 1_050);
+        assert_eq!(view.duck, Some((1_050, -28.0)));
+        // The same height again changes nothing.
+        view.observe_predicted_view_height(12, 1_100);
+        assert_eq!(view.duck, Some((1_050, -28.0)));
+    }
 }

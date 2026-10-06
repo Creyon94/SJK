@@ -748,6 +748,38 @@ that FOV, and the gun, barrels and muzzle socket go through the same transform
 ([view_weapon_offsets.rs](../crates/sjk-viewer/src/view_weapon_offsets.rs)). Details and
 limits are in [status.md](status.md#first-person-weapon-field-of-view).
 
+### Zoom, scope and camera shakes
+
+A zoom puts the view in first person, in the order of EternalJK's
+`CG_DrawActiveFrame` (`cg_view.c:3101-3131`): a living player on an emplaced gun is
+not forced, saber or melee zoom (binoculars) is, riding a vehicle is not, any other
+zoom (the disruptor) is
+([scope.rs](../crates/sjk-viewer/src/scope.rs), `ZoomView::forces_first_person`).
+The player's camera choice is kept apart from what a frame renders: `third_person`
+is derived from the choice and the zoom every frame, so nothing is rewritten and the
+choice returns when the zoom ends; toggling the camera during a zoom changes the
+choice. In a live session the zoom is read from the predicted state, or from the
+snapshot while following another player (`cg_predict.c:952`); in a demo only the
+player's own cameras follow the recorded zoom, not spectate, look-at, orbit or free.
+SJK does not force third person for emplaced guns, vehicles, knockdowns, grapples or
+falls, so there the zoom leaves the choice alone.
+
+The scope mask is looked up as the image `gfx/2d/cropcircle2`, in the engine's image
+order (`.jpg`, `.png`, `.tga`, as rd-common's `R_LoadImage`), instead of through its
+shader, whose other stage drew a full-screen white picture. JoF's HD scope
+(`cropcircle2.png`) shows only with that order in place.
+
+Effect camera shakes are measured from the rendered view, as `CG_DoCameraShake`
+measures from `cg.refdef.vieworg`, so a short-range shake reaches a first-person eye
+but not the third-person camera behind the player. `cg_screenShake` (archived,
+default 2) gates them: 0 off, nonzero on. EternalJK's level 2 also shakes the camera
+for a weapon charging or just fired (`cg_weapons.c:793,801,2466`) and 0 turns off the
+damage view kick (`cg_view.c:1145`); neither is implemented. The viewer's own muzzle
+flash never shakes the camera (JoF's HD muzzle effects carry a radius-60
+`CameraShake`; JoF EternalJK showed none when firing in the contributor's recordings,
+in first or third person); other players' flashes and all other effects shake by
+distance as in the reference.
+
 ## Saber trails
 
 [saber_trail.rs](../crates/sjk-viewer/src/saber_trail.rs) follows codemp

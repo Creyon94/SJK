@@ -397,7 +397,9 @@ impl super::GpuState {
                 self.chat.open(team);
                 self.sync_cursor_policy();
             }
-            Some(InputAction::ToggleCamera) => self.third_person = !self.third_person,
+            // The choice, not the derived `third_person`: during a zoom it decides what
+            // the camera is once the zoom ends (`GpuState::update_zoom_view`).
+            Some(InputAction::ToggleCamera) => self.third_person_choice = !self.third_person_choice,
             Some(InputAction::SaberToggle) => {
                 self.pending_generic_command = GENCMD_SABER_SWITCH;
             }

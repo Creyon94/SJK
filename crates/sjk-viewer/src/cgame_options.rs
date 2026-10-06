@@ -39,6 +39,11 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
             "Scope: 0 stock, 1 crosshair, 2 mask only",
         ),
         ("cg_autoSwitch", 1, "Pickup upgrades: 0 off, 1 safe, 2 any"),
+        (
+            "cg_screenShake",
+            2,
+            "Camera shakes from effect files (explosions): 0 off, else on. EternalJK's level 2 charge and recoil shakes, and 0 switching off the damage kick, are not implemented. Your own muzzle flash never shakes",
+        ),
     ] {
         cvars.register(CvarDefinition::new(
             name,
@@ -117,6 +122,17 @@ pub(crate) fn scalar(console: Option<&ViewerConsole>, name: &str, default: f64) 
         .and_then(|c| c.float_cvar(name))
         .filter(|v| v.is_finite())
         .unwrap_or(default) as f32
+}
+
+/// EternalJK `cg_screenShake`: nonzero lets effect files shake the camera
+/// (`CG_FX_CameraShake`, `cg_main.c:3828-3832`). Only that is implemented: the
+/// level 2 shakes of a charging or just-fired weapon (`cg_weapons.c:793,801,2466`) and the
+/// switch that turns the damage view kick off (`cg_view.c:1145`) are not.
+pub(crate) fn screen_shake(console: Option<&ViewerConsole>) -> bool {
+    console
+        .and_then(|c| c.integer_cvar("cg_screenshake"))
+        .unwrap_or(2)
+        != 0
 }
 
 /// Stock bob scalars affect only the rendered camera, never usercmd angles.
