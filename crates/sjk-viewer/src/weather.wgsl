@@ -106,6 +106,10 @@ fn wrap(value: vec3<f32>, size: vec3<f32>) -> vec3<f32> {
     return value - size * floor(value / size);
 }
 
+fn wrap2(value: vec2<f32>, size: vec2<f32>) -> vec2<f32> {
+    return value - size * floor(value / size);
+}
+
 struct Particle {
     position: vec3<f32>,
     velocity: vec3<f32>,
@@ -147,6 +151,7 @@ struct StreakOutput {
     // x across the streak (-1..1), y along it (0 head, 1 tail).
     @location(1) uv: vec2<f32>,
     @location(2) color: vec3<f32>,
+    @location(3) opacity: f32,
 };
 
 @vertex fn vertex_streak(@builtin(vertex_index) vertex: u32,
@@ -186,18 +191,30 @@ struct StreakOutput {
     output.position = camera.view_projection * vec4(world, 1.0);
     output.world = world;
     output.uv = vec2(c.x, along);
-    output.color = cloud.color.rgb * cloud.color.a * weather.light.rgb * p.fade
-        * (cloud.shape.x / half_width);
+    // Drops vary: some catch more light than others. x is the streak's opacity, so a
+    // thinner or farther streak is fainter rather than whiter; yzw the cloud's colour.
+    let catch_light = 0.55 + 0.45 * fract(p.seed.x * 7.31 + p.seed.y * 3.17);
+    output.opacity = catch_light * cloud.color.a * p.fade * (cloud.shape.x / half_width);
+    output.color = cloud.color.rgb;
     return output;
 }
+
+// A falling drop shows a blurred, tinted image of the bright sky around it more than a
+// white line: rain is drawn over the scene as a faint streak of the light where the camera
+// is, cooled toward the overcast blue-grey, brightest along its core.
+const RAIN_TINT: vec3<f32> = vec3(0.80, 0.85, 0.92);
+const RAIN_OPACITY: f32 = 0.42;
 
 @fragment fn fragment_streak(input: StreakOutput) -> @location(0) vec4<f32> {
     if !open_at(input.world) { discard; }
     // Soft across, brightest just behind the head, fading along the tail.
     let across = 1.0 - input.uv.x * input.uv.x;
     let along = smoothstep(0.0, 0.08, input.uv.y) * pow(1.0 - input.uv.y, 1.2);
-    // Additive, as GL_ONE GL_ONE; the pipeline leaves the layer's alpha alone.
-    return vec4(input.color * across * along * 1.6, 0.0);
+    let alpha = clamp(input.opacity * across * along * RAIN_OPACITY, 0.0, 1.0);
+    // The reference's grey rain (0.5) is neutral; acid rain keeps its green.
+    let hue = input.color / max(max(input.color.r, max(input.color.g, input.color.b)), 0.001);
+    let core = 1.0 + 0.25 * across * across;
+    return vec4(min(weather.light.rgb * RAIN_TINT * hue * core, vec3(1.0)), alpha);
 }
 
 struct SpriteOutput {
@@ -280,7 +297,11 @@ struct SplashOutput {
     let age = fract(clock);
     let seed = hash3(index * 0x9E3779B1u ^ (u32(i32(floor(clock))) * 0x85EBCA77u));
     let radius = 0.5 * min(rain.box_size.x, rain.box_size.y);
-    let ground = camera.position.xy + (seed.xy * 2.0 - 1.0) * radius;
+    // Anchored in the world as the streaks are: the spot repeats every box width, and
+    // the copy inside the box around the camera is the one drawn, so a splash stays
+    // where it struck while the camera moves and only wraps at the box's edge.
+    let low = camera.position.xy - radius;
+    let ground = low + wrap2(seed.xy * (2.0 * radius) - low, vec2(2.0 * radius));
     let span = cover_at(ground);
     let flags = u32(span.z);
     if (flags & SPLASH) == 0u || span.x > span.y || abs(span.x - camera.position.z) > 1200.0 {
@@ -308,7 +329,8 @@ struct SplashOutput {
         output.uv = vec2(c.x, c.y * 0.5 + 0.5);
     }
     output.position = camera.view_projection * vec4(world, 1.0);
-    output.color = rain.color.rgb * rain.color.a * weather.light.rgb * fade;
+    // x the splash's opacity; blended as the streaks are.
+    output.color = vec3(rain.color.a * fade);
     output.shape = vec3(age, select(0.0, 1.0, water), 0.6 + 0.6 * seed.z);
     return output;
 }
@@ -332,5 +354,6 @@ struct SplashOutput {
         let strike = input.uv * vec2(1.6, 9.0);
         light = light * (1.0 - age * age) + exp(-dot(strike, strike)) * (1.0 - age) * (1.0 - age);
     }
-    return vec4(input.color * light * 1.2, 0.0);
+    let alpha = clamp(input.color.x * light * 0.9, 0.0, 1.0);
+    return vec4(min(weather.light.rgb * RAIN_TINT * 1.1, vec3(1.0)), alpha);
 }

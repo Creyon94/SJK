@@ -218,9 +218,11 @@ impl Gpu {
                 cache: None,
             })
         };
+        // Rain and its splashes are blended over the scene, a faint tinted streak, rather
+        // than added to it: the reference's added grey turns a dense storm into white.
         Self {
-            streak: pipeline("vertex_streak", "fragment_streak", added, true),
-            splash: pipeline("vertex_splash", "fragment_splash", added, true),
+            streak: pipeline("vertex_streak", "fragment_streak", blended, false),
+            splash: pipeline("vertex_splash", "fragment_splash", blended, false),
             sprite: pipeline("vertex_sprite", "fragment_sprite", added, true),
             sprite_alpha: pipeline("vertex_sprite", "fragment_sprite", blended, false),
             uniform,
