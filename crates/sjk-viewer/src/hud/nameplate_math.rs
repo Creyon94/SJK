@@ -58,21 +58,36 @@ pub(super) fn head_height(solid: u32) -> f32 {
     }
 }
 
-/// Health bar fill: green when whole, through yellow to red when low.
-pub(super) fn health_color(ratio: f32) -> Color {
-    let ratio = ratio.clamp(0.0, 1.0);
-    let (r, g) = if ratio >= 0.5 {
-        ((1.0 - ratio) * 2.0, 1.0)
-    } else {
-        (1.0, ratio * 2.0)
-    };
-    Color::new(0.15 + 0.85 * r, 0.15 + 0.8 * g, 0.1, 1.0)
+/// Bar fills until the HUD in use names its own: the retail HUD's red health,
+/// green shield (armour) and light blue Force.
+pub(super) const HEALTH_COLOR: Color = Color::new(1.0, 0.25, 0.2, 1.0);
+pub(super) const SHIELD_COLOR: Color = Color::new(0.3, 0.9, 0.35, 1.0);
+pub(super) const FORCE_COLOR: Color = Color::new(0.36, 0.7, 1.0, 1.0);
+/// The grey of an empty shield's broken bar.
+pub(super) const EMPTY_SHIELD: Color = Color::new(0.55, 0.57, 0.6, 0.7);
+/// The "?" over a bar the estimate cannot fill.
+pub(super) const UNKNOWN_MARK: Color = Color::new(1.0, 0.85, 0.15, 1.0);
+
+/// A deeper, more saturated `color`: the second layer of a bar over its maximum
+/// (overheal, overshield). Each channel moves away from the mean and the whole
+/// darkens, so it reads as the same colour, deeper, even for a green that is
+/// already near full.
+pub(super) fn saturated(color: Color) -> Color {
+    let mean = (color.r + color.g + color.b) / 3.0;
+    let push = |channel: f32| ((mean + (channel - mean) * 1.8) * 0.72).clamp(0.0, 1.0);
+    Color::new(push(color.r), push(color.g), push(color.b), color.a)
 }
 
-/// Shield (armour) bar fill.
-pub(super) const SHIELD_COLOR: Color = Color::new(0.35, 0.65, 1.0, 1.0);
-/// Force bar fill until the HUD in use names its own: the retail HUD's light blue.
-pub(super) const FORCE_COLOR: Color = Color::new(0.36, 0.7, 1.0, 1.0);
+/// The pieces of an empty shield's broken bar, as `(start, end)` shares of its
+/// width: dashes with gaps between, a crack's look.
+pub(super) fn broken_dashes() -> impl Iterator<Item = (f32, f32)> {
+    const DASHES: usize = 7;
+    const SOLID: f32 = 0.7;
+    (0..DASHES).map(|index| {
+        let start = index as f32 / DASHES as f32;
+        (start, start + SOLID / DASHES as f32)
+    })
+}
 
 /// `color` mixed `share` of the way to white, at opacity `alpha`: a bar's outline.
 pub(super) fn lighter(color: Color, share: f32, alpha: f32) -> Color {
@@ -94,7 +109,8 @@ impl Rows {
     }
 }
 
-/// The plate under a name: its frame and the bars inside, in physical pixels.
+/// The plate under a name: its frame and the bars inside (shield on top, then
+/// health, then Force), in physical pixels.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) struct Stack {
     pub(super) frame: Rect,
@@ -116,8 +132,8 @@ impl Stack {
     /// Total height of a stack holding `rows`, in pixels.
     pub(super) fn height(rows: Rows, u: f32) -> f32 {
         let bars = [
-            (rows.health, Self::HEALTH),
             (rows.shield, Self::SHIELD),
+            (rows.health, Self::HEALTH),
             (rows.force, Self::FORCE),
         ];
         let heights: f32 = bars.iter().filter(|b| b.0).map(|b| b.1).sum();
@@ -151,11 +167,14 @@ impl Stack {
                 rect
             })
         };
+        let shield = bar(rows.shield, Self::SHIELD);
+        let health = bar(rows.health, Self::HEALTH);
+        let force = bar(rows.force, Self::FORCE);
         Self {
             frame: Rect::new(x, y, width, height),
-            health: bar(rows.health, Self::HEALTH),
-            shield: bar(rows.shield, Self::SHIELD),
-            force: bar(rows.force, Self::FORCE),
+            health,
+            shield,
+            force,
         }
     }
 }
@@ -205,13 +224,36 @@ mod tests {
     }
 
     #[test]
-    fn health_runs_from_green_through_yellow_to_red() {
-        let full = health_color(1.0);
-        let half = health_color(0.5);
-        let low = health_color(0.0);
-        assert!(full.g > full.r);
-        assert!(half.r > 0.9 && half.g > 0.9);
-        assert!(low.r > low.g);
+    fn the_overflow_layer_is_the_same_hue_stronger() {
+        for color in [HEALTH_COLOR, SHIELD_COLOR] {
+            let deep = saturated(color);
+            let spread = |c: Color| c.r.max(c.g).max(c.b) - c.r.min(c.g).min(c.b);
+            let strongest = |c: Color| {
+                [c.r, c.g, c.b]
+                    .iter()
+                    .enumerate()
+                    .max_by(|a, b| a.1.total_cmp(b.1))
+                    .map(|(index, _)| index)
+            };
+            assert!(spread(deep) >= spread(color) - 0.2, "{deep:?}");
+            assert_eq!(strongest(deep), strongest(color), "same hue");
+            let sum = |c: Color| c.r + c.g + c.b;
+            assert!(sum(deep) < sum(color), "darker");
+        }
+    }
+
+    #[test]
+    fn a_broken_bar_has_gaps_and_stays_inside() {
+        let dashes: Vec<_> = broken_dashes().collect();
+        assert!(dashes.len() > 3);
+        for pair in dashes.windows(2) {
+            assert!(pair[0].1 < pair[1].0, "a gap between dashes");
+        }
+        assert!(
+            dashes
+                .iter()
+                .all(|(start, end)| 0.0 <= *start && *end <= 1.0)
+        );
     }
 
     #[test]
@@ -237,7 +279,8 @@ mod tests {
             stack.shield.unwrap(),
             stack.force.unwrap(),
         );
-        assert!(hp.y > stack.frame.y && shield.y > hp.y + hp.height && force.y > shield.y);
+        // Shield on top, then health, then Force.
+        assert!(shield.y > stack.frame.y && hp.y > shield.y + shield.height && force.y > hp.y);
         assert!(force.y + force.height < stack.frame.y + stack.frame.height);
 
         let only_force = Rows {

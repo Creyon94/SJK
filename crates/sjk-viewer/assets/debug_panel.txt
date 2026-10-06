@@ -1276,6 +1276,20 @@ test: The bot switches weapon or stance: the icon follows; a saber's ring is blu
 test: Log line "pain events" says Honest once you were hit; Masked on a g_stopHealthESP server.
 note: Never started in a game: estimates only unit-tested on synthetic snapshots.
 
+[nameplate-bars]
+status: personal
+area: HUD
+title: Nameplate bars: shield on top, HUD colours, overheal band, "?" when unsure, duels
+change: Shield bar on top and always there, broken grey when empty; health red, shield green.
+change: Over the maximum (125 health, up to 199 shield) a deeper inner band from the left.
+change: A yellow "?" over health or shield too unsure; JA+ duel start and win values applied.
+test: Bot just spawned: full red health with a deeper first quarter, green shield a quarter.
+test: Shoot a bot until its shield is gone: the shield bar turns to grey dashes.
+test: A player first seen at a distance: dim bars with a yellow "?" until they get hit.
+test: JA+ server, watch a private duel: both 100/100 at the start, winner 100/25 at the end.
+test: cg_hudStyle radial then classic: the bars follow each HUD's health and armor colours.
+note: Never started in a game: only the off-screen snapshot (nameplate_snapshot) was looked at.
+
 [identity-auto]
 status: personal
 area: HUD

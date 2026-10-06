@@ -71,6 +71,16 @@ impl Range {
         self.map(|value| (value / full).clamp(0.0, 1.0))
     }
 
+    /// The range as shares of `full`, each within `0..=2`: health and armour go to
+    /// twice the maximum (overheal, a large shield on a full one), drawn as a second
+    /// layer over the bar.
+    pub(super) fn share_over(self, full: f32) -> Self {
+        if full <= 0.0 {
+            return Self::default();
+        }
+        self.map(|value| (value / full).clamp(0.0, 2.0))
+    }
+
     /// How far apart the bounds are.
     pub(super) fn width(self) -> f32 {
         self.high - self.low
@@ -115,5 +125,7 @@ mod tests {
         let share = Range::new(25.0, 50.0, 150.0).share(100.0);
         assert_eq!(share, Range::new(0.25, 0.5, 1.0));
         assert_eq!(range.share(0.0), Range::default());
+        let over = Range::new(99.0, 150.0, 250.0).share_over(100.0);
+        assert_eq!(over, Range::new(0.99, 1.5, 2.0));
     }
 }

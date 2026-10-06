@@ -21,6 +21,13 @@
 //! - **Pickups** (`EV_ITEM_PICKUP`): medpacks and shields add their amount.
 //! - **Force heal** (its sound at the player): 5, 10 or 25 by level.
 //! - **Drain** heals the drainer by what it takes, an unknown amount.
+//! - **Pain sounds** (`EV_ENTITY_SOUND` of `*pain25` to `*pain100`): where a server
+//!   hides the pain value (JAPro's `g_stopHealthESP 2`) it plays the pain sound for
+//!   the health left instead, which bounds it to a quarter.
+//! - **Private duels** (`EV_PRIVATE_DUEL`): JA+ sets both duellists to 100 health
+//!   and 100 armour when the duel starts and the winner to 100 and 25 when it ends;
+//!   stock JKA leaves the start alone and heals the winner to the maximum. The start
+//!   values are learnt from the local player's own duels when it has had one.
 //! - **Deaths** (`EF_DEAD`, `EV_OBITUARY`) and the respawn after one. A spawn
 //!   with no death seen (a round or map restart) toggles `EF_TELEPORT_BIT`, as a
 //!   teleport does, so that only raises the high bound to the spawn values.
@@ -45,6 +52,8 @@ const EF_DEAD: u32 = 2;
 const EF_TELEPORT_BIT: u32 = 1 << 3;
 const EVENT_MASK: u16 = 0xff;
 const EV_FALL: u16 = 11;
+const EV_PRIVATE_DUEL: u16 = 15;
+const EV_ENTITY_SOUND: u16 = 79;
 const EV_ROLL: u16 = 17;
 const EV_ITEM_PICKUP: u16 = 22;
 const EV_SABER_HIT: u16 = 30;
@@ -93,6 +102,11 @@ const DRAIN_GAIN: (f32, f32) = (0.01, 0.04);
 const MASKED_FIFTIES: u8 = 4;
 /// Heal sound attributed to the player within this distance of it.
 const HEAL_REACH: f32 = 64.0;
+/// A duel ending this close (ms) to a death was won, not called off.
+const DUEL_DEATH_MILLIS: i32 = 1_000;
+/// JA+'s duellists at the start (health, armour) and its winner at the end.
+const JA_PLUS_DUEL_START: (f32, f32) = (100.0, 100.0);
+const JA_PLUS_DUEL_WIN: (f32, f32) = (100.0, 25.0);
 
 /// Whether the server's pain events carry real health.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -141,6 +155,19 @@ struct Facts {
     drained: bool,
     /// Health and armour just before the local player's hit.
     attackee: Option<(f32, f32)>,
+    /// The health a pain sound says is left, as bounds.
+    pain_cue: Option<(f32, f32)>,
+    /// `EV_PRIVATE_DUEL`: `true` when a duel starts, `false` when it ends.
+    duel: Option<bool>,
+}
+
+/// What a private duel does to its duellists' health and armour.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+struct DuelRules {
+    /// Set at the start; `None` leaves them.
+    start: Option<(f32, f32)>,
+    /// Set for the winner; `None` heals the winner to the maximum (stock).
+    win: Option<(f32, f32)>,
 }
 
 /// What the server's rules give a player at spawn.
@@ -149,6 +176,8 @@ struct Profile {
     max_health: f32,
     /// Learnt from the local player's own spawn: health, armour.
     learnt: Option<(f32, f32)>,
+    /// Learnt from the start of the local player's own duel: health, armour.
+    duel_start: Option<(f32, f32)>,
 }
 
 impl Profile {
@@ -176,6 +205,9 @@ struct Step {
     draining: bool,
     /// `EF_TELEPORT_BIT`, which toggles at every spawn and teleport.
     teleport: bool,
+    duel: DuelRules,
+    /// Somebody died about now, so a duel ending now was won.
+    death_nearby: bool,
 }
 
 /// Fixed-capacity estimator for every client slot, observed once per snapshot.
@@ -194,6 +226,11 @@ pub(super) struct Estimator {
     own_hits: u32,
     own_alive: bool,
     own_died: bool,
+    own_duel: bool,
+    /// The local player died in the last observed snapshot.
+    own_died_now: bool,
+    /// When a player or the local player was last seen to die.
+    last_death: Option<i32>,
     last_time: i32,
     /// Drained this snapshot, for the Force estimate.
     drained: u32,
@@ -206,6 +243,7 @@ impl Default for Estimator {
             profile: Profile {
                 max_health: 100.0,
                 learnt: None,
+                duel_start: None,
             },
             honest: 0,
             masked: 0,
@@ -217,6 +255,9 @@ impl Default for Estimator {
             own_hits: 0,
             own_alive: false,
             own_died: false,
+            own_duel: false,
+            own_died_now: false,
+            last_death: None,
             last_time: i32::MIN,
             drained: 0,
         }
@@ -280,6 +321,26 @@ impl Estimator {
         self.learn_local(snapshot);
         self.scan(snapshot, game, &mut facts, &mut local_victims);
         self.attribute_own_hit(snapshot, &mut facts, local_victims);
+        // A death this snapshot: an obituary, a player newly dead, or the local player.
+        let newly_dead = snapshot.entities.iter().any(|entity| {
+            entity.entity_type() == ET_PLAYER
+                && entity.e_flags() & EF_DEAD != 0
+                && self
+                    .tracks
+                    .get(usize::from(entity.number()))
+                    .is_some_and(|track| track.alive)
+        });
+        if newly_dead || facts.iter().any(|fact| fact.died) || self.own_died_now {
+            self.last_death = Some(time);
+        }
+        let death_nearby = self
+            .last_death
+            .is_some_and(|died| time - died <= DUEL_DEATH_MILLIS);
+        let duel = if facts.iter().any(|fact| fact.duel.is_some()) {
+            self.duel_rules(game)
+        } else {
+            DuelRules::default()
+        };
         self.drained = facts
             .iter()
             .enumerate()
@@ -298,6 +359,8 @@ impl Estimator {
             protected: entity.force_powers_active() & (1 << FP_PROTECT) != 0,
             draining: entity.force_powers_active() & (1 << FP_DRAIN) != 0,
             teleport: entity.e_flags() & EF_TELEPORT_BIT != 0,
+            duel,
+            death_nearby,
         };
         for entity in &snapshot.entities {
             let number = entity.number();
@@ -319,7 +382,24 @@ impl Estimator {
         }
     }
 
-    /// The local player: its spawn values, and its pain events against its health.
+    /// What private duels do on this server: learnt from the local player's own
+    /// duel start where it had one, else JA+'s or stock JKA's rules.
+    fn duel_rules(&self, game: &GameState) -> DuelRules {
+        let ja_plus = matches!(
+            sjk_client::CompatProfile::from_game_state(game),
+            sjk_client::CompatProfile::JaPlus { .. }
+        );
+        DuelRules {
+            start: self
+                .profile
+                .duel_start
+                .or(ja_plus.then_some(JA_PLUS_DUEL_START)),
+            win: ja_plus.then_some(JA_PLUS_DUEL_WIN),
+        }
+    }
+
+    /// The local player: its spawn and duel-start values, and its pain events
+    /// against its health.
     fn learn_local(&mut self, snapshot: &Snapshot) {
         let player = &snapshot.player;
         if player.max_health() > 0 {
@@ -329,9 +409,16 @@ impl Estimator {
         if alive && !self.own_alive && self.own_died {
             self.profile.learnt = Some((player.health() as f32, player.armor().max(0) as f32));
         }
+        self.own_died_now = self.own_alive && player.health() <= 0 && !player.is_spectator();
         if player.health() <= 0 && !player.is_spectator() {
             self.own_died = true;
         }
+        // The first snapshot of the local player's duel holds what the start set.
+        let duelling = player.duel_in_progress();
+        if duelling && !self.own_duel && alive {
+            self.profile.duel_start = Some((player.health() as f32, player.armor().max(0) as f32));
+        }
+        self.own_duel = duelling;
         self.own_alive = alive;
         let event = player.external_event();
         if event != self.own_event && event & EVENT_MASK == EV_PAIN && alive {
@@ -420,6 +507,22 @@ impl Estimator {
                 EV_FORCE_DRAINED => {
                     if let Some(slot) = about(entity.owner()) {
                         facts[slot].drained = true;
+                    }
+                }
+                EV_ENTITY_SOUND if temporary => {
+                    if let Some(bounds) = pain_sound(game, entity.event_parameter())
+                        && let Some(slot) = about(entity.client_num())
+                    {
+                        facts[slot].pain_cue = Some(bounds);
+                    }
+                }
+                EV_PRIVATE_DUEL if player => {
+                    if let Some(slot) = about(entity.number()) {
+                        facts[slot].duel = match entity.event_parameter() {
+                            1 => Some(true),
+                            0 => Some(false),
+                            _ => None,
+                        };
                     }
                 }
                 EV_GENERAL_SOUND if temporary => {
@@ -538,6 +641,27 @@ fn is_heal_sound(game: &GameState, index: u8) -> bool {
                 .map(|at| &name[at..])
         })
         .is_some_and(|tail| tail.eq_ignore_ascii_case(HEAL_SOUND))
+}
+
+/// The health a pain sound means (`*pain25.wav` to `*pain100.wav`, which a server
+/// hiding the pain value plays for 25 or less, 50 or less, 75 or less, or more).
+fn pain_sound(game: &GameState, index: u8) -> Option<(f32, f32)> {
+    let name = game.config_string(CS_SOUNDS + usize::from(index))?;
+    let name = name.strip_prefix(b"*")?;
+    let quarter = [
+        (b"pain25".as_slice(), (1.0, 25.0)),
+        (b"pain50", (26.0, 50.0)),
+        (b"pain75", (51.0, 75.0)),
+        (b"pain100", (76.0, 255.0)),
+    ];
+    quarter
+        .iter()
+        .find(|(stem, _)| {
+            name.len() >= stem.len() + 4
+                && name[..stem.len()].eq_ignore_ascii_case(stem)
+                && name[stem.len()..].eq_ignore_ascii_case(b".wav")
+        })
+        .map(|(_, bounds)| *bounds)
 }
 
 /// The player standing at `origin`, if one is close enough.
@@ -768,6 +892,37 @@ fn hurt(track: &mut Track, facts: &Facts, step: Step) {
             track.health = Range::exact(f32::from(value));
         }
     }
+    if let Some((low, high)) = facts.pain_cue {
+        track.pain_until = time + PAIN_DEBOUNCE;
+        track.health = within(track.health, low, high);
+    }
+    match facts.duel {
+        Some(true) => {
+            if let Some((health, armor)) = step.duel.start {
+                track.health = Range::exact(health);
+                track.armor = Range::exact(armor);
+            }
+        }
+        Some(false) if step.death_nearby => match step.duel.win {
+            Some((health, armor)) => {
+                track.health = Range::exact(health);
+                track.armor = Range::exact(armor);
+            }
+            None => track.health = track.health.at_least(max_health),
+        },
+        _ => {}
+    }
+}
+
+/// `range` narrowed to `low..=high`; when it lay wholly outside, the bounds
+/// themselves, the guess between them.
+fn within(range: Range, low: f32, high: f32) -> Range {
+    let narrowed = Range::new(range.low.max(low), range.best, range.high.min(high));
+    if range.high < low || range.low > high {
+        Range::new(low, (low + high.min(low + 25.0)) * 0.5, high)
+    } else {
+        narrowed
+    }
 }
 
 #[cfg(test)]
@@ -783,6 +938,8 @@ mod tests {
             protected: false,
             draining: false,
             teleport: false,
+            duel: DuelRules::default(),
+            death_nearby: false,
         }
     }
 
@@ -1125,10 +1282,87 @@ mod tests {
     }
 
     #[test]
+    fn a_pain_sound_bounds_the_health_to_its_quarter() {
+        let mut track = spawned(10_000);
+        let facts = Facts {
+            pain_cue: Some((26.0, 50.0)),
+            ..Facts::default()
+        };
+        advance(&mut track, &facts, false, step(10_050));
+        assert_eq!(track.health, Range::new(26.0, 38.0, 50.0));
+        assert_eq!(track.pain_until, 10_750);
+        // A cue inside a narrower range keeps the range.
+        track.health = Range::new(30.0, 35.0, 40.0);
+        advance(&mut track, &facts, false, step(11_000));
+        assert_eq!(track.health, Range::new(30.0, 35.0, 40.0));
+        assert_eq!(within(Range::new(80.0, 90.0, 100.0), 76.0, 255.0).low, 80.0);
+    }
+
+    #[test]
+    fn a_ja_plus_duel_sets_both_duellists_and_its_winner() {
+        let mut track = spawned(10_000);
+        let ja_plus = DuelRules {
+            start: Some(JA_PLUS_DUEL_START),
+            win: Some(JA_PLUS_DUEL_WIN),
+        };
+        let mut duel = step(10_050);
+        duel.duel = ja_plus;
+        let start = Facts {
+            duel: Some(true),
+            ..Facts::default()
+        };
+        advance(&mut track, &start, false, duel);
+        assert_eq!(track.health, Range::exact(100.0));
+        assert_eq!(track.armor, Range::exact(100.0));
+        // Called off (nobody died): nothing changes.
+        track.health = Range::exact(31.0);
+        let end = Facts {
+            duel: Some(false),
+            ..Facts::default()
+        };
+        duel.time = 11_000;
+        advance(&mut track, &end, false, duel);
+        assert_eq!(track.health, Range::exact(31.0));
+        // Won: back to 100 and 25 whatever was left.
+        duel.time = 12_000;
+        duel.death_nearby = true;
+        advance(&mut track, &end, false, duel);
+        assert_eq!(track.health, Range::exact(100.0));
+        assert_eq!(track.armor, Range::exact(25.0));
+    }
+
+    #[test]
+    fn a_stock_duel_only_heals_its_winner_to_the_maximum() {
+        let mut track = spawned(10_000);
+        track.health = Range::new(20.0, 40.0, 60.0);
+        track.armor = Range::exact(7.0);
+        let mut won = step(10_050);
+        won.death_nearby = true;
+        let end = Facts {
+            duel: Some(false),
+            ..Facts::default()
+        };
+        advance(&mut track, &end, false, won);
+        assert_eq!(track.health, Range::exact(100.0));
+        assert_eq!(track.armor, Range::exact(7.0));
+        let start = Facts {
+            duel: Some(true),
+            ..Facts::default()
+        };
+        advance(&mut track, &start, false, step(10_100));
+        assert_eq!(
+            track.health,
+            Range::exact(100.0),
+            "the stock start sets nothing"
+        );
+    }
+
+    #[test]
     fn spawn_values_follow_the_game_type_until_learnt() {
         let mut profile = Profile {
             max_health: 100.0,
             learnt: None,
+            duel_start: None,
         };
         assert_eq!(profile.spawn(0), (125.0, 25.0));
         assert_eq!(profile.spawn(GT_DUEL), (100.0, 0.0));
