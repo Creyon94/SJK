@@ -44,11 +44,14 @@ fn vertex_main(
 
 @fragment
 fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
-    let transformed_uv = fract(
-        input.local_uv * input.uv_transform.xy + input.uv_transform.zw,
-    );
+    let unwrapped = input.local_uv * input.uv_transform.xy + input.uv_transform.zw;
+    let transformed_uv = fract(unwrapped);
     let atlas_uv = mix(input.uv_rect.xy, input.uv_rect.zw, transformed_uv);
-    let texel = textureSample(effect_atlas, effect_sampler, atlas_uv);
+    // Mip level from the unwrapped coordinates, so a tile's wrap seam (tcMod
+    // scale/scroll) does not jump to the smallest level.
+    let span = input.uv_rect.zw - input.uv_rect.xy;
+    let texel = textureSampleGrad(effect_atlas, effect_sampler, atlas_uv,
+        dpdx(unwrapped) * span, dpdy(unwrapped) * span);
     if texel.a < 0.01 {
         discard;
     }

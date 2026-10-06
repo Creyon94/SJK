@@ -24,6 +24,9 @@ pub(crate) fn layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
     })
 }
 
+/// Mip levels of the effect atlas: 128-pixel tiles down to 8.
+const ATLAS_MIP_LEVELS: u32 = 5;
+
 /// Build all requested shader tiles into the effect texture atlas.
 pub(crate) fn create(
     device: &wgpu::Device,
@@ -215,14 +218,16 @@ pub(crate) fn create(
         .and_then(|animation| animation.frames.first())
         .copied()
         .unwrap_or([0.0, 0.0, 1.0 / columns as f32, 1.0 / rows as f32]);
-    let texture = create_rgba8_texture(
+    // Mipmapped like rd-vanilla's images: without levels, a small decal or far
+    // sprite samples a few texels of its 128-pixel tile (a hard black dot for a
+    // scorch mark). Five levels keep each tile at least 8 pixels.
+    let texture = crate::gpu_texture::create_rgba8_texture_mipmapped(
         device,
         queue,
         "JKR retail effect texture atlas",
-        width,
-        height,
-        atlas.as_raw(),
+        &atlas,
         false,
+        ATLAS_MIP_LEVELS,
     );
     let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
         label: Some("JKR effect texture sampler"),
@@ -231,6 +236,7 @@ pub(crate) fn create(
         address_mode_w: wgpu::AddressMode::ClampToEdge,
         mag_filter: wgpu::FilterMode::Linear,
         min_filter: wgpu::FilterMode::Linear,
+        mipmap_filter: wgpu::MipmapFilterMode::Linear,
         ..Default::default()
     });
     let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
@@ -282,5 +288,14 @@ impl GpuState {
             &required,
         )?;
         Ok(())
+    }
+}
+#[cfg(test)]
+mod shader_tests {
+    /// The atlas samplers take explicit gradients; both programs must still validate.
+    #[test]
+    fn atlas_sampling_programs_validate() {
+        crate::wgsl_source::validate(include_str!("effect_geometry.wgsl"));
+        crate::wgsl_source::validate(include_str!("entity.wgsl"));
     }
 }
