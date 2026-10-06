@@ -302,6 +302,7 @@ impl ViewerConsole {
             changelog: super::changelog::Panel::new(),
             credits: super::credits::Panel::new(),
             update_panel: super::update_panel::Panel::new(),
+            identity_panel: super::identity_panel::Panel::new(),
             userinfo_dirty,
             show_timedelta,
             time_nudge,

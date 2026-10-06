@@ -152,6 +152,18 @@ fn player_row(ui: &mut MenuCanvas, row: &ScoreRow, local: u16, rect: Rect, s: f3
         theme.foreground
     };
     ui.text(&row.name, name, 22.0 * s, color, FontWeight::Regular, 0.0);
+    if let Some(tag) = row.identity {
+        let (label, mark_color) = super::identity_mark::mark(tag);
+        ui.text_aligned(
+            label,
+            name,
+            13.0 * s,
+            mark_color,
+            FontWeight::Semibold,
+            1.0 * s,
+            TextAlign::End,
+        );
+    }
     for (value, target) in [(row.score, score), (row.ping, ping), (row.time, time)] {
         if target == score
             && let Some(deaths) = row.deaths

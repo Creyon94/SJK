@@ -16,6 +16,7 @@ and changed together. Begin with the status page, then the architecture.
 | [Networking and gameplay](networking.md) | Protocol 26, prediction and server authority |
 | [SJK conventions](sjk.md) | SJK branches, names, workflows, changelog and debug panel |
 | [Classic+ menus](classic-plus.md) | SJK's modernised classic pages: rules, layout and code recipe |
+| [Player identity](identity.md) | SJK's identity key, the hub, scoreboard badges: design, limits and privacy |
 
 [AGENTS.md](../AGENTS.md) defines the documentation maintenance rules. Update the
 page that owns a fact rather than adding a second account elsewhere. New facts

@@ -710,6 +710,18 @@ impl RowDraw<'_> {
             0.0,
             TextAlign::Start,
         );
+        if let Some(tag) = row.identity {
+            let (label, mark_color) = super::identity_mark::mark(tag);
+            ui.text_aligned(
+                label,
+                text_rect(name_x, self.columns.score - name_x - 8.0),
+                number_size,
+                mark_color,
+                FontWeight::Semibold,
+                0.0,
+                TextAlign::End,
+            );
+        }
         let numbers = |ui: &mut MenuCanvas, args: std::fmt::Arguments<'_>, x: f32, color: Color| {
             ui.text_fmt_aligned(
                 args,
@@ -864,6 +876,7 @@ mod tests {
             defends: 0,
             assists: 0,
             captures: 0,
+            identity: None,
         }
     }
 

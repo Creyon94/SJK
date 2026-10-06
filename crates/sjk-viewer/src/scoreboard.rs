@@ -3,6 +3,7 @@
 mod classic;
 mod deaths;
 mod icons;
+mod identity_mark;
 pub(crate) mod layout;
 mod motion;
 pub(crate) mod style;
@@ -43,6 +44,8 @@ pub(super) struct ScoreRow {
     pub(super) defends: i32,
     pub(super) assists: i32,
     pub(super) captures: i32,
+    /// The SJK hub knows this player under this name (`player_identity.rs`).
+    pub(super) identity: Option<crate::player_identity::Tag>,
 }
 
 /// Cached scoreboard data and fixed retained presentation storage.
@@ -66,6 +69,9 @@ pub(crate) struct Scoreboard {
     /// Who last killed the viewing player, named in `killer_name`.
     killer: Option<u16>,
     killer_name: String,
+    /// The hub roster revision the rows' `identity` tags were derived from;
+    /// `u64::MAX` when the rows were rebuilt and need tagging again.
+    identity_revision: u64,
 }
 
 impl Scoreboard {
@@ -90,6 +96,7 @@ impl Scoreboard {
             icons: icons::HeadIcons::default(),
             killer: None,
             killer_name: String::with_capacity(64),
+            identity_revision: u64::MAX,
         }
     }
 
@@ -134,6 +141,15 @@ impl Scoreboard {
         self.refresh(session);
         for row in &mut self.rows {
             row.deaths = self.deaths.count(row.client_num);
+        }
+        // Tags follow the hub's roster, not the frame: derived again only when it
+        // or the rows changed.
+        let revision = crate::player_identity::revision();
+        if revision != self.identity_revision {
+            self.identity_revision = revision;
+            for row in &mut self.rows {
+                row.identity = crate::player_identity::tag(row.client_num, &row.name);
+            }
         }
         let player = &session.latest_snapshot().player;
         let local = player.client_num();
@@ -219,6 +235,7 @@ impl Scoreboard {
         self.server_signature = server_signature;
         self.team_game = is_team_game(session.game_state());
         self.rows.clear();
+        self.identity_revision = u64::MAX;
         let game = session.game_state();
         for score in session.scores() {
             let (name, team) = client_identity(game, score.client_num);
@@ -238,6 +255,7 @@ impl Scoreboard {
                 defends: score.defends,
                 assists: score.assists,
                 captures: score.captures,
+                identity: None,
             });
         }
         // Connected clients the scores do not list yet (`CG_TeamScoreboard`'s
@@ -270,6 +288,7 @@ impl Scoreboard {
                 defends: 0,
                 assists: 0,
                 captures: 0,
+                identity: None,
             });
         }
         let server = server_info(game);

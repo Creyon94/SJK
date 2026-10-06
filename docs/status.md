@@ -496,6 +496,34 @@ no clippy warnings. Not verified: a real download and install against a publishe
 release (none newer than the build exists yet), the page in the running client, and
 a Linux swap. No game was started.
 
+## Player identity (SJK)
+
+SJK-only branch `personal/identity` (06/10/2026, based on `5f14439`) adds the
+`sjk-identity` crate (Ed25519 key file, signed hub requests, an HTTPS hub client and
+a background service), `cl_identity` and `cl_hubUrl`, an `SJK`/`VERIFIED` mark on both
+scoreboard styles, an Identity page (in-game SJK menu, `identity` command) and
+`identity name|bio|key|who`; see [identity.md](identity.md) and
+[client.md](client.md#identity). The hub is a separate repository
+(Sol-Vulpes/SJK-hub, not published yet). New dependencies: `ed25519-dalek`,
+`getrandom` and `base64`.
+
+Verified: the crate's unit tests (key file, signing, address rules, a fake-hub
+service run with an explicit clock) and the viewer's tests; the hub's 32 tests; a
+signed-request test vector that the hub and client both produce byte for byte; and
+an ignored end-to-end suite (`crates/sjk-identity/tests/hub_e2e.rs`) in which the
+real client and the real service registered, named, claimed, read the roster,
+matched a badge by slot and name, and withdrew the claim on shutdown against a hub
+running on this machine. Workspace formatting, `--locked` build and tests passed (855
+tests, 7 ignored); clippy adds no warnings in the new files, and the workspace's
+existing warnings in other crates (`sjk-nav`, `sjk-icarus`, `sjk-model`, the viewer's
+`surface_tables.rs` and others) are unchanged.
+
+Not verified: the scoreboard mark, the Identity page and the SJK menu entry in the
+running client (no game was started; their layout is unchecked); a hub on a real
+host behind HTTPS; behaviour when the hub's clock and the client's differ by more
+than a minute outside the retry; a Linux build. Not built: a main-menu entry, the
+confirmed badge from SJK's own server, assets, music, video and chat.
+
 ## Alt codes (SJK)
 
 SJK-only branch `personal/alt-codes` (2026-10-05, based on `2696590`) types

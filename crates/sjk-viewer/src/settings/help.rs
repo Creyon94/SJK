@@ -276,6 +276,14 @@ const HELP: &[(&str, &str)] = &[
         "Looks for a newer SJK release at start and says so on the main menu. Install it from the Update page.",
     ),
     (
+        "cl_identity",
+        "Makes an identity key and tells the SJK hub where you play, so SJK players see your badge. Off sends nothing.",
+    ),
+    (
+        "cl_hubUrl",
+        "The SJK hub's address (https://...). Empty means no hub: nothing is sent.",
+    ),
+    (
         "rate",
         "Most data per second the server may send you; raise it on a fast connection.",
     ),

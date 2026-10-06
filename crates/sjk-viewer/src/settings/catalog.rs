@@ -399,6 +399,16 @@ pub(super) const NETWORK: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "SJK identity",
+        cvar: "cl_identity",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "SJK hub",
+        cvar: "cl_hubUrl",
+        kind: ValueKind::Text,
+    },
+    Setting {
         label: "Rate (bytes/s)",
         cvar: "rate",
         kind: ValueKind::Integer {
