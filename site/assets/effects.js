@@ -2,9 +2,10 @@
 // (https://github.com/shader-effects-inc/shaders, vendored as
 // vendor/shaders/shaders-4.0.0.js so no third-party server is contacted, with its
 // telemetry off). The hero gets golden god rays, a slow sunburst behind the
-// emblem, drifting dust and a lightsaber trail that follows the pointer. Without
-// WebGPU, or with reduced motion asked, the script does nothing and the CSS
-// starfield stays.
+// emblem, drifting dust and a lightsaber trail that follows the pointer. When the
+// visitor asks for reduced motion (Windows' "Animation effects" off does), the
+// same scene is drawn once and held still, without the trail. Without WebGPU
+// the script does nothing and the CSS starfield stays.
 
 const LIBRARY = "./vendor/shaders/shaders-4.0.0.js";
 /** The library's `onError` reasons after which a shader never draws again. */
@@ -15,6 +16,10 @@ const TERMINAL = new Set([
 
 const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const coarsePointer = window.matchMedia("(pointer: coarse)").matches;
+/** A speed, or none when the scene is held still. */
+const pace = (speed) => (reducedMotion ? 0 : speed);
+/** How long a still scene runs before it is paused, so it has drawn a frame. */
+const STILL_AFTER_MS = 400;
 
 /** The hero's layers, bottom to top, in the site's gold and the client's saber blue. */
 function heroPreset(emblemY) {
@@ -28,7 +33,7 @@ function heroPreset(emblemY) {
         density: 0.22,
         intensity: 0.55,
         spotty: 0.6,
-        speed: 0.18,
+        speed: pace(0.18),
         opacity: 0.55,
       },
     },
@@ -43,7 +48,7 @@ function heroPreset(emblemY) {
         softness: 0.7,
         radius: 0.42,
         feather: 0.85,
-        speed: 0.04,
+        speed: pace(0.04),
         opacity: 0.32,
         blendMode: "screen",
       },
@@ -55,17 +60,18 @@ function heroPreset(emblemY) {
         particleColor: "#ffe3a3",
         particleSize: 1.0,
         softness: 0.45,
-        speed: 0.1,
+        speed: pace(0.1),
         angle: 90,
         angleVariance: 40,
-        twinkle: 0.7,
-        cursorStrength: 0.35,
+        twinkle: pace(0.7),
+        randomness: pace(0.25),
+        cursorStrength: pace(0.35),
         opacity: 0.6,
         blendMode: "screen",
       },
     },
   ];
-  if (!coarsePointer) {
+  if (!coarsePointer && !reducedMotion) {
     components.push({
       type: "CursorTrail",
       props: {
@@ -94,7 +100,7 @@ function fitHero(canvas, header) {
 }
 
 async function start() {
-  if (reducedMotion || !navigator.gpu) return;
+  if (!navigator.gpu) return;
   const header = document.querySelector(".hero");
   if (!header) return;
 
@@ -123,8 +129,18 @@ async function start() {
         if (TERMINAL.has(reason)) canvas.remove();
       },
     });
+    // A still scene runs just long enough to draw, and again after a resize.
+    let hold = 0;
+    const holdStill = () => {
+      if (!reducedMotion) return;
+      clearTimeout(hold);
+      shader.resume();
+      hold = setTimeout(() => shader.pause(), STILL_AFTER_MS);
+    };
+    holdStill();
     window.addEventListener("resize", () => {
       shader.update("sun", { center: { x: 0.5, y: fitHero(canvas, header) } });
+      holdStill();
     }, { passive: true });
   } catch (error) {
     canvas.remove();

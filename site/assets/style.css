@@ -269,8 +269,8 @@ h3 {
 }
 
 /* WebGPU effects (effects.js): the hero's rays, dust and saber trail. They fade
-   in once drawing, never take the pointer, and are only added when the browser
-   has WebGPU and motion is welcome. */
+   in once drawing, never take the pointer, are held still for reduced motion,
+   and are only added when the browser has WebGPU. */
 .fx {
   display: block; pointer-events: none; z-index: -1;
   opacity: 0; transition: opacity 1.6s ease;
@@ -285,7 +285,7 @@ h3 {
 @media (prefers-reduced-motion: reduce) {
   html { scroll-behavior: auto; }
   .emblem, .stars::before, .stars::after { animation: none; }
-  .button, .shot img { transition: none; }
+  .button, .shot img, .fx { transition: none; }
 }
 
 /* Grid items may shrink below their content (the GameData tree scrolls instead). */

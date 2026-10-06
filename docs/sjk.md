@@ -139,8 +139,10 @@ WebGPU effects (golden god rays, a sunburst behind the emblem, drifting dust and
 saber trail on the pointer) with the MIT-licensed
 [Shaders](https://github.com/shader-effects-inc/shaders) library, vendored as
 `assets/vendor/shaders/shaders-4.0.0.js` with its license so no other server is
-contacted; its telemetry is turned off. Without WebGPU, or when the visitor asks
-for reduced motion, the script adds nothing and the CSS starfield stays. To
+contacted; its telemetry is turned off. When the visitor asks for reduced motion
+(Windows' "Animation effects" off does), the scene is drawn once and held still,
+without the saber trail. Without WebGPU the script adds nothing and the CSS
+starfield stays. To
 update the library, replace the vendored file with a release's
 `dist/js/bundle.js` and check that `disableTelemetry` still stops its telemetry.
 
