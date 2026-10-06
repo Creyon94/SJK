@@ -1248,8 +1248,19 @@ title: Protect + Absorb together show one cyan shell
 change: With both powers on, one cyan body shell replaces the green protect and blue absorb pair.
 change: Setting cg_spProtAbsColor (Settings > Game), default on, as in JoF EJK and single player.
 test: In third person press Protect (green), then Absorb as well: the shell turns cyan.
-test: A second client doing the same shows cyan on them too; Absorb alone is blue only on yourself.
+test: A second client doing the same shows cyan on them too; Absorb alone is blue on everyone.
 test: cg_spProtAbsColor 0: back to green plus blue.
+note: Never started in a game yet.
+
+[fx-fixes]
+status: personal
+area: Rendering & effects
+title: Absorb on every player, greener body shield, spawn flash on the floor
+change: The blue Absorb shell shows on every player holding Absorb, as in JoF EJK (always on).
+change: The body shield hit glow is tinted towards green (was bluish).
+change: The spawn / teleport green beam plays on the floor under the player, as stock, not at the waist.
+test: Third person, a second client casts Absorb: blue shell on them with no force power used on it.
+test: Get hit while shielded: the body glow reads green. Respawn: the beam stands on the ground.
 note: Never started in a game yet.
 
 # ---- Merged upstream ----
