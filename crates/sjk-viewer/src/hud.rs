@@ -211,6 +211,11 @@ pub(crate) struct HudLayout {
 }
 
 impl HudOverlay {
+    /// The Force power pictures, by `forcePowers_t` index, which the nameplates reuse.
+    pub(crate) fn power_icons(&self) -> [Option<sjk_ui::TextureId>; force_wheel::ICONS] {
+        self.force_wheel_icons
+    }
+
     pub(crate) fn new() -> Self {
         let override_document = crate::platform::user_config_file()
             .ok()

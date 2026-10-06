@@ -206,6 +206,10 @@ const HELP: &[(&str, &str)] = &[
         "Force bar under the name, estimated from the powers the player uses.",
     ),
     (
+        "cg_nameplateIcons",
+        "Icons of the Force powers a player has on, over the name when close.",
+    ),
+    (
         "cg_nameplateWalls",
         "Shows nameplates of players behind walls, dimmed. Off hides them.",
     ),

@@ -1237,6 +1237,7 @@ test: Join a local server with a bot or second client: the name floats over them
 test: Up close the plate fades in under the name; the Force bar drops when they use powers or jump.
 test: Team game with cg_nameplateBars 1: teammates show health and shield; enemies only the name.
 test: cg_nameplateDebug 1, then logs/last-client.log: other players' health/max; regen pace; own FP.
+test: Up close, a player using Protect, Speed or Lightning shows its icon over the name (max 4).
 test: cg_nameplateWalls 1 behind a wall; cg_nameplateNpcs 1 with NPCs; open a menu: plates hide.
 note: Never started in a game yet: font size, plate layout and the FP estimate are unchecked.
 

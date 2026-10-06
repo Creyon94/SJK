@@ -16,7 +16,9 @@ use sjk_client::TeamInfoTable;
 use sjk_game_jka::force_powers::FP_DRAIN;
 use sjk_protocol::{GameState, Snapshot};
 use sjk_shell::{CvarDefinition, CvarFlags, CvarRegistry};
-use sjk_ui::{Color, DrawCommand, DrawList, FontWeight, Rect, TextAlign, TextId, TextOverflow};
+use sjk_ui::{
+    Color, DrawCommand, DrawList, FontWeight, Rect, TextAlign, TextId, TextOverflow, TextureId,
+};
 
 /// Text ids below this are player slots; above it, `NPC_TEXT + class_t`.
 const NPC_TEXT: u32 = 1024;
@@ -48,6 +50,12 @@ const MIN_SCALE: f32 = 0.6;
 const FAR_NAME_OPACITY: f32 = 0.7;
 /// Full health and armour, for teammates (`tinfo` sends points, not a share).
 const FULL_POINTS: f32 = 100.0;
+/// Power icons shown over a name at most.
+const MAX_ICONS: usize = 4;
+/// Force powers whose icon shows while they are on, dark side first, then the
+/// light side and neutral ones, as `forcePowers_t` indices. Push, pull, jump and
+/// the saber powers are left out: they last a moment and would only flicker.
+const ICON_POWERS: [u8; 11] = [7, 6, 13, 8, 9, 10, 2, 0, 12, 5, 14];
 /// Frame colour of players who follow no team.
 const NEUTRAL_ACCENT: Color = Color::new(0.78, 0.82, 0.9, 0.9);
 /// Frame colour of NPC plates.
@@ -92,6 +100,12 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         "Nameplate Force bar, estimated from the player's powers",
     ))?;
     cvars.register(CvarDefinition::new(
+        "cg_nameplateIcons",
+        true,
+        CvarFlags::ARCHIVE,
+        "Icons of the Force powers a player has on, over the nameplate when close",
+    ))?;
+    cvars.register(CvarDefinition::new(
         "cg_nameplateWalls",
         false,
         CvarFlags::ARCHIVE,
@@ -123,6 +137,7 @@ struct Settings {
     force: bool,
     walls: bool,
     npcs: bool,
+    icons: bool,
     friends: bool,
     debug: bool,
 }
@@ -138,6 +153,7 @@ impl Default for Settings {
             force: true,
             walls: false,
             npcs: false,
+            icons: true,
             friends: true,
             debug: false,
         }
@@ -160,6 +176,11 @@ struct Entry {
     alpha: f32,
     /// How much of the plate shows, 0 (far: name only) to 1.
     detail: f32,
+    /// How close the player is, 0 (far) to 1: the same ramp, whether or not there are bars.
+    proximity: f32,
+    /// Force powers to show icons for (`forcePowers_t` indices), `power_count` of them.
+    powers: [u8; MAX_ICONS],
+    power_count: u8,
     health: Option<f32>,
     shield: Option<f32>,
     force: Option<f32>,
@@ -237,6 +258,7 @@ impl State {
             force: flag("cg_nameplateforce", true),
             walls: flag("cg_nameplatewalls", false),
             npcs: flag("cg_nameplatenpcs", false),
+            icons: flag("cg_nameplateicons", true),
             friends: flag("cg_drawfriend", true),
             debug: flag("cg_nameplatedebug", false),
         };
@@ -401,6 +423,11 @@ impl State {
                 shield: shield.is_some(),
                 force: force.is_some(),
             };
+            let (powers, power_count) = if settings.icons && player && names_allowed {
+                icon_powers(entity.force_powers_active())
+            } else {
+                ([0; MAX_ICONS], 0)
+            };
             if npc {
                 npcs += 1;
             }
@@ -416,6 +443,9 @@ impl State {
                 } else {
                     0.0
                 },
+                proximity: math::detail(distance, settings.near),
+                powers,
+                power_count,
                 health,
                 shield,
                 force,
@@ -554,7 +584,7 @@ impl State {
     }
 
     /// Lay the collected plates out as shapes and text commands.
-    fn build(&mut self, chat: &ChatOverlay, viewport: [f32; 2]) {
+    fn build(&mut self, chat: &ChatOverlay, icons: &[Option<TextureId>], viewport: [f32; 2]) {
         self.list.clear();
         let unit = crate::ui_scale::height_scale(viewport[1]);
         for index in 0..self.entries.len() {
@@ -579,13 +609,13 @@ impl State {
             }
             let bottom = y - marker_height - 2.0 * u;
             let stack_height = Stack::height(rows, u);
+            // The name rises as the plate fades in beneath it.
+            let line = size * 1.15;
+            let top = bottom - stack_height * entry.detail - line;
             if entry.names_allowed && !label(chat, id).is_empty() {
-                // The name rises as the plate fades in beneath it.
-                let line = size * 1.15;
                 let width = (320.0 * unit).min(viewport[0]);
                 let left = (x - width * 0.5).clamp(0.0, (viewport[0] - width).max(0.0));
-                let top = bottom - stack_height * entry.detail - line;
-                let opacity = FAR_NAME_OPACITY + (1.0 - FAR_NAME_OPACITY) * entry.detail;
+                let opacity = FAR_NAME_OPACITY + (1.0 - FAR_NAME_OPACITY) * entry.proximity;
                 let tint = if entry.npc_class == 0 {
                     Color::new(1.0, 1.0, 1.0, opacity)
                 } else {
@@ -602,6 +632,9 @@ impl State {
                     letter_spacing: 0.0,
                 });
             }
+            if entry.power_count > 0 && entry.proximity > 0.01 {
+                self.power_row(&entry, icons, [x, top], size, u, viewport);
+            }
             if rows.any() && entry.detail > 0.01 {
                 let stack = Stack::new(x, bottom, rows, u, viewport);
                 let _ = self.list.push(DrawCommand::PushOpacity(entry.detail));
@@ -610,6 +643,55 @@ impl State {
             }
             let _ = self.list.push(DrawCommand::PopOpacity);
         }
+    }
+
+    /// The row of power icons centred over the name, whose top edge is `[x, top]`.
+    fn power_row(
+        &mut self,
+        entry: &Entry,
+        icons: &[Option<TextureId>],
+        [x, top]: [f32; 2],
+        size: f32,
+        u: f32,
+        viewport: [f32; 2],
+    ) {
+        let side = size;
+        let gap = 2.0 * u;
+        let shown = entry.powers[..usize::from(entry.power_count)]
+            .iter()
+            .filter(|power| icons.get(usize::from(**power)).copied().flatten().is_some())
+            .count();
+        if shown == 0 {
+            return;
+        }
+        let width = shown as f32 * side + (shown - 1) as f32 * gap;
+        let mut left = (x - width * 0.5).clamp(0.0, (viewport[0] - width).max(0.0));
+        let y = top - gap - side;
+        let _ = self.list.push(DrawCommand::PushOpacity(entry.proximity));
+        for power in &entry.powers[..usize::from(entry.power_count)] {
+            let Some(texture) = icons.get(usize::from(*power)).copied().flatten() else {
+                continue;
+            };
+            let cell = Rect::new(left, y, side, side);
+            let _ = self.list.push(DrawCommand::RoundedRect {
+                rect: cell,
+                radius: 3.0 * u,
+                color: Color::new(0.03, 0.04, 0.06, 0.55),
+            });
+            let inset = u.max(1.0);
+            let _ = self.list.push(DrawCommand::TexturedQuad {
+                rect: Rect::new(
+                    left + inset,
+                    y + inset,
+                    side - inset * 2.0,
+                    side - inset * 2.0,
+                ),
+                texture,
+                color: Color::new(1.0, 1.0, 1.0, 1.0),
+            });
+            left += side + gap;
+        }
+        let _ = self.list.push(DrawCommand::PopOpacity);
     }
 
     /// The framed plate and its bars.
@@ -675,11 +757,12 @@ impl State {
     pub(crate) fn append(
         &mut self,
         chat: &ChatOverlay,
+        icons: &[Option<TextureId>],
         vertices: &mut Vec<TextVertex>,
         font: &UiFont,
         viewport: [f32; 2],
     ) {
-        self.build(chat, viewport);
+        self.build(chat, icons, viewport);
         crate::ui_renderer::append_text_commands(
             &self.list,
             |id| label(chat, id),
@@ -689,6 +772,20 @@ impl State {
             crate::text::TextStyle::NEUTRAL,
         );
     }
+}
+
+/// The Force powers of `active` that get an icon, in display order, at most
+/// [`MAX_ICONS`] of them.
+fn icon_powers(active: u32) -> ([u8; MAX_ICONS], u8) {
+    let mut powers = [0; MAX_ICONS];
+    let mut count = 0;
+    for power in ICON_POWERS {
+        if active & (1 << power) != 0 && usize::from(count) < MAX_ICONS {
+            powers[usize::from(count)] = power;
+            count += 1;
+        }
+    }
+    (powers, count)
 }
 
 /// Health and shield shares of `entity`: a teammate's from the team overlay
@@ -729,5 +826,27 @@ fn label(chat: &ChatOverlay, id: TextId) -> &str {
     match id.0.checked_sub(NPC_TEXT) {
         None => chat.player_label(id.0 as u16),
         Some(class) => super::npc_class::name(class as u8).unwrap_or(""),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn icons_list_the_continuous_powers_dark_side_first() {
+        let active = (1 << 9) | (1 << 7) | (1 << 2);
+        assert_eq!(icon_powers(active), ([7, 9, 2, 0], 3));
+    }
+
+    #[test]
+    fn instant_powers_get_no_icon_and_the_row_is_capped() {
+        // Jump, push, pull and the saber powers are skipped.
+        let instant = (1 << 1) | (1 << 3) | (1 << 4) | (1 << 15) | (1 << 16) | (1 << 17);
+        assert_eq!(icon_powers(instant).1, 0);
+        let many = u32::MAX & !instant;
+        let (powers, count) = icon_powers(many);
+        assert_eq!(usize::from(count), MAX_ICONS);
+        assert_eq!(powers, [7, 6, 13, 8]);
     }
 }

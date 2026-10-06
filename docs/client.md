@@ -1033,6 +1033,12 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   players behind walls at 35% opacity instead of fading them (the same BSP trace as
   before, from the rendered eye; changes ease over 120 ms), and `cg_nameplateNpcs`
   adds NPC plates (class name, health; at most 16; vehicles skipped).
+- `cg_nameplateIcons` (on): up close, a row of the holocron icons of the Force powers a
+  player has on sits over the name, at most four, dark side first (lightning, grip,
+  drain, rage, then protect, absorb, speed, heal, team force, mind trick, sight). They
+  come from `forcePowersActive`, so every player's powers are known without a request;
+  jump, push, pull and the saber powers are left out because they last a moment. The
+  pictures are the Force bar's, loaded with the map.
 - `cg_nameplateDebug` logs, every two seconds, what the server sends about each other
   player (health, `tinfo`, active powers, the Force estimate) to `logs\last-client.log`,
   with the regen pace in use and where it came from, the server's Force-related info
