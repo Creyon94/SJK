@@ -198,6 +198,36 @@ radius; the composed stage shader passes naga validation. Checked in game on Win
 11 on a local server with `g_dismember 100` and `cg_dismember 3`, before the review
 changes (snapshot borrow, fullbright colours, layout check), which are covered by the
 unit tests only.
+
+## Clipboard symbols on Windows
+
+Implemented: on Windows the clipboard is reached through PowerShell with UTF-8 in
+both directions, so `€`, `’`, `×` and other symbols keep their characters
+(`a×¥’€…` pasted as `a??'???` through the console's OEM code page before).
+Copy tries, in order, `Set-Clipboard` fed from an environment variable (works in
+PowerShell Constrained Language Mode; texts up to 30000 bytes without NUL),
+`Set-Clipboard` fed raw UTF-8 bytes on standard input (Full Language Mode only),
+then `clip`. Paste tries the text's UTF-8 bytes on standard output, then, when
+Constrained Language Mode refuses that, the text's UTF-16 code units printed as
+numbers and decoded. A tool that exits (PowerShell, `clip`, `pbcopy`) is waited for
+up to 1.5 s in total on the calling thread, and a non-zero exit moves on to the next
+tool, so a failed copy reports failure. A copy still running after that is left
+pending: the next copy stops it (copies never finish out of order) and a paste waits
+up to 1 s for it. `wl-copy` and `xclip` keep serving the selection and are not
+waited for. Unit tests cover the UTF-8, byte-order-mark and code-unit decoding and
+which tool can carry which text.
+
+Verified on Windows 11 (06/10/2026, Windows PowerShell 5.1), by hand and with
+`cargo test -p sjk-viewer clipboard -- --ignored` (a real-clipboard round trip of
+`a×¥’€…`, CRLF, LF and an emoji, and two quick copies followed by a paste): the
+environment copy, the stdin-bytes copy, both pastes and `clip` kept the symbols;
+the paste writes UTF-8 with no byte-order mark (the decoder strips one if a tool
+adds it); with the language mode set to `ConstrainedLanguage` the stdin-bytes copy
+and the byte paste exit 1 (clipboard untouched) while the environment copy and the
+code-unit paste round-trip correctly. A PowerShell copy takes about 0.25 s.
+Unverified: a machine whose Constrained Language Mode comes from AppLocker/WDAC
+policy (it was simulated with `$ExecutionContext.SessionState.LanguageMode`),
+`pwsh` as the only PowerShell, and Linux and macOS tools.
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the
