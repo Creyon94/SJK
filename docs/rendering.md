@@ -1109,7 +1109,18 @@ Shading lives in [material_maps.wgsl](../crates/sjk-viewer/src/material_maps.wgs
 - With specular maps, surfaces reflect the nearest reflection probe (below), with
   rend2's split-sum `CalcIBLContribution`; without a captured probe, real-time
   lighting keeps its sky rim.
-- Parallax uses rend2's 16 linear and 8 binary steps through the height.
+- Parallax uses rend2's 16 linear and 8 binary steps through the height, with
+  two limits rend2 lacks: the depth fades out below about 20° above the surface
+  and where the height map is minified (1.5 to 4 texels per pixel), and the
+  offset is at most depth / 0.35 (Welsh's offset limiting). rend2's depth / cos
+  grows without bound toward grazing views; Sol saw generated relief swim.
+- Specular anti-aliasing (Kaplanyan and Hoffman; Tokuyoshi and Kaplanyan's bound):
+  the mapped normal's screen-space variation is added to the squared roughness
+  (at most 0.18), so bumps finer than a pixel widen highlights and blur the
+  reflection instead of sparkling.
+- The probe reflection follows half the mapped tilt: generated normal maps guess
+  relief from paint, and at full tilt every guessed bump warped the reflected
+  room as the view moved. Highlights keep the full mapped normal.
 
 ### Lamp and bounce direction in real-time lighting
 

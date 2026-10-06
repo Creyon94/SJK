@@ -1761,6 +1761,17 @@ test: devmap sjk_shaders_a: walk into the fog cubes (FOG labels); nothing flicke
 test: A map with fog and wall decals (e.g. mp/siege_hoth): decals in fog stay steady.
 note: Decal flicker outside fog is not fixed by this: tell Claude the map and the decal.
 
+[material-wobble]
+status: personal
+area: Rendering & effects
+title: Steadier material maps: no swimming relief or rippling metal reflections
+change: Parallax fades at grazing angles and far away; fine bumps blur highlights instead.
+change: Reflections follow half the bump tilt. New pack (generation 4): relief right way up.
+test: devmap sjk_shaders_a, then mp/ffa3: walk past metal walls and floors at a slant.
+test: Metal should not ripple or swim as you move; floors keep relief up close only.
+test: Studded floors (desert/s_floor1, D map) and panels read raised, not pushed in.
+note: Still pushed in somewhere? Give Claude the pad ID: one overrides line flips it.
+
 # ---- Merged upstream ----
 
 [actor-instance-cap]
