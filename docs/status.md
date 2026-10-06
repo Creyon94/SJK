@@ -1057,6 +1057,16 @@ local, uncommitted probe surveyed retail `t1_rail` and `hoth2` (columns and
 timings in the rendering page). No game was started: how weather looks, its
 GPU cost and the cover at real eaves are unverified.
 
+`personal/weather-2` (06/10/2026, based on `888714e`), after Sol tried it: splashes
+are anchored in the world (they followed the player), rain is blended as a faint
+blue-grey instead of added grey (it looked white), and it adds quality levels
+(`r_weatherQuality`), forced weather (`r_weatherForce`), volumetric rain haze and
+ground fog replacing the fog sprites (`r_weatherFog`) and volumetric clouds over
+every map with sky (`r_clouds`). Unit tests cover the settings and quality levels,
+forced weather, the storm and fog parameters, the noise volume's range and tiling,
+the cloud uniform and drift, and both shaders' translation to SPIR-V and HLSL. No
+game was started: how the fog and clouds look and what they cost are unverified.
+
 ## Force wheel (SJK)
 
 SJK-only branch `personal/force-wheel` (05/10/2026, based on `3f57938`) ports

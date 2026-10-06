@@ -710,6 +710,38 @@ pub(super) const RENDER_IMAGE: &[Setting] = &[
         },
     },
     Setting {
+        label: "Weather quality (0 low, 3 ultra)",
+        cvar: crate::weather::QUALITY_CVAR,
+        kind: ValueKind::Integer {
+            min: 0,
+            max: 3,
+            step: 1,
+        },
+    },
+    Setting {
+        label: "Force weather (0 the map's)",
+        cvar: crate::weather::FORCE_CVAR,
+        kind: ValueKind::Integer {
+            min: 0,
+            max: crate::weather::settings::FORCE_MAX,
+            step: 1,
+        },
+    },
+    Setting {
+        label: "Ground fog (0 off, 1 map, 2 always)",
+        cvar: crate::weather::FOG_CVAR,
+        kind: ValueKind::Integer {
+            min: 0,
+            max: 2,
+            step: 1,
+        },
+    },
+    Setting {
+        label: "Volumetric clouds",
+        cvar: crate::weather::CLOUDS_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Per-pixel model lighting",
         cvar: "r_modelPixelLight",
         kind: ValueKind::Bool,

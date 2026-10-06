@@ -39,6 +39,15 @@ struct Weather {
     view: vec4<f32>,
     // rgb light tint, w the cloud whose rain splashes.
     light: vec4<f32>,
+    // The main view's clip-to-world transform, for the fog pass.
+    inverse_view_projection: mat4x4<f32>,
+    // x rain haze per unit, y ground fog per unit at the floor, z the height it thins
+    // over, w samples along each ray (0: no fog pass).
+    haze: vec4<f32>,
+    // rgb fog colour (display), w 1 once the noise volume is made.
+    fog_color: vec4<f32>,
+    // xyz the fog's drift with the wind, w the longest ray marched.
+    fog_flow: vec4<f32>,
     clouds: array<Cloud, 5>,
 };
 
@@ -47,6 +56,8 @@ struct Weather {
 @group(1) @binding(1) var cover_map: texture_2d<f32>;
 @group(1) @binding(2) var images: texture_2d_array<f32>;
 @group(1) @binding(3) var image_sampler: sampler;
+@group(1) @binding(4) var noise: texture_3d<f32>;
+@group(1) @binding(5) var noise_sampler: sampler;
 @group(2) @binding(0) var scene_depth: texture_depth_2d;
 
 // Additive (GL_ONE GL_ONE) or alpha-blended sprites.
@@ -356,4 +367,59 @@ struct SplashOutput {
     }
     let alpha = clamp(input.color.x * light * 0.9, 0.0, 1.0);
     return vec4(min(weather.light.rgb * RAIN_TINT * 1.1, vec3(1.0)), alpha);
+}
+
+// The volumetric fog: rain haze and ground fog over the scene, one full-screen pass
+// before the particles. Each pixel marches its ray to the surface it shows and counts
+// only open-sky air (the cover): a roof keeps the fog out as it keeps the rain out.
+// Ground fog is densest at each column's floor, thins upwards and drifts with the
+// wind through the noise volume.
+@vertex fn vertex_volume(@builtin(vertex_index) vertex: u32) -> @builtin(position) vec4<f32> {
+    let corner = vec2(f32((vertex << 1u) & 2u), f32(vertex & 2u));
+    return vec4(corner * 2.0 - 1.0, 0.0, 1.0);
+}
+
+// The cover for the fog: beyond the surveyed window the air is taken as open, its floor
+// the camera's own, so distant haze does not stop at the window's edge.
+fn fog_span(p: vec2<f32>, home: vec3<f32>) -> vec2<f32> {
+    if weather.cover.z == 0.0 { return vec2(home.x, 3.0e38); }
+    let cell = floor(p / weather.cover.x);
+    if any(cell < weather.window.xy) || any(cell >= weather.window.zw) {
+        return vec2(home.x, 3.0e38);
+    }
+    return cover_at(p).xy;
+}
+
+@fragment fn fragment_volume(@builtin(position) pixel: vec4<f32>) -> @location(0) vec4<f32> {
+    let depth = textureLoad(scene_depth, vec2<i32>(pixel.xy), 0);
+    let ndc = vec2(pixel.x / weather.view.x * 2.0 - 1.0, 1.0 - pixel.y / weather.view.y * 2.0);
+    let far = weather.inverse_view_projection * vec4(ndc, min(depth, 0.999999), 1.0);
+    let ray = far.xyz / far.w - camera.position;
+    let reach = min(length(ray), weather.fog_flow.w);
+    let direction = ray / max(length(ray), 0.001);
+    let steps = u32(weather.haze.w);
+    let step = reach / f32(max(steps, 1u));
+    let jitter = fract(52.9829189 * fract(dot(pixel.xy, vec2(0.06711056, 0.00583715))));
+    var home = cover_at(camera.position.xy);
+    if home.x > home.y { home.x = camera.position.z - 64.0; }
+    var optical = 0.0;
+    for (var i = 0u; i < steps; i++) {
+        let p = camera.position + direction * ((f32(i) + jitter) * step);
+        let span = fog_span(p.xy, home);
+        if p.z < span.x - 16.0 || p.z > span.y { continue; }
+        var density = weather.haze.x;
+        if weather.haze.y > 0.0 {
+            let above = max(p.z - span.x, 0.0);
+            var billow = 1.0;
+            if weather.fog_color.w != 0.0 {
+                let q = p + weather.fog_flow.xyz;
+                let n = textureSampleLevel(noise, noise_sampler, q * vec3(1.0 / 1400.0, 1.0 / 1400.0, 1.0 / 500.0), 0.0);
+                billow = smoothstep(0.3, 0.9, n.r) * 1.4 + 0.25 * n.g;
+            }
+            density += weather.haze.y * exp(-above / weather.haze.z) * billow;
+        }
+        optical += density;
+    }
+    let alpha = 1.0 - exp(-optical * step);
+    return vec4(weather.fog_color.rgb, alpha);
 }

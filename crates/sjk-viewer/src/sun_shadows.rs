@@ -290,6 +290,33 @@ impl super::Runtime {
             .map(|s| Vec3::from_array(s.day.get().frame(s.sun, time).sun.direction))
     }
 
+    /// The sun the clouds are lit by this frame: the lighting passes' sun (day clock or
+    /// director included) when the real-time model runs, else the sky's authored sun;
+    /// its strength relative to the map's own, and the sky's radiance scale.
+    pub(crate) fn cloud_light(&self) -> Option<crate::weather::clouds::SkyLight> {
+        let radiance = self.sky.radiance;
+        if let Some(shadow) = &self.shadows {
+            let frame = shadow.light_frame(shadow.time.get());
+            let strength = if shadow.sun.intensity > 0.0 {
+                frame.sun.intensity / shadow.sun.intensity
+            } else {
+                1.0
+            };
+            return Some(crate::weather::clouds::SkyLight {
+                direction: frame.sun.direction,
+                color: frame.sun.color,
+                strength: if shadow.environment { strength } else { 1.0 },
+                radiance,
+            });
+        }
+        self.sky.sun.map(|sun| crate::weather::clouds::SkyLight {
+            direction: sun.direction,
+            color: sun.color,
+            strength: 1.0,
+            radiance,
+        })
+    }
+
     /// Publish one directed sun to every lighting pass; no resource recreation.
     pub(crate) fn set_director_sun(
         &self,
