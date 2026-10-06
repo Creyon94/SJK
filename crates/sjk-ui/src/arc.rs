@@ -63,6 +63,20 @@ pub fn segments(
     })
 }
 
+/// Start and signed sweep of the whole meter of `style` with `inset` radians trimmed from both
+/// ends: the span from where [`segments`]' first segment starts to where its last one ends.
+///
+/// One round-capped stroke over it has caps concentric with those of the end segments, so a
+/// wider stroke makes an even rim (a shadow) around the whole meter.
+pub fn span(style: &ArcStyle, inset: f32) -> (f32, f32) {
+    let direction = if style.sweep_degrees < 0.0 { -1.0 } else { 1.0 };
+    let total = style.sweep_degrees.abs().to_radians();
+    (
+        style.start_degrees.to_radians() + direction * inset,
+        direction * (total - 2.0 * inset).max(0.0),
+    )
+}
+
 /// Signed distance in pixels from `point` (relative to the circle's centre) to the
 /// stroke of an arc: negative inside. The reference for `ui_shapes.wgsl`, which
 /// evaluates the same expression per fragment, and for CPU previews.
@@ -133,6 +147,29 @@ mod tests {
         }
         let last = all[3];
         assert!((last.start + last.sweep - 180.0_f32.to_radians()).abs() < 1e-5);
+    }
+
+    #[test]
+    fn the_span_runs_from_the_first_segment_to_the_last() {
+        for (style, inset) in [
+            (style(4, 4.0), 0.03),
+            (style(1, 0.0), 0.0),
+            (
+                ArcStyle {
+                    sweep_degrees: -80.0,
+                    ..style(3, 5.0)
+                },
+                0.05,
+            ),
+        ] {
+            let all: Vec<_> = segments(&style, 0.5, inset).collect();
+            let (start, sweep) = span(&style, inset);
+            let last = all[all.len() - 1];
+            assert!((start - all[0].start).abs() < 1e-5);
+            assert!((start + sweep - (last.start + last.sweep)).abs() < 1e-5);
+        }
+        // An inset wider than the meter leaves a dot, not a reversed arc.
+        assert_eq!(span(&style(1, 0.0), 2.0).1, 0.0);
     }
 
     #[test]

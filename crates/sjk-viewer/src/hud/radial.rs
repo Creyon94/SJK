@@ -6,7 +6,9 @@
 
 use super::widgets::EmitContext;
 use crate::menu_hud::frame::{AMMO_INDEX, AMMO_MAX};
-use sjk_ui::{Color, DrawCommand, DrawList, HudDataSource, HudWidget, Rect, Theme, arc_segments};
+use sjk_ui::{
+    Color, DrawCommand, DrawList, HudDataSource, HudWidget, Rect, Theme, arc_segments, arc_span,
+};
 
 /// How full the current weapon's ammunition is, `0..=1`; zero for weapons without any.
 ///
@@ -66,8 +68,9 @@ impl Ring {
 
 /// Alpha of the soft halo drawn behind the filled part of an arc.
 const GLOW_ALPHA: f32 = 0.16;
-/// How much wider than the stroke the halo is.
-const GLOW_WIDTH: f32 = 2.4;
+/// How much wider than the stroke the halo is. It stays inside the shadow band (a margin of
+/// 4 px round a 7 px bar is 15/7 times the stroke), so the shadow is the outermost layer.
+const GLOW_WIDTH: f32 = 2.0;
 
 pub(super) fn emit(
     draw_list: &mut DrawList,
@@ -92,12 +95,6 @@ pub(super) fn emit(
             fill = saber_style_color(style);
         }
     }
-    // The shadow outline (the widget's border) is a wider dark stroke under each segment.
-    let shadow = widget
-        .style
-        .border
-        .zip(widget.style.border_width)
-        .map(|(color, width)| (color, ring.width + 2.0 * width * context.dpi_scale));
     let track = widget
         .style
         .background
@@ -112,10 +109,14 @@ pub(super) fn emit(
             color,
         });
     };
+    // The shadow (the widget's border) is one rounded dark band under the whole meter, a
+    // margin of `border_width` all round the bars, drawn first so it lies below them.
+    if let Some((color, margin)) = widget.style.border.zip(widget.style.border_width) {
+        let (start, sweep) = arc_span(&style, ring.cap_inset());
+        let width = ring.width + 2.0 * margin * context.dpi_scale;
+        stroke(draw_list, start, sweep, width, color);
+    }
     for segment in arc_segments(&style, ratio, ring.cap_inset()) {
-        if let Some((color, width)) = shadow {
-            stroke(draw_list, segment.start, segment.sweep, width, color);
-        }
         stroke(draw_list, segment.start, segment.sweep, ring.width, track);
         if segment.amount > 0.0 {
             let mut glow = fill;
@@ -162,8 +163,11 @@ mod tests {
     /// One arc stroke of the draw list.
     #[derive(Clone, Copy)]
     struct Stroke {
+        /// Position in the draw list, which is the paint order.
+        index: usize,
         radius: f32,
         width: f32,
+        start: f32,
         sweep: f32,
         color: Color,
     }
@@ -187,6 +191,8 @@ mod tests {
         strokes: Vec<Stroke>,
         texts: Vec<(u32, Rect, Color)>,
         pills: Vec<Rect>,
+        /// Draw-list positions of the pills.
+        pill_indices: Vec<usize>,
     }
 
     impl Placed {
@@ -242,16 +248,17 @@ mod tests {
                 strokes: Vec::new(),
                 texts: Vec::new(),
                 pills: Vec::new(),
+                pill_indices: Vec::new(),
             };
-            for command in hud.draw_list().commands() {
+            for (index, command) in hud.draw_list().commands().iter().enumerate() {
                 match *command {
                     DrawCommand::Arc {
                         center,
                         radius,
                         width,
+                        start,
                         sweep,
                         color,
-                        ..
                     } => {
                         // Every arc is a stroke of one ring, so they share one centre
                         // (up to the rounding of rectangles of different sizes).
@@ -267,8 +274,10 @@ mod tests {
                         placed.radii[1] = placed.radii[1].min(radius);
                         placed.stroke = placed.stroke.min(width);
                         placed.strokes.push(Stroke {
+                            index,
                             radius,
                             width,
+                            start,
                             sweep,
                             color,
                         });
@@ -277,7 +286,8 @@ mod tests {
                         rect, text, color, ..
                     } => placed.texts.push((text.0, rect, color)),
                     DrawCommand::RoundedRect { rect, radius, .. } if radius > 0.0 => {
-                        placed.pills.push(rect)
+                        placed.pills.push(rect);
+                        placed.pill_indices.push(index);
                     }
                     _ => {}
                 }
@@ -344,21 +354,45 @@ mod tests {
     }
 
     #[test]
-    fn every_bar_has_a_shadow_outline_wider_than_itself() {
-        let placed = Placed::new([1920.0, 1080.0], 1.0);
-        let shadows: Vec<_> = placed.strokes.iter().filter(|s| s.is_shadow()).collect();
-        // Four segments in each of the four meters.
-        assert_eq!(shadows.len(), 16);
-        for shadow in shadows {
-            // 3 logical pixels each side of a 7-pixel bar.
-            assert!((shadow.width / placed.stroke - 13.0 / 7.0).abs() < 1e-3);
-            // It follows the bar's own segment and ring.
-            assert!(placed.strokes.iter().any(|bar| {
-                !bar.is_shadow()
-                    && bar.width == placed.stroke
-                    && bar.radius == shadow.radius
-                    && bar.sweep == shadow.sweep
-            }));
+    fn each_meter_has_one_rounded_shadow_band_below_its_bars() {
+        for placed in [
+            Placed::new([1920.0, 1080.0], 1.0),
+            // The saber's style line takes the ammunition meter's place, shadow and all.
+            Placed::with_saber([1920.0, 1080.0], 2),
+        ] {
+            let shadows: Vec<_> = placed.strokes.iter().filter(|s| s.is_shadow()).collect();
+            // Health, armor, Force and ammunition (or the style).
+            assert_eq!(shadows.len(), 4);
+            for shadow in shadows {
+                // 4 logical pixels all round a 7-pixel bar.
+                assert!((shadow.width / placed.stroke - 15.0 / 7.0).abs() < 1e-3);
+                // One band over the whole meter: its 68 degrees less a cap at each end,
+                // so the round caps sit concentric with the end bars' own.
+                let inset = 2.0 * (placed.stroke * 0.5 / shadow.radius);
+                assert!((shadow.sweep.abs() - (68.0_f32.to_radians() - inset)).abs() < 1e-4);
+                // Every bar of that meter is painted after it, so the band lies below.
+                let (low, high) = if shadow.sweep < 0.0 {
+                    (shadow.start + shadow.sweep, shadow.start)
+                } else {
+                    (shadow.start, shadow.start + shadow.sweep)
+                };
+                let bars: Vec<_> = placed
+                    .strokes
+                    .iter()
+                    .filter(|bar| {
+                        !bar.is_shadow()
+                            && bar.radius == shadow.radius
+                            && (low - 1e-4..=high + 1e-4).contains(&bar.start)
+                    })
+                    .collect();
+                assert!(!bars.is_empty());
+                assert!(bars.iter().all(|bar| bar.index > shadow.index));
+            }
+            // The pills are painted before every bar and shadow.
+            assert_eq!(placed.pill_indices.len(), 2);
+            for pill in &placed.pill_indices {
+                assert!(placed.strokes.iter().all(|stroke| stroke.index > *pill));
+            }
         }
     }
 

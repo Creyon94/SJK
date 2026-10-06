@@ -1350,6 +1350,13 @@ ammunition bars into one full line in the style's colour. Unit tests cover the o
 under every segment, the number positions at nine window sizes and the style line for five
 styles; renders went through `menu_snapshot`. Not verified: the layout in a running client.
 
+Branch `personal/radial-shadow` (2026-10-06, based on `787cdbb`) fixes what that look showed:
+the pills were painted over the bars (widgets paint in document order) and now come first,
+and the per-segment outlines became one rounded shadow band per meter that follows its curve
+(`arc_span` gives the span). `menu_snapshot` now draws rounded rectangles with their corner
+radius, so its renders show the pills as the renderer draws them. Not verified: the layout
+in a running client.
+
 ## HUD picker (SJK)
 
 SJK-only branch `personal/hud-picker` (2026-10-05, based on `0fc6e24`): the

@@ -3,291 +3,6 @@
  "theme": "modern",
  "widgets": [
   {
-   "id": "health_arc",
-   "kind": "arc",
-   "binding": "health_ratio",
-   "anchor": "center",
-   "offset": {
-    "x": 0.0,
-    "y": 0.0
-   },
-   "offset_fraction": {
-    "x": 0.0,
-    "y": 0.19
-   },
-   "size": {
-    "width": {
-     "unit": "px",
-     "value": 407.0
-    },
-    "height": {
-     "unit": "px",
-     "value": 407.0
-    }
-   },
-   "visibility": {
-    "kind": "flag",
-    "binding": "draw_status"
-   },
-   "layer": 2,
-   "style": {
-    "foreground": {
-     "r": 1.0,
-     "g": 0.3,
-     "b": 0.22,
-     "a": 1.0
-    },
-    "background": {
-     "r": 1,
-     "g": 1,
-     "b": 1,
-     "a": 0.14
-    },
-    "border": {
-     "r": 0,
-     "g": 0,
-     "b": 0,
-     "a": 0.55
-    },
-    "border_width": 3.0,
-    "arc": {
-     "start_degrees": 146.0,
-     "sweep_degrees": 68.0,
-     "width": 7.0,
-     "segments": 4,
-     "gap_degrees": 3.0
-    }
-   }
-  },
-  {
-   "id": "armor_arc",
-   "kind": "arc",
-   "binding": "armor_ratio",
-   "anchor": "center",
-   "offset": {
-    "x": 0.0,
-    "y": 0.0
-   },
-   "offset_fraction": {
-    "x": 0.0,
-    "y": 0.19
-   },
-   "size": {
-    "width": {
-     "unit": "px",
-     "value": 351.0
-    },
-    "height": {
-     "unit": "px",
-     "value": 351.0
-    }
-   },
-   "visibility": {
-    "kind": "flag",
-    "binding": "draw_status"
-   },
-   "layer": 2,
-   "style": {
-    "foreground": {
-     "r": 0.32,
-     "g": 1.0,
-     "b": 0.4,
-     "a": 1.0
-    },
-    "background": {
-     "r": 1,
-     "g": 1,
-     "b": 1,
-     "a": 0.14
-    },
-    "border": {
-     "r": 0,
-     "g": 0,
-     "b": 0,
-     "a": 0.55
-    },
-    "border_width": 3.0,
-    "arc": {
-     "start_degrees": 146.0,
-     "sweep_degrees": 68.0,
-     "width": 7.0,
-     "segments": 4,
-     "gap_degrees": 3.0
-    }
-   }
-  },
-  {
-   "id": "force_arc",
-   "kind": "arc",
-   "binding": "force_ratio",
-   "anchor": "center",
-   "offset": {
-    "x": 0.0,
-    "y": 0.0
-   },
-   "offset_fraction": {
-    "x": 0.0,
-    "y": 0.19
-   },
-   "size": {
-    "width": {
-     "unit": "px",
-     "value": 407.0
-    },
-    "height": {
-     "unit": "px",
-     "value": 407.0
-    }
-   },
-   "visibility": {
-    "kind": "flag",
-    "binding": "draw_status"
-   },
-   "layer": 2,
-   "style": {
-    "foreground": {
-     "r": 0.34,
-     "g": 0.64,
-     "b": 1.0,
-     "a": 1.0
-    },
-    "background": {
-     "r": 1,
-     "g": 1,
-     "b": 1,
-     "a": 0.14
-    },
-    "border": {
-     "r": 0,
-     "g": 0,
-     "b": 0,
-     "a": 0.55
-    },
-    "border_width": 3.0,
-    "arc": {
-     "start_degrees": 34.0,
-     "sweep_degrees": -68.0,
-     "width": 7.0,
-     "segments": 4,
-     "gap_degrees": 3.0
-    }
-   }
-  },
-  {
-   "id": "ammo_arc",
-   "kind": "arc",
-   "binding": "ammo_ratio",
-   "anchor": "center",
-   "offset": {
-    "x": 0.0,
-    "y": 0.0
-   },
-   "offset_fraction": {
-    "x": 0.0,
-    "y": 0.19
-   },
-   "size": {
-    "width": {
-     "unit": "px",
-     "value": 351.0
-    },
-    "height": {
-     "unit": "px",
-     "value": 351.0
-    }
-   },
-   "visibility": {
-    "kind": "flag",
-    "binding": "draw_ammo"
-   },
-   "layer": 2,
-   "style": {
-    "foreground": {
-     "r": 1.0,
-     "g": 0.76,
-     "b": 0.16,
-     "a": 1.0
-    },
-    "background": {
-     "r": 1,
-     "g": 1,
-     "b": 1,
-     "a": 0.14
-    },
-    "border": {
-     "r": 0,
-     "g": 0,
-     "b": 0,
-     "a": 0.55
-    },
-    "border_width": 3.0,
-    "arc": {
-     "start_degrees": 34.0,
-     "sweep_degrees": -68.0,
-     "width": 7.0,
-     "segments": 4,
-     "gap_degrees": 3.0
-    }
-   }
-  },
-  {
-   "id": "style_arc",
-   "kind": "arc",
-   "binding": "style_ratio",
-   "anchor": "center",
-   "offset": {
-    "x": 0.0,
-    "y": 0.0
-   },
-   "offset_fraction": {
-    "x": 0.0,
-    "y": 0.19
-   },
-   "size": {
-    "width": {
-     "unit": "px",
-     "value": 351.0
-    },
-    "height": {
-     "unit": "px",
-     "value": 351.0
-    }
-   },
-   "visibility": {
-    "kind": "flag",
-    "binding": "draw_style"
-   },
-   "layer": 2,
-   "style": {
-    "foreground": {
-     "r": 0.84,
-     "g": 0.74,
-     "b": 1.0,
-     "a": 1.0
-    },
-    "background": {
-     "r": 1,
-     "g": 1,
-     "b": 1,
-     "a": 0.14
-    },
-    "border": {
-     "r": 0,
-     "g": 0,
-     "b": 0,
-     "a": 0.55
-    },
-    "border_width": 3.0,
-    "arc": {
-     "start_degrees": 34.0,
-     "sweep_degrees": -68.0,
-     "width": 7.0,
-     "segments": 1,
-     "gap_degrees": 0.0
-    }
-   }
-  },
-  {
    "id": "left_pill",
    "kind": "panel",
    "anchor": "center",
@@ -359,6 +74,291 @@
      "a": 0.5
     },
     "radius": 22.0
+   }
+  },
+  {
+   "id": "health_arc",
+   "kind": "arc",
+   "binding": "health_ratio",
+   "anchor": "center",
+   "offset": {
+    "x": 0.0,
+    "y": 0.0
+   },
+   "offset_fraction": {
+    "x": 0.0,
+    "y": 0.19
+   },
+   "size": {
+    "width": {
+     "unit": "px",
+     "value": 407.0
+    },
+    "height": {
+     "unit": "px",
+     "value": 407.0
+    }
+   },
+   "visibility": {
+    "kind": "flag",
+    "binding": "draw_status"
+   },
+   "layer": 2,
+   "style": {
+    "foreground": {
+     "r": 1.0,
+     "g": 0.3,
+     "b": 0.22,
+     "a": 1.0
+    },
+    "background": {
+     "r": 1,
+     "g": 1,
+     "b": 1,
+     "a": 0.14
+    },
+    "border": {
+     "r": 0,
+     "g": 0,
+     "b": 0,
+     "a": 0.5
+    },
+    "border_width": 4.0,
+    "arc": {
+     "start_degrees": 146.0,
+     "sweep_degrees": 68.0,
+     "width": 7.0,
+     "segments": 4,
+     "gap_degrees": 3.0
+    }
+   }
+  },
+  {
+   "id": "armor_arc",
+   "kind": "arc",
+   "binding": "armor_ratio",
+   "anchor": "center",
+   "offset": {
+    "x": 0.0,
+    "y": 0.0
+   },
+   "offset_fraction": {
+    "x": 0.0,
+    "y": 0.19
+   },
+   "size": {
+    "width": {
+     "unit": "px",
+     "value": 351.0
+    },
+    "height": {
+     "unit": "px",
+     "value": 351.0
+    }
+   },
+   "visibility": {
+    "kind": "flag",
+    "binding": "draw_status"
+   },
+   "layer": 2,
+   "style": {
+    "foreground": {
+     "r": 0.32,
+     "g": 1.0,
+     "b": 0.4,
+     "a": 1.0
+    },
+    "background": {
+     "r": 1,
+     "g": 1,
+     "b": 1,
+     "a": 0.14
+    },
+    "border": {
+     "r": 0,
+     "g": 0,
+     "b": 0,
+     "a": 0.5
+    },
+    "border_width": 4.0,
+    "arc": {
+     "start_degrees": 146.0,
+     "sweep_degrees": 68.0,
+     "width": 7.0,
+     "segments": 4,
+     "gap_degrees": 3.0
+    }
+   }
+  },
+  {
+   "id": "force_arc",
+   "kind": "arc",
+   "binding": "force_ratio",
+   "anchor": "center",
+   "offset": {
+    "x": 0.0,
+    "y": 0.0
+   },
+   "offset_fraction": {
+    "x": 0.0,
+    "y": 0.19
+   },
+   "size": {
+    "width": {
+     "unit": "px",
+     "value": 407.0
+    },
+    "height": {
+     "unit": "px",
+     "value": 407.0
+    }
+   },
+   "visibility": {
+    "kind": "flag",
+    "binding": "draw_status"
+   },
+   "layer": 2,
+   "style": {
+    "foreground": {
+     "r": 0.34,
+     "g": 0.64,
+     "b": 1.0,
+     "a": 1.0
+    },
+    "background": {
+     "r": 1,
+     "g": 1,
+     "b": 1,
+     "a": 0.14
+    },
+    "border": {
+     "r": 0,
+     "g": 0,
+     "b": 0,
+     "a": 0.5
+    },
+    "border_width": 4.0,
+    "arc": {
+     "start_degrees": 34.0,
+     "sweep_degrees": -68.0,
+     "width": 7.0,
+     "segments": 4,
+     "gap_degrees": 3.0
+    }
+   }
+  },
+  {
+   "id": "ammo_arc",
+   "kind": "arc",
+   "binding": "ammo_ratio",
+   "anchor": "center",
+   "offset": {
+    "x": 0.0,
+    "y": 0.0
+   },
+   "offset_fraction": {
+    "x": 0.0,
+    "y": 0.19
+   },
+   "size": {
+    "width": {
+     "unit": "px",
+     "value": 351.0
+    },
+    "height": {
+     "unit": "px",
+     "value": 351.0
+    }
+   },
+   "visibility": {
+    "kind": "flag",
+    "binding": "draw_ammo"
+   },
+   "layer": 2,
+   "style": {
+    "foreground": {
+     "r": 1.0,
+     "g": 0.76,
+     "b": 0.16,
+     "a": 1.0
+    },
+    "background": {
+     "r": 1,
+     "g": 1,
+     "b": 1,
+     "a": 0.14
+    },
+    "border": {
+     "r": 0,
+     "g": 0,
+     "b": 0,
+     "a": 0.5
+    },
+    "border_width": 4.0,
+    "arc": {
+     "start_degrees": 34.0,
+     "sweep_degrees": -68.0,
+     "width": 7.0,
+     "segments": 4,
+     "gap_degrees": 3.0
+    }
+   }
+  },
+  {
+   "id": "style_arc",
+   "kind": "arc",
+   "binding": "style_ratio",
+   "anchor": "center",
+   "offset": {
+    "x": 0.0,
+    "y": 0.0
+   },
+   "offset_fraction": {
+    "x": 0.0,
+    "y": 0.19
+   },
+   "size": {
+    "width": {
+     "unit": "px",
+     "value": 351.0
+    },
+    "height": {
+     "unit": "px",
+     "value": 351.0
+    }
+   },
+   "visibility": {
+    "kind": "flag",
+    "binding": "draw_style"
+   },
+   "layer": 2,
+   "style": {
+    "foreground": {
+     "r": 0.84,
+     "g": 0.74,
+     "b": 1.0,
+     "a": 1.0
+    },
+    "background": {
+     "r": 1,
+     "g": 1,
+     "b": 1,
+     "a": 0.14
+    },
+    "border": {
+     "r": 0,
+     "g": 0,
+     "b": 0,
+     "a": 0.5
+    },
+    "border_width": 4.0,
+    "arc": {
+     "start_degrees": 34.0,
+     "sweep_degrees": -68.0,
+     "width": 7.0,
+     "segments": 1,
+     "gap_degrees": 0.0
+    }
    }
   },
   {
