@@ -590,10 +590,18 @@ mod tests {
             "textures/a {\n{ map textures/a/rock rgbGen exactVertex alphaGen vertex }\n}",
         ] {
             let compiled = stages(script);
-            assert_eq!(diffuse_bundle(&compiled[0], -3), Some(Bundle::Primary), "{script}");
+            assert_eq!(
+                diffuse_bundle(&compiled[0], -3),
+                Some(Bundle::Primary),
+                "{script}"
+            );
             // Only on vertex-lit surfaces; the overlays keep their shading.
             assert_eq!(diffuse_bundle(&compiled[0], -1), None, "{script}");
-            assert!(compiled[1..].iter().all(|s| diffuse_bundle(s, -3).is_none()));
+            assert!(
+                compiled[1..]
+                    .iter()
+                    .all(|s| diffuse_bundle(s, -3).is_none())
+            );
         }
         // Unlit, waving or blended paint is not vertex-lit paint.
         for script in [

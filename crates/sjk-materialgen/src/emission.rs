@@ -188,7 +188,10 @@ pub fn keyword(base: &str) -> Option<&'static str> {
 /// The control keyword of `base` ([`PANEL_LIGHT_KEYWORDS`]), if its file name has one.
 pub fn panel_light_keyword(base: &str) -> Option<&'static str> {
     let name = lit_name(base)?;
-    PANEL_LIGHT_KEYWORDS.iter().copied().find(|word| name.contains(word))
+    PANEL_LIGHT_KEYWORDS
+        .iter()
+        .copied()
+        .find(|word| name.contains(word))
 }
 
 /// The lower-case file name of `base`, unless it names something switched off or broken.
@@ -339,7 +342,11 @@ pub fn generate(
             * (1.0 - smoothstep(0.25, 0.45, saturation));
         let colour = bright * smoothstep(0.35, 0.55, saturation);
         // Indicator lights are coloured: white on a control is paint or a label.
-        if indicators { colour } else { white.max(colour) }
+        if indicators {
+            colour
+        } else {
+            white.max(colour)
+        }
     });
     let coverage = mask.data.iter().sum::<f32>() / mask.data.len().max(1) as f32;
     if coverage < MIN_COVERAGE {
@@ -465,13 +472,22 @@ mod tests {
 
     #[test]
     fn controls_have_panel_lights_unless_switched_off() {
-        assert_eq!(panel_light_keyword("textures/kejim/switch3"), Some("switch"));
+        assert_eq!(
+            panel_light_keyword("textures/kejim/switch3"),
+            Some("switch")
+        );
         assert_eq!(
             panel_light_keyword("textures/imperial/switch_door_unlocked"),
             Some("switch")
         );
-        assert_eq!(panel_light_keyword("textures/x/door_1new_onoff"), Some("onoff"));
-        assert_eq!(panel_light_keyword("textures/x/h_control_metal"), Some("control"));
+        assert_eq!(
+            panel_light_keyword("textures/x/door_1new_onoff"),
+            Some("onoff")
+        );
+        assert_eq!(
+            panel_light_keyword("textures/x/h_control_metal"),
+            Some("control")
+        );
         assert_eq!(panel_light_keyword("textures/kejim/lift_off"), None);
         assert_eq!(panel_light_keyword("textures/x/switch_broken"), None);
         assert_eq!(panel_light_keyword("textures/x/wall_blocks"), None);

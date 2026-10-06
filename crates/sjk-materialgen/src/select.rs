@@ -414,9 +414,10 @@ pub fn vertex_diffuse_stage(definition: &ShaderDefinition) -> Result<&ShaderStag
     let Some(first) = definition.stages.first() else {
         return Err(SkipReason::System);
     };
-    let vertex = first.rgb_generator.as_deref().is_some_and(|g| {
-        g.eq_ignore_ascii_case("vertex") || g.eq_ignore_ascii_case("exactvertex")
-    });
+    let vertex = first
+        .rgb_generator
+        .as_deref()
+        .is_some_and(|g| g.eq_ignore_ascii_case("vertex") || g.eq_ignore_ascii_case("exactvertex"));
     if first.blend != StageBlend::Replace
         || first.texture_generator != TextureGenerator::Base
         || !vertex
@@ -522,11 +523,7 @@ pub fn select(
         // The class follows the shader drawing most of it (then the first name).
         let (_, primary, _) = shaders
             .iter()
-            .max_by(|a, b| {
-                drawn(a.1)
-                    .cmp(&drawn(b.1))
-                    .then_with(|| b.0.cmp(a.0))
-            })
+            .max_by(|a, b| drawn(a.1).cmp(&drawn(b.1)).then_with(|| b.0.cmp(a.0)))
             .expect("every image has a shader");
         let (table_class, class_source) = classify(&image, primary.surface_flags);
         let alpha_tested = shaders.iter().any(|(_, _, choice)| choice.alpha_tested);
@@ -660,12 +657,18 @@ mod tests {
         ] {
             let definition = shader(script);
             // Not a lightmap pair, but vertex-lit paint.
-            assert_eq!(diffuse_stage(&definition).err(), Some(SkipReason::NoLightmapStage));
+            assert_eq!(
+                diffuse_stage(&definition).err(),
+                Some(SkipReason::NoLightmapStage)
+            );
             let stage = vertex_diffuse_stage(&definition).expect(script);
             assert!(stage.images[0].starts_with("textures/d/"), "{script}");
         }
         for (script, why) in [
-            ("textures/d/a { { map textures/d/a } }", SkipReason::VertexLit),
+            (
+                "textures/d/a { { map textures/d/a } }",
+                SkipReason::VertexLit,
+            ),
             (
                 "textures/d/a { { map textures/d/a rgbGen vertex blendFunc blend } }",
                 SkipReason::VertexLit,
@@ -679,7 +682,11 @@ mod tests {
                 SkipReason::Emissive,
             ),
         ] {
-            assert_eq!(vertex_diffuse_stage(&shader(script)).err(), Some(why), "{script}");
+            assert_eq!(
+                vertex_diffuse_stage(&shader(script)).err(),
+                Some(why),
+                "{script}"
+            );
         }
     }
 
