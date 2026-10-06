@@ -1438,8 +1438,10 @@ without colour codes, else the selected input, else the whole input line, or the
 last `viewpos` or `mark` answer when the line is empty. Up and Down stay history.
 On Windows the clipboard is reached through PowerShell with UTF-8 in both
 directions ([clipboard.rs](../crates/sjk-viewer/src/clipboard.rs)), so pasted or
-copied symbols such as `€`, `’` or `×` keep their characters; a paste waits for a
-copy still being set.
+copied symbols such as `€`, `’` or `×` keep their characters, including under
+PowerShell's Constrained Language Mode (with `clip` as a last resort for copy). A
+copy waits up to 1.5 s for the tool to finish and reports failure if it fails; a
+paste waits for a copy still being set.
 See [console_editing.rs](../crates/sjk-viewer/src/console_editing.rs) and
 [console_selection.rs](../crates/sjk-viewer/src/console_selection.rs). The input
 line and output rows are drawn and measured through one
