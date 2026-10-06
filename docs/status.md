@@ -114,6 +114,18 @@ roster keys and `tell` lookups, and the cosmetic match. Checked in game on Windo
 11 on a JoF server, before the roster keys were added; those are covered by the
 unit tests only.
 
+## EternalJK's character set
+
+Branch `feat/eternaljk-charset`: when `GameData/EternalJK` holds a PK3 with
+`gfx/2d/charsgrid_med` (jaPRO's `japro-assets.pk3`), that one image is mounted above
+the game's `base`, and below the `fs_basegame` and `fs_game` directories, as EternalJK
+mounts its folder above `base` and below the mod. The PK3 probe runs once per process. It has `¬`, `¥`, `²`, `½`
+and the rest of Latin-1, which the retail set lacks. It replaces the set for all text
+that uses it (the console and the character-set text of `game_font.rs`), as in
+EternalJK. Unit tests cover that it overrides the base set, that a mod's own set still
+overrides it, and that nothing else is mounted from the pack. Checked in game on Windows 11: the console shows `¬¬¬` and `¥²½` as in
+EternalJK.
+
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the
