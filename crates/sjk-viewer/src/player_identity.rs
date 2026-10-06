@@ -175,6 +175,18 @@ pub(crate) fn tag(slot: u8, shown: &str) -> Option<Tag> {
     })
 }
 
+/// What the hub knows about the player in `slot` whom the game shows as `shown`.
+pub(crate) fn hub_info(slot: u8, shown: &str) -> Option<crate::hud::player_card::HubInfo> {
+    lock().service.as_ref()?.with_snapshot(|snapshot| {
+        snapshot
+            .badge(slot, shown)
+            .map(|player| crate::hud::player_card::HubInfo {
+                name: player.name.clone(),
+                verified: player.verified,
+            })
+    })
+}
+
 /// Ask the hub to change the player's display name and bio. The result shows in
 /// [`Snapshot::notice`].
 pub(crate) fn set_profile(name: String, bio: String) -> bool {

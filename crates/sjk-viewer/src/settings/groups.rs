@@ -98,6 +98,8 @@ impl Group {
                 "cg_drawPlayerNames",
                 "cg_drawPlayerNamesScale",
                 "cg_drawFriend",
+                "cg_playerCard",
+                "cg_playerCardDelay",
                 "cg_nameplate",
                 "cg_nameplateRange",
                 "cg_nameplateNear",

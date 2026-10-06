@@ -14,6 +14,7 @@ pub(crate) mod nameplate;
 mod nameplate_math;
 mod npc_class;
 pub(crate) mod options;
+pub(crate) mod player_card;
 pub(crate) mod portrait;
 mod radial;
 mod selection;
@@ -128,6 +129,8 @@ pub(crate) struct HudOverlay {
     pub(crate) tints: tints::State,
     /// World-projected labels, sharing the chat roster's retained names.
     pub(crate) identification: identification::State,
+    /// The card shown beside a player looked at for a moment.
+    pub(crate) card: player_card::State,
     /// MMO-style nameplates, drawn in the classic font; they replace the labels above.
     pub(crate) nameplate: nameplate::State,
     guides: movement::Guides,
@@ -246,6 +249,7 @@ impl HudOverlay {
             targeting: targeting::State::default(),
             enemy_info: enemy_info::State::default(),
             identification: identification::State::default(),
+            card: player_card::State::default(),
             nameplate: nameplate::State::default(),
             score_text: String::with_capacity(80),
             snapshot_text: String::with_capacity(96),

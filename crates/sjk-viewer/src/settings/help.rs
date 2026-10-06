@@ -181,6 +181,14 @@ const HELP: &[(&str, &str)] = &[
         "Size of the plain names above players.",
     ),
     (
+        "cg_playerCard",
+        "Look at a player without moving and a card shows their model, sabers and SJK profile.",
+    ),
+    (
+        "cg_playerCardDelay",
+        "Seconds you must keep looking at a player, steady, before the card shows.",
+    ),
+    (
         "cg_drawFriend",
         "A marker over allies: your team, your duel partner, or Jedi Master's foes.",
     ),

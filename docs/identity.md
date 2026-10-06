@@ -34,9 +34,10 @@ vector that both test suites check, so a drift in either shows as a failing test
    every 45 seconds: "this key is in slot N of server S, shown as NAME". Claims
    live 90 seconds at the hub and are withdrawn when the player leaves or quits.
 4. The thread reads the hub's list of claims for the server every 15 seconds. The
-   scoreboard marks a row `SJK`, or `VERIFIED` in gold, when a claim names that slot
-   and its claimed name matches the name the game shows there (compared after
-   lower-casing and dropping colour codes and symbols).
+   scoreboard marks a row with SJK's emblem, in gold when verified, and the player
+   card shows the hub name, when a claim names that slot and its claimed name
+   matches the name the game shows there (compared after lower-casing and dropping
+   colour codes and symbols).
 
 Nothing blocks a frame: the viewer compares settings and place with what the thread
 was last told twice a second, and the scoreboard re-derives its marks only when the

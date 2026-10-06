@@ -360,6 +360,15 @@ impl Snapshot {
     }
 }
 
+/// SJK's emblem in one atlas cell, as the renderer uploads it.
+fn logo_icon() -> RgbaImage {
+    let emblem =
+        image::load_from_memory(include_bytes!("../../../assets/branding/sjk-logo-512.png"))
+            .expect("the emblem decodes")
+            .into_rgba8();
+    image::imageops::resize(&emblem, 128, 128, image::imageops::FilterType::Lanczos3)
+}
+
 /// Image `path` of the game data, decoded.
 fn decode(vfs: &sjk_vfs::VirtualFileSystem, path: &str) -> Option<RgbaImage> {
     let asset = vfs.read(path).ok().flatten()?;
@@ -379,7 +388,7 @@ fn menu_snapshot() {
     let (art, vfs) = art();
     let mut shots = Snapshot {
         font: crate::text::load_modern(1.0, None).expect("build the menu font"),
-        icons: HashMap::new(),
+        icons: HashMap::from([(crate::ui_renderer::LOGO_TEXTURE.0, logo_icon())]),
         in_match: match_backdrop(&vfs),
     };
     let font = &shots.font;
@@ -569,6 +578,7 @@ fn menu_snapshot() {
     changelog(&shots, art);
     weapon_select(&mut shots, &vfs);
     radial_hud(&mut shots);
+    player_card(&mut shots);
     force_wheel(&mut shots, &vfs);
     profile_saber(&shots, art, &vfs, &mut console);
     classic_profile(&mut shots, &vfs, art);
@@ -838,6 +848,60 @@ fn weapon_select(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
 /// Repulse selected among real powers and the other JoF entries, then JA+ merc
 /// mode's flamethrower in Lightning's place. Names draw in the menu font here.
 /// SJK's radial HUD with a full, a hurt and an empty-handed (saber) state.
+/// The player card beside three players over a match: one the hub vouches for,
+/// one it only knows, and one it does not; and one at the screen's edge.
+fn player_card(shots: &mut Snapshot) {
+    use crate::hud::player_card::{HubInfo, State, card_from};
+    let info = |text: &str| text.replace('|', "\\").into_bytes();
+    let cards = [
+        (
+            "player-card-verified",
+            card_from(
+                &info("n|^1Sol^7 the Fox|t|1|model|kyle/default|st|single_1|st2|none|c1|4|c2|0|"),
+                Some(HubInfo {
+                    name: "Sol".to_owned(),
+                    verified: true,
+                }),
+            ),
+            [760.0, 470.0],
+        ),
+        (
+            "player-card-registered",
+            card_from(
+                &info("n|Fox|t|2|model|jedi_hf/blue|st|dual_1|st2|dual_2|c1|0|c2|3|w|5|l|2|"),
+                Some(HubInfo {
+                    name: String::new(),
+                    verified: false,
+                }),
+            ),
+            [760.0, 470.0],
+        ),
+        (
+            "player-card-plain",
+            card_from(&info("n|Padawan|t|0|model|kyle|st|single_2|c1|2|"), None),
+            [760.0, 470.0],
+        ),
+        (
+            "player-card-edge",
+            card_from(&info("n|Edge|t|0|model|kyle|st|single_1|c1|1|"), None),
+            [1_380.0, 300.0],
+        ),
+    ];
+    for (name, card, head) in cards {
+        let state = State::preview(card, head, VIEWPORT);
+        let mut vertices = Vec::new();
+        crate::ui_renderer::append_text_commands(
+            &state.list,
+            |id| state.resolve_text(id),
+            &mut vertices,
+            &shots.font.font,
+            VIEWPORT,
+            crate::text::TextStyle::NEUTRAL,
+        );
+        shots.save(name, &state.list, &vertices, true);
+    }
+}
+
 fn radial_hud(shots: &mut Snapshot) {
     use crate::hud::{HudLook, HudOverlay, HudVisibility};
     let visibility = HudVisibility {

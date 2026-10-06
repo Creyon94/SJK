@@ -253,6 +253,20 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Player card",
+        cvar: "cg_playerCard",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Card delay (s)",
+        cvar: "cg_playerCardDelay",
+        kind: ValueKind::Float {
+            min: 0.5,
+            max: 5.0,
+            step: 0.5,
+        },
+    },
+    Setting {
         label: "Nameplates",
         cvar: "cg_nameplate",
         kind: ValueKind::Bool,

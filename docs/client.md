@@ -1193,9 +1193,9 @@ is in [SJK conventions](sjk.md#credits).
 
 ## Identity
 
-SJK keeps an identity key and can show other SJK players on a server as `SJK` or
-`VERIFIED` on the scoreboard; the design, limits and privacy are in
-[identity.md](identity.md).
+SJK keeps an identity key and can mark other SJK players on a server with SJK's
+emblem on the scoreboard and in a card beside them; the design, limits and privacy
+are in [identity.md](identity.md).
 
 - `cl_identity` (default 1; Settings > Network > SJK identity) makes the key
   (`identity.key` beside `config.cfg`) the first time it is on and lets the client
@@ -1208,10 +1208,30 @@ SJK keeps an identity key and can show other SJK players on a server as `SJK` or
   name <text>` and `identity bio <text>` change the profile, `identity key` prints
   the key id and file, `identity who [slot]` lists known players (with a slot, that
   player's bio).
-- The scoreboard (both styles) writes `SJK` after the name of a player the hub
-  knows, or `VERIFIED` in gold when the hub's operator vouches for them. It trusts a
-  claim only when the claimed name matches the name the game shows in that slot.
+- The scoreboard (both styles) draws SJK's emblem at the end of the name of a
+  player the hub knows, in gold when the hub's operator vouches for them. It trusts
+  a claim only when the claimed name matches the name the game shows in that slot.
 - Back up `identity.key`: losing it loses the identity.
+
+### Player card
+
+Look at a player, keeping the view steady, and a card appears beside their head
+([player_card.rs](../crates/sjk-viewer/src/hud/player_card.rs)). It shows what the
+server already publishes to every client (name with its colour codes, model, saber
+hilts with their blade colours, duel record or bot skill) and, when the hub knows
+the player, SJK's emblem, their hub name and a gold VERIFIED. It adds nothing a
+glance at the scoreboard would not: no health, Force or position.
+
+- `cg_playerCard` (default 1; Settings > HUD+ > Player card) turns it on.
+- `cg_playerCardDelay` (default 1.5; Settings > HUD+ > Card delay) is the seconds
+  the crosshair must stay on the player before the card fades in. Turning the view
+  more than 6 degrees, or losing the player for over 0.3 seconds, starts the wait
+  again and the card fades out.
+- The crosshair scan that names players under the crosshair finds the target, and
+  the card sits where the overhead names do (the player's head, from the same
+  camera). It goes to the player's left near the right edge of the screen and hides
+  under the scoreboard, menus, the console and intermission.
+- A hub bio is not shown yet.
 
 ## Force wheel
 
