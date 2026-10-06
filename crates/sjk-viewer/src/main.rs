@@ -74,6 +74,7 @@ mod frame_pacing;
 mod frame_queue;
 mod frame_split;
 
+mod charge_flash;
 mod fake_noclip;
 mod frame_target;
 mod game_font;
@@ -122,6 +123,7 @@ mod prediction_preview;
 mod scene_views;
 mod scope;
 mod surface_tables;
+mod trip_mine_lasers;
 mod viewer_app;
 use object_meshes::StaticModelMesh;
 mod gi_voxels;
@@ -407,6 +409,8 @@ struct GpuState {
     server_clock: ServerClock,
     clock_trace: clock_trace::ClockTrace,
     cut_trace: cut_trace::CutTrace,
+    /// Armed trip mines' traced beam ends (`trip_mine_lasers`).
+    trip_mine_beams: trip_mine_lasers::Beams,
     local_prediction: LocalPrediction,
     local_actor_state: local_actor_state::Tracker,
     third_person: bool,
@@ -1211,6 +1215,7 @@ impl GpuState {
             server_clock,
             clock_trace: clock_trace::ClockTrace::new(),
             cut_trace: cut_trace::CutTrace::new(),
+            trip_mine_beams: trip_mine_lasers::Beams::default(),
             local_prediction,
             local_actor_state: local_actor_state::Tracker::default(),
             third_person,
@@ -1753,6 +1758,22 @@ impl GpuState {
             movers::collect(snapshot, presentation_time as i32, &mut self.movers);
             self.local_prediction
                 .pickups(snapshot, presentation_time as i32, &mut self.pickups);
+            trip_mine_lasers::spawn(
+                &mut self.trip_mine_beams,
+                snapshot,
+                &self.bsp,
+                &mut self.trace_scratch,
+                self.camera_position,
+                &mut self.particles,
+                &mut self.effect_aux,
+                &mut self.effects,
+                self.vfs
+                    .as_ref()
+                    .expect("live sessions retain their mounted VFS"),
+                game_audio,
+                visual_now,
+                presentation_time as i32,
+            );
             pickups::simple::prepare(&mut self.pickups, self.console.as_ref());
             pickups::spawn_cones(
                 &self.pickups,
@@ -1782,6 +1803,14 @@ impl GpuState {
             local_entity_id,
             presentation_time,
         );
+        let first_person_charge = view_weapon.and(active_snapshot).and_then(|snapshot| {
+            let predicted = self
+                .live_session
+                .as_ref()
+                .and_then(|_| self.local_prediction.predicted_state());
+            charge_flash::Charges::collect(Some(snapshot), predicted)
+                .of(snapshot.player.client_num())
+        });
         if let Some(inputs) = view_weapon {
             first_person_weapon::submit(&self.first_person_weapon, inputs, &mut self.object_groups);
             // `CG_AddPlayerWeapon` records the view gun's `tag_flash` for
@@ -1813,6 +1842,21 @@ impl GpuState {
         movers::append_frame(self, presentation_time, visual_now);
         self.static_models.append_instances(&mut self.object_groups);
         pickups::simple::append_frame(self, visual_now);
+        // The charge glow on the view gun's muzzle (`cg_weapons.c` charge bits), after
+        // this frame's sprites were cleared.
+        if let (Some(origin), Some(charge)) = (
+            view_weapon.and(self.last_first_person_flash),
+            first_person_charge,
+        ) {
+            charge_flash::push(
+                &mut self.particles,
+                &mut self.effects,
+                charge,
+                Vec3::from_array(origin),
+                presentation_time as i32,
+                visual_now,
+            );
+        }
         self.force_overlays_last = actor_world_submission::submit(
             self,
             local_entity_id,

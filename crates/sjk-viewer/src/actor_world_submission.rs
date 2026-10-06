@@ -75,6 +75,8 @@ struct Sinks<'a> {
     detached_camera: bool,
     /// This frame's JA+ grapple hooks, drawn as ropes from their players' hands.
     hooks: grapple_rope::Hooks,
+    /// Every player's weapon charge, for the glow on its muzzle.
+    charges: crate::charge_flash::Charges,
 }
 
 /// Submit all presented actor-like entities without allocating frame storage.
@@ -215,6 +217,12 @@ pub(crate) fn submit(
         entity_view_flags: 0,
         detached_camera: gpu.detached_camera,
         hooks: grapple_rope::Hooks::collect(snapshot, game_state, presentation_time as i32),
+        charges: crate::charge_flash::Charges::collect(
+            snapshot,
+            gpu.live_session
+                .as_ref()
+                .and_then(|_| gpu.local_prediction.predicted_state()),
+        ),
     };
     let thrown = snapshot
         .zip(game_state)
@@ -708,6 +716,16 @@ fn submit_equipment(
     let socket = sinks.object_meshes[weapon_mesh]
         .flash_bolt
         .and_then(|flash| muzzle_flash::world_socket(flash, grip, weapon_rotation));
+    if let (Some(charge), Some(socket)) = (client.and_then(|c| sinks.charges.of(c)), socket) {
+        crate::charge_flash::push(
+            sinks.particles,
+            sinks.effects,
+            charge,
+            Vec3::from_array(socket.origin),
+            presentation_time as i32,
+            visual_now,
+        );
+    }
     if let (Some(request), Some(socket)) = (request, socket) {
         muzzle_effects::spawn(
             sinks.particles,

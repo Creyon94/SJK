@@ -167,7 +167,7 @@ impl LegacyWorldAdapter {
                     snapshot.server_time,
                     self.smooth_clients,
                 ),
-                rotation: legacy_angles_to_quaternion(angles),
+                rotation: placed_charge_rotation(state, legacy_angles_to_quaternion(angles)),
                 scale: legacy_general_scale(state),
             };
             let sample = MotionSample {
@@ -555,6 +555,39 @@ fn legacy_entity_kind(entity_type: u8) -> EntityKind {
     }
 }
 
+/// A trip mine or det pack (`ET_GENERAL`, a Ghoul2 `*_w.glm`) faces along its
+/// angles, which the game sets to the surface it sticks to (`laserTrapStick`,
+/// `g_weapon.c`: `vectoangles` of the plane normal). The result is `rotation` turned
+/// a quarter about the entity's own Z first, so the model lies flat against the wall
+/// or floor, facing out, with the beam along the same facing.
+///
+/// Evidence: none for the quarter turn itself. It matches EternalJK's look (the
+/// charge seen flat against the surface), and no source was found for it. EternalJK
+/// draws the entity from `AnglesToAxis(cent->lerpAngles)` alone (`cg_ents.c:1544`,
+/// `CG_SetGhoul2Info` `cg_ents.c:565-572`) and its Ghoul2 renderer builds the world
+/// matrix from the same angles with no extra rotation (`rd-vanilla/G2_misc.cpp:1608-1664`),
+/// so the offset can only come from the retail `.glm`'s rest pose or from how
+/// this client orients Ghoul2 models; it should be re-derived from the model data.
+fn placed_charge_rotation(state: &EntityState, rotation: [f32; 4]) -> [f32; 4] {
+    const WP_TRIP_MINE: u8 = 13;
+    const WP_DET_PACK: u8 = 14;
+    if state.entity_type() != 0
+        || state.model_ghoul2() != 1
+        || !matches!(state.weapon(), WP_TRIP_MINE | WP_DET_PACK)
+    {
+        return rotation;
+    }
+    // `rotation * (90 degrees about Z)`, quaternions as [x, y, z, w].
+    let half = std::f32::consts::FRAC_1_SQRT_2;
+    let [x, y, z, w] = rotation;
+    [
+        (x + y) * half,
+        (y - x) * half,
+        (z + w) * half,
+        (w - z) * half,
+    ]
+}
+
 /// Convert codemp pitch/yaw/roll Euler degrees into the runtime quaternion
 /// used by the presentation boundary.
 pub fn legacy_angles_to_quaternion(angles: [f32; 3]) -> [f32; 4] {
@@ -591,5 +624,53 @@ mod general_scale_tests {
         // Movers, players and the rest are scaled elsewhere or not at all.
         assert_eq!(legacy_general_scale(&entity(ET_MOVER, 250)), [1.0; 3]);
         assert_eq!(legacy_general_scale(&entity(1, 250)), [1.0; 3]);
+    }
+}
+
+#[cfg(test)]
+mod placed_charge_tests {
+    use super::*;
+    use sjk_protocol::LEGACY_ENTITY_FIELDS;
+
+    fn rotate(q: [f32; 4], v: [f32; 3]) -> [f32; 3] {
+        let [x, y, z, w] = q;
+        // v + 2w(u x v) + 2(u x (u x v)), u = (x, y, z).
+        let u = [x, y, z];
+        let cross = |a: [f32; 3], b: [f32; 3]| {
+            [
+                a[1] * b[2] - a[2] * b[1],
+                a[2] * b[0] - a[0] * b[2],
+                a[0] * b[1] - a[1] * b[0],
+            ]
+        };
+        let t = cross(u, v).map(|c| 2.0 * c);
+        let ut = cross(u, t);
+        std::array::from_fn(|i| v[i] + w * t[i] + ut[i])
+    }
+
+    #[test]
+    fn a_stuck_mine_faces_out_of_its_surface() {
+        let mut mine = EntityState::zero(100, &LEGACY_ENTITY_FIELDS);
+        mine.set_raw_field(14, 13);
+        mine.set_raw_field(54, 1);
+        // The model's top is -Y; on a floor (`vectoangles` of +Z is pitch -90) it
+        // points up, on a wall facing +X it points along +X.
+        for (angles, out) in [
+            ([-90.0, 0.0, 0.0], [0.0, 0.0, 1.0]),
+            ([0.0, 0.0, 0.0], [1.0, 0.0, 0.0]),
+        ] {
+            let q = placed_charge_rotation(&mine, legacy_angles_to_quaternion(angles));
+            let top = rotate(q, [0.0, -1.0, 0.0]);
+            for axis in 0..3 {
+                assert!(
+                    (top[axis] - out[axis]).abs() < 1e-4,
+                    "{angles:?} -> {top:?}"
+                );
+            }
+        }
+        // Other entities keep their rotation.
+        let other = EntityState::zero(100, &LEGACY_ENTITY_FIELDS);
+        let q = legacy_angles_to_quaternion([10.0, 20.0, 0.0]);
+        assert_eq!(placed_charge_rotation(&other, q), q);
     }
 }

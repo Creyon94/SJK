@@ -315,6 +315,15 @@ impl EntityState {
         ]
     }
 
+    /// `entityState_t::angles2` (netfields 82, 51, 84).
+    pub fn angles2(&self) -> [f32; 3] {
+        [
+            f32::from_bits(self.raw_field(82).unwrap_or(0)),
+            f32::from_bits(self.raw_field(51).unwrap_or(0)),
+            f32::from_bits(self.raw_field(84).unwrap_or(0)),
+        ]
+    }
+
     pub fn angles(&self) -> [f32; 3] {
         [
             f32::from_bits(self.raw_field(25).unwrap_or(0)),
@@ -382,6 +391,18 @@ impl EntityState {
     /// Generic `entityState_t::speed` value carried by protocol 26.
     pub fn speed(&self) -> f32 {
         f32::from_bits(self.raw_field(31).unwrap_or(0))
+    }
+
+    /// `entityState_t::constantLight` (netfield 64); a player's carries when its
+    /// weapon charge began.
+    pub fn constant_light(&self) -> u32 {
+        self.raw_field(64).unwrap_or(0)
+    }
+
+    /// `entityState_t::bolt2` (netfield 63); a stuck trip mine sets it to 1 in
+    /// proximity mode.
+    pub fn bolt2(&self) -> u32 {
+        self.raw_field(63).unwrap_or(0)
     }
 
     /// Generic `entityState_t::time` value carried by protocol 26.

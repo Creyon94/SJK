@@ -23,6 +23,7 @@ pub const EV_DISRUPTOR_HIT: u16 = 38; // codemp/game/bg_public.h:855
 // Ordinals count from EV_NONE = 0 at bg_public.h:805; the 16 EV_USE_ITEM*
 // entries (45..60) are one enumerator each, so EV_PAIN is 89 (see
 // sound_events.rs) and the missile events sit at 85..87.
+pub const EV_CONC_ALT_IMPACT: u16 = 84; // codemp/game/bg_public.h:917
 pub const EV_MISSILE_HIT: u16 = 85; // codemp/game/bg_public.h:918
 pub const EV_MISSILE_MISS: u16 = 86; // codemp/game/bg_public.h:919
 pub const EV_MISSILE_MISS_METAL: u16 = 87; // codemp/game/bg_public.h:920
@@ -44,6 +45,10 @@ pub enum LegacyImpactKind {
     MissileHitPlayer,
     MissileHitWall,
     MissileHitMetal,
+    /// The concussion rifle's alt beam (`cg_event.c:2860-2881`): from `start`
+    /// (`origin2`) along `shot` (`angles`, its length the shot's), with rings along
+    /// it facing `ring_direction` (`angles2`) and a wall hit at `origin`.
+    ConcussionAltShot,
 }
 
 /// One newly decoded impact event, in the fields consumed by cgame.
@@ -62,6 +67,10 @@ pub struct LegacyImpactEvent {
     pub charge: u8,
     /// `shouldtarget`: a fully charged sniper shot.
     pub full_charge: bool,
+    /// `angles`, the concussion alt shot's vector.
+    pub shot: [f32; 3],
+    /// `angles2`, the facing of the concussion alt shot's rings.
+    pub ring_direction: [f32; 3],
 }
 
 /// Allocation-free event de-duplicator equivalent to centity `previousEvent`.
@@ -135,6 +144,7 @@ impl LegacyImpactTracker {
                     | LegacyImpactKind::MissileHitMetal
                     | LegacyImpactKind::DisruptorSniperMiss
                     | LegacyImpactKind::DisruptorHit
+                    | LegacyImpactKind::ConcussionAltShot
             ) {
                 legacy_byte_to_direction(entity.event_parameter())
             } else {
@@ -157,6 +167,8 @@ impl LegacyImpactTracker {
                 alternate: entity.e_flags() & EF_ALT_FIRING != 0,
                 charge: entity.generic1(),
                 full_charge: entity.should_target(),
+                shot: entity.angles(),
+                ring_direction: entity.angles2(),
             });
         }
         for (index, active) in self.active.iter().copied().enumerate() {
@@ -182,6 +194,7 @@ pub const fn kind(event: u16) -> Option<LegacyImpactKind> {
         EV_DISRUPTOR_SNIPER_SHOT => Some(LegacyImpactKind::DisruptorSniperShot),
         EV_DISRUPTOR_SNIPER_MISS => Some(LegacyImpactKind::DisruptorSniperMiss),
         EV_DISRUPTOR_HIT => Some(LegacyImpactKind::DisruptorHit),
+        EV_CONC_ALT_IMPACT => Some(LegacyImpactKind::ConcussionAltShot),
         EV_MISSILE_HIT => Some(LegacyImpactKind::MissileHitPlayer),
         EV_MISSILE_MISS => Some(LegacyImpactKind::MissileHitWall),
         EV_MISSILE_MISS_METAL => Some(LegacyImpactKind::MissileHitMetal),
