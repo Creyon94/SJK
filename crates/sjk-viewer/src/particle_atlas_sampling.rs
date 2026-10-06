@@ -4,8 +4,7 @@ use crate::*;
 impl ParticleAtlas {
     /// Sample the first authored stage, or the atlas fallback for an unknown shader.
     pub(crate) fn first_layer(&self, shader: &str, age_seconds: f32) -> ParticleLayerSample {
-        self.animations
-            .get(shader)
+        self.stages(shader)
             .and_then(|animations| animations.first())
             .map(|animation| self.sample_animation(animation, age_seconds))
             .unwrap_or(ParticleLayerSample {
@@ -67,8 +66,19 @@ impl ParticleAtlas {
     ) -> effect_runtime::ParticleLayerSamples<'_> {
         effect_runtime::ParticleLayerSamples::new(
             self,
-            self.animations.get(shader).map_or(&[], Vec::as_slice),
+            self.stages(shader).map_or(&[], Vec::as_slice),
             age_seconds,
         )
+    }
+
+    /// A shader's stages. Shader names are case-insensitive (the atlas keys them in
+    /// lower case); a mixed-case name such as `gfx/effects/saberFlare` used to miss
+    /// and draw the fallback spark, scaled to the clash flare's full-screen size.
+    fn stages(&self, shader: &str) -> Option<&Vec<ParticleAtlasAnimation>> {
+        if shader.bytes().any(|byte| byte.is_ascii_uppercase()) {
+            self.animations.get(shader.to_ascii_lowercase().as_str())
+        } else {
+            self.animations.get(shader)
+        }
     }
 }
