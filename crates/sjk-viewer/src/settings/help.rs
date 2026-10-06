@@ -172,6 +172,39 @@ const HELP: &[(&str, &str)] = &[
         "cg_drawCrosshairNames",
         "Shows the name of the player under your crosshair.",
     ),
+    (
+        "cg_drawPlayerNames",
+        "Names above players: 0 off, 1 names, 2 names with a health bar.",
+    ),
+    ("cg_drawPlayerNamesScale", "Size of the tags above players."),
+    (
+        "cg_nametagPlate",
+        "Draws each name on a plate framed in the team colour; off is plain text.",
+    ),
+    (
+        "cg_nametagRange",
+        "How far away, in game units, a tag still shows. It fades near the end.",
+    ),
+    (
+        "cg_nametagShrink",
+        "Distant tags get smaller, like nameplates in an online RPG.",
+    ),
+    (
+        "cg_nametagMinScale",
+        "How small a tag at the end of its range gets, as a share of full size.",
+    ),
+    (
+        "cg_nametagWalls",
+        "Shows tags of players behind walls, dimmed. Off hides them.",
+    ),
+    (
+        "cg_drawFriend",
+        "A marker over allies: your team, your duel partner, or Jedi Master's foes.",
+    ),
+    (
+        "cg_nametagNpcs",
+        "Tags on NPCs with their class and health, such as Stormtrooper.",
+    ),
     ("cg_drawTimer", "Shows the match time."),
     (
         crate::version_overlay::CVAR,
