@@ -19,6 +19,7 @@ mod pointer;
 mod resolution;
 mod resolution_list;
 mod scroll;
+mod search;
 mod view;
 
 pub(crate) use catalog::RESOLUTIONS;
@@ -39,22 +40,59 @@ pub(crate) enum SettingsResult {
     ClassicCycle(i32),
 }
 
-/// The rows a classic option panel shows: a span of the tab, where its
-/// slider bars sit across a row, and which part of the span is scrolled
-/// into the panel when it has more rows than fit.
+/// One line of a classic option panel: a heading (a group of search
+/// results) or a setting row.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Line {
+    Heading(&'static str),
+    Row(usize),
+}
+
+/// The lines a classic option panel shows: a span of the tab, or a search's
+/// results under their groups; where its slider bars sit across a row, and
+/// which part is scrolled into the panel when it has more lines than fit.
 struct ClassicRows {
-    rows: std::ops::Range<usize>,
+    lines: Vec<Line>,
     slider_span: (f32, f32),
-    /// First shown row, counted from the span's start.
+    /// First shown line.
     first: usize,
-    /// Rows the panel showed last frame.
+    /// Lines the panel showed last frame.
     visible: usize,
 }
 
 impl ClassicRows {
-    /// Furthest the span scrolls.
+    /// The lines of rows `rows`, without headings.
+    fn span(rows: std::ops::Range<usize>) -> Vec<Line> {
+        rows.map(Line::Row).collect()
+    }
+
+    /// Furthest the lines scroll.
     fn max_first(&self) -> usize {
-        self.rows.len().saturating_sub(self.visible)
+        self.lines.len().saturating_sub(self.visible)
+    }
+
+    /// Line of setting row `row`, if the panel shows it.
+    fn position(&self, row: usize) -> Option<usize> {
+        self.lines.iter().position(|line| *line == Line::Row(row))
+    }
+
+    /// The setting rows, in order.
+    fn rows(&self) -> impl Iterator<Item = usize> + '_ {
+        self.lines.iter().filter_map(|line| match line {
+            Line::Row(row) => Some(*row),
+            Line::Heading(_) => None,
+        })
+    }
+
+    /// The row `direction` rows away from `selected`, wrapping; the first
+    /// row when `selected` is not shown.
+    fn step(&self, selected: usize, direction: i32) -> Option<usize> {
+        let rows: Vec<usize> = self.rows().collect();
+        let first = *rows.first()?;
+        let Some(index) = rows.iter().position(|row| *row == selected) else {
+            return Some(first);
+        };
+        Some(rows[(index as i32 + direction).rem_euclid(rows.len() as i32) as usize])
     }
 
     /// Scroll by `rows` (negative = up) without moving the selection.
@@ -67,17 +105,49 @@ impl ClassicRows {
         self.first = (ratio.clamp(0.0, 1.0) * self.max_first() as f32).round() as usize;
     }
 
-    /// Scroll just enough to show row `selected`.
+    /// Scroll just enough to show row `selected`, and its heading when it
+    /// is the first row under one.
     fn reveal(&mut self, selected: usize) {
-        let Some(offset) = selected.checked_sub(self.rows.start) else {
+        let Some(offset) = self.position(selected) else {
             return;
         };
         let visible = self.visible.max(1);
-        self.first = self
-            .first
-            .min(offset)
-            .max((offset + 1).saturating_sub(visible));
+        let heading = offset
+            .checked_sub(1)
+            .filter(|above| matches!(self.lines[*above], Line::Heading(_)));
+        for line in heading.into_iter().chain([offset]) {
+            self.first = self.first.min(line).max((line + 1).saturating_sub(visible));
+        }
     }
+}
+
+/// Where the panel was before a search, to return to when it is cleared.
+struct SearchReturn {
+    section: Section,
+    tab: usize,
+    lines: Vec<Line>,
+    selected: usize,
+    first: usize,
+}
+
+/// One choice of a classic dropdown.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Pick {
+    /// A switch, on or off.
+    Switch(bool),
+    /// One of a choice row's values.
+    Value(&'static str),
+    /// A display mode.
+    Mode(DisplayMode),
+}
+
+/// A classic+ dropdown open on row `row`: its choices, the highlighted one
+/// and the one in use. Nothing changes until a choice is applied.
+struct Dropdown {
+    row: usize,
+    picks: Vec<Pick>,
+    highlighted: usize,
+    current: usize,
 }
 
 /// A Text setting being typed. Its row is fixed when typing starts, so Enter
@@ -96,6 +166,8 @@ enum Section {
     Renderer,
     /// A classic Setup group gathering rows of several tabs ([`Group`]).
     Group(Group),
+    /// Every OPTIONS setting, for the classic panel's search ([`search`]).
+    Search,
 }
 
 /// A row after a tab's settings that opens another screen.
@@ -145,6 +217,13 @@ pub(crate) struct SettingsMenu {
     numeric: Option<crate::menu_widgets::numeric::NumericEdit>,
     /// Set while the screen is a classic option panel.
     classic: Option<ClassicRows>,
+    /// The classic panel's search: what is typed, whether the field has the
+    /// keyboard, and where the panel was before the search.
+    search: String,
+    searching: bool,
+    search_return: Option<SearchReturn>,
+    /// The classic panel's dropdown, while one is open.
+    dropdown: Option<Dropdown>,
     ui: MenuCanvas,
 }
 
@@ -173,6 +252,10 @@ impl SettingsMenu {
             hud: hud_picker::HudPicker::default(),
             numeric: None,
             classic: None,
+            search: String::new(),
+            searching: false,
+            search_return: None,
+            dropdown: None,
             ui: MenuCanvas::new(),
         }
     }
@@ -238,6 +321,7 @@ impl SettingsMenu {
             Section::General => &TABS,
             Section::Renderer => &RENDERER_TABS,
             Section::Group(group) => group.tabs(),
+            Section::Search => &["SEARCH"],
         }
     }
 
@@ -308,13 +392,39 @@ impl SettingsMenu {
         self.refresh(console);
     }
 
-    /// Rows keyboard focus moves through: the classic panel's span, or the
-    /// whole tab (with its key-bindings row).
-    fn row_span(&self) -> std::ops::Range<usize> {
+    /// Whether keyboard focus has rows to move through: the classic panel's
+    /// lines, or the whole tab (with its key-bindings row).
+    fn has_rows(&self) -> bool {
         match &self.classic {
-            Some(classic) => classic.rows.clone(),
-            None => 0..self.row_count(),
+            Some(classic) => classic.rows().next().is_some(),
+            None => self.row_count() > 0,
         }
+    }
+
+    /// Whether row `row` is on show: in the classic panel's lines, or a row
+    /// of the tab.
+    fn shows(&self, row: usize) -> bool {
+        match &self.classic {
+            Some(classic) => classic.position(row).is_some(),
+            None => row < self.row_count(),
+        }
+    }
+
+    /// Move the selection `direction` rows: through the classic panel's rows
+    /// (over its headings), or the tab's, wrapping.
+    fn step_selection(&mut self, direction: i32) {
+        if let Some(classic) = &self.classic {
+            if let Some(row) = classic.step(self.selected, direction) {
+                self.selected = row;
+            }
+        } else {
+            let count = self.row_count();
+            if count > 0 {
+                self.selected =
+                    (self.selected as i32 + direction).rem_euclid(count as i32) as usize;
+            }
+        }
+        self.reveal_selected();
     }
     /// Keep the selected row inside a scrolled classic panel.
     fn reveal_selected(&mut self) {
@@ -358,6 +468,16 @@ impl SettingsMenu {
             self.resolution_key(key, event.repeat, console);
             return SettingsResult::None;
         }
+        if self.dropdown.is_some() {
+            if !event.repeat || matches!(key, KeyCode::ArrowUp | KeyCode::ArrowDown) {
+                self.dropdown_key(key, console);
+            }
+            return SettingsResult::None;
+        }
+        if self.searching {
+            self.search_key(key, event.text.as_deref(), console);
+            return SettingsResult::None;
+        }
         if self.edit_numeric(key, event.text.as_deref(), event.repeat, console) {
             return SettingsResult::None;
         }
@@ -392,8 +512,28 @@ impl SettingsMenu {
         if event.repeat {
             return SettingsResult::None;
         }
-        let span = self.row_span();
-        if span.is_empty() {
+        let classic = self.classic.is_some();
+        // Classic+: `/` or Up from the first row gives the search field the
+        // keyboard; Escape clears a search before it leaves.
+        if classic {
+            let at_top = self.classic.as_ref().and_then(|c| c.rows().next()) == Some(self.selected);
+            match key {
+                KeyCode::Slash | KeyCode::NumpadDivide => {
+                    self.searching = true;
+                    return SettingsResult::None;
+                }
+                KeyCode::ArrowUp | KeyCode::KeyW if at_top => {
+                    self.searching = true;
+                    return SettingsResult::None;
+                }
+                KeyCode::Escape if !self.search.is_empty() => {
+                    self.set_search(console, String::new());
+                    return SettingsResult::None;
+                }
+                _ => {}
+            }
+        }
+        if !self.has_rows() {
             return match key {
                 KeyCode::Escape => self.back(console),
                 _ => SettingsResult::None,
@@ -407,7 +547,6 @@ impl SettingsMenu {
         {
             return SettingsResult::None;
         }
-        let classic = self.classic.is_some();
         match key {
             KeyCode::Tab | KeyCode::BracketRight if classic => {
                 return SettingsResult::ClassicCycle(1);
@@ -418,22 +557,8 @@ impl SettingsMenu {
                 let tab = self.tab.checked_sub(1).unwrap_or(self.tabs().len() - 1);
                 self.select_tab(console, tab);
             }
-            KeyCode::ArrowUp | KeyCode::KeyW => {
-                self.selected = if self.selected <= span.start {
-                    span.end - 1
-                } else {
-                    (self.selected - 1).min(span.end - 1)
-                };
-                self.reveal_selected();
-            }
-            KeyCode::ArrowDown | KeyCode::KeyS => {
-                self.selected = if self.selected + 1 >= span.end || self.selected < span.start {
-                    span.start
-                } else {
-                    self.selected + 1
-                };
-                self.reveal_selected();
-            }
+            KeyCode::ArrowUp | KeyCode::KeyW => self.step_selection(-1),
+            KeyCode::ArrowDown | KeyCode::KeyS => self.step_selection(1),
             KeyCode::ArrowLeft | KeyCode::KeyA => self.adjust(console, -1),
             KeyCode::ArrowRight | KeyCode::KeyD => self.adjust(console, 1),
             KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Space
@@ -460,6 +585,8 @@ impl SettingsMenu {
                         self.open_resolutions(console);
                     } else if matches!(setting.kind, ValueKind::HudPicker) {
                         self.open_hud_picker(console);
+                    } else if classic && self.open_dropdown(console, self.selected) {
+                        // Classic+: a choice opens its list; nothing changes yet.
                     } else if !self.begin_numeric(console, self.selected) {
                         self.adjust(console, 1);
                     }
@@ -577,12 +704,13 @@ impl SettingsMenu {
         if direction == 0 || self.drafting() {
             return;
         }
-        if self.classic.is_some() {
-            let span = self.row_span();
-            if !span.is_empty() {
-                self.selected = (self.selected as i32 + direction)
-                    .clamp(span.start as i32, span.end as i32 - 1)
-                    as usize;
+        if let Some(classic) = &self.classic {
+            let rows: Vec<usize> = classic.rows().collect();
+            if let Some(index) = rows.iter().position(|row| *row == self.selected) {
+                let next = (index as i32 + direction).clamp(0, rows.len() as i32 - 1);
+                self.selected = rows[next as usize];
+            } else if let Some(first) = rows.first() {
+                self.selected = *first;
             }
         } else {
             let count = self.row_count();
@@ -624,6 +752,7 @@ fn section_settings(section: Section, tab: usize) -> &'static [Setting] {
             _ => &[],
         },
         Section::Group(group) => group.rows(),
+        Section::Search => search::rows(),
     }
 }
 

@@ -89,16 +89,19 @@ only `modern` (or `0`) selects the modern layout; an unknown value falls back to
 `classic`. SJK's own classic pages keep the retail look and add modern help
 inside it; the rules are in [Classic+ menus](classic-plus.md).
 
-The classic main menu has the retail pages, entries and order:
+The classic main menu has the retail pages, entries and order, with SJK's
+Settings and SJK in place of retail's Controls and Setup:
 
-- Main: Play, Profile, Controls and Setup in two columns, Exit below. Exit and
-  Escape ask before quitting.
+- Main: Play and Profile on the left, Settings and SJK on the right, Exit below.
+  Exit and Escape ask before quitting.
 - Play: Solo Game, Join Server, Create Server, Play Demo and Rules. Solo Game
   and Create Server both open Create game, which hosts a local match with bots.
-- Controls and Setup are option panels, as retail's `controls.menu` and
-  `setup.menu` are (described below).
-- Every sub-page repeats the retail navigation row (Play, Profile, Controls,
-  Setup) and has Back and Exit.
+- Settings is retail's Controls and Setup as one screen of option panels with two
+  tabs, KEY BINDINGS and OPTIONS (described below). It opens on OPTIONS.
+- SJK lists SJK's own screens in the Play page's layout: Changelog, Credits and
+  Update.
+- Every sub-page repeats the navigation row (Play, Profile, Settings, SJK) and
+  has Back and Exit.
 - Profile opens the retail profile pages (`player`, `player2`, `saber`), which
   edit the same drafts as the modern Player screen and write them at once:
   - Profile: name, team colour and the head grid (six 64-unit cells per row),
@@ -233,12 +236,15 @@ the refresh time, and the description line shows the hovered item's
 description. The screen is in
 [menu/classic/browser.rs](../crates/sjk-viewer/src/menu/classic/browser.rs).
 
-Retail entries JKR has no screen for yet (Play Demo, Rules, Mods, Defaults) are
-shown dimmed, and their description line says so.
+Retail entries JKR has no screen for yet (Play Demo, Rules) are shown dimmed,
+and their description line says so; retail's Mods and Defaults are left out of
+Settings (Backspace restores one setting's default).
 
-Controls and Setup keep their group list down the left and show the chosen
-group's items in the panel beside it, opening on Movement and Video as retail's
-pages do. The items are the same settings and key bindings as the modern
+Settings' two tabs sit on the panel's title band, KEY BINDINGS on the left and
+OPTIONS on the right; a click switches, and Tab walks through the groups of both
+tabs in turn. Each tab keeps its group list down the left and shows the chosen
+group's items in the panel beside it, opening on Video (OPTIONS) and Movement
+(KEY BINDINGS). The items are the same settings and key bindings as the modern
 screens, drawn the retail way: labels in capitals set against a column at retail
 `textalignx`, the value after them, toggles as YES/NO, numbers as the retail slider
 (`menu/new` art) with the value beside it, the focused item on the `menu_blendbox`
@@ -247,9 +253,10 @@ panel holds scrolls: the wheel over its items moves the list one item per notch
 (three on a key-binding group), a thin bar along the panel's right edge shows the
 position and can be dragged, and Up and Down keep the selected item in view.
 
-SJK makes these panels [classic+](classic-plus.md): the items fill the panel's
-upper part (11 rows on the main menu, 9 in game, where retail's taller panel held
-15 and 12) and a detail box under them describes the focused item. For a setting
+SJK makes these panels [classic+](classic-plus.md): a search field and the items
+fill the panel's upper part (10 rows on the main menu, 8 in game, where retail's
+taller panel held 15 and 12) and a detail box under them describes the focused
+item. For a setting
 it shows the full name and value, what the setting does
 ([help.rs](../crates/sjk-viewer/src/settings/help.rs), one or two lines for
 every setting), its default, its range (or how many choices it has), "applies
@@ -267,23 +274,45 @@ items; classic+ panels scroll and explain the focused item, so SJK shows each as
 one group and regroups JKR's GAME, HUD, HUD+ and TEXT tabs by subject
 ([settings/groups.rs](../crates/sjk-viewer/src/settings/groups.rs)):
 
-- Setup: Video is the whole VIDEO tab (resolution, display, frame rate, field of
-  view, marks, shadows, gamma), Sound is AUDIO. Game Options holds the gameplay
-  rows (simple items, forced models, saber and speed trails, aura shell, shader
-  remaps, third-person camera, prediction smoothing). Mods and Defaults stay
-  dimmed as retail entries SJK lacks. Interface gathers the menus' and console's
+- OPTIONS: Video is the whole VIDEO tab (resolution, display, frame rate, field of
+  view, marks, shadows, gamma), Sound is AUDIO, Mouse the CONTROLS settings
+  (retail's Mouse/Joystick, moved here from the key bindings). Game Options holds
+  the gameplay rows (simple items, forced models, saber and speed trails, aura
+  shell, shader remaps, third-person camera, prediction smoothing). Interface
+  gathers the menus' and console's
   look (menu style, accent, contrast, game fonts, menu text size and spacing,
   console style, text size and line spacing); HUD the HUD style, files and scale,
   status, weapon bar, crosshair and its size, names, timer, speedometer, team
   overlay, lagometer, chat and ground readout; Scoreboard its style, client
   numbers, head icons and small rows. Network follows. RENDERER opens SJK's
   renderer page: the same layout with the renderer settings' IMAGE, LIGHTING and
-  SHADOWS groups down the left, its title RENDERER OPTIONS, and Back (or Escape)
-  returning to Setup. In game it is the same pop-up with those three groups.
-- Controls: Movement, Interaction, Weapons, Force Powers (retail's two Force
-  pages as one) and Other are the key-binding categories. Mouse/Joystick shows
-  the CONTROLS settings. The weapon rows name their weapon (Saber / melee,
-  Blaster pistol, ... Explosives) rather than `weapon N`.
+  SHADOWS groups down the left, the OPTIONS tab still marked, and Back (or
+  Escape) returning to OPTIONS. In game it is the same pop-up with those three
+  groups.
+- KEY BINDINGS: every binding is in one list, under the headings Movement,
+  Interaction, Weapons, Force powers (retail's two Force pages as one) and Other.
+  The categories down the left jump to their heading, and the one holding the
+  selected action is marked as the list scrolls. The weapon rows name their
+  weapon (Saber / melee, Blaster pistol, ... Explosives) rather than `weapon N`.
+
+The search field on the panel's first row finds across the whole tab. `/`, Up
+from the first row, or a click gives it the keyboard; typing filters as it goes,
+with the number found at the row's end; Enter, Down or Tab go to the results and
+Escape clears the text, then leaves the field (an Escape in the panel clears a
+search before it leaves). On OPTIONS it searches every option of every group,
+the renderer's included, by name, console name, description and group
+([settings/search.rs](../crates/sjk-viewer/src/settings/search.rs)), and shows
+the results under their groups' headings, the detail box adding "In <group>";
+opening a group clears the search. On KEY BINDINGS it finds actions by name,
+console command, category or bound key (`space` finds Jump).
+
+A choice (a switch, a choice row, the display mode) does not change on a click
+or Enter: they open a dropdown under the value in the retail list box's look,
+the value in use marked IN USE, and nothing changes until a choice is applied
+with Enter or a click. Up and Down move in it; Escape, Backspace or a click
+elsewhere close it unchanged. Left and Right still step the value directly. The
+rows the dropdown covers leave their values out while it is open, since text
+draws over every shape.
 
 Key bindings carry the retail HUD picture of what they select or use
 ([keybind_editor/icons.rs](../crates/sjk-viewer/src/keybind_editor/icons.rs)):
@@ -295,25 +324,25 @@ are read from the player's game data on a worker thread when the key bindings
 first open, into two atlas rows of their own; a picture the game data lacks is
 left out.
 
-Up and Down move through the items, Left and Right (or Enter) change a value,
-and typing or Enter on a number edits it exactly; clicking a slider sets it.
-Tab moves to the next group (on the key-binding groups, Left and Right do too). A key binding reads "A OR B" (retail's `KEYBIND_OR`,
+Up and Down move through the items, Left and Right change a value, Enter opens
+a choice's dropdown, and typing or Enter on a number edits it exactly; clicking
+a slider sets it. Tab moves to the next group (on KEY BINDINGS, Left and Right
+do too). A key binding reads "A OR B" (retail's `KEYBIND_OR`,
 raised to capitals with the key names as retail's `BindingFromName` does) or `???`
 when unbound; Enter or a click waits for the new key, shown in red with
 retail's "Enter new key, or ESC to cancel, BACKSPACE to clear.", and Backspace
 clears every key of the action. Escape closes the page to the main page (the
-renderer page to Setup).
+renderer page to OPTIONS).
 
-The classic in-game bar's Setup and Controls open the same panels as retail's
-`ingame_setup` and `ingame_controls` pop-ups: a box under the bar with the
-group list and panel at their in-game positions and no navigation row, closing
-back to the bar. Switching the Menu style (on Interface) while a panel is
+The classic in-game bar's Settings opens the same panels as retail's
+`ingame_setup` and `ingame_controls` pop-ups, with the two tabs on the pop-up's
+title band: a box under the bar with the group list and panel at their in-game
+positions and no navigation row, closing back to the bar. Switching the Menu style (on Interface) while a panel is
 open continues on the modern settings screen.
 
 The classic in-game menu (Escape during a match) is the retail top bar: About,
-Join, Profile, Add Bot, Controls, Setup, Vote, Call Vote and Exit, after SJK's
-own SJK button at its left end (the retail nine close up to 65 units to make
-room). Each opens a pop-up under it or the matching screen. SJK's pop-up holds
+Join, Profile, Add Bot, Settings (retail's Controls and Setup), Vote, Call Vote
+and Exit, after SJK's own narrower SJK button at its left end. Each opens a pop-up under it or the matching screen. SJK's pop-up holds
 SJK's own screens, for now the [changelog page](#changelog-page)
 ([ingame_menu/sjk.rs](../crates/sjk-viewer/src/ingame_menu/sjk.rs) lists them);
 the modern game menu has the same pop-up as its SJK row, before Server info.
@@ -327,7 +356,7 @@ summary, then `ingame_player2` and `ingame_saber`); its Apply returns to the
 match. The Force box shows the side's emblem beside retail's mastery, side and
 points lines and the known powers' holocrons, and its `configforce` button
 opens the Force window; the Cosmetics button sits under Custom, as in JoF EJK.
-Its Join Red, Join Blue and Spectate buttons are left to the Join tab. Controls and Setup open
+Its Join Red, Join Blue and Spectate buttons are left to the Join tab. Settings opens
 the option panels described above. Siege swaps in Objectives and V Chat as retail does. Add Bot,
 Objectives, V Chat and Restart Match are dimmed with a note, because the client
 cannot add bots or restart a match it does not host. Left and Right move along
@@ -1001,8 +1030,8 @@ the same build at startup (`build: SJK ...`). How the version is decided is in
 
 ## Changelog page
 
-The main menu's Changelog entry (modern list, and a CHANGELOG button under
-PROFILE on the classic page), the in-game SJK pop-up's Changelog and the
+The main menu's Changelog entry (modern list; SJK > CHANGELOG on the classic
+page), the in-game SJK pop-up's Changelog and the
 `changelog` console command show every SJK release from [CHANGELOG.md](../CHANGELOG.md), built into the client
 ([changelog.rs](../crates/sjk-viewer/src/changelog.rs), parsed by
 [changelog_data.rs](../crates/sjk-viewer/src/changelog_data.rs)). Releases are
@@ -1031,7 +1060,7 @@ The client looks for a newer SJK release when it starts and from the Update page
   a worker thread. A newer version shows on the main menus' version line
   ("update 2026.1010.1 available"). The check sends the request GitHub needs and
   nothing else; turn it off to send none.
-- Main menu > Update (an UPDATE button under SETUP on the classic page) or the
+- Main menu > Update (classic: SJK > UPDATE) or the
   `update` command opens the page. It shows the state and offers Install (Enter),
   Check again (C) and Release notes (N); Escape closes. Opening it with nothing
   checked yet checks at once.
@@ -1052,8 +1081,7 @@ The client looks for a newer SJK release when it starts and from the Update page
 
 ## Credits page
 
-The main menu's Credits entry (modern list, and a CREDITS button above
-CHANGELOG on the classic page), the in-game SJK pop-up's Credits and the
+The main menu's Credits entry (modern list; SJK > CREDITS on the classic page), the in-game SJK pop-up's Credits and the
 `credits` console command show who makes Sol JK, from
 [credits.txt](../crates/sjk-viewer/assets/credits.txt), built into the client
 ([credits.rs](../crates/sjk-viewer/src/credits.rs), parsed by

@@ -1097,10 +1097,10 @@ test: It sits where JK::R was, over the saber emblem, and nothing overlaps it.
 status: personal
 area: Menus & settings
 title: Changelog page: every SJK release with its changes and credits
-change: Main menu > Changelog (classic: CHANGELOG button under PROFILE) and the changelog command.
+change: Main menu > Changelog (classic: SJK > CHANGELOG) and the changelog command.
 change: Releases newest first on the left; changes wrapped on the right, each with its credit.
 change: The list is CHANGELOG.md at the repository root, built into the client.
-test: Classic main menu: click CHANGELOG; pick 2026.1005.1; scroll with the wheel and Page Down.
+test: Classic main menu: SJK > CHANGELOG; pick 2026.1005.1; scroll with the wheel and Page Down.
 test: Modern menus (ui_menuStyle modern): Changelog sits above Quit and opens the same page.
 test: In a match, type changelog in the console; Escape closes the page and the console.
 test: At 4K with 150% scaling the text wraps inside the pane and nothing overlaps.
@@ -1113,6 +1113,22 @@ change: print and cp text is decoded as legacy bytes, as chat is, so the symbol 
 test: On a server with a player named with a symbol (Alt+0215), challenge them to a duel.
 test: No crash; the centre print and console show the symbol, not ?.
 test: Have them challenge you: same result.
+
+[settings-hub]
+status: personal
+area: Menus & settings
+title: Classic Settings: Controls + Setup in one, tabs, search everywhere, dropdowns
+change: Main menu: SETTINGS and SJK replace CONTROLS and SETUP; SJK holds Changelog/Credits/Update.
+change: Settings has KEY BINDINGS and OPTIONS tabs; all binds in one list under category headings.
+change: Search row on top finds any option or bind; choices open a dropdown, ESC keeps the value.
+test: Main menu > SETTINGS: OPTIONS open on Video; click KEY BINDINGS on the band, then back.
+test: Press / and type shadow: results under group headings, N FOUND; ESC clears, ESC leaves.
+test: KEY BINDINGS: type space in the search: Jump; click WEAPONS on the left: list jumps there.
+test: Click DISPLAY MODE: a list opens; pick Borderless with ENTER; ESC on another closes unchanged.
+test: Click a YES/NO row: dropdown; LEFT/RIGHT on a row still flip it directly.
+test: In game, Escape: bar shows SJK ... SETTINGS ...; SETTINGS opens the pop-up with both tabs.
+test: Tab walks the groups of both tabs; profile page's SETTINGS/SJK nav buttons work.
+note: Retail Mods and Defaults are gone; Mouse moved from Controls to OPTIONS.
 
 [sjk-ingame-menu]
 status: personal
@@ -1129,10 +1145,10 @@ test: ui_menuStyle modern: the game menu's SJK row opens Changelog / Back.
 status: personal
 area: Menus & settings
 title: Credits page: the team, contributors and more, animated
-change: Main menu > Credits (classic: CREDITS above CHANGELOG), in-game SJK > Credits, credits cmd.
+change: Main menu > Credits (classic: SJK > CREDITS), in-game SJK > Credits, credits cmd.
 change: Beams, rising sparks, the emblem's halo, a title glint; cards rise in and glow in turn.
 change: Classic menus: retail gold and blue in the menus' font. Fed by assets/credits.txt.
-test: Classic main menu: click CREDITS; the cards rise in; scroll down to the notice line.
+test: Classic main menu: SJK > CREDITS; the cards rise in; scroll down to the notice line.
 test: Modern menus: Credits sits under Changelog and opens the same page in theme colours.
 test: In a match, Escape > SJK > Credits; Escape closes the page, then the pop-up.
 test: Watch for a few seconds: smooth motion, no flicker, readable text at 4K 150%.

@@ -97,7 +97,12 @@ Each rule names a page that already follows it.
    canvas's fixed storage (96 pointer areas, its text runs, its draw commands)
    stops a debug build, so the page's tests catch it, and is logged once in a
    release build; a list registers pointer areas only for its visible rows.
-10. **One group per subject.** Retail split a subject over two pages when a page
+10. **Find, then change on purpose.** A long screen has a search field over its
+    list that finds across the whole screen and shows its results under their
+    groups' headings (Settings' OPTIONS and KEY BINDINGS). A choice opens a
+    dropdown in the retail list box's look and changes only when one is applied;
+    Escape or a click elsewhere leaves it as it was (the option panels).
+11. **One group per subject.** Retail split a subject over two pages when a page
     ran out of items (Video and More Video, Force Powers 1 and 2); a classic+
     panel scrolls and explains its items, so it shows the subject as one group,
     and sorts JKR's additions by what they are about (Interface, HUD,
@@ -154,7 +159,7 @@ The profile pages show the pattern
 - **Module documentation** names the retail menu and its files, and says what
   SJK adds ("SJK adds the side cards, ...").
 
-The option panels (Setup, Controls and the renderer page) are drawn by
+The option panels (Settings' OPTIONS and KEY BINDINGS tabs and the renderer page) are drawn by
 [menu/classic/panel.rs](../crates/sjk-viewer/src/menu/classic/panel.rs), with
 their rows by the settings screen and the key-binding editor
 ([settings/classic_view.rs](../crates/sjk-viewer/src/settings/classic_view.rs),
@@ -209,8 +214,9 @@ Add a screen to the test when building a page.
 | Cosmetics | JoF EJK's `ingame_cosmetics` | Hats and capes side by side, live model, worn tags, explained empty lists |
 | Character creation | `player2`, `ingame_player2` | Live model where retail's stood, part icons, tinted swatches |
 | Lightsaber creation | `saber`, `ingame_saber` | The model holding the lit sabers |
-| Setup, Controls | `setup.menu`, `controls.menu`, `ingame_setup`, `ingame_controls` | A detail box for the focused setting or binding (what it does, default, range, when it applies, console name, keys shared with other actions); changed and applies-later marks; Backspace or the right button for the default; key hints; one Video and one Force Powers group; Interface, HUD and Scoreboard groups; weapon, item and Force pictures and weapon names on the bindings |
-| In-game bar | `ingame.menu` and its pop-ups | Join's team rows with their flag and player count |
+| Settings (OPTIONS, KEY BINDINGS) | `setup.menu`, `controls.menu`, `ingame_setup`, `ingame_controls` | One screen with two tabs on the title band; a search field over each tab; every binding in one list under category headings; choices in dropdowns; a detail box for the focused setting or binding (what it does, default, range, when it applies, console name, keys shared with other actions); changed and applies-later marks; Backspace or the right button for the default; key hints; one Video and one Force Powers group; Mouse, Interface, HUD and Scoreboard groups; weapon, item and Force pictures and weapon names on the bindings |
+| SJK | none (SJK's own page) | The Play page's layout listing Changelog, Credits and Update |
+| In-game bar | `ingame.menu` and its pop-ups | SJK's button and pop-up left of About; Controls and Setup as one Settings; Join's team rows with their flag and player count |
 | Renderer | none (SJK's renderer settings) | The renderer settings as a `setup.menu`-style page with IMAGE, LIGHTING and SHADOWS groups, on both frames, with the same panels |
 | Changelog | none (SJK's release list) | The console browser's pop-up frame: a retail list box of releases and a detail box with each change and its credit; drawn with the classic menus |
 | Console browser (F3) | none (SJK's command and cvar browser) | The in-game pop-up's frame with retail buttons and list box, a detail box for the selected command or cvar, descriptions for every control; drawn with the classic console |

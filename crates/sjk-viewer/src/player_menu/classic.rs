@@ -342,8 +342,8 @@ impl PlayerMenu {
         let frame = self.frame();
         match item {
             Item::NavPlay => PlayerMenuResult::ClassicPage(MainPage::Play),
-            Item::NavControls => PlayerMenuResult::ClassicPage(MainPage::Controls),
-            Item::NavSetup => PlayerMenuResult::ClassicPage(MainPage::Setup),
+            Item::NavControls => PlayerMenuResult::ClassicPage(MainPage::Setup),
+            Item::NavSetup => PlayerMenuResult::ClassicPage(MainPage::Sjk),
             Item::NavProfile => {
                 if self.classic.page != ClassicPage::Player {
                     self.show_classic(ClassicPage::Player);

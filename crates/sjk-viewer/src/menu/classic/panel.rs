@@ -13,6 +13,10 @@
 //! its console name), where retail's taller panel had room for more rows. A
 //! row changed from its default carries a small mark at its left end, and a
 //! setting that applies later a `*` after its label.
+//!
+//! Retail's Controls and Setup are one Settings screen in SJK: the title band
+//! carries its two tabs, KEY BINDINGS and OPTIONS ([`Page::settings_tab`]),
+//! and the panel's first row is a search field over the whole tab.
 
 use super::layout::{CANVAS, Entry, HINT_Y, Page, Placement, Size, Slot};
 use super::view::{self, Caps, DISABLED, FOCUS, GOLD, HINT};
@@ -26,6 +30,19 @@ use sjk_ui::{Color, DrawCommand, FontWeight, Rect, TextAlign, TextureId};
 /// settings tabs (500), the key-binding editor's secondary slots (600) and
 /// the slider value targets (700).
 pub(crate) const CHROME_BASE: u16 = 800;
+
+/// Chrome slot indices of the Settings tabs in the title band, past every
+/// page's own slots: KEY BINDINGS, then OPTIONS.
+pub(crate) const TAB_SLOTS: [usize; 2] = [30, 31];
+
+/// The panel's search field, clear of the other panel tokens (rows 0-499,
+/// tabs 500, secondary slots 600, values 700, chrome 800, footer 900-912).
+pub(crate) const SEARCH_TOKEN: u16 = 913;
+
+/// The Settings tab a chrome slot names, if it names one.
+pub(crate) fn settings_tab_slot(slot: usize) -> Option<usize> {
+    TAB_SLOTS.iter().position(|tab| *tab == slot)
+}
 
 /// Page slot index of a chrome token.
 pub(crate) fn chrome_slot(token: u16) -> Option<usize> {
@@ -96,43 +113,48 @@ struct Geometry {
     hint: [f32; 2],
     /// The classic+ detail box under the rows.
     detail: [f32; 4],
+    /// The search field: the row above the first item row.
+    search: [f32; 4],
 }
 
 /// `setup.menu`: panel `260 185 340 225`, items `260 188+14n 340 14`
 /// labelled up to `textalignx 174`, title band `100 164 440 16`. Classic+
-/// keeps eleven rows in the panel's upper part and the detail box in the
-/// rest of retail's panel.
+/// keeps the search field and ten rows in the panel's upper part and the
+/// detail box in the rest of retail's panel.
 const MAIN: Geometry = Geometry {
     panel: [260.0, 185.0, 340.0, 160.0],
     row_x: 260.0,
     row_width: 340.0,
-    first_row: 188.0,
+    first_row: 202.0,
     row_height: 14.0,
-    rows: 11,
+    rows: 10,
     label_end: 434.0,
     text: 11.0,
     title: [100.0, 164.0, 440.0, 16.0],
     hint: [CANVAS[0] * 0.5, HINT_Y],
     detail: [260.0, 349.0, 340.0, 63.0],
+    search: [260.0, 188.0, 340.0, 14.0],
 };
 
 /// `ingame_setup.menu` (menu rect `45 35 550 335`): box `0 0 570 335`,
 /// group list `20 43+30n 170 30`, panel `210 41 350 250`, items
 /// `220 41+20n 300 20` labelled up to `textalignx 165`, title band
 /// `20 5 510 28`, description at `305 347`. Classic+ keeps nine rows and
-/// the detail box under them, inside retail's panel.
+/// the detail box under them, inside retail's panel; the search field takes
+/// the first row.
 const IN_GAME: Geometry = Geometry {
     panel: [45.0 + 210.0, 35.0 + 41.0, 350.0, 185.0],
     row_x: 45.0 + 220.0,
     row_width: 300.0,
-    first_row: 35.0 + 43.0,
+    first_row: 35.0 + 63.0,
     row_height: 20.0,
-    rows: 9,
+    rows: 8,
     label_end: 45.0 + 385.0,
     text: 12.0,
     title: [45.0 + 20.0, 35.0 + 5.0, 510.0, 28.0],
     hint: [45.0 + 305.0, 35.0 + 347.0],
     detail: [45.0 + 210.0, 35.0 + 230.0, 350.0, 61.0],
+    search: [45.0 + 220.0, 35.0 + 43.0, 300.0, 20.0],
 };
 
 /// What the classic+ detail box says about the focused item.
@@ -230,14 +252,13 @@ impl PanelFrame {
             Frame::InGame => self.in_game_box(canvas, viewport, &place),
         }
         let geometry = self.frame.geometry();
-        let title = match (self.frame, self.page) {
-            (Frame::Main, page) => page.title().0,
-            (Frame::InGame, Page::Controls) => "CONTROLS",
-            (Frame::InGame, Page::Renderer) => "RENDERER",
-            (Frame::InGame, _) => "SETUP",
-        };
-        self.title(canvas, &place, geometry, title);
         let mut hovered_hint = None;
+        match self.page.settings_tab() {
+            Some(active) => {
+                hovered_hint = self.tabs(canvas, &place, geometry, active);
+            }
+            None => self.title(canvas, &place, geometry, self.page.title().0),
+        }
         for (index, slot) in self.page.slots().iter().enumerate() {
             let Some(target) = self.slot_target(index, slot) else {
                 continue;
@@ -385,6 +406,60 @@ impl PanelFrame {
         }
     }
 
+    /// Settings' two tabs on the title band: the open one white over the
+    /// band, the other gold, a hovered one pulsing with retail's glow.
+    /// Returns the hovered tab's description.
+    fn tabs(
+        &self,
+        canvas: &mut MenuCanvas,
+        place: &Placement,
+        geometry: &Geometry,
+        active: usize,
+    ) -> Option<(&'static str, bool)> {
+        const LABELS: [&str; 2] = ["KEY BINDINGS", "OPTIONS"];
+        const HINTS: [&str; 2] = [
+            "Every key binding in one list, with search",
+            "Video, sound, mouse, game, interface, HUD and renderer options",
+        ];
+        let [x, y, width, height] = geometry.title;
+        let half = width * 0.5;
+        let mut hint = None;
+        for (index, label) in LABELS.iter().enumerate() {
+            let target = [x + index as f32 * half + half * 0.15, y, half * 0.7, height];
+            let rect = place.rect(target);
+            let token = CHROME_BASE + TAB_SLOTS[index] as u16;
+            let hovered = canvas.token_hovered(token);
+            if index == active {
+                if self.art.has(ArtPiece::BlendBox) {
+                    view::art(canvas, ArtPiece::BlendBox, rect);
+                } else {
+                    view::soft_band(canvas, rect, 0.2);
+                }
+            } else if hovered {
+                view::glow(canvas, rect, place.scale, self.art);
+            }
+            if hovered {
+                hint = Some((HINTS[index], true));
+            }
+            let color = match (hovered, index == active) {
+                (true, _) => view::focus_pulse(),
+                (false, true) => FOCUS,
+                (false, false) => GOLD,
+            };
+            canvas.text_aligned(
+                label,
+                place.rect([target[0], y + (height - 14.0) * 0.5 - 1.0, target[2], 14.0]),
+                11.5 * place.scale,
+                color,
+                FontWeight::Semibold,
+                3.0 * place.scale,
+                TextAlign::Center,
+            );
+            canvas.hit_region(token, rect);
+        }
+        hint
+    }
+
     /// The panel title over its `menu_blendbox` band.
     fn title(&self, canvas: &mut MenuCanvas, place: &Placement, geometry: &Geometry, text: &str) {
         let band = place.rect(geometry.title);
@@ -457,6 +532,239 @@ impl PanelPlace {
             texture,
             color: Color::new(1.0, 1.0, 1.0, 1.0),
         });
+    }
+
+    /// The search field over the rows: "SEARCH" in the label column, then the
+    /// typed text with a cursor while it has focus, or `prompt` while empty;
+    /// `found` (matches, while a search is typed) at the row's end.
+    pub(crate) fn search_field(
+        &self,
+        canvas: &mut MenuCanvas,
+        text: &str,
+        active: bool,
+        prompt: &str,
+        found: Option<usize>,
+    ) {
+        let geometry = self.geometry();
+        let [x, y, width, height] = geometry.search;
+        let rect = self.place.rect([x, y, width, height]);
+        let hovered = canvas.token_hovered(SEARCH_TOKEN);
+        if active {
+            view::soft_band(canvas, rect, 0.22);
+        }
+        let _ = canvas.draw_list_mut().push(DrawCommand::SolidRect {
+            rect: self.place.rect([
+                geometry.label_end + VALUE_GAP,
+                y + height - 1.5,
+                x + width - geometry.label_end - VALUE_GAP - 6.0,
+                1.0,
+            ]),
+            color: if active || hovered {
+                FOCUS
+            } else {
+                Color::new(OPTION.r, OPTION.g, OPTION.b, 0.5)
+            },
+        });
+        let s = self.place.scale;
+        let line = geometry.text * 1.25;
+        let top = y + (height - line) * 0.5;
+        canvas.text_aligned(
+            "SEARCH",
+            self.place.rect([x, top, geometry.label_end - x, line]),
+            geometry.text * s,
+            if active || hovered {
+                focus_text()
+            } else {
+                GOLD
+            },
+            FontWeight::Semibold,
+            1.2 * s,
+            TextAlign::End,
+        );
+        let value = [
+            geometry.label_end + VALUE_GAP,
+            top,
+            x + width - geometry.label_end - VALUE_GAP - 60.0,
+            line,
+        ];
+        if text.is_empty() && !active {
+            canvas.text_aligned(
+                prompt,
+                self.place.rect(value),
+                geometry.text * s,
+                Color::new(OPTION.r, OPTION.g, OPTION.b, 0.55),
+                FontWeight::Regular,
+                0.3 * s,
+                TextAlign::Start,
+            );
+        } else {
+            canvas.text_fmt_aligned(
+                format_args!("{text}{}", if active { "_" } else { "" }),
+                self.place.rect(value),
+                geometry.text * s,
+                FOCUS,
+                FontWeight::Regular,
+                0.3 * s,
+                TextAlign::Start,
+            );
+        }
+        if let Some(found) = found {
+            canvas.text_fmt_aligned(
+                format_args!("{found} FOUND"),
+                self.place.rect([x + width - 62.0, top, 56.0, line]),
+                (geometry.text - 2.0) * s,
+                if found == 0 { DISABLED } else { GOLD },
+                FontWeight::Semibold,
+                0.8 * s,
+                TextAlign::End,
+            );
+        }
+        canvas.hit_region(SEARCH_TOKEN, rect);
+    }
+
+    /// Canvas box of a dropdown of `count` choices on row `slot`: under the
+    /// row's value, or above it when the rows end first, within the rows.
+    fn dropdown_box(&self, slot: usize, count: usize) -> [f32; 4] {
+        let geometry = self.geometry();
+        let row_height = geometry.row_height;
+        let x = self.value_x() - 4.0;
+        let width = (self.value_end() - x).min(150.0);
+        let height = count as f32 * row_height + 4.0;
+        let row_top = geometry.first_row + slot as f32 * row_height;
+        let rows_end = geometry.first_row + geometry.rows as f32 * row_height;
+        let top = if row_top + row_height + height <= rows_end {
+            row_top + row_height
+        } else {
+            (row_top - height).max(geometry.first_row)
+        };
+        [x, top, width, height]
+    }
+
+    /// Whether a dropdown of `count` choices on row `slot` covers row
+    /// `other`'s value: text draws over every shape, so the rows under it
+    /// leave their values out while it is open.
+    pub(crate) fn dropdown_covers(&self, slot: usize, count: usize, other: usize) -> bool {
+        let geometry = self.geometry();
+        let [_, top, _, height] = self.dropdown_box(slot, count);
+        let row_top = geometry.first_row + other as f32 * geometry.row_height;
+        row_top < top + height && top < row_top + geometry.row_height
+    }
+
+    /// A classic+ dropdown under row `slot`'s value: a retail list box of
+    /// `labels`, the `highlighted` one on `menu_blendbox2` and the value in
+    /// use (`current`) in gold, each answering to `token_base` plus its
+    /// index. It opens upward when the panel's box has no room under the row.
+    pub(crate) fn dropdown(
+        &self,
+        canvas: &mut MenuCanvas,
+        slot: usize,
+        labels: &[&str],
+        highlighted: usize,
+        current: usize,
+        token_base: u16,
+    ) {
+        let geometry = self.geometry();
+        let row_height = geometry.row_height;
+        let [x, top, width, height] = self.dropdown_box(slot, labels.len());
+        let s = self.place.scale;
+        let rect = self.place.rect([x, top, width, height]);
+        let draw = canvas.draw_list_mut();
+        let _ = draw.push(DrawCommand::SolidRect {
+            rect,
+            color: view::ink(0.94),
+        });
+        let _ = draw.push(DrawCommand::SolidRect {
+            rect,
+            color: Color::new(0.66, 0.66, 1.0, 0.25),
+        });
+        let _ = draw.push(DrawCommand::Border {
+            rect,
+            radius: 0.0,
+            width: s.max(1.0),
+            color: FOCUS,
+        });
+        for (index, label) in labels.iter().enumerate() {
+            let row = [
+                x + 2.0,
+                top + 2.0 + index as f32 * row_height,
+                width - 4.0,
+                row_height,
+            ];
+            let target = self.place.rect(row);
+            let hovered = canvas.token_hovered(token_base + index as u16);
+            if index == highlighted || hovered {
+                if self.art.has(ArtPiece::BlendBox2) {
+                    view::art(canvas, ArtPiece::BlendBox2, target);
+                } else {
+                    view::soft_band(canvas, target, 0.3);
+                }
+            }
+            let color = if index == highlighted || hovered {
+                focus_text()
+            } else if index == current {
+                GOLD
+            } else {
+                DETAIL_TEXT
+            };
+            let line = geometry.text * 1.25;
+            canvas.text_fmt_aligned(
+                format_args!("{}", Caps(label)),
+                self.place.rect([
+                    row[0] + 6.0,
+                    row[1] + (row_height - line) * 0.5,
+                    row[2] - 12.0,
+                    line,
+                ]),
+                geometry.text * s,
+                color,
+                FontWeight::Regular,
+                0.4 * s,
+                TextAlign::Start,
+            );
+            if index == current {
+                canvas.text_aligned(
+                    "IN USE",
+                    self.place.rect([
+                        row[0],
+                        row[1] + (row_height - line) * 0.5,
+                        row[2] - 6.0,
+                        line,
+                    ]),
+                    (geometry.text - 3.0) * s,
+                    GOLD,
+                    FontWeight::Semibold,
+                    0.8 * s,
+                    TextAlign::End,
+                );
+            }
+            canvas.hit_region(token_base + index as u16, target);
+        }
+    }
+
+    /// A heading row inside the list (a category of the key bindings, a
+    /// group of search results): `LABEL` capitals over a thin rule.
+    pub(crate) fn heading(&self, canvas: &mut MenuCanvas, slot: usize, text: &str) {
+        let geometry = self.geometry();
+        let top = geometry.first_row + slot as f32 * geometry.row_height;
+        let s = self.place.scale;
+        let _ = canvas.draw_list_mut().push(DrawCommand::SolidRect {
+            rect: self.place.rect([
+                geometry.row_x + 6.0,
+                top + geometry.row_height - 2.0,
+                geometry.row_width - 18.0,
+                1.0,
+            ]),
+            color: Color::new(DETAIL_BORDER.r, DETAIL_BORDER.g, DETAIL_BORDER.b, 0.9),
+        });
+        canvas.text_fmt_aligned(
+            format_args!("{}", Caps(text)),
+            self.text_rect(slot, geometry.row_x + 6.0, self.value_end()),
+            (geometry.text - 1.0) * s,
+            PANEL_TITLE,
+            FontWeight::Semibold,
+            2.4 * s,
+            TextAlign::Start,
+        );
     }
 
     /// Window scale of one canvas unit.
@@ -867,6 +1175,9 @@ mod tests {
             let [_, top, _, height] = geometry.panel;
             let last = geometry.first_row + geometry.rows as f32 * geometry.row_height;
             assert!(geometry.first_row >= top, "{frame:?}");
+            // The search field sits on the panel's first row, over the items.
+            let [_, search_y, _, search_h] = geometry.search;
+            assert!(search_y >= top && search_y + search_h <= geometry.first_row);
             assert!(last <= top + height, "{frame:?}: {last} > {}", top + height);
             let (offset, width) = frame.slider_span();
             assert!(offset > 0.0 && offset + width < 1.0, "{frame:?}");

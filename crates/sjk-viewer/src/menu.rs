@@ -861,7 +861,7 @@ impl ClientMenu {
             }
             ClientPhase::Player => {
                 let result = self.player.handle_key(event, console);
-                self.player_result(result)
+                self.player_result(result, console)
             }
             ClientPhase::CreateGame => {
                 let result = self.create_game.key(key, event.text.as_deref(), console);
@@ -975,7 +975,11 @@ impl ClientMenu {
     }
 
     /// Leave or stay on the player screen after one of its events.
-    pub(super) fn player_result(&mut self, result: PlayerMenuResult) -> MenuAction {
+    pub(super) fn player_result(
+        &mut self,
+        result: PlayerMenuResult,
+        console: &ViewerConsole,
+    ) -> MenuAction {
         match result {
             PlayerMenuResult::None => MenuAction::None,
             PlayerMenuResult::Back(ReturnTarget::MainMenu) => {
@@ -989,6 +993,16 @@ impl ClientMenu {
             PlayerMenuResult::ClassicPage(page) => {
                 self.state.main_menu();
                 self.classic.show(page);
+                // Settings opens on its first group, as from the main page.
+                if let Some(entry) = page.opening_panel() {
+                    self.open_classic_panel(
+                        console,
+                        page,
+                        entry,
+                        classic::panel::Frame::Main,
+                        ReturnTarget::MainMenu,
+                    );
+                }
                 MenuAction::None
             }
         }

@@ -118,8 +118,8 @@ impl Item {
         match self {
             Self::NavPlay => "PLAY",
             Self::NavProfile => "PROFILE",
-            Self::NavControls => "CONTROLS",
-            Self::NavSetup => "SETUP",
+            Self::NavControls => "SETTINGS",
+            Self::NavSetup => "SJK",
             Self::Name => "Name:",
             Self::Team => "Team Color:",
             Self::Search => "Search:",
@@ -167,8 +167,8 @@ impl Item {
         match self {
             Self::NavPlay => "Start playing now!",
             Self::NavProfile => "Configure character settings.",
-            Self::NavControls => "Configure game controls.",
-            Self::NavSetup => "Configure game settings.",
+            Self::NavControls => "Key bindings and every option, with search",
+            Self::NavSetup => "Changelog, credits and updates",
             Self::Name => "Enter your name here.",
             Self::Team => "Choose the color for your model's skin.",
             Self::Search => "Type part of a model's name to list only the models matching it.",

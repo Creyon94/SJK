@@ -22,7 +22,7 @@ pub(crate) const BAR_TOKEN: u16 = 200;
 pub(crate) const BAR_HEIGHT: f32 = 32.0;
 /// Width of the SJK button, and of each retail button beside it.
 const SJK_WIDTH: f32 = 45.0;
-const RETAIL_WIDTH: f32 = 65.0;
+const RETAIL_WIDTH: f32 = 70.0;
 /// Top of every pop-up (`rect x 40 ...` in the retail pop-up menus).
 pub(crate) const POPUP_TOP: f32 = 40.0;
 
@@ -38,8 +38,8 @@ pub(crate) enum Tab {
     Profile,
     /// Add Bot; Siege shows voice chat here instead.
     AddBot,
-    Controls,
-    Setup,
+    /// SJK: retail's Controls and Setup as one Settings pop-up, with tabs.
+    Settings,
     Vote,
     CallVote,
     Exit,
@@ -47,14 +47,13 @@ pub(crate) enum Tab {
 
 impl Tab {
     /// Every button, left to right.
-    pub(crate) const ALL: [Self; 10] = [
+    pub(crate) const ALL: [Self; 9] = [
         Self::Sjk,
         Self::About,
         Self::Join,
         Self::Profile,
         Self::AddBot,
-        Self::Controls,
-        Self::Setup,
+        Self::Settings,
         Self::Vote,
         Self::CallVote,
         Self::Exit,
@@ -80,8 +79,7 @@ impl Tab {
             (Self::Profile, true) => "Objectives",
             (Self::AddBot, false) => "Add Bot",
             (Self::AddBot, true) => "V Chat",
-            (Self::Controls, _) => "Controls",
-            (Self::Setup, _) => "Setup",
+            (Self::Settings, _) => "Settings",
             (Self::Vote, _) => "Vote",
             (Self::CallVote, _) => "Call Vote",
             (Self::Exit, _) => "Exit",
@@ -99,7 +97,8 @@ impl Tab {
     }
 
     /// Canvas rectangle of the button. Retail's nine are `5 + 70 i, 0, 70, 32`;
-    /// SJK's narrower button takes the left end and the nine close up to fit.
+    /// SJK's narrower button takes the left end, and the retail eight (Controls
+    /// and Setup are one Settings) keep retail's width after it.
     pub(crate) fn rect(self) -> [f32; 4] {
         match self.index() {
             0 => [5.0, 0.0, SJK_WIDTH, BAR_HEIGHT],
@@ -275,8 +274,7 @@ mod tests {
                 "Join",
                 "Profile",
                 "Add Bot",
-                "Controls",
-                "Setup",
+                "Settings",
                 "Vote",
                 "Call Vote",
                 "Exit"

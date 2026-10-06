@@ -17,12 +17,15 @@ use super::*;
 use crate::menu::classic::layout::Span;
 use crate::menu::classic::panel::{Detail, OPTION, PanelFrame, focus_text};
 use std::fmt::Write as _;
+use winit::keyboard::KeyCode;
 
 /// The rows' wheel target over the panel and the scrollbar beside it, clear
 /// of the row (0-499), tab (500), slider value (700), chrome (800) and back
 /// (900) tokens.
 pub(super) const CLASSIC_SCROLL_TOKEN: u16 = 911;
 pub(super) const CLASSIC_SCROLLBAR_TOKEN: u16 = 912;
+/// Choice `i` of an open dropdown answers to `DROPDOWN_BASE + i`.
+pub(super) const DROPDOWN_BASE: u16 = 1_000;
 /// Rows one wheel notch scrolls, as the settings form steps.
 pub(super) const CLASSIC_WHEEL_ROWS: i32 = 1;
 
@@ -47,8 +50,9 @@ impl SettingsMenu {
         self.open_tab(console, tab);
         let rows = span.within(0, self.rows().len());
         self.selected = rows.start;
+        self.clear_search();
         self.classic = Some(ClassicRows {
-            rows,
+            lines: ClassicRows::span(rows),
             slider_span: frame.slider_span(),
             first: 0,
             visible: frame.capacity(),
@@ -66,8 +70,9 @@ impl SettingsMenu {
     ) {
         self.open_renderer(console);
         self.select_tab(console, tab);
+        self.clear_search();
         self.classic = Some(ClassicRows {
-            rows: 0..self.rows().len(),
+            lines: ClassicRows::span(0..self.rows().len()),
             slider_span: frame.slider_span(),
             first: 0,
             visible: frame.capacity(),
@@ -86,8 +91,9 @@ impl SettingsMenu {
         self.tab = 0;
         self.refresh(console);
         self.selected = 0;
+        self.clear_search();
         self.classic = Some(ClassicRows {
-            rows: 0..self.rows().len(),
+            lines: ClassicRows::span(0..self.rows().len()),
             slider_span: frame.slider_span(),
             first: 0,
             visible: frame.capacity(),
@@ -98,9 +104,9 @@ impl SettingsMenu {
     /// classic panel: a classic group's row is shown on the modern tab that
     /// holds it.
     pub(crate) fn continue_modern(&mut self, console: &ViewerConsole) {
-        let Section::Group(_) = self.section else {
+        if !matches!(self.section, Section::Group(_) | Section::Search) {
             return;
-        };
+        }
         let cvar = self.rows().get(self.selected).map(|setting| setting.cvar);
         let found = (0..TABS.len()).find_map(|tab| {
             let row = settings(tab)
@@ -120,6 +126,210 @@ impl SettingsMenu {
         if self.classic.take().is_some() {
             self.editing = None;
             self.numeric = None;
+            self.dropdown = None;
+            self.searching = false;
+        }
+    }
+
+    /// Search for `text` as if it had been typed, for the menu snapshots.
+    #[cfg(test)]
+    pub(crate) fn search_for_snapshot(&mut self, console: &ViewerConsole, text: &str) {
+        self.set_search(console, text.to_owned());
+    }
+
+    /// Open the selected row's dropdown, for the menu snapshots.
+    #[cfg(test)]
+    pub(crate) fn dropdown_for_snapshot(&mut self, console: &ViewerConsole) {
+        let row = self.selected;
+        assert!(self.open_dropdown(console, row), "no dropdown on row {row}");
+        if let Some(dropdown) = &mut self.dropdown {
+            dropdown.highlighted = (dropdown.current + 1) % dropdown.picks.len();
+        }
+    }
+
+    /// Forget the search: a group opened from the list shows its own rows.
+    fn clear_search(&mut self) {
+        self.search.clear();
+        self.searching = false;
+        self.search_return = None;
+        self.dropdown = None;
+    }
+
+    /// A key while the search field has the keyboard: typing searches every
+    /// option; Enter, Down or Tab go to the results; Escape clears the text,
+    /// then leaves the field.
+    pub(super) fn search_key(&mut self, key: KeyCode, text: Option<&str>, console: &ViewerConsole) {
+        let mut search = self.search.clone();
+        match key {
+            KeyCode::Escape if search.is_empty() => {
+                self.searching = false;
+                return;
+            }
+            KeyCode::Escape => search.clear(),
+            KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::ArrowDown | KeyCode::Tab => {
+                self.searching = false;
+                return;
+            }
+            KeyCode::Backspace => {
+                search.pop();
+            }
+            _ => match text {
+                Some(text) => search.extend(text.chars().filter(|c| !c.is_control()).take(32)),
+                None => return,
+            },
+        }
+        self.set_search(console, search);
+    }
+
+    /// Search every option for `search`: the panel shows the results under
+    /// their groups' headings; an empty search returns to the group the
+    /// panel showed before.
+    pub(super) fn set_search(&mut self, console: &ViewerConsole, search: String) {
+        if search == self.search && !search.is_empty() {
+            return;
+        }
+        self.search = search;
+        self.dropdown = None;
+        self.editing = None;
+        self.numeric = None;
+        let Some(classic) = &mut self.classic else {
+            return;
+        };
+        if self.search.trim().is_empty() {
+            if let Some(back) = self.search_return.take() {
+                self.section = back.section;
+                self.tab = back.tab;
+                classic.lines = back.lines;
+                classic.first = back.first;
+                self.selected = back.selected;
+                self.refresh(console);
+            }
+            return;
+        }
+        if self.search_return.is_none() {
+            self.search_return = Some(SearchReturn {
+                section: self.section,
+                tab: self.tab,
+                lines: std::mem::take(&mut classic.lines),
+                selected: self.selected,
+                first: classic.first,
+            });
+        }
+        self.section = Section::Search;
+        self.tab = 0;
+        let Some(classic) = &mut self.classic else {
+            return;
+        };
+        classic.lines = search::lines(&self.search);
+        classic.first = 0;
+        // The results from the top, the first one selected.
+        self.selected = classic.rows().next().unwrap_or(0);
+        self.refresh(console);
+    }
+
+    /// Open the dropdown of row `row` when it is a choice (a switch, a choice
+    /// row or the display mode); false for other rows.
+    pub(super) fn open_dropdown(&mut self, console: &ViewerConsole, row: usize) -> bool {
+        let Some(setting) = self.rows().get(row).copied() else {
+            return false;
+        };
+        let picks: Vec<Pick> = match setting.kind {
+            ValueKind::Bool => vec![Pick::Switch(true), Pick::Switch(false)],
+            ValueKind::Choice(values) => values.iter().map(|value| Pick::Value(value)).collect(),
+            ValueKind::DisplayMode => {
+                let exclusive = self.exclusive_available();
+                DisplayMode::ALL
+                    .into_iter()
+                    .filter(|mode| exclusive || *mode != DisplayMode::Exclusive)
+                    .map(Pick::Mode)
+                    .collect()
+            }
+            _ => return false,
+        };
+        let current = match setting.kind {
+            ValueKind::Bool => usize::from(!console.cvar(setting.cvar).is_some_and(switch_on)),
+            ValueKind::Choice(values) => {
+                let value = console.cvar(setting.cvar).map(CvarValue::as_text);
+                values
+                    .iter()
+                    .position(|candidate| Some(*candidate) == value.as_deref())
+                    .unwrap_or(0)
+            }
+            _ => {
+                let mode = DisplayMode::requested(console).effective(self.exclusive_available());
+                picks
+                    .iter()
+                    .position(|pick| *pick == Pick::Mode(mode))
+                    .unwrap_or(0)
+            }
+        };
+        self.selected = row;
+        self.dropdown = Some(Dropdown {
+            row,
+            picks,
+            highlighted: current,
+            current,
+        });
+        true
+    }
+
+    /// A key while a dropdown is open: Up and Down choose, Enter or Space
+    /// apply, Escape (or Backspace) closes it with nothing changed.
+    pub(super) fn dropdown_key(&mut self, key: KeyCode, console: &mut ViewerConsole) {
+        let Some(dropdown) = &mut self.dropdown else {
+            return;
+        };
+        let count = dropdown.picks.len();
+        match key {
+            KeyCode::ArrowUp | KeyCode::KeyW => {
+                dropdown.highlighted = (dropdown.highlighted + count - 1) % count;
+            }
+            KeyCode::ArrowDown | KeyCode::KeyS => {
+                dropdown.highlighted = (dropdown.highlighted + 1) % count;
+            }
+            KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Space => {
+                let pick = dropdown.highlighted;
+                self.apply_pick(console, pick);
+            }
+            KeyCode::Escape | KeyCode::Backspace => self.dropdown = None,
+            _ => {}
+        }
+    }
+
+    /// Apply choice `index` of the open dropdown and close it.
+    pub(super) fn apply_pick(&mut self, console: &mut ViewerConsole, index: usize) {
+        let Some(dropdown) = self.dropdown.take() else {
+            return;
+        };
+        let (Some(pick), Some(setting)) = (
+            dropdown.picks.get(index).copied(),
+            self.rows().get(dropdown.row).copied(),
+        ) else {
+            return;
+        };
+        match pick {
+            Pick::Switch(on) => {
+                let value = match console.cvar(setting.cvar) {
+                    Some(CvarValue::Bool(_)) => on.to_string(),
+                    _ => u8::from(on).to_string(),
+                };
+                console.set_cvar(setting.cvar, &value);
+            }
+            Pick::Value(value) => {
+                console.set_cvar(setting.cvar, value);
+            }
+            Pick::Mode(mode) => mode.store(console),
+        }
+        self.refresh(console);
+    }
+
+    /// The label of dropdown choice `pick` as the row would show it.
+    fn pick_label(pick: Pick) -> &'static str {
+        match pick {
+            Pick::Switch(true) => "Yes",
+            Pick::Switch(false) => "No",
+            Pick::Value(value) => value,
+            Pick::Mode(mode) => mode.label(),
         }
     }
 
@@ -153,32 +363,70 @@ impl SettingsMenu {
             self.append_hud_picker(vertices, font, viewport, reveal, Some(frame.art));
             return;
         }
-        let rows = self.row_span();
         let place = frame.begin(&mut self.ui, viewport, reveal);
+        let found = (!self.search.is_empty()).then(|| {
+            self.classic
+                .as_ref()
+                .map_or(0, |classic| classic.rows().count())
+        });
+        place.search_field(
+            &mut self.ui,
+            &self.search,
+            self.searching,
+            "type to find",
+            found,
+        );
         let visible = place.capacity();
-        let first = match &mut self.classic {
+        let lines: Vec<Line> = match &mut self.classic {
             Some(classic) => {
                 classic.visible = visible;
                 classic.first = classic.first.min(classic.max_first());
-                classic.first
+                classic.lines.clone()
             }
-            None => 0,
+            None => Vec::new(),
         };
-        let shown = rows.start + first..rows.end.min(rows.start + first + visible);
+        let first = self.classic.as_ref().map_or(0, |classic| classic.first);
+        let shown_lines = first..lines.len().min(first + visible);
         // A list longer than the panel scrolls with the wheel anywhere over
         // its rows and shows a scrollbar, as the classic key bindings do.
-        if rows.len() > visible {
+        if lines.len() > visible {
             let top = place.row(0);
             self.ui.scroll_region(
                 CLASSIC_SCROLL_TOKEN,
                 Rect::new(top.x, top.y, top.width, visible as f32 * top.height),
             );
         }
-        if shown.contains(&self.selected) {
-            place.highlight(&mut self.ui, self.selected - shown.start);
+        if lines.is_empty() && found.is_some() {
+            place.value_plain(&mut self.ui, 0, "No option matches the search.", OPTION);
         }
-        for row in shown.clone() {
-            let slot = row - shown.start;
+        if let Some(slot) = lines[shown_lines.clone()]
+            .iter()
+            .position(|line| *line == Line::Row(self.selected))
+        {
+            place.highlight(&mut self.ui, slot);
+        }
+        // Slot of each shown row, for the thumbs and the dropdown.
+        let mut slots: Vec<(usize, usize)> = Vec::with_capacity(visible);
+        // Rows under an open dropdown leave their values out (text draws over
+        // every shape, so the list could not hide them).
+        let dropdown_slot = self.dropdown.as_ref().and_then(|dropdown| {
+            let slot = lines[shown_lines.clone()]
+                .iter()
+                .position(|line| *line == Line::Row(dropdown.row))?;
+            Some((slot, dropdown.picks.len()))
+        });
+        let covered = |slot: usize| {
+            dropdown_slot.is_some_and(|(open, count)| place.dropdown_covers(open, count, slot))
+        };
+        for (slot, line) in lines[shown_lines.clone()].iter().enumerate() {
+            let row = match *line {
+                Line::Heading(text) => {
+                    place.heading(&mut self.ui, slot, text);
+                    continue;
+                }
+                Line::Row(row) => row,
+            };
+            slots.push((row, slot));
             let Some(setting) = self.rows().get(row) else {
                 continue;
             };
@@ -194,6 +442,9 @@ impl SettingsMenu {
                 place.changed_mark(&mut self.ui, slot);
             }
             self.ui.hit_region(row as u16, place.row(slot));
+            if covered(slot) {
+                continue;
+            }
             let value = self.values.get(row).map_or("?", String::as_str);
             match setting.kind {
                 ValueKind::Bool => {
@@ -230,8 +481,7 @@ impl SettingsMenu {
             }
         }
         // Thumbs after every bar, so the slider art binds once each.
-        for row in shown.clone() {
-            let slot = row - shown.start;
+        for &(row, slot) in &slots {
             let Some(setting) = self.rows().get(row) else {
                 continue;
             };
@@ -251,25 +501,45 @@ impl SettingsMenu {
             };
             place.draw_slider_thumb(&mut self.ui, slot, ratio);
         }
-        if rows.len() > visible {
+        if lines.len() > visible {
             self.ui.scrollbar(
                 CLASSIC_SCROLLBAR_TOKEN,
                 place.scrollbar_track(visible),
                 first,
                 visible,
-                rows.len(),
+                lines.len(),
             );
         }
         self.write_detail_facts();
         let detail = detail_of(
             self.rows(),
-            self.row_span()
-                .contains(&self.selected)
-                .then_some(self.selected),
+            self.shows(self.selected).then_some(self.selected),
             &self.values,
             &self.detail_facts,
         );
         place.detail(&mut self.ui, &detail);
+        // The dropdown last, over the rows and the detail box, so it takes the
+        // pointer.
+        if let Some(dropdown) = &self.dropdown {
+            match slots.iter().find(|(row, _)| *row == dropdown.row) {
+                Some(&(_, slot)) => {
+                    let labels: Vec<&str> = dropdown
+                        .picks
+                        .iter()
+                        .map(|pick| Self::pick_label(*pick))
+                        .collect();
+                    place.dropdown(
+                        &mut self.ui,
+                        slot,
+                        &labels,
+                        dropdown.highlighted,
+                        dropdown.current,
+                        DROPDOWN_BASE,
+                    );
+                }
+                None => self.dropdown = None,
+            }
+        }
         self.write_key_hint();
         place.finish(&mut self.ui, Some(&self.key_hint));
         self.ui.finish(self.selected as u16);
@@ -281,9 +551,7 @@ impl SettingsMenu {
     fn detail(&self) -> Detail<'_> {
         detail_of(
             self.rows(),
-            self.row_span()
-                .contains(&self.selected)
-                .then_some(self.selected),
+            self.shows(self.selected).then_some(self.selected),
             &self.values,
             &self.detail_facts,
         )
@@ -326,6 +594,11 @@ impl SettingsMenu {
         if let Some(note) = help::timing(setting.label).1.note() {
             part(facts, format_args!("{note}"));
         }
+        if self.section == Section::Search
+            && let Some(group) = search::group(self.selected)
+        {
+            part(facts, format_args!("In {group}"));
+        }
     }
 
     /// The description line's keys for the selected row.
@@ -340,12 +613,20 @@ impl SettingsMenu {
             hint.push_str("Type the new text, then ENTER to set it or ESC to cancel.");
             return;
         }
+        if self.dropdown.is_some() {
+            hint.push_str("UP or DOWN to choose, ENTER to apply, ESC to keep it as it is");
+            return;
+        }
+        if self.searching {
+            hint.push_str("Type to find any option   \u{b7}   ENTER to the results, ESC to clear");
+            return;
+        }
         let Some(setting) = section_settings(self.section, self.tab).get(self.selected) else {
             return;
         };
         hint.push_str(match setting.kind {
             ValueKind::Bool | ValueKind::Choice(_) | ValueKind::DisplayMode => {
-                "LEFT or RIGHT, or ENTER, to change it"
+                "ENTER or a click for the choices, LEFT or RIGHT to step"
             }
             ValueKind::Integer { .. } | ValueKind::Float { .. } => {
                 "LEFT or RIGHT to change it, or type a number"
@@ -454,7 +735,7 @@ mod tests {
 
     fn classic(rows: std::ops::Range<usize>, visible: usize) -> ClassicRows {
         ClassicRows {
-            rows,
+            lines: ClassicRows::span(rows),
             slider_span: (0.5, 0.25),
             first: 0,
             visible,
@@ -465,12 +746,12 @@ mod tests {
     fn keyboard_selection_stays_in_view() {
         let mut panel = classic(10..40, 15);
         panel.reveal(30);
-        assert_eq!(panel.first, 6, "row 30 is the last of 16..31");
+        assert_eq!(panel.first, 6, "row 30 is the last of lines 6..21");
         panel.reveal(12);
         assert_eq!(panel.first, 2);
         panel.reveal(14);
         assert_eq!(panel.first, 2, "already shown");
-        // A row before the span (the key-bindings row) leaves it alone.
+        // A row the panel does not show (the key-bindings row) leaves it alone.
         panel.reveal(3);
         assert_eq!(panel.first, 2);
     }

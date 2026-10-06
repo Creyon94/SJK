@@ -25,6 +25,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - A Changelog page in the main menu (and the `changelog` command) lists every release with its credits, in the classic+ look with the classic menus _(Sol)_
 - The classic profile's Force page shows every power's holocron and level numbers again (Dark Rage and Team Energize were missing, and a hover hid a Lightning number) _(Sol)_
 - A Credits page (main menu, the in-game SJK menu, or the `credits` command) shows the people who make Sol JK, animated, in retail colours with the classic menus _(Sol)_
+- Classic menus: Controls and Setup are one Settings screen with KEY BINDINGS and OPTIONS tabs, every key binding in one list, a search field that finds any option or binding, and dropdowns for choices that change only when applied (Escape keeps the value); the main menu's SJK button gathers Changelog, Credits and Update _(Sol)_
 - An SJK button left of About on the in-game bar (an SJK row in the modern game menu) opens SJK's own screens, starting with the changelog _(Sol)_
 - A duel challenge from a player whose name has a symbol such as the multiplication sign no longer crashes the client, and the name shows that symbol instead of `?` _(Creyon)_
 - `flipkick`: one press starts a run of jump taps for JA+ flip kicks (`cg_fkDuration`, `cg_fkFirstJumpDuration`, `cg_fkSecondJumpDelay`; bindable in Controls > Movement) _(Sol, after JoF EJK)_

@@ -28,9 +28,39 @@ impl SettingsMenu {
         let Some(event) = self.ui.pointer(event) else {
             return SettingsResult::None;
         };
+        // An open dropdown takes the pointer: a choice applies, a click
+        // anywhere else closes it with nothing changed.
+        if let Some(dropdown) = &mut self.dropdown {
+            let base = super::classic_view::DROPDOWN_BASE;
+            let pick = event
+                .token
+                .and_then(|token| token.checked_sub(base))
+                .map(usize::from)
+                .filter(|index| *index < dropdown.picks.len());
+            match (event.kind, pick) {
+                (UiEventKind::HoverEnter | UiEventKind::Hover, Some(index)) => {
+                    dropdown.highlighted = index;
+                }
+                (UiEventKind::Activate, Some(index)) => self.apply_pick(console, index),
+                (UiEventKind::Activate, None) => self.dropdown = None,
+                _ => {}
+            }
+            return SettingsResult::None;
+        }
         let Some(token) = event.token else {
             return SettingsResult::None;
         };
+        if token == crate::menu::classic::panel::SEARCH_TOKEN {
+            if event.kind == UiEventKind::Activate {
+                self.settle_numeric(console);
+                self.editing = None;
+                self.searching = true;
+            }
+            return SettingsResult::None;
+        }
+        if event.kind == UiEventKind::Activate {
+            self.searching = false;
+        }
         if let Some(slot) = crate::menu::classic::panel::chrome_slot(token) {
             return match event.kind {
                 UiEventKind::Activate if self.classic.is_some() => SettingsResult::Classic(slot),
@@ -131,6 +161,8 @@ impl SettingsMenu {
                         self.open_resolutions(console);
                     } else if matches!(setting.kind, ValueKind::HudPicker) {
                         self.open_hud_picker(console);
+                    } else if self.classic.is_some() && self.open_dropdown(console, row) {
+                        // Classic+: a choice opens its list; nothing changes yet.
                     } else if let Some(position) = event.position {
                         if !self.set_numeric_from_pointer(console, row, position.x) {
                             let direction = self.click_direction(setting.kind, row, position.x);
@@ -158,11 +190,7 @@ impl SettingsMenu {
 
     fn setting_row(&self, token: u16) -> Option<usize> {
         let row = crate::menu_widgets::numeric::value_row(token).unwrap_or(usize::from(token));
-        let shown = match &self.classic {
-            Some(classic) => classic.rows.contains(&row),
-            None => true,
-        };
-        (row < self.rows().len() && shown).then_some(row)
+        (row < self.rows().len() && self.shows(row)).then_some(row)
     }
 
     fn set_numeric_from_pointer(

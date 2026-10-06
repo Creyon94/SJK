@@ -38,7 +38,7 @@ impl ClientMenu {
             }
             ClientPhase::Player => {
                 let result = self.player.handle_pointer(event, console);
-                self.player_result(result)
+                self.player_result(result, console)
             }
             ClientPhase::CreateGame => {
                 let result = self.create_game.pointer(event, console);

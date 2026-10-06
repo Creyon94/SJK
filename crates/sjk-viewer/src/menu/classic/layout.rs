@@ -23,14 +23,18 @@ pub(crate) const LOGO: [f32; 4] = [107.0, 8.0, 428.0, 112.0];
 /// One screen of the classic main menu.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Page {
-    /// The opening menu: Play, Profile, Controls, Setup and Exit.
+    /// The opening menu: Play, Profile, Settings, SJK and Exit.
     Main,
     /// Retail "multiplayer" menu behind Play: solo, join or create a game.
     Play,
-    /// Retail "controls" menu: the key-binding pages and mouse options.
+    /// Settings' KEY BINDINGS tab (retail's "controls" menu): every binding
+    /// in one list, its categories down the left.
     Controls,
-    /// Retail "setup" menu: video, sound and game options.
+    /// Settings' OPTIONS tab (retail's "setup" menu): video, sound, mouse,
+    /// game, interface, HUD, scoreboard, network and renderer options.
     Setup,
+    /// SJK's own page: the changelog, the credits and updates.
+    Sjk,
     /// SJK's renderer options behind Setup's RENDERER, a classic+ page in
     /// the retail setup layout: its groups down the left, the panel beside.
     Renderer,
@@ -43,8 +47,10 @@ pub(crate) enum Page {
 pub(crate) enum Entry {
     Play,
     Profile,
-    Controls,
-    Setup,
+    /// SJK: retail's Controls and Setup as one Settings, with two tabs.
+    Settings,
+    /// SJK: the SJK page (changelog, credits, update).
+    Sjk,
     Exit,
     /// SJK: the changelog page.
     Changelog,
@@ -68,8 +74,6 @@ pub(crate) enum Entry {
     Video,
     Sound,
     GameOptions,
-    Mods,
-    Defaults,
     /// SJK: the menus' and console's look.
     Interface,
     Hud,
@@ -163,6 +167,7 @@ impl Page {
             Self::Play => Entry::SoloGame,
             Self::Controls => Entry::Movement,
             Self::Setup => Entry::Video,
+            Self::Sjk => Entry::Changelog,
             Self::Renderer => Entry::RenderImage,
             Self::Quit => Entry::No,
         };
@@ -179,8 +184,9 @@ impl Page {
         match self {
             Self::Main => ("MULTIPLAYER", 132.0),
             Self::Play => ("START PLAYING", 172.0),
-            Self::Controls => ("CONFIGURE CONTROLS", 172.0),
-            Self::Setup => ("SETUP OPTIONS", 172.0),
+            Self::Controls => ("KEY BINDINGS", 172.0),
+            Self::Setup => ("OPTIONS", 172.0),
+            Self::Sjk => ("SOL JK", 172.0),
             Self::Renderer => ("RENDERER OPTIONS", 172.0),
             Self::Quit => ("QUIT", 172.0),
         }
@@ -217,8 +223,8 @@ impl Entry {
     pub(crate) fn outcome(self) -> Outcome {
         match self {
             Self::Play => Outcome::Page(Page::Play),
-            Self::Controls => Outcome::Page(Page::Controls),
-            Self::Setup => Outcome::Page(Page::Setup),
+            Self::Settings => Outcome::Page(Page::Setup),
+            Self::Sjk => Outcome::Page(Page::Sjk),
             Self::Exit => Outcome::Page(Page::Quit),
             Self::Changelog => Outcome::Open(MainDestination::Changelog),
             Self::Credits => Outcome::Open(MainDestination::Credits),
@@ -249,7 +255,7 @@ impl Entry {
             Self::RenderImage | Self::RenderLighting | Self::RenderShadows => {
                 Outcome::Open(MainDestination::Renderer)
             }
-            Self::PlayDemo | Self::Rules | Self::Mods | Self::Defaults => Outcome::Unavailable,
+            Self::PlayDemo | Self::Rules => Outcome::Unavailable,
         }
     }
 }
@@ -331,7 +337,41 @@ impl Entry {
     }
 }
 
+impl Entry {
+    /// The KEY BINDINGS group of key-binding category `category`.
+    pub(crate) fn of_category(category: usize) -> Option<Self> {
+        [
+            Self::Movement,
+            Self::Interaction,
+            Self::Weapons,
+            Self::ForcePowers,
+            Self::OtherControls,
+        ]
+        .get(category)
+        .copied()
+    }
+}
+
 impl Page {
+    /// The Settings tab a panel page belongs to: KEY BINDINGS (0) or OPTIONS
+    /// (1, the renderer page too); `None` outside Settings.
+    pub(crate) fn settings_tab(self) -> Option<usize> {
+        match self {
+            Self::Controls => Some(0),
+            Self::Setup | Self::Renderer => Some(1),
+            _ => None,
+        }
+    }
+
+    /// The page of Settings tab `tab` (see [`Self::settings_tab`]).
+    pub(crate) fn of_settings_tab(tab: usize) -> Self {
+        if tab == 0 {
+            Self::Controls
+        } else {
+            Self::Setup
+        }
+    }
+
     /// The group a panel page shows when it opens, as retail's `onOpen`
     /// shows Video and Movement; `None` for pages without a panel.
     pub(crate) fn opening_panel(self) -> Option<Entry> {
@@ -392,11 +432,12 @@ mod tests {
     use super::*;
     use crate::settings::SettingsMenu;
 
-    const PAGES: [Page; 5] = [
+    const PAGES: [Page; 6] = [
         Page::Main,
         Page::Play,
         Page::Controls,
         Page::Setup,
+        Page::Sjk,
         Page::Quit,
     ];
 
@@ -415,12 +456,9 @@ mod tests {
             [
                 Entry::Play,
                 Entry::Profile,
-                Entry::Controls,
-                Entry::Setup,
-                Entry::Exit,
-                Entry::Changelog,
-                Entry::Credits,
-                Entry::Update
+                Entry::Settings,
+                Entry::Sjk,
+                Entry::Exit
             ]
         );
         assert_eq!(
@@ -434,27 +472,46 @@ mod tests {
             ]
         );
         assert_eq!(
-            entries(Page::Controls)[4..10],
+            entries(Page::Controls)[4..9],
             [
                 Entry::Movement,
                 Entry::Interaction,
                 Entry::Weapons,
                 Entry::ForcePowers,
-                Entry::MouseJoystick,
                 Entry::OtherControls
             ]
         );
-        assert_eq!(entries(Page::Setup)[13], Entry::Renderer);
         assert_eq!(
-            entries(Page::Setup)[4..9],
+            entries(Page::Setup)[4..13],
             [
                 Entry::Video,
                 Entry::Sound,
+                Entry::MouseJoystick,
                 Entry::GameOptions,
-                Entry::Mods,
-                Entry::Defaults
+                Entry::Interface,
+                Entry::Hud,
+                Entry::Scoreboard,
+                Entry::Network,
+                Entry::Renderer
             ]
         );
+        assert_eq!(
+            entries(Page::Sjk)[4..7],
+            [Entry::Changelog, Entry::Credits, Entry::Update]
+        );
+        // Every sub-page's navigation row: Play, Profile, Settings, SJK.
+        for page in [
+            Page::Play,
+            Page::Controls,
+            Page::Setup,
+            Page::Sjk,
+            Page::Quit,
+        ] {
+            assert_eq!(
+                entries(page)[..4],
+                [Entry::Play, Entry::Profile, Entry::Settings, Entry::Sjk]
+            );
+        }
     }
 
     #[test]
@@ -497,7 +554,13 @@ mod tests {
             }
         }
         assert_eq!(Page::Main.escape(), Page::Quit);
-        for page in [Page::Play, Page::Controls, Page::Setup, Page::Quit] {
+        for page in [
+            Page::Play,
+            Page::Controls,
+            Page::Setup,
+            Page::Sjk,
+            Page::Quit,
+        ] {
             assert_eq!(page.escape(), Page::Main);
         }
     }
@@ -557,8 +620,15 @@ mod tests {
                 _ => None,
             })
             .collect();
-        for page in [Page::Play, Page::Controls, Page::Setup, Page::Quit] {
+        for page in [Page::Play, Page::Setup, Page::Sjk, Page::Quit] {
             assert!(pages.contains(&page), "{page:?}");
+        }
+        for destination in [
+            MainDestination::Changelog,
+            MainDestination::Credits,
+            MainDestination::Update,
+        ] {
+            assert!(reachable.contains(&destination), "{destination:?}");
         }
     }
 
@@ -579,7 +649,7 @@ mod tests {
                 }
             }
         }
-        for page in [Page::Main, Page::Play, Page::Quit] {
+        for page in [Page::Main, Page::Play, Page::Sjk, Page::Quit] {
             assert_eq!(page.opening_panel(), None);
         }
     }

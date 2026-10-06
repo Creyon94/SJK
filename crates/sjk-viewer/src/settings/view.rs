@@ -36,7 +36,7 @@ impl SettingsMenu {
                 "SJK   /   RENDERER",
                 "Saved immediately; (restart) rows apply after restarting.",
             ),
-            Section::Group(_) => (
+            Section::Group(_) | Section::Search => (
                 "SJK   /   SETTINGS",
                 "Changes apply immediately and are saved.",
             ),
