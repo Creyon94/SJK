@@ -7,6 +7,17 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Saber clash flare
+
+Branch `fix/saber-clash-flare`: every saber clash flashed the whole screen
+yellow-white. The flare asked the effect atlas for `gfx/effects/saberFlare`, but the
+atlas keys shaders in lower case, so the lookup missed and drew the fallback spark
+picture at the flare's size (up to 2.35 times 600 virtual units). Atlas lookups are
+case-insensitive now, without allocating. The flare's width is also scaled by
+EternalJK's `widthRatioCoef`, so it stays round on wide screens (`CG_SaberClashFlare`,
+`cg_draw.c:7149-7208`). Checked in game on Windows 11 on a JoF server: a clash shows a
+short glow where the sabers meet.
+
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the

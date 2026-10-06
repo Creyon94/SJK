@@ -74,11 +74,19 @@ impl ParticleAtlas {
     /// A shader's stages. Shader names are case-insensitive (the atlas keys them in
     /// lower case); a mixed-case name such as `gfx/effects/saberFlare` used to miss
     /// and draw the fallback spark, scaled to the clash flare's full-screen size.
+    /// A mixed-case name is lowered into a reused per-thread buffer, so the lookup
+    /// does not allocate after the first one.
     fn stages(&self, shader: &str) -> Option<&Vec<ParticleAtlasAnimation>> {
-        if shader.bytes().any(|byte| byte.is_ascii_uppercase()) {
-            self.animations.get(shader.to_ascii_lowercase().as_str())
-        } else {
-            self.animations.get(shader)
+        if !shader.bytes().any(|byte| byte.is_ascii_uppercase()) {
+            return self.animations.get(shader);
         }
+        thread_local! {
+            static LOWER: std::cell::RefCell<String> = const { std::cell::RefCell::new(String::new()) };
+        }
+        LOWER.with_borrow_mut(|lower| {
+            lower.clear();
+            lower.extend(shader.chars().map(|c| c.to_ascii_lowercase()));
+            self.animations.get(lower.as_str())
+        })
     }
 }

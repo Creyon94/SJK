@@ -96,6 +96,10 @@ nonzero offset on a slot's own shader compiles a replacement. Map
 replacement/reconnection isolates server state. Authored sky-box remaps replace
 the sky images while retaining the existing day/night policy.
 
+Effect atlas shader names are looked up regardless of capitals, as shader names
+are case-insensitive in the engine: the atlas keys them in lower case, and the saber
+clash flare asks for `gfx/effects/saberFlare`.
+
 Effects drawn from the effect atlas (EFX particles, missile trails, muzzle
 flashes, beams, impact marks and blob shadows) follow the same remaps and local
 overrides, as rd-vanilla `RB_BeginSurface` swaps the shader for every surface.
