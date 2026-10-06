@@ -7,6 +7,33 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Windows-1252 symbols on screen
+
+Branch `fix/windows-1252-display`:
+
+- Glyphs are chosen by Windows-1252 byte and the modern font's slots 0x80..=0x9F
+  hold the Windows-1252 characters. Typed `€`, `’`, `‘`, `™` or `—` drew `?` (the
+  glyph was chosen by Unicode value below 256), and the same symbols received from
+  other clients drew blank.
+- Chat keeps those symbols and other control bytes in names for display; it
+  dropped them as control characters. The chat roster keys each player by the name
+  with bytes 0x80..=0x9F mapped to their characters and other controls removed, so
+  Friend and `tell <name>` work for those players.
+- A slot with no glyph (a vertical tab in a name, an unassigned byte) draws `.` in
+  the modern font and the retail `.fontdat` fonts, as OpenJK `RE_Font_DrawString`
+  does: `{JoF}\vToxiee\v{C}.ak` reads `{JoF}.Toxiee.{C}.ak` as in EternalJK.
+- The classic console leaves typographic characters (0x80..=0x9E), which the retail
+  console character set lacks, out of the row as EternalJK's console does, while
+  the text keeps them.
+- JoF cosmetic wildcard keys compare bytes, so a model name with a multi-byte
+  character across the prefix length no longer panics. An audit of client-side
+  slicing of player and server text found no other site that can split a character.
+
+Unit tests cover every byte's round trip, common name symbols typed and received,
+roster keys and `tell` lookups, and the cosmetic match. Checked in game on Windows
+11 on a JoF server, before the roster keys were added; those are covered by the
+unit tests only.
+
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the
@@ -44,33 +71,6 @@ contributor challenged a player named with `×` on a live server; with the wrapp
 fix the challenge showed without a crash, but with `?` for each `×`; with both
 fixes it read `You have challenged ×jof.jk.belyash×`. Merged into SJK `main` from
 SJK pull request #2 (Creyon94, 06/10/2026).
-## Windows-1252 symbols on screen
-
-Branch `fix/windows-1252-display` (06/10/2026, based on `86ad1be`): text a player
-typed with `€`, `’`, `‘`, `™`, `—` or another Windows-1252 typographic character
-drew `?`, because a glyph was chosen by Unicode value below 256; the same symbols
-received from other clients (bytes 0x80..=0x9F) drew blank in the modern font,
-whose slots held C1 controls. Glyphs are now chosen by Windows-1252 byte and the
-modern font's slots hold the Windows-1252 characters. Chat also dropped those
-symbols, because they decode to C1 control characters; it now keeps them, and keeps
-other control bytes in names. A slot with no glyph (the vertical tab some players
-put in names, or an unassigned Windows-1252 byte) draws `.` in both the modern font
-and retail `.fontdat` fonts, as OpenJK `RE_Font_DrawString` does, so
-`{JoF}\vToxiee\v{C}.ak` reads `{JoF}.Toxiee.{C}.ak` as in EternalJK instead of
-showing Inter's missing-glyph box. The classic console's input line drew `?` for
-typed `’`, `‘` and `€`. The retail console character set has no `€ ’ ‘ …` or the
-other typographic characters (0x80..=0x9E); the classic console now leaves them out
-of the row, as EternalJK's console does, instead of `?`, while the text keeps
-them for chat and names (EternalJK itself turns `€` into `¬` and `…` into `&` when
-typed; SJK does not copy that). Wildcard keys of JoF cosmetic
-offsets now compare bytes, so a model name with a multi-byte character across the
-prefix length no longer panics. Unit tests cover every byte's round trip, a list of
-common name symbols typed and received, and the cosmetic match. An audit of
-client-side string slicing on player and server text found no other site that can
-split a character. Formatting, the locked workspace build, tests and clippy passed
-on Linux. On Windows 11, before these last changes, a live server showed `?` for
-typed symbols, dropped `’‘€` from chat and drew Inter's missing-glyph box for
-the vertical tabs; the corrected build awaits the same in-game check.
 
 ## Worldspawn shader remaps and remap order
 
