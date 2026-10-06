@@ -18,12 +18,14 @@ pub(crate) struct ProjectedFlare {
 ///
 /// The point trace reuses `Bsp::trace_box`, the same collision implementation
 /// used by pmove and the third-person camera; no parallel trace exists here.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn project(
     flare: &LegacySaberClashFlare,
     cg_time: i32,
     view_origin: Vec3,
     view_forward: Vec3,
     view_projection: Mat4,
+    aspect: f32,
     bsp: &Bsp,
     scratch: &mut TraceScratch,
 ) -> (LegacySaberClashVisibility, Option<ProjectedFlare>) {
@@ -48,8 +50,16 @@ pub(crate) fn project(
     // CG_DrawPic uses virtual 640x480 coordinates. x/y are each scaled to the
     // current framebuffer by the UI transform, so these NDC extents are
     // resolution independent (cg_draw.c:5397-5399).
+    // EternalJK scales the picture's width by `cgs.widthRatioCoef` (640x480 over the
+    // window's shape), so the flare stays round on a wide screen instead of
+    // stretching with the virtual 640-wide canvas.
+    let width_ratio = if aspect > 0.0 {
+        (4.0 / 3.0) / aspect
+    } else {
+        1.0
+    };
     let half_extent_ndc = [
-        sample.picture_scale * 300.0 / 320.0,
+        sample.picture_scale * 300.0 / 320.0 * width_ratio,
         sample.picture_scale * 300.0 / 240.0,
     ];
     (
@@ -69,6 +79,7 @@ pub(crate) fn append(
     view_origin: Vec3,
     view_forward: Vec3,
     view_projection: Mat4,
+    aspect: f32,
     bsp: &Bsp,
     scratch: &mut TraceScratch,
     atlas: &crate::ParticleAtlas,
@@ -80,6 +91,7 @@ pub(crate) fn append(
         view_origin,
         view_forward,
         view_projection,
+        aspect,
         bsp,
         scratch,
     );

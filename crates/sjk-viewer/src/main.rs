@@ -1847,6 +1847,8 @@ impl GpuState {
             view_position,
             (view_target - view_position).normalize_or(forward),
             projection * view,
+            // A perspective projection's y scale over its x scale is the aspect.
+            projection.y_axis.y / projection.x_axis.x,
             &self.bsp,
             &mut self.trace_scratch,
             &self.particle_atlas,
