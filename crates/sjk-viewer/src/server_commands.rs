@@ -117,7 +117,7 @@ pub(crate) fn consume_messages(
             // the chat box.
             sjk_client::ServerEventKind::Chat | sjk_client::ServerEventKind::TeamChat => {
                 if let Some(console) = &mut console {
-                    console.push_log_quiet(sjk_client::chat_display_text(&text));
+                    console.push_chat_line(sjk_client::chat_display_text(&text), &text);
                 }
                 chat.receive(event.kind, text, event.sender, Instant::now());
             }

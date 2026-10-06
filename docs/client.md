@@ -1492,6 +1492,46 @@ stamps, also the modern console's `[HH:MM:SS]` and the log file's, are local tim
 too. Differences from EternalJK besides those above: the input never runs past
 the screen's right edge (EternalJK's can).
 
+## Console socket
+
+`cl_consoleSocket <port>` lets a program on the same computer read the console
+and run commands, as JoF EJK's setting of the same name does; apps written for
+it (Sol's Archive, a chat quote bot) work unchanged. It is off (`0`) by default.
+`cl_consoleSocketPassword` is required: the socket does not open without one and
+starts as soon as one is set, so a web page that writes to a loopback port cannot
+run console commands (JoF EJK allowed an empty password). Both cvars are archived,
+the password in plain text like `password`. The `consolesocket` command explains
+the feature and shows its state.
+
+```
+cl_consoleSocketPassword mySecret123
+cl_consoleSocket 29071
+```
+
+The protocol is lines of text on `127.0.0.1:<port>`, which only this computer can
+reach. The app sends the password as its first line (anything else closes the
+connection and nothing runs) and is answered `cl_consoleSocket: authenticated`.
+Then every console line the app has not seen is streamed to it as it prints, ended
+by `
+`, with `^n` colour codes; lines printed before it authenticated are not
+sent. Each line the app sends runs as a console command, as if typed (`say hi`
+chats). Text uses Windows-1252 bytes, like chat on the wire
+([legacy_text.rs](../crates/sjk-protocol/src/legacy_text.rs)); text with a
+character outside it is sent as UTF-8.
+
+Chat lines carry the stock `0x19` separator before the colon (`Name^7<0x19>: hi`),
+which is how an app tells chat from other output; the console shows the line
+without it, so the socket is given the server's raw text instead
+(`push_chat_line` in [console_socket.rs](../crates/sjk-viewer/src/console_socket.rs)).
+
+Up to 4 apps connect at once, a command line is at most 1023 characters (a longer
+one is discarded whole), and an app that stops reading is dropped after 256 KB of
+unread output; the game never waits for it. The listener, framing and limits are
+[console_socket.rs](../crates/sjk-shell/src/console_socket.rs) in `sjk-shell`; the
+viewer feeds it once per frame from `run_console_command_buffer`. Covered by unit
+tests over real loopback connections (authentication, limits, chat separator,
+command execution); not yet run against a game session or Sol's Archive itself.
+
 ## Useful console commands
 
 The console key opens and closes either console style and never types its

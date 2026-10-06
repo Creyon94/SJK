@@ -65,6 +65,8 @@ mod editing;
 pub(crate) mod line_edit;
 #[path = "console_selection.rs"]
 mod selection;
+#[path = "console_socket.rs"]
+mod socket;
 
 #[path = "console_classic.rs"]
 pub(crate) mod classic;
@@ -113,6 +115,8 @@ pub(crate) struct ViewerConsole {
     history_index: Option<usize>,
     scroll_offset: usize,
     server_status: Arc<RwLock<String>>,
+    /// The console socket external apps connect to (`cl_consoleSocket`).
+    socket: socket::State,
     presentation: ConsolePresentation,
     /// Command and cvar browser drawn in place of the console while open.
     browser: browser::Browser,

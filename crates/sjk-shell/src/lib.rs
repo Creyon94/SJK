@@ -11,6 +11,7 @@ mod bind;
 mod command;
 mod command_buffer;
 mod config;
+pub mod console_socket;
 mod cvar;
 pub mod key_names;
 pub mod local_time;
