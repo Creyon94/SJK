@@ -1191,7 +1191,8 @@ Where the numbers come from, and what is not known:
   - `EV_PAIN` carries the health left after a hit of ten or more (at most every
     700 ms): exact. `EV_SHIELD_HIT` carries the shield a hit took: exact.
     `EV_SABER_HIT` sizes the damage (under 5, under 20, more); a missile striking
-    (`EV_MISSILE_HIT`) is a hit of unknown size. With no pain after a hit outside the
+    (`EV_MISSILE_HIT`) is a hit of unknown size, except JA+'s grapple hook (the only
+    missile fired as `WP_STUN_BATON`), which does exactly one point. With no pain after a hit outside the
     700 ms, it was under ten. A hit with no shield flash met no shield;
   - when you hit someone, the server tells you their health and shield before the
     hit (`PERS_ATTACKEE_ARMOR`), matched to them when only one player fits (your
