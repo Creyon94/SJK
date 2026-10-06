@@ -306,6 +306,13 @@ the results under their groups' headings, the detail box adding "In <group>";
 opening a group clears the search. On KEY BINDINGS it finds actions by name,
 console command, category or bound key (`space` finds Jump).
 
+The two tabs' searches reach each other: while text is typed, the description line
+says how many entries of the other tab match it ("3 key bindings match too: click the
+KEY BINDINGS tab"), and a search with no result here names them in the list. Clicking
+the other tab (or Tab, or `[` and `]`, across the tab boundary) carries the search text
+to it, so one query walks every setting and binding
+([menu/classic.rs](../crates/sjk-viewer/src/menu/classic.rs), `sync_cross_search`).
+
 A choice (a switch, a choice row, the display mode) does not change on a click
 or Enter: they open a dropdown under the value in the retail list box's look,
 the value in use marked IN USE, and nothing changes until a choice is applied

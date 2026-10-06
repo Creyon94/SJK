@@ -86,6 +86,14 @@ pub(super) fn lines(query: &str) -> Vec<super::Line> {
     lines
 }
 
+/// How many settings match `query` (the number of rows [`lines`] would show).
+pub(super) fn count(query: &str) -> usize {
+    lines(query)
+        .iter()
+        .filter(|line| matches!(line, super::Line::Row(_)))
+        .count()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -128,6 +136,8 @@ mod tests {
                 .any(|line| matches!(line, super::super::Line::Row(_)))
         );
         assert!(super::lines("no such setting at all").is_empty());
+        assert_eq!(count("no such setting at all"), 0);
+        assert!(count("fov") >= 1);
         // A group name lists the group.
         let hud = super::lines("scoreboard");
         assert!(hud.contains(&super::super::Line::Heading("Scoreboard")));

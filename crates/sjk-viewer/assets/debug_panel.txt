@@ -1263,6 +1263,17 @@ test: Third person, a second client casts Absorb: blue shell on them with no for
 test: Get hit while shielded: the body glow reads green. Respawn: the beam stands on the ground.
 note: Never started in a game yet.
 
+[settings-search-both]
+status: personal
+area: Menus & settings
+title: One search across Options and Key bindings
+change: Typing in Settings' SEARCH field also counts matches on the other tab in the hint line.
+change: Switching tab (click, Tab or [ ]) carries the search text to the other tab.
+test: Classic menus, Settings > Options: type "jump" in SEARCH; the hint names key bindings.
+test: Click the KEY BINDINGS tab: SEARCH holds "jump" and lists Jump. Click OPTIONS: it returns.
+test: Search "fov" on KEY BINDINGS: nothing found there, the list says it is on OPTIONS.
+note: Never started in a game yet.
+
 # ---- Merged upstream ----
 
 [jkr-vehicles]

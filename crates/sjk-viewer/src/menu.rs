@@ -180,6 +180,9 @@ pub(crate) struct ClientMenu {
     /// Where the server browser returns when closed without joining.
     browser_return: ReturnTarget,
     keybinds: KeybindEditor,
+    /// The search typed on the settings tab on show and how many entries of the
+    /// other tab match it (see `sync_cross_search`).
+    cross_search: (String, usize),
     player: PlayerMenu,
     /// The Create game screen and the server it runs.
     create_game: create_game::CreateGameMenu,
@@ -242,6 +245,7 @@ impl ClientMenu {
             settings_return: ReturnTarget::MainMenu,
             browser_return: ReturnTarget::MainMenu,
             keybinds: KeybindEditor::new(),
+            cross_search: (String::new(), 0),
             player: PlayerMenu::new(),
             create_game: create_game::CreateGameMenu::new(),
             ui: MenuCanvas::new(),
