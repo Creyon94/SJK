@@ -68,7 +68,8 @@ Speed afterimages, death animations and dust motes. See
 
 ## SJK only
 
-Changes that stay in SJK, by Sol:
+Sol develops SJK; Bishop's JKR remains its foundation. Changes that stay in SJK,
+by Sol:
 
 - the Sol JK name, README, credits and website;
 - the SJK emblem, provided by Sol: in the classic menu's ring (in place of the
@@ -92,12 +93,48 @@ Changes that stay in SJK, by Sol:
   build and how to test them;
 - the changelog ([CHANGELOG.md](CHANGELOG.md)) and its page in the client;
 - the in-game credits page, fed by
-  [credits.txt](crates/sjk-viewer/assets/credits.txt).
+  [credits.txt](crates/sjk-viewer/assets/credits.txt), with links to GitHub;
+- self-updates (`cl_autoUpdate`, main menu > Update);
+- the regrouped Settings screen with its search, and the First setup page;
+- the radial HUD (`cg_hudStyle radial`, after TheRisqe's Radial HUD) and the
+  HUD meters' overheal bands;
+- nameplates with estimated health, shield and Force, held-weapon and Force
+  power icons, and player cards;
+- 125 Hz user commands on the server's 8 ms grid (after JoF EJK's
+  `cl_cmdratecap`) and a working `cl_maxpackets`;
+- weather: rain, snow and mist kept under open sky, 3D splashes, ground fog and
+  volumetric clouds;
+- SJK identity: the identity key, the SJK hub and its verified badges;
+- the console socket for external apps (after JoF EJK), muting in the
+  background (after EternalJK) and the JA+ `flipkick` command (after JoF EJK).
 
 ## Contributors to SJK
 
-- Creyon ([Creyon94](https://github.com/Creyon94)): SJK pull request #2, duel
-  challenges from names with symbols no longer crash the client.
+Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 20
+pull requests merged into SJK, most of them bringing SJK in line with EternalJK
+([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ACreyon94)):
+
+- #2 duel challenges from names with symbols no longer crash the client; #7
+  centre prints break only at a space, so such names stay whole;
+- #3 the third-person camera damped per frame as EternalJK (`cg_cameraFPS`);
+- #4 the retail crosshair pictures (`cg_drawCrosshair`); #19 the weapon
+  selection row in every HUD style;
+- #5 dismemberment and burning bodies (`cg_dismember`);
+- #6 the mouse wheel bindable in the key-binding form;
+- #8 mipmapped effect pictures and impact marks under explosions; #20 trip mine
+  beams, placed charges, charge glow and the concussion beam;
+- #9 EternalJK's player animation fixes, with the unfixed attack animations
+  predicted;
+- #10 no full-screen flash on saber clashes;
+- #11 every scoreboard row read on full servers;
+- #13 Windows-1252 symbols and hidden name codes shown as JKA does; #14 symbols
+  kept when copying and pasting on Windows; #22 EternalJK's character set when
+  it is installed;
+- #15 an EFX block's closing brace kept after a bare key, and #17 images tried
+  in the engine's order (jpg, png, tga), so JoF's HD effects and images load;
+- #16 the view weapon scaled by `cg_fovViewmodel`; #18 zoom into first person,
+  the HD scope mask and camera shakes measured from the view;
+- #21 the `fx_debug` and `cg_debugMissiles` diagnostics.
 
 ## Tools
 

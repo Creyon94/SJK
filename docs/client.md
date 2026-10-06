@@ -1337,9 +1337,12 @@ The main menu's Credits entry (modern list; SJK > CREDITS on the classic page), 
 [credits.txt](../crates/sjk-viewer/assets/credits.txt), built into the client
 ([credits.rs](../crates/sjk-viewer/src/credits.rs), parsed by
 [credits_data.rs](../crates/sjk-viewer/src/credits_data.rs)). Each section of
-the file (the team, contributors, ...) is a heading with its people on cards in
-rows of up to three: name, GitHub handle, role and contributions, the first
-section's names larger. The page is animated from the clock alone: light beams
+the file (Sol JK, Built on JKR, contributors, ...) is a heading with its people
+on cards in rows of up to three: name, GitHub handle, role, contributions and
+links, the first section's names larger. Clicking a GitHub handle opens that
+profile in the browser, and clicking a link opens its address (`update::open_page`,
+https only); both brighten and underline under the pointer, and only while the
+page shows them whole. The page is animated from the clock alone: light beams
 drift across the backdrop, sparks rise through it, SJK's emblem breathes in a
 halo above a title a glint crosses, the cards rise into place as the page opens
 and their edges glow in turn. With the classic menus it takes retail's gold and

@@ -19,6 +19,10 @@ tests check this file):
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 
+## Unreleased
+
+- Credits: Sol JK's own section, JKR's with Bishop, and every one of Creyon's merged pull requests; GitHub handles and the cards' links open in your browser when clicked _(Sol)_
+
 ## 2026.1006.1 (Alpha) | 06/10/2026
 
 Weather, nameplates and the radial HUD arrive, SJK can now update itself, and your
@@ -51,6 +55,24 @@ movement reaches servers 125 times a second.
 - Classic menus: Controls and Setup are one Settings screen with KEY BINDINGS and OPTIONS tabs, every key binding in one list, a search field that finds any option or binding, and dropdowns for choices that change only when applied (Escape keeps the value); the main menu's SJK button gathers Changelog, Credits and Update _(Sol)_
 - An SJK button left of About on the in-game bar (an SJK row in the modern game menu) opens SJK's own screens, starting with the changelog _(Sol)_
 - A duel challenge from a player whose name has a symbol such as the multiplication sign no longer crashes the client, and the name shows that symbol instead of `?` _(Creyon)_
+- Centre prints break only at a space, so a name with hidden codes stays on one row _(Creyon, after EternalJK)_
+- The third-person camera follows fast moves, flips and rolls closely, damped per frame (`cg_cameraFPS`, default 125) instead of per 50 ms step _(Creyon, after EternalJK)_
+- The crosshair is one of the game's crosshair pictures (`cg_drawCrosshair` 1 to 10, a 0-10 picker in Settings) instead of SJK's own "+" _(Creyon, after EternalJK)_
+- Dismemberment (`cg_dismember`): cut-off limbs fly off with their cap and smoke; and bodies burn _(Creyon, after EternalJK)_
+- The mouse wheel can be bound in Controls, so `flipkick` can go on it _(Creyon)_
+- Small and far impact marks no longer show as black holes on walls, and scorch marks sit under explosions instead of over them _(Creyon)_
+- Player animation fixes: runs and walks without a saber, a thrown saber's torso, the old Bryar's stance, with the unfixed attack animations predicted _(Creyon, after EternalJK)_
+- Saber clashes no longer flash the whole screen _(Creyon)_
+- Full servers (jaPRO) show every scoreboard row instead of repeating one name _(Creyon)_
+- Symbols from the old Windows character set and hidden codes in names show as in the original game _(Creyon, after EternalJK)_
+- Copying and pasting symbols on Windows keeps them instead of turning them into `?` _(Creyon)_
+- JoF's HD effects load (a bare key no longer eats an effect block's closing brace), and images are tried as jpg, png then tga like the engine _(Creyon)_
+- The first-person weapon follows `cg_fovViewmodel` _(Creyon, after EternalJK)_
+- Zooming goes into first person, the HD scope mask is used, and camera shakes are measured from the view _(Creyon, after EternalJK)_
+- The weapon selection row shows in every HUD style _(Creyon, after EternalJK)_
+- Trip mine beams, placed charges lying flat, charge glow and the concussion beam are drawn _(Creyon, after EternalJK)_
+- `fx_debug` and `cg_debugMissiles` diagnostics for effects and missiles _(Creyon)_
+- With EternalJK installed, its character set (jaPRO's `charsgrid_med`) is used _(Creyon, after EternalJK)_
 - `flipkick`: one press starts a run of jump taps for JA+ flip kicks (`cg_fkDuration`, `cg_fkFirstJumpDuration`, `cg_fkSecondJumpDelay`; bindable in Controls > Movement) _(Sol, after JoF EJK)_
 - Player identity: SJK keeps an identity key and tells the SJK hub (sjk.dfox.app, `cl_hubUrl`) which game server and slot you play in, with your public key and in-game name, so other SJK players can see you; main menu > SJK > IDENTITY (or the in-game SJK menu, or the `identity` command) has a switch, your name and bio, and a button to copy your key id, and `cl_identity 0` stops it all _(Sol)_
 - Player card: look at a player with a steady view for 1.5 seconds (`cg_playerCard`, `cg_playerCardDelay`) and a card beside them shows their model, sabers and duel record, and for SJK hub players the SJK emblem, hub name and a gold VERIFIED; the scoreboard marks hub players with the emblem too _(Sol)_
