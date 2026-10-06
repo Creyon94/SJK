@@ -1,5 +1,6 @@
-//! Console side of the Identity page (see `identity_panel.rs`): opening it and
-//! routing keys and pointer events to it while it is open, as for the Update page.
+//! Console side of the Identity page (see `identity_panel.rs`): opening it, carrying out what
+//! it asks (the switch, saving the profile, copying the key id) and routing keys and pointer
+//! events to it while it is open, as for the Update page.
 
 use super::identity_panel::{Inputs, PanelAction};
 use super::*;
@@ -16,7 +17,7 @@ impl ViewerConsole {
         self.open_identity_panel();
     }
 
-    /// Show the page (the in-game SJK menu's Identity entry).
+    /// Show the page (the SJK menus' Identity entry).
     pub(crate) fn open_identity_panel(&mut self) {
         let owns_console = !self.open;
         if !self.open {
@@ -37,14 +38,38 @@ impl ViewerConsole {
         }
     }
 
+    /// Do what the page asked.
+    fn identity_panel_action(&mut self, action: PanelAction) {
+        match action {
+            PanelAction::None => {}
+            PanelAction::Close => self.close_identity_panel(),
+            PanelAction::SetEnabled(enabled) => {
+                self.set_cvar("cl_identity", if enabled { "1" } else { "0" });
+            }
+            PanelAction::Save { name, bio } => {
+                if !crate::player_identity::set_profile(name, bio) {
+                    self.identity_panel.set_message(
+                        "Not ready yet: the identity is starting, try again in a moment.",
+                    );
+                }
+            }
+            PanelAction::CopyKeyId => {
+                if let Some(snapshot) = crate::player_identity::snapshot()
+                    && crate::console::clipboard::copy(&snapshot.key_id)
+                {
+                    self.identity_panel.note_copied();
+                }
+            }
+        }
+    }
+
     /// Give a pressed key to the open page; false when the page is closed.
     pub(super) fn identity_panel_key(&mut self, event: &KeyEvent) -> bool {
         if !self.identity_panel.is_open() {
             return false;
         }
-        if self.identity_panel.handle_key(event) == PanelAction::Close {
-            self.close_identity_panel();
-        }
+        let action = self.identity_panel.handle_key(event, self.shift);
+        self.identity_panel_action(action);
         true
     }
 
@@ -53,9 +78,8 @@ impl ViewerConsole {
         if !self.identity_panel.is_open() {
             return false;
         }
-        if self.identity_panel.handle_pointer(event) == PanelAction::Close {
-            self.close_identity_panel();
-        }
+        let action = self.identity_panel.handle_pointer(event);
+        self.identity_panel_action(action);
         true
     }
 
@@ -73,11 +97,17 @@ impl ViewerConsole {
         let snapshot = crate::player_identity::snapshot();
         let key_error = crate::player_identity::key_error();
         let hub_url = self.text_cvar("cl_hubUrl").unwrap_or_default().to_owned();
+        let key_file = self
+            .config_directory()
+            .join("identity.key")
+            .display()
+            .to_string();
         let inputs = Inputs {
             enabled: self.bool_cvar("cl_identity") == Some(true),
             hub_url: &hub_url,
             key_error: key_error.as_deref(),
             snapshot: snapshot.as_ref(),
+            key_file: &key_file,
         };
         self.identity_panel
             .append(&inputs, vertices, font, viewport);

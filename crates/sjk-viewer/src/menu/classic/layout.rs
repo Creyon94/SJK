@@ -58,6 +58,8 @@ pub(crate) enum Entry {
     Credits,
     /// SJK: the update page.
     Update,
+    /// SJK: the identity page (name, bio, the SJK hub).
+    Identity,
     SoloGame,
     JoinServer,
     CreateServer,
@@ -231,6 +233,7 @@ impl Entry {
             Self::Changelog => Outcome::Open(MainDestination::Changelog),
             Self::Credits => Outcome::Open(MainDestination::Credits),
             Self::Update => Outcome::Open(MainDestination::Update),
+            Self::Identity => Outcome::Open(MainDestination::Identity),
             Self::Back | Self::No => Outcome::Page(Page::Main),
             Self::SetupBack => Outcome::Page(Page::Setup),
             Self::Profile => Outcome::Open(MainDestination::Player),
@@ -501,8 +504,13 @@ mod tests {
             ]
         );
         assert_eq!(
-            entries(Page::Sjk)[4..7],
-            [Entry::Changelog, Entry::Credits, Entry::Update]
+            entries(Page::Sjk)[4..8],
+            [
+                Entry::Changelog,
+                Entry::Credits,
+                Entry::Update,
+                Entry::Identity
+            ]
         );
         // Every sub-page's navigation row: Play, Profile, Settings, SJK.
         for page in [
@@ -632,6 +640,7 @@ mod tests {
             MainDestination::Changelog,
             MainDestination::Credits,
             MainDestination::Update,
+            MainDestination::Identity,
         ] {
             assert!(reachable.contains(&destination), "{destination:?}");
         }

@@ -1,27 +1,120 @@
-//! The Identity page: the player's key, their profile at the SJK hub, and the
-//! players the hub knows on the server they are on (state and work in
-//! `player_identity.rs`; the words that edit it are in `identity_command.rs`).
+//! The Identity page: switch the SJK identity on or off, choose the name and bio other SJK
+//! players see, copy the key id, and see who the hub knows on the server (state and work in
+//! `player_identity.rs`; the same things can be typed with `identity_command.rs`).
 //!
-//! Opened by the in-game SJK menu or the `identity` console command. Like the
-//! Update page it lives in the console and is drawn in place of it.
+//! Opened by the main menu's SJK page, the in-game SJK menu or the `identity` console
+//! command. Like the Update page it lives in the console and is drawn in place of it. Tab,
+//! the arrow keys and the pointer move between the controls; letters type into the focused
+//! field; Enter saves from a field.
 
-use crate::menu_widgets::{BACK_TOKEN, FormLayout, MenuCanvas, Scrim};
+use crate::menu_widgets::{BACK_TOKEN, ButtonStyle, FormLayout, MenuCanvas, Scrim};
 use crate::text::{TextVertex, UiFont};
 use sjk_identity::{Snapshot, Status};
 use sjk_ui::{Color, FontWeight, InputEvent, Rect, TextAlign, UiEventKind};
+use std::time::{Duration, Instant};
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{KeyCode, PhysicalKey};
 
 /// Most known players the page lists.
-const PLAYERS_SHOWN: usize = 8;
-/// Most bio lines the page shows.
-const BIO_LINES: usize = 4;
+const PLAYERS_SHOWN: usize = 5;
+/// The hub's limits, in characters.
+pub(crate) const NAME_LIMIT: usize = 24;
+pub(crate) const BIO_LIMIT: usize = 500;
+/// How long "Copied" stays after the key id went to the clipboard.
+const COPIED_FOR: Duration = Duration::from_millis(1500);
+
+const TOGGLE_TOKEN: u16 = 930;
+const NAME_TOKEN: u16 = 931;
+const BIO_TOKEN: u16 = 932;
+const SAVE_TOKEN: u16 = 933;
+const COPY_TOKEN: u16 = 934;
 
 /// What the console does after the page handled an event.
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) enum PanelAction {
     None,
     Close,
+    /// Switch the identity (`cl_identity`) on or off.
+    SetEnabled(bool),
+    /// Send the name and bio to the hub.
+    Save {
+        name: String,
+        bio: String,
+    },
+    /// Put the key id on the clipboard.
+    CopyKeyId,
+}
+
+/// The control the keyboard is on.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum Focus {
+    Toggle,
+    Name,
+    Bio,
+    Save,
+    Copy,
+}
+
+impl Focus {
+    fn token(self) -> u16 {
+        match self {
+            Self::Toggle => TOGGLE_TOKEN,
+            Self::Name => NAME_TOKEN,
+            Self::Bio => BIO_TOKEN,
+            Self::Save => SAVE_TOKEN,
+            Self::Copy => COPY_TOKEN,
+        }
+    }
+}
+
+/// Where Tab (`forward`) or Shift+Tab goes from `current`; with the identity off only
+/// the switch exists.
+fn step(current: Focus, forward: bool, fields: bool) -> Focus {
+    const ORDER: [Focus; 5] = [
+        Focus::Toggle,
+        Focus::Name,
+        Focus::Bio,
+        Focus::Save,
+        Focus::Copy,
+    ];
+    if !fields {
+        return Focus::Toggle;
+    }
+    let at = ORDER
+        .iter()
+        .position(|focus| *focus == current)
+        .unwrap_or(0);
+    let next = if forward {
+        (at + 1) % ORDER.len()
+    } else {
+        (at + ORDER.len() - 1) % ORDER.len()
+    };
+    ORDER[next]
+}
+
+/// Append `text` (control characters dropped) to `field`, up to `limit` characters; whether
+/// the field changed.
+fn type_chars(field: &mut String, text: &str, limit: usize) -> bool {
+    let mut changed = false;
+    for character in text.chars().filter(|character| !character.is_control()) {
+        if field.chars().count() >= limit {
+            break;
+        }
+        field.push(character);
+        changed = true;
+    }
+    changed
+}
+
+/// `text` cut to its last `max` characters, with `...` in front when it was longer, so the
+/// end being typed stays in view.
+fn fit_tail(text: &str, max: usize) -> String {
+    let count = text.chars().count();
+    if count <= max || max < 4 {
+        return text.to_owned();
+    }
+    let tail: String = text.chars().skip(count - (max - 3)).collect();
+    format!("...{tail}")
 }
 
 pub(crate) struct Panel {
@@ -29,6 +122,20 @@ pub(crate) struct Panel {
     /// The page opened the console, so closing the page closes it too.
     owns_console: bool,
     ui: MenuCanvas,
+    focus: Focus,
+    /// The name and bio being typed.
+    name: String,
+    bio: String,
+    /// Something was typed since the hub's copy was last the same: the hub's copy then
+    /// does not replace the draft.
+    edited: bool,
+    /// What the last frame showed, for keys and clicks.
+    enabled: bool,
+    fields: bool,
+    /// A problem found before anything was sent.
+    message: String,
+    copied_until: Option<Instant>,
+    epoch: Instant,
 }
 
 impl Default for Panel {
@@ -43,6 +150,8 @@ pub(crate) struct Inputs<'a> {
     pub(crate) hub_url: &'a str,
     pub(crate) key_error: Option<&'a str>,
     pub(crate) snapshot: Option<&'a Snapshot>,
+    /// Where `identity.key` is, to tell the player to back it up.
+    pub(crate) key_file: &'a str,
 }
 
 /// One known player.
@@ -53,7 +162,7 @@ struct PlayerLine {
     verified: bool,
 }
 
-/// What the page says.
+/// What the page says besides its controls.
 #[derive(Debug, Eq, PartialEq)]
 struct View {
     headline: String,
@@ -85,7 +194,7 @@ fn view(inputs: &Inputs<'_>) -> View {
             "Identity is off",
             &[
                 "No key is made and nothing is sent anywhere.",
-                "Turn cl_identity on (Settings > Network) to use it.",
+                "Switch it on below to let other SJK players see your name.",
             ],
         );
     }
@@ -93,14 +202,22 @@ fn view(inputs: &Inputs<'_>) -> View {
         return plain("Starting...", &["Preparing the identity key."]);
     };
     let key = format!("Key id: {}", snapshot.key_id);
+    // Two lines: the path can be long.
+    let backup = [
+        format!("Key file: {}", inputs.key_file),
+        "Back it up: losing it loses this identity.".to_owned(),
+    ];
     let mut view = match &snapshot.status {
         Status::Disabled => plain("Identity is off", &["The settings were just changed."]),
         Status::NoHub => View {
-            lines: vec![
-                key,
-                "No hub is set (cl_hubUrl), so nothing is sent. The key stays on this PC."
-                    .to_owned(),
-            ],
+            lines: [key]
+                .into_iter()
+                .chain(backup)
+                .chain([
+                    "No hub is set (cl_hubUrl), so nothing is sent. The key stays on this PC."
+                        .to_owned(),
+                ])
+                .collect(),
             ..plain("Your identity key is ready", &[])
         },
         Status::Registering => View {
@@ -111,7 +228,7 @@ fn view(inputs: &Inputs<'_>) -> View {
             lines: vec![key, error.clone(), "Retrying automatically.".to_owned()],
             ..plain("Cannot reach the hub", &[])
         },
-        Status::Online => online(snapshot, key),
+        Status::Online => online(snapshot, key, backup),
     };
     if let Some(notice) = &snapshot.notice {
         view.lines.push(format!("Last change: {notice}"));
@@ -133,7 +250,7 @@ fn view(inputs: &Inputs<'_>) -> View {
     view
 }
 
-fn online(snapshot: &Snapshot, key: String) -> View {
+fn online(snapshot: &Snapshot, key: String, backup: [String; 2]) -> View {
     let mut lines = vec![key];
     let headline = match &snapshot.me {
         Some(me) => {
@@ -142,19 +259,18 @@ fn online(snapshot: &Snapshot, key: String) -> View {
             } else {
                 "Not verified.".to_owned()
             });
-            lines.extend(me.bio.lines().take(BIO_LINES).map(str::to_owned));
             if me.name.is_empty() {
-                "Registered; you have no name yet".to_owned()
+                "Registered: choose a name below".to_owned()
             } else {
                 me.name.clone()
             }
         }
         None => "Registered".to_owned(),
     };
-    lines.push("Set them in the console: identity name <text>, identity bio <text>".to_owned());
+    lines.extend(backup);
     lines
         .push("The hub gets your public key, your in-game name and the server and slot".to_owned());
-    lines.push("you play in, while you play. cl_identity 0 stops it.".to_owned());
+    lines.push("you play in, while you play. Switching the identity off stops it.".to_owned());
     View {
         headline,
         lines,
@@ -167,7 +283,16 @@ impl Panel {
         Self {
             open: false,
             owns_console: false,
-            ui: MenuCanvas::with_text_capacity(96),
+            ui: MenuCanvas::with_capacities(160, 640, 512),
+            focus: Focus::Toggle,
+            name: String::new(),
+            bio: String::new(),
+            edited: false,
+            enabled: false,
+            fields: false,
+            message: String::new(),
+            copied_until: None,
+            epoch: Instant::now(),
         }
     }
 
@@ -179,6 +304,9 @@ impl Panel {
     pub(crate) fn open(&mut self, owns_console: bool) {
         self.open = true;
         self.owns_console = owns_console;
+        self.focus = Focus::Toggle;
+        self.edited = false;
+        self.message.clear();
     }
 
     /// Hide the page; returns whether it had opened the console.
@@ -193,29 +321,180 @@ impl Panel {
         self.ui.draw_list()
     }
 
-    pub(crate) fn handle_key(&mut self, event: &KeyEvent) -> PanelAction {
+    /// Show a problem found before anything was sent.
+    pub(crate) fn set_message(&mut self, message: &str) {
+        self.message = message.to_owned();
+    }
+
+    /// The key id reached the clipboard: say so for a moment.
+    pub(crate) fn note_copied(&mut self) {
+        self.copied_until = Some(Instant::now() + COPIED_FOR);
+    }
+
+    /// Send what was typed, if it can be sent.
+    fn save(&mut self) -> PanelAction {
+        let name = self.name.trim().to_owned();
+        if name.is_empty() {
+            self.message = "Give yourself a name first.".to_owned();
+            return PanelAction::None;
+        }
+        self.message.clear();
+        PanelAction::Save {
+            name,
+            bio: self.bio.trim().to_owned(),
+        }
+    }
+
+    /// What Enter (or a click) does on the focused control.
+    fn activate(&mut self) -> PanelAction {
+        match self.focus {
+            Focus::Toggle => PanelAction::SetEnabled(!self.enabled),
+            Focus::Name | Focus::Bio | Focus::Save => self.save(),
+            Focus::Copy => PanelAction::CopyKeyId,
+        }
+    }
+
+    fn field(&mut self) -> Option<(&mut String, usize)> {
+        match self.focus {
+            Focus::Name if self.fields => Some((&mut self.name, NAME_LIMIT)),
+            Focus::Bio if self.fields => Some((&mut self.bio, BIO_LIMIT)),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn handle_key(&mut self, event: &KeyEvent, shift: bool) -> PanelAction {
         if event.state != ElementState::Pressed {
             return PanelAction::None;
         }
-        match event.physical_key {
-            PhysicalKey::Code(KeyCode::Escape) => PanelAction::Close,
-            _ => PanelAction::None,
+        let PhysicalKey::Code(key) = event.physical_key else {
+            return PanelAction::None;
+        };
+        let typing = self.field().is_some();
+        match key {
+            KeyCode::Escape => return PanelAction::Close,
+            KeyCode::Tab => self.focus = step(self.focus, !shift, self.fields),
+            KeyCode::ArrowDown => self.focus = step(self.focus, true, self.fields),
+            KeyCode::ArrowUp => self.focus = step(self.focus, false, self.fields),
+            KeyCode::Enter | KeyCode::NumpadEnter => return self.activate(),
+            KeyCode::Space if !typing => return self.activate(),
+            KeyCode::Backspace if typing => {
+                if let Some((field, _)) = self.field() {
+                    field.pop();
+                    self.edited = true;
+                }
+            }
+            _ if typing && !event.repeat => {
+                let pasted;
+                let text = match event.text.as_deref() {
+                    Some("\u{16}") => {
+                        pasted = crate::console::clipboard::paste().unwrap_or_default();
+                        pasted.as_str()
+                    }
+                    Some(text) => text,
+                    None => return PanelAction::None,
+                };
+                let typed = self
+                    .field()
+                    .is_some_and(|(field, limit)| type_chars(field, text, limit));
+                self.edited |= typed;
+            }
+            _ => {}
         }
+        PanelAction::None
     }
 
     pub(crate) fn handle_pointer(&mut self, event: InputEvent) -> PanelAction {
         let Some(event) = self.ui.pointer(event) else {
             return PanelAction::None;
         };
-        if event.kind == UiEventKind::Activate && event.token == Some(BACK_TOKEN) {
-            PanelAction::Close
-        } else {
-            PanelAction::None
+        if event.kind != UiEventKind::Activate {
+            return PanelAction::None;
+        }
+        match event.token {
+            Some(BACK_TOKEN) => PanelAction::Close,
+            Some(TOGGLE_TOKEN) => {
+                self.focus = Focus::Toggle;
+                PanelAction::SetEnabled(!self.enabled)
+            }
+            Some(NAME_TOKEN) if self.fields => {
+                self.focus = Focus::Name;
+                PanelAction::None
+            }
+            Some(BIO_TOKEN) if self.fields => {
+                self.focus = Focus::Bio;
+                PanelAction::None
+            }
+            Some(SAVE_TOKEN) if self.fields => {
+                self.focus = Focus::Save;
+                self.save()
+            }
+            Some(COPY_TOKEN) if self.fields => {
+                self.focus = Focus::Copy;
+                PanelAction::CopyKeyId
+            }
+            _ => PanelAction::None,
         }
     }
 
-    /// Draw the page over the whole frame; text other overlays appended earlier
-    /// this frame is dropped rather than shown through.
+    /// Take the hub's copy of the profile into the fields unless the player is typing.
+    fn sync(&mut self, inputs: &Inputs<'_>) {
+        self.enabled = inputs.enabled && inputs.key_error.is_none();
+        self.fields = self.enabled && inputs.snapshot.is_some();
+        if !self.fields && self.focus != Focus::Toggle {
+            self.focus = Focus::Toggle;
+        }
+        if let Some(me) = inputs.snapshot.and_then(|snapshot| snapshot.me.as_ref()) {
+            if self.name == me.name && self.bio == me.bio {
+                self.edited = false;
+            } else if !self.edited {
+                self.name.clone_from(&me.name);
+                self.bio.clone_from(&me.bio);
+            }
+        }
+    }
+
+    /// A text field: the box, its pointer target and the text (its end, with a caret while
+    /// it has the focus), or a hint when it is empty.
+    fn draw_field(
+        &mut self,
+        rect: Rect,
+        token: u16,
+        text: &str,
+        hint: &str,
+        focused: bool,
+        s: f32,
+    ) {
+        self.ui.text_field(rect, focused);
+        self.ui.hit_region(token, rect);
+        let theme = self.ui.theme();
+        let room = ((rect.width - 28.0 * s) / (15.0 * s * 0.55)) as usize;
+        let caret = focused && (self.epoch.elapsed().as_millis() / 500).is_multiple_of(2);
+        let (shown, color) = if text.is_empty() && !focused {
+            (hint.to_owned(), theme.muted)
+        } else {
+            let mut shown = fit_tail(text, room.saturating_sub(1));
+            if caret {
+                shown.push('|');
+            }
+            (shown, theme.foreground)
+        };
+        self.ui.text(
+            &shown,
+            Rect::new(
+                rect.x + 14.0 * s,
+                rect.y,
+                rect.width - 28.0 * s,
+                rect.height,
+            ),
+            15.0 * s,
+            color,
+            FontWeight::Regular,
+            0.0,
+        );
+    }
+
+    /// Draw the page over the whole frame; text other overlays appended earlier this frame is
+    /// dropped rather than shown through.
     pub(crate) fn append(
         &mut self,
         inputs: &Inputs<'_>,
@@ -224,6 +503,7 @@ impl Panel {
         viewport: [f32; 2],
     ) {
         vertices.clear();
+        self.sync(inputs);
         let view = view(inputs);
         let layout = FormLayout::new(viewport);
         let s = layout.scale;
@@ -236,62 +516,153 @@ impl Panel {
         );
         let theme = self.ui.theme();
         let x = layout.margin;
-        let top = viewport[1] * 0.17 + 140.0 * s;
-        let width = (viewport[0] - x * 2.0).min(820.0 * s);
-        let pad = 28.0 * s;
-        let line = 24.0 * s;
-        let player_rows = view.players.len();
-        let players_height = if player_rows == 0 {
+        let top = viewport[1] * 0.17 + 112.0 * s;
+        let width = (viewport[0] - x * 2.0).min(840.0 * s);
+        let pad = 24.0 * s;
+        let line = 22.0 * s;
+        let fields_height = if self.fields {
+            2.0 * 76.0 * s + 56.0 * s
+        } else {
+            0.0
+        };
+        let base = pad * 2.0 + 44.0 * s + view.lines.len() as f32 * line + 58.0 * s + fields_height;
+        let room = (viewport[1] - 76.0 * s - top - base - 40.0 * s).max(0.0);
+        let rows = view.players.len().min((room / (26.0 * s)) as usize);
+        let players_height = if rows == 0 {
             0.0
         } else {
-            40.0 * s + player_rows as f32 * 26.0 * s
+            40.0 * s + rows as f32 * 26.0 * s
         };
-        let card = Rect::new(
-            x,
-            top,
-            width,
-            pad * 2.0 + 52.0 * s + view.lines.len() as f32 * line + players_height,
-        );
+        let card = Rect::new(x, top, width, base + players_height);
         self.ui.panel(card);
         let inner = card.width - pad * 2.0;
+        let left = card.x + pad;
+        let mut y = card.y + pad;
         self.ui.text(
             &view.headline,
-            Rect::new(card.x + pad, card.y + pad, inner, 36.0 * s),
+            Rect::new(left, y, inner, 36.0 * s),
             28.0 * s,
             theme.foreground,
             FontWeight::Semibold,
             0.0,
         );
-        let mut y = card.y + pad + 52.0 * s;
+        y += 44.0 * s;
         for text in &view.lines {
             self.ui.text(
                 text,
-                Rect::new(card.x + pad, y, inner, line),
-                16.0 * s,
+                Rect::new(left, y, inner, line),
+                15.0 * s,
                 theme.muted,
                 FontWeight::Regular,
                 0.2 * s,
             );
             y += line;
         }
-        if player_rows > 0 {
+        y += 10.0 * s;
+        let badge = if self.enabled { "ON" } else { "OFF" };
+        self.ui.button_styled(
+            TOGGLE_TOKEN,
+            "Share my identity with the SJK hub",
+            Rect::new(left, y, inner, 46.0 * s),
+            ButtonStyle {
+                selected: self.focus == Focus::Toggle,
+                enabled: true,
+                accent: self.enabled.then_some(theme.accent),
+                badge: Some(badge),
+            },
+        );
+        y += 58.0 * s;
+        if self.fields {
+            let name = std::mem::take(&mut self.name);
+            let bio = std::mem::take(&mut self.bio);
+            for (label, token, text, hint, focus) in [
+                (
+                    "Your name (up to 24 characters, what other SJK players see)",
+                    NAME_TOKEN,
+                    &name,
+                    "Your name",
+                    Focus::Name,
+                ),
+                (
+                    "About you (up to 500 characters)",
+                    BIO_TOKEN,
+                    &bio,
+                    "Say something about yourself",
+                    Focus::Bio,
+                ),
+            ] {
+                self.ui.text(
+                    label,
+                    Rect::new(left, y, inner, 18.0 * s),
+                    12.0 * s,
+                    theme.muted,
+                    FontWeight::Semibold,
+                    0.4 * s,
+                );
+                let rect = Rect::new(left, y + 20.0 * s, inner, 44.0 * s);
+                let focused = self.focus == focus;
+                self.draw_field(rect, token, text, hint, focused, s);
+                y += 76.0 * s;
+            }
+            self.name = name;
+            self.bio = bio;
+            let save = Rect::new(left, y, 150.0 * s, 44.0 * s);
+            self.ui.button_styled(
+                SAVE_TOKEN,
+                "Save",
+                save,
+                ButtonStyle {
+                    selected: self.focus == Focus::Save,
+                    enabled: true,
+                    accent: Some(theme.accent),
+                    badge: None,
+                },
+            );
+            let copied = self
+                .copied_until
+                .is_some_and(|until| Instant::now() < until);
+            let copy = Rect::new(save.right() + 12.0 * s, y, 210.0 * s, 44.0 * s);
+            self.ui.button(
+                COPY_TOKEN,
+                if copied { "Copied" } else { "Copy my key id" },
+                copy,
+                self.focus == Focus::Copy,
+            );
+            if !self.message.is_empty() {
+                self.ui.text(
+                    &self.message,
+                    Rect::new(
+                        copy.right() + 16.0 * s,
+                        y,
+                        card.right() - copy.right() - 16.0 * s - pad,
+                        44.0 * s,
+                    ),
+                    14.0 * s,
+                    Color::new(1.0, 0.45, 0.4, 1.0),
+                    FontWeight::Semibold,
+                    0.0,
+                );
+            }
+            y += 56.0 * s;
+        }
+        if rows > 0 {
             y += 14.0 * s;
             self.ui.text(
                 "KNOWN PLAYERS HERE",
-                Rect::new(card.x + pad, y, inner, 20.0 * s),
+                Rect::new(left, y, inner, 20.0 * s),
                 13.0 * s,
                 theme.muted,
                 FontWeight::Semibold,
                 1.5 * s,
             );
             y += 26.0 * s;
-            for player in &view.players {
+            for player in view.players.iter().take(rows) {
                 let color = if player.verified {
                     Color::new(1.0, 0.82, 0.25, 1.0)
                 } else {
                     theme.foreground
                 };
-                let row = Rect::new(card.x + pad, y, inner, 24.0 * s);
+                let row = Rect::new(left, y, inner, 24.0 * s);
                 self.ui.text(
                     &format!("{:>2}   {}", player.slot, player.name),
                     row,
@@ -314,11 +685,42 @@ impl Panel {
                 y += 26.0 * s;
             }
         }
-        self.ui
-            .form_footer_actions(&layout, &[("ESC", "Close", BACK_TOKEN)]);
+        let enter = match self.focus {
+            Focus::Toggle => "Switch",
+            Focus::Name | Focus::Bio | Focus::Save => "Save",
+            Focus::Copy => "Copy",
+        };
+        self.ui.form_footer_actions(
+            &layout,
+            &[
+                ("TAB", "Next", 0),
+                ("ENTER", enter, 0),
+                ("ESC", "Close", BACK_TOKEN),
+            ],
+        );
         self.ui.end_hero();
-        self.ui.finish(BACK_TOKEN);
+        self.ui.finish(self.focus.token());
         self.ui.append_text(vertices, font, viewport);
+    }
+}
+
+#[cfg(test)]
+impl Panel {
+    /// The page as if the player had typed `name` and `bio` and the keyboard were on `focus`
+    /// (`name`, `bio`, `save`, `copy`, anything else is the switch), for the off-screen
+    /// snapshots (`menu_snapshot.rs`).
+    pub(crate) fn preview(&mut self, name: &str, bio: &str, focus: &str, message: &str) {
+        self.name = name.to_owned();
+        self.bio = bio.to_owned();
+        self.edited = true;
+        self.message = message.to_owned();
+        self.focus = match focus {
+            "name" => Focus::Name,
+            "bio" => Focus::Bio,
+            "save" => Focus::Save,
+            "copy" => Focus::Copy,
+            _ => Focus::Toggle,
+        };
     }
 }
 
@@ -347,6 +749,18 @@ mod tests {
             hub_url: "https://hub.example",
             key_error: None,
             snapshot,
+            key_file: "GameData/SJK/identity.key",
+        }
+    }
+
+    fn me(name: &str, bio: &str) -> Profile {
+        Profile {
+            key_id: "0123456789abcdef".to_owned(),
+            key: String::new(),
+            name: name.to_owned(),
+            bio: bio.to_owned(),
+            verified: false,
+            created: 0,
         }
     }
 
@@ -362,17 +776,18 @@ mod tests {
     }
 
     #[test]
-    fn off_says_nothing_is_sent() {
+    fn off_says_nothing_is_sent_and_how_to_switch_on() {
         let shown = view(&Inputs {
             enabled: false,
             ..inputs(None)
         });
         assert_eq!(shown.headline, "Identity is off");
         assert!(shown.lines[0].contains("nothing is sent"));
+        assert!(shown.lines[1].contains("Switch it on"));
     }
 
     #[test]
-    fn without_a_hub_the_key_stays_local() {
+    fn without_a_hub_the_key_stays_local_and_the_file_is_named() {
         let state = snapshot(Status::NoHub);
         let shown = view(&inputs(Some(&state)));
         assert_eq!(shown.headline, "Your identity key is ready");
@@ -382,56 +797,57 @@ mod tests {
                 .iter()
                 .any(|line| line.contains("stays on this PC"))
         );
+        assert!(
+            shown
+                .lines
+                .iter()
+                .any(|line| line.contains("GameData/SJK/identity.key"))
+        );
         assert!(shown.lines[0].contains("0123456789abcdef"));
     }
 
     #[test]
-    fn a_registered_player_sees_name_verification_bio_and_the_players_here() {
+    fn a_registered_player_sees_their_name_verification_and_what_is_sent() {
         let mut state = snapshot(Status::Online);
         state.me = Some(Profile {
-            key_id: "0123456789abcdef".to_owned(),
-            key: String::new(),
-            name: "Sol".to_owned(),
-            bio: "one\ntwo".to_owned(),
             verified: true,
-            created: 0,
+            ..me("Sol", "")
         });
         state.notice = Some("saved".to_owned());
-        state.players = vec![
-            Presence {
-                slot: 4,
-                claimed_name: "^1Fox".to_owned(),
-                key_id: "fedcba9876543210".to_owned(),
-                name: String::new(),
-                verified: false,
-            },
-            Presence {
-                slot: 7,
-                claimed_name: "x".to_owned(),
-                key_id: "aaaaaaaaaaaaaaaa".to_owned(),
-                name: "Kit".to_owned(),
-                verified: true,
-            },
-        ];
+        state.players = vec![Presence {
+            slot: 7,
+            claimed_name: "x".to_owned(),
+            key_id: "aaaaaaaaaaaaaaaa".to_owned(),
+            name: "Kit".to_owned(),
+            verified: true,
+        }];
         let shown = view(&inputs(Some(&state)));
         assert_eq!(shown.headline, "Sol");
         assert!(shown.lines.iter().any(|line| line.starts_with("Verified")));
-        assert!(shown.lines.contains(&"one".to_owned()) && shown.lines.contains(&"two".to_owned()));
+        assert!(
+            shown
+                .lines
+                .iter()
+                .any(|line| line.contains("The hub gets your public key"))
+        );
         assert!(shown.lines.contains(&"Last change: saved".to_owned()));
         assert_eq!(
             shown.players,
-            [
-                PlayerLine {
-                    slot: 4,
-                    name: "^1Fox".to_owned(),
-                    verified: false
-                },
-                PlayerLine {
-                    slot: 7,
-                    name: "Kit".to_owned(),
-                    verified: true
-                },
-            ]
+            [PlayerLine {
+                slot: 7,
+                name: "Kit".to_owned(),
+                verified: true
+            }]
+        );
+    }
+
+    #[test]
+    fn a_player_without_a_name_is_asked_for_one() {
+        let mut state = snapshot(Status::Online);
+        state.me = Some(me("", ""));
+        assert_eq!(
+            view(&inputs(Some(&state))).headline,
+            "Registered: choose a name below"
         );
     }
 
@@ -457,5 +873,112 @@ mod tests {
             })
             .collect();
         assert_eq!(view(&inputs(Some(&state))).players.len(), PLAYERS_SHOWN);
+    }
+
+    #[test]
+    fn tab_walks_the_controls_and_wraps_and_the_switch_stands_alone_when_off() {
+        assert_eq!(step(Focus::Toggle, true, true), Focus::Name);
+        assert_eq!(step(Focus::Copy, true, true), Focus::Toggle);
+        assert_eq!(step(Focus::Toggle, false, true), Focus::Copy);
+        assert_eq!(step(Focus::Bio, false, true), Focus::Name);
+        assert_eq!(step(Focus::Bio, true, false), Focus::Toggle);
+    }
+
+    #[test]
+    fn typing_respects_the_limit_in_characters_and_drops_control_characters() {
+        let mut field = String::new();
+        assert!(type_chars(&mut field, "Sol\u{7}\n", 24));
+        assert_eq!(field, "Sol");
+        let mut full = "a".repeat(23);
+        type_chars(&mut full, "éèx", 24);
+        assert_eq!(
+            full.chars().count(),
+            24,
+            "stops at 24 characters, not bytes"
+        );
+        assert!(full.ends_with('é'));
+        assert!(!type_chars(&mut full, "more", 24));
+    }
+
+    #[test]
+    fn a_long_field_shows_its_end() {
+        assert_eq!(fit_tail("short", 20), "short");
+        assert_eq!(fit_tail("abcdefghij", 8), "...fghij");
+        assert_eq!(
+            fit_tail("abcdefghij", 3),
+            "abcdefghij",
+            "no room to cut: left whole"
+        );
+        assert_eq!(fit_tail("abcdefghij", 8).chars().count(), 8);
+    }
+
+    #[test]
+    fn saving_needs_a_name_and_trims_what_it_sends() {
+        let mut panel = Panel::new();
+        assert_eq!(panel.save(), PanelAction::None);
+        assert!(panel.message.contains("name"));
+        panel.name = "  Sol  ".to_owned();
+        panel.bio = " hi \n".to_owned();
+        assert_eq!(
+            panel.save(),
+            PanelAction::Save {
+                name: "Sol".to_owned(),
+                bio: "hi".to_owned()
+            }
+        );
+        assert!(panel.message.is_empty());
+    }
+
+    #[test]
+    fn the_hubs_copy_fills_the_fields_until_the_player_types() {
+        let mut panel = Panel::new();
+        let mut state = snapshot(Status::Online);
+        state.me = Some(me("Sol", "about"));
+        panel.sync(&inputs(Some(&state)));
+        assert_eq!((panel.name.as_str(), panel.bio.as_str()), ("Sol", "about"));
+        // The player edits: the hub's copy no longer replaces the draft.
+        panel.name = "Sol Vulpes".to_owned();
+        panel.edited = true;
+        panel.sync(&inputs(Some(&state)));
+        assert_eq!(panel.name, "Sol Vulpes");
+        // Once the hub has the same text, the draft follows the hub again.
+        state.me = Some(me("Sol Vulpes", "about"));
+        panel.sync(&inputs(Some(&state)));
+        assert!(!panel.edited);
+        state.me = Some(me("Elsewhere", "changed in SM"));
+        panel.sync(&inputs(Some(&state)));
+        assert_eq!(
+            (panel.name.as_str(), panel.bio.as_str()),
+            ("Elsewhere", "changed in SM")
+        );
+    }
+
+    #[test]
+    fn fields_exist_only_with_the_identity_on_and_a_running_service() {
+        let mut panel = Panel::new();
+        panel.focus = Focus::Bio;
+        panel.sync(&Inputs {
+            enabled: false,
+            ..inputs(None)
+        });
+        assert!(!panel.fields);
+        assert_eq!(
+            panel.focus,
+            Focus::Toggle,
+            "the focus leaves a hidden field"
+        );
+        let state = snapshot(Status::Online);
+        panel.sync(&inputs(Some(&state)));
+        assert!(panel.fields && panel.enabled);
+    }
+
+    #[test]
+    fn enter_on_the_switch_flips_it_and_on_copy_copies() {
+        let mut panel = Panel::new();
+        panel.enabled = true;
+        panel.fields = true;
+        assert_eq!(panel.activate(), PanelAction::SetEnabled(false));
+        panel.focus = Focus::Copy;
+        assert_eq!(panel.activate(), PanelAction::CopyKeyId);
     }
 }

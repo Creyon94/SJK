@@ -1217,16 +1217,16 @@ note: Install against a real release and the Linux swap are untested.
 [identity]
 status: personal
 area: Menus & settings
-title: Player identity: key, SJK hub, scoreboard marks and Identity page
+title: Player identity: key, SJK hub, scoreboard marks and an Identity page you can edit
 change: cl_identity (default on) makes identity.key; cl_hubUrl defaults to https://sjk.dfox.app.
-change: The client tells the hub your key, name, server and slot; cl_identity 0 stops it.
-change: The Identity page (in-game SJK menu or /identity) shows your profile and who is known here.
-test: Start the game fresh: no setting needed; join a server and hold the scoreboard (TAB).
-test: Your own row shows the SJK emblem within a few seconds; /identity name Sol, then /identity key.
-test: Mark yourself verified on the prod box (sjk-hub verify <key id>): the emblem turns gold.
-test: /identity opens the page (also in-game menu > SJK > Identity); it says what the hub receives.
-test: Set cl_identity 0: nothing is sent and the page says identity is off.
-note: Never started in a game yet: the scoreboard mark and the page layout are unchecked.
+change: Main menu > SJK > IDENTITY (also the in-game SJK menu): switch, name, bio, copy key id.
+change: The page says what the hub receives; the scoreboard marks players the hub knows.
+test: Main menu (classic) > SJK > IDENTITY: the page opens; Tab moves between the controls.
+test: Type a name and a bio, press Enter (or Save): "Last change: saved" shows, TAB shows your row.
+test: Click Copy my key id, then paste somewhere: it is your 16-character key id.
+test: Switch it OFF and ON again (Enter on the switch or a click): the fields hide and return.
+test: Check the page at 4K / 150% and with the modern menus (in-game menu > SJK > Identity).
+note: Never started in a game yet: only off-screen renders were checked, not the live layout.
 
 [nameplates]
 status: personal

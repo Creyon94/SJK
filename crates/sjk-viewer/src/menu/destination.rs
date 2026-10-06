@@ -25,6 +25,8 @@ pub(crate) enum MainDestination {
     Credits,
     /// The update page, drawn by the console over the menu.
     Update,
+    /// The identity page, drawn by the console over the menu.
+    Identity,
     /// Exit to the desktop.
     Quit,
 }
@@ -92,6 +94,10 @@ impl ClientMenu {
             }
             MainDestination::Update => {
                 console.open_update_panel();
+                MenuAction::None
+            }
+            MainDestination::Identity => {
+                console.open_identity_panel();
                 MenuAction::None
             }
             MainDestination::Quit => MenuAction::Quit,

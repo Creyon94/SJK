@@ -1252,12 +1252,23 @@ are in [identity.md](identity.md).
   talk to the hub. Off sends nothing and makes no key.
 - `cl_hubUrl` (default `https://sjk.dfox.app`; Settings > Network > SJK hub) is the
   hub's `https://` address. Empty means no hub, so nothing is sent.
-- The `identity` command opens the Identity page: the key id, the profile at the
-  hub (name, whether it is verified, bio), the hub's status and the players it knows
-  on the current server. The in-game SJK menu has an Identity entry too. `identity
-  name <text>` and `identity bio <text>` change the profile, `identity key` prints
-  the key id and file, `identity who [slot]` lists known players (with a slot, that
-  player's bio).
+- The Identity page is where a player sets all of this up without a command: main
+  menu > SJK > IDENTITY (classic menus), the in-game SJK menu, or the `identity`
+  command ([identity_panel.rs](../crates/sjk-viewer/src/identity_panel.rs)). It shows the
+  key id, the file to back up, whether the hub's operator vouches for the player, the
+  hub's status and the players it knows on the current server, and has
+  - a switch for `cl_identity` ("Share my identity with the SJK hub", ON or OFF);
+  - fields for the name (24 characters at most) and the bio (500 at most), saved to the
+    hub with Save or Enter; a name is needed, and the page says so;
+  - "Copy my key id" (for the operator to verify the player).
+
+  Tab, Shift+Tab and the arrow keys move between the controls, Enter or Space works the
+  switch and the buttons, letters type into the focused field (Ctrl+V pastes) and Escape
+  closes; the pointer works too. The fields follow the hub's copy of the profile until the
+  player types in them. The modern main menu has no entry (its list is full); reach it from
+  the in-game menu or the command there. The commands remain: `identity name <text>` and
+  `identity bio <text>` change the profile, `identity key` prints the key id and file,
+  `identity who [slot]` lists known players (with a slot, that player's bio).
 - The scoreboard (both styles) draws SJK's emblem at the end of the name of a
   player the hub knows, in gold when the hub's operator vouches for them. It trusts
   a claim only when the claimed name matches the name the game shows in that slot.
