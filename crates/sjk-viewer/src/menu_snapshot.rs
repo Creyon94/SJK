@@ -627,7 +627,7 @@ fn menu_snapshot() {
     weapon_select(&mut shots, &vfs);
     radial_hud(&mut shots);
     player_card(&mut shots);
-    identity_page(&shots);
+    identity_page(&shots, art);
     force_wheel(&mut shots, &vfs);
     profile_saber(&shots, art, &vfs, &mut console);
     classic_profile(&mut shots, &vfs, art);
@@ -899,7 +899,7 @@ fn weapon_select(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
 /// SJK's radial HUD with a full, a hurt and an empty-handed (saber) state.
 /// The Identity page: switched off, online with a profile and known players, and a new
 /// player who has not chosen a name yet.
-fn identity_page(shots: &Snapshot) {
+fn identity_page(shots: &Snapshot, art: ArtSet) {
     use crate::console::identity_panel::{Inputs, Panel};
     use sjk_identity::{Presence, Profile, Snapshot as Hub, Status};
     let hub = |status: Status, name: &str| Hub {
@@ -936,6 +936,13 @@ fn identity_page(shots: &Snapshot) {
     };
     let online = hub(Status::Online, "Sol");
     let unnamed = hub(Status::Online, "");
+    let refused = hub(
+        Status::Failed(
+            "cannot reach the hub: io: No connection could be made because the target machine actively refused it. (os error 10061)"
+                .to_owned(),
+        ),
+        "Sol",
+    );
     let key_file =
         "C:/Program Files (x86)/Steam/steamapps/common/Jedi Academy/GameData/SJK/identity.key";
     struct Case<'a> {
@@ -946,6 +953,7 @@ fn identity_page(shots: &Snapshot) {
         bio: &'a str,
         focus: &'a str,
         message: &'a str,
+        hub_url: &'a str,
     }
     let cases = [
         Case {
@@ -956,6 +964,7 @@ fn identity_page(shots: &Snapshot) {
             bio: "",
             focus: "toggle",
             message: "",
+            hub_url: "https://sjk.dfox.app",
         },
         Case {
             name: "identity-online",
@@ -965,6 +974,7 @@ fn identity_page(shots: &Snapshot) {
             bio: "I make SJK and I play on JA+ servers. Come say hi, I am usually around in the evening and I love a good duel.",
             focus: "bio",
             message: "",
+            hub_url: "https://sjk.dfox.app",
         },
         Case {
             name: "identity-noname",
@@ -974,22 +984,39 @@ fn identity_page(shots: &Snapshot) {
             bio: "",
             focus: "save",
             message: "Give yourself a name first.",
+            hub_url: "https://sjk.dfox.app",
+        },
+        Case {
+            name: "identity-hub",
+            enabled: true,
+            snapshot: Some(&refused),
+            typed: "Sol",
+            bio: "",
+            focus: "hub",
+            message: "",
+            hub_url: "http://127.0.0.1:8787",
         },
     ];
-    for case in cases {
+    for (case, classic) in cases.iter().flat_map(|case| [(case, false), (case, true)]) {
         let mut panel = Panel::new();
         panel.open(false);
+        panel.set_look(classic, art);
         panel.preview(case.typed, case.bio, case.focus, case.message);
         let inputs = Inputs {
             enabled: case.enabled,
-            hub_url: "https://sjk.dfox.app",
+            hub_url: case.hub_url,
             key_error: None,
             snapshot: case.snapshot,
             key_file,
         };
         let mut vertices = Vec::new();
         panel.append(&inputs, &mut vertices, &shots.font.font, VIEWPORT);
-        shots.save(case.name, panel.draw_list(), &vertices, true);
+        let name = if classic {
+            format!("{}-classic", case.name)
+        } else {
+            case.name.to_owned()
+        };
+        shots.save(&name, panel.draw_list(), &vertices, true);
     }
 }
 

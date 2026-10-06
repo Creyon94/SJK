@@ -7,6 +7,7 @@
 //! the arrow keys and the pointer move between the controls; letters type into the focused
 //! field; Enter saves from a field.
 
+use crate::menu::art::ArtSet;
 use crate::menu_widgets::{BACK_TOKEN, ButtonStyle, FormLayout, MenuCanvas, Scrim};
 use crate::text::{TextVertex, UiFont};
 use sjk_identity::{Snapshot, Status};
@@ -14,6 +15,9 @@ use sjk_ui::{Color, FontWeight, InputEvent, Rect, TextAlign, UiEventKind};
 use std::time::{Duration, Instant};
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{KeyCode, PhysicalKey};
+
+#[path = "identity_panel_classic.rs"]
+mod classic;
 
 /// Most known players the page lists.
 const PLAYERS_SHOWN: usize = 5;
@@ -28,6 +32,7 @@ const NAME_TOKEN: u16 = 931;
 const BIO_TOKEN: u16 = 932;
 const SAVE_TOKEN: u16 = 933;
 const COPY_TOKEN: u16 = 934;
+const HUB_TOKEN: u16 = 935;
 
 /// What the console does after the page handled an event.
 #[derive(Debug, Eq, PartialEq)]
@@ -43,6 +48,8 @@ pub(crate) enum PanelAction {
     },
     /// Put the key id on the clipboard.
     CopyKeyId,
+    /// Point `cl_hubUrl` at SJK's own hub again.
+    UseDefaultHub,
 }
 
 /// The control the keyboard is on.
@@ -53,6 +60,8 @@ enum Focus {
     Bio,
     Save,
     Copy,
+    /// Back to SJK's own hub, offered while the address is another one.
+    Hub,
 }
 
 impl Focus {
@@ -63,33 +72,42 @@ impl Focus {
             Self::Bio => BIO_TOKEN,
             Self::Save => SAVE_TOKEN,
             Self::Copy => COPY_TOKEN,
+            Self::Hub => HUB_TOKEN,
         }
     }
 }
 
-/// Where Tab (`forward`) or Shift+Tab goes from `current`; with the identity off only
-/// the switch exists.
-fn step(current: Focus, forward: bool, fields: bool) -> Focus {
-    const ORDER: [Focus; 5] = [
+/// The controls Tab visits, in order: with the identity off only the switch exists, and
+/// the way back to SJK's own hub only while it is offered.
+fn order(fields: bool, hub: bool) -> &'static [Focus] {
+    const ALL: [Focus; 6] = [
         Focus::Toggle,
         Focus::Name,
         Focus::Bio,
         Focus::Save,
         Focus::Copy,
+        Focus::Hub,
     ];
-    if !fields {
-        return Focus::Toggle;
+    match (fields, hub) {
+        (false, _) => &ALL[..1],
+        (true, false) => &ALL[..5],
+        (true, true) => &ALL,
     }
-    let at = ORDER
+}
+
+/// Where Tab (`forward`) or Shift+Tab goes from `current`.
+fn step(current: Focus, forward: bool, fields: bool, hub: bool) -> Focus {
+    let order = order(fields, hub);
+    let at = order
         .iter()
         .position(|focus| *focus == current)
         .unwrap_or(0);
     let next = if forward {
-        (at + 1) % ORDER.len()
+        (at + 1) % order.len()
     } else {
-        (at + ORDER.len() - 1) % ORDER.len()
+        (at + order.len() - 1) % order.len()
     };
-    ORDER[next]
+    order[next]
 }
 
 /// Append `text` (control characters dropped) to `field`, up to `limit` characters; whether
@@ -132,6 +150,11 @@ pub(crate) struct Panel {
     /// What the last frame showed, for keys and clicks.
     enabled: bool,
     fields: bool,
+    /// The hub address is not SJK's own: the way back to it is on offer.
+    offer_hub: bool,
+    /// The classic+ look is drawn, with the retail menu art it can use.
+    classic: bool,
+    art: ArtSet,
     /// A problem found before anything was sent.
     message: String,
     copied_until: Option<Instant>,
@@ -204,7 +227,7 @@ fn view(inputs: &Inputs<'_>) -> View {
     let key = format!("Key id: {}", snapshot.key_id);
     // Two lines: the path can be long.
     let backup = [
-        format!("Key file: {}", inputs.key_file),
+        format!("Key file: {}", fit_tail(inputs.key_file, 90)),
         "Back it up: losing it loses this identity.".to_owned(),
     ];
     let mut view = match &snapshot.status {
@@ -225,7 +248,12 @@ fn view(inputs: &Inputs<'_>) -> View {
             ..plain("Contacting the hub...", &[])
         },
         Status::Failed(error) => View {
-            lines: vec![key, error.clone(), "Retrying automatically.".to_owned()],
+            lines: vec![
+                key,
+                error.clone(),
+                format!("Hub: {}", inputs.hub_url),
+                "Retrying automatically.".to_owned(),
+            ],
             ..plain("Cannot reach the hub", &[])
         },
         Status::Online => online(snapshot, key, backup),
@@ -290,6 +318,9 @@ impl Panel {
             edited: false,
             enabled: false,
             fields: false,
+            offer_hub: false,
+            classic: false,
+            art: ArtSet::default(),
             message: String::new(),
             copied_until: None,
             epoch: Instant::now(),
@@ -319,6 +350,17 @@ impl Panel {
 
     pub(crate) fn draw_list(&self) -> &sjk_ui::DrawList {
         self.ui.draw_list()
+    }
+
+    /// Choose the look: classic+ with the retail `art` it can draw, or modern.
+    pub(crate) fn set_look(&mut self, classic: bool, art: ArtSet) {
+        self.classic = classic;
+        self.art = art;
+    }
+
+    /// Whether the classic+ look is drawn, so its text uses the retail font.
+    pub(crate) fn is_classic(&self) -> bool {
+        self.classic
     }
 
     /// Show a problem found before anything was sent.
@@ -351,6 +393,7 @@ impl Panel {
             Focus::Toggle => PanelAction::SetEnabled(!self.enabled),
             Focus::Name | Focus::Bio | Focus::Save => self.save(),
             Focus::Copy => PanelAction::CopyKeyId,
+            Focus::Hub => PanelAction::UseDefaultHub,
         }
     }
 
@@ -372,9 +415,9 @@ impl Panel {
         let typing = self.field().is_some();
         match key {
             KeyCode::Escape => return PanelAction::Close,
-            KeyCode::Tab => self.focus = step(self.focus, !shift, self.fields),
-            KeyCode::ArrowDown => self.focus = step(self.focus, true, self.fields),
-            KeyCode::ArrowUp => self.focus = step(self.focus, false, self.fields),
+            KeyCode::Tab => self.focus = step(self.focus, !shift, self.fields, self.offer_hub),
+            KeyCode::ArrowDown => self.focus = step(self.focus, true, self.fields, self.offer_hub),
+            KeyCode::ArrowUp => self.focus = step(self.focus, false, self.fields, self.offer_hub),
             KeyCode::Enter | KeyCode::NumpadEnter => return self.activate(),
             KeyCode::Space if !typing => return self.activate(),
             KeyCode::Backspace if typing => {
@@ -432,6 +475,10 @@ impl Panel {
                 self.focus = Focus::Copy;
                 PanelAction::CopyKeyId
             }
+            Some(HUB_TOKEN) if self.offer_hub => {
+                self.focus = Focus::Hub;
+                PanelAction::UseDefaultHub
+            }
             _ => PanelAction::None,
         }
     }
@@ -440,8 +487,12 @@ impl Panel {
     fn sync(&mut self, inputs: &Inputs<'_>) {
         self.enabled = inputs.enabled && inputs.key_error.is_none();
         self.fields = self.enabled && inputs.snapshot.is_some();
+        self.offer_hub = self.fields && inputs.hub_url != crate::player_identity::DEFAULT_HUB_URL;
         if !self.fields && self.focus != Focus::Toggle {
             self.focus = Focus::Toggle;
+        }
+        if self.focus == Focus::Hub && !self.offer_hub {
+            self.focus = Focus::Copy;
         }
         if let Some(me) = inputs.snapshot.and_then(|snapshot| snapshot.me.as_ref()) {
             if self.name == me.name && self.bio == me.bio {
@@ -504,6 +555,10 @@ impl Panel {
     ) {
         vertices.clear();
         self.sync(inputs);
+        if self.classic {
+            self.append_classic(inputs, vertices, font, viewport);
+            return;
+        }
         let view = view(inputs);
         let layout = FormLayout::new(viewport);
         let s = layout.scale;
@@ -628,13 +683,24 @@ impl Panel {
                 copy,
                 self.focus == Focus::Copy,
             );
+            let mut last = copy.right();
+            if self.offer_hub {
+                let hub = Rect::new(copy.right() + 12.0 * s, y, 250.0 * s, 44.0 * s);
+                self.ui.button(
+                    HUB_TOKEN,
+                    "Use the official hub",
+                    hub,
+                    self.focus == Focus::Hub,
+                );
+                last = hub.right();
+            }
             if !self.message.is_empty() {
                 self.ui.text(
                     &self.message,
                     Rect::new(
-                        copy.right() + 16.0 * s,
+                        last + 16.0 * s,
                         y,
-                        card.right() - copy.right() - 16.0 * s - pad,
+                        (card.right() - last - 16.0 * s - pad).max(0.0),
                         44.0 * s,
                     ),
                     14.0 * s,
@@ -689,6 +755,7 @@ impl Panel {
             Focus::Toggle => "Switch",
             Focus::Name | Focus::Bio | Focus::Save => "Save",
             Focus::Copy => "Copy",
+            Focus::Hub => "Use",
         };
         self.ui.form_footer_actions(
             &layout,
@@ -719,6 +786,7 @@ impl Panel {
             "bio" => Focus::Bio,
             "save" => Focus::Save,
             "copy" => Focus::Copy,
+            "hub" => Focus::Hub,
             _ => Focus::Toggle,
         };
     }
@@ -877,11 +945,50 @@ mod tests {
 
     #[test]
     fn tab_walks_the_controls_and_wraps_and_the_switch_stands_alone_when_off() {
-        assert_eq!(step(Focus::Toggle, true, true), Focus::Name);
-        assert_eq!(step(Focus::Copy, true, true), Focus::Toggle);
-        assert_eq!(step(Focus::Toggle, false, true), Focus::Copy);
-        assert_eq!(step(Focus::Bio, false, true), Focus::Name);
-        assert_eq!(step(Focus::Bio, true, false), Focus::Toggle);
+        assert_eq!(step(Focus::Toggle, true, true, false), Focus::Name);
+        assert_eq!(step(Focus::Copy, true, true, false), Focus::Toggle);
+        assert_eq!(step(Focus::Toggle, false, true, false), Focus::Copy);
+        assert_eq!(step(Focus::Bio, false, true, false), Focus::Name);
+        assert_eq!(step(Focus::Bio, true, false, false), Focus::Toggle);
+    }
+
+    #[test]
+    fn the_way_back_to_the_official_hub_is_a_stop_only_while_it_is_offered() {
+        assert_eq!(step(Focus::Copy, true, true, true), Focus::Hub);
+        assert_eq!(step(Focus::Hub, true, true, true), Focus::Toggle);
+        assert_eq!(step(Focus::Toggle, false, true, true), Focus::Hub);
+        assert_eq!(step(Focus::Copy, true, true, false), Focus::Toggle);
+    }
+
+    #[test]
+    fn the_official_hub_is_offered_for_any_other_address() {
+        let mut panel = Panel::new();
+        let state = snapshot(Status::Online);
+        panel.sync(&inputs(Some(&state)));
+        assert!(panel.offer_hub, "hub.example is not the default");
+        panel.sync(&Inputs {
+            hub_url: crate::player_identity::DEFAULT_HUB_URL,
+            ..inputs(Some(&state))
+        });
+        assert!(!panel.offer_hub);
+        panel.offer_hub = true;
+        panel.focus = Focus::Hub;
+        panel.enabled = true;
+        panel.fields = true;
+        assert_eq!(panel.activate(), PanelAction::UseDefaultHub);
+        // The focus leaves the button once it is no longer offered.
+        panel.sync(&Inputs {
+            hub_url: crate::player_identity::DEFAULT_HUB_URL,
+            ..inputs(Some(&state))
+        });
+        assert_eq!(panel.focus, Focus::Copy);
+    }
+
+    #[test]
+    fn a_failed_hub_names_its_address() {
+        let state = snapshot(Status::Failed("refused".to_owned()));
+        let shown = view(&inputs(Some(&state)));
+        assert!(shown.lines.contains(&"Hub: https://hub.example".to_owned()));
     }
 
     #[test]

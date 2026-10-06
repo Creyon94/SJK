@@ -583,6 +583,12 @@ impl ViewerConsole {
         self.changelog.set_look(classic, art);
     }
 
+    /// The Identity page follows the menu style: classic+ with the classic menus, with
+    /// the retail menu `art` it can use.
+    pub(crate) fn set_identity_look(&mut self, classic: bool, art: crate::menu::art::ArtSet) {
+        self.identity_panel.set_look(classic, art);
+    }
+
     /// Open the command browser on a search, for the menu snapshots.
     #[cfg(test)]
     pub(crate) fn open_browser_on(&mut self, filter: &str) {
@@ -599,6 +605,9 @@ impl ViewerConsole {
         }
         if self.changelog.is_open() {
             return self.open && self.changelog.is_classic();
+        }
+        if self.identity_panel.is_open() {
+            return self.open && self.identity_panel.is_classic();
         }
         self.open && self.browser.is_open() && self.browser.is_classic()
     }
