@@ -83,10 +83,13 @@ pub(crate) fn hit_location(snapshot: &Snapshot, local: bool, number: u16) -> Opt
             [102, 105, 100].map(|field| f32::from_bits(player.raw_field(field).unwrap_or(0))),
         );
     }
-    let state = snapshot
+    // Snapshot entities are ordered by number, so this is one binary search per
+    // actor, not a scan of every entity.
+    let index = snapshot
         .entities
-        .iter()
-        .find(|state| state.number() == number)?;
+        .binary_search_by_key(&number, |state| state.number())
+        .ok()?;
+    let state = &snapshot.entities[index];
     (state.e_flags() & EF_DISINTEGRATION != 0).then(|| state.origin2())
 }
 
