@@ -64,7 +64,9 @@ pub(super) fn emit(
         }
         HudWidgetKind::Text => {
             let Some(text) = text_id(binding) else { return };
-            let align = if widget.style.centered
+            let align = if let Some(align) = widget.style.align {
+                align
+            } else if widget.style.centered
                 || matches!(
                     binding,
                     Some(
@@ -76,7 +78,8 @@ pub(super) fn emit(
                             | "warmup_text"
                             | "connection_interrupted"
                     )
-                ) {
+                )
+            {
                 TextAlign::Center
             } else if binding == Some("style_value") {
                 TextAlign::End

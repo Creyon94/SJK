@@ -1383,8 +1383,12 @@ shadow bands crossing it one shape (a knockout stripe in the arc shader, so the 
 layers no longer stack into a darker one) and draws the look's text with the classic HUD
 font. The unit tests check each shadow's knockout against its side's pill; `menu_snapshot`
 renders with the classic font (decoding its distance field on the CPU) and applies the
-knockout. Not verified: the shader on a GPU (no window was opened), and the layout in a
-running client.
+knockout. Branch `personal/radial-tight` (2026-10-06, based on `d3d4328`) returns to Inter
+(the classic font's baked-in drop shadow looked cut at the bottom, and it did not centre),
+forced for this look with the digits centred on the pill, aligns each number toward its bars
+5 px from their shadow (a new text `align` in layouts), thins the shadow to a 5 px margin, and
+blends the shadow with the pill exactly (`knockout_remainder`) so their edge leaves no seam.
+Not verified: the shader on a GPU (no window was opened), and the layout in a running client.
 
 ## HUD picker (SJK)
 

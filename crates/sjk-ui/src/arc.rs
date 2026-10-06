@@ -80,8 +80,8 @@ pub fn span(style: &ArcStyle, inset: f32) -> (f32, f32) {
 /// How much of the stripe `x_range` wide and `half_height` either side of the centre line
 /// covers `point` (relative to the arc's centre), `0..=1`, anti-aliased over one pixel.
 ///
-/// The reference for `ui_shapes.wgsl`, which multiplies an arc's coverage by one minus this
-/// for its knockout, and for CPU previews. A zero `half_height` covers nothing.
+/// The reference for `ui_shapes.wgsl`, which feeds it to [`knockout_remainder`] for an arc's
+/// knockout, and for CPU previews. A zero `half_height` covers nothing.
 pub fn knockout_coverage(point: [f32; 2], x_range: [f32; 2], half_height: f32) -> f32 {
     if half_height <= 0.0 {
         return 0.0;
@@ -93,6 +93,16 @@ pub fn knockout_coverage(point: [f32; 2], x_range: [f32; 2], half_height: f32) -
     let distance =
         outside[0].max(0.0).hypot(outside[1].max(0.0)) + outside[0].max(outside[1]).min(0.0);
     (0.5 - distance).clamp(0.0, 1.0)
+}
+
+/// The coverage an arc stroke still needs where a panel of the same colour and `alpha` has
+/// already covered `knock` of the pixel and the stroke itself would cover `coverage`, so that
+/// the two together show `alpha * max(coverage, knock)`, as one shape would, instead of the
+/// two translucent layers stacking into a darker one (or, at an anti-aliased edge, into a
+/// lighter seam). Solves `1 - (1 - alpha * knock) * (1 - alpha * remainder) = alpha *
+/// max(coverage, knock)` for `remainder`.
+pub fn knockout_remainder(coverage: f32, knock: f32, alpha: f32) -> f32 {
+    ((coverage - knock) / (1.0 - alpha * knock).max(1.0e-4)).clamp(0.0, 1.0)
 }
 
 /// Signed distance in pixels from `point` (relative to the circle's centre) to the
@@ -155,6 +165,22 @@ mod tests {
     }
 
     #[test]
+    fn a_knocked_out_stroke_and_its_panel_show_one_uniform_alpha() {
+        let alpha = 0.5_f32;
+        // Stroke fully over the pixel, the panel's edge covering `knock` of it.
+        for knock in [0.0, 0.1, 0.25, 0.4, 0.5, 0.75, 0.9, 1.0] {
+            let remainder = knockout_remainder(1.0, knock, alpha);
+            let shown = 1.0 - (1.0 - alpha * knock) * (1.0 - alpha * remainder);
+            assert!((shown - alpha).abs() < 1e-6, "knock {knock}: {shown}");
+        }
+        // A stroke edge inside the panel adds nothing, outside it everything.
+        assert_eq!(knockout_remainder(0.3, 1.0, alpha), 0.0);
+        assert_eq!(knockout_remainder(0.7, 0.0, alpha), 0.7);
+        // An opaque panel leaves nothing to add and cannot divide by zero.
+        assert_eq!(knockout_remainder(1.0, 1.0, 1.0), 0.0);
+    }
+
+    #[test]
     fn the_knockout_stripe_covers_its_rectangle_and_fades_over_one_pixel() {
         let stripe = ([-300.0, -70.0], 22.0);
         let at = |x, y| knockout_coverage([x, y], stripe.0, stripe.1);
@@ -167,10 +193,6 @@ mod tests {
         assert_eq!(at(-71.0, 0.0), 1.0);
         // No height, no stripe.
         assert_eq!(knockout_coverage([-185.0, 0.0], [-300.0, -70.0], 0.0), 0.0);
-        // A shadow of coverage c over a panel of coverage p keeps the panel's alpha where
-        // the stripe is whole and the shadow's alone outside it.
-        assert_eq!(1.0 - at(-185.0, 0.0), 0.0);
-        assert_eq!(1.0 - at(-185.0, 30.0), 1.0);
     }
 
     #[test]

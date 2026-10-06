@@ -149,29 +149,12 @@ fn textured(
     }
 }
 
-/// The atlas's alpha at texel position (`tx`, `ty`), bilinearly filtered, `0..=1`.
-fn bilinear_alpha(atlas: &RgbaImage, tx: f32, ty: f32) -> f32 {
-    let (fx, fy) = (tx - 0.5, ty - 0.5);
-    let (ix, iy) = (fx.floor(), fy.floor());
-    let (ax, ay) = (fx - ix, fy - iy);
-    let texel = |x: f32, y: f32| {
-        let x = (x as i64).clamp(0, i64::from(atlas.width()) - 1) as u32;
-        let y = (y as i64).clamp(0, i64::from(atlas.height()) - 1) as u32;
-        f32::from(atlas.get_pixel(x, y).0[3]) / 255.0
-    };
-    let top = texel(ix, iy) * (1.0 - ax) + texel(ix + 1.0, iy) * ax;
-    let bottom = texel(ix, iy + 1.0) * (1.0 - ax) + texel(ix + 1.0, iy + 1.0) * ax;
-    top * (1.0 - ay) + bottom * ay
-}
-
-/// Draw `list`'s shapes and art, then `vertices` (its text) from `atlas`, which is a
-/// signed distance field when `distance_field` is set.
+/// Draw `list`'s shapes and art, then `vertices` (its text) from `atlas`.
 fn raster(
     image: &mut RgbaImage,
     list: &DrawList,
     vertices: &[crate::text::TextVertex],
     atlas: &RgbaImage,
-    distance_field: bool,
     icons: &HashMap<u32, RgbaImage>,
 ) {
     let decoded = crate::menu::art::decoded();
@@ -287,12 +270,12 @@ fn raster(
                         let distance = sjk_ui::arc_distance(point, *radius, *width, *start, *sweep);
                         let mut coverage = (0.5 - distance).clamp(0.0, 1.0);
                         if let Some(band) = knockout {
-                            coverage *= 1.0
-                                - sjk_ui::knockout_coverage(
-                                    point,
-                                    [band.x - center[0], band.right() - center[0]],
-                                    band.height * 0.5,
-                                );
+                            let knock = sjk_ui::knockout_coverage(
+                                point,
+                                [band.x - center[0], band.right() - center[0]],
+                                band.height * 0.5,
+                            );
+                            coverage = sjk_ui::knockout_remainder(coverage, knock, c.a * o);
                         }
                         if coverage > 0.0 {
                             blend(image, x, y, color(*c, o * coverage));
@@ -354,22 +337,6 @@ fn raster(
                     texel_x(x as f32) as i64,
                     texel_x(x as f32 + 1.0).ceil() as i64,
                 );
-                if distance_field {
-                    let across = |t: f32, a: f32, b: f32| a + (b - a) * t;
-                    let (cx, cy) = (x as f32 + 0.5, y as f32 + 0.5);
-                    let u = across((cx - x0) / (x1 - x0), u0, u1);
-                    let v = across((cy - y0) / (y1 - y0), v0, v1);
-                    let distance = bilinear_alpha(atlas, u * atlas_width, v * atlas_height);
-                    // One screen pixel spans this much of the encoded distance, which
-                    // changes by 1 / (2 * SPREAD) per texel (`text/sdf.rs`).
-                    let per_pixel = ((u1 - u0) * atlas_width / (x1 - x0))
-                        .abs()
-                        .max(((v1 - v0) * atlas_height / (y1 - y0)).abs());
-                    let slope = (per_pixel / (2.0 * crate::text::sdf::SPREAD)).max(1.0e-3);
-                    let coverage = ((distance - 0.5) / slope + 0.5).clamp(0.0, 1.0);
-                    blend(image, x, y, [tint[0], tint[1], tint[2], tint[3] * coverage]);
-                    continue;
-                }
                 let mut sum = 0.0_f32;
                 let mut count = 0.0_f32;
                 for ty in ty0..ty1.max(ty0 + 1) {
@@ -425,19 +392,6 @@ impl Snapshot {
         over_match: bool,
         viewport: [f32; 2],
     ) {
-        self.save_with(name, list, vertices, over_match, viewport, &self.font);
-    }
-
-    /// [`Self::save_at`] with the text drawn from another `font` atlas.
-    fn save_with(
-        &self,
-        name: &str,
-        list: &DrawList,
-        vertices: &[crate::text::TextVertex],
-        over_match: bool,
-        viewport: [f32; 2],
-        font: &crate::text::FontAtlas,
-    ) {
         let directory = workspace_root().join("target/menu-snapshots");
         std::fs::create_dir_all(&directory).expect("create the snapshot directory");
         let size = (viewport[0] as u32, viewport[1] as u32);
@@ -447,14 +401,7 @@ impl Snapshot {
             }
             _ => RgbaImage::from_pixel(size.0, size.1, Rgba([18, 22, 30, 255])),
         };
-        raster(
-            &mut image,
-            list,
-            vertices,
-            &font.image,
-            font.distance_field,
-            &self.icons,
-        );
+        raster(&mut image, list, vertices, &self.font.image, &self.icons);
         let path = directory.join(format!("{name}.png"));
         image.save(&path).expect("write the snapshot");
         println!("{}", path.display());
@@ -678,7 +625,7 @@ fn menu_snapshot() {
     console_browser(&shots, art);
     changelog(&shots, art);
     weapon_select(&mut shots, &vfs);
-    radial_hud(&mut shots, &vfs);
+    radial_hud(&mut shots);
     player_card(&mut shots);
     force_wheel(&mut shots, &vfs);
     profile_saber(&shots, art, &vfs, &mut console);
@@ -1003,11 +950,8 @@ fn player_card(shots: &mut Snapshot) {
     }
 }
 
-fn radial_hud(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
+fn radial_hud(shots: &mut Snapshot) {
     use crate::hud::{HudLook, HudOverlay, HudVisibility};
-    // The radial look draws with the classic HUD font (retail's arialnb) when it is loaded.
-    let classic = crate::text::load_classic(vfs).ok();
-    let atlas = classic.as_ref().unwrap_or(&shots.font);
     let visibility = HudVisibility {
         hud: true,
         status: true,
@@ -1055,17 +999,24 @@ fn radial_hud(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
                 ammo_ratio,
             ],
         );
-        let _ = hud.layout(&atlas.font, HudLook::Radial, viewport, 1.0, visibility, 0);
+        let _ = hud.layout(
+            &shots.font.font,
+            HudLook::Radial,
+            viewport,
+            1.0,
+            visibility,
+            0,
+        );
         let mut vertices = Vec::new();
         crate::ui_renderer::append_text_commands(
             hud.draw_list(),
             |id| hud.resolve_text(id),
             &mut vertices,
-            &atlas.font,
+            &shots.font.font,
             viewport,
             crate::text::TextStyle::NEUTRAL,
         );
-        shots.save_with(&name, hud.draw_list(), &vertices, true, viewport, atlas);
+        shots.save_at(&name, hud.draw_list(), &vertices, true, viewport);
     }
 }
 

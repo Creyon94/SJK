@@ -2,7 +2,7 @@
 
 use serde::{Deserialize, Serialize};
 
-use crate::{Anchor, Color, FontWeight, SizeSpec, Vec2};
+use crate::{Anchor, Color, FontWeight, SizeSpec, TextAlign, Vec2};
 
 /// Serializable root of a HUD layout document.
 #[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
@@ -189,6 +189,10 @@ pub struct StyleOverrides {
     /// Centre a text widget's run in its rectangle, whatever its binding.
     #[serde(default)]
     pub centered: bool,
+    /// Horizontal alignment of a text widget's run, which wins over `centered` and over
+    /// the alignment its binding implies.
+    #[serde(default)]
+    pub align: Option<TextAlign>,
     /// Shape of an arc meter.
     #[serde(default)]
     pub arc: Option<ArcStyle>,

@@ -159,6 +159,7 @@ pub(super) fn emit(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sjk_ui::TextAlign;
 
     #[test]
     fn ammo_fills_against_the_weapons_pool_maximum() {
@@ -207,7 +208,7 @@ mod tests {
         /// How far the shadow outline reaches past each side of a bar.
         shadow: f32,
         strokes: Vec<Stroke>,
-        texts: Vec<(u32, Rect, Color)>,
+        texts: Vec<(u32, Rect, Color, TextAlign)>,
         pills: Vec<Rect>,
         /// Draw-list positions of the pills.
         pill_indices: Vec<usize>,
@@ -303,8 +304,12 @@ mod tests {
                         });
                     }
                     DrawCommand::Text {
-                        rect, text, color, ..
-                    } => placed.texts.push((text.0, rect, color)),
+                        rect,
+                        text,
+                        color,
+                        align,
+                        ..
+                    } => placed.texts.push((text.0, rect, color, align)),
                     DrawCommand::RoundedRect { rect, radius, .. } if radius > 0.0 => {
                         placed.pills.push(rect);
                         placed.pill_indices.push(index);
@@ -328,6 +333,14 @@ mod tests {
                 .find(|(text, ..)| *text == id)
                 .unwrap_or_else(|| panic!("text {id} is not drawn"))
                 .1
+        }
+
+        fn align(&self, id: u32) -> TextAlign {
+            self.texts
+                .iter()
+                .find(|(text, ..)| *text == id)
+                .unwrap_or_else(|| panic!("text {id} is not drawn"))
+                .3
         }
 
         /// Distance from the ring centre to the outside of the outer bars' shadow.
@@ -384,8 +397,8 @@ mod tests {
             // Health, armor, Force and ammunition (or the style).
             assert_eq!(shadows.len(), 4);
             for shadow in shadows {
-                // 7 logical pixels all round a 7-pixel bar.
-                assert!((shadow.width / placed.stroke - 21.0 / 7.0).abs() < 1e-3);
+                // 5 logical pixels all round a 7-pixel bar.
+                assert!((shadow.width / placed.stroke - 17.0 / 7.0).abs() < 1e-3);
                 // One band over the whole meter: its 68 degrees less a cap at each end,
                 // so the round caps sit concentric with the end bars' own.
                 let inset = 2.0 * (placed.stroke * 0.5 / shadow.radius);
@@ -453,30 +466,42 @@ mod tests {
             let placed = Placed::new(viewport, 1.0);
             let [x, y] = placed.center;
             let (outer, inner) = (placed.outer_edge(), placed.inner_edge());
+            // A logical pixel, and the widest number (three digits) in them.
+            let dpi = placed.stroke / 7.0;
+            let digits = 52.0 * dpi;
             // Health outside the left bars and armor inside them; ammunition inside the
             // right bars and Force outside; all on the line through the bars' middle.
             let health = placed.text(6);
             let armor = placed.text(8);
             let force = placed.text(10);
             let ammo = placed.text(14);
-            // The classic HUD font's digits sit low in their line, so the layout lifts the
-            // numbers a few pixels to centre the digits themselves on the pill.
             for rect in [health, armor, force, ammo] {
-                let lift = y - (rect.y + rect.height * 0.5);
+                // The layout lowers them a pixel or two to centre Inter's digits.
                 assert!(
-                    lift > 0.0 && lift < rect.height * 0.2,
+                    (rect.y + rect.height * 0.5 - y).abs() < rect.height * 0.2,
                     "{viewport:?} {rect:?}"
                 );
             }
-            assert!(health.right() < x - outer, "{viewport:?} {health:?}");
-            assert!(armor.x > x - inner && armor.right() < x, "{viewport:?}");
-            assert!(ammo.x > x && ammo.right() < x + inner, "{viewport:?}");
-            assert!(force.x > x + outer, "{viewport:?} {force:?}");
+            // Each number is aligned toward its bars and starts 5 px from their shadow,
+            // whatever its length.
+            let gap = 5.0 * dpi;
+            assert_eq!(placed.align(6), TextAlign::End);
+            assert_eq!(placed.align(8), TextAlign::Start);
+            assert_eq!(placed.align(14), TextAlign::End);
+            assert_eq!(placed.align(10), TextAlign::Start);
+            let near = |a: f32, b: f32| (a - b).abs() < 0.5;
+            assert!(
+                near(health.right(), x - outer - gap),
+                "{viewport:?} {health:?}"
+            );
+            assert!(near(armor.x, x - inner + gap), "{viewport:?} {armor:?}");
+            assert!(near(ammo.right(), x + inner - gap), "{viewport:?} {ammo:?}");
+            assert!(near(force.x, x + outer + gap), "{viewport:?} {force:?}");
             // Each pill runs from the outside number to the inside one, behind the bars.
             assert_eq!(placed.pills.len(), 2, "{viewport:?}");
             let (left, right) = (placed.pills[0], placed.pills[1]);
-            assert!(left.x < health.x && left.right() > armor.right());
-            assert!(right.x < ammo.x && right.right() > force.right());
+            assert!(left.x < health.right() - digits && left.right() > armor.x + digits);
+            assert!(right.x < ammo.right() - digits && right.right() > force.x + digits);
             assert!(left.right() < x && right.x > x, "{viewport:?}");
             for pill in [left, right] {
                 assert!((pill.y + pill.height * 0.5 - y).abs() < 0.5);
@@ -529,10 +554,12 @@ mod tests {
             let inset = 2.0 * (placed.stroke * 0.5 / lines[0].radius);
             assert!((lines[0].sweep.abs() - (68.0_f32.to_radians() - inset)).abs() < 1e-4);
             // The style's name takes the same colour, where the ammunition number was.
-            let (_, label, label_color) = placed.texts.iter().find(|(id, ..)| *id == 15).unwrap();
+            let (_, label, label_color, label_align) =
+                placed.texts.iter().find(|(id, ..)| *id == 15).unwrap();
             assert_eq!(*label_color, color);
-            let middle = |rect: Rect| rect.x + rect.width * 0.5;
-            assert!((middle(*label) - middle(ammo_slot)).abs() < 0.5);
+            // Aligned to the same edge, toward the bars, as the number.
+            assert_eq!(*label_align, TextAlign::End);
+            assert!((label.right() - ammo_slot.right()).abs() < 0.5);
         }
     }
 

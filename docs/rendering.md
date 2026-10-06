@@ -1768,10 +1768,12 @@ the bars). Widgets paint in document order, so the pills come first in the layou
 meter's shadow and bars, then the text. A shadow is drawn with a knockout (`ArcStyle::knockout`,
 the pill's extents, the `knockout` field of `DrawCommand::Arc`): it leaves out the stripe the pill
 already darkens, so pill and shadows are one shape instead of two translucent layers stacking
-into a darker one; the shader multiplies the arc's coverage by one minus the stripe's
-(`knockout_coverage` in [arc.rs](../crates/sjk-ui/src/arc.rs) is the reference). The look draws
-all its text with the classic HUD font (`arialnb`, as `cg_classicHudFont` does), whatever that
-cvar says, and Inter when the font is not loaded. The rings are centred 0.69 of the screen
+into a darker one: the shader adds only what the pill leaves of the stroke's coverage, so the
+two show one uniform alpha, with no seam on the pill's anti-aliased edge (`knockout_coverage`
+and `knockout_remainder` in [arc.rs](../crates/sjk-ui/src/arc.rs) are the reference). The look
+is laid out for the bundled font (Inter) and uses it whatever `cg_classicHudFont` says: a text
+widget's `align` puts each number toward its bars, 5 px from their shadow whatever its length,
+and the numbers are lowered 2 px to centre Inter's digits on the pill. The rings are centred 0.69 of the screen
 height down, below the crosshair, where TheRisqe's bars sit (their picture's middle is 92.6 of
 480 lines under the centre). Each side has a pill running through its bars at their middle
 height, with the numbers on it: health outside the left bars and armor inside them,

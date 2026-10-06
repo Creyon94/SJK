@@ -58,11 +58,17 @@ fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
         var coverage = clamp(0.5 - distance, 0.0, 1.0);
         if input.uv.y > 0.0 {
             // The same rounded-box distance as the panels, of an unrounded stripe
-            // (`sjk_ui::knockout_coverage`).
+            // (`sjk_ui::knockout_coverage`). The panel there has this stroke's colour and
+            // alpha, so only what it leaves is added (`sjk_ui::knockout_remainder`).
             let q = abs(vec2(pixel.x - (input.parameters.x + input.uv.x) * 0.5, pixel.y))
                 - vec2((input.uv.x - input.parameters.x) * 0.5, input.uv.y);
             let outside = length(max(q, vec2(0.0))) + min(max(q.x, q.y), 0.0);
-            coverage = coverage * (1.0 - clamp(0.5 - outside, 0.0, 1.0));
+            let knock = clamp(0.5 - outside, 0.0, 1.0);
+            coverage = clamp(
+                (coverage - knock) / max(1.0 - input.start_color.a * knock, 1.0e-4),
+                0.0,
+                1.0,
+            );
         }
         if coverage <= 0.0 {
             discard;

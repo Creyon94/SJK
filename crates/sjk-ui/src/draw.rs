@@ -1,5 +1,7 @@
 //! Renderer-neutral retained draw commands.
 
+use serde::{Deserialize, Serialize};
+
 use crate::{Color, Rect};
 
 /// Stable identifier for text owned by the application.
@@ -11,7 +13,8 @@ pub struct TextId(pub u32);
 pub struct TextureId(pub u32);
 
 /// Horizontal text alignment inside its rectangle.
-#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "snake_case")]
 pub enum TextAlign {
     /// Align to the leading edge.
     #[default]
@@ -115,7 +118,8 @@ pub enum DrawCommand {
     /// The stroke is left out inside `knockout`, a rectangle centred vertically on `center`
     /// (see [`crate::knockout_coverage`]): a translucent shadow there would stack on the
     /// translucent panel already drawn, and the two look like one shape only when the
-    /// shadow skips the panel.
+    /// shadow adds just what the panel leaves ([`crate::knockout_remainder`]), the panel
+    /// being the stroke's own colour and alpha.
     Arc {
         center: [f32; 2],
         radius: f32,

@@ -1305,12 +1305,12 @@ area: HUD
 title: SJK radial HUD, low on the screen, shadowed bars with the numbers on a pill, no PK3
 change: New HUD look "SJK radial" (Settings > HUD > HUD look): health, armor, Force, ammo as arcs.
 change: Bars 69% down the screen as in TheRisqe's; each shadow is one shape with the number pill.
-change: Numbers in the classic HUD font on a pill through each pair; a saber shows its style line.
+change: Numbers hug their bars on a pill through each pair; a saber shows its style line.
 test: Settings > HUD > HUD look: pick SJK radial. Red/green arcs left, blue/amber right, below aim.
 test: Each of the four bars has a rounded dark shadow following its curve, painted under the bar.
 test: Left pill: health left of the bars, armor right of them. Right pill: ammo left, Force right.
 test: Where a shadow crosses a pill there is no darker patch: pill and shadows look like one shape.
-test: The numbers and weapon name are in the classic HUD font and sit centred on the pill.
+test: Numbers sit a few pixels from the bars whatever their length (5 vs 100), centred on the pill.
 test: Take damage and spend Force/ammo: arcs empty segment by segment; health pulses at 25 or less.
 test: Switch to a saber: ammo bars become one full line in the style colour, the name beside it.
 test: Switch weapon: its name shows for a moment above the pills, between the bars.

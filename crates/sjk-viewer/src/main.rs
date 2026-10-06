@@ -1466,10 +1466,10 @@ impl GpuState {
             intermission_view.is_some(),
         );
         let hud_style = menu_hud::HudStyle::read(self.console.as_ref());
-        // The radial look draws its text with the classic HUD font (retail's `arialnb`)
-        // whatever `cg_classicHudFont` says; without that font it falls back to Inter.
-        let classic_hud = matches!(hud_style, menu_hud::HudStyle::Radial)
-            || self
+        // The radial look is laid out for the bundled font (Inter), whatever
+        // `cg_classicHudFont` says: its numbers are aligned to that font's metrics.
+        let classic_hud = !matches!(hud_style, menu_hud::HudStyle::Radial)
+            && self
                 .console
                 .as_ref()
                 .and_then(|console| console.bool_cvar("cg_classicHudFont"))
