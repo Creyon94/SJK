@@ -4,7 +4,7 @@ use crate::text::{self, TextVertex, UiFont};
 use bytemuck::{Pod, Zeroable};
 use sjk_ui::{Color, DrawCommand, DrawList, FontWeight, Rect, TextAlign, TextId};
 
-mod art;
+pub(crate) mod art;
 mod emblem;
 mod icons;
 mod levelshot;
@@ -30,7 +30,8 @@ use levelshot::LevelshotTexture;
 /// on transparent, tinted by the player's accent at draw time.
 const MENU_WORDMARK: &[u8] = include_bytes!("../assets/menu/jk-wordmark.png");
 
-const MAX_SHAPE_VERTICES: usize = 4_096;
+/// Shape vertices one frame may draw (six per quad), across every layer.
+const MAX_SHAPE_VERTICES: usize = 16_384;
 
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
@@ -79,6 +80,43 @@ const ADDITIVE_BLENDING: wgpu::BlendState = wgpu::BlendState {
     },
 };
 
+/// Texture switches (bind-group runs) the renderer makes for `lists` with every
+/// texture loaded, as [`ShapeRenderer::prepare_layers`] counts them against
+/// [`art::MAX_RUNS`]; for screens' tests.
+#[cfg(test)]
+pub(crate) fn texture_switches(lists: &[&DrawList]) -> usize {
+    let mut runs = vec![Run {
+        start: 0,
+        source: Source::Atlas,
+    }];
+    let mut vertices = 0;
+    for command in lists.iter().flat_map(|list| list.commands()) {
+        let texture = match command {
+            DrawCommand::TexturedQuad { texture, .. }
+            | DrawCommand::TexturedQuadUv { texture, .. } => *texture,
+            _ => continue,
+        };
+        let source = match crate::menu::art::ArtPiece::from_texture(texture) {
+            Some(piece) => Source::Art(piece),
+            None if texture == LEVELSHOT_TEXTURE => Source::Levelshot,
+            None if texture == HUD_PREVIEW_TEXTURE => Source::HudPreview,
+            None if texture == PREVIEW_TEXTURE => Source::Preview,
+            None => crate::menu::emblem::EmblemLayer::from_texture(texture)
+                .map_or(Source::Atlas, Source::Emblem),
+        };
+        if runs.len() < art::MAX_RUNS {
+            art::switch(&mut runs, vertices, source);
+        } else if runs.last().is_some_and(|run| run.source != source) {
+            runs.push(Run {
+                start: vertices as u32,
+                source,
+            });
+        }
+        vertices += 6;
+    }
+    runs.len()
+}
+
 /// Fixed-capacity WGPU shape renderer. GPU ownership never leaks into `sjk-ui`.
 pub(crate) struct ShapeRenderer {
     pipeline: wgpu::RenderPipeline,
@@ -103,6 +141,9 @@ pub(crate) struct ShapeRenderer {
     /// The model preview's display texture, once one exists.
     preview: Option<wgpu::BindGroup>,
     preview_sampler: wgpu::Sampler,
+    /// Whether a frame past the vertex or run storage has been logged: shapes
+    /// past it are dropped, so the log names the cause of a missing picture.
+    overflow_logged: bool,
 }
 
 impl ShapeRenderer {
@@ -205,6 +246,7 @@ impl ShapeRenderer {
                 min_filter: wgpu::FilterMode::Linear,
                 ..Default::default()
             }),
+            overflow_logged: false,
         };
         // Artwork decoded for an earlier world is uploaded with this one, on
         // the install worker rather than the frame thread.
@@ -425,8 +467,21 @@ impl ShapeRenderer {
                 | DrawCommand::PushOpacity(_) => {}
             }
         }
+        if self.vertices.len() + 6 > MAX_SHAPE_VERTICES {
+            self.log_overflow("shape vertices");
+        }
         if !self.vertices.is_empty() {
             queue.write_buffer(&self.vertex_buffer, 0, bytemuck::cast_slice(&self.vertices));
+        }
+    }
+
+    /// Log, once, that a frame ran out of `storage` and dropped shapes.
+    fn log_overflow(&mut self, storage: &str) {
+        if !std::mem::replace(&mut self.overflow_logged, true) {
+            crate::log::progress(format_args!(
+                "UI shapes dropped: the frame ran out of {storage}                  (limits {MAX_SHAPE_VERTICES} vertices, {} texture switches)",
+                art::MAX_RUNS
+            ));
         }
     }
 
@@ -458,7 +513,12 @@ impl ShapeRenderer {
                 None => Source::Atlas,
             },
         };
-        art::switch(&mut self.runs, self.vertices.len(), source).then_some(source)
+        if art::switch(&mut self.runs, self.vertices.len(), source) {
+            Some(source)
+        } else {
+            self.log_overflow("texture switches");
+            None
+        }
     }
 
     /// Draw every retained shape in one pipeline/buffer submission.
