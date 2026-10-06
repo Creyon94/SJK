@@ -1759,3 +1759,11 @@ title: Looping sounds no longer drop out
 change: Saber hums and ambient loops keep playing while each frame's loops are re-sent.
 test: Stand near looping sounds (your saber, other sabers, map ambience); listen for crackles.
 test: Optional: JKR_TRACE_AUDIO=1; logs/last-client.log shows split loop frames=N every 5 s.
+
+[actor-instance-cap]
+status: personal
+area: Rendering
+title: No crash when a frame draws more than 1024 entities
+change: The actor instance buffer holds 4096 instead of 1024 and packing stops at its capacity; a frame used to abort with "Instance 1026 extends beyond limit 1024".
+test: Play a long session on a busy JoF server or a map with many movers and pickups; the client keeps running.
+note: What produced the 1026 instances was not captured; if it still crashes, send logs/last-client.log with the map name.

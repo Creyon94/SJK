@@ -7,6 +7,16 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Actor instance buffer capacity
+
+The shared actor instance buffer holds 4,096 instances, up from 1,024 (the old
+size plus the pickup and effect overrides could not hold a busy frame). Packing
+stops at the capacity, so a draw range never reaches past the buffer; before,
+a frame with 1,026 instances aborted the client with a wgpu validation error
+(reported on a JoF server after about 31 minutes). Which map and entities
+produced the 1,026 instances was not captured. Covered by unit tests of the
+packing only; not run in game.
+
 ## EFX keys without a value
 
 Branch `fix/efx-bare-key-brace`: in an EFX block, a key with no value no longer
