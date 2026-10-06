@@ -113,8 +113,14 @@ pub(crate) fn create(
                         frequency: stage.animation_frequency.unwrap_or(0.0),
                         one_shot: stage.one_shot,
                         blend,
-                        rgb_wave: stage.rgb_wave.clone(),
-                        alpha_wave: stage.alpha_wave.clone(),
+                        rgb_wave: stage
+                            .rgb_wave
+                            .clone()
+                            .or_else(|| constant_wave(stage.rgb_constant.and_then(grey))),
+                        alpha_wave: stage
+                            .alpha_wave
+                            .clone()
+                            .or_else(|| constant_wave(stage.alpha_constant)),
                         tc_scale,
                         tc_scroll,
                         glow: stage.glow,
@@ -297,5 +303,43 @@ mod shader_tests {
     fn atlas_sampling_programs_validate() {
         crate::wgsl_source::validate(include_str!("effect_geometry.wgsl"));
         crate::wgsl_source::validate(include_str!("entity.wgsl"));
+    }
+}
+
+/// `rgbGen const` / `alphaGen const` as a flat wave, so effect layers take a stage's
+/// constant colour and opacity. JoF's HD scorch marks, for example, are drawn at 15%
+/// grey and 80% opacity; without this they were drawn fully opaque in their texture's
+/// own colour. Effect layers carry one brightness, so only a grey constant is taken.
+fn constant_wave(value: Option<f32>) -> Option<WaveForm> {
+    value.map(|base| WaveForm {
+        function: "const".to_owned(),
+        base: base.clamp(0.0, 1.0),
+        amplitude: 0.0,
+        phase: 0.0,
+        frequency: 0.0,
+    })
+}
+
+/// The brightness of a grey `rgbGen const`; a coloured one is left to the texture.
+fn grey([r, g, b]: [f32; 3]) -> Option<f32> {
+    ((r - g).abs() < 1e-3 && (g - b).abs() < 1e-3).then_some(r)
+}
+
+#[cfg(test)]
+mod constant_colour_tests {
+    use super::*;
+
+    #[test]
+    fn grey_constants_become_flat_waves() {
+        let rgb = constant_wave(grey([0.15, 0.15, 0.15])).unwrap();
+        assert!((crate::effect_wave::evaluate(Some(&rgb), 3.7) - 0.15).abs() < 1e-6);
+        let alpha = constant_wave(Some(0.8)).unwrap();
+        assert!((crate::effect_wave::evaluate(Some(&alpha), 0.0) - 0.8).abs() < 1e-6);
+    }
+
+    #[test]
+    fn coloured_constants_are_left_to_the_texture() {
+        assert_eq!(grey([1.0, 0.2, 0.2]), None);
+        assert!(constant_wave(None).is_none());
     }
 }

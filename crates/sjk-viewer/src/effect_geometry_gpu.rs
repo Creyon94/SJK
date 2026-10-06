@@ -181,9 +181,38 @@ impl Runtime {
         pass.set_bind_group(1, atlas, &[]);
         pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
         pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
-        let particles = self.pipelines.iter().zip(self.mesh.ranges());
-        let decals = self.decal_pipelines.iter().zip(self.mesh.decal_ranges());
-        for (pipeline, range) in particles.chain(decals) {
+        for (pipeline, range) in self.pipelines.iter().zip(self.mesh.ranges()) {
+            if range.is_empty() {
+                continue;
+            }
+            pass.set_pipeline(pipeline);
+            pass.draw_indexed(range.clone(), 0, 0..1);
+        }
+    }
+
+    /// Draw this frame's world marks. They go before every other effect, as rd-vanilla
+    /// sorts mark shaders (`sort decal`) ahead of blended effects: an explosion's fire
+    /// and smoke cover its own scorch mark instead of the mark showing through them.
+    pub(crate) fn draw_decals<'a>(
+        &'a self,
+        pass: &mut wgpu::RenderPass<'a>,
+        camera: &'a wgpu::BindGroup,
+        atlas: &'a wgpu::BindGroup,
+    ) {
+        if self.stats.indices == 0
+            || self
+                .mesh
+                .decal_ranges()
+                .iter()
+                .all(|range| range.is_empty())
+        {
+            return;
+        }
+        pass.set_bind_group(0, camera, &[]);
+        pass.set_bind_group(1, atlas, &[]);
+        pass.set_vertex_buffer(0, self.vertex_buffer.slice(..));
+        pass.set_index_buffer(self.index_buffer.slice(..), wgpu::IndexFormat::Uint32);
+        for (pipeline, range) in self.decal_pipelines.iter().zip(self.mesh.decal_ranges()) {
             if range.is_empty() {
                 continue;
             }

@@ -96,6 +96,12 @@ nonzero offset on a slot's own shader compiles a replacement. Map
 replacement/reconnection isolates server state. Authored sky-box remaps replace
 the sky images while retaining the existing day/night policy.
 
+Impact marks (decals) are drawn before every other effect, as rd-vanilla sorts mark
+shaders (`sort decal`) ahead of blended effects, so an explosion's fire and smoke
+cover its own scorch mark. Effect atlas stages honour `alphaGen const` and a grey
+`rgbGen const` (JoF's HD scorch marks are 15% grey at 80% opacity); shader names
+are looked up regardless of capitals.
+
 Effects drawn from the effect atlas (EFX particles, missile trails, muzzle
 flashes, beams, impact marks and blob shadows) follow the same remaps and local
 overrides, as rd-vanilla `RB_BeginSurface` swaps the shader for every surface.
