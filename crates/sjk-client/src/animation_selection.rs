@@ -26,6 +26,7 @@ pub(crate) struct LegacyAnimationSelection {
     lower: LegacyTrackSelection,
     upper: LegacyTrackSelection,
     forced_frame: Option<usize>,
+    weapon: u8,
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -71,6 +72,7 @@ impl LegacyAnimationSelection {
                 ),
             },
             forced_frame: (state.force_frame() != 0).then_some(usize::from(state.force_frame())),
+            weapon: state.weapon(),
         }
     }
 
@@ -109,6 +111,7 @@ impl LegacyAnimationSelection {
                 ),
             },
             forced_frame: None,
+            weapon: state.weapon(),
         }
     }
 
@@ -147,7 +150,17 @@ impl LegacyAnimationSelection {
                 ),
             },
             forced_frame: None,
+            weapon: state.weapon,
         }
+    }
+
+    /// Keep the old Bryar's shooting pose as long as the heavy pistol's (see
+    /// [`bryar_shot_hold`]).
+    fn with_bryar_hold(mut self, previous: Option<AnimationState>, time_millis: i64) -> Self {
+        if let Some(held) = bryar_shot_hold(self.weapon, self.upper.clip, previous, time_millis) {
+            self.upper = held;
+        }
+        self
     }
 
     /// Apply both selected tracks at the snapshot's cgame presentation time.
@@ -155,20 +168,21 @@ impl LegacyAnimationSelection {
         let previous = world
             .entity(entity_id)
             .and_then(|entity| entity.animation());
-        trace_selection(entity_id, previous, self);
+        let selection = self.with_bryar_hold(previous, time_millis);
+        trace_selection(entity_id, previous, selection);
         world.set_animation(
             entity_id,
             animation_track(
-                self.lower,
+                selection.lower,
                 previous.map(|animation| animation.lower.clip),
-                self.forced_frame,
-                synchronized_phase(previous, self.lower.clip, false, time_millis),
+                selection.forced_frame,
+                synchronized_phase(previous, selection.lower.clip, false, time_millis),
             ),
             animation_track(
-                self.upper,
+                selection.upper,
                 previous.map(|animation| animation.upper.clip),
-                self.forced_frame,
-                synchronized_phase(previous, self.upper.clip, true, time_millis),
+                selection.forced_frame,
+                synchronized_phase(previous, selection.upper.clip, true, time_millis),
             ),
             time_millis,
         );
@@ -185,7 +199,8 @@ pub fn legacy_predicted_animation_inputs(
     previous: Option<AnimationState>,
     command_time: i64,
 ) -> [AnimationTrackInput; 2] {
-    let selection = LegacyAnimationSelection::from_movement(state);
+    let selection =
+        LegacyAnimationSelection::from_movement(state).with_bryar_hold(previous, command_time);
     [
         animation_track(
             selection.lower,
@@ -200,6 +215,38 @@ pub fn legacy_predicted_animation_inputs(
             synchronized_phase(previous, selection.upper.clip, true, command_time),
         ),
     ]
+}
+
+/// How long the old Bryar keeps its shooting pose after a shot: the heavy pistol's
+/// refire time (`bg_weapons.c`, `WP_BRYAR_PISTOL` fireTime 800).
+const BRYAR_SHOT_HOLD_MILLIS: i64 = 800;
+
+/// The old Bryar (`WP_BRYAR_OLD`) and the heavy pistol play the same shooting
+/// animation (`BOTH_ATTACK2`, arm raised) and return to `TORSO_WEAPONREADY2` (arm
+/// lowered) when the weapon is ready again. The old Bryar is ready after 400 ms
+/// instead of 800 ms, so between clicked shots its arm drops and rises again where
+/// the heavy pistol's stays up. This client keeps the old Bryar's arm raised for
+/// the heavy pistol's 800 ms after each shot; the shot rate is unchanged.
+fn bryar_shot_hold(
+    weapon: u8,
+    upper_clip: usize,
+    previous: Option<AnimationState>,
+    time_millis: i64,
+) -> Option<LegacyTrackSelection> {
+    const WP_BRYAR_OLD: u8 = 16;
+    const BOTH_ATTACK2: usize = 114;
+    const TORSO_WEAPONREADY2: usize = 1401;
+    let shot = previous?.upper;
+    (weapon == WP_BRYAR_OLD
+        && upper_clip == TORSO_WEAPONREADY2
+        && shot.clip == BOTH_ATTACK2
+        && shot.forced_frame.is_none()
+        && time_millis - shot.started_at_millis < BRYAR_SHOT_HOLD_MILLIS)
+        .then_some(LegacyTrackSelection {
+            clip: shot.clip,
+            revision: shot.revision,
+            speed_milli: shot.speed_milli,
+        })
 }
 
 /// EternalJK's "hack to fix bugged player animations" (`cg_players.c`, `CG_Player`),
@@ -524,5 +571,45 @@ mod ejk_fix_tests {
         );
         // A thrown saber's standing torso follows the legs.
         assert_eq!(ejk_animation_fixes(1102, 915, 3, true, false), (1102, 1102));
+    }
+}
+
+#[cfg(test)]
+mod bryar_hold_tests {
+    use super::*;
+    use sjk_runtime::AnimationTrackState;
+
+    fn track(clip: usize, started_at_millis: i64) -> AnimationTrackState {
+        AnimationTrackState {
+            clip,
+            revision: 7,
+            started_at_millis,
+            phase_millis: 0,
+            speed_milli: 1_000,
+            forced_frame: None,
+            transition: None,
+        }
+    }
+
+    fn shot_at(started_at_millis: i64) -> Option<AnimationState> {
+        Some(AnimationState {
+            lower: track(915, 0),
+            upper: track(114, started_at_millis),
+        })
+    }
+
+    #[test]
+    fn old_bryar_keeps_its_arm_up_as_long_as_the_heavy_pistol() {
+        let held = bryar_shot_hold(16, 1401, shot_at(1_000), 1_400).unwrap();
+        assert_eq!((held.clip, held.revision), (114, 7));
+        assert!(bryar_shot_hold(16, 1401, shot_at(1_000), 1_799).is_some());
+        assert!(bryar_shot_hold(16, 1401, shot_at(1_000), 1_800).is_none());
+    }
+
+    #[test]
+    fn other_weapons_and_animations_are_untouched() {
+        assert!(bryar_shot_hold(4, 1401, shot_at(1_000), 1_400).is_none());
+        assert!(bryar_shot_hold(16, 1111, shot_at(1_000), 1_400).is_none());
+        assert!(bryar_shot_hold(16, 1401, None, 1_400).is_none());
     }
 }

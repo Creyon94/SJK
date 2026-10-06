@@ -641,6 +641,11 @@ such as JoF's, fire it that way, arm hanging between shots) shows as `BOTH_ATTAC
 with the arm raised; the concussion rifle's `BOTH_ATTACK2` shows as `BOTH_ATTACK3`.
 NPCs are left as the server sends them.
 
+The old Bryar is ready to fire again after 400 ms, the heavy pistol after 800 ms;
+both then drop the arm to `TORSO_WEAPONREADY2`. So that clicked Bryar shots keep the
+arm still like the heavy pistol's, the old Bryar's shooting pose is held for 800 ms
+after each shot (`bryar_shot_hold`); the shot rate is unchanged.
+
 ## Third-person camera
 
 Third-person framing follows OpenJK multiplayer `CG_OffsetThirdPersonView`.
