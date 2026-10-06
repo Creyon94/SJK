@@ -2,8 +2,9 @@
 //!
 //! Ordering follows `PmoveSingle` and `PM_Weapon` in
 //! `codemp/game/bg_pmove.c:10503-10516,7138-7218,7242-7249,7383-7394,
-//! 7608-7692`. Attack animation selection remains snapshot-driven; charge/zoom
-//! and the three charged guns' fire events are predicted.
+//! 7608-7692`. The attack torso animation is predicted from the table the server
+//! runs ([`weapon_attack_anim`]); charge/zoom and the three charged guns' fire events
+//! are predicted.
 
 use crate::pmove_debug_melee::DebugMelee;
 use sjk_protocol::UserCommand;
@@ -68,22 +69,25 @@ const MAX_CLIENTS: u16 = 32;
 const BOTH_ATTACK4: u16 = 116;
 const BOTH_MELEE1: u16 = 122;
 const BOTH_MELEE2: u16 = 123;
-/// `WeaponAttackAnim` (`bg_misc.c:297-317`): the torso animation each weapon fires
-/// with; the table lists seventeen and the two emplaced weapons read its zeros.
+/// `WeaponAttackAnim` with every fix applied (`bg_misc.c:297-320` at OpenJK 260c59c,
+/// after `BG_FixWeaponAttackAnim`; EternalJK's `bg_misc.c:433-458` hard-codes the same
+/// values, including the emplaced gun's `BOTH_STAND1` (915) and the turret's
+/// `BOTH_ATTACK1` (113)): the torso animation each weapon fires with.
 const WEAPON_ATTACK_ANIM: [u16; LEGACY_WEAPON_COUNT] = [
     113, 115, 115, 917, 114, 115, 115, 115, 115, 115, 115, 115, 125, 115, 115, 115, 114, 915, 113,
 ];
 
 /// `WeaponAttackAnim` as the server runs it. OpenJK `BG_FixWeaponAttackAnim`
-/// (`codemp/game/bg_misc.c:323-346` at OpenJK 260c59c) rewrites four entries of the
-/// table (`bg_misc.c:297-321`): with `LEGACYFIX_WEAPONATTACKANIM` (`CS_LEGACY_FIXES`
-/// bit 1, `bg_public.h:161-164`; the server's `g_fixWeaponAttackAnim`, default "1",
-/// `g_xcvar.h:98`) the concussion fires `BOTH_ATTACK3`, the old Bryar
-/// `BOTH_ATTACK2`, the emplaced gun `BOTH_STAND1` and the turret `BOTH_ATTACK1`;
-/// without it `BOTH_ATTACK2`, `BOTH_STAND1`, `BOTH_ATTACK1` and `BOTH_ATTACK2`. The
-/// cgame runs the same function from the configstring (`cg_main.c:2634`,
-/// `cg_servercmds.c:916`), so a client predicting the fixed table against an
-/// unfixed server (JoF) restarted the torso on every snapshot.
+/// (`codemp/game/bg_misc.c:323-346` at OpenJK 260c59c, read on GitHub; the local
+/// EternalJK tree has only the fixed table) rewrites four entries of the table
+/// (`bg_misc.c:297-321`): with `LEGACYFIX_WEAPONATTACKANIM` (`CS_LEGACY_FIXES` bit 1,
+/// `bg_public.h:161-164`; the server's `g_fixWeaponAttackAnim`, default "1",
+/// `g_xcvar.h:98`) the concussion fires `BOTH_ATTACK3`, the old Bryar `BOTH_ATTACK2`,
+/// the emplaced gun `BOTH_STAND1` and the turret `BOTH_ATTACK1`; without it
+/// (`bg_misc.c:339-344`) `BOTH_ATTACK2`, `BOTH_STAND1`, `BOTH_ATTACK1` and
+/// `BOTH_ATTACK2`. The cgame runs the same function from the configstring
+/// (`cg_main.c:2634`, `cg_servercmds.c:916`), so a client predicting the fixed table
+/// against an unfixed server restarted the torso on every snapshot.
 fn weapon_attack_anim(weapon: u8, legacy_fixes: u32) -> u16 {
     if legacy_fixes & (1 << 1) == 0 {
         match weapon {
@@ -602,16 +606,120 @@ fn alternate_is_predicted(weapon: u8) -> bool {
 
 #[cfg(test)]
 mod attack_anim_tests {
-    use super::weapon_attack_anim;
+    use super::*;
+    use crate::pmove::MoveContext;
+    use crate::predicted_events::PredictedEvents;
+
+    const BOTH_STAND1: u16 = 915;
+    const BOTH_ATTACK1: u16 = 113;
+    const BOTH_ATTACK2: u16 = 114;
+    const BOTH_ATTACK3: u16 = 115;
+    /// `EV_FIRE_WEAPON`.
+    const EV_FIRE_WEAPON: u16 = 27;
+    /// `CS_LEGACY_FIXES` as the stock server's defaults publish it (SJK's own server
+    /// runs the same, `MovementConfig::default`).
+    const ALL_FIXES: u32 = 0b111;
 
     #[test]
     fn the_attack_table_follows_the_servers_fix() {
-        // Fixed: the old Bryar fires BOTH_ATTACK2, the concussion BOTH_ATTACK3.
-        assert_eq!(weapon_attack_anim(16, 1 << 1), 114);
-        assert_eq!(weapon_attack_anim(15, 1 << 1), 115);
-        // Unfixed (JoF): BOTH_STAND1 and BOTH_ATTACK2; the rest are the same.
-        assert_eq!(weapon_attack_anim(16, 0), 915);
-        assert_eq!(weapon_attack_anim(15, 0), 114);
-        assert_eq!(weapon_attack_anim(4, 0), 114);
+        // Fixed: the old Bryar fires BOTH_ATTACK2, the concussion BOTH_ATTACK3, the
+        // emplaced gun BOTH_STAND1 and the turret BOTH_ATTACK1.
+        for (weapon, fixed, unfixed) in [
+            (WP_CONCUSSION, BOTH_ATTACK3, BOTH_ATTACK2),
+            (WP_BRYAR_OLD, BOTH_ATTACK2, BOTH_STAND1),
+            (17, BOTH_STAND1, BOTH_ATTACK1),
+            (18, BOTH_ATTACK1, BOTH_ATTACK2),
+        ] {
+            assert_eq!(weapon_attack_anim(weapon, ALL_FIXES), fixed, "{weapon}");
+            assert_eq!(weapon_attack_anim(weapon, 1 << 1), fixed, "{weapon}");
+            assert_eq!(weapon_attack_anim(weapon, 0), unfixed, "{weapon}");
+            // The other fix bits do not change the attack table.
+            assert_eq!(weapon_attack_anim(weapon, 0b101), unfixed, "{weapon}");
+        }
+        // The rest of the table is the same either way.
+        for weapon in (0..LEGACY_WEAPON_COUNT as u8).filter(|w| ![15, 16, 17, 18].contains(w)) {
+            assert_eq!(
+                weapon_attack_anim(weapon, 0),
+                weapon_attack_anim(weapon, ALL_FIXES),
+                "{weapon}"
+            );
+        }
+        assert_eq!(weapon_attack_anim(WP_BRYAR_PISTOL, 0), BOTH_ATTACK2);
+        assert_eq!(weapon_attack_anim(WP_BLASTER, 0), BOTH_ATTACK3);
+    }
+
+    /// Holds the attack button for two seconds of command time in `step_ms` steps and
+    /// returns the torso animation at each predicted shot.
+    fn shots(weapon: u8, legacy_fixes: u32, step_ms: i32) -> Vec<u16> {
+        let mut state = MovementState {
+            weapon,
+            weapons: 1 << weapon,
+            health: 100,
+            ..MovementState::default()
+        };
+        state.ammo = [999; _];
+        let mut events = PredictedEvents::default();
+        let mut outcome = crate::pmove_saber_lock::LockOutcome::default();
+        let mut torsos = Vec::new();
+        let mut time = 1000;
+        while time < 3000 {
+            time += step_ms;
+            state.command_time = time;
+            let command = UserCommand {
+                server_time: time,
+                buttons: BUTTON_ATTACK,
+                weapon,
+                ..UserCommand::default()
+            };
+            events.clear();
+            advance_events_in(
+                &mut state,
+                &command,
+                step_ms,
+                None,
+                false,
+                &mut events,
+                None,
+                &MoveContext::CLIENT,
+                ([-15.0, -15.0, -24.0], [15.0, 15.0, 40.0]),
+                legacy_fixes,
+                DebugMelee::default(),
+                crate::pmove_japlus::JaPlusRules::default(),
+                None,
+                &mut outcome,
+            );
+            if events.iter().any(|event| event.event == EV_FIRE_WEAPON) {
+                torsos.push(state.torso_anim);
+            }
+        }
+        torsos
+    }
+
+    /// The command steps of 125, 142, 250 and 333 FPS (`AGENTS.md`): the predicted shot
+    /// plays the table's animation whatever the step, for the fixed table (SJK's own
+    /// server, `legacy_fixes` 0b111) and the unfixed one, and the rate does not depend
+    /// on the step beyond its rounding.
+    #[test]
+    fn predicted_shots_play_the_servers_table_at_every_command_step() {
+        for (weapon, fire_time, fixed, unfixed) in [
+            (WP_BRYAR_OLD, 400, BOTH_ATTACK2, BOTH_STAND1),
+            (WP_CONCUSSION, 800, BOTH_ATTACK3, BOTH_ATTACK2),
+        ] {
+            for step in [8, 7, 4, 3] {
+                for (fixes, expected) in [(ALL_FIXES, fixed), (0, unfixed)] {
+                    let torsos = shots(weapon, fixes, step);
+                    let wanted = 2000 / fire_time;
+                    assert!(
+                        torsos.len() as i32 >= wanted && torsos.len() as i32 <= wanted + 1,
+                        "weapon {weapon} step {step} fixes {fixes}: {} shots",
+                        torsos.len()
+                    );
+                    assert!(
+                        torsos.iter().all(|&torso| torso == expected),
+                        "weapon {weapon} step {step} fixes {fixes}: {torsos:?}"
+                    );
+                }
+            }
+        }
     }
 }
