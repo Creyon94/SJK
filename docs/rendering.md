@@ -195,6 +195,8 @@ work without reducing source count, texture resolution or lighting quality.
 | `r_autoExposureToBright`, `r_autoExposureToDark` | Seconds to settle when the view gets brighter (default 0.4) or darker (default 2.5); 0 is instant. Live, console only |
 | `r_autoExposureKey` | Metered scene luminance shown at the base exposure, 0.03–0.8, default 0.18; higher is brighter. Live, console only |
 | `r_dustMotes` | Dust in godrays, 0 (off) to 1 (default, SJK); live; renderer IMAGE tab; requires `r_volumetrics` |
+| `r_weather` | The map's rain, snow and mist, 1 (default) or 0; live; renderer IMAGE tab. See [Weather](#weather) |
+| `r_weatherDensity` | Weather particle count, 0.25–4; 1 is the original game's, default 2 (SJK); live; renderer IMAGE tab |
 | `r_normalMapping` | Normal maps on lightmapped world surfaces (rend2 convention); default 1 (SJK; rend2 and JKR 0), restart required |
 | `r_specularMapping` | Specular, roughness and metalness maps on the same surfaces; default 1 (SJK; rend2 and JKR 0), restart required |
 | `r_parallaxMapping` | Parallax from the height in `_nh`/`normalHeightMap` images; needs `r_normalMapping`; default 1 (SJK; rend2 and JKR 0), restart required |
@@ -1440,6 +1442,73 @@ Two 45-second native `ffa1` replay process runs also passed without panic or GPU
 validation errors: threaded submission with HDR/FXAA, and inline submission with
 HDR/FXAA disabled to exercise direct surface acquisition. Both used isolated
 1280×720 settings; these are integration checks, not performance measurements.
+
+## Weather
+
+SJK draws the rain, snow, dust and blowing mist that maps ask for (SJK only;
+[weather.rs](../crates/sjk-viewer/src/weather.rs)). A map's `fx_rain`, `fx_snow`,
+`fx_wind` and `fx_spacedust` make the server register effect names starting with
+`*` (`*heavyrain`, `*heavyrainfog`, `*constantwind ( -5000 0 0 )`); the client runs
+them as world effect commands in slot order, as cgame's `CG_ParseWeatherEffect` and
+the renderer's `RE_WorldEffectCommand` do, and again whenever an effect name
+changes. A world without a server (the menu backdrop) takes them from its own
+entities. `r_we <command>` adds one from the console until the next map. The clouds
+keep the original parameters: counts, sizes, gravity, colours, mass ranges, spawn
+boxes, five clouds and ten wind zones at most
+([weather_effects.rs](../crates/sjk-viewer/src/weather_effects.rs)). Gusting wind
+eases at the original 10 units per update, stepped at 60 Hz rather than once per
+frame ([weather_wind.rs](../crates/sjk-viewer/src/weather_wind.rs)). The map's
+global fog (`textures/fogs/rail` on `t1_rail`) is the fog described elsewhere on
+this page; weather does not change it.
+
+**Cover.** Weather exists only under open sky, above the first surface below it
+([weather_cover.rs](../crates/sjk-viewer/src/weather_cover.rs)). For each 16-unit
+column the client walks down from the top of the world to the first open point of
+a visibility cluster whose upward trace hits something: a sky surface (`SURF_SKY`)
+opens the column, any other ceiling covers it. A downward trace against solids and
+liquids then finds the floor. Rain therefore stops on roofs, ledges, the ground and
+water, never shows indoors, and is cut per pixel at eaves and windows. The
+original's inside and outside brushes (`system/inside`, `system/outside`, 51 on
+`t1_rail`) within the map's `misc_weather_zone` boxes trim that span as `COutside`
+reads them; the original relied on them alone, so a map without them rained
+indoors. A map with no sky surface at all leaves weather everywhere, as the
+original does without marks. Brush entities (doors, lifts, `func_static`) are not
+surveyed.
+
+A worker thread surveys 32×32-column tiles nearest the camera first and caches
+them for the map ([weather_cover_map.rs](../crates/sjk-viewer/src/weather_cover_map.rs));
+an `Rgba32Float` texture holds a 4096-unit window around the camera, addressed
+modulo its size, and a column not surveyed yet reads as covered. Nothing is
+surveyed on a map without weather. Measured locally on 06/10/2026 (release build,
+Windows): 2.5 µs per column on `t1_rail` and 18 µs on `hoth2`, so a whole window
+(65 536 columns) takes 0.16 s and 1.2 s of worker time, the camera's own tile
+16 and 18 ms.
+
+**Drawing** ([weather.wgsl](../crates/sjk-viewer/src/weather.wgsl),
+[weather_gpu.rs](../crates/sjk-viewer/src/weather_gpu.rs)). Particles have no
+buffers: each is generated from its instance number in a box around the camera,
+anchored in the world and carried by the flow the CPU integrates per cloud and
+mass. Their speed is the original's terminal one, 7/3 of force over mass (the
+original keeps 0.7 of its velocity each frame), so `t1_rail`'s rain flies at about
+60° in its 5000-unit wind. They are drawn into the display-space effect layer after
+the effects, where `RB_RenderWorldEffects` draws them, blended as the original
+blends them: rain and most clouds add, sand blends. SJK adds:
+
+- Rain streaks along the velocity, at least about a pixel wide (a thinner one is
+  fainter instead), and a fainter far layer out to three times the original range.
+- Splashes where rain meets the ground (a small crown of droplets) or water (a
+  widening ripple), within the near box and 1200 units of the eye's height.
+- Fades at the box edges, near the eye and into the global fog; light from the
+  camera's light-grid sample, so rain is dimmer at night; soft edges where mist
+  meets geometry.
+
+`r_weather 0` turns weather off; `r_weatherDensity` scales the counts (1 is the
+original's, SJK's default 2). Secondary views (portals, mirrors, sky portals) show
+no weather. Not implemented: the outside camera shake (`outsideshake`), acid rain's
+pain hint, the saber hiss in rain, lightning flashes (a single-player
+`fx_rain` flag the multiplayer game ignores) and wind zones with bounds.
+Unverified: everything visible. The cover, commands, wind and shader translation
+have unit tests; how the weather looks and costs in a match is untested.
 
 ## Sky scenery and hillside orientation
 

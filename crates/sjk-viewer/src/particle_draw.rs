@@ -176,12 +176,17 @@ impl GpuState {
         };
         let size = color.texture().size();
         let size = [size.width, size.height];
+        let merge = resolve == EffectResolve::Merge;
+        // Weather belongs to the main view only and reaches the whole screen.
+        let weather = merge && self.weather.visible();
         let present = ranges.blended().any(|range| !range.is_empty())
             || self.effect_geometry.stats().indices != 0
-            || self.saber_gpu.has_draws();
-        let merge = resolve == EffectResolve::Merge;
+            || self.saber_gpu.has_draws()
+            || weather;
         // The main view encodes and merges only the rectangle its effects can reach.
-        let region = if merge && present {
+        let region = if weather {
+            None
+        } else if merge && present {
             self.effect_region(layer.view(), ranges, size)
         } else {
             region
@@ -213,6 +218,11 @@ impl GpuState {
             .soften_particles(ranges)
             .then_some(&depth.sample_bind_group);
         self.draw_particle_tail(&mut pass, camera, ranges, soft);
+        // Last, as `RB_RenderWorldEffects` runs after every surface.
+        if weather {
+            self.weather
+                .draw(&mut pass, camera, &depth.sample_bind_group);
+        }
         drop(pass);
         if resolve == EffectResolve::WriteBack {
             layer.write_back(encoder, color, region);

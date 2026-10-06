@@ -440,6 +440,14 @@ const HELP: &[(&str, &str)] = &[
         "Dust drifting in sunbeams; needs light shafts. 0 is off.",
     ),
     (
+        crate::weather::CVAR,
+        "The rain, snow and mist a map asks for. It stays under open sky: roofs keep it out.",
+    ),
+    (
+        crate::weather::DENSITY_CVAR,
+        "How many weather particles: 1 as many as the original game, 2 twice as many.",
+    ),
+    (
         "r_modelPixelLight",
         "Lights models at every pixel rather than once each, so they match the light around them.",
     ),

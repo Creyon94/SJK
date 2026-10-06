@@ -681,6 +681,20 @@ pub(super) const RENDER_IMAGE: &[Setting] = &[
         },
     },
     Setting {
+        label: "Weather (rain, snow, mist)",
+        cvar: crate::weather::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Weather density (1 original)",
+        cvar: crate::weather::DENSITY_CVAR,
+        kind: ValueKind::Float {
+            min: 0.25,
+            max: 4.0,
+            step: 0.25,
+        },
+    },
+    Setting {
         label: "Per-pixel model lighting",
         cvar: "r_modelPixelLight",
         kind: ValueKind::Bool,

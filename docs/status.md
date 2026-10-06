@@ -1043,6 +1043,20 @@ Unit tests cover the run (alternation, first-jump hold, second-jump delay,
 restart); the sjk-viewer tests and workspace clippy passed. No game was started:
 a flip kick on a live JA+ server is unverified.
 
+## Weather (SJK)
+
+SJK-only branch `personal/weather` (06/10/2026, based on `2e348b0`) draws the
+rain, snow, dust and mist that maps' weather entities ask for, which the client
+ignored before, kept under open sky by a surveyed rain cover, with splashes and a
+far rain layer; `r_we` runs weather commands from the console. See
+[Weather](rendering.md#weather). Unit tests cover the commands and their original
+parameters, wind gusts, the cover on synthetic maps (open ground, a roof, water, a
+non-sky ceiling, inside brushes), the cover tiles and texture slots, the uniform
+layout, and the shader's translation to SPIR-V and HLSL for every entry point. A
+local, uncommitted probe surveyed retail `t1_rail` and `hoth2` (columns and
+timings in the rendering page). No game was started: how weather looks, its
+GPU cost and the cover at real eaves are unverified.
+
 ## Force wheel (SJK)
 
 SJK-only branch `personal/force-wheel` (05/10/2026, based on `3f57938`) ports
