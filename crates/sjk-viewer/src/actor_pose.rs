@@ -113,6 +113,7 @@ pub(crate) fn update(gpu: &mut GpuState, presentation_time: i64) -> Result<(), B
         if let Err(error) = steps::prepare(mesh, &frame) {
             steps::failed(mesh, error.as_ref());
         }
+        track_disintegration(mesh, snapshot, local_entity, presentation_time);
     }
     gpu.actor_workers
         .evaluate(&mut gpu.actor_meshes, presentation_time);
@@ -171,5 +172,47 @@ impl GpuState {
                 mesh.entity_id = Some(corpse.id);
             }
         }
+    }
+}
+
+/// Start, follow or end `EF_DISINTEGRATION` for one actor. On the first frame the pose
+/// freezes at the presented legs frame (`cg_players.c`); when a live player's flag
+/// clears (respawn) the frozen animator is replaced by a fresh one.
+fn track_disintegration(
+    mesh: &mut ActorMesh,
+    snapshot: Option<&sjk_protocol::Snapshot>,
+    local_entity: Option<EntityId>,
+    presentation_time: i64,
+) {
+    let (Some(snapshot), Some(id)) = (snapshot, mesh.entity_id) else {
+        return;
+    };
+    let Ok(number) = u16::try_from(id.get().saturating_sub(1)) else {
+        return;
+    };
+    let hit = crate::disintegration::hit_location(snapshot, Some(id) == local_entity, number);
+    match (hit, mesh.disintegration.as_mut()) {
+        (Some(hit), Some(state)) => state.hit = hit,
+        (Some(hit), None) => {
+            if let Err(error) = mesh
+                .animator
+                .freeze_for_disintegration(&mesh.preview.animation, presentation_time)
+            {
+                crate::log::progress(format_args!(
+                    "actor {}: disintegration pose not frozen: {error}",
+                    number
+                ));
+            }
+            mesh.disintegration = Some(crate::disintegration::State::new(presentation_time, hit));
+        }
+        (None, Some(_)) => {
+            mesh.disintegration = None;
+            if !mesh.corpse_pool
+                && let Ok(fresh) = storage(&mesh.preview.animation)
+            {
+                mesh.animator = fresh;
+            }
+        }
+        (None, None) => {}
     }
 }

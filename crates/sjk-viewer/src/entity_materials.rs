@@ -113,6 +113,7 @@ impl Queue {
             self.append_mesh(
                 runtime,
                 &mesh.draws,
+                &mesh.surfaces.draw_visible,
                 range,
                 Submission::PLAIN,
                 instances,
@@ -123,6 +124,7 @@ impl Queue {
             self.append_mesh(
                 runtime,
                 &mesh.draws,
+                &[],
                 range,
                 Submission::PLAIN,
                 instances,
@@ -131,10 +133,16 @@ impl Queue {
         }
         for entry in overrides {
             let draws = match entry.mesh {
-                OverrideMesh::Actor(index) => actors.get(index).map(|mesh| mesh.draws.as_slice()),
-                OverrideMesh::Object(index) => objects.get(index).map(|mesh| mesh.draws.as_slice()),
+                OverrideMesh::Actor(index) => actors
+                    .get(index)
+                    .map(|mesh| (mesh.draws.as_slice(), mesh.surfaces.draw_visible.as_slice())),
+                OverrideMesh::Object(index) => objects
+                    .get(index)
+                    .map(|mesh| (mesh.draws.as_slice(), &[][..])),
             };
-            let Some(draws) = draws else { continue };
+            let Some((draws, visible)) = draws else {
+                continue;
+            };
             let submission = Submission {
                 material: entry.material,
                 no_depth: entry.no_depth,
@@ -143,6 +151,7 @@ impl Queue {
             self.append_mesh(
                 runtime,
                 draws,
+                visible,
                 &entry.instances,
                 submission,
                 instances,
@@ -172,10 +181,13 @@ impl Queue {
         });
     }
 
+    /// `visible` hides draws by index (dismembered surfaces); a draw past its end shows.
+    #[allow(clippy::too_many_arguments)]
     fn append_mesh(
         &mut self,
         runtime: &Runtime,
         draws: &[ActorDraw],
+        visible: &[bool],
         instances_range: &Range<u32>,
         submission: Submission,
         instances: &[ActorInstance],
@@ -189,7 +201,10 @@ impl Queue {
             no_depth,
             forced_alpha,
         } = submission;
-        for surface in draws {
+        for (index, surface) in draws.iter().enumerate() {
+            if !visible.get(index).copied().unwrap_or(true) {
+                continue;
+            }
             let material = override_material.unwrap_or(surface.material);
             let blended = runtime.material_blended(material);
             let stage_major = !no_depth && !forced_alpha && blended == Some(false);

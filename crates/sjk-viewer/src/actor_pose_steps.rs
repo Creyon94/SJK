@@ -28,6 +28,13 @@ pub(super) fn prepare(mesh: &mut ActorMesh, frame: &Frame<'_>) -> Result<(), Box
         game_state,
         presentation_time,
     } = *frame;
+    // A cut-off limb plays its copied animator; any request lets it evaluate.
+    if let Some(limb) = &mesh.limb {
+        if mesh.entity_id.is_some() {
+            mesh.animator.requested = Some(limb.state);
+        }
+        return Ok(());
+    }
     let frame_millis = mesh.angle_controller.begin_frame(presentation_time);
     let requested = mesh
         .entity_id
@@ -111,6 +118,9 @@ pub(super) fn apply(
     };
     mesh.animator.completed()?;
     let matrices = mesh.animator.matrices();
+    if let Some(limb) = &mut mesh.limb {
+        limb.update_pivot(&mesh.preview.animation, matrices);
+    }
     if let Some(palette) = &mut mesh.gpu_palette {
         palette.stage(skinning, matrices)?;
         mesh.force_bones.update(&mesh.preview.animation, matrices);

@@ -181,6 +181,23 @@ neighbouring pictures never mix at any level. On Windows 11 the mipmaps removed 
 black dots; the gutter, the alpha weighting, the draw order and the constant
 colours were not checked in game yet.
 
+## Dismemberment and disintegration
+
+Branch `feat/dismember-disintegrate`: cut-off limbs (`cg_dismember`, EternalJK's
+`CG_General` limb case) and bodies burning away (`EF_DISINTEGRATION`,
+`CG_Disintegration`), as described in
+[client.md](client.md#dismemberment-and-disintegration). `cg_dismember` defaults to
+0, as in EternalJK; disintegration is always on, with no cvar, as in EternalJK and
+OpenJK. At `cg_dismember 0` with nothing cut the limb update returns at once; it
+borrows the presented snapshot and never copies it. Disintegration colours are final:
+the real-time sun and fullbright leave them as they are. Surface state is copied from
+a player to a body, or to a pooled limb, only between meshes with the same surfaces
+and draws. Unit tests cover the surface rules (caps, stump, limb root, root-surface
+variants, reattaching, matching layouts), the frozen disintegration pose and the burn
+radius; the composed stage shader passes naga validation. Checked in game on Windows
+11 on a local server with `g_dismember 100` and `cg_dismember 3`, before the review
+changes (snapshot borrow, fullbright colours, layout check), which are covered by the
+unit tests only.
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the

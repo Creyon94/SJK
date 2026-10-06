@@ -250,6 +250,8 @@ pub(crate) fn submit(
                 aura_shell,
                 combined_protect_absorb,
             );
+        } else if submit_limb(&mut sinks, entity, &transform, visual_now) {
+            // A cut-off limb draws its own copy of the owner (`dismember`).
         } else if thrown_saber::submit(&mut sinks, thrown.as_ref(), entity, transform) {
             // The flying hilt is owned by this branch, including its blades.
         } else if let Some(mesh) = entity.appearance().and_then(|appearance| {
@@ -321,6 +323,17 @@ fn submit_actor(
     );
     if let Some(state) = state {
         model_scale::apply(transform, state.model_scale_percent(), state.npc_class());
+    }
+    // `EF_DISINTEGRATION`: `CG_Disintegration` draws the body and nothing else
+    // (`cg_players.c`, `cg_ents.c`).
+    let meshes = sinks.actor_meshes;
+    if let Some(index) = mesh
+        && let Some(burning) = meshes[index].disintegration.as_ref()
+    {
+        submit_disintegration(
+            sinks, index, burning, entity, transform, draw_actor, visual_now,
+        );
+        return 0;
     }
     // A monster's victim is drawn in its hand or jaw (`cg_players.c:9220-9244`).
     let local = Some(entity.id.get()) == local_entity_id;
@@ -405,6 +418,10 @@ fn submit_actor(
                 held.primary_in_flight = false;
                 held
             });
+    }
+    // The weapon went with a cut-off arm, hand or waist (`CG_General`).
+    if mesh.is_some_and(|index| sinks.actor_meshes[index].surfaces.weapon_lost) {
+        equipment = None;
     }
     // A hidden trickster keeps only a saber in flight (`cg_players.c:11732-11746`).
     if let Some((equipment, held_mesh)) = equipment
@@ -702,4 +719,130 @@ fn submit_equipment(
             presentation_time as i32,
         );
     }
+}
+
+/// `CG_Disintegration` (`cg_ents.c`): the burning pass with `gfx/effects/burn`, the
+/// body eaten away from the hit point, and puffs of `disruptor/death_smoke` from the
+/// lower back for the first second. A player is gone after 1.5 s; a body draws until
+/// the server frees it.
+fn submit_disintegration(
+    sinks: &mut Sinks<'_>,
+    mesh: usize,
+    state: &crate::disintegration::State,
+    entity: &sjk_runtime::SceneEntity,
+    transform: &sjk_runtime::Transform,
+    draw_actor: bool,
+    visual_now: Instant,
+) {
+    use crate::disintegration::{PLAYER_MILLIS, RF_DISINTEGRATE1, RF_DISINTEGRATE2, SMOKE_EFFECT};
+    let now = sinks.presentation_time;
+    if entity.kind == EntityKind::Actor && now - state.started > PLAYER_MILLIS {
+        return;
+    }
+    if !(draw_actor || sinks.portal_view) {
+        return;
+    }
+    let rotation = weapon_view::actor_world_rotation(transform.rotation);
+    let mut body = ActorInstance::new(transform.translation, rotation.to_array(), transform.scale)
+        .with_entity_color(entity.color());
+    body.view_flags = sinks.entity_view_flags | u32::from(!draw_actor);
+    let mut burn = body;
+    state.mark(&mut burn, RF_DISINTEGRATE2, now);
+    if sinks.overrides.len() < sinks.overrides.capacity() {
+        sinks.overrides.push(entity_materials::OverrideInstance {
+            mesh: entity_materials::OverrideMesh::Actor(mesh),
+            material: Some(sinks.material_overrides.disruptor_burn),
+            instance: burn,
+            no_depth: false,
+            forced_alpha: false,
+        });
+    }
+    state.mark(&mut body, RF_DISINTEGRATE1, now);
+    sinks.actor_groups[mesh].push(body);
+    sinks.actor_meshes[mesh]
+        .retained_pose
+        .mark_drawn(entity.id, now);
+    let Some(lumbar) = sinks.actor_meshes[mesh].force_bones.lumbar else {
+        return;
+    };
+    if !state.smoke_due(now) {
+        return;
+    }
+    // `fxOrg`: the lower_lumbar bolt, 18 units toward the viewer, up or down by up
+    // to 20; one puff, and a second half the time.
+    let local =
+        Vec3::from_array(crate::bolt::column(&lumbar, 3)) * Vec3::from_array(transform.scale);
+    let yaw = sinks.camera_yaw;
+    let toward_viewer = Vec3::new(yaw.cos(), yaw.sin(), 0.0);
+    let seed = (entity.id.get() as u32).wrapping_mul(0x9e37_79b9) ^ (now as u32);
+    let unit = |salt: u32| {
+        let mixed = seed
+            .wrapping_add(salt)
+            .wrapping_mul(0x85eb_ca6b)
+            .rotate_left(13);
+        (mixed >> 8) as f32 / (1 << 24) as f32
+    };
+    let origin = Vec3::from_array(transform.translation) + rotation * local - toward_viewer * 18.0
+        + Vec3::Z * ((unit(1) * 2.0 - 1.0) * 20.0);
+    let puffs = if unit(2) > 0.5 { 2 } else { 1 };
+    for puff in 0..puffs {
+        effect_runtime::spawn_effect(
+            sinks.particles,
+            sinks.effect_aux,
+            sinks.effects,
+            sinks.vfs,
+            SMOKE_EFFECT,
+            origin,
+            visual_now,
+            seed.wrapping_add(puff),
+            0,
+            sinks.game_audio,
+            combat_effects::rotation_from_direction([0.0, 1.0, 0.0]),
+        );
+    }
+}
+
+/// A cut-off limb (`CG_General`'s client-limb case): its own mesh, rooted at the limb
+/// surface and pivoting about its bone at the entity's origin, smoking from the cut
+/// while it flies. Returns whether `entity` was a limb this viewer draws.
+fn submit_limb(
+    sinks: &mut Sinks<'_>,
+    entity: &sjk_runtime::SceneEntity,
+    transform: &sjk_runtime::Transform,
+    visual_now: Instant,
+) -> bool {
+    let meshes = sinks.actor_meshes;
+    let Some((index, limb)) = meshes.iter().enumerate().find_map(|(index, mesh)| {
+        mesh.limb
+            .as_ref()
+            .filter(|_| mesh.entity_id == Some(entity.id))
+            .map(|limb| (index, limb))
+    }) else {
+        return false;
+    };
+    let (position, rotation) = crate::dismember::limb_instance(limb, transform);
+    let mut instance =
+        ActorInstance::new(position.to_array(), rotation.to_array(), transform.scale)
+            .with_entity_color(entity.color());
+    instance.view_flags = sinks.entity_view_flags;
+    sinks.actor_groups[index].push(instance);
+    meshes[index]
+        .retained_pose
+        .mark_drawn(entity.id, sinks.presentation_time);
+    if crate::dismember::trail_due(limb, transform.translation, sinks.presentation_time) {
+        effect_runtime::spawn_effect(
+            sinks.particles,
+            sinks.effect_aux,
+            sinks.effects,
+            sinks.vfs,
+            crate::dismember::SMOKE,
+            Vec3::from_array(transform.translation),
+            visual_now,
+            (entity.id.get() as u32) ^ (sinks.presentation_time as u32).rotate_left(9),
+            0,
+            sinks.game_audio,
+            combat_effects::rotation_from_direction([0.0, 1.0, 0.0]),
+        );
+    }
+    true
 }

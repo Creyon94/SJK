@@ -35,6 +35,8 @@ pub(crate) const STOCK_EFFECTS: &[&str] = &[
     "disruptor/wall_impact",
     "disruptor/alt_miss",
     "disruptor/alt_hit",
+    // `cgs.effects.mDisruptorDeathSmoke`, puffed by `CG_Disintegration`.
+    "disruptor/death_smoke",
     "bowcaster/explosion",
     "repeater/flesh_impact",
     "repeater/wall_impact",

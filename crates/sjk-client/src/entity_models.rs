@@ -79,6 +79,17 @@ pub(crate) fn legacy_entity_model_appearance(
     }
 }
 
+/// A dismembered limb entity's part (`G2_MODELPART_HEAD` 10 to `G2_MODELPART_RLEG` 16)
+/// and its owner: `modelindex`, or `otherEntityNum2` when that is negative
+/// (`CG_General`, `cg_ents.c`).
+pub fn legacy_limb(state: &sjk_protocol::EntityState) -> Option<(u8, u16)> {
+    if !is_limb(state.weapon(), state.model_ghoul2()) {
+        return None;
+    }
+    let owner = u16::try_from(state.model_index()).unwrap_or_else(|_| state.other_entity_num2());
+    Some((state.model_ghoul2(), owner))
+}
+
 /// A dismembered limb (`CG_General`'s client-limb case): `modelindex` holds the
 /// owner's entity number (`codemp/game/g_combat.c`), not a model.
 fn is_limb(weapon: u8, model_ghoul2: u8) -> bool {

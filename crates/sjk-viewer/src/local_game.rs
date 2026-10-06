@@ -34,7 +34,21 @@ impl crate::GpuState {
             &config_directory,
         );
         let port = local_server::choose_port(&settings);
-        let arguments = settings.arguments(&self.game_data, port);
+        let mut arguments = settings.arguments(&self.game_data, port);
+        // A listen server shares the console's `g_dismember`, as in EternalJK; the
+        // owned server is a separate process, so it is handed over at launch.
+        if let Some(chance) = self
+            .console
+            .as_ref()
+            .and_then(|console| console.integer_cvar(crate::dismember::SERVER_CVAR))
+            .filter(|chance| *chance > 0)
+        {
+            arguments.extend([
+                "--set".into(),
+                crate::dismember::SERVER_CVAR.into(),
+                chance.to_string().into(),
+            ]);
+        }
         crate::log::progress(format_args!(
             "local server: {} {}",
             program.display(),

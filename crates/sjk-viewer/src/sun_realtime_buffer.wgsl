@@ -55,6 +55,8 @@ fn model_sun_color(input: VertexOutput, original: vec3<f32>) -> vec3<f32> {
     if !realtime_active() || (rgb != 4 && rgb != 9) || (u32(camera._padding) & 7u) != 0u && (u32(camera._padding) & 8u) == 0u {
         return original;
     }
+    // Entity colour (RF_RGB_TINT, 1) and disintegration colours (3) are final, as
+    // in rd-vanilla, where both replace the lighting generators.
     if input.light_ambient.a == 0.0 || input.entity_control.x > 0.5 { return original; }
     // The light pass lit the side the viewer sees (its normal turned toward the camera):
     // a two-sided face seen from its back matches that texel, not the authored normal.

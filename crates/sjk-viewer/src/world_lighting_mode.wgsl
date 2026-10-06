@@ -29,7 +29,9 @@ fn apply_lighting_mode(input: VertexOutput, primary: vec4<f32>, secondary: vec4<
             color = vec4(vec3(1.0), color.a);
         }
         // Stock's fullbright grid override saturates ordinary model diffuse to white.
-        if input.light_ambient.a != 0.0 && (rgb == 4 || rgb == 9) {
+        // Disintegration colours (entity_control.x = 3) replace every generator
+        // (`killGen`), so they are kept, as `generated_color` returns them.
+        if input.light_ambient.a != 0.0 && (rgb == 4 || rgb == 9) && input.entity_control.x <= 2.5 {
             color = vec4(select(vec3(1.0), input.entity_color.rgb,
                 rgb == 9 || input.entity_control.x > 0.5), color.a);
         }

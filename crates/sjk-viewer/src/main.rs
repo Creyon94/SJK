@@ -41,6 +41,8 @@ mod decal_marks;
 mod decal_store;
 mod decoded_image_cache;
 mod demo_playback;
+mod disintegration;
+mod dismember;
 mod dust_motes;
 mod dynamic_lights;
 mod effect_assets;
@@ -1646,6 +1648,7 @@ impl GpuState {
         timing.mark(Phase::Pose);
         {
             self.assign_corpse_meshes(presentation_time);
+            self.update_limbs(presentation_time);
         }
         {
             if let Err(error) = self.update_actor_animations(presentation_time, game_audio) {
