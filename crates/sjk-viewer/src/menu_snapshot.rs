@@ -922,7 +922,15 @@ fn radial_hud(shots: &mut Snapshot) {
         ("hud-radial-low", 18, 0, 8, 5, Some(4), None, 0.013),
         ("hud-radial-saber", 83, 40, 100, 3, None, Some(2), 0.0),
     ];
-    for (name, health, armor, force, weapon, ammo, style, ammo_ratio) in states {
+    // The 4:3 frame, then the same states on a 16:9 screen: the rings keep their place
+    // relative to the screen's height.
+    let screens = [("", VIEWPORT), ("-wide", [1920.0, 1080.0])];
+    for ((name, health, armor, force, weapon, ammo, style, ammo_ratio), (suffix, viewport)) in
+        states
+            .into_iter()
+            .flat_map(|state| screens.map(|screen| (state, screen)))
+    {
+        let name = format!("{name}{suffix}");
         let mut hud = HudOverlay::new();
         let values = sjk_client::HudDataSource {
             health,
@@ -944,7 +952,7 @@ fn radial_hud(shots: &mut Snapshot) {
         let _ = hud.layout(
             &shots.font.font,
             HudLook::Radial,
-            VIEWPORT,
+            viewport,
             1.0,
             visibility,
             0,
@@ -955,10 +963,10 @@ fn radial_hud(shots: &mut Snapshot) {
             |id| hud.resolve_text(id),
             &mut vertices,
             &shots.font.font,
-            VIEWPORT,
+            viewport,
             crate::text::TextStyle::NEUTRAL,
         );
-        shots.save(name, hud.draw_list(), &vertices, true);
+        shots.save_at(&name, hud.draw_list(), &vertices, true, viewport);
     }
 }
 

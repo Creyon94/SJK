@@ -1761,12 +1761,19 @@ JKR defaults to `modern`; SJK to `game`.
 
 `cg_hudStyle radial` (picker name "SJK radial") is SJK's own take on the TheRisqe Radial
 HUD, drawn by the engine with no PK3: health (red, outer) and armor (green, inner) as
-arcs left of the crosshair, Force (blue, outer) and ammunition (amber, inner) right of
-it, each cut into four segments that fill in turn, with a readout pill of the four
-numbers (the saber style replaces the ammunition) and the weapon-name transient below.
+arcs left of the screen centre, Force (blue, outer) and ammunition (amber, inner) right of
+it, each cut into four segments that fill in turn. The rings are centred 0.69 of the screen
+height down, below the crosshair, where TheRisqe's bars sit (their picture's middle is 92.6 of
+480 lines under the centre). Each side has a pill beside its bars, level with their middle: the
+health and armor numbers on the left, Force and ammunition on the right (the saber style
+replaces the ammunition). The weapon-name transient rests between the bars.
 It is the layout document [radial.json](../crates/sjk-viewer/assets/hud/radial.json): the
 modern layout's other widgets (crosshair, team rows, votes, kill feed, timer, lagometer)
 plus `arc` widgets, which `hud.json` overrides cannot yet replace for this style.
+Widgets are placed in 1080-line pixels that grow with the window height and `cg_hudScale`;
+the ring group's drop is a widget's `offset_fraction` instead, a fraction of the screen's
+height (`y`) or width (`x`) added to its pixel `offset`, so it stays at 0.69 of the height
+at every resolution, aspect ratio and HUD scale, including past the UI scale's limits.
 The arcs are the new `sjk-ui` draw command `DrawCommand::Arc`: one quad per stroke whose
 fragment shader (`ui_shapes.wgsl`, mode 3) takes the signed distance to a round-capped arc,
 so they stay smooth at any resolution and scale with the HUD scale. Segment geometry and the

@@ -400,6 +400,10 @@ impl HudOverlay {
                 && widget.visibility.evaluate(&data)
                 && self.family.visible(widget.binding.as_deref());
         }
+        let dpi_scale =
+            crate::ui_scale::height_scale(viewport[1]).max(2.0 / 3.0) * user_scale.clamp(0.25, 2.0);
+        // Layout runs in logical pixels: the screen's size is its physical size over the scale.
+        let logical_screen = [viewport[0] / dpi_scale, viewport[1] / dpi_scale];
         self.tree.clear();
         for (index, widget) in document.widgets.iter().take(WIDGET_LIMIT).enumerate() {
             let _ = self.tree.add(Widget {
@@ -407,7 +411,10 @@ impl HudOverlay {
                 parent: None,
                 layout: LayoutKind::Anchored {
                     anchor: widget.anchor,
-                    offset: widget.offset,
+                    offset: Vec2::new(
+                        widget.offset.x + widget.offset_fraction.x * logical_screen[0],
+                        widget.offset.y + widget.offset_fraction.y * logical_screen[1],
+                    ),
                 },
                 size: widget.size,
                 visible: visible[index],
@@ -417,8 +424,6 @@ impl HudOverlay {
                 z: widget.layer,
             });
         }
-        let dpi_scale =
-            crate::ui_scale::height_scale(viewport[1]).max(2.0 / 3.0) * user_scale.clamp(0.25, 2.0);
         let upper_right_bottom =
             self.upper_right_stack()[2] * crate::ui_scale::height_scale(viewport[1]);
         let rectangles = LayoutEngine.layout(
@@ -529,10 +534,12 @@ impl HudOverlay {
         output
     }
 
-    /// Settle the status values and meters on a fixed state, for the layout snapshots.
+    /// Settle the status values and meters on a fixed state, for the layout snapshots,
+    /// with the weapon name showing as right after a weapon change.
     #[cfg(test)]
     pub(crate) fn preview_values(&mut self, values: ClientHudData, ratios: [f32; 4]) {
         self.format_values(values);
+        self.weapon_shown_ms = Some(0);
         self.ratios = [ratios[0], ratios[1], ratios[2]].map(Tween::settled);
         self.ammo_ratio = Tween::settled(ratios[3]);
     }
