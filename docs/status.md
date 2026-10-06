@@ -7,6 +7,14 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Centre-print line breaks
+
+Branch `fix/center-print-space-break`: centre-print rows break only at a space, as
+`BG_IsWhiteSpace` counts only the space. A vertical tab (0x0B) in
+`{JoF}\vToxiee\v{C}.ak` broke the row inside the name, where EternalJK keeps the
+name whole. A unit test covers that name. Checked in game on Windows 11: the name
+stays whole on its own row.
+
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the
@@ -44,9 +52,6 @@ contributor challenged a player named with `×` on a live server; with the wrapp
 fix the challenge showed without a crash, but with `?` for each `×`; with both
 fixes it read `You have challenged ×jof.jk.belyash×`. Merged into SJK `main` from
 SJK pull request #2 (Creyon94, 06/10/2026).
-Centre-print rows now break only at a space, as `BG_IsWhiteSpace` does: a vertical
-tab (0x0B) in `{JoF}\vToxiee\v{C}.ak` broke the row inside the name, where EternalJK
-keeps the name whole (unit-tested; checked in game on Windows 11).
 
 ## Worldspawn shader remaps and remap order
 
