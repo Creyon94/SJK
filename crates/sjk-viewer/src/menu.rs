@@ -929,6 +929,12 @@ impl ClientMenu {
             && self.keybinds.capture_mouse(button, console)
     }
 
+    /// A wheel notch while the key-binding form awaits a key binds it.
+    pub(crate) fn handle_wheel_binding(&mut self, up: bool, console: &mut ViewerConsole) -> bool {
+        matches!(self.state.phase(), ClientPhase::Keybinds)
+            && self.keybinds.capture_wheel(up, console)
+    }
+
     pub(crate) fn joined(&mut self) {
         self.state.entered_game();
     }

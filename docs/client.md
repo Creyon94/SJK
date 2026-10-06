@@ -807,7 +807,9 @@ rather than 0.35000000000000003.
 ## Key bindings
 
 Settings > Key bindings binds two keys per action: click a slot (or select it
-and press Enter), then press a key or mouse button. A key already bound
+and press Enter), then press a key or mouse button, or turn the mouse wheel to
+bind `MWHEELUP` or `MWHEELDOWN` (a notch only scrolls the list when no slot is
+waiting; trackpad deltas under half a notch do not bind). A key already bound
 elsewhere moves to the new action. Escape, or a click with the left or right
 mouse button, cancels a pending capture without binding anything; the click is
 consumed, so it activates nothing under the pointer. Retail

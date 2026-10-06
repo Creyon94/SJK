@@ -31,6 +31,16 @@ effect for extensionless names (for example the disruptor scope in
 `JoF_HDWeaponScopeTrue.pk3`). Unit tests in `sjk-shader` cover the order and the
 named-extension-first rule. Not verified in game.
 
+## Mouse wheel in the key-binding form
+
+Branch `fix/bind-mouse-wheel`: the mouse wheel binds in Settings > Key bindings
+(for example `flipkick` under Movement). A notch while a slot waited for a key
+scrolled the list instead; it now binds `MWHEELUP` or `MWHEELDOWN`, as the retail
+controls menu binds any key event. Wheel deltas under half a notch (small trackpad
+pixel deltas) do not bind. Unit tests cover both directions, that the wheel does
+nothing to the form when no slot waits, and the threshold. Checked in game on
+Windows 11 before the threshold was added; the threshold is covered by unit tests only.
+
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the
