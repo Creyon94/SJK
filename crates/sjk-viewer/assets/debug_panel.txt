@@ -1783,6 +1783,18 @@ test: Hold R, push right to RAIN, let go: rain starts (forced); R then MAP'S OWN
 test: While holding, the view does not turn; W/A/S/D still move.
 test: Hold Q and press Escape, or let go without moving: nothing happens.
 note: The pointer's dead zone and reach are in raw mouse counts: tell Claude if too twitchy.
+
+[vertex-lit-maps]
+status: personal
+area: Rendering & effects
+title: Material maps on vertex-lit terrain, sand and rock
+change: Vertex-lit paint (rgbGen vertex: terrain, _phong sand and rock) takes normal/metal maps.
+change: Switches and control panels: their small coloured indicator lights now glow.
+test: devmap mp/siege_desert or sjk_shaders_a A249/A255/A258: sand and rock show relief.
+test: r_dayNight 1 there too: the relief still follows the sun.
+test: A switch or door lock (imperial, kejim): its red/green lights glow, not its paint.
+note: Blended terrain layers over a mapped base stay flat; tell Claude if seams show.
+
 # ---- Merged upstream ----
 
 [actor-instance-cap]

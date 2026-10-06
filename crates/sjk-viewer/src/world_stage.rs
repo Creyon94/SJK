@@ -138,7 +138,7 @@ pub(crate) fn material_stages(
 /// lightmap, as opposed to `LIGHTMAP_BY_VERTEX` (-3) pre-lit world surfaces.
 pub(crate) const LIGHTMAP_NONE: i32 = -1;
 /// BSP meshes whose compiled lighting is stored in their vertex colours.
-const LIGHTMAP_BY_VERTEX: i32 = -3;
+pub(crate) const LIGHTMAP_BY_VERTEX: i32 = -3;
 
 fn implicit_stage(
     generator: TextureGenerator,
