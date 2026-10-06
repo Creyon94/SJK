@@ -1126,6 +1126,13 @@ Sol is reviewing every retail world shader on the test maps of
   locally; not yet looked at in game.
 - Shaders with an authored glow layer already take normal and specular maps on
   their lightmapped pair; they take no emission map, by design.
+- 07/10/2026, after Sol saw metal wobble and read pushed in: generation 4 of the
+  generator turns relief the right way up from the painted light (52 of 1,054
+  retail MP textures, checked by eye on samples: right on most, `kejim/mp_barrel`
+  pinned back by an override), gives metal no parallax and less grain, and
+  classifies by texture set (generic 560 -> 65 textures); the client limits
+  parallax at grazing angles and distance, adds specular anti-aliasing and halves
+  the bump tilt of probe reflections. Not yet looked at in game.
 - Open: 629 textures drawn only on vertex-lit surfaces (terrain, `_phong` sand and
   rock) get no material maps, because the material program needs a lightmap.
 - Open: decals flicker on every map (Sol). Their bias matches rd-vanilla; only the
