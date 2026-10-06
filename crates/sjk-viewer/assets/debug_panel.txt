@@ -1312,6 +1312,14 @@ test: JA+ server: a bot or friend types in chat; hit them: their health bar does
 test: Same player swings while chatting and gets hit: the bar drops as usual.
 note: Never started in a game; JA+ behaviour is from Sol, JA+ is closed source.
 
+[hook-damage]
+status: personal
+area: HUD
+title: Nameplate estimate: a JA+ grapple hook hit is exactly 1 damage
+change: A missile hit from a WP_STUN_BATON missile (the JA+ hook) takes exactly one point.
+test: JA+ server, cg_nameplateDebug 1: hook a player without shield; hp~ drops by exactly 1.
+note: Never started in a game. If JA+ sends no hit event for the hook, nothing changes.
+
 [identity-auto]
 status: personal
 area: HUD

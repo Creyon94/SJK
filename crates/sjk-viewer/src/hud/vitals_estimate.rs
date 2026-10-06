@@ -21,6 +21,8 @@
 //! - **Pickups** (`EV_ITEM_PICKUP`): medpacks and shields add their amount.
 //! - **Force heal** (its sound at the player): 5, 10 or 25 by level.
 //! - **Drain** heals the drainer by what it takes, an unknown amount.
+//! - **JA+'s grapple hook** (`EV_MISSILE_HIT` of a `WP_STUN_BATON` missile) does one
+//!   point exactly.
 //! - **Pain sounds** (`EV_ENTITY_SOUND` of `*pain25` to `*pain100`): where a server
 //!   hides the pain value (JAPro's `g_stopHealthESP 2`) it plays the pain sound for
 //!   the health left instead, which bounds it to a quarter.
@@ -115,6 +117,10 @@ const SABER_MEDIUM: (f32, f32, f32) = (5.0, 12.0, 19.0);
 const SABER_LARGE: (f32, f32, f32) = (20.0, 40.0, 150.0);
 /// A missile's damage: any weapon's.
 const MISSILE: (f32, f32, f32) = (1.0, 20.0, 100.0);
+/// JA+'s grapple hook striking a player: exactly one point. The hook is the only
+/// missile fired as `WP_STUN_BATON`, which stock JKA never fires as a missile.
+const HOOK: (f32, f32, f32) = (1.0, 1.0, 1.0);
+const WP_STUN_BATON: u8 = 1;
 /// Force heal by level, 1 to 3, the guess level 3's.
 const HEAL: (f32, f32, f32) = (5.0, 25.0, 25.0);
 /// Health a drainer may gain per millisecond (up to 4 a 100 ms tick), and the guess.
@@ -531,8 +537,12 @@ impl Estimator {
                 }
                 EV_MISSILE_HIT => {
                     if let Some(slot) = about(entity.other_entity_num()) {
-                        struck(&mut facts[slot], MISSILE);
-                        facts[slot].missile = true;
+                        if entity.weapon() == WP_STUN_BATON {
+                            struck(&mut facts[slot], HOOK);
+                        } else {
+                            struck(&mut facts[slot], MISSILE);
+                            facts[slot].missile = true;
+                        }
                     }
                 }
                 EV_OBITUARY => {
@@ -1305,6 +1315,33 @@ mod tests {
         }
 
         #[test]
+        fn a_hook_missile_striking_a_player_is_read_as_one_point() {
+            let game = game();
+            let mut estimator = Estimator::default();
+            let mut observe = |time, entities| {
+                estimator.observe(&snapshot(time, local(100), entities), &game, 0);
+                estimator.health(3)
+            };
+            observe(1_000, vec![player(0x100 | 89, 70)]);
+            // The hook (a stun-baton missile) explodes on player 3, who has no armour.
+            let mut hook = entity(150, 0);
+            hook.set_raw_field(28, 0x100 | 85);
+            hook.set_raw_field(14, 1);
+            hook.set_raw_field(59, 3);
+            let mut blaster = entity(151, 0);
+            blaster.set_raw_field(28, 0x100 | 85);
+            blaster.set_raw_field(14, 5);
+            blaster.set_raw_field(59, 3);
+            let mut armorless = player(0x100 | 89, 70);
+            armorless.set_raw_field(42, 70);
+            let health = observe(1_050, vec![armorless.clone(), hook]).unwrap();
+            assert!((health.high - 69.0).abs() < 0.01 && (health.low - 69.0).abs() < 0.01);
+            // Any other missile is a hit of unknown size.
+            let health = observe(1_100, vec![armorless, blaster]).unwrap();
+            assert!(health.width() > 10.0, "{health:?}");
+        }
+
+        #[test]
         fn the_local_players_saber_hit_names_its_victim() {
             let game = game();
             let mut estimator = Estimator::default();
@@ -1465,6 +1502,21 @@ mod tests {
             .unwrap();
         entity.set_raw_field(43, attack);
         assert!(in_action(&entity, &melee), "a swing");
+    }
+
+    #[test]
+    fn the_grapple_hook_takes_one_point() {
+        let mut track = Track {
+            health: Range::exact(80.0),
+            armor: Range::exact(0.0),
+            alive: true,
+            last_seen: 0,
+            ..Track::default()
+        };
+        let mut facts = Facts::default();
+        struck(&mut facts, HOOK);
+        advance(&mut track, &facts, false, step(50));
+        assert_eq!(track.health, Range::exact(79.0));
     }
 
     #[test]
