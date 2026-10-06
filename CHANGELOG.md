@@ -19,7 +19,10 @@ tests check this file):
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 
-## Unreleased
+## 2026.1006.1 (Alpha) | 06/10/2026
+
+Weather, nameplates and the radial HUD arrive, SJK can now update itself, and your
+movement reaches servers 125 times a second.
 
 - Fixed a crash right after joining some games (FFA2, T2_Rogue on JA+ servers): a see-through player or afterimage on a map with material maps stopped the client _(Sol)_
 - Settings regrouped (classic menus): Options now lists First setup (the old Quick setup), Graphics, Sound and Gameplay; Graphics holds Video, the renderer's Image, Lighting and Shadows and a new Weather group (also a Weather tab in the modern renderer settings); Gameplay holds Mouse, Game options, Interface, HUD, Scoreboard and Network _(Sol)_
