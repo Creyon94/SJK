@@ -1261,7 +1261,10 @@ without the glyph shadow other UI text has. When `GameData/EternalJK` holds a PK
 with its own character set (jaPRO's `japro-assets.pk3`), that image is used instead,
 as EternalJK draws its console with it: unlike the retail set it has `¬`, `¥`,
 `²`, `½` and the rest of Latin-1. Only the image is taken from that pack
-([asset_search_paths.rs](../crates/sjk-viewer/src/asset_search_paths.rs)). The classic console loads the
+([asset_search_paths.rs](../crates/sjk-viewer/src/asset_search_paths.rs)). Neither
+character set has Windows-1252's typographic characters (`€`, `’`, `‘`, `…`,
+bytes 0x80..=0x9E); the classic console gives them no cell, like colour codes, so
+rows close up as in EternalJK, while the text keeps them. The classic console loads the
 character set whether `ui_gameFont` is on or not; without it the cells use Inter.
 A cell is 8 by 16 pixels at 1080 lines and `con_scale 1`, grows with the window
 height like the rest of the UI (with the console's 0.75 floor) and is rounded to

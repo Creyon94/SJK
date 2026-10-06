@@ -163,6 +163,31 @@ fn colour_code(bytes: &[u8], index: usize) -> Option<u8> {
         .map(|digit| digit - b'0')
 }
 
+/// Whether `character` takes no cell: Windows-1252's typographic characters
+/// (bytes 0x80..=0x9E: `€`, `’`, `‘`, `…`, `™`, dashes), which neither the retail
+/// console character set nor EternalJK's has, are left out like colour codes, so
+/// the row closes up as EternalJK's console does where it drops them. The text
+/// itself keeps them, so chat and names still show them.
+pub(super) fn hidden(character: char) -> bool {
+    matches!(
+        sjk_protocol::windows_1252_byte(character),
+        Some(0x80..=0x9e)
+    )
+}
+
+/// Cells `text` takes: its characters other than [`hidden`] ones.
+fn cell_count(text: &str) -> usize {
+    text.chars().filter(|&character| !hidden(character)).count()
+}
+
+/// Byte offset of cell `index` of `text`, or its length past the last cell.
+fn byte_of_cell(text: &str, index: usize) -> usize {
+    text.char_indices()
+        .filter(|&(_, character)| !hidden(character))
+        .nth(index)
+        .map_or(text.len(), |(byte, _)| byte)
+}
+
 /// Visible characters of the word starting at the beginning of `text` (up to a
 /// space or control character), colour codes not counted, at most `cap`.
 fn word_length(text: &str, cap: usize) -> usize {
@@ -177,7 +202,9 @@ fn word_length(text: &str, cap: usize) -> usize {
         if character <= ' ' {
             break;
         }
-        length += 1;
+        if !hidden(character) {
+            length += 1;
+        }
         index += character.len_utf8();
     }
     length
@@ -207,6 +234,10 @@ pub(super) fn wrap(text: &str, width: usize, mut row: impl FnMut(Span)) {
             continue;
         }
         let character = text[index..].chars().next().unwrap_or(' ');
+        if hidden(character) {
+            index += character.len_utf8();
+            continue;
+        }
         if character == '\n' {
             emit(start, index, start_colour);
             emitted = true;
@@ -246,8 +277,11 @@ fn column_of(text: &str, byte: usize) -> usize {
             index += 2;
             continue;
         }
-        index += text[index..].chars().next().map_or(1, char::len_utf8);
-        column += 1;
+        let character = text[index..].chars().next().unwrap_or(' ');
+        index += character.len_utf8();
+        if !hidden(character) {
+            column += 1;
+        }
     }
     column
 }
@@ -260,6 +294,11 @@ fn byte_of_column(text: &str, column: usize) -> usize {
     while index < bytes.len() {
         if colour_code(bytes, index).is_some() {
             index += 2;
+            continue;
+        }
+        let character = text[index..].chars().next().unwrap_or(' ');
+        if hidden(character) {
+            index += character.len_utf8();
             continue;
         }
         if seen == column {
@@ -345,7 +384,8 @@ impl Painter<'_> {
     /// Draw `text` from column `column` on, every character (colour codes
     /// included) in `color`.
     fn raw(&self, frame: &mut ConsoleFrame, text: &str, column: usize, y: f32, color: [f32; 4]) {
-        for (offset, character) in text.chars().enumerate() {
+        let visible = text.chars().filter(|&character| !hidden(character));
+        for (offset, character) in visible.enumerate() {
             let byte = console_byte(character);
             self.glyph(frame, byte, self.grid.x(column + offset), y, color);
         }
@@ -379,8 +419,11 @@ impl Painter<'_> {
                 continue;
             }
             let (byte, step) = glyph_byte_at(text, index);
-            self.glyph(frame, byte, self.grid.x(column + offset), y, color);
             index += step;
+            if text[index - step..].chars().next().is_some_and(hidden) {
+                continue;
+            }
+            self.glyph(frame, byte, self.grid.x(column + offset), y, color);
             offset += 1;
         }
     }
@@ -661,14 +704,9 @@ impl ViewerConsole {
         // Room for the input and the cursor after it, within the screen.
         let room = cells.saturating_sub(INPUT_COLUMN + 2).max(1);
         let cursor = self.edit.cursor(&self.input);
-        let caret = self.input[..cursor].chars().count();
+        let caret = cell_count(&self.input[..cursor]);
         let prestep = caret.saturating_sub(room - 1);
-        let byte_at = |input: &str, index: usize| {
-            input
-                .char_indices()
-                .nth(index)
-                .map_or(input.len(), |(byte, _)| byte)
-        };
+        let byte_at = byte_of_cell;
         if self.open
             && self.selection.gesture() == Gesture::Prompt
             && let Some(position) = self.selection.pending_position()
@@ -688,13 +726,8 @@ impl ViewerConsole {
         let start = byte_at(&self.input, prestep);
         let shown_end = byte_at(&self.input, prestep + room);
         if let Some(range) = self.edit.selection(&self.input) {
-            let left = self.input[..range.start]
-                .chars()
-                .count()
-                .saturating_sub(prestep);
-            let right = self.input[..range.end]
-                .chars()
-                .count()
+            let left = cell_count(&self.input[..range.start]).saturating_sub(prestep);
+            let right = cell_count(&self.input[..range.end])
                 .saturating_sub(prestep)
                 .min(room);
             if right > left {
@@ -790,9 +823,12 @@ impl ViewerConsole {
                     continue;
                 }
                 let (byte, step) = glyph_byte_at(text, index);
+                index += step;
+                if text[index - step..].chars().next().is_some_and(hidden) {
+                    continue;
+                }
                 painter.glyph(frame, byte, x, y, color);
                 x += grid.width;
-                index += step;
             }
             y += grid.height;
         }
@@ -812,6 +848,19 @@ fn console_byte(character: char) -> u8 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn typographic_symbols_take_no_cell_but_stay_in_the_text() {
+        // `€` and `’` (bytes 0x80, 0x92) close up; `¬` and `×` keep their cells.
+        let text = "A€B’C¬D×";
+        assert_eq!(cell_count(text), 6);
+        assert_eq!(column_of(text, text.len()), 6);
+        assert_eq!(&text[byte_of_cell(text, 1)..], "B’C¬D×");
+        // Like a colour code, a hidden character before the cell belongs to it.
+        assert_eq!(&text[byte_of_column(text, 2)..], "’C¬D×");
+        assert_eq!(word_length(text, 20), 6);
+        assert!(hidden('\u{80}') && hidden('…') && !hidden('Ÿ') && !hidden('¬'));
+    }
 
     #[test]
     fn typed_symbols_use_their_windows_1252_cells() {

@@ -63,8 +63,11 @@ console character set leaves empty. EternalJK draws its console with jaPRO's
 character set from `GameData/EternalJK/japro-assets.pk3`, which has `¬` and the rest
 of Latin-1; SJK now takes that image from there too when it is installed (nothing
 else from the pack), so `¬¬¬` and `¥²½` show as in EternalJK. A unit test covers
-that it overrides the base set and mounts nothing else; `€ ’ ‘ …` stay empty in
-that set as well. Wildcard keys of JoF cosmetic
+that it overrides the base set and mounts nothing else. Neither set has `€ ’ ‘ …`
+or the other typographic characters (0x80..=0x9E); the classic console now leaves
+them out of the row, as EternalJK's console does, instead of an empty cell, while
+the text keeps them for chat and names (EternalJK itself turns `€` into `¬` and
+`…` into `&` when typed; SJK does not copy that). Wildcard keys of JoF cosmetic
 offsets now compare bytes, so a model name with a multi-byte character across the
 prefix length no longer panics. Unit tests cover every byte's round trip, a list of
 common name symbols typed and received, and the cosmetic match. An audit of
