@@ -205,27 +205,31 @@ impl Icons {
         viewport: [f32; 2],
         visibility: HudVisibility,
         upper: bool,
+        weapon_row: bool,
+        weapon_alpha: f32,
     ) {
         let [w, h] = viewport;
         let s = crate::ui_scale::height_scale(h);
         let white = Color::new(1.0, 1.0, 1.0, 1.0);
-        if self.enabled && visibility.status && self.alive {
+        // Retail's weapon selection row takes the bottom centre while it shows;
+        // these small weapon and ammo icons would sit behind its selected icon.
+        if self.enabled && visibility.status && self.alive && !weapon_row {
             let item = assets::WEAPONS
                 .get(self.weapon as usize)
                 .copied()
                 .unwrap_or(0);
-            self.quad(
-                list,
-                item,
-                Rect::new(w / 2.0 - 32.0 * s, h - 88.0 * s, 64.0 * s, 64.0 * s),
-                white,
-            );
-            self.quad(
-                list,
-                assets::ammo(self.weapon),
-                Rect::new(w / 2.0 + 48.0 * s, h - 88.0 * s, 64.0 * s, 64.0 * s),
-                white,
-            );
+            // The held weapon's icon shows after a change and fades like its name,
+            // and there is no ammo picture beside it: EternalJK draws neither at the
+            // bottom centre (Sol's request).
+            if weapon_alpha > 0.0 {
+                self.quad(
+                    list,
+                    item,
+                    // Beside the ammo count (where the ammo picture was), not under it.
+                    Rect::new(w / 2.0 + 48.0 * s, h - 88.0 * s, 64.0 * s, 64.0 * s),
+                    Color::new(1.0, 1.0, 1.0, weapon_alpha),
+                );
+            }
             if !self.models {
                 for power in 4..=6 {
                     if self.seconds[power] >= 0 {

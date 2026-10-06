@@ -331,6 +331,7 @@ impl HudOverlay {
             ammo_value: &self.ammo_value,
             style: !self.style_value.is_empty(),
             weapon_alpha: self.weapon_alpha,
+            weapon_row: self.weapon_select.shown.is_some(),
             team_len: self.team_len,
             vote_active: self.vote_active,
             team_vote_active: self.team_vote_active,
@@ -448,8 +449,14 @@ impl HudOverlay {
                 ),
             }
             self.emit_family(viewport);
-            self.icons
-                .emit(&mut self.draw_list, viewport, visibility, self.family.upper);
+            self.icons.emit(
+                &mut self.draw_list,
+                viewport,
+                visibility,
+                self.family.upper,
+                self.weapon_select.shown.is_some(),
+                self.weapon_alpha,
+            );
             self.guides.emit(&mut self.draw_list, viewport);
         }
         // CG_DrawWeaponSelect does not follow cg_drawHud: only the row's own

@@ -7,6 +7,16 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Weapon selection row in every HUD
+
+Branch `feat/hud-weapon-row`: retail's weapon selection row shows after a weapon
+change in every HUD style, as in EternalJK, not only with the game-data HUD.
+While it shows, SJK's own layouts hide their weapon name, ammo and bottom-centre
+icons, which sat behind its selected icon. SJK's layouts no longer draw an ammo
+picture at the bottom centre; the weapon icon sits beside the ammo count and fades
+with the weapon name after a change (asked by Sol after comparing with
+EternalJK). See [rendering.md](rendering.md). Checked in game on Windows 11.
+
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the

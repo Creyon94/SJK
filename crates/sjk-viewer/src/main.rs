@@ -1446,8 +1446,7 @@ impl GpuState {
         } else {
             &self.ui_font
         };
-        self.hud.weapon_select.shown =
-            self.sample_weapon_select(hud_visibility.menu_hud, intermission_view.is_some());
+        self.hud.weapon_select.shown = self.sample_weapon_select(intermission_view.is_some());
         let hud_style = menu_hud::HudStyle::read(self.console.as_ref());
         // JoF EJK's Force wheel (the retail icon bar) with the retail-looking HUDs.
         self.hud

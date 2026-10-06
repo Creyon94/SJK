@@ -32,6 +32,8 @@ pub(super) struct WidgetData<'a> {
     pub(super) style: bool,
     /// Current opacity of the weapon-name transient.
     pub(super) weapon_alpha: f32,
+    /// Retail's weapon selection row shows; it replaces the weapon name and ammo.
+    pub(super) weapon_row: bool,
     /// team len binding supplied by the owning HUD.
     pub(super) team_len: usize,
     /// vote active binding supplied by the owning HUD.
@@ -83,11 +85,17 @@ impl HudDataSource for WidgetData<'_> {
             "draw_status" => Some(
                 self.visibility.status && !self.visibility.ground_hud && !self.visibility.menu_hud,
             ),
-            "draw_weapon" => {
-                Some(self.visibility.weapon && !self.visibility.menu_hud && self.weapon_alpha > 0.0)
-            }
+            "draw_weapon" => Some(
+                self.visibility.weapon
+                    && !self.visibility.menu_hud
+                    && !self.weapon_row
+                    && self.weapon_alpha > 0.0,
+            ),
             "draw_ammo" => Some(
-                self.visibility.weapon && !self.visibility.menu_hud && !self.ammo_value.is_empty(),
+                self.visibility.weapon
+                    && !self.visibility.menu_hud
+                    && !self.weapon_row
+                    && !self.ammo_value.is_empty(),
             ),
             "draw_style" => Some(
                 self.visibility.status
