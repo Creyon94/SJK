@@ -630,16 +630,21 @@ draws stock multiplayer's `halfShieldShell` sphere instead
 The shader blends `GL_DST_COLOR GL_ONE`, a bare multiply of the pixels behind it, so the body
 shell is faint; it is drawn `cg_shieldBrightness` times (default 4) and fades over its own
 hit's length (`LegacyShieldHit::body_brightness`), where the sphere keeps stock's fixed 2 s.
+The body shell's tint is weighted to green (`(0.3b, b, 0.3b)`), as the texture itself reads blue.
 
 Force Protect is a green `gfx/misc/forceprotect` shell on the body and Force Absorb
-a blue `gfx/misc/personalshield` one (stock draws that only on your own body, and on
+a blue `gfx/misc/personalshield` one, drawn on every player holding Absorb (JoF EJK's
+`cg_alwaysShowAbsorb`, always on here; stock draws it only on your own body and on
 team-power hits). With `cg_spProtAbsColor 1` (default, JoF EJK's `cg_spprotabscolor`),
 a player with both Protect and Absorb active gets a single cyan protect shell instead
 of the green and blue pair, as single player draws it. Another player's Absorb is read
-from their entity's own power bit, so the combined shell shows on them too; without
-the combination their Absorb is not drawn, as in stock
-([force_overlays.rs](../crates/sjk-client/src/force_overlays.rs)). JoF EJK's cvar
-`cg_alwaysShowAbsorb` and its base-enhanced server check are not ported.
+from their entity's own power bit, so both the combined and the plain shell show on them
+([force_overlays.rs](../crates/sjk-client/src/force_overlays.rs)). JoF EJK's
+base-enhanced server check is not ported.
+
+`EV_PLAYER_TELEPORT_IN/OUT` play `mp/spawn` where the player's box (mins z -16, maxs z 40)
+lands when dropped up to 4096 units, as `cg_event.c` does, not at the player's centre;
+over a void no effect plays.
 
 The Force Speed afterimages use it: two copies of the actor in its current pose
 at alpha 100 and 50, spaced by `(int)(6 * speed * 0.004)` units along the
