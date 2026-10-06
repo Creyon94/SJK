@@ -7,6 +7,14 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Mouse wheel in the key-binding form
+
+Branch `fix/bind-mouse-wheel`: the mouse wheel binds in Settings > Key bindings
+(for example `flipkick` under Movement). A notch while a slot waited for a key
+scrolled the list instead; it now binds `MWHEELUP` or `MWHEELDOWN`, as the retail
+controls menu binds any key event. A unit test covers both directions and that the
+wheel does nothing to the form when no slot waits. Checked in game on Windows 11.
+
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the
@@ -44,16 +52,6 @@ contributor challenged a player named with `×` on a live server; with the wrapp
 fix the challenge showed without a crash, but with `?` for each `×`; with both
 fixes it read `You have challenged ×jof.jk.belyash×`. Merged into SJK `main` from
 SJK pull request #2 (Creyon94, 06/10/2026).
-
-## Mouse wheel in the key-binding form
-
-Branch `fix/bind-mouse-wheel` (06/10/2026, based on `5c66ccd`): the wheel could not be
-bound in Settings > Key bindings (for example `flipkick` under Movement): a notch
-while a slot waited for a key scrolled the list instead. It now binds `MWHEELUP` or
-`MWHEELDOWN`, as the retail controls menu binds any key event. A unit test covers
-binding both directions and that the wheel does nothing to the form when no slot
-waits. Formatting, the locked workspace build, tests and clippy passed on Linux;
-binding with the wheel in game is unverified.
 
 ## Worldspawn shader remaps and remap order
 
