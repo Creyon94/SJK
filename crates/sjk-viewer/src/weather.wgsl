@@ -220,7 +220,7 @@ const RAIN_OPACITY: f32 = 0.42;
     if !open_at(input.world) { discard; }
     // Soft across, brightest just behind the head, fading along the tail.
     let across = 1.0 - input.uv.x * input.uv.x;
-    let along = smoothstep(0.0, 0.08, input.uv.y) * pow(1.0 - input.uv.y, 1.2);
+    let along = smoothstep(0.0, 0.08, input.uv.y) * pow(max(1.0 - input.uv.y, 0.0), 1.2);
     let alpha = clamp(input.opacity * across * along * RAIN_OPACITY, 0.0, 1.0);
     // The reference's grey rain (0.5) is neutral; acid rain keeps its green.
     let hue = input.color / max(max(input.color.r, max(input.color.g, input.color.b)), 0.001);
@@ -287,13 +287,25 @@ fn depth_gap(fragment: vec4<f32>) -> f32 {
     return vec4(input.color.rgb * texel.rgb, alpha * texel.a);
 }
 
+// A splash is real geometry, not a sprite: a ring flush with the ground, a crown of
+// water as a curved wall of segments that flares out, rises and collapses, and drops
+// thrown out on arcs, each part placed in the world so the splash keeps its shape and
+// parallax from any angle. On water the ring becomes two ripples under a lower crown.
+const SPLASH_PARTS: u32 = 15u;
+const CROWN_SEGMENTS: u32 = 8u;
+const DROPLETS: u32 = 6u;
+const PI: f32 = 3.14159265;
+
 struct SplashOutput {
     @builtin(position) position: vec4<f32>,
-    // Ground: x across (-1..1), y up (0..1). Water: the ripple's plane (-1..1).
+    // Ring: the ground plane (-1..1). Crown: across the segment and up (0..1). Drop:
+    // across (-1..1) and along, head 0 to tail 1.
     @location(0) uv: vec2<f32>,
-    @location(1) color: vec3<f32>,
-    // x age (0..1), y 1 on water, z the droplets' spread.
-    @location(2) @interpolate(flat) shape: vec3<f32>,
+    @location(1) opacity: f32,
+    // 0 ring on the ground, 1 ripples on water, 2 crown, 3 drop.
+    @location(2) @interpolate(flat) kind: u32,
+    // x age (0..1), y how edge-on a crown segment is seen, z a random phase.
+    @location(3) @interpolate(flat) detail: vec3<f32>,
 };
 
 @vertex fn vertex_splash(@builtin(vertex_index) vertex: u32,
@@ -306,7 +318,8 @@ struct SplashOutput {
     let life = 0.28 + 0.2 * timing.x;
     let clock = weather.cover.w / life + timing.y;
     let age = fract(clock);
-    let seed = hash3(index * 0x9E3779B1u ^ (u32(i32(floor(clock))) * 0x85EBCA77u));
+    let cycle = u32(i32(floor(clock)));
+    let seed = hash3(index * 0x9E3779B1u ^ (cycle * 0x85EBCA77u));
     let radius = 0.5 * min(rain.box_size.x, rain.box_size.y);
     // Anchored in the world as the streaks are: the spot repeats every box width, and
     // the copy inside the box around the camera is the one drawn, so a splash stays
@@ -323,52 +336,135 @@ struct SplashOutput {
     let fade = (1.0 - smoothstep(0.7 * radius, radius, length(ground - camera.position.xy)))
         * smoothstep(24.0, 64.0, distance) * fog_clear(base);
     if fade <= 0.002 { return output; }
-    let c = corner(vertex);
+    let part = vertex / 6u;
+    // Far away a crown is a few pixels and its drops less: only the ring and three drops
+    // past 400 units, only the ring past 700.
+    if (distance > 700.0 && part != 0u) || (distance > 400.0 && part > CROWN_SEGMENTS + 3u) {
+        return output;
+    }
+    let c = corner(vertex % 6u);
     let water = (flags & LIQUID) != 0u;
+    let shape = hash3(index * 0x27D4EB2Fu ^ (cycle * 0x165667B1u));
+    let scale = 0.75 + 0.5 * seed.z;
+    let spin = shape.x * TAU;
+    output.detail = vec3(age, 0.0, shape.y);
+    output.opacity = rain.color.a * fade;
     var world: vec3<f32>;
-    if water {
-        let size = 3.0 + 13.0 * age;
-        world = base + vec3(c * size, 0.5);
+    if part == 0u {
+        // Lifted a little more with distance, where depth is coarser.
+        let size = select(9.0 * scale, (4.0 + 14.0 * age) * scale, water);
+        world = base + vec3(c * size, 0.3 + distance * 0.0015);
         output.uv = c;
+        output.kind = select(0u, 1u, water);
+    } else if part <= CROWN_SEGMENTS {
+        let segment = part - 1u;
+        let jag = hash3(index ^ (segment * 0x9E3779B1u) ^ (cycle * 0x7FEB352Du)).x;
+        // Out fast and slowing; up and back down before the end.
+        let expand = 1.0 - (1.0 - age) * (1.0 - age);
+        let reach = (0.8 + 4.5 * expand) * scale * select(1.0, 0.7, water);
+        let rise = pow(max(sin(PI * min(age / 0.8, 1.0)), 0.0), 0.7);
+        let height = 4.0 * scale * select(1.0, 0.6, water) * rise * (0.75 + 0.45 * jag);
+        if height < 0.15 { return output; }
+        let across = c.x * 0.5 + 0.5;
+        let up = c.y * 0.5 + 0.5;
+        let angle = spin + (f32(segment) + across) * TAU / f32(CROWN_SEGMENTS);
+        // The wall leans outwards as it rises.
+        let out = reach + up * height * 0.45;
+        world = base + vec3(vec2(cos(angle), sin(angle)) * out, 0.15 + up * height);
+        let middle = spin + (f32(segment) + 0.5) * TAU / f32(CROWN_SEGMENTS);
+        let normal = vec3(cos(middle), sin(middle), 0.0);
+        output.detail.y = 1.0 - abs(dot(normal, normalize(camera.position - base)));
+        output.uv = vec2(across, up);
+        output.kind = 2u;
     } else {
-        let forward = normalize(camera.forward);
-        var right = cross(forward, vec3(0.0, 0.0, 1.0));
-        if dot(right, right) < 1e-4 { right = vec3(0.0, 1.0, 0.0); }
-        right = normalize(right);
-        let size = 6.0 + 4.0 * seed.z;
-        world = base + right * c.x * size + vec3(0.0, 0.0, (c.y * 0.5 + 0.5) * size * 1.2);
-        output.uv = vec2(c.x, c.y * 0.5 + 0.5);
+        let k = part - 1u - CROWN_SEGMENTS;
+        let drop = hash3(index * 0xB5297A4Du ^ (k * 0x68E31DA4u) ^ (cycle * 0x1B56C4E9u));
+        // Drops leave once the crown has formed.
+        if age < 0.08 { return output; }
+        let flight = clamp((age - 0.08) / 0.92, 0.0, 1.0);
+        let angle = spin + (f32(k) + 0.6 * drop.x) * TAU / f32(DROPLETS);
+        let outward = vec2(cos(angle), sin(angle));
+        let travel = (5.0 + 9.0 * drop.y) * scale;
+        let peak = (3.0 + 6.0 * drop.z) * scale * select(1.0, 1.4, water);
+        let head = base + vec3(outward * (scale + travel * flight),
+            0.3 + peak * 4.0 * flight * (1.0 - flight));
+        let velocity = vec3(outward * travel, peak * 4.0 * (1.0 - 2.0 * flight));
+        let direction = normalize(velocity);
+        let along = c.y * 0.5 + 0.5;
+        let centre = head - direction * 1.6 * scale * along;
+        var side = cross(direction, camera.position - centre);
+        if dot(side, side) < 1e-6 { side = vec3(0.0, 0.0, 1.0); }
+        side = normalize(side);
+        // At least about a pixel wide, fainter instead of thinner, as the rain is.
+        let a = camera.view_projection * vec4(centre, 1.0);
+        let b = camera.view_projection * vec4(centre + side, 1.0);
+        if a.w <= 1.0 || b.w <= 1.0 { return output; }
+        let pixels = length((b.xy / b.w - a.xy / a.w) * weather.view.xy * 0.5);
+        let width = 0.35 * scale;
+        let half_width = max(width, 0.6 / max(pixels, 0.0001));
+        output.opacity *= width / half_width;
+        world = centre + side * c.x * half_width;
+        output.uv = vec2(c.x, along);
+        output.kind = 3u;
     }
     output.position = camera.view_projection * vec4(world, 1.0);
-    // x the splash's opacity; blended as the streaks are.
-    output.color = vec3(rain.color.a * fade);
-    output.shape = vec3(age, select(0.0, 1.0, water), 0.6 + 0.6 * seed.z);
     return output;
 }
 
 @fragment fn fragment_splash(input: SplashOutput) -> @location(0) vec4<f32> {
-    let age = input.shape.x;
-    var light = 0.0;
-    if input.shape.y > 0.5 {
-        // A ripple: a thin ring that widens and fades.
-        let ring = length(input.uv) - (0.25 + 0.7 * age);
-        light = exp(-ring * ring * 300.0) * (1.0 - age) * 1.5;
-    } else {
-        // A crown of droplets thrown up and out, falling back by the end, over a brief
-        // flash where the drop struck.
-        for (var k = 0; k < 5; k++) {
-            let lean = (f32(k) - 2.0) * 0.38 * input.shape.z;
-            let drop = vec2(lean * age, (1.9 - abs(lean) * 0.6) * age - 1.9 * age * age);
-            let offset = (input.uv - drop) * vec2(1.0, 1.6);
-            light += exp(-dot(offset, offset) * 90.0);
+    let age = input.detail.x;
+    let tint = min(weather.light.rgb * RAIN_TINT, vec3(1.0));
+    var bright = 0.0;
+    var dark = 0.0;
+    switch input.kind {
+        case 0u: {
+            // The ring where the drop struck, a flash at its centre, and a darker wet spot
+            // under it that dries more slowly than the ring fades.
+            let d = length(input.uv);
+            if d > 1.0 { discard; }
+            let spread = 0.12 + 0.55 * (1.0 - (1.0 - age) * (1.0 - age));
+            let off = (d - spread) / 0.05;
+            let ring = exp(-off * off) * pow(1.0 - age, 1.5) * 0.9;
+            let flash = exp(-d * d * 60.0) * pow(1.0 - age, 3.0) * 0.8;
+            bright = ring + flash;
+            dark = (1.0 - smoothstep(0.0, 0.55, d)) * 0.22 * (1.0 - 0.5 * age);
         }
-        let strike = input.uv * vec2(1.6, 9.0);
-        light = light * (1.0 - age * age) + exp(-dot(strike, strike)) * (1.0 - age) * (1.0 - age);
+        case 1u: {
+            // Two ripples widening on the water, the second a beat behind.
+            let d = length(input.uv);
+            if d > 1.0 { discard; }
+            let near = (d - (0.15 + 0.8 * age)) / 0.035;
+            let far = (d - (0.05 + 0.5 * age)) / 0.035;
+            let first = exp(-near * near);
+            let second = exp(-far * far) * 0.6
+                * smoothstep(0.1, 0.25, age);
+            bright = (first + second) * pow(1.0 - age, 1.3) * 1.1;
+        }
+        case 2u: {
+            // A thin sheet of water, thicker at the rim, which breaks into beads; it
+            // catches more light seen edge-on, as a film does.
+            let up = input.uv.y;
+            let sheet = 0.18 + 0.5 * smoothstep(0.55, 1.0, up);
+            let rim = smoothstep(0.8, 0.95, up) * (1.0 - smoothstep(0.95, 1.0, up));
+            let beads = 0.6 + 0.4 * sin((input.uv.x + input.detail.z) * TAU * 2.0);
+            let glint = 0.6 + 0.9 * input.detail.y * input.detail.y;
+            bright = (sheet * (1.0 - 0.5 * smoothstep(0.92, 1.0, up)) + rim * beads * 0.8)
+                * glint * pow(1.0 - age, 1.2) * 1.15;
+        }
+        default: {
+            // A drop in flight: bright head, short tail.
+            let across = 1.0 - input.uv.x * input.uv.x;
+            bright = across * mix(1.0, 0.3, input.uv.y) * (1.0 - age * age * age) * 1.1;
+        }
     }
-    let alpha = clamp(input.color.x * light * 0.9, 0.0, 1.0);
-    return vec4(min(weather.light.rgb * RAIN_TINT * 1.1, vec3(1.0)), alpha);
+    bright *= input.opacity;
+    dark *= input.opacity;
+    // Blended over the scene: the bright part adds the rain's light, the dark part only
+    // darkens what is under it.
+    let alpha = clamp(bright + dark, 0.0, 1.0);
+    if alpha <= 0.001 { discard; }
+    return vec4(tint * min(bright / alpha, 1.0), alpha);
 }
-
 // The volumetric fog: rain haze and ground fog over the scene, one full-screen pass
 // before the particles. Each pixel marches its ray to the surface it shows and counts
 // only open-sky air (the cover): a roof keeps the fog out as it keeps the rain out.

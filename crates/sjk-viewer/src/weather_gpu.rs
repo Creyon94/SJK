@@ -6,6 +6,8 @@ use std::ops::Range;
 
 /// Mass buckets per cloud: particles share the flow of their bucket's mass.
 pub(crate) const BUCKETS: usize = 8;
+/// Quads in one splash: its ring, eight crown segments and six drops (`weather.wgsl`).
+pub(crate) const SPLASH_PARTS: u32 = 15;
 /// Edge of each weather image layer, in texels.
 const IMAGE_SIZE: u32 = 64;
 
@@ -321,7 +323,11 @@ impl Gpu {
                 Kind::SpriteAlpha => &self.sprite_alpha,
                 Kind::Volume => &self.volume,
             });
-            let vertices = if batch.kind == Kind::Volume { 3 } else { 6 };
+            let vertices = match batch.kind {
+                Kind::Volume => 3,
+                Kind::Splash => 6 * SPLASH_PARTS,
+                _ => 6,
+            };
             pass.draw(0..vertices, batch.instances.clone());
         }
     }
@@ -426,6 +432,7 @@ mod tests {
         let shader = include_str!("weather.wgsl");
         assert!(shader.contains("array<vec4<f32>, 8>"));
         assert!(shader.contains("clouds: array<Cloud, 5>"));
+        assert!(shader.contains(&format!("const SPLASH_PARTS: u32 = {SPLASH_PARTS}u;")));
     }
 
     /// Validate the shader, then specialise every entry point both ways and translate it
