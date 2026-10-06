@@ -360,7 +360,7 @@ const HELP: &[(&str, &str)] = &[
     ("cg_speedometer", "Shows how fast you move."),
     (
         crate::scoreboard::style::CVAR,
-        "SJK's modern scoreboard, or the classic one after the original game's.",
+        "The classic scoreboard after the original game's, or SJK's modern one.",
     ),
     (
         "cg_showClientIDs",

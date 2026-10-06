@@ -103,12 +103,12 @@ impl HudVisibility {
                     .unwrap_or(1)
                     != 0,
             crosshair_names: hud && enabled("cg_drawCrosshairNames", true),
-            timer: hud && enabled("cg_drawTimer", false),
+            timer: hud && enabled("cg_drawTimer", true),
             lagometer: hud && enabled("cg_lagometer", false),
             team_overlay: hud
                 && console
                     .and_then(|c| c.integer_cvar("cg_drawteamoverlay"))
-                    .unwrap_or(0)
+                    .unwrap_or(1)
                     > 0,
             ground_hud: false,
             menu_hud: false,

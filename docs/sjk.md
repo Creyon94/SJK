@@ -46,6 +46,26 @@ them in place: the upstream merge adds the same text and resolves cleanly.
   Bishop and its contributors. Keep CREDITS.md current when SJK gains notable
   work.
 
+## Defaults
+
+A new profile starts with Sol's own choices where JKR's defaults differ. Defaults
+apply only to settings a `config.cfg` has not saved: an existing profile keeps its
+values and nothing is migrated. Where each is documented:
+
+| Setting | SJK | JKR | See |
+| --- | --- | --- | --- |
+| `ui_menuStyle` | `classic` | `modern` | [Menu style](client.md#menu-style) |
+| `ui_gameFont` | on | off | [UI ownership](rendering.md#ui-ownership) |
+| `cg_scoreboardStyle` | `classic` | `modern` | [Scoreboard styles](client.md#scoreboard-styles) |
+| `cg_drawTimer`, `cg_drawTeamOverlay` | on | off | [status.md](status.md#gameplay-and-interface-defaults-sjk-only) |
+| `cg_dismember` | 2 | 0 | [Dismemberment](client.md#dismemberment-and-disintegration) |
+| `snaps` | 120 (slider to 125) | 40 (slider to 60) | [status.md](status.md#gameplay-and-interface-defaults-sjk-only) |
+| `com_maxfpsUnfocused` | 30 | 0 | [Configuration](client.md#configuration-and-content) |
+| rendering profile | noon, bloom, dust, material maps | 11:00, off | [Default visual profile](rendering.md#default-visual-profile) |
+
+The HUD look (`cg_hudStyle game`) and the console (`con_style classic`) are SJK
+defaults too, documented with their pages.
+
 ## Copyright notice
 
 [NOTICE](../NOTICE) is SJK's copyright notice: Sol-Vulpes, Bishop-R and the JKR

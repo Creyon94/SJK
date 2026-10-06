@@ -31,7 +31,7 @@ impl ViewerConsole {
                 "Multiplayer player model and skin",
             ),
             CvarDefinition::new("rate", 25_000_i64, user, "Maximum connection data rate"),
-            CvarDefinition::new("snaps", 40_i64, user, "Requested server snapshot rate"),
+            CvarDefinition::new("snaps", 120_i64, user, "Requested server snapshot rate"),
             CvarDefinition::new(
                 "forcepowers",
                 "7-1-032330000000001333",

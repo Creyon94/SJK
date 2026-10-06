@@ -1630,7 +1630,8 @@ UI text uses the bundled Inter font, rasterized once per display scale in
 [text.rs](../crates/sjk-viewer/src/text.rs). Two options switch surfaces to
 the game's own fonts, read from the player's game data and never bundled:
 `cg_classicHudFont` draws the status HUD with `arialnb`, and `ui_gameFont`
-("Classic game fonts", off by default) draws every surface the retail game drew
+("Classic game fonts", on by default in SJK, off in JKR; a font the game data lacks
+leaves its surfaces on Inter) draws every surface the retail game drew
 with its own fonts in that font, following OpenJK `codemp`:
 
 | Retail font | Surfaces |

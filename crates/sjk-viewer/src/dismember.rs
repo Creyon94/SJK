@@ -27,7 +27,8 @@ const RHAND: u8 = 14;
 const LLEG: u8 = 15;
 /// `cgs.effects.mBlasterSmoke`.
 pub(crate) const SMOKE: &str = "blaster/smoke_bolton";
-/// `cg_dismember`, as EternalJK (`cg_xcvar.h`): off by default.
+/// `cg_dismember`, as EternalJK (`cg_xcvar.h`), which has it off by default;
+/// SJK starts on 2 (every cut limb).
 pub(crate) const CVAR: &str = "cg_dismember";
 /// `g_dismember`, the server's chance to cut a limb, given to games this client hosts.
 pub(crate) const SERVER_CVAR: &str = "g_dismember";

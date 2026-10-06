@@ -3,6 +3,10 @@
 use super::console_cvars::IntegerSetting;
 use super::*;
 
+/// `com_maxfpsUnfocused` default: a window without focus draws at 30 FPS, so an
+/// alt-tabbed client does not keep a 4K frame rate. EternalJK leaves it at 0.
+const UNFOCUSED_CAP: i64 = 30;
+
 /// Window preferences retained across world installs with the console.
 pub(super) struct Options {
     unfocused_cap: IntegerSetting,
@@ -22,7 +26,7 @@ impl Options {
         for (name, default, help) in [
             (
                 "com_maxfpsUnfocused",
-                0_i64,
+                UNFOCUSED_CAP,
                 "Unfocused frame cap; zero uses the normal cap",
             ),
             (
@@ -78,7 +82,7 @@ impl Options {
             "Attention words (space separated); -1 any chat, 0 disabled",
         ))?;
         Ok(Self {
-            unfocused_cap: IntegerSetting::bind(cvars, "com_maxfpsUnfocused", 0)?,
+            unfocused_cap: IntegerSetting::bind(cvars, "com_maxfpsUnfocused", UNFOCUSED_CAP)?,
             minimized_cap: IntegerSetting::bind(cvars, "com_maxfpsMinimized", 50)?,
             unfocused_chatbox: IntegerSetting::bind(cvars, "cl_unfocusedChatbox", 1)?,
             minimized_chatbox: IntegerSetting::bind(cvars, "cl_minimizedChatbox", 1)?,

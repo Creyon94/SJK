@@ -1938,6 +1938,26 @@ migrated. See [Default visual profile](rendering.md#default-visual-profile).
 Formatting, the locked workspace build, tests and Clippy passed. No client was
 run: the look and frame cost of the new defaults are unverified.
 
+## Gameplay and interface defaults (SJK only)
+
+SJK-only branch `personal/defaults` (2026-10-06, based on `5c22d2d`) turns the
+settings Sol had chosen into defaults for a new profile: the classic scoreboard
+(`cg_scoreboardStyle`, parsed like `ui_menuStyle`: only `modern` or `0` selects
+the modern one) and the retail fonts (`ui_gameFont`) to go with the classic menus
+and console; the match timer and team overlay on (`cg_drawTimer`,
+`cg_drawTeamOverlay`; the overlay draws only for a player on the red or blue
+team, so free-for-all is unchanged); cut-off limbs shown (`cg_dismember 2`);
+`snaps` 120, with the Settings slider raised from 60 to 125 so the default lies
+on it; and a 30 FPS cap while the window has no focus (`com_maxfpsUnfocused`).
+Saved `config.cfg` values still win; nothing is migrated. The values were chosen
+by comparing Sol's `config.cfg` with a fresh registry's defaults. A `snaps` request
+above the server's rate is clamped to `min(sv_fps, sv_maxSnaps)` (read in this
+repository's dedicated server,
+[schedule.rs](../crates/sjk-network/src/server_session/schedule.rs), which follows
+the reference); other servers' handling was not checked. Not measured: the
+per-frame cost of the limb scan now that `cg_dismember` is not 0 by default (one
+pass over the snapshot's entities). No client was run; Sol tests through `play`.
+
 ## Implemented scope
 
 - PK3/loose-file content, BSP maps/collision, legacy models and shader scripts.

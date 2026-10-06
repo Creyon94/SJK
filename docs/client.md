@@ -659,7 +659,9 @@ Both follow EternalJK's cgame (`cg_ents.c`, `cg_players.c`) and rd-vanilla's ren
   turns the limb off on the owner with the stump's cap on; a cut right arm, right hand
   or waist takes the weapon with it. Both cuts smoke, and a flying limb trails smoke.
   A body left behind keeps the missing limbs; the player is whole again once alive.
-  `cg_dismember` defaults to 0, as in EternalJK. `g_dismember` (0 to 100) set in the
+  `cg_dismember` defaults to 0 in EternalJK and JKR; SJK differs and starts on 2, so
+  a server that enables dismemberment shows every cut limb (0 shows none, and a
+  config that saved 0 keeps it). `g_dismember` (0 to 100) set in the
   console is handed to games this client hosts (Create game and `devmap`).
 - **Disintegration** (`EF_DISINTEGRATION`): a disruptor kill, or a corpse shot or cut
   until it gives way, freezes the pose and burns the body away from the hit point:
@@ -1035,8 +1037,9 @@ unchanged.
 ## Scoreboard styles
 
 `cg_scoreboardStyle` (Settings, HUD+ tab, "Scoreboard style") picks the
-scoreboard layout: `modern` (default), JKR's table beside the chat column, or
-`classic`, the retail scoreboard as EternalJK-derived clients such as JoF EJK
+scoreboard layout: `modern`, JKR's table beside the chat column, or
+`classic` (SJK's default, like its menus and console; JKR's is `modern`; only
+`modern` or `0` selects the modern one), the retail scoreboard as EternalJK-derived clients such as JoF EJK
 draw it ([classic.rs](../crates/sjk-viewer/src/scoreboard/classic.rs), after
 `CG_DrawOldScoreboard`/`CG_DrawClientScore` in `cg_scoreboard.c`):
 
@@ -1383,6 +1386,11 @@ AUTO is the rail's left end: arrows step AUTO, 0, 25, 50 and so on, and typing
 client saturates the GPU; screen recorders and streamers sharing it then skip
 frames (OBS reported 83% skipped for encoding lag against an uncapped client at
 4K). See [runtime_settings.rs](../crates/sjk-viewer/src/runtime_settings.rs).
+
+A window without focus has caps of its own: `com_maxfpsUnfocused` (SJK's default
+30; EternalJK's 0 keeps the normal cap) and `com_maxfpsMinimized` (50), where 0
+uses `com_maxfps`. They replace the normal cap while they apply, minimized first,
+so an alt-tabbed client does not render a 4K scene at full rate.
 
 The Video tab's Display mode row offers Windowed, Borderless fullscreen and,
 where the windowing system supports it, Exclusive fullscreen (Wayland does not).
