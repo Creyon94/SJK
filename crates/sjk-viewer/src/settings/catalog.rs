@@ -228,6 +228,67 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Overhead names",
+        cvar: "cg_drawPlayerNames",
+        kind: ValueKind::Integer {
+            min: 0,
+            max: 2,
+            step: 1,
+        },
+    },
+    Setting {
+        label: "Nametag size",
+        cvar: "cg_drawPlayerNamesScale",
+        kind: ValueKind::Float {
+            min: 0.2,
+            max: 1.5,
+            step: 0.1,
+        },
+    },
+    Setting {
+        label: "Name plates",
+        cvar: "cg_nametagPlate",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Nametag range",
+        cvar: "cg_nametagRange",
+        kind: ValueKind::Integer {
+            min: 500,
+            max: 10000,
+            step: 250,
+        },
+    },
+    Setting {
+        label: "Tags shrink with range",
+        cvar: "cg_nametagShrink",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Smallest tag size",
+        cvar: "cg_nametagMinScale",
+        kind: ValueKind::Float {
+            min: 0.25,
+            max: 1.0,
+            step: 0.05,
+        },
+    },
+    Setting {
+        label: "Tags through walls",
+        cvar: "cg_nametagWalls",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Ally markers",
+        cvar: "cg_drawFriend",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "NPC tags",
+        cvar: "cg_nametagNpcs",
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Match timer",
         cvar: "cg_drawTimer",
         kind: ValueKind::Bool,

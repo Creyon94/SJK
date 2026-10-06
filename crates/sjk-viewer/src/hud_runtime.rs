@@ -291,7 +291,7 @@ pub(crate) fn update(
         {
             gpu.chat.update_roster(game);
         } else {
-            gpu.hud.identification.list.clear();
+            gpu.hud.identification.clear();
         }
     }
     if let Some(game) = game {

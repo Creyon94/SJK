@@ -1226,6 +1226,20 @@ test: /identity opens the page (also in-game menu > SJK > Identity); check 4K an
 test: Set cl_identity 0: nothing is sent and the page says identity is off.
 note: Never started in a game yet: the scoreboard mark and the page layout are unchecked.
 
+[nametags]
+status: personal
+area: HUD
+title: MMO-style nametags over players (and optionally NPCs)
+change: Names sit on a plate framed in the team colour; cg_drawPlayerNames 2 adds a health bar.
+change: Tags shrink and fade with distance, ease out behind walls and sit above the head.
+change: Settings > HUD has a row per cvar: cg_drawPlayerNames, cg_nametagPlate/Range/Shrink/MinScale.
+test: Join a local server with a bot or second client; the name shows over them on a plate.
+test: cg_drawPlayerNames 2: a framed health bar under the name; shoot the bot and it drops.
+test: Walk away: the tag shrinks to 60% and fades near 3000 units; crouch the bot: the tag drops.
+test: Step behind a wall: the tag fades out (cg_nametagWalls 1 keeps it dim). Try team games too.
+test: cg_nametagNpcs 1 with spawned NPCs: class name and health bar. cg_nametagPlate 0: plain text.
+note: Never started in a game yet: plate size, text fit and bar height are unchecked.
+
 # ---- Merged upstream ----
 
 [jkr-vehicles]

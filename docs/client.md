@@ -282,7 +282,7 @@ one group and regroups JKR's GAME, HUD, HUD+ and TEXT tabs by subject
   gathers the menus' and console's
   look (menu style, accent, contrast, game fonts, menu text size and spacing,
   console style, text size and line spacing); HUD the HUD style, files and scale,
-  status, weapon bar, crosshair and its size, names, timer, speedometer, team
+  status, weapon bar, crosshair and its size, names, nametags, timer, speedometer, team
   overlay, lagometer, chat and ground readout; Scoreboard its style, client
   numbers, head icons and small rows. Network follows. RENDERER opens SJK's
   renderer page: the same layout with the renderer settings' IMAGE, LIGHTING and
@@ -1012,6 +1012,38 @@ Enter or a click uses the HUD and closes; Escape closes. The picker takes
 retail's colours and highlight art on the classic menus and the theme's on the
 modern ones. "Game HUD files" stays on the tab for lists the picker does not
 find.
+
+## Nametags
+
+Players carry an overhead nametag
+([identification.rs](../crates/sjk-viewer/src/hud/identification.rs), maths in
+[nametag.rs](../crates/sjk-viewer/src/hud/nametag.rs)), drawn as 2D HUD shapes at
+the projected point 8 units above the head of the player's box (decoded from
+`entityState_t::solid`, so a crouching player's tag drops). Settings > HUD has a
+row for each cvar.
+
+- `cg_drawPlayerNames`: 0 off, 1 names, 2 adds a framed health bar (SJK's default
+  is 1; TaystJK's is 0). The name is the roster's, with its colour codes; a server
+  that sets the stock name-hiding restriction (`restricts & 64`) still hides it.
+- `cg_nametagPlate` (1): the name sits on a rounded plate framed in red or blue in
+  team games; 0 draws plain text as TaystJK does. `cg_drawPlayerNamesScale` sets
+  the text size.
+- `cg_nametagRange` (3000 units), `cg_nametagShrink` (1) and `cg_nametagMinScale`
+  (0.6): a tag keeps full size within 300 units, shrinks to the minimum size at the
+  range, and fades out over the last quarter of the range.
+- `cg_nametagWalls` (0): a player behind a wall (the same BSP trace as before,
+  from the rendered eye) fades out; with 1 the tag stays at 35% opacity instead.
+  Opacity changes ease over 120 ms, so tags do not pop.
+- `cg_drawFriend` (1): the ally marker (team mate, Power Duel partner, Jedi Master
+  foe), now drawn as a pointer under the plate.
+- `cg_nametagNpcs` (0): NPCs get a tag with their class name (the wire carries only
+  `class_t`, see [npc_class.rs](../crates/sjk-viewer/src/hud/npc_class.rs)) and a
+  health bar, at most 16 at a time. Vehicles are skipped.
+
+At most 32 players and 16 NPCs are tagged; far tags are drawn first so near plates
+cover them. Nothing is allocated per frame. The tags hide with the HUD, the
+scoreboard and intermission, and for cloaked, dead and spectating players. Not
+tested in game yet.
 
 ## Version label
 

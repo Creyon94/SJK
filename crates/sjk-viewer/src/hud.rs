@@ -9,6 +9,8 @@ pub(crate) mod icons;
 pub(crate) mod identification;
 mod info;
 pub(crate) mod movement;
+mod nametag;
+mod npc_class;
 pub(crate) mod options;
 pub(crate) mod portrait;
 mod selection;
