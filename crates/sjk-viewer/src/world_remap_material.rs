@@ -160,7 +160,7 @@ impl Runtime {
             self.forge.format,
             fog_pass,
             definition.map_or(ShaderCull::Front, |d| d.cull),
-            u8::from(deform),
+            u8::from(deform) | super::super::fog_gpu::polygon_offset(definition),
         );
         let blended = compiled.sort > SORT_OPAQUE;
         let mut look = Look {

@@ -1,7 +1,19 @@
 //! Map-lifetime volume uniforms, selectors and fog pipelines.
 use super::*;
 use crate::fog_volumes::{FOG_SLOTS, Mode, Table};
-use sjk_shader::{FogPass, ShaderCull};
+use sjk_shader::{FogPass, ShaderCull, ShaderDefinition};
+
+/// The fog key's depth-bias bit for a `polygonOffset` shader. rd-vanilla runs
+/// `RB_FogPass` before `RB_StageIteratorGeneric` disables `GL_POLYGON_OFFSET_FILL`, so
+/// a decal's fog is offset like its stages; unbiased, its `Equal` test fights with the
+/// surface under it pixel by pixel.
+pub(super) fn polygon_offset(definition: Option<&ShaderDefinition>) -> u8 {
+    if definition.is_some_and(|d| d.polygon_offset) {
+        crate::world_stage::POLYGON_OFFSET
+    } else {
+        0
+    }
+}
 
 /// GPU resources allocated once, with selectors aligned for dynamic uniform offsets.
 pub(super) struct FogGpu {

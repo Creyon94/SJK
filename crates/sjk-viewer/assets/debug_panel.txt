@@ -1752,6 +1752,15 @@ test: Walk the rows; tell Claude the IDs that look wrong (compare in EternalJK i
 test: Same for _b to _e, then devmap sjk_shaders_s: one sky per room off the corridors.
 note: The pk3 is GameData/base/sjk_shadertest.pk3; delete it when done.
 
+[decal-fog-bias]
+status: personal
+area: Rendering & effects
+title: Decals inside fog no longer flicker
+change: A polygonOffset decal's fog layer gets the same depth bias as the decal (rd-vanilla).
+test: devmap sjk_shaders_a: walk into the fog cubes (FOG labels); nothing flickers inside.
+test: A map with fog and wall decals (e.g. mp/siege_hoth): decals in fog stay steady.
+note: Decal flicker outside fog is not fixed by this: tell Claude the map and the decal.
+
 # ---- Merged upstream ----
 
 [actor-instance-cap]

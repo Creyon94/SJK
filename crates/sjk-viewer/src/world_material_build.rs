@@ -197,7 +197,8 @@ fn build(
             fog_pass,
             cull,
             u8::from(definition.is_some_and(|d| !d.deforms.is_empty()))
-                | if sprite.is_some() { 2 } else { 0 },
+                | if sprite.is_some() { 2 } else { 0 }
+                | super::fog_gpu::polygon_offset(definition),
         );
         fog_ms += fog_started.elapsed().as_secs_f64() * 1e3;
         let draws_started = Instant::now();
