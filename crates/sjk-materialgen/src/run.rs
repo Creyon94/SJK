@@ -155,6 +155,7 @@ pub fn run(options: &Options) -> Result<Summary, Box<dyn Error>> {
                     triangles: candidate.triangles,
                     outputs: output.entries.iter().map(|e| e.path.clone()).collect(),
                     existing: candidate.existing.clone(),
+                    relief: output.relief,
                     emission,
                 });
                 entries.extend(output.entries);
@@ -238,6 +239,8 @@ struct Output {
     entries: Vec<Entry>,
     /// The texture has no relief: no normal or packed map.
     flat: bool,
+    /// Why the height was turned upside down, with the painted-light score.
+    relief: Option<String>,
     /// The emission map's coverage and gain, or why none was written; `None` without a plan.
     emission: Option<Result<(f32, f32), String>>,
 }
@@ -317,9 +320,13 @@ fn generate_one(
     let source = decode(&candidate.image, &asset.bytes)?;
     let mut entries = Vec::new();
     let mut flat = false;
+    let mut relief = None;
     if candidate.normal || candidate.packed {
         let maps = generate(&source, &candidate.class, candidate.alpha_tested, settings);
         flat = maps.flat;
+        relief = maps
+            .inverted
+            .map(|why| format!("inverted ({why}, painted light {:.2})", maps.painted));
         if candidate.normal && !flat {
             let bytes = if maps.normal_alpha {
                 png_rgba(&maps.normal)
@@ -365,6 +372,7 @@ fn generate_one(
         height: sized.height(),
         entries,
         flat,
+        relief,
         emission,
     })
 }

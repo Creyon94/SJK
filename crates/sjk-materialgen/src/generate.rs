@@ -12,6 +12,11 @@
 //!    weights, so pixel noise counts less than shapes. The sum is centred on
 //!    its 2nd–98th percentile range and scaled to 0–1. Low-contrast textures
 //!    are not stretched beyond [`MIN_HEIGHT_RANGE`], so flat paint stays flat.
+//!    The class's `fine_detail` weighs the two finest bands (smooth metal keeps
+//!    little of the texel grain). Bright is high unless the class's `relief`
+//!    says otherwise or, left to `auto`, the paint's own top light clearly shows
+//!    the bright parts recessed ([`painted_relief`]): then the height is turned
+//!    upside down.
 //! 2. **Normal.** Scharr derivatives of the height, times the class's normal
 //!    strength and the `--strength` factor, give the normal
 //!    `normalize(-k·dh/ds, -k·dh/dt, 1)`. Up to [`SLOPE_REFERENCE`] (512)
@@ -33,7 +38,7 @@
 //! nothing to the blurs, get a flat normal, and the normal map keeps the
 //! source alpha. They never get parallax height.
 
-use crate::classes::MaterialClass;
+use crate::classes::{MaterialClass, Relief};
 use crate::filters::{Plane, blur, percentile, scharr, weighted_blur};
 use image::{Rgb, RgbImage, Rgba, RgbaImage};
 
@@ -55,6 +60,17 @@ pub const SLOPE_REFERENCE: f32 = 512.0;
 
 /// Smallest band-passed luminance range that is scaled to the full height range.
 pub const MIN_HEIGHT_RANGE: f32 = 0.12;
+
+/// [`painted_relief`] below which an `auto` texture's height is turned upside down.
+/// Most retail and HD textures score near 0 (their painted light is too faint to tell);
+/// a clear inset panel or stud row scores -0.1 to -0.5.
+pub const INVERT_BELOW: f32 = -0.1;
+
+/// Luminance of void texels (holes, gaps, black screens), and the share of them above
+/// which a texture is never turned: voids are low whatever their rims suggest, and a
+/// perforated grate's black holes fooled the painted-light test.
+pub const VOID_LUMINANCE: f32 = 0.06;
+pub const VOID_SHARE: f32 = 0.4;
 
 /// Settings that apply to every texture of a run.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -109,6 +125,10 @@ pub struct Maps {
     /// No texel's normal leans by more than one step: the image has no relief
     /// to show (flat colours), and the maps would only cost memory.
     pub flat: bool,
+    /// The height was turned upside down (dark is high), and why.
+    pub inverted: Option<&'static str>,
+    /// [`painted_relief`] of the texture (0 for alpha-tested ones).
+    pub painted: f32,
 }
 
 /// Generate the maps of `source`.
@@ -131,7 +151,26 @@ pub fn generate(
         0.2126 * red.at(x, y) + 0.7152 * green.at(x, y) + 0.0722 * blue.at(x, y)
     });
     let scale = width.max(height) as f32 / 256.0;
-    let height_map = height_from_luminance(&luminance, mask.as_ref(), scale);
+    let height_map = height_from_luminance(&luminance, mask.as_ref(), scale, class.fine_detail);
+    // Alpha-tested textures keep bright high: their holes are cut out, not painted.
+    let painted = if mask.is_none() {
+        painted_relief(&luminance, scale)
+    } else {
+        0.0
+    };
+    let inverted = match class.relief {
+        Relief::Inverted => Some("overrides"),
+        Relief::Keep => None,
+        Relief::Auto => (mask.is_none()
+            && painted < INVERT_BELOW
+            && void_share(&luminance) <= VOID_SHARE)
+            .then_some("painted shading"),
+    };
+    let height_map = if inverted.is_some() {
+        height_map.map(|value| 1.0 - value)
+    } else {
+        height_map
+    };
 
     // Above SLOPE_REFERENCE texels slopes are measured per 1/512 of the texture,
     // over a lightly blurred height: a high-resolution replacement of a retail
@@ -188,6 +227,8 @@ pub fn generate(
         normal_alpha,
         packed,
         flat,
+        inverted,
+        painted,
     }
 }
 
@@ -217,8 +258,14 @@ pub fn cap_size(source: &RgbaImage, max_size: Option<u32>) -> RgbaImage {
     image
 }
 
-/// Step 1 of the module documentation: normalised 0–1 height.
-pub fn height_from_luminance(luminance: &Plane, mask: Option<&Plane>, scale: f32) -> Plane {
+/// Step 1 of the module documentation: normalised 0–1 height, bright high. `fine`
+/// weighs the two finest bands.
+pub fn height_from_luminance(
+    luminance: &Plane,
+    mask: Option<&Plane>,
+    scale: f32,
+    fine: f32,
+) -> Plane {
     let smooth = |plane: &Plane, radius: usize| match mask {
         Some(mask) => weighted_blur(plane, mask, radius),
         None => blur(plane, radius),
@@ -245,7 +292,8 @@ pub fn height_from_luminance(luminance: &Plane, mask: Option<&Plane>, scale: f32
     let mut raw = Plane::filled(luminance.width, luminance.height, 0.0);
     let mut previous_radius = 0;
     let mut previous = detail;
-    for (radius, weight) in BANDS {
+    for (band, (radius, weight)) in BANDS.into_iter().enumerate() {
+        let weight = if band < 2 { weight * fine } else { weight };
         let radius = texels(radius);
         if radius <= previous_radius {
             continue;
@@ -265,6 +313,51 @@ pub fn height_from_luminance(luminance: &Plane, mask: Option<&Plane>, scale: f32
     let middle = 0.5 * (low + high);
     let range = (high - low).max(MIN_HEIGHT_RANGE);
     raw.map(|value| (0.5 + (value - middle) / range).clamp(0.0, 1.0))
+}
+
+/// How the paint's baked top light agrees with bright-is-high, in standard deviations of
+/// the fine luminance: positive when it does, negative when the bright parts look
+/// recessed, near 0 when the paint shows no clear light.
+///
+/// Retail textures are painted lit from above: the top rim of anything raised is light
+/// and its bottom rim dark, inside a pit the other way round. The coarse luminance split
+/// at its median gives the bright regions; going down the image, their edges rise (into a
+/// bright region) or fall. Where bright-is-high is right, the paint's fine luminance is
+/// light where the regions rise and dark where they fall. The regions are thresholded on
+/// purpose: a linear comparison of the luminance with its own derivative is zero for
+/// every texture.
+pub fn painted_relief(luminance: &Plane, scale: f32) -> f32 {
+    let texels = |radius: f32| ((radius * scale).round() as usize).max(1);
+    let detail = luminance.zip_map(&blur(luminance, texels(GRADIENT_RADIUS)), |v, low| v - low);
+    let coarse = blur(&detail, texels(4.0));
+    let median = percentile(&coarse, None, 0.5);
+    let regions = blur(&coarse.map(|value| f32::from(value > median)), texels(2.0));
+    let fine = luminance.zip_map(&blur(luminance, texels(4.0)), |v, low| v - low);
+    let (mut agreement, mut slopes, mut sum, mut squares) = (0.0f64, 0.0f64, 0.0f64, 0.0f64);
+    for y in 0..luminance.height {
+        for x in 0..luminance.width {
+            let (x, y) = (x as isize, y as isize);
+            let rise =
+                f64::from(regions.wrapped(x, y + 1) - regions.wrapped(x, y - 1)) * 0.5;
+            let paint = f64::from(fine.wrapped(x, y));
+            agreement += paint * rise;
+            slopes += rise.abs();
+            sum += paint;
+            squares += paint * paint;
+        }
+    }
+    let count = (luminance.width * luminance.height) as f64;
+    let deviation = (squares / count - (sum / count).powi(2)).max(0.0).sqrt();
+    if slopes <= 0.0 || deviation <= 1e-6 {
+        return 0.0;
+    }
+    (agreement / (deviation * slopes)) as f32
+}
+
+/// Share of `luminance` darker than [`VOID_LUMINANCE`].
+fn void_share(luminance: &Plane) -> f32 {
+    let voids = luminance.data.iter().filter(|value| **value < VOID_LUMINANCE).count();
+    voids as f32 / luminance.data.len().max(1) as f32
 }
 
 /// Step 2 of the module documentation: an opaque RGBA normal map of `height`,
@@ -349,6 +442,65 @@ mod tests {
     use super::*;
     use crate::classes::{GENERIC, by_name};
     use std::f32::consts::TAU;
+
+    /// Paint lit from above, 256 texels: a `plate` with 32-texel squares of `inside`
+    /// every 64 texels, their top four rows `top` and bottom four `bottom`. Light top
+    /// and dark bottom rims are a raised square, the reverse a sunken one.
+    fn squares(plate: f32, inside: f32, top: f32, bottom: f32) -> Plane {
+        Plane::from_fn(256, 256, |x, y| {
+            let (u, v) = ((x + 48) % 64, (y + 48) % 64);
+            match (u < 32 && v < 32, v) {
+                (false, _) => plate,
+                (true, 0..4) => top,
+                (true, 28..) => bottom,
+                (true, _) => inside,
+            }
+        })
+    }
+
+    #[test]
+    fn painted_light_tells_raised_from_sunken() {
+        // Bright high is right: bright raised squares, dark pits.
+        assert!(painted_relief(&squares(0.35, 0.6, 0.8, 0.15), 1.0) > -INVERT_BELOW);
+        assert!(painted_relief(&squares(0.6, 0.35, 0.15, 0.8), 1.0) > -INVERT_BELOW);
+        // Upside down: dark raised studs, light inset panels.
+        assert!(painted_relief(&squares(0.6, 0.35, 0.8, 0.15), 1.0) < INVERT_BELOW);
+        assert!(painted_relief(&squares(0.35, 0.6, 0.15, 0.8), 1.0) < INVERT_BELOW);
+        // No painted light, no opinion.
+        let flat = painted_relief(&squares(0.35, 0.6, 0.6, 0.6), 1.0);
+        assert!(flat.abs() < 0.05, "{flat}");
+    }
+
+    #[test]
+    fn dark_studs_are_raised_unless_the_overrides_say_otherwise() {
+        let paint = squares(0.6, 0.35, 0.8, 0.15);
+        let source = RgbaImage::from_fn(256, 256, |x, y| {
+            let value = to_byte(paint.at(x as usize, y as usize));
+            Rgba([value, value, value, 255])
+        });
+        let settings = Settings::default();
+        let stud = |maps: &Maps| maps.packed.get_pixel(48, 64).0[2];
+        let auto = generate(&source, &GENERIC, false, &settings);
+        assert_eq!(auto.inverted, Some("painted shading"));
+        let kept = generate(
+            &source,
+            &MaterialClass {
+                relief: Relief::Keep,
+                ..GENERIC.clone()
+            },
+            false,
+            &settings,
+        );
+        assert_eq!(kept.inverted, None);
+        // Raised, the stud's middle is no cavity; kept upside down, it is one.
+        assert!(stud(&auto) > stud(&kept), "{} {}", stud(&auto), stud(&kept));
+        let forced = MaterialClass {
+            relief: Relief::Inverted,
+            ..GENERIC.clone()
+        };
+        let bright = generate(&source, &forced, false, &settings);
+        assert_eq!(bright.inverted, Some("overrides"));
+    }
 
     fn stone() -> &'static MaterialClass {
         by_name("stone").expect("stone class")
@@ -435,7 +587,7 @@ mod tests {
         let plain = halves(&luminance.map(|v| (v - low) / (high - low)));
         // ...the high-pass leaves about a quarter of it (a 256-texel period
         // keeps 7% after two passes at radius 32; the coarse layer is not cut),
-        let height = height_from_luminance(&luminance, None, 1.0);
+        let height = height_from_luminance(&luminance, None, 1.0, 1.0);
         let residual = halves(&height);
         assert!(residual < 0.3 * plain, "residual {residual} plain {plain}");
         // and that fraction no longer tilts the normals: the regions where the

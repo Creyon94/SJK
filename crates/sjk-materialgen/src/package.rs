@@ -21,8 +21,9 @@ pub const MANIFEST_PATH: &str = "jkr-materialgen/manifest.json";
 /// so the client can tell a pack needs regenerating (`material_maps::GENERATION`);
 /// manifests without it are generation 1. 2: metal tuned for reflection probes,
 /// polished shaders, metal-panel height, per-texture overrides. 3: emission maps
-/// (`_e`, [`crate::emission`]).
-pub const GENERATION: u32 = 3;
+/// (`_e`, [`crate::emission`]). 4: relief turned the right way up from the painted
+/// light, no metal height, less metal grain, painted-panel and texture-set classes.
+pub const GENERATION: u32 = 4;
 
 /// The notice repeated in the manifest, the help text and the docs.
 pub const NOTICE: &str = "Generated from the textures of your own Jedi Academy installation. \
@@ -91,6 +92,9 @@ pub struct SourceEntry {
     pub outputs: Vec<String>,
     /// rend2 maps (and emission maps) that already existed and were left alone.
     pub existing: Vec<String>,
+    /// Set when the height was turned upside down (dark high), with why.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub relief: Option<String>,
     /// The emission decision, for textures with some sign of light.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub emission: Option<EmissionEntry>,
@@ -237,6 +241,7 @@ mod tests {
                     "textures/a/wall_rmo.png".into(),
                 ],
                 existing: Vec::new(),
+                relief: None,
                 emission: Some(EmissionEntry {
                     evidence: Some("keyword \"light\"".into()),
                     result: "written".into(),

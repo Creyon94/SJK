@@ -281,8 +281,8 @@ pub(crate) mod lights {
 
 /// The `sjk-materialgen` tuning this client expects (`package::GENERATION` there):
 /// 2 tuned metal for reflection probes and marked polished shaders, 3 added emission
-/// maps.
-pub(crate) const GENERATION: u32 = 3;
+/// maps, 4 turned relief the right way up and took parallax and grain off metal.
+pub(crate) const GENERATION: u32 = 4;
 /// Where the generator's manifest sits in its pk3.
 const MANIFEST: &str = "jkr-materialgen/manifest.json";
 /// The older-pack note was printed: once per run is enough.
@@ -311,8 +311,8 @@ pub(crate) fn report_pack_generation(vfs: &VirtualFileSystem) {
     if !GENERATION_REPORTED.swap(true, Ordering::Relaxed) {
         crate::log::progress(format_args!(
             "material maps: the generated pack is generation {generation} of sjk-materialgen, \
-             this client expects {GENERATION} (metal tuned for reflection probes, polished \
-             floors, emission maps); regenerate it (docs/rendering.md, Generating material \
+             this client expects {GENERATION} (relief the right way up, smoother metal, \
+             emission maps); regenerate it (docs/rendering.md, Generating material \
              maps)"
         ));
     }

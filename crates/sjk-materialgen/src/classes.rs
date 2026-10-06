@@ -10,7 +10,8 @@
 //! 2. the first class, in table order, with a keyword contained in the
 //!    texture's path below `textures/` (directories and file name, lower case);
 //! 3. `surfaceparm metalsteps` (`SURF_METALSTEPS`) for metal;
-//! 4. [`GENERIC`].
+//! 4. the texture set's class ([`SET_CLASSES`]: the directory below `textures/`);
+//! 5. [`GENERIC`].
 //!
 //! A shader with a `tcGen environment` stage asks for a polished surface the stock way:
 //! its texture's class is made glossier ([`polished`]). A per-texture overrides file
@@ -30,7 +31,7 @@ pub struct MaterialClass {
     pub normal_strength: f32,
     /// Write height for parallax (`_nh`); otherwise a plain normal map (`_n`).
     pub parallax: bool,
-    /// Path keywords that give this class height anyway (metal panels and plates).
+    /// Path keywords that give this class height anyway (none at present).
     pub height_keywords: &'static [&'static str],
     /// Base roughness (rend2 packed roughness: 0 mirror, 1 matte).
     pub roughness: f32,
@@ -42,6 +43,26 @@ pub struct MaterialClass {
     pub occlusion: f32,
     /// Alpha-tested stages of this class may get maps (grates, not foliage).
     pub alpha_test_safe: bool,
+    /// Weight of the two finest height bands (1 and 2 texels at 256 texels): 1 keeps
+    /// them. Smooth classes take less, so the grain of a scan or an upscaler does not
+    /// ripple their normals and swim in their reflections.
+    pub fine_detail: f32,
+    /// Which way up the luminance height is.
+    pub relief: Relief,
+}
+
+/// Which way up a texture's luminance height is. Luminance is a guess at height: a dark
+/// stud on a lighter plate or an inset panel painted lighter than its frame comes out
+/// upside down, and reads pushed in instead of raised.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum Relief {
+    /// Bright is high, unless the paint's own top light clearly says otherwise
+    /// ([`crate::generate::painted_relief`]).
+    Auto,
+    /// Bright is high.
+    Keep,
+    /// Dark is high.
+    Inverted,
 }
 
 /// BSP material ids of OpenJK `surfaceflags.h`.
@@ -101,6 +122,8 @@ pub const CLASSES: &[MaterialClass] = &[
         metalness: 0.0,
         occlusion: 0.3,
         alpha_test_safe: false,
+        fine_detail: 1.0,
+        relief: Relief::Auto,
     },
     MaterialClass {
         name: "glass",
@@ -114,6 +137,8 @@ pub const CLASSES: &[MaterialClass] = &[
         metalness: 0.0,
         occlusion: 0.0,
         alpha_test_safe: false,
+        fine_detail: 1.0,
+        relief: Relief::Auto,
     },
     MaterialClass {
         name: "electronics",
@@ -127,7 +152,13 @@ pub const CLASSES: &[MaterialClass] = &[
             "panel_light",
             "button",
             "keypad",
+            "keyport",
             "plastic",
+            "control",
+            "switch",
+            "onoff",
+            "terminal",
+            "comm_",
         ],
         normal_strength: 1.5,
         parallax: false,
@@ -137,6 +168,8 @@ pub const CLASSES: &[MaterialClass] = &[
         metalness: 0.1,
         occlusion: 0.3,
         alpha_test_safe: false,
+        fine_detail: 1.0,
+        relief: Relief::Auto,
     },
     MaterialClass {
         name: "lights",
@@ -150,19 +183,23 @@ pub const CLASSES: &[MaterialClass] = &[
         metalness: 0.0,
         occlusion: 0.2,
         alpha_test_safe: false,
+        fine_detail: 1.0,
+        relief: Relief::Auto,
     },
     MaterialClass {
         name: "metal",
         bsp_materials: &[bsp::SOLID_METAL, bsp::HOLLOW_METAL, bsp::ARMOR],
         keywords: &[
             "metal", "steel", "grate", "grating", "grill", "pipe", "girder", "rust", "chrome",
-            "mtl", "vent", "rivet", "hatch", "duct", "catwalk", "railing",
+            "mtl", "vent", "rivet", "hatch", "duct", "catwalk", "railing", "beam", "brace",
+            "casing", "hull", "tank", "barrel", "blastdoor", "blastshield", "hangar", "elevator",
+            "turbolift",
         ],
         normal_strength: 2.0,
+        // No parallax height: seams and rivets read as well in the normal map, and a height
+        // guessed from paint made metal panels swim (Sol, 06/10/2026).
         parallax: false,
-        // Panels, plates and deck plating carry seams and rivets worth parallax;
-        // pipes, grates and railings do not.
-        height_keywords: &["panel", "plate", "floor", "wall", "hull", "deck", "door"],
+        height_keywords: &[],
         // Brushed rather than polished (0.3 +- 0.3 over the texture), and mostly
         // metallic. With reflection probes the client now reflects the room into metal,
         // which loses its diffuse share in rend2's packed path; 0.8 rather than 1 keeps a
@@ -173,6 +210,8 @@ pub const CLASSES: &[MaterialClass] = &[
         metalness: 0.8,
         occlusion: 0.4,
         alpha_test_safe: true,
+        fine_detail: 0.25,
+        relief: Relief::Auto,
     },
     MaterialClass {
         name: "tiles",
@@ -186,6 +225,8 @@ pub const CLASSES: &[MaterialClass] = &[
         metalness: 0.0,
         occlusion: 0.5,
         alpha_test_safe: false,
+        fine_detail: 1.0,
+        relief: Relief::Auto,
     },
     MaterialClass {
         name: "stone",
@@ -202,6 +243,8 @@ pub const CLASSES: &[MaterialClass] = &[
         metalness: 0.0,
         occlusion: 0.6,
         alpha_test_safe: false,
+        fine_detail: 1.0,
+        relief: Relief::Auto,
     },
     MaterialClass {
         name: "wood",
@@ -215,6 +258,8 @@ pub const CLASSES: &[MaterialClass] = &[
         metalness: 0.0,
         occlusion: 0.4,
         alpha_test_safe: false,
+        fine_detail: 1.0,
+        relief: Relief::Auto,
     },
     MaterialClass {
         name: "ground",
@@ -230,6 +275,8 @@ pub const CLASSES: &[MaterialClass] = &[
         metalness: 0.0,
         occlusion: 0.4,
         alpha_test_safe: false,
+        fine_detail: 1.0,
+        relief: Relief::Auto,
     },
     MaterialClass {
         name: "fabric",
@@ -245,6 +292,8 @@ pub const CLASSES: &[MaterialClass] = &[
         metalness: 0.0,
         occlusion: 0.3,
         alpha_test_safe: false,
+        fine_detail: 1.0,
+        relief: Relief::Auto,
     },
     MaterialClass {
         name: "plaster",
@@ -258,7 +307,56 @@ pub const CLASSES: &[MaterialClass] = &[
         metalness: 0.0,
         occlusion: 0.3,
         alpha_test_safe: false,
+        fine_detail: 1.0,
+        relief: Relief::Auto,
     },
+    // Painted metal of the Star Wars interiors: walls, doors, trims and panels that are
+    // neither bare metal nor stone. Last, so every other class's words come first, and
+    // the default of the sci-fi texture sets ([`SET_CLASSES`]).
+    MaterialClass {
+        name: "panel",
+        bsp_materials: &[],
+        keywords: &[
+            "panel", "plating", "bulkhead", "trim", "door", "plate", "lift", "gate", "walkway",
+        ],
+        normal_strength: 1.5,
+        parallax: false,
+        height_keywords: &[],
+        roughness: 0.5,
+        roughness_variation: 0.25,
+        metalness: 0.35,
+        occlusion: 0.4,
+        alpha_test_safe: false,
+        fine_detail: 0.4,
+        relief: Relief::Auto,
+    },
+];
+
+/// The class of textures in a texture set (the directory below `textures/`) when neither
+/// the BSP material, a keyword nor `metalsteps` says anything: the Imperial, Rebel and
+/// industrial sets are painted metal, the ancient ones stone.
+pub const SET_CLASSES: &[(&str, &str)] = &[
+    ("bespin", "panel"),
+    ("bounty", "panel"),
+    ("byss", "panel"),
+    ("cairn", "panel"),
+    ("doomgiver", "panel"),
+    ("factory", "panel"),
+    ("h_evil", "panel"),
+    ("hoth", "panel"),
+    ("imp_mine", "panel"),
+    ("impdetention", "panel"),
+    ("impgarrison", "panel"),
+    ("imperial", "panel"),
+    ("kejim", "panel"),
+    ("rail", "panel"),
+    ("taspir", "panel"),
+    ("vjun", "panel"),
+    ("wedge", "panel"),
+    ("korriban", "stone"),
+    ("rift", "stone"),
+    ("rocky_ruins", "stone"),
+    ("yavin", "stone"),
 ];
 
 /// The class of textures nothing else describes: moderate bumps, matte.
@@ -274,6 +372,8 @@ pub const GENERIC: MaterialClass = MaterialClass {
     metalness: 0.0,
     occlusion: 0.35,
     alpha_test_safe: false,
+    fine_detail: 1.0,
+    relief: Relief::Auto,
 };
 
 /// Base roughness of a polished surface (a `tcGen environment` stage): clear
@@ -311,6 +411,8 @@ pub enum ClassSource {
     Keyword(&'static str),
     /// `surfaceparm metalsteps`.
     MetalSteps,
+    /// The texture set's class.
+    Set(&'static str),
     /// Nothing matched.
     Default,
 }
@@ -322,6 +424,7 @@ impl ClassSource {
             Self::BspMaterial(id) => format!("bsp material {id}"),
             Self::Keyword(word) => format!("keyword \"{word}\""),
             Self::MetalSteps => "surfaceparm metalsteps".to_owned(),
+            Self::Set(set) => format!("texture set \"{set}\""),
             Self::Default => "default".to_owned(),
         }
     }
@@ -348,6 +451,11 @@ pub fn classify(image_path: &str, surface_flags: u32) -> (&'static MaterialClass
     if surface_flags & bsp::SURF_METALSTEPS != 0 {
         let metal = by_name("metal").expect("the table has a metal class");
         return (metal, ClassSource::MetalSteps);
+    }
+    let set = searched.split('/').next().unwrap_or("");
+    if let Some((set, class)) = SET_CLASSES.iter().find(|(name, _)| *name == set) {
+        let class = by_name(class).expect("set classes name table classes");
+        return (class, ClassSource::Set(set));
     }
     (&GENERIC, ClassSource::Default)
 }
@@ -382,6 +490,22 @@ mod tests {
     }
 
     #[test]
+    fn texture_sets_classify_what_no_word_names() {
+        let (class, source) = classify("textures/imperial/basic_wall2", 0);
+        assert_eq!((class.name, source), ("panel", ClassSource::Set("imperial")));
+        assert_eq!(classify("textures/korriban/wall02", 0).0.name, "stone");
+        // Words and BSP materials still come first.
+        assert_eq!(classify("textures/imperial/metal_grate", 0).0.name, "metal");
+        assert_eq!(classify("textures/imperial/control_onoff", 0).0.name, "electronics");
+        assert_eq!(classify("textures/imperial/floor", bsp::TILES).0.name, "tiles");
+        assert_eq!(classify("textures/mp/door_trim", 0).0.name, "panel");
+        assert_eq!(classify("textures/yavin/trim_stone01", 0).0.name, "stone");
+        for (_, class) in SET_CLASSES {
+            assert!(by_name(class).is_some(), "{class}");
+        }
+    }
+
+    #[test]
     fn metal_steps_and_default() {
         let (class, source) = classify("textures/x/plain", bsp::SURF_METALSTEPS);
         assert_eq!((class.name, source), ("metal", ClassSource::MetalSteps));
@@ -407,9 +531,10 @@ mod tests {
         assert_eq!((metal.metalness, metal.roughness), (0.8, 0.3));
         // The roughest texel stays below the dielectric classes' base roughness.
         assert!(metal.roughness + metal.roughness_variation <= 0.7);
-        assert!(wants_height(metal, "textures/imperial/metal_panel2"));
-        assert!(wants_height(metal, "textures/x/floor_plate"));
-        assert!(!wants_height(metal, "textures/imperial/pipe_rusty"));
+        // Metal never gets parallax height: a height guessed from paint made it swim.
+        assert!(!wants_height(metal, "textures/imperial/metal_panel2"));
+        assert!(!wants_height(metal, "textures/x/floor_plate"));
+        assert!(metal.fine_detail < 1.0);
         assert!(wants_height(
             by_name("stone").unwrap(),
             "textures/x/anything"
@@ -432,6 +557,7 @@ mod tests {
     fn table_values_are_in_range() {
         for class in CLASSES.iter().chain(std::iter::once(&GENERIC)) {
             assert!(class.normal_strength > 0.0, "{}", class.name);
+            assert!((0.0..=1.0).contains(&class.fine_detail), "{}", class.name);
             for value in [
                 class.roughness,
                 class.roughness_variation,

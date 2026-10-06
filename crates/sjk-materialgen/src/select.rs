@@ -814,9 +814,9 @@ mod tests {
             (wall.class.name, wall.class_source),
             ("metal", ClassSource::MetalSteps)
         );
-        // Its environment stage marks it polished; a metal wall gets height.
+        // Its environment stage marks it polished; metal gets no height, stone does.
         assert!(wall.polished && wall.class.roughness == crate::classes::POLISHED_ROUGHNESS);
-        assert!(wall.class.parallax && !rock.polished && rock.class.parallax);
+        assert!(!wall.class.parallax && !rock.polished && rock.class.parallax);
         let grate = &selection.candidates[3];
         assert!(grate.alpha_tested && grate.class.alpha_test_safe);
         // An existing normal map leaves only the packed map to generate.
