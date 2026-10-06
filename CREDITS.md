@@ -1,9 +1,54 @@
 # Credits
 
-Sol JK (SJK) is a modified version of [JKR](https://github.com/Bishop-R/JKR).
-This page records who made what. The git history is the authoritative record:
+Sol JK (SJK) is developed by Sol ([Sol-Vulpes](https://github.com/Sol-Vulpes)):
+it is Sol's vision of Jedi Academy, built on Bishop's
+[JKR](https://github.com/Bishop-R/JKR) engine, of which it is a modified
+version. Contributors send pull requests (see
+[Contributors to SJK](#contributors-to-sjk)). This page records who made what. The git history is the authoritative record:
 every commit carries its author, and SJK's own changes are kept as separate
 topic branches merged into SJK's `main`.
+
+## Sol JK, by Sol
+
+Sol develops SJK and sets its direction; Bishop's JKR is its foundation.
+Changes that stay in SJK, by Sol:
+
+- the Sol JK name, README, credits and website;
+- the SJK emblem, provided by Sol: in the classic menu's ring (in place of the
+  retail logo video) and above the modern menu's title, as the programs' and
+  window's icons, and on the README, release notes and site;
+- SJK's slider entry habits (type to open, Space steps, clicking away applies);
+- the classic menu style as the default, and classic+ (the classic style
+  modernised: the guide, the option panels' detail box and default marks, the
+  classic renderer page, the regrouped Setup and Controls groups, and the
+  retail pictures on the key bindings and the Join pop-up);
+- the classic console after EternalJK (`con_style classic`) as the default;
+- eye adaptation (`r_autoExposure`), an exposure that follows the view within a
+  small range;
+- the model grids' icons for catalogues of any size, and the model search;
+- the classic profile's Force page and Force summary, and hats and capes after
+  JoF EJK's (the Cosmetics window, the `cosmetics` command and the pieces drawn
+  on players);
+- the game-data (retail) HUD as the default, and the HUD picker with previews
+  of every installed HUD (`cg_hudPack`);
+- the `debug_panel` console command, an in-game checklist of the changes in a
+  build and how to test them;
+- the changelog ([CHANGELOG.md](CHANGELOG.md)) and its page in the client;
+- the in-game credits page, fed by
+  [credits.txt](crates/sjk-viewer/assets/credits.txt), with links to GitHub;
+- self-updates (`cl_autoUpdate`, main menu > Update);
+- the regrouped Settings screen with its search, and the First setup page;
+- the radial HUD (`cg_hudStyle radial`, after TheRisqe's Radial HUD) and the
+  HUD meters' overheal bands;
+- nameplates with estimated health, shield and Force, held-weapon and Force
+  power icons, and player cards;
+- 125 Hz user commands on the server's 8 ms grid (after JoF EJK's
+  `cl_cmdratecap`) and a working `cl_maxpackets`;
+- weather: rain, snow and mist kept under open sky, 3D splashes, ground fog and
+  volumetric clouds;
+- SJK identity: the identity key, the SJK hub and its verified badges;
+- the console socket for external apps (after JoF EJK), muting in the
+  background (after EternalJK) and the JA+ `flipkick` command (after JoF EJK).
 
 ## JKR, by Bishop
 
@@ -65,48 +110,6 @@ reliable joining, old models, material maps, FPS cap behaviour, key handling
 settings page, sharp levelshots, saber trails, the third-person camera, Force
 Speed afterimages, death animations and dust motes. See
 [Sol's pull requests](https://github.com/Bishop-R/JKR/pulls?q=is%3Apr+author%3ASol-Vulpes).
-
-## SJK only
-
-Sol develops SJK; Bishop's JKR remains its foundation. Changes that stay in SJK,
-by Sol:
-
-- the Sol JK name, README, credits and website;
-- the SJK emblem, provided by Sol: in the classic menu's ring (in place of the
-  retail logo video) and above the modern menu's title, as the programs' and
-  window's icons, and on the README, release notes and site;
-- SJK's slider entry habits (type to open, Space steps, clicking away applies);
-- the classic menu style as the default, and classic+ (the classic style
-  modernised: the guide, the option panels' detail box and default marks, the
-  classic renderer page, the regrouped Setup and Controls groups, and the
-  retail pictures on the key bindings and the Join pop-up);
-- the classic console after EternalJK (`con_style classic`) as the default;
-- eye adaptation (`r_autoExposure`), an exposure that follows the view within a
-  small range;
-- the model grids' icons for catalogues of any size, and the model search;
-- the classic profile's Force page and Force summary, and hats and capes after
-  JoF EJK's (the Cosmetics window, the `cosmetics` command and the pieces drawn
-  on players);
-- the game-data (retail) HUD as the default, and the HUD picker with previews
-  of every installed HUD (`cg_hudPack`);
-- the `debug_panel` console command, an in-game checklist of the changes in a
-  build and how to test them;
-- the changelog ([CHANGELOG.md](CHANGELOG.md)) and its page in the client;
-- the in-game credits page, fed by
-  [credits.txt](crates/sjk-viewer/assets/credits.txt), with links to GitHub;
-- self-updates (`cl_autoUpdate`, main menu > Update);
-- the regrouped Settings screen with its search, and the First setup page;
-- the radial HUD (`cg_hudStyle radial`, after TheRisqe's Radial HUD) and the
-  HUD meters' overheal bands;
-- nameplates with estimated health, shield and Force, held-weapon and Force
-  power icons, and player cards;
-- 125 Hz user commands on the server's 8 ms grid (after JoF EJK's
-  `cl_cmdratecap`) and a working `cl_maxpackets`;
-- weather: rain, snow and mist kept under open sky, 3D splashes, ground fog and
-  volumetric clouds;
-- SJK identity: the identity key, the SJK hub and its verified badges;
-- the console socket for external apps (after JoF EJK), muting in the
-  background (after EternalJK) and the JA+ `flipkick` command (after JoF EJK).
 
 ## Contributors to SJK
 

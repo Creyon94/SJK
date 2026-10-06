@@ -2,11 +2,11 @@
 
 # Sol JK (SJK)
 
-**Sol JK**, or **SJK** for short, is Sol's flavor of
-[JKR](https://github.com/Bishop-R/JKR), the Rust engine for **Star Wars Jedi
-Knight: Jedi Academy** multiplayer created by Bishop. SJK follows JKR closely
-and adds Sol's own changes on top: some are offered to JKR as pull requests,
-others reflect a vision of the game that may stay specific to SJK.
+**Sol JK**, or **SJK** for short, is Sol's client for **Star Wars Jedi
+Knight: Jedi Academy** multiplayer: the game as Sol sees it, developed by Sol.
+It is built on [JKR](https://github.com/Bishop-R/JKR), the Rust engine created
+by Bishop, and carries Sol's vision of the game on top; changes that fit JKR are
+also offered to it as pull requests.
 
 SJK aims to be a true JKA+: everything players expect from today's community
 clients, from the retail look and feel to mod servers such as JA+ and modern
@@ -20,13 +20,15 @@ controls, HUD, audio, screenshots and demo playback.
 
 ## SJK and JKR
 
-- **History.** Bishop created JKR and has developed it continuously since, over
-  weeks of work before anyone else joined. Sol, who had set out to write a client
-  from scratch, learned of it; after they talked, Sol began contributing, and
-  Bishop made JKR open source in October 2026. Sol has since fixed much of it
-  together with Bishop, while building SJK alongside. [CREDITS.md](CREDITS.md) has the details.
-- **Upstream.** JKR is developed by Bishop (Bishop-R) and its contributors. SJK
-  merges JKR's main branch after reviewing it, so JKR's work reaches SJK.
+- **Who makes SJK.** Sol (Sol-Vulpes) develops SJK and decides where it goes.
+  Contributors send pull requests, Creyon first among them; see
+  [CREDITS.md](CREDITS.md).
+- **History.** Sol had set out to write a Jedi Academy client from scratch, then
+  learned of JKR, the engine Bishop created. After they talked, Bishop made JKR
+  open source in October 2026 and Sol began contributing, opening 100 of JKR's
+  first 121 issues and pull requests, then created Sol JK on top of it.
+- **Upstream.** JKR is Bishop's (Bishop-R) project. Sol reviews JKR's changes
+  and merges those that fit into SJK.
 - **What SJK adds.** Sol's changes are written as separate topic branches. Those
   that fit JKR are proposed upstream; once JKR accepts one, it simply becomes part
   of both. At the time of writing, SJK's additions include:
