@@ -650,6 +650,9 @@ Both follow EternalJK's cgame (`cg_ents.c`, `cg_players.c`) and rd-vanilla's ren
   remains, with `disruptor/death_smoke` for the first second. A player is gone after
   1.5 s; a body draws until the server removes it. The stage program does rd-vanilla's
   per-vertex work (`RB_CalcDisintegrateColors`, `RB_CalcDisintegrateVertDeform`).
+  It is always on, with no cvar, as in EternalJK and OpenJK (`CG_Player` checks only
+  `EF_DISINTEGRATION`). Its colours are final: real-time sun light and fullbright
+  leave them as they are, as the stage's colour generators do (`entity_control.x` 3).
 
 Model cap surfaces (`*_cap_*`) are carried in every actor mesh, hidden until a cut.
 

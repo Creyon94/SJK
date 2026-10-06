@@ -113,7 +113,7 @@ impl Surfaces {
 
     /// Take another actor's overrides (`CG_BodyQueueCopy` duplicating the instance).
     pub(crate) fn copy_from(&mut self, source: &Self, hierarchy: &[GlmSurfaceHierarchy]) {
-        if source.flags.len() != self.flags.len() {
+        if !self.same_layout(source) {
             return;
         }
         self.flags.clone_from(&source.flags);
@@ -121,6 +121,14 @@ impl Surfaces {
         self.lost = source.lost;
         self.weapon_lost = source.weapon_lost;
         self.refresh(hierarchy);
+    }
+
+    /// Whether `other` was built from the same surfaces and draws. A mesh rebuilt
+    /// after a clientinfo change, or a Kyle stand-in carrying the requested
+    /// appearance, can share an appearance with a mesh of another model; surface
+    /// state is copied between meshes only when their layouts match.
+    pub(crate) fn same_layout(&self, other: &Self) -> bool {
+        self.flags.len() == other.flags.len() && self.draw_surfaces == other.draw_surfaces
     }
 
     /// `G2_SetSurfaceOnOff`: only the off and no-descendants bits change.
@@ -295,6 +303,17 @@ const BOTH_RIGHTHANDCHOPPEDOFF: usize = 1254;
 /// `ANIM_TOGGLEBIT`.
 const ANIM_TOGGLEBIT: u16 = 2048;
 
+/// What cutting one limb needs from the snapshot, read before the meshes change.
+#[derive(Clone, Copy)]
+struct LimbCut {
+    limb_id: EntityId,
+    part: u8,
+    owner: u16,
+    owner_flags: u32,
+    /// The owner's torso animation, unless the owner is the local player.
+    owner_torso: Option<usize>,
+}
+
 impl GpuState {
     /// Follow this frame's limb entities: cut new ones from their owners, free the
     /// limb meshes of limbs that are gone, and give living players their limbs back.
@@ -304,30 +323,42 @@ impl GpuState {
             .as_ref()
             .and_then(|console| console.integer_cvar(CVAR))
             .unwrap_or(0);
-        let Some(presented) = crate::first_person_view::presented_snapshot(
-            self.live_session.as_ref(),
-            self.demo_session.as_ref(),
-            presentation_time as i32,
-        ) else {
-            return;
-        };
-        // Nothing cut and no limb in sight: the usual frame costs one scan.
-        let active = self.actor_meshes.iter().any(|mesh| {
+        // Nothing cut and no limb mesh in use: with cg_dismember 0 there is nothing to
+        // do, otherwise one scan for new limb entities. The snapshot is borrowed, never
+        // copied.
+        let in_use = self.actor_meshes.iter().any(|mesh| {
             mesh.surfaces.lost != 0 || (mesh.limb.is_some() && mesh.entity_id.is_some())
-        }) || presented
-            .entities
-            .iter()
-            .any(|state| sjk_client::legacy_limb(state).is_some());
-        if !active {
+        });
+        if setting == 0 && !in_use {
             return;
         }
-        let snapshot = presented.clone();
         let local = self
             .live_session
             .as_ref()
             .map(|session| session.latest_snapshot().player.client_num());
+        let Self {
+            live_session,
+            demo_session,
+            actor_meshes,
+            ..
+        } = self;
+        let Some(snapshot) = crate::first_person_view::presented_snapshot(
+            live_session.as_ref(),
+            demo_session.as_ref(),
+            presentation_time as i32,
+        ) else {
+            return;
+        };
+        if !in_use
+            && !snapshot
+                .entities
+                .iter()
+                .any(|state| sjk_client::legacy_limb(state).is_some())
+        {
+            return;
+        }
         // Living players get their limbs back (`CG_ReattachLimb`).
-        for mesh in &mut self.actor_meshes {
+        for mesh in actor_meshes.iter_mut() {
             if mesh.limb.is_some() || mesh.corpse_pool || mesh.surfaces.lost == 0 {
                 continue;
             }
@@ -337,13 +368,13 @@ impl GpuState {
             else {
                 continue;
             };
-            let flags = entity_flags(&snapshot, local == Some(number), number);
+            let flags = entity_flags(snapshot, local == Some(number), number);
             if flags.is_some_and(|flags| flags & EF_DEAD == 0) {
                 mesh.surfaces.reset(&mesh.preview.mesh.hierarchy);
             }
         }
         // Limbs whose entity is gone return to the pool.
-        for mesh in &mut self.actor_meshes {
+        for mesh in actor_meshes.iter_mut() {
             let (Some(_), Some(id)) = (mesh.limb.as_ref(), mesh.entity_id) else {
                 continue;
             };
@@ -358,44 +389,69 @@ impl GpuState {
         if setting == 0 {
             return;
         }
-        for state in &snapshot.entities {
-            let Some((part, owner)) = sjk_client::legacy_limb(state) else {
+        // New limbs, one entity index at a time: what a cut needs is read from the
+        // borrowed snapshot first, then the borrow ends before the meshes change.
+        let count = snapshot.entities.len();
+        for index in 0..count {
+            let Some(request) = self.limb_cut(index, setting, local, presentation_time) else {
                 continue;
             };
-            if setting < 2 && matches!(part, HEAD | WAIST) {
-                continue;
-            }
-            let limb_id = EntityId::new(u64::from(state.number()) + 1);
-            if self
-                .actor_meshes
-                .iter()
-                .any(|mesh| mesh.limb.is_some() && mesh.entity_id == Some(limb_id))
-            {
-                continue;
-            }
-            let owner_local = local == Some(owner);
-            if let Err(error) = self.cut_limb(
-                &snapshot,
-                limb_id,
-                part,
-                owner,
-                owner_local,
-                presentation_time,
-            ) {
-                crate::log::progress(format_args!("limb {}: {error}", state.number()));
+            if let Err(error) = self.cut_limb(request, presentation_time) {
+                let number = request.limb_id.get() - 1;
+                crate::log::progress(format_args!("limb {number}: {error}"));
             }
         }
     }
 
-    fn cut_limb(
-        &mut self,
-        snapshot: &sjk_protocol::Snapshot,
-        limb_id: EntityId,
-        part: u8,
-        owner: u16,
-        owner_local: bool,
+    /// The cut the limb entity at `index` of the presented snapshot asks for, if any.
+    fn limb_cut(
+        &self,
+        index: usize,
+        setting: i64,
+        local: Option<u16>,
         presentation_time: i64,
-    ) -> Result<(), Box<dyn Error>> {
+    ) -> Option<LimbCut> {
+        let snapshot = crate::first_person_view::presented_snapshot(
+            self.live_session.as_ref(),
+            self.demo_session.as_ref(),
+            presentation_time as i32,
+        )?;
+        let state = snapshot.entities.get(index)?;
+        let (part, owner) = sjk_client::legacy_limb(state)?;
+        if setting < 2 && matches!(part, HEAD | WAIST) {
+            return None;
+        }
+        let limb_id = EntityId::new(u64::from(state.number()) + 1);
+        if self
+            .actor_meshes
+            .iter()
+            .any(|mesh| mesh.limb.is_some() && mesh.entity_id == Some(limb_id))
+        {
+            return None;
+        }
+        let owner_local = local == Some(owner);
+        let owner_flags = entity_flags(snapshot, owner_local, owner)?;
+        let owner_torso = (!owner_local)
+            .then(|| snapshot.entities.iter().find(|s| s.number() == owner))
+            .flatten()
+            .map(|owner_state| usize::from(owner_state.torso_animation() & !ANIM_TOGGLEBIT));
+        Some(LimbCut {
+            limb_id,
+            part,
+            owner,
+            owner_flags,
+            owner_torso,
+        })
+    }
+
+    fn cut_limb(&mut self, request: LimbCut, presentation_time: i64) -> Result<(), Box<dyn Error>> {
+        let LimbCut {
+            limb_id,
+            part,
+            owner,
+            owner_flags: flags,
+            owner_torso,
+        } = request;
         let owner_id = EntityId::new(u64::from(owner) + 1);
         let Some(owner_index) = self.actor_meshes.iter().position(|mesh| {
             mesh.limb.is_none() && !mesh.corpse_pool && mesh.entity_id == Some(owner_id)
@@ -409,19 +465,14 @@ impl GpuState {
         }
         // Only once the owner is dead and in a death animation (or has just lost a
         // hand in a saber lock).
-        let Some(flags) = entity_flags(snapshot, owner_local, owner) else {
-            return Ok(());
-        };
         if flags & EF_DEAD == 0 {
             return Ok(());
         }
-        if !owner_local
-            && let Some(owner_state) = snapshot.entities.iter().find(|s| s.number() == owner)
+        if let Some(torso) = owner_torso
+            && !sjk_client::legacy_death_animation(torso)
+            && torso != BOTH_RIGHTHANDCHOPPEDOFF
         {
-            let torso = usize::from(owner_state.torso_animation() & !ANIM_TOGGLEBIT);
-            if !sjk_client::legacy_death_animation(torso) && torso != BOTH_RIGHTHANDCHOPPEDOFF {
-                return Ok(());
-            }
+            return Ok(());
         }
         let world = self
             .demo_session
@@ -475,12 +526,9 @@ impl GpuState {
             }
         };
         let limb_mesh = &mut self.actor_meshes[limb_index];
-        if limb_surfaces.flags.len() != limb_mesh.surfaces.flags.len() {
+        if !limb_surfaces.same_layout(&limb_mesh.surfaces) {
             return Ok(());
         }
-        limb_surfaces
-            .draw_surfaces
-            .clone_from(&limb_mesh.surfaces.draw_surfaces);
         limb_surfaces.root = Some(limb_surface);
         if let Some(cap) = limb_cap {
             limb_surfaces.set(cap, 0);
@@ -663,5 +711,22 @@ mod tests {
         surfaces.reset(&hierarchy);
         assert_eq!(shown(&surfaces), [true, true, true, true, false, false]);
         assert_eq!(surfaces.lost, 0);
+    }
+
+    #[test]
+    fn surface_state_is_copied_only_between_matching_layouts() {
+        let mut hierarchy = model();
+        let defaults = reveal_caps(&mut hierarchy);
+        let mut source = Surfaces::new(&hierarchy, defaults.clone(), 0..6);
+        source.set(2, NODESCENDANTS);
+        source.lost = 1;
+        // Same surfaces and draws: the cut is copied.
+        let mut same = Surfaces::new(&hierarchy, defaults.clone(), 0..6);
+        same.copy_from(&source, &hierarchy);
+        assert_eq!(same.lost, 1);
+        // Another model with as many surfaces but other draws: left whole.
+        let mut other = Surfaces::new(&hierarchy, defaults, [0, 1, 3, 2, 4, 5].into_iter());
+        other.copy_from(&source, &hierarchy);
+        assert_eq!(other.lost, 0);
     }
 }
