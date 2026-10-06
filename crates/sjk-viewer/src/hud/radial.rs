@@ -107,14 +107,31 @@ pub(super) fn emit(
             start,
             sweep,
             color,
+            knockout: None,
         });
     };
     // The shadow (the widget's border) is one rounded dark band under the whole meter, a
-    // margin of `border_width` all round the bars, drawn first so it lies below them.
+    // margin of `border_width` all round the bars, drawn first so it lies below them. It
+    // skips the band the readout pill already darkens, so the two are one shape.
     if let Some((color, margin)) = widget.style.border.zip(widget.style.border_width) {
         let (start, sweep) = arc_span(&style, ring.cap_inset());
-        let width = ring.width + 2.0 * margin * context.dpi_scale;
-        stroke(draw_list, start, sweep, width, color);
+        let scale = context.dpi_scale;
+        let _ = draw_list.push(DrawCommand::Arc {
+            center: ring.center,
+            radius: ring.radius,
+            width: ring.width + 2.0 * margin * scale,
+            start,
+            sweep,
+            color,
+            knockout: style.knockout.map(|band| {
+                Rect::new(
+                    ring.center[0] + band.from_x * scale,
+                    ring.center[1] - band.half_height * scale,
+                    (band.to_x - band.from_x) * scale,
+                    2.0 * band.half_height * scale,
+                )
+            }),
+        });
     }
     for segment in arc_segments(&style, ratio, ring.cap_inset()) {
         stroke(draw_list, segment.start, segment.sweep, ring.width, track);
@@ -170,6 +187,7 @@ mod tests {
         start: f32,
         sweep: f32,
         color: Color,
+        knockout: Option<Rect>,
     }
 
     impl Stroke {
@@ -259,6 +277,7 @@ mod tests {
                         start,
                         sweep,
                         color,
+                        knockout,
                     } => {
                         // Every arc is a stroke of one ring, so they share one centre
                         // (up to the rounding of rectangles of different sizes).
@@ -280,6 +299,7 @@ mod tests {
                             start,
                             sweep,
                             color,
+                            knockout,
                         });
                     }
                     DrawCommand::Text {
@@ -397,6 +417,37 @@ mod tests {
     }
 
     #[test]
+    fn the_shadows_skip_their_sides_pill_so_the_two_are_one_shape() {
+        let near = |a: Rect, b: Rect| {
+            (a.x - b.x).abs() < 0.01
+                && (a.y - b.y).abs() < 0.01
+                && (a.width - b.width).abs() < 0.01
+                && (a.height - b.height).abs() < 0.01
+        };
+        for viewport in SCREENS {
+            let placed = Placed::new(viewport, 1.0);
+            let (left, right) = (placed.pills[0], placed.pills[1]);
+            let mut sides = [0, 0];
+            for stroke in &placed.strokes {
+                if !stroke.is_shadow() {
+                    // The bars themselves draw over the pill.
+                    assert!(stroke.knockout.is_none());
+                    continue;
+                }
+                let knockout = stroke.knockout.expect("a shadow skips the pill");
+                let on_left = (stroke.start + stroke.sweep * 0.5).cos() < 0.0;
+                assert!(
+                    near(knockout, if on_left { left } else { right }),
+                    "{viewport:?}: {knockout:?} against {left:?} / {right:?}"
+                );
+                sides[usize::from(!on_left)] += 1;
+            }
+            // Two meters on each side.
+            assert_eq!(sides, [2, 2], "{viewport:?}");
+        }
+    }
+
+    #[test]
     fn the_numbers_ride_a_pill_through_the_bars() {
         for viewport in SCREENS {
             let placed = Placed::new(viewport, 1.0);
@@ -408,9 +459,12 @@ mod tests {
             let armor = placed.text(8);
             let force = placed.text(10);
             let ammo = placed.text(14);
+            // The classic HUD font's digits sit low in their line, so the layout lifts the
+            // numbers a few pixels to centre the digits themselves on the pill.
             for rect in [health, armor, force, ammo] {
+                let lift = y - (rect.y + rect.height * 0.5);
                 assert!(
-                    (rect.y + rect.height * 0.5 - y).abs() < 0.5,
+                    lift > 0.0 && lift < rect.height * 0.2,
                     "{viewport:?} {rect:?}"
                 );
             }

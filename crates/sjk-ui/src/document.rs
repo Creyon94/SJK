@@ -103,6 +103,21 @@ pub struct ArcStyle {
     /// The ratio runs from the end of the sweep towards its start.
     #[serde(default)]
     pub reversed: bool,
+    /// Where the meter's shadow (its widget's border) is left out because a translucent
+    /// panel already darkens it, so the two read as one shape instead of stacking.
+    #[serde(default)]
+    pub knockout: Option<ArcKnockout>,
+}
+
+/// A horizontal band, centred vertically on an arc's centre, that its shadow keeps out of.
+#[derive(Clone, Copy, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ArcKnockout {
+    /// Left edge, in logical pixels from the arc's centre (negative is left of it).
+    pub from_x: f32,
+    /// Right edge, in logical pixels from the arc's centre.
+    pub to_x: f32,
+    /// Half the band's height, in logical pixels.
+    pub half_height: f32,
 }
 
 impl ArcStyle {

@@ -77,6 +77,24 @@ pub fn span(style: &ArcStyle, inset: f32) -> (f32, f32) {
     )
 }
 
+/// How much of the stripe `x_range` wide and `half_height` either side of the centre line
+/// covers `point` (relative to the arc's centre), `0..=1`, anti-aliased over one pixel.
+///
+/// The reference for `ui_shapes.wgsl`, which multiplies an arc's coverage by one minus this
+/// for its knockout, and for CPU previews. A zero `half_height` covers nothing.
+pub fn knockout_coverage(point: [f32; 2], x_range: [f32; 2], half_height: f32) -> f32 {
+    if half_height <= 0.0 {
+        return 0.0;
+    }
+    let outside = [
+        (point[0] - (x_range[0] + x_range[1]) * 0.5).abs() - (x_range[1] - x_range[0]) * 0.5,
+        point[1].abs() - half_height,
+    ];
+    let distance =
+        outside[0].max(0.0).hypot(outside[1].max(0.0)) + outside[0].max(outside[1]).min(0.0);
+    (0.5 - distance).clamp(0.0, 1.0)
+}
+
 /// Signed distance in pixels from `point` (relative to the circle's centre) to the
 /// stroke of an arc: negative inside. The reference for `ui_shapes.wgsl`, which
 /// evaluates the same expression per fragment, and for CPU previews.
@@ -132,7 +150,27 @@ mod tests {
             segments,
             gap_degrees: gap,
             reversed: false,
+            knockout: None,
         }
+    }
+
+    #[test]
+    fn the_knockout_stripe_covers_its_rectangle_and_fades_over_one_pixel() {
+        let stripe = ([-300.0, -70.0], 22.0);
+        let at = |x, y| knockout_coverage([x, y], stripe.0, stripe.1);
+        assert_eq!(at(-185.0, 0.0), 1.0);
+        assert_eq!(at(-185.0, 21.0), 1.0);
+        assert_eq!(at(-185.0, 40.0), 0.0);
+        assert_eq!(at(0.0, 0.0), 0.0);
+        // The edge pixel is half covered, and the stripe's ends are not rounded.
+        assert!((at(-185.0, 22.0) - 0.5).abs() < 1e-6);
+        assert_eq!(at(-71.0, 0.0), 1.0);
+        // No height, no stripe.
+        assert_eq!(knockout_coverage([-185.0, 0.0], [-300.0, -70.0], 0.0), 0.0);
+        // A shadow of coverage c over a panel of coverage p keeps the panel's alpha where
+        // the stripe is whole and the shadow's alone outside it.
+        assert_eq!(1.0 - at(-185.0, 0.0), 0.0);
+        assert_eq!(1.0 - at(-185.0, 30.0), 1.0);
     }
 
     #[test]

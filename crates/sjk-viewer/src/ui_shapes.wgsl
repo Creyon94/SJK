@@ -39,7 +39,10 @@ fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
     if input.parameters.y > 2.5 {
         // Arc stroke with round caps: distance to the nearest point of the centre
         // line, which is the circle's arc clamped to its angular range.
-        // end_color = (radius, width, start angle, sweep) in pixels and radians.
+        // end_color = (radius, width, start angle, sweep) in pixels and radians. The
+        // knockout stripe, where the stroke is left out, is parameters.x (left edge), uv.x
+        // (right edge) and uv.y (half height), in pixels from the centre; a zero height
+        // is no stripe.
         let radius = input.end_color.x;
         let half_width = input.end_color.y * 0.5;
         let sweep = input.end_color.w;
@@ -52,7 +55,15 @@ fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
         let angle = middle + clamp(delta, -limit, limit);
         let nearest = radius * vec2(cos(angle), sin(angle));
         let distance = length(pixel - nearest) - half_width;
-        let coverage = clamp(0.5 - distance, 0.0, 1.0);
+        var coverage = clamp(0.5 - distance, 0.0, 1.0);
+        if input.uv.y > 0.0 {
+            // The same rounded-box distance as the panels, of an unrounded stripe
+            // (`sjk_ui::knockout_coverage`).
+            let q = abs(vec2(pixel.x - (input.parameters.x + input.uv.x) * 0.5, pixel.y))
+                - vec2((input.uv.x - input.parameters.x) * 0.5, input.uv.y);
+            let outside = length(max(q, vec2(0.0))) + min(max(q.x, q.y), 0.0);
+            coverage = coverage * (1.0 - clamp(0.5 - outside, 0.0, 1.0));
+        }
         if coverage <= 0.0 {
             discard;
         }

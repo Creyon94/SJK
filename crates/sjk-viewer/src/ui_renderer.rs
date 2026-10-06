@@ -490,6 +490,7 @@ impl ShapeRenderer {
                     start,
                     sweep,
                     color,
+                    knockout,
                 } => {
                     self.push_arc(
                         center,
@@ -498,6 +499,7 @@ impl ShapeRenderer {
                         start,
                         sweep,
                         color,
+                        knockout,
                         opacity[opacity_depth],
                         viewport,
                     );
@@ -650,9 +652,20 @@ impl ShapeRenderer {
         start: f32,
         sweep: f32,
         color: Color,
+        knockout: Option<Rect>,
         opacity: f32,
         viewport: [f32; 2],
     ) {
+        // The knockout stripe, relative to the arc's centre: left edge, right edge and half
+        // height (the stripe is centred vertically on the arc's centre). It rides in the
+        // parameters the arc shader leaves unused; a zero height is no stripe.
+        let [stripe_left, stripe_right, stripe_half] = knockout.map_or([0.0; 3], |band| {
+            [
+                band.x - center[0],
+                band.right() - center[0],
+                band.height * 0.5,
+            ]
+        });
         // One pixel of margin leaves room for the anti-aliased edge.
         let extent = radius + width * 0.5 + 1.0;
         let rect = Rect::new(
@@ -681,8 +694,8 @@ impl ShapeRenderer {
                 size: [rect.width, rect.height],
                 start_color: tint,
                 end_color: [radius, width, start, sweep],
-                parameters: [0.0, ARC_MODE],
-                uv: local,
+                parameters: [stripe_left, ARC_MODE],
+                uv: [stripe_right, stripe_half],
             }));
     }
 

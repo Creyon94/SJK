@@ -1465,18 +1465,21 @@ impl GpuState {
             presentation_time as i32,
             intermission_view.is_some(),
         );
-        let classic_hud = self
-            .console
-            .as_ref()
-            .and_then(|console| console.bool_cvar("cg_classicHudFont"))
-            .unwrap_or(false);
+        let hud_style = menu_hud::HudStyle::read(self.console.as_ref());
+        // The radial look draws its text with the classic HUD font (retail's `arialnb`)
+        // whatever `cg_classicHudFont` says; without that font it falls back to Inter.
+        let classic_hud = matches!(hud_style, menu_hud::HudStyle::Radial)
+            || self
+                .console
+                .as_ref()
+                .and_then(|console| console.bool_cvar("cg_classicHudFont"))
+                .unwrap_or(false);
         let hud_font = if classic_hud {
             self.classic_hud_font.as_ref().unwrap_or(&self.ui_font)
         } else {
             &self.ui_font
         };
         self.hud.weapon_select.shown = self.sample_weapon_select(intermission_view.is_some());
-        let hud_style = menu_hud::HudStyle::read(self.console.as_ref());
         // JoF EJK's Force wheel (the retail icon bar) with the retail-looking HUDs.
         self.hud.set_force_wheel_bar(!matches!(
             hud_style,

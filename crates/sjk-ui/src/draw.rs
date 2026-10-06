@@ -111,6 +111,11 @@ pub enum DrawCommand {
     /// Circular arc stroke with round caps, anti-aliased by the renderer. Angles are
     /// radians in screen space: 0 points right and positive turns clockwise (y grows
     /// downwards). `radius` is the centre line, `width` the stroke thickness.
+    ///
+    /// The stroke is left out inside `knockout`, a rectangle centred vertically on `center`
+    /// (see [`crate::knockout_coverage`]): a translucent shadow there would stack on the
+    /// translucent panel already drawn, and the two look like one shape only when the
+    /// shadow skips the panel.
     Arc {
         center: [f32; 2],
         radius: f32,
@@ -118,6 +123,7 @@ pub enum DrawCommand {
         start: f32,
         sweep: f32,
         color: Color,
+        knockout: Option<Rect>,
     },
     /// Begin clipping descendants.
     PushClip(Rect),

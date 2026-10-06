@@ -1368,7 +1368,13 @@ and the per-segment outlines became one rounded shadow band per meter that follo
 radius, so its renders show the pills as the renderer draws them. Branch
 `personal/radial-thick` then widens the band to a 7 px margin round the 7 px bars (it was 4),
 a clear outline, and moves the numbers and pills outwards to keep their clearance from it.
-Not verified: the layout in a running client.
+Branch `personal/radial-union` (2026-10-06, based on `7b837c3`) makes each pill and the
+shadow bands crossing it one shape (a knockout stripe in the arc shader, so the translucent
+layers no longer stack into a darker one) and draws the look's text with the classic HUD
+font. The unit tests check each shadow's knockout against its side's pill; `menu_snapshot`
+renders with the classic font (decoding its distance field on the CPU) and applies the
+knockout. Not verified: the shader on a GPU (no window was opened), and the layout in a
+running client.
 
 ## HUD picker (SJK)
 

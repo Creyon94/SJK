@@ -129,7 +129,12 @@
      "sweep_degrees": 68.0,
      "width": 7.0,
      "segments": 4,
-     "gap_degrees": 3.0
+     "gap_degrees": 3.0,
+     "knockout": {
+      "from_x": -292.0,
+      "to_x": -67.0,
+      "half_height": 22.0
+     }
     }
    }
   },
@@ -186,7 +191,12 @@
      "sweep_degrees": 68.0,
      "width": 7.0,
      "segments": 4,
-     "gap_degrees": 3.0
+     "gap_degrees": 3.0,
+     "knockout": {
+      "from_x": -292.0,
+      "to_x": -67.0,
+      "half_height": 22.0
+     }
     }
    }
   },
@@ -243,7 +253,12 @@
      "sweep_degrees": -68.0,
      "width": 7.0,
      "segments": 4,
-     "gap_degrees": 3.0
+     "gap_degrees": 3.0,
+     "knockout": {
+      "from_x": 67.0,
+      "to_x": 292.0,
+      "half_height": 22.0
+     }
     }
    }
   },
@@ -300,7 +315,12 @@
      "sweep_degrees": -68.0,
      "width": 7.0,
      "segments": 4,
-     "gap_degrees": 3.0
+     "gap_degrees": 3.0,
+     "knockout": {
+      "from_x": 67.0,
+      "to_x": 292.0,
+      "half_height": 22.0
+     }
     }
    }
   },
@@ -357,7 +377,12 @@
      "sweep_degrees": -68.0,
      "width": 7.0,
      "segments": 1,
-     "gap_degrees": 0.0
+     "gap_degrees": 0.0,
+     "knockout": {
+      "from_x": 67.0,
+      "to_x": 292.0,
+      "half_height": 22.0
+     }
     }
    }
   },
@@ -368,7 +393,7 @@
    "anchor": "center",
    "offset": {
     "x": -248.0,
-    "y": 0.0
+    "y": -4.0
    },
    "offset_fraction": {
     "x": 0.0,
@@ -408,7 +433,7 @@
    "anchor": "center",
    "offset": {
     "x": -116.0,
-    "y": 0.0
+    "y": -4.0
    },
    "offset_fraction": {
     "x": 0.0,
@@ -448,7 +473,7 @@
    "anchor": "center",
    "offset": {
     "x": 116.0,
-    "y": 0.0
+    "y": -4.0
    },
    "offset_fraction": {
     "x": 0.0,
@@ -488,7 +513,7 @@
    "anchor": "center",
    "offset": {
     "x": 248.0,
-    "y": 0.0
+    "y": -4.0
    },
    "offset_fraction": {
     "x": 0.0,
@@ -562,7 +587,7 @@
    "anchor": "center",
    "offset": {
     "x": 0.0,
-    "y": -46.0
+    "y": -48.0
    },
    "offset_fraction": {
     "x": 0.0,

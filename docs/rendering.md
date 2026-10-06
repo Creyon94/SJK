@@ -1765,7 +1765,13 @@ arcs left of the screen centre, Force (blue, outer) and ammunition (amber, inner
 it, each cut into four segments that fill in turn, the whole meter on one rounded dark
 shadow band that follows its curve (the widget's `border` and `border_width`, a margin round
 the bars). Widgets paint in document order, so the pills come first in the layout, then each
-meter's shadow and bars, then the text. The rings are centred 0.69 of the screen
+meter's shadow and bars, then the text. A shadow is drawn with a knockout (`ArcStyle::knockout`,
+the pill's extents, the `knockout` field of `DrawCommand::Arc`): it leaves out the stripe the pill
+already darkens, so pill and shadows are one shape instead of two translucent layers stacking
+into a darker one; the shader multiplies the arc's coverage by one minus the stripe's
+(`knockout_coverage` in [arc.rs](../crates/sjk-ui/src/arc.rs) is the reference). The look draws
+all its text with the classic HUD font (`arialnb`, as `cg_classicHudFont` does), whatever that
+cvar says, and Inter when the font is not loaded. The rings are centred 0.69 of the screen
 height down, below the crosshair, where TheRisqe's bars sit (their picture's middle is 92.6 of
 480 lines under the centre). Each side has a pill running through its bars at their middle
 height, with the numbers on it: health outside the left bars and armor inside them,

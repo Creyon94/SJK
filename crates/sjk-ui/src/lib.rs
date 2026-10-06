@@ -17,7 +17,8 @@ mod tree;
 
 pub use animation::{Easing, Tween};
 pub use arc::{
-    ArcSegment, MAX_ARC_SEGMENTS, arc_distance, segments as arc_segments, span as arc_span,
+    ArcSegment, MAX_ARC_SEGMENTS, arc_distance, knockout_coverage, segments as arc_segments,
+    span as arc_span,
 };
 pub use document::{
     ArcStyle, HudLayoutDocument, HudWidget, HudWidgetKind, StyleOverrides, VisibilityCondition,
