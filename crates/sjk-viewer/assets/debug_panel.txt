@@ -1647,6 +1647,22 @@ test: hoth2 (or r_we snow): flakes drift; r_weatherDensity 4 then 0.25 changes t
 note: Never looked at on screen: brightness, splash size and far rain are first guesses.
 note: Optional: JKR_FRAME_BUDGET=1 and compare r_weather 0 and 1 for its cost.
 
+[weather-fog-clouds]
+status: personal
+area: Rendering & effects
+title: Weather 2: anchored splashes, grey rain, 3D fog, clouds, quality
+change: Splashes stay where they land; rain is a faint blue-grey streak, not white.
+change: Rain haze and ground fog (r_weatherFog), drawn only outdoors; clouds over sky (r_clouds).
+change: r_weatherQuality 0-3, r_weatherForce 1 drizzle 2 rain 3 storm 4 snow on any map with sky.
+test: devmap t1_rail: walk in the rain; splashes stay on the ground, they do not follow you.
+test: Heavy rain looks grey-blue, not white; distant buildings fade into haze.
+test: Ground fog on t1_rail (or r_weatherFog 2): fog lies low outside, none inside the train.
+test: Any outdoor map: clouds drift overhead, stop at walls and roofs; r_clouds 0 removes them.
+test: r_weatherForce 3 on ffa_bespin: storm, darker clouds; 0 brings back the map's weather.
+test: r_weatherQuality 0 to 3: low has no splashes or 3D fog, 2 adds far rain.
+note: Never seen on screen: fog thickness, cloud look and both costs at 4K are first guesses.
+note: Cost check: compare FPS with r_clouds 0 and r_weatherQuality 0 against the defaults.
+
 # ---- Merged upstream ----
 
 [actor-instance-cap]

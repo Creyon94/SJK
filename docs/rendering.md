@@ -197,6 +197,10 @@ work without reducing source count, texture resolution or lighting quality.
 | `r_dustMotes` | Dust in godrays, 0 (off) to 1 (default, SJK); live; renderer IMAGE tab; requires `r_volumetrics` |
 | `r_weather` | The map's rain, snow and mist, 1 (default) or 0; live; renderer IMAGE tab. See [Weather](#weather) |
 | `r_weatherDensity` | Weather particle count, 0.25–4; 1 is the original game's, default 2 (SJK); live; renderer IMAGE tab |
+| `r_weatherQuality` | Weather quality, 0 low to 3 ultra, default 2; live; renderer IMAGE tab. See [Weather](#weather) |
+| `r_weatherForce` | Weather on every map with sky instead of the map's: 0 (default) the map's, 1 drizzle, 2 rain, 3 storm, 4 snow; live |
+| `r_weatherFog` | Ground fog: 0 none, 1 the map's (default), 2 on every map with sky; live |
+| `r_clouds` | Volumetric clouds over open sky, 1 (default) or 0; live |
 | `r_normalMapping` | Normal maps on lightmapped world surfaces (rend2 convention); default 1 (SJK; rend2 and JKR 0), restart required |
 | `r_specularMapping` | Specular, roughness and metalness maps on the same surfaces; default 1 (SJK; rend2 and JKR 0), restart required |
 | `r_parallaxMapping` | Parallax from the height in `_nh`/`normalHeightMap` images; needs `r_normalMapping`; default 1 (SJK; rend2 and JKR 0), restart required |
@@ -1491,24 +1495,80 @@ anchored in the world and carried by the flow the CPU integrates per cloud and
 mass. Their speed is the original's terminal one, 7/3 of force over mass (the
 original keeps 0.7 of its velocity each frame), so `t1_rail`'s rain flies at about
 60° in its 5000-unit wind. They are drawn into the display-space effect layer after
-the effects, where `RB_RenderWorldEffects` draws them, blended as the original
-blends them: rain and most clouds add, sand blends. SJK adds:
+the effects, where `RB_RenderWorldEffects` draws them. Snow, dust and sand keep the
+original's blending; rain and splashes do not: the original adds grey, which a dense
+storm piles up into white, so SJK blends each streak over the scene as a faint
+blue-grey of the light at the camera, some drops catching more of it than others.
+SJK adds:
 
 - Rain streaks along the velocity, at least about a pixel wide (a thinner one is
   fainter instead), and a fainter far layer out to three times the original range.
 - Splashes where rain meets the ground (a small crown of droplets) or water (a
-  widening ripple), within the near box and 1200 units of the eye's height.
+  widening ripple), within the near box and 1200 units of the eye's height. Like
+  the streaks they are anchored in the world: a splash stays where it struck while
+  the camera moves.
 - Fades at the box edges, near the eye and into the global fog; light from the
   camera's light-grid sample, so rain is dimmer at night; soft edges where mist
   meets geometry.
 
-`r_weather 0` turns weather off; `r_weatherDensity` scales the counts (1 is the
-original's, SJK's default 2). Secondary views (portals, mirrors, sky portals) show
-no weather. Not implemented: the outside camera shake (`outsideshake`), acid rain's
-pain hint, the saber hiss in rain, lightning flashes (a single-player
-`fx_rain` flag the multiplayer game ignores) and wind zones with bounds.
-Unverified: everything visible. The cover, commands, wind and shader translation
-have unit tests; how the weather looks and costs in a match is untested.
+**Volumetric fog** (`fragment_volume` in weather.wgsl). One full-screen pass before
+the particles marches each pixel's ray to the surface it shows (at most 6000 units)
+and counts only open-sky air: the cover keeps fog out from under roofs as it keeps
+rain out. Falling weather leaves a haze in that air (half the light lost over about
+8000 units in drizzle, 4300 in rain, 2500 in a storm, 3500 in snow; values in
+`weather_effects.rs`). The fog commands (`fog`, `heavyrainfog`, `light_fog`) become
+ground fog instead of the original's drifting smoke sprites: densest at each
+column's floor, thinning over 110 to 180 units, billowing through the noise volume
+and drifting with the wind; `light_fog` keeps its blue-green. Beyond the surveyed
+window the air counts as open, floored at the camera's height, so distant haze does
+not stop at the window's edge. `r_weatherFog` decides the ground fog: 0 none (no fog
+sprites either), 1 the map's (default), 2 also a light fog on every map with sky.
+
+**Quality** (`r_weatherQuality`, [weather_settings.rs](../crates/sjk-viewer/src/weather_settings.rs)):
+
+| Level | Draws |
+| --- | --- |
+| 0 low | Near streaks, the original's fog sprites; clouds with 10 samples |
+| 1 medium | Splashes, volumetric fog with 8 samples a ray; clouds 16 |
+| 2 high (default) | The far rain layer, fog 12, clouds 24 |
+| 3 ultra | More far rain and splashes, fog 20, clouds 40 |
+
+**Forced weather** (`r_weatherForce`): 1 drizzle (`lightrain`), 2 rain with a
+random wind, 3 a storm (`heavyrain`, gusting wind), 4 snow with wind, in place of the
+map's weather; `r_we` commands still add to it. Forced weather is drawn only on maps
+with sky, so it never falls indoors on a map without one.
+
+**Clouds** ([weather_clouds.rs](../crates/sjk-viewer/src/weather_clouds.rs),
+[clouds.wgsl](../crates/sjk-viewer/src/clouds.wgsl), `r_clouds`, on by default).
+A layer of cloud 6000 units above the camera and 3200 deep covers every map with sky
+faces, except maps whose weather is space dust. It is drawn on the visible sky faces
+right after the sky, with the sky faces' own geometry and depth test, so it never
+covers the world: each pixel marches its view ray through the layer (fading out
+towards the horizon and with distance), with two looks towards the sun for its
+shadowing, a forward-scattering rim, darker dense insides and skylight. The sun is
+the lighting passes' (the day clock's, or the shot director's) or else the sky's
+authored one; night leaves only a dim skylight. The layer drifts across the world at
+a slow breeze plus half the weather's wind; rain and snow raise the cover from 0.42
+to up to 0.92 and darken it. Its colour is in the scene's light units (the sky's
+radiance scale), so it goes through bloom, exposure and tone mapping with the sky.
+
+Fog and clouds share one noise volume ([weather_noise.rs](../crates/sjk-viewer/src/weather_noise.rs)):
+64³ RGBA8, red Perlin-Worley noise for the shapes, green to alpha inverted Worley
+noise at three frequencies for the eroded edges, after Schneider's published cloud
+technique (2015) and written for SJK. It tiles in every direction, is made once per
+run on a worker thread, and the clouds and the fog's billows appear when it is ready.
+
+`r_weather 0` turns weather off (the clouds stay with `r_clouds`);
+`r_weatherDensity` scales the counts (1 is the original's, SJK's default 2).
+Secondary views (portals, mirrors, sky portals) show no weather or clouds. Not
+implemented: the outside camera shake (`outsideshake`), acid rain's pain hint, the
+saber hiss in rain, lightning flashes (a single-player `fx_rain` flag the
+multiplayer game ignores), wind zones with bounds, and clouds casting shadows on the
+world. A map's skybox may already paint clouds; the volumetric ones go over them.
+Unverified: everything visible, and the cost. The cover, commands, wind, settings,
+noise, cloud and fog parameters and the translation of both shaders have unit
+tests; how fog and clouds look, and what they cost at 4K, is untested. Compare
+`r_clouds 0` and `r_weatherQuality 0` against the defaults to see the cost.
 
 ## Sky scenery and hillside orientation
 

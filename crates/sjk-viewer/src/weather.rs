@@ -1,10 +1,12 @@
-//! Weather: the rain, snow, dust and mist a map asks for, presentation only.
+//! Weather: the rain, snow, dust and fog a map asks for, and clouds over open sky;
+//! presentation only.
 //!
 //! A map's weather entities (`fx_rain`, `fx_snow`, `fx_wind`, `fx_spacedust`) make the
 //! server register effect names that start with `*` (`*heavyrain`, `*constantwind ( x y
 //! z )`, ...). As cgame does (`CG_ParseWeatherEffect`), the client runs them as world
-//! effect commands, in slot order ([`effects`]); `r_we` runs one more from the console.
-//! A world without a server takes the names from its own entities.
+//! effect commands, in slot order ([`effects`]); `r_we` runs one more from the console,
+//! and `r_weatherForce` replaces them with weather of the player's choosing. A world
+//! without a server takes the names from its own entities.
 //!
 //! What SJK adds to the reference's particle clouds:
 //!
@@ -12,17 +14,22 @@
 //!   the first surface below it, surveyed from the map's collision data on a worker
 //!   thread. Rain stops on roofs and the ground, stays out of buildings, and is cut
 //!   exactly at eaves and windows, per pixel.
-//! - **Splashes**: rain lands as small sprays on the ground and ripples on water.
-//! - **Far rain**: a fainter second layer of streaks out to three times the reference's
-//!   range, so a storm does not end a few metres away.
+//! - **Splashes** where rain lands, anchored in the world, and a **far rain** layer.
+//! - **Volumetric fog**: rain and snow leave a haze in the open air, and the map's fog
+//!   commands become ground fog drifting with the wind, both marched per pixel against
+//!   the cover instead of the reference's smoke sprites (`r_weatherFog`).
+//! - **Clouds** ([`clouds`]) over every map with sky, lit by its sun, drifting with
+//!   the wind and darkening in a storm (`r_clouds`).
 //! - Particles are generated on the GPU from their index and the wind the CPU
-//!   integrates (`weather.wgsl`), lit by the light where the camera is, faded by the
-//!   map's global fog, and drawn into the display-space effect layer after the effects,
-//!   blended as the reference blends them.
+//!   integrates (`weather.wgsl`) and drawn into the display-space effect layer after the
+//!   effects; rain is blended as a faint tinted streak rather than added.
 //!
-//! `r_weather 0` turns it all off; `r_weatherDensity` scales the particle counts
-//! (1 is the reference's, SJK's default 2).
+//! `r_weather 0` turns weather off; `r_weatherDensity` scales the particle counts (1 is
+//! the reference's, SJK's default 2); `r_weatherQuality` (0 low to 3 ultra) chooses what
+//! is drawn ([`settings::Quality`]).
 
+#[path = "weather_clouds.rs"]
+pub(crate) mod clouds;
 #[path = "weather_cover.rs"]
 pub(crate) mod cover;
 #[path = "weather_cover_map.rs"]
@@ -31,23 +38,21 @@ pub(crate) mod cover_map;
 pub(crate) mod effects;
 #[path = "weather_gpu.rs"]
 pub(crate) mod gpu;
+#[path = "weather_noise.rs"]
+pub(crate) mod noise;
+#[path = "weather_settings.rs"]
+pub(crate) mod settings;
 #[path = "weather_wind.rs"]
 pub(crate) mod wind;
 
 use bytemuck::Zeroable;
-use effects::{Cloud, Effects, Look, MAX_CLOUDS};
+use effects::{Cloud, Effects, Image, Look, MAX_CLOUDS, Mist};
 use gpu::{BUCKETS, Batch, GpuCloud, GpuWeather, Kind};
-use sjk_shell::{CvarDefinition, CvarError, CvarFlags, CvarRegistry, CvarValue};
+pub(crate) use settings::{
+    CLOUDS_CVAR, CVAR, DENSITY_CVAR, FOG_CVAR, FORCE_CVAR, QUALITY_CVAR, Settings,
+};
 use std::sync::Arc;
-use std::sync::atomic::{AtomicU32, Ordering};
 
-/// Weather on (1) or off (0).
-pub(crate) const CVAR: &str = "r_weather";
-/// Particle count scale.
-pub(crate) const DENSITY_CVAR: &str = "r_weatherDensity";
-/// SJK's default density: twice the reference's particles (Sol asked for rain worth
-/// looking at).
-const DEFAULT_DENSITY: f32 = 2.0;
 /// The console command running one world effect command (rd-vanilla's `r_we`).
 pub(crate) const COMMAND: &str = "r_we";
 pub(crate) const HELP: &str = "Run a weather command: rain, heavyrain, snow, fog, clear, ...";
@@ -61,92 +66,21 @@ const TERMINAL: f64 = 0.7 / 0.3;
 /// The far rain layer's reach and opacity, against the near box.
 const FAR_SCALE: f32 = 3.0;
 const FAR_OPACITY: f32 = 0.55;
-/// Far streaks per near one: the far layer spreads over nine times the area.
-const FAR_SHARE: f32 = 1.5;
-/// Splashes per near rain streak.
-const SPLASH_SHARE: f32 = 0.6;
 /// Most particles in one batch (the instance number keeps 15 bits for them).
 const MAX_BATCH: u32 = 0x7FFF;
 /// Weather time wraps here, long before `f32` seconds lose precision.
 const TIME_WRAP: f64 = 4096.0;
-
-/// Live settings shared by the console and every installed world.
-#[derive(Clone)]
-pub(crate) struct Settings {
-    enabled: Arc<AtomicU32>,
-    density: Arc<AtomicU32>,
-}
-
-impl Default for Settings {
-    fn default() -> Self {
-        Self {
-            enabled: Arc::new(AtomicU32::new(1)),
-            density: Arc::new(AtomicU32::new(DEFAULT_DENSITY.to_bits())),
-        }
-    }
-}
-
-impl Settings {
-    /// Register both archived cvars and follow their changes.
-    pub(crate) fn bind(cvars: &mut CvarRegistry) -> Result<Self, CvarError> {
-        cvars.register(CvarDefinition::new(
-            CVAR,
-            true,
-            CvarFlags::ARCHIVE,
-            "Rain, snow and mist on maps that have them",
-        ))?;
-        cvars.register(CvarDefinition::new(
-            DENSITY_CVAR,
-            f64::from(DEFAULT_DENSITY),
-            CvarFlags::ARCHIVE,
-            "Weather particle count, 1 as the original game, 0.25 to 4",
-        ))?;
-        let settings = Self::default();
-        if let Some(cvar) = cvars.get(CVAR) {
-            settings.set_enabled(&cvar.value);
-        }
-        if let Some(cvar) = cvars.get(DENSITY_CVAR) {
-            settings.set_density(&cvar.value);
-        }
-        let changed = settings.clone();
-        cvars.on_change(CVAR, move |change| changed.set_enabled(&change.current))?;
-        let changed = settings.clone();
-        cvars.on_change(DENSITY_CVAR, move |change| {
-            changed.set_density(&change.current)
-        })?;
-        Ok(settings)
-    }
-
-    fn set_enabled(&self, value: &CvarValue) {
-        let on = match value {
-            CvarValue::Bool(value) => *value,
-            CvarValue::Integer(value) => *value != 0,
-            CvarValue::Float(value) => *value != 0.0,
-            _ => return,
-        };
-        self.enabled.store(u32::from(on), Ordering::Relaxed);
-    }
-
-    fn set_density(&self, value: &CvarValue) {
-        let value = match value {
-            CvarValue::Float(value) => *value,
-            CvarValue::Integer(value) => *value as f64,
-            _ => return,
-        };
-        if value.is_finite() {
-            let value = value.clamp(0.25, 4.0) as f32;
-            self.density.store(value.to_bits(), Ordering::Relaxed);
-        }
-    }
-
-    pub(crate) fn enabled(&self) -> bool {
-        self.enabled.load(Ordering::Relaxed) != 0
-    }
-
-    pub(crate) fn density(&self) -> f32 {
-        f32::from_bits(self.density.load(Ordering::Relaxed))
-    }
-}
+/// The haze of a heavy storm: what counts as a full storm for the clouds and the fog.
+const STORM_HAZE: f32 = 2.8e-4;
+/// The longest ray the fog marches; the map's own fog covers what lies beyond.
+const FOG_REACH: f32 = 6000.0;
+/// One tile of the fog's noise (`fragment_volume`), where its drift wraps.
+const FOG_TILE: [f64; 3] = [1400.0, 1400.0, 500.0];
+/// The fog's own slow drift, and its share of the wind.
+const FOG_DRIFT: [f32; 3] = [24.0, 9.0, 0.0];
+const FOG_WIND: f32 = 0.35;
+/// Rain haze and ground fog colour before light (display values): a cool grey.
+const FOG_GREY: [f32; 3] = [0.64, 0.68, 0.74];
 
 /// The map's weather state, its cover and its GPU resources.
 pub(crate) struct Runtime {
@@ -154,7 +88,11 @@ pub(crate) struct Runtime {
     server: Vec<String>,
     /// `r_we` commands typed since the map loaded, run after the server's.
     local: Vec<String>,
+    /// The `r_weatherForce` the effects were built with.
+    force: u32,
     effects: Effects,
+    /// The effects include space dust: a space map, which gets no clouds.
+    space: bool,
     /// The map's `misc_weather_zone` boxes.
     map_zones: Vec<[[f32; 3]; 2]>,
     /// The zones the running survey was started with.
@@ -162,11 +100,18 @@ pub(crate) struct Runtime {
     wind: wind::Wind,
     /// Per cloud, the force integrated over time (units·s per unit of mass).
     flows: [[f64; 3]; MAX_CLOUDS],
+    /// The fog's and the clouds' drift.
+    fog_flow: [f64; 3],
+    cloud_flow: [f64; 2],
     time: f64,
     light: [f32; 3],
     last_frame: Option<std::time::Instant>,
     cover: Option<cover_map::CoverMap>,
+    noise: Option<noise::Texture>,
     gpu: Option<gpu::Gpu>,
+    clouds: Option<clouds::Gpu>,
+    /// Clouds are drawn this frame.
+    clouds_visible: bool,
     uniform: GpuWeather,
     batches: Vec<Batch>,
 }
@@ -176,14 +121,18 @@ pub(crate) struct FrameInput<'a> {
     pub(crate) device: &'a wgpu::Device,
     pub(crate) queue: &'a crate::frame_queue::FrameQueue,
     pub(crate) camera_layout: &'a wgpu::BindGroupLayout,
+    pub(crate) scene_format: wgpu::TextureFormat,
     pub(crate) images: Option<(
         &'a sjk_vfs::VirtualFileSystem,
         &'a sjk_shader::ShaderCatalog,
     )>,
     pub(crate) bsp: &'a Arc<sjk_bsp::Bsp>,
     pub(crate) camera: [f32; 3],
+    pub(crate) view_projection: [[f32; 4]; 4],
     /// Light at the camera, 0..1 per channel (ambient and directed).
     pub(crate) light: [f32; 3],
+    /// The sun for the clouds.
+    pub(crate) sky: clouds::SkyLight,
     /// The global fog's `1 / depthForOpaque`, 0 without one.
     pub(crate) fog: f32,
     pub(crate) viewport: [u32; 2],
@@ -216,26 +165,34 @@ impl Runtime {
                 Some([model.minimums, model.maximums])
             })
             .collect();
-        let effects = Effects::from_commands(server.iter().map(String::as_str));
-        if !effects.is_empty() {
+        if !server.is_empty() {
             crate::log::progress(format_args!("weather: {}", server.join(", ")));
         }
-        Self {
+        let mut runtime = Self {
             server,
             local: Vec::new(),
-            effects,
+            force: 0,
+            effects: Effects::default(),
+            space: false,
             map_zones,
             surveyed_zones: None,
             wind: wind::Wind::default(),
             flows: [[0.0; 3]; MAX_CLOUDS],
+            fog_flow: [0.0; 3],
+            cloud_flow: [0.0; 2],
             time: 0.0,
             light: [1.0; 3],
             last_frame: None,
             cover: None,
+            noise: None,
             gpu: None,
+            clouds: None,
+            clouds_visible: false,
             uniform: GpuWeather::zeroed(),
-            batches: Vec::with_capacity(2 * MAX_CLOUDS + 1),
-        }
+            batches: Vec::with_capacity(2 * MAX_CLOUDS + 2),
+        };
+        runtime.rebuild();
+        runtime
     }
 
     /// The server's effect names changed: rerun every command if its weather did.
@@ -256,19 +213,60 @@ impl Runtime {
         Ok(())
     }
 
+    /// Run the commands again: the forced weather's or the server's, then the console's.
     fn rebuild(&mut self) {
-        let commands = self.server.iter().chain(&self.local).map(String::as_str);
-        self.effects = Effects::from_commands(commands);
+        let forced = settings::forced_commands(self.force);
+        let commands: Vec<&str> = if forced.is_empty() {
+            self.server.iter().map(String::as_str).collect()
+        } else {
+            forced.to_vec()
+        };
+        self.effects = Effects::from_commands(
+            commands
+                .into_iter()
+                .chain(self.local.iter().map(String::as_str)),
+        );
+        self.space = self
+            .effects
+            .clouds
+            .iter()
+            .any(|cloud| cloud.look == Look::Sprite(Image::SnowPuff));
         self.flows = [[0.0; 3]; MAX_CLOUDS];
     }
 
-    /// Something to draw this frame.
+    /// Weather to draw into the effect layer this frame.
     pub(crate) fn visible(&self) -> bool {
         !self.batches.is_empty()
     }
 
-    /// Advance the weather and write this frame's uniform. Allocation-free once the
-    /// weather is set up, unless the cover window moves.
+    /// The cloud pipeline, when clouds are drawn this frame.
+    pub(crate) fn clouds(&self) -> Option<&clouds::Gpu> {
+        self.clouds.as_ref().filter(|_| self.clouds_visible)
+    }
+
+    /// How stormy the weather is, 0..1, from the haze it leaves.
+    fn storm(&self) -> f32 {
+        let haze: f32 = self.effects.clouds.iter().map(|cloud| cloud.haze).sum();
+        (haze / STORM_HAZE).min(1.0)
+    }
+
+    /// The ground fog `r_weatherFog` asks for: the densest of the map's, or the default
+    /// one on every map (2).
+    fn mist(&self, fog: u32) -> Option<(Mist, [f32; 4])> {
+        if fog == 0 {
+            return None;
+        }
+        let own = self
+            .effects
+            .clouds
+            .iter()
+            .filter_map(|cloud| cloud.mist.map(|mist| (mist, cloud.color)))
+            .max_by(|a, b| a.0.density.total_cmp(&b.0.density));
+        own.or((fog == 2).then_some((Mist::DEFAULT, [0.5; 4])))
+    }
+
+    /// Advance the weather and the clouds and write this frame's uniforms.
+    /// Allocation-free once set up, unless the cover window moves.
     pub(crate) fn prepare(&mut self, input: FrameInput<'_>) {
         self.batches.clear();
         let now = std::time::Instant::now();
@@ -276,7 +274,31 @@ impl Runtime {
             .last_frame
             .replace(now)
             .map_or(0.0, |last| now.duration_since(last).as_secs_f32().min(0.25));
-        if !input.settings.enabled() || self.effects.clouds.is_empty() {
+        let settings = input.settings;
+        if settings.force() != self.force {
+            self.force = settings.force();
+            self.rebuild();
+        }
+        let quality = settings.quality();
+        let wind = self.wind.advance(&mut self.effects.winds, seconds);
+        // Light changes ease over about half a second, so walking under a lamp does not
+        // flicker the rain.
+        let target = input.light.map(|value| (value / 0.7).clamp(0.3, 1.0));
+        let ease = 1.0 - (-seconds / 0.4).exp();
+        for (light, target) in self.light.iter_mut().zip(target) {
+            *light += (target - *light) * if seconds == 0.0 { 1.0 } else { ease };
+        }
+        let weather = settings.enabled();
+        let storm = if weather { self.storm() } else { 0.0 };
+        self.prepare_clouds(&input, quality.cloud_steps, wind, storm, seconds);
+        if !weather {
+            return;
+        }
+
+        let mist = self.mist(settings.fog());
+        let haze: f32 = self.effects.clouds.iter().map(|cloud| cloud.haze).sum();
+        let volume = quality.fog_steps > 0 && (mist.is_some() || haze > 0.0);
+        if self.effects.clouds.is_empty() && !volume {
             return;
         }
         let surveyed = self.surveyed_zones.as_deref().is_some_and(|surveyed| {
@@ -292,21 +314,34 @@ impl Runtime {
             cover.start(input.bsp.clone(), cover::Marks::read(input.bsp, &zones));
             self.surveyed_zones = Some(zones);
             if self.gpu.is_none() {
+                let noise = self
+                    .noise
+                    .get_or_insert_with(|| noise::Texture::new(input.device));
                 self.gpu = Some(gpu::Gpu::new(
                     input.device,
                     input.queue,
                     input.images,
                     input.camera_layout,
                     &cover.view,
+                    noise,
                 ));
             }
         }
+        let noise_ready = self
+            .noise
+            .as_mut()
+            .is_some_and(|noise| noise.update(input.queue));
         let (Some(cover), Some(gpu)) = (self.cover.as_mut(), self.gpu.as_ref()) else {
             return;
         };
         cover.update(input.queue, input.camera);
+        let window = cover.window();
+        // Weather the player forced stays off a map without sky, which would otherwise
+        // rain indoors as the reference does there.
+        if self.force != 0 && !window.enabled {
+            return;
+        }
 
-        let wind = self.wind.advance(&mut self.effects.winds, seconds);
         if !self.effects.frozen {
             self.time = (self.time + f64::from(seconds)) % TIME_WRAP;
             for (flow, cloud) in self.flows.iter_mut().zip(&self.effects.clouds) {
@@ -315,16 +350,13 @@ impl Runtime {
                     flow[axis] += f64::from(force[axis]) * f64::from(seconds);
                 }
             }
-        }
-        // Light changes ease over about half a second, so walking under a lamp does not
-        // flicker the rain.
-        let target = input.light.map(|value| (value / 0.7).clamp(0.3, 1.0));
-        let ease = 1.0 - (-seconds / 0.4).exp();
-        for (light, target) in self.light.iter_mut().zip(target) {
-            *light += (target - *light) * if seconds == 0.0 { 1.0 } else { ease };
+            for axis in 0..3 {
+                let speed = f64::from(FOG_DRIFT[axis] + FOG_WIND * wind[axis]);
+                self.fog_flow[axis] =
+                    (self.fog_flow[axis] + speed * f64::from(seconds)).rem_euclid(FOG_TILE[axis]);
+            }
         }
 
-        let window = cover.window();
         self.uniform.window = window.cells;
         self.uniform.cover = [
             cover_map::CELL,
@@ -332,19 +364,31 @@ impl Runtime {
             f32::from(u8::from(window.enabled)),
             self.time as f32,
         ];
-        let density = input.settings.density();
+        if volume {
+            self.batches.push(Batch {
+                kind: Kind::Volume,
+                instances: 0..1,
+            });
+        }
+        // The fog's sprites are drawn only where no volumetric fog replaces them, and not
+        // at all with the fog turned off.
+        let mist_sprites = !volume && settings.fog() != 0;
+        let density = settings.density();
         let mut splash = None;
         for (slot, cloud) in self.effects.clouds.iter().enumerate() {
-            let near = ((cloud.count as f32 * density).round() as u32).min(MAX_BATCH);
-            let far = if cloud.is_rain() {
-                ((near as f32 * FAR_SHARE).round() as u32).min(MAX_BATCH)
-            } else {
-                0
-            };
             self.uniform.clouds[slot] = gpu_cloud(cloud, wind, &self.flows[slot]);
+            if cloud.mist.is_some() && !mist_sprites {
+                continue;
+            }
+            let near = ((cloud.count as f32 * density).round() as u32).min(MAX_BATCH);
             if near == 0 {
                 continue;
             }
+            let far = if cloud.is_rain() {
+                ((near as f32 * quality.far_share).round() as u32).min(MAX_BATCH)
+            } else {
+                0
+            };
             let base = (slot as u32) << 16;
             let kind = match cloud.look {
                 Look::Streak => Kind::Streak,
@@ -362,8 +406,9 @@ impl Runtime {
                     instances: base..base + far,
                 });
             }
-            if cloud.is_rain() && splash.is_none() {
-                splash = Some((slot, ((near as f32 * SPLASH_SHARE) as u32).min(MAX_BATCH)));
+            if cloud.is_rain() && quality.splashes && splash.is_none() {
+                let count = (near as f32 * quality.splash_share) as u32;
+                splash = Some((slot, count.min(MAX_BATCH)));
             }
         }
         if let Some((slot, count)) = splash.filter(|&(_, count)| count != 0 && window.enabled) {
@@ -381,7 +426,65 @@ impl Runtime {
             0.0,
         ];
         self.uniform.light[..3].copy_from_slice(&self.light);
+        let inverse = glam::Mat4::from_cols_array_2d(&input.view_projection).inverse();
+        self.uniform.inverse_view_projection = inverse.to_cols_array_2d();
+        let (ground, tint) = mist.map_or((None, [0.5; 4]), |(mist, color)| (Some(mist), color));
+        self.uniform.haze = [
+            if volume { haze } else { 0.0 },
+            ground.map_or(0.0, |mist| mist.density),
+            ground.map_or(1.0, |mist| mist.height),
+            if volume {
+                quality.fog_steps as f32
+            } else {
+                0.0
+            },
+        ];
+        let color = fog_color(tint, self.light, storm);
+        self.uniform.fog_color = [
+            color[0],
+            color[1],
+            color[2],
+            f32::from(u8::from(noise_ready)),
+        ];
+        self.uniform.fog_flow = [
+            self.fog_flow[0] as f32,
+            self.fog_flow[1] as f32,
+            self.fog_flow[2] as f32,
+            FOG_REACH,
+        ];
         gpu.write(input.queue, &self.uniform);
+    }
+
+    /// Advance the clouds and write their uniform; they are drawn unless turned off or
+    /// the map is in space.
+    fn prepare_clouds(
+        &mut self,
+        input: &FrameInput<'_>,
+        steps: u32,
+        wind: [f32; 3],
+        storm: f32,
+        seconds: f32,
+    ) {
+        self.clouds_visible = false;
+        if !input.settings.clouds() || self.space {
+            return;
+        }
+        let noise = self
+            .noise
+            .get_or_insert_with(|| noise::Texture::new(input.device));
+        let ready = noise.update(input.queue);
+        let gpu = self.clouds.get_or_insert_with(|| {
+            clouds::Gpu::new(input.device, input.camera_layout, input.scene_format, noise)
+        });
+        if !self.effects.frozen {
+            clouds::drift(&mut self.cloud_flow, wind, seconds);
+        }
+        let sky = clouds::Sky { storm, wind };
+        gpu.write(
+            input.queue,
+            &clouds::uniform(input.sky, sky, self.cloud_flow, steps, ready),
+        );
+        self.clouds_visible = ready;
     }
 
     /// Record this frame's weather into the effect layer's pass.
@@ -412,6 +515,19 @@ fn server_commands(game: &sjk_protocol::GameState) -> Vec<String> {
         .filter_map(|bytes| bytes.strip_prefix(b"*"))
         .map(|bytes| String::from_utf8_lossy(bytes).into_owned())
         .collect()
+}
+
+/// The fog's colour (display values): the fog command's own hue, or a cool grey for rain
+/// haze and grey fog, in the light where the camera is, darker in a storm.
+fn fog_color(tint: [f32; 4], light: [f32; 3], storm: f32) -> [f32; 3] {
+    let peak = tint[0].max(tint[1]).max(tint[2]);
+    let grey = (tint[0] - tint[1]).abs() < 0.02 && (tint[1] - tint[2]).abs() < 0.02;
+    let hue = if grey || peak <= 0.0 {
+        FOG_GREY
+    } else {
+        [0, 1, 2].map(|channel| tint[channel] / peak * 0.72)
+    };
+    std::array::from_fn(|channel| hue[channel] * light[channel] * (1.0 - 0.3 * storm))
 }
 
 /// Gravity and wind on a cloud's particles.
@@ -512,18 +628,45 @@ impl crate::GpuState {
                 |layer| layer.size(),
             );
         let vfs = self.vfs.clone();
+        let sky = self
+            .world_materials
+            .cloud_light()
+            .unwrap_or(clouds::SkyLight::DEFAULT);
         self.weather.prepare(FrameInput {
             device: &self.device,
             queue: &self.queue,
             camera_layout: &self.camera_layout,
+            scene_format: self.context.scene_format(),
             images: vfs.as_deref().map(|vfs| (vfs, &self.shaders)),
             bsp: &self.bsp,
             camera: camera.camera_position,
+            view_projection: camera.view_projection,
             light,
+            sky,
             fog,
             viewport,
             settings: &self.context.weather,
         });
+    }
+
+    /// The clouds on the visible sky faces, right after the sky in the main view.
+    pub(crate) fn draw_clouds<'pass>(
+        &'pass self,
+        pass: &mut wgpu::RenderPass<'pass>,
+        source_cluster: Option<usize>,
+        visibility: Option<&'pass sjk_bsp::Visibility>,
+    ) {
+        let Some(clouds) = self.weather.clouds() else {
+            return;
+        };
+        clouds.bind(pass, &self.camera_bind_group);
+        self.world_materials.draw_sky_faces(
+            pass,
+            &self.geometry.vertex_buffer,
+            &self.geometry.index_buffer,
+            source_cluster,
+            visibility,
+        );
     }
 
     /// `r_we`: run one world effect command for this map.
@@ -567,6 +710,55 @@ mod tests {
             assert!((0.0..1250.0).contains(&bucket[2]));
         }
         assert_eq!(gpu.shape[..2], [0.6, 80.0]);
+    }
+
+    fn empty_world() -> Runtime {
+        Runtime::new(None, &sjk_bsp::Bsp::empty([-64.0; 3], [64.0; 3]))
+    }
+
+    #[test]
+    fn forced_weather_replaces_the_maps_and_keeps_console_commands() {
+        let mut weather = empty_world();
+        weather.server = vec!["heavyrain".into()];
+        weather.command("fog").unwrap();
+        weather.force = 4;
+        weather.rebuild();
+        let looks: Vec<_> = weather
+            .effects
+            .clouds
+            .iter()
+            .map(|cloud| cloud.look)
+            .collect();
+        assert_eq!(
+            looks,
+            [Look::Sprite(Image::Snowflake), Look::Sprite(Image::Smoke)]
+        );
+        weather.force = 0;
+        weather.rebuild();
+        assert_eq!(weather.effects.clouds[0].look, Look::Streak);
+        weather.command("spacedust 100").unwrap();
+        assert!(weather.space, "space maps get no clouds");
+    }
+
+    #[test]
+    fn storms_haze_and_ground_fog_follow_the_weather_and_the_fog_setting() {
+        let mut weather = empty_world();
+        assert_eq!(weather.storm(), 0.0);
+        assert!(weather.mist(1).is_none());
+        assert_eq!(weather.mist(2).map(|(mist, _)| mist), Some(Mist::DEFAULT));
+        weather.server = vec!["heavyrain".into(), "heavyrainfog".into(), "fog".into()];
+        weather.rebuild();
+        assert_eq!(weather.storm(), 1.0);
+        // The densest of the map's fogs wins; 0 turns them all off.
+        let (mist, _) = weather.mist(1).unwrap();
+        assert_eq!(mist.density, 1.4e-3);
+        assert!(weather.mist(0).is_none());
+        // Grey fog stays grey; a tinted fog keeps its hue.
+        let grey = fog_color([0.3; 4], [1.0; 3], 0.0);
+        assert_eq!(grey, FOG_GREY);
+        let teal = fog_color([0.19, 0.6, 0.7, 0.12], [1.0; 3], 0.0);
+        assert!(teal[2] > teal[1] && teal[1] > teal[0]);
+        assert!(fog_color([0.3; 4], [1.0; 3], 1.0)[0] < grey[0]);
     }
 
     #[test]

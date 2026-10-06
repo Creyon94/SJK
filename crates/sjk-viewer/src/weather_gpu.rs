@@ -30,6 +30,10 @@ pub(crate) struct GpuWeather {
     pub(crate) cover: [f32; 4],
     pub(crate) view: [f32; 4],
     pub(crate) light: [f32; 4],
+    pub(crate) inverse_view_projection: [[f32; 4]; 4],
+    pub(crate) haze: [f32; 4],
+    pub(crate) fog_color: [f32; 4],
+    pub(crate) fog_flow: [f32; 4],
     pub(crate) clouds: [GpuCloud; super::effects::MAX_CLOUDS],
 }
 
@@ -42,9 +46,11 @@ pub(crate) enum Kind {
     Sprite,
     /// Alpha-blended (`mBlendMode 0`).
     SpriteAlpha,
+    /// The volumetric fog: one full-screen triangle.
+    Volume,
 }
 
-/// One instanced draw: six vertices per particle.
+/// One instanced draw: six vertices per particle (three for the fog).
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct Batch {
     pub(crate) kind: Kind,
@@ -57,6 +63,7 @@ pub(crate) struct Gpu {
     splash: wgpu::RenderPipeline,
     sprite: wgpu::RenderPipeline,
     sprite_alpha: wgpu::RenderPipeline,
+    volume: wgpu::RenderPipeline,
     uniform: wgpu::Buffer,
     bind_group: wgpu::BindGroup,
 }
@@ -69,6 +76,7 @@ impl Gpu {
         images: Option<(&sjk_vfs::VirtualFileSystem, &sjk_shader::ShaderCatalog)>,
         camera: &wgpu::BindGroupLayout,
         cover: &wgpu::TextureView,
+        noise: &super::noise::Texture,
     ) -> Self {
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("SJK weather layout"),
@@ -109,6 +117,22 @@ impl Gpu {
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                     count: None,
                 },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 4,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: true },
+                        view_dimension: wgpu::TextureViewDimension::D3,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 5,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
+                    count: None,
+                },
             ],
         });
         let uniform = device.create_buffer(&wgpu::BufferDescriptor {
@@ -145,6 +169,14 @@ impl Gpu {
                     binding: 3,
                     resource: wgpu::BindingResource::Sampler(&sampler),
                 },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: wgpu::BindingResource::TextureView(&noise.view),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 5,
+                    resource: wgpu::BindingResource::Sampler(&noise.sampler),
+                },
             ],
         });
         let depth = crate::world_materials::flares::depth_layout(device);
@@ -178,7 +210,7 @@ impl Gpu {
             },
             alpha: added.alpha,
         };
-        let pipeline = |vertex, fragment, blend, additive: bool| {
+        let pipeline = |vertex, fragment, blend, additive: bool, depth_compare| {
             let constants = [("additive", f64::from(u8::from(additive)))];
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
                 label: Some(fragment),
@@ -209,7 +241,7 @@ impl Gpu {
                 depth_stencil: Some(wgpu::DepthStencilState {
                     format: crate::DepthTarget::FORMAT,
                     depth_write_enabled: Some(false),
-                    depth_compare: Some(wgpu::CompareFunction::LessEqual),
+                    depth_compare: Some(depth_compare),
                     stencil: Default::default(),
                     bias: Default::default(),
                 }),
@@ -218,11 +250,45 @@ impl Gpu {
                 cache: None,
             })
         };
+        // Rain and its splashes are blended over the scene, a faint tinted streak, rather
+        // than added to it: the reference's added grey turns a dense storm into white.
         Self {
-            streak: pipeline("vertex_streak", "fragment_streak", added, true),
-            splash: pipeline("vertex_splash", "fragment_splash", added, true),
-            sprite: pipeline("vertex_sprite", "fragment_sprite", added, true),
-            sprite_alpha: pipeline("vertex_sprite", "fragment_sprite", blended, false),
+            streak: pipeline(
+                "vertex_streak",
+                "fragment_streak",
+                blended,
+                false,
+                wgpu::CompareFunction::LessEqual,
+            ),
+            splash: pipeline(
+                "vertex_splash",
+                "fragment_splash",
+                blended,
+                false,
+                wgpu::CompareFunction::LessEqual,
+            ),
+            sprite: pipeline(
+                "vertex_sprite",
+                "fragment_sprite",
+                added,
+                true,
+                wgpu::CompareFunction::LessEqual,
+            ),
+            sprite_alpha: pipeline(
+                "vertex_sprite",
+                "fragment_sprite",
+                blended,
+                false,
+                wgpu::CompareFunction::LessEqual,
+            ),
+            // The fog reads the depth itself; its triangle covers everything.
+            volume: pipeline(
+                "vertex_volume",
+                "fragment_volume",
+                blended,
+                false,
+                wgpu::CompareFunction::Always,
+            ),
             uniform,
             bind_group,
         }
@@ -253,8 +319,10 @@ impl Gpu {
                 Kind::Splash => &self.splash,
                 Kind::Sprite => &self.sprite,
                 Kind::SpriteAlpha => &self.sprite_alpha,
+                Kind::Volume => &self.volume,
             });
-            pass.draw(0..6, batch.instances.clone());
+            let vertices = if batch.kind == Kind::Volume { 3 } else { 6 };
+            pass.draw(0..vertices, batch.instances.clone());
         }
     }
 }
@@ -353,7 +421,7 @@ mod tests {
         assert_eq!(std::mem::size_of::<GpuCloud>(), (5 + 2 * BUCKETS) * 16);
         assert_eq!(
             std::mem::size_of::<GpuWeather>(),
-            4 * 16 + super::super::effects::MAX_CLOUDS * std::mem::size_of::<GpuCloud>()
+            11 * 16 + super::super::effects::MAX_CLOUDS * std::mem::size_of::<GpuCloud>()
         );
         let shader = include_str!("weather.wgsl");
         assert!(shader.contains("array<vec4<f32>, 8>"));
@@ -382,6 +450,8 @@ mod tests {
             (Fragment, "fragment_sprite"),
             (Vertex, "vertex_splash"),
             (Fragment, "fragment_splash"),
+            (Vertex, "vertex_volume"),
+            (Fragment, "fragment_volume"),
         ];
         for (stage, entry) in entries {
             for additive in [0.0, 1.0] {

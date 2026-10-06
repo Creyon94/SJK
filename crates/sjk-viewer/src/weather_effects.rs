@@ -70,6 +70,29 @@ pub(crate) struct Cloud {
     pub(crate) rotates: bool,
     /// `mWaterParticles`: rain or snow, which a saber hisses in.
     pub(crate) water: bool,
+    /// SJK: the haze the falling weather leaves in open air, extinction per unit
+    /// (the volumetric fog, `r_weatherQuality` 1 and up).
+    pub(crate) haze: f32,
+    /// SJK: the ground fog a fog command stands for, drawn as volumetric fog instead
+    /// of its sprites from `r_weatherQuality` 1.
+    pub(crate) mist: Option<Mist>,
+}
+
+/// Fog lying on the ground: densest at the floor, thinning upwards.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct Mist {
+    /// Extinction per unit at the floor.
+    pub(crate) density: f32,
+    /// Units over which it thins to about a third.
+    pub(crate) height: f32,
+}
+
+impl Mist {
+    /// `r_weatherFog 2` on a map whose weather has no fog of its own.
+    pub(crate) const DEFAULT: Self = Self {
+        density: 6.0e-4,
+        height: 130.0,
+    };
 }
 
 impl Cloud {
@@ -88,12 +111,14 @@ impl Cloud {
             range: [[-spawn; 3], [spawn; 3]],
             rotates: false,
             water: false,
+            haze: 0.0,
+            mist: None,
         }
     }
 
     /// The rain the four rain commands make: `mHeight 80`, `mFilterMode 1`,
-    /// `mBlendMode 1`, oriented with its velocity.
-    fn rain(count: u32, width: f32, gravity: f32, color: [f32; 4]) -> Self {
+    /// `mBlendMode 1`, oriented with its velocity. `haze` is SJK's.
+    fn rain(count: u32, width: f32, gravity: f32, color: [f32; 4], haze: f32) -> Self {
         Self {
             width,
             height: 80.0,
@@ -101,12 +126,14 @@ impl Cloud {
             color,
             additive: true,
             water: true,
+            haze,
             ..Self::new(count, Look::Streak)
         }
     }
 
-    /// The blowing smoke the fog commands make (gravity 0, additive, turning).
-    fn mist(count: u32, size: f32, color: [f32; 4], mass: [f32; 2]) -> Self {
+    /// The blowing smoke the fog commands make (gravity 0, additive, turning), and
+    /// the ground fog SJK draws for it.
+    fn mist(count: u32, size: f32, color: [f32; 4], mass: [f32; 2], mist: Mist) -> Self {
         let mut cloud = Self {
             width: size,
             height: size,
@@ -115,6 +142,7 @@ impl Cloud {
             additive: true,
             mass,
             rotates: true,
+            mist: Some(mist),
             ..Self::new(count, Look::Sprite(Image::Smoke))
         };
         cloud.range[0][2] = -150.0;
@@ -162,6 +190,7 @@ impl Effects {
     }
 
     /// Nothing to draw and no wind.
+    #[cfg(test)]
     pub(crate) fn is_empty(&self) -> bool {
         self.clouds.is_empty() && self.winds.is_empty()
     }
@@ -220,18 +249,20 @@ impl Effects {
                 self.outside_pain = if self.outside_pain != 0.0 { 0.0 } else { 1.0 };
                 return Ok(());
             }
-            "lightrain" => Cloud::rain(500, 1.2, 2000.0, [0.5; 4]),
-            "rain" => Cloud::rain(1000, 1.2, 2000.0, [0.5; 4]),
+            // Haze: about half the light lost over 8000 units in drizzle, 2500 in a storm.
+            "lightrain" => Cloud::rain(500, 1.2, 2000.0, [0.5; 4], 0.9e-4),
+            "rain" => Cloud::rain(1000, 1.2, 2000.0, [0.5; 4], 1.6e-4),
             "acidrain" => {
                 self.outside_pain = 0.1;
-                Cloud::rain(1000, 2.0, 2000.0, [0.34, 0.70, 0.34, 0.70])
+                Cloud::rain(1000, 2.0, 2000.0, [0.34, 0.70, 0.34, 0.70], 1.6e-4)
             }
-            "heavyrain" => Cloud::rain(1000, 1.2, 2800.0, [0.5; 4]),
+            "heavyrain" => Cloud::rain(1000, 1.2, 2800.0, [0.5; 4], 2.8e-4),
             "snow" => Cloud {
                 additive: true,
                 rotates: true,
                 color: [0.75; 4],
                 water: true,
+                haze: 2.0e-4,
                 ..Cloud::new(1000, Look::Sprite(Image::Snowflake))
             },
             "spacedust" => {
@@ -252,14 +283,44 @@ impl Effects {
                     ..Cloud::new(count, Look::Sprite(Image::SnowPuff))
                 }
             }
+            // A sand storm keeps its sprites: its haze is the dust between them.
             "sand" => Cloud {
                 additive: false,
                 color: [0.9, 0.6, 0.0, 0.5],
-                ..Cloud::mist(400, 70.0, [0.0; 4], [10.0, 30.0])
+                haze: 1.5e-4,
+                mist: None,
+                ..Cloud::mist(400, 70.0, [0.0; 4], [10.0, 30.0], Mist::DEFAULT)
             },
-            "fog" => Cloud::mist(60, 70.0, [0.2; 4], [10.0, 30.0]),
-            "heavyrainfog" => Cloud::mist(70, 100.0, [0.3; 4], [5.0, 10.0]),
-            "light_fog" => Cloud::mist(40, 100.0, [0.19, 0.6, 0.7, 0.12], [10.0, 30.0]),
+            "fog" => Cloud::mist(
+                60,
+                70.0,
+                [0.2; 4],
+                [10.0, 30.0],
+                Mist {
+                    density: 9.0e-4,
+                    height: 140.0,
+                },
+            ),
+            "heavyrainfog" => Cloud::mist(
+                70,
+                100.0,
+                [0.3; 4],
+                [5.0, 10.0],
+                Mist {
+                    density: 1.4e-3,
+                    height: 180.0,
+                },
+            ),
+            "light_fog" => Cloud::mist(
+                40,
+                100.0,
+                [0.19, 0.6, 0.7, 0.12],
+                [10.0, 30.0],
+                Mist {
+                    density: 5.0e-4,
+                    height: 110.0,
+                },
+            ),
             _ => return Err(HELP),
         };
         if self.clouds.len() < MAX_CLOUDS {

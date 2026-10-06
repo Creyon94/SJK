@@ -464,6 +464,23 @@ const HELP: &[(&str, &str)] = &[
         "How many weather particles: 1 as many as the original game, 2 twice as many.",
     ),
     (
+        crate::weather::QUALITY_CVAR,
+        "0 low, 1 adds splashes and 3D fog, 2 distant rain, 3 ultra: finer fog and clouds.",
+    ),
+    (
+        crate::weather::FORCE_CVAR,
+        "Weather on every map with sky: 0 the map's own, 1 drizzle, 2 rain, 3 storm, 4 snow.",
+    ),
+    (
+        crate::weather::FOG_CVAR,
+        "Fog lying on the ground outdoors: 0 never, 1 where the map has fog, 2 on every map \
+         with sky. Works with rain and forced weather.",
+    ),
+    (
+        crate::weather::CLOUDS_CVAR,
+        "Drifting 3D clouds over open sky, lit by the map's sun; darker and thicker in a storm.",
+    ),
+    (
         "r_modelPixelLight",
         "Lights models at every pixel rather than once each, so they match the light around them.",
     ),

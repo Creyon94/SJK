@@ -137,6 +137,7 @@ impl GpuState {
                 );
                 if sky_after {
                     self.draw_sky_portal_faces(&mut pass, source_cluster, visibility);
+                    self.draw_clouds(&mut pass, source_cluster, visibility);
                 }
                 if ao_enabled || shadows || floor_reflections {
                     drop(pass);
