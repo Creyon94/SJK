@@ -86,8 +86,13 @@ JA+ (`jp_cinfo`) and TaystJK/jaPRO, and `g_debugMelee`
 `codemp` turns on the melee kicks, the grapple and holding a grabbed wall at any
 nonzero `g_debugMelee`. JA+ splits the levels (1: melee attacks, 2: also the wall
 hold), never turns a player holding a wall to face it, and kicks forward on an
-alternate attack standing still. JKR's server does not simulate `g_debugMelee`;
-its default there is 0, which keeps prediction on the stock behavior.
+alternate attack standing still. Kicks, like saber attacks, are predicted only with
+an animation length table: a joined game reads the humanoid
+`models/players/_humanoid/animation.cfg` for it
+([local_prediction.rs](../crates/sjk-viewer/src/local_prediction.rs)), as EternalJK
+hands Pmove the local player's animation set (`cg_predict.c:1311` at a40e793). JKR's
+server does not simulate `g_debugMelee`; its default there is 0, which keeps
+prediction on the stock behavior.
 
 JA+ and TaystJK/jaPRO isolate private duels: the two duellers and everyone else
 pass through each other. A JA+ 2.4 server leaves part of that to client-plugin
@@ -136,6 +141,7 @@ Stock and other servers, JKR's own included, keep the stock rules.
 | Melee buttons | Every JA+ server | With melee, an attack pressed with the holdable button is not cancelled |
 | Taunts | Every JA+ server | Meditation keeps the player in place but the view free; other taunts leave movement and view free |
 | Staff kick | Every JA+ server | A staff's alternate attack standing still is a front kick |
+| Melee kicks | Every JA+ server | JA+ plays its own kicks server-side (melee's spin and back kicks in place of the stock W+A and W+D kicks, the jumping back kick, the backflip kick and the flip stab); the kicker is held still with the view free. A kiss, a ledge, a get-up, a stab or a backflip kick taken holds the player and the view (JoF EternalJK `bg_pmove.c:12470-12498`, `SVMOD_JAPLUS`, at bd5e202). The client predicts the stock kick until the server's kick arrives, as JoF EternalJK does |
 
 Not predicted: the options EternalJK never reads outside its `serverconfig`
 listing (single-player attacks, new DFA, model scale, kata, auto replier, ledge

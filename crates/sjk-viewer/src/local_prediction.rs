@@ -117,6 +117,18 @@ pub(crate) struct LocalPrediction {
 }
 
 impl LocalPrediction {
+    /// Take `previous`'s animation length table, when it has one: reusing the loaded map
+    /// keeps the model the client started with instead of falling back to the humanoid set.
+    pub(crate) fn keep_animation_lengths(&mut self, previous: &Self) {
+        let Some(lengths) = &previous.animation_lengths else {
+            return;
+        };
+        if let Some(predictor) = &mut self.predictor {
+            predictor.set_animation_lengths(Arc::clone(lengths));
+        }
+        self.animation_lengths = Some(Arc::clone(lengths));
+    }
+
     /// Prediction state primed from an optional first snapshot.
     pub(crate) fn new(
         snapshot: Option<&Snapshot>,
@@ -124,7 +136,15 @@ impl LocalPrediction {
         game_state: Option<&GameState>,
         vfs: &VirtualFileSystem,
     ) -> Self {
-        let animation_lengths = animation_config.map(|config| {
+        // EternalJK `cg_predict.c:1311` (a40e793) hands Pmove the local player's
+        // animation set every frame. Without one the kicks and saber attacks wait a
+        // round trip for the server; a joined game has no preview model, so it gets
+        // the humanoid set, the skeleton player models use unless they bring their own.
+        let humanoid = animation_config
+            .is_none()
+            .then(|| game_state.and_then(|_| humanoid_animation_config(vfs)))
+            .flatten();
+        let animation_lengths = animation_config.or(humanoid.as_ref()).map(|config| {
             Arc::new(AnimationLengthTable::from_animation_config(config))
                 as Arc<dyn AnimationLengths>
         });
@@ -469,6 +489,16 @@ mod triggers;
 
 use triggers::touch_triggers;
 
+/// `models/players/_humanoid/animation.cfg`, the skeleton player models use unless they
+/// bring their own.
+fn humanoid_animation_config(vfs: &VirtualFileSystem) -> Option<AnimationConfig> {
+    let asset = vfs
+        .read("models/players/_humanoid/animation.cfg")
+        .ok()
+        .flatten()?;
+    AnimationConfig::parse(&asset.bytes).ok()
+}
+
 /// cg_predict.c:952: only following another player bypasses live prediction.
 pub(crate) fn predicts_local_view(movement_flags: u16) -> bool {
     movement_flags & 4096 == 0 // PMF_FOLLOW, not the spectator team/type.
@@ -528,5 +558,52 @@ mod fake_noclip_tests {
         prediction.set_fake_noclip(false);
         assert!(prediction.snap_back);
         assert_eq!(prediction.command_for_server(command()), command());
+    }
+}
+
+#[cfg(test)]
+mod animation_length_tests {
+    use super::*;
+
+    fn vfs_with_humanoid() -> VirtualFileSystem {
+        let mut vfs = VirtualFileSystem::new();
+        vfs.mount_memory(
+            "humanoid",
+            [(
+                "models/players/_humanoid/animation.cfg",
+                b"BOTH_A7_KICK_L\t100\t30\t-1\t20\n".to_vec(),
+            )],
+        )
+        .expect("mount");
+        vfs
+    }
+
+    #[test]
+    fn a_joined_game_without_a_preview_model_predicts_with_the_humanoid_set() {
+        let game = GameState::empty_local(0);
+        let prediction = LocalPrediction::new(None, None, Some(&game), &vfs_with_humanoid());
+        assert!(
+            prediction.animation_lengths.is_some(),
+            "kicks and saber attacks need the lengths to be predicted"
+        );
+    }
+
+    #[test]
+    fn reusing_the_map_keeps_the_previous_table() {
+        let game = GameState::empty_local(0);
+        let previous = LocalPrediction::new(None, None, Some(&game), &vfs_with_humanoid());
+        let mut restarted = LocalPrediction::new(None, None, None, &VirtualFileSystem::new());
+        assert!(restarted.animation_lengths.is_none());
+        restarted.keep_animation_lengths(&previous);
+        assert!(restarted.animation_lengths.is_some());
+    }
+
+    #[test]
+    fn no_game_or_no_humanoid_file_leaves_the_lengths_out() {
+        let game = GameState::empty_local(0);
+        let without_game = LocalPrediction::new(None, None, None, &vfs_with_humanoid());
+        assert!(without_game.animation_lengths.is_none());
+        let without_file = LocalPrediction::new(None, None, Some(&game), &VirtualFileSystem::new());
+        assert!(without_file.animation_lengths.is_none());
     }
 }
