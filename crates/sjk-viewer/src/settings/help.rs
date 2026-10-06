@@ -156,6 +156,10 @@ const HELP: &[(&str, &str)] = &[
         "Moving looping sounds, such as passing ships, change pitch as they come and go.",
     ),
     ("cg_footsteps", "Footstep sounds, yours and other players'."),
+    (
+        "snd_mute_losefocus",
+        "Silences the game while its window is alt-tabbed out or minimised.",
+    ),
     // HUD
     (
         "cg_drawHud",

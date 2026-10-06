@@ -1977,6 +1977,16 @@ sjk-viewer tests passed. No client was run: movement, prediction and the input
 loss on a JoF `pmove_fixed` server are unverified in game, as is the replay cost
 of three times as many pending commands at high ping.
 
+## Mute in background (SJK)
+
+SJK-only branch `personal/focus-mute` (06/10/2026, based on `2e348b0`) adds
+EternalJK's `snd_mute_losefocus` (default 1): all sound is silent while the window
+is unfocused or minimized, by zero effects and music gains rather than a paused
+device; see [client.md](client.md#configuration-and-content). It is a row on the
+Sound tab. The settings tests cover its row label and help text. No client was
+run: the mute on alt-tab and minimize, and the instant gain step (no fade; a
+click is possible), are unverified in game.
+
 ## Implemented scope
 
 - PK3/loose-file content, BSP maps/collision, legacy models and shader scripts.

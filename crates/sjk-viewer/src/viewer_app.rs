@@ -174,11 +174,19 @@ impl ApplicationHandler for ViewerApplication {
                         gpu.window.as_ref().and_then(|w| w.is_minimized()),
                     );
                 }
+                // Mute or unmute now: a minimised window may draw no frame to
+                // carry the change (`snd_mute_losefocus`).
+                if let Some(audio) = &mut self.game_audio {
+                    audio.sync_gains(gpu.console.as_ref());
+                }
                 gpu.pointer_focus(focused);
             }
             WindowEvent::Occluded(_) => {
                 if let Some(console) = &mut gpu.console {
                     console.window_state(None, gpu.window.as_ref().and_then(|w| w.is_minimized()));
+                }
+                if let Some(audio) = &mut self.game_audio {
+                    audio.sync_gains(gpu.console.as_ref());
                 }
             }
             WindowEvent::RedrawRequested => {
