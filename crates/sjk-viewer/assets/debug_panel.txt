@@ -1302,15 +1302,15 @@ note: Never started in a game yet.
 [native-radial-hud]
 status: personal
 area: HUD
-title: SJK radial HUD, arcs low on the screen with the numbers beside the bars, no PK3
+title: SJK radial HUD, low on the screen, shadowed bars with the numbers on a pill, no PK3
 change: New HUD look "SJK radial" (Settings > HUD > HUD look): health, armor, Force, ammo as arcs.
-change: Drawn by the engine (smooth at any resolution); the TheRisqe PK3 is not needed.
-change: Bars centred 69% down the screen as in TheRisqe's; numbers in a pill beside each pair.
+change: Bars centred 69% down the screen as in TheRisqe's, each on a dark shadow outline.
+change: A pill through each pair of bars carries the numbers; a saber shows its style as a line.
 test: Settings > HUD > HUD look: pick SJK radial. Red/green arcs left, blue/amber right, below aim.
-test: Health and armor numbers left of the bars, Force and ammo right, level with the bars' middle.
+test: Left pill: health left of the bars, armor right of them. Right pill: ammo left, Force right.
 test: Take damage and spend Force/ammo: arcs empty segment by segment; health pulses at 25 or less.
-test: Switch to a saber: the ammo arc hides and the saber style shows in the right pill.
-test: Switch weapon: its name shows for a moment between the bars.
+test: Switch to a saber: ammo bars become one full line in the style colour, the name beside it.
+test: Switch weapon: its name shows for a moment above the pills, between the bars.
 test: Try cg_hudScale 0.7 and 1.5 and other window sizes: the bars stay at the same spot.
 note: Never started in a game yet.
 

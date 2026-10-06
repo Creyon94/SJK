@@ -42,7 +42,7 @@ use sjk_ui::{
 use std::path::Path;
 
 const WIDGET_LIMIT: usize = 64;
-const DRAW_LIMIT: usize = 320;
+const DRAW_LIMIT: usize = 384;
 const DEFAULT_LAYOUT: &str = include_str!("../assets/hud/default.json");
 /// The weapon name fades over this long at the end of its life.
 const WEAPON_FADE_MS: u64 = 600;
@@ -382,7 +382,7 @@ impl HudOverlay {
             force_value: &self.force_value,
             weapon_value: &self.weapon_value,
             ammo_value: &self.ammo_value,
-            style: !self.style_value.is_empty(),
+            saber_style: self.values.and_then(|values| values.saber_style),
             weapon_alpha: self.weapon_alpha,
             weapon_row: self.weapon_select.shown.is_some(),
             team_len: self.team_len,

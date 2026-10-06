@@ -43,6 +43,13 @@
      "b": 1,
      "a": 0.14
     },
+    "border": {
+     "r": 0,
+     "g": 0,
+     "b": 0,
+     "a": 0.55
+    },
+    "border_width": 3.0,
     "arc": {
      "start_degrees": 146.0,
      "sweep_degrees": 68.0,
@@ -93,6 +100,13 @@
      "b": 1,
      "a": 0.14
     },
+    "border": {
+     "r": 0,
+     "g": 0,
+     "b": 0,
+     "a": 0.55
+    },
+    "border_width": 3.0,
     "arc": {
      "start_degrees": 146.0,
      "sweep_degrees": 68.0,
@@ -143,6 +157,13 @@
      "b": 1,
      "a": 0.14
     },
+    "border": {
+     "r": 0,
+     "g": 0,
+     "b": 0,
+     "a": 0.55
+    },
+    "border_width": 3.0,
     "arc": {
      "start_degrees": 34.0,
      "sweep_degrees": -68.0,
@@ -193,6 +214,13 @@
      "b": 1,
      "a": 0.14
     },
+    "border": {
+     "r": 0,
+     "g": 0,
+     "b": 0,
+     "a": 0.55
+    },
+    "border_width": 3.0,
     "arc": {
      "start_degrees": 34.0,
      "sweep_degrees": -68.0,
@@ -203,11 +231,12 @@
    }
   },
   {
-   "id": "left_pill",
-   "kind": "panel",
+   "id": "style_arc",
+   "kind": "arc",
+   "binding": "style_ratio",
    "anchor": "center",
    "offset": {
-    "x": -310.0,
+    "x": 0.0,
     "y": 0.0
    },
    "offset_fraction": {
@@ -217,7 +246,63 @@
    "size": {
     "width": {
      "unit": "px",
-     "value": 176.0
+     "value": 351.0
+    },
+    "height": {
+     "unit": "px",
+     "value": 351.0
+    }
+   },
+   "visibility": {
+    "kind": "flag",
+    "binding": "draw_style"
+   },
+   "layer": 2,
+   "style": {
+    "foreground": {
+     "r": 0.84,
+     "g": 0.74,
+     "b": 1.0,
+     "a": 1.0
+    },
+    "background": {
+     "r": 1,
+     "g": 1,
+     "b": 1,
+     "a": 0.14
+    },
+    "border": {
+     "r": 0,
+     "g": 0,
+     "b": 0,
+     "a": 0.55
+    },
+    "border_width": 3.0,
+    "arc": {
+     "start_degrees": 34.0,
+     "sweep_degrees": -68.0,
+     "width": 7.0,
+     "segments": 1,
+     "gap_degrees": 0.0
+    }
+   }
+  },
+  {
+   "id": "left_pill",
+   "kind": "panel",
+   "anchor": "center",
+   "offset": {
+    "x": -179.0,
+    "y": 0.0
+   },
+   "offset_fraction": {
+    "x": 0.0,
+    "y": 0.19
+   },
+   "size": {
+    "width": {
+     "unit": "px",
+     "value": 218.0
     },
     "height": {
      "unit": "px",
@@ -244,7 +329,7 @@
    "kind": "panel",
    "anchor": "center",
    "offset": {
-    "x": 310.0,
+    "x": 179.0,
     "y": 0.0
    },
    "offset_fraction": {
@@ -254,7 +339,7 @@
    "size": {
     "width": {
      "unit": "px",
-     "value": 176.0
+     "value": 218.0
     },
     "height": {
      "unit": "px",
@@ -282,7 +367,7 @@
    "binding": "health_value",
    "anchor": "center",
    "offset": {
-    "x": -266.0,
+    "x": -244.0,
     "y": 0.0
    },
    "offset_fraction": {
@@ -292,7 +377,7 @@
    "size": {
     "width": {
      "unit": "px",
-     "value": 80.0
+     "value": 64.0
     },
     "height": {
      "unit": "px",
@@ -322,7 +407,7 @@
    "binding": "armor_value",
    "anchor": "center",
    "offset": {
-    "x": -354.0,
+    "x": -119.0,
     "y": 0.0
    },
    "offset_fraction": {
@@ -332,7 +417,7 @@
    "size": {
     "width": {
      "unit": "px",
-     "value": 80.0
+     "value": 64.0
     },
     "height": {
      "unit": "px",
@@ -362,7 +447,7 @@
    "binding": "ammo_value",
    "anchor": "center",
    "offset": {
-    "x": 354.0,
+    "x": 119.0,
     "y": 0.0
    },
    "offset_fraction": {
@@ -372,7 +457,7 @@
    "size": {
     "width": {
      "unit": "px",
-     "value": 80.0
+     "value": 64.0
     },
     "height": {
      "unit": "px",
@@ -402,7 +487,7 @@
    "binding": "force_value",
    "anchor": "center",
    "offset": {
-    "x": 266.0,
+    "x": 244.0,
     "y": 0.0
    },
    "offset_fraction": {
@@ -412,7 +497,7 @@
    "size": {
     "width": {
      "unit": "px",
-     "value": 80.0
+     "value": 64.0
     },
     "height": {
      "unit": "px",
@@ -442,7 +527,7 @@
    "binding": "style_value",
    "anchor": "center",
    "offset": {
-    "x": 354.0,
+    "x": 119.0,
     "y": 0.0
    },
    "offset_fraction": {
@@ -452,7 +537,7 @@
    "size": {
     "width": {
      "unit": "px",
-     "value": 96.0
+     "value": 84.0
     },
     "height": {
      "unit": "px",
@@ -465,12 +550,6 @@
    },
    "layer": 3,
    "style": {
-    "foreground": {
-     "r": 0.84,
-     "g": 0.74,
-     "b": 1.0,
-     "a": 0.95
-    },
     "type_scale": 1.1,
     "weight": "semibold",
     "centered": true
@@ -483,7 +562,7 @@
    "anchor": "center",
    "offset": {
     "x": 0.0,
-    "y": 0.0
+    "y": -46.0
    },
    "offset_fraction": {
     "x": 0.0,
@@ -492,7 +571,7 @@
    "size": {
     "width": {
      "unit": "px",
-     "value": 300.0
+     "value": 280.0
     },
     "height": {
      "unit": "px",

@@ -30,8 +30,8 @@ pub(super) struct WidgetData<'a> {
     pub(super) weapon_value: &'a str,
     /// ammo value binding supplied by the owning HUD.
     pub(super) ammo_value: &'a str,
-    /// Whether a saber style is shown under the Force meter.
-    pub(super) style: bool,
+    /// The saber style shown beside the Force meter, while a saber is held.
+    pub(super) saber_style: Option<u8>,
     /// Current opacity of the weapon-name transient.
     pub(super) weapon_alpha: f32,
     /// Retail's weapon selection row shows; it draws the weapon name itself, so the
@@ -62,6 +62,8 @@ impl HudDataSource for WidgetData<'_> {
             "armor_ratio" => Some(self.ratios[1]),
             "force_ratio" => Some(self.ratios[2]),
             "ammo_ratio" => Some(self.ammo_ratio),
+            // A saber style has no amount: its meter is one full line.
+            "style_ratio" => Some(if self.saber_style.is_some() { 1.0 } else { 0.0 }),
             _ => None,
         }
     }
@@ -107,7 +109,7 @@ impl HudDataSource for WidgetData<'_> {
                 self.visibility.status
                     && !self.visibility.ground_hud
                     && !self.visibility.menu_hud
-                    && self.style,
+                    && self.saber_style.is_some(),
             ),
             "draw_crosshair" => Some(self.visibility.crosshair),
             "draw_team" => Some(self.visibility.team_overlay && self.team_len != 0),

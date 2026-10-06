@@ -921,6 +921,8 @@ fn radial_hud(shots: &mut Snapshot) {
         ("hud-radial-hurt", 38, 20, 62, 5, Some(120), None, 0.4),
         ("hud-radial-low", 18, 0, 8, 5, Some(4), None, 0.013),
         ("hud-radial-saber", 83, 40, 100, 3, None, Some(2), 0.0),
+        ("hud-radial-strong", 61, 15, 45, 3, None, Some(3), 0.0),
+        ("hud-radial-fast", 100, 100, 100, 3, None, Some(1), 0.0),
     ];
     // The 4:3 frame, then the same states on a 16:9 screen: the rings keep their place
     // relative to the screen's height.

@@ -21,6 +21,20 @@ pub(super) fn ammo_ratio(weapon: u8, ammo: Option<i32>, double_ammo: bool) -> f3
     (ammo as f32 / maximum as f32).clamp(0.0, 1.0)
 }
 
+/// The colour of a saber style's line: Fast blue, Medium yellow, Strong red, Dual green and
+/// Staff magenta, as TheRisqe Radial HUD's style pictures are drawn. The NPC styles (Desann,
+/// Tavion) and unknown values get a pale violet.
+pub(super) fn saber_style_color(style: u8) -> Color {
+    match style {
+        1 => Color::new(0.3, 0.55, 1.0, 1.0),
+        2 => Color::new(0.96, 0.88, 0.2, 1.0),
+        3 => Color::new(1.0, 0.25, 0.21, 1.0),
+        6 => Color::new(0.34, 0.93, 0.34, 1.0),
+        7 => Color::new(1.0, 0.27, 0.89, 1.0),
+        _ => Color::new(0.84, 0.74, 1.0, 1.0),
+    }
+}
+
 /// Stroke geometry shared by the track, the fill and the glow of one arc widget.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(super) struct Ring {
@@ -73,6 +87,17 @@ pub(super) fn emit(
         fill = theme.critical;
         fill.a *= context.pulse;
     }
+    if binding == "style_ratio" {
+        if let Some(style) = context.data.saber_style {
+            fill = saber_style_color(style);
+        }
+    }
+    // The shadow outline (the widget's border) is a wider dark stroke under each segment.
+    let shadow = widget
+        .style
+        .border
+        .zip(widget.style.border_width)
+        .map(|(color, width)| (color, ring.width + 2.0 * width * context.dpi_scale));
     let track = widget
         .style
         .background
@@ -88,6 +113,9 @@ pub(super) fn emit(
         });
     };
     for segment in arc_segments(&style, ratio, ring.cap_inset()) {
+        if let Some((color, width)) = shadow {
+            stroke(draw_list, segment.start, segment.sweep, width, color);
+        }
         stroke(draw_list, segment.start, segment.sweep, ring.width, track);
         if segment.amount > 0.0 {
             let mut glow = fill;
@@ -131,20 +159,54 @@ mod tests {
         assert_eq!(ammo_ratio(200, Some(50), false), 0.0);
     }
 
-    /// Where the radial layout puts its pieces for a full-health player holding the
-    /// blaster, with the weapon name still showing.
+    /// One arc stroke of the draw list.
+    #[derive(Clone, Copy)]
+    struct Stroke {
+        radius: f32,
+        width: f32,
+        sweep: f32,
+        color: Color,
+    }
+
+    impl Stroke {
+        /// The dark outline under a bar.
+        fn is_shadow(self) -> bool {
+            self.color.r == 0.0 && self.color.g == 0.0 && self.color.b == 0.0
+        }
+    }
+
+    /// Where the radial layout puts its pieces for a player with full meters.
     struct Placed {
         center: [f32; 2],
         /// Centre line of the outer and inner rings.
         radii: [f32; 2],
         /// Stroke thickness of the track and the fill.
         stroke: f32,
-        texts: Vec<(u32, Rect)>,
+        /// How far the shadow outline reaches past each side of a bar.
+        shadow: f32,
+        strokes: Vec<Stroke>,
+        texts: Vec<(u32, Rect, Color)>,
         pills: Vec<Rect>,
     }
 
     impl Placed {
+        /// Holding the blaster, with the weapon name still showing.
         fn new(viewport: [f32; 2], user_scale: f32) -> Self {
+            Self::holding(viewport, user_scale, 5, Some(300), None)
+        }
+
+        /// Holding the saber in `style`.
+        fn with_saber(viewport: [f32; 2], style: u8) -> Self {
+            Self::holding(viewport, 1.0, 3, None, Some(style))
+        }
+
+        fn holding(
+            viewport: [f32; 2],
+            user_scale: f32,
+            weapon: u8,
+            ammo: Option<i32>,
+            saber_style: Option<u8>,
+        ) -> Self {
             use crate::hud::{HudLook, HudOverlay, HudVisibility};
             let font = crate::text::load_modern(1.0, None).unwrap().font;
             let mut hud = HudOverlay::new();
@@ -153,9 +215,9 @@ mod tests {
                     health: 100,
                     armor: 100,
                     force: 100,
-                    weapon: 5,
-                    ammo: Some(300),
-                    saber_style: None,
+                    weapon,
+                    ammo,
+                    saber_style,
                 },
                 [1.0; 4],
             );
@@ -176,6 +238,8 @@ mod tests {
                 center: [f32::NAN; 2],
                 radii: [0.0, f32::MAX],
                 stroke: f32::MAX,
+                shadow: 0.0,
+                strokes: Vec::new(),
                 texts: Vec::new(),
                 pills: Vec::new(),
             };
@@ -185,6 +249,8 @@ mod tests {
                         center,
                         radius,
                         width,
+                        sweep,
+                        color,
                         ..
                     } => {
                         // Every arc is a stroke of one ring, so they share one centre
@@ -200,24 +266,48 @@ mod tests {
                         placed.radii[0] = placed.radii[0].max(radius);
                         placed.radii[1] = placed.radii[1].min(radius);
                         placed.stroke = placed.stroke.min(width);
+                        placed.strokes.push(Stroke {
+                            radius,
+                            width,
+                            sweep,
+                            color,
+                        });
                     }
-                    DrawCommand::Text { rect, text, .. } => placed.texts.push((text.0, rect)),
+                    DrawCommand::Text {
+                        rect, text, color, ..
+                    } => placed.texts.push((text.0, rect, color)),
                     DrawCommand::RoundedRect { rect, radius, .. } if radius > 0.0 => {
                         placed.pills.push(rect)
                     }
                     _ => {}
                 }
             }
+            let widest = placed
+                .strokes
+                .iter()
+                .filter(|stroke| stroke.is_shadow())
+                .map(|stroke| stroke.width)
+                .fold(0.0, f32::max);
+            placed.shadow = ((widest - placed.stroke) * 0.5).max(0.0);
             placed
         }
 
         fn text(&self, id: u32) -> Rect {
-            self.texts.iter().find(|(text, _)| *text == id).unwrap().1
+            self.texts
+                .iter()
+                .find(|(text, ..)| *text == id)
+                .unwrap_or_else(|| panic!("text {id} is not drawn"))
+                .1
         }
 
-        /// Distance from the ring centre to the outer edge of the outer ring.
+        /// Distance from the ring centre to the outside of the outer bars' shadow.
         fn outer_edge(&self) -> f32 {
-            self.radii[0] + self.stroke * 0.5
+            self.radii[0] + self.stroke * 0.5 + self.shadow
+        }
+
+        /// Distance from the ring centre to the inside of the inner bars' shadow.
+        fn inner_edge(&self) -> f32 {
+            self.radii[1] - self.stroke * 0.5 - self.shadow
         }
     }
 
@@ -254,45 +344,107 @@ mod tests {
     }
 
     #[test]
-    fn the_numbers_and_pills_sit_beside_the_bars_at_their_middle() {
+    fn every_bar_has_a_shadow_outline_wider_than_itself() {
+        let placed = Placed::new([1920.0, 1080.0], 1.0);
+        let shadows: Vec<_> = placed.strokes.iter().filter(|s| s.is_shadow()).collect();
+        // Four segments in each of the four meters.
+        assert_eq!(shadows.len(), 16);
+        for shadow in shadows {
+            // 3 logical pixels each side of a 7-pixel bar.
+            assert!((shadow.width / placed.stroke - 13.0 / 7.0).abs() < 1e-3);
+            // It follows the bar's own segment and ring.
+            assert!(placed.strokes.iter().any(|bar| {
+                !bar.is_shadow()
+                    && bar.width == placed.stroke
+                    && bar.radius == shadow.radius
+                    && bar.sweep == shadow.sweep
+            }));
+        }
+    }
+
+    #[test]
+    fn the_numbers_ride_a_pill_through_the_bars() {
         for viewport in SCREENS {
             let placed = Placed::new(viewport, 1.0);
             let [x, y] = placed.center;
-            let edge = placed.outer_edge();
-            // Health and armor left of the bars, Force and ammunition right of them,
-            // each on the line through the middle of the bars.
-            for (id, left) in [(6, true), (8, true), (10, false), (14, false)] {
-                let rect = placed.text(id);
+            let (outer, inner) = (placed.outer_edge(), placed.inner_edge());
+            // Health outside the left bars and armor inside them; ammunition inside the
+            // right bars and Force outside; all on the line through the bars' middle.
+            let health = placed.text(6);
+            let armor = placed.text(8);
+            let force = placed.text(10);
+            let ammo = placed.text(14);
+            for rect in [health, armor, force, ammo] {
                 assert!(
                     (rect.y + rect.height * 0.5 - y).abs() < 0.5,
-                    "{viewport:?} text {id}: {rect:?}"
+                    "{viewport:?} {rect:?}"
                 );
-                if left {
-                    assert!(rect.right() < x - edge, "{viewport:?} text {id}: {rect:?}");
-                } else {
-                    assert!(rect.x > x + edge, "{viewport:?} text {id}: {rect:?}");
-                }
             }
+            assert!(health.right() < x - outer, "{viewport:?} {health:?}");
+            assert!(armor.x > x - inner && armor.right() < x, "{viewport:?}");
+            assert!(ammo.x > x && ammo.right() < x + inner, "{viewport:?}");
+            assert!(force.x > x + outer, "{viewport:?} {force:?}");
+            // Each pill runs from the outside number to the inside one, behind the bars.
             assert_eq!(placed.pills.len(), 2, "{viewport:?}");
-            for pill in &placed.pills {
+            let (left, right) = (placed.pills[0], placed.pills[1]);
+            assert!(left.x < health.x && left.right() > armor.right());
+            assert!(right.x < ammo.x && right.right() > force.right());
+            assert!(left.right() < x && right.x > x, "{viewport:?}");
+            for pill in [left, right] {
                 assert!((pill.y + pill.height * 0.5 - y).abs() < 0.5);
-                assert!(
-                    pill.right() < x - edge || pill.x > x + edge,
-                    "{viewport:?} pill {pill:?}"
-                );
                 assert!(
                     pill.x >= 0.0 && pill.right() <= viewport[0] && pill.bottom() <= viewport[1],
                     "{viewport:?} pill {pill:?} leaves the screen"
                 );
             }
-            // The weapon name rests between the bars, centred on the crosshair's column.
+            // The weapon name rests in the hollow between the bars, above the pills.
             let name = placed.text(12);
-            let inner = placed.radii[1] - placed.stroke * 0.5;
             assert!((name.x + name.width * 0.5 - x).abs() < 0.5);
-            assert!(
-                name.x > x - inner && name.right() < x + inner,
-                "{viewport:?}"
-            );
+            assert!(name.bottom() < left.y, "{viewport:?}");
+            for corner in [
+                [name.x - x, name.y - y],
+                [name.right() - x, name.y - y],
+                [name.x - x, name.bottom() - y],
+                [name.right() - x, name.bottom() - y],
+            ] {
+                assert!(
+                    corner[0].hypot(corner[1]) < inner,
+                    "{viewport:?} {corner:?}"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_saber_draws_its_style_as_one_full_line_in_the_styles_colour() {
+        let styles = [1, 2, 3, 6, 7];
+        for (index, style) in styles.iter().enumerate() {
+            for other in &styles[index + 1..] {
+                assert_ne!(saber_style_color(*style), saber_style_color(*other));
+            }
+        }
+        let ammo_slot = Placed::new([1920.0, 1080.0], 1.0).text(14);
+        for style in styles {
+            let color = saber_style_color(style);
+            let placed = Placed::with_saber([1920.0, 1080.0], style);
+            // The ammunition's amber bars and number give way to the style.
+            assert!(placed.texts.iter().all(|(id, ..)| *id != 14));
+            let amber = Color::new(1.0, 0.76, 0.16, 1.0);
+            assert!(placed.strokes.iter().all(|s| s.color != amber));
+            // One full-width stroke in the style's colour (the glow is a fainter copy).
+            let lines: Vec<_> = placed
+                .strokes
+                .iter()
+                .filter(|s| s.color == color && s.width == placed.stroke)
+                .collect();
+            assert_eq!(lines.len(), 1, "style {style}");
+            let inset = 2.0 * (placed.stroke * 0.5 / lines[0].radius);
+            assert!((lines[0].sweep.abs() - (68.0_f32.to_radians() - inset)).abs() < 1e-4);
+            // The style's name takes the same colour, where the ammunition number was.
+            let (_, label, label_color) = placed.texts.iter().find(|(id, ..)| *id == 15).unwrap();
+            assert_eq!(*label_color, color);
+            let middle = |rect: Rect| rect.x + rect.width * 0.5;
+            assert!((middle(*label) - middle(ammo_slot)).abs() < 0.5);
         }
     }
 

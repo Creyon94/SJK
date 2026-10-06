@@ -1342,6 +1342,14 @@ and the position of the numbers, pills and weapon name against the bars; sample 
 were rendered to PNG through `menu_snapshot`. Not verified: the layout in a running
 client, and whether 0.69 and the pill placement suit the player's taste.
 
+Branch `personal/radial-outline` (2026-10-06, based on `6ad2a71`) follows up on the
+first look at the renders: every bar segment gets a dark shadow outline, the numbers ride
+a pill through the bars (health outside and armor inside on the left, ammunition inside and
+Force outside on the right), the weapon name moves above the pills, and a saber turns the
+ammunition bars into one full line in the style's colour. Unit tests cover the outline
+under every segment, the number positions at nine window sizes and the style line for five
+styles; renders went through `menu_snapshot`. Not verified: the layout in a running client.
+
 ## HUD picker (SJK)
 
 SJK-only branch `personal/hud-picker` (2026-10-05, based on `0fc6e24`): the
