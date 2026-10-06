@@ -265,6 +265,21 @@ fn material_map_baked(input: VertexOutput, texel: vec4<f32>) -> vec4<f32> {
     return vec4(lit, texel.a);
 }
 
+// Vertex-lit paint (`rgbGen vertex`/`exactVertex` on a `LIGHTMAP_BY_VERTEX` surface): its
+// vertex colour is the baked light, as a lightmapped surface's lightmap texel is, so the
+// same response turns it toward the mapped normal (rend2 lights vertex-lit surfaces
+// through the same path). Real-time lighting reads the light buffer instead, through
+// `material_map_lightmap` in `apply_lighting_mode`; models and fullbright pass through.
+fn material_map_vertex_light(input: VertexOutput, color: vec4<f32>, flags: u32,
+    fullbright: bool) -> vec4<f32> {
+    let rgb = i32(stage.generators.x);
+    if fullbright || realtime_active() || (flags & 1u) == 0u || !(rgb == 2 || rgb == 3)
+        || input.entity_control.x > 0.5 || input.light_ambient.a != 0.0 {
+        return color;
+    }
+    return vec4(material_map_baked(input, vec4(color.rgb, 1.0)).rgb, color.a);
+}
+
 // Highlights of the dynamic lights the stage's modulation pass adds (rend2
 // `CalcDynamicLightContribution`), with the existing radial falloff.
 fn material_map_point_highlights(input: VertexOutput) {

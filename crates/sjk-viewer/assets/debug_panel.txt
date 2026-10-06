@@ -1772,6 +1772,17 @@ test: Metal should not ripple or swim as you move; floors keep relief up close o
 test: Studded floors (desert/s_floor1, D map) and panels read raised, not pushed in.
 note: Still pushed in somewhere? Give Claude the pad ID: one overrides line flips it.
 
+[vertex-lit-maps]
+status: personal
+area: Rendering & effects
+title: Material maps on vertex-lit terrain, sand and rock
+change: Vertex-lit paint (rgbGen vertex: terrain, _phong sand and rock) takes normal/metal maps.
+change: Switches and control panels: their small coloured indicator lights now glow.
+test: devmap mp/siege_desert or sjk_shaders_a A249/A255/A258: sand and rock show relief.
+test: r_dayNight 1 there too: the relief still follows the sun.
+test: A switch or door lock (imperial, kejim): its red/green lights glow, not its paint.
+note: Blended terrain layers over a mapped base stay flat; tell Claude if seams show.
+
 # ---- Merged upstream ----
 
 [actor-instance-cap]

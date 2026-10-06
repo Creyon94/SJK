@@ -1076,8 +1076,15 @@ index, and no layout, buffer, pipeline or reflection probe is created.
 Maps apply to lightmapped world surfaces (static and inline movers) whose
 lightmap and diffuse stages collapse into one opaque pass. On the retail
 `mp/ffa1`, `mp/ffa3` and `mp/duel1` this covers 84–87% of world triangles;
-`mp/siege_hoth` covers 52%. Vertex-lit surfaces, stacks that do not collapse,
-effect stages, deforms, sprites and models (MD3, Ghoul2) keep their authored shading.
+`mp/siege_hoth` covers 52%. Since 07/10/2026 they also apply to vertex-lit world
+surfaces (terrain, `_phong` sand and rock, `q3map_onlyvertexlighting` shaders) whose
+first stage is opaque `rgbGen vertex`/`exactVertex` paint: in baked lighting the
+vertex colour stands in for the lightmap texel (`material_map_vertex_light`, the same
+response), in real-time lighting the light buffer is read through
+`material_map_lightmap` as for lightmapped paint. Detail stages and blended terrain
+layers over such paint, stacks that do not collapse, effect stages, deforms, sprites
+and models (MD3, Ghoul2) keep their authored shading, so a mapped terrain base can
+differ from an unmapped layer blended over it.
 Each material-mapped stage compiles to its own pipeline key and a second bind
 group; ordinary stages keep their pipelines, groups and stage-table records.
 
@@ -2134,10 +2141,11 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
   and applied override lines), and `--limit` takes only the most-used textures.
 
 **Regenerating.** The manifest records the generation of the tuning
-(`"generation": 4` since the relief orientation and smoother metal, 3 added
-emission maps; packs without it are generation 1). With
+(`"generation": 5` since maps for vertex-lit paint and indicator lights, 4 the
+relief orientation and smoother metal, 3 emission maps; packs without it are
+generation 1). With
 material maps or emission maps on, the client logs `material maps: the generated pack
-is generation 1 of sjk-materialgen, this client expects 4 ...` once when the mounted
+is generation 1 of sjk-materialgen, this client expects 5 ...` once when the mounted
 pack is older. Emission decisions depend on every map read: a texture drawn plainly on
 one map and through a glowing shader on another gets its `_e`, and the client ignores
 it where the shader glows.

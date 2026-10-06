@@ -10,7 +10,8 @@
 //!   the parallax offset (`material_map_prepare`), and samples the diffuse image
 //!   at the offset texture coordinate;
 //! - the lightmap (or the real-time light buffer) response is replaced by
-//!   `material_map_lightmap`, point lights use the mapped normal, and highlights
+//!   `material_map_lightmap`, and on vertex-lit paint the vertex colours' response
+//!   by `material_map_vertex_light`; point lights use the mapped normal, and highlights
 //!   and the emission map's colour are added after the albedo product and
 //!   dynamic-light modulation (`material_map_finish`, which also draws the
 //!   `r_materialMapsDebug` views).
@@ -84,6 +85,17 @@ pub(in crate::world_materials) fn source(realtime: bool) -> String {
         (
             "extra = realtime_lightmap(input, extra);",
             "extra = material_map_lightmap(input, extra);",
+        ),
+        // Vertex-lit paint: the light buffer in real-time lighting, the vertex colours
+        // as baked light otherwise (`material_map_vertex_light`).
+        (
+            "color = vec4(realtime_lightmap(input,vec4(1.0)).rgb+emitted,color.a);",
+            "color = vec4(material_map_lightmap(input,vec4(1.0)).rgb+emitted,color.a);",
+        ),
+        (
+            "    color = vec4(model_sun_color(input,color.rgb),color.a);\n",
+            "    color = vec4(model_sun_color(input,color.rgb),color.a);\n    \
+             color = material_map_vertex_light(input, color, flags, fullbright);\n",
         ),
     ] {
         assert_eq!(

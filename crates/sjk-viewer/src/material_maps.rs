@@ -17,9 +17,11 @@
 //! plus the material hooks (`material_map_program.rs`); stages without maps keep
 //! their pipelines, bind groups and stage-table records.
 //!
-//! The first step covers lightmapped world surfaces (static and inline movers)
-//! whose lightmap and diffuse stages collapse into one pass. Models, vertex-lit
-//! surfaces and uncollapsed stacks keep their authored shading.
+//! They cover lightmapped world surfaces (static and inline movers) whose lightmap
+//! and diffuse stages collapse into one pass, and vertex-lit world surfaces whose
+//! first stage is opaque `rgbGen vertex` paint (their vertex colours are the baked
+//! light). Models, the layers blended over vertex-lit paint and uncollapsed stacks
+//! keep their authored shading.
 
 #[path = "material_map_frames.rs"]
 pub(crate) mod frames;
@@ -283,8 +285,9 @@ pub(crate) mod lights {
 
 /// The `sjk-materialgen` tuning this client expects (`package::GENERATION` there):
 /// 2 tuned metal for reflection probes and marked polished shaders, 3 added emission
-/// maps, 4 turned relief the right way up and took parallax and grain off metal.
-pub(crate) const GENERATION: u32 = 4;
+/// maps, 4 turned relief the right way up and took parallax and grain off metal, 5 added
+/// vertex-lit paint and the indicator lights of controls.
+pub(crate) const GENERATION: u32 = 5;
 /// Where the generator's manifest sits in its pk3.
 const MANIFEST: &str = "jkr-materialgen/manifest.json";
 /// The older-pack note was printed: once per run is enough.
@@ -313,8 +316,8 @@ pub(crate) fn report_pack_generation(vfs: &VirtualFileSystem) {
     if !GENERATION_REPORTED.swap(true, Ordering::Relaxed) {
         crate::log::progress(format_args!(
             "material maps: the generated pack is generation {generation} of sjk-materialgen, \
-             this client expects {GENERATION} (relief the right way up, smoother metal, \
-             emission maps); regenerate it (docs/rendering.md, Generating material \
+             this client expects {GENERATION} (vertex-lit terrain, relief the right way up, \
+             smoother metal, emission maps); regenerate it (docs/rendering.md, Generating material \
              maps)"
         ));
     }
@@ -329,11 +332,22 @@ pub(super) enum Bundle {
 
 /// The diffuse bundle of a stage that can take material maps: a lightmapped
 /// world surface's lightmap and diffuse texture collapsed into one opaque pass
-/// with plain colour generators. The maps then replace the lightmap's response
-/// (rend2's `CollapseStagesToLightall` makes the same pairing). Everything else,
-/// including deforming and sprite stages, keeps its authored shading.
+/// with plain colour generators, or a vertex-lit world surface's opaque texture lit
+/// by its vertex colours (`rgbGen vertex`/`exactVertex`). The maps then replace the
+/// lightmap's or the vertex light's response (rend2's `CollapseStagesToLightall`
+/// makes the same choice). Everything else, including deforming and sprite stages
+/// and the blended layers over a vertex-lit base, keeps its authored shading.
 pub(super) fn diffuse_bundle(stage: &CompiledStage, lightmap: i32) -> Option<Bundle> {
-    let secondary = stage.secondary.as_ref()?;
+    let Some(secondary) = stage.secondary.as_ref() else {
+        let vertex_lit = lightmap == crate::world_stage::LIGHTMAP_BY_VERTEX
+            && stage.combine == CollapseOperator::None
+            && stage.output_blend == StageBlend::Replace
+            && stage.primary.texture_generator == TextureGenerator::Base
+            && stage.primary.rgb_generator.as_deref().is_some_and(|g| {
+                g.eq_ignore_ascii_case("vertex") || g.eq_ignore_ascii_case("exactVertex")
+            });
+        return (vertex_lit && plain_paint(&stage.primary, true)).then_some(Bundle::Primary);
+    };
     if lightmap < 0
         || stage.combine != CollapseOperator::Modulate
         || stage.output_blend != StageBlend::Replace
@@ -349,21 +363,27 @@ pub(super) fn diffuse_bundle(stage: &CompiledStage, lightmap: i32) -> Option<Bun
         Bundle::Primary => &stage.primary,
         Bundle::Secondary => secondary,
     };
-    let plain = |generator: Option<&str>| {
-        generator.is_none_or(|g| {
-            g.eq_ignore_ascii_case("identity") || g.eq_ignore_ascii_case("identityLighting")
-        })
-    };
     // Collapsed bundles share their generators (`collapse_pair`), so one check covers both.
+    plain_paint(diffuse, false).then_some(bundle)
+}
+
+/// A diffuse bundle with plain colour: no waves, constants, specular or portal alpha,
+/// or surface sprites; `vertex` admits the vertex-light generators.
+fn plain_paint(diffuse: &sjk_shader::ShaderStage, vertex: bool) -> bool {
+    let plain = diffuse.rgb_generator.as_deref().is_none_or(|g| {
+        g.eq_ignore_ascii_case("identity")
+            || g.eq_ignore_ascii_case("identityLighting")
+            || (vertex
+                && (g.eq_ignore_ascii_case("vertex") || g.eq_ignore_ascii_case("exactVertex")))
+    });
     let plain_alpha = diffuse.alpha_generator.as_deref().is_none_or(|g| {
         !g.eq_ignore_ascii_case("lightingSpecular") && !g.eq_ignore_ascii_case("portal")
     });
-    (plain(diffuse.rgb_generator.as_deref())
+    plain
         && diffuse.rgb_wave.is_none()
         && diffuse.rgb_constant.is_none()
         && plain_alpha
-        && diffuse.surface_sprites.is_none())
-    .then_some(bundle)
+        && diffuse.surface_sprites.is_none()
 }
 
 /// One decoded map in the layout the material program reads, with its cache key.
@@ -552,12 +572,41 @@ mod tests {
             stages("textures/a {\n{ map $lightmap }\n{ map textures/a/floor blendFunc filter }\n}");
         assert_eq!(compiled.len(), 1);
         assert_eq!(diffuse_bundle(&compiled[0], 0), Some(Bundle::Primary));
-        // Vertex-lit and model surfaces have no lightmap to redistribute.
+        // A lightmap pair on a vertex-lit or model surface has no lightmap to redistribute.
         assert_eq!(diffuse_bundle(&compiled[0], -3), None);
         assert_eq!(diffuse_bundle(&compiled[0], -1), None);
         let reversed =
             stages("textures/a {\n{ map textures/a/floor }\n{ map $lightmap blendFunc filter }\n}");
         assert_eq!(diffuse_bundle(&reversed[0], 2), Some(Bundle::Primary));
+    }
+
+    #[test]
+    fn vertex_lit_paint_takes_maps() {
+        // desert/sandfloor2_phong and t_rockwall1_clip: the vertex colours are the light.
+        for script in [
+            "textures/a {\nq3map_nolightmap\n{ map textures/a/sand rgbGen vertex }\n}",
+            "textures/a {\n{ map textures/a/rock rgbGen vertex }\n\
+             { map textures/common/detail9 blendFunc GL_DST_COLOR GL_ONE tcMod scale 10 10 }\n}",
+            "textures/a {\n{ map textures/a/rock rgbGen exactVertex alphaGen vertex }\n}",
+        ] {
+            let compiled = stages(script);
+            assert_eq!(diffuse_bundle(&compiled[0], -3), Some(Bundle::Primary), "{script}");
+            // Only on vertex-lit surfaces; the overlays keep their shading.
+            assert_eq!(diffuse_bundle(&compiled[0], -1), None, "{script}");
+            assert!(compiled[1..].iter().all(|s| diffuse_bundle(s, -3).is_none()));
+        }
+        // Unlit, waving or blended paint is not vertex-lit paint.
+        for script in [
+            "textures/a { { map textures/a/sand } }",
+            "textures/a { { map textures/a/sand rgbGen wave sin 0 1 0 1 } }",
+            "textures/a { { map textures/a/sand rgbGen vertex blendFunc blend } }",
+        ] {
+            assert_eq!(diffuse_bundle(&stages(script)[0], -3), None, "{script}");
+        }
+        // An unscripted vertex-lit texture's implicit stage qualifies.
+        let (implicit, _, _) = crate::world_stage::material_stages(None, -3);
+        let compiled = collapse_multitexture(&implicit);
+        assert_eq!(diffuse_bundle(&compiled[0], -3), Some(Bundle::Primary));
     }
 
     #[test]
@@ -752,13 +801,17 @@ mod tests {
             cvars.get("r_emissiveMaps").expect("registered").value,
             CvarValue::Integer(1)
         );
-        // SJK turns the rend2 controls on by default too.
-        for name in CONTROLS.iter().take(3) {
+        // SJK turns normal and specular maps on by default too, parallax off.
+        for name in CONTROLS.iter().take(2) {
             assert_eq!(
                 cvars.get(name).expect("registered").value,
                 CvarValue::Integer(1)
             );
         }
+        assert_eq!(
+            cvars.get(CONTROLS[2]).expect("registered").value,
+            CvarValue::Integer(0)
+        );
         // The light multiplier is read when a map loads; it stays within 0..4.
         assert_eq!(lights::gain_of(&CvarValue::Float(2.5)), 2.5);
         assert_eq!(lights::gain_of(&CvarValue::Integer(0)), 0.0);
