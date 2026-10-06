@@ -1565,6 +1565,19 @@ test: fx_debug 1, fire a weapon: the log lists the effects; fx_debug 0 stops it.
 test: cg_debugMissiles 1, fire rockets: one log line per second about the trails; then set 0.
 note: The log output was not checked in a running client.
 
+[cmd-rate]
+status: personal
+area: Gameplay
+title: 125 user commands a second (JoF cl_cmdratecap) and a working cl_maxpackets
+change: A user command every 8 ms on the server's 8 ms grid, any FPS; was one every 25 ms.
+change: cl_maxpackets (default 125, 15 to 1000) paces packets; each carries all waiting commands.
+change: cl_packetdup repeats the previous packets' commands; flipkick is one command per EJK frame.
+test: JoF server at 240+ FPS: tap jump, attack and use quickly; every tap registers.
+test: Movement, jumps and strafing feel like JoF EJK at 125; no stutter of your own view.
+test: cl_maxpackets 30 then 150: both play normally (30 adds a little input delay).
+test: flipkick on a JA+ server chains as in JoF EJK.
+note: High ping (300+ ms): watch for prediction snapping; not checked in a game.
+
 # ---- Merged upstream ----
 
 [actor-instance-cap]

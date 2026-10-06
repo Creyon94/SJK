@@ -4,18 +4,17 @@
 //! player without hammering the jump key.
 //!
 //! EJK counts cgame frames and sends `+moveup`/`-moveup` once per frame, one user
-//! command each. SJK sends a user command every 25 ms, so the run counts user
-//! commands instead: each one carries the run's jump state, which is what the
-//! server sees. The cvars stay in EJK's frames and are read as time at EJK's
-//! 125 fps ([`commands`]): `cg_fkDuration` 50 is 0.4 s, 16 commands. Counted as
-//! commands it would run 1.25 s, past the end of a missed kick's jump, and jump
-//! again on landing. A server forbids the bind with bit 7 of serverinfo
-//! `restricts` (`RESTRICT_FLIPKICKBIND`).
+//! command each. SJK counts user commands instead: each one carries the run's
+//! jump state, which is what the server sees. The cvars stay in EJK's frames and
+//! are read as time at EJK's 125 fps ([`commands`]); SJK makes its commands at
+//! that same rate (`command_rate`), so one frame is one command and
+//! `cg_fkDuration` 50 is 0.4 s. A server forbids the bind with bit 7 of
+//! serverinfo `restricts` (`RESTRICT_FLIPKICKBIND`).
 
 /// Milliseconds of one EJK frame at the 125 fps its defaults were tuned for.
 const FRAME_MILLIS: u64 = 8;
-/// Milliseconds between the user commands SJK sends.
-const COMMAND_MILLIS: u64 = 25;
+/// Milliseconds between the user commands SJK makes.
+const COMMAND_MILLIS: u64 = sjk_client::command_rate::COMMAND_MILLIS as u64;
 
 /// User commands that last as long as `frames` EJK frames, rounded up.
 pub(crate) fn commands(frames: u32) -> u32 {
@@ -125,15 +124,15 @@ mod tests {
     #[test]
     fn frames_are_read_as_time_at_125_fps() {
         assert_eq!(commands(0), 0);
-        assert_eq!(commands(50), 16, "0.4 s");
+        assert_eq!(commands(50), 50, "0.4 s, one command a frame");
         assert_eq!(commands(1), 1);
         assert!(commands(u32::MAX) > 1_000_000_000, "no overflow");
-        assert_eq!(Timing::default().duration, 16);
+        assert_eq!(Timing::default().duration, 50);
     }
 
     #[test]
     fn the_default_run_ends_before_a_missed_jump_lands() {
-        // A jump stays in the air well over half a second (25 ms per command).
+        // A jump stays in the air well over half a second (8 ms per command).
         let steps = run(Timing::default());
         assert!(steps.len() as u64 * COMMAND_MILLIS < 500);
     }

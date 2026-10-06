@@ -157,7 +157,8 @@ impl GpuState {
         self.gameplay_input.focus(focused);
         if !focused {
             self.pending_generic_command = 0;
-            self.network_command_due = std::time::Instant::now();
+            // The released keys reach the server with the next command, at once.
+            self.packet_pacer.reset();
         }
         self.sync_cursor_policy();
     }
