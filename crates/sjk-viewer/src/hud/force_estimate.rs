@@ -50,6 +50,8 @@ pub(super) struct Observation {
     pub(super) torso_animation: u16,
     /// `entityState_t::saberInFlight`.
     pub(super) saber_in_flight: bool,
+    /// A saber special move is under way (`BG_SaberInSpecial`), which also stops the refill.
+    pub(super) saber_special: bool,
     /// How many times faster than normal the pool refills (boon, Jedi Master).
     pub(super) regen_multiplier: f32,
     /// The player is dead.
@@ -80,6 +82,68 @@ impl Animations {
     }
 }
 
+/// Measures the server's real refill pace from the local player's own pool, which
+/// the server does send. `g_forceRegenTime` is not part of the stock info string
+/// and mods (JA+) change the pace, so the estimate trusts this over any cvar.
+///
+/// While the local player idles (no power but drain, no thrown saber, no boon,
+/// not Jedi Master) every point gained over a snapshot interval is a point of
+/// regeneration; the total milliseconds over the total points is the pace.
+#[derive(Clone, Copy, Debug, Default)]
+pub(super) struct Calibration {
+    seen: bool,
+    last_time: i32,
+    last_pool: i32,
+    last_idle: bool,
+    millis: f32,
+    points: f32,
+}
+
+/// Points of idle regeneration needed before the measured pace is used: one
+/// unseen point either end then costs at most 5%.
+const CALIBRATION_POINTS: f32 = 20.0;
+/// Past this many points the totals are halved, so the pace follows changes.
+const CALIBRATION_WINDOW: f32 = 400.0;
+
+impl Calibration {
+    /// Take one snapshot of the local player: its pool (`fd.forcePower`), and
+    /// whether it was regenerating normally (see the type's notes).
+    pub(super) fn observe(&mut self, time: i32, pool: i32, idle: bool) {
+        if !self.seen {
+            *self = Self {
+                seen: true,
+                last_time: time,
+                last_pool: pool,
+                last_idle: idle,
+                ..*self
+            };
+            return;
+        }
+        if time <= self.last_time {
+            return;
+        }
+        let elapsed = time - self.last_time;
+        let gained = pool - self.last_pool;
+        // Only a whole idle interval below a full pool says anything.
+        if self.last_idle && idle && elapsed <= GAP_MILLIS && gained >= 0 && pool < 100 {
+            self.millis += elapsed as f32;
+            self.points += gained as f32;
+            if self.points > CALIBRATION_WINDOW {
+                self.millis *= 0.5;
+                self.points *= 0.5;
+            }
+        }
+        self.last_time = time;
+        self.last_pool = pool;
+        self.last_idle = idle;
+    }
+
+    /// Measured milliseconds per point, once enough has been seen.
+    pub(super) fn millis_per_point(&self) -> Option<f32> {
+        (self.points >= CALIBRATION_POINTS).then(|| self.millis / self.points)
+    }
+}
+
 /// Fixed-capacity estimator for every client slot.
 pub(super) struct Estimator {
     tracks: [Track; CLIENTS],
@@ -104,6 +168,11 @@ impl Estimator {
         self.regen_millis = millis
             .filter(|m| m.is_finite() && *m >= 1.0)
             .unwrap_or(DEFAULT_REGEN_MILLIS);
+    }
+
+    /// Milliseconds per point in use.
+    pub(super) fn regen_millis(&self) -> f32 {
+        self.regen_millis
     }
 
     /// Estimated share of a full pool for `slot`, if it has been seen alive.
@@ -158,7 +227,7 @@ impl Estimator {
 /// Whether the server lets the pool refill while `state` holds
 /// (`WP_ForcePowersUpdate`): no power but drain on, no saber thrown.
 fn regenerates(state: &Observation) -> bool {
-    state.active & !(1 << FP_DRAIN) == 0 && !state.saber_in_flight
+    state.active & !(1 << FP_DRAIN) == 0 && !state.saber_in_flight && !state.saber_special
 }
 
 /// Points taken over `elapsed` milliseconds by powers that stay on.
@@ -318,6 +387,22 @@ mod tests {
     }
 
     #[test]
+    fn a_saber_special_move_blocks_the_refill() {
+        let mut estimator = Estimator::default();
+        estimator.observe(3, at(0));
+        estimator.observe(3, with(at(50), FP_RAGE));
+        let mut special = at(100);
+        special.saber_special = true;
+        estimator.observe(3, special);
+        let held = percent(&estimator);
+        for step in 1..=20 {
+            special.time = 100 + step * 100;
+            estimator.observe(3, special);
+        }
+        assert_eq!(percent(&estimator), held);
+    }
+
+    #[test]
     fn dying_and_respawning_resets_the_pool() {
         let mut estimator = Estimator::default();
         estimator.observe(3, at(0));
@@ -351,6 +436,43 @@ mod tests {
         assert!((percent(&estimator) - 60.0).abs() < 0.01);
         estimator.set_regen_millis(Some(f32::NAN));
         assert_eq!(estimator.regen_millis, DEFAULT_REGEN_MILLIS);
+    }
+
+    #[test]
+    fn the_pace_is_measured_from_the_local_pool() {
+        let mut calibration = Calibration::default();
+        assert_eq!(calibration.millis_per_point(), None);
+        // A point every 150 ms, snapshots every 50 ms, from a pool of 10.
+        let mut pool = 10;
+        for step in 0..=120 {
+            let time = step * 50;
+            pool = 10 + time / 150;
+            calibration.observe(time, pool, true);
+        }
+        assert!(pool < 100);
+        let pace = calibration.millis_per_point().expect("enough points");
+        assert!((pace - 150.0).abs() < 8.0, "{pace}");
+    }
+
+    #[test]
+    fn spending_and_other_regeneration_are_not_counted() {
+        let mut calibration = Calibration::default();
+        // Not idle (a power on): the gain is not regeneration.
+        for step in 0..200 {
+            calibration.observe(step * 50, 10 + step / 2, false);
+        }
+        assert_eq!(calibration.millis_per_point(), None);
+        // A pool already full cannot show a pace.
+        let mut full = Calibration::default();
+        for step in 0..200 {
+            full.observe(step * 50, 100, true);
+        }
+        assert_eq!(full.millis_per_point(), None);
+        // A long gap in snapshots is skipped.
+        let mut gap = Calibration::default();
+        gap.observe(0, 10, true);
+        gap.observe(60_000, 90, true);
+        assert_eq!(gap.millis_per_point(), None);
     }
 
     #[test]
