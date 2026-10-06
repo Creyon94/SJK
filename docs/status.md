@@ -7,6 +7,27 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## EternalJK player animation fixes
+
+Branch `fix/ejk-player-animation-fixes`:
+
+- Players' animations are remapped before they are shown, as EternalJK's
+  `CG_Player` does (`cg_players.c:10665-10730` at EternalJK a40e793): without a
+  saber in hand, two-handed, dual and staff runs and walks play as the ordinary
+  ones; a thrown saber's standing torso follows the legs; the old Bryar's
+  `BOTH_STAND1` shows as `BOTH_ATTACK2`; the concussion rifle's `BOTH_ATTACK2` as
+  `BOTH_ATTACK3`. NPCs are left as sent. The own player's pose reads the remapped
+  animations too.
+- Prediction fires with the attack table the server runs: OpenJK's
+  `BG_FixWeaponAttackAnim` (`codemp/game/bg_misc.c:297-346` at OpenJK 260c59c)
+  changes four entries only with `CS_LEGACY_FIXES` bit 1 (`g_fixWeaponAttackAnim`).
+  SJK always predicted the fixed table, so against a server without the fix (JoF)
+  the torso restarted on every snapshot. SJK's own server keeps publishing the
+  default 7.
+
+Unit tests cover the remaps and both attack tables. Checked in game on Windows 11
+on a JoF server: run, walk and attack animations match EternalJK.
+
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the
