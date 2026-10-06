@@ -1593,6 +1593,17 @@ test: cl_maxpackets 30 then 150: both play normally (30 adds a little input dela
 test: flipkick on a JA+ server chains as in JoF EJK.
 note: High ping (300+ ms): watch for prediction snapping; not checked in a game.
 
+[focus-mute]
+status: personal
+area: Audio
+title: Mute in background (EternalJK snd_mute_losefocus)
+change: All sound, music included, is silent while the window is unfocused or minimised.
+change: Settings > Sound > Mute in background (snd_mute_losefocus, default 1) turns it off.
+test: In a map with music, alt-tab out: silence at once; alt-tab back: sound and music resume.
+test: Minimise and restore the window: the same.
+test: Mute in background off, alt-tab out: sound keeps playing.
+note: The gain drops without a fade; listen for a click when switching away.
+
 # ---- Merged upstream ----
 
 [actor-instance-cap]

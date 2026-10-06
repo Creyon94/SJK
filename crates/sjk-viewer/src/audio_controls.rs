@@ -93,7 +93,11 @@ impl GameAudio {
         let music = console
             .and_then(|console| console.float_cvar("s_musicVolume"))
             .unwrap_or(0.25) as f32;
-        self.set_gains(effects, music);
+        if console.is_some_and(ViewerConsole::window_muted) {
+            self.set_gains(0.0, 0.0);
+        } else {
+            self.set_gains(effects, music);
+        }
         self.footsteps = console
             .and_then(|console| console.bool_cvar("cg_footsteps"))
             .unwrap_or(true);

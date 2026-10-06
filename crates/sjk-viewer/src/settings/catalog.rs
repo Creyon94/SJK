@@ -151,6 +151,11 @@ pub(super) const AUDIO: &[Setting] = &[
         cvar: "cg_footsteps",
         kind: ValueKind::Bool,
     },
+    Setting {
+        label: "Mute in background",
+        cvar: "snd_mute_losefocus",
+        kind: ValueKind::Bool,
+    },
 ];
 pub(super) const HUD_OPTIONS: &[Setting] = &[
     Setting {

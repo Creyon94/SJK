@@ -1439,6 +1439,14 @@ A window without focus has caps of its own: `com_maxfpsUnfocused` (SJK's default
 uses `com_maxfps`. They replace the normal cap while they apply, minimized first,
 so an alt-tabbed client does not render a 4K scene at full rate.
 
+`snd_mute_losefocus` (archived, 1, EternalJK's name and default; Settings > Sound
+> Mute in background) silences every sound, music included, while the window is
+unfocused or minimized. EternalJK pauses its sound device; SJK sets the effects
+and music gains to zero and keeps mixing, so music and loops carry on silently and
+come back where they are. The change is applied from the focus and minimize
+events themselves, since a minimized window may draw no frame; see
+[console_window_options.rs](../crates/sjk-viewer/src/console_window_options.rs).
+
 The Video tab's Display mode row offers Windowed, Borderless fullscreen and,
 where the windowing system supports it, Exclusive fullscreen (Wayland does not).
 Stock `r_fullscreen` keeps its meaning, fullscreen on or off, and Alt+Enter still

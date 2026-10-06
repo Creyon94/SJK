@@ -13,6 +13,7 @@ pub(super) struct Options {
     minimized_cap: IntegerSetting,
     unfocused_chatbox: IntegerSetting,
     minimized_chatbox: IntegerSetting,
+    mute_away: IntegerSetting,
     unfocused: bool,
     minimized: bool,
     alt: bool,
@@ -43,6 +44,11 @@ impl Options {
                 "cl_minimizedChatbox",
                 1,
                 "Show your chat balloon while the game window is minimised",
+            ),
+            (
+                "snd_mute_losefocus",
+                1,
+                "Mute all sound while the game window is unfocused or minimised",
             ),
         ] {
             cvars.register(CvarDefinition::new(name, default, CvarFlags::ARCHIVE, help))?;
@@ -86,6 +92,7 @@ impl Options {
             minimized_cap: IntegerSetting::bind(cvars, "com_maxfpsMinimized", 50)?,
             unfocused_chatbox: IntegerSetting::bind(cvars, "cl_unfocusedChatbox", 1)?,
             minimized_chatbox: IntegerSetting::bind(cvars, "cl_minimizedChatbox", 1)?,
+            mute_away: IntegerSetting::bind(cvars, "snd_mute_losefocus", 1)?,
             unfocused: false,
             minimized: false,
             alt: false,
@@ -143,6 +150,14 @@ impl ViewerConsole {
             options.unfocused_chatbox.value(),
             options.minimized_chatbox.value(),
         )
+    }
+
+    /// Whether every sound is silenced because the window is away: EternalJK's
+    /// `snd_mute_losefocus` (on by default), which pauses the sound device while
+    /// the window is unfocused or minimised (`codemp/client/snd_dma.cpp`).
+    pub(crate) fn window_muted(&self) -> bool {
+        let options = &self.window_options;
+        options.mute_away.enabled() && (options.unfocused || options.minimized)
     }
 
     /// Update modifier state from the same native event used by console shortcuts.
