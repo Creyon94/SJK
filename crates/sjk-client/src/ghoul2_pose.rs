@@ -140,6 +140,49 @@ impl LegacyGhoul2Animator {
         Ok(body)
     }
 
+    /// `EF_DISINTEGRATION` (`cg_players.c`, before `CG_Disintegration`): hold the pose
+    /// at the legs frame presented now, as cgame's `BONE_ANIM_OVERRIDE_FREEZE` on
+    /// `model_root`, `lower_lumbar` (unless `noLumbar`) and humanoid `Motion`. The
+    /// actor's own tracks are then ignored, as for a body-queue copy, until the
+    /// caller replaces this animator (the player respawned).
+    pub fn freeze_for_disintegration(
+        &mut self,
+        animation: &Gla,
+        time_millis: i64,
+    ) -> Result<(), ModelError> {
+        let Some(command) = self.lower_command else {
+            return Ok(());
+        };
+        let sample = BoneOverridePose::sample_command(animation, command, time_millis)?;
+        let frame = i32::try_from(sample.current_frame)
+            .map_err(|_| ModelError::invalid(sample.current_frame, "frame out of range"))?;
+        let freeze = BoneAnimationCommand {
+            clip: command.clip,
+            start_frame: frame,
+            end_frame: frame + 1,
+            speed: 1.0,
+            time_millis,
+            set_frame: None,
+            end_behavior: OverrideEndBehavior::Freeze,
+            blend: false,
+            blend_millis: 0,
+        };
+        self.pose
+            .set_bone_animation(animation, self.legs_root, freeze)?;
+        if let Some(torso_root) = self.torso_root {
+            self.pose
+                .set_bone_animation(animation, torso_root, freeze)?;
+        }
+        if let Some(humanoid) = self.humanoid {
+            self.pose
+                .set_bone_animation(animation, humanoid.motion, freeze)?;
+        }
+        self.lower_command = Some(freeze);
+        self.upper_command = Some(freeze);
+        self.body = true;
+        Ok(())
+    }
+
     /// The torso animation and frame last presented: `currentState.torsoAnim` as
     /// installed, and the `lower_lumbar` frame `CG_TriggerAnimSounds` kept for it
     /// (`ci->frame` once floored). `None` before the first evaluation.
@@ -450,5 +493,69 @@ mod rest_pose_tests {
         };
         let command = command_for_track(&animation, &config, track, None).expect("command");
         assert_eq!((command.start_frame, command.end_frame), (0, 1));
+    }
+}
+
+#[cfg(test)]
+mod disintegration_tests {
+    use super::LegacyGhoul2Animator;
+    use sjk_model::{AnimationConfig, Gla, GlaBone};
+    use sjk_runtime::{AnimationState, AnimationTrackState};
+
+    fn identity() -> [[f32; 4]; 3] {
+        [
+            [1.0, 0.0, 0.0, 0.0],
+            [0.0, 1.0, 0.0, 0.0],
+            [0.0, 0.0, 1.0, 0.0],
+        ]
+    }
+
+    #[test]
+    fn disintegration_holds_the_presented_frame() {
+        let bone = GlaBone {
+            name: "model_root".into(),
+            flags: 0,
+            parent: None,
+            base_pose: identity(),
+            inverse_base_pose: identity(),
+            children: Vec::new(),
+        };
+        let animation = Gla {
+            name: "test".into(),
+            scale: 1.0,
+            bones: vec![bone],
+            frames: vec![vec![0]; 40],
+            compressed_bones: vec![[0; 14]],
+        };
+        // BOTH_DEATH1 (clip 9): frames 0..40 at 20 per second, one every 50 ms.
+        let config = AnimationConfig::parse(b"BOTH_DEATH1 0 40 -1 20\n").expect("config");
+        let track = AnimationTrackState {
+            clip: 9,
+            revision: 1,
+            started_at_millis: 0,
+            phase_millis: 0,
+            speed_milli: 1_000,
+            forced_frame: None,
+            transition: None,
+        };
+        let state = AnimationState {
+            lower: track,
+            upper: track,
+        };
+        let mut animator = LegacyGhoul2Animator::new(&animation).expect("animator");
+        animator
+            .evaluate(&animation, &config, state, 0)
+            .expect("evaluate at 0");
+        animator
+            .evaluate(&animation, &config, state, 260)
+            .expect("evaluate at 260");
+        animator
+            .freeze_for_disintegration(&animation, 260)
+            .expect("freeze");
+        animator
+            .evaluate(&animation, &config, state, 1_500)
+            .expect("evaluate later");
+        let frames = animator.event_frames(&animation, 1_500);
+        assert_eq!(frames[0].map(|(_, frame)| frame), Some(5));
     }
 }

@@ -315,6 +315,17 @@ fn submit_actor(
     if let Some(state) = state {
         model_scale::apply(transform, state.model_scale_percent(), state.npc_class());
     }
+    // `EF_DISINTEGRATION`: `CG_Disintegration` draws the body and nothing else
+    // (`cg_players.c`, `cg_ents.c`).
+    let meshes = sinks.actor_meshes;
+    if let Some(index) = mesh
+        && let Some(burning) = meshes[index].disintegration.as_ref()
+    {
+        submit_disintegration(
+            sinks, index, burning, entity, transform, draw_actor, visual_now,
+        );
+        return 0;
+    }
     // A monster's victim is drawn in its hand or jaw (`cg_players.c:9220-9244`).
     let local = Some(entity.id.get()) == local_entity_id;
     let trick = trick_fade(sinks, snapshot, state, local, presentation_time);
@@ -692,6 +703,87 @@ fn submit_equipment(
             socket,
             visual_now,
             presentation_time as i32,
+        );
+    }
+}
+
+/// `CG_Disintegration` (`cg_ents.c`): the burning pass with `gfx/effects/burn`, the
+/// body eaten away from the hit point, and puffs of `disruptor/death_smoke` from the
+/// lower back for the first second. A player is gone after 1.5 s; a body draws until
+/// the server frees it.
+fn submit_disintegration(
+    sinks: &mut Sinks<'_>,
+    mesh: usize,
+    state: &crate::disintegration::State,
+    entity: &sjk_runtime::SceneEntity,
+    transform: &sjk_runtime::Transform,
+    draw_actor: bool,
+    visual_now: Instant,
+) {
+    use crate::disintegration::{PLAYER_MILLIS, RF_DISINTEGRATE1, RF_DISINTEGRATE2, SMOKE_EFFECT};
+    let now = sinks.presentation_time;
+    if entity.kind == EntityKind::Actor && now - state.started > PLAYER_MILLIS {
+        return;
+    }
+    if !(draw_actor || sinks.portal_view) {
+        return;
+    }
+    let rotation = weapon_view::actor_world_rotation(transform.rotation);
+    let mut body = ActorInstance::new(transform.translation, rotation.to_array(), transform.scale)
+        .with_entity_color(entity.color());
+    body.view_flags = sinks.entity_view_flags | u32::from(!draw_actor);
+    let mut burn = body;
+    state.mark(&mut burn, RF_DISINTEGRATE2, now);
+    if sinks.overrides.len() < sinks.overrides.capacity() {
+        sinks.overrides.push(entity_materials::OverrideInstance {
+            mesh: entity_materials::OverrideMesh::Actor(mesh),
+            material: Some(sinks.material_overrides.disruptor_burn),
+            instance: burn,
+            no_depth: false,
+            forced_alpha: false,
+        });
+    }
+    state.mark(&mut body, RF_DISINTEGRATE1, now);
+    sinks.actor_groups[mesh].push(body);
+    sinks.actor_meshes[mesh]
+        .retained_pose
+        .mark_drawn(entity.id, now);
+    let Some(lumbar) = sinks.actor_meshes[mesh].force_bones.lumbar else {
+        return;
+    };
+    if !state.smoke_due(now) {
+        return;
+    }
+    // `fxOrg`: the lower_lumbar bolt, 18 units toward the viewer, up or down by up
+    // to 20; one puff, and a second half the time.
+    let local =
+        Vec3::from_array(crate::bolt::column(&lumbar, 3)) * Vec3::from_array(transform.scale);
+    let yaw = sinks.camera_yaw;
+    let toward_viewer = Vec3::new(yaw.cos(), yaw.sin(), 0.0);
+    let seed = (entity.id.get() as u32).wrapping_mul(0x9e37_79b9) ^ (now as u32);
+    let unit = |salt: u32| {
+        let mixed = seed
+            .wrapping_add(salt)
+            .wrapping_mul(0x85eb_ca6b)
+            .rotate_left(13);
+        (mixed >> 8) as f32 / (1 << 24) as f32
+    };
+    let origin = Vec3::from_array(transform.translation) + rotation * local - toward_viewer * 18.0
+        + Vec3::Z * ((unit(1) * 2.0 - 1.0) * 20.0);
+    let puffs = if unit(2) > 0.5 { 2 } else { 1 };
+    for puff in 0..puffs {
+        effect_runtime::spawn_effect(
+            sinks.particles,
+            sinks.effect_aux,
+            sinks.effects,
+            sinks.vfs,
+            SMOKE_EFFECT,
+            origin,
+            visual_now,
+            seed.wrapping_add(puff),
+            0,
+            sinks.game_audio,
+            combat_effects::rotation_from_direction([0.0, 1.0, 0.0]),
         );
     }
 }

@@ -41,6 +41,7 @@ mod decal_marks;
 mod decal_store;
 mod decoded_image_cache;
 mod demo_playback;
+mod disintegration;
 mod dust_motes;
 mod dynamic_lights;
 mod effect_assets;

@@ -75,6 +75,7 @@ pub(crate) fn build_actor_mesh(
         gpu_palette: None,
         retained_pose,
         cosmetics: Default::default(),
+        disintegration: None,
     })
 }
 

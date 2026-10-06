@@ -58,6 +58,7 @@ impl GpuState {
             mesh.saber_names = body.sabers.clone();
             let client_num = body.client_num;
             mesh.body_identity = Some(body);
+            mesh.disintegration = None;
             let animation = mesh.preview.animation.clone();
             let config = mesh.preview.config.clone();
             let copied = self.body_queue_animator(client_num, &animation, &config, time)?;

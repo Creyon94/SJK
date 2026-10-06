@@ -102,6 +102,14 @@ impl ActorInstance {
     }
 
     pub(crate) fn set_light(&mut self, light: EntityLight) {
+        // A disintegrating actor carries its hit point and burn radius here instead
+        // (`disintegration::State::mark`); rd-vanilla draws it unlit.
+        if self.view_flags
+            & (crate::disintegration::RF_DISINTEGRATE1 | crate::disintegration::RF_DISINTEGRATE2)
+            != 0
+        {
+            return;
+        }
         self.light_ambient = light.ambient;
         self.light_directed = light.directed;
         self.light_direction = light.direction;

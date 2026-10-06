@@ -30,4 +30,6 @@ pub(crate) struct ActorMesh {
     pub(crate) force_bones: crate::actor_pose::ForceBones,
     /// JoF EJK's hat and cape this player wears, and their bolts.
     pub(crate) cosmetics: crate::cosmetics::actors::Worn,
+    /// `EF_DISINTEGRATION` while it lasts; the pose is frozen meanwhile.
+    pub(crate) disintegration: Option<crate::disintegration::State>,
 }
