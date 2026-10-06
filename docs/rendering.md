@@ -2139,6 +2139,38 @@ white tile for `$whiteimage`/`*white` stages so the `white` shader keeps its alp
 blend instead of falling back to the additive spark. The JA+ client plugin's hook
 model is not drawn, as in EternalJK.
 
+## Shader test maps
+
+[shader_testmap.py](../scripts/shader_testmap.py) builds galleries of every
+retail world shader (`textures/...` in `base/assets*.pk3`) so shader rendering
+can be checked, and compared with EternalJK, pad by pad. It writes `.map`
+files, label atlases and a shader, compiles the maps with q3map2 from
+NetRadiant-custom (`-game ja`) and packs `sjk_shadertest.pk3`; `--install`
+copies it into `GameData/base`. The module docstring lists the options.
+
+```sh
+python scripts/shader_testmap.py --install
+```
+
+- **Maps.** `sjk_shaders_a` to `_e` hold one section per shader file, in file
+  name order, each opened by a yellow plaque; `sjk_shaders_s` puts each sky
+  shader on the ceiling of its own room. Play them with `devmap <map>` and
+  `noclip`; the wall behind the spawn point lists every section with the
+  `setviewpos` that leads to it.
+- **Pads.** A shader goes on every face of a 160-unit panel over a label with
+  its ID (`A001`), name and kind. Water, lava, slime and surface-sprite shaders
+  are floor tiles, fog shaders 160-unit fog cubes (at most 28 per map: q3map2
+  and the renderer's sort key hold about 30 fogs), and `portal` shaders get a
+  `misc_portal_surface` (a mirror). Tool shaders (`nodraw`, `origin`,
+  `areaportal`, `hint`, `skip`) are left out. `index.txt` next to the pk3
+  maps every ID to its shader and file.
+- **Duplicates.** A name defined in several shader files keeps the last file
+  in name order, as ioq3's `ScanAndLoadShaderFiles` does; its label says
+  `DUP`.
+- **Compile.** q3map2 reads only the shader files a `shaderlist.txt` names and
+  the retail lists miss some, so the script writes a complete one for the
+  compile (it is not packed).
+
 ## Default visual profile
 
 New profiles use the owner-approved rendering setup: day/night enabled at a fixed
