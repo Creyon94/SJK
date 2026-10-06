@@ -264,7 +264,9 @@ fn row_box(g: &Geometry) -> f32 {
     g.row.max(g.font + 1.0)
 }
 
-/// CG_DrawCenterString wraps rows longer than this at whitespace ([BugFix19]).
+/// CG_DrawCenterString wraps rows longer than this at their last space ([BugFix19];
+/// `BG_IsWhiteSpace` counts only the space, so a tab or vertical tab in a name
+/// does not break the row).
 /// Retail counts bytes of its one-byte code page, so the limit counts characters:
 /// `×` or `é` in a name is one byte there but two in UTF-8.
 const CENTER_WRAP_CHARS: usize = 50;
@@ -294,13 +296,13 @@ impl<'a> Iterator for WrapRow<'a> {
             Some((limit, _)) => self.rest[..limit]
                 .char_indices()
                 .rev()
-                .find(|(_, character)| character.is_whitespace())
-                .map_or(limit, |(index, space)| index + space.len_utf8()),
+                .find(|&(_, character)| character == ' ')
+                .map_or(limit, |(index, _)| index + 1),
             None => self.rest.len(),
         };
         let (head, tail) = self.rest.split_at(cut);
-        self.rest = tail.trim_start();
-        Some(head.trim_end())
+        self.rest = tail.trim_start_matches(' ');
+        Some(head.trim_end_matches(' '))
     }
 }
 
@@ -323,6 +325,19 @@ mod tests {
         let text = format!("{name} has challenged you to a duel!");
         let rows: Vec<_> = center_rows(&text).collect();
         assert_eq!(rows, [name.as_str(), "has challenged you to a duel!"]);
+    }
+
+    #[test]
+    fn center_rows_break_only_at_a_space() {
+        // A name with vertical tabs (0x0B) stays on the row after the last space.
+        let text = "You have challenged ^6{^0JoF^6}^7\u{b}Toxiee\u{b}^6{^0C^6}.ak";
+        assert_eq!(
+            center_rows(text).collect::<Vec<_>>(),
+            [
+                "You have challenged",
+                "^6{^0JoF^6}^7\u{b}Toxiee\u{b}^6{^0C^6}.ak"
+            ]
+        );
     }
 
     #[test]

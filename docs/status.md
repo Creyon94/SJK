@@ -41,6 +41,14 @@ pixel deltas) do not bind. Unit tests cover both directions, that the wheel does
 nothing to the form when no slot waits, and the threshold. Checked in game on
 Windows 11 before the threshold was added; the threshold is covered by unit tests only.
 
+## Centre-print line breaks
+
+Branch `fix/center-print-space-break`: centre-print rows break only at a space, as
+`BG_IsWhiteSpace` counts only the space. A vertical tab (0x0B) in
+`{JoF}\vToxiee\v{C}.ak` broke the row inside the name, where EternalJK keeps the
+name whole. A unit test covers that name. Checked in game on Windows 11: the name
+stays whole on its own row.
+
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the
