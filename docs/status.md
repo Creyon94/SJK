@@ -9,13 +9,16 @@ claiming complete parity from the presence of an implementation.
 
 ## Image extension order
 
-Branch `fix/image-extension-order`: an image name with no file of its own is
-tried as `.jpg`, `.png` and then `.tga`, the order rd-common's `R_LoadImage`
-registers its loaders (`tr_image_load.cpp`), instead of `.tga` first. HD packs
-rely on it: JoF's packs ship a `.png` or `.jpg` beside the base `.tga`, which
-EternalJK shows and SJK did not (for example the disruptor scope in
-`JoF_HDWeaponScopeTrue.pk3`). The existing shader catalog tests pass; checked in
-game on Windows 11 with the JoF HD packs.
+Branch `fix/image-extension-order`: when an image name has no file of its own
+(no extension, or the named file is missing), it is tried as `.jpg`, `.png` and
+then `.tga`, the order rd-common registers its loaders in
+`R_ImageLoader_Init` (`tr_image_load.cpp:93-95`), instead of `.tga` first. As in
+`R_LoadImage` (`tr_image_load.cpp:104-139`), the extension named in the script is
+still tried first, so a script that names `base.tga` keeps loading the `.tga`
+when it exists. HD packs that ship a `.png` or `.jpg` beside the base `.tga` take
+effect for extensionless names (for example the disruptor scope in
+`JoF_HDWeaponScopeTrue.pk3`). Unit tests in `sjk-shader` cover the order and the
+named-extension-first rule. Not verified in game.
 
 ## Classic Settings hub (SJK)
 
