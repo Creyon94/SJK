@@ -1456,11 +1456,17 @@ impl GpuState {
             self.sample_weapon_select(hud_visibility.menu_hud, intermission_view.is_some());
         let hud_style = menu_hud::HudStyle::read(self.console.as_ref());
         // JoF EJK's Force wheel (the retail icon bar) with the retail-looking HUDs.
-        self.hud
-            .set_force_wheel_bar(hud_style != menu_hud::HudStyle::Modern);
+        self.hud.set_force_wheel_bar(!matches!(
+            hud_style,
+            menu_hud::HudStyle::Modern | menu_hud::HudStyle::Radial
+        ));
         let hud_layout = self.hud.layout(
             hud_font,
-            hud_style == menu_hud::HudStyle::Classic,
+            match hud_style {
+                menu_hud::HudStyle::Radial => hud::HudLook::Radial,
+                menu_hud::HudStyle::Classic => hud::HudLook::Classic,
+                _ => hud::HudLook::Modern,
+            },
             viewport,
             runtime_settings::hud_scale(self.console.as_ref()),
             hud_visibility,

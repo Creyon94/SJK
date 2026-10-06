@@ -51,6 +51,19 @@ impl HudOverlay {
             (values.armor as f32 / maximum).clamp(0.0, 1.0),
             f32::from(values.force) / 100.0,
         ];
+        let ammo_target = radial::ammo_ratio(
+            values.weapon,
+            values.ammo,
+            player.entity_flags() & (1 << 20) != 0,
+        );
+        if (self.ammo_ratio.target() - ammo_target).abs() > f32::EPSILON {
+            self.ammo_ratio.retarget(
+                ammo_target,
+                time_ms,
+                self.theme.motion.normal,
+                Easing::SmoothStep,
+            );
+        }
         for (tween, target) in self.ratios.iter_mut().zip(targets) {
             if (tween.target() - target).abs() > f32::EPSILON {
                 tween.retarget(

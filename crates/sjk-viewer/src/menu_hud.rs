@@ -27,7 +27,7 @@
 //! fixed storage.
 
 pub(crate) mod choices;
-mod frame;
+pub(crate) mod frame;
 mod gpu;
 mod layout;
 mod parse;
@@ -73,6 +73,9 @@ pub(crate) enum HudStyle {
     Modern,
     /// JKR's classic layout in either font.
     Classic,
+    /// SJK's radial layout: health, armor, Force and ammunition as arcs around the
+    /// crosshair, drawn by the engine (the TheRisqe Radial HUD, without its PK3).
+    Radial,
     /// The game-data HUD of `cg_hudFiles`: SJK's default, the retail HUD
     /// unless a HUD pack is installed.
     Game,
@@ -80,7 +83,7 @@ pub(crate) enum HudStyle {
 
 impl HudStyle {
     /// Settings choices, in [`HudStyle`] order.
-    pub(crate) const NAMES: [&'static str; 3] = ["modern", "classic", "game"];
+    pub(crate) const NAMES: [&'static str; 4] = ["modern", "classic", "game", "radial"];
     /// The style of a fresh profile.
     pub(crate) const DEFAULT: Self = Self::Game;
 
@@ -90,6 +93,7 @@ impl HudStyle {
             Self::Modern => Self::NAMES[0],
             Self::Classic => Self::NAMES[1],
             Self::Game => Self::NAMES[2],
+            Self::Radial => Self::NAMES[3],
         }
     }
 
@@ -99,6 +103,7 @@ impl HudStyle {
             Some(text) if text.eq_ignore_ascii_case("modern") => Self::Modern,
             Some(text) if text.eq_ignore_ascii_case("classic") => Self::Classic,
             Some(text) if text.eq_ignore_ascii_case("game") => Self::Game,
+            Some(text) if text.eq_ignore_ascii_case("radial") => Self::Radial,
             _ => Self::DEFAULT,
         }
     }
@@ -536,12 +541,18 @@ mod tests {
         assert_eq!(HudStyle::from_cvar(None), HudStyle::Game);
         assert_eq!(HudStyle::from_cvar(Some("GAME")), HudStyle::Game);
         assert_eq!(HudStyle::from_cvar(Some("classic")), HudStyle::Classic);
+        assert_eq!(HudStyle::from_cvar(Some(" Radial")), HudStyle::Radial);
         assert_eq!(HudStyle::from_cvar(Some("retro")), HudStyle::Game);
         assert_eq!(HudStyle::from_cvar(Some(" Modern ")), HudStyle::Modern);
         let parsed = HudStyle::NAMES.map(|name| HudStyle::from_cvar(Some(name)));
         assert_eq!(
             parsed,
-            [HudStyle::Modern, HudStyle::Classic, HudStyle::Game]
+            [
+                HudStyle::Modern,
+                HudStyle::Classic,
+                HudStyle::Game,
+                HudStyle::Radial
+            ]
         );
         for style in parsed {
             assert_eq!(HudStyle::from_cvar(Some(style.name())), style);

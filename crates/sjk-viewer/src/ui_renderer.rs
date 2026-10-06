@@ -33,6 +33,9 @@ const MENU_WORDMARK: &[u8] = include_bytes!("../assets/menu/jk-wordmark.png");
 /// Shape vertices one frame may draw (six per quad), across every layer.
 const MAX_SHAPE_VERTICES: usize = 16_384;
 
+/// `parameters.y` value that selects the arc shader path (`ui_shapes.wgsl`).
+const ARC_MODE: f32 = 3.0;
+
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub(super) struct ShapeVertex {
@@ -462,6 +465,25 @@ impl ShapeRenderer {
                         MAX_SHAPE_VERTICES,
                     );
                 }
+                DrawCommand::Arc {
+                    center,
+                    radius,
+                    width,
+                    start,
+                    sweep,
+                    color,
+                } => {
+                    self.push_arc(
+                        center,
+                        radius,
+                        width,
+                        start,
+                        sweep,
+                        color,
+                        opacity[opacity_depth],
+                        viewport,
+                    );
+                }
                 DrawCommand::Text { .. }
                 | DrawCommand::PushClip(_)
                 | DrawCommand::PushOpacity(_) => {}
@@ -597,6 +619,53 @@ impl ShapeRenderer {
             opacity,
             viewport,
         );
+    }
+
+    /// A round-capped arc stroke as one quad around its circle; the shader cuts out
+    /// the stroke from a signed distance (mode 3, geometry in `end_color`).
+    #[allow(clippy::too_many_arguments)]
+    fn push_arc(
+        &mut self,
+        center: [f32; 2],
+        radius: f32,
+        width: f32,
+        start: f32,
+        sweep: f32,
+        color: Color,
+        opacity: f32,
+        viewport: [f32; 2],
+    ) {
+        // One pixel of margin leaves room for the anti-aliased edge.
+        let extent = radius + width * 0.5 + 1.0;
+        let rect = Rect::new(
+            center[0] - extent,
+            center[1] - extent,
+            extent * 2.0,
+            extent * 2.0,
+        );
+        if radius <= 0.0 || width <= 0.0 || self.vertices.len() + 6 > MAX_SHAPE_VERTICES {
+            return;
+        }
+        let position = |x: f32, y: f32| [x / viewport[0] * 2.0 - 1.0, 1.0 - y / viewport[1] * 2.0];
+        let tint = [color.r, color.g, color.b, color.a * opacity];
+        let points = [
+            ([rect.x, rect.y], [0.0, 0.0]),
+            ([rect.right(), rect.y], [1.0, 0.0]),
+            ([rect.right(), rect.bottom()], [1.0, 1.0]),
+            ([rect.x, rect.y], [0.0, 0.0]),
+            ([rect.right(), rect.bottom()], [1.0, 1.0]),
+            ([rect.x, rect.bottom()], [0.0, 1.0]),
+        ];
+        self.vertices
+            .extend(points.map(|(pixel, local)| ShapeVertex {
+                position: position(pixel[0], pixel[1]),
+                local,
+                size: [rect.width, rect.height],
+                start_color: tint,
+                end_color: [radius, width, start, sweep],
+                parameters: [0.0, ARC_MODE],
+                uv: local,
+            }));
     }
 
     fn push_shape(

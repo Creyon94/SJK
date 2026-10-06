@@ -36,6 +36,28 @@ fn vertex_main(input: VertexInput) -> VertexOutput {
 
 @fragment
 fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
+    if input.parameters.y > 2.5 {
+        // Arc stroke with round caps: distance to the nearest point of the centre
+        // line, which is the circle's arc clamped to its angular range.
+        // end_color = (radius, width, start angle, sweep) in pixels and radians.
+        let radius = input.end_color.x;
+        let half_width = input.end_color.y * 0.5;
+        let sweep = input.end_color.w;
+        let pixel = input.local * input.size - input.size * 0.5;
+        let middle = input.end_color.z + sweep * 0.5;
+        var delta = atan2(pixel.y, pixel.x) - middle;
+        // Wrap to (-pi, pi] so the arc may cross the +/-pi seam.
+        delta = delta - 6.2831855 * floor((delta + 3.1415927) / 6.2831855);
+        let limit = abs(sweep) * 0.5;
+        let angle = middle + clamp(delta, -limit, limit);
+        let nearest = radius * vec2(cos(angle), sin(angle));
+        let distance = length(pixel - nearest) - half_width;
+        let coverage = clamp(0.5 - distance, 0.0, 1.0);
+        if coverage <= 0.0 {
+            discard;
+        }
+        return vec4(input.start_color.rgb, input.start_color.a * coverage);
+    }
     if input.parameters.y > 1.5 {
         return textureSample(icon_texture, icon_sampler, input.uv) * input.start_color;
     }

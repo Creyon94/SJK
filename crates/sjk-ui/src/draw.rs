@@ -108,6 +108,17 @@ pub enum DrawCommand {
         color: Color,
         uv: [[f32; 2]; 4],
     },
+    /// Circular arc stroke with round caps, anti-aliased by the renderer. Angles are
+    /// radians in screen space: 0 points right and positive turns clockwise (y grows
+    /// downwards). `radius` is the centre line, `width` the stroke thickness.
+    Arc {
+        center: [f32; 2],
+        radius: f32,
+        width: f32,
+        start: f32,
+        sweep: f32,
+        color: Color,
+    },
     /// Begin clipping descendants.
     PushClip(Rect),
     /// End the most recent clip.

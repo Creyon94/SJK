@@ -1690,6 +1690,23 @@ which the retail and the checked custom HUDs do not use.
 the existing behavior, where `cg_classicHudFont` also selects the classic layout.
 JKR defaults to `modern`; SJK to `game`.
 
+`cg_hudStyle radial` (picker name "SJK radial") is SJK's own take on the TheRisqe Radial
+HUD, drawn by the engine with no PK3: health (red, outer) and armor (green, inner) as
+arcs left of the crosshair, Force (blue, outer) and ammunition (amber, inner) right of
+it, each cut into four segments that fill in turn, with a readout pill of the four
+numbers (the saber style replaces the ammunition) and the weapon-name transient below.
+It is the layout document [radial.json](../crates/sjk-viewer/assets/hud/radial.json): the
+modern layout's other widgets (crosshair, team rows, votes, kill feed, timer, lagometer)
+plus `arc` widgets, which `hud.json` overrides cannot yet replace for this style.
+The arcs are the new `sjk-ui` draw command `DrawCommand::Arc`: one quad per stroke whose
+fragment shader (`ui_shapes.wgsl`, mode 3) takes the signed distance to a round-capped arc,
+so they stay smooth at any resolution and scale with the HUD scale. Segment geometry and the
+distance function are in [arc.rs](../crates/sjk-ui/src/arc.rs) (unit-tested; the shader
+evaluates the same expression); the ammunition ratio is the weapon's pool over
+`ammoData[].max`, doubled with the Double Ammo rune ([radial.rs](../crates/sjk-viewer/src/hud/radial.rs)).
+Health pulses red at 25 or less, as the modern HUD does. `menu_snapshot` renders the four
+sample states to `target/menu-snapshots/hud-radial-*.png` with a CPU copy of the shader.
+
 With the game-data HUD, a weapon change shows retail's weapon selection row for
 1.4 s (`WEAPON_SELECT_TIME`), as `CG_DrawWeaponSelect` draws it and JoF EternalJK
 keeps it square on wide screens ([weapon_select.rs](../crates/sjk-viewer/src/weapon_select.rs)):

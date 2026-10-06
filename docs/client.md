@@ -1022,7 +1022,7 @@ allocated per frame; the text and draw storage is reserved for 32 clients.
 
 `cg_hudStyle` chooses `game`, the status HUD of the game's own menu files (the
 original Jedi Academy HUD, or a custom HUD pack that replaces `ui/hud.menu`),
-or SJK's own `modern` or `classic` layout. SJK starts on `game`, the classic
+or SJK's own `modern`, `classic` or `radial` layout. SJK starts on `game`, the classic
 HUD; JKR's default is `modern`, and a saved `cg_hudStyle` is kept. `cg_hudFiles`
 names the menu list, `ui/jahud.txt` by default; `1` gives the text-only HUD and
 EternalJK's `3`/`4` name its elegance and JoF HUD lists when those files are
