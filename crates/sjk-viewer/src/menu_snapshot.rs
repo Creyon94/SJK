@@ -627,6 +627,7 @@ fn menu_snapshot() {
     weapon_select(&mut shots, &vfs);
     radial_hud(&mut shots);
     player_card(&mut shots);
+    identity_page(&shots);
     force_wheel(&mut shots, &vfs);
     profile_saber(&shots, art, &vfs, &mut console);
     classic_profile(&mut shots, &vfs, art);
@@ -896,6 +897,102 @@ fn weapon_select(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
 /// Repulse selected among real powers and the other JoF entries, then JA+ merc
 /// mode's flamethrower in Lightning's place. Names draw in the menu font here.
 /// SJK's radial HUD with a full, a hurt and an empty-handed (saber) state.
+/// The Identity page: switched off, online with a profile and known players, and a new
+/// player who has not chosen a name yet.
+fn identity_page(shots: &Snapshot) {
+    use crate::console::identity_panel::{Inputs, Panel};
+    use sjk_identity::{Presence, Profile, Snapshot as Hub, Status};
+    let hub = |status: Status, name: &str| Hub {
+        status,
+        key_id: "44f3d0b36c9b2510".to_owned(),
+        me: Some(Profile {
+            key_id: "44f3d0b36c9b2510".to_owned(),
+            key: String::new(),
+            name: name.to_owned(),
+            bio: String::new(),
+            verified: false,
+            created: 0,
+        }),
+        server: None,
+        players: vec![
+            Presence {
+                slot: 3,
+                claimed_name: "^1Fox".to_owned(),
+                key_id: "aaaaaaaaaaaaaaaa".to_owned(),
+                name: "Fox".to_owned(),
+                verified: true,
+            },
+            Presence {
+                slot: 7,
+                claimed_name: "Kit".to_owned(),
+                key_id: "bbbbbbbbbbbbbbbb".to_owned(),
+                name: String::new(),
+                verified: false,
+            },
+        ],
+        profiles: std::collections::HashMap::new(),
+        notice: Some("saved".to_owned()),
+        revision: 0,
+    };
+    let online = hub(Status::Online, "Sol");
+    let unnamed = hub(Status::Online, "");
+    let key_file =
+        "C:/Program Files (x86)/Steam/steamapps/common/Jedi Academy/GameData/SJK/identity.key";
+    struct Case<'a> {
+        name: &'a str,
+        enabled: bool,
+        snapshot: Option<&'a Hub>,
+        typed: &'a str,
+        bio: &'a str,
+        focus: &'a str,
+        message: &'a str,
+    }
+    let cases = [
+        Case {
+            name: "identity-off",
+            enabled: false,
+            snapshot: None,
+            typed: "",
+            bio: "",
+            focus: "toggle",
+            message: "",
+        },
+        Case {
+            name: "identity-online",
+            enabled: true,
+            snapshot: Some(&online),
+            typed: "Sol",
+            bio: "I make SJK and I play on JA+ servers. Come say hi, I am usually around in the evening and I love a good duel.",
+            focus: "bio",
+            message: "",
+        },
+        Case {
+            name: "identity-noname",
+            enabled: true,
+            snapshot: Some(&unnamed),
+            typed: "",
+            bio: "",
+            focus: "save",
+            message: "Give yourself a name first.",
+        },
+    ];
+    for case in cases {
+        let mut panel = Panel::new();
+        panel.open(false);
+        panel.preview(case.typed, case.bio, case.focus, case.message);
+        let inputs = Inputs {
+            enabled: case.enabled,
+            hub_url: "https://sjk.dfox.app",
+            key_error: None,
+            snapshot: case.snapshot,
+            key_file,
+        };
+        let mut vertices = Vec::new();
+        panel.append(&inputs, &mut vertices, &shots.font.font, VIEWPORT);
+        shots.save(case.name, panel.draw_list(), &vertices, true);
+    }
+}
+
 /// The player card beside three players over a match: one the hub vouches for,
 /// one it only knows, and one it does not; and one at the screen's edge.
 fn player_card(shots: &mut Snapshot) {

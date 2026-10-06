@@ -75,10 +75,12 @@ Identity page, the setting's help and the changelog say what is sent and that
 - `cl_hubUrl` (default `https://sjk.dfox.app`; Settings > Network > SJK hub) is the hub's address.
   It must be `https://host[:port]` with no path; plain `http://` is accepted for
   localhost only.
-- `identity` opens the Identity page (also the in-game SJK menu). `identity name
-  <text>` and `identity bio <text>` set the profile at the hub, `identity key` shows
-  the key id and file, `identity who [slot]` lists the players the hub knows here
-  (with a slot, their bio).
+- The Identity page (main menu > SJK > IDENTITY, the in-game SJK menu, or the `identity`
+  command) is the interface: the on/off switch, the name and bio fields with Save, a button
+  that copies the key id, the key file's location and the players the hub knows here. The
+  words do the same without it: `identity name <text>` and `identity bio <text>` set the
+  profile at the hub, `identity key` shows the key id and file, `identity who [slot]` lists
+  the players the hub knows here (with a slot, their bio).
 
 ## The key file
 

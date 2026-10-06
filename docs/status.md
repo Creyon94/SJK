@@ -989,6 +989,22 @@ the hub answered the real client's end-to-end tests over HTTPS through Cloudflar
 (06/10/2026). Not verified: the client from outside France (the zone's WAF rule was
 widened for the host the same day), a default install end to end.
 
+## Identity page you can edit (SJK)
+
+SJK-only branch `personal/identity-menu` (06/10/2026): the Identity page is now an interface,
+not a read-only list: an on/off switch for `cl_identity`, name and bio fields with Save,
+"Copy my key id", and the key file's location; it opens from the classic main menu's SJK page
+(new IDENTITY entry), the in-game SJK menu or the `identity` command; see
+[client.md](client.md#identity). The modern main menu has no entry (its eight rows already fill
+the window).
+
+Verified: the sjk-viewer tests (focus order, typing limits in characters, what Save sends,
+the fields following the hub's copy until the player types, the classic SJK page's rows); the
+off-screen snapshots (`menu_snapshot`, `identity-*`) drew the page switched off, online with a
+profile and known players, and for a player with no name yet; that drawing is an approximation
+of the renderer (text sits at the top of its box). Not verified: the page in the running
+client (typing, Tab, the pointer, the clipboard button), the new classic entry's position.
+
 ## Alt codes (SJK)
 
 SJK-only branch `personal/alt-codes` (2026-10-05, based on `2696590`) types
