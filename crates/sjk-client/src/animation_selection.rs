@@ -249,7 +249,8 @@ fn bryar_shot_hold(
         })
 }
 
-/// EternalJK's "hack to fix bugged player animations" (`cg_players.c`, `CG_Player`),
+/// EternalJK's "hack to fix bugged player animations" (`CG_Player`,
+/// `codemp/cgame/cg_players.c:10665-10730` at EternalJK a40e793),
 /// applied to a player's `legsAnim`/`torsoAnim` before they are presented. For a
 /// player (not an NPC) without a saber in hand (any other weapon, or the saber thrown):
 /// the two-handed and dual runs and walks play as the ordinary ones; the staff ones

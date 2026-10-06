@@ -74,11 +74,16 @@ const WEAPON_ATTACK_ANIM: [u16; LEGACY_WEAPON_COUNT] = [
     113, 115, 115, 917, 114, 115, 115, 115, 115, 115, 115, 115, 125, 115, 115, 115, 114, 915, 113,
 ];
 
-/// `WeaponAttackAnim` as the server runs it: `BG_FixWeaponAttackAnim`
-/// (`bg_misc.c:323-345`) corrects the table's shifted tail only with
-/// `LEGACYFIX_WEAPONATTACKANIM` (`CS_LEGACY_FIXES` bit 1, `g_fixWeaponAttackAnim`).
-/// Without it the old Bryar fires with `BOTH_STAND1`, the concussion rifle with
-/// `BOTH_ATTACK2`; predicting otherwise made the snapshot restart the torso.
+/// `WeaponAttackAnim` as the server runs it. OpenJK `BG_FixWeaponAttackAnim`
+/// (`codemp/game/bg_misc.c:323-346` at OpenJK 260c59c) rewrites four entries of the
+/// table (`bg_misc.c:297-321`): with `LEGACYFIX_WEAPONATTACKANIM` (`CS_LEGACY_FIXES`
+/// bit 1, `bg_public.h:161-164`; the server's `g_fixWeaponAttackAnim`, default "1",
+/// `g_xcvar.h:98`) the concussion fires `BOTH_ATTACK3`, the old Bryar
+/// `BOTH_ATTACK2`, the emplaced gun `BOTH_STAND1` and the turret `BOTH_ATTACK1`;
+/// without it `BOTH_ATTACK2`, `BOTH_STAND1`, `BOTH_ATTACK1` and `BOTH_ATTACK2`. The
+/// cgame runs the same function from the configstring (`cg_main.c:2634`,
+/// `cg_servercmds.c:916`), so a client predicting the fixed table against an
+/// unfixed server (JoF) restarted the torso on every snapshot.
 fn weapon_attack_anim(weapon: u8, legacy_fixes: u32) -> u16 {
     if legacy_fixes & (1 << 1) == 0 {
         match weapon {
