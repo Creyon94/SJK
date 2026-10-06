@@ -204,6 +204,58 @@ impl ClientMenu {
         true
     }
 
+    /// The search typed on the Settings tab `page` is, and so the other tab's
+    /// share of it: the panels name how many entries of the other tab match, and a
+    /// tab switch carries the search along. Recomputed only when the text changes.
+    pub(super) fn sync_cross_search(&mut self) {
+        let Some(panel) = self.classic_panel else {
+            return;
+        };
+        let options = match panel.page.settings_tab() {
+            Some(1) => true,
+            Some(_) => false,
+            None => return,
+        };
+        let text = if options {
+            self.settings.search_text()
+        } else {
+            self.keybinds.search_text()
+        };
+        if text.trim() != self.cross_search.0 {
+            let text = text.trim().to_owned();
+            let count = if options {
+                self.keybinds.count_matches(&text)
+            } else {
+                SettingsMenu::count_matches(&text)
+            };
+            self.cross_search = (text, count);
+        }
+        let count = self.cross_search.1;
+        if options {
+            self.settings.set_elsewhere(count);
+        } else {
+            self.keybinds.set_elsewhere(count);
+        }
+    }
+
+    /// The search typed on the Settings tab `page` is, to carry to the other tab.
+    fn search_to_carry(&self, page: Page) -> Option<String> {
+        let text = match page.settings_tab()? {
+            1 => self.settings.search_text(),
+            _ => self.keybinds.search_text(),
+        };
+        (!text.trim().is_empty()).then(|| text.to_owned())
+    }
+
+    /// Type `text` into the search of the Settings tab `page` opened.
+    fn carry_search(&mut self, console: &ViewerConsole, page: Page, text: &str) {
+        match page.settings_tab() {
+            Some(1) => self.settings.carry_search(console, text),
+            Some(_) => self.keybinds.carry_search(text),
+            None => {}
+        }
+    }
+
     /// Show `panel` again, as it was before a screen it opened.
     pub(super) fn reopen_classic_panel(&mut self, console: &ViewerConsole, panel: ClassicPanel) {
         let target = self.settings_return;
@@ -262,7 +314,11 @@ impl ClientMenu {
                 let page = Page::of_settings_tab(tab);
                 if let Some(entry) = page.opening_panel() {
                     let target = self.settings_return;
+                    let carried = self.search_to_carry(panel.page);
                     self.open_classic_panel(console, page, entry, panel.frame, target);
+                    if let Some(text) = carried {
+                        self.carry_search(console, page, &text);
+                    }
                 }
             }
             return MenuAction::None;
@@ -328,7 +384,13 @@ impl ClientMenu {
         let (page, next) =
             groups[(current as i32 + direction).rem_euclid(groups.len() as i32) as usize];
         let target = self.settings_return;
+        let carried = (page != panel.page)
+            .then(|| self.search_to_carry(panel.page))
+            .flatten();
         self.open_classic_panel(console, page, next, panel.frame, target);
+        if let Some(text) = carried {
+            self.carry_search(console, page, &text);
+        }
     }
 
     /// Escape on the classic main menu: the opening page asks to quit, the

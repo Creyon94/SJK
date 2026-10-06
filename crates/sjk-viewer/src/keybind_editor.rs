@@ -69,6 +69,10 @@ pub(crate) struct KeybindEditor {
     /// The classic+ detail box's value, command, shared-key and default
     /// lines, rewritten each frame.
     detail: [String; 4],
+    /// Options matching the search typed here, offered through the OPTIONS tab
+    /// (0 when none or no search), and the description line they are named in.
+    elsewhere: usize,
+    hint: String,
     /// The actions' weapon, item and Force pictures.
     icons: icons::BindIcons,
     ui: MenuCanvas,
@@ -86,6 +90,8 @@ impl KeybindEditor {
             keys: Vec::with_capacity(ACTIONS.len()),
             classic: None,
             detail: std::array::from_fn(|_| String::with_capacity(48)),
+            elsewhere: 0,
+            hint: String::with_capacity(96),
             icons: icons::BindIcons::new(),
             ui: MenuCanvas::new(),
         }
