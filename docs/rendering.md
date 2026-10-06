@@ -1765,7 +1765,7 @@ evaluates the same expression); the ammunition ratio is the weapon's pool over
 Health pulses red at 25 or less, as the modern HUD does. `menu_snapshot` renders the four
 sample states to `target/menu-snapshots/hud-radial-*.png` with a CPU copy of the shader.
 
-With the game-data HUD, a weapon change shows retail's weapon selection row for
+In every HUD style, a weapon change shows retail's weapon selection row for
 1.4 s (`WEAPON_SELECT_TIME`), as `CG_DrawWeaponSelect` draws it and JoF EternalJK
 keeps it square on wide screens ([weapon_select.rs](../crates/sjk-viewer/src/weapon_select.rs)):
 the selected weapon's icon (80 units) between 40-unit icons 12 units apart, the
@@ -1781,8 +1781,17 @@ size). Units are those of the game HUD, `cg_hudScale` included, growing from the
 bottom centre. The row needs `cg_draw2D`, a living player who is not spectating,
 following or on an emplaced gun, and no held scoreboard; a Force or inventory
 cycle after it hides it, since `CG_Draw2D` shows only the most recent selector.
-SJK's own layouts keep their weapon-name widget instead of the row. Unlike
-retail, the name has SJK's text shadow.
+
+SJK's own layouts (classic, modern and radial) draw their weapon name as a transient
+that holds 0.8 s and fades over 0.6 s, as long as the row; while the row shows they
+hide it, since the row names the weapon, so it only appears when the row cannot (for
+example while following a player). The ammunition count, the ammunition arc and
+the pill of the radial layout, and the classic layout's ammunition line, stay
+visible during the row, as in EternalJK, where nothing hides the ammunition while
+`CG_DrawWeaponSelect` draws. The small held-weapon icon beside the ammo count shares
+the name's timing and is hidden while the row shows; there is no ammo picture at the
+bottom centre. The Force power timer icons keep showing during the row. Unlike
+retail, the row's name has SJK's text shadow.
 
 ## Billboard icons
 

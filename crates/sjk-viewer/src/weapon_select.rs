@@ -411,9 +411,10 @@ impl GpuState {
 
     /// Sample the row for this frame (`CG_Draw2D`'s conditions): within
     /// `WEAPON_SELECT_TIME` of a change, alive, playing (not spectating or following),
-    /// not on an emplaced gun, without the scoreboard held, while the game-data HUD
-    /// draws (SJK's own layouts name the weapon themselves).
-    pub(crate) fn sample_weapon_select(&self, menu_hud: bool, intermission: bool) -> Option<Shown> {
+    /// not on an emplaced gun, without the scoreboard held. Every HUD style shows it,
+    /// as EternalJK does; SJK's own layouts hide their weapon name and ammo while it
+    /// shows, so nothing sits behind its icons.
+    pub(crate) fn sample_weapon_select(&self, intermission: bool) -> Option<Shown> {
         let recent = self
             .weapon_selected_at
             .is_some_and(|selected| selected.elapsed() < SHOW);
@@ -423,7 +424,6 @@ impl GpuState {
             .and_then(|c| c.bool_cvar("cg_draw2D"))
             .unwrap_or(true);
         if !recent
-            || !menu_hud
             || intermission
             || !draw_2d
             || self.gameplay_input.held(crate::input::GameButton::Scores)
