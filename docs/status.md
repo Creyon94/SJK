@@ -58,16 +58,11 @@ put in names, or an unassigned Windows-1252 byte) draws `.` in both the modern f
 and retail `.fontdat` fonts, as OpenJK `RE_Font_DrawString` does, so
 `{JoF}\vToxiee\v{C}.ak` reads `{JoF}.Toxiee.{C}.ak` as in EternalJK instead of
 showing Inter's missing-glyph box. The classic console's input line drew `?` for
-typed `’`, `‘` and `€`; it now uses their Windows-1252 cells too, which the retail
-console character set leaves empty. EternalJK draws its console with jaPRO's
-character set from `GameData/EternalJK/japro-assets.pk3`, which has `¬` and the rest
-of Latin-1; SJK now takes that image from there too when it is installed (nothing
-else from the pack), so `¬¬¬` and `¥²½` show as in EternalJK. A unit test covers
-that it overrides the base set and mounts nothing else. Neither set has `€ ’ ‘ …`
-or the other typographic characters (0x80..=0x9E); the classic console now leaves
-them out of the row, as EternalJK's console does, instead of an empty cell, while
-the text keeps them for chat and names (EternalJK itself turns `€` into `¬` and
-`…` into `&` when typed; SJK does not copy that). Wildcard keys of JoF cosmetic
+typed `’`, `‘` and `€`. The retail console character set has no `€ ’ ‘ …` or the
+other typographic characters (0x80..=0x9E); the classic console now leaves them out
+of the row, as EternalJK's console does, instead of `?`, while the text keeps
+them for chat and names (EternalJK itself turns `€` into `¬` and `…` into `&` when
+typed; SJK does not copy that). Wildcard keys of JoF cosmetic
 offsets now compare bytes, so a model name with a multi-byte character across the
 prefix length no longer panics. Unit tests cover every byte's round trip, a list of
 common name symbols typed and received, and the cosmetic match. An audit of
