@@ -7,6 +7,21 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## EternalJK camera damping
+
+Branch `feat/camera-fps`: the third-person camera damps as EternalJK's does. Stock
+damping eases the camera once per 50 ms; EternalJK eases once per frame of
+`cg_cameraFPS` (default 125), compensating for the ideal point's own movement, so
+the result does not depend on the frame rate. SJK registers `cg_cameraFPS` (a
+float) and follows EternalJK above 15; `cg_cameraFPS 0` (below 15) keeps the stock
+damping. The damping is timed by the predicted command time, the clock the focus
+moves on; timing it by the presentation clock made the camera stutter. EternalJK's
+look also needs `cg_fov 90` and `cg_thirdPersonRange 80`. Unit tests cover one
+125 fps step against EternalJK's per-frame formula, frame-rate independence with a
+still and a moving ideal point, the stock path at 0 and no elapsed time. Checked in
+game on Windows 11 on a JoF server next to EternalJK, with the default 125;
+`cg_cameraFPS 0` was not tried in game.
+
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the
@@ -44,21 +59,6 @@ contributor challenged a player named with `×` on a live server; with the wrapp
 fix the challenge showed without a crash, but with `?` for each `×`; with both
 fixes it read `You have challenged ×jof.jk.belyash×`. Merged into SJK `main` from
 SJK pull request #2 (Creyon94, 06/10/2026).
-
-## EternalJK camera damping
-
-Branch `feat/camera-fps` (06/10/2026, based on `5c66ccd`): SJK's third-person
-camera trailed far behind fast movement compared with EternalJK at the same
-`cg_thirdPersonCameraDamp`/`TargetDamp` (side-by-side Windows 11 videos on a live
-JoF server). SJK used stock damping per 50 ms; EternalJK damps per frame of
-`cg_cameraFPS` (default 125) with compensation for the ideal point's movement.
-SJK now does the same, with the same cvar and default; below 15 keeps stock damping.
-Unit tests check that one step at 125 fps equals EternalJK's per-frame formula and
-that the result does not depend on the frame rate. Formatting, the locked workspace
-build, tests and clippy passed on Linux. On Windows 11 the camera then followed as
-EternalJK's but stuttered slightly: the damping was timed by the presentation clock
-while the focus moves with the predicted command time; it now uses the command
-time, as EternalJK does. That correction is unverified in game.
 
 ## Worldspawn shader remaps and remap order
 
@@ -461,7 +461,7 @@ game.
 
 ## Credits page (SJK)
 
-SJK-only branch `personal/credits` (06/10/2026, based on `5c66ccd`) adds the
+SJK-only branch `personal/credits` (06/10/2026, based on `5f14439`) adds the
 animated credits page and its file
 ([credits.txt](../crates/sjk-viewer/assets/credits.txt): Sol, Bishop, Creyon,
 then Claude and the reference clients), opened from the main menu, the in-game
