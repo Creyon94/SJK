@@ -7,6 +7,17 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Effect diagnostics
+
+Branch `feat/effect-debug-cvars`: two diagnostics, off by default and not archived.
+`fx_debug 1` logs each effect as it plays (at most once a second per effect name)
+with every component's kind, life, size and shaders, and the effect atlas logs
+once per shader when an effect shader has no image. `cg_debugMissiles 1` logs,
+once a second, the missiles in the snapshot (number, weapon, flags,
+`otherEntityNum2`, trajectory type) and whether their trail effects loaded. Both
+were used to trace the concussion shot and the white squares fixed in other
+branches; they change nothing when off.
+
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the

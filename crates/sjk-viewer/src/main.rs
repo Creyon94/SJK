@@ -1700,7 +1700,7 @@ impl GpuState {
                 game_audio,
                 visual_now,
             );
-            missile_trails::update_and_spawn(
+            let missile_metrics = missile_trails::update_and_spawn(
                 &mut self.missile_effects,
                 snapshot,
                 presentation_time as i32,
@@ -1714,6 +1714,32 @@ impl GpuState {
                 &mut self.dynamic_lights,
                 visual_now,
             );
+            effect_runtime::FX_DEBUG.store(
+                self.console
+                    .as_ref()
+                    .and_then(|c| c.integer_cvar("fx_debug"))
+                    .unwrap_or(0)
+                    != 0,
+                std::sync::atomic::Ordering::Relaxed,
+            );
+            if self
+                .console
+                .as_ref()
+                .and_then(|c| c.integer_cvar("cg_debugMissiles"))
+                .unwrap_or(0)
+                != 0
+            {
+                missile_trails::debug_report(
+                    &self.missile_effects,
+                    missile_metrics,
+                    snapshot,
+                    &mut self.effects,
+                    self.vfs
+                        .as_ref()
+                        .expect("live sessions retain their mounted VFS"),
+                    presentation_time as i32,
+                );
+            }
             projectiles::collect(snapshot, presentation_time as i32, &mut self.projectiles);
             movers::collect(snapshot, presentation_time as i32, &mut self.movers);
             self.local_prediction

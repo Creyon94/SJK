@@ -354,6 +354,18 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         CvarDefinition::new("cg_marks", true, archive, "Leave impact marks on the world"),
         CvarDefinition::new("cg_shadows", true, archive, "Draw player shadows"),
         CvarDefinition::new("cg_drawGun", true, archive, "Draw the first-person weapon"),
+        CvarDefinition::new(
+            "cg_debugMissiles",
+            0_i64,
+            CvarFlags::NONE,
+            "Log missile trails once a second (diagnostics)",
+        ),
+        CvarDefinition::new(
+            "fx_debug",
+            0_i64,
+            CvarFlags::NONE,
+            "Log each effect as it plays, with its shaders and sizes (diagnostics)",
+        ),
         CvarDefinition::new("cg_drawCrosshair", true, archive, "Display crosshair"),
         // Stock defaults from `codemp/cgame/cg_xcvar.h:60,72,102`.
         CvarDefinition::new(
