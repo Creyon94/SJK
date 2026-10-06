@@ -1200,8 +1200,8 @@ are in [identity.md](identity.md).
 - `cl_identity` (default 1; Settings > Network > SJK identity) makes the key
   (`identity.key` beside `config.cfg`) the first time it is on and lets the client
   talk to the hub. Off sends nothing and makes no key.
-- `cl_hubUrl` (default empty; Settings > Network > SJK hub) is the hub's
-  `https://` address. Empty means no hub, so nothing is sent.
+- `cl_hubUrl` (default `https://sjk.dfox.app`; Settings > Network > SJK hub) is the
+  hub's `https://` address. Empty means no hub, so nothing is sent.
 - The `identity` command opens the Identity page: the key id, the profile at the
   hub (name, whether it is verified, bio), the hub's status and the players it knows
   on the current server. The in-game SJK menu has an Identity entry too. `identity

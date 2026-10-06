@@ -547,6 +547,16 @@ renderer (flat corners, one font). Not verified: the card and the emblem in the
 running client (no game was started), their scaling at 4K, the target tracking on
 a live server and demos. Not built: the hub bio on the card.
 
+## Default hub address (SJK)
+
+SJK-only branch `personal/hub-default` (06/10/2026): `cl_hubUrl` now defaults to
+`https://sjk.dfox.app`, the hub running on the prod box, so players set nothing and a
+default install tells that hub where it plays (see [identity.md](identity.md#privacy)).
+The Identity page states what is sent and how to stop it. Verified: the sjk-viewer tests;
+the hub answered the real client's end-to-end tests over HTTPS through Cloudflare
+(06/10/2026). Not verified: the client from outside France (the zone's WAF rule was
+widened for the host the same day), a default install end to end.
+
 ## Alt codes (SJK)
 
 SJK-only branch `personal/alt-codes` (2026-10-05, based on `2696590`) types

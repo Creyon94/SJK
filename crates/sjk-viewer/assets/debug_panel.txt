@@ -1216,13 +1216,13 @@ note: Install against a real release and the Linux swap are untested.
 status: personal
 area: Menus & settings
 title: Player identity: key, SJK hub, scoreboard marks and Identity page
-change: cl_identity (default on) makes identity.key; cl_hubUrl (empty by default) is the hub.
-change: With a hub set, the scoreboard marks known players SJK, or gold VERIFIED if vouched for.
+change: cl_identity (default on) makes identity.key; cl_hubUrl defaults to https://sjk.dfox.app.
+change: The client tells the hub your key, name, server and slot; cl_identity 0 stops it.
 change: The Identity page (in-game SJK menu or /identity) shows your profile and who is known here.
-test: Run sjk-hub serve (SJK-hub repo, local), then set cl_hubUrl http://127.0.0.1:8787.
-test: Join a local server and hold the scoreboard: your own row says SJK within a few seconds.
-test: /identity name Sol, /identity key, then sjk-hub verify <key id>: the row turns gold VERIFIED.
-test: /identity opens the page (also in-game menu > SJK > Identity); check 4K and classic menus.
+test: Start the game fresh: no setting needed; join a server and hold the scoreboard (TAB).
+test: Your own row shows the SJK emblem within a few seconds; /identity name Sol, then /identity key.
+test: Mark yourself verified on the prod box (sjk-hub verify <key id>): the emblem turns gold.
+test: /identity opens the page (also in-game menu > SJK > Identity); it says what the hub receives.
 test: Set cl_identity 0: nothing is sent and the page says identity is off.
 note: Never started in a game yet: the scoreboard mark and the page layout are unchecked.
 
