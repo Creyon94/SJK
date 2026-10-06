@@ -223,6 +223,11 @@ pub(crate) fn update(
                 intermission,
             },
         );
+        // The nameplates' target mode keeps the player aimed at for a few seconds.
+        gpu.hud.nameplate.set_focus(
+            gpu.crosshair_scan.hit_now(presentation_time),
+            i64::from(presentation_time),
+        );
         gpu.hud.targeting.dynamic_offset = if ray.projected {
             Some(
                 crosshair_scan::dynamic::offset(camera, gpu.crosshair_scan.endpoint)
@@ -348,6 +353,11 @@ pub(crate) fn update(
                 scoreboard,
                 intermission,
             },
+        );
+        // The nameplates' target mode keeps the player aimed at for a few seconds.
+        gpu.hud.nameplate.set_focus(
+            gpu.crosshair_scan.hit_now(presentation_time),
+            i64::from(presentation_time),
         );
         gpu.hud.targeting.dynamic_offset = if ray.projected {
             Some(

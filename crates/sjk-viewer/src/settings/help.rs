@@ -214,7 +214,7 @@ const HELP: &[(&str, &str)] = &[
     ("cg_nameplateScale", "Size of the nameplate text."),
     (
         "cg_nameplateBars",
-        "Bars under the name: 0 none, 1 allies only, 2 everyone.",
+        "Bars under the name: 0 none, 1 allies, 2 everyone, 3 your target and duel opponent. V cycles modes.",
     ),
     (
         "cg_nameplateForce",

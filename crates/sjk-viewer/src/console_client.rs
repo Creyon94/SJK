@@ -74,6 +74,7 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
         crate::identity_command::COMMAND,
         crate::identity_command::HELP,
     ),
+    (crate::hud::nameplate::COMMAND, crate::hud::nameplate::HELP),
     ("togglemenu", "Toggle the in-game menu"),
     (
         crate::menu::quick_setup::COMMAND,
@@ -434,6 +435,7 @@ impl crate::GpuState {
             }
             crate::identity_command::COMMAND => return self.identity_command(args),
             crate::weather::COMMAND => return self.weather_command(args),
+            crate::hud::nameplate::COMMAND => return self.nameplate_command(args),
             crate::menu::quick_setup::COMMAND => {
                 if let Some(console) = &mut self.console {
                     console.set_open(false);

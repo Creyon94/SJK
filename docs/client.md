@@ -1152,7 +1152,16 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   real health, shield and Force (the server sends you those), your weapon and your
   badge when your key is verified. In first person it is not drawn: it would sit in
   the camera.
-- `cg_nameplateBars`: 0 none, 1 allies only, 2 everyone (default). `cg_nameplateScale`
+- **Modes (V):** the `nameplates` command, bound to V by default (Controls > Other >
+  "Nameplate mode"; an existing config gets it when V is free), cycles off, names
+  only, target, everyone, and round again, showing the mode's name near the top of the
+  screen for a moment; `nameplates off|names|target|all` picks one. Target shows bars
+  (and the weapon and power icons) only on the player you aim at, kept for three
+  seconds after the crosshair leaves them, and on your duel opponent. Names only is
+  just the names. The modes set `cg_nameplate` and `cg_nameplateBars` (0 names, 3
+  target, 2 everyone); 1 (allies only) stays reachable in the settings.
+- `cg_nameplateBars`: 0 none, 1 allies only, 2 everyone (default), 3 target and duel
+  opponent. `cg_nameplateScale`
   sets the text size, `cg_nameplateForce` the Force bar, `cg_nameplatePredict` the
   estimated health and shield, `cg_nameplateWalls` shows
   players behind walls at 35% opacity instead of fading them (the same BSP trace as
