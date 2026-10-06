@@ -2,6 +2,7 @@
 
 mod data_source;
 use data_source::*;
+pub(crate) mod crosshair;
 pub(crate) mod enemy_info;
 pub(crate) mod family;
 pub(crate) mod force_wheel;
@@ -86,7 +87,11 @@ impl HudVisibility {
             hud,
             status: hud && enabled("cg_drawStatus", true),
             weapon: hud && enabled("cg_drawWeapon", true),
-            crosshair: hud && enabled("cg_crosshair", true),
+            crosshair: hud
+                && console
+                    .and_then(|c| c.integer_cvar("cg_drawCrosshair"))
+                    .unwrap_or(1)
+                    != 0,
             crosshair_names: hud && enabled("cg_drawCrosshairNames", true),
             timer: hud && enabled("cg_drawTimer", false),
             lagometer: hud && enabled("cg_lagometer", false),
@@ -135,6 +140,10 @@ pub(crate) struct HudOverlay {
     force_wheel_bar: bool,
     /// The bar's map-lifetime pictures.
     force_wheel_icons: [Option<sjk_ui::TextureId>; force_wheel::ICONS],
+    /// The classic crosshair's map-lifetime pictures.
+    pub(crate) crosshair_pictures: [Option<sjk_ui::TextureId>; crosshair::PICTURES],
+    /// The last layout drew the crosshair picture, so `hud.wgsl` skips its own.
+    pub(crate) crosshair_picture_drawn: bool,
     /// JA+ merc mode's flamethrower, latched across snapshots.
     flamethrower: sjk_client::force_wheel::FlamethrowerOverride,
     /// The selector shows Force Lightning as the flamethrower.
@@ -240,6 +249,8 @@ impl HudOverlay {
             selector: None,
             force_wheel_bar: false,
             force_wheel_icons: [None; force_wheel::ICONS],
+            crosshair_pictures: [None; crosshair::PICTURES],
+            crosshair_picture_drawn: false,
             flamethrower: Default::default(),
             flamethrower_shown: false,
 
@@ -378,6 +389,15 @@ impl HudOverlay {
         );
         self.draw_list.clear();
         self.tints.emit(&mut self.draw_list, viewport);
+        self.crosshair_picture_drawn = visibility.crosshair
+            && crosshair::emit(
+                &mut self.draw_list,
+                &self.crosshair_pictures,
+                self.targeting.policy.look,
+                self.targeting.center(viewport),
+                self.targeting.color,
+                viewport,
+            );
         let mut output = HudLayout::default();
         let low_health = self.values.is_some_and(|value| value.health <= 25);
         let low_ammo = self

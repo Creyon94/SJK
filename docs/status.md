@@ -45,6 +45,28 @@ fix the challenge showed without a crash, but with `?` for each `×`; with both
 fixes it read `You have challenged ×jof.jk.belyash×`. Merged into SJK `main` from
 SJK pull request #2 (Creyon94, 06/10/2026).
 
+## Classic crosshair pictures
+
+Branch `feat/classic-crosshair` (06/10/2026, based on `5c66ccd`): the crosshair is
+now retail's picture, `gfx/2d/crosshaira`..`j`, drawn as EternalJK's
+`CG_DrawCrosshair` draws it, instead of the procedural cross. `cg_drawCrosshair` is
+an integer again: 0 hides the crosshair and the picture is
+`cg_drawCrosshair % 10`, with `crosshaira` and `crosshairj` swapped as EternalJK
+swaps them with `R_RemapShader` (so 10 is its pixel-sized dot). `cg_crosshairSize`
+is in 480-line virtual units and stays square on wide screens with
+`cg_crosshairSizeScale 1`, and in pixels without it or for picture 10. The picture
+follows the dynamic crosshair and `cg_crosshairX/Y`, and is tinted with the existing
+target colours; the default `cg_crosshairColor` sentinel now draws it untinted, as
+`R_SetColor(NULL)`. EternalJK's own `crosshaira`/`crosshairj` from
+`EternalJK/japro-assets.pk3` replace the base ones, and nothing else from that
+pack. When a picture is missing the procedural cross stays as the fallback. The
+settings entry is now a 0-10 picker. Not done: EternalJK's doubled size in a
+vehicle, the vehicle's own crosshair, and the item-pickup pulse of
+`cg_dynamicCrosshair 3`. Unit tests cover the picture order, sizes and the
+fallback, and the EternalJK pack override. Formatting, the locked workspace build,
+tests and clippy (no new warnings) passed on Linux; in-game check on Windows 11
+pending.
+
 ## Worldspawn shader remaps and remap order
 
 Local change against `af65396` (2026-10-05, Windows 11): a map's worldspawn

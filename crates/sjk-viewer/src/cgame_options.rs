@@ -119,7 +119,8 @@ pub(crate) fn bob(console: Option<&ViewerConsole>) -> sjk_client::LegacyViewBobC
     }
 }
 
-/// TaystJK uses an all-black RGB value as the default crosshair-colour sentinel.
+/// TaystJK uses an all-black RGB value as the default crosshair-colour sentinel,
+/// which draws the picture untinted (`R_SetColor(NULL)`).
 pub(crate) fn crosshair_color(console: Option<&ViewerConsole>) -> [f32; 4] {
     let mut rgba = [0.0, 0.0, 0.0, 255.0];
     let text = console
@@ -132,12 +133,12 @@ pub(crate) fn crosshair_color(console: Option<&ViewerConsole>) -> [f32; 4] {
             .and_then(|word| word.parse::<f32>().ok())
             .filter(|v| v.is_finite())
         else {
-            return [0.964, 0.991, 1.0, 1.0];
+            return [1.0, 1.0, 1.0, 1.0];
         };
         *slot = if value < 1.0 { 0.0 } else { value.min(255.0) };
     }
     if rgba[..3] == [0.0; 3] {
-        return [0.964, 0.991, 1.0, rgba[3] / 255.0];
+        return [1.0, 1.0, 1.0, rgba[3] / 255.0];
     }
     rgba.map(|value| value / 255.0)
 }

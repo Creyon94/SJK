@@ -218,9 +218,13 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
-        label: "Crosshair",
+        label: "Crosshair (0 off)",
         cvar: "cg_crosshair",
-        kind: ValueKind::Bool,
+        kind: ValueKind::Integer {
+            min: 0,
+            max: 10,
+            step: 1,
+        },
     },
     Setting {
         label: "Crosshair names",

@@ -62,6 +62,9 @@ pub(crate) fn install(
     hud.force_wheel_icons = super::force_wheel::load(vfs, shaders, |id, rgba| {
         renderer.upload_icon(queue, id, rgba)
     });
+    hud.crosshair_pictures = super::crosshair::load(vfs, shaders, |id, rgba| {
+        renderer.upload_icon(queue, id, rgba)
+    });
     (renderer, hud)
 }
 

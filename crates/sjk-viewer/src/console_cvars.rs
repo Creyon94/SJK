@@ -354,7 +354,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         CvarDefinition::new("cg_marks", true, archive, "Leave impact marks on the world"),
         CvarDefinition::new("cg_shadows", true, archive, "Draw player shadows"),
         CvarDefinition::new("cg_drawGun", true, archive, "Draw the first-person weapon"),
-        CvarDefinition::new("cg_drawCrosshair", true, archive, "Display crosshair"),
+        CvarDefinition::new(
+            "cg_drawCrosshair",
+            1_i64,
+            archive,
+            "Crosshair picture: 0 hides it, 1-8 gfx/2d/crosshairb-i, 9 a, 10 the j dot",
+        ),
         // Stock defaults from `codemp/cgame/cg_xcvar.h:60,72,102`.
         CvarDefinition::new(
             "cg_drawCrosshairNames",

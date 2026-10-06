@@ -40,8 +40,13 @@ pub(crate) const BIND_ICON_CELLS: u32 = 3 * COLUMNS;
 pub(crate) const FORCE_WHEEL_ICON_FIRST: u32 = BIND_ICON_FIRST + BIND_ICON_CELLS;
 /// Force wheel cells: two atlas rows.
 pub(crate) const FORCE_WHEEL_ICON_CELLS: u32 = 2 * COLUMNS;
+/// First of the classic crosshair pictures' cells (`gfx/2d/crosshaira`..`j`),
+/// after the Force wheel's.
+pub(crate) const CROSSHAIR_ICON_FIRST: u32 = FORCE_WHEEL_ICON_FIRST + FORCE_WHEEL_ICON_CELLS;
+/// Crosshair cells: one per retail picture (`NUM_CROSSHAIRS`).
+pub(crate) const CROSSHAIR_ICON_CELLS: u32 = 10;
 /// Every icon cell; the banner strip lies below the last row.
-pub(crate) const ATLAS_CELLS: u32 = FORCE_WHEEL_ICON_FIRST + FORCE_WHEEL_ICON_CELLS;
+pub(crate) const ATLAS_CELLS: u32 = CROSSHAIR_ICON_FIRST + CROSSHAIR_ICON_CELLS;
 const TOTAL_CELLS: u32 = ATLAS_CELLS;
 const ATLAS_HEIGHT: u32 = TOTAL_CELLS.div_ceil(COLUMNS) * ICON_SIZE + BANNER_SIZE[1];
 /// `TexturedQuad` texture naming the banner strip.

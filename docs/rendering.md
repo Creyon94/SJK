@@ -1304,6 +1304,9 @@ a synchronized recording; this replaces immediate wgpu upload work on the render
 thread, rather than making all queue operations lock-free. Large load-time writes
 can bypass recording once pending submissions have completed.
 
+The crosshair is retail's `gfx/2d/crosshair*` picture, drawn by the HUD draw list
+as a textured quad ([hud/crosshair.rs](../crates/sjk-viewer/src/hud/crosshair.rs));
+the in-game HUD shader draws its procedural cross only when that picture is missing.
 The in-game HUD shader is restricted to crosshair and damage-indicator regions.
 Intersecting regions become one rectangle so translucent pixels blend once.
 Menus and the shader's status-bar fallback retain full-screen coverage.

@@ -1479,9 +1479,10 @@ impl GpuState {
             inverse_height: 1.0 / self.configuration.height as f32,
             menu_row: visual_menu_row,
             menu_row_count: self.game_menu_row_count() as f32,
+            // The classic picture replaces the procedural cross when it loaded.
             crosshair: hud::options::crosshair_size(
                 self.console.as_ref(),
-                hud_visibility.crosshair,
+                hud_visibility.crosshair && !self.hud.crosshair_picture_drawn,
             ),
             hud_visible: f32::from(hud_visibility.hud),
             status_visible: 0.0,
