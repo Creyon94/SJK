@@ -23,7 +23,7 @@ pub fn lookup_player<'a>(
     players: impl IntoIterator<Item = (u16, &'a str, &'a str)>,
     query: &str,
 ) -> PlayerLookup {
-    let wanted = crate::chat_plain_text(query).trim().to_lowercase();
+    let wanted = crate::chat_name_key(query).trim().to_lowercase();
     if wanted.is_empty() {
         return PlayerLookup::NotFound;
     }
@@ -95,5 +95,19 @@ mod tests {
             lookup_player(players, "JAN"),
             PlayerLookup::Ambiguous(vec![(1, "Jan".into()), (2, "^4jan".into())])
         );
+    }
+
+    #[test]
+    fn names_with_windows_1252_symbols_and_hidden_codes_resolve() {
+        // Roster keys from bytes 0x92 and a vertical tab (see `chat_name_key`).
+        let raw = ["^1Ja\u{92}son", "{JoF}\u{b}Toxiee\u{b}{C}.ak"];
+        let keys = raw.map(crate::chat_name_key);
+        let players = [(1, keys[0].as_str(), raw[0]), (2, keys[1].as_str(), raw[1])];
+        assert_eq!(lookup_player(players, "Ja’son"), PlayerLookup::Found(1));
+        assert_eq!(
+            lookup_player(players, "{JoF}Toxiee{C}.ak"),
+            PlayerLookup::Found(2)
+        );
+        assert_eq!(lookup_player(players, "toxiee"), PlayerLookup::Found(2));
     }
 }

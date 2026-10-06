@@ -77,7 +77,7 @@ impl ChatRoster {
                 player
                     .raw_name
                     .push_str(&crate::legacy_text::decode_legacy(name));
-                player.name = chat_plain_text(&player.raw_name);
+                player.name = chat_name_key(&player.raw_name);
             }
         }
     }
@@ -137,6 +137,22 @@ pub fn chat_plain_text(value: &str) -> String {
         }
     }
     output
+}
+
+/// A player's name as the roster's key (friends, `tell <name>`, private
+/// messages): plain text whose Windows-1252 bytes 0x80..=0x9F (decoded as C1
+/// controls) become the typographic characters they stand for (`’`, `€`, `…`), so
+/// the name matches what a player types, and with every remaining control (a
+/// vertical tab in `{JoF}\vToxiee`) removed. The displayed name keeps them all.
+pub fn chat_name_key(value: &str) -> String {
+    chat_plain_text(value)
+        .chars()
+        .map(|c| match u8::try_from(u32::from(c)) {
+            Ok(byte @ 0x80..=0x9f) => sjk_protocol::windows_1252_char(byte),
+            _ => c,
+        })
+        .filter(|c| !c.is_control())
+        .collect()
 }
 
 /// Display chat text: drop the stock 0x19 separators but keep `^n` colour
@@ -290,6 +306,18 @@ mod display_text_tests {
         assert_eq!(
             chat_display_text("{JoF}\u{b}Toxiee\u{19}: hi\nthere"),
             "{JoF}\u{b}Toxiee: hi there"
+        );
+    }
+
+    #[test]
+    fn roster_keys_have_no_control_characters() {
+        use super::chat_name_key;
+        // ’ € … sent as bytes 0x92 0x80 0x85 match the characters a player types.
+        assert_eq!(chat_name_key("^1a\u{92}b\u{80}\u{85}"), "a’b€…");
+        // A vertical tab is dropped; an undefined 0x81 too.
+        assert_eq!(
+            chat_name_key("{JoF}\u{b}Toxiee\u{b}{C}.ak\u{81}"),
+            "{JoF}Toxiee{C}.ak"
         );
     }
 }
