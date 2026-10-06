@@ -1260,7 +1260,15 @@ are in [identity.md](identity.md).
   - a switch for `cl_identity` ("Share my identity with the SJK hub", ON or OFF);
   - fields for the name (24 characters at most) and the bio (500 at most), saved to the
     hub with Save or Enter; a name is needed, and the page says so;
-  - "Copy my key id" (for the operator to verify the player).
+  - "Copy my key id" (for the operator to verify the player);
+  - "Use the official hub", shown only while `cl_hubUrl` is another address (a hub tried
+    on this PC, say): it sets `cl_hubUrl` back to `https://sjk.dfox.app`. A saved
+    `cl_hubUrl` wins over the default, so an old address stays until it is changed.
+
+  With the classic menus (`ui_menuStyle classic`) the page takes the classic+ look
+  ([identity_panel_classic.rs](../crates/sjk-viewer/src/identity_panel_classic.rs)): the
+  retail pop-up and title band, option rows with the highlight band, text fields in list
+  boxes, gold buttons that glow, and a description line under the box.
 
   Tab, Shift+Tab and the arrow keys move between the controls, Enter or Space works the
   switch and the buttons, letters type into the focused field (Ctrl+V pastes) and Escape

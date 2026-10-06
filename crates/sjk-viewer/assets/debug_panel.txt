@@ -1220,10 +1220,11 @@ area: Menus & settings
 title: Player identity: key, SJK hub, scoreboard marks and an Identity page you can edit
 change: cl_identity (default on) makes identity.key; cl_hubUrl defaults to https://sjk.dfox.app.
 change: Main menu > SJK > IDENTITY (also the in-game SJK menu): switch, name, bio, copy key id.
-change: The page says what the hub receives; the scoreboard marks players the hub knows.
-test: Main menu (classic) > SJK > IDENTITY: the page opens; Tab moves between the controls.
+change: With the classic menus the page is classic+; a button resets an old local hub address.
+test: Main menu (classic) > SJK > IDENTITY: the classic+ page opens; Tab moves between controls.
 test: Type a name and a bio, press Enter (or Save): "Last change: saved" shows, TAB shows your row.
 test: Click Copy my key id, then paste somewhere: it is your 16-character key id.
+test: Set cl_hubUrl http://127.0.0.1:8787: the page cannot reach it; click Use the official hub.
 test: Switch it OFF and ON again (Enter on the switch or a click): the fields hide and return.
 test: Check the page at 4K / 150% and with the modern menus (in-game menu > SJK > Identity).
 note: Never started in a game yet: only off-screen renders were checked, not the live layout.

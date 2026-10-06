@@ -53,6 +53,9 @@ impl ViewerConsole {
                     );
                 }
             }
+            PanelAction::UseDefaultHub => {
+                self.set_cvar("cl_hubUrl", crate::player_identity::DEFAULT_HUB_URL);
+            }
             PanelAction::CopyKeyId => {
                 if let Some(snapshot) = crate::player_identity::snapshot()
                     && crate::console::clipboard::copy(&snapshot.key_id)

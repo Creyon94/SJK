@@ -1005,6 +1005,21 @@ profile and known players, and for a player with no name yet; that drawing is an
 of the renderer (text sits at the top of its box). Not verified: the page in the running
 client (typing, Tab, the pointer, the clipboard button), the new classic entry's position.
 
+## Identity page in classic+ (SJK)
+
+SJK-only branch `personal/identity-classic` (06/10/2026): with the classic menus the Identity
+page takes the classic+ look (retail pop-up, option rows, list-box fields, gold buttons; see
+[client.md](client.md#identity)), and a "Use the official hub" button sets `cl_hubUrl` back
+to `https://sjk.dfox.app` while another address is saved (a saved value wins over the new
+default, which is what a local test hub left behind). The failed-hub status names the address
+it tried.
+
+Verified: the sjk-viewer tests (the page's rows fit the box and do not overlap with the most
+status lines and players, the focus order with the hub button, when the button is offered);
+the off-screen snapshots (`menu_snapshot`, `identity-*-classic`) drew the classic+ page in four
+states. Not verified: the classic+ page in the running client (retail font and art, typing,
+the pointer).
+
 ## Alt codes (SJK)
 
 SJK-only branch `personal/alt-codes` (2026-10-05, based on `2696590`) types
