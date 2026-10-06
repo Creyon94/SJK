@@ -1084,6 +1084,12 @@ installed. `cg_hudPack` names the PK3 whose HUD to use when several replace
 wins, as in the game. See [game-data HUD](rendering.md#game-data-hud) for what
 is drawn.
 
+In SJK's own layouts, health and armour over the maximum (125 health at spawn, up
+to 199 armour from a large shield picked up at 99) show on their meter: the meter
+holds one maximum, and what lies over it is a thinner band down the middle in a
+deeper shade of the meter's colour, from the start, as on the nameplates. The
+game-data HUD draws the original pictures and does not.
+
 Settings > HUD > "HUD look" shows the HUD in use; Left and Right step through
 every HUD that can be used and Enter (or a click) opens the HUD picker
 ([hud_picker.rs](../crates/sjk-viewer/src/settings/hud_picker.rs)): the list on

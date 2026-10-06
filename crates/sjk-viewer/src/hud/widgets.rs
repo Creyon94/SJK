@@ -122,6 +122,16 @@ pub(super) fn emit(
                 radius,
                 color: foreground,
             });
+            // Over the maximum (overheal, overshield): an inner band in a deeper shade.
+            let over = (ratio - 1.0).clamp(0.0, 1.0);
+            if over > 0.0 {
+                let band = super::nameplate_math::overflow_band(rect);
+                let _ = draw_list.push(DrawCommand::RoundedRect {
+                    rect: Rect::new(band.x, band.y, band.width * over, band.height),
+                    radius: radius.min(band.height * 0.5),
+                    color: super::nameplate_math::saturated(foreground),
+                });
+            }
             let packed = [rect.x, rect.y, rect.right(), rect.bottom()];
             match binding {
                 Some("health_ratio") => output.health_bar = packed,

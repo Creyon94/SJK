@@ -1510,7 +1510,11 @@ impl GpuState {
             // The game-data HUD draws its meters as pictures, not one of the layouts.
             self.hud.nameplate.set_hud_colors(None, None, None);
         }
-        let [health_ratio, armor_ratio, force_ratio] = self.hud.displayed_ratios();
+        // The shader's own bars hold one maximum; the layouts draw the overflow.
+        let [health_ratio, armor_ratio, force_ratio] = self
+            .hud
+            .displayed_ratios()
+            .map(|ratio| ratio.clamp(0.0, 1.0));
         let (menu_kind, visual_menu_row) = self
             .client_menu
             .as_ref()

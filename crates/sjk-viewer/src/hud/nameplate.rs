@@ -1102,13 +1102,7 @@ impl State {
             let band = if index == 0 {
                 rect
             } else {
-                let inset = rect.height * 0.22;
-                Rect::new(
-                    rect.x,
-                    rect.y + inset,
-                    rect.width,
-                    rect.height - inset * 2.0,
-                )
+                math::overflow_band(rect)
             };
             if layer.best > 0.01 {
                 let _ = self.list.push(DrawCommand::RoundedRect {

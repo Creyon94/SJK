@@ -78,6 +78,13 @@ pub(super) fn saturated(color: Color) -> Color {
     Color::new(push(color.r), push(color.g), push(color.b), color.a)
 }
 
+/// Where a bar's second layer (over the maximum) is drawn in `bar`: an inner band,
+/// so the full bar shows round it. The nameplates and the HUD's meters share it.
+pub(super) fn overflow_band(bar: Rect) -> Rect {
+    let inset = bar.height * 0.22;
+    Rect::new(bar.x, bar.y + inset, bar.width, bar.height - inset * 2.0)
+}
+
 /// The pieces of an empty shield's broken bar, as `(start, end)` shares of its
 /// width: dashes with gaps between, a crack's look.
 pub(super) fn broken_dashes() -> impl Iterator<Item = (f32, f32)> {
@@ -240,6 +247,15 @@ mod tests {
             let sum = |c: Color| c.r + c.g + c.b;
             assert!(sum(deep) < sum(color), "darker");
         }
+    }
+
+    #[test]
+    fn the_overflow_band_is_inside_the_bar_and_centred() {
+        let bar = Rect::new(10.0, 20.0, 100.0, 10.0);
+        let band = overflow_band(bar);
+        assert!(band.y > bar.y && band.bottom() < bar.bottom());
+        assert!((band.y + band.height * 0.5 - 25.0).abs() < 1e-4);
+        assert_eq!((band.x, band.width), (bar.x, bar.width));
     }
 
     #[test]

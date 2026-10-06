@@ -66,6 +66,8 @@ impl Ring {
     }
 }
 
+/// Thickness of the band over the maximum, as a share of the stroke.
+const OVERFLOW_WIDTH: f32 = 0.55;
 /// Alpha of the soft halo drawn behind the filled part of an arc.
 const GLOW_ALPHA: f32 = 0.16;
 /// How much wider than the stroke the halo is. It stays inside the shadow band (a margin of
@@ -133,7 +135,7 @@ pub(super) fn emit(
             }),
         });
     }
-    for segment in arc_segments(&style, ratio, ring.cap_inset()) {
+    for segment in arc_segments(&style, ratio.clamp(0.0, 1.0), ring.cap_inset()) {
         stroke(draw_list, segment.start, segment.sweep, ring.width, track);
         if segment.amount > 0.0 {
             let mut glow = fill;
@@ -154,6 +156,23 @@ pub(super) fn emit(
             );
         }
     }
+    // Over the maximum (overheal, overshield): the same segments again, from the
+    // start, as a thinner band in a deeper shade down the middle of the stroke.
+    let over = (ratio - 1.0).clamp(0.0, 1.0);
+    if over > 0.0 {
+        let deep = super::nameplate_math::saturated(fill);
+        for segment in arc_segments(&style, over, ring.cap_inset()) {
+            if segment.amount > 0.0 {
+                stroke(
+                    draw_list,
+                    segment.fill_start,
+                    segment.fill_sweep,
+                    ring.width * OVERFLOW_WIDTH,
+                    deep,
+                );
+            }
+        }
+    }
 }
 
 #[cfg(test)]
@@ -168,6 +187,72 @@ mod tests {
         assert!((ammo_ratio(5, Some(150), true) - 0.25).abs() < 1e-6);
         assert_eq!(ammo_ratio(5, Some(900), false), 1.0);
         assert_eq!(ammo_ratio(5, Some(-1), false), 0.0);
+    }
+
+    /// Every arc stroke's width and colour, with health and armour at `health` and
+    /// `armor` shares of the maximum.
+    fn arcs(health: f32, armor: f32) -> Vec<(f32, Color)> {
+        use crate::hud::{HudLook, HudOverlay, HudVisibility};
+        let font = crate::text::load_modern(1.0, None).unwrap().font;
+        let mut hud = HudOverlay::new();
+        hud.preview_values(
+            sjk_client::HudDataSource {
+                health: (health * 100.0) as i32,
+                armor: (armor * 100.0) as i32,
+                force: 100,
+                weapon: 5,
+                ammo: Some(300),
+                saber_style: None,
+            },
+            [health, armor, 1.0, 1.0],
+        );
+        let visibility = HudVisibility {
+            hud: true,
+            status: true,
+            weapon: true,
+            crosshair: false,
+            crosshair_names: false,
+            timer: false,
+            lagometer: false,
+            team_overlay: false,
+            ground_hud: false,
+            menu_hud: false,
+        };
+        let _ = hud.layout(&font, HudLook::Radial, [1920.0, 1080.0], 1.0, visibility, 0);
+        hud.draw_list()
+            .commands()
+            .iter()
+            .filter_map(|command| match *command {
+                DrawCommand::Arc { width, color, .. } => Some((width, color)),
+                _ => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn health_and_armour_over_the_maximum_add_a_deeper_inner_band() {
+        let plain = arcs(1.0, 0.25);
+        let stroke = plain
+            .iter()
+            .map(|(width, _)| *width)
+            .fold(f32::MAX, f32::min);
+        let thin = |arcs: Vec<(f32, Color)>| -> Vec<(f32, Color)> {
+            arcs.into_iter()
+                .filter(|(width, _)| *width < stroke * 0.9)
+                .collect()
+        };
+        assert!(thin(plain.clone()).is_empty(), "nothing over the maximum");
+        let over = thin(arcs(1.25, 1.99));
+        assert!(!over.is_empty());
+        // Both meters have a band, each a deeper shade of its own fill.
+        let (red, green) = (
+            over.iter().filter(|(_, c)| c.r > c.g).count(),
+            over.iter().filter(|(_, c)| c.g > c.r).count(),
+        );
+        assert!(
+            red > 0 && green > red,
+            "health a quarter, armour almost all"
+        );
     }
 
     #[test]

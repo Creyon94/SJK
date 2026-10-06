@@ -1925,8 +1925,13 @@ so they stay smooth at any resolution and scale with the HUD scale. Segment geom
 distance function are in [arc.rs](../crates/sjk-ui/src/arc.rs) (unit-tested; the shader
 evaluates the same expression); the ammunition ratio is the weapon's pool over
 `ammoData[].max`, doubled with the Double Ammo rune ([radial.rs](../crates/sjk-viewer/src/hud/radial.rs)).
-Health pulses red at 25 or less, as the modern HUD does. `menu_snapshot` renders the
-sample states to `target/menu-snapshots/hud-radial-*.png` with a CPU copy of the shader.
+Health pulses red at 25 or less, as the modern HUD does. Health and armour run to twice
+the maximum (`hud/update.rs`); over it, the same segments are stroked again from the start,
+0.55 of the stroke wide, in a deeper shade of the fill (`nameplate_math::saturated`); the
+modern and classic meters draw the same as an inner band (`overflow_band`). The shader's
+own bars (`hud.wgsl`) are clamped to one maximum. `menu_snapshot` renders the sample
+states (`radial_hud_snapshot` only these) to `target/menu-snapshots/hud-radial-*.png` with
+a CPU copy of the shader; `hud-radial-overheal` is 125 health over 199 armour.
 
 In every HUD style, a weapon change shows retail's weapon selection row for
 1.4 s (`WEAPON_SELECT_TIME`), as `CG_DrawWeaponSelect` draws it and JoF EternalJK
