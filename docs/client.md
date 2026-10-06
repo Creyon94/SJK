@@ -1217,8 +1217,9 @@ are in [identity.md](identity.md).
 
 Look at a player, keeping the view steady, and a card appears beside their head
 ([player_card.rs](../crates/sjk-viewer/src/hud/player_card.rs)). It shows what the
-server already publishes to every client (name with its colour codes, model, saber
-hilts with their blade colours, duel record or bot skill) and, when the hub knows
+server already publishes to every client (name with its colour codes, model and its
+head icon, saber hilts with their blade colours, the hat and cape worn, duel record or
+bot skill) and, when the hub knows
 the player, SJK's emblem, their hub name and a gold VERIFIED. It adds nothing a
 glance at the scoreboard would not: no health, Force or position.
 
@@ -1227,10 +1228,22 @@ glance at the scoreboard would not: no health, Force or position.
   the crosshair must stay on the player before the card fades in. Turning the view
   more than 6 degrees, or losing the player for over 0.3 seconds, starts the wait
   again and the card fades out.
-- The crosshair scan that names players under the crosshair finds the target, and
-  the card sits where the overhead names do (the player's head, from the same
-  camera). It goes to the player's left near the right edge of the screen and hides
-  under the scoreboard, menus, the console and intermission.
+- `inspect` (Settings > Key bindings > Interaction > Inspect player; unbound by default,
+  or `bind <key> inspect`) pins the card to the player under the crosshair at once, with
+  no wait. It stays when you look away or the player moves, follows them (kept inside the
+  screen), and a second press hides it; it also drops when the player leaves or the map
+  changes. After hiding it, the card does not return until the crosshair leaves that
+  player. Behind you, the card is not drawn but stays pinned.
+- The crosshair scan that names players under the crosshair finds the target. The card
+  is anchored in the world beside the top of the player's box (the box height the server
+  sends, as the nameplates use), a body width clear of them in screen pixels, so it
+  neither floats above nor overlaps the player at any range. It goes to the player's left
+  near the right edge of the screen and hides under the scoreboard, menus, the console
+  and intermission.
+- The head icon is the scoreboard's (`models/players/<model>/icon_<skin>`, one atlas cell
+  per client slot), resolved when a card is shown even with the scoreboard closed. Hats and
+  capes are models without pictures, so they are named in text (`c1`, `c2` after the colour
+  digits).
 - A hub bio is not shown yet.
 
 ## Force wheel

@@ -1,7 +1,9 @@
-//! The player card: look at a player for a moment without moving and a small card
-//! appears beside their head with what the game publishes about them (name, model,
-//! saber, duel record) and, when the SJK hub knows them, SJK's emblem, their hub
-//! name and whether they are verified.
+//! The player card: look at a player for a moment without moving, or press the
+//! `inspect` key while aiming at them, and a small card appears beside their head with
+//! what the game publishes about them (name, model and its icon, saber, hat and cape,
+//! duel record) and, when the SJK hub knows them, SJK's emblem, their hub name and
+//! whether they are verified. `inspect` pins the card: it shows at once, follows the
+//! player wherever they go and stays until `inspect` is pressed again.
 //!
 //! Everything shown is already public to every client (the player's `CS_PLAYERS`
 //! string), so the card gives no advantage a scoreboard glance would not. The
@@ -15,6 +17,7 @@ use glam::Vec3;
 use sjk_client::{LegacyClientInfo, decode_legacy};
 use sjk_protocol::GameState;
 use sjk_shell::{CvarDefinition, CvarFlags, CvarRegistry};
+use sjk_ui::TextureId;
 use sjk_ui::{Color, DrawCommand, DrawList, FontWeight, Rect, TextAlign, TextId, TextOverflow};
 
 /// `CS_PLAYERS`: the first player's configstring.
@@ -26,8 +29,12 @@ const GAP_MS: i32 = 300;
 const STEADY_DEGREES: f32 = 6.0;
 const FADE_IN_MS: f32 = 180.0;
 const FADE_OUT_MS: f32 = 120.0;
-/// Height above the player's origin the card points at (the head).
-const HEAD_HEIGHT: f32 = 70.0;
+/// Units below the top of the player's box the card points at (the upper head).
+const HEAD_INSET: f32 = 8.0;
+/// World units from the head to the side of the body the card keeps clear of.
+const BODY_SIDE: f32 = 22.0;
+/// How far off screen (in half screens) a pinned player may be and still be followed.
+const PINNED_LIMIT: f32 = 40.0;
 /// Colour index of a saber's blade in `c1`/`c2`: only the six retail colours have
 /// a swatch.
 const RETAIL_COLOURS: i32 = 6;
@@ -90,6 +97,52 @@ impl Dwell {
     }
 }
 
+/// The player an `inspect` press pinned the card to.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) struct Pin {
+    target: Option<u16>,
+    request: bool,
+}
+
+impl Pin {
+    /// `inspect` was pressed: the next [`Self::resolve`] toggles the pin.
+    pub(crate) fn request(&mut self) {
+        self.request = true;
+    }
+
+    /// Apply a pending press and report who is pinned. A press with a pin set
+    /// unpins; one without pins the player under the crosshair (`seen`), if any. The
+    /// pin also drops when the player is gone (`alive` false) or the clock restarted.
+    pub(crate) fn resolve(&mut self, seen: Option<u16>, alive: bool, restarted: bool) -> PinStep {
+        let mut step = PinStep::default();
+        if restarted || (self.target.is_some() && !alive) {
+            step.released = self.target.take();
+        }
+        if std::mem::take(&mut self.request) {
+            if let Some(client) = self.target.take() {
+                step.released = Some(client);
+            } else if let Some(client) = seen {
+                self.target = Some(client);
+            }
+        }
+        step.target = self.target;
+        step
+    }
+
+    pub(crate) fn target(self) -> Option<u16> {
+        self.target
+    }
+}
+
+/// What [`Pin::resolve`] decided.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) struct PinStep {
+    /// The pinned player after the step.
+    pub(crate) target: Option<u16>,
+    /// The player just unpinned.
+    pub(crate) released: Option<u16>,
+}
+
 fn angle_degrees(a: Vec3, b: Vec3) -> f32 {
     a.dot(b).clamp(-1.0, 1.0).acos().to_degrees()
 }
@@ -109,22 +162,29 @@ const T_SABER: usize = 2;
 const T_EXTRA: usize = 3;
 const T_HUB: usize = 4;
 const T_VERIFIED: usize = 5;
+const T_WORN: usize = 6;
 
 /// A player's card: the texts and values drawn, built when the target or the
 /// hub's roster changes and drawn every frame without allocating.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct Card {
-    pub(crate) texts: [String; 6],
+    pub(crate) texts: [String; 7],
     /// 0 free, 1 red, 2 blue, 3 spectator.
     team: u8,
     /// Blade colours of the one or two sabers, if retail colours.
     swatches: [Option<[u8; 3]>; 2],
     hub: Option<HubInfo>,
+    /// The model's icon, once resolved.
+    icon: Option<TextureId>,
 }
 
 impl Card {
     fn has_extra(&self) -> bool {
         !self.texts[T_EXTRA].is_empty()
+    }
+
+    fn has_worn(&self) -> bool {
+        !self.texts[T_WORN].is_empty()
     }
 }
 
@@ -140,6 +200,24 @@ fn blade(info: LegacyClientInfo<'_>, key: &str) -> Option<[u8; 3]> {
     (0..RETAIL_COLOURS)
         .contains(&index)
         .then(|| crate::saber::Color::ALL[index as usize].blade_rgb())
+}
+
+/// The cosmetic named in a `c1`/`c2` value (JoF EJK appends it after the colour digits).
+fn cosmetic(value: Option<&str>) -> Option<String> {
+    let (_, name) = sjk_client::split_color_value(value?);
+    name.map(crate::cosmetics::display_name)
+}
+
+/// "Hat Santa hat  /  Cape Jedi" for what the player wears, empty when nothing.
+fn worn_line(info: LegacyClientInfo<'_>) -> String {
+    let hat = cosmetic(info.text("c1"));
+    let cape = cosmetic(info.text("c2"));
+    match (hat, cape) {
+        (Some(hat), Some(cape)) => format!("Hat {hat}  /  Cape {cape}"),
+        (Some(hat), None) => format!("Hat {hat}"),
+        (None, Some(cape)) => format!("Cape {cape}"),
+        (None, None) => String::new(),
+    }
 }
 
 /// The card for the player whose configstring is `info`.
@@ -170,6 +248,7 @@ pub(crate) fn card_from(info: &[u8], hub: Option<HubInfo>) -> Card {
         blade(info, "c1"),
         if dual { blade(info, "c2") } else { None },
     ];
+    card.texts[T_WORN] = worn_line(info);
     card.texts[T_EXTRA] = if let Some(skill) = info.text("skill").filter(|skill| !skill.is_empty())
     {
         format!("Bot, skill {skill}")
@@ -218,6 +297,18 @@ pub(crate) fn place(head: [f32; 2], size: [f32; 2], offset: f32, viewport: [f32;
     }
 }
 
+/// Screen point of `anchor` and the pixels a body half-width (`BODY_SIDE` world units,
+/// toward the camera's right) spans there, so the card clears the body at any range.
+fn anchor_on_screen(camera: Camera, anchor: Vec3, limit: f32) -> Option<([f32; 2], f32)> {
+    let head = camera.project_within(anchor, limit)?;
+    let forward = (camera.target - camera.eye).normalize_or_zero();
+    let right = forward.cross(camera.up).normalize_or_zero();
+    let side = camera
+        .project_within(anchor + right * BODY_SIDE, limit)
+        .map_or(0.0, |point| (point[0] - head[0]).abs());
+    Some((head, side))
+}
+
 /// Push a text command for the card's text slot `id`.
 fn put_text(
     list: &mut DrawList,
@@ -254,6 +345,10 @@ pub(crate) struct Input<'a> {
     pub(crate) hub: &'a dyn Fn(u8, &str) -> Option<HubInfo>,
     /// Counts changes to the hub's roster, so the card is rebuilt.
     pub(crate) hub_revision: u64,
+    /// The snapshot's entities, for the height of each player's box.
+    pub(crate) entities: &'a [sjk_protocol::EntityState],
+    /// The resolved model icon of a client slot.
+    pub(crate) icon: &'a dyn Fn(u8) -> Option<TextureId>,
 }
 
 /// The card's state: settings, dwell, fade and the draw list.
@@ -261,6 +356,10 @@ pub(crate) struct State {
     enabled: bool,
     delay_ms: i32,
     dwell: Dwell,
+    pin: Pin,
+    /// The player whose card an `inspect` press just hid; their dwell is ignored until
+    /// the crosshair leaves them, so the card does not come straight back.
+    suppressed: Option<u16>,
     shown: Option<u16>,
     key: (u16, u64),
     card: Card,
@@ -276,6 +375,8 @@ impl Default for State {
             enabled: true,
             delay_ms: 1_500,
             dwell: Dwell::default(),
+            pin: Pin::default(),
+            suppressed: None,
             shown: None,
             key: (0, 0),
             card: Card::default(),
@@ -296,10 +397,22 @@ impl State {
         self.delay_ms = (seconds.clamp(0.3, 10.0) * 1_000.0) as i32;
     }
 
+    /// `inspect`: pin the card to the player under the crosshair, or unpin it.
+    pub(crate) fn inspect(&mut self) {
+        self.pin.request();
+    }
+
+    /// The player whose card is up, so their model icon can be resolved.
+    pub(crate) fn shown_client(&self) -> Option<u16> {
+        self.shown.filter(|_| self.alpha > 0.0)
+    }
+
     /// Forget everything shown (no session).
     pub(crate) fn clear(&mut self) {
         self.list.clear();
         self.dwell = Dwell::default();
+        self.pin = Pin::default();
+        self.suppressed = None;
         self.shown = None;
         self.alpha = 0.0;
     }
@@ -309,13 +422,43 @@ impl State {
         self.list.clear();
         let now = input.now;
         let forward = (input.camera.target - input.camera.eye).normalize_or_zero();
-        let seen = if self.enabled && !input.hidden {
+        // The clock going back is a map change: nothing pinned or shown carries over.
+        let restarted = now < self.last_frame;
+        if restarted {
+            self.shown = None;
+            self.alpha = 0.0;
+            self.suppressed = None;
+        }
+        let alive = self.pin.target().is_none_or(|client| {
+            input
+                .world
+                .entity(sjk_runtime::EntityId::new(u64::from(client) + 1))
+                .is_some()
+                && input
+                    .game
+                    .config_string(CS_PLAYERS + usize::from(client))
+                    .is_some_and(|info| !info.is_empty())
+        });
+        let step = self.pin.resolve(input.seen, alive, restarted);
+        if let Some(released) = step.released {
+            self.suppressed = Some(released);
+            self.dwell = Dwell::default();
+        }
+        if self.suppressed.is_some() && self.suppressed != input.seen {
+            self.suppressed = None;
+        }
+        let seen = if self.enabled && !input.hidden && self.suppressed.is_none() {
             input.seen
         } else {
             None
         };
         self.dwell.observe(seen, forward, now);
-        let want = if self.enabled && !input.hidden {
+        let pinned = step.target.filter(|_| self.enabled);
+        let want = if input.hidden {
+            None
+        } else if pinned.is_some() {
+            pinned
+        } else if self.enabled {
             self.dwell.ready(now, self.delay_ms)
         } else {
             None
@@ -348,13 +491,23 @@ impl State {
             return;
         };
         let origin = Vec3::from_array(presented.sample(i64::from(now)).translation);
-        let Some(head) = input
-            .camera
-            .project_within(origin + Vec3::Z * HEAD_HEIGHT, 1.2)
-        else {
+        let top = input
+            .entities
+            .iter()
+            .find(|entity| entity.number() == client)
+            .map_or_else(
+                || super::nameplate_math::head_height(0),
+                |entity| super::nameplate_math::head_height(entity.solid()),
+            );
+        let limit = if pinned.is_some() { PINNED_LIMIT } else { 1.2 };
+        let anchor = origin + Vec3::Z * (top - HEAD_INSET);
+        let Some((head, side)) = anchor_on_screen(input.camera, anchor, limit) else {
             return;
         };
-        self.emit(head, input.camera.viewport);
+        self.card.icon = u8::try_from(client)
+            .ok()
+            .and_then(|slot| (input.icon)(slot));
+        self.emit(head, side, input.camera.viewport);
     }
 
     fn rebuild(&mut self, client: u16, input: &Input<'_>) {
@@ -373,7 +526,7 @@ impl State {
         self.card = card_from(info, hub);
     }
 
-    fn emit(&mut self, head: [f32; 2], viewport: [f32; 2]) {
+    fn emit(&mut self, head: [f32; 2], side: f32, viewport: [f32; 2]) {
         let unit = crate::ui_scale::height_scale(viewport[1]);
         let a = self.alpha;
         let card = &self.card;
@@ -384,13 +537,18 @@ impl State {
         if !card.texts[T_SABER].is_empty() {
             height += row(22.0);
         }
+        if card.has_worn() {
+            height += row(22.0);
+        }
         if card.has_extra() {
             height += row(22.0);
         }
         if card.hub.is_some() {
             height += row(10.0) + row(26.0);
         }
-        let placed = place(head, [width, height], 34.0 * unit, viewport);
+        // Keep clear of the body: the world gap projected, never less than a fixed one.
+        let offset = side.max(14.0 * unit) + 12.0 * unit;
+        let placed = place(head, [width, height], offset, viewport);
         let rect = placed.card;
         let white = |alpha: f32| Color::new(1.0, 1.0, 1.0, alpha * a);
         let muted = Color::new(0.74, 0.78, 0.86, a);
@@ -449,10 +607,27 @@ impl State {
         let inner = rect.width - pad * 2.0;
         let mut y = rect.y + pad;
         let left = rect.x + pad;
+        // The model's icon fills the top right, beside the name and model.
+        let icon_side = row(50.0);
+        let head_width = if let Some(texture) = card.icon {
+            let _ = self.list.push(DrawCommand::TexturedQuad {
+                rect: Rect::new(
+                    rect.x + rect.width - pad - icon_side,
+                    y,
+                    icon_side,
+                    icon_side,
+                ),
+                texture,
+                color: Color::new(1.0, 1.0, 1.0, a),
+            });
+            inner - icon_side - 8.0 * unit
+        } else {
+            inner
+        };
         put_text(
             &mut self.list,
             T_NAME,
-            Rect::new(left, y, inner, row(30.0)),
+            Rect::new(left, y, head_width, row(30.0)),
             23.0 * unit,
             white(1.0),
             FontWeight::Semibold,
@@ -462,7 +637,7 @@ impl State {
         put_text(
             &mut self.list,
             T_MODEL,
-            Rect::new(left, y, inner, row(22.0)),
+            Rect::new(left, y, head_width, row(22.0)),
             15.0 * unit,
             muted,
             FontWeight::Regular,
@@ -494,6 +669,18 @@ impl State {
                 });
                 x -= 18.0 * unit;
             }
+            y += row(22.0);
+        }
+        if card.has_worn() {
+            put_text(
+                &mut self.list,
+                T_WORN,
+                Rect::new(left, y, inner, row(22.0)),
+                15.0 * unit,
+                muted,
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
             y += row(22.0);
         }
         if card.has_extra() {
@@ -583,7 +770,7 @@ impl State {
             alpha: 1.0,
             ..Self::default()
         };
-        state.emit(head, viewport);
+        state.emit(head, 24.0, viewport);
         state
     }
 
@@ -738,5 +925,82 @@ mod tests {
         assert!(corner.card.y >= 0.0 && corner.card.x >= 0.0);
         let low = place([900.0, 1_075.0], size, 34.0, viewport);
         assert!(low.card.y + low.card.height <= viewport[1]);
+    }
+
+    #[test]
+    fn inspect_pins_the_player_under_the_crosshair_and_a_second_press_unpins() {
+        let mut pin = Pin::default();
+        // Nothing under the crosshair: the press pins nothing.
+        pin.request();
+        assert_eq!(pin.resolve(None, true, false), PinStep::default());
+        pin.request();
+        let step = pin.resolve(Some(4), true, false);
+        assert_eq!(step.target, Some(4));
+        // Looking away or at someone else does not move it.
+        assert_eq!(pin.resolve(None, true, false).target, Some(4));
+        assert_eq!(pin.resolve(Some(9), true, false).target, Some(4));
+        pin.request();
+        let step = pin.resolve(Some(9), true, false);
+        assert_eq!((step.target, step.released), (None, Some(4)));
+    }
+
+    #[test]
+    fn the_pin_drops_when_the_player_leaves_or_the_map_changes() {
+        let mut pin = Pin::default();
+        pin.request();
+        pin.resolve(Some(4), true, false);
+        let step = pin.resolve(None, false, false);
+        assert_eq!((step.target, step.released), (None, Some(4)));
+        pin.request();
+        pin.resolve(Some(5), true, false);
+        let step = pin.resolve(Some(5), true, true);
+        assert_eq!((step.target, step.released), (None, Some(5)));
+    }
+
+    #[test]
+    fn the_card_reads_the_hat_and_cape_after_the_colour_digits() {
+        let both = card_from(&info("n|Sol|c1|4santa_hat|c2|0red-cape|"), None);
+        assert_eq!(both.texts[T_WORN], "Hat Santa hat  /  Cape Red cape");
+        let hat = card_from(&info("n|Sol|c1|4santa_hat|c2|3|"), None);
+        assert_eq!(hat.texts[T_WORN], "Hat Santa hat");
+        let cape = card_from(&info("n|Sol|c1|4|c2|2jedi|"), None);
+        assert_eq!(cape.texts[T_WORN], "Cape Jedi");
+        let none = card_from(&info("n|Sol|c1|4|c2|0|"), None);
+        assert!(none.texts[T_WORN].is_empty() && !none.has_worn());
+    }
+
+    fn camera() -> Camera {
+        Camera {
+            eye: Vec3::ZERO,
+            target: Vec3::X,
+            up: Vec3::Z,
+            fov: 90.0,
+            viewport: [1_920.0, 1_080.0],
+        }
+    }
+
+    #[test]
+    fn the_anchor_follows_the_player_and_clears_the_body_at_any_range() {
+        let near = anchor_on_screen(camera(), Vec3::new(100.0, 0.0, 0.0), 1.2).unwrap();
+        let far = anchor_on_screen(camera(), Vec3::new(400.0, 0.0, 0.0), 1.2).unwrap();
+        assert!((near.0[0] - 960.0).abs() < 1.0 && (near.0[1] - 540.0).abs() < 1.0);
+        assert!(near.1 > far.1 * 3.5, "a nearer body is wider on screen");
+        // Higher in the world is higher on screen.
+        let above = anchor_on_screen(camera(), Vec3::new(100.0, 0.0, 30.0), 1.2).unwrap();
+        assert!(above.0[1] < near.0[1]);
+        // Behind the camera there is no anchor, however far the limit.
+        assert!(anchor_on_screen(camera(), Vec3::new(-100.0, 0.0, 0.0), 40.0).is_none());
+    }
+
+    #[test]
+    fn a_pinned_player_far_off_screen_still_gets_a_card_kept_on_screen() {
+        let viewport = [1_920.0, 1_080.0];
+        let off = Vec3::new(100.0, 900.0, 0.0);
+        assert!(anchor_on_screen(camera(), off, 1.2).is_none());
+        let (head, side) = anchor_on_screen(camera(), off, PINNED_LIMIT).unwrap();
+        let placed = place(head, [290.0, 140.0], side + 20.0, viewport);
+        let card = placed.card;
+        assert!(card.x >= 0.0 && card.x + card.width <= viewport[0]);
+        assert!(card.y >= 0.0 && card.y + card.height <= viewport[1]);
     }
 }
