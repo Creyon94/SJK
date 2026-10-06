@@ -312,6 +312,12 @@ impl LegacyGhoul2Animator {
         Some(sample.current_frame as f32 + sample.fraction)
     }
 
+    /// The animation the upper track is playing, the clip [`Self::torso_frame`]
+    /// samples.
+    pub fn torso_clip(&self) -> Option<usize> {
+        self.upper_command.map(|command| command.clip)
+    }
+
     /// Installed lower/upper frames for sound triggers, without changing pose timing.
     pub fn event_frames(&self, animation: &Gla, time_millis: i64) -> [Option<(usize, i32)>; 2] {
         [self.lower_command, self.upper_command].map(|command| {

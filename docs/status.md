@@ -7,6 +7,21 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## First-person weapon field of view
+
+Branch `feat/view-model-fov`: the first-person weapon follows EternalJK's
+`cg_fovViewmodel` (default 80), `cg_fovViewmodelAdjust` (default 1) and
+`cg_fovAspectAdjust` (`CG_AddViewWeapon`, `cg_weapons.c`). It is drawn with the
+world's projection, its forward axis scaled by `tan(viewmodel/2) / tan(fov_x/2)`
+(the view-model FOV widened to the screen when aspect adjustment is on), and it
+drops by 0.2 units per degree of view-model FOV over 90. `cg_fovViewmodel 0`
+draws it with `cg_fov`. The hand rig's frames are now chosen from the posed
+torso animation together with its frame: pairing the snapshot's older torso
+animation with the predicted frame made the hand jump between idle and fire
+frames on each shot. Unit tests cover the FOV terms on a 21:9 screen, equal FOVs
+at 4:3, the `0` fallback and the drop. Checked in game on Windows 11 against JoF
+EternalJK at the same settings.
+
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the

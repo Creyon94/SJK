@@ -29,6 +29,11 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         ),
         ("cg_chatSounds", 1, "Master chat notification switch"),
         (
+            "cg_fovViewmodelAdjust",
+            1,
+            "Lower the first-person weapon when cg_fovViewmodel is over 90",
+        ),
+        (
             "cg_crossHairScope",
             0,
             "Scope: 0 stock, 1 crosshair, 2 mask only",
@@ -49,6 +54,11 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
             "Chat bottom in virtual 480-high coordinates",
         ),
         ("cg_chatBoxFontSize", 1.0, "Conversation font scale"),
+        (
+            "cg_fovViewmodel",
+            80.0,
+            "First-person weapon field of view; zero draws it with cg_fov",
+        ),
         (
             "cg_chatBoxX",
             30.0,
