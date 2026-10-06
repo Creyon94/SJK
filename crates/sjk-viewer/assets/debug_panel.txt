@@ -1172,6 +1172,17 @@ test: Modern menus: Credits sits under Changelog and opens the same page in them
 test: In a match, Escape > SJK > Credits; Escape closes the page, then the pop-up.
 test: Watch for a few seconds: smooth motion, no flicker, readable text at 4K 150%.
 
+[credits-links]
+status: personal
+area: Menus & settings
+title: Credits: Sol JK / Built on JKR / Contributors, clickable GitHub links
+change: Sections Sol JK (Sol), Built on JKR (Bishop), Contributors (Creyon's 20 PRs), Made with.
+change: @handles open the GitHub profile; "> ..." rows under a card open their address.
+test: SJK > CREDITS: Creyon's card lists the PR numbers; nothing overlaps at 4K 150%.
+test: Hover @Sol-Vulpes: it brightens and underlines; click: the browser opens your profile.
+test: Click > github.com/Sol-Vulpes/SJK and > Creyon's pull requests: both open in the browser.
+test: Scroll so a link sits under the CLOSE strip: clicking there does not open it.
+
 [ui-texture-switches]
 status: personal
 area: Menus & settings

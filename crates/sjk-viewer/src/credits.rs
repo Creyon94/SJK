@@ -9,7 +9,8 @@
 //! glint, and each section's people sit on glass cards whose edges glow in turn.
 //! With the classic menus the palette is retail's gold and blue and the text is
 //! drawn in the menus' retail font. Sections come from the file, so a later
-//! "Supporters" section needs no code.
+//! "Supporters" section needs no code. GitHub handles and the cards' links open
+//! in the player's browser when clicked.
 
 use crate::menu::art::motion;
 use crate::menu_widgets::{BACK_TOKEN, MenuCanvas};
@@ -28,6 +29,8 @@ pub(crate) const HELP: &str = "Show who makes Sol JK";
 
 /// Wheel target over the page.
 const PAGE_TOKEN: u16 = 906;
+/// First link token; address `i` of `Panel::urls` is `LINK_BASE + i`.
+const LINK_BASE: u16 = 1000;
 /// Pixels (at 1080 lines) one wheel notch or arrow key scrolls.
 const STEP: f32 = 90.0;
 /// The closing line, as in CREDITS.md.
@@ -98,6 +101,10 @@ enum Piece {
         card: usize,
         /// The contributions wrapped to the card: text, and whether it starts one.
         lines: Vec<(String, bool)>,
+        /// The GitHub handle's token and width, when the card has one.
+        handle: Option<(u16, f32)>,
+        /// Each link's token and label width, in the card's order.
+        links: Vec<(u16, f32)>,
     },
 }
 
@@ -122,6 +129,8 @@ pub(crate) struct Panel {
     /// Window height at the last frame, for paging.
     page: f32,
     pieces: Vec<Piece>,
+    /// The addresses the laid-out pieces open, indexed by token - `LINK_BASE`.
+    urls: Vec<String>,
     /// What `pieces` was laid out for: viewport and text size (bits).
     laid_out_for: Option<(u32, u32, u32)>,
     /// Height of the laid-out content, and where its closing notice sits.
@@ -153,6 +162,7 @@ impl Panel {
             max_scroll: 0.0,
             page: 600.0,
             pieces: Vec::new(),
+            urls: Vec::new(),
             laid_out_for: None,
             content: 0.0,
             notice_y: 0.0,
@@ -240,7 +250,17 @@ impl Panel {
                 self.scroll_by(direction * STEP * self.page / 1080.0);
                 false
             }
-            UiEventKind::Activate => event.token == Some(BACK_TOKEN),
+            UiEventKind::Activate => {
+                if let Some(url) = event
+                    .token
+                    .and_then(|token| token.checked_sub(LINK_BASE))
+                    .and_then(|index| self.urls.get(usize::from(index)))
+                {
+                    crate::update::open_page(url);
+                    return false;
+                }
+                event.token == Some(BACK_TOKEN)
+            }
             _ => false,
         }
     }
@@ -264,6 +284,7 @@ impl Panel {
         }
         self.laid_out_for = Some(key);
         self.pieces.clear();
+        self.urls.clear();
         let measure = |text: &str| {
             let size = BODY * s;
             let placement = style.place(Rect::new(0.0, 0.0, 0.0, size), size, 0.2 * s);
@@ -292,9 +313,25 @@ impl Panel {
                 let row_width = width * count as f32 + gap * (count - 1) as f32;
                 let left = (viewport[0] - row_width) * 0.5;
                 let text_width = width - PAD * 2.0 * s - BULLET * s;
-                let mut wrapped: Vec<Vec<(String, bool)>> = Vec::with_capacity(count);
+                let mut wrapped = Vec::with_capacity(count);
                 let mut tallest: f32 = 0.0;
                 for card in row {
+                    let mut link = |url: String, width: f32| {
+                        let token = LINK_BASE.saturating_add(self.urls.len() as u16);
+                        self.urls.push(url);
+                        (token, width)
+                    };
+                    // The handle is drawn smaller and wider spaced than the body.
+                    let handle = card.github_url().map(|url| {
+                        let width = measure(&card.github) * HANDLE / BODY
+                            + card.github.len() as f32 * 0.8 * s;
+                        link(url, width)
+                    });
+                    let links: Vec<_> = card
+                        .links
+                        .iter()
+                        .map(|entry| link(entry.url.clone(), measure(&entry.label)))
+                        .collect();
                     let mut lines = Vec::new();
                     for did in &card.did {
                         for (index, line) in
@@ -305,15 +342,17 @@ impl Panel {
                             lines.push((line.to_owned(), index == 0));
                         }
                     }
-                    tallest = tallest.max(card_height(lines.len(), card.did.len(), s));
-                    wrapped.push(lines);
+                    tallest = tallest.max(card_height(lines.len(), card.did.len(), links.len(), s));
+                    wrapped.push((lines, handle, links));
                 }
-                for (slot, lines) in wrapped.into_iter().enumerate() {
+                for (slot, (lines, handle, links)) in wrapped.into_iter().enumerate() {
                     self.pieces.push(Piece::Card {
                         rect: Rect::new(left + slot as f32 * (width + gap), y, width, tallest),
                         section: section_index,
                         card: row_index * columns + slot,
                         lines,
+                        handle,
+                        links,
                     });
                 }
                 y += tallest + gap;
@@ -516,11 +555,15 @@ impl Panel {
                 section,
                 card,
                 lines,
+                handle,
+                links,
             } => {
                 let rect = Rect::new(rect.x, top + rect.y + lift, rect.width, rect.height);
                 if rect.y > view_height || rect.bottom() < 0.0 {
                     return;
                 }
+                // Links are clickable only where the page shows them.
+                let clickable = |area: Rect| area.y >= 0.0 && area.bottom() <= view_height;
                 let featured = *section == 0;
                 let person = &self.sections[*section].cards[*card];
                 let canvas = &mut self.ui;
@@ -593,16 +636,34 @@ impl Panel {
                     FontWeight::Semibold,
                     0.4 * s,
                 );
-                if !person.github.is_empty() {
+                if let Some((token, handle_width)) = *handle {
+                    let area = Rect::new(x, y + 8.0 * s, width, 18.0 * s);
+                    let hovered = canvas.token_hovered(token);
                     canvas.text_aligned(
                         &person.github,
-                        Rect::new(x, y + 8.0 * s, width, 18.0 * s),
+                        area,
                         HANDLE * s,
-                        palette.accent,
+                        if hovered {
+                            palette.shine
+                        } else {
+                            palette.accent
+                        },
                         FontWeight::Semibold,
                         1.0 * s,
                         TextAlign::End,
                     );
+                    let target = Rect::new(
+                        area.right() - handle_width - 6.0 * s,
+                        area.y - 4.0 * s,
+                        handle_width + 6.0 * s,
+                        area.height + 8.0 * s,
+                    );
+                    if hovered {
+                        underline(canvas, target, 6.0 * s, palette.shine, s);
+                    }
+                    if clickable(target) {
+                        canvas.hit_region(token, target);
+                    }
                 }
                 y += name_size * 1.25 * s + 4.0 * s;
                 canvas.text(
@@ -637,6 +698,46 @@ impl Panel {
                         FontWeight::Regular,
                         0.2 * s,
                     );
+                    y += BODY_LINE * s;
+                }
+                if !links.is_empty() {
+                    y += LINK_GAP * s;
+                }
+                for (&(token, label_width), entry) in links.iter().zip(&person.links) {
+                    let hovered = canvas.token_hovered(token);
+                    let color = if hovered {
+                        palette.shine
+                    } else {
+                        palette.accent
+                    };
+                    canvas.text(
+                        ">",
+                        Rect::new(x + 1.0 * s, y, BULLET * s, BODY_LINE * s),
+                        BODY * s,
+                        color,
+                        FontWeight::Semibold,
+                        0.2 * s,
+                    );
+                    canvas.text(
+                        &entry.label,
+                        Rect::new(x + BULLET * s, y, width - BULLET * s, BODY_LINE * s),
+                        BODY * s,
+                        color,
+                        FontWeight::Regular,
+                        0.2 * s,
+                    );
+                    let target = Rect::new(
+                        x,
+                        y - 2.0 * s,
+                        (BULLET * s + label_width).min(width),
+                        BODY_LINE * s,
+                    );
+                    if hovered {
+                        underline(canvas, target, BULLET * s, palette.shine, s);
+                    }
+                    if clickable(target) {
+                        canvas.hit_region(token, target);
+                    }
                     y += BODY_LINE * s;
                 }
                 let _ = canvas.draw_list_mut().push(DrawCommand::PopOpacity);
@@ -714,11 +815,34 @@ fn header_height(s: f32) -> f32 {
     300.0 * s
 }
 
-/// A card's height for `lines` wrapped lines from `items` contributions.
-fn card_height(lines: usize, items: usize, s: f32) -> f32 {
+/// Space above a card's links.
+const LINK_GAP: f32 = 10.0;
+
+/// A card's height for `lines` wrapped lines from `items` contributions and
+/// `links` links.
+fn card_height(lines: usize, items: usize, links: usize, s: f32) -> f32 {
     let head = 18.0 + NAME * 1.25 + 4.0 + 30.0;
     let body = lines as f32 * BODY_LINE + items as f32 * 4.0;
-    (head + body + 22.0) * s
+    let links = if links == 0 {
+        0.0
+    } else {
+        LINK_GAP + links as f32 * BODY_LINE
+    };
+    (head + body + links + 22.0) * s
+}
+
+/// A hovered link's underline, along the bottom of `target` past its first
+/// `indent` pixels.
+fn underline(canvas: &mut MenuCanvas, target: Rect, indent: f32, color: Color, s: f32) {
+    let _ = canvas.draw_list_mut().push(DrawCommand::SolidRect {
+        rect: Rect::new(
+            target.x + indent,
+            target.bottom() - 3.0 * s,
+            (target.width - indent).max(0.0),
+            s.max(1.0),
+        ),
+        color: alpha(color, 0.8),
+    });
 }
 
 fn mix(a: Color, b: Color, t: f32) -> Color {

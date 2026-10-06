@@ -7,40 +7,68 @@
 #
 #   == Section title   Starts a section (a later "== Supporters" needs no code).
 #   [Name]             Starts a card in the current section.
-#   github: handle     Optional GitHub account, shown as @handle.
+#   github: handle     Optional GitHub account, shown as @handle; clicking it
+#                      opens https://github.com/handle.
 #   role: text         Required: one line under the name.
 #   did: text          One contribution per line (repeat the key); optional.
+#   link: https://...  A clickable address under the card (repeat the key);
+#                      optional, https only. "link: Label | https://..." shows
+#                      the label instead of the address.
 #
 # Lines starting with '#' and blank lines are ignored. ASCII only: the menu fonts
-# draw bytes. Add a person when their first change lands; add lines as they code.
+# draw bytes. Every merge into main that brings someone's work adds it here: a
+# card when their first change lands, lines as they keep contributing
+# (docs/sjk.md "Credits").
 
-== The team
+== Sol JK
 
 [Sol]
 github: Sol-Vulpes
-role: Creator and maintainer of Sol JK
-did: Sol JK itself: its name, emblem, website and releases
-did: The classic menus and classic+, the retail-look console and the HUD picker
+role: Creator and developer of Sol JK
+did: Sol JK itself: its name, emblem, website, releases and self-updates
+did: The classic menus and classic+, the settings and search, the retail-look console
+did: The HUD picker, the radial HUD, nameplates with health estimates and player cards
 did: JA+ and JoF server support: movement, sabers, grapple, Force wheel, flip kick
+did: 125 Hz user commands, so every tap reaches the server
 did: Player profile, model grid, lightsaber creation, hats and capes
+did: Weather: rain, snow, splashes, ground fog and volumetric clouds
 did: Eye adaptation, dynamic glow, metal materials and many renderer fixes
+did: SJK identity and its hub, the changelog and these credits
 did: Opened most of JKR's early issues and pull requests
+link: https://github.com/Sol-Vulpes/SJK
+link: https://sol-vulpes.github.io/SJK/
+
+== Built on JKR
 
 [Bishop]
 github: Bishop-R
-role: Creator of JKR, the engine Sol JK is built on
+role: Creator of JKR, the engine and renderer Sol JK is built on
 did: The Rust engine and the wgpu renderer with its lighting
 did: The native client, the dedicated server and protocol 26 networking
 did: Prediction and the shared Jedi Academy game rules
 did: Content loading: PK3, BSP, models, shaders and sounds
 did: The console, menus, HUD, server browser and demos
+link: https://github.com/Bishop-R/JKR
 
 == Contributors
 
 [Creyon]
 github: Creyon94
-role: Contributor and tester
-did: First pull request (SJK #2): duel challenges from names with symbols no longer crash the client
+role: Contributor and tester: 20 merged pull requests, EternalJK parity
+did: #2 #7 Duel challenges from names with symbols, centre prints kept whole
+did: #3 The third-person camera damped per frame as EternalJK (cg_cameraFPS)
+did: #4 #19 Retail crosshair pictures, the weapon row in every HUD style
+did: #5 Dismemberment and burning bodies
+did: #6 The mouse wheel bindable in Controls
+did: #8 #20 Effect fixes: impact marks, trip mine beams, det packs, charge glow
+did: #9 EternalJK's player animation fixes
+did: #10 No more full-screen flash on saber clashes
+did: #11 Every scoreboard row read on full servers
+did: #13 #14 #22 Windows-1252 symbols in names, copy and paste, EternalJK's font
+did: #15 #17 JoF's HD effects and images load
+did: #16 #18 View weapon FOV, first-person zoom, HD scope mask, camera shakes
+did: #21 fx_debug and cg_debugMissiles diagnostics
+link: Creyon's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ACreyon94
 
 == Made with
 
@@ -51,3 +79,5 @@ did: Wrote many of Sol's changes together with Sol
 [OpenJK, EternalJK, JoF EJK, TaystJK and jaPRO]
 role: References for how Jedi Academy behaves
 did: SJK reimplements their behaviour and includes none of their code
+link: https://github.com/JACoders/OpenJK
+link: https://github.com/eternalcodes/EternalJK

@@ -153,11 +153,20 @@ list. The Discord changelog posts are made from the same file.
 
 [credits.txt](../crates/sjk-viewer/assets/credits.txt) feeds the client's credits
 page ([client.md](client.md#credits-page)); [CREDITS.md](../CREDITS.md) stays
-the full written record. A person gets a card in the merge that brings their
-first change into `main` (Creyon with SJK pull request #2), and lines are added
-as they keep contributing. Sections are free: a later "Supporters" section is a
-`== Supporters` heading and its cards, with no code. The tests reject a card
-without a role, an unknown key or a non-ASCII character.
+the full written record. Sol develops SJK alone since October 2026; Bishop is
+credited for JKR, the engine and renderer SJK is built on.
+
+Credits are kept for everything (Sol's rule, 06/10/2026): every merge into
+`main` that brings someone's work updates credits.txt, CREDITS.md and the
+changelog line's credit in the same change. A person gets a card in the merge
+that brings their first change (Creyon with SJK pull request #2), and their card
+gains lines, with the pull request numbers, as they keep contributing; Sol's own
+card gains a line when a notable feature lands. Cards carry the person's GitHub
+handle (`github:`, opens their profile when clicked) and may carry `link:`
+addresses (https only, optionally `Label | https://...`). Sections are free: a
+later "Supporters" section is a `== Supporters` heading and its cards, with no
+code. The tests reject a card without a role, an unknown key, a link that is not
+https or a non-ASCII character.
 
 ## Debug panel
 
