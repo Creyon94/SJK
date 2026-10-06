@@ -18,7 +18,7 @@ impl GpuState {
 
     /// A text field has the keyboard: the console, the chat composer or a menu,
     /// rather than the gameplay bindings.
-    fn text_has_keyboard(&self) -> bool {
+    pub(crate) fn text_has_keyboard(&self) -> bool {
         self.console
             .as_ref()
             .is_some_and(console::ViewerConsole::is_open)
@@ -31,6 +31,14 @@ impl GpuState {
     }
 
     fn route_keyboard(&mut self, event: KeyEvent) {
+        // Escape closes an open quick wheel without choosing, and goes no further.
+        if self.quick_wheel.is_open()
+            && event.state == winit::event::ElementState::Pressed
+            && event.physical_key == PhysicalKey::Code(winit::keyboard::KeyCode::Escape)
+        {
+            self.quick_wheel.cancel();
+            return;
+        }
         // A modern composer must be able to type `~`, unlike stock, where the
         // console key precedes the message catcher (`cl_keys.cpp:1318`).
         let console_open = self

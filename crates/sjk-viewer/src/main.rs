@@ -150,6 +150,7 @@ mod player_skin;
 mod pointer_input;
 mod presentation_clock;
 mod projectiles;
+mod quick_wheel;
 mod render_helpers;
 mod runtime_settings;
 mod saber;
@@ -279,6 +280,8 @@ struct GpuState {
     sdf_text_pipeline: wgpu::RenderPipeline,
     saber_gpu: saber_gpu::Runtime,
     dust_motes: dust_motes::Runtime,
+    /// The quick wheel open while its key is held (`quick_wheel.rs`).
+    quick_wheel: quick_wheel::QuickWheel,
     /// The map's rain, snow and mist (`weather.rs`).
     weather: weather::Runtime,
     geometry: SharedGeometry,
@@ -1099,6 +1102,7 @@ impl GpuState {
             sdf_text_pipeline,
             saber_gpu,
             dust_motes,
+            quick_wheel: quick_wheel::QuickWheel::default(),
             weather,
             geometry,
             entity_instance_buffer,
@@ -1651,6 +1655,7 @@ impl GpuState {
             information_visible.then(|| &self.hud.nameplate.list),
             information_visible.then(|| &self.hud.identification.list),
             information_visible.then(|| &self.hud.card.list),
+            self.quick_wheel.is_open().then_some(&self.quick_wheel.list),
             information_visible.then(|| self.hud.draw_list()),
             chat_visible.then(|| self.chat.draw_list()),
             scoreboard_visible.then(|| self.scoreboard.draw_list()),

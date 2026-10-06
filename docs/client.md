@@ -1448,6 +1448,24 @@ the flamethrower use JoF EJK's pictures from `EternalJK/jofclient-assets.pk3`;
 Stasis has none and shows Jump's. Power names are retail's (Dark Rage, Sense).
 See [hud/force_wheel.rs](../crates/sjk-viewer/src/hud/force_wheel.rs).
 
+## Quick wheels
+
+SJK's quick wheels (SJK only, [quick_wheel.rs](../crates/sjk-viewer/src/quick_wheel.rs)):
+hold the key, a ring of choices opens in the middle of the screen, move the mouse
+towards one (it lights up in the menu accent colour) and let go to run it. Letting
+go with the mouse still near the middle, or Escape, runs nothing; opening the
+console, chat or a menu closes the wheel. While a wheel is open the mouse moves its
+pointer instead of the view; the movement keys keep working. A dot marks the
+choices already in effect.
+
+| Wheel | Bind | Choices |
+| --- | --- | --- |
+| `general` | `+wheel general`, Q by default | Third person, nameplates (cycles), HUD on/off, screenshot, cosmetics, AFK, game menu, first setup |
+| `weather` | `+wheel weather`, R by default | The map's own weather, drizzle, rain, storm, snow (`r_weatherForce`), ground fog everywhere (`r_weatherFog` 1/2), clouds, weather on/off |
+
+Both are in Settings > Key bindings > Other; the default keys are bound only where
+a profile has nothing on Q or R. A choice is the console command it stands for, so
+it does exactly what typing it would.
 ## Configuration and content
 
 The default writable client folder is `GameData/jkr/`, under the selected game

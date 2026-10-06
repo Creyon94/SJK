@@ -39,6 +39,26 @@ pub(crate) fn append(
     gpu.hud
         .card
         .append(&mut gpu.text_vertices, &gpu.ui_font, viewport);
+    // A menu, the console or chat taking the keyboard closes the wheel unchosen.
+    if gpu.quick_wheel.is_open() && gpu.text_has_keyboard() {
+        gpu.quick_wheel.cancel();
+    }
+    if gpu.quick_wheel.is_open() {
+        let accent = gpu.console.as_ref().map_or(
+            sjk_ui::Color::new(1.0, 0.42, 0.24, 1.0),
+            crate::runtime_settings::ui_accent,
+        );
+        gpu.quick_wheel.build(viewport, accent);
+        let wheel = &gpu.quick_wheel;
+        crate::ui_renderer::append_text_commands(
+            &wheel.list,
+            |id| wheel.text(id),
+            &mut gpu.text_vertices,
+            &gpu.ui_font,
+            viewport,
+            crate::text::TextStyle::NEUTRAL,
+        );
+    }
     if classic && let Some(font) = &gpu.classic_hud_font {
         gpu.hud.append(
             &mut gpu.game_fonts,
