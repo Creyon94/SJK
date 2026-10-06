@@ -7,6 +7,27 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Effect atlas mipmaps and impact marks
+
+Branch `fix/effect-atlas-mipmaps`:
+
+- The effect atlas has five mip levels, as rd-vanilla's images have mipmaps. Without
+  them a small or far mark sampled a few texels of its 128-pixel picture and showed
+  as a hard black dot on walls. Each picture sits in a 160-pixel cell whose 16-pixel
+  border repeats its edge texels, so filtering down to the 8-pixel level never
+  reaches the next picture, and each level averages its 2x2 parents weighted by
+  alpha, so transparent texels do not darken the visible ones.
+- Impact marks are drawn before every other effect, as rd-vanilla sorts mark
+  shaders (`sort decal`) ahead of blended effects, so an explosion's fire and smoke
+  cover its own scorch mark.
+- Effect atlas stages honour `alphaGen const` and a grey `rgbGen const`; JoF's HD
+  scorch marks are 15% grey at 80% opacity and were drawn fully opaque.
+
+Unit tests cover the constant colours, the alpha-weighted levels and that two
+neighbouring pictures never mix at any level. On Windows 11 the mipmaps removed the
+black dots; the gutter, the alpha weighting, the draw order and the constant
+colours were not checked in game yet.
+
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the

@@ -26,6 +26,15 @@ pub(crate) fn layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
 
 /// Mip levels of the effect atlas: 128-pixel tiles down to 8.
 const ATLAS_MIP_LEVELS: u32 = 5;
+/// Side of one effect picture in the atlas.
+const TILE: u32 = 128;
+/// Border around each picture, its edge texels repeated, so filtering at the
+/// smallest level (one texel of border there) never reaches the next picture.
+const GUTTER: u32 = 1 << (ATLAS_MIP_LEVELS - 1);
+/// One picture's cell: the picture and its border on every side. Cells are
+/// multiples of `1 << (levels - 1)`, so every 2x2 box of every level stays in one
+/// cell.
+const CELL: u32 = TILE + 2 * GUTTER;
 
 /// Build all requested shader tiles into the effect texture atlas.
 pub(crate) fn create(
@@ -36,7 +45,6 @@ pub(crate) fn create(
     shaders: &ShaderCatalog,
     required_effect_shaders: &BTreeSet<String>,
 ) -> Result<ParticleAtlas, Box<dyn Error>> {
-    const TILE: u32 = 128;
     const EFFECT_SHADERS: &[&str] = &[
         player_shadows::SHADER,
         "gfx/misc/spark",
@@ -153,8 +161,8 @@ pub(crate) fn create(
         .max(1);
     let columns = (tile_count as f32).sqrt().ceil() as u32;
     let rows = u32::try_from(tile_count)?.div_ceil(columns);
-    let width = TILE * columns;
-    let height = TILE * rows;
+    let width = CELL * columns;
+    let height = CELL * rows;
     let mut atlas = image::RgbaImage::new(width, height);
     let mut animations = HashMap::new();
     let mut tile_index = 0_u32;
@@ -185,18 +193,14 @@ pub(crate) fn create(
         for resized in tiles {
             let tile_x = tile_index % columns;
             let tile_y = tile_index / columns;
-            image::imageops::overlay(
-                &mut atlas,
-                &resized,
-                i64::from(tile_x * TILE),
-                i64::from(tile_y * TILE),
-            );
+            let [left, top] = [tile_x * CELL + GUTTER, tile_y * CELL + GUTTER];
+            place_tile(&mut atlas, &resized, left, top);
             let inset = 0.5;
             frames.push([
-                (tile_x as f32 * TILE as f32 + inset) / width as f32,
-                (tile_y as f32 * TILE as f32 + inset) / height as f32,
-                ((tile_x + 1) as f32 * TILE as f32 - inset) / width as f32,
-                ((tile_y + 1) as f32 * TILE as f32 - inset) / height as f32,
+                (left as f32 + inset) / width as f32,
+                (top as f32 + inset) / height as f32,
+                ((left + TILE) as f32 - inset) / width as f32,
+                ((top + TILE) as f32 - inset) / height as f32,
             ]);
             tile_index += 1;
         }
@@ -226,14 +230,13 @@ pub(crate) fn create(
         .unwrap_or([0.0, 0.0, 1.0 / columns as f32, 1.0 / rows as f32]);
     // Mipmapped like rd-vanilla's images: without levels, a small decal or far
     // sprite samples a few texels of its 128-pixel tile (a hard black dot for a
-    // scorch mark). Five levels keep each tile at least 8 pixels.
-    let texture = crate::gpu_texture::create_rgba8_texture_mipmapped(
+    // scorch mark). Five levels keep each tile at least 8 pixels; each tile's
+    // border keeps its neighbours out of the filtering.
+    let texture = crate::gpu_texture::upload_levels(
         device,
         queue,
         "JKR retail effect texture atlas",
-        &atlas,
-        false,
-        ATLAS_MIP_LEVELS,
+        &premultiplied_levels(atlas, ATLAS_MIP_LEVELS),
     );
     let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
         label: Some("JKR effect texture sampler"),
@@ -341,5 +344,95 @@ mod constant_colour_tests {
     fn coloured_constants_are_left_to_the_texture() {
         assert_eq!(grey([1.0, 0.2, 0.2]), None);
         assert!(constant_wave(None).is_none());
+    }
+}
+
+/// Copy `tile` into `atlas` at `(left, top)` and fill its [`GUTTER`] with the
+/// tile's edge texels, as clamp-to-edge sampling of the tile alone would see.
+fn place_tile(atlas: &mut image::RgbaImage, tile: &image::RgbaImage, left: u32, top: u32) {
+    let (width, height) = tile.dimensions();
+    for y in 0..height + 2 * GUTTER {
+        for x in 0..width + 2 * GUTTER {
+            let source = tile.get_pixel(
+                x.saturating_sub(GUTTER).min(width - 1),
+                y.saturating_sub(GUTTER).min(height - 1),
+            );
+            atlas.put_pixel(left + x - GUTTER, top + y - GUTTER, *source);
+        }
+    }
+}
+
+/// `levels` mip levels of `image`, each texel the mean of its 2x2 parents weighted
+/// by alpha (averaged premultiplied, stored straight), so a transparent texel's
+/// colour never darkens or tints the visible ones next to it.
+fn premultiplied_levels(image: image::RgbaImage, levels: u32) -> Vec<image::RgbaImage> {
+    let mut chain = vec![image];
+    for _ in 1..levels {
+        let previous = chain.last().expect("the chain starts with the image");
+        let (width, height) = previous.dimensions();
+        if width < 2 || height < 2 {
+            break;
+        }
+        let next = image::RgbaImage::from_fn(width / 2, height / 2, |x, y| {
+            let mut sum = [0.0_f32; 4];
+            for (dx, dy) in [(0, 0), (1, 0), (0, 1), (1, 1)] {
+                let image::Rgba([r, g, b, a]) = *previous.get_pixel(2 * x + dx, 2 * y + dy);
+                let alpha = f32::from(a) / 255.0;
+                sum[0] += f32::from(r) * alpha;
+                sum[1] += f32::from(g) * alpha;
+                sum[2] += f32::from(b) * alpha;
+                sum[3] += alpha;
+            }
+            if sum[3] <= 0.0 {
+                return image::Rgba([0; 4]);
+            }
+            let colour = |channel: f32| (channel / sum[3]).round().clamp(0.0, 255.0) as u8;
+            image::Rgba([
+                colour(sum[0]),
+                colour(sum[1]),
+                colour(sum[2]),
+                (sum[3] / 4.0 * 255.0).round() as u8,
+            ])
+        });
+        chain.push(next);
+    }
+    chain
+}
+
+#[cfg(test)]
+mod mip_tests {
+    use super::*;
+
+    #[test]
+    fn transparent_texels_do_not_darken_their_neighbours() {
+        // Opaque white beside transparent black: the half-covered texel stays white.
+        let mut image = image::RgbaImage::new(2, 2);
+        image.put_pixel(0, 0, image::Rgba([255, 255, 255, 255]));
+        image.put_pixel(1, 0, image::Rgba([255, 255, 255, 255]));
+        let levels = premultiplied_levels(image, 2);
+        assert_eq!(
+            *levels[1].get_pixel(0, 0),
+            image::Rgba([255, 255, 255, 128])
+        );
+    }
+
+    #[test]
+    fn neighbouring_pictures_never_mix_at_any_level() {
+        let red = image::RgbaImage::from_pixel(TILE, TILE, image::Rgba([255, 0, 0, 255]));
+        let blue = image::RgbaImage::from_pixel(TILE, TILE, image::Rgba([0, 0, 255, 255]));
+        let mut atlas = image::RgbaImage::new(2 * CELL, CELL);
+        place_tile(&mut atlas, &red, GUTTER, GUTTER);
+        place_tile(&mut atlas, &blue, CELL + GUTTER, GUTTER);
+        let levels = premultiplied_levels(atlas, ATLAS_MIP_LEVELS);
+        assert_eq!(levels.len(), ATLAS_MIP_LEVELS as usize);
+        let last = levels.last().unwrap();
+        let cell = CELL >> (ATLAS_MIP_LEVELS - 1);
+        // Every texel of each cell, border included, is that picture's colour.
+        for y in 0..cell {
+            for x in 0..cell {
+                assert_eq!(*last.get_pixel(x, y), image::Rgba([255, 0, 0, 255]));
+                assert_eq!(*last.get_pixel(cell + x, y), image::Rgba([0, 0, 255, 255]));
+            }
+        }
     }
 }

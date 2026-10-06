@@ -99,8 +99,10 @@ the sky images while retaining the existing day/night policy.
 Impact marks (decals) are drawn before every other effect, as rd-vanilla sorts mark
 shaders (`sort decal`) ahead of blended effects, so an explosion's fire and smoke
 cover its own scorch mark. Effect atlas stages honour `alphaGen const` and a grey
-`rgbGen const` (JoF's HD scorch marks are 15% grey at 80% opacity); shader names
-are looked up regardless of capitals.
+`rgbGen const` (JoF's HD scorch marks are 15% grey at 80% opacity). The atlas has
+five mip levels: each 128-pixel picture sits in a 160-pixel cell whose 16-pixel
+border repeats its edge texels, so filtering at the smallest level never reaches
+the next picture, and each level averages its 2x2 parents weighted by alpha.
 
 Effects drawn from the effect atlas (EFX particles, missile trails, muzzle
 flashes, beams, impact marks and blob shadows) follow the same remaps and local
