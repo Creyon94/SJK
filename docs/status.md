@@ -765,6 +765,17 @@ A temporary CPU render of the draw list (free-for-all at 1920x1080, team game at
 client; head icons, flag icons and the game-font option's retail fonts on this
 layout are unverified on screen.
 
+## Scoreboard rows on full servers
+
+On servers with more than 20 players, many scoreboard rows showed one player's
+name (client 0) with score, ping and time 0. The `scores` count is every connected
+client, but the game sends at most 20 rows (`MAX_CLIENT_SCORE_SEND`,
+`DeathmatchScoreboardMessage`), so the check that picked jaPRO's 15-field rows
+(with deaths) failed and they were read as 14 fields, shifting every later row.
+The row width now comes from the rows actually sent, and when both widths divide
+them, the one whose rows read as real players wins. Unit tests cover full stock and
+jaPRO servers and a length both widths divide. Found by creyon on JoF's server.
+
 ## Leader HUD placement preview
 
 Local preview `leader1` moves the portrait and leader/opponent name/score from the

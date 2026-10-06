@@ -1235,9 +1235,15 @@ impl ClientSession {
 /// JA+ and jaPRO servers append a 15th, the deaths count, for clients that
 /// identify as a client plugin (`cjp_client`): EternalJK reads 15 there
 /// (`cg_servercmds.c:61-64`), and a JA+ 2.4B7 server sent
-/// `scores 1 0 0 1 0 999 0 0 0 0 0 0 0 0 0 1 0 0` to such a client. The row
-/// width is taken from the argument count, which is exact for either form, so
-/// rows after the first are not misread whichever identity was sent.
+/// `scores 1 0 0 1 0 999 0 0 0 0 0 0 0 0 0 1 0 0` to such a client.
+///
+/// The count is the server's connected-client count, not the number of rows: the
+/// game sends at most 20 rows (`MAX_CLIENT_SCORE_SEND`, `DeathmatchScoreboardMessage`
+/// in `codemp/game/g_cmds.c`) and fewer when the command would pass 1023 bytes. So
+/// the row width comes from the rows actually sent; when both widths divide them,
+/// the one whose rows read as real players wins. Reading 15-field rows as 14 (as
+/// SJK did on any server with more than 20 players) shifted every later row, and
+/// the zeros it then read as client numbers repeated client 0's name down the board.
 fn parse_scores(arguments: &[Vec<u8>]) -> Option<([i32; 2], Vec<ScoreEntry>)> {
     const STOCK_FIELDS: usize = 14;
     const WITH_DEATHS_FIELDS: usize = 15;
@@ -1249,14 +1255,36 @@ fn parse_scores(arguments: &[Vec<u8>]) -> Option<([i32; 2], Vec<ScoreEntry>)> {
     };
     let count = integer(1).and_then(|value| usize::try_from(value).ok())?;
     let team_scores = [integer(2).unwrap_or(0), integer(3).unwrap_or(0)];
-    let row_fields = if count > 0 && arguments.len().saturating_sub(4) == count * WITH_DEATHS_FIELDS
-    {
-        WITH_DEATHS_FIELDS
-    } else {
-        STOCK_FIELDS
+    let sent = arguments.len().saturating_sub(4);
+    // Rows as players: client numbers below 32 and unique, a ping of -1 (connecting)
+    // to 999, a non-negative connected time.
+    let plausible = |width: usize| {
+        let mut seen = 0_u32;
+        (0..sent / width).all(|row| {
+            let base = 4 + row * width;
+            let fields = (integer(base), integer(base + 2), integer(base + 3));
+            let (Some(client), Some(ping), Some(time)) = fields else {
+                return false;
+            };
+            let fresh = (0..32).contains(&client) && seen & (1 << client) == 0;
+            seen |= 1_u32.checked_shl(client as u32).unwrap_or(0);
+            fresh && (-1..=999).contains(&ping) && time >= 0
+        })
     };
-    let mut scores = Vec::with_capacity(count.min(32));
-    for row in 0..count.min(32) {
+    let fits = |width: usize| sent.is_multiple_of(width) && sent / width <= count.max(1);
+    let row_fields = match (fits(STOCK_FIELDS), fits(WITH_DEATHS_FIELDS)) {
+        (true, true) if !plausible(STOCK_FIELDS) && plausible(WITH_DEATHS_FIELDS) => {
+            WITH_DEATHS_FIELDS
+        }
+        (false, true) => WITH_DEATHS_FIELDS,
+        (false, false) if plausible(WITH_DEATHS_FIELDS) && !plausible(STOCK_FIELDS) => {
+            WITH_DEATHS_FIELDS
+        }
+        _ => STOCK_FIELDS,
+    };
+    let rows = (sent / row_fields).min(count).min(32);
+    let mut scores = Vec::with_capacity(rows);
+    for row in 0..rows {
         let base = 4 + row * row_fields;
         let Some(client_num) = integer(base).and_then(|value| u8::try_from(value).ok()) else {
             break;
@@ -1499,6 +1527,54 @@ mod score_tests {
             0 5 40 1 0 0 0 0 0 0 0 0 0 0 7 \
             1 3 60 2 0 0 0 0 0 0 0 0 0 0 9";
         assert_eq!(rows(command), [(0, 5, 40), (1, 3, 60)]);
+    }
+
+    /// A full server: the count is every connected client, but only 20 rows follow.
+    fn full_server(fields: usize) -> String {
+        let mut command = String::from("scores 28 0 0");
+        for row in 0..20 {
+            let client = 27 - row;
+            command.push_str(&format!(
+                " {client} {} {} 3 0 0 0 0 0 0 0 0 0 0",
+                40 - row,
+                50 + row
+            ));
+            if fields == 15 {
+                command.push_str(" 2");
+            }
+        }
+        command
+    }
+
+    #[test]
+    fn full_japro_server_rows_are_read_whole() {
+        let read = rows(&full_server(15));
+        assert_eq!(read.len(), 20);
+        assert_eq!(read[0], (27, 40, 50));
+        assert_eq!(read[19], (8, 21, 69));
+        let mut clients = read.iter().map(|row| row.0).collect::<Vec<_>>();
+        clients.dedup();
+        assert_eq!(clients.len(), 20, "every row is a different player");
+    }
+
+    #[test]
+    fn full_stock_server_rows_are_read_whole() {
+        let read = rows(&full_server(14));
+        assert_eq!(read.len(), 20);
+        assert_eq!(read[0], (27, 40, 50));
+        assert_eq!(read[19], (8, 21, 69));
+    }
+
+    /// 210 values are 15 stock rows or 14 rows with deaths; only one reads as players.
+    #[test]
+    fn ambiguous_length_picks_the_width_that_reads_as_players() {
+        let mut command = String::from("scores 20 0 0");
+        for client in 0..14 {
+            command.push_str(&format!(" {client} 9 30 4 0 0 0 0 0 0 0 0 0 0 5"));
+        }
+        let read = rows(&command);
+        assert_eq!(read.len(), 14);
+        assert!(read.iter().all(|row| row.1 == 9 && row.2 == 30));
     }
 }
 
