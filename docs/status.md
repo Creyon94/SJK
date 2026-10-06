@@ -7,6 +7,27 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Classic Settings hub (SJK)
+
+SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the
+classic menus' Controls and Setup are one Settings screen with KEY BINDINGS and
+OPTIONS tabs on the panel's title band (main page, navigation rows, profile
+pages and the in-game bar, whose Controls and Setup buttons are one Settings).
+The main page's SJK button opens a page with Changelog, Credits and Update,
+replacing the three corner buttons. KEY BINDINGS shows every binding in one list
+under category headings; each panel's first row is a search field (every option
+of OPTIONS, renderer included, by name, console name, description or group,
+results under group headings; bindings by name, command, category or key);
+choices open a dropdown and change only when applied. Retail's Mods and
+Defaults entries are gone and Mouse moved to OPTIONS. See
+[client.md](client.md#menu-style). Unit tests cover the page tables, tab
+mapping, the bindings list, search and Escape order, the option search's
+coverage and grouping, and the panel geometry; the sjk-viewer tests and
+workspace clippy (no new warnings) passed. Off-screen snapshots drew the main
+and SJK pages, the option search, dropdowns on both frames, the bindings list
+and search, and the in-game bar. No game was started: typing in the search
+field, the dropdown's pointer handling and the in-game pop-up are unverified.
+
 ## Centre prints with non-ASCII names
 
 Branch `fix/center-print-utf8` (05/10/2026, based on `86ad1be`): a centre print

@@ -449,8 +449,42 @@ fn menu_snapshot() {
         menu.append_classic(&mut vertices, &font.font, VIEWPORT, 1.0, &panel);
         shots.save(name, menu.draw_list(), &vertices, frame == Frame::InGame);
     }
+    // Classic+ search over every option, and a dropdown in both frames.
+    let searches: [(&str, Frame, Option<&str>, &str); 3] = [
+        ("settings-search", Frame::Main, Some("shadow"), ""),
+        ("settings-dropdown", Frame::Main, None, "r_fullscreen"),
+        ("settings-dropdown-ingame", Frame::InGame, None, "cg_marks"),
+    ];
+    for (name, frame, search, cvar) in searches {
+        let mut menu = SettingsMenu::new();
+        let tab = SettingsMenu::tab_index("VIDEO").expect("video tab");
+        menu.open_classic(&console, tab, Span::ALL, frame);
+        match search {
+            Some(text) => menu.search_for_snapshot(&console, text),
+            None => {
+                menu.select_cvar(cvar);
+                menu.dropdown_for_snapshot(&console);
+            }
+        }
+        let panel = PanelFrame {
+            frame,
+            page: Page::Setup,
+            active: Entry::Video,
+            art,
+        };
+        let mut vertices = Vec::new();
+        menu.append_classic(&mut vertices, &font.font, VIEWPORT, 1.0, &panel);
+        shots.save(name, menu.draw_list(), &vertices, frame == Frame::InGame);
+    }
     // Key-binding panels.
-    let binds: [(&str, Entry, Category, Frame, &str); 4] = [
+    let binds: [(&str, Entry, Category, Frame, &str); 5] = [
+        (
+            "controls-search",
+            Entry::ForcePowers,
+            Category::Force,
+            Frame::Main,
+            "force",
+        ),
         (
             "controls-movement",
             Entry::Movement,
@@ -488,7 +522,11 @@ fn menu_snapshot() {
             }
         }
         editor.open_classic(&console, category as usize, Span::ALL);
-        editor.select_command(command);
+        if name == "controls-search" {
+            editor.search_for_snapshot(command);
+        } else {
+            editor.select_command(command);
+        }
         let panel = PanelFrame {
             frame,
             page: Page::Controls,
@@ -870,11 +908,18 @@ fn changelog(shots: &Snapshot, art: ArtSet) {
     }
     let mut canvas = crate::menu_widgets::MenuCanvas::new();
     let mut classic = crate::menu::classic::ClassicMain::new();
-    classic.select(6);
+    classic.select(2);
     crate::menu::classic::view::build(&mut canvas, VIEWPORT, &classic, 1.0, art);
     let mut vertices = Vec::new();
     canvas.append_text(&mut vertices, &shots.font.font, VIEWPORT);
     shots.save("main-classic", canvas.draw_list(), &vertices, false);
+    let mut canvas = crate::menu_widgets::MenuCanvas::new();
+    let mut sjk = crate::menu::classic::ClassicMain::new();
+    sjk.show(Page::Sjk);
+    crate::menu::classic::view::build(&mut canvas, VIEWPORT, &sjk, 1.0, art);
+    let mut vertices = Vec::new();
+    canvas.append_text(&mut vertices, &shots.font.font, VIEWPORT);
+    shots.save("sjk-page", canvas.draw_list(), &vertices, false);
     let mut canvas = crate::menu_widgets::MenuCanvas::new();
     crate::menu::main_view::build(&mut canvas, VIEWPORT, 4, 1.0);
     let mut vertices = Vec::new();

@@ -75,10 +75,7 @@ impl GpuState {
             Tab::Profile => self.open_player_menu_from_game(),
             // Unavailable outside Siege and inside it; kept for completeness.
             Tab::AddBot => {}
-            Tab::Controls => {
-                self.open_classic_panel_from_game(crate::menu::classic::layout::Page::Controls);
-            }
-            Tab::Setup => {
+            Tab::Settings => {
                 self.open_classic_panel_from_game(crate::menu::classic::layout::Page::Setup);
             }
             Tab::Vote => self.open_game_menu_page(Page::Vote),

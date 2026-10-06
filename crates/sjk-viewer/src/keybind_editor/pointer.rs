@@ -21,8 +21,17 @@ impl KeybindEditor {
                 _ => EditorResult::None,
             };
         }
+        if token == crate::menu::classic::panel::SEARCH_TOKEN {
+            if event.kind == UiEventKind::Activate && !self.capture {
+                self.begin_search();
+            }
+            return EditorResult::None;
+        }
+        if event.kind == UiEventKind::Activate {
+            self.end_search();
+        }
         let row = usize::from(token);
-        if self.rows().contains(&row)
+        if self.shows(row)
             && !self.capture
             && matches!(event.kind, UiEventKind::HoverEnter | UiEventKind::Hover)
         {
@@ -58,15 +67,13 @@ impl KeybindEditor {
                 self.set_tab(usize::from(token - TAB_BASE));
                 EditorResult::None
             }
-            _ if self.rows().contains(&row) => {
+            _ if self.shows(row) => {
                 self.selected = row;
                 self.binding_slot = 0;
                 self.begin_capture();
                 EditorResult::None
             }
-            _ if token >= SECONDARY_BASE
-                && self.rows().contains(&usize::from(token - SECONDARY_BASE)) =>
-            {
+            _ if token >= SECONDARY_BASE && self.shows(usize::from(token - SECONDARY_BASE)) => {
                 self.selected = usize::from(token - SECONDARY_BASE);
                 self.binding_slot = 1;
                 self.begin_capture();

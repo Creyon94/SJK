@@ -222,10 +222,19 @@ impl ClientMenu {
         let panel = self
             .classic_panel
             .filter(|_| self.menu_style == super::style::MenuStyle::Classic)?;
+        // The one list of bindings marks the category being looked at.
+        let active = match panel.page {
+            Page::Controls => self
+                .keybinds
+                .classic_category()
+                .and_then(Entry::of_category)
+                .unwrap_or(panel.entry),
+            _ => panel.entry,
+        };
         Some(PanelFrame {
             frame: panel.frame,
             page: panel.page,
-            active: panel.entry,
+            active,
             art: self.art,
         })
     }
@@ -248,6 +257,16 @@ impl ClientMenu {
         let Some(panel) = self.classic_panel else {
             return MenuAction::None;
         };
+        if let Some(tab) = panel::settings_tab_slot(index) {
+            if panel.page.settings_tab() != Some(tab) || panel.page == Page::Renderer {
+                let page = Page::of_settings_tab(tab);
+                if let Some(entry) = page.opening_panel() {
+                    let target = self.settings_return;
+                    self.open_classic_panel(console, page, entry, panel.frame, target);
+                }
+            }
+            return MenuAction::None;
+        }
         let Some(slot) = panel.page.slots().get(index).filter(|slot| slot.enabled()) else {
             return MenuAction::None;
         };
@@ -284,24 +303,32 @@ impl ClientMenu {
         }
     }
 
-    /// Tab on a panel: the next (1) or previous (-1) group of its list.
+    /// Tab on a panel: the next (1) or previous (-1) group of its list. On
+    /// Settings the groups of both tabs follow each other, so the keyboard
+    /// reaches the key bindings from the options and back.
     pub(super) fn classic_panel_cycle(&mut self, direction: i32, console: &ViewerConsole) {
         let Some(panel) = self.classic_panel else {
             return;
         };
-        let groups: Vec<Entry> = panel
-            .page
-            .slots()
+        let pages: &[Page] = match panel.page {
+            Page::Controls | Page::Setup => &[Page::Controls, Page::Setup],
+            _ => std::slice::from_ref(&panel.page),
+        };
+        let groups: Vec<(Page, Entry)> = pages
             .iter()
-            .map(|slot| slot.entry)
-            .filter(|entry| entry.panel().is_some())
+            .flat_map(|page| page.slots().iter().map(move |slot| (*page, slot.entry)))
+            .filter(|(_, entry)| entry.panel().is_some())
             .collect();
-        let Some(current) = groups.iter().position(|entry| *entry == panel.entry) else {
+        let Some(current) = groups
+            .iter()
+            .position(|group| *group == (panel.page, panel.entry))
+        else {
             return;
         };
-        let next = groups[(current as i32 + direction).rem_euclid(groups.len() as i32) as usize];
+        let (page, next) =
+            groups[(current as i32 + direction).rem_euclid(groups.len() as i32) as usize];
         let target = self.settings_return;
-        self.open_classic_panel(console, panel.page, next, panel.frame, target);
+        self.open_classic_panel(console, page, next, panel.frame, target);
     }
 
     /// Escape on the classic main menu: the opening page asks to quit, the
@@ -357,14 +384,22 @@ mod tests {
     }
 
     #[test]
-    fn controls_pages_open_the_key_binding_tabs() {
+    fn settings_opens_options_and_key_bindings_are_its_other_tab() {
         let mut menu = ClassicMain::new();
-        focus(&mut menu, Entry::Controls);
-        assert_eq!(menu.outcome(), Some(Outcome::Page(Page::Controls)));
+        focus(&mut menu, Entry::Settings);
+        assert_eq!(menu.outcome(), Some(Outcome::Page(Page::Setup)));
+        focus(&mut menu, Entry::Sjk);
+        assert_eq!(menu.outcome(), Some(Outcome::Page(Page::Sjk)));
+        assert_eq!(Page::Controls.settings_tab(), Some(0));
+        assert_eq!(Page::Setup.settings_tab(), Some(1));
+        assert_eq!(Page::Renderer.settings_tab(), Some(1));
+        assert_eq!(Page::of_settings_tab(0), Page::Controls);
         menu.show(Page::Controls);
         assert_eq!(menu.outcome(), Some(Outcome::Keybinds(Category::Movement)));
         focus(&mut menu, Entry::ForcePowers);
         assert_eq!(menu.outcome(), Some(Outcome::Keybinds(Category::Force)));
+        // The mouse options moved to OPTIONS.
+        menu.show(Page::Setup);
         focus(&mut menu, Entry::MouseJoystick);
         assert_eq!(menu.outcome(), Some(Outcome::Settings("CONTROLS")));
     }
@@ -376,8 +411,8 @@ mod tests {
         assert_eq!(menu.outcome(), Some(Outcome::Settings("VIDEO")));
         focus(&mut menu, Entry::Sound);
         assert_eq!(menu.outcome(), Some(Outcome::Settings("AUDIO")));
-        focus(&mut menu, Entry::Mods);
-        assert_eq!(menu.outcome(), Some(Outcome::Unavailable));
+        // Retail's Mods and Defaults are gone: every OPTIONS group opens.
+        assert!(Page::Setup.slots().iter().all(|slot| slot.enabled()));
     }
 
     #[test]

@@ -57,8 +57,8 @@ const fn centre_row(entry: Entry, label: &'static str, hint: &'static str, y: f3
 
 const PLAY_HINT: &str = "Solo game, join a server or start your own";
 const PROFILE_HINT: &str = "Name, model, saber and Force";
-const CONTROLS_HINT: &str = "Key bindings and mouse";
-const SETUP_HINT: &str = "Video, sound and game options";
+const SETTINGS_HINT: &str = "Key bindings and every option, with search";
+const SJK_HINT: &str = "Changelog, credits and updates";
 const EXIT_HINT: &str = "Leave the game";
 const CREDITS_HINT: &str = "The people who make Sol JK";
 const CHANGELOG_HINT: &str = "What changed in each SJK release, and who made it";
@@ -66,8 +66,9 @@ const UPDATE_HINT: &str = "Check for a newer SJK release and install it";
 const BACK_HINT: &str = "Return to the main menu";
 
 /// Retail `main.menu`: two columns either side of the centre window, Exit
-/// below.
-const MAIN: [Slot; 8] = [
+/// below. SJK: Settings takes retail's Controls place and gathers Setup too;
+/// SJK (changelog, credits, update) takes Setup's.
+const MAIN: [Slot; 5] = [
     button(
         Entry::Play,
         "PLAY",
@@ -85,17 +86,17 @@ const MAIN: [Slot; 8] = [
         Size::Large,
     ),
     button(
-        Entry::Controls,
-        "CONTROLS",
-        CONTROLS_HINT,
+        Entry::Settings,
+        "SETTINGS",
+        SETTINGS_HINT,
         [521.0, 224.0],
         190.0,
         Size::Large,
     ),
     button(
-        Entry::Setup,
-        "SETUP",
-        SETUP_HINT,
+        Entry::Sjk,
+        "SJK",
+        SJK_HINT,
         [521.0, 322.0],
         190.0,
         Size::Large,
@@ -107,33 +108,6 @@ const MAIN: [Slot; 8] = [
         [320.0, 456.0],
         190.0,
         Size::Large,
-    ),
-    // SJK: under PROFILE, clear of the centre window and Exit.
-    button(
-        Entry::Changelog,
-        "CHANGELOG",
-        CHANGELOG_HINT,
-        [101.0, 456.0],
-        150.0,
-        Size::Medium,
-    ),
-    // SJK: above Changelog, left of the description line.
-    button(
-        Entry::Credits,
-        "CREDITS",
-        CREDITS_HINT,
-        [101.0, 420.0],
-        150.0,
-        Size::Medium,
-    ),
-    // SJK: under SETUP, mirroring Changelog.
-    button(
-        Entry::Update,
-        "UPDATE",
-        UPDATE_HINT,
-        [521.0, 456.0],
-        150.0,
-        Size::Medium,
     ),
 ];
 
@@ -158,17 +132,17 @@ const fn nav_row() -> [Slot; 4] {
             Size::Medium,
         ),
         button(
-            Entry::Controls,
-            "CONTROLS",
-            CONTROLS_HINT,
+            Entry::Settings,
+            "SETTINGS",
+            SETTINGS_HINT,
             [405.0, 138.0],
             130.0,
             Size::Medium,
         ),
         button(
-            Entry::Setup,
-            "SETUP",
-            SETUP_HINT,
+            Entry::Sjk,
+            "SJK",
+            SJK_HINT,
             [567.0, 138.0],
             130.0,
             Size::Medium,
@@ -201,13 +175,13 @@ const fn back_exit() -> [Slot; 2] {
 
 /// Retail `multiplayer.menu`: the start-playing list in the centre.
 const PLAY: [Slot; 11] = {
-    let [play, profile, controls, setup] = nav_row();
+    let [play, profile, settings, sjk] = nav_row();
     let [back, exit] = back_exit();
     [
         play,
         profile,
-        controls,
-        setup,
+        settings,
+        sjk,
         centre_row(
             Entry::SoloGame,
             "SOLO GAME",
@@ -243,70 +217,61 @@ const PLAY: [Slot; 11] = {
     ]
 };
 
-/// Retail `controls.menu`: the binding pages down the left. Each opens the
-/// key-binding editor on its tab; Mouse/Joystick opens the mouse options.
-/// Retail's two Force Powers pages are one group (classic+).
-const CONTROLS: [Slot; 12] = {
-    let [play, profile, controls, setup] = nav_row();
+/// Settings' KEY BINDINGS tab (retail `controls.menu`): the binding
+/// categories down the left, each a place in the one list of every binding.
+/// Retail's two Force Powers pages are one category; the mouse options moved
+/// to OPTIONS.
+const CONTROLS: [Slot; 11] = {
+    let [play, profile, settings, sjk] = nav_row();
     let [back, exit] = back_exit();
     [
         play,
         profile,
-        controls,
-        setup,
+        settings,
+        sjk,
         list_row(
             Entry::Movement,
             "MOVEMENT",
-            "Key bindings: moving, jumping, turning and looking",
+            "Moving, jumping, turning and looking",
             185.0,
         ),
         list_row(
             Entry::Interaction,
             "INTERACTION",
-            "Key bindings: attacks, saber, use and items",
+            "Attacks, saber, use and items",
             209.0,
         ),
-        list_row(
-            Entry::Weapons,
-            "WEAPONS",
-            "Key bindings: every weapon",
-            233.0,
-        ),
+        list_row(Entry::Weapons, "WEAPONS", "Every weapon", 233.0),
         list_row(
             Entry::ForcePowers,
             "FORCE POWERS",
-            "Key bindings: every Force power",
+            "Every Force power",
             257.0,
-        ),
-        list_row(
-            Entry::MouseJoystick,
-            "MOUSE/JOYSTICK",
-            "Mouse sensitivity, inversion and always run",
-            281.0,
         ),
         list_row(
             Entry::OtherControls,
             "OTHER",
-            "Key bindings: chat, scores, votes and emotes",
-            305.0,
+            "Chat, scores, votes, emotes and the console",
+            281.0,
         ),
         back,
         exit,
     ]
 };
 
-/// Retail `setup.menu`: the option pages down the left, then the settings
-/// JKR adds after them. Classic+ shows retail's two video pages as one and
-/// regroups the rest by subject: the menus and console, the HUD, the
-/// scoreboard.
-const SETUP: [Slot; 16] = {
-    let [play, profile, controls, setup] = nav_row();
+/// Settings' OPTIONS tab (retail `setup.menu`): the option groups down the
+/// left. Classic+ shows retail's two video pages as one, brings the mouse
+/// options over from Controls, regroups JKR's additions by subject (the menus
+/// and console, the HUD, the scoreboard) and leaves out retail's Mods and
+/// Defaults, which SJK cannot offer (Backspace restores one default).
+const SETUP: [Slot; 15] = {
+    let [play, profile, settings, sjk] = nav_row();
     let [back, exit] = back_exit();
     [
         play,
         profile,
-        controls,
-        setup,
+        settings,
+        sjk,
         list_row(
             Entry::Video,
             "VIDEO",
@@ -320,52 +285,46 @@ const SETUP: [Slot; 16] = {
             209.0,
         ),
         list_row(
-            Entry::GameOptions,
-            "GAME OPTIONS",
-            "Pickups, models, saber and Force trails, camera",
+            Entry::MouseJoystick,
+            "MOUSE",
+            "Mouse sensitivity, inversion and always run",
             233.0,
         ),
         list_row(
-            Entry::Mods,
-            "MODS",
-            "Not in SJK yet: set fs_game and restart",
+            Entry::GameOptions,
+            "GAME OPTIONS",
+            "Pickups, models, saber and Force trails, camera",
             257.0,
-        ),
-        list_row(
-            Entry::Defaults,
-            "DEFAULTS",
-            "Not in SJK yet: BACKSPACE on a setting restores its default",
-            281.0,
         ),
         list_row(
             Entry::Interface,
             "INTERFACE",
             "Menu style, colours and fonts, the console's look",
-            305.0,
+            281.0,
         ),
         list_row(
             Entry::Hud,
             "HUD",
             "HUD style and scale, status, crosshair, readouts and chat",
-            329.0,
+            305.0,
         ),
         list_row(
             Entry::Scoreboard,
             "SCOREBOARD",
             "Scoreboard style, client numbers, head icons and row size",
-            353.0,
+            329.0,
         ),
         list_row(
             Entry::Network,
             "NETWORK",
             "Master server and connection rates",
-            377.0,
+            353.0,
         ),
         list_row(
             Entry::Renderer,
             "RENDERER",
             "HDR, bloom, lighting, shadows and day/night",
-            401.0,
+            377.0,
         ),
         back,
         exit,
@@ -375,13 +334,13 @@ const SETUP: [Slot; 16] = {
 /// SJK's renderer page (classic+): `setup.menu`'s layout with the renderer
 /// settings' three groups down the left; Back returns to Setup.
 const RENDERER: [Slot; 9] = {
-    let [play, profile, controls, setup] = nav_row();
+    let [play, profile, settings, sjk] = nav_row();
     let [back, exit] = back_exit();
     [
         play,
         profile,
-        controls,
-        setup,
+        settings,
+        sjk,
         list_row(
             Entry::RenderImage,
             "IMAGE",
@@ -409,14 +368,32 @@ const RENDERER: [Slot; 9] = {
     ]
 };
 
-/// Retail `quit.menu`: No bottom left, Yes bottom right.
-const QUIT: [Slot; 6] = {
-    let [play, profile, controls, setup] = nav_row();
+/// SJK's page behind its button: the start-playing list's layout, holding
+/// SJK's own screens.
+const SJK: [Slot; 9] = {
+    let [play, profile, settings, sjk] = nav_row();
+    let [back, exit] = back_exit();
     [
         play,
         profile,
-        controls,
-        setup,
+        settings,
+        sjk,
+        centre_row(Entry::Changelog, "CHANGELOG", CHANGELOG_HINT, 191.0),
+        centre_row(Entry::Credits, "CREDITS", CREDITS_HINT, 226.0),
+        centre_row(Entry::Update, "UPDATE", UPDATE_HINT, 261.0),
+        back,
+        exit,
+    ]
+};
+
+/// Retail `quit.menu`: No bottom left, Yes bottom right.
+const QUIT: [Slot; 6] = {
+    let [play, profile, settings, sjk] = nav_row();
+    [
+        play,
+        profile,
+        settings,
+        sjk,
         button(
             Entry::No,
             "NO",
@@ -443,6 +420,7 @@ pub(super) fn slots(page: Page) -> &'static [Slot] {
         Page::Play => &PLAY,
         Page::Controls => &CONTROLS,
         Page::Setup => &SETUP,
+        Page::Sjk => &SJK,
         Page::Renderer => &RENDERER,
         Page::Quit => &QUIT,
     }

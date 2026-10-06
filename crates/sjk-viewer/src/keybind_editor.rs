@@ -63,8 +63,9 @@ pub(crate) struct KeybindEditor {
     capture: bool,
     binding_slot: usize,
     keys: Vec<[String; 2]>,
-    /// `ACTIONS` rows of a classic option panel, while the screen is one.
-    classic: Option<Range<usize>>,
+    /// The classic option panel's one list of every binding, while the
+    /// screen is one.
+    classic: Option<classic_view::ClassicList>,
     /// The classic+ detail box's value, command, shared-key and default
     /// lines, rewritten each frame.
     detail: [String; 4],
@@ -185,17 +186,7 @@ impl KeybindEditor {
             return EditorResult::None;
         }
         if self.classic.is_some() {
-            match key {
-                KeyCode::Tab | KeyCode::ArrowRight | KeyCode::KeyD => {
-                    return EditorResult::ClassicCycle(1);
-                }
-                KeyCode::ArrowLeft | KeyCode::KeyA => return EditorResult::ClassicCycle(-1),
-                KeyCode::Delete | KeyCode::Backspace => {
-                    self.clear_both(console);
-                    return EditorResult::None;
-                }
-                _ => {}
-            }
+            return self.classic_key(key, event.text.as_deref(), console);
         }
         match key {
             KeyCode::ArrowUp | KeyCode::KeyW => self.move_selection(-1),
@@ -258,11 +249,21 @@ impl KeybindEditor {
         }
     }
 
-    /// `ACTIONS` range of the current tab, or of the classic panel.
+    /// `ACTIONS` range of the current tab, or every action in the classic
+    /// panel (whose list [`classic_view::ClassicList`] orders and filters them).
     fn rows(&self) -> Range<usize> {
         match &self.classic {
-            Some(rows) => rows.clone(),
+            Some(_) => 0..ACTIONS.len(),
             None => category_range(self.tab),
+        }
+    }
+
+    /// Whether action `action` is a row on show: in the tab, or in the
+    /// classic list after its search.
+    fn shows(&self, action: usize) -> bool {
+        match &self.classic {
+            Some(list) => list.position(action).is_some(),
+            None => category_range(self.tab).contains(&action),
         }
     }
 
@@ -279,7 +280,7 @@ impl KeybindEditor {
 
     fn set_tab(&mut self, tab: usize) {
         self.tab = tab;
-        self.selected = self.rows().start;
+        self.selected = category_range(tab).start;
         self.first = 0;
         self.capture = false;
     }
@@ -292,6 +293,10 @@ impl KeybindEditor {
     /// Move the keyboard selection within the tab, wrapping, and scroll so
     /// it stays on screen.
     fn move_selection(&mut self, direction: i32) {
+        if self.classic.is_some() {
+            self.classic_step(direction);
+            return;
+        }
         let rows = self.rows();
         let count = rows.len() as i32;
         if count == 0 {
@@ -306,15 +311,24 @@ impl KeybindEditor {
             .max(offset.saturating_sub(self.visible - 1));
     }
 
+    /// Rows the list scrolls through: the tab's, or the classic list's
+    /// (headings included).
+    fn list_len(&self) -> usize {
+        match &self.classic {
+            Some(list) => list.rows.len(),
+            None => self.rows().len(),
+        }
+    }
+
     /// Scroll the tab by `rows` (negative = up) without moving the selection.
     fn scroll_by(&mut self, rows: i32) {
-        let max_first = self.rows().len().saturating_sub(self.visible);
+        let max_first = self.list_len().saturating_sub(self.visible);
         self.first = (self.first as i32 + rows).clamp(0, max_first as i32) as usize;
     }
 
     /// Scroll so the row column shows `ratio` (0 = top, 1 = bottom) of the tab.
     fn scroll_to_ratio(&mut self, ratio: f32) {
-        let max_first = self.rows().len().saturating_sub(self.visible);
+        let max_first = self.list_len().saturating_sub(self.visible);
         self.first = (ratio.clamp(0.0, 1.0) * max_first as f32).round() as usize;
     }
 

@@ -3,26 +3,133 @@
 //! them ("A or B", one key, or "???"); the action being rebound turns red
 //! and the description line asks for the new key.
 //!
-//! The panel is classic+ (`docs/classic-plus.md`): the detail box under the
-//! rows names the focused action's keys, its console command and its default
-//! key, an action bound differently from its default carries a mark, and
-//! the description line names the keys of the panel.
+//! The panel is classic+ (`docs/classic-plus.md`): every binding is in one
+//! list under its category's heading (retail kept a page per category), the
+//! categories down the left jump to their heading, and a search field over
+//! the list finds actions by name, command, key or category. The detail box
+//! under the rows names the focused action's keys, its console command and
+//! its default key, an action bound differently from its default carries a
+//! mark, and the description line names the keys of the panel.
 
 use super::*;
 use crate::menu::classic::layout::Span;
 use crate::menu::classic::panel::{BINDING, Detail, OPTION, PanelFrame, focus_text};
 use crate::menu::classic::view::Caps;
 use std::fmt::Write as _;
+use winit::keyboard::KeyCode;
 
 /// The rows' wheel target, under them, while the list scrolls; clear of the
 /// action rows, the secondary slots (600), the chrome (800) and the footer
 /// and scrollbar tokens (902-910).
 const ROWS_SCROLL_TOKEN: u16 = 911;
 
+/// The categories' headings in the one list.
+const HEADINGS: [&str; 5] = [
+    "Movement",
+    "Interaction",
+    "Weapons",
+    "Force powers",
+    "Other",
+];
+
+/// One row of the classic list.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum ListRow {
+    /// A category's heading (`Category as usize`).
+    Heading(usize),
+    /// An action, by index into `ACTIONS`.
+    Action(usize),
+}
+
+/// The classic panel's list: every action under its category's heading, or
+/// those the search finds.
+pub(super) struct ClassicList {
+    pub(super) rows: Vec<ListRow>,
+    /// What is typed in the search field, and whether it has the keyboard.
+    pub(super) search: String,
+    pub(super) searching: bool,
+}
+
+impl ClassicList {
+    fn new() -> Self {
+        let mut list = Self {
+            rows: Vec::with_capacity(ACTIONS.len() + HEADINGS.len()),
+            search: String::new(),
+            searching: false,
+        };
+        list.filter(&[]);
+        list
+    }
+
+    /// Rebuild the rows for the search; `keys` are the actions' keys as
+    /// shown, so a key name finds what it does.
+    fn filter(&mut self, keys: &[[String; 2]]) {
+        self.rows.clear();
+        let query = self.search.trim().to_ascii_lowercase();
+        for (category, heading) in HEADINGS.iter().enumerate() {
+            let heading_hit = heading.to_ascii_lowercase().contains(&query);
+            let mut first = true;
+            for action in category_range(category) {
+                let hit = query.is_empty()
+                    || heading_hit
+                    || ACTIONS[action].label.to_ascii_lowercase().contains(&query)
+                    || ACTIONS[action]
+                        .command
+                        .to_ascii_lowercase()
+                        .contains(&query)
+                    || keys.get(action).is_some_and(|keys| {
+                        keys.iter().any(|key| key.eq_ignore_ascii_case(&query))
+                    });
+                if !hit {
+                    continue;
+                }
+                if std::mem::take(&mut first) {
+                    self.rows.push(ListRow::Heading(category));
+                }
+                self.rows.push(ListRow::Action(action));
+            }
+        }
+    }
+
+    /// Place of action `action` in the list.
+    pub(super) fn position(&self, action: usize) -> Option<usize> {
+        self.rows
+            .iter()
+            .position(|row| *row == ListRow::Action(action))
+    }
+
+    /// Place of category `category`'s heading.
+    fn heading(&self, category: usize) -> Option<usize> {
+        self.rows
+            .iter()
+            .position(|row| *row == ListRow::Heading(category))
+    }
+
+    /// Actions found.
+    fn actions(&self) -> usize {
+        self.rows
+            .iter()
+            .filter(|row| matches!(row, ListRow::Action(_)))
+            .count()
+    }
+
+    /// The first action of the list.
+    fn first_action(&self) -> Option<usize> {
+        self.rows.iter().find_map(|row| match row {
+            ListRow::Action(action) => Some(*action),
+            ListRow::Heading(_) => None,
+        })
+    }
+}
+
 /// Retail `WAITING_FOR_NEW_KEY` (`mp_ingame.str`).
 const WAITING: &str = "Enter new key, or ESC to cancel, BACKSPACE to clear.";
 /// The description line's keys otherwise.
-const KEYS: &str = "ENTER to bind a key   \u{b7}   BACKSPACE clears the action's keys";
+const KEYS: &str =
+    "ENTER to bind a key   \u{b7}   BACKSPACE clears the action's keys   \u{b7}   / to search";
+/// The description line while the search field has the keyboard.
+const SEARCHING: &str =
+    "Type to find an action, a command or a key   \u{b7}   ENTER to the results, ESC to clear";
 
 /// Whether action `action`'s keys (`keys`, as the panel shows them) differ
 /// from its default key.
@@ -40,17 +147,218 @@ fn rebound(action: usize, keys: &[String; 2]) -> bool {
 }
 
 impl KeybindEditor {
-    /// Show rows `span` of key-binding category `category` as a classic
-    /// option panel.
+    /// Show every binding as a classic option panel, at category
+    /// `category`'s heading (its first `span` row selected). A search typed
+    /// before is kept, so a category jump moves within its results.
     pub(crate) fn open_classic(&mut self, console: &ViewerConsole, category: usize, span: Span) {
         let tab = category.min(CATEGORIES.len() - 1);
         self.set_tab(tab);
-        let all = category_range(tab);
-        let rows = span.within(all.start, all.len());
-        self.selected = rows.start;
-        self.classic = Some(rows);
-        self.binding_slot = 0;
         self.refresh(console);
+        let mut list = self.classic.take().unwrap_or_else(ClassicList::new);
+        list.searching = false;
+        list.filter(&self.keys);
+        let all = category_range(tab);
+        let wanted = span.within(all.start, all.len()).start;
+        self.selected = if list.position(wanted).is_some() {
+            wanted
+        } else {
+            list.first_action().unwrap_or(wanted)
+        };
+        self.first = list
+            .heading(tab)
+            .or_else(|| list.position(self.selected))
+            .unwrap_or(0);
+        self.classic = Some(list);
+        self.binding_slot = 0;
+    }
+
+    /// Search for `text` as if it had been typed, for the menu snapshots.
+    #[cfg(test)]
+    pub(crate) fn search_for_snapshot(&mut self, text: &str) {
+        self.set_search(text.to_owned());
+    }
+
+    /// The category of the selected action, for the group list's mark.
+    pub(crate) fn classic_category(&self) -> Option<usize> {
+        self.classic.as_ref()?;
+        ACTIONS
+            .get(self.selected)
+            .map(|action| action.category as usize)
+    }
+
+    /// The classic panel's keys: the search field takes typing while it has
+    /// the keyboard; otherwise retail's keys, Left and Right through the
+    /// groups, Backspace clearing the action, and `/` or Up from the top to
+    /// the search.
+    pub(super) fn classic_key(
+        &mut self,
+        key: KeyCode,
+        text: Option<&str>,
+        console: &mut ViewerConsole,
+    ) -> EditorResult {
+        if self.classic.as_ref().is_some_and(|list| list.searching) {
+            self.search_key(key, text);
+            return EditorResult::None;
+        }
+        match key {
+            KeyCode::Tab | KeyCode::ArrowRight | KeyCode::KeyD => EditorResult::ClassicCycle(1),
+            KeyCode::ArrowLeft | KeyCode::KeyA => EditorResult::ClassicCycle(-1),
+            KeyCode::Delete | KeyCode::Backspace => {
+                self.clear_both(console);
+                EditorResult::None
+            }
+            KeyCode::Slash | KeyCode::NumpadDivide => {
+                self.begin_search();
+                EditorResult::None
+            }
+            KeyCode::ArrowUp | KeyCode::KeyW
+                if self
+                    .classic
+                    .as_ref()
+                    .is_some_and(|list| list.first_action() == Some(self.selected)) =>
+            {
+                self.begin_search();
+                EditorResult::None
+            }
+            KeyCode::ArrowUp | KeyCode::KeyW => {
+                self.move_selection(-1);
+                EditorResult::None
+            }
+            KeyCode::ArrowDown | KeyCode::KeyS => {
+                self.move_selection(1);
+                EditorResult::None
+            }
+            KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Space => {
+                self.begin_capture();
+                EditorResult::None
+            }
+            KeyCode::Escape => {
+                // A search still applied is cleared first.
+                if self
+                    .classic
+                    .as_ref()
+                    .is_some_and(|list| !list.search.is_empty())
+                {
+                    self.set_search(String::new());
+                    return EditorResult::None;
+                }
+                EditorResult::Back
+            }
+            _ => EditorResult::None,
+        }
+    }
+
+    /// A key while the search field has the keyboard.
+    fn search_key(&mut self, key: KeyCode, text: Option<&str>) {
+        let Some(list) = &self.classic else {
+            return;
+        };
+        let mut search = list.search.clone();
+        match key {
+            KeyCode::Escape if search.is_empty() => self.end_search(),
+            KeyCode::Escape => search.clear(),
+            KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::ArrowDown | KeyCode::Tab => {
+                self.end_search();
+                return;
+            }
+            KeyCode::Backspace => {
+                search.pop();
+            }
+            _ => {
+                if let Some(text) = text {
+                    search.extend(text.chars().filter(|c| !c.is_control()).take(32));
+                }
+            }
+        }
+        self.set_search(search);
+    }
+
+    /// Give the search field the keyboard.
+    pub(super) fn begin_search(&mut self) {
+        if let Some(list) = &mut self.classic {
+            list.searching = true;
+            self.capture = false;
+        }
+    }
+
+    /// Take the keyboard back from the search field, keeping its results.
+    pub(super) fn end_search(&mut self) {
+        if let Some(list) = &mut self.classic {
+            list.searching = false;
+        }
+    }
+
+    /// Search for `search`: the results from the top, the first one
+    /// selected; an emptied search returns to the selected action's place.
+    fn set_search(&mut self, search: String) {
+        let Some(list) = &mut self.classic else {
+            return;
+        };
+        list.search = search;
+        list.filter(&self.keys);
+        self.first = 0;
+        if list.search.trim().is_empty() {
+            if list.position(self.selected).is_none()
+                && let Some(first) = list.first_action()
+            {
+                self.selected = first;
+            }
+            self.reveal_selected_action();
+        } else if let Some(first) = list.first_action() {
+            self.selected = first;
+        }
+    }
+
+    /// Scroll so the selected action is on show, with its category's heading
+    /// when it is the first action under it.
+    fn reveal_selected_action(&mut self) {
+        let Some(list) = &self.classic else {
+            return;
+        };
+        let Some(position) = list.position(self.selected) else {
+            return;
+        };
+        let above = position.saturating_sub(1);
+        let heading = matches!(list.rows.get(above), Some(ListRow::Heading(_)));
+        if heading {
+            self.reveal_list(above);
+        }
+        self.reveal_list(position);
+    }
+
+    /// Step the selection through the list's actions, over the headings,
+    /// wrapping.
+    pub(super) fn classic_step(&mut self, direction: i32) {
+        let Some(list) = &self.classic else {
+            return;
+        };
+        let actions: Vec<usize> = list
+            .rows
+            .iter()
+            .filter_map(|row| match row {
+                ListRow::Action(action) => Some(*action),
+                ListRow::Heading(_) => None,
+            })
+            .collect();
+        if actions.is_empty() {
+            return;
+        }
+        let current = actions.iter().position(|action| *action == self.selected);
+        let next = match current {
+            Some(index) => (index as i32 + direction).rem_euclid(actions.len() as i32) as usize,
+            None => 0,
+        };
+        self.selected = actions[next];
+        self.reveal_selected_action();
+    }
+
+    /// Scroll so list row `position` is on show.
+    fn reveal_list(&mut self, position: usize) {
+        let visible = self.visible.max(1);
+        self.first = self
+            .first
+            .min(position)
+            .max((position + 1).saturating_sub(visible));
     }
 
     /// Back to the full tabbed editor on the same category.
@@ -69,27 +377,47 @@ impl KeybindEditor {
         reveal: f32,
         frame: &PanelFrame,
     ) {
-        let rows = self.rows();
         let mut place = frame.begin(&mut self.ui, viewport, reveal);
-        if icons::any(rows.clone()) {
+        if icons::any(0..ACTIONS.len()) {
             place = place.with_icon_column();
         }
+        let Some(list) = self.classic.take() else {
+            return;
+        };
+        place.search_field(
+            &mut self.ui,
+            &list.search,
+            list.searching,
+            "type to find",
+            (!list.search.is_empty()).then(|| list.actions()),
+        );
         self.visible = place.capacity();
-        self.first = self.first.min(rows.len().saturating_sub(self.visible));
-        let shown = rows.start + self.first..rows.end.min(rows.start + self.first + self.visible);
+        let total = list.rows.len();
+        self.first = self.first.min(total.saturating_sub(self.visible));
+        let shown = self.first..total.min(self.first + self.visible);
         // A list longer than the panel scrolls with the wheel anywhere over
         // its rows, not only over the thin bar.
-        if rows.len() > self.visible {
+        if total > self.visible {
             let top = place.row(0);
             self.ui.scroll_region(
                 ROWS_SCROLL_TOKEN,
                 Rect::new(top.x, top.y, top.width, self.visible as f32 * top.height),
             );
         }
-        if shown.contains(&self.selected) {
-            place.highlight(&mut self.ui, self.selected - shown.start);
+        if let Some(position) = list.position(self.selected).filter(|p| shown.contains(p)) {
+            place.highlight(&mut self.ui, position - shown.start);
         }
-        for (slot, action) in shown.clone().enumerate() {
+        if list.rows.is_empty() {
+            place.value_plain(&mut self.ui, 0, "No action matches the search.", OPTION);
+        }
+        for (slot, row) in list.rows[shown.clone()].iter().enumerate() {
+            let action = match *row {
+                ListRow::Heading(category) => {
+                    place.heading(&mut self.ui, slot, HEADINGS[category]);
+                    continue;
+                }
+                ListRow::Action(action) => action,
+            };
             let focused = action == self.selected;
             let color = if focused { focus_text() } else { OPTION };
             place.label(&mut self.ui, slot, ACTIONS[action].label, color);
@@ -126,16 +454,18 @@ impl KeybindEditor {
                 None => place.value(&mut self.ui, slot, "???", value_color),
             }
         }
-        if rows.len() > self.visible {
+        if total > self.visible {
             self.ui.scrollbar(
                 SCROLLBAR_TOKEN,
                 place.scrollbar_track(self.visible),
                 self.first,
                 self.visible,
-                rows.len(),
+                total,
             );
         }
-        let focused = rows.contains(&self.selected).then_some(self.selected);
+        let focused = list.position(self.selected).map(|_| self.selected);
+        let searching = list.searching;
+        self.classic = Some(list);
         self.write_detail(focused);
         let detail = match focused {
             Some(action) => Detail {
@@ -151,7 +481,13 @@ impl KeybindEditor {
         place.detail(&mut self.ui, &detail);
         place.finish(
             &mut self.ui,
-            Some(if self.capture { WAITING } else { KEYS }),
+            Some(if self.capture {
+                WAITING
+            } else if searching {
+                SEARCHING
+            } else {
+                KEYS
+            }),
         );
         self.ui.finish(self.selected as u16);
         self.ui.append_text(vertices, font, viewport);
@@ -258,5 +594,72 @@ mod tests {
         assert_eq!(editor.detail[2], format!("{shown} also does: Jump"));
         editor.write_detail(None);
         assert!(editor.detail.iter().all(String::is_empty));
+    }
+
+    fn console() -> (tempfile::TempDir, ViewerConsole) {
+        let directory = tempfile::tempdir().unwrap();
+        let console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        (directory, console)
+    }
+
+    #[test]
+    fn one_list_holds_every_action_under_its_heading() {
+        let (_directory, console) = console();
+        let mut editor = KeybindEditor::new();
+        editor.open_classic(&console, Category::Weapons as usize, Span::ALL);
+        let list = editor.classic.as_ref().unwrap();
+        assert_eq!(list.actions(), ACTIONS.len());
+        assert_eq!(list.rows.len(), ACTIONS.len() + HEADINGS.len());
+        assert_eq!(list.rows[0], ListRow::Heading(0));
+        // The category opens at its heading, its first action selected.
+        assert_eq!(
+            list.rows[editor.first],
+            ListRow::Heading(Category::Weapons as usize)
+        );
+        assert_eq!(
+            editor.selected,
+            category_range(Category::Weapons as usize).start
+        );
+        // Down walks over the next heading into the next category.
+        let last_weapon = category_range(Category::Weapons as usize).end - 1;
+        editor.selected = last_weapon;
+        editor.classic_step(1);
+        assert_eq!(editor.selected, last_weapon + 1);
+        assert_eq!(ACTIONS[editor.selected].category, Category::Force);
+    }
+
+    #[test]
+    fn search_finds_names_commands_and_keys_and_escape_clears_it() {
+        let (_directory, mut console) = console();
+        let mut editor = KeybindEditor::new();
+        editor.open_classic(&console, 0, Span::ALL);
+        let press = |editor: &mut KeybindEditor, console: &mut ViewerConsole, key, text| {
+            editor.classic_key(key, text, console)
+        };
+        press(&mut editor, &mut console, KeyCode::Slash, None);
+        assert!(editor.classic.as_ref().unwrap().searching);
+        for letter in ["j", "u", "m", "p"] {
+            press(&mut editor, &mut console, KeyCode::KeyJ, Some(letter));
+        }
+        let list = editor.classic.as_ref().unwrap();
+        assert_eq!(list.search, "jump");
+        assert_eq!(ACTIONS[editor.selected].command, "+moveup");
+        assert!(list.rows.contains(&ListRow::Heading(0)));
+        // A command and a key name find their action too.
+        editor.set_search("+attack".to_owned());
+        assert_eq!(ACTIONS[editor.selected].command, "+attack");
+        editor.set_search("space".to_owned());
+        assert_eq!(ACTIONS[editor.selected].command, "+moveup");
+        editor.set_search("zzzz".to_owned());
+        assert_eq!(editor.classic.as_ref().unwrap().actions(), 0);
+        // Escape clears the text, then leaves the field, then the panel.
+        press(&mut editor, &mut console, KeyCode::Escape, None);
+        assert!(editor.classic.as_ref().unwrap().search.is_empty());
+        press(&mut editor, &mut console, KeyCode::Escape, None);
+        assert!(!editor.classic.as_ref().unwrap().searching);
+        assert_eq!(
+            press(&mut editor, &mut console, KeyCode::Escape, None),
+            EditorResult::Back
+        );
     }
 }
