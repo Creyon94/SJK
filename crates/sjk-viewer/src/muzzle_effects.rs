@@ -24,6 +24,7 @@ pub(crate) fn spawn(
     if !auxiliary.continuous.due(now) {
         return;
     }
+    let shakes = auxiliary.pending_shakes();
     effect_runtime::spawn_effect(
         particles,
         auxiliary,
@@ -37,4 +38,9 @@ pub(crate) fn spawn(
         audio,
         combat_effects::rotation_from_direction(socket.direction),
     );
+    // Muzzle flashes carry a short `CameraShake` (JoF's HD weapon effects: radius
+    // 60), but JoF EternalJK shows no shake when firing, in first or third person
+    // (frame-to-frame motion measured on the contributor's recordings), so the
+    // flash's shake is dropped. Explosions and other effects still shake.
+    auxiliary.drop_shakes_since(shakes);
 }

@@ -34,6 +34,11 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
             "Scope: 0 stock, 1 crosshair, 2 mask only",
         ),
         ("cg_autoSwitch", 1, "Pickup upgrades: 0 off, 1 safe, 2 any"),
+        (
+            "cg_screenShake",
+            2,
+            "Camera shakes from effects such as explosions: 0 off (muzzle flashes never shake, as in JoF EternalJK)",
+        ),
     ] {
         cvars.register(CvarDefinition::new(
             name,
@@ -107,6 +112,15 @@ pub(crate) fn scalar(console: Option<&ViewerConsole>, name: &str, default: f64) 
         .and_then(|c| c.float_cvar(name))
         .filter(|v| v.is_finite())
         .unwrap_or(default) as f32
+}
+
+/// EternalJK `cg_screenShake`: nonzero lets effect files shake the camera
+/// (`CG_FX_CameraShake`).
+pub(crate) fn screen_shake(console: Option<&ViewerConsole>) -> bool {
+    console
+        .and_then(|c| c.integer_cvar("cg_screenshake"))
+        .unwrap_or(2)
+        != 0
 }
 
 /// Stock bob scalars affect only the rendered camera, never usercmd angles.

@@ -393,6 +393,10 @@ impl super::GpuState {
                 self.chat.open(team);
                 self.sync_cursor_policy();
             }
+            // Toggling during a zoom keeps first person once the zoom ends.
+            Some(InputAction::ToggleCamera) if self.zoom_forced_first_person => {
+                self.zoom_forced_first_person = false;
+            }
             Some(InputAction::ToggleCamera) => self.third_person = !self.third_person,
             Some(InputAction::SaberToggle) => {
                 self.pending_generic_command = GENCMD_SABER_SWITCH;

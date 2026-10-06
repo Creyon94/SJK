@@ -403,6 +403,9 @@ struct GpuState {
     local_prediction: LocalPrediction,
     local_actor_state: local_actor_state::Tracker,
     third_person: bool,
+    /// The third-person camera stepped aside for a zoom
+    /// ([`GpuState::force_first_person_while_zoomed`]) and comes back after it.
+    zoom_forced_first_person: bool,
     /// Evidence cameras (spectate/look-at/orbit) leave the local actor at
     /// its entity transform instead of pinning it under the camera.
     detached_camera: bool,
@@ -1201,6 +1204,7 @@ impl GpuState {
             local_prediction,
             local_actor_state: local_actor_state::Tracker::default(),
             third_person,
+            zoom_forced_first_person: false,
             detached_camera: false,
 
             selected_weapon: None,
@@ -1323,8 +1327,7 @@ impl GpuState {
             .demo_session
             .as_ref()
             .is_none_or(|session| !matches!(session.camera(), demo_playback::Camera::Spectate(_)));
-        self.effect_aux
-            .resolve_shakes(self.camera_position, visual_now, local_view);
+        self.force_first_person_while_zoomed(presentation_time as i32);
         let intermission_view = self
             .live_session
             .as_ref()
@@ -1384,6 +1387,14 @@ impl GpuState {
             (if backdrop_view { "backdrop" } else { "free" }, free)
         };
         cut_trace::tick(self, branch, (view_position, view_target), visual_now);
+        // `CG_DoCameraShake` measures from the rendered view (`cg.refdef.vieworg`),
+        // so an effect's short-range shake reaches a first-person eye but not the
+        // third-person camera behind the player.
+        self.effect_aux.resolve_shakes(
+            view_position,
+            visual_now,
+            local_view && cgame_options::screen_shake(self.console.as_ref()),
+        );
         // The third-person camera already traced from the shifted origin.
         let error_offset = if branch == "third-person" {
             Vec3::ZERO

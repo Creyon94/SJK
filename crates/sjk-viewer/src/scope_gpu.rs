@@ -2,9 +2,15 @@
 use bytemuck::{Pod, Zeroable};
 use wgpu::util::DeviceExt;
 
+const MASK_IMAGE: &str = "gfx/2d/cropcircle2";
+
 const PATHS: [&str; 5] = [
     "gfx/misc/scanline",
-    "gfx/2d/cropcircle2.tga",
+    // The mask stage's own image, looked up as an image (not through the
+    // `gfx/2d/cropCircle2` shader, whose other stage drew a full-screen white
+    // picture) in the engine's `.jpg`, `.png`, `.tga` order, so JoF's HD scope
+    // (`JoF_HDWeaponScopeTrue.pk3`, `cropcircle2.png`) wins as in EternalJK.
+    MASK_IMAGE,
     "gfx/2d/cropCircle",
     "gfx/2d/insertTick",
     "gfx/2d/crop_charge",
@@ -61,7 +67,22 @@ impl Mask {
         });
         let mut textures = Vec::with_capacity(5);
         for name in PATHS {
-            let loaded = if name.ends_with(".tga") {
+            let loaded = if name == MASK_IMAGE {
+                shaders
+                    .resolve_stage_image(vfs, name)
+                    .map_err(|error| Box::new(error) as Box<dyn std::error::Error>)
+                    .and_then(|path| path.ok_or_else(|| format!("missing {name}").into()))
+                    .and_then(|path| {
+                        vfs.read(path.as_str())
+                            .map_err(|error| Box::new(error) as Box<dyn std::error::Error>)
+                            .and_then(|asset| asset.ok_or_else(|| format!("missing {path}").into()))
+                            .and_then(|asset| {
+                                crate::decode_image(&asset.bytes, path.as_str())
+                                    .map(|image| image.into_rgba8())
+                                    .map_err(Into::into)
+                            })
+                    })
+            } else if name.ends_with(".tga") {
                 vfs.read(name)
                     .map_err(|error| Box::new(error) as Box<dyn std::error::Error>)
                     .and_then(|asset| asset.ok_or_else(|| format!("missing {name}").into()))

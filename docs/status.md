@@ -7,6 +7,33 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Zoom, scope and effect camera shakes
+
+Branch `feat/zoom-scope-camera`:
+
+- Effect camera shakes are measured from the rendered view, as `CG_DoCameraShake`
+  measures from `cg.refdef.vieworg`; SJK measured from the player's eye, so a
+  short-range shake reached the third-person camera too. EternalJK's
+  `cg_screenShake` (default 2; 0 turns effect shakes off) is registered.
+- Muzzle-flash effects never shake the camera. JoF's HD muzzle flashes carry a
+  `CameraShake` of radius 60, and JoF EternalJK showed no shake when firing in
+  the contributor's recordings, in first or third person; explosions and other
+  effects still shake.
+- While the player is zoomed (disruptor) the third-person camera steps aside, as
+  `CG_DrawActiveFrame` forces first person when zoomed, so the scope shows; the
+  camera choice returns when the zoom ends. Toggling the camera during a zoom
+  keeps first person.
+- The scope mask is looked up as the image `gfx/2d/cropcircle2` in the engine's
+  image order instead of through its shader, whose other stage drew a full-screen
+  white picture, so JoF's HD scope shows as in EternalJK.
+- The first-person duck smoothing follows the predicted view height
+  (`CG_TransitionPlayerState` after prediction, `cg_playerstate.c:539-543`); it
+  also followed the later snapshot and lifted the view again after each crouch.
+
+A unit test covers the predicted duck smoothing. Checked in game on Windows 11
+on a JoF server: no shake when firing, the disruptor scope in third person, the
+HD scope picture and crouching without a bump.
+
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the
