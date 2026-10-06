@@ -9,6 +9,25 @@
 //! missing-grid fallback; optional spatial diffuse samples the map at each fragment.
 
 use bytemuck::{Pod, Zeroable};
+use std::ops::Range;
+
+/// Instances the shared actor instance buffer holds: every actor, object and
+/// mover draw plus the pickup and effect overrides of one frame. Up to 1024
+/// entities can each draw several times, so a busy map exceeds the old 1024.
+pub(crate) const CAPACITY: usize = 4_096;
+
+/// Appends `group` to the frame's packed `instances`, stopping at [`CAPACITY`]
+/// so a draw range can never reach past the GPU buffer (wgpu aborts the frame
+/// on such a range). Returns the range the group drew.
+pub(crate) fn append_group(
+    instances: &mut Vec<ActorInstance>,
+    group: &[ActorInstance],
+) -> Range<u32> {
+    let start = instances.len();
+    let room = CAPACITY.saturating_sub(start);
+    instances.extend_from_slice(&group[..group.len().min(room)]);
+    start as u32..instances.len() as u32
+}
 
 /// Entity light on the 0..=1 colour scale, ready for the vertex stage.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -162,5 +181,35 @@ const fn attribute(
         format,
         offset,
         shader_location,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn group(count: usize) -> Vec<ActorInstance> {
+        vec![ActorInstance::new([0.0; 3], [0.0, 0.0, 0.0, 1.0], [1.0; 3]); count]
+    }
+
+    #[test]
+    fn groups_pack_one_after_another() {
+        let mut packed = Vec::new();
+        assert_eq!(append_group(&mut packed, &group(3)), 0..3);
+        assert_eq!(append_group(&mut packed, &group(2)), 3..5);
+        assert_eq!(packed.len(), 5);
+    }
+
+    #[test]
+    fn packing_stops_at_the_buffer_capacity() {
+        // 1026 instances once overran the old 1024-entry buffer and wgpu aborted the frame.
+        let mut packed = Vec::new();
+        let first = append_group(&mut packed, &group(CAPACITY - 1));
+        assert_eq!(first, 0..(CAPACITY as u32 - 1));
+        let second = append_group(&mut packed, &group(5));
+        assert_eq!(second, (CAPACITY as u32 - 1)..CAPACITY as u32);
+        let third = append_group(&mut packed, &group(5));
+        assert_eq!(third, CAPACITY as u32..CAPACITY as u32);
+        assert_eq!(packed.len(), CAPACITY);
     }
 }

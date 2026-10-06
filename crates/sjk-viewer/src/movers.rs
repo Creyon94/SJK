@@ -144,9 +144,6 @@ pub(crate) fn append_groups(
     ranges: &mut Vec<std::ops::Range<u32>>,
 ) {
     for group in groups {
-        let start = u32::try_from(instances.len()).unwrap_or(1_024);
-        instances.extend(group.iter().copied());
-        let end = u32::try_from(instances.len()).unwrap_or(1_024);
-        ranges.push(start..end);
+        ranges.push(crate::actor_instance::append_group(instances, group));
     }
 }

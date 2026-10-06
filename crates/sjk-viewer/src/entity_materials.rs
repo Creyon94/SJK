@@ -275,7 +275,7 @@ pub(crate) fn append_override_ranges(
 ) {
     ranges.clear();
     for entry in overrides {
-        if instances.len() == instances.capacity() || ranges.len() == ranges.capacity() {
+        if instances.len() >= crate::actor_instance::CAPACITY || ranges.len() == ranges.capacity() {
             break;
         }
         let start = u32::try_from(instances.len()).unwrap_or(u32::MAX);
