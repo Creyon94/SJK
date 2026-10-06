@@ -22,6 +22,7 @@ pub(crate) mod main_view;
 mod map_picker;
 mod map_picker_view;
 pub(crate) mod network_view;
+pub(crate) mod quick_setup;
 pub(crate) mod style;
 
 use super::{TextVertex, UiFont};

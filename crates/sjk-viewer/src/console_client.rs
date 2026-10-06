@@ -74,6 +74,10 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
         crate::identity_command::HELP,
     ),
     ("togglemenu", "Toggle the in-game menu"),
+    (
+        crate::menu::quick_setup::COMMAND,
+        crate::menu::quick_setup::HELP,
+    ),
     ("cmd", "Forward arguments as a reliable server command"),
     ("clientinfo", "Print client state and userinfo"),
     ("userinfo", "Print userinfo"),
@@ -428,6 +432,18 @@ impl crate::GpuState {
                 self.sync_cursor_policy();
             }
             crate::identity_command::COMMAND => return self.identity_command(args),
+            crate::menu::quick_setup::COMMAND => {
+                let tab = crate::settings::SettingsMenu::quick_tab();
+                if let Some(console) = &mut self.console {
+                    console.set_open(false);
+                }
+                if self.live_session.is_some() {
+                    self.open_settings_from_game(tab);
+                } else if let (Some(menu), Some(console)) = (&mut self.client_menu, &self.console) {
+                    menu.open_quick_setup(console, crate::player_menu::ReturnTarget::MainMenu);
+                }
+                self.sync_cursor_policy();
+            }
             "togglemenu" => {
                 if self.game_menu {
                     self.game_menu = false;

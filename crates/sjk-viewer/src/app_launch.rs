@@ -47,6 +47,7 @@ pub(super) fn run() -> Result<(), Box<dyn Error>> {
     let mut client_menu = menu::ClientMenu::new(open_main_menu, console.master_server()?);
     if open_main_menu {
         client_menu.prefetch_servers();
+        client_menu.offer_quick_setup(&mut console);
     }
     let mut live_session: Option<ClientSession> = None;
     let connect_timeline: Option<log::ConnectTimeline> = None;

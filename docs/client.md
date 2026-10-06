@@ -743,6 +743,24 @@ display-mode row. Eye adaptation holds still while this page is open, so
 exposure changes made here show at once instead of being eased.
 See [catalog.rs](../crates/sjk-viewer/src/settings/catalog.rs).
 
+## Quick setup
+
+The modern settings screen's last tab, QUICK
+([quick.rs](../crates/sjk-viewer/src/settings/quick.rs)), gathers the settings worth
+choosing on a first start: resolution, display mode, vsync, field of view, mouse
+sensitivity and inversion, always run, effects and music volume, the HUD look and
+scale, the crosshair, the nameplates and their bars, Force bar and power icons, the
+Force aura and the combined Protect+Absorb shell, and the update and identity
+opt-ins, ending in a Key bindings row. Its rows are the catalogue's own, looked up
+by cvar, so a change there is the same change the other tabs make; it is the last
+tab so the other tabs keep their numbers.
+
+On the first start (`ui_quickSetup` 0, archived) the main menu opens on this tab
+once and sets the cvar to 1, so leaving it with Escape dismisses it for good. The
+`quicksetup` console command opens it again, over the main menu or from a running
+game ([quick_setup.rs](../crates/sjk-viewer/src/menu/quick_setup.rs)). Not yet run
+in a game window.
+
 ## Slider values
 
 Every slider in Settings (including the classic Setup panels), the saber RGB

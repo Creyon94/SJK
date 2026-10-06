@@ -1263,6 +1263,18 @@ test: Third person, a second client casts Absorb: blue shell on them with no for
 test: Get hit while shielded: the body glow reads green. Respawn: the beam stands on the ground.
 note: Never started in a game yet.
 
+[quick-setup]
+status: personal
+area: Menus & settings
+title: Quick setup screen for first-time settings
+change: New QUICK tab (last tab of Settings): display, aim, sound, HUD, nameplates, Force shells.
+change: Opens by itself once on a first start (ui_quickSetup 0); Escape dismisses it for good.
+change: Console command quicksetup opens it any time, in the menu or in a game.
+test: Set ui_quickSetup 0, restart: the main menu opens on QUICK; Esc, restart: it does not return.
+test: In a game type quicksetup in the console: QUICK opens; Esc returns to the game menu.
+test: Change a row (e.g. cg_nameplate): the same value shows on the HUD+ or HUD tab.
+note: Never started in a game yet.
+
 # ---- Merged upstream ----
 
 [jkr-vehicles]
