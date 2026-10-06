@@ -1503,10 +1503,15 @@ SJK adds:
 
 - Rain streaks along the velocity, at least about a pixel wide (a thinner one is
   fainter instead), and a fainter far layer out to three times the original range.
-- Splashes where rain meets the ground (a small crown of droplets) or water (a
-  widening ripple), within the near box and 1200 units of the eye's height. Like
-  the streaks they are anchored in the world: a splash stays where it struck while
-  the camera moves.
+- Splashes where rain meets the ground or water, within the near box and 1200 units
+  of the eye's height. Each is geometry in the world, not a sprite, so it keeps its
+  shape and parallax from any angle: a ring flush with the ground over a darker wet
+  spot, a crown of water as eight curved wall segments that flare out, rise and
+  collapse (a thicker beaded rim, brighter where a segment is seen edge-on), and six
+  drops thrown out on parabolic arcs as short streaks. On water the ring is two
+  widening ripples, the crown lower and the drops higher. Past 400 units only three
+  drops are drawn, past 700 only the ring. Like the streaks, splashes are anchored
+  in the world: one stays where it struck while the camera moves.
 - Fades at the box edges, near the eye and into the global fog; light from the
   camera's light-grid sample, so rain is dimmer at night; soft edges where mist
   meets geometry.

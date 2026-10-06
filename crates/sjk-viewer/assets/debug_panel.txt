@@ -1693,6 +1693,18 @@ test: r_weatherQuality 0 to 3: low has no splashes or 3D fog, 2 adds far rain.
 note: Never seen on screen: fog thickness, cloud look and both costs at 4K are first guesses.
 note: Cost check: compare FPS with r_clouds 0 and r_weatherQuality 0 against the defaults.
 
+[weather-3d-splashes]
+status: personal
+area: Rendering & effects
+title: 3D rain splashes (ring, crown, flying drops)
+change: Each splash is world geometry: ground ring and wet spot, rising crown, six drops on arcs.
+change: On water: two widening ripples, a lower crown. Far away: ring and a few drops only.
+test: devmap t1_rail or r_weatherForce 3: crouch near the ground and look at splashes.
+test: Walk around one spot: crowns keep their shape from every side (no flat cards).
+test: Look down from a height: rings and wet spots lie flat on the ground.
+test: A pool or puddle in rain: ripples on the water, no ground rings there.
+note: Sizes and brightness are first guesses; tell Claude bigger/smaller/brighter.
+
 # ---- Merged upstream ----
 
 [actor-instance-cap]

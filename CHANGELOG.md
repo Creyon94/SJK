@@ -21,6 +21,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- Rain splashes are now 3D: a ring and a wet spot on the ground, a crown of water that rises and collapses, and drops thrown out on arcs, all placed in the world so they hold their shape from any angle; on water, widening ripples _(Sol)_
 - The nameplate health estimate counts a JA+ grapple hook hit as exactly one point _(Sol)_
 - The nameplate health estimate knows JA+'s chat protection: a player with the chat balloon up takes no damage unless swinging, kicking, punching or grabbing _(Sol)_
 - Your HUD shows overheal and overshield like the nameplates: health and armour over 100 (125 at spawn, up to 199 armour) fill a thinner, deeper band inside their meter, in the radial, modern and classic HUDs _(Sol)_
