@@ -2,6 +2,7 @@
 //! Input angles/player prediction remain untouched; only the rendered view changes.
 
 use super::{GpuState, movement_collision};
+use crate::console::ViewerConsole;
 use glam::{Quat, Vec3};
 use sjk_runtime::EntityId;
 
@@ -24,6 +25,20 @@ pub(crate) fn local_actor_root(
     )
 }
 
+/// `cg_cameraFPS` as the camera reads it: a float cvar, EternalJK's default 125
+/// when there is no console. Below [`motion::CAMERA_MIN_FPS`] (0 included) the
+/// stock per-50 ms damping applies.
+fn camera_fps(console: Option<&ViewerConsole>) -> f32 {
+    float_cvar(console, "cg_cameraFPS", 125.0)
+}
+
+/// A float cvar from the console, or `fallback` without one (or of another type).
+fn float_cvar(console: Option<&ViewerConsole>, name: &str, fallback: f32) -> f32 {
+    console
+        .and_then(|c| c.float_cvar(name))
+        .map_or(fallback, |v| v as f32)
+}
+
 /// `CG_OffsetThirdPersonView` and its two collision/damping stages, from OpenJK codemp.
 ///
 /// `focus_offset` is the decaying prediction error. Stock adds it to the view
@@ -35,17 +50,11 @@ pub(crate) fn damped_third_person(
     _delta_seconds: f32,
     presentation_time: i64,
 ) -> (Vec3, Vec3) {
-    let cvar = |name: &str, fallback: f32| {
-        state
-            .console
-            .as_ref()
-            .and_then(|c| c.float_cvar(name))
-            .map_or(fallback, |v| v as f32)
-    };
+    let cvar = |name: &str, fallback: f32| float_cvar(state.console.as_ref(), name, fallback);
     let mut horizontal = cvar("cg_thirdPersonHorzOffset", 0.0);
     let camera_damp = cvar("cg_thirdPersonCameraDamp", 0.3);
     let target_damp = cvar("cg_thirdPersonTargetDamp", 0.5);
-    let camera_fps = cvar("cg_cameraFPS", 125.0);
+    let camera_fps = camera_fps(state.console.as_ref());
     let fallback = [
         cvar("cg_thirdPersonAngle", 0.0),
         cvar("cg_thirdPersonPitchOffset", 0.0),
@@ -200,4 +209,65 @@ fn held_camera_yaw(state: &GpuState, presentation_time: i64) -> Option<f32> {
         .as_ref()
         .map_or(&state.live_world, crate::demo_playback::Session::world);
     crate::actor_world_submission::monster_hold::camera_yaw(world, snapshot, presentation_time)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn frame(focus: Vec3, time: i64, camera_fps: f32) -> motion::Frame {
+        motion::Frame {
+            focus,
+            yaw: 0.3,
+            pitch: 0.1,
+            range: 80.0,
+            vertical: 16.0,
+            horizontal: 0.0,
+            camera_damp: 0.3,
+            target_damp: 0.5,
+            time,
+            identity: (0, 0, 0),
+            unrestrained: false,
+            hyperspace: false,
+            camera_fps,
+        }
+    }
+
+    /// Camera position after a 50 ms step with the focus moved.
+    fn second_position(camera_fps: f32) -> Vec3 {
+        let mut state = State::default();
+        state.update(frame(Vec3::ZERO, 1_000, camera_fps), |_, end| end);
+        let moved = Vec3::new(40.0, 10.0, 0.0);
+        state
+            .update(frame(moved, 1_050, camera_fps), |_, end| end)
+            .0
+    }
+
+    #[test]
+    fn camera_fps_is_read_as_a_float_and_zero_selects_the_stock_path() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        // Registered as a float: the camera's float read sees the default.
+        assert_eq!(camera_fps(Some(&console)), 125.0);
+        assert_eq!(camera_fps(None), 125.0);
+        assert!(camera_fps(Some(&console)) >= motion::CAMERA_MIN_FPS);
+
+        assert!(console.set_cvar("cg_cameraFPS", "0"));
+        let zero = camera_fps(Some(&console));
+        assert_eq!(
+            zero, 0.0,
+            "an integer-registered cvar would read back as the fallback"
+        );
+        assert!(zero < motion::CAMERA_MIN_FPS);
+        assert!(console.set_cvar("cg_cameraFPS", "60.5"));
+        assert_eq!(camera_fps(Some(&console)), 60.5);
+
+        // The value read from the console drives the damping: 0 matches the
+        // stock path and differs from the default EternalJK path.
+        assert!(console.set_cvar("cg_cameraFPS", "0"));
+        let stock = second_position(camera_fps(Some(&console)));
+        assert_eq!(stock, second_position(0.0));
+        let eternal = second_position(camera_fps(None));
+        assert!((eternal - stock).length() > 0.1);
+    }
 }

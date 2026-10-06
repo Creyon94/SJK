@@ -652,11 +652,12 @@ that rate whatever the real frame rate, and the ideal point's own movement is
 compensated (EternalJK `CG_DampPosition`), so the camera stays close behind a
 fast-moving player. As in EternalJK the damping is timed by the predicted
 player's command time, the clock the focus moves on; timed by the presentation
-clock it stuttered. Stock multiplayer applies them per 50 ms, which trails about
-six times further at the same settings; `cg_cameraFPS` below 15 restores that. View changes, teleports, followed-player changes and
-mounting/dismounting reset the presentation history. The ordinary range, height,
-angle and damping cvars remain available; `cg_thirdPersonHorzOffset` controls the
-stock sideways offset.
+clock it stuttered. Stock multiplayer applies them once per 50 ms step, against
+8 ms per step at the default 125, so the same damping value closes the gap in
+steps 6.25 times shorter; `cg_cameraFPS` below 15 restores the stock behaviour.
+View changes, teleports, followed-player changes and mounting/dismounting reset
+the presentation history. The ordinary range, height, angle and damping cvars
+remain available; `cg_thirdPersonHorzOffset` controls the stock sideways offset.
 
 Vehicle appearances cache their `.veh` camera settings when loaded. Mounted
 views use the authored range, height, pitch and sideways offsets, including the
