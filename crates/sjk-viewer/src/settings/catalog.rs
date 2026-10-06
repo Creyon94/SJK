@@ -312,7 +312,7 @@ pub(super) const HUD: &[Setting] = &[
         cvar: "cg_nameplateBars",
         kind: ValueKind::Integer {
             min: 0,
-            max: 2,
+            max: 3,
             step: 1,
         },
     },

@@ -1320,6 +1320,19 @@ change: A missile hit from a WP_STUN_BATON missile (the JA+ hook) takes exactly 
 test: JA+ server, cg_nameplateDebug 1: hook a player without shield; hp~ drops by exactly 1.
 note: Never started in a game. If JA+ sends no hit event for the hook, nothing changes.
 
+[nameplate-modes]
+status: personal
+area: HUD
+title: V cycles nameplate modes: off, names, target and duel opponent, everyone
+change: New nameplates command, bound to V (added to configs where V is free).
+change: Target mode: bars and icons on the player aimed at (kept 3 s) and the duel opponent.
+change: The mode's name shows near the top of the screen for a moment.
+test: Press V four times: off, names only, target, everyone; each name shows briefly.
+test: Target mode: aim at a player, their bars appear and stay 3 s after you look away.
+test: Target mode in a private duel: your opponent keeps bars without aiming at them.
+test: Controls > Other: "Nameplate mode" shows V; nameplates names in the console works.
+note: Never started in a game.
+
 [identity-auto]
 status: personal
 area: HUD

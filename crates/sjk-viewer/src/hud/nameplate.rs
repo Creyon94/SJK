@@ -31,6 +31,89 @@ use sjk_ui::{
 const NPC_TEXT: u32 = 1024;
 /// Text id of the "?" over a bar the estimate cannot fill.
 const UNKNOWN_TEXT: u32 = 1000;
+/// Text id of the mode's name, shown for a moment when the mode changes.
+const MODE_TEXT: u32 = 1001;
+/// How long the mode's name shows, and the last part of that over which it fades.
+const MODE_SHOWN: i64 = 1_500;
+const MODE_FADE: i64 = 400;
+/// How long the player last aimed at keeps their bars in [`Mode::Target`].
+const FOCUS_LINGER: i64 = 3_000;
+/// `cg_nameplateBars` 3: bars only on the player aimed at and the duel opponent.
+const BARS_TARGET: i64 = 3;
+
+/// Console command that cycles the nameplate modes, or sets one (`nameplates target`).
+pub(crate) const COMMAND: &str = "nameplates";
+/// Help text for completion and `cmdlist`.
+pub(crate) const HELP: &str =
+    "Cycle the nameplates: off, names only, bars on your target, bars on everyone (or name one)";
+
+/// The nameplate modes the `nameplates` command (V by default) cycles through.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum Mode {
+    /// No nameplates (`cg_nameplate 0`).
+    Off,
+    /// Names only (`cg_nameplateBars 0`).
+    Names,
+    /// Names, and bars on the player aimed at and the duel opponent (`cg_nameplateBars 3`).
+    Target,
+    /// Names and bars on everyone (`cg_nameplateBars 2`).
+    All,
+}
+
+impl Mode {
+    /// The mode `cg_nameplate` and `cg_nameplateBars` make; bars on allies only (1),
+    /// which the cycle skips, counts as between names and target.
+    pub(crate) fn of(enabled: bool, bars: i64) -> Self {
+        match (enabled, bars) {
+            (false, _) => Self::Off,
+            (true, 2) => Self::All,
+            (true, BARS_TARGET) => Self::Target,
+            (true, 1) => Self::Names,
+            _ => Self::Names,
+        }
+    }
+
+    /// The next mode V gives: off, names, target, everyone, and round again.
+    pub(crate) fn next(self) -> Self {
+        match self {
+            Self::Off => Self::Names,
+            Self::Names => Self::Target,
+            Self::Target => Self::All,
+            Self::All => Self::Off,
+        }
+    }
+
+    /// `cg_nameplate` and, when on, `cg_nameplateBars` for this mode.
+    pub(crate) fn settings(self) -> (bool, Option<i64>) {
+        match self {
+            Self::Off => (false, None),
+            Self::Names => (true, Some(0)),
+            Self::Target => (true, Some(BARS_TARGET)),
+            Self::All => (true, Some(2)),
+        }
+    }
+
+    /// A mode named by the `nameplates` command's word.
+    pub(crate) fn named(word: &str) -> Option<Self> {
+        match word.to_ascii_lowercase().as_str() {
+            "off" | "0" => Some(Self::Off),
+            "names" | "name" | "1" => Some(Self::Names),
+            "target" | "2" => Some(Self::Target),
+            "all" | "everyone" | "3" => Some(Self::All),
+            _ => None,
+        }
+    }
+
+    /// What the screen says when the mode is chosen.
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            Self::Off => "Nameplates: off",
+            Self::Names => "Nameplates: names only",
+            Self::Target => "Nameplates: names, bars on your target and duel opponent",
+            Self::All => "Nameplates: names and bars on everyone",
+        }
+    }
+}
 /// A health or shield range this wide (shares of a full bar) is too unsure to show:
 /// the bar dims and a "?" stands over it until something narrows it.
 const UNSURE_WIDTH: f32 = 0.6;
@@ -117,7 +200,7 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         "cg_nameplateBars",
         2_i64,
         CvarFlags::ARCHIVE,
-        "Nameplate bars: 0 none, 1 allies only, 2 everyone",
+        "Nameplate bars: 0 none, 1 allies only, 2 everyone, 3 the player you aim at and your duel opponent",
     ))?;
     cvars.register(CvarDefinition::new(
         "cg_nameplateForce",
@@ -286,6 +369,10 @@ pub(crate) struct State {
     verified_read: Option<i64>,
     /// Where the local player stands, while their own plate may show (third person).
     own_origin: Option<Vec3>,
+    /// The player the crosshair was last on, and when.
+    focus: Option<(u16, i64)>,
+    /// The mode just chosen and when, to show its name for a moment.
+    announced: Option<(Mode, i64)>,
 }
 
 impl Default for State {
@@ -305,6 +392,8 @@ impl Default for State {
             verified: 0,
             verified_read: None,
             own_origin: None,
+            focus: None,
+            announced: None,
         }
     }
 }
@@ -371,6 +460,19 @@ impl State {
         }
         self.verified_read = Some(now);
         self.verified = read();
+    }
+
+    /// The player the crosshair is on at `now`, if any, for [`Mode::Target`]: they keep
+    /// their bars for a few seconds after the crosshair leaves them.
+    pub(crate) fn set_focus(&mut self, target: Option<u16>, now: i64) {
+        if let Some(client) = target {
+            self.focus = Some((client, now));
+        }
+    }
+
+    /// Show `mode`'s name on screen for a moment.
+    pub(crate) fn announce(&mut self, mode: Mode) {
+        self.announced = Some((mode, self.last_update));
     }
 
     /// Where the local player stands, for their own plate; `None` hides it (first
@@ -447,6 +549,15 @@ impl State {
             .iter()
             .any(|e| e.number() < 32 && e.is_jedi_master());
         let local_master = snapshot.player.is_jedi_master();
+        // `cg_nameplateBars 3`: the player aimed at lately and the duel opponent.
+        let focus = self
+            .focus
+            .filter(|(_, seen)| (0..=FOCUS_LINGER).contains(&(now - seen)))
+            .map(|(client, _)| client);
+        let duel_opponent = snapshot
+            .player
+            .duel_in_progress()
+            .then(|| snapshot.player.duel_index());
         let mut npcs = 0;
         for entity in &snapshot.entities {
             let number = entity.number();
@@ -530,7 +641,15 @@ impl State {
             if alpha < 0.02 {
                 continue;
             }
-            let bars = names_allowed && (settings.bars == 2 || (settings.bars == 1 && ally));
+            let bars = names_allowed
+                && match settings.bars {
+                    2 => true,
+                    1 => ally,
+                    BARS_TARGET => {
+                        player && (focus == Some(number) || duel_opponent == Some(number))
+                    }
+                    _ => false,
+                };
             let (health, shield) = if bars {
                 let predicted = (player && settings.predict).then_some(&self.vitals);
                 bar_values(entity, number, ally && player, team_info, predicted)
@@ -545,7 +664,8 @@ impl State {
                 shield: shield.is_some(),
                 force: force.is_some(),
             };
-            let (powers, power_count) = if settings.icons && player && names_allowed {
+            // Names only means names: the icons come with the bars.
+            let (powers, power_count) = if settings.icons && player && bars {
                 icon_powers(entity.force_powers_active())
             } else {
                 ([0; MAX_ICONS], 0)
@@ -571,7 +691,7 @@ impl State {
                 health,
                 shield,
                 force,
-                weapon: if player && settings.weapon && names_allowed {
+                weapon: if player && settings.weapon && bars {
                     entity.weapon()
                 } else {
                     WP_NONE
@@ -903,6 +1023,55 @@ impl State {
             }
             let _ = self.list.push(DrawCommand::PopOpacity);
         }
+        self.mode_label(label, font, unit, viewport);
+    }
+
+    /// The name of the mode just chosen, near the top of the screen for a moment.
+    fn mode_label<'a>(
+        &mut self,
+        label: &dyn Fn(TextId) -> &'a str,
+        font: &UiFont,
+        unit: f32,
+        viewport: [f32; 2],
+    ) {
+        let Some((_, at)) = self.announced else {
+            return;
+        };
+        let age = self.last_update - at;
+        if !(0..MODE_SHOWN).contains(&age) {
+            return;
+        }
+        let alpha = ((MODE_SHOWN - age) as f32 / MODE_FADE as f32).min(1.0);
+        let size = 28.0 * unit;
+        let text = crate::text::visible_text_width(
+            font,
+            label(TextId(MODE_TEXT)),
+            size / font.height.max(1.0),
+        );
+        let width = (text + size * 1.6).min(viewport[0]);
+        let rect = Rect::new(
+            (viewport[0] - width) * 0.5,
+            viewport[1] * 0.18,
+            width,
+            size * 1.6,
+        );
+        let _ = self.list.push(DrawCommand::PushOpacity(alpha));
+        let _ = self.list.push(DrawCommand::RoundedRect {
+            rect,
+            radius: rect.height * 0.5,
+            color: Color::new(0.03, 0.04, 0.06, 0.7),
+        });
+        let _ = self.list.push(DrawCommand::Text {
+            rect: Rect::new(rect.x, rect.y + size * 0.2, rect.width, size * 1.2),
+            text: TextId(MODE_TEXT),
+            size,
+            color: Color::new(1.0, 1.0, 1.0, 1.0),
+            align: TextAlign::Center,
+            overflow: TextOverflow::Ellipsis,
+            weight: FontWeight::Semibold,
+            letter_spacing: 0.0,
+        });
+        let _ = self.list.push(DrawCommand::PopOpacity);
     }
 
     /// The held weapon's icon, centred vertically on `centre_y` left of the plate,
@@ -1188,10 +1357,18 @@ impl State {
         font: &UiFont,
         viewport: [f32; 2],
     ) {
-        self.build(&|id| label(chat, id), icons, weapons, font, viewport);
+        let mode = self.announced.map(|(mode, _)| mode);
+        let text = |id: TextId| {
+            if id.0 == MODE_TEXT {
+                mode.map_or("", Mode::label)
+            } else {
+                label(chat, id)
+            }
+        };
+        self.build(&text, icons, weapons, font, viewport);
         crate::ui_renderer::append_text_commands(
             &self.list,
-            |id| label(chat, id),
+            text,
             vertices,
             font,
             viewport,
@@ -1384,9 +1561,87 @@ impl State {
     }
 }
 
+impl crate::GpuState {
+    /// `nameplates [off|names|target|all]`: the next mode, or the one named; it is
+    /// shown on screen for a moment.
+    pub(crate) fn nameplate_command(&mut self, args: &[String]) -> Result<Vec<String>, String> {
+        let console = self
+            .console
+            .as_mut()
+            .ok_or_else(|| "no console".to_owned())?;
+        let current = Mode::of(
+            console.bool_cvar("cg_nameplate").unwrap_or(true),
+            console.integer_cvar("cg_nameplateBars").unwrap_or(2),
+        );
+        let mode = match args.first() {
+            None => current.next(),
+            Some(word) => Mode::named(word)
+                .ok_or_else(|| "usage: nameplates [off | names | target | all]".to_owned())?,
+        };
+        let (enabled, bars) = mode.settings();
+        console.set_cvar("cg_nameplate", if enabled { "1" } else { "0" });
+        if let Some(bars) = bars {
+            console.set_cvar("cg_nameplateBars", &bars.to_string());
+        }
+        self.hud.nameplate.announce(mode);
+        Ok(vec![mode.label().to_owned()])
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn v_cycles_off_names_target_everyone_and_round() {
+        let mut mode = Mode::Off;
+        let mut seen = Vec::new();
+        for _ in 0..4 {
+            mode = mode.next();
+            seen.push(mode);
+        }
+        assert_eq!(seen, [Mode::Names, Mode::Target, Mode::All, Mode::Off]);
+        // Each mode's settings read back as that mode.
+        for mode in seen {
+            let (enabled, bars) = mode.settings();
+            assert_eq!(Mode::of(enabled, bars.unwrap_or(2)), mode);
+        }
+        // Bars on allies only sits between names and target.
+        assert_eq!(Mode::of(true, 1).next(), Mode::Target);
+        assert_eq!(Mode::named("TARGET"), Some(Mode::Target));
+        assert_eq!(Mode::named("everyone"), Some(Mode::All));
+        assert_eq!(Mode::named("x"), None);
+    }
+
+    #[test]
+    fn the_mode_name_shows_for_a_moment_then_goes() {
+        let mut state = State {
+            last_update: 10_000,
+            ..State::default()
+        };
+        state.announce(Mode::Target);
+        let font = crate::text::load_modern(1.0, None).unwrap().font;
+        let label = |id: TextId| {
+            if id.0 == MODE_TEXT {
+                Mode::Target.label()
+            } else {
+                ""
+            }
+        };
+        let texts = |state: &mut State| {
+            state.list.clear();
+            state.mode_label(&label, &font, 1.0, [1920.0, 1080.0]);
+            state
+                .list
+                .commands()
+                .iter()
+                .filter(|command| matches!(command, DrawCommand::Text { .. }))
+                .count()
+        };
+        assert_eq!(texts(&mut state), 1);
+        state.last_update = 10_000 + MODE_SHOWN;
+        assert_eq!(texts(&mut state), 0);
+    }
 
     #[test]
     fn icons_list_the_continuous_powers_dark_side_first() {
