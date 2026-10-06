@@ -290,6 +290,13 @@ impl ViewerConsole {
         self.shell.push_log_quiet(text);
     }
 
+    /// Queue `text` to run as if typed, on the next command frame.
+    pub(crate) fn queue_command(&mut self, text: &str) -> Result<(), String> {
+        self.shell
+            .queue_script(text)
+            .map_err(|error| error.to_string())
+    }
+
     /// Queue a bound script through the same frame-buffered path as cfg text.
     pub(crate) fn queue_bound_script(&mut self, key: &str, pressed: bool) {
         let time = self.input_millis();

@@ -167,6 +167,11 @@ impl GpuState {
         if !self.pointer_captured || self.cursor_policy.take_ignored_motion() {
             return;
         }
+        // An open quick wheel takes the mouse: it moves the wheel's pointer, not the view.
+        if self.quick_wheel.is_open() {
+            self.quick_wheel.moved([delta.0 as f32, delta.1 as f32]);
+            return;
+        }
         // Accumulate raw counts; filtering and acceleration run once per command frame.
         self.gameplay_input.motion.raw[0] += delta.0 as f32;
         self.gameplay_input.motion.raw[1] += delta.1 as f32;

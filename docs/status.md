@@ -1156,6 +1156,15 @@ OPTIONS, as the renderer page was. See [client.md](client.md). The modern screen
 flat tabs are unchanged apart from FIRST SETUP and WEATHER. The sjk-viewer tests
 cover the pages, their groups, Back and Escape; no game was started.
 
+## Quick wheels (SJK)
+
+SJK-only branch `personal/quick-wheel` (07/10/2026, based on `3a875f2`): hold
+`+wheel general` (Q) or `+wheel weather` (R), point the mouse at a choice and let go;
+see [client.md](client.md#quick-wheels). Unit tests cover the pointer-to-choice
+mapping, release and cancel, the pointer's reach, and every wheel's layout; the
+off-screen `menu_snapshot` renders both wheels. No game was started: the feel of the
+pointer (its dead zone and reach in raw mouse counts) is unverified.
+
 ## Force wheel (SJK)
 
 SJK-only branch `personal/force-wheel` (05/10/2026, based on `3f57938`) ports

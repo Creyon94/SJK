@@ -752,13 +752,18 @@ mod tests {
             cvars.get("r_emissiveMaps").expect("registered").value,
             CvarValue::Integer(1)
         );
-        // SJK turns the rend2 controls on by default too.
-        for name in CONTROLS.iter().take(3) {
+        // SJK turns normal and specular maps on by default too; parallax is off
+        // (34190c8, Sol's choice).
+        for name in CONTROLS.iter().take(2) {
             assert_eq!(
                 cvars.get(name).expect("registered").value,
                 CvarValue::Integer(1)
             );
         }
+        assert_eq!(
+            cvars.get(CONTROLS[2]).expect("registered").value,
+            CvarValue::Integer(0)
+        );
         // The light multiplier is read when a map loads; it stays within 0..4.
         assert_eq!(lights::gain_of(&CvarValue::Float(2.5)), 2.5);
         assert_eq!(lights::gain_of(&CvarValue::Integer(0)), 0.0);

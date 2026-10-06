@@ -627,6 +627,7 @@ fn menu_snapshot() {
     weapon_select(&mut shots, &vfs);
     radial_hud(&mut shots);
     player_card(&mut shots);
+    quick_wheels(&shots);
     identity_page(&shots, art);
     force_wheel(&mut shots, &vfs);
     profile_saber(&shots, art, &vfs, &mut console);
@@ -1190,6 +1191,55 @@ fn player_card(shots: &mut Snapshot) {
     }
 }
 
+/// Only the quick wheels, for a quicker look than the whole set.
+#[test]
+#[ignore = "reads the installed game data named by JKA_GAME_DATA"]
+fn quick_wheel_snapshot() {
+    let (_, vfs) = art();
+    let shots = Snapshot {
+        font: crate::text::load_modern(1.0, None).expect("build the menu font"),
+        icons: HashMap::new(),
+        in_match: match_backdrop(&vfs),
+    };
+    quick_wheels(&shots);
+}
+
+/// Both quick wheels over a match, the mouse pushed towards one choice, the choices in
+/// effect marked, in SJK's default accent.
+fn quick_wheels(shots: &Snapshot) {
+    use crate::quick_wheel::{QuickWheel, WHEELS, wheel};
+    let accent = sjk_ui::Color::new(1.0, 0.416, 0.239, 1.0);
+    let cases: [(&str, &str, [f32; 2], &[usize]); 3] = [
+        ("quick-wheel-general", "general", [60.0, -60.0], &[1, 2]),
+        ("quick-wheel-weather", "weather", [80.0, 20.0], &[0, 6, 7]),
+        (
+            "quick-wheel-weather-middle",
+            "weather",
+            [6.0, -4.0],
+            &[3, 6, 7],
+        ),
+    ];
+    for (name, wheel_name, pointer, marked) in cases {
+        let index = wheel(wheel_name).expect("a built-in wheel");
+        let marks = (0..WHEELS[index].choices.len())
+            .map(|choice| marked.contains(&choice))
+            .collect();
+        let mut state = QuickWheel::default();
+        state.open(index, marks);
+        state.moved(pointer);
+        state.build(VIEWPORT, accent);
+        let mut vertices = Vec::new();
+        crate::ui_renderer::append_text_commands(
+            &state.list,
+            |id| state.text(id),
+            &mut vertices,
+            &shots.font.font,
+            VIEWPORT,
+            crate::text::TextStyle::NEUTRAL,
+        );
+        shots.save(name, &state.list, &vertices, true);
+    }
+}
 /// Only the radial HUD, for a quicker look than the whole set.
 #[test]
 #[ignore = "reads the installed game data named by JKA_GAME_DATA"]
