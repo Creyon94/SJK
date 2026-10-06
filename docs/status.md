@@ -7,6 +7,33 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Weapon world effects
+
+Branch `feat/weapon-world-effects`:
+
+- Stuck trip mines and det packs lie flat against the surface they stick to,
+  facing out: their Ghoul2 models are authored with their top along -Y, so they
+  are turned a quarter about Z before their facing.
+- An armed trip mine plays its beam (`CG_General`, `cg_ents.c:1789-1814`):
+  `tripMine/laserMP`, or `tripMine/glowbit` in proximity mode, from 6.6 units out
+  along its facing. The beam's line is an `org2fromTrace` primitive and is
+  stretched to the solid its facing hits. A stuck mine does not move, so each
+  mine's trace is kept while its position and facing stay the same; at most four
+  new traces run per cgame tick, and a mine beyond that budget shows its beam on
+  a later tick.
+- Charging weapons glow at the muzzle as `CG_AddPlayerWeapon` draws it: the Bryar
+  pistols' alt fire (`bryarFrontFlash`), the bowcaster (`greenFrontFlash`) and the
+  DEMP2's alt fire (`lightningFlash`, 1.75 times), growing over a second.
+- The concussion rifle's alt fire draws its beam (`EV_CONC_ALT_IMPACT`,
+  `cg_event.c:2860-2881`): rings every 64 units, `FX_ConcAltShot`'s `blueLine` and
+  `whiteline2`, the wall hit and the disruptor's alt miss. At most 128 rings are
+  drawn (the game's 8192-unit range); a non-finite or longer shot draws nothing.
+
+Unit tests cover which mines draw a beam, the kept traces and the budget, the
+placed charges' facing, the charge glow's sizes and the concussion ring cap.
+Checked in game on Windows 11 on a JoF server, before the trace budget and the
+ring cap were added; those two are covered by the unit tests only.
+
 ## Classic Settings hub (SJK)
 
 SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the
