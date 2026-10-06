@@ -312,7 +312,7 @@ test: Watch for a body swapping to another model (likely fixed too).
 test: Respawn after the death finished: the body stays on the final frame, no jump.
 
 [third-person-camera-jkr]
-pr: 132
+pr: 38, 132
 issue: 20
 status: open
 area: Rendering & effects
