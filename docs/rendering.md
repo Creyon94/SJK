@@ -113,6 +113,12 @@ smallest level never reaches the next picture, and each level averages its 2x2
 parents weighted by alpha. The effect mips are generated premultiplied, unlike the
 plain `box_mip_chain` of the other mipmapped path.
 
+World decals (`polygonOffset` shaders, sort `decal`) are drawn with rd-vanilla's
+-1/-2 depth bias, their fog pass included: rd-vanilla's `RB_FogPass` runs before the
+offset is disabled, and an unbiased `Equal` fog draw fights with the surface under the
+decal pixel by pixel inside fog. Flicker of decals outside fog is not explained by
+this; it is open in [status](status.md).
+
 Effects drawn from the effect atlas (EFX particles, missile trails, muzzle
 flashes, beams, impact marks and blob shadows) follow the same remaps and local
 overrides, as rd-vanilla `RB_BeginSurface` swaps the shader for every surface.

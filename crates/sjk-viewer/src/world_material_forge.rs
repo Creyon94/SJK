@@ -463,7 +463,7 @@ impl Runtime {
                         shaders
                             .get(&key.shader)
                             .is_some_and(|d| !d.deforms.is_empty()),
-                    ),
+                    ) | super::fog_gpu::polygon_offset(shaders.get(&key.shader)),
                 ),
                 fog_draws: Vec::new(),
                 blended: material.sort > SORT_OPAQUE,

@@ -1113,6 +1113,30 @@ forced weather, the storm and fog parameters, the noise volume's range and tilin
 the cloud uniform and drift, and both shaders' translation to SPIR-V and HLSL. No
 game was started: how the fog and clouds look and what they cost are unverified.
 
+## Shader review (SJK)
+
+Sol is reviewing every retail world shader on the test maps of
+[Shader test maps](rendering.md#shader-test-maps) (06/10/2026, first 30 notes on
+`sjk_shaders_a`). What the notes showed:
+
+- Most "needs depth / metal / reflection" notes were pads without material maps:
+  the installed generated pack covered only `mp/ffa3` and `mp/duel1` and was
+  generation 1. A generation-3 pack for every retail MP map and the test maps
+  (1,059 textures, `--max-size 1024`, Sol's notes as overrides) replaced it
+  locally; not yet looked at in game.
+- Shaders with an authored glow layer already take normal and specular maps on
+  their lightmapped pair; they take no emission map, by design.
+- Open: 629 textures drawn only on vertex-lit surfaces (terrain, `_phong` sand and
+  rock) get no material maps, because the material program needs a lightmap.
+- Open: decals flicker on every map (Sol). Their bias matches rd-vanilla; only the
+  fog pass lacked it (fixed). The cause outside fog needs a reproduction (map,
+  decal, distance).
+- Open: sand footprints and footstep sounds on `q3map_material Sand`, glass with
+  depth (interior mapping), see-through backgrounds on opaque animated fields
+  (`byss/static_field`), and parallax that is too deep on sand at grazing angles.
+- Open, found on the way: shaders whose `wave` has fewer than four numbers are
+  dropped whole (JoF holosigns); rd-vanilla only warns.
+
 ## Settings grouped into Graphics and Gameplay (SJK)
 
 SJK-only branch `personal/settings-groups` (06/10/2026, based on `9145a86`), Sol's
