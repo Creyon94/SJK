@@ -526,10 +526,7 @@ Particle
         assert!(!bolt.flags.apply_physics);
         assert_eq!(bolt.count, single(2.0));
     }
-}
 
-#[cfg(test)]
-mod hd_pack_tests {
     /// JoF HD Weapon Effects `effects/concussion/shot.efx`: a bare `linear` key sits on its
     /// own line inside the Light's `size` block. It used to eat the block's closing brace and
     /// the whole effect failed with "unterminated effect component" (no concussion trail).
@@ -537,7 +534,7 @@ mod hd_pack_tests {
 
     #[test]
     fn bare_key_does_not_swallow_closing_brace() {
-        let effect = crate::parse_effect(HD_CONCUSSION_LIGHT).expect("HD concussion shot parses");
+        let effect = parse_effect(HD_CONCUSSION_LIGHT).expect("HD concussion shot parses");
         assert_eq!(effect.components.len(), 2);
         assert_eq!(effect.components[0].size.start.minimum, 80.0);
         assert_eq!(effect.components[0].size.start.maximum, 90.0);
