@@ -504,7 +504,7 @@ a background service), `cl_identity` and `cl_hubUrl`, an `SJK`/`VERIFIED` mark o
 scoreboard styles, an Identity page (in-game SJK menu, `identity` command) and
 `identity name|bio|key|who`; see [identity.md](identity.md) and
 [client.md](client.md#identity). The hub is a separate repository
-(Sol-Vulpes/SJK-hub, not published yet). New dependencies: `ed25519-dalek`,
+(Sol-Vulpes/SJK-hub, private). New dependencies: `ed25519-dalek`,
 `getrandom` and `base64`.
 
 Verified: the crate's unit tests (key file, signing, address rules, a fake-hub
