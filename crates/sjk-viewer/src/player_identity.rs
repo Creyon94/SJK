@@ -16,9 +16,9 @@ use std::path::Path;
 use std::sync::{Mutex, MutexGuard};
 use std::time::{Duration, Instant};
 
-/// The hub address a fresh install uses. Empty until SJK has a hub to point at:
-/// the identity key is made and kept locally, and nothing is sent anywhere.
-pub(crate) const DEFAULT_HUB_URL: &str = "";
+/// The hub address a fresh install uses, so players set nothing. With
+/// `cl_identity` off, or `cl_hubUrl` emptied, nothing is sent anywhere.
+pub(crate) const DEFAULT_HUB_URL: &str = "https://sjk.dfox.app";
 /// The key file, in the settings folder beside `config.cfg`.
 const KEY_FILE: &str = "identity.key";
 /// How often the settings and the player's place are compared with what the

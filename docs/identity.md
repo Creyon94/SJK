@@ -64,14 +64,15 @@ With `cl_identity` on and `cl_hubUrl` set the hub receives the player's public k
 the game server address, slot and in-game name for as long as they play, and sees
 their IP address. Claims are deleted 90 seconds after they stop being repeated;
 profiles stay until the operator removes them. With either setting off the client
-sends nothing. `cl_hubUrl` is empty by default until a hub exists, so a default
-install makes a key and sends nothing. Players should be told what the hub keeps
-before it is switched on by default.
+sends nothing. Since 06/10/2026 `cl_hubUrl` defaults to `https://sjk.dfox.app` so players
+set nothing: a default install makes a key and tells that hub where it plays. The
+Identity page, the setting's help and the changelog say what is sent and that
+`cl_identity 0` stops it.
 
 ## Settings and commands
 
 - `cl_identity` (default 1; Settings > Network > SJK identity) turns the feature on.
-- `cl_hubUrl` (default empty; Settings > Network > SJK hub) is the hub's address.
+- `cl_hubUrl` (default `https://sjk.dfox.app`; Settings > Network > SJK hub) is the hub's address.
   It must be `https://host[:port]` with no path; plain `http://` is accepted for
   localhost only.
 - `identity` opens the Identity page (also the in-game SJK menu). `identity name

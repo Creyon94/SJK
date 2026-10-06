@@ -448,7 +448,7 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "cl_identity",
             true,
             archive,
-            "Keep an identity key and tell the SJK hub which game server you are on, so other SJK players see your badge (sends nothing without cl_hubUrl)",
+            "Keep an identity key and tell the SJK hub which game server you are on, so other SJK players see your badge (0 sends nothing)",
         ),
         CvarDefinition::new(
             "cl_hubUrl",

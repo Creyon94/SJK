@@ -152,6 +152,9 @@ fn online(snapshot: &Snapshot, key: String) -> View {
         None => "Registered".to_owned(),
     };
     lines.push("Set them in the console: identity name <text>, identity bio <text>".to_owned());
+    lines
+        .push("The hub gets your public key, your in-game name and the server and slot".to_owned());
+    lines.push("you play in, while you play. cl_identity 0 stops it.".to_owned());
     View {
         headline,
         lines,
