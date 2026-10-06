@@ -57,7 +57,7 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         (
             "cg_fovViewmodel",
             80.0,
-            "First-person weapon field of view; zero draws it with cg_fov",
+            "First-person weapon field of view (EternalJK default 80); zero is the retail look, drawn with cg_fov",
         ),
         (
             "cg_chatBoxX",

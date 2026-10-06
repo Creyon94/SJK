@@ -87,7 +87,7 @@ fn fov_terms(
     } else {
         0.0
     };
-    if !enabled || !(horizontal_fov > 0.0 && horizontal_fov < 180.0) {
+    if !(enabled && horizontal_fov > 0.0 && horizontal_fov < 180.0) {
         return ViewModelFov {
             forward_scale: 1.0,
             drop,

@@ -710,6 +710,12 @@ baton view model of its item on handle 0, whose identity tag puts it at the view
 origin with all of its geometry behind the eye. SJK used to draw it on the stun
 baton's rig, so first-person melee showed a baton.
 
+The view model follows EternalJK's `cg_fovViewmodel` (default 80; retail has no such
+cvar and behaves as 0): the hand's forward axis is scaled so the weapon looks as at
+that FOV, and the gun, barrels and muzzle socket go through the same transform
+([view_weapon_offsets.rs](../crates/sjk-viewer/src/view_weapon_offsets.rs)). Details and
+limits are in [status.md](status.md#first-person-weapon-field-of-view).
+
 ## Saber trails
 
 [saber_trail.rs](../crates/sjk-viewer/src/saber_trail.rs) follows codemp
