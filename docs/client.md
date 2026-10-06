@@ -282,7 +282,7 @@ one group and regroups JKR's GAME, HUD, HUD+ and TEXT tabs by subject
   gathers the menus' and console's
   look (menu style, accent, contrast, game fonts, menu text size and spacing,
   console style, text size and line spacing); HUD the HUD style, files and scale,
-  status, weapon bar, crosshair and its size, names, nametags, timer, speedometer, team
+  status, weapon bar, crosshair and its size, names, nameplates, timer, speedometer, team
   overlay, lagometer, chat and ground readout; Scoreboard its style, client
   numbers, head icons and small rows. Network follows. RENDERER opens SJK's
   renderer page: the same layout with the renderer settings' IMAGE, LIGHTING and
@@ -1013,37 +1013,57 @@ retail's colours and highlight art on the classic menus and the theme's on the
 modern ones. "Game HUD files" stays on the tab for lists the picker does not
 find.
 
-## Nametags
+## Nameplates
 
-Players carry an overhead nametag
-([identification.rs](../crates/sjk-viewer/src/hud/identification.rs), maths in
-[nametag.rs](../crates/sjk-viewer/src/hud/nametag.rs)), drawn as 2D HUD shapes at
-the projected point 8 units above the head of the player's box (decoded from
-`entityState_t::solid`, so a crouching player's tag drops). Settings > HUD has a
-row for each cvar.
+`cg_nameplate` (on by default) draws MMO-style nameplates over players
+([nameplate.rs](../crates/sjk-viewer/src/hud/nameplate.rs); layout in
+[nameplate_math.rs](../crates/sjk-viewer/src/hud/nameplate_math.rs)): 2D HUD shapes
+and text at the projected point 8 units above the head of the player's box (decoded
+from `entityState_t::solid`, so a crouching player's plate drops). Names come from the
+chat roster with their colour codes and are drawn in the classic HUD font (Inter when
+that font is not loaded), whatever `cg_classicHudFont` says.
 
-- `cg_drawPlayerNames`: 0 off, 1 names, 2 adds a framed health bar (SJK's default
-  is 1; TaystJK's is 0). The name is the roster's, with its colour codes; a server
-  that sets the stock name-hiding restriction (`restricts & 64`) still hides it.
-- `cg_nametagPlate` (1): the name sits on a rounded plate framed in red or blue in
-  team games; 0 draws plain text as TaystJK does. `cg_drawPlayerNamesScale` sets
-  the text size.
-- `cg_nametagRange` (3000 units), `cg_nametagShrink` (1) and `cg_nametagMinScale`
-  (0.6): a tag keeps full size within 300 units, shrinks to the minimum size at the
-  range, and fades out over the last quarter of the range.
-- `cg_nametagWalls` (0): a player behind a wall (the same BSP trace as before,
-  from the rendered eye) fades out; with 1 the tag stays at 35% opacity instead.
-  Opacity changes ease over 120 ms, so tags do not pop.
-- `cg_drawFriend` (1): the ally marker (team mate, Power Duel partner, Jedi Master
-  foe), now drawn as a pointer under the plate.
-- `cg_nametagNpcs` (0): NPCs get a tag with their class name (the wire carries only
-  `class_t`, see [npc_class.rs](../crates/sjk-viewer/src/hud/npc_class.rs)) and a
-  health bar, at most 16 at a time. Vehicles are skipped.
+- **Far:** only the name, small and dim. Plates shrink with distance (to 60% at the
+  range) and fade over the last quarter of `cg_nameplateRange` (3000 units).
+- **Near:** inside `cg_nameplateNear` (1000 units) the name rises and a plate fades
+  in under it, framed in red or blue in team games: a health bar, a shield bar and
+  an estimated Force bar, each shown only when known.
+- `cg_nameplateBars`: 0 none, 1 allies only, 2 everyone (default). `cg_nameplateScale`
+  sets the text size, `cg_nameplateForce` the Force bar, `cg_nameplateWalls` shows
+  players behind walls at 35% opacity instead of fading them (the same BSP trace as
+  before, from the rendered eye; changes ease over 120 ms), and `cg_nameplateNpcs`
+  adds NPC plates (class name, health; at most 16; vehicles skipped).
+- `cg_nameplateDebug` logs, every two seconds, what the server sends about each other
+  player (health, `tinfo`, active powers, the Force estimate) to `logs\last-client.log`.
+- While a menu is open the plates hide: their text is in the classic stream, which
+  draws over the menus' text.
 
-At most 32 players and 16 NPCs are tagged; far tags are drawn first so near plates
-cover them. Nothing is allocated per frame. The tags hide with the HUD, the
-scoreboard and intermission, and for cloaked, dead and spectating players. Not
-tested in game yet.
+Where the numbers come from, and what is not known:
+
+- **Teammates** in team games: health and shield from the team overlay's `tinfo`
+  command, exact. The client asks for it (`teamoverlay` userinfo) whenever nameplate
+  bars are on, not only with `cg_drawTeamOverlay`.
+- **Everyone else:** health only from `entityState_t::health`/`maxhealth`, which the
+  SJK server sets for NPCs, breakables and emplaced guns but not for clients (stock
+  JKA does not either, as far as read). Without it there is no health bar for enemies
+  and the plate shows the Force bar alone. Not verified against a stock or JA+
+  server: run `cg_nameplateDebug 1` and read the log.
+- **Force** is never sent for other players, so it is estimated
+  ([force_estimate.rs](../crates/sjk-viewer/src/hud/force_estimate.rs)) from their
+  entity state with the server's own rules: a full pool at spawn, a point per
+  `g_forceRegenTime` (200 ms unless the server's info string carries it; six times
+  as fast with the boon) while no power but drain is on and no saber is thrown, the
+  price of each power when it switches on (level 3 prices; the level is not sent),
+  protect, absorb, grip and lightning running costs, half a level-3 price per force
+  jump, and push, pull and saber throw at their price. It misses being drained,
+  saber blocks in some mods and anything that changes costs. It refills while a
+  player idles, so errors heal within about twenty seconds, and the bar is drawn
+  thin, see-through and outlined to read as an estimate.
+
+`cg_drawPlayerNames` keeps TaystJK's plain overhead names (0 off, 1 names, 2 adds a
+health strip, text only, off by default); they are hidden while nameplates are on.
+`cg_drawFriend` draws the ally marker for either. At most 32 players and 16 NPCs are
+tagged and nothing is allocated per frame. Not tested in game yet.
 
 ## Version label
 

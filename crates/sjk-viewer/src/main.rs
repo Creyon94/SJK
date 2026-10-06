@@ -1599,6 +1599,7 @@ impl GpuState {
         self.append_console_overlay(viewport, text_scale);
         self.append_version_overlay(viewport, text_scale);
         let layers = [
+            information_visible.then(|| &self.hud.nameplate.list),
             information_visible.then(|| &self.hud.identification.list),
             information_visible.then(|| self.hud.draw_list()),
             chat_visible.then(|| self.chat.draw_list()),

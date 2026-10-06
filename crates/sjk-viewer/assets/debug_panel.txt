@@ -1226,19 +1226,19 @@ test: /identity opens the page (also in-game menu > SJK > Identity); check 4K an
 test: Set cl_identity 0: nothing is sent and the page says identity is off.
 note: Never started in a game yet: the scoreboard mark and the page layout are unchecked.
 
-[nametags]
+[nameplates]
 status: personal
 area: HUD
-title: MMO-style nametags over players (and optionally NPCs)
-change: Names sit on a plate framed in the team colour; cg_drawPlayerNames 2 adds a health bar.
-change: Tags shrink and fade with distance, ease out behind walls and sit above the head.
-change: Settings > HUD has a row per cvar: cg_drawPlayerNames, cg_nametagPlate/Range/Shrink/MinScale.
-test: Join a local server with a bot or second client; the name shows over them on a plate.
-test: cg_drawPlayerNames 2: a framed health bar under the name; shoot the bot and it drops.
-test: Walk away: the tag shrinks to 60% and fades near 3000 units; crouch the bot: the tag drops.
-test: Step behind a wall: the tag fades out (cg_nametagWalls 1 keeps it dim). Try team games too.
-test: cg_nametagNpcs 1 with spawned NPCs: class name and health bar. cg_nametagPlate 0: plain text.
-note: Never started in a game yet: plate size, text fit and bar height are unchecked.
+title: MMO-style nameplates: name from afar, bars up close (HP, shield, estimated FP)
+change: A small name far away; inside cg_nameplateNear a framed plate fades in under the name.
+change: Bars: health, shield (teammates, from tinfo) and an estimated Force bar, thin and outlined.
+change: Classic HUD font and colour codes; shrink and fade with distance; cg_drawPlayerNames is plain.
+test: Join a local server with a bot or second client: the name floats over them; walk close (<800).
+test: Up close the plate fades in under the name; the Force bar drops when they use powers or jump.
+test: Team game with cg_nameplateBars 1: teammates show health and shield; enemies only the name.
+test: Set cg_nameplateDebug 1, then read logs/last-client.log: does health/max show for other players?
+test: cg_nameplateWalls 1 behind a wall; cg_nameplateNpcs 1 with NPCs; open a menu: plates hide.
+note: Never started in a game yet: font size, plate layout and the FP estimate are unchecked.
 
 # ---- Merged upstream ----
 

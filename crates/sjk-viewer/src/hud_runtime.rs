@@ -12,6 +12,19 @@ pub(crate) fn append(
     _scale: f32,
     viewport: [f32; 2],
 ) {
+    // Nameplates use the classic HUD font whatever `cg_classicHudFont` says,
+    // and fall back to Inter when that font is not loaded.
+    match &gpu.classic_hud_font {
+        Some(font) => {
+            gpu.hud
+                .nameplate
+                .append(&gpu.chat, &mut gpu.classic_text_vertices, font, viewport)
+        }
+        None => gpu
+            .hud
+            .nameplate
+            .append(&gpu.chat, &mut gpu.text_vertices, &gpu.ui_font, viewport),
+    }
     gpu.hud
         .identification
         .append(&gpu.chat, &mut gpu.text_vertices, &gpu.ui_font, viewport);
@@ -101,6 +114,16 @@ pub(crate) fn update(
             !c.bool_cvar("cg_drawhud").unwrap_or(true) || !c.bool_cvar("cg_draw2d").unwrap_or(true)
         });
     gpu.hud.identification.sample(gpu.console.as_ref());
+    gpu.hud.nameplate.sample(gpu.console.as_ref());
+    // Nameplate text is in the classic stream, which draws over the menus' text.
+    let plates_hidden = labels_hidden
+        || gpu.game_menu
+        || gpu
+            .client_menu
+            .as_ref()
+            .is_some_and(|menu| menu.is_visible());
+    // A nameplate replaces the plain overhead names.
+    let labels_hidden = labels_hidden || gpu.hud.nameplate.enabled();
     let camera = hud::identification::Camera {
         eye: view_position,
         target: view_target,
@@ -128,6 +151,17 @@ pub(crate) fn update(
             &gpu.bsp,
             &mut gpu.trace_scratch,
             labels_hidden,
+        );
+        gpu.hud.nameplate.update(
+            snapshot,
+            session.game_state(),
+            &gpu.live_world,
+            session.team_info(),
+            i64::from(presentation_time),
+            camera,
+            &gpu.bsp,
+            &mut gpu.trace_scratch,
+            plates_hidden,
         );
         gpu.hud
             .update_family(snapshot, session.game_state(), gpu.console.as_ref());
@@ -210,6 +244,17 @@ pub(crate) fn update(
             &mut gpu.trace_scratch,
             labels_hidden,
         );
+        gpu.hud.nameplate.update(
+            snapshot,
+            session.game_state(),
+            session.world(),
+            &sjk_client::TeamInfoTable::default(),
+            i64::from(presentation_time),
+            camera,
+            &gpu.bsp,
+            &mut gpu.trace_scratch,
+            plates_hidden,
+        );
         gpu.hud
             .update_family(snapshot, session.game_state(), gpu.console.as_ref());
         // Only merc mode needs the server's mod; read it from the demo's gamestate then.
@@ -291,7 +336,8 @@ pub(crate) fn update(
         {
             gpu.chat.update_roster(game);
         } else {
-            gpu.hud.identification.clear();
+            gpu.hud.identification.list.clear();
+            gpu.hud.nameplate.clear();
         }
     }
     if let Some(game) = game {

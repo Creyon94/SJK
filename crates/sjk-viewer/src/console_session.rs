@@ -150,9 +150,11 @@ impl ViewerConsole {
         crate::cvar_renames::register(&mut cvars)?;
         let userinfo_dirty = Arc::new(AtomicBool::new(true));
         let overlay_dirty = Arc::clone(&userinfo_dirty);
-        cvars.on_change("cg_drawTeamOverlay", move |_| {
-            overlay_dirty.store(true, Ordering::Release);
-        })?;
+        // Nameplate bars for teammates read the team overlay's `tinfo` too.
+        for name in ["cg_drawTeamOverlay", "cg_nameplate", "cg_nameplateBars"] {
+            let dirty = Arc::clone(&overlay_dirty);
+            cvars.on_change(name, move |_| dirty.store(true, Ordering::Release))?;
+        }
         let userinfo_names = cvars
             .iter()
             .filter(|cvar| cvar.flags.contains(CvarFlags::USER_INFO))
@@ -359,7 +361,11 @@ impl ViewerConsole {
                 session
                     .update_userinfo_options(
                         &userinfo,
-                        Some(self.integer_cvar("cg_drawTeamOverlay").unwrap_or(0) > 0),
+                        Some(
+                            self.integer_cvar("cg_drawTeamOverlay").unwrap_or(0) > 0
+                                || (self.bool_cvar("cg_nameplate").unwrap_or(false)
+                                    && self.integer_cvar("cg_nameplateBars").unwrap_or(0) > 0),
+                        ),
                         now,
                     )
                     .map_err(|error| error.to_string())

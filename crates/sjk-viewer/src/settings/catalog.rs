@@ -237,7 +237,7 @@ pub(super) const HUD: &[Setting] = &[
         },
     },
     Setting {
-        label: "Nametag size",
+        label: "Name size",
         cvar: "cg_drawPlayerNamesScale",
         kind: ValueKind::Float {
             min: 0.2,
@@ -246,13 +246,18 @@ pub(super) const HUD: &[Setting] = &[
         },
     },
     Setting {
-        label: "Name plates",
-        cvar: "cg_nametagPlate",
+        label: "Ally markers",
+        cvar: "cg_drawFriend",
         kind: ValueKind::Bool,
     },
     Setting {
-        label: "Nametag range",
-        cvar: "cg_nametagRange",
+        label: "Nameplates",
+        cvar: "cg_nameplate",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Nameplate range",
+        cvar: "cg_nameplateRange",
         kind: ValueKind::Integer {
             min: 500,
             max: 10000,
@@ -260,32 +265,45 @@ pub(super) const HUD: &[Setting] = &[
         },
     },
     Setting {
-        label: "Tags shrink with range",
-        cvar: "cg_nametagShrink",
-        kind: ValueKind::Bool,
-    },
-    Setting {
-        label: "Smallest tag size",
-        cvar: "cg_nametagMinScale",
-        kind: ValueKind::Float {
-            min: 0.25,
-            max: 1.0,
-            step: 0.05,
+        label: "Bars distance",
+        cvar: "cg_nameplateNear",
+        kind: ValueKind::Integer {
+            min: 0,
+            max: 5000,
+            step: 100,
         },
     },
     Setting {
-        label: "Tags through walls",
-        cvar: "cg_nametagWalls",
+        label: "Nameplate size",
+        cvar: "cg_nameplateScale",
+        kind: ValueKind::Float {
+            min: 0.2,
+            max: 1.5,
+            step: 0.1,
+        },
+    },
+    Setting {
+        label: "Nameplate bars",
+        cvar: "cg_nameplateBars",
+        kind: ValueKind::Integer {
+            min: 0,
+            max: 2,
+            step: 1,
+        },
+    },
+    Setting {
+        label: "Force bar (estimated)",
+        cvar: "cg_nameplateForce",
         kind: ValueKind::Bool,
     },
     Setting {
-        label: "Ally markers",
-        cvar: "cg_drawFriend",
+        label: "Plates through walls",
+        cvar: "cg_nameplateWalls",
         kind: ValueKind::Bool,
     },
     Setting {
-        label: "NPC tags",
-        cvar: "cg_nametagNpcs",
+        label: "NPC nameplates",
+        cvar: "cg_nameplateNpcs",
         kind: ValueKind::Bool,
     },
     Setting {
