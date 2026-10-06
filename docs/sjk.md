@@ -42,8 +42,10 @@ them in place: the upstream merge adds the same text and resolves cleanly.
   `GameData/jkr` import, `JKR_*` environment variables, the dedicated server's
   `jkr_server.cfg`, and "JKR" meaning Bishop's project.
 - Public text ([README](../README.md), [CREDITS.md](../CREDITS.md), the site)
-  names Sol and Bishop rather than using pronouns, and credits JKR's work to
-  Bishop and its contributors. Keep CREDITS.md current when SJK gains notable
+  presents SJK as Sol's: Sol develops it and sets its direction, and Sol comes
+  first (Sol's rule, 06/10/2026). It names Sol and Bishop rather than using
+  pronouns, and credits JKR, the engine SJK is built on, to Bishop and its
+  contributors. Keep CREDITS.md current when SJK gains notable
   work.
 
 ## Defaults
