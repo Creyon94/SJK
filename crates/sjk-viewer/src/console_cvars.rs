@@ -288,6 +288,13 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
              independent of the real frame rate; below 15 uses the original per-50 ms easing",
         ),
         CvarDefinition::new(
+            crate::camera::STYLE_CVAR,
+            crate::camera::Style::DEFAULT_NAME,
+            archive,
+            "Third-person camera: sjk eases after you with the damping cvars; ejk stays \
+             locked behind you with no damping, as JoF EJK with its strafe helper on",
+        ),
+        CvarDefinition::new(
             "com_maxfps",
             -1_i64,
             archive | CvarFlags::OMIT_DEFAULT,

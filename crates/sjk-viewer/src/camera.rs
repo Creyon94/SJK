@@ -8,9 +8,12 @@ use sjk_runtime::EntityId;
 
 #[path = "camera_motion.rs"]
 mod motion;
+#[path = "camera_style.rs"]
+mod style;
 #[path = "camera_vehicle.rs"]
 mod vehicle;
 pub(crate) use motion::State;
+pub(crate) use style::{CVAR as STYLE_CVAR, Style};
 pub(crate) use vehicle::Profile as VehicleProfile;
 
 /// Keep the local actor at its predicted root with yaw-only orientation.
@@ -52,8 +55,11 @@ pub(crate) fn damped_third_person(
 ) -> (Vec3, Vec3) {
     let cvar = |name: &str, fallback: f32| float_cvar(state.console.as_ref(), name, fallback);
     let mut horizontal = cvar("cg_thirdPersonHorzOffset", 0.0);
-    let camera_damp = cvar("cg_thirdPersonCameraDamp", 0.3);
-    let target_damp = cvar("cg_thirdPersonTargetDamp", 0.5);
+    // `cg_cameraStyle ejk` locks the camera behind the player (no damping).
+    let (camera_damp, target_damp) = Style::from_console(state.console.as_ref()).damping(
+        cvar("cg_thirdPersonCameraDamp", 0.3),
+        cvar("cg_thirdPersonTargetDamp", 0.5),
+    );
     let camera_fps = camera_fps(state.console.as_ref());
     let fallback = [
         cvar("cg_thirdPersonAngle", 0.0),
@@ -269,5 +275,55 @@ mod tests {
         assert_eq!(stock, second_position(0.0));
         let eternal = second_position(camera_fps(None));
         assert!((eternal - stock).length() > 0.1);
+    }
+
+    /// Camera position and look point 8 ms after a first frame, the focus moved
+    /// and the view turned, with `style`'s damping of the default cvars.
+    fn moved_and_turned(style: Style, focus: Vec3, yaw: f32) -> (Vec3, Vec3) {
+        let (camera_damp, target_damp) = style.damping(0.3, 0.5);
+        let mut state = State::default();
+        let mut step = |focus: Vec3, yaw: f32, time: i64| {
+            let mut next = frame(focus, time, 125.0);
+            next.yaw = yaw;
+            next.camera_damp = camera_damp;
+            next.target_damp = target_damp;
+            state.update(next, |_, end| end)
+        };
+        step(Vec3::ZERO, 0.3, 1_000);
+        step(focus, yaw, 1_008)
+    }
+
+    #[test]
+    fn the_ejk_style_locks_the_camera_behind_the_player_and_sjk_trails() {
+        let (focus, yaw, pitch) = (Vec3::new(40.0, 10.0, 0.0), 0.5_f32, 0.1_f32);
+        let forward = Vec3::new(
+            yaw.cos() * pitch.cos(),
+            yaw.sin() * pitch.cos(),
+            pitch.sin(),
+        );
+        // CG_CalcIdealThirdPersonView*: 16 above the eye, 80 back along the view.
+        let ideal = focus + Vec3::Z * 16.0 - forward * 80.0;
+
+        let (locked, look) = moved_and_turned(Style::Ejk, focus, yaw);
+        assert!((locked - ideal).length() < 1e-3, "{locked} {ideal}");
+        assert!((look - locked - forward).length() < 1e-4, "{look}");
+
+        // SJK's damping leaves the camera behind its ideal place for a while.
+        let (trailing, _) = moved_and_turned(Style::Sjk, focus, yaw);
+        assert!((trailing - ideal).length() > 5.0, "{trailing} {ideal}");
+    }
+
+    #[test]
+    fn the_camera_style_is_an_archived_setting_read_from_the_console() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        assert_eq!(console.text_value(STYLE_CVAR), Some(Style::DEFAULT_NAME));
+        assert_eq!(Style::from_console(Some(&console)), Style::Sjk);
+        assert_eq!(Style::from_console(None), Style::Sjk);
+        assert!(console.set_cvar("cg_camerastyle", "ejk"));
+        assert_eq!(Style::from_console(Some(&console)), Style::Ejk);
+        // Archived: the change is saved to config.cfg.
+        let saved = std::fs::read_to_string(directory.path().join("config.cfg")).unwrap();
+        assert!(saved.contains("seta cg_cameraStyle \"ejk\""), "{saved}");
     }
 }

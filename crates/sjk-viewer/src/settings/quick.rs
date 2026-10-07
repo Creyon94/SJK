@@ -1,8 +1,8 @@
 //! The FIRST SETUP tab of Settings: the few settings worth choosing once on a first
-//! start (display, aim, sound, the HUD, nameplates, the Force shells and the
-//! network opt-ins). The rows are the catalogue's own, looked up by cvar, so a
-//! change here is the same change the other tabs make; the last row, whether the
-//! screen opens at start, is the tab's own.
+//! start (display, aim, the camera style, sound, the HUD, nameplates, the Force
+//! shells and the network opt-ins). The rows are the catalogue's own, looked up by
+//! cvar, so a change here is the same change the other tabs make; the last row,
+//! whether the screen opens at start, is the tab's own.
 
 use super::catalog::*;
 use std::sync::OnceLock;
@@ -26,6 +26,7 @@ const CVARS: &[&str] = &[
     "sensitivity",
     "m_invert",
     "cl_run",
+    crate::camera::STYLE_CVAR,
     "s_volume",
     "s_musicVolume",
     crate::menu_hud::STYLE_CVAR,

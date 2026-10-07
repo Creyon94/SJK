@@ -2049,6 +2049,18 @@ test: Console: screenshot, then screenshotJPEG: each prints Wrote ...; both file
 test: Quick wheel (Q) > Screenshot twice in a row: two new shotNNNN.jpg files, no freeze.
 test: Inspect (X) a wall twice, write a note, Enter; again: note_*.jpg files appear for both notes.
 
+[camera-style]
+status: personal
+area: Gameplay
+title: Camera style: SJK (eases after you) or EJK (locked behind you, as JoF EJK)
+change: cg_cameraStyle ejk drops the camera and target damping: no lag as you move or turn.
+change: In Settings > Gameplay > Game options and in First setup (Camera); sjk stays the default.
+test: First setup: Camera style EJK. Run and strafe: you stay fixed on screen, no trailing.
+test: Turn the mouse quickly: the camera swings with you at once; walls still push it in.
+test: Back to SJK: the camera trails a little again, as before. Console: cg_cameraStyle shows it.
+note: Your JoF EJK profile has cg_thirdPersonRange 100; SJK keeps 80 unless you set it.
+note: Still not the same as JoF EJK? Tell Claude what differs (distance, height, turning).
+
 # ---- Merged upstream ----
 
 [actor-instance-cap]

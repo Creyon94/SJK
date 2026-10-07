@@ -58,7 +58,8 @@ Changes that stay in SJK, by Sol:
   volumetric clouds;
 - SJK identity: the identity key, the SJK hub and its verified badges;
 - the console socket for external apps (after JoF EJK), muting in the
-  background (after EternalJK) and the JA+ `flipkick` command (after JoF EJK).
+  background (after EternalJK) and the JA+ `flipkick` command (after JoF EJK);
+- the camera style setting, its locked camera after JoF EJK (`cg_cameraStyle`).
 
 ## JKR, by Bishop
 
