@@ -51,3 +51,20 @@ impl GpuState {
         }])
     }
 }
+
+/// Keep the local model out of the main view while flight starts inside its head.
+/// The ordinary third-person render flag preserves the body in portal views.
+pub(crate) fn inside_body(camera: glam::Vec3, feet: glam::Vec3, height: f32) -> bool {
+    camera.distance_squared(feet + glam::Vec3::Z * height) < 32.0 * 32.0
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn the_body_returns_when_the_camera_leaves_the_head() {
+        let feet = glam::Vec3::new(10., 20., 30.);
+        let eye = feet + glam::Vec3::Z * 26.;
+        assert!(super::inside_body(eye, feet, 26.));
+        assert!(!super::inside_body(eye + glam::Vec3::X * 40., feet, 26.));
+    }
+}

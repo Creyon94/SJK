@@ -1561,7 +1561,9 @@ set it explicitly. Bind it in Settings > Key bindings > Other. It uses JoF
 EJK's existing fake-noclip movement: movement keys fly locally, jump/crouch
 move vertically, and attack/alt-attack accelerate flight. The server receives
 stationary movement, frozen aim and the talk button, as with `/fakenoclip`.
-Your visible body remains at its server entity, with no view weapon. Turning
+Your body remains at its server entity, with no view weapon. It is hidden
+from the main view while the camera is within 32 units of its eye, so the
+initial view stays clear; it becomes visible after flying away. Turning
 it off returns to the real player on the next snapshot and restores the chosen
 first/third-person mode. It is available while alive and on foot; death,
 spectating or entering a vehicle ends flight. It is temporary and mutually

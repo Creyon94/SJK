@@ -73,6 +73,7 @@ struct Sinks<'a> {
     portal_view: bool,
     entity_view_flags: u32,
     detached_camera: bool,
+    detached_flight: bool,
     /// This frame's JA+ grapple hooks, drawn as ropes from their players' hands.
     hooks: grapple_rope::Hooks,
     /// Every player's weapon charge, for the glow on its muzzle.
@@ -220,6 +221,7 @@ pub(crate) fn submit(
         portal_view: gpu.scene_views.has_portal_view(),
         entity_view_flags: 0,
         detached_camera: gpu.detached_camera,
+        detached_flight,
         hooks: grapple_rope::Hooks::collect(snapshot, game_state, presentation_time as i32),
         charges: crate::charge_flash::Charges::collect(
             snapshot,
@@ -484,7 +486,14 @@ fn submit_actor(
             transform.scale,
         )
         .with_entity_color(entity.color());
-        instance.view_flags = sinks.entity_view_flags | u32::from(!draw_actor);
+        let inside_body = local
+            && sinks.detached_flight
+            && crate::free_camera::inside_body(
+                sinks.camera_position,
+                Vec3::from_array(transform.translation),
+                sinks.view_height,
+            );
+        instance.view_flags = sinks.entity_view_flags | u32::from(!draw_actor || inside_body);
         if trick.fading {
             // `RF_FORCE_ENT_ALPHA` at `trickAlpha` (`cg_players.c:11358-11367`).
             if sinks.overrides.len() < sinks.overrides.capacity() {
@@ -695,7 +704,14 @@ fn submit_equipment(
         return;
     };
     let mut instance = ActorInstance::new(grip.to_array(), weapon_rotation.to_array(), [1.0; 3]);
-    instance.view_flags = sinks.entity_view_flags | u32::from(!draw_actor);
+    let inside_body = local
+        && sinks.detached_flight
+        && crate::free_camera::inside_body(
+            sinks.camera_position,
+            Vec3::from_array(transform.translation),
+            sinks.view_height,
+        );
+    instance.view_flags = sinks.entity_view_flags | u32::from(!draw_actor || inside_body);
     match forced_alpha {
         // The gun is a bolt-on of the body's Ghoul2 instance in stock, so it fades with it.
         Some(alpha) if sinks.overrides.len() < sinks.overrides.capacity() => {

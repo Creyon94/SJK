@@ -43,9 +43,10 @@ named-extension-first rule. Not verified in game.
 
 ## Mouse wheel in the key-binding form
 
-Detached free camera (`feat/free-camera`, base `c9d6db8`): `/freecam [on|off]`
+Detached free camera (`feat/free-camera`, base `cfbc789`): `/freecam [on|off]`
 uses the existing JoF EJK fake-noclip predictor and frozen server commands,
-with the body left at its entity and the view weapon hidden. The existing
+with the body left at its entity and the view weapon hidden. Within 32 units
+of its eye the body is hidden from the main view to avoid head clipping. The existing
 flight tests cover server command suppression and return-to-server behavior.
 Death/spectator/vehicle policy is shared with fake noclip. Runtime camera
 appearance, input and transitions remain unverified.
