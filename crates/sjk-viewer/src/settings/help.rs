@@ -344,7 +344,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::menu::style::CVAR,
-        "Classic menus after the original game's, JKR's modern ones, or the SJK UI (its main page, Settings, Character and Servers so far).",
+        "The SJK UI, SJK's own menus over the live map; classic menus after the original game's; or JKR's modern ones.",
     ),
     // NETWORK
     (

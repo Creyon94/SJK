@@ -1,6 +1,6 @@
 //! The FIRST SETUP tab of Settings: the few settings worth choosing once on a first
-//! start (display, aim, the camera style, sound, the HUD, nameplates, the Force
-//! shells and the network opt-ins). The rows are the catalogue's own, looked up by
+//! start (the menu style, display, aim, the camera style, sound, the HUD,
+//! nameplates, the Force shells and the network opt-ins). The rows are the catalogue's own, looked up by
 //! cvar, so a change here is the same change the other tabs make; the last row,
 //! whether the screen opens at start, is the tab's own.
 
@@ -19,6 +19,7 @@ const HIDE_ROW: Setting = Setting {
 
 /// The tab's cvars, in order.
 const CVARS: &[&str] = &[
+    crate::menu::style::CVAR,
     "r_resolution",
     "r_fullscreen",
     "r_vsync",
@@ -69,6 +70,18 @@ mod tests {
     fn every_listed_cvar_is_a_setting() {
         assert_eq!(rows().len(), CVARS.len() + 1);
         assert_eq!(rows().last().map(|row| row.cvar), Some(HIDE_CVAR));
+    }
+
+    #[test]
+    fn the_menu_style_comes_first_under_its_heading() {
+        assert_eq!(
+            rows().first().map(|row| row.cvar),
+            Some(crate::menu::style::CVAR)
+        );
+        assert_eq!(
+            super::super::Group::Quick.lines().first(),
+            Some(&super::super::Line::Heading("Menus"))
+        );
     }
 
     #[test]

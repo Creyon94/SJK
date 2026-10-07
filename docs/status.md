@@ -7,6 +7,36 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## SJK UI as the default menu style
+
+SJK-only branch `personal/sjk-default` (08/10/2026, based on `7a85516`, Windows
+11): Sol asked for the SJK UI as the default, also for players updating, with
+the choice offered in First setup, and for `quicksetup` to go so that `q`
+completes to `quit` alone. `ui_menuStyle` now defaults to `sjk` and an unknown
+value falls back to it (`classic`/`1` and `modern`/`0` still select those); the
+offered order is SJK, Classic, Modern. Every profile had saved the old default
+`classic`, so the console's start moves a saved `classic` once to `sjk`
+(`ui_menuStyleDefaultVersion`, as the scoreboard and console key defaults moved);
+a style picked after that stays, and a saved `modern` is left alone
+([client.md](client.md#menu-style)). First setup's first row is the menu style,
+under a Menus heading; picking a style there keeps First setup on show (the
+classic panel, the SJK UI category or the modern FIRST SETUP tab, which
+`SettingsMenu::continue_modern` now prefers to Interface). The `quicksetup` alias
+is removed outright, with no hidden one; `menu/quick_setup.rs` became
+`menu/first_setup.rs`.
+
+Verified: unit tests for the parse and default, the one-time move (a saved
+`classic` moved, a later `classic` and an earlier `modern` kept across starts),
+the scoreboard's `auto` following the new default, First setup's first row and
+heading, and the style hand-over from First setup in each direction; workspace
+fmt, build, tests and clippy. `world_shot::tests::duel6_first_setup` rendered a
+new profile's first start over duel6 (the SJK UI with First setup open by itself
+on the Menu style row), then classic and modern picked from there. Not verified:
+no game was started, so an update from a real old `config.cfg`, the boot map
+following the moved style on the next start, and the SJK UI's unfinished
+screens (dialogs, Credits, Create a game, the in-game player screen) now meeting
+every new player are untested in play.
+
 ## SJK UI: coloured names and the browser's sort mark
 
 SJK-only branch `personal/sjk-ui-browser-colours` (07/10/2026, Windows 11): Sol

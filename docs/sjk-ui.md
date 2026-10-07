@@ -4,17 +4,18 @@ The SJK UI (`ui_menuStyle sjk`) is SJK's own menu style: SJK's menus redesigned
 from the ground up, drawn over the live map in SJK's own type. It keeps the
 feeling of Jedi Academy's menus (gold for what you choose, holo blue line-work,
 the turning ring round the emblem) and drops their window frames and boxes. It
-is being built screen by screen and becomes SJK's default once every screen has
-its version; until then [classic+](classic-plus.md) stays the default and keeps
-getting fixes.
+is SJK's default menu style since 08/10/2026 (Sol's call, before every screen
+had its version); [classic+](classic-plus.md) stays a choice and keeps getting
+fixes. A profile saved with the old default `classic` moves to `sjk` once
+([client.md](client.md#menu-style)).
 
 Status (07/10/2026): the main page, Settings (with the key bindings),
 Character, What's new, Update, Identity, Servers (the server browser), the
 loading screen, the scoreboard and the in-game menu are done. Every other
 screen opens in its classic+ version (`MenuStyle::classic_screens`), which
 covers the map as the classic style does.
-To try it: Settings > Gameplay > Interface > Menu style > SJK, or
-`ui_menuStyle sjk`; restart for the SJK UI's map behind the main page.
+Other styles: First setup's first row, Settings > Interface > Menu style, or
+`ui_menuStyle classic`/`modern`; restart for the style's map behind the main page.
 
 ## Design
 
@@ -646,6 +647,6 @@ classic version:
    classic pages for now).
 4. Create a game.
 
-Once all of them are done, `sjk` becomes the default `ui_menuStyle`. mp/duel6 has
+`sjk` became the default `ui_menuStyle` before these were done. mp/duel6 has
 its tour, player stage and saber shot; it has no gate, which mp/ffa3's browser
 flies through on a join.

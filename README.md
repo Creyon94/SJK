@@ -32,7 +32,8 @@ controls, HUD, audio, screenshots and demo playback.
 - **What SJK adds.** Sol's changes are written as separate topic branches. Those
   that fit JKR are proposed upstream; once JKR accepts one, it simply becomes part
   of both. At the time of writing, SJK's additions include:
-  - a classic menu style after the retail menus, the default in SJK: main,
+  - the SJK UI, SJK's own menus over the live map, the default in SJK;
+  - a classic menu style after the retail menus: main,
     profile, setup, controls and server browser pages, retail connect and loading
     screens, the animated logo and glows with the SJK emblem in the ring, and no
     map behind the menu;
@@ -120,7 +121,8 @@ saved game-data setting; known installation locations are also checked. The
 explicit positional form `sjk /path/to/GameData --connect HOST:PORT`
 remains supported. See [client launch](docs/client.md#launch) for discovery order.
 Use the in-game menus for controls, graphics, audio and player settings;
-Settings > GAME > Menu style switches between the modern and the classic menus.
+Settings > Interface > Menu style (GAME on the modern menus), or First setup's
+first row, switches between the SJK UI, the classic and the modern menus.
 
 Settings and player-created files live in `GameData/SJK/`: `config.cfg`,
 `marks.txt`, favorites, friends, screenshots, demos and optional chat logs.

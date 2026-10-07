@@ -1449,9 +1449,9 @@ area: Menus & settings
 title: Quick setup for first-time settings
 change: Setup page: a QUICK SETUP group first in the list (classic); QUICK tab on modern menus.
 change: Opened by itself once on a first start; now at every start (see first-setup-import).
-change: Console command quicksetup opens it any time, in the menu or in a game.
+change: Console command firstsetup (was quicksetup) opens it any time, in the menu or a game.
 test: Settings > Options: QUICK SETUP is the first group; change cg_nameplate there, then in HUD.
-test: In a game type quicksetup in the console: the Quick setup panel opens over the game.
+test: In a game type firstsetup in the console: the First setup panel opens over the game.
 test: Set ui_menuStyle modern and repeat: the QUICK tab shows the same rows.
 note: Never started in a game yet.
 
@@ -1814,7 +1814,7 @@ change: Graphics: Video, Image, Lighting, Shadows, Weather. Gameplay: Mouse to N
 test: Settings > Options: four entries; First setup's panel opens first.
 test: Graphics, then each group; Back and Escape return to Options. Same for Gameplay.
 test: In game, the Settings pop-up shows the same pages.
-test: firstsetup (and quicksetup) in the console open First setup.
+test: firstsetup in the console opens First setup (quicksetup is gone).
 test: Modern style: Video > Renderer has a WEATHER tab with the weather rows.
 
 [first-setup-import]

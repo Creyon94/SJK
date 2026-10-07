@@ -188,21 +188,23 @@ mod tests {
     }
 
     /// The console's registered default, a saved `classic` and the menu style
-    /// switched to the SJK UI: a new profile follows it, a saved choice stays.
+    /// switched between the SJK UI and classic: a new profile follows it, a
+    /// saved choice stays.
     #[test]
     fn the_console_default_follows_the_menus_and_a_saved_value_stays() {
         let directory = tempfile::tempdir().unwrap();
         let path = directory.path().join("config.cfg");
         let mut console = ViewerConsole::new(path.clone()).unwrap();
         assert_eq!(console.text_value(CVAR), Some("auto"));
-        assert_eq!(
-            ScoreboardStyle::from_console(Some(&console)),
-            ScoreboardStyle::Classic
-        );
-        console.set_cvar(crate::menu::style::CVAR, "sjk");
+        // The SJK UI is the default menu style, so its board is too.
         assert_eq!(
             ScoreboardStyle::from_console(Some(&console)),
             ScoreboardStyle::Sjk
+        );
+        console.set_cvar(crate::menu::style::CVAR, "classic");
+        assert_eq!(
+            ScoreboardStyle::from_console(Some(&console)),
+            ScoreboardStyle::Classic
         );
         // Every profile saved the old default `classic` before `auto` existed:
         // it moves once to `auto`, so it follows the SJK UI's menus.

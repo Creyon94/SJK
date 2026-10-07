@@ -16,13 +16,13 @@ mod create_game_pointer;
 mod create_game_view;
 mod destination;
 pub(crate) mod emblem;
+pub(crate) mod first_setup;
 mod hosting;
 pub(crate) mod levelshot;
 pub(crate) mod main_view;
 mod map_picker;
 mod map_picker_view;
 pub(crate) mod network_view;
-pub(crate) mod quick_setup;
 pub(crate) mod sjk;
 pub(crate) mod style;
 
@@ -231,7 +231,7 @@ pub(crate) struct ClientMenu {
     destination_ready: bool,
     /// Last gate request logged, so the log only records changes.
     gate_logged: bool,
-    /// First setup was offered in this run (`offer_quick_setup`).
+    /// First setup was offered in this run (`offer_first_setup`).
     first_setup_offered: bool,
 }
 

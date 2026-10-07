@@ -1,6 +1,7 @@
 # Classic+ menus
 
-SJK's classic menu style (`ui_menuStyle classic`, see
+SJK's classic menu style (`ui_menuStyle classic`, SJK's default until the
+[SJK UI](sjk-ui.md) took over on 08/10/2026; see
 [client.md](client.md#menu-style)) follows the retail Jedi Academy multiplayer
 menus: their pages, entries, artwork, colours and flow. Some SJK pages go
 further. They keep everything a retail player recognises, and inside that frame
