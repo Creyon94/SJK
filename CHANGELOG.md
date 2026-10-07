@@ -21,6 +21,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- A new profile starts at mouse sensitivity 5 again; the move to stock sensitivity units turned it into 13.022 _(Sol)_
 - SJK UI Character: the saber style is three buttons and the hilts a list you can scroll and click (two side by side for dual sabers); the Force page groups the powers as classic+ does (Neutral, your side, Lightsaber), shows what each level costs, previews a level's price on the points bar, and a box at the bottom right shows the power under the mouse in big with what it does _(Sol)_
 - Saber hilt lists come in the same order as in JoF EJK (the game's load order, not alphabetical), in every menu style _(Sol, after JoF EJK)_
 - The SJK UI is now the default menu style. Profiles still on the old default (classic) switch to it once when you update; pick Classic or Modern again and it stays _(Sol)_
