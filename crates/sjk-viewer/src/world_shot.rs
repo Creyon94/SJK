@@ -762,6 +762,116 @@ mod tests {
         });
     }
 
+    /// The SJK UI's in-game menu over duel6 as a match would show it, on a
+    /// made-up match (there is no server): the main page over an FFA, Team in
+    /// a CTF with the player on blue, the ballot of a vote on, the call-vote
+    /// maps (the installed ones), Leave with Quit chosen, the main page while
+    /// spectating, and Settings opened from the menu.
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_sjk_ingame() {
+        use crate::ingame_menu::{Page, ShotView, sjk_view::Card};
+        on_big_stack(|| {
+            // The main menu stays closed: the client is "in the match".
+            let menu = menu::ClientMenu::new(false, String::new());
+            let cvars = [
+                ("ui_menuStyle", "sjk"),
+                (crate::settings::quick::HIDE_CVAR, "1"),
+            ];
+            let Some((mut gpu, _profile)) =
+                open("maps/mp/duel6.bsp", [1920, 1080], Some(menu), &cvars)
+            else {
+                return;
+            };
+            // A player's view down the south-west path towards the tower.
+            let shots = menu_backdrop::tour_for("Yavin Training Grounds").expect("duel6's tour");
+            let shot = &shots[0];
+            let (yaw, pitch) = look(shot.from, shot.at);
+            aim(&mut gpu, shot.from, yaw, pitch);
+            // Without a server or a menu the console drops: the game menu is
+            // up from the start, as in a match.
+            gpu.game_menu = true;
+            if let Some(console) = gpu.console.as_mut() {
+                console.close_for_connection();
+            }
+            let _ = frame(&mut gpu, 60);
+            let ffa = ShotView {
+                team: 0,
+                team_game: false,
+                red_players: 0,
+                blue_players: 0,
+                vote_active: true,
+            };
+            let ctf = ShotView {
+                team: 2,
+                team_game: true,
+                red_players: 4,
+                blue_players: 3,
+                vote_active: true,
+            };
+            let watching = ShotView { team: 3, ..ffa };
+            let vfs = gpu.vfs.clone();
+            gpu.in_game_menu.refresh_callvote(None, vfs.as_deref());
+            let pages: [(&str, Page, usize, Card, ShotView); 6] = [
+                (
+                    "duel6-ingame",
+                    Page::Main,
+                    0,
+                    Card::for_shot(false, false),
+                    ffa,
+                ),
+                (
+                    "duel6-ingame-team",
+                    Page::Team,
+                    1,
+                    Card::for_shot(true, false),
+                    ctf,
+                ),
+                (
+                    "duel6-ingame-vote",
+                    Page::Vote,
+                    0,
+                    Card::for_shot(false, false),
+                    ffa,
+                ),
+                (
+                    "duel6-ingame-maps",
+                    Page::VoteMap,
+                    3,
+                    Card::for_shot(false, false),
+                    ffa,
+                ),
+                (
+                    "duel6-ingame-leave",
+                    Page::Leave,
+                    1,
+                    Card::for_shot(false, false),
+                    ffa,
+                ),
+                (
+                    "duel6-ingame-watching",
+                    Page::Main,
+                    4,
+                    Card::for_shot(false, true),
+                    watching,
+                ),
+            ];
+            for (name, page, row, card, view) in pages {
+                gpu.in_game_menu.sjk_for_shot(card, view);
+                gpu.game_menu_page = page;
+                gpu.game_menu_row = row;
+                // Long enough for the gold mark to settle.
+                println!("{}", shoot(&mut gpu, 16, name).display());
+            }
+            // Settings, opened from the menu: its way back is the game menu.
+            gpu.game_menu = false;
+            if let (Some(menu), Some(console)) = (gpu.client_menu.as_mut(), gpu.console.as_ref()) {
+                menu.open_sjk_settings_from_game(console);
+            }
+            println!("{}", shoot(&mut gpu, 8, "duel6-ingame-settings").display());
+        });
+    }
+
     /// Hand-placed candidates for the menu's camera tour on duel6, for review.
     #[test]
     #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]

@@ -90,6 +90,41 @@ against a real level start, the duel config strings, flag carriers, the
 intermission's Ready marks), its fades, the chat column beside it, the HUD
 under its dim and the Settings row's list of four are untested in play.
 
+## SJK UI: in-game menu
+
+SJK-only branch `personal/sjk-ui-ingame` (07/10/2026, based on `076806e`, Windows 11):
+the SJK UI gets its own in-game menu ([sjk-ui.md](sjk-ui.md#in-game-menu));
+until now `ui_menuStyle sjk` showed the classic bar there. `ingame_menu::sjk_view`
+draws the in-game menu's pages as a compact arc over a fade on the match's left,
+a match card on the right (read from the session by `refresh_game_menu_card`)
+and the keys at the bottom; `ingame_menu::sjk_actions` acts on its own rows
+(the main page, Vote, Leave) and sends Escape back to the entry that opened a
+page, the shared actions keeping Team's sides, Siege's classes, the call-vote
+lists and Sol JK's page. Shared changes: `InGameMenu::is_classic` is false for
+the SJK UI; Settings opened from a game names "Game menu" as its way back
+(`settings::Rail::back`, all screens of the SJK UI's Settings); a screen opened
+from the SJK UI's game menu returns on its entry; the frame's 2D pass also runs
+while the game menu is open without a session (`frame_overlays.rs`; by reading
+the code, the game menu of a map explored alone, which has no session, was
+undrawn in every style for the same reason, not checked in a running client).
+Verified: unit tests (rows and hints of each page,
+row counts per style, the keys passing over rows that cannot be taken, Escape's
+parents and the call-vote rows they return to, the arc fitting 1 to 18 entries
+between the page name and the keys, the main page, Leave and an 18-row map list
+drawn at 1080p, 4K, 21:9 and two 4:3 sizes, and each page (Main, both Teams,
+Vote, Call a vote, a 40-map list, game types, Sol JK, Leave) at 1080p, 4K and
+1024x768, each with every row's pointer area and no canvas overflow, the card
+read from a made-up game state, Settings opened from a game returning to it), and
+`world_shot::tests::duel6_sjk_ingame`, which rendered the menu over duel6 on a
+made-up match (main page, Team in a CTF, a vote on, the installed maps, Leave, a
+spectator, Settings from the menu) and was reviewed. No game was started and no
+server joined: the card on a real server (its score, place, clock, team scores
+and counts), Escape and the pointer in a running client, the hand-over to
+Settings, Servers and Character and back, voting and calling a vote, and Siege's
+class list in this look are unverified. On review the lead made the Leave page
+open on Stay (its rows act at once, with no confirmation) and darkened the
+match card's side; the frames were rendered again.
+
 ## SJK UI: Servers
 
 SJK-only branch `personal/sjk-ui-browser` (07/10/2026, based on `b0470fc`, Windows 11):

@@ -195,6 +195,23 @@ impl ClientMenu {
         self.state.open_settings();
     }
 
+    /// Open the SJK UI's Settings over a match, from its in-game menu, on the
+    /// category last shown; it returns to the in-game menu.
+    pub(crate) fn open_sjk_settings_from_game(&mut self, console: &ViewerConsole) {
+        let category = self.sjk_settings.category();
+        self.open_sjk_settings(console, category, ReturnTarget::InGame);
+    }
+
+    /// The way back the screen's top bar names: the game menu over a match,
+    /// else the main menu.
+    fn sjk_settings_back(&self) -> &'static str {
+        if self.settings_return == ReturnTarget::InGame {
+            "Game menu"
+        } else {
+            "Main menu"
+        }
+    }
+
     /// Whether the SJK UI's Settings is the screen on show: a category of
     /// settings rows, or Key bindings.
     pub(crate) fn sjk_settings_on_show(&self) -> bool {
@@ -255,6 +272,7 @@ impl ClientMenu {
         let rail = crate::settings::Rail {
             categories: &RAIL,
             current: (!searched).then_some(self.sjk_settings.category),
+            back: self.sjk_settings_back(),
         };
         self.keybinds.append_sjk(target, viewport, reveal, &rail);
     }
@@ -294,6 +312,7 @@ impl ClientMenu {
         let rail = crate::settings::Rail {
             categories: &RAIL,
             current: (!self.settings.searching_results()).then_some(self.sjk_settings.category),
+            back: self.sjk_settings_back(),
         };
         self.settings.append_sjk(target, viewport, reveal, &rail);
     }
@@ -459,6 +478,23 @@ mod tests {
         assert!(!menu.sjk_settings_on_show());
         menu.open_sjk_settings(&console, menu.sjk_settings.category, ReturnTarget::MainMenu);
         assert_eq!(menu.sjk_settings.category, 4);
+    }
+
+    #[test]
+    fn opened_from_a_game_it_names_and_returns_to_the_game_menu() {
+        let (_directory, mut console) = console();
+        let mut menu = menu();
+        menu.open_sjk_settings(&console, 3, ReturnTarget::MainMenu);
+        assert_eq!(menu.sjk_settings_back(), "Main menu");
+        menu.settings_result(SettingsResult::Back, &mut console);
+        // From the game, on the category last shown.
+        menu.open_sjk_settings_from_game(&console);
+        assert!(menu.sjk_settings_on_show() && menu.sjk_screen());
+        assert_eq!(menu.sjk_settings.category, 3);
+        assert_eq!(menu.sjk_settings_back(), "Game menu");
+        let action = menu.settings_result(SettingsResult::Back, &mut console);
+        assert_eq!(action, MenuAction::ReturnToGameMenu);
+        assert!(!menu.sjk_settings_on_show());
     }
 
     #[test]

@@ -102,8 +102,11 @@ its Character, the character standing on the map's path below the tower beside
 the form; What's new, Update and Identity in the same look; and its Servers, the
 server browser with where the servers come from and which show on the left, the
 sortable list in the middle and the chosen server's map, numbers and players on
-the right. Every other screen opens in its classic+ version. A client started in
-the SJK UI stands on mp/duel6 instead of mp/ffa3.
+the right; and its in-game menu, a compact arc of the game menu's entries over a
+dark fade on the match's left, with a card of the match (server, map, mode and
+limits, score and place, clock, players) on the right. Every other screen opens
+in its classic+ version. A client started in the SJK UI stands on mp/duel6
+instead of mp/ffa3.
 
 The classic main menu has the retail pages, entries and order, with SJK's
 Settings and SJK in place of retail's Controls and Setup:
@@ -423,7 +426,7 @@ the option panels described above. Siege swaps in Objectives and V Chat as retai
 Objectives, V Chat and Restart Match are dimmed with a note, because the client
 cannot add bots or restart a match it does not host. Left and Right move along
 the bar; Escape closes a pop-up, then the menu. The JKR-only Server browser and
-Shot controls entries are in the modern style only.
+Shot controls entries are in the modern style and the SJK UI only.
 
 With the player's retail game data mounted, the classic menus draw its own
 artwork: the backdrop, side glyph columns, ring, windows, logo, sub-page frames,

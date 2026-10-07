@@ -27,6 +27,8 @@ use sjk_ui::{Color, DrawCommand, FontWeight, TextAlign};
 pub(crate) struct Rail<'a> {
     pub(crate) categories: &'a [(&'a str, &'a str)],
     pub(crate) current: Option<usize>,
+    /// Where the way back leads: "Main menu", or "Game menu" over a match.
+    pub(crate) back: &'a str,
 }
 
 /// The back key's target, as the settings form's back cap.
@@ -85,7 +87,7 @@ impl SettingsMenu {
         self.ui.begin_transparent(viewport);
         self.ui.push_opacity(reveal);
         backdrop(&mut self.ui, viewport);
-        self.top_bar(&frame);
+        self.top_bar(&frame, rail.back);
         draw_rail(&mut self.ui, &frame, rail);
         let slots = self.sjk_rows(&frame);
         self.sjk_detail(&frame, rail);
@@ -97,8 +99,8 @@ impl SettingsMenu {
         self.sjk_controls = Some(frame.point(CONTROL_LEFT, 0.0)[0]);
     }
 
-    /// The way back, the screen's name and the search.
-    fn top_bar(&mut self, frame: &Frame) {
+    /// The way back (to `back`), the screen's name and the search.
+    fn top_bar(&mut self, frame: &Frame, back: &str) {
         let found = (!self.search.trim().is_empty()).then(|| {
             self.classic
                 .as_ref()
@@ -107,6 +109,7 @@ impl SettingsMenu {
         top_bar(
             &mut self.ui,
             frame,
+            back,
             &self.search,
             self.searching,
             "Find a setting",
@@ -713,13 +716,14 @@ impl SettingsMenu {
     }
 }
 
-/// The Settings screen's top bar, the key bindings' too: the way back (the
-/// back token 900), the screen's name and the search pill showing `search`
-/// (with its cursor while `searching`), `prompt` when empty and how many were
-/// `found` while a search is typed.
+/// The Settings screen's top bar, the key bindings' too: the way back to
+/// `back` (the back token 900), the screen's name and the search pill showing
+/// `search` (with its cursor while `searching`), `prompt` when empty and how
+/// many were `found` while a search is typed.
 pub(crate) fn top_bar(
     canvas: &mut crate::menu_widgets::MenuCanvas,
     frame: &Frame,
+    back: &str,
     search: &str,
     searching: bool,
     prompt: &str,
@@ -728,7 +732,7 @@ pub(crate) fn top_bar(
     crate::menu::sjk::top_bar(
         canvas,
         frame,
-        "Main menu",
+        back,
         BACK_TOKEN,
         "Settings",
         Some(SearchPill {

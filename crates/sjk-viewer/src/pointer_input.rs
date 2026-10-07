@@ -278,7 +278,10 @@ impl GpuState {
             return true;
         }
         if self.game_menu {
-            if self.game_menu_page != GameMenuPage::Shot && self.text_dialog.launcher_pointer(event)
+            // The SJK UI has no Report a bug button: it is on its Sol JK page.
+            if self.game_menu_page != GameMenuPage::Shot
+                && !self.in_game_menu.is_sjk()
+                && self.text_dialog.launcher_pointer(event)
             {
                 self.open_bug_report();
                 return true;

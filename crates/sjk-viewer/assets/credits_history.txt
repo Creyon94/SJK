@@ -9,6 +9,9 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 07/10/2026 | - | SJK UI in-game menu
+- 865be57 |  | SJK UI: the in-game menu
+- 88cff84 |  | SJK UI in-game menu: Leave opens on Stay, a darker card side
 + 07/10/2026 | - | SJK UI scoreboard, cg_scoreboardStyle auto
 - 21fa251 |  | SJK UI scoreboard, and Auto for the scoreboard style
 - aa4b28e |  | Scoreboard style: move a saved classic to auto once

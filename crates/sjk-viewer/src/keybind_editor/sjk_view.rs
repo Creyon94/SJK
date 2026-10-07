@@ -64,6 +64,7 @@ impl KeybindEditor {
         top_bar(
             &mut self.ui,
             &frame,
+            rail.back,
             &list.search,
             list.searching,
             "Find an action or a key",
