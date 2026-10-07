@@ -8,6 +8,7 @@
 
 use crate::hub::{Hub, HubError};
 use crate::keys::Identity;
+use crate::report::BugReport;
 use crate::wire::{Presence, Profile, names_match};
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -81,6 +82,19 @@ pub struct Snapshot {
     /// Counts changes to [`Snapshot::players`], so a reader that caches what it
     /// derived from them (scoreboard tags) knows when to derive again.
     pub revision: u64,
+    /// The outcome of the last bug report sent with [`Service::report`].
+    pub report: Option<ReportOutcome>,
+}
+
+/// What became of a bug report.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ReportOutcome {
+    /// Counts reports sent, so a reader can tell a new outcome from the last one.
+    pub serial: u64,
+    /// The hub stored it.
+    pub sent: bool,
+    /// The hub's report number, or why it was not stored.
+    pub message: String,
 }
 
 impl Snapshot {
@@ -94,6 +108,7 @@ impl Snapshot {
             profiles: HashMap::new(),
             notice: None,
             revision: 0,
+            report: None,
         }
     }
 
@@ -115,6 +130,7 @@ enum Command {
     Name(String),
     SetBio(String),
     LookUp(String),
+    Report(BugReport),
     Stop,
 }
 
@@ -227,6 +243,7 @@ impl Worker {
                 }
             }
             Command::SetBio(bio) => self.set_bio(&bio),
+            Command::Report(report) => self.report(&report),
             Command::LookUp(key_id) => self.lookups.push(key_id),
             Command::Stop => self.release(),
         }
@@ -256,6 +273,35 @@ impl Worker {
         self.due_register = now;
         self.due_claim = now;
         self.due_poll = now;
+    }
+
+    fn report(&mut self, report: &BugReport) {
+        let outcome = match (self.hub.as_mut(), self.registered) {
+            (Some(hub), true) => hub.report(&self.identity, report),
+            _ => Err(HubError::Protocol(
+                "not connected to the hub (is identity on, cl_identity 1?)".to_owned(),
+            )),
+        };
+        self.update(|snapshot| {
+            let serial = snapshot.report.as_ref().map_or(1, |last| last.serial + 1);
+            snapshot.report = Some(match outcome {
+                Ok(id) => ReportOutcome {
+                    serial,
+                    sent: true,
+                    message: format!("report #{id}"),
+                },
+                Err(HubError::Rejected { message, .. }) => ReportOutcome {
+                    serial,
+                    sent: false,
+                    message,
+                },
+                Err(error) => ReportOutcome {
+                    serial,
+                    sent: false,
+                    message: error.to_string(),
+                },
+            });
+        });
     }
 
     fn set_bio(&mut self, bio: &str) {
@@ -482,6 +528,11 @@ impl Service {
         let _ = self.commands.send(Command::SetBio(bio));
     }
 
+    /// Send a bug report; its outcome arrives in [`Snapshot::report`].
+    pub fn report(&self, report: BugReport) {
+        let _ = self.commands.send(Command::Report(report));
+    }
+
     /// Fetch a player's profile (their bio) into [`Snapshot::profiles`].
     pub fn look_up(&self, key_id: String) {
         let _ = self.commands.send(Command::LookUp(key_id));
@@ -580,6 +631,9 @@ mod tests {
         fn presence(&mut self, server: &str) -> Result<Vec<Presence>, HubError> {
             self.note(format!("presence {server}"))
                 .map(|()| self.roster.lock().unwrap().clone())
+        }
+        fn report(&mut self, _: &Identity, report: &BugReport) -> Result<i64, HubError> {
+            self.note(format!("report {}", report.text)).map(|()| 7)
         }
     }
 
@@ -784,6 +838,28 @@ mod tests {
         worker.handle(Command::LookUp("0123456789abcdef".into()), t0);
         worker.tick(t0);
         assert!(lock(&snapshot).profiles.contains_key("0123456789abcdef"));
+    }
+
+    #[test]
+    fn bug_reports_go_to_the_hub_once_registered() {
+        let fake = Fake::default();
+        let t0 = Instant::now();
+        let (mut worker, snapshot) = worker(&fake, t0);
+        let report = BugReport {
+            text: "The door flickers".into(),
+            ..BugReport::default()
+        };
+        // Before registering, nothing is sent and the outcome says why.
+        worker.handle(Command::Report(report.clone()), t0);
+        let first = lock(&snapshot).report.clone().unwrap();
+        assert!(!first.sent && first.message.contains("not connected"));
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.tick(t0);
+        worker.handle(Command::Report(report), t0);
+        assert_eq!(fake.log().last().unwrap(), "report The door flickers");
+        let outcome = lock(&snapshot).report.clone().unwrap();
+        assert_eq!((outcome.serial, outcome.sent), (first.serial + 1, true));
+        assert_eq!(outcome.message, "report #7");
     }
 
     #[test]

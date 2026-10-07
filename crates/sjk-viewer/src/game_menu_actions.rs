@@ -136,6 +136,7 @@ impl GpuState {
                 }
                 self.sync_cursor_policy();
             }
+            ingame_menu::sjk::REPORT => self.open_bug_report(),
             _ => self.back_or_close_game_menu(),
         }
     }

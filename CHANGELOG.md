@@ -19,8 +19,23 @@ tests check this file):
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 
-## Unreleased
+## 2026.1007.1 (Alpha) | 07/10/2026
 
+Report bugs from inside the game, bring your config over from another client, quick
+wheels on Q and R, saber blades that stop at walls, and a credits page with everyone's
+work.
+
+- Report a bug: a button at the bottom of the screen while the game menu is open (and Escape > SJK > Report a bug) opens a panel where you describe the problem and send it to the SJK hub, signed with your SJK identity, with the map, build and server; with the classic menus the panel and the button take the classic look, a gold button on a red band and an in-game pop-up _(Sol)_
+- The credits page lists everything: each person has a panel with their name in large letters, their role and counts, and folds that open their highlights and all their work, every feature and pull request by day, each unfolding into its commits, with pull requests and commits opening on GitHub; golden god rays turn down from the top and a sunburst turns behind the emblem, as on the website _(Sol)_
+- Settings groups have icons (classic menus): every group down the left of Key bindings, Options, Graphics and Gameplay shows a grey metal disc in the quick wheels' style, lit while the group is open or pointed at _(Sol)_
+- The console draws with a sharp vector font, JetBrains Mono, instead of the old blocky bitmap font, on the same grid; so do the FPS counter, vote text and kill feed _(Sol)_
+- Saber blades stop at walls: the glow and core end where the blade meets a wall instead of shining through it, and reach full length again as it leaves, also on hilts that leave no wall marks _(lumaya)_
+- Configs from other clients load: exec runs a .cfg whose name or binds use accented letters (it said "not valid UTF-8"), and a jampconfig.cfg copied over SJK's config.cfg loads with its unbindall and unknown keys instead of losing all your settings _(Sol)_
+- First setup opens at every start until you tick "Don't show at start", and you can drop a .cfg from another client (jampconfig.cfg, EternalJK, JA+) on the window to import your name, model, field of view and key bindings, ticking the ones you want _(Sol)_
+- The key under Escape opens the console on every keyboard layout, including Hungarian where it types 0; where it types ^ (German), Shift+^ opens it _(Sol, after EternalJK)_
+- Melee kicks play smoothly: a game joined from the menu now predicts kicks and saber attacks instead of starting them a round trip late, and on JA+ servers JA+'s own spin, back and backflip kicks hold you still instead of pulling you back with every snapshot _(Creyon, after JoF EternalJK)_
+- The quick wheels show icons: grey metal discs in the style of the game's Force icons, the one you point at grows in an accent ring with its name in the middle _(Sol)_
+- Quick wheels: hold Q (general: third person, nameplates, HUD, screenshot, cosmetics, AFK, game menu, first setup) or R (weather: the map's own, drizzle, rain, storm, snow, ground fog, clouds, weather on/off), point the mouse at a choice and let go; Escape or letting go in the middle cancels (`+wheel general`, `+wheel weather`, Settings > Key bindings > Other) _(Sol)_
 - Credits: Sol JK's own section, JKR's with Bishop, and every one of Creyon's merged pull requests; GitHub handles and the cards' links open in your browser when clicked _(Sol)_
 
 ## 2026.1006.1 (Alpha) | 06/10/2026

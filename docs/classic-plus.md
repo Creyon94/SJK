@@ -118,6 +118,7 @@ Values are canvas units of the 640x480 canvas.
 | Heading | `LABEL` 12 semibold over a 1-unit `FRAME` rule; a side band for a side's column |
 | List box | `LIST_BACK` fill, `LIST_BORDER` border (`FOCUS` while active), 16-unit rows |
 | List row | `VALUE` 11-12; chosen row filled; hovered or focused row on `menu_blendbox2`; a tag (`GOLD` 9-10 semibold) at the right end |
+| Group entry | Retail's right-set label; an SJK icon (`settings_icons`, up to 22 units) 6 units in from the row's left end, full while open or hovered, 72% otherwise, 35% when it cannot act |
 | Scrollbar | 3 units wide, 5 in from the box's right edge, only when the list is longer than the box |
 | Button | `GOLD` 14-17 semibold, centred; `menu_buttonback` glow and `FOCUS` when focused; `DISABLED` when it cannot act |
 | Text field | "Name: value"; an empty one shows a prompt at 70% alpha; underlined while typing |
@@ -219,4 +220,5 @@ Add a screen to the test when building a page.
 | In-game bar | `ingame.menu` and its pop-ups | SJK's button and pop-up left of About; Controls and Setup as one Settings; Join's team rows with their flag and player count |
 | Renderer | none (SJK's renderer settings) | The renderer settings as a `setup.menu`-style page with IMAGE, LIGHTING and SHADOWS groups, on both frames, with the same panels |
 | Changelog | none (SJK's release list) | The console browser's pop-up frame: a retail list box of releases and a detail box with each change and its credit; drawn with the classic menus |
+| Text dialog and Report a bug | none (SJK's bug reports and world notes) | The in-game pop-up's frame: the question or the noted surface under the title band, the text in a retail list box that wraps by the font's width, the rules and the count against the limit, why a Send was refused, gold Send and Cancel, a description for every control; the Report a bug button in gold on retail's red band (`menu_blendboxr`) |
 | Console browser (F3) | none (SJK's command and cvar browser) | The in-game pop-up's frame with retail buttons and list box, a detail box for the selected command or cvar, descriptions for every control; drawn with the classic console |

@@ -29,6 +29,7 @@ impl GpuState {
     pub(crate) fn prepare_timed_frame(&mut self, game_audio: &mut Option<GameAudio>) {
         self.load_event_gap.observe(Instant::now());
         self.poll_console_screenshot();
+        self.poll_bug_report();
         self.run_console_command_buffer(game_audio);
         self.sync_runtime_cvars();
         self.update_input_motion();

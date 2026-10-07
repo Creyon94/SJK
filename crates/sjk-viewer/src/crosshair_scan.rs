@@ -19,6 +19,8 @@ const PW_CLOAKED: u32 = 1 << 11;
 pub(crate) struct State {
     client: Option<u16>,
     acquired_at: i32,
+    /// Time of the last [`State::scan`].
+    scanned_at: i32,
     /// Current trace classification, independent of the retained player name.
     pub(crate) color: Option<[f32; 4]>,
     /// Endpoint of the same trace used to identify the target.
@@ -58,6 +60,11 @@ impl State {
         self.client.filter(|_| self.acquired_at == now)
     }
 
+    /// The player the last scan found under the crosshair, whenever it ran.
+    pub(crate) fn aimed_player(&self) -> Option<u16> {
+        self.client.filter(|_| self.acquired_at == self.scanned_at)
+    }
+
     /// Stock `CG_CrosshairPlayer` retains a target for at most one second.
     pub(crate) fn chat_client(&self, now: i32) -> Option<u16> {
         self.client
@@ -78,6 +85,7 @@ impl State {
         scratch: &mut TraceScratch,
         suppression: Suppression,
     ) -> Option<CrosshairName> {
+        self.scanned_at = now;
         let start = ray.start;
         let direction = ray.forward.normalize_or_zero();
         let end = start + direction * ray.distance;

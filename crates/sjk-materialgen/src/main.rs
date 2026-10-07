@@ -101,9 +101,7 @@ fn report(options: &sjk_materialgen::run::Options, summary: &Summary) {
         "Or copy the pk3 into {}/base yourself; its zzz_ name loads after the retail pk3s.",
         options.game_data.display()
     );
-    println!(
-        "Then: seta r_normalMapping 1; seta r_specularMapping 1; seta r_parallaxMapping 1; restart."
-    );
+    println!("Then: seta r_normalMapping 1; seta r_specularMapping 1; restart.");
     println!("Emission maps show with r_emissiveMaps 1 (the default).");
     println!();
     println!("{NOTICE}");

@@ -18,7 +18,7 @@ pub(crate) struct CameraUniform {
 impl CameraUniform {
     /// Final rendered position and degree angles accepted by `--free-camera`.
     /// JKA pitch is positive downward, opposite the renderer's forward Z.
-    fn viewpos(&self) -> String {
+    pub(crate) fn viewpos(&self) -> String {
         let [x, y, z] = self.camera_position;
         let forward = glam::Vec3::from_array(self.view_forward).normalize_or_zero();
         let yaw = forward.y.atan2(forward.x).to_degrees().rem_euclid(360.0);
@@ -47,6 +47,7 @@ impl crate::GpuState {
         self.refresh_shot_preview();
         self.queue
             .write_buffer(&self.camera_buffer, 0, bytemuck::bytes_of(&camera));
+        self.world_notes.set_camera(camera);
         self.prepare_dust_motes();
         self.prepare_weather(&camera);
         self.ground_hud.set_view(&camera);

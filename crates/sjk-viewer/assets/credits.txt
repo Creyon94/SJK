@@ -27,6 +27,7 @@ github: Sol-Vulpes
 role: Creator and developer of Sol JK
 did: Sol JK itself: its name, emblem, website, releases and self-updates
 did: The classic menus and classic+, the settings and search, the retail-look console
+did: SJK's icon art: the quick wheels' and the settings' icons
 did: The HUD picker, the radial HUD, nameplates with health estimates and player cards
 did: JA+ and JoF server support: movement, sabers, grapple, Force wheel, flip kick
 did: 125 Hz user commands, so every tap reaches the server
@@ -54,7 +55,7 @@ link: https://github.com/Bishop-R/JKR
 
 [Creyon]
 github: Creyon94
-role: Contributor and tester: 20 merged pull requests, EternalJK parity
+role: Contributor and tester: 21 merged pull requests, EternalJK parity
 did: #2 #7 Duel challenges from names with symbols, centre prints kept whole
 did: #3 The third-person camera damped per frame as EternalJK (cg_cameraFPS)
 did: #4 #19 Retail crosshair pictures, the weapon row in every HUD style
@@ -68,13 +69,26 @@ did: #13 #14 #22 Windows-1252 symbols in names, copy and paste, EternalJK's font
 did: #15 #17 JoF's HD effects and images load
 did: #16 #18 View weapon FOV, first-person zoom, HD scope mask, camera shakes
 did: #21 fx_debug and cg_debugMissiles diagnostics
+did: #23 Smooth melee kicks, predicted in a joined game and held still on JA+
 link: Creyon's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ACreyon94
+
+[lumaya]
+github: lumayaa
+role: Contributor: 1 merged pull request
+did: #24 Saber blades stop at walls instead of shining through them
+link: lumaya's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa
 
 == Made with
 
 [Claude]
 role: Coding assistant, by Anthropic
 did: Wrote many of Sol's changes together with Sol
+
+[Inter and JetBrains Mono]
+role: The fonts of the menus and the console, under the SIL Open Font License
+did: Inter by The Inter Project Authors, JetBrains Mono by The JetBrains Mono Project Authors
+link: https://rsms.me/inter/
+link: https://www.jetbrains.com/lp/mono/
 
 [OpenJK, EternalJK, JoF EJK, TaystJK and jaPRO]
 role: References for how Jedi Academy behaves

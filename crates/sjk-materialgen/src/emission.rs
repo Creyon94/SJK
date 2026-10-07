@@ -20,7 +20,9 @@
 //!    `blendFunc add` and `glow`;
 //! 4. a fixture or screen keyword in its file name ([`KEYWORDS`], minus
 //!    [`NOT_KEYWORDS`] and switched-off names);
-//! 5. the BSP material `computer` (`MATERIAL_COMPUTER`).
+//! 5. the BSP material `computer` (`MATERIAL_COMPUTER`);
+//! 6. a control in its file name ([`PANEL_LIGHT_KEYWORDS`]: switches, door locks,
+//!    keypads, control panels), whose small coloured indicator lights emit.
 //!
 //! A shader that already shows light on top of its diffuse pair (an additive,
 //! glowing or `GL_DST_COLOR GL_ONE` stage) needs none: its texture gets no emission
@@ -34,7 +36,9 @@
 //! texels, or saturated ones (screen glyphs, coloured bulbs), clearly brighter than
 //! most of the texture. Strong evidence (overrides, surface lights) takes any bright
 //! texel at a lower threshold; weak evidence (keywords, `computer`) needs near-white
-//! or saturated texels. A texture whose median texel is bright is a light panel: all
+//! or saturated texels; panel lights only saturated ones, and at most
+//! [`MAX_PANEL_LIGHT_COVERAGE`] of the texture (more bright colour is paint, not
+//! indicator lights). A texture whose median texel is bright is a light panel: all
 //! of its bright texels emit. No luminous texel, no map. The emitted colour is the
 //! texel's colour, lifted so the brightest emitting part reaches about full
 //! brightness (at most 3x).
@@ -77,6 +81,16 @@ pub const NOT_KEYWORDS: &[&str] = &[
     "switch",
 ];
 
+/// File-name keywords of controls whose painted indicator lights glow: switches, door
+/// locks, keypads and control panels. Weaker than [`KEYWORDS`]: only small, saturated,
+/// clearly bright spots emit.
+pub const PANEL_LIGHT_KEYWORDS: &[&str] = &[
+    "switch", "control", "onoff", "keypad", "keyport", "terminal", "button", "comm_", "locked",
+];
+
+/// Largest share of a texture that may emit on [`Evidence::PanelLights`].
+pub const MAX_PANEL_LIGHT_COVERAGE: f32 = 0.15;
+
 /// Name parts of a fixture that is switched off or broken.
 pub const UNLIT: &[&str] = &["off", "broken", "dead", "unlit", "dark"];
 
@@ -94,6 +108,8 @@ pub enum Evidence {
     GlowImage(String),
     /// A keyword in its file name.
     Keyword(&'static str),
+    /// A control's name: its indicator lights.
+    PanelLights(&'static str),
     /// BSP material `computer`.
     Computer,
 }
@@ -111,6 +127,7 @@ impl Evidence {
             Self::SurfaceLight(value) => format!("q3map_surfacelight {value}"),
             Self::GlowImage(path) => format!("glow image {path}"),
             Self::Keyword(word) => format!("keyword \"{word}\""),
+            Self::PanelLights(word) => format!("panel lights (\"{word}\")"),
             Self::Computer => "bsp material computer".to_owned(),
         }
     }
@@ -161,10 +178,25 @@ pub struct Plan {
 
 /// The keyword of `base` (the image path without extension), if its file name has one.
 pub fn keyword(base: &str) -> Option<&'static str> {
-    let name = base.rsplit('/').next().unwrap_or(base).to_ascii_lowercase();
+    let name = lit_name(base)?;
     if NOT_KEYWORDS.iter().any(|word| name.contains(word)) {
         return None;
     }
+    KEYWORDS.iter().copied().find(|word| name.contains(word))
+}
+
+/// The control keyword of `base` ([`PANEL_LIGHT_KEYWORDS`]), if its file name has one.
+pub fn panel_light_keyword(base: &str) -> Option<&'static str> {
+    let name = lit_name(base)?;
+    PANEL_LIGHT_KEYWORDS
+        .iter()
+        .copied()
+        .find(|word| name.contains(word))
+}
+
+/// The lower-case file name of `base`, unless it names something switched off or broken.
+fn lit_name(base: &str) -> Option<String> {
+    let name = base.rsplit('/').next().unwrap_or(base).to_ascii_lowercase();
     let digitless = |part: &str| {
         part.trim_end_matches(|c: char| c.is_ascii_digit())
             .to_owned()
@@ -172,11 +204,9 @@ pub fn keyword(base: &str) -> Option<&'static str> {
     let unlit = name
         .split(|c: char| !c.is_ascii_alphanumeric())
         .any(|part| UNLIT.contains(&digitless(part).as_str()))
-        || digitless(&name).ends_with("off");
-    if unlit {
-        return None;
-    }
-    KEYWORDS.iter().copied().find(|word| name.contains(word))
+        // `onoff` is a switch's name, not a switched-off fixture.
+        || (digitless(&name).ends_with("off") && !digitless(&name).ends_with("onoff"));
+    (!unlit).then_some(name)
 }
 
 /// Decide whether a texture gets an emission map. `uses` are the shaders drawing it,
@@ -220,6 +250,9 @@ pub fn decide(
     }
     if computer {
         return Ok(plan(Evidence::Computer));
+    }
+    if let Some(word) = panel_light_keyword(base) {
+        return Ok(plan(Evidence::PanelLights(word)));
     }
     Err(None)
 }
@@ -283,6 +316,7 @@ pub fn generate(
     });
     let median = percentile(&value, None, 0.5);
     let strong = plan.evidence.strong();
+    let indicators = matches!(plan.evidence, Evidence::PanelLights(_));
     // Lit parts stand out from the rest of the texture; a texture that is mostly bright
     // is a light panel, all of whose bright texels emit (a low, absolute threshold, so
     // texture noise on the panel does not speckle its light).
@@ -307,11 +341,19 @@ pub fn generate(
         let white = smoothstep(white_low, white_low + 0.15, max)
             * (1.0 - smoothstep(0.25, 0.45, saturation));
         let colour = bright * smoothstep(0.35, 0.55, saturation);
-        white.max(colour)
+        // Indicator lights are coloured: white on a control is paint or a label.
+        if indicators {
+            colour
+        } else {
+            white.max(colour)
+        }
     });
     let coverage = mask.data.iter().sum::<f32>() / mask.data.len().max(1) as f32;
     if coverage < MIN_COVERAGE {
         return Err("no luminous texels");
+    }
+    if indicators && coverage > MAX_PANEL_LIGHT_COVERAGE {
+        return Err("too much bright colour for indicator lights");
     }
     let linear = |x: usize, y: usize| {
         let [r, g, b, _] = texel(x, y);
@@ -426,6 +468,64 @@ mod tests {
         assert_eq!(keyword("textures/x/lightsoff"), None);
         assert_eq!(keyword("textures/x/screen_broken2"), None);
         assert_eq!(keyword("textures/x/wall"), None);
+    }
+
+    #[test]
+    fn controls_have_panel_lights_unless_switched_off() {
+        assert_eq!(
+            panel_light_keyword("textures/kejim/switch3"),
+            Some("switch")
+        );
+        assert_eq!(
+            panel_light_keyword("textures/imperial/switch_door_unlocked"),
+            Some("switch")
+        );
+        assert_eq!(
+            panel_light_keyword("textures/x/door_1new_onoff"),
+            Some("onoff")
+        );
+        assert_eq!(
+            panel_light_keyword("textures/x/h_control_metal"),
+            Some("control")
+        );
+        assert_eq!(panel_light_keyword("textures/kejim/lift_off"), None);
+        assert_eq!(panel_light_keyword("textures/x/switch_broken"), None);
+        assert_eq!(panel_light_keyword("textures/x/wall_blocks"), None);
+        // A light name is the stronger evidence; a plain wall none.
+        assert_eq!(
+            decide("textures/x/light_switch", &[], false, None, None).map(|p| p.evidence),
+            Ok(Evidence::PanelLights("switch"))
+        );
+        assert_eq!(
+            decide("textures/x/keypad_light", &[], false, None, None).map(|p| p.evidence),
+            Ok(Evidence::Keyword("light"))
+        );
+    }
+
+    #[test]
+    fn panel_lights_are_small_coloured_spots() {
+        let panel = plan(Evidence::PanelLights("switch"));
+        // A red indicator on a grey panel emits, only there.
+        let emission = generate(&housing([230, 30, 20]), None, &panel).expect("red light");
+        assert!(emission.image.get_pixel(30, 30).0[0] > 100);
+        assert_eq!(emission.image.get_pixel(4, 4).0, [0, 0, 0]);
+        // A white label is paint, not a light.
+        assert_eq!(
+            generate(&housing([250, 250, 250]), None, &panel).map(|e| e.coverage),
+            Err("no luminous texels")
+        );
+        // A panel painted bright red all over is not an indicator.
+        let red = RgbaImage::from_fn(64, 64, |x, _| {
+            if x < 32 {
+                Rgba([230, 30, 20, 255])
+            } else {
+                Rgba([60, 62, 58, 255])
+            }
+        });
+        assert_eq!(
+            generate(&red, None, &panel).map(|e| e.coverage),
+            Err("too much bright colour for indicator lights")
+        );
     }
 
     #[test]

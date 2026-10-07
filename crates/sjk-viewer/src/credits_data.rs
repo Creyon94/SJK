@@ -1,9 +1,17 @@
-//! Parser for `assets/credits.txt`, built into the client and shown by the
-//! credits page (`credits.rs`). The file's header gives the format; the tests
-//! here check the real file.
+//! Parsers for `assets/credits.txt` and `assets/credits_history.txt`, built
+//! into the client and shown by the credits page (`credits.rs`). The files'
+//! headers give their formats; the tests here check the real files.
 
 /// The built-in credits.
 pub(super) const EMBEDDED: &str = include_str!("../assets/credits.txt");
+/// Everyone's features, pull requests and commits, written by
+/// `scripts/credits_history.py`.
+pub(super) const HISTORY: &str = include_str!("../assets/credits_history.txt");
+
+/// Where the commits and pull requests open.
+const SJK_COMMIT: &str = "https://github.com/Sol-Vulpes/SJK/commit/";
+const SJK_PULL: &str = "https://github.com/Sol-Vulpes/SJK/pull/";
+const JKR_PULL: &str = "https://github.com/Bishop-R/JKR/pull/";
 
 #[derive(Debug)]
 pub(super) struct Section {
@@ -20,6 +28,71 @@ pub(super) struct Card {
     pub(super) role: String,
     pub(super) did: Vec<String>,
     pub(super) links: Vec<Link>,
+    /// Their work from the history, newest first; empty for a card without.
+    pub(super) work: Vec<Work>,
+}
+
+/// A feature or pull request, as merged into main.
+#[derive(Debug)]
+pub(super) struct Work {
+    /// `dd/mm/yyyy` of its merge.
+    pub(super) date: String,
+    /// "SJK #2" or "JKR #48"; empty for a feature without a pull request.
+    pub(super) reference: String,
+    pub(super) title: String,
+    /// Oldest first.
+    pub(super) commits: Vec<Commit>,
+}
+
+#[derive(Debug)]
+pub(super) struct Commit {
+    /// The short hash.
+    pub(super) hash: String,
+    /// Who made it when that is not the work's owner, else empty.
+    pub(super) by: String,
+    pub(super) subject: String,
+}
+
+impl Work {
+    /// The pull request's page, when it is one.
+    pub(super) fn url(&self) -> Option<String> {
+        let (repo, number) = self.reference.split_once(" #")?;
+        let base = match repo {
+            "SJK" => SJK_PULL,
+            "JKR" => JKR_PULL,
+            _ => return None,
+        };
+        Some(format!("{base}{number}"))
+    }
+
+    /// One commit, which says what the title says: nothing to unfold.
+    pub(super) fn is_single(&self) -> bool {
+        self.commits.len() == 1
+    }
+}
+
+impl Commit {
+    pub(super) fn url(&self) -> String {
+        format!("{SJK_COMMIT}{}", self.hash)
+    }
+}
+
+/// How much a card's history holds.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(super) struct Tally {
+    pub(super) work: usize,
+    pub(super) pulls: usize,
+    pub(super) commits: usize,
+}
+
+impl Card {
+    pub(super) fn tally(&self) -> Tally {
+        Tally {
+            work: self.work.len(),
+            pulls: self.work.iter().filter(|w| !w.reference.is_empty()).count(),
+            commits: self.work.iter().map(|w| w.commits.len()).sum(),
+        }
+    }
 }
 
 /// A clickable address on a card.
@@ -93,6 +166,7 @@ pub(super) fn parse(text: &str) -> Result<Vec<Section>, String> {
                 role: String::new(),
                 did: Vec::new(),
                 links: Vec::new(),
+                work: Vec::new(),
             });
             continue;
         }
@@ -136,6 +210,106 @@ pub(super) fn parse(text: &str) -> Result<Vec<Section>, String> {
     Ok(sections)
 }
 
+/// Parse the history: each person's name and work, in the file's order.
+pub(super) fn parse_history(text: &str) -> Result<Vec<(String, Vec<Work>)>, String> {
+    let mut people: Vec<(String, Vec<Work>)> = Vec::new();
+    for (number, line) in text.lines().enumerate() {
+        let number = number + 1;
+        let error = |what: &str| format!("credits_history.txt line {number}: {what}");
+        if line.trim().is_empty() || line.starts_with('#') {
+            continue;
+        }
+        if !line.is_ascii() {
+            return Err(error("not ASCII"));
+        }
+        if let Some(name) = line.strip_prefix("= ") {
+            people.push((name.trim().to_owned(), Vec::new()));
+            continue;
+        }
+        let Some((_, work)) = people.last_mut() else {
+            return Err(error("work before the first \"= Name\""));
+        };
+        if let Some(rest) = line.strip_prefix("+ ") {
+            let mut fields = rest.splitn(3, " | ");
+            let (Some(date), Some(reference), Some(title)) =
+                (fields.next(), fields.next(), fields.next())
+            else {
+                return Err(error("expected \"+ dd/mm/yyyy | ref | title\""));
+            };
+            if !is_date(date) {
+                return Err(error("the date is not dd/mm/yyyy"));
+            }
+            let reference = if reference == "-" { "" } else { reference };
+            work.push(Work {
+                date: date.to_owned(),
+                reference: reference.to_owned(),
+                title: title.trim().to_owned(),
+                commits: Vec::new(),
+            });
+        } else if let Some(rest) = line.strip_prefix("- ") {
+            let Some(piece) = work.last_mut() else {
+                return Err(error("a commit before the first \"+\" line"));
+            };
+            let mut fields = rest.splitn(3, " | ");
+            let (Some(hash), Some(by), Some(subject)) =
+                (fields.next(), fields.next(), fields.next())
+            else {
+                return Err(error("expected \"- hash | by | subject\""));
+            };
+            if hash.len() < 7 || !hash.bytes().all(|b| b.is_ascii_hexdigit()) {
+                return Err(error("not a commit hash"));
+            }
+            piece.commits.push(Commit {
+                hash: hash.to_owned(),
+                by: by.trim().to_owned(),
+                subject: subject.trim().to_owned(),
+            });
+        } else {
+            return Err(error("expected \"= \", \"+ \" or \"- \""));
+        }
+    }
+    if let Some((name, _)) = people
+        .iter()
+        .find(|(_, work)| work.iter().any(|w| w.commits.is_empty()))
+    {
+        return Err(format!(
+            "credits_history.txt: work of {name} without a commit"
+        ));
+    }
+    Ok(people)
+}
+
+/// `dd/mm/yyyy`.
+fn is_date(text: &str) -> bool {
+    let bytes = text.as_bytes();
+    bytes.len() == 10
+        && bytes[2] == b'/'
+        && bytes[5] == b'/'
+        && bytes
+            .iter()
+            .enumerate()
+            .all(|(index, byte)| matches!(index, 2 | 5) || byte.is_ascii_digit())
+}
+
+/// The credits with everyone's history under their card. A person in the
+/// history without a card is an error, so the script and credits.txt agree.
+pub(super) fn parse_all(credits: &str, history: &str) -> Result<Vec<Section>, String> {
+    let mut sections = parse(credits)?;
+    for (name, work) in parse_history(history)? {
+        let Some(card) = sections
+            .iter_mut()
+            .flat_map(|section| &mut section.cards)
+            .find(|card| card.name == name)
+        else {
+            return Err(format!(
+                "credits_history.txt: {name} has work but no card in credits.txt"
+            ));
+        };
+        card.work = work;
+    }
+    Ok(sections)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -156,6 +330,78 @@ mod tests {
             assert!(cards.iter().any(|card| card.name == name), "{name} missing");
         }
         assert!(cards.iter().flat_map(|card| &card.links).count() > 0);
+    }
+
+    #[test]
+    fn the_built_in_history_belongs_to_cards() {
+        let sections = parse_all(EMBEDDED, HISTORY).unwrap();
+        let cards: Vec<_> = sections.iter().flat_map(|section| &section.cards).collect();
+        let card = |name: &str| *cards.iter().find(|card| card.name == name).unwrap();
+        let sol = card("Sol").tally();
+        assert!(
+            sol.work > 100 && sol.commits > sol.work && sol.pulls > 10,
+            "{sol:?}"
+        );
+        // Bishop's JKR pull requests, Creyon's SJK ones, each opening on GitHub.
+        let bishop = &card("Bishop").work;
+        assert!(bishop.iter().any(|w| w.reference.starts_with("JKR #")));
+        let creyon = &card("Creyon").work;
+        assert!(creyon.iter().all(|w| w.reference.starts_with("SJK #")));
+        let first = creyon.last().unwrap();
+        assert_eq!(first.reference, "SJK #2");
+        assert_eq!(
+            first.url().as_deref(),
+            Some("https://github.com/Sol-Vulpes/SJK/pull/2")
+        );
+        // The history is newest first, by day.
+        let day = |date: &str| {
+            let (d, rest) = date.split_once('/').unwrap();
+            let (m, y) = rest.split_once('/').unwrap();
+            format!("{y}{m}{d}")
+        };
+        for person in &cards {
+            for pair in person.work.windows(2) {
+                assert!(day(&pair[0].date) >= day(&pair[1].date), "{}", person.name);
+            }
+        }
+        assert!(card("Claude").work.is_empty());
+    }
+
+    #[test]
+    fn history_lines_parse_and_errors_name_their_line() {
+        let text = "# note\n= A\n+ 07/10/2026 | SJK #24 | Clip | blades\n- 8d21001 |  | Clip\n- abcdef0 | B | Fix\n+ 01/10/2026 | - | One\n- 0123456 |  | One\n";
+        let people = parse_history(text).unwrap();
+        let (name, work) = &people[0];
+        assert_eq!(name, "A");
+        assert_eq!(work[0].title, "Clip | blades");
+        assert_eq!(work[0].reference, "SJK #24");
+        assert_eq!(work[0].commits[1].by, "B");
+        assert_eq!(work[0].commits[0].by, "");
+        assert_eq!(
+            work[0].commits[0].url(),
+            "https://github.com/Sol-Vulpes/SJK/commit/8d21001"
+        );
+        assert!(!work[0].is_single());
+        assert!(work[1].reference.is_empty() && work[1].url().is_none());
+        assert!(work[1].is_single());
+        for bad in [
+            "+ 07/10/2026 | - | x\n",
+            "= A\n+ 2026-10-07 | - | x\n- 0123456 |  | x\n",
+            "= A\n+ 07/10/2026 | - x\n",
+            "= A\n- 0123456 |  | x\n",
+            "= A\n+ 07/10/2026 | - | x\n- xyz | | x\n",
+            "= A\n+ 07/10/2026 | - | x\n",
+            "= A\nstray\n",
+        ] {
+            assert!(parse_history(bad).is_err(), "{bad}");
+        }
+        assert!(
+            parse_all(
+                "== S\n[A]\nrole: r\n",
+                "= B\n+ 07/10/2026 | - | x\n- 0123456 |  | x\n"
+            )
+            .is_err()
+        );
     }
 
     #[test]

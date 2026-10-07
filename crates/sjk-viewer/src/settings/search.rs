@@ -18,7 +18,7 @@ fn searchable() -> &'static Searchable {
     SEARCHABLE.get_or_init(|| {
         let tab =
             |caption: &str| settings(TABS.iter().position(|tab| *tab == caption).unwrap_or(0));
-        let sources: [(&'static str, &'static [Setting]); 12] = [
+        let sources: [(&'static str, &'static [Setting]); 13] = [
             ("Video", tab("VIDEO")),
             ("Sound", tab("AUDIO")),
             ("Mouse", tab("CONTROLS")),
@@ -31,6 +31,8 @@ fn searchable() -> &'static Searchable {
             ("Renderer: lighting", RENDER_LIGHTING),
             ("Renderer: shadows", RENDER_SHADOWS),
             ("Weather", RENDER_WEATHER),
+            // Its rows are the others' but for its own last one.
+            ("First setup", Group::Quick.rows()),
         ];
         let mut found = Searchable {
             rows: Vec::new(),

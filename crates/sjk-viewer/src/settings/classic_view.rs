@@ -633,6 +633,12 @@ impl SettingsMenu {
         {
             part(facts, format_args!("In {group}"));
         }
+        if self.section == Section::Group(Group::Quick) {
+            part(
+                facts,
+                format_args!("Drop another client's .cfg here to import it"),
+            );
+        }
     }
 
     /// The description line's keys for the selected row.

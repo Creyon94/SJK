@@ -1,13 +1,13 @@
 //! GPU side of SJK's menu emblem ([`crate::menu::emblem`]): one texture
 //! with its mip chain and one bind group per layer, outside the shared icon
-//! atlas, uploaded once the worker has decoded the pictures. The glow layers
-//! draw with the shape renderer's additive pipeline.
+//! atlas, uploaded once the worker has decoded the pictures. The glow and
+//! ray layers draw with the shape renderer's additive pipeline.
 
 use crate::menu::emblem::{Decoded, EmblemLayer, MipChain};
 
 /// Bind groups of the emblem's layers, once installed.
 pub(super) struct EmblemTextures {
-    groups: [Option<wgpu::BindGroup>; 3],
+    groups: [Option<wgpu::BindGroup>; EmblemLayer::ALL.len()],
     installed: bool,
 }
 

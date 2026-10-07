@@ -209,7 +209,7 @@ work without reducing source count, texture resolution or lighting quality.
 | `r_clouds` | Volumetric clouds over open sky, 1 (default) or 0; live |
 | `r_normalMapping` | Normal maps on lightmapped world surfaces (rend2 convention); default 1 (SJK; rend2 and JKR 0), restart required |
 | `r_specularMapping` | Specular, roughness and metalness maps on the same surfaces; default 1 (SJK; rend2 and JKR 0), restart required |
-| `r_parallaxMapping` | Parallax from the height in `_nh`/`normalHeightMap` images; needs `r_normalMapping`; default 1 (SJK; rend2 and JKR 0), restart required |
+| `r_parallaxMapping` | Parallax from the height in `_nh`/`normalHeightMap` images; needs `r_normalMapping`; default 0 (SJK turned it off on 07/10/2026: generated height is a guess from paint), restart required |
 | `r_materialMapsDebug` | Material-mapped surfaces only: 1 mapped normal as colour, 2 tint by maps found, 3 normal-map relief, 4 reflection probes alone, 5 without reflection probes, 6 emission maps alone; default 0, live, not archived |
 | `r_emissiveMaps` | Emission maps (`<texture>_e`, SJK's) on lightmapped world surfaces; default 1, restart required. See [Emission maps](#emission-maps) |
 | `r_emissionStrength` | Brightness of emission maps, 0 (off) to 7.97 in steps of 1/32; default 1, live, archived |
@@ -821,6 +821,12 @@ drawn: the extra trails stock adds while `PW_SPEED` is set with `cg_speedTrail`
 and during super-break win animations.
 
 Blade/wall contact ([saber_contacts.rs](../crates/sjk-viewer/src/saber_contacts.rs))
+shortens both the visible glow and core to the world trace's hit point, as
+OpenJK `codemp`'s `CG_AddSaberBlade` does. This works with trails disabled and
+with `noWallMarks`; `cg_saberContact 0` disables the cutoff. The cutoff only
+changes the frame's render instances, so leaving the wall restores the blade's
+extension length. Solid brush entities such as movers are not traced yet.
+Wall contact also
 plays a wall-hit sound once a blade has stayed in the wall since the previous
 frame, at most every 100 ms per blade. Like stock's `S_StartSound(..., -1,
 CHAN_WEAPON, ...)`, all wall hits share one source and channel, so each new hit
@@ -1069,15 +1075,22 @@ then `_n` for normals and `_specGloss`, ioquake3's `_s`, `_rmo` then `_orm` for
 specular, as in rend2's `CollapseStagesToGLSL`. ioquake3's typed
 `stage normalMap` stages are not supported. With the cvars off, the parser
 records the keywords and nothing else changes: no image lookup, layout,
-buffer or pipeline is created. SJK turns the cvars on by default; without a
+buffer or pipeline is created. SJK turns the cvars on by default (parallax off); without a
 pack (or keywords) a map load only checks the candidate names in the file
 index, and no layout, buffer, pipeline or reflection probe is created.
 
 Maps apply to lightmapped world surfaces (static and inline movers) whose
 lightmap and diffuse stages collapse into one opaque pass. On the retail
 `mp/ffa1`, `mp/ffa3` and `mp/duel1` this covers 84–87% of world triangles;
-`mp/siege_hoth` covers 52%. Vertex-lit surfaces, stacks that do not collapse,
-effect stages, deforms, sprites and models (MD3, Ghoul2) keep their authored shading.
+`mp/siege_hoth` covers 52%. Since 07/10/2026 they also apply to vertex-lit world
+surfaces (terrain, `_phong` sand and rock, `q3map_onlyvertexlighting` shaders) whose
+first stage is opaque `rgbGen vertex`/`exactVertex` paint: in baked lighting the
+vertex colour stands in for the lightmap texel (`material_map_vertex_light`, the same
+response), in real-time lighting the light buffer is read through
+`material_map_lightmap` as for lightmapped paint. Detail stages and blended terrain
+layers over such paint, stacks that do not collapse, effect stages, deforms, sprites
+and models (MD3, Ghoul2) keep their authored shading, so a mapped terrain base can
+differ from an unmapped layer blended over it.
 Each material-mapped stage compiles to its own pipeline key and a second bind
 group; ordinary stages keep their pipelines, groups and stage-table records.
 
@@ -1789,7 +1802,7 @@ with its own fonts in that font, following OpenJK `codemp`:
 | --- | --- |
 | `ergoec` (`FONT_MEDIUM`) | Menus, crosshair name, centre prints, warmup text, match timer, enemy info, scoreboard names and headings |
 | `ocr_a` (`FONT_SMALL`) | Chat box and typing line, weapon/Force/inventory selection names, scoreboard numbers |
-| Console character set `gfx/2d/charsgrid_med` | Console and notify lines, FPS, snapshot, vote, team overlay, connection interrupted, kill feed |
+| Console character set (drawn with the bundled JetBrains Mono, not `gfx/2d/charsgrid_med`) | Console and notify lines, FPS, snapshot, vote, team overlay, connection interrupted, kill feed |
 
 The routing is per text run: the HUD maps its text ids in
 [text_values.rs](../crates/sjk-viewer/src/hud/text_values.rs), chat marks its
@@ -1799,11 +1812,13 @@ names, stays on Inter (or `arialnb` for the status HUD). The `.fontdat` metrics
 are read by [fontdat.rs](../crates/sjk-viewer/src/text/fontdat.rs); the atlas is
 the highest-priority `fonts/<name>.tga` (or `.png`/`.jpg`), so an HD replacement
 atlas in a later PK3 is used with the retail metrics and is mipmapped down to the
-retail 512-texel size. The console character set
-([charset.rs](../crates/sjk-viewer/src/text/charset.rs)) is a 16×16 grid of
-Latin-1 cells; like `SCR_DrawSmallChar` and `CG_DrawChar`, each character is the
-left half of its cell drawn twice as tall as wide, every character advances one
-cell (the console is monospaced), and a space draws nothing. The console keeps its
+retail 512-texel size. The console character set's surfaces draw with JetBrains
+Mono, bundled and rasterized once at 96 pixels per em into a mipmapped coverage
+atlas ([console_font.rs](../crates/sjk-viewer/src/text/console_font.rs)), because
+SJK draws no bitmap fonts ([sjk.md](sjk.md#fonts)). It keeps the cell of
+`SCR_DrawSmallChar` and `CG_DrawChar`: a line 16 units tall, every character
+advancing 8 (the console is monospaced, the em sized so the font's advance fills
+the cell), the ascent and descent centred, and a space drawing nothing. The console keeps its
 own sizes (`con_scale`, row pitch), and its caret, selection and pointer hits
 measure the same fixed advance it draws with. The game fonts load when a world is
 installed with the option on, or on first use, from
@@ -1848,8 +1863,7 @@ instead of Inter's not-sign
 from the mounted atlas (an HD replacement included), scaled so the retail
 font's `H` matches Inter's cap height, and spliced into both faces at atlas
 build and DPI rebuild; nothing is read or rasterized per frame. Without the
-retail fonts `¬` stays Inter's. The console character set leaves 0xAC blank, as
-retail did. Outgoing chat and names send `¬` as the single byte 0xAC
+retail fonts `¬` stays Inter's. The console font draws JetBrains Mono's `¬`. Outgoing chat and names send `¬` as the single byte 0xAC
 ([player text](networking.md#player-text)), so other clients draw the logo too.
 
 ### Game-data HUD
@@ -2087,7 +2101,10 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
   `lamp`, `bulb`, `neon`, `screen`, `monitor`, `display`, `console`, `computer`,
   `comp_`, `holo`, `glow`; not `lightning`, `highlight`, `flight`, `lightgr…`,
   `lightsab…`, `clamp`, `switch`, nor names with an `off`, `broken`, `dead`, `unlit`
-  or `dark` part); or the BSP material `computer`. Textures whose every shader already
+  or `dark` part); the BSP material `computer`; or a control's name (`switch`,
+  `control`, `onoff`, `keypad`, `keyport`, `terminal`, `button`, `comm_`, `locked`),
+  whose painted indicator lights emit: only saturated, clearly bright texels, and no
+  map when more than 15% of the texture would emit (that is paint, not lights). Textures whose every shader already
   shows light (a `glow`, additive or `GL_DST_COLOR GL_ONE` stage) and textures with an
   `_e` image get none. With a glow image, the emission is that image. Otherwise the
   texels that emit are near-white or saturated ones clearly brighter than most of the
@@ -2134,10 +2151,11 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
   and applied override lines), and `--limit` takes only the most-used textures.
 
 **Regenerating.** The manifest records the generation of the tuning
-(`"generation": 4` since the relief orientation and smoother metal, 3 added
-emission maps; packs without it are generation 1). With
+(`"generation": 5` since maps for vertex-lit paint and indicator lights, 4 the
+relief orientation and smoother metal, 3 emission maps; packs without it are
+generation 1). With
 material maps or emission maps on, the client logs `material maps: the generated pack
-is generation 1 of sjk-materialgen, this client expects 4 ...` once when the mounted
+is generation 1 of sjk-materialgen, this client expects 5 ...` once when the mounted
 pack is older. Emission decisions depend on every map read: a texture drawn plainly on
 one map and through a glowing shader on another gets its `_e`, and the client ignores
 it where the shader glows.
@@ -2220,8 +2238,8 @@ LDR tone curve is off. Sunbeam dust is on at full density (`r_dustMotes 1`) and
 shows only inside the godrays of `r_volumetrics`.
 Dynamic glow is on with rd-vulkan's blur (SJK; stock defaults it off).
 Soft particles, per-pixel model diffuse lighting and full rendering resolution
-remain enabled. Material maps (`r_normalMapping`, `r_specularMapping`,
-`r_parallaxMapping`) and reflection probes (`r_cubeMapping 1`, 128²) are on, but
+remain enabled. Material maps (`r_normalMapping`, `r_specularMapping`; not
+`r_parallaxMapping` since 07/10/2026) and reflection probes (`r_cubeMapping 1`, 128²) are on, but
 take effect only where a pack such as the [generated one](#generating-material-maps)
 supplies maps; without one nothing is drawn differently or created. Noon, bloom,
 dust and material maps are SJK's defaults (Sol's own settings); JKR keeps 11:00 and

@@ -111,6 +111,9 @@ pub(crate) fn apply(
         command.right_move = 0;
         command.up_move = 0;
     }
+    if ja_plus.enabled {
+        japlus_animation_freeze(state, &mut stiffened, &mut lock_view);
+    }
     filter_emplaced(state, command, collision, &mut stiffened);
     if lock_view {
         set_view_angle(state, command);
@@ -330,6 +333,44 @@ fn in_kata(state: &MovementState) -> bool {
         LS_A1_SPECIAL | LS_A2_SPECIAL | LS_A3_SPECIAL | LS_DUAL_SPIN_PROTECT | LS_STAFF_SOULCAL
     ) || kata_animation(state.torso_anim)
         || kata_animation(state.legs_anim)
+}
+
+/// A JA+ server's own animations hold the player still (JoF EternalJK
+/// `bg_pmove.c:12470-12498` `PmoveSingle`, `cgs.serverMod == SVMOD_JAPLUS`, at
+/// bd5e202): the victim of a backflip kick, a get-up, a stab, a kiss or a ledge locks
+/// the view too; the kicker's spin, back and jumping kicks, the backflip kick and the
+/// flip stab only stop the movement. JA+ plays these server-side, so without this the
+/// client kept walking through its own kick and was pulled back by every snapshot.
+fn japlus_animation_freeze(state: &MovementState, stiffened: &mut bool, lock_view: &mut bool) {
+    let legs = animation_name(state.legs_anim);
+    let torso = animation_name(state.torso_anim);
+    let index = |name: &str| crate::legacy_animation_index(name);
+    let in_kiss_or_ledge = matches!(
+        (index("BOTH_KISSEE"), index("BOTH_LEDGE_MERCPULL")),
+        (Some(first), Some(last)) if (first..=last).contains(&usize::from(state.legs_anim))
+    );
+    if legs == Some("BOTH_JUMP_BACKFLIP_ATCKEE")
+        || matches!(
+            torso,
+            Some("BOTH_JUMP_BACKFLIP_ATCKEE" | "BOTH_GETUP1" | "BOTH_NEW_STABEE")
+        )
+        || in_kiss_or_ledge
+    {
+        *lock_view = true;
+        *stiffened = true;
+    } else if matches!(
+        legs,
+        Some(
+            "BOTH_MELEE_BACKKICK"
+                | "BOTH_MELEE_SPINKICK"
+                | "BOTH_JUMP_BACKKICK_SPIN"
+                | "BOTH_JUMP_BACKFLIP_ATCK"
+                | "BOTH_FLIP_STAB"
+                | "BOTH_JUMP_BACKFLIP_ATCK_MISSED"
+        )
+    ) {
+        *stiffened = true;
+    }
 }
 
 fn animation_is(animation: u16, expected: &str) -> bool {

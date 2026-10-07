@@ -236,6 +236,73 @@ mod tests {
     }
 
     #[test]
+    fn ja_plus_melee_kicks_hold_the_kicker_still() {
+        for kick in [
+            "BOTH_MELEE_SPINKICK",
+            "BOTH_MELEE_BACKKICK",
+            "BOTH_JUMP_BACKKICK_SPIN",
+            "BOTH_JUMP_BACKFLIP_ATCK",
+            "BOTH_FLIP_STAB",
+            "BOTH_JUMP_BACKFLIP_ATCK_MISSED",
+        ] {
+            let state = crate::pmove::MovementState {
+                legs_anim: animation(kick),
+                torso_anim: animation(kick),
+                legs_timer: 600,
+                torso_timer: 600,
+                ..Default::default()
+            };
+            let (_, stock) = filtered(state.clone(), JaPlusRules::default());
+            assert_eq!(
+                stock.forward_move, 127,
+                "{kick}: stock does not know the kick"
+            );
+            let (japlus_state, japlus) = filtered(state.clone(), ja_plus());
+            assert_eq!(japlus.forward_move, 0, "{kick}: JA+ holds the kicker still");
+            assert_eq!(
+                japlus_state.delta_angles, state.delta_angles,
+                "{kick}: view free"
+            );
+        }
+    }
+
+    #[test]
+    fn ja_plus_kiss_and_backflip_victim_lock_the_view() {
+        for (legs, torso) in [
+            ("BOTH_KISSEE", "BOTH_KISSEE"),
+            ("BOTH_LEDGE_MERCPULL", "BOTH_LEDGE_MERCPULL"),
+            ("BOTH_STAND1", "BOTH_GETUP1"),
+            ("BOTH_STAND1", "BOTH_NEW_STABEE"),
+            ("BOTH_JUMP_BACKFLIP_ATCKEE", "BOTH_STAND1"),
+            ("BOTH_STAND1", "BOTH_JUMP_BACKFLIP_ATCKEE"),
+        ] {
+            let state = crate::pmove::MovementState {
+                legs_anim: animation(legs),
+                torso_anim: animation(torso),
+                ..Default::default()
+            };
+            let (japlus_state, japlus) = filtered(state.clone(), ja_plus());
+            assert_eq!(japlus.forward_move, 0, "{legs}/{torso}");
+            assert_ne!(
+                japlus_state.delta_angles, state.delta_angles,
+                "{legs}/{torso}"
+            );
+        }
+    }
+
+    #[test]
+    fn other_servers_leave_ja_plus_animations_alone() {
+        let state = crate::pmove::MovementState {
+            legs_anim: animation("BOTH_KISSEE"),
+            torso_anim: animation("BOTH_KISSEE"),
+            ..Default::default()
+        };
+        let (stock_state, stock) = filtered(state.clone(), JaPlusRules::default());
+        assert_eq!(stock.forward_move, 127);
+        assert_eq!(stock_state.delta_angles, state.delta_angles);
+    }
+
+    #[test]
     fn improved_yellow_dfa_does_not_spin() {
         let state = crate::pmove::MovementState {
             legs_anim: animation("BOTH_JUMPFLIPSLASHDOWN1"),
