@@ -1535,6 +1535,18 @@ Windows): 2.5 µs per column on `t1_rail` and 18 µs on `hoth2`, so a whole wind
 (65 536 columns) takes 0.16 s and 1.2 s of worker time, the camera's own tile
 16 and 18 ms.
 
+The fog reaches further than the window (6000 units), so a second worker surveys a
+far cover once per map ([weather_cover_far.rs](../crates/sjk-viewer/src/weather_cover_far.rs))
+into a texture of its own: 256×256 columns centred on the map's box, 64 units wide
+or as wide as the box needs (80 on `T2_Rogue`). A surveyed column that finds none
+of the map's air (it lies past the walls) is marked void, and so is a window column
+not surveyed yet. The fog reads the far cover beyond the window and in void columns;
+far columns past the walls all take the map's median open floor up to its highest
+sky. Nothing in either cover depends on the camera. Measured locally on 07/10/2026
+(release build, Windows): 1.5 s on `T2_Rogue` (16 576 × 13 816 units), 0.18 s on
+`siege_hoth`, under 20 ms on `ffa5` and `duel6`; until it arrives there is no fog
+beyond the window.
+
 **Drawing** ([weather.wgsl](../crates/sjk-viewer/src/weather.wgsl),
 [weather_gpu.rs](../crates/sjk-viewer/src/weather_gpu.rs)). Particles have no
 buffers: each is generated from its instance number in a box around the camera,
@@ -1571,10 +1583,14 @@ rain out. Falling weather leaves a haze in that air (half the light lost over ab
 `weather_effects.rs`). The fog commands (`fog`, `heavyrainfog`, `light_fog`) become
 ground fog instead of the original's drifting smoke sprites: densest at each
 column's floor, thinning over 110 to 180 units, billowing through the noise volume
-and drifting with the wind; `light_fog` keeps its blue-green. Beyond the surveyed
-window the air counts as open, floored at the camera's height, so distant haze does
-not stop at the window's edge. `r_weatherFog` decides the ground fog: 0 none (no fog
-sprites either), 1 the map's (default), 2 also a light fog on every map with sky.
+and drifting with the wind; `light_fog` keeps its blue-green. Beyond the window it
+lies on the far cover's floors, and past the map's walls as one level bank, so
+distant fog and haze reach the horizon and keep their height wherever the player
+stands or jumps. (Until 07/10/2026 the air beyond the window was floored at the
+column under the camera: stepping off a roof over a street on `T2_Rogue` moved all
+distant fog down 500 units, and a bright band at eye height came and went.)
+`r_weatherFog` decides the ground fog: 0 none (no fog sprites either), 1 the map's
+(default), 2 also a light fog on every map with sky.
 
 **Quality** (`r_weatherQuality`, [weather_settings.rs](../crates/sjk-viewer/src/weather_settings.rs)):
 
@@ -1619,8 +1635,11 @@ multiplayer game ignores), wind zones with bounds, and clouds casting shadows on
 world. A map's skybox may already paint clouds; the volumetric ones go over them.
 Unverified: everything visible, and the cost. The cover, commands, wind, settings,
 noise, cloud and fog parameters and the translation of both shaders have unit
-tests; how fog and clouds look, and what they cost at 4K, is untested. Compare
-`r_clouds 0` and `r_weatherQuality 0` against the defaults to see the cost.
+tests; how fog and clouds look, and what they cost at 4K, is untested. Off-screen
+world shots of `T2_Rogue` with `r_weatherFog 2` (07/10/2026), from cameras 24 units
+apart either side of a roof edge, showed the same distant fog from both after the
+far cover and the band flipping before it. Compare `r_clouds 0` and
+`r_weatherQuality 0` against the defaults to see the cost.
 
 ## Sky scenery and hillside orientation
 

@@ -563,9 +563,14 @@ pub(crate) fn standalone_menu_visible(gpu: &GpuState) -> bool {
 /// outside a match, and the connect and loading screens (joins and server
 /// map changes alike). Over a live match, the in-game menu and the screens
 /// it opens leave the world visible, as retail's do. The SJK UI's main page
-/// sits over the live map; the classic screens it opens cover it.
+/// sits over the live map; the classic screens it opens cover it. Its
+/// loading screen keeps the menu map under it until the destination's
+/// levelshot covers it, and leaves out a server's world.
 pub(crate) fn classic_hides_world(gpu: &GpuState) -> bool {
     gpu.client_menu.as_ref().is_some_and(|menu| {
+        if menu.sjk_loading_on_show() {
+            return menu.sjk_loading_hides_world(gpu.is_menu_world);
+        }
         menu.is_classic()
             && !menu.sjk_screen()
             && menu.is_visible()

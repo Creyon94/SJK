@@ -7,6 +7,89 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## SJK UI: coloured names and the browser's sort mark
+
+SJK-only branch `personal/sjk-ui-browser-colours` (07/10/2026, Windows 11): Sol
+asked for the browser's server names in their colours and found its sort caret
+odd. The list, the chosen server's title (a wrapped second line carries the
+first line's last colour) and its players now draw their `^<digit>` codes; the
+search and the password prompt still read names without them. Every text in the
+SJK UI's families draws the codes in `text::CodePalette::Legible` (black as grey;
+red, green, blue and magenta lifted, same hue), since pure blue and black do not
+read on the navy; the game's own palette is unchanged everywhere else. The sort
+mark is three stacked bars (`kit::sort_mark`). A unit test checks the palette's
+lightness and hues; the world shot was re-rendered and checked zoomed. Not seen
+in a running client.
+
+## SJK UI: loading screen
+
+SJK-only branch `personal/sjk-ui-loading` (07/10/2026, based on `076806e`, Windows 11):
+the SJK UI's own connect and loading screen replaces the classic one in
+`ui_menuStyle sjk` ([sjk-ui.md](sjk-ui.md#loading)). `menu::sjk::loading`
+draws `ClassicLoading`'s state: before the map is known a block at the bottom
+left over the touring menu map (server name, address, a gold step line and
+the step in words); once it is known the destination's levelshot over the
+window with the map's name, the server, its rules, mod and message of the day
+and a gold load bar; a failure in the same layout. Shared changes:
+`ClassicLoading` also keeps the session's world stage and whether the session
+is in hand (fed by `sync_classic_loading`), a join count, whether the load
+named its map and the gamestate's facts; `levelshot::cover_uv` (the browser's
+crop, now shared; the browser uses it) and `levelshot::screen_fit` (a picture
+wider than the window keeps its sides, so the HD packs' titles are whole);
+`ClientMenu::sjk_screen` includes the loading phases and
+`classic_hides_world` asks the SJK screen whether to leave the world out (on a
+server's world always, on the menu map once the levelshot covers it). The
+classic and modern screens are unchanged. Unit tests cover the steps and their
+words, the line never running back within a join, the levelshot's fade, the
+gamestate's facts (free for all, duel, siege), the names' fallbacks, every
+state at four window sizes fitting the canvas with its Esc target, the next-map
+case and when the world is left out; `cargo test --release -p sjk-viewer`
+passed (931). `world_shot::tests::duel6_sjk_loading` rendered five frames over
+duel6 on a made-up join of the JoF server (gamestate and progress faked, the
+real mp/ffa3 levelshot from the installed JoF HD pack). No game was started and
+no server was contacted: a real join's steps and timing, the fade in a running
+client, downloads, a hosted game's start, a server's change of map, a kick and
+the hand-over from the screen to the game are unverified. On review the lead
+put the map's own name large over its file name and fitted wide levelshots
+whole; the frames were rendered again.
+
+## SJK UI: Scoreboard
+
+SJK-only branch `personal/sjk-ui-scoreboard` (07/10/2026, based on `076806e`,
+Windows 11): the scoreboard in the SJK UI ([sjk-ui.md](sjk-ui.md#scoreboard)).
+`scoreboard::sjk` draws the board's rows and match facts as columns floating
+over the darkened game, right of the chat column: a header line (map, mode and
+limits, time left, your place in gold), one list in free-for-all (two side by
+side past 22 players), the teams side by side under their scores, the duelists
+as facing cards over the players waiting, spectators on one line.
+`cg_scoreboardStyle` gained `sjk` and `auto`, the new default: the SJK UI's
+board with `ui_menuStyle sjk`, else the classic one. Every profile had saved
+the old default `classic`; on review the lead added a one-time move of a saved
+`classic` to `auto` (`cg_scoreboardStyleDefaultVersion`, as the console key's
+default moved), so the SJK UI brings its board; a look chosen after that stays
+([client.md](client.md#scoreboard-styles)). The board reads the match's
+limits, `CS_LEVEL_START_TIME`, `CS_CLIENT_DUELISTS` and
+`CS_CLIENT_DUELHEALTHS`; its canvas holds 320 text runs and 1024 draw commands
+(was 208 and 640); the UI's families load for a scoreboard chosen on its own;
+the browser's signal bars are shared (`pub(crate)`).
+
+Verified: unit tests pin the cvar's semantics (`auto` under each menu style, a
+saved old `classic` moved once to `auto` and a later `classic` kept across
+starts, mistyped values),
+32-player boards in every mode fitting the canvas at 1080 lines, 4K and 5:4,
+a cut team list keeping your row, shared places for ties, the duelists' cards
+and health, the clock and duelists read from config strings, the header's words
+and the columns not overlapping; the release sjk-viewer tests passed (932) and
+workspace clippy shows no warning in the files touched.
+`world_shot::tests::duel6_sjk_scoreboard` rendered the board over duel6 on
+made-up matches (free for all with 14 and 30 players, capture the flag with
+the classic menus and `cg_scoreboardStyle sjk`, a duel, a power duel, a 4:3
+window), with the families loaded. Not verified: no game was started, so the
+board over a real match (the server's scores and their order, the clock
+against a real level start, the duel config strings, flag carriers, the
+intermission's Ready marks), its fades, the chat column beside it, the HUD
+under its dim and the Settings row's list of four are untested in play.
+
 ## SJK UI: in-game menu
 
 SJK-only branch `personal/sjk-ui-ingame` (07/10/2026, based on `076806e`, Windows 11):
@@ -38,7 +121,9 @@ spectator, Settings from the menu) and was reviewed. No game was started and no
 server joined: the card on a real server (its score, place, clock, team scores
 and counts), Escape and the pointer in a running client, the hand-over to
 Settings, Servers and Character and back, voting and calling a vote, and Siege's
-class list in this look are unverified.
+class list in this look are unverified. On review the lead made the Leave page
+open on Stay (its rows act at once, with no confirmation) and darkened the
+match card's side; the frames were rendered again.
 
 ## SJK UI: Servers
 
@@ -1540,6 +1625,17 @@ every map with sky (`r_clouds`). Unit tests cover the settings and quality level
 forced weather, the storm and fog parameters, the noise volume's range and tiling,
 the cloud uniform and drift, and both shaders' translation to SPIR-V and HLSL. No
 game was started: how the fog and clouds look and what they cost are unverified.
+
+`personal/fog-floor` (07/10/2026, based on `6678967`), after Sol saw the ground fog
+change height with where they stood or jumped on `T2_Rogue`: beyond the cover
+window the fog was floored at the column under the camera, so stepping from a roof
+over a street moved all distant fog by 500 units. A coarse far cover of the whole
+map, surveyed once on a second worker, now gives the fog its floors there and in
+columns past the walls ([Weather](rendering.md#weather)). Unit tests cover the far
+grid's placement, the level fill past the walls and void columns on a synthetic
+map. Off-screen world shots of `T2_Rogue` either side of a roof edge showed a band
+of fog flipping before the change and none after; a local, uncommitted probe timed
+the far survey on four retail maps. Not yet tried in a game.
 
 ## Shader review (SJK)
 

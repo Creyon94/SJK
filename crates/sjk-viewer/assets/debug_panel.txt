@@ -1794,6 +1794,17 @@ test: Look down from a height: rings and wet spots lie flat on the ground.
 test: A pool or puddle in rain: ripples on the water, no ground rings there.
 note: Sizes and brightness are first guesses; tell Claude bigger/smaller/brighter.
 
+[fog-floor]
+status: personal
+area: Rendering & effects
+title: Ground fog keeps its height wherever you stand or jump
+change: Distant fog lay at the floor under you, so it jumped between roof and street heights.
+change: A coarse survey of the whole map now floors it; past the walls it is one level bank.
+test: devmap T2_Rogue, r_weatherFog 2: walk off a roof edge and jump between roofs.
+test: Distant fog stays put: no bright band at eye height that comes and goes.
+test: Any map with fog: distant haze still reaches the horizon; none indoors.
+note: Far fog appears about 1.5 s after T2_Rogue loads (under 0.2 s on most maps).
+
 [settings-groups]
 status: personal
 area: Menus & settings
@@ -2003,13 +2014,42 @@ area: Menus & settings
 title: SJK UI: Servers (the server browser)
 change: Play > Join a server opens the SJK UI's browser: filters left, list middle, server right.
 change: The chosen server shows its map's picture, mode, players, ping, mod, limits, who plays.
-test: Wait for the list; sort by each header (click twice flips); the caret points the way.
+test: Wait for the list; sort by each header (click twice flips); the three bars show the way.
+test: Server and player names show their colours; ^4 blue and ^0 black stay readable.
 test: Left: the filters; Up/Down, Enter flips Empty/Full/Locked; Left/Right steps Game type.
 test: Type / then a name with colour codes (e.g. jof): it is found; Enter keeps it, Esc clears.
 test: F on a server: gold dot, sorts first, Favourites counts it; Tab shows favourites.
 test: Join a locked server: the password card (dots); Join by address: a bad one, then a good one.
 test: Double-click a row joins. Open it from the in-game menu too: Esc says Game menu.
 note: Picture stretched, a column cut off, or a key not answering? Tell Claude which.
+
+[sjk-ui-loading]
+status: personal
+area: Menus & settings
+title: SJK UI: the loading screen
+change: Joining in the SJK UI keeps the map behind a block: server, address, a gold step line.
+change: Once the map is known its picture fades in with its name, the server, rules and a bar.
+test: Join a server from Servers: the picture fades in, then the steps run to Entering the game.
+test: Join by address (Servers > Join by address): the block over the map before the picture.
+test: Esc while joining: back to Servers. Join a full or closed server: the reason, Esc back.
+test: Stay on a server through a map change: Next map, then the new map's picture.
+test: Create game: Starting your game. Try a wide and a 4:3 window: the picture never stretches.
+note: Steps stuck, the bar running back or text hard to read on a bright picture? Tell Claude.
+
+[sjk-ui-scoreboard]
+status: personal
+area: Menus & settings
+title: SJK UI: the scoreboard (Tab in a match)
+change: With ui_menuStyle sjk, Tab shows SJK's board: columns over the darkened game.
+change: Header: map, mode, time left, your place in gold. Teams side by side; duels as two cards.
+change: Scoreboard style: Auto (new default: SJK with the SJK UI, else classic), SJK, Classic, Modern.
+test: Settings > Scoreboard > Scoreboard style shows Auto (moved once); pick Classic: it stays.
+test: Local FFA with bots, hold Tab: map, mode, time left, "3rd of N", your row on a gold band.
+test: Local CTF with bots: teams side by side under their scores; a carrier shows the flag icon.
+test: Local duel: two facing cards (your health and shield), then the players waiting their turn.
+test: Chat while holding Tab: messages stay in the left column, clear of the board.
+test: Classic menus with Scoreboard style SJK: the board still draws in Rajdhani and Exo 2.
+note: Too dark or too faint, a column cut, or the chat overlapping? Tell Claude which part.
 
 [sjk-ui-ingame]
 status: personal
@@ -2024,7 +2064,7 @@ test: Team: join, spectate; in a team game your side is quiet and skipped by the
 test: Vote: call a vote (map list pages with More maps); with a vote on, Vote yes / Vote no.
 test: Settings and Servers open over the match; Esc comes back on the same entry.
 test: Character opens the classic pages; Shot controls; Sol JK (What's new, Report a bug).
-test: Leave: Leave the server and Quit to desktop turn ember when chosen; Stay goes back.
+test: Leave opens on Stay; Leave the server and Quit to desktop turn ember when chosen.
 note: Card numbers wrong (score, place, clock), or text over the match hard to read? Tell Claude.
 
 [sjk-ui-centre]

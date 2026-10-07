@@ -362,6 +362,32 @@ impl std::fmt::Display for Plain<'_> {
     }
 }
 
+/// How text draws its `^<digit>` colour codes.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) enum CodePalette {
+    /// The game's own colours ([`quake_color`]).
+    #[default]
+    Game,
+    /// The same hues lifted to read on the SJK UI's navy ground: black,
+    /// red, green, blue, magenta and grey lighter, the rest as the game's.
+    Legible,
+}
+
+impl CodePalette {
+    /// The colour of code `index` (0-9), as a display value.
+    pub(crate) fn colour(self, index: u8) -> [f32; 4] {
+        match (self, index) {
+            (Self::Legible, 0) => [0.55, 0.57, 0.62, 1.0],
+            (Self::Legible, 1) => [1.0, 0.36, 0.36, 1.0],
+            (Self::Legible, 2) => [0.4, 1.0, 0.45, 1.0],
+            (Self::Legible, 4) => [0.45, 0.6, 1.0, 1.0],
+            (Self::Legible, 6) => [1.0, 0.45, 1.0, 1.0],
+            (Self::Legible, 9) => [0.68, 0.7, 0.74, 1.0],
+            _ => quake_color(index),
+        }
+    }
+}
+
 /// Colour of the `^<digit>` code `index` (0-9), as a display value.
 ///
 /// OpenJK's `g_color_table` (`shared/qcommon/q_color.c`) at full strength: the
@@ -621,6 +647,29 @@ pub(crate) fn visible_text_width_style(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_legible_palette_lifts_dark_codes_and_keeps_their_hue() {
+        let luminance = |[r, g, b, _]: [f32; 4]| 0.2126 * r + 0.7152 * g + 0.0722 * b;
+        for index in 0..=9 {
+            let game = CodePalette::Game.colour(index);
+            let legible = CodePalette::Legible.colour(index);
+            assert_eq!(game, quake_color(index));
+            // Every code reads on the navy ground (luminance 0.004).
+            assert!(luminance(legible) >= 0.35, "^{index}: {legible:?}");
+            assert!(luminance(legible) >= luminance(game) - 1e-6, "^{index}");
+            // The strongest channel stays the strongest: red stays red.
+            let strongest = |colour: [f32; 4]| {
+                (0..3)
+                    .max_by(|&a, &b| colour[a].total_cmp(&colour[b]))
+                    .unwrap()
+            };
+            if game[..3].iter().any(|channel| *channel != game[0]) {
+                assert_eq!(strongest(legible), strongest(game), "^{index}");
+            }
+        }
+        assert_eq!(Plain("^1J^7o^1F").to_string(), "JoF");
+    }
 
     /// Glyph bytes of `text`, walking it as the renderer does.
     fn glyph_bytes(text: &str) -> Vec<u8> {

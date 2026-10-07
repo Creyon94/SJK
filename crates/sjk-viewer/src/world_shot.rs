@@ -620,6 +620,148 @@ mod tests {
         });
     }
 
+    /// The SJK UI's scoreboard over the live duel6, on made-up matches (no
+    /// server): capture the flag with the classic menus and the look chosen on
+    /// its own (`cg_scoreboardStyle sjk`, which loads the UI's families), then
+    /// with the SJK UI's menus and the default `auto`: free for all, a full
+    /// server, a duel and a power duel.
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_sjk_scoreboard() {
+        use crate::scoreboard::shot::Match;
+        on_big_stack(|| {
+            let cvars = [("ui_menuStyle", "classic"), ("cg_scoreboardStyle", "sjk")];
+            let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", [1920, 1080], None, &cvars)
+            else {
+                return;
+            };
+            // The menu tour's first view: down the west wing at the tower.
+            let tour = menu_backdrop::tour_for("Yavin Training Grounds").expect("duel6's tour");
+            let (yaw, pitch) = look(tour[0].from, tour[0].at);
+            aim(&mut gpu, tour[0].from, yaw, pitch);
+            let _ = frame(&mut gpu, 20);
+            gpu.scoreboard.show_for_shot(Match::Capture);
+            println!("{}", shoot(&mut gpu, 16, "duel6-scoreboard-ctf").display());
+            if let Some(console) = gpu.console.as_mut() {
+                console.set_cvar("ui_menuStyle", "sjk");
+                console.set_cvar("cg_scoreboardStyle", "auto");
+            }
+            for (game, name) in [
+                (Match::Free, "duel6-scoreboard-ffa"),
+                (Match::Crowd, "duel6-scoreboard-full"),
+                (Match::Duel, "duel6-scoreboard-duel"),
+                (Match::PowerDuel, "duel6-scoreboard-power-duel"),
+            ] {
+                gpu.scoreboard.show_for_shot(game);
+                println!("{}", shoot(&mut gpu, 16, name).display());
+            }
+            gpu.scoreboard.end_shot();
+            drop(gpu);
+            // A 4:3 window: the frame scales down to its width.
+            let cvars = [("ui_menuStyle", "sjk")];
+            let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", [1440, 1080], None, &cvars)
+            else {
+                return;
+            };
+            aim(&mut gpu, tour[0].from, yaw, pitch);
+            let _ = frame(&mut gpu, 20);
+            gpu.scoreboard.show_for_shot(Match::Crowd);
+            println!("{}", shoot(&mut gpu, 16, "duel6-scoreboard-4x3").display());
+        });
+    }
+
+    /// The SJK UI's loading screen over the live duel6, on a made-up join of
+    /// the JoF server: before the map is known (the tour behind), loading
+    /// mp/ffa3 (its levelshot over the screen), and a failed join with and
+    /// without the map known.
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_sjk_loading() {
+        use menu::classic::loading::{Stage, WorldStage};
+        on_big_stack(|| {
+            let menu = menu::ClientMenu::new(true, String::new());
+            let cvars = [
+                ("ui_menuStyle", "sjk"),
+                (crate::settings::quick::HIDE_CVAR, "1"),
+            ];
+            let Some((mut gpu, _profile)) =
+                open("maps/mp/duel6.bsp", [1920, 1080], Some(menu), &cvars)
+            else {
+                return;
+            };
+            // Past the tour's first fade-in.
+            let _ = frame(&mut gpu, 20);
+            gpu.ui_epoch -= std::time::Duration::from_millis(2_000);
+            type State = (
+                &'static str,
+                Stage,
+                bool,
+                Option<WorldStage>,
+                bool,
+                Option<&'static str>,
+            );
+            let states: [State; 4] = [
+                (
+                    "duel6-loading-joining",
+                    Stage::Challenging,
+                    false,
+                    None,
+                    false,
+                    None,
+                ),
+                (
+                    "duel6-loading-map",
+                    Stage::Loading,
+                    true,
+                    Some(WorldStage::Building),
+                    true,
+                    None,
+                ),
+                (
+                    "duel6-loading-failed",
+                    Stage::Loading,
+                    true,
+                    None,
+                    false,
+                    Some("server is full"),
+                ),
+                (
+                    "duel6-loading-failed-early",
+                    Stage::Connecting,
+                    false,
+                    None,
+                    false,
+                    Some("no answer from the server after 5 seconds"),
+                ),
+            ];
+            for (name, stage, map, world, joined, error) in states {
+                if let Some(menu) = gpu.client_menu.as_mut() {
+                    menu.loading_for_shot(stage, map, world, joined, error);
+                }
+                // The levelshot decodes on its worker.
+                for _ in 0..240 {
+                    let _ = frame(&mut gpu, 1);
+                    if gpu
+                        .client_menu
+                        .as_ref()
+                        .is_some_and(menu::ClientMenu::loading_picture_settled)
+                    {
+                        break;
+                    }
+                }
+                println!("{}", shoot(&mut gpu, 4, name).display());
+            }
+            // A server's change of map, its world (not the menu's) behind:
+            // the navy ground instead, until the new map is named.
+            gpu.is_menu_world = false;
+            if let Some(menu) = gpu.client_menu.as_mut() {
+                menu.loading_for_shot(Stage::Loading, true, None, true, None);
+                menu.map_change_for_shot();
+            }
+            println!("{}", shoot(&mut gpu, 4, "duel6-loading-next-map").display());
+        });
+    }
+
     /// The SJK UI's in-game menu over duel6 as a match would show it, on a
     /// made-up match (there is no server): the main page over an FFA, Team in
     /// a CTF with the player on blue, the ballot of a vote on, the call-vote

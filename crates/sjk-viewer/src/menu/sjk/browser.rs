@@ -19,7 +19,7 @@ use crate::menu::browser_view::{
     ADDRESS_TOKEN, BACK_TOKEN, FAVOURITE_TOKEN, FILTER_TOKEN, HEADER_TOKEN, JOIN_TOKEN,
     REFRESH_TOKEN, ROW_TOKEN, SCROLLBAR_TOKEN,
 };
-use crate::menu::levelshot::Preview;
+use crate::menu::levelshot::{Preview, cover_uv};
 use crate::menu::{ClientMenu, MenuAction};
 use crate::menu_widgets::{MenuCanvas, TAB_BASE, TextFamily};
 use crate::player_menu::ReturnTarget;
@@ -918,16 +918,17 @@ fn draw_row(
     }
     let humans = i32::from(entry.players) - entry.bots.max(0);
     let lock = if entry.password { 26.0 } else { 0.0 };
+    // The name in its colours; an empty server's faded, its colours too.
     text(
         ui,
         TextFamily::Body,
-        format_args!("{}", Plain(&entry.name)),
+        format_args!("{}", entry.name),
         frame.rect(NAME.x, top, NAME.width - lock, ROW),
         19.0 * s,
         match (selected, humans > 0) {
             (true, _) => Color::new(1.0, 1.0, 1.0, 1.0),
-            (false, true) => color::alpha(color::TEXT, 0.88),
-            (false, false) => color::MUTED,
+            (false, true) => color::alpha(color::TEXT, 0.92),
+            (false, false) => color::alpha(color::TEXT, 0.5),
         },
         FontWeight::Regular,
         TextAlign::Start,
@@ -1016,6 +1017,16 @@ fn draw_row(
     ui.hit_region(token, frame.rect(LIST_X, top, LIST_WIDTH, ROW));
 }
 
+/// The last colour code in `text` (`^3`), which colours whatever follows it.
+fn last_colour(text: &str) -> Option<&str> {
+    text.char_indices()
+        .rev()
+        .find(|&(at, character)| {
+            character == '^' && text.as_bytes().get(at + 1).is_some_and(u8::is_ascii_digit)
+        })
+        .map(|(at, _)| &text[at..at + 2])
+}
+
 /// A server's mod as a small tag after its mode: none for base Jedi Academy.
 fn profile_tag(profile: &CompatProfile) -> Option<&'static str> {
     match profile {
@@ -1044,7 +1055,7 @@ fn short_map(map: &str) -> &str {
 }
 
 /// How many of four bars a ping lights: four up to 60 ms, none past 400.
-fn signal_bars(ping: u32) -> usize {
+pub(crate) fn signal_bars(ping: u32) -> usize {
     match ping {
         0..=60 => 4,
         61..=110 => 3,
@@ -1056,7 +1067,14 @@ fn signal_bars(ping: u32) -> usize {
 
 /// Four rising bars from `x`, their feet below `y`, as many lit as the ping
 /// is good.
-fn signal(ui: &mut MenuCanvas, frame: &Frame, x: f32, y: f32, ping: u32, selected: bool) {
+pub(crate) fn signal(
+    ui: &mut MenuCanvas,
+    frame: &Frame,
+    x: f32,
+    y: f32,
+    ping: u32,
+    selected: bool,
+) {
     let lit = signal_bars(ping);
     for bar in 0..4 {
         let height = 6.0 + bar as f32 * 4.0;
@@ -1105,25 +1123,6 @@ fn padlock(ui: &mut MenuCanvas, frame: &Frame, x: f32, y: f32, colour: Color) {
 struct Picture {
     preview: Preview,
     size: Option<[u32; 2]>,
-}
-
-/// Texture coordinates (top left, top right, bottom right, bottom left)
-/// showing a levelshot of `size` over a frame `aspect` times as wide as tall
-/// without stretching it: its middle, cut at its long sides. A square
-/// levelshot is retail's, a 4:3 picture stored square.
-fn cover_uv(size: [u32; 2], aspect: f32) -> [[f32; 2]; 4] {
-    let [width, height] = size.map(|side| side.max(1) as f32);
-    let image = if size[0] == size[1] {
-        4.0 / 3.0
-    } else {
-        width / height
-    };
-    let (u, v) = if image > aspect {
-        ((1.0 - aspect / image) * 0.5, 0.0)
-    } else {
-        (0.0, (1.0 - image / aspect) * 0.5)
-    };
-    [[u, v], [1.0 - u, v], [1.0 - u, 1.0 - v], [u, 1.0 - v]]
 }
 
 /// The chosen server: its map's picture, its name, its numbers, Join and the
@@ -1193,18 +1192,21 @@ fn draw_detail(
         TextAlign::Start,
     );
 
-    let name = Plain(&entry.name).to_string();
-    for (line, part) in wrap(&name, 30).take(2).enumerate() {
+    // The name in its colours, the second line going on in the colour the
+    // first ended in.
+    let mut carried = "";
+    for (line, part) in wrap(&entry.name, 30).take(2).enumerate() {
         text(
             ui,
             TextFamily::Display,
-            format_args!("{part}"),
+            format_args!("{carried}{part}"),
             frame.rect(DETAIL_X, NAME_TOP + line as f32 * 36.0, DETAIL_WIDTH, 36.0),
             30.0 * s,
             color::TEXT,
             FontWeight::Semibold,
             TextAlign::Start,
         );
+        carried = last_colour(part).unwrap_or(carried);
     }
 
     let view = match browser.details() {
@@ -1348,7 +1350,11 @@ fn draw_detail(
                     format_args!("{}", player.name),
                     frame.rect(DETAIL_X + 12.0, line_y, DETAIL_WIDTH - 120.0, PLAYER_LINE),
                     17.0 * s,
-                    if bot { color::MUTED } else { color::TEXT },
+                    if bot {
+                        color::alpha(color::TEXT, 0.5)
+                    } else {
+                        color::TEXT
+                    },
                     FontWeight::Regular,
                     TextAlign::Start,
                 );
@@ -1715,23 +1721,6 @@ mod tests {
     }
 
     #[test]
-    fn levelshots_cover_the_frame_without_stretching() {
-        // Retail's square levelshots hold 4:3 pictures: a 2:1 frame shows
-        // their middle two thirds.
-        let square = cover_uv([512, 512], 2.0);
-        assert!((square[0][1] - 1.0 / 6.0).abs() < 1e-5);
-        assert_eq!(square[0][0], 0.0);
-        assert!((square[2][1] - 5.0 / 6.0).abs() < 1e-5);
-        // A 2:1 HD one fills it; a wider one is cut at its sides.
-        assert_eq!(
-            cover_uv([2048, 1024], 2.0),
-            [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
-        );
-        let wide = cover_uv([3000, 1000], 2.0);
-        assert!((wide[0][0] - 1.0 / 6.0).abs() < 1e-5 && wide[0][1] == 0.0);
-    }
-
-    #[test]
     fn pings_light_fewer_bars_as_they_grow() {
         assert_eq!(signal_bars(25), 4);
         assert_eq!(signal_bars(90), 3);
@@ -1743,10 +1732,14 @@ mod tests {
     }
 
     #[test]
-    fn names_show_without_their_colour_codes() {
+    fn wrapped_names_go_on_in_their_colour() {
+        // A wrapped name's second line goes on in the colour the first ended in.
+        assert_eq!(last_colour("^1Red ^4Blue x"), Some("^4"));
+        assert_eq!(last_colour("plain"), None);
+        assert_eq!(last_colour("end^"), None);
+        // The search and the prompt read names without them.
         assert_eq!(Plain("^1J^7o^1F").to_string(), "JoF");
         assert_eq!(Plain("100^% ^^7x").to_string(), "100^% ^x");
-        assert_eq!(Plain("end^").to_string(), "end^");
     }
 
     #[test]

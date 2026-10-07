@@ -26,7 +26,8 @@ impl MenuCanvas {
 
     /// Append retained text in the SJK UI's families: display runs to
     /// `fonts.display`, body runs to `fonts.body`, in the player's menu text
-    /// `style`.
+    /// `style`, colour codes lifted to read on the UI's navy
+    /// ([`crate::text::CodePalette::Legible`]).
     pub(crate) fn append_text_families(
         &self,
         fonts: SjkFonts<'_>,
@@ -50,6 +51,7 @@ impl MenuCanvas {
                 font,
                 viewport,
                 style,
+                crate::text::CodePalette::Legible,
             );
         }
     }
@@ -181,6 +183,18 @@ impl MenuCanvas {
             viewport,
             TextStyle::NEUTRAL,
         );
+    }
+
+    /// This frame's text runs in drawing order, for a screen's tests.
+    #[cfg(test)]
+    pub(crate) fn text_runs(&self) -> impl Iterator<Item = &str> + '_ {
+        self.draw
+            .commands()
+            .iter()
+            .filter_map(|command| match command {
+                DrawCommand::Text { text, .. } => Some(self.resolve(*text)),
+                _ => None,
+            })
     }
 
     /// Id the next stored text run will get, to mark where a group of runs

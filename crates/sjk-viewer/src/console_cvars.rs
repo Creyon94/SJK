@@ -622,7 +622,7 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             crate::scoreboard::style::CVAR,
             crate::scoreboard::style::ScoreboardStyle::DEFAULT_NAME,
             archive,
-            "Scoreboard layout: classic (after the retail scoreboard), or modern",
+            "Scoreboard layout: auto (sjk with the SJK UI's menus, else classic), sjk, classic (after the retail scoreboard), or modern",
         ),
         CvarDefinition::new(
             "cg_smallScoreboard",
@@ -677,6 +677,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             0_i64,
             archive,
             "Internal migration marker for the scan-code console key default",
+        ),
+        CvarDefinition::new(
+            "cg_scoreboardStyleDefaultVersion",
+            0_i64,
+            archive,
+            "Internal migration marker for the auto scoreboard style default",
         ),
     ];
     for definition in definitions {
