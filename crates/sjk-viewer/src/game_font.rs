@@ -311,8 +311,8 @@ impl GameFonts {
     }
 
     /// The SJK UI's display and body families' atlases, each with whether it
-    /// is a distance field, once loaded (the SJK UI's console designs draw
-    /// their labels with them on the console's layer).
+    /// is a distance field, once loaded (the SJK UI's console draws its
+    /// labels with them on the console's layer).
     pub(crate) fn sjk_atlases(&self) -> Option<[(&wgpu::BindGroup, bool); 2]> {
         self.sjk.as_ref().map(|layers| {
             [&layers.display, &layers.body].map(|layer| (&layer.bind_group, layer.distance_field))
@@ -538,7 +538,7 @@ fn sjk_families(console: Option<&crate::console::ViewerConsole>) -> bool {
     sjk_ui(console)
         || crate::scoreboard::style::ScoreboardStyle::from_console(console)
             == crate::scoreboard::style::ScoreboardStyle::Sjk
-        || console.is_some_and(|console| console.console_style().sjk().is_some())
+        || console.is_some_and(|console| console.console_style().is_sjk())
 }
 
 /// Whether `console` draws the classic console, whose background is the
@@ -550,7 +550,7 @@ pub(crate) fn classic_console(console: Option<&crate::console::ViewerConsole>) -
 }
 
 /// Whether `console` draws a grid console on its own layer (the classic one or
-/// one of the SJK UI's designs), which needs the console font whatever
+/// the SJK UI's), which needs the console font whatever
 /// `ui_gameFont` says.
 pub(crate) fn grid_console(console: Option<&crate::console::ViewerConsole>) -> bool {
     console.is_some_and(|console| console.console_style().is_grid())

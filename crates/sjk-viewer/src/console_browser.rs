@@ -2,7 +2,7 @@
 //! or with `consolebrowser`: names, descriptions, cvar values and defaults, and inline
 //! editing of the selected cvar. Drawing is in `console_browser_view.rs`, in
 //! `console_browser_classic.rs` for the classic+ look the classic console uses, and
-//! in `console_browser_sjk.rs` for the SJK UI's look its console designs use, where
+//! in `console_browser_sjk.rs` for the SJK UI's look its console uses, where
 //! the chosen entry's text can be selected with the mouse. Ctrl+C copies that
 //! selection, or else the chosen entry as a console line (`name value`).
 
@@ -53,7 +53,7 @@ pub(crate) enum Look {
     Modern,
     /// Classic+: a retail pop-up box (`con_style classic`).
     Classic,
-    /// The SJK UI's, with its families (`con_style sjk`, `horizon`, `dock`).
+    /// The SJK UI's, with its families (`con_style sjk`).
     Sjk,
 }
 

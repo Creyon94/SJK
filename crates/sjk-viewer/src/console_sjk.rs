@@ -1,19 +1,11 @@
-//! The SJK UI's console designs (`con_style sjk`, `horizon`, `dock`; see
-//! `docs/client.md`, Console styles): the classic console's grid, rows, keys,
-//! selection and notify lines ([`super`]) drawn in the SJK UI's colours
-//! (`menu::sjk::color`) and type, without the `console` shader.
-//!
-//! - **Deck** (`sjk`, what `auto` gives with the SJK UI's menus): a full-width
-//!   navy panel; a header with the console's name lit gold, the version, the
-//!   date and the time; a band for the input with the kit's gold bar; key
-//!   hints; a lit rail (gold fading into a holo line) along the bottom edge.
-//! - **Horizon** (`horizon`): no panel edge: the navy fades out below a gold
-//!   horizon line that fades towards the screen's sides, the input and key
-//!   hints sit on it and the console's name and time float top right.
-//! - **Dock** (`dock`): an outlined card inside the screen's edges, a rail down
-//!   its left side lit gold beside the input, tabs at its top (the console,
-//!   and the command browser F3 opens, which a click also opens) and the input
-//!   in a framed field.
+//! The SJK UI's console, the deck (`con_style sjk`, what `auto` gives with the
+//! SJK UI's menus; see `docs/client.md`, Console styles): the classic console's
+//! grid, rows, keys, selection and notify lines ([`super`]) drawn in the SJK
+//! UI's colours (`menu::sjk::color`) and type, without the `console` shader. A
+//! full-width navy panel; a header with the console's name lit gold, the
+//! version, the date and the time; a band for the input with the kit's gold
+//! bar; key hints; a lit rail (gold fading into a holo line) along the bottom
+//! edge.
 //!
 //! The scrollback and input are JetBrains Mono on the console's grid, its rows
 //! a fifth further apart than the classic console's and their colour codes in
@@ -22,7 +14,7 @@
 //! nothing shows through, or in the console font until the families load.
 
 use super::{Grid, Ink, Layout, Painter, Prompt, ViewerConsole, cell_count, cell_width};
-use crate::console::console_options::{Options, SjkDesign};
+use crate::console::console_options::Options;
 use crate::console_backdrop::{ConsoleFrame, Shade, SolidQuad};
 use crate::menu::sjk::{BODY_CENTRE, DISPLAY_CENTRE, color};
 use crate::text::{CodePalette, TextFace, UiFont, append_bounded, visible_text_width_style};
@@ -46,7 +38,7 @@ pub(super) const INK: Ink = Ink {
     palette: CodePalette::Legible,
 };
 
-/// The designs' input row: a gold `›` and the input two cells after it.
+/// The deck's input row: a gold `›` and the input two cells after it.
 pub(super) const PROMPT: Prompt = Prompt {
     clock: false,
     mark: CHEVRON,
@@ -62,7 +54,7 @@ const fn rgba(color: Color, alpha: f32) -> [f32; 4] {
     [color.r, color.g, color.b, alpha]
 }
 
-/// The SJK UI's families for the designs' labels, or the console's own font
+/// The SJK UI's families for the deck's labels, or the console's own font
 /// while they are not loaded.
 #[derive(Clone, Copy)]
 pub(crate) struct Labels<'a> {
@@ -92,12 +84,12 @@ enum Family {
     Body,
 }
 
-/// What the designs keep between frames.
+/// What the deck keeps between frames.
 #[derive(Default)]
 pub(crate) struct Chrome {
     /// The time Ctrl+C last copied, and how many characters.
     copied: Option<(Instant, usize)>,
-    /// Where the command browser's hint or tab was drawn: a click opens it.
+    /// Where the command browser's hint was drawn: a click opens it.
     browser_hit: Option<Rect>,
     /// Formatted labels, kept to reuse their storage.
     scratch: String,
@@ -109,27 +101,19 @@ impl Chrome {
         self.copied = Some((Instant::now(), characters));
     }
 
-    /// Whether `position` is on the command browser's hint or tab.
+    /// Whether `position` is on the command browser's hint.
     pub(crate) fn opens_browser(&self, position: sjk_ui::Vec2) -> bool {
         self.browser_hit.is_some_and(|rect| rect.contains(position))
     }
 }
 
-/// The grid of `design` in `viewport` at `con_scale` `scale`: classic cells,
-/// rows [`PITCH`] apart, between the design's margins.
-pub(super) fn grid(design: SjkDesign, viewport: [f32; 2], scale: f32) -> Grid {
+/// The deck's grid in `viewport` at `con_scale` `scale`: classic cells, rows
+/// [`PITCH`] apart, between the deck's margins.
+pub(super) fn grid(viewport: [f32; 2], scale: f32) -> Grid {
     let width = cell_width(viewport, scale);
     let height = width * 2.0;
     let s = ui_scale(viewport);
-    let (left, right) = match design {
-        SjkDesign::Deck => (deck::MARGIN * s, (deck::MARGIN + GUTTER) * s),
-        SjkDesign::Horizon => (horizon::MARGIN * s, (horizon::MARGIN + GUTTER) * s),
-        SjkDesign::Dock => {
-            let [x, width] = dock::card_span(viewport, s);
-            let inner = (dock::PADDING + dock::FIELD_PADDING) * s;
-            (x + inner, viewport[0] - (x + width) + inner + GUTTER * s)
-        }
-    };
+    let (left, right) = (deck::MARGIN * s, (deck::MARGIN + GUTTER) * s);
     let left = left.round();
     Grid {
         width,
@@ -143,7 +127,7 @@ pub(super) fn grid(design: SjkDesign, viewport: [f32; 2], scale: f32) -> Grid {
 /// Room kept right of the rows for the scroll bar, in 1080-line pixels.
 const GUTTER: f32 = 14.0;
 
-/// The layout scale of the designs' chrome: 1 at 1080 lines, the console's
+/// The layout scale of the deck's chrome: 1 at 1080 lines, the console's
 /// 0.75 floor below.
 fn ui_scale(viewport: [f32; 2]) -> f32 {
     crate::ui_scale::height_scale(viewport[1]).max(0.75)
@@ -357,7 +341,7 @@ impl Chalk<'_, '_> {
 
     /// The console's keys as hints from `x`, as many as fit before `limit`;
     /// returns where the command browser's hint was drawn.
-    fn console_hints(&mut self, x: f32, middle: f32, limit: f32, browser: bool) -> Option<Rect> {
+    fn console_hints(&mut self, x: f32, middle: f32, limit: f32) -> Option<Rect> {
         let mut pen = x;
         let mut browser_hit = None;
         let hints: [(&[&str], &str); 5] = [
@@ -368,9 +352,6 @@ impl Chalk<'_, '_> {
             (&["Ctrl", "C"], "Copy"),
         ];
         for (keys, action) in hints {
-            if !browser && keys == ["F3"] {
-                continue;
-            }
             let (next, rect) = self.hint(keys, action, pen, middle, limit);
             if keys == ["F3"] && next > pen {
                 browser_hit = Some(rect);
@@ -382,14 +363,13 @@ impl Chalk<'_, '_> {
 }
 
 impl ViewerConsole {
-    /// Draw `design`'s background and chrome for a console whose bottom edge is
+    /// Draw the deck's background and chrome for a console whose bottom edge is
     /// `lines` pixels down, and say where its rows and input row go.
     pub(super) fn sjk_chrome(
         &mut self,
         frame: &mut ConsoleFrame,
         painter: &Painter<'_>,
         labels: Labels<'_>,
-        design: SjkDesign,
         lines: f32,
         options: Options,
     ) -> Layout {
@@ -417,13 +397,7 @@ impl ViewerConsole {
                 .filter(|(at, _)| at.elapsed() < COPIED_FOR)
                 .map(|(_, characters)| characters),
         };
-        let layout = match design {
-            SjkDesign::Deck => deck::draw(&mut chalk, &mut chrome, painter, lines, opacity, &facts),
-            SjkDesign::Horizon => {
-                horizon::draw(&mut chalk, &mut chrome, painter, lines, opacity, &facts)
-            }
-            SjkDesign::Dock => dock::draw(&mut chalk, &mut chrome, painter, lines, opacity, &facts),
-        };
+        let layout = deck::draw(&mut chalk, &mut chrome, painter, lines, opacity, &facts);
         self.classic.sjk = chrome;
         layout
     }
@@ -610,11 +584,11 @@ fn copied(chalk: &mut Chalk<'_, '_>, chrome: &mut Chrome, facts: &Facts<'_>, x: 
     chrome.scratch = text;
 }
 
-/// The deck's and the card's opacity at full `con_opacity`: the world shows
+/// The deck's opacity at full `con_opacity`: the world shows
 /// faintly through, as under the SJK UI's menus.
 const PANEL: f32 = 0.97;
 
-/// The navy of the panels at `alpha`.
+/// The navy of the panel at `alpha`.
 const fn space(alpha: f32) -> [f32; 4] {
     rgba(color::SPACE, alpha)
 }
@@ -719,7 +693,7 @@ mod deck {
         ));
         let footer = (FOOTER * s).round();
         let keys_middle = lines - rail - footer * 0.5;
-        chrome.browser_hit = chalk.console_hints(margin, keys_middle, right, true);
+        chrome.browser_hit = chalk.console_hints(margin, keys_middle, right);
 
         let band = (grid.pitch + 16.0 * s).round();
         let band_y = lines - rail - footer - band;
@@ -741,251 +715,6 @@ mod deck {
     }
 }
 
-/// Horizon: the navy fading out under a gold horizon line.
-mod horizon {
-    use super::*;
-
-    pub(super) const MARGIN: f32 = 34.0;
-    /// The fade under the horizon line.
-    const TAIL: f32 = 40.0;
-    const KEYS: f32 = 32.0;
-    /// The name and time's line at the top right.
-    const TOP: f32 = 34.0;
-
-    pub(super) fn draw(
-        chalk: &mut Chalk<'_, '_>,
-        chrome: &mut Chrome,
-        painter: &Painter<'_>,
-        lines: f32,
-        opacity: f32,
-        facts: &Facts<'_>,
-    ) -> Layout {
-        let s = chalk.s;
-        let grid = painter.grid;
-        let [width, _] = chalk.viewport;
-        let margin = grid.left;
-        let horizon = (lines - TAIL * s).round();
-        chalk.shade(Shade::vertical(
-            [0.0, 0.0, width, horizon],
-            space(0.96 * opacity),
-            space(0.84 * opacity),
-        ));
-        chalk.shade(Shade::vertical(
-            [0.0, horizon, width, lines - horizon],
-            space(0.84 * opacity),
-            space(0.0),
-        ));
-        // The horizon: gold, brightest in the middle, gone at the sides, over
-        // a faint glow above it.
-        let glow = (16.0 * s).round();
-        chalk.shade(Shade::vertical(
-            [0.0, horizon - glow, width, glow],
-            rgba(color::GOLD, 0.0),
-            rgba(color::GOLD, 0.07),
-        ));
-        let line = (2.0 * s).round().max(1.0);
-        let half = width * 0.5;
-        chalk.shade(Shade::horizontal(
-            [0.0, horizon - line * 0.5, half, line],
-            rgba(color::GOLD, 0.0),
-            rgba(color::GOLD_BRIGHT, 1.0),
-        ));
-        chalk.shade(Shade::horizontal(
-            [half, horizon - line * 0.5, width - half, line],
-            rgba(color::GOLD_BRIGHT, 1.0),
-            rgba(color::GOLD, 0.0),
-        ));
-
-        // The name and time float at the top right.
-        let right = width - margin;
-        let top_middle = TOP * s * 0.5 + 4.0 * s;
-        let time = chalk.label(
-            Family::Display,
-            facts.time(),
-            right,
-            top_middle,
-            22.0 * s,
-            rgba(color::TEXT, 1.0),
-            true,
-            f32::MAX,
-        );
-        let name = chalk.label(
-            Family::Display,
-            "Console",
-            right - time - 16.0 * s,
-            top_middle,
-            22.0 * s,
-            rgba(color::GOLD_BRIGHT, 1.0),
-            true,
-            f32::MAX,
-        );
-        let copied_width = chalk.measure(Family::Body, "Copied 0000 characters", 15.0 * s);
-        copied(
-            chalk,
-            chrome,
-            facts,
-            right - time - name - 40.0 * s - copied_width,
-            top_middle,
-        );
-
-        // Keys on the horizon, the input above them.
-        let keys = (KEYS * s).round();
-        let keys_middle = horizon - (4.0 * s).round() - keys * 0.5;
-        chrome.browser_hit = chalk.console_hints(margin, keys_middle, right, true);
-        let input_y = horizon - (4.0 * s).round() - keys - grid.pitch - (2.0 * s).round();
-        chalk.shade(Shade::horizontal(
-            [
-                0.0,
-                input_y - (5.0 * s).round(),
-                width * 0.6,
-                s.round().max(1.0),
-            ],
-            rgba(color::HOLO, 0.22),
-            rgba(color::HOLO, 0.0),
-        ));
-        Layout {
-            rows_y: input_y - (12.0 * s).round() - grid.pitch,
-            rows_top: (TOP * s).round() + (6.0 * s).round(),
-            partial: false,
-            input_y,
-            prompt: Rect::new(0.0, input_y - 5.0 * s, width, grid.pitch + 10.0 * s),
-        }
-    }
-}
-
-/// Dock: the outlined card.
-mod dock {
-    use super::*;
-
-    /// The card's margin from the screen's sides and top, its widest, and its
-    /// padding; the field's inner padding (1080-line pixels).
-    const SIDE: f32 = 28.0;
-    const TOP: f32 = 18.0;
-    const WIDEST: f32 = 1800.0;
-    pub(super) const PADDING: f32 = 22.0;
-    pub(super) const FIELD_PADDING: f32 = 14.0;
-    const HEADER: f32 = 50.0;
-    const KEYS: f32 = 34.0;
-
-    /// The card's left edge and width in `viewport`.
-    pub(super) fn card_span(viewport: [f32; 2], s: f32) -> [f32; 2] {
-        let width = (viewport[0] - 2.0 * SIDE * s).min(WIDEST * s).round();
-        [((viewport[0] - width) * 0.5).round(), width]
-    }
-
-    pub(super) fn draw(
-        chalk: &mut Chalk<'_, '_>,
-        chrome: &mut Chrome,
-        painter: &Painter<'_>,
-        lines: f32,
-        opacity: f32,
-        facts: &Facts<'_>,
-    ) -> Layout {
-        let s = chalk.s;
-        let grid = painter.grid;
-        let [card_x, card_width] = card_span(chalk.viewport, s);
-        let top = (TOP * s).round();
-        let bottom = (lines - TOP * s).round().max(top + 2.0);
-        let height = bottom - top;
-        chalk.shade(Shade::vertical(
-            [card_x, top, card_width, height],
-            space_lit(PANEL * opacity),
-            space(PANEL * opacity),
-        ));
-        chalk.outline([card_x, top, card_width, height], rgba(color::HOLO, 0.26));
-
-        // Tabs: the console lit, the command browser beside it.
-        let padding = PADDING * s;
-        let header = (HEADER * s).round();
-        let middle = top + header * 0.5;
-        let tab_x = card_x + padding;
-        let name = chalk.label(
-            Family::Display,
-            "Console",
-            tab_x,
-            middle,
-            24.0 * s,
-            rgba(color::GOLD_BRIGHT, 1.0),
-            false,
-            f32::MAX,
-        );
-        chalk.quad(
-            [
-                tab_x,
-                top + header - (2.0 * s).round(),
-                name,
-                (2.0 * s).round(),
-            ],
-            rgba(color::GOLD, 1.0),
-        );
-        let browser_x = tab_x + name + 34.0 * s;
-        let browser = chalk.label(
-            Family::Display,
-            "Commands and cvars",
-            browser_x,
-            middle,
-            24.0 * s,
-            rgba(color::MUTED, 1.0),
-            false,
-            f32::MAX,
-        );
-        let cap_end = chalk.cap("F3", browser_x + browser + 10.0 * s, middle);
-        chrome.browser_hit = Some(Rect::new(browser_x, top, cap_end - browser_x, header));
-        copied(chalk, chrome, facts, cap_end + 34.0 * s, middle);
-        let right = card_x + card_width - padding;
-        let time = chalk.label(
-            Family::Display,
-            facts.time(),
-            right,
-            middle,
-            24.0 * s,
-            rgba(color::TEXT, 1.0),
-            true,
-            f32::MAX,
-        );
-        chalk.label(
-            Family::Body,
-            facts.date(),
-            right - time - 14.0 * s,
-            middle,
-            15.0 * s,
-            rgba(color::MUTED, 1.0),
-            true,
-            f32::MAX,
-        );
-        chalk.rule(card_x, top + header, card_width, rgba(color::HOLO, 0.16));
-
-        // The keys at the card's foot, the input field above them.
-        let keys = (KEYS * s).round();
-        let keys_middle = bottom - (6.0 * s).round() - keys * 0.5;
-        chalk.console_hints(tab_x, keys_middle, right, false);
-        let field_height = (grid.pitch + 16.0 * s).round();
-        let field_y = bottom - (6.0 * s).round() - keys - field_height;
-        let field = [tab_x, field_y, right - tab_x, field_height];
-        chalk.quad(field, space(0.7));
-        chalk.outline(field, rgba(color::HOLO, 0.45));
-
-        // The rail down the left edge, lit gold beside the field.
-        let rail = (3.0 * s).round().max(2.0);
-        chalk.quad(
-            [card_x, top + header, rail, height - header],
-            rgba(color::HOLO, 0.28),
-        );
-        chalk.quad(
-            [card_x, field_y, rail, field_height],
-            rgba(color::GOLD_BRIGHT, 1.0),
-        );
-        let input_y = (field_y + (field_height - grid.pitch) * 0.5).round();
-        Layout {
-            rows_y: field_y - (10.0 * s).round() - grid.pitch,
-            rows_top: top + header + (8.0 * s).round(),
-            partial: false,
-            input_y,
-            prompt: Rect::new(tab_x, field_y, right - tab_x, field_height),
-        }
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1003,23 +732,18 @@ mod tests {
 
     #[test]
     fn rows_are_a_fifth_apart_and_cells_sit_in_their_middle() {
-        for design in [SjkDesign::Deck, SjkDesign::Horizon, SjkDesign::Dock] {
-            let grid = grid(design, [1920.0, 1080.0], 1.0);
-            assert_eq!((grid.width, grid.height, grid.pitch), (8.0, 16.0, 19.0));
-            assert_eq!(grid.inset(), 2.0);
-            // The rows and the scroll bar stay inside the screen.
-            assert!(grid.x(grid.columns) + GUTTER <= 1920.0, "{design:?}");
-            let uhd = super::grid(design, [3840.0, 2160.0], 1.0);
-            assert_eq!((uhd.width, uhd.pitch), (16.0, 38.0));
-        }
-        let dock = grid(SjkDesign::Dock, [1920.0, 1080.0], 1.0);
-        let deck = grid(SjkDesign::Deck, [1920.0, 1080.0], 1.0);
-        assert!(dock.left > deck.left && dock.columns < deck.columns);
+        let grid = grid([1920.0, 1080.0], 1.0);
+        assert_eq!((grid.width, grid.height, grid.pitch), (8.0, 16.0, 19.0));
+        assert_eq!(grid.inset(), 2.0);
+        // The rows and the scroll bar stay inside the screen.
+        assert!(grid.x(grid.columns) + GUTTER <= 1920.0);
+        let uhd = super::grid([3840.0, 2160.0], 1.0);
+        assert_eq!((uhd.width, uhd.pitch), (16.0, 38.0));
     }
 
     #[test]
     fn the_caret_is_a_thin_bar_or_a_block() {
-        let grid = grid(SjkDesign::Deck, [1920.0, 1080.0], 1.0);
+        let grid = grid([1920.0, 1080.0], 1.0);
         let bar = caret(&grid, 100.0, 50.0, false);
         assert!(bar.rect[2] >= 2.0 && bar.rect[2] < grid.width);
         let block = caret(&grid, 100.0, 50.0, true);

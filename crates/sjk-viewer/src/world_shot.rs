@@ -257,7 +257,7 @@ mod tests {
 
     /// The console's looks over duel6, half open on made-up scrollback with a
     /// command being typed (its unique completion ghosted) and two rows
-    /// selected: the SJK UI's three designs, then the classic console; the deck
+    /// selected: the SJK UI's deck, the classic and modern consoles; the deck
     /// full height and at 4K, and scrolled back.
     #[test]
     #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
@@ -308,8 +308,6 @@ mod tests {
                 [1920, 1080],
                 &[
                     ("duel6-console-sjk", "sjk", "0.5"),
-                    ("duel6-console-horizon", "horizon", "0.5"),
-                    ("duel6-console-dock", "dock", "0.5"),
                     ("duel6-console-classic", "classic", "0.5"),
                     ("duel6-console-modern", "modern", "0.5"),
                     ("duel6-console-sjk-full", "sjk", "1"),
