@@ -190,6 +190,15 @@ impl ServerDetails {
         self.shown = None;
     }
 
+    /// Take `view` as the answer for its server, asked for now.
+    #[cfg(test)]
+    pub(crate) fn answer_for_test(&mut self, view: DetailsView) {
+        self.wanted = Some((view.address, Instant::now()));
+        self.pending = None;
+        self.failed = None;
+        self.shown = Some(view);
+    }
+
     pub(crate) fn state(&self) -> DetailsState<'_> {
         let Some((address, _)) = self.wanted else {
             return DetailsState::Nothing;

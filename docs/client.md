@@ -99,9 +99,11 @@ click; and its Settings: every category down a lit rail, the rows with switches,
 sliders and segments under sub-headings, the focused setting explained on the
 right and the search at the top, the key bindings one of its categories; and
 its Character, the character standing on the map's path below the tower beside
-the form; and What's new, Update and Identity in the same look. Every other
-screen opens in its classic+ version. A client started in the SJK UI stands on
-mp/duel6 instead of mp/ffa3.
+the form; What's new, Update and Identity in the same look; and its Servers, the
+server browser with where the servers come from and which show on the left, the
+sortable list in the middle and the chosen server's map, numbers and players on
+the right. Every other screen opens in its classic+ version. A client started in
+the SJK UI stands on mp/duel6 instead of mp/ffa3.
 
 The classic main menu has the retail pages, entries and order, with SJK's
 Settings and SJK in place of retail's Controls and Setup:

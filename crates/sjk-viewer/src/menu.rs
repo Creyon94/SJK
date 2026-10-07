@@ -121,6 +121,19 @@ pub(crate) fn upload_menu_images(
             menu.create_game
                 .service_levelshots(|image| renderer.upload_levelshot(device, queue, image));
         }
+        // The SJK UI's browser shows the chosen server's map.
+        ClientPhase::Browser if menu.menu_style == MenuStyle::Sjk => {
+            let map = menu
+                .browser
+                .visible_entry(menu.browser.selected())
+                .map(|entry| classic::loading::levelshot_key(&entry.map))
+                .unwrap_or_default();
+            if !map.is_empty() {
+                menu.create_game.service_levelshot_for(&map, |image| {
+                    renderer.upload_levelshot(device, queue, image);
+                });
+            }
+        }
         ClientPhase::Connecting(_) | ClientPhase::ConnectionError if menu.is_classic() => {
             let map = menu.loading.map().to_owned();
             if !map.is_empty() {
@@ -163,6 +176,9 @@ pub(crate) struct ClientMenu {
     recent: sjk::recent::RecentServers,
     /// The SJK UI's Settings: whether it is open and on which category.
     sjk_settings: sjk::settings::SettingsPage,
+    /// The SJK UI's server browser: which item of its left column has the
+    /// keyboard, if any.
+    sjk_browser: sjk::browser::BrowserPage,
     /// The classic option panel on show in the settings or key-binding
     /// phase, if any.
     classic_panel: Option<classic::ClassicPanel>,
@@ -254,6 +270,7 @@ impl ClientMenu {
                 sjk::recent::RecentServers::load()
             },
             sjk_settings: sjk::settings::SettingsPage::default(),
+            sjk_browser: sjk::browser::BrowserPage::default(),
             classic_panel: None,
             renderer_panel: None,
             art: art::ArtSet::default(),
@@ -386,6 +403,7 @@ impl ClientMenu {
                 }
                 ClientPhase::Keybinds => self.sjk_settings_on_show(),
                 ClientPhase::Player => self.player.is_sjk(),
+                ClientPhase::Browser => true,
                 _ => false,
             }
     }
@@ -560,6 +578,7 @@ impl ClientMenu {
     pub(crate) fn open_browser(&mut self) {
         self.browser_return = ReturnTarget::MainMenu;
         self.state.open_browser();
+        self.reset_sjk_browser();
     }
 
     /// Open the server browser over a live match, returning to the game
@@ -573,6 +592,7 @@ impl ClientMenu {
         self.state.open_browser();
         self.filter_editing = false;
         self.browser_focus = 1_000 + self.browser.selected() as u16;
+        self.reset_sjk_browser();
     }
 
     /// Start a master-server fetch unless fresh rows are already on show.
@@ -749,6 +769,93 @@ impl ClientMenu {
         }
     }
 
+    /// A key on the server browser, in every style (the SJK UI's handles some
+    /// first, [`ClientMenu::sjk_browser_key`]).
+    fn browser_key(&mut self, key: KeyCode) -> MenuAction {
+        match key {
+            KeyCode::ArrowUp | KeyCode::KeyW => {
+                self.browser.move_selection(-1);
+                self.browser_focus = 1_000 + self.browser.selected() as u16;
+                MenuAction::None
+            }
+            KeyCode::ArrowDown | KeyCode::KeyS => {
+                self.browser.move_selection(1);
+                self.browser_focus = 1_000 + self.browser.selected() as u16;
+                MenuAction::None
+            }
+            KeyCode::PageUp | KeyCode::PageDown => {
+                self.browser
+                    .page_selection(if key == KeyCode::PageUp { -1 } else { 1 });
+                self.browser_focus = 1_000 + self.browser.selected() as u16;
+                MenuAction::None
+            }
+            KeyCode::Home | KeyCode::End => {
+                self.browser.select_end(key == KeyCode::End);
+                self.browser_focus = 1_000 + self.browser.selected() as u16;
+                MenuAction::None
+            }
+            KeyCode::Tab => {
+                self.browser
+                    .set_favorites_only(!self.browser.favorites_only());
+                self.browser_focus = 1_000 + self.browser.selected() as u16;
+                MenuAction::None
+            }
+            KeyCode::KeyC => {
+                self.open_address_entry();
+                MenuAction::None
+            }
+            KeyCode::KeyR => {
+                self.refresh();
+                MenuAction::None
+            }
+            KeyCode::KeyF => {
+                self.browser.toggle_selected_favorite();
+                MenuAction::None
+            }
+            KeyCode::Slash => {
+                self.filter_editing = true;
+                MenuAction::None
+            }
+            KeyCode::Backspace if self.filter_editing => {
+                self.browser.pop_filter();
+                MenuAction::None
+            }
+            KeyCode::Digit1 => {
+                self.browser.sort_by(SortColumn::Name);
+                MenuAction::None
+            }
+            KeyCode::Digit2 => {
+                self.browser.sort_by(SortColumn::Map);
+                MenuAction::None
+            }
+            KeyCode::Digit3 => {
+                self.browser.sort_by(SortColumn::Players);
+                MenuAction::None
+            }
+            KeyCode::Digit4 => {
+                self.browser.sort_by(SortColumn::Ping);
+                MenuAction::None
+            }
+            KeyCode::Digit5 => {
+                self.browser.sort_by(SortColumn::Gametype);
+                MenuAction::None
+            }
+            KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Space => self.activate_browser_focus(),
+            KeyCode::Escape => {
+                if self.classic_info {
+                    self.classic_info = false;
+                    MenuAction::None
+                } else if self.filter_editing {
+                    self.filter_editing = false;
+                    MenuAction::None
+                } else {
+                    self.close_browser()
+                }
+            }
+            _ => MenuAction::None,
+        }
+    }
+
     pub(crate) fn handle_key(
         &mut self,
         event: &KeyEvent,
@@ -850,90 +957,13 @@ impl ClientMenu {
                 }
                 _ => MenuAction::None,
             },
-            ClientPhase::Browser => match key {
-                KeyCode::ArrowUp | KeyCode::KeyW => {
-                    self.browser.move_selection(-1);
-                    self.browser_focus = 1_000 + self.browser.selected() as u16;
-                    MenuAction::None
+            ClientPhase::Browser if self.menu_style == MenuStyle::Sjk => {
+                match self.sjk_browser_key(key, console) {
+                    Some(action) => action,
+                    None => self.browser_key(key),
                 }
-                KeyCode::ArrowDown | KeyCode::KeyS => {
-                    self.browser.move_selection(1);
-                    self.browser_focus = 1_000 + self.browser.selected() as u16;
-                    MenuAction::None
-                }
-                KeyCode::PageUp | KeyCode::PageDown => {
-                    self.browser
-                        .page_selection(if key == KeyCode::PageUp { -1 } else { 1 });
-                    self.browser_focus = 1_000 + self.browser.selected() as u16;
-                    MenuAction::None
-                }
-                KeyCode::Home | KeyCode::End => {
-                    self.browser.select_end(key == KeyCode::End);
-                    self.browser_focus = 1_000 + self.browser.selected() as u16;
-                    MenuAction::None
-                }
-                KeyCode::Tab => {
-                    self.browser
-                        .set_favorites_only(!self.browser.favorites_only());
-                    self.browser_focus = 1_000 + self.browser.selected() as u16;
-                    MenuAction::None
-                }
-                KeyCode::KeyC => {
-                    self.open_address_entry();
-                    MenuAction::None
-                }
-                KeyCode::KeyR => {
-                    self.refresh();
-                    MenuAction::None
-                }
-                KeyCode::KeyF => {
-                    self.browser.toggle_selected_favorite();
-                    MenuAction::None
-                }
-                KeyCode::Slash => {
-                    self.filter_editing = true;
-                    MenuAction::None
-                }
-                KeyCode::Backspace if self.filter_editing => {
-                    self.browser.pop_filter();
-                    MenuAction::None
-                }
-                KeyCode::Digit1 => {
-                    self.browser.sort_by(SortColumn::Name);
-                    MenuAction::None
-                }
-                KeyCode::Digit2 => {
-                    self.browser.sort_by(SortColumn::Map);
-                    MenuAction::None
-                }
-                KeyCode::Digit3 => {
-                    self.browser.sort_by(SortColumn::Players);
-                    MenuAction::None
-                }
-                KeyCode::Digit4 => {
-                    self.browser.sort_by(SortColumn::Ping);
-                    MenuAction::None
-                }
-                KeyCode::Digit5 => {
-                    self.browser.sort_by(SortColumn::Gametype);
-                    MenuAction::None
-                }
-                KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Space => {
-                    self.activate_browser_focus()
-                }
-                KeyCode::Escape => {
-                    if self.classic_info {
-                        self.classic_info = false;
-                        MenuAction::None
-                    } else if self.filter_editing {
-                        self.filter_editing = false;
-                        MenuAction::None
-                    } else {
-                        self.close_browser()
-                    }
-                }
-                _ => MenuAction::None,
-            },
+            }
+            ClientPhase::Browser => self.browser_key(key),
             ClientPhase::Settings => {
                 let result = self.settings.handle_key(event, console);
                 self.settings_result(result, console)

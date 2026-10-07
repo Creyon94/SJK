@@ -9,8 +9,8 @@ its version; until then [classic+](classic-plus.md) stays the default and keeps
 getting fixes.
 
 Status (07/10/2026): the main page, Settings (with the key bindings),
-Character, What's new, Update and Identity are done. Every other screen opens
-in its classic+ version
+Character, What's new, Update, Identity and Servers (the server browser) are
+done. Every other screen opens in its classic+ version
 (`MenuStyle::classic_screens`), which covers the map as the classic style does.
 To try it: Settings > Gameplay > Interface > Menu style > SJK, or
 `ui_menuStyle sjk`; restart for the SJK UI's map behind the main page.
@@ -305,13 +305,69 @@ panels' own; only the drawing and the frame are the SJK UI's. Changing Menu
 style on the screen (it is on Interface) hands over to the classic+ panel of the
 same group (Graphics: the renderer's image tab), or to the modern screen.
 
+## Servers
+
+[browser.rs](../crates/sjk-viewer/src/menu/sjk/browser.rs): the server browser,
+opened by Play's Join a server (and by the in-game menu's), over the map darkened
+as Settings is, on the main page's 16:9 frame. The camera keeps touring behind it.
+
+- **Top:** the way back (Esc, "Main menu", or "Game menu" from a game), the
+  screen's name ("Servers") and the search pill ("Find a server or map", `/`,
+  then the number found). The search matches names without their colour codes,
+  and map names.
+- **Left:** where the servers come from down a lit rail, All servers and
+  Favourites with how many of each answered; under "Show", switches for empty,
+  full and locked servers and the game type as a cycler (All, then each type);
+  at its foot Refresh the list and Join by address.
+- **List:** a header line of sortable columns (Server, Mode, Map, Players,
+  Ping; the sorted one gold with a caret pointing its way, a click sorts or
+  flips it), then fourteen rows of 52 that scroll (wheel, scrollbar). A row:
+  a gold dot for a favourite, the name without colour codes (muted when nobody
+  but bots plays), a gold padlock when it needs a password, the game type with
+  the mod as a small tag (JA+, JAPRO, Mod; none for base), the map without
+  `mp/`, players over capacity, four signal bars lit by the ping (four to 60 ms,
+  three to 110, two to 180, one to 400) and the ping. The chosen row has the
+  band and gold bar; favourites sort first. An empty list says why (the search,
+  no favourite answered, the master server being asked, nothing answered, or
+  the Show choices hiding everything).
+- **Right:** the chosen server: its map's levelshot (cropped, never stretched:
+  a square retail levelshot is a 4:3 picture), the map's name over its foot;
+  the server's name; Mode, Players (with its bots), Ping and Mod (the server's
+  own name for its mod once its status answers); its address, "Needs a
+  password" in gold when it does, its limits in words ("30 frags, 20
+  minutes"); Join (gold) and Add to favourites or Remove favourite; then
+  "Playing now", its players with their colours and scores, bots muted, five
+  then "and n more" past six.
+- **Keys:** bottom right, what has the keyboard's; bottom left, how the list
+  stands ("12 servers answered", "Asking the master server...").
+- **Prompts:** the password and the address open a card over the darkened map
+  (the list is left out under it, since text draws over every shape): its
+  title, a line saying what to type, the field (the password as dots), the
+  address's error in gold, Cancel and Join or Connect (gold, dimmed while the
+  field is empty).
+
+Keys: the list has the shared browser keys (Up and Down, Page Up and Down, Home
+and End, Enter joins, F favourite, Tab between all servers and favourites, R
+refresh, C an address, `/` search, 1 to 5 sort); Left moves to the left column,
+where Up and Down choose, Enter shows a source or flips a switch, Left and Right
+step the game type, and Right or Escape return to the list. While the search is
+typed, Enter, Down or Tab return to the list (keeping it); Escape clears it.
+Escape on the list clears a search first, then returns to the main page. The
+pointer: a click on a row chooses it and a second within 0.4 s joins it; a
+header sorts; a switch's row flips it; the game type steps back on its left
+half and on on its right half.
+
+Joining shows the classic loading screen for now; mp/duel6 has no gate to fly
+through.
+
 ## Implementation
 
 - `ui_menuStyle` has a third value, `sjk` (`menu::style::MenuStyle::Sjk`).
   `MenuStyle::classic_screens` is true for it, so every screen without an SJK UI
   version opens its classic one; the main page dispatches to `menu::sjk::home`.
   `ClientMenu::sjk_screen` says when one of the SJK UI's own screens is on show
-  (the main page, or Settings without a picker open): the map is drawn under it
+  (the main page, Settings without a picker open, Character, Servers): the map
+  is drawn under it
   (`classic_hides_world` leaves it out) and its text goes to the UI's families
   (`append_sjk_screen`).
 - The controls are drawn by `menu::sjk::kit` (the band, switch, slider,
@@ -328,6 +384,14 @@ same group (Graphics: the renderer's image tab), or to the modern screen.
   read as the rail's. Pointer tokens are the classic+ panel's (rows, values,
   segments, reset, list, search, scroll), the rail's categories its chrome
   tokens.
+- Servers is the browser's state with another view: `ServerBrowser` and its
+  pointer tokens (rows, headers, the tabs for the sources, the filter strip's
+  for Show, the prompts') are the other styles'. Its keys go first to
+  `ClientMenu::sjk_browser_key`, which handles the search, the left column
+  (`sjk::browser::BrowserPage`) and Left, and leaves the rest to the shared
+  `browser_key`; its pointer to `sjk_browser_pointer` before the shared one.
+  The chosen server's levelshot comes through the create-game screen's cache
+  (`CreateGame::service_levelshot_for`, which also gives its size).
 - Fonts: `text::load_family` rasterizes a family's two faces into one atlas, as
   Inter's, taking glyphs a face lacks from its fallback family. The SJK UI's
   families load the first time the style is on, rasterized at 1.5x (glyphs 144
@@ -338,7 +402,9 @@ same group (Graphics: the renderer's image tab), or to the modern screen.
 - Snapshots: `menu_snapshot::sjk_home_snapshot` and `sjk_settings_snapshot` draw
   the screens over the JoF HD wide levelshot of mp/duel6, each family from its
   own atlas. `world_shot::tests::duel6_sjk_menu` renders the real frames: the
-  client built without a window on duel6, the SJK UI over the touring camera.
+  client built without a window on duel6, the SJK UI over the touring camera;
+  `duel6_sjk_browser` the browser on made-up servers (one answered status),
+  a search and the password prompt.
 
 ## Plan
 
@@ -346,11 +412,12 @@ The next screens, in order; each gets snapshot tests before it replaces its
 classic version:
 
 1. The dialogs (the report box, the import page) and Credits.
-2. The server browser, opened from Play's Join a server.
-3. Settings' search finding key bindings too (it finds settings; Key bindings'
+2. Settings' search finding key bindings too (it finds settings; Key bindings'
    finds keys).
-4. The in-game menu (its Setup and Controls then open Settings over the match,
+3. The loading screen, the in-game menu and the scoreboard (proposals to Sol
+   on 07/10/2026; its Setup and Controls would open Settings over the match,
    its player screen a version without the stage).
+4. Create a game.
 
 Once all of them are done, `sjk` becomes the default `ui_menuStyle`. mp/duel6 has
 its tour, player stage and saber shot; it has no gate, which mp/ffa3's browser

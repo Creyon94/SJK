@@ -1953,6 +1953,20 @@ test: Right moves to the servers (the arc turns to them), Enter joins; Left come
 test: Settings, Character, the browser: open in the classic look; Back returns to this page.
 note: Text too small at 4K, ring too faint, colours off? Tell Claude which part.
 
+[sjk-ui-browser]
+status: personal
+area: Menus & settings
+title: SJK UI: Servers (the server browser)
+change: Play > Join a server opens the SJK UI's browser: filters left, list middle, server right.
+change: The chosen server shows its map's picture, mode, players, ping, mod, limits, who plays.
+test: Wait for the list; sort by each header (click twice flips); the caret points the way.
+test: Left: the filters; Up/Down, Enter flips Empty/Full/Locked; Left/Right steps Game type.
+test: Type / then a name with colour codes (e.g. jof): it is found; Enter keeps it, Esc clears.
+test: F on a server: gold dot, sorts first, Favourites counts it; Tab shows favourites.
+test: Join a locked server: the password card (dots); Join by address: a bad one, then a good one.
+test: Double-click a row joins. Open it from the in-game menu too: Esc says Game menu.
+note: Picture stretched, a column cut off, or a key not answering? Tell Claude which.
+
 [sjk-ui-centre]
 status: personal
 area: Menus & settings

@@ -320,6 +320,24 @@ fn caret(canvas: &mut MenuCanvas, frame: &Frame, x: f32, y: f32, towards: f32, c
     );
 }
 
+/// A sorted column's mark centred on (`x`, `y`): a small caret pointing down
+/// while the column runs `descending`, up otherwise.
+pub(crate) fn sort_mark(
+    canvas: &mut MenuCanvas,
+    frame: &Frame,
+    x: f32,
+    y: f32,
+    descending: bool,
+    colour: Color,
+) {
+    let towards = if descending {
+        std::f32::consts::FRAC_PI_2
+    } else {
+        -std::f32::consts::FRAC_PI_2
+    };
+    caret(canvas, frame, x, y, towards, colour);
+}
+
 /// A small caret pointing left (`left`) or right centred on (`x`, `y`), as a
 /// cycler's ends are.
 pub(crate) fn caret_mark(

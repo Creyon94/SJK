@@ -7,7 +7,9 @@ mod discover;
 mod fetch;
 pub(crate) mod filters;
 
-pub(crate) use details::{DetailsState, DetailsView};
+#[cfg(test)]
+pub(crate) use details::DetailPlayer;
+pub(crate) use details::{DetailsState, DetailsView, Fact};
 pub(crate) use discover::gametype_name;
 
 use sjk_client::CompatProfile;
@@ -205,6 +207,23 @@ impl ServerBrowser {
         self.update_filter_display();
         self.rebuild_visible();
     }
+    /// Forget the typed filter: every server shows again.
+    pub(crate) fn clear_filter(&mut self) {
+        if self.filter.is_empty() {
+            return;
+        }
+        self.filter.clear();
+        self.update_filter_display();
+        self.rebuild_visible();
+    }
+
+    /// How many of the listed servers are favourites.
+    pub(crate) fn favorites_listed(&self) -> usize {
+        self.entries
+            .iter()
+            .filter(|entry| self.favorites.contains(&entry.address))
+            .count()
+    }
 
     /// Sort by `column`: the first click uses the column's natural direction,
     /// clicking the active column again flips it. The selected server stays
@@ -359,7 +378,10 @@ impl ServerBrowser {
                     (!self.favorites_only || self.favorites.contains(&entry.address))
                         && self.filters.accepts(entry)
                         && (needle.is_empty()
-                            || entry.name.to_ascii_lowercase().contains(&needle)
+                            || crate::text::Plain(&entry.name)
+                                .to_string()
+                                .to_ascii_lowercase()
+                                .contains(&needle)
                             || entry.map.to_ascii_lowercase().contains(&needle))
                 })
                 .map(|(index, _)| index),
@@ -400,6 +422,57 @@ impl ServerBrowser {
         } else {
             &self.filter
         });
+    }
+}
+
+#[cfg(test)]
+impl ServerEntry {
+    /// A row as a server answering `getinfo` would make it.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn for_test(
+        address: &str,
+        name: &str,
+        map: &str,
+        players: u16,
+        capacity: u16,
+        ping_millis: u32,
+        mode: i32,
+        profile: CompatProfile,
+        password: bool,
+    ) -> Self {
+        Self {
+            address: address.parse().expect("a test address"),
+            name: name.to_owned(),
+            map: map.to_owned(),
+            players,
+            capacity,
+            ping_millis,
+            gametype: gametype_name(Some(mode)).to_owned(),
+            profile,
+            password,
+            display: String::new(),
+            mode: Some(mode),
+            bots: 0,
+            valid_info: true,
+        }
+    }
+}
+
+#[cfg(test)]
+impl ServerBrowser {
+    /// List `entries` as if the master server had just answered, with
+    /// `favourites` starred; favourites are not saved from then on.
+    pub(crate) fn list_for_test(&mut self, entries: Vec<ServerEntry>, favourites: &[SocketAddr]) {
+        self.favorites_path = None;
+        self.favorites = favourites.iter().copied().collect();
+        self.entries = entries;
+        self.fetched_at = Some(Instant::now());
+        self.rebuild_visible();
+    }
+
+    /// Show `view` as the answer of the selected server's status query.
+    pub(crate) fn answer_for_test(&mut self, view: DetailsView) {
+        self.details.answer_for_test(view);
     }
 }
 

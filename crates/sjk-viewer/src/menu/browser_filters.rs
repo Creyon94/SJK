@@ -29,15 +29,24 @@ impl ClientMenu {
             let value = console.integer_cvar(name).unwrap_or(1) == 0;
             console.set_cvar(name, if value { "1" } else { "0" });
         } else {
-            let mode = self.browser.filters().mode;
-            console.set_cvar(
-                "ui_actualNetGametype",
-                &if mode == 9 { -1 } else { mode + 1 }.to_string(),
-            );
+            self.step_browser_mode(1, console);
         }
         self.configure_browser(console);
         true
     }
+
+    /// Show the next game type (`step` 1) or the one before (-1): all of them
+    /// (-1), then each of 0 to 9, round again.
+    pub(super) fn step_browser_mode(&mut self, step: i32, console: &mut ViewerConsole) {
+        let mode = next_mode(self.browser.filters().mode, step);
+        console.set_cvar("ui_actualNetGametype", &mode.to_string());
+        self.configure_browser(console);
+    }
+}
+
+/// The game type `step` after `mode` in -1 (all), 0 to 9.
+fn next_mode(mode: i32, step: i32) -> i32 {
+    (mode + 1 + step).rem_euclid(11) - 1
 }
 
 /// Draw controls above the table, without cards or per-frame string construction.
@@ -86,5 +95,17 @@ pub(crate) fn append(ui: &mut MenuCanvas, layout: &FormLayout, filters: Filters)
             FontWeight::Semibold,
             0.5 * s,
         );
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn game_types_step_round_both_ways() {
+        assert_eq!(super::next_mode(-1, 1), 0);
+        assert_eq!(super::next_mode(9, 1), -1);
+        assert_eq!(super::next_mode(-1, -1), 9);
+        assert_eq!(super::next_mode(0, -1), -1);
+        assert_eq!(super::next_mode(4, 1), 5);
     }
 }
