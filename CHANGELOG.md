@@ -19,6 +19,13 @@ tests check this file):
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 
+## Unreleased
+
+- Video screens play: shaders that show a video (videoMap), such as the screens some servers put on consoles, play it looping instead of a magenta checker _(Sol)_
+- Ceiling lamps and light strips that only looked painted glow: declared lights without a glow layer take emission maps (regenerate the material pack to see them) _(Sol)_
+- Footsteps on sand, snow and grass the map does not mark as such sound like sand, snow and grass, as on Siege Desert's dunes _(Sol)_
+- World notes name the shader a server's remap shows on the surface, not only the map's own _(Sol)_
+
 ## 2026.1007.3 (Alpha) | 07/10/2026
 
 lumaya's free camera, peek and first-person saber body; the SJK UI gains its server

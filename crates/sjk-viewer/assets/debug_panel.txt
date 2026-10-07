@@ -1794,6 +1794,42 @@ test: Look down from a height: rings and wet spots lie flat on the ground.
 test: A pool or puddle in rain: ripples on the water, no ground rings there.
 note: Sizes and brightness are first guesses; tell Claude bigger/smaller/brighter.
 
+[video-map]
+status: personal
+area: Rendering & effects
+title: videoMap screens play their RoQ video
+change: Video stages drew a magenta checker; RoQ videos now play on them, looping and silent.
+test: devmap mp/ffa1, then: remapShader textures/vjun/hangar_console textures/video/raven
+test: The console by the lift shows the Raven logo animating; clearRemaps restores it.
+test: On the JoF server's ffa1: the console that was magenta shows its video.
+note: Many videos on one map all decode every frame; watch the frame rate there.
+
+[fixture-emission]
+status: personal
+area: Rendering & effects
+title: Ceiling lamps and light strips glow (emission maps, pack generation 6)
+change: Declared lights whose overlay does not glow now take emission maps.
+test: Install %APPDATA%/jkr/generated/gen6/zzz_jkr_materials.pk3 into GameData/base.
+test: mp/ffa1 lamps (s_ylight_red), mp/ctf4 blue strips (s_bluestrip): bright, with bloom.
+test: Vjun3 light_panel_01 and FFA3 s_tracklight4 glow; no light shown twice anywhere.
+note: The log warns once if the installed pack is older than generation 6.
+
+[footstep-names]
+status: personal
+area: Audio
+title: Sand, snow and grass footsteps on ground the map does not tag
+change: Untagged ground takes its footstep sounds from its shader's name (sand, snow, grass...).
+test: mp/siege_desert: walk and run on the dunes: sand steps, not stone.
+test: Sandstone walls' floors and metal floors keep their own sounds.
+
+[notes-remap]
+status: personal
+area: Input
+title: World notes name a remap's shader
+change: inspect on a remapped surface says "<shader> remapped to <target>" and notes keep it.
+test: devmap mp/ffa1, remapShader textures/taspir/floor textures/vjun/floor2, inspect a floor.
+test: notes.txt and notes.jsonl (surface.remapped_to) name textures/vjun/floor2.
+
 [fog-floor]
 status: personal
 area: Rendering & effects
