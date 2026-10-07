@@ -635,7 +635,8 @@ mod tests {
             "{ map t/a_blend blendFunc GL_DST_COLOR GL_ONE }",
         ] {
             let script = format!(
-                "t/a {{ q3map_surfacelight 3000 {{ map $lightmap }} {{ map t/a blendFunc filter }} {overlay} }}"
+                "t/a {{ q3map_surfacelight 3000 {{ map $lightmap }} \
+                 {{ map t/a blendFunc filter }} {overlay} }}"
             );
             assert!(!shader(&script).glows, "{overlay}");
         }

@@ -913,13 +913,16 @@ mod tests {
         ));
         // A declared fixture shows its light only through a `glow` stage.
         assert!(!shows(
-            "t/a { q3map_surfacelight 3000 { map $lightmap } { map t/a blendFunc filter }              { map t/g blendFunc GL_DST_COLOR GL_ONE } }"
+            "t/a { q3map_surfacelight 3000 { map $lightmap } { map t/a blendFunc filter } \
+             { map t/g blendFunc GL_DST_COLOR GL_ONE } }"
         ));
         assert!(!shows(
-            "t/a { q3map_surfacelight 750 { map $lightmap } { map t/a blendFunc filter }              { map t/g blendFunc GL_ONE GL_ONE } }"
+            "t/a { q3map_surfacelight 750 { map $lightmap } { map t/a blendFunc filter } \
+             { map t/g blendFunc GL_ONE GL_ONE } }"
         ));
         assert!(shows(
-            "t/a { q3map_surfacelight 3000 { map $lightmap } { map t/a blendFunc filter }              { map t/g blendFunc GL_ONE GL_ONE glow } }"
+            "t/a { q3map_surfacelight 3000 { map $lightmap } { map t/a blendFunc filter } \
+             { map t/g blendFunc GL_ONE GL_ONE glow } }"
         ));
         // Reflections are not light.
         assert!(!shows(
