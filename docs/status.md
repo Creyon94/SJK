@@ -125,14 +125,14 @@ and the dialog, on a made-up roster, reviewed. No game was started and no server
 the roster, scores and hub marks on a real server, Escape, keys and pointer on these
 pages in a running client, and the outcome's centre print are unverified.
 
-## SJK UI: console designs and selectable browser text
+## SJK UI: console design and selectable browser text
 
 SJK-only branch `personal/console-style` (08/10/2026, based on `7a85516`,
 Windows 11): Sol asked for the console in the SJK UI's look, its text
 selectable with the mouse and copied with Ctrl+C, the same in the F3 command
 browser, and several designs to choose from. `con_style` gained `sjk` (deck),
 `horizon` and `dock`, the classic console's grid and keys in the SJK UI's
-colours and families ([client.md](client.md#sjk-ui-consoles)), and `auto`, the
+colours and families ([client.md](client.md#sjk-ui-console)), and `auto`, the
 new default (the deck with the SJK UI's menus, else classic; a saved `classic`
 moves once to `auto`, `con_styleDefaultVersion`). The console's layer gained
 fades and the SJK UI's family text runs; the scrollback's mouse selection,
@@ -148,6 +148,12 @@ a ghost completion, at 1080 lines and the deck at 4K. Not verified: no game was
 started, so real typing, dragging, the clipboard, the opening slide, `con_scale`
 and `con_opacity` with these looks, narrow windows and the families' first load
 are untested in a running client.
+
+Sol chose the deck, and SJK-only branch `personal/console-deck` (08/10/2026,
+based on `b9db8c0`) removed `horizon` and `dock`: a profile that saved either
+now gets `auto`'s console, the deck with the SJK UI's menus. The cvar's unit
+tests cover that fallback; the deck's code and world shots are unchanged, and
+it is still untested in a running client.
 
 ## Sol's world notes of 07/10/2026
 

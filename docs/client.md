@@ -1862,18 +1862,17 @@ and red). The table is `quake_color` in [text.rs](../crates/sjk-viewer/src/text.
 | Value | Look |
 | --- | --- |
 | `auto` (default) | `sjk` while the menus are the SJK UI (`ui_menuStyle sjk`), else `classic` |
-| `sjk` | The SJK UI's deck ([SJK UI consoles](#sjk-ui-consoles)) |
-| `horizon` | The SJK UI's horizon |
-| `dock` | The SJK UI's dock |
+| `sjk` | The SJK UI's deck ([SJK UI console](#sjk-ui-console)) |
 | `classic` | EternalJK's console (`cl_console.cpp`, `cl_keys.cpp`) |
 | `modern` (or `0`) | JKR's console (Inter text on a tinted panel with a header and key hints), unchanged |
 
-A mistyped value acts as `auto`. Every profile had saved the old default
+A mistyped value acts as `auto`, as do `horizon` and `dock`, two SJK UI designs
+removed on 08/10/2026 once Sol chose the deck. Every profile had saved the old default
 `classic`, so a saved `classic` moves once to `auto` (`con_styleDefaultVersion`,
 as `cg_scoreboardStyle` did): it still gives the classic console unless the
 menus are the SJK UI; a `classic` chosen afterwards stays. Input editing, mouse
 selection, completion, the `]cmd` echo, history (Up and Down) and the F3 browser
-work the same in every look; the classic console and the SJK UI's designs share
+work the same in every look; the classic console and the SJK UI's deck share
 EternalJK's keys below. See
 [console_classic.rs](../crates/sjk-viewer/src/console_classic.rs),
 [console_sjk.rs](../crates/sjk-viewer/src/console_sjk.rs),
@@ -1974,9 +1973,9 @@ one cell plus `cl_conXOffset` pixels from the left. Dragging the mouse selects
 scrollback text and Ctrl+C copies it, as in the modern console; the classic
 console's selection does not include the time column.
 
-### SJK UI consoles
+### SJK UI console
 
-`sjk`, `horizon` and `dock` are the classic console with another skin
+`sjk`, the deck, is the classic console with another skin
 ([console_sjk.rs](../crates/sjk-viewer/src/console_sjk.rs)): the same grid of
 JetBrains Mono cells, word wrap, scrollback, history, keys, overstrike, mouse
 selection and notify lines, drawn in the SJK UI's colours
@@ -1992,27 +1991,19 @@ shows the part on screen, gold while scrolled back. Labels are in the SJK UI's
 families (Rajdhani and Exo 2), drawn on the console's own layer so nothing shows
 through; they load with the look, and the console font stands in until they
 have. After Ctrl+C the header says how many characters were copied. Below full
-height the panels follow `con_opacity`. The notify lines stay the classic ones.
+height the panel follows `con_opacity`. The notify lines stay the classic ones.
 
-- **Deck** (`sjk`): a full-width navy panel (the world shows faintly through);
-  a header with "Console" underlined gold, the version, the date and the time;
-  the input on a band with the SJK UI's gold bar; key hints (Tab, Up and Down,
-  Page Up and Down, F3, Ctrl+C); a gold rail fading into a holo line along its
-  bottom edge.
-- **Horizon** (`horizon`): no panel edge: the navy fades out over the game below
-  a gold horizon line that fades towards the screen's sides; the input and the
-  key hints sit on the horizon, "Console" and the time float top right.
-- **Dock** (`dock`): an outlined card inside the screen's edges (at most 1800
-  pixels wide at 1080 lines); tabs at its top, "Console" lit gold and "Commands
-  and cvars F3", which a click opens; the input in a framed field above the key
-  hints; a holo rail down its left side, lit gold beside the field.
+The deck is a full-width navy panel (the world shows faintly through): a header
+with "Console" underlined gold, the version, the date and the time; the input
+on a band with the SJK UI's gold bar; key hints (Tab, Up and Down, Page Up and
+Down, F3, Ctrl+C); a gold rail fading into a holo line along its bottom edge.
 
-The F3 hint (deck, horizon) and tab (dock) open the command browser on a click.
-The command browser is drawn in the SJK UI's look with these designs (see
-below). Verified by unit tests (the looks' names, `auto`, the saved value's
-move, the grid, caret and ghost completion) and by off-screen frames of every
-look over mp/duel6 at 1080 lines and 4K (`world_shot::tests::duel6_console_styles`);
-not yet used in a running client.
+A click on the F3 hint opens the command browser, which is drawn in the SJK
+UI's look with the deck (see below). Verified by unit tests (the looks' names,
+`auto` and the retired names, the saved value's move, the grid, caret and ghost
+completion) and by off-screen frames of every look over mp/duel6 at 1080 lines
+and 4K (`world_shot::tests::duel6_console_styles`); not yet used in a running
+client.
 
 Local time comes from the operating system's time zone rules, daylight saving
 included ([local_time.rs](../crates/sjk-shell/src/local_time.rs)); the scrollback's
@@ -2220,8 +2211,8 @@ It uses the menus' retail font when `ui_gameFont` is on, and works without the
 retail art. Keys, pointer and wheel act as in the modern look
 ([console_browser_classic.rs](../crates/sjk-viewer/src/console_browser_classic.rs)).
 
-With the SJK UI's console designs (`con_style sjk`, `horizon`, `dock`, or `auto`
-with the SJK UI's menus) the browser has the SJK UI's look, laid out as its
+With the SJK UI's console (`con_style sjk`, or `auto` with the SJK UI's
+menus) the browser has the SJK UI's look, laid out as its
 Settings over the darkened frame
 ([console_browser_sjk.rs](../crates/sjk-viewer/src/console_browser_sjk.rs)): Esc
 "Back", "Commands and cvars" and the search pill at the top; the four filters

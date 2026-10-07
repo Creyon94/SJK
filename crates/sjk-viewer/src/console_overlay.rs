@@ -86,7 +86,7 @@ impl GpuState {
             Some(font) => (font, console_backdrop::TextAtlas::Console),
             None => (&self.ui_font, console_backdrop::TextAtlas::Inter),
         };
-        // The SJK UI's designs label in its families once they are loaded.
+        // The SJK UI's console labels in its families once they are loaded.
         let labels = match self.game_fonts.sjk_metrics() {
             Some((display, body)) => console::classic::sjk::Labels {
                 display,

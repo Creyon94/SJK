@@ -21,7 +21,7 @@
 //! text uses the console character set when it is loaded, else Inter, with the
 //! shared text pipelines.
 //!
-//! The SJK UI's console designs (`con_style sjk`, `horizon`, `dock`) draw on the
+//! The SJK UI's console (`con_style sjk`) draws on the
 //! same layer without the shader: vertical and horizontal fades ([`Shade`]) under
 //! the solid quads, and labels in the SJK UI's two families after the console's
 //! own text, each family from its own atlas.

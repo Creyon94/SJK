@@ -2276,14 +2276,15 @@ note: Needs the hub update deployed first; until then Send says it cannot reach 
 [console-sjk-designs]
 status: personal
 area: Console & chat
-title: SJK UI consoles (con_style sjk / horizon / dock) and selectable F3 text
+title: SJK UI console (con_style sjk, the deck) and selectable F3 text
 change: con_style auto (default) uses the SJK deck with ui_menuStyle sjk, else classic.
+change: The horizon and dock designs are gone; a saved horizon or dock acts as auto.
 change: F3 has an SJK look; its detail text selects with the mouse, Ctrl+C copies.
-test: con_style sjk, horizon, then dock: open the console, type, scroll, select, Ctrl+C.
+test: con_style sjk: open the console, type, scroll, select, Ctrl+C.
 test: Type cl_maxpa: the rest of the name shows faintly; Tab completes it.
 test: F3: drag over a description, double-click a word, Ctrl+C, paste it elsewhere.
-test: Ctrl+C with nothing selected copies "name value"; the F3 hint or Dock tab opens it.
-note: Tell Claude which design you keep (or what to mix); the others can go.
+test: Ctrl+C with nothing selected copies "name value"; a click on the F3 hint opens it.
+test: con_style horizon (or dock): the deck with the SJK UI's menus, classic otherwise.
 
 [camera-ejk-default]
 status: personal
