@@ -1886,7 +1886,18 @@ change: Only letters, digits, spaces and . , ! ? ' - : ( ) can be typed; 10 to 6
 test: Escape, click Report a bug (bottom centre): type < > / or an emoji: nothing appears.
 test: The centre print says sent (report number) or why not (quota, too short).
 test: Send the same text twice: refused. A fresh key: 3 a day, then refused.
-note: Works once the hub is deployed with reports; Claude reads them on the hub.
+note: The hub takes reports since 07/10/2026 (deployed); Claude reads them on the hub.
+
+[report-classic-plus]
+status: personal
+area: Menus & settings
+title: Report a bug and the note dialog in the classic+ look
+change: With the classic menus: a gold REPORT A BUG on the red band, bottom centre.
+change: The dialog is an in-game pop-up: title band, list box, gold Send and Cancel.
+test: Classic menus, Escape: REPORT A BUG on a red band at the bottom; hover glows it.
+test: Click it: REPORT A BUG pop-up; long text wraps to the box's width, 8 lines.
+test: Hover the box, Send, Cancel: the line under the pop-up explains each.
+test: Send "short": the red reason shows under the count; X twice on a wall: same look.
 
 [saber-wall-cutoff]
 status: personal

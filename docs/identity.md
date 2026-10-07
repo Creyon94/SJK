@@ -106,6 +106,12 @@ repeat within a day), per address (3 in 10 minutes) and overall (300 a day, 5000
 so a troll with fresh keys gets little through and nothing that is not plain words. The
 operator reads them with the hub's `reports` command or `/admin/v1/reports`.
 
+With the classic menus (`ui_menuStyle classic`) the dialog and the button take the
+classic+ look ([text_dialog_classic.rs](../crates/sjk-viewer/src/text_dialog_classic.rs),
+[classic-plus.md](classic-plus.md#pages)): the in-game pop-up box with its title band,
+the text in a retail list box, gold Send and Cancel, the description line under the box,
+and a gold REPORT A BUG on retail's red band at the bottom of the canvas.
+
 ## Settings and commands
 
 - `cl_identity` (default 1; Settings > Network > SJK identity) turns the feature on.

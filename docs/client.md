@@ -1486,7 +1486,9 @@ glance at the scoreboard would not: no health, Force or position.
   open the game menu then). A second press within 20 seconds opens the text dialog
   ([text_dialog.rs](../crates/sjk-viewer/src/text_dialog.rs)): a panel in the middle of
   the screen with the subject, a text box of six wrapped lines (any printable text, up to
-  500 characters), a character count, Send and Cancel; Tab moves between them. Enter or
+  500 characters), a character count, Send and Cancel; Tab moves between them. With the
+  classic menus it takes the classic+ look of the in-game pop-ups, eight lines in a
+  retail list box ([identity.md](identity.md#bug-reports)). Enter or
   Send appends the note to `notes.jsonl` (one JSON object: map, UTC time,
   `setviewpos`, camera pose, hit point and normal, draw surface, collision flags,
   nearest map entity, screenshot path) and a readable line to `notes.txt` in the config

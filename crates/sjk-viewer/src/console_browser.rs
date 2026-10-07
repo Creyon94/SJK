@@ -10,7 +10,7 @@ use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{KeyCode, PhysicalKey};
 
 #[path = "console_browser_classic.rs"]
-pub(super) mod classic;
+pub(crate) mod classic;
 #[path = "console_browser_pointer.rs"]
 mod pointer;
 #[path = "console_browser_view.rs"]

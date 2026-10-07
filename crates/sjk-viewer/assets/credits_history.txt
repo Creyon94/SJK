@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 07/10/2026 | - | Report a bug and the note dialog in the classic+ look
+- 198fdab |  | Report a bug and the note dialog in the classic+ look
 + 07/10/2026 | - | Credits: big name panels, every feature, PR and commit folded, turning god rays
 - 843c29e |  | Credits: big name panels with every feature, PR and commit folded; turning god rays
 + 07/10/2026 | - | Icons beside the classic Settings groups

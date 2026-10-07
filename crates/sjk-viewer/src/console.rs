@@ -3,7 +3,7 @@
 use super::{TextVertex, UiFont};
 use crate::keybind_editor;
 #[path = "console_browser.rs"]
-mod browser;
+pub(crate) mod browser;
 #[path = "changelog.rs"]
 pub(crate) mod changelog;
 #[path = "console_chat_log.rs"]
