@@ -91,6 +91,23 @@ fn set(state: State) {
     *lock() = state;
 }
 
+/// Pretend release `version` is out (world shots of the Update page); nothing
+/// is fetched, and installing it would fail on its empty assets.
+#[cfg(test)]
+pub(crate) fn pretend_available(version: &str) {
+    let asset = || Asset {
+        name: String::new(),
+        url: String::new(),
+        size: 0,
+    };
+    set(State::Available(Release {
+        version: version.to_owned(),
+        page: String::new(),
+        zip: asset(),
+        sums: asset(),
+    }));
+}
+
 /// The current state.
 pub(crate) fn state() -> State {
     lock().clone()

@@ -12,6 +12,9 @@ use sjk_ui::{Color, FontWeight, InputEvent, Rect, UiEventKind};
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{KeyCode, PhysicalKey};
 
+#[path = "update_panel_sjk.rs"]
+mod sjk;
+
 /// Console command that toggles the page.
 pub(crate) const COMMAND: &str = "update";
 /// Help text for completion and `cmdlist`.
@@ -37,6 +40,8 @@ pub(crate) struct Panel {
     open: bool,
     /// The page opened the console, so closing the page closes it too.
     owns_console: bool,
+    /// The SJK UI's look (`update_panel_sjk.rs`).
+    sjk: bool,
     ui: MenuCanvas,
 }
 
@@ -152,12 +157,23 @@ impl Panel {
         Self {
             open: false,
             owns_console: false,
+            sjk: false,
             ui: MenuCanvas::with_text_capacity(64),
         }
     }
 
     pub(crate) fn is_open(&self) -> bool {
         self.open
+    }
+
+    /// Draw the SJK UI's look (`sjk`), in its families, or the modern one.
+    pub(crate) fn set_sjk(&mut self, sjk: bool) {
+        self.sjk = sjk;
+    }
+
+    /// Whether the SJK UI's look is drawn.
+    pub(crate) fn is_sjk(&self) -> bool {
+        self.sjk
     }
 
     /// Show the page; `owns_console` when the console was closed before it.

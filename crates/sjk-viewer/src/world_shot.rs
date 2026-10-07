@@ -530,6 +530,50 @@ mod tests {
         duel6_player("sjk", "duel6-player-sjk");
     }
 
+    /// Sol JK's pages in the SJK UI over the live duel6: What's new, Update
+    /// (a newer release pretended out) and Identity (switched off: the shots'
+    /// profile never registers).
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_sjk_pages() {
+        on_big_stack(|| {
+            let menu = menu::ClientMenu::new(true, String::new());
+            let cvars = [
+                ("ui_menuStyle", "sjk"),
+                (crate::settings::quick::HIDE_CVAR, "1"),
+            ];
+            let Some((mut gpu, _profile)) =
+                open("maps/mp/duel6.bsp", [1920, 1080], Some(menu), &cvars)
+            else {
+                return;
+            };
+            let _ = frame(&mut gpu, 10);
+            crate::update::pretend_available("2026.1008.1");
+            type Opens = fn(&mut console::ViewerConsole);
+            let pages: [(&str, Opens); 3] = [
+                (
+                    "duel6-page-whats-new",
+                    console::ViewerConsole::open_changelog,
+                ),
+                (
+                    "duel6-page-update",
+                    console::ViewerConsole::open_update_panel,
+                ),
+                (
+                    "duel6-page-identity",
+                    console::ViewerConsole::open_identity_panel,
+                ),
+            ];
+            for (name, open_page) in pages {
+                if let Some(console) = gpu.console.as_mut() {
+                    open_page(console);
+                }
+                let path = shoot(&mut gpu, 6, name);
+                println!("{}", path.display());
+            }
+        });
+    }
+
     /// Hand-placed candidates for the menu's camera tour on duel6, for review.
     #[test]
     #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
