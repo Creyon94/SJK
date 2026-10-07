@@ -6,8 +6,9 @@
 //! ```
 //!
 //! Every run makes fresh keys and a fresh name, so it can repeat against one
-//! database (the hub allows 5 registrations an hour per address, so a run
-//! registers two).
+//! database. The hub allows 5 registrations an hour per address and a whole run
+//! makes more: run a few tests at a time (name them after `--ignored`), restarting
+//! the hub in between (its limits live in memory).
 
 use sjk_identity::{HttpHub, Hub, HubError, Identity};
 
@@ -133,4 +134,38 @@ fn the_service_registers_claims_tags_and_releases_on_shutdown() {
     assert_eq!(watcher.presence(&server.to_string()).unwrap().len(), 1);
     service.shutdown(Duration::from_secs(5));
     assert!(watcher.presence(&server.to_string()).unwrap().is_empty());
+}
+
+#[test]
+#[ignore = "needs a running hub (SJK_HUB_TEST_URL)"]
+fn a_world_note_and_its_picture_reach_the_hub() {
+    let mut hub = hub();
+    let me = Identity::generate().unwrap();
+    hub.register(&me, Some("NoteTester")).unwrap();
+    let note = sjk_identity::WorldNote {
+        text: format!("too shiny {}", &me.key_id()[..6]),
+        map: "maps/mp/ffa1.bsp".to_owned(),
+        build: "test".to_owned(),
+        view: Some([2807.0, 726.0, 872.0, 283.0]),
+        hit: Some([2900.0, 700.0, 860.5]),
+        normal: Some([0.0, 0.0, 1.0]),
+        shader: "textures/vjun/newfloor_vjun".to_owned(),
+        surface: Some(943),
+        lighting: "lightmapped".to_owned(),
+        distance: Some(252.0),
+        ..sjk_identity::WorldNote::default()
+    };
+    let id = hub.note(&me, &note).unwrap();
+    assert!(id > 0);
+    // The markers of a minimal 2 x 2 JPEG: the hub checks the frame, not the pixels.
+    let jpeg = [
+        0xFF, 0xD8, 0xFF, 0xC0, 0x00, 0x0B, 0x08, 0x00, 0x02, 0x00, 0x02, 0x01, 0x01, 0x11, 0x00,
+        0xFF, 0xDA, 0x00, 0x02, 0xFF, 0xD9,
+    ];
+    hub.note_image(&me, id, &jpeg).unwrap();
+    let again = hub.note_image(&me, id, &jpeg).unwrap_err();
+    assert!(
+        matches!(again, HubError::Rejected { ref code, .. } if code == "image_taken"),
+        "{again:?}"
+    );
 }

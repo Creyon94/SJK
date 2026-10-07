@@ -182,6 +182,7 @@ mod tests {
             notice: None,
             revision: 0,
             report: None,
+            note: None,
         }
     }
 

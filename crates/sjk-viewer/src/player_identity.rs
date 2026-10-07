@@ -170,6 +170,27 @@ pub(crate) fn report(report: sjk_identity::BugReport) -> bool {
     true
 }
 
+/// Send a world note through the service: its tag for [`note_image`], or `None` when
+/// the service has not started.
+pub(crate) fn note(note: sjk_identity::WorldNote) -> Option<u64> {
+    lock().service.as_ref().map(|service| service.note(note))
+}
+
+/// The picture of the note tagged `tag`.
+pub(crate) fn note_image(tag: u64, jpeg: Vec<u8>) {
+    if let Some(service) = lock().service.as_ref() {
+        service.note_image(tag, jpeg);
+    }
+}
+
+/// The outcome of the last world note, once the service has one.
+pub(crate) fn note_outcome() -> Option<sjk_identity::ReportOutcome> {
+    lock()
+        .service
+        .as_ref()
+        .and_then(|service| service.with_snapshot(|snapshot| snapshot.note.clone()))
+}
+
 /// The outcome of the last bug report, once the service has one.
 pub(crate) fn report_outcome() -> Option<sjk_identity::ReportOutcome> {
     lock()

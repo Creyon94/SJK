@@ -21,6 +21,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- World notes reach the SJK team: aim at a wall, floor or door, press the inspect key (X) twice and write what is wrong. With the identity on, the note goes to the SJK hub with where you stood, what you aimed at and a small screenshot, and a centre print says it arrived. Your copy stays on your PC in SJK/notes.txt as before; cl_identity 0 sends nothing _(Sol)_
 - The SJK UI begins (Settings > Interface > Menu style > SJK): SJK's own menus over the live map, in the site's Rajdhani and Exo 2 type. Its main page: the emblem in a turning holo ring with the menu on an arc round it, and the servers you joined last on the right, each joined with one click (the JoF server until you have joined any). The screens it has no look for yet open in their classic one _(Sol)_
 - SJK UI Settings: every category down a lit rail on the left, switches, sliders and side-by-side choices under sub-headings, the setting you are on explained on the right (what it does, its default and range, when it applies), and the search always at the top. The key bindings are one of its categories, each action with its two keys as caps; the one waiting for your key turns gold _(Sol)_
 - SJK UI Character: your character stands on the map itself, on the path below the tower in the map's own light, and every change shows on them at once. Your name is the title; the model grid, sabers (colour chips and sliders, the saber thrown out to float before you) and Force powers sit in a column beside them _(Sol)_

@@ -3,9 +3,9 @@
 //! (`bug_report`, the Report a bug button under the game menu). Escape or Cancel drops
 //! it; Enter or Send sends it.
 //!
-//! A report keeps only what the hub accepts as it is typed or pasted (letters and digits
-//! of any script, spaces and `. , ! ? ' - : ( )`, line breaks turned into spaces, at most
-//! 600 characters); a note keeps any printable text up to [`NOTE_MAX`] characters.
+//! Both keep only what the hub accepts as it is typed or pasted (letters and digits of
+//! any script, spaces and `. , ! ? ' - : ( )`, line breaks turned into spaces), a report
+//! at most 600 characters, a note at most [`NOTE_MAX`].
 //!
 //! The launcher is the Report a bug button drawn centred at the bottom of the screen
 //! while the game menu is open. With the classic menus both take the classic+ look
@@ -23,7 +23,7 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 mod classic;
 
 /// Longest world note, in characters.
-pub(crate) const NOTE_MAX: usize = 500;
+pub(crate) const NOTE_MAX: usize = sjk_identity::report::NOTE_MAX;
 /// Lines of text the box shows; a longer text shows its end.
 const LINES: usize = 6;
 
@@ -102,16 +102,9 @@ fn limit(kind: &Kind) -> usize {
 /// `text` as `kind` keeps it when typed or pasted onto `field`.
 fn typed(kind: &Kind, field: &str, text: &str) -> String {
     let room = limit(kind).saturating_sub(field.chars().count());
-    let report = *kind == Kind::Report;
     text.chars()
         .map(|c| if c.is_whitespace() { ' ' } else { c })
-        .filter(|c| {
-            if report {
-                sjk_identity::report::allowed(*c)
-            } else {
-                !c.is_control()
-            }
-        })
+        .filter(|c| sjk_identity::report::allowed(*c))
         .take(room)
         .collect()
 }
@@ -205,11 +198,7 @@ impl TextDialog {
         };
         let refusal = match &kind {
             Kind::Report => sjk_identity::report::text(&self.text).err(),
-            Kind::Note { .. } => self
-                .text
-                .trim()
-                .is_empty()
-                .then_some("write something first"),
+            Kind::Note { .. } => sjk_identity::report::note_text(&self.text).err(),
         };
         if let Some(why) = refusal {
             self.message = why.to_owned();
@@ -490,7 +479,7 @@ impl TextDialog {
         );
         let hint = match kind {
             Kind::Report => "Letters, digits, spaces and . , ! ? ' - : ( ) only",
-            Kind::Note { .. } => "Saved with a screenshot for Claude to read",
+            Kind::Note { .. } => "Saved and sent with a screenshot to the SJK team",
         };
         ui.text(
             hint,
@@ -549,7 +538,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn reports_keep_only_what_the_hub_accepts_and_notes_keep_text() {
+    fn reports_and_notes_keep_only_what_the_hub_accepts() {
         assert_eq!(
             typed(
                 &Kind::Report,
@@ -561,7 +550,7 @@ mod tests {
         let note = Kind::Note {
             subject: String::new(),
         };
-        assert_eq!(typed(&note, "", "a <b> \"x\"\tz"), "a <b> \"x\" z");
+        assert_eq!(typed(&note, "", "a <b> \"x\"\tz?"), "a b x z?");
         // Nothing past the limit.
         let full = "x".repeat(NOTE_MAX);
         assert_eq!(typed(&note, &full, "more"), "");
@@ -597,6 +586,19 @@ mod tests {
             subject: "wall".into(),
         });
         assert_eq!(dialog.send(), Action::None, "an empty note waits");
+        dialog.text = "too shiny".into();
+        assert_eq!(
+            dialog.send(),
+            Action::Send(
+                Kind::Note {
+                    subject: "wall".into()
+                },
+                "too shiny".into()
+            )
+        );
+        dialog.open(Kind::Note {
+            subject: "wall".into(),
+        });
         assert_eq!(dialog.close(), Action::Cancel);
         assert!(!dialog.is_open());
     }

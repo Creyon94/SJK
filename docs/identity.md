@@ -48,7 +48,7 @@ vector that both test suites check, so a drift in either shows as a failing test
    after lower-casing and dropping colour codes and symbols). The local player's own
    plate (`cg_nameplateSelf`) has the badge when their own key is verified.
 
-Verification is the operator's alone (the hub's `verify` command or SM's SJK screen,
+Verification is the operator's alone (the hub's `verify` command or its operator API,
 which list every key with its worn names); a player asks for nothing and sets nothing.
 
 Nothing blocks a frame: the viewer compares settings and place with what the thread
@@ -86,6 +86,13 @@ A bug report (Escape, SJK, Report a bug) is sent only when the player presses En
 on it: its text, the map, the client build and the game server's address, signed with
 the player's key. The hub keeps it until the operator removes it.
 
+A world note (`inspect` twice on the world, [client.md](client.md#player-card)) is sent
+only when the player sends it, with `cl_identity` on: its text, the map, the build, the
+game server's address, where the player stood (`setviewpos`), the aimed point, shader,
+surface and entity, and a smaller copy of its screenshot (at most 1280 x 720), signed
+with the player's key. The note dialog says so. The hub keeps it until the operator
+removes it; the full note and screenshot stay on the player's PC either way.
+
 ## Bug reports
 
 [bug_report.rs](../crates/sjk-viewer/src/bug_report.rs) and
@@ -105,6 +112,27 @@ everything again and limits reports per key (3 a day, 20 once verified, 5 an hou
 repeat within a day), per address (3 in 10 minutes) and overall (300 a day, 5000 kept),
 so a troll with fresh keys gets little through and nothing that is not plain words. The
 operator reads them with the hub's `reports` command or `/admin/v1/reports`.
+
+## World notes
+
+[world_notes.rs](../crates/sjk-viewer/src/world_notes.rs). A world note
+([client.md](client.md#player-card)) is kept on the player's PC as before and, with the
+identity on, also goes to the hub for the SJK team. The note dialog keeps the bug
+reports' alphabet as it is typed, and Send checks the hub's note rules (3 to 500
+characters, at least 2 letters, no long run of one character). The identity service
+sends `POST /v1/note` with the text and the selection: map, build, server, `view` (the
+`setviewpos` x, y, z and yaw), the aimed point and normal, shader, BSP surface,
+lighting, distance and the entity's class name (a name outside the hub's alphabet is
+left out rather than the note refused). The hub answers with the note's number, which a
+centre print and the console show, or why it refused. The screenshot writer also makes a
+smaller JPEG of the same pixels (`capture::preview_jpeg`: fitted within 1280 x 720,
+quality lowered until under 380 KiB) and hands it to the service, which sends it with
+`PUT /v1/note/<id>/image` once the hub took the note; a picture that fails leaves the
+note as it is. The hub limits notes per key (20 a day, 200 once verified, 30 an hour, no
+repeat of the same text about the same shader within a day), per address (40 notes and
+pictures in 10 minutes) and overall (1000 a day, 3000 kept), and takes a picture only
+from the note's sender, once, within 10 minutes. The operator lists notes with their
+pictures with the hub's `notes` command or `/admin/v1/notes`.
 
 With the classic menus (`ui_menuStyle classic`) the dialog and the button take the
 classic+ look ([text_dialog_classic.rs](../crates/sjk-viewer/src/text_dialog_classic.rs),

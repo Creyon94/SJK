@@ -1,7 +1,7 @@
 //! Talking to the hub: the [`Hub`] operations and their HTTPS implementation.
 
 use crate::keys::{Identity, random_bytes};
-use crate::report::BugReport;
+use crate::report::{BugReport, WorldNote};
 use crate::wire::{Presence, Profile, authorization};
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
@@ -66,6 +66,18 @@ pub trait Hub: Send {
     fn release(&mut self, identity: &Identity, server: &str) -> Result<(), HubError>;
     /// The live claims on `server`.
     fn presence(&mut self, server: &str) -> Result<Vec<Presence>, HubError>;
+    /// Send a world note signed by the identity; the hub answers with its number.
+    fn note(&mut self, _identity: &Identity, _note: &WorldNote) -> Result<i64, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not send notes".to_owned(),
+        ))
+    }
+    /// Attach a JPEG to note `id`, signed by the identity that sent the note.
+    fn note_image(&mut self, _identity: &Identity, _id: i64, _jpeg: &[u8]) -> Result<(), HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not send pictures".to_owned(),
+        ))
+    }
     /// Send a bug report signed by the identity; the hub answers with its number.
     fn report(&mut self, _identity: &Identity, _report: &BugReport) -> Result<i64, HubError> {
         Err(HubError::Protocol(
@@ -142,6 +154,18 @@ impl HttpHub {
         body: Option<Value>,
     ) -> Result<Value, HubError> {
         let body = body.map(|value| value.to_string()).unwrap_or_default();
+        self.send_bytes(signer, method, path, body.as_bytes(), "application/json")
+    }
+
+    /// [`HttpHub::send`] with a raw body of `content_type`.
+    fn send_bytes(
+        &mut self,
+        signer: Option<&Identity>,
+        method: &str,
+        path: &str,
+        body: &[u8],
+        content_type: &str,
+    ) -> Result<Value, HubError> {
         for attempt in 0..2 {
             let url = format!("{}{path}", self.base);
             let nonce =
@@ -151,12 +175,12 @@ impl HttpHub {
                     identity,
                     method,
                     path,
-                    body.as_bytes(),
+                    body,
                     unix_now() + self.clock_offset,
                     nonce,
                 )
             });
-            let mut response = self.call(method, &url, header.as_deref(), &body)?;
+            let mut response = self.call(method, &url, header.as_deref(), body, content_type)?;
             let status = response.status().as_u16();
             let text = response
                 .body_mut()
@@ -193,7 +217,8 @@ impl HttpHub {
         method: &str,
         url: &str,
         authorization: Option<&str>,
-        body: &str,
+        body: &[u8],
+        content_type: &str,
     ) -> Result<ureq::http::Response<ureq::Body>, HubError> {
         let network = |error: ureq::Error| HubError::Network(error.to_string());
         let with_header =
@@ -215,16 +240,16 @@ impl HttpHub {
                     request = request.header("Authorization", value);
                 }
                 request
-                    .header("Content-Type", "application/json")
+                    .header("Content-Type", content_type)
                     .send(body)
                     .map_err(network)
             }
             "PUT" => with_header(self.agent.put(url))
-                .header("Content-Type", "application/json")
+                .header("Content-Type", content_type)
                 .send(body)
                 .map_err(network),
             _ => with_header(self.agent.post(url))
-                .header("Content-Type", "application/json")
+                .header("Content-Type", content_type)
                 .send(body)
                 .map_err(network),
         }
@@ -256,6 +281,34 @@ impl Hub for HttpHub {
             .get("id")
             .and_then(serde_json::Value::as_i64)
             .ok_or_else(|| HubError::Protocol("the report answer has no id".to_owned()))
+    }
+
+    fn note(&mut self, identity: &Identity, note: &WorldNote) -> Result<i64, HubError> {
+        let body = json!({
+            "text": note.text,
+            "map": note.map,
+            "build": note.build,
+            "server": note.server,
+            "view": note.view,
+            "hit": note.hit,
+            "normal": note.normal,
+            "shader": note.shader,
+            "surface": note.surface,
+            "lighting": note.lighting,
+            "distance": note.distance,
+            "entity": note.entity,
+        });
+        let answer = self.send(Some(identity), "POST", "/v1/note", Some(body))?;
+        answer
+            .get("id")
+            .and_then(serde_json::Value::as_i64)
+            .ok_or_else(|| HubError::Protocol("the note answer has no id".to_owned()))
+    }
+
+    fn note_image(&mut self, identity: &Identity, id: i64, jpeg: &[u8]) -> Result<(), HubError> {
+        let path = format!("/v1/note/{id}/image");
+        self.send_bytes(Some(identity), "PUT", &path, jpeg, "image/jpeg")
+            .map(|_| ())
     }
 
     fn set_bio(&mut self, identity: &Identity, bio: &str) -> Result<Profile, HubError> {

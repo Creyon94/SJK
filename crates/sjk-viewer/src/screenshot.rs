@@ -53,6 +53,8 @@ pub(crate) struct Request {
     format: Format,
     name: Option<String>,
     silent: bool,
+    /// The world note (its identity service tag) that also gets a smaller copy.
+    note: Option<u64>,
 }
 
 impl Request {
@@ -62,7 +64,13 @@ impl Request {
             format: Format::Jpeg,
             name: Some(name.to_owned()),
             silent: true,
+            note: None,
         }
+    }
+
+    /// Also hand a smaller copy to the identity service for the world note `tag`.
+    pub(crate) fn for_note(self, tag: Option<u64>) -> Self {
+        Self { note: tag, ..self }
     }
 }
 
@@ -94,6 +102,7 @@ pub(crate) fn parse_request(tokens: &[String]) -> Result<Option<Request>, String
         format,
         name,
         silent,
+        note: None,
     }))
 }
 
@@ -112,6 +121,7 @@ struct Readback {
     path: PathBuf,
     format: Format,
     silent: bool,
+    note: Option<u64>,
 }
 
 /// One-request-at-a-time asynchronous screenshot readback and writer.
@@ -203,6 +213,7 @@ impl Manager {
             path,
             format: request.format,
             silent: request.silent,
+            note: request.note,
         });
         Ok(true)
     }
@@ -285,6 +296,14 @@ impl Manager {
                 Format::Png => capture::write_png(&readback.path, readback.size, &pixels),
                 Format::Jpeg => capture::write_jpeg(&readback.path, readback.size, &pixels),
             };
+            if let Some(tag) = readback.note {
+                match capture::preview_jpeg(readback.size, &pixels) {
+                    Ok(jpeg) => crate::player_identity::note_image(tag, jpeg),
+                    Err(error) => {
+                        crate::log::progress(format_args!("note picture not sent: {error}"))
+                    }
+                }
+            }
             let message = match result {
                 Ok(()) if readback.silent => String::new(),
                 Ok(()) => format!("Wrote {}", readback.path.display()),

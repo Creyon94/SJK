@@ -8,7 +8,7 @@
 
 use crate::hub::{Hub, HubError};
 use crate::keys::Identity;
-use crate::report::BugReport;
+use crate::report::{BugReport, WorldNote};
 use crate::wire::{Presence, Profile, names_match};
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -84,9 +84,11 @@ pub struct Snapshot {
     pub revision: u64,
     /// The outcome of the last bug report sent with [`Service::report`].
     pub report: Option<ReportOutcome>,
+    /// The outcome of the last world note sent with [`Service::note`].
+    pub note: Option<ReportOutcome>,
 }
 
-/// What became of a bug report.
+/// What became of a bug report or a world note.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub struct ReportOutcome {
     /// Counts reports sent, so a reader can tell a new outcome from the last one.
@@ -109,6 +111,7 @@ impl Snapshot {
             notice: None,
             revision: 0,
             report: None,
+            note: None,
         }
     }
 
@@ -131,8 +134,15 @@ enum Command {
     SetBio(String),
     LookUp(String),
     Report(BugReport),
+    /// A world note and the tag its picture will come with.
+    Note(u64, WorldNote),
+    /// The picture of the note tagged so.
+    NoteImage(u64, Vec<u8>),
     Stop,
 }
+
+/// Notes whose pictures may still come, kept by tag: the newest few only.
+const NOTES_AWAITING_PICTURES: usize = 8;
 
 /// Builds the hub client for an address; `Err` for an address that cannot be used.
 pub type HubFactory = Box<dyn Fn(&str) -> Result<Box<dyn Hub>, HubError> + Send>;
@@ -158,6 +168,30 @@ struct Worker {
     due_poll: Instant,
     backoff: Duration,
     lookups: Vec<String>,
+    /// Notes the hub took, as (tag, hub id), while their pictures may come.
+    notes_sent: Vec<(u64, i64)>,
+}
+
+/// What the player is told of a report or a note: what the hub stored it as, or why
+/// it did not.
+fn outcome_of(serial: u64, outcome: Result<String, HubError>) -> ReportOutcome {
+    match outcome {
+        Ok(message) => ReportOutcome {
+            serial,
+            sent: true,
+            message,
+        },
+        Err(HubError::Rejected { message, .. }) => ReportOutcome {
+            serial,
+            sent: false,
+            message,
+        },
+        Err(error) => ReportOutcome {
+            serial,
+            sent: false,
+            message: error.to_string(),
+        },
+    }
 }
 
 fn lock(snapshot: &Mutex<Snapshot>) -> MutexGuard<'_, Snapshot> {
@@ -190,6 +224,7 @@ impl Worker {
             due_poll: now,
             backoff: RETRY_MIN,
             lookups: Vec::new(),
+            notes_sent: Vec::new(),
         }
     }
 
@@ -244,6 +279,8 @@ impl Worker {
             }
             Command::SetBio(bio) => self.set_bio(&bio),
             Command::Report(report) => self.report(&report),
+            Command::Note(tag, note) => self.note(tag, &note),
+            Command::NoteImage(tag, jpeg) => self.note_image(tag, &jpeg),
             Command::LookUp(key_id) => self.lookups.push(key_id),
             Command::Stop => self.release(),
         }
@@ -275,6 +312,37 @@ impl Worker {
         self.due_poll = now;
     }
 
+    fn note(&mut self, tag: u64, note: &WorldNote) {
+        let outcome = match (self.hub.as_mut(), self.registered) {
+            (Some(hub), true) => hub.note(&self.identity, note),
+            _ => Err(HubError::Protocol(
+                "not connected to the hub (is identity on, cl_identity 1?)".to_owned(),
+            )),
+        };
+        if let Ok(id) = outcome {
+            if self.notes_sent.len() >= NOTES_AWAITING_PICTURES {
+                self.notes_sent.remove(0);
+            }
+            self.notes_sent.push((tag, id));
+        }
+        self.update(|snapshot| {
+            let serial = snapshot.note.as_ref().map_or(1, |last| last.serial + 1);
+            snapshot.note = Some(outcome_of(serial, outcome.map(|id| format!("note #{id}"))));
+        });
+    }
+
+    /// Attach `jpeg` to the note tagged `tag`, if the hub took that note. A picture
+    /// that fails leaves the note as it is.
+    fn note_image(&mut self, tag: u64, jpeg: &[u8]) {
+        let Some(index) = self.notes_sent.iter().position(|(sent, _)| *sent == tag) else {
+            return;
+        };
+        let (_, id) = self.notes_sent.remove(index);
+        if let Some(hub) = self.hub.as_mut() {
+            let _ = hub.note_image(&self.identity, id, jpeg);
+        }
+    }
+
     fn report(&mut self, report: &BugReport) {
         let outcome = match (self.hub.as_mut(), self.registered) {
             (Some(hub), true) => hub.report(&self.identity, report),
@@ -284,23 +352,10 @@ impl Worker {
         };
         self.update(|snapshot| {
             let serial = snapshot.report.as_ref().map_or(1, |last| last.serial + 1);
-            snapshot.report = Some(match outcome {
-                Ok(id) => ReportOutcome {
-                    serial,
-                    sent: true,
-                    message: format!("report #{id}"),
-                },
-                Err(HubError::Rejected { message, .. }) => ReportOutcome {
-                    serial,
-                    sent: false,
-                    message,
-                },
-                Err(error) => ReportOutcome {
-                    serial,
-                    sent: false,
-                    message: error.to_string(),
-                },
-            });
+            snapshot.report = Some(outcome_of(
+                serial,
+                outcome.map(|id| format!("report #{id}")),
+            ));
         });
     }
 
@@ -465,6 +520,8 @@ pub struct Service {
     commands: Sender<Command>,
     snapshot: Arc<Mutex<Snapshot>>,
     finished: Mutex<Receiver<()>>,
+    /// The last tag given to a note ([`Service::note`]).
+    note_tags: std::sync::atomic::AtomicU64,
 }
 
 impl Service {
@@ -499,6 +556,7 @@ impl Service {
             commands,
             snapshot,
             finished: Mutex::new(finished),
+            note_tags: std::sync::atomic::AtomicU64::new(0),
         }
     }
 
@@ -531,6 +589,22 @@ impl Service {
     /// Send a bug report; its outcome arrives in [`Snapshot::report`].
     pub fn report(&self, report: BugReport) {
         let _ = self.commands.send(Command::Report(report));
+    }
+
+    /// Send a world note; its outcome arrives in [`Snapshot::note`]. The answer tags
+    /// the note for [`Service::note_image`].
+    pub fn note(&self, note: WorldNote) -> u64 {
+        let tag = self
+            .note_tags
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+            + 1;
+        let _ = self.commands.send(Command::Note(tag, note));
+        tag
+    }
+
+    /// The picture of the note tagged `tag`, a JPEG; sent once the hub took the note.
+    pub fn note_image(&self, tag: u64, jpeg: Vec<u8>) {
+        let _ = self.commands.send(Command::NoteImage(tag, jpeg));
     }
 
     /// Fetch a player's profile (their bio) into [`Snapshot::profiles`].
@@ -578,7 +652,7 @@ mod tests {
             self.log.lock().unwrap().clone()
         }
 
-        fn note(&self, line: String) -> Result<(), HubError> {
+        fn record(&self, line: String) -> Result<(), HubError> {
             self.log.lock().unwrap().push(line);
             if self.fail.load(Ordering::SeqCst) {
                 Err(HubError::Network("down".to_owned()))
@@ -604,16 +678,16 @@ mod tests {
         fn register(&mut self, _: &Identity, name: Option<&str>) -> Result<Profile, HubError> {
             match name {
                 Some(name) => self
-                    .note(format!("register {name}"))
+                    .record(format!("register {name}"))
                     .map(|()| profile(name)),
-                None => self.note("register".to_owned()).map(|()| profile("")),
+                None => self.record("register".to_owned()).map(|()| profile("")),
             }
         }
         fn set_bio(&mut self, _: &Identity, bio: &str) -> Result<Profile, HubError> {
-            self.note(format!("bio {bio}")).map(|()| profile(""))
+            self.record(format!("bio {bio}")).map(|()| profile(""))
         }
         fn profile(&mut self, key_id: &str) -> Result<Profile, HubError> {
-            self.note(format!("lookup {key_id}"))
+            self.record(format!("lookup {key_id}"))
                 .map(|()| profile("Other"))
         }
         fn claim(
@@ -623,17 +697,23 @@ mod tests {
             slot: u8,
             name: &str,
         ) -> Result<(), HubError> {
-            self.note(format!("claim {server} {slot} {name}"))
+            self.record(format!("claim {server} {slot} {name}"))
         }
         fn release(&mut self, _: &Identity, server: &str) -> Result<(), HubError> {
-            self.note(format!("release {server}"))
+            self.record(format!("release {server}"))
         }
         fn presence(&mut self, server: &str) -> Result<Vec<Presence>, HubError> {
-            self.note(format!("presence {server}"))
+            self.record(format!("presence {server}"))
                 .map(|()| self.roster.lock().unwrap().clone())
         }
         fn report(&mut self, _: &Identity, report: &BugReport) -> Result<i64, HubError> {
-            self.note(format!("report {}", report.text)).map(|()| 7)
+            self.record(format!("report {}", report.text)).map(|()| 7)
+        }
+        fn note(&mut self, _: &Identity, note: &WorldNote) -> Result<i64, HubError> {
+            Fake::record(self, format!("note {} {}", note.text, note.shader)).map(|()| 9)
+        }
+        fn note_image(&mut self, _: &Identity, id: i64, jpeg: &[u8]) -> Result<(), HubError> {
+            Fake::record(self, format!("image {id} {} bytes", jpeg.len()))
         }
     }
 
@@ -838,6 +918,41 @@ mod tests {
         worker.handle(Command::LookUp("0123456789abcdef".into()), t0);
         worker.tick(t0);
         assert!(lock(&snapshot).profiles.contains_key("0123456789abcdef"));
+    }
+
+    #[test]
+    fn notes_go_to_the_hub_and_their_pictures_follow() {
+        let fake = Fake::default();
+        let t0 = Instant::now();
+        let (mut worker, snapshot) = worker(&fake, t0);
+        let note = WorldNote {
+            text: "too shiny".to_owned(),
+            shader: "textures/vjun/newfloor_vjun".to_owned(),
+            ..WorldNote::default()
+        };
+        // Before registering, a note is refused and its picture goes nowhere.
+        worker.handle(Command::Note(1, note.clone()), t0);
+        worker.handle(Command::NoteImage(1, vec![0; 4]), t0);
+        assert!(!lock(&snapshot).note.clone().unwrap().sent);
+        assert!(fake.log().is_empty());
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.tick(t0);
+        worker.handle(Command::Note(2, note), t0);
+        let outcome = lock(&snapshot).note.clone().unwrap();
+        assert!(outcome.sent);
+        assert_eq!((outcome.serial, outcome.message.as_str()), (2, "note #9"));
+        // A picture for an unknown tag is dropped; the note's goes to its hub id once.
+        worker.handle(Command::NoteImage(5, vec![0; 4]), t0);
+        worker.handle(Command::NoteImage(2, vec![0; 4]), t0);
+        worker.handle(Command::NoteImage(2, vec![0; 4]), t0);
+        let log = fake.log();
+        assert_eq!(
+            log.iter()
+                .filter(|line| line.starts_with("image"))
+                .collect::<Vec<_>>(),
+            ["image 9 4 bytes"]
+        );
+        assert!(log.contains(&"note too shiny textures/vjun/newfloor_vjun".to_owned()));
     }
 
     #[test]
