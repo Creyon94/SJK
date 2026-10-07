@@ -199,9 +199,10 @@ For the real thing, [world_shot.rs](../crates/sjk-viewer/src/world_shot.rs) buil
 the whole client without a window on a map and renders full frames (the world,
 the menus over it, their fonts) into an image read back to
 `target/world-shots/`, from cameras the tests place; it needs a GPU adapter as
-well as the game data (`world_shot -- --ignored --nocapture`). Its tests draw
-duel6's plan from above, views from its spawns, the SJK UI's camera tour and
-the SJK UI over the map. Their throwaway profile keeps the identity and the
+well as the game data (`world_shot -- --ignored --nocapture --test-threads=1`;
+two clients at once on one GPU can fail). Its tests draw duel6's plan from
+above, views from its spawns, the SJK UI's camera tour, the SJK UI over the map
+and the player screen on duel6's stage (each page, modern and SJK UI). Their throwaway profile keeps the identity and the
 update check off.
 
 The pictures go to `target/menu-snapshots/`. They approximate the UI renderer

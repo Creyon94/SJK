@@ -470,6 +470,54 @@ mod tests {
         });
     }
 
+    /// The player screen on duel6's stage: the model standing where the
+    /// route puts it, seen from the route's camera, in the style `style`.
+    fn duel6_player(style: &'static str, name: &'static str) {
+        on_big_stack(move || {
+            let menu = menu::ClientMenu::new(true, String::new());
+            let cvars = [
+                ("ui_menuStyle", style),
+                (crate::settings::quick::HIDE_CVAR, "1"),
+            ];
+            let Some((mut gpu, _profile)) =
+                open("maps/mp/duel6.bsp", [1920, 1080], Some(menu), &cvars)
+            else {
+                return;
+            };
+            let _ = frame(&mut gpu, 4);
+            if let (Some(menu), Some(console)) = (gpu.client_menu.as_mut(), gpu.console.as_ref()) {
+                menu.open_player(console, crate::player_menu::ReturnTarget::MainMenu);
+            }
+            // Through the cut to the stage.
+            let _ = frame(&mut gpu, 2);
+            gpu.ui_epoch -= std::time::Duration::from_millis(3_000);
+            let path = shoot(&mut gpu, 6, name);
+            println!("{}", path.display());
+            // The Saber page (the saber thrown out to its shot), the Force page.
+            for (page, row, suffix) in [(1, 2, "saber"), (2, 4, "force")] {
+                if let Some(menu) = gpu.client_menu.as_mut() {
+                    menu.player_page_for_shot(page, row);
+                }
+                let _ = frame(&mut gpu, 2);
+                gpu.ui_epoch -= std::time::Duration::from_millis(3_000);
+                let path = shoot(&mut gpu, 30, &format!("{name}-{suffix}"));
+                println!("{}", path.display());
+            }
+        });
+    }
+
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_player_modern() {
+        duel6_player("modern", "duel6-player-modern");
+    }
+
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_player_sjk() {
+        duel6_player("sjk", "duel6-player-sjk");
+    }
+
     /// Hand-placed candidates for the menu's camera tour on duel6, for review.
     #[test]
     #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]

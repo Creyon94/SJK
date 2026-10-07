@@ -7,6 +7,25 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## SJK UI: Character on duel6's stage
+
+SJK-only branch `personal/sjk-ui-character` (07/10/2026, based on `af22dd7`, Windows
+11): Sol asked for the character creator in the SJK UI "on the map we have, like
+JKR did a bit, but our own way" ([sjk-ui.md](sjk-ui.md), Character). duel6 gets a
+player stage on the south-west path below the tower and a saber shot (routes
+placed with the world shots), reached by cuts on the toured map; the player
+screen draws the modern screen's state in a new SJK view: the name as title,
+tabs, the form's rows and model grid in a column on the left, the model on the
+stage at the right with a gallery caption. The kit gained a cycler, colour
+chips, buttons and rank pips. A click on a row outside its control only chooses
+the row; slider rows map the pointer over their track. From a game, where there
+is no stage, the screen keeps its classic pages. Unit tests cover the layout's
+fit, power names in sentence case and the slider's pointer mapping; the
+sjk-viewer tests passed; the world shots rendered the three pages in the SJK UI
+and the modern screen on the stage. No game was started: the pointer on the new
+view, the cut's timing and the model at other window sizes are unverified in a
+running client.
+
 ## SJK UI: the camera tour of mp/duel6, and off-screen world shots
 
 SJK-only branch `personal/menu-camera` (07/10/2026, based on `39323fe`, Windows 11):

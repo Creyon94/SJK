@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 07/10/2026 | - | SJK UI Character: the character on duel6's stage beside the form
+- 61e1ea1 |  | SJK UI: Character, the character standing on duel6 beside the form
 + 07/10/2026 | - | SJK UI: a camera tour of mp/duel6 behind the menus; off-screen world shots
 - 6d14934 |  | SJK UI: a camera tour of mp/duel6 behind the menus; off-screen world shots
 + 07/10/2026 | - | SJK UI Settings: categories on a lit rail, rows, the setting explained

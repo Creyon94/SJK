@@ -1949,6 +1949,19 @@ test: Right moves to the servers (the arc turns to them), Enter joins; Left come
 test: Settings, Character, the browser: open in the classic look; Back returns to this page.
 note: Text too small at 4K, ring too faint, colours off? Tell Claude which part.
 
+[sjk-ui-character]
+status: personal
+area: Menus & settings
+title: SJK UI Character: your character on duel6's path below the tower, the form beside
+change: Main page > Character: the camera cuts to the stage; the model wears every change at once.
+change: Saber tab: the model throws the saber, which floats before the camera; Force: two columns.
+test: Change the model (grid click, the arrows, the wheel): the one on the stage swaps at once.
+test: Name, Search: click the field, type, Enter. Click a row's name: only chooses the row.
+test: Saber: chips pick colours, drag a slider or type a digit; Dual adds the second rows.
+test: Force: pick a side card, step ranks, Apply; Esc with a draft drops it (as before).
+test: Esc: the camera cuts back to the tour. From a game, Profile still shows classic pages.
+note: Model too small or cut off at your size? Saber in front of the face? Tell Claude.
+
 [sjk-menu-tour]
 status: personal
 area: Menus & settings

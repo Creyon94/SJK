@@ -97,6 +97,20 @@ impl PlayerMenu {
         if row >= count {
             return PlayerMenuResult::None;
         }
+        // SJK UI: a click on a row beside its control only chooses the row.
+        if self.is_sjk()
+            && event
+                .position
+                .is_some_and(|position| self.sjk_beside_control(token, position))
+        {
+            if self.name_editing {
+                self.name_editing = false;
+                self.apply(console);
+            }
+            self.search_editing = false;
+            self.selected = row;
+            return PlayerMenuResult::None;
+        }
         if self.name_editing {
             // A click elsewhere commits the name like Enter would.
             self.name_editing = false;
@@ -147,7 +161,12 @@ impl PlayerMenu {
             return false;
         };
         if let Some(channel) = row.channel() {
-            let value = (self.canvas.slider_ratio(rect, pointer_x) * 255.0).round() as u8;
+            let ratio = if self.is_sjk() {
+                Self::sjk_slider_ratio(rect, pointer_x)
+            } else {
+                self.canvas.slider_ratio(rect, pointer_x)
+            };
+            let value = (ratio * 255.0).round() as u8;
             self.saber.set_channel(row.second(), channel, value);
         } else if row.is_blade() {
             let chip = palette_index(rect, pointer_x, PALETTE.len());

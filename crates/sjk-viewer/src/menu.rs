@@ -384,6 +384,7 @@ impl ClientMenu {
                 ClientPhase::Settings => {
                     self.sjk_settings_on_show() && !self.settings.picker_open()
                 }
+                ClientPhase::Player => self.player.is_sjk(),
                 _ => false,
             }
     }
@@ -1097,5 +1098,12 @@ impl ClientMenu {
     pub(crate) fn open_player(&mut self, console: &ViewerConsole, target: ReturnTarget) {
         self.player.open(console, target);
         self.state.open_player();
+    }
+
+    /// Show the player screen's page `index` with row `row` selected (world
+    /// shots).
+    #[cfg(test)]
+    pub(crate) fn player_page_for_shot(&mut self, index: usize, row: usize) {
+        self.player.show_page_for_shot(index, row);
     }
 }
