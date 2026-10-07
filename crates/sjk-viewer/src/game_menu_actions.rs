@@ -25,7 +25,10 @@ impl GpuState {
     }
 
     pub(crate) fn back_or_close_game_menu(&mut self) {
-        if matches!(self.game_menu_page, GameMenuPage::Main | GameMenuPage::Shot) {
+        if self.in_game_menu.is_sjk() {
+            // Back to the entry that opened the page.
+            self.sjk_back();
+        } else if matches!(self.game_menu_page, GameMenuPage::Main | GameMenuPage::Shot) {
             self.game_menu = false;
             self.capture_pointer();
         } else if self.game_menu_page.is_vote_page()
@@ -44,6 +47,9 @@ impl GpuState {
 
     pub(crate) fn activate_game_menu_row(&mut self) {
         if self.in_game_menu.is_classic() && self.activate_classic_row() {
+            return;
+        }
+        if self.in_game_menu.is_sjk() && self.activate_sjk_ui_row() {
             return;
         }
         match self.game_menu_page {
@@ -214,7 +220,7 @@ impl GpuState {
 
     /// Hand over to the shell's server browser (japro's in-game entry); it
     /// returns to the game menu when closed, and a join leaves this server.
-    fn open_browser_from_game(&mut self) {
+    pub(crate) fn open_browser_from_game(&mut self) {
         if let (Some(menu), Some(console)) = (&mut self.client_menu, &self.console) {
             menu.open_browser_from_game(console);
             menu.refresh_servers_if_stale();
@@ -250,7 +256,7 @@ impl GpuState {
         self.send_menu_reliable(if yes { "vote yes" } else { "vote no" });
     }
 
-    fn send_menu_reliable(&mut self, command: &str) {
+    pub(crate) fn send_menu_reliable(&mut self, command: &str) {
         if let Some(session) = &mut self.live_session
             && let Err(error) = session.send_reliable_command(command.as_bytes())
         {

@@ -2011,6 +2011,22 @@ test: Join a locked server: the password card (dots); Join by address: a bad one
 test: Double-click a row joins. Open it from the in-game menu too: Esc says Game menu.
 note: Picture stretched, a column cut off, or a key not answering? Tell Claude which.
 
+[sjk-ui-ingame]
+status: personal
+area: Menus & settings
+title: SJK UI: the in-game menu (Escape in a match)
+change: Escape in a match: an arc of entries on the left, the match still drawing, a card right.
+change: The card: server, map, mode and limits, your score and place, time left, players.
+change: Settings and Servers open in the SJK UI over the match; Esc says Game menu.
+test: ui_menuStyle sjk, join a local server, press Escape: arc left, card right, keys at bottom.
+test: Up/Down choose (gold mark follows), Enter opens; Esc on a page returns to its entry.
+test: Team: join, spectate; in a team game your side is quiet and skipped by the keys.
+test: Vote: call a vote (map list pages with More maps); with a vote on, Vote yes / Vote no.
+test: Settings and Servers open over the match; Esc comes back on the same entry.
+test: Character opens the classic pages; Shot controls; Sol JK (What's new, Report a bug).
+test: Leave: Leave the server and Quit to desktop turn ember when chosen; Stay goes back.
+note: Card numbers wrong (score, place, clock), or text over the match hard to read? Tell Claude.
+
 [sjk-ui-centre]
 status: personal
 area: Menus & settings

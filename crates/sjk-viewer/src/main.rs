@@ -1682,8 +1682,18 @@ impl GpuState {
                 vote_active: self.vote_active(),
                 _frame: std::marker::PhantomData,
             };
-            let (vertices, font) = self.game_fonts.menu(&mut self.text_vertices, &self.ui_font);
-            self.in_game_menu.append(view, vertices, font, viewport);
+            if self.in_game_menu.is_sjk() && view.page != GameMenuPage::Shot {
+                self.refresh_game_menu_card();
+                let target = ingame_menu::sjk_view::text_target(
+                    &mut self.game_fonts,
+                    &mut self.text_vertices,
+                    &self.ui_font,
+                );
+                self.in_game_menu.append_sjk(view, target, viewport);
+            } else {
+                let (vertices, font) = self.game_fonts.menu(&mut self.text_vertices, &self.ui_font);
+                self.in_game_menu.append(view, vertices, font, viewport);
+            }
         }
         if scoreboard_visible {
             scoreboard::append_overlay(self, viewport, text_scale * 1.05);
@@ -1712,6 +1722,7 @@ impl GpuState {
         self.append_version_overlay(viewport, text_scale);
         let launcher = self.game_menu
             && self.game_menu_page != GameMenuPage::Shot
+            && !self.in_game_menu.is_sjk()
             && !console_covers_frame
             && !self.text_dialog.is_open();
         if launcher {

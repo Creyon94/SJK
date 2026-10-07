@@ -86,6 +86,22 @@ impl GpuState {
                 return;
             }
             match key {
+                // The SJK UI's arc passes over rows that cannot be taken.
+                KeyCode::ArrowUp
+                | KeyCode::KeyW
+                | KeyCode::ArrowDown
+                | KeyCode::KeyS
+                | KeyCode::Tab
+                    if self.in_game_menu.is_sjk() =>
+                {
+                    let forward = !matches!(key, KeyCode::ArrowUp | KeyCode::KeyW);
+                    self.game_menu_row = self.in_game_menu.sjk_step(
+                        self.game_menu_page,
+                        self.game_menu_row,
+                        self.game_menu_row_count(),
+                        forward,
+                    );
+                }
                 KeyCode::ArrowUp | KeyCode::KeyW => {
                     let count = self.game_menu_row_count();
                     self.game_menu_row = self

@@ -9,8 +9,8 @@ its version; until then [classic+](classic-plus.md) stays the default and keeps
 getting fixes.
 
 Status (07/10/2026): the main page, Settings (with the key bindings),
-Character, What's new, Update, Identity and Servers (the server browser) are
-done. Every other screen opens in its classic+ version
+Character, What's new, Update, Identity, Servers (the server browser) and the
+in-game menu are done. Every other screen opens in its classic+ version
 (`MenuStyle::classic_screens`), which covers the map as the classic style does.
 To try it: Settings > Gameplay > Interface > Menu style > SJK, or
 `ui_menuStyle sjk`; restart for the SJK UI's map behind the main page.
@@ -360,6 +360,60 @@ half and on on its right half.
 Joining shows the classic loading screen for now; mp/duel6 has no gate to fly
 through.
 
+## In-game menu
+
+[sjk_view.rs](../crates/sjk-viewer/src/ingame_menu/sjk_view.rs) draws it and
+[sjk_actions.rs](../crates/sjk-viewer/src/ingame_menu/sjk_actions.rs) holds what
+its entries do. Escape in a match opens it; the match keeps drawing, under a
+dark fade from the left edge (deep there, clear by the middle), on the main
+page's 16:9 frame.
+
+- **Arc:** a compact version of the main page's: the page's entries on an arc
+  whose centre lies off the frame's left edge (radius 580, the middle entry at x
+  440), 68 apart (50 for eleven or twelve, 36 for more, smaller type), the
+  chosen one gold and larger with a line under it saying what it opens; a page's
+  name stands small over its first entry. Beside them a lit holo rail with a
+  gold mark that eases to the chosen entry, and inside the curve SJK's emblem
+  in its turning ring. Leaving entries are ember when chosen; Back and Stay are
+  quiet, as is the main page's Leave.
+- **Pages:**
+  - Main: Resume, Team, Vote, Character, Settings, Servers, Shot controls, Sol
+    JK, Leave.
+  - Team: Join the game and Spectate, or in a team game Auto-join, Red team,
+    Blue team (each with its colour and players) and Spectate; the side the
+    player is on is quiet ("Your team", "You are watching") and passed over by
+    the keys. In Siege, Team opens the class list (the shared rows, a row's
+    detail after its label).
+  - Vote: Vote yes and Vote no (the vote on, with its counts, under them;
+    passed over while none is on), Call a vote; without a vote on, Vote opens
+    Call a vote directly, whose lists (map, game type, kick, warmup, limits)
+    are the shared call-vote lists. Voting or calling a vote returns to the
+    match, as retail's pop-ups do.
+  - Sol JK: What's new, Credits, Identity, Report a bug.
+  - Leave: Leave the server, Quit to desktop (ember when chosen), Stay.
+- **Match card:** on the right (x 1360, 464 wide) over its own fade: the
+  server's name with its colours and its address, a rule, the map without
+  `mp/`, its mode and limits in words ("FFA, 30 frags, 20 minutes"), then the
+  numbers: the player's score and place ("3rd", "of 14"; "Tied" when tied) or,
+  in a team game, both teams' scores (the player's marked "Your team") and the
+  player's score, and the clock (time left of the time limit, or played); under
+  a rule how many play, watch and fit, and "You are spectating" for a
+  spectator. It reads the live session each frame and the server's info once
+  a second; without a server (a map explored alone) it hides.
+- **Keys:** bottom centre: Up Down choose, Enter open, Esc resume (back on a
+  page).
+
+Escape on a page returns to the main page on the entry that opened it (a
+call-vote list to its row of Call a vote); on the main page it resumes. The
+pointer chooses by hovering and acts with a click. Character, Settings and
+Servers hand over to their screens over the match and come back on their
+entry: Settings and Servers are the SJK UI's, opened on the category last shown
+and with "Game menu" as their way back; Character opens the classic pages, as
+the player screen does in a game (there is no stage there). Shot controls
+opens the shot panel in its own look. Server info and Controls have no entries:
+the card shows the server and Settings holds the key bindings. The Report a bug
+button the other looks put at the bottom is left out; Sol JK's page has it.
+
 ## Implementation
 
 - `ui_menuStyle` has a third value, `sjk` (`menu::style::MenuStyle::Sjk`).
@@ -392,6 +446,22 @@ through.
   `browser_key`; its pointer to `sjk_browser_pointer` before the shared one.
   The chosen server's levelshot comes through the create-game screen's cache
   (`CreateGame::service_levelshot_for`, which also gives its size).
+- The in-game menu keeps the in-game menu's pages, rows and actions
+  (`ingame_menu::InGameMenu`, `Page`): `InGameMenu::is_sjk` picks the SJK UI's
+  look (`is_classic` no longer covers it), `sjk_view::prepare` writes the rows
+  it words its own way (Main, Team, Vote, Sol JK, Leave) with their hints, and
+  the shared rows (Siege, the call-vote lists) keep theirs, a "label  /
+  detail" row splitting into label and hint. `GpuState::activate_sjk_ui_row`
+  acts on its own rows before the shared actions; `back_or_close_game_menu`
+  goes to `sjk_view::parent` (the entry that opened the page). The keys pass
+  over rows that cannot be taken (`InGameMenu::sjk_step`); a screen handed
+  over to returns on its entry (`InGameMenu::return_row`, read by
+  `MenuAction::ReturnToGameMenu`). The match card (`sjk_view::Card`) is
+  refreshed from the session by `GpuState::refresh_game_menu_card`. Settings
+  opened from it is `ClientMenu::open_sjk_settings_from_game`; Settings' and
+  Key bindings' top bar take their way back from `settings::Rail::back`. The 2D
+  pass now also runs while the game menu is open without a session
+  (`frame_overlays.rs`), which an explored map's game menu needed too.
 - Fonts: `text::load_family` rasterizes a family's two faces into one atlas, as
   Inter's, taking glyphs a face lacks from its fallback family. The SJK UI's
   families load the first time the style is on, rasterized at 1.5x (glyphs 144
@@ -404,7 +474,10 @@ through.
   own atlas. `world_shot::tests::duel6_sjk_menu` renders the real frames: the
   client built without a window on duel6, the SJK UI over the touring camera;
   `duel6_sjk_browser` the browser on made-up servers (one answered status),
-  a search and the password prompt.
+  a search and the password prompt; `duel6_sjk_ingame` the in-game menu over
+  duel6 on a made-up match (`Card::for_shot`, `InGameMenu::sjk_for_shot`):
+  the main page, Team in a CTF, a vote on, the installed maps to vote for,
+  Leave, a spectator's card and Settings opened from it.
 
 ## Plan
 
@@ -414,9 +487,9 @@ classic version:
 1. The dialogs (the report box, the import page) and Credits.
 2. Settings' search finding key bindings too (it finds settings; Key bindings'
    finds keys).
-3. The loading screen, the in-game menu and the scoreboard (proposals to Sol
-   on 07/10/2026; its Setup and Controls would open Settings over the match,
-   its player screen a version without the stage).
+3. The loading screen and the scoreboard (proposals to Sol on 07/10/2026),
+   and a player screen for the in-game menu without the stage (it opens the
+   classic pages for now).
 4. Create a game.
 
 Once all of them are done, `sjk` becomes the default `ui_menuStyle`. mp/duel6 has

@@ -28,6 +28,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Even letter spacing in the chat font: most letters sat against the left of their space while C, G, O and a few others sat against the right, leaving holes inside words. The menu and classic HUD fonts had the same fault, less visibly _(Sol)_
 - Bug reports and world notes carry the name you play under, so the SJK team knows who sent them; the hub adds it to your identity's name history like the names it sees on servers _(Sol)_
 - SJK UI Servers: the server browser over the map. Favourites and the filters for empty, full and locked servers and the game type sit on the left; the list sorts by any column and shows each server's mod and signal bars; the chosen server shows its map's picture, its numbers and who is playing. The keyboard reaches everything, and the password and address prompts match the rest. Searching finds servers by their name without its colour codes _(Sol)_
+- SJK UI in-game menu: Escape in a match keeps the match on screen with the menu on an arc down its left side (Resume, Team, Vote, Character, Settings, Servers, Shot controls, Sol JK, Leave) and a card on the right with the server, map, mode and limits, your score and place, the time left and who is playing. Settings and Servers open in the SJK UI over the match, and Escape always goes back to the entry you came from _(Sol)_
 
 ## 2026.1007.2 (Alpha) | 07/10/2026
 

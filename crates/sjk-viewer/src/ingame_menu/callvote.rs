@@ -369,6 +369,21 @@ impl State {
     }
 }
 
+/// The row of the call-vote page that opens `page`, one of its lists (the
+/// SJK UI's Escape returns to it).
+pub(super) fn opening_row(page: Page) -> Option<usize> {
+    match page {
+        Page::VoteMap => Some(2),
+        Page::VoteGameType => Some(3),
+        Page::VoteKick => Some(4),
+        Page::VoteClientKick => Some(5),
+        Page::VoteWarmup => Some(6),
+        Page::VoteTimeLimit => Some(7),
+        Page::VoteFragLimit => Some(8),
+        _ => None,
+    }
+}
+
 fn fill(rows: &mut [String], values: &[&str]) -> usize {
     for (row, value) in rows.iter_mut().zip(values) {
         row.push_str(value);
@@ -381,5 +396,21 @@ fn send(vote: sjk_client::LegacyCallVote<'_>) -> Action {
     match sjk_client::write_legacy_callvote(&mut command, vote) {
         Ok(()) => Action::Send(command),
         Err(_) => Action::None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn each_list_opens_from_its_row() {
+        let state = State::new();
+        for row in 0..state.row_count(Page::CallVote) {
+            if let Action::Open(page) = state.activate_root(row) {
+                assert_eq!(opening_row(page), Some(row), "{page:?}");
+            }
+        }
+        assert_eq!(opening_row(Page::CallVote), None);
     }
 }
