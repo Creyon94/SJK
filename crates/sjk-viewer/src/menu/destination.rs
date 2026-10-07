@@ -108,6 +108,9 @@ impl ClientMenu {
     /// it, or straight to wherever settings return when the editor was
     /// opened directly.
     pub(super) fn close_keybinds(&mut self, console: &ViewerConsole) -> MenuAction {
+        if self.return_from_bindings(console) {
+            return MenuAction::None;
+        }
         if std::mem::take(&mut self.keybinds_direct) {
             return self.close_settings();
         }

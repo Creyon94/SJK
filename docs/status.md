@@ -7,6 +7,27 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## SJK UI: Settings
+
+SJK-only branch `personal/sjk-ui-settings` (07/10/2026, based on `be3b45d`, Windows
+11): the SJK UI's second screen, Settings ([sjk-ui.md](sjk-ui.md)), as the
+mock-up draws it: the categories down a lit rail with their icons (First setup,
+Display, Graphics, Sound, Mouse, Key bindings, Gameplay, Interface, HUD,
+Scoreboard, Network), the rows under sub-headings with the kit's switches,
+sliders, segments, fields and lists, the focused setting explained on the right
+and the search at the top, over the map. It is the classic+ panels' state with
+its own view, so search, lists, defaults and typed numbers are theirs. Graphics
+gathers the four renderer tabs (`Group::Graphics`); Key bindings opens the
+classic+ ones and comes back. The main page's Settings opens it, and First setup
+at start opens it on First setup. The menu snapshots' rasterizer now rounds
+outlines' corners as the renderer does. Unit tests cover the Graphics group, the
+rail against the classic Setup groups, Tab past Key bindings, opening, switching
+and closing, the way back from the key bindings and First setup in the SJK UI;
+the sjk-viewer tests passed. Off-screen snapshots drew Interface with a changed
+slider, Display with a list open, a search, Graphics scrolled, and 4:3. No game
+was started: the pointer, the pickers over it and the map behind are unverified
+in game.
+
 ## SJK UI: the ring main page and recent servers
 
 SJK-only branch `personal/sjk-ui-ring` (07/10/2026, based on `f780bd8`, Windows 11):

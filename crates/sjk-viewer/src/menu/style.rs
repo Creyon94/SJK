@@ -74,6 +74,7 @@ impl ClientMenu {
     pub(crate) fn set_menu_style(&mut self, style: MenuStyle, console: &ViewerConsole) {
         if style != self.menu_style {
             let classic_screens = self.menu_style.classic_screens();
+            let sjk_settings = self.sjk_settings_on_show();
             self.menu_style = style;
             self.main_selection = 0;
             self.classic.reset();
@@ -81,10 +82,14 @@ impl ClientMenu {
             // An open option panel carries on as the modern screen (the
             // Menu style row itself sits on the Interface panel), on the tab
             // holding the row; between the classic style and the SJK UI,
-            // which share the panels, it stays as it is.
+            // which share the panels, it stays as it is, but for the SJK UI's
+            // own Settings, which hands over to the classic panel.
             if classic_screens != style.classic_screens() {
+                self.leave_sjk_settings();
                 self.leave_classic_panel();
                 self.settings.continue_modern(console);
+            } else if sjk_settings {
+                self.sjk_settings_to_classic(console);
             }
         }
     }

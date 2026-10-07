@@ -8,10 +8,11 @@ is being built screen by screen and becomes SJK's default once every screen has
 its version; until then [classic+](classic-plus.md) stays the default and keeps
 getting fixes.
 
-Status (07/10/2026): the main page is done. Every other screen opens in its
-classic+ version (`MenuStyle::classic_screens`), which covers the map as the
-classic style does. To try it: Settings > Gameplay > Interface > Menu style >
-SJK, or `ui_menuStyle sjk`; restart for the SJK UI's map behind the main page.
+Status (07/10/2026): the main page and Settings are done. Every other screen
+(the key bindings among them) opens in its classic+ version
+(`MenuStyle::classic_screens`), which covers the map as the classic style does.
+To try it: Settings > Gameplay > Interface > Menu style > SJK, or
+`ui_menuStyle sjk`; restart for the SJK UI's map behind the main page.
 
 ## Design
 
@@ -70,7 +71,9 @@ License (licences beside the fonts in `crates/sjk-viewer/assets/fonts`):
 
 Sizes are in pixels of a 1080-line screen and scale with the window's height:
 the main page's entries 44 (chosen 68), server names 27, the player's name 26,
-details 16 to 18, key hints 15 to 17.
+details 16 to 18, key hints 15 to 17; on Settings, its name 48, the categories
+26, sub-headings 22, row names and descriptions 19, the detail's title 32 and
+its facts 17.
 
 `ui_gameFont` (classic game fonts) does not change the SJK UI's type; it keeps
 applying to the classic screens and the in-game text.
@@ -123,13 +126,84 @@ opened it; on the main page it opens Quit's page. The pointer chooses by
 hovering and acts with a click. A server with a password opens the browser's
 password prompt.
 
+## Settings
+
+[sjk_view.rs](../crates/sjk-viewer/src/settings/sjk_view.rs) draws it, and
+[settings.rs](../crates/sjk-viewer/src/menu/sjk/settings.rs) lists its
+categories and opens, switches and closes it. The main page's Settings opens it
+on the category last shown (Display the first time in a run), and First setup at
+start opens it on First setup. It is laid out on the main page's 16:9 frame,
+over the map darkened from the left (95 %) to the right (80 %), as the Settings
+mock-up draws it.
+
+- **Top:** the way back (an Esc key cap, "Main menu", also a click target) and
+  the screen's name, top left; the search pill, top right ("Find a setting", its
+  `/` key, then the number found).
+- **Rail:** the categories down a lit holo line on the left, each with its
+  settings icon: First setup, Display, Graphics, Sound, Mouse, Key bindings,
+  Gameplay, Interface, HUD, Scoreboard, Network. The one on show is gold with a
+  gold bar on the line; none is lit while a search shows its results.
+  - They are the classic+ Setup page's groups (`settings::Group` and tabs), but
+    Graphics gathers the renderer's four tabs (image, lighting, shadows, weather)
+    under their names (`Group::Graphics`).
+  - Key bindings opens the classic+ key bindings (until they get an SJK UI
+    screen); leaving them comes back to the category they were opened from.
+- **Rows:** the open category's rows in a column (x 470 to 1270), 56 tall, under
+  sub-headings (holo, with a rule after them): the name on the left, the control
+  ending at 1226 and the reset arrow after it. Fourteen lines show; a longer
+  category scrolls (wheel, scrollbar), keeping the focused row in view.
+  - Controls, from the kit: a switch (gold with its knob right when on, On or
+    Off after it); a slider (a gold-filled track and its number, which a click
+    or a typed digit opens for typing); segments for a choice of up to three; a
+    field with a caret for a longer list, the display mode, the resolution and
+    the HUD (the last two open their full-screen pickers); a field for text.
+  - The focused row has a soft band and a gold bar at its left; a row changed
+    from its default a gold dot after its name, and when focused the reset arrow.
+  - A list opens under its field (over it near the bottom), its choice in use
+    marked with a gold dot; the controls under it are left out while it is open.
+- **Detail:** on the right (x 1360, 464 wide), the focused setting: its
+  category's icon (a search result's own group's) and its name, what it does,
+  then its default, range or choices, when a change applies (gold), where a
+  search found it and its console name (holo). First setup adds how to import
+  another client's .cfg.
+- **Keys:** bottom right, the keys of what has the keyboard: the focused row's
+  (Enter switch, Left Right change, Enter choices...), Backspace for the default
+  when it changed, Tab for the next category; a list's, a search's or a typed
+  value's own while they are open.
+
+Keys: Up and Down choose a row (Up from the first, or `/`, goes to the search);
+Left and Right change it; Enter switches, opens a list or starts typing;
+Backspace returns it to its default; Tab and `]` (`[` back) open the next
+category, past Key bindings; Escape closes a list, clears a search, then returns
+to the main page. Hovering a row chooses it; a click on a control acts, a click
+on a row's name only chooses it (a switch flips from anywhere on its row); the
+right button returns a row to its default.
+
+The rows are a classic+ panel's (`settings::ClassicRows`), so the search over
+every setting, the lists, the defaults and typed numbers are the classic+
+panels' own; only the drawing and the frame are the SJK UI's. Changing Menu
+style on the screen (it is on Interface) hands over to the classic+ panel of the
+same group (Graphics: the renderer's image tab), or to the modern screen.
+
 ## Implementation
 
 - `ui_menuStyle` has a third value, `sjk` (`menu::style::MenuStyle::Sjk`).
   `MenuStyle::classic_screens` is true for it, so every screen without an SJK UI
   version opens its classic one; the main page dispatches to `menu::sjk::home`.
-  The map is drawn under the SJK UI's main page (`classic_hides_world` leaves it
-  out).
+  `ClientMenu::sjk_screen` says when one of the SJK UI's own screens is on show
+  (the main page, or Settings without a picker open): the map is drawn under it
+  (`classic_hides_world` leaves it out) and its text goes to the UI's families
+  (`append_sjk_screen`).
+- The controls are drawn by `menu::sjk::kit` (the band, switch, slider,
+  segments, field, list, reset arrow, changed dot, sub-heading, search pill and
+  lit rail), in frame pixels (`menu::sjk::Frame`).
+- Settings is the classic+ panel's state with another view: the menu opens a
+  category's rows as the classic+ panels do, keeps `classic_panel` empty and
+  marks the SJK UI's screen open (`sjk::settings::SettingsPage`); the rows'
+  results (`SettingsResult::Classic` for a category, `ClassicCycle` for Tab) are
+  read as the rail's. Pointer tokens are the classic+ panel's (rows, values,
+  segments, reset, list, search, scroll), the rail's categories its chrome
+  tokens.
 - Fonts: `text::load_family` rasterizes a family's two faces into one atlas, as
   Inter's, taking glyphs a face lacks from its fallback family. The SJK UI's
   families load the first time the style is on, rasterized at 1.5x (glyphs 144
@@ -137,20 +211,19 @@ password prompt.
   `MenuCanvas::set_family` tags each text run with its family
   (`menu_widgets::TextFamily`), and `append_text_families` routes the runs to
   their family's layer. Until the families are loaded the page draws in Inter.
-- Snapshots: `menu_snapshot::sjk_home_snapshot` draws the page over the JoF HD
-  wide levelshot of mp/duel6, each family from its own atlas.
+- Snapshots: `menu_snapshot::sjk_home_snapshot` and `sjk_settings_snapshot` draw
+  the screens over the JoF HD wide levelshot of mp/duel6, each family from its
+  own atlas.
 
 ## Plan
 
-The next screens, in order; each gets snapshot tests in both fonts before it
-replaces its classic version:
+The next screens, in order; each gets snapshot tests before it replaces its
+classic version:
 
-1. Settings: categories down a rail with their icons, left-aligned rows under
-   sub-headings, the focused setting explained in a column on the right, search
-   always at the top (the Settings mock-up).
+1. The key bindings, as a category of Settings (the search then finds keys too).
 2. The server browser, opened from Play's Join a server.
 3. Character: the player screen, on the backdrop's player stage.
-4. The in-game menu.
+4. The in-game menu (its Setup and Controls then open Settings over the match).
 5. The screens Sol JK's page opens (changelog, credits, update, identity) and
    the dialogs.
 

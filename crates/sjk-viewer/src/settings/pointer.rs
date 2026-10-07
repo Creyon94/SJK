@@ -159,6 +159,17 @@ impl SettingsMenu {
                     return SettingsResult::None;
                 };
                 self.selected = row;
+                // SJK UI: a click on a row's name chooses it; only a switch
+                // flips from anywhere on its row.
+                if let (Some(controls), Some(position)) = (self.sjk_controls, event.position)
+                    && position.x < controls
+                    && self
+                        .rows()
+                        .get(row)
+                        .is_some_and(|setting| !matches!(setting.kind, ValueKind::Bool))
+                {
+                    return SettingsResult::None;
+                }
                 if let Some(setting) = self.rows().get(row) {
                     if matches!(setting.kind, ValueKind::Text) {
                         self.begin_text(console, row);

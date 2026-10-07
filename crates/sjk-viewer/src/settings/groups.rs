@@ -22,6 +22,20 @@ pub(crate) enum Group {
     /// The first-start settings ([`super::quick`]); gathers rows the other groups
     /// and tabs already hold, so it is not one of [`Group::ALL`].
     Quick,
+    /// The renderer's four tabs (image, lighting, shadows, weather) as one
+    /// group under their names, for the SJK UI's Graphics; the classic pages
+    /// show each tab on its own, so it is not one of [`Group::ALL`].
+    Graphics,
+}
+
+/// The renderer tabs [`Group::Graphics`] gathers, each under its heading.
+fn graphics_tabs() -> [(&'static str, &'static [Setting]); 4] {
+    [
+        ("Image", RENDER_IMAGE),
+        ("Lighting", RENDER_LIGHTING),
+        ("Shadows", RENDER_SHADOWS),
+        ("Weather", RENDER_WEATHER),
+    ]
 }
 
 impl Group {
@@ -33,17 +47,19 @@ impl Group {
     ];
 
     /// The group's name, as the one tab of the modern screen showing it.
-    const CAPTIONS: [&'static str; 5] = [
+    const CAPTIONS: [&'static str; 6] = [
         "GAME OPTIONS",
         "INTERFACE",
         "HUD",
         "SCOREBOARD",
         super::catalog::FIRST_SETUP_CAPTION,
+        "GRAPHICS",
     ];
 
     fn index(self) -> usize {
         match self {
             Self::Quick => Self::ALL.len(),
+            Self::Graphics => Self::ALL.len() + 1,
             _ => Self::ALL
                 .iter()
                 .position(|group| *group == self)
@@ -126,7 +142,7 @@ impl Group {
                 "cg_drawScoreboardIcons",
                 "cg_smallScoreboard",
             ],
-            Self::Quick => &[],
+            Self::Quick | Self::Graphics => &[],
         }
     }
 
@@ -150,7 +166,8 @@ impl Group {
                 ("cg_nameplate", "Nameplates"),
                 ("cg_drawTimer", "Readouts"),
             ],
-            Self::Scoreboard => &[],
+            // Its headings are its tabs' names ([`graphics_tabs`]).
+            Self::Scoreboard | Self::Graphics => &[],
             Self::Quick => &[
                 ("r_resolution", "Display"),
                 ("sensitivity", "Aim"),
@@ -166,6 +183,16 @@ impl Group {
     /// The lines a classic panel shows for the group: its rows, under their
     /// sub-headings.
     pub(super) fn lines(self) -> Vec<super::Line> {
+        if self == Self::Graphics {
+            let mut lines = Vec::with_capacity(self.rows().len() + 4);
+            let mut row = 0;
+            for (heading, tab) in graphics_tabs() {
+                lines.push(super::Line::Heading(heading));
+                lines.extend((row..row + tab.len()).map(super::Line::Row));
+                row += tab.len();
+            }
+            return lines;
+        }
         let rows = self.rows();
         let mut lines = Vec::with_capacity(rows.len() + self.headings().len());
         for (row, setting) in rows.iter().enumerate() {
@@ -186,13 +213,21 @@ impl Group {
         if self == Self::Quick {
             return super::quick::rows();
         }
-        static ROWS: [OnceLock<Vec<Setting>>; 4] = [
+        static ROWS: [OnceLock<Vec<Setting>>; 6] = [
+            OnceLock::new(),
+            OnceLock::new(),
             OnceLock::new(),
             OnceLock::new(),
             OnceLock::new(),
             OnceLock::new(),
         ];
         ROWS[self.index()].get_or_init(|| {
+            if self == Self::Graphics {
+                return graphics_tabs()
+                    .iter()
+                    .flat_map(|(_, tab)| tab.iter().copied())
+                    .collect();
+            }
             self.cvars()
                 .iter()
                 .filter_map(|cvar| {
@@ -241,6 +276,38 @@ mod tests {
                 );
             }
         }
+    }
+
+    #[test]
+    fn graphics_holds_every_renderer_row_once_under_its_tabs_name() {
+        let rows = Group::Graphics.rows();
+        let renderer: Vec<&str> = graphics_tabs()
+            .iter()
+            .flat_map(|(_, tab)| tab.iter().map(|setting| setting.cvar))
+            .collect();
+        assert_eq!(
+            rows.iter().map(|setting| setting.cvar).collect::<Vec<_>>(),
+            renderer
+        );
+        let lines = Group::Graphics.lines();
+        let headings: Vec<&str> = lines
+            .iter()
+            .filter_map(|line| match line {
+                super::super::Line::Heading(heading) => Some(*heading),
+                super::super::Line::Row(_) => None,
+            })
+            .collect();
+        assert_eq!(headings, ["Image", "Lighting", "Shadows", "Weather"]);
+        assert_eq!(lines.len(), rows.len() + 4);
+        // Every row once, in order.
+        let shown: Vec<usize> = lines
+            .iter()
+            .filter_map(|line| match line {
+                super::super::Line::Row(row) => Some(*row),
+                super::super::Line::Heading(_) => None,
+            })
+            .collect();
+        assert_eq!(shown, (0..rows.len()).collect::<Vec<_>>());
     }
 
     #[test]

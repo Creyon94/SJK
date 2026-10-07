@@ -168,6 +168,7 @@ impl ClientMenu {
         frame: Frame,
         target: ReturnTarget,
     ) -> bool {
+        self.leave_sjk_settings();
         match entry.panel() {
             Some(Panel::Settings { caption, span }) => {
                 let Some(tab) = SettingsMenu::tab_index(caption) else {

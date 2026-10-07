@@ -1949,6 +1949,20 @@ test: Right moves to the servers (the arc turns to them), Enter joins; Left come
 test: Settings, Character, the browser: open in the classic look; Back returns to this page.
 note: Text too small at 4K, ring too faint, colours off? Tell Claude which part.
 
+[sjk-ui-settings]
+status: personal
+area: Menus & settings
+title: SJK UI Settings: categories on a lit rail, rows, the setting explained on the right
+change: In the SJK UI, the main page's Settings (and First setup at start) open the new screen.
+change: Graphics gathers the renderer's image, lighting, shadows and weather under their names.
+test: Click each category; Tab and ] step through them (past Key bindings); the map stays behind.
+test: Switch, slider (drag, or type a digit), segments, a list (Display mode): each changes at once.
+test: Change a setting: gold dot after its name; Backspace or the arrow (or right click) resets it.
+test: / or Up from the first row: type "shadow"; results under their groups; Esc clears it.
+test: Key bindings opens the classic ones; Esc comes back to the category you were on.
+test: Resolution and HUD open their full-screen pickers; Esc from the screen: the main page.
+note: Long lists cut, text too small at 4K, a click doing the wrong thing? Tell Claude.
+
 [settings-modern]
 status: personal
 area: Menus & settings

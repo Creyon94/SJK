@@ -17,7 +17,7 @@
 //! the frame down to fit its width.
 
 use super::recent::Ago;
-use super::{color, fade, fade_across, key_hint, key_hint_width, text};
+use super::{Frame, color, fade, fade_across, key_hint, key_hint_width, text};
 use crate::menu::MainDestination;
 use crate::menu::emblem::{self, EmblemLayer};
 use crate::menu_widgets::{MenuCanvas, TextFamily};
@@ -354,37 +354,6 @@ impl Home {
         let next = current + off * (1.0 - (-elapsed * 9.0).exp());
         self.arc = Some(next);
         next
-    }
-}
-
-/// The page's 16:9 frame in the window: its scale (window pixels per frame
-/// pixel) and where its corner lies.
-#[derive(Clone, Copy, Debug)]
-struct Frame {
-    s: f32,
-    origin: [f32; 2],
-}
-
-impl Frame {
-    fn new(viewport: [f32; 2]) -> Self {
-        let tall = super::scale(viewport);
-        let s = tall.min(viewport[0] / 1920.0);
-        Self {
-            s,
-            origin: [
-                (viewport[0] - 1920.0 * s) * 0.5,
-                (viewport[1] - 1080.0 * s) * 0.5,
-            ],
-        }
-    }
-
-    fn point(&self, x: f32, y: f32) -> [f32; 2] {
-        [self.origin[0] + x * self.s, self.origin[1] + y * self.s]
-    }
-
-    fn rect(&self, x: f32, y: f32, width: f32, height: f32) -> Rect {
-        let [x, y] = self.point(x, y);
-        Rect::new(x, y, width * self.s, height * self.s)
     }
 }
 

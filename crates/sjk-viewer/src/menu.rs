@@ -161,6 +161,8 @@ pub(crate) struct ClientMenu {
     home: sjk::home::Home,
     /// The servers joined last, for the SJK UI's main page.
     recent: sjk::recent::RecentServers,
+    /// The SJK UI's Settings: whether it is open and on which category.
+    sjk_settings: sjk::settings::SettingsPage,
     /// The classic option panel on show in the settings or key-binding
     /// phase, if any.
     classic_panel: Option<classic::ClassicPanel>,
@@ -249,6 +251,7 @@ impl ClientMenu {
             } else {
                 sjk::recent::RecentServers::load()
             },
+            sjk_settings: sjk::settings::SettingsPage::default(),
             classic_panel: None,
             renderer_panel: None,
             art: art::ArtSet::default(),
@@ -368,10 +371,18 @@ impl ClientMenu {
         self.menu_style.classic_screens()
     }
 
-    /// Whether the SJK UI's own main page is on show, which sits over the live
-    /// map where the classic pages cover it.
-    pub(crate) fn sjk_main_page(&self) -> bool {
-        self.menu_style == MenuStyle::Sjk && matches!(self.state.phase(), ClientPhase::MainMenu)
+    /// Whether a screen of the SJK UI's own is on show (its main page or its
+    /// Settings), which sits over the live map where the classic pages cover
+    /// it and draws in the UI's families.
+    pub(crate) fn sjk_screen(&self) -> bool {
+        self.menu_style == MenuStyle::Sjk
+            && match self.state.phase() {
+                ClientPhase::MainMenu => true,
+                ClientPhase::Settings => {
+                    self.sjk_settings_on_show() && !self.settings.picker_open()
+                }
+                _ => false,
+            }
     }
 
     /// Whether the connect or loading screen covers the screen: a connect
@@ -560,6 +571,7 @@ impl ClientMenu {
         target: ReturnTarget,
         tab: usize,
     ) {
+        self.leave_sjk_settings();
         self.settings.open_tab(console, tab);
         self.renderer_panel = None;
         self.settings_return = target;
@@ -572,6 +584,9 @@ impl ClientMenu {
         result: SettingsResult,
         console: &mut ViewerConsole,
     ) -> MenuAction {
+        if let Some(action) = self.sjk_settings_result(&result, console) {
+            return action;
+        }
         match result {
             SettingsResult::Back => {
                 if let Some(panel) = self.renderer_panel.take() {
@@ -626,6 +641,7 @@ impl ClientMenu {
 
     /// Close the settings screen toward wherever it was opened from.
     pub(super) fn close_settings(&mut self) -> MenuAction {
+        self.close_sjk_settings();
         let classic_panel = self.leave_classic_panel();
         match self.settings_return {
             ReturnTarget::MainMenu => {

@@ -20,9 +20,14 @@ pub(crate) const IMPORT: &str = "import";
 
 impl ClientMenu {
     /// Open the First setup screen, returning to `target` when it closes: the
-    /// classic Setup panel's FIRST SETUP group under the classic style, the FIRST SETUP
-    /// tab of the modern screen otherwise.
+    /// SJK UI's Settings on First setup from its main page, the classic Setup
+    /// panel's FIRST SETUP group under the classic style (and the SJK UI in a
+    /// game), the FIRST SETUP tab of the modern screen otherwise.
     pub(crate) fn open_quick_setup(&mut self, console: &ViewerConsole, target: ReturnTarget) {
+        if self.menu_style == MenuStyle::Sjk && target == ReturnTarget::MainMenu {
+            self.open_sjk_settings(console, super::sjk::settings::FIRST_SETUP, target);
+            return;
+        }
         if self.menu_style.classic_screens() {
             let frame = match target {
                 ReturnTarget::MainMenu => Frame::Main,
@@ -92,6 +97,26 @@ mod tests {
         assert_eq!(panel.frame, Frame::Main);
         // In a game it is the in-game frame.
         menu.open_quick_setup(&console, ReturnTarget::InGame);
+        assert_eq!(
+            menu.classic_panel.map(|panel| panel.frame),
+            Some(Frame::InGame)
+        );
+    }
+
+    #[test]
+    fn the_sjk_ui_opens_its_settings_on_first_setup_and_the_panel_in_a_game() {
+        let (_directory, console) = console();
+        let mut menu = ClientMenu::new(true, String::new());
+        menu.menu_style = MenuStyle::Sjk;
+        menu.open_quick_setup(&console, ReturnTarget::MainMenu);
+        assert!(menu.sjk_settings_on_show());
+        assert_eq!(
+            menu.sjk_settings.category(),
+            super::super::sjk::settings::FIRST_SETUP
+        );
+        // The in-game menu still opens its classic pop-up.
+        menu.open_quick_setup(&console, ReturnTarget::InGame);
+        assert!(!menu.sjk_settings_on_show());
         assert_eq!(
             menu.classic_panel.map(|panel| panel.frame),
             Some(Frame::InGame)
