@@ -145,6 +145,14 @@ impl DecalSurfaces {
         nearest
     }
 
+    /// The triangles of one BSP surface, at most `limit` (`world_notes`'s highlight).
+    pub(crate) fn surface_triangles(&self, surface: usize, limit: usize) -> Vec<[Vec3; 3]> {
+        self.triangles(surface)
+            .take(limit)
+            .map(|triangle| triangle.map(|index| Vec3::from_array(self.positions[index])))
+            .collect()
+    }
+
     /// The distinct triangle edges of one BSP surface, at most `limit` (`world_notes`'s
     /// highlight).
     pub(crate) fn surface_edges(&self, surface: usize, limit: usize) -> Vec<[Vec3; 2]> {

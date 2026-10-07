@@ -1683,6 +1683,7 @@ impl GpuState {
         }
         self.world_notes.draw_highlight(viewport);
         let layers = [
+            self.world_notes.fill(),
             self.world_notes.highlight(),
             information_visible.then(|| &self.hud.nameplate.list),
             information_visible.then(|| &self.hud.identification.list),

@@ -1447,8 +1447,10 @@ glance at the scoreboard would not: no health, Force or position.
   selects the world surface under the crosshair, or the mover whose bounds the view ray
   meets first, and names it in a centre print (shader, BSP surface, lightmap or vertex
   lighting, distance). While selected, and while its note is written, the surface's
-  triangle edges (a mover's bounds) are traced over the view in flickering green dots,
-  at most 700 a frame. Escape before the second press drops the selection (it does not
+  triangle edges (a mover's bounds) are traced over the view in flickering green dots
+  (at most 600 a frame) over a green scanline shade of its triangles (horizontal strips
+  with a brighter wave running down them, at most 800 a frame; cut where the surface
+  passes behind the eye, so a floor underfoot keeps its visible part). Escape before the second press drops the selection (it does not
   open the game menu then). A second press within 20 seconds opens the text dialog
   ([text_dialog.rs](../crates/sjk-viewer/src/text_dialog.rs)): a panel in the middle of
   the screen with the subject, a text box of six wrapped lines (any printable text, up to

@@ -1852,7 +1852,7 @@ area: Input
 title: World notes: inspect a surface, write a note, Claude reads it later
 change: X (inspect) on a wall, floor or object names it; X again opens a note line.
 change: Enter saves the note with surface, shader, position and a screenshot (notes.jsonl).
-test: Aim at a wall (no player): X shows its shader and outlines it in green dots.
+test: Aim at a wall (no player): X shows its shader, outlines it in green dots, shades it.
 test: X again opens a Note panel mid-screen; type, Send (or Enter). Cancel or Escape drops it.
 test: Escape after the first X (no second press) drops the selection, no game menu.
 test: Type a note, Enter: console says note kept; GameData/screenshots has note_*.jpg.

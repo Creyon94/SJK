@@ -10,7 +10,9 @@
 //!
 //! While a selection waits or its note is written, its outline is drawn over the view
 //! as flickering green dots along the surface's triangle edges (a mover's bounds),
-//! projected each frame, at most [`HIGHLIGHT_DOTS`] of them.
+//! projected each frame, at most [`HIGHLIGHT_DOTS`] of them, over a green scanline shade
+//! of its triangles (thin horizontal strips with a wave running down them, at most
+//! [`FILL_STRIPS`]; the HUD has no polygon, so the fill is rasterised into rectangles).
 //!
 //! A selection records what a fix needs: the map, the camera pose and a `setviewpos`
 //! back to it, the hit point and normal, the BSP draw surface (index, shader, kind,
@@ -40,7 +42,12 @@ const VIEW_HEIGHT: f32 = 36.0;
 /// Most edges an outline keeps, and most dots it draws a frame (the HUD's shapes share
 /// 16,384 vertices, six a dot).
 const HIGHLIGHT_EDGES: usize = 512;
-pub(crate) const HIGHLIGHT_DOTS: usize = 700;
+pub(crate) const HIGHLIGHT_DOTS: usize = 600;
+/// Most triangles a shade keeps, and most strips it draws a frame.
+const FILL_TRIANGLES: usize = 512;
+pub(crate) const FILL_STRIPS: usize = 800;
+/// Clip-space `w` a shaded triangle is cut at: what lies nearer the eye is not drawn.
+const NEAR_W: f32 = 1.0;
 
 /// What `inspect` on the world selected.
 #[derive(Clone, Debug)]
@@ -57,6 +64,8 @@ pub(crate) struct Selection {
     collision: Option<Collision>,
     /// The outline drawn while selected (`Notes::draw_highlight`).
     edges: Vec<[Vec3; 2]>,
+    /// The triangles shaded while selected.
+    triangles: Vec<[Vec3; 3]>,
     selected: Instant,
 }
 
@@ -258,20 +267,27 @@ pub(crate) fn pick(
             shaders,
         }
     };
-    let selection = |hit: Vec3, normal: Vec3, distance: f32, surface, entity, edges| Selection {
-        map: map.to_owned(),
-        pose: camera.viewpos(),
-        eye,
-        forward,
-        hit,
-        normal,
-        distance,
-        surface,
-        entity,
-        collision: collision.clone(),
-        edges,
-        selected: Instant::now(),
-    };
+    let selection =
+        |hit: Vec3,
+         normal: Vec3,
+         distance: f32,
+         surface,
+         entity,
+         (edges, triangles): (Vec<[Vec3; 2]>, Vec<[Vec3; 3]>)| Selection {
+            map: map.to_owned(),
+            pose: camera.viewpos(),
+            eye,
+            forward,
+            hit,
+            normal,
+            distance,
+            surface,
+            entity,
+            collision: collision.clone(),
+            edges,
+            triangles,
+            selected: Instant::now(),
+        };
     if let Some((number, index, distance)) = mover {
         let shaders = render
             .inline_model(index)
@@ -288,20 +304,23 @@ pub(crate) fn pick(
             })
             .unwrap_or_default();
         let hit = eye + forward * distance;
-        let edges = render.inline_model(index).map_or_else(Vec::new, |model| {
-            let origin = parse_vector(entities[number].get("origin")).unwrap_or(Vec3::ZERO);
-            box_edges(
-                Vec3::from_array(model.minimums) + origin,
-                Vec3::from_array(model.maximums) + origin,
-            )
-        });
+        let outline = render
+            .inline_model(index)
+            .map_or_else(Default::default, |model| {
+                let origin = parse_vector(entities[number].get("origin")).unwrap_or(Vec3::ZERO);
+                let (low, high) = (
+                    Vec3::from_array(model.minimums) + origin,
+                    Vec3::from_array(model.maximums) + origin,
+                );
+                (box_edges(low, high), box_triangles(low, high))
+            });
         return Some(selection(
             hit,
             -forward,
             distance,
             None,
             Some(entity_of(number, shaders)),
-            edges,
+            outline,
         ));
     }
     let hit = world?;
@@ -323,14 +342,17 @@ pub(crate) fn pick(
         }
     });
     let entity = nearest_entity(&entities, point).map(|number| entity_of(number, Vec::new()));
-    let edges = surfaces.surface_edges(hit.surface, HIGHLIGHT_EDGES);
+    let outline = (
+        surfaces.surface_edges(hit.surface, HIGHLIGHT_EDGES),
+        surfaces.surface_triangles(hit.surface, FILL_TRIANGLES),
+    );
     Some(selection(
         point,
         hit.normal,
         hit.distance,
         surface,
         entity,
-        edges,
+        outline,
     ))
 }
 
@@ -373,6 +395,77 @@ fn box_edges(low: Vec3, high: Vec3) -> Vec<[Vec3; 2]> {
         .collect()
 }
 
+/// The twelve triangles of a box's faces.
+fn box_triangles(low: Vec3, high: Vec3) -> Vec<[Vec3; 3]> {
+    let corner = |x: usize, y: usize, z: usize| {
+        Vec3::new(
+            if x == 0 { low.x } else { high.x },
+            if y == 0 { low.y } else { high.y },
+            if z == 0 { low.z } else { high.z },
+        )
+    };
+    let mut triangles = Vec::with_capacity(12);
+    for axis in 0..3 {
+        for side in 0..2 {
+            let at = |u: usize, v: usize| {
+                let mut c = [0; 3];
+                c[axis] = side;
+                c[(axis + 1) % 3] = u;
+                c[(axis + 2) % 3] = v;
+                corner(c[0], c[1], c[2])
+            };
+            triangles.push([at(0, 0), at(1, 0), at(1, 1)]);
+            triangles.push([at(0, 0), at(1, 1), at(0, 1)]);
+        }
+    }
+    triangles
+}
+
+/// The part of `triangle` in front of the eye, on the screen of `view_projection`
+/// (physical pixels): the triangle cut at clip-space `w` [`NEAR_W`] (Sutherland and
+/// Hodgman against one plane), so a floor under the player keeps its visible part.
+fn screen_polygon(
+    view_projection: &glam::Mat4,
+    viewport: [f32; 2],
+    triangle: &[Vec3; 3],
+) -> Vec<[f32; 2]> {
+    let clip = triangle.map(|point| *view_projection * point.extend(1.0));
+    let mut kept: Vec<glam::Vec4> = Vec::with_capacity(4);
+    for index in 0..3 {
+        let (a, b) = (clip[index], clip[(index + 1) % 3]);
+        let (inside_a, inside_b) = (a.w >= NEAR_W, b.w >= NEAR_W);
+        if inside_a {
+            kept.push(a);
+        }
+        if inside_a != inside_b {
+            let t = (NEAR_W - a.w) / (b.w - a.w);
+            kept.push(a.lerp(b, t));
+        }
+    }
+    kept.iter()
+        .map(|clip| {
+            [
+                (clip.x / clip.w + 1.0) * 0.5 * viewport[0],
+                (1.0 - clip.y / clip.w) * 0.5 * viewport[1],
+            ]
+        })
+        .collect()
+}
+
+/// Where the convex `polygon` crosses the row at `y`: its left and right x.
+fn row_span(polygon: &[[f32; 2]], y: f32) -> Option<(f32, f32)> {
+    let mut span: Option<(f32, f32)> = None;
+    for index in 0..polygon.len() {
+        let (a, b) = (polygon[index], polygon[(index + 1) % polygon.len()]);
+        if (a[1] <= y) == (b[1] <= y) {
+            continue;
+        }
+        let x = a[0] + (y - a[1]) / (b[1] - a[1]) * (b[0] - a[0]);
+        span = Some(span.map_or((x, x), |(low, high)| (low.min(x), high.max(x))));
+    }
+    span.filter(|(low, high)| high > low)
+}
+
 /// `point` on the screen of `view_projection` (physical pixels), if in front of the eye.
 fn project(view_projection: &glam::Mat4, viewport: [f32; 2], point: Vec3) -> Option<[f32; 2]> {
     let clip = *view_projection * point.extend(1.0);
@@ -403,6 +496,8 @@ pub(crate) struct Notes {
     camera: Option<CameraUniform>,
     /// The selection's outline for this frame.
     highlight: sjk_ui::DrawList,
+    /// The selection's shade for this frame, drawn under the outline.
+    fill: sjk_ui::DrawList,
     started: Instant,
 }
 
@@ -413,6 +508,7 @@ impl Default for Notes {
             writing: None,
             camera: None,
             highlight: sjk_ui::DrawList::new(HIGHLIGHT_DOTS),
+            fill: sjk_ui::DrawList::new(FILL_STRIPS),
             started: Instant::now(),
         }
     }
@@ -475,6 +571,7 @@ impl Notes {
     /// Rebuild the outline of the waiting or confirmed selection for this frame.
     pub(crate) fn draw_highlight(&mut self, viewport: [f32; 2]) {
         self.highlight.clear();
+        self.fill.clear();
         let now = Instant::now();
         if self.selection.as_ref().is_some_and(|s| !s.fresh(now)) {
             self.selection = None;
@@ -504,6 +601,13 @@ impl Notes {
         let total: f32 = lengths.iter().sum();
         let spacing = (total / HIGHLIGHT_DOTS as f32).max(7.0);
         let time = now.duration_since(self.started).as_secs_f32();
+        Self::draw_fill(
+            &mut self.fill,
+            &selection.triangles,
+            &view_projection,
+            viewport,
+            time,
+        );
         let size = (viewport[1] / 540.0).clamp(2.0, 4.0);
         let mut index = 0u32;
         for ([a, b], length) in selection.edges.iter().zip(&lengths) {
@@ -527,6 +631,62 @@ impl Notes {
                 }
             }
         }
+    }
+
+    /// Shade the selection's triangles in horizontal strips, spaced so the whole of it
+    /// keeps within [`FILL_STRIPS`].
+    fn draw_fill(
+        fill: &mut sjk_ui::DrawList,
+        triangles: &[[Vec3; 3]],
+        view_projection: &glam::Mat4,
+        viewport: [f32; 2],
+        time: f32,
+    ) {
+        let polygons: Vec<Vec<[f32; 2]>> = triangles
+            .iter()
+            .map(|triangle| screen_polygon(view_projection, viewport, triangle))
+            .filter(|polygon| polygon.len() >= 3)
+            .collect();
+        let rows = |polygon: &Vec<[f32; 2]>| {
+            let (low, high) = polygon.iter().fold((f32::MAX, f32::MIN), |(low, high), p| {
+                (low.min(p[1]), high.max(p[1]))
+            });
+            (low.max(0.0), high.min(viewport[1]))
+        };
+        let covered: f32 = polygons
+            .iter()
+            .map(|polygon| {
+                let (low, high) = rows(polygon);
+                (high - low).max(0.0)
+            })
+            .sum();
+        let step = (covered / FILL_STRIPS as f32).max((viewport[1] / 360.0).max(3.0));
+        let thickness = (step * 0.55).max(1.0);
+        for polygon in &polygons {
+            let (low, high) = rows(polygon);
+            // Rows on one grid for the whole selection, so the strips line up.
+            let mut y = (low / step).floor() * step;
+            while y < high {
+                if let Some((left, right)) = row_span(polygon, y + step * 0.5) {
+                    let (left, right) = (left.max(0.0), right.min(viewport[0]));
+                    if right > left {
+                        let wave = ((y * 0.035 - time * 5.0).sin() * 0.5 + 0.5).powi(3);
+                        if !fill.push(sjk_ui::DrawCommand::SolidRect {
+                            rect: sjk_ui::Rect::new(left, y, right - left, thickness),
+                            color: sjk_ui::Color::new(0.2, 1.0, 0.45, 0.13 + 0.17 * wave),
+                        }) {
+                            return;
+                        }
+                    }
+                }
+                y += step;
+            }
+        }
+    }
+
+    /// The shade to draw this frame, under [`Self::highlight`], if any.
+    pub(crate) fn fill(&self) -> Option<&sjk_ui::DrawList> {
+        (!self.fill.is_empty()).then_some(&self.fill)
     }
 
     /// The outline to draw this frame, if any.
@@ -704,6 +864,32 @@ mod tests {
     }
 
     #[test]
+    fn shades_are_cut_at_the_eye_and_rows_cross_polygons() {
+        assert_eq!(box_triangles(Vec3::ZERO, Vec3::ONE).len(), 12);
+        let view = glam::camera::rh::view::look_at_mat4(Vec3::ZERO, Vec3::X, Vec3::Z);
+        let projection =
+            glam::camera::rh::proj::directx::perspective(1.2, 16.0 / 9.0, 2.0, 8_192.0);
+        let view_projection = projection * view;
+        let viewport = [1920.0, 1080.0];
+        // A floor triangle reaching behind the eye keeps its part in front.
+        let floor = [
+            Vec3::new(-100.0, -50.0, -40.0),
+            Vec3::new(200.0, -50.0, -40.0),
+            Vec3::new(200.0, 50.0, -40.0),
+        ];
+        let polygon = screen_polygon(&view_projection, viewport, &floor);
+        assert_eq!(polygon.len(), 4, "cut into a quad: {polygon:?}");
+        assert!(polygon.iter().all(|p| p[0].is_finite() && p[1].is_finite()));
+        // Wholly behind: nothing.
+        let behind = floor.map(|p| Vec3::new(-p.x.abs() - 10.0, p.y, p.z));
+        assert!(screen_polygon(&view_projection, viewport, &behind).is_empty());
+        // A row through a square spans its width; outside, nothing.
+        let square = [[10.0, 10.0], [50.0, 10.0], [50.0, 50.0], [10.0, 50.0]];
+        assert_eq!(row_span(&square, 30.0), Some((10.0, 50.0)));
+        assert_eq!(row_span(&square, 60.0), None);
+    }
+
+    #[test]
     fn rays_enter_boxes_ahead_only() {
         let low = Vec3::new(10.0, -1.0, -1.0);
         let high = Vec3::new(12.0, 1.0, 1.0);
@@ -762,6 +948,7 @@ mod tests {
             entity: None,
             collision: None,
             edges: Vec::new(),
+            triangles: Vec::new(),
             selected: Instant::now(),
         });
         let (shot, line) = notes
