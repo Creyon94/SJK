@@ -1655,7 +1655,12 @@ impl GpuState {
         }
         self.append_console_overlay(viewport, text_scale);
         self.append_version_overlay(viewport, text_scale);
+        if !self.chat.is_typing() {
+            self.world_notes.composer_closed();
+        }
+        self.world_notes.draw_highlight(viewport);
         let layers = [
+            self.world_notes.highlight(),
             information_visible.then(|| &self.hud.nameplate.list),
             information_visible.then(|| &self.hud.identification.list),
             information_visible.then(|| &self.hud.card.list),

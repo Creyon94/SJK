@@ -145,6 +145,24 @@ impl DecalSurfaces {
         nearest
     }
 
+    /// The distinct triangle edges of one BSP surface, at most `limit` (`world_notes`'s
+    /// highlight).
+    pub(crate) fn surface_edges(&self, surface: usize, limit: usize) -> Vec<[Vec3; 2]> {
+        let mut seen = std::collections::HashSet::new();
+        let mut edges = Vec::new();
+        for [a, b, c] in self.triangles(surface) {
+            for (from, to) in [(a, b), (b, c), (c, a)] {
+                if edges.len() == limit {
+                    return edges;
+                }
+                if seen.insert((from.min(to), from.max(to))) {
+                    edges.push([from, to].map(|index| Vec3::from_array(self.positions[index])));
+                }
+            }
+        }
+        edges
+    }
+
     /// Outward triangle normal, oriented by the stored vertex normal so the
     /// facing test does not depend on the tessellator's winding.
     fn triangle_normal(&self, triangle: [usize; 3]) -> Vec3 {

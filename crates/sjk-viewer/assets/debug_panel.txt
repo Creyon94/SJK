@@ -1803,7 +1803,8 @@ area: Input
 title: World notes: inspect a surface, write a note, Claude reads it later
 change: X (inspect) on a wall, floor or object names it; X again opens a note line.
 change: Enter saves the note with surface, shader, position and a screenshot (notes.jsonl).
-test: Aim at a wall (no player): X shows its shader and surface; X again opens Note:.
+test: Aim at a wall (no player): X shows its shader and outlines it in green dots.
+test: X again opens Note:; the outline stays until Enter or Escape.
 test: Type a note, Enter: console says note kept; GameData/screenshots has note_*.jpg.
 test: Aim at a door: X names the func_door and its shaders. Escape in the note drops it.
 test: On a player, X still pins their card; with a card pinned, X unpins it.

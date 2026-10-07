@@ -8,6 +8,10 @@
 //! line) and a readable line to `notes.txt` in the config directory, and takes a
 //! JPEG screenshot of the same view named after the note. Escape drops the note.
 //!
+//! While a selection waits or its note is written, its outline is drawn over the view
+//! as flickering green dots along the surface's triangle edges (a mover's bounds),
+//! projected each frame, at most [`HIGHLIGHT_DOTS`] of them.
+//!
 //! A selection records what a fix needs: the map, the camera pose and a `setviewpos`
 //! back to it, the hit point and normal, the BSP draw surface (index, shader, kind,
 //! lightmap or vertex lighting, BSP material), the collision trace's surface flags, and
@@ -33,6 +37,10 @@ const ENTITY_RADIUS: f32 = 160.0;
 const COLLISION_MASK: u32 = 1 | 0x10000;
 /// JKA's standing view height: `setviewpos` places the origin, the eye sits above it.
 const VIEW_HEIGHT: f32 = 36.0;
+/// Most edges an outline keeps, and most dots it draws a frame (the HUD's shapes share
+/// 16,384 vertices, six a dot).
+const HIGHLIGHT_EDGES: usize = 512;
+pub(crate) const HIGHLIGHT_DOTS: usize = 700;
 
 /// What `inspect` on the world selected.
 #[derive(Clone, Debug)]
@@ -47,6 +55,8 @@ pub(crate) struct Selection {
     surface: Option<Surface>,
     entity: Option<Entity>,
     collision: Option<Collision>,
+    /// The outline drawn while selected (`Notes::draw_highlight`).
+    edges: Vec<[Vec3; 2]>,
     selected: Instant,
 }
 
@@ -248,7 +258,7 @@ pub(crate) fn pick(
             shaders,
         }
     };
-    let selection = |hit: Vec3, normal: Vec3, distance: f32, surface, entity| Selection {
+    let selection = |hit: Vec3, normal: Vec3, distance: f32, surface, entity, edges| Selection {
         map: map.to_owned(),
         pose: camera.viewpos(),
         eye,
@@ -259,6 +269,7 @@ pub(crate) fn pick(
         surface,
         entity,
         collision: collision.clone(),
+        edges,
         selected: Instant::now(),
     };
     if let Some((number, index, distance)) = mover {
@@ -277,12 +288,20 @@ pub(crate) fn pick(
             })
             .unwrap_or_default();
         let hit = eye + forward * distance;
+        let edges = render.inline_model(index).map_or_else(Vec::new, |model| {
+            let origin = parse_vector(entities[number].get("origin")).unwrap_or(Vec3::ZERO);
+            box_edges(
+                Vec3::from_array(model.minimums) + origin,
+                Vec3::from_array(model.maximums) + origin,
+            )
+        });
         return Some(selection(
             hit,
             -forward,
             distance,
             None,
             Some(entity_of(number, shaders)),
+            edges,
         ));
     }
     let hit = world?;
@@ -304,7 +323,15 @@ pub(crate) fn pick(
         }
     });
     let entity = nearest_entity(&entities, point).map(|number| entity_of(number, Vec::new()));
-    Some(selection(point, hit.normal, hit.distance, surface, entity))
+    let edges = surfaces.surface_edges(hit.surface, HIGHLIGHT_EDGES);
+    Some(selection(
+        point,
+        hit.normal,
+        hit.distance,
+        surface,
+        entity,
+        edges,
+    ))
 }
 
 /// The entity, other than the world, whose origin is nearest `point` within
@@ -330,6 +357,33 @@ fn parse_vector(text: Option<&str>) -> Option<Vec3> {
     Some(Vec3::new(parts.next()??, parts.next()??, parts.next()??))
 }
 
+/// The twelve edges of a box.
+fn box_edges(low: Vec3, high: Vec3) -> Vec<[Vec3; 2]> {
+    let corner = |i: usize| {
+        Vec3::new(
+            if i & 1 == 0 { low.x } else { high.x },
+            if i & 2 == 0 { low.y } else { high.y },
+            if i & 4 == 0 { low.z } else { high.z },
+        )
+    };
+    (0..8)
+        .flat_map(|i| [1, 2, 4].map(|bit| (i, i | bit)))
+        .filter(|(from, to)| from != to)
+        .map(|(from, to)| [corner(from), corner(to)])
+        .collect()
+}
+
+/// `point` on the screen of `view_projection` (physical pixels), if in front of the eye.
+fn project(view_projection: &glam::Mat4, viewport: [f32; 2], point: Vec3) -> Option<[f32; 2]> {
+    let clip = *view_projection * point.extend(1.0);
+    if clip.w <= 0.5 {
+        return None;
+    }
+    let (x, y) = (clip.x / clip.w, clip.y / clip.w);
+    (x.abs() <= 1.2 && y.abs() <= 1.2)
+        .then(|| [(x + 1.0) * 0.5 * viewport[0], (1.0 - y) * 0.5 * viewport[1]])
+}
+
 /// Entry distance of the ray into the box, if it meets it ahead.
 fn ray_box(origin: Vec3, direction: Vec3, low: Vec3, high: Vec3) -> Option<f32> {
     let inverse = direction.recip();
@@ -341,13 +395,27 @@ fn ray_box(origin: Vec3, direction: Vec3, low: Vec3, high: Vec3) -> Option<f32> 
 }
 
 /// The selection waiting for its confirming press, and the note being written.
-#[derive(Default)]
 pub(crate) struct Notes {
     selection: Option<Selection>,
     /// The confirmed selection the composer's note belongs to.
     writing: Option<Selection>,
     /// The last rendered main view.
     camera: Option<CameraUniform>,
+    /// The selection's outline for this frame.
+    highlight: sjk_ui::DrawList,
+    started: Instant,
+}
+
+impl Default for Notes {
+    fn default() -> Self {
+        Self {
+            selection: None,
+            writing: None,
+            camera: None,
+            highlight: sjk_ui::DrawList::new(HIGHLIGHT_DOTS),
+            started: Instant::now(),
+        }
+    }
 }
 
 /// What an `inspect` press on the world did.
@@ -391,6 +459,73 @@ impl Notes {
             }
             None => Press::Nothing,
         }
+    }
+
+    /// The composer closed without saving (Escape): forget the confirmed selection.
+    pub(crate) fn composer_closed(&mut self) {
+        self.writing = None;
+    }
+
+    /// Rebuild the outline of the waiting or confirmed selection for this frame.
+    pub(crate) fn draw_highlight(&mut self, viewport: [f32; 2]) {
+        self.highlight.clear();
+        let now = Instant::now();
+        if self.selection.as_ref().is_some_and(|s| !s.fresh(now)) {
+            self.selection = None;
+        }
+        let (Some(selection), Some(camera)) = (
+            self.writing.as_ref().or(self.selection.as_ref()),
+            self.camera,
+        ) else {
+            return;
+        };
+        let view_projection = glam::Mat4::from_cols_array_2d(&camera.view_projection);
+        // Space the dots by the outline's length on screen, so a big surface keeps
+        // within the budget and a small one still reads as a line.
+        let lengths: Vec<f32> = selection
+            .edges
+            .iter()
+            .map(|[a, b]| {
+                match (
+                    project(&view_projection, viewport, *a),
+                    project(&view_projection, viewport, *b),
+                ) {
+                    (Some(a), Some(b)) => ((a[0] - b[0]).powi(2) + (a[1] - b[1]).powi(2)).sqrt(),
+                    _ => 120.0,
+                }
+            })
+            .collect();
+        let total: f32 = lengths.iter().sum();
+        let spacing = (total / HIGHLIGHT_DOTS as f32).max(7.0);
+        let time = now.duration_since(self.started).as_secs_f32();
+        let size = (viewport[1] / 540.0).clamp(2.0, 4.0);
+        let mut index = 0u32;
+        for ([a, b], length) in selection.edges.iter().zip(&lengths) {
+            let steps = ((length / spacing).ceil() as usize).clamp(1, 64);
+            for step in 0..=steps {
+                let point = a.lerp(*b, step as f32 / steps as f32);
+                index = index.wrapping_add(1);
+                let Some([x, y]) = project(&view_projection, viewport, point) else {
+                    continue;
+                };
+                // Each dot flickers on its own beat, brighter as a wave runs along.
+                let seed = (index as f32 * 12.9898 + (time * 9.0).floor() * 78.233).sin();
+                let flicker = (seed * 43_758.547).fract().abs();
+                let wave = ((index as f32 * 0.21 - time * 6.0).sin() * 0.5 + 0.5).powi(4);
+                let alpha = (0.35 + 0.4 * flicker + 0.25 * wave).min(1.0);
+                if !self.highlight.push(sjk_ui::DrawCommand::SolidRect {
+                    rect: sjk_ui::Rect::new(x - size * 0.5, y - size * 0.5, size, size),
+                    color: sjk_ui::Color::new(0.25, 1.0, 0.45, alpha),
+                }) {
+                    return;
+                }
+            }
+        }
+    }
+
+    /// The outline to draw this frame, if any.
+    pub(crate) fn highlight(&self) -> Option<&sjk_ui::DrawList> {
+        (!self.highlight.is_empty()).then_some(&self.highlight)
     }
 
     /// Save `note` about the confirmed selection into `directory`, returning the
@@ -534,6 +669,32 @@ mod tests {
     }
 
     #[test]
+    fn boxes_have_twelve_edges_and_points_project_in_front_only() {
+        let edges = box_edges(Vec3::ZERO, Vec3::ONE);
+        assert_eq!(edges.len(), 12);
+        assert!(edges.iter().all(|[a, b]| (*a - *b).length() == 1.0));
+        let view = glam::camera::rh::view::look_at_mat4(Vec3::ZERO, Vec3::X, Vec3::Z);
+        let projection =
+            glam::camera::rh::proj::directx::perspective(1.2, 16.0 / 9.0, 2.0, 8_192.0);
+        let view_projection = projection * view;
+        let centre = project(
+            &view_projection,
+            [1920.0, 1080.0],
+            Vec3::new(100.0, 0.0, 0.0),
+        )
+        .expect("in front");
+        assert!((centre[0] - 960.0).abs() < 0.5 && (centre[1] - 540.0).abs() < 0.5);
+        assert!(
+            project(
+                &view_projection,
+                [1920.0, 1080.0],
+                Vec3::new(-100.0, 0.0, 0.0)
+            )
+            .is_none()
+        );
+    }
+
+    #[test]
     fn rays_enter_boxes_ahead_only() {
         let low = Vec3::new(10.0, -1.0, -1.0);
         let high = Vec3::new(12.0, 1.0, 1.0);
@@ -591,6 +752,7 @@ mod tests {
             }),
             entity: None,
             collision: None,
+            edges: Vec::new(),
             selected: Instant::now(),
         });
         let (shot, line) = notes
