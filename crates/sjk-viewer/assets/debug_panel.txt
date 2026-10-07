@@ -1780,6 +1780,16 @@ test: Again with Key bindings ticked: your EJK keys work; ESC and the console ke
 test: Drop a .txt or an empty .cfg: the page says why nothing is imported.
 note: Never started in a game yet; the drop itself is untested (winit drag and drop).
 
+[legacy-cfg-text]
+status: personal
+area: Console & chat
+title: Other clients' .cfg files: exec them, or copy one over config.cfg
+change: Files that are not UTF-8 (accented names, EJK chat binds) are read as Latin-1, not refused.
+change: config.cfg accepts unbindall, unbind and unknown keys, so a copied jampconfig.cfg loads.
+test: Copy an EJK/JA .cfg with an accented name into GameData/SJK, exec it: no UTF-8 error.
+test: Back up config.cfg, copy jampconfig.cfg over it, start: name and binds load, settings save.
+note: Restore your own config.cfg afterwards.
+
 [shader-testmap]
 status: personal
 area: Rendering & effects

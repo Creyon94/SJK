@@ -111,20 +111,11 @@ pub(crate) fn read(path: &Path) -> Result<Found, String> {
         return Err("It is too large to be a config.".to_owned());
     }
     let bytes = std::fs::read(path).map_err(|error| format!("Could not read it: {error}."))?;
-    let found = parse(&decode(&bytes));
+    let found = parse(&sjk_shell::decode_config_text(bytes));
     if found.is_empty() {
         return Err("No name, model, field of view or key bindings were found in it.".to_owned());
     }
     Ok(found)
-}
-
-/// The file's text: UTF-8, or else one character per byte (Latin-1), as the
-/// legacy game wrote names.
-fn decode(bytes: &[u8]) -> String {
-    match std::str::from_utf8(bytes) {
-        Ok(text) => text.to_owned(),
-        Err(_) => bytes.iter().map(|&byte| char::from(byte)).collect(),
-    }
 }
 
 /// The importable parts of a config's text. Only `seta`/`set` (and a bare
@@ -245,11 +236,6 @@ mod tests {
     #[test]
     fn a_config_with_none_of_the_parts_is_empty() {
         assert!(parse("seta snaps 40\nexec other.cfg\n").is_empty());
-    }
-
-    #[test]
-    fn latin1_names_survive() {
-        assert_eq!(decode(b"seta name \"Ren\xe9\""), "seta name \"Ren\u{e9}\"");
     }
 
     #[test]

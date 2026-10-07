@@ -25,7 +25,7 @@ pub use command_buffer::{
     CommandBuffer, CommandBufferError, CommandFileResolver, MAX_COMMAND_BUFFER_BYTES,
     MAX_EXEC_DEPTH, NoCommandFiles,
 };
-pub use config::{ConfigError, load_config, save_config};
+pub use config::{ConfigError, decode_config_text, load_config, save_config};
 pub use cvar::{Cvar, CvarChange, CvarDefinition, CvarError, CvarFlags, CvarRegistry, CvarValue};
 pub use shell::{CommandSource, CompletionKey, ConsoleLine, ConsoleLineKind, Shell};
 pub use shell_error::ShellError;
