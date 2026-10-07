@@ -113,7 +113,7 @@ Speed afterimages, death animations and dust motes. See
 
 ## Contributors to SJK
 
-Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 20
+Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 21
 pull requests merged into SJK, most of them bringing SJK in line with EternalJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ACreyon94)):
 
@@ -137,7 +137,9 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   in the engine's order (jpg, png, tga), so JoF's HD effects and images load;
 - #16 the view weapon scaled by `cg_fovViewmodel`; #18 zoom into first person,
   the HD scope mask and camera shakes measured from the view;
-- #21 the `fx_debug` and `cg_debugMissiles` diagnostics.
+- #21 the `fx_debug` and `cg_debugMissiles` diagnostics;
+- #23 smooth melee kicks: kicks and saber attacks predicted in a joined game,
+  and the kicker held still through JA+'s own kicks, as JoF EternalJK.
 
 ## Tools
 

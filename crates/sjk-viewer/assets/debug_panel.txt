@@ -1662,6 +1662,19 @@ test: fx_debug 1, fire a weapon: the log lists the effects; fx_debug 0 stops it.
 test: cg_debugMissiles 1, fire rockets: one log line per second about the trails; then set 0.
 note: The log output was not checked in a running client.
 
+[predicted-kicks]
+status: personal
+area: Gameplay
+title: Melee kicks predicted in a joined game; JA+'s own kicks hold you still (SJK PR #23)
+change: A joined game predicts with the humanoid animation.cfg: kicks and saber attacks start now.
+change: JA+ spin, back, jumping and backflip kicks and the flip stab hold the kicker still.
+change: A kiss, ledge, get-up, stab or backflip kick taken on JA+ also locks the view, as JoF EJK.
+test: JA+ server with g_debugMelee 1, melee: W+A and W+D kicks play smoothly, no snap at the end.
+test: Saber attacks right after joining from the menu: they start at once, no late jump.
+test: Get backflip-kicked or get up on JA+: you stand still and the view does not fight the mouse.
+test: A stock or JoF server: kicks and movement as before.
+note: Creyon94 checked the kicks on a local JA+ server only; ledges still predict gravity.
+
 [cmd-rate]
 status: personal
 area: Gameplay

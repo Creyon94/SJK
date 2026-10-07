@@ -7,6 +7,31 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Kicks and saber attacks predicted in a joined game
+
+Branch `fix/predicted-animation-lengths`. Prediction had an animation length table
+only when the client was started with a player model argument; a game joined from
+the menu or the command line had none, so the melee kicks (`g_debugMelee`) and saber
+attacks were not predicted and started a round trip late. A joined game now loads
+`models/players/_humanoid/animation.cfg` for prediction, as EternalJK hands Pmove
+the local player's animation set (`cg_predict.c:1311` at a40e793); reusing the
+loaded map for a new gamestate keeps the table the prediction had, instead of taking
+the first loaded model's, which could be another player's, an NPC's or a vehicle's.
+
+On a JA+ server, melee's W+A and W+D kicks are replaced by JA+'s own spin and back
+kicks (`BOTH_MELEE_SPINKICK`, `BOTH_MELEE_BACKKICK`), which JA+ plays server-side.
+JoF EternalJK holds the kicker still while those and JA+'s other own animations play
+(`bg_pmove.c:12470-12498`, `SVMOD_JAPLUS`, at bd5e202); the client kept predicting
+the held movement, so every snapshot pulled the player back through the kick.
+Prediction now holds still for them, and locks the view for a kiss, a ledge, a
+get-up, a stab or a backflip kick taken, as JoF EternalJK does. Unit tests cover the
+table for a joined game, its hand-over when the map is reused, and the JA+ holds.
+Formatting, the locked workspace build and tests pass; workspace Clippy finishes
+without errors, and its warnings are all in code this change does not touch.
+Checked in game on Windows 11 against a local JA+ server (`openjkded` with the JA+
+module, `g_debugMelee 1`): melee's W+A and W+D kicks play smoothly. Other server
+types are not checked.
+
 ## Actor instance buffer capacity
 
 The shared actor instance buffer holds 4,096 instances, up from 1,024 (the old
