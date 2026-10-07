@@ -16,13 +16,56 @@
 //! ([`crate::ui_scale::height_scale`]).
 
 pub(crate) mod home;
+pub(crate) mod recent;
 
-use super::{ClientMenu, MenuAction, ReturnTarget};
+use super::{ClientMenu, MenuAction};
 use crate::console::ViewerConsole;
 use crate::game_font::SjkFonts;
 use crate::menu_widgets::{MenuCanvas, TextFamily};
 use crate::text::{TextStyle, TextVertex, UiFont};
 use sjk_ui::{Color, DrawCommand, FontWeight, Gradient, Rect, TextAlign};
+
+/// The main page's servers: the ones joined last with what the server list
+/// says of them now, or the suggested JoF server while there are none.
+fn home_servers<'a>(
+    recent: &'a recent::RecentServers,
+    entries: &'a [crate::server_browser::ServerEntry],
+    now: u64,
+) -> impl Iterator<Item = home::ServerItem<'a>> {
+    let find = move |address: &str| {
+        let parsed = address.trim().parse::<std::net::SocketAddr>().ok()?;
+        entries.iter().find(|entry| entry.address == parsed)
+    };
+    let suggested = recent.servers().is_empty().then(|| {
+        let live = find(home::JOF_SERVER);
+        home::ServerItem {
+            name: live.map_or("JoF", |entry| entry.name.as_str()),
+            map: live.map_or("", |entry| entry.map.as_str()),
+            live: live.map(|entry| (entry.players, entry.capacity, entry.ping_millis)),
+            played: None,
+        }
+    });
+    let joined = recent.servers().iter().map(move |server| {
+        let live = find(&server.address);
+        let stored = |value: &'a String, fallback: &'a str| {
+            if value.is_empty() {
+                fallback
+            } else {
+                value.as_str()
+            }
+        };
+        home::ServerItem {
+            name: live.map_or_else(
+                || stored(&server.name, &server.address),
+                |entry| entry.name.as_str(),
+            ),
+            map: live.map_or_else(|| stored(&server.map, ""), |entry| entry.map.as_str()),
+            live: live.map(|entry| (entry.players, entry.capacity, entry.ping_millis)),
+            played: Some(recent::ago(server.played, now)),
+        }
+    });
+    suggested.into_iter().chain(joined)
+}
 
 /// Where an SJK UI screen's text goes this frame.
 pub(crate) enum TextTarget<'a> {
@@ -42,8 +85,8 @@ impl TextTarget<'_> {
 }
 
 impl ClientMenu {
-    /// Draw the SJK UI's main page, with the player and servers it shows read
-    /// from `console` and the server list.
+    /// Draw the SJK UI's main page, with the player read from `console` and the
+    /// servers from the recent list and the server list.
     pub(crate) fn append_sjk_home(
         &mut self,
         target: TextTarget<'_>,
@@ -51,9 +94,6 @@ impl ClientMenu {
         viewport: [f32; 2],
     ) {
         let reveal = self.screen_reveal();
-        let entries = self.browser.entries();
-        let reconnect = console.and_then(|console| console.text_value("cl_reconnectArgs"));
-        let last = home::last_server(reconnect);
         let name = console
             .and_then(|console| console.text_value("name"))
             .unwrap_or("Padawan");
@@ -62,27 +102,48 @@ impl ClientMenu {
             .and_then(|model| model.split('/').next())
             .filter(|model| !model.is_empty())
             .unwrap_or("kyle");
-        let version = super::main_view::version_line();
+        let update = crate::update::available_version();
+        let now = recent::now();
+        let entries = self.browser.entries();
+        let blank = home::ServerItem {
+            name: "",
+            map: "",
+            live: None,
+            played: None,
+        };
+        let mut servers = [blank; recent::MAX];
+        let mut count = 0;
+        for (slot, item) in servers
+            .iter_mut()
+            .zip(home_servers(&self.recent, entries, now))
+        {
+            *slot = item;
+            count += 1;
+        }
         let view = home::HomeView {
             name,
             model,
             blade_name: console.map_or("blue", blade_name),
-            blade: console.map_or(color::HOLO, blade_color),
-            servers: [
-                Some(home::ServerLine::find(home::JOF_SERVER, entries)),
-                last.map(|address| home::ServerLine::find(address, entries)),
-            ],
-            refreshing: self.browser.is_refreshing(),
-            version: &version,
+            servers: &servers[..count],
+            version: env!("SJK_BUILD_VERSION"),
+            update: update.as_deref(),
             seconds: super::art::motion::seconds(),
         };
         home::build(&mut self.ui, viewport, &mut self.home, &view, reveal);
         target.append(&self.ui, viewport);
     }
 
-    /// Whether a last server other than JoF is offered under Play.
-    fn sjk_last_server(console: &ViewerConsole) -> bool {
-        home::last_server(console.text_value("cl_reconnectArgs")).is_some()
+    /// How many servers the main page's column lists.
+    fn sjk_home_servers(&self) -> usize {
+        self.recent.servers().len().max(1)
+    }
+
+    /// The address of server `index` of the main page's column.
+    fn sjk_home_address(&self, index: usize) -> Option<String> {
+        match self.recent.servers() {
+            [] => (index == 0).then(|| home::JOF_SERVER.to_owned()),
+            servers => servers.get(index).map(|server| server.address.clone()),
+        }
     }
 
     /// A key on the SJK UI's main page.
@@ -91,8 +152,7 @@ impl ClientMenu {
         key: winit::keyboard::KeyCode,
         console: &mut ViewerConsole,
     ) -> MenuAction {
-        let last = Self::sjk_last_server(console);
-        match self.home.key(key, last) {
+        match self.home.key(key, self.sjk_home_servers()) {
             Some(action) => self.sjk_home_act(action, console),
             None => MenuAction::None,
         }
@@ -105,8 +165,7 @@ impl ClientMenu {
         activate: bool,
         console: &mut ViewerConsole,
     ) -> MenuAction {
-        let last = Self::sjk_last_server(console);
-        match self.home.pointer(token, activate, last) {
+        match self.home.pointer(token, activate, self.sjk_home_servers()) {
             Some(action) => self.sjk_home_act(action, console),
             None => MenuAction::None,
         }
@@ -115,26 +174,42 @@ impl ClientMenu {
     /// Carry out an action of the main page.
     fn sjk_home_act(&mut self, action: home::Action, console: &mut ViewerConsole) -> MenuAction {
         match action {
-            home::Action::Join(server) => {
-                let address = match server {
-                    0 => Some(home::JOF_SERVER.to_owned()),
-                    _ => {
-                        home::last_server(console.text_value("cl_reconnectArgs")).map(str::to_owned)
-                    }
-                };
-                match address {
-                    Some(address) => self.join_address(address),
-                    None => MenuAction::None,
-                }
-            }
+            home::Action::Join(index) => match self.sjk_home_address(index) {
+                Some(address) => self.join_address(address),
+                None => MenuAction::None,
+            },
             home::Action::Open(destination) => self.open_main_destination(destination, console),
-            home::Action::FirstSetup => {
-                self.open_quick_setup(console, ReturnTarget::MainMenu);
-                MenuAction::None
-            }
             home::Action::Quit => MenuAction::Quit,
-            home::Action::Stay => MenuAction::None,
         }
+    }
+
+    /// A join just reached the game: the server goes to the top of the recent
+    /// list, with its name and map as the server list (or the loading screen)
+    /// knows them. A game this client hosts is not a server to come back to.
+    pub(super) fn remember_joined_server(&mut self) {
+        let super::ClientPhase::Connecting(address) = self.state.phase() else {
+            return;
+        };
+        if self.hosting_local() {
+            return;
+        }
+        let address = address.clone();
+        let entry = address
+            .parse::<std::net::SocketAddr>()
+            .ok()
+            .and_then(|parsed| {
+                self.browser
+                    .entries()
+                    .iter()
+                    .find(|entry| entry.address == parsed)
+            });
+        let name = entry.map_or("", |entry| entry.name.as_str()).to_owned();
+        let map = entry
+            .map(|entry| entry.map.as_str())
+            .filter(|map| !map.is_empty())
+            .unwrap_or(self.loading.map())
+            .to_owned();
+        self.recent.record(&address, &name, &map, recent::now());
     }
 
     /// Join `address` from the main page: through the password prompt when the
@@ -295,23 +370,8 @@ pub(crate) fn scale(viewport: [f32; 2]) -> f32 {
     crate::ui_scale::height_scale(viewport[1])
 }
 
-/// The colour of the player's first saber blade (`color1`, with JA+'s
-/// `cp_sbRGB1` for an RGB blade), for the UI's lit marks.
-pub(crate) fn blade_color(console: &crate::console::ViewerConsole) -> Color {
-    let index = console
-        .text_value("color1")
-        .map(str::trim)
-        .and_then(|value| {
-            let digits = value.bytes().take_while(u8::is_ascii_digit).count();
-            value[..digits].parse::<u8>().ok()
-        })
-        .unwrap_or(4);
-    let packed = console.integer_cvar("cp_sbRGB1").unwrap_or(0);
-    let rgb = sjk_client::unpack_saber_rgb(u32::try_from(packed).unwrap_or(0));
-    crate::player_menu::saber_color(index, rgb)
-}
-
-/// What a blade of `color` is called, for the player's line ("blue saber").
+/// What the player's first blade (`color1`) is called, for the player's line
+/// ("blue saber").
 pub(crate) fn blade_name(console: &crate::console::ViewerConsole) -> &'static str {
     let index = console
         .text_value("color1")
@@ -349,13 +409,10 @@ mod tests {
             crate::console::ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
         console.set_cvar("color1", "1");
         assert_eq!(blade_name(&console), "orange");
-        let orange = blade_color(&console);
-        assert!(orange.r > orange.b);
         // A hat's suffix on the colour does not change it.
         console.set_cvar("color1", "3tophat");
         assert_eq!(blade_name(&console), "green");
-        console.set_cvar("color1", "4");
-        let blue = blade_color(&console);
-        assert!(blue.b > blue.r);
+        console.set_cvar("color1", "6");
+        assert_eq!(blade_name(&console), "custom");
     }
 }

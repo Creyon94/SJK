@@ -157,8 +157,10 @@ pub(crate) struct ClientMenu {
     menu_style: MenuStyle,
     /// Page and entry of the classic main menu.
     classic: classic::ClassicMain,
-    /// The SJK UI's main page: its chosen item and motion.
+    /// The SJK UI's main page: its page of the ring, chosen entry and motion.
     home: sjk::home::Home,
+    /// The servers joined last, for the SJK UI's main page.
+    recent: sjk::recent::RecentServers,
     /// The classic option panel on show in the settings or key-binding
     /// phase, if any.
     classic_panel: Option<classic::ClassicPanel>,
@@ -241,6 +243,12 @@ impl ClientMenu {
             menu_style: MenuStyle::default(),
             classic: classic::ClassicMain::new(),
             home: sjk::home::Home::default(),
+            // Tests never read or write the player's own list.
+            recent: if cfg!(test) {
+                sjk::recent::RecentServers::default()
+            } else {
+                sjk::recent::RecentServers::load()
+            },
             classic_panel: None,
             renderer_panel: None,
             art: art::ArtSet::default(),
@@ -954,6 +962,7 @@ impl ClientMenu {
     }
 
     pub(crate) fn joined(&mut self) {
+        self.remember_joined_server();
         self.state.entered_game();
     }
 

@@ -1327,61 +1327,80 @@ fn player_card(shots: &mut Snapshot) {
 
 /// The SJK UI's main page over its map (the JoF HD wide levelshot of
 /// mp/duel6 standing in for the live backdrop), with each family drawn from
-/// its own atlas: on Play with the JoF server and a last server, on Settings
-/// with an action focused, on Quit, and at 4:3.
+/// its own atlas: the main page with three recent servers, the Play and Sol JK
+/// pages, a server focused, the JoF suggestion of a first start, and at 4:3.
 #[test]
 #[ignore = "reads the installed game data named by JKA_GAME_DATA"]
 fn sjk_home_snapshot() {
     use crate::game_font::SjkFonts;
-    use crate::menu::sjk::home::{self, Home, HomeView, Item, JOF_SERVER, ServerLine};
+    use crate::menu::sjk::home::{self, Home, HomeView, Page, ServerItem};
+    use crate::menu::sjk::recent::Ago;
     use crate::menu_widgets::MenuCanvas;
     let (_, vfs) = art();
     let display = crate::text::load_family(&crate::text::DISPLAY, 1.0, None).expect("Rajdhani");
     let body = crate::text::load_family(&crate::text::BODY, 1.0, None).expect("Exo 2");
     let backdrop = decode(&vfs, "levelshots/mp/duel6.jpg").expect("the duel6 levelshot");
-    let server =
-        |address: &str, name: &str, map: &str, players, ping| crate::server_browser::ServerEntry {
-            address: address.parse().expect("an address"),
-            name: name.to_owned(),
-            map: map.to_owned(),
-            players,
-            capacity: 32,
-            ping_millis: ping,
-            gametype: "FFA".to_owned(),
-            profile: sjk_client::CompatProfile::JaPlus { version: None },
-            password: false,
-            display: String::new(),
-            mode: Some(0),
-            bots: 0,
-            valid_info: true,
-        };
-    let entries = vec![
-        server(JOF_SERVER, "^5JoF^7 Jedi of Freedom", "mp/ffa3", 24, 31),
-        server("10.0.0.2:29070", "Duel Arena", "mp/duel6", 14, 28),
+    let recent = [
+        ServerItem {
+            name: "^5JoF^7 Jedi of Freedom",
+            map: "mp/ffa3",
+            live: Some((24, 32, 31)),
+            played: Some(Ago::Hours(2)),
+        },
+        ServerItem {
+            name: "Duel Arena",
+            map: "mp/duel6",
+            live: Some((14, 32, 28)),
+            played: Some(Ago::Yesterday),
+        },
+        ServerItem {
+            name: "Academy roleplay",
+            map: "academy_v3",
+            live: None,
+            played: Some(Ago::Days(5)),
+        },
     ];
-    let cases: [(&str, [f32; 2], Item, Option<usize>); 4] = [
-        ("sjk-home", VIEWPORT_WIDE, Item::Play, None),
-        ("sjk-home-settings", VIEWPORT_WIDE, Item::Settings, Some(1)),
-        ("sjk-home-quit", VIEWPORT_WIDE, Item::Quit, Some(0)),
-        ("sjk-home-4x3", VIEWPORT, Item::Play, Some(0)),
+    let suggestion = [ServerItem {
+        name: "^5JoF^7 Jedi of Freedom",
+        map: "mp/ffa3",
+        live: Some((24, 32, 31)),
+        played: None,
+    }];
+    let cases: [(&str, [f32; 2], Page, usize, Option<usize>, &[ServerItem]); 6] = [
+        ("sjk-home", VIEWPORT_WIDE, Page::Main, 0, None, &recent),
+        ("sjk-home-play", VIEWPORT_WIDE, Page::Play, 0, None, &recent),
+        ("sjk-home-sjk", VIEWPORT_WIDE, Page::Sjk, 1, None, &recent),
+        (
+            "sjk-home-server",
+            VIEWPORT_WIDE,
+            Page::Main,
+            2,
+            Some(1),
+            &recent,
+        ),
+        (
+            "sjk-home-first",
+            VIEWPORT_WIDE,
+            Page::Main,
+            1,
+            None,
+            &suggestion,
+        ),
+        ("sjk-home-4x3", VIEWPORT, Page::Main, 0, None, &recent),
     ];
-    for (name, viewport, item, focus) in cases {
+    for (name, viewport, page, entry, server, servers) in cases {
         let mut canvas = MenuCanvas::new();
-        let mut page = Home::for_snapshot(item, focus);
+        let mut home = Home::for_snapshot(page, entry, server);
         let view = HomeView {
             name: "^5JoF^7 Jedi Gooner Solol",
             model: "kyle",
             blade_name: "blue",
-            blade: crate::player_menu::saber_color(4, [0; 3]),
-            servers: [
-                Some(ServerLine::find(JOF_SERVER, &entries)),
-                Some(ServerLine::find("10.0.0.2:29070", &entries)),
-            ],
-            refreshing: false,
-            version: "SJK 2026.1007.1   /   update 2026.1008.1 available",
+            servers,
+            version: "2026.1007.1",
+            update: Some("2026.1008.1"),
             seconds: 12.0,
         };
-        home::build(&mut canvas, viewport, &mut page, &view, 1.0);
+        home::build(&mut canvas, viewport, &mut home, &view, 1.0);
         let size = (viewport[0] as u32, viewport[1] as u32);
         // The levelshot covers the window, cropped at its sides.
         let cover = size.1 as f32 / backdrop.height() as f32;

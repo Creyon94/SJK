@@ -1935,17 +1935,18 @@ test: Options, then Graphics and Gameplay: every group has its own icon; hover o
 test: In a match, Escape > Settings: the pop-up's group list shows the same icons.
 note: Wrong picture for a group, or too big/small at 4K? Tell Claude which.
 
-[sjk-ui-home]
+[sjk-ui-ring]
 status: personal
 area: Menus & settings
-title: SJK UI: its main page (ui_menuStyle sjk), the ring over the horizon
+title: SJK UI main page (ui_menuStyle sjk): the ring, its arc menu, your recent servers
 change: Settings > Interface > Menu style > SJK; restart: the page stands on mp/duel6.
-change: Emblem in a turning ring; the chosen item's part of the line ignites in your saber colour.
-test: Left/Right along Play..Quit: the blade ignites under each, the ring's gold arc follows.
-test: Play: Join JoF shows its name, players, map, ping once the list answers; Enter joins.
-test: Down into the actions, Left/Right, Enter; Up back; Escape leaves, then goes to Quit.
-test: Quit asks first: Enter shows Quit to desktop / Stay. Hover chooses, a click acts.
-test: Settings, Character, browser: open in the classic look; Back returns to this page.
+change: Emblem in a turning ring, the menu on an arc round it; recent servers on the right.
+test: Up/Down along the arc: the ring's gold arc and its beam follow the chosen entry.
+test: Play opens its page on the ring (Join a server, Create a game, Back); Esc returns.
+test: Sol JK's page: What's new, Update, Credits, Identity. Esc on the main page: Quit page.
+test: First start: the column says Start here with JoF. Join it, quit to the menu: it is listed.
+test: Right moves to the servers (the arc turns to them), Enter joins; Left comes back.
+test: Settings, Character, the browser: open in the classic look; Back returns to this page.
 note: Text too small at 4K, ring too faint, colours off? Tell Claude which part.
 
 [settings-modern]
