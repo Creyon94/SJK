@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 07/10/2026 | - | Ground fog keeps its height: a far cover of the whole map floors distant fog
+- b669c05 |  | Ground fog keeps its height: a far cover of the whole map floors distant fog
++ 07/10/2026 | - | SJK UI: server names in their colours, a clearer sort mark
+- a948933 |  | SJK UI: server names in their colours, a clearer sort mark
 + 07/10/2026 | - | Parallax depth slider, a tenth of the full depth by default
 - d877e54 |  | Parallax depth slider, a tenth of the full depth by default
 + 07/10/2026 | - | Bug reports and world notes carry the name the player wears

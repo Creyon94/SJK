@@ -55,6 +55,9 @@ impl Column {
     pub(crate) const SPLASH: u32 = 1;
     /// That surface is water, slime or lava.
     pub(crate) const LIQUID: u32 = 2;
+    /// The column holds none of the map's air: it lies beyond its walls, or is not
+    /// surveyed yet. The fog reads the far cover there instead.
+    pub(crate) const VOID: u32 = 4;
 
     /// No weather anywhere in the column. The empty span (bottom above top) is what the
     /// shader reads for it.
@@ -63,6 +66,17 @@ impl Column {
         top: f32::MIN,
         flags: 0,
     };
+
+    /// No weather, and none of the map's air ([`Column::VOID`]).
+    pub(crate) const OUTSIDE_MAP: Self = Self {
+        flags: Self::VOID,
+        ..Self::COVERED
+    };
+
+    /// Weather can be somewhere in the column.
+    pub(crate) fn is_open(self) -> bool {
+        self.bottom <= self.top
+    }
 
     /// The texel the GPU reads: bottom, top, flags.
     pub(crate) fn texel(self) -> [f32; 4] {
@@ -360,7 +374,7 @@ impl Surveyor {
             }
             return self.marks.trim(x, y, floor, sky, flags);
         }
-        Column::COVERED
+        Column::OUTSIDE_MAP
     }
 
     fn trace(&mut self, start: [f32; 3], end: [f32; 3], mask: u32) -> sjk_bsp::CollisionTrace {
@@ -465,6 +479,16 @@ mod tests {
         let mut surveyor = Surveyor::new(bsp.clone(), Marks::read(&bsp, &[]));
         assert!(!surveyor.has_sky());
         assert_eq!(surveyor.column(0.0, 0.0), Column::COVERED);
+    }
+
+    #[test]
+    fn a_column_beyond_the_walls_holds_none_of_the_maps_air() {
+        let bsp = courtyard(false);
+        // Past the east wall: nothing above it, all the way down.
+        let column = survey(&bsp, 1100.0, 0.0);
+        assert_eq!(column, Column::OUTSIDE_MAP);
+        assert!(!column.is_open());
+        assert!(survey(&bsp, 0.0, 0.0).is_open());
     }
 
     #[test]

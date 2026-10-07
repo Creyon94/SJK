@@ -7,6 +7,20 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## SJK UI: coloured names and the browser's sort mark
+
+SJK-only branch `personal/sjk-ui-browser-colours` (07/10/2026, Windows 11): Sol
+asked for the browser's server names in their colours and found its sort caret
+odd. The list, the chosen server's title (a wrapped second line carries the
+first line's last colour) and its players now draw their `^<digit>` codes; the
+search and the password prompt still read names without them. Every text in the
+SJK UI's families draws the codes in `text::CodePalette::Legible` (black as grey;
+red, green, blue and magenta lifted, same hue), since pure blue and black do not
+read on the navy; the game's own palette is unchanged everywhere else. The sort
+mark is three stacked bars (`kit::sort_mark`). A unit test checks the palette's
+lightness and hues; the world shot was re-rendered and checked zoomed. Not seen
+in a running client.
+
 ## SJK UI: loading screen
 
 SJK-only branch `personal/sjk-ui-loading` (07/10/2026, based on `076806e`, Windows 11):
@@ -1535,6 +1549,17 @@ every map with sky (`r_clouds`). Unit tests cover the settings and quality level
 forced weather, the storm and fog parameters, the noise volume's range and tiling,
 the cloud uniform and drift, and both shaders' translation to SPIR-V and HLSL. No
 game was started: how the fog and clouds look and what they cost are unverified.
+
+`personal/fog-floor` (07/10/2026, based on `6678967`), after Sol saw the ground fog
+change height with where they stood or jumped on `T2_Rogue`: beyond the cover
+window the fog was floored at the column under the camera, so stepping from a roof
+over a street moved all distant fog by 500 units. A coarse far cover of the whole
+map, surveyed once on a second worker, now gives the fog its floors there and in
+columns past the walls ([Weather](rendering.md#weather)). Unit tests cover the far
+grid's placement, the level fill past the walls and void columns on a synthetic
+map. Off-screen world shots of `T2_Rogue` either side of a roof edge showed a band
+of fog flipping before the change and none after; a local, uncommitted probe timed
+the far survey on four retail maps. Not yet tried in a game.
 
 ## Shader review (SJK)
 
