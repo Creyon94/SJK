@@ -185,6 +185,18 @@ impl MenuCanvas {
         );
     }
 
+    /// This frame's text runs in drawing order, for a screen's tests.
+    #[cfg(test)]
+    pub(crate) fn text_runs(&self) -> impl Iterator<Item = &str> + '_ {
+        self.draw
+            .commands()
+            .iter()
+            .filter_map(|command| match command {
+                DrawCommand::Text { text, .. } => Some(self.resolve(*text)),
+                _ => None,
+            })
+    }
+
     /// Id the next stored text run will get, to mark where a group of runs
     /// starts and ends.
     pub(crate) fn next_text_id(&self) -> u32 {

@@ -53,6 +53,43 @@ the hand-over from the screen to the game are unverified. On review the lead
 put the map's own name large over its file name and fitted wide levelshots
 whole; the frames were rendered again.
 
+## SJK UI: Scoreboard
+
+SJK-only branch `personal/sjk-ui-scoreboard` (07/10/2026, based on `076806e`,
+Windows 11): the scoreboard in the SJK UI ([sjk-ui.md](sjk-ui.md#scoreboard)).
+`scoreboard::sjk` draws the board's rows and match facts as columns floating
+over the darkened game, right of the chat column: a header line (map, mode and
+limits, time left, your place in gold), one list in free-for-all (two side by
+side past 22 players), the teams side by side under their scores, the duelists
+as facing cards over the players waiting, spectators on one line.
+`cg_scoreboardStyle` gained `sjk` and `auto`, the new default: the SJK UI's
+board with `ui_menuStyle sjk`, else the classic one. Every profile had saved
+the old default `classic`; on review the lead added a one-time move of a saved
+`classic` to `auto` (`cg_scoreboardStyleDefaultVersion`, as the console key's
+default moved), so the SJK UI brings its board; a look chosen after that stays
+([client.md](client.md#scoreboard-styles)). The board reads the match's
+limits, `CS_LEVEL_START_TIME`, `CS_CLIENT_DUELISTS` and
+`CS_CLIENT_DUELHEALTHS`; its canvas holds 320 text runs and 1024 draw commands
+(was 208 and 640); the UI's families load for a scoreboard chosen on its own;
+the browser's signal bars are shared (`pub(crate)`).
+
+Verified: unit tests pin the cvar's semantics (`auto` under each menu style, a
+saved old `classic` moved once to `auto` and a later `classic` kept across
+starts, mistyped values),
+32-player boards in every mode fitting the canvas at 1080 lines, 4K and 5:4,
+a cut team list keeping your row, shared places for ties, the duelists' cards
+and health, the clock and duelists read from config strings, the header's words
+and the columns not overlapping; the release sjk-viewer tests passed (932) and
+workspace clippy shows no warning in the files touched.
+`world_shot::tests::duel6_sjk_scoreboard` rendered the board over duel6 on
+made-up matches (free for all with 14 and 30 players, capture the flag with
+the classic menus and `cg_scoreboardStyle sjk`, a duel, a power duel, a 4:3
+window), with the families loaded. Not verified: no game was started, so the
+board over a real match (the server's scores and their order, the clock
+against a real level start, the duel config strings, flag carriers, the
+intermission's Ready marks), its fades, the chat column beside it, the HUD
+under its dim and the Settings row's list of four are untested in play.
+
 ## SJK UI: Servers
 
 SJK-only branch `personal/sjk-ui-browser` (07/10/2026, based on `b0470fc`, Windows 11):

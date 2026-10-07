@@ -3,44 +3,68 @@
 //! `modern` is JKR's floating table ([`super::view`]); `classic` follows the
 //! retail scoreboard as EternalJK-derived clients draw it ([`super::classic`]),
 //! with their `cg_smallScoreboard`, `cg_showClientIDs`,
-//! `cg_drawScoreboardIcons` and `cg_drawScoreboardPlayerCount` options. SJK
-//! starts on `classic`, like its menus and console; JKR's default is `modern`.
+//! `cg_drawScoreboardIcons` and `cg_drawScoreboardPlayerCount` options; `sjk`
+//! is the SJK UI's own ([`super::sjk`]). `auto`, the default, follows the menu
+//! style: the SJK UI's scoreboard while `ui_menuStyle` is `sjk`, the classic one
+//! otherwise (what SJK drew before the choice existed). Every profile had saved
+//! the old default `classic`, so it moves once to `auto`
+//! (`cg_scoreboardStyleDefaultVersion`, in the console's start); a look chosen
+//! after that keeps it whatever the menu style. JKR's default is `modern`.
 
 use crate::console::ViewerConsole;
+use crate::menu::style::MenuStyle;
 
 /// Archived cvar naming the scoreboard style.
 pub(crate) const CVAR: &str = "cg_scoreboardStyle";
 
-/// Layout family of the scoreboard.
+/// Layout family of the scoreboard, as drawn.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) enum ScoreboardStyle {
     /// JKR's floating table beside the chat column.
     Modern,
     /// The retail layout: centred columns, team bands and the client ID.
-    /// SJK's default.
     #[default]
     Classic,
+    /// The SJK UI's: columns floating over the dimmed game, in its type.
+    Sjk,
 }
 
 impl ScoreboardStyle {
-    /// Values the settings screen offers, in [`ScoreboardStyle`] order.
-    pub(crate) const NAMES: [&'static str; 2] = ["modern", "classic"];
-    /// The `cg_scoreboardStyle` value of the default style.
-    pub(crate) const DEFAULT_NAME: &'static str = Self::NAMES[1];
+    /// Values the settings screen offers: `auto` first, then each look.
+    pub(crate) const NAMES: [&'static str; 4] = ["auto", "sjk", "classic", "modern"];
+    /// The `cg_scoreboardStyle` value of a new profile: follow the menu style.
+    pub(crate) const DEFAULT_NAME: &'static str = Self::NAMES[0];
 
-    /// Read the cvar value: `modern` (any case) or `0` selects the modern
-    /// style; anything else, including a missing or mistyped value, the
-    /// default classic one, as `ui_menuStyle` does.
-    pub(crate) fn from_cvar(value: Option<&str>) -> Self {
+    /// The look the cvar `value` gives under the menu style `menus`: `modern`
+    /// (any case) or `0` the modern one, `sjk` the SJK UI's, `classic` the
+    /// classic one; `auto` (or no value) the SJK UI's while the menus are the
+    /// SJK UI and the classic one otherwise. A mistyped value keeps the classic
+    /// board, as it did before `auto` and `sjk` existed.
+    pub(crate) fn resolve(value: Option<&str>, menus: MenuStyle) -> Self {
         match value.map(str::trim) {
             Some(text) if text.eq_ignore_ascii_case("modern") || text == "0" => Self::Modern,
+            Some(text) if text.eq_ignore_ascii_case("sjk") => Self::Sjk,
+            None => Self::follow(menus),
+            Some(text) if text.eq_ignore_ascii_case("auto") => Self::follow(menus),
             _ => Self::Classic,
         }
     }
 
-    /// The player's current style.
+    /// What `auto` draws under `menus`.
+    fn follow(menus: MenuStyle) -> Self {
+        if menus == MenuStyle::Sjk {
+            Self::Sjk
+        } else {
+            Self::Classic
+        }
+    }
+
+    /// The player's current look.
     pub(crate) fn from_console(console: Option<&ViewerConsole>) -> Self {
-        Self::from_cvar(console.and_then(|console| console.text_value(CVAR)))
+        let menus = MenuStyle::from_cvar(
+            console.and_then(|console| console.text_value(crate::menu::style::CVAR)),
+        );
+        Self::resolve(console.and_then(|console| console.text_value(CVAR)), menus)
     }
 }
 
@@ -97,34 +121,111 @@ impl ClassicOptions {
 mod tests {
     use super::*;
 
+    const EVERY_MENU: [MenuStyle; 3] = [MenuStyle::Modern, MenuStyle::Classic, MenuStyle::Sjk];
+
     #[test]
     fn modern_needs_an_explicit_value() {
-        assert_eq!(ScoreboardStyle::from_cvar(None), ScoreboardStyle::Classic);
-        assert_eq!(
-            ScoreboardStyle::from_cvar(Some("")),
-            ScoreboardStyle::Classic
-        );
-        assert_eq!(
-            ScoreboardStyle::from_cvar(Some("modrn")),
-            ScoreboardStyle::Classic
-        );
-        assert_eq!(
-            ScoreboardStyle::from_cvar(Some(" Modern ")),
-            ScoreboardStyle::Modern
-        );
-        assert_eq!(
-            ScoreboardStyle::from_cvar(Some("0")),
-            ScoreboardStyle::Modern
-        );
+        for menus in EVERY_MENU {
+            let resolve = |value| ScoreboardStyle::resolve(value, menus);
+            assert_eq!(resolve(Some("")), ScoreboardStyle::Classic);
+            assert_eq!(resolve(Some("modrn")), ScoreboardStyle::Classic);
+            assert_eq!(resolve(Some(" Modern ")), ScoreboardStyle::Modern);
+            assert_eq!(resolve(Some("0")), ScoreboardStyle::Modern);
+        }
+    }
+
+    #[test]
+    fn auto_follows_the_menu_style() {
+        for value in [None, Some("auto"), Some(" AUTO ")] {
+            assert_eq!(
+                ScoreboardStyle::resolve(value, MenuStyle::Sjk),
+                ScoreboardStyle::Sjk
+            );
+            // Any other menu style keeps the board SJK drew before: classic.
+            assert_eq!(
+                ScoreboardStyle::resolve(value, MenuStyle::Classic),
+                ScoreboardStyle::Classic
+            );
+            assert_eq!(
+                ScoreboardStyle::resolve(value, MenuStyle::Modern),
+                ScoreboardStyle::Classic
+            );
+        }
+    }
+
+    #[test]
+    fn a_saved_look_wins_over_the_menu_style() {
+        for menus in EVERY_MENU {
+            assert_eq!(
+                ScoreboardStyle::resolve(Some("classic"), menus),
+                ScoreboardStyle::Classic
+            );
+            assert_eq!(
+                ScoreboardStyle::resolve(Some("modern"), menus),
+                ScoreboardStyle::Modern
+            );
+            assert_eq!(
+                ScoreboardStyle::resolve(Some(" SJK "), menus),
+                ScoreboardStyle::Sjk
+            );
+        }
     }
 
     #[test]
     fn offered_names_parse_in_order() {
-        let parsed = ScoreboardStyle::NAMES.map(|name| ScoreboardStyle::from_cvar(Some(name)));
-        assert_eq!(parsed, [ScoreboardStyle::Modern, ScoreboardStyle::Classic]);
+        let parsed = ScoreboardStyle::NAMES
+            .map(|name| ScoreboardStyle::resolve(Some(name), MenuStyle::Classic));
         assert_eq!(
-            ScoreboardStyle::from_cvar(Some(ScoreboardStyle::DEFAULT_NAME)),
-            ScoreboardStyle::default()
+            parsed,
+            [
+                ScoreboardStyle::Classic,
+                ScoreboardStyle::Sjk,
+                ScoreboardStyle::Classic,
+                ScoreboardStyle::Modern
+            ]
+        );
+        assert_eq!(ScoreboardStyle::DEFAULT_NAME, "auto");
+    }
+
+    /// The console's registered default, a saved `classic` and the menu style
+    /// switched to the SJK UI: a new profile follows it, a saved choice stays.
+    #[test]
+    fn the_console_default_follows_the_menus_and_a_saved_value_stays() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("config.cfg");
+        let mut console = ViewerConsole::new(path.clone()).unwrap();
+        assert_eq!(console.text_value(CVAR), Some("auto"));
+        assert_eq!(
+            ScoreboardStyle::from_console(Some(&console)),
+            ScoreboardStyle::Classic
+        );
+        console.set_cvar(crate::menu::style::CVAR, "sjk");
+        assert_eq!(
+            ScoreboardStyle::from_console(Some(&console)),
+            ScoreboardStyle::Sjk
+        );
+        // Every profile saved the old default `classic` before `auto` existed:
+        // it moves once to `auto`, so it follows the SJK UI's menus.
+        drop(console);
+        std::fs::write(
+            &path,
+            "seta ui_menuStyle \"sjk\"\nseta cg_scoreboardStyle \"classic\"\n",
+        )
+        .unwrap();
+        let mut console = ViewerConsole::new(path.clone()).unwrap();
+        assert_eq!(console.text_value(CVAR), Some("auto"));
+        assert_eq!(
+            ScoreboardStyle::from_console(Some(&console)),
+            ScoreboardStyle::Sjk
+        );
+        // A classic chosen after the move stays, start after start.
+        assert!(console.set_cvar(CVAR, "classic"));
+        drop(console);
+        let console = ViewerConsole::new(path).unwrap();
+        assert_eq!(console.text_value(CVAR), Some("classic"));
+        assert_eq!(
+            ScoreboardStyle::from_console(Some(&console)),
+            ScoreboardStyle::Classic
         );
     }
 }

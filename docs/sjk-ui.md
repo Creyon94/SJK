@@ -9,9 +9,10 @@ its version; until then [classic+](classic-plus.md) stays the default and keeps
 getting fixes.
 
 Status (07/10/2026): the main page, Settings (with the key bindings),
-Character, What's new, Update, Identity, Servers (the server browser) and the
-loading screen are done. Every other screen opens in its classic+ version
-(`MenuStyle::classic_screens`), which covers the map as the classic style does.
+Character, What's new, Update, Identity, Servers (the server browser), the
+loading screen and the scoreboard are done. Every other screen opens in its
+classic+ version (`MenuStyle::classic_screens`), which covers the map as the
+classic style does.
 To try it: Settings > Gameplay > Interface > Menu style > SJK, or
 `ui_menuStyle sjk`; restart for the SJK UI's map behind the main page.
 
@@ -432,6 +433,63 @@ the joined world installed before the game takes over) the world is always
 left out and the screen draws on the UI's navy ground; the levelshot fades in
 over it.
 
+## Scoreboard
+
+[scoreboard/sjk.rs](../crates/sjk-viewer/src/scoreboard/sjk.rs): the scoreboard
+held with Tab in a match (and shown at intermission), `cg_scoreboardStyle sjk`.
+Its default, `auto`, shows it while `ui_menuStyle` is `sjk` and the classic
+scoreboard otherwise; a profile's saved old default (`classic`) moves to it
+once, a style chosen after that stays ([client.md](client.md#scoreboard-styles)). No panel: the columns float over
+the game, which is darkened by the UI's navy (a third everywhere, deeper behind
+the header and, from the chat column's edge, behind the columns). It fades in
+and out as the classic board does, settling into place as it opens.
+
+- **Header line:** across the top, as the other screens' top bar: the map
+  without `mp/` (Rajdhani 48), then the mode and its limits in words ("Free for
+  all · 30 frags · 20 minutes", as the browser words them); on the right the
+  time left in a timed match ("12:12 left", else "3:12 played") and your place,
+  the screen's one memorable thing, in gold ("3rd", "of 14" after it, "of 14,
+  tied" on a tie; "Spectating" when you watch). Team games say "Your team leads
+  by 2", "trails by", "Tied at 5" (or which team leads, for a spectator). Under
+  the map, "Killed by" and the name while you are dead.
+- **Where:** the columns start at x 680 of the frame, right of the chat column
+  the scoreboard keeps for messages and the composer (`scoreboard::layout`, 640
+  pixels of a 1080-line window), and end at 1824.
+- **Rows:** under muted column labels and a thin holo rule, one row each,
+  52 tall at most, with a hairline under it: the place (Rajdhani; ties share
+  it), the name with its colours (Exo 2), SJK's emblem right after it for a
+  player the hub knows (gold when vouched for, as elsewhere), at intermission a
+  gold "Ready", then the score, the deaths when `cg_scoredeaths` counts them,
+  the minutes played, and the ping as the browser's signal bars and the number.
+  Your row has the UI's band with its gold bar, and its place, score, bars and
+  ping in gold. Bots and players still joining are muted, with "Bot", "Joining"
+  or "Connecting" for their ping.
+- **Free for all** (and Holocron, Jedi Master): one list by place; once rows
+  would be thinner than 34 pixels (past 22 players) two lists side by side, 16
+  each at 32.
+- **Team games:** the two teams side by side, red left and blue right, each
+  under its head: the team's score in Rajdhani 76 (muted while it trails), the
+  team's name in its muted colour with how many play, and a thin rule in that
+  colour. Capture modes show score, captures, assists and defends (no minutes,
+  for room) and a carried flag's icon before the name. A team too long for
+  rows of 26 pixels ends with "and n more", keeping your row.
+- **Duel and power duel:** the duelists (`CS_CLIENT_DUELISTS`, else the
+  players not spectating) as two facing cards about the board's middle with
+  "vs" between them: the name (Rajdhani 44), the score large (112, gold for
+  you), the record and health in words ("3 wins · 1 loss · 87 health · 25
+  shield"; your health and shield from your snapshot, an opponent's health when
+  the server shares it, `g_showDuelHealths`), over a rule, gold under your
+  card. A power duel's pair stack two smaller cards facing the lone duelist.
+  Under them "Waiting to duel": everyone else in turn, with their record.
+- **Spectators:** one line at the bottom, "Watching" then their names without
+  colours.
+
+A full server fits the board's canvas (320 text runs, 1024 draw commands) in
+every mode, at 1080 lines and 4K (unit tests). The look draws in the UI's
+families, which load for it even with another menu style when it is chosen on
+its own; their metrics place what follows a measured run (the emblem after a
+name, the header's right side).
+
 ## Implementation
 
 - `ui_menuStyle` has a third value, `sjk` (`menu::style::MenuStyle::Sjk`).
@@ -474,6 +532,13 @@ over it.
   (`sjk::loading::LoadingPage`) is the furthest step of the join and the
   levelshot's fade. Its levelshot comes through the same cache, serviced by
   `upload_menu_images` as for the classic screen.
+- The scoreboard is the scoreboard module's state with another look:
+  `style::ScoreboardStyle::Sjk` (resolved from `cg_scoreboardStyle` and
+  `ui_menuStyle`) builds its rows with `scoreboard::sjk::build` on the board's
+  own canvas, through the HUD's path (`scoreboard::append_overlay`), not the
+  menu's; the text goes to the UI's families (`append_text_families`), or Inter
+  until they load. `game_font::prepare` loads the families when the scoreboard
+  wants them too. The ping bars are the browser's (`browser::signal`).
 - Fonts: `text::load_family` rasterizes a family's two faces into one atlas, as
   Inter's, taking glyphs a face lacks from its fallback family. The SJK UI's
   families load the first time the style is on, rasterized at 1.5x (glyphs 144
@@ -489,7 +554,11 @@ over it.
   a search and the password prompt; `duel6_sjk_loading` the loading screen on
   a made-up join of the JoF server (before the map is known, loading mp/ffa3,
   failed with and without the map known, a server's change of map on the navy
-  ground).
+  ground);
+  `duel6_sjk_scoreboard` the scoreboard on
+  made-up matches (`scoreboard::shot`: free for all with 14 and with 30
+  players, capture the flag, a duel, a power duel, and a 4:3 window), drawn
+  without a server.
 
 ## Plan
 
@@ -499,9 +568,9 @@ classic version:
 1. The dialogs (the report box, the import page) and Credits.
 2. Settings' search finding key bindings too (it finds settings; Key bindings'
    finds keys).
-3. The in-game menu and the scoreboard (proposals to Sol on 07/10/2026; its
-   Setup and Controls would open Settings over the match, its player screen a
-   version without the stage).
+3. The in-game menu (a proposal to Sol on 07/10/2026; its Setup and Controls
+   would open Settings over the match, its player screen a version without
+   the stage).
 4. Create a game.
 
 Once all of them are done, `sjk` becomes the default `ui_menuStyle`. mp/duel6 has

@@ -1055,7 +1055,7 @@ fn short_map(map: &str) -> &str {
 }
 
 /// How many of four bars a ping lights: four up to 60 ms, none past 400.
-fn signal_bars(ping: u32) -> usize {
+pub(crate) fn signal_bars(ping: u32) -> usize {
     match ping {
         0..=60 => 4,
         61..=110 => 3,
@@ -1067,7 +1067,14 @@ fn signal_bars(ping: u32) -> usize {
 
 /// Four rising bars from `x`, their feet below `y`, as many lit as the ping
 /// is good.
-fn signal(ui: &mut MenuCanvas, frame: &Frame, x: f32, y: f32, ping: u32, selected: bool) {
+pub(crate) fn signal(
+    ui: &mut MenuCanvas,
+    frame: &Frame,
+    x: f32,
+    y: f32,
+    ping: u32,
+    selected: bool,
+) {
     let lit = signal_bars(ping);
     for bar in 0..4 {
         let height = 6.0 + bar as f32 * 4.0;
