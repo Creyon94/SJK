@@ -108,8 +108,10 @@ until the original timer expires; local flight cancels it. Detached rendering
 is scoped to this view and restores the preceding camera state, without
 reading the free-camera cvar in the main render path. Empty/colour-only names
 are rejected. Windows workspace fmt, build, tests and clippy pass with
-existing warnings; temporary target loss/return has unit coverage. Combined
-free-camera interaction and PVS/portal runtime checks remain unverified.
+existing warnings; temporary target loss/return has unit coverage. Combined revision `44ff6e5` was checked on 2026-10-07 (Windows, RTX 5070 Ti,
+release, isolated native server, retail `mp/duel1`, 1280x720): starting
+freecam during a player-name peek returns the view to the local camera.
+PVS/portal pause and resumption remain unverified in game.
 
 ## Centre-print line breaks
 
