@@ -48,8 +48,13 @@ uses the existing JoF EJK fake-noclip predictor and frozen server commands,
 with the body left at its entity and the view weapon hidden. Within 32 units
 of its eye the body is hidden from the main view to avoid head clipping. The existing
 flight tests cover server command suppression and return-to-server behavior.
-Death/spectator/vehicle policy is shared with fake noclip. Runtime camera
-appearance, input and transitions remain unverified.
+Death/spectator/vehicle policy is shared with fake noclip. Combined revision
+`7b76890` was checked on 2026-10-07 (Windows, RTX 5070 Ti, release, retail
+`mp/duel1`, isolated native server, 1280x720): forward/back flight moves the
+camera while the body stays behind with the talk icon; turning off returns
+to the server position. The initial view is clear, the body is visible after
+moving away, and enabling while dead is refused. Turbo/vertical input,
+vehicle/spectator/map transitions and all command-step rates remain unverified.
 
 Branch `fix/bind-mouse-wheel`: the mouse wheel binds in Settings > Key bindings
 (for example `flipkick` under Movement). A notch while a slot waited for a key
