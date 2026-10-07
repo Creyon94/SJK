@@ -1527,6 +1527,16 @@ directory. The client creates it automatically. Important files include:
 | `screenshots/`, `demos/` | Screenshots and recordings |
 | `chatlogs/`, `qconsole.log` | Logs when enabled |
 
+`config.cfg` and the scripts `exec` runs are read as UTF-8, or, when a file is not
+valid UTF-8, one character per byte (Latin-1), as Jedi Academy and EternalJK save
+names and chat binds; a leading byte-order mark (Notepad) is dropped
+([config.rs](../crates/sjk-shell/src/config.rs) `decode_config_text`). So another
+client's config runs with `exec`, and a `jampconfig.cfg` copied over `config.cfg`
+loads: its `unbindall` and `unbind` lines are accepted and bindings on keys SJK has
+no name for are dropped. Any other line still stops the load (and saving, so the
+file is not overwritten). The [Import page](#importing-from-another-client) is the
+way that takes only the name, model, field of view and bindings.
+
 On first use, existing files from the previous per-user JKR folder are copied
 into this folder. Root-level `.cfg` files and `configs/` are included. Files
 already present in the destination win; the originals are never deleted. A

@@ -2120,6 +2120,16 @@ the reference); other servers' handling was not checked. Not measured: the
 per-frame cost of the limb scan now that `cg_dismember` is not 0 by default (one
 pass over the snapshot's entities). No client was run; Sol tests through `play`.
 
+## Legacy config text (SJK)
+
+SJK-only branch `personal/legacy-cfg-text` (07/10/2026, based on `8fea9b8`): `exec`
+refused any file that was not UTF-8 ("is not valid UTF-8 command text"), and a
+legacy `config.cfg` with a Latin-1 name, a byte-order mark, `unbindall` or a key
+SJK has no name for failed to load, which also stops every save. Such files are now
+read as Latin-1 and those lines accepted; see
+[client.md](client.md#configuration-and-content). sjk-shell unit tests cover the
+decoding and a legacy saved config; no game was started.
+
 ## First setup at start and config import (SJK)
 
 SJK-only branch `personal/first-setup-import` (07/10/2026, based on `9ca3ec4`): First
