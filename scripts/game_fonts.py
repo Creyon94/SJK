@@ -336,8 +336,9 @@ class OcrA:
         g["¯"] = move(under, 0, cap - ub[3])
         g["°"] = self.raised("o", 0.5)
         short_bar = move(scale(under, 0.55, 1, (ub[0] + ub[2]) / 2, ub[1]), 0, cap * 0.33 - ub[1])
-        g["ª"] = join(self.raised("a", 0.55), short_bar)
-        g["º"] = join(self.raised("o", 0.55), short_bar)
+        for ch, letter in (("ª", "a"), ("º", "o")):
+            r = self.raised(letter, 0.55)
+            g[ch] = join(r, move(short_bar, centre_x(r) - centre_x(short_bar), 0))
         plus = self.of("+")
         pb = bounds(plus)
         g["±"] = join(move(plus, 0, cap * 0.18), rect(pb[0], 0, pb[2], stem))
@@ -384,7 +385,10 @@ class OcrA:
 
     def outlines(self, glyphs, units_per_pixel):
         """OCR-A outlines by byte for the retail chat font's glyphs, in OCR-A
-        units, each centred on the retail glyph's ink."""
+        units, each centred in the retail advance. The retail ink sat about
+        there too, but its atlas cells are padded unevenly (C's is 2 pixels
+        left of its neighbours'), so a cell would place the even OCR-A ink
+        unevenly."""
         composed = self.composed()
         traced_cap = bounds(self.traced[ord("H")])[3]
         out = {}
@@ -403,7 +407,7 @@ class OcrA:
             advance = g["adv"] * units_per_pixel
             b = bounds(rec)
             ink = b[2] - b[0]
-            centre = (g["off"] + g["w"] / 2) * units_per_pixel
+            centre = advance / 2
             margin = 0.06 * advance
             left = min(max(centre - ink / 2, margin), max(margin, advance - margin - ink))
             out[byte] = move(rec, left - b[0], 0)
@@ -448,13 +452,20 @@ def write_font(path, family, notice, outlines, glyphs, ascent, descent):
                      sTypoLineGap=0, usWinAscent=ascent * UNITS, usWinDescent=descent * UNITS)
     builder.setupPost()
     font = builder.font
-    removeOverlaps(font)
-    # Left side bearings from the final outlines.
     glyf, hmtx = font["glyf"], font["hmtx"]
-    for name in names:
-        glyph = glyf[name]
-        glyph.recalcBounds(glyf)
-        hmtx[name] = (hmtx[name][0], getattr(glyph, "xMin", 0))
+
+    def set_bearings():
+        for name in names:
+            glyph = glyf[name]
+            glyph.recalcBounds(glyf)
+            hmtx[name] = (hmtx[name][0], getattr(glyph, "xMin", 0))
+
+    # removeOverlaps draws through the glyph set, which moves each outline to
+    # its hmtx left bearing, so the bearings must match the outlines first or
+    # every glyph it rewrites lands flush left.
+    set_bearings()
+    removeOverlaps(font)
+    set_bearings()
     font.save(path)
     print(f"{path.relative_to(ROOT)}: {len(outlines)} glyphs")
 

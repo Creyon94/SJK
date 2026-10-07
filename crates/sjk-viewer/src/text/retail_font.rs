@@ -163,6 +163,22 @@ mod tests {
     }
 
     #[test]
+    fn chat_letters_sit_centred_in_their_advance() {
+        let font = load(&CHAT).unwrap().font;
+        for byte in (b'0'..=b'9').chain(b'A'..=b'Z').chain(b'a'..=b'z') {
+            let g = glyph(&font, byte);
+            let left = g.offset_x;
+            let right = g.advance - g.offset_x - g.width;
+            // Within the raster's rounding of the ink box to whole pixels.
+            assert!(
+                (left - right).abs() <= 0.5,
+                "{:?} left {left} right {right}",
+                byte as char
+            );
+        }
+    }
+
+    #[test]
     fn latin_1_is_drawn_and_c1_bytes_fall_back_to_a_dot() {
         for face in [&MENU, &CHAT, &HUD] {
             let font = load(face).unwrap().font;

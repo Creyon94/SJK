@@ -1811,7 +1811,7 @@ to the small font. Everything else, including the command browser and overhead
 names, stays on Inter (or SJK HUD for the status HUD). SJK Menu, SJK Chat and SJK
 HUD keep the retail `.fontdat` layout: [game_fonts.py](../scripts/game_fonts.py)
 draws every glyph at 64 font units per retail pixel with the retail advance and
-position, and [retail_font.rs](../crates/sjk-viewer/src/text/retail_font.rs)
+position (SJK Chat's OCR-A glyphs centred in the retail advance), and [retail_font.rs](../crates/sjk-viewer/src/text/retail_font.rs)
 rasterizes each font once at 6 raster pixels per retail pixel into a mipmapped
 coverage atlas, with the line height and baseline the `.fontdat` header gave
 (`ergoec` 22 and 17, `ocr_a` 21 and 17, `arialnb` a 14-pixel line with the

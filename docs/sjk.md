@@ -95,13 +95,21 @@ line height and baseline), so every surface lays out as it did with the bitmaps.
 (the retail `.fontdat` metrics in `assets1.pk3`, the HD atlases of
 `JoF_HDFonts&Icons.pk3`) and Sauter's `OCRA.ttf`, none of which are committed:
 `ergoec` and `arialnb` are traced with light smoothing; OCR-A gets the retail
-widths, and the Latin-1 letters and symbols it lacks are composed from its own
+widths, each glyph centred in its advance (the retail atlas cells are padded
+unevenly, so following them spaced the even OCR-A letters unevenly), and the Latin-1 letters and symbols it lacks are composed from its own
 glyphs (accented capitals squashed under the accent, as its own `Ñ` is), except
 seven (`ß þ Þ ð § ¶ ¤`) traced from the HD `ocr_a`. Sol chose the traced menu and
 HUD fonts and OCR-A Regular from side-by-side comparisons (07/10/2026). The JoF
 pack's author is unknown and it states no licence: Sol chose to bundle the
 tracings on the assumption that it is shared freely, crediting the pack and
 removing them at the author's request.
+
+The first build (07/10/2026) placed most glyphs wrongly: fontTools'
+`removeOverlaps` draws through the glyph set, which moves each outline to its
+`hmtx` left bearing, and the bearings were still 0, so every glyph with
+overlapping contours (most of OCR-A, about half of the traced fonts) landed flush
+left while the rest kept their place. `game_fonts.py` now sets the bearings from
+the outlines before that step.
 [SJK-fonts.txt](../crates/sjk-viewer/assets/fonts/SJK-fonts.txt) records this
 next to the fonts.
 
