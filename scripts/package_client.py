@@ -204,8 +204,14 @@ def main():
         archive.writestr(text_name("README", args.name),
                          instructions(args.platform, revision, args.name, args.repository, args.version,
                                       args.profile_dir, args.client_bin, args.server_bin))
+        fonts = source / "crates/sjk-viewer/assets/fonts"
         notices = [(f"{args.name}/LICENSE", (source / "LICENSE").read_bytes()),
-                   ("Inter/LICENSE.txt", (source / "crates/sjk-viewer/assets/fonts/LICENSE.txt").read_bytes())]
+                   ("Inter/LICENSE.txt", (fonts / "LICENSE.txt").read_bytes())]
+        # Font notices that exist in this tree (JKR has neither).
+        notices.extend((f"{name}/{path.name}", path.read_bytes())
+                       for name, path in (("JetBrains Mono", fonts / "JetBrainsMono-OFL.txt"),
+                                          ("SJK fonts", fonts / "SJK-fonts.txt"))
+                       if path.is_file())
         # SJK's copyright notice leads the file; JKR has none.
         if (source / "NOTICE").is_file():
             notices.insert(0, (f"{args.name}/NOTICE", (source / "NOTICE").read_bytes()))

@@ -14,11 +14,10 @@
 //! character of their byte, as the character set did; bytes the font lacks draw `.`.
 
 use super::{
-    ATLAS_PADDING, ATLAS_WIDTH, FontAtlas, FontGlyph, GLYPH_COUNT, RasterizedGlyph, TextStyle,
-    UiFont, pack_glyphs, slot_character,
+    FontAtlas, FontGlyph, GLYPH_COUNT, RasterizedGlyph, TextStyle, UiFont, paint_atlas,
+    slot_character,
 };
 use fontdue::{Font, FontSettings};
-use image::{Rgba, RgbaImage};
 use std::error::Error;
 
 /// Name used in the log.
@@ -58,29 +57,10 @@ pub(crate) fn load() -> Result<FontAtlas, Box<dyn Error>> {
             }
         })
         .collect();
-    let placements = pack_glyphs(&rasterized);
-    let height = placements
-        .iter()
-        .zip(&rasterized)
-        .map(|([_, y], glyph)| y + glyph.metrics.height as u32 + ATLAS_PADDING)
-        .max()
-        .unwrap_or(1)
-        .next_power_of_two();
-    // White RGB under transparent texels, as the Inter atlas (`load_modern`).
-    let mut image = RgbaImage::from_pixel(ATLAS_WIDTH, height, Rgba([255, 255, 255, 0]));
+    let (image, rectangles) = paint_atlas(&rasterized);
     let mut glyphs = [[FontGlyph::default(); GLYPH_COUNT]; 2];
-    for (glyph, [x, y]) in rasterized.iter().zip(placements) {
+    for (glyph, uv) in rasterized.iter().zip(rectangles) {
         let metrics = glyph.metrics;
-        for row in 0..metrics.height {
-            for column in 0..metrics.width {
-                let alpha = glyph.pixels[row * metrics.width + column];
-                image.put_pixel(
-                    x + column as u32,
-                    y + row as u32,
-                    Rgba([255, 255, 255, alpha]),
-                );
-            }
-        }
         let ink_top = metrics.ymin as f32 + metrics.height as f32;
         let entry = FontGlyph {
             width: metrics.width as f32 * unit,
@@ -88,12 +68,7 @@ pub(crate) fn load() -> Result<FontAtlas, Box<dyn Error>> {
             advance: WIDTH,
             offset_x: metrics.xmin as f32 * unit,
             offset_y: baseline - ink_top * unit,
-            uv: [
-                x as f32 / ATLAS_WIDTH as f32,
-                y as f32 / height as f32,
-                (x + metrics.width as u32) as f32 / ATLAS_WIDTH as f32,
-                (y + metrics.height as u32) as f32 / height as f32,
-            ],
+            uv,
         };
         glyphs[0][glyph.byte] = entry;
         glyphs[1][glyph.byte] = entry;

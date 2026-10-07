@@ -3,16 +3,16 @@
 //! Inter is rasterized once when the graphics device is created.  The render
 //! loop only performs glyph lookup and appends vertices into reused buffers;
 //! it never rasterizes a glyph or grows the atlas.  The console font,
-//! JetBrains Mono ([`console_font`]), is rasterized the same way. The legacy JKA
-//! `fontdat` reader ([`fontdat`]) feeds the optional classic HUD font and the
-//! optional game fonts ([`crate::game_font`]). The retail fonts' `¬` logo
-//! replaces Inter's when present ([`logo_glyph`]).
+//! JetBrains Mono ([`console_font`]), and the vector replacements for the retail
+//! game fonts ([`retail_font`]), which the classic HUD font and the optional game
+//! fonts ([`crate::game_font`]) use, are rasterized the same way. The retail fonts'
+//! `¬` logo, bundled as a vector glyph, replaces Inter's ([`logo_glyph`]).
 
 mod bounded;
 mod cell;
 pub(crate) mod console_font;
-pub(crate) mod fontdat;
 pub(crate) mod logo_glyph;
+pub(crate) mod retail_font;
 pub(crate) mod sdf;
 pub(crate) mod style;
 pub(crate) use bounded::append_bounded;
@@ -23,7 +23,6 @@ pub(crate) use style::TextStyle;
 use bytemuck::{Pod, Zeroable};
 use fontdue::{Font, FontSettings, Metrics};
 use image::{Rgba, RgbaImage};
-use sjk_vfs::VirtualFileSystem;
 use std::error::Error;
 
 pub(crate) const MAX_TEXT_VERTICES: usize = 32_768;
@@ -199,29 +198,9 @@ pub(crate) fn load_modern(
         }
     }
 
-    let placements = pack_glyphs(&rasterized);
-    let height = placements
-        .iter()
-        .zip(&rasterized)
-        .map(|([_, y], glyph)| y + glyph.metrics.height as u32 + ATLAS_PADDING)
-        .max()
-        .unwrap_or(1)
-        .next_power_of_two();
-    // Transparent texels retain white RGB so bilinear sampling at a glyph
-    // boundary does not interpolate toward black before straight-alpha blend.
-    let mut image = RgbaImage::from_pixel(ATLAS_WIDTH, height, Rgba([255, 255, 255, 0]));
+    let (image, rectangles) = paint_atlas(&rasterized);
     let mut glyphs = [[FontGlyph::default(); GLYPH_COUNT]; 2];
-    for (glyph, [x, y]) in rasterized.iter().zip(placements) {
-        for row in 0..glyph.metrics.height {
-            for column in 0..glyph.metrics.width {
-                let alpha = glyph.pixels[row * glyph.metrics.width + column];
-                image.put_pixel(
-                    x + column as u32,
-                    y + row as u32,
-                    Rgba([255, 255, 255, alpha]),
-                );
-            }
-        }
+    for (glyph, uv) in rasterized.iter().zip(rectangles) {
         let top = (line_metrics.ascent - (glyph.metrics.ymin as f32 + glyph.metrics.height as f32))
             / MODERN_RASTER_SCALE;
         glyphs[glyph.face][glyph.byte] = FontGlyph {
@@ -230,12 +209,7 @@ pub(crate) fn load_modern(
             advance: glyph.metrics.advance_width / MODERN_RASTER_SCALE,
             offset_x: glyph.metrics.xmin as f32 / MODERN_RASTER_SCALE,
             offset_y: top,
-            uv: [
-                x as f32 / ATLAS_WIDTH as f32,
-                y as f32 / height as f32,
-                (x + glyph.metrics.width as u32) as f32 / ATLAS_WIDTH as f32,
-                (y + glyph.metrics.height as u32) as f32 / height as f32,
-            ],
+            uv,
         };
     }
     Ok(FontAtlas {
@@ -248,6 +222,46 @@ pub(crate) fn load_modern(
         image,
         distance_field: false,
     })
+}
+
+/// Pack `rasterized` into a coverage atlas [`ATLAS_WIDTH`] wide with mipmappable
+/// padding, and return it with each glyph's rectangle `[u0, v0, u1, v1]`.
+fn paint_atlas(rasterized: &[RasterizedGlyph]) -> (RgbaImage, Vec<[f32; 4]>) {
+    let placements = pack_glyphs(rasterized);
+    let height = placements
+        .iter()
+        .zip(rasterized)
+        .map(|([_, y], glyph)| y + glyph.metrics.height as u32 + ATLAS_PADDING)
+        .max()
+        .unwrap_or(1)
+        .next_power_of_two();
+    // Transparent texels retain white RGB so bilinear sampling at a glyph
+    // boundary does not interpolate toward black before straight-alpha blend.
+    let mut image = RgbaImage::from_pixel(ATLAS_WIDTH, height, Rgba([255, 255, 255, 0]));
+    let rectangles = rasterized
+        .iter()
+        .zip(placements)
+        .map(|(glyph, [x, y])| {
+            let metrics = glyph.metrics;
+            for row in 0..metrics.height {
+                for column in 0..metrics.width {
+                    let alpha = glyph.pixels[row * metrics.width + column];
+                    image.put_pixel(
+                        x + column as u32,
+                        y + row as u32,
+                        Rgba([255, 255, 255, alpha]),
+                    );
+                }
+            }
+            [
+                x as f32 / ATLAS_WIDTH as f32,
+                y as f32 / height as f32,
+                (x + metrics.width as u32) as f32 / ATLAS_WIDTH as f32,
+                (y + metrics.height as u32) as f32 / height as f32,
+            ]
+        })
+        .collect();
+    (image, rectangles)
 }
 
 fn pack_glyphs(glyphs: &[RasterizedGlyph]) -> Vec<[u32; 2]> {
@@ -270,18 +284,10 @@ fn pack_glyphs(glyphs: &[RasterizedGlyph]) -> Vec<[u32; 2]> {
     positions
 }
 
-/// Load Raven's retail bitmap font as an optional classic-HUD atlas, converted to
-/// a signed distance field unless it is a large HD replacement ([`sdf::for_atlas`]).
-pub(crate) fn load_classic(vfs: &VirtualFileSystem) -> Result<FontAtlas, Box<dyn Error>> {
-    let (fontdat, image) = fontdat::read(vfs, "arialnb")?;
-    let (image, distance_field) = sdf::for_atlas(image);
-    // arialnb's header leaves mHeight empty; its baseline sits on the line bottom.
-    let height = fontdat.height.max(fontdat.point_size);
-    Ok(FontAtlas {
-        font: fontdat.into_font(height, height),
-        image,
-        distance_field,
-    })
+/// The classic status HUD's font: SJK HUD, the bundled vector replacement for
+/// retail's `arialnb` ([`retail_font::HUD`]).
+pub(crate) fn load_classic() -> Result<FontAtlas, Box<dyn Error>> {
+    retail_font::load(&retail_font::HUD)
 }
 
 /// Colour of the `^<digit>` code `index` (0-9), as a display value.

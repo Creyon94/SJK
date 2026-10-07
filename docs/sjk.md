@@ -84,10 +84,26 @@ credits.txt.
 | Retail bitmap | Used for | Replacement |
 | --- | --- | --- |
 | `gfx/2d/charsgrid_med` | Console, notify lines, cgame small/big strings | JetBrains Mono ([console_font.rs](../crates/sjk-viewer/src/text/console_font.rs)) |
-| `ocr_a` | Chat, selection names, scoreboard numbers (`ui_gameFont`) | to do |
-| `ergoec` | Menus, centre prints, scoreboard names (`ui_gameFont`) | to do |
-| `arialnb` | Classic status HUD (`cg_classicHudFont`) | to do |
-| `logo` glyph (0xAC) | The "WSI fonts" logo in Inter's atlas | to do |
+| `ocr_a` | Chat, selection names, scoreboard numbers (`ui_gameFont`) | SJK Chat: OCR-A (public domain) set to the retail widths ([retail_font.rs](../crates/sjk-viewer/src/text/retail_font.rs)) |
+| `ergoec` | Menus, centre prints, scoreboard names (`ui_gameFont`) | SJK Menu: traced from the JoF HD pack's atlas |
+| `arialnb` | Classic status HUD (`cg_classicHudFont`) | SJK HUD: traced from the JoF HD pack's atlas |
+| `logo` glyph (0xAC) | The "WSI fonts" logo in Inter's atlas | SJK Menu's vector logo ([logo_glyph.rs](../crates/sjk-viewer/src/text/logo_glyph.rs)) |
+
+SJK Menu, SJK Chat and SJK HUD keep the retail layout (advances, glyph positions,
+line height and baseline), so every surface lays out as it did with the bitmaps.
+[game_fonts.py](../scripts/game_fonts.py) rebuilds them from a player's install
+(the retail `.fontdat` metrics in `assets1.pk3`, the HD atlases of
+`JoF_HDFonts&Icons.pk3`) and Sauter's `OCRA.ttf`, none of which are committed:
+`ergoec` and `arialnb` are traced with light smoothing; OCR-A gets the retail
+widths, and the Latin-1 letters and symbols it lacks are composed from its own
+glyphs (accented capitals squashed under the accent, as its own `Ñ` is), except
+seven (`ß þ Þ ð § ¶ ¤`) traced from the HD `ocr_a`. Sol chose the traced menu and
+HUD fonts and OCR-A Regular from side-by-side comparisons (07/10/2026). The JoF
+pack's author is unknown and it states no licence: Sol chose to bundle the
+tracings on the assumption that it is shared freely, crediting the pack and
+removing them at the author's request.
+[SJK-fonts.txt](../crates/sjk-viewer/assets/fonts/SJK-fonts.txt) records this
+next to the fonts.
 
 ## Copyright notice
 

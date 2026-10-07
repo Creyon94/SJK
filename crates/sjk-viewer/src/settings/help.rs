@@ -264,7 +264,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         "cg_classicHudFont",
-        "Draws the HUD's numbers and text in the retail bitmap font.",
+        "Draws the HUD's numbers and text in the original game's HUD font.",
     ),
     (
         crate::game_font::CVAR,
