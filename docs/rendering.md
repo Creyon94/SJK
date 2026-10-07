@@ -810,7 +810,8 @@ the entire player. Head variants and TIE pilot hoses are masked as in JoF EJK's
 `CG_ForceFPLSPlayerModel`; hilts and blades continue to use the animated hand
 bolts. The mask is removed when returning to third person. Hats/capes remain
 hidden in first person. Head surfaces are also hidden in mirrors while this
-mode is active. GPU appearance and community model coverage remain unverified.
+mode is active. A retail `mp/duel1` GPU smoke check covered the blade view and
+restored third-person head; arm framing and community models remain unverified.
 
 [saber_trail.rs](../crates/sjk-viewer/src/saber_trail.rs) follows codemp
 `CG_AddSaberBlade` and `CTrail`: every frame at least 3 ms after the last, a
