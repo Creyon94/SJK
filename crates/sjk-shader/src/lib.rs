@@ -112,6 +112,11 @@ pub struct ShaderStage {
     /// Per-stage distance for `alphaGen portal` (stock default 256 units).
     pub portal_range: Option<f32>,
     pub images: Vec<String>,
+    /// `videoMap <cinematic>`: a RoQ video drawn as the stage's image, looping
+    /// (rd-vanilla `tr_shader.cpp` ParseStage, `CIN_PlayCinematic(..., CIN_loop |
+    /// CIN_silent | CIN_shader)`). The path is as written; `video/` and `.roq` are
+    /// the defaults for a bare name.
+    pub video: Option<String>,
     pub animation_frequency: Option<f32>,
     pub one_shot: bool,
     pub clamp: bool,

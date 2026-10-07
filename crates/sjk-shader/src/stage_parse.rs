@@ -11,6 +11,7 @@ pub(super) fn parse_stage(
         surface_sprites: None,
         portal_range: None,
         images: Vec::new(),
+        video: None,
         animation_frequency: None,
         one_shot: false,
         clamp: false,
@@ -75,6 +76,10 @@ pub(super) fn parse_stage(
                         .push(token(tokens, *cursor, source)?.to_owned());
                     *cursor += 1;
                 }
+            }
+            "videomap" => {
+                stage.video = Some(token(tokens, *cursor, source)?.to_owned());
+                *cursor += 1;
             }
             "glow" => stage.glow = true,
             "blendfunc" => {
@@ -237,4 +242,22 @@ pub(super) fn parse_stage(
     }
     definition.stages.push(stage);
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::parse_shader_script;
+
+    #[test]
+    fn video_map_names_the_stage_video_and_ends_at_the_next_directive() {
+        let definitions = parse_shader_script(
+            b"textures/video/raven\n{\n{\nvideoMap video/openinglogos\nblendFunc add\n}\n}",
+            "scripts/cinematics.shader",
+        )
+        .expect("script parses");
+        let stage = &definitions[0].stages[0];
+        assert_eq!(stage.video.as_deref(), Some("video/openinglogos"));
+        assert!(stage.images.is_empty());
+        assert_eq!(stage.blend, crate::StageBlend::Add);
+    }
 }

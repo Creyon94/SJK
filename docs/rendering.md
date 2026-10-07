@@ -146,6 +146,38 @@ Implementation: [compatibility state](../crates/sjk-client/src/shader_remaps.rs)
 [replacement compilation](../crates/sjk-viewer/src/world_remap_material.rs),
 [effect atlas entries](../crates/sjk-viewer/src/effect_remaps.rs).
 
+## Video stages (`videoMap`)
+
+A stage with `videoMap <name>` plays a RoQ video on its surface, as rd-vanilla's
+`CIN_PlayCinematic(..., CIN_loop | CIN_silent | CIN_shader)` does: looping, without
+sound, at the frame rate in the file's header (30 when it says 0). A bare name is
+looked up in `video/`, and `.roq` is added to a name without an extension. Retail
+uses it for `textures/video/*` (the Raven logo, the briefing screens) and community
+maps and servers use it for screens and holo news; JA+ servers remap world
+textures to such shaders. Until 08/10/2026 the client ignored the keyword, so a
+video stage drew the shader's own name as an image, which does not exist: the
+magenta checker Sol found on `mp/ffa1`'s `vjun/hangar_console` on a server
+(world note, 07/10/2026).
+
+[cinematic_roq.rs](../crates/sjk-viewer/src/cinematic_roq.rs) decodes RoQ:
+codebooks of 2x2 and 4x4 cells and frames coded per 8x8 and 4x4 block as
+unchanged, moved from the previous frame, a codebook cell scaled up or split
+further, converted with Quake III's full-range BT.601. Audio and the rare JPEG
+intra frames are skipped (a JPEG frame keeps the picture). Load gives the stage
+the first frame under a texture key of its own (`$video:<path>`);
+[world_videos.rs](../crates/sjk-viewer/src/world_videos.rs) keeps that texture as one
+updatable layer without mips and, each frame, decodes what the clock asks for (at
+most six frames, then it skips ahead) and uploads the newest picture. A missing or
+unreadable video shows the missing-image checker, as a missing image does.
+
+Verified: unit tests decode synthetic RoQ files (codebook cells, motion, split
+blocks, looping, a truncated frame) and parse the keyword; an off-screen world shot
+of `mp/ffa1` with `vjun/hangar_console` remapped locally to `textures/video/raven`
+showed the retail Raven logo video playing on the console (08/10/2026). Not
+verified: the server remap Sol met (its target is not known), long community
+videos, and the cost with many videos on one map (every video is decoded and
+uploaded whether or not it is in view, as rd-vanilla runs every cinematic).
+
 ## Actor animation failures
 
 Actor animation failures are isolated to the affected mesh. An invalid clip or

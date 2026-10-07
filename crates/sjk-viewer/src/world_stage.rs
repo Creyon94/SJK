@@ -153,6 +153,7 @@ fn implicit_stage(
         } else {
             Vec::new()
         },
+        video: None,
         animation_frequency: None,
         one_shot: false,
         clamp: false,

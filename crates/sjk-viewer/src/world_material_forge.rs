@@ -43,6 +43,8 @@ pub(super) struct Forge {
     pub(super) queue: crate::frame_queue::FrameQueue,
     pub(super) pipeline_keys: Vec<PipelineKey>,
     pub(super) texture_cache: std::collections::HashMap<String, wgpu::TextureView>,
+    /// The `videoMap` stages' textures and their players.
+    pub(super) videos: super::videos::Videos,
     /// Material-map layout, textures, frames and program; only for maps that found any.
     pub(super) material_maps: Option<super::material_maps::gpu::Gpu>,
 }
@@ -123,6 +125,7 @@ impl Forge {
             fallback_lightmap,
             pipeline_keys: Vec::new(),
             texture_cache: std::collections::HashMap::with_capacity(512),
+            videos: super::videos::Videos::default(),
             material_maps: None,
         }
     }
@@ -169,6 +172,15 @@ impl Forge {
     ) -> Result<wgpu::TextureView, Box<dyn Error>> {
         if let Some(texture) = self.texture_cache.get(key) {
             return Ok(texture.clone());
+        }
+        // A video's frames change: one updatable layer without mips.
+        if key.starts_with(super::videos::KEY_PREFIX)
+            && let Some(first) = pixels.first()
+        {
+            let (texture, view) = super::videos::upload(device, queue, first);
+            self.videos.register(key, texture);
+            self.texture_cache.insert(key.to_owned(), view.clone());
+            return Ok(view);
         }
         let texture = if self.filtering.mipmapped() {
             super::filtering::mips::upload(device, queue, pixels)?

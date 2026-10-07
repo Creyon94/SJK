@@ -280,6 +280,15 @@ pub(super) fn load_stage_images(
             "$lightmap-placeholder".into(),
         ));
     }
+    // `videoMap`: the video's first picture now, the rest as it plays (`world_videos.rs`).
+    if let Some(video) = &stage.video {
+        let path = super::videos::path(video);
+        if let Some(image) = super::videos::first_frame(vfs, &path) {
+            return Ok((vec![image], true, super::videos::key(&path)));
+        }
+        crate::log::progress(format_args!("videoMap {path}: not found"));
+        return Ok((vec![missing_image()], false, format!("$missing:{path};")));
+    }
     let names: Vec<&str> = if stage.images.is_empty() {
         vec![implicit_name]
     } else {
@@ -318,18 +327,23 @@ pub(super) fn load_stage_images(
         identity.push_str("$missing:");
         identity.push_str(name);
         identity.push(';');
-        images.push(Arc::new(
-            RgbaImage::from_raw(
-                2,
-                2,
-                vec![
-                    255, 0, 255, 255, 32, 32, 32, 255, 32, 32, 32, 255, 255, 0, 255, 255,
-                ],
-            )
-            .expect("fixture dimensions"),
-        ));
+        images.push(missing_image());
     }
     Ok((images, any, identity))
+}
+
+/// The magenta checker a stage shows for an image it cannot find.
+fn missing_image() -> Arc<RgbaImage> {
+    Arc::new(
+        RgbaImage::from_raw(
+            2,
+            2,
+            vec![
+                255, 0, 255, 255, 32, 32, 32, 255, 32, 32, 32, 255, 255, 0, 255, 255,
+            ],
+        )
+        .expect("fixture dimensions"),
+    )
 }
 
 pub(crate) fn upload_array(
