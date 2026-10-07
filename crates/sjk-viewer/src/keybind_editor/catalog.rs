@@ -145,9 +145,9 @@ pub(crate) const ACTIONS: &[BindableAction] = &[
     action(Other, "Mod button 14", "+button14", ""),
     action(Other, "Mod button 15", "+button15", ""),
     action(Other, "Scoreboard", "+scores", "TAB"),
-    action(Other, "Chat", "messagemode", "u"),
+    action(Other, "Chat", "messagemode", "y"),
     action(Other, "Team chat", "messagemode2", "t"),
-    action(Other, "Whisper to crosshair player", "messagemode3", ""),
+    action(Other, "Whisper to crosshair player", "messagemode3", "u"),
     action(Other, "Whisper to last attacker", "messagemode4", ""),
     action(Other, "Join / team menu", "teammenu", "j"),
     action(Other, "Vote yes", "vote yes", ""),
@@ -191,7 +191,7 @@ pub(crate) fn default_bindings() -> BindTable {
 /// Pre-step-73e configs spell `+useforce` as `+force`; rename so the editor
 /// shows the key.
 pub(crate) fn migrate_missing_defaults(binds: &mut BindTable) {
-    migrate_chat_default(binds);
+    migrate_chat_default(binds, false);
     let legacy_force: Vec<String> = binds
         .iter()
         .filter(|(_, command)| command.eq_ignore_ascii_case("+force"))
@@ -211,15 +211,28 @@ pub(crate) fn migrate_missing_defaults(binds: &mut BindTable) {
     }
 }
 
-/// Add U to a former default chat binding without resetting other actions.
-pub(crate) fn migrate_chat_default(binds: &mut BindTable) {
-    // Keep the former Y default usable without replacing an occupied U.
-    if binds.get("u").is_none()
+/// Install crosshair-target chat on free U; repair the former version-2 global U.
+pub(crate) fn migrate_chat_default(binds: &mut BindTable, repair_global_u: bool) {
+    if repair_global_u
         && binds
-            .get("y")
+            .get("u")
             .is_some_and(|command| command.eq_ignore_ascii_case("messagemode"))
     {
-        let _ = binds.bind("u", "messagemode");
+        let _ = binds.bind("u", "messagemode3");
+        if binds.get("y").is_none()
+            && !binds
+                .iter()
+                .any(|(_, command)| command.eq_ignore_ascii_case("messagemode"))
+        {
+            let _ = binds.bind("y", "messagemode");
+        }
+    }
+    if binds.get("u").is_none()
+        && !binds
+            .iter()
+            .any(|(_, command)| command.eq_ignore_ascii_case("messagemode3"))
+    {
+        let _ = binds.bind("u", "messagemode3");
     }
 }
 
@@ -228,26 +241,50 @@ mod tests {
     use super::*;
 
     #[test]
-    fn chat_u_default_preserves_existing_bindings() {
-        assert_eq!(default_bindings().get("u"), Some("messagemode"));
+    fn crosshair_chat_u_preserves_existing_bindings() {
+        assert_eq!(default_bindings().get("u"), Some("messagemode3"));
+        assert_eq!(default_bindings().get("y"), Some("messagemode"));
         let mut old = BindTable::new();
         old.bind("y", "messagemode").unwrap();
-        migrate_chat_default(&mut old);
-        assert_eq!(old.get("u"), Some("messagemode"));
+        migrate_chat_default(&mut old, false);
+        assert_eq!(old.get("u"), Some("messagemode3"));
         assert_eq!(old.get("y"), Some("messagemode"));
         assert_eq!(old.get("w"), None);
-        migrate_chat_default(&mut old);
-        assert_eq!(old.get("u"), Some("messagemode"));
+        migrate_chat_default(&mut old, false);
+        assert_eq!(old.get("u"), Some("messagemode3"));
 
         let mut occupied = BindTable::new();
-        occupied.bind("y", "messagemode").unwrap();
         occupied.bind("u", "taunt").unwrap();
-        migrate_chat_default(&mut occupied);
+        migrate_chat_default(&mut occupied, true);
         assert_eq!(occupied.get("u"), Some("taunt"));
 
         let mut custom = BindTable::new();
-        custom.bind("q", "messagemode").unwrap();
-        migrate_chat_default(&mut custom);
+        custom.bind("q", "messagemode3").unwrap();
+        migrate_chat_default(&mut custom, false);
         assert_eq!(custom.get("u"), None);
+        assert_eq!(custom.get("q"), Some("messagemode3"));
+    }
+
+    #[test]
+    fn repair_version_two_restores_global_chat_without_overwriting_custom_keys() {
+        for global_key in [None, Some("y"), Some("q")] {
+            let mut binds = BindTable::new();
+            binds.bind("u", "messagemode").unwrap();
+            if let Some(key) = global_key {
+                binds.bind(key, "messagemode").unwrap();
+            }
+            migrate_chat_default(&mut binds, true);
+            assert_eq!(binds.get("u"), Some("messagemode3"));
+            assert_eq!(binds.get(global_key.unwrap_or("y")), Some("messagemode"));
+            migrate_chat_default(&mut binds, true);
+            assert_eq!(binds.get("u"), Some("messagemode3"));
+        }
+        let mut custom = BindTable::new();
+        custom.bind("u", "messagemode").unwrap();
+        custom.bind("y", "taunt").unwrap();
+        migrate_chat_default(&mut custom, false);
+        assert_eq!(custom.get("u"), Some("messagemode"));
+        migrate_chat_default(&mut custom, true);
+        assert_eq!(custom.get("y"), Some("taunt"));
     }
 }
