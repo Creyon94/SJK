@@ -762,17 +762,22 @@
 - 0874042 |  | Decode print and cp text as legacy bytes
 
 = lumaya
-+ 07/10/2026 | SJK #29 | Add detached free camera flight
-- 4df70a1 |  | Add detached free camera flight
-- 8bc29d6 |  | Hide the local body while free camera starts inside its head
-- 5d480e9 |  | Record the detached camera flight runtime check
-- 45b96c0 |  | Isolate free camera actions and clear flight on session exit
-- 5bc6805 |  | Record isolated release GPU review checks
++ 07/10/2026 | SJK #26 | Show the posed saber body in first person
+- 26719eb |  | Show the posed saber body in first person
+- eea02f1 |  | Record the first-person saber GPU smoke check
+- 9daf3a6 |  | Hide first-person saber bodies on death and spectator follow
+- 9e579a8 |  | Record isolated release GPU review checks
 + 07/10/2026 | SJK #28 | Add refreshed timed player peek camera
 - 4dd699c |  | Add refreshed timed player peek camera
 - 4a770ec |  | Keep peek and detached local flight mutually exclusive
 - 53d4726 |  | Record the peek camera local runtime check
 - 337e718 |  | Pause peek on target loss and scope its detached rendering
 - be537dd |  | Record isolated release GPU review checks
++ 07/10/2026 | SJK #29 | Add detached free camera flight
+- 4df70a1 |  | Add detached free camera flight
+- 8bc29d6 |  | Hide the local body while free camera starts inside its head
+- 5d480e9 |  | Record the detached camera flight runtime check
+- 45b96c0 |  | Isolate free camera actions and clear flight on session exit
+- 5bc6805 |  | Record isolated release GPU review checks
 + 07/10/2026 | SJK #24 | Clip visible saber blades at world walls
 - 8d21001 |  | Clip visible saber blades at world walls

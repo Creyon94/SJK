@@ -692,7 +692,7 @@ follow `CG_Player`: the Lightning (`activeForcePass` 1-3) and Drain (4-6:
 or Grip puffs there while `PW_DISINT_4` is set, and the body push blur for
 `EF_BODYPUSH`. The local player's effects come from its predicted player state,
 since stock rebuilds the local entity from `cg.predictedPlayerState` and the
-server never sends it; in first person they start at the hidden body's left
+server never sends it; in first person they start at the local body's left
 hand, and Grip's puffs are third-person only. A player who mind-tricked the
 viewer still shows its beam and hand puffs, which stock draws before its
 mind-trick cut-off; only the body push blur is hidden for it. JKR drew none of
@@ -802,6 +802,20 @@ flash never shakes the camera (JoF's HD muzzle effects carry a radius-60
 `CameraShake`; JoF EternalJK showed none when firing in the contributor's recordings,
 in first or third person); other players' flashes and all other effects shake by
 distance as in the reference.
+
+## First-person saber body
+
+First-person saber mode draws the local posed body and arms instead of hiding
+the entire player. Head variants and TIE pilot hoses are masked as in JoF EJK's
+`CG_ForceFPLSPlayerModel`; hilts and blades continue to use the animated hand
+bolts. The mask is removed when returning to third person. Hats/capes remain
+hidden in first person. Head surfaces are also hidden in mirrors while this
+mode is active. A retail `mp/duel1` GPU smoke check covered the blade view and
+restored third-person head; arm framing and community models remain unverified.
+The body is shown only for a living player in their own view, excluding
+spectators/follow and dead flags. Shared fallback meshes stay hidden until
+the local model loads. The body and head mask use one filtered equipment
+decision; head descendants such as hair and helmets are masked too.
 
 ## Saber trails
 

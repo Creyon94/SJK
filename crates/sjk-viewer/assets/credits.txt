@@ -75,10 +75,11 @@ link: Creyon's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr
 
 [lumaya]
 github: lumayaa
-role: Contributor: 3 merged pull requests
+role: Contributor: 4 merged pull requests
 did: #24 Saber blades stop at walls instead of shining through them
 did: #29 Free camera: /freecam flies the camera away from your body
 did: #28 Peek: /peek watches another player for a few seconds
+did: #26 First person with a saber shows your arms and body holding it
 link: lumaya's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa
 
 == Made with

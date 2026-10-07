@@ -1949,6 +1949,16 @@ test: /peek <part of a name>, /peek 3 20, /peek off: each does what it says.
 test: Peek a player who walks into a corridor: the camera stays out of the walls.
 test: /freecam during a peek ends the peek; /peek during freecam is refused.
 
+[first-person-saber-body]
+status: personal
+area: Rendering & effects
+title: First person with a saber shows your arms and body (SJK PR #26, lumaya)
+change: The local body is drawn in first person with a saber, its head hidden, as codemp does.
+test: First person with a saber lit: arms and hands hold the hilt, no head in view.
+test: Die in first person, then follow a player as spectator: no headless body at the camera.
+test: Swap to a gun: the normal view weapon comes back.
+note: Some community models parent body parts under the head; those parts vanish in 1st person.
+
 [saber-wall-cutoff]
 status: personal
 area: Rendering & effects

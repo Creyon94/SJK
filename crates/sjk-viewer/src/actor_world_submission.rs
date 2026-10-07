@@ -1,4 +1,6 @@
 //! Actor, held-weapon, saber, and force-overlay frame submission.
+#[path = "first_person_saber.rs"]
+pub(crate) mod first_person_saber;
 
 use super::*;
 
@@ -68,12 +70,13 @@ struct Sinks<'a> {
     predicted_force_powers_active: Option<u32>,
     predicted_local_state: Option<&'a sjk_client::pmove::MovementState>,
     predicted_vehicle: Option<crate::vehicle_pose::Predicted>,
-    authoritative_local_saber_move: Option<u32>,
+    local_equipment: Option<sjk_runtime::HeldEquipment>,
     third_person: bool,
     portal_view: bool,
     entity_view_flags: u32,
     detached_camera: bool,
     detached_flight: bool,
+    first_person_saber: bool,
     /// This frame's JA+ grapple hooks, drawn as ropes from their players' hands.
     hooks: grapple_rope::Hooks,
     /// Every player's weapon charge, for the glow on its muzzle.
@@ -107,6 +110,40 @@ pub(crate) fn submit(
                 .as_ref()
                 .map(demo_playback::Session::game_state)
         });
+    let local_mesh = gpu.actor_meshes.iter().position(|mesh| {
+        mesh.entity_id.map(|id| id.get()) == local_entity_id && mesh.entity_id.is_some()
+    });
+    let local_equipment = local_entity_id
+        .and_then(|id| active_world.entity(sjk_runtime::EntityId::new(id)))
+        .and_then(|entity| {
+            local_actor_state::equipment(
+                entity.equipment(),
+                gpu.local_prediction
+                    .predicted_state()
+                    .filter(|_| !gpu.detached_camera),
+                snapshot.map(|s| s.player.saber_move()),
+            )
+        });
+    let saber_body = first_person_saber::visible(
+        true,
+        gpu.third_person,
+        gpu.detached_camera,
+        local_equipment.map(|held| held.weapon),
+        snapshot.map(|s| &s.player),
+    ) && gpu
+        .local_prediction
+        .predicted_state()
+        .is_none_or(|p| p.health > 0 && p.entity_flags & 2 == 0)
+        && local_mesh.is_some_and(|index| {
+            !gpu.actor_meshes[index].surfaces.weapon_lost
+                && gpu.actor_meshes[index].body_identity.is_none()
+        });
+    for (index, mesh) in gpu.actor_meshes.iter_mut().enumerate() {
+        mesh.surfaces.first_person_saber(
+            saber_body && local_mesh == Some(index),
+            &mesh.preview.mesh.hierarchy,
+        );
+    }
     let aura_shell = gpu
         .console
         .as_ref()
@@ -216,12 +253,13 @@ pub(crate) fn submit(
             .live_session
             .as_ref()
             .and_then(|_| gpu.local_prediction.vehicle_pose()),
-        authoritative_local_saber_move: snapshot.map(|value| value.player.saber_move()),
+        local_equipment,
         third_person: gpu.third_person,
         portal_view: gpu.scene_views.has_portal_view(),
         entity_view_flags: 0,
         detached_camera: gpu.detached_camera,
         detached_flight,
+        first_person_saber: saber_body,
         hooks: grapple_rope::Hooks::collect(snapshot, game_state, presentation_time as i32),
         charges: crate::charge_flash::Charges::collect(
             snapshot,
@@ -409,11 +447,7 @@ fn submit_actor(
         );
     }
     let mut equipment = if Some(entity.id.get()) == local_entity_id {
-        local_actor_state::equipment(
-            entity.equipment(),
-            sinks.predicted_local_state,
-            sinks.authoritative_local_saber_move,
-        )
+        sinks.local_equipment
     } else {
         entity.equipment()
     };
@@ -478,7 +512,8 @@ fn submit_actor(
             visual_now,
         );
     }
-    if (draw_actor || sinks.portal_view)
+    let saber_body = local && sinks.first_person_saber;
+    if (draw_actor || saber_body || sinks.portal_view)
         && let Some(mesh) = mesh
     {
         let mut instance = ActorInstance::new(
@@ -494,7 +529,10 @@ fn submit_actor(
                 Vec3::from_array(transform.translation),
                 sinks.view_height,
             );
-        instance.view_flags = sinks.entity_view_flags | u32::from(!draw_actor || inside_body);
+        // The first-person saber body is never on with a detached camera, so it never
+        // meets the free camera's hidden body.
+        instance.view_flags =
+            sinks.entity_view_flags | u32::from((!draw_actor && !saber_body) || inside_body);
         if trick.fading {
             // `RF_FORCE_ENT_ALPHA` at `trickAlpha` (`cg_players.c:11358-11367`).
             if sinks.overrides.len() < sinks.overrides.capacity() {

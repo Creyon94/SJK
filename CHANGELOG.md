@@ -21,6 +21,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- First person with a saber shows your arms and body holding it, as the original game does, instead of a hilt floating alone; the head stays hidden, and dying or following someone goes back to the old view _(lumaya, after JoF EJK)_
 - Peek: `/peek <id or name> [seconds]` (or `/peek` on the player under your crosshair) watches another player for a few seconds from behind, as JoF EJK's peek does, with the camera kept out of walls; `/peek off` returns _(lumaya, after JoF EJK)_
 - Free camera: `/freecam` (bindable under Key bindings > Other) flies the camera away from your body as JoF EJK's fake noclip does, while you stand still on the server with the chat balloon; actions are held back while flying, and death, spectating, a vehicle, a disconnect or a map change end it _(lumaya, after JoF EJK)_
 - Even letter spacing in the chat font: most letters sat against the left of their space while C, G, O and a few others sat against the right, leaving holes inside words. The menu and classic HUD fonts had the same fault, less visibly _(Sol)_

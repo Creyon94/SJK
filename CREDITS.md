@@ -152,7 +152,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
 - #23 smooth melee kicks: kicks and saber attacks predicted in a joined game,
   and the kicker held still through JA+'s own kicks, as JoF EternalJK.
 
-lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 3 pull requests
+lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 4 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa)):
 
@@ -162,6 +162,8 @@ merged into SJK
   predictor while the server sees you standing still with the talk balloon.
 - #28 timed player peek: `/peek` watches a player by number, name or crosshair for
   up to sixty seconds, as JoF EJK's `CG_Peek_f`, with wall collision.
+- #26 the posed saber body in first person: the local body is drawn with its head
+  hidden, as codemp's `CG_Player` and JoF EJK's `CG_ForceFPLSPlayerModel` do.
 
 ## Tools
 

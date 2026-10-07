@@ -49,6 +49,7 @@ pub(crate) struct Surfaces {
     pub(crate) lost: u8,
     /// The weapon went with the arm, hand or waist.
     pub(crate) weapon_lost: bool,
+    first_person_saber: bool,
 }
 
 /// Turn the model's cap surfaces into ordinary hidden surfaces so the actor mesh
@@ -98,6 +99,7 @@ impl Surfaces {
             draw_visible: Vec::new(),
             lost: 0,
             weapon_lost: false,
+            first_person_saber: false,
         };
         surfaces.refresh(hierarchy);
         surfaces
@@ -150,7 +152,14 @@ impl Surfaces {
                 .collect(),
         };
         while let Some(index) = pending.pop() {
-            let flags = self.flags.get(index).copied().unwrap_or(0) & (OFF | NODESCENDANTS);
+            let mut flags = self.flags.get(index).copied().unwrap_or(0) & (OFF | NODESCENDANTS);
+            if self.first_person_saber
+                && crate::actor_world_submission::first_person_saber::hide_surface(
+                    &hierarchy[index].name,
+                )
+            {
+                flags |= OFF | NODESCENDANTS;
+            }
             if flags == 0 {
                 rendered[index] = true;
             }
@@ -168,6 +177,14 @@ impl Surfaces {
             .iter()
             .map(|&surface| rendered.get(surface).copied().unwrap_or(true))
             .collect();
+    }
+
+    /// Apply the first-person head mask only when the view changes.
+    pub(crate) fn first_person_saber(&mut self, enabled: bool, hierarchy: &[GlmSurfaceHierarchy]) {
+        if self.first_person_saber != enabled {
+            self.first_person_saber = enabled;
+            self.refresh(hierarchy);
+        }
     }
 
     /// `BG_GetRootSurfNameWithVariant` (`bg_g2_utils.c`): `root` where it is drawn, else
@@ -656,6 +673,22 @@ mod tests {
 
     fn shown(surfaces: &Surfaces) -> Vec<bool> {
         surfaces.draw_visible.clone()
+    }
+
+    #[test]
+    fn first_person_masks_the_head_subtree_and_restores_the_model_flags() {
+        let hierarchy = vec![
+            surface("torso", 0, None, &[1, 3]),
+            surface("head", 0, Some(0), &[2]),
+            surface("helmet", 0, Some(1), &[4]),
+            surface("r_arm", 0, Some(0), &[]),
+            surface("hair", 0, Some(2), &[]),
+        ];
+        let mut state = Surfaces::new(&hierarchy, vec![0; 5], 0..5);
+        state.first_person_saber(true, &hierarchy);
+        assert_eq!(shown(&state), [true, false, false, true, false]);
+        state.first_person_saber(false, &hierarchy);
+        assert_eq!(shown(&state), [true; 5]);
     }
 
     #[test]
