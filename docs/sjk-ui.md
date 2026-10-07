@@ -388,12 +388,15 @@ so a stray click does not end a join.
   line 440 long that fills gold by step, and on the bottom row a slowly turning
   gold arc with the step in words. Esc "cancel" sits at the bottom right.
 - **Once the map is known** (the browser row's map, the server's answer or the
-  gamestate): the map's levelshot fades in over the whole window, cropped to
-  its shape and never stretched (a square retail levelshot is a 4:3 picture,
-  `levelshot::cover_uv`), darkened a little all over, more towards the bottom
-  and its left and a touch at the top. At the bottom left, from the top:
-  "Joining", the map's name without `mp/` large (Rajdhani 124), its own name
-  from its worldspawn, the server's name (Rajdhani 36, with its colours), then
+  gamestate): the map's levelshot fades in over the whole window, never
+  stretched (`levelshot::screen_fit`): one as wide as the window or narrower
+  covers it, cut at its top and bottom (a square retail levelshot is a 4:3
+  picture); a wider one (the HD packs' 2:1 shots, their title against the left
+  edge) keeps its whole width with navy bands above and below. It is darkened a
+  little all over, more towards the bottom and its left and a touch at the
+  top. At the bottom left, from the top: "Joining", the map's own name from its
+  worldspawn large (Rajdhani 124, 96 past 18 letters; the file name when it has
+  none), its file name without `mp/` small, the server's name (Rajdhani 36, with its colours), then
   the classic screen's lines in words: the game type and limits ("Free for
   all, 30 frags, 20 minutes"; before the gamestate the server list's game type
   and players), the mod and the server's rules ("JA+ Mod v2.6 · Force mastery:

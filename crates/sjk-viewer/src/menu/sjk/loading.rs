@@ -19,7 +19,7 @@ use super::{Frame, TextTarget, color, fade, fade_across, key_hint, key_hint_widt
 use crate::menu::classic::loading::{
     CS_MESSAGE, CS_MOTD, ClassicLoading, MASTERY, Stage, WorldStage, config_text, server_info,
 };
-use crate::menu::levelshot::{Preview, cover_uv};
+use crate::menu::levelshot::{Preview, screen_fit};
 use crate::menu::{ClientMenu, ClientPhase};
 use crate::menu_widgets::{MenuCanvas, TextFamily};
 use crate::server_browser::ServerEntry;
@@ -355,7 +355,7 @@ struct View<'a> {
     /// What Escape does.
     back: &'static str,
     /// The levelshot's opacity and texture coordinates, once it is in.
-    picture: Option<(f32, [[f32; 2]; 4])>,
+    picture: Option<(f32, Rect, [[f32; 2]; 4])>,
     /// The world is left out: the navy ground instead.
     ground: bool,
     /// The menu clock, for the activity mark.
@@ -408,8 +408,9 @@ impl ClientMenu {
         let opacity = self.sjk_loading.fade(levelshot, ready, now);
         let picture = ready.then(|| {
             let size = self.create_game.levelshot_size(levelshot);
-            let aspect = viewport[0] / viewport[1].max(1.0);
-            (opacity, cover_uv(size.unwrap_or([4, 3]), aspect))
+            let window = Rect::new(0.0, 0.0, viewport[0], viewport[1]);
+            let (rect, uv) = screen_fit(size.unwrap_or([4, 3]), window);
+            (opacity, rect, uv)
         });
         let address = loading.server();
         let entry = address
@@ -543,12 +544,22 @@ fn draw(ui: &mut MenuCanvas, viewport: [f32; 2], view: &View<'_>) {
             },
         );
     }
-    if let Some((opacity, uv)) = view.picture.filter(|(opacity, _)| *opacity > 0.0) {
+    if let Some((opacity, rect, uv)) = view.picture.filter(|(opacity, ..)| *opacity > 0.0) {
         ui.push_opacity(opacity);
+        // A picture wider than the window leaves bands: navy, not the map.
+        if rect != window {
+            push(
+                ui,
+                DrawCommand::SolidRect {
+                    rect: window,
+                    color: color::SPACE,
+                },
+            );
+        }
         push(
             ui,
             DrawCommand::TexturedQuadUv {
-                rect: window,
+                rect,
                 texture: crate::ui_renderer::LEVELSHOT_TEXTURE,
                 color: Color::new(1.0, 1.0, 1.0, 1.0),
                 uv,
@@ -721,12 +732,19 @@ fn draw_destination(ui: &mut MenuCanvas, frame: &Frame, view: &View<'_>) {
         FontWeight::Semibold,
         TextAlign::Start,
     );
-    if !view.title.is_empty() {
+    // The map's own name large ("Tatooine FFA"), its file name ("ffa3") small
+    // under it; the file name large when the map names itself nothing.
+    let (large, small) = if view.title.is_empty() {
+        (view.map, "")
+    } else {
+        (view.title, view.map)
+    };
+    if !small.is_empty() {
         y -= 34.0;
         text(
             ui,
             TextFamily::Display,
-            format_args!("{}", view.title),
+            format_args!("{small}"),
             frame.rect(LEFT + 2.0, y, 1200.0, 34.0),
             26.0 * s,
             color::MUTED,
@@ -735,12 +753,19 @@ fn draw_destination(ui: &mut MenuCanvas, frame: &Frame, view: &View<'_>) {
         );
     }
     y -= 104.0;
+    // Rajdhani SemiBold sets about half its size a character: a long name
+    // steps down so it stays on the line.
+    let size = if large.chars().count() > 18 {
+        96.0
+    } else {
+        124.0
+    };
     text(
         ui,
         TextFamily::Display,
-        format_args!("{}", view.map),
-        frame.rect(LEFT - 4.0, y, 1500.0, 104.0),
-        124.0 * s,
+        format_args!("{large}"),
+        frame.rect(LEFT - 4.0, y, 1700.0, 104.0),
+        size * s,
         color::TEXT,
         FontWeight::Semibold,
         TextAlign::Start,

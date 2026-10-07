@@ -34,7 +34,9 @@ and a gold load bar; a failure in the same layout. Shared changes:
 `ClassicLoading` also keeps the session's world stage and whether the session
 is in hand (fed by `sync_classic_loading`), a join count, whether the load
 named its map and the gamestate's facts; `levelshot::cover_uv` (the browser's
-crop, now shared); `ClientMenu::sjk_screen` includes the loading phases and
+crop, now shared; the browser uses it) and `levelshot::screen_fit` (a picture
+wider than the window keeps its sides, so the HD packs' titles are whole);
+`ClientMenu::sjk_screen` includes the loading phases and
 `classic_hides_world` asks the SJK screen whether to leave the world out (on a
 server's world always, on the menu map once the levelshot covers it). The
 classic and modern screens are unchanged. Unit tests cover the steps and their
@@ -47,7 +49,9 @@ duel6 on a made-up join of the JoF server (gamestate and progress faked, the
 real mp/ffa3 levelshot from the installed JoF HD pack). No game was started and
 no server was contacted: a real join's steps and timing, the fade in a running
 client, downloads, a hosted game's start, a server's change of map, a kick and
-the hand-over from the screen to the game are unverified.
+the hand-over from the screen to the game are unverified. On review the lead
+put the map's own name large over its file name and fitted wide levelshots
+whole; the frames were rendered again.
 
 ## SJK UI: Servers
 

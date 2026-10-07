@@ -259,6 +259,32 @@ pub(crate) fn cover_uv(size: [u32; 2], aspect: f32) -> [[f32; 2]; 4] {
     [[u, v], [1.0 - u, v], [1.0 - u, 1.0 - v], [u, 1.0 - v]]
 }
 
+/// Where and how a levelshot of `size` fills `window` without stretching:
+/// a picture as wide as the window or narrower covers it, cut at its top and
+/// bottom ([`cover_uv`]); a wider one (the HD packs' 2:1 shots, which set the
+/// map's title against their left edge) keeps its whole width, centred with
+/// bands above and below, so nothing at its sides is lost.
+pub(crate) fn screen_fit(size: [u32; 2], window: sjk_ui::Rect) -> (sjk_ui::Rect, [[f32; 2]; 4]) {
+    let aspect = window.width / window.height.max(1.0);
+    let [width, height] = size.map(|side| side.max(1) as f32);
+    let image = if size[0] == size[1] {
+        4.0 / 3.0
+    } else {
+        width / height
+    };
+    if image <= aspect {
+        return (window, cover_uv(size, aspect));
+    }
+    let fitted = window.width / image;
+    let rect = sjk_ui::Rect::new(
+        window.x,
+        window.y + (window.height - fitted) * 0.5,
+        window.width,
+        fitted,
+    );
+    (rect, [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]])
+}
+
 /// `map`'s levelshot at its own resolution, if it ships one.
 pub(crate) fn decode_levelshot(vfs: &VirtualFileSystem, map: &str) -> Option<LevelshotImage> {
     EXTENSIONS.iter().find_map(|extension| {
@@ -326,6 +352,30 @@ mod tests {
         assert!((hd[0][0] - 1.0 / 18.0).abs() < 1e-5 && hd[0][1] == 0.0);
         let narrow = cover_uv([2048, 1024], 4.0 / 3.0);
         assert!((narrow[0][0] - 1.0 / 6.0).abs() < 1e-5);
+        // A 2:1 frame (the browser's) shows a 2:1 shot whole, a square one's
+        // middle two thirds.
+        assert_eq!(
+            cover_uv([2048, 1024], 2.0),
+            [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
+        );
+        let square = cover_uv([512, 512], 2.0);
+        assert!((square[0][1] - 1.0 / 6.0).abs() < 1e-5 && square[0][0] == 0.0);
+    }
+
+    #[test]
+    fn a_wider_levelshot_keeps_its_sides_on_screen() {
+        let window = sjk_ui::Rect::new(0.0, 0.0, 1920.0, 1080.0);
+        // A 2:1 HD shot: the whole picture, 960 tall, centred.
+        let (rect, uv) = screen_fit([2048, 1024], window);
+        assert_eq!(
+            (rect.x, rect.y, rect.width, rect.height),
+            (0.0, 60.0, 1920.0, 960.0)
+        );
+        assert_eq!(uv, [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]);
+        // A retail one covers the screen, cut at its top and bottom.
+        let (rect, uv) = screen_fit([512, 512], window);
+        assert_eq!(rect, window);
+        assert!((uv[0][1] - 0.125).abs() < 1e-5);
     }
 
     #[test]
