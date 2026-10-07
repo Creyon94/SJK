@@ -23,8 +23,9 @@ pub const MANIFEST_PATH: &str = "jkr-materialgen/manifest.json";
 /// polished shaders, metal-panel height, per-texture overrides. 3: emission maps
 /// (`_e`, [`crate::emission`]). 4: relief turned the right way up from the painted
 /// light, no metal height, less metal grain, painted-panel and texture-set classes.
-/// 5: maps for vertex-lit paint, indicator lights of controls.
-pub const GENERATION: u32 = 5;
+/// 5: maps for vertex-lit paint, indicator lights of controls. 6: declared light
+/// fixtures whose overlay does not glow emit.
+pub const GENERATION: u32 = 6;
 
 /// The notice repeated in the manifest, the help text and the docs.
 pub const NOTICE: &str = "Generated from the textures of your own Jedi Academy installation. \

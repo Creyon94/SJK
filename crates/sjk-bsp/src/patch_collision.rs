@@ -13,6 +13,8 @@ pub(super) struct Patch {
     facets: Box<[Facet]>,
     contents: u32,
     flags: u32,
+    /// The patch's shader, an index into the BSP's shaders.
+    shader: usize,
 }
 
 pub(super) fn load(
@@ -32,7 +34,12 @@ pub(super) fn load(
                 .map(|v| v.position)
                 .collect();
             Patch::generate(width, height, &points, &shaders[surface.shader])
-                .map(Some)
+                .map(|patch| {
+                    Some(Patch {
+                        shader: surface.shader,
+                        ..patch
+                    })
+                })
                 .map_err(|reason| BspError::PatchCollision {
                     surface: index,
                     reason,
@@ -67,6 +74,7 @@ impl Patch {
             facets: builder.facets.into_boxed_slice(),
             contents: shader.content_flags,
             flags: shader.surface_flags,
+            shader: 0,
         })
     }
 
@@ -110,6 +118,7 @@ impl Patch {
         if trace.fraction < previous {
             trace.content_flags = self.contents;
             trace.surface_flags = self.flags;
+            trace.shader = Some(self.shader);
         }
     }
 

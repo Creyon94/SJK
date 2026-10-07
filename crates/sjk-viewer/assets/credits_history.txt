@@ -9,6 +9,15 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 08/10/2026 | - | Video screens, glowing lights, named footsteps, remaps in notes
+- 9ae42e6 |  | World shots of the player's world notes
+- 04e11bf |  | Play videoMap stages: a RoQ decoder and per-frame video textures
+- ae59eef |  | World notes name the shader a remap draws over the surface
+- 3e7fe2c |  | Declared light fixtures without a glowing overlay take emission maps
+- cb48d53 |  | Footsteps on untagged sand, snow and grass take their sound from the shader
+- 13bbb85 |  | Wrap the fixture emission tests' shader scripts
+- 0b0bebe |  | status: Sol's world notes of 07/10/2026
+- 5067755 |  | Changelog and debug panel entries for the world-note fixes
 + 08/10/2026 | - | SJK UI Character: hilt list, style buttons, priced Force levels
 - 491a287 |  | SJK UI Character: hilt list, style buttons, priced Force levels
 + 08/10/2026 | - | EJK camera by default, camera style under Styles in First setup

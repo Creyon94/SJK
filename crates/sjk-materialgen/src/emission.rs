@@ -27,7 +27,11 @@
 //! A shader that already shows light on top of its diffuse pair (an additive,
 //! glowing or `GL_DST_COLOR GL_ONE` stage) needs none: its texture gets no emission
 //! map unless another shader draws it plainly, and the client ignores an emission
-//! map on such a shader, so the light is never shown twice.
+//! map on such a shader, so the light is never shown twice. A declared light fixture
+//! (`q3map_surfacelight`) whose overlay does not `glow` is the exception: an additive
+//! overlay at the paint's brightness, or one that only brightens what the lightmap lit
+//! (`GL_DST_COLOR GL_ONE`), does not read as a lamp in a dark room or bloom, and Sol's
+//! world notes asked for exactly those fixtures to emit (07/10/2026).
 //!
 //! # Which texels
 //!
@@ -138,8 +142,8 @@ impl Evidence {
 pub struct ShaderLight {
     /// `q3map_surfacelight`, 0 without.
     pub surface_light: f32,
-    /// A stage already shows light over the diffuse pair (additive, glowing, or
-    /// `GL_DST_COLOR GL_ONE`): the shader needs no emission map.
+    /// The shader already shows its light ([`shader_shows_light`]): it needs no
+    /// emission map.
     pub glows: bool,
 }
 
@@ -151,9 +155,21 @@ impl ShaderLight {
             } else {
                 0.0
             },
-            glows: definition.stages.iter().any(shows_light),
+            glows: shader_shows_light(definition),
         }
     }
+}
+
+/// Whether a shader already shows its light over the diffuse pair: a `glow` stage, or
+/// an additive or `GL_DST_COLOR GL_ONE` overlay ([`shows_light`]) on a shader that
+/// declares no `q3map_surfacelight`. A declared fixture without a `glow` stage takes
+/// an emission map. Kept in step with the client's `material_maps::shows_light`.
+pub fn shader_shows_light(definition: &ShaderDefinition) -> bool {
+    let fixture = definition.surface_light.is_finite() && definition.surface_light > 0.0;
+    definition.stages.iter().any(|stage| {
+        stage.texture_generator == TextureGenerator::Base && stage.glow
+            || !fixture && shows_light(stage)
+    })
 }
 
 /// A texture stage that adds light of its own: glowing, additive, or brightening the
@@ -612,6 +628,23 @@ mod tests {
              { map t/env tcGen environment blendFunc add } }",
         );
         assert!(!chrome.glows);
+        // A declared fixture whose overlay does not glow still takes a map (retail's
+        // `mp/s_ylight_red`, `mp/s_squareslight_y`); one with a `glow` stage does not.
+        for overlay in [
+            "{ map t/a_blend blendFunc GL_ONE GL_ONE rgbGen wave sin 0.5 0.05 0 10 }",
+            "{ map t/a_blend blendFunc GL_DST_COLOR GL_ONE }",
+        ] {
+            let script = format!(
+                "t/a {{ q3map_surfacelight 3000 {{ map $lightmap }} \
+                 {{ map t/a blendFunc filter }} {overlay} }}"
+            );
+            assert!(!shader(&script).glows, "{overlay}");
+        }
+        let glowing_fixture = shader(
+            "t/a { q3map_surfacelight 3000 { map $lightmap } { map t/a blendFunc filter } \
+             { map t/a_glw blendFunc GL_ONE GL_ONE glow } }",
+        );
+        assert!(glowing_fixture.glows);
     }
 
     #[test]

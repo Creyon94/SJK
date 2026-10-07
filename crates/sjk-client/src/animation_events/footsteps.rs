@@ -173,10 +173,67 @@ pub fn material(flags: u32) -> usize {
     }
 }
 
+/// The sound family of ground whose map gives it no material (surface flags with no
+/// `MATERIAL_*` bits), guessed from its shader's name; `None` keeps the default
+/// (stone). SJK's addition: retail maps leave much of their sand, snow and grass
+/// untagged (`mp/siege_desert`'s `siege/siege2sand`), so codemp plays stone steps
+/// there. Only the shader's own file name is read, so a folder named `desert` or
+/// `snow` does not make its metal floors sand or snow.
+pub fn material_from_name(shader: &str) -> Option<usize> {
+    let name = shader
+        .rsplit(['/', '\\'])
+        .next()
+        .unwrap_or(shader)
+        .to_ascii_lowercase();
+    let has = |word: &str| name.contains(word);
+    if has("sand") && !has("sandstone") && !has("thousand") {
+        Some(3)
+    } else if has("snow") {
+        Some(4)
+    } else if has("grass") {
+        Some(5)
+    } else if has("gravel") {
+        Some(8)
+    } else if has("mud") {
+        Some(1)
+    } else if has("dirt") {
+        Some(2)
+    } else if has("carpet") {
+        Some(9)
+    } else if has("wood") || has("plank") {
+        Some(10)
+    } else {
+        None
+    }
+}
+
 /// NPC classes whose cgame footstep routine deliberately remains silent.
 pub fn allowed_class(class: u8) -> bool {
     !matches!(
         class,
         1 | 4 | 7 | 8 | 10 | 16 | 30 | 32 | 34 | 35 | 39 | 41 | 42 | 45
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn untagged_ground_is_guessed_from_the_shader_file_name() {
+        assert_eq!(material_from_name("textures/siege/siege2sand"), Some(3));
+        assert_eq!(material_from_name("textures/desert/sandfloor2old"), Some(3));
+        assert_eq!(material_from_name("textures/hoth/snow_ground"), Some(4));
+        assert_eq!(material_from_name("textures/yavin/grass_rocks"), Some(5));
+        assert_eq!(material_from_name("textures/a/WOOD_planks"), Some(10));
+        // Stone that names sand, and folders, are not ground.
+        assert_eq!(material_from_name("textures/desert/sandstone_wall"), None);
+        assert_eq!(material_from_name("textures/desert/metal_floor"), None);
+        assert_eq!(material_from_name("textures/snow/metal_floor"), None);
+        // The family indices are the sound banks of PATHS.
+        assert!(PATHS[3][0][0].contains("sand"));
+        assert!(PATHS[4][0][0].contains("snow"));
+        assert!(PATHS[5][0][0].contains("grass"));
+        assert!(PATHS[10][0][0].contains("wood"));
+    }
 }

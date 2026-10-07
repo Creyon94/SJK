@@ -51,6 +51,8 @@ mod model_grid;
 pub(crate) mod ssao;
 #[path = "world_texture_prepare.rs"]
 mod texture_prepare;
+#[path = "world_videos.rs"]
+pub(crate) mod videos;
 
 #[path = "world_map_remaps.rs"]
 pub(crate) mod map_remaps;

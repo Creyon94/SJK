@@ -149,6 +149,46 @@ started, so real typing, dragging, the clipboard, the opening slide, `con_scale`
 and `con_opacity` with these looks, narrow windows and the families' first load
 are untested in a running client.
 
+## Sol's world notes of 07/10/2026
+
+SJK-only branch `personal/inspect-notes` (08/10/2026, based on `7a85516`, Windows 11):
+the 45 world notes Sol wrote on 07/10/2026 (`notes.jsonl`; the nine sent to the hub
+are copies of local ones) on `mp/ctf4`, `mp/ffa1`-`ffa4`, `mp/siege_desert`,
+`ffa_bespin`, `t2_rogue` and `vjun3`, three of them tests. A new ignored world shot,
+`world_shot::notes::world_notes`, renders each note's view again with the player's
+own renderer settings, with and without a saber-sized red point light, optionally
+with remaps (`SJK_NOTES`, `SJK_NOTES_CVARS`, `SJK_NOTES_REMAP`; see its rustdoc).
+
+- Fixed, `videoMap` ("Where video ???", `mp/ffa1` `vjun/hangar_console` drawn as the
+  magenta checker on a server): RoQ videos play on video stages
+  ([Video stages](rendering.md#video-stages-videomap)). A world shot with the console
+  remapped locally to `textures/video/raven` showed the Raven logo playing.
+- Fixed, light fixtures that should emit (ten notes): declared fixtures whose overlay
+  does not glow take emission maps, generation 6 of the generator
+  ([Emission maps](rendering.md#emission-maps)). World shots showed seven of them
+  glowing with a generation-6 pack.
+- Fixed, sand steps on `mp/siege_desert`: untagged ground takes its footstep bank
+  from its shader's name ([client.md](client.md#animation-sounds-and-voice-variants)).
+  Not heard in a game; footprints are not done.
+- Changed, notes name a remap's target: several notes from a JA+ server describe
+  surfaces ("not affected by light", uniformly pale) that the same views draw normally
+  offline, even with Sol's settings and a point light; the server's remaps are the
+  likeliest difference, and a note now names the shader a remap draws
+  ([client.md](client.md#player-card)). Not resolved until notes with remaps arrive.
+- Material pack, not committed (retail-derived): Sol's per-texture requests ("make it
+  3d", "too shiny", "reversed", "metallic", flagstones and a landing pad classed as
+  cloth and metal) became lines in his local overrides file, and a generation-6 pack
+  for the MP maps, the test maps, `t2_rogue`, `vjun3` and `ffa_bespin` (1,326
+  textures, 70 emission maps) was written to `%APPDATA%\jkr\generated\gen6` for Sol to
+  install. Most "too shiny" notes were made with `r_specularMapping 0`, where the
+  pack's roughness and metalness do not apply.
+- Open: the decal of `mp/ctf4` that "appears like there is no fog". Measured in a
+  world shot, the decal takes about 40% of the fog its wall takes: as in rd-vanilla,
+  its `Equal` fog pass with the decal's bias meets no depth (decals write none), so the
+  fogged wall is only multiplied by the decal. Korriban's environment-mapped
+  `glossyBase` shaders (`door`, `entrance_top`, `os_outsidebased`, `os_basic_pillarb`)
+  still take no material maps (their stages do not collapse).
+
 ## SJK UI: coloured names and the browser's sort mark
 
 SJK-only branch `personal/sjk-ui-browser-colours` (07/10/2026, Windows 11): Sol
@@ -1818,7 +1858,7 @@ Sol is reviewing every retail world shader on the test maps of
 - Open: decals flicker on every map (Sol). Their bias matches rd-vanilla; only the
   fog pass lacked it (fixed). The cause outside fog needs a reproduction (map,
   decal, distance).
-- Open: sand footprints and footstep sounds on `q3map_material Sand`, glass with
+- Open: sand footprints (untagged sand takes sand footsteps since 08/10/2026), glass with
   depth (interior mapping), see-through backgrounds on opaque animated fields
   (`byss/static_field`), and parallax that is too deep on sand at grazing angles.
 - Open, found on the way: shaders whose `wave` has fewer than four numbers are

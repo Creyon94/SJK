@@ -287,6 +287,7 @@ pub(super) fn is_stage_directive(token: &str) -> bool {
                 | "clampmap"
                 | "animmap"
                 | "oneshotanimmap"
+                | "videomap"
                 | "blendfunc"
                 | "alphafunc"
                 | "rgbgen"

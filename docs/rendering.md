@@ -146,6 +146,38 @@ Implementation: [compatibility state](../crates/sjk-client/src/shader_remaps.rs)
 [replacement compilation](../crates/sjk-viewer/src/world_remap_material.rs),
 [effect atlas entries](../crates/sjk-viewer/src/effect_remaps.rs).
 
+## Video stages (`videoMap`)
+
+A stage with `videoMap <name>` plays a RoQ video on its surface, as rd-vanilla's
+`CIN_PlayCinematic(..., CIN_loop | CIN_silent | CIN_shader)` does: looping, without
+sound, at the frame rate in the file's header (30 when it says 0). A bare name is
+looked up in `video/`, and `.roq` is added to a name without an extension. Retail
+uses it for `textures/video/*` (the Raven logo, the briefing screens) and community
+maps and servers use it for screens and holo news; JA+ servers remap world
+textures to such shaders. Until 08/10/2026 the client ignored the keyword, so a
+video stage drew the shader's own name as an image, which does not exist: the
+magenta checker Sol found on `mp/ffa1`'s `vjun/hangar_console` on a server
+(world note, 07/10/2026).
+
+[cinematic_roq.rs](../crates/sjk-viewer/src/cinematic_roq.rs) decodes RoQ:
+codebooks of 2x2 and 4x4 cells and frames coded per 8x8 and 4x4 block as
+unchanged, moved from the previous frame, a codebook cell scaled up or split
+further, converted with Quake III's full-range BT.601. Audio and the rare JPEG
+intra frames are skipped (a JPEG frame keeps the picture). Load gives the stage
+the first frame under a texture key of its own (`$video:<path>`);
+[world_videos.rs](../crates/sjk-viewer/src/world_videos.rs) keeps that texture as one
+updatable layer without mips and, each frame, decodes what the clock asks for (at
+most six frames, then it skips ahead) and uploads the newest picture. A missing or
+unreadable video shows the missing-image checker, as a missing image does.
+
+Verified: unit tests decode synthetic RoQ files (codebook cells, motion, split
+blocks, looping, a truncated frame) and parse the keyword; an off-screen world shot
+of `mp/ffa1` with `vjun/hangar_console` remapped locally to `textures/video/raven`
+showed the retail Raven logo video playing on the console (08/10/2026). Not
+verified: the server remap Sol met (its target is not known), long community
+videos, and the cost with many videos on one map (every video is decoded and
+uploaded whether or not it is in view, as rd-vanilla runs every cinematic).
+
 ## Actor animation failures
 
 Actor animation failures are isolated to the affected mesh. An invalid clip or
@@ -1330,9 +1362,15 @@ not read). [sjk-materialgen](#generating-material-maps) writes them.
 
 - **Which surfaces.** The same stages as the other material maps (lightmap and
   diffuse collapsed into one opaque pass). A shader that already shows light of its
-  own over its paint (a `glow`, additive or `GL_DST_COLOR GL_ONE` texture stage)
-  takes no emission map, whatever images exist, so its light is never drawn twice;
-  the generator skips the same shaders. `r_emissiveMaps` is on by default because it
+  own over its paint (a `glow` texture stage, or an additive or `GL_DST_COLOR GL_ONE`
+  one) takes no emission map, whatever images exist, so its light is never drawn
+  twice; the generator skips the same shaders. A declared light fixture
+  (`q3map_surfacelight`) whose overlay does not `glow` is the exception and takes
+  one: retail's ceiling lamps and light strips (`mp/s_ylight_red`,
+  `mp/s_squareslight_y`, `mp/s_tracklight4`, `mp/s_bluestrip`) add their overlay at
+  the paint's brightness or only brighten what the lightmap lit, so in a dark room
+  they read as grey paint and do not bloom. Sol asked for those fixtures to emit in
+  ten world notes (07/10/2026); since 08/10/2026 (generation 6) they do. `r_emissiveMaps` is on by default because it
   only acts where a pack has `_e` images; with nothing else enabled, a stage with an
   emission map takes the material program with a flat normal and no specular map,
   which reproduces the ordinary lit colour exactly, and the map needs no vertex frames
@@ -2133,7 +2171,8 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
   `control`, `onoff`, `keypad`, `keyport`, `terminal`, `button`, `comm_`, `locked`),
   whose painted indicator lights emit: only saturated, clearly bright texels, and no
   map when more than 15% of the texture would emit (that is paint, not lights). Textures whose every shader already
-  shows light (a `glow`, additive or `GL_DST_COLOR GL_ONE` stage) and textures with an
+  shows light (a `glow` stage, or an additive or `GL_DST_COLOR GL_ONE` one on a shader
+  without `q3map_surfacelight`; see [Emission maps](#emission-maps)) and textures with an
   `_e` image get none. With a glow image, the emission is that image. Otherwise the
   texels that emit are near-white or saturated ones clearly brighter than most of the
   texture (above its median value plus 0.2, at least 0.6; near-white needs 0.75);
@@ -2179,11 +2218,11 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
   and applied override lines), and `--limit` takes only the most-used textures.
 
 **Regenerating.** The manifest records the generation of the tuning
-(`"generation": 5` since maps for vertex-lit paint and indicator lights, 4 the
-relief orientation and smoother metal, 3 emission maps; packs without it are
-generation 1). With
+(`"generation": 6` since declared light fixtures without a glowing overlay emit, 5
+maps for vertex-lit paint and indicator lights, 4 the relief orientation and smoother
+metal, 3 emission maps; packs without it are generation 1). With
 material maps or emission maps on, the client logs `material maps: the generated pack
-is generation 1 of sjk-materialgen, this client expects 5 ...` once when the mounted
+is generation 1 of sjk-materialgen, this client expects 6 ...` once when the mounted
 pack is older. Emission decisions depend on every map read: a texture drawn plainly on
 one map and through a glowing shader on another gets its `_e`, and the client ignores
 it where the shader glows.

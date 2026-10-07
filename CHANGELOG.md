@@ -31,6 +31,10 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Grabbing a wall before a wall jump, your body now stays facing the wall while the camera looks around (JA+ servers keep the camera free) _(Sol)_
 - Report a player: the game menu lists everyone on the server, a small scoreboard with scores, pings and who is a verified SJK player (SJK UI: Players; classic and modern: SJK > Report a player). Choose a player, a reason and a few words, and the report goes to the SJK team with who, where and when. Only verified SJK players can send reports; the hub limits how often anyone reports and how often one player can be reported _(Sol)_
 - The console has the SJK look with the SJK UI (con_style auto): three designs to pick from, con_style sjk, horizon or dock; the rest of a command shows faintly as you type, and a scroll bar. Commands and cvars (F3) gets the SJK look too, its text selectable with the mouse; Ctrl+C copies the selection or the entry _(Sol)_
+- Video screens play: shaders that show a video (videoMap), such as the screens some servers put on consoles, play it looping instead of a magenta checker _(Sol)_
+- Ceiling lamps and light strips that only looked painted glow: declared lights without a glow layer take emission maps (regenerate the material pack to see them) _(Sol)_
+- Footsteps on sand, snow and grass the map does not mark as such sound like sand, snow and grass, as on Siege Desert's dunes _(Sol)_
+- World notes name the shader a server's remap shows on the surface, not only the map's own _(Sol)_
 
 ## 2026.1007.3 (Alpha) | 07/10/2026
 

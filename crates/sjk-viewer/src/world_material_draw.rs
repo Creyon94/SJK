@@ -102,6 +102,18 @@ impl Runtime {
             .and_then(|index| self.materials.get(index))
     }
 
+    /// Play the map's `videoMap` stages up to `now` (`world_videos.rs`).
+    pub(crate) fn update_videos(
+        &mut self,
+        queue: &crate::frame_queue::FrameQueue,
+        vfs: &VirtualFileSystem,
+        now: Instant,
+    ) {
+        if !self.forge.videos.is_empty() {
+            self.forge.videos.update(queue, vfs, now);
+        }
+    }
+
     /// Publish one lighting-mode word in the already allocated scene block.
     pub(crate) fn update_scene_lighting_mode(
         &self,

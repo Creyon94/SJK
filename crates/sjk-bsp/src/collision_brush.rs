@@ -52,6 +52,7 @@ impl Bsp {
                     trace.surface_flags = lead
                         .map(|(_, shader)| self.shaders[shader].surface_flags)
                         .unwrap_or_default();
+                    trace.shader = lead.map(|(_, shader)| shader);
                     trace.content_flags = brush.content_flags;
                 }
             }

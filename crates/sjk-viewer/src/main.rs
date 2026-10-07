@@ -17,6 +17,7 @@ mod camera_uniform;
 mod capture;
 mod cgame_options;
 mod chat;
+mod cinematic_roq;
 mod client_guid;
 mod client_state;
 mod clientinfo_refresh;
@@ -2070,6 +2071,10 @@ impl GpuState {
             &self.queue,
             &mut self.dynamic_lights,
         );
+        if let Some(vfs) = self.vfs.as_deref() {
+            self.world_materials
+                .update_videos(&self.queue, vfs, visual_now);
+        }
         let particle_now = Instant::now();
         particle_physics::update_and_spawn(
             &mut self.particles,

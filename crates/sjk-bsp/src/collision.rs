@@ -70,6 +70,9 @@ pub struct CollisionTrace {
     pub content_flags: u32,
     pub start_solid: bool,
     pub all_solid: bool,
+    /// The shader (an index into [`Bsp::shaders`]) of the brush side or patch whose
+    /// surface flags the trace reports; `None` when it hit nothing or started inside.
+    pub shader: Option<usize>,
 }
 
 impl Bsp {
@@ -296,6 +299,7 @@ impl CollisionTrace {
             content_flags: 0,
             start_solid: false,
             all_solid: false,
+            shader: None,
         }
     }
 }

@@ -867,7 +867,13 @@ no file reads. A world build shares the skeleton and event assets across matchin
 appearances. Active actors release their prefetched encoded bytes after registration.
 
 Ground-contact events trace beneath the animated foot and select the authored
-walk/run sound bank for the surface material. `cg_footsteps 0` mutes them. Frame
+walk/run sound bank for the surface material. Ground the map gives no material
+(no `MATERIAL_*` bits, which codemp plays as stone) takes its bank from the hit
+shader's file name in SJK (`footsteps::material_from_name`: sand but not sandstone,
+snow, grass, gravel, mud, dirt, carpet, wood or plank): retail leaves much of its
+sand untagged, such as `mp/siege_desert`'s `siege/siege2sand`, where Sol asked for
+sand steps (world note, 07/10/2026). The collision trace reports the brush side's
+or patch's shader for this (`CollisionTrace::shader`). `cg_footsteps 0` mutes them. Frame
 latches prevent repeated playback while an animation frame is held; absent actors,
 teleports, backwards seeks and paused map changes reset the cursor. First-person
 local actors use the same evaluated timing. This restores the blue-stance taunt's
@@ -1624,7 +1630,11 @@ glance at the scoreboard would not: no health, Force or position.
 - World notes (SJK): with no card pinned and no player under the crosshair, `inspect`
   selects the world surface under the crosshair, or the mover whose bounds the view ray
   meets first, and names it in a centre print (shader, BSP surface, lightmap or vertex
-  lighting, distance). While selected, and while its note is written, the surface's
+  lighting, distance). When a remap (the map's, the server's or a local `remapShader`)
+  draws another shader over the surface, the print, `notes.txt` and `notes.jsonl`
+  (`surface.remapped_to`) name it too (`<shader> remapped to <target>`): on a server
+  what the player saw is often the remap's target (08/10/2026). The hub still gets the
+  map's own shader. While selected, and while its note is written, the surface's
   triangle edges (a mover's bounds) are traced over the view in flickering green dots
   (at most 600 a frame) over a green scanline shade of its triangles (horizontal strips
   with a brighter wave running down them, at most 800 a frame; cut where the surface

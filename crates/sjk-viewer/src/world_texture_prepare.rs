@@ -60,7 +60,10 @@ pub(super) fn upload(
                     .zip(stage.secondary_pixels.as_deref()),
             )
         {
-            if !forge.texture_cache.contains_key(key) && seen.insert(key) {
+            if !forge.texture_cache.contains_key(key)
+                && !key.starts_with(super::videos::KEY_PREFIX)
+                && seen.insert(key)
+            {
                 jobs.push(Job::new(key, images));
             }
         }
