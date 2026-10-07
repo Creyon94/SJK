@@ -7,6 +7,24 @@ SJK currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Console input colours
+
+Branch `fix/console-input-colour` (08/10/2026, based on `f91e8ac`, Linux and Windows
+11): the console's input row, classic and the SJK UI's deck alike, drew everything
+typed in one colour, so `^1` did not turn what follows red. It now draws the input
+as JoF EternalJK does, with its colour codes shown and applied: a code switches the
+colour and is itself drawn in the new one (`Con_DrawInput`,
+`cl_console.cpp:847-848`; `Field_VariableSizeDraw`, `cl_keys.cpp:455`;
+`SCR_DrawSmallStringExt`, `cl_scrn.cpp:388-414`, at bd5e202), in the palette the
+console draws its rows in: the game's, or the SJK UI deck's legible one. Columns,
+scrolling, the cursor and selection are unchanged. Unit tests cover each character's
+colour in the game's palette and in the deck's. On Linux with Rust 1.97, formatting,
+the locked workspace build and tests pass; workspace Clippy finishes without errors,
+and its warnings are all in code this change does not touch. Checked in game on
+Windows 11: typing `^1a^2b^3c^4d^5e^6f^7g^8h^9i^0j` in the classic console shows
+each part in its colour, and on a JoF server the SJK UI's console shows typed
+codes in their colours.
+
 ## Quick wheel pages
 
 SJK-only branch `personal/wheel-pages` (08/10/2026, based on `27696e5`, Windows
