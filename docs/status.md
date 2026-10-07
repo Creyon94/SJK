@@ -100,8 +100,12 @@ weapon switching and Force-wheel reliable commands, clears on all session exits,
 and can be cancelled from menus. Body sounds, shadows and nameplates use the
 authoritative entity. Command-policy tests cover 8/7/4/3 ms steps; these are
 input-policy checks, not movement-parity certification. Windows workspace fmt,
-build, tests and clippy pass with existing warnings. The follow-up runtime
-disconnect, action suppression and body-effects checks remain unverified.
+build, tests and clippy pass with existing warnings. Combined revision `44ff6e5` was checked on 2026-10-07 (Windows, RTX 5070 Ti,
+release, isolated native server, retail `mp/duel1`, 1280x720): backward
+flight separates the view from the body and off returns to it. Disconnect
+clears `cg_freeCamera`; off succeeds from the menu and reconnect starts
+with the cvar at 0. Reliable-wheel suppression, kick/timeout/map/vehicle
+transitions and precise body-effect placement remain unverified in game.
 
 ## Mouse wheel in the key-binding form
 
