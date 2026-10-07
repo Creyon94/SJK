@@ -501,6 +501,14 @@ const HELP: &[(&str, &str)] = &[
         "Mirror-like reflections on polished floors.",
     ),
     (
+        "r_parallaxMapping",
+        "Gives stone, tiles and sand real-looking depth from their height maps.",
+    ),
+    (
+        "r_parallaxStrength",
+        "How deep parallax looks: 0 flat, 1 the full depth of the maps; 0.1 by default.",
+    ),
+    (
         "r_emissiveMaps",
         "Emission maps, which make lamps, screens and signs glow on their own.",
     ),

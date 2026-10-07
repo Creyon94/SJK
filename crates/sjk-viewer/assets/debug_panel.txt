@@ -2085,6 +2085,17 @@ test: Back to SJK: the camera trails a little again, as before. Console: cg_came
 note: Your JoF EJK profile has cg_thirdPersonRange 100; SJK keeps 80 unless you set it.
 note: Still not the same as JoF EJK? Tell Claude what differs (distance, height, turning).
 
+[parallax-slider]
+status: personal
+area: Rendering & effects
+title: Parallax depth slider, a tenth of the full depth by default
+change: r_parallaxStrength scales parallax live: 0 flat, 1 the pack's full depth; default 0.1.
+change: Settings > Graphics > Image: Parallax mapping (restart) and Parallax depth slider.
+test: Settings > Graphics > Image: Parallax mapping on (restart if it was off).
+test: devmap sjk_shaders_a: stone and tiles show slight depth; sand no longer swims.
+test: Drag Parallax depth to 1: the relief deepens at once; 0 flattens it.
+note: Too subtle or still too deep at 0.1? Tell Claude the value that looks right.
+
 # ---- Merged upstream ----
 
 [actor-instance-cap]
