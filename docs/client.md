@@ -990,6 +990,16 @@ to finish normally after Alt+Tab.
 
 ### Chat player actions
 
+`/peek <client ID|name> [seconds]` temporarily follows a received player from
+behind, with wall collision, as JoF EJKSol does. The default is 5 seconds,
+maximum 60. Names ignore colours/case; an unambiguous fragment also works.
+`/peek` alone uses the crosshair player; `/peek off` or a duration of 0 cancels.
+The local body stays at its player position and the view gun is suppressed.
+The camera returns when the timer ends, the player disappears from the
+snapshot, their slot/name changes, or the map changes. Players outside the
+received snapshot cannot be watched. Player input and server authority remain
+unchanged. The command is bindable under Settings > Key bindings > Other.
+
 Open the chat composer with your chat binding (`messagemode`), then click a
 sender's name. The cursor is free while composing. The player menu offers:
 

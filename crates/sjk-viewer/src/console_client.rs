@@ -111,6 +111,10 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
     ("rcon", "Execute a remote console command"),
     ("afk", "Toggle the AFK name prefix"),
     (
+        "peek",
+        "Watch a player briefly: peek [id|name] [seconds], peek off",
+    ),
+    (
         "fakenoclip",
         "Fly locally while the server sees you standing still (toggle)",
     ),
@@ -476,6 +480,7 @@ impl crate::GpuState {
                     .set_minimized(true);
             }
             "fakenoclip" => return self.fake_noclip_command(),
+            "peek" => return self.peek_command(args),
             "cosmetics" => return self.cosmetics_command(args),
             "vid_restart" | "snd_restart" | "in_restart" | "modelist" => {
                 return self.restart_command(&name, audio);

@@ -119,6 +119,7 @@ mod npc_refresh;
 mod object_meshes;
 mod particle_atlas;
 mod particle_draw;
+mod peek;
 mod portal;
 mod prediction_preview;
 mod scene_views;
@@ -430,6 +431,7 @@ struct GpuState {
     /// Evidence cameras (spectate/look-at/orbit) leave the local actor at
     /// its entity transform instead of pinning it under the camera.
     detached_camera: bool,
+    peek: peek::State,
 
     selected_weapon: Option<u8>,
     weapon_selected_at: Option<Instant>,
@@ -1232,6 +1234,7 @@ impl GpuState {
             third_person_choice: third_person,
             zoom_first_person: false,
             detached_camera: false,
+            peek: peek::State::default(),
 
             selected_weapon: None,
             weapon_selected_at: None,
@@ -1383,6 +1386,12 @@ impl GpuState {
         // view origin; the model root keeps the predicted origin.
         let error_offset = self.local_prediction.view_offset();
         let mut view_up = Vec3::Z;
+        let peek_view = (!backdrop_view && intermission_view.is_none())
+            .then(|| peek::camera(self, presentation_time))
+            .flatten();
+        if self.live_session.is_some() {
+            self.detached_camera = peek_view.is_some();
+        }
         let (branch, (view_position, view_target)) = if let Some(view) = intermission_view {
             self.third_person_camera = camera::State::default();
             let pitch = -view.angles[0].to_radians();
@@ -1394,6 +1403,9 @@ impl GpuState {
             );
             let origin = Vec3::from_array(view.origin);
             ("intermission", (origin, origin + direction * 256.0))
+        } else if let Some(view) = peek_view {
+            self.third_person_camera = camera::State::default();
+            ("peek", view)
         } else if (self.live_session.is_some() || self.demo_session.is_some())
             && self.third_person
             && !self.detached_camera
@@ -1423,7 +1435,7 @@ impl GpuState {
             local_view && cgame_options::screen_shake(self.console.as_ref()),
         );
         // The third-person camera already traced from the shifted origin.
-        let error_offset = if branch == "third-person" {
+        let error_offset = if branch == "third-person" || branch == "peek" {
             Vec3::ZERO
         } else {
             error_offset

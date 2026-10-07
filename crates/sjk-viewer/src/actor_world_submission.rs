@@ -291,7 +291,8 @@ fn submit_actor(
     aura_shell: bool,
     combined_protect_absorb: bool,
 ) -> usize {
-    let draw_actor = sinks.third_person || Some(entity.id.get()) != local_entity_id;
+    let draw_actor =
+        sinks.third_person || sinks.detached_camera || Some(entity.id.get()) != local_entity_id;
     if Some(entity.id.get()) == local_entity_id && !sinks.detached_camera {
         let (translation, rotation) =
             camera::local_actor_root(sinks.camera_position, sinks.view_height, sinks.camera_yaw);

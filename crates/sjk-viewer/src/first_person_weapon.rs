@@ -155,7 +155,7 @@ pub(crate) fn frame_inputs(
         inputs_with_weapon(
             &state.first_person_weapon,
             snapshot?,
-            state.third_person,
+            state.third_person || state.detached_camera,
             view,
             camera.map_or(0.0, |camera| camera.landing),
             local_torso_frame(&state.actor_meshes, local_entity, presentation_time),
