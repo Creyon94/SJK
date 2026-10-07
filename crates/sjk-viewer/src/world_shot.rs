@@ -541,6 +541,15 @@ mod tests {
                 let path = shoot(&mut gpu, 30, &format!("{name}-{suffix}"));
                 println!("{}", path.display());
             }
+            // Dual sabers: the two hands' hilt lists side by side.
+            if let Some(menu) = gpu.client_menu.as_mut() {
+                menu.player_dual_for_shot();
+                menu.player_page_for_shot(1, 1);
+            }
+            let _ = frame(&mut gpu, 2);
+            gpu.ui_epoch -= std::time::Duration::from_millis(3_000);
+            let path = shoot(&mut gpu, 30, &format!("{name}-saber-dual"));
+            println!("{}", path.display());
         });
     }
 

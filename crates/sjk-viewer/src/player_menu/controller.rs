@@ -418,6 +418,9 @@ impl PlayerMenu {
             KeyCode::BracketLeft => {
                 self.set_page(ProfilePage::ALL[(self.page.index() + pages - 1) % pages]);
             }
+            // SJK UI: the Saber and Force pages' rows in the order they show them.
+            KeyCode::ArrowUp | KeyCode::KeyW if self.is_sjk() && self.sjk_step(-1) => {}
+            KeyCode::ArrowDown | KeyCode::KeyS if self.is_sjk() && self.sjk_step(1) => {}
             KeyCode::ArrowUp | KeyCode::KeyW => {
                 self.selected = self.selected.checked_sub(1).unwrap_or(count - 1);
             }

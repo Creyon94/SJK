@@ -151,7 +151,10 @@ Settings and SJK in place of retail's Controls and Setup:
   - Character creation: species, skin tint swatches, the Head, Torso and Legs
     lists, Back and APPLY. Entering it from an ordinary character puts on the
     first species, as retail's Custom did.
-  - Lightsaber creation: saber type, the hilt list (two for Dual Sabers), the
+  - Lightsaber creation: saber type, the hilt list (two for Dual Sabers; in
+    every menu style the hilts come in the game's load order, as EternalJK and
+    JoF EJK list them: the highest-priority pk3 first, each file's hilts in
+    order, not sorted), the
     six blade colour swatches (two rows for Dual), Apply, and Apply back to the
     main menu. SJK adds JoF EJK's custom colour: a red, green and blue slider
     per saber (`ingame_saber.menu`'s "RGB Color Creation"), right of the live
