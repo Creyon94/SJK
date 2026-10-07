@@ -76,6 +76,11 @@ details 16 to 18, key hints 15 to 17; on Settings, its name 48, the categories
 26, sub-headings 22, row names and descriptions 19, the detail's title 32 and
 its facts 17.
 
+Names keep their colour codes (`^1`...), drawn in a palette lifted to read on
+the navy ground (`text::CodePalette::Legible`, which every text in the UI's
+families uses): black shows as grey, and red, green, blue and magenta are
+lighter with the same hue; the other colours are the game's.
+
 `ui_gameFont` (classic game fonts) does not change the SJK UI's type; it keeps
 applying to the classic screens and the in-game text.
 
@@ -320,10 +325,11 @@ as Settings is, on the main page's 16:9 frame. The camera keeps touring behind i
   full and locked servers and the game type as a cycler (All, then each type);
   at its foot Refresh the list and Join by address.
 - **List:** a header line of sortable columns (Server, Mode, Map, Players,
-  Ping; the sorted one gold with a caret pointing its way, a click sorts or
-  flips it), then fourteen rows of 52 that scroll (wheel, scrollbar). A row:
-  a gold dot for a favourite, the name without colour codes (muted when nobody
-  but bots plays), a gold padlock when it needs a password, the game type with
+  Ping; the sorted one gold with a sort mark after it, three stacked bars
+  longest at the top when descending, at the bottom when ascending; a click
+  sorts or flips it), then fourteen rows of 52 that scroll (wheel, scrollbar).
+  A row: a gold dot for a favourite, the name in its colours (faded when
+  nobody but bots plays), a gold padlock when it needs a password, the game type with
   the mod as a small tag (JA+, JAPRO, Mod; none for base), the map without
   `mp/`, players over capacity, four signal bars lit by the ping (four to 60 ms,
   three to 110, two to 180, one to 400) and the ping. The chosen row has the
@@ -332,7 +338,8 @@ as Settings is, on the main page's 16:9 frame. The camera keeps touring behind i
   the Show choices hiding everything).
 - **Right:** the chosen server: its map's levelshot (cropped, never stretched:
   a square retail levelshot is a 4:3 picture), the map's name over its foot;
-  the server's name; Mode, Players (with its bots), Ping and Mod (the server's
+  the server's name in its colours (a second line goes on in the colour the
+  first ended in); Mode, Players (with its bots), Ping and Mod (the server's
   own name for its mod once its status answers); its address, "Needs a
   password" in gold when it does, its limits in words ("30 frags, 20
   minutes"); Join (gold) and Add to favourites or Remove favourite; then

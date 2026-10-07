@@ -393,6 +393,7 @@ impl GameFonts {
                     &layer.font,
                     viewport,
                     style,
+                    text::CodePalette::Game,
                 );
             }
         }
@@ -404,6 +405,7 @@ impl GameFonts {
             fallback.1,
             viewport,
             style,
+            text::CodePalette::Game,
         );
     }
 
