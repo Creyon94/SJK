@@ -162,6 +162,7 @@ impl ApplicationHandler for ViewerApplication {
             WindowEvent::CursorLeft { .. } => gpu.pointer_left(),
             WindowEvent::MouseInput { state, button, .. } => gpu.pointer_button(button, state),
             WindowEvent::MouseWheel { delta, .. } => gpu.pointer_wheel(delta),
+            WindowEvent::DroppedFile(path) => gpu.file_dropped(&path),
             WindowEvent::Focused(focused) => {
                 if !focused {
                     gpu.alt_code.reset();

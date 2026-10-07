@@ -25,6 +25,7 @@ mod shader_image;
 
 mod clock_trace;
 mod combat_effects;
+mod config_import;
 mod config_string_refresh;
 mod connection;
 mod connection_commands;

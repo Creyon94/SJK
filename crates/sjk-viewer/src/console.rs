@@ -21,10 +21,14 @@ mod console_credits;
 #[path = "console_cvars.rs"]
 mod console_cvars;
 pub(crate) use console_cvars::DEFAULT_MAX_PACKETS;
+#[path = "config_import_panel.rs"]
+pub(crate) mod config_import_panel;
 #[path = "console_debug_panel.rs"]
 mod console_debug_panel;
 #[path = "console_identity_page.rs"]
 mod console_identity_page;
+#[path = "console_import.rs"]
+mod console_import;
 #[path = "console_update.rs"]
 mod console_update;
 #[path = "credits.rs"]
@@ -129,6 +133,8 @@ pub(crate) struct ViewerConsole {
     update_panel: update_panel::Panel,
     /// The Identity page, drawn in place of the console while open.
     identity_panel: identity_panel::Panel,
+    /// The Import page (a dropped `.cfg`), drawn in place of the console while open.
+    config_import: config_import_panel::Panel,
     userinfo_dirty: Arc<AtomicBool>,
     show_timedelta: crate::net_timing::CvarSetting,
     time_nudge: crate::presentation_clock::CvarSetting,
@@ -256,7 +262,8 @@ impl ViewerConsole {
                 || self.changelog.is_open()
                 || self.credits.is_open()
                 || self.update_panel.is_open()
-                || self.identity_panel.is_open())
+                || self.identity_panel.is_open()
+                || self.config_import.is_open())
     }
 
     /// Add an application diagnostic to the visible bounded scrollback.
@@ -533,7 +540,8 @@ impl ViewerConsole {
     ) {
         // Overlay text draws above every overlay's shapes, so the browser replaces the
         // console's drawing rather than covering it.
-        if self.append_credits(vertices, font, viewport)
+        if self.append_config_import(vertices, font, viewport)
+            || self.append_credits(vertices, font, viewport)
             || self.append_changelog(vertices, font, viewport)
             || self.append_update_panel(vertices, font, viewport)
             || self.append_identity_panel(vertices, font, viewport)
@@ -629,6 +637,9 @@ impl ViewerConsole {
     }
 
     pub(crate) fn draw_list(&self) -> &sjk_ui::DrawList {
+        if let Some(draw_list) = self.config_import_draw_list() {
+            return draw_list;
+        }
         if let Some(draw_list) = self.credits_draw_list() {
             return draw_list;
         }
@@ -703,6 +714,7 @@ impl ViewerConsole {
             self.credits.close();
             self.update_panel.close();
             self.identity_panel.close();
+            self.config_import.close();
         }
     }
 

@@ -450,6 +450,20 @@ impl crate::GpuState {
             crate::quick_wheel::OPEN_COMMAND => return self.open_quick_wheel(args),
             crate::quick_wheel::RUN_COMMAND => return self.release_quick_wheel(),
             crate::hud::nameplate::COMMAND => return self.nameplate_command(args),
+            crate::menu::quick_setup::COMMAND | crate::menu::quick_setup::OLD_COMMAND
+                if args.first().is_some_and(|arg| {
+                    arg.eq_ignore_ascii_case(crate::menu::quick_setup::IMPORT)
+                }) =>
+            {
+                // A path with spaces may come unquoted: its words are joined again.
+                let path = args[1..].join(" ");
+                if let Some(console) = &mut self.console {
+                    console.open_config_import(
+                        (!path.is_empty()).then(|| std::path::Path::new(&path)),
+                    );
+                }
+                self.sync_cursor_policy();
+            }
             crate::menu::quick_setup::COMMAND | crate::menu::quick_setup::OLD_COMMAND => {
                 if let Some(console) = &mut self.console {
                     console.set_open(false);
