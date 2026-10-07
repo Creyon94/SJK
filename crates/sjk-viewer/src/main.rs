@@ -191,6 +191,8 @@ mod window_icon;
 mod world_materials;
 mod world_notes;
 mod world_props;
+#[cfg(test)]
+mod world_shot;
 mod world_stage;
 use actor_instance::ActorInstance;
 use actor_mesh::ActorMesh;
@@ -265,6 +267,10 @@ struct GpuState {
     post_aa: Option<frame_target::aa::Runtime>,
     render_scale: Option<frame_target::scale::Runtime>,
     screenshots: screenshot::Manager,
+    /// The image frames render into without a window: only the off-screen
+    /// world shots set it (`world_shot`); without one a windowless frame is
+    /// skipped.
+    headless_frame: Option<wgpu::Texture>,
     device: wgpu::Device,
     queue: frame_queue::FrameQueue,
     configuration: wgpu::SurfaceConfiguration,
@@ -1106,6 +1112,7 @@ impl GpuState {
             context,
 
             screenshots: screenshot_setup.manager,
+            headless_frame: None,
             configuration,
             size,
             world_materials,
@@ -1704,7 +1711,17 @@ impl GpuState {
             self.world_notes.composer_closed();
         }
         self.world_notes.draw_highlight(viewport);
+        // The menu camera tour's fades, over the menu world only.
+        let world_fade = menu_backdrop::standalone_menu_visible(self)
+            && self
+                .client_menu
+                .as_mut()
+                .is_some_and(|menu| menu.prepare_world_fade(viewport));
         let layers = [
+            self.client_menu
+                .as_ref()
+                .filter(|_| world_fade)
+                .map(menu::ClientMenu::world_fade),
             self.world_notes.fill(),
             self.world_notes.highlight(),
             information_visible.then(|| &self.hud.nameplate.list),

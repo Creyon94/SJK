@@ -1949,6 +1949,17 @@ test: Right moves to the servers (the arc turns to them), Enter joins; Left come
 test: Settings, Character, the browser: open in the classic look; Back returns to this page.
 note: Text too small at 4K, ring too faint, colours off? Tell Claude which part.
 
+[sjk-menu-tour]
+status: personal
+area: Menus & settings
+title: SJK UI: the camera tours duel6 behind the menus (ten shots, fades between)
+change: Each shot glides 15 s looking at one spot, then fades through navy to the next.
+change: First the usual west-wing view, then a shuffled order, new every start.
+test: Sit on the main page a few minutes: every shot clear, no wall or leaves filling it.
+test: The fade between shots is short and smooth; no flash of the next shot before it.
+test: Open Settings and What's new: the tour keeps going behind them.
+note: A shot you dislike? Tell Claude which (the tower foot, the temple, a wing...).
+
 [sjk-ui-settings]
 status: personal
 area: Menus & settings

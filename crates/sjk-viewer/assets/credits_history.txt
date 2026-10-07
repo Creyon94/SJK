@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 07/10/2026 | - | SJK UI: a camera tour of mp/duel6 behind the menus; off-screen world shots
+- 6d14934 |  | SJK UI: a camera tour of mp/duel6 behind the menus; off-screen world shots
 + 07/10/2026 | - | SJK UI Settings: categories on a lit rail, rows, the setting explained
 - 7f4bd68 |  | SJK UI: Settings, its second screen
 + 07/10/2026 | - | SJK UI main page: the ring, its arc menu and recent servers

@@ -9,12 +9,15 @@
 mod flight;
 mod passage;
 mod routes;
+mod tour;
 
 use super::GpuState;
 use crate::world_props::{self, GateCue, PropSpec};
 use flight::Path;
 use glam::Vec3;
 use passage::Passage;
+#[cfg(test)]
+pub(crate) use routes::tour_for;
 pub(crate) use routes::{Stage, props_for};
 use sjk_bsp::Bsp;
 use sjk_entity::parse_entity_lump;
@@ -101,6 +104,15 @@ pub(crate) struct Backdrop {
     gate_last: f32,
     /// A cue the opening passed, until it is taken.
     gate_cue: Option<GateCue>,
+    /// The map's camera tour, when it has one: the main shot plays it, and
+    /// the other shots are reached by a cut through dark instead of a flight
+    /// (a tour's shots are all over the map, so no route starts from them).
+    tour: Option<tour::Tour>,
+    /// The cut under way on a toured map: the flight it leaves for (`None`
+    /// back to the tour) and the backdrop time it began.
+    cut: Option<(Option<usize>, u64)>,
+    /// How dark the tour's fades and cuts make the world this frame.
+    darkness: f32,
 }
 
 impl Backdrop {
@@ -111,7 +123,15 @@ impl Backdrop {
             .into_iter()
             .filter_map(|shot| routes::route_for(message.as_deref()?, shot))
             .collect::<Vec<_>>();
-        Some(Self::new(main, &routes, gate_for(bsp)))
+        let mut backdrop = Self::new(main, &routes, gate_for(bsp));
+        if let Some(shots) = message.as_deref().and_then(routes::tour_for) {
+            // Each start shuffles the tour differently.
+            let seed = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map_or(1, |time| time.as_nanos() as u64);
+            backdrop.tour = Some(tour::Tour::new(shots, seed));
+        }
+        Some(backdrop)
     }
 
     /// Routes chained onto another shot must follow that shot's route; a
@@ -150,7 +170,61 @@ impl Backdrop {
             gate_prop: gate,
             gate_last: 0.0,
             gate_cue: None,
+            tour: None,
+            cut: None,
+            darkness: 0.0,
         }
+    }
+
+    /// How dark the tour's fades and cuts make the world this frame (0 clear,
+    /// 1 black); 0 on a map without a tour.
+    pub(crate) fn darkness(&self) -> f32 {
+        self.darkness
+    }
+
+    /// The camera on a toured map at backdrop time `millis`, `wanted` the
+    /// flight whose shot the screen asks for (`None`: the tour). Moving
+    /// between the tour and a shot fades to black, cuts, and fades back in.
+    fn drive_tour(&mut self, wanted: Option<usize>, millis: u64) -> Sample {
+        let half = tour::FADE_MILLIS / 2;
+        if self.cut.is_none() && wanted != self.active {
+            self.cut = Some((wanted, millis));
+        }
+        let mut darkness = 0.0_f32;
+        if let Some((to, began)) = &mut self.cut {
+            let elapsed = millis.saturating_sub(*began);
+            if elapsed < half {
+                // Still fading out: the screen may change its mind.
+                *to = wanted;
+                darkness = elapsed as f32 / half as f32;
+            } else {
+                let to = *to;
+                if self.active != to {
+                    self.active = to;
+                    if to.is_none()
+                        && let Some(tour) = &mut self.tour
+                    {
+                        tour.advance(millis);
+                    }
+                }
+                darkness = 1.0 - (elapsed - half) as f32 / half as f32;
+                if elapsed >= 2 * half {
+                    self.cut = None;
+                }
+            }
+        }
+        let seconds = millis as f32 / 1_000.0;
+        let sample = match (self.active, &mut self.tour) {
+            (Some(index), _) => self.flights[index].path.destination().sample(seconds),
+            (None, Some(tour)) => {
+                let (sample, fade) = tour.sample(millis);
+                darkness = darkness.max(fade);
+                sample
+            }
+            (None, None) => self.main.sample(seconds),
+        };
+        self.darkness = darkness.clamp(0.0, 1.0);
+        sample
     }
 
     fn flight_for(&self, shot: Shot) -> Option<usize> {
@@ -186,6 +260,9 @@ impl Backdrop {
     /// chained shot is reached through its parent's shot.
     pub(crate) fn drive(&mut self, shot: Shot, millis: u64) -> Sample {
         let wanted = self.flight_for(shot);
+        if self.tour.is_some() {
+            return self.drive_tour(wanted, millis);
+        }
         let progress = self.progress.sample(millis);
         let parked_start = self.progress.target() == 0.0 && progress <= 1e-4;
         let parked_end = self.progress.target() == 1.0 && progress >= 1.0 - 1e-4;
@@ -318,6 +395,10 @@ impl Backdrop {
     /// screen stays visible while a flight chained onto its shot returns to
     /// it (the saber flying back to the player screen).
     pub(crate) fn reveal(&self, shot: Shot) -> f32 {
+        // On a toured map every screen is up at once; the world cuts behind it.
+        if self.tour.is_some() {
+            return 1.0;
+        }
         let wanted = self.flight_for(shot);
         let target = match wanted {
             Some(index) if self.active == Some(index) => 1.0,
