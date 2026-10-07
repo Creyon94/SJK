@@ -1534,6 +1534,11 @@ Sol is reviewing every retail world shader on the test maps of
   generation 5 of the generator covers it (1,199 textures on the retail MP maps and
   the test maps, 145 of them vertex-lit). Open: 180 vertex-lit shaders whose base is
   not opaque vertex paint, chiefly blended terrain layers, stay unmapped.
+- 07/10/2026, later: parallax is on again at a tenth of its depth. `r_parallaxStrength`
+  (default 0.1, 0 flat, 1 the pack's full depth) scales it live, and Settings >
+  Graphics > Image has a Parallax depth slider beside a Parallax mapping switch
+  (restart): a profile saved while the default was off keeps `r_parallaxMapping 0`.
+  Tests only; not yet looked at in game.
 - Controls' painted indicator lights are emission evidence now, but on retail data it
   finds nothing new: nearly every switch and door control already glows through its
   shader, and the three that do not have no lights painted. 31 textures emit.

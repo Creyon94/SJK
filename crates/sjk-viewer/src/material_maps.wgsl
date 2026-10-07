@@ -129,8 +129,11 @@ fn material_map_parallax(uv: vec2<f32>, view: vec3<f32>, tangent: vec3<f32>,
     // the march reads mip levels that no longer hold the relief. The depth fades out
     // below about 20 degrees above the surface and from 1.5 to 4 texels per pixel, and
     // the offset is limited to depth / 0.35 (Welsh's offset limiting) on the way.
+    // `r_parallaxStrength` (lighting-mode bits 2-7, `world_lighting_mode.rs`, where zero
+    // bits are the default 0.1) scales the depth; 0 leaves the surface flat.
+    let strength = f32((((point_lights.metadata.z >> 2u) + 4u) & 63u))/40.0;
     let texels = max(length(dx*size), length(dy*size));
-    let fade = smoothstep(0.15, 0.35, direction.z)*(1.0 - smoothstep(1.5, 4.0, texels));
+    let fade = strength*smoothstep(0.15, 0.35, direction.z)*(1.0 - smoothstep(1.5, 4.0, texels));
     if fade <= 0.0 { return vec2(0.0); }
     let ds = direction.xy*(-material_map.normal_scale.w*fade/max(direction.z, 0.35));
     let bias = material_map.control.z;

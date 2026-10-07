@@ -9,13 +9,14 @@
 //! The controls are `r_normalMapping`, `r_specularMapping`, `r_parallaxMapping`
 //! and `r_emissiveMaps`, sampled at startup like rend2's latched cvars. SJK turns
 //! them all on by default (Sol's choice; rend2 and JKR default the first three
-//! off); they act only where a pack supplies maps. Off, no image is looked up, no
-//! layout, buffer or program exists and every stage compiles exactly as before. On
-//! without maps, a map load only looks the map names up in the file index; no
-//! layout, buffer or program is created either. On, a stage with maps compiles to
-//! its own pipeline key ([`PIPELINE_BIT`]) whose program is the ordinary stage program
-//! plus the material hooks (`material_map_program.rs`); stages without maps keep
-//! their pipelines, bind groups and stage-table records.
+//! off); they act only where a pack supplies maps. `r_parallaxStrength`
+//! (`world_lighting_mode.rs`, live, default 0.1) scales the parallax depth. Off, no
+//! image is looked up, no layout, buffer or program exists and every stage compiles
+//! exactly as before. On without maps, a map load only looks the map names up in the
+//! file index; no layout, buffer or program is created either. On, a stage with maps
+//! compiles to its own pipeline key ([`PIPELINE_BIT`]) whose program is the ordinary
+//! stage program plus the material hooks (`material_map_program.rs`); stages without
+//! maps keep their pipelines, bind groups and stage-table records.
 //!
 //! They cover lightmapped world surfaces (static and inline movers) whose lightmap
 //! and diffuse stages collapse into one pass, and vertex-lit world surfaces whose
@@ -182,12 +183,12 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), CvarError> {
              keywords); restart required",
         ),
         (
-            // Off in SJK since 07/10/2026: generated height is a guess from paint, and
-            // Sol preferred normal, specular and emission maps without it.
+            // Off in SJK for a while on 07/10/2026: the full depth of generated height (a
+            // guess from paint) swam. On again with `r_parallaxStrength` 0.1 (Sol's choice).
             "r_parallaxMapping",
-            0,
+            i64::from(DEFAULT_ON),
             "Parallax from the height in a normal map's alpha (_nh images, normalHeightMap); \
-             needs r_normalMapping; restart required",
+             needs r_normalMapping; depth is r_parallaxStrength; restart required",
         ),
         (
             "r_emissiveMaps",
@@ -809,18 +810,14 @@ mod tests {
             cvars.get("r_emissiveMaps").expect("registered").value,
             CvarValue::Integer(1)
         );
-        // SJK turns normal and specular maps on by default too; parallax is off
-        // (34190c8, Sol's choice).
-        for name in CONTROLS.iter().take(2) {
+        // SJK turns normal, specular and parallax maps on by default too (parallax at a
+        // tenth of its depth, `r_parallaxStrength`).
+        for name in CONTROLS.iter().take(3) {
             assert_eq!(
                 cvars.get(name).expect("registered").value,
                 CvarValue::Integer(1)
             );
         }
-        assert_eq!(
-            cvars.get(CONTROLS[2]).expect("registered").value,
-            CvarValue::Integer(0)
-        );
         // The light multiplier is read when a map loads; it stays within 0..4.
         assert_eq!(lights::gain_of(&CvarValue::Float(2.5)), 2.5);
         assert_eq!(lights::gain_of(&CvarValue::Integer(0)), 0.0);

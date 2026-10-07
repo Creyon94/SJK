@@ -32,6 +32,20 @@ fn emission_bits(value: f64) -> u32 {
     ((steps + 224) & 255) << EMISSION_SHIFT
 }
 
+/// `r_parallaxStrength` in the mode word: bits 2..8 hold `(40·strength + 60) mod 64`, so
+/// a word without them means the default 0.1. Steps of 1/40 up to 1.575.
+pub(crate) const PARALLAX_SHIFT: u32 = 2;
+const PARALLAX_BITS: u32 = 63 << PARALLAX_SHIFT;
+/// `r_parallaxStrength` when nothing sets it: a tenth of the pack's depth (Sol's choice,
+/// 07/10/2026; the full depth swam on sand and stone).
+const PARALLAX_DEFAULT: f64 = 0.1;
+
+/// The mode word's bits for parallax strength `value` (clamped to 0..1.575).
+fn parallax_bits(value: f64) -> u32 {
+    let steps = (value.clamp(0., 63. / 40.) * 40.).round() as u32;
+    ((steps + 60) & 63) << PARALLAX_SHIFT
+}
+
 /// A number from a cvar value; `fallback` for text.
 fn number(value: &CvarValue, fallback: f64) -> f64 {
     match value {
@@ -82,6 +96,13 @@ impl Settings {
              1 as authored; live",
         ))?;
         cvars.register(CvarDefinition::new(
+            "r_parallaxStrength",
+            PARALLAX_DEFAULT,
+            CvarFlags::ARCHIVE,
+            "Depth of parallax on material-mapped surfaces (r_parallaxMapping), 0 flat .. \
+             1.575; 1 the pack's full depth, default 0.1; live",
+        ))?;
+        cvars.register(CvarDefinition::new(
             "r_emissionStrength",
             1.0_f64,
             CvarFlags::ARCHIVE,
@@ -113,6 +134,11 @@ impl Settings {
         cvars.on_change("r_normalMapStrength", move |change| {
             changed.set_strength(&change.current)
         })?;
+        settings.set_parallax(&cvars.get("r_parallaxStrength").unwrap().value);
+        let changed = settings.clone();
+        cvars.on_change("r_parallaxStrength", move |change| {
+            changed.set_parallax(&change.current)
+        })?;
         settings.set_emission(&cvars.get("r_emissionStrength").unwrap().value);
         let changed = settings.clone();
         cvars.on_change("r_emissionStrength", move |change| {
@@ -133,6 +159,16 @@ impl Settings {
             .0
             .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |word| {
                 Some(word & !EMISSION_BITS | bits)
+            });
+    }
+
+    /// `r_parallaxStrength`; a non-number leaves the default.
+    fn set_parallax(&self, value: &CvarValue) {
+        let bits = parallax_bits(number(value, PARALLAX_DEFAULT));
+        let _ = self
+            .0
+            .fetch_update(Ordering::Relaxed, Ordering::Relaxed, |word| {
+                Some(word & !PARALLAX_BITS | bits)
             });
     }
 
@@ -241,6 +277,43 @@ mod tests {
         assert!(
             include_str!("material_maps.wgsl")
                 .contains("(((point_lights.metadata.z >> 16u) + 64u) & 255u)")
+        );
+    }
+
+    #[test]
+    fn parallax_strength_tenth_is_the_empty_word() {
+        let mut cvars = CvarRegistry::new();
+        let settings = Settings::bind(&mut cvars).expect("registers");
+        assert_eq!(
+            cvars.get("r_parallaxStrength").expect("registered").value,
+            CvarValue::Float(0.1)
+        );
+        // The default 0.1 leaves the word empty.
+        assert_eq!(settings.bits(), 0);
+        let decode = |bits: u32| ((((bits >> PARALLAX_SHIFT) + 4) & 63) as f32) / 40.;
+        assert_eq!(decode(0), 0.1);
+        cvars.set_text("r_parallaxStrength", "1").expect("set");
+        assert_eq!(decode(settings.bits()), 1.0);
+        cvars.set_text("r_parallaxStrength", "0").expect("set");
+        assert_eq!(decode(settings.bits()), 0.0);
+        cvars.set_text("r_parallaxStrength", "5").expect("set");
+        assert_eq!(decode(settings.bits()), 63. / 40.);
+        cvars.set_text("r_parallaxStrength", "0.25").expect("set");
+        // Its bits sit between the stock bits and the debug view, apart from the others.
+        cvars.set_text("r_fullbright", "1").expect("set");
+        cvars.set_text("r_materialMapsDebug", "2").expect("set");
+        cvars.set_text("r_normalMapStrength", "2").expect("set");
+        assert_eq!(decode(settings.bits()), 0.25);
+        assert_eq!(settings.bits() & 3, 1);
+        assert_eq!(settings.bits() >> DEBUG_SHIFT & 7, 2);
+        assert_eq!(
+            PARALLAX_BITS & (3 | DEBUG_BITS | NO_EMISSIVE_GLOW | STRENGTH_BITS | EMISSION_BITS),
+            0
+        );
+        // The shader decodes the same bits.
+        assert!(
+            include_str!("material_maps.wgsl")
+                .contains("f32((((point_lights.metadata.z >> 2u) + 4u) & 63u))/40.0")
         );
     }
 

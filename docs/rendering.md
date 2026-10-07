@@ -209,7 +209,8 @@ work without reducing source count, texture resolution or lighting quality.
 | `r_clouds` | Volumetric clouds over open sky, 1 (default) or 0; live |
 | `r_normalMapping` | Normal maps on lightmapped world surfaces (rend2 convention); default 1 (SJK; rend2 and JKR 0), restart required |
 | `r_specularMapping` | Specular, roughness and metalness maps on the same surfaces; default 1 (SJK; rend2 and JKR 0), restart required |
-| `r_parallaxMapping` | Parallax from the height in `_nh`/`normalHeightMap` images; needs `r_normalMapping`; default 0 (SJK turned it off on 07/10/2026: generated height is a guess from paint), restart required |
+| `r_parallaxMapping` | Parallax from the height in `_nh`/`normalHeightMap` images; needs `r_normalMapping`; default 1 (SJK, at `r_parallaxStrength` 0.1; rend2 and JKR 0), restart required |
+| `r_parallaxStrength` | Depth of parallax, a multiplier on the stage's `parallaxDepth` (rend2's 0.05 without one), 0 (flat) to 1.575 in steps of 1/40; default 0.1 (Sol's choice: generated height is a guess from paint, and the full depth swam), live, archived; Settings slider 0–1 |
 | `r_materialMapsDebug` | Material-mapped surfaces only: 1 mapped normal as colour, 2 tint by maps found, 3 normal-map relief, 4 reflection probes alone, 5 without reflection probes, 6 emission maps alone; default 0, live, not archived |
 | `r_emissiveMaps` | Emission maps (`<texture>_e`, SJK's) on lightmapped world surfaces; default 1, restart required. See [Emission maps](#emission-maps) |
 | `r_emissionStrength` | Brightness of emission maps, 0 (off) to 7.97 in steps of 1/32; default 1, live, archived |
@@ -1089,7 +1090,7 @@ then `_n` for normals and `_specGloss`, ioquake3's `_s`, `_rmo` then `_orm` for
 specular, as in rend2's `CollapseStagesToGLSL`. ioquake3's typed
 `stage normalMap` stages are not supported. With the cvars off, the parser
 records the keywords and nothing else changes: no image lookup, layout,
-buffer or pipeline is created. SJK turns the cvars on by default (parallax off); without a
+buffer or pipeline is created. SJK turns the cvars on by default (parallax at a tenth of its depth); without a
 pack (or keywords) a map load only checks the candidate names in the file
 index, and no layout, buffer, pipeline or reflection probe is created.
 
@@ -1141,6 +1142,8 @@ Shading lives in [material_maps.wgsl](../crates/sjk-viewer/src/material_maps.wgs
   and where the height map is minified (1.5 to 4 texels per pixel), and the
   offset is at most depth / 0.35 (Welsh's offset limiting). rend2's depth / cos
   grows without bound toward grazing views; Sol saw generated relief swim.
+  `r_parallaxStrength` scales the depth live (lighting-mode bits 2–7, which decode
+  to the default 0.1 when empty); SJK draws a tenth of it by default, 0 flattens it.
 - Specular anti-aliasing (Kaplanyan and Hoffman; Tokuyoshi and Kaplanyan's bound):
   the mapped normal's screen-space variation is added to the squared roughness
   (at most 0.18), so bumps finer than a pixel widen highlights and blur the
@@ -2240,8 +2243,8 @@ LDR tone curve is off. Sunbeam dust is on at full density (`r_dustMotes 1`) and
 shows only inside the godrays of `r_volumetrics`.
 Dynamic glow is on with rd-vulkan's blur (SJK; stock defaults it off).
 Soft particles, per-pixel model diffuse lighting and full rendering resolution
-remain enabled. Material maps (`r_normalMapping`, `r_specularMapping`; not
-`r_parallaxMapping` since 07/10/2026) and reflection probes (`r_cubeMapping 1`, 128²) are on, but
+remain enabled. Material maps (`r_normalMapping`, `r_specularMapping`,
+`r_parallaxMapping` at a tenth of its depth, `r_parallaxStrength 0.1`) and reflection probes (`r_cubeMapping 1`, 128²) are on, but
 take effect only where a pack such as the [generated one](#generating-material-maps)
 supplies maps; without one nothing is drawn differently or created. Noon, bloom,
 dust and material maps are SJK's defaults (Sol's own settings); JKR keeps 11:00 and

@@ -731,6 +731,20 @@ pub(super) const RENDER_IMAGE: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Parallax mapping (restart)",
+        cvar: "r_parallaxMapping",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Parallax depth (0 flat)",
+        cvar: "r_parallaxStrength",
+        kind: ValueKind::Float {
+            min: 0.0,
+            max: 1.0,
+            step: 0.05,
+        },
+    },
+    Setting {
         label: "Emission maps (restart)",
         cvar: "r_emissiveMaps",
         kind: ValueKind::Bool,

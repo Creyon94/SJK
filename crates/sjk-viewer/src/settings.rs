@@ -1079,10 +1079,15 @@ mod tests {
     fn a_fresh_profile_takes_sols_visual_defaults_and_a_saved_one_keeps_its_values() {
         use crate::world_materials::shadows::day;
         let (_directory, console) = console();
-        for cvar in ["r_sceneBloom", "r_normalMapping", "r_specularMapping"] {
+        for cvar in [
+            "r_sceneBloom",
+            "r_normalMapping",
+            "r_specularMapping",
+            "r_parallaxMapping",
+        ] {
             assert_eq!(console.integer_cvar(cvar), Some(1), "{cvar}");
         }
-        assert_eq!(console.integer_cvar("r_parallaxMapping"), Some(0));
+        assert_eq!(console.float_cvar("r_parallaxStrength"), Some(0.1));
         assert_eq!(console.float_cvar("r_dayHour"), Some(12.0));
         assert_eq!(console.float_cvar(crate::dust_motes::CVAR), Some(1.0));
         // The live state the renderer reads starts from the same defaults.
