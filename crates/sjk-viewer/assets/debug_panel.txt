@@ -2198,6 +2198,19 @@ test: Pick Classic, restart: classic stays. First setup: switch styles, it stays
 test: Console: type q and Tab, only quit is offered; firstsetup opens First setup.
 note: A fresh profile starts at sensitivity 13.022 instead of 5 (known, not fixed yet).
 
+[wall-grab-facing]
+status: personal
+area: Gameplay
+title: Wall grab: the body stays on the wall while the camera looks around
+change: Holding a grabbed wall, the model faces the wall instead of following the view.
+change: Camera, prediction and the jump off the wall are unchanged (JA+ camera stays free).
+test: JA+ server, third person, Force jump 3: jump at a wall, hold W into it, jump again.
+test: While holding, move the mouse left/right: the body stays flat on the wall, no turning.
+test: Repeat holding A or D (side wall) and S (wall behind): body faces as the pose needs.
+test: Jump off: the body swings back to your view, no snap when the server catches up.
+test: Watch another player (or a bot) wall grab: their body stays on the wall too.
+note: Walls on movers (doors, lifts) still turn with the view. Not yet run in a game.
+
 # ---- Merged upstream ----
 
 [actor-instance-cap]

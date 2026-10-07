@@ -173,6 +173,71 @@ fn yaw_axes(yaw: f32) -> (Vec3, Vec3) {
     super::flight::flight_axes([0.0, yaw, 0.0])
 }
 
+/// Where `PM_AdjustAngleForWallJump` looks for the wall of a rebound (`legsAnim`) from
+/// the view's yaw (`checkDir`), and the turn from the wall's normal that faces the player
+/// the way its pose expects (`yawAdjust`); `None` outside the rebounds and their holds.
+fn rebound_side(legs: u16, view_yaw: f32) -> Option<(Vec3, f32)> {
+    let (forward, right) = yaw_axes(view_yaw);
+    match legs {
+        BOTH_FORCEWALLREBOUND_RIGHT | BOTH_FORCEWALLHOLD_RIGHT => Some((right, -90.0)),
+        BOTH_FORCEWALLREBOUND_LEFT | BOTH_FORCEWALLHOLD_LEFT => Some((right * -1.0, 90.0)),
+        BOTH_FORCEWALLREBOUND_FORWARD | BOTH_FORCEWALLHOLD_FORWARD => Some((forward, 180.0)),
+        BOTH_FORCEWALLREBOUND_BACK | BOTH_FORCEWALLHOLD_BACK => Some((forward * -1.0, 0.0)),
+        _ => None,
+    }
+}
+
+/// The wall check of `PM_AdjustAngleForWallJump`: 128 units to the rebound's side, a box
+/// as wide as the player and 24 units tall from its origin; the normal of an upright wall
+/// (`fabs(normal[2]) <= 0.2`) struck there.
+fn rebound_wall(
+    origin: [f32; 3],
+    direction: Vec3,
+    horizontal: ([f32; 3], [f32; 3]),
+    collision: &impl MovementCollision,
+) -> Option<[f32; 3]> {
+    let minimums = [horizontal.0[0], horizontal.0[1], 0.0];
+    let maximums = [horizontal.1[0], horizontal.1[1], 24.0];
+    let end = Vec3::from_array(origin) + direction * 128.0;
+    let trace = collision.trace(
+        origin,
+        minimums,
+        maximums,
+        end.to_array(),
+        PLAYER_CONTENT_MASK,
+    );
+    (trace.fraction < 1.0 && trace.plane_normal[2].abs() <= 0.2).then_some(trace.plane_normal)
+}
+
+/// A wall rebound or its hold (`BG_InReboundJump || BG_InReboundHold`): the animations
+/// during which `PM_AdjustAngleForWallJump` holds a grabbed wall.
+pub fn in_wall_rebound(legs: u16) -> bool {
+    rebound_jump(legs) || rebound_hold(legs)
+}
+
+/// For presentation: the yaw a player in a wall rebound or its hold (`legs`) faces while
+/// the wall is there, as `PM_AdjustAngleForWallJump` turns a stock server's player
+/// (`ps->viewangles[YAW] = vectoyaw(trace.plane.normal) + yawAdjust`).
+///
+/// A JA+ server leaves the view free while the wall is held
+/// ([`crate::pmove_debug_melee::DebugMelee::free_wall_look`]), so a model drawn from
+/// the view would turn away from the wall it holds; drawing it at this yaw keeps it on
+/// the wall. Nothing in the move changes: the view, the hold and the kick off the wall
+/// (straight back from the side the view picks, `checkDir`) are the server's.
+/// `None` outside a rebound or without an upright wall within reach of the standing
+/// player's box (`-15 -15`, `15 15`).
+pub fn wall_hold_yaw(
+    legs: u16,
+    view_yaw: f32,
+    origin: [f32; 3],
+    collision: &impl MovementCollision,
+) -> Option<f32> {
+    let (direction, yaw_adjust) = rebound_side(legs, view_yaw)?;
+    let horizontal = ([-15.0, -15.0, 0.0], [15.0, 15.0, 0.0]);
+    rebound_wall(origin, direction, horizontal, collision)
+        .map(|normal| crate::npc_nav::vector_to_yaw(normal) + yaw_adjust)
+}
+
 /// A wall a runner may run on (`MAX_WALL_RUN_Z_NORMAL`, 0.4): upright or overhanging
 /// no further than that.
 fn runnable(normal_z: f32) -> bool {
@@ -290,19 +355,11 @@ impl Predictor {
             self.state.movement_flags &= !PMF_STUCK_TO_WALL;
             return;
         }
-        let (box_minimums, box_maximums) = self.box_before_duck();
-        let minimums = [box_minimums[0], box_minimums[1], 0.0];
-        let maximums = [box_maximums[0], box_maximums[1], 24.0];
-        let (forward, right) = yaw_axes(self.state.view_angles[1]);
-        let (direction, yaw_adjust) = match self.state.legs_anim {
-            BOTH_FORCEWALLREBOUND_RIGHT | BOTH_FORCEWALLHOLD_RIGHT => (right, -90.0),
-            BOTH_FORCEWALLREBOUND_LEFT | BOTH_FORCEWALLHOLD_LEFT => (right * -1.0, 90.0),
-            BOTH_FORCEWALLREBOUND_FORWARD | BOTH_FORCEWALLHOLD_FORWARD => (forward, 180.0),
-            BOTH_FORCEWALLREBOUND_BACK | BOTH_FORCEWALLHOLD_BACK => (forward * -1.0, 0.0),
-            _ => {
-                self.state.movement_flags &= !PMF_STUCK_TO_WALL;
-                return;
-            }
+        let Some((direction, yaw_adjust)) =
+            rebound_side(self.state.legs_anim, self.state.view_angles[1])
+        else {
+            self.state.movement_flags &= !PMF_STUCK_TO_WALL;
+            return;
         };
         let debug_melee = self.config.debug_melee;
         if debug_melee.holds_walls() && command.up_move > 0 {
@@ -324,25 +381,22 @@ impl Predictor {
                 self.state.torso_timer = 150;
             }
         }
-        let origin = Vec3::from_array(self.state.origin);
-        let trace = collision.trace(
+        let wall = rebound_wall(
             self.state.origin,
-            minimums,
-            maximums,
-            (origin + direction * 128.0).to_array(),
-            PLAYER_CONTENT_MASK,
+            direction,
+            self.box_before_duck(),
+            collision,
         );
-        if self.state.legs_timer > 100 && trace.fraction < 1.0 && trace.plane_normal[2].abs() <= 0.2
-        {
+        if let Some(normal) = wall.filter(|_| self.state.legs_timer > 100) {
             command.up_move = command.up_move.max(0);
             if !debug_melee.free_wall_look {
                 face(
                     &mut self.state,
                     command,
-                    crate::npc_nav::vector_to_yaw(trace.plane_normal) + yaw_adjust,
+                    crate::npc_nav::vector_to_yaw(normal) + yaw_adjust,
                 );
             }
-            self.state.velocity = (Vec3::from_array(trace.plane_normal) * -128.0).to_array();
+            self.state.velocity = (Vec3::from_array(normal) * -128.0).to_array();
             command.up_move = 0;
             self.state.movement_flags |= PMF_STUCK_TO_WALL;
             return;
@@ -957,5 +1011,119 @@ impl Predictor {
             self.add_event(EV_JUMP, 0);
             self.state.movement_flags |= PMF_STUCK_TO_WALL;
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::pmove::MovementTrace;
+
+    /// One solid half-space: the points whose distance along `normal` from the plane
+    /// through `normal * distance` is negative.
+    struct Wall {
+        normal: [f32; 3],
+        distance: f32,
+    }
+
+    impl MovementCollision for Wall {
+        fn trace(
+            &self,
+            start: [f32; 3],
+            minimums: [f32; 3],
+            maximums: [f32; 3],
+            end: [f32; 3],
+            _content_mask: u32,
+        ) -> MovementTrace {
+            let normal = Vec3::from_array(self.normal);
+            // The box's corner deepest into the wall.
+            let corner = Vec3::from_array(std::array::from_fn(|axis| {
+                if self.normal[axis] < 0.0 {
+                    maximums[axis]
+                } else {
+                    minimums[axis]
+                }
+            }));
+            let depth =
+                |point: [f32; 3]| normal.dot(Vec3::from_array(point) + corner) - self.distance;
+            let (from, to) = (depth(start), depth(end));
+            if to >= 0.0 || from < 0.0 {
+                return MovementTrace::miss(end);
+            }
+            let fraction = from / (from - to);
+            let position = Vec3::from_array(start).lerp(Vec3::from_array(end), fraction);
+            MovementTrace {
+                fraction,
+                end_position: position.to_array(),
+                plane_normal: self.normal,
+                ..MovementTrace::miss(end)
+            }
+        }
+    }
+
+    /// A wall 40 units east of the origin, facing west.
+    const EAST: Wall = Wall {
+        normal: [-1.0, 0.0, 0.0],
+        distance: -40.0,
+    };
+
+    fn yaw(legs: u16, view_yaw: f32, wall: &Wall) -> Option<f32> {
+        wall_hold_yaw(legs, view_yaw, [0.0; 3], wall).map(|yaw| yaw.rem_euclid(360.0))
+    }
+
+    #[test]
+    fn a_held_wall_faces_the_player_as_its_pose_needs() {
+        // Grabbed ahead: facing the wall (east). Beside: the wall on that side.
+        // Behind: facing away from it.
+        assert_eq!(yaw(BOTH_FORCEWALLREBOUND_FORWARD, 0.0, &EAST), Some(0.0));
+        assert_eq!(yaw(BOTH_FORCEWALLHOLD_FORWARD, 0.0, &EAST), Some(0.0));
+        assert_eq!(yaw(BOTH_FORCEWALLREBOUND_RIGHT, 90.0, &EAST), Some(90.0));
+        assert_eq!(yaw(BOTH_FORCEWALLHOLD_LEFT, 270.0, &EAST), Some(270.0));
+        assert_eq!(yaw(BOTH_FORCEWALLREBOUND_BACK, 180.0, &EAST), Some(180.0));
+    }
+
+    #[test]
+    fn turning_the_view_does_not_turn_the_held_facing() {
+        // JA+ leaves the view free on the wall: the facing follows the wall alone, while
+        // the wall is still within the check's reach of the turned view.
+        for view in [-60.0, -30.0, 0.0, 25.0, 60.0] {
+            assert_eq!(
+                yaw(BOTH_FORCEWALLREBOUND_FORWARD, view, &EAST),
+                Some(0.0),
+                "view {view}"
+            );
+        }
+        let slanted = Wall {
+            normal: [-0.6, -0.8, 0.0],
+            distance: -30.0,
+        };
+        let facing = crate::npc_nav::vector_to_yaw(slanted.normal) + 180.0;
+        for view in [20.0, 53.0, 80.0] {
+            let held = yaw(BOTH_FORCEWALLHOLD_FORWARD, view, &slanted).unwrap();
+            assert!(
+                (held - facing.rem_euclid(360.0)).abs() < 1e-3,
+                "view {view}"
+            );
+        }
+    }
+
+    #[test]
+    fn no_facing_without_a_rebound_or_a_wall_in_reach() {
+        assert_eq!(yaw(BOTH_INAIR1, 0.0, &EAST), None);
+        assert_eq!(yaw(BOTH_FORCEWALLRELEASE_FORWARD, 0.0, &EAST), None);
+        // Turned away from the wall: the check, along the view, finds nothing.
+        assert_eq!(yaw(BOTH_FORCEWALLREBOUND_FORWARD, 180.0, &EAST), None);
+        // Out of reach: 128 units plus the box.
+        let far = Wall {
+            normal: [-1.0, 0.0, 0.0],
+            distance: -200.0,
+        };
+        assert_eq!(yaw(BOTH_FORCEWALLREBOUND_FORWARD, 0.0, &far), None);
+        // Not upright: a slope (|normal z| > 0.2) is no wall to hold.
+        let slope = Wall {
+            normal: [-0.9, 0.0, 0.436],
+            distance: -40.0,
+        };
+        assert_eq!(yaw(BOTH_FORCEWALLREBOUND_FORWARD, 0.0, &slope), None);
     }
 }

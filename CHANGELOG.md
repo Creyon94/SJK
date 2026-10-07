@@ -24,6 +24,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - The SJK UI is now the default menu style. Profiles still on the old default (classic) switch to it once when you update; pick Classic or Modern again and it stays _(Sol)_
 - First setup offers the menu style as its first row: SJK, Classic or Modern, and First setup stays open in the style you pick _(Sol)_
 - The quicksetup console command is now only firstsetup, so q completes to quit alone _(Sol)_
+- Grabbing a wall before a wall jump, your body now stays facing the wall while the camera looks around (JA+ servers keep the camera free) _(Sol)_
 
 ## 2026.1007.3 (Alpha) | 07/10/2026
 

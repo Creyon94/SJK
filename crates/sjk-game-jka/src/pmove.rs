@@ -2300,6 +2300,7 @@ mod jump;
 
 #[path = "pmove_wall_moves.rs"]
 mod wall_moves;
+pub use wall_moves::{in_wall_rebound, wall_hold_yaw};
 
 #[path = "pmove_saber_view.rs"]
 mod saber_view;

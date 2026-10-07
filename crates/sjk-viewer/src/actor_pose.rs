@@ -101,6 +101,12 @@ pub(crate) fn update(gpu: &mut GpuState, presentation_time: i64) -> Result<(), B
         });
     let queue = &gpu.queue;
     let vertex_buffer = &gpu.geometry.vertex_buffer;
+    // The world's walls, for the facing of a player holding one (`wall_hold_pose`).
+    let collision = crate::movement_collision::BspMovementCollision::with_movers(
+        &gpu.bsp,
+        &mut gpu.trace_scratch,
+        &[],
+    );
     // Invalidate every entry first, including actors skipped below or after an upload error.
     for mesh in &mut gpu.actor_meshes {
         mesh.retained_pose.invalidate();
@@ -114,6 +120,7 @@ pub(crate) fn update(gpu: &mut GpuState, presentation_time: i64) -> Result<(), B
         snapshot,
         game_state,
         presentation_time,
+        collision: &collision,
     };
     for mesh in &mut gpu.actor_meshes {
         if let Err(error) = steps::prepare(mesh, &frame) {

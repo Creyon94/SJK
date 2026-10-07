@@ -76,6 +76,7 @@ pub(crate) fn build_actor_mesh(
         driver_seat: None,
         saber_names,
         render_yaw_degrees: None,
+        wall_hold: Default::default(),
         animator,
         audio_events: Default::default(),
         pose_vertices: Vec::with_capacity(pose_vertex_capacity),

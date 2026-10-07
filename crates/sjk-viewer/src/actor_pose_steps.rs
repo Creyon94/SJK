@@ -15,6 +15,8 @@ pub(super) struct Frame<'a> {
     pub snapshot: Option<&'a Snapshot>,
     pub game_state: Option<&'a GameState>,
     pub presentation_time: i64,
+    /// The world, for the wall a player in a wall rebound holds.
+    pub collision: &'a crate::movement_collision::BspMovementCollision<'a>,
 }
 
 /// Prepare one actor without allowing a bad attachment or angle query to stop its peers.
@@ -27,6 +29,7 @@ pub(super) fn prepare(mesh: &mut ActorMesh, frame: &Frame<'_>) -> Result<(), Box
         snapshot,
         game_state,
         presentation_time,
+        collision,
     } = *frame;
     // A cut-off limb plays its copied animator; any request lets it evaluate.
     if let Some(limb) = &mesh.limb {
@@ -84,6 +87,9 @@ pub(super) fn prepare(mesh: &mut ActorMesh, frame: &Frame<'_>) -> Result<(), Box
         } else {
             origin
         };
+        let pose = mesh
+            .wall_hold
+            .apply(pose, mesh.entity_id, state.lower.clip, origin, collision);
         let mut inputs =
             sjk_client::LegacyPlayerAngleInputs::from_world(pose, origin, world, presentation_time);
         inputs.frame_millis = Some(frame_millis);
