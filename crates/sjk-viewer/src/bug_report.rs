@@ -56,6 +56,8 @@ impl crate::GpuState {
                     map,
                     build: crate::build_info::VERSION.to_owned(),
                     server,
+                    // The identity service adds the name the player wears.
+                    name: String::new(),
                 };
                 if crate::player_identity::report(report) {
                     self.bug_report_waiting = true;

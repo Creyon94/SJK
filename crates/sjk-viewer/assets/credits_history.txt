@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 07/10/2026 | - | Bug reports and world notes carry the name the player wears
+- 01240be |  | Bug reports and world notes carry the name the player wears
 + 07/10/2026 | - | Game fonts: even letter spacing
 - 6511cff |  | Game fonts: even letter spacing (chat, menu, classic HUD)
 + 07/10/2026 | - | SJK UI: Servers, the server browser in its look

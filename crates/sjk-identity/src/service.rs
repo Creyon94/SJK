@@ -278,8 +278,18 @@ impl Worker {
                 }
             }
             Command::SetBio(bio) => self.set_bio(&bio),
-            Command::Report(report) => self.report(&report),
-            Command::Note(tag, note) => self.note(tag, &note),
+            Command::Report(mut report) => {
+                if report.name.is_empty() {
+                    report.name = self.name.clone().unwrap_or_default();
+                }
+                self.report(&report);
+            }
+            Command::Note(tag, mut note) => {
+                if note.name.is_empty() {
+                    note.name = self.name.clone().unwrap_or_default();
+                }
+                self.note(tag, &note);
+            }
             Command::NoteImage(tag, jpeg) => self.note_image(tag, &jpeg),
             Command::LookUp(key_id) => self.lookups.push(key_id),
             Command::Stop => self.release(),
@@ -707,10 +717,13 @@ mod tests {
                 .map(|()| self.roster.lock().unwrap().clone())
         }
         fn report(&mut self, _: &Identity, report: &BugReport) -> Result<i64, HubError> {
-            self.record(format!("report {}", report.text)).map(|()| 7)
+            self.record(format!("report {}", report.text))?;
+            self.record(format!("report name {}", report.name))
+                .map(|()| 7)
         }
         fn note(&mut self, _: &Identity, note: &WorldNote) -> Result<i64, HubError> {
-            Fake::record(self, format!("note {} {}", note.text, note.shader)).map(|()| 9)
+            Fake::record(self, format!("note {} {}", note.text, note.shader))?;
+            Fake::record(self, format!("note name {}", note.name)).map(|()| 9)
         }
         fn note_image(&mut self, _: &Identity, id: i64, jpeg: &[u8]) -> Result<(), HubError> {
             Fake::record(self, format!("image {id} {} bytes", jpeg.len()))
@@ -935,6 +948,7 @@ mod tests {
         worker.handle(Command::NoteImage(1, vec![0; 4]), t0);
         assert!(!lock(&snapshot).note.clone().unwrap().sent);
         assert!(fake.log().is_empty());
+        worker.handle(Command::Name("^1Sol".to_owned()), t0);
         worker.handle(Command::Configure(on("https://hub")), t0);
         worker.tick(t0);
         worker.handle(Command::Note(2, note), t0);
@@ -953,6 +967,8 @@ mod tests {
             ["image 9 4 bytes"]
         );
         assert!(log.contains(&"note too shiny textures/vjun/newfloor_vjun".to_owned()));
+        // The note carries the name the player wears.
+        assert!(log.contains(&"note name ^1Sol".to_owned()), "{log:?}");
     }
 
     #[test]
@@ -971,7 +987,7 @@ mod tests {
         worker.handle(Command::Configure(on("https://hub")), t0);
         worker.tick(t0);
         worker.handle(Command::Report(report), t0);
-        assert_eq!(fake.log().last().unwrap(), "report The door flickers");
+        assert!(fake.log().contains(&"report The door flickers".to_owned()));
         let outcome = lock(&snapshot).report.clone().unwrap();
         assert_eq!((outcome.serial, outcome.sent), (first.serial + 1, true));
         assert_eq!(outcome.message, "report #7");

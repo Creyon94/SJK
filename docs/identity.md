@@ -83,12 +83,12 @@ Identity page, the setting's help and the changelog say what is sent and that
 `cl_identity 0` stops it.
 
 A bug report (Escape, SJK, Report a bug) is sent only when the player presses Enter
-on it: its text, the map, the client build and the game server's address, signed with
-the player's key. The hub keeps it until the operator removes it.
+on it: its text, the map, the client build, the game server's address and the in-game
+name the player wears, signed with the player's key. The hub keeps it until the operator removes it.
 
 A world note (`inspect` twice on the world, [client.md](client.md#player-card)) is sent
 only when the player sends it, with `cl_identity` on: its text, the map, the build, the
-game server's address, where the player stood (`setviewpos`), the aimed point, shader,
+game server's address, the in-game name the player wears, where the player stood (`setviewpos`), the aimed point, shader,
 surface and entity, and a smaller copy of its screenshot (at most 1280 x 720), signed
 with the player's key. The note dialog says so. The hub keeps it until the operator
 removes it; the full note and screenshot stay on the player's PC either way.
@@ -107,7 +107,9 @@ characters. Enter or Send checks the hub's rules (a refusal is shown in the pane
 stays open) (10 to 600 characters, a few real words, no
 long run of one character) and hands the report to the identity service, which sends
 `POST /v1/report` signed with the player's key; the outcome (the hub's report number,
-or why it refused, for example a quota) shows as a centre print. The hub checks
+or why it refused, for example a quota) shows as a centre print. The report carries the
+in-game name the player wears (the service fills it from the `name` it already sends the
+hub); the hub keeps it with the report and adds it to the key's worn names. The hub checks
 everything again and limits reports per key (3 a day, 20 once verified, 5 an hour, no
 repeat within a day), per address (3 in 10 minutes) and overall (300 a day, 5000 kept),
 so a troll with fresh keys gets little through and nothing that is not plain words. The
@@ -123,7 +125,8 @@ characters, at least 2 letters, no long run of one character). The identity serv
 sends `POST /v1/note` with the text and the selection: map, build, server, `view` (the
 `setviewpos` x, y, z and yaw), the aimed point and normal, shader, BSP surface,
 lighting, distance and the entity's class name (a name outside the hub's alphabet is
-left out rather than the note refused). The hub answers with the note's number, which a
+left out rather than the note refused), and the in-game name the player wears, as for a
+report. The hub answers with the note's number, which a
 centre print and the console show, or why it refused. The screenshot writer also makes a
 smaller JPEG of the same pixels (`capture::preview_jpeg`: fitted within 1280 x 720,
 quality lowered until under 380 KiB) and hands it to the service, which sends it with
