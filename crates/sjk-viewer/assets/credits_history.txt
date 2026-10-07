@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 07/10/2026 | - | SJK UI: text centred in its controls
+- c146980 |  | SJK UI: centre text in its buttons, caps, fields and rows
 + 07/10/2026 | - | World notes go to the SJK hub with a smaller screenshot
 - 1b05bd8 |  | World notes go to the SJK hub with a smaller screenshot
 + 07/10/2026 | - | SJK UI: What's new, Update and Identity in its look

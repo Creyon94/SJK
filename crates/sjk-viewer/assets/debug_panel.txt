@@ -1953,6 +1953,16 @@ test: Right moves to the servers (the arc turns to them), Enter joins; Left come
 test: Settings, Character, the browser: open in the classic look; Back returns to this page.
 note: Text too small at 4K, ring too faint, colours off? Tell Claude which part.
 
+[sjk-ui-centre]
+status: personal
+area: Menus & settings
+title: SJK UI: text centred in buttons, caps, fields and rows
+change: SJK UI text sat 2-4 px high (twice at 4K); it is now centred on each control's middle.
+test: Main page: the arc entries sit on the arc's ticks; the key caps at the bottom.
+test: Settings: the segment buttons (ui_menuStyle), the switches' rows, the key caps.
+test: Update and Identity: the button labels; Key bindings: the "Press a key" cap.
+note: Still off somewhere? Tell Claude the screen and the control.
+
 [sjk-ui-pages]
 status: personal
 area: Menus & settings

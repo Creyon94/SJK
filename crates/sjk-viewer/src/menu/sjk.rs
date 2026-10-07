@@ -321,7 +321,19 @@ pub(crate) fn fade_across(canvas: &mut MenuCanvas, rect: Rect, left: Color, righ
     });
 }
 
-/// Text in `family`: the canvas's text, its family set for the run.
+/// Where a run's letters sit in its line box, as a share of its size down from
+/// the line's top: the middle of its capitals, leaning a quarter of the way to
+/// the middle of its lower case, so mixed text looks centred. Measured from
+/// the bundled fonts (`letters_centre_on_the_middle_of_their_rectangle`):
+/// Rajdhani's capitals centre at 0.476 and its x-height at 0.529, Exo 2's at
+/// 0.542 and 0.629.
+const DISPLAY_CENTRE: f32 = 0.489;
+const BODY_CENTRE: f32 = 0.563;
+
+/// Text in `family`, its letters centred on `rect`'s middle line (the
+/// renderer otherwise sets a run's line box from its rectangle's top, which
+/// left text high in its buttons and caps): the canvas's text, its family set
+/// for the run.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn text(
     canvas: &mut MenuCanvas,
@@ -333,8 +345,23 @@ pub(crate) fn text(
     weight: FontWeight,
     align: TextAlign,
 ) {
+    let centre = match family {
+        TextFamily::Display => DISPLAY_CENTRE,
+        TextFamily::Body => BODY_CENTRE,
+    };
+    let top = rect.y + rect.height * 0.5 - centre * size;
+    // Tall enough for descenders, which the rectangle also clips.
+    let height = (size * 1.3).max(rect.bottom() - top);
     canvas.set_family(family);
-    canvas.text_fmt_aligned(value, rect, size, color, weight, 0.0, align);
+    canvas.text_fmt_aligned(
+        value,
+        Rect::new(rect.x, top, rect.width, height),
+        size,
+        color,
+        weight,
+        0.0,
+        align,
+    );
     canvas.set_family(TextFamily::Body);
 }
 
@@ -364,7 +391,7 @@ pub(crate) fn key_hint(
             canvas,
             TextFamily::Display,
             format_args!("{key}"),
-            Rect::new(x, y + 2.0 * s, width, height - 2.0 * s),
+            cap,
             17.0 * s,
             color::TEXT,
             FontWeight::Semibold,
@@ -377,7 +404,7 @@ pub(crate) fn key_hint(
         canvas,
         TextFamily::Body,
         format_args!("{action}"),
-        Rect::new(x + 4.0 * s, y + 2.0 * s, action_width, height),
+        Rect::new(x + 4.0 * s, y, action_width, height),
         15.0 * s,
         color::MUTED,
         FontWeight::Regular,
@@ -490,6 +517,50 @@ mod tests {
         canvas.begin_transparent([1920.0, 1080.0]);
         let end = key_hint(&mut canvas, &["Left", "Right"], "choose", 100.0, 900.0, 1.0);
         assert!((end - 100.0 - key_hint_width(&["Left", "Right"], "choose", 1.0)).abs() < 1e-3);
+    }
+
+    #[test]
+    fn letters_centre_on_the_middle_of_their_rectangle() {
+        for (family, centre) in [
+            (&crate::text::DISPLAY, DISPLAY_CENTRE),
+            (&crate::text::BODY, BODY_CENTRE),
+        ] {
+            let loaded = crate::text::load_family(family, 1.0, None).expect("a bundled family");
+            let font = &loaded.font;
+            let middle = |byte| {
+                let glyph = font.glyph(crate::text::TextFace::Regular, byte);
+                (glyph.offset_y + glyph.height * 0.5) / font.height
+            };
+            let measured = middle(b'H') * 0.75 + middle(b'x') * 0.25;
+            assert!(
+                (measured - centre).abs() < 0.005,
+                "{measured} against {centre}"
+            );
+        }
+        // A run's line box is placed so that point lands on the middle.
+        let mut canvas = MenuCanvas::new();
+        canvas.begin_transparent([1920.0, 1080.0]);
+        text(
+            &mut canvas,
+            TextFamily::Display,
+            format_args!("Play"),
+            Rect::new(0.0, 100.0, 200.0, 40.0),
+            20.0,
+            color::TEXT,
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+        let placed = canvas
+            .draw_list()
+            .commands()
+            .iter()
+            .find_map(|command| match command {
+                DrawCommand::Text { rect, .. } => Some(*rect),
+                _ => None,
+            });
+        let placed = placed.expect("the run");
+        assert!((placed.y + DISPLAY_CENTRE * 20.0 - 120.0).abs() < 1e-3);
+        assert!(placed.bottom() >= 140.0);
     }
 
     #[test]

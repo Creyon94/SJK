@@ -79,6 +79,14 @@ its facts 17.
 `ui_gameFont` (classic game fonts) does not change the SJK UI's type; it keeps
 applying to the classic screens and the in-game text.
 
+Text is centred on its rectangle's middle line (`menu::sjk::text`): the
+renderer sets a run's line box from the rectangle's top, so the helper places
+it from each family's measured metrics, the middle of the capitals leaning a
+quarter toward the lower case (0.489 of the size down the line box for
+Rajdhani, 0.563 for Exo 2; a test checks them against the bundled fonts).
+Every SJK UI text goes through it, so a control's text rectangle is simply the
+control's own.
+
 ### Motion
 
 The ring turns once every four minutes and the sunburst behind the emblem
