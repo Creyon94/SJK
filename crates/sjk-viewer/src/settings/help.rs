@@ -384,7 +384,7 @@ const HELP: &[(&str, &str)] = &[
     ("cg_speedometer", "Shows how fast you move."),
     (
         crate::scoreboard::style::CVAR,
-        "The classic scoreboard after the original game's, or SJK's modern one.",
+        "Auto matches the menus: SJK's own with the SJK UI, else the classic one after the original game's.",
     ),
     (
         "cg_showClientIDs",

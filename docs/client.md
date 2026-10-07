@@ -1161,11 +1161,24 @@ unchanged.
 
 ## Scoreboard styles
 
-`cg_scoreboardStyle` (Settings, HUD+ tab, "Scoreboard style") picks the
-scoreboard layout: `modern`, JKR's table beside the chat column, or
-`classic` (SJK's default, like its menus and console; JKR's is `modern`; only
-`modern` or `0` selects the modern one), the retail scoreboard as EternalJK-derived clients such as JoF EJK
-draw it ([classic.rs](../crates/sjk-viewer/src/scoreboard/classic.rs), after
+`cg_scoreboardStyle` (Settings > Scoreboard > "Scoreboard style") picks the
+scoreboard layout:
+
+- `auto`, the default of a new profile: the SJK UI's scoreboard while
+  `ui_menuStyle` is `sjk`, the classic one with any other menu style (what SJK
+  showed before the choice existed);
+- `sjk`, the SJK UI's scoreboard whatever the menus
+  ([SJK UI](sjk-ui.md#scoreboard)): columns floating over the darkened game in
+  the UI's type, the teams side by side, the duelists as facing cards;
+- `classic`, the retail scoreboard as EternalJK-derived clients such as JoF EJK
+  draw it (below);
+- `modern` (or `0`), JKR's table beside the chat column (JKR's default).
+
+A mistyped value gives the classic board. `config.cfg` saves every archived
+setting, so a profile from before `auto` existed has `classic` saved and keeps
+it, whatever the menu style, until the player picks Auto or SJK; `auto` reaches
+new profiles. The classic board
+([classic.rs](../crates/sjk-viewer/src/scoreboard/classic.rs), after
 `CG_DrawOldScoreboard`/`CG_DrawClientScore` in `cg_scoreboard.c`):
 
 - The header shows "Killed by" while you are dead, otherwise the player count
@@ -1533,8 +1546,9 @@ are in [identity.md](identity.md).
   the bio (`identity name` says the name is the one played under), `identity key` prints
   the key id and file,
   `identity who [slot]` lists known players (with a slot, that player's bio).
-- The scoreboard (both styles) draws SJK's emblem at the end of the name of a
-  player the hub knows, in gold when the hub's operator vouches for them. It trusts
+- The scoreboard (every style) draws SJK's emblem at the end of the name of a
+  player the hub knows (the SJK UI's right after the name), in gold when the
+  hub's operator vouches for them. It trusts
   a claim only when the claimed name matches the name the game shows in that slot.
 - Back up `identity.key`: losing it loses the identity.
 

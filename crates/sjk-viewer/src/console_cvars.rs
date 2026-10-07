@@ -622,7 +622,7 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             crate::scoreboard::style::CVAR,
             crate::scoreboard::style::ScoreboardStyle::DEFAULT_NAME,
             archive,
-            "Scoreboard layout: classic (after the retail scoreboard), or modern",
+            "Scoreboard layout: auto (sjk with the SJK UI's menus, else classic), sjk, classic (after the retail scoreboard), or modern",
         ),
         CvarDefinition::new(
             "cg_smallScoreboard",

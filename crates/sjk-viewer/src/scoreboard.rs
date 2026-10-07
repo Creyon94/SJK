@@ -6,17 +6,28 @@ mod icons;
 mod identity_mark;
 pub(crate) mod layout;
 mod motion;
+#[cfg(test)]
+pub(crate) mod shot;
+mod sjk;
 pub(crate) mod style;
 mod view;
 
 use crate::game_font::{GameFonts, RetailFont};
 use crate::menu_widgets::MenuCanvas;
-use crate::text::{TextVertex, UiFont};
+use crate::text::{TextStyle, TextVertex, UiFont};
 use sjk_client::{ClientSession, ScoreEntry};
 use sjk_protocol::{GameState, InfoString};
 use sjk_ui::DrawList;
 
 const CS_PLAYERS: usize = 1_131;
+/// `CS_LEVEL_START_TIME`, `CS_CLIENT_DUELISTS`, `CS_CLIENT_DUELHEALTHS`.
+const CS_LEVEL_START_TIME: usize = 21;
+const CS_CLIENT_DUELISTS: usize = 30;
+const CS_CLIENT_DUELHEALTHS: usize = 31;
+/// The board's text runs and draw commands a frame: 32 rows of up to seven
+/// runs (a capture mode's, or any at intermission) and their shapes.
+const TEXT_SLOTS: usize = 320;
+const DRAWS: usize = 1_024;
 
 /// Chat remains available beside the scoreboard.
 pub(crate) fn chat_visible(information: bool, history: bool) -> bool {
@@ -63,6 +74,8 @@ pub(crate) struct Scoreboard {
     max_clients: i32,
     gametype: i32,
     fraglimit: i32,
+    /// The limits the SJK look words in its header.
+    limits: sjk::Limits,
     style: style::ScoreboardStyle,
     motion: motion::Motion,
     icons: icons::HeadIcons,
@@ -72,6 +85,9 @@ pub(crate) struct Scoreboard {
     /// The hub roster revision the rows' `identity` tags were derived from;
     /// `u64::MAX` when the rows were rebuilt and need tagging again.
     identity_revision: u64,
+    /// A made-up match the world shots show without a server.
+    #[cfg(test)]
+    shot: Option<shot::Shot>,
 }
 
 impl Scoreboard {
@@ -84,25 +100,27 @@ impl Scoreboard {
             map: String::with_capacity(64),
             mode: String::with_capacity(32),
             rows: Vec::with_capacity(32),
-            // Up to 32 rows of five texts each, plus the header.
-            ui: MenuCanvas::with_capacities(208, 96, 640),
+            ui: MenuCanvas::with_capacities(TEXT_SLOTS, 96, DRAWS),
             deaths: deaths::Deaths::default(),
             hostname: String::with_capacity(64),
             max_clients: 0,
             gametype: 0,
             fraglimit: 0,
+            limits: sjk::Limits::default(),
             style: style::ScoreboardStyle::default(),
             motion: motion::Motion::default(),
             icons: icons::HeadIcons::default(),
             killer: None,
             killer_name: String::with_capacity(64),
             identity_revision: u64::MAX,
+            #[cfg(test)]
+            shot: None,
         }
     }
 
     /// Whether the scoreboard draws this frame. The modern style shows while
-    /// `requested`; the classic one also fades in and, once released, out.
-    /// Nothing draws while it is not `allowed`.
+    /// `requested`; the classic and SJK ones also fade in and, once released,
+    /// out. Nothing draws while it is not `allowed`.
     pub(crate) fn present(
         &mut self,
         console: Option<&crate::console::ViewerConsole>,
@@ -110,12 +128,16 @@ impl Scoreboard {
         allowed: bool,
     ) -> bool {
         self.style = style::ScoreboardStyle::from_console(console);
+        #[cfg(test)]
+        if self.shot.is_some() {
+            return self.motion.present(true, true, std::time::Instant::now());
+        }
         match self.style {
             style::ScoreboardStyle::Modern => {
                 self.motion.hide();
                 requested && allowed
             }
-            style::ScoreboardStyle::Classic => {
+            style::ScoreboardStyle::Classic | style::ScoreboardStyle::Sjk => {
                 self.motion
                     .present(requested, allowed, std::time::Instant::now())
             }
@@ -151,26 +173,76 @@ impl Scoreboard {
                 row.identity = crate::player_identity::tag(row.client_num, &row.name);
             }
         }
-        let player = &session.latest_snapshot().player;
+        let snapshot = session.latest_snapshot();
+        let player = &snapshot.player;
         let local = player.client_num();
+        let local_status = classic::LocalStatus {
+            client: local,
+            team: player.persistent[PERS_TEAM] as u8,
+            rank: player.persistent[PERS_RANK],
+            score: player.persistent[PERS_SCORE] as i32,
+            ready: player.stats[STAT_CLIENTS_READY],
+            intermission: player.movement_type() == PM_INTERMISSION,
+        };
+        // Named when the kill was observed, shown while you are dead.
+        let killer = (self.killer.is_some() && player.health() <= 0 && !player.is_spectator())
+            .then_some(self.killer_name.as_str());
+        if self.style == style::ScoreboardStyle::Sjk {
+            let game = session.game_state();
+            let header = sjk::SjkHeader {
+                map: &self.map,
+                gametype: self.gametype,
+                limits: self.limits,
+                elapsed: level_elapsed(game, snapshot.server_time),
+                team_scores: session.team_scores(),
+                local: local_status,
+                killer,
+                duel: sjk::Duelists {
+                    local: Some((player.health(), player.armor())),
+                    ..duelists(game)
+                },
+            };
+            // Measured in the families that will draw the text.
+            let measure = match fonts.sjk_metrics() {
+                Some((display, body)) => sjk::Measure {
+                    display: Some(display),
+                    body: Some(body),
+                },
+                None => sjk::Measure {
+                    display: Some(font),
+                    body: Some(font),
+                },
+            };
+            sjk::build(
+                &mut self.ui,
+                &self.rows,
+                &header,
+                flags,
+                measure,
+                &mut self.motion,
+                viewport,
+            );
+            self.ui.finish(u16::MAX);
+            match fonts.sjk() {
+                Some(families) => {
+                    self.ui
+                        .append_text_families(families, viewport, TextStyle::NEUTRAL);
+                }
+                None => {
+                    self.ui
+                        .append_text_styled(vertices, font, viewport, TextStyle::NEUTRAL);
+                }
+            }
+            return;
+        }
         if self.style == style::ScoreboardStyle::Classic {
-            // Named when the kill was observed, shown while you are dead.
-            let killer = (self.killer.is_some() && player.health() <= 0 && !player.is_spectator())
-                .then_some(self.killer_name.as_str());
             let header = classic::ClassicHeader {
                 hostname: &self.hostname,
                 max_clients: self.max_clients,
                 gametype: self.gametype,
                 fraglimit: self.fraglimit,
                 team_scores: session.team_scores(),
-                local: classic::LocalStatus {
-                    client: local,
-                    team: player.persistent[PERS_TEAM] as u8,
-                    rank: player.persistent[PERS_RANK],
-                    score: player.persistent[PERS_SCORE] as i32,
-                    ready: player.stats[STAT_CLIENTS_READY],
-                    intermission: player.movement_type() == PM_INTERMISSION,
-                },
+                local: local_status,
                 killer,
             };
             classic::build(
@@ -310,7 +382,52 @@ impl Scoreboard {
         self.max_clients = integer("sv_maxclients").unwrap_or(32);
         self.gametype = integer("g_gametype").unwrap_or(0);
         self.fraglimit = integer("fraglimit").unwrap_or(0);
+        self.limits = sjk::Limits {
+            frags: self.fraglimit,
+            captures: integer("capturelimit").unwrap_or(0),
+            duel_wins: integer("duel_fraglimit").unwrap_or(0),
+            minutes: integer("timelimit").unwrap_or(0),
+        };
     }
+}
+
+/// A config string as text.
+fn config_text(game: &GameState, index: usize) -> Option<&str> {
+    game.config_string(index)
+        .and_then(|bytes| std::str::from_utf8(bytes).ok())
+}
+
+/// Milliseconds since the level started (`CS_LEVEL_START_TIME`), at
+/// `server_time`, as the HUD's match timer counts them.
+fn level_elapsed(game: &GameState, server_time: i32) -> Option<i32> {
+    config_text(game, CS_LEVEL_START_TIME)
+        .and_then(|start| start.trim().parse::<i32>().ok())
+        .map(|start| server_time.saturating_sub(start).max(0))
+}
+
+/// Who duels (`CS_CLIENT_DUELISTS`, `-1` for nobody) and their health when the
+/// server shares it (`CS_CLIENT_DUELHEALTHS`, `g_showDuelHealths`).
+fn duelists(game: &GameState) -> sjk::Duelists {
+    let mut duel = sjk::Duelists::default();
+    if let Some(text) = config_text(game, CS_CLIENT_DUELISTS) {
+        for (slot, value) in text.split('|').take(3).enumerate() {
+            duel.clients[slot] = value
+                .trim()
+                .parse::<u8>()
+                .ok()
+                .filter(|client| *client < 32);
+        }
+    }
+    if let Some(text) = config_text(game, CS_CLIENT_DUELHEALTHS) {
+        for (slot, value) in text.split('|').take(2).enumerate() {
+            duel.healths[slot] = value
+                .trim()
+                .parse::<i32>()
+                .ok()
+                .filter(|health| *health >= 0);
+        }
+    }
+    duel
 }
 
 /// `persistant[]` and `stats[]` indices (`bg_public.h`) and `PM_INTERMISSION`.
@@ -348,6 +465,11 @@ impl Scoreboard {
 
 /// Append the current server scoreboard.
 pub(crate) fn append_overlay(gpu: &mut crate::GpuState, viewport: [f32; 2], scale: f32) {
+    #[cfg(test)]
+    if gpu.scoreboard.shot.is_some() {
+        shot::append(gpu, viewport);
+        return;
+    }
     let Some(session) = gpu.resident.session.as_ref().or(gpu.live_session.as_ref()) else {
         return;
     };
@@ -501,6 +623,32 @@ pub(crate) fn requested(gpu: &crate::GpuState, intermission: bool) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// The SJK look's clock and duelists come from config strings.
+    #[test]
+    fn the_level_clock_and_the_duelists_are_read_from_config_strings() {
+        let mut game = GameState::empty_local(0);
+        assert_eq!(level_elapsed(&game, 90_000), None);
+        assert_eq!(duelists(&game), sjk::Duelists::default());
+        let mut set = |index, value: &str| {
+            game.replace_config_string(index, value.as_bytes().to_vec())
+                .unwrap();
+        };
+        set(CS_LEVEL_START_TIME, "30000");
+        set(CS_CLIENT_DUELISTS, "4|7");
+        set(CS_CLIENT_DUELHEALTHS, "87|-1|!");
+        assert_eq!(level_elapsed(&game, 90_000), Some(60_000));
+        // A clock behind the level's start (a restart) reads zero.
+        assert_eq!(level_elapsed(&game, 10_000), Some(0));
+        let duel = duelists(&game);
+        assert_eq!(duel.clients, [Some(4), Some(7), None]);
+        assert_eq!(duel.healths, [Some(87), None]);
+        // Nobody duelling.
+        let mut game = GameState::empty_local(0);
+        game.replace_config_string(CS_CLIENT_DUELISTS, b"-1|-1".to_vec())
+            .unwrap();
+        assert_eq!(duelists(&game).clients, [None; 3]);
+    }
 
     #[test]
     fn numbers_use_the_small_font_and_names_the_medium_one() {

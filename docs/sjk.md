@@ -59,7 +59,7 @@ documented:
 | --- | --- | --- | --- |
 | `ui_menuStyle` | `classic` | `modern` | [Menu style](client.md#menu-style) |
 | `ui_gameFont` | on | off | [UI ownership](rendering.md#ui-ownership) |
-| `cg_scoreboardStyle` | `classic` | `modern` | [Scoreboard styles](client.md#scoreboard-styles) |
+| `cg_scoreboardStyle` | `auto` (SJK UI's with its menus, else `classic`) | `modern` | [Scoreboard styles](client.md#scoreboard-styles) |
 | `cg_drawTimer`, `cg_drawTeamOverlay` | on | off | [status.md](status.md#gameplay-and-interface-defaults-sjk-only) |
 | `cg_dismember` | 2 | 0 | [Dismemberment](client.md#dismemberment-and-disintegration) |
 | `snaps` | 120 (slider to 125) | 40 (slider to 60) | [status.md](status.md#gameplay-and-interface-defaults-sjk-only) |

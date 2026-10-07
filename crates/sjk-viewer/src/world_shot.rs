@@ -620,6 +620,56 @@ mod tests {
         });
     }
 
+    /// The SJK UI's scoreboard over the live duel6, on made-up matches (no
+    /// server): capture the flag with the classic menus and the look chosen on
+    /// its own (`cg_scoreboardStyle sjk`, which loads the UI's families), then
+    /// with the SJK UI's menus and the default `auto`: free for all, a full
+    /// server, a duel and a power duel.
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_sjk_scoreboard() {
+        use crate::scoreboard::shot::Match;
+        on_big_stack(|| {
+            let cvars = [("ui_menuStyle", "classic"), ("cg_scoreboardStyle", "sjk")];
+            let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", [1920, 1080], None, &cvars)
+            else {
+                return;
+            };
+            // The menu tour's first view: down the west wing at the tower.
+            let tour = menu_backdrop::tour_for("Yavin Training Grounds").expect("duel6's tour");
+            let (yaw, pitch) = look(tour[0].from, tour[0].at);
+            aim(&mut gpu, tour[0].from, yaw, pitch);
+            let _ = frame(&mut gpu, 20);
+            gpu.scoreboard.show_for_shot(Match::Capture);
+            println!("{}", shoot(&mut gpu, 16, "duel6-scoreboard-ctf").display());
+            if let Some(console) = gpu.console.as_mut() {
+                console.set_cvar("ui_menuStyle", "sjk");
+                console.set_cvar("cg_scoreboardStyle", "auto");
+            }
+            for (game, name) in [
+                (Match::Free, "duel6-scoreboard-ffa"),
+                (Match::Crowd, "duel6-scoreboard-full"),
+                (Match::Duel, "duel6-scoreboard-duel"),
+                (Match::PowerDuel, "duel6-scoreboard-power-duel"),
+            ] {
+                gpu.scoreboard.show_for_shot(game);
+                println!("{}", shoot(&mut gpu, 16, name).display());
+            }
+            gpu.scoreboard.end_shot();
+            drop(gpu);
+            // A 4:3 window: the frame scales down to its width.
+            let cvars = [("ui_menuStyle", "sjk")];
+            let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", [1440, 1080], None, &cvars)
+            else {
+                return;
+            };
+            aim(&mut gpu, tour[0].from, yaw, pitch);
+            let _ = frame(&mut gpu, 20);
+            gpu.scoreboard.show_for_shot(Match::Crowd);
+            println!("{}", shoot(&mut gpu, 16, "duel6-scoreboard-4x3").display());
+        });
+    }
+
     /// Hand-placed candidates for the menu's camera tour on duel6, for review.
     #[test]
     #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]

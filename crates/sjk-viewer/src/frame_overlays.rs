@@ -19,6 +19,9 @@ impl GpuState {
             || self.console.as_ref().is_some_and(|c| c.is_open())
             || !self.console_layer.is_empty()
             || self.client_menu.as_ref().is_some_and(|m| m.is_visible());
+        // A world shot's made-up scoreboard draws without a session.
+        #[cfg(test)]
+        let hud = hud || self.scoreboard.showing_shot();
         let hyperspace = self.local_prediction.hyperspace_shade();
         let flares = hyperspace.is_none()
             && !self.world_hidden

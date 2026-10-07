@@ -278,6 +278,14 @@ impl GameFonts {
         self.sjk.is_some()
     }
 
+    /// The SJK UI's display and body families' metrics, to measure text with
+    /// before it is appended; `None` while they are not loaded.
+    pub(crate) fn sjk_metrics(&self) -> Option<(&UiFont, &UiFont)> {
+        self.sjk
+            .as_ref()
+            .map(|layers| (&layers.display.font, &layers.body.font))
+    }
+
     /// The SJK UI's text targets, once its families are loaded; `None` before
     /// that, or when they failed to load (the screen then draws in Inter).
     pub(crate) fn sjk(&mut self) -> Option<SjkFonts<'_>> {
@@ -484,7 +492,7 @@ pub(crate) fn prepare(gpu: &mut GpuState) {
     }
     let load = enabled && !fonts.attempted;
     let load_console = console && !fonts.console_attempted;
-    let load_sjk = sjk_ui(gpu.console.as_ref()) && !fonts.sjk_attempted;
+    let load_sjk = !fonts.sjk_attempted && sjk_families(gpu.console.as_ref());
     if load || load_console || load_sjk {
         let device = Device {
             device: &gpu.device,
@@ -510,6 +518,14 @@ pub(crate) fn sjk_ui(console: Option<&crate::console::ViewerConsole>) -> bool {
         crate::menu::style::MenuStyle::from_cvar(console.text_value(crate::menu::style::CVAR))
             == crate::menu::style::MenuStyle::Sjk
     })
+}
+
+/// Whether something `console` has on draws in the SJK UI's families: the SJK
+/// UI's menus, or its scoreboard chosen on its own (`cg_scoreboardStyle sjk`).
+fn sjk_families(console: Option<&crate::console::ViewerConsole>) -> bool {
+    sjk_ui(console)
+        || crate::scoreboard::style::ScoreboardStyle::from_console(console)
+            == crate::scoreboard::style::ScoreboardStyle::Sjk
 }
 
 /// Whether `console` draws the classic console, which needs the console

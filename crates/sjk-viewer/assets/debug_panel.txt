@@ -2011,6 +2011,21 @@ test: Join a locked server: the password card (dots); Join by address: a bad one
 test: Double-click a row joins. Open it from the in-game menu too: Esc says Game menu.
 note: Picture stretched, a column cut off, or a key not answering? Tell Claude which.
 
+[sjk-ui-scoreboard]
+status: personal
+area: Menus & settings
+title: SJK UI: the scoreboard (Tab in a match)
+change: With ui_menuStyle sjk, Tab shows SJK's board: columns over the darkened game.
+change: Header: map, mode, time left, your place in gold. Teams side by side; duels as two cards.
+change: Scoreboard style: Auto (new default: SJK with the SJK UI, else classic), SJK, Classic, Modern.
+test: Settings > Scoreboard > Scoreboard style: Auto. A style saved before stays until changed.
+test: Local FFA with bots, hold Tab: map, mode, time left, "3rd of N", your row on a gold band.
+test: Local CTF with bots: teams side by side under their scores; a carrier shows the flag icon.
+test: Local duel: two facing cards (your health and shield), then the players waiting their turn.
+test: Chat while holding Tab: messages stay in the left column, clear of the board.
+test: Classic menus with Scoreboard style SJK: the board still draws in Rajdhani and Exo 2.
+note: Too dark or too faint, a column cut, or the chat overlapping? Tell Claude which part.
+
 [sjk-ui-centre]
 status: personal
 area: Menus & settings

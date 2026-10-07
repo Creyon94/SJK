@@ -7,6 +7,39 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## SJK UI: Scoreboard
+
+SJK-only branch `personal/sjk-ui-scoreboard` (07/10/2026, based on `076806e`,
+Windows 11): the scoreboard in the SJK UI ([sjk-ui.md](sjk-ui.md#scoreboard)).
+`scoreboard::sjk` draws the board's rows and match facts as columns floating
+over the darkened game, right of the chat column: a header line (map, mode and
+limits, time left, your place in gold), one list in free-for-all (two side by
+side past 22 players), the teams side by side under their scores, the duelists
+as facing cards over the players waiting, spectators on one line.
+`cg_scoreboardStyle` gained `sjk` and `auto`, the new default: the SJK UI's
+board with `ui_menuStyle sjk`, else the classic one; a saved value keeps its
+look ([client.md](client.md#scoreboard-styles)). The board reads the match's
+limits, `CS_LEVEL_START_TIME`, `CS_CLIENT_DUELISTS` and
+`CS_CLIENT_DUELHEALTHS`; its canvas holds 320 text runs and 1024 draw commands
+(was 208 and 640); the UI's families load for a scoreboard chosen on its own;
+the browser's signal bars are shared (`pub(crate)`).
+
+Verified: unit tests pin the cvar's semantics (`auto` under each menu style, a
+saved `classic` kept after the menus switch to the SJK UI, mistyped values),
+32-player boards in every mode fitting the canvas at 1080 lines, 4K and 5:4,
+a cut team list keeping your row, shared places for ties, the duelists' cards
+and health, the clock and duelists read from config strings, the header's words
+and the columns not overlapping; the release sjk-viewer tests passed (932) and
+workspace clippy shows no warning in the files touched.
+`world_shot::tests::duel6_sjk_scoreboard` rendered the board over duel6 on
+made-up matches (free for all with 14 and 30 players, capture the flag with
+the classic menus and `cg_scoreboardStyle sjk`, a duel, a power duel, a 4:3
+window), with the families loaded. Not verified: no game was started, so the
+board over a real match (the server's scores and their order, the clock
+against a real level start, the duel config strings, flag carriers, the
+intermission's Ready marks), its fades, the chat column beside it, the HUD
+under its dim and the Settings row's list of four are untested in play.
+
 ## SJK UI: Servers
 
 SJK-only branch `personal/sjk-ui-browser` (07/10/2026, based on `b0470fc`, Windows 11):
