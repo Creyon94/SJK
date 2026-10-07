@@ -2285,6 +2285,13 @@ test: F3: drag over a description, double-click a word, Ctrl+C, paste it elsewhe
 test: Ctrl+C with nothing selected copies "name value"; the F3 hint or Dock tab opens it.
 note: Tell Claude which design you keep (or what to mix); the others can go.
 
+[sens-default]
+status: personal
+area: Input
+title: A new profile starts at mouse sensitivity 5, not 13.022
+change: The old-units rescale of sensitivity only runs on a profile saved before it.
+test: Start with an empty profile folder (or firstsetup on a new one): sensitivity says 5.
+
 [camera-ejk-default]
 status: personal
 area: Gameplay

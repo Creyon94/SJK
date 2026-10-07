@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 08/10/2026 | - | New profiles start at sensitivity 5
+- d7adf4c |  | Start a new profile at sensitivity 5: rescale only saved profiles
 + 08/10/2026 | - | Video screens, glowing lights, named footsteps, remaps in notes
 - 9ae42e6 |  | World shots of the player's world notes
 - 04e11bf |  | Play videoMap stages: a RoQ decoder and per-frame video textures
