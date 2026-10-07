@@ -7,6 +7,16 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Global chat on U
+
+`fix/chat-u-default`, based on `cfbc789` (2026-10-07, Windows, Rust 1.99):
+global chat defaults to U. Older configurations with chat on Y also gain U
+when U is free; custom chat keys and occupied U bindings are preserved.
+The binding and migration are covered by a focused unit test. Workspace
+build, tests and clippy pass with existing warnings; workspace formatting
+fails on existing material-generator formatting, while the changed Rust file
+passes rustfmt. Physical-key behavior in game has not been checked.
+
 ## Actor instance buffer capacity
 
 The shared actor instance buffer holds 4,096 instances, up from 1,024 (the old

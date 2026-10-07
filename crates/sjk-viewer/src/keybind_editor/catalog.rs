@@ -145,7 +145,7 @@ pub(crate) const ACTIONS: &[BindableAction] = &[
     action(Other, "Mod button 14", "+button14", ""),
     action(Other, "Mod button 15", "+button15", ""),
     action(Other, "Scoreboard", "+scores", "TAB"),
-    action(Other, "Chat", "messagemode", "y"),
+    action(Other, "Chat", "messagemode", "u"),
     action(Other, "Team chat", "messagemode2", "t"),
     action(Other, "Whisper to crosshair player", "messagemode3", ""),
     action(Other, "Whisper to last attacker", "messagemode4", ""),
@@ -191,6 +191,14 @@ pub(crate) fn default_bindings() -> BindTable {
 /// Pre-step-73e configs spell `+useforce` as `+force`; rename so the editor
 /// shows the key.
 pub(crate) fn migrate_missing_defaults(binds: &mut BindTable) {
+    // Keep the former Y default usable without replacing an occupied U.
+    if binds.get("u").is_none()
+        && binds
+            .get("y")
+            .is_some_and(|command| command.eq_ignore_ascii_case("messagemode"))
+    {
+        let _ = binds.bind("u", "messagemode");
+    }
     let legacy_force: Vec<String> = binds
         .iter()
         .filter(|(_, command)| command.eq_ignore_ascii_case("+force"))
@@ -207,5 +215,31 @@ pub(crate) fn migrate_missing_defaults(binds: &mut BindTable) {
         {
             let _ = binds.bind(action.default_key, action.command);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn chat_u_default_preserves_existing_bindings() {
+        assert_eq!(default_bindings().get("u"), Some("messagemode"));
+        let mut old = BindTable::new();
+        old.bind("y", "messagemode").unwrap();
+        migrate_missing_defaults(&mut old);
+        assert_eq!(old.get("u"), Some("messagemode"));
+        assert_eq!(old.get("y"), Some("messagemode"));
+
+        let mut occupied = BindTable::new();
+        occupied.bind("y", "messagemode").unwrap();
+        occupied.bind("u", "taunt").unwrap();
+        migrate_missing_defaults(&mut occupied);
+        assert_eq!(occupied.get("u"), Some("taunt"));
+
+        let mut custom = BindTable::new();
+        custom.bind("q", "messagemode").unwrap();
+        migrate_missing_defaults(&mut custom);
+        assert_eq!(custom.get("u"), None);
     }
 }

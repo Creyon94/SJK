@@ -990,7 +990,12 @@ to finish normally after Alt+Tab.
 
 ### Chat player actions
 
-Open the chat composer with your chat binding (`messagemode`), then click a
+Global chat defaults to U (`messagemode`); team chat defaults to T
+(`messagemode2`). Existing configurations with global chat on Y gain U too
+when U is free; custom chat keys and occupied U bindings are preserved.
+Use `bind u messagemode` in the console to select U explicitly.
+
+Open the chat composer with your chat binding, then click a
 sender's name. The cursor is free while composing. The player menu offers:
 
 - **whisper:** keeps the current draft and addresses the selected player using
