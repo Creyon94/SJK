@@ -27,11 +27,13 @@ const FLAMETHROWER: usize = force_wheel::MAX_SLOTS;
 const JUMP: usize = 1;
 /// `FP_LIGHTNING`.
 const LIGHTNING: u8 = 7;
-/// JoF EJK's own pictures (`CG_RegisterGraphics`), from `jofclient-assets.pk3`.
-const JOF_ICONS: [(usize, &str); 3] = [
+/// JoF EJK's own pictures (`CG_RegisterGraphics`), from `jofclient-assets.pk3`,
+/// and SJK's Illuminate holocron, which the client bundles ([`crate::illuminate`]).
+const JOF_ICONS: [(usize, &str); 4] = [
     (force_wheel::REPULSE as usize, "gfx/jof/force_repulse"),
     (force_wheel::DASH as usize, "gfx/jof/force_dash"),
     (FLAMETHROWER, "gfx/jof/force_flamethrower"),
+    (force_wheel::ILLUMINATE as usize, crate::illuminate::ICON),
 ];
 /// `colorTable[CT_ICON_BLUE]` (`q_color.c`).
 const ICON_BLUE: Color = Color::new(0.567, 0.685, 1.0, 0.75);

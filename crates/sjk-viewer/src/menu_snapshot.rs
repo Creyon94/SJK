@@ -1852,7 +1852,7 @@ fn radial_hud(shots: &mut Snapshot) {
 
 fn force_wheel(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
     use crate::hud::force_wheel::{ICONS, picture_names, snapshot};
-    use sjk_client::force_wheel::{DASH, REPULSE, STASIS};
+    use sjk_client::force_wheel::{CLIENT_MASK, DASH, ILLUMINATE, REPULSE, STASIS};
     let mut icons = [None; ICONS];
     for (slot, name) in picture_names() {
         let image = ["tga", "png", "jpg"]
@@ -1868,10 +1868,11 @@ fn force_wheel(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
     let powers = [0, 2, 3, 4, 5, 14, 7, 6, 13]
         .iter()
         .fold(0_u32, |bits, p| bits | 1 << p);
-    let jof = (1 << STASIS) | (1 << REPULSE) | (1 << DASH);
+    let jof = (1 << STASIS) | (1 << REPULSE) | (1 << DASH) | CLIENT_MASK;
     for (name, selected, flamethrower) in [
         ("hud-force-wheel-jof", REPULSE, false),
         ("hud-force-wheel-merc", 7, true),
+        ("hud-force-wheel-illuminate", ILLUMINATE, false),
     ] {
         let view = sjk_client::selection::SelectionView {
             inventory: false,

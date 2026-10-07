@@ -13,6 +13,12 @@
 //!
 //! On JA+, merc mode replaces Force Lightning with a flamethrower; the wheel
 //! shows it as such ([`FlamethrowerOverride`]).
+//!
+//! SJK adds one pseudo-slot of its own, Illuminate: a holocron that floats by the
+//! player and lights the way, seen only by this client. No server grants it; while
+//! `cg_illuminate` is on the client sets its bit itself ([`client_known`]), so it is
+//! the wheel's last entry everywhere, and `+useforce` on it turns the holocron on or
+//! off instead of using a power.
 
 use crate::selection::FORCE_ORDER;
 use sjk_protocol::PlayerState;
@@ -25,10 +31,17 @@ pub const STASIS: u8 = 18;
 pub const REPULSE: u8 = 19;
 /// Force Dash (JoF JA+ V69): its known bit and wheel pseudo-slot.
 pub const DASH: u8 = 20;
-/// Most entries a wheel can hold: every real power and the three pseudo-slots.
-pub const MAX_SLOTS: usize = 21;
-/// Known bits of the three pseudo-slots.
+/// SJK's Illuminate: its wheel pseudo-slot and the known bit the client sets.
+pub const ILLUMINATE: u8 = 21;
+/// Most entries a wheel can hold: every real power and the four pseudo-slots.
+pub const MAX_SLOTS: usize = 22;
+/// Known bits of the three pseudo-slots a server grants.
 pub const PSEUDO_MASK: u32 = (1 << STASIS) | (1 << REPULSE) | (1 << DASH);
+/// Known bit of Illuminate, which only the client sets.
+pub const CLIENT_MASK: u32 = 1 << ILLUMINATE;
+/// What [`UseRemap::apply`] returns for a press on Illuminate: the client's own
+/// command (and bind) that turns the holocron on or off, never sent to the server.
+pub const ILLUMINATE_COMMAND: &str = "force_illuminate";
 
 /// `BUTTON_FORCEPOWER`, the `+useforce` bit (`bg_public.h`).
 const FORCE_POWER_BUTTON: u16 = 1 << 9;
@@ -57,6 +70,13 @@ pub fn is_pseudo(slot: u8) -> bool {
     slot >= REAL_POWERS
 }
 
+/// The server's `forcePowersKnown` with Illuminate's bit as the client decides:
+/// set when `illuminate` (`cg_illuminate`) is on, clear otherwise, whatever the
+/// server sent in it.
+pub fn client_known(server_known: u32, illuminate: bool) -> u32 {
+    (server_known & !CLIENT_MASK) | if illuminate { CLIENT_MASK } else { 0 }
+}
+
 /// `ForcePower_Valid` (JoF EJK `cg_draw.c`): a known power that can be
 /// selected (not Jump or the saber powers), or a granted pseudo-slot.
 pub fn valid(known: u32, slot: u8) -> bool {
@@ -64,15 +84,16 @@ pub fn valid(known: u32, slot: u8) -> bool {
         return false;
     }
     if is_pseudo(slot) {
-        return slot <= DASH && known & (1 << slot) != 0;
+        return slot <= ILLUMINATE && known & (1 << slot) != 0;
     }
     slot != LEVITATION && !SABER_POWERS.contains(&slot) && known & (1 << slot) != 0
 }
 
 /// `CG_BuildForceWheel` (JoF EJK `cg_main.c`): the valid powers in stock display
 /// order, with Stasis and Repulse right after Sense, Dash right before Speed, and
-/// a pseudo-slot whose anchor power is not known at the end. Returns the slots
-/// and how many there are.
+/// a pseudo-slot whose anchor power is not known at the end; SJK's Illuminate
+/// comes last, so the real powers keep their places. Returns the slots and how
+/// many there are.
 pub fn build(known: u32) -> ([u8; MAX_SLOTS], usize) {
     let (stasis, repulse, dash) = (
         valid(known, STASIS),
@@ -116,6 +137,9 @@ pub fn build(known: u32) -> ([u8; MAX_SLOTS], usize) {
             push(REPULSE);
         }
     }
+    if valid(known, ILLUMINATE) {
+        push(ILLUMINATE);
+    }
     (slots, count)
 }
 
@@ -134,16 +158,19 @@ pub fn step(known: u32, current: u8, direction: i8) -> Option<u8> {
 }
 
 /// `+useforce` while a pseudo-slot is selected (JoF EJK `CL_CmdButtons`), with
-/// the press edges it needs to send Repulse and Dash once per press.
+/// the press edges it needs to send Repulse and Dash, and toggle Illuminate, once
+/// per press.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct UseRemap {
     repulse_down: bool,
     dash_down: bool,
+    illuminate_down: bool,
 }
 
 impl UseRemap {
     /// Rewrite one user command's `buttons` for the selected wheel entry and the
-    /// held `+force_stasis`; returns the buttons and a server command to send.
+    /// held `+force_stasis`; returns the buttons and a command: a server command
+    /// to send, or [`ILLUMINATE_COMMAND`], which the client runs itself.
     pub fn apply(
         &mut self,
         buttons: u16,
@@ -159,35 +186,39 @@ impl UseRemap {
         let selected = selected.filter(|&slot| is_pseudo(slot) && valid(known, slot));
         let down = buttons & FORCE_POWER_BUTTON != 0;
         let mut command = None;
+        let (mut repulse_down, mut dash_down, mut illuminate_down) = (false, false, false);
         match selected {
             Some(STASIS) => {
                 if down {
                     buttons = (buttons & !FORCE_POWER_BUTTON) | STASIS_BUTTON;
                 }
-                self.repulse_down = false;
-                self.dash_down = false;
             }
             Some(REPULSE) => {
                 buttons &= !FORCE_POWER_BUTTON;
                 if down && !self.repulse_down {
                     command = Some("force_repulse");
                 }
-                self.repulse_down = down;
-                self.dash_down = false;
+                repulse_down = down;
             }
             Some(DASH) => {
                 buttons &= !FORCE_POWER_BUTTON;
                 if down && !self.dash_down {
                     command = Some("force_dash");
                 }
-                self.dash_down = down;
-                self.repulse_down = false;
+                dash_down = down;
             }
-            _ => {
-                self.repulse_down = false;
-                self.dash_down = false;
+            Some(ILLUMINATE) => {
+                buttons &= !FORCE_POWER_BUTTON;
+                if down && !self.illuminate_down {
+                    command = Some(ILLUMINATE_COMMAND);
+                }
+                illuminate_down = down;
             }
+            _ => {}
         }
+        self.repulse_down = repulse_down;
+        self.dash_down = dash_down;
+        self.illuminate_down = illuminate_down;
         (buttons, command)
     }
 }
@@ -320,6 +351,39 @@ mod tests {
             remap.apply(held, Some(DASH), known, false),
             (0, Some("force_dash"))
         );
+    }
+
+    #[test]
+    fn illuminate_is_the_clients_own_last_entry() {
+        // Whatever the server sends in the bit, the client decides.
+        assert_eq!(client_known(ALL | CLIENT_MASK, false), ALL);
+        assert_eq!(client_known(ALL, true), ALL | CLIENT_MASK);
+        let order = wheel(client_known(ALL | PSEUDO_MASK, true));
+        assert_eq!(order.last(), Some(&ILLUMINATE));
+        assert_eq!(order[..order.len() - 1], wheel(ALL | PSEUDO_MASK)[..]);
+        assert_eq!(order.len(), 14 + 3 + 1);
+        assert_eq!(wheel(CLIENT_MASK), [ILLUMINATE]);
+        assert_eq!(step(ALL | CLIENT_MASK, ILLUMINATE, 1), Some(5));
+    }
+
+    #[test]
+    fn illuminate_toggles_once_per_press_and_never_uses_a_power() {
+        let mut remap = UseRemap::default();
+        let held = FORCE_POWER_BUTTON;
+        let selected = Some(ILLUMINATE);
+        assert_eq!(
+            remap.apply(held, selected, CLIENT_MASK, false),
+            (0, Some(ILLUMINATE_COMMAND))
+        );
+        assert_eq!(remap.apply(held, selected, CLIENT_MASK, false), (0, None));
+        assert_eq!(remap.apply(0, selected, CLIENT_MASK, false), (0, None));
+        assert_eq!(
+            remap.apply(held, selected, CLIENT_MASK, false),
+            (0, Some(ILLUMINATE_COMMAND))
+        );
+        // Turned off in the settings: the selection is a stale one and
+        // `+useforce` reaches the server as usual.
+        assert_eq!(remap.apply(held, selected, 0, false), (held, None));
     }
 
     #[test]

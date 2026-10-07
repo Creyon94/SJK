@@ -1,6 +1,7 @@
 //! Pictures of the bindable actions (classic+): the retail HUD icon of the
 //! weapon, item or Force power an action selects or uses, read from the
-//! player's game data and never bundled. The classic key-binding panel draws
+//! player's game data and never bundled (but for SJK's Illuminate, whose
+//! picture comes with the client). The classic key-binding panel draws
 //! them beside the rows and in the detail box; an action without one, or a
 //! picture the game data lacks, is simply text.
 
@@ -15,7 +16,7 @@ use std::sync::Arc;
 /// action with a picture. `weapon N` selects weapon `N + 2` of
 /// `weapon_t` (`weapon 1` the saber, else melee; `weapon 10` cycles the
 /// explosives), as `legacy_direct_weapon` reads it.
-const ICONS: [(&str, &str); 37] = [
+const ICONS: [(&str, &str); 38] = [
     // INTERACTION
     ("sv_saberswitch", "gfx/hud/w_icon_lightsaber.tga"),
     ("saberAttackCycle", "gfx/hud/saber_med.tga"),
@@ -57,6 +58,8 @@ const ICONS: [(&str, &str); 37] = [
     ("force_dash", "gfx/jof/force_dash.tga"),
     ("+force_stasis", "gfx/mp/f_icon_levitation.tga"),
     ("force_repulse", "gfx/jof/force_repulse.tga"),
+    // SJK's Illuminate holocron, which the client bundles (`crate::illuminate`).
+    ("force_illuminate", "gfx/sjk/force_illuminate.png"),
     // OTHER
     ("teammenu", "gfx/hud/mpi_rflag.tga"),
 ];

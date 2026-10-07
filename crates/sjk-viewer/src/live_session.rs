@@ -115,6 +115,7 @@ impl GpuState {
         });
         timing.mark(Phase::Commands);
         let talking = self.talk_button();
+        let illuminate = self.illuminate_enabled();
         let Some(session) = &mut self.live_session else {
             return;
         };
@@ -189,6 +190,7 @@ impl GpuState {
             .view_authority
             .command_delta()
             .unwrap_or(snapshot.player.delta_angles());
+        self.gameplay_input.selection.set_illuminate(illuminate);
         self.gameplay_input
             .selection
             .sync(&snapshot.player, server_time);
@@ -201,7 +203,7 @@ impl GpuState {
             .selected_weapon
             .unwrap_or_else(|| snapshot.player.weapon());
         let force_power = snapshot.player.selected_force_power();
-        let known = snapshot.player.raw_field(51).unwrap_or(0);
+        let known = self.gameplay_input.selection.known(&snapshot.player);
         let flip_kick = self
             .console
             .as_ref()
@@ -221,11 +223,19 @@ impl GpuState {
             );
             self.gameplay_input.apply_flip_kick(&mut command, flip_kick);
             command.buttons = sjk_game_jka::pmove_talk::command_buttons(command.buttons, talking);
-            // JoF EJK's Force wheel: a selected Stasis, Repulse or Dash takes `+useforce`.
+            // JoF EJK's Force wheel: a selected Stasis, Repulse or Dash takes
+            // `+useforce`, and so does SJK's Illuminate, which stays on this side.
             let (buttons, wheel_command) = self
                 .gameplay_input
                 .force_wheel_buttons(command.buttons, known);
             command.buttons = buttons;
+            let wheel_command = wheel_command.filter(|&name| {
+                let local = name == sjk_client::force_wheel::ILLUMINATE_COMMAND;
+                if local && illuminate {
+                    self.illuminate.toggle();
+                }
+                !local
+            });
             if !self.local_prediction.free_camera()
                 && let Some(wheel_command) = wheel_command
                 && let Err(error) = session.send_reliable_command(wheel_command.as_bytes())

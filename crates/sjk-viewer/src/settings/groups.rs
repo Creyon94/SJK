@@ -84,6 +84,7 @@ impl Group {
                 "cg_spProtAbsColor",
                 "cg_shieldSphere",
                 "cg_shieldBrightness",
+                crate::illuminate::CVAR,
                 "cg_remaps",
                 crate::camera::STYLE_CVAR,
                 "cg_thirdPersonCameraDamp",

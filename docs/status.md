@@ -7,6 +7,32 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Illuminate (SJK)
+
+SJK-only branch `personal/force-illuminate` (08/10/2026, based on `b9db8c0`,
+Windows 11): Sol asked for a free power every player has, a light to see better
+in dark maps, toggled off in the settings. [Illuminate](client.md#illuminate) is
+a client-only Force-wheel pseudo-slot (21, after JoF's three) whose `+useforce`
+or `force_illuminate` turns on a holocron floating by the left shoulder, with a
+warm point light; `cg_illuminate` (Settings > Game) puts it on the wheel. Its
+cube (a hand-written MD3), pictures, shader and icon are made from Sol's two
+generated images by `scripts/holocron_assets.py` and mounted from memory below
+the game data. Shared changes: `force_wheel::MAX_SLOTS` is 22 (the JA+
+flamethrower's icon and name slots moved up one), `Selection::known` gives the
+wheel's known bits, and the controls list has the bind with its picture. Unit
+tests cover the wheel order and stepping with Illuminate, its press toggling once
+and swallowing `+useforce`, the setting's effect on the selection, the inventory
+fallback without Force, the bundled cube's geometry and winding, and the
+holocron's fade, follow, lag, snap and placement; `cargo test --release
+--workspace` passed (viewer 1000) and workspace clippy reported no new warning.
+`world_shot::holocron::holocron_at_the_first_spawn` rendered it on duel6, ffa4,
+siege_korriban and duel2 (off, lit, close, from a step back); the menu snapshot
+drew the wheel with Illuminate selected. On review the metal read black with the
+sun behind it, so the shader adds a faint self-light, and the emblem's glow was
+lowered. No game was started: the holocron in a match, its place in third
+person with each camera style, the toggle on a key and the light's cost are
+unverified.
+
 ## SJK UI Character: hilt list, style buttons, priced Force levels
 
 SJK-only branch `personal/sjk-ui-character-2` (08/10/2026, based on `dd38afc`,

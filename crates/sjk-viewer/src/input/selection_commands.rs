@@ -13,6 +13,10 @@ pub(super) fn register(shell: &mut sjk_shell::Shell) -> Result<(), sjk_shell::Co
         ),
         ("invnext", "Select next inventory item"),
         ("invprev", "Select previous inventory item"),
+        (
+            "force_illuminate",
+            "Turn Illuminate's holocron light on or off (cg_illuminate)",
+        ),
     ] {
         shell.commands.register(name, help, |_| {
             Err(sjk_shell::CommandError::Handler(

@@ -68,6 +68,8 @@ pub(crate) enum InputAction {
     FlipKick,
     /// `inspect`: pin the player card to the player under the crosshair, or unpin it.
     Inspect,
+    /// `force_illuminate`: turn Illuminate's holocron on or off ([`crate::illuminate`]).
+    Illuminate,
 }
 
 /// Current logical gameplay-input state.
@@ -224,6 +226,7 @@ impl GameplayInput {
                     | "weapon"
                     | "flipkick"
                     | "inspect"
+                    | "force_illuminate"
             )
     }
 
@@ -335,6 +338,7 @@ impl GameplayInput {
             "teammenu" | "joinmenu" => Some(InputAction::TeamMenu),
             "flipkick" => Some(InputAction::FlipKick),
             "inspect" => Some(InputAction::Inspect),
+            "force_illuminate" => Some(InputAction::Illuminate),
             "vote" => match words.next().map(str::to_ascii_lowercase).as_deref() {
                 Some("yes" | "y" | "1") => Some(InputAction::Vote(true)),
                 Some("no" | "n" | "0") => Some(InputAction::Vote(false)),
@@ -440,6 +444,7 @@ impl super::GpuState {
                     self.world_note_press();
                 }
             }
+            Some(InputAction::Illuminate) => self.toggle_illuminate(),
             Some(InputAction::FlipKick) => {
                 let restricted = self.live_session.as_ref().is_some_and(|session| {
                     session
