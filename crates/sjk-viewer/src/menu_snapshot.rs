@@ -31,6 +31,8 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 const VIEWPORT: [f32; 2] = [1440.0, 1080.0];
+/// The emblem's layers by texture, decoded once for every snapshot.
+static EMBLEM: std::sync::OnceLock<HashMap<u32, (RgbaImage, bool)>> = std::sync::OnceLock::new();
 
 /// The retail menu art of the installation in `JKA_GAME_DATA`, decoded, and
 /// the installation's files.
@@ -116,8 +118,23 @@ fn fill(image: &mut RgbaImage, rect: Rect, clip: Rect, color: [f32; 4]) {
     }
 }
 
+/// Add `color`'s light at its alpha, as the renderer's additive pipeline.
+fn add(image: &mut RgbaImage, x: i64, y: i64, color: [f32; 4]) {
+    if x < 0 || y < 0 || x >= i64::from(image.width()) || y >= i64::from(image.height()) {
+        return;
+    }
+    let pixel = image.get_pixel_mut(x as u32, y as u32);
+    let alpha = color[3].clamp(0.0, 1.0);
+    for (channel, source) in pixel.0.iter_mut().zip(color).take(3) {
+        let value = f32::from(*channel) / 255.0 + source.clamp(0.0, 1.0) * alpha;
+        *channel = (value.min(1.0) * 255.0).round() as u8;
+    }
+}
+
 /// `source` mapped onto `rect` with texture coordinates `uv` at its corners
-/// (top-left, top-right, bottom-right, bottom-left), tinted.
+/// (top-left, top-right, bottom-right, bottom-left), tinted; added as light
+/// when `additive`.
+#[allow(clippy::too_many_arguments)]
 fn textured(
     image: &mut RgbaImage,
     rect: Rect,
@@ -126,6 +143,7 @@ fn textured(
     uv: [[f32; 2]; 4],
     tint: [f32; 4],
     wrap: bool,
+    additive: bool,
 ) {
     let (xs, ys) = span(rect, clip);
     let lerp =
@@ -144,9 +162,34 @@ fn textured(
             let ty = ((v * source.height() as f32) as u32).min(source.height() - 1);
             let texel = source.get_pixel(tx, ty).0.map(|c| f32::from(c) / 255.0);
             let color = [0, 1, 2, 3].map(|c| texel[c] * tint[c]);
-            blend(image, x, y, color);
+            if additive {
+                add(image, x, y, color);
+            } else {
+                blend(image, x, y, color);
+            }
         }
     }
+}
+
+/// The emblem's decoded layers as pictures, once its worker has finished.
+fn emblem_layers() -> HashMap<u32, (RgbaImage, bool)> {
+    use crate::menu::emblem::EmblemLayer;
+    crate::menu::emblem::request();
+    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(60);
+    while crate::menu::emblem::decoded().is_none() && std::time::Instant::now() < deadline {
+        std::thread::sleep(std::time::Duration::from_millis(20));
+    }
+    let Some(decoded) = crate::menu::emblem::decoded() else {
+        return HashMap::new();
+    };
+    EmblemLayer::ALL
+        .into_iter()
+        .filter_map(|layer| {
+            let chain = decoded.layer(layer)?;
+            let image = RgbaImage::from_raw(chain.size, chain.size, chain.levels[0].clone())?;
+            Some((layer.texture().0, (image, layer.additive())))
+        })
+        .collect()
 }
 
 /// Draw `list`'s shapes and art, then `vertices` (its text) from `atlas`.
@@ -162,11 +205,16 @@ fn raster(
     let mut clips = vec![full];
     let mut opacity = vec![1.0_f32];
     let color = |c: sjk_ui::Color, o: f32| [c.r, c.g, c.b, c.a * o];
+    let emblem = EMBLEM.get_or_init(emblem_layers);
+    // The picture, whether it wraps and whether it adds light.
     let art = |texture: sjk_ui::TextureId| {
         let Some(piece) = ArtPiece::from_texture(texture) else {
-            return icons.get(&texture.0).map(|icon| (icon, false));
+            if let Some((layer, additive)) = emblem.get(&texture.0) {
+                return Some((layer, false, *additive));
+            }
+            return icons.get(&texture.0).map(|icon| (icon, false, false));
         };
-        Some((decoded?.image(piece)?, piece.wraps()))
+        Some((decoded?.image(piece)?, piece.wraps(), false))
     };
     for command in list.commands() {
         let clip = *clips.last().unwrap_or(&full);
@@ -232,9 +280,18 @@ fn raster(
                 texture,
                 color: c,
             } => {
-                if let Some((source, _)) = art(*texture) {
+                if let Some((source, _, additive)) = art(*texture) {
                     let uv = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
-                    textured(image, *rect, clip, source, uv, color(*c, o), false);
+                    textured(
+                        image,
+                        *rect,
+                        clip,
+                        source,
+                        uv,
+                        color(*c, o),
+                        false,
+                        additive,
+                    );
                 }
             }
             DrawCommand::TexturedQuadUv {
@@ -243,8 +300,17 @@ fn raster(
                 color: c,
                 uv,
             } => {
-                if let Some((source, wraps)) = art(*texture) {
-                    textured(image, *rect, full, source, *uv, color(*c, o), wraps);
+                if let Some((source, wraps, additive)) = art(*texture) {
+                    textured(
+                        image,
+                        *rect,
+                        full,
+                        source,
+                        *uv,
+                        color(*c, o),
+                        wraps,
+                        additive,
+                    );
                 }
             }
             DrawCommand::Arc {
@@ -439,6 +505,11 @@ fn menu_snapshot() {
         icons: HashMap::from([(crate::ui_renderer::LOGO_TEXTURE.0, logo_icon())]),
         in_match: match_backdrop(&vfs),
     };
+    for (index, (_, bytes)) in crate::settings_icons::ICONS.iter().enumerate() {
+        let icon = image::load_from_memory(bytes).expect("a settings icon");
+        let texture = crate::ui_renderer::settings_icon(index);
+        shots.icons.insert(texture.0, icon.into_rgba8());
+    }
     let font = &shots.font;
     let directory = tempfile::tempdir().expect("scratch profile");
     let mut console =
@@ -627,7 +698,9 @@ fn menu_snapshot() {
     weapon_select(&mut shots, &vfs);
     radial_hud(&mut shots);
     player_card(&mut shots);
+    quick_wheels(&mut shots);
     identity_page(&shots, art);
+    text_dialog(&shots, art);
     force_wheel(&mut shots, &vfs);
     profile_saber(&shots, art, &vfs, &mut console);
     classic_profile(&mut shots, &vfs, art);
@@ -1053,6 +1126,7 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
         profiles: std::collections::HashMap::new(),
         notice: Some("saved".to_owned()),
         revision: 0,
+        report: None,
     };
     let online = hub(Status::Online, "^1Sol", &["^4Vulpes", "Padawan"]);
     let fresh = hub(Status::Online, "Padawan", &[]);
@@ -1136,6 +1210,57 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
     }
 }
 
+/// The Report a bug button and the text dialog over a match, for a report and a note,
+/// in both looks.
+fn text_dialog(shots: &Snapshot, art: ArtSet) {
+    use crate::text_dialog::{Kind, TextDialog};
+    let note = Kind::Note {
+        subject: "Wall: textures/mp/ffa_wall2 (lightmapped, BSP surface 1432) on mp/ffa3".into(),
+    };
+    let cases = [
+        (
+            "report-dialog",
+            Kind::Report,
+            "The door near the red base flickers when I walk through it on ffa3, and the light behind it goes black. I expected it to open smoothly like it does in the original game.",
+            false,
+            "",
+        ),
+        (
+            "report-dialog-refused",
+            Kind::Report,
+            "short",
+            true,
+            "write at least a few words",
+        ),
+        ("note-dialog", note, "", false, ""),
+    ];
+    for classic in [false, true] {
+        let suffix = if classic { "-classic" } else { "" };
+        let mut dialog = TextDialog::default();
+        dialog.set_look(classic, art);
+        let mut vertices = Vec::new();
+        dialog.append_launcher(&mut vertices, &shots.font.font, VIEWPORT);
+        shots.save(
+            &format!("report-launcher{suffix}"),
+            dialog.launcher_draw_list(),
+            &vertices,
+            true,
+        );
+        for (name, kind, text, on_send, message) in &cases {
+            dialog.open(kind.clone());
+            dialog.preview(text, *on_send, message);
+            let mut vertices = Vec::new();
+            dialog.append(&mut vertices, &shots.font.font, VIEWPORT);
+            shots.save(
+                &format!("{name}{suffix}"),
+                dialog.draw_list(),
+                &vertices,
+                true,
+            );
+        }
+    }
+}
+
 /// The player card beside three players over a match: one the hub vouches for,
 /// one it only knows, and one it does not; and one at the screen's edge.
 fn player_card(shots: &mut Snapshot) {
@@ -1190,6 +1315,63 @@ fn player_card(shots: &mut Snapshot) {
     }
 }
 
+/// Only the quick wheels, for a quicker look than the whole set.
+#[test]
+#[ignore = "reads the installed game data named by JKA_GAME_DATA"]
+fn quick_wheel_snapshot() {
+    let (_, vfs) = art();
+    let mut shots = Snapshot {
+        font: crate::text::load_modern(1.0, None).expect("build the menu font"),
+        icons: HashMap::new(),
+        in_match: match_backdrop(&vfs),
+    };
+    quick_wheels(&mut shots);
+}
+
+/// Both quick wheels over a match, the mouse pushed towards one choice, the choices in
+/// effect marked, in SJK's default accent.
+fn quick_wheels(shots: &mut Snapshot) {
+    use crate::quick_wheel::{ICONS, QuickWheel, WHEELS, wheel};
+    for (index, (_, bytes)) in ICONS.iter().enumerate() {
+        let icon = image::load_from_memory(bytes)
+            .expect("a wheel icon")
+            .into_rgba8();
+        shots
+            .icons
+            .insert(crate::ui_renderer::wheel_icon(index).0, icon);
+    }
+    let accent = sjk_ui::Color::new(1.0, 0.416, 0.239, 1.0);
+    let cases: [(&str, &str, [f32; 2], &[usize]); 3] = [
+        ("quick-wheel-general", "general", [60.0, -60.0], &[1, 2]),
+        ("quick-wheel-weather", "weather", [80.0, 20.0], &[0, 6, 7]),
+        (
+            "quick-wheel-weather-middle",
+            "weather",
+            [6.0, -4.0],
+            &[3, 6, 7],
+        ),
+    ];
+    for (name, wheel_name, pointer, marked) in cases {
+        let index = wheel(wheel_name).expect("a built-in wheel");
+        let marks = (0..WHEELS[index].choices.len())
+            .map(|choice| marked.contains(&choice))
+            .collect();
+        let mut state = QuickWheel::default();
+        state.open(index, marks);
+        state.moved(pointer);
+        state.build(VIEWPORT, accent);
+        let mut vertices = Vec::new();
+        crate::ui_renderer::append_text_commands(
+            &state.list,
+            |id| state.text(id),
+            &mut vertices,
+            &shots.font.font,
+            VIEWPORT,
+            crate::text::TextStyle::NEUTRAL,
+        );
+        shots.save(name, &state.list, &vertices, true);
+    }
+}
 /// Only the radial HUD, for a quicker look than the whole set.
 #[test]
 #[ignore = "reads the installed game data named by JKA_GAME_DATA"]
@@ -1367,17 +1549,41 @@ fn changelog(shots: &Snapshot, art: ArtSet) {
         console.append_overlay(&mut vertices, &shots.font.font, VIEWPORT, 1.0);
         shots.save(name, console.draw_list(), &vertices, classic);
     }
-    console.open_credits();
-    for (name, classic, scroll, viewport) in [
-        ("credits", false, 0.0, VIEWPORT),
-        ("credits-scrolled", false, 600.0, VIEWPORT),
-        ("credits-classic", true, 0.0, VIEWPORT),
-        ("credits-wide", false, 0.0, [2560.0, 1080.0]),
+    // Scrolled by pixels, or to a person's panel with their folds open.
+    enum At {
+        Pixels(f32),
+        Person(u16),
+    }
+    for (name, classic, at, viewport) in [
+        ("credits", false, At::Pixels(0.0), VIEWPORT),
+        ("credits-scrolled", false, At::Pixels(600.0), VIEWPORT),
+        ("credits-classic", true, At::Pixels(0.0), VIEWPORT),
+        ("credits-wide", false, At::Pixels(0.0), [2560.0, 1080.0]),
+        ("credits-end", false, At::Pixels(100_000.0), VIEWPORT),
+        ("credits-unfolded", false, At::Person(0), VIEWPORT),
+        ("credits-unfolded-classic", true, At::Person(2), VIEWPORT),
+        (
+            "credits-unfolded-bishop",
+            false,
+            At::Person(1),
+            [2560.0, 1080.0],
+        ),
     ] {
+        console.open_credits();
         console.set_credits_look(classic);
-        console.credits_mut().settle();
-        console.credits_mut().scroll_to(scroll);
         let mut vertices = Vec::new();
+        match at {
+            At::Pixels(pixels) => {
+                console.credits_mut().settle();
+                console.credits_mut().scroll_to(pixels);
+            }
+            At::Person(person) => {
+                console.credits_mut().unfold(person);
+                console.credits_mut().settle();
+                console.append_overlay(&mut vertices, &shots.font.font, viewport, 1.0);
+                console.credits_mut().scroll_to_person(person);
+            }
+        }
         console.append_overlay(&mut vertices, &shots.font.font, viewport, 1.0);
         shots.save_at(name, console.draw_list(), &vertices, false, viewport);
     }

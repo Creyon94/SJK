@@ -295,6 +295,19 @@ impl ViewerConsole {
             }
             let _ = shell.cvars.set_text("com_maxfpsDefaultVersion", "1");
         }
+        // cl_consoleUseScanCode defaulted to 0, which left layouts whose key under
+        // Escape types neither `~` nor `` ` `` (Hungarian `0`) without a console
+        // key, and every profile saved that 0. Move it once to EternalJK's 1.
+        if matches!(
+            shell
+                .cvars
+                .get("cl_consoleKeyDefaultVersion")
+                .map(|cvar| &cvar.value),
+            Some(CvarValue::Integer(0))
+        ) {
+            let _ = shell.cvars.reset("cl_consoleUseScanCode");
+            let _ = shell.cvars.set_text("cl_consoleKeyDefaultVersion", "1");
+        }
         shell.push_log("^5Sol JK console ready. ^7Type cmdlist for commands.");
         Ok(Self {
             shell,
@@ -314,6 +327,7 @@ impl ViewerConsole {
             credits: super::credits::Panel::new(),
             update_panel: super::update_panel::Panel::new(),
             identity_panel: super::identity_panel::Panel::new(),
+            config_import: super::config_import_panel::Panel::new(),
             userinfo_dirty,
             show_timedelta,
             time_nudge,

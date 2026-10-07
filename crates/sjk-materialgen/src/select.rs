@@ -1,13 +1,15 @@
 //! Which textures get maps: the diffuse images of shaders that installed maps
-//! actually draw on lightmapped surfaces, minus everything that must not get
-//! maps ([`SkipReason`]).
+//! actually draw on lightmapped or vertex-lit surfaces, minus everything that must
+//! not get maps ([`SkipReason`]).
 //!
 //! A shader qualifies the way JKR's material maps select stages (and rend2's
 //! `CollapseStagesToLightall`): its lightmap and diffuse stages must collapse
 //! into one opaque pass (rd-vanilla `CollapseMultitexture` rules) with plain
 //! colour generators. The maps belong to that diffuse stage's image. A
 //! surface without a shader script is the implicit lightmapped default shader
-//! of its texture, which qualifies too.
+//! of its texture, which qualifies too. On vertex-lit surfaces, a shader without a
+//! lightmap stage qualifies by its first stage when that is opaque `rgbGen vertex`
+//! paint ([`vertex_diffuse_stage`]), as the client maps it.
 
 use crate::classes::{ClassSource, MaterialClass, bsp, classify, polished, wants_height};
 use crate::emission::{self, Plan, ShaderLight};
@@ -63,7 +65,7 @@ pub enum SkipReason {
     Interface,
     /// A lightmap or other generated image (`$lightmap`, `*white`).
     Lightmap,
-    /// Only drawn on vertex-lit or unlit surfaces, which take no maps.
+    /// Drawn without a lightmap, and its first stage is not opaque vertex-lit paint.
     VertexLit,
     /// `deformVertexes`: moving geometry.
     Deformed,
@@ -99,7 +101,7 @@ impl SkipReason {
             Self::System => "nodraw/clip/trigger/system",
             Self::Interface => "interface or 2D image",
             Self::Lightmap => "lightmap or generated image",
-            Self::VertexLit => "only on vertex-lit surfaces",
+            Self::VertexLit => "vertex-lit, but not opaque rgbGen vertex paint",
             Self::Deformed => "deformVertexes",
             Self::BlendOnly => "blended or additive effect",
             Self::NoLightmapStage => "no lightmap stage",
@@ -289,13 +291,18 @@ pub fn evaluate_shader(
     if shader_use.content_flags & CONTENTS_LIQUID != 0 {
         return Ok(Err(SkipReason::Liquid));
     }
-    if shader_use.lightmapped_triangles == 0 {
-        return Ok(Err(SkipReason::VertexLit));
-    }
     let (image, alpha_tested, polished, light) = match catalog.get(name) {
         Some(definition) => {
             let stage = match diffuse_stage(definition) {
                 Ok(stage) => stage,
+                // Vertex-lit paint: the client maps an opaque `rgbGen vertex` stage on a
+                // vertex-lit surface, its vertex colours standing in for the lightmap.
+                Err(SkipReason::NoLightmapStage) if shader_use.other_triangles > 0 => {
+                    match vertex_diffuse_stage(definition) {
+                        Ok(stage) => stage,
+                        Err(reason) => return Ok(Err(reason)),
+                    }
+                }
                 Err(reason) => return Ok(Err(reason)),
             };
             let image = catalog.resolve_stage_image(vfs, &stage.images[0])?;
@@ -330,6 +337,11 @@ pub fn evaluate_shader(
         polished,
         light,
     }))
+}
+
+/// Triangles a shader draws on lightmapped and vertex-lit surfaces.
+fn drawn(shader_use: &ShaderUse) -> u64 {
+    shader_use.lightmapped_triangles + shader_use.other_triangles
 }
 
 fn skipped_path(path: &str) -> Option<SkipReason> {
@@ -373,7 +385,7 @@ pub fn diffuse_stage(definition: &ShaderDefinition) -> Result<&ShaderStage, Skip
             (_, TextureGenerator::Lightmap) => first,
             _ => continue,
         };
-        return check_diffuse(diffuse);
+        return check_diffuse(diffuse, false);
     }
     let lightmap = stages
         .iter()
@@ -392,6 +404,27 @@ pub fn diffuse_stage(definition: &ShaderDefinition) -> Result<&ShaderStage, Skip
             SkipReason::NotCollapsible
         },
     )
+}
+
+/// The diffuse stage of a shader drawn on vertex-lit surfaces without a lightmap stage:
+/// its first stage, when that is opaque texture paint lit by its vertex colours
+/// (`rgbGen vertex` or `exactVertex`), as the client maps it. Later stages (detail
+/// textures, blended terrain layers) keep their shading.
+pub fn vertex_diffuse_stage(definition: &ShaderDefinition) -> Result<&ShaderStage, SkipReason> {
+    let Some(first) = definition.stages.first() else {
+        return Err(SkipReason::System);
+    };
+    let vertex = first
+        .rgb_generator
+        .as_deref()
+        .is_some_and(|g| g.eq_ignore_ascii_case("vertex") || g.eq_ignore_ascii_case("exactvertex"));
+    if first.blend != StageBlend::Replace
+        || first.texture_generator != TextureGenerator::Base
+        || !vertex
+    {
+        return Err(SkipReason::VertexLit);
+    }
+    check_diffuse(first, true)
 }
 
 /// rd-vanilla `CollapseMultitexture` (`tr_shader.cpp`) for the one rule that
@@ -420,13 +453,17 @@ fn collapses_opaque(first: &ShaderStage, second: &ShaderStage) -> bool {
         && first.alpha_constant == second.alpha_constant
 }
 
-fn check_diffuse(stage: &ShaderStage) -> Result<&ShaderStage, SkipReason> {
+/// The diffuse stage's own conditions; `vertex` admits the vertex-light generators.
+fn check_diffuse(stage: &ShaderStage, vertex: bool) -> Result<&ShaderStage, SkipReason> {
     if stage.texture_generator == TextureGenerator::Environment {
         return Err(SkipReason::EnvironmentMapped);
     }
     let plain = |generator: Option<&str>| {
         generator.is_none_or(|g| {
-            g.eq_ignore_ascii_case("identity") || g.eq_ignore_ascii_case("identitylighting")
+            g.eq_ignore_ascii_case("identity")
+                || g.eq_ignore_ascii_case("identitylighting")
+                || (vertex
+                    && (g.eq_ignore_ascii_case("vertex") || g.eq_ignore_ascii_case("exactvertex")))
         })
     };
     let plain_alpha = stage.alpha_generator.as_deref().is_none_or(|g| {
@@ -486,11 +523,7 @@ pub fn select(
         // The class follows the shader drawing most of it (then the first name).
         let (_, primary, _) = shaders
             .iter()
-            .max_by(|a, b| {
-                a.1.lightmapped_triangles
-                    .cmp(&b.1.lightmapped_triangles)
-                    .then_with(|| b.0.cmp(a.0))
-            })
+            .max_by(|a, b| drawn(a.1).cmp(&drawn(b.1)).then_with(|| b.0.cmp(a.0)))
             .expect("every image has a shader");
         let (table_class, class_source) = classify(&image, primary.surface_flags);
         let alpha_tested = shaders.iter().any(|(_, _, choice)| choice.alpha_tested);
@@ -505,7 +538,7 @@ pub fn select(
         let (class, applied) = overrides.apply(&base, class);
         let triangles = shaders
             .iter()
-            .map(|(_, shader_use, _)| shader_use.lightmapped_triangles)
+            .map(|(_, shader_use, _)| drawn(shader_use))
             .sum();
         let maps_used: BTreeSet<String> = shaders
             .iter()
@@ -613,6 +646,48 @@ mod tests {
 
     fn reason(script: &str) -> SkipReason {
         diffuse_stage(&shader(script)).expect_err("skipped")
+    }
+
+    #[test]
+    fn vertex_lit_paint_is_its_first_stage() {
+        for script in [
+            "textures/d/sand { q3map_nolightmap { map textures/d/sand rgbGen vertex } }",
+            "textures/d/rock { { map textures/d/rock rgbGen exactVertex } \
+             { map textures/common/detail9 blendFunc GL_DST_COLOR GL_ONE tcMod scale 10 10 } }",
+        ] {
+            let definition = shader(script);
+            // Not a lightmap pair, but vertex-lit paint.
+            assert_eq!(
+                diffuse_stage(&definition).err(),
+                Some(SkipReason::NoLightmapStage)
+            );
+            let stage = vertex_diffuse_stage(&definition).expect(script);
+            assert!(stage.images[0].starts_with("textures/d/"), "{script}");
+        }
+        for (script, why) in [
+            (
+                "textures/d/a { { map textures/d/a } }",
+                SkipReason::VertexLit,
+            ),
+            (
+                "textures/d/a { { map textures/d/a rgbGen vertex blendFunc blend } }",
+                SkipReason::VertexLit,
+            ),
+            (
+                "textures/d/a { { map textures/d/a rgbGen vertex tcMod rotate 10 } }",
+                SkipReason::Animated,
+            ),
+            (
+                "textures/d/a { { map textures/d/a rgbGen vertex glow } }",
+                SkipReason::Emissive,
+            ),
+        ] {
+            assert_eq!(
+                vertex_diffuse_stage(&shader(script)).err(),
+                Some(why),
+                "{script}"
+            );
+        }
     }
 
     #[test]
@@ -834,7 +909,9 @@ mod tests {
             .map(|s| (s.name.as_str(), s.reason))
             .collect();
         assert_eq!(reasons["textures/a/sky"], SkipReason::Sky);
-        assert_eq!(reasons["textures/a/rock2"], SkipReason::VertexLit);
+        // Vertex-lit only, unscripted: the implicit vertex paint qualifies, but it has
+        // no image here.
+        assert_eq!(reasons["textures/a/rock2"], SkipReason::MissingImage);
         assert_eq!(reasons["textures/a/missing"], SkipReason::MissingImage);
         assert_eq!(reasons["textures/a/done.tga"], SkipReason::HasMaps);
         assert_eq!(reasons["textures/p/fern.tga"], SkipReason::AlphaTested);

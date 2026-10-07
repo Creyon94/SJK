@@ -10,10 +10,12 @@
 
 pub mod hub;
 mod keys;
+pub mod report;
 pub mod service;
 pub mod wire;
 
 pub use hub::{HttpHub, Hub, HubError, valid_base_url};
 pub use keys::{Identity, KeyError};
-pub use service::{HubFactory, Location, Service, Settings, Snapshot, Status};
+pub use report::BugReport;
+pub use service::{HubFactory, Location, ReportOutcome, Service, Settings, Snapshot, Status};
 pub use wire::{Presence, Profile, WornName, names_match, normal_form};

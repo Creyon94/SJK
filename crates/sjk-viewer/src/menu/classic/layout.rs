@@ -362,6 +362,34 @@ impl Entry {
 }
 
 impl Entry {
+    /// The settings icon (`settings_icons::ICONS`) beside this entry in the
+    /// Settings group lists; `None` for entries drawn without one.
+    pub(crate) fn icon(self) -> Option<&'static str> {
+        Some(match self {
+            Self::Movement => "movement",
+            Self::Interaction => "interaction",
+            Self::Weapons => "weapons",
+            Self::ForcePowers => "force_powers",
+            Self::OtherControls => "other_controls",
+            Self::FirstSetup => "first_setup",
+            Self::Graphics => "graphics",
+            Self::Sound => "sound",
+            Self::Gameplay => "gameplay",
+            Self::Video => "video",
+            Self::RenderImage => "image",
+            Self::RenderLighting => "lighting",
+            Self::RenderShadows => "shadows",
+            Self::Weather => "weather",
+            Self::MouseJoystick => "mouse_joystick",
+            Self::GameOptions => "game_options",
+            Self::Interface => "interface",
+            Self::Hud => "hud",
+            Self::Scoreboard => "scoreboard",
+            Self::Network => "network",
+            _ => return None,
+        })
+    }
+
     /// The KEY BINDINGS group of key-binding category `category`.
     pub(crate) fn of_category(category: usize) -> Option<Self> {
         [
@@ -707,6 +735,19 @@ mod tests {
         }
         for page in [Page::Main, Page::Play, Page::Sjk, Page::Quit] {
             assert_eq!(page.opening_panel(), None);
+        }
+    }
+
+    #[test]
+    fn every_settings_group_has_its_own_icon() {
+        let mut seen = Vec::new();
+        for page in [Page::Setup, Page::Controls, Page::Graphics, Page::Gameplay] {
+            for slot in page.slots().iter().filter(|slot| slot.size == Size::List) {
+                let icon = slot.entry.icon().expect("a group icon");
+                assert!(crate::settings_icons::texture(icon).is_some(), "{icon}");
+                assert!(!seen.contains(&icon), "{icon} is used twice");
+                seen.push(icon);
+            }
         }
     }
 

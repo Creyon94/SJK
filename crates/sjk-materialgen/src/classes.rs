@@ -190,9 +190,32 @@ pub const CLASSES: &[MaterialClass] = &[
         name: "metal",
         bsp_materials: &[bsp::SOLID_METAL, bsp::HOLLOW_METAL, bsp::ARMOR],
         keywords: &[
-            "metal", "steel", "grate", "grating", "grill", "pipe", "girder", "rust", "chrome",
-            "mtl", "vent", "rivet", "hatch", "duct", "catwalk", "railing", "beam", "brace",
-            "casing", "hull", "tank", "barrel", "blastdoor", "blastshield", "hangar", "elevator",
+            "metal",
+            "steel",
+            "grate",
+            "grating",
+            "grill",
+            "pipe",
+            "girder",
+            "rust",
+            "chrome",
+            "mtl",
+            "vent",
+            "rivet",
+            "hatch",
+            "duct",
+            "catwalk",
+            "railing",
+            "beam",
+            "brace",
+            "casing",
+            "hull",
+            "tank",
+            "barrel",
+            "blastdoor",
+            "blastshield",
+            "hangar",
+            "elevator",
             "turbolift",
         ],
         normal_strength: 2.0,
@@ -492,12 +515,21 @@ mod tests {
     #[test]
     fn texture_sets_classify_what_no_word_names() {
         let (class, source) = classify("textures/imperial/basic_wall2", 0);
-        assert_eq!((class.name, source), ("panel", ClassSource::Set("imperial")));
+        assert_eq!(
+            (class.name, source),
+            ("panel", ClassSource::Set("imperial"))
+        );
         assert_eq!(classify("textures/korriban/wall02", 0).0.name, "stone");
         // Words and BSP materials still come first.
         assert_eq!(classify("textures/imperial/metal_grate", 0).0.name, "metal");
-        assert_eq!(classify("textures/imperial/control_onoff", 0).0.name, "electronics");
-        assert_eq!(classify("textures/imperial/floor", bsp::TILES).0.name, "tiles");
+        assert_eq!(
+            classify("textures/imperial/control_onoff", 0).0.name,
+            "electronics"
+        );
+        assert_eq!(
+            classify("textures/imperial/floor", bsp::TILES).0.name,
+            "tiles"
+        );
         assert_eq!(classify("textures/mp/door_trim", 0).0.name, "panel");
         assert_eq!(classify("textures/yavin/trim_stone01", 0).0.name, "stone");
         for (_, class) in SET_CLASSES {

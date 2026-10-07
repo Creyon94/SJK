@@ -27,6 +27,7 @@ impl ViewerConsole {
         self.update_panel.close();
         self.credits.close();
         self.identity_panel.close();
+        self.config_import.close();
         self.dead_key.settle();
         self.changelog.open(owns_console);
     }

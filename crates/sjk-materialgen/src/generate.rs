@@ -161,10 +161,10 @@ pub fn generate(
     let inverted = match class.relief {
         Relief::Inverted => Some("overrides"),
         Relief::Keep => None,
-        Relief::Auto => (mask.is_none()
-            && painted < INVERT_BELOW
-            && void_share(&luminance) <= VOID_SHARE)
-            .then_some("painted shading"),
+        Relief::Auto => {
+            (mask.is_none() && painted < INVERT_BELOW && void_share(&luminance) <= VOID_SHARE)
+                .then_some("painted shading")
+        }
     };
     let height_map = if inverted.is_some() {
         height_map.map(|value| 1.0 - value)
@@ -337,8 +337,7 @@ pub fn painted_relief(luminance: &Plane, scale: f32) -> f32 {
     for y in 0..luminance.height {
         for x in 0..luminance.width {
             let (x, y) = (x as isize, y as isize);
-            let rise =
-                f64::from(regions.wrapped(x, y + 1) - regions.wrapped(x, y - 1)) * 0.5;
+            let rise = f64::from(regions.wrapped(x, y + 1) - regions.wrapped(x, y - 1)) * 0.5;
             let paint = f64::from(fine.wrapped(x, y));
             agreement += paint * rise;
             slopes += rise.abs();
@@ -356,7 +355,11 @@ pub fn painted_relief(luminance: &Plane, scale: f32) -> f32 {
 
 /// Share of `luminance` darker than [`VOID_LUMINANCE`].
 fn void_share(luminance: &Plane) -> f32 {
-    let voids = luminance.data.iter().filter(|value| **value < VOID_LUMINANCE).count();
+    let voids = luminance
+        .data
+        .iter()
+        .filter(|value| **value < VOID_LUMINANCE)
+        .count();
     voids as f32 / luminance.data.len().max(1) as f32
 }
 

@@ -477,10 +477,10 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "How bright a shield hit shows on the body, 1 (stock) to 12; ignored by the sphere",
         ),
         CvarDefinition::new(
-            "ui_quickSetup",
-            0_i64,
+            "ui_hideFirstSetup",
+            false,
             archive,
-            "1 once the first-start First setup screen has been shown (the firstsetup command opens it again)",
+            "Don't open First setup when the client starts (the firstsetup command still opens it)",
         ),
         CvarDefinition::new(
             "cl_autoUpdate",
@@ -658,6 +658,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             0_i64,
             archive,
             "Internal stock-bind migration version",
+        ),
+        CvarDefinition::new(
+            "cl_consoleKeyDefaultVersion",
+            0_i64,
+            archive,
+            "Internal migration marker for the scan-code console key default",
         ),
     ];
     for definition in definitions {

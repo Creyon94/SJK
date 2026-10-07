@@ -103,6 +103,74 @@ impl DecalSurfaces {
             })
     }
 
+    /// The nearest world triangle the ray from `origin` along unit `direction` meets
+    /// within `reach`, either side (`world_notes`).
+    pub(crate) fn ray_hit(&self, origin: Vec3, direction: Vec3, reach: f32) -> Option<RayHit> {
+        let mut nearest: Option<RayHit> = None;
+        for surface in 0..self.ranges.len() {
+            for triangle in self.triangles(surface) {
+                let [a, b, c] = triangle.map(|index| Vec3::from_array(self.positions[index]));
+                // Moeller-Trumbore.
+                let (edge1, edge2) = (b - a, c - a);
+                let p = direction.cross(edge2);
+                let determinant = edge1.dot(p);
+                if determinant.abs() < 1e-8 {
+                    continue;
+                }
+                let inverse = 1.0 / determinant;
+                let s = origin - a;
+                let u = s.dot(p) * inverse;
+                if !(0.0..=1.0).contains(&u) {
+                    continue;
+                }
+                let q = s.cross(edge1);
+                let v = direction.dot(q) * inverse;
+                if v < 0.0 || u + v > 1.0 {
+                    continue;
+                }
+                let distance = edge2.dot(q) * inverse;
+                if distance <= 0.0
+                    || distance > reach
+                    || nearest.as_ref().is_some_and(|hit| hit.distance <= distance)
+                {
+                    continue;
+                }
+                nearest = Some(RayHit {
+                    surface,
+                    distance,
+                    normal: self.triangle_normal(triangle),
+                });
+            }
+        }
+        nearest
+    }
+
+    /// The triangles of one BSP surface, at most `limit` (`world_notes`'s highlight).
+    pub(crate) fn surface_triangles(&self, surface: usize, limit: usize) -> Vec<[Vec3; 3]> {
+        self.triangles(surface)
+            .take(limit)
+            .map(|triangle| triangle.map(|index| Vec3::from_array(self.positions[index])))
+            .collect()
+    }
+
+    /// The distinct triangle edges of one BSP surface, at most `limit` (`world_notes`'s
+    /// highlight).
+    pub(crate) fn surface_edges(&self, surface: usize, limit: usize) -> Vec<[Vec3; 2]> {
+        let mut seen = std::collections::HashSet::new();
+        let mut edges = Vec::new();
+        for [a, b, c] in self.triangles(surface) {
+            for (from, to) in [(a, b), (b, c), (c, a)] {
+                if edges.len() == limit {
+                    return edges;
+                }
+                if seen.insert((from.min(to), from.max(to))) {
+                    edges.push([from, to].map(|index| Vec3::from_array(self.positions[index])));
+                }
+            }
+        }
+        edges
+    }
+
     /// Outward triangle normal, oriented by the stored vertex normal so the
     /// facing test does not depend on the tessellator's winding.
     fn triangle_normal(&self, triangle: [usize; 3]) -> Vec3 {
@@ -114,6 +182,16 @@ impl DecalSurfaces {
             normal
         }
     }
+}
+
+/// Where a ray met the world ([`DecalSurfaces::ray_hit`]).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct RayHit {
+    /// BSP draw-surface index.
+    pub(crate) surface: usize,
+    pub(crate) distance: f32,
+    /// The triangle's outward normal.
+    pub(crate) normal: Vec3,
 }
 
 /// Fixed-capacity buffers reused by every projection.

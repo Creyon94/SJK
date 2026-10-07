@@ -167,6 +167,11 @@ impl GpuState {
         if !self.pointer_captured || self.cursor_policy.take_ignored_motion() {
             return;
         }
+        // An open quick wheel takes the mouse: it moves the wheel's pointer, not the view.
+        if self.quick_wheel.is_open() {
+            self.quick_wheel.moved([delta.0 as f32, delta.1 as f32]);
+            return;
+        }
         // Accumulate raw counts; filtering and acceleration run once per command frame.
         self.gameplay_input.motion.raw[0] += delta.0 as f32;
         self.gameplay_input.motion.raw[1] += delta.1 as f32;
@@ -184,6 +189,7 @@ impl GpuState {
     /// Keyboard catchers also advertise BUTTON_TALK, as CL_CmdButtons does.
     pub(crate) fn key_catcher_active(&self) -> bool {
         self.game_menu
+            || self.text_dialog.is_open()
             || self.chat.is_typing()
             || self
                 .console
@@ -266,7 +272,17 @@ impl GpuState {
             self.apply_client_menu_action(action);
             return true;
         }
+        if self.text_dialog.is_open() {
+            let action = self.text_dialog.handle_pointer(event);
+            self.apply_dialog_action(action);
+            return true;
+        }
         if self.game_menu {
+            if self.game_menu_page != GameMenuPage::Shot && self.text_dialog.launcher_pointer(event)
+            {
+                self.open_bug_report();
+                return true;
+            }
             if self.game_menu_page == GameMenuPage::Shot {
                 self.shot_pointer(event);
                 return true;

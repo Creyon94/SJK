@@ -46,9 +46,13 @@ const PROMPT_COLUMN: usize = STAMP_COLUMNS;
 const INPUT_COLUMN: usize = PROMPT_COLUMN + 1;
 /// The text cursor is hidden for every other 256 ms (`cls.realtime >> 8 & 1`).
 const BLINK_SHIFT: u32 = 8;
-/// Character-set cells of the insert and overstrike cursors (`Field_Draw`).
-const INSERT_CURSOR: u8 = 10;
-const OVERSTRIKE_CURSOR: u8 = 11;
+/// The insert and overstrike cursors (`Field_Draw` draws character-set cells 10
+/// and 11): a bar on rows 13 and 14 and a block on rows 1 to 14 of the 16-row
+/// cell, both seven of its eight columns wide, as `[top, bottom]` in sixteenths.
+const INSERT_CURSOR: [f32; 2] = [13.0, 15.0];
+const OVERSTRIKE_CURSOR: [f32; 2] = [1.0, 15.0];
+/// Columns of the eight the cursors cover.
+const CURSOR_COLUMNS: f32 = 7.0;
 /// Selected text: the bar colour, translucent so the text stays readable.
 const HIGHLIGHT: [f32; 4] = [0.509, 0.609, 0.847, 0.4];
 /// Start colour of an error line, as the modern console draws it.
@@ -134,6 +138,23 @@ pub(super) fn open_height(escape: bool, control: bool, shift: bool, base: f32) -
         (false, false, true) => QUARTER_HEIGHT,
         _ => base,
     }
+}
+
+/// Rectangle of the text cursor in the cell at `(x, y)`, drawn as a solid quad
+/// in the character set's proportions.
+fn cursor_rect(grid: &Grid, x: f32, y: f32, overstrike: bool) -> [f32; 4] {
+    let [top, bottom] = if overstrike {
+        OVERSTRIKE_CURSOR
+    } else {
+        INSERT_CURSOR
+    };
+    let row = grid.height / 16.0;
+    [
+        x,
+        y + top * row,
+        grid.width * CURSOR_COLUMNS / 8.0,
+        (bottom - top) * row,
+    ]
 }
 
 /// Scrollback rows of one Page Up/Down or wheel step, with or without Ctrl.
@@ -440,7 +461,7 @@ fn line_colour(line: &ConsoleLine) -> [f32; 4] {
 
 impl ViewerConsole {
     /// Lay out the classic console for this frame into `frame`, with `font` (the
-    /// console character set when `atlas` says so).
+    /// console font when `atlas` says so).
     pub(crate) fn append_classic(
         &mut self,
         frame: &mut ConsoleFrame,
@@ -456,6 +477,7 @@ impl ViewerConsole {
             || self.credits.is_open()
             || self.update_panel.is_open()
             || self.identity_panel.is_open()
+            || self.config_import.is_open()
         {
             // The test list is drawn alone, as over the modern console.
             return;
@@ -757,12 +779,10 @@ impl ViewerConsole {
                     painter.glyph(frame, b'_', x, y, white);
                 }
             } else {
-                let cursor = if self.overstrike {
-                    OVERSTRIKE_CURSOR
-                } else {
-                    INSERT_CURSOR
-                };
-                painter.glyph(frame, cursor, x, y, white);
+                frame.quads.push(SolidQuad {
+                    rect: cursor_rect(&grid, x, y, self.overstrike),
+                    color: white,
+                });
             }
         }
     }
@@ -921,6 +941,21 @@ mod tests {
         assert_eq!(ratio_fix_range(0.5, wide, false), [0.0, 1.0]);
         // A 4:3 screen has nothing to fix.
         assert_eq!(ratio_fix_range(0.5, [1024.0, 768.0], true), [0.0, 1.0]);
+    }
+
+    #[test]
+    fn cursors_keep_the_character_set_proportions() {
+        // A 16 by 32 cell (4K): the bar is rows 13-14, the block rows 1-14.
+        let grid = Grid::new([3840.0, 2160.0], 1.0);
+        assert_eq!([grid.width, grid.height], [16.0, 32.0]);
+        assert_eq!(
+            cursor_rect(&grid, 16.0, 100.0, false),
+            [16.0, 126.0, 14.0, 4.0]
+        );
+        assert_eq!(
+            cursor_rect(&grid, 16.0, 100.0, true),
+            [16.0, 102.0, 14.0, 28.0]
+        );
     }
 
     #[test]
