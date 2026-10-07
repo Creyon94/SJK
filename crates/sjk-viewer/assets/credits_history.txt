@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 07/10/2026 | - | SJK UI: Servers, the server browser in its look
+- 160418a |  | SJK UI: Servers, the server browser in its look
++ 07/10/2026 | - | Release 2026.1007.2 (Alpha)
+- f001f9e |  | Release 2026.1007.2 (Alpha)
 + 07/10/2026 | - | Camera style setting: SJK's eased camera or JoF EJK's locked one
 - f51f558 |  | Camera style setting: SJK's eased camera or JoF EJK's locked one
 + 07/10/2026 | - | SJK UI: text centred in its controls

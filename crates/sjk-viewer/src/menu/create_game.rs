@@ -352,6 +352,11 @@ impl CreateGameMenu {
         self.levelshots.preview(map)
     }
 
+    /// The pixel size of `map`'s levelshot while the preview texture holds it.
+    pub(crate) fn levelshot_size(&self, map: &str) -> Option<[u32; 2]> {
+        self.levelshots.size(map)
+    }
+
     /// Whether a server this screen started is running.
     pub(crate) fn hosting(&self) -> bool {
         self.server.is_some()

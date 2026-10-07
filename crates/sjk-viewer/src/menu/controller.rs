@@ -36,6 +36,12 @@ impl ClientMenu {
                 );
                 self.ui.append_text(vertices, font, viewport);
             }
+            // Drawn in the UI's families by `append_sjk_screen`; here, from a
+            // caller without them, in Inter.
+            ClientPhase::Browser if self.menu_style == MenuStyle::Sjk => {
+                let target = sjk::TextTarget::Inter(vertices, font);
+                self.append_sjk_browser(target, viewport);
+            }
             ClientPhase::Browser => {
                 let reveal = self.screen_reveal();
                 self.append_browser(vertices, font, viewport, reveal);

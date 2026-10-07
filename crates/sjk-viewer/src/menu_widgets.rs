@@ -21,7 +21,9 @@ use sjk_ui::{
     WidgetTree,
 };
 
-const MAX_TEXT: usize = 160;
+/// Text runs a canvas keeps a frame: the SJK UI's server browser draws about
+/// 170 (six to a server row).
+const MAX_TEXT: usize = 224;
 const MAX_WIDGETS: usize = 96;
 const MAX_DRAW: usize = 512;
 
@@ -352,6 +354,13 @@ impl MenuCanvas {
 
     pub(crate) fn draw_list(&self) -> &DrawList {
         &self.draw
+    }
+
+    /// Whether this frame lost pointer areas, text runs or draw commands to
+    /// the fixed storage ([`Self::check_storage`]), for a screen's tests.
+    #[cfg(test)]
+    pub(crate) fn overflowed(&self) -> bool {
+        self.dropped > 0 || self.draw.len() >= self.draw.limit()
     }
 
     /// A frame past the fixed storage loses pointer areas, text or draw

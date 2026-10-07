@@ -574,6 +574,52 @@ mod tests {
         });
     }
 
+    /// The SJK UI's server browser over the live duel6, on made-up servers:
+    /// the list with the first server's map, numbers and players; a search
+    /// with the left column's game type taking the keys; the password prompt.
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_sjk_browser() {
+        on_big_stack(|| {
+            let menu = menu::ClientMenu::new(true, String::new());
+            let cvars = [
+                ("ui_menuStyle", "sjk"),
+                (crate::settings::quick::HIDE_CVAR, "1"),
+            ];
+            let Some((mut gpu, _profile)) =
+                open("maps/mp/duel6.bsp", [1920, 1080], Some(menu), &cvars)
+            else {
+                return;
+            };
+            let _ = frame(&mut gpu, 10);
+            if let Some(menu) = gpu.client_menu.as_mut() {
+                menu.browser_for_shot();
+            }
+            // The chosen server's levelshot decodes on its worker.
+            for _ in 0..240 {
+                let _ = frame(&mut gpu, 1);
+                if gpu
+                    .client_menu
+                    .as_ref()
+                    .is_some_and(menu::ClientMenu::browser_picture_settled)
+                {
+                    break;
+                }
+            }
+            gpu.ui_epoch -= std::time::Duration::from_millis(2_000);
+            println!("{}", shoot(&mut gpu, 4, "duel6-browser").display());
+            if let Some(menu) = gpu.client_menu.as_mut() {
+                menu.browser_search_for_shot("duel", 5);
+            }
+            println!("{}", shoot(&mut gpu, 8, "duel6-browser-search").display());
+            if let Some(menu) = gpu.client_menu.as_mut() {
+                menu.browser_search_for_shot("", 0);
+                menu.browser_password_for_shot("saber");
+            }
+            println!("{}", shoot(&mut gpu, 4, "duel6-browser-password").display());
+        });
+    }
+
     /// Hand-placed candidates for the menu's camera tour on duel6, for review.
     #[test]
     #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]

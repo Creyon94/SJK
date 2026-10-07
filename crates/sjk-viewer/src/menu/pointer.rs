@@ -9,7 +9,7 @@ const WHEEL_ROWS: i32 = 3;
 /// Two clicks on the same row this close together join it.
 const DOUBLE_CLICK: Duration = Duration::from_millis(400);
 /// Header cells left to right, indexed by `token - HEADER_TOKEN`.
-const SORT_COLUMNS: [SortColumn; 5] = [
+pub(super) const SORT_COLUMNS: [SortColumn; 5] = [
     SortColumn::Name,
     SortColumn::Map,
     SortColumn::Players,
@@ -136,6 +136,11 @@ impl ClientMenu {
         }
         if kind != UiEventKind::Activate {
             return MenuAction::None;
+        }
+        if self.menu_style == MenuStyle::Sjk
+            && let Some(action) = self.sjk_browser_pointer(token, position, console)
+        {
+            return action;
         }
         if self.activate_filter(token, console) {
             return MenuAction::None;

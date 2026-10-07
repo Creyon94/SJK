@@ -17,6 +17,7 @@
 //! of a 1080-line screen and scale with the window's height
 //! ([`crate::ui_scale::height_scale`]).
 
+pub(crate) mod browser;
 pub(crate) mod home;
 pub(crate) mod kit;
 pub(crate) mod recent;
@@ -102,6 +103,7 @@ impl ClientMenu {
         match self.state.phase() {
             super::ClientPhase::Settings => self.append_sjk_settings(target, viewport),
             super::ClientPhase::Keybinds => self.append_sjk_keys(target, viewport),
+            super::ClientPhase::Browser => self.append_sjk_browser(target, viewport),
             super::ClientPhase::Player => {
                 let reveal = self.screen_reveal();
                 self.player.append_sjk(target, viewport, reveal);
@@ -420,6 +422,62 @@ pub(crate) fn key_hint_width(keys: &[&str], action: &str, s: f32) -> f32 {
         .map(|key| (18.0 + 8.2 * key.len() as f32 + 6.0) * s)
         .sum();
     caps + 4.0 * s + (12.0 + 7.6 * action.len() as f32) * s
+}
+
+/// Where the top bar's way back starts and its middle line, in frame pixels.
+const BAR_X: f32 = 96.0;
+const BAR_Y: f32 = 87.0;
+/// The search pill at the top bar's right end.
+pub(crate) const SEARCH_PILL: [f32; 4] = [1404.0, 64.0, 420.0, 46.0];
+
+/// A screen's search pill: the typed `query` (with its cursor while
+/// `active`) or `prompt`, how many were `found` while a search is typed; it
+/// answers to `token`.
+pub(crate) struct SearchPill<'a> {
+    pub(crate) query: &'a str,
+    pub(crate) active: bool,
+    pub(crate) prompt: &'a str,
+    pub(crate) found: Option<usize>,
+    pub(crate) token: u16,
+}
+
+/// A screen's top bar: the way back (an Esc key cap and `back`, answering to
+/// `back_token`), the screen's `title`, and its search pill when it has one.
+pub(crate) fn top_bar(
+    canvas: &mut MenuCanvas,
+    frame: &Frame,
+    back: &str,
+    back_token: u16,
+    title: &str,
+    search: Option<SearchPill<'_>>,
+) {
+    let s = frame.s;
+    let [x, y] = frame.point(BAR_X, BAR_Y - 12.0);
+    let end = key_hint(canvas, &["Esc"], back, x, y, s);
+    canvas.hit_region(back_token, Rect::new(x, y, end - x, 24.0 * s));
+    let title_x = (end - frame.origin[0]) / s + 22.0;
+    text(
+        canvas,
+        TextFamily::Display,
+        format_args!("{title}"),
+        frame.rect(title_x, BAR_Y - 30.0, 600.0, 60.0),
+        48.0 * s,
+        color::TEXT,
+        FontWeight::Semibold,
+        TextAlign::Start,
+    );
+    if let Some(search) = search {
+        kit::search(
+            canvas,
+            frame,
+            SEARCH_PILL,
+            search.query,
+            search.active,
+            search.prompt,
+            search.found,
+            search.token,
+        );
+    }
 }
 
 /// The layout scale of `viewport`: 1 at 1080 lines.

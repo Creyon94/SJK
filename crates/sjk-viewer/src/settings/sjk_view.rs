@@ -15,7 +15,8 @@ use super::help;
 use super::*;
 use crate::menu::classic::panel::{CHROME_BASE, SEARCH_TOKEN};
 use crate::menu::sjk::{
-    Frame, TextTarget, color, fade_across, key_hint, key_hint_width, kit, text, wrap,
+    Frame, SEARCH_PILL, SearchPill, TextTarget, color, fade_across, key_hint, key_hint_width, kit,
+    text, wrap,
 };
 use crate::menu_widgets::TextFamily;
 use sjk_ui::{Color, DrawCommand, FontWeight, TextAlign};
@@ -31,10 +32,8 @@ pub(crate) struct Rail<'a> {
 /// The back key's target, as the settings form's back cap.
 const BACK_TOKEN: u16 = 900;
 
-/// The top bar's middle line.
-const BAR_Y: f32 = 87.0;
-/// The search pill.
-const SEARCH: [f32; 4] = [1404.0, 64.0, 420.0, 46.0];
+/// The search pill (`menu::sjk::top_bar`'s).
+const SEARCH: [f32; 4] = SEARCH_PILL;
 /// The rail's line, its first category's top and the step between them.
 const RAIL_X: f32 = 96.0;
 const RAIL_TOP: f32 = 210.0;
@@ -726,30 +725,19 @@ pub(crate) fn top_bar(
     prompt: &str,
     found: Option<usize>,
 ) {
-    let s = frame.s;
-    let [x, y] = frame.point(RAIL_X, BAR_Y - 12.0);
-    let end = key_hint(canvas, &["Esc"], "Main menu", x, y, s);
-    canvas.hit_region(BACK_TOKEN, sjk_ui::Rect::new(x, y, end - x, 24.0 * s));
-    let title_x = (end - frame.origin[0]) / s + 22.0;
-    text(
-        canvas,
-        TextFamily::Display,
-        format_args!("Settings"),
-        frame.rect(title_x, BAR_Y - 30.0, 320.0, 60.0),
-        48.0 * s,
-        color::TEXT,
-        FontWeight::Semibold,
-        TextAlign::Start,
-    );
-    kit::search(
+    crate::menu::sjk::top_bar(
         canvas,
         frame,
-        SEARCH,
-        search,
-        searching,
-        prompt,
-        found,
-        SEARCH_TOKEN,
+        "Main menu",
+        BACK_TOKEN,
+        "Settings",
+        Some(SearchPill {
+            query: search,
+            active: searching,
+            prompt,
+            found,
+            token: SEARCH_TOKEN,
+        }),
     );
 }
 

@@ -340,6 +340,28 @@ pub(crate) fn load_classic() -> Result<FontAtlas, Box<dyn Error>> {
     retail_font::load(&retail_font::HUD)
 }
 
+/// `text` without the `^<digit>` colour codes the renderer reads, written
+/// without allocating: `Plain("^1J^7oF")` shows `JoF`.
+pub(crate) struct Plain<'a>(pub(crate) &'a str);
+
+impl std::fmt::Display for Plain<'_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let mut rest = self.0;
+        while let Some(at) = rest.find('^') {
+            formatter.write_str(&rest[..at])?;
+            let after = &rest[at + 1..];
+            rest = match after.as_bytes().first() {
+                Some(code) if code.is_ascii_digit() => &after[1..],
+                _ => {
+                    formatter.write_str("^")?;
+                    after
+                }
+            };
+        }
+        formatter.write_str(rest)
+    }
+}
+
 /// Colour of the `^<digit>` code `index` (0-9), as a display value.
 ///
 /// OpenJK's `g_color_table` (`shared/qcommon/q_color.c`) at full strength: the

@@ -7,6 +7,26 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## SJK UI: Servers
+
+SJK-only branch `personal/sjk-ui-browser` (07/10/2026, based on `b0470fc`, Windows 11):
+Sol asked for the server browser in the SJK UI next. `menu::sjk::browser` draws
+the browser's state and tokens on the UI's frame ([sjk-ui.md](sjk-ui.md#servers)):
+sources and Show filters on the left, the sortable list, the chosen server's
+levelshot, numbers and players on the right, and SJK UI password and address
+prompts. Its keys go first to `sjk_browser_key` (the search, the left column),
+the rest to the shared browser keys, now `ClientMenu::browser_key`. Shared
+changes: the browser's search matches names without colour codes (all styles);
+`ServerBrowser::clear_filter` and `favorites_listed`; the game type steps both
+ways (`step_browser_mode`); the levelshot cache reports the shown image's size;
+the Settings top bar became `menu::sjk::top_bar`; a menu canvas keeps 224 text
+runs (was 160). Unit tests cover the tokens, the layout, the keys (left column,
+search, a filter switch), a 40-server list at 4K fitting the canvas and the
+password prompt; `world_shot::tests::duel6_sjk_browser` rendered the screen
+over duel6 on made-up servers. No game was started: a real master server's
+list, the status query, the levelshot loading in a running client and joining
+from it are unverified.
+
 ## Third-person camera style
 
 SJK-only branch `personal/camera-style` (07/10/2026, based on `7741498`, Windows 11):

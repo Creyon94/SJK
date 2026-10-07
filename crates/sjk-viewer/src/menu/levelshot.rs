@@ -95,6 +95,8 @@ pub(crate) struct Levelshots {
     /// The map the texture (or the placeholder) currently stands for.
     shown: String,
     shown_image: bool,
+    /// The size of the image in the texture, while one is.
+    shown_size: [u32; 2],
 }
 
 impl Levelshots {
@@ -108,6 +110,7 @@ impl Levelshots {
             wanted: String::with_capacity(64),
             shown: String::with_capacity(64),
             shown_image: false,
+            shown_size: [0; 2],
         }
     }
 
@@ -164,6 +167,7 @@ impl Levelshots {
         self.shown_image = match decoded {
             Some(image) => {
                 upload(image);
+                self.shown_size = image.size;
                 true
             }
             None => false,
@@ -204,6 +208,11 @@ impl Levelshots {
             return Preview::Missing;
         }
         Preview::Loading
+    }
+
+    /// The pixel size of `map`'s levelshot while it is the one in the texture.
+    pub(crate) fn size(&self, map: &str) -> Option<[u32; 2]> {
+        (self.shown_image && !self.shown.is_empty() && self.shown == map).then_some(self.shown_size)
     }
 }
 
@@ -299,5 +308,7 @@ mod tests {
         shots.service(|image| uploads.push(image.size));
         assert_eq!(uploads, [[512, 512]]);
         assert_eq!(shots.preview("mp/ffa3"), Preview::Image);
+        assert_eq!(shots.size("mp/ffa3"), Some([512, 512]));
+        assert_eq!(shots.size("mp/duel6"), None);
     }
 }
