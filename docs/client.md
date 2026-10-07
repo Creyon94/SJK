@@ -1527,13 +1527,18 @@ glance at the scoreboard would not: no health, Force or position.
   the screen with the subject, a text box of six wrapped lines (any printable text, up to
   500 characters), a character count, Send and Cancel; Tab moves between them. With the
   classic menus it takes the classic+ look of the in-game pop-ups, eight lines in a
-  retail list box ([identity.md](identity.md#bug-reports)). Enter or
+  retail list box ([identity.md](identity.md#bug-reports)). As it is typed the text
+  keeps the bug reports' alphabet (letters, digits, spaces and `. , ! ? ' - : ( )`), and
+  Send needs 3 characters with 2 letters. Enter or
   Send appends the note to `notes.jsonl` (one JSON object: map, UTC time,
   `setviewpos`, camera pose, hit point and normal, draw surface, collision flags,
   nearest map entity, screenshot path) and a readable line to `notes.txt` in the config
   directory, and takes a silent JPEG of the same view (`note_<unix seconds>.jpg` in the
   screenshots folder; JPEG screenshots drop the alpha channel, which the encoder
-  refused before, so `screenshotjpeg` works too). Escape or Cancel drops it. [world_notes.rs](../crates/sjk-viewer/src/world_notes.rs).
+  refused before, so `screenshotjpeg` works too). With `cl_identity` on, the note and a
+  smaller copy of the screenshot also go to the SJK hub for the SJK team, and a centre
+  print says whether it took them ([identity.md](identity.md#world-notes)). Escape or
+  Cancel drops it. [world_notes.rs](../crates/sjk-viewer/src/world_notes.rs).
 - The crosshair scan that names players under the crosshair finds the target. The card
   is anchored in the world beside the top of the player's box (the box height the server
   sends, as the nameplates use), a body width clear of them in screen pixels, so it

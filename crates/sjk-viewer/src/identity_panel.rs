@@ -821,6 +821,7 @@ mod tests {
             notice: None,
             revision: 0,
             report: None,
+            note: None,
         }
     }
 
@@ -1083,9 +1084,9 @@ mod tests {
         state.me = Some(me("Sol", "about me"));
         panel.sync(&inputs(Some(&state)));
         assert!(!panel.edited);
-        state.me = Some(me("Sol", "changed in SM"));
+        state.me = Some(me("Sol", "changed by the operator"));
         panel.sync(&inputs(Some(&state)));
-        assert_eq!(panel.bio, "changed in SM");
+        assert_eq!(panel.bio, "changed by the operator");
     }
 
     #[test]

@@ -1158,6 +1158,7 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
         notice: Some("saved".to_owned()),
         revision: 0,
         report: None,
+        note: None,
     };
     let online = hub(Status::Online, "^1Sol", &["^4Vulpes", "Padawan"]);
     let fresh = hub(Status::Online, "Padawan", &[]);

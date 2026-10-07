@@ -1406,7 +1406,7 @@ change: Verified players get a gold seal with a tick after their name on namepla
 change: cg_nameplateSelf 1 draws your own plate over your head in third person.
 test: Fresh profile, join a server: the Identity page shows your in-game name, nothing to fill.
 test: Change /name, wait a minute: the Identity page lists the old name under Also known as.
-test: Have Sol verify your key (SM or sjk-hub verify): a gold badge follows your name.
+test: Have Sol verify your key (the hub operator): a gold badge follows your name.
 test: cg_nameplateSelf 1 and third person: your plate over your head, with your real bars.
 test: Type a bio on the Identity page and Save: "Last change: saved" (needs the new hub).
 note: The new hub is committed, not deployed: until it is, worn names and bio saves fail.
@@ -1879,16 +1879,20 @@ note: Blended terrain layers over a mapped base stay flat; tell Claude if seams 
 [world-notes]
 status: personal
 area: Input
-title: World notes: inspect a surface, write a note, Claude reads it later
+title: World notes: inspect a surface, write a note, sent to the SJK team
 change: X (inspect) on a wall, floor or object names it; X again opens a note line.
-change: Enter saves the note with surface, shader, position and a screenshot (notes.jsonl).
+change: Enter saves it with shader, position and a screenshot, and sends it to the SJK hub.
+change: Only letters, digits, spaces and . , ! ? ' - : ( ) can be typed; 3 to 500 characters.
 test: Aim at a wall (no player): X shows its shader, outlines it in green dots, shades it.
 test: X again opens a Note panel mid-screen; type, Send (or Enter). Cancel or Escape drops it.
 test: Escape after the first X (no second press) drops the selection, no game menu.
 test: Type a note, Enter: console says note kept; GameData/screenshots has note_*.jpg.
 test: Aim at a door: X names the func_door and its shaders. Escape in the note drops it.
 test: On a player, X still pins their card; with a card pinned, X unpins it.
-note: Notes go to GameData/SJK/notes.jsonl and notes.txt: tell Claude to read them.
+test: After Enter a centre print says Note sent to the SJK team (note number) or why not.
+test: The note shows in the hub's notes list with its picture and setviewpos.
+test: cl_identity 0: the note is still kept on the PC; nothing goes to the hub.
+note: Notes go to GameData/SJK/notes.jsonl and notes.txt too: tell Claude to read them.
 
 [bug-report]
 status: personal

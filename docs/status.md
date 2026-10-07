@@ -7,6 +7,22 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## World notes sent to the hub
+
+SJK-only branch `personal/hub-notes` (07/10/2026, based on `57fcc62`, Windows 11):
+Sol asked for world notes to reach the hub so players can send them too. The note
+dialog keeps the bug reports' alphabet; Send checks the hub's note rules
+(`sjk_identity::report::note_text`). Saving a note still writes `notes.jsonl`,
+`notes.txt` and the full screenshot, and with the identity on also sends a
+`WorldNote` (`POST /v1/note`) through the identity service; the screenshot writer
+makes a smaller JPEG (`capture::preview_jpeg`) that follows with
+`PUT /v1/note/<id>/image` ([identity.md](identity.md#world-notes)). The hub side
+(notes table, pictures, quotas, operator routes) is in the hub repository. Unit tests
+cover the note rules, the service sending a note and only its own picture, the
+preview's size and the dialog; the sjk-viewer tests passed, and the `hub_e2e` note
+test passed against a local hub. No game was started: the whole flow in a running
+client (dialog, centre print, picture upload) is unverified.
+
 ## SJK UI: What's new, Update and Identity
 
 SJK-only branch `personal/sjk-ui-pages` (07/10/2026, based on `57fcc62`, Windows 11):

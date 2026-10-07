@@ -30,6 +30,7 @@ impl GpuState {
         self.load_event_gap.observe(Instant::now());
         self.poll_console_screenshot();
         self.poll_bug_report();
+        self.poll_world_note();
         self.run_console_command_buffer(game_audio);
         self.sync_runtime_cvars();
         self.update_input_motion();

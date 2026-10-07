@@ -6,7 +6,9 @@
 //! [`CONFIRM_MS`] confirms the selection and opens a note line in the chat composer.
 //! Enter appends the note with the selection to `notes.jsonl` (one JSON object per
 //! line) and a readable line to `notes.txt` in the config directory, and takes a
-//! JPEG screenshot of the same view named after the note. Escape drops the note.
+//! JPEG screenshot of the same view named after the note. With the SJK identity on,
+//! the note also goes to the hub for the SJK team (`PROTOCOL.md` in the hub, "World
+//! notes"), followed by a smaller copy of the screenshot. Escape drops the note.
 //!
 //! While a selection waits or its note is written, its outline is drawn over the view
 //! as flickering green dots along the surface's triangle edges (a mover's bounds),
@@ -119,18 +121,60 @@ impl Selection {
         format!("{what}, {:.0} units", self.distance)
     }
 
+    /// The note `text` about this selection as the hub takes it; the build and the
+    /// server are the caller's to fill.
+    fn world_note(&self, text: String) -> sjk_identity::WorldNote {
+        use sjk_identity::report::field;
+        let shader = match (&self.surface, &self.entity) {
+            (Some(surface), _) => surface.shader.as_str(),
+            (None, Some(entity)) => entity.shaders.first().map_or("", String::as_str),
+            (None, None) => "",
+        };
+        let vector = |v: Vec3| [v.x, v.y, v.z];
+        sjk_identity::WorldNote {
+            text,
+            map: field(&self.map, 64),
+            view: Some([
+                self.eye.x.round(),
+                self.eye.y.round(),
+                (self.eye.z - VIEW_HEIGHT).round(),
+                self.yaw().round(),
+            ]),
+            hit: Some(vector(self.hit)),
+            normal: Some(vector(self.normal)),
+            shader: field(shader, 64),
+            surface: self
+                .surface
+                .as_ref()
+                .and_then(|s| u32::try_from(s.index).ok()),
+            lighting: self
+                .surface
+                .as_ref()
+                .map_or_else(String::new, |s| lighting(s.lightmap).to_owned()),
+            distance: Some(self.distance.round()),
+            entity: self
+                .entity
+                .as_ref()
+                .map_or_else(String::new, |e| field(&e.classname, 64)),
+            ..sjk_identity::WorldNote::default()
+        }
+    }
+
+    fn yaw(&self) -> f32 {
+        self.forward
+            .y
+            .atan2(self.forward.x)
+            .to_degrees()
+            .rem_euclid(360.0)
+    }
+
     fn fresh(&self, now: Instant) -> bool {
         now.duration_since(self.selected).as_millis() <= CONFIRM_MS
     }
 
     /// `setviewpos` that puts the eye back where the selection was made.
     fn setviewpos(&self) -> String {
-        let yaw = self
-            .forward
-            .y
-            .atan2(self.forward.x)
-            .to_degrees()
-            .rem_euclid(360.0);
+        let yaw = self.yaw();
         format!(
             "setviewpos {:.0} {:.0} {:.0} {:.0}",
             self.eye.x,
@@ -499,6 +543,10 @@ pub(crate) struct Notes {
     /// The selection's shade for this frame, drawn under the outline.
     fill: sjk_ui::DrawList,
     started: Instant,
+    /// A note went to the identity service and its outcome is not shown yet.
+    sent_waiting: bool,
+    /// The serial of the last outcome shown.
+    sent_serial: u64,
 }
 
 impl Default for Notes {
@@ -510,6 +558,8 @@ impl Default for Notes {
             highlight: sjk_ui::DrawList::new(HIGHLIGHT_DOTS),
             fill: sjk_ui::DrawList::new(FILL_STRIPS),
             started: Instant::now(),
+            sent_waiting: false,
+            sent_serial: 0,
         }
     }
 }
@@ -695,14 +745,15 @@ impl Notes {
     }
 
     /// Save `note` about the confirmed selection into `directory`, returning the
-    /// screenshot name to take (without extension; it lands in `screenshots`) and a
-    /// line for the console.
+    /// screenshot name to take (without extension; it lands in `screenshots`), a line
+    /// for the console and the note for the hub (`None` when the hub would refuse its
+    /// text).
     pub(crate) fn save(
         &mut self,
         note: &str,
         directory: &Path,
         screenshots: &Path,
-    ) -> Option<(String, String)> {
+    ) -> Option<(String, String, Option<sjk_identity::WorldNote>)> {
         let selection = self.writing.take()?;
         let note = note.trim();
         if note.is_empty() {
@@ -726,13 +777,36 @@ impl Notes {
         );
         let written = append(&directory.join("notes.jsonl"), &json.to_string())
             .and_then(|()| append(&directory.join("notes.txt"), &line));
+        let hub = sjk_identity::report::note_text(note)
+            .ok()
+            .map(|text| selection.world_note(text));
         Some((
             shot,
             match written {
                 Ok(()) => format!("note kept: {line}"),
                 Err(error) => format!("^1note not kept in {}: {error}", directory.display()),
             },
+            hub,
         ))
+    }
+
+    /// Once a frame: show the outcome of a note sent to the hub.
+    fn poll_sent(&mut self) -> Option<String> {
+        if !self.sent_waiting {
+            return None;
+        }
+        let outcome = crate::player_identity::note_outcome()
+            .filter(|outcome| outcome.serial != self.sent_serial)?;
+        self.sent_serial = outcome.serial;
+        self.sent_waiting = false;
+        Some(if outcome.sent {
+            format!(
+                "Note sent to the SJK team ({}). Thank you!",
+                outcome.message
+            )
+        } else {
+            format!("Note kept on this PC, not sent: {}", outcome.message)
+        })
     }
 }
 
@@ -781,17 +855,46 @@ impl crate::GpuState {
         else {
             return;
         };
-        let Some((shot, line)) =
+        let Some((shot, line, hub)) =
             self.world_notes
                 .save(note, &directory, self.screenshots.directory())
         else {
             return;
         };
+        let tag = hub.and_then(|mut hub| {
+            hub.build = crate::build_info::VERSION.to_owned();
+            hub.server = self
+                .live_session
+                .as_ref()
+                .filter(|session| !session.is_local())
+                .map(|session| session.server().to_string())
+                .unwrap_or_default();
+            crate::player_identity::note(hub)
+        });
+        self.world_notes.sent_waiting |= tag.is_some();
         self.screenshots
-            .request(crate::screenshot::Request::jpeg_named(&shot));
+            .request(crate::screenshot::Request::jpeg_named(&shot).for_note(tag));
         crate::log::progress(format_args!("{line}"));
         if let Some(console) = &mut self.console {
             console.push_log(line);
+        }
+    }
+}
+
+impl crate::GpuState {
+    /// Once a frame: show the outcome of a note sent to the hub.
+    pub(crate) fn poll_world_note(&mut self) {
+        if let Some(message) = self.world_notes.poll_sent() {
+            crate::log::progress(format_args!("{message}"));
+            if let Some(console) = &mut self.console {
+                console.push_log(message.clone());
+            }
+            self.chat.receive(
+                sjk_client::ServerEventKind::CenterPrint,
+                message,
+                None,
+                Instant::now(),
+            );
         }
     }
 }
@@ -951,15 +1054,24 @@ mod tests {
             triangles: Vec::new(),
             selected: Instant::now(),
         });
-        let (shot, line) = notes
-            .save("  too shiny  ", &directory, &directory)
+        let (shot, line, hub) = notes
+            .save("  too   shiny  ", &directory, &directory)
             .expect("saved");
+        let hub = hub.expect("the hub takes it");
+        assert_eq!(hub.text, "too shiny");
+        assert_eq!(hub.view, Some([10.0, 20.0, 40.0, 90.0]));
+        assert_eq!(hub.shader, "textures/imperial/basic_floor");
+        assert_eq!(
+            (hub.surface, hub.lighting.as_str()),
+            (Some(7), "lightmapped")
+        );
+        assert_eq!(hub.map, "maps/mp/ffa3.bsp");
         assert!(shot.starts_with("note_"));
         assert!(line.contains("setviewpos 10 20 40 90"), "{line}");
         assert!(line.contains("textures/imperial/basic_floor (surface 7, lightmapped)"));
         let json = std::fs::read_to_string(directory.join("notes.jsonl")).expect("jsonl");
         let value: serde_json::Value = serde_json::from_str(json.trim()).expect("json");
-        assert_eq!(value["note"], "too shiny");
+        assert_eq!(value["note"], "too   shiny");
         assert_eq!(value["surface"]["shader"], "textures/imperial/basic_floor");
         let shot_path = directory.join(format!("{shot}.jpg")).display().to_string();
         assert_eq!(value["screenshot"], shot_path);
