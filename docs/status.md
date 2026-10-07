@@ -80,6 +80,30 @@ and the dialog, on a made-up roster, reviewed. No game was started and no server
 the roster, scores and hub marks on a real server, Escape, keys and pointer on these
 pages in a running client, and the outcome's centre print are unverified.
 
+## SJK UI: console designs and selectable browser text
+
+SJK-only branch `personal/console-style` (08/10/2026, based on `7a85516`,
+Windows 11): Sol asked for the console in the SJK UI's look, its text
+selectable with the mouse and copied with Ctrl+C, the same in the F3 command
+browser, and several designs to choose from. `con_style` gained `sjk` (deck),
+`horizon` and `dock`, the classic console's grid and keys in the SJK UI's
+colours and families ([client.md](client.md#sjk-ui-consoles)), and `auto`, the
+new default (the deck with the SJK UI's menus, else classic; a saved `classic`
+moves once to `auto`, `con_styleDefaultVersion`). The console's layer gained
+fades and the SJK UI's family text runs; the scrollback's mouse selection,
+double click and Ctrl+C were already there and now draw in gold, with "Copied"
+in the header. The browser (F3) has an SJK UI look whose detail column's text
+is selectable (`text_select.rs`), and Ctrl+C in every look copies the selection
+or the chosen entry as a console line. Unit tests cover the cvar's values and
+move, the grid, caret and ghost completion, and the selection's drag, double
+click, joins and reset; the release sjk-viewer tests passed (973).
+`world_shot::tests::duel6_console_styles` and `duel6_console_browser_sjk`
+rendered every look over mp/duel6 with made-up scrollback, a drag selection and
+a ghost completion, at 1080 lines and the deck at 4K. Not verified: no game was
+started, so real typing, dragging, the clipboard, the opening slide, `con_scale`
+and `con_opacity` with these looks, narrow windows and the families' first load
+are untested in a running client.
+
 ## SJK UI: coloured names and the browser's sort mark
 
 SJK-only branch `personal/sjk-ui-browser-colours` (07/10/2026, Windows 11): Sol

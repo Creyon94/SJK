@@ -310,6 +310,15 @@ impl GameFonts {
         self.console.as_ref().map(|layer| &layer.font)
     }
 
+    /// The SJK UI's display and body families' atlases, each with whether it
+    /// is a distance field, once loaded (the SJK UI's console designs draw
+    /// their labels with them on the console's layer).
+    pub(crate) fn sjk_atlases(&self) -> Option<[(&wgpu::BindGroup, bool); 2]> {
+        self.sjk.as_ref().map(|layers| {
+            [&layers.display, &layers.body].map(|layer| (&layer.bind_group, layer.distance_field))
+        })
+    }
+
     /// The console font's atlas and whether it is a distance field.
     pub(crate) fn console_atlas(&self) -> Option<(&wgpu::BindGroup, bool)> {
         self.console
@@ -486,7 +495,7 @@ fn target<'a>(
 /// Call before any text is appended.
 pub(crate) fn prepare(gpu: &mut GpuState) {
     let enabled = enabled(gpu.console.as_ref());
-    let console = classic_console(gpu.console.as_ref());
+    let console = grid_console(gpu.console.as_ref());
     let fonts = &mut gpu.game_fonts;
     fonts.enabled = enabled;
     for layer in fonts.layers_mut() {
@@ -523,19 +532,28 @@ pub(crate) fn sjk_ui(console: Option<&crate::console::ViewerConsole>) -> bool {
 }
 
 /// Whether something `console` has on draws in the SJK UI's families: the SJK
-/// UI's menus, or its scoreboard chosen on its own (`cg_scoreboardStyle sjk`).
+/// UI's menus, its scoreboard or its console chosen on their own
+/// (`cg_scoreboardStyle sjk`, `con_style sjk`).
 fn sjk_families(console: Option<&crate::console::ViewerConsole>) -> bool {
     sjk_ui(console)
         || crate::scoreboard::style::ScoreboardStyle::from_console(console)
             == crate::scoreboard::style::ScoreboardStyle::Sjk
+        || console.is_some_and(|console| console.console_style().sjk().is_some())
 }
 
-/// Whether `console` draws the classic console, which needs the console
-/// character set whatever `ui_gameFont` says.
+/// Whether `console` draws the classic console, whose background is the
+/// `console` shader and whose command browser is classic+.
 pub(crate) fn classic_console(console: Option<&crate::console::ViewerConsole>) -> bool {
     console.is_some_and(|console| {
         console.console_style() == crate::console::console_options::ConsoleStyle::Classic
     })
+}
+
+/// Whether `console` draws a grid console on its own layer (the classic one or
+/// one of the SJK UI's designs), which needs the console font whatever
+/// `ui_gameFont` says.
+pub(crate) fn grid_console(console: Option<&crate::console::ViewerConsole>) -> bool {
+    console.is_some_and(|console| console.console_style().is_grid())
 }
 
 /// Whether the option is on in `console`, for preloading a world's fonts.

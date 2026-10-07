@@ -4,6 +4,24 @@ use super::*;
 
 /// Archived cvar naming the console style.
 pub(crate) const STYLE_CVAR: &str = "con_style";
+/// Internal marker of the one-time move of a saved `classic` to `auto`.
+pub(crate) const STYLE_VERSION_CVAR: &str = "con_styleDefaultVersion";
+
+/// One of the SJK UI's console designs (`con_style sjk`, `horizon`, `dock`):
+/// the classic console's grid, keys and behaviour in the SJK UI's colours and
+/// type ([`super::sjk`]).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum SjkDesign {
+    /// A full-width navy panel with a header, a framed input band and a lit
+    /// rail along its bottom edge. What `auto` gives with the SJK UI's menus.
+    Deck,
+    /// No panel: the navy fades out downwards over the game and the input
+    /// sits on a gold horizon line that fades towards the screen's sides.
+    Horizon,
+    /// A card floating inside the screen's edges, outlined, with a gold rail
+    /// down its left side and a framed input field.
+    Dock,
+}
 
 /// How the console looks and behaves (`con_style`).
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -12,24 +30,56 @@ pub(crate) enum ConsoleStyle {
     Modern,
     /// After EternalJK (`cl_console.cpp`): the `console` shader's background,
     /// a monospaced character grid, timestamps, a clock and the version line.
-    /// SJK's default.
+    /// What `auto` gives with the classic or modern menus.
     #[default]
     Classic,
+    /// The classic console's grid and behaviour drawn in the SJK UI's look.
+    Sjk(SjkDesign),
 }
 
 impl ConsoleStyle {
-    /// Values the settings screen offers, in [`ConsoleStyle`] order.
-    pub(crate) const NAMES: [&'static str; 2] = ["modern", "classic"];
-    /// The `con_style` value of the default style.
-    pub(crate) const DEFAULT_NAME: &'static str = Self::NAMES[1];
+    /// Values the settings screen offers: `auto` first, then each look.
+    pub(crate) const NAMES: [&'static str; 6] =
+        ["auto", "sjk", "horizon", "dock", "classic", "modern"];
+    /// The `con_style` value of a new profile: follow the menu style.
+    pub(crate) const DEFAULT_NAME: &'static str = Self::NAMES[0];
 
-    /// Read the cvar value: `modern` (any case) or `0` selects the modern
-    /// console; anything else, a missing or mistyped value included, the
-    /// default classic one.
-    pub(crate) fn from_cvar(value: Option<&str>) -> Self {
-        match value.map(str::trim) {
-            Some(text) if text.eq_ignore_ascii_case("modern") || text == "0" => Self::Modern,
-            _ => Self::Classic,
+    /// The look the cvar `value` gives; `sjk_menus` is whether the menus are
+    /// the SJK UI (`ui_menuStyle sjk`). `modern` (any case) or `0` is the
+    /// modern console, `classic` the classic one, `sjk`, `horizon` and `dock`
+    /// the SJK UI's designs; `auto`, no value or a mistyped one follow the
+    /// menus: the SJK UI's deck with its menus, the classic console otherwise.
+    pub(crate) fn resolve(value: Option<&str>, sjk_menus: bool) -> Self {
+        let text = value.map(str::trim).unwrap_or_default();
+        let is = |name: &str| text.eq_ignore_ascii_case(name);
+        if is("modern") || text == "0" {
+            Self::Modern
+        } else if is("classic") {
+            Self::Classic
+        } else if is("sjk") {
+            Self::Sjk(SjkDesign::Deck)
+        } else if is("horizon") {
+            Self::Sjk(SjkDesign::Horizon)
+        } else if is("dock") {
+            Self::Sjk(SjkDesign::Dock)
+        } else if sjk_menus {
+            Self::Sjk(SjkDesign::Deck)
+        } else {
+            Self::Classic
+        }
+    }
+
+    /// Whether the console is drawn on its own layer as a character grid with
+    /// EternalJK's keys: the classic console and the SJK UI's designs.
+    pub(crate) const fn is_grid(self) -> bool {
+        matches!(self, Self::Classic | Self::Sjk(_))
+    }
+
+    /// The SJK UI's design, when this is one.
+    pub(crate) const fn sjk(self) -> Option<SjkDesign> {
+        match self {
+            Self::Sjk(design) => Some(design),
+            _ => None,
         }
     }
 }
@@ -106,7 +156,14 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         STYLE_CVAR,
         ConsoleStyle::DEFAULT_NAME,
         CvarFlags::ARCHIVE,
-        "Console style: classic (after EternalJK) or modern",
+        "Console style: auto (the SJK UI's with its menus, else classic), sjk, horizon, \
+         dock, classic (after EternalJK) or modern",
+    ))?;
+    cvars.register(CvarDefinition::new(
+        STYLE_VERSION_CVAR,
+        0_i64,
+        CvarFlags::ARCHIVE,
+        "Internal migration marker for the auto console style default",
     ))?;
     for (name, value, help) in [
         ("con_notifylines", 3_i64, "Maximum visible notify lines"),
@@ -145,7 +202,12 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
 impl ViewerConsole {
     /// The player's `con_style`.
     pub(crate) fn console_style(&self) -> ConsoleStyle {
-        ConsoleStyle::from_cvar(self.text_value(STYLE_CVAR))
+        let menus =
+            crate::menu::style::MenuStyle::from_cvar(self.text_value(crate::menu::style::CVAR));
+        ConsoleStyle::resolve(
+            self.text_value(STYLE_CVAR),
+            menus == crate::menu::style::MenuStyle::Sjk,
+        )
     }
 
     pub(super) fn options(&self) -> Options {
@@ -247,26 +309,70 @@ mod tests {
     }
 
     #[test]
-    fn console_style_defaults_to_classic_and_reads_modern() {
-        assert_eq!(ConsoleStyle::from_cvar(None), ConsoleStyle::Classic);
+    fn auto_and_mistyped_values_follow_the_menus() {
+        for value in [None, Some("auto"), Some(" AUTO "), Some("modren")] {
+            assert_eq!(ConsoleStyle::resolve(value, false), ConsoleStyle::Classic);
+            assert_eq!(
+                ConsoleStyle::resolve(value, true),
+                ConsoleStyle::Sjk(SjkDesign::Deck)
+            );
+        }
         assert_eq!(
-            ConsoleStyle::from_cvar(Some("classic")),
-            ConsoleStyle::Classic
-        );
-        assert_eq!(
-            ConsoleStyle::from_cvar(Some(" Modern ")),
-            ConsoleStyle::Modern
-        );
-        assert_eq!(ConsoleStyle::from_cvar(Some("0")), ConsoleStyle::Modern);
-        // A typo keeps the default rather than an unexpected console.
-        assert_eq!(
-            ConsoleStyle::from_cvar(Some("modren")),
-            ConsoleStyle::Classic
-        );
-        assert_eq!(
-            ConsoleStyle::from_cvar(Some(ConsoleStyle::DEFAULT_NAME)),
+            ConsoleStyle::resolve(Some(ConsoleStyle::DEFAULT_NAME), false),
             ConsoleStyle::default()
         );
+    }
+
+    #[test]
+    fn a_named_look_wins_over_the_menus() {
+        for menus in [false, true] {
+            let resolve = |value| ConsoleStyle::resolve(Some(value), menus);
+            assert_eq!(resolve("classic"), ConsoleStyle::Classic);
+            assert_eq!(resolve(" Modern "), ConsoleStyle::Modern);
+            assert_eq!(resolve("0"), ConsoleStyle::Modern);
+            assert_eq!(resolve("sjk"), ConsoleStyle::Sjk(SjkDesign::Deck));
+            assert_eq!(resolve("Horizon"), ConsoleStyle::Sjk(SjkDesign::Horizon));
+            assert_eq!(resolve("dock"), ConsoleStyle::Sjk(SjkDesign::Dock));
+        }
+    }
+
+    #[test]
+    fn offered_names_parse_to_distinct_looks() {
+        let looks = ConsoleStyle::NAMES[1..]
+            .iter()
+            .map(|name| ConsoleStyle::resolve(Some(name), false))
+            .collect::<Vec<_>>();
+        for (index, look) in looks.iter().enumerate() {
+            assert!(!looks[..index].contains(look), "{look:?} twice");
+            assert_eq!(look.is_grid(), *look != ConsoleStyle::Modern);
+        }
+    }
+
+    /// The registered default, a saved `classic` from before `auto` existed and
+    /// a classic chosen afterwards.
+    #[test]
+    fn a_saved_classic_moves_once_to_auto() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("config.cfg");
+        let mut console = ViewerConsole::new(path.clone()).unwrap();
+        assert_eq!(console.text_value(STYLE_CVAR), Some("auto"));
+        assert_eq!(console.console_style(), ConsoleStyle::Sjk(SjkDesign::Deck));
+        console.set_cvar(crate::menu::style::CVAR, "classic");
+        assert_eq!(console.console_style(), ConsoleStyle::Classic);
+        drop(console);
+        std::fs::write(
+            &path,
+            "seta ui_menuStyle \"sjk\"\nseta con_style \"classic\"\n",
+        )
+        .unwrap();
+        let mut console = ViewerConsole::new(path.clone()).unwrap();
+        assert_eq!(console.text_value(STYLE_CVAR), Some("auto"));
+        assert_eq!(console.console_style(), ConsoleStyle::Sjk(SjkDesign::Deck));
+        assert!(console.set_cvar(STYLE_CVAR, "classic"));
+        drop(console);
+        let console = ViewerConsole::new(path).unwrap();
+        assert_eq!(console.text_value(STYLE_CVAR), Some("classic"));
+        assert_eq!(console.console_style(), ConsoleStyle::Classic);
     }
 
     #[test]

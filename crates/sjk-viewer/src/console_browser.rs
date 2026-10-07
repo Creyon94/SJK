@@ -1,7 +1,10 @@
 //! Searchable browser of console commands and cvars, opened with F3 in the open console
 //! or with `consolebrowser`: names, descriptions, cvar values and defaults, and inline
-//! editing of the selected cvar. Drawing is in `console_browser_view.rs`, and in
-//! `console_browser_classic.rs` for the classic+ look the classic console uses.
+//! editing of the selected cvar. Drawing is in `console_browser_view.rs`, in
+//! `console_browser_classic.rs` for the classic+ look the classic console uses, and
+//! in `console_browser_sjk.rs` for the SJK UI's look its console designs use, where
+//! the chosen entry's text can be selected with the mouse. Ctrl+C copies that
+//! selection, or else the chosen entry as a console line (`name value`).
 
 use crate::menu::art::ArtSet;
 use crate::menu_widgets::MenuCanvas;
@@ -13,6 +16,8 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 pub(crate) mod classic;
 #[path = "console_browser_pointer.rs"]
 mod pointer;
+#[path = "console_browser_sjk.rs"]
+mod sjk;
 #[path = "console_browser_view.rs"]
 mod view;
 
@@ -38,6 +43,18 @@ pub(crate) enum BrowserAction {
     Reset(String),
     /// Close the browser and start a console line with the command.
     Insert(String),
+}
+
+/// How the browser is drawn, after the console's style.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) enum Look {
+    /// JKR's: a hero header, tabs and two-line rows (`con_style modern`).
+    #[default]
+    Modern,
+    /// Classic+: a retail pop-up box (`con_style classic`).
+    Classic,
+    /// The SJK UI's, with its families (`con_style sjk`, `horizon`, `dock`).
+    Sjk,
 }
 
 /// What one entry names.
@@ -112,10 +129,14 @@ pub(crate) struct Browser {
     status: String,
     status_error: bool,
     ui: MenuCanvas,
-    /// Draw the classic+ look ([`classic`]) rather than the modern one.
-    classic: bool,
+    /// How it is drawn.
+    look: Look,
     /// The retail menu art the classic+ look can draw.
     art: ArtSet,
+    /// What each filter shows for the search, for the SJK UI's rail.
+    tab_counts: [usize; TABS.len()],
+    /// Text selected with the mouse in the SJK UI's detail column.
+    select: crate::text_select::TextSelect,
 }
 
 impl Browser {
@@ -134,15 +155,19 @@ impl Browser {
             status: String::new(),
             status_error: false,
             ui: MenuCanvas::with_text_capacity(256),
-            classic: false,
+            look: Look::Modern,
             art: ArtSet::default(),
+            tab_counts: [0; TABS.len()],
+            select: crate::text_select::TextSelect::default(),
         }
     }
 
-    /// Choose the look: the classic+ one with the retail `art` it can draw, or the
-    /// modern one.
-    pub(crate) fn set_look(&mut self, classic: bool, art: ArtSet) {
-        self.classic = classic;
+    /// Choose the look, and the retail `art` the classic+ one can draw.
+    pub(crate) fn set_look(&mut self, look: Look, art: ArtSet) {
+        if look != self.look {
+            self.select.clear();
+        }
+        self.look = look;
         self.art = art;
     }
 
@@ -156,7 +181,28 @@ impl Browser {
 
     /// Whether the classic+ look is drawn, so its text can use the retail font.
     pub(crate) fn is_classic(&self) -> bool {
-        self.classic
+        self.look == Look::Classic
+    }
+
+    /// Whether the SJK UI's look is drawn, in its families.
+    pub(crate) fn is_sjk(&self) -> bool {
+        self.look == Look::Sjk
+    }
+
+    /// Select text of the detail column for a world shot: a drag from the
+    /// detail's name (`from`, `to` in window pixels).
+    #[cfg(test)]
+    pub(crate) fn drag_for_shot(&mut self, from: sjk_ui::Vec2, to: sjk_ui::Vec2) {
+        use sjk_ui::{InputEvent, PointerButton};
+        self.select.pointer(InputEvent::PointerPress {
+            position: from,
+            button: PointerButton::Primary,
+        });
+        self.select.pointer(InputEvent::PointerMove(to));
+        self.select.pointer(InputEvent::PointerRelease {
+            position: to,
+            button: PointerButton::Primary,
+        });
     }
 
     pub(crate) fn is_open(&self) -> bool {
@@ -174,6 +220,7 @@ impl Browser {
     pub(crate) fn close(&mut self) {
         self.open = false;
         self.editing = None;
+        self.select.clear();
     }
 
     pub(crate) fn draw_list(&self) -> &sjk_ui::DrawList {
@@ -216,6 +263,16 @@ impl Browser {
     /// Apply the tab and search, then select `keep` again if it is still shown.
     fn rebuild_visible(&mut self, keep: Option<&str>) {
         let query = self.filter.to_lowercase();
+        self.tab_counts = [0; TABS.len()];
+        for entry in self
+            .entries
+            .iter()
+            .filter(|entry| entry.rank(&query).is_some())
+        {
+            for (tab, count) in self.tab_counts.iter_mut().enumerate() {
+                *count += usize::from(entry.in_tab(tab));
+            }
+        }
         let mut ranked = self
             .entries
             .iter()
@@ -316,6 +373,27 @@ impl Browser {
         self.activate()
     }
 
+    /// Ctrl+C: copy the text selected with the mouse, or else the chosen entry
+    /// as a console line, and say so in the footer.
+    fn copy(&mut self) -> BrowserAction {
+        let text = match self.select.selected() {
+            Some(text) => text,
+            None => match self.selected_entry() {
+                Some(entry) => entry_line(entry),
+                None => return BrowserAction::None,
+            },
+        };
+        super::clipboard::copy(&text);
+        let characters = text.chars().count();
+        let shown = if characters <= 48 {
+            format!("Copied {text}")
+        } else {
+            format!("Copied {characters} characters")
+        };
+        self.set_status(shown.replace('\n', " "), false);
+        BrowserAction::None
+    }
+
     /// Cancel only the edit first; otherwise return to the console.
     fn cancel(&mut self) -> BrowserAction {
         if self.editing.take().is_some() {
@@ -343,14 +421,34 @@ impl Browser {
         }
     }
 
-    /// Handle a key while the browser is open; `shift` is the console's Shift state.
-    pub(crate) fn handle_key(&mut self, event: &KeyEvent, shift: bool) -> BrowserAction {
+    /// Handle a key while the browser is open; `shift` and `control` are the
+    /// console's Shift and Ctrl states.
+    pub(crate) fn handle_key(
+        &mut self,
+        event: &KeyEvent,
+        shift: bool,
+        control: bool,
+    ) -> BrowserAction {
         if event.state != ElementState::Pressed {
             return BrowserAction::None;
         }
         let PhysicalKey::Code(key) = event.physical_key else {
             return BrowserAction::None;
         };
+        // Ctrl+C arrives as its control character where the platform reports
+        // one (following the layout), otherwise as the held Ctrl and the letter.
+        let copy = event.text.as_deref() == Some("\u{3}")
+            || (control
+                && matches!(&event.logical_key, winit::keyboard::Key::Character(text)
+                    if text.eq_ignore_ascii_case("c")))
+            || (control && key == KeyCode::Insert);
+        if copy {
+            return if event.repeat {
+                BrowserAction::None
+            } else {
+                self.copy()
+            };
+        }
         if let Some(value) = &mut self.editing {
             match key {
                 KeyCode::Escape => return self.cancel(),
@@ -395,6 +493,18 @@ impl Browser {
             _ => {}
         }
         BrowserAction::None
+    }
+}
+
+/// The entry as a console line: a command's name, or a cvar's name and value
+/// (quoted when it is empty or has spaces), ready to paste.
+fn entry_line(entry: &Entry) -> String {
+    match &entry.kind {
+        Kind::Command(_) => entry.name.clone(),
+        Kind::Cvar { value, .. } if value.is_empty() || value.contains(char::is_whitespace) => {
+            format!("{} \"{value}\"", entry.name)
+        }
+        Kind::Cvar { value, .. } => format!("{} {value}", entry.name),
     }
 }
 

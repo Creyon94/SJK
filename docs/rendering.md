@@ -1869,7 +1869,11 @@ console stays on top. The classic console (`con_style classic`, see
 [client.md](client.md#classic-console)) goes further: its background, bar and
 text are a layer of their own
 ([console_backdrop.rs](../crates/sjk-viewer/src/console_backdrop.rs)) drawn after
-every other 2D element, so text under an opaque console is hidden.
+every other 2D element, so text under an opaque console is hidden. The SJK UI's
+console designs ([client.md](client.md#sjk-ui-consoles)) draw on the same layer:
+vertical and horizontal fades (quads with a colour per corner) under its solid
+quads, and labels in the SJK UI's two families after the console's own text,
+from one vertex buffer drawn in three runs, each with its atlas.
 
 Before the bundled fonts, the retail atlases (256–512 texels on the long side)
 were converted at load into signed distance fields by

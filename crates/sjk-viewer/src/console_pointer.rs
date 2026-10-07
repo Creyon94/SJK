@@ -20,7 +20,18 @@ impl ViewerConsole {
             self.browser_action(action);
             return;
         }
-        if self.console_style() == super::console_options::ConsoleStyle::Classic {
+        if self.console_style().is_grid() {
+            // The SJK UI's designs open the command browser from its hint or tab.
+            if let InputEvent::PointerPress {
+                position,
+                button: sjk_ui::PointerButton::Primary,
+            } = event
+                && self.classic.sjk.opens_browser(position)
+            {
+                self.selection.clear();
+                self.browser.open(&self.shell);
+                return;
+            }
             // `Console_Key`: the wheel pages like Page Up/Down (Ctrl five times
             // as far), and with Shift walks the history.
             if let InputEvent::PointerWheel { delta, .. } = event {

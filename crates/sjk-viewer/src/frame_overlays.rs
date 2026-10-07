@@ -177,6 +177,7 @@ impl GpuState {
                 sdf_pipeline: &self.sdf_text_pipeline,
                 inter: &self.text_bind_group,
                 console: self.game_fonts.console_atlas(),
+                families: self.game_fonts.sjk_atlases(),
             },
         );
         drop(pass);

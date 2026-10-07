@@ -72,6 +72,7 @@ mod editing;
 pub(crate) mod line_edit;
 #[path = "console_selection.rs"]
 mod selection;
+pub(crate) use selection::{floor_boundary, push_uncoloured};
 #[path = "console_socket.rs"]
 mod socket;
 
@@ -556,7 +557,7 @@ impl ViewerConsole {
             return;
         }
         let options = self.options();
-        if options.style == console_options::ConsoleStyle::Classic {
+        if options.style.is_grid() {
             // Drawn on its own layer by `append_classic`.
             self.presentation.clear(viewport);
             return;
@@ -597,10 +598,15 @@ impl ViewerConsole {
     }
 
     /// The command browser follows the console style: the classic console's is
-    /// drawn classic+, with the retail menu `art` it can use.
+    /// drawn classic+, with the retail menu `art` it can use, the SJK UI's
+    /// designs' in its look.
     pub(crate) fn set_browser_art(&mut self, art: crate::menu::art::ArtSet) {
-        let classic = self.console_style() == console_options::ConsoleStyle::Classic;
-        self.browser.set_look(classic, art);
+        let look = match self.console_style() {
+            console_options::ConsoleStyle::Classic => browser::Look::Classic,
+            console_options::ConsoleStyle::Sjk(_) => browser::Look::Sjk,
+            console_options::ConsoleStyle::Modern => browser::Look::Modern,
+        };
+        self.browser.set_look(look, art);
     }
 
     /// The changelog page follows the menu style: classic+ with the classic
@@ -613,6 +619,48 @@ impl ViewerConsole {
     /// the retail menu `art` it can use.
     pub(crate) fn set_identity_look(&mut self, classic: bool, art: crate::menu::art::ArtSet) {
         self.identity_panel.set_look(classic, art);
+    }
+
+    /// Fill the console for a world shot: open it on made-up scrollback (a
+    /// start, a server's status, chat, an error) with `typed` in the input.
+    #[cfg(test)]
+    pub(crate) fn console_for_shot(&mut self, typed: &str) {
+        self.shell.clear_lines();
+        for line in [
+            "^5Sol JK console ready. ^7Type cmdlist for commands.",
+            "Loading maps/mp/duel6.bsp",
+            "map: mp/duel6, 2 surfaces sorted, 12 lights",
+            "]connect 135.125.145.49:29070",
+            "Connecting to 135.125.145.49:29070...",
+            "^7Joined ^5J^7o^5F ^7| ^3JA+ Duel ^7| ^2EU",
+            "]status",
+            "map: mp/ffa3",
+            "num score ping name            lastmsg address               qport rate",
+            "--- ----- ---- --------------- ------- --------------------- ----- -----",
+            "  0    42   12 ^1S^7ol             0 loopback              21345 90000",
+            "  1    37   48 ^5Kyle^7            0 82.64.11.201:29071     4410 25000",
+            "  2    29   61 ^3Bishop^7          0 51.75.0.3:29070       11023 25000",
+            "  3    12   35 ^2Creyon^7          0 90.112.43.7:29070      7012 25000",
+            "^5Kyle^7: gg, nice duel",
+            "^1S^7ol^7: ^3one more? ^7best of three",
+            "]cg_fov 110",
+            "]con_style",
+            "\"con_style\" is:\"auto^7\" default:\"auto^7\"",
+            "Console style: auto (the SJK UI's with its menus, else classic), sjk, horizon, dock, classic (after EternalJK) or modern",
+            "^1Unknown command \"saberthrow\"",
+            "Kyle was cut in half by Sol's saber",
+            "^3Bishop^7 entered the game",
+        ] {
+            self.shell.push_log(line);
+        }
+        self.set_open(true);
+        self.type_text(typed);
+    }
+
+    /// Drag over the command browser's detail text, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn browser_drag_for_shot(&mut self, from: sjk_ui::Vec2, to: sjk_ui::Vec2) {
+        self.browser.drag_for_shot(from, to);
     }
 
     /// Open the command browser on a search, for the menu snapshots.
@@ -690,9 +738,7 @@ impl ViewerConsole {
         }
         if self.history.last() != Some(&command) {
             self.history.push(command.clone());
-            if self.console_style() == console_options::ConsoleStyle::Classic
-                && self.history.len() > classic::HISTORY
-            {
+            if self.console_style().is_grid() && self.history.len() > classic::HISTORY {
                 self.history.remove(0);
             }
         }

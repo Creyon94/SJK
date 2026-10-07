@@ -2224,6 +2224,18 @@ test: Report the same player again: "you already reported this player today".
 test: Classic menus: SJK > Report a player shows the list and the report pop-up.
 note: Needs the hub update deployed first; until then Send says it cannot reach the hub.
 
+[console-sjk-designs]
+status: personal
+area: Console & chat
+title: SJK UI consoles (con_style sjk / horizon / dock) and selectable F3 text
+change: con_style auto (default) uses the SJK deck with ui_menuStyle sjk, else classic.
+change: F3 has an SJK look; its detail text selects with the mouse, Ctrl+C copies.
+test: con_style sjk, horizon, then dock: open the console, type, scroll, select, Ctrl+C.
+test: Type cl_maxpa: the rest of the name shows faintly; Tab completes it.
+test: F3: drag over a description, double-click a word, Ctrl+C, paste it elsewhere.
+test: Ctrl+C with nothing selected copies "name value"; the F3 hint or Dock tab opens it.
+note: Tell Claude which design you keep (or what to mix); the others can go.
+
 # ---- Merged upstream ----
 
 [actor-instance-cap]

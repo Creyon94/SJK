@@ -251,6 +251,101 @@ mod tests {
         });
     }
 
+    /// The console's looks over duel6, half open on made-up scrollback with a
+    /// command being typed (its unique completion ghosted) and two rows
+    /// selected: the SJK UI's three designs, then the classic console; the deck
+    /// full height and at 4K, and scrolled back.
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_console_styles() {
+        use sjk_ui::{InputEvent, PointerButton, Vec2};
+        fn shots(size: [u32; 2], looks: &[(&'static str, &'static str, &'static str)]) {
+            let cvars = [("cl_identity", "0")];
+            let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", size, None, &cvars) else {
+                return;
+            };
+            let tour = menu_backdrop::tour_for("Yavin Training Grounds").expect("duel6's tour");
+            let shot = &tour[0];
+            let (yaw, pitch) = look(shot.from, shot.at);
+            aim(&mut gpu, shot.from, yaw, pitch);
+            let s = size[1] as f32 / 1080.0;
+            for (name, style, height) in looks {
+                if let Some(console) = gpu.console.as_mut() {
+                    console.set_cvar("con_style", style);
+                    console.set_cvar("con_height", height);
+                    console.set_open(false);
+                    console.console_for_shot("cl_maxpa");
+                }
+                let _ = frame(&mut gpu, 30);
+                // Drag across two rows of the status table.
+                if let Some(console) = gpu.console.as_mut() {
+                    console.handle_pointer(InputEvent::PointerPress {
+                        position: Vec2::new(60.0 * s, 300.0 * s),
+                        button: PointerButton::Primary,
+                    });
+                }
+                let _ = frame(&mut gpu, 1);
+                if let Some(console) = gpu.console.as_mut() {
+                    console
+                        .handle_pointer(InputEvent::PointerMove(Vec2::new(420.0 * s, 322.0 * s)));
+                }
+                let _ = frame(&mut gpu, 1);
+                if let Some(console) = gpu.console.as_mut() {
+                    console.handle_pointer(InputEvent::PointerRelease {
+                        position: Vec2::new(420.0 * s, 322.0 * s),
+                        button: PointerButton::Primary,
+                    });
+                }
+                println!("{}", shoot(&mut gpu, 2, name).display());
+            }
+        }
+        on_big_stack(|| {
+            shots(
+                [1920, 1080],
+                &[
+                    ("duel6-console-sjk", "sjk", "0.5"),
+                    ("duel6-console-horizon", "horizon", "0.5"),
+                    ("duel6-console-dock", "dock", "0.5"),
+                    ("duel6-console-classic", "classic", "0.5"),
+                    ("duel6-console-modern", "modern", "0.5"),
+                    ("duel6-console-sjk-full", "sjk", "1"),
+                ],
+            );
+            shots([3840, 2160], &[("duel6-console-sjk-4k", "sjk", "0.5")]);
+        });
+    }
+
+    /// The command browser (F3) in the SJK UI's look over duel6: a search for
+    /// `viewmodel`, its first entry chosen and part of its description selected.
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_console_browser_sjk() {
+        use sjk_ui::Vec2;
+        on_big_stack(|| {
+            let cvars = [("con_style", "sjk")];
+            let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", [1920, 1080], None, &cvars)
+            else {
+                return;
+            };
+            let tour = menu_backdrop::tour_for("Yavin Training Grounds").expect("duel6's tour");
+            let (yaw, pitch) = look(tour[0].from, tour[0].at);
+            aim(&mut gpu, tour[0].from, yaw, pitch);
+            if let Some(console) = gpu.console.as_mut() {
+                console.set_cvar("cg_fov", "110");
+                console.console_for_shot("");
+                console.open_browser_on("viewmodel");
+            }
+            let _ = frame(&mut gpu, 20);
+            if let Some(console) = gpu.console.as_mut() {
+                console.browser_drag_for_shot(Vec2::new(1452.0, 390.0), Vec2::new(1580.0, 418.0));
+            }
+            println!(
+                "{}",
+                shoot(&mut gpu, 3, "duel6-console-browser-sjk").display()
+            );
+        });
+    }
+
     /// A plan of duel6 from above: every upward-facing surface coloured by its
     /// height (dark low, light high), a grid every 256 units (brighter every
     /// 1024, the axes brightest), spawns red and the intermission green. One

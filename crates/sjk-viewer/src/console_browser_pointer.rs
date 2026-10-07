@@ -18,9 +18,15 @@ pub(super) const SCROLLBAR_TOKEN: u16 = 910;
 const WHEEL_ROWS: isize = 3;
 /// Footer filter action.
 pub(super) const FILTER_TOKEN: u16 = 905;
+/// The SJK UI's Copy button: the selected text, else the chosen entry.
+pub(super) const COPY_TOKEN: u16 = 906;
 
 impl Browser {
     pub(crate) fn handle_pointer(&mut self, event: InputEvent) -> BrowserAction {
+        // The SJK UI's detail text takes a press on it and the drag after.
+        if self.look == super::Look::Sjk && self.select.pointer(event) {
+            return BrowserAction::None;
+        }
         let Some(event) = self.ui.pointer(event) else {
             return BrowserAction::None;
         };
@@ -58,6 +64,7 @@ impl Browser {
                 BrowserAction::None
             }
             RESET_TOKEN => self.reset_selected(),
+            COPY_TOKEN => self.copy(),
             ACTIVATE_TOKEN => self.accept(),
             FILTER_TOKEN => {
                 self.set_tab(self.tab + 1);

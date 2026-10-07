@@ -68,8 +68,9 @@ documented:
 | rendering profile | noon, bloom, dust, material maps | 11:00, off | [Default visual profile](rendering.md#default-visual-profile) |
 | `cl_consoleUseScanCode` | 1, saved 0 moved to 1 once | 0 | [Useful console commands](client.md#useful-console-commands) |
 
-The HUD look (`cg_hudStyle game`) and the console (`con_style classic`) are SJK
-defaults too, documented with their pages.
+The HUD look (`cg_hudStyle game`) and the console (`con_style auto`: the SJK UI's
+console with its menus, else the classic one; a saved `classic` moved once to
+`auto`) are SJK defaults too, documented with their pages.
 
 ## Fonts
 

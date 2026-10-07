@@ -71,7 +71,7 @@ impl GpuState {
     /// ([`console_backdrop`]), drawn after all other 2D text; empty for the
     /// modern console or under the full-frame browser.
     fn append_classic_console(&mut self, viewport: [f32; 2], covers_frame: bool) {
-        let classic = !covers_frame && game_font::classic_console(self.console.as_ref());
+        let classic = !covers_frame && game_font::grid_console(self.console.as_ref());
         let Some(console) = self.console.as_mut().filter(|_| classic) else {
             self.console_layer.clear();
             return;
@@ -85,6 +85,15 @@ impl GpuState {
         let (font, atlas) = match self.game_fonts.console_font() {
             Some(font) => (font, console_backdrop::TextAtlas::Console),
             None => (&self.ui_font, console_backdrop::TextAtlas::Inter),
+        };
+        // The SJK UI's designs label in its families once they are loaded.
+        let labels = match self.game_fonts.sjk_metrics() {
+            Some((display, body)) => console::classic::sjk::Labels {
+                display,
+                body,
+                families: true,
+            },
+            None => console::classic::sjk::Labels::single(font),
         };
         let in_game =
             self.live_session.is_some() || self.demo_session.is_some() || self.resident.exploring();
@@ -100,7 +109,7 @@ impl GpuState {
             full_screen: !in_game && !self.game_menu && self.client_menu.is_some() && !menu_visible,
         };
         let frame = self.console_layer.begin_frame();
-        console.append_classic(frame, font, atlas, viewport, env);
+        console.append_classic(frame, font, atlas, labels, viewport, env);
         self.console_layer.upload(&self.queue, viewport);
     }
 }
