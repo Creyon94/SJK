@@ -947,6 +947,19 @@ Off-screen snapshots drew the page in both palettes, scrolled and at 21:9; the
 snapshot rasterizer has no emblem texture and draws rounded shapes square, so
 the halo and card corners are unverified, as is the motion. No game was started.
 
+SJK-only branch `personal/credits-history-page` (07/10/2026, based on `82bd816`)
+gives everyone with a history a panel with their name large and their whole
+history folded under it (features, pull requests and commits from
+`credits_history.txt`, written by `scripts/credits_history.py`), and replaces the
+drifting beams with turning god rays and a sunburst after the site; see
+[client.md](client.md#credits-page). Unit tests parse the built-in history and
+check that every person in it has a card, its order and links, the folds, and
+the ray pictures and their turning; the sjk-viewer tests passed and clippy has
+nothing new. The snapshot rasterizer now draws the emblem and ray layers
+(nearest texel, added as light); snapshots drew the page folded and unfolded in
+both palettes and at 21:9. The motion, the fade-in of unfolded rows, the
+scrollbar and the links were not tried in game.
+
 ## In-game SJK menu and classic+ changelog (SJK)
 
 SJK-only branch `personal/sjk-menu` (06/10/2026, based on `75bec2e`): the

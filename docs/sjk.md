@@ -203,6 +203,19 @@ later "Supporters" section is a `== Supporters` heading and its cards, with no
 code. The tests reject a card without a role, an unknown key, a link that is not
 https or a non-ASCII character.
 
+Under each card the page folds that person's whole history: every feature and
+pull request merged into `main`, with its commits. It comes from
+[credits_history.txt](../crates/sjk-viewer/assets/credits_history.txt), which
+[credits_history.py](../scripts/credits_history.py) writes from git and, through
+`gh`, GitHub's pull request titles and authors; the file is never edited by
+hand. Every merge into `main` regenerates it: merge, run
+`python scripts/credits_history.py` in the merged checkout, and amend the merge
+commit with the file (`git commit --amend`), so the merge carries its own
+history and no extra commit appears in it; `--check` says whether the file is
+current. A new contributor goes into the script's `PEOPLE` (their git name and
+GitHub login) along with their card; the tests reject a person in the history
+without a card.
+
 ## Debug panel
 
 The `debug_panel` console command lists SJK's changes and how to test them, from

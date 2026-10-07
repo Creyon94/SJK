@@ -280,7 +280,7 @@ pub(super) enum Source {
 
 impl Source {
     /// Whether the run draws with the additive pipeline: the emblem's glow
-    /// layers. Everything else is alpha blended.
+    /// and ray layers. Everything else is alpha blended.
     pub(super) fn additive(self) -> bool {
         matches!(self, Self::Emblem(layer) if layer.additive())
     }
@@ -380,6 +380,6 @@ mod tests {
         for (index, layer) in EmblemLayer::ALL.into_iter().enumerate() {
             assert!(switch(&mut runs, 6 + index * 6, Source::Emblem(layer)));
         }
-        assert_eq!(runs.len(), 4);
+        assert_eq!(runs.len(), 1 + EmblemLayer::ALL.len());
     }
 }
