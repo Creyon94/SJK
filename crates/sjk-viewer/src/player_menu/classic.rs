@@ -100,6 +100,16 @@ impl PlayerMenu {
         self.classic_style
     }
 
+    /// Draw the modern screen in the SJK UI's view (`sjk`), or not.
+    pub(crate) fn set_sjk(&mut self, sjk: bool) {
+        self.sjk = sjk;
+    }
+
+    /// Whether the SJK UI's view is in use.
+    pub(crate) fn is_sjk(&self) -> bool {
+        self.sjk && !self.classic_style
+    }
+
     /// The live model the page on show wants: character creation's, walking
     /// in place as retail's did (`BOTH_WALK1`), the cosmetics window's,
     /// standing as JoF's does (`BOTH_STAND1`), and lightsaber creation's

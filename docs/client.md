@@ -97,8 +97,9 @@ Sol JK and Quit, the first, fourth and last opening pages of their own on the
 ring), and the servers joined last in a column on the right, joined with one
 click; and its Settings: every category down a lit rail, the rows with switches,
 sliders and segments under sub-headings, the focused setting explained on the
-right and the search at the top. Every other screen (the key bindings among
-them) opens in its classic+ version. A client started in the SJK UI stands on
+right and the search at the top; and its Character, the character standing on
+the map's path below the tower beside the form. Every other screen (the key
+bindings among them) opens in its classic+ version. A client started in the SJK UI stands on
 mp/duel6 instead of mp/ffa3.
 
 The classic main menu has the retail pages, entries and order, with SJK's

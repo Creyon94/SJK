@@ -297,19 +297,241 @@ pub(crate) fn field(
 /// A small downward caret centred on (`x`, `y`): the lower quarter of a ring,
 /// one stroke with round ends.
 fn chevron(canvas: &mut MenuCanvas, frame: &Frame, x: f32, y: f32, colour: Color) {
+    caret(canvas, frame, x, y, std::f32::consts::FRAC_PI_2, colour);
+}
+
+/// A small caret centred on (`x`, `y`) pointing at angle `towards` (radians,
+/// clockwise from right on screen: 0 right, π/2 down, π left): a quarter of a
+/// ring bulging that way.
+fn caret(canvas: &mut MenuCanvas, frame: &Frame, x: f32, y: f32, towards: f32, colour: Color) {
     let radius = 8.0;
+    let back = radius * 0.75;
     push(
         canvas,
         DrawCommand::Arc {
-            center: frame.point(x, y - radius * 0.75),
+            center: frame.point(x - towards.cos() * back, y - towards.sin() * back),
             radius: radius * frame.s,
             width: 2.4 * frame.s,
-            start: std::f32::consts::FRAC_PI_4,
+            start: towards - std::f32::consts::FRAC_PI_4,
             sweep: std::f32::consts::FRAC_PI_2,
             color: colour,
             knockout: None,
         },
     );
+}
+
+/// A small caret pointing left (`left`) or right centred on (`x`, `y`), as a
+/// cycler's ends are.
+pub(crate) fn caret_mark(
+    canvas: &mut MenuCanvas,
+    frame: &Frame,
+    x: f32,
+    y: f32,
+    left: bool,
+    colour: Color,
+) {
+    // The guillemet reads as an arrow where an arc reads as a bracket.
+    text(
+        canvas,
+        TextFamily::Display,
+        format_args!("{}", if left { '\u{2039}' } else { '\u{203a}' }),
+        frame.rect(x - 14.0, y - 25.0, 28.0, 44.0),
+        42.0 * frame.s,
+        colour,
+        FontWeight::Semibold,
+        TextAlign::Center,
+    );
+}
+
+/// A value stepped with Left and Right over `rect`: its outline, a caret at
+/// each end and the value between them, after a colour `swatch` when given.
+/// A click on its left half steps back, on its right half on.
+pub(crate) fn cycler(
+    canvas: &mut MenuCanvas,
+    frame: &Frame,
+    rect: [f32; 4],
+    value: std::fmt::Arguments<'_>,
+    swatch: Option<Color>,
+    focused: bool,
+) {
+    let [x, y, width, height] = rect;
+    pill(canvas, frame, rect, color::alpha(color::SPACE, 0.6));
+    outline(canvas, frame, rect, edge(focused));
+    let middle = y + height * 0.5;
+    let tint = if focused { color::TEXT } else { color::MUTED };
+    caret_mark(canvas, frame, x + 20.0, middle, true, tint);
+    caret_mark(canvas, frame, x + width - 20.0, middle, false, tint);
+    let mut left = x + 38.0;
+    if let Some(swatch) = swatch {
+        pill(canvas, frame, [left, middle - 7.0, 14.0, 14.0], swatch);
+        left += 20.0;
+    }
+    text(
+        canvas,
+        TextFamily::Body,
+        value,
+        frame.rect(left, middle - 12.0, x + width - 38.0 - left, 24.0),
+        17.0 * frame.s,
+        if focused {
+            color::TEXT
+        } else {
+            color::alpha(color::TEXT, 0.9)
+        },
+        FontWeight::Regular,
+        TextAlign::Center,
+    );
+}
+
+/// Colour chips across `rect`, one circle centred in each equal share of it
+/// (so a click's share is its chip), the `active` one ringed gold.
+pub(crate) fn chips(
+    canvas: &mut MenuCanvas,
+    frame: &Frame,
+    rect: [f32; 4],
+    colours: &[Color],
+    active: usize,
+    focused: bool,
+) {
+    let [x, y, width, height] = rect;
+    let share = width / colours.len().max(1) as f32;
+    let middle = y + height * 0.5;
+    let size = (share - 10.0).min(height - 8.0).min(26.0);
+    for (index, colour) in colours.iter().enumerate() {
+        let centre = x + share * (index as f32 + 0.5);
+        if index == active {
+            let ring = size + 10.0;
+            pill(
+                canvas,
+                frame,
+                [centre - ring * 0.5, middle - ring * 0.5, ring, ring],
+                if focused {
+                    color::GOLD_BRIGHT
+                } else {
+                    color::GOLD
+                },
+            );
+            let gap = size + 4.0;
+            pill(
+                canvas,
+                frame,
+                [centre - gap * 0.5, middle - gap * 0.5, gap, gap],
+                color::SPACE,
+            );
+        }
+        pill(
+            canvas,
+            frame,
+            [centre - size * 0.5, middle - size * 0.5, size, size],
+            *colour,
+        );
+    }
+}
+
+/// A button over `rect` answering to `token`: gold with dark text when it is
+/// the screen's one main action (`primary`), outlined otherwise; dimmed and
+/// inert-looking when not `enabled`.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn button(
+    canvas: &mut MenuCanvas,
+    frame: &Frame,
+    rect: [f32; 4],
+    label: &str,
+    primary: bool,
+    enabled: bool,
+    focused: bool,
+    token: u16,
+) {
+    let [x, y, width, height] = rect;
+    let hovered = canvas.token_hovered(token);
+    if primary && enabled {
+        pill(
+            canvas,
+            frame,
+            rect,
+            if focused || hovered {
+                color::GOLD_BRIGHT
+            } else {
+                color::GOLD
+            },
+        );
+    } else {
+        pill(
+            canvas,
+            frame,
+            rect,
+            color::alpha(
+                color::HOLO,
+                if enabled && (focused || hovered) {
+                    0.14
+                } else {
+                    0.05
+                },
+            ),
+        );
+        outline(
+            canvas,
+            frame,
+            rect,
+            if enabled {
+                edge(focused || hovered)
+            } else {
+                color::alpha(color::HOLO, 0.18)
+            },
+        );
+    }
+    let ink = match (primary && enabled, enabled) {
+        (true, _) => Color::new(0.078, 0.063, 0.02, 1.0),
+        (false, true) => color::TEXT,
+        (false, false) => color::QUIET,
+    };
+    text(
+        canvas,
+        TextFamily::Display,
+        format_args!("{label}"),
+        frame.rect(x, y + (height - 26.0) * 0.5, width, 26.0),
+        20.0 * frame.s,
+        ink,
+        FontWeight::Regular,
+        TextAlign::Center,
+    );
+    canvas.hit_region(token, frame.rect(x, y, width, height));
+}
+
+/// `level` of `most` rank pips from (`x`, `y`) (their centre line), gold
+/// filled up to the level and outlined after; dimmed when not `available`.
+pub(crate) fn pips(
+    canvas: &mut MenuCanvas,
+    frame: &Frame,
+    x: f32,
+    y: f32,
+    level: u8,
+    most: u8,
+    available: bool,
+) {
+    let size = 10.0;
+    for pip in 0..most {
+        let left = x + f32::from(pip) * (size + 7.0);
+        let rect = [left, y - size * 0.5, size, size];
+        if pip < level {
+            pill(
+                canvas,
+                frame,
+                rect,
+                if available {
+                    color::GOLD_BRIGHT
+                } else {
+                    color::alpha(color::GOLD, 0.35)
+                },
+            );
+        } else {
+            outline(
+                canvas,
+                frame,
+                rect,
+                color::alpha(color::HOLO, if available { 0.45 } else { 0.2 }),
+            );
+        }
+    }
 }
 
 /// A list of `labels` over `rect` (frame pixels), each row `row` tall: the

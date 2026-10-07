@@ -21,6 +21,7 @@ mod pointer;
 mod rows;
 mod saber;
 mod saber_view;
+mod sjk_view;
 mod team_filter;
 mod view;
 
@@ -161,6 +162,8 @@ pub(crate) struct PlayerMenu {
     /// `ui_menuStyle classic`: the retail profile pages instead of the
     /// hero form.
     classic_style: bool,
+    /// `ui_menuStyle sjk`: the SJK UI's view of the modern screen (`sjk_view`).
+    sjk: bool,
     classic: classic::ClassicState,
     /// The character draft changed on entering a classic page and is not
     /// written yet.
@@ -201,6 +204,7 @@ impl PlayerMenu {
             force_templates: force_templates::TemplateState::default(),
             cosmetics: cosmetics::CosmeticsMenu::new(),
             classic_style: false,
+            sjk: false,
             classic: classic::ClassicState::default(),
             classic_dirty: false,
             preview_ready: false,
@@ -294,6 +298,13 @@ fn catalog_of(loader: &Option<LegacyAssetCatalogLoader>) -> Option<&LegacyAssetC
 
 #[cfg(test)]
 impl PlayerMenu {
+    /// Show page `index` (Character, Saber, Force) with row `row` selected
+    /// (world shots).
+    pub(crate) fn show_page_for_shot(&mut self, index: usize, row: usize) {
+        self.set_page(ProfilePage::ALL[index.min(2)]);
+        self.selected = row;
+    }
+
     /// Open the classic lightsaber creation page on `vfs`'s catalogue as
     /// `console` sets it up, for the menu snapshots: the catalogue is waited
     /// for (a minute at most).

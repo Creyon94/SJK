@@ -132,6 +132,38 @@ const TATOOINE_FFA_SABER: Route = Route {
     focus: Some([709.0, 552.5, 492.0]),
 };
 
+/// mp/duel6 player: the model stands on the south-west path from the tower,
+/// between its stone benches, facing the camera, the tower rising behind;
+/// the camera stands off to the model's left so the SJK UI's form on the
+/// left of the screen leaves it in view. A toured map cuts to it, so the one
+/// waypoint is the shot itself.
+const YAVIN_TRAINING_PLAYER: Route = Route {
+    map_message: "Yavin Training Grounds",
+    shot: Shot::Player,
+    from: Shot::Main,
+    millis: 1_000,
+    points: &[point([-405.0, -424.0, 394.0], 70.0, -2.0)],
+    // The path's floor is at z 352 (traced).
+    stage: Some(Stage {
+        origin: [-360.0, -360.0, 376.0],
+        yaw: 225.0,
+    }),
+    focus: None,
+};
+
+/// mp/duel6 saber: a step closer than the player shot, the thrown saber
+/// floating between the camera and the model, right of the screen's middle
+/// where the SJK UI's form leaves room, the model and the tower behind it.
+const YAVIN_TRAINING_SABER: Route = Route {
+    map_message: "Yavin Training Grounds",
+    shot: Shot::Saber,
+    from: Shot::Player,
+    millis: 1_000,
+    points: &[point([-425.0, -458.0, 392.0], 72.0, -3.0)],
+    stage: None,
+    focus: Some([-399.6, -417.3, 392.0]),
+};
+
 /// mp/ffa3's big gate at the end of the browser corridor: one `door_lrg`
 /// face whose texture already restarts at x 704 (two mirrored leaves), so
 /// that seam is the split. Opening, the leaves push 24 units back into the
@@ -263,6 +295,8 @@ const ROUTES: &[Route] = &[
     TATOOINE_FFA_SETTINGS,
     TATOOINE_FFA_PLAYER,
     TATOOINE_FFA_SABER,
+    YAVIN_TRAINING_PLAYER,
+    YAVIN_TRAINING_SABER,
 ];
 
 /// World props authored for the map whose worldspawn message is `message`.

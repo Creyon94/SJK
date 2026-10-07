@@ -6,8 +6,9 @@
 //! edges. Design: `docs/sjk-ui.md`.
 //!
 //! The UI is built screen by screen and becomes the default once done. So far
-//! it has its main page ([`home`]) and Settings ([`settings`]), both drawn with
-//! the controls of its [`kit`]; every other screen opens in its classic version
+//! it has its main page ([`home`]), Settings ([`settings`]) and Character
+//! (`player_menu::sjk_view`), drawn with the controls of its [`kit`]; every
+//! other screen opens in its classic version
 //! ([`super::style::MenuStyle::classic_screens`]).
 //!
 //! Text is set in two families ([`TextFamily`]): Rajdhani for navigation,
@@ -98,10 +99,13 @@ impl ClientMenu {
         console: Option<&ViewerConsole>,
         viewport: [f32; 2],
     ) {
-        if matches!(self.state.phase(), super::ClientPhase::Settings) {
-            self.append_sjk_settings(target, viewport);
-        } else {
-            self.append_sjk_home(target, console, viewport);
+        match self.state.phase() {
+            super::ClientPhase::Settings => self.append_sjk_settings(target, viewport),
+            super::ClientPhase::Player => {
+                let reveal = self.screen_reveal();
+                self.player.append_sjk(target, viewport, reveal);
+            }
+            _ => self.append_sjk_home(target, console, viewport),
         }
     }
 

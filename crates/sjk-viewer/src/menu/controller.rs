@@ -66,6 +66,13 @@ impl ClientMenu {
                     None => self.keybinds.append(vertices, font, viewport, reveal),
                 }
             }
+            // Drawn in the UI's families by `append_sjk_screen`; here, from a
+            // caller without them, in Inter.
+            ClientPhase::Player if self.player.is_sjk() => {
+                let reveal = self.screen_reveal();
+                let target = sjk::TextTarget::Inter(vertices, font);
+                self.player.append_sjk(target, viewport, reveal);
+            }
             ClientPhase::Player => {
                 let reveal = self.screen_reveal();
                 self.player.append(vertices, font, viewport, reveal);

@@ -8,8 +8,8 @@ is being built screen by screen and becomes SJK's default once every screen has
 its version; until then [classic+](classic-plus.md) stays the default and keeps
 getting fixes.
 
-Status (07/10/2026): the main page and Settings are done. Every other screen
-(the key bindings among them) opens in its classic+ version
+Status (07/10/2026): the main page, Settings and Character are done. Every
+other screen (the key bindings among them) opens in its classic+ version
 (`MenuStyle::classic_screens`), which covers the map as the classic style does.
 To try it: Settings > Gameplay > Interface > Menu style > SJK, or
 `ui_menuStyle sjk`; restart for the SJK UI's map behind the main page.
@@ -102,11 +102,16 @@ south temple's stair; a diagonal path from the tower. They were placed with the
 off-screen world shots and checked to glide through open air (the north wing's
 view, full of leaves, and the west garden's, half a wall, were dropped).
 
-On a map with a tour, a screen whose shot has a route (none yet on duel6) is
-reached by fading out, cutting to the shot and fading in, instead of flying
-there, since a tour's shots are all over the map; every screen shows at once.
-The fade is a layer over the world only (`ClientMenu::world_fade`), under the
-menus and the console's pages.
+On a map with a tour, a screen whose shot has a route is reached by fading out,
+cutting to the shot and fading in, instead of flying there, since a tour's
+shots are all over the map; every screen shows at once. The fade is a layer
+over the world only (`ClientMenu::world_fade`), under the menus and the
+console's pages. duel6 has two such shots, both on the south-west path from the
+tower, between its stone benches, where the player's model stands
+(`YAVIN_TRAINING_PLAYER`, floor at z 352, facing the camera): the player shot,
+80 units off and turned so the model stands right of the screen's middle with
+the tower behind; and the saber shot (`YAVIN_TRAINING_SABER`), a step closer,
+the thrown saber floating between the camera and the model.
 
 ## Main page
 
@@ -149,6 +154,51 @@ returns to the arc. Escape on a page returns to the main page, on the entry that
 opened it; on the main page it opens Quit's page. The pointer chooses by
 hovering and acts with a click. A server with a password opens the browser's
 password prompt.
+
+## Character
+
+[player_menu/sjk_view.rs](../crates/sjk-viewer/src/player_menu/sjk_view.rs): the
+player screen, opened by the main page's Character. The model stands on duel6's
+stage in the map's own light, holding the saber draft lit, and every change
+shows on it at once (the modern screen's `menu_stage`). The screen is laid out
+on the 16:9 frame, dark behind the form on the left and clear over the model.
+
+- **Top:** the way back (Esc, "Main menu") and the player's name, with its
+  colours, as the title; under it the pages as tabs, Character, Saber and
+  Force, the one on show gold and underlined.
+- **Character:** Name (a field; Enter types), Team colour, Search (a field that
+  filters the grid), Model (‹ › steps through the grid), the model grid (eight
+  icons a row, as many rows as fit, the current one ringed gold, scrolled by
+  the wheel), then a species' head, torso, legs and skin colour and the hat and
+  cape, two to a line.
+- **Saber:** Style, Hilt, the blade's colour as seven chips (the six stock
+  colours and the custom one, ringed gold when chosen), its red, green and
+  blue sliders (a digit types the number), and the second saber's for Dual.
+  The camera cuts to the saber shot, where the model throws the saber to float
+  and turn before it.
+- **Force:** rank and points left (and "Not applied yet" while the draft
+  differs), the Light and Dark sides as two cards with their emblems, the
+  eighteen powers in two columns (icon, name, ‹ rank pips ›; those the side or
+  the game type rules out dimmed), then Start over, Discard and Apply (gold
+  while there is something to apply).
+- **Caption:** beside the model, bottom right under a short gold rule, what the
+  page shows of it: the model and its skin, the saber's style, hilt and blade,
+  or the side and rank.
+- **Keys:** bottom right, the focused row's (Left Right change, Enter type or
+  do it) and Tab with the next page's name.
+
+The keys are the modern screen's: Up and Down choose a row, Left and Right
+change it, Enter types or acts, Tab and `[` `]` change page, Escape returns to
+the main page (dropping an unapplied Force draft, as before). The pointer: a
+click on a control acts (‹ › by the half it lands on, a chip picks its colour,
+a slider follows), a click elsewhere on a row only chooses it, a click on a
+tile picks that model.
+
+It is the modern screen's state and controller with another view: the rows,
+tiles, tabs and back key answer to the modern screen's tokens, each row
+registering its control before the whole row so the token's rectangle is the
+control's. Opened from a game, where there is no stage, the player screen shows
+its classic pages and their preview instead.
 
 ## Settings
 
@@ -219,8 +269,12 @@ same group (Graphics: the renderer's image tab), or to the modern screen.
   (`classic_hides_world` leaves it out) and its text goes to the UI's families
   (`append_sjk_screen`).
 - The controls are drawn by `menu::sjk::kit` (the band, switch, slider,
-  segments, field, list, reset arrow, changed dot, sub-heading, search pill and
-  lit rail), in frame pixels (`menu::sjk::Frame`).
+  segments, field, list, reset arrow, changed dot, sub-heading, search pill,
+  lit rail, cycler, colour chips, button and rank pips), in frame pixels
+  (`menu::sjk::Frame`).
+- The player screen's style: `PlayerMenu::set_sjk` (from `set_menu_art`) draws
+  the modern screen in the SJK UI's view; `ClientMenu::sjk_screen` covers the
+  player phase then, so the map and the stage model show under it.
 - Settings is the classic+ panel's state with another view: the menu opens a
   category's rows as the classic+ panels do, keeps `classic_panel` empty and
   marks the SJK UI's screen open (`sjk::settings::SettingsPage`); the rows'
@@ -246,13 +300,12 @@ The next screens, in order; each gets snapshot tests before it replaces its
 classic version:
 
 1. The key bindings, as a category of Settings (the search then finds keys too).
-2. The server browser, opened from Play's Join a server.
-3. Character: the player screen, on the backdrop's player stage.
-4. The in-game menu (its Setup and Controls then open Settings over the match).
-5. The screens Sol JK's page opens (changelog, credits, update, identity) and
+2. The screens Sol JK's page opens (changelog, update, identity, credits) and
    the dialogs.
+3. The server browser, opened from Play's Join a server.
+4. The in-game menu (its Setup and Controls then open Settings over the match,
+   its player screen a version without the stage).
 
-Once all of them are done, `sjk` becomes the default `ui_menuStyle`. The authored
-camera routes, gate and player stage of the menu backdrop are mp/ffa3's; mp/duel6
-needs its own before the screens that use them (the browser's gate, the player
-stage) move to the SJK UI.
+Once all of them are done, `sjk` becomes the default `ui_menuStyle`. mp/duel6 has
+its tour, player stage and saber shot; it has no gate, which mp/ffa3's browser
+flies through on a join.
