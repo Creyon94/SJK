@@ -9,8 +9,8 @@ its version; until then [classic+](classic-plus.md) stays the default and keeps
 getting fixes.
 
 Status (07/10/2026): the main page, Settings (with the key bindings),
-Character, What's new, Update, Identity and Servers (the server browser) are
-done. Every other screen opens in its classic+ version
+Character, What's new, Update, Identity, Servers (the server browser) and the
+loading screen are done. Every other screen opens in its classic+ version
 (`MenuStyle::classic_screens`), which covers the map as the classic style does.
 To try it: Settings > Gameplay > Interface > Menu style > SJK, or
 `ui_menuStyle sjk`; restart for the SJK UI's map behind the main page.
@@ -96,8 +96,9 @@ control's own.
 
 The ring turns once every four minutes and the sunburst behind the emblem
 slowly the other way; the gold arc eases towards the chosen entry (about 0.3 s);
-the camera behind glides through its tour (The map behind). Nothing else moves
-on its own.
+the camera behind glides through its tour (The map behind); on the loading
+screen a gold arc turns once every three seconds and the destination's
+levelshot fades in (0.45 s). Nothing else moves on its own.
 
 ## The map behind
 
@@ -364,8 +365,72 @@ pointer: a click on a row chooses it and a second within 0.4 s joins it; a
 header sorts; a switch's row flips it; the game type steps back on its left
 half and on on its right half.
 
-Joining shows the classic loading screen for now; mp/duel6 has no gate to fly
-through.
+Joining shows the SJK UI's loading screen (Loading); mp/duel6 has no gate to
+fly through.
+
+## Loading
+
+[loading.rs](../crates/sjk-viewer/src/menu/sjk/loading.rs): what a join shows
+from the browser, the main page's recent servers, an address or Create game
+until the game is on screen, and a server's change of map. Its keys are the
+classic screen's: Escape cancels (back to the browser, or to Create game for a
+hosted game; on a server's change of map it leaves the server); after a failure
+Escape, Enter or Space return to the browser. The pointer's target is the Esc
+key cap at the bottom right only, not the whole screen as on the classic one,
+so a stray click does not end a join.
+
+- **Before the map is known** (an address typed or a recent server the list
+  does not have; the server's info answer names the map within a second): the
+  menu's map stays on show and its camera keeps touring, darkened towards the
+  bottom and its left. A block at the bottom left: "Joining" small over the
+  server's name large (Rajdhani 56, with its colours: the server list's or the
+  recent servers' name, else the address), its address in holo, then a thin
+  line 440 long that fills gold by step, and on the bottom row a slowly turning
+  gold arc with the step in words. Esc "cancel" sits at the bottom right.
+- **Once the map is known** (the browser row's map, the server's answer or the
+  gamestate): the map's levelshot fades in over the whole window, never
+  stretched (`levelshot::screen_fit`): one as wide as the window or narrower
+  covers it, cut at its top and bottom (a square retail levelshot is a 4:3
+  picture); a wider one (the HD packs' 2:1 shots, their title against the left
+  edge) keeps its whole width with navy bands above and below. It is darkened a
+  little all over, more towards the bottom and its left and a touch at the
+  top. At the bottom left, from the top: "Joining", the map's own name from its
+  worldspawn large (Rajdhani 124, 96 past 18 letters; the file name when it has
+  none), its file name without `mp/` small, the server's name (Rajdhani 36, with its colours), then
+  the classic screen's lines in words: the game type and limits ("Free for
+  all, 30 frags, 20 minutes"; before the gamestate the server list's game type
+  and players), the mod and the server's rules ("JA+ Mod v2.6 · Force mastery:
+  Jedi Master · Saber only", "No Force powers", "Force-based teams", "Cheats
+  on"), and the message of the day (up to two lines, without colour codes). The
+  bottom row has the arc and the step, and a thin gold bar runs across the
+  bottom of the frame.
+- **Steps** (`loading::Step`): Asking the server, Connecting, Receiving the
+  game state, Joining the game (the gamestate is in), then once the session is
+  in hand Loading <map>, Preparing the graphics and Entering the game; a
+  download in progress shows its own line instead ("Downloading x.pk3: 120 /
+  900 KiB"). The line and bar fill one seventh a step and never run back within
+  a join: on the menu's map the browser's map is first built as a preview,
+  which the session's own build replaces, so the world's steps count only for
+  the session's world.
+- **A failure** keeps the layout of the state it happened in, with "Could not
+  join" (or "Connection lost" once the session was in hand) over the name, the
+  reason in words on the bottom row instead of the step, no line or bar, and
+  Esc "back to servers".
+- **A server's change of map**: "Next map" over the server's name. Until the
+  new gamestate names the map, the block shows (the classic screen keeps the
+  last map's levelshot meanwhile; this one does not), and Esc says "leave the
+  server".
+- **Starting a hosted game**: "Starting your game" over "Your game" (or the
+  game's own name once its gamestate is in), without an address.
+
+The world under the screen: on the menu's map the world keeps rendering under
+it (the join's destination loads beside it, as for the classic style) until
+the destination's levelshot has faded in, then it is left out
+(`ClientMenu::sjk_loading_hides_world`, read by
+`menu_backdrop::classic_hides_world`). On a server's world (a change of map, or
+the joined world installed before the game takes over) the world is always
+left out and the screen draws on the UI's navy ground; the levelshot fades in
+over it.
 
 ## Implementation
 
@@ -373,8 +438,9 @@ through.
   `MenuStyle::classic_screens` is true for it, so every screen without an SJK UI
   version opens its classic one; the main page dispatches to `menu::sjk::home`.
   `ClientMenu::sjk_screen` says when one of the SJK UI's own screens is on show
-  (the main page, Settings without a picker open, Character, Servers): the map
-  is drawn under it
+  (the main page, Settings without a picker open, Character, Servers, the
+  loading screen): the map is drawn under it (the loading screen leaves it out
+  itself when it has to)
   (`classic_hides_world` leaves it out) and its text goes to the UI's families
   (`append_sjk_screen`).
 - The controls are drawn by `menu::sjk::kit` (the band, switch, slider,
@@ -399,6 +465,15 @@ through.
   `browser_key`; its pointer to `sjk_browser_pointer` before the shared one.
   The chosen server's levelshot comes through the create-game screen's cache
   (`CreateGame::service_levelshot_for`, which also gives its size).
+- The loading screen is the classic loading screen's state with another view:
+  `classic::loading::ClassicLoading` (fed by the join, `set_game` and
+  `sync_classic_loading`) also keeps the session's world stage and whether the
+  session is in hand (`set_world`), a count of joins (`generation`), whether
+  the load named its map (`named_map`) and the gamestate's facts in words
+  (`sjk::loading::Facts`). The screen's own memory
+  (`sjk::loading::LoadingPage`) is the furthest step of the join and the
+  levelshot's fade. Its levelshot comes through the same cache, serviced by
+  `upload_menu_images` as for the classic screen.
 - Fonts: `text::load_family` rasterizes a family's two faces into one atlas, as
   Inter's, taking glyphs a face lacks from its fallback family. The SJK UI's
   families load the first time the style is on, rasterized at 1.5x (glyphs 144
@@ -411,7 +486,10 @@ through.
   own atlas. `world_shot::tests::duel6_sjk_menu` renders the real frames: the
   client built without a window on duel6, the SJK UI over the touring camera;
   `duel6_sjk_browser` the browser on made-up servers (one answered status),
-  a search and the password prompt.
+  a search and the password prompt; `duel6_sjk_loading` the loading screen on
+  a made-up join of the JoF server (before the map is known, loading mp/ffa3,
+  failed with and without the map known, a server's change of map on the navy
+  ground).
 
 ## Plan
 
@@ -421,9 +499,9 @@ classic version:
 1. The dialogs (the report box, the import page) and Credits.
 2. Settings' search finding key bindings too (it finds settings; Key bindings'
    finds keys).
-3. The loading screen, the in-game menu and the scoreboard (proposals to Sol
-   on 07/10/2026; its Setup and Controls would open Settings over the match,
-   its player screen a version without the stage).
+3. The in-game menu and the scoreboard (proposals to Sol on 07/10/2026; its
+   Setup and Controls would open Settings over the match, its player screen a
+   version without the stage).
 4. Create a game.
 
 Once all of them are done, `sjk` becomes the default `ui_menuStyle`. mp/duel6 has

@@ -19,7 +19,7 @@ use crate::menu::browser_view::{
     ADDRESS_TOKEN, BACK_TOKEN, FAVOURITE_TOKEN, FILTER_TOKEN, HEADER_TOKEN, JOIN_TOKEN,
     REFRESH_TOKEN, ROW_TOKEN, SCROLLBAR_TOKEN,
 };
-use crate::menu::levelshot::Preview;
+use crate::menu::levelshot::{Preview, cover_uv};
 use crate::menu::{ClientMenu, MenuAction};
 use crate::menu_widgets::{MenuCanvas, TAB_BASE, TextFamily};
 use crate::player_menu::ReturnTarget;
@@ -1118,25 +1118,6 @@ struct Picture {
     size: Option<[u32; 2]>,
 }
 
-/// Texture coordinates (top left, top right, bottom right, bottom left)
-/// showing a levelshot of `size` over a frame `aspect` times as wide as tall
-/// without stretching it: its middle, cut at its long sides. A square
-/// levelshot is retail's, a 4:3 picture stored square.
-fn cover_uv(size: [u32; 2], aspect: f32) -> [[f32; 2]; 4] {
-    let [width, height] = size.map(|side| side.max(1) as f32);
-    let image = if size[0] == size[1] {
-        4.0 / 3.0
-    } else {
-        width / height
-    };
-    let (u, v) = if image > aspect {
-        ((1.0 - aspect / image) * 0.5, 0.0)
-    } else {
-        (0.0, (1.0 - image / aspect) * 0.5)
-    };
-    [[u, v], [1.0 - u, v], [1.0 - u, 1.0 - v], [u, 1.0 - v]]
-}
-
 /// The chosen server: its map's picture, its name, its numbers, Join and the
 /// favourite, then who is playing.
 fn draw_detail(
@@ -1730,23 +1711,6 @@ mod tests {
         assert_eq!(Side::Mode.token(), FILTER_BASE + 4);
         assert_eq!(Side::of_token(FILTER_BASE + 3), None);
         assert_eq!(Side::of_token(JOIN_TOKEN), None);
-    }
-
-    #[test]
-    fn levelshots_cover_the_frame_without_stretching() {
-        // Retail's square levelshots hold 4:3 pictures: a 2:1 frame shows
-        // their middle two thirds.
-        let square = cover_uv([512, 512], 2.0);
-        assert!((square[0][1] - 1.0 / 6.0).abs() < 1e-5);
-        assert_eq!(square[0][0], 0.0);
-        assert!((square[2][1] - 5.0 / 6.0).abs() < 1e-5);
-        // A 2:1 HD one fills it; a wider one is cut at its sides.
-        assert_eq!(
-            cover_uv([2048, 1024], 2.0),
-            [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]]
-        );
-        let wide = cover_uv([3000, 1000], 2.0);
-        assert!((wide[0][0] - 1.0 / 6.0).abs() < 1e-5 && wide[0][1] == 0.0);
     }
 
     #[test]
