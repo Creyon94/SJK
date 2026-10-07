@@ -1949,6 +1949,18 @@ test: Right moves to the servers (the arc turns to them), Enter joins; Left come
 test: Settings, Character, the browser: open in the classic look; Back returns to this page.
 note: Text too small at 4K, ring too faint, colours off? Tell Claude which part.
 
+[sjk-ui-keys]
+status: personal
+area: Menus & settings
+title: SJK UI Settings: Key bindings as a category, two key caps per action
+change: Settings > Key bindings now shows the bindings in the same screen (rail, search, detail).
+change: The cap waiting for a key turns gold; the detail column says what to press.
+test: Enter on an action, press a key: it lands on the first cap. Click the second cap: second key.
+test: Backspace clears an action's keys; Esc cancels a wait; Mouse 1/2 and Esc stay locked.
+test: Search "jump", "+attack", "space": the action shows; Esc clears the search.
+test: Tab moves on to Gameplay; the rail back to Key bindings; Esc returns to the main page.
+note: A key name that reads oddly on its cap? Tell Claude which.
+
 [sjk-ui-character]
 status: personal
 area: Menus & settings

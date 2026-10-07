@@ -21,7 +21,7 @@ mod resolution;
 mod resolution_list;
 mod scroll;
 mod search;
-mod sjk_view;
+pub(crate) mod sjk_view;
 mod view;
 
 use catalog::*;

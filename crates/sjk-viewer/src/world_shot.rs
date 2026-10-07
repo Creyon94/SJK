@@ -467,6 +467,18 @@ mod tests {
             }
             gpu.ui_epoch -= std::time::Duration::from_millis(2_000);
             shoot(&mut gpu, 4, "duel6-menu-settings");
+            // Key bindings, then one of them awaiting its key.
+            for (capture, name) in [
+                (false, "duel6-menu-keys"),
+                (true, "duel6-menu-keys-capture"),
+            ] {
+                if let (Some(menu), Some(console)) =
+                    (gpu.client_menu.as_mut(), gpu.console.as_ref())
+                {
+                    menu.sjk_keys_for_shot(console, "+attack", capture);
+                }
+                shoot(&mut gpu, 8, name);
+            }
         });
     }
 

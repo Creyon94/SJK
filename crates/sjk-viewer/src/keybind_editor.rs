@@ -7,6 +7,7 @@ mod catalog;
 mod classic_view;
 mod icons;
 mod pointer;
+mod sjk_view;
 
 use catalog::CATEGORIES;
 pub(crate) use catalog::{
@@ -115,6 +116,23 @@ impl KeybindEditor {
         }
     }
 
+    /// Focus the action bound to `command` in the list, scrolled to it, and
+    /// await its second key when `capture` (world shots).
+    #[cfg(test)]
+    pub(crate) fn focus_for_shot(&mut self, command: &str, capture: bool) {
+        self.select_command(command);
+        self.visible = crate::settings::sjk_view::VISIBLE;
+        if let Some(position) = self
+            .classic
+            .as_ref()
+            .and_then(|list| list.position(self.selected))
+        {
+            self.first = position.saturating_sub(3);
+        }
+        self.binding_slot = 1;
+        self.capture = capture;
+    }
+
     /// The pictures' cells and files, for snapshots, which count them as
     /// uploaded.
     #[cfg(test)]
@@ -150,6 +168,12 @@ impl KeybindEditor {
 
     pub(crate) fn visual_selection(&self) -> usize {
         self.selected
+    }
+
+    /// The bindings are the classic+ panel's one list, which the classic+ and
+    /// SJK UI views draw.
+    pub(crate) fn has_list(&self) -> bool {
+        self.classic.is_some()
     }
 
     pub(crate) fn draw_list(&self) -> &DrawList {

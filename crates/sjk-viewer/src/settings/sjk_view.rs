@@ -43,15 +43,15 @@ const CATEGORY_HEIGHT: f32 = 52.0;
 const CATEGORY_WIDTH: f32 = 330.0;
 /// The rows' column, the top of its first line, a line's height (a row or a
 /// sub-heading) and how many lines show before it scrolls.
-const ROWS_X: f32 = 470.0;
-const ROWS_WIDTH: f32 = 800.0;
-const ROWS_TOP: f32 = 176.0;
-const LINE: f32 = 56.0;
-pub(super) const VISIBLE: usize = 14;
+pub(crate) const ROWS_X: f32 = 470.0;
+pub(crate) const ROWS_WIDTH: f32 = 800.0;
+pub(crate) const ROWS_TOP: f32 = 176.0;
+pub(crate) const LINE: f32 = 56.0;
+pub(crate) const VISIBLE: usize = 14;
 /// A row's name starts here; its control ends at [`CONTROL_RIGHT`] and starts
 /// no further left than [`CONTROL_LEFT`]; the reset arrow is centred after it.
-const LABEL_X: f32 = ROWS_X + 22.0;
-const CONTROL_RIGHT: f32 = ROWS_X + ROWS_WIDTH - 44.0;
+pub(crate) const LABEL_X: f32 = ROWS_X + 22.0;
+pub(crate) const CONTROL_RIGHT: f32 = ROWS_X + ROWS_WIDTH - 44.0;
 const CONTROL_LEFT: f32 = CONTROL_RIGHT - 330.0;
 const RESET_X: f32 = ROWS_X + ROWS_WIDTH - 22.0;
 /// A field's width, a slider's track and its number.
@@ -62,15 +62,15 @@ const TRACK_X: f32 = CONTROL_RIGHT - NUMBER_WIDTH - 18.0 - TRACK_WIDTH;
 /// An open list's rows.
 const LIST_ROW: f32 = 40.0;
 /// The detail column.
-const DETAIL_X: f32 = 1360.0;
-const DETAIL_TOP: f32 = 190.0;
-const DETAIL_WIDTH: f32 = 464.0;
+pub(crate) const DETAIL_X: f32 = 1360.0;
+pub(crate) const DETAIL_TOP: f32 = 190.0;
+pub(crate) const DETAIL_WIDTH: f32 = 464.0;
 /// The keys' line at the bottom.
-const KEYS_Y: f32 = 992.0;
+pub(crate) const KEYS_Y: f32 = 992.0;
 
 /// Body type's width per character, as a share of its size: Exo 2 sets a
 /// setting's name at about 0.4 em a character.
-const BODY_ADVANCE: f32 = 0.4;
+pub(crate) const BODY_ADVANCE: f32 = 0.4;
 
 impl SettingsMenu {
     /// Draw the open panel rows as the SJK UI's Settings screen, with `rail`'s
@@ -100,36 +100,18 @@ impl SettingsMenu {
 
     /// The way back, the screen's name and the search.
     fn top_bar(&mut self, frame: &Frame) {
-        let s = frame.s;
-        let [x, y] = frame.point(RAIL_X, BAR_Y - 12.0);
-        let end = key_hint(&mut self.ui, &["Esc"], "Main menu", x, y, s);
-        self.ui
-            .hit_region(BACK_TOKEN, sjk_ui::Rect::new(x, y, end - x, 24.0 * s));
-        let title_x = (end - frame.origin[0]) / s + 22.0;
-        text(
-            &mut self.ui,
-            TextFamily::Display,
-            format_args!("Settings"),
-            frame.rect(title_x, BAR_Y - 30.0, 320.0, 60.0),
-            48.0 * s,
-            color::TEXT,
-            FontWeight::Semibold,
-            TextAlign::Start,
-        );
         let found = (!self.search.trim().is_empty()).then(|| {
             self.classic
                 .as_ref()
                 .map_or(0, |classic| classic.rows().count())
         });
-        kit::search(
+        top_bar(
             &mut self.ui,
             frame,
-            SEARCH,
             &self.search,
             self.searching,
             "Find a setting",
             found,
-            SEARCH_TOKEN,
         );
     }
 
@@ -732,6 +714,45 @@ impl SettingsMenu {
     }
 }
 
+/// The Settings screen's top bar, the key bindings' too: the way back (the
+/// back token 900), the screen's name and the search pill showing `search`
+/// (with its cursor while `searching`), `prompt` when empty and how many were
+/// `found` while a search is typed.
+pub(crate) fn top_bar(
+    canvas: &mut crate::menu_widgets::MenuCanvas,
+    frame: &Frame,
+    search: &str,
+    searching: bool,
+    prompt: &str,
+    found: Option<usize>,
+) {
+    let s = frame.s;
+    let [x, y] = frame.point(RAIL_X, BAR_Y - 12.0);
+    let end = key_hint(canvas, &["Esc"], "Main menu", x, y, s);
+    canvas.hit_region(BACK_TOKEN, sjk_ui::Rect::new(x, y, end - x, 24.0 * s));
+    let title_x = (end - frame.origin[0]) / s + 22.0;
+    text(
+        canvas,
+        TextFamily::Display,
+        format_args!("Settings"),
+        frame.rect(title_x, BAR_Y - 30.0, 320.0, 60.0),
+        48.0 * s,
+        color::TEXT,
+        FontWeight::Semibold,
+        TextAlign::Start,
+    );
+    kit::search(
+        canvas,
+        frame,
+        SEARCH,
+        search,
+        searching,
+        prompt,
+        found,
+        SEARCH_TOKEN,
+    );
+}
+
 /// A value as the SJK UI shows it: AUTO (the frame cap's special value) in
 /// sentence case like every other.
 fn shown_value(value: &str) -> std::borrow::Cow<'_, str> {
@@ -763,7 +784,7 @@ impl std::fmt::Display for Choices {
 
 /// Darkness over the map, deepest behind the rail and rows, so every line
 /// reads over any part of it.
-fn backdrop(canvas: &mut crate::menu_widgets::MenuCanvas, viewport: [f32; 2]) {
+pub(crate) fn backdrop(canvas: &mut crate::menu_widgets::MenuCanvas, viewport: [f32; 2]) {
     let [width, height] = viewport;
     let space = |alpha| color::alpha(color::SPACE, alpha);
     let split = width * 0.6;
@@ -783,7 +804,11 @@ fn backdrop(canvas: &mut crate::menu_widgets::MenuCanvas, viewport: [f32; 2]) {
 
 /// The categories down the rail, the one on show lit; category `i` answers to
 /// the panel's chrome token `CHROME_BASE + i`.
-fn draw_rail(canvas: &mut crate::menu_widgets::MenuCanvas, frame: &Frame, rail: &Rail<'_>) {
+pub(crate) fn draw_rail(
+    canvas: &mut crate::menu_widgets::MenuCanvas,
+    frame: &Frame,
+    rail: &Rail<'_>,
+) {
     let s = frame.s;
     let count = rail.categories.len() as f32;
     let bottom = RAIL_TOP + count * CATEGORY_STEP - (CATEGORY_STEP - CATEGORY_HEIGHT) + 20.0;

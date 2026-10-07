@@ -101,6 +101,7 @@ impl ClientMenu {
     ) {
         match self.state.phase() {
             super::ClientPhase::Settings => self.append_sjk_settings(target, viewport),
+            super::ClientPhase::Keybinds => self.append_sjk_keys(target, viewport),
             super::ClientPhase::Player => {
                 let reveal = self.screen_reveal();
                 self.player.append_sjk(target, viewport, reveal);

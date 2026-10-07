@@ -2,8 +2,8 @@
 //! of settings down one rail, opened from the main page's Settings (and at
 //! start for First setup). The rows are the classic+ panels' groups
 //! ([`crate::settings::SettingsMenu`] draws them in [`crate::settings::Rail`]'s
-//! frame); Key bindings opens the classic+ key bindings until they get an SJK
-//! UI screen of their own, and comes back here.
+//! frame), and Key bindings the classic+ list of every binding
+//! ([`crate::keybind_editor::KeybindEditor`] draws it in the same frame).
 
 use super::super::classic::layout::{Entry, Page, Panel, Span};
 use super::super::classic::panel::Frame as PanelFrame;
@@ -18,8 +18,8 @@ use crate::settings::{Group, SettingsMenu, SettingsResult};
 enum Shows {
     /// A panel of settings rows.
     Rows(Panel),
-    /// The key bindings (the classic+ screen, for now).
-    Bindings,
+    /// The key bindings: every action with its keys.
+    Keys,
 }
 
 /// One category of the rail: its name, its settings icon and what it shows.
@@ -67,7 +67,7 @@ const CATEGORIES: [Category; 11] = [
     Category {
         label: "Key bindings",
         icon: "key_bindings",
-        shows: Shows::Bindings,
+        shows: Shows::Keys,
     },
     Category {
         label: "Gameplay",
@@ -119,8 +119,6 @@ pub(crate) struct SettingsPage {
     open: bool,
     /// The category on show, or last shown: the screen opens on it again.
     category: usize,
-    /// The key bindings were opened from the rail; closing them comes back.
-    bindings: bool,
 }
 
 impl Default for SettingsPage {
@@ -128,7 +126,6 @@ impl Default for SettingsPage {
         Self {
             open: false,
             category: OPENING,
-            bindings: false,
         }
     }
 }
@@ -152,17 +149,20 @@ impl ClientMenu {
         let index = index.min(CATEGORIES.len() - 1);
         let panel = match CATEGORIES[index].shows {
             Shows::Rows(panel) => panel,
-            Shows::Bindings => {
-                if let Some(entry) = Page::Controls.opening_panel() {
-                    self.open_classic_panel(
-                        console,
-                        Page::Controls,
-                        entry,
-                        PanelFrame::Main,
-                        target,
-                    );
-                    self.sjk_settings.bindings = true;
-                }
+            Shows::Keys => {
+                self.settings.leave_classic();
+                self.keybinds.open_classic(console, 0, Span::ALL);
+                self.keybinds.set_elsewhere(0);
+                // Escape leaves the screen, as it does from Settings' rows.
+                self.keybinds_direct = true;
+                self.settings_return = target;
+                self.renderer_panel = None;
+                self.classic_panel = None;
+                self.sjk_settings = SettingsPage {
+                    open: true,
+                    category: index,
+                };
+                self.state.open_keybinds();
                 return;
             }
         };
@@ -191,24 +191,25 @@ impl ClientMenu {
         self.sjk_settings = SettingsPage {
             open: true,
             category: index,
-            bindings: false,
         };
         self.state.open_settings();
     }
 
-    /// Whether the SJK UI's Settings is the screen on show.
+    /// Whether the SJK UI's Settings is the screen on show: a category of
+    /// settings rows, or Key bindings.
     pub(crate) fn sjk_settings_on_show(&self) -> bool {
         self.sjk_settings.open
             && self.classic_panel.is_none()
-            && matches!(self.state.phase(), ClientPhase::Settings)
-            && self.settings.has_panel_rows()
+            && match self.state.phase() {
+                ClientPhase::Settings => self.settings.has_panel_rows(),
+                ClientPhase::Keybinds => self.keybinds.has_list(),
+                _ => false,
+            }
     }
 
-    /// The screen is left (to the main menu or the game): it is no longer open,
-    /// and key bindings opened from it no longer come back to it.
+    /// The screen is left (to the main menu or the game): it is no longer open.
     pub(in crate::menu) fn close_sjk_settings(&mut self) {
         self.sjk_settings.open = false;
-        self.sjk_settings.bindings = false;
     }
 
     /// Another settings screen opened: this one is not the one on show.
@@ -216,18 +217,46 @@ impl ClientMenu {
         self.sjk_settings.open = false;
     }
 
-    /// Closing the key bindings opened from the rail: back to the category
-    /// they were opened from. False when they were not opened from it.
-    pub(in crate::menu) fn return_from_bindings(&mut self, console: &ViewerConsole) -> bool {
-        if !std::mem::take(&mut self.sjk_settings.bindings)
-            || self.menu_style != super::super::MenuStyle::Sjk
-        {
-            return false;
+    /// What the key bindings asked of the screen around them, as
+    /// [`Self::sjk_settings_result`] reads the settings rows'.
+    pub(in crate::menu) fn sjk_keys_result(
+        &mut self,
+        result: &crate::keybind_editor::EditorResult,
+        console: &ViewerConsole,
+    ) -> Option<MenuAction> {
+        use crate::keybind_editor::EditorResult;
+        if !self.sjk_settings_on_show() {
+            return None;
         }
         let target = self.settings_return;
-        self.leave_classic_panel();
-        self.open_sjk_settings(console, self.sjk_settings.category, target);
-        true
+        match *result {
+            EditorResult::Classic(index) if index < CATEGORIES.len() => {
+                if index != self.sjk_settings.category
+                    || !self.keybinds.search_text().trim().is_empty()
+                {
+                    self.open_sjk_settings(console, index, target);
+                }
+                Some(MenuAction::None)
+            }
+            EditorResult::Classic(_) => Some(MenuAction::None),
+            EditorResult::ClassicCycle(direction) => {
+                let next = next_category(self.sjk_settings.category, direction);
+                self.open_sjk_settings(console, next, target);
+                Some(MenuAction::None)
+            }
+            _ => None,
+        }
+    }
+
+    /// Draw the SJK UI's Key bindings.
+    pub(crate) fn append_sjk_keys(&mut self, target: TextTarget<'_>, viewport: [f32; 2]) {
+        let reveal = self.screen_reveal();
+        let searched = !self.keybinds.search_text().trim().is_empty();
+        let rail = crate::settings::Rail {
+            categories: &RAIL,
+            current: (!searched).then_some(self.sjk_settings.category),
+        };
+        self.keybinds.append_sjk(target, viewport, reveal, &rail);
     }
 
     /// What the settings rows asked of the screen around them: a category of
@@ -244,17 +273,14 @@ impl ClientMenu {
         let target = self.settings_return;
         match *result {
             SettingsResult::Classic(index) if index < CATEGORIES.len() => {
-                if index != self.sjk_settings.category
-                    || !matches!(CATEGORIES[index].shows, Shows::Rows(_))
-                    || self.settings.searching_results()
-                {
+                if index != self.sjk_settings.category || self.settings.searching_results() {
                     self.open_sjk_settings(console, index, target);
                 }
                 Some(MenuAction::None)
             }
             SettingsResult::Classic(_) => Some(MenuAction::None),
             SettingsResult::ClassicCycle(direction) => {
-                let next = next_rows(self.sjk_settings.category, direction);
+                let next = next_category(self.sjk_settings.category, direction);
                 self.open_sjk_settings(console, next, target);
                 Some(MenuAction::None)
             }
@@ -275,6 +301,22 @@ impl ClientMenu {
 
 #[cfg(test)]
 impl ClientMenu {
+    /// The SJK UI's Key bindings, the action of `command` focused and awaiting
+    /// its second key when `capture` (world shots).
+    pub(crate) fn sjk_keys_for_shot(
+        &mut self,
+        console: &ViewerConsole,
+        command: &str,
+        capture: bool,
+    ) {
+        let keys = CATEGORIES
+            .iter()
+            .position(|category| category.shows == Shows::Keys)
+            .unwrap_or(0);
+        self.open_sjk_settings(console, keys, ReturnTarget::MainMenu);
+        self.keybinds.focus_for_shot(command, capture);
+    }
+
     /// The SJK UI's Settings on category `category`, the row of `cvar` focused,
     /// its list open (`list`) or a `search` typed (menu snapshots).
     pub(crate) fn sjk_settings_for_snapshot(
@@ -299,25 +341,18 @@ impl ClientMenu {
     }
 }
 
-/// The category of rows `direction` steps from `index` along the rail,
-/// wrapping and passing over Key bindings, which leaves the screen.
-fn next_rows(index: usize, direction: i32) -> usize {
-    let count = CATEGORIES.len() as i32;
-    let mut next = index as i32;
-    for _ in 0..CATEGORIES.len() {
-        next = (next + direction.signum()).rem_euclid(count);
-        if matches!(CATEGORIES[next as usize].shows, Shows::Rows(_)) {
-            return next as usize;
-        }
-    }
-    index
+/// The category `direction` steps from `index` along the rail, wrapping.
+fn next_category(index: usize, direction: i32) -> usize {
+    (index as i32 + direction.signum()).rem_euclid(CATEGORIES.len() as i32) as usize
 }
 
 /// The classic Setup page and entry whose panel is category `index`'s, if one
-/// is (the classic pages have no Graphics of all four renderer tabs).
+/// is (the classic pages have no Graphics of all four renderer tabs); Key
+/// bindings is the Controls page's.
 fn classic_place(index: usize) -> Option<(Page, Entry)> {
-    let Shows::Rows(panel) = CATEGORIES.get(index)?.shows else {
-        return None;
+    let panel = match CATEGORIES.get(index)?.shows {
+        Shows::Rows(panel) => panel,
+        Shows::Keys => return Some((Page::Controls, Entry::Movement)),
     };
     [Page::Setup, Page::Graphics, Page::Gameplay]
         .into_iter()
@@ -391,15 +426,15 @@ mod tests {
     }
 
     #[test]
-    fn tab_steps_along_the_categories_of_rows() {
-        let bindings = CATEGORIES
+    fn tab_steps_along_every_category_and_wraps() {
+        let keys = CATEGORIES
             .iter()
-            .position(|category| category.shows == Shows::Bindings)
+            .position(|category| category.shows == Shows::Keys)
             .unwrap();
-        assert_eq!(next_rows(bindings - 1, 1), bindings + 1);
-        assert_eq!(next_rows(bindings + 1, -1), bindings - 1);
-        assert_eq!(next_rows(CATEGORIES.len() - 1, 1), 0);
-        assert_eq!(next_rows(0, -1), CATEGORIES.len() - 1);
+        assert_eq!(next_category(keys - 1, 1), keys);
+        assert_eq!(next_category(keys, 1), keys + 1);
+        assert_eq!(next_category(CATEGORIES.len() - 1, 1), 0);
+        assert_eq!(next_category(0, -1), CATEGORIES.len() - 1);
     }
 
     #[test]
@@ -452,24 +487,35 @@ mod tests {
     }
 
     #[test]
-    fn key_bindings_come_back_to_the_category_they_were_opened_from() {
+    fn key_bindings_are_a_category_of_the_screen_and_tab_leaves_them() {
+        use crate::keybind_editor::EditorResult;
         let (_directory, mut console) = console();
         let mut menu = menu();
         menu.open_sjk_settings(&console, 7, ReturnTarget::MainMenu);
-        let bindings = CATEGORIES
+        let keys = CATEGORIES
             .iter()
-            .position(|category| category.shows == Shows::Bindings)
+            .position(|category| category.shows == Shows::Keys)
             .unwrap();
-        menu.settings_result(SettingsResult::Classic(bindings), &mut console);
+        menu.settings_result(SettingsResult::Classic(keys), &mut console);
         assert_eq!(*menu.state.phase(), ClientPhase::Keybinds);
-        assert!(!menu.sjk_settings_on_show());
-        let action = menu.close_keybinds(&console);
-        assert_eq!(action, MenuAction::None);
+        assert!(
+            menu.sjk_settings_on_show(),
+            "the same screen, on Key bindings"
+        );
+        assert!(menu.classic_panel.is_none());
+        // Tab to the next category, the rail back to Key bindings, then Escape.
+        menu.keybinds_result(EditorResult::ClassicCycle(1), &mut console);
         assert_eq!(*menu.state.phase(), ClientPhase::Settings);
-        assert!(menu.sjk_settings_on_show());
-        assert_eq!(menu.sjk_settings.category, 7);
-        // Opened another way, they close as before.
-        menu.settings_result(SettingsResult::Back, &mut console);
+        assert_eq!(menu.sjk_settings.category, keys + 1);
+        menu.settings_result(SettingsResult::Classic(keys), &mut console);
+        assert_eq!(*menu.state.phase(), ClientPhase::Keybinds);
+        menu.keybinds_result(EditorResult::Back, &mut console);
         assert_eq!(*menu.state.phase(), ClientPhase::MainMenu);
+        assert!(!menu.sjk_settings_on_show());
+        // A style change there hands over to the classic Controls panel.
+        menu.open_sjk_settings(&console, keys, ReturnTarget::MainMenu);
+        menu.set_menu_style(super::super::super::MenuStyle::Classic, &console);
+        let panel = menu.classic_panel.expect("a classic panel");
+        assert_eq!(panel.page, Page::Controls);
     }
 }
