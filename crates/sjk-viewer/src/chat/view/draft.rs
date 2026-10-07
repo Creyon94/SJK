@@ -16,7 +16,11 @@ impl ChatOverlay {
         input.layout.rect = Rect::new(g.left, y, g.width, 34.0 * g.scale);
         input.layout.len = 0;
         walk(draft, advance, |index, x, _| {
-            input.layout.stops[input.layout.len] = (start + index, g.left + x);
+            // A report draft is longer than a chat line: keep the stops it has room for.
+            let Some(stop) = input.layout.stops.get_mut(input.layout.len) else {
+                return true;
+            };
+            *stop = (start + index, g.left + x);
             input.layout.len += 1;
             false
         });
@@ -40,7 +44,11 @@ impl ChatOverlay {
         }
         self.ui.text(
             if input.text.is_empty() {
-                "Say something..."
+                match input.channel {
+                    Channel::Note => "What should change here?",
+                    Channel::Report => "What went wrong? Where, and what did you expect?",
+                    _ => "Say something...",
+                }
             } else {
                 draft
             },

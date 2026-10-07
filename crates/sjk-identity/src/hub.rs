@@ -1,6 +1,7 @@
 //! Talking to the hub: the [`Hub`] operations and their HTTPS implementation.
 
 use crate::keys::{Identity, random_bytes};
+use crate::report::BugReport;
 use crate::wire::{Presence, Profile, authorization};
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
@@ -65,6 +66,12 @@ pub trait Hub: Send {
     fn release(&mut self, identity: &Identity, server: &str) -> Result<(), HubError>;
     /// The live claims on `server`.
     fn presence(&mut self, server: &str) -> Result<Vec<Presence>, HubError>;
+    /// Send a bug report signed by the identity; the hub answers with its number.
+    fn report(&mut self, _identity: &Identity, _report: &BugReport) -> Result<i64, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not send reports".to_owned(),
+        ))
+    }
 }
 
 /// Whether `url` may be used as the hub's address: `https://host[:port]`, or
@@ -235,6 +242,20 @@ impl Hub for HttpHub {
             None => json!({}),
         };
         parse(self.send(Some(identity), "POST", "/v1/register", Some(body))?)
+    }
+
+    fn report(&mut self, identity: &Identity, report: &BugReport) -> Result<i64, HubError> {
+        let body = json!({
+            "text": report.text,
+            "map": report.map,
+            "build": report.build,
+            "server": report.server,
+        });
+        let answer = self.send(Some(identity), "POST", "/v1/report", Some(body))?;
+        answer
+            .get("id")
+            .and_then(serde_json::Value::as_i64)
+            .ok_or_else(|| HubError::Protocol("the report answer has no id".to_owned()))
     }
 
     fn set_bio(&mut self, identity: &Identity, bio: &str) -> Result<Profile, HubError> {

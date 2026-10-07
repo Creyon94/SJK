@@ -1054,6 +1054,7 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
         profiles: std::collections::HashMap::new(),
         notice: Some("saved".to_owned()),
         revision: 0,
+        report: None,
     };
     let online = hub(Status::Online, "^1Sol", &["^4Vulpes", "Padawan"]);
     let fresh = hub(Status::Online, "Padawan", &[]);

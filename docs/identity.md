@@ -82,6 +82,26 @@ set nothing: a default install makes a key and tells that hub where it plays. Th
 Identity page, the setting's help and the changelog say what is sent and that
 `cl_identity 0` stops it.
 
+A bug report (Escape, SJK, Report a bug) is sent only when the player presses Enter
+on it: its text, the map, the client build and the game server's address, signed with
+the player's key. The hub keeps it until the operator removes it.
+
+## Bug reports
+
+[bug_report.rs](../crates/sjk-viewer/src/bug_report.rs) and
+[report.rs](../crates/sjk-identity/src/report.rs). Escape, SJK, Report a bug closes the
+game menu and opens a red report line in the chat composer (Tab and the channel tabs
+do not turn it into chat). As it is typed or pasted, only letters and digits of any
+script, spaces and `. , ! ? ' - : ( )` are kept (line breaks become spaces), up to 600
+characters. Enter checks the hub's rules (10 to 600 characters, a few real words, no
+long run of one character) and hands the report to the identity service, which sends
+`POST /v1/report` signed with the player's key; the outcome (the hub's report number,
+or why it refused, for example a quota) shows as a centre print. The hub checks
+everything again and limits reports per key (3 a day, 20 once verified, 5 an hour, no
+repeat within a day), per address (3 in 10 minutes) and overall (300 a day, 5000 kept),
+so a troll with fresh keys gets little through and nothing that is not plain words. The
+operator reads them with the hub's `reports` command or `/admin/v1/reports`.
+
 ## Settings and commands
 
 - `cl_identity` (default 1; Settings > Network > SJK identity) turns the feature on.

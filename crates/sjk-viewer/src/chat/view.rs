@@ -16,6 +16,7 @@ pub(super) fn tint(channel: Channel, alpha: f32) -> Color {
         Channel::Team => Color::new(0.40, 0.86, 0.86, alpha),
         Channel::Whisper => Color::new(0.84, 0.68, 1.0, alpha),
         Channel::Note => Color::new(1.0, 0.78, 0.36, alpha),
+        Channel::Report => Color::new(1.0, 0.45, 0.42, alpha),
     }
 }
 
@@ -210,6 +211,7 @@ impl ChatOverlay {
                         Channel::Team => "TEAM",
                         Channel::Whisper => "WHISPER",
                         Channel::Note => "NOTE",
+                        Channel::Report => "REPORT",
                         Channel::Global => "",
                     }
                 };

@@ -107,7 +107,7 @@ impl ChatOverlay {
                 if self
                     .input
                     .as_ref()
-                    .is_some_and(|i| i.channel == Channel::Note) => {}
+                    .is_some_and(|i| matches!(i.channel, Channel::Note | Channel::Report)) => {}
             KeyCode::Tab => {
                 let channel = self.input.as_ref().expect("active input").channel;
                 self.activate(if channel == Channel::Global {
@@ -134,13 +134,18 @@ impl ChatOverlay {
     fn submit(&mut self) -> ChatInputResult {
         let input = self.input.as_ref().expect("active input");
         let destination = match input.channel {
-            Channel::Note => {
-                let note = input.text.clone();
+            Channel::Note | Channel::Report => {
+                let text = input.text.clone();
+                let report = input.channel == Channel::Report;
                 self.input = None;
                 self.scroll = 0;
                 self.unread = 0;
                 self.notice = "";
-                return ChatInputResult::Note(note);
+                return if report {
+                    ChatInputResult::Report(text)
+                } else {
+                    ChatInputResult::Note(text)
+                };
             }
             Channel::Global => ChatDestination::Global,
             Channel::Team => ChatDestination::Team,
@@ -269,7 +274,11 @@ impl ChatOverlay {
     pub(super) fn activate(&mut self, token: u16) {
         match token {
             GLOBAL | TEAM => {
-                if let Some(input) = self.input.as_mut().filter(|i| i.channel != Channel::Note) {
+                if let Some(input) = self
+                    .input
+                    .as_mut()
+                    .filter(|i| !matches!(i.channel, Channel::Note | Channel::Report))
+                {
                     input.channel = if token == GLOBAL {
                         Channel::Global
                     } else {
@@ -312,6 +321,7 @@ impl crate::GpuState {
                 self.send_chat_command(&command);
             }
             ChatInputResult::Note(note) => self.save_world_note(&note),
+            ChatInputResult::Report(text) => self.send_bug_report(&text),
             ChatInputResult::None => {}
         }
         self.sync_cursor_policy();
