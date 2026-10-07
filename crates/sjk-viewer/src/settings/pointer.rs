@@ -141,6 +141,11 @@ impl SettingsMenu {
         if event.kind != UiEventKind::Activate {
             return SettingsResult::None;
         }
+        // Classic+: a segment or a reset button acts at once.
+        if let Some(control) = super::classic_view::RowControl::of(token) {
+            self.activate_control(console, control);
+            return SettingsResult::None;
+        }
         match token {
             500.. if usize::from(token - 500) < self.tabs().len() => {
                 self.select_tab(console, usize::from(token - 500));
@@ -189,7 +194,9 @@ impl SettingsMenu {
     }
 
     fn setting_row(&self, token: u16) -> Option<usize> {
-        let row = crate::menu_widgets::numeric::value_row(token).unwrap_or(usize::from(token));
+        let row = crate::menu_widgets::numeric::value_row(token)
+            .or_else(|| super::classic_view::RowControl::of(token).map(|control| control.row()))
+            .unwrap_or(usize::from(token));
         (row < self.rows().len() && self.shows(row)).then_some(row)
     }
 

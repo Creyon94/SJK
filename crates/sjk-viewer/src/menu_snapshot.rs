@@ -608,7 +608,12 @@ fn menu_snapshot() {
     let searches: [(&str, Frame, Option<&str>, &str); 3] = [
         ("settings-search", Frame::Main, Some("shadow"), ""),
         ("settings-dropdown", Frame::Main, None, "r_fullscreen"),
-        ("settings-dropdown-ingame", Frame::InGame, None, "cg_marks"),
+        (
+            "settings-dropdown-ingame",
+            Frame::InGame,
+            None,
+            "r_fullscreen",
+        ),
     ];
     for (name, frame, search, cvar) in searches {
         let mut menu = SettingsMenu::new();
@@ -1312,6 +1317,109 @@ fn player_card(shots: &mut Snapshot) {
             crate::text::TextStyle::NEUTRAL,
         );
         shots.save(name, &state.list, &vertices, true);
+    }
+}
+
+/// Only the classic+ settings panels (switches, sliders, segments, choice
+/// fields, sub-headings, a changed row's dot and reset arrow), in Inter and in
+/// SJK Menu (`ui_gameFont 1`), for a quicker look than the whole set.
+#[test]
+#[ignore = "reads the installed game data named by JKA_GAME_DATA"]
+fn settings_panel_snapshot() {
+    let (art, vfs) = art();
+    let mut icons = HashMap::from([(crate::ui_renderer::LOGO_TEXTURE.0, logo_icon())]);
+    for (index, (_, bytes)) in crate::settings_icons::ICONS.iter().enumerate() {
+        let icon = image::load_from_memory(bytes).expect("a settings icon");
+        let texture = crate::ui_renderer::settings_icon(index);
+        icons.insert(texture.0, icon.into_rgba8());
+    }
+    let directory = tempfile::tempdir().expect("scratch profile");
+    let mut console =
+        crate::console::ViewerConsole::new(directory.path().join("config.cfg")).expect("console");
+    // Changed rows show their dot, and the focused one its reset arrow.
+    console.set_cvar("r_hdrExposure", "1.5");
+    console.set_cvar("ui_menuContrast", "strong");
+    console.set_cvar("cg_drawTimer", "1");
+    let fonts = [
+        (
+            "",
+            crate::text::load_modern(1.0, None).expect("build the menu font"),
+        ),
+        (
+            "-gamefont",
+            crate::text::retail_font::load(&crate::text::retail_font::MENU).expect("SJK Menu"),
+        ),
+    ];
+    let cases: [(&str, Page, Entry, Frame, &str); 5] = [
+        (
+            "panel-interface",
+            Page::Gameplay,
+            Entry::Interface,
+            Frame::Main,
+            "ui_menuContrast",
+        ),
+        (
+            "panel-hud-ingame",
+            Page::Gameplay,
+            Entry::Hud,
+            Frame::InGame,
+            "cg_hudScale",
+        ),
+        (
+            "panel-first-setup",
+            Page::Setup,
+            Entry::FirstSetup,
+            Frame::Main,
+            "r_fullscreen",
+        ),
+        (
+            "panel-image",
+            Page::Graphics,
+            Entry::RenderImage,
+            Frame::Main,
+            "r_hdrExposure",
+        ),
+        (
+            "panel-game-ingame",
+            Page::Gameplay,
+            Entry::GameOptions,
+            Frame::InGame,
+            "cg_auraShell",
+        ),
+    ];
+    for (suffix, font) in fonts {
+        let shots = Snapshot {
+            font,
+            icons: icons.clone(),
+            in_match: match_backdrop(&vfs),
+        };
+        for (name, page, entry, frame, cvar) in cases {
+            let mut menu = SettingsMenu::new();
+            match entry.panel() {
+                Some(Panel::Settings { caption, span }) => {
+                    let tab = SettingsMenu::tab_index(caption).expect("settings tab");
+                    menu.open_classic(&console, tab, span, frame);
+                }
+                Some(Panel::Renderer { tab }) => menu.open_classic_renderer(&console, tab, frame),
+                Some(Panel::Group(group)) => menu.open_classic_group(&console, group, frame),
+                other => panic!("{entry:?} has no settings panel: {other:?}"),
+            }
+            menu.select_cvar(cvar);
+            let panel = PanelFrame {
+                frame,
+                page,
+                active: entry,
+                art,
+            };
+            let mut vertices = Vec::new();
+            menu.append_classic(&mut vertices, &shots.font.font, VIEWPORT, 1.0, &panel);
+            shots.save(
+                &format!("{name}{suffix}"),
+                menu.draw_list(),
+                &vertices,
+                frame == Frame::InGame,
+            );
+        }
     }
 }
 

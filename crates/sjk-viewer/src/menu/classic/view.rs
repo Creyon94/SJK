@@ -141,6 +141,21 @@ impl std::fmt::Display for Caps<'_> {
     }
 }
 
+/// Text in sentence case, as classic+ sets values: its first letter raised
+/// ([`Caps`]'s rule), the rest as written (`standard` is `Standard`).
+pub(crate) struct Sentence<'a>(pub(crate) &'a str);
+
+impl std::fmt::Display for Sentence<'_> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use std::fmt::Write as _;
+        let mut characters = self.0.chars();
+        if let Some(first) = characters.next() {
+            formatter.write_char(capital(first))?;
+        }
+        formatter.write_str(characters.as_str())
+    }
+}
+
 /// `character` in capitals where Latin-1 has a one-to-one capital; `ß` and
 /// `ÿ`, whose capitals lie outside it, stay as they are.
 fn capital(character: char) -> char {

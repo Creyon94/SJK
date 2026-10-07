@@ -7,6 +7,25 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Classic+ settings controls
+
+SJK-only branch `personal/settings-modern` (07/10/2026, based on `fe9face`, Windows
+11): the classic option panels draw their own controls instead of retail's YES/NO
+text and slider art: switches for on/off settings, slim sliders with their value in
+a frame, segments for choices of two or three values, fields with a caret for longer
+lists, sentence-case labels with brighter values, a soft band on the focused row,
+a gold dot on changed rows and a reset arrow on the focused one, sub-headings in the
+Game options, Interface, HUD and First setup groups, and the group's icon in the
+detail box (the key bindings' category icon too). A switch flips and a segment sets
+on the click; only longer lists open a dropdown. See
+[client.md](client.md#menu-style) and [classic-plus.md](classic-plus.md). Unit tests
+cover the control tokens, flipping and segment setting without a dropdown, the reset
+button, the group headings and every group's icon; the sjk-viewer tests passed.
+Off-screen snapshots drew the Interface, HUD (in game), First setup, Image and Game
+options panels in Inter and in SJK Menu (`ui_gameFont 1`). No game was started:
+hover and click feel, the switch and segment clicks and the reset arrow are
+unverified in game; the modern settings screen is unchanged.
+
 ## Saber wall cutoff
 
 SJK pull request #24 by lumaya, branch `fix/saber-wall-cutoff` (based on
@@ -505,7 +524,9 @@ replacing the three corner buttons. KEY BINDINGS shows every binding in one list
 under category headings; each panel's first row is a search field (every option
 of OPTIONS, renderer included, by name, console name, description or group,
 results under group headings; bindings by name, command, category or key);
-choices open a dropdown and change only when applied. Retail's Mods and
+choices open a dropdown and change only when applied (since `personal/settings-modern`,
+only lists of more than three values and the display mode; switches flip and short
+choices are segments). Retail's Mods and
 Defaults entries are gone and Mouse moved to OPTIONS. See
 [client.md](client.md#menu-style). Unit tests cover the page tables, tab
 mapping, the bindings list, search and Escape order, the option search's

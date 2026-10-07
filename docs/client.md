@@ -245,10 +245,9 @@ OPTIONS on the right; a click switches, and Tab walks through the groups of both
 tabs in turn. Each tab keeps its group list down the left and shows the chosen
 group's items in the panel beside it, opening on First setup (OPTIONS) and Movement
 (KEY BINDINGS). The items are the same settings and key bindings as the modern
-screens, drawn the retail way: labels in capitals set against a column at retail
-`textalignx`, the value after them, toggles as YES/NO, numbers as the retail slider
-(`menu/new` art) with the value beside it, the focused item on the `menu_blendbox`
-highlight, and the open group's entry in white. A group with more items than the
+screens, laid out the retail way (labels set against a column at retail
+`textalignx`, the value after them, the open group's entry in white) with
+classic+'s own controls, below. A group with more items than the
 panel holds scrolls: the wheel over its items moves the list one item per notch
 (three on a key-binding group), a thin bar along the panel's right edge shows the
 position and can be dragged, and Up and Down keep the selected item in view.
@@ -265,9 +264,35 @@ binding it shows the keys, the console command, which other actions those keys
 also do, and the default key. Row labels drop their bracketed notes and their
 "(restart)" or "(next map)", which the detail box says instead; a setting that
 applies later has a gold `*` after its label, and a row changed from its default
-(a binding off its default key) has a small gold mark at its left end. Backspace
-or the right button returns the focused setting to its default (resolution and
-display mode excepted). The description line names the keys of the focused row.
+(a binding off its default key) has a gold dot after its label. Backspace, the
+right button or the focused row's gold reset arrow (at the row's right end)
+returns the setting to its default (resolution and display mode excepted). The
+description line names the keys of the focused row, and the detail box's title
+carries the icon of the setting's group (or of a binding's category).
+
+Classic+ draws the items with its own controls on retail's blue and gold
+(Sol's request, 07/10/2026; [classic-plus.md](classic-plus.md)), instead of
+retail's YES/NO text and `menu/new` slider art:
+
+- Labels are in sentence case ("Menu text size"), in retail's option blue; values
+  are brighter. The focused row's label turns white over a soft band with a gold
+  bar at its left end. Headings, tabs and group names keep retail's capitals.
+- An on/off setting is a switch: a pill, gold with its knob right when on, dark
+  with its knob left when off, and On or Off after it. A click on its row, Enter,
+  Space, Left or Right flips it.
+- A number is a slim rail filled gold up to a round knob (ringed while the row is
+  focused), with its value centred in a small frame after it. Clicking or dragging
+  along the row sets it, Left and Right step it, typing or Enter edits it exactly.
+- A choice of two or three values (menu style, menu contrast, console style,
+  scoreboard style) shows them all side by side, the one in use filled gold; a
+  click on one sets it, Left and Right step.
+- A longer list (the menu accent), the display mode, the resolution and the HUD
+  show their value in a field with a small caret; a click or Enter opens the list.
+  A text setting shows its text in a field, typed in place.
+- The longer groups are divided by sub-headings: Game options (items and models,
+  effects, camera and prediction), Interface (menus, console), HUD (layout,
+  crosshair, names and cards, nameplates, readouts) and First setup (display, aim,
+  sound, HUD, nameplates, Force shells, SJK).
 
 Retail split video and the Force binds over two pages because a page held few
 items; classic+ panels scroll and explain the focused item, so SJK shows each as
@@ -326,13 +351,13 @@ the other tab (or Tab, or `[` and `]`, across the tab boundary) carries the sear
 to it, so one query walks every setting and binding
 ([menu/classic.rs](../crates/sjk-viewer/src/menu/classic.rs), `sync_cross_search`).
 
-A choice (a switch, a choice row, the display mode) does not change on a click
-or Enter: they open a dropdown under the value in the retail list box's look,
-the value in use marked IN USE, and nothing changes until a choice is applied
-with Enter or a click. Up and Down move in it; Escape, Backspace or a click
-elsewhere close it unchanged. Left and Right still step the value directly. The
-rows the dropdown covers leave their values out while it is open, since text
-draws over every shape.
+A list (a choice of more than three values, the display mode) does not change
+on a click or Enter: they open a dropdown under the value, a rounded list over a
+soft shadow with the value in use in gold and marked with a dot, and nothing
+changes until a choice is applied with Enter or a click. Up and Down move in it;
+Escape, Backspace or a click elsewhere close it unchanged. Left and Right still
+step the value directly. The rows the dropdown covers leave their values out
+while it is open, since text draws over every shape.
 
 Key bindings carry the retail HUD picture of what they select or use
 ([keybind_editor/icons.rs](../crates/sjk-viewer/src/keybind_editor/icons.rs)):
@@ -344,8 +369,8 @@ are read from the player's game data on a worker thread when the key bindings
 first open, into two atlas rows of their own; a picture the game data lacks is
 left out.
 
-Up and Down move through the items, Left and Right change a value, Enter opens
-a choice's dropdown, and typing or Enter on a number edits it exactly; clicking
+Up and Down move through the items, Left and Right change a value, Enter flips a
+switch or opens a list's dropdown, and typing or Enter on a number edits it exactly; clicking
 a slider sets it. Tab moves to the next group (on KEY BINDINGS, Left and Right
 do too). A key binding reads "A OR B" (retail's `KEYBIND_OR`,
 raised to capitals with the key names as retail's `BindingFromName` does) or `???`

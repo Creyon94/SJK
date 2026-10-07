@@ -1935,6 +1935,20 @@ test: Options, then Graphics and Gameplay: every group has its own icon; hover o
 test: In a match, Escape > Settings: the pop-up's group list shows the same icons.
 note: Wrong picture for a group, or too big/small at 4K? Tell Claude which.
 
+[settings-modern]
+status: personal
+area: Menus & settings
+title: Modern settings controls (classic menus): switches, sliders, segments
+change: On/off rows are switches, numbers slim sliders, 2-3 choices side by side, lists a field.
+change: Labels in sentence case, sub-headings in long groups, a gold dot and reset arrow if changed.
+test: Settings > Options > Gameplay > Interface: click a switch row: it flips at once, no list.
+test: Menu contrast: click Off / Standard / Strong: the gold segment follows; Left/Right step.
+test: Menu accent: the field with a caret opens the list; Enter or a click applies.
+test: Drag a slider: the gold fill and knob follow; type a number on it: the box edits it.
+test: Change a setting: a gold dot after its label; the arrow at the row's end resets it.
+test: HUD and First setup show sub-headings (Layout, Crosshair...); the detail box has an icon.
+note: Too small or too tight at 4K, or a colour off? Tell Claude which control.
+
 # ---- Merged upstream ----
 
 [actor-instance-cap]

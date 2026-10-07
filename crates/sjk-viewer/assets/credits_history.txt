@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 07/10/2026 | - | classic+ settings controls: switches, sliders, segments, sub-headings
+- 3c4b7af |  | Classic+ settings controls: switches, sliders, segments, sub-headings
 + 07/10/2026 | - | Game fonts as bundled vector fonts: SJK Menu, SJK Chat, SJK HUD
 - dcf47c9 |  | Game fonts as bundled vector fonts: SJK Menu, SJK Chat and SJK HUD
 + 07/10/2026 | - | Release 2026.1007.1 (Alpha)
