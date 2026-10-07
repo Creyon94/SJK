@@ -63,15 +63,19 @@ limits, time left, your place in gold), one list in free-for-all (two side by
 side past 22 players), the teams side by side under their scores, the duelists
 as facing cards over the players waiting, spectators on one line.
 `cg_scoreboardStyle` gained `sjk` and `auto`, the new default: the SJK UI's
-board with `ui_menuStyle sjk`, else the classic one; a saved value keeps its
-look ([client.md](client.md#scoreboard-styles)). The board reads the match's
+board with `ui_menuStyle sjk`, else the classic one. Every profile had saved
+the old default `classic`; on review the lead added a one-time move of a saved
+`classic` to `auto` (`cg_scoreboardStyleDefaultVersion`, as the console key's
+default moved), so the SJK UI brings its board; a look chosen after that stays
+([client.md](client.md#scoreboard-styles)). The board reads the match's
 limits, `CS_LEVEL_START_TIME`, `CS_CLIENT_DUELISTS` and
 `CS_CLIENT_DUELHEALTHS`; its canvas holds 320 text runs and 1024 draw commands
 (was 208 and 640); the UI's families load for a scoreboard chosen on its own;
 the browser's signal bars are shared (`pub(crate)`).
 
 Verified: unit tests pin the cvar's semantics (`auto` under each menu style, a
-saved `classic` kept after the menus switch to the SJK UI, mistyped values),
+saved old `classic` moved once to `auto` and a later `classic` kept across
+starts, mistyped values),
 32-player boards in every mode fitting the canvas at 1080 lines, 4K and 5:4,
 a cut team list keeping your row, shared places for ties, the duelists' cards
 and health, the clock and duelists read from config strings, the header's words

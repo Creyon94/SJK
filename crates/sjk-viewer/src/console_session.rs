@@ -308,6 +308,29 @@ impl ViewerConsole {
             let _ = shell.cvars.reset("cl_consoleUseScanCode");
             let _ = shell.cvars.set_text("cl_consoleKeyDefaultVersion", "1");
         }
+        // cg_scoreboardStyle defaulted to classic and every profile saved it, so
+        // the new default `auto` would reach none. Move a saved classic once to
+        // auto: it draws the same classic board unless the menus are the SJK UI,
+        // whose own board is the point; a classic chosen after this stays.
+        if matches!(
+            shell
+                .cvars
+                .get("cg_scoreboardStyleDefaultVersion")
+                .map(|cvar| &cvar.value),
+            Some(CvarValue::Integer(0))
+        ) {
+            let style = crate::scoreboard::style::CVAR;
+            if shell
+                .cvars
+                .get(style)
+                .is_some_and(|cvar| cvar.value.as_text().trim().eq_ignore_ascii_case("classic"))
+            {
+                let _ = shell.cvars.reset(style);
+            }
+            let _ = shell
+                .cvars
+                .set_text("cg_scoreboardStyleDefaultVersion", "1");
+        }
         shell.push_log("^5Sol JK console ready. ^7Type cmdlist for commands.");
         Ok(Self {
             shell,

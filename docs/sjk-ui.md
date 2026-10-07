@@ -438,8 +438,8 @@ over it.
 [scoreboard/sjk.rs](../crates/sjk-viewer/src/scoreboard/sjk.rs): the scoreboard
 held with Tab in a match (and shown at intermission), `cg_scoreboardStyle sjk`.
 Its default, `auto`, shows it while `ui_menuStyle` is `sjk` and the classic
-scoreboard otherwise; a profile that saved a style keeps it
-([client.md](client.md#scoreboard-styles)). No panel: the columns float over
+scoreboard otherwise; a profile's saved old default (`classic`) moves to it
+once, a style chosen after that stays ([client.md](client.md#scoreboard-styles)). No panel: the columns float over
 the game, which is darkened by the UI's navy (a third everywhere, deeper behind
 the header and, from the chat column's edge, behind the columns). It fades in
 and out as the classic board does, settling into place as it opens.

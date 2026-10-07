@@ -678,6 +678,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             archive,
             "Internal migration marker for the scan-code console key default",
         ),
+        CvarDefinition::new(
+            "cg_scoreboardStyleDefaultVersion",
+            0_i64,
+            archive,
+            "Internal migration marker for the auto scoreboard style default",
+        ),
     ];
     for definition in definitions {
         cvars.register(definition)?;

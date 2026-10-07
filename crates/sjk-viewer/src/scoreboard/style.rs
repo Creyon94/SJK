@@ -6,8 +6,10 @@
 //! `cg_drawScoreboardIcons` and `cg_drawScoreboardPlayerCount` options; `sjk`
 //! is the SJK UI's own ([`super::sjk`]). `auto`, the default, follows the menu
 //! style: the SJK UI's scoreboard while `ui_menuStyle` is `sjk`, the classic one
-//! otherwise (what SJK drew before the choice existed). A value a profile has
-//! saved keeps its look whatever the menu style. JKR's default is `modern`.
+//! otherwise (what SJK drew before the choice existed). Every profile had saved
+//! the old default `classic`, so it moves once to `auto`
+//! (`cg_scoreboardStyleDefaultVersion`, in the console's start); a look chosen
+//! after that keeps it whatever the menu style. JKR's default is `modern`.
 
 use crate::console::ViewerConsole;
 use crate::menu::style::MenuStyle;
@@ -202,14 +204,25 @@ mod tests {
             ScoreboardStyle::from_console(Some(&console)),
             ScoreboardStyle::Sjk
         );
-        // A profile saved with `classic` before `auto` existed keeps it.
+        // Every profile saved the old default `classic` before `auto` existed:
+        // it moves once to `auto`, so it follows the SJK UI's menus.
         drop(console);
         std::fs::write(
             &path,
             "seta ui_menuStyle \"sjk\"\nseta cg_scoreboardStyle \"classic\"\n",
         )
         .unwrap();
+        let mut console = ViewerConsole::new(path.clone()).unwrap();
+        assert_eq!(console.text_value(CVAR), Some("auto"));
+        assert_eq!(
+            ScoreboardStyle::from_console(Some(&console)),
+            ScoreboardStyle::Sjk
+        );
+        // A classic chosen after the move stays, start after start.
+        assert!(console.set_cvar(CVAR, "classic"));
+        drop(console);
         let console = ViewerConsole::new(path).unwrap();
+        assert_eq!(console.text_value(CVAR), Some("classic"));
         assert_eq!(
             ScoreboardStyle::from_console(Some(&console)),
             ScoreboardStyle::Classic

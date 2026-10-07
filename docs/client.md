@@ -1175,9 +1175,10 @@ scoreboard layout:
 - `modern` (or `0`), JKR's table beside the chat column (JKR's default).
 
 A mistyped value gives the classic board. `config.cfg` saves every archived
-setting, so a profile from before `auto` existed has `classic` saved and keeps
-it, whatever the menu style, until the player picks Auto or SJK; `auto` reaches
-new profiles. The classic board
+setting, so every profile from before `auto` existed had the old default
+`classic` saved: the console's start moves a saved `classic` once to `auto`
+(`cg_scoreboardStyleDefaultVersion`), which draws the same classic board unless
+the menus are the SJK UI. A look chosen after that stays. The classic board
 ([classic.rs](../crates/sjk-viewer/src/scoreboard/classic.rs), after
 `CG_DrawOldScoreboard`/`CG_DrawClientScore` in `cg_scoreboard.c`):
 
