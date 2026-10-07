@@ -373,6 +373,11 @@ fn raster(
             DrawCommand::Text { .. } => {}
         }
     }
+    raster_text(image, vertices, atlas);
+}
+
+/// Draw text `vertices` from `atlas` over `image`.
+fn raster_text(image: &mut RgbaImage, vertices: &[crate::text::TextVertex], atlas: &RgbaImage) {
     // Each glyph is six vertices `[x, y, u, v, r, g, b, a]` in clip space,
     // top-left first and bottom-right third; its coverage is the atlas
     // alpha averaged over each pixel's footprint.
@@ -1319,6 +1324,105 @@ fn player_card(shots: &mut Snapshot) {
         shots.save(name, &state.list, &vertices, true);
     }
 }
+
+/// The SJK UI's main page over its map (the JoF HD wide levelshot of
+/// mp/duel6 standing in for the live backdrop), with each family drawn from
+/// its own atlas: on Play with the JoF server and a last server, on Settings
+/// with an action focused, on Quit, and at 4:3.
+#[test]
+#[ignore = "reads the installed game data named by JKA_GAME_DATA"]
+fn sjk_home_snapshot() {
+    use crate::game_font::SjkFonts;
+    use crate::menu::sjk::home::{self, Home, HomeView, Item, JOF_SERVER, ServerLine};
+    use crate::menu_widgets::MenuCanvas;
+    let (_, vfs) = art();
+    let display = crate::text::load_family(&crate::text::DISPLAY, 1.0, None).expect("Rajdhani");
+    let body = crate::text::load_family(&crate::text::BODY, 1.0, None).expect("Exo 2");
+    let backdrop = decode(&vfs, "levelshots/mp/duel6.jpg").expect("the duel6 levelshot");
+    let server =
+        |address: &str, name: &str, map: &str, players, ping| crate::server_browser::ServerEntry {
+            address: address.parse().expect("an address"),
+            name: name.to_owned(),
+            map: map.to_owned(),
+            players,
+            capacity: 32,
+            ping_millis: ping,
+            gametype: "FFA".to_owned(),
+            profile: sjk_client::CompatProfile::JaPlus { version: None },
+            password: false,
+            display: String::new(),
+            mode: Some(0),
+            bots: 0,
+            valid_info: true,
+        };
+    let entries = vec![
+        server(JOF_SERVER, "^5JoF^7 Jedi of Freedom", "mp/ffa3", 24, 31),
+        server("10.0.0.2:29070", "Duel Arena", "mp/duel6", 14, 28),
+    ];
+    let cases: [(&str, [f32; 2], Item, Option<usize>); 4] = [
+        ("sjk-home", VIEWPORT_WIDE, Item::Play, None),
+        ("sjk-home-settings", VIEWPORT_WIDE, Item::Settings, Some(1)),
+        ("sjk-home-quit", VIEWPORT_WIDE, Item::Quit, Some(0)),
+        ("sjk-home-4x3", VIEWPORT, Item::Play, Some(0)),
+    ];
+    for (name, viewport, item, focus) in cases {
+        let mut canvas = MenuCanvas::new();
+        let mut page = Home::for_snapshot(item, focus);
+        let view = HomeView {
+            name: "^5JoF^7 Jedi Gooner Solol",
+            model: "kyle",
+            blade_name: "blue",
+            blade: crate::player_menu::saber_color(4, [0; 3]),
+            servers: [
+                Some(ServerLine::find(JOF_SERVER, &entries)),
+                Some(ServerLine::find("10.0.0.2:29070", &entries)),
+            ],
+            refreshing: false,
+            version: "SJK 2026.1007.1   /   update 2026.1008.1 available",
+            seconds: 12.0,
+        };
+        home::build(&mut canvas, viewport, &mut page, &view, 1.0);
+        let size = (viewport[0] as u32, viewport[1] as u32);
+        // The levelshot covers the window, cropped at its sides.
+        let cover = size.1 as f32 / backdrop.height() as f32;
+        let scaled_width = (backdrop.width() as f32 * cover).max(size.0 as f32) as u32;
+        let scaled = image::imageops::resize(
+            &backdrop,
+            scaled_width,
+            size.1,
+            image::imageops::FilterType::Triangle,
+        );
+        let mut image =
+            image::imageops::crop_imm(&scaled, (scaled_width - size.0) / 2, 0, size.0, size.1)
+                .to_image();
+        raster(
+            &mut image,
+            canvas.draw_list(),
+            &[],
+            &display.image,
+            &HashMap::new(),
+        );
+        let (mut display_text, mut body_text) = (Vec::new(), Vec::new());
+        canvas.append_text_families(
+            SjkFonts {
+                display: (&mut display_text, &display.font),
+                body: (&mut body_text, &body.font),
+            },
+            viewport,
+            crate::text::TextStyle::NEUTRAL,
+        );
+        raster_text(&mut image, &display_text, &display.image);
+        raster_text(&mut image, &body_text, &body.image);
+        let directory = workspace_root().join("target/menu-snapshots");
+        std::fs::create_dir_all(&directory).expect("create the snapshot directory");
+        let path = directory.join(format!("{name}.png"));
+        image.save(&path).expect("write the snapshot");
+        println!("{}", path.display());
+    }
+}
+
+/// A 16:9 window, the shape most players have.
+const VIEWPORT_WIDE: [f32; 2] = [1920.0, 1080.0];
 
 /// Only the classic+ settings panels (switches, sliders, segments, choice
 /// fields, sub-headings, a changed row's dot and reset arrow), in Inter and in

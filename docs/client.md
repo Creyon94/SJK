@@ -89,6 +89,15 @@ only `modern` (or `0`) selects the modern layout; an unknown value falls back to
 `classic`. SJK's own classic pages keep the retail look and add modern help
 inside it; the rules are in [Classic+ menus](classic-plus.md).
 
+SJK adds a third value, `sjk`: the SJK UI, SJK's own menus drawn over the live
+map in SJK's type, which is being built screen by screen and becomes the default
+once done ([SJK UI](sjk-ui.md)). So far it has its main page: the emblem in a
+turning holo ring, the menu along a horizon line whose chosen part ignites in
+the player's saber colour, and the chosen item's actions under it (under Play,
+joining the JoF server or the last server played). Every other screen opens in
+its classic+ version. A client started in the SJK UI stands on mp/duel6 instead
+of mp/ffa3.
+
 The classic main menu has the retail pages, entries and order, with SJK's
 Settings and SJK in place of retail's Controls and Setup:
 

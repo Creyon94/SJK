@@ -14,6 +14,7 @@ mod form;
 pub(crate) mod numeric;
 
 pub(crate) use form::{BACK_TOKEN, FormLayout, TAB_BASE, cycler_direction, palette_index};
+pub(crate) use text::TextFamily;
 
 use sjk_ui::{
     Color, DrawCommand, DrawList, FontWeight, InputRouter, Rect, TextAlign, Theme, WidgetId,
@@ -63,6 +64,11 @@ pub(crate) struct MenuCanvas {
     rects: Vec<Rect>,
     tokens: Vec<MenuToken>,
     text: Vec<String>,
+    /// The family of each stored text run, for screens drawn in the SJK UI's
+    /// type ([`TextFamily`]); others draw every run in one font.
+    families: Vec<TextFamily>,
+    /// The family runs stored from now on get.
+    family: TextFamily,
     text_len: usize,
     input: InputRouter,
     hovered_token: Option<MenuToken>,
@@ -101,6 +107,8 @@ impl MenuCanvas {
             text: (0..text_slots)
                 .map(|_| String::with_capacity(text_bytes))
                 .collect(),
+            families: vec![TextFamily::Body; text_slots],
+            family: TextFamily::Body,
             text_len: 0,
             input: InputRouter::new(MAX_WIDGETS),
             hovered_token: None,
@@ -138,6 +146,7 @@ impl MenuCanvas {
         self.rects.clear();
         self.tokens.clear();
         self.text_len = 0;
+        self.family = TextFamily::Body;
     }
 
     /// Draw a modern backplate with the same contrast treatment as the HUD,

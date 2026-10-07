@@ -117,10 +117,24 @@ impl ClientMenu {
         viewport: [f32; 2],
     ) {
         let reveal = self.screen_reveal();
-        if self.menu_style == super::MenuStyle::Classic {
-            super::classic::view::build(&mut self.ui, viewport, &self.classic, reveal, self.art);
-        } else {
-            build(&mut self.ui, viewport, self.main_selection, reveal);
+        match self.menu_style {
+            super::MenuStyle::Classic => {
+                super::classic::view::build(
+                    &mut self.ui,
+                    viewport,
+                    &self.classic,
+                    reveal,
+                    self.art,
+                );
+            }
+            // Drawn with the player's details by `append_sjk_home`; here, from
+            // a caller without the console, in Inter.
+            super::MenuStyle::Sjk => {
+                let target = super::sjk::TextTarget::Inter(vertices, font);
+                self.append_sjk_home(target, None, viewport);
+                return;
+            }
+            super::MenuStyle::Modern => build(&mut self.ui, viewport, self.main_selection, reveal),
         }
         self.ui.append_text(vertices, font, viewport);
     }

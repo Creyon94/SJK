@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 07/10/2026 | - | The SJK UI, a third menu style: its main page
+- 16cb180 |  | SJK UI: a third menu style, with its main page
 + 07/10/2026 | - | Screenshots no longer fail with "readback failed" or freeze
 - e0f1a4b |  | Keep the screenshot readback alive until its map lands
 + 07/10/2026 | - | classic+ settings controls: switches, sliders, segments, sub-headings

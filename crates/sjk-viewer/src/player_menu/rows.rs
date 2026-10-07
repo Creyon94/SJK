@@ -234,7 +234,7 @@ impl PlayerMenu {
 }
 
 /// Swatch of a `color1`/`color2` value; `rgb` is the custom tint for RGB.
-pub(super) fn saber_color(index: u8, rgb: [u8; 3]) -> sjk_ui::Color {
+pub(crate) fn saber_color(index: u8, rgb: [u8; 3]) -> sjk_ui::Color {
     use sjk_ui::Color;
     match SaberColor::from_index(index).unwrap_or(SaberColor::Blue) {
         SaberColor::Red => Color::new(1.0, 0.12, 0.12, 1.0),

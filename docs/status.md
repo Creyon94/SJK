@@ -7,6 +7,26 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## SJK UI: main page
+
+SJK-only branch `personal/sjk-ui` (07/10/2026, based on `afd3625`, Windows 11): a
+third menu style, `ui_menuStyle sjk`, SJK's own menus redesigned from the ground up
+([sjk-ui.md](sjk-ui.md)), with its main page: SJK's emblem in a turning holo ring
+over the live map (mp/duel6 when the client starts in it), the menu on a horizon line
+whose chosen part ignites in the player's saber colour, the ring's gold arc pointing
+at it, and the chosen item's actions under the line (Join JoF, Rejoin the last server,
+Browse servers, Create a game under Play). Its type is SJK's site's, Rajdhani and
+Exo 2, bundled and rasterized into their own atlases. Every other screen opens in its
+classic+ version. Unit tests cover the style's parsing and fallbacks, the page's
+layout at six window sizes, its keyboard and pointer paths, the last-server rule, the
+arc's easing and the blade's ignition, the blade colour from the profile, the ring
+picture and the key hints; the sjk-viewer tests passed and workspace clippy reports
+nothing in the changed files. Off-screen snapshots drew the page on Play, Settings
+(an action focused) and Quit at 16:9 and on Play at 4:3, over the JoF HD wide
+levelshot of mp/duel6. No game was started: the live map behind the page, the
+fonts' first load (synchronous, on the first frame in the style), joining from the
+page and the switch between styles are unverified in game.
+
 ## Classic+ settings controls
 
 SJK-only branch `personal/settings-modern` (07/10/2026, based on `fe9face`, Windows

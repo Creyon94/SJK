@@ -58,16 +58,20 @@ pub(crate) enum EmblemLayer {
     Sunburst,
     /// Uneven god rays fanning from the centre ([`godrays`]), added as light.
     Godrays,
+    /// The SJK UI's holo ring round the emblem: tick marks and thin circles
+    /// ([`ring`]), added as light.
+    Ring,
 }
 
 impl EmblemLayer {
     /// Every layer.
-    pub(crate) const ALL: [Self; 5] = [
+    pub(crate) const ALL: [Self; 6] = [
         Self::Base,
         Self::Core,
         Self::Lights,
         Self::Sunburst,
         Self::Godrays,
+        Self::Ring,
     ];
     /// The layers of the emblem itself, in draw order.
     pub(crate) const EMBLEM: [Self; 3] = [Self::Base, Self::Core, Self::Lights];
@@ -104,7 +108,7 @@ impl EmblemLayer {
             Self::Lights => Some(include_bytes!(
                 "../../../../assets/branding/emblem-lights.png"
             )),
-            Self::Sunburst | Self::Godrays => None,
+            Self::Sunburst | Self::Godrays | Self::Ring => None,
         }
     }
 
@@ -114,7 +118,7 @@ impl EmblemLayer {
         match self {
             Self::Core => motion::emblem_core_glow(seconds),
             Self::Lights => motion::emblem_lights_glow(seconds),
-            Self::Base | Self::Sunburst | Self::Godrays => 1.0,
+            Self::Base | Self::Sunburst | Self::Godrays | Self::Ring => 1.0,
         }
     }
 }
@@ -166,13 +170,21 @@ pub(crate) fn rays(
 
 /// Edge of the drawn ray pictures.
 const RAYS_SIZE: u32 = 512;
+/// Edge of the ring picture: its tick marks are a texel or two wide, so it is
+/// drawn finer than the rays to stay sharp at 4K.
+const RING_SIZE: u32 = 1_024;
 
 /// A grey light picture of [`RAYS_SIZE`], opaque so the renderer's additive
 /// blend adds its value, from `value(r, turn)`: `r` 0 at the centre and 1 at
 /// the edge of the disc, `turn` 0..1 clockwise from the right. Black past r 1.
 fn light_picture(value: impl Fn(f32, f32) -> f32) -> RgbaImage {
-    let half = RAYS_SIZE as f32 * 0.5;
-    RgbaImage::from_fn(RAYS_SIZE, RAYS_SIZE, |x, y| {
+    light_picture_sized(RAYS_SIZE, value)
+}
+
+/// [`light_picture`] `size` texels across.
+fn light_picture_sized(size: u32, value: impl Fn(f32, f32) -> f32) -> RgbaImage {
+    let half = size as f32 * 0.5;
+    RgbaImage::from_fn(size, size, |x, y| {
         let dx = (x as f32 + 0.5 - half) / half;
         let dy = (y as f32 + 0.5 - half) / half;
         let r = dx.hypot(dy);
@@ -239,6 +251,35 @@ pub(crate) fn godrays() -> RgbaImage {
             sum += across * along * strength;
         }
         sum * smoothstep(0.02, 0.3, r) * 0.85
+    })
+}
+
+/// The SJK UI's ring, as light: a band of tick marks every 6 degrees (every 30
+/// a longer, brighter one), a finer band every 2 degrees outside it, and thin
+/// circles inside and outside, after the turning ring of retail's main menu.
+/// Edges are anti-aliased over a texel.
+pub(crate) fn ring() -> RgbaImage {
+    let texels = RING_SIZE as f32 * 0.5;
+    // Coverage of a line `half` texels wide at `distance` texels from its centre.
+    let line = |distance: f32, half: f32| (half + 0.5 - distance.abs()).clamp(0.0, 1.0);
+    // Coverage of tick marks `degrees` apart, `half` texels wide, at `r` and `turn`.
+    let ticks = |r: f32, turn: f32, degrees: f32, half: f32| {
+        let step = degrees / 360.0;
+        let off = (turn / step - (turn / step).round()) * step;
+        line(off * std::f32::consts::TAU * r * texels, half)
+    };
+    light_picture_sized(RING_SIZE, move |r, turn| {
+        let band = |inner: f32, outer: f32| {
+            let soft = 1.0 / texels;
+            smoothstep(inner - soft, inner + soft, r)
+                * (1.0 - smoothstep(outer - soft, outer + soft, r))
+        };
+        let index = band(0.875, 0.972) * ticks(r, turn, 30.0, 1.1);
+        let major = band(0.900, 0.945) * ticks(r, turn, 6.0, 0.8) * 0.75;
+        let fine = band(0.955, 0.972) * ticks(r, turn, 2.0, 0.55) * 0.45;
+        let inner = line((r - 0.735) * texels, 0.6) * 0.55;
+        let outer = line((r - 0.985) * texels, 0.5) * 0.35;
+        index.max(major).max(fine).max(inner).max(outer)
     })
 }
 
@@ -363,6 +404,7 @@ fn decode(layer: EmblemLayer) -> Result<MipChain, String> {
             .map_err(|error| error.to_string())?
             .into_rgba8(),
         None if layer == EmblemLayer::Sunburst => sunburst(),
+        None if layer == EmblemLayer::Ring => ring(),
         None => godrays(),
     };
     let (width, height) = image.dimensions();
@@ -388,7 +430,7 @@ mod tests {
         for piece in ArtPiece::ALL {
             assert_eq!(EmblemLayer::from_texture(piece.texture()), None);
         }
-        for id in [0, 1, u32::MAX, u32::MAX - 1, TEXTURE_BASE + 5] {
+        for id in [0, 1, u32::MAX, u32::MAX - 1, TEXTURE_BASE + 6] {
             assert_eq!(EmblemLayer::from_texture(TextureId(id)), None);
         }
         assert!(!EmblemLayer::Base.additive());
@@ -400,7 +442,7 @@ mod tests {
         let decoded = decode_all();
         for (layer, size) in EmblemLayer::ALL
             .into_iter()
-            .zip([1_024, 512, 512, RAYS_SIZE, RAYS_SIZE])
+            .zip([1_024, 512, 512, RAYS_SIZE, RAYS_SIZE, RING_SIZE])
         {
             let chain = decoded.layer(layer).expect("bundled layer decodes");
             assert_eq!(chain.size, size, "{layer:?}");

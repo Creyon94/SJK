@@ -588,7 +588,11 @@ impl SettingsMenu {
                         .position(|candidate| candidate.eq_ignore_ascii_case(value))
                         .unwrap_or(0);
                     let base = RowControl::Segment { row, index: 0 }.token();
-                    place.segments(&mut self.ui, slot, values, current, focused, base);
+                    let labels: [&str; MAX_SEGMENTS] = std::array::from_fn(|index| {
+                        values.get(index).map_or("", |v| choice_label(v))
+                    });
+                    let labels = &labels[..values.len()];
+                    place.segments(&mut self.ui, slot, labels, current, focused, base);
                 }
                 ValueKind::Choice(_)
                 | ValueKind::Resolution
@@ -875,6 +879,16 @@ fn detail_of<'a>(
         name: setting.cvar,
         icon: None,
         badge,
+    }
+}
+
+/// How a choice's value is named on its segment: as written (in sentence
+/// case), but for a name that is an initialism.
+fn choice_label(value: &str) -> &str {
+    if value.eq_ignore_ascii_case("sjk") {
+        "SJK"
+    } else {
+        value
     }
 }
 
