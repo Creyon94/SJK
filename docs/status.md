@@ -7,6 +7,28 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## EJK camera style by default
+
+SJK-only branch `personal/camera-ejk-default` (08/10/2026, based on `dd38afc`,
+Windows 11): Sol asked for the locked JoF EJK camera as the default and for the
+camera style to be a style chosen near the top of First setup. `cg_cameraStyle`
+now defaults to `ejk` and an unknown value falls back to it (`sjk` still selects
+the eased camera); the offered order is EJK, SJK. Every profile had saved the old
+default `sjk`, so the console's start moves a saved `sjk` once to `ejk`
+(`cg_cameraStyleDefaultVersion`, as the menu style default moved); an `sjk`
+picked after that stays ([client.md](client.md#camera-style)). First setup's
+first heading is now Styles, over the menu style and the camera style; the
+camera row left its own Camera heading between Aim and Sound.
+
+Verified: unit tests for the parse and default (an unknown value is `ejk`), the
+one-time move (a saved `sjk` moved, a later `sjk` kept across starts), the
+cvar's saving, and Styles over First setup's first two rows; workspace fmt,
+build, tests and clippy (no new warnings). `world_shot::tests::duel6_first_setup`
+rendered a new profile's First setup in the SJK UI and classic menus: Styles,
+Menu style, then Camera style with EJK lit. Not verified: no game was started,
+so the move from Sol's real `config.cfg` and the locked camera as a default in
+play are untested.
+
 ## SJK UI as the default menu style
 
 SJK-only branch `personal/sjk-default` (08/10/2026, based on `7a85516`, Windows
@@ -253,7 +275,8 @@ in both. What differs is that EternalJK drops both dampings while a strafe helpe
 style is drawn, and Sol's JoF EJK profile (`GameData/EternalJK/eternaljk.cfg`,
 03/10/2026) has one on (`cg_strafeHelper 2242`), so its camera never trails; that
 profile also sets `cg_thirdPersonRange 100`. `cg_cameraStyle` (archived; `sjk`,
-the default, or `ejk`) offers that locked camera in Game options and First setup
+the default then, or `ejk`, the default since 08/10/2026 as described above)
+offers that locked camera in Game options and First setup
 ([client.md](client.md#camera-style)); distance and height stay with their cvars.
 Unit tests pin each style's damping, the `ejk` camera at its ideal place after a
 move and turn while `sjk` trails, and the cvar's registration and saving; the

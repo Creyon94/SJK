@@ -55,7 +55,8 @@ pub(crate) fn damped_third_person(
 ) -> (Vec3, Vec3) {
     let cvar = |name: &str, fallback: f32| float_cvar(state.console.as_ref(), name, fallback);
     let mut horizontal = cvar("cg_thirdPersonHorzOffset", 0.0);
-    // `cg_cameraStyle ejk` locks the camera behind the player (no damping).
+    // `cg_cameraStyle ejk`, the default, locks the camera behind the player (no
+    // damping); `sjk` eases it with the damping cvars.
     let (camera_damp, target_damp) = Style::from_console(state.console.as_ref()).damping(
         cvar("cg_thirdPersonCameraDamp", 0.3),
         cvar("cg_thirdPersonTargetDamp", 0.5),
@@ -318,12 +319,30 @@ mod tests {
         let directory = tempfile::tempdir().unwrap();
         let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
         assert_eq!(console.text_value(STYLE_CVAR), Some(Style::DEFAULT_NAME));
-        assert_eq!(Style::from_console(Some(&console)), Style::Sjk);
-        assert_eq!(Style::from_console(None), Style::Sjk);
-        assert!(console.set_cvar("cg_camerastyle", "ejk"));
         assert_eq!(Style::from_console(Some(&console)), Style::Ejk);
+        assert_eq!(Style::from_console(None), Style::Ejk);
+        assert!(console.set_cvar("cg_camerastyle", "sjk"));
+        assert_eq!(Style::from_console(Some(&console)), Style::Sjk);
         // Archived: the change is saved to config.cfg.
         let saved = std::fs::read_to_string(directory.path().join("config.cfg")).unwrap();
-        assert!(saved.contains("seta cg_cameraStyle \"ejk\""), "{saved}");
+        assert!(saved.contains("seta cg_cameraStyle \"sjk\""), "{saved}");
+    }
+
+    /// A new profile starts on the locked camera; a profile saved with the old
+    /// default `sjk` moves to it once, and an `sjk` chosen after that stays.
+    #[test]
+    fn a_saved_old_default_moves_to_the_locked_camera_once() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("config.cfg");
+        // Every profile saved the old default `sjk`.
+        std::fs::write(&path, "seta cg_cameraStyle \"sjk\"\n").unwrap();
+        let mut console = ViewerConsole::new(path.clone()).unwrap();
+        assert_eq!(console.text_value(STYLE_CVAR), Some("ejk"));
+        // SJK's camera chosen after the move stays.
+        assert!(console.set_cvar(STYLE_CVAR, "sjk"));
+        drop(console);
+        let console = ViewerConsole::new(path).unwrap();
+        assert_eq!(console.text_value(STYLE_CVAR), Some("sjk"));
+        assert_eq!(Style::from_console(Some(&console)), Style::Sjk);
     }
 }

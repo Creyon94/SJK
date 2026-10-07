@@ -1,15 +1,17 @@
 //! `cg_cameraStyle`: how the third-person camera follows the player.
 //!
-//! `sjk`, the default, is SJK's camera as it was: EternalJK's
-//! `CG_OffsetThirdPersonView` easing towards its ideal place behind the player
-//! with `cg_thirdPersonCameraDamp` and `cg_thirdPersonTargetDamp`, so it trails a
-//! moving or turning player a little. `ejk` holds the camera and its target at
-//! their ideal places every frame, as JoF EJK draws them with its strafe helper
-//! on: EternalJK skips both dampings for `cg_strafeHelper` bits 0-3 and 13
-//! (`cg_view.c` `CG_UpdateThirdPersonTargetDamp` and
-//! `CG_UpdateThirdPersonCameraDamp`), which is how Sol's JoF EJK profile plays
-//! (`cg_strafeHelper 2242`). Range, height, angles, collision and vehicle
-//! framing are the same in both styles.
+//! `ejk`, the default, holds the camera and its target at their ideal places
+//! every frame, as JoF EJK draws them with its strafe helper on: EternalJK skips
+//! both dampings for `cg_strafeHelper` bits 0-3 and 13 (`cg_view.c`
+//! `CG_UpdateThirdPersonTargetDamp` and `CG_UpdateThirdPersonCameraDamp`), which
+//! is how Sol's JoF EJK profile plays (`cg_strafeHelper 2242`). `sjk` is SJK's
+//! first camera: EternalJK's `CG_OffsetThirdPersonView` easing towards its ideal
+//! place behind the player with `cg_thirdPersonCameraDamp` and
+//! `cg_thirdPersonTargetDamp`, so it trails a moving or turning player a little.
+//! Range, height, angles, collision and vehicle framing are the same in both
+//! styles. A profile saved with the earlier default `sjk` moves to `ejk` once
+//! (`cg_cameraStyleDefaultVersion`, in the console's start); a style chosen
+//! after that stays.
 
 use crate::console::ViewerConsole;
 
@@ -19,25 +21,30 @@ pub(crate) const CVAR: &str = "cg_cameraStyle";
 /// How the third-person camera follows the player.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) enum Style {
-    /// Eases after the player with the damping cvars. SJK's default.
+    /// Locked at its ideal place behind the player: no camera or target
+    /// damping. SJK's default.
     #[default]
-    Sjk,
-    /// Locked at its ideal place behind the player: no camera or target damping.
     Ejk,
+    /// Eases after the player with the damping cvars.
+    Sjk,
 }
 
 impl Style {
     /// Values the settings offer, in [`Style`] order.
-    pub(crate) const NAMES: [&'static str; 2] = ["sjk", "ejk"];
+    pub(crate) const NAMES: [&'static str; 2] = ["ejk", "sjk"];
     /// The `cg_cameraStyle` value of the default style.
     pub(crate) const DEFAULT_NAME: &'static str = Self::NAMES[0];
+    /// The default `cg_cameraStyle` before `ejk` became it: a saved value moves
+    /// from it once.
+    pub(crate) const OLD_DEFAULT_NAME: &'static str = Self::NAMES[1];
 
-    /// Read the cvar value: `ejk` (any case) selects JoF EJK's camera; anything
-    /// else, including a missing or mistyped value, SJK's.
+    /// Read the cvar value: `sjk` (any case) selects SJK's eased camera;
+    /// anything else, including a missing or mistyped value, the default
+    /// locked one.
     pub(crate) fn from_cvar(value: Option<&str>) -> Self {
         match value.map(str::trim) {
-            Some(text) if text.eq_ignore_ascii_case("ejk") => Self::Ejk,
-            _ => Self::Sjk,
+            Some(text) if text.eq_ignore_ascii_case("sjk") => Self::Sjk,
+            _ => Self::Ejk,
         }
     }
 
@@ -62,22 +69,24 @@ mod tests {
     use super::*;
 
     #[test]
-    fn ejk_needs_an_explicit_value() {
-        assert_eq!(Style::from_cvar(None), Style::Sjk);
-        assert_eq!(Style::from_cvar(Some("")), Style::Sjk);
-        assert_eq!(Style::from_cvar(Some("jof")), Style::Sjk);
+    fn sjk_needs_an_explicit_value() {
+        assert_eq!(Style::from_cvar(None), Style::Ejk);
+        assert_eq!(Style::from_cvar(Some("")), Style::Ejk);
+        assert_eq!(Style::from_cvar(Some("jof")), Style::Ejk);
         assert_eq!(Style::from_cvar(Some(" EJK ")), Style::Ejk);
+        assert_eq!(Style::from_cvar(Some(" SJK ")), Style::Sjk);
     }
 
     #[test]
-    fn offered_names_parse_in_order_and_the_default_is_sjk() {
+    fn offered_names_parse_in_order_and_the_default_is_ejk() {
         let parsed = Style::NAMES.map(|name| Style::from_cvar(Some(name)));
-        assert_eq!(parsed, [Style::Sjk, Style::Ejk]);
+        assert_eq!(parsed, [Style::Ejk, Style::Sjk]);
         assert_eq!(
             Style::from_cvar(Some(Style::DEFAULT_NAME)),
             Style::default()
         );
-        assert_eq!(Style::default(), Style::Sjk);
+        assert_eq!(Style::default(), Style::Ejk);
+        assert_eq!(Style::from_cvar(Some(Style::OLD_DEFAULT_NAME)), Style::Sjk);
     }
 
     #[test]

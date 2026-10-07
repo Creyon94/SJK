@@ -1,5 +1,5 @@
 //! The FIRST SETUP tab of Settings: the few settings worth choosing once on a first
-//! start (the menu style, display, aim, the camera style, sound, the HUD,
+//! start (the menu and camera styles, display, aim, sound, the HUD,
 //! nameplates, the Force shells and the network opt-ins). The rows are the catalogue's own, looked up by
 //! cvar, so a change here is the same change the other tabs make; the last row,
 //! whether the screen opens at start, is the tab's own.
@@ -20,6 +20,7 @@ const HIDE_ROW: Setting = Setting {
 /// The tab's cvars, in order.
 const CVARS: &[&str] = &[
     crate::menu::style::CVAR,
+    crate::camera::STYLE_CVAR,
     "r_resolution",
     "r_fullscreen",
     "r_vsync",
@@ -27,7 +28,6 @@ const CVARS: &[&str] = &[
     "sensitivity",
     "m_invert",
     "cl_run",
-    crate::camera::STYLE_CVAR,
     "s_volume",
     "s_musicVolume",
     crate::menu_hud::STYLE_CVAR,
@@ -73,14 +73,16 @@ mod tests {
     }
 
     #[test]
-    fn the_menu_style_comes_first_under_its_heading() {
+    fn the_menu_and_camera_styles_come_first_under_their_heading() {
+        let cvars: Vec<_> = rows().iter().take(2).map(|row| row.cvar).collect();
+        assert_eq!(cvars, [crate::menu::style::CVAR, crate::camera::STYLE_CVAR]);
         assert_eq!(
-            rows().first().map(|row| row.cvar),
-            Some(crate::menu::style::CVAR)
-        );
-        assert_eq!(
-            super::super::Group::Quick.lines().first(),
-            Some(&super::super::Line::Heading("Menus"))
+            super::super::Group::Quick.lines()[..3],
+            [
+                super::super::Line::Heading("Styles"),
+                super::super::Line::Row(0),
+                super::super::Line::Row(1),
+            ]
         );
     }
 

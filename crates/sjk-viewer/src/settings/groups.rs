@@ -170,10 +170,9 @@ impl Group {
             // Its headings are its tabs' names ([`graphics_tabs`]).
             Self::Scoreboard | Self::Graphics => &[],
             Self::Quick => &[
-                (crate::menu::style::CVAR, "Menus"),
+                (crate::menu::style::CVAR, "Styles"),
                 ("r_resolution", "Display"),
                 ("sensitivity", "Aim"),
-                (crate::camera::STYLE_CVAR, "Camera"),
                 ("s_volume", "Sound"),
                 (crate::menu_hud::STYLE_CVAR, "HUD"),
                 ("cg_nameplate", "Nameplates"),

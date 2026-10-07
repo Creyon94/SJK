@@ -371,6 +371,27 @@ impl ViewerConsole {
             }
             let _ = shell.cvars.set_text(version, "1");
         }
+        // cg_cameraStyle defaulted to sjk and every profile saved it, so the
+        // locked ejk camera, the new default, would reach none. Move a saved sjk
+        // once to the default; an sjk chosen after this stays.
+        if matches!(
+            shell
+                .cvars
+                .get("cg_cameraStyleDefaultVersion")
+                .map(|cvar| &cvar.value),
+            Some(CvarValue::Integer(0))
+        ) {
+            let style = crate::camera::STYLE_CVAR;
+            if shell.cvars.get(style).is_some_and(|cvar| {
+                cvar.value
+                    .as_text()
+                    .trim()
+                    .eq_ignore_ascii_case(crate::camera::Style::OLD_DEFAULT_NAME)
+            }) {
+                let _ = shell.cvars.reset(style);
+            }
+            let _ = shell.cvars.set_text("cg_cameraStyleDefaultVersion", "1");
+        }
         shell.push_log("^5Sol JK console ready. ^7Type cmdlist for commands.");
         Ok(Self {
             shell,

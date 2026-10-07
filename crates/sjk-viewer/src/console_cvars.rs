@@ -291,8 +291,8 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             crate::camera::STYLE_CVAR,
             crate::camera::Style::DEFAULT_NAME,
             archive,
-            "Third-person camera: sjk eases after you with the damping cvars; ejk stays \
-             locked behind you with no damping, as JoF EJK with its strafe helper on",
+            "Third-person camera: ejk stays locked behind you with no damping, as JoF EJK \
+             with its strafe helper on; sjk eases after you with the damping cvars",
         ),
         CvarDefinition::new(
             "com_maxfps",
@@ -689,6 +689,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             0_i64,
             archive,
             "Internal migration marker for the SJK UI menu style default",
+        ),
+        CvarDefinition::new(
+            "cg_cameraStyleDefaultVersion",
+            0_i64,
+            archive,
+            "Internal migration marker for the ejk camera style default",
         ),
     ];
     for definition in definitions {

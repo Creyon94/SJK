@@ -24,6 +24,8 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - The SJK UI is now the default menu style. Profiles still on the old default (classic) switch to it once when you update; pick Classic or Modern again and it stays _(Sol)_
 - First setup offers the menu style as its first row: SJK, Classic or Modern, and First setup stays open in the style you pick _(Sol)_
 - The quicksetup console command is now only firstsetup, so q completes to quit alone _(Sol)_
+- The camera stays locked behind you by default, as in JoF EJK (camera style EJK). Profiles still on the old default (SJK, the camera that trails you a little) switch to it once when you update; pick SJK again and it stays _(Sol, after JoF EJK)_
+- First setup opens with Styles: the menu style, then the camera style _(Sol)_
 - Grabbing a wall before a wall jump, your body now stays facing the wall while the camera looks around (JA+ servers keep the camera free) _(Sol)_
 - Report a player: the game menu lists everyone on the server, a small scoreboard with scores, pings and who is a verified SJK player (SJK UI: Players; classic and modern: SJK > Report a player). Choose a player, a reason and a few words, and the report goes to the SJK team with who, where and when. Only verified SJK players can send reports; the hub limits how often anyone reports and how often one player can be reported _(Sol)_
 - The console has the SJK look with the SJK UI (con_style auto): three designs to pick from, con_style sjk, horizon or dock; the rest of a command shows faintly as you type, and a scroll bar. Commands and cvars (F3) gets the SJK look too, its text selectable with the mouse; Ctrl+C copies the selection or the entry _(Sol)_
