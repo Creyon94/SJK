@@ -37,6 +37,43 @@ const MODERN_RASTER_SCALE: f32 = 3.0;
 pub(crate) const ATLAS_MIP_LEVELS: u32 = 4;
 const INTER_REGULAR: &[u8] = include_bytes!("../assets/fonts/Inter-Regular.ttf");
 const INTER_SEMIBOLD: &[u8] = include_bytes!("../assets/fonts/Inter-SemiBold.ttf");
+const RAJDHANI_SEMIBOLD: &[u8] = include_bytes!("../assets/fonts/Rajdhani-SemiBold.ttf");
+const RAJDHANI_BOLD: &[u8] = include_bytes!("../assets/fonts/Rajdhani-Bold.ttf");
+const EXO2_REGULAR: &[u8] = include_bytes!("../assets/fonts/Exo2-Regular.ttf");
+const EXO2_SEMIBOLD: &[u8] = include_bytes!("../assets/fonts/Exo2-SemiBold.ttf");
+
+/// One family of the vector UI atlas: its [`TextFace::Regular`] and
+/// [`TextFace::Semibold`] fonts, and fonts of the same weights lending the
+/// glyphs those lack.
+pub(crate) struct Family {
+    pub(crate) name: &'static str,
+    faces: [&'static [u8]; 2],
+    fallback: Option<[&'static [u8]; 2]>,
+}
+
+/// Inter, the modern menus', HUD's and chat's font.
+pub(crate) const INTER: Family = Family {
+    name: "Inter",
+    faces: [INTER_REGULAR, INTER_SEMIBOLD],
+    fallback: None,
+};
+
+/// The SJK UI's display family, as on SJK's site: Rajdhani SemiBold and Bold
+/// for navigation and titles. It has no superscripts, fractions or ordinals,
+/// so those come from Exo 2 SemiBold.
+pub(crate) const DISPLAY: Family = Family {
+    name: "Rajdhani",
+    faces: [RAJDHANI_SEMIBOLD, RAJDHANI_BOLD],
+    fallback: Some([EXO2_SEMIBOLD, EXO2_SEMIBOLD]),
+};
+
+/// The SJK UI's body family, as on SJK's site: Exo 2 Regular and SemiBold
+/// (static instances of the variable font), covering all of Windows-1252.
+pub(crate) const BODY: Family = Family {
+    name: "Exo 2",
+    faces: [EXO2_REGULAR, EXO2_SEMIBOLD],
+    fallback: None,
+};
 
 /// Font weight available in the modern UI atlas.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -153,23 +190,36 @@ pub(crate) fn load_modern(
     dpi_scale: f64,
     logo: Option<&LogoGlyph>,
 ) -> Result<FontAtlas, Box<dyn Error>> {
-    let fonts = [
-        Font::from_bytes(INTER_REGULAR, FontSettings::default())?,
-        Font::from_bytes(INTER_SEMIBOLD, FontSettings::default())?,
-    ];
+    load_family(&INTER, dpi_scale, logo)
+}
+
+/// Rasterize `family`'s two faces at the current monitor DPI into one atlas,
+/// as [`load_modern`] does Inter's.
+pub(crate) fn load_family(
+    family: &Family,
+    dpi_scale: f64,
+    logo: Option<&LogoGlyph>,
+) -> Result<FontAtlas, Box<dyn Error>> {
+    let font = |bytes: &[u8]| Font::from_bytes(bytes, FontSettings::default());
+    let fonts = [font(family.faces[0])?, font(family.faces[1])?];
+    let fallbacks = match family.fallback {
+        Some([regular, strong]) => Some([font(regular)?, font(strong)?]),
+        None => None,
+    };
     // The largest menu face is 2.7x body size.  A 3x source atlas means every
     // production text size is sampled at native resolution or downsampled,
     // never magnified from a small bitmap as the retail font was.
     let pixel_size = (32.0 * dpi_scale.clamp(1.0, 3.0) as f32 * MODERN_RASTER_SCALE).round();
     let line_metrics = fonts[0]
         .horizontal_line_metrics(pixel_size)
-        .ok_or("Inter has no horizontal line metrics")?;
+        .ok_or_else(|| format!("{} has no horizontal line metrics", family.name))?;
     let mut rasterized = Vec::with_capacity(GLYPH_COUNT * fonts.len());
     for (face, font) in fonts.iter().enumerate() {
+        let fallback = fallbacks.as_ref().map(|fallbacks| &fallbacks[face]);
         for byte in 0..GLYPH_COUNT {
             // Slot `byte` holds the Windows-1252 character of that byte, as JKA's
             // own fonts do, so 0x80 is `€` rather than an invisible C1 control.
-            let character = slot_character(font, byte as u8);
+            let (font, character) = slot_glyph(font, fallback, byte as u8);
             let (metrics, pixels) = font.rasterize(character, pixel_size);
             rasterized.push(RasterizedGlyph {
                 face,
@@ -464,11 +514,20 @@ pub(crate) fn append_text_style(
 /// and EternalJK show those names with dots; line feed, carriage return and space keep
 /// their own (empty) slots.
 fn slot_character(font: &Font, byte: u8) -> char {
+    slot_glyph(font, None, byte).1
+}
+
+/// The font and character slot `byte` is drawn from: `font`'s own glyph, else
+/// `fallback`'s (a family lending what its font lacks), else `font`'s `.` as in
+/// [`slot_character`].
+fn slot_glyph<'a>(font: &'a Font, fallback: Option<&'a Font>, byte: u8) -> (&'a Font, char) {
     let character = sjk_protocol::windows_1252_char(byte);
     if matches!(byte, b'\n' | b'\r' | b' ') || font.lookup_glyph_index(character) != 0 {
-        character
-    } else {
-        '.'
+        return (font, character);
+    }
+    match fallback.filter(|fallback| fallback.lookup_glyph_index(character) != 0) {
+        Some(fallback) => (fallback, character),
+        None => (font, '.'),
     }
 }
 

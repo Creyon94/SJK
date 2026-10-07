@@ -1,13 +1,58 @@
 //! Text storage and vector-font submission for [`MenuCanvas`].
 
 use super::MenuCanvas;
-use crate::game_font::{GameFonts, RetailFont};
+use crate::game_font::{GameFonts, RetailFont, SjkFonts};
 use crate::text::{TextStyle, TextVertex, UiFont};
 use crate::ui_renderer;
 use sjk_ui::{Color, DrawCommand, FontWeight, Rect, TextAlign, TextId, TextOverflow};
 use std::fmt::{Arguments, Write as _};
 
+/// The family a text run is drawn in on screens of the SJK UI: its display
+/// type (Rajdhani) for navigation and titles, its body type (Exo 2) for the
+/// rest. Other screens draw every run in one font whatever its family.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) enum TextFamily {
+    #[default]
+    Body,
+    Display,
+}
+
 impl MenuCanvas {
+    /// Store the text runs added from now on as `family` (until the next call or
+    /// the next frame, which starts on [`TextFamily::Body`]).
+    pub(crate) fn set_family(&mut self, family: TextFamily) {
+        self.family = family;
+    }
+
+    /// Append retained text in the SJK UI's families: display runs to
+    /// `fonts.display`, body runs to `fonts.body`, in the player's menu text
+    /// `style`.
+    pub(crate) fn append_text_families(
+        &self,
+        fonts: SjkFonts<'_>,
+        viewport: [f32; 2],
+        style: TextStyle,
+    ) {
+        let SjkFonts { display, body } = fonts;
+        for ((vertices, font), family) in [(display, TextFamily::Display), (body, TextFamily::Body)]
+        {
+            ui_renderer::append_text_commands_where(
+                &self.draw,
+                |id| self.resolve(id),
+                |id, _| {
+                    self.families
+                        .get(id.0 as usize)
+                        .copied()
+                        .unwrap_or_default()
+                        == family
+                },
+                vertices,
+                font,
+                viewport,
+                style,
+            );
+        }
+    }
     /// Add a non-interactive text run.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn text(
@@ -151,9 +196,7 @@ impl MenuCanvas {
         };
         slot.clear();
         slot.push_str(value);
-        let id = TextId(self.text_len as u32);
-        self.text_len += 1;
-        Some(id)
+        Some(self.stored())
     }
 
     fn store_format(&mut self, value: Arguments<'_>) -> Option<TextId> {
@@ -163,9 +206,18 @@ impl MenuCanvas {
         };
         slot.clear();
         let _ = slot.write_fmt(value);
+        Some(self.stored())
+    }
+
+    /// Close the run just written into slot `text_len`: record its family and
+    /// return its id.
+    fn stored(&mut self) -> TextId {
+        if let Some(family) = self.families.get_mut(self.text_len) {
+            *family = self.family;
+        }
         let id = TextId(self.text_len as u32);
         self.text_len += 1;
-        Some(id)
+        id
     }
 
     fn resolve(&self, id: TextId) -> &str {

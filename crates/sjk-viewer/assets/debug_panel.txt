@@ -1935,6 +1935,19 @@ test: Options, then Graphics and Gameplay: every group has its own icon; hover o
 test: In a match, Escape > Settings: the pop-up's group list shows the same icons.
 note: Wrong picture for a group, or too big/small at 4K? Tell Claude which.
 
+[sjk-ui-home]
+status: personal
+area: Menus & settings
+title: SJK UI: its main page (ui_menuStyle sjk), the ring over the horizon
+change: Settings > Interface > Menu style > SJK; restart: the page stands on mp/duel6.
+change: Emblem in a turning ring; the chosen item's part of the line ignites in your saber colour.
+test: Left/Right along Play..Quit: the blade ignites under each, the ring's gold arc follows.
+test: Play: Join JoF shows its name, players, map, ping once the list answers; Enter joins.
+test: Down into the actions, Left/Right, Enter; Up back; Escape leaves, then goes to Quit.
+test: Quit asks first: Enter shows Quit to desktop / Stay. Hover chooses, a click acts.
+test: Settings, Character, browser: open in the classic look; Back returns to this page.
+note: Text too small at 4K, ring too faint, colours off? Tell Claude which part.
+
 [settings-modern]
 status: personal
 area: Menus & settings

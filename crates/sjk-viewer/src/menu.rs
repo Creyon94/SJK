@@ -23,6 +23,7 @@ mod map_picker;
 mod map_picker_view;
 pub(crate) mod network_view;
 pub(crate) mod quick_setup;
+pub(crate) mod sjk;
 pub(crate) mod style;
 
 use super::{TextVertex, UiFont};
@@ -156,6 +157,8 @@ pub(crate) struct ClientMenu {
     menu_style: MenuStyle,
     /// Page and entry of the classic main menu.
     classic: classic::ClassicMain,
+    /// The SJK UI's main page: its chosen item and motion.
+    home: sjk::home::Home,
     /// The classic option panel on show in the settings or key-binding
     /// phase, if any.
     classic_panel: Option<classic::ClassicPanel>,
@@ -237,6 +240,7 @@ impl ClientMenu {
             main_selection: 0,
             menu_style: MenuStyle::default(),
             classic: classic::ClassicMain::new(),
+            home: sjk::home::Home::default(),
             classic_panel: None,
             renderer_panel: None,
             art: art::ArtSet::default(),
@@ -271,11 +275,12 @@ impl ClientMenu {
     /// return the camera for this frame, once a map is loaded.
     pub(crate) fn drive_backdrop(&mut self, millis: u64) -> Option<Sample> {
         let shot = shot_for(self.state.phase(), &self.player);
-        // The classic style shows retail's loading screen instead: the gate
-        // stays shut and the joined world appears when it is live.
+        // The classic style (and the SJK UI, which borrows its connect
+        // screen) shows retail's loading screen instead: the gate stays shut
+        // and the joined world appears when it is live.
         let gate = connecting(self.state.phase())
             && self.destination_ready
-            && self.menu_style != MenuStyle::Classic;
+            && !self.menu_style.classic_screens();
         if gate != self.gate_logged {
             self.gate_logged = gate;
             crate::log::progress(format_args!(
@@ -349,9 +354,16 @@ impl ClientMenu {
         connecting(self.state.phase())
     }
 
-    /// Whether the classic menu style is on.
+    /// Whether the menus' screens are the classic ones: the classic style, or
+    /// the SJK UI on a screen it has no version of yet.
     pub(crate) fn is_classic(&self) -> bool {
-        self.menu_style == MenuStyle::Classic
+        self.menu_style.classic_screens()
+    }
+
+    /// Whether the SJK UI's own main page is on show, which sits over the live
+    /// map where the classic pages cover it.
+    pub(crate) fn sjk_main_page(&self) -> bool {
+        self.menu_style == MenuStyle::Sjk && matches!(self.state.phase(), ClientPhase::MainMenu)
     }
 
     /// Whether the connect or loading screen covers the screen: a connect
@@ -757,6 +769,9 @@ impl ClientMenu {
             return MenuAction::None;
         };
         match self.state.phase() {
+            ClientPhase::MainMenu if self.menu_style == MenuStyle::Sjk => {
+                self.sjk_home_key(key, console)
+            }
             ClientPhase::MainMenu => match key {
                 KeyCode::ArrowUp | KeyCode::KeyW => {
                     self.navigate_main(AbstractAction::Previous);
@@ -980,6 +995,7 @@ impl ClientMenu {
         self.state.main_menu();
         self.main_selection = 0;
         self.classic.reset();
+        self.home.reset();
     }
 
     pub(crate) fn attach_catalogue(&mut self, vfs: std::sync::Arc<sjk_vfs::VirtualFileSystem>) {

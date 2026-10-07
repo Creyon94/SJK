@@ -141,9 +141,10 @@ impl InGameMenu {
         self.art = art;
     }
 
-    /// Whether the classic (retail bar and pop-ups) layout is in use.
+    /// Whether the classic (retail bar and pop-ups) layout is in use: in the
+    /// classic style, and in the SJK UI until it has its own in-game menu.
     pub(crate) fn is_classic(&self) -> bool {
-        self.style == MenuStyle::Classic
+        self.style.classic_screens()
     }
 
     pub(crate) fn append(
@@ -167,7 +168,7 @@ impl InGameMenu {
             scroll: self.callvote.scroll_metrics(view.page),
             info: info_lines(&self.about, view.page),
         };
-        if self.style == MenuStyle::Classic {
+        if self.style.classic_screens() {
             classic_view::build(&mut self.canvas, &view, rows, self.art, viewport);
         } else {
             view::build(
@@ -261,7 +262,7 @@ impl InGameMenu {
             row.clear();
         }
         self.enabled = [true; 24];
-        let classic_rows = if self.style == MenuStyle::Classic {
+        let classic_rows = if self.style.classic_screens() {
             classic::prepare(view, &mut self.rows, &mut self.enabled)
         } else {
             None
@@ -278,7 +279,7 @@ impl InGameMenu {
         for row in 0..self.row_count {
             let current = current_team_row(view, row);
             self.enabled[row] &= !current;
-            if current && self.style != MenuStyle::Classic {
+            if current && !self.style.classic_screens() {
                 self.rows[row].push_str("  /  current");
             }
         }

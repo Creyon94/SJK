@@ -273,7 +273,7 @@ impl ClientMenu {
     pub(super) fn classic_panel_frame(&self) -> Option<PanelFrame> {
         let panel = self
             .classic_panel
-            .filter(|_| self.menu_style == super::style::MenuStyle::Classic)?;
+            .filter(|_| self.menu_style.classic_screens())?;
         // The one list of bindings marks the category being looked at.
         let active = match panel.page {
             Page::Controls => self

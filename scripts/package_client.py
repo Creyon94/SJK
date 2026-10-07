@@ -210,6 +210,8 @@ def main():
         # Font notices that exist in this tree (JKR has neither).
         notices.extend((f"{name}/{path.name}", path.read_bytes())
                        for name, path in (("JetBrains Mono", fonts / "JetBrainsMono-OFL.txt"),
+                                          ("Rajdhani", fonts / "Rajdhani-OFL.txt"),
+                                          ("Exo 2", fonts / "Exo2-OFL.txt"),
                                           ("SJK fonts", fonts / "SJK-fonts.txt"))
                        if path.is_file())
         # SJK's copyright notice leads the file; JKR has none.

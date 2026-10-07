@@ -23,7 +23,7 @@ impl ClientMenu {
     /// classic Setup panel's FIRST SETUP group under the classic style, the FIRST SETUP
     /// tab of the modern screen otherwise.
     pub(crate) fn open_quick_setup(&mut self, console: &ViewerConsole, target: ReturnTarget) {
-        if self.menu_style == MenuStyle::Classic {
+        if self.menu_style.classic_screens() {
             let frame = match target {
                 ReturnTarget::MainMenu => Frame::Main,
                 ReturnTarget::InGame => Frame::InGame,

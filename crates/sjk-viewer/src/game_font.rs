@@ -209,6 +209,27 @@ pub(crate) struct GameFonts {
     menu: Option<Layer>,
     chat: Option<Layer>,
     console: Option<Layer>,
+    /// The SJK UI's families were loaded or failed to: they load the first
+    /// time `ui_menuStyle sjk` is on ([`SjkFonts`]).
+    sjk_attempted: bool,
+    sjk: Option<SjkLayers>,
+}
+
+/// The SJK UI's display and body families on the GPU.
+struct SjkLayers {
+    display: Layer,
+    body: Layer,
+}
+
+/// DPI scale the SJK UI's families are rasterized at: their glyphs are 144
+/// pixels tall, so titles stay sharp at 4K whatever the monitor's scale.
+const SJK_RASTER_SCALE: f64 = 1.5;
+
+/// Where an SJK UI screen appends its text this frame: the display family
+/// (Rajdhani) and the body family (Exo 2), each with its own vertices.
+pub(crate) struct SjkFonts<'a> {
+    pub(crate) display: (&'a mut Vec<TextVertex>, &'a UiFont),
+    pub(crate) body: (&'a mut Vec<TextVertex>, &'a UiFont),
 }
 
 impl GameFonts {
@@ -230,6 +251,41 @@ impl GameFonts {
         self.menu = Layer::load(&retail_font::MENU, gpu);
         self.chat = Layer::load(&retail_font::CHAT, gpu);
         self.load_console(gpu);
+    }
+
+    /// Load the SJK UI's families, once.
+    fn load_sjk(&mut self, gpu: &Device<'_>, logo: Option<&text::LogoGlyph>) {
+        self.sjk_attempted = true;
+        let layer = |family: &text::Family| match text::load_family(family, SJK_RASTER_SCALE, logo)
+        {
+            Ok(atlas) => Some(Layer::upload(family.name, atlas.font, atlas.image, gpu)),
+            Err(error) => {
+                crate::log::progress(format_args!(
+                    "warning: SJK UI font {} unavailable, keeping Inter: {error}",
+                    family.name
+                ));
+                None
+            }
+        };
+        self.sjk = match (layer(&text::DISPLAY), layer(&text::BODY)) {
+            (Some(display), Some(body)) => Some(SjkLayers { display, body }),
+            _ => None,
+        };
+    }
+
+    /// Whether the SJK UI's families are loaded.
+    pub(crate) fn has_sjk(&self) -> bool {
+        self.sjk.is_some()
+    }
+
+    /// The SJK UI's text targets, once its families are loaded; `None` before
+    /// that, or when they failed to load (the screen then draws in Inter).
+    pub(crate) fn sjk(&mut self) -> Option<SjkFonts<'_>> {
+        let layers = self.sjk.as_mut()?;
+        Some(SjkFonts {
+            display: (&mut layers.display.vertices, &layers.display.font),
+            body: (&mut layers.body.vertices, &layers.body.font),
+        })
     }
 
     /// Load the console font unless it was already loaded or failed to.
@@ -352,10 +408,15 @@ impl GameFonts {
     }
 
     fn layers_mut(&mut self) -> impl Iterator<Item = &mut Layer> {
+        let sjk = self
+            .sjk
+            .iter_mut()
+            .flat_map(|layers| [&mut layers.display, &mut layers.body]);
         self.menu
             .iter_mut()
             .chain(self.chat.iter_mut())
             .chain(self.console.iter_mut())
+            .chain(sjk)
     }
 
     /// Copy this frame's vertices to the GPU.
@@ -379,6 +440,10 @@ impl GameFonts {
     ) {
         for layer in self.menu.iter().chain(self.chat.iter()) {
             layer.draw(pass, pipeline, sdf_pipeline);
+        }
+        if let Some(layers) = &self.sjk {
+            layers.display.draw(pass, pipeline, sdf_pipeline);
+            layers.body.draw(pass, pipeline, sdf_pipeline);
         }
     }
 
@@ -419,7 +484,8 @@ pub(crate) fn prepare(gpu: &mut GpuState) {
     }
     let load = enabled && !fonts.attempted;
     let load_console = console && !fonts.console_attempted;
-    if load || load_console {
+    let load_sjk = sjk_ui(gpu.console.as_ref()) && !fonts.sjk_attempted;
+    if load || load_console || load_sjk {
         let device = Device {
             device: &gpu.device,
             queue: &gpu.queue,
@@ -428,10 +494,22 @@ pub(crate) fn prepare(gpu: &mut GpuState) {
         };
         if load {
             fonts.load(&device);
-        } else {
+        } else if load_console {
             fonts.load_console(&device);
         }
+        if load_sjk {
+            fonts.load_sjk(&device, gpu.logo_glyph.as_ref());
+        }
     }
+}
+
+/// Whether `console` has the SJK UI on (`ui_menuStyle sjk`), which draws in
+/// its own families.
+pub(crate) fn sjk_ui(console: Option<&crate::console::ViewerConsole>) -> bool {
+    console.is_some_and(|console| {
+        crate::menu::style::MenuStyle::from_cvar(console.text_value(crate::menu::style::CVAR))
+            == crate::menu::style::MenuStyle::Sjk
+    })
 }
 
 /// Whether `console` draws the classic console, which needs the console

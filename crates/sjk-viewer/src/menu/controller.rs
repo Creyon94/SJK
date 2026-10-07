@@ -21,7 +21,7 @@ impl ClientMenu {
         match self.state.phase() {
             ClientPhase::MainMenu => self.append_main(vertices, font, viewport),
             ClientPhase::Connecting(_) | ClientPhase::ConnectionError
-                if self.menu_style == MenuStyle::Classic =>
+                if self.menu_style.classic_screens() =>
             {
                 let failed = matches!(self.state.phase(), ClientPhase::ConnectionError);
                 let error = failed.then(|| self.state.status().to_owned());
