@@ -36,6 +36,8 @@ enum Channel {
     Whisper,
     /// A world note (`world_notes`): never sent, saved locally.
     Note,
+    /// A bug report for the SJK hub (`bug_report`): never sent as chat.
+    Report,
 }
 
 struct ChatLine {
@@ -231,6 +233,16 @@ impl ChatOverlay {
         self.notice = "Note for Claude: Enter saves it with a screenshot, Escape drops it.";
     }
 
+    /// Open the composer for a bug report (`bug_report`).
+    pub(crate) fn open_report(&mut self) {
+        self.open(false);
+        let input = self.input.as_mut().expect("opened composer");
+        input.channel = Channel::Report;
+        self.note_subject = "Bug report for the SJK team".to_owned();
+        self.notice =
+            "Letters, digits, spaces and . , ! ? ' - : ( ) only. Enter sends it, Escape drops it.";
+    }
+
     /// Toggle a whisper composer only for a currently occupied roster slot.
     pub(crate) fn whisper_to(&mut self, slot: Option<u16>) -> bool {
         let Some(target) = self.roster.target(slot) else {
@@ -303,4 +315,6 @@ pub(crate) enum ChatInputResult {
     Submit(String),
     /// A world note's text, for `world_notes`.
     Note(String),
+    /// A bug report's text, for `bug_report`.
+    Report(String),
 }

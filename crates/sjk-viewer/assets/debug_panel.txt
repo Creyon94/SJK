@@ -1810,6 +1810,17 @@ test: Aim at a door: X names the func_door and its shaders. Escape in the note d
 test: On a player, X still pins their card; with a card pinned, X unpins it.
 note: Notes go to GameData/SJK/notes.jsonl and notes.txt: tell Claude to read them.
 
+[bug-report]
+status: personal
+area: Menus & settings
+title: Report a bug from the Escape menu, sent to the SJK hub
+change: Escape > SJK > Report a bug opens a red report line; Enter sends it to sjk.dfox.app.
+change: Only letters, digits, spaces and . , ! ? ' - : ( ) can be typed; 10 to 600 characters.
+test: Escape > SJK > Report a bug: type < > / or an emoji: nothing appears. Enter sends.
+test: The centre print says sent (report number) or why not (quota, too short).
+test: Send the same text twice: refused. A fresh key: 3 a day, then refused.
+note: Works once the hub is deployed with reports; Claude reads them on the hub.
+
 # ---- Merged upstream ----
 
 [actor-instance-cap]

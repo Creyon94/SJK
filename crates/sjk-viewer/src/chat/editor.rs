@@ -7,6 +7,9 @@ use sjk_client::{CHAT_INPUT_BYTES, ChatTarget};
 use std::ops::Range;
 use winit::keyboard::{Key, KeyCode};
 
+/// Byte budget of a bug report draft: its longest text in four-byte characters.
+const REPORT_BYTES: usize = sjk_identity::report::TEXT_MAX * 4;
+
 pub(super) struct Editor {
     pub(super) text: String,
     pub(super) edit: LineEdit,
@@ -37,7 +40,21 @@ impl Editor {
     }
 
     pub(super) fn insert(&mut self, value: &str) {
-        self.edit.insert(&mut self.text, value, CHAT_INPUT_BYTES);
+        if self.channel != Channel::Report {
+            self.edit.insert(&mut self.text, value, CHAT_INPUT_BYTES);
+            return;
+        }
+        // A bug report keeps only what the hub accepts, typed or pasted: line breaks
+        // and tabs become spaces, anything else outside the alphabet is dropped, and
+        // the text stops at the hub's length.
+        let room = sjk_identity::report::TEXT_MAX.saturating_sub(self.text.chars().count());
+        let kept: String = value
+            .chars()
+            .map(|c| if c.is_whitespace() { ' ' } else { c })
+            .filter(|c| sjk_identity::report::allowed(*c))
+            .take(room)
+            .collect();
+        self.edit.insert(&mut self.text, &kept, REPORT_BYTES);
     }
 
     pub(super) fn key(&mut self, key: KeyCode, control: bool, shift: bool) -> bool {
@@ -81,5 +98,25 @@ impl TypingField for Editor {
         let caret = keep_caret(self.edit.cursor(&self.text), &range);
         self.text.replace_range(range, "");
         self.edit.place(&self.text, caret, false);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn report_drafts_keep_only_what_the_hub_accepts() {
+        let mut editor = Editor::new(Channel::Report);
+        editor.insert("Door <b>flickers</b>\non ffa3 \u{1F642} \"left\" side!");
+        assert_eq!(editor.text, "Door bflickersb on ffa3  left side!");
+        // Longer than a chat line, up to the hub's limit and no further.
+        let mut long = Editor::new(Channel::Report);
+        long.insert(&"word ".repeat(200));
+        assert_eq!(long.text.chars().count(), sjk_identity::report::TEXT_MAX);
+        // Chat is unchanged: everything typed stays, within the chat budget.
+        let mut chat = Editor::new(Channel::Global);
+        chat.insert("<b>hi</b>");
+        assert_eq!(chat.text, "<b>hi</b>");
     }
 }

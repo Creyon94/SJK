@@ -127,6 +127,7 @@ mod surface_tables;
 mod trip_mine_lasers;
 mod viewer_app;
 use object_meshes::StaticModelMesh;
+mod bug_report;
 mod gi_voxels;
 mod identity_command;
 mod identity_frame;
@@ -330,6 +331,10 @@ struct GpuState {
     trace_scratch: TraceScratch,
     /// `inspect` on the world: the selection and the note being written.
     world_notes: world_notes::Notes,
+    /// A bug report is on its way to the hub (`bug_report`).
+    bug_report_waiting: bool,
+    /// The outcome last shown, so the next one is told apart.
+    bug_report_serial: u64,
     entity_lighting: entity_lighting::EntityLighting,
     /// Live player model behind the Player screen.
     menu_stage: menu_stage::MenuStage,
@@ -1154,6 +1159,8 @@ impl GpuState {
             bsp: Arc::new(bsp),
             trace_scratch,
             world_notes: world_notes::Notes::default(),
+            bug_report_waiting: false,
+            bug_report_serial: 0,
             entity_lighting,
             menu_stage: menu_stage::MenuStage::default(),
             clientinfo_watch: clientinfo_refresh::ClientInfoWatch::new(),

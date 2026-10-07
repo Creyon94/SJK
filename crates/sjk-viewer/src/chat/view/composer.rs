@@ -11,7 +11,7 @@ impl ChatOverlay {
         let alpha = Tween::new(0.0, 1.0, self.opened_ms, ENTER_MS, Easing::EaseOutCubic).sample(ms);
         let y = g.bottom + 18.0 * g.scale;
         self.ui.push_opacity(alpha);
-        let note = input.channel == Channel::Note;
+        let note = matches!(input.channel, Channel::Note | Channel::Report);
         if note {
             // A note names its subject instead of offering chat channels.
             let end = layout::fitting_end(
@@ -21,10 +21,18 @@ impl ChatOverlay {
                 14.0 * g.scale,
             );
             self.ui.text_fmt_aligned(
-                format_args!("Note: {}", &self.note_subject[..end]),
+                format_args!(
+                    "{}{}",
+                    if input.channel == Channel::Note {
+                        "Note: "
+                    } else {
+                        ""
+                    },
+                    &self.note_subject[..end]
+                ),
                 Rect::new(g.left, y, g.width, 26.0 * g.scale),
                 14.0 * g.scale,
-                tint(Channel::Note, 1.0),
+                tint(input.channel, 1.0),
                 FontWeight::Semibold,
                 0.0,
                 TextAlign::Start,
