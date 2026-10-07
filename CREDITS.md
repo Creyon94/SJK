@@ -56,7 +56,8 @@ Changes that stay in SJK, by Sol:
   `cl_cmdratecap`) and a working `cl_maxpackets`;
 - weather: rain, snow and mist kept under open sky, 3D splashes, ground fog and
   volumetric clouds;
-- SJK identity: the identity key, the SJK hub and its verified badges;
+- SJK identity: the identity key, the SJK hub, its verified badges, bug reports
+  and player reports;
 - the console socket for external apps (after JoF EJK), muting in the
   background (after EternalJK) and the JA+ `flipkick` command (after JoF EJK);
 - the camera style setting, its locked camera after JoF EJK (`cg_cameraStyle`).

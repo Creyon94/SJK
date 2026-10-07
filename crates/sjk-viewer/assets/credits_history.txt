@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 08/10/2026 | - | Players page, player reports to the hub
+- 1202ad6 |  | Players page in the game menu, and player reports to the hub
 + 07/10/2026 | - | Body faces the wall during a wall grab
 - e30a4d7 |  | Wall grab: draw a player holding a wall facing it
 + 07/10/2026 | - | SJK UI default, style in First setup, quicksetup dropped

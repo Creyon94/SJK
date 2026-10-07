@@ -2211,6 +2211,19 @@ test: Jump off: the body swings back to your view, no snap when the server catch
 test: Watch another player (or a bot) wall grab: their body stays on the wall too.
 note: Walls on movers (doors, lifts) still turn with the view. Not yet run in a game.
 
+[player-report]
+status: personal
+area: Menus & settings
+title: Players page and player reports (verified players only)
+change: Escape > Players (SJK UI) or SJK > Report a player: everyone, scores, pings, SJK marks.
+change: Choose a player, a reason and a few words; the report goes to the SJK hub, signed.
+test: Join a server, Escape > Players: everyone listed, your row says You, the card follows.
+test: Unverified key: the title line says only verified players can report; reasons dimmed.
+test: Verified: choose a player, Cheating, a sentence, Send: "Player report sent (#N)".
+test: Report the same player again: "you already reported this player today".
+test: Classic menus: SJK > Report a player shows the list and the report pop-up.
+note: Needs the hub update deployed first; until then Send says it cannot reach the hub.
+
 # ---- Merged upstream ----
 
 [actor-instance-cap]

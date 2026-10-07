@@ -6,13 +6,16 @@
 //! card of the match on the right and the keys at the bottom.
 //!
 //! The pages are the in-game menu's own ([`Page`]): the main one, Team (or
-//! Siege's classes), Vote and the call-vote lists, Sol JK and Leave. Their rows
+//! Siege's classes), Players (a small scoreboard, drawn as a table with the chosen
+//! player's card on the right) and its Report page, Vote and the call-vote lists,
+//! Sol JK and Leave. Their rows
 //! are the modern menu's where they are the same (Siege's, the call-vote
 //! lists') and this module's where they differ ([`prepare`]); what a row does
 //! is in `sjk_actions.rs` and, for the shared pages, `game_menu_actions.rs`.
 //!
 //! Positions are pixels of the SJK UI's 16:9 frame ([`Frame`]).
 
+use super::players::{self, Player};
 use super::{Page, View};
 use crate::game_font::GameFonts;
 use crate::menu::emblem::{self, EmblemLayer};
@@ -30,6 +33,7 @@ use std::fmt::Write as _;
 pub(crate) enum Entry {
     Resume,
     Team,
+    Players,
     Vote,
     Character,
     Settings,
@@ -41,9 +45,10 @@ pub(crate) enum Entry {
 
 impl Entry {
     /// The main page, top to bottom.
-    pub(crate) const MAIN: [Self; 9] = [
+    pub(crate) const MAIN: [Self; 10] = [
         Self::Resume,
         Self::Team,
+        Self::Players,
         Self::Vote,
         Self::Character,
         Self::Settings,
@@ -67,6 +72,7 @@ impl Entry {
         match self {
             Self::Resume => "Resume",
             Self::Team => "Team",
+            Self::Players => "Players",
             Self::Vote => "Vote",
             Self::Character => "Character",
             Self::Settings => "Settings",
@@ -84,6 +90,7 @@ impl Entry {
             Self::Team if view.siege => "Choose your class or side",
             Self::Team if view.team_game => "Pick a side or spectate",
             Self::Team => "Join the game or spectate",
+            Self::Players => "Everyone here; report a cheater or a troll",
             Self::Vote if view.vote_active => "A vote is on: cast yours",
             Self::Vote => "Call a vote: map, mode, kick, limits",
             Self::Character => "Name, model, saber and Force",
@@ -133,6 +140,9 @@ pub(crate) fn parent(page: Page) -> Option<(Page, usize)> {
         Page::Main | Page::Shot => return None,
         Page::Team | Page::Siege => (Page::Main, Entry::Team.index()),
         Page::Vote | Page::CallVote => (Page::Main, Entry::Vote.index()),
+        Page::Players => (Page::Main, Entry::Players.index()),
+        // The chosen player's row: `sjk_back` takes it from the roster.
+        Page::ReportPlayer => (Page::Players, 0),
         Page::Sjk => (Page::Main, Entry::SolJk.index()),
         Page::Leave => (Page::Main, Entry::Leave.index()),
         Page::About => (Page::Main, Entry::Resume.index()),
@@ -343,6 +353,8 @@ fn page_title(page: Page, siege: bool) -> Option<&'static str> {
         Page::About => "Server info",
         Page::ConfirmLeave => "Leave the server?",
         Page::ConfirmQuit => "Quit to desktop?",
+        Page::Players => "Players",
+        Page::ReportPlayer => "Report a player",
     })
 }
 
@@ -461,6 +473,13 @@ impl Motion {
     }
 }
 
+/// What the right side and the Players table read: the match card, and the roster
+/// with the chosen player.
+pub(super) struct Sides<'a> {
+    pub(super) card: &'a Card,
+    pub(super) players: &'a players::State,
+}
+
 /// The prepared rows of the page on show.
 pub(super) struct Rows<'a> {
     pub(super) labels: &'a [String],
@@ -468,23 +487,62 @@ pub(super) struct Rows<'a> {
     pub(super) enabled: &'a [bool],
 }
 
-/// Draw `view`'s page and the `card` into `canvas`.
+/// Draw `view`'s page and its right side (the match card, or a player's) into
+/// `canvas`.
 pub(super) fn build(
     canvas: &mut MenuCanvas,
     view: &View<'_>,
     rows: &Rows<'_>,
-    card: &Card,
+    sides: &Sides<'_>,
     motion: &mut Motion,
     viewport: [f32; 2],
 ) {
     let frame = Frame::new(viewport);
+    let (card, roster) = (sides.card, sides.players);
+    let table = view.page == Page::Players;
+    // The player on show at the right: the one chosen in the table, or the one
+    // being reported.
+    let player = match view.page {
+        Page::Players => roster.shown().get(view.selected_row),
+        Page::ReportPlayer => roster.target(),
+        _ => None,
+    };
     canvas.begin_transparent(viewport);
-    scrims(canvas, viewport, &frame, card.known);
+    scrims(
+        canvas,
+        viewport,
+        &frame,
+        card.known || player.is_some(),
+        table,
+    );
     let seconds = crate::menu::art::motion::seconds();
-    anchor(canvas, &frame, view, rows.labels.len(), motion, seconds);
-    entries(canvas, &frame, view, rows);
-    if card.known {
-        draw_card(canvas, &frame, card);
+    if table {
+        // The emblem stays; the table takes the arc's place.
+        anchor(canvas, &frame, view, 0, motion, seconds);
+        players_table(canvas, &frame, view, rows, roster);
+    } else {
+        anchor(canvas, &frame, view, rows.labels.len(), motion, seconds);
+        entries(canvas, &frame, view, rows);
+    }
+    match player {
+        Some(player) => {
+            let blocked = roster.gate().reason().or_else(|| player.unreportable());
+            let status = match (blocked, view.page) {
+                (Some(reason), _) => reason,
+                (None, Page::Players) => "Enter: report this player",
+                (None, _) => "Choose why, then say what happened",
+            };
+            player_card(
+                canvas,
+                &frame,
+                player,
+                roster.team_game(),
+                status,
+                blocked.is_none(),
+            );
+        }
+        None if card.known => draw_card(canvas, &frame, card),
+        None => {}
     }
     keys(canvas, &frame, view.page);
     canvas.finish(view.selected_row as u16);
@@ -493,7 +551,7 @@ pub(super) fn build(
 /// The fades that keep the menu readable over any part of the match: deep at
 /// the left edge and clear by the middle, behind the card on the right, and
 /// along the bottom behind the keys.
-fn scrims(canvas: &mut MenuCanvas, viewport: [f32; 2], frame: &Frame, card: bool) {
+fn scrims(canvas: &mut MenuCanvas, viewport: [f32; 2], frame: &Frame, card: bool, table: bool) {
     let [width, height] = viewport;
     let space = |alpha| color::alpha(color::SPACE, alpha);
     let x = |frame_x: f32| frame.point(frame_x, 0.0)[0];
@@ -510,8 +568,13 @@ fn scrims(canvas: &mut MenuCanvas, viewport: [f32; 2], frame: &Frame, card: bool
             }
         }
     };
-    stops(&[(0.0, 0.9), (x(560.0), 0.78), (x(980.0), 0.0)]);
-    if card {
+    if table {
+        // The Players table reaches the card: dark all the way across.
+        stops(&[(0.0, 0.9), (x(1300.0), 0.74), (width, 0.8)]);
+    } else {
+        stops(&[(0.0, 0.9), (x(560.0), 0.78), (x(980.0), 0.0)]);
+    }
+    if card && !table {
         // Dark enough from the card's left edge (x 1360) for its small lines.
         stops(&[(x(1060.0), 0.0), (x(1340.0), 0.62), (width, 0.8)]);
     }
@@ -718,9 +781,14 @@ fn entries(canvas: &mut MenuCanvas, frame: &Frame, view: &View<'_>, rows: &Rows<
 fn keys(canvas: &mut MenuCanvas, frame: &Frame, page: Page) {
     let s = frame.s;
     let back = if page == Page::Main { "resume" } else { "back" };
+    let enter = match page {
+        Page::Players => "report",
+        Page::ReportPlayer => "write",
+        _ => "open",
+    };
     let rows: [(&[&str], &str); 3] = [
         (&["Up", "Down"], "choose"),
-        (&["Enter"], "open"),
+        (&["Enter"], enter),
         (&["Esc"], back),
     ];
     let gap = 28.0 * s;
@@ -733,6 +801,363 @@ fn keys(canvas: &mut MenuCanvas, frame: &Frame, page: Page) {
     let mut x = centre - total * 0.5;
     for (caps, action) in rows {
         x = key_hint(canvas, caps, action, x, y, s) + gap;
+    }
+}
+
+/// The Players table's columns, in frame pixels: its left edge and width, the
+/// name's start, the score's and ping's right ends, the hub column's start.
+const TABLE_X: f32 = 340.0;
+const TABLE_WIDTH: f32 = 990.0;
+const TABLE_NAME: f32 = 30.0;
+const TABLE_SCORE: f32 = 700.0;
+const TABLE_PING: f32 = 800.0;
+const TABLE_HUB: f32 = 840.0;
+/// The table's title, its header line and first row, and the rows' pitch.
+const TABLE_TITLE_Y: f32 = 164.0;
+const TABLE_HEAD_Y: f32 = 232.0;
+const TABLE_TOP: f32 = 262.0;
+const TABLE_PITCH: f32 = 37.0;
+
+/// The Players page: a small scoreboard of everyone on the server (name, score,
+/// ping, what the SJK hub knows), More players... and Back under them, the chosen
+/// row lit gold.
+fn players_table(
+    canvas: &mut MenuCanvas,
+    frame: &Frame,
+    view: &View<'_>,
+    rows: &Rows<'_>,
+    roster: &players::State,
+) {
+    let s = frame.s;
+    text(
+        canvas,
+        TextFamily::Display,
+        format_args!("Players"),
+        frame.rect(TABLE_X, TABLE_TITLE_Y, 600.0, 34.0),
+        30.0 * s,
+        color::alpha(color::HOLO, 0.9),
+        FontWeight::Semibold,
+        TextAlign::Start,
+    );
+    let (line, colour) = match roster.gate().reason() {
+        Some(reason) => (reason, color::EMBER),
+        None => (
+            "Choose a player to report them to the SJK team",
+            color::MUTED,
+        ),
+    };
+    text(
+        canvas,
+        TextFamily::Body,
+        format_args!("{} on the server.  {line}", Players(roster.count())),
+        frame.rect(TABLE_X, TABLE_TITLE_Y + 38.0, TABLE_WIDTH, 24.0),
+        17.0 * s,
+        colour,
+        FontWeight::Regular,
+        TextAlign::Start,
+    );
+    let head = |canvas: &mut MenuCanvas, x: f32, width: f32, label: &str, align| {
+        text(
+            canvas,
+            TextFamily::Body,
+            format_args!("{label}"),
+            frame.rect(TABLE_X + x, TABLE_HEAD_Y, width, 22.0),
+            14.0 * s,
+            color::QUIET,
+            FontWeight::Semibold,
+            align,
+        );
+    };
+    head(canvas, TABLE_NAME, 400.0, "NAME", TextAlign::Start);
+    head(canvas, TABLE_SCORE - 100.0, 100.0, "SCORE", TextAlign::End);
+    head(canvas, TABLE_PING - 90.0, 90.0, "PING", TextAlign::End);
+    head(canvas, TABLE_HUB, 150.0, "SJK HUB", TextAlign::Start);
+    fade_across(
+        canvas,
+        frame.rect(TABLE_X, TABLE_TOP - 6.0, TABLE_WIDTH, 1.0),
+        color::alpha(color::HOLO, 0.4),
+        color::alpha(color::HOLO, 0.05),
+    );
+    let shown = roster.shown();
+    for (row, label) in rows.labels.iter().enumerate() {
+        let y = TABLE_TOP + row as f32 * TABLE_PITCH;
+        let chosen = row == view.selected_row;
+        let band = frame.rect(TABLE_X, y, TABLE_WIDTH, TABLE_PITCH - 3.0);
+        if chosen {
+            fade_across(
+                canvas,
+                band,
+                color::alpha(color::GOLD, 0.2),
+                color::alpha(color::GOLD, 0.03),
+            );
+            let _ = canvas.draw_list_mut().push(DrawCommand::RoundedRect {
+                rect: frame.rect(TABLE_X, y + 4.0, 4.0, TABLE_PITCH - 11.0),
+                radius: 2.0 * s,
+                color: color::GOLD_BRIGHT,
+            });
+        }
+        let cell = |x: f32, width: f32| frame.rect(TABLE_X + x, y + 2.0, width, TABLE_PITCH - 6.0);
+        match shown.get(row) {
+            Some(player) => {
+                table_row(canvas, frame, roster.team_game(), player, chosen, y, &cell);
+            }
+            None => {
+                let colour = match (chosen, label.as_str()) {
+                    (true, _) => color::GOLD_BRIGHT,
+                    (false, "Back") => color::QUIET,
+                    (false, _) => color::MUTED,
+                };
+                text(
+                    canvas,
+                    TextFamily::Display,
+                    format_args!("{label}"),
+                    cell(TABLE_NAME, 500.0),
+                    22.0 * s,
+                    colour,
+                    FontWeight::Regular,
+                    TextAlign::Start,
+                );
+            }
+        }
+        canvas.hit_region(row as u16, band);
+    }
+}
+
+/// One player's row of the Players table.
+fn table_row(
+    canvas: &mut MenuCanvas,
+    frame: &Frame,
+    team_game: bool,
+    player: &Player,
+    chosen: bool,
+    y: f32,
+    cell: &dyn Fn(f32, f32) -> Rect,
+) {
+    let s = frame.s;
+    let watching = player.team == 3;
+    if team_game && matches!(player.team, 1 | 2) {
+        let _ = canvas.draw_list_mut().push(DrawCommand::RoundedRect {
+            rect: frame.rect(TABLE_X + 14.0, y + 9.0, 4.0, TABLE_PITCH - 21.0),
+            radius: 2.0 * s,
+            color: team_colour(player.team),
+        });
+    }
+    let name_colour = match (chosen, watching) {
+        (true, _) => color::GOLD_BRIGHT,
+        (false, true) => color::MUTED,
+        (false, false) => color::TEXT,
+    };
+    text(
+        canvas,
+        TextFamily::Display,
+        format_args!("{}", player.name),
+        cell(TABLE_NAME, TABLE_SCORE - TABLE_NAME - 120.0),
+        23.0 * s,
+        name_colour,
+        FontWeight::Regular,
+        TextAlign::Start,
+    );
+    let number = |canvas: &mut MenuCanvas, x: f32, width: f32, value: std::fmt::Arguments<'_>| {
+        text(
+            canvas,
+            TextFamily::Display,
+            value,
+            cell(x - width, width),
+            22.0 * s,
+            if chosen { color::TEXT } else { color::MUTED },
+            FontWeight::Regular,
+            TextAlign::End,
+        );
+    };
+    match player.score {
+        Some(score) if !watching => number(canvas, TABLE_SCORE, 100.0, format_args!("{score}")),
+        _ => number(canvas, TABLE_SCORE, 100.0, format_args!("-")),
+    }
+    match (player.bot, player.ping) {
+        (true, _) => number(canvas, TABLE_PING, 90.0, format_args!("bot")),
+        (false, Some(ping)) => number(canvas, TABLE_PING, 90.0, format_args!("{ping}")),
+        (false, None) => number(canvas, TABLE_PING, 90.0, format_args!("-")),
+    }
+    let (hub, colour) = match (&player.hub, player.you) {
+        (Some(hub), true) if hub.verified => ("You, verified", color::GOLD_BRIGHT),
+        (Some(_), true) => ("You, SJK", color::HOLO),
+        (None, true) => ("You", color::QUIET),
+        (Some(hub), false) if hub.verified => ("Verified", color::GOLD_BRIGHT),
+        (Some(_), false) => ("SJK", color::HOLO),
+        (None, false) => ("", color::QUIET),
+    };
+    if !hub.is_empty() {
+        text(
+            canvas,
+            TextFamily::Body,
+            format_args!("{hub}"),
+            cell(TABLE_HUB, 150.0),
+            16.0 * s,
+            colour,
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+    }
+}
+
+/// A player's card on the right, in the match card's place: their name, slot and
+/// side, what the SJK hub knows of them, their score and ping, and whether they can
+/// be reported (`status`, gold when `open`, else why not).
+fn player_card(
+    canvas: &mut MenuCanvas,
+    frame: &Frame,
+    player: &Player,
+    team_game: bool,
+    status: &str,
+    open: bool,
+) {
+    let s = frame.s;
+    let rule = |canvas: &mut MenuCanvas, y: f32| {
+        fade_across(
+            canvas,
+            frame.rect(CARD_X, y, CARD_WIDTH, 1.0),
+            color::alpha(color::HOLO, 0.45),
+            color::alpha(color::HOLO, 0.08),
+        );
+    };
+    let body = |canvas: &mut MenuCanvas, y: f32, colour: Color, value: std::fmt::Arguments<'_>| {
+        text(
+            canvas,
+            TextFamily::Body,
+            value,
+            frame.rect(CARD_X, y, CARD_WIDTH, 24.0),
+            17.0 * s,
+            colour,
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+    };
+    let mut y = CARD_TOP;
+    text(
+        canvas,
+        TextFamily::Display,
+        format_args!("{}", player.name),
+        frame.rect(CARD_X, y, CARD_WIDTH, 46.0),
+        38.0 * s,
+        color::TEXT,
+        FontWeight::Regular,
+        TextAlign::Start,
+    );
+    y += 50.0;
+    let side = player.side(team_game);
+    let what = match (player.you, player.bot) {
+        (true, _) => ", you",
+        (_, true) => ", a bot",
+        _ => "",
+    };
+    if side.is_empty() {
+        body(
+            canvas,
+            y,
+            color::QUIET,
+            format_args!("Slot {}{what}", player.slot),
+        );
+    } else {
+        body(
+            canvas,
+            y,
+            color::QUIET,
+            format_args!("Slot {}, {side}{what}", player.slot),
+        );
+    }
+    y += 40.0;
+    rule(canvas, y);
+    y += 22.0;
+    let (hub, colour) = match &player.hub {
+        Some(hub) if hub.verified => ("Verified SJK player", color::GOLD_BRIGHT),
+        Some(_) => ("SJK player", color::HOLO),
+        None => ("Not known to the SJK hub", color::MUTED),
+    };
+    text(
+        canvas,
+        TextFamily::Display,
+        format_args!("{hub}"),
+        frame.rect(CARD_X, y, CARD_WIDTH, 34.0),
+        28.0 * s,
+        colour,
+        FontWeight::Regular,
+        TextAlign::Start,
+    );
+    y += 38.0;
+    if let Some(hub) = &player.hub {
+        body(
+            canvas,
+            y,
+            color::QUIET,
+            format_args!("Key {}, known as {}", hub.key_id, hub.name),
+        );
+    }
+    y += 40.0;
+    let cells = [
+        (
+            "Score",
+            player.score.filter(|_| player.team != 3),
+            "Watching",
+        ),
+        ("Ping", player.ping.filter(|_| !player.bot), "-"),
+    ];
+    for (index, (caption, value, none)) in cells.into_iter().enumerate() {
+        let x = CARD_X + index as f32 * CARD_WIDTH / 3.0;
+        let rect = frame.rect(x, y, CARD_WIDTH / 3.0, 56.0);
+        match value {
+            Some(value) => text(
+                canvas,
+                TextFamily::Display,
+                format_args!("{value}"),
+                rect,
+                50.0 * s,
+                color::TEXT,
+                FontWeight::Regular,
+                TextAlign::Start,
+            ),
+            None => text(
+                canvas,
+                TextFamily::Display,
+                format_args!("{none}"),
+                rect,
+                30.0 * s,
+                color::MUTED,
+                FontWeight::Regular,
+                TextAlign::Start,
+            ),
+        }
+        text(
+            canvas,
+            TextFamily::Body,
+            format_args!("{caption}"),
+            frame.rect(x, y + 58.0, CARD_WIDTH / 3.0, 22.0),
+            15.0 * s,
+            color::MUTED,
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+    }
+    y += 104.0;
+    rule(canvas, y);
+    y += 22.0;
+    if open {
+        body(canvas, y, color::GOLD_BRIGHT, format_args!("{status}"));
+    } else {
+        let _ = canvas.draw_list_mut().push(DrawCommand::RoundedRect {
+            rect: frame.rect(CARD_X, y + 4.0, 4.0, 16.0),
+            radius: 2.0 * s,
+            color: color::EMBER,
+        });
+        text(
+            canvas,
+            TextFamily::Body,
+            format_args!("{status}"),
+            frame.rect(CARD_X + 14.0, y, CARD_WIDTH - 14.0, 24.0),
+            17.0 * s,
+            color::TEXT,
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
     }
 }
 
@@ -1288,6 +1713,10 @@ mod tests {
     #[test]
     fn pages_draw_within_the_canvas_with_every_row_reachable() {
         let card = Card::for_shot(false, false);
+        let mut roster = players::State::for_shot(32, true, players::Gate::Open);
+        roster.choose(3);
+        let mut table = vec!["Player".to_owned(); players::PAGE_ITEMS];
+        table.extend(["More players...".to_owned(), "Back".to_owned()]);
         let maps: Vec<String> = (0..16).map(|index| format!("mp/ffa{index}")).collect();
         let mut long: Vec<&str> = maps.iter().map(String::as_str).collect();
         long.extend(["More maps...", "Back"]);
@@ -1298,6 +1727,15 @@ mod tests {
                 (
                     Page::Leave,
                     vec!["Leave the server", "Quit to desktop", "Stay"],
+                ),
+                (Page::Players, table.iter().map(String::as_str).collect()),
+                (
+                    Page::ReportPlayer,
+                    sjk_identity::Category::ALL
+                        .iter()
+                        .map(|category| category.label())
+                        .chain(["Back"])
+                        .collect(),
                 ),
             ] {
                 let labels: Vec<String> = labels.iter().map(|label| (*label).to_owned()).collect();
@@ -1313,7 +1751,10 @@ mod tests {
                         hints: &hints,
                         enabled: &enabled,
                     },
-                    &card,
+                    &Sides {
+                        card: &card,
+                        players: &roster,
+                    },
                     &mut motion,
                     viewport,
                 );
@@ -1350,6 +1791,7 @@ mod tests {
             [
                 "Resume",
                 "Team",
+                "Players",
                 "Vote",
                 "Character",
                 "Settings",
@@ -1449,6 +1891,14 @@ mod tests {
             Some((Page::Main, Entry::Vote.index()))
         );
         assert_eq!(parent(Page::Sjk), Some((Page::Main, Entry::SolJk.index())));
+        assert_eq!(
+            parent(Page::Players),
+            Some((Page::Main, Entry::Players.index()))
+        );
+        assert_eq!(
+            parent(Page::ReportPlayer).map(|(page, _)| page),
+            Some(Page::Players)
+        );
         assert_eq!(
             parent(Page::Leave),
             Some((Page::Main, Entry::Leave.index()))

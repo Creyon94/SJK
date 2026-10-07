@@ -1,11 +1,12 @@
 //! The text dialog: a panel in the middle of the screen with a text box, Send and Cancel,
-//! for a world note (`world_notes`, the second `inspect` press) or a bug report
-//! (`bug_report`, the Report a bug button under the game menu). Escape or Cancel drops
+//! for a world note (`world_notes`, the second `inspect` press), a bug report
+//! (`bug_report`, the Report a bug button under the game menu) or a player report
+//! (`player_report`, a reason on the game menu's Report page). Escape or Cancel drops
 //! it; Enter or Send sends it.
 //!
-//! Both keep only what the hub accepts as it is typed or pasted (letters and digits of
+//! All keep only what the hub accepts as it is typed or pasted (letters and digits of
 //! any script, spaces and `. , ! ? ' - : ( )`, line breaks turned into spaces), a report
-//! at most 600 characters, a note at most [`NOTE_MAX`].
+//! at most 600 characters, a note at most [`NOTE_MAX`], a player report at most 300.
 //!
 //! The launcher is the Report a bug button drawn centred at the bottom of the screen
 //! while the game menu is open. With the classic menus both take the classic+ look
@@ -39,6 +40,11 @@ pub(crate) enum Kind {
     Note { subject: String },
     /// A bug report for the hub.
     Report,
+    /// A report about a player for the hub: `subject` names them and the reason.
+    PlayerReport {
+        subject: String,
+        category: sjk_identity::Category,
+    },
 }
 
 /// What the caller does after the dialog handled an event.
@@ -96,6 +102,7 @@ fn limit(kind: &Kind) -> usize {
     match kind {
         Kind::Note { .. } => NOTE_MAX,
         Kind::Report => sjk_identity::report::TEXT_MAX,
+        Kind::PlayerReport { .. } => sjk_identity::report::PLAYER_MAX,
     }
 }
 
@@ -199,6 +206,7 @@ impl TextDialog {
         let refusal = match &kind {
             Kind::Report => sjk_identity::report::text(&self.text).err(),
             Kind::Note { .. } => sjk_identity::report::note_text(&self.text).err(),
+            Kind::PlayerReport { .. } => sjk_identity::report::player_text(&self.text).err(),
         };
         if let Some(why) = refusal {
             self.message = why.to_owned();
@@ -404,6 +412,11 @@ impl TextDialog {
                 subject.clone(),
                 Color::new(1.0, 0.78, 0.36, 1.0),
             ),
+            Kind::PlayerReport { subject, .. } => (
+                "Report a player",
+                subject.clone(),
+                Color::new(1.0, 0.478, 0.239, 1.0),
+            ),
         };
         let _ = ui.draw_list_mut().push(DrawCommand::SolidRect {
             rect: Rect::new(card.x, card.y + 14.0 * s, 4.0 * s, 40.0 * s),
@@ -480,6 +493,9 @@ impl TextDialog {
         let hint = match kind {
             Kind::Report => "Letters, digits, spaces and . , ! ? ' - : ( ) only",
             Kind::Note { .. } => "Saved and sent with a screenshot to the SJK team",
+            Kind::PlayerReport { .. } => {
+                "What happened? Sent to the SJK team with who, where and when"
+            }
         };
         ui.text(
             hint,
@@ -601,5 +617,26 @@ mod tests {
         });
         assert_eq!(dialog.close(), Action::Cancel);
         assert!(!dialog.is_open());
+    }
+
+    #[test]
+    fn a_player_report_takes_a_few_words_up_to_its_limit() {
+        let kind = Kind::PlayerReport {
+            subject: "Troll: Griefing".into(),
+            category: sjk_identity::Category::Griefing,
+        };
+        assert_eq!(
+            typed(&kind, "", &"word ".repeat(100)).chars().count(),
+            sjk_identity::report::PLAYER_MAX
+        );
+        let mut dialog = TextDialog::default();
+        dialog.open(kind.clone());
+        dialog.text = "troll".into();
+        assert_eq!(dialog.send(), Action::None, "too short");
+        dialog.text = "Team killing all match long".into();
+        assert_eq!(
+            dialog.send(),
+            Action::Send(kind, "Team killing all match long".into())
+        );
     }
 }

@@ -35,7 +35,7 @@ did: 125 Hz user commands, so every tap reaches the server
 did: Player profile, model grid, lightsaber creation, hats and capes
 did: Weather: rain, snow, splashes, ground fog and volumetric clouds
 did: Eye adaptation, dynamic glow, metal materials and many renderer fixes
-did: SJK identity and its hub, the changelog and these credits
+did: SJK identity and its hub, player reports, the changelog and these credits
 did: Opened most of JKR's early issues and pull requests
 link: https://github.com/Sol-Vulpes/SJK
 link: https://sol-vulpes.github.io/SJK/

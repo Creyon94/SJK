@@ -28,6 +28,8 @@ impl GpuState {
         if self.in_game_menu.is_sjk() {
             // Back to the entry that opened the page.
             self.sjk_back();
+        } else if self.game_menu_page == GameMenuPage::ReportPlayer {
+            self.back_to_players();
         } else if matches!(self.game_menu_page, GameMenuPage::Main | GameMenuPage::Shot) {
             self.game_menu = false;
             self.capture_pointer();
@@ -72,6 +74,8 @@ impl GpuState {
             GameMenuPage::About => self.open_game_menu_page(GameMenuPage::Main),
             GameMenuPage::Sjk => self.activate_sjk_row(),
             GameMenuPage::Leave => self.activate_leave_row(),
+            GameMenuPage::Players => self.activate_players_row(self.game_menu_row),
+            GameMenuPage::ReportPlayer => self.activate_report_player_row(self.game_menu_row),
             page if page.is_vote_page() => self.activate_callvote_row(page),
             _ => {}
         }
@@ -143,6 +147,7 @@ impl GpuState {
                 self.sync_cursor_policy();
             }
             ingame_menu::sjk::REPORT => self.open_bug_report(),
+            ingame_menu::sjk::REPORT_PLAYER => self.open_players_page(),
             _ => self.back_or_close_game_menu(),
         }
     }

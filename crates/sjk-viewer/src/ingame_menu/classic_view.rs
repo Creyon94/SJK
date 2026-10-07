@@ -174,7 +174,7 @@ fn popup(
     }
     let row_height = classic::row_height(count);
     let compact = row_height < 30.0;
-    let list = view.page.is_vote_page() || view.page == Page::Siege;
+    let list = view.page.is_vote_page() || matches!(view.page, Page::Siege | Page::Players);
     let mut described = view.selected_row;
     for (row, label) in rows.labels.iter().enumerate() {
         let token = row as u16;

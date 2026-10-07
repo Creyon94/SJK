@@ -58,6 +58,7 @@ impl GpuState {
                     self.open_game_menu_page(Page::Team);
                 }
             }
+            Entry::Players => self.open_players_page(),
             Entry::Vote if self.vote_active() => self.open_game_menu_page(Page::Vote),
             Entry::Vote => self.open_call_vote(),
             Entry::Character => {
@@ -110,6 +111,11 @@ impl GpuState {
     /// Escape in the SJK UI: back to the entry that opened the page, or out
     /// of the menu from the main page.
     pub(crate) fn sjk_back(&mut self) {
+        if self.game_menu_page == Page::ReportPlayer {
+            // Back on the reported player's row.
+            self.back_to_players();
+            return;
+        }
         match sjk_view::parent(self.game_menu_page) {
             Some((page, row)) => {
                 self.game_menu_page = page;

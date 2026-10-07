@@ -87,10 +87,10 @@ impl TextDialog {
         } else {
             view::soft_band(ui, band, 0.16);
         }
-        let title = if report {
-            "Report a bug"
-        } else {
-            "Note for Claude"
+        let title = match kind {
+            Kind::Report => "Report a bug",
+            Kind::Note { .. } => "Note for Claude",
+            Kind::PlayerReport { .. } => "Report a player",
         };
         text(
             ui,
@@ -104,7 +104,7 @@ impl TextDialog {
         );
         let prompt = match kind {
             Kind::Report => "What went wrong? Where were you, and what did you expect?",
-            Kind::Note { subject } => subject.as_str(),
+            Kind::Note { subject } | Kind::PlayerReport { subject, .. } => subject.as_str(),
         };
         let room = (PROMPT[2] / CHAR_WIDTH) as usize;
         text(
@@ -122,10 +122,14 @@ impl TextDialog {
         let focused = self.focus == Focus::Field;
         let hovered = ui.token_hovered(FIELD_TOKEN);
         if hovered {
-            hint = Some(if report {
-                "Say what you did, what you saw and what you expected."
-            } else {
-                "Write what to fix; the note keeps the surface, the position and a screenshot."
+            hint = Some(match kind {
+                Kind::Report => "Say what you did, what you saw and what you expected.",
+                Kind::Note { .. } => {
+                    "Write what to fix; the note keeps the surface, the position and a screenshot."
+                }
+                Kind::PlayerReport { .. } => {
+                    "Say what the player did; the report keeps who, where and when."
+                }
             });
         }
         let field = place.rect(FIELD);
@@ -181,10 +185,9 @@ impl TextDialog {
         ui.hit_region(FIELD_TOKEN, field);
 
         // The rules, the count and why a Send was refused.
-        let rules = if report {
-            "Letters, digits, spaces and . , ! ? ' - : ( ) only"
-        } else {
-            "Saved with a screenshot for Claude to read"
+        let rules = match kind {
+            Kind::Note { .. } => "Saved with a screenshot for Claude to read",
+            _ => "Letters, digits, spaces and . , ! ? ' - : ( ) only",
         };
         text(
             ui,
