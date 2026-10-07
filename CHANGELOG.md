@@ -21,6 +21,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- Ground fog keeps its height: distant fog no longer jumps up and down as you step between roofs and streets or jump. It lies on the map's own floors, and past the map's walls as one level bank _(Sol)_
 - SJK UI Servers: the server browser over the map. Favourites and the filters for empty, full and locked servers and the game type sit on the left; the list sorts by any column and shows each server's mod and signal bars; the chosen server shows its map's picture, its numbers and who is playing. The keyboard reaches everything, and the password and address prompts match the rest. Searching finds servers by their name without its colour codes _(Sol)_
 
 ## 2026.1007.2 (Alpha) | 07/10/2026

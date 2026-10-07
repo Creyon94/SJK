@@ -1784,6 +1784,17 @@ test: Look down from a height: rings and wet spots lie flat on the ground.
 test: A pool or puddle in rain: ripples on the water, no ground rings there.
 note: Sizes and brightness are first guesses; tell Claude bigger/smaller/brighter.
 
+[fog-floor]
+status: personal
+area: Rendering & effects
+title: Ground fog keeps its height wherever you stand or jump
+change: Distant fog lay at the floor under you, so it jumped between roof and street heights.
+change: A coarse survey of the whole map now floors it; past the walls it is one level bank.
+test: devmap T2_Rogue, r_weatherFog 2: walk off a roof edge and jump between roofs.
+test: Distant fog stays put: no bright band at eye height that comes and goes.
+test: Any map with fog: distant haze still reaches the horizon; none indoors.
+note: Far fog appears about 1.5 s after T2_Rogue loads (under 0.2 s on most maps).
+
 [settings-groups]
 status: personal
 area: Menus & settings

@@ -32,6 +32,8 @@
 pub(crate) mod clouds;
 #[path = "weather_cover.rs"]
 pub(crate) mod cover;
+#[path = "weather_cover_far.rs"]
+pub(crate) mod cover_far;
 #[path = "weather_cover_map.rs"]
 pub(crate) mod cover_map;
 #[path = "weather_effects.rs"]
@@ -323,6 +325,7 @@ impl Runtime {
                     input.images,
                     input.camera_layout,
                     &cover.view,
+                    &cover.far_view,
                     noise,
                 ));
             }
@@ -358,6 +361,7 @@ impl Runtime {
         }
 
         self.uniform.window = window.cells;
+        self.uniform.far = window.far;
         self.uniform.cover = [
             cover_map::CELL,
             cover_map::SIZE as f32,
