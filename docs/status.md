@@ -90,9 +90,9 @@ pixel deltas) do not bind. Unit tests cover both directions, that the wheel does
 nothing to the form when no slot waits, and the threshold. Checked in game on
 Windows 11 before the threshold was added; the threshold is covered by unit tests only.
 
-## Centre-print line breaks
+## Timed player peek
 
-Refreshed peek (`feat/refreshed-peek`, base `cfbc789`): timed player camera
+Refreshed peek (`feat/refreshed-peek`): timed player camera
 from JoF EJKSol `f57d678`, `CG_Peek_f` and `CG_CalcViewValues`, with explicit
 cancel, crosshair selection, unique name fragments and target-loss handling.
 Only received players can be watched. Name/duration policy has unit coverage;
@@ -102,6 +102,16 @@ Monitoring by name shows the target from behind and the local body at its
 entity; explicit cancellation and a one-second timeout return to the player.
 Starting peek during free flight is refused. Wall-collision edge cases,
 crosshair selection and slot/map transitions remain unverified.
+
+Review follow-up against `c096c64`: missing snapshot data pauses monitoring
+until the original timer expires; local flight cancels it. Detached rendering
+is scoped to this view and restores the preceding camera state, without
+reading the free-camera cvar in the main render path. Empty/colour-only names
+are rejected. Windows workspace fmt, build, tests and clippy pass with
+existing warnings; temporary target loss/return has unit coverage. Combined
+free-camera interaction and PVS/portal runtime checks remain unverified.
+
+## Centre-print line breaks
 
 Branch `fix/center-print-space-break`: centre-print rows break only at a space, as
 `BG_IsWhiteSpace` counts only the space. A vertical tab (0x0B) in

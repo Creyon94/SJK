@@ -1410,14 +1410,9 @@ impl GpuState {
         let peek_view = (!backdrop_view && intermission_view.is_none())
             .then(|| peek::camera(self, presentation_time))
             .flatten();
-        if self.live_session.is_some() {
-            self.detached_camera = peek_view.is_some()
-                || self
-                    .console
-                    .as_ref()
-                    .and_then(|console| console.integer_cvar("cg_freeCamera"))
-                    .unwrap_or(0)
-                    != 0;
+        let detached_before_peek = self.detached_camera;
+        if self.live_session.is_some() && peek_view.is_some() {
+            self.detached_camera = true;
         }
         let (branch, (view_position, view_target)) = if let Some(view) = intermission_view {
             self.third_person_camera = camera::State::default();
@@ -1963,7 +1958,10 @@ impl GpuState {
         timing.mark(Phase::Acquire);
         let target = match frame_target::prepare(self) {
             Ok(target) => target,
-            Err(status) => return status,
+            Err(status) => {
+                self.detached_camera = detached_before_peek;
+                return status;
+            }
         };
         let target_view = target.scene.clone();
         timing.mark(Phase::Effects);
@@ -2175,7 +2173,10 @@ impl GpuState {
         self.encode_stage_preview(&mut encoder);
         let (output, mut encoder) = match target.finish(self, encoder, timing) {
             Ok(output) => output,
-            Err(status) => return status,
+            Err(status) => {
+                self.detached_camera = detached_before_peek;
+                return status;
+            }
         };
         let visibility = self.bsp.render().visibility();
         timing.mark(Phase::EncodeOverlays);
@@ -2205,6 +2206,7 @@ impl GpuState {
         timing.mark(Phase::Present);
         timing.mark(Phase::Other);
         self.complete_render_transition(game_audio);
+        self.detached_camera = detached_before_peek;
         FrameStatus::Rendered
     }
 }
