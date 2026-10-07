@@ -1792,27 +1792,32 @@ allocate. See
 
 UI text uses the bundled Inter font, rasterized once per display scale in
 [text.rs](../crates/sjk-viewer/src/text.rs). Two options switch surfaces to
-the game's own fonts, read from the player's game data and never bundled:
-`cg_classicHudFont` draws the status HUD with `arialnb`, and `ui_gameFont`
-("Classic game fonts", on by default in SJK, off in JKR; a font the game data lacks
-leaves its surfaces on Inter) draws every surface the retail game drew
-with its own fonts in that font, following OpenJK `codemp`:
+the game's own fonts, drawn with bundled vector replacements of the retail bitmaps
+([sjk.md](sjk.md#fonts)): `cg_classicHudFont` draws the status HUD with SJK HUD
+(retail `arialnb`), and `ui_gameFont` ("Classic game fonts", on by default in SJK,
+off in JKR) draws every surface the retail game drew with its own fonts in that
+font, following OpenJK `codemp`:
 
-| Retail font | Surfaces |
-| --- | --- |
-| `ergoec` (`FONT_MEDIUM`) | Menus, crosshair name, centre prints, warmup text, match timer, enemy info, scoreboard names and headings |
-| `ocr_a` (`FONT_SMALL`) | Chat box and typing line, weapon/Force/inventory selection names, scoreboard numbers |
-| Console character set (drawn with the bundled JetBrains Mono, not `gfx/2d/charsgrid_med`) | Console and notify lines, FPS, snapshot, vote, team overlay, connection interrupted, kill feed |
+| Retail font | Drawn with | Surfaces |
+| --- | --- | --- |
+| `ergoec` (`FONT_MEDIUM`) | SJK Menu | Menus, crosshair name, centre prints, warmup text, match timer, enemy info, scoreboard names and headings |
+| `ocr_a` (`FONT_SMALL`) | SJK Chat | Chat box and typing line, weapon/Force/inventory selection names, scoreboard numbers |
+| Console character set (`gfx/2d/charsgrid_med`) | JetBrains Mono | Console and notify lines, FPS, snapshot, vote, team overlay, connection interrupted, kill feed |
 
 The routing is per text run: the HUD maps its text ids in
 [text_values.rs](../crates/sjk-viewer/src/hud/text_values.rs), chat marks its
 centre-print rows, and the scoreboard sends text made only of digits, `-` and `/`
 to the small font. Everything else, including the command browser and overhead
-names, stays on Inter (or `arialnb` for the status HUD). The `.fontdat` metrics
-are read by [fontdat.rs](../crates/sjk-viewer/src/text/fontdat.rs); the atlas is
-the highest-priority `fonts/<name>.tga` (or `.png`/`.jpg`), so an HD replacement
-atlas in a later PK3 is used with the retail metrics and is mipmapped down to the
-retail 512-texel size. The console character set's surfaces draw with JetBrains
+names, stays on Inter (or SJK HUD for the status HUD). SJK Menu, SJK Chat and SJK
+HUD keep the retail `.fontdat` layout: [game_fonts.py](../scripts/game_fonts.py)
+draws every glyph at 64 font units per retail pixel with the retail advance and
+position, and [retail_font.rs](../crates/sjk-viewer/src/text/retail_font.rs)
+rasterizes each font once at 6 raster pixels per retail pixel into a mipmapped
+coverage atlas, with the line height and baseline the `.fontdat` header gave
+(`ergoec` 22 and 17, `ocr_a` 21 and 17, `arialnb` a 14-pixel line with the
+baseline at its bottom). Slots hold the Windows-1252 character of their byte, and
+a byte the font lacks draws `.`, as `RE_Font_DrawString` drew for a glyph with no
+width. The console character set's surfaces draw with JetBrains
 Mono, bundled and rasterized once at 96 pixels per em into a mipmapped coverage
 atlas ([console_font.rs](../crates/sjk-viewer/src/text/console_font.rs)), because
 SJK draws no bitmap fonts ([sjk.md](sjk.md#fonts)). It keeps the cell of
@@ -1822,48 +1827,31 @@ the cell), the ascent and descent centred, and a space drawing nothing. The cons
 own sizes (`con_scale`, row pitch), and its caret, selection and pointer hits
 measure the same fixed advance it draws with. The game fonts load when a world is
 installed with the option on, or on first use, from
-[game_font.rs](../crates/sjk-viewer/src/game_font.rs); a missing font leaves
-its surfaces on Inter. The console font is drawn after all other text, so the
+[game_font.rs](../crates/sjk-viewer/src/game_font.rs); they need no game data,
+and a font that fails to load leaves its surfaces on Inter. The console font is drawn after all other text, so the
 console stays on top. The classic console (`con_style classic`, see
 [client.md](client.md#classic-console)) goes further: its background, bar and
 text are a layer of their own
 ([console_backdrop.rs](../crates/sjk-viewer/src/console_backdrop.rs)) drawn after
 every other 2D element, so text under an opaque console is hidden.
 
-The retail atlases are 256–512 texels on the long side, so 1440p and 4K text
-magnifies them several times and bilinear sampling of their coverage blurs every
-edge over several pixels. Atlases under 2048 texels are therefore converted at
-load into signed distance fields by [sdf.rs](../crates/sjk-viewer/src/text/sdf.rs)
-and drawn by the text shader's `fragment_sdf`, which rebuilds each edge one screen
-pixel wide at any scale. The edge is the 0.5 contour of the bilinearly interpolated
-coverage, found on a grid of about 2048 texels with an exact Euclidean distance
-transform. Retail-size atlases (512 texels or less) store their field at twice the
-atlas size, because a one-texel stroke would otherwise be rebuilt half as wide; the
-field is the alpha of a white RGBA texture, so layout, mips and sampler are shared
-with Inter. HD replacements of 2048 texels or more (such as an 8x `ergoec`) already
-resolve 4K text and keep their own anti-aliasing, so they stay coverage atlases.
-
-Checks on 2026-10-03 (Windows 11, release scratch tool outside the repository, real
-retail atlases and the JoF HD pack): conversion took 36 ms (`arialnb` 256²),
-70–72 ms (`ergoec` and `ocr_a` 512×256, `ocr_a` HD 1024×512) and 159 ms (`arialnb`
-HD 512²) on one core; fields take 1–4 MiB before mips. At 1:1 the rebuilt coverage
-of each glyph matched its original area within 10% for all but 2 of 170 retail
-`ergoec`, 1 of 164 `ocr_a` and 3 of 157 `arialnb` glyphs (small, thin glyphs such as
-`}` and `¾`, down to −43%), and within 5% for every HD `ocr_a` and `arialnb` glyph.
-Magnified text keeps the retail letterforms, including the staircase detail of a
-low-resolution atlas, but with sharp edges; because the old ramp is gone, strokes
-read slightly heavier than the blurred version. The shader was validated with naga;
-nothing was run on a GPU.
+Before the bundled fonts, the retail atlases (256–512 texels on the long side)
+were converted at load into signed distance fields by
+[sdf.rs](../crates/sjk-viewer/src/text/sdf.rs) and drawn by the text shader's
+`fragment_sdf`, so magnified text kept sharp edges. That path remains for any
+atlas under 2048 texels, but every font SJK draws now rasterizes into a
+4096-texel coverage atlas, so none uses it.
 
 In the Inter atlas, byte 0xAC (`¬`) is an exception: the retail `ergoec` and
 `ocr_a` fonts draw it as the boxed "WSI fonts" foundry logo, which players use in
-names, so when the game data provides either font the atlas takes that glyph
-instead of Inter's not-sign
-([logo_glyph.rs](../crates/sjk-viewer/src/text/logo_glyph.rs)). It is cropped
-from the mounted atlas (an HD replacement included), scaled so the retail
-font's `H` matches Inter's cap height, and spliced into both faces at atlas
-build and DPI rebuild; nothing is read or rasterized per frame. Without the
-retail fonts `¬` stays Inter's. The console font draws JetBrains Mono's `¬`. Outgoing chat and names send `¬` as the single byte 0xAC
+names, so the atlas takes that glyph instead of Inter's not-sign
+([logo_glyph.rs](../crates/sjk-viewer/src/text/logo_glyph.rs)). It comes from the
+bundled SJK Menu, where it is a vector glyph traced like the rest of the font: it
+is rasterized once at four times SJK Menu's raster size, scaled so SJK Menu's `H`
+matches Inter's cap height, and spliced into both faces at atlas build and DPI
+rebuild; nothing is read or rasterized per frame. SJK Menu and SJK Chat draw the
+logo themselves, SJK HUD a not-sign as `arialnb` did, and the console font
+JetBrains Mono's `¬`. Outgoing chat and names send `¬` as the single byte 0xAC
 ([player text](networking.md#player-text)), so other clients draw the logo too.
 
 ### Game-data HUD

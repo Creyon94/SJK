@@ -90,6 +90,10 @@ did: Inter by The Inter Project Authors, JetBrains Mono by The JetBrains Mono Pr
 link: https://rsms.me/inter/
 link: https://www.jetbrains.com/lp/mono/
 
+[JoF HD Fonts & Icons and OCR-A]
+role: The game fonts SJK Menu, SJK Chat and SJK HUD
+did: SJK Menu and SJK HUD are traced from the JoF HD Fonts & Icons pack (author unknown); SJK Chat is OCR-A by John Sauter (public domain)
+
 [OpenJK, EternalJK, JoF EJK, TaystJK and jaPRO]
 role: References for how Jedi Academy behaves
 did: SJK reimplements their behaviour and includes none of their code

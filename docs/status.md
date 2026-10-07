@@ -163,6 +163,20 @@ roster keys and `tell` lookups, and the cosmetic match. Checked in game on Windo
 11 on a JoF server, before the roster keys were added; those are covered by the
 unit tests only.
 
+## Game fonts: SJK Menu, SJK Chat and SJK HUD
+
+Branch `personal/vector-game-fonts` (07/10/2026, Sol's request; SJK draws no bitmap
+fonts, docs/sjk.md "Fonts"). The retail `ergoec`, `ocr_a` and `arialnb` bitmaps and
+the logo glyph are replaced by three bundled TrueType fonts that keep the retail
+layout: SJK Menu and SJK HUD traced from the JoF HD pack's atlases, SJK Chat OCR-A
+set to the retail widths with Latin-1 composed. `ui_gameFont` and
+`cg_classicHudFont` no longer read fonts from the game data. Unit tests cover the
+line metrics, whole-pixel advances, the baseline, Latin-1 coverage, the `.`
+fallback and the logo; the fonts were compared with the retail and HD atlases in
+offline renders (Python, Pillow). Workspace build and tests pass on Windows; the
+workspace clippy warnings are the existing ones, none in the changed code. Not run
+in a game.
+
 ## Console font: JetBrains Mono
 
 The console character set's surfaces (the console, notify lines, FPS, vote, team

@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 07/10/2026 | - | Game fonts as bundled vector fonts: SJK Menu, SJK Chat, SJK HUD
+- dcf47c9 |  | Game fonts as bundled vector fonts: SJK Menu, SJK Chat and SJK HUD
++ 07/10/2026 | - | Release 2026.1007.1 (Alpha)
+- c096c64 |  | Release 2026.1007.1 (Alpha)
 + 07/10/2026 | - | Report a bug and the note dialog in the classic+ look
 - 198fdab |  | Report a bug and the note dialog in the classic+ look
 + 07/10/2026 | - | Credits: big name panels, every feature, PR and commit folded, turning god rays

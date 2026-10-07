@@ -768,7 +768,9 @@ impl GpuState {
                 resource: hud_buffer.as_entire_binding(),
             }],
         });
-        let logo_glyph = text::LogoGlyph::read(&vfs);
+        let logo_glyph = text::LogoGlyph::bundled()
+            .inspect_err(|error| log::progress(format_args!("warning: no logo glyph: {error}")))
+            .ok();
         let modern_atlas = text::load_modern(
             window.as_ref().map_or(1.0, |window| window.scale_factor()),
             logo_glyph.as_ref(),
@@ -818,7 +820,11 @@ impl GpuState {
                 },
             ],
         });
-        let classic_atlas = text::load_classic(&vfs).ok();
+        let classic_atlas = text::load_classic()
+            .inspect_err(|error| {
+                log::progress(format_args!("warning: no classic HUD font: {error}"))
+            })
+            .ok();
         let classic_text_sdf = classic_atlas
             .as_ref()
             .is_some_and(|atlas| atlas.distance_field);
@@ -851,7 +857,6 @@ impl GpuState {
         let game_fonts = game_font::GameFonts::preload(
             preload_game_fonts || game_font::enabled(console.as_ref()),
             game_font::classic_console(console.as_ref()),
-            &vfs,
             &game_font::Device {
                 device: &device,
                 queue: &queue,

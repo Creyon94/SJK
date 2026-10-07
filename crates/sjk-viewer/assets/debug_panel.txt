@@ -624,6 +624,19 @@ test: Insert key: the cursor turns from a bar into a block and back. con_scale 2
 test: Symbols: say e acute, the 2 superscript, the logo key (0xAC): they draw in the console.
 test: In a match with ui_gameFont 1: FPS counter, vote text and kill feed use the same font.
 
+[vector-game-fonts]
+status: personal
+area: Menus & settings
+title: Menu, chat and classic HUD fonts are vector fonts (SJK Menu, SJK Chat, SJK HUD)
+change: ergoec, ocr_a and arialnb are no longer read from the game data: bundled vector fonts
+change: with the same layout replace them. Chat is OCR-A at the old spacing, with accents.
+change: The WSI logo (0xAC) in names comes from the vector menu font, also in Inter text.
+test: Classic game fonts on: menus at 4K look like before but sharp, no blur or staircase.
+test: Chat: type e acute, n tilde, u umlaut, c cedilla, A grave: accents sit inside the line.
+test: Chat lines wrap where they did; scoreboard numbers and names line up as before.
+test: cg_classicHudFont 1: HUD numbers sharp, same place. A name with Alt+0172 shows the logo.
+note: Works without the JoF HD pack installed: the fonts are built in.
+
 [console-browser-classic]
 status: personal
 area: Console & chat

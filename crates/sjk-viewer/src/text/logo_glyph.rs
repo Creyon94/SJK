@@ -1,29 +1,24 @@
-//! The retail "WSI fonts" logo that Jedi Academy draws for `¬`.
+//! The "WSI fonts" logo that Jedi Academy draws for `¬`.
 //!
 //! Byte 0xAC of the retail `ergoec` and `ocr_a` fonts is not a not-sign but
 //! the boxed logo of the fonts' foundry, which players have long put in their
 //! names. Inter draws a plain `¬` there, so the modern atlas takes this glyph
-//! from the player's game data instead: [`LogoGlyph::read`] crops it from the
-//! mounted font (an HD replacement atlas in a later PK3 included) and
-//! [`LogoGlyph::rasterize`] scales it to Inter's cap height when the atlas is
-//! built. Nothing is bundled; without the retail fonts `¬` stays Inter's.
+//! from the bundled SJK Menu font instead ([`super::retail_font::MENU`], where
+//! it is a vector glyph like the rest of the font): [`LogoGlyph::bundled`]
+//! rasterizes it once, large, and [`LogoGlyph::rasterize`] scales it to Inter's
+//! cap height when the atlas is built.
 
-use sjk_vfs::VirtualFileSystem;
+use std::error::Error;
 
 /// The byte (Latin-1 `¬`) the retail fonts draw as the logo.
 pub(crate) const BYTE: u8 = 0xAC;
-/// Retail fonts that carry the logo, in preference order: the menu font
-/// (`FONT_MEDIUM`), then the chat font (`FONT_SMALL`).
-const FONTS: [&str; 2] = ["ergoec", "ocr_a"];
-/// Bytes per `glyphInfo_t` in a `.fontdat` (OpenJK `rd-common/tr_font.cpp`):
-/// four shorts, an int baseline and four floats.
-const GLYPH_BYTES: usize = 28;
-/// Glyph records in a `.fontdat`.
-const GLYPH_COUNT: usize = 256;
 /// The font's own capital, whose height sets the logo's scale.
-const CAP: u8 = b'H';
+const CAP: char = 'H';
+/// Raster size of the logo against SJK Menu's own raster em: large enough that
+/// the biggest Inter atlas (a 3x raster at 3x DPI) only minifies it.
+const OVERSAMPLE: f32 = 4.0;
 
-/// The logo's coverage and metrics, in the retail font's authored pixels.
+/// The logo's coverage and metrics, in the pixels it was rasterized at.
 #[derive(Clone, Debug)]
 pub(crate) struct LogoGlyph {
     /// Ink width.
@@ -38,7 +33,7 @@ pub(crate) struct LogoGlyph {
     baseline: f32,
     /// Height of the font's `H`, the reference the logo is scaled against.
     cap_height: f32,
-    /// Alpha coverage cropped from the atlas, at the atlas's own resolution.
+    /// Alpha coverage, `coverage_width` by `coverage_height` samples.
     coverage: Vec<u8>,
     coverage_width: usize,
     coverage_height: usize,
@@ -59,81 +54,25 @@ pub(crate) struct ScaledLogo {
 }
 
 impl LogoGlyph {
-    /// Crop the logo from the first retail font in the game data that has it.
-    pub(crate) fn read(vfs: &VirtualFileSystem) -> Option<Self> {
-        FONTS.into_iter().find_map(|name| {
-            let metrics = vfs.read(&format!("fonts/{name}.fontdat")).ok()??;
-            // Like retail font registration, the atlas may be a TGA, PNG or JPEG.
-            let atlas = [
-                ("tga", image::ImageFormat::Tga),
-                ("png", image::ImageFormat::Png),
-                ("jpg", image::ImageFormat::Jpeg),
-            ]
-            .into_iter()
-            .find_map(|(extension, format)| {
-                let file = vfs.read(&format!("fonts/{name}.{extension}")).ok()??;
-                image::load_from_memory_with_format(&file.bytes, format).ok()
-            })?;
-            Self::from_font(&metrics.bytes, &atlas.to_rgba8())
-        })
-    }
-
-    /// The logo from a `.fontdat` and its atlas, or `None` when the font has
-    /// no ink at 0xAC or no usable capital to scale against.
-    pub(crate) fn from_font(fontdat: &[u8], atlas: &image::RgbaImage) -> Option<Self> {
-        if fontdat.len() < GLYPH_BYTES * GLYPH_COUNT {
-            return None;
+    /// Rasterize the logo from the bundled SJK Menu font.
+    pub(crate) fn bundled() -> Result<Self, Box<dyn Error>> {
+        let (font, em) = super::retail_font::MENU.font()?;
+        let size = em * OVERSAMPLE;
+        let (metrics, coverage) = font.rasterize(char::from(BYTE), size);
+        let cap_height = font.metrics(CAP, size).height as f32;
+        if metrics.width == 0 || metrics.height == 0 || cap_height <= 0.0 {
+            return Err("SJK Menu has no logo at 0xAC".into());
         }
-        let record = |byte: u8| {
-            let offset = usize::from(byte) * GLYPH_BYTES;
-            let short = |at: usize| {
-                f32::from(i16::from_le_bytes([
-                    fontdat[offset + at],
-                    fontdat[offset + at + 1],
-                ]))
-            };
-            let word = |at: usize| {
-                let bytes = [
-                    fontdat[offset + at],
-                    fontdat[offset + at + 1],
-                    fontdat[offset + at + 2],
-                    fontdat[offset + at + 3],
-                ];
-                (i32::from_le_bytes(bytes), f32::from_le_bytes(bytes))
-            };
-            (
-                [short(0), short(2), short(4), short(6)],
-                word(8).0 as f32,
-                [word(12).1, word(16).1, word(20).1, word(24).1],
-            )
-        };
-        let ([width, height, advance, offset_x], baseline, uv) = record(BYTE);
-        let ([_, cap_height, _, _], _, _) = record(CAP);
-        if width <= 0.0 || height <= 0.0 || cap_height <= 0.0 {
-            return None;
-        }
-        // Normalized rectangles let an HD replacement atlas supply the pixels.
-        let (atlas_width, atlas_height) = (atlas.width() as f32, atlas.height() as f32);
-        let left = (uv[0] * atlas_width).round().max(0.0) as u32;
-        let top = (uv[1] * atlas_height).round().max(0.0) as u32;
-        let right = ((uv[2] * atlas_width).round() as u32).min(atlas.width());
-        let bottom = ((uv[3] * atlas_height).round() as u32).min(atlas.height());
-        if right <= left || bottom <= top {
-            return None;
-        }
-        let coverage = (top..bottom)
-            .flat_map(|y| (left..right).map(move |x| atlas.get_pixel(x, y)[3]))
-            .collect();
-        Some(Self {
-            width,
-            height,
-            advance,
-            offset_x,
-            baseline,
+        Ok(Self {
+            width: metrics.width as f32,
+            height: metrics.height as f32,
+            advance: metrics.advance_width,
+            offset_x: metrics.xmin as f32,
+            baseline: (metrics.ymin + metrics.height as i32) as f32,
             cap_height,
             coverage,
-            coverage_width: (right - left) as usize,
-            coverage_height: (bottom - top) as usize,
+            coverage_width: metrics.width,
+            coverage_height: metrics.height,
         })
     }
 
@@ -144,8 +83,8 @@ impl LogoGlyph {
         let width = (self.width * scale).round().max(1.0) as usize;
         let height = (self.height * scale).round().max(1.0) as usize;
         let top = (self.baseline * scale).round() as i32;
-        // Supersample enough to average every source texel when shrinking an
-        // HD crop, and to interpolate smoothly when enlarging a retail one.
+        // Supersample enough to average every source sample when shrinking,
+        // and to interpolate smoothly when enlarging.
         let steps_x = (self.coverage_width as f32 / width as f32).ceil().max(2.0) as usize;
         let steps_y = (self.coverage_height as f32 / height as f32)
             .ceil()
@@ -176,8 +115,7 @@ impl LogoGlyph {
         }
     }
 
-    /// Bilinear coverage at normalized `(u, v)` inside the crop, clamped to
-    /// its edges so no neighbouring atlas glyph bleeds in.
+    /// Bilinear coverage at normalized `(u, v)`, clamped to the raster's edges.
     fn sample(&self, u: f32, v: f32) -> f32 {
         let x = (u * self.coverage_width as f32 - 0.5).clamp(0.0, (self.coverage_width - 1) as f32);
         let y =
@@ -198,57 +136,27 @@ impl LogoGlyph {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use image::{Rgba, RgbaImage};
 
-    /// A fontdat whose 0xAC is a 4x2 glyph in the atlas's left half, with
-    /// ink 2 above the baseline, and whose `H` is 2 tall.
-    fn font() -> Vec<u8> {
-        let mut data = vec![0_u8; GLYPH_BYTES * GLYPH_COUNT + 10];
-        let mut put = |byte: u8, shorts: [i16; 4], baseline: i32, uv: [f32; 4]| {
-            let offset = usize::from(byte) * GLYPH_BYTES;
-            for (index, value) in shorts.into_iter().enumerate() {
-                data[offset + index * 2..offset + index * 2 + 2]
-                    .copy_from_slice(&value.to_le_bytes());
-            }
-            data[offset + 8..offset + 12].copy_from_slice(&baseline.to_le_bytes());
-            for (index, value) in uv.into_iter().enumerate() {
-                let start = offset + 12 + index * 4;
-                data[start..start + 4].copy_from_slice(&value.to_le_bytes());
-            }
-        };
-        put(BYTE, [4, 2, 5, 1], 2, [0.0, 0.0, 0.5, 1.0]);
-        put(CAP, [2, 2, 3, 0], 2, [0.5, 0.0, 1.0, 1.0]);
-        data
-    }
-
-    /// An opaque 8x2 atlas (logo on the left, `H` on the right), `scale` times larger.
-    fn atlas(scale: u32) -> RgbaImage {
-        RgbaImage::from_pixel(8 * scale, 2 * scale, Rgba([255, 255, 255, 255]))
-    }
-
-    #[test]
-    fn reads_the_logo_record_and_crop() {
-        let logo = LogoGlyph::from_font(&font(), &atlas(1)).unwrap();
-        assert_eq!(
-            [logo.width, logo.height, logo.advance, logo.offset_x],
-            [4.0, 2.0, 5.0, 1.0]
-        );
-        assert_eq!([logo.baseline, logo.cap_height], [2.0, 2.0]);
-        assert_eq!([logo.coverage_width, logo.coverage_height], [4, 2]);
-    }
-
-    #[test]
-    fn hd_atlas_supplies_a_larger_crop_with_the_same_metrics() {
-        let logo = LogoGlyph::from_font(&font(), &atlas(8)).unwrap();
-        assert_eq!([logo.coverage_width, logo.coverage_height], [32, 16]);
-        assert_eq!([logo.width, logo.height], [4.0, 2.0]);
+    /// A 4x2 opaque logo with ink 2 above the baseline, advance 5 and offset 1,
+    /// beside a capital 2 tall, sampled `fineness` times finer than that.
+    fn logo(fineness: usize) -> LogoGlyph {
+        LogoGlyph {
+            width: 4.0,
+            height: 2.0,
+            advance: 5.0,
+            offset_x: 1.0,
+            baseline: 2.0,
+            cap_height: 2.0,
+            coverage: vec![255; 8 * fineness * fineness],
+            coverage_width: 4 * fineness,
+            coverage_height: 2 * fineness,
+        }
     }
 
     #[test]
     fn scales_to_the_face_cap_height() {
-        let logo = LogoGlyph::from_font(&font(), &atlas(1)).unwrap();
-        // The retail H is 2 tall; a 10 px cap height is a 5x scale.
-        let scaled = logo.rasterize(10.0);
+        // The H is 2 tall; a 10 px cap height is a 5x scale.
+        let scaled = logo(1).rasterize(10.0);
         assert_eq!([scaled.width, scaled.height], [20, 10]);
         assert_eq!([scaled.xmin, scaled.ymin], [5, 0]);
         assert_eq!(scaled.advance, 25.0);
@@ -257,43 +165,55 @@ mod tests {
     }
 
     #[test]
-    fn coverage_does_not_bleed_from_the_neighbouring_glyph() {
-        let mut image = atlas(1);
-        for x in 4..8 {
-            for y in 0..2 {
-                image.put_pixel(x, y, Rgba([255, 255, 255, 0]));
-            }
+    fn coverage_does_not_bleed_past_the_raster_edges() {
+        let mut fine = logo(8);
+        // Clear the right half: the left half must stay fully opaque.
+        for row in 0..fine.coverage_height {
+            let start = row * fine.coverage_width;
+            fine.coverage[start + 16..start + 32].fill(0);
         }
-        let logo = LogoGlyph::from_font(&font(), &image).unwrap();
-        let scaled = logo.rasterize(8.0);
-        assert!(scaled.pixels.iter().all(|&alpha| alpha == 255));
+        let scaled = fine.rasterize(10.0);
+        for row in 0..scaled.height {
+            assert!(
+                scaled.pixels[row * scaled.width..][..9]
+                    .iter()
+                    .all(|&a| a == 255)
+            );
+            assert!(
+                scaled.pixels[row * scaled.width + 11..][..9]
+                    .iter()
+                    .all(|&a| a == 0)
+            );
+        }
     }
 
     #[test]
-    fn a_font_without_the_logo_gives_none() {
-        let mut data = font();
-        data[usize::from(BYTE) * GLYPH_BYTES..usize::from(BYTE) * GLYPH_BYTES + 4].fill(0);
-        assert!(LogoGlyph::from_font(&data, &atlas(1)).is_none());
-        assert!(LogoGlyph::from_font(&data[..100], &atlas(1)).is_none());
+    fn the_bundled_logo_is_a_box_about_a_capital_high() {
+        let logo = LogoGlyph::bundled().unwrap();
+        assert!(logo.width > logo.height);
+        assert!(logo.height > logo.cap_height && logo.height < logo.cap_height * 1.5);
+        // Mostly ink: the box is filled around the lettering.
+        let ink = logo.coverage.iter().filter(|&&alpha| alpha > 128).count();
+        assert!(ink * 2 > logo.coverage.len());
     }
 
     #[test]
     fn modern_atlas_draws_the_logo_in_both_faces() {
         use super::super::{TextFace, load_modern};
-        let logo = LogoGlyph::from_font(&font(), &atlas(1)).unwrap();
+        let logo = logo(1);
         let plain = load_modern(1.0, None).unwrap().font;
         let spliced = load_modern(1.0, Some(&logo)).unwrap().font;
         for face in [TextFace::Regular, TextFace::Semibold] {
-            let cap = spliced.glyph(face, CAP);
+            let cap = spliced.glyph(face, b'H');
             let glyph = spliced.glyph(face, BYTE);
-            // 4x2 retail units against a 2-unit H: twice as wide as the cap is tall.
+            // 4x2 units against a 2-unit H: twice as wide as the cap is tall.
             assert!((glyph.width - 2.0 * cap.height).abs() <= 1.0, "{face:?}");
             assert!((glyph.height - cap.height).abs() <= 1.0, "{face:?}");
             // Ink sits on the baseline, its top level with the capital's.
             assert!((glyph.offset_y - cap.offset_y).abs() <= 1.0, "{face:?}");
             assert_ne!(glyph.advance, plain.glyph(face, BYTE).advance);
             // Other glyphs are untouched.
-            assert_eq!(cap.advance, plain.glyph(face, CAP).advance);
+            assert_eq!(cap.advance, plain.glyph(face, b'H').advance);
         }
     }
 }

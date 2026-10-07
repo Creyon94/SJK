@@ -1,6 +1,6 @@
-//! Optional game fonts, read from the player's game data.
+//! Optional game fonts: Jedi Academy's own font faces, as bundled vector fonts.
 //!
-//! `ui_gameFont` swaps the bundled Inter for Jedi Academy's own fonts on every
+//! `ui_gameFont` swaps the bundled Inter for the game's own fonts on every
 //! surface the retail game drew with them ([`RetailFont`]):
 //!
 //! - `ergoec`, the medium font (`FONT_MEDIUM`): menus (`assetGlobalDef` in
@@ -18,17 +18,16 @@
 //!   snapshot, vote, team overlay, connection interrupted), and obituaries,
 //!   which the cgame printed to the console.
 //!
-//! The medium and small fonts come from the mounted game data, so an HD
-//! replacement atlas in a later PK3 is used automatically. A font that is
-//! missing or unreadable leaves its surfaces on Inter. Retail-size atlases are uploaded
-//! as signed distance fields ([`text::sdf`]) and drawn with the text pipeline's
-//! distance-field fragment, so magnified text keeps sharp edges instead of the
-//! bitmap's bilinear blur; large HD atlases are drawn from their own coverage.
-//! `cg_classicHudFont` keeps its own scope, the status HUD's `arialnb`.
+//! SJK draws no bitmap fonts, so the medium and small fonts are SJK Menu and
+//! SJK Chat, bundled vector replacements for the retail `ergoec` and `ocr_a`
+//! bitmaps that keep their layout ([`text::retail_font`]); they need no game
+//! data. A font that fails to load leaves its surfaces on Inter.
+//! `cg_classicHudFont` keeps its own scope, the status HUD's `arialnb`, whose
+//! replacement is SJK HUD.
 //!
 //! The fonts load the first time the option is on and stay resident for the
 //! world. A world installed while the option is on loads them on its install
-//! worker ([`GameFonts::preload`]), so a map change does not decode the atlases
+//! worker ([`GameFonts::preload`]), so a map change does not rasterize the fonts
 //! on the frame thread. Each font has its own vertex buffer and atlas bind
 //! group. The medium and small fonts draw before the Inter text, as when every
 //! surface shared one buffer; the console font draws after all other text so
@@ -36,20 +35,14 @@
 
 use crate::GpuState;
 use crate::gpu_texture;
-use crate::text::{self, MAX_TEXT_VERTICES, TextVertex, UiFont};
+use crate::text::{self, MAX_TEXT_VERTICES, TextVertex, UiFont, retail_font};
 use sjk_ui::{DrawList, TextId};
-use sjk_vfs::VirtualFileSystem;
 
 /// The cvar that turns the game fonts on.
 pub(crate) const CVAR: &str = "ui_gameFont";
-/// Retail menu font (`FONT_MEDIUM`).
-const MENU_FONT: &str = "ergoec";
-/// Retail chat-box font (`FONT_SMALL`).
-const CHAT_FONT: &str = "ocr_a";
-/// Long side of the retail font atlases. HD replacements are mipmapped down
-/// to this size and no further: below it, tightly packed neighbouring glyphs
-/// would bleed into each other.
-const RETAIL_ATLAS_SIZE: u32 = 512;
+/// Smallest long side a font atlas is mipmapped down to: below it, tightly
+/// packed neighbouring glyphs would bleed into each other.
+const MIN_MIP_SIZE: u32 = 512;
 
 /// The retail font a text surface was drawn with.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -95,17 +88,13 @@ pub(crate) struct Device<'a> {
 }
 
 impl Layer {
-    fn load(vfs: &VirtualFileSystem, name: &str, gpu: &Device<'_>) -> Option<Self> {
-        match text::fontdat::read(vfs, name) {
-            Ok((fontdat, image)) => Some(Self::upload(
-                name,
-                fontdat.into_typographic_font(),
-                image,
-                gpu,
-            )),
+    fn load(face: &retail_font::RetailFace, gpu: &Device<'_>) -> Option<Self> {
+        match retail_font::load(face) {
+            Ok(atlas) => Some(Self::upload(face.name, atlas.font, atlas.image, gpu)),
             Err(error) => {
                 crate::log::progress(format_args!(
-                    "warning: game font {name} unavailable, keeping Inter: {error}"
+                    "warning: game font {} unavailable, keeping Inter: {error}",
+                    face.name
                 ));
                 None
             }
@@ -142,7 +131,7 @@ impl Layer {
             ));
         } else {
             crate::log::progress(format_args!(
-                "game font {name}: {width}x{height} HD atlas, drawn from coverage"
+                "game font {name}: {width}x{height} atlas, drawn from coverage"
             ));
         }
         let view = gpu_texture::create_rgba8_texture_mipmapped(
@@ -203,10 +192,10 @@ impl Layer {
 }
 
 /// Mip levels for an atlas or its distance field of `width` x `height`: one per
-/// halving down to the retail atlas size, so HD atlases minify cleanly to UI
+/// halving down to [`MIN_MIP_SIZE`], so large atlases minify cleanly to UI
 /// text sizes.
 pub(crate) fn mip_levels(width: u32, height: u32) -> u32 {
-    1 + (width.max(height) / RETAIL_ATLAS_SIZE).max(1).ilog2()
+    1 + (width.max(height) / MIN_MIP_SIZE).max(1).ilog2()
 }
 
 /// Lazily loaded game fonts and this frame's on/off decision.
@@ -226,25 +215,20 @@ impl GameFonts {
     /// Fonts for a new world: loaded now when `enabled`, else on first use. The
     /// console font alone is loaded when `console` (the classic console is in
     /// use).
-    pub(crate) fn preload(
-        enabled: bool,
-        console: bool,
-        vfs: &VirtualFileSystem,
-        gpu: &Device<'_>,
-    ) -> Self {
+    pub(crate) fn preload(enabled: bool, console: bool, gpu: &Device<'_>) -> Self {
         let mut fonts = Self::default();
         if enabled {
-            fonts.load(vfs, gpu);
+            fonts.load(gpu);
         } else if console {
             fonts.load_console(gpu);
         }
         fonts
     }
 
-    fn load(&mut self, vfs: &VirtualFileSystem, gpu: &Device<'_>) {
+    fn load(&mut self, gpu: &Device<'_>) {
         self.attempted = true;
-        self.menu = Layer::load(vfs, MENU_FONT, gpu);
-        self.chat = Layer::load(vfs, CHAT_FONT, gpu);
+        self.menu = Layer::load(&retail_font::MENU, gpu);
+        self.chat = Layer::load(&retail_font::CHAT, gpu);
         self.load_console(gpu);
     }
 
@@ -385,8 +369,8 @@ impl GameFonts {
     }
 
     /// Draw the uploaded medium and small font text, which sits under the Inter
-    /// text: distance-field atlases with `sdf_pipeline`, HD coverage atlases
-    /// with the plain text `pipeline`.
+    /// text: distance-field atlases with `sdf_pipeline`, coverage atlases with
+    /// the plain text `pipeline`.
     pub(crate) fn draw(
         &self,
         pass: &mut wgpu::RenderPass<'_>,
@@ -433,7 +417,7 @@ pub(crate) fn prepare(gpu: &mut GpuState) {
     for layer in fonts.layers_mut() {
         layer.vertices.clear();
     }
-    let load = enabled && !fonts.attempted && gpu.vfs.is_some();
+    let load = enabled && !fonts.attempted;
     let load_console = console && !fonts.console_attempted;
     if load || load_console {
         let device = Device {
@@ -442,10 +426,10 @@ pub(crate) fn prepare(gpu: &mut GpuState) {
             layout: &gpu.text_layout,
             sampler: &gpu.text_sampler,
         };
-        // The console font is bundled: it needs no game data.
-        match &gpu.vfs {
-            Some(vfs) if load => fonts.load(vfs, &device),
-            _ => fonts.load_console(&device),
+        if load {
+            fonts.load(&device);
+        } else {
+            fonts.load_console(&device);
         }
     }
 }
@@ -470,23 +454,20 @@ mod tests {
     use super::*;
 
     #[test]
-    fn retail_atlases_get_no_mips() {
+    fn small_atlases_get_no_mips() {
         assert_eq!(mip_levels(512, 256), 1);
         assert_eq!(mip_levels(256, 256), 1);
     }
 
     #[test]
-    fn hd_atlases_mip_down_to_retail_size() {
-        // JoF-style HD packs: ocr_a at 2x, ergoec at 8x.
+    fn large_atlases_mip_down_to_512() {
         assert_eq!(mip_levels(1_024, 512), 2);
-        assert_eq!(mip_levels(4_096, 2_048), 4);
+        assert_eq!(mip_levels(4_096, 1_024), 4);
     }
 
     #[test]
     fn falls_back_to_inter_when_off_or_missing() {
-        let inter = text::fontdat::Fontdat::parse(&[0; 28 * 256 + 10])
-            .unwrap()
-            .into_typographic_font();
+        let inter = text::console_font::load().unwrap().font;
         let mut vertices = Vec::new();
         let mut missing = None;
         let (chosen, font) = target(true, &mut missing, &mut vertices, &inter);

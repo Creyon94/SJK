@@ -19,6 +19,10 @@ tests check this file):
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 
+## Unreleased
+
+- The game's own fonts are vector fonts: menus, chat and the classic HUD keep their look and layout but stay sharp at any size, with no bitmap left; the menu and HUD fonts are traced from the JoF HD fonts, the chat font is OCR-A set to the game's spacing with its accents, and the WSI logo in names is sharp too _(Sol, fonts traced from the JoF HD Fonts & Icons pack, OCR-A by John Sauter)_
+
 ## 2026.1007.1 (Alpha) | 07/10/2026
 
 Report bugs from inside the game, bring your config over from another client, quick
