@@ -297,6 +297,33 @@ effect for extensionless names (for example the disruptor scope in
 `JoF_HDWeaponScopeTrue.pk3`). Unit tests in `sjk-shader` cover the order and the
 named-extension-first rule. Not verified in game.
 
+## Detached free camera
+
+Detached free camera (`feat/free-camera`): `/freecam [on|off]`
+uses the existing JoF EJK fake-noclip predictor and frozen server commands,
+with the body left at its entity and the view weapon hidden. Within 32 units
+of its eye the body is hidden from the main view to avoid head clipping. The existing
+flight tests cover server command suppression and return-to-server behavior.
+Death/spectator/vehicle policy is shared with fake noclip. Combined revision
+`7b76890` was checked on 2026-10-07 (Windows, RTX 5070 Ti, release, retail
+`mp/duel1`, isolated native server, 1280x720): forward/back flight moves the
+camera while the body stays behind with the talk icon; turning off returns
+to the server position. The initial view is clear, the body is visible after
+moving away, and enabling while dead is refused. Turbo/vertical input,
+vehicle/spectator/map transitions and all command-step rates remain unverified.
+
+Review follow-up against `c096c64`: free camera blocks generic actions,
+weapon switching and Force-wheel reliable commands, clears on all session exits,
+and can be cancelled from menus. Body sounds, shadows and nameplates use the
+authoritative entity. Command-policy tests cover 8/7/4/3 ms steps; these are
+input-policy checks, not movement-parity certification. Windows workspace fmt,
+build, tests and clippy pass with existing warnings. Combined revision `44ff6e5` was checked on 2026-10-07 (Windows, RTX 5070 Ti,
+release, isolated native server, retail `mp/duel1`, 1280x720): backward
+flight separates the view from the body and off returns to it. Disconnect
+clears `cg_freeCamera`; off succeeds from the menu and reconnect starts
+with the cvar at 0. Reliable-wheel suppression, kick/timeout/map/vehicle
+transitions and precise body-effect placement remain unverified in game.
+
 ## Mouse wheel in the key-binding form
 
 Branch `fix/bind-mouse-wheel`: the mouse wheel binds in Settings > Key bindings

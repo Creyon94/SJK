@@ -170,7 +170,11 @@ impl GpuState {
             .zoom_view(time)
             .is_some_and(ZoomView::forces_first_person);
         self.third_person =
-            rendering_third_person(self.third_person_choice, self.zoom_first_person);
+            rendering_third_person(self.third_person_choice, self.zoom_first_person)
+                || self.free_camera_active();
+        if self.live_session.is_some() {
+            self.detached_camera = self.free_camera_active();
+        }
     }
 
     /// The player state the zoom decision reads: the predicted one in a live session

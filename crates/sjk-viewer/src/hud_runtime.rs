@@ -189,9 +189,11 @@ pub(crate) fn update(
             .refresh_verified(i64::from(presentation_time), || {
                 player_identity::verified_slots(session.game_state())
             });
+        let detached_flight = gpu.free_camera_active();
         gpu.hud.nameplate.set_own_origin(gpu.third_person.then(|| {
             gpu.local_prediction
                 .predicted_state()
+                .filter(|_| !detached_flight)
                 .map_or(snapshot.player.origin(), |state| state.origin)
         }));
         gpu.hud.nameplate.update(

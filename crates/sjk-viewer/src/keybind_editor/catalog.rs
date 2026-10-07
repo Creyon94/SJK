@@ -153,6 +153,7 @@ pub(crate) const ACTIONS: &[BindableAction] = &[
     action(Other, "Vote yes", "vote yes", ""),
     action(Other, "Vote no", "vote no", ""),
     action(Other, "Camera mode", "togglecamera", "p"),
+    action(Other, "Free camera", "freecam", ""),
     // SJK: off, names only, bars on the target and duel opponent, bars on everyone.
     action(Other, "Nameplate mode", "nameplates", "v"),
     action(Other, "Quick wheel (hold)", "+wheel general", "q"),

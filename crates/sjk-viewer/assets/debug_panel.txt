@@ -1926,6 +1926,18 @@ test: Click it: REPORT A BUG pop-up; long text wraps to the box's width, 8 lines
 test: Hover the box, Send, Cancel: the line under the pop-up explains each.
 test: Send "short": the red reason shows under the count; X twice on a wall: same look.
 
+[free-camera]
+status: personal
+area: Gameplay
+title: /freecam flies the camera away from your body (SJK PR #29, lumaya)
+change: Fake-noclip flight for the view; the server sees you still, with the chat balloon.
+change: Actions, weapon changes and Force-wheel commands are held back while flying.
+test: /freecam on a local server: fly with the movement keys, jump/crouch go up and down.
+test: Another client sees your body standing still with the talk balloon.
+test: Press Force or saber style keys while flying: nothing happens on the server.
+test: Die, spectate, disconnect or change map while flying: you are back on your body.
+note: Servers with g_inactivity can still drop a flying player (as with fakenoclip).
+
 [saber-wall-cutoff]
 status: personal
 area: Rendering & effects

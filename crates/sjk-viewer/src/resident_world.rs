@@ -105,6 +105,7 @@ impl State {
 impl GpuState {
     /// Park the remote transport while the destination loads; gameplay is suspended.
     pub(crate) fn retain_world_for_connection(&mut self) {
+        self.end_free_camera();
         self.resident.session = self.live_session.take();
         self.resident.map_change_pending |= self.live_map_installed;
         self.resident.reuse_pending = true;

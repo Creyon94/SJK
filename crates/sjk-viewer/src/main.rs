@@ -79,6 +79,7 @@ mod frame_split;
 mod charge_flash;
 mod fake_noclip;
 mod frame_target;
+mod free_camera;
 mod game_font;
 mod game_menu_actions;
 mod glow_pass;
@@ -2003,6 +2004,7 @@ impl GpuState {
                 self.draw_portal(&mut encoder, &target_view, doorway, shader_time)
             });
         dynamic_lights::entities::finish(self, presentation_time, visual_now, game_audio);
+        let detached_flight = self.free_camera_active();
         let object_groups = &mut self.object_groups;
         let mover_groups = &mut self.mover_groups;
         let actor_groups = &mut self.actor_groups;
@@ -2071,7 +2073,7 @@ impl GpuState {
             player_shadows::Inputs {
                 world: active_world,
                 presentation_time,
-                local_entity: local_entity_id,
+                local_entity: local_entity_id.filter(|_| !detached_flight),
                 local_root: camera::local_actor_root(
                     self.camera_position,
                     self.local_prediction.view_height(),

@@ -69,15 +69,21 @@ pub(crate) fn update(gpu: &mut GpuState, presentation_time: i64) -> Result<(), B
         .live_session
         .as_ref()
         .map(|session| session.latest_snapshot().player.saber_move());
+    let detached_flight = gpu.free_camera_active();
     let local_animation = local_entity.and_then(|entity| {
         gpu.local_actor_state.resolve(
             entity,
-            gpu.local_prediction.predicted_state(),
+            gpu.local_prediction
+                .predicted_state()
+                .filter(|_| !detached_flight),
             authoritative,
             authoritative_saber_move,
         )
     });
-    let predicted = gpu.local_prediction.predicted_state();
+    let predicted = gpu
+        .local_prediction
+        .predicted_state()
+        .filter(|_| !detached_flight);
     // The entity states and configstrings `CG_G2ServerBoneAngles` reads.
     let snapshot = crate::first_person_view::presented_snapshot(
         gpu.live_session.as_ref(),
