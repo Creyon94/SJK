@@ -83,6 +83,12 @@ link: lumaya's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr
 role: Coding assistant, by Anthropic
 did: Wrote many of Sol's changes together with Sol
 
+[Inter and JetBrains Mono]
+role: The fonts of the menus and the console, under the SIL Open Font License
+did: Inter by The Inter Project Authors, JetBrains Mono by The JetBrains Mono Project Authors
+link: https://rsms.me/inter/
+link: https://www.jetbrains.com/lp/mono/
+
 [OpenJK, EternalJK, JoF EJK, TaystJK and jaPRO]
 role: References for how Jedi Academy behaves
 did: SJK reimplements their behaviour and includes none of their code

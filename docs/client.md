@@ -1675,20 +1675,19 @@ work the same in both. See
 
 ### Classic console
 
-Text sits on a grid of character cells drawn with the console character set
-(`gfx/2d/charsgrid_med`, so an HD replacement such as the JoF pack's is used),
-without the glyph shadow other UI text has. The retail character set has no
-Windows-1252 typographic characters (`€`, `’`, `‘`, `…`, bytes 0x80..=0x9E); the
-classic console gives them no cell, like colour codes, so rows close up as in
-EternalJK, while the text keeps them. When `GameData/EternalJK` holds a PK3
-with its own character set (jaPRO's `japro-assets.pk3`), that image replaces
-`gfx/2d/charsgrid_med` for everything that draws with it (the console and the
-character-set text of [game_font.rs](../crates/sjk-viewer/src/game_font.rs)), as in
-EternalJK, which mounts that folder above `base` and below the `fs_game` mod
-directory (a mod's own `charsgrid_med` still wins). Unlike the retail set it has `¬`,
-`¥`, `²`, `½` and the rest of Latin-1. Only that image is taken from the pack
-([asset_search_paths.rs](../crates/sjk-viewer/src/asset_search_paths.rs)). The classic console loads the
-character set whether `ui_gameFont` is on or not; without it the cells use Inter.
+Text sits on a grid of character cells drawn with the console font, without the
+glyph shadow other UI text has. The console font is JetBrains Mono, a bundled
+vector font rasterized once at startup like Inter
+([console_font.rs](../crates/sjk-viewer/src/text/console_font.rs)), in place of
+retail's `gfx/2d/charsgrid_med` bitmap, whose 8 by 16 texel glyphs looked heavy
+and blocky magnified at 1440p and 4K (SJK draws no bitmap fonts:
+[sjk.md](sjk.md#fonts)). It keeps the character set's cell: every character
+advances half the line height, and the font's ascent and descent are centred in
+the cell. The retail character set had no Windows-1252 typographic characters
+(`€`, `’`, `‘`, `…`, bytes 0x80..=0x9E); the classic console still gives them no
+cell, like colour codes, so rows close up as in EternalJK, while the text keeps
+them. The classic console loads the font whether `ui_gameFont` is on or not; if it
+cannot be loaded the cells use Inter.
 A cell is 8 by 16 pixels at 1080 lines and `con_scale 1`, grows with the window
 height like the rest of the UI (with the console's 0.75 floor) and is rounded to
 whole pixels. EternalJK's cells are 8 by 16 screen pixels times `con_scale`, so
@@ -1751,8 +1750,9 @@ rows, and new output does not move the view.
 
 The input row is two cells above the bottom edge: the local time in green in
 columns 1 to 8, `]` in column 10, then the input as typed, colour codes shown
-rather than applied, and a cursor that blinks every 256 ms, the character set's
-underscore or, in overstrike mode, its block (Inter cells use `_` and a box). The
+rather than applied, and a cursor that blinks every 256 ms: a bar on the cell's
+bottom rows or, in overstrike mode, a block, both solid shapes in the retail
+character set's cursor proportions (Inter cells use `_` and a box). The
 input scrolls sideways to keep the cursor on screen. In the bottom-right corner
 the version line ends one cell from the edge, two and a half rows up, and the
 local day, date and time sit under it at the edge, both in the bar colour. Where
