@@ -1556,6 +1556,17 @@ unsupported, and this policy does not disable pure-server admission checks.
 
 ## Key names and binds
 
+`/freecam` toggles detached camera flight; `/freecam on` and `/freecam off`
+set it explicitly. Bind it in Settings > Key bindings > Other. It uses JoF
+EJK's existing fake-noclip movement: movement keys fly locally, jump/crouch
+move vertically, and attack/alt-attack accelerate flight. The server receives
+stationary movement, frozen aim and the talk button, as with `/fakenoclip`.
+Your visible body remains at its server entity, with no view weapon. Turning
+it off returns to the real player on the next snapshot and restores the chosen
+first/third-person mode. It is available while alive and on foot; death,
+spectating or entering a vehicle ends flight. It is temporary and mutually
+exclusive with `/fakenoclip`. This does not change server noclip permissions.
+
 `bind`, the controls editor and the config name keys as stock JA does on Windows:
 by what the active keyboard layout prints on them. On a French AZERTY keyboard
 `bind w +forward` is the key labelled W, and the key left of W is named `<`.

@@ -70,6 +70,9 @@ impl Camera {
 /// Resolve this frame's first-person camera from the unbobbed camera fields,
 /// or `None` outside sessions and during intermission.
 pub(crate) fn camera(state: &GpuState, presentation_time: i32) -> Option<Camera> {
+    if state.free_camera_active() {
+        return None;
+    }
     let snapshot = presented_snapshot(
         state.live_session.as_ref(),
         state.demo_session.as_ref(),

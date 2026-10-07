@@ -13,12 +13,14 @@ impl GpuState {
     /// Follow `cg_fakeNoclip`, switching it off when the player can no longer fly
     /// (`CG_PredictPlayerState`).
     pub(crate) fn sync_fake_noclip(&mut self, player: &sjk_protocol::PlayerState) {
-        let wanted = self
-            .console
-            .as_ref()
-            .and_then(|console| console.integer_cvar("cg_fakeNoclip"))
-            .unwrap_or(0)
-            != 0;
+        let free_camera = self.free_camera_active();
+        let wanted = free_camera
+            || self
+                .console
+                .as_ref()
+                .and_then(|console| console.integer_cvar("cg_fakeNoclip"))
+                .unwrap_or(0)
+                != 0;
         let allowed = sjk_game_jka::prediction_policy::fake_noclip_allowed(
             player,
             !local_prediction::predicts_local_view(player.movement_flags()),
@@ -28,8 +30,10 @@ impl GpuState {
             && let Some(console) = &mut self.console
         {
             console.set_cvar("cg_fakeNoclip", "0");
+            console.set_cvar("cg_freeCamera", "0");
         }
         self.local_prediction.set_fake_noclip(wanted && allowed);
+        self.detached_camera = free_camera && allowed;
     }
 
     /// `/fakenoclip`: toggle, only while alive and on foot.
@@ -40,6 +44,7 @@ impl GpuState {
             .map(|session| session.latest_snapshot().player.clone())
             .ok_or("fakenoclip: not in a game")?;
         let console = self.console.as_mut().ok_or("Console unavailable")?;
+        console.set_cvar("cg_freeCamera", "0");
         if console.integer_cvar("cg_fakeNoclip").unwrap_or(0) != 0 {
             console.set_cvar("cg_fakeNoclip", "0");
             self.sync_fake_noclip(&player);

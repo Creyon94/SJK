@@ -78,6 +78,7 @@ mod frame_split;
 mod charge_flash;
 mod fake_noclip;
 mod frame_target;
+mod free_camera;
 mod game_font;
 mod game_menu_actions;
 mod glow_pass;

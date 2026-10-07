@@ -149,6 +149,7 @@ pub(crate) fn submit(
             .unwrap_or(1),
     );
     let saber_contact = gpu.effect_aux.saber_contacts.enabled;
+    let detached_flight = gpu.free_camera_active();
     let mut sinks = Sinks {
         flag_meshes: gpu.pickup_catalog.carrier_meshes[flags::model_set(
             game_state
@@ -206,7 +207,10 @@ pub(crate) fn submit(
             .local_prediction
             .predicted_state()
             .map(|state| state.force_powers_active),
-        predicted_local_state: gpu.local_prediction.predicted_state(),
+        predicted_local_state: gpu
+            .local_prediction
+            .predicted_state()
+            .filter(|_| !detached_flight),
         predicted_vehicle: gpu
             .live_session
             .as_ref()

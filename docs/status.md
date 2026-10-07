@@ -43,6 +43,13 @@ named-extension-first rule. Not verified in game.
 
 ## Mouse wheel in the key-binding form
 
+Detached free camera (`feat/free-camera`, base `c9d6db8`): `/freecam [on|off]`
+uses the existing JoF EJK fake-noclip predictor and frozen server commands,
+with the body left at its entity and the view weapon hidden. The existing
+flight tests cover server command suppression and return-to-server behavior.
+Death/spectator/vehicle policy is shared with fake noclip. Runtime camera
+appearance, input and transitions remain unverified.
+
 Branch `fix/bind-mouse-wheel`: the mouse wheel binds in Settings > Key bindings
 (for example `flipkick` under Movement). A notch while a slot waited for a key
 scrolled the list instead; it now binds `MWHEELUP` or `MWHEELDOWN`, as the retail

@@ -515,6 +515,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         ),
         // JoF EJK's `/fakenoclip`: fly locally while the server sees you standing still.
         CvarDefinition::new(
+            "cg_freeCamera",
+            0_i64,
+            CvarFlags::NONE,
+            "Detached camera flight with a stationary server body; use /freecam",
+        ),
+        CvarDefinition::new(
             "cg_fakeNoclip",
             0_i64,
             CvarFlags::NONE,
