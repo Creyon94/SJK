@@ -24,16 +24,16 @@ use sjk_shell::CommandSource;
 use sjk_ui::{Color, DrawCommand, FontWeight, Rect, TextAlign};
 
 /// Retail title colour (`forecolor .549 .854 1`).
-pub(in crate::console) const LABEL: Color = Color::new(0.549, 0.854, 1.0, 1.0);
+pub(crate) const LABEL: Color = Color::new(0.549, 0.854, 1.0, 1.0);
 /// Retail field value colour (`forecolor .615 .615 .956`).
-pub(in crate::console) const VALUE: Color = Color::new(0.615, 0.615, 0.956, 1.0);
+pub(crate) const VALUE: Color = Color::new(0.615, 0.615, 0.956, 1.0);
 /// Retail option label colour (`setup.menu` items, `.65 .65 1`).
-pub(in crate::console) const OPTION: Color = Color::new(0.65, 0.65, 1.0, 1.0);
+pub(crate) const OPTION: Color = Color::new(0.65, 0.65, 1.0, 1.0);
 /// Retail frame blue (`bordercolor .298 .305 .690`).
-pub(in crate::console) const FRAME: Color = Color::new(0.298, 0.305, 0.690, 1.0);
+pub(crate) const FRAME: Color = Color::new(0.298, 0.305, 0.690, 1.0);
 /// Retail list box (`backcolor .66 .66 1 .25`, border `.66 .66 1`).
-pub(in crate::console) const LIST_BACK: Color = Color::new(0.66, 0.66, 1.0, 0.25);
-pub(in crate::console) const LIST_BORDER: Color = Color::new(0.66, 0.66, 1.0, 1.0);
+pub(crate) const LIST_BACK: Color = Color::new(0.66, 0.66, 1.0, 0.25);
+pub(crate) const LIST_BORDER: Color = Color::new(0.66, 0.66, 1.0, 1.0);
 /// A refused edit or unknown value, in retail's warning red.
 const ERROR: Color = Color::new(1.0, 0.3, 0.3, 1.0);
 
@@ -671,17 +671,17 @@ pub(in crate::console) fn thumb(
     ]
 }
 
-pub(in crate::console) fn with_alpha(color: Color, alpha: f32) -> Color {
+pub(crate) fn with_alpha(color: Color, alpha: f32) -> Color {
     Color::new(color.r, color.g, color.b, color.a * alpha)
 }
 
-pub(in crate::console) fn fill(canvas: &mut MenuCanvas, rect: Rect, color: Color) {
+pub(crate) fn fill(canvas: &mut MenuCanvas, rect: Rect, color: Color) {
     let _ = canvas
         .draw_list_mut()
         .push(DrawCommand::SolidRect { rect, color });
 }
 
-pub(in crate::console) fn border(canvas: &mut MenuCanvas, rect: Rect, scale: f32, color: Color) {
+pub(crate) fn border(canvas: &mut MenuCanvas, rect: Rect, scale: f32, color: Color) {
     let _ = canvas.draw_list_mut().push(DrawCommand::Border {
         rect,
         radius: 0.0,
@@ -692,7 +692,7 @@ pub(in crate::console) fn border(canvas: &mut MenuCanvas, rect: Rect, scale: f32
 
 /// Text at canvas size `size`, centred vertically in canvas box `box_`.
 #[allow(clippy::too_many_arguments)]
-pub(in crate::console) fn text(
+pub(crate) fn text(
     canvas: &mut MenuCanvas,
     place: &Placement,
     content: std::fmt::Arguments<'_>,

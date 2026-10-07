@@ -8,14 +8,19 @@
 //! 600 characters); a note keeps any printable text up to [`NOTE_MAX`] characters.
 //!
 //! The launcher is the Report a bug button drawn centred at the bottom of the screen
-//! while the game menu is open.
+//! while the game menu is open. With the classic menus both take the classic+ look
+//! ([`classic`]).
 
+use crate::menu::art::ArtSet;
 use crate::menu_widgets::{ButtonStyle, MenuCanvas};
 use crate::text::{TextVertex, UiFont};
 use sjk_ui::{Color, DrawCommand, FontWeight, InputEvent, Rect, TextAlign, UiEventKind};
 use std::time::Instant;
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{KeyCode, PhysicalKey};
+
+#[path = "text_dialog_classic.rs"]
+mod classic;
 
 /// Longest world note, in characters.
 pub(crate) const NOTE_MAX: usize = 500;
@@ -64,6 +69,9 @@ pub(crate) struct TextDialog {
     epoch: Instant,
     /// Shift is held (Shift+Tab goes back).
     shift: bool,
+    /// The classic+ look is drawn, with the retail menu art it can use.
+    classic: bool,
+    art: ArtSet,
 }
 
 impl Default for TextDialog {
@@ -77,6 +85,8 @@ impl Default for TextDialog {
             launcher: MenuCanvas::with_capacities(4, 32, 16),
             epoch: Instant::now(),
             shift: false,
+            classic: false,
+            art: ArtSet::default(),
         }
     }
 }
@@ -106,36 +116,67 @@ fn typed(kind: &Kind, field: &str, text: &str) -> String {
         .collect()
 }
 
+/// `text` cut to its first `max` characters.
+fn clip(text: &str, max: usize) -> String {
+    text.chars().take(max).collect()
+}
+
 /// `text` broken into lines of at most `width` characters, at spaces where it can be.
+#[cfg(test)]
 fn wrap(text: &str, width: usize) -> Vec<String> {
     let width = width.max(8);
+    wrap_by(text, |line| line.chars().count() <= width)
+}
+
+/// `text` broken into lines that `fits` accepts, at spaces where it can be; a word longer
+/// than a line is cut where the line ends.
+fn wrap_by(text: &str, fits: impl Fn(&str) -> bool) -> Vec<String> {
     let mut lines = Vec::new();
     let mut line = String::new();
     for word in text.split(' ') {
         let mut word = word.to_owned();
         loop {
-            let used = line.chars().count();
-            let length = word.chars().count();
-            let gap = usize::from(used > 0);
-            if used + gap + length <= width {
-                if gap == 1 {
-                    line.push(' ');
-                }
-                line.push_str(&word);
+            let candidate = if line.is_empty() {
+                word.clone()
+            } else {
+                format!("{line} {word}")
+            };
+            if fits(&candidate) {
+                line = candidate;
                 break;
             }
-            if used > 0 {
+            if !line.is_empty() {
                 lines.push(std::mem::take(&mut line));
                 continue;
             }
-            // A word longer than a line is cut.
-            let head: String = word.chars().take(width).collect();
-            word = word.chars().skip(width).collect();
+            let mut head = String::new();
+            for character in word.chars() {
+                head.push(character);
+                if !fits(&head) {
+                    head.pop();
+                    break;
+                }
+            }
+            if head.is_empty() {
+                head = word.chars().take(1).collect();
+            }
+            word = word[head.len()..].to_owned();
             lines.push(head);
         }
     }
     lines.push(line);
     lines
+}
+
+/// `text` broken into lines no wider than `width` pixels when drawn `size` pixels high
+/// in `font` with `spacing` pixels between glyphs, leaving room for the caret.
+fn wrap_to(text: &str, font: &UiFont, size: f32, spacing: f32, width: f32) -> Vec<String> {
+    let scale = size / font.height.max(1.0);
+    let room = width - size * 0.5;
+    wrap_by(text, |line| {
+        crate::text::visible_text_width(font, line, scale) + spacing * line.chars().count() as f32
+            <= room
+    })
 }
 
 impl TextDialog {
@@ -177,6 +218,21 @@ impl TextDialog {
         }
         self.kind = None;
         Action::Send(kind, std::mem::take(&mut self.text))
+    }
+
+    /// Fill the dialog for the menu snapshots: its `text`, the focus on Send or the field,
+    /// and a refusal `message`.
+    #[cfg(test)]
+    pub(crate) fn preview(&mut self, text: &str, on_send: bool, message: &str) {
+        self.text = text.to_owned();
+        self.focus = if on_send { Focus::Send } else { Focus::Field };
+        self.message = message.to_owned();
+    }
+
+    /// Choose the look: classic+ with the retail `art` it can draw, or modern.
+    pub(crate) fn set_look(&mut self, classic: bool, art: ArtSet) {
+        self.classic = classic;
+        self.art = art;
     }
 
     /// Follow the Shift key (`ModifiersChanged`).
@@ -271,6 +327,10 @@ impl TextDialog {
         font: &UiFont,
         viewport: [f32; 2],
     ) {
+        if self.classic {
+            self.append_launcher_classic(vertices, font, viewport);
+            return;
+        }
         let s = crate::ui_scale::height_scale(viewport[1]);
         let ui = &mut self.launcher;
         ui.begin_transparent(viewport);
@@ -317,6 +377,10 @@ impl TextDialog {
             return;
         };
         vertices.clear();
+        if self.classic {
+            self.append_classic(&kind, vertices, font, viewport);
+            return;
+        }
         let s = crate::ui_scale::height_scale(viewport[1]);
         let ui = &mut self.ui;
         ui.begin_transparent(viewport);
@@ -366,7 +430,7 @@ impl TextDialog {
         );
         y += 40.0 * s;
         let room = (inner / (14.0 * s * 0.55)) as usize;
-        let subject: String = subject.chars().take(room).collect();
+        let subject = clip(&subject, room);
         ui.text(
             &subject,
             Rect::new(left, y, inner, 22.0 * s),
@@ -381,7 +445,6 @@ impl TextDialog {
         ui.text_field(field, focused);
         ui.hit_region(FIELD_TOKEN, field);
         let size = 16.0 * s;
-        let per_line = ((inner - 28.0 * s) / (size * 0.52)) as usize;
         let caret = focused && (self.epoch.elapsed().as_millis() / 500).is_multiple_of(2);
         if self.text.is_empty() && !focused {
             ui.text(
@@ -393,7 +456,7 @@ impl TextDialog {
                 0.0,
             );
         } else {
-            let mut lines = wrap(&self.text, per_line.saturating_sub(1));
+            let mut lines = wrap_to(&self.text, font, size, 0.0, inner - 28.0 * s);
             if caret && let Some(last) = lines.last_mut() {
                 last.push('|');
             }

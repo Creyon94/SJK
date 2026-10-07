@@ -2160,6 +2160,17 @@ the reference); other servers' handling was not checked. Not measured: the
 per-frame cost of the limb scan now that `cg_dismember` is not 0 by default (one
 pass over the snapshot's entities). No client was run; Sol tests through `play`.
 
+## Classic+ text dialog and Report a bug button (SJK)
+
+SJK-only branch `personal/report-classic-plus` (07/10/2026, based on `61eecc2`): with
+the classic menus the text dialog (bug reports and world notes) and the Report a bug
+button take the classic+ look; see [classic-plus.md](classic-plus.md#pages). The text
+now wraps by the drawn font's measured width in both looks. Layout tests and the menu
+snapshots (`report-launcher`, `report-dialog`, `report-dialog-refused`, `note-dialog`,
+each also `-classic`) checked it; no game was started. The hub's `POST /v1/report`
+and worn-name history were deployed to sjk.dfox.app the same day (an unsigned report
+gets 401 instead of the earlier 404).
+
 ## Legacy config text (SJK)
 
 SJK-only branch `personal/legacy-cfg-text` (07/10/2026, based on `8fea9b8`): `exec`

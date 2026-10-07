@@ -700,6 +700,7 @@ fn menu_snapshot() {
     player_card(&mut shots);
     quick_wheels(&mut shots);
     identity_page(&shots, art);
+    text_dialog(&shots, art);
     force_wheel(&mut shots, &vfs);
     profile_saber(&shots, art, &vfs, &mut console);
     classic_profile(&mut shots, &vfs, art);
@@ -1206,6 +1207,57 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
             case.name.to_owned()
         };
         shots.save(&name, panel.draw_list(), &vertices, true);
+    }
+}
+
+/// The Report a bug button and the text dialog over a match, for a report and a note,
+/// in both looks.
+fn text_dialog(shots: &Snapshot, art: ArtSet) {
+    use crate::text_dialog::{Kind, TextDialog};
+    let note = Kind::Note {
+        subject: "Wall: textures/mp/ffa_wall2 (lightmapped, BSP surface 1432) on mp/ffa3".into(),
+    };
+    let cases = [
+        (
+            "report-dialog",
+            Kind::Report,
+            "The door near the red base flickers when I walk through it on ffa3, and the light behind it goes black. I expected it to open smoothly like it does in the original game.",
+            false,
+            "",
+        ),
+        (
+            "report-dialog-refused",
+            Kind::Report,
+            "short",
+            true,
+            "write at least a few words",
+        ),
+        ("note-dialog", note, "", false, ""),
+    ];
+    for classic in [false, true] {
+        let suffix = if classic { "-classic" } else { "" };
+        let mut dialog = TextDialog::default();
+        dialog.set_look(classic, art);
+        let mut vertices = Vec::new();
+        dialog.append_launcher(&mut vertices, &shots.font.font, VIEWPORT);
+        shots.save(
+            &format!("report-launcher{suffix}"),
+            dialog.launcher_draw_list(),
+            &vertices,
+            true,
+        );
+        for (name, kind, text, on_send, message) in &cases {
+            dialog.open(kind.clone());
+            dialog.preview(text, *on_send, message);
+            let mut vertices = Vec::new();
+            dialog.append(&mut vertices, &shots.font.font, VIEWPORT);
+            shots.save(
+                &format!("{name}{suffix}"),
+                dialog.draw_list(),
+                &vertices,
+                true,
+            );
+        }
     }
 }
 
