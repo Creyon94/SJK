@@ -287,8 +287,9 @@ pub(crate) mod lights {
 /// The `sjk-materialgen` tuning this client expects (`package::GENERATION` there):
 /// 2 tuned metal for reflection probes and marked polished shaders, 3 added emission
 /// maps, 4 turned relief the right way up and took parallax and grain off metal, 5 added
-/// vertex-lit paint and the indicator lights of controls.
-pub(crate) const GENERATION: u32 = 5;
+/// vertex-lit paint and the indicator lights of controls, 6 lets declared light fixtures
+/// whose overlay does not glow emit ([`shows_light`]).
+pub(crate) const GENERATION: u32 = 6;
 /// Where the generator's manifest sits in its pk3.
 const MANIFEST: &str = "jkr-materialgen/manifest.json";
 /// The older-pack note was printed: once per run is enough.
@@ -542,17 +543,22 @@ impl StageMaps {
     }
 }
 
-/// Whether a shader already shows light of its own on top of its paint: a glowing,
-/// additive or destination-brightening (`GL_DST_COLOR GL_ONE`) texture stage. Such a
-/// shader takes no emission map, so its light is never shown twice; the generator
-/// skips the same shaders (`sjk-materialgen`'s `emission::shows_light`).
+/// Whether a shader already shows light of its own on top of its paint: a glowing
+/// texture stage, or an additive or destination-brightening (`GL_DST_COLOR GL_ONE`)
+/// one on a shader that declares no `q3map_surfacelight`. Such a shader takes no
+/// emission map, so its light is never shown twice. A declared light fixture whose
+/// overlay does not glow takes one: the overlay alone neither reads as a lamp in a
+/// dark room nor blooms (Sol's world notes, 07/10/2026). The generator decides the
+/// same way (`sjk-materialgen`'s `emission::shader_shows_light`).
 pub(super) fn shows_light(definition: &sjk_shader::ShaderDefinition) -> bool {
+    let fixture = definition.surface_light.is_finite() && definition.surface_light > 0.0;
     definition.stages.iter().any(|stage| {
         stage.texture_generator == TextureGenerator::Base
             && (stage.glow
-                || stage.blend == StageBlend::Add
-                || matches!(&stage.blend, StageBlend::Custom { destination, .. }
-                    if destination.eq_ignore_ascii_case("gl_one")))
+                || !fixture
+                    && (stage.blend == StageBlend::Add
+                        || matches!(&stage.blend, StageBlend::Custom { destination, .. }
+                            if destination.eq_ignore_ascii_case("gl_one"))))
     })
 }
 
@@ -904,6 +910,16 @@ mod tests {
         ));
         assert!(shows(
             "t/a { { map $lightmap } { map t/a blendFunc filter } { map t/g blendFunc blend glow } }"
+        ));
+        // A declared fixture shows its light only through a `glow` stage.
+        assert!(!shows(
+            "t/a { q3map_surfacelight 3000 { map $lightmap } { map t/a blendFunc filter }              { map t/g blendFunc GL_DST_COLOR GL_ONE } }"
+        ));
+        assert!(!shows(
+            "t/a { q3map_surfacelight 750 { map $lightmap } { map t/a blendFunc filter }              { map t/g blendFunc GL_ONE GL_ONE } }"
+        ));
+        assert!(shows(
+            "t/a { q3map_surfacelight 3000 { map $lightmap } { map t/a blendFunc filter }              { map t/g blendFunc GL_ONE GL_ONE glow } }"
         ));
         // Reflections are not light.
         assert!(!shows(

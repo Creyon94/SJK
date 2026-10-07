@@ -1362,9 +1362,15 @@ not read). [sjk-materialgen](#generating-material-maps) writes them.
 
 - **Which surfaces.** The same stages as the other material maps (lightmap and
   diffuse collapsed into one opaque pass). A shader that already shows light of its
-  own over its paint (a `glow`, additive or `GL_DST_COLOR GL_ONE` texture stage)
-  takes no emission map, whatever images exist, so its light is never drawn twice;
-  the generator skips the same shaders. `r_emissiveMaps` is on by default because it
+  own over its paint (a `glow` texture stage, or an additive or `GL_DST_COLOR GL_ONE`
+  one) takes no emission map, whatever images exist, so its light is never drawn
+  twice; the generator skips the same shaders. A declared light fixture
+  (`q3map_surfacelight`) whose overlay does not `glow` is the exception and takes
+  one: retail's ceiling lamps and light strips (`mp/s_ylight_red`,
+  `mp/s_squareslight_y`, `mp/s_tracklight4`, `mp/s_bluestrip`) add their overlay at
+  the paint's brightness or only brighten what the lightmap lit, so in a dark room
+  they read as grey paint and do not bloom. Sol asked for those fixtures to emit in
+  ten world notes (07/10/2026); since 08/10/2026 (generation 6) they do. `r_emissiveMaps` is on by default because it
   only acts where a pack has `_e` images; with nothing else enabled, a stage with an
   emission map takes the material program with a flat normal and no specular map,
   which reproduces the ordinary lit colour exactly, and the map needs no vertex frames
@@ -2161,7 +2167,8 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
   `control`, `onoff`, `keypad`, `keyport`, `terminal`, `button`, `comm_`, `locked`),
   whose painted indicator lights emit: only saturated, clearly bright texels, and no
   map when more than 15% of the texture would emit (that is paint, not lights). Textures whose every shader already
-  shows light (a `glow`, additive or `GL_DST_COLOR GL_ONE` stage) and textures with an
+  shows light (a `glow` stage, or an additive or `GL_DST_COLOR GL_ONE` one on a shader
+  without `q3map_surfacelight`; see [Emission maps](#emission-maps)) and textures with an
   `_e` image get none. With a glow image, the emission is that image. Otherwise the
   texels that emit are near-white or saturated ones clearly brighter than most of the
   texture (above its median value plus 0.2, at least 0.6; near-white needs 0.75);
@@ -2207,11 +2214,11 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
   and applied override lines), and `--limit` takes only the most-used textures.
 
 **Regenerating.** The manifest records the generation of the tuning
-(`"generation": 5` since maps for vertex-lit paint and indicator lights, 4 the
-relief orientation and smoother metal, 3 emission maps; packs without it are
-generation 1). With
+(`"generation": 6` since declared light fixtures without a glowing overlay emit, 5
+maps for vertex-lit paint and indicator lights, 4 the relief orientation and smoother
+metal, 3 emission maps; packs without it are generation 1). With
 material maps or emission maps on, the client logs `material maps: the generated pack
-is generation 1 of sjk-materialgen, this client expects 5 ...` once when the mounted
+is generation 1 of sjk-materialgen, this client expects 6 ...` once when the mounted
 pack is older. Emission decisions depend on every map read: a texture drawn plainly on
 one map and through a glowing shader on another gets its `_e`, and the client ignores
 it where the shader glows.
