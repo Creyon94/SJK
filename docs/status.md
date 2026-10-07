@@ -880,6 +880,12 @@ EternalJK, a `cl_consoleKeys` character (or the scan-code key) toggles either
 console style and never types; holding it toggles once. Unit tests cover the
 open-console decision and the key list; not tried in a game.
 
+The key under Escape opens the console on every layout (07/10/2026, a Hungarian
+tester could not open it): `cl_consoleUseScanCode` defaults to 1 as in EternalJK,
+with its exception that a layout typing `^` there needs Shift, and saved profiles
+are moved from the old 0 once. Unit tests cover the Shift rule for the `0`, `` ` ``,
+`²`, `§` and `^` layouts; not tried in a game or with a Hungarian layout.
+
 With the classic console the F3 command browser is classic+ (05/10/2026): the
 in-game pop-up frame, retail buttons and list box, and a detail box; the menus'
 retail font under `ui_gameFont`. Layout tests check that every part lies inside

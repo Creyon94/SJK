@@ -21,6 +21,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- The key under Escape opens the console on every keyboard layout, including Hungarian where it types 0; where it types ^ (German), Shift+^ opens it _(Sol, after EternalJK)_
 - Melee kicks play smoothly: a game joined from the menu now predicts kicks and saber attacks instead of starting them a round trip late, and on JA+ servers JA+'s own spin, back and backflip kicks hold you still instead of pulling you back with every snapshot _(Creyon, after JoF EternalJK)_
 - The quick wheels show icons: grey metal discs in the style of the game's Force icons, the one you point at grows in an accent ring with its name in the middle _(Sol)_
 - Quick wheels: hold Q (general: third person, nameplates, HUD, screenshot, cosmetics, AFK, game menu, first setup) or R (weather: the map's own, drizzle, rain, storm, snow, ground fog, clouds, weather on/off), point the mouse at a choice and let go; Escape or letting go in the middle cancels (`+wheel general`, `+wheel weather`, Settings > Key bindings > Other) _(Sol)_

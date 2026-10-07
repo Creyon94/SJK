@@ -1677,7 +1677,7 @@ never shows through an opaque console.
 
 | Key | Classic console |
 | --- | --- |
-| Console key (`cl_consoleKeys`, or the physical key with `cl_consoleUseScanCode`) | Opens to `con_height` (0.5) |
+| Console key (the key under Escape, or `cl_consoleKeys` with `cl_consoleUseScanCode 0`) | Opens to `con_height` (0.5) |
 | Ctrl + console key | Opens full screen |
 | Shift + console key | Opens a quarter of the screen |
 | Shift+Escape | Opens to `con_height`; Escape closes |
@@ -1773,9 +1773,14 @@ command execution); not yet run against a game session or Sol's Archive itself.
 ## Useful console commands
 
 The console key opens and closes either console style and never types its
-character, as in EternalJK (`IN_IsConsoleKey` turns it into `A_CONSOLE`): a
-`cl_consoleKeys` character such as `~` or `²`, or the physical key with
-`cl_consoleUseScanCode`. Holding it toggles once. Escape and Shift+Escape close
+character, as in EternalJK (`IN_TranslateSDLToJKKey` and `IN_IsConsoleKey` turn
+it into `A_CONSOLE`). By default (`cl_consoleUseScanCode 1`, EternalJK's) it is
+the physical key under Escape on every layout, so Hungarian, where that key types
+`0`, has one; on layouts where it types `^` (German) it needs Shift, leaving `^`
+for colour codes, and `cl_consoleShiftRequirement` can require Shift elsewhere.
+Profiles that saved the earlier default 0 are moved to 1 once
+(`cl_consoleKeyDefaultVersion`). With `cl_consoleUseScanCode 0` the console key is
+a `cl_consoleKeys` character such as `~` or `²` instead. Holding it toggles once. Escape and Shift+Escape close
 the console too, and so does a key bound to `toggleconsole` that prints nothing;
 a printable key bound to it types while the console is open
 ([console_keyboard.rs](../crates/sjk-viewer/src/console_keyboard.rs)). The chat
