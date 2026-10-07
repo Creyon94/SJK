@@ -36,6 +36,7 @@ pub(crate) struct GpuWeather {
     pub(crate) haze: [f32; 4],
     pub(crate) fog_color: [f32; 4],
     pub(crate) fog_flow: [f32; 4],
+    pub(crate) far: [f32; 4],
     pub(crate) clouds: [GpuCloud; super::effects::MAX_CLOUDS],
 }
 
@@ -78,6 +79,7 @@ impl Gpu {
         images: Option<(&sjk_vfs::VirtualFileSystem, &sjk_shader::ShaderCatalog)>,
         camera: &wgpu::BindGroupLayout,
         cover: &wgpu::TextureView,
+        far_cover: &wgpu::TextureView,
         noise: &super::noise::Texture,
     ) -> Self {
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -135,6 +137,16 @@ impl Gpu {
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                     count: None,
                 },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 6,
+                    visibility: wgpu::ShaderStages::FRAGMENT,
+                    ty: wgpu::BindingType::Texture {
+                        sample_type: wgpu::TextureSampleType::Float { filterable: false },
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        multisampled: false,
+                    },
+                    count: None,
+                },
             ],
         });
         let uniform = device.create_buffer(&wgpu::BufferDescriptor {
@@ -178,6 +190,10 @@ impl Gpu {
                 wgpu::BindGroupEntry {
                     binding: 5,
                     resource: wgpu::BindingResource::Sampler(&noise.sampler),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 6,
+                    resource: wgpu::BindingResource::TextureView(far_cover),
                 },
             ],
         });
@@ -427,7 +443,7 @@ mod tests {
         assert_eq!(std::mem::size_of::<GpuCloud>(), (5 + 2 * BUCKETS) * 16);
         assert_eq!(
             std::mem::size_of::<GpuWeather>(),
-            11 * 16 + super::super::effects::MAX_CLOUDS * std::mem::size_of::<GpuCloud>()
+            12 * 16 + super::super::effects::MAX_CLOUDS * std::mem::size_of::<GpuCloud>()
         );
         let shader = include_str!("weather.wgsl");
         assert!(shader.contains("array<vec4<f32>, 8>"));

@@ -1522,6 +1522,17 @@ forced weather, the storm and fog parameters, the noise volume's range and tilin
 the cloud uniform and drift, and both shaders' translation to SPIR-V and HLSL. No
 game was started: how the fog and clouds look and what they cost are unverified.
 
+`personal/fog-floor` (07/10/2026, based on `6678967`), after Sol saw the ground fog
+change height with where they stood or jumped on `T2_Rogue`: beyond the cover
+window the fog was floored at the column under the camera, so stepping from a roof
+over a street moved all distant fog by 500 units. A coarse far cover of the whole
+map, surveyed once on a second worker, now gives the fog its floors there and in
+columns past the walls ([Weather](rendering.md#weather)). Unit tests cover the far
+grid's placement, the level fill past the walls and void columns on a synthetic
+map. Off-screen world shots of `T2_Rogue` either side of a roof edge showed a band
+of fog flipping before the change and none after; a local, uncommitted probe timed
+the far survey on four retail maps. Not yet tried in a game.
+
 ## Shader review (SJK)
 
 Sol is reviewing every retail world shader on the test maps of

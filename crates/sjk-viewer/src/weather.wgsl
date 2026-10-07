@@ -48,6 +48,8 @@ struct Weather {
     fog_color: vec4<f32>,
     // xyz the fog's drift with the wind, w the longest ray marched.
     fog_flow: vec4<f32>,
+    // xy the far cover's first corner, z its column width, w 1 once it is surveyed.
+    far: vec4<f32>,
     clouds: array<Cloud, 5>,
 };
 
@@ -58,6 +60,7 @@ struct Weather {
 @group(1) @binding(3) var image_sampler: sampler;
 @group(1) @binding(4) var noise: texture_3d<f32>;
 @group(1) @binding(5) var noise_sampler: sampler;
+@group(1) @binding(6) var far_cover: texture_2d<f32>;
 @group(2) @binding(0) var scene_depth: texture_depth_2d;
 
 // Additive (GL_ONE GL_ONE) or alpha-blended sprites.
@@ -65,6 +68,7 @@ override additive: bool = true;
 
 const SPLASH: u32 = 1u;
 const LIQUID: u32 = 2u;
+const VOID: u32 = 4u;
 const HIDDEN: vec4<f32> = vec4(2.0, 2.0, 2.0, 1.0);
 const TAU: f32 = 6.2831853;
 
@@ -90,12 +94,13 @@ fn corner(vertex: u32) -> vec2<f32> {
 }
 
 // The weather span of the column under `p`: x bottom, y top, z flags. Columns outside
-// the surveyed window are covered; without a cover everything is open.
+// the surveyed window hold no weather and read as void; without a cover everything is
+// open.
 fn cover_at(p: vec2<f32>) -> vec3<f32> {
     if weather.cover.z == 0.0 { return vec3(-3.0e38, 3.0e38, 0.0); }
     let cell = floor(p / weather.cover.x);
     if any(cell < weather.window.xy) || any(cell >= weather.window.zw) {
-        return vec3(3.0e38, -3.0e38, 0.0);
+        return vec3(3.0e38, -3.0e38, f32(VOID));
     }
     let size = i32(weather.cover.y);
     let texel = ((vec2<i32>(cell) % size) + size) % size;
@@ -475,15 +480,24 @@ struct SplashOutput {
     return vec4(corner * 2.0 - 1.0, 0.0, 1.0);
 }
 
-// The cover for the fog: beyond the surveyed window the air is taken as open, its floor
-// the camera's own, so distant haze does not stop at the window's edge.
-fn fog_span(p: vec2<f32>, home: vec3<f32>) -> vec2<f32> {
-    if weather.cover.z == 0.0 { return vec2(home.x, 3.0e38); }
-    let cell = floor(p / weather.cover.x);
-    if any(cell < weather.window.xy) || any(cell >= weather.window.zw) {
-        return vec2(home.x, 3.0e38);
-    }
-    return cover_at(p).xy;
+// The far cover's span under `p` (x bottom, y top), its edge columns carried on
+// beyond it; empty until it is surveyed.
+fn far_span(p: vec2<f32>) -> vec2<f32> {
+    if weather.far.w == 0.0 { return vec2(3.0e38, -3.0e38); }
+    let last = vec2<i32>(textureDimensions(far_cover)) - 1;
+    let cell = clamp(vec2<i32>(floor((p - weather.far.xy) / weather.far.z)), vec2(0), last);
+    return textureLoad(far_cover, cell, 0).xy;
+}
+
+// The cover for the fog: the window's columns, and the far cover beyond the window and
+// wherever a column holds none of the map's air (past its walls, or not surveyed yet).
+// Neither depends on where the camera is, so distant fog keeps its height as the player
+// moves and jumps, and haze carries on past the walls to the horizon.
+fn fog_span(p: vec2<f32>) -> vec2<f32> {
+    if weather.cover.z == 0.0 { return vec2(-3.0e38, 3.0e38); }
+    let column = cover_at(p);
+    if (u32(column.z) & VOID) == 0u { return column.xy; }
+    return far_span(p);
 }
 
 @fragment fn fragment_volume(@builtin(position) pixel: vec4<f32>) -> @location(0) vec4<f32> {
@@ -496,12 +510,10 @@ fn fog_span(p: vec2<f32>, home: vec3<f32>) -> vec2<f32> {
     let steps = u32(weather.haze.w);
     let step = reach / f32(max(steps, 1u));
     let jitter = fract(52.9829189 * fract(dot(pixel.xy, vec2(0.06711056, 0.00583715))));
-    var home = cover_at(camera.position.xy);
-    if home.x > home.y { home.x = camera.position.z - 64.0; }
     var optical = 0.0;
     for (var i = 0u; i < steps; i++) {
         let p = camera.position + direction * ((f32(i) + jitter) * step);
-        let span = fog_span(p.xy, home);
+        let span = fog_span(p.xy);
         if p.z < span.x - 16.0 || p.z > span.y { continue; }
         var density = weather.haze.x;
         if weather.haze.y > 0.0 {
