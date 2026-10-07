@@ -115,6 +115,7 @@ pub(crate) struct Instance {
     no_light: u32,
     /// The blade's configured radius, for contacts; not a GPU attribute.
     nominal_radius: f32,
+    maximum_length: f32,
 }
 
 /// `CG_DoSaber`'s per-frame random draws (`cg_players.c:5359-5469`): `crandom()` for the
@@ -193,6 +194,7 @@ impl Instance {
             contact: 0,
             no_light: 0,
             nominal_radius: blade.radius,
+            maximum_length: max_length,
         };
         [
             make(
@@ -213,14 +215,14 @@ impl Instance {
         enabled: bool,
         no_light: bool,
     ) -> Self {
-        if enabled && entity > 0 && entity <= 1024 && lane < 3 && blade < 8 {
+        if entity > 0 && entity <= 1024 && lane < 3 && blade < 8 {
             self.contact = ((entity - 1) as usize * 24 + lane * 8 + blade + 1) as u32;
-            self.no_light = u32::from(no_light);
+            self.no_light = u32::from(no_light) | (u32::from(!enabled) << 1);
         }
         self
     }
 
-    /// One contact source per glow/core pair, excluding menu and suppressed blades.
+    /// One contact source per glow/core pair, excluding menu blades.
     pub(crate) fn contact(self) -> Option<(usize, Blade, BladeColor, bool)> {
         if self.contact == 0 || self.color[3] <= 0.0 {
             return None;
@@ -243,8 +245,32 @@ impl Instance {
                 radius: self.nominal_radius,
             },
             color,
-            self.no_light != 0,
+            self.no_light & 1 != 0,
         ))
+    }
+
+    /// Wall-mark suppression does not suppress the stock blade cutoff.
+    pub(crate) fn wall_marks(self) -> bool {
+        self.no_light & 2 == 0
+    }
+
+    /// `CG_DoSaber` omits blades shorter than half a unit.
+    pub(crate) fn visible(&self) -> bool {
+        self.length >= 0.5
+    }
+
+    /// Shorten this frame's blade, retaining its extension state for the next frame.
+    pub(crate) fn clip_length(&mut self, length: f32) {
+        let length = length.max(0.0);
+        let growth = |length: f32| {
+            if length < self.maximum_length {
+                1.0 + 2.0 / length.max(0.5)
+            } else {
+                1.0
+            }
+        };
+        self.radius *= growth(length) / growth(self.length);
+        self.length = length;
     }
 
     pub(crate) const fn material(self) -> usize {
@@ -567,5 +593,87 @@ pub(crate) fn world_blade(
             .to_array(),
         length,
         radius,
+    }
+}
+
+#[cfg(test)]
+mod cutoff_tests {
+    use super::*;
+
+    #[test]
+    fn cutoff_matches_stock_render_pair_at_command_steps() {
+        for step in [8, 7, 4, 3] {
+            let mut extension = Extension::default();
+            for time in (0..100).step_by(step) {
+                let blade = Blade {
+                    base: [0.; 3],
+                    direction: [1., 0., 0.],
+                    length: extension.update(true, 40., time),
+                    radius: 3.,
+                };
+                let mut pair = Instance::pair(blade, BladeColor::from_rgb([0, 0, 255]));
+                for instance in &mut pair {
+                    instance.clip_length(12.);
+                    assert_eq!(instance.length, 12.);
+                }
+                let expected = Instance::pair_flickering(
+                    Blade {
+                        length: 12.,
+                        ..blade
+                    },
+                    BladeColor::from_rgb([0, 0, 255]),
+                    40.,
+                    Flicker::default(),
+                );
+                for (actual, expected) in pair.iter().zip(expected) {
+                    assert!((actual.radius - expected.radius).abs() < 0.00001);
+                }
+                assert_eq!(extension.update(true, 40., time), 40.);
+            }
+        }
+    }
+
+    #[test]
+    fn no_wall_marks_still_registers_a_cutoff_source() {
+        let blade = Blade {
+            base: [0.; 3],
+            direction: [1., 0., 0.],
+            length: 40.,
+            radius: 3.,
+        };
+        let pair = Instance::pair(blade, BladeColor::from_rgb([0, 0, 255]))
+            .map(|instance| instance.with_contact(1, 0, 0, false, false));
+        assert!(pair[0].contact().is_some());
+        assert!(!pair[0].wall_marks());
+        assert!(!pair[0].contact().unwrap().3);
+        assert!(pair[1].contact().is_none());
+    }
+
+    #[test]
+    fn cutoff_keeps_extension_growth_and_the_one_unit_trace_margin() {
+        let color = BladeColor::from_rgb([0, 0, 255]);
+        for (initial, hit) in [(20., 10.), (40., 40.5), (40., 0.)] {
+            let blade = Blade {
+                base: [0.; 3],
+                direction: [1., 0., 0.],
+                length: initial,
+                radius: 3.,
+            };
+            let mut pair = Instance::pair_flickering(blade, color, 40., Flicker::default());
+            let expected = Instance::pair_flickering(
+                Blade {
+                    length: hit,
+                    ..blade
+                },
+                color,
+                40.,
+                Flicker::default(),
+            );
+            for (actual, expected) in pair.iter_mut().zip(expected) {
+                actual.clip_length(hit);
+                assert!((actual.radius - expected.radius).abs() < 0.00001);
+                assert_eq!(actual.visible(), hit >= 0.5);
+            }
+        }
     }
 }

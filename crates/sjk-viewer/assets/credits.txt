@@ -71,6 +71,12 @@ did: #21 fx_debug and cg_debugMissiles diagnostics
 did: #23 Smooth melee kicks, predicted in a joined game and held still on JA+
 link: Creyon's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ACreyon94
 
+[lumaya]
+github: lumayaa
+role: Contributor: 1 merged pull request
+did: #24 Saber blades stop at walls instead of shining through them
+link: lumaya's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa
+
 == Made with
 
 [Claude]

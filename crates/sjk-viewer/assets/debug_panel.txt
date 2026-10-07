@@ -1871,6 +1871,18 @@ test: The centre print says sent (report number) or why not (quota, too short).
 test: Send the same text twice: refused. A fresh key: 3 a day, then refused.
 note: Works once the hub is deployed with reports; Claude reads them on the hub.
 
+[saber-wall-cutoff]
+status: personal
+area: Rendering & effects
+title: Saber blades stop at walls instead of shining through (SJK PR #24, lumaya)
+change: The wall trace cuts the glow and core at the hit point, as OpenJK's CG_AddSaberBlade.
+change: Hilts with noWallMarks are cut too; leaving the wall brings back the full length.
+test: Push a lit saber into a wall: no glow or core on the far side, sparks at the contact.
+test: Swing along a wall and pull away: the blade grows back at once, no shrink stays.
+test: Throw the saber into a wall: the flying blade stops at the wall as well.
+test: cg_saberContact 0: blades go through walls again (stock behaviour).
+note: Doors and lifts (movers) do not cut blades yet; the blade's light still passes walls.
+
 # ---- Merged upstream ----
 
 [actor-instance-cap]

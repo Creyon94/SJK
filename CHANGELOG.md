@@ -21,6 +21,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- Saber blades stop at walls: the glow and core end where the blade meets a wall instead of shining through it, and reach full length again as it leaves, also on hilts that leave no wall marks _(lumaya)_
 - Configs from other clients load: exec runs a .cfg whose name or binds use accented letters (it said "not valid UTF-8"), and a jampconfig.cfg copied over SJK's config.cfg loads with its unbindall and unknown keys instead of losing all your settings _(Sol)_
 - First setup opens at every start until you tick "Don't show at start", and you can drop a .cfg from another client (jampconfig.cfg, EternalJK, JA+) on the window to import your name, model, field of view and key bindings, ticking the ones you want _(Sol)_
 - The key under Escape opens the console on every keyboard layout, including Hungarian where it types 0; where it types ^ (German), Shift+^ opens it _(Sol, after EternalJK)_
