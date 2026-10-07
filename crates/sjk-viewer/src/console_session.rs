@@ -277,6 +277,16 @@ impl ViewerConsole {
             keybind_editor::migrate_missing_defaults(&mut shell.binds);
             let _ = shell.cvars.set_text("cl_bindDefaultsVersion", "1");
         }
+        if matches!(
+            shell
+                .cvars
+                .get("cl_bindDefaultsVersion")
+                .map(|cvar| &cvar.value),
+            Some(CvarValue::Integer(1))
+        ) {
+            keybind_editor::migrate_chat_default(&mut shell.binds);
+            let _ = shell.cvars.set_text("cl_bindDefaultsVersion", "2");
+        }
         // com_maxfps defaulted to 1000 and every archived cvar was saved, so each
         // existing profile carries that old default. Move it once to the new
         // refresh-rate default (-1); a 1000 chosen after this stays.

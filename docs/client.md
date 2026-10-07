@@ -993,6 +993,7 @@ to finish normally after Alt+Tab.
 Global chat defaults to U (`messagemode`); team chat defaults to T
 (`messagemode2`). Existing configurations with global chat on Y gain U too
 when U is free; custom chat keys and occupied U bindings are preserved.
+This runs once when `cl_bindDefaultsVersion` advances from 1 to 2.
 Use `bind u messagemode` in the console to select U explicitly.
 
 Open the chat composer with your chat binding, then click a
