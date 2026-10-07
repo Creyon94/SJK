@@ -166,6 +166,9 @@ pub(crate) struct PlayerMenu {
     sjk: bool,
     /// The SJK UI's hilt lists: the first saber's and the second's.
     sjk_hilts: [sjk_view::HiltList; 2],
+    /// The Force level last bought and when (menu clock seconds), for the
+    /// ring the SJK UI sends out from it.
+    sjk_burst: Option<(usize, u8, f64)>,
     classic: classic::ClassicState,
     /// The character draft changed on entering a classic page and is not
     /// written yet.
@@ -208,6 +211,7 @@ impl PlayerMenu {
             classic_style: false,
             sjk: false,
             sjk_hilts: Default::default(),
+            sjk_burst: None,
             classic: classic::ClassicState::default(),
             classic_dirty: false,
             preview_ready: false,
@@ -306,6 +310,19 @@ impl PlayerMenu {
     pub(crate) fn show_page_for_shot(&mut self, index: usize, row: usize) {
         self.set_page(ProfilePage::ALL[index.min(2)]);
         self.selected = row;
+    }
+
+    /// Move the pointer onto level `level` of power `power` as the last frame
+    /// laid it out, for the world shots.
+    pub(crate) fn hover_level_for_shot(&mut self, power: usize, level: u8) {
+        if let Some(rect) = self.canvas.rect_for(sjk_view::level_token(power, level)) {
+            let _ = self
+                .canvas
+                .pointer(sjk_ui::InputEvent::PointerMove(sjk_ui::Vec2::new(
+                    rect.x + rect.width * 0.5,
+                    rect.y + rect.height * 0.5,
+                )));
+        }
     }
 
     /// Make the draft Dual (not written to the profile), for the world shots.

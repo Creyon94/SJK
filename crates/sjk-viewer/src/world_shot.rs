@@ -636,6 +636,13 @@ mod tests {
                 let path = shoot(&mut gpu, 30, &format!("{name}-{suffix}"));
                 println!("{}", path.display());
             }
+            // The Force page with the pointer on Heal's second level: its marks
+            // and channel charged, the spark on its way, the box on Heal.
+            if let Some(menu) = gpu.client_menu.as_mut() {
+                menu.player_hover_level_for_shot(0, 2);
+            }
+            let path = shoot(&mut gpu, 4, &format!("{name}-force-hover"));
+            println!("{}", path.display());
             // Dual sabers: the two hands' hilt lists side by side.
             if let Some(menu) = gpu.client_menu.as_mut() {
                 menu.player_dual_for_shot();

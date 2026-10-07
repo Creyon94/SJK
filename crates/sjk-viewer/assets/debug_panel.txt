@@ -2106,11 +2106,11 @@ status: personal
 area: Menus & settings
 title: SJK UI Character: hilt list, style buttons, priced Force levels, power box
 change: Saber: Single/Staff/Dual buttons; hilts as a list in JoF EJK's order (two for Dual).
-change: Force: Neutral/side/Lightsaber groups, each level's cost, a box with the hovered power.
+change: Force: classic+ round level marks with costs, coloured by group, glow/charge/ring effects.
 test: Saber: click each style button; Dual shows Right hand and Left hand lists side by side.
 test: Scroll a hilt list with the wheel, click a hilt: the stage model holds it at once.
 test: Compare the hilt order with JoF EJK's saber menu (same pk3s): it should match.
-test: Force: hover a level: cells and the points bar preview it; click buys, click again drops.
+test: Force: hover a level: marks charge, a spark runs; click buys it (a ring), again drops it.
 test: Hover powers: the box bottom right shows each in big. Up/Down follow the groups.
 note: Want hilt pictures? None exist in the game files; tell Claude if you want them rendered.
 
