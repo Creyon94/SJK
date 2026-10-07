@@ -1886,6 +1886,17 @@ test: Throw the saber into a wall: the flying blade stops at the wall as well.
 test: cg_saberContact 0: blades go through walls again (stock behaviour).
 note: Doors and lifts (movers) do not cut blades yet; the blade's light still passes walls.
 
+[settings-icons]
+status: personal
+area: Menus & settings
+title: Settings groups have icons (classic menus)
+change: Each group down the left of Key bindings, Options, Graphics and Gameplay has a metal disc.
+change: The open or hovered group's icon is bright, the others dimmed.
+test: Main menu > Settings > Key bindings: Movement..Other each show an icon left of the name.
+test: Options, then Graphics and Gameplay: every group has its own icon; hover one: it lights up.
+test: In a match, Escape > Settings: the pop-up's group list shows the same icons.
+note: Wrong picture for a group, or too big/small at 4K? Tell Claude which.
+
 # ---- Merged upstream ----
 
 [actor-instance-cap]

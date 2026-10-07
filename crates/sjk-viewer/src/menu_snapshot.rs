@@ -439,6 +439,11 @@ fn menu_snapshot() {
         icons: HashMap::from([(crate::ui_renderer::LOGO_TEXTURE.0, logo_icon())]),
         in_match: match_backdrop(&vfs),
     };
+    for (index, (_, bytes)) in crate::settings_icons::ICONS.iter().enumerate() {
+        let icon = image::load_from_memory(bytes).expect("a settings icon");
+        let texture = crate::ui_renderer::settings_icon(index);
+        shots.icons.insert(texture.0, icon.into_rgba8());
+    }
     let font = &shots.font;
     let directory = tempfile::tempdir().expect("scratch profile");
     let mut console =

@@ -118,6 +118,7 @@ Values are canvas units of the 640x480 canvas.
 | Heading | `LABEL` 12 semibold over a 1-unit `FRAME` rule; a side band for a side's column |
 | List box | `LIST_BACK` fill, `LIST_BORDER` border (`FOCUS` while active), 16-unit rows |
 | List row | `VALUE` 11-12; chosen row filled; hovered or focused row on `menu_blendbox2`; a tag (`GOLD` 9-10 semibold) at the right end |
+| Group entry | Retail's right-set label; an SJK icon (`settings_icons`, up to 22 units) 6 units in from the row's left end, full while open or hovered, 72% otherwise, 35% when it cannot act |
 | Scrollbar | 3 units wide, 5 in from the box's right edge, only when the list is longer than the box |
 | Button | `GOLD` 14-17 semibold, centred; `menu_buttonback` glow and `FOCUS` when focused; `DISABLED` when it cannot act |
 | Text field | "Name: value"; an empty one shows a prompt at 70% alpha; underlined while typing |

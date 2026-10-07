@@ -27,6 +27,7 @@ github: Sol-Vulpes
 role: Creator and developer of Sol JK
 did: Sol JK itself: its name, emblem, website, releases and self-updates
 did: The classic menus and classic+, the settings and search, the retail-look console
+did: SJK's icon art: the quick wheels' and the settings' icons
 did: The HUD picker, the radial HUD, nameplates with health estimates and player cards
 did: JA+ and JoF server support: movement, sabers, grapple, Force wheel, flip kick
 did: 125 Hz user commands, so every tap reaches the server

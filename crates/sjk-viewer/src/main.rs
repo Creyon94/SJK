@@ -171,6 +171,7 @@ mod server_browser;
 mod server_commands;
 mod session_transition;
 mod settings;
+mod settings_icons;
 mod shared_geometry;
 mod sky_stage;
 mod snapshot_presentation;
