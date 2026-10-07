@@ -164,6 +164,8 @@ pub(crate) struct PlayerMenu {
     classic_style: bool,
     /// `ui_menuStyle sjk`: the SJK UI's view of the modern screen (`sjk_view`).
     sjk: bool,
+    /// The SJK UI's hilt lists: the first saber's and the second's.
+    sjk_hilts: [sjk_view::HiltList; 2],
     classic: classic::ClassicState,
     /// The character draft changed on entering a classic page and is not
     /// written yet.
@@ -205,6 +207,7 @@ impl PlayerMenu {
             cosmetics: cosmetics::CosmeticsMenu::new(),
             classic_style: false,
             sjk: false,
+            sjk_hilts: Default::default(),
             classic: classic::ClassicState::default(),
             classic_dirty: false,
             preview_ready: false,
@@ -303,6 +306,12 @@ impl PlayerMenu {
     pub(crate) fn show_page_for_shot(&mut self, index: usize, row: usize) {
         self.set_page(ProfilePage::ALL[index.min(2)]);
         self.selected = row;
+    }
+
+    /// Make the draft Dual (not written to the profile), for the world shots.
+    pub(crate) fn dual_for_shot(&mut self) {
+        self.saber
+            .set_style(saber::SaberStyle::Dual, catalog_of(&self.loader));
     }
 
     /// Open the classic lightsaber creation page on `vfs`'s catalogue as

@@ -188,28 +188,49 @@ on the 16:9 frame, dark behind the form on the left and clear over the model.
   icons a row, as many rows as fit, the current one ringed gold, scrolled by
   the wheel), then a species' head, torso, legs and skin colour and the hat and
   cape, two to a line.
-- **Saber:** Style, Hilt, the blade's colour as seven chips (the six stock
-  colours and the custom one, ringed gold when chosen), its red, green and
-  blue sliders (a digit types the number), and the second saber's for Dual.
-  The camera cuts to the saber shot, where the model throws the saber to float
-  and turn before it.
-- **Force:** rank and points left (and "Not applied yet" while the draft
-  differs), the Light and Dark sides as two cards with their emblems, the
-  eighteen powers in two columns (icon, name, ‹ rank pips ›; those the side or
-  the game type rules out dimmed), then Start over, Discard and Apply (gold
-  while there is something to apply).
+- **Saber:** Style as three buttons (Single, Staff, Dual); the hilts as a list
+  under a sub-heading (Hilt, or Staff), in two columns, six lines on show,
+  scrolled by the wheel or its bar, the chosen one gold with a dot and kept in
+  view (in the middle when the list first shows); for Dual two lists side by
+  side, Right hand and Left hand. The hilts come in the game's load order, as
+  JoF EJK lists them (`legacy_saber_load_order`). Under them the blade's colour
+  as seven chips (the six stock colours and the custom one, ringed gold when
+  chosen), its red, green and blue sliders (a digit types the number), and the
+  second blade's for Dual. The camera cuts to the saber shot, where the model
+  throws the saber to float and turn before it.
+- **Force:** the mastery ("Jedi Master") and the points left of the rank's
+  ("18 of 100 points left", and "not applied yet" while the draft differs)
+  over a gold bar of the points left; the Light and Dark sides as two cards
+  with their emblems; the powers in classic+'s groups under sub-headings,
+  Neutral and Lightsaber down the left, the side's five on the right (the
+  other side's left out, as on classic+): each its holocron, its name and its
+  three levels as cells marked with what each costs (or "free"), the bought
+  ones gold. Hovering a level previews buying up to it: its cells lit, the
+  points it would take white at the bar's end (ember, cells and bar, when
+  there are too few). A click on a level buys up to it, on the power's own
+  level drops one. Then Start over, Discard and Apply (gold while there is
+  something to apply).
+- **Power box:** on the Force page, bottom right, the power under the pointer
+  (or the keyboard) in big: its holocron, name, group, level, what it does in a
+  line or two, the next level's price (or Mastered, Team games only...) and
+  its levels' prices.
 - **Caption:** beside the model, bottom right under a short gold rule, what the
   page shows of it: the model and its skin, the saber's style, hilt and blade,
-  or the side and rank.
+  or (on the Force page with no power chosen) the side and rank.
 - **Keys:** bottom right, the focused row's (Left Right change, Enter type or
   do it) and Tab with the next page's name.
 
-The keys are the modern screen's: Up and Down choose a row, Left and Right
-change it, Enter types or acts, Tab and `[` `]` change page, Escape returns to
-the main page (dropping an unapplied Force draft, as before). The pointer: a
-click on a control acts (‹ › by the half it lands on, a chip picks its colour,
-a slider follows), a click elsewhere on a row only chooses it, a click on a
-tile picks that model.
+The keys are the modern screen's: Up and Down choose a row (on the Saber and
+Force pages in the order they show them: both hilt lists before the blades,
+the Force groups' powers in their order, the other side's skipped), Left and
+Right change it (a hilt list's choice moves one hilt), Enter types or acts, Tab
+and `[` `]` change page, Escape returns to the main page (dropping an
+unapplied Force draft, as before). The pointer: a click on a control acts (‹ ›
+by the half it lands on, a chip picks its colour, a slider follows, a style
+button, a hilt, a level), a click elsewhere on a row only chooses it, a click
+on a tile picks that model. The SJK view's own targets (levels, style buttons,
+hilts and the lists' wheel areas, tokens from 1000) go to
+`PlayerMenu::sjk_pointer` before the modern screen's pointer.
 
 It is the modern screen's state and controller with another view: the rows,
 tiles, tabs and back key answer to the modern screen's tokens, each row

@@ -6,7 +6,9 @@
 
 use crate::character_catalog::{LegacyCharacter, LegacySpecies, legacy_character_catalog};
 use crate::player_profile::SaberColor;
-use crate::saber_definitions::{LegacySaberDefinition, legacy_saber_definitions};
+use crate::saber_definitions::{
+    LegacySaberDefinition, legacy_saber_definitions, legacy_saber_load_order,
+};
 use crate::string_table;
 use sjk_vfs::VirtualFileSystem;
 use std::sync::Arc;
@@ -57,10 +59,25 @@ pub fn legacy_asset_catalog(
         .values()
         .filter(|definition| definition.not_in_mp)
         .count();
-    let saber_hilts = all_sabers
+    let mut saber_hilts: Vec<LegacySaberDefinition> = all_sabers
         .into_values()
         .filter(|definition| !definition.not_in_mp)
         .collect();
+    // In the order the game loads them, as EternalJK's menus list them; one
+    // the load never met (none should) keeps its alphabetical place after.
+    let order =
+        legacy_saber_load_order(vfs).map_err(|error| std::io::Error::other(error.to_string()))?;
+    let place: std::collections::HashMap<&str, usize> = order
+        .iter()
+        .enumerate()
+        .map(|(index, id)| (id.as_str(), index))
+        .collect();
+    saber_hilts.sort_by_key(|hilt| {
+        place
+            .get(hilt.name.to_ascii_lowercase().as_str())
+            .copied()
+            .unwrap_or(usize::MAX)
+    });
     Ok(LegacyAssetCatalog {
         characters: characters.characters,
         species: characters.species,

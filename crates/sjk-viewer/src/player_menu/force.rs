@@ -31,6 +31,29 @@ pub(super) const POWER_NAMES: [&str; 18] = [
     "Saber Throw",
 ];
 
+/// What each power does, in a line or two, in `POWER_NAMES` order: the SJK
+/// UI's Force page shows it for the power under the pointer.
+pub(super) const POWER_NOTES: [&str; 18] = [
+    "Restores your health. Each level heals more.",
+    "Leaps higher and farther. Each level reaches higher ledges.",
+    "Moves you in a blur for a few seconds, faster at each level.",
+    "Throws players, sabers and objects away from you; stronger at each level.",
+    "Draws players, sabers and objects towards you.",
+    "Hides you from the players you trick; higher levels trick more of them, for longer.",
+    "Holds an enemy in the air and chokes them; higher levels hold them longer.",
+    "Strikes with Force lightning; higher levels reach farther and wider.",
+    "Fights faster and harder for a while, draining your health. Tires you after.",
+    "Shields your health with your Force, taking damage from the Force pool instead.",
+    "Draws in the Force powers used on you to refill your own Force.",
+    "Heals the teammates around you. Team games only.",
+    "Refills the Force of the teammates around you. Team games only.",
+    "Drains health from an enemy into yourself.",
+    "Shows enemies through walls and those hiding with Mind Trick.",
+    "Your saber stances: each level opens one more (blue, yellow, then red).",
+    "Blocks more blows and shots with your saber, from more angles.",
+    "Throws your saber and calls it back; farther and longer at each level.",
+];
+
 /// Stock `forcepowers` default, used when the cvar is unset.
 const DEFAULT_FORCEPOWERS: &str = "7-1-032330000000001333";
 

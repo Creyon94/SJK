@@ -46,6 +46,18 @@ impl PlayerMenu {
         } else if self.numeric.is_some() {
             return PlayerMenuResult::None;
         }
+        if self.is_sjk()
+            && !self.name_editing
+            && !self.search_editing
+            && let Some(result) = self.sjk_pointer(
+                event.kind,
+                token,
+                event.delta.map_or(0.0, |delta| delta.y),
+                console,
+            )
+        {
+            return result;
+        }
         let count = self.row_count();
         if event.kind == UiEventKind::Wheel {
             let direction = event.delta.map_or(0, |delta| -delta.y.signum() as i32);

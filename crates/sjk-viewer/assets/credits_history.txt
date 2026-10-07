@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 08/10/2026 | - | SJK UI Character: hilt list, style buttons, priced Force levels
+- 491a287 |  | SJK UI Character: hilt list, style buttons, priced Force levels
 + 08/10/2026 | - | EJK camera by default, camera style under Styles in First setup
 - 414b933 |  | EJK camera style by default; camera style under Styles in First setup
 + 08/10/2026 | - | SJK console designs, F3 SJK look, selectable text

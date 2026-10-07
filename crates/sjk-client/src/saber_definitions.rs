@@ -100,6 +100,30 @@ pub fn legacy_saber_definitions(
     Ok(definitions)
 }
 
+/// The saber definitions' ids (lowercase) in the order the game meets them:
+/// the `ext_data/sabers/*.sab` files as `FS_GetFileList` lists them (the
+/// highest-priority source first, each archive in its own order, a file name
+/// once), joined in that order, then each file's definitions in order
+/// (`WP_SaberLoadParms`, `bg_saberLoad.c:2357-2410`). EternalJK's and JoF
+/// EJK's menus list the hilts in this order (`WP_SaberGetHiltInfo`, 2426-2507),
+/// without sorting; an id met again keeps its first place.
+pub fn legacy_saber_load_order(vfs: &VirtualFileSystem) -> Result<Vec<String>, Box<dyn Error>> {
+    let mut order = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+    for name in vfs.list_files("ext_data/sabers", ".sab") {
+        let Some(asset) = vfs.read(&format!("ext_data/sabers/{name}"))? else {
+            continue;
+        };
+        for definition in parse(&String::from_utf8_lossy(&asset.bytes)) {
+            let id = definition.name.to_ascii_lowercase();
+            if seen.insert(id.clone()) {
+                order.push(id);
+            }
+        }
+    }
+    Ok(order)
+}
+
 /// Resolve `SFL_NO_ROLLS` across both equipped sabers for one client.
 ///
 /// `PM_TryRoll` rejects either flagged hilt (`bg_pmove.c:3594-3607`); the
@@ -295,5 +319,45 @@ fn icon_for_type(saber_type: &LegacySaberType) -> &'static str {
     match saber_type {
         LegacySaberType::Staff => "gfx/hud/w_icon_saberstaff.tga",
         LegacySaberType::Single | LegacySaberType::Other(_) => "gfx/hud/w_icon_lightsaber.tga",
+    }
+}
+
+#[cfg(test)]
+mod load_order_tests {
+    use super::*;
+
+    /// A `.sab` file defining single hilts named `ids`, in order.
+    fn sab(ids: &[&str]) -> Vec<u8> {
+        ids.iter()
+            .map(|id| format!("{id}\n{{\n\tname \"{id}\"\n\tsaberType SABER_SINGLE\n}}\n"))
+            .collect::<String>()
+            .into_bytes()
+    }
+
+    #[test]
+    fn hilts_come_in_the_games_file_order_then_each_files_own() {
+        let mut vfs = VirtualFileSystem::new();
+        vfs.mount_memory(
+            "base",
+            [
+                ("ext_data/sabers/a.sab", sab(&["kyle", "single_1"])),
+                ("ext_data/sabers/z.sab", sab(&["single_2"])),
+            ],
+        )
+        .unwrap();
+        // Mounted later, so searched first: its files lead, and its a.sab
+        // hides base's (single_1 is never met).
+        vfs.mount_memory(
+            "{JoF}pack",
+            [
+                ("ext_data/sabers/a.sab", sab(&["reborn", "Kyle"])),
+                ("ext_data/sabers/jof.sab", sab(&["zroe", "akr"])),
+            ],
+        )
+        .unwrap();
+        assert_eq!(
+            legacy_saber_load_order(&vfs).unwrap(),
+            ["reborn", "kyle", "zroe", "akr", "single_2"]
+        );
     }
 }

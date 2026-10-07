@@ -84,7 +84,7 @@ pub(super) const MASTERY: [&str; 8] = [
     "Jedi Master",
 ];
 
-pub(super) fn mastery(rank: u8) -> &'static str {
+pub(crate) fn mastery(rank: u8) -> &'static str {
     MASTERY[usize::from(rank).min(MASTERY.len() - 1)]
 }
 

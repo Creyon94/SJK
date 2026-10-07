@@ -20,8 +20,8 @@
 //! The profile page reaches both and sums up the Force profile.
 
 mod cosmetics_page;
-mod force_page;
-mod layout;
+pub(super) mod force_page;
+pub(super) mod layout;
 mod pointer;
 mod saber_rgb;
 mod view;

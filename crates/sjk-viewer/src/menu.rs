@@ -1149,4 +1149,9 @@ impl ClientMenu {
     pub(crate) fn player_page_for_shot(&mut self, index: usize, row: usize) {
         self.player.show_page_for_shot(index, row);
     }
+
+    #[cfg(test)]
+    pub(crate) fn player_dual_for_shot(&mut self) {
+        self.player.dual_for_shot();
+    }
 }

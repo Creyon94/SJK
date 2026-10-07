@@ -7,6 +7,29 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## SJK UI Character: hilt list, style buttons, priced Force levels
+
+SJK-only branch `personal/sjk-ui-character-2` (08/10/2026, based on `dd38afc`,
+Windows 11): Sol asked for a better character editor in the SJK UI. Saber page:
+the style is three buttons and the hilts a list (two side by side for Dual),
+in the order JoF EJK lists them; the catalogue now orders `saber_hilts` by
+the game's load order (`legacy_saber_load_order`: `list_files` over
+`ext_data/sabers`, then each file's definitions, as `WP_SaberLoadParms` and
+`WP_SaberGetHiltInfo` meet them), so the classic+ and modern lists follow it
+too. No hilt icons exist in JA or JoF's packs (JoF's lists are text), so the
+list is names. Force page: classic+'s groups (Neutral, the side's, Lightsaber),
+each level a cell with its price, a points bar previewing a hovered level, and
+a box at the bottom right with the power under the pointer (holocron, name,
+group, level, a short description written for SJK, prices). Up and Down follow
+the pages' visual order. Unit tests cover the load order (two mounts, a file
+hidden by a higher-priority one), the tokens, the groups and the other side
+left out, buying and stepping down a level by pointer, the style buttons, Dual's
+key order and the canvas fitting; the sjk-viewer tests passed (980) and
+`duel6_player_sjk` rendered the three pages and Dual. No game was started: the
+pointer's hover preview, the wheel on the lists and the order against JoF EJK's
+own menu on Sol's install are unverified (the research simulated JoF's order on
+the installed pk3s and it matched the shot's).
+
 ## EJK camera style by default
 
 SJK-only branch `personal/camera-ejk-default` (08/10/2026, based on `dd38afc`,
