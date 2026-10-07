@@ -8,8 +8,8 @@ is being built screen by screen and becomes SJK's default once every screen has
 its version; until then [classic+](classic-plus.md) stays the default and keeps
 getting fixes.
 
-Status (07/10/2026): the main page, Settings and Character are done. Every
-other screen (the key bindings among them) opens in its classic+ version
+Status (07/10/2026): the main page, Settings (with the key bindings) and
+Character are done. Every other screen opens in its classic+ version
 (`MenuStyle::classic_screens`), which covers the map as the classic style does.
 To try it: Settings > Gameplay > Interface > Menu style > SJK, or
 `ui_menuStyle sjk`; restart for the SJK UI's map behind the main page.
@@ -220,8 +220,16 @@ mock-up draws it.
   - They are the classic+ Setup page's groups (`settings::Group` and tabs), but
     Graphics gathers the renderer's four tabs (image, lighting, shadows, weather)
     under their names (`Group::Graphics`).
-  - Key bindings opens the classic+ key bindings (until they get an SJK UI
-    screen); leaving them comes back to the category they were opened from.
+  - Key bindings shows every action under its group's sub-heading (Movement,
+    Interaction, Weapons, Force powers, Other), its picture before its name
+    where it has one, its two keys as caps on the right (a dash for an empty
+    one); the cap awaiting a key turns gold ("Press a key") and the detail
+    column says what to press. The detail column names its keys, default key,
+    console command and what else its keys do. The search finds actions by
+    name, command, key or group. Enter, or a click on the row or its first cap,
+    awaits its first key; a click on its second cap, its second; Backspace
+    clears its keys; Escape cancels the wait. It is the classic+ list of the
+    key-binding editor (`keybind_editor/sjk_view.rs`).
 - **Rows:** the open category's rows in a column (x 470 to 1270), 56 tall, under
   sub-headings (holo, with a rule after them): the name on the left, the control
   ending at 1226 and the reset arrow after it. Fourteen lines show; a longer
@@ -299,10 +307,11 @@ same group (Graphics: the renderer's image tab), or to the modern screen.
 The next screens, in order; each gets snapshot tests before it replaces its
 classic version:
 
-1. The key bindings, as a category of Settings (the search then finds keys too).
-2. The screens Sol JK's page opens (changelog, update, identity, credits) and
+1. The screens Sol JK's page opens (changelog, update, identity, credits) and
    the dialogs.
-3. The server browser, opened from Play's Join a server.
+2. The server browser, opened from Play's Join a server.
+3. Settings' search finding key bindings too (it finds settings; Key bindings'
+   finds keys).
 4. The in-game menu (its Setup and Controls then open Settings over the match,
    its player screen a version without the stage).
 

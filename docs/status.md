@@ -7,6 +7,24 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## SJK UI: Key bindings in Settings
+
+SJK-only branch `personal/sjk-ui-keys` (07/10/2026, based on `5ad57a0`, Windows 11):
+Sol asked for the key-binding menu in the SJK UI. Key bindings is now a category
+of the SJK UI's Settings, drawn in the same frame ([sjk-ui.md](sjk-ui.md),
+Settings): the key-binding editor's classic+ list with a new view
+(`keybind_editor/sjk_view.rs`), each action's two keys as caps (key names in
+words: "Mouse 1", "Wheel up", "Up"), the awaited one gold, the detail column
+with its keys, default, command and shared keys. The rail and Tab now move
+through it like any category; Escape returns to the main page; a menu style
+change on it hands over to the classic Controls panel. The Settings frame's
+parts (top bar, rail, layout) are shared from `settings/sjk_view.rs`. Also: the
+SJK UI Character's slider number now takes clicks (it was registered under its
+row, so a click set the slider to its top). Unit tests cover the key labels and
+moving into, out of and back to the category; the sjk-viewer tests passed; the
+world shots drew the category and an action awaiting its key. No game was
+started: capture and clearing are unverified in a running client.
+
 ## SJK UI: Character on duel6's stage
 
 SJK-only branch `personal/sjk-ui-character` (07/10/2026, based on `af22dd7`, Windows

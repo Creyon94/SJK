@@ -384,6 +384,7 @@ impl ClientMenu {
                 ClientPhase::Settings => {
                     self.sjk_settings_on_show() && !self.settings.picker_open()
                 }
+                ClientPhase::Keybinds => self.sjk_settings_on_show(),
                 ClientPhase::Player => self.player.is_sjk(),
                 _ => false,
             }
@@ -660,6 +661,9 @@ impl ClientMenu {
         result: EditorResult,
         console: &mut ViewerConsole,
     ) -> MenuAction {
+        if let Some(action) = self.sjk_keys_result(&result, console) {
+            return action;
+        }
         match result {
             EditorResult::Back => self.close_keybinds(console),
             EditorResult::Classic(index) => self.classic_panel_button(index, console),

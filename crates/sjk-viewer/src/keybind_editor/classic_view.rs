@@ -21,10 +21,10 @@ use winit::keyboard::KeyCode;
 /// The rows' wheel target, under them, while the list scrolls; clear of the
 /// action rows, the secondary slots (600), the chrome (800) and the footer
 /// and scrollbar tokens (902-910).
-const ROWS_SCROLL_TOKEN: u16 = 911;
+pub(super) const ROWS_SCROLL_TOKEN: u16 = 911;
 
 /// The categories' headings in the one list.
-const HEADINGS: [&str; 5] = [
+pub(super) const HEADINGS: [&str; 5] = [
     "Movement",
     "Interaction",
     "Weapons",
@@ -96,7 +96,7 @@ impl ClassicList {
     }
 
     /// Actions found.
-    fn actions(&self) -> usize {
+    pub(super) fn actions(&self) -> usize {
         self.rows
             .iter()
             .filter(|row| matches!(row, ListRow::Action(_)))
@@ -135,7 +135,7 @@ const SEARCHING: &str =
 
 /// Whether action `action`'s keys (`keys`, as the panel shows them) differ
 /// from its default key.
-fn rebound(action: usize, keys: &[String; 2]) -> bool {
+pub(super) fn rebound(action: usize, keys: &[String; 2]) -> bool {
     let default = ACTIONS[action].default_key;
     let default = (!default.is_empty()).then(|| sjk_shell::key_names::display_key(default));
     let bound = keys
@@ -565,7 +565,7 @@ impl KeybindEditor {
 
     /// The detail box's lines for action `action`: its keys, its command, the
     /// other actions its keys also do, and its default key.
-    fn write_detail(&mut self, action: Option<usize>) {
+    pub(super) fn write_detail(&mut self, action: Option<usize>) {
         for line in &mut self.detail {
             line.clear();
         }

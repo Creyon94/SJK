@@ -545,10 +545,6 @@ impl PlayerMenu {
                         NUMBER_WIDTH + 6.0,
                         30.0,
                     );
-                    self.canvas.hit_region(
-                        crate::menu_widgets::numeric::VALUE_BASE + index as u16,
-                        number,
-                    );
                     match self.numeric.as_ref().filter(|edit| edit.row == index) {
                         Some(edit) => {
                             self.canvas.set_family(TextFamily::Display);
@@ -573,6 +569,12 @@ impl PlayerMenu {
                     // The track takes the pointer a little beyond its ends.
                     let track = [track_x - 10.0, middle - 16.0, TRACK_WIDTH + 20.0, 32.0];
                     self.sjk_targets(frame, index, track, area);
+                    // After the row: the region registered last takes the
+                    // pointer where they overlap.
+                    self.canvas.hit_region(
+                        crate::menu_widgets::numeric::VALUE_BASE + index as u16,
+                        number,
+                    );
                 }
             }
         }

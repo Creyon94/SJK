@@ -55,6 +55,12 @@ impl ClientMenu {
                 }
                 None => self.append_settings(vertices, font, viewport, scale),
             },
+            // Drawn in the UI's families by `append_sjk_screen`; here, from a
+            // caller without them, in Inter.
+            ClientPhase::Keybinds if self.sjk_settings_on_show() => {
+                let target = sjk::TextTarget::Inter(vertices, font);
+                self.append_sjk_keys(target, viewport);
+            }
             ClientPhase::Keybinds => {
                 let reveal = self.screen_reveal();
                 match self.classic_panel_frame() {
