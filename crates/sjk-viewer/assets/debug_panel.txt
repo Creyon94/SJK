@@ -1938,6 +1938,17 @@ test: Press Force or saber style keys while flying: nothing happens on the serve
 test: Die, spectate, disconnect or change map while flying: you are back on your body.
 note: Servers with g_inactivity can still drop a flying player (as with fakenoclip).
 
+[player-peek]
+status: personal
+area: Gameplay
+title: /peek watches another player for a few seconds (SJK PR #28, lumaya)
+change: /peek <id|name> [seconds], or /peek alone on the crosshair player; /peek off returns.
+change: The camera sits behind the target, kept out of walls; it pauses while they are unseen.
+test: /peek on a bot: the view follows it for 5 seconds, then comes back.
+test: /peek <part of a name>, /peek 3 20, /peek off: each does what it says.
+test: Peek a player who walks into a corridor: the camera stays out of the walls.
+test: /freecam during a peek ends the peek; /peek during freecam is refused.
+
 [saber-wall-cutoff]
 status: personal
 area: Rendering & effects

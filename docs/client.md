@@ -1089,6 +1089,24 @@ already queued for that frame. Synthetic key events on refocus cannot re-press a
 held modifier such as Alt. This allows a saber throw already sent to the server
 to finish normally after Alt+Tab.
 
+### Timed player peek
+
+`/peek <client ID|name> [seconds]` temporarily follows a received player from
+behind, with wall collision, as JoF EJKSol does. The default is 5 seconds,
+maximum 60. Names ignore colours/case; an unambiguous fragment also works.
+Quote names containing spaces, for example `/peek "Reborn Master" 5`.
+Empty or colour-only queries are rejected. As in JoF, scope and crosshair
+overlays still use the local player aim. Monitoring only received entities
+respects server PVS, but may show surroundings outside your line of sight.
+`/peek` alone uses the crosshair player; `/peek off` or a duration of 0 cancels.
+Local flight (`fakenoclip` or `freecam`) ends a peek; stop flight before peeking.
+The local body stays at its player position and the view gun is suppressed.
+The camera cancels when the timer ends, the target slot/name changes, or the
+map changes. Missing snapshot data pauses the view; it resumes if data returns
+before expiry. Players outside the
+received snapshot cannot be watched. Player input and server authority remain
+unchanged. The command is bindable under Settings > Key bindings > Other.
+
 ### Chat player actions
 
 Open the chat composer with your chat binding (`messagemode`), then click a

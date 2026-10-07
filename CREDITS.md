@@ -152,7 +152,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
 - #23 smooth melee kicks: kicks and saber attacks predicted in a joined game,
   and the kicker held still through JA+'s own kicks, as JoF EternalJK.
 
-lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 2 pull requests
+lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 3 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa)):
 
@@ -160,6 +160,8 @@ merged into SJK
   world, as OpenJK's `CG_AddSaberBlade` does, and grow back as it leaves.
 - #29 detached free camera: `/freecam` flies the view on JoF EJK's fake-noclip
   predictor while the server sees you standing still with the talk balloon.
+- #28 timed player peek: `/peek` watches a player by number, name or crosshair for
+  up to sixty seconds, as JoF EJK's `CG_Peek_f`, with wall collision.
 
 ## Tools
 

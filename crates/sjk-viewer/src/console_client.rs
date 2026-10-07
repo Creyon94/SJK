@@ -120,6 +120,10 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
     ("afk", "Toggle the AFK name prefix"),
     ("freecam", "Toggle detached local flight: freecam [on|off]"),
     (
+        "peek",
+        "Watch a player briefly: peek [id|name] [seconds], peek off",
+    ),
+    (
         "fakenoclip",
         "Fly locally while the server sees you standing still (toggle)",
     ),
@@ -502,6 +506,7 @@ impl crate::GpuState {
             }
             "fakenoclip" => return self.fake_noclip_command(),
             "freecam" => return self.free_camera_command(args),
+            "peek" => return self.peek_command(args),
             "cosmetics" => return self.cosmetics_command(args),
             "vid_restart" | "snd_restart" | "in_restart" | "modelist" => {
                 return self.restart_command(&name, audio);

@@ -334,6 +334,29 @@ pixel deltas) do not bind. Unit tests cover both directions, that the wheel does
 nothing to the form when no slot waits, and the threshold. Checked in game on
 Windows 11 before the threshold was added; the threshold is covered by unit tests only.
 
+## Timed player peek
+
+Refreshed peek (`feat/refreshed-peek`): timed player camera
+from JoF EJKSol `f57d678`, `CG_Peek_f` and `CG_CalcViewValues`, with explicit
+cancel, crosshair selection, unique name fragments and target-loss handling.
+Only received players can be watched. Name/duration policy has unit coverage;
+combined revision `7b76890` was checked on 2026-10-07 (Windows, RTX 5070 Ti,
+release, retail `mp/duel1`, isolated native server and Alora bot, 1280x720).
+Monitoring by name shows the target from behind and the local body at its
+entity; explicit cancellation and a one-second timeout return to the player.
+Starting peek during free flight is refused. Wall-collision edge cases,
+crosshair selection and slot/map transitions remain unverified.
+
+Review follow-up against `c096c64`: missing snapshot data pauses monitoring
+until the original timer expires; local flight cancels it. Detached rendering
+is scoped to this view and restores the preceding camera state, without
+reading the free-camera cvar in the main render path. Empty/colour-only names
+are rejected. Windows workspace fmt, build, tests and clippy pass with
+existing warnings; temporary target loss/return has unit coverage. Combined revision `44ff6e5` was checked on 2026-10-07 (Windows, RTX 5070 Ti,
+release, isolated native server, retail `mp/duel1`, 1280x720): starting
+freecam during a player-name peek returns the view to the local camera.
+PVS/portal pause and resumption remain unverified in game.
+
 ## Centre-print line breaks
 
 Branch `fix/center-print-space-break`: centre-print rows break only at a space, as
