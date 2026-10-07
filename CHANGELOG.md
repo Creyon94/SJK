@@ -19,7 +19,11 @@ tests check this file):
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 
-## Unreleased
+## 2026.1007.3 (Alpha) | 07/10/2026
+
+lumaya's free camera, peek and first-person saber body; the SJK UI gains its server
+browser, scoreboard, loading screen and in-game menu; ground fog keeps its height,
+parallax returns with a depth slider, and the chat font is evenly spaced.
 
 - Ground fog keeps its height: distant fog no longer jumps up and down as you step between roofs and streets or jump. It lies on the map's own floors, and past the map's walls as one level bank _(Sol)_
 - SJK UI loading screen: joining a server keeps the menu's map behind the server's name and a gold line that fills step by step, then fades to the destination's picture with the map's name, the server, its rules and message of the day and a gold load bar along the bottom; a failed join says why in the same place _(Sol)_
@@ -32,7 +36,6 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Bug reports and world notes carry the name you play under, so the SJK team knows who sent them; the hub adds it to your identity's name history like the names it sees on servers _(Sol)_
 - SJK UI Servers: the server browser over the map. Favourites and the filters for empty, full and locked servers and the game type sit on the left; the list sorts by any column and shows each server's name in its colours, its mod and signal bars; the chosen server shows its map's picture, its numbers and who is playing. The keyboard reaches everything, and the password and address prompts match the rest. Searching finds servers by their name without its colour codes _(Sol)_
 - SJK UI: coloured names read on its dark ground: black shows as grey, and dark blue, red, green and magenta are lighter with the same hue _(Sol)_
-- SJK UI Servers: the server browser over the map. Favourites and the filters for empty, full and locked servers and the game type sit on the left; the list sorts by any column and shows each server's mod and signal bars; the chosen server shows its map's picture, its numbers and who is playing. The keyboard reaches everything, and the password and address prompts match the rest. Searching finds servers by their name without its colour codes _(Sol)_
 - SJK UI in-game menu: Escape in a match keeps the match on screen with the menu on an arc down its left side (Resume, Team, Vote, Character, Settings, Servers, Shot controls, Sol JK, Leave) and a card on the right with the server, map, mode and limits, your score and place, the time left and who is playing. Settings and Servers open in the SJK UI over the match, and Escape always goes back to the entry you came from _(Sol)_
 
 ## 2026.1007.2 (Alpha) | 07/10/2026
