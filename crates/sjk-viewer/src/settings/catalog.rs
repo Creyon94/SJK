@@ -484,6 +484,11 @@ pub(super) const GAME: &[Setting] = &[
         },
     },
     Setting {
+        label: "Camera style",
+        cvar: crate::camera::STYLE_CVAR,
+        kind: ValueKind::Choice(&crate::camera::Style::NAMES),
+    },
+    Setting {
         label: "Third-person camera damping",
         cvar: "cg_thirdPersonCameraDamp",
         kind: ValueKind::Float {

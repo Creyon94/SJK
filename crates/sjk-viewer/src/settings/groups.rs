@@ -85,6 +85,7 @@ impl Group {
                 "cg_shieldSphere",
                 "cg_shieldBrightness",
                 "cg_remaps",
+                crate::camera::STYLE_CVAR,
                 "cg_thirdPersonCameraDamp",
                 "cg_thirdPersonTargetDamp",
                 "cg_errorDecay",
@@ -153,7 +154,7 @@ impl Group {
             Self::GameOptions => &[
                 ("cg_simpleItems", "Items and models"),
                 ("cg_saberTrail", "Effects"),
-                ("cg_thirdPersonCameraDamp", "Camera and prediction"),
+                (crate::camera::STYLE_CVAR, "Camera and prediction"),
             ],
             Self::Interface => &[
                 (crate::menu::style::CVAR, "Menus"),
@@ -171,6 +172,7 @@ impl Group {
             Self::Quick => &[
                 ("r_resolution", "Display"),
                 ("sensitivity", "Aim"),
+                (crate::camera::STYLE_CVAR, "Camera"),
                 ("s_volume", "Sound"),
                 (crate::menu_hud::STYLE_CVAR, "HUD"),
                 ("cg_nameplate", "Nameplates"),

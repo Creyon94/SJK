@@ -306,7 +306,7 @@ retail's YES/NO text and `menu/new` slider art:
 - The longer groups are divided by sub-headings: Game options (items and models,
   effects, camera and prediction), Interface (menus, console), HUD (layout,
   crosshair, names and cards, nameplates, readouts) and First setup (display, aim,
-  sound, HUD, nameplates, Force shells, SJK).
+  camera, sound, HUD, nameplates, Force shells, SJK).
 
 Retail split video and the Force binds over two pages because a page held few
 items; classic+ panels scroll and explain the focused item, so SJK shows each as
@@ -327,8 +327,9 @@ one group and regroups JKR's GAME, HUD, HUD+ and TEXT tabs by subject
   - Gameplay: Mouse is the CONTROLS settings (retail's Mouse/Joystick, moved
     here from the key bindings). Game Options holds the gameplay rows (simple
     items, forced models, saber and speed trails, aura shell, shader remaps,
-    third-person camera, prediction smoothing). Interface gathers the menus' and
-    console's look (menu style, accent, contrast, game fonts, menu text size and
+    third-person camera style and damping, prediction smoothing). Interface
+    gathers the menus' and console's look (menu style, accent, contrast, game
+    fonts, menu text size and
     spacing, console style, text size and line spacing); HUD the HUD style, files
     and scale, status, weapon bar, crosshair and its size, names, nameplates,
     timer, speedometer, team overlay, lagometer, chat and ground readout;
@@ -752,6 +753,7 @@ steps 6.25 times shorter; `cg_cameraFPS` below 15 restores the stock behaviour.
 View changes, teleports, followed-player changes and mounting/dismounting reset
 the presentation history. The ordinary range, height, angle and damping cvars
 remain available; `cg_thirdPersonHorzOffset` controls the stock sideways offset.
+`cg_cameraStyle` chooses whether the damping applies ([Camera style](#camera-style)).
 
 The decaying prediction error (`cg_errorDecay`) moves the third-person camera's
 focus before its collision and damping traces, as `CG_CalcViewValues`
@@ -789,6 +791,28 @@ put it inside a wall. `cg_thirdPersonAlpha` is not implemented; stock multiplaye
 has no automatic fade when the camera nears the player. See
 [camera.rs](../crates/sjk-viewer/src/camera.rs) and
 [camera_motion.rs](../crates/sjk-viewer/src/camera_motion.rs).
+
+### Camera style
+
+`cg_cameraStyle` (archived; Settings > Gameplay > Game options, "Camera and
+prediction", and First setup, "Camera") picks how the camera follows the player
+([camera_style.rs](../crates/sjk-viewer/src/camera_style.rs)):
+
+| Value | Camera |
+| --- | --- |
+| `sjk` (default) | Eases towards its ideal place with `cg_thirdPersonCameraDamp` and `cg_thirdPersonTargetDamp`, as described above, so it trails a moving or turning player a little. |
+| `ejk` | Sits at its ideal place every frame: no camera or target damping, whatever the damping cvars say. |
+
+`ejk` is JoF EJK's camera as Sol plays it (07/10/2026). The camera code is the same
+in both clients: EternalJK's damping with `cg_cameraFPS 125`, range 80, height 16
+and damping 0.3 and 0.5 are SJK's defaults too. But EternalJK switches both
+dampings off while a strafe helper style is drawn (`cg_strafeHelper` bits 0-3 or
+13; `CG_UpdateThirdPersonTargetDamp` and `CG_UpdateThirdPersonCameraDamp` in
+`cg_view.c`), and Sol's JoF EJK profile has one on (`cg_strafeHelper 2242`), so
+there the camera never trails. Range, height, angles, collision, vehicle framing
+and the first/third person choice are the same in both styles; Sol's JoF EJK
+profile also sets `cg_thirdPersonRange 100`, which SJK leaves to that cvar. SJK's
+`sjk` style does not apply EternalJK's strafe helper rule.
 
 ## Animation sounds and voice variants
 
@@ -858,7 +882,8 @@ The modern settings screen's last tab, FIRST SETUP (called Quick setup before
 06/10/2026)
 ([quick.rs](../crates/sjk-viewer/src/settings/quick.rs)), gathers the settings worth
 choosing on a first start: resolution, display mode, vsync, field of view, mouse
-sensitivity and inversion, always run, effects and music volume, the HUD look and
+sensitivity and inversion, always run, the camera style ([Camera
+style](#camera-style)), effects and music volume, the HUD look and
 scale, the crosshair, the nameplates and their bars, Force bar and power icons, the
 Force aura and the combined Protect+Absorb shell, and the update and identity
 opt-ins, then its own "Don't show at start" row (`ui_hideFirstSetup`), ending in a

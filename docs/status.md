@@ -7,6 +7,27 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Third-person camera style
+
+SJK-only branch `personal/camera-style` (07/10/2026, based on `7741498`, Windows 11):
+Sol found SJK's third-person camera like single player's and asked for a setting
+to have it as in JoF EJK. Reading JoF EJK's `cg_view.c` against `camera.rs` and
+`camera_motion.rs` found the same camera: EternalJK's `CG_OffsetThirdPersonView`
+with `cg_cameraFPS 125`, range 80, height 16 and damping 0.3 and 0.5 by default
+in both. What differs is that EternalJK drops both dampings while a strafe helper
+style is drawn, and Sol's JoF EJK profile (`GameData/EternalJK/eternaljk.cfg`,
+03/10/2026) has one on (`cg_strafeHelper 2242`), so its camera never trails; that
+profile also sets `cg_thirdPersonRange 100`. `cg_cameraStyle` (archived; `sjk`,
+the default, or `ejk`) offers that locked camera in Game options and First setup
+([client.md](client.md#camera-style)); distance and height stay with their cvars.
+Unit tests pin each style's damping, the `ejk` camera at its ideal place after a
+move and turn while `sjk` trails, and the cvar's registration and saving; the
+sjk-viewer tests passed. No game was started: how `ejk` feels in play and whether
+it matches Sol's JoF EJK are unverified. Left as they were: SJK clamps the pitch
+to 89 degrees on a reset frame (EternalJK 80), and `sjk` does not apply
+EternalJK's strafe helper rule (SJK draws only the CGaz style, bit 2, which
+would turn damping off in EternalJK).
+
 ## SJK UI: What's new, Update and Identity
 
 SJK-only branch `personal/sjk-ui-pages` (07/10/2026, based on `57fcc62`, Windows 11):

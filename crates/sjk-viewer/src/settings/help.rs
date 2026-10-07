@@ -322,6 +322,10 @@ const HELP: &[(&str, &str)] = &[
         "Lets the server swap textures: 0 never, 1 all but player models, 2 always. Maps' own always apply.",
     ),
     (
+        crate::camera::STYLE_CVAR,
+        "SJK: the third-person camera trails you a little as you move and turn. EJK: locked behind you, as in JoF EJK.",
+    ),
+    (
         "cg_thirdPersonCameraDamp",
         "How loosely the third-person camera follows you: lower is smoother, 1 sticks to you.",
     ),

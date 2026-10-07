@@ -887,11 +887,11 @@ fn detail_of<'a>(
 /// How a choice's value is named on its segment: as written (in sentence
 /// case), but for a name that is an initialism.
 pub(super) fn choice_label(value: &str) -> &str {
-    if value.eq_ignore_ascii_case("sjk") {
-        "SJK"
-    } else {
-        value
-    }
+    // Client names stay in capitals: the menu style's "sjk", the camera style's.
+    ["SJK", "EJK"]
+        .into_iter()
+        .find(|name| value.eq_ignore_ascii_case(name))
+        .unwrap_or(value)
 }
 
 /// Whether a switch row's value text (`ON` or `OFF`) is on.
