@@ -637,6 +637,16 @@ test: Chat lines wrap where they did; scoreboard numbers and names line up as be
 test: cg_classicHudFont 1: HUD numbers sharp, same place. A name with Alt+0172 shows the logo.
 note: Works without the JoF HD pack installed: the fonts are built in.
 
+[game-font-spacing]
+status: personal
+area: Menus & settings
+title: Even letter spacing in the chat, menu and classic HUD fonts
+change: Most letters sat flush left in their space while C, G, O, X, c, x, - sat right: gaps.
+change: Every chat letter is now centred in its space; menu and HUD letters sit where retail had.
+test: Chat: type COLOCAR xoxo CICADA -_-: even gaps, no hole before O, C or x.
+test: Menus and cg_classicHudFont 1: words read evenly (Mill, COLOCAR), nothing shifted.
+note: Still a letter too close or far? Tell Claude which pair.
+
 [console-browser-classic]
 status: personal
 area: Console & chat

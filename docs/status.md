@@ -394,6 +394,15 @@ offline renders (Python, Pillow). Workspace build and tests pass on Windows; the
 workspace clippy warnings are the existing ones, none in the changed code. Not run
 in a game.
 
+Branch `personal/chat-font-spacing` (07/10/2026, Sol reported uneven chat
+spacing): the first build had left most glyphs of all three fonts flush left
+(`removeOverlaps` moved outlines to left bearings that were still 0, see
+docs/sjk.md "Fonts"), and SJK Chat now centres each OCR-A glyph in its retail
+advance instead of on the unevenly padded retail atlas cell. Advances, line
+metrics and the baseline are unchanged. A unit test checks that chat letters and
+digits sit centred in their advance (it fails on the first build); compared in
+offline renders before and after. Not run in a game.
+
 ## Console font: JetBrains Mono
 
 The console character set's surfaces (the console, notify lines, FPS, vote, team
