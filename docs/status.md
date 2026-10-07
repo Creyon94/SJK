@@ -116,8 +116,10 @@ the first-person saber body; shared fallback models stay hidden. Body and
 head masking use one filtered equipment decision, including weapon loss.
 The mask covers the whole head subtree. Policy and hierarchy fixtures cover
 these cases without retail assets. Windows workspace fmt, build, tests and
-clippy pass with existing warnings. Follow-up death/follow and community
-model GPU appearance remain unverified.
+clippy pass with existing warnings. Combined revision `44ff6e5` was checked on 2026-10-07 (Windows, RTX 5070 Ti,
+release, isolated native server, retail `mp/duel1`, 1280x720): death and
+spectator follow views have no headless saber body at the camera. Community
+models, mirrors and exact arm framing remain unverified.
 
 ## Saber clash flare
 
