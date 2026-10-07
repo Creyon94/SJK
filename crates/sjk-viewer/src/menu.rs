@@ -179,6 +179,9 @@ pub(crate) struct ClientMenu {
     /// The SJK UI's server browser: which item of its left column has the
     /// keyboard, if any.
     sjk_browser: sjk::browser::BrowserPage,
+    /// The SJK UI's loading screen: the levelshot's fade and the furthest
+    /// step the join has shown.
+    sjk_loading: sjk::loading::LoadingPage,
     /// The classic option panel on show in the settings or key-binding
     /// phase, if any.
     classic_panel: Option<classic::ClassicPanel>,
@@ -271,6 +274,7 @@ impl ClientMenu {
             },
             sjk_settings: sjk::settings::SettingsPage::default(),
             sjk_browser: sjk::browser::BrowserPage::default(),
+            sjk_loading: sjk::loading::LoadingPage::default(),
             classic_panel: None,
             renderer_panel: None,
             art: art::ArtSet::default(),
@@ -306,9 +310,9 @@ impl ClientMenu {
     /// return the camera for this frame, once a map is loaded.
     pub(crate) fn drive_backdrop(&mut self, millis: u64) -> Option<Sample> {
         let shot = shot_for(self.state.phase(), &self.player);
-        // The classic style (and the SJK UI, which borrows its connect
-        // screen) shows retail's loading screen instead: the gate stays shut
-        // and the joined world appears when it is live.
+        // The classic style shows retail's loading screen instead, and the
+        // SJK UI its own: the gate stays shut and the joined world appears
+        // when it is live.
         let gate = connecting(self.state.phase())
             && self.destination_ready
             && !self.menu_style.classic_screens();
@@ -391,9 +395,11 @@ impl ClientMenu {
         self.menu_style.classic_screens()
     }
 
-    /// Whether a screen of the SJK UI's own is on show (its main page or its
-    /// Settings), which sits over the live map where the classic pages cover
-    /// it and draws in the UI's families.
+    /// Whether a screen of the SJK UI's own is on show (its main page, its
+    /// Settings, Character, Servers or its loading screen), which sits over
+    /// the live map where the classic pages cover it and draws in the UI's
+    /// families. The loading screen covers the map itself when it has to
+    /// ([`Self::sjk_loading_hides_world`]).
     pub(crate) fn sjk_screen(&self) -> bool {
         self.menu_style == MenuStyle::Sjk
             && match self.state.phase() {
@@ -403,7 +409,9 @@ impl ClientMenu {
                 }
                 ClientPhase::Keybinds => self.sjk_settings_on_show(),
                 ClientPhase::Player => self.player.is_sjk(),
-                ClientPhase::Browser => true,
+                ClientPhase::Browser
+                | ClientPhase::Connecting(_)
+                | ClientPhase::ConnectionError => true,
                 _ => false,
             }
     }
@@ -427,7 +435,8 @@ impl ClientMenu {
         self.loading.map()
     }
 
-    /// The classic loading screen's state, for the join to report into.
+    /// The classic loading screen's state (the SJK UI's loading screen reads
+    /// it too), for the join to report into.
     pub(crate) fn loading_mut(&mut self) -> &mut classic::loading::ClassicLoading {
         &mut self.loading
     }

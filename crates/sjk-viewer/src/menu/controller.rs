@@ -20,6 +20,14 @@ impl ClientMenu {
         }
         match self.state.phase() {
             ClientPhase::MainMenu => self.append_main(vertices, font, viewport),
+            // Drawn in the UI's families by `append_sjk_screen`; here, from a
+            // caller without them, in Inter.
+            ClientPhase::Connecting(_) | ClientPhase::ConnectionError
+                if self.menu_style == MenuStyle::Sjk =>
+            {
+                let target = sjk::TextTarget::Inter(vertices, font);
+                self.append_sjk_loading(target, viewport);
+            }
             ClientPhase::Connecting(_) | ClientPhase::ConnectionError
                 if self.menu_style.classic_screens() =>
             {

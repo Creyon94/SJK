@@ -22,9 +22,9 @@ use sjk_ui::{Color, DrawCommand, FontWeight, Rect, TextAlign};
 use std::collections::HashMap;
 
 /// `CS_MESSAGE`: the map's long name from its worldspawn.
-const CS_MESSAGE: usize = 3;
+pub(crate) const CS_MESSAGE: usize = 3;
 /// `CS_MOTD`: the server's `g_motd`.
-const CS_MOTD: usize = 4;
+pub(crate) const CS_MOTD: usize = 4;
 /// `iPropHeight`: the information lines' pitch on the canvas.
 const LINE: f32 = 18.0;
 /// `CG_LoadBar`'s tick count.
@@ -34,7 +34,7 @@ const SHADOW: Color = Color::new(0.0, 0.0, 0.0, 0.85);
 
 /// How far the connection has got, as the connect screen words it.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
-enum Stage {
+pub(crate) enum Stage {
     /// `CA_CONNECTING`: no challenge yet.
     #[default]
     Connecting,
@@ -96,6 +96,24 @@ pub(crate) struct ClassicLoading {
     loading: String,
     /// Lit ticks of the bar, `0..=TICKS`.
     ticks: u8,
+    /// How far the session's own world is (not a preview of the map built
+    /// before the session named its content), for the SJK UI's steps.
+    world: Option<WorldStage>,
+    /// The session is in hand: joined, or a map change on a server.
+    joined: bool,
+    /// The load is a map change or map load rather than a join.
+    map_change: bool,
+    /// This load named its map: a map change to the "next map" leaves the
+    /// last one in `map`, which the classic screen keeps showing.
+    named: bool,
+    /// Counts the joins and map loads, so a screen can tell a new one.
+    generation: u32,
+    /// What the SJK UI's loading screen shows of the gamestate.
+    facts: crate::menu::sjk::loading::Facts,
+    /// A world shot's made-up progress, which the frame's own does not
+    /// replace.
+    #[cfg(test)]
+    pub(crate) held: bool,
 }
 
 impl ClassicLoading {
@@ -109,14 +127,24 @@ impl ClassicLoading {
         self.info.clear();
         self.loading.clear();
         self.ticks = 0;
+        self.world = None;
+        self.joined = false;
+        self.map_change = false;
+        self.named = false;
+        self.generation = self.generation.wrapping_add(1);
+        self.facts = Default::default();
     }
 
     /// A server map change or map load: the gamestate is the session's, so
     /// the information screen shows from the start.
     pub(crate) fn begin_map_load(&mut self, map: &str) {
         self.stage = Stage::Loading;
+        self.named = false;
         self.set_map(map);
         self.ticks = 0;
+        self.world = None;
+        self.map_change = true;
+        self.generation = self.generation.wrapping_add(1);
     }
 
     /// The map, in any of `mp/ffa3`, `maps/mp/ffa3.bsp` or `next map` form;
@@ -126,7 +154,14 @@ impl ClassicLoading {
         if !key.is_empty() {
             self.map.clear();
             self.map.push_str(&key);
+            self.named = true;
         }
+    }
+
+    /// The map this join or map load named (`mp/ffa3`); empty until it has
+    /// named one, where [`Self::map`] may still hold the last load's.
+    pub(crate) fn named_map(&self) -> &str {
+        if self.named { &self.map } else { "" }
     }
 
     /// The levelshot this screen wants, if the map is known.
@@ -157,6 +192,7 @@ impl ClassicLoading {
     ) {
         self.stage = Stage::Loading;
         self.info = information(game, local, strings);
+        self.facts = crate::menu::sjk::loading::Facts::from_game(game);
         if let Some(map) = server_info(game).and_then(|info| info.get("mapname").map(str::to_owned))
         {
             self.set_map(&map);
@@ -165,11 +201,78 @@ impl ClassicLoading {
 
     /// The loading line's subject and the bar's lit ticks this frame.
     pub(crate) fn set_progress(&mut self, loading: &str, ticks: u8) {
+        #[cfg(test)]
+        if self.held {
+            return;
+        }
         if self.loading != loading {
             self.loading.clear();
             self.loading.push_str(loading);
         }
         self.ticks = ticks.min(TICKS);
+    }
+
+    /// How far the session's own world is this frame (`None` before it
+    /// starts, or while only a preview of the map loads) and whether the
+    /// session is in hand.
+    pub(crate) fn set_world(&mut self, world: Option<WorldStage>, joined: bool) {
+        #[cfg(test)]
+        if self.held {
+            return;
+        }
+        self.world = world;
+        self.joined = joined;
+    }
+
+    /// The address being joined, as typed or picked.
+    pub(crate) fn server(&self) -> &str {
+        &self.server
+    }
+
+    /// Whether the client hosts the server it joins.
+    pub(crate) fn is_local(&self) -> bool {
+        self.local || self.server.eq_ignore_ascii_case("localhost")
+    }
+
+    /// How far the connection has got.
+    pub(crate) fn stage(&self) -> Stage {
+        self.stage
+    }
+
+    /// How far the session's own world is ([`Self::set_world`]).
+    pub(crate) fn world(&self) -> Option<WorldStage> {
+        self.world
+    }
+
+    /// Whether the session is in hand.
+    pub(crate) fn joined(&self) -> bool {
+        self.joined
+    }
+
+    /// Whether this is a map change or map load rather than a join.
+    pub(crate) fn is_map_change(&self) -> bool {
+        self.map_change
+    }
+
+    /// Which join or map load this is; it changes with every new one.
+    pub(crate) fn generation(&self) -> u32 {
+        self.generation
+    }
+
+    /// What the gamestate says of the server and its game, once it is in.
+    pub(crate) fn facts(&self) -> &crate::menu::sjk::loading::Facts {
+        &self.facts
+    }
+
+    /// Fill in a world shot's or test's made-up progress: the stage, the
+    /// session's world and whether the session is in hand, held against
+    /// the frame's own from then on.
+    #[cfg(test)]
+    pub(crate) fn hold_for_test(&mut self, stage: Stage, world: Option<WorldStage>, joined: bool) {
+        self.stage = stage;
+        self.world = world;
+        self.joined = joined;
+        self.held = true;
     }
 }
 
@@ -186,11 +289,13 @@ pub(crate) fn levelshot_key(map: &str) -> String {
     stem.to_owned()
 }
 
-fn server_info(game: &GameState) -> Option<InfoString> {
+/// `CS_SERVERINFO`, parsed.
+pub(crate) fn server_info(game: &GameState) -> Option<InfoString> {
     config_text(game, 0).and_then(|text| InfoString::parse(text).ok())
 }
 
-fn config_text(game: &GameState, index: usize) -> Option<&str> {
+/// Config string `index` as text.
+pub(crate) fn config_text(game: &GameState, index: usize) -> Option<&str> {
     game.config_string(index)
         .and_then(|bytes| std::str::from_utf8(bytes).ok())
 }
@@ -384,7 +489,7 @@ pub(crate) fn information(
 }
 
 /// Retail's English `MP_INGAME` force mastery names (`forceMasteryLevels`).
-const MASTERY: [&str; 8] = [
+pub(crate) const MASTERY: [&str; 8] = [
     "Uninitiated",
     "Initiate",
     "Padawan",

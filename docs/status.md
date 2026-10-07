@@ -7,6 +7,34 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## SJK UI: loading screen
+
+SJK-only branch `personal/sjk-ui-loading` (07/10/2026, based on `076806e`, Windows 11):
+the SJK UI's own connect and loading screen replaces the classic one in
+`ui_menuStyle sjk` ([sjk-ui.md](sjk-ui.md#loading)). `menu::sjk::loading`
+draws `ClassicLoading`'s state: before the map is known a block at the bottom
+left over the touring menu map (server name, address, a gold step line and
+the step in words); once it is known the destination's levelshot over the
+window with the map's name, the server, its rules, mod and message of the day
+and a gold load bar; a failure in the same layout. Shared changes:
+`ClassicLoading` also keeps the session's world stage and whether the session
+is in hand (fed by `sync_classic_loading`), a join count, whether the load
+named its map and the gamestate's facts; `levelshot::cover_uv` (the browser's
+crop, now shared); `ClientMenu::sjk_screen` includes the loading phases and
+`classic_hides_world` asks the SJK screen whether to leave the world out (on a
+server's world always, on the menu map once the levelshot covers it). The
+classic and modern screens are unchanged. Unit tests cover the steps and their
+words, the line never running back within a join, the levelshot's fade, the
+gamestate's facts (free for all, duel, siege), the names' fallbacks, every
+state at four window sizes fitting the canvas with its Esc target, the next-map
+case and when the world is left out; `cargo test --release -p sjk-viewer`
+passed (931). `world_shot::tests::duel6_sjk_loading` rendered five frames over
+duel6 on a made-up join of the JoF server (gamestate and progress faked, the
+real mp/ffa3 levelshot from the installed JoF HD pack). No game was started and
+no server was contacted: a real join's steps and timing, the fade in a running
+client, downloads, a hosted game's start, a server's change of map, a kick and
+the hand-over from the screen to the game are unverified.
+
 ## SJK UI: Servers
 
 SJK-only branch `personal/sjk-ui-browser` (07/10/2026, based on `b0470fc`, Windows 11):

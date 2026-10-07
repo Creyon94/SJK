@@ -240,6 +240,25 @@ fn spawn_worker(vfs: Arc<VirtualFileSystem>) -> (Sender<String>, Receiver<(Strin
     (request_tx, result_rx)
 }
 
+/// Texture coordinates (top left, top right, bottom right, bottom left)
+/// showing a levelshot of `size` over a rectangle `aspect` times as wide as
+/// tall without stretching it: its middle, cut at its long sides. A square
+/// levelshot is retail's, a 4:3 picture stored square.
+pub(crate) fn cover_uv(size: [u32; 2], aspect: f32) -> [[f32; 2]; 4] {
+    let [width, height] = size.map(|side| side.max(1) as f32);
+    let image = if size[0] == size[1] {
+        4.0 / 3.0
+    } else {
+        width / height
+    };
+    let (u, v) = if image > aspect {
+        ((1.0 - aspect / image) * 0.5, 0.0)
+    } else {
+        (0.0, (1.0 - image / aspect) * 0.5)
+    };
+    [[u, v], [1.0 - u, v], [1.0 - u, 1.0 - v], [u, 1.0 - v]]
+}
+
 /// `map`'s levelshot at its own resolution, if it ships one.
 pub(crate) fn decode_levelshot(vfs: &VirtualFileSystem, map: &str) -> Option<LevelshotImage> {
     EXTENSIONS.iter().find_map(|extension| {
@@ -293,6 +312,20 @@ mod tests {
         assert!(shots.cache.contains_key("mp/keep"));
         let counted: usize = shots.cache.values().flatten().map(|i| i.bytes()).sum();
         assert_eq!(counted, shots.cached_bytes);
+    }
+
+    #[test]
+    fn a_levelshot_covers_a_wide_screen_without_stretching() {
+        // A retail square levelshot (a 4:3 picture) over a 16:9 screen: its
+        // full width, the middle three quarters of its height.
+        let uv = cover_uv([512, 512], 16.0 / 9.0);
+        assert_eq!((uv[0][0], uv[1][0]), (0.0, 1.0));
+        assert!((uv[0][1] - 0.125).abs() < 1e-5 && (uv[2][1] - 0.875).abs() < 1e-5);
+        // A 2:1 HD one over 16:9 loses a little at its sides; over 4:3 more.
+        let hd = cover_uv([2048, 1024], 16.0 / 9.0);
+        assert!((hd[0][0] - 1.0 / 18.0).abs() < 1e-5 && hd[0][1] == 0.0);
+        let narrow = cover_uv([2048, 1024], 4.0 / 3.0);
+        assert!((narrow[0][0] - 1.0 / 6.0).abs() < 1e-5);
     }
 
     #[test]

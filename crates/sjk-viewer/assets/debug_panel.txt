@@ -2011,6 +2011,19 @@ test: Join a locked server: the password card (dots); Join by address: a bad one
 test: Double-click a row joins. Open it from the in-game menu too: Esc says Game menu.
 note: Picture stretched, a column cut off, or a key not answering? Tell Claude which.
 
+[sjk-ui-loading]
+status: personal
+area: Menus & settings
+title: SJK UI: the loading screen
+change: Joining in the SJK UI keeps the map behind a block: server, address, a gold step line.
+change: Once the map is known its picture fades in with its name, the server, rules and a bar.
+test: Join a server from Servers: the picture fades in, then the steps run to Entering the game.
+test: Join by address (Servers > Join by address): the block over the map before the picture.
+test: Esc while joining: back to Servers. Join a full or closed server: the reason, Esc back.
+test: Stay on a server through a map change: Next map, then the new map's picture.
+test: Create game: Starting your game. Try a wide and a 4:3 window: the picture never stretches.
+note: Steps stuck, the bar running back or text hard to read on a bright picture? Tell Claude.
+
 [sjk-ui-centre]
 status: personal
 area: Menus & settings

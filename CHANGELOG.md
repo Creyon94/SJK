@@ -21,6 +21,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- SJK UI loading screen: joining a server keeps the menu's map behind the server's name and a gold line that fills step by step, then fades to the destination's picture with the map's name, the server, its rules and message of the day and a gold load bar along the bottom; a failed join says why in the same place _(Sol)_
 - Parallax is back at a tenth of its old depth, with a Parallax depth slider (and a Parallax mapping switch) in Settings > Graphics > Image: 0 flat, 1 the full depth of the maps; the slider shows its change at once _(Sol)_
 - First person with a saber shows your arms and body holding it, as the original game does, instead of a hilt floating alone; the head stays hidden, and dying or following someone goes back to the old view _(lumaya, after JoF EJK)_
 - Peek: `/peek <id or name> [seconds]` (or `/peek` on the player under your crosshair) watches another player for a few seconds from behind, as JoF EJK's peek does, with the camera kept out of walls; `/peek off` returns _(lumaya, after JoF EJK)_

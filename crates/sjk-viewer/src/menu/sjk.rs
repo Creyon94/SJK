@@ -6,9 +6,10 @@
 //! edges. Design: `docs/sjk-ui.md`.
 //!
 //! The UI is built screen by screen and becomes the default once done. So far
-//! it has its main page ([`home`]), Settings ([`settings`]) and Character
-//! (`player_menu::sjk_view`), drawn with the controls of its [`kit`]; every
-//! other screen opens in its classic version
+//! it has its main page ([`home`]), Settings ([`settings`]), Character
+//! (`player_menu::sjk_view`), Servers ([`browser`]) and the loading screen
+//! ([`loading`]), drawn with the controls of its [`kit`]; every other screen
+//! opens in its classic version
 //! ([`super::style::MenuStyle::classic_screens`]).
 //!
 //! Text is set in two families ([`TextFamily`]): Rajdhani for navigation,
@@ -20,6 +21,7 @@
 pub(crate) mod browser;
 pub(crate) mod home;
 pub(crate) mod kit;
+pub(crate) mod loading;
 pub(crate) mod recent;
 pub(crate) mod settings;
 
@@ -93,7 +95,8 @@ impl TextTarget<'_> {
 
 impl ClientMenu {
     /// Draw the SJK UI's screen on show ([`ClientMenu::sjk_screen`]): its main
-    /// page, with the player read from `console`, or its Settings.
+    /// page, with the player read from `console`, its Settings, Character,
+    /// Servers or loading screen.
     pub(crate) fn append_sjk_screen(
         &mut self,
         target: TextTarget<'_>,
@@ -104,6 +107,9 @@ impl ClientMenu {
             super::ClientPhase::Settings => self.append_sjk_settings(target, viewport),
             super::ClientPhase::Keybinds => self.append_sjk_keys(target, viewport),
             super::ClientPhase::Browser => self.append_sjk_browser(target, viewport),
+            super::ClientPhase::Connecting(_) | super::ClientPhase::ConnectionError => {
+                self.append_sjk_loading(target, viewport);
+            }
             super::ClientPhase::Player => {
                 let reveal = self.screen_reveal();
                 self.player.append_sjk(target, viewport, reveal);
