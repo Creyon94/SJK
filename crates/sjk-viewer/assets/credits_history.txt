@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 07/10/2026 | - | SJK UI: What's new, Update and Identity in its look
+- a09e8cf |  | SJK UI: What's new, Update and Identity in its look
 + 07/10/2026 | - | SJK UI Settings: Key bindings as a category
 - dd34be8 |  | SJK UI: Key bindings as a category of Settings
 + 07/10/2026 | - | SJK UI Character: the character on duel6's stage beside the form

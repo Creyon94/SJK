@@ -29,6 +29,8 @@ mod console_debug_panel;
 mod console_identity_page;
 #[path = "console_import.rs"]
 mod console_import;
+#[path = "console_sjk_pages.rs"]
+mod console_sjk_pages;
 #[path = "console_update.rs"]
 mod console_update;
 #[path = "credits.rs"]

@@ -7,6 +7,21 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## SJK UI: What's new, Update and Identity
+
+SJK-only branch `personal/sjk-ui-pages` (07/10/2026, based on `57fcc62`, Windows 11):
+Sol asked for the What's new, Update and Identity pages in the SJK UI. Each
+console page gets a third look ([sjk-ui.md](sjk-ui.md), Sol JK's pages), picked
+with the menu style (`ViewerConsole::set_sjk_pages`) and drawn in the UI's
+families: the console overlay routes an open SJK page's text through
+`TextTarget` (`console_sjk_pages.rs`). Their state, keys and pointer are
+unchanged. The SJK UI changelog entry was split into one bullet per screen.
+`update::pretend_available` (tests only) sets an available release for the
+world shots, which drew the three pages over duel6 (Identity switched off: the
+shots' profile never registers). The sjk-viewer tests passed. No game was
+started: the pages' pointer targets and the Identity page switched on are
+unverified in a running client.
+
 ## SJK UI: Key bindings in Settings
 
 SJK-only branch `personal/sjk-ui-keys` (07/10/2026, based on `5ad57a0`, Windows 11):

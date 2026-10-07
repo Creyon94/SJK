@@ -21,6 +21,8 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 mod classic;
 #[path = "changelog_data.rs"]
 mod data;
+#[path = "changelog_sjk.rs"]
+mod sjk;
 
 /// Console command that toggles the page; keys bound to it toggle it too.
 pub(crate) const COMMAND: &str = "changelog";
@@ -109,6 +111,8 @@ pub(crate) struct Panel {
     /// The classic+ look, with the retail menu art it can draw.
     classic: bool,
     art: ArtSet,
+    /// The SJK UI's look (`changelog_sjk.rs`).
+    sjk: bool,
     ui: MenuCanvas,
 }
 
@@ -142,6 +146,7 @@ impl Panel {
             summary,
             classic: false,
             art: ArtSet::default(),
+            sjk: false,
             ui: MenuCanvas::with_text_capacity(256),
         }
     }
@@ -159,6 +164,16 @@ impl Panel {
     /// Whether the classic+ look is drawn, so its text can use the retail font.
     pub(crate) fn is_classic(&self) -> bool {
         self.classic
+    }
+
+    /// Draw the SJK UI's look (`sjk`), in its families, or not.
+    pub(crate) fn set_sjk(&mut self, sjk: bool) {
+        self.sjk = sjk;
+    }
+
+    /// Whether the SJK UI's look is drawn.
+    pub(crate) fn is_sjk(&self) -> bool {
+        self.sjk && !self.classic
     }
 
     /// Show the page; `owns_console` when the console was closed before it.

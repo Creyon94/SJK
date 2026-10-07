@@ -17,6 +17,20 @@ impl GpuState {
             self.game_fonts.clear_text();
         }
         self.append_classic_console(viewport, covers_frame);
+        // Sol JK's pages in the SJK UI draw in its families once they are loaded.
+        if covers_frame
+            && let Some(console) = self
+                .console
+                .as_mut()
+                .filter(|console| console.sjk_page_open())
+        {
+            let target = match self.game_fonts.sjk() {
+                Some(fonts) => menu::sjk::TextTarget::Families(fonts, self.ui_font.style()),
+                None => menu::sjk::TextTarget::Inter(&mut self.text_vertices, &self.ui_font),
+            };
+            console.append_sjk_page(target, viewport);
+            return;
+        }
         // The console and its notify lines draw with the retail console character
         // set when `ui_gameFont` has it; the full-frame browser keeps Inter, or
         // the menus' retail font when it is the classic+ one.

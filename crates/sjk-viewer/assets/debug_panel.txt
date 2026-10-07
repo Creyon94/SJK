@@ -1949,6 +1949,18 @@ test: Right moves to the servers (the arc turns to them), Enter joins; Left come
 test: Settings, Character, the browser: open in the classic look; Back returns to this page.
 note: Text too small at 4K, ring too faint, colours off? Tell Claude which part.
 
+[sjk-ui-pages]
+status: personal
+area: Menus & settings
+title: SJK UI: What's new, Update and Identity in its look
+change: Main page > Sol JK > What's new / Update / Identity open in the SJK UI's look, over the map.
+change: What's new: releases down a lit rail, the notes in a reading column with gold dots.
+test: What's new: Up/Down through releases, Page Up/Down and the wheel scroll the notes.
+test: Update: the headline, the gold button Enter takes; C checks again; Esc goes back.
+test: Identity: the switch (Enter or click), the bio field (type, Enter saves), Copy my key id.
+test: The same pages from the in-game menu, and with the console's `changelog` command.
+note: Text cut off or too dense at your size? Tell Claude which page.
+
 [sjk-ui-keys]
 status: personal
 area: Menus & settings

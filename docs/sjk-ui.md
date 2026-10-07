@@ -8,8 +8,9 @@ is being built screen by screen and becomes SJK's default once every screen has
 its version; until then [classic+](classic-plus.md) stays the default and keeps
 getting fixes.
 
-Status (07/10/2026): the main page, Settings (with the key bindings) and
-Character are done. Every other screen opens in its classic+ version
+Status (07/10/2026): the main page, Settings (with the key bindings),
+Character, What's new, Update and Identity are done. Every other screen opens
+in its classic+ version
 (`MenuStyle::classic_screens`), which covers the map as the classic style does.
 To try it: Settings > Gameplay > Interface > Menu style > SJK, or
 `ui_menuStyle sjk`; restart for the SJK UI's map behind the main page.
@@ -200,6 +201,35 @@ registering its control before the whole row so the token's rectangle is the
 control's. Opened from a game, where there is no stage, the player screen shows
 its classic pages and their preview instead.
 
+## Sol JK's pages
+
+What's new, Update and Identity, which the main page's Sol JK page opens (and
+their console commands), have the SJK UI's look in this style: drawn in its
+families over the map darkened as Settings is, each with the way back (Esc,
+"Back") and its name at the top and its keys bottom right. They stay the
+console's pages (their state, keys, pointer and opening and closing are as in
+the other looks); `ViewerConsole::set_sjk_pages` picks the look and the console
+overlay routes their text to the UI's families (`console_sjk_pages.rs`).
+
+- **What's new** ([changelog_sjk.rs](../crates/sjk-viewer/src/changelog_sjk.rs)):
+  the releases down a lit rail on the left, newest first (name, then date or
+  "Not released yet" in gold), the chosen one gold; beside them a reading
+  column with its date and number of changes, its name, its introduction, then
+  each change after a gold dot with its credit under it, scrolled by Page Up
+  and Down or the wheel. Lines are wrapped by characters.
+- **Update** ([update_panel_sjk.rs](../crates/sjk-viewer/src/update_panel_sjk.rs)):
+  the version this is, what the check found as a headline over its detail, the
+  download's progress as a gold bar with its percentage, and the page's actions
+  as buttons, the one Enter takes gold (Install, Restart now, Check, Open
+  release page), then Check again and Release notes when offered.
+- **Identity** ([identity_panel_sjk.rs](../crates/sjk-viewer/src/identity_panel_sjk.rs)):
+  the identity's state as a headline (the name the hub knows, or "Identity is
+  off") over its lines, the switch sharing it with the hub, then while it is on
+  the bio's field and Save (gold), Copy my key id and Use the official hub, and
+  the known players here under a sub-heading, verified ones marked gold.
+
+Credits keeps its own page.
+
 ## Settings
 
 [sjk_view.rs](../crates/sjk-viewer/src/settings/sjk_view.rs) draws it, and
@@ -307,8 +337,7 @@ same group (Graphics: the renderer's image tab), or to the modern screen.
 The next screens, in order; each gets snapshot tests before it replaces its
 classic version:
 
-1. The screens Sol JK's page opens (changelog, update, identity, credits) and
-   the dialogs.
+1. The dialogs (the report box, the import page) and Credits.
 2. The server browser, opened from Play's Join a server.
 3. Settings' search finding key bindings too (it finds settings; Key bindings'
    finds keys).

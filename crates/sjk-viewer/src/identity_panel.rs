@@ -19,6 +19,8 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 
 #[path = "identity_panel_classic.rs"]
 mod classic;
+#[path = "identity_panel_sjk.rs"]
+mod sjk;
 
 /// Most known players the page lists.
 const PLAYERS_SHOWN: usize = 5;
@@ -151,6 +153,8 @@ pub(crate) struct Panel {
     /// The classic+ look is drawn, with the retail menu art it can use.
     classic: bool,
     art: ArtSet,
+    /// The SJK UI's look (`identity_panel_sjk.rs`).
+    sjk: bool,
     /// A problem found before anything was sent.
     message: String,
     copied_until: Option<Instant>,
@@ -343,6 +347,7 @@ impl Panel {
             offer_hub: false,
             classic: false,
             art: ArtSet::default(),
+            sjk: false,
             message: String::new(),
             copied_until: None,
             epoch: Instant::now(),
@@ -383,6 +388,16 @@ impl Panel {
     /// Whether the classic+ look is drawn, so its text uses the retail font.
     pub(crate) fn is_classic(&self) -> bool {
         self.classic
+    }
+
+    /// Draw the SJK UI's look (`sjk`), in its families, or not.
+    pub(crate) fn set_sjk(&mut self, sjk: bool) {
+        self.sjk = sjk;
+    }
+
+    /// Whether the SJK UI's look is drawn.
+    pub(crate) fn is_sjk(&self) -> bool {
+        self.sjk && !self.classic
     }
 
     /// Show a problem found before anything was sent.
