@@ -320,8 +320,9 @@ fn caret(canvas: &mut MenuCanvas, frame: &Frame, x: f32, y: f32, towards: f32, c
     );
 }
 
-/// A sorted column's mark centred on (`x`, `y`): a small caret pointing down
-/// while the column runs `descending`, up otherwise.
+/// A sorted column's mark centred on (`x`, `y`): three short bars stacked
+/// flush left, the longest on top while the column runs `descending` (the
+/// most first) and at the bottom otherwise, as sort icons draw it.
 pub(crate) fn sort_mark(
     canvas: &mut MenuCanvas,
     frame: &Frame,
@@ -330,12 +331,19 @@ pub(crate) fn sort_mark(
     descending: bool,
     colour: Color,
 ) {
-    let towards = if descending {
-        std::f32::consts::FRAC_PI_2
+    let widths = if descending {
+        [13.0, 9.0, 5.0]
     } else {
-        -std::f32::consts::FRAC_PI_2
+        [5.0, 9.0, 13.0]
     };
-    caret(canvas, frame, x, y, towards, colour);
+    for (row, width) in widths.into_iter().enumerate() {
+        pill(
+            canvas,
+            frame,
+            [x - 6.5, y - 6.2 + row as f32 * 5.0, width, 2.4],
+            colour,
+        );
+    }
 }
 
 /// A small caret pointing left (`left`) or right centred on (`x`, `y`), as a

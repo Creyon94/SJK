@@ -918,16 +918,17 @@ fn draw_row(
     }
     let humans = i32::from(entry.players) - entry.bots.max(0);
     let lock = if entry.password { 26.0 } else { 0.0 };
+    // The name in its colours; an empty server's faded, its colours too.
     text(
         ui,
         TextFamily::Body,
-        format_args!("{}", Plain(&entry.name)),
+        format_args!("{}", entry.name),
         frame.rect(NAME.x, top, NAME.width - lock, ROW),
         19.0 * s,
         match (selected, humans > 0) {
             (true, _) => Color::new(1.0, 1.0, 1.0, 1.0),
-            (false, true) => color::alpha(color::TEXT, 0.88),
-            (false, false) => color::MUTED,
+            (false, true) => color::alpha(color::TEXT, 0.92),
+            (false, false) => color::alpha(color::TEXT, 0.5),
         },
         FontWeight::Regular,
         TextAlign::Start,
@@ -1014,6 +1015,16 @@ fn draw_row(
         PING.align,
     );
     ui.hit_region(token, frame.rect(LIST_X, top, LIST_WIDTH, ROW));
+}
+
+/// The last colour code in `text` (`^3`), which colours whatever follows it.
+fn last_colour(text: &str) -> Option<&str> {
+    text.char_indices()
+        .rev()
+        .find(|&(at, character)| {
+            character == '^' && text.as_bytes().get(at + 1).is_some_and(u8::is_ascii_digit)
+        })
+        .map(|(at, _)| &text[at..at + 2])
 }
 
 /// A server's mod as a small tag after its mode: none for base Jedi Academy.
@@ -1193,18 +1204,21 @@ fn draw_detail(
         TextAlign::Start,
     );
 
-    let name = Plain(&entry.name).to_string();
-    for (line, part) in wrap(&name, 30).take(2).enumerate() {
+    // The name in its colours, the second line going on in the colour the
+    // first ended in.
+    let mut carried = "";
+    for (line, part) in wrap(&entry.name, 30).take(2).enumerate() {
         text(
             ui,
             TextFamily::Display,
-            format_args!("{part}"),
+            format_args!("{carried}{part}"),
             frame.rect(DETAIL_X, NAME_TOP + line as f32 * 36.0, DETAIL_WIDTH, 36.0),
             30.0 * s,
             color::TEXT,
             FontWeight::Semibold,
             TextAlign::Start,
         );
+        carried = last_colour(part).unwrap_or(carried);
     }
 
     let view = match browser.details() {
@@ -1348,7 +1362,11 @@ fn draw_detail(
                     format_args!("{}", player.name),
                     frame.rect(DETAIL_X + 12.0, line_y, DETAIL_WIDTH - 120.0, PLAYER_LINE),
                     17.0 * s,
-                    if bot { color::MUTED } else { color::TEXT },
+                    if bot {
+                        color::alpha(color::TEXT, 0.5)
+                    } else {
+                        color::TEXT
+                    },
                     FontWeight::Regular,
                     TextAlign::Start,
                 );
@@ -1743,10 +1761,14 @@ mod tests {
     }
 
     #[test]
-    fn names_show_without_their_colour_codes() {
+    fn wrapped_names_go_on_in_their_colour() {
+        // A wrapped name's second line goes on in the colour the first ended in.
+        assert_eq!(last_colour("^1Red ^4Blue x"), Some("^4"));
+        assert_eq!(last_colour("plain"), None);
+        assert_eq!(last_colour("end^"), None);
+        // The search and the prompt read names without them.
         assert_eq!(Plain("^1J^7o^1F").to_string(), "JoF");
         assert_eq!(Plain("100^% ^^7x").to_string(), "100^% ^x");
-        assert_eq!(Plain("end^").to_string(), "end^");
     }
 
     #[test]

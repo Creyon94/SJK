@@ -876,12 +876,15 @@ pub(crate) fn append_text_commands<'a>(
         font,
         viewport,
         style,
+        text::CodePalette::Game,
     );
 }
 
 /// Append the text commands `keep` accepts (given each command's id and text),
 /// so one draw list can be split between fonts. Opacity and clip scopes apply
-/// to every pass alike, and `style` as in [`append_text_commands`].
+/// to every pass alike, and `style` as in [`append_text_commands`]; colour
+/// codes draw in `palette`.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn append_text_commands_where<'a>(
     draw_list: &DrawList,
     resolve: impl Fn(TextId) -> &'a str,
@@ -890,6 +893,7 @@ pub(crate) fn append_text_commands_where<'a>(
     font: &UiFont,
     viewport: [f32; 2],
     style: text::TextStyle,
+    palette: text::CodePalette,
 ) {
     let mut opacity = [1.0_f32; 8];
     let mut opacity_depth = 0_usize;
@@ -958,6 +962,7 @@ pub(crate) fn append_text_commands_where<'a>(
             [color.r, color.g, color.b, color.a * opacity[opacity_depth]],
             placement.letter_spacing,
             *overflow,
+            palette,
         );
     }
 }

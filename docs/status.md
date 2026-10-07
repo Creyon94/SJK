@@ -7,6 +7,20 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## SJK UI: coloured names and the browser's sort mark
+
+SJK-only branch `personal/sjk-ui-browser-colours` (07/10/2026, Windows 11): Sol
+asked for the browser's server names in their colours and found its sort caret
+odd. The list, the chosen server's title (a wrapped second line carries the
+first line's last colour) and its players now draw their `^<digit>` codes; the
+search and the password prompt still read names without them. Every text in the
+SJK UI's families draws the codes in `text::CodePalette::Legible` (black as grey;
+red, green, blue and magenta lifted, same hue), since pure blue and black do not
+read on the navy; the game's own palette is unchanged everywhere else. The sort
+mark is three stacked bars (`kit::sort_mark`). A unit test checks the palette's
+lightness and hues; the world shot was re-rendered and checked zoomed. Not seen
+in a running client.
+
 ## SJK UI: Servers
 
 SJK-only branch `personal/sjk-ui-browser` (07/10/2026, based on `b0470fc`, Windows 11):
