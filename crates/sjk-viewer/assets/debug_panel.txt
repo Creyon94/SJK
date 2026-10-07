@@ -2168,7 +2168,7 @@ status: personal
 area: Gameplay
 title: Camera style: SJK (eases after you) or EJK (locked behind you, as JoF EJK)
 change: cg_cameraStyle ejk drops the camera and target damping: no lag as you move or turn.
-change: In Settings > Gameplay > Game options and in First setup (Camera); sjk stays the default.
+change: In Settings > Gameplay > Game options and First setup (Styles); ejk is the default now.
 test: First setup: Camera style EJK. Run and strafe: you stay fixed on screen, no trailing.
 test: Turn the mouse quickly: the camera swings with you at once; walls still push it in.
 test: Back to SJK: the camera trails a little again, as before. Console: cg_cameraStyle shows it.
@@ -2223,6 +2223,17 @@ test: Verified: choose a player, Cheating, a sentence, Send: "Player report sent
 test: Report the same player again: "you already reported this player today".
 test: Classic menus: SJK > Report a player shows the list and the report pop-up.
 note: Needs the hub update deployed first; until then Send says it cannot reach the hub.
+
+[camera-ejk-default]
+status: personal
+area: Gameplay
+title: EJK camera (locked behind you) is the default; camera style near the top of First setup
+change: cg_cameraStyle defaults to ejk; a saved old default (sjk) moves to ejk once.
+change: First setup opens with Styles: Menu style, then Camera style (EJK or SJK).
+test: Start with your config.cfg: console cg_cameraStyle says ejk; run and strafe, no trailing.
+test: First setup: Camera style is the second row, under Styles with Menu style.
+test: Pick SJK there, restart: cg_cameraStyle stays sjk and the camera trails again.
+note: Range is still cg_thirdPersonRange (80); your JoF EJK profile uses 100.
 
 # ---- Merged upstream ----
 

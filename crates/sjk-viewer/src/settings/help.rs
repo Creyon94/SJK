@@ -323,7 +323,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::camera::STYLE_CVAR,
-        "SJK: the third-person camera trails you a little as you move and turn. EJK: locked behind you, as in JoF EJK.",
+        "EJK: the third-person camera stays locked behind you, as in JoF EJK. SJK: it trails you a little as you move and turn.",
     ),
     (
         "cg_thirdPersonCameraDamp",

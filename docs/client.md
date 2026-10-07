@@ -96,7 +96,8 @@ saved `classic` once to `sjk` and marks the profile (`ui_menuStyleDefaultVersion
 1, archived); a style chosen after that, `classic` included, stays, and a saved
 `modern` was a choice and is left alone
 ([console_session.rs](../crates/sjk-viewer/src/console_session.rs)). The style is
-also the first row of [First setup](#first-setup).
+also the first row of [First setup](#first-setup), under Styles with the camera
+style.
 
 The SJK UI is SJK's own menus drawn over the live map in SJK's type
 ([SJK UI](sjk-ui.md)). It has its main page: the emblem in a
@@ -318,8 +319,8 @@ retail's YES/NO text and `menu/new` slider art:
   A text setting shows its text in a field, typed in place.
 - The longer groups are divided by sub-headings: Game options (items and models,
   effects, camera and prediction), Interface (menus, console), HUD (layout,
-  crosshair, names and cards, nameplates, readouts) and First setup (display, aim,
-  camera, sound, HUD, nameplates, Force shells, SJK).
+  crosshair, names and cards, nameplates, readouts) and First setup (styles,
+  display, aim, sound, HUD, nameplates, Force shells, SJK).
 
 Retail split video and the Force binds over two pages because a page held few
 items; classic+ panels scroll and explain the focused item, so SJK shows each as
@@ -829,13 +830,18 @@ has no automatic fade when the camera nears the player. See
 ### Camera style
 
 `cg_cameraStyle` (archived; Settings > Gameplay > Game options, "Camera and
-prediction", and First setup, "Camera") picks how the camera follows the player
-([camera_style.rs](../crates/sjk-viewer/src/camera_style.rs)):
+prediction", and First setup's second row, under Styles) picks how the camera
+follows the player ([camera_style.rs](../crates/sjk-viewer/src/camera_style.rs)):
 
 | Value | Camera |
 | --- | --- |
-| `sjk` (default) | Eases towards its ideal place with `cg_thirdPersonCameraDamp` and `cg_thirdPersonTargetDamp`, as described above, so it trails a moving or turning player a little. |
-| `ejk` | Sits at its ideal place every frame: no camera or target damping, whatever the damping cvars say. |
+| `ejk` (default) | Sits at its ideal place every frame: no camera or target damping, whatever the damping cvars say. |
+| `sjk` | Eases towards its ideal place with `cg_thirdPersonCameraDamp` and `cg_thirdPersonTargetDamp`, as described above, so it trails a moving or turning player a little. |
+
+An unknown value selects `ejk`. `ejk` became the default on 08/10/2026 (Sol's
+choice; `sjk` was the default before). Every profile had saved `sjk`, so the
+console's start moves a saved `sjk` once to `ejk` and marks the profile
+(`cg_cameraStyleDefaultVersion`); an `sjk` picked after that stays.
 
 `ejk` is JoF EJK's camera as Sol plays it (07/10/2026). The camera code is the same
 in both clients: EternalJK's damping with `cg_cameraFPS 125`, range 80, height 16
@@ -915,10 +921,10 @@ See [catalog.rs](../crates/sjk-viewer/src/settings/catalog.rs).
 The modern settings screen's last tab, FIRST SETUP (called Quick setup before
 06/10/2026)
 ([quick.rs](../crates/sjk-viewer/src/settings/quick.rs)), gathers the settings worth
-choosing on a first start: the menu style (SJK, Classic or Modern, under a Menus
-heading), resolution, display mode, vsync, field of view, mouse
-sensitivity and inversion, always run, the camera style ([Camera
-style](#camera-style)), effects and music volume, the HUD look and
+choosing on a first start: under a Styles heading, the menu style (SJK, Classic
+or Modern) and the camera style (EJK or SJK, [Camera style](#camera-style));
+then resolution, display mode, vsync, field of view, mouse
+sensitivity and inversion, always run, effects and music volume, the HUD look and
 scale, the crosshair, the nameplates and their bars, Force bar and power icons, the
 Force aura and the combined Protect+Absorb shell, and the update and identity
 opt-ins, then its own "Don't show at start" row (`ui_hideFirstSetup`), ending in a
