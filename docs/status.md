@@ -7,6 +7,19 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## SJK UI: text centred in its controls
+
+SJK-only branch `personal/sjk-ui-centre` (07/10/2026, based on `7741498`, Windows 11):
+Sol saw the SJK UI's text sit off centre in its buttons. The renderer sets a
+run's line box from its rectangle's top and the capitals' middle lies 0.48
+(Rajdhani) or 0.54 (Exo 2) of the size below it, so text drew 2 to 4 pixels high
+at 1080 lines. `menu::sjk::text` now centres each run's letters on its
+rectangle's middle from the families' measured metrics; the key hints lost
+their own 2-pixel shifts. A unit test checks the constants against the bundled
+fonts and the placement; the world shots were re-rendered and checked zoomed
+(buttons, segments, key caps, the badge). The main page's arc entries now sit
+on their arc points (they drew about a tenth of their size high).
+
 ## SJK UI: What's new, Update and Identity
 
 SJK-only branch `personal/sjk-ui-pages` (07/10/2026, based on `57fcc62`, Windows 11):
