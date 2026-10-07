@@ -151,7 +151,9 @@ coding assistant; such commits carry a `Co-Authored-By: Claude` trailer.
 OpenJK (`codemp`), EternalJK, JoF EJK and TaystJK/jaPRO are compatibility
 references for Jedi Academy behaviour; JKR and SJK reimplement that behaviour and
 do not include their code. The bundled Inter fonts keep their
-[license](crates/sjk-viewer/assets/fonts/LICENSE.txt), the website's effects use
+[license](crates/sjk-viewer/assets/fonts/LICENSE.txt), the console font, JetBrains
+Mono by The JetBrains Mono Project Authors, keeps its
+[SIL Open Font License](crates/sjk-viewer/assets/fonts/JetBrainsMono-OFL.txt), the website's effects use
 the [Shaders](https://github.com/shader-effects-inc/shaders) library by Shader
 Effects Inc. under its [MIT license](site/assets/vendor/shaders/LICENSE), and
 other dependencies keep their respective licenses.

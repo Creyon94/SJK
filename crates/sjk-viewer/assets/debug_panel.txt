@@ -160,13 +160,13 @@ area: Menus & settings
 title: Classic game fonts on every retail text surface
 change: ergoec: menus, crosshair name, centre prints, warmup, timer, scoreboard names.
 change: ocr_a: chat, weapon/Force/item names, scoreboard numbers; low-res atlases drawn sharp.
-change: Console charset charsgrid_med (monospace): console, notify, FPS, vote, kill feed.
+change: Console charset surfaces (console, notify, FPS, vote, kill feed): JetBrains Mono in SJK.
 test: Settings > HUD > "Classic game fonts" on; look at the menus and at chat.
 test: Open the console, type, select text: caret and selection follow the characters.
 test: In a match: crosshair name, scoreboard, weapon switch name, FPS, kill feed, vote.
 test: Console stays on top of menus and HUD; F3 command browser stays on the modern font.
 test: At 4K: chat text and cg_classicHudFont 1 HUD numbers have crisp edges, no blur.
-note: First enable may hitch about 0.1 s while fonts convert. 0xAC is blank in the console.
+note: First enable may hitch about 0.1 s while fonts convert.
 
 [force-menu]
 pr: 47
@@ -610,6 +610,19 @@ test: Add Hungarian in Windows (Win+Space): the key under Esc (0) opens and clos
 test: German layout: ^ types ^ in the console; Shift+^ opens and closes it.
 test: In chat (console closed) on Hungarian: the key still types 0 in the chat line.
 note: cl_consoleUseScanCode 0 goes back to the cl_consoleKeys characters (~ ` etc).
+
+[console-vector-font]
+status: personal
+area: Console & chat
+title: The console draws with a vector font (JetBrains Mono), no more bitmap font
+change: The classic console, notify lines, FPS, vote and kill feed use JetBrains Mono instead of
+change: the charsgrid_med bitmap; same cell grid, sharp thin strokes at any size.
+change: EternalJK's jaPRO charsgrid_med is no longer loaded. Cursors are solid shapes.
+test: Open the console at 4K: thin, sharp letters; 0 vs O and 1 vs l vs I easy to tell apart.
+test: Type, select with the mouse, move the caret: selection and caret follow the characters.
+test: Insert key: the cursor turns from a bar into a block and back. con_scale 2 stays sharp.
+test: Symbols: say e acute, the 2 superscript, the logo key (0xAC): they draw in the console.
+test: In a match with ui_gameFont 1: FPS counter, vote text and kill feed use the same font.
 
 [console-browser-classic]
 status: personal
@@ -1549,16 +1562,6 @@ change: Friend and tell <name> work for players whose names carry those symbols.
 test: Type say with an euro sign and curly quotes (alt codes or paste): the chat line shows them.
 test: Meet a name such as {JoF}\vToxiee\v{C}.ak: it reads {JoF}.Toxiee.{C}.ak, as in EJK.
 test: tell <part of such a name> hello reaches the player; the classic console closes up those cells.
-
-[ejk-charset]
-status: personal
-area: Console & chat
-title: EternalJK's character set used when installed (SJK PR #22)
-change: GameData/EternalJK/japro-assets.pk3's charsgrid_med replaces the retail set (console, text).
-change: Mounted above base and below the mod directory; nothing else is taken from that pack.
-test: With that pk3 installed, print the text of Latin-1 symbols in the classic console: they draw.
-test: Remove the pk3 (or fs_game with its own set): the retail set returns.
-note: Needs GameData/EternalJK/japro-assets.pk3 (jaPRO).
 
 [clipboard-symbols]
 status: personal

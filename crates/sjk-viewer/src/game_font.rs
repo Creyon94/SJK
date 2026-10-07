@@ -11,14 +11,16 @@
 //!   registers it as `qhSmallFont`): the chat box (`CG_ChatBox_DrawStrings`),
 //!   weapon, Force and inventory selection names (`UI_SMALLFONT`) and
 //!   scoreboard numbers;
-//! - the console character set ([`text::charset`]): the console and its notify
-//!   lines, what the cgame drew with `CG_DrawBigString`, `CG_DrawSmallString`
-//!   or `CG_DrawStringExt` (FPS, snapshot, vote, team overlay, connection
-//!   interrupted), and obituaries, which the cgame printed to the console.
+//! - the console character set, drawn with the bundled vector font JetBrains
+//!   Mono instead of retail's `charsgrid_med` bitmap ([`text::console_font`]):
+//!   the console and its notify lines, what the cgame drew with
+//!   `CG_DrawBigString`, `CG_DrawSmallString` or `CG_DrawStringExt` (FPS,
+//!   snapshot, vote, team overlay, connection interrupted), and obituaries,
+//!   which the cgame printed to the console.
 //!
-//! The fonts come from the mounted game data, so an HD replacement atlas in a
-//! later PK3 is used automatically; nothing is bundled. A font that is missing
-//! or unreadable leaves its surfaces on Inter. Retail-size atlases are uploaded
+//! The medium and small fonts come from the mounted game data, so an HD
+//! replacement atlas in a later PK3 is used automatically. A font that is
+//! missing or unreadable leaves its surfaces on Inter. Retail-size atlases are uploaded
 //! as signed distance fields ([`text::sdf`]) and drawn with the text pipeline's
 //! distance-field fragment, so magnified text keeps sharp edges instead of the
 //! bitmap's bilinear blur; large HD atlases are drawn from their own coverage.
@@ -110,17 +112,17 @@ impl Layer {
         }
     }
 
-    fn load_charset(vfs: &VirtualFileSystem, gpu: &Device<'_>) -> Option<Self> {
-        match text::charset::read(vfs) {
-            Ok(image) => Some(Self::upload(
-                text::charset::PATH,
-                text::charset::font(),
-                image,
+    fn load_console(gpu: &Device<'_>) -> Option<Self> {
+        match text::console_font::load() {
+            Ok(atlas) => Some(Self::upload(
+                text::console_font::NAME,
+                atlas.font,
+                atlas.image,
                 gpu,
             )),
             Err(error) => {
                 crate::log::progress(format_args!(
-                    "warning: console character set unavailable, keeping Inter: {error}"
+                    "warning: console font unavailable, keeping Inter: {error}"
                 ));
                 None
             }
@@ -212,7 +214,7 @@ pub(crate) fn mip_levels(width: u32, height: u32) -> u32 {
 pub(crate) struct GameFonts {
     enabled: bool,
     attempted: bool,
-    /// The console character set was looked for (the classic console uses it
+    /// The console font was loaded or failed to (the classic console uses it
     /// whether `ui_gameFont` is on or not).
     console_attempted: bool,
     menu: Option<Layer>,
@@ -222,8 +224,8 @@ pub(crate) struct GameFonts {
 
 impl GameFonts {
     /// Fonts for a new world: loaded now when `enabled`, else on first use. The
-    /// console character set alone is loaded when `console` (the classic
-    /// console is in use).
+    /// console font alone is loaded when `console` (the classic console is in
+    /// use).
     pub(crate) fn preload(
         enabled: bool,
         console: bool,
@@ -234,7 +236,7 @@ impl GameFonts {
         if enabled {
             fonts.load(vfs, gpu);
         } else if console {
-            fonts.load_console(vfs, gpu);
+            fonts.load_console(gpu);
         }
         fonts
     }
@@ -243,24 +245,24 @@ impl GameFonts {
         self.attempted = true;
         self.menu = Layer::load(vfs, MENU_FONT, gpu);
         self.chat = Layer::load(vfs, CHAT_FONT, gpu);
-        self.load_console(vfs, gpu);
+        self.load_console(gpu);
     }
 
-    /// Load the console character set unless it was already looked for.
-    fn load_console(&mut self, vfs: &VirtualFileSystem, gpu: &Device<'_>) {
+    /// Load the console font unless it was already loaded or failed to.
+    fn load_console(&mut self, gpu: &Device<'_>) {
         if !self.console_attempted {
             self.console_attempted = true;
-            self.console = Layer::load_charset(vfs, gpu);
+            self.console = Layer::load_console(gpu);
         }
     }
 
-    /// The console character set's metrics when it is loaded, whether
-    /// `ui_gameFont` is on or not (the classic console draws with it).
-    pub(crate) fn console_charset(&self) -> Option<&UiFont> {
+    /// The console font's metrics when it is loaded, whether `ui_gameFont` is
+    /// on or not (the classic console draws with it).
+    pub(crate) fn console_font(&self) -> Option<&UiFont> {
         self.console.as_ref().map(|layer| &layer.font)
     }
 
-    /// The console character set's atlas and whether it is a distance field.
+    /// The console font's atlas and whether it is a distance field.
     pub(crate) fn console_atlas(&self) -> Option<(&wgpu::BindGroup, bool)> {
         self.console
             .as_ref()
@@ -431,21 +433,19 @@ pub(crate) fn prepare(gpu: &mut GpuState) {
     for layer in fonts.layers_mut() {
         layer.vertices.clear();
     }
-    let load = enabled && !fonts.attempted;
+    let load = enabled && !fonts.attempted && gpu.vfs.is_some();
     let load_console = console && !fonts.console_attempted;
-    if (load || load_console)
-        && let Some(vfs) = &gpu.vfs
-    {
+    if load || load_console {
         let device = Device {
             device: &gpu.device,
             queue: &gpu.queue,
             layout: &gpu.text_layout,
             sampler: &gpu.text_sampler,
         };
-        if load {
-            fonts.load(vfs, &device);
-        } else {
-            fonts.load_console(vfs, &device);
+        // The console font is bundled: it needs no game data.
+        match &gpu.vfs {
+            Some(vfs) if load => fonts.load(vfs, &device),
+            _ => fonts.load_console(&device),
         }
     }
 }
@@ -497,7 +497,7 @@ mod tests {
 
     #[test]
     fn routing_with_no_font_loaded_sends_everything_to_the_fallback() {
-        let inter = text::charset::font();
+        let inter = text::console_font::load().unwrap().font;
         let mut list = DrawList::new(8);
         for id in 0..3 {
             let _ = list.push(sjk_ui::DrawCommand::Text {
@@ -531,7 +531,8 @@ mod tests {
     #[test]
     fn line_heights_become_glyph_scales_in_any_font() {
         // 16-pixel console characters drawn on a 24-pixel line at 1080 lines.
-        let scale = crate::ui_scale::glyph_scale(&text::charset::font(), 24.0, 1.0);
+        let font = text::console_font::load().unwrap().font;
+        let scale = crate::ui_scale::glyph_scale(&font, 24.0, 1.0);
         assert_eq!(scale, 1.5);
     }
 }

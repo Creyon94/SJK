@@ -1796,7 +1796,7 @@ with its own fonts in that font, following OpenJK `codemp`:
 | --- | --- |
 | `ergoec` (`FONT_MEDIUM`) | Menus, crosshair name, centre prints, warmup text, match timer, enemy info, scoreboard names and headings |
 | `ocr_a` (`FONT_SMALL`) | Chat box and typing line, weapon/Force/inventory selection names, scoreboard numbers |
-| Console character set `gfx/2d/charsgrid_med` | Console and notify lines, FPS, snapshot, vote, team overlay, connection interrupted, kill feed |
+| Console character set (drawn with the bundled JetBrains Mono, not `gfx/2d/charsgrid_med`) | Console and notify lines, FPS, snapshot, vote, team overlay, connection interrupted, kill feed |
 
 The routing is per text run: the HUD maps its text ids in
 [text_values.rs](../crates/sjk-viewer/src/hud/text_values.rs), chat marks its
@@ -1806,11 +1806,13 @@ names, stays on Inter (or `arialnb` for the status HUD). The `.fontdat` metrics
 are read by [fontdat.rs](../crates/sjk-viewer/src/text/fontdat.rs); the atlas is
 the highest-priority `fonts/<name>.tga` (or `.png`/`.jpg`), so an HD replacement
 atlas in a later PK3 is used with the retail metrics and is mipmapped down to the
-retail 512-texel size. The console character set
-([charset.rs](../crates/sjk-viewer/src/text/charset.rs)) is a 16×16 grid of
-Latin-1 cells; like `SCR_DrawSmallChar` and `CG_DrawChar`, each character is the
-left half of its cell drawn twice as tall as wide, every character advances one
-cell (the console is monospaced), and a space draws nothing. The console keeps its
+retail 512-texel size. The console character set's surfaces draw with JetBrains
+Mono, bundled and rasterized once at 96 pixels per em into a mipmapped coverage
+atlas ([console_font.rs](../crates/sjk-viewer/src/text/console_font.rs)), because
+SJK draws no bitmap fonts ([sjk.md](sjk.md#fonts)). It keeps the cell of
+`SCR_DrawSmallChar` and `CG_DrawChar`: a line 16 units tall, every character
+advancing 8 (the console is monospaced, the em sized so the font's advance fills
+the cell), the ascent and descent centred, and a space drawing nothing. The console keeps its
 own sizes (`con_scale`, row pitch), and its caret, selection and pointer hits
 measure the same fixed advance it draws with. The game fonts load when a world is
 installed with the option on, or on first use, from
@@ -1855,8 +1857,7 @@ instead of Inter's not-sign
 from the mounted atlas (an HD replacement included), scaled so the retail
 font's `H` matches Inter's cap height, and spliced into both faces at atlas
 build and DPI rebuild; nothing is read or rasterized per frame. Without the
-retail fonts `¬` stays Inter's. The console character set leaves 0xAC blank, as
-retail did. Outgoing chat and names send `¬` as the single byte 0xAC
+retail fonts `¬` stays Inter's. The console font draws JetBrains Mono's `¬`. Outgoing chat and names send `¬` as the single byte 0xAC
 ([player text](networking.md#player-text)), so other clients draw the logo too.
 
 ### Game-data HUD

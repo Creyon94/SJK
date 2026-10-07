@@ -68,8 +68,8 @@ impl GpuState {
             self.console_layer
                 .ensure_loaded(&self.device, &self.queue, vfs, &self.shaders);
         }
-        let (font, atlas) = match self.game_fonts.console_charset() {
-            Some(font) => (font, console_backdrop::TextAtlas::Charset),
+        let (font, atlas) = match self.game_fonts.console_font() {
+            Some(font) => (font, console_backdrop::TextAtlas::Console),
             None => (&self.ui_font, console_backdrop::TextAtlas::Inter),
         };
         let in_game =

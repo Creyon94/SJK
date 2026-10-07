@@ -2,15 +2,15 @@
 //!
 //! Inter is rasterized once when the graphics device is created.  The render
 //! loop only performs glyph lookup and appends vertices into reused buffers;
-//! it never rasterizes a glyph or grows the atlas.  The legacy JKA `fontdat`
-//! reader ([`fontdat`]) feeds the optional classic HUD font and, with the
-//! console character set ([`charset`]), the optional game fonts
-//! ([`crate::game_font`]). The retail fonts' `¬` logo replaces Inter's when
-//! present ([`logo_glyph`]).
+//! it never rasterizes a glyph or grows the atlas.  The console font,
+//! JetBrains Mono ([`console_font`]), is rasterized the same way. The legacy JKA
+//! `fontdat` reader ([`fontdat`]) feeds the optional classic HUD font and the
+//! optional game fonts ([`crate::game_font`]). The retail fonts' `¬` logo
+//! replaces Inter's when present ([`logo_glyph`]).
 
 mod bounded;
 mod cell;
-pub(crate) mod charset;
+pub(crate) mod console_font;
 pub(crate) mod fontdat;
 pub(crate) mod logo_glyph;
 pub(crate) mod sdf;

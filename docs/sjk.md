@@ -52,7 +52,8 @@ them in place: the upstream merge adds the same text and resolves cleanly.
 
 A new profile starts with Sol's own choices where JKR's defaults differ. Defaults
 apply only to settings a `config.cfg` has not saved: an existing profile keeps its
-values and nothing is migrated. Where each is documented:
+values and nothing is migrated, except where the table says so. Where each is
+documented:
 
 | Setting | SJK | JKR | See |
 | --- | --- | --- | --- |
@@ -65,9 +66,28 @@ values and nothing is migrated. Where each is documented:
 | `com_maxfpsUnfocused` | 30 | 0 | [Configuration](client.md#configuration-and-content) |
 | `cl_maxpackets` | 125 | 63 (unused) | [User commands and move packets](networking.md#user-commands-and-move-packets) |
 | rendering profile | noon, bloom, dust, material maps | 11:00, off | [Default visual profile](rendering.md#default-visual-profile) |
+| `cl_consoleUseScanCode` | 1, saved 0 moved to 1 once | 0 | [Useful console commands](client.md#useful-console-commands) |
 
 The HUD look (`cg_hudStyle game`) and the console (`con_style classic`) are SJK
 defaults too, documented with their pages.
+
+## Fonts
+
+SJK draws no bitmap fonts (Sol's rule, 07/10/2026): text uses vector fonts,
+bundled under an open licence (OFL or Apache) and rasterized once at startup, as
+Inter is ([text.rs](../crates/sjk-viewer/src/text.rs)). Retail bitmap fonts are
+replaced, by an open-licence look-alike or by converting them to vector outlines
+where that is possible, never added. A bundled font ships with its licence next to
+it in `crates/sjk-viewer/assets/fonts` and is credited in CREDITS.md and
+credits.txt.
+
+| Retail bitmap | Used for | Replacement |
+| --- | --- | --- |
+| `gfx/2d/charsgrid_med` | Console, notify lines, cgame small/big strings | JetBrains Mono ([console_font.rs](../crates/sjk-viewer/src/text/console_font.rs)) |
+| `ocr_a` | Chat, selection names, scoreboard numbers (`ui_gameFont`) | to do |
+| `ergoec` | Menus, centre prints, scoreboard names (`ui_gameFont`) | to do |
+| `arialnb` | Classic status HUD (`cg_classicHudFont`) | to do |
+| `logo` glyph (0xAC) | The "WSI fonts" logo in Inter's atlas | to do |
 
 ## Copyright notice
 

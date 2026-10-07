@@ -149,9 +149,22 @@ roster keys and `tell` lookups, and the cosmetic match. Checked in game on Windo
 11 on a JoF server, before the roster keys were added; those are covered by the
 unit tests only.
 
-## EternalJK's character set
+## Console font: JetBrains Mono
 
-Branch `feat/eternaljk-charset`: when `GameData/EternalJK` holds a PK3 with
+The console character set's surfaces (the console, notify lines, FPS, vote, team
+overlay, kill feed) draw with JetBrains Mono, bundled (OFL) and rasterized once at
+startup like Inter, instead of the `charsgrid_med` bitmap, which looked heavy and
+blocky at 4K (07/10/2026, Sol's request; SJK draws no bitmap fonts, docs/sjk.md
+"Fonts"). The font keeps the 8 by 16 unit cell, so layout, wrapping, selection and
+`con_scale` are unchanged; the insert and overstrike cursors are solid shapes in the
+retail cursor proportions. This replaces EternalJK's character set below: the
+`japro-assets.pk3` probe is gone. Unit tests cover the cell metrics, the atlas and
+the cursor shapes, and the atlas was rendered offline to check placement; not run
+in a game.
+
+## EternalJK's character set (replaced 07/10/2026)
+
+Replaced by the console font above. Branch `feat/eternaljk-charset`: when `GameData/EternalJK` holds a PK3 with
 `gfx/2d/charsgrid_med` (jaPRO's `japro-assets.pk3`), that one image is mounted above
 the game's `base`, and below the `fs_basegame` and `fs_game` directories, as EternalJK
 mounts its folder above `base` and below the mod. The PK3 probe runs once per process. It has `¬`, `¥`, `²`, `½`
