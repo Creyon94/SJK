@@ -56,8 +56,13 @@ pub(crate) const VERIFIED_ICON: u32 = CROSSHAIR_ICON_FIRST + CROSSHAIR_ICON_CELL
 pub(crate) const WHEEL_ICON_FIRST: u32 = VERIFIED_ICON + 1;
 /// Quick wheel cells: one row.
 pub(crate) const WHEEL_ICON_CELLS: u32 = COLUMNS;
+/// First of the settings menu's icon cells (`settings_icons::ICONS`), after the
+/// quick wheels'.
+pub(crate) const SETTINGS_ICON_FIRST: u32 = WHEEL_ICON_FIRST + WHEEL_ICON_CELLS;
+/// Settings icon cells: two rows.
+pub(crate) const SETTINGS_ICON_CELLS: u32 = 2 * COLUMNS;
 /// Every icon cell; the banner strip lies below the last row.
-pub(crate) const ATLAS_CELLS: u32 = WHEEL_ICON_FIRST + WHEEL_ICON_CELLS;
+pub(crate) const ATLAS_CELLS: u32 = SETTINGS_ICON_FIRST + SETTINGS_ICON_CELLS;
 const TOTAL_CELLS: u32 = ATLAS_CELLS;
 const ATLAS_HEIGHT: u32 = TOTAL_CELLS.div_ceil(COLUMNS) * ICON_SIZE + BANNER_SIZE[1];
 /// `TexturedQuad` texture naming the banner strip.

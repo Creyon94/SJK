@@ -284,6 +284,8 @@ impl PanelFrame {
                 Frame::Main => view::entry_label_colored(canvas, &place, slot, color),
                 Frame::InGame => self.in_game_label(canvas, &place, index, slot, color),
             }
+            let lit = hovered || slot.entry == self.active;
+            self.group_icon(canvas, &place, index, slot, lit);
             canvas.hit_region(token, target);
         }
         panel_box(canvas, place.rect(geometry.panel), place.scale);
@@ -387,6 +389,38 @@ impl PanelFrame {
             1.2 * place.scale,
             TextAlign::End,
         );
+    }
+
+    /// A group entry's icon (`settings_icons`) at the left end of its row, opposite
+    /// the label: full while the group is open or hovered, dimmed otherwise.
+    fn group_icon(
+        &self,
+        canvas: &mut MenuCanvas,
+        place: &Placement,
+        index: usize,
+        slot: &Slot,
+        lit: bool,
+    ) {
+        if slot.size != Size::List {
+            return;
+        }
+        let Some(texture) = slot.entry.icon().and_then(crate::settings_icons::texture) else {
+            return;
+        };
+        let Some([x, y, _, height]) = self.slot_target(index, slot) else {
+            return;
+        };
+        let size = (height - 4.0).min(22.0);
+        let alpha = match (slot.enabled(), lit) {
+            (false, _) => 0.35,
+            (true, true) => 1.0,
+            (true, false) => 0.72,
+        };
+        let _ = canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
+            rect: place.rect([x + 6.0, y + (height - size) * 0.5, size, size]),
+            texture,
+            color: Color::new(1.0, 1.0, 1.0, alpha),
+        });
     }
 
     /// The pop-up's dark box over the dimmed match.

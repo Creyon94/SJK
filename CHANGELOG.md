@@ -21,6 +21,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- Settings groups have icons (classic menus): every group down the left of Key bindings, Options, Graphics and Gameplay shows a grey metal disc in the quick wheels' style, lit while the group is open or pointed at _(Sol)_
 - The console draws with a sharp vector font, JetBrains Mono, instead of the old blocky bitmap font, on the same grid; so do the FPS counter, vote text and kill feed _(Sol)_
 - Saber blades stop at walls: the glow and core end where the blade meets a wall instead of shining through it, and reach full length again as it leaves, also on hilts that leave no wall marks _(lumaya)_
 - Configs from other clients load: exec runs a .cfg whose name or binds use accented letters (it said "not valid UTF-8"), and a jampconfig.cfg copied over SJK's config.cfg loads with its unbindall and unknown keys instead of losing all your settings _(Sol)_

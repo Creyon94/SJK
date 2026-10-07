@@ -29,13 +29,14 @@ SIZE = 128
 INSET = 3.0
 
 
-def discs(image):
-    """The grey discs: bright blobs in the lower half, largest first, then sorted by
+def discs(image, count=len(NAMES), lower_half=True):
+    """The grey discs: bright blobs (in the lower half only, by default), sorted by
     row and column. Returns (centre_x, centre_y, radius) in board pixels."""
     luma = np.asarray(image.convert("L"), dtype=np.float32)
     height = luma.shape[0]
     mask = luma > 70
-    mask[: height // 2] = False
+    if lower_half:
+        mask[: height // 2] = False
     mask = ndimage.binary_closing(mask, iterations=4)
     mask = ndimage.binary_fill_holes(mask)
     labels, count = ndimage.label(mask)
@@ -47,8 +48,8 @@ def discs(image):
         if min(h, w) < 120 or abs(h - w) > 0.15 * max(h, w):
             continue
         found.append(((columns.start + columns.stop) / 2, (rows.start + rows.stop) / 2, max(h, w) / 2))
-    if len(found) != len(NAMES):
-        raise SystemExit(f"expected {len(NAMES)} discs, found {len(found)}")
+    if len(found) != count:
+        raise SystemExit(f"expected {count} discs, found {len(found)}")
     found.sort(key=lambda disc: (round(disc[1] / 100), disc[0]))
     return found
 
