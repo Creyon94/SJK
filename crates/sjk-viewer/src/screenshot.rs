@@ -100,7 +100,9 @@ pub(crate) fn parse_request(tokens: &[String]) -> Result<Option<Request>, String
 enum State {
     Idle,
     Encoded(Readback),
-    Mapping(Readback),
+    /// The readback with the receiver of its own map callback, so a callback from an
+    /// earlier readback can never be mistaken for this one.
+    Mapping(Readback, Receiver<Result<(), wgpu::BufferAsyncError>>),
 }
 
 struct Readback {
@@ -117,8 +119,6 @@ pub(crate) struct Manager {
     directory: PathBuf,
     request: Option<Request>,
     state: State,
-    map_sender: SyncSender<Result<(), wgpu::BufferAsyncError>>,
-    map_receiver: Receiver<Result<(), wgpu::BufferAsyncError>>,
     write_sender: SyncSender<String>,
     write_receiver: Receiver<String>,
     write_pending: bool,
@@ -132,14 +132,11 @@ impl Manager {
         texture_format: wgpu::TextureFormat,
         copy_supported: bool,
     ) -> Self {
-        let (map_sender, map_receiver) = sync_channel(1);
         let (write_sender, write_receiver) = sync_channel(1);
         Self {
             directory: config_directory.join("screenshots"),
             request: None,
             state: State::Idle,
-            map_sender,
-            map_receiver,
             write_sender,
             write_receiver,
             write_pending: false,
@@ -210,18 +207,25 @@ impl Manager {
         Ok(true)
     }
 
+    /// Called before every frame's swapchain acquire. Only an encoded readback is taken
+    /// out of the state: a readback still mapping must stay, since dropping its buffer
+    /// aborts the map (wgpu `MapAborted`).
     pub(crate) fn after_submit(&mut self) {
-        let State::Encoded(readback) = std::mem::replace(&mut self.state, State::Idle) else {
+        if !matches!(self.state, State::Encoded(_)) {
             return;
+        }
+        let State::Encoded(readback) = std::mem::replace(&mut self.state, State::Idle) else {
+            unreachable!("state checked above");
         };
-        let sender = self.map_sender.clone();
+        // One slot per readback: the callback never blocks the thread that polls.
+        let (sender, receiver) = sync_channel(1);
         readback
             .buffer
             .slice(..)
             .map_async(wgpu::MapMode::Read, move |result| {
-                let _ = sender.send(result);
+                let _ = sender.try_send(result);
             });
-        self.state = State::Mapping(readback);
+        self.state = State::Mapping(readback, receiver);
     }
 
     pub(crate) fn poll(&mut self, device: &wgpu::Device) -> Option<String> {
@@ -229,11 +233,11 @@ impl Manager {
             self.write_pending = false;
             return Some(message);
         }
-        if !matches!(self.state, State::Mapping(_)) {
+        let State::Mapping(_, receiver) = &self.state else {
             return None;
-        }
+        };
         let _ = device.poll(wgpu::PollType::Poll);
-        match self.map_receiver.try_recv() {
+        match receiver.try_recv() {
             Ok(Ok(())) => self.finish_mapping(),
             Ok(Err(error)) => {
                 self.state = State::Idle;
@@ -248,7 +252,7 @@ impl Manager {
     }
 
     fn finish_mapping(&mut self) -> Option<String> {
-        let State::Mapping(readback) = std::mem::replace(&mut self.state, State::Idle) else {
+        let State::Mapping(readback, _) = std::mem::replace(&mut self.state, State::Idle) else {
             return None;
         };
         let slice = readback.buffer.slice(..);
@@ -358,4 +362,68 @@ fn validate_name(name: &str) -> Result<String, String> {
         .or_else(|| name.strip_suffix(".jpg"))
         .unwrap_or(name)
         .to_owned())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Frames keep calling `after_submit` while the readback maps; the readback must
+    /// survive them and reach the file (it was dropped, aborting the map).
+    #[test]
+    fn readback_survives_frames_while_mapping() {
+        let instance =
+            wgpu::Instance::new(wgpu::InstanceDescriptor::new_without_display_handle_from_env());
+        let Ok(adapter) = pollster::block_on(instance.request_adapter(&Default::default())) else {
+            eprintln!("no GPU adapter; skipped");
+            return;
+        };
+        let (device, queue) =
+            pollster::block_on(adapter.request_device(&Default::default())).expect("device");
+        let directory = std::env::temp_dir().join(format!("sjk-shot-{}", std::process::id()));
+        let format = wgpu::TextureFormat::Rgba8Unorm;
+        let mut manager = Manager::new(directory.clone(), format, true);
+        let texture = device.create_texture(&wgpu::TextureDescriptor {
+            label: None,
+            size: wgpu::Extent3d {
+                width: 64,
+                height: 32,
+                depth_or_array_layers: 1,
+            },
+            mip_level_count: 1,
+            sample_count: 1,
+            dimension: wgpu::TextureDimension::D2,
+            format,
+            usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+            view_formats: &[],
+        });
+        let frame = |manager: &mut Manager, shot: bool| {
+            let mut encoder = device.create_command_encoder(&Default::default());
+            if shot {
+                assert_eq!(
+                    manager.encode(&device, &mut encoder, &texture, [64, 32]),
+                    Ok(true)
+                );
+            }
+            queue.submit([encoder.finish()]);
+            manager.after_submit();
+        };
+        manager.request(Request::jpeg_named("readback"));
+        frame(&mut manager, true);
+        let mut message = None;
+        for _ in 0..2000 {
+            // The next frame's acquire runs before the map has landed.
+            frame(&mut manager, false);
+            message = manager.poll(&device);
+            if message.is_some() {
+                break;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(1));
+        }
+        let written = directory.join("screenshots").join("readback.jpg");
+        let exists = written.exists();
+        let _ = fs::remove_dir_all(&directory);
+        assert_eq!(message.as_deref(), Some(""), "silent shot reports nothing");
+        assert!(exists, "screenshot written");
+    }
 }

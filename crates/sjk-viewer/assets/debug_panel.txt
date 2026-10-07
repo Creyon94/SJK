@@ -1949,6 +1949,16 @@ test: Change a setting: a gold dot after its label; the arrow at the row's end r
 test: HUD and First setup show sub-headings (Layout, Crosshair...); the detail box has an icon.
 note: Too small or too tight at 4K, or a colour off? Tell Claude which control.
 
+[screenshot-readback]
+status: personal
+area: Rendering & effects
+title: Screenshots no longer fail ("readback failed") or freeze the game
+change: The next frame dropped the screenshot buffer while it was still mapping (wgpu MapAborted).
+change: Each readback now keeps its own map callback, which never blocks the render thread.
+test: Console: screenshot, then screenshotJPEG: each prints Wrote ...; both files are in screenshots.
+test: Quick wheel (Q) > Screenshot twice in a row: two new shotNNNN.jpg files, no freeze.
+test: Inspect (X) a wall twice, write a note, Enter; again: note_*.jpg files appear for both notes.
+
 # ---- Merged upstream ----
 
 [actor-instance-cap]
