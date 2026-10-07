@@ -2114,6 +2114,19 @@ the reference); other servers' handling was not checked. Not measured: the
 per-frame cost of the limb scan now that `cg_dismember` is not 0 by default (one
 pass over the snapshot's entities). No client was run; Sol tests through `play`.
 
+## First setup at start and config import (SJK)
+
+SJK-only branch `personal/first-setup-import` (07/10/2026, based on `9ca3ec4`): First
+setup opens at every start until its "Don't show at start" row is ticked
+(`ui_hideFirstSetup`, replacing the once-only `ui_quickSetup`), and a `.cfg` from
+another client dropped on the window (or given to `firstsetup import <path>`)
+opens an Import page offering its name, model (with tint), field of view and key
+bindings; see [client.md](client.md#importing-from-another-client). Unit tests cover
+the parser (saved and partial configs, comments, unknown keys, Latin-1), the page's
+ticks and the copy into the profile, including a whole bind table keeping locked
+keys. No game was started: the drop itself (winit's drag and drop on Windows) and
+the page's look are unverified.
+
 ## 125 Hz user commands and cl_maxpackets (SJK)
 
 SJK-only branch `personal/cmd-rate` (06/10/2026, based on `3b620bb`) replaces

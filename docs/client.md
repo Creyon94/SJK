@@ -815,22 +815,50 @@ choosing on a first start: resolution, display mode, vsync, field of view, mouse
 sensitivity and inversion, always run, effects and music volume, the HUD look and
 scale, the crosshair, the nameplates and their bars, Force bar and power icons, the
 Force aura and the combined Protect+Absorb shell, and the update and identity
-opt-ins, ending in a Key bindings row. Its rows are the catalogue's own, looked up
-by cvar, so a change there is the same change the other tabs make; it is the last
-tab so the other tabs keep their numbers.
+opt-ins, then its own "Don't show at start" row (`ui_hideFirstSetup`), ending in a
+Key bindings row. Its other rows are the catalogue's own, looked up by cvar, so a
+change there is the same change the other tabs make; it is the last tab so the
+other tabs keep their numbers.
 
 With the classic menus (the default) the same rows are the first group of the
 Setup page, FIRST SETUP (`Group::Quick`, [groups.rs](../crates/sjk-viewer/src/settings/groups.rs)),
 drawn as a classic+ option panel like the others, with search, descriptions and
 defaults; the modern style shows the FIRST SETUP tab.
 
-On the first start (`ui_quickSetup` 0, archived), once the main menu is up and the
-menu style is known, it opens in the active style and sets the cvar to 1, so leaving
-it with Escape dismisses it for good (setting the cvar back to 0 shows it again at
-the main menu). The `firstsetup` console command (or its old name `quicksetup`) opens it too, over the main menu
-or from a running game, in the active style
+At every start, the first time the main menu is up and the menu style is known, it
+opens in the active style, until the player ticks "Don't show at start"
+(`ui_hideFirstSetup` 1, archived); Escape leaves it for that run. (Before
+07/10/2026 it opened once, on the first start, marked by `ui_quickSetup`, which is
+no longer read.) The `firstsetup` console command (or its old name `quicksetup`)
+opens it too, over the main menu or from a running game, in the active style
 ([quick_setup.rs](../crates/sjk-viewer/src/menu/quick_setup.rs)). Not yet run in a
 game window.
+
+### Importing from another client
+
+A `.cfg` file dropped on the window (winit's `DroppedFile`), at any time, opens the
+Import page over whatever is on show
+([config_import.rs](../crates/sjk-viewer/src/config_import.rs),
+[config_import_panel.rs](../crates/sjk-viewer/src/config_import_panel.rs)); the
+First setup screen says so. `firstsetup import <path>` does the same from the
+console (a path's words may be left unquoted; inside quotes a backslash escapes,
+so quoted Windows paths need forward slashes), and `firstsetup import` alone
+explains how. The file is read, never run: only `seta`/`set`/`sets`/`setu`, a
+bare `name`, `model` or `cg_fov`, `bind`, `unbind` and `unbindall` count, `//`
+comments are skipped, and a file that is not UTF-8 is read as Latin-1, as the
+legacy game wrote names. Files over 1 MB, other extensions, and configs holding
+none of the parts are refused with the reason.
+
+The page lists the parts found, each ticked at first: Name (`name`), Model
+(`model`, with `char_color_red`/`_green`/`_blue` when the file sets them), Field
+of view (`cg_fov`) and Key bindings. Space, Left/Right or a click ticks a row;
+Enter copies the ticked parts into the profile and shows what changed (also logged
+to the console). A file that clears every binding first (`unbindall`, as a saved
+`jampconfig.cfg` does) replaces the player's table: the keys the binding editor
+locks keep their binding, and SJK's own actions get their default key back when
+the file left both the action and its key free. A file without `unbindall` only
+adds its keys. Bindings on keys SJK does not know are left out and counted. The
+page is drawn like the Update page in both menu styles.
 
 ## Slider values
 

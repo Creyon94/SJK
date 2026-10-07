@@ -352,6 +352,10 @@ const HELP: &[(&str, &str)] = &[
         "Looks for a newer SJK release at start and says so on the main menu. Install it from the Update page.",
     ),
     (
+        "ui_hideFirstSetup",
+        "Ticked, First setup no longer opens when SJK starts. Settings and the firstsetup command still open it.",
+    ),
+    (
         "cl_identity",
         "Makes an identity key and tells the SJK hub where you play, so SJK players see your badge. Off sends nothing.",
     ),

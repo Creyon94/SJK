@@ -1,10 +1,12 @@
-//! The First setup screen: Settings' FIRST SETUP tab, offered once on a first start
-//! and opened again by the `firstsetup` command (`quicksetup`, its old name).
+//! The First setup screen: Settings' FIRST SETUP tab, offered at every start until
+//! its "Don't show at start" row is ticked, and opened by the `firstsetup` command
+//! (`quicksetup`, its old name); `firstsetup import` opens the Import page
+//! (`config_import.rs`).
 
 use super::classic::layout::{Entry, Page};
 use super::classic::panel::Frame;
 use super::*;
-use crate::settings::quick::SEEN_CVAR;
+use crate::settings::quick::HIDE_CVAR;
 
 /// Console command that opens the screen.
 pub(crate) const COMMAND: &str = "firstsetup";
@@ -12,7 +14,9 @@ pub(crate) const COMMAND: &str = "firstsetup";
 pub(crate) const OLD_COMMAND: &str = "quicksetup";
 pub(crate) const OLD_HELP: &str = "Old name of firstsetup";
 /// Help text for completion and `cmdlist`.
-pub(crate) const HELP: &str = "Open First setup: the settings worth choosing on a first start";
+pub(crate) const HELP: &str = "Open First setup; firstsetup import <file.cfg> brings name, model, FOV and keys from another client";
+/// The command's argument that opens the Import page instead.
+pub(crate) const IMPORT: &str = "import";
 
 impl ClientMenu {
     /// Open the First setup screen, returning to `target` when it closes: the
@@ -31,16 +35,17 @@ impl ClientMenu {
         self.open_settings_from(console, target, SettingsMenu::quick_tab());
     }
 
-    /// On the first start (`ui_quickSetup` still 0), once the menu style is known and
-    /// the main menu is up, open the screen over it and mark it seen, so leaving it
-    /// with Escape dismisses it for good.
+    /// The first time the main menu is up in a run, once the menu style is known,
+    /// open the screen over it, unless the player ticked "Don't show at start"
+    /// (`ui_hideFirstSetup`). Escape leaves it for this run.
     pub(crate) fn offer_quick_setup(&mut self, console: &mut ViewerConsole) -> bool {
-        if console.integer_cvar(SEEN_CVAR) != Some(0)
+        if self.first_setup_offered
+            || console.bool_cvar(HIDE_CVAR) == Some(true)
             || *self.state.phase() != ClientPhase::MainMenu
         {
             return false;
         }
-        console.set_cvar(SEEN_CVAR, "1");
+        self.first_setup_offered = true;
         self.open_quick_setup(console, ReturnTarget::MainMenu);
         true
     }
@@ -57,16 +62,22 @@ mod tests {
     }
 
     #[test]
-    fn the_first_start_offers_the_screen_once() {
+    fn every_start_offers_the_screen_once_until_it_is_hidden() {
         let (_directory, mut console) = console();
         let mut menu = ClientMenu::new(true, String::new());
-        assert_eq!(console.integer_cvar(SEEN_CVAR), Some(0));
+        assert_eq!(console.bool_cvar(HIDE_CVAR), Some(false));
         assert!(menu.offer_quick_setup(&mut console));
-        assert_eq!(console.integer_cvar(SEEN_CVAR), Some(1));
         assert_eq!(*menu.state.phase(), ClientPhase::Settings);
-        let mut again = ClientMenu::new(true, String::new());
-        assert!(!again.offer_quick_setup(&mut console));
-        assert_eq!(*again.state.phase(), ClientPhase::MainMenu);
+        // Not again in the same run.
+        menu.state.main_menu();
+        assert!(!menu.offer_quick_setup(&mut console));
+        // The next start offers it again, until the player hides it.
+        let mut next = ClientMenu::new(true, String::new());
+        assert!(next.offer_quick_setup(&mut console));
+        console.set_cvar(HIDE_CVAR, "1");
+        let mut hidden = ClientMenu::new(true, String::new());
+        assert!(!hidden.offer_quick_setup(&mut console));
+        assert_eq!(*hidden.state.phase(), ClientPhase::MainMenu);
     }
 
     #[test]

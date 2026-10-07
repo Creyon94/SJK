@@ -30,7 +30,7 @@ impl SettingsMenu {
         let (title, note) = match self.section {
             Section::General if self.tab == QUICK_TAB => (
                 "SJK   /   FIRST SETUP",
-                "The settings worth a look first. Every one is also on its own tab.",
+                "The settings worth a look first. Drop another client's .cfg here to import it.",
             ),
             Section::General => (
                 "SJK   /   SETTINGS",
