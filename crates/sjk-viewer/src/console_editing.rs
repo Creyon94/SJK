@@ -82,13 +82,20 @@ impl ViewerConsole {
                 self.edit.select_all(&self.input);
             }
             Shortcut::Copy => {
-                if !self.copy_output() {
-                    let text = match self.edit.selection(&self.input) {
-                        Some(range) => &self.input[range],
-                        None if self.input.is_empty() => &self.copied,
-                        None => &self.input,
-                    };
-                    super::clipboard::copy(text);
+                let characters = match self.copy_output() {
+                    Some(characters) => characters,
+                    None => {
+                        let text = match self.edit.selection(&self.input) {
+                            Some(range) => &self.input[range],
+                            None if self.input.is_empty() => &self.copied,
+                            None => &self.input,
+                        };
+                        super::clipboard::copy(text);
+                        text.chars().count()
+                    }
+                };
+                if characters != 0 {
+                    self.classic.sjk.note_copy(characters);
                 }
             }
             Shortcut::Cut => {
@@ -124,11 +131,9 @@ impl ViewerConsole {
     }
 
     /// Copy selected scrollback text, as the console shows it but without colour
-    /// codes; `false` if none is selected.
-    fn copy_output(&mut self) -> bool {
-        let Some((start, end)) = self.selection.range() else {
-            return false;
-        };
+    /// codes; how many characters, or `None` if none is selected.
+    fn copy_output(&mut self) -> Option<usize> {
+        let (start, end) = self.selection.range()?;
         // The classic console draws stamps beside the text, so its marks count
         // bytes of the text alone.
         let options = self.options();
@@ -145,7 +150,7 @@ impl ViewerConsole {
         let mut text = String::new();
         copy_range(lines, first, start, end, &mut text);
         super::clipboard::copy(&text);
-        true
+        Some(text.chars().count())
     }
 
     /// Apply what the last frame resolved of a pointer gesture on the input line.

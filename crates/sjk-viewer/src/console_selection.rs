@@ -259,7 +259,7 @@ pub(super) fn copy_range<'a>(
 }
 
 /// `index` moved down onto a character boundary within `text`.
-pub(super) fn floor_boundary(text: &str, index: usize) -> usize {
+pub(crate) fn floor_boundary(text: &str, index: usize) -> usize {
     let mut index = index.min(text.len());
     while !text.is_char_boundary(index) {
         index -= 1;
@@ -268,7 +268,7 @@ pub(super) fn floor_boundary(text: &str, index: usize) -> usize {
 }
 
 /// Append `text` without its `^digit` colour codes.
-fn push_uncoloured(text: &str, out: &mut String) {
+pub(crate) fn push_uncoloured(text: &str, out: &mut String) {
     let mut characters = text.chars().peekable();
     while let Some(character) = characters.next() {
         if character == '^' && characters.peek().is_some_and(char::is_ascii_digit) {

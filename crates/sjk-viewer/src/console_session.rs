@@ -331,6 +331,25 @@ impl ViewerConsole {
                 .cvars
                 .set_text("cg_scoreboardStyleDefaultVersion", "1");
         }
+        // con_style defaulted to classic and every profile saved it, so the new
+        // default `auto` would reach none. Move a saved classic once to auto: it
+        // draws the same classic console unless the menus are the SJK UI, whose
+        // console design is the point; a classic chosen after this stays.
+        let version = super::console_options::STYLE_VERSION_CVAR;
+        if matches!(
+            shell.cvars.get(version).map(|cvar| &cvar.value),
+            Some(CvarValue::Integer(0))
+        ) {
+            let style = super::console_options::STYLE_CVAR;
+            if shell
+                .cvars
+                .get(style)
+                .is_some_and(|cvar| cvar.value.as_text().trim().eq_ignore_ascii_case("classic"))
+            {
+                let _ = shell.cvars.reset(style);
+            }
+            let _ = shell.cvars.set_text(version, "1");
+        }
         shell.push_log("^5Sol JK console ready. ^7Type cmdlist for commands.");
         Ok(Self {
             shell,

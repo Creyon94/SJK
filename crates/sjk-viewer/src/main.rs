@@ -180,6 +180,7 @@ mod snapshot_presentation;
 mod static_models;
 mod text;
 mod text_dialog;
+mod text_select;
 mod ui_renderer;
 mod ui_scale;
 mod ui_target;
@@ -865,7 +866,7 @@ impl GpuState {
             });
         let game_fonts = game_font::GameFonts::preload(
             preload_game_fonts || game_font::enabled(console.as_ref()),
-            game_font::classic_console(console.as_ref()),
+            game_font::grid_console(console.as_ref()),
             &game_font::Device {
                 device: &device,
                 queue: &queue,

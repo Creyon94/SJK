@@ -15,10 +15,18 @@ impl ViewerConsole {
     }
 
     /// Whether the page drawn in place of the console is one of them in the
-    /// SJK UI's look (the import and credits pages come first when open).
+    /// SJK UI's look (the import and credits pages come first when open), or
+    /// the command browser in it.
     pub(crate) fn sjk_page_open(&self) -> bool {
         if !self.open || self.config_import.is_open() || self.credits.is_open() {
             return false;
+        }
+        if !self.changelog.is_open()
+            && !self.update_panel.is_open()
+            && !self.identity_panel.is_open()
+        {
+            // The test list draws over the browser when both are open.
+            return !self.debug_panel.is_open() && self.browser.is_open() && self.browser.is_sjk();
         }
         if self.changelog.is_open() {
             return self.changelog.is_sjk();
@@ -53,6 +61,8 @@ impl ViewerConsole {
                 key_file: &key_file,
             };
             self.identity_panel.append_sjk(&inputs, target, viewport);
+        } else if self.browser.is_open() {
+            self.browser.append_sjk(target, viewport);
         }
     }
 }

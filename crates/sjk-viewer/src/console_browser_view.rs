@@ -21,7 +21,7 @@ impl Browser {
         font: &UiFont,
         viewport: [f32; 2],
     ) {
-        if self.classic {
+        if self.look == super::Look::Classic {
             self.append_classic(vertices, font, viewport);
             return;
         }

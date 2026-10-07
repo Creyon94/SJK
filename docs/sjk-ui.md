@@ -245,6 +245,20 @@ overlay routes their text to the UI's families (`console_sjk_pages.rs`).
 
 Credits keeps its own page.
 
+## Console
+
+With the SJK UI's menus the console (`con_style auto`) is the SJK UI's deck;
+`con_style sjk`, `horizon` and `dock` choose one of its three designs whatever
+the menus ([client.md](client.md#sjk-ui-consoles)). They are the classic
+console's grid and keys in this style's colours, its gold `›` and caret, labels
+in its families and key caps, on the console's own layer. The command browser
+(F3) is drawn in this style with them, laid out as Settings (filters down a lit
+rail, entries, the chosen entry's detail column), and its detail's text can be
+selected with the mouse and copied
+([client.md](client.md#useful-console-commands)). The deck is the default
+because it reads best over a bright map and keeps the classic console's
+full-width rows; the horizon is the lightest, the dock the most framed.
+
 ## Settings
 
 [sjk_view.rs](../crates/sjk-viewer/src/settings/sjk_view.rs) draws it, and

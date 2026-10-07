@@ -203,11 +203,11 @@ impl ViewerConsole {
             return true;
         }
         if self.browser.is_open() {
-            let action = self.browser.handle_key(event, self.shift);
+            let action = self.browser.handle_key(event, self.shift, self.control);
             self.browser_action(action);
             return true;
         }
-        let classic = self.console_style() == super::console_options::ConsoleStyle::Classic;
+        let classic = self.console_style().is_grid();
         if classic && self.classic_key(event, key) {
             return true;
         }

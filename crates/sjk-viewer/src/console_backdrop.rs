@@ -20,6 +20,11 @@
 //! last, so menu, chat and HUD text never shows through an opaque console. Its
 //! text uses the console character set when it is loaded, else Inter, with the
 //! shared text pipelines.
+//!
+//! The SJK UI's console designs (`con_style sjk`, `horizon`, `dock`) draw on the
+//! same layer without the shader: vertical and horizontal fades ([`Shade`]) under
+//! the solid quads, and labels in the SJK UI's two families after the console's
+//! own text, each family from its own atlas.
 
 use crate::text::TextVertex;
 use bytemuck::{Pod, Zeroable};
@@ -58,6 +63,33 @@ pub(crate) struct SolidQuad {
     pub(crate) color: [f32; 4],
 }
 
+/// A rectangle `[x, y, width, height]` in pixels whose corners have their own
+/// colours (top left, top right, bottom right, bottom left), blended across it:
+/// the SJK UI's fades. Drawn after the background and before the quads.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct Shade {
+    pub(crate) rect: [f32; 4],
+    pub(crate) corners: [[f32; 4]; 4],
+}
+
+impl Shade {
+    /// `rect` fading from `top` at its top edge to `bottom` at its bottom edge.
+    pub(crate) const fn vertical(rect: [f32; 4], top: [f32; 4], bottom: [f32; 4]) -> Self {
+        Self {
+            rect,
+            corners: [top, top, bottom, bottom],
+        }
+    }
+
+    /// `rect` fading from `left` at its left edge to `right` at its right edge.
+    pub(crate) const fn horizontal(rect: [f32; 4], left: [f32; 4], right: [f32; 4]) -> Self {
+        Self {
+            rect,
+            corners: [left, right, right, left],
+        }
+    }
+}
+
 /// Which atlas the frame's text was laid out with.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) enum TextAtlas {
@@ -72,18 +104,27 @@ pub(crate) enum TextAtlas {
 #[derive(Default)]
 pub(crate) struct ConsoleFrame {
     pub(crate) background: Option<Background>,
-    /// Drawn over the background, in order, before the text.
+    /// Drawn over the background, in order, before the quads.
+    pub(crate) shades: Vec<Shade>,
+    /// Drawn over the shades, in order, before the text.
     pub(crate) quads: Vec<SolidQuad>,
     pub(crate) text: Vec<TextVertex>,
     pub(crate) atlas: TextAtlas,
+    /// Text in the SJK UI's display (Rajdhani) and body (Exo 2) families, drawn
+    /// after [`Self::text`] with their atlases; empty unless they are loaded.
+    pub(crate) display_text: Vec<TextVertex>,
+    pub(crate) body_text: Vec<TextVertex>,
 }
 
 impl ConsoleFrame {
     /// Empty the frame, keeping its storage.
     pub(crate) fn clear(&mut self) {
         self.background = None;
+        self.shades.clear();
         self.quads.clear();
         self.text.clear();
+        self.display_text.clear();
+        self.body_text.clear();
     }
 }
 
@@ -323,6 +364,8 @@ pub(crate) struct TextDraw<'a> {
     pub(crate) inter: &'a wgpu::BindGroup,
     /// The console font's atlas and whether it is a distance field.
     pub(crate) console: Option<(&'a wgpu::BindGroup, bool)>,
+    /// The SJK UI's display and body families' atlases, once loaded.
+    pub(crate) families: Option<[(&'a wgpu::BindGroup, bool); 2]>,
 }
 
 /// GPU resources of the classic console layer, one per world.
@@ -342,6 +385,8 @@ pub(crate) struct ConsoleLayer {
     runs: Vec<Run>,
     text_buffer: wgpu::Buffer,
     text_count: u32,
+    /// Vertices of the display and body families' text after the console's.
+    family_counts: [u32; 2],
     atlas: TextAtlas,
     frame: ConsoleFrame,
 }
@@ -409,6 +454,7 @@ impl ConsoleLayer {
                 mapped_at_creation: false,
             }),
             text_count: 0,
+            family_counts: [0; 2],
             atlas: TextAtlas::Inter,
             frame: ConsoleFrame::default(),
         };
@@ -477,6 +523,7 @@ impl ConsoleLayer {
         self.quad_vertices.clear();
         self.runs.clear();
         self.text_count = 0;
+        self.family_counts = [0; 2];
     }
 
     /// Build this frame's quads from the filled frame and upload them with its text.
@@ -488,18 +535,23 @@ impl ConsoleLayer {
             let rect = [0.0, 0.0, viewport[0], background.height];
             if self.stages.is_empty() {
                 let [r, g, b] = FALLBACK;
-                self.push(None, rect, FULL_UV, [r, g, b, background.opacity], viewport);
+                let colour = [r, g, b, background.opacity];
+                self.push(None, rect, FULL_UV, [colour; 4], viewport);
             }
             for index in 0..self.stages.len() {
                 let program = &self.stages[index].program;
                 let corners = stage_corners(&program.modifications, background.t_range, seconds);
                 let colour = stage_colour(program, background.opacity, seconds);
-                self.push(Some(index), rect, corners, colour, viewport);
+                self.push(Some(index), rect, corners, [colour; 4], viewport);
             }
+        }
+        for shade in 0..self.frame.shades.len() {
+            let Shade { rect, corners } = self.frame.shades[shade];
+            self.push(None, rect, FULL_UV, corners, viewport);
         }
         for quad in 0..self.frame.quads.len() {
             let SolidQuad { rect, color } = self.frame.quads[quad];
-            self.push(None, rect, FULL_UV, color, viewport);
+            self.push(None, rect, FULL_UV, [color; 4], viewport);
         }
         if !self.quad_vertices.is_empty() {
             queue.write_buffer(
@@ -508,12 +560,30 @@ impl ConsoleLayer {
                 bytemuck::cast_slice(&self.quad_vertices),
             );
         }
-        self.frame.text.truncate(MAX_TEXT_VERTICES / 6 * 6);
-        self.text_count = u32::try_from(self.frame.text.len()).unwrap_or(0);
+        // One buffer: the console's text, then each family's, within its size.
+        let mut room = MAX_TEXT_VERTICES / 6 * 6;
+        let mut offset = 0_u64;
+        let size = std::mem::size_of::<TextVertex>() as u64;
+        let buffer = &self.text_buffer;
+        let mut write = |vertices: &[TextVertex]| {
+            let count = vertices.len().min(room) / 6 * 6;
+            room -= count;
+            if count != 0 {
+                queue.write_buffer(
+                    buffer,
+                    offset * size,
+                    bytemuck::cast_slice(&vertices[..count]),
+                );
+            }
+            offset += count as u64;
+            u32::try_from(count).unwrap_or(0)
+        };
+        self.text_count = write(&self.frame.text);
+        self.family_counts = [
+            write(&self.frame.display_text),
+            write(&self.frame.body_text),
+        ];
         self.atlas = self.frame.atlas;
-        if self.text_count != 0 {
-            queue.write_buffer(&self.text_buffer, 0, bytemuck::cast_slice(&self.frame.text));
-        }
     }
 
     fn push(
@@ -521,7 +591,7 @@ impl ConsoleLayer {
         stage: Option<usize>,
         [x, y, width, height]: [f32; 4],
         uv: [[f32; 2]; 4],
-        color: [f32; 4],
+        colors: [[f32; 4]; 4],
         viewport: [f32; 2],
     ) {
         if width <= 0.0 || height <= 0.0 || self.quad_vertices.len() + 6 > MAX_QUADS * 6 {
@@ -539,7 +609,7 @@ impl ConsoleLayer {
             self.quad_vertices.push(Vertex {
                 position: corners[index],
                 uv: uv[index],
-                color,
+                color: colors[index],
             });
         }
         let end = self.quad_vertices.len() as u32;
@@ -554,7 +624,7 @@ impl ConsoleLayer {
 
     /// Whether this frame draws anything.
     pub(crate) fn is_empty(&self) -> bool {
-        self.runs.is_empty() && self.text_count == 0
+        self.runs.is_empty() && self.text_count == 0 && self.family_counts == [0; 2]
     }
 
     /// Draw the uploaded layer: background stages, quads, then the text.
@@ -571,19 +641,39 @@ impl ConsoleLayer {
                 pass.draw(run.vertices.clone(), 0..1);
             }
         }
-        if self.text_count == 0 {
+        if self.text_count == 0 && self.family_counts == [0; 2] {
             return;
         }
-        let (pipeline, group) = match (self.atlas, text.console) {
-            (TextAtlas::Console, Some((group, true))) => (text.sdf_pipeline, group),
-            (TextAtlas::Console, Some((group, false))) => (text.pipeline, group),
-            (TextAtlas::Console, None) => return,
-            (TextAtlas::Inter, _) => (text.pipeline, text.inter),
-        };
-        pass.set_pipeline(pipeline);
-        pass.set_bind_group(0, group, &[]);
         pass.set_vertex_buffer(0, self.text_buffer.slice(..));
-        pass.draw(0..self.text_count, 0..1);
+        let console = match (self.atlas, text.console) {
+            (TextAtlas::Console, Some((group, true))) => Some((text.sdf_pipeline, group)),
+            (TextAtlas::Console, Some((group, false))) => Some((text.pipeline, group)),
+            (TextAtlas::Console, None) => None,
+            (TextAtlas::Inter, _) => Some((text.pipeline, text.inter)),
+        };
+        if let Some((pipeline, group)) = console
+            && self.text_count != 0
+        {
+            pass.set_pipeline(pipeline);
+            pass.set_bind_group(0, group, &[]);
+            pass.draw(0..self.text_count, 0..1);
+        }
+        let Some(families) = text.families else {
+            return;
+        };
+        let mut start = self.text_count;
+        for ((group, distance_field), count) in families.into_iter().zip(self.family_counts) {
+            if count != 0 {
+                pass.set_pipeline(if distance_field {
+                    text.sdf_pipeline
+                } else {
+                    text.pipeline
+                });
+                pass.set_bind_group(0, group, &[]);
+                pass.draw(start..start + count, 0..1);
+            }
+            start += count;
+        }
     }
 
     /// The pipeline drawing with `blend`, created on first use.

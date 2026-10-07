@@ -19,12 +19,19 @@
 //! underscore, or a block in overstrike mode). Closed, it draws the notify lines
 //! at the top left while a game is running and no menu has focus. A
 //! disconnected client without a menu shows the console full screen.
+//!
+//! The SJK UI's console designs ([`sjk`]) are this console with another skin:
+//! the same grid, rows, keys, selection and notify lines, drawn in the SJK UI's
+//! colours with their own background, header, input row and rails.
+
+#[path = "console_sjk.rs"]
+pub(crate) mod sjk;
 
 use super::ViewerConsole;
 use super::line_edit::token_at;
 use super::selection::{Gesture, Mark, PromptPointer, floor_boundary};
 use crate::console_backdrop::{Background, ConsoleFrame, MAX_TEXT_VERTICES, SolidQuad, TextAtlas};
-use crate::text::{UiFont, append_cell, glyph_byte_at, quake_color};
+use crate::text::{CodePalette, UiFont, append_cell, glyph_byte_at, quake_color};
 use sjk_shell::local_time::LocalTime;
 use sjk_shell::{ConsoleLine, ConsoleLineKind};
 use sjk_ui::{Rect, Vec2};
@@ -76,23 +83,38 @@ pub(super) struct Grid {
     pub(super) height: f32,
     /// Columns of a row (`con.linewidth`).
     pub(super) columns: usize,
+    /// Left edge of column 0: one cell in the classic console.
+    pub(super) left: f32,
+    /// Distance between rows: the cell height in the classic console, more in
+    /// the SJK UI's designs, whose cells sit centred in their row.
+    pub(super) pitch: f32,
 }
 
 impl Grid {
     pub(super) fn new(viewport: [f32; 2], scale: f32) -> Self {
-        // The console's 0.75 floor on the UI scale, as the modern console.
-        let ui = crate::ui_scale::height_scale(viewport[1]).max(MIN_UI_SCALE);
-        let width = (CELL_WIDTH * scale * ui).round().max(1.0);
+        let width = cell_width(viewport, scale);
         Self {
             width,
             height: width * 2.0,
             columns: ((viewport[0] / width) as usize).saturating_sub(2).max(1),
+            left: width,
+            pitch: width * 2.0,
         }
     }
 
-    /// Left edge of `column`: one cell in from the screen's edge.
+    /// Left edge of `column`: one cell in from the screen's edge (classic).
     pub(super) fn x(&self, column: usize) -> f32 {
-        (column + 1) as f32 * self.width
+        self.left + column as f32 * self.width
+    }
+
+    /// The column under `x` (pixels), counted from `first` and none before it.
+    pub(super) fn column_at(&self, x: f32, first: usize) -> usize {
+        (((x - self.left) / self.width).floor() - first as f32).max(0.0) as usize
+    }
+
+    /// How far a cell sits below the top of its row.
+    pub(super) fn inset(&self) -> f32 {
+        ((self.pitch - self.height) * 0.5).round()
     }
 
     /// Columns a row's text wraps at: all of them, or those after the stamp.
@@ -103,6 +125,14 @@ impl Grid {
             self.columns
         }
     }
+}
+
+/// Width of a cell in pixels for a viewport and `con_scale`: 8 at 1080 lines,
+/// growing with the height (the console's 0.75 floor on the UI scale, as the
+/// modern console), whole.
+pub(super) fn cell_width(viewport: [f32; 2], scale: f32) -> f32 {
+    let ui = crate::ui_scale::height_scale(viewport[1]).max(MIN_UI_SCALE);
+    (CELL_WIDTH * scale * ui).round().max(1.0)
 }
 
 /// Where the background ends and the bar sits, in pixels: `frac * 480 - 2`
@@ -352,6 +382,8 @@ pub(super) struct State {
     clock_time: Option<LocalTime>,
     corner: String,
     clock: [u8; 8],
+    /// What the SJK UI's designs keep between frames.
+    pub(super) sjk: sjk::Chrome,
 }
 
 impl State {
@@ -379,15 +411,52 @@ pub(crate) struct ClassicEnv {
     pub(crate) full_screen: bool,
 }
 
+/// The colours a console's rows are drawn in.
+#[derive(Clone, Copy, Debug)]
+struct Ink {
+    /// A line's own colour, and an error line's.
+    text: [f32; 4],
+    error: [f32; 4],
+    /// The rows' time stamps.
+    stamp: [f32; 4],
+    /// Selected text, under the glyphs.
+    highlight: [f32; 4],
+    /// How `^<digit>` colour codes draw.
+    palette: CodePalette,
+}
+
+impl Ink {
+    /// The classic console's: retail white, the game's colour codes.
+    const CLASSIC: Self = Self {
+        text: [1.0, 1.0, 1.0, 1.0],
+        error: ERROR_COLOR,
+        stamp: [0.5, 0.5, 0.5, 1.0],
+        highlight: HIGHLIGHT,
+        palette: CodePalette::Game,
+    };
+
+    /// Colour a line's rows start in.
+    fn line(&self, line: &ConsoleLine) -> [f32; 4] {
+        if line.kind == ConsoleLineKind::Error {
+            self.error
+        } else {
+            self.text
+        }
+    }
+}
+
 /// Cells drawn into a frame with one font.
 struct Painter<'a> {
     font: &'a UiFont,
     grid: Grid,
     viewport: [f32; 2],
+    ink: Ink,
 }
 
 impl Painter<'_> {
+    /// Draw `byte` in the cell of the row whose top is `y`.
     fn glyph(&self, frame: &mut ConsoleFrame, byte: u8, x: f32, y: f32, color: [f32; 4]) {
+        let y = y + self.grid.inset();
         if y + self.grid.height <= 0.0 || y >= self.viewport[1] {
             return;
         }
@@ -435,7 +504,7 @@ impl Painter<'_> {
         let (mut index, mut offset) = (0, 0);
         while index < bytes.len() {
             if let Some(code) = colour_code(bytes, index) {
-                color = quake_color(code);
+                color = self.ink.palette.colour(code);
                 index += 2;
                 continue;
             }
@@ -450,23 +519,61 @@ impl Painter<'_> {
     }
 }
 
-/// Colour a line's rows start in.
-fn line_colour(line: &ConsoleLine) -> [f32; 4] {
-    if line.kind == ConsoleLineKind::Error {
-        ERROR_COLOR
-    } else {
-        quake_color(7)
-    }
+/// Where a frame's scrollback and input row sit.
+#[derive(Clone, Copy, Debug)]
+struct Layout {
+    /// Top of the bottom scrollback row.
+    rows_y: f32,
+    /// Rows are drawn down from here: rows above it are left out.
+    rows_top: f32,
+    /// A row cut by `rows_top` is still drawn (the classic console's top edge).
+    partial: bool,
+    /// Top of the input row.
+    input_y: f32,
+    /// The input row's pointer area.
+    prompt: Rect,
+}
+
+/// How the input row is drawn.
+#[derive(Clone, Copy, Debug)]
+struct Prompt {
+    /// The local time in green before the prompt (classic).
+    clock: bool,
+    /// The prompt character, its column and colour.
+    mark: u8,
+    mark_column: usize,
+    mark_color: [f32; 4],
+    /// The column the input starts at, and its colour.
+    input_column: usize,
+    text_color: [f32; 4],
+    /// The SJK UI's caret (a thin gold bar, a gold block in overstrike mode)
+    /// instead of the character set's.
+    gold_caret: bool,
+}
+
+impl Prompt {
+    /// EternalJK's: the clock, `]` in column 9 and the input after it.
+    const CLASSIC: Self = Self {
+        clock: true,
+        mark: b']',
+        mark_column: PROMPT_COLUMN,
+        mark_color: [1.0, 1.0, 1.0, 1.0],
+        input_column: INPUT_COLUMN,
+        text_color: [1.0, 1.0, 1.0, 1.0],
+        gold_caret: false,
+    };
 }
 
 impl ViewerConsole {
-    /// Lay out the classic console for this frame into `frame`, with `font` (the
-    /// console font when `atlas` says so).
+    /// Lay out the classic console, or one of the SJK UI's designs, for this
+    /// frame into `frame`, with `font` (the console font when `atlas` says so)
+    /// and the designs' labels in `labels`.
     pub(crate) fn append_classic(
         &mut self,
         frame: &mut ConsoleFrame,
         font: &UiFont,
         atlas: TextAtlas,
+        labels: sjk::Labels<'_>,
         viewport: [f32; 2],
         env: ClassicEnv,
     ) {
@@ -483,6 +590,7 @@ impl ViewerConsole {
             return;
         }
         let options = self.options();
+        let design = options.style.sjk();
         let full_screen = env.full_screen;
         let fraction = if full_screen {
             self.presentation.snap(1.0)
@@ -494,22 +602,113 @@ impl ViewerConsole {
             };
             self.presentation.slide(target, options.speed)
         };
-        let grid = Grid::new(viewport, options.scale);
+        let (grid, ink) = match design {
+            Some(design) => (sjk::grid(design, viewport, options.scale), sjk::INK),
+            None => (Grid::new(viewport, options.scale), Ink::CLASSIC),
+        };
         let painter = Painter {
             font,
             grid,
             viewport,
+            ink,
         };
         let stamps = options.timestamps != 0;
         let lines = (viewport[1] * fraction).floor().min(viewport[1]);
         if lines <= 0.0 {
             if env.in_game && !env.menu_focus {
+                // The notify lines stay EternalJK's in every design, over the game.
+                let painter = Painter {
+                    grid: Grid::new(viewport, options.scale),
+                    ink: Ink::CLASSIC,
+                    ..painter
+                };
                 self.classic_notify(frame, &painter, options);
             }
             return;
         }
         self.classic.tick_clocks();
 
+        // Scrollback rows at this width, new rows keeping a scrolled-back view.
+        let text_columns = grid.text_columns(stamps);
+        let added = self.classic_rows(text_columns);
+        let total = self.classic.rows.len();
+        if self.scroll_offset > 0 {
+            self.scroll_offset = self.scroll_offset.saturating_add(added);
+        }
+        self.scroll_offset = self.scroll_offset.min(total.saturating_sub(1));
+
+        let layout = match design {
+            Some(design) => self.sjk_chrome(frame, &painter, labels, design, lines, options),
+            None => self.classic_chrome(frame, &painter, fraction, lines, options),
+        };
+        let mut y = layout.rows_y;
+        if self.scroll_offset > 0 {
+            if design.is_some() {
+                self.sjk_scrolled_back(frame, &painter, labels, y);
+            } else {
+                for column in (0..grid.columns).step_by(4) {
+                    painter.glyph(frame, b'^', grid.x(column), y, BAR_COLOR);
+                }
+            }
+            y -= grid.pitch;
+        }
+        let rows_bottom = y + grid.pitch;
+        let text_column = if stamps { STAMP_COLUMNS } else { 0 };
+        if self.open {
+            self.selection.begin_frame(
+                Rect::new(
+                    0.0,
+                    layout.rows_top,
+                    viewport[0],
+                    (rows_bottom - layout.rows_top).max(0.0),
+                ),
+                layout.prompt,
+            );
+        }
+        self.classic_rows_draw(
+            frame,
+            &painter,
+            total,
+            y,
+            rows_bottom,
+            &layout,
+            text_column,
+            stamps,
+        );
+        if design.is_some() {
+            self.sjk_scrollbar(frame, &painter, &layout, rows_bottom, total);
+        }
+
+        // Input row, while the console has the keyboard or fills the screen.
+        if self.open || full_screen {
+            let prompt = if design.is_some() {
+                sjk::PROMPT
+            } else {
+                Prompt::CLASSIC
+            };
+            self.classic_input(frame, &painter, layout.input_y, prompt);
+            if design.is_some() {
+                self.sjk_ghost(frame, &painter, layout.input_y, prompt);
+            }
+        }
+        if self.open {
+            self.selection.end_frame();
+            self.apply_prompt_pointer();
+        }
+    }
+
+    /// The classic console's background, bar, version line and corner date,
+    /// and where its rows and input row sit.
+    fn classic_chrome(
+        &mut self,
+        frame: &mut ConsoleFrame,
+        painter: &Painter<'_>,
+        fraction: f32,
+        lines: f32,
+        options: super::console_options::Options,
+    ) -> Layout {
+        let grid = painter.grid;
+        let viewport = painter.viewport;
         // Background and bar.
         let (height, bar) = background_extent(fraction, viewport[1]);
         if height > 0.0 {
@@ -537,39 +736,13 @@ impl ViewerConsole {
         painter.right(frame, &corner, viewport[0] - length * grid.width, corner_y);
         self.classic.corner = corner;
 
-        // Scrollback, bottom row first.
-        let text_columns = grid.text_columns(stamps);
-        let added = self.classic_rows(text_columns);
-        let total = self.classic.rows.len();
-        if self.scroll_offset > 0 {
-            self.scroll_offset = self.scroll_offset.saturating_add(added);
-        }
-        self.scroll_offset = self.scroll_offset.min(total.saturating_sub(1));
         let input_y = lines - grid.height * 2.0;
-        let mut y = lines - grid.height * 3.0;
-        if self.scroll_offset > 0 {
-            for column in (0..grid.columns).step_by(4) {
-                painter.glyph(frame, b'^', grid.x(column), y, BAR_COLOR);
-            }
-            y -= grid.height;
-        }
-        let rows_bottom = y + grid.height;
-        let text_column = if stamps { STAMP_COLUMNS } else { 0 };
-        if self.open {
-            self.selection.begin_frame(
-                Rect::new(0.0, 0.0, viewport[0], rows_bottom.max(0.0)),
-                Rect::new(0.0, input_y, viewport[0], grid.height),
-            );
-        }
-        self.classic_rows_draw(frame, &painter, total, y, rows_bottom, text_column, stamps);
-
-        // Input row, while the console has the keyboard or fills the screen.
-        if self.open || full_screen {
-            self.classic_input(frame, &painter, input_y);
-        }
-        if self.open {
-            self.selection.end_frame();
-            self.apply_prompt_pointer();
+        Layout {
+            rows_y: lines - grid.height * 3.0,
+            rows_top: 0.0,
+            partial: true,
+            input_y,
+            prompt: Rect::new(0.0, input_y, viewport[0], grid.height),
         }
     }
 
@@ -596,8 +769,9 @@ impl ViewerConsole {
         added
     }
 
-    /// Draw scrollback rows upward from `y` (the bottom row's top), resolving a
-    /// pointer gesture over them and highlighting the selection.
+    /// Draw scrollback rows upward from `y` (the bottom row's top) to the
+    /// layout's top, resolving a pointer gesture over them and highlighting the
+    /// selection.
     #[allow(clippy::too_many_arguments)]
     fn classic_rows_draw(
         &mut self,
@@ -606,19 +780,28 @@ impl ViewerConsole {
         total: usize,
         mut y: f32,
         rows_bottom: f32,
+        layout: &Layout,
         text_column: usize,
         stamps: bool,
     ) {
         let grid = painter.grid;
+        let ink = painter.ink;
         // Pointer position over the rows: row counted up from the bottom one.
         let target = (self.open && self.selection.gesture() == Gesture::Output)
             .then(|| self.selection.pending_position())
             .flatten()
             .map(|position: Vec2| {
-                let row = ((rows_bottom - position.y) / grid.height).floor();
-                let column = (position.x / grid.width).floor() - 1.0 - text_column as f32;
-                (row.max(-1.0) as isize, column.max(0.0) as usize)
+                let row = ((rows_bottom - position.y) / grid.pitch).floor();
+                let column = grid.column_at(position.x, text_column);
+                (row.max(-1.0) as isize, column)
             });
+        let shown = |y: f32| {
+            if layout.partial {
+                y + grid.pitch > layout.rows_top
+            } else {
+                y >= layout.rows_top - 0.5
+            }
+        };
         let range = self.selection.range();
         let mut resolved = None;
         let mut bottom_end = None;
@@ -629,7 +812,8 @@ impl ViewerConsole {
         // Rows above the screen are only walked to resolve a pointer over them.
         let needed = target.map_or(0, |(row, _)| row.max(0) as usize);
         for (index, slot) in (0..=newest).rev().enumerate() {
-            if y + grid.height <= 0.0 && index > needed {
+            let visible = shown(y);
+            if !visible && index > needed {
                 break;
             }
             let Row { line, span } = self.classic.rows[slot];
@@ -650,6 +834,7 @@ impl ViewerConsole {
             }
             top_start = Some(begin);
             if let Some((from, to)) = range
+                && visible
                 && from < end
                 && to > begin
             {
@@ -664,17 +849,19 @@ impl ViewerConsole {
                             grid.x(text_column + left),
                             y,
                             (right - left) as f32 * grid.width,
-                            grid.height,
+                            grid.pitch,
                         ],
-                        color: HIGHLIGHT,
+                        color: ink.highlight,
                     });
                 }
             }
-            if y + grid.height > 0.0 {
+            if visible {
                 if stamps {
-                    painter.raw(frame, entry.clock(), 0, y, quake_color(9));
+                    painter.raw(frame, entry.clock(), 0, y, ink.stamp);
                 }
-                let color = span.colour.map_or_else(|| line_colour(entry), quake_color);
+                let color = span
+                    .colour
+                    .map_or_else(|| ink.line(entry), |code| ink.palette.colour(code));
                 painter.coloured(frame, text, text_column, y, color);
             }
             if let Some((row, column)) = target
@@ -699,7 +886,7 @@ impl ViewerConsole {
                     ),
                 ));
             }
-            y -= grid.height;
+            y -= grid.pitch;
         }
         let resolved = resolved.or_else(|| {
             let (row, _) = target?;
@@ -714,18 +901,34 @@ impl ViewerConsole {
         }
     }
 
-    /// The input row at `y`: green clock, `]`, the raw input and the cursor.
-    fn classic_input(&mut self, frame: &mut ConsoleFrame, painter: &Painter<'_>, y: f32) {
+    /// The input row at `y`: the green clock and `]` (classic) or the prompt
+    /// the design draws, the raw input and the cursor.
+    fn classic_input(
+        &mut self,
+        frame: &mut ConsoleFrame,
+        painter: &Painter<'_>,
+        y: f32,
+        prompt: Prompt,
+    ) {
         let grid = painter.grid;
-        let clock = self.classic.clock;
-        for (column, byte) in clock.iter().enumerate() {
-            painter.glyph(frame, *byte, grid.x(column), y, quake_color(2));
+        if prompt.clock {
+            let clock = self.classic.clock;
+            for (column, byte) in clock.iter().enumerate() {
+                painter.glyph(frame, *byte, grid.x(column), y, quake_color(2));
+            }
         }
-        let white = quake_color(7);
-        painter.glyph(frame, b']', grid.x(PROMPT_COLUMN), y, white);
-        let cells = (painter.viewport[0] / grid.width) as usize;
-        // Room for the input and the cursor after it, within the screen.
-        let room = cells.saturating_sub(INPUT_COLUMN + 2).max(1);
+        painter.glyph(
+            frame,
+            prompt.mark,
+            grid.x(prompt.mark_column),
+            y,
+            prompt.mark_color,
+        );
+        // Room for the input and the cursor after it, within the row: the
+        // screen's cells in the classic console (its row is two cells short).
+        let room = (grid.columns + 2)
+            .saturating_sub(prompt.input_column + 2)
+            .max(1);
         let cursor = self.edit.cursor(&self.input);
         let caret = cell_count(&self.input[..cursor]);
         let prestep = caret.saturating_sub(room - 1);
@@ -734,8 +937,7 @@ impl ViewerConsole {
             && self.selection.gesture() == Gesture::Prompt
             && let Some(position) = self.selection.pending_position()
         {
-            let column = (position.x / grid.width).floor() - 1.0 - INPUT_COLUMN as f32;
-            let index = prestep + column.max(0.0) as usize;
+            let index = prestep + grid.column_at(position.x, prompt.input_column);
             let byte = byte_at(&self.input, index);
             self.selection.set_prompt(match self.selection.press() {
                 Some(press) if press.double => PromptPointer::Token(byte),
@@ -756,20 +958,31 @@ impl ViewerConsole {
             if right > left {
                 frame.quads.push(SolidQuad {
                     rect: [
-                        grid.x(INPUT_COLUMN + left),
+                        grid.x(prompt.input_column + left),
                         y,
                         (right - left) as f32 * grid.width,
-                        grid.height,
+                        grid.pitch,
                     ],
-                    color: HIGHLIGHT,
+                    color: painter.ink.highlight,
                 });
             }
         }
-        painter.raw(frame, &self.input[start..shown_end], INPUT_COLUMN, y, white);
+        let white = prompt.text_color;
+        painter.raw(
+            frame,
+            &self.input[start..shown_end],
+            prompt.input_column,
+            y,
+            white,
+        );
         let blink = (self.shell.command_clock_millis() >> BLINK_SHIFT) & 1 == 1;
         if !blink {
-            let x = grid.x(INPUT_COLUMN + caret - prestep);
-            if painter.font.is_modern() {
+            let x = grid.x(prompt.input_column + caret - prestep);
+            if prompt.gold_caret {
+                frame
+                    .quads
+                    .push(sjk::caret(&grid, x, y + grid.inset(), self.overstrike));
+            } else if painter.font.is_modern() {
                 if self.overstrike {
                     frame.quads.push(SolidQuad {
                         rect: [x, y, grid.width, grid.height],
@@ -834,7 +1047,10 @@ impl ViewerConsole {
                 x = left + STAMP_COLUMNS as f32 * grid.width;
             }
             let text = &entry.text[span.start..span.end];
-            let mut color = span.colour.map_or_else(|| line_colour(entry), quake_color);
+            let ink = painter.ink;
+            let mut color = span
+                .colour
+                .map_or_else(|| ink.line(entry), |code| ink.palette.colour(code));
             let bytes = text.as_bytes();
             let mut index = 0;
             while index < bytes.len() {

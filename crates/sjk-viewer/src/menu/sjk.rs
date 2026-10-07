@@ -335,8 +335,8 @@ pub(crate) fn fade_across(canvas: &mut MenuCanvas, rect: Rect, left: Color, righ
 /// the bundled fonts (`letters_centre_on_the_middle_of_their_rectangle`):
 /// Rajdhani's capitals centre at 0.476 and its x-height at 0.529, Exo 2's at
 /// 0.542 and 0.629.
-const DISPLAY_CENTRE: f32 = 0.489;
-const BODY_CENTRE: f32 = 0.563;
+pub(crate) const DISPLAY_CENTRE: f32 = 0.489;
+pub(crate) const BODY_CENTRE: f32 = 0.563;
 
 /// Text in `family`, its letters centred on `rect`'s middle line (the
 /// renderer otherwise sets a run's line box from its rectangle's top, which
