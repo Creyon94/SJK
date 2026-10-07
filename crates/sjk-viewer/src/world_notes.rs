@@ -20,7 +20,9 @@
 //! back to it, the hit point and normal, the BSP draw surface (index, shader, kind,
 //! lightmap or vertex lighting, BSP material), the collision trace's surface flags, and
 //! the nearest map entity (an inline model whose bounds hold the hit, or the closest
-//! origin within [`ENTITY_RADIUS`]).
+//! origin within [`ENTITY_RADIUS`]). When a remap (the map's, the server's or a local
+//! one) draws another shader over the surface, the note names that shader too: what
+//! the player saw is the remap's target, not the map's own shader.
 
 use crate::camera_uniform::CameraUniform;
 use glam::Vec3;
@@ -75,6 +77,8 @@ pub(crate) struct Selection {
 struct Surface {
     index: usize,
     shader: String,
+    /// The shader a remap draws instead of [`Surface::shader`].
+    remapped: Option<String>,
     kind: &'static str,
     lightmap: i32,
     vertices: usize,
@@ -110,8 +114,12 @@ impl Selection {
                 entity.shaders.first().map_or("", String::as_str)
             ),
             (Some(surface), _) => format!(
-                "{} (surface {}, {})",
+                "{}{} (surface {}, {})",
                 surface.shader,
+                surface
+                    .remapped
+                    .as_ref()
+                    .map_or_else(String::new, |target| format!(" remapped to {target}")),
                 surface.index,
                 lighting(surface.lightmap)
             ),
@@ -199,6 +207,7 @@ impl Selection {
             "surface": self.surface.as_ref().map(|s| serde_json::json!({
                 "index": s.index,
                 "shader": s.shader,
+                "remapped_to": s.remapped,
                 "kind": s.kind,
                 "lightmap": s.lightmap,
                 "lighting": lighting(s.lightmap),
@@ -374,6 +383,7 @@ pub(crate) fn pick(
         Surface {
             index: hit.surface,
             shader: shader_name(surface.shader),
+            remapped: None,
             kind: match surface.kind {
                 sjk_bsp::SurfaceKind::Planar => "planar",
                 sjk_bsp::SurfaceKind::Patch => "patch",
@@ -587,6 +597,7 @@ impl Notes {
         surfaces: &crate::decal_marks::DecalSurfaces,
         scratch: &mut TraceScratch,
         map: &str,
+        remapped: impl Fn(&str) -> Option<String>,
     ) -> Press {
         let now = Instant::now();
         if let Some(selection) = self.selection.take().filter(|s| s.fresh(now)) {
@@ -598,7 +609,10 @@ impl Notes {
             return Press::Nothing;
         };
         match pick(bsp, surfaces, scratch, &camera, map) {
-            Some(selection) => {
+            Some(mut selection) => {
+                if let Some(surface) = &mut selection.surface {
+                    surface.remapped = remapped(&surface.shader);
+                }
                 let summary = selection.summary();
                 self.selection = Some(selection);
                 Press::Selected(summary)
@@ -819,11 +833,26 @@ impl crate::GpuState {
         } else {
             self.world_load_map.clone()
         };
+        // The shader a remap draws over the surface, as `listRemaps` resolves it.
+        let mode = self.console.as_ref().map_or(1, |c| c.remap_mode());
+        let server = self
+            .live_session
+            .as_ref()
+            .map(|session| session.shader_remaps())
+            .or_else(|| self.demo_session.as_ref().map(|demo| demo.shader_remaps()))
+            .and_then(|remaps| remaps.table(mode));
+        let world = &self.world_materials;
+        let remapped = |name: &str| {
+            let name = sjk_client::shader_name(name)?;
+            let (target, _) = world.remap_target(server, &name);
+            (target != name).then(|| target.to_owned())
+        };
         let press = self.world_notes.press(
             &self.bsp,
             &self.decal_surfaces,
             &mut self.trace_scratch,
             &map,
+            remapped,
         );
         let centre = |text: String| (sjk_client::ServerEventKind::CenterPrint, text);
         let (kind, text) = match press {
@@ -1043,6 +1072,7 @@ mod tests {
             surface: Some(Surface {
                 index: 7,
                 shader: "textures/imperial/basic_floor".into(),
+                remapped: Some("textures/video/raven".into()),
                 kind: "planar",
                 lightmap: 2,
                 vertices: 4,
@@ -1068,11 +1098,15 @@ mod tests {
         assert_eq!(hub.map, "maps/mp/ffa3.bsp");
         assert!(shot.starts_with("note_"));
         assert!(line.contains("setviewpos 10 20 40 90"), "{line}");
-        assert!(line.contains("textures/imperial/basic_floor (surface 7, lightmapped)"));
+        // The remap's target is what the player saw; the hub keeps the map's own shader.
+        assert!(line.contains(
+            "textures/imperial/basic_floor remapped to textures/video/raven (surface 7, lightmapped)"
+        ));
         let json = std::fs::read_to_string(directory.join("notes.jsonl")).expect("jsonl");
         let value: serde_json::Value = serde_json::from_str(json.trim()).expect("json");
         assert_eq!(value["note"], "too   shiny");
         assert_eq!(value["surface"]["shader"], "textures/imperial/basic_floor");
+        assert_eq!(value["surface"]["remapped_to"], "textures/video/raven");
         let shot_path = directory.join(format!("{shot}.jpg")).display().to_string();
         assert_eq!(value["screenshot"], shot_path);
         // Saving consumes the selection.

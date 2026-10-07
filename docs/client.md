@@ -1580,7 +1580,11 @@ glance at the scoreboard would not: no health, Force or position.
 - World notes (SJK): with no card pinned and no player under the crosshair, `inspect`
   selects the world surface under the crosshair, or the mover whose bounds the view ray
   meets first, and names it in a centre print (shader, BSP surface, lightmap or vertex
-  lighting, distance). While selected, and while its note is written, the surface's
+  lighting, distance). When a remap (the map's, the server's or a local `remapShader`)
+  draws another shader over the surface, the print, `notes.txt` and `notes.jsonl`
+  (`surface.remapped_to`) name it too (`<shader> remapped to <target>`): on a server
+  what the player saw is often the remap's target (08/10/2026). The hub still gets the
+  map's own shader. While selected, and while its note is written, the surface's
   triangle edges (a mover's bounds) are traced over the view in flickering green dots
   (at most 600 a frame) over a green scanline shade of its triangles (horizontal strips
   with a brighter wave running down them, at most 800 a frame; cut where the surface
