@@ -706,6 +706,27 @@ such as JoF's, fire it that way, arm hanging between shots) shows as `BOTH_ATTAC
 with the arm raised; the concussion rifle's `BOTH_ATTACK2` shows as `BOTH_ATTACK3`.
 NPCs are left as the server sends them.
 
+## Wall grab facing
+
+A player grabbing a wall to jump off it (Force jump 3, pushing into a wall in the
+air: `BOTH_FORCEWALLREBOUND_*`, then `BOTH_FORCEWALLHOLD_*` while the hold lasts)
+is drawn facing the wall the way the animation needs, whatever their view does
+([wall_hold_pose.rs](../crates/sjk-viewer/src/wall_hold_pose.rs)). `CG_G2PlayerAngles`
+turns the body with the view yaw. A stock server turns that yaw to the wall during
+the hold (`PM_AdjustAngleForWallJump`), so the camera locks too, but a JA+ server
+leaves the view free there ([networking](networking.md#server-dialect-movement-rules)),
+and looking around turned the body off the wall, as if it floated. While the
+legs play a rebound the model's yaw is the stock server's facing instead
+(`vectoyaw(wall normal) + yawAdjust`, from the same 128-unit check along the
+view, [`wall_hold_yaw`](../crates/sjk-game-jka/src/pmove_wall_moves.rs)); a frame
+whose check misses keeps the rebound's last facing, and the kick off returns the
+body to the view. It applies to the local player (from the predicted state) and to
+other players alike. Only the model changes: the camera stays free on JA+ and
+locked on a stock server, as each server computes it, and the kick off still goes
+straight back from the side the view picks (`checkDir`), so on JA+ it follows
+where the player looks, not the wall. The check sees the world's brushes only: a
+wall on a mover keeps the body on the view.
+
 ## Dismemberment and disintegration
 
 Both follow EternalJK's cgame (`cg_ents.c`, `cg_players.c`) and rd-vanilla's renderer.

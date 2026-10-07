@@ -185,6 +185,7 @@ mod ui_scale;
 mod ui_target;
 mod update;
 mod version_overlay;
+mod wall_hold_pose;
 mod weapon_select;
 mod weapon_view;
 mod weather;

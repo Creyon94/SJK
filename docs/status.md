@@ -7,6 +7,23 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Wall grab facing
+
+SJK-only branch `personal/wall-grab` (07/10/2026, based on `7a85516`, Windows 11):
+Sol found that on a JA+ server a player holding a grabbed wall could turn their
+body with the mouse, floating off the wall. A JA+ server leaves the view free
+during the hold while `CG_G2PlayerAngles` turns the body with the view; the model
+of a player whose legs play a wall rebound or its hold now faces the wall as a
+stock server turns it ([client.md](client.md#wall-grab-facing)), for the local
+player and others. `PM_AdjustAngleForWallJump`'s rebound side and wall check are
+shared by the move and the new `pmove::wall_hold_yaw` (a refactor, no change to
+the move); prediction, the camera and the kick off are unchanged. Unit tests pin
+the facing for each rebound side, a view turned on the wall (square and slanted
+walls), no facing out of reach, on a slope or outside a rebound, and the latch
+across a missed check. No game was started: the pose on a real JA+ wall, the
+swing back to the view after the kick off and other players' holds are unverified
+in a running client.
+
 ## SJK UI: coloured names and the browser's sort mark
 
 SJK-only branch `personal/sjk-ui-browser-colours` (07/10/2026, Windows 11): Sol

@@ -20,6 +20,8 @@ pub(crate) struct ActorMesh {
     pub(crate) saber_names: [Option<String>; 2],
     pub(crate) angle_controller: sjk_client::LegacyPlayerAngleController,
     pub(crate) render_yaw_degrees: Option<f32>,
+    /// The held wall's facing during a wall rebound ([`crate::wall_hold_pose`]).
+    pub(crate) wall_hold: crate::wall_hold_pose::WallHoldFacing,
     pub(crate) audio_events: crate::actor_pose::sounds::State,
     pub(crate) animator: crate::actor_pose::evaluation::Slot,
     pub(crate) pose_vertices: Vec<GpuVertex>,
