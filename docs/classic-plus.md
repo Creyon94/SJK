@@ -195,8 +195,17 @@ JKA_GAME_DATA="/path/to/GameData" cargo test --release -p sjk-viewer \
     menu_snapshot -- --ignored --nocapture
 ```
 
+For the real thing, [world_shot.rs](../crates/sjk-viewer/src/world_shot.rs) builds
+the whole client without a window on a map and renders full frames (the world,
+the menus over it, their fonts) into an image read back to
+`target/world-shots/`, from cameras the tests place; it needs a GPU adapter as
+well as the game data (`world_shot -- --ignored --nocapture`). Its tests draw
+duel6's plan from above, views from its spawns, the SJK UI's camera tour and
+the SJK UI over the map. Their throwaway profile keeps the identity and the
+update check off.
+
 The pictures go to `target/menu-snapshots/`. They approximate the UI renderer
-(no rounded corners, art without its motion, Inter text only, atlas icons only
+(art without its motion, Inter text only, atlas icons only
 where the test decodes them, as it does for the key bindings and the profile's
 Force holocrons), which is enough to catch overlaps, cut-off labels and empty
 space. The profile pages are drawn on both frames, the Force page on both sides

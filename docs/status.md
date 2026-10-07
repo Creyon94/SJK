@@ -7,6 +7,25 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## SJK UI: the camera tour of mp/duel6, and off-screen world shots
+
+SJK-only branch `personal/menu-camera` (07/10/2026, based on `39323fe`, Windows 11):
+Sol asked for more camera angles from the map behind the menu. The backdrop plays
+a tour on maps that have one ([sjk-ui.md](sjk-ui.md), The map behind): duel6 has
+ten 15-second glides with fades between, opening on the intermission view, the
+rest shuffled every start. A screen whose shot has a route is reached by a cut
+through dark on such a map. To place the shots without starting the game,
+`world_shot` builds the client windowless and renders full frames into an image
+it reads back to PNG (`GpuState::headless_frame`, only set by those tests); its
+ignored tests drew duel6's plan from the BSP, views from every spawn, candidate
+shots, the tour's starts and ends (each glide traced clear of brushes) and the
+SJK UI over the touring map. The first run had the throwaway profile's identity
+on (its default), so it may have registered one throwaway key with the hub; the
+harness now switches the identity and the update check off. Unit tests cover the
+tour's order (the map's view first, every shot once a round, no repeat across
+rounds) and a shot's glide and fades; the sjk-viewer tests passed. No game was
+started: the tour's pace and fades are unverified in a running client.
+
 ## SJK UI: Settings
 
 SJK-only branch `personal/sjk-ui-settings` (07/10/2026, based on `be3b45d`, Windows

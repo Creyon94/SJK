@@ -81,8 +81,32 @@ applying to the classic screens and the in-game text.
 ### Motion
 
 The ring turns once every four minutes and the sunburst behind the emblem
-slowly the other way; the gold arc eases towards the chosen entry (about 0.3 s).
-Nothing else moves on its own.
+slowly the other way; the gold arc eases towards the chosen entry (about 0.3 s);
+the camera behind glides through its tour (The map behind). Nothing else moves
+on its own.
+
+## The map behind
+
+Behind the SJK UI the camera tours mp/duel6: ten authored shots
+(`YAVIN_TRAINING_TOUR` in
+[routes.rs](../crates/sjk-viewer/src/menu_backdrop/routes.rs), keyed by the map's
+worldspawn message "Yavin Training Grounds"), each a 15-second glide from one
+point to another while looking at a third, with a 0.9-second fade through the
+UI's navy between them ([tour.rs](../crates/sjk-viewer/src/menu_backdrop/tour.rs)).
+The tour opens on the map's own intermission view (the west wing's room looking
+down the corridor at the tower), then plays the rest in a shuffled order that
+changes every start and every round, never showing the same shot twice in a
+row. The shots: the tower from three gardens, high; the east and south wings'
+rooms; the tower from its foot; over the courtyard's wall at its base; the
+south temple's stair; a diagonal path from the tower. They were placed with the
+off-screen world shots and checked to glide through open air (the north wing's
+view, full of leaves, and the west garden's, half a wall, were dropped).
+
+On a map with a tour, a screen whose shot has a route (none yet on duel6) is
+reached by fading out, cutting to the shot and fading in, instead of flying
+there, since a tour's shots are all over the map; every screen shows at once.
+The fade is a layer over the world only (`ClientMenu::world_fade`), under the
+menus and the console's pages.
 
 ## Main page
 
@@ -213,7 +237,8 @@ same group (Graphics: the renderer's image tab), or to the modern screen.
   their family's layer. Until the families are loaded the page draws in Inter.
 - Snapshots: `menu_snapshot::sjk_home_snapshot` and `sjk_settings_snapshot` draw
   the screens over the JoF HD wide levelshot of mp/duel6, each family from its
-  own atlas.
+  own atlas. `world_shot::tests::duel6_sjk_menu` renders the real frames: the
+  client built without a window on duel6, the SJK UI over the touring camera.
 
 ## Plan
 

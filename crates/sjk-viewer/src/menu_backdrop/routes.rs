@@ -150,6 +150,112 @@ const TATOOINE_FFA_GATE: PropSpec = PropSpec {
     doorway_yaw: 270.0,
 };
 
+/// One shot of a map's camera tour behind the main menu: the camera glides
+/// from `from` to `to` while looking at `at`.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct TourShot {
+    pub(crate) from: [f32; 3],
+    pub(crate) to: [f32; 3],
+    pub(crate) at: [f32; 3],
+}
+
+/// A map's camera tour: shots the main menu cuts between, the first the map's
+/// own intermission view.
+#[derive(Debug, PartialEq)]
+pub(crate) struct Tour {
+    /// Worldspawn `message` this tour belongs to.
+    pub(crate) map_message: &'static str,
+    pub(crate) shots: &'static [TourShot],
+}
+
+const fn glide(from: [f32; 3], to: [f32; 3], at: [f32; 3]) -> TourShot {
+    TourShot { from, to, at }
+}
+
+/// mp/duel6, the SJK UI's map: four-fold symmetric round the central
+/// courtyard and its tower (at 0 0), quarter gardens between the courtyard's
+/// octagonal wall and the four wings, whose upper rooms look down the
+/// corridors at the courtyard (the intermission view is the west one). The
+/// shots were placed and checked with the off-screen world shots
+/// (`world_shot::tests::duel6_tour`); the north wing's (its trees fill the
+/// view) and the west garden's (half a dark wall) were left out.
+const YAVIN_TRAINING_TOUR: Tour = Tour {
+    map_message: "Yavin Training Grounds",
+    shots: &[
+        // The intermission view, easing forward down the west corridor.
+        glide(
+            [-2_224.0, 0.0, 888.0],
+            [-2_060.0, 0.0, 866.0],
+            [-640.0, 0.0, 709.0],
+        ),
+        // The tower from the south-west garden, high, circling a little.
+        glide(
+            [-1_150.0, -1_050.0, 700.0],
+            [-1_050.0, -1_150.0, 700.0],
+            [0.0, 0.0, 300.0],
+        ),
+        // The east wing's room, sliding across its window.
+        glide(
+            [2_224.0, 70.0, 888.0],
+            [2_224.0, -70.0, 880.0],
+            [640.0, 0.0, 709.0],
+        ),
+        // Up the tower from its foot.
+        glide(
+            [-290.0, -230.0, 380.0],
+            [-230.0, -290.0, 420.0],
+            [0.0, 0.0, 760.0],
+        ),
+        // The tower from the north-east garden.
+        glide(
+            [1_050.0, 1_150.0, 720.0],
+            [1_150.0, 1_050.0, 690.0],
+            [0.0, 0.0, 300.0],
+        ),
+        // Over the courtyard's wall, looking down at the tower's base.
+        glide(
+            [-610.0, -130.0, 720.0],
+            [-570.0, 130.0, 700.0],
+            [0.0, 0.0, 300.0],
+        ),
+        // The south temple's stair, from the courtyard's gate.
+        glide(
+            [0.0, -1_150.0, 330.0],
+            [0.0, -1_290.0, 350.0],
+            [0.0, -2_000.0, 520.0],
+        ),
+        // Down a diagonal path from the tower.
+        glide(
+            [-380.0, -380.0, 470.0],
+            [-480.0, -480.0, 470.0],
+            [-1_000.0, -1_000.0, 380.0],
+        ),
+        // The tower from the south-east garden.
+        glide(
+            [1_050.0, -1_150.0, 700.0],
+            [1_150.0, -1_050.0, 700.0],
+            [0.0, 0.0, 300.0],
+        ),
+        // The south wing's room, sliding across.
+        glide(
+            [-70.0, -2_224.0, 888.0],
+            [70.0, -2_224.0, 880.0],
+            [0.0, -640.0, 709.0],
+        ),
+    ],
+};
+
+const TOURS: &[Tour] = &[YAVIN_TRAINING_TOUR];
+
+/// The camera tour authored for the map whose worldspawn message is
+/// `message`.
+pub(crate) fn tour_for(message: &str) -> Option<&'static [TourShot]> {
+    TOURS
+        .iter()
+        .find(|tour| tour.map_message == message)
+        .map(|tour| tour.shots)
+}
+
 const PROPS: &[PropSpec] = &[TATOOINE_FFA_GATE];
 
 const ROUTES: &[Route] = &[

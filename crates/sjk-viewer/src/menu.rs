@@ -178,6 +178,8 @@ pub(crate) struct ClientMenu {
     /// The retail background drawn under the modern screens the classic
     /// pages open, while the world is hidden.
     classic_backdrop: MenuCanvas,
+    /// The dark of the backdrop tour's fades ([`Self::world_fade`]).
+    world_fade: MenuCanvas,
     /// The key-binding editor was opened straight from a classic Controls
     /// entry, so closing it leaves the settings screen out.
     keybinds_direct: bool,
@@ -258,6 +260,7 @@ impl ClientMenu {
             loading: classic::loading::ClassicLoading::default(),
             world_hidden: false,
             classic_backdrop: MenuCanvas::new(),
+            world_fade: MenuCanvas::new(),
             keybinds_direct: false,
             settings: SettingsMenu::new(),
             settings_return: ReturnTarget::MainMenu,
@@ -407,6 +410,34 @@ impl ClientMenu {
     /// The classic loading screen's state, for the join to report into.
     pub(crate) fn loading_mut(&mut self) -> &mut classic::loading::ClassicLoading {
         &mut self.loading
+    }
+
+    /// Build the dark the backdrop's camera tour fades through between its
+    /// shots and cuts through to a screen's shot, over the world `viewport`
+    /// shows ([`Self::world_fade`]); false while the world is clear.
+    pub(crate) fn prepare_world_fade(&mut self, viewport: [f32; 2]) -> bool {
+        let darkness = self
+            .backdrop
+            .as_ref()
+            .map_or(0.0, crate::menu_backdrop::Backdrop::darkness);
+        if darkness <= 0.0 {
+            return false;
+        }
+        self.world_fade.begin_transparent(viewport);
+        // The SJK UI's deep navy rather than black, as its fades are.
+        let _ = self
+            .world_fade
+            .draw_list_mut()
+            .push(sjk_ui::DrawCommand::SolidRect {
+                rect: sjk_ui::Rect::new(0.0, 0.0, viewport[0], viewport[1]),
+                color: sjk::color::alpha(sjk::color::SPACE, darkness),
+            });
+        true
+    }
+
+    /// The fade [`Self::prepare_world_fade`] built this frame.
+    pub(crate) fn world_fade(&self) -> &DrawList {
+        self.world_fade.draw_list()
     }
 
     /// The retail background drawn under a modern screen while the world is

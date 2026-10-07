@@ -86,6 +86,16 @@ pub(crate) fn acquire(gpu: &GpuState) -> Result<Output, FrameStatus> {
             | wgpu::CurrentSurfaceTexture::Occluded
             | wgpu::CurrentSurfaceTexture::Validation => return Err(FrameStatus::Skip),
         }
+    } else if let Some(texture) = &gpu.headless_frame {
+        // Off-screen world shots: the image stands in for the swapchain's.
+        let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let ui = crate::ui_target::surface_view(texture, gpu.context.format, gpu.context.ui_direct)
+            .unwrap_or_else(|| view.clone());
+        return Ok(Output {
+            frame: None,
+            view,
+            ui,
+        });
     } else {
         return Err(FrameStatus::Skip);
     };
