@@ -53,11 +53,16 @@ Windows 11 before the threshold was added; the threshold is covered by unit test
 
 ## Centre-print line breaks
 
-Refreshed peek (`feat/refreshed-peek`, base `c9d6db8`): timed player camera
+Refreshed peek (`feat/refreshed-peek`, base `cfbc789`): timed player camera
 from JoF EJKSol `f57d678`, `CG_Peek_f` and `CG_CalcViewValues`, with explicit
 cancel, crosshair selection, unique name fragments and target-loss handling.
 Only received players can be watched. Name/duration policy has unit coverage;
-GPU view, wall collision and slot/map transitions need runtime verification.
+combined revision `7b76890` was checked on 2026-10-07 (Windows, RTX 5070 Ti,
+release, retail `mp/duel1`, isolated native server and Alora bot, 1280x720).
+Monitoring by name shows the target from behind and the local body at its
+entity; explicit cancellation and a one-second timeout return to the player.
+Starting peek during free flight is refused. Wall-collision edge cases,
+crosshair selection and slot/map transitions remain unverified.
 
 Branch `fix/center-print-space-break`: centre-print rows break only at a space, as
 `BG_IsWhiteSpace` counts only the space. A vertical tab (0x0B) in
