@@ -598,6 +598,19 @@ test: Hold the console key: it opens once and stays open, no flicker.
 test: Same with con_style modern. In chat (console closed), ~ still types in the chat line.
 test: AZERTY: ^ then 1 in the console still gives ^1; Esc and Shift+Esc still close it.
 
+[console-key-any-layout]
+status: personal
+area: Console & chat
+title: The key under Esc opens the console on every keyboard layout
+change: cl_consoleUseScanCode is 1, as in EternalJK: the key under Esc opens the console on any
+change: layout (Hungarian, where it types 0, had none). Where it types ^ (German), Shift+^ opens.
+change: Configs that saved the old 0 move to 1 once (cl_consoleKeyDefaultVersion).
+test: US layout: the key under Esc opens and closes the console, nothing typed.
+test: Add Hungarian in Windows (Win+Space): the key under Esc (0) opens and closes the console.
+test: German layout: ^ types ^ in the console; Shift+^ opens and closes it.
+test: In chat (console closed) on Hungarian: the key still types 0 in the chat line.
+note: cl_consoleUseScanCode 0 goes back to the cl_consoleKeys characters (~ ` etc).
+
 [console-browser-classic]
 status: personal
 area: Console & chat

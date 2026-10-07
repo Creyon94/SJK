@@ -10,9 +10,11 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
             "Complete a unique command before Enter submits",
         ),
         (
+            // EternalJK's default (`cl_main.cpp:4144`): the key under Escape opens
+            // the console on every layout, including those where it types `0`.
             "cl_consoleUseScanCode",
-            0,
-            "Use the physical grave key instead of cl_consoleKeys",
+            1,
+            "Use the physical key under Escape instead of cl_consoleKeys",
         ),
         (
             "cl_consoleShiftRequirement",
@@ -87,7 +89,12 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
 }
 
 /// TaystJK sdl_input.cpp:269-278; only native scan-code detection is Shift-gated.
-pub(super) fn native_console(requirement: i64, shift: bool, open: bool) -> bool {
+/// A layout that types `^` on the key needs Shift whatever the requirement, so `^`
+/// stays free for colour codes (`IN_TranslateSDLToJKKey`, `sdl_input.cpp:392`).
+pub(super) fn native_console(requirement: i64, caret: bool, shift: bool, open: bool) -> bool {
+    if caret {
+        return shift;
+    }
     match requirement {
         0 => true,
         2 => shift,
