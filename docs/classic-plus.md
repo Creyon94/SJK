@@ -99,9 +99,15 @@ Each rule names a page that already follows it.
    release build; a list registers pointer areas only for its visible rows.
 10. **Find, then change on purpose.** A long screen has a search field over its
     list that finds across the whole screen and shows its results under their
-    groups' headings (Settings' OPTIONS and KEY BINDINGS). A choice opens a
-    dropdown in the retail list box's look and changes only when one is applied;
-    Escape or a click elsewhere leaves it as it was (the option panels).
+    groups' headings (Settings' OPTIONS and KEY BINDINGS). A long list opens a
+    dropdown and changes only when one is applied; Escape or a click elsewhere
+    leaves it as it was (the option panels). A switch, or a choice of two or
+    three values shown side by side, changes on the click, since what it does is
+    in view.
+12. **Controls say what they are.** An option panel's value shows its kind at a
+    glance: a switch, a slider, segments, a field with a caret for a list
+    (below). Labels are words in sentence case so a long panel reads; capitals
+    stay for headings, tabs and group names, which retail set apart that way.
 11. **One group per subject.** Retail split a subject over two pages when a page
     ran out of items (Video and More Video, Force Powers 1 and 2); a classic+
     panel scrolls and explains its items, so it shows the subject as one group,
@@ -119,10 +125,17 @@ Values are canvas units of the 640x480 canvas.
 | List box | `LIST_BACK` fill, `LIST_BORDER` border (`FOCUS` while active), 16-unit rows |
 | List row | `VALUE` 11-12; chosen row filled; hovered or focused row on `menu_blendbox2`; a tag (`GOLD` 9-10 semibold) at the right end |
 | Group entry | Retail's right-set label; an SJK icon (`settings_icons`, up to 22 units) 6 units in from the row's left end, full while open or hovered, 72% otherwise, 35% when it cannot act |
+| Option row | Label sentence case, `OPTION`, right-set; value `VALUE` (0.93 0.93 1); focused row: label `FOCUS` on a band (option blue at 16%, 2.5-unit radius) with a 1.5-unit gold bar at its left; changed: a 3.2-unit gold dot after the label and, while focused, a gold reset arrow in the row's last 14 units |
+| Switch | Pill `text * 0.8` high (at most row - 5), twice as wide; on: gold fill, white knob right; off: `ink(0.55)`, blue knob left; On or Off after it |
+| Slider | 3-unit rounded rail over retail's slider span (`TRACK`), gold fill to a white round knob `text * 0.8` across, a gold halo while focused; the value centred in a frame up to 40 units wide |
+| Framed control | `ink(0.5)` fill, 2.5-unit radius, `EDGE` (option blue at 40%) border, white at 65% while focused; `text * 1.3` high, at most row - 2.5 |
+| Segments | Two or three choices in one frame, up to 52 units each; the one in use gold with dark semibold text, a hovered one in blue at 20% |
+| Choice field | A frame to the controls' end with the value in sentence case and a three-step caret; a dropdown is a rounded list over a soft shadow, the value in use marked by a gold dot |
+| Option sub-heading | `PANEL_TITLE` capitals over a rule, as the search's group headings |
 | Scrollbar | 3 units wide, 5 in from the box's right edge, only when the list is longer than the box |
 | Button | `GOLD` 14-17 semibold, centred; `menu_buttonback` glow and `FOCUS` when focused; `DISABLED` when it cannot act |
 | Text field | "Name: value"; an empty one shows a prompt at 70% alpha; underlined while typing |
-| Detail panel | `ink(0.45)` fill, `FRAME` border; a 44-unit picture at the top left; title `GOLD` 14 semibold; lines `VALUE` 11-12, 13-14 units apart |
+| Detail panel | `ink(0.45)` fill, `FRAME` border; a 44-unit picture at the top left; title `GOLD` 14 semibold, after a 15-unit group icon on the option panels; lines `VALUE` 11-12, 13-14 units apart |
 | Description line | `HINT` 12-13, centred on retail's description position |
 | Bar over a box | Flush with the box's top edge, same left edge and width, title centred on the bar (retail's bars overhung their boxes by two units) |
 | Button on a band | Centred on the band it sits on, not on retail's taller button rectangle |

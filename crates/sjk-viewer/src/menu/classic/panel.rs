@@ -11,8 +11,10 @@
 //! the panel's upper part and a detail box under them describes the focused
 //! item (what it does, its value, default and range, when a change applies,
 //! its console name), where retail's taller panel had room for more rows. A
-//! row changed from its default carries a small mark at its left end, and a
-//! setting that applies later a `*` after its label.
+//! row changed from its default carries a gold dot after its label, and a
+//! setting that applies later a `*`. The rows' controls are classic+'s own
+//! rather than retail art: switches, slim sliders, segments and choice fields
+//! on retail's blue and gold, the focused row on a soft band.
 //!
 //! Retail's Controls and Setup are one Settings screen in SJK: the title band
 //! carries its two tabs, KEY BINDINGS and OPTIONS ([`Page::settings_tab`]),
@@ -58,6 +60,10 @@ pub(crate) const OPTION: Color = Color::new(0.65, 0.65, 1.0, 1.0);
 pub(crate) fn focus_text() -> Color {
     view::focus_pulse()
 }
+/// `color` at `alpha`.
+pub(crate) const fn dim(color: Color, alpha: f32) -> Color {
+    Color::new(color.r, color.g, color.b, alpha)
+}
 /// Retail colour of a key being rebound (`Item_Bind_Paint`'s red pulse).
 pub(crate) const BINDING: Color = Color::new(1.0, 0.25, 0.25, 1.0);
 /// Retail panel box (`setup_background`: `backcolor 0 0 .6 .5`, border
@@ -72,10 +78,20 @@ const DETAIL_BORDER: Color = Color::new(0.298, 0.305, 0.690, 1.0);
 const DETAIL_TEXT: Color = Color::new(0.615, 0.615, 0.956, 1.0);
 /// Width of the label column's end kept for a row's `*` mark.
 const MARK_WIDTH: f32 = 7.0;
+/// Classic+ controls: a value (brighter than the labels), an empty track and a
+/// control's edge, in retail's option blue.
+pub(crate) const VALUE: Color = Color::new(0.93, 0.93, 1.0, 1.0);
+const TRACK: Color = Color::new(0.65, 0.65, 1.0, 0.22);
+const EDGE: Color = Color::new(0.65, 0.65, 1.0, 0.4);
+/// The focused control's outline.
+const FOCUS_EDGE: Color = Color::new(1.0, 1.0, 1.0, 0.65);
+/// The focused row's band.
+const BAND: Color = Color::new(0.55, 0.62, 1.0, 0.16);
+/// Width kept at a row's right end for its reset button.
+const RESET_WIDTH: f32 = 14.0;
 /// Retail slider art size (`SLIDER_WIDTH`, `SLIDER_HEIGHT`,
 /// `SLIDER_THUMB_WIDTH`, `SLIDER_THUMB_HEIGHT` in `ui_shared.h`).
 const SLIDER: [f32; 2] = [96.0, 16.0];
-const THUMB: [f32; 2] = [12.0, 20.0];
 /// Retail gap between an item's label and its value (`textRect.w + 8`).
 const VALUE_GAP: f32 = 8.0;
 /// Space between a label and its row picture.
@@ -171,6 +187,8 @@ pub(crate) struct Detail<'a> {
     pub(crate) name: &'a str,
     /// A picture of the item (an atlas cell), beside its lines.
     pub(crate) icon: Option<TextureId>,
+    /// A small picture before the title: the icon of the item's group.
+    pub(crate) badge: Option<TextureId>,
 }
 
 /// The in-game pop-up box (`background_pic` `0 0 570 335` of a menu at
@@ -227,7 +245,6 @@ pub(crate) struct PanelFrame {
 pub(crate) struct PanelPlace {
     place: Placement,
     frame: Frame,
-    art: ArtSet,
     /// Description of the chrome button under the pointer, if any.
     hovered_hint: Option<(&'static str, bool)>,
     /// Whether the rows keep a picture column between labels and values.
@@ -292,7 +309,6 @@ impl PanelFrame {
         PanelPlace {
             place,
             frame: self.frame,
-            art: self.art,
             hovered_hint,
             icons: false,
         }
@@ -684,10 +700,11 @@ impl PanelPlace {
         row_top < top + height && top < row_top + geometry.row_height
     }
 
-    /// A classic+ dropdown under row `slot`'s value: a retail list box of
-    /// `labels`, the `highlighted` one on `menu_blendbox2` and the value in
-    /// use (`current`) in gold, each answering to `token_base` plus its
-    /// index. It opens upward when the panel's box has no room under the row.
+    /// A classic+ dropdown under row `slot`'s value: a rounded list of
+    /// `labels` over a soft shadow, the `highlighted` one on the row band and
+    /// the value in use (`current`) in gold with a dot, each answering to
+    /// `token_base` plus its index. It opens upward when the panel's box has
+    /// no room under the row.
     pub(crate) fn dropdown(
         &self,
         canvas: &mut MenuCanvas,
@@ -703,19 +720,22 @@ impl PanelPlace {
         let s = self.place.scale;
         let rect = self.place.rect([x, top, width, height]);
         let draw = canvas.draw_list_mut();
-        let _ = draw.push(DrawCommand::SolidRect {
-            rect,
-            color: view::ink(0.94),
+        // A soft shadow under the list, then the list itself.
+        let _ = draw.push(DrawCommand::RoundedRect {
+            rect: Rect::new(rect.x + 1.5 * s, rect.y + 2.5 * s, rect.width, rect.height),
+            radius: 3.0 * s,
+            color: view::ink(0.5),
         });
-        let _ = draw.push(DrawCommand::SolidRect {
+        let _ = draw.push(DrawCommand::RoundedRect {
             rect,
-            color: Color::new(0.66, 0.66, 1.0, 0.25),
+            radius: 3.0 * s,
+            color: Color::new(0.03, 0.04, 0.16, 0.97),
         });
         let _ = draw.push(DrawCommand::Border {
             rect,
-            radius: 0.0,
-            width: s.max(1.0),
-            color: FOCUS,
+            radius: 3.0 * s,
+            width: s.max(1.0) * 0.6,
+            color: FOCUS_EDGE,
         });
         for (index, label) in labels.iter().enumerate() {
             let row = [
@@ -727,14 +747,14 @@ impl PanelPlace {
             let target = self.place.rect(row);
             let hovered = canvas.token_hovered(token_base + index as u16);
             if index == highlighted || hovered {
-                if self.art.has(ArtPiece::BlendBox2) {
-                    view::art(canvas, ArtPiece::BlendBox2, target);
-                } else {
-                    view::soft_band(canvas, target, 0.3);
-                }
+                let _ = canvas.draw_list_mut().push(DrawCommand::RoundedRect {
+                    rect: target,
+                    radius: 2.0 * s,
+                    color: BAND,
+                });
             }
             let color = if index == highlighted || hovered {
-                focus_text()
+                FOCUS
             } else if index == current {
                 GOLD
             } else {
@@ -742,7 +762,7 @@ impl PanelPlace {
             };
             let line = geometry.text * 1.25;
             canvas.text_fmt_aligned(
-                format_args!("{}", Caps(label)),
+                format_args!("{}", view::Sentence(label)),
                 self.place.rect([
                     row[0] + 6.0,
                     row[1] + (row_height - line) * 0.5,
@@ -756,20 +776,18 @@ impl PanelPlace {
                 TextAlign::Start,
             );
             if index == current {
-                canvas.text_aligned(
-                    "IN USE",
-                    self.place.rect([
-                        row[0],
-                        row[1] + (row_height - line) * 0.5,
-                        row[2] - 6.0,
-                        line,
+                // A gold dot marks the choice in use.
+                let side = 3.2;
+                let _ = canvas.draw_list_mut().push(DrawCommand::RoundedRect {
+                    rect: self.place.rect([
+                        row[0] + row[2] - 8.0,
+                        row[1] + (row_height - side) * 0.5,
+                        side,
+                        side,
                     ]),
-                    (geometry.text - 3.0) * s,
-                    GOLD,
-                    FontWeight::Semibold,
-                    0.8 * s,
-                    TextAlign::End,
-                );
+                    radius: side * 0.5 * s,
+                    color: view::gold(0.95),
+                });
             }
             canvas.hit_region(token_base + index as u16, target);
         }
@@ -821,14 +839,305 @@ impl PanelPlace {
         ])
     }
 
-    /// Retail's `menu_blendbox` highlight behind the focused item.
+    /// Classic+'s band behind the focused item: a soft rounded band across
+    /// the row with a gold bar at its left end, in place of retail's
+    /// `menu_blendbox` streak.
     pub(crate) fn highlight(&self, canvas: &mut MenuCanvas, slot: usize) {
-        let row = self.row(slot);
-        if self.art.has(ArtPiece::BlendBox) {
-            view::art(canvas, ArtPiece::BlendBox, row);
+        let geometry = self.geometry();
+        let top = self.row_top(slot);
+        let s = self.place.scale;
+        let band = self.place.rect([
+            geometry.row_x + 3.0,
+            top + 0.5,
+            geometry.row_width - 12.0,
+            geometry.row_height - 1.0,
+        ]);
+        let draw = canvas.draw_list_mut();
+        let _ = draw.push(DrawCommand::RoundedRect {
+            rect: band,
+            radius: 2.5 * s,
+            color: BAND,
+        });
+        let _ = draw.push(DrawCommand::RoundedRect {
+            rect: self.place.rect([
+                geometry.row_x + 3.0,
+                top + 2.0,
+                1.5,
+                geometry.row_height - 4.0,
+            ]),
+            radius: 0.75 * s,
+            color: view::gold(0.95),
+        });
+    }
+
+    /// Top of row `slot` on the canvas.
+    fn row_top(&self, slot: usize) -> f32 {
+        let geometry = self.geometry();
+        geometry.first_row + slot as f32 * geometry.row_height
+    }
+
+    /// Canvas box `width` by `height` from `x`, centred on row `slot`.
+    fn centred(&self, slot: usize, x: f32, width: f32, height: f32) -> [f32; 4] {
+        let geometry = self.geometry();
+        [
+            x,
+            self.row_top(slot) + (geometry.row_height - height) * 0.5,
+            width,
+            height,
+        ]
+    }
+
+    /// Right edge of a row's controls, clear of its reset button.
+    fn controls_end(&self) -> f32 {
+        self.value_end() - RESET_WIDTH
+    }
+
+    /// Height of a framed control (a choice field, segments, a slider's
+    /// number) on a row: a little above the text, with a gap to the next row.
+    fn control_height(&self) -> f32 {
+        let geometry = self.geometry();
+        (geometry.text * 1.3).min(geometry.row_height - 2.5)
+    }
+
+    /// A framed control's background and edge: brighter while focused.
+    fn frame_control(&self, canvas: &mut MenuCanvas, rect: Rect, focused: bool) {
+        let s = self.place.scale;
+        let draw = canvas.draw_list_mut();
+        let _ = draw.push(DrawCommand::RoundedRect {
+            rect,
+            radius: 2.5 * s,
+            color: view::ink(0.5),
+        });
+        let _ = draw.push(DrawCommand::Border {
+            rect,
+            radius: 2.5 * s,
+            width: s.max(1.0) * 0.6,
+            color: if focused { FOCUS_EDGE } else { EDGE },
+        });
+    }
+
+    /// Classic+ switch for an on/off setting on row `slot`: a pill track,
+    /// gold while on, its knob at the on (right) or off end, and On or Off
+    /// after it. The row itself takes the click.
+    pub(crate) fn switch(&self, canvas: &mut MenuCanvas, slot: usize, on: bool, focused: bool) {
+        let geometry = self.geometry();
+        let s = self.place.scale;
+        let height = (geometry.text * 0.8).min(geometry.row_height - 5.0);
+        let width = height * 2.0;
+        let x = self.value_x();
+        let track = self.place.rect(self.centred(slot, x, width, height));
+        let radius = track.height * 0.5;
+        let inset = height * 0.17;
+        let knob = height - 2.0 * inset;
+        let knob_x = if on {
+            x + width - inset - knob
         } else {
-            view::soft_band(canvas, row, 0.22);
+            x + inset
+        };
+        let knob = self.place.rect(self.centred(slot, knob_x, knob, knob));
+        let draw = canvas.draw_list_mut();
+        let _ = draw.push(DrawCommand::RoundedRect {
+            rect: track,
+            radius,
+            color: if on {
+                view::gold(0.92)
+            } else {
+                view::ink(0.55)
+            },
+        });
+        let _ = draw.push(DrawCommand::Border {
+            rect: track,
+            radius,
+            width: s.max(1.0) * 0.6,
+            color: match (focused, on) {
+                (true, _) => FOCUS_EDGE,
+                (false, true) => view::gold(1.0),
+                (false, false) => EDGE,
+            },
+        });
+        let _ = draw.push(DrawCommand::RoundedRect {
+            rect: knob,
+            radius: knob.height * 0.5,
+            color: if on {
+                FOCUS
+            } else {
+                Color::new(OPTION.r, OPTION.g, OPTION.b, 0.9)
+            },
+        });
+        let text = if on { VALUE } else { dim(OPTION, 0.75) };
+        self.value_from(
+            canvas,
+            slot,
+            x + width + 5.0,
+            if on { "On" } else { "Off" },
+            if focused { FOCUS } else { text },
+        );
+    }
+
+    /// Classic+ segmented choice on row `slot`: every choice side by side in
+    /// one frame, the one in use filled gold; choice `i` answers to
+    /// `token_base + i`.
+    pub(crate) fn segments(
+        &self,
+        canvas: &mut MenuCanvas,
+        slot: usize,
+        labels: &[&str],
+        current: usize,
+        focused: bool,
+        token_base: u16,
+    ) {
+        let geometry = self.geometry();
+        let s = self.place.scale;
+        let x = self.value_x() - 2.0;
+        let count = labels.len().max(1);
+        let total = (self.controls_end() - x).min(count as f32 * 52.0);
+        let height = self.control_height();
+        let outer = self.centred(slot, x, total, height);
+        self.frame_control(canvas, self.place.rect(outer), focused);
+        let width = total / count as f32;
+        let line = geometry.text * 1.25;
+        for (index, label) in labels.iter().enumerate() {
+            let token = token_base + index as u16;
+            let segment = [outer[0] + index as f32 * width, outer[1], width, height];
+            let inner = self.place.rect([
+                segment[0] + 1.0,
+                segment[1] + 1.0,
+                segment[2] - 2.0,
+                segment[3] - 2.0,
+            ]);
+            let hovered = canvas.token_hovered(token);
+            if index == current || hovered {
+                let _ = canvas.draw_list_mut().push(DrawCommand::RoundedRect {
+                    rect: inner,
+                    radius: 2.0 * s,
+                    color: if index == current {
+                        view::gold(0.92)
+                    } else {
+                        Color::new(OPTION.r, OPTION.g, OPTION.b, 0.2)
+                    },
+                });
+            }
+            let color = match (index == current, hovered) {
+                (true, _) => view::ink(1.0),
+                (false, true) => FOCUS,
+                (false, false) => OPTION,
+            };
+            canvas.text_fmt_aligned(
+                format_args!("{}", view::Sentence(label)),
+                self.place.rect([
+                    segment[0],
+                    segment[1] + (height - line) * 0.5,
+                    segment[2],
+                    line,
+                ]),
+                geometry.text * 0.92 * s,
+                color,
+                FontWeight::Semibold,
+                0.3 * s,
+                TextAlign::Center,
+            );
+            canvas.hit_region(token, self.place.rect(segment));
         }
+    }
+
+    /// Classic+ field for a value chosen from a list (a long choice, the
+    /// display mode, the resolution, the HUD): the value in a frame with a
+    /// caret at its right end saying a click opens the list; without
+    /// `caret`, a field being typed in.
+    pub(crate) fn choice_field(
+        &self,
+        canvas: &mut MenuCanvas,
+        slot: usize,
+        text: std::fmt::Arguments<'_>,
+        focused: bool,
+        caret: bool,
+    ) {
+        let geometry = self.geometry();
+        let s = self.place.scale;
+        let x = self.value_x() - 3.0;
+        let width = self.controls_end() - x;
+        let field = self.centred(slot, x, width, self.control_height());
+        self.frame_control(canvas, self.place.rect(field), focused);
+        let text_end = x + width - if caret { 10.0 } else { 3.0 };
+        canvas.text_fmt_aligned(
+            text,
+            self.text_rect(slot, self.value_x(), text_end),
+            geometry.text * s,
+            if focused { FOCUS } else { VALUE },
+            FontWeight::Regular,
+            0.4 * s,
+            TextAlign::Start,
+        );
+        if caret {
+            // A small downward triangle in three steps.
+            let centre = x + width - 5.5;
+            let middle = field[1] + field[3] * 0.5;
+            for (step, half) in [2.6_f32, 1.7, 0.8].into_iter().enumerate() {
+                let _ = canvas.draw_list_mut().push(DrawCommand::SolidRect {
+                    rect: self.place.rect([
+                        centre - half,
+                        middle - 1.4 + step as f32 * 0.95,
+                        half * 2.0,
+                        0.95,
+                    ]),
+                    color: if focused { FOCUS } else { OPTION },
+                });
+            }
+        }
+    }
+
+    /// Classic+ reset button at row `slot`'s right end, for a setting changed
+    /// from its default: a gold turning arrow answering to `token`.
+    pub(crate) fn reset_button(&self, canvas: &mut MenuCanvas, slot: usize, token: u16) {
+        let geometry = self.geometry();
+        let s = self.place.scale;
+        let target = self.place.rect(self.centred(
+            slot,
+            self.value_end() - RESET_WIDTH,
+            RESET_WIDTH,
+            geometry.row_height,
+        ));
+        let hovered = canvas.token_hovered(token);
+        let centre = [
+            target.x + target.width * 0.5,
+            target.y + target.height * 0.5,
+        ];
+        let radius = geometry.text * 0.32 * s;
+        let color = if hovered { FOCUS } else { view::gold(0.9) };
+        let draw = canvas.draw_list_mut();
+        if hovered {
+            let side = radius * 3.2;
+            let _ = draw.push(DrawCommand::RoundedRect {
+                rect: Rect::new(centre[0] - side * 0.5, centre[1] - side * 0.5, side, side),
+                radius: side * 0.5,
+                color: view::gold(0.25),
+            });
+        }
+        let start = -std::f32::consts::FRAC_PI_2;
+        let sweep = std::f32::consts::PI * 1.55;
+        let _ = draw.push(DrawCommand::Arc {
+            center: centre,
+            radius,
+            width: 1.2 * s,
+            start,
+            sweep,
+            color,
+            knockout: None,
+        });
+        // The arrow's head: a dot at the stroke's end.
+        let end = start + sweep;
+        let head = 2.4 * s;
+        let _ = draw.push(DrawCommand::RoundedRect {
+            rect: Rect::new(
+                centre[0] + radius * end.cos() - head * 0.5,
+                centre[1] + radius * end.sin() - head * 0.5,
+                head,
+                head,
+            ),
+            radius: head * 0.5,
+            color,
+        });
+        canvas.hit_region(token, target);
     }
 
     /// Text box of row `slot` from canvas x `from` to `to`.
@@ -841,8 +1150,9 @@ impl PanelPlace {
         self.place.rect([from, top, (to - from).max(0.0), line])
     }
 
-    /// An item's label in capitals, set against the label column's right
-    /// edge.
+    /// An item's label as written (classic+ sets labels in sentence case, not
+    /// retail's capitals, so a long panel reads as words), set against the
+    /// label column's right edge.
     pub(crate) fn label(&self, canvas: &mut MenuCanvas, slot: usize, text: &str, color: Color) {
         self.label_marked(canvas, slot, text, color, false);
     }
@@ -863,13 +1173,13 @@ impl PanelPlace {
         } else {
             geometry.label_end
         };
-        canvas.text_fmt_aligned(
-            format_args!("{}", Caps(text)),
+        canvas.text_aligned(
+            text,
             self.text_rect(slot, geometry.row_x, end),
             geometry.text * self.place.scale,
             color,
             FontWeight::Regular,
-            0.4 * self.place.scale,
+            0.3 * self.place.scale,
             TextAlign::End,
         );
         if later {
@@ -899,17 +1209,18 @@ impl PanelPlace {
         ])
     }
 
-    /// Classic+'s mark of a row changed from its default: a small gold
-    /// square at the row's left end.
+    /// Classic+'s mark of a row changed from its default: a gold dot just
+    /// after its label.
     pub(crate) fn changed_mark(&self, canvas: &mut MenuCanvas, slot: usize) {
         let geometry = self.geometry();
-        let side = 3.0;
-        let top = geometry.first_row
-            + slot as f32 * geometry.row_height
-            + (geometry.row_height - side) * 0.5;
-        let _ = canvas.draw_list_mut().push(DrawCommand::SolidRect {
-            rect: self.place.rect([geometry.row_x + 4.0, top, side, side]),
-            color: Color::new(GOLD.r, GOLD.g, GOLD.b, 0.85),
+        let side = 3.2;
+        let rect = self
+            .place
+            .rect(self.centred(slot, geometry.label_end + 1.8, side, side));
+        let _ = canvas.draw_list_mut().push(DrawCommand::RoundedRect {
+            rect,
+            radius: rect.height * 0.5,
+            color: view::gold(0.95),
         });
     }
 
@@ -954,10 +1265,21 @@ impl PanelPlace {
             );
         };
         let split = x + w * 0.6;
+        let title_x = match detail.badge {
+            Some(texture) => {
+                let _ = canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
+                    rect: self.place.rect([x + 5.0, y + 2.0, 15.0, 15.0]),
+                    texture,
+                    color: Color::new(1.0, 1.0, 1.0, 1.0),
+                });
+                x + 24.0
+            }
+            None => x + 6.0,
+        };
         line(
             canvas,
             format_args!("{}", Caps(detail.title)),
-            [x + 6.0, y + 3.0, split - x - 8.0, 14.0],
+            [title_x, y + 3.0, split - title_x - 2.0, 14.0],
             11.5,
             GOLD,
             FontWeight::Semibold,
@@ -1107,69 +1429,111 @@ impl PanelPlace {
         self.place.rect([self.value_x(), top, SLIDER[0], SLIDER[1]])
     }
 
-    /// Draw the slider bar of row `slot`.
-    pub(crate) fn draw_slider_bar(&self, canvas: &mut MenuCanvas, slot: usize, color: Color) {
+    /// A slider's rail across row `slot` (window coordinates): a thin line
+    /// through the middle of retail's slider bar, which stays the pointer's
+    /// span ([`Frame::slider_span`]).
+    fn slider_rail(&self, slot: usize) -> Rect {
         let bar = self.slider_bar(slot);
-        if self.art.has(ArtPiece::Slider) {
-            view::art(canvas, ArtPiece::Slider, bar);
-            return;
-        }
-        let rail = Rect::new(
+        let height = 3.0 * self.place.scale;
+        Rect::new(
             bar.x,
-            bar.y + bar.height * 0.45,
+            bar.y + (bar.height - height) * 0.5,
             bar.width,
-            bar.height * 0.1,
-        );
-        let _ = canvas.draw_list_mut().push(DrawCommand::SolidRect {
+            height,
+        )
+    }
+
+    /// Draw the slider rail of row `slot`: classic+'s slim rounded track in
+    /// place of retail's slider art.
+    pub(crate) fn draw_slider_bar(&self, canvas: &mut MenuCanvas, slot: usize) {
+        let rail = self.slider_rail(slot);
+        let _ = canvas.draw_list_mut().push(DrawCommand::RoundedRect {
             rect: rail,
-            color: Color::new(color.r, color.g, color.b, 0.6),
+            radius: rail.height * 0.5,
+            color: TRACK,
         });
     }
 
-    /// Draw the slider thumb of row `slot` at `ratio` along its bar; drawn
-    /// after every bar so the art switches texture only once.
-    pub(crate) fn draw_slider_thumb(&self, canvas: &mut MenuCanvas, slot: usize, ratio: f32) {
-        let bar = self.slider_bar(slot);
+    /// Draw the slider of row `slot` at `ratio` along its rail: the rail
+    /// filled gold up to a round knob, ringed while `focused`; drawn after
+    /// every rail.
+    pub(crate) fn draw_slider_thumb(
+        &self,
+        canvas: &mut MenuCanvas,
+        slot: usize,
+        ratio: f32,
+        focused: bool,
+    ) {
+        let rail = self.slider_rail(slot);
         let s = self.place.scale;
-        let x = bar.x + bar.width * ratio.clamp(0.0, 1.0);
-        let thumb = Rect::new(
-            x - THUMB[0] * 0.5 * s,
-            bar.y - 2.0 * s,
-            THUMB[0] * s,
-            THUMB[1] * s,
-        );
-        if self.art.has(ArtPiece::SliderThumb) {
-            view::art(canvas, ArtPiece::SliderThumb, thumb);
-        } else {
-            let _ = canvas.draw_list_mut().push(DrawCommand::SolidRect {
-                rect: Rect::new(
-                    thumb.x + thumb.width * 0.3,
-                    thumb.y,
-                    thumb.width * 0.4,
-                    thumb.height,
-                ),
-                color: FOCUS,
+        let ratio = ratio.clamp(0.0, 1.0);
+        let x = rail.x + rail.width * ratio;
+        let draw = canvas.draw_list_mut();
+        if ratio > 0.0 {
+            let _ = draw.push(DrawCommand::RoundedRect {
+                rect: Rect::new(rail.x, rail.y, rail.width * ratio, rail.height),
+                radius: rail.height * 0.5,
+                color: view::gold(0.92),
             });
         }
+        let side = self.geometry().text * 0.8 * s;
+        let middle = rail.y + rail.height * 0.5;
+        let knob = Rect::new(x - side * 0.5, middle - side * 0.5, side, side);
+        if focused {
+            let ring = 1.6 * s;
+            let _ = draw.push(DrawCommand::RoundedRect {
+                rect: Rect::new(
+                    knob.x - ring,
+                    knob.y - ring,
+                    knob.width + 2.0 * ring,
+                    knob.height + 2.0 * ring,
+                ),
+                radius: side * 0.5 + ring,
+                color: view::gold(0.35),
+            });
+        }
+        let _ = draw.push(DrawCommand::RoundedRect {
+            rect: knob,
+            radius: side * 0.5,
+            color: FOCUS,
+        });
     }
 
-    /// The number shown after a slider bar, and its click target for typed
+    /// Canvas box of the number after a slider rail.
+    fn slider_chip(&self, slot: usize) -> [f32; 4] {
+        let from = self.value_x() + SLIDER[0] + VALUE_GAP - 2.0;
+        let width = (self.controls_end() - from).min(40.0);
+        self.centred(slot, from, width, self.control_height())
+    }
+
+    /// The number shown after a slider rail, and its click target for typed
     /// entry.
     pub(crate) fn slider_value_rect(&self, slot: usize) -> Rect {
-        let from = self.value_x() + SLIDER[0] + VALUE_GAP;
-        self.text_rect(slot, from, self.value_end())
+        let [x, _, width, _] = self.slider_chip(slot);
+        self.text_rect(slot, x, x + width)
     }
 
-    /// The number after a slider bar.
+    /// The number after a slider rail, centred in a small frame.
     pub(crate) fn slider_value(
         &self,
         canvas: &mut MenuCanvas,
         slot: usize,
         text: &str,
         color: Color,
+        focused: bool,
     ) {
-        let from = self.value_x() + SLIDER[0] + VALUE_GAP;
-        self.value_from(canvas, slot, from, text, color);
+        let chip = self.slider_chip(slot);
+        self.frame_control(canvas, self.place.rect(chip), focused);
+        let geometry = self.geometry();
+        canvas.text_aligned(
+            text,
+            self.slider_value_rect(slot),
+            geometry.text * self.place.scale,
+            color,
+            FontWeight::Regular,
+            0.3 * self.place.scale,
+            TextAlign::Center,
+        );
     }
 
     /// End the screen: the description line shows the hovered button's

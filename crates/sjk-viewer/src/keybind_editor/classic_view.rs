@@ -522,6 +522,12 @@ impl KeybindEditor {
                 facts: &self.detail[3],
                 name: "",
                 icon: self.icons.ready(action),
+                // The category's icon, as on the group list.
+                badge: crate::menu::classic::layout::Entry::of_category(
+                    ACTIONS[action].category as usize,
+                )
+                .and_then(crate::menu::classic::layout::Entry::icon)
+                .and_then(crate::settings_icons::texture),
             },
             None => Detail::default(),
         };

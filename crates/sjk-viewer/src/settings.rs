@@ -134,8 +134,6 @@ struct SearchReturn {
 /// One choice of a classic dropdown.
 #[derive(Clone, Copy, Debug, PartialEq)]
 enum Pick {
-    /// A switch, on or off.
-    Switch(bool),
     /// One of a choice row's values.
     Value(&'static str),
     /// A display mode.

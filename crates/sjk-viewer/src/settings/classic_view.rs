@@ -1,21 +1,26 @@
 //! The settings rows as a classic option panel (`setup.menu` items): the
-//! label set against the label column, the value after it; toggles read
-//! Yes or No, numbers are retail sliders with their value beside them, and
-//! the focused item sits on the `menu_blendbox` highlight.
+//! label set against the label column, the value after it.
 //!
-//! The panel is classic+ (`docs/classic-plus.md`): the detail box under the
-//! rows says what the focused setting does ([`super::help`]), its value,
-//! default and range, when a change applies and its console name. A row
-//! changed from its default carries a mark, a setting that applies after a
-//! restart or on the next map a `*`; Backspace or the right button returns
-//! the focused setting to its default, and the description line names the
-//! keys of the focused row. The renderer settings show this way too, as the
-//! groups of the classic renderer page.
+//! The panel is classic+ (`docs/classic-plus.md`). Labels are in sentence
+//! case, values brighter than them; an on/off setting is a switch, a number a
+//! slim slider with its value in a small frame, a choice of up to
+//! [`MAX_SEGMENTS`] values a row of segments, and a longer list (or the display
+//! mode, resolution and HUD) a field whose click opens it; long groups are
+//! divided by sub-headings. The detail box under the rows says what the
+//! focused setting does ([`super::help`]), its value, default and range, when
+//! a change applies and its console name, under its group's icon. A row
+//! changed from its default carries a gold dot, and the focused one a reset
+//! arrow; a setting that applies after a restart or on the next map a `*`.
+//! Backspace, the arrow or the right button returns the focused setting to
+//! its default, and the description line names the keys of the focused row.
+//! The renderer settings show this way too, as the groups of the classic
+//! renderer page.
 
 use super::help::{self, Timing};
 use super::*;
 use crate::menu::classic::layout::Span;
-use crate::menu::classic::panel::{Detail, OPTION, PanelFrame, focus_text};
+use crate::menu::classic::panel::{Detail, OPTION, PanelFrame, VALUE};
+use crate::menu::classic::view::{FOCUS, Sentence};
 use std::fmt::Write as _;
 use winit::keyboard::KeyCode;
 
@@ -28,6 +33,61 @@ pub(super) const CLASSIC_SCROLLBAR_TOKEN: u16 = 912;
 pub(super) const DROPDOWN_BASE: u16 = 1_000;
 /// Rows one wheel notch scrolls, as the settings form steps.
 pub(super) const CLASSIC_WHEEL_ROWS: i32 = 1;
+/// Segment `i` of row `row`'s segmented choice answers to
+/// `SEGMENT_BASE + row * MAX_SEGMENTS + i`, and row `row`'s reset button to
+/// `RESET_BASE + row`; both clear of every other panel token.
+const SEGMENT_BASE: u16 = 2_000;
+const RESET_BASE: u16 = 6_000;
+/// Most choices a row shows side by side; longer lists open a dropdown.
+pub(super) const MAX_SEGMENTS: usize = 3;
+
+/// What a classic+ panel token beyond the rows names.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(super) enum RowControl {
+    /// Choice `index` of row `row`'s segments.
+    Segment { row: usize, index: usize },
+    /// Row `row`'s reset button.
+    Reset(usize),
+}
+
+impl RowControl {
+    fn token(self) -> u16 {
+        match self {
+            Self::Segment { row, index } => SEGMENT_BASE + (row * MAX_SEGMENTS + index) as u16,
+            Self::Reset(row) => RESET_BASE + row as u16,
+        }
+    }
+
+    /// The control `token` names, if it names one.
+    pub(super) fn of(token: u16) -> Option<Self> {
+        match token {
+            SEGMENT_BASE..RESET_BASE => {
+                let offset = usize::from(token - SEGMENT_BASE);
+                Some(Self::Segment {
+                    row: offset / MAX_SEGMENTS,
+                    index: offset % MAX_SEGMENTS,
+                })
+            }
+            RESET_BASE.. => Some(Self::Reset(usize::from(token - RESET_BASE))),
+            _ => None,
+        }
+    }
+
+    /// The setting row the control belongs to.
+    pub(super) fn row(self) -> usize {
+        match self {
+            Self::Segment { row, .. } | Self::Reset(row) => row,
+        }
+    }
+}
+
+/// The choices row `kind` shows side by side, when it has few enough.
+pub(super) fn segment_choices(kind: ValueKind) -> Option<&'static [&'static str]> {
+    match kind {
+        ValueKind::Choice(values) if values.len() <= MAX_SEGMENTS => Some(values),
+        _ => None,
+    }
+}
 
 /// What the classic+ panel knows about a row beyond its value: its default
 /// as the row would show it, and whether the value differs from it.
@@ -93,7 +153,7 @@ impl SettingsMenu {
         self.selected = 0;
         self.clear_search();
         self.classic = Some(ClassicRows {
-            lines: ClassicRows::span(0..self.rows().len()),
+            lines: group.lines(),
             slider_span: frame.slider_span(),
             first: 0,
             visible: frame.capacity(),
@@ -253,14 +313,17 @@ impl SettingsMenu {
         self.refresh(console);
     }
 
-    /// Open the dropdown of row `row` when it is a choice (a switch, a choice
-    /// row or the display mode); false for other rows.
+    /// Open the dropdown of row `row` when it is a choice of more than
+    /// [`MAX_SEGMENTS`] values or the display mode; false for other rows (a
+    /// switch flips and a segmented choice steps instead).
     pub(super) fn open_dropdown(&mut self, console: &ViewerConsole, row: usize) -> bool {
         let Some(setting) = self.rows().get(row).copied() else {
             return false;
         };
+        if segment_choices(setting.kind).is_some() {
+            return false;
+        }
         let picks: Vec<Pick> = match setting.kind {
-            ValueKind::Bool => vec![Pick::Switch(true), Pick::Switch(false)],
             ValueKind::Choice(values) => values.iter().map(|value| Pick::Value(value)).collect(),
             ValueKind::DisplayMode => {
                 let exclusive = self.exclusive_available();
@@ -273,7 +336,6 @@ impl SettingsMenu {
             _ => return false,
         };
         let current = match setting.kind {
-            ValueKind::Bool => usize::from(!console.cvar(setting.cvar).is_some_and(switch_on)),
             ValueKind::Choice(values) => {
                 let value = console.cvar(setting.cvar).map(CvarValue::as_text);
                 values
@@ -334,13 +396,6 @@ impl SettingsMenu {
             return;
         };
         match pick {
-            Pick::Switch(on) => {
-                let value = match console.cvar(setting.cvar) {
-                    Some(CvarValue::Bool(_)) => on.to_string(),
-                    _ => u8::from(on).to_string(),
-                };
-                console.set_cvar(setting.cvar, &value);
-            }
             Pick::Value(value) => {
                 console.set_cvar(setting.cvar, value);
             }
@@ -352,10 +407,31 @@ impl SettingsMenu {
     /// The label of dropdown choice `pick` as the row would show it.
     fn pick_label(pick: Pick) -> &'static str {
         match pick {
-            Pick::Switch(true) => "Yes",
-            Pick::Switch(false) => "No",
             Pick::Value(value) => value,
             Pick::Mode(mode) => mode.label(),
+        }
+    }
+
+    /// Act on a row's segment or reset button.
+    pub(super) fn activate_control(&mut self, console: &mut ViewerConsole, control: RowControl) {
+        let row = control.row();
+        if !self.shows(row) {
+            return;
+        }
+        self.selected = row;
+        match control {
+            RowControl::Segment { index, .. } => {
+                let Some(setting) = self.rows().get(row).copied() else {
+                    return;
+                };
+                if let Some(value) =
+                    segment_choices(setting.kind).and_then(|values| values.get(index))
+                {
+                    console.set_cvar(setting.cvar, value);
+                    self.refresh(console);
+                }
+            }
+            RowControl::Reset(_) => self.reset_to_default(console, row),
         }
     }
 
@@ -465,14 +541,23 @@ impl SettingsMenu {
                 continue;
             };
             let focused = row == self.selected;
-            let color = if focused { focus_text() } else { OPTION };
+            // Labels in the option blue, values brighter; the focused row's
+            // label in steady white over its band.
+            let label_color = if focused { FOCUS } else { OPTION };
+            let value_color = if focused { FOCUS } else { VALUE };
             let (label, timing) = help::classic_label(setting.cvar, setting.label);
-            place.label_marked(&mut self.ui, slot, label, color, timing != Timing::Now);
-            if self
+            place.label_marked(
+                &mut self.ui,
+                slot,
+                label,
+                label_color,
+                timing != Timing::Now,
+            );
+            let changed = self
                 .defaults
                 .get(row)
-                .is_some_and(|default| default.changed)
-            {
+                .is_some_and(|default| default.changed);
+            if changed {
                 place.changed_mark(&mut self.ui, slot);
             }
             self.ui.hit_region(row as u16, place.row(slot));
@@ -482,10 +567,10 @@ impl SettingsMenu {
             let value = self.values.get(row).map_or("?", String::as_str);
             match setting.kind {
                 ValueKind::Bool => {
-                    place.value(&mut self.ui, slot, yes_no(value), color);
+                    place.switch(&mut self.ui, slot, switch_text_on(value), focused);
                 }
                 ValueKind::Integer { .. } | ValueKind::Float { .. } => {
-                    place.draw_slider_bar(&mut self.ui, slot, color);
+                    place.draw_slider_bar(&mut self.ui, slot);
                     let editing = self.numeric.as_ref().filter(|edit| edit.row == row);
                     let target = place.slider_value_rect(slot);
                     self.ui.hit_region(
@@ -494,27 +579,58 @@ impl SettingsMenu {
                     );
                     match editing {
                         Some(edit) => edit.draw(&mut self.ui, target, place.scale()),
-                        None => place.slider_value(&mut self.ui, slot, value, color),
+                        None => place.slider_value(&mut self.ui, slot, value, value_color, focused),
                     }
+                }
+                ValueKind::Choice(values) if values.len() <= MAX_SEGMENTS => {
+                    let current = values
+                        .iter()
+                        .position(|candidate| candidate.eq_ignore_ascii_case(value))
+                        .unwrap_or(0);
+                    let base = RowControl::Segment { row, index: 0 }.token();
+                    place.segments(&mut self.ui, slot, values, current, focused, base);
                 }
                 ValueKind::Choice(_)
                 | ValueKind::Resolution
                 | ValueKind::DisplayMode
-                | ValueKind::HudPicker => place.value(&mut self.ui, slot, value, color),
+                | ValueKind::HudPicker => {
+                    let open = self.dropdown.as_ref().is_some_and(|open| open.row == row);
+                    place.choice_field(
+                        &mut self.ui,
+                        slot,
+                        format_args!("{}", Sentence(value)),
+                        focused || open,
+                        true,
+                    );
+                }
                 ValueKind::Text => match self
                     .editing
                     .as_ref()
                     .filter(|draft| draft.row == row)
                     .map(|draft| draft.text.as_str())
                 {
-                    Some(buffer) => {
-                        place.value_fmt(&mut self.ui, slot, format_args!("{buffer}_"), color)
-                    }
-                    None => place.value_plain(&mut self.ui, slot, value, color),
+                    Some(buffer) => place.choice_field(
+                        &mut self.ui,
+                        slot,
+                        format_args!("{buffer}_"),
+                        true,
+                        false,
+                    ),
+                    None => place.choice_field(
+                        &mut self.ui,
+                        slot,
+                        format_args!("{value}"),
+                        focused,
+                        false,
+                    ),
                 },
             }
+            // The focused row, changed from its default, offers it back.
+            if focused && changed {
+                place.reset_button(&mut self.ui, slot, RowControl::Reset(row).token());
+            }
         }
-        // Thumbs after every bar, so the slider art binds once each.
+        // Knobs after every rail.
         for &(row, slot) in &slots {
             let Some(setting) = self.rows().get(row) else {
                 continue;
@@ -533,7 +649,7 @@ impl SettingsMenu {
                 (ValueKind::Integer { .. } | ValueKind::Float { .. }, _) => 0.0,
                 _ => continue,
             };
-            place.draw_slider_thumb(&mut self.ui, slot, ratio);
+            place.draw_slider_thumb(&mut self.ui, slot, ratio, row == self.selected);
         }
         if lines.len() > visible {
             self.ui.scrollbar(
@@ -545,11 +661,13 @@ impl SettingsMenu {
             );
         }
         self.write_detail_facts();
+        let badge = self.badge();
         let detail = detail_of(
             self.rows(),
             self.shows(self.selected).then_some(self.selected),
             &self.values,
             &self.detail_facts,
+            badge,
         );
         place.detail(&mut self.ui, &detail);
         // The dropdown last, over the rows and the detail box, so it takes the
@@ -588,6 +706,7 @@ impl SettingsMenu {
             self.shows(self.selected).then_some(self.selected),
             &self.values,
             &self.detail_facts,
+            self.badge(),
         )
     }
 
@@ -674,7 +793,9 @@ impl SettingsMenu {
             return;
         };
         hint.push_str(match setting.kind {
-            ValueKind::Bool | ValueKind::Choice(_) | ValueKind::DisplayMode => {
+            ValueKind::Bool => "ENTER or a click to switch it, LEFT or RIGHT too",
+            kind if segment_choices(kind).is_some() => "Click a choice, or LEFT or RIGHT to step",
+            ValueKind::Choice(_) | ValueKind::DisplayMode => {
                 "ENTER or a click for the choices, LEFT or RIGHT to step"
             }
             ValueKind::Integer { .. } | ValueKind::Float { .. } => {
@@ -689,18 +810,55 @@ impl SettingsMenu {
             .get(self.selected)
             .is_some_and(|default| default.changed)
         {
-            hint.push_str("   \u{b7}   BACKSPACE for the default");
+            hint.push_str("   \u{b7}   BACKSPACE or the arrow for the default");
         }
     }
 }
 
+/// The settings icon (`settings_icons`) of a group, tab or search group named
+/// `name` (any case): `HUD+` is the scoreboard's, `TEXT` the interface's.
+fn group_icon(name: &str) -> Option<&'static str> {
+    let name = name.to_ascii_lowercase();
+    let name = name.strip_prefix("renderer: ").unwrap_or(&name);
+    Some(match name {
+        "video" => "video",
+        "audio" | "sound" => "sound",
+        "hud" => "hud",
+        "controls" | "mouse" => "mouse_joystick",
+        "game" | "game options" => "game_options",
+        "network" => "network",
+        "hud+" | "scoreboard" => "scoreboard",
+        "text" | "interface" => "interface",
+        "first setup" => "first_setup",
+        "image" => "image",
+        "lighting" => "lighting",
+        "shadows" => "shadows",
+        "weather" => "weather",
+        _ => return None,
+    })
+}
+
+impl SettingsMenu {
+    /// The icon of the selected row's group, for the detail box's title: the
+    /// open group or tab, or a search result's own group.
+    fn badge(&self) -> Option<sjk_ui::TextureId> {
+        let name = match self.section {
+            Section::Search => search::group(self.selected)?,
+            _ => self.tabs().get(self.tab)?,
+        };
+        group_icon(name).and_then(crate::settings_icons::texture)
+    }
+}
+
 /// The detail box for row `row` of `rows` (none when no row of the panel is
-/// selected), with the rows' `values` and the `facts` line.
+/// selected), with the rows' `values`, the `facts` line and its group's
+/// `badge`.
 fn detail_of<'a>(
     rows: &'static [Setting],
     row: Option<usize>,
     values: &'a [String],
     facts: &'a str,
+    badge: Option<sjk_ui::TextureId>,
 ) -> Detail<'a> {
     let Some((row, setting)) = row.and_then(|row| Some((row, rows.get(row)?))) else {
         return Detail::default();
@@ -709,23 +867,25 @@ fn detail_of<'a>(
     Detail {
         title: help::timing(setting.label).0,
         value: match setting.kind {
-            ValueKind::Bool => yes_no(value),
+            ValueKind::Bool => on_off(value),
             _ => value,
         },
         lines: help::lines(help::help(setting.cvar).unwrap_or_default()),
         facts,
         name: setting.cvar,
         icon: None,
+        badge,
     }
 }
 
-/// A toggle's value as a classic row shows it.
-fn yes_no(value: &str) -> &'static str {
-    if value.eq_ignore_ascii_case("on") {
-        "Yes"
-    } else {
-        "No"
-    }
+/// Whether a switch row's value text (`ON` or `OFF`) is on.
+fn switch_text_on(value: &str) -> bool {
+    value.eq_ignore_ascii_case("on")
+}
+
+/// A switch's value as the detail box names it.
+fn on_off(value: &str) -> &'static str {
+    if switch_text_on(value) { "On" } else { "Off" }
 }
 
 /// A range end without trailing zeros: `0.5`, `70`, `0.005`.
@@ -756,7 +916,7 @@ pub(super) fn row_default(console: &ViewerConsole, setting: &Setting) -> RowDefa
         return RowDefault::default();
     };
     let text = match (setting.kind, default) {
-        (ValueKind::Bool, value) => if switch_on(value) { "Yes" } else { "No" }.to_owned(),
+        (ValueKind::Bool, value) => if switch_on(value) { "On" } else { "Off" }.to_owned(),
         (ValueKind::Integer { min, .. }, CvarValue::Integer(value)) if min < 0 && *value < 0 => {
             "AUTO".to_owned()
         }
@@ -899,12 +1059,12 @@ mod tests {
     }
 
     #[test]
-    fn toggles_show_their_default_as_yes_or_no() {
+    fn switches_show_their_default_as_on_or_off() {
         let (_directory, mut console) = console();
         let mut menu = SettingsMenu::new();
         menu.open_tab(&console, SettingsMenu::tab_index("VIDEO").unwrap());
         let row = row_of(&menu, "cg_marks");
-        assert_eq!(menu.defaults[row].text.as_deref(), Some("Yes"));
+        assert_eq!(menu.defaults[row].text.as_deref(), Some("On"));
         menu.selected = row;
         menu.adjust(&mut console, 1);
         assert!(menu.defaults[row].changed);
@@ -913,6 +1073,89 @@ mod tests {
         assert_eq!(menu.defaults[cap].text.as_deref(), Some("AUTO"));
         // Resolution and display mode are not one cvar's value.
         assert_eq!(menu.defaults[0], RowDefault::default());
+    }
+
+    #[test]
+    fn row_controls_round_trip_their_tokens_clear_of_the_other_panel_tokens() {
+        for control in [
+            RowControl::Segment { row: 0, index: 0 },
+            RowControl::Segment { row: 7, index: 2 },
+            RowControl::Reset(0),
+            RowControl::Reset(42),
+        ] {
+            assert_eq!(RowControl::of(control.token()), Some(control));
+        }
+        // Rows, tabs, values, chrome, footer, search and dropdown choices are not
+        // controls.
+        for token in [0, 499, 500, 700, 800, 911, 913, DROPDOWN_BASE + 5] {
+            assert_eq!(RowControl::of(token), None, "{token}");
+        }
+        // Every searchable row's segments fit below the reset buttons.
+        let rows = search::rows().len();
+        assert!(SEGMENT_BASE as usize + rows * MAX_SEGMENTS <= RESET_BASE as usize);
+        assert!(RESET_BASE as usize + rows <= usize::from(u16::MAX));
+    }
+
+    #[test]
+    fn a_switch_flips_and_a_short_choice_steps_instead_of_opening_a_list() {
+        let (_directory, mut console) = console();
+        let mut menu = SettingsMenu::new();
+        menu.open_classic_group(
+            &console,
+            Group::Interface,
+            crate::menu::classic::panel::Frame::Main,
+        );
+        let fonts = row_of(&menu, crate::game_font::CVAR);
+        assert!(!menu.open_dropdown(&console, fonts));
+        let contrast = row_of(&menu, "ui_menuContrast");
+        assert!(!menu.open_dropdown(&console, contrast));
+        // The accent's six choices still open a list.
+        assert!(menu.open_dropdown(&console, row_of(&menu, "ui_accent")));
+        menu.dropdown = None;
+        // A segment sets its own value; the reset button the default.
+        menu.activate_control(
+            &mut console,
+            RowControl::Segment {
+                row: contrast,
+                index: 2,
+            },
+        );
+        assert_eq!(
+            console.cvar("ui_menuContrast").map(CvarValue::as_text),
+            Some("strong".to_owned())
+        );
+        assert!(menu.defaults[contrast].changed);
+        menu.activate_control(&mut console, RowControl::Reset(contrast));
+        assert!(!menu.defaults[contrast].changed);
+        assert_eq!(menu.selected, contrast);
+    }
+
+    #[test]
+    fn the_detail_box_carries_its_groups_icon() {
+        let (_directory, console) = console();
+        let mut menu = SettingsMenu::new();
+        menu.open_classic_group(
+            &console,
+            Group::Hud,
+            crate::menu::classic::panel::Frame::Main,
+        );
+        assert_eq!(menu.badge(), crate::settings_icons::texture("hud"));
+        menu.open_classic_renderer(&console, 3, crate::menu::classic::panel::Frame::Main);
+        assert_eq!(menu.badge(), crate::settings_icons::texture("weather"));
+        // Every tab, renderer tab, group and search group has one.
+        let names = TABS
+            .iter()
+            .chain(&RENDERER_TABS)
+            .copied()
+            .chain(
+                Group::ALL
+                    .into_iter()
+                    .flat_map(|group| group.tabs().iter().copied()),
+            )
+            .chain((0..search::rows().len()).filter_map(search::group));
+        for name in names {
+            assert!(group_icon(name).is_some(), "{name}");
+        }
     }
 
     #[test]

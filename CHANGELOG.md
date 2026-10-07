@@ -21,6 +21,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- Settings look modern (classic menus): on/off settings are switches you click, numbers are slim sliders with their value in a box, short choices (menu style, contrast, console style) sit side by side, longer lists open from a field, labels read as words instead of all capitals, long groups have sub-headings, and a changed setting shows a gold dot and a reset arrow _(Sol)_
 - The game's own fonts are vector fonts: menus, chat and the classic HUD keep their look and layout but stay sharp at any size, with no bitmap left; the menu and HUD fonts are traced from the JoF HD fonts, the chat font is OCR-A set to the game's spacing with its accents, and the WSI logo in names is sharp too _(Sol, fonts traced from the JoF HD Fonts & Icons pack, OCR-A by John Sauter)_
 
 ## 2026.1007.1 (Alpha) | 07/10/2026

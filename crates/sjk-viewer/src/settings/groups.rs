@@ -130,6 +130,57 @@ impl Group {
         }
     }
 
+    /// The sub-headings that divide the group's rows: each heading stands
+    /// before the row of its cvar.
+    fn headings(self) -> &'static [(&'static str, &'static str)] {
+        match self {
+            Self::GameOptions => &[
+                ("cg_simpleItems", "Items and models"),
+                ("cg_saberTrail", "Effects"),
+                ("cg_thirdPersonCameraDamp", "Camera and prediction"),
+            ],
+            Self::Interface => &[
+                (crate::menu::style::CVAR, "Menus"),
+                (crate::console::console_options::STYLE_CVAR, "Console"),
+            ],
+            Self::Hud => &[
+                ("cg_drawHud", "Layout"),
+                ("cg_crosshair", "Crosshair"),
+                ("cg_drawCrosshairNames", "Names and cards"),
+                ("cg_nameplate", "Nameplates"),
+                ("cg_drawTimer", "Readouts"),
+            ],
+            Self::Scoreboard => &[],
+            Self::Quick => &[
+                ("r_resolution", "Display"),
+                ("sensitivity", "Aim"),
+                ("s_volume", "Sound"),
+                (crate::menu_hud::STYLE_CVAR, "HUD"),
+                ("cg_nameplate", "Nameplates"),
+                ("cg_auraShell", "Force shells"),
+                ("cl_autoUpdate", "SJK"),
+            ],
+        }
+    }
+
+    /// The lines a classic panel shows for the group: its rows, under their
+    /// sub-headings.
+    pub(super) fn lines(self) -> Vec<super::Line> {
+        let rows = self.rows();
+        let mut lines = Vec::with_capacity(rows.len() + self.headings().len());
+        for (row, setting) in rows.iter().enumerate() {
+            if let Some((_, heading)) = self
+                .headings()
+                .iter()
+                .find(|(cvar, _)| cvar.eq_ignore_ascii_case(setting.cvar))
+            {
+                lines.push(super::Line::Heading(heading));
+            }
+            lines.push(super::Line::Row(row));
+        }
+        lines
+    }
+
     /// The group's settings, looked up in the catalogue once.
     pub(super) fn rows(self) -> &'static [Setting] {
         if self == Self::Quick {
@@ -163,6 +214,32 @@ mod tests {
     fn every_listed_cvar_is_a_setting() {
         for group in Group::ALL {
             assert_eq!(group.rows().len(), group.cvars().len(), "{group:?}");
+        }
+    }
+
+    #[test]
+    fn every_heading_names_a_row_of_its_group_and_the_first_row_is_under_one() {
+        for group in Group::ALL.into_iter().chain([Group::Quick]) {
+            let rows = group.rows();
+            for (cvar, heading) in group.headings() {
+                assert!(
+                    rows.iter()
+                        .any(|setting| setting.cvar.eq_ignore_ascii_case(cvar)),
+                    "{group:?}: {heading} names {cvar}, not one of its rows"
+                );
+            }
+            let lines = group.lines();
+            assert_eq!(
+                lines.len(),
+                rows.len() + group.headings().len(),
+                "{group:?}"
+            );
+            if !group.headings().is_empty() {
+                assert!(
+                    matches!(lines[0], super::super::Line::Heading(_)),
+                    "{group:?}"
+                );
+            }
         }
     }
 
