@@ -107,6 +107,7 @@ pub(crate) mod vote {
 pub(crate) mod leave {
     pub(crate) const SERVER: usize = 0;
     pub(crate) const QUIT: usize = 1;
+    pub(crate) const STAY: usize = 2;
 }
 
 /// How many rows `page` has where the SJK UI's rows differ from the modern
@@ -287,7 +288,7 @@ pub(super) fn prepare(
                 "Quit to desktop",
                 "Your settings are saved",
             );
-            put(rows, hints, 2, "Stay", "Back to the game menu");
+            put(rows, hints, leave::STAY, "Stay", "Back to the game menu");
         }
         Page::About => put(
             rows,
@@ -511,7 +512,8 @@ fn scrims(canvas: &mut MenuCanvas, viewport: [f32; 2], frame: &Frame, card: bool
     };
     stops(&[(0.0, 0.9), (x(560.0), 0.78), (x(980.0), 0.0)]);
     if card {
-        stops(&[(x(1180.0), 0.0), (x(1560.0), 0.6), (width, 0.74)]);
+        // Dark enough from the card's left edge (x 1360) for its small lines.
+        stops(&[(x(1060.0), 0.0), (x(1340.0), 0.62), (width, 0.8)]);
     }
     fade(
         canvas,

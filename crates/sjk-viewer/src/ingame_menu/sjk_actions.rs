@@ -77,7 +77,11 @@ impl GpuState {
             }
             Entry::Shot => self.open_shot_panel(),
             Entry::SolJk => self.open_game_menu_page(Page::Sjk),
-            Entry::Leave => self.open_game_menu_page(Page::Leave),
+            Entry::Leave => {
+                // As the main page's Quit, it opens on Stay: its rows act at once.
+                self.open_game_menu_page(Page::Leave);
+                self.game_menu_row = leave::STAY;
+            }
         }
     }
 
