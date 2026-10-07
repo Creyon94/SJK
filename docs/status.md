@@ -7,6 +7,52 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## SJK UI: coloured names and the browser's sort mark
+
+SJK-only branch `personal/sjk-ui-browser-colours` (07/10/2026, Windows 11): Sol
+asked for the browser's server names in their colours and found its sort caret
+odd. The list, the chosen server's title (a wrapped second line carries the
+first line's last colour) and its players now draw their `^<digit>` codes; the
+search and the password prompt still read names without them. Every text in the
+SJK UI's families draws the codes in `text::CodePalette::Legible` (black as grey;
+red, green, blue and magenta lifted, same hue), since pure blue and black do not
+read on the navy; the game's own palette is unchanged everywhere else. The sort
+mark is three stacked bars (`kit::sort_mark`). A unit test checks the palette's
+lightness and hues; the world shot was re-rendered and checked zoomed. Not seen
+in a running client.
+
+## SJK UI: loading screen
+
+SJK-only branch `personal/sjk-ui-loading` (07/10/2026, based on `076806e`, Windows 11):
+the SJK UI's own connect and loading screen replaces the classic one in
+`ui_menuStyle sjk` ([sjk-ui.md](sjk-ui.md#loading)). `menu::sjk::loading`
+draws `ClassicLoading`'s state: before the map is known a block at the bottom
+left over the touring menu map (server name, address, a gold step line and
+the step in words); once it is known the destination's levelshot over the
+window with the map's name, the server, its rules, mod and message of the day
+and a gold load bar; a failure in the same layout. Shared changes:
+`ClassicLoading` also keeps the session's world stage and whether the session
+is in hand (fed by `sync_classic_loading`), a join count, whether the load
+named its map and the gamestate's facts; `levelshot::cover_uv` (the browser's
+crop, now shared; the browser uses it) and `levelshot::screen_fit` (a picture
+wider than the window keeps its sides, so the HD packs' titles are whole);
+`ClientMenu::sjk_screen` includes the loading phases and
+`classic_hides_world` asks the SJK screen whether to leave the world out (on a
+server's world always, on the menu map once the levelshot covers it). The
+classic and modern screens are unchanged. Unit tests cover the steps and their
+words, the line never running back within a join, the levelshot's fade, the
+gamestate's facts (free for all, duel, siege), the names' fallbacks, every
+state at four window sizes fitting the canvas with its Esc target, the next-map
+case and when the world is left out; `cargo test --release -p sjk-viewer`
+passed (931). `world_shot::tests::duel6_sjk_loading` rendered five frames over
+duel6 on a made-up join of the JoF server (gamestate and progress faked, the
+real mp/ffa3 levelshot from the installed JoF HD pack). No game was started and
+no server was contacted: a real join's steps and timing, the fade in a running
+client, downloads, a hosted game's start, a server's change of map, a kick and
+the hand-over from the screen to the game are unverified. On review the lead
+put the map's own name large over its file name and fitted wide levelshots
+whole; the frames were rendered again.
+
 ## SJK UI: Scoreboard
 
 SJK-only branch `personal/sjk-ui-scoreboard` (07/10/2026, based on `076806e`,
@@ -1540,6 +1586,17 @@ every map with sky (`r_clouds`). Unit tests cover the settings and quality level
 forced weather, the storm and fog parameters, the noise volume's range and tiling,
 the cloud uniform and drift, and both shaders' translation to SPIR-V and HLSL. No
 game was started: how the fog and clouds look and what they cost are unverified.
+
+`personal/fog-floor` (07/10/2026, based on `6678967`), after Sol saw the ground fog
+change height with where they stood or jumped on `T2_Rogue`: beyond the cover
+window the fog was floored at the column under the camera, so stepping from a roof
+over a street moved all distant fog by 500 units. A coarse far cover of the whole
+map, surveyed once on a second worker, now gives the fog its floors there and in
+columns past the walls ([Weather](rendering.md#weather)). Unit tests cover the far
+grid's placement, the level fill past the walls and void columns on a synthetic
+map. Off-screen world shots of `T2_Rogue` either side of a roof edge showed a band
+of fog flipping before the change and none after; a local, uncommitted probe timed
+the far survey on four retail maps. Not yet tried in a game.
 
 ## Shader review (SJK)
 

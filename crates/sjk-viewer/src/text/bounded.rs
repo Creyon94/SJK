@@ -17,6 +17,7 @@ pub(crate) fn append_bounded(
     base_color: [f32; 4],
     spacing: f32,
     overflow: TextOverflow,
+    palette: CodePalette,
 ) {
     let mut cursor = origin;
     let mut color = base_color;
@@ -28,7 +29,7 @@ pub(crate) fn append_bounded(
     let right = rect.right() - if truncate { ellipsis_width } else { 0.0 };
     while index < bytes.len() && cursor[1] < clip.bottom() {
         if bytes[index] == b'^' && index + 1 < bytes.len() && bytes[index + 1].is_ascii_digit() {
-            color = quake_color(bytes[index + 1] - b'0');
+            color = palette.colour(bytes[index + 1] - b'0');
             color[3] *= base_color[3];
             index += 2;
             continue;

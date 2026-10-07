@@ -6,10 +6,14 @@
 //! finished tiles stay cached for the map. The texture holds a window of
 //! [`WINDOW_TILES`]² tiles centred on the camera, addressed by world cell modulo its
 //! size, so moving the camera uploads only the tiles that enter the window. A column not
-//! surveyed yet reads as covered: weather appears around the camera a moment after it
-//! starts rather than through a roof. Nothing is surveyed on a map without weather.
+//! surveyed yet holds no weather ([`Column::OUTSIDE_MAP`]): weather appears around the
+//! camera a moment after it starts rather than through a roof, and the fog reads the
+//! far cover there. A second worker surveys that far cover once for the whole map
+//! (`weather_cover_far.rs`) into a texture of its own. Nothing is surveyed on a map
+//! without weather.
 
 use super::cover::{Column, Marks, Surveyor};
+use super::cover_far;
 use std::collections::{HashMap, HashSet};
 use std::sync::Arc;
 use std::sync::mpsc::{Receiver, Sender, TryRecvError, channel};
@@ -36,17 +40,28 @@ pub(crate) struct Window {
     pub(crate) cells: [f32; 4],
     /// The cover is in use: false on a map without sky, where weather is everywhere.
     pub(crate) enabled: bool,
+    /// The far cover's first corner (x, y) and column width, and 1 once it is uploaded.
+    pub(crate) far: [f32; 4],
 }
 
 struct Worker {
     requests: Sender<Tile>,
     results: Receiver<(Tile, Texels)>,
+    /// The far cover over `far_grid`, sent once. Dropping `_stop_far` ends its survey
+    /// early.
+    far: Receiver<Texels>,
+    far_grid: cover_far::Grid,
+    _stop_far: Sender<()>,
 }
 
 /// The cover window and its tile cache.
 pub(crate) struct CoverMap {
     texture: wgpu::Texture,
     pub(crate) view: wgpu::TextureView,
+    far_texture: wgpu::Texture,
+    pub(crate) far_view: wgpu::TextureView,
+    /// The far cover's grid, once its survey is uploaded.
+    far: Option<cover_far::Grid>,
     worker: Option<Worker>,
     /// A sky was found; false leaves the cover off.
     has_sky: bool,
@@ -56,29 +71,34 @@ pub(crate) struct CoverMap {
     slots: Vec<Option<(Tile, bool)>>,
     /// The window's first tile.
     origin: Option<Tile>,
-    covered: Texels,
+    unsurveyed: Texels,
     /// Window tiles nearest first, relative to the origin; reused every move.
     order: Vec<Tile>,
 }
 
 impl CoverMap {
-    /// The texture, empty, with no worker yet.
+    /// The textures, empty, with no worker yet.
     pub(crate) fn new(device: &wgpu::Device) -> Self {
-        let texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("SJK weather cover"),
-            size: wgpu::Extent3d {
-                width: SIZE,
-                height: SIZE,
-                depth_or_array_layers: 1,
-            },
-            mip_level_count: 1,
-            sample_count: 1,
-            dimension: wgpu::TextureDimension::D2,
-            format: wgpu::TextureFormat::Rgba32Float,
-            usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
-            view_formats: &[],
-        });
+        let cover_texture = |label, size| {
+            device.create_texture(&wgpu::TextureDescriptor {
+                label: Some(label),
+                size: wgpu::Extent3d {
+                    width: size,
+                    height: size,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: wgpu::TextureFormat::Rgba32Float,
+                usage: wgpu::TextureUsages::TEXTURE_BINDING | wgpu::TextureUsages::COPY_DST,
+                view_formats: &[],
+            })
+        };
+        let texture = cover_texture("SJK weather cover", SIZE);
         let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
+        let far_texture = cover_texture("SJK weather far cover", cover_far::SIZE as u32);
+        let far_view = far_texture.create_view(&wgpu::TextureViewDescriptor::default());
         let centre = (WINDOW_TILES / 2) as f32 - 0.5;
         let mut order: Vec<Tile> = (0..WINDOW_TILES)
             .flat_map(|y| (0..WINDOW_TILES).map(move |x| [x, y]))
@@ -91,13 +111,16 @@ impl CoverMap {
         Self {
             texture,
             view,
+            far_texture,
+            far_view,
+            far: None,
             worker: None,
             has_sky: true,
             cached: HashMap::new(),
             requested: HashSet::new(),
             slots: vec![None; (WINDOW_TILES * WINDOW_TILES) as usize],
             origin: None,
-            covered: vec![Column::COVERED.texel(); TILE * TILE].into_boxed_slice(),
+            unsurveyed: vec![Column::OUTSIDE_MAP.texel(); TILE * TILE].into_boxed_slice(),
             order,
         }
     }
@@ -105,23 +128,48 @@ impl CoverMap {
     /// Start surveying `bsp` with `marks`, dropping any previous survey (the zones
     /// changed). Without a sky no worker starts and the cover stays off.
     pub(crate) fn start(&mut self, bsp: Arc<sjk_bsp::Bsp>, marks: Marks) {
+        let bounds = bsp
+            .render()
+            .models()
+            .first()
+            .map_or([[-65536.0; 3], [65536.0; 3]], |model| {
+                [model.minimums, model.maximums]
+            });
+        let far_surveyor = Surveyor::new(bsp.clone(), marks.clone());
         let surveyor = Surveyor::new(bsp, marks);
         self.has_sky = surveyor.has_sky();
         self.cached.clear();
         self.requested.clear();
         self.slots.fill(None);
         self.origin = None;
+        self.far = None;
         self.worker = None;
         if !self.has_sky {
             return;
         }
         let (requests, jobs) = channel::<Tile>();
         let (done, results) = channel();
+        let (stop_far, far_stop) = channel();
+        let (far_done, far) = channel();
+        let far_grid = cover_far::Grid::around(bounds);
         let spawned = std::thread::Builder::new()
             .name("sjk-weather-cover".into())
-            .spawn(move || survey(surveyor, &jobs, &done));
+            .spawn(move || survey(surveyor, &jobs, &done))
+            .and_then(|_| {
+                std::thread::Builder::new()
+                    .name("sjk-weather-far-cover".into())
+                    .spawn(move || survey_far(far_surveyor, far_grid, bounds, &far_stop, &far_done))
+            });
         match spawned {
-            Ok(_) => self.worker = Some(Worker { requests, results }),
+            Ok(_) => {
+                self.worker = Some(Worker {
+                    requests,
+                    results,
+                    far,
+                    far_grid,
+                    _stop_far: stop_far,
+                })
+            }
             Err(error) => {
                 crate::log::progress(format_args!("weather: cover worker failed: {error}"));
                 self.has_sky = false;
@@ -146,6 +194,32 @@ impl CoverMap {
                 self.place(queue, tile);
             }
             self.trim(origin);
+        }
+        if let Some(worker) = &self.worker
+            && self.far.is_none()
+            && let Ok(texels) = worker.far.try_recv()
+        {
+            let size = cover_far::SIZE as u32;
+            queue.write_texture(
+                wgpu::TexelCopyTextureInfo {
+                    texture: &self.far_texture,
+                    mip_level: 0,
+                    origin: wgpu::Origin3d::ZERO,
+                    aspect: wgpu::TextureAspect::All,
+                },
+                bytemuck::cast_slice(&texels),
+                wgpu::TexelCopyBufferLayout {
+                    offset: 0,
+                    bytes_per_row: Some(size * 16),
+                    rows_per_image: Some(size),
+                },
+                wgpu::Extent3d {
+                    width: size,
+                    height: size,
+                    depth_or_array_layers: 1,
+                },
+            );
+            self.far = Some(worker.far_grid);
         }
         loop {
             let received = match &self.worker {
@@ -172,10 +246,14 @@ impl CoverMap {
 
     /// The window as the shader reads it.
     pub(crate) fn window(&self) -> Window {
+        let far = self.far.map_or([0.0; 4], |grid| {
+            [grid.origin[0], grid.origin[1], grid.cell, 1.0]
+        });
         let Some(origin) = self.origin.filter(|_| self.has_sky) else {
             return Window {
                 cells: [0.0; 4],
                 enabled: self.has_sky,
+                far,
             };
         };
         let first = origin.map(|tile| (tile * TILE as i32) as f32);
@@ -183,6 +261,7 @@ impl CoverMap {
         Window {
             cells: [first[0], first[1], first[0] + span, first[1] + span],
             enabled: true,
+            far,
         }
     }
 
@@ -199,7 +278,7 @@ impl CoverMap {
         if self.slots[slot] == Some((tile, ready)) {
             return;
         }
-        let texels = self.cached.get(&tile).unwrap_or(&self.covered);
+        let texels = self.cached.get(&tile).unwrap_or(&self.unsurveyed);
         let [x, y] = [0, 1].map(|axis| tile[axis].rem_euclid(WINDOW_TILES) as u32 * TILE as u32);
         queue.write_texture(
             wgpu::TexelCopyTextureInfo {
@@ -254,6 +333,25 @@ fn survey(mut surveyor: Surveyor, jobs: &Receiver<Tile>, done: &Sender<(Tile, Te
         if done.send((tile, texels)).is_err() {
             return;
         }
+    }
+}
+
+/// The far worker: survey the whole map's far cover once, then end.
+fn survey_far(
+    mut surveyor: Surveyor,
+    grid: cover_far::Grid,
+    bounds: [[f32; 3]; 2],
+    stop: &Receiver<()>,
+    done: &Sender<Texels>,
+) {
+    let started = std::time::Instant::now();
+    if let Some(texels) = cover_far::survey(&mut surveyor, grid, bounds, stop) {
+        crate::log::progress(format_args!(
+            "weather: far cover ({} units a column) surveyed in {:.0} ms",
+            grid.cell,
+            started.elapsed().as_secs_f64() * 1000.0
+        ));
+        let _ = done.send(texels);
     }
 }
 

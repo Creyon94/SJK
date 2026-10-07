@@ -26,7 +26,8 @@ impl MenuCanvas {
 
     /// Append retained text in the SJK UI's families: display runs to
     /// `fonts.display`, body runs to `fonts.body`, in the player's menu text
-    /// `style`.
+    /// `style`, colour codes lifted to read on the UI's navy
+    /// ([`crate::text::CodePalette::Legible`]).
     pub(crate) fn append_text_families(
         &self,
         fonts: SjkFonts<'_>,
@@ -50,6 +51,7 @@ impl MenuCanvas {
                 font,
                 viewport,
                 style,
+                crate::text::CodePalette::Legible,
             );
         }
     }

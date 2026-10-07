@@ -670,6 +670,98 @@ mod tests {
         });
     }
 
+    /// The SJK UI's loading screen over the live duel6, on a made-up join of
+    /// the JoF server: before the map is known (the tour behind), loading
+    /// mp/ffa3 (its levelshot over the screen), and a failed join with and
+    /// without the map known.
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_sjk_loading() {
+        use menu::classic::loading::{Stage, WorldStage};
+        on_big_stack(|| {
+            let menu = menu::ClientMenu::new(true, String::new());
+            let cvars = [
+                ("ui_menuStyle", "sjk"),
+                (crate::settings::quick::HIDE_CVAR, "1"),
+            ];
+            let Some((mut gpu, _profile)) =
+                open("maps/mp/duel6.bsp", [1920, 1080], Some(menu), &cvars)
+            else {
+                return;
+            };
+            // Past the tour's first fade-in.
+            let _ = frame(&mut gpu, 20);
+            gpu.ui_epoch -= std::time::Duration::from_millis(2_000);
+            type State = (
+                &'static str,
+                Stage,
+                bool,
+                Option<WorldStage>,
+                bool,
+                Option<&'static str>,
+            );
+            let states: [State; 4] = [
+                (
+                    "duel6-loading-joining",
+                    Stage::Challenging,
+                    false,
+                    None,
+                    false,
+                    None,
+                ),
+                (
+                    "duel6-loading-map",
+                    Stage::Loading,
+                    true,
+                    Some(WorldStage::Building),
+                    true,
+                    None,
+                ),
+                (
+                    "duel6-loading-failed",
+                    Stage::Loading,
+                    true,
+                    None,
+                    false,
+                    Some("server is full"),
+                ),
+                (
+                    "duel6-loading-failed-early",
+                    Stage::Connecting,
+                    false,
+                    None,
+                    false,
+                    Some("no answer from the server after 5 seconds"),
+                ),
+            ];
+            for (name, stage, map, world, joined, error) in states {
+                if let Some(menu) = gpu.client_menu.as_mut() {
+                    menu.loading_for_shot(stage, map, world, joined, error);
+                }
+                // The levelshot decodes on its worker.
+                for _ in 0..240 {
+                    let _ = frame(&mut gpu, 1);
+                    if gpu
+                        .client_menu
+                        .as_ref()
+                        .is_some_and(menu::ClientMenu::loading_picture_settled)
+                    {
+                        break;
+                    }
+                }
+                println!("{}", shoot(&mut gpu, 4, name).display());
+            }
+            // A server's change of map, its world (not the menu's) behind:
+            // the navy ground instead, until the new map is named.
+            gpu.is_menu_world = false;
+            if let Some(menu) = gpu.client_menu.as_mut() {
+                menu.loading_for_shot(Stage::Loading, true, None, true, None);
+                menu.map_change_for_shot();
+            }
+            println!("{}", shoot(&mut gpu, 4, "duel6-loading-next-map").display());
+        });
+    }
+
     /// Hand-placed candidates for the menu's camera tour on duel6, for review.
     #[test]
     #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
