@@ -28,6 +28,8 @@ pub struct BugReport {
     pub build: String,
     /// The game server's `ip:port`, or empty.
     pub server: String,
+    /// The in-game name the player wears; empty takes the one the service knows.
+    pub name: String,
 }
 
 /// A world note: the player's text about what they aimed at, and where.
@@ -57,6 +59,8 @@ pub struct WorldNote {
     pub distance: Option<f32>,
     /// The aimed entity's class name.
     pub entity: String,
+    /// The in-game name the player wears; empty takes the one the service knows.
+    pub name: String,
 }
 
 /// Whether a report may contain `c`.

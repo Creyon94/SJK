@@ -270,12 +270,15 @@ impl Hub for HttpHub {
     }
 
     fn report(&mut self, identity: &Identity, report: &BugReport) -> Result<i64, HubError> {
-        let body = json!({
+        let mut body = json!({
             "text": report.text,
             "map": report.map,
             "build": report.build,
             "server": report.server,
         });
+        if !report.name.is_empty() {
+            body["name"] = json!(report.name);
+        }
         let answer = self.send(Some(identity), "POST", "/v1/report", Some(body))?;
         answer
             .get("id")
@@ -284,7 +287,7 @@ impl Hub for HttpHub {
     }
 
     fn note(&mut self, identity: &Identity, note: &WorldNote) -> Result<i64, HubError> {
-        let body = json!({
+        let mut body = json!({
             "text": note.text,
             "map": note.map,
             "build": note.build,
@@ -298,6 +301,9 @@ impl Hub for HttpHub {
             "distance": note.distance,
             "entity": note.entity,
         });
+        if !note.name.is_empty() {
+            body["name"] = json!(note.name);
+        }
         let answer = self.send(Some(identity), "POST", "/v1/note", Some(body))?;
         answer
             .get("id")

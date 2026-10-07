@@ -61,6 +61,15 @@ fonts and the placement; the world shots were re-rendered and checked zoomed
 (buttons, segments, key caps, the badge). The main page's arc entries now sit
 on their arc points (they drew about a tenth of their size high).
 
+## Reports and notes carry the worn name
+
+SJK-only branch `personal/hub-names` (07/10/2026, based on `6678967`, Windows 11): Sol
+asked for the player's name with every note and its history kept. `BugReport` and
+`WorldNote` gain `name`; the identity service fills it from the in-game name it already
+sends the hub, and the hub stores it with the row and in the key's worn names
+([identity.md](identity.md#world-notes)). The service tests check the name goes out; the
+`hub_e2e` note test passed against a local hub. No game was started.
+
 ## World notes sent to the hub
 
 SJK-only branch `personal/hub-notes` (07/10/2026, based on `57fcc62`, Windows 11):

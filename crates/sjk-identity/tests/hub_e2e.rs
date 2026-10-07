@@ -153,6 +153,7 @@ fn a_world_note_and_its_picture_reach_the_hub() {
         surface: Some(943),
         lighting: "lightmapped".to_owned(),
         distance: Some(252.0),
+        name: "^1NoteTester".to_owned(),
         ..sjk_identity::WorldNote::default()
     };
     let id = hub.note(&me, &note).unwrap();

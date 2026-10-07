@@ -1890,7 +1890,7 @@ test: Type a note, Enter: console says note kept; GameData/screenshots has note_
 test: Aim at a door: X names the func_door and its shaders. Escape in the note drops it.
 test: On a player, X still pins their card; with a card pinned, X unpins it.
 test: After Enter a centre print says Note sent to the SJK team (note number) or why not.
-test: The note shows in the hub's notes list with its picture and setviewpos.
+test: The note shows in the hub's notes list with its picture, setviewpos and your name.
 test: cl_identity 0: the note is still kept on the PC; nothing goes to the hub.
 note: Notes go to GameData/SJK/notes.jsonl and notes.txt too: tell Claude to read them.
 
@@ -1902,6 +1902,7 @@ change: Escape: a Report a bug button bottom centre opens a panel with Send and 
 change: Only letters, digits, spaces and . , ! ? ' - : ( ) can be typed; 10 to 600 characters.
 test: Escape, click Report a bug (bottom centre): type < > / or an emoji: nothing appears.
 test: The centre print says sent (report number) or why not (quota, too short).
+test: The report shows in the hub's reports list under the name you play with.
 test: Send the same text twice: refused. A fresh key: 3 a day, then refused.
 note: The hub takes reports since 07/10/2026 (deployed); Claude reads them on the hub.
 
