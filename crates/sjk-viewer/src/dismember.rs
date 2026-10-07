@@ -152,7 +152,14 @@ impl Surfaces {
                 .collect(),
         };
         while let Some(index) = pending.pop() {
-            let flags = self.flags.get(index).copied().unwrap_or(0) & (OFF | NODESCENDANTS);
+            let mut flags = self.flags.get(index).copied().unwrap_or(0) & (OFF | NODESCENDANTS);
+            if self.first_person_saber
+                && crate::actor_world_submission::first_person_saber::hide_surface(
+                    &hierarchy[index].name,
+                )
+            {
+                flags |= OFF | NODESCENDANTS;
+            }
             if flags == 0 {
                 rendered[index] = true;
             }
@@ -168,15 +175,7 @@ impl Surfaces {
         self.draw_visible = self
             .draw_surfaces
             .iter()
-            .map(|&surface| {
-                rendered.get(surface).copied().unwrap_or(true)
-                    && !(self.first_person_saber
-                        && hierarchy.get(surface).is_some_and(|surface| {
-                            crate::actor_world_submission::first_person_saber::hide_surface(
-                                &surface.name,
-                            )
-                        }))
-            })
+            .map(|&surface| rendered.get(surface).copied().unwrap_or(true))
             .collect();
     }
 
@@ -674,6 +673,22 @@ mod tests {
 
     fn shown(surfaces: &Surfaces) -> Vec<bool> {
         surfaces.draw_visible.clone()
+    }
+
+    #[test]
+    fn first_person_masks_the_head_subtree_and_restores_the_model_flags() {
+        let hierarchy = vec![
+            surface("torso", 0, None, &[1, 3]),
+            surface("head", 0, Some(0), &[2]),
+            surface("helmet", 0, Some(1), &[4]),
+            surface("r_arm", 0, Some(0), &[]),
+            surface("hair", 0, Some(2), &[]),
+        ];
+        let mut state = Surfaces::new(&hierarchy, vec![0; 5], 0..5);
+        state.first_person_saber(true, &hierarchy);
+        assert_eq!(shown(&state), [true, false, false, true, false]);
+        state.first_person_saber(false, &hierarchy);
+        assert_eq!(shown(&state), [true; 5]);
     }
 
     #[test]
