@@ -113,8 +113,19 @@ pub(crate) fn update(gpu: &mut GpuState, time: i64, audio: &mut Option<GameAudio
                         0x1111,
                     );
                     if trace.fraction < 1.0 {
-                        let path = footsteps::PATHS[footsteps::material(trace.surface_flags)]
-                            [usize::from(*heavy)][variant % 4];
+                        // Ground the map gives no material: guessed from its shader.
+                        let family = if trace.surface_flags & 31 == 0 {
+                            trace
+                                .shader
+                                .and_then(|index| gpu.bsp.shaders().get(index))
+                                .and_then(|shader| {
+                                    footsteps::material_from_name(&shader.name_lossy())
+                                })
+                                .unwrap_or(0)
+                        } else {
+                            footsteps::material(trace.surface_flags)
+                        };
+                        let path = footsteps::PATHS[family][usize::from(*heavy)][variant % 4];
                         audio.play_animation(path, 6, true, origin, id, is_local);
                     }
                 }

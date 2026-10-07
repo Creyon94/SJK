@@ -829,7 +829,13 @@ no file reads. A world build shares the skeleton and event assets across matchin
 appearances. Active actors release their prefetched encoded bytes after registration.
 
 Ground-contact events trace beneath the animated foot and select the authored
-walk/run sound bank for the surface material. `cg_footsteps 0` mutes them. Frame
+walk/run sound bank for the surface material. Ground the map gives no material
+(no `MATERIAL_*` bits, which codemp plays as stone) takes its bank from the hit
+shader's file name in SJK (`footsteps::material_from_name`: sand but not sandstone,
+snow, grass, gravel, mud, dirt, carpet, wood or plank): retail leaves much of its
+sand untagged, such as `mp/siege_desert`'s `siege/siege2sand`, where Sol asked for
+sand steps (world note, 07/10/2026). The collision trace reports the brush side's
+or patch's shader for this (`CollisionTrace::shader`). `cg_footsteps 0` mutes them. Frame
 latches prevent repeated playback while an animation frame is held; absent actors,
 teleports, backwards seeks and paused map changes reset the cursor. First-person
 local actors use the same evaluated timing. This restores the blue-stance taunt's
