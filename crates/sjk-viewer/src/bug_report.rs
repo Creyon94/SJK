@@ -31,6 +31,9 @@ impl crate::GpuState {
             Action::Cancel => self.world_notes.composer_closed(),
             Action::Send(Kind::Note { .. }, text) => self.save_world_note(&text),
             Action::Send(Kind::Report, text) => self.send_bug_report(&text),
+            Action::Send(Kind::PlayerReport { category, .. }, text) => {
+                self.send_player_report(category, &text)
+            }
         }
         self.sync_cursor_policy();
     }

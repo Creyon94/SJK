@@ -170,3 +170,79 @@ fn a_world_note_and_its_picture_reach_the_hub() {
         "{again:?}"
     );
 }
+
+/// The operator key the hub under test accepts (`--admin-keys`), if the run gives one.
+fn operator_key() -> Option<String> {
+    std::env::var("SJK_HUB_TEST_ADMIN_KEY").ok()
+}
+
+#[test]
+#[ignore = "needs a running hub (SJK_HUB_TEST_URL; SJK_HUB_TEST_ADMIN_KEY for the verified half)"]
+fn only_a_verified_player_on_the_server_reports_another() {
+    use sjk_identity::{Category, PlayerReport};
+    let url = std::env::var("SJK_HUB_TEST_URL").expect("SJK_HUB_TEST_URL");
+    let mut hub = hub();
+    let me = Identity::generate().unwrap();
+    let troll = Identity::generate().unwrap();
+    let suffix = &troll.key_id()[..6];
+    let server = "10.98.0.5:29070";
+    hub.register(&me, Some("^2Reporter")).unwrap();
+    hub.register(&troll, None).unwrap();
+    hub.claim(&me, server, 2, "^2Reporter").unwrap();
+    let shown = format!("^1Troll{suffix}");
+    hub.claim(&troll, server, 5, &shown).unwrap();
+    let report = PlayerReport {
+        category: Category::Cheating,
+        text: "Speed hacking all round the map".to_owned(),
+        server: server.to_owned(),
+        server_name: "^4Test ^7server".to_owned(),
+        slot: 5,
+        target_name: shown.clone(),
+        target_key_id: troll.key_id(),
+        map: "maps/mp/ffa3.bsp".to_owned(),
+        build: "e2e".to_owned(),
+        level_time: Some(754),
+        name: "^2Reporter".to_owned(),
+    };
+    let refused = hub.player_report(&me, &report).unwrap_err();
+    assert!(
+        matches!(refused, HubError::Rejected { ref code, .. } if code == "not_verified"),
+        "{refused:?}"
+    );
+    let Some(admin) = operator_key() else {
+        eprintln!("no SJK_HUB_TEST_ADMIN_KEY: the verified half is skipped");
+        return;
+    };
+    let bearer = format!("Bearer {admin}");
+    let verified = ureq::patch(&format!("{url}/admin/v1/identities/{}", me.key_id()))
+        .header("Authorization", &bearer)
+        .header("Content-Type", "application/json")
+        .send(r#"{"verified":true}"#)
+        .unwrap();
+    assert_eq!(verified.status().as_u16(), 200);
+    let id = hub.player_report(&me, &report).unwrap();
+    assert!(id > 0);
+    let again = hub.player_report(&me, &report).unwrap_err();
+    assert!(
+        matches!(again, HubError::Rejected { ref code, .. } if code == "player_report_duplicate"),
+        "{again:?}"
+    );
+    let mut listed = ureq::get(&format!(
+        "{url}/admin/v1/player-reports?target={}",
+        troll.key_id()
+    ))
+    .header("Authorization", &bearer)
+    .call()
+    .unwrap();
+    let list: serde_json::Value =
+        serde_json::from_str(&listed.body_mut().read_to_string().unwrap()).unwrap();
+    let row = &list["player_reports"][0];
+    assert_eq!(row["id"], id);
+    assert_eq!(row["category"], "cheating");
+    assert_eq!(row["target_name"], shown.as_str());
+    assert_eq!(row["target_key_id"], troll.key_id().as_str());
+    assert_eq!(row["target_source"], "claim");
+    assert_eq!(row["server_name"], "^4Test ^7server");
+    assert_eq!(row["level_time"], 754);
+    assert_eq!(row["worn"], "^2Reporter");
+}

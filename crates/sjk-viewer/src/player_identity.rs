@@ -199,6 +199,55 @@ pub(crate) fn report_outcome() -> Option<sjk_identity::ReportOutcome> {
         .and_then(|service| service.with_snapshot(|snapshot| snapshot.report.clone()))
 }
 
+/// Send a report about another player through the service; false when the service
+/// has not started.
+pub(crate) fn player_report(report: sjk_identity::PlayerReport) -> bool {
+    let runtime = lock();
+    let Some(service) = runtime.service.as_ref() else {
+        return false;
+    };
+    service.player_report(report);
+    true
+}
+
+/// The outcome of the last player report, once the service has one.
+pub(crate) fn player_report_outcome() -> Option<sjk_identity::ReportOutcome> {
+    lock()
+        .service
+        .as_ref()
+        .and_then(|service| service.with_snapshot(|snapshot| snapshot.player_report.clone()))
+}
+
+/// Whether the player may report other players: only with the identity on, the hub
+/// answering and their key verified by the SJK team.
+pub(crate) fn report_gate() -> crate::ingame_menu::players::Gate {
+    use crate::ingame_menu::players::Gate;
+    let runtime = lock();
+    let Some(service) = runtime.service.as_ref() else {
+        return Gate::NoIdentity;
+    };
+    service.with_snapshot(|snapshot| match (&snapshot.status, &snapshot.me) {
+        (sjk_identity::Status::Disabled | sjk_identity::Status::NoHub, _) => Gate::NoIdentity,
+        (_, None) => Gate::Offline,
+        (_, Some(me)) if me.verified => Gate::Open,
+        (_, Some(_)) => Gate::NotVerified,
+    })
+}
+
+/// What the hub knows of the player in `slot` whom the game shows as `shown`: their
+/// key, hub name and verified flag, from a live claim under that name.
+pub(crate) fn hub_mark(slot: u8, shown: &str) -> Option<crate::ingame_menu::players::HubMark> {
+    lock().service.as_ref()?.with_snapshot(|snapshot| {
+        snapshot
+            .badge(slot, shown)
+            .map(|player| crate::ingame_menu::players::HubMark {
+                key_id: player.key_id.clone(),
+                name: player.name.clone(),
+                verified: player.verified,
+            })
+    })
+}
+
 /// The service's state, or `None` when it has not started (the feature has never
 /// been on, or the key file is unusable: see [`key_error`]).
 pub(crate) fn snapshot() -> Option<Snapshot> {
@@ -303,5 +352,8 @@ mod tests {
         assert_eq!(revision(), 0);
         assert!(snapshot().is_none());
         assert_eq!(verified_slots(&GameState::empty_local(0)), 0);
+        assert_eq!(report_gate(), crate::ingame_menu::players::Gate::NoIdentity);
+        assert_eq!(hub_mark(3, "Sol"), None);
+        assert!(player_report_outcome().is_none());
     }
 }

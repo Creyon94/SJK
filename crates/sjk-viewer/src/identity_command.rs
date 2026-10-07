@@ -183,6 +183,7 @@ mod tests {
             revision: 0,
             report: None,
             note: None,
+            player_report: None,
         }
     }
 

@@ -8,7 +8,7 @@
 
 use crate::hub::{Hub, HubError};
 use crate::keys::Identity;
-use crate::report::{BugReport, WorldNote};
+use crate::report::{BugReport, PlayerReport, WorldNote};
 use crate::wire::{Presence, Profile, names_match};
 use std::collections::HashMap;
 use std::net::SocketAddr;
@@ -86,6 +86,8 @@ pub struct Snapshot {
     pub report: Option<ReportOutcome>,
     /// The outcome of the last world note sent with [`Service::note`].
     pub note: Option<ReportOutcome>,
+    /// The outcome of the last player report sent with [`Service::player_report`].
+    pub player_report: Option<ReportOutcome>,
 }
 
 /// What became of a bug report or a world note.
@@ -112,6 +114,7 @@ impl Snapshot {
             revision: 0,
             report: None,
             note: None,
+            player_report: None,
         }
     }
 
@@ -134,6 +137,7 @@ enum Command {
     SetBio(String),
     LookUp(String),
     Report(BugReport),
+    PlayerReport(PlayerReport),
     /// A world note and the tag its picture will come with.
     Note(u64, WorldNote),
     /// The picture of the note tagged so.
@@ -284,6 +288,12 @@ impl Worker {
                 }
                 self.report(&report);
             }
+            Command::PlayerReport(mut report) => {
+                if report.name.is_empty() {
+                    report.name = self.name.clone().unwrap_or_default();
+                }
+                self.player_report(&report);
+            }
             Command::Note(tag, mut note) => {
                 if note.name.is_empty() {
                     note.name = self.name.clone().unwrap_or_default();
@@ -365,6 +375,36 @@ impl Worker {
             snapshot.report = Some(outcome_of(
                 serial,
                 outcome.map(|id| format!("report #{id}")),
+            ));
+        });
+    }
+
+    /// Send a player report: only once registered, and only with a key the hub's
+    /// operator verified (the hub refuses the others too).
+    fn player_report(&mut self, report: &PlayerReport) {
+        let verified = lock(&self.snapshot)
+            .me
+            .as_ref()
+            .is_some_and(|me| me.verified);
+        let outcome = match (self.hub.as_mut(), self.registered, verified) {
+            (Some(hub), true, true) => hub.player_report(&self.identity, report),
+            (Some(_), true, false) => Err(HubError::Rejected {
+                status: 403,
+                code: "not_verified".to_owned(),
+                message: "only verified SJK players can report players".to_owned(),
+            }),
+            _ => Err(HubError::Protocol(
+                "not connected to the hub (is identity on, cl_identity 1?)".to_owned(),
+            )),
+        };
+        self.update(|snapshot| {
+            let serial = snapshot
+                .player_report
+                .as_ref()
+                .map_or(1, |last| last.serial + 1);
+            snapshot.player_report = Some(outcome_of(
+                serial,
+                outcome.map(|id| format!("player report #{id}")),
             ));
         });
     }
@@ -601,6 +641,12 @@ impl Service {
         let _ = self.commands.send(Command::Report(report));
     }
 
+    /// Send a report about another player; its outcome arrives in
+    /// [`Snapshot::player_report`]. Only a verified key may.
+    pub fn player_report(&self, report: PlayerReport) {
+        let _ = self.commands.send(Command::PlayerReport(report));
+    }
+
     /// Send a world note; its outcome arrives in [`Snapshot::note`]. The answer tags
     /// the note for [`Service::note_image`].
     pub fn note(&self, note: WorldNote) -> u64 {
@@ -720,6 +766,19 @@ mod tests {
             self.record(format!("report {}", report.text))?;
             self.record(format!("report name {}", report.name))
                 .map(|()| 7)
+        }
+        fn player_report(&mut self, _: &Identity, report: &PlayerReport) -> Result<i64, HubError> {
+            Fake::record(
+                self,
+                format!(
+                    "player {} {} {} by {}",
+                    report.category.code(),
+                    report.slot,
+                    report.target_name,
+                    report.name
+                ),
+            )
+            .map(|()| 11)
         }
         fn note(&mut self, _: &Identity, note: &WorldNote) -> Result<i64, HubError> {
             Fake::record(self, format!("note {} {}", note.text, note.shader))?;
@@ -991,6 +1050,45 @@ mod tests {
         let outcome = lock(&snapshot).report.clone().unwrap();
         assert_eq!((outcome.serial, outcome.sent), (first.serial + 1, true));
         assert_eq!(outcome.message, "report #7");
+    }
+
+    #[test]
+    fn player_reports_go_only_from_a_verified_key() {
+        let fake = Fake::default();
+        let t0 = Instant::now();
+        let (mut worker, snapshot) = worker(&fake, t0);
+        let report = PlayerReport {
+            category: crate::report::Category::Cheating,
+            text: "Speed hacking all round".into(),
+            slot: 5,
+            target_name: "^1Troll".into(),
+            ..PlayerReport::default()
+        };
+        worker.handle(Command::PlayerReport(report.clone()), t0);
+        let first = lock(&snapshot).player_report.clone().unwrap();
+        assert!(!first.sent && first.message.contains("not connected"));
+        worker.handle(Command::Name("^2Sol".into()), t0);
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.tick(t0);
+        // Registered but not verified: nothing goes, and the outcome says why.
+        worker.handle(Command::PlayerReport(report.clone()), t0);
+        let unverified = lock(&snapshot).player_report.clone().unwrap();
+        assert!(!unverified.sent && unverified.message.contains("verified"));
+        assert!(!fake.log().iter().any(|line| line.starts_with("player")));
+        lock(&snapshot).me.as_mut().unwrap().verified = true;
+        worker.handle(Command::PlayerReport(report), t0);
+        let sent = lock(&snapshot).player_report.clone().unwrap();
+        assert_eq!(
+            (sent.serial, sent.sent, sent.message.as_str()),
+            (3, true, "player report #11")
+        );
+        // It carries the name the reporter wears.
+        assert!(
+            fake.log()
+                .contains(&"player cheating 5 ^1Troll by ^2Sol".to_owned()),
+            "{:?}",
+            fake.log()
+        );
     }
 
     #[test]

@@ -872,6 +872,89 @@ mod tests {
         });
     }
 
+    /// The game menu's Players page (a small scoreboard) and its Report page, in the
+    /// SJK UI, the classic and the modern menus, for a verified player and for one who
+    /// is not, and
+    /// the report's dialog: on a made-up roster over duel6.
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_ingame_players() {
+        use crate::ingame_menu::players::{Gate, State};
+        use crate::ingame_menu::{Page, ShotView, sjk_view::Card};
+        on_big_stack(|| {
+            for style in ["sjk", "classic", "modern"] {
+                let menu = menu::ClientMenu::new(false, String::new());
+                let cvars = [
+                    ("ui_menuStyle", style),
+                    (crate::settings::quick::HIDE_CVAR, "1"),
+                ];
+                let Some((mut gpu, _profile)) =
+                    open("maps/mp/duel6.bsp", [1920, 1080], Some(menu), &cvars)
+                else {
+                    return;
+                };
+                let shots =
+                    menu_backdrop::tour_for("Yavin Training Grounds").expect("duel6's tour");
+                let (yaw, pitch) = look(shots[0].from, shots[0].at);
+                aim(&mut gpu, shots[0].from, yaw, pitch);
+                gpu.game_menu = true;
+                if let Some(console) = gpu.console.as_mut() {
+                    console.close_for_connection();
+                }
+                let _ = frame(&mut gpu, 60);
+                if style == "sjk" {
+                    let ctf = ShotView {
+                        team: 2,
+                        team_game: true,
+                        red_players: 6,
+                        blue_players: 6,
+                        vote_active: false,
+                    };
+                    gpu.in_game_menu
+                        .sjk_for_shot(Card::for_shot(true, false), ctf);
+                }
+                let pages: [(&str, Gate, Page, usize); 4] = [
+                    ("players", Gate::Open, Page::Players, 3),
+                    ("players-unverified", Gate::NotVerified, Page::Players, 0),
+                    ("report", Gate::Open, Page::ReportPlayer, 1),
+                    (
+                        "report-unverified",
+                        Gate::NotVerified,
+                        Page::ReportPlayer,
+                        7,
+                    ),
+                ];
+                for (name, gate, page, row) in pages {
+                    let mut roster = State::for_shot(12, true, gate);
+                    roster.choose(3);
+                    gpu.in_game_menu.players = roster;
+                    gpu.game_menu_page = page;
+                    gpu.game_menu_row = row;
+                    let name = format!("duel6-ingame-{style}-{name}");
+                    println!("{}", shoot(&mut gpu, 16, &name).display());
+                }
+                // The SJK UI's dialog is the classic one (`classic_screens`).
+                if style == "sjk" {
+                    continue;
+                }
+                // In a match the menu closes under the dialog; without a server the
+                // console would drop, so the menu stays up under it here.
+                gpu.text_dialog
+                    .open(crate::text_dialog::Kind::PlayerReport {
+                        subject: "Kyle: Cheating".to_owned(),
+                        category: sjk_identity::Category::Cheating,
+                    });
+                gpu.text_dialog.preview(
+                    "Speed hacking and flying through walls all match",
+                    true,
+                    "",
+                );
+                let name = format!("duel6-ingame-{style}-report-dialog");
+                println!("{}", shoot(&mut gpu, 8, &name).display());
+            }
+        });
+    }
+
     /// Hand-placed candidates for the menu's camera tour on duel6, for review.
     #[test]
     #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]

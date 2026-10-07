@@ -507,8 +507,21 @@ page's 16:9 frame.
   in its turning ring. Leaving entries are ember when chosen; Back and Stay are
   quiet, as is the main page's Leave.
 - **Pages:**
-  - Main: Resume, Team, Vote, Character, Settings, Servers, Shot controls, Sol
-    JK, Leave.
+  - Main: Resume, Team, Players, Vote, Character, Settings, Servers, Shot
+    controls, Sol JK, Leave.
+  - Players: a small scoreboard in place of the arc ([identity.md](identity.md#player-reports)):
+    the title and how many are on the server (or why the player cannot report, in
+    ember), then a table from x 340 to 1330 under a darker fade: a team's colour
+    mark, the name in its colours, score, ping ("bot" for a bot) and what the SJK
+    hub knows ("Verified" in gold, "SJK" in holo, "You"), 37 apart, sixteen a page
+    with More players... and Back; the chosen row has a gold band and edge. The
+    card on the right becomes the chosen player's: name, slot and side, what the
+    hub knows (key and hub name), score and ping, and "Enter: report this player"
+    in gold, or why not after an ember mark. Enter opens Report.
+  - Report a player: the seven reasons on the arc with what each covers, and Back;
+    the player's card stays on the right. Without the right to report, the
+    reasons are dimmed and passed over, and Back's line says why. A reason opens
+    the text dialog; Escape returns to the player's row.
   - Team: Join the game and Spectate, or in a team game Auto-join, Red team,
     Blue team (each with its colour and players) and Spectate; the side the
     player is on is quiet ("Your team", "You are watching") and passed over by
@@ -519,7 +532,8 @@ page's 16:9 frame.
     Call a vote directly, whose lists (map, game type, kick, warmup, limits)
     are the shared call-vote lists. Voting or calling a vote returns to the
     match, as retail's pop-ups do.
-  - Sol JK: What's new, Credits, Identity, Report a bug.
+  - Sol JK: What's new, Credits, Identity, Report a bug, Report a player (the
+    Players page).
   - Leave: Leave the server, Quit to desktop (ember when chosen), Stay. It opens on Stay, since its rows act at once.
 - **Match card:** on the right (x 1360, 464 wide) over its own fade: the
   server's name with its colours and its address, a rule, the map without
@@ -530,8 +544,8 @@ page's 16:9 frame.
   a rule how many play, watch and fit, and "You are spectating" for a
   spectator. It reads the live session each frame and the server's info once
   a second; without a server (a map explored alone) it hides.
-- **Keys:** bottom centre: Up Down choose, Enter open, Esc resume (back on a
-  page).
+- **Keys:** bottom centre: Up Down choose, Enter open (report on Players, write
+  on Report a player), Esc resume (back on a page).
 
 Escape on a page returns to the main page on the entry that opened it (a
 call-vote list to its row of Call a vote); on the main page it resumes. The

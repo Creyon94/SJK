@@ -163,5 +163,7 @@ fn page_title(page: Page) -> &'static str {
         Page::VoteWarmup => "Warmup",
         Page::VoteTimeLimit => "Time limit",
         Page::VoteFragLimit => "Frag limit",
+        Page::Players => "Players",
+        Page::ReportPlayer => "Report a player",
     }
 }

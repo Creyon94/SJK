@@ -18,6 +18,7 @@ mod callvote;
 pub(crate) mod classic;
 mod classic_actions;
 mod classic_view;
+pub(crate) mod players;
 pub(crate) mod shot;
 mod siege;
 pub(crate) mod siege_data;
@@ -58,6 +59,11 @@ pub(crate) enum Page {
     VoteWarmup,
     VoteTimeLimit,
     VoteFragLimit,
+    /// Everyone on the server, a small scoreboard; choosing one opens
+    /// [`Page::ReportPlayer`] ([`players`]).
+    Players,
+    /// Why the chosen player is reported; a reason opens the text dialog.
+    ReportPlayer,
 }
 
 pub(crate) struct View<'a> {
@@ -80,6 +86,7 @@ fn hint_for(view: &View<'_>) -> impl Fn(usize) -> &'static str {
     move |row| match page {
         Page::Main => main_hint(row, vote_active),
         Page::Sjk => sjk::ENTRIES.get(row).map_or("", |entry| entry.hint),
+        Page::ReportPlayer => players::State::category(row).map_or("", |c| c.hint()),
         _ => "",
     }
 }
@@ -115,6 +122,8 @@ pub(crate) struct InGameMenu {
     active_page: Page,
     siege: siege::State,
     pub(crate) shot: shot::Panel,
+    /// The Players and Report pages' roster and chosen player.
+    pub(crate) players: players::State,
     /// Layout family (`ui_menuStyle`).
     style: MenuStyle,
     /// Retail artwork the classic layout can draw.
@@ -157,6 +166,7 @@ impl InGameMenu {
             active_page: Page::Main,
             siege: siege::State::default(),
             shot: shot::Panel::default(),
+            players: players::State::default(),
             style: MenuStyle::default(),
             art: ArtSet::default(),
             hints: std::array::from_fn(|_| String::with_capacity(96)),
@@ -267,7 +277,10 @@ impl InGameMenu {
             &mut self.canvas,
             &view,
             &rows,
-            &self.card,
+            &sjk_view::Sides {
+                card: &self.card,
+                players: &self.players,
+            },
             &mut self.motion,
             viewport,
         );
@@ -292,7 +305,7 @@ impl InGameMenu {
             labels: &self.rows[..self.row_count],
             enabled: &self.enabled[..self.row_count],
             scroll: self.callvote.scroll_metrics(view.page),
-            info: info_lines(&self.about, view.page),
+            info: info_lines(&self.about, &self.players, view.page),
         };
         if self.is_classic() {
             classic_view::build(&mut self.canvas, &view, rows, self.art, viewport);
@@ -365,7 +378,11 @@ impl InGameMenu {
     }
 
     pub(crate) fn row_count(&self, page: Page, team_game: bool, vote_active: bool) -> usize {
-        if let Some(count) = classic::row_count(page, team_game).filter(|_| self.is_classic()) {
+        if matches!(page, Page::Players | Page::ReportPlayer) {
+            self.players.row_count(page)
+        } else if let Some(count) =
+            classic::row_count(page, team_game).filter(|_| self.is_classic())
+        {
             count
         } else if let Some(count) = sjk_view::row_count(page, team_game).filter(|_| self.is_sjk()) {
             count
@@ -408,6 +425,13 @@ impl InGameMenu {
         };
         self.row_count = if let Some(count) = own_rows {
             count
+        } else if matches!(view.page, Page::Players | Page::ReportPlayer) {
+            self.players.prepare(
+                view.page,
+                &mut self.rows,
+                &mut self.hints,
+                &mut self.enabled,
+            )
         } else if view.page == Page::Siege {
             self.siege.prepare(&mut self.rows)
         } else if view.page.is_vote_page() {
@@ -573,10 +597,16 @@ pub(crate) fn row_count(page: Page, team_game: bool, vote_active: bool) -> usize
     }
 }
 
-/// Read-only lines above the entries of `page` (the server-info page).
-fn info_lines(about: &about::State, page: Page) -> &[String] {
+/// Read-only lines above the entries of `page` (the server-info page, and the
+/// Players and Report pages' who and why).
+fn info_lines<'a>(
+    about: &'a about::State,
+    players: &'a players::State,
+    page: Page,
+) -> &'a [String] {
     match page {
         Page::About => about.lines(),
+        Page::Players | Page::ReportPlayer => players.info(page),
         _ => &[],
     }
 }

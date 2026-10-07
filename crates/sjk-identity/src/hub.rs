@@ -1,7 +1,7 @@
 //! Talking to the hub: the [`Hub`] operations and their HTTPS implementation.
 
 use crate::keys::{Identity, random_bytes};
-use crate::report::{BugReport, WorldNote};
+use crate::report::{BugReport, PlayerReport, WorldNote};
 use crate::wire::{Presence, Profile, authorization};
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
@@ -82,6 +82,17 @@ pub trait Hub: Send {
     fn report(&mut self, _identity: &Identity, _report: &BugReport) -> Result<i64, HubError> {
         Err(HubError::Protocol(
             "this hub client does not send reports".to_owned(),
+        ))
+    }
+    /// Send a report about another player, signed by the identity (a verified key);
+    /// the hub answers with its number.
+    fn player_report(
+        &mut self,
+        _identity: &Identity,
+        _report: &PlayerReport,
+    ) -> Result<i64, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not send player reports".to_owned(),
         ))
     }
 }
@@ -256,6 +267,32 @@ impl HttpHub {
     }
 }
 
+/// `POST /v1/player-report`'s body: empty optional fields are left out.
+fn player_report_body(report: &PlayerReport) -> Value {
+    let mut body = json!({
+        "category": report.category.code(),
+        "text": report.text,
+        "server": report.server,
+        "slot": report.slot,
+        "target_name": report.target_name,
+        "map": report.map,
+        "build": report.build,
+    });
+    for (key, value) in [
+        ("target_key_id", &report.target_key_id),
+        ("server_name", &report.server_name),
+        ("name", &report.name),
+    ] {
+        if !value.is_empty() {
+            body[key] = json!(value);
+        }
+    }
+    if let Some(time) = report.level_time {
+        body["level_time"] = json!(time);
+    }
+    body
+}
+
 fn parse<T: DeserializeOwned>(value: Value) -> Result<T, HubError> {
     serde_json::from_value(value).map_err(|error| HubError::Protocol(error.to_string()))
 }
@@ -284,6 +321,23 @@ impl Hub for HttpHub {
             .get("id")
             .and_then(serde_json::Value::as_i64)
             .ok_or_else(|| HubError::Protocol("the report answer has no id".to_owned()))
+    }
+
+    fn player_report(
+        &mut self,
+        identity: &Identity,
+        report: &PlayerReport,
+    ) -> Result<i64, HubError> {
+        let answer = self.send(
+            Some(identity),
+            "POST",
+            "/v1/player-report",
+            Some(player_report_body(report)),
+        )?;
+        answer
+            .get("id")
+            .and_then(serde_json::Value::as_i64)
+            .ok_or_else(|| HubError::Protocol("the player report answer has no id".to_owned()))
     }
 
     fn note(&mut self, identity: &Identity, note: &WorldNote) -> Result<i64, HubError> {
@@ -390,6 +444,36 @@ mod tests {
     fn a_plain_http_address_is_refused_at_construction() {
         assert!(HttpHub::new("http://hub.example", "t").is_err());
         assert!(HttpHub::new("https://hub.example/", "t").is_ok());
+    }
+
+    #[test]
+    fn a_player_report_sends_the_protocols_fields_only() {
+        let report = PlayerReport {
+            category: crate::report::Category::Griefing,
+            text: "Team killing all match".to_owned(),
+            server: "1.2.3.4:29070".to_owned(),
+            slot: 5,
+            target_name: "^1Troll".to_owned(),
+            level_time: Some(754),
+            ..PlayerReport::default()
+        };
+        let body = player_report_body(&report);
+        assert_eq!(
+            body,
+            json!({"category": "griefing", "text": "Team killing all match",
+                   "server": "1.2.3.4:29070", "slot": 5, "target_name": "^1Troll",
+                   "map": "", "build": "", "level_time": 754})
+        );
+        let named = PlayerReport {
+            target_key_id: "0123456789abcdef".to_owned(),
+            server_name: "^4JoF".to_owned(),
+            name: "^2Sol".to_owned(),
+            ..report
+        };
+        let body = player_report_body(&named);
+        assert_eq!(body["target_key_id"], "0123456789abcdef");
+        assert_eq!(body["server_name"], "^4JoF");
+        assert_eq!(body["name"], "^2Sol");
     }
 
     #[test]

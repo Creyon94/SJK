@@ -20,6 +20,7 @@ This page is the design and the current limits. The player-facing summary is
 | Settings and live-session glue | [player_identity.rs](../crates/sjk-viewer/src/player_identity.rs), [identity_frame.rs](../crates/sjk-viewer/src/identity_frame.rs) |
 | Scoreboard mark | [identity_mark.rs](../crates/sjk-viewer/src/scoreboard/identity_mark.rs) |
 | Identity page, `identity` command | [identity_panel.rs](../crates/sjk-viewer/src/identity_panel.rs), [identity_command.rs](../crates/sjk-viewer/src/identity_command.rs) |
+| Players page and player reports | [players.rs](../crates/sjk-viewer/src/ingame_menu/players.rs), [player_report.rs](../crates/sjk-viewer/src/player_report.rs) |
 | The hub itself and its protocol | repository Sol-Vulpes/SJK-hub (`PROTOCOL.md`) |
 
 The hub is a separate repository because it is deployed on its own schedule. The
@@ -86,6 +87,13 @@ A bug report (Escape, SJK, Report a bug) is sent only when the player presses En
 on it: its text, the map, the client build, the game server's address and the in-game
 name the player wears, signed with the player's key. The hub keeps it until the operator removes it.
 
+A player report (Escape, Players, or Escape, SJK, Report a player) is sent only by a
+verified player who chooses a player and a reason and presses Send: the reason and its few
+words, the reported player's slot and the name the game shows for them, the key the hub's
+presence list shows in that slot (if any), the server's address and name, the map, the
+build, the match clock and the in-game name the reporter wears, signed with the reporter's
+key. The hub keeps it until the operator removes it.
+
 A world note (`inspect` twice on the world, [client.md](client.md#player-card)) is sent
 only when the player sends it, with `cl_identity` on: its text, the map, the build, the
 game server's address, the in-game name the player wears, where the player stood (`setviewpos`), the aimed point, shader,
@@ -114,6 +122,36 @@ everything again and limits reports per key (3 a day, 20 once verified, 5 an hou
 repeat within a day), per address (3 in 10 minutes) and overall (300 a day, 5000 kept),
 so a troll with fresh keys gets little through and nothing that is not plain words. The
 operator reads them with the hub's `reports` command or `/admin/v1/reports`.
+
+## Player reports
+
+[players.rs](../crates/sjk-viewer/src/ingame_menu/players.rs) and
+[player_report.rs](../crates/sjk-viewer/src/player_report.rs). The game menu's Players page
+is a small scoreboard of everyone on the server: each connected client's name, side, score
+and ping (the client asks the server for scores every two seconds while it shows) and what
+the hub knows of them (an SJK player, or a verified one, from the presence list), sixteen a
+page with More players... and Back under them. The SJK UI draws it as a table with the
+chosen player's card on the right (main page > Players); the classic and modern menus list
+it in the SJK pop-up's Report a player. Enter on a player opens the Report page: seven
+reasons (cheating, harassment or hate, griefing, exploiting a bug, an offensive name, spam
+or advertising, something else) and Back. A reason closes the menu and opens the text
+dialog for a few words (10 to 300 characters, the bug reports' alphabet and noise rules);
+Send hands the report to the identity service, which sends `POST /v1/player-report`
+signed with the player's key, and the outcome (the hub's number, or why it refused) shows
+as a centre print. The player is copied when chosen, so the report names them as they were.
+
+Only a verified SJK player may report (`player_identity::report_gate`): with the identity
+off, the hub not answering yet, an unverified key or a game on this PC, the Players page
+says why under its title (the classic and modern pages in their first line), and the Report
+page's reasons are dimmed, Back carrying the reason; yourself and bots cannot be reported
+either. The service refuses an unverified key before anything is sent, and the hub checks
+everything again: verified keys only, a live claim of the reporter on that server, nobody
+reports themselves, 3 an hour and 10 a day per key, one report per key about one player a
+day (the same server and name, or the same key), 20 a day about one player from everyone,
+3 in 10 minutes per address, 300 a day and 5000 kept overall. The hub names the reported key
+from its own live claim on that slot when the names match, else takes the client's. The
+operator reads them with the hub's `player-reports` command or `/admin/v1/player-reports`
+(also by reported key) and decides what to do.
 
 ## World notes
 

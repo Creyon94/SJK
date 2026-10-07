@@ -7,6 +7,32 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Players page and player reports
+
+SJK-only branch `personal/player-report` (07/10/2026, based on `7a85516`, Windows 11):
+Sol asked for a small scoreboard in the in-game menu and a way to report a player to
+the hub, for verified players only, with antispam. The game menu gains a Players page
+(`ingame_menu::players`: the roster read from the session once a second, scores asked
+for every two seconds) and a Report page (seven reasons); a reason opens the text
+dialog and Send goes through the identity service as `POST /v1/player-report`
+(`sjk_identity::PlayerReport`, sent only when the hub's profile says the key is
+verified) ([identity.md](identity.md#player-reports)). The SJK UI has it as a main
+entry, Players, drawn as a table with the chosen player's card
+([sjk-ui.md](sjk-ui.md#in-game-menu)); the classic and modern menus reach it from the
+SJK pop-up's Report a player. The hub side (endpoint, quotas, operator routes) is in
+the hub repository, branch `player-report`, not deployed. Verified: unit tests (the
+roster's order and rows, paging through 32 players, yourself and bots refused, the
+gates and their reasons, the dialog's limit, the service refusing an unverified key and
+sending a verified one's report with the worn name, the request body, the SJK UI pages
+drawn within the canvas at five window sizes with every row's pointer area), the
+`hub_e2e` player report test against a local hub built from that branch (refused while
+unverified, stored once verified with the hub naming the target's key from its claim,
+a repeat refused, listed by the operator), and `world_shot::tests::duel6_ingame_players`,
+which rendered both pages in the SJK UI, classic and modern looks, verified and not,
+and the dialog, on a made-up roster, reviewed. No game was started and no server joined:
+the roster, scores and hub marks on a real server, Escape, keys and pointer on these
+pages in a running client, and the outcome's centre print are unverified.
+
 ## SJK UI: coloured names and the browser's sort mark
 
 SJK-only branch `personal/sjk-ui-browser-colours` (07/10/2026, Windows 11): Sol

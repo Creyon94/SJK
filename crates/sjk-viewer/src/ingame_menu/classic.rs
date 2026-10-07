@@ -115,7 +115,7 @@ impl Tab {
     pub(crate) fn of_page(page: Page) -> Option<Self> {
         match page {
             Page::Main | Page::Shot => None,
-            Page::Sjk => Some(Self::Sjk),
+            Page::Sjk | Page::Players | Page::ReportPlayer => Some(Self::Sjk),
             Page::About => Some(Self::About),
             Page::Team | Page::Siege => Some(Self::Join),
             Page::Vote => Some(Self::Vote),
@@ -232,6 +232,8 @@ pub(crate) const INFO_LINE: f32 = 20.0;
 pub(crate) fn popup(page: Page, rows: usize, info: usize) -> [f32; 4] {
     let (x, width) = match page {
         Page::Sjk => (5.0, 150.0),
+        // The players' names and numbers, and the report's who and why.
+        Page::Players | Page::ReportPlayer => (5.0, 460.0),
         Page::About => (10.0, 380.0),
         Page::Team => (55.0, 128.0),
         Page::Siege => (55.0, 240.0),
@@ -362,6 +364,8 @@ mod tests {
             Page::ConfirmQuit,
             Page::CallVote,
             Page::VoteMap,
+            Page::Players,
+            Page::ReportPlayer,
         ] {
             let tab = Tab::of_page(page).expect("pop-up page has a button");
             let [x, y, width, height] = popup(page, 18, 0);

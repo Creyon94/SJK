@@ -1,6 +1,7 @@
-//! Bug reports and world notes sent to the hub (`PROTOCOL.md`, "Bug reports" and
-//! "World notes"). The hub decides; these are the same rules, so the game can refuse a
-//! character as it is typed and say what is wrong before anything is sent.
+//! Bug reports, world notes and player reports sent to the hub (`PROTOCOL.md`, "Bug
+//! reports", "World notes" and "Player reports"). The hub decides; these are the same
+//! rules, so the game can refuse a character as it is typed and say what is wrong before
+//! anything is sent.
 
 /// Shortest and longest report text, in characters, after whitespace is normalised.
 pub const TEXT_MIN: usize = 10;
@@ -16,6 +17,111 @@ pub const NOTE_MIN: usize = 3;
 /// Longest world note text, in characters.
 pub const NOTE_MAX: usize = 500;
 const NOTE_LETTERS_MIN: usize = 2;
+/// Shortest and longest player report reason, in characters, after whitespace is
+/// normalised.
+pub const PLAYER_MIN: usize = 10;
+/// Longest player report reason, in characters.
+pub const PLAYER_MAX: usize = 300;
+
+/// Why a player is reported (`PROTOCOL.md`, "Player reports").
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub enum Category {
+    /// Aimbots, speed or wall hacks.
+    Cheating,
+    /// Insults, threats, hate.
+    Harassment,
+    /// Team-killing, blocking, ruining the match on purpose.
+    Griefing,
+    /// Winning through a map or game bug.
+    Exploit,
+    /// A name that insults or offends.
+    Name,
+    /// Flooding the chat, advertising.
+    Spam,
+    /// Anything else.
+    #[default]
+    Other,
+}
+
+impl Category {
+    /// Every category, in the order the game lists them.
+    pub const ALL: [Self; 7] = [
+        Self::Cheating,
+        Self::Harassment,
+        Self::Griefing,
+        Self::Exploit,
+        Self::Name,
+        Self::Spam,
+        Self::Other,
+    ];
+
+    /// The hub's code for it.
+    pub const fn code(self) -> &'static str {
+        match self {
+            Self::Cheating => "cheating",
+            Self::Harassment => "harassment",
+            Self::Griefing => "griefing",
+            Self::Exploit => "exploit",
+            Self::Name => "name",
+            Self::Spam => "spam",
+            Self::Other => "other",
+        }
+    }
+
+    /// How the game names it.
+    pub const fn label(self) -> &'static str {
+        match self {
+            Self::Cheating => "Cheating",
+            Self::Harassment => "Harassment or hate",
+            Self::Griefing => "Griefing",
+            Self::Exploit => "Exploiting a bug",
+            Self::Name => "Offensive name",
+            Self::Spam => "Spam or advertising",
+            Self::Other => "Something else",
+        }
+    }
+
+    /// What it covers, in a line.
+    pub const fn hint(self) -> &'static str {
+        match self {
+            Self::Cheating => "Aimbot, speed or wall hacks, other cheats",
+            Self::Harassment => "Insults, threats or hate in chat or names",
+            Self::Griefing => "Team-killing, blocking, ruining the match on purpose",
+            Self::Exploit => "Winning through a map or game bug",
+            Self::Name => "A name that insults or offends",
+            Self::Spam => "Flooding the chat, advertising",
+            Self::Other => "Anything the others do not cover",
+        }
+    }
+}
+
+/// A report about another player on the same game server, for the hub's operator.
+/// Only a verified key may send one.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct PlayerReport {
+    /// Why.
+    pub category: Category,
+    /// What the reporter wrote ([`player_text`] checks it).
+    pub text: String,
+    /// The game server's `ip:port`, both players on it.
+    pub server: String,
+    /// The server's name as the game shows it (colour codes kept), or empty.
+    pub server_name: String,
+    /// The reported player's slot.
+    pub slot: u8,
+    /// The name the game shows for that slot (colour codes kept).
+    pub target_name: String,
+    /// The key the hub's presence list shows in that slot under that name, or empty.
+    pub target_key_id: String,
+    /// The map, `maps/<name>.bsp`, or empty.
+    pub map: String,
+    /// The client's build.
+    pub build: String,
+    /// Seconds since the map started (the match clock).
+    pub level_time: Option<u32>,
+    /// The in-game name the reporter wears; empty takes the one the service knows.
+    pub name: String,
+}
 
 /// A bug report: the tester's text and where they were.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -85,6 +191,16 @@ pub fn note_text(raw: &str) -> Result<String, &'static str> {
         Refusal::Short => "a note needs at least 3 characters",
         Refusal::Long => "a note is at most 500 characters",
         Refusal::Noise => "a note needs a few letters",
+    })
+}
+
+/// A player report's reason as the hub stores it, or why the hub would refuse it.
+pub fn player_text(raw: &str) -> Result<String, &'static str> {
+    check(raw, PLAYER_MIN, PLAYER_MAX, LETTERS_MIN, WORDS_MIN).map_err(|refusal| match refusal {
+        Refusal::Character => CHARACTERS,
+        Refusal::Short => "say what happened in at least 10 characters",
+        Refusal::Long => "a player report is at most 300 characters",
+        Refusal::Noise => "say what happened in a few real words",
     })
 }
 
@@ -168,6 +284,36 @@ mod tests {
         assert!(text(&"word ".repeat(200)).is_err());
         assert!(!allowed('<') && !allowed('"') && !allowed('/') && !allowed('\u{202e}'));
         assert!(allowed('é') && allowed('7') && allowed('?'));
+    }
+
+    #[test]
+    fn player_reports_take_the_alphabet_and_a_closed_list_of_reasons() {
+        assert_eq!(
+            player_text(" speed hacking\nall round ").as_deref(),
+            Ok("speed hacking all round")
+        );
+        assert!(player_text("hacker").is_err());
+        assert!(player_text(&"word ".repeat(70)).is_err());
+        assert!(player_text("<b>wallhack</b> obviously").is_err());
+        let codes: Vec<&str> = Category::ALL.iter().map(|c| c.code()).collect();
+        // The hub's list, in its order (`PROTOCOL.md`, "Player reports").
+        assert_eq!(
+            codes,
+            [
+                "cheating",
+                "harassment",
+                "griefing",
+                "exploit",
+                "name",
+                "spam",
+                "other"
+            ]
+        );
+        assert!(
+            Category::ALL
+                .iter()
+                .all(|c| !c.label().is_empty() && !c.hint().is_empty())
+        );
     }
 
     #[test]

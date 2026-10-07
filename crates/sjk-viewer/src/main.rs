@@ -149,6 +149,7 @@ mod player_identity;
 mod player_menu;
 #[cfg(test)]
 mod player_model_scan;
+mod player_report;
 mod player_shadows;
 mod player_skin;
 mod pointer_input;
@@ -1665,6 +1666,7 @@ impl GpuState {
         }
         self.append_weapon_select_name(viewport);
         if self.game_menu && !self.console_covers_frame() {
+            self.refresh_game_menu_players();
             let team_sizes = self.live_session.as_ref().map_or([0, 0], |session| {
                 ingame_menu::team_sizes(session.game_state())
             });

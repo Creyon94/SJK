@@ -19,6 +19,10 @@ tests check this file):
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 
+## Unreleased
+
+- Report a player: the game menu lists everyone on the server, a small scoreboard with scores, pings and who is a verified SJK player (SJK UI: Players; classic and modern: SJK > Report a player). Choose a player, a reason and a few words, and the report goes to the SJK team with who, where and when. Only verified SJK players can send reports; the hub limits how often anyone reports and how often one player can be reported _(Sol)_
+
 ## 2026.1007.3 (Alpha) | 07/10/2026
 
 lumaya's free camera, peek and first-person saber body; the SJK UI gains its server
