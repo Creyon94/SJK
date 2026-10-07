@@ -1390,7 +1390,13 @@ impl GpuState {
             .then(|| peek::camera(self, presentation_time))
             .flatten();
         if self.live_session.is_some() {
-            self.detached_camera = peek_view.is_some();
+            self.detached_camera = peek_view.is_some()
+                || self
+                    .console
+                    .as_ref()
+                    .and_then(|console| console.integer_cvar("cg_freeCamera"))
+                    .unwrap_or(0)
+                    != 0;
         }
         let (branch, (view_position, view_target)) = if let Some(view) = intermission_view {
             self.third_person_camera = camera::State::default();

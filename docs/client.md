@@ -994,6 +994,7 @@ to finish normally after Alt+Tab.
 behind, with wall collision, as JoF EJKSol does. The default is 5 seconds,
 maximum 60. Names ignore colours/case; an unambiguous fragment also works.
 `/peek` alone uses the crosshair player; `/peek off` or a duration of 0 cancels.
+Local flight (`fakenoclip` or `freecam`) ends a peek; stop flight before peeking.
 The local body stays at its player position and the view gun is suppressed.
 The camera returns when the timer ends, the player disappears from the
 snapshot, their slot/name changes, or the map changes. Players outside the

@@ -95,6 +95,9 @@ impl GpuState {
             self.peek.target = None;
             return Ok(vec!["peek: returned to your camera".into()]);
         }
+        if self.local_prediction.fake_noclip() {
+            return Err("peek: end local flight before watching a player".into());
+        }
         let session = self.live_session.as_ref().ok_or("peek: not in a game")?;
         let game = session.game_state();
         let snapshot = session.latest_snapshot();
@@ -140,6 +143,10 @@ impl GpuState {
 
 /// Derive the rendered view without modifying player origin, angles or commands.
 pub(crate) fn camera(state: &mut GpuState, time: i64) -> Option<(Vec3, Vec3)> {
+    if state.local_prediction.fake_noclip() {
+        state.peek.target = None;
+        return None;
+    }
     let Some(session) = state.live_session.as_ref() else {
         state.peek.target = None;
         return None;
