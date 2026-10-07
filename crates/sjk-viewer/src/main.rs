@@ -176,6 +176,7 @@ mod sky_stage;
 mod snapshot_presentation;
 mod static_models;
 mod text;
+mod text_dialog;
 mod ui_renderer;
 mod ui_scale;
 mod ui_target;
@@ -332,6 +333,8 @@ struct GpuState {
     trace_scratch: TraceScratch,
     /// `inspect` on the world: the selection and the note being written.
     world_notes: world_notes::Notes,
+    /// The note and bug report panel, and the Report a bug button (`text_dialog`).
+    text_dialog: text_dialog::TextDialog,
     /// A bug report is on its way to the hub (`bug_report`).
     bug_report_waiting: bool,
     /// The outcome last shown, so the next one is told apart.
@@ -1160,6 +1163,7 @@ impl GpuState {
             bsp: Arc::new(bsp),
             trace_scratch,
             world_notes: world_notes::Notes::default(),
+            text_dialog: text_dialog::TextDialog::default(),
             bug_report_waiting: false,
             bug_report_serial: 0,
             entity_lighting,
@@ -1663,7 +1667,18 @@ impl GpuState {
         }
         self.append_console_overlay(viewport, text_scale);
         self.append_version_overlay(viewport, text_scale);
-        if !self.chat.is_typing() {
+        let launcher = self.game_menu
+            && self.game_menu_page != GameMenuPage::Shot
+            && !console_covers_frame
+            && !self.text_dialog.is_open();
+        if launcher {
+            let (vertices, font) = self.game_fonts.menu(&mut self.text_vertices, &self.ui_font);
+            self.text_dialog.append_launcher(vertices, font, viewport);
+        }
+        if self.text_dialog.is_open() {
+            let (vertices, font) = self.game_fonts.menu(&mut self.text_vertices, &self.ui_font);
+            self.text_dialog.append(vertices, font, viewport);
+        } else {
             self.world_notes.composer_closed();
         }
         self.world_notes.draw_highlight(viewport);
@@ -1686,6 +1701,10 @@ impl GpuState {
                 .filter(|_| !console_covers_frame)
                 .and_then(|menu| menu.draw_list()),
             self.console.as_ref().map(|console| console.draw_list()),
+            launcher.then(|| self.text_dialog.launcher_draw_list()),
+            self.text_dialog
+                .is_open()
+                .then(|| self.text_dialog.draw_list()),
         ];
         self.ui_shapes
             .prepare_layers(&self.queue, layers.into_iter().flatten(), viewport);

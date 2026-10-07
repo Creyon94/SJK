@@ -1,9 +1,10 @@
-//! Bug reports for the SJK team: Escape, SJK, Report a bug opens a report line in the
-//! chat composer; Enter sends the text to the hub (`cl_hubUrl`) through the identity
-//! service, signed with the player's key, with the map, the build and the server.
+//! Bug reports for the SJK team: the Report a bug button under the game menu (or Escape,
+//! SJK, Report a bug) opens the text dialog (`text_dialog`); Send hands the text to the
+//! hub (`cl_hubUrl`) through the identity service, signed with the player's key, with the
+//! map, the build and the server.
 //!
-//! The text keeps to the hub's rules as it is typed (`chat::editor`, letters, digits,
-//! spaces and `. , ! ? ' - : ( )`, at most 600 characters) and is checked again here
+//! The text keeps to the hub's rules as it is typed (letters, digits, spaces and
+//! `. , ! ? ' - : ( )`, at most 600 characters) and is checked again here
 //! before it leaves; the hub checks it a third time and limits how often a key and an
 //! address may report (`PROTOCOL.md` in the hub, "Bug reports"). The outcome comes back
 //! as a centre print.
@@ -12,13 +13,25 @@ use sjk_client::ServerEventKind;
 use std::time::Instant;
 
 impl crate::GpuState {
-    /// The SJK pop-up's Report a bug: close the game menu and open the report line.
+    /// Report a bug: close the game menu and open the report dialog.
     pub(crate) fn open_bug_report(&mut self) {
         self.game_menu = false;
         self.game_menu_page = crate::ingame_menu::Page::Main;
         self.game_menu_row = 0;
         self.gameplay_input.release_keys();
-        self.chat.open_report();
+        self.text_dialog.open(crate::text_dialog::Kind::Report);
+        self.sync_cursor_policy();
+    }
+
+    /// Carry out what the text dialog asked for.
+    pub(crate) fn apply_dialog_action(&mut self, action: crate::text_dialog::Action) {
+        use crate::text_dialog::{Action, Kind};
+        match action {
+            Action::None => return,
+            Action::Cancel => self.world_notes.composer_closed(),
+            Action::Send(Kind::Note { .. }, text) => self.save_world_note(&text),
+            Action::Send(Kind::Report, text) => self.send_bug_report(&text),
+        }
         self.sync_cursor_policy();
     }
 

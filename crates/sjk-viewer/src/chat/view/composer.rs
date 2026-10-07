@@ -11,40 +11,10 @@ impl ChatOverlay {
         let alpha = Tween::new(0.0, 1.0, self.opened_ms, ENTER_MS, Easing::EaseOutCubic).sample(ms);
         let y = g.bottom + 18.0 * g.scale;
         self.ui.push_opacity(alpha);
-        let note = matches!(input.channel, Channel::Note | Channel::Report);
-        if note {
-            // A note names its subject instead of offering chat channels.
-            let end = layout::fitting_end(
-                &self.note_subject,
-                font,
-                g.width - 60.0 * g.scale,
-                14.0 * g.scale,
-            );
-            self.ui.text_fmt_aligned(
-                format_args!(
-                    "{}{}",
-                    if input.channel == Channel::Note {
-                        "Note: "
-                    } else {
-                        ""
-                    },
-                    &self.note_subject[..end]
-                ),
-                Rect::new(g.left, y, g.width, 26.0 * g.scale),
-                14.0 * g.scale,
-                tint(input.channel, 1.0),
-                FontWeight::Semibold,
-                0.0,
-                TextAlign::Start,
-            );
-        }
         for (token, label, channel, offset) in [
             (GLOBAL, "All", Channel::Global, 0.0),
             (TEAM, "Team", Channel::Team, 58.0),
-        ]
-        .into_iter()
-        .filter(|_| !note)
-        {
+        ] {
             let rect = Rect::new(g.left + offset * g.scale, y, 50.0 * g.scale, 26.0 * g.scale);
             let selected = input.channel == channel;
             self.ui.hit_region(token, rect);

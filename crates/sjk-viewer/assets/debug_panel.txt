@@ -1843,7 +1843,8 @@ title: World notes: inspect a surface, write a note, Claude reads it later
 change: X (inspect) on a wall, floor or object names it; X again opens a note line.
 change: Enter saves the note with surface, shader, position and a screenshot (notes.jsonl).
 test: Aim at a wall (no player): X shows its shader and outlines it in green dots.
-test: X again opens Note:; the outline stays until Enter or Escape.
+test: X again opens a Note panel mid-screen; type, Send (or Enter). Cancel or Escape drops it.
+test: Escape after the first X (no second press) drops the selection, no game menu.
 test: Type a note, Enter: console says note kept; GameData/screenshots has note_*.jpg.
 test: Aim at a door: X names the func_door and its shaders. Escape in the note drops it.
 test: On a player, X still pins their card; with a card pinned, X unpins it.
@@ -1853,9 +1854,9 @@ note: Notes go to GameData/SJK/notes.jsonl and notes.txt: tell Claude to read th
 status: personal
 area: Menus & settings
 title: Report a bug from the Escape menu, sent to the SJK hub
-change: Escape > SJK > Report a bug opens a red report line; Enter sends it to sjk.dfox.app.
+change: Escape: a Report a bug button bottom centre opens a panel with Send and Cancel.
 change: Only letters, digits, spaces and . , ! ? ' - : ( ) can be typed; 10 to 600 characters.
-test: Escape > SJK > Report a bug: type < > / or an emoji: nothing appears. Enter sends.
+test: Escape, click Report a bug (bottom centre): type < > / or an emoji: nothing appears.
 test: The centre print says sent (report number) or why not (quota, too short).
 test: Send the same text twice: refused. A fresh key: 3 a day, then refused.
 note: Works once the hub is deployed with reports; Claude reads them on the hub.

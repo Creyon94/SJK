@@ -102,12 +102,6 @@ impl ChatOverlay {
             KeyCode::Enter | KeyCode::NumpadEnter => return self.submit(),
             KeyCode::PageUp | KeyCode::ArrowUp => self.scroll_by(3),
             KeyCode::PageDown | KeyCode::ArrowDown => self.scroll_by(-3),
-            // A note stays a note: it is never turned into chat.
-            KeyCode::Tab
-                if self
-                    .input
-                    .as_ref()
-                    .is_some_and(|i| matches!(i.channel, Channel::Note | Channel::Report)) => {}
             KeyCode::Tab => {
                 let channel = self.input.as_ref().expect("active input").channel;
                 self.activate(if channel == Channel::Global {
@@ -134,19 +128,6 @@ impl ChatOverlay {
     fn submit(&mut self) -> ChatInputResult {
         let input = self.input.as_ref().expect("active input");
         let destination = match input.channel {
-            Channel::Note | Channel::Report => {
-                let text = input.text.clone();
-                let report = input.channel == Channel::Report;
-                self.input = None;
-                self.scroll = 0;
-                self.unread = 0;
-                self.notice = "";
-                return if report {
-                    ChatInputResult::Report(text)
-                } else {
-                    ChatInputResult::Note(text)
-                };
-            }
             Channel::Global => ChatDestination::Global,
             Channel::Team => ChatDestination::Team,
             Channel::Whisper => {
@@ -274,11 +255,7 @@ impl ChatOverlay {
     pub(super) fn activate(&mut self, token: u16) {
         match token {
             GLOBAL | TEAM => {
-                if let Some(input) = self
-                    .input
-                    .as_mut()
-                    .filter(|i| !matches!(i.channel, Channel::Note | Channel::Report))
-                {
+                if let Some(input) = &mut self.input {
                     input.channel = if token == GLOBAL {
                         Channel::Global
                     } else {
@@ -312,17 +289,12 @@ impl crate::GpuState {
         {
             self.chat.update_roster(session.game_state());
         }
-        match self.chat.handle_key(event) {
-            ChatInputResult::Submit(command) => {
-                let command = self.console.as_ref().map_or_else(
-                    || command.clone(),
-                    |console| console.color_chat_command(&command),
-                );
-                self.send_chat_command(&command);
-            }
-            ChatInputResult::Note(note) => self.save_world_note(&note),
-            ChatInputResult::Report(text) => self.send_bug_report(&text),
-            ChatInputResult::None => {}
+        if let ChatInputResult::Submit(command) = self.chat.handle_key(event) {
+            let command = self.console.as_ref().map_or_else(
+                || command.clone(),
+                |console| console.color_chat_command(&command),
+            );
+            self.send_chat_command(&command);
         }
         self.sync_cursor_policy();
     }

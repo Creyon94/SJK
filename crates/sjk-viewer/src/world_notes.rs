@@ -461,6 +461,12 @@ impl Notes {
         }
     }
 
+    /// Escape before the confirming press: forget the waiting selection. True when there
+    /// was one to forget.
+    pub(crate) fn cancel_selection(&mut self) -> bool {
+        self.selection.take().is_some()
+    }
+
     /// The composer closed without saving (Escape): forget the confirmed selection.
     pub(crate) fn composer_closed(&mut self) {
         self.writing = None;
@@ -589,11 +595,14 @@ impl crate::GpuState {
         let (kind, text) = match press {
             Press::Selected(summary) => {
                 crate::log::progress(format_args!("note selection: {summary}"));
-                centre(format!("{summary}\nPress inspect again to write a note"))
+                centre(format!(
+                    "{summary}\nPress inspect again to write a note, Escape to drop it"
+                ))
             }
             Press::Confirmed(subject) => {
                 self.gameplay_input.release_keys();
-                self.chat.open_note(subject);
+                self.text_dialog
+                    .open(crate::text_dialog::Kind::Note { subject });
                 self.sync_cursor_policy();
                 return;
             }
