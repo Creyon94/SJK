@@ -137,6 +137,7 @@ impl ApplicationHandler for ViewerApplication {
             }
             WindowEvent::ModifiersChanged(modifiers) => {
                 gpu.chat.set_modifiers(modifiers.state());
+                gpu.text_dialog.set_shift(modifiers.state().shift_key());
                 gpu.alt_code.set_control(modifiers.state().control_key());
                 if let Some(console) = gpu.console.as_mut() {
                     console.set_shift(modifiers.state().shift_key());
@@ -162,6 +163,7 @@ impl ApplicationHandler for ViewerApplication {
             WindowEvent::CursorLeft { .. } => gpu.pointer_left(),
             WindowEvent::MouseInput { state, button, .. } => gpu.pointer_button(button, state),
             WindowEvent::MouseWheel { delta, .. } => gpu.pointer_wheel(delta),
+            WindowEvent::DroppedFile(path) => gpu.file_dropped(&path),
             WindowEvent::Focused(focused) => {
                 if !focused {
                     gpu.alt_code.reset();

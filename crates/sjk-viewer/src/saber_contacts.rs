@@ -46,7 +46,7 @@ impl Runtime {
     /// Sustained contacts connect only across consecutive frames on the same plane.
     pub(crate) fn update(
         &mut self,
-        blades: &[Instance],
+        blades: &mut [Instance],
         bsp: &sjk_bsp::Bsp,
         scratch: &mut sjk_bsp::TraceScratch,
         world: &crate::decal_marks::DecalSurfaces,
@@ -70,7 +70,8 @@ impl Runtime {
         if !repeated {
             self.frame = self.frame.wrapping_add(1);
         }
-        for instance in blades {
+        for pair in blades.chunks_exact_mut(2) {
+            let instance = pair[0];
             let Some((key, blade, color, no_light)) = instance.contact() else {
                 continue;
             };
@@ -86,7 +87,16 @@ impl Runtime {
                 sjk_bsp::Aabb::POINT,
                 0x1001,
             );
+            // CG_AddSaberBlade clips before checking sky or NO_WALL_MARKS.
+            // Do not change the extension state: leaving the wall restores the blade.
+            if trace.fraction < 1. {
+                let length = base.distance(Vec3::from_array(trace.end_position));
+                for instance in pair {
+                    instance.clip_length(length);
+                }
+            }
             if trace.fraction >= 1.
+                || !instance.wall_marks()
                 || trace.start_solid
                 || trace.surface_flags & crate::particle_physics::SURF_NOIMPACT != 0
             {
@@ -178,7 +188,7 @@ pub(crate) fn frame(
     let contacts = &mut gpu.effect_aux.saber_contacts;
     let decals = &mut gpu.effect_aux.decals;
     contacts.update(
-        &gpu.saber_instances,
+        &mut gpu.saber_instances,
         &gpu.bsp,
         &mut gpu.trace_scratch,
         &gpu.decal_surfaces,
@@ -218,6 +228,7 @@ pub(crate) fn frame(
             }
         },
     );
+    gpu.saber_instances.retain(Instance::visible);
 }
 
 // OpenJK codemp cg_players.c:6246–6249 uses these three wall sounds at 100 ms.

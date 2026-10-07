@@ -160,6 +160,24 @@ pub(crate) fn apply(
     }
 }
 
+/// Send a bug report through the service; false when the service has not started.
+pub(crate) fn report(report: sjk_identity::BugReport) -> bool {
+    let runtime = lock();
+    let Some(service) = runtime.service.as_ref() else {
+        return false;
+    };
+    service.report(report);
+    true
+}
+
+/// The outcome of the last bug report, once the service has one.
+pub(crate) fn report_outcome() -> Option<sjk_identity::ReportOutcome> {
+    lock()
+        .service
+        .as_ref()
+        .and_then(|service| service.with_snapshot(|snapshot| snapshot.report.clone()))
+}
+
 /// The service's state, or `None` when it has not started (the feature has never
 /// been on, or the key file is unusable: see [`key_error`]).
 pub(crate) fn snapshot() -> Option<Snapshot> {

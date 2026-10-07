@@ -34,7 +34,7 @@ impl CommandFileResolver for Resolver<'_> {
         validate_relative_path(path)?;
         let host_path = self.config_directory.join(path);
         match fs::read(&host_path) {
-            Ok(bytes) => return decode(path, bytes).map(Some),
+            Ok(bytes) => return Ok(Some(sjk_shell::decode_config_text(bytes))),
             Err(error) if error.kind() == std::io::ErrorKind::NotFound => {}
             Err(error) => return Err(format!("could not read {}: {error}", host_path.display())),
         }
@@ -42,7 +42,7 @@ impl CommandFileResolver for Resolver<'_> {
             return Ok(None);
         };
         let asset = vfs.read(path).map_err(|error| error.to_string())?;
-        asset.map(|asset| decode(path, asset.bytes)).transpose()
+        Ok(asset.map(|asset| sjk_shell::decode_config_text(asset.bytes)))
     }
 }
 
@@ -56,10 +56,6 @@ fn validate_relative_path(path: &str) -> Result<(), String> {
         return Err("exec path must stay inside the config or VFS root".to_owned());
     }
     Ok(())
-}
-
-fn decode(path: &str, bytes: Vec<u8>) -> Result<String, String> {
-    String::from_utf8(bytes).map_err(|_| format!("{path} is not valid UTF-8 command text"))
 }
 
 #[path = "console_files.rs"]

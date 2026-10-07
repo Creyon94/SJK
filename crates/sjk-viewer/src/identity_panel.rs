@@ -805,6 +805,7 @@ mod tests {
             profiles: HashMap::new(),
             notice: None,
             revision: 0,
+            report: None,
         }
     }
 

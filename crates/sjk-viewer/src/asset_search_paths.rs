@@ -4,18 +4,12 @@ use sjk_shell::{CvarDefinition, CvarFlags, CvarRegistry};
 use sjk_vfs::VirtualFileSystem;
 use std::error::Error;
 use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Mutex, OnceLock};
 
 static STARTUP: OnceLock<Options> = OnceLock::new();
 /// The cosmetics packs were named in the log (every world mounts them).
 static COSMETICS_LOGGED: AtomicBool = AtomicBool::new(false);
-/// What the EternalJK character set probe found for one installation, so that
-/// each world load does not open every EternalJK PK3 again.
-static CHARSET_PROBE: Mutex<Option<(PathBuf, Option<ConsoleCharset>)>> = Mutex::new(None);
-
-/// A character set image found in an EternalJK PK3: `(archive, path, bytes)`.
-type ConsoleCharset = (PathBuf, String, Vec<u8>);
 
 /// The folder JoF EJK and EternalJK keep their own content in, where JoF's
 /// launcher installs hat and cape packs.
@@ -192,27 +186,6 @@ impl Options {
         (!mounted && directory.is_dir()).then_some(directory)
     }
 
-    /// EternalJK's console character set: `gfx/2d/charsgrid_med` from the
-    /// highest-priority PK3 in `install/EternalJK` that has one (jaPRO's
-    /// `japro-assets.pk3`), as `(archive, path, image bytes)`. EternalJK draws its
-    /// console with it, and unlike the retail set it has `¬`, `¥`, `²`, `½` and
-    /// the rest of Latin-1. None when the folder is a game directory already.
-    /// The PK3s are probed once per installation path for the life of the process.
-    pub(crate) fn eternaljk_console_charset(&self, install: &Path) -> Option<ConsoleCharset> {
-        let directory = self.eternaljk_directory(install)?;
-        let mut cache = CHARSET_PROBE
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        match cache.as_ref() {
-            Some((cached, found)) if cached == install => found.clone(),
-            _ => {
-                let found = probe_console_charset(&directory);
-                *cache = Some((install.to_path_buf(), found.clone()));
-                found
-            }
-        }
-    }
-
     /// EternalJK's own crosshair pictures, `gfx/2d/crosshaira` and `crosshairj`,
     /// from the highest-priority PK3 in `install/EternalJK` that has each (jaPRO's
     /// `japro-assets.pk3`), as `(archive, path, image bytes)`. EternalJK mounts that
@@ -276,15 +249,7 @@ impl Options {
                 )),
             }
         }
-        // EternalJK mounts its folder above `base` and below `fs_basegame` and the
-        // `fs_game` mod, so its character set goes in after the `base` directories:
-        // a mod's own `charsgrid_med` still wins. Only that image, nothing else from
-        // the pack.
-        let mut charset = self.eternaljk_console_charset(install);
         for directory in self.directories(install)? {
-            if !is_base_directory(&directory) {
-                mount_console_charset(&mut vfs, charset.take(), log)?;
-            }
             if !directory.is_dir() {
                 continue;
             }
@@ -301,7 +266,6 @@ impl Options {
                 vfs.mount_directory(&directory)?;
             }
         }
-        mount_console_charset(&mut vfs, charset.take(), log)?;
         // EternalJK's crosshair pictures over the game's own, as EternalJK itself
         // mounts its folder above `base`; only those images, nothing else from
         // the pack.
@@ -345,51 +309,6 @@ impl Options {
         }
         Ok(vfs)
     }
-}
-
-/// Whether `directory` is a `base` game directory (the install's or the content home's).
-fn is_base_directory(directory: &Path) -> bool {
-    directory
-        .file_name()
-        .is_some_and(|name| name.eq_ignore_ascii_case("base"))
-}
-
-/// Mount EternalJK's console character set as a one-image source, naming it in
-/// the log when `log` is set.
-fn mount_console_charset(
-    vfs: &mut VirtualFileSystem,
-    charset: Option<ConsoleCharset>,
-    log: bool,
-) -> Result<(), Box<dyn Error>> {
-    let Some((archive, path, bytes)) = charset else {
-        return Ok(());
-    };
-    if log {
-        crate::log::progress(format_args!(
-            "console character set {path} from {}",
-            archive.display(),
-        ));
-    }
-    vfs.mount_memory("EternalJK console character set", [(path, bytes)])?;
-    Ok(())
-}
-
-/// The first PK3 in `directory`, highest priority first, that has the console
-/// character set.
-fn probe_console_charset(directory: &Path) -> Option<ConsoleCharset> {
-    sjk_vfs::pk3_search_order(directory)
-        .unwrap_or_default()
-        .into_iter()
-        .rev()
-        .find_map(|archive| {
-            let mut probe = VirtualFileSystem::new();
-            probe.mount_pk3(&archive).ok()?;
-            ["tga", "png", "jpg"].iter().find_map(|extension| {
-                let path = format!("{}.{extension}", crate::text::charset::PATH);
-                let asset = probe.read(&path).ok()??;
-                Some((archive.clone(), path, asset.bytes))
-            })
-        })
 }
 
 /// Whether `archive` holds hat or cape models.
@@ -472,87 +391,6 @@ mod tests {
             ..Options::default()
         };
         assert!(whole.cosmetic_packs(install.path()).is_empty());
-    }
-
-    #[test]
-    fn eternaljk_console_charset_overrides_the_base_one_alone() {
-        let install = tempfile::tempdir().unwrap();
-        let base = install.path().join("base");
-        let folder = install.path().join("EternalJK");
-        std::fs::create_dir_all(&base).unwrap();
-        std::fs::create_dir_all(&folder).unwrap();
-        pk3(
-            &base.join("hd_fonts.pk3"),
-            &["gfx/2d/charsgrid_med.tga", "ui/jamp/main.menu"],
-        );
-        pk3(
-            &folder.join("japro-assets.pk3"),
-            &["gfx/2d/charsgrid_med.tga", "ui/jamp/ingame.menu"],
-        );
-        let options = Options::default();
-        let (archive, path, _) = options.eternaljk_console_charset(install.path()).unwrap();
-        assert!(archive.ends_with("japro-assets.pk3"));
-        assert_eq!(path, "gfx/2d/charsgrid_med.tga");
-        let vfs = options.mount(install.path()).unwrap();
-        let charset = vfs.read("gfx/2d/charsgrid_med.tga").unwrap().unwrap();
-        assert!(vfs.mounts().any(|mount| mount.id == charset.source.mount_id
-            && &*mount.name == "EternalJK console character set"));
-        // Nothing else from that pack is mounted.
-        assert!(!vfs.contains("ui/jamp/ingame.menu").unwrap());
-        assert!(vfs.contains("ui/jamp/main.menu").unwrap());
-    }
-
-    #[test]
-    fn eternaljk_console_charset_sits_above_base_and_below_the_mod() {
-        let install = tempfile::tempdir().unwrap();
-        let base = install.path().join("base");
-        let folder = install.path().join("EternalJK");
-        let modification = install.path().join("mymod");
-        for directory in [&base, &folder, &modification] {
-            std::fs::create_dir_all(directory).unwrap();
-        }
-        pk3(&base.join("assets0.pk3"), &["gfx/2d/charsgrid_med.tga"]);
-        pk3(
-            &folder.join("japro-assets.pk3"),
-            &["gfx/2d/charsgrid_med.tga"],
-        );
-        let source = |vfs: &VirtualFileSystem| {
-            let asset = vfs.read("gfx/2d/charsgrid_med.tga").unwrap().unwrap();
-            vfs.mounts()
-                .find(|mount| mount.id == asset.source.mount_id)
-                .unwrap()
-                .name
-                .to_string()
-        };
-        // Without a mod the EternalJK image is the one used, above `base`.
-        let options = Options::default();
-        assert_eq!(
-            source(&options.mount(install.path()).unwrap()),
-            "EternalJK console character set"
-        );
-        // A mod directory with its own set wins over EternalJK's, as `fs_game`
-        // is mounted above EternalJK's folder.
-        pk3(&modification.join("mod.pk3"), &["gfx/2d/charsgrid_med.tga"]);
-        let with_mod = Options {
-            game: "mymod".to_owned(),
-            ..Options::default()
-        };
-        let vfs = with_mod.mount(install.path()).unwrap();
-        assert_ne!(source(&vfs), "EternalJK console character set");
-        let names: Vec<_> = vfs.mounts().map(|mount| mount.name.to_string()).collect();
-        let charset = names
-            .iter()
-            .position(|name| name == "EternalJK console character set")
-            .expect("EternalJK set is mounted");
-        let mod_pack = names
-            .iter()
-            .position(|name| name.ends_with("mod.pk3"))
-            .expect("mod pack is mounted");
-        let base_pack = names
-            .iter()
-            .position(|name| name.ends_with("assets0.pk3"))
-            .expect("base pack is mounted");
-        assert!(base_pack < charset && charset < mod_pack, "{names:?}");
     }
 
     #[test]

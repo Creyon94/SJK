@@ -431,7 +431,15 @@ impl super::GpuState {
                     self.gameplay_input.tap(GameButton::Button(5));
                 }
             }
-            Some(InputAction::Inspect) => self.hud.card.inspect(),
+            // A pinned card or a player under the crosshair keeps the card; otherwise the
+            // press selects the world under the crosshair for a note (`world_notes`).
+            Some(InputAction::Inspect) => {
+                if self.hud.card.pinned() || self.crosshair_scan.aimed_player().is_some() {
+                    self.hud.card.inspect();
+                } else {
+                    self.world_note_press();
+                }
+            }
             Some(InputAction::FlipKick) => {
                 let restricted = self.live_session.as_ref().is_some_and(|session| {
                     session

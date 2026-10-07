@@ -2,6 +2,7 @@
 use super::*;
 use crate::input::dead_key::{TypingField, keep_caret};
 use std::ops::Range;
+use winit::platform::modifier_supplement::KeyEventExtModifierSupplement;
 
 /// Does `text` (the characters this key press produced) appear in a
 /// `cl_consoleKeys` list? Entries are literal characters or `0x` hex
@@ -24,6 +25,16 @@ pub(crate) fn is_console_key(list: &str, text: &str) -> bool {
             }
         }
     })
+}
+
+/// Does the layout put `^` on this key without modifiers (German QWERTZ and
+/// others, as a dead key or not)? `SDL_GetKeyFromScancode(...) == SDLK_CARET`.
+pub(crate) fn types_caret(unshifted: &winit::keyboard::Key) -> bool {
+    match unshifted {
+        winit::keyboard::Key::Character(text) => text.as_str() == "^",
+        winit::keyboard::Key::Dead(character) => *character == Some('^'),
+        _ => false,
+    }
 }
 
 /// What a pressed key does to the open console before any editing.
@@ -55,25 +66,28 @@ pub(crate) fn open_console_key(
 }
 
 impl ViewerConsole {
-    /// Stock console keys: a `cl_consoleKeys` character, Shift+Escape
-    /// (`cl_keys.cpp:1318`), or a key the user explicitly bound to
-    /// `toggleconsole`. The physical key is not bound by default, so layouts
-    /// where it types `^` keep that character for colour codes.
-    pub(super) fn configured_console_key(&self, key: KeyCode, text: Option<&str>) -> bool {
+    /// Stock console keys: Shift+Escape (`cl_keys.cpp:1318`), the physical key
+    /// under Escape with `cl_consoleUseScanCode` (EternalJK's default, so layouts
+    /// where it types `0`, as Hungarian, open the console too), or else a
+    /// `cl_consoleKeys` character. Layouts where the key types `^` keep that
+    /// character for colour codes and open the console with Shift.
+    pub(super) fn configured_console_key(&self, event: &KeyEvent, key: KeyCode) -> bool {
         if key == KeyCode::Escape {
             return self.shift;
         }
-        let native = self.integer_cvar("cl_consoleusescancode").unwrap_or(0) != 0;
+        let native = self.integer_cvar("cl_consoleusescancode").unwrap_or(1) != 0;
         if native
             && key == KeyCode::Backquote
             && super::client_options::native_console(
                 self.integer_cvar("cl_consoleshiftrequirement").unwrap_or(0),
+                types_caret(&event.key_without_modifiers()),
                 self.shift,
                 self.open,
             )
         {
             return true;
         }
+        let text = event.text.as_deref();
         let list = self
             .shell
             .cvars
@@ -87,7 +101,7 @@ impl ViewerConsole {
     }
 
     fn toggles_console(&self, event: &KeyEvent, key: KeyCode) -> bool {
-        self.configured_console_key(key, event.text.as_deref()) || self.bound_to_toggle(event, key)
+        self.configured_console_key(event, key) || self.bound_to_toggle(event, key)
     }
 
     /// A key bound to `toggleconsole` (Escape never counts: it has its own meaning).
@@ -168,7 +182,7 @@ impl ViewerConsole {
             winit::keyboard::Key::Character(_) | winit::keyboard::Key::Dead(_)
         );
         match open_console_key(
-            self.configured_console_key(key, event.text.as_deref()),
+            self.configured_console_key(event, key),
             !printable && self.bound_to_toggle(event, key),
             event.repeat,
         ) {
@@ -179,7 +193,8 @@ impl ViewerConsole {
             OpenConsoleKey::Swallow => return true,
             OpenConsoleKey::Edit => {}
         }
-        if self.credits_key(event)
+        if self.config_import_key(event)
+            || self.credits_key(event)
             || self.changelog_key(event)
             || self.update_panel_key(event)
             || self.identity_panel_key(event)
@@ -437,5 +452,24 @@ mod open_console_tests {
         }
         assert!(!is_console_key(list, "^"));
         assert!(!is_console_key(list, "~~"));
+    }
+
+    #[test]
+    fn the_key_under_escape_opens_the_console_unless_it_types_a_caret() {
+        use super::super::client_options::native_console;
+        use super::types_caret;
+        use winit::keyboard::Key;
+        // Hungarian `0`, US `` ` ``, French `²`, Nordic `§`: no Shift needed.
+        for unshifted in ["0", "`", "²", "§"] {
+            let caret = types_caret(&Key::Character(unshifted.into()));
+            assert!(native_console(0, caret, false, false), "{unshifted}");
+        }
+        // German QWERTZ: `^` types, Shift+`^` opens.
+        for unshifted in [Key::Character("^".into()), Key::Dead(Some('^'))] {
+            assert!(types_caret(&unshifted));
+            assert!(!native_console(0, true, false, false));
+            assert!(!native_console(1, true, false, true));
+            assert!(native_console(0, true, true, false));
+        }
     }
 }

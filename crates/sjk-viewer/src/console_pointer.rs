@@ -6,7 +6,8 @@ use sjk_ui::InputEvent;
 
 impl ViewerConsole {
     pub(crate) fn handle_pointer(&mut self, event: InputEvent) {
-        if self.credits_pointer(event)
+        if self.config_import_pointer(event)
+            || self.credits_pointer(event)
             || self.changelog_pointer(event)
             || self.update_panel_pointer(event)
             || self.identity_panel_pointer(event)

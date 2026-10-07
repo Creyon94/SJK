@@ -203,6 +203,8 @@ pub(crate) struct ClientMenu {
     destination_ready: bool,
     /// Last gate request logged, so the log only records changes.
     gate_logged: bool,
+    /// First setup was offered in this run (`offer_quick_setup`).
+    first_setup_offered: bool,
 }
 
 /// Backdrop shot each client phase is presented over. A connect stays on
@@ -256,6 +258,7 @@ impl ClientMenu {
             destination_map: None,
             destination_ready: false,
             gate_logged: false,
+            first_setup_offered: false,
             password: String::with_capacity(64),
             address_editing: false,
             address_input: String::with_capacity(256),

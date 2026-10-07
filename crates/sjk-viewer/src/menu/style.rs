@@ -94,6 +94,7 @@ impl crate::GpuState {
             menu.set_menu_art(art);
         }
         self.in_game_menu.set_style(style, art);
+        self.text_dialog.set_look(style == MenuStyle::Classic, art);
         if let Some(console) = &mut self.console {
             console.set_browser_art(art);
             console.set_changelog_look(style == MenuStyle::Classic, art);

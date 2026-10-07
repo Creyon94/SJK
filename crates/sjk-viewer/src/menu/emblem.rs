@@ -17,6 +17,11 @@
 //! They are decoded once per process on a worker thread ([`request`]), with
 //! their mip chains, so the emblem stays smooth at 1080p, where the 1024
 //! picture is drawn at under half size, and sharp at 4K.
+//!
+//! Two more layers are light without a picture behind them, drawn by the
+//! worker instead of decoded: a sunburst for behind the emblem and a fan of
+//! uneven god rays, as on SJK's site (`site/assets/effects.js`). [`rays`]
+//! turns them about their centre, so a screen animates them from its clock.
 
 use super::art::motion;
 use crate::menu_widgets::MenuCanvas;
@@ -48,11 +53,24 @@ pub(crate) enum EmblemLayer {
     Core,
     /// The cyan lights on the blade, added as light.
     Lights,
+    /// Sixteen soft rays, long and short in turn, round a glowing core
+    /// ([`sunburst`]), added as light.
+    Sunburst,
+    /// Uneven god rays fanning from the centre ([`godrays`]), added as light.
+    Godrays,
 }
 
 impl EmblemLayer {
-    /// Every layer, in draw order.
-    pub(crate) const ALL: [Self; 3] = [Self::Base, Self::Core, Self::Lights];
+    /// Every layer.
+    pub(crate) const ALL: [Self; 5] = [
+        Self::Base,
+        Self::Core,
+        Self::Lights,
+        Self::Sunburst,
+        Self::Godrays,
+    ];
+    /// The layers of the emblem itself, in draw order.
+    pub(crate) const EMBLEM: [Self; 3] = [Self::Base, Self::Core, Self::Lights];
 
     /// The `TexturedQuad` texture that draws this layer.
     pub(crate) fn texture(self) -> TextureId {
@@ -76,12 +94,17 @@ impl EmblemLayer {
         self != Self::Base
     }
 
-    /// The bundled PNG.
-    fn png(self) -> &'static [u8] {
+    /// The bundled PNG; none for the drawn layers.
+    fn png(self) -> Option<&'static [u8]> {
         match self {
-            Self::Base => include_bytes!("../../../../assets/branding/sjk-logo.png"),
-            Self::Core => include_bytes!("../../../../assets/branding/emblem-core.png"),
-            Self::Lights => include_bytes!("../../../../assets/branding/emblem-lights.png"),
+            Self::Base => Some(include_bytes!("../../../../assets/branding/sjk-logo.png")),
+            Self::Core => Some(include_bytes!(
+                "../../../../assets/branding/emblem-core.png"
+            )),
+            Self::Lights => Some(include_bytes!(
+                "../../../../assets/branding/emblem-lights.png"
+            )),
+            Self::Sunburst | Self::Godrays => None,
         }
     }
 
@@ -89,9 +112,9 @@ impl EmblemLayer {
     /// the glows move.
     pub(crate) fn strength(self, seconds: f64) -> f32 {
         match self {
-            Self::Base => 1.0,
             Self::Core => motion::emblem_core_glow(seconds),
             Self::Lights => motion::emblem_lights_glow(seconds),
+            Self::Base | Self::Sunburst | Self::Godrays => 1.0,
         }
     }
 }
@@ -100,13 +123,133 @@ impl EmblemLayer {
 /// `seconds`. Nothing shows until the renderer has the pictures.
 pub(crate) fn draw(canvas: &mut MenuCanvas, rect: Rect, seconds: f64) {
     let draw = canvas.draw_list_mut();
-    for layer in EmblemLayer::ALL {
+    for layer in EmblemLayer::EMBLEM {
         let _ = draw.push(DrawCommand::TexturedQuad {
             rect,
             texture: layer.texture(),
             color: Color::new(1.0, 1.0, 1.0, layer.strength(seconds)),
         });
     }
+}
+
+/// Add the light of `layer` (a sunburst or god rays) as a disc of `radius`
+/// round window point `center`, turned by `angle` radians, in `color`
+/// (its alpha is the strength). The picture is black past its disc, so the
+/// corners its turned square leaves are too.
+pub(crate) fn rays(
+    canvas: &mut MenuCanvas,
+    layer: EmblemLayer,
+    center: [f32; 2],
+    radius: f32,
+    angle: f32,
+    color: Color,
+) {
+    let (sin, cos) = (-angle).sin_cos();
+    let corner = |x: f32, y: f32| [0.5 + x * cos - y * sin, 0.5 + x * sin + y * cos];
+    let _ = canvas.draw_list_mut().push(DrawCommand::TexturedQuadUv {
+        rect: Rect::new(
+            center[0] - radius,
+            center[1] - radius,
+            radius * 2.0,
+            radius * 2.0,
+        ),
+        texture: layer.texture(),
+        color,
+        uv: [
+            corner(-0.5, -0.5),
+            corner(0.5, -0.5),
+            corner(0.5, 0.5),
+            corner(-0.5, 0.5),
+        ],
+    });
+}
+
+/// Edge of the drawn ray pictures.
+const RAYS_SIZE: u32 = 512;
+
+/// A grey light picture of [`RAYS_SIZE`], opaque so the renderer's additive
+/// blend adds its value, from `value(r, turn)`: `r` 0 at the centre and 1 at
+/// the edge of the disc, `turn` 0..1 clockwise from the right. Black past r 1.
+fn light_picture(value: impl Fn(f32, f32) -> f32) -> RgbaImage {
+    let half = RAYS_SIZE as f32 * 0.5;
+    RgbaImage::from_fn(RAYS_SIZE, RAYS_SIZE, |x, y| {
+        let dx = (x as f32 + 0.5 - half) / half;
+        let dy = (y as f32 + 0.5 - half) / half;
+        let r = dx.hypot(dy);
+        let v = if r >= 1.0 {
+            0.0
+        } else {
+            let turn = dy.atan2(dx) / std::f32::consts::TAU;
+            value(r, turn.rem_euclid(1.0)).clamp(0.0, 1.0)
+        };
+        let level = (v * 255.0).round() as u8;
+        image::Rgba([level, level, level, 255])
+    })
+}
+
+fn smoothstep(edge0: f32, edge1: f32, x: f32) -> f32 {
+    let t = ((x - edge0) / (edge1 - edge0)).clamp(0.0, 1.0);
+    t * t * (3.0 - 2.0 * t)
+}
+
+/// The site's sunburst: sixteen soft wedges, long and short in turn, fading
+/// outwards, round a glowing core.
+pub(crate) fn sunburst() -> RgbaImage {
+    const RAYS: f32 = 16.0;
+    light_picture(|r, turn| {
+        let sector = turn * RAYS;
+        let nearest = sector.round();
+        let long = nearest as i32 % 2 == 0;
+        let (width, length) = if long { (0.32, 1.0) } else { (0.22, 0.68) };
+        let across = 1.0 - smoothstep(0.0, width, (sector - nearest).abs());
+        let along = (1.0 - r / length).max(0.0).powf(1.6);
+        let core = (-(r / 0.22).powi(2)).exp() * 0.55;
+        across * along * smoothstep(0.0, 0.12, r) + core
+    })
+}
+
+/// God rays: 56 shafts of uneven width, strength and length fanning from the
+/// centre, out of the dark there so the source itself does not glare. The
+/// shafts come from a fixed hash, so the picture is the same every run.
+pub(crate) fn godrays() -> RgbaImage {
+    const SHAFTS: u32 = 56;
+    let shafts: Vec<[f32; 4]> = (0..SHAFTS)
+        .map(|index| {
+            let seed = hash(index.wrapping_mul(0x9e37) ^ 0x51ed);
+            let unit = |shift: u32| ((seed >> shift) & 0xff) as f32 / 255.0;
+            [
+                // Where round the circle, how wide (in turns), how bright, how long.
+                (index as f32 + unit(0) * 0.8) / SHAFTS as f32,
+                0.0025 + unit(8).powi(2) * 0.011,
+                0.3 + unit(16) * 0.7,
+                0.55 + unit(24) * 0.45,
+            ]
+        })
+        .collect();
+    light_picture(move |r, turn| {
+        let mut sum = 0.0;
+        for &[at, width, strength, length] in &shafts {
+            let mut off = (turn - at).abs();
+            off = off.min(1.0 - off);
+            if off > width * 3.0 {
+                continue;
+            }
+            let across = (-(off / width).powi(2)).exp();
+            let along = (1.0 - r / length).max(0.0).powf(1.3);
+            sum += across * along * strength;
+        }
+        sum * smoothstep(0.02, 0.3, r) * 0.85
+    })
+}
+
+/// A well-mixed 32-bit hash, so the god rays spread without a random generator.
+pub(crate) fn hash(mut value: u32) -> u32 {
+    value = value.wrapping_mul(0x9e37_79b9) ^ 0x85eb_ca6b;
+    value ^= value >> 16;
+    value = value.wrapping_mul(0x7feb_352d);
+    value ^= value >> 15;
+    value = value.wrapping_mul(0x846c_a68b);
+    value ^ (value >> 16)
 }
 
 /// One decoded layer: a square picture with its mip chain.
@@ -166,7 +309,7 @@ fn halve(pixels: &[u8], edge: u32, next: u32) -> Vec<u8> {
 
 /// The decoded layers, by [`EmblemLayer::index`].
 pub(crate) struct Decoded {
-    layers: [Option<MipChain>; 3],
+    layers: [Option<MipChain>; EmblemLayer::ALL.len()],
 }
 
 impl Decoded {
@@ -215,9 +358,13 @@ fn decode_all() -> Decoded {
 }
 
 fn decode(layer: EmblemLayer) -> Result<MipChain, String> {
-    let image = image::load_from_memory_with_format(layer.png(), image::ImageFormat::Png)
-        .map_err(|error| error.to_string())?
-        .into_rgba8();
+    let image = match layer.png() {
+        Some(png) => image::load_from_memory_with_format(png, image::ImageFormat::Png)
+            .map_err(|error| error.to_string())?
+            .into_rgba8(),
+        None if layer == EmblemLayer::Sunburst => sunburst(),
+        None => godrays(),
+    };
     let (width, height) = image.dimensions();
     if width != height || width == 0 {
         return Err(format!("{width}x{height} is not square"));
@@ -241,7 +388,7 @@ mod tests {
         for piece in ArtPiece::ALL {
             assert_eq!(EmblemLayer::from_texture(piece.texture()), None);
         }
-        for id in [0, 1, u32::MAX, u32::MAX - 1, TEXTURE_BASE + 3] {
+        for id in [0, 1, u32::MAX, u32::MAX - 1, TEXTURE_BASE + 5] {
             assert_eq!(EmblemLayer::from_texture(TextureId(id)), None);
         }
         assert!(!EmblemLayer::Base.additive());
@@ -251,7 +398,10 @@ mod tests {
     #[test]
     fn bundled_layers_decode_with_full_mip_chains() {
         let decoded = decode_all();
-        for (layer, size) in EmblemLayer::ALL.into_iter().zip([1_024, 512, 512]) {
+        for (layer, size) in EmblemLayer::ALL
+            .into_iter()
+            .zip([1_024, 512, 512, RAYS_SIZE, RAYS_SIZE])
+        {
             let chain = decoded.layer(layer).expect("bundled layer decodes");
             assert_eq!(chain.size, size, "{layer:?}");
             assert_eq!(chain.levels.len() as u32, size.ilog2() + 1, "{layer:?}");
@@ -278,6 +428,80 @@ mod tests {
                     .chunks(4)
                     .any(|rgba| rgba[..3].iter().any(|c| *c > 200))
             );
+        }
+    }
+
+    #[test]
+    fn ray_pictures_are_light_inside_their_disc_and_black_past_it() {
+        for picture in [sunburst(), godrays()] {
+            let edge = RAYS_SIZE - 1;
+            for (x, y) in [
+                (0, 0),
+                (edge, 0),
+                (0, edge),
+                (edge, edge),
+                (0, RAYS_SIZE / 2),
+            ] {
+                assert_eq!(picture.get_pixel(x, y).0, [0, 0, 0, 255], "({x}, {y})");
+            }
+            let bright = picture.pixels().filter(|pixel| pixel.0[0] > 128).count();
+            let lit = picture.pixels().filter(|pixel| pixel.0[0] > 8).count();
+            let all = (RAYS_SIZE * RAYS_SIZE) as usize;
+            assert!(bright > 0, "no bright ray");
+            // Rays, not a flood: much of the disc stays dark.
+            assert!(lit < all / 2, "{lit} of {all} lit");
+            assert!(picture.pixels().all(|pixel| pixel.0[3] == 255));
+        }
+        // Grey, so a tint colours it.
+        let pixel = sunburst().get_pixel(RAYS_SIZE / 2 + 20, RAYS_SIZE / 2).0;
+        assert!(pixel[0] == pixel[1] && pixel[1] == pixel[2] && pixel[0] > 0);
+    }
+
+    #[test]
+    fn rays_turn_the_picture_about_its_centre() {
+        let mut canvas = MenuCanvas::new();
+        canvas.begin_transparent([1920.0, 1080.0]);
+        let color = Color::new(1.0, 0.8, 0.4, 0.5);
+        rays(
+            &mut canvas,
+            EmblemLayer::Godrays,
+            [100.0, -50.0],
+            400.0,
+            std::f32::consts::FRAC_PI_2,
+            color,
+        );
+        rays(
+            &mut canvas,
+            EmblemLayer::Sunburst,
+            [0.0, 0.0],
+            10.0,
+            0.0,
+            color,
+        );
+        let commands = canvas.draw_list().commands();
+        let DrawCommand::TexturedQuadUv {
+            rect, texture, uv, ..
+        } = commands[0]
+        else {
+            panic!("{:?}", commands[0]);
+        };
+        assert_eq!(texture, EmblemLayer::Godrays.texture());
+        assert_eq!(rect, Rect::new(-300.0, -450.0, 800.0, 800.0));
+        // A quarter turn moves each corner's picture coordinate one corner on.
+        let near = |a: [f32; 2], b: [f32; 2]| (a[0] - b[0]).abs() + (a[1] - b[1]).abs() < 1e-5;
+        let corners = [[0.0, 0.0], [1.0, 0.0], [1.0, 1.0], [0.0, 1.0]];
+        for index in 0..4 {
+            assert!(
+                corners.iter().any(|corner| near(uv[index], *corner)),
+                "{uv:?}"
+            );
+            assert!(!near(uv[index], corners[index]), "{uv:?}");
+        }
+        let DrawCommand::TexturedQuadUv { uv, .. } = commands[1] else {
+            panic!("{:?}", commands[1]);
+        };
+        for index in 0..4 {
+            assert!(near(uv[index], corners[index]), "{uv:?}");
         }
     }
 

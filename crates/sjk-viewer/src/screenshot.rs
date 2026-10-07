@@ -55,6 +55,17 @@ pub(crate) struct Request {
     silent: bool,
 }
 
+impl Request {
+    /// A silent JPEG named `name` (a simple file name without extension).
+    pub(crate) fn jpeg_named(name: &str) -> Self {
+        Self {
+            format: Format::Jpeg,
+            name: Some(name.to_owned()),
+            silent: true,
+        }
+    }
+}
+
 /// Parse OpenJK-style screenshot commands registered by the renderer.
 ///
 /// `R_ScreenShot*_f` accepts an optional explicit name at
@@ -135,6 +146,11 @@ impl Manager {
             texture_format,
             copy_supported,
         }
+    }
+
+    /// Where screenshots are written.
+    pub(crate) fn directory(&self) -> &Path {
+        &self.directory
     }
 
     pub(crate) fn request(&mut self, request: Request) {

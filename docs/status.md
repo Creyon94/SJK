@@ -7,6 +7,45 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Saber wall cutoff
+
+SJK pull request #24 by lumaya, branch `fix/saber-wall-cutoff` (based on
+`cfbc789`, 2026-10-07, Windows): blade contact clips the glow and core as well
+as the trail, including with trails or wall marks disabled. Reference: local OpenJK
+`4d0dfaf1`, `codemp/cgame/cg_players.c`, `CG_AddSaberBlade`'s `saberLen =
+VectorLength(v)` after its `MASK_SOLID` trace. Unit coverage checks the render
+pair's shortened length and radius and restored extension at 8/7/4/3 ms steps.
+In-game appearance and GPU startup are unverified; solid brush entities remain
+outside the client contact trace. Workspace build, tests and clippy pass on
+Windows with Rust 1.99 (clippy warnings remain). `cargo fmt --all --check`
+fails on existing formatting in `sjk-materialgen`'s `classes.rs` and
+`generate.rs`; the changed Rust files pass rustfmt.
+
+## Kicks and saber attacks predicted in a joined game
+
+Branch `fix/predicted-animation-lengths`. Prediction had an animation length table
+only when the client was started with a player model argument; a game joined from
+the menu or the command line had none, so the melee kicks (`g_debugMelee`) and saber
+attacks were not predicted and started a round trip late. A joined game now loads
+`models/players/_humanoid/animation.cfg` for prediction, as EternalJK hands Pmove
+the local player's animation set (`cg_predict.c:1311` at a40e793); reusing the
+loaded map for a new gamestate keeps the table the prediction had, instead of taking
+the first loaded model's, which could be another player's, an NPC's or a vehicle's.
+
+On a JA+ server, melee's W+A and W+D kicks are replaced by JA+'s own spin and back
+kicks (`BOTH_MELEE_SPINKICK`, `BOTH_MELEE_BACKKICK`), which JA+ plays server-side.
+JoF EternalJK holds the kicker still while those and JA+'s other own animations play
+(`bg_pmove.c:12470-12498`, `SVMOD_JAPLUS`, at bd5e202); the client kept predicting
+the held movement, so every snapshot pulled the player back through the kick.
+Prediction now holds still for them, and locks the view for a kiss, a ledge, a
+get-up, a stab or a backflip kick taken, as JoF EternalJK does. Unit tests cover the
+table for a joined game, its hand-over when the map is reused, and the JA+ holds.
+Formatting, the locked workspace build and tests pass; workspace Clippy finishes
+without errors, and its warnings are all in code this change does not touch.
+Checked in game on Windows 11 against a local JA+ server (`openjkded` with the JA+
+module, `g_debugMelee 1`): melee's W+A and W+D kicks play smoothly. Other server
+types are not checked.
+
 ## Actor instance buffer capacity
 
 The shared actor instance buffer holds 4,096 instances, up from 1,024 (the old
@@ -135,9 +174,22 @@ roster keys and `tell` lookups, and the cosmetic match. Checked in game on Windo
 11 on a JoF server, before the roster keys were added; those are covered by the
 unit tests only.
 
-## EternalJK's character set
+## Console font: JetBrains Mono
 
-Branch `feat/eternaljk-charset`: when `GameData/EternalJK` holds a PK3 with
+The console character set's surfaces (the console, notify lines, FPS, vote, team
+overlay, kill feed) draw with JetBrains Mono, bundled (OFL) and rasterized once at
+startup like Inter, instead of the `charsgrid_med` bitmap, which looked heavy and
+blocky at 4K (07/10/2026, Sol's request; SJK draws no bitmap fonts, docs/sjk.md
+"Fonts"). The font keeps the 8 by 16 unit cell, so layout, wrapping, selection and
+`con_scale` are unchanged; the insert and overstrike cursors are solid shapes in the
+retail cursor proportions. This replaces EternalJK's character set below: the
+`japro-assets.pk3` probe is gone. Unit tests cover the cell metrics, the atlas and
+the cursor shapes, and the atlas was rendered offline to check placement; not run
+in a game.
+
+## EternalJK's character set (replaced 07/10/2026)
+
+Replaced by the console font above. Branch `feat/eternaljk-charset`: when `GameData/EternalJK` holds a PK3 with
 `gfx/2d/charsgrid_med` (jaPRO's `japro-assets.pk3`), that one image is mounted above
 the game's `base`, and below the `fs_basegame` and `fs_game` directories, as EternalJK
 mounts its folder above `base` and below the mod. The PK3 probe runs once per process. It has `¬`, `¥`, `²`, `½`
@@ -866,6 +918,12 @@ EternalJK, a `cl_consoleKeys` character (or the scan-code key) toggles either
 console style and never types; holding it toggles once. Unit tests cover the
 open-console decision and the key list; not tried in a game.
 
+The key under Escape opens the console on every layout (07/10/2026, a Hungarian
+tester could not open it): `cl_consoleUseScanCode` defaults to 1 as in EternalJK,
+with its exception that a layout typing `^` there needs Shift, and saved profiles
+are moved from the old 0 once. Unit tests cover the Shift rule for the `0`, `` ` ``,
+`²`, `§` and `^` layouts; not tried in a game or with a Hungarian layout.
+
 With the classic console the F3 command browser is classic+ (05/10/2026): the
 in-game pop-up frame, retail buttons and list box, and a detail box; the menus'
 retail font under `ui_gameFont`. Layout tests check that every part lies inside
@@ -899,6 +957,19 @@ sparks spread across the width; the sjk-viewer tests and clippy passed.
 Off-screen snapshots drew the page in both palettes, scrolled and at 21:9; the
 snapshot rasterizer has no emblem texture and draws rounded shapes square, so
 the halo and card corners are unverified, as is the motion. No game was started.
+
+SJK-only branch `personal/credits-history-page` (07/10/2026, based on `82bd816`)
+gives everyone with a history a panel with their name large and their whole
+history folded under it (features, pull requests and commits from
+`credits_history.txt`, written by `scripts/credits_history.py`), and replaces the
+drifting beams with turning god rays and a sunburst after the site; see
+[client.md](client.md#credits-page). Unit tests parse the built-in history and
+check that every person in it has a card, its order and links, the folds, and
+the ray pictures and their turning; the sjk-viewer tests passed and clippy has
+nothing new. The snapshot rasterizer now draws the emblem and ray layers
+(nearest texel, added as light); snapshots drew the page folded and unfolded in
+both palettes and at 21:9. The motion, the fade-in of unfolded rows, the
+scrollbar and the links were not tried in game.
 
 ## In-game SJK menu and classic+ changelog (SJK)
 
@@ -1144,8 +1215,16 @@ Sol is reviewing every retail world shader on the test maps of
   classifies by texture set (generic 560 -> 65 textures); the client limits
   parallax at grazing angles and distance, adds specular anti-aliasing and halves
   the bump tilt of probe reflections. Not yet looked at in game.
-- Open: 629 textures drawn only on vertex-lit surfaces (terrain, `_phong` sand and
-  rock) get no material maps, because the material program needs a lightmap.
+- 07/10/2026: parallax is off by default (Sol: focus on normal, specular and
+  emission maps). Vertex-lit paint (opaque `rgbGen vertex`: terrain, `_phong` sand
+  and rock) takes material maps, its vertex colour standing in for the lightmap;
+  generation 5 of the generator covers it (1,199 textures on the retail MP maps and
+  the test maps, 145 of them vertex-lit). Open: 180 vertex-lit shaders whose base is
+  not opaque vertex paint, chiefly blended terrain layers, stay unmapped.
+- Controls' painted indicator lights are emission evidence now, but on retail data it
+  finds nothing new: nearly every switch and door control already glows through its
+  shader, and the three that do not have no lights painted. 31 textures emit.
+  Not yet looked at in game.
 - Open: decals flicker on every map (Sol). Their bias matches rd-vanilla; only the
   fog pass lacked it (fixed). The cause outside fog needs a reproduction (map,
   decal, distance).
@@ -1166,6 +1245,15 @@ Interface, HUD, Scoreboard, Network); Graphics and Gameplay are pages with Back 
 OPTIONS, as the renderer page was. See [client.md](client.md). The modern screen's
 flat tabs are unchanged apart from FIRST SETUP and WEATHER. The sjk-viewer tests
 cover the pages, their groups, Back and Escape; no game was started.
+
+## Quick wheels (SJK)
+
+SJK-only branch `personal/quick-wheel` (07/10/2026, based on `3a875f2`): hold
+`+wheel general` (Q) or `+wheel weather` (R), point the mouse at a choice and let go;
+see [client.md](client.md#quick-wheels). Unit tests cover the pointer-to-choice
+mapping, release and cancel, the pointer's reach, and every wheel's layout; the
+off-screen `menu_snapshot` renders both wheels. No game was started: the feel of the
+pointer (its dead zone and reach in raw mouse counts) is unverified.
 
 ## Force wheel (SJK)
 
@@ -2082,6 +2170,40 @@ repository's dedicated server,
 the reference); other servers' handling was not checked. Not measured: the
 per-frame cost of the limb scan now that `cg_dismember` is not 0 by default (one
 pass over the snapshot's entities). No client was run; Sol tests through `play`.
+
+## Classic+ text dialog and Report a bug button (SJK)
+
+SJK-only branch `personal/report-classic-plus` (07/10/2026, based on `61eecc2`): with
+the classic menus the text dialog (bug reports and world notes) and the Report a bug
+button take the classic+ look; see [classic-plus.md](classic-plus.md#pages). The text
+now wraps by the drawn font's measured width in both looks. Layout tests and the menu
+snapshots (`report-launcher`, `report-dialog`, `report-dialog-refused`, `note-dialog`,
+each also `-classic`) checked it; no game was started. The hub's `POST /v1/report`
+and worn-name history were deployed to sjk.dfox.app the same day (an unsigned report
+gets 401 instead of the earlier 404).
+
+## Legacy config text (SJK)
+
+SJK-only branch `personal/legacy-cfg-text` (07/10/2026, based on `8fea9b8`): `exec`
+refused any file that was not UTF-8 ("is not valid UTF-8 command text"), and a
+legacy `config.cfg` with a Latin-1 name, a byte-order mark, `unbindall` or a key
+SJK has no name for failed to load, which also stops every save. Such files are now
+read as Latin-1 and those lines accepted; see
+[client.md](client.md#configuration-and-content). sjk-shell unit tests cover the
+decoding and a legacy saved config; no game was started.
+
+## First setup at start and config import (SJK)
+
+SJK-only branch `personal/first-setup-import` (07/10/2026, based on `9ca3ec4`): First
+setup opens at every start until its "Don't show at start" row is ticked
+(`ui_hideFirstSetup`, replacing the once-only `ui_quickSetup`), and a `.cfg` from
+another client dropped on the window (or given to `firstsetup import <path>`)
+opens an Import page offering its name, model (with tint), field of view and key
+bindings; see [client.md](client.md#importing-from-another-client). Unit tests cover
+the parser (saved and partial configs, comments, unknown keys, Latin-1), the page's
+ticks and the copy into the profile, including a whole bind table keeping locked
+keys. No game was started: the drop itself (winit's drag and drop on Windows) and
+the page's look are unverified.
 
 ## 125 Hz user commands and cl_maxpackets (SJK)
 

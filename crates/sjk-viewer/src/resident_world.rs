@@ -356,12 +356,16 @@ impl GpuState {
         if prepared_content != current_content {
             return false;
         }
-        self.local_prediction = crate::LocalPrediction::new(
+        let mut prediction = crate::LocalPrediction::new(
             Some(session.latest_snapshot()),
-            self.actor_meshes.first().map(|m| m.preview.config.as_ref()),
+            // The first loaded model may be another player's, an NPC's or a vehicle's:
+            // the new prediction keeps the old one's table, else takes the humanoid set.
+            None,
             Some(current),
             self.vfs.as_ref().expect("resident world retains VFS"),
         );
+        prediction.keep_animation_lengths(&self.local_prediction);
+        self.local_prediction = prediction;
         self.resident.scenery = Some((current.clone(), session.latest_snapshot().clone()));
         self.world_load_map.clone_from(&self.resident.map);
         self.world_load_state = super::LoadStateMachine::new();

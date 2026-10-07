@@ -160,13 +160,13 @@ area: Menus & settings
 title: Classic game fonts on every retail text surface
 change: ergoec: menus, crosshair name, centre prints, warmup, timer, scoreboard names.
 change: ocr_a: chat, weapon/Force/item names, scoreboard numbers; low-res atlases drawn sharp.
-change: Console charset charsgrid_med (monospace): console, notify, FPS, vote, kill feed.
+change: Console charset surfaces (console, notify, FPS, vote, kill feed): JetBrains Mono in SJK.
 test: Settings > HUD > "Classic game fonts" on; look at the menus and at chat.
 test: Open the console, type, select text: caret and selection follow the characters.
 test: In a match: crosshair name, scoreboard, weapon switch name, FPS, kill feed, vote.
 test: Console stays on top of menus and HUD; F3 command browser stays on the modern font.
 test: At 4K: chat text and cg_classicHudFont 1 HUD numbers have crisp edges, no blur.
-note: First enable may hitch about 0.1 s while fonts convert. 0xAC is blank in the console.
+note: First enable may hitch about 0.1 s while fonts convert.
 
 [force-menu]
 pr: 47
@@ -598,6 +598,32 @@ test: Hold the console key: it opens once and stays open, no flicker.
 test: Same with con_style modern. In chat (console closed), ~ still types in the chat line.
 test: AZERTY: ^ then 1 in the console still gives ^1; Esc and Shift+Esc still close it.
 
+[console-key-any-layout]
+status: personal
+area: Console & chat
+title: The key under Esc opens the console on every keyboard layout
+change: cl_consoleUseScanCode is 1, as in EternalJK: the key under Esc opens the console on any
+change: layout (Hungarian, where it types 0, had none). Where it types ^ (German), Shift+^ opens.
+change: Configs that saved the old 0 move to 1 once (cl_consoleKeyDefaultVersion).
+test: US layout: the key under Esc opens and closes the console, nothing typed.
+test: Add Hungarian in Windows (Win+Space): the key under Esc (0) opens and closes the console.
+test: German layout: ^ types ^ in the console; Shift+^ opens and closes it.
+test: In chat (console closed) on Hungarian: the key still types 0 in the chat line.
+note: cl_consoleUseScanCode 0 goes back to the cl_consoleKeys characters (~ ` etc).
+
+[console-vector-font]
+status: personal
+area: Console & chat
+title: The console draws with a vector font (JetBrains Mono), no more bitmap font
+change: The classic console, notify lines, FPS, vote and kill feed use JetBrains Mono instead of
+change: the charsgrid_med bitmap; same cell grid, sharp thin strokes at any size.
+change: EternalJK's jaPRO charsgrid_med is no longer loaded. Cursors are solid shapes.
+test: Open the console at 4K: thin, sharp letters; 0 vs O and 1 vs l vs I easy to tell apart.
+test: Type, select with the mouse, move the caret: selection and caret follow the characters.
+test: Insert key: the cursor turns from a bar into a block and back. con_scale 2 stays sharp.
+test: Symbols: say e acute, the 2 superscript, the logo key (0xAC): they draw in the console.
+test: In a match with ui_gameFont 1: FPS counter, vote text and kill feed use the same font.
+
 [console-browser-classic]
 status: personal
 area: Console & chat
@@ -857,7 +883,7 @@ status: personal
 area: Rendering & effects
 title: Sol's visual defaults: noon sun, bloom, sunbeam dust, material maps on
 change: New defaults: r_dayHour 12, r_sceneBloom 1, r_dustMotes 1 and r_normalMapping,
-change: r_specularMapping, r_parallaxMapping 1. Saved config.cfg values still win (no migration).
+change: r_specularMapping 1 (r_parallaxMapping 0 since 07/10). Saved config.cfg values still win.
 test: Close SJK, rename config.cfg (e.g. config.old.cfg) so a fresh one is made, then start.
 test: Console: r_dayHour 12, r_sceneBloom 1, r_dustMotes 1, r_normalMapping 1 (and the others).
 test: Outdoor map (mp/ffa3): the sun stands at noon, short shadows; Renderer > IMAGE: Bloom ON.
@@ -1183,6 +1209,20 @@ test: Hover @Sol-Vulpes: it brightens and underlines; click: the browser opens y
 test: Click > github.com/Sol-Vulpes/SJK and > Creyon's pull requests: both open in the browser.
 test: Scroll so a link sits under the CLOSE strip: clicking there does not open it.
 
+[credits-history]
+status: personal
+area: Menus & settings
+title: Credits: big name panels, every feature, PR and commit folded, turning god rays
+change: Panels with large names; HIGHLIGHTS and ALL WORK folds; PRs and features unfold commits.
+change: JKR #/SJK # chips and commits open on GitHub; EXPAND ALL; scrollbar; smooth scroll.
+change: Gold god rays turn down from the top and a sunburst behind the emblem, as on the site.
+test: SJK > CREDITS: rays turn slowly; the sunburst turns behind the emblem; no flicker at 4K.
+test: Every fold starts closed. Click ALL WORK: rows fade in one after another, newest day first.
+test: Click a row with + : its commits open under it; click JKR #104 chip: browser opens the PR.
+test: Click a commit or a row's hash: the commit opens on github.com/Sol-Vulpes/SJK.
+test: EXPAND ALL, then drag the scrollbar and wheel to the end: smooth, nothing overlaps.
+test: COLLAPSE ALL closes everything; reopening the page starts folded; try classic and modern.
+
 [ui-texture-switches]
 status: personal
 area: Menus & settings
@@ -1385,9 +1425,8 @@ status: personal
 area: Menus & settings
 title: Quick setup for first-time settings
 change: Setup page: a QUICK SETUP group first in the list (classic); QUICK tab on modern menus.
-change: Opens by itself once on a first start (ui_quickSetup 0); Escape dismisses it for good.
+change: Opened by itself once on a first start; now at every start (see first-setup-import).
 change: Console command quicksetup opens it any time, in the menu or in a game.
-test: Set ui_quickSetup 0, restart: the main menu opens on QUICK SETUP; Esc, restart: not again.
 test: Settings > Options: QUICK SETUP is the first group; change cg_nameplate there, then in HUD.
 test: In a game type quicksetup in the console: the Quick setup panel opens over the game.
 test: Set ui_menuStyle modern and repeat: the QUICK tab shows the same rows.
@@ -1538,16 +1577,6 @@ test: Type say with an euro sign and curly quotes (alt codes or paste): the chat
 test: Meet a name such as {JoF}\vToxiee\v{C}.ak: it reads {JoF}.Toxiee.{C}.ak, as in EJK.
 test: tell <part of such a name> hello reaches the player; the classic console closes up those cells.
 
-[ejk-charset]
-status: personal
-area: Console & chat
-title: EternalJK's character set used when installed (SJK PR #22)
-change: GameData/EternalJK/japro-assets.pk3's charsgrid_med replaces the retail set (console, text).
-change: Mounted above base and below the mod directory; nothing else is taken from that pack.
-test: With that pk3 installed, print the text of Latin-1 symbols in the classic console: they draw.
-test: Remove the pk3 (or fs_game with its own set): the retail set returns.
-note: Needs GameData/EternalJK/japro-assets.pk3 (jaPRO).
-
 [clipboard-symbols]
 status: personal
 area: Console & chat
@@ -1662,6 +1691,19 @@ test: fx_debug 1, fire a weapon: the log lists the effects; fx_debug 0 stops it.
 test: cg_debugMissiles 1, fire rockets: one log line per second about the trails; then set 0.
 note: The log output was not checked in a running client.
 
+[predicted-kicks]
+status: personal
+area: Gameplay
+title: Melee kicks predicted in a joined game; JA+'s own kicks hold you still (SJK PR #23)
+change: A joined game predicts with the humanoid animation.cfg: kicks and saber attacks start now.
+change: JA+ spin, back, jumping and backflip kicks and the flip stab hold the kicker still.
+change: A kiss, ledge, get-up, stab or backflip kick taken on JA+ also locks the view, as JoF EJK.
+test: JA+ server with g_debugMelee 1, melee: W+A and W+D kicks play smoothly, no snap at the end.
+test: Saber attacks right after joining from the menu: they start at once, no late jump.
+test: Get backflip-kicked or get up on JA+: you stand still and the view does not fight the mouse.
+test: A stock or JoF server: kicks and movement as before.
+note: Creyon94 checked the kicks on a local JA+ server only; ledges still predict gravity.
+
 [cmd-rate]
 status: personal
 area: Gameplay
@@ -1741,6 +1783,30 @@ test: In game, the Settings pop-up shows the same pages.
 test: firstsetup (and quicksetup) in the console open First setup.
 test: Modern style: Video > Renderer has a WEATHER tab with the weather rows.
 
+[first-setup-import]
+status: personal
+area: Menus & settings
+title: First setup at every start; import name, model, FOV and keys from a .cfg
+change: First setup opens at each start until its last row, Don't show at start, is ticked.
+change: Drop a .cfg (jampconfig.cfg, EJK, JA+) on the window: an Import page lists what it has.
+change: Tick Name, Model, Field of view, Key bindings; ENTER copies them. firstsetup import <path>.
+test: Restart: First setup opens; Esc, restart: it opens again. Tick Don't show at start, restart.
+test: Drag GameData/base/jampconfig.cfg onto the window (menu, then in a game): the page opens.
+test: Untick Key bindings, ENTER: name, model and FOV change, keys stay. Check the Player menu.
+test: Again with Key bindings ticked: your EJK keys work; ESC and the console key still work.
+test: Drop a .txt or an empty .cfg: the page says why nothing is imported.
+note: Never started in a game yet; the drop itself is untested (winit drag and drop).
+
+[legacy-cfg-text]
+status: personal
+area: Console & chat
+title: Other clients' .cfg files: exec them, or copy one over config.cfg
+change: Files that are not UTF-8 (accented names, EJK chat binds) are read as Latin-1, not refused.
+change: config.cfg accepts unbindall, unbind and unknown keys, so a copied jampconfig.cfg loads.
+test: Copy an EJK/JA .cfg with an accented name into GameData/SJK, exec it: no UTF-8 error.
+test: Back up config.cfg, copy jampconfig.cfg over it, start: name and binds load, settings save.
+note: Restore your own config.cfg afterwards.
+
 [shader-testmap]
 status: personal
 area: Rendering & effects
@@ -1771,6 +1837,90 @@ test: devmap sjk_shaders_a, then mp/ffa3: walk past metal walls and floors at a 
 test: Metal should not ripple or swim as you move; floors keep relief up close only.
 test: Studded floors (desert/s_floor1, D map) and panels read raised, not pushed in.
 note: Still pushed in somewhere? Give Claude the pad ID: one overrides line flips it.
+
+[quick-wheels]
+status: personal
+area: Input
+title: Quick wheels: hold Q or R, point, let go
+change: Q opens the general wheel, R the weather wheel; the mouse picks a slice, release runs it.
+change: Escape or releasing in the middle cancels; dots mark choices already in effect.
+test: Hold Q, move the mouse up-right to NAMEPLATES, let go: the nameplate mode changes.
+test: Hold R, push right to RAIN, let go: rain starts (forced); R then MAP'S OWN puts it back.
+test: While holding, the view does not turn; W/A/S/D still move.
+test: Hold Q and press Escape, or let go without moving: nothing happens.
+note: The pointer's dead zone and reach are in raw mouse counts: tell Claude if too twitchy.
+test: Each choice is a round metal icon; the one pointed at grows, ringed in the accent colour.
+test: Its name shows in the middle; GAME MENU and FIRST SETUP are plain discs with text.
+
+[vertex-lit-maps]
+status: personal
+area: Rendering & effects
+title: Material maps on vertex-lit terrain, sand and rock
+change: Vertex-lit paint (rgbGen vertex: terrain, _phong sand and rock) takes normal/metal maps.
+change: Switches and control panels: their small coloured indicator lights now glow.
+test: devmap mp/siege_desert or sjk_shaders_a A249/A255/A258: sand and rock show relief.
+test: r_dayNight 1 there too: the relief still follows the sun.
+test: A switch or door lock (imperial, kejim): its red/green lights glow, not its paint.
+note: Blended terrain layers over a mapped base stay flat; tell Claude if seams show.
+
+[world-notes]
+status: personal
+area: Input
+title: World notes: inspect a surface, write a note, Claude reads it later
+change: X (inspect) on a wall, floor or object names it; X again opens a note line.
+change: Enter saves the note with surface, shader, position and a screenshot (notes.jsonl).
+test: Aim at a wall (no player): X shows its shader, outlines it in green dots, shades it.
+test: X again opens a Note panel mid-screen; type, Send (or Enter). Cancel or Escape drops it.
+test: Escape after the first X (no second press) drops the selection, no game menu.
+test: Type a note, Enter: console says note kept; GameData/screenshots has note_*.jpg.
+test: Aim at a door: X names the func_door and its shaders. Escape in the note drops it.
+test: On a player, X still pins their card; with a card pinned, X unpins it.
+note: Notes go to GameData/SJK/notes.jsonl and notes.txt: tell Claude to read them.
+
+[bug-report]
+status: personal
+area: Menus & settings
+title: Report a bug from the Escape menu, sent to the SJK hub
+change: Escape: a Report a bug button bottom centre opens a panel with Send and Cancel.
+change: Only letters, digits, spaces and . , ! ? ' - : ( ) can be typed; 10 to 600 characters.
+test: Escape, click Report a bug (bottom centre): type < > / or an emoji: nothing appears.
+test: The centre print says sent (report number) or why not (quota, too short).
+test: Send the same text twice: refused. A fresh key: 3 a day, then refused.
+note: The hub takes reports since 07/10/2026 (deployed); Claude reads them on the hub.
+
+[report-classic-plus]
+status: personal
+area: Menus & settings
+title: Report a bug and the note dialog in the classic+ look
+change: With the classic menus: a gold REPORT A BUG on the red band, bottom centre.
+change: The dialog is an in-game pop-up: title band, list box, gold Send and Cancel.
+test: Classic menus, Escape: REPORT A BUG on a red band at the bottom; hover glows it.
+test: Click it: REPORT A BUG pop-up; long text wraps to the box's width, 8 lines.
+test: Hover the box, Send, Cancel: the line under the pop-up explains each.
+test: Send "short": the red reason shows under the count; X twice on a wall: same look.
+
+[saber-wall-cutoff]
+status: personal
+area: Rendering & effects
+title: Saber blades stop at walls instead of shining through (SJK PR #24, lumaya)
+change: The wall trace cuts the glow and core at the hit point, as OpenJK's CG_AddSaberBlade.
+change: Hilts with noWallMarks are cut too; leaving the wall brings back the full length.
+test: Push a lit saber into a wall: no glow or core on the far side, sparks at the contact.
+test: Swing along a wall and pull away: the blade grows back at once, no shrink stays.
+test: Throw the saber into a wall: the flying blade stops at the wall as well.
+test: cg_saberContact 0: blades go through walls again (stock behaviour).
+note: Doors and lifts (movers) do not cut blades yet; the blade's light still passes walls.
+
+[settings-icons]
+status: personal
+area: Menus & settings
+title: Settings groups have icons (classic menus)
+change: Each group down the left of Key bindings, Options, Graphics and Gameplay has a metal disc.
+change: The open or hovered group's icon is bright, the others dimmed.
+test: Main menu > Settings > Key bindings: Movement..Other each show an icon left of the name.
+test: Options, then Graphics and Gameplay: every group has its own icon; hover one: it lights up.
+test: In a match, Escape > Settings: the pop-up's group list shows the same icons.
+note: Wrong picture for a group, or too big/small at 4K? Tell Claude which.
 
 # ---- Merged upstream ----
 

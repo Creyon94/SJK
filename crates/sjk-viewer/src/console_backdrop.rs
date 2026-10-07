@@ -64,8 +64,8 @@ pub(crate) enum TextAtlas {
     /// The bundled Inter atlas.
     #[default]
     Inter,
-    /// The console character set (`gfx/2d/charsgrid_med`).
-    Charset,
+    /// The console font ([`crate::text::console_font`]).
+    Console,
 }
 
 /// What the console contributes to one frame of the layer.
@@ -321,8 +321,8 @@ pub(crate) struct TextDraw<'a> {
     pub(crate) sdf_pipeline: &'a wgpu::RenderPipeline,
     /// The Inter atlas.
     pub(crate) inter: &'a wgpu::BindGroup,
-    /// The console character set's atlas and whether it is a distance field.
-    pub(crate) charset: Option<(&'a wgpu::BindGroup, bool)>,
+    /// The console font's atlas and whether it is a distance field.
+    pub(crate) console: Option<(&'a wgpu::BindGroup, bool)>,
 }
 
 /// GPU resources of the classic console layer, one per world.
@@ -574,10 +574,10 @@ impl ConsoleLayer {
         if self.text_count == 0 {
             return;
         }
-        let (pipeline, group) = match (self.atlas, text.charset) {
-            (TextAtlas::Charset, Some((group, true))) => (text.sdf_pipeline, group),
-            (TextAtlas::Charset, Some((group, false))) => (text.pipeline, group),
-            (TextAtlas::Charset, None) => return,
+        let (pipeline, group) = match (self.atlas, text.console) {
+            (TextAtlas::Console, Some((group, true))) => (text.sdf_pipeline, group),
+            (TextAtlas::Console, Some((group, false))) => (text.pipeline, group),
+            (TextAtlas::Console, None) => return,
             (TextAtlas::Inter, _) => (text.pipeline, text.inter),
         };
         pass.set_pipeline(pipeline);

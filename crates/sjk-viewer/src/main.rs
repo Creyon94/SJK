@@ -25,6 +25,7 @@ mod shader_image;
 
 mod clock_trace;
 mod combat_effects;
+mod config_import;
 mod config_string_refresh;
 mod connection;
 mod connection_commands;
@@ -127,6 +128,7 @@ mod surface_tables;
 mod trip_mine_lasers;
 mod viewer_app;
 use object_meshes::StaticModelMesh;
+mod bug_report;
 mod gi_voxels;
 mod identity_command;
 mod identity_frame;
@@ -150,6 +152,7 @@ mod player_skin;
 mod pointer_input;
 mod presentation_clock;
 mod projectiles;
+mod quick_wheel;
 mod render_helpers;
 mod runtime_settings;
 mod saber;
@@ -168,11 +171,13 @@ mod server_browser;
 mod server_commands;
 mod session_transition;
 mod settings;
+mod settings_icons;
 mod shared_geometry;
 mod sky_stage;
 mod snapshot_presentation;
 mod static_models;
 mod text;
+mod text_dialog;
 mod ui_renderer;
 mod ui_scale;
 mod ui_target;
@@ -184,6 +189,7 @@ mod weather;
 mod wgsl_source;
 mod window_icon;
 mod world_materials;
+mod world_notes;
 mod world_props;
 mod world_stage;
 use actor_instance::ActorInstance;
@@ -279,6 +285,8 @@ struct GpuState {
     sdf_text_pipeline: wgpu::RenderPipeline,
     saber_gpu: saber_gpu::Runtime,
     dust_motes: dust_motes::Runtime,
+    /// The quick wheel open while its key is held (`quick_wheel.rs`).
+    quick_wheel: quick_wheel::QuickWheel,
     /// The map's rain, snow and mist (`weather.rs`).
     weather: weather::Runtime,
     geometry: SharedGeometry,
@@ -324,6 +332,14 @@ struct GpuState {
     /// Shared with the weather's cover survey thread.
     bsp: Arc<Bsp>,
     trace_scratch: TraceScratch,
+    /// `inspect` on the world: the selection and the note being written.
+    world_notes: world_notes::Notes,
+    /// The note and bug report panel, and the Report a bug button (`text_dialog`).
+    text_dialog: text_dialog::TextDialog,
+    /// A bug report is on its way to the hub (`bug_report`).
+    bug_report_waiting: bool,
+    /// The outcome last shown, so the next one is told apart.
+    bug_report_serial: u64,
     entity_lighting: entity_lighting::EntityLighting,
     /// Live player model behind the Player screen.
     menu_stage: menu_stage::MenuStage,
@@ -1099,6 +1115,7 @@ impl GpuState {
             sdf_text_pipeline,
             saber_gpu,
             dust_motes,
+            quick_wheel: quick_wheel::QuickWheel::default(),
             weather,
             geometry,
             entity_instance_buffer,
@@ -1146,6 +1163,10 @@ impl GpuState {
             crosshair_scan: crosshair_scan::State::new(&bsp),
             bsp: Arc::new(bsp),
             trace_scratch,
+            world_notes: world_notes::Notes::default(),
+            text_dialog: text_dialog::TextDialog::default(),
+            bug_report_waiting: false,
+            bug_report_serial: 0,
             entity_lighting,
             menu_stage: menu_stage::MenuStage::default(),
             clientinfo_watch: clientinfo_refresh::ClientInfoWatch::new(),
@@ -1647,10 +1668,28 @@ impl GpuState {
         }
         self.append_console_overlay(viewport, text_scale);
         self.append_version_overlay(viewport, text_scale);
+        let launcher = self.game_menu
+            && self.game_menu_page != GameMenuPage::Shot
+            && !console_covers_frame
+            && !self.text_dialog.is_open();
+        if launcher {
+            let (vertices, font) = self.game_fonts.menu(&mut self.text_vertices, &self.ui_font);
+            self.text_dialog.append_launcher(vertices, font, viewport);
+        }
+        if self.text_dialog.is_open() {
+            let (vertices, font) = self.game_fonts.menu(&mut self.text_vertices, &self.ui_font);
+            self.text_dialog.append(vertices, font, viewport);
+        } else {
+            self.world_notes.composer_closed();
+        }
+        self.world_notes.draw_highlight(viewport);
         let layers = [
+            self.world_notes.fill(),
+            self.world_notes.highlight(),
             information_visible.then(|| &self.hud.nameplate.list),
             information_visible.then(|| &self.hud.identification.list),
             information_visible.then(|| &self.hud.card.list),
+            self.quick_wheel.is_open().then_some(&self.quick_wheel.list),
             information_visible.then(|| self.hud.draw_list()),
             chat_visible.then(|| self.chat.draw_list()),
             scoreboard_visible.then(|| self.scoreboard.draw_list()),
@@ -1664,6 +1703,10 @@ impl GpuState {
                 .filter(|_| !console_covers_frame)
                 .and_then(|menu| menu.draw_list()),
             self.console.as_ref().map(|console| console.draw_list()),
+            launcher.then(|| self.text_dialog.launcher_draw_list()),
+            self.text_dialog
+                .is_open()
+                .then(|| self.text_dialog.draw_list()),
         ];
         self.ui_shapes
             .prepare_layers(&self.queue, layers.into_iter().flatten(), viewport);

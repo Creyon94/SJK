@@ -16,7 +16,11 @@ impl ChatOverlay {
         input.layout.rect = Rect::new(g.left, y, g.width, 34.0 * g.scale);
         input.layout.len = 0;
         walk(draft, advance, |index, x, _| {
-            input.layout.stops[input.layout.len] = (start + index, g.left + x);
+            // Bounded by the stops array, whatever the window's width lets show.
+            let Some(stop) = input.layout.stops.get_mut(input.layout.len) else {
+                return true;
+            };
+            *stop = (start + index, g.left + x);
             input.layout.len += 1;
             false
         });
