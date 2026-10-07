@@ -78,9 +78,33 @@ fn span(rect: Rect, clip: Rect) -> (std::ops::Range<i64>, std::ops::Range<i64>) 
 
 /// `rect` filled with its corners rounded to `radius`, edges anti-aliased over a pixel.
 fn fill_rounded(image: &mut RgbaImage, rect: Rect, radius: f32, clip: Rect, color: [f32; 4]) {
+    shade_rounded(image, rect, radius, None, clip, color);
+}
+
+/// `rect` filled with its corners rounded to `radius`, or only its outline
+/// `stroke` wide inside it, edges anti-aliased over a pixel.
+fn shade_rounded(
+    image: &mut RgbaImage,
+    rect: Rect,
+    radius: f32,
+    stroke: Option<f32>,
+    clip: Rect,
+    color: [f32; 4],
+) {
     let radius = radius.min(rect.width * 0.5).min(rect.height * 0.5);
     if radius < 0.5 {
-        return fill(image, rect, clip, color);
+        let Some(width) = stroke else {
+            return fill(image, rect, clip, color);
+        };
+        for edge in [
+            Rect::new(rect.x, rect.y, rect.width, width),
+            Rect::new(rect.x, rect.bottom() - width, rect.width, width),
+            Rect::new(rect.x, rect.y, width, rect.height),
+            Rect::new(rect.right() - width, rect.y, width, rect.height),
+        ] {
+            fill(image, edge, clip, color);
+        }
+        return;
     }
     let grown = Rect::new(
         rect.x - 1.0,
@@ -96,7 +120,11 @@ fn fill_rounded(image: &mut RgbaImage, rect: Rect, radius: f32, clip: Rect, colo
             let qx = (x as f32 + 0.5 - middle[0]).abs() - half[0];
             let qy = (y as f32 + 0.5 - middle[1]).abs() - half[1];
             let distance = qx.max(0.0).hypot(qy.max(0.0)) + qx.max(qy).min(0.0) - radius;
-            let coverage = (0.5 - distance).clamp(0.0, 1.0);
+            let inside = |distance: f32| (0.5 - distance).clamp(0.0, 1.0);
+            let coverage = match stroke {
+                Some(width) => inside(distance) - inside(distance + width),
+                None => inside(distance),
+            };
             if coverage > 0.0 {
                 blend(
                     image,
@@ -262,18 +290,11 @@ fn raster(
             }
             DrawCommand::Border {
                 rect,
+                radius,
                 width,
                 color: c,
-                ..
             } => {
-                for edge in [
-                    Rect::new(rect.x, rect.y, rect.width, *width),
-                    Rect::new(rect.x, rect.bottom() - width, rect.width, *width),
-                    Rect::new(rect.x, rect.y, *width, rect.height),
-                    Rect::new(rect.right() - width, rect.y, *width, rect.height),
-                ] {
-                    fill(image, edge, clip, color(*c, o));
-                }
+                shade_rounded(image, *rect, *radius, Some(*width), clip, color(*c, o));
             }
             DrawCommand::TexturedQuad {
                 rect,
@@ -1366,7 +1387,16 @@ fn sjk_home_snapshot() {
         live: Some((24, 32, 31)),
         played: None,
     }];
-    let cases: [(&str, [f32; 2], Page, usize, Option<usize>, &[ServerItem]); 6] = [
+    // Name, window, page, chosen entry, focused server, servers.
+    type Case<'a> = (
+        &'a str,
+        [f32; 2],
+        Page,
+        usize,
+        Option<usize>,
+        &'a [ServerItem<'a>],
+    );
+    let cases: [Case; 6] = [
         ("sjk-home", VIEWPORT_WIDE, Page::Main, 0, None, &recent),
         ("sjk-home-play", VIEWPORT_WIDE, Page::Play, 0, None, &recent),
         ("sjk-home-sjk", VIEWPORT_WIDE, Page::Sjk, 1, None, &recent),
@@ -1401,26 +1431,6 @@ fn sjk_home_snapshot() {
             seconds: 12.0,
         };
         home::build(&mut canvas, viewport, &mut home, &view, 1.0);
-        let size = (viewport[0] as u32, viewport[1] as u32);
-        // The levelshot covers the window, cropped at its sides.
-        let cover = size.1 as f32 / backdrop.height() as f32;
-        let scaled_width = (backdrop.width() as f32 * cover).max(size.0 as f32) as u32;
-        let scaled = image::imageops::resize(
-            &backdrop,
-            scaled_width,
-            size.1,
-            image::imageops::FilterType::Triangle,
-        );
-        let mut image =
-            image::imageops::crop_imm(&scaled, (scaled_width - size.0) / 2, 0, size.0, size.1)
-                .to_image();
-        raster(
-            &mut image,
-            canvas.draw_list(),
-            &[],
-            &display.image,
-            &HashMap::new(),
-        );
         let (mut display_text, mut body_text) = (Vec::new(), Vec::new());
         canvas.append_text_families(
             SjkFonts {
@@ -1430,13 +1440,154 @@ fn sjk_home_snapshot() {
             viewport,
             crate::text::TextStyle::NEUTRAL,
         );
-        raster_text(&mut image, &display_text, &display.image);
-        raster_text(&mut image, &body_text, &body.image);
-        let directory = workspace_root().join("target/menu-snapshots");
-        std::fs::create_dir_all(&directory).expect("create the snapshot directory");
-        let path = directory.join(format!("{name}.png"));
-        image.save(&path).expect("write the snapshot");
-        println!("{}", path.display());
+        let fonts = SjkShotFonts {
+            display: (&display_text, &display.image),
+            body: (&body_text, &body.image),
+        };
+        save_sjk_shot(
+            name,
+            viewport,
+            &backdrop,
+            canvas.draw_list(),
+            &HashMap::new(),
+            fonts,
+        );
+    }
+}
+
+/// The text of an SJK UI snapshot, each family's vertices with its atlas.
+struct SjkShotFonts<'a> {
+    display: (&'a [crate::text::TextVertex], &'a RgbaImage),
+    body: (&'a [crate::text::TextVertex], &'a RgbaImage),
+}
+
+/// Save SJK UI snapshot `name`: `backdrop` covering the window (cropped at
+/// its sides), `list`'s shapes and `icons` over it, then each family's text.
+fn save_sjk_shot(
+    name: &str,
+    viewport: [f32; 2],
+    backdrop: &RgbaImage,
+    list: &DrawList,
+    icons: &HashMap<u32, RgbaImage>,
+    fonts: SjkShotFonts<'_>,
+) {
+    let size = (viewport[0] as u32, viewport[1] as u32);
+    let cover = size.1 as f32 / backdrop.height() as f32;
+    let scaled_width = (backdrop.width() as f32 * cover).max(size.0 as f32) as u32;
+    let scaled = image::imageops::resize(
+        backdrop,
+        scaled_width,
+        size.1,
+        image::imageops::FilterType::Triangle,
+    );
+    let mut image =
+        image::imageops::crop_imm(&scaled, (scaled_width - size.0) / 2, 0, size.0, size.1)
+            .to_image();
+    raster(&mut image, list, &[], fonts.display.1, icons);
+    raster_text(&mut image, fonts.display.0, fonts.display.1);
+    raster_text(&mut image, fonts.body.0, fonts.body.1);
+    let directory = workspace_root().join("target/menu-snapshots");
+    std::fs::create_dir_all(&directory).expect("create the snapshot directory");
+    let path = directory.join(format!("{name}.png"));
+    image.save(&path).expect("write the snapshot");
+    println!("{}", path.display());
+}
+
+/// The SJK UI's Settings over the duel6 levelshot: Interface with a changed
+/// slider focused (its dot and reset arrow), Display with a list open, a
+/// search's results, Graphics scrolled to its weather, and at 4:3.
+#[test]
+#[ignore = "reads the installed game data named by JKA_GAME_DATA"]
+fn sjk_settings_snapshot() {
+    use crate::game_font::SjkFonts;
+    use crate::menu::sjk::TextTarget;
+    let (_, vfs) = art();
+    let display = crate::text::load_family(&crate::text::DISPLAY, 1.0, None).expect("Rajdhani");
+    let body = crate::text::load_family(&crate::text::BODY, 1.0, None).expect("Exo 2");
+    let backdrop = decode(&vfs, "levelshots/mp/duel6.jpg").expect("the duel6 levelshot");
+    let mut icons = HashMap::new();
+    for (index, (_, bytes)) in crate::settings_icons::ICONS.iter().enumerate() {
+        let icon = image::load_from_memory(bytes).expect("a settings icon");
+        icons.insert(
+            crate::ui_renderer::settings_icon(index).0,
+            icon.into_rgba8(),
+        );
+    }
+    let directory = tempfile::tempdir().unwrap();
+    let mut console =
+        crate::console::ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+    console.set_cvar("con_scale", "1.3");
+    // Name, window, category, focused setting, its list open, a search.
+    type Case<'a> = (
+        &'a str,
+        [f32; 2],
+        usize,
+        Option<&'a str>,
+        bool,
+        Option<&'a str>,
+    );
+    let cases: [Case; 5] = [
+        (
+            "sjk-settings",
+            VIEWPORT_WIDE,
+            7,
+            Some("con_scale"),
+            false,
+            None,
+        ),
+        (
+            "sjk-settings-list",
+            VIEWPORT_WIDE,
+            1,
+            Some("r_fullscreen"),
+            true,
+            None,
+        ),
+        (
+            "sjk-settings-search",
+            VIEWPORT_WIDE,
+            1,
+            None,
+            false,
+            Some("shadow"),
+        ),
+        (
+            "sjk-settings-graphics",
+            VIEWPORT_WIDE,
+            2,
+            Some(crate::weather::CVAR),
+            false,
+            None,
+        ),
+        (
+            "sjk-settings-4x3",
+            VIEWPORT,
+            7,
+            Some("con_scale"),
+            false,
+            None,
+        ),
+    ];
+    for (name, viewport, category, cvar, list, search) in cases {
+        let mut menu = crate::menu::ClientMenu::new(true, String::new());
+        menu.sjk_settings_for_snapshot(&console, category, cvar, list, search);
+        let (mut display_text, mut body_text) = (Vec::new(), Vec::new());
+        menu.append_sjk_settings(
+            TextTarget::Families(
+                SjkFonts {
+                    display: (&mut display_text, &display.font),
+                    body: (&mut body_text, &body.font),
+                },
+                crate::text::TextStyle::NEUTRAL,
+            ),
+            viewport,
+        );
+        let fonts = SjkShotFonts {
+            display: (&display_text, &display.image),
+            body: (&body_text, &body.image),
+        };
+        let list = menu.draw_list().expect("the settings screen draws");
+        save_sjk_shot(name, viewport, &backdrop, list, &icons, fonts);
     }
 }
 

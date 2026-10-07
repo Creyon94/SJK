@@ -17,6 +17,7 @@ impl SettingsMenu {
         _scale: f32,
         reveal: f32,
     ) {
+        self.sjk_controls = None;
         if self.hud.is_open() {
             self.append_hud_picker(vertices, font, viewport, reveal, None);
             return;

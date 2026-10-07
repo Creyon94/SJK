@@ -51,7 +51,7 @@ pub(super) enum RowControl {
 }
 
 impl RowControl {
-    fn token(self) -> u16 {
+    pub(super) fn token(self) -> u16 {
         match self {
             Self::Segment { row, index } => SEGMENT_BASE + (row * MAX_SEGMENTS + index) as u16,
             Self::Reset(row) => RESET_BASE + row as u16,
@@ -405,7 +405,7 @@ impl SettingsMenu {
     }
 
     /// The label of dropdown choice `pick` as the row would show it.
-    fn pick_label(pick: Pick) -> &'static str {
+    pub(super) fn pick_label(pick: Pick) -> &'static str {
         match pick {
             Pick::Value(value) => value,
             Pick::Mode(mode) => mode.label(),
@@ -461,6 +461,7 @@ impl SettingsMenu {
         reveal: f32,
         frame: &PanelFrame,
     ) {
+        self.sjk_controls = None;
         if self.hud.is_open() {
             self.append_hud_picker(vertices, font, viewport, reveal, Some(frame.art));
             return;
@@ -821,7 +822,7 @@ impl SettingsMenu {
 
 /// The settings icon (`settings_icons`) of a group, tab or search group named
 /// `name` (any case): `HUD+` is the scoreboard's, `TEXT` the interface's.
-fn group_icon(name: &str) -> Option<&'static str> {
+pub(super) fn group_icon(name: &str) -> Option<&'static str> {
     let name = name.to_ascii_lowercase();
     let name = name.strip_prefix("renderer: ").unwrap_or(&name);
     Some(match name {
@@ -834,6 +835,7 @@ fn group_icon(name: &str) -> Option<&'static str> {
         "hud+" | "scoreboard" => "scoreboard",
         "text" | "interface" => "interface",
         "first setup" => "first_setup",
+        "graphics" => "graphics",
         "image" => "image",
         "lighting" => "lighting",
         "shadows" => "shadows",
@@ -884,7 +886,7 @@ fn detail_of<'a>(
 
 /// How a choice's value is named on its segment: as written (in sentence
 /// case), but for a name that is an initialism.
-fn choice_label(value: &str) -> &str {
+pub(super) fn choice_label(value: &str) -> &str {
     if value.eq_ignore_ascii_case("sjk") {
         "SJK"
     } else {
@@ -893,7 +895,7 @@ fn choice_label(value: &str) -> &str {
 }
 
 /// Whether a switch row's value text (`ON` or `OFF`) is on.
-fn switch_text_on(value: &str) -> bool {
+pub(super) fn switch_text_on(value: &str) -> bool {
     value.eq_ignore_ascii_case("on")
 }
 
@@ -903,7 +905,7 @@ fn on_off(value: &str) -> &'static str {
 }
 
 /// A range end without trailing zeros: `0.5`, `70`, `0.005`.
-struct Number(f64);
+pub(super) struct Number(pub(super) f64);
 
 impl std::fmt::Display for Number {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {

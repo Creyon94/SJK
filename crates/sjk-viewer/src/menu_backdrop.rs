@@ -486,7 +486,7 @@ pub(crate) fn standalone_menu_visible(gpu: &GpuState) -> bool {
 pub(crate) fn classic_hides_world(gpu: &GpuState) -> bool {
     gpu.client_menu.as_ref().is_some_and(|menu| {
         menu.is_classic()
-            && !menu.sjk_main_page()
+            && !menu.sjk_screen()
             && menu.is_visible()
             && (standalone_menu_visible(gpu) || menu.is_loading_screen())
     })

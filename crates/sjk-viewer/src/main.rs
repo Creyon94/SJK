@@ -1668,7 +1668,7 @@ impl GpuState {
             scoreboard::append_overlay(self, viewport, text_scale * 1.05);
         }
         if let Some(menu) = self.client_menu.as_mut().filter(|_| !console_covers_frame) {
-            if menu.sjk_main_page() {
+            if menu.sjk_screen() {
                 // The SJK UI draws in its own families once they are loaded.
                 let target = if self.game_fonts.has_sjk() {
                     let style = self.ui_font.style();
@@ -1681,7 +1681,7 @@ impl GpuState {
                         self.game_fonts.menu(&mut self.text_vertices, &self.ui_font);
                     menu::sjk::TextTarget::Inter(vertices, font)
                 };
-                menu.append_sjk_home(target, self.console.as_ref(), viewport);
+                menu.append_sjk_screen(target, self.console.as_ref(), viewport);
             } else {
                 let (vertices, font) = self.game_fonts.menu(&mut self.text_vertices, &self.ui_font);
                 menu.append_overlay(vertices, font, viewport, text_scale);

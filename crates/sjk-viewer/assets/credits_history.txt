@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 07/10/2026 | - | SJK UI Settings: categories on a lit rail, rows, the setting explained
+- 7f4bd68 |  | SJK UI: Settings, its second screen
 + 07/10/2026 | - | SJK UI main page: the ring, its arc menu and recent servers
 - c36e03d |  | SJK UI main page: the ring with its arc menu and recent servers
 + 07/10/2026 | - | The SJK UI, a third menu style: its main page

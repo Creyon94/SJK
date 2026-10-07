@@ -21,6 +21,7 @@ mod resolution;
 mod resolution_list;
 mod scroll;
 mod search;
+mod sjk_view;
 mod view;
 
 use catalog::*;
@@ -30,6 +31,7 @@ pub(crate) use display::{
 };
 pub(crate) use groups::Group;
 use resolution::{PickResult, ResolutionChoice, ResolutionPicker};
+pub(crate) use sjk_view::Rail;
 pub(crate) enum SettingsResult {
     None,
     Back,
@@ -226,13 +228,38 @@ pub(crate) struct SettingsMenu {
     elsewhere: usize,
     /// The classic panel's dropdown, while one is open.
     dropdown: Option<Dropdown>,
+    /// Where the rows' controls begin (window x) when the SJK UI drew the
+    /// screen last frame: a click left of it, on a row's name, only chooses
+    /// the row. `None` under the other views.
+    sjk_controls: Option<f32>,
     ui: MenuCanvas,
 }
 
 impl SettingsMenu {
-    /// The renderer section is the one on show.
+    /// The renderer section is the one on show (or the SJK UI's Graphics,
+    /// which gathers its tabs).
     pub(crate) fn renderer_open(&self) -> bool {
-        self.section == Section::Renderer
+        matches!(
+            self.section,
+            Section::Renderer | Section::Group(Group::Graphics)
+        )
+    }
+
+    /// The resolution list or the HUD picker covers the screen; both draw
+    /// themselves whatever the menu style.
+    pub(crate) fn picker_open(&self) -> bool {
+        self.picker.is_open() || self.hud.is_open()
+    }
+
+    /// The rows are a classic+ panel's (a group, a span of a tab, a search),
+    /// which the classic+ and SJK UI views draw.
+    pub(crate) fn has_panel_rows(&self) -> bool {
+        self.classic.is_some()
+    }
+
+    /// The panel shows a search's results instead of its group.
+    pub(crate) fn searching_results(&self) -> bool {
+        self.section == Section::Search
     }
 
     pub(crate) fn new() -> Self {
@@ -259,6 +286,7 @@ impl SettingsMenu {
             search_return: None,
             elsewhere: 0,
             dropdown: None,
+            sjk_controls: None,
             ui: MenuCanvas::new(),
         }
     }
@@ -442,11 +470,12 @@ impl SettingsMenu {
         }
     }
 
-    /// Select the row of setting `cvar` (menu snapshots).
+    /// Select the row of setting `cvar`, scrolled into a panel (menu snapshots).
     #[cfg(test)]
     pub(crate) fn select_cvar(&mut self, cvar: &str) {
         if let Some(row) = self.rows().iter().position(|setting| setting.cvar == cvar) {
             self.selected = row;
+            self.reveal_selected();
         }
     }
 

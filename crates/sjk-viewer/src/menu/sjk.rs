@@ -6,8 +6,9 @@
 //! edges. Design: `docs/sjk-ui.md`.
 //!
 //! The UI is built screen by screen and becomes the default once done. So far
-//! it has its main page ([`home`]); every other screen opens in its classic
-//! version ([`super::style::MenuStyle::classic_screens`]).
+//! it has its main page ([`home`]) and Settings ([`settings`]), both drawn with
+//! the controls of its [`kit`]; every other screen opens in its classic version
+//! ([`super::style::MenuStyle::classic_screens`]).
 //!
 //! Text is set in two families ([`TextFamily`]): Rajdhani for navigation,
 //! titles and numbers, Exo 2 for the rest; both are bundled vector fonts
@@ -16,12 +17,15 @@
 //! ([`crate::ui_scale::height_scale`]).
 
 pub(crate) mod home;
+pub(crate) mod kit;
 pub(crate) mod recent;
+pub(crate) mod settings;
 
 use super::{ClientMenu, MenuAction};
 use crate::console::ViewerConsole;
 use crate::game_font::SjkFonts;
 use crate::menu_widgets::{MenuCanvas, TextFamily};
+use crate::player_menu::ReturnTarget;
 use crate::text::{TextStyle, TextVertex, UiFont};
 use sjk_ui::{Color, DrawCommand, FontWeight, Gradient, Rect, TextAlign};
 
@@ -76,7 +80,8 @@ pub(crate) enum TextTarget<'a> {
 }
 
 impl TextTarget<'_> {
-    fn append(self, canvas: &MenuCanvas, viewport: [f32; 2]) {
+    /// Append `canvas`'s text runs, each in its family.
+    pub(crate) fn append(self, canvas: &MenuCanvas, viewport: [f32; 2]) {
         match self {
             Self::Families(fonts, style) => canvas.append_text_families(fonts, viewport, style),
             Self::Inter(vertices, font) => canvas.append_text(vertices, font, viewport),
@@ -85,6 +90,21 @@ impl TextTarget<'_> {
 }
 
 impl ClientMenu {
+    /// Draw the SJK UI's screen on show ([`ClientMenu::sjk_screen`]): its main
+    /// page, with the player read from `console`, or its Settings.
+    pub(crate) fn append_sjk_screen(
+        &mut self,
+        target: TextTarget<'_>,
+        console: Option<&ViewerConsole>,
+        viewport: [f32; 2],
+    ) {
+        if matches!(self.state.phase(), super::ClientPhase::Settings) {
+            self.append_sjk_settings(target, viewport);
+        } else {
+            self.append_sjk_home(target, console, viewport);
+        }
+    }
+
     /// Draw the SJK UI's main page, with the player read from `console` and the
     /// servers from the recent list and the server list.
     pub(crate) fn append_sjk_home(
@@ -178,6 +198,11 @@ impl ClientMenu {
                 Some(address) => self.join_address(address),
                 None => MenuAction::None,
             },
+            home::Action::Open(super::destination::MainDestination::Settings { .. }) => {
+                let category = self.sjk_settings.category();
+                self.open_sjk_settings(console, category, ReturnTarget::MainMenu);
+                MenuAction::None
+            }
             home::Action::Open(destination) => self.open_main_destination(destination, console),
             home::Action::Quit => MenuAction::Quit,
         }
@@ -368,6 +393,66 @@ pub(crate) fn key_hint_width(keys: &[&str], action: &str, s: f32) -> f32 {
 /// The layout scale of `viewport`: 1 at 1080 lines.
 pub(crate) fn scale(viewport: [f32; 2]) -> f32 {
     crate::ui_scale::height_scale(viewport[1])
+}
+
+/// A screen's 16:9 frame of 1080-line pixels in the window: its scale (window
+/// pixels per frame pixel) and where its corner lies. A wider window shows more
+/// map at the frame's sides; a narrower one scales the frame down to its width.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Frame {
+    pub(crate) s: f32,
+    pub(crate) origin: [f32; 2],
+}
+
+impl Frame {
+    pub(crate) fn new(viewport: [f32; 2]) -> Self {
+        let s = scale(viewport).min(viewport[0] / 1920.0);
+        Self {
+            s,
+            origin: [
+                (viewport[0] - 1920.0 * s) * 0.5,
+                (viewport[1] - 1080.0 * s) * 0.5,
+            ],
+        }
+    }
+
+    /// Window point of frame point (`x`, `y`).
+    pub(crate) fn point(&self, x: f32, y: f32) -> [f32; 2] {
+        [self.origin[0] + x * self.s, self.origin[1] + y * self.s]
+    }
+
+    /// Window rectangle of a frame rectangle.
+    pub(crate) fn rect(&self, x: f32, y: f32, width: f32, height: f32) -> Rect {
+        let [x, y] = self.point(x, y);
+        Rect::new(x, y, width * self.s, height * self.s)
+    }
+}
+
+/// `text` cut into lines of at most `chars` characters at spaces (a word longer
+/// than a line stands alone), for running text the renderer would otherwise
+/// cut mid-word.
+pub(crate) fn wrap(text: &str, chars: usize) -> impl Iterator<Item = &str> {
+    let mut rest = text.trim();
+    std::iter::from_fn(move || {
+        if rest.is_empty() {
+            return None;
+        }
+        if rest.chars().count() <= chars {
+            return Some(std::mem::take(&mut rest));
+        }
+        let limit = rest
+            .char_indices()
+            .nth(chars)
+            .map_or(rest.len(), |(at, _)| at);
+        let cut = rest[..limit]
+            .rfind(' ')
+            .filter(|cut| *cut > 0)
+            .or_else(|| rest.find(' '))
+            .unwrap_or(rest.len());
+        let line = rest[..cut].trim_end();
+        rest = rest[cut..].trim_start();
+        Some(line)
+    })
 }
 
 /// What the player's first blade (`color1`) is called, for the player's line
