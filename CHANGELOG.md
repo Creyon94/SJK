@@ -19,7 +19,11 @@ tests check this file):
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 
-## Unreleased
+## 2026.1007.2 (Alpha) | 07/10/2026
+
+The SJK UI arrives (Settings > Interface > Menu style > SJK) with its main page, Settings,
+Character and update pages over a camera tour of duel6; world notes reach the SJK team;
+vector fonts everywhere, modern settings, a camera style choice and working screenshots.
 
 - World notes reach the SJK team: aim at a wall, floor or door, press the inspect key (X) twice and write what is wrong. With the identity on, the note goes to the SJK hub with where you stood, what you aimed at and a small screenshot, and a centre print says it arrived. Your copy stays on your PC in SJK/notes.txt as before; cl_identity 0 sends nothing _(Sol)_
 - The SJK UI begins (Settings > Interface > Menu style > SJK): SJK's own menus over the live map, in the site's Rajdhani and Exo 2 type. Its main page: the emblem in a turning holo ring with the menu on an arc round it, and the servers you joined last on the right, each joined with one click (the JoF server until you have joined any). The screens it has no look for yet open in their classic one _(Sol)_
