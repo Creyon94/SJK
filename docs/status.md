@@ -61,6 +61,14 @@ stays whole on its own row.
 
 ## Saber clash flare
 
+First-person saber body: on `fix/first-person-saber`, based on `c9d6db8`,
+the local posed body and arms render while head variants and pilot hoses are
+masked (JoF EJKSol's `CG_ForceFPLSPlayerModel`, local reference). Visibility
+policy is unit-tested; Windows Rust 1.99 workspace build/tests/clippy pass
+with existing warnings. Workspace formatting still fails on unrelated
+materialgen files; changed files pass. GPU appearance, head placement,
+community models and mirrors remain unverified; mirrors share the head mask.
+
 Branch `fix/saber-clash-flare`: every saber clash flashed the whole screen
 yellow-white. The flare asked the effect atlas for `gfx/effects/saberFlare`, but the
 atlas keys shaders in lower case, so the lookup missed and drew the fallback spark

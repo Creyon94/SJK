@@ -805,6 +805,13 @@ distance as in the reference.
 
 ## Saber trails
 
+First-person saber mode draws the local posed body and arms instead of hiding
+the entire player. Head variants and TIE pilot hoses are masked as in JoF EJK's
+`CG_ForceFPLSPlayerModel`; hilts and blades continue to use the animated hand
+bolts. The mask is removed when returning to third person. Hats/capes remain
+hidden in first person. Head surfaces are also hidden in mirrors while this
+mode is active. GPU appearance and community model coverage remain unverified.
+
 [saber_trail.rs](../crates/sjk-viewer/src/saber_trail.rs) follows codemp
 `CG_AddSaberBlade` and `CTrail`: every frame at least 3 ms after the last, a
 blade adds one slice from its remembered muzzle and tip to the current ones.

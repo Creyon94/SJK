@@ -49,6 +49,7 @@ pub(crate) struct Surfaces {
     pub(crate) lost: u8,
     /// The weapon went with the arm, hand or waist.
     pub(crate) weapon_lost: bool,
+    first_person_saber: bool,
 }
 
 /// Turn the model's cap surfaces into ordinary hidden surfaces so the actor mesh
@@ -98,6 +99,7 @@ impl Surfaces {
             draw_visible: Vec::new(),
             lost: 0,
             weapon_lost: false,
+            first_person_saber: false,
         };
         surfaces.refresh(hierarchy);
         surfaces
@@ -166,8 +168,24 @@ impl Surfaces {
         self.draw_visible = self
             .draw_surfaces
             .iter()
-            .map(|&surface| rendered.get(surface).copied().unwrap_or(true))
+            .map(|&surface| {
+                rendered.get(surface).copied().unwrap_or(true)
+                    && !(self.first_person_saber
+                        && hierarchy.get(surface).is_some_and(|surface| {
+                            crate::actor_world_submission::first_person_saber::hide_surface(
+                                &surface.name,
+                            )
+                        }))
+            })
             .collect();
+    }
+
+    /// Apply the first-person head mask only when the view changes.
+    pub(crate) fn first_person_saber(&mut self, enabled: bool, hierarchy: &[GlmSurfaceHierarchy]) {
+        if self.first_person_saber != enabled {
+            self.first_person_saber = enabled;
+            self.refresh(hierarchy);
+        }
     }
 
     /// `BG_GetRootSurfNameWithVariant` (`bg_g2_utils.c`): `root` where it is drawn, else

@@ -1,4 +1,6 @@
 //! Actor, held-weapon, saber, and force-overlay frame submission.
+#[path = "first_person_saber.rs"]
+pub(crate) mod first_person_saber;
 
 use super::*;
 
@@ -88,6 +90,28 @@ pub(crate) fn submit(
     visual_now: Instant,
     game_audio: &mut Option<GameAudio>,
 ) -> usize {
+    let weapon = gpu
+        .local_prediction
+        .predicted_state()
+        .map(|state| state.weapon)
+        .or_else(|| {
+            first_person_view::presented_snapshot(
+                gpu.live_session.as_ref(),
+                gpu.demo_session.as_ref(),
+                presentation_time as i32,
+            )
+            .map(|s| s.player.weapon())
+        });
+    for mesh in &mut gpu.actor_meshes {
+        let enabled = first_person_saber::visible(
+            mesh.entity_id.map(|id| id.get()) == local_entity_id,
+            gpu.third_person,
+            gpu.detached_camera,
+            weapon,
+        );
+        mesh.surfaces
+            .first_person_saber(enabled, &mesh.preview.mesh.hierarchy);
+    }
     let snapshot = first_person_view::presented_snapshot(
         gpu.live_session.as_ref(),
         gpu.demo_session.as_ref(),
@@ -471,7 +495,13 @@ fn submit_actor(
             visual_now,
         );
     }
-    if (draw_actor || sinks.portal_view)
+    let saber_body = first_person_saber::visible(
+        local,
+        sinks.third_person,
+        sinks.detached_camera,
+        equipment.map(|held| held.weapon),
+    );
+    if (draw_actor || saber_body || sinks.portal_view)
         && let Some(mesh) = mesh
     {
         let mut instance = ActorInstance::new(
@@ -480,7 +510,7 @@ fn submit_actor(
             transform.scale,
         )
         .with_entity_color(entity.color());
-        instance.view_flags = sinks.entity_view_flags | u32::from(!draw_actor);
+        instance.view_flags = sinks.entity_view_flags | u32::from(!draw_actor && !saber_body);
         if trick.fading {
             // `RF_FORCE_ENT_ALPHA` at `trickAlpha` (`cg_players.c:11358-11367`).
             if sinks.overrides.len() < sinks.overrides.capacity() {
