@@ -1209,6 +1209,20 @@ test: Hover @Sol-Vulpes: it brightens and underlines; click: the browser opens y
 test: Click > github.com/Sol-Vulpes/SJK and > Creyon's pull requests: both open in the browser.
 test: Scroll so a link sits under the CLOSE strip: clicking there does not open it.
 
+[credits-history]
+status: personal
+area: Menus & settings
+title: Credits: big name panels, every feature, PR and commit folded, turning god rays
+change: Panels with large names; HIGHLIGHTS and ALL WORK folds; PRs and features unfold commits.
+change: JKR #/SJK # chips and commits open on GitHub; EXPAND ALL; scrollbar; smooth scroll.
+change: Gold god rays turn down from the top and a sunburst behind the emblem, as on the site.
+test: SJK > CREDITS: rays turn slowly; the sunburst turns behind the emblem; no flicker at 4K.
+test: Every fold starts closed. Click ALL WORK: rows fade in one after another, newest day first.
+test: Click a row with + : its commits open under it; click JKR #104 chip: browser opens the PR.
+test: Click a commit or a row's hash: the commit opens on github.com/Sol-Vulpes/SJK.
+test: EXPAND ALL, then drag the scrollbar and wheel to the end: smooth, nothing overlaps.
+test: COLLAPSE ALL closes everything; reopening the page starts folded; try classic and modern.
+
 [ui-texture-switches]
 status: personal
 area: Menus & settings

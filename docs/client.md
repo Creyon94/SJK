@@ -1371,20 +1371,45 @@ The main menu's Credits entry (modern list; SJK > CREDITS on the classic page), 
 `credits` console command show who makes Sol JK, from
 [credits.txt](../crates/sjk-viewer/assets/credits.txt), built into the client
 ([credits.rs](../crates/sjk-viewer/src/credits.rs), parsed by
-[credits_data.rs](../crates/sjk-viewer/src/credits_data.rs)). Each section of
-the file (Sol JK, Built on JKR, contributors, ...) is a heading with its people
-on cards in rows of up to three: name, GitHub handle, role, contributions and
-links, the first section's names larger. Clicking a GitHub handle opens that
-profile in the browser, and clicking a link opens its address (`update::open_page`,
-https only); both brighten and underline under the pointer, and only while the
-page shows them whole. The page is animated from the clock alone: light beams
-drift across the backdrop, sparks rise through it, SJK's emblem breathes in a
-halo above a title a glint crosses, the cards rise into place as the page opens
-and their edges glow in turn. With the classic menus it takes retail's gold and
-blue and the menus' retail font. Arrow keys, Page Up and Page Down, Space and the
-wheel scroll it; Escape, Enter or CLOSE closes it. Like the changelog it lives
-in the console, so it opens over the menus and in a match. How the file is kept
-is in [SJK conventions](sjk.md#credits).
+[credits_data.rs](../crates/sjk-viewer/src/credits_data.rs)), and everyone's
+work from [credits_history.txt](../crates/sjk-viewer/assets/credits_history.txt),
+which `scripts/credits_history.py` writes from git and GitHub. Each section of
+the file (Sol JK, Built on JKR, contributors, ...) is a heading with its people.
+
+- Everyone with a history (Sol, Bishop, Creyon, lumaya) has a panel across the
+  column: the name large (the first section's larger still), the role, chips
+  counting their changes, pull requests and commits, their links, and two folds.
+  HIGHLIGHTS holds the card's own lines; ALL WORK (ALL PULL REQUESTS when all of
+  it is pull requests) lists every feature and pull request newest first under
+  the day it was merged into main, each row with its pull request's number
+  (JKR #48, SJK #23) and how many commits it has. A row of several commits
+  unfolds into them: hash, subject, and who made it when that is not the owner.
+- Every fold is closed when the page opens. A fold's rows fade in one after the
+  other as it opens; EXPAND ALL in the footer opens every fold at once and then
+  reads COLLAPSE ALL.
+- Clicking a pull request's number opens it on GitHub, clicking a commit (or a
+  one-commit row) opens the commit on SJK's GitHub, a GitHub handle opens that
+  profile and a link its address (`update::open_page`, https only). They brighten
+  under the pointer and take clicks only while the page shows them whole, up to
+  84 targets a frame, under the menu canvas's limit.
+- The rest (Claude, the fonts, the reference clients) sit on cards in rows of up
+  to three with their lines shown.
+
+The page is animated from the clock alone. Golden god rays turn slowly down from
+above the top of the screen, two sets against each other so the shafts shimmer
+where they cross, sparks rise through them, and SJK's emblem breathes in front of
+two sunbursts turning opposite ways, above a title a glint crosses: the look of
+SJK's site (`site/assets/effects.js`). The rays are two light pictures the emblem
+module draws on its worker at start (`EmblemLayer::Sunburst` and `Godrays` in
+[emblem.rs](../crates/sjk-viewer/src/menu/emblem.rs)), added as light by the UI
+renderer's additive pipeline and turned by their texture coordinates
+(`emblem::rays`). Panels rise into place as the page opens and their edges glow
+in turn. With the classic menus it takes retail's gold and blue and the menus'
+retail font. Arrow keys, Page Up and Page Down, Space, the wheel and the
+scrollbar at the right edge scroll it, gliding to the place asked; Escape, Enter
+or CLOSE closes it. Like the changelog it lives in the console, so it opens over
+the menus and in a match. How the files are kept is in
+[SJK conventions](sjk.md#credits).
 
 ## Identity
 
