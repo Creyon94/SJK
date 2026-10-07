@@ -29,6 +29,11 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         ),
         ("cg_chatSounds", 1, "Master chat notification switch"),
         (
+            crate::chat::emoji::CVAR,
+            0,
+            "Show emoji pictures (gfx/emoji) in place of their names in chat; listEmojis lists them",
+        ),
+        (
             "cg_fovViewmodelAdjust",
             1,
             "Lower the first-person weapon when cg_fovViewmodel is over 90",

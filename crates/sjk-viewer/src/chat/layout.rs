@@ -117,12 +117,16 @@ pub(super) fn fitting_end(value: &str, font: &UiFont, width: f32, size: f32) -> 
             continue;
         }
         let end = i + c.len_utf8();
-        used += text::visible_text_width_face(
-            font,
-            &value[i..end],
-            size / font.height,
-            TextFace::Regular,
-        );
+        used += if super::emoji::mark_index(c).is_some() {
+            super::emoji::advance(size)
+        } else {
+            text::visible_text_width_face(
+                font,
+                &value[i..end],
+                size / font.height,
+                TextFace::Regular,
+            )
+        };
         if (used > width || end > 480) && i > 0 {
             return i;
         }

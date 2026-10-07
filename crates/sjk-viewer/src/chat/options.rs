@@ -27,6 +27,8 @@ pub(super) struct Options {
     pub(super) center_size: f32,
     /// Centre-print virtual Y, with zero selecting the hero default.
     pub(super) center_height: f32,
+    /// Arriving messages show emoji pictures ([`super::emoji::CVAR`]).
+    pub(super) emojis: bool,
 }
 
 impl Default for Options {
@@ -55,6 +57,7 @@ impl Options {
             center_time: (scalar(console, "cg_centertime", 3.0).clamp(0.0, 3600.0) * 1000.0) as u64,
             center_size: scalar(console, "cg_centersize", 1.0).clamp(0.0, 4.0),
             center_height: scalar(console, "cg_centerheight", 0.0).clamp(0.0, 480.0),
+            emojis: integer("cg_chatboxemojis", 0) != 0,
         }
     }
 

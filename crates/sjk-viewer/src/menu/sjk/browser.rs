@@ -1017,16 +1017,6 @@ fn draw_row(
     ui.hit_region(token, frame.rect(LIST_X, top, LIST_WIDTH, ROW));
 }
 
-/// The last colour code in `text` (`^3`), which colours whatever follows it.
-fn last_colour(text: &str) -> Option<&str> {
-    text.char_indices()
-        .rev()
-        .find(|&(at, character)| {
-            character == '^' && text.as_bytes().get(at + 1).is_some_and(u8::is_ascii_digit)
-        })
-        .map(|(at, _)| &text[at..at + 2])
-}
-
 /// A server's mod as a small tag after its mode: none for base Jedi Academy.
 fn profile_tag(profile: &CompatProfile) -> Option<&'static str> {
     match profile {
@@ -1206,7 +1196,7 @@ fn draw_detail(
             FontWeight::Semibold,
             TextAlign::Start,
         );
-        carried = last_colour(part).unwrap_or(carried);
+        carried = crate::text::last_colour(part).unwrap_or(carried);
     }
 
     let view = match browser.details() {
@@ -1710,9 +1700,9 @@ mod tests {
     #[test]
     fn wrapped_names_go_on_in_their_colour() {
         // A wrapped name's second line goes on in the colour the first ended in.
-        assert_eq!(last_colour("^1Red ^4Blue x"), Some("^4"));
-        assert_eq!(last_colour("plain"), None);
-        assert_eq!(last_colour("end^"), None);
+        assert_eq!(crate::text::last_colour("^1Red ^4Blue x"), Some("^4"));
+        assert_eq!(crate::text::last_colour("plain"), None);
+        assert_eq!(crate::text::last_colour("end^"), None);
         // The search and the prompt read names without them.
         assert_eq!(Plain("^1J^7o^1F").to_string(), "JoF");
         assert_eq!(Plain("100^% ^^7x").to_string(), "100^% ^x");

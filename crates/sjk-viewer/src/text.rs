@@ -644,6 +644,38 @@ pub(crate) fn visible_text_width_style(
     maximum.max(width)
 }
 
+/// A font whose every glyph advances 8 units at height 12, for tests.
+#[cfg(test)]
+pub(crate) fn test_font() -> UiFont {
+    let mut glyphs = [[FontGlyph::default(); GLYPH_COUNT]; 2];
+    for face in &mut glyphs {
+        for glyph in face.iter_mut() {
+            *glyph = FontGlyph {
+                width: 8.0,
+                height: 10.0,
+                advance: 8.0,
+                ..FontGlyph::default()
+            };
+        }
+    }
+    UiFont {
+        glyphs,
+        height: 12.0,
+        modern: true,
+        style: TextStyle::NEUTRAL,
+    }
+}
+
+/// The last colour code in `text` (`^3`), which colours whatever follows it.
+pub(crate) fn last_colour(text: &str) -> Option<&str> {
+    text.char_indices()
+        .rev()
+        .find(|&(at, character)| {
+            character == '^' && text.as_bytes().get(at + 1).is_some_and(u8::is_ascii_digit)
+        })
+        .map(|(at, _)| &text[at..at + 2])
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -731,26 +763,6 @@ mod tests {
         ];
         for (index, colour) in retail.iter().enumerate() {
             assert_eq!(quake_color(index as u8), *colour, "^{index}");
-        }
-    }
-
-    fn test_font() -> UiFont {
-        let mut glyphs = [[FontGlyph::default(); GLYPH_COUNT]; 2];
-        for face in &mut glyphs {
-            for glyph in face.iter_mut() {
-                *glyph = FontGlyph {
-                    width: 8.0,
-                    height: 10.0,
-                    advance: 8.0,
-                    ..FontGlyph::default()
-                };
-            }
-        }
-        UiFont {
-            glyphs,
-            height: 12.0,
-            modern: true,
-            style: TextStyle::NEUTRAL,
         }
     }
 

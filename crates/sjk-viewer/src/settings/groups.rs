@@ -137,6 +137,7 @@ impl Group {
                 "cg_drawTeamOverlay",
                 "cg_lagometer",
                 "cg_drawChat",
+                crate::chat::emoji::CVAR,
                 crate::ground_hud::CVAR,
             ],
             Self::Scoreboard => &[

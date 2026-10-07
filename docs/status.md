@@ -7,6 +7,31 @@ SJK currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Chat emojis
+
+Branch `feat/chat-emojis` (08/10/2026, based on `f91e8ac`, Linux and Windows 11):
+JoF EternalJK's chat emojis. With `cg_chatBoxEmojis 1` (default 0; also in Settings
+> HUD), every `gfx/emoji/*.png` is drawn in place of its name in arriving chat
+messages, its name made from the file name as JoF EternalJK's `CG_LoadEmojis` makes
+it (`cg_main.c:2767-2827` at bd5e202), and `listEmojis` lists the names. JoF's 175
+pictures in `EternalJK/japro-assets.pk3` are mounted on their own, without the rest
+of that pack, and a row's text after a picture keeps its colour through the server
+browser's helper for a text's last colour code, now in `text.rs` for both. The
+pictures share four atlas rows, four to a cell. Where it differs from JoF EternalJK
+(all of JoF's 175 load, the option is not switched off at map load, sender names are
+not matched, an empty name or a missing picture affects only itself) is listed in
+[client.md](client.md#chat-emojis). Unit tests cover the names, replacement in
+messages (colour codes, first match, 32 per message, a name without a picture),
+clean chat keeping messages that differ only in their emojis, the listing, mounting
+the pictures alone from the `EternalJK` folder, the atlas packing, and where a row's
+text and pictures are drawn with the option on and off. Mounting and loading all 175
+pictures from a Windows install's `EternalJK/japro-assets.pk3`, and from JoF
+EternalJK's `assets/japro` folder, was checked with test runs that are not part of
+the change. On Linux with Rust 1.97, formatting, the locked workspace build and
+tests pass; workspace Clippy finishes without errors, and its warnings are all in
+code this change does not touch. Checked in game on Windows 11 on a JoF server:
+`listEmojis` lists the pictures and chat messages show them.
+
 ## Quick wheel pages
 
 SJK-only branch `personal/wheel-pages` (08/10/2026, based on `27696e5`, Windows

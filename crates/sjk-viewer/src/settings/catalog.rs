@@ -385,6 +385,11 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Chat emojis",
+        cvar: crate::chat::emoji::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "HUD look (Enter: pick)",
         cvar: crate::menu_hud::STYLE_CVAR,
         kind: ValueKind::HudPicker,

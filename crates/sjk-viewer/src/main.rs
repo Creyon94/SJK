@@ -1073,6 +1073,9 @@ impl GpuState {
         });
         let depth = DepthTarget::new(&device, configuration.width, configuration.height);
         let (ui_shapes, hud) = hud::icons::install(&device, &queue, ui_format, &vfs, &shaders);
+        let emojis = chat::emoji::Emojis::load(&vfs, &shaders, |id, rgba| {
+            ui_shapes.upload_icon(queue, id, rgba)
+        });
         let menu_hud = menu_hud::MenuHud::new(&device, ui_format);
         let console_layer = console_backdrop::ConsoleLayer::new(
             device,
@@ -1222,7 +1225,7 @@ impl GpuState {
             classic_text_vertices: Vec::with_capacity(4_096),
             hud,
             scoreboard: scoreboard::Scoreboard::new(),
-            chat: chat::ChatOverlay::new(),
+            chat: chat::ChatOverlay::with_emojis(emojis),
             game_menu,
             in_game_menu: ingame_menu::InGameMenu::new(),
             game_menu_page: if game_menu {

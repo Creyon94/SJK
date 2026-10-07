@@ -3,6 +3,7 @@
 
 mod editing;
 mod editor;
+pub(crate) mod emoji;
 
 mod interaction;
 mod layout;
@@ -43,6 +44,8 @@ struct ChatLine {
     channel: Channel,
     received_ms: u64,
     muted: bool,
+    /// The emojis the body's marks stand for, in order ([`emoji::Emojis::markup`]).
+    emojis: Vec<u16>,
     wrap: layout::Wrapped,
     y: Option<Tween>,
 }
@@ -79,6 +82,7 @@ pub(crate) struct ChatOverlay {
     layout_viewport: [f32; 2],
     scoreboard_layout: bool,
     options: options::Options,
+    emojis: emoji::Emojis,
 }
 
 impl ChatOverlay {
@@ -112,6 +116,15 @@ impl ChatOverlay {
             layout_viewport: [0.0; 2],
             scoreboard_layout: false,
             options: options::Options::default(),
+            emojis: emoji::Emojis::default(),
+        }
+    }
+
+    /// An overlay showing the installed world's emoji pictures.
+    pub(crate) fn with_emojis(emojis: emoji::Emojis) -> Self {
+        Self {
+            emojis,
+            ..Self::new()
         }
     }
 
@@ -165,11 +178,15 @@ impl ChatOverlay {
             chat_body(&display, &name)
         };
         let body = options::clean_body(body, self.options.clean);
+        let (body, emojis) = if self.options.emojis {
+            self.emojis.markup(&body)
+        } else {
+            (body, Vec::new())
+        };
         if self.options.clean != 0
-            && self
-                .lines
-                .back()
-                .is_some_and(|line| line.sender == target && line.body == body)
+            && self.lines.back().is_some_and(|line| {
+                line.sender == target && line.body == body && line.emojis == emojis
+            })
         {
             return;
         }
@@ -186,6 +203,7 @@ impl ChatOverlay {
             },
             received_ms: ms,
             muted: target.is_some_and(|target| self.muted.contains(&target)),
+            emojis,
             wrap: layout::Wrapped::default(),
             y: None,
         };

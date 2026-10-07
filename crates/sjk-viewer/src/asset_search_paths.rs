@@ -219,6 +219,42 @@ impl Options {
             .collect()
     }
 
+    /// JoF EternalJK's chat emoji pictures, every `gfx/emoji/*.png` in the PK3s of
+    /// `install/EternalJK` (jaPRO's `japro-assets.pk3` ships 175), as `(path as the
+    /// archive stores it, image bytes)`, the highest-priority archive's copy of each
+    /// name. EternalJK mounts that folder whole; only these pictures are taken from
+    /// it here. Empty when the folder is a game directory already.
+    pub(crate) fn eternaljk_emojis(&self, install: &Path) -> Vec<(String, Vec<u8>)> {
+        let Some(directory) = self.eternaljk_directory(install) else {
+            return Vec::new();
+        };
+        let mut found: Vec<(String, Vec<u8>)> = Vec::new();
+        for archive in sjk_vfs::pk3_search_order(&directory)
+            .unwrap_or_default()
+            .into_iter()
+            .rev()
+        {
+            let mut probe = VirtualFileSystem::new();
+            if probe.mount_pk3(&archive).is_err() {
+                continue;
+            }
+            for name in probe.list_files(crate::chat::emoji::FOLDER, ".png") {
+                let path = format!("{}/{name}", crate::chat::emoji::FOLDER);
+                if found
+                    .iter()
+                    .any(|(known, _)| known.eq_ignore_ascii_case(&path))
+                {
+                    continue;
+                }
+                let Some(asset) = probe.read(&path).ok().flatten() else {
+                    continue;
+                };
+                found.push((probe.original_name(&path).unwrap_or(path), asset.bytes));
+            }
+        }
+        found
+    }
+
     /// Mount existing directories; unreadable archives warn without discarding other packs.
     pub(crate) fn mount(&self, install: &Path) -> Result<VirtualFileSystem, Box<dyn Error>> {
         // Large offline imports may opt into a higher per-asset ceiling. Keep the
@@ -286,6 +322,18 @@ impl Options {
                 "EternalJK crosshairs",
                 crosshairs.into_iter().map(|(_, path, bytes)| (path, bytes)),
             )?;
+        }
+        // JoF EternalJK's chat emojis, likewise only those pictures from the folder.
+        let emojis = self.eternaljk_emojis(install);
+        if !emojis.is_empty() {
+            if log {
+                crate::log::progress(format_args!(
+                    "{} chat emoji pictures from {}",
+                    emojis.len(),
+                    install.join(COSMETICS_GAME).display(),
+                ));
+            }
+            vfs.mount_memory("EternalJK chat emojis", emojis)?;
         }
         // `SJK_CONTENT=<dir>[:<dir>...]`: further content directories (loose files and
         // PK3s), above the installation: locally made content that has no place in it.
@@ -394,6 +442,34 @@ mod tests {
             ..Options::default()
         };
         assert!(whole.cosmetic_packs(install.path()).is_empty());
+    }
+
+    #[test]
+    fn eternaljk_emojis_are_mounted_without_the_rest_of_their_pack() {
+        let install = tempfile::tempdir().unwrap();
+        let folder = install.path().join("EternalJK");
+        std::fs::create_dir_all(&folder).unwrap();
+        pk3(
+            &folder.join("japro-assets.pk3"),
+            &[
+                "gfx/emoji/`poop`.png",
+                "gfx/emoji/#~`!D.png",
+                "gfx/emoji/readme.txt",
+                "ui/jamp/ingame.menu",
+            ],
+        );
+        let options = Options::default();
+        let vfs = options.mount(install.path()).unwrap();
+        let mut listed = vfs.list_files("gfx/emoji", ".png");
+        listed.sort();
+        assert_eq!(listed, ["#~`!d.png", "`poop`.png"]);
+        // The stored name keeps its case for the `!` rule.
+        assert_eq!(
+            vfs.original_name("gfx/emoji/#~`!d.png").as_deref(),
+            Some("gfx/emoji/#~`!D.png")
+        );
+        assert!(!vfs.contains("ui/jamp/ingame.menu").unwrap());
+        assert!(!vfs.contains("gfx/emoji/readme.txt").unwrap());
     }
 
     #[test]

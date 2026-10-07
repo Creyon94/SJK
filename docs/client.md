@@ -2419,6 +2419,37 @@ pixels apart, `CG_ChatBox_DrawStrings`), and descenders clear the next row by
 messages are 8 px apart (were 10 after a named message, 14 otherwise); see
 [chat/layout.rs](../crates/sjk-viewer/src/chat/layout.rs).
 
+### Chat emojis
+
+`cg_chatBoxEmojis 1` (default 0, also Settings > HUD > Chat emojis) shows JoF
+EternalJK's chat emojis: each `gfx/emoji/*.png` is drawn in place of its name in
+messages that arrive while the option is on, and shows while it stays on. Names are
+made as JoF EternalJK makes them (`CG_LoadEmojis`, `cg_main.c:2767-2827` at
+bd5e202): the file name without `.png`, a backtick for `:`, `~` for `>` and `!`
+before a letter for upper case, so `` `poop`.png `` is `:poop:` and `#~`!D.png` is
+`#>:D`. File names over 26 characters are skipped with a warning and at most 256
+load. A message replaces names outside colour codes, the first listed emoji that
+matches winning, up to 32 per message (`CG_ChatBox_AddString`,
+`cg_draw.c:10078-10204`); a picture is 17/20 of a row high and text after it keeps
+the row's colour. A name whose picture does not decode leaves a blank. `listEmojis`
+prints the names. JoF's 175 pictures ship in `japro-assets.pk3` in the `EternalJK`
+folder, which SJK does not mount whole (its menus and HUD would replace SJK's); the
+`gfx/emoji/*.png` of that folder's PK3s are mounted on their own, above `base`, as
+EternalJK mounts its folder
+([asset_search_paths.rs](../crates/sjk-viewer/src/asset_search_paths.rs)).
+
+Differences from JoF EternalJK: its 2048-byte folder list holds about 150 of JoF's
+175 names, depending on the archive's order, so the rest never show there, while all
+load here; its loader switches the option off when it is on as a map loads
+(`!fileCnt < 1`, a slip for `fileCnt < 1`), while here the list always loads; it
+also replaces names in the sender's name, which here is drawn as text on its own
+line; an empty name (a file called `!.png`) ends its matching for every later emoji,
+while here that file is skipped; a picture that does not load blanks it and every
+later picture of its message, while here only its own place is blank; and its folder
+sits below an `fs_game` mod, whose own emoji picture of the same name wins, while
+here the `EternalJK` pictures sit above every game folder, as the crosshair pictures
+do. See [chat/emoji.rs](../crates/sjk-viewer/src/chat/emoji.rs).
+
 ## Vehicle and creature assets
 
 Vehicle appearances use the shared multiplayer `.veh` parser, including its
