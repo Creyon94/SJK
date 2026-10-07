@@ -821,6 +821,12 @@ drawn: the extra trails stock adds while `PW_SPEED` is set with `cg_speedTrail`
 and during super-break win animations.
 
 Blade/wall contact ([saber_contacts.rs](../crates/sjk-viewer/src/saber_contacts.rs))
+shortens both the visible glow and core to the world trace's hit point, as
+OpenJK `codemp`'s `CG_AddSaberBlade` does. This works with trails disabled and
+with `noWallMarks`; `cg_saberContact 0` disables the cutoff. The cutoff only
+changes the frame's render instances, so leaving the wall restores the blade's
+extension length. Solid brush entities such as movers are not traced yet.
+Wall contact also
 plays a wall-hit sound once a blade has stayed in the wall since the previous
 frame, at most every 100 ms per blade. Like stock's `S_StartSound(..., -1,
 CHAN_WEAPON, ...)`, all wall hits share one source and channel, so each new hit

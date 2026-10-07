@@ -7,6 +7,20 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Saber wall cutoff
+
+Implemented on `fix/saber-wall-cutoff` (based on `cfbc789`,
+2026-10-07, Windows): blade contact clips the glow and core as well as the
+trail, including with trails or wall marks disabled. Reference: local OpenJK
+`4d0dfaf1`, `codemp/cgame/cg_players.c`, `CG_AddSaberBlade`'s `saberLen =
+VectorLength(v)` after its `MASK_SOLID` trace. Unit coverage checks the render
+pair's shortened length and radius and restored extension at 8/7/4/3 ms steps.
+In-game appearance and GPU startup are unverified; solid brush entities remain
+outside the client contact trace. Workspace build, tests and clippy pass on
+Windows with Rust 1.99 (clippy warnings remain). `cargo fmt --all --check`
+fails on existing formatting in `sjk-materialgen`'s `classes.rs` and
+`generate.rs`; the changed Rust files pass rustfmt.
+
 ## Actor instance buffer capacity
 
 The shared actor instance buffer holds 4,096 instances, up from 1,024 (the old
