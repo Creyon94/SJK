@@ -33,6 +33,8 @@ impl GpuState {
             console.set_cvar("cg_freeCamera", "0");
         }
         self.local_prediction.set_fake_noclip(wanted && allowed);
+        self.local_prediction
+            .set_free_camera(free_camera && allowed, player.weapon());
         self.detached_camera = free_camera && allowed;
     }
 

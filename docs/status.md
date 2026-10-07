@@ -80,9 +80,9 @@ effect for extensionless names (for example the disruptor scope in
 `JoF_HDWeaponScopeTrue.pk3`). Unit tests in `sjk-shader` cover the order and the
 named-extension-first rule. Not verified in game.
 
-## Mouse wheel in the key-binding form
+## Detached free camera
 
-Detached free camera (`feat/free-camera`, base `cfbc789`): `/freecam [on|off]`
+Detached free camera (`feat/free-camera`): `/freecam [on|off]`
 uses the existing JoF EJK fake-noclip predictor and frozen server commands,
 with the body left at its entity and the view weapon hidden. Within 32 units
 of its eye the body is hidden from the main view to avoid head clipping. The existing
@@ -94,6 +94,16 @@ camera while the body stays behind with the talk icon; turning off returns
 to the server position. The initial view is clear, the body is visible after
 moving away, and enabling while dead is refused. Turbo/vertical input,
 vehicle/spectator/map transitions and all command-step rates remain unverified.
+
+Review follow-up against `c096c64`: free camera blocks generic actions,
+weapon switching and Force-wheel reliable commands, clears on all session exits,
+and can be cancelled from menus. Body sounds, shadows and nameplates use the
+authoritative entity. Command-policy tests cover 8/7/4/3 ms steps; these are
+input-policy checks, not movement-parity certification. Windows workspace fmt,
+build, tests and clippy pass with existing warnings. The follow-up runtime
+disconnect, action suppression and body-effects checks remain unverified.
+
+## Mouse wheel in the key-binding form
 
 Branch `fix/bind-mouse-wheel`: the mouse wheel binds in Settings > Key bindings
 (for example `flipkick` under Movement). A notch while a slot waited for a key

@@ -226,7 +226,8 @@ impl GpuState {
                 .gameplay_input
                 .force_wheel_buttons(command.buttons, known);
             command.buttons = buttons;
-            if let Some(wheel_command) = wheel_command
+            if !self.local_prediction.free_camera()
+                && let Some(wheel_command) = wheel_command
                 && let Err(error) = session.send_reliable_command(wheel_command.as_bytes())
             {
                 eprintln!("failed to send {wheel_command}: {error}");

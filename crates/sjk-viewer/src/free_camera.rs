@@ -9,9 +9,21 @@ impl GpuState {
             && self
                 .console
                 .as_ref()
-                .and_then(|console| console.integer_cvar("cg_freeCamera"))
+                .and_then(|console| console.integer_cvar("cg_freecamera"))
                 .unwrap_or(0)
                 != 0
+    }
+
+    /// Clear local flight at every session exit, and allow cancellation from menus.
+    pub(crate) fn end_free_camera(&mut self) {
+        if let Some(console) = &mut self.console {
+            console.set_cvar("cg_freeCamera", "0");
+            console.set_cvar("cg_fakeNoclip", "0");
+        }
+        self.local_prediction.set_free_camera(false, 0);
+        self.local_prediction.set_fake_noclip(false);
+        self.detached_camera = false;
+        self.third_person_camera = camera::State::default();
     }
 
     /// `/freecam [on|off]`: toggle or explicitly set local camera flight.
@@ -23,6 +35,10 @@ impl GpuState {
             [value] if value.eq_ignore_ascii_case("off") || value == "0" => false,
             _ => return Err("Usage: freecam [on|off]".into()),
         };
+        if !on {
+            self.end_free_camera();
+            return Ok(vec!["freecam OFF: returning to your player.".into()]);
+        }
         let player = self
             .live_session
             .as_ref()

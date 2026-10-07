@@ -26,7 +26,10 @@ pub(crate) fn update(gpu: &mut GpuState, time: i64, audio: &mut Option<GameAudio
         time as i32,
     );
     let local = snapshot.map(|snapshot| u64::from(snapshot.player.client_num()) + 1);
-    let predicted = gpu.local_prediction.predicted_state();
+    let predicted = gpu
+        .local_prediction
+        .predicted_state()
+        .filter(|_| !gpu.free_camera_active());
     for mesh in &mut gpu.actor_meshes {
         if let Some(prefetch) = mesh.preview.event_sounds.take() {
             audio.absorb_animation_prefetch(&prefetch);

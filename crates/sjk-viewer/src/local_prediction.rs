@@ -116,6 +116,8 @@ pub(crate) struct LocalPrediction {
     snap_back: bool,
     /// The view angles the server is sent while flying: the ones held when it began.
     frozen_angles: [i32; 3],
+    free_camera: bool,
+    frozen_weapon: u8,
 }
 
 impl LocalPrediction {
@@ -206,6 +208,8 @@ impl LocalPrediction {
             fake_noclip: false,
             snap_back: false,
             frozen_angles: [0; 3],
+            free_camera: false,
+            frozen_weapon: 0,
         }
     }
 
@@ -225,6 +229,18 @@ impl LocalPrediction {
         }
     }
 
+    /// Free camera additionally suppresses gameplay actions and weapon changes.
+    pub(crate) fn set_free_camera(&mut self, on: bool, weapon: u8) {
+        if on && !self.free_camera {
+            self.frozen_weapon = weapon;
+        }
+        self.free_camera = on;
+    }
+
+    pub(crate) fn free_camera(&self) -> bool {
+        self.free_camera
+    }
+
     pub(crate) fn fake_noclip(&self) -> bool {
         self.fake_noclip
     }
@@ -238,6 +254,16 @@ impl LocalPrediction {
         }
         UserCommand {
             angles: self.frozen_angles,
+            generic_command: if self.free_camera {
+                0
+            } else {
+                command.generic_command
+            },
+            weapon: if self.free_camera {
+                self.frozen_weapon
+            } else {
+                command.weapon
+            },
             buttons: sjk_game_jka::pmove_talk::BUTTON_TALK,
             forward_move: 0,
             right_move: 0,
@@ -524,6 +550,38 @@ mod fake_noclip_tests {
             right_move: -127,
             up_move: 127,
             ..UserCommand::default()
+        }
+    }
+
+    #[test]
+    fn free_camera_suppresses_actions_at_each_command_step_and_keeps_time() {
+        for step in [8, 7, 4, 3] {
+            let mut prediction = prediction();
+            prediction.latest_input = Some(command());
+            prediction.set_fake_noclip(true);
+            prediction.set_free_camera(true, 3);
+            prediction.set_free_camera(true, 7); // Later snapshots cannot change the held weapon.
+            let input = UserCommand {
+                server_time: 100 + step,
+                weapon: 4,
+                generic_command: 10,
+                ..command()
+            };
+            let sent = prediction.command_for_server(input);
+            assert_eq!(sent.server_time, input.server_time);
+            assert_eq!(sent.weapon, 3);
+            assert_eq!(sent.generic_command, 0);
+            assert_eq!(sent.angles, command().angles);
+            assert_eq!(
+                (sent.forward_move, sent.right_move, sent.up_move),
+                (0, 0, 0)
+            );
+            assert_eq!(sent.buttons, sjk_game_jka::pmove_talk::BUTTON_TALK);
+            prediction.set_free_camera(false, 0);
+            assert_eq!(prediction.command_for_server(input).weapon, 4);
+            assert_eq!(prediction.command_for_server(input).generic_command, 10);
+            prediction.set_fake_noclip(false);
+            assert_eq!(prediction.command_for_server(input), input);
         }
     }
 

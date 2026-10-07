@@ -142,6 +142,7 @@ impl crate::GpuState {
     }
 
     pub(crate) fn leave_session(&mut self) {
+        self.end_free_camera();
         self.resident.disconnect();
         self.world_load_map.clear();
         self.net_timing.end_session();

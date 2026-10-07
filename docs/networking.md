@@ -176,6 +176,25 @@ reseeded from snapshots, every map area is drawn, and turning it off (or dying,
 spectating or boarding a vehicle) snaps back to the server's position without error
 smoothing. Turbo (attack held) sets the velocity along the aim directly.
 
+### Detached free camera
+
+`/freecam` toggles detached camera flight; `/freecam on` and `/freecam off`
+set it explicitly. Bind it in Settings > Key bindings > Other. It uses JoF
+EJK's existing fake-noclip movement: movement keys fly locally, jump/crouch
+move vertically, and attack/alt-attack accelerate flight. The server receives
+stationary movement, frozen aim and the talk button, as with `/fakenoclip`.
+Your body remains at its server entity, with no view weapon. It is hidden
+from the main view while the camera is within 32 units of its eye, so the
+initial view stays clear; it becomes visible after flying away. Turning
+it off returns to the real player on the next snapshot and restores the chosen
+first/third-person mode. It is available while alive and on foot; death,
+spectating or entering a vehicle ends flight. It is temporary and mutually
+exclusive with `/fakenoclip`. Generic actions, weapon changes and Force-wheel reliable commands are suppressed.
+Disconnecting, reconnecting or changing maps clears it. `/freecam off` also
+works from the menu. This does not change server noclip permissions.
+Servers using `g_inactivity` can still drop a flying player: talk-only commands
+do not reset the inactivity timer, as with fake noclip.
+
 ## User commands and move packets
 
 The client makes a user command every 8 ms, 125 a second, whatever its frame rate,
