@@ -233,6 +233,10 @@ fn read_back(
 }
 
 #[cfg(test)]
+#[path = "world_shot_notes.rs"]
+mod notes;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

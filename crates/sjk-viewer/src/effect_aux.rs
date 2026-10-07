@@ -73,6 +73,9 @@ pub(crate) struct Runtime {
     pub(crate) saber_contacts: saber_contacts::Runtime,
     /// Paces effects that stock re-plays every rendered frame (`effect_cadence.rs`).
     pub(crate) continuous: cadence::Cadence,
+    /// Lights a world shot holds in place every frame (`world_shot_notes.rs`).
+    #[cfg(test)]
+    pub(crate) held_lights: Vec<PointLight>,
 }
 
 impl Default for Runtime {
@@ -87,6 +90,8 @@ impl Default for Runtime {
             decals: crate::decal_store::DecalStore::default(),
             saber_contacts: saber_contacts::Runtime::default(),
             continuous: cadence::Cadence::default(),
+            #[cfg(test)]
+            held_lights: Vec::new(),
         }
     }
 }
@@ -245,6 +250,10 @@ impl Runtime {
     /// Expire EFX lights and append their current samples to the shared
     /// rd-vanilla-sized point-light list.
     pub(crate) fn submit_lights(&mut self, now: Instant, output: &mut PointLightList) {
+        #[cfg(test)]
+        for light in &self.held_lights {
+            output.push(*light);
+        }
         self.lights.retain(|light| {
             now.saturating_duration_since(light.spawned_at) <= light.delay + light.lifetime
         });
