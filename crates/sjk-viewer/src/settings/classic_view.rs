@@ -168,7 +168,11 @@ impl SettingsMenu {
             return;
         }
         let cvar = self.rows().get(self.selected).map(|setting| setting.cvar);
-        let found = (0..TABS.len()).find_map(|tab| {
+        // First setup carries on as the FIRST SETUP tab, which has the same
+        // rows (its Menu style row is also Interface's).
+        let quick = matches!(self.section, Section::Group(Group::Quick));
+        let mut tabs = quick.then_some(QUICK_TAB).into_iter().chain(0..TABS.len());
+        let found = tabs.find_map(|tab| {
             let row = settings(tab)
                 .iter()
                 .position(|setting| Some(setting.cvar) == cvar)?;

@@ -482,6 +482,32 @@ mod tests {
         });
     }
 
+    /// A new profile's first start: no menu style saved, so the SJK UI, and
+    /// First setup opening by itself on its Menu style row; then the style
+    /// switched to classic and to modern from there, First setup staying.
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_first_setup() {
+        on_big_stack(|| {
+            let menu = menu::ClientMenu::new(true, String::new());
+            let Some((mut gpu, _profile)) =
+                open("maps/mp/duel6.bsp", [1920, 1080], Some(menu), &[])
+            else {
+                return;
+            };
+            gpu.ui_epoch -= std::time::Duration::from_millis(2_000);
+            let path = shoot(&mut gpu, 20, "duel6-first-setup-sjk");
+            println!("{}", path.display());
+            for style in ["classic", "modern"] {
+                if let Some(console) = gpu.console.as_mut() {
+                    console.set_cvar(crate::menu::style::CVAR, style);
+                }
+                let path = shoot(&mut gpu, 20, &format!("duel6-first-setup-{style}"));
+                println!("{}", path.display());
+            }
+        });
+    }
+
     /// The player screen on duel6's stage: the model standing where the
     /// route puts it, seen from the route's camera, in the style `style`.
     fn duel6_player(style: &'static str, name: &'static str) {

@@ -85,12 +85,8 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
     (crate::hud::nameplate::COMMAND, crate::hud::nameplate::HELP),
     ("togglemenu", "Toggle the in-game menu"),
     (
-        crate::menu::quick_setup::COMMAND,
-        crate::menu::quick_setup::HELP,
-    ),
-    (
-        crate::menu::quick_setup::OLD_COMMAND,
-        crate::menu::quick_setup::OLD_HELP,
+        crate::menu::first_setup::COMMAND,
+        crate::menu::first_setup::HELP,
     ),
     ("cmd", "Forward arguments as a reliable server command"),
     ("clientinfo", "Print client state and userinfo"),
@@ -455,9 +451,9 @@ impl crate::GpuState {
             crate::quick_wheel::OPEN_COMMAND => return self.open_quick_wheel(args),
             crate::quick_wheel::RUN_COMMAND => return self.release_quick_wheel(),
             crate::hud::nameplate::COMMAND => return self.nameplate_command(args),
-            crate::menu::quick_setup::COMMAND | crate::menu::quick_setup::OLD_COMMAND
+            crate::menu::first_setup::COMMAND
                 if args.first().is_some_and(|arg| {
-                    arg.eq_ignore_ascii_case(crate::menu::quick_setup::IMPORT)
+                    arg.eq_ignore_ascii_case(crate::menu::first_setup::IMPORT)
                 }) =>
             {
                 // A path with spaces may come unquoted: its words are joined again.
@@ -469,7 +465,7 @@ impl crate::GpuState {
                 }
                 self.sync_cursor_policy();
             }
-            crate::menu::quick_setup::COMMAND | crate::menu::quick_setup::OLD_COMMAND => {
+            crate::menu::first_setup::COMMAND => {
                 if let Some(console) = &mut self.console {
                     console.set_open(false);
                 }
@@ -480,7 +476,7 @@ impl crate::GpuState {
                     } else {
                         crate::player_menu::ReturnTarget::MainMenu
                     };
-                    menu.open_quick_setup(console, target);
+                    menu.open_first_setup(console, target);
                     self.game_menu = false;
                 }
                 self.sync_cursor_policy();

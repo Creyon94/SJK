@@ -57,7 +57,7 @@ documented:
 
 | Setting | SJK | JKR | See |
 | --- | --- | --- | --- |
-| `ui_menuStyle` | `classic` | `modern` | [Menu style](client.md#menu-style) |
+| `ui_menuStyle` | `sjk` (the SJK UI), saved `classic` moved to `sjk` once | `modern` | [Menu style](client.md#menu-style) |
 | `ui_gameFont` | on | off | [UI ownership](rendering.md#ui-ownership) |
 | `cg_scoreboardStyle` | `auto` (SJK UI's with its menus, else `classic`) | `modern` | [Scoreboard styles](client.md#scoreboard-styles) |
 | `cg_drawTimer`, `cg_drawTeamOverlay` | on | off | [status.md](status.md#gameplay-and-interface-defaults-sjk-only) |

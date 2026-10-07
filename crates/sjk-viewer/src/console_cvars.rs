@@ -194,7 +194,7 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             crate::menu::style::CVAR,
             crate::menu::style::MenuStyle::DEFAULT_NAME,
             archive,
-            "Main menu layout: modern, or classic (after the original Jedi Academy menus)",
+            "Menu layout: sjk (the SJK UI), classic (after the original Jedi Academy menus) or modern",
         ),
         CvarDefinition::new(
             "r_gamma",
@@ -683,6 +683,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             0_i64,
             archive,
             "Internal migration marker for the auto scoreboard style default",
+        ),
+        CvarDefinition::new(
+            "ui_menuStyleDefaultVersion",
+            0_i64,
+            archive,
+            "Internal migration marker for the SJK UI menu style default",
         ),
     ];
     for definition in definitions {

@@ -897,6 +897,36 @@ mod tests {
         assert_eq!(float_text(-2.5), "-2.5");
     }
 
+    /// First setup's Menu style row, picked away from the classic panel,
+    /// carries on as the modern FIRST SETUP tab, not Interface, which also
+    /// has the row.
+    #[test]
+    fn first_setup_carries_on_as_its_modern_tab() {
+        let (_directory, console) = console();
+        let mut menu = SettingsMenu::new();
+        menu.open_classic_group(
+            &console,
+            Group::Quick,
+            crate::menu::classic::panel::Frame::Main,
+        );
+        menu.select_cvar(crate::menu::style::CVAR);
+        menu.leave_classic();
+        menu.continue_modern(&console);
+        assert_eq!((menu.section, menu.tab), (Section::General, QUICK_TAB));
+        assert_eq!(menu.rows()[menu.selected].cvar, crate::menu::style::CVAR);
+        // Interface's own row still carries on as Interface's tab.
+        menu.open_classic_group(
+            &console,
+            Group::Interface,
+            crate::menu::classic::panel::Frame::Main,
+        );
+        menu.select_cvar(crate::menu::style::CVAR);
+        menu.leave_classic();
+        menu.continue_modern(&console);
+        assert_ne!(menu.tab, QUICK_TAB);
+        assert_eq!(menu.rows()[menu.selected].cvar, crate::menu::style::CVAR);
+    }
+
     const SECTIONS: [(Section, usize); 2] = [
         (Section::General, TABS.len()),
         (Section::Renderer, RENDERER_TABS.len()),

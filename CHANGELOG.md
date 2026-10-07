@@ -19,6 +19,12 @@ tests check this file):
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 
+## Unreleased
+
+- The SJK UI is now the default menu style. Profiles still on the old default (classic) switch to it once when you update; pick Classic or Modern again and it stays _(Sol)_
+- First setup offers the menu style as its first row: SJK, Classic or Modern, and First setup stays open in the style you pick _(Sol)_
+- The quicksetup console command is now only firstsetup, so q completes to quit alone _(Sol)_
+
 ## 2026.1007.3 (Alpha) | 07/10/2026
 
 lumaya's free camera, peek and first-person saber body; the SJK UI gains its server

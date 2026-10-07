@@ -84,14 +84,22 @@ and in-game menus: `modern` (default) or `classic`, which is close to the retail
 multiplayer menus in layout and flow without porting their `.menu` scripts. The
 retail 640x480 layout is fitted to the window height and centred.
 
-SJK differs from JKR's documented behavior here: `classic` is the default, and
-only `modern` (or `0`) selects the modern layout; an unknown value falls back to
-`classic`. SJK's own classic pages keep the retail look and add modern help
-inside it; the rules are in [Classic+ menus](classic-plus.md).
+SJK differs from JKR's documented behavior here: it adds a third value, `sjk`,
+the SJK UI, which is SJK's default; only `modern` (or `0`) selects the modern
+layout and `classic` (or `1`) the classic one, and an unknown value falls back to
+`sjk`. SJK's own classic pages keep the retail look and add modern help inside
+it; the rules are in [Classic+ menus](classic-plus.md).
 
-SJK adds a third value, `sjk`: the SJK UI, SJK's own menus drawn over the live
-map in SJK's type, which is being built screen by screen and becomes the default
-once done ([SJK UI](sjk-ui.md)). So far it has its main page: the emblem in a
+Before 08/10/2026 SJK's default was `classic`, and `config.cfg` saves every
+archived cvar, so every existing profile carries it. The console's start moves a
+saved `classic` once to `sjk` and marks the profile (`ui_menuStyleDefaultVersion`
+1, archived); a style chosen after that, `classic` included, stays, and a saved
+`modern` was a choice and is left alone
+([console_session.rs](../crates/sjk-viewer/src/console_session.rs)). The style is
+also the first row of [First setup](#first-setup).
+
+The SJK UI is SJK's own menus drawn over the live map in SJK's type
+([SJK UI](sjk-ui.md)). It has its main page: the emblem in a
 turning holo ring with the menu on an arc round it (Play, Character, Settings,
 Sol JK and Quit, the first, fourth and last opening pages of their own on the
 ring), and the servers joined last in a column on the right, joined with one
@@ -886,7 +894,8 @@ See [catalog.rs](../crates/sjk-viewer/src/settings/catalog.rs).
 The modern settings screen's last tab, FIRST SETUP (called Quick setup before
 06/10/2026)
 ([quick.rs](../crates/sjk-viewer/src/settings/quick.rs)), gathers the settings worth
-choosing on a first start: resolution, display mode, vsync, field of view, mouse
+choosing on a first start: the menu style (SJK, Classic or Modern, under a Menus
+heading), resolution, display mode, vsync, field of view, mouse
 sensitivity and inversion, always run, the camera style ([Camera
 style](#camera-style)), effects and music volume, the HUD look and
 scale, the crosshair, the nameplates and their bars, Force bar and power icons, the
@@ -896,19 +905,24 @@ Key bindings row. Its other rows are the catalogue's own, looked up by cvar, so 
 change there is the same change the other tabs make; it is the last tab so the
 other tabs keep their numbers.
 
-With the classic menus (the default) the same rows are the first group of the
+With the classic menus the same rows are the first group of the
 Setup page, FIRST SETUP (`Group::Quick`, [groups.rs](../crates/sjk-viewer/src/settings/groups.rs)),
 drawn as a classic+ option panel like the others, with search, descriptions and
-defaults; the modern style shows the FIRST SETUP tab.
+defaults; the SJK UI shows them as the first category of its Settings, and the
+modern style as the FIRST SETUP tab. Picking another menu style on its first row
+keeps First setup on show in the new style: the classic Setup page's FIRST SETUP
+group, the SJK UI's First setup category or the modern FIRST SETUP tab (not
+Interface, which also has the row).
 
 At every start, the first time the main menu is up and the menu style is known, it
 opens in the active style, until the player ticks "Don't show at start"
 (`ui_hideFirstSetup` 1, archived); Escape leaves it for that run. (Before
 07/10/2026 it opened once, on the first start, marked by `ui_quickSetup`, which is
-no longer read.) The `firstsetup` console command (or its old name `quicksetup`)
-opens it too, over the main menu or from a running game, in the active style
-([quick_setup.rs](../crates/sjk-viewer/src/menu/quick_setup.rs)). Not yet run in a
-game window.
+no longer read.) The `firstsetup` console command opens it too, over the main
+menu or from a running game, in the active style
+([first_setup.rs](../crates/sjk-viewer/src/menu/first_setup.rs)). Its old name
+`quicksetup` was removed on 08/10/2026, with no hidden alias, so `quit` is the only
+command a `q` completes to. Not yet run in a game window.
 
 ### Importing from another client
 
