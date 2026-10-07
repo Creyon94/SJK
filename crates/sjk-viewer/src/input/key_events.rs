@@ -23,6 +23,7 @@ impl GpuState {
             .as_ref()
             .is_some_and(console::ViewerConsole::is_open)
             || self.chat.is_typing()
+            || self.text_dialog.is_open()
             || self
                 .client_menu
                 .as_ref()
@@ -46,6 +47,11 @@ impl GpuState {
             .as_ref()
             .is_some_and(console::ViewerConsole::is_open);
         let typed = matches!(event.physical_key, PhysicalKey::Code(_));
+        if !console_open && self.text_dialog.is_open() {
+            let action = self.text_dialog.handle_key(&event);
+            self.apply_dialog_action(action);
+            return;
+        }
         if !console_open && typed && self.chat.is_typing() {
             self.chat_key(&event);
             return;
@@ -109,6 +115,13 @@ impl GpuState {
                 KeyCode::Escape => self.back_or_close_game_menu(),
                 _ => {}
             }
+            return;
+        }
+        // Escape drops a waiting `inspect` selection before it opens the game menu.
+        if key == KeyCode::Escape
+            && event.state == ElementState::Pressed
+            && self.world_notes.cancel_selection()
+        {
             return;
         }
         if key == KeyCode::Escape

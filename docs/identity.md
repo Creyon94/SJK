@@ -89,11 +89,15 @@ the player's key. The hub keeps it until the operator removes it.
 ## Bug reports
 
 [bug_report.rs](../crates/sjk-viewer/src/bug_report.rs) and
-[report.rs](../crates/sjk-identity/src/report.rs). Escape, SJK, Report a bug closes the
-game menu and opens a red report line in the chat composer (Tab and the channel tabs
-do not turn it into chat). As it is typed or pasted, only letters and digits of any
+[report.rs](../crates/sjk-identity/src/report.rs). While the game menu is open, a Report a
+bug button sits centred at the bottom of the screen (also Escape, SJK, Report a bug); it
+closes the game menu and opens the text dialog
+([text_dialog.rs](../crates/sjk-viewer/src/text_dialog.rs)): a panel in the middle of the
+screen with a text box, a character count, Send and Cancel (Escape cancels too). As it is
+typed or pasted, only letters and digits of any
 script, spaces and `. , ! ? ' - : ( )` are kept (line breaks become spaces), up to 600
-characters. Enter checks the hub's rules (10 to 600 characters, a few real words, no
+characters. Enter or Send checks the hub's rules (a refusal is shown in the panel, which
+stays open) (10 to 600 characters, a few real words, no
 long run of one character) and hands the report to the identity service, which sends
 `POST /v1/report` signed with the player's key; the outcome (the hub's report number,
 or why it refused, for example a quota) shows as a centre print. The hub checks
