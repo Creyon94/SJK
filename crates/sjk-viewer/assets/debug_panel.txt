@@ -2304,6 +2304,20 @@ test: First setup: Camera style is the second row, under Styles with Menu style.
 test: Pick SJK there, restart: cg_cameraStyle stays sjk and the camera trails again.
 note: Range is still cg_thirdPersonRange (80); your JoF EJK profile uses 100.
 
+[illuminate]
+status: personal
+area: Gameplay
+title: Illuminate: a holocron by your shoulder that lights the way (only you see it)
+change: SJK's own Force-wheel entry, last on the wheel everywhere, with the holocron icon.
+change: +useforce on it (or the force_illuminate bind) turns the holocron and its light on/off.
+change: cg_illuminate 0 (Settings > Game > Illuminate holocron) takes it off the wheel.
+test: In a match, forcenext to the last entry (Illuminate), press +useforce: holocron fades in.
+test: Third person: it floats by your left shoulder, turns, bobs, and trails you a little.
+test: A dark map (ffa4): the floor around you lights up warm; press again: it fades out.
+test: Die, spectate or follow someone: it goes out; respawn: it comes back at you.
+test: First person: no cube, only the light. Settings > Key bindings > Force: the bind.
+note: Tell me if it sits wrong with your camera (range 100) or feels too bright or too big.
+
 # ---- Merged upstream ----
 
 [actor-instance-cap]

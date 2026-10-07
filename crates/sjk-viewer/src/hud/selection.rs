@@ -8,8 +8,8 @@ use sjk_ui::{
 };
 
 /// Retail's `SP_INGAME_*2` names in `forcePowers_t` order, then JoF EJK's wheel
-/// entries and the JA+ flamethrower.
-const POWERS: [&str; 22] = [
+/// entries, SJK's Illuminate and the JA+ flamethrower.
+const POWERS: [&str; 23] = [
     "Heal",
     "Jump",
     "Speed",
@@ -31,10 +31,11 @@ const POWERS: [&str; 22] = [
     "Stasis",
     "Repulse",
     "Dash",
+    "Illuminate",
     "Flamethrower",
 ];
 /// Name of the flamethrower in [`POWERS`].
-const FLAMETHROWER_NAME: u32 = 21;
+const FLAMETHROWER_NAME: u32 = 22;
 /// `FP_LIGHTNING`.
 const LIGHTNING: u8 = 7;
 const ITEMS: [&str; 12] = [
@@ -90,7 +91,7 @@ pub(super) fn text(id: TextId) -> &'static str {
     match id.0 {
         1200 => "FORCE",
         1201 => "INVENTORY",
-        1000..=1021 => POWERS[(id.0 - 1000) as usize],
+        1000..=1022 => POWERS[(id.0 - 1000) as usize],
         1100..=1111 => ITEMS[(id.0 - 1100) as usize],
         _ => "",
     }

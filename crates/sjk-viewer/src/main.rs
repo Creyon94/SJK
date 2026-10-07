@@ -135,6 +135,7 @@ mod bug_report;
 mod gi_voxels;
 mod identity_command;
 mod identity_frame;
+mod illuminate;
 mod live_session;
 mod net_timing;
 mod particle_motion;
@@ -317,6 +318,8 @@ struct GpuState {
     saber_states: saber_trail::StateSlab,
     saber_trail_segments: saber_trail::SegmentPool,
     speed_trails: actor_world_submission::speed_trail::Trails,
+    /// Illuminate's holocron, the client's own Force-wheel light.
+    illuminate: illuminate::Holocron,
     trick_fades: sjk_client::LegacyTrickFades,
     projectiles: Vec<projectiles::Presented>,
     missile_effects: LegacyMissileEffects,
@@ -1153,6 +1156,7 @@ impl GpuState {
             saber_states: saber_trail::StateSlab::default(),
             saber_trail_segments: saber_trail::SegmentPool::default(),
             speed_trails: Default::default(),
+            illuminate: Default::default(),
             trick_fades: Default::default(),
             projectiles: Vec::with_capacity(sjk_protocol::MAX_LEGACY_ENTITIES),
             missile_effects,
@@ -1841,6 +1845,7 @@ impl GpuState {
         self.begin_saber_instances();
         self.particle_groups.iter_mut().for_each(Vec::clear);
         self.dynamic_lights.clear();
+        self.submit_illuminate(presentation_time, visual_now);
         let debug_missiles = effect_debug::sync(self.console.as_ref());
         let active_snapshot = first_person_view::presented_snapshot(
             self.live_session.as_ref(),

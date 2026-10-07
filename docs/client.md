@@ -1687,7 +1687,38 @@ where Stasis is not granted. On JA+, merc mode shows Lightning as the
 flamethrower until the player is seen using real lightning. Repulse, Dash and
 the flamethrower use JoF EJK's pictures from `EternalJK/jofclient-assets.pk3`;
 Stasis has none and shows Jump's. Power names are retail's (Dark Rage, Sense).
+SJK's own [Illuminate](#illuminate) is the wheel's last entry on every server.
 See [hud/force_wheel.rs](../crates/sjk-viewer/src/hud/force_wheel.rs).
+
+## Illuminate
+
+Illuminate is a free power every player has, SJK's own and not a game power: a
+holocron that floats by the player's left shoulder, turning slowly and bobbing,
+with a warm point light (300 units) that lights the way in dark maps. Only this
+client sees it; no server knows of it and other players, SJK ones included, do
+not see it. It is the Force wheel's last entry (and the modern list's), with its
+own holocron icon; `+useforce` on it turns the holocron on or off, and the
+`force_illuminate` command does the same from a bind (Settings > Key bindings >
+Force powers). It is never sent as the selected power: the client sets its
+`forcePowersKnown` bit itself ([`client_known`](../crates/sjk-client/src/force_wheel.rs))
+and swallows `+useforce` on it. Where the player has no Force at all,
+`forcenext` still walks the inventory, as in stock, and only the bind reaches it.
+
+`cg_illuminate` (archived, default 1; Settings > Game > Illuminate holocron) puts
+it on the wheel; 0 takes it off and puts the holocron out. The holocron appears
+and goes out over 0.3 seconds, trails a moving player by at most 20 units and
+jumps with a teleport. It goes out while the player is dead, spectating,
+following someone or at the intermission, and comes back at the player. In first
+person only its light shows (the cube is drawn in mirrors, like the body). It is
+on or off for the client's run, not saved. Its light is added first each frame,
+so a full light list never drops it, but `r_dynamiclight 0` puts it out with the
+others.
+
+The cube, its two pictures (lit metal, and the emblem alone for the glowing
+stage), its shader and the wheel icon are bundled and mounted below all game
+data, so a PK3 with the same paths replaces them. Sol generated the art; see
+[assets/holocron](../crates/sjk-viewer/assets/holocron/README.md) and
+[illuminate.rs](../crates/sjk-viewer/src/illuminate.rs).
 
 ## Quick wheels
 

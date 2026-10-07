@@ -464,6 +464,11 @@ pub(super) const GAME: &[Setting] = &[
         },
     },
     Setting {
+        label: "Illuminate holocron",
+        cvar: crate::illuminate::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Force Seeing aura",
         cvar: "cg_auraShell",
         kind: ValueKind::Bool,

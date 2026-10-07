@@ -236,6 +236,9 @@ fn read_back(
 #[path = "world_shot_notes.rs"]
 mod notes;
 
+#[path = "world_shot_illuminate.rs"]
+mod holocron;
+
 #[cfg(test)]
 mod tests {
     use super::*;

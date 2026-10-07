@@ -314,6 +314,10 @@ const HELP: &[(&str, &str)] = &[
         "Off: a shield hit flashes on the body, like single player. On: multiplayer's sphere around the player.",
     ),
     (
+        crate::illuminate::CVAR,
+        "Illuminate on the Force wheel: a holocron by your shoulder lights the way. Only you see it.",
+    ),
+    (
         "cg_shieldBrightness",
         "How bright the shield flash on the body is: 1 is the stock look, 12 the strongest. Not used by the sphere.",
     ),

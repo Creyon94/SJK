@@ -53,6 +53,10 @@ pub(super) fn load<'a>(
         model: "models/weaphits/testboom.md3".to_owned(),
         variant: String::new(),
     });
+    appearances.insert(Appearance {
+        model: crate::illuminate::MODEL.to_owned(),
+        variant: String::new(),
+    });
     static_models::extend_appearances(bsp, &mut appearances);
     first_person_weapon::Catalog::extend_appearances(&mut appearances);
     appearances.extend(

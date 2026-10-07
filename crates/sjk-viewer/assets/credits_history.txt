@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 08/10/2026 | - | Illuminate: a holocron by the shoulder that lights the way
+- 138ff72 |  | Illuminate: a holocron by the shoulder that lights the way
 + 08/10/2026 | - | SJK console keeps the Deck design only
 - 8ddceed |  | Console: keep the SJK UI's deck, remove the horizon and dock designs
 + 08/10/2026 | - | SJK UI Force page: classic+ level marks, coloured by group, lit
