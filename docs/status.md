@@ -7,6 +7,22 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## SJK UI: the ring main page and recent servers
+
+SJK-only branch `personal/sjk-ui-ring` (07/10/2026, based on `f780bd8`, Windows 11):
+Sol went back to direction A for the SJK UI's main page ([sjk-ui.md](sjk-ui.md)):
+the emblem in its turning ring at the left, the menu on an arc round it (Play, Sol
+JK and Quit open pages of their own on the ring), and the servers joined last in a
+column on the right, kept in `recent_servers.json` and recorded when a join reaches
+the game; the horizon line and its saber are gone. The page is laid out on a 16:9
+frame that scales down on narrower windows. Unit tests cover the frame at six window
+sizes, the arc's clearance of the ring and column, pages opening and closing,
+keyboard and pointer paths to the servers, the recent list (order, cap, merge of
+names, reading back, a broken file) and the relative times; the sjk-viewer tests
+passed. Off-screen snapshots drew the main, Play and Sol JK pages, a server focused,
+the first-start suggestion and 4:3. No game was started: recording a join, the
+live map behind the page and joining from the column are unverified in game.
+
 ## SJK UI: main page
 
 SJK-only branch `personal/sjk-ui` (07/10/2026, based on `afd3625`, Windows 11): a
