@@ -1922,7 +1922,10 @@ It adds to the map's own weather until the next map; see
 `connect host:port`, `disconnect` and `reconnect` control the session.
 `record`, `stoprecord`, `demo` and `playdemo` control demos.
 `screenshot` and `screenshotJPEG` request captures; `condump filename` saves
-console output. See [console registration](../crates/sjk-viewer/src/console_session.rs)
+console output. A capture copies the final swapchain image into a buffer that is
+mapped over the next frames; frames keep running meanwhile, and the readback stays
+in [screenshot.rs](../crates/sjk-viewer/src/screenshot.rs)'s state until its own map
+callback lands (dropping it earlier aborts the map). See [console registration](../crates/sjk-viewer/src/console_session.rs)
 and [file commands](../crates/sjk-viewer/src/console_files.rs) for argument handling.
 
 `tell <player> <message>` takes a slot number or, as in EternalJK, a name or a
