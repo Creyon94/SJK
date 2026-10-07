@@ -204,12 +204,19 @@ on the 16:9 frame, dark behind the form on the left and clear over the model.
   with their emblems; the powers in classic+'s groups under sub-headings,
   Neutral and Lightsaber down the left, the side's five on the right (the
   other side's left out, as on classic+): each its holocron, its name and its
-  three levels as cells marked with what each costs (or "free"), the bought
-  ones gold. Hovering a level previews buying up to it: its cells lit, the
-  points it would take white at the bar's end (ember, cells and bar, when
-  there are too few). A click on a level buys up to it, on the power's own
-  level drops one. Then Start over, Discard and Apply (gold while there is
-  something to apply).
+  three levels as classic+ draws them (retail's `forcecircle` and `forcestar`,
+  drawn by the UI): round marks numbered with what each level costs (0 when
+  free), a ring until bought, a disc once bought, on a channel lit up to the
+  power's level. Each group has its colour, its sub-heading's too: Neutral
+  silver, the light side blue, the dark side red, Lightsaber green
+  (`power_tint`). The bought discs glow. Hovering a level beyond the power's
+  charges the channel up to it, a white spark running along it, the marks it
+  would buy breathing; the points it would take show white at the bar's end
+  (ember, marks and bar, when there are too few). A click on a level buys up to
+  it, on the power's own level drops one; a level bought (by click or Right)
+  sends a ring out from its mark. These are the only things that move on the
+  page, and only answering the pointer or a purchase. Then Start over, Discard
+  and Apply (gold while there is something to apply).
 - **Power box:** on the Force page, bottom right, the power under the pointer
   (or the keyboard) in big: its holocron, name, group, level, what it does in a
   line or two, the next level's price (or Mastered, Team games only...) and

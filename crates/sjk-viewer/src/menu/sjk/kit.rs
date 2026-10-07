@@ -714,6 +714,19 @@ pub(crate) fn heading(
     width: f32,
     label: &str,
 ) {
+    heading_in(canvas, frame, x, y, width, label, color::HOLO);
+}
+
+/// [`heading`] in `colour` (its rule too, fainter).
+pub(crate) fn heading_in(
+    canvas: &mut MenuCanvas,
+    frame: &Frame,
+    x: f32,
+    y: f32,
+    width: f32,
+    label: &str,
+    colour: Color,
+) {
     // Rajdhani SemiBold at 22 is about 8.5 pixels a character.
     let label_width = 8.5 * label.chars().count() as f32 + 22.0;
     text(
@@ -722,7 +735,7 @@ pub(crate) fn heading(
         format_args!("{label}"),
         frame.rect(x, y - 15.0, label_width + 40.0, 30.0),
         22.0 * frame.s,
-        color::HOLO,
+        colour,
         FontWeight::Regular,
         TextAlign::Start,
     );
@@ -732,7 +745,7 @@ pub(crate) fn heading(
             canvas,
             DrawCommand::SolidRect {
                 rect: frame.rect(rule, y, x + width - rule, 1.0),
-                color: color::alpha(color::HOLO, 0.22),
+                color: color::alpha(colour, 0.22),
             },
         );
     }

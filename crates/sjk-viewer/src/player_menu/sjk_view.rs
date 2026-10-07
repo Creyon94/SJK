@@ -62,9 +62,14 @@ const GUTTER: f32 = 16.0;
 const METER_Y: f32 = 250.0;
 const GROUP_HEADING: f32 = 34.0;
 const GROUP_GAP: f32 = 14.0;
-/// A level's priced cell and the gap between two.
-const LEVEL_CELL: [f32; 2] = [40.0, 30.0];
-const LEVEL_GAP: f32 = 6.0;
+/// A level's round mark (classic+'s `forcecircle`/`forcestar`) and the gap
+/// between two on their channel.
+const DISC: f32 = 30.0;
+const DISC_GAP: f32 = 12.0;
+/// How long the spark takes along a hovered level's channel, and how long
+/// the ring a bought level sends out lasts.
+const SPARK_SECONDS: f64 = 0.9;
+const BURST_SECONDS: f32 = 0.55;
 /// The box at the bottom right showing the power under the pointer.
 const POWER_BOX: Area = [1_384.0, 640.0, 440.0, 300.0];
 /// Level `l` (1 to 3) of power `p` answers to `LEVEL_BASE + p * 3 + l - 1`.
@@ -114,7 +119,7 @@ pub(super) struct HiltList {
 }
 
 /// The pointer token of level `level` (1 to 3) of power `power`.
-fn level_token(power: usize, level: u8) -> u16 {
+pub(super) fn level_token(power: usize, level: u8) -> u16 {
     LEVEL_BASE + (power * 3) as u16 + u16::from(level.saturating_sub(1))
 }
 
@@ -123,6 +128,24 @@ pub(super) fn level_of(token: u16) -> Option<(usize, u8)> {
     let offset = token.checked_sub(LEVEL_BASE)?;
     let power = usize::from(offset / 3);
     (power < POWER_NAMES.len()).then_some((power, (offset % 3) as u8 + 1))
+}
+
+/// The colour of power `index`'s group: Neutral silver, the light side's
+/// blue, the dark side's red (classic+'s row colours, lifted for the navy),
+/// Lightsaber green (its holocrons').
+fn power_tint(index: usize) -> Color {
+    match ForcePower::ALL.get(index).and_then(|power| power.side()) {
+        Some(ForceSide::Light) => Color::new(0.42, 0.66, 1.0, 1.0),
+        Some(ForceSide::Dark) => Color::new(1.0, 0.36, 0.3, 1.0),
+        None if index >= ForcePower::SaberOffense as usize => Color::new(0.42, 0.92, 0.58, 1.0),
+        None => Color::new(0.84, 0.88, 0.96, 1.0),
+    }
+}
+
+/// `colour` a third of the way to white, for text on the dark.
+fn lighter(colour: Color) -> Color {
+    let mix = |channel: f32| channel + (1.0 - channel) * 0.35;
+    Color::new(mix(colour.r), mix(colour.g), mix(colour.b), colour.a)
 }
 
 /// One of the Force page's groups: its sub-heading, its powers in classic+'s
@@ -232,7 +255,9 @@ impl PlayerMenu {
                     self.selected = row;
                     let current = self.force.allocation().levels[power];
                     let wanted = if level == current { level - 1 } else { level };
-                    self.force.set_level(power, wanted);
+                    if self.force.set_level(power, wanted) && wanted > current {
+                        self.note_level_bought(power);
+                    }
                 } else {
                     return None;
                 }
@@ -1146,13 +1171,14 @@ impl PlayerMenu {
         for group in force_groups(chosen) {
             let x = COLUMN_X + group.column as f32 * (half + GUTTER);
             let top = groups_top + group.line as f32 * (GROUP_HEADING + 5.0 * CELL + GROUP_GAP);
-            kit::heading(
+            kit::heading_in(
                 &mut self.canvas,
                 frame,
                 x,
                 top + GROUP_HEADING * 0.5,
                 half,
                 group.name,
+                power_tint(usize::from(group.powers[0])),
             );
             for (slot, power) in group.powers.iter().enumerate() {
                 let row_top = top + GROUP_HEADING + slot as f32 * CELL;
@@ -1260,8 +1286,11 @@ impl PlayerMenu {
     }
 
     /// Power `index` on `area`: its holocron and name, then its three levels
-    /// as cells priced as classic+ prices them, the bought ones gold; a
-    /// hovered level previews what buying up to it would take.
+    /// as classic+ draws them, round marks numbered with what each level costs
+    /// (a ring until bought, a disc once bought), in the colour of the power's
+    /// group ([`power_tint`]) on a channel lit up to its level. The bought discs
+    /// glow; hovering a level charges the channel up to it (a spark runs along
+    /// it), and a level just bought sends a ring out ([`Self::note_level_bought`]).
     fn sjk_power(&mut self, frame: &Frame, index: usize, area: Area, hovered: Option<(usize, u8)>) {
         let s = frame.s;
         let Some(power) = ForcePower::ALL.get(index).copied() else {
@@ -1279,7 +1308,7 @@ impl PlayerMenu {
         if focused {
             kit::band(&mut self.canvas, frame, area);
         }
-        // The whole row first: the cells, registered after, take the pointer.
+        // The whole row first: the marks, registered after, take the pointer.
         self.canvas
             .hit_region(row as u16, frame.rect(x, top, width, height));
         let icon = power_texture(index);
@@ -1292,12 +1321,12 @@ impl PlayerMenu {
             });
             name_x = x + height + 4.0;
         }
-        let cells_x = x + width - 8.0 - 3.0 * LEVEL_CELL[0] - 2.0 * LEVEL_GAP;
+        let marks_x = x + width - 10.0 - 3.0 * DISC - 2.0 * DISC_GAP;
         text(
             &mut self.canvas,
             TextFamily::Body,
             format_args!("{}", SentenceCase(POWER_NAMES[index])),
-            frame.rect(name_x, top, cells_x - name_x - 6.0, height),
+            frame.rect(name_x, top, marks_x - name_x - 6.0, height),
             17.0 * s,
             match (usable, focused) {
                 (false, _) => color::QUIET,
@@ -1311,86 +1340,163 @@ impl PlayerMenu {
             },
             TextAlign::Start,
         );
+        let tint = power_tint(index);
         let target = hovered
-            .filter(|(hovered_power, _)| *hovered_power == index)
+            .filter(|(hovered_power, _)| *hovered_power == index && usable)
             .map(|(_, level)| level);
         let affordable = target.is_some_and(|target| {
             self.force.cost_to(index, target) <= self.force.remaining_points()
         });
         let free_saber = self.force.free_saber();
         let middle = top + height * 0.5;
-        for cell_level in 1..=3_u8 {
-            let cell = [
-                cells_x + f32::from(cell_level - 1) * (LEVEL_CELL[0] + LEVEL_GAP),
-                middle - LEVEL_CELL[1] * 0.5,
-                LEVEL_CELL[0],
-                LEVEL_CELL[1],
-            ];
-            let rect = frame.rect(cell[0], cell[1], cell[2], cell[3]);
-            let bought = cell_level <= level;
-            let preview = !bought && target.is_some_and(|target| cell_level <= target);
-            let (fill, edge, ink) = match (usable, bought, preview) {
-                (false, true, _) => (
-                    Some(color::alpha(color::GOLD, 0.35)),
-                    color::alpha(color::GOLD, 0.35),
-                    color::SPACE,
-                ),
-                (false, false, _) => (
-                    None,
-                    color::alpha(color::HOLO, 0.14),
-                    color::alpha(color::QUIET, 0.6),
-                ),
-                (true, true, _) => (Some(color::GOLD), color::GOLD, color::SPACE),
-                (true, false, true) if affordable => (
-                    Some(color::alpha(color::GOLD, 0.3)),
-                    color::GOLD_BRIGHT,
-                    color::TEXT,
-                ),
-                (true, false, true) => (None, color::EMBER, color::EMBER),
-                (true, false, false) => (
-                    None,
-                    color::alpha(color::HOLO, if focused { 0.5 } else { 0.3 }),
-                    color::MUTED,
-                ),
-            };
-            if let Some(fill) = fill {
-                let _ = self.canvas.draw_list_mut().push(DrawCommand::RoundedRect {
-                    rect,
-                    radius: 7.0 * s,
-                    color: fill,
+        let centre = |mark: u8| marks_x + DISC * 0.5 + f32::from(mark - 1) * (DISC + DISC_GAP);
+        let now = crate::menu::art::motion::seconds();
+        let canvas = &mut self.canvas;
+        let dot = |canvas: &mut crate::menu_widgets::MenuCanvas, cx: f32, size: f32, colour| {
+            let _ = canvas.draw_list_mut().push(DrawCommand::RoundedRect {
+                rect: frame.rect(cx - size * 0.5, middle - size * 0.5, size, size),
+                radius: size * 0.5 * s,
+                color: colour,
+            });
+        };
+        let channel = |canvas: &mut crate::menu_widgets::MenuCanvas, from: f32, to: f32, colour| {
+            if to > from {
+                let _ = canvas.draw_list_mut().push(DrawCommand::RoundedRect {
+                    rect: frame.rect(from, middle - 1.5, to - from, 3.0),
+                    radius: 1.5 * s,
+                    color: colour,
                 });
             }
-            let _ = self.canvas.draw_list_mut().push(DrawCommand::Border {
-                rect,
-                radius: 7.0 * s,
-                width: 1.5 * s,
-                color: edge,
-            });
-            if power.level_is_free(cell_level, free_saber) {
-                text(
-                    &mut self.canvas,
-                    TextFamily::Body,
-                    format_args!("free"),
-                    rect,
-                    13.0 * s,
-                    ink,
-                    FontWeight::Semibold,
-                    TextAlign::Center,
-                );
-            } else {
-                text(
-                    &mut self.canvas,
-                    TextFamily::Display,
-                    format_args!("{}", power.level_cost(cell_level)),
-                    rect,
-                    18.0 * s,
-                    ink,
-                    FontWeight::Semibold,
-                    TextAlign::Center,
-                );
-            }
-            self.canvas.hit_region(level_token(index, cell_level), rect);
+        };
+        // The channel: dim from the first mark to the last, lit to the level.
+        channel(
+            canvas,
+            centre(1),
+            centre(3),
+            color::alpha(if usable { tint } else { color::HOLO }, 0.16),
+        );
+        if level > 1 {
+            channel(canvas, centre(1), centre(level), color::alpha(tint, 0.8));
         }
+        // A hovered level beyond the power's charges the channel up to it,
+        // a spark running along it (drawn over the marks).
+        let charge = if affordable { tint } else { color::EMBER };
+        let mut spark = None;
+        if let Some(target) = target.filter(|target| *target > level) {
+            let from = centre(level.max(1));
+            let to = centre(target);
+            channel(canvas, from, to, color::alpha(charge, 0.45));
+            if to > from {
+                let phase = (now.rem_euclid(SPARK_SECONDS) / SPARK_SECONDS) as f32;
+                spark = Some(from + (to - from) * phase);
+            }
+        }
+        // A slow breath for the hovered marks, between 0 and 1.
+        let breath = (0.5 + 0.5 * (now * std::f64::consts::TAU / 1.6).sin()) as f32;
+        for mark in 1..=3_u8 {
+            let cx = centre(mark);
+            let rect = frame.rect(cx - DISC * 0.5, middle - DISC * 0.5, DISC, DISC);
+            let bought = mark <= level;
+            let preview = !bought && target.is_some_and(|target| mark <= target);
+            let ring = |canvas: &mut crate::menu_widgets::MenuCanvas, colour, width: f32| {
+                let _ = canvas.draw_list_mut().push(DrawCommand::Arc {
+                    center: frame.point(cx, middle),
+                    radius: (DISC * 0.5 - 1.2) * s,
+                    width: width * s,
+                    start: 0.0,
+                    sweep: std::f32::consts::TAU,
+                    color: colour,
+                    knockout: None,
+                });
+            };
+            let ink = match (usable, bought, preview) {
+                (true, true, _) => {
+                    // A bought level: a glowing disc.
+                    dot(canvas, cx, DISC + 16.0, color::alpha(tint, 0.12));
+                    dot(canvas, cx, DISC + 7.0, color::alpha(tint, 0.22));
+                    dot(canvas, cx, DISC, tint);
+                    color::SPACE
+                }
+                (false, true, _) => {
+                    dot(canvas, cx, DISC, color::alpha(tint, 0.35));
+                    color::SPACE
+                }
+                (true, false, true) if affordable => {
+                    dot(
+                        canvas,
+                        cx,
+                        DISC + 10.0,
+                        color::alpha(tint, 0.1 + 0.12 * breath),
+                    );
+                    dot(canvas, cx, DISC, color::alpha(color::SPACE, 0.85));
+                    dot(canvas, cx, DISC, color::alpha(tint, 0.22 + 0.18 * breath));
+                    ring(canvas, tint, 2.2);
+                    color::TEXT
+                }
+                (true, false, true) => {
+                    dot(canvas, cx, DISC, color::alpha(color::SPACE, 0.85));
+                    ring(canvas, color::EMBER, 2.0);
+                    color::EMBER
+                }
+                (true, false, false) => {
+                    dot(canvas, cx, DISC, color::alpha(color::SPACE, 0.85));
+                    ring(
+                        canvas,
+                        color::alpha(tint, if focused { 0.85 } else { 0.55 }),
+                        2.0,
+                    );
+                    lighter(tint)
+                }
+                (false, false, _) => {
+                    dot(canvas, cx, DISC, color::alpha(color::SPACE, 0.85));
+                    ring(canvas, color::alpha(color::HOLO, 0.16), 1.6);
+                    color::alpha(color::QUIET, 0.6)
+                }
+            };
+            let cost = if power.level_is_free(mark, free_saber) {
+                0
+            } else {
+                power.level_cost(mark)
+            };
+            text(
+                canvas,
+                TextFamily::Display,
+                format_args!("{cost}"),
+                rect,
+                19.0 * s,
+                ink,
+                FontWeight::Semibold,
+                TextAlign::Center,
+            );
+            canvas.hit_region(level_token(index, mark), rect);
+        }
+        if let Some(spark) = spark {
+            dot(canvas, spark, 14.0, color::alpha(charge, 0.3));
+            dot(canvas, spark, 6.0, Color::new(1.0, 1.0, 1.0, 0.95));
+        }
+        // A level just bought sends a ring out from its mark.
+        if let Some((_, mark, at)) = self.sjk_burst.filter(|(burst, ..)| *burst == index) {
+            let age = (now - at) as f32;
+            if (0.0..BURST_SECONDS).contains(&age) && mark >= 1 {
+                let grown = age / BURST_SECONDS;
+                let _ = self.canvas.draw_list_mut().push(DrawCommand::Arc {
+                    center: frame.point(centre(mark.min(3)), middle),
+                    radius: (DISC * 0.5 + grown * 20.0) * s,
+                    width: (3.0 - 2.0 * grown) * s,
+                    start: 0.0,
+                    sweep: std::f32::consts::TAU,
+                    color: color::alpha(tint, 0.9 * (1.0 - grown)),
+                    knockout: None,
+                });
+            }
+        }
+    }
+
+    /// Note that power `power` just rose a level, for the ring its mark sends
+    /// out (on the Force page in the SJK UI).
+    pub(super) fn note_level_bought(&mut self, power: usize) {
+        let level = self.force.allocation().levels[power];
+        self.sjk_burst = Some((power, level, crate::menu::art::motion::seconds()));
     }
 
     /// The power the box at the bottom right shows: the one whose row has the
@@ -1422,11 +1528,7 @@ impl PlayerMenu {
             radius: 18.0 * s,
             color: Color::new(0.04, 0.06, 0.12, 0.92),
         });
-        let tint = match power.side() {
-            Some(ForceSide::Light) => color::HOLO,
-            Some(ForceSide::Dark) => color::EMBER,
-            None => color::GOLD,
-        };
+        let tint = power_tint(index);
         let _ = self.canvas.draw_list_mut().push(DrawCommand::Border {
             rect,
             radius: 18.0 * s,
@@ -1773,9 +1875,8 @@ mod tests {
     );
     const _: () = assert!(POWER_BOX[1] + POWER_BOX[3] < KEYS_Y - 20.0);
     // A power's name keeps room beside its three level cells.
-    const _: () = assert!(
-        (COLUMN_WIDTH - GUTTER) * 0.5 - CELL - 8.0 - 3.0 * LEVEL_CELL[0] - 2.0 * LEVEL_GAP > 120.0
-    );
+    const _: () =
+        assert!((COLUMN_WIDTH - GUTTER) * 0.5 - CELL - 10.0 - 3.0 * DISC - 2.0 * DISC_GAP > 120.0);
     // The token ranges stay apart: the levels, the style buttons, the lists'
     // wheel areas, then the hilts.
     const _: () = assert!(LEVEL_BASE + 18 * 3 <= STYLE_BASE && STYLE_BASE + 3 <= HILT_SCROLL);

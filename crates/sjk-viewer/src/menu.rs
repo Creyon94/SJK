@@ -1151,6 +1151,11 @@ impl ClientMenu {
     }
 
     #[cfg(test)]
+    pub(crate) fn player_hover_level_for_shot(&mut self, power: usize, level: u8) {
+        self.player.hover_level_for_shot(power, level);
+    }
+
+    #[cfg(test)]
     pub(crate) fn player_dual_for_shot(&mut self) {
         self.player.dual_for_shot();
     }

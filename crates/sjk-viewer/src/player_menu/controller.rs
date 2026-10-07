@@ -331,7 +331,10 @@ impl PlayerMenu {
                         .clamp(FORCE_RESET_ROW, FORCE_APPLY_ROW);
                 }
                 row => {
-                    self.force.step(row - FORCE_POWER_ROW, direction > 0);
+                    let power = row - FORCE_POWER_ROW;
+                    if self.force.step(power, direction > 0) && direction > 0 {
+                        self.note_level_bought(power);
+                    }
                 }
             },
         }

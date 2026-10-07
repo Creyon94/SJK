@@ -7,6 +7,21 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## SJK UI Character: classic+ Force level marks, coloured and lit
+
+SJK-only branch `personal/sjk-ui-force-marks` (08/10/2026, based on `1eb2d77`,
+Windows 11): Sol found the square level cells foreign and asked for classic+'s
+style, a Force effect and colours by type. The levels are now classic+'s round
+marks (the JoF HD `forcecircle`/`forcestar` art's shape, drawn by the UI):
+a ring with the cost until bought, a disc after, on a channel lit to the level,
+in the group's colour (Neutral silver, light blue, dark red, Lightsaber green;
+the sub-headings and the power box too). Bought discs glow; a hovered level
+charges its channel with a running spark and breathing marks; a bought level
+sends out a ring (`note_level_bought`, from a click or Right). Unit tests
+pass; `duel6_player_sjk` rendered the page and the hover (Heal's second level,
+the spark caught mid-way). Not seen moving in a running client: the spark,
+breath and ring timings are from the code only.
+
 ## SJK UI Character: hilt list, style buttons, priced Force levels
 
 SJK-only branch `personal/sjk-ui-character-2` (08/10/2026, based on `dd38afc`,
