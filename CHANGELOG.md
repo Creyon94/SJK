@@ -21,6 +21,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- Nameplates count Force drain: the Force bar of whoever you (or anyone) drain drops shot by shot and stops refilling for a moment, and drainers pay for their drain. The verified tick now sits level with the name _(Sol)_
 - SJK UI First setup is a pop-up over the map: its settings scroll inside the card, and "Don't show at start" is a tick always in view at its foot, beside All settings and Done _(Sol)_
 - SJK UI Update is a pop-up card too: the version, what the check found, the download's progress, and Release notes, Check again, Close and Install along its foot _(Sol)_
 - Sol JK stands on its own: the old jkr_ names of settings and commands, the JKR_ environment variables and the one-time import of GameData/jkr are gone. Downloaded files now go to SJK's own folder (%LOCALAPPDATA%\SJK\downloads), the dedicated server saves sjk_server.cfg and the material-map generator writes zzz_sjk_materials.pk3 _(Sol)_

@@ -126,6 +126,13 @@ impl UiFont {
         self.glyphs[if self.modern { face.index() } else { 0 }][usize::from(byte)]
     }
 
+    /// How far below the top of a line drawn at `scale` the middle of the
+    /// capitals sits: where an icon set in the line centres to sit level with it.
+    pub(crate) fn capital_middle(&self, scale: f32) -> f32 {
+        let capital = self.glyph(TextFace::Regular, b'H');
+        (capital.offset_y + capital.height * 0.5) * scale
+    }
+
     /// Whether this is the bundled vector font rather than the retail HUD font.
     pub(crate) const fn is_modern(&self) -> bool {
         self.modern

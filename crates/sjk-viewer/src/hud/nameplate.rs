@@ -10,6 +10,7 @@
 //! each as a range whose uncertainty the bar shows as a grey haze. The plain
 //! TaystJK names stay in [`super::identification`] (`cg_drawPlayerNames`); a
 //! nameplate replaces them.
+use super::drain_estimate;
 use super::estimate::Range;
 use super::force_estimate::{self, Calibration, Estimator};
 use super::identification::{Camera, friend_icon, info_number, unoccluded};
@@ -271,6 +272,8 @@ struct Settings {
     /// The local player's own plate, in third person.
     own: bool,
     debug: bool,
+    /// The local player's drain level from its Force profile.
+    drain_level: Option<u8>,
 }
 
 impl Default for Settings {
@@ -290,6 +293,7 @@ impl Default for Settings {
             friends: true,
             own: false,
             debug: false,
+            drain_level: None,
         }
     }
 }
@@ -358,7 +362,10 @@ pub(crate) struct State {
     last_update: i64,
     last_debug: i64,
     force: Estimator,
+    drains: drain_estimate::Tracker,
     calibration: Calibration,
+    /// Until when drain holds the local player's own refill back (calibration).
+    own_hold: i32,
     /// Where the Force regeneration pace came from, for the debug log.
     regen_source: &'static str,
     vitals: vitals_estimate::Estimator,
@@ -385,7 +392,9 @@ impl Default for State {
             last_update: 0,
             last_debug: 0,
             force: Estimator::default(),
+            drains: drain_estimate::Tracker::default(),
             calibration: Calibration::default(),
+            own_hold: i32::MIN,
             regen_source: "default",
             vitals: vitals_estimate::Estimator::default(),
             colors: BarColors::default(),
@@ -425,6 +434,10 @@ impl State {
             friends: flag("cg_drawfriend", true),
             own: flag("cg_nameplateself", false),
             debug: flag("cg_nameplatedebug", false),
+            drain_level: console
+                .and_then(ViewerConsole::own_forcepowers)
+                .and_then(|profile| sjk_client::ForceAllocation::parse(profile).ok())
+                .map(|profile| profile.levels[FP_DRAIN]),
         };
     }
 
@@ -483,16 +496,83 @@ impl State {
 
     /// Feed one accepted snapshot to the estimates. Every snapshot is observed
     /// once, in order, whether or not plates are shown, so no event is missed.
-    pub(crate) fn observe_snapshot(&mut self, snapshot: &Snapshot, game: &GameState) {
+    pub(crate) fn observe_snapshot(
+        &mut self,
+        snapshot: &Snapshot,
+        game: &GameState,
+        bsp: &Bsp,
+        scratch: &mut TraceScratch,
+    ) {
         let mode = info_number(game.config_string(0), "g_gametype");
         self.vitals.observe(snapshot, game, mode);
+        self.observe_drains(snapshot, game, mode, bsp, scratch);
         self.observe_force(snapshot, game, mode);
-        let drained = self.vitals.drained();
-        for slot in 0..32_u16 {
-            if drained & (1 << slot) != 0 {
-                self.force.drained(slot);
+    }
+
+    /// Rebuild this snapshot's drain shots from where every living player stands
+    /// and looks ([`drain_estimate`]); `bsp` gives the walls that stop them.
+    fn observe_drains(
+        &mut self,
+        snapshot: &Snapshot,
+        game: &GameState,
+        mode: i32,
+        bsp: &Bsp,
+        scratch: &mut TraceScratch,
+    ) {
+        use drain_estimate::Body;
+        let mut bodies = [Body::default(); 33];
+        let mut count = 0;
+        for entity in &snapshot.entities {
+            let number = entity.number();
+            if entity.entity_type() != ET_PLAYER
+                || number >= 32
+                || entity.e_flags() & EF_DEAD != 0
+                || count == bodies.len()
+            {
+                continue;
             }
+            let (mins, maxs) = Body::unpack_box(entity.solid());
+            bodies[count] = Body {
+                number,
+                origin: entity.trajectory_base(),
+                view: entity.angular_trajectory_base(),
+                mins,
+                maxs,
+                active: entity.force_powers_active(),
+                team: info_number(game.config_string(1131 + usize::from(number)), "t"),
+                duelling: entity.bolt1(),
+                level: None,
+                estimated: true,
+            };
+            count += 1;
         }
+        let player = &snapshot.player;
+        if player.health() > 0 && !player.is_spectator() && count < bodies.len() {
+            let (mins, maxs) = Body::standing_box();
+            bodies[count] = Body {
+                number: player.client_num(),
+                origin: player.origin(),
+                view: player.view_angles(),
+                mins,
+                maxs,
+                active: player.force_powers_active(),
+                team: i32::from(player.team()),
+                duelling: player.duel_in_progress(),
+                level: self.settings.drain_level,
+                estimated: false,
+            };
+            count += 1;
+        }
+        let rules = drain_estimate::Rules {
+            teams: mode >= GT_TEAM,
+        };
+        self.drains.observe(
+            snapshot.server_time,
+            &bodies[..count],
+            rules,
+            self.vitals.drained(),
+            drain_estimate::world_sight(bsp, scratch),
+        );
     }
 
     /// Drop every collected plate and drawn shape.
@@ -869,15 +949,27 @@ impl State {
         let player = &snapshot.player;
         let boon = player.powerup_active(PW_FORCE_BOON as usize, time);
         let master = mode == GT_JEDIMASTER && player.is_jedi_master();
+        // Draining, and being drained, hold the refill back for a while.
+        if time < self.own_hold.saturating_sub(1_000) {
+            self.own_hold = i32::MIN;
+        }
+        if player.force_powers_active() & (1 << FP_DRAIN) != 0 {
+            self.own_hold = self.own_hold.max(time + 500);
+        }
+        if self.vitals.drained() & (1 << player.client_num()) != 0 {
+            self.own_hold = self.own_hold.max(time + 800);
+        }
+        let special = player.weapon() == WP_SABER
+            && sjk_game_jka::saber_rules::in_special(player.saber_move());
+        let refilling = player.force_powers_active() & !(1 << FP_DRAIN) == 0
+            && !player.saber_in_flight()
+            && !special
+            && !boon
+            && !master;
         self.calibration.observe(
             time,
             i32::from(player.force_power()),
-            player.force_powers_active() & !(1 << FP_DRAIN) == 0
-                && !player.saber_in_flight()
-                && !(player.weapon() == WP_SABER
-                    && sjk_game_jka::saber_rules::in_special(player.saber_move()))
-                && !boon
-                && !master,
+            refilling && time >= self.own_hold,
         );
         let info = game
             .config_string(0)
@@ -916,6 +1008,7 @@ impl State {
                         && sjk_game_jka::saber_rules::in_special(entity.saber_move()),
                     regen_multiplier,
                     dead: entity.e_flags() & EF_DEAD != 0,
+                    drain: self.drains.effect(number),
                 },
             );
         }
@@ -986,16 +1079,14 @@ impl State {
                     letter_spacing: 0.0,
                 });
                 if entry.verified {
-                    let text = crate::text::visible_text_width(
-                        font,
-                        label(id),
-                        size / font.height.max(1.0),
-                    )
-                    .min(width);
+                    let scale = size / font.height.max(1.0);
+                    let text = crate::text::visible_text_width(font, label(id), scale).min(width);
                     let side = size * 0.95;
+                    // Level with the name's capitals: the text hangs from the top of
+                    // its line by the font's own baseline, not from the line's middle.
                     let badge = Rect::new(
                         (left + (width + text) * 0.5 + size * 0.15).min(viewport[0] - side),
-                        top + (line - side) * 0.5,
+                        top + font.capital_middle(scale) - side * 0.5,
                         side,
                         side,
                     );
@@ -1658,5 +1749,63 @@ mod tests {
         let (powers, count) = icon_powers(many);
         assert_eq!(usize::from(count), MAX_ICONS);
         assert_eq!(powers, [7, 6, 13, 8]);
+    }
+
+    #[test]
+    fn the_verified_badge_sits_level_with_the_capitals() {
+        // The HUD font the plates use in game hangs its glyphs from the line top by
+        // its own baseline, low in the line box.
+        let font = crate::text::load_classic().expect("the HUD font").font;
+        let plate = PreviewPlate {
+            slot: 0,
+            point: [400.0, 300.0],
+            distance: 200.0,
+            health: None,
+            shield: None,
+            force: None,
+            weapon: WP_NONE,
+            style: 0,
+            verified: true,
+            team: None,
+        };
+        let mut state = State::default();
+        let icons = super::super::icons::Icons::default();
+        state.preview(
+            &[plate],
+            &["Hello"],
+            &icons,
+            &font,
+            &mut Vec::new(),
+            [800.0, 600.0],
+        );
+        let commands = state.list.commands();
+        let (line, size) = commands
+            .iter()
+            .find_map(|command| match command {
+                DrawCommand::Text { rect, size, .. } => Some((*rect, *size)),
+                _ => None,
+            })
+            .expect("the name");
+        let badge = commands
+            .iter()
+            .find_map(|command| match command {
+                DrawCommand::TexturedQuad { rect, texture, .. }
+                    if *texture == crate::ui_renderer::VERIFIED_TEXTURE =>
+                {
+                    Some(*rect)
+                }
+                _ => None,
+            })
+            .expect("the badge");
+        let capital = font.glyph(crate::text::TextFace::Regular, b'H');
+        let scale = size / font.height;
+        let middle = line.y + (capital.offset_y + capital.height * 0.5) * scale;
+        assert!(
+            (badge.y + badge.height * 0.5 - middle).abs() < 0.01,
+            "{badge:?} {middle}"
+        );
+        // After the name, not over it.
+        let width = crate::text::visible_text_width(&font, "Hello", scale);
+        assert!(badge.x >= line.x + (line.width + width) * 0.5);
     }
 }

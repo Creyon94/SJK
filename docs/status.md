@@ -7,6 +7,30 @@ SJK currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Nameplates: drain and the verified badge
+
+SJK-only branch `personal/nameplate-drain` (08/10/2026, based on `27696e5`,
+Windows 11): Sol asked that the nameplates' Force estimate count what drain takes
+from its victims, theirs or anyone's, and said the verified tick was misaligned
+with the name. Drain is now rebuilt shot by shot
+([drain_estimate.rs](../crates/sjk-viewer/src/hud/drain_estimate.rs), see
+[client.md](client.md) "Force" and "Drain"): every 50 ms, level 3's 512-unit arc
+or levels 1-2's line from each drainer's origin and view, with the map's walls
+traced; 2/3/4 a shot (absorb reduces it and gives a point back), the victim's
+refill held 800 ms, the drainer paying 5 and holding its own refill 500 ms. The
+old flat guess per `EV_FORCE_DRAINED` is gone; the event now only guarantees a
+shot's worth. The local player's level comes from its Force profile. The drainer
+used to pay nothing for drain. The badge was centred in a line box taller than
+the text, while the HUD font hangs its glyphs low; it now centres on the middle of
+the capitals from the font's own metrics, and `nameplate_snapshot` renders the
+plates with the HUD font they use in game. Verified: unit tests (shot rate,
+arc, line, walls, teams, duels, absorb, the event's floor, the refill holds, the
+drainer's floor of 20, the badge level with the capitals) and the snapshot looked
+at (1080p, the tick's middle on the capitals' middle; it was about 5 px high).
+Not verified: no game was started; the drain levels of other players are guessed
+(level 3), movers and players in the way are not traced, and JA+ (closed source)
+may differ from OpenJK's drain.
+
 ## SJK UI: First setup and Update as pop-ups
 
 SJK-only branch `personal/first-setup-popup` (08/10/2026, based on `b9db8c0`,

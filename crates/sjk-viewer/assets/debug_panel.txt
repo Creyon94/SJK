@@ -1233,6 +1233,19 @@ change: A missile hit from a WP_STUN_BATON missile (the JA+ hook) takes exactly 
 test: JA+ server, cg_nameplateDebug 1: hook a player without shield; hp~ drops by exactly 1.
 note: Never started in a game. If JA+ sends no hit event for the hook, nothing changes.
 
+[nameplate-drain]
+area: HUD
+title: Nameplate Force: drain takes from its victims; verified tick level with the name
+change: Every drain shot (50 ms) takes 2-4 Force from those it reaches and stops their refill.
+change: Drainers pay 5 a shot; your own drain uses your level, others' are guessed at level 3.
+change: The verified tick centres on the name's capitals instead of sitting high.
+test: Local server, bot with Force: drain it (level 3): its Force bar drops while you hold.
+test: Let go: its bar stays still for about a second, then refills.
+test: Drain with level 1 or 2: only the bot under your crosshair loses Force.
+test: Watch a bot drain another: both bars drop (the drainer pays 5 a shot).
+test: A verified player (or cg_nameplateSelf 1 with a verified key): tick level with the name.
+note: Never started in a game: unit tests and the nameplate_snapshot render only.
+
 [nameplate-modes]
 area: HUD
 title: V cycles nameplate modes: off, names, target and duel opponent, everyone

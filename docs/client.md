@@ -1330,7 +1330,9 @@ that font is not loaded), whatever `cg_classicHudFont` says.
   the blade is put away.
 - **Verified badge:** a player the SJK hub's operator vouches for (see
   [Identity](#identity)) gets a gold seal with a white tick after the name, drawn at
-  start into an icon cell ([verified_badge.rs](../crates/sjk-viewer/src/ui_renderer/verified_badge.rs)).
+  start into an icon cell ([verified_badge.rs](../crates/sjk-viewer/src/ui_renderer/verified_badge.rs)),
+  centred on the middle of the name's capitals as the plate's font lays them out
+  (`UiFont::capital_middle`; the HUD font hangs its glyphs low in the line).
   Which slots are verified is read from the identity service once a second.
 - `cg_nameplateSelf` (off): your own plate over your head in third person, with your
   real health, shield and Force (the server sends you those), your weapon and your
@@ -1428,13 +1430,28 @@ Where the numbers come from, and what is not known:
   fast with the boon) while no power but drain is on and no saber is thrown or in a
   special move, the price of each power when it switches on, protect, absorb, grip
   and lightning running costs, force jumps, push, pull and saber throw at their
-  price, and being drained (`EV_FORCE_DRAINED`). Power levels are not sent, so the
+  price, and drain. Power levels are not sent, so the
   low bound pays each power at its dearest level and the high bound at its cheapest
   (the guess at level 3); a force jump costs anything up to its price; until the pace
   is measured the bounds refill a little slower and faster than the guess. A power
   starting proves the pool held its price, which raises the low bound. It misses
   saber blocks in some mods and anything that changes costs. It refills while a
   player idles, so the range closes within about twenty seconds.
+- **Drain** ([drain_estimate.rs](../crates/sjk-viewer/src/hud/drain_estimate.rs))
+  is rebuilt shot by shot, as `ForceShootDrain` and `ForceDrainDamage` do it: a
+  drainer shoots every 50 ms; level 3 reaches everyone within 512 units of its origin,
+  in a 60-degree cone along its view and in clear sight of the map's walls, levels 1
+  and 2 the first player on a 2048-unit line. A shot takes 2, 3 or 4 Force by level
+  (against an absorb that is up, what the levels' difference leaves, with a point
+  given back), stops the victim's refill for 800 ms, and costs the drainer 5 (at
+  levels 1 and 2 only when the line found a player) and its own refill for 500 ms;
+  while drain stays on the drainer holds at least 20. Other players' levels are not
+  sent: the guess is level 3's arc, the bounds the dearest and cheapest level that
+  reach. Your own level is your Force profile's, so your drain on others is exact.
+  `EV_FORCE_DRAINED` (at most every 400 ms a victim) says a victim lost at least a
+  shot even where the geometry missed it. Doors, movers and other players in the
+  arc's line of sight are not checked. Your own pace measurement skips the time drain
+  holds your refill back.
 
 `cg_drawPlayerNames` keeps TaystJK's plain overhead names (0 off, 1 names, 2 adds a
 health strip, text only, off by default); they are hidden while nameplates are on.

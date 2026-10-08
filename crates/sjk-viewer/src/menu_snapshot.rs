@@ -838,6 +838,9 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
     ];
     let mut state = State::default();
     let mut vertices = Vec::new();
+    // The plates draw with the HUD font in game (`hud_runtime::append`).
+    let hud = crate::text::load_classic().expect("build the HUD font");
+    let menu = std::mem::replace(&mut shots.font, hud);
     state.preview(
         &plates,
         &names,
@@ -847,6 +850,7 @@ fn nameplates(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
         VIEWPORT,
     );
     shots.save("nameplates", &state.list, &vertices, true);
+    shots.font = menu;
 }
 
 /// The classic profile's lightsaber creation page, full screen and in game,

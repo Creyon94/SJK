@@ -89,7 +89,9 @@ pub(crate) fn observe(
     );
     sinks.muzzle_effects.observe(snapshot);
     sinks.force_overlays.observe_snapshot(snapshot);
-    sinks.nameplate.observe_snapshot(snapshot, game_state);
+    sinks
+        .nameplate
+        .observe_snapshot(snapshot, game_state, sinks.bsp, sinks.trace_scratch);
     let obituary_before = sinks.obituaries.decoded();
     sinks.obituaries.observe(snapshot, game_state);
     let obituary_count = sinks.obituaries.decoded() - obituary_before;
