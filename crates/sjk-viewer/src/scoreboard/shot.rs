@@ -1,6 +1,7 @@
-//! Made-up matches for the off-screen world shots of the SJK UI's scoreboard
-//! (`world_shot::tests::duel6_sjk_scoreboard`): rows and match facts set
-//! directly, so the board draws over a map without a server.
+//! Made-up matches for the off-screen world shots of the scoreboard
+//! (`world_shot::tests::duel6_sjk_scoreboard`, `duel6_scoreboard_medals`): rows and
+//! match facts set directly, so the board draws over a map without a server, in the
+//! look `cg_scoreboardStyle` picks.
 
 use super::classic::{FlagIcons, LocalStatus};
 use super::sjk::{self, Duelists, Limits, Measure, SjkHeader};
@@ -96,13 +97,37 @@ fn row(client: u8, name: &str, team: u8, score: i32) -> ScoreRow {
         defends: i32::from(client % 4),
         assists: i32::from(client % 3),
         captures: i32::from(client % 2),
-        // A few players the hub knows, two of them vouched for.
+        // A few players the hub knows, two of them vouched for, three with medals.
         identity: match client {
-            0 | 11 => Some(Tag { verified: true }),
-            3 => Some(Tag { verified: false }),
+            0 => Some(Tag {
+                verified: true,
+                medals: medals(&["early_tester", "early_contributor", "bug_hunter"], 3),
+            }),
+            11 => Some(Tag {
+                verified: true,
+                medals: medals(&["jof_clan"], 1),
+            }),
+            3 => Some(Tag {
+                verified: false,
+                medals: medals(&["early_tester", "bug_hunter", "jof_clan"], 2),
+            }),
             _ => None,
         },
     }
+}
+
+/// Made-up medals as the hub's presence list gives them, a repeatable one `count` times.
+fn medals(ids: &[&str], count: u32) -> crate::medals::Medals {
+    let list: Vec<sjk_identity::Medal> = ids
+        .iter()
+        .map(|id| sjk_identity::Medal {
+            id: (*id).to_owned(),
+            count,
+            awarded: 0,
+            note: String::new(),
+        })
+        .collect();
+    crate::medals::Medals::from_wire(&list)
 }
 
 /// The client slot of the `index`th made-up player, keeping yours free.
@@ -250,11 +275,57 @@ pub(super) fn append(gpu: &mut crate::GpuState, viewport: [f32; 2]) {
         rows,
         motion,
         shot,
+        style,
+        icons,
         ..
     } = &mut gpu.scoreboard;
     let Some(shot) = shot.as_ref() else {
         return;
     };
+    match style {
+        super::style::ScoreboardStyle::Classic => {
+            let header = super::classic::ClassicHeader {
+                hostname: "^5JoF^7 Jedi of Freedom",
+                max_clients: 32,
+                gametype: shot.gametype,
+                fraglimit: shot.limits.frags,
+                team_scores: shot.team_scores,
+                local: shot.local,
+                killer: shot.killer,
+            };
+            let options = super::style::ClassicOptions::from_console(gpu.console.as_ref());
+            super::classic::build(ui, rows, &header, options, icons, flags, motion, viewport);
+            ui.finish(u16::MAX);
+            ui.append_text_routed(
+                &mut gpu.game_fonts,
+                |_, text| Some(super::retail_font(text)),
+                &mut gpu.text_vertices,
+                &gpu.ui_font,
+                viewport,
+            );
+            return;
+        }
+        super::style::ScoreboardStyle::Modern => {
+            let header = super::view::MatchHeader {
+                map: "mp/duel6",
+                mode: "FFA",
+                team_scores: shot.team_scores,
+                team_game: false,
+                local_client: shot.local.client,
+            };
+            super::view::build(ui, rows, header, viewport);
+            ui.finish(u16::MAX);
+            ui.append_text_routed(
+                &mut gpu.game_fonts,
+                |_, text| Some(super::retail_font(text)),
+                &mut gpu.text_vertices,
+                &gpu.ui_font,
+                viewport,
+            );
+            return;
+        }
+        super::style::ScoreboardStyle::Sjk => {}
+    }
     let header = SjkHeader {
         map: "mp/duel6",
         gametype: shot.gametype,

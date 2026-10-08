@@ -812,6 +812,76 @@ mod tests {
         });
     }
 
+    /// The new medal pop-up over the SJK UI's main page on the live duel6, the whole
+    /// medal's picture decoded on its worker and uploaded the first time it is drawn.
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_medal_popup() {
+        on_big_stack(|| {
+            let menu = menu::ClientMenu::new(true, String::new());
+            let cvars = [
+                ("ui_menuStyle", "sjk"),
+                (crate::settings::quick::HIDE_CVAR, "1"),
+            ];
+            let Some((mut gpu, _profile)) =
+                open("maps/mp/duel6.bsp", [1920, 1080], Some(menu), &cvars)
+            else {
+                return;
+            };
+            let _ = frame(&mut gpu, 10);
+            let awards = crate::medals::awards(&[sjk_identity::Medal {
+                id: "bug_hunter".to_owned(),
+                count: 2,
+                awarded: 1_791_336_225,
+                note: "The fog that followed the camera floor.".to_owned(),
+            }]);
+            gpu.medal_popup = crate::medal_popup::MedalPopup::preview(awards);
+            for _ in 0..240 {
+                let _ = frame(&mut gpu, 1);
+                if crate::medals::art::decoded().is_some() {
+                    break;
+                }
+            }
+            println!("{}", shoot(&mut gpu, 6, "duel6-medal-popup").display());
+        });
+    }
+
+    /// Every scoreboard look with the SJK emblem and medal ribbon bars after the names
+    /// of the made-up players the hub knows: classic and modern on a free for all, the
+    /// SJK UI's on a free for all and a duel (the bars on a duelist's card).
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_scoreboard_medals() {
+        use crate::scoreboard::shot::Match;
+        on_big_stack(|| {
+            for style in ["classic", "modern", "sjk"] {
+                let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", [1920, 1080], None, &[])
+                else {
+                    return;
+                };
+                // Set once the profile's start has moved old defaults on.
+                if let Some(console) = gpu.console.as_mut() {
+                    console.set_cvar("cg_scoreboardStyle", style);
+                }
+                let tour = menu_backdrop::tour_for("Yavin Training Grounds").expect("duel6's tour");
+                let (yaw, pitch) = look(tour[0].from, tour[0].at);
+                aim(&mut gpu, tour[0].from, yaw, pitch);
+                let _ = frame(&mut gpu, 20);
+                let games: &[(Match, &str)] = if style == "sjk" {
+                    &[(Match::Free, "ffa"), (Match::Duel, "duel")]
+                } else {
+                    &[(Match::Free, "ffa")]
+                };
+                for (game, name) in games {
+                    gpu.scoreboard.show_for_shot(*game);
+                    let name = format!("duel6-medals-scoreboard-{style}-{name}");
+                    println!("{}", shoot(&mut gpu, 16, &name).display());
+                }
+                gpu.scoreboard.end_shot();
+            }
+        });
+    }
+
     /// The SJK UI's loading screen over the live duel6, on a made-up join of
     /// the JoF server: before the map is known (the tour behind), loading
     /// mp/ffa3 (its levelshot over the screen), and a failed join with and

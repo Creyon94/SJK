@@ -61,8 +61,13 @@ pub(crate) const WHEEL_ICON_CELLS: u32 = COLUMNS;
 pub(crate) const SETTINGS_ICON_FIRST: u32 = WHEEL_ICON_FIRST + WHEEL_ICON_CELLS;
 /// Settings icon cells: two rows.
 pub(crate) const SETTINGS_ICON_CELLS: u32 = 2 * COLUMNS;
+/// First of the medals' small medallion cells (`medals::Medal::icon`), after the
+/// settings menu's.
+pub(crate) const MEDAL_ICON_FIRST: u32 = SETTINGS_ICON_FIRST + SETTINGS_ICON_CELLS;
+/// Medal cells: room for twice the medals there are today.
+pub(crate) const MEDAL_ICON_CELLS: u32 = 8;
 /// Every icon cell; the banner strip lies below the last row.
-pub(crate) const ATLAS_CELLS: u32 = SETTINGS_ICON_FIRST + SETTINGS_ICON_CELLS;
+pub(crate) const ATLAS_CELLS: u32 = MEDAL_ICON_FIRST + MEDAL_ICON_CELLS;
 const TOTAL_CELLS: u32 = ATLAS_CELLS;
 const ATLAS_HEIGHT: u32 = TOTAL_CELLS.div_ceil(COLUMNS) * ICON_SIZE + BANNER_SIZE[1];
 /// `TexturedQuad` texture naming the banner strip.

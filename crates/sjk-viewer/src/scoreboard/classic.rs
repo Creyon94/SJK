@@ -704,10 +704,7 @@ impl RowDraw<'_> {
         let name_rect = text_rect(name_x, self.columns.score - name_x - 8.0);
         let name_rect = if let Some(tag) = row.identity {
             let side = frame.height(line.min(18.0));
-            let _ = ui
-                .draw_list_mut()
-                .push(super::identity_mark::logo(name_rect, side, tag));
-            super::identity_mark::narrowed(name_rect, side)
+            super::identity_mark::push(ui.draw_list_mut(), name_rect, side, tag)
         } else {
             name_rect
         };

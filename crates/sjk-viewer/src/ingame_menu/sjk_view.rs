@@ -393,6 +393,8 @@ const ENTRY_REACH: f32 = 680.0;
 const CARD_X: f32 = 1360.0;
 const CARD_WIDTH: f32 = 464.0;
 const CARD_TOP: f32 = 318.0;
+/// A line of medals on the Players page's card.
+const MEDAL_PITCH: f32 = 44.0;
 /// The keys' line.
 const KEYS_Y: f32 = 1004.0;
 
@@ -1093,6 +1095,32 @@ fn player_card(
         );
     }
     y += 40.0;
+    // The medals the SJK team gave them: medallions with their names, two a line.
+    if let Some(hub) = player.hub.as_ref().filter(|hub| !hub.medals.is_empty()) {
+        let column = CARD_WIDTH / 2.0;
+        let mut lines = 0;
+        for (index, (medal, count)) in hub.medals.iter().enumerate() {
+            let x = CARD_X + (index % 2) as f32 * column;
+            let row_y = y + (index / 2) as f32 * MEDAL_PITCH;
+            let _ = canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
+                rect: frame.rect(x, row_y, 36.0, 36.0),
+                texture: medal.icon(),
+                color: Color::new(1.0, 1.0, 1.0, 1.0),
+            });
+            text(
+                canvas,
+                TextFamily::Body,
+                format_args!("{}", medal.label(count)),
+                frame.rect(x + 46.0, row_y + 6.0, column - 52.0, 24.0),
+                17.0 * s,
+                color::TEXT,
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+            lines = index / 2 + 1;
+        }
+        y += lines as f32 * MEDAL_PITCH + 4.0;
+    }
     let cells = [
         (
             "Score",

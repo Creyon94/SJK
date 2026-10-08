@@ -260,6 +260,10 @@ impl GpuState {
             }
             return true;
         }
+        if self.medal_popup.is_open() {
+            self.medal_popup.handle_pointer(event);
+            return true;
+        }
         if self
             .client_menu
             .as_ref()

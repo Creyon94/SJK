@@ -1,9 +1,10 @@
 //! The player card: look at a player for a moment without moving, or press the
 //! `inspect` key while aiming at them, and a small card appears beside their head with
 //! what the game publishes about them (name, model and its icon, saber, hat and cape,
-//! duel record) and, when the SJK hub knows them, SJK's emblem, their hub name and
-//! whether they are verified. `inspect` pins the card: it shows at once, follows the
-//! player wherever they go and stays until `inspect` is pressed again.
+//! duel record) and, when the SJK hub knows them, SJK's emblem, their hub name,
+//! whether they are verified and the medals the SJK team gave them (their medallions;
+//! a pinned card names them too). `inspect` pins the card: it shows at once, follows
+//! the player wherever they go and stays until `inspect` is pressed again.
 //!
 //! Everything shown is already public to every client (the player's `CS_PLAYERS`
 //! string), so the card gives no advantage a scoreboard glance would not. The
@@ -153,6 +154,8 @@ pub(crate) struct HubInfo {
     /// Hub display name, empty if they have none yet.
     pub(crate) name: String,
     pub(crate) verified: bool,
+    /// The medals the SJK team gave them.
+    pub(crate) medals: crate::medals::Medals,
 }
 
 /// Text slots of a card: ids are indices into [`Card::texts`].
@@ -163,12 +166,16 @@ const T_EXTRA: usize = 3;
 const T_HUB: usize = 4;
 const T_VERIFIED: usize = 5;
 const T_WORN: usize = 6;
+const T_MEDALS: usize = 7;
+const T_MEDALS_MORE: usize = 8;
+/// Characters a line of medal names holds on the card (Inter at 13).
+const MEDAL_LINE_CHARS: usize = 40;
 
 /// A player's card: the texts and values drawn, built when the target or the
 /// hub's roster changes and drawn every frame without allocating.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct Card {
-    pub(crate) texts: [String; 7],
+    pub(crate) texts: [String; 9],
     /// 0 free, 1 red, 2 blue, 3 spectator.
     team: u8,
     /// Blade colours of the one or two sabers, if retail colours.
@@ -185,6 +192,14 @@ impl Card {
 
     fn has_worn(&self) -> bool {
         !self.texts[T_WORN].is_empty()
+    }
+
+    /// Lines of medal names a pinned card shows.
+    fn medal_lines(&self) -> usize {
+        [T_MEDALS, T_MEDALS_MORE]
+            .iter()
+            .filter(|id| !self.texts[**id].is_empty())
+            .count()
     }
 }
 
@@ -265,6 +280,21 @@ pub(crate) fn card_from(info: &[u8], hub: Option<HubInfo>) -> Card {
         };
         if hub.verified {
             card.texts[T_VERIFIED] = "VERIFIED".to_owned();
+        }
+        // The names on one line, or two when they are long.
+        for (medal, count) in hub.medals.iter() {
+            let label = medal.label(count);
+            let line = if card.texts[T_MEDALS_MORE].is_empty()
+                && card.texts[T_MEDALS].len() + label.len() + 2 <= MEDAL_LINE_CHARS
+            {
+                T_MEDALS
+            } else {
+                T_MEDALS_MORE
+            };
+            if !card.texts[line].is_empty() {
+                card.texts[line].push_str(", ");
+            }
+            card.texts[line].push_str(&label);
         }
     }
     card.hub = hub;
@@ -512,7 +542,7 @@ impl State {
         self.card.icon = u8::try_from(client)
             .ok()
             .and_then(|slot| (input.icon)(slot));
-        self.emit(head, side, input.camera.viewport);
+        self.emit(head, side, input.camera.viewport, pinned.is_some());
     }
 
     fn rebuild(&mut self, client: u16, input: &Input<'_>) {
@@ -531,7 +561,8 @@ impl State {
         self.card = card_from(info, hub);
     }
 
-    fn emit(&mut self, head: [f32; 2], side: f32, viewport: [f32; 2]) {
+    /// Draw the card beside `head`; a `pinned` card names the player's medals.
+    fn emit(&mut self, head: [f32; 2], side: f32, viewport: [f32; 2], pinned: bool) {
         let unit = crate::ui_scale::height_scale(viewport[1]);
         let a = self.alpha;
         let card = &self.card;
@@ -548,8 +579,15 @@ impl State {
         if card.has_extra() {
             height += row(22.0);
         }
+        let medals = card.hub.as_ref().map(|hub| hub.medals).unwrap_or_default();
         if card.hub.is_some() {
             height += row(10.0) + row(26.0);
+            if !medals.is_empty() {
+                height += row(30.0);
+                if pinned {
+                    height += row(20.0) * card.medal_lines() as f32;
+                }
+            }
         }
         // Keep clear of the body: the world gap projected, never less than a fixed one.
         let offset = side.max(14.0 * unit) + 12.0 * unit;
@@ -744,6 +782,44 @@ impl State {
                     TextAlign::End,
                 );
             }
+            y += row(26.0);
+            // The medals the SJK team gave them, small medallions in a row; a pinned
+            // card names them under it, with how often a repeatable one was given.
+            if !medals.is_empty() {
+                let icon = row(26.0);
+                let mut x = left;
+                for (medal, _) in medals.iter() {
+                    let _ = self.list.push(DrawCommand::TexturedQuad {
+                        rect: Rect::new(x, y + row(2.0), icon, icon),
+                        texture: medal.icon(),
+                        color: Color::new(1.0, 1.0, 1.0, a),
+                    });
+                    x += icon + 6.0 * unit;
+                }
+                y += row(30.0);
+                if pinned {
+                    for (index, id) in [T_MEDALS, T_MEDALS_MORE]
+                        .into_iter()
+                        .take(card.medal_lines())
+                        .enumerate()
+                    {
+                        put_text(
+                            &mut self.list,
+                            id,
+                            Rect::new(
+                                left,
+                                y - row(2.0) + index as f32 * row(20.0),
+                                inner,
+                                row(20.0),
+                            ),
+                            13.0 * unit,
+                            muted,
+                            FontWeight::Regular,
+                            TextAlign::Start,
+                        );
+                    }
+                }
+            }
         }
     }
 
@@ -767,15 +843,15 @@ impl State {
 
 #[cfg(test)]
 impl State {
-    /// A card drawn as if its player had been looked at, for the off-screen
-    /// snapshots (`menu_snapshot.rs`).
-    pub(crate) fn preview(card: Card, head: [f32; 2], viewport: [f32; 2]) -> Self {
+    /// A card drawn as if its player had been looked at (`pinned`: with `inspect`), for
+    /// the off-screen snapshots (`menu_snapshot.rs`).
+    pub(crate) fn preview(card: Card, head: [f32; 2], viewport: [f32; 2], pinned: bool) -> Self {
         let mut state = Self {
             card,
             alpha: 1.0,
             ..Self::default()
         };
-        state.emit(head, 24.0, viewport);
+        state.emit(head, 24.0, viewport, pinned);
         state
     }
 
@@ -902,19 +978,96 @@ mod tests {
             Some(HubInfo {
                 name: "Sol the Fox".to_owned(),
                 verified: true,
+                medals: crate::medals::Medals::default(),
             }),
         );
         assert_eq!(known.texts[T_HUB], "Sol the Fox");
         assert_eq!(known.texts[T_VERIFIED], "VERIFIED");
+        assert!(known.texts[T_MEDALS].is_empty());
         let unnamed = card_from(
             &info("n|Sol|"),
             Some(HubInfo {
                 name: String::new(),
                 verified: false,
+                medals: crate::medals::Medals::default(),
             }),
         );
         assert_eq!(unnamed.texts[T_HUB], "SJK player");
         assert!(unnamed.texts[T_VERIFIED].is_empty());
+    }
+
+    #[test]
+    fn long_medal_names_take_a_second_line() {
+        let medal = |id: &str| sjk_identity::Medal {
+            id: id.to_owned(),
+            count: 1,
+            awarded: 0,
+            note: String::new(),
+        };
+        let card = card_from(
+            &info("n|Sol|"),
+            Some(HubInfo {
+                name: "Sol".to_owned(),
+                verified: false,
+                medals: crate::medals::Medals::from_wire(&[
+                    medal("early_tester"),
+                    medal("early_contributor"),
+                    medal("bug_hunter"),
+                    medal("jof_clan"),
+                ]),
+            }),
+        );
+        assert_eq!(card.texts[T_MEDALS], "Early Tester, Early Contributor");
+        assert_eq!(card.texts[T_MEDALS_MORE], "Bug Hunter, JoF Clan");
+        assert_eq!(card.medal_lines(), 2);
+    }
+
+    #[test]
+    fn medals_show_as_medallions_and_a_pinned_card_names_them() {
+        let medal = |id: &str, count| sjk_identity::Medal {
+            id: id.to_owned(),
+            count,
+            awarded: 0,
+            note: String::new(),
+        };
+        let card = card_from(
+            &info("n|Sol|"),
+            Some(HubInfo {
+                name: "Sol".to_owned(),
+                verified: true,
+                medals: crate::medals::Medals::from_wire(&[
+                    medal("bug_hunter", 2),
+                    medal("early_tester", 1),
+                    medal("unknown", 1),
+                ]),
+            }),
+        );
+        assert_eq!(card.texts[T_MEDALS], "Early Tester, Bug Hunter x2");
+        assert!(card.texts[T_MEDALS_MORE].is_empty());
+        let icons = |state: &State| {
+            state
+                .list
+                .commands()
+                .iter()
+                .filter(|command| {
+                    matches!(command, DrawCommand::TexturedQuad { texture, .. }
+                        if *texture == crate::medals::Medal::EarlyTester.icon()
+                            || *texture == crate::medals::Medal::BugHunter.icon())
+                })
+                .count()
+        };
+        let named = |state: &State| {
+            state.list.commands().iter().any(|command| {
+                matches!(command, DrawCommand::Text { text, .. } if text.0 as usize == T_MEDALS)
+            })
+        };
+        let viewport = [1_920.0, 1_080.0];
+        let glance = State::preview(card.clone(), [900.0, 500.0], viewport, false);
+        assert_eq!(icons(&glance), 2);
+        assert!(!named(&glance));
+        let pinned = State::preview(card, [900.0, 500.0], viewport, true);
+        assert_eq!(icons(&pinned), 2);
+        assert!(named(&pinned));
     }
 
     #[test]

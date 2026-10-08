@@ -153,17 +153,8 @@ fn player_row(ui: &mut MenuCanvas, row: &ScoreRow, local: u16, rect: Rect, s: f3
     };
     if let Some(tag) = row.identity {
         let side = 22.0 * s;
-        let _ = ui
-            .draw_list_mut()
-            .push(super::identity_mark::logo(name, side, tag));
-        ui.text(
-            &row.name,
-            super::identity_mark::narrowed(name, side),
-            22.0 * s,
-            color,
-            FontWeight::Regular,
-            0.0,
-        );
+        let text = super::identity_mark::push(ui.draw_list_mut(), name, side, tag);
+        ui.text(&row.name, text, 22.0 * s, color, FontWeight::Regular, 0.0);
     } else {
         ui.text(&row.name, name, 22.0 * s, color, FontWeight::Regular, 0.0);
     }

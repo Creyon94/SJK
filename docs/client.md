@@ -1602,8 +1602,16 @@ are in [identity.md](identity.md).
   `identity who [slot]` lists known players (with a slot, that player's bio).
 - The scoreboard (every style) draws SJK's emblem at the end of the name of a
   player the hub knows (the SJK UI's right after the name), in gold when the
-  hub's operator vouches for them. It trusts
+  hub's operator vouches for them, then up to three ribbon bars for the medals the
+  SJK team gave them ([identity.md](identity.md#medals)); fewer bars show where the
+  name would run short of room. It trusts
   a claim only when the claimed name matches the name the game shows in that slot.
+- The Identity page lists the player's own medals: in the modern look a Medals panel
+  right of the page's card, in the SJK UI a column right of its own, each with its
+  picture, name, description, the date it was given (`dd/mm/yyyy`) and the team's note;
+  the classic+ box names them in its status with their medallions. With none, a line
+  says how medals come. A medal new to the client shows once in a pop-up on the main
+  menu or when the game menu opens ([identity.md](identity.md#medals)).
 - Back up `identity.key`: losing it loses the identity.
 
 ### Player card
@@ -1613,7 +1621,9 @@ Look at a player, keeping the view steady, and a card appears beside their head
 server already publishes to every client (name with its colour codes, model and its
 head icon, saber hilts with their blade colours, the hat and cape worn, duel record or
 bot skill) and, when the hub knows
-the player, SJK's emblem, their hub name and a gold VERIFIED. It adds nothing a
+the player, SJK's emblem, their hub name, a gold VERIFIED and the medallions of the
+medals the SJK team gave them ([identity.md](identity.md#medals)); a pinned card names
+the medals under them, a repeatable one with its count. It adds nothing a
 glance at the scoreboard would not: no health, Force or position.
 
 - `cg_playerCard` (default 1; Settings > HUD+ > Player card) turns it on.

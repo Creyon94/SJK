@@ -7,6 +7,35 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Medals (SJK)
+
+SJK-only branch `personal/medals` (08/10/2026, based on `8a45662`, Windows 11): Sol
+asked for medals, recognition the SJK team gives players by hand that grants nothing
+([identity.md](identity.md#medals)). The hub's profile and presence entries gain a
+`medals` list (`sjk_identity::Medal`, empty from older hubs); the service reads the
+player's own profile again every ten minutes. The viewer's catalogue (`medals.rs`)
+knows four medals, each with a ribbon and two bundled pictures (the small ones in new
+icon atlas cells, the whole ones decoded on a worker and uploaded the first time a
+screen draws one). They show as ribbon bars after the scoreboard's SJK emblem (every
+style), medallions on the player card and the SJK UI's Players card, a Medals panel on
+the Identity page (all three looks) and a pop-up the first time the client sees a medal
+(main menu or game menu; a centre print during play), remembered in `medals_seen.txt`.
+The scoreboard's draw list grew to 1536 commands for the bars.
+
+Verified: unit tests (old-hub JSON without medals, unknown ids left out, counts only on
+the repeatable medal, the ribbon layout and how many bars fit, the card's lines, the
+seen file per key and per count, the pop-up's queue and centre print, the own-profile
+refresh with an explicit clock, the pictures' sizes and mip chains). The CPU snapshots
+(`menu_snapshot::medals_snapshot`) drew the card glanced at and pinned, the Identity
+page in the modern, classic+ and SJK UI looks with four medals and with none (16:9 and
+4:3), and the pop-up; the world shots `duel6_scoreboard_medals` (classic, modern and
+SJK UI boards; a duel's card), `duel6_ingame_players` (the Players card) and
+`duel6_medal_popup` (the pop-up over the SJK UI's main page, its whole picture decoded
+and uploaded on first use) drew them on made-up data; all reviewed. Not verified: no game
+was started and no hub was contacted, so the live roster, the refresh, the pop-up's
+timing, keys and pointer in a running client are unchecked. The hub side is in its own
+repository.
+
 ## Illuminate (SJK)
 
 SJK-only branch `personal/force-illuminate` (08/10/2026, based on `b9db8c0`,

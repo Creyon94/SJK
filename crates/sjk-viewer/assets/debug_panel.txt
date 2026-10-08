@@ -2273,6 +2273,22 @@ test: Report the same player again: "you already reported this player today".
 test: Classic menus: SJK > Report a player shows the list and the report pop-up.
 note: Needs the hub update deployed first; until then Send says it cannot reach the hub.
 
+[medals]
+status: personal
+area: Menus & settings
+title: Medals from the SJK team: scoreboard ribbons, card, Identity page, new medal pop-up
+change: The hub's profile and presence list medals; ids the client does not know are left out.
+change: Scoreboard: up to 3 ribbon bars after the SJK emblem; card (X): medallions, names if pinned.
+change: Identity page: your medals with picture, date, note; a pop-up shows each new one once.
+test: Needs the hub with medals and a medal given to your key; start SJK at the main menu.
+test: The pop-up shows each medal (Next, then Close); Enter, Esc, Space or a click closes it.
+test: Restart: no pop-up again. Delete medals_seen.txt beside identity.key: it shows again.
+test: Identity page (SJK UI, modern, classic): medals with picture, x2 count, dd/mm/yyyy, note.
+test: Join a server with another medal holder: ribbons after the emblem in Tab (every style).
+test: X on them: medallions under the hub name; pinned, their names. Esc > Players: the card.
+test: Get a medal mid-match (wait up to 10 min): a centre print; Esc opens the pop-up.
+note: Not started in a game: only off-screen renders and unit tests were checked.
+
 [console-sjk-designs]
 status: personal
 area: Console & chat
