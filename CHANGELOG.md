@@ -21,6 +21,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- Rain wets the world: what it falls on darkens and takes a sheen of the sky, while floors under roofs and players stay dry. With weather quality high, water runs down walls and slopes; with ultra, puddles gather on flat ground with rain rings in them (Settings > Graphics, Weather quality) _(Sol)_
 - SJK UI Credits: the emblem is the page's sun on the left, its sunburst and god rays kept, with the sections under it (Tab jumps between them, E opens every fold) and the people in a column on the right. Cards show their medals in every menu style; Creyon and Lumaya wear Early Contributor _(Sol)_
 - SJK UI Report a bug is a pop-up card, as are a player report's words and the world note: the question, your text with a gold caret, the rules and the count, Cancel and Send. A report's card then waits for the SJK hub and says it was sent (with its number) or why not, with Edit to change your text and send it again _(Sol)_
 - Nameplates predict much more: lightning, grip and rage now cost health (and rage halves the hits a player takes), protect turns hits into Force spent, team heal and energize give their exact share, drainers heal by what they drain, and the Force bar charges force jumps by how fast they climb, katas, cartwheels, lunges and other saber specials, wall jumps, heals, team powers and the start of a grip. Absorb gives Force back, a knocked-away saber no longer counts as a throw, and a special refused for want of Force shows the bar under half _(Sol)_

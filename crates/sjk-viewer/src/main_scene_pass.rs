@@ -126,6 +126,30 @@ impl GpuState {
                     source_cluster,
                     visibility,
                 );
+                // Rain wets the world before the players are drawn: the depth it reads
+                // then holds only the world, so players stay dry.
+                if main_view && self.weather.wet() {
+                    drop(pass);
+                    if let Some(phases) = &self.gpu_phases {
+                        phases.mark(encoder, "world-opaque");
+                    }
+                    self.weather.draw_wet(
+                        encoder,
+                        target_view,
+                        &self.camera_bind_group,
+                        &self.depth.sample_bind_group,
+                    );
+                    if let Some(phases) = &self.gpu_phases {
+                        phases.mark(encoder, "rain-wet");
+                    }
+                    pass = scene_pass(
+                        encoder,
+                        target_view,
+                        &self.depth.view,
+                        wgpu::LoadOp::Load,
+                        wgpu::LoadOp::Load,
+                    );
+                }
                 draw_entities(
                     &self.world_materials,
                     &mut pass,

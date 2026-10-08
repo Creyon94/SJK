@@ -1668,6 +1668,17 @@ test: Distant fog stays put: no bright band at eye height that comes and goes.
 test: Any map with fog: distant haze still reaches the horizon; none indoors.
 note: Far fog appears about 1.5 s after T2_Rogue loads (under 0.2 s on most maps).
 
+[rain-wet]
+area: Rendering & effects
+title: Rain wets the world: wet surfaces, running water, puddles
+change: Rain darkens what it falls on, with a sky sheen; under roofs and players stay dry.
+change: r_weatherQuality 1 wet, 2 also water running down walls and slopes, 3 also puddles.
+test: devmap T2_Rogue, r_weatherForce 3: roofs and walls look wet, floors under roofs dry.
+test: Watch a wall: dark streaks of water run down it (quality 2 and 3).
+test: r_weatherQuality 3: puddles on flat roofs, thin rain rings in them up close.
+test: r_weatherQuality 0: nothing wet; r_weatherForce 4 (snow): nothing wet.
+note: Costs about 0.2-0.4 ms at 4K; lit window textures on wet walls dim slightly.
+
 [settings-groups]
 area: Menus & settings
 title: Settings: First setup, Graphics and Gameplay pages

@@ -45,6 +45,9 @@ pub(crate) struct Quality {
     pub(crate) fog_steps: u32,
     /// Samples through the cloud layer.
     pub(crate) cloud_steps: u32,
+    /// What rain does to the surfaces it falls on: 0 nothing, 1 they are wet, 2 water
+    /// also runs down slopes and walls, 3 flat ground also gathers puddles.
+    pub(crate) wet: u32,
 }
 
 impl Quality {
@@ -57,6 +60,7 @@ impl Quality {
                 far_share: 0.0,
                 fog_steps: 0,
                 cloud_steps: 10,
+                wet: 0,
             },
             1 => Self {
                 splashes: true,
@@ -64,6 +68,7 @@ impl Quality {
                 far_share: 0.0,
                 fog_steps: 8,
                 cloud_steps: 16,
+                wet: 1,
             },
             2 => Self {
                 splashes: true,
@@ -71,6 +76,7 @@ impl Quality {
                 far_share: 1.5,
                 fog_steps: 12,
                 cloud_steps: 24,
+                wet: 2,
             },
             _ => Self {
                 splashes: true,
@@ -78,6 +84,7 @@ impl Quality {
                 far_share: 2.5,
                 fog_steps: 20,
                 cloud_steps: 40,
+                wet: 3,
             },
         }
     }
@@ -259,6 +266,7 @@ mod tests {
             assert!(pair[1].cloud_steps > pair[0].cloud_steps);
             assert!(pair[1].fog_steps >= pair[0].fog_steps);
             assert!(pair[1].far_share >= pair[0].far_share);
+            assert!(pair[1].wet > pair[0].wet);
         }
         assert!(forced_commands(0).is_empty());
         for force in 1..=FORCE_MAX as u32 {
