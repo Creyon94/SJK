@@ -478,7 +478,7 @@ fn trace_selection(
     previous: Option<AnimationState>,
     selection: LegacyAnimationSelection,
 ) {
-    if std::env::var_os("JKR_TRACE_ANIMATIONS").is_none()
+    if std::env::var_os("SJK_TRACE_ANIMATIONS").is_none()
         || previous.is_some_and(|animation| {
             animation.lower.clip == selection.lower.clip
                 && animation.upper.clip == selection.upper.clip

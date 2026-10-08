@@ -192,11 +192,11 @@ impl ShapeRenderer {
         depth_format: wgpu::TextureFormat,
     ) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR retained UI shape shader"),
+            label: Some("SJK retained UI shape shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("ui_shapes.wgsl").into()),
         });
         let texture_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("JKR retained UI texture layout"),
+            label: Some("SJK retained UI texture layout"),
             entries: &[
                 crate::render_helpers::texture_layout_entry(0),
                 wgpu::BindGroupLayoutEntry {
@@ -208,7 +208,7 @@ impl ShapeRenderer {
             ],
         });
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("JKR retained UI shape pipeline layout"),
+            label: Some("SJK retained UI shape pipeline layout"),
             bind_group_layouts: &[Some(&texture_layout)],
             immediate_size: 0,
         });
@@ -246,13 +246,13 @@ impl ShapeRenderer {
             })
         };
         let pipeline = create_pipeline(
-            "JKR retained UI shape pipeline",
+            "SJK retained UI shape pipeline",
             wgpu::BlendState::ALPHA_BLENDING,
         );
         let additive_pipeline =
             create_pipeline("SJK retained UI additive shape pipeline", ADDITIVE_BLENDING);
         let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR retained UI shape vertices"),
+            label: Some("SJK retained UI shape vertices"),
             size: (MAX_SHAPE_VERTICES * std::mem::size_of::<ShapeVertex>()) as u64,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,

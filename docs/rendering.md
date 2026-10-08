@@ -27,7 +27,7 @@ occlusion, reflections and post processing. Feature presence does not establish
 correctness on every map or GPU. Preserve the ordinary BSP/material path when
 working on optional effects and validate shared WGSL programs on an actual GPU.
 
-wgpu picks the graphics backend; JKR requests none. On Windows Vulkan is enumerated
+wgpu picks the graphics backend; the client requests none. On Windows Vulkan is enumerated
 first, and `WGPU_BACKEND=dx12` selects DX12, which compiles shaders with FXC
 unless `dxcompiler.dll` is on the `PATH`. FXC can only assign a runtime-indexed
 vector or matrix component (`v[i] = ...`) by unrolling the loops around it, and
@@ -67,7 +67,7 @@ so `remapshader2` too) whose value is `old;new`, split at the first `;`. A value
 without `;`, or an empty key or value, ends the scan as in C. Both shaders must
 exist. These remaps are not gated by `cg_remaps` and last as long as the loaded
 map. `vertexremapshader` keys are skipped: they apply only under `r_vertexLight`,
-which JKR does not have.
+which SJK does not have.
 
 Map, server and local remaps of one shader follow rd-vanilla, where every source
 writes the same remapped-shader slot: the latest remap wins. Worldspawn remaps come
@@ -76,11 +76,11 @@ each `CS_SHADERSTATE` update applies all its entries again, as `CG_ShaderStateCh
 does. The session keeps the server state and stamps each entry; the displayed map
 keeps its worldspawn and local remaps and picks the latest of the three.
 
-`cg_remaps` follows Tayst's policy: **0** disables server remaps, **1** (JKR's
+`cg_remaps` follows Tayst's policy: **0** disables server remaps, **1** (Tayst's
 default) accepts them while excluding player-texture configstring entries, and
-**2** (SJK's default, as in EternalJK) includes those entries. Like Tayst, a reliable `remapShader` command is accepted
-in either nonzero mode. JKR applies this preference live rather than requiring a
-map reload; a server remap it excludes reveals the earlier remap it had replaced.
+**2** (the default, as in EternalJK) includes those entries. Like Tayst, a reliable
+`remapShader` command is accepted in either nonzero mode. The client applies this
+preference live rather than requiring a map reload; a server remap it excludes reveals the earlier remap it had replaced.
 `listRemaps` lists the map's, the enabled server and the local remaps in the order
 they were applied, with their source, and marks those a later remap overrides.
 `remapShader <old> <new>` sets a temporary local remap for the loaded map, without
@@ -234,14 +234,14 @@ work without reducing source count, texture resolution or lighting quality.
 | `r_autoExposureKey` | Metered scene luminance shown at the base exposure, 0.03–0.8, default 0.18; higher is brighter. Live, console only |
 | `r_dustMotes` | Dust in godrays, 0 (off) to 1 (default, SJK); live; renderer IMAGE tab; requires `r_volumetrics` |
 | `r_weather` | The map's rain, snow and mist, 1 (default) or 0; live; renderer WEATHER tab. See [Weather](#weather) |
-| `r_weatherDensity` | Weather particle count, 0.25–4; 1 is the original game's, default 2 (SJK); live; renderer WEATHER tab |
+| `r_weatherDensity` | Weather particle count, 0.25–4; 1 is the original game's, default 2; live; renderer WEATHER tab |
 | `r_weatherQuality` | Weather quality, 0 low to 3 ultra, default 2; live; renderer WEATHER tab. See [Weather](#weather) |
 | `r_weatherForce` | Weather on every map with sky instead of the map's: 0 (default) the map's, 1 drizzle, 2 rain, 3 storm, 4 snow; live |
 | `r_weatherFog` | Ground fog: 0 none, 1 the map's (default), 2 on every map with sky; live |
 | `r_clouds` | Volumetric clouds over open sky, 1 (default) or 0; live |
-| `r_normalMapping` | Normal maps on lightmapped world surfaces (rend2 convention); default 1 (SJK; rend2 and JKR 0), restart required |
-| `r_specularMapping` | Specular, roughness and metalness maps on the same surfaces; default 1 (SJK; rend2 and JKR 0), restart required |
-| `r_parallaxMapping` | Parallax from the height in `_nh`/`normalHeightMap` images; needs `r_normalMapping`; default 1 (SJK, at `r_parallaxStrength` 0.1; rend2 and JKR 0), restart required |
+| `r_normalMapping` | Normal maps on lightmapped world surfaces (rend2 convention); default 1 (rend2: 0), restart required |
+| `r_specularMapping` | Specular, roughness and metalness maps on the same surfaces; default 1 (rend2: 0), restart required |
+| `r_parallaxMapping` | Parallax from the height in `_nh`/`normalHeightMap` images; needs `r_normalMapping`; default 1 (at `r_parallaxStrength` 0.1; rend2: 0), restart required |
 | `r_parallaxStrength` | Depth of parallax, a multiplier on the stage's `parallaxDepth` (rend2's 0.05 without one), 0 (flat) to 1.575 in steps of 1/40; default 0.1 (Sol's choice: generated height is a guess from paint, and the full depth swam), live, archived; Settings slider 0–1 |
 | `r_materialMapsDebug` | Material-mapped surfaces only: 1 mapped normal as colour, 2 tint by maps found, 3 normal-map relief, 4 reflection probes alone, 5 without reflection probes, 6 emission maps alone; default 0, live, not archived |
 | `r_emissiveMaps` | Emission maps (`<texture>_e`, SJK's) on lightmapped world surfaces; default 1, restart required. See [Emission maps](#emission-maps) |
@@ -302,7 +302,7 @@ and 0.136 → 0.140 ms on `ffa1`. These short fixed-view runs used a frozen shad
 clock for capture, omit populated-match workload, and establish integration and
 indicative GPU cost only. No verification hooks or fixtures are shipped.
 
-These and the other `jkr_*` rendering cvars can also be changed in the client's
+These and the other SJK rendering cvars can also be changed in the client's
 renderer settings page (Settings > VIDEO > Renderer; see
 [client.md](client.md#renderer-settings)), with the same ranges and restart rules.
 
@@ -310,11 +310,10 @@ renderer settings page (Settings > VIDEO > Renderer; see
 
 SJK adapts the exposure to what the camera sees, as eyes do: in a dark area the
 view brightens over a few seconds, and stepping or looking into bright light
-darkens it a little, quickly, before it settles. This is SJK's choice and a
-deliberate departure from JKR, whose exposure is fixed so that camera contents
-never change how visible another player is. That concern is real: brightening
-a dark room shows a player in its shadows sooner, and darkening after a bright
-sky hides one for a moment. SJK therefore keeps the range small by default
+darkens it a little, quickly, before it settles. This is a deliberate choice
+with a cost: a fixed exposure keeps camera contents from changing how visible
+another player is, whereas brightening a dark room shows a player in its
+shadows sooner, and darkening after a bright sky hides one for a moment. SJK therefore keeps the range small by default
 (-0.5 to +1 EV around `r_hdrExposure`), puts the switch on the Renderer page
 (IMAGE tab, "Eye adaptation"), and `r_autoExposure 0` restores the fixed
 exposure exactly.
@@ -728,17 +727,15 @@ since stock rebuilds the local entity from `cg.predictedPlayerState` and the
 server never sends it; in first person they start at the local body's left
 hand, and Grip's puffs are third-person only. A player who mind-tricked the
 viewer still shows its beam and hand puffs, which stock draws before its
-mind-trick cut-off; only the body push blur is hidden for it. JKR drew none of
-the local player's own effects and hid all of a trickster's; SJK fixes both.
+mind-trick cut-off; only the body push blur is hidden for it.
 
 EFX `bounce` and `intensity` are one key in retail: both set a primitive's
 single elasticity value (default 0.1) and its physics flag (`FxTemplate.cpp:44`,
 `:448-458`, `:2128`). A particle bounces by it, an electricity bolt uses it as
 its jaggedness (`FxScheduler.cpp:1502-1508`) and a camera shake as its strength.
-JKR read `bounce` as a particle bounce only, so Drain's `bounce 0.8 2` bolts
-kept a jaggedness of 0.1 and were drawn almost straight; SJK applies it as
-stock. `elasticity` and `chaos`, which JKR also accepted, are not retail keys
-and are ignored.
+SJK applies it as stock, so Drain's `bounce 0.8 2` bolts get that jaggedness
+rather than the default 0.1, which draws them almost straight. `elasticity` and
+`chaos` are not retail keys and are ignored.
 
 Effect particles share one pool of 4,096 slots, plus 256 kept for per-frame
 billboards (talk balloons, pickup icons, hook ropes)
@@ -779,10 +776,9 @@ sees through every trick (`CG_IsMindTricked`); the server also ends the trick.
 The trickster sees `force/confusion_old` over the head (`*head_top`, else
 `ceyebrow`) of each player it tricked, unless that player's Sight is active.
 Deviations: a held saber's hilt stays opaque during the fade (blades are opaque
-in stock too), and a fading body casts no sun shadow. JKR drew tricksters fully
-and had no confusion effect; SJK adds both.
+in stock too), and a fading body casts no sun shadow.
 
-Set `JKR_FRAME_BUDGET=1` for frame-work and GPU-phase diagnostics. Measurements
+Set `SJK_FRAME_BUDGET=1` for frame-work and GPU-phase diagnostics. Measurements
 must name the build mode, GPU, resolution, settings, map and population. Separate
 loading/shader warmup from steady frames and CPU work from GPU timings. The
 500+ FPS target remains open; neither a single GPU timestamp nor an uncapped
@@ -862,7 +858,7 @@ changes the slice count, not the arc's duration. Slices split along new tip to
 old muzzle as `CTrail::Draw` does. With `cg_saberContact` on, the tip stops at
 the first world surface the blade enters
 ([saber_trail_edge.rs](../crates/sjk-viewer/src/saber_trail_edge.rs)); stock
-also stops it at solid brush entities, which JKR does not trace yet. A flying
+also stops it at solid brush entities, which the client does not trace yet. A flying
 primary saber trails and shares the owner's blade state, as in stock. Not yet
 drawn: the extra trails stock adds while `PW_SPEED` is set with `cg_speedTrail`
 and during super-break win animations.
@@ -1116,7 +1112,7 @@ texture packs apply without conversion. Stage keywords (`ParseStage` in
 SJK adds emission maps (`<diffuse>_e`, below), which rend2 does not have.
 Their order-dependent overrides are kept. rend2 selects a packed layout by
 comparing the image name with the keyword, so `rmosMap`, `mosrMap` and `ormsMap`
-load the three-channel layouts; JKR does the same. Without keywords,
+load the three-channel layouts; SJK does the same. Without keywords,
 [the lookup](../crates/sjk-viewer/src/material_map_images.rs) tries `<diffuse>_nh`
 then `_n` for normals and `_specGloss`, ioquake3's `_s`, `_rmo` then `_orm` for
 specular, as in rend2's `CollapseStagesToGLSL`. ioquake3's typed
@@ -1341,7 +1337,7 @@ convention), and normal maps did not lighten a shadowed buffer texel.
 The same harness timed one full-screen 3840×2160 layer (64 runs, medians):
 baked lighting 0.103 ms ordinary, 0.196 with a normal map, 0.219 with a
 specular map as well and 0.50 with parallax. With the light buffer, those passes
-took 0.226, 0.30, 0.34 and 0.54 ms. Measure a real scene with `JKR_FRAME_BUDGET=1`
+took 0.226, 0.30, 0.34 and 0.54 ms. Measure a real scene with `SJK_FRAME_BUDGET=1`
 in a release build: compare the same map, view and population with the cvars on
 and off. No authored rend2 pack was available for testing. Generated maps on
 real ffa3 data were rendered headless in baked lighting only (above); real-time
@@ -1458,8 +1454,8 @@ exactly as before.
 
 `r_floorReflections 0` (live, archived; Settings > VIDEO > Renderer, IMAGE tab, "Floor
 mirrors") leaves polished floors with their ordinary material and renders no mirror.
-The environment variable `JKR_FLOOR_REFLECTIONS=0`, which predates the cvar, still
-forces them off whatever the cvar says; `JKR_FLOOR_COMMANDS=0` disables only the GPU
+The environment variable `SJK_FLOOR_REFLECTIONS=0`, which predates the cvar, still
+forces them off whatever the cvar says; `SJK_FLOOR_COMMANDS=0` disables only the GPU
 visibility commands that skip hidden mirrors. Measured mirror costs are in the
 sections above (depth priming, light-buffer preservation); the material-map finish
 adds two texture reads per mirrored floor pixel and the wider margin.
@@ -1472,7 +1468,7 @@ submits and presents in order while the render thread prepares the next frame.
 Only one handed-off frame can remain outstanding. With an offscreen scene target,
 swapchain acquisition happens after world recording; direct-to-surface rendering
 still acquires its image first. Resize, out-of-band submissions and teardown wait
-for the outstanding batch. `JKR_SUBMIT_THREAD=0` selects inline submission as a
+for the outstanding batch. `SJK_SUBMIT_THREAD=0` selects inline submission as a
 fallback. See [frame_queue.rs](../crates/sjk-viewer/src/frame_queue.rs),
 [frame_split.rs](../crates/sjk-viewer/src/frame_split.rs) and
 [frame_target.rs](../crates/sjk-viewer/src/frame_target.rs).
@@ -1534,8 +1530,8 @@ HDR/FXAA disabled to exercise direct surface acquisition. Both used isolated
 
 ## Weather
 
-SJK draws the rain, snow, dust and blowing mist that maps ask for (SJK only;
-[weather.rs](../crates/sjk-viewer/src/weather.rs)). A map's `fx_rain`, `fx_snow`,
+SJK draws the rain, snow, dust and blowing mist that maps ask for
+([weather.rs](../crates/sjk-viewer/src/weather.rs)). A map's `fx_rain`, `fx_snow`,
 `fx_wind` and `fx_spacedust` make the server register effect names starting with
 `*` (`*heavyrain`, `*heavyrainfog`, `*constantwind ( -5000 0 0 )`); the client runs
 them as world effect commands in slot order, as cgame's `CG_ParseWeatherEffect` and
@@ -1868,8 +1864,8 @@ UI text uses the bundled Inter font, rasterized once per display scale in
 [text.rs](../crates/sjk-viewer/src/text.rs). Two options switch surfaces to
 the game's own fonts, drawn with bundled vector replacements of the retail bitmaps
 ([sjk.md](sjk.md#fonts)): `cg_classicHudFont` draws the status HUD with SJK HUD
-(retail `arialnb`), and `ui_gameFont` ("Classic game fonts", on by default in SJK,
-off in JKR) draws every surface the retail game drew with its own fonts in that
+(retail `arialnb`), and `ui_gameFont` ("Classic game fonts", on by default) draws
+every surface the retail game drew with its own fonts in that
 font, following OpenJK `codemp`:
 
 | Retail font | Drawn with | Surfaces |
@@ -1934,16 +1930,16 @@ JetBrains Mono's `¬`. Outgoing chat and names send `¬` as the single byte 0xAC
 
 ### Game-data HUD
 
-`cg_hudStyle game` (SJK's default) replaces JKR's health, armor, Force and ammo
-widgets with the status HUD the game's own menu files describe, as retail Jedi
+`cg_hudStyle game` (the default) replaces the engine-drawn health, armor, Force
+and ammo widgets with the status HUD the game's own menu files describe, as retail Jedi
 Academy draws it ([menu_hud.rs](../crates/sjk-viewer/src/menu_hud.rs)).
 `cg_hudFiles` (retail default `ui/jahud.txt`) names a list of `loadMenu` files;
 the stock list loads `ui/hud.menu`, so a PK3 that replaces that file (a custom
-HUD pack) or a list naming other menus changes the HUD with no JKR-specific
+HUD pack) or a list naming other menus changes the HUD with no SJK-specific
 format. A nonzero integer selects the stock text-only HUD; as in EternalJK, `0`
 is the default list and `3`/`4` name `ui/elegance_hud.txt`/`ui/jof_hud.txt`. A
 missing list falls back to the default one, as `CG_LoadMenus` does; files
-without a `lefthud` or `righthud` menu leave JKR's HUD in place.
+without a `lefthud` or `righthud` menu leave the engine-drawn HUD in place.
 
 When several PK3s replace `ui/hud.menu`, the one mounted last wins, and packs
 usually replace the retail pictures (`gfx/hud/hudleft` ...) under the same names
@@ -1987,9 +1983,8 @@ with `cg_classicHudFont`) rather than retail's `ergoec`. Not drawn: vehicle and
 siege HUD menus, the out-of-Force flash, and item text or owner-draw fields,
 which the retail and the checked custom HUDs do not use.
 
-`cg_hudStyle classic` selects JKR's classic layout in either font; `modern` keeps
-the existing behavior, where `cg_classicHudFont` also selects the classic layout.
-JKR defaults to `modern`; SJK to `game`.
+`cg_hudStyle classic` selects SJK's classic layout in either font; `modern`
+draws the modern layout, or the classic one when `cg_classicHudFont` is on.
 
 `cg_hudStyle radial` (picker name "SJK radial") is SJK's own take on the TheRisqe Radial
 HUD, drawn by the engine with no PK3: health (red, outer) and armor (green, inner) as
@@ -2096,8 +2091,8 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
 ```
 
 - **Input.** GameData is found like the client finds it (`--game-data`,
-  `JKR_GAME_DATA`, the config's `fs_gameData`, then the usual Steam paths).
-  `base`, an optional `--fs-game` directory and `JKR_CONTENT` are mounted in
+  `JKA_GAME_DATA`, the config's `fs_gameData`, then the usual Steam paths).
+  `base`, an optional `--fs-game` directory and `SJK_CONTENT` are mounted in
   the client's order, case-insensitive. The tool's own earlier output is left
   out. The installed maps (or `--maps`) supply the shaders actually drawn: BSP
   shader lumps and surfaces plus the shader scripts.
@@ -2207,12 +2202,12 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
   roughness and metalness directly, and the packed path takes the metal colour
   from the albedo and a 0.04 dielectric reflectance by itself, without rend2's
   SDR gloss conversion.
-- **Output.** One pk3 of PNGs plus `jkr-materialgen/manifest.json` (every
+- **Output.** One pk3 of PNGs plus `sjk-materialgen/manifest.json` (every
   source, its outputs, class, maps and shaders, skipped shaders with reasons,
   all settings). The archive is deterministic. The default path is
-  `<JKR user data>/generated/zzz_jkr_materials.pk3`, `%APPDATA%\jkr\generated`
+  `<per-user SJK folder>/generated/zzz_sjk_materials.pk3`, `%APPDATA%\SJK\generated`
   on Windows. The tool refuses to write into the game installation. To use it,
-  set `JKR_CONTENT` to that directory (the client mounts it above the game
+  set `SJK_CONTENT` to that directory (the client mounts it above the game
   data), or copy the pk3 into `GameData/base` by hand; the `zzz_` name loads
   after the retail pk3s. `--dry-run` lists the choices (with polished textures
   and applied override lines), and `--limit` takes only the most-used textures.
@@ -2227,10 +2222,10 @@ pack is older. Emission decisions depend on every map read: a texture drawn plai
 one map and through a glowing shader on another gets its `_e`, and the client ignores
 it where the shader glows.
 Run the generator again for the same maps, then replace the old pk3 where the
-client reads it (for example `GameData/base/zzz_jkr_materials.pk3`):
+client reads it (for example `GameData/base/zzz_sjk_materials.pk3`):
 
 ```sh
-cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1 --out <folder>/zzz_jkr_materials.pk3
+cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1 --out <folder>/zzz_sjk_materials.pk3
 ```
 
 The tool leaves a pk3 of its output's name out of its input, so the old pack's maps
@@ -2303,14 +2298,13 @@ SSAO at strength 4, trilinear mipmapping
 and 16× anisotropy where supported. Bloom is on (`r_sceneBloom 1`); the optional
 LDR tone curve is off. Sunbeam dust is on at full density (`r_dustMotes 1`) and
 shows only inside the godrays of `r_volumetrics`.
-Dynamic glow is on with rd-vulkan's blur (SJK; stock defaults it off).
+Dynamic glow is on with rd-vulkan's blur (stock defaults it off).
 Soft particles, per-pixel model diffuse lighting and full rendering resolution
 remain enabled. Material maps (`r_normalMapping`, `r_specularMapping`,
 `r_parallaxMapping` at a tenth of its depth, `r_parallaxStrength 0.1`) and reflection probes (`r_cubeMapping 1`, 128²) are on, but
 take effect only where a pack such as the [generated one](#generating-material-maps)
 supplies maps; without one nothing is drawn differently or created. Noon, bloom,
-dust and material maps are SJK's defaults (Sol's own settings); JKR keeps 11:00 and
-the rest off. Emission maps
+dust and material maps are SJK's defaults (Sol's own settings). Emission maps
 (`r_emissiveMaps 1`) are on too and only act where a pack has `_e` images.
 These are ordinary cvar defaults, not a config imported at launch.
 

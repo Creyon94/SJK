@@ -18,8 +18,8 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), CvarError> {
 
 /// Sample the actual loaded config, not a parallel default-only settings object.
 pub(crate) fn requested(console: Option<&crate::console::ViewerConsole>) -> u32 {
-    // `JKR_RENDER_SCALE` overrides the archived cvar for one run (a launcher's choice).
-    std::env::var("JKR_RENDER_SCALE")
+    // `SJK_RENDER_SCALE` overrides the archived cvar for one run (a launcher's choice).
+    std::env::var("SJK_RENDER_SCALE")
         .ok()
         .and_then(|value| value.parse::<i64>().ok())
         .or_else(|| console.and_then(|c| c.integer_cvar("r_superSample")))
@@ -79,7 +79,7 @@ impl Runtime {
     ) -> Self {
         let size = output.map(|n| n * scale);
         let texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("JKR supersampled scene"),
+            label: Some("SJK supersampled scene"),
             size: wgpu::Extent3d {
                 width: size[0],
                 height: size[1],
@@ -94,11 +94,11 @@ impl Runtime {
         });
         let scene = texture.create_view(&Default::default());
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR integer box resolve"),
+            label: Some("SJK integer box resolve"),
             source: wgpu::ShaderSource::Wgsl(include_str!("render_scale.wgsl").into()),
         });
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("JKR supersample resolve before scene postprocessing"),
+            label: Some("SJK supersample resolve before scene postprocessing"),
             layout: None,
             vertex: wgpu::VertexState {
                 module: &shader,
@@ -145,7 +145,7 @@ impl Runtime {
     /// Average every covered linear-light texel, without filtering the later HUD.
     pub(crate) fn draw(&self, encoder: &mut wgpu::CommandEncoder, output: &wgpu::TextureView) {
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("JKR supersample box resolve"),
+            label: Some("SJK supersample box resolve"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: output,
                 resolve_target: None,

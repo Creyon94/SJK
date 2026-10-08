@@ -1,44 +1,40 @@
 # Client
 
-Build instructions are in [development.md](development.md). JKR needs an installed
+Build instructions are in [development.md](development.md). SJK needs an installed
 Jedi Academy `GameData` directory with the retail `base/assets*.pk3` files.
 
 ## Launch
 
-In SJK the client program is `sjk` and the dedicated server `sjk-server`
-(`.exe` on Windows). This page, shared with JKR, uses JKR's names `sjk-viewer`
-and `sjk-dedicated`; the commands are otherwise the same. SJK reads
-`JKA_GAME_DATA` and `JKA_DEDICATED` before JKR's `JKR_GAME_DATA` and
-`JKR_DEDICATED`; developer and diagnostic variables (`JKR_TRACE_*`, `JKR_LAMP_*`,
-`JKR_GPU_*` and the like) keep JKR's names. On Windows both programs carry SJK's
-icon and call themselves "Sol JK" and "Sol JK dedicated server" in their version
-information; the client also sets the icon on its window (title bar and taskbar
-on Windows, the window icon on X11; Wayland has none). See
+The client program is `sjk` and the dedicated server `sjk-server` (`.exe` on
+Windows). Developer and diagnostic environment variables are named `SJK_*`
+(`SJK_TRACE_*`, `SJK_LAMP_*`, `SJK_GPU_*` and the like). On Windows both programs
+carry SJK's icon and call themselves "Sol JK" and "Sol JK dedicated server" in
+their version information; the client also sets the icon on its window (title bar
+and taskbar on Windows, the window icon on X11; Wayland has none). See
 [assets/branding](../assets/branding/README.md).
 
-Put `sjk-viewer` (`sjk-viewer.exe` on Windows) inside the installed game's
+Put `sjk` (`sjk.exe` on Windows) inside the installed game's
 `GameData` folder, beside `base/`, then launch it to open the main menu. A shortcut
 can use any working directory. No path settings are required. Keep
-`sjk-dedicated` (`sjk-dedicated.exe` on Windows) beside the client for Create game
+`sjk-server` (`sjk-server.exe` on Windows) beside the client for Create game
 and local `devmap`.
 
 From that folder:
 
 ```sh
-./sjk-viewer
+./sjk
 ```
 
 Join a server directly:
 
 ```sh
-./sjk-viewer --connect 127.0.0.1:29071
+./sjk --connect 127.0.0.1:29071
 ```
 
 Without an explicit positional GameData argument, discovery checks these locations
 in order and uses the first containing `base/assets0.pk3` and `base/assets3.pk3`:
 
-1. `JKA_GAME_DATA` (SJK; JKR's `JKR_GAME_DATA` is read when it is unset), if set
-   and nonempty.
+1. `JKA_GAME_DATA`, if set and nonempty.
 2. The executable's directory, then its `GameData` subdirectory.
 3. The saved `fs_gameData` setting.
 4. The working directory, its `GameData` subdirectory, then its
@@ -52,7 +48,7 @@ Discovery does not change the working directory or move any game data.
 
 For a binary kept separately, `JKA_GAME_DATA=/path/to/GameData ./sjk` opens
 the main menu. Positional launch also accepts a map path and optional player-model
-directory (`sjk-viewer /path/to/GameData maps/mp/ffa3.bsp`); it remains a direct
+directory (`sjk /path/to/GameData maps/mp/ffa3.bsp`); it remains a direct
 world/viewer launch, whereas no arguments opens the main menu. Demo playback
 retains its explicit GameData argument.
 See [launch.rs](../crates/sjk-viewer/src/launch.rs) and
@@ -63,9 +59,8 @@ console, HUD, screenshots, demo recording/playback and a Create game flow.
 Presence here describes implemented surfaces; validation limits are in
 [status.md](status.md).
 
-Create game starts a child `sjk-dedicated`, normally found beside the client.
-Set `JKA_DEDICATED` (or JKR's `JKR_DEDICATED`) to its executable path if installed
-elsewhere. The child
+Create game starts a child `sjk-server`, normally found beside the client.
+Set `JKA_DEDICATED` to its executable path if installed elsewhere. The child
 lifetime is managed by the client and defaults to local access; see
 [local_server.rs](../crates/sjk-viewer/src/local_server.rs).
 
@@ -80,15 +75,13 @@ pixels are reduced to that; decoded previews are cached up to 64 MiB.
 ## Menu style
 
 `ui_menuStyle` (Settings, GAME tab, "Menu style") picks the layout of the main
-and in-game menus: `modern` (default) or `classic`, which is close to the retail
-multiplayer menus in layout and flow without porting their `.menu` scripts. The
+and in-game menus: `sjk` (default), the SJK UI; `modern` (or `0`); or `classic`
+(or `1`), which is close to the retail multiplayer menus in layout and flow
+without porting their `.menu` scripts. An unknown value falls back to `sjk`. The
 retail 640x480 layout is fitted to the window height and centred.
 
-SJK differs from JKR's documented behavior here: it adds a third value, `sjk`,
-the SJK UI, which is SJK's default; only `modern` (or `0`) selects the modern
-layout and `classic` (or `1`) the classic one, and an unknown value falls back to
-`sjk`. SJK's own classic pages keep the retail look and add modern help inside
-it; the rules are in [Classic+ menus](classic-plus.md).
+SJK's own classic pages keep the retail look and add modern help inside it; the
+rules are in [Classic+ menus](classic-plus.md).
 
 Before 08/10/2026 SJK's default was `classic`, and `config.cfg` saves every
 archived cvar, so every existing profile carries it. The console's start moves a
@@ -167,7 +160,7 @@ Settings and SJK in place of retail's Controls and Setup:
     `color1`/`color2` 6 (`SABER_RGB`) and the tint in `cp_sbRGB1`/`cp_sbRGB2`
     (`r | g << 8 | b << 16`), as JoF EJK's `UI_UpdateSaberColor` writes them.
     A swatch brings a stock colour back.
-  - Force (SJK): retail's in-game `ingame_playerforce` window, here on both
+  - Force: retail's in-game `ingame_playerforce` window, here on both
     frames, editing the same draft as the modern Force tab. It keeps retail's
     frame, title band, gold mastery line, blue and red side bars and level
     stars, each numbered with what that level costs (`UI_DrawForceStars`:
@@ -198,7 +191,7 @@ Settings and SJK in place of retail's Controls and Setup:
     page's APPLY (or Apply on lightsaber creation) writes a pending draft too.
     The main menu shows the window over the backdrop with the navigation row
     and Back.
-  - Cosmetics (SJK, JoF EJK's `ingame_cosmetics`): the installed hats and
+  - Cosmetics (JoF EJK's `ingame_cosmetics`): the installed hats and
     capes side by side and the live model wearing them in a column on the
     right, the worn row filled.
     A click wears a piece and a second takes it off; the wheel and Left/Right
@@ -242,20 +235,20 @@ sorting carry over between styles. Labels and buttons are in capitals:
 - GET NEW LIST and REFRESH LIST both fetch the master list again, as retail's
   `RefreshServers` behind both did.
 - The selectors box: SOURCE (INTERNET or FAVORITES; Tab also switches),
-  FILTER (retail's mod filter row is JKR's text filter over names and maps;
+  FILTER (retail's mod filter row is the client's text filter over names and maps;
   `/` or a click starts typing, Escape ends), TYPE (game-type filter), and the
   VIEW EMPTY, VIEW FULL and VIEW LOCKED toggles (the archived
   `ui_browserShow*` cvars; VIEW LOCKED stands where retail's data rate was).
 - The list: SERVER NAME, MAP NAME, PLYRS, TYPE and PING columns over retail's
   row bands and column frames, ten 26-unit rows, the sorted column filled and
   its header white with a ^ or v for the direction. Clicking a header sorts by
-  it, again reverses it. TYPE adds JA+, JAPRO or MOD where JKR detects the
+  it, again reverses it. TYPE adds JA+, JAPRO or MOD where the client detects the
   server's mod, and `*P` for a locked server; favourites carry a gold `*`.
   The wheel and the scrollbar along the right edge scroll the list.
-- The secondary row: CONNECT IP (where retail had NEW FAVORITE; JKR's direct
-  connect), ADD FAVORITE or DEL. FAVORITE for the selected server, and SERVER
+- The secondary row: CONNECT IP (where retail had NEW FAVORITE; the client's
+  direct connect), ADD FAVORITE or DEL. FAVORITE for the selected server, and SERVER
   INFO, a pop-up of the server's published settings and players (Escape or a
-  click closes it). PASSWORD and FIND PLAYER are dimmed: JKR asks for the
+  click closes it). PASSWORD and FIND PLAYER are dimmed: the client asks for the
   password when a locked server is joined, in a retail-style prompt, and has
   no player search yet.
 - BACK returns to the Play page, EXIT to the quit page (not shown when the
@@ -267,7 +260,7 @@ the refresh time, and the description line shows the hovered item's
 description. The screen is in
 [menu/classic/browser.rs](../crates/sjk-viewer/src/menu/classic/browser.rs).
 
-Retail entries JKR has no screen for yet (Play Demo, Rules) are shown dimmed,
+Retail entries SJK has no screen for yet (Play Demo, Rules) are shown dimmed,
 and their description line says so; retail's Mods and Defaults are left out of
 Settings (Backspace restores one setting's default).
 
@@ -327,7 +320,7 @@ retail's YES/NO text and `menu/new` slider art:
 
 Retail split video and the Force binds over two pages because a page held few
 items; classic+ panels scroll and explain the focused item, so SJK shows each as
-one group and regroups JKR's GAME, HUD, HUD+ and TEXT tabs by subject
+one group and regroups the modern GAME, HUD, HUD+ and TEXT tabs by subject
 ([settings/groups.rs](../crates/sjk-viewer/src/settings/groups.rs)):
 
 - OPTIONS lists First setup, Graphics, Sound and Gameplay (Sol's grouping,
@@ -437,8 +430,9 @@ Its Join Red, Join Blue and Spectate buttons are left to the Join tab. Settings 
 the option panels described above. Siege swaps in Objectives and V Chat as retail does. Add Bot,
 Objectives, V Chat and Restart Match are dimmed with a note, because the client
 cannot add bots or restart a match it does not host. Left and Right move along
-the bar; Escape closes a pop-up, then the menu. The JKR-only Server browser and
-Shot controls entries are in the modern style and the SJK UI only.
+the bar; Escape closes a pop-up, then the menu. The Server browser and Shot
+controls entries, which retail did not have, are in the modern style and the SJK
+UI only.
 
 With the player's retail game data mounted, the classic menus draw its own
 artwork: the backdrop, side glyph columns, ring, windows, logo, sub-page frames,
@@ -449,12 +443,12 @@ renderer uploads it into one texture per image, separate from the shared UI icon
 atlas. Its bind group changes only between draw runs that need a different
 texture, so layer order is kept. Additively blended retail images (glow, title
 band, bar) are converted to alpha at decode time. A missing image falls back to
-JKR's own shapes. Retail assets are never bundled.
+the client's own shapes. Retail assets are never bundled.
 
 The art moves as retail's shaders move it (`shaders/ui.shader`); the `.menu`
-scripts themselves only swap pages at once and show or hide the glows. JKR's
-main page plays `video/ja01` (`gfx/menus/videologo`) in its ring, as retail did.
-SJK shows its own emblem there instead and does not read the video: the gold
+scripts themselves only swap pages at once and show or hide the glows. Retail's
+main page plays `video/ja01` (`gfx/menus/videologo`) in its ring; SJK shows its
+own emblem there instead and does not read the video: the gold
 starburst with the JK blade, centred in the centre window's opening and drawn
 over the frames, 176 of the 640x480 canvas's units across (about 400 pixels at
 1080 lines, 790 at 2160), with or without the retail art. Its orange core and
@@ -482,7 +476,7 @@ Labels, buttons, titles and option values are in retail's capitals; descriptions
 typed text, vote-list names and the about values keep their case.
 
 Outside a match the classic style draws no world. The main pages are opaque
-over the retail background (in SJK the main page's emblem fills the centre gap,
+over the retail background (the main page's emblem fills the centre gap,
 the sub-pages' gap stays dark), and the modern screens they open (Settings, key
 bindings, Player, Create game) get the retail backdrop beneath them; the classic
 server browser draws its own. The frame
@@ -505,7 +499,7 @@ snapshot...", and the server's lines in retail order: host name, Pure Server,
 message of the day, game name, the map's long name, cheats, game type, limits,
 force rules and the game type's rules, worded from the player's `MP_INGAME`
 strings. The LED bar along the bottom (`gfx/hud/mp_levelload`, `load_tick`,
-`load_tick_cap`) has retail's nine ticks; JKR lights them from its own load
+`load_tick_cap`) has retail's nine ticks; the client lights them from its own load
 (gamestate, map parse, world build, world ready, session) rather than cgame's
 registration steps. Colour codes in the host name are dropped. The gate stays
 shut, the destination world is adopted only once it is built from the
@@ -550,12 +544,12 @@ Planned follow-ups, each a new page or screen module, following the retail
   style: Join Server's `findplayer` and `createfavorite` pop-ups, Create
   Server (`createserver`, `advancedcreateserver`),
   Solo Game (`quickgame`).
-- Retail option items JKR has no setting for (video quality presets, colour
+- Retail option items SJK has no setting for (video quality presets, colour
   depth, geometric and texture detail, EAX, languages) are left out of the
   panels, and the video restart confirmation is not needed.
 - On the profile pages: portraits for every model (the atlas holds 207, so
   species after the characters show none).
-- The screens with no JKR equivalent yet: Play Demo (`demo`), Rules
+- The screens with no SJK equivalent yet: Play Demo (`demo`), Rules
   (`rules*`), Mods, Defaults, Add Bot (`ingame_addbot`), Siege objectives and
   voice chat, and the error page (`error`).
 - The retail fonts (`ui_gameFont`, a separate change), and the main page's
@@ -749,9 +743,9 @@ Both follow EternalJK's cgame (`cg_ents.c`, `cg_players.c`) and rd-vanilla's ren
   turns the limb off on the owner with the stump's cap on; a cut right arm, right hand
   or waist takes the weapon with it. Both cuts smoke, and a flying limb trails smoke.
   A body left behind keeps the missing limbs; the player is whole again once alive.
-  `cg_dismember` defaults to 0 in EternalJK and JKR; SJK differs and starts on 2, so
-  a server that enables dismemberment shows every cut limb (0 shows none, and a
-  config that saved 0 keeps it). `g_dismember` (0 to 100) set in the
+  `cg_dismember` defaults to 2 (EternalJK: 0), so a server that enables
+  dismemberment shows every cut limb (0 shows none, and a config that saved 0
+  keeps it). `g_dismember` (0 to 100) set in the
   console is handed to games this client hosts (Create game and `devmap`).
 - **Disintegration** (`EF_DISINTEGRATION`): a disruptor kill, or a corpse shot or cut
   until it gives way, freezes the pose and burns the body away from the hit point:
@@ -822,7 +816,7 @@ expiry and recharge, while refreshing its networked state. A different vehicle,
 pilot or definition starts with fresh local state. This prevents exhausted boost
 input from predicting a new burst after every snapshot.
 
-In SJK the decaying prediction error moves the camera's focus before the
+The decaying prediction error moves the camera's focus before the
 collision traces, as `CG_CalcViewValues` adds it to the view origin before
 `CG_OffsetThirdPersonView`, rather than shifting the finished camera, which could
 put it inside a wall. `cg_thirdPersonAlpha` is not implemented; stock multiplayer
@@ -890,15 +884,11 @@ remain outside this audio adapter.
 
 ## Renderer settings
 
-SJK gives JKR's own cvars (`jkr_*`) neutral engine names: rendering ones are
-`r_*` (`r_sceneHdr`, `r_toneCurve`, `r_sceneBloom`, `r_superSample`,
-`r_actorSunShadows`, `r_sunShadow*`, `r_dayNight`, `r_liveLighting`, ...), the
-ground HUD is `cg_groundHud` and the dedicated server's are `g_npcNav` and
-`g_stockRules`. Names rend2 or EternalJK use with another meaning are avoided.
-The `jkr_*` names keep working as aliases, so JKR configs and commands still
-apply, and `config.cfg` is saved under the new names; the full list is in
-[cvar_renames.rs](../crates/sjk-viewer/src/cvar_renames.rs). This page otherwise
-uses SJK's names.
+SJK's own cvars have engine names: rendering ones are `r_*` (`r_sceneHdr`,
+`r_toneCurve`, `r_sceneBloom`, `r_superSample`, `r_actorSunShadows`,
+`r_sunShadow*`, `r_dayNight`, `r_liveLighting`, ...), the ground HUD is
+`cg_groundHud` and the dedicated server's are `g_npcNav` and `g_stockRules`.
+Names rend2 or EternalJK use with another meaning are avoided.
 
 These rendering cvars have their own settings page. The last row
 of Settings > VIDEO, "Renderer", opens it, as JoF EJK's advanced renderer page
@@ -998,11 +988,9 @@ Hovering does not move an edit to another setting. Text settings such as the
 master server keep their edit on the row that opened it, and Enter writes that
 setting.
 
-SJK differs from JKR's documented behavior here: pressing anything else while a
-numeric draft is open applies the draft when it is a valid number (an invalid
-one is discarded) instead of always discarding it, typing on a selected slider
-opens entry, Space steps rather than opening entry, and integer sliders round a
-typed fraction (142.6 becomes 143) instead of refusing it.
+Pressing anything else while a numeric draft is open applies the draft when it
+is a valid number and discards an invalid one, and integer sliders round a typed
+fraction (142.6 becomes 143).
 
 Manual values respect the slider bounds but do not snap to its drag increment:
 for example, the FPS cap accepts 142 and FOV accepts 97.5. A draft takes
@@ -1225,7 +1213,7 @@ scoreboard layout:
   the UI's type, the teams side by side, the duelists as facing cards;
 - `classic`, the retail scoreboard as EternalJK-derived clients such as JoF EJK
   draw it (below);
-- `modern` (or `0`), JKR's table beside the chat column (JKR's default).
+- `modern` (or `0`), the modern table beside the chat column.
 
 A mistyped value gives the classic board. `config.cfg` saves every archived
 setting, so every profile from before `auto` existed had the old default
@@ -1267,8 +1255,8 @@ allocated per frame; the text and draw storage is reserved for 32 clients.
 
 `cg_hudStyle` chooses `game`, the status HUD of the game's own menu files (the
 original Jedi Academy HUD, or a custom HUD pack that replaces `ui/hud.menu`),
-or SJK's own `modern`, `classic` or `radial` layout. SJK starts on `game`, the classic
-HUD; JKR's default is `modern`, and a saved `cg_hudStyle` is kept. `cg_hudFiles`
+or SJK's own `modern`, `classic` or `radial` layout. The default is `game`, the
+classic HUD, and a saved `cg_hudStyle` is kept. `cg_hudFiles`
 names the menu list, `ui/jahud.txt` by default; `1` gives the text-only HUD and
 EternalJK's `3`/`4` name its elegance and JoF HUD lists when those files are
 installed. `cg_hudPack` names the PK3 whose HUD to use when several replace
@@ -1525,7 +1513,7 @@ The main menu's Credits entry (modern list; SJK > CREDITS on the classic page), 
 [credits_data.rs](../crates/sjk-viewer/src/credits_data.rs)), and everyone's
 work from [credits_history.txt](../crates/sjk-viewer/assets/credits_history.txt),
 which `scripts/credits_history.py` writes from git and GitHub. Each section of
-the file (Sol JK, Built on JKR, contributors, ...) is a heading with its people.
+the file (Sol JK, Contributors, Origins, ...) is a heading with its people.
 
 - Everyone with a history (Sol, Bishop, Creyon, lumaya) has a panel across the
   column: the name large (the first section's larger still), the role, chips
@@ -1627,7 +1615,7 @@ glance at the scoreboard would not: no health, Force or position.
   screen), and a second press hides it; it also drops when the player leaves or the map
   changes. After hiding it, the card does not return until the crosshair leaves that
   player. Behind you, the card is not drawn but stays pinned.
-- World notes (SJK): with no card pinned and no player under the crosshair, `inspect`
+- World notes: with no card pinned and no player under the crosshair, `inspect`
   selects the world surface under the crosshair, or the mover whose bounds the view ray
   meets first, and names it in a centre print (shader, BSP surface, lightmap or vertex
   lighting, distance). When a remap (the map's, the server's or a local `remapShader`)
@@ -1722,7 +1710,7 @@ data, so a PK3 with the same paths replaces them. Sol generated the art; see
 
 ## Quick wheels
 
-SJK's quick wheels (SJK only, [quick_wheel.rs](../crates/sjk-viewer/src/quick_wheel.rs)):
+SJK's quick wheels ([quick_wheel.rs](../crates/sjk-viewer/src/quick_wheel.rs)):
 hold the key, a ring of choices opens in the middle of the screen, move the mouse
 towards one (it grows inside a ring of the menu accent colour and its name shows in the
 middle) and let go to run it. The choices are round icons in the style of the game's
@@ -1743,10 +1731,9 @@ a profile has nothing on Q or R. A choice is the console command it stands for, 
 it does exactly what typing it would.
 ## Configuration and content
 
-The default writable client folder is `GameData/jkr/`, under the selected game
-installation (SJK uses `GameData/SJK/` instead and imports JKR's `GameData/jkr/`
-before the per-user folder; see [storage.rs](../crates/sjk-viewer/src/platform/storage.rs)). It is independent of the executable's location and working
-directory. The client creates it automatically. Important files include:
+The default writable client folder is `GameData/SJK/`, under the selected game
+installation (see [storage.rs](../crates/sjk-viewer/src/platform/storage.rs)). It
+is independent of the executable's location and working directory. The client creates it automatically. Important files include:
 
 | File or folder | Contents |
 | --- | --- |
@@ -1768,20 +1755,12 @@ no name for are dropped. Any other line still stops the load (and saving, so the
 file is not overwritten). The [Import page](#importing-from-another-client) is the
 way that takes only the name, model, field of view and bindings.
 
-On first use, existing files from the previous per-user JKR folder are copied
-into this folder. Root-level `.cfg` files and `configs/` are included. Files
-already present in the destination win; the originals are never deleted. A
-`.user-data-imported` marker prevents repeated imports, including restoration of
-files subsequently deleted by the player. Imports skip source links and PK3s.
-An incomplete import reports an error and can be retried without overwriting
-completed files.
-
-If `GameData/jkr/` cannot be written, the client uses its per-user folder:
-`$XDG_CONFIG_HOME/jkr/` (otherwise `~/.config/jkr/`) on Linux, `%APPDATA%\jkr\`
-on Windows, or `~/Library/Application Support/jkr/` on macOS. The chosen folder
+If `GameData/SJK/` cannot be written, the client uses its per-user folder:
+`%APPDATA%\SJK\` on Windows, `~/Library/Application Support/SJK/` on macOS, or
+`$XDG_CONFIG_HOME/SJK/` (otherwise `~/.config/SJK/`) elsewhere. The chosen folder
 is shared by all profile consumers for the entire session. Startup reports it;
 the console's `path` command also lists it. The fallback uses the profile in
-that per-user folder; the old and portable profiles are not continuously synced.
+that per-user folder; the per-user and portable profiles are not synced.
 See [platform.rs](../crates/sjk-viewer/src/platform.rs) and
 [storage.rs](../crates/sjk-viewer/src/platform/storage.rs).
 Edit settings through the client, or edit the file while the client is stopped
@@ -1817,8 +1796,7 @@ where the windowing system supports it, Exclusive fullscreen (Wayland does not).
 Stock `r_fullscreen` keeps its meaning, fullscreen on or off, and Alt+Enter still
 toggles it. `r_exclusiveFullscreen` chooses the kind: 0 (default) is a borderless
 window at the desktop size, 1 switches the monitor to the `r_resolution` video
-mode. Stock JA's fullscreen is always the exclusive kind; JKR defaults to
-borderless. Choosing Windowed leaves `r_exclusiveFullscreen` alone, so Alt+Enter
+mode. Stock JA's fullscreen is always the exclusive kind. Choosing Windowed leaves `r_exclusiveFullscreen` alone, so Alt+Enter
 returns to the last fullscreen kind. Exclusive fullscreen without a monitor mode
 of that size falls back to borderless.
 
@@ -1835,8 +1813,10 @@ the client after changing them. Search precedence and shader protection are owne
 by [asset_search_paths.rs](../crates/sjk-viewer/src/asset_search_paths.rs).
 
 Downloaded content is stored separately from the retail installation and config.
-On Linux the default is `$XDG_DATA_HOME/jkr/downloads/base`, falling back to
-`~/.local/share/jkr/downloads/base`. `JKR_DOWNLOAD_HOME` overrides the download
+The default is `%LOCALAPPDATA%\SJK\downloads\base` on Windows,
+`~/Library/Application Support/SJK/downloads/base` on macOS, and elsewhere
+`$XDG_DATA_HOME/SJK/downloads/base`, falling back to
+`~/.local/share/SJK/downloads/base`. `SJK_DOWNLOAD_HOME` overrides the download
 root (the implementation appends `base`). See
 [download_store.rs](../crates/sjk-viewer/src/download_store.rs).
 
@@ -1895,7 +1875,7 @@ and red). The table is `quake_color` in [text.rs](../crates/sjk-viewer/src/text.
 | `auto` (default) | `sjk` while the menus are the SJK UI (`ui_menuStyle sjk`), else `classic` |
 | `sjk` | The SJK UI's deck ([SJK UI console](#sjk-ui-console)) |
 | `classic` | EternalJK's console (`cl_console.cpp`, `cl_keys.cpp`) |
-| `modern` (or `0`) | JKR's console (Inter text on a tinted panel with a header and key hints), unchanged |
+| `modern` (or `0`) | The modern console (Inter text on a tinted panel with a header and key hints) |
 
 A mistyped value acts as `auto`, as do `horizon` and `dock`, two SJK UI designs
 removed on 08/10/2026 once Sol chose the deck. Every profile had saved the old default
@@ -2171,7 +2151,7 @@ elsewhere it reports that the server runs neither. `pluginDisable` lists the
 fifteen JA+ client-plugin features with `Allowed`/`Disallowed`, and
 `pluginDisable <id>` toggles one bit of the archived userinfo cvar
 `cp_pluginDisable` (a set bit disables the feature). Its default, 1536, disables
-the holstered saber and ledge grab, which need JA+ animations JKR does not have.
+the holstered saber and ledge grab, which need JA+ animations SJK does not have.
 JA+ and TaystJK/jaPRO servers receive it from the connect packet on, and a
 toggle sends a userinfo update ([networking.md](networking.md)).
 See [console_mod_commands.rs](../crates/sjk-viewer/src/console_mod_commands.rs).
@@ -2286,7 +2266,7 @@ These settings do not affect chat, the scoreboard or the HUD.
 
 Console defaults, compared with stock at 1080p: stock draws 8 x 16 px cells
 whose capitals are 14 px tall, so its rows are 16 px apart and nearly touch.
-JKR's console text is 14 px Inter: the size is its line box (ascent plus
+The modern console's text is 14 px Inter: the size is its line box (ascent plus
 descent, 1.21 em), with 8.4 px capitals. A pitch of 0.9 times the text size
 gives 12.6 px rows at 1080p, where capitals fill two thirds of the pitch and the
 deepest descender (`g`) still clears the next row's ascenders and brackets by
@@ -2324,7 +2304,7 @@ not acquire the ordinary rocket model. Custom vehicle flight-loop sounds remain
 a separate audio gap.
 
 Community NPCs need their model PK3 mounted by both the server and client. An NPC
-definition alone cannot supply a missing mesh. JKR does not distribute those
+definition alone cannot supply a missing mesh. SJK does not distribute those
 packs. The animation-error isolation described in [rendering.md](rendering.md#actor-animation-failures)
 protects other actors from malformed custom clips, but does not repair the clip.
 
@@ -2332,7 +2312,7 @@ protects other actors from malformed custom clips, but does not repair the clip.
 
 Server map recolors and material replacements are enabled by default. SJK
 defaults to `cg_remaps 2`, EternalJK's default, which includes player-texture
-configstring remaps; `cg_remaps 1` is TaystJK's (and JKR's) default policy
+configstring remaps; `cg_remaps 1` is TaystJK's default policy
 excluding them, and `cg_remaps 0` disables server remaps.
 Settings > GAME > "Shader remaps" sets the same cvar and applies at once.
 A map's own worldspawn remaps always apply. `listRemaps` lists the map's, the

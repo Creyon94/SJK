@@ -2,7 +2,7 @@
 //!
 //! One implementation of the `codemp` "both games" code (`bg_*.c`): the client
 //! predicts with it and the server simulates with it, so the two cannot drift.
-//! It sits between JKR's authoritative core, which knows no game, and the
+//! It sits between SJK's authoritative core, which knows no game, and the
 //! protocol-26 adapter, which knows no rules. Its state is JKA-shaped because the
 //! rules are; nothing here is an engine-wide constant.
 //!

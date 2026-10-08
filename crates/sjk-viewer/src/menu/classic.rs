@@ -159,7 +159,7 @@ impl ClientMenu {
 
     /// Show group `entry` of `page` in a classic option panel drawn in
     /// `frame`, returning to `target` when closed. False when the entry has
-    /// no group JKR can show.
+    /// no group SJK can show.
     pub(crate) fn open_classic_panel(
         &mut self,
         console: &ViewerConsole,

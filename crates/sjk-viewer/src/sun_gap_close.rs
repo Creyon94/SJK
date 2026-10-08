@@ -22,7 +22,7 @@ struct Pass {
 impl Runtime {
     pub(super) fn new(device: &wgpu::Device, resolution: u32) -> Self {
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("JKR shadow gap close"),
+            label: Some("SJK shadow gap close"),
             entries: &[
                 wgpu::BindGroupLayoutEntry {
                     binding: 0,
@@ -47,16 +47,16 @@ impl Runtime {
             ],
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("JKR shadow gap close"),
+            label: Some("SJK shadow gap close"),
             bind_group_layouts: &[Some(&layout)],
             immediate_size: 0,
         });
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR shadow gap close"),
+            label: Some("SJK shadow gap close"),
             source: wgpu::ShaderSource::Wgsl(include_str!("sun_gap_close.wgsl").into()),
         });
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("JKR shadow gap close"),
+            label: Some("SJK shadow gap close"),
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
@@ -84,7 +84,7 @@ impl Runtime {
         });
         let scratch = device
             .create_texture(&wgpu::TextureDescriptor {
-                label: Some("JKR shadow gap close scratch"),
+                label: Some("SJK shadow gap close scratch"),
                 size: wgpu::Extent3d {
                     width: resolution,
                     height: resolution,
@@ -101,7 +101,7 @@ impl Runtime {
             .create_view(&Default::default());
         let passes = std::array::from_fn(|_| {
             device.create_buffer(&wgpu::BufferDescriptor {
-                label: Some("JKR shadow gap close pass"),
+                label: Some("SJK shadow gap close pass"),
                 size: std::mem::size_of::<Pass>() as u64,
                 usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 mapped_at_creation: false,
@@ -147,7 +147,7 @@ impl Runtime {
                 (&self.scratch, depth)
             };
             let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("JKR shadow gap close"),
+                label: Some("SJK shadow gap close"),
                 layout: &self.layout,
                 entries: &[
                     wgpu::BindGroupEntry {
@@ -161,7 +161,7 @@ impl Runtime {
                 ],
             });
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("JKR shadow gap close"),
+                label: Some("SJK shadow gap close"),
                 color_attachments: &[],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: target,

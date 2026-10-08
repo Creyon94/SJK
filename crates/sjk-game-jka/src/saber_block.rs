@@ -20,7 +20,7 @@
 //!   of the three draws. The port follows the build the owner plays against.
 //!
 //! Held against `tools/game-oracle/saberblock.c`. What is not ported: the held saber's
-//! own box (`CONTENTS_LIGHTSABER`, positioned from the model's bolts — JKR's server has no
+//! own box (`CONTENTS_LIGHTSABER`, positioned from the model's bolts — SJK's server has no
 //! skeleton yet), which the reference deflects from without a block check; NPCs; thrown
 //! sabers; the shield of a siege class.
 

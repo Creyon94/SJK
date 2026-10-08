@@ -353,7 +353,7 @@ const GRAPHICS: [Slot; 11] = {
 };
 
 /// Setup's GAMEPLAY (classic+), laid out as [`GRAPHICS`]: the mouse options
-/// brought over from Controls, and JKR's additions regrouped by subject (game
+/// brought over from Controls, and SJK's additions regrouped by subject (game
 /// options, the menus and console, the HUD, the scoreboard), then the network.
 const GAMEPLAY: [Slot; 12] = {
     let [play, profile, settings, sjk] = nav_row();

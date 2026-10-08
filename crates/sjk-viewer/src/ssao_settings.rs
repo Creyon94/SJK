@@ -21,7 +21,7 @@ impl Default for Settings {
 }
 
 impl Settings {
-    /// Register JKR's ambient-occlusion defaults; archived values still take precedence.
+    /// Register SJK's ambient-occlusion defaults; archived values still take precedence.
     pub(crate) fn bind(cvars: &mut CvarRegistry) -> Result<Self, CvarError> {
         cvars.register(CvarDefinition::new(
             "r_ssao",

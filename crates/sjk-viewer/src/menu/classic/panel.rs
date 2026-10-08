@@ -329,7 +329,7 @@ impl PanelFrame {
 
     /// The pop-up's group list rectangle of its first row: retail's 30-unit
     /// rows, tightened when the page has more groups than fit in the box
-    /// (Setup gains JKR's RENDERER after retail's groups).
+    /// (Setup gains SJK's RENDERER after retail's groups).
     fn in_game_list(&self) -> [f32; 4] {
         let [x, y, width, height] = IN_GAME_LIST;
         let [_, box_y, _, box_height] = IN_GAME_BOX;

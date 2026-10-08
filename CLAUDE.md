@@ -1,4 +1,4 @@
-# JKR project context
+# SJK project context
 
 Read and follow [AGENTS.md](AGENTS.md), the shared contributor and AI guidance.
 Start with [project status](docs/status.md) and

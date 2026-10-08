@@ -1,10 +1,10 @@
 //! Drawing of the debug panel: the hero header and tabs of the settings form, a list
-//! with one two-line row per entry (tick box, PR, title; status and area) on the left,
+//! with one two-line row per entry (tick box and title; area) on the left,
 //! and the selected entry's details (what changed, steps to test, notes) on a backed
 //! pane on the right. Everything is formatted into the canvas' retained text slots,
 //! so a steady frame allocates nothing.
 
-use super::data::{Entry, Status};
+use super::data::Entry;
 use super::pointer::{DETAIL_TICK_TOKEN, PANE_WHEEL_TOKEN, ROW_BASE, ROW_LIMIT};
 use super::pointer::{SCROLLBAR_TOKEN, TOGGLE_TOKEN, list_tokens};
 use super::{Panel, TABS};
@@ -14,8 +14,6 @@ use sjk_ui::{Color, FontWeight, Rect, TextAlign};
 
 /// Highlight colour of notes.
 const NOTE: Color = Color::new(1.0, 0.80, 0.42, 0.96);
-/// Colour of a merged entry's status.
-const MERGED: Color = Color::new(0.52, 0.86, 0.60, 0.95);
 /// Secondary text in rows and the pane.
 const SOFT: Color = Color::new(0.916, 0.945, 0.973, 0.936);
 
@@ -149,7 +147,7 @@ impl Panel {
         }
     }
 
-    /// One entry: tick box, PR and title; then status and area.
+    /// One entry: tick box and title; then the area.
     fn row_view(&mut self, rect: Rect, slot: usize, position: usize, s: f32) {
         let selected = position == self.selected;
         let index = self.visible[position];
@@ -161,21 +159,10 @@ impl Panel {
         let theme = self.ui.theme();
         let entry = &self.entries[index];
         let text_x = tick.right() + 16.0 * s;
-        // Kept for entries without a PR too, so every title starts in one column.
-        let reference_width = 62.0 * s;
-        self.ui.text(
-            &entry.reference,
-            Rect::new(text_x, rect.y + 8.0 * s, reference_width, 22.0 * s),
-            16.0 * s,
-            status_color(entry.status, theme.accent),
-            FontWeight::Semibold,
-            0.2 * s,
-        );
-        let title_x = text_x + reference_width;
         let dim = self.tested[index] && !selected;
         self.ui.text(
             &entry.title,
-            Rect::new(title_x, rect.y + 8.0 * s, rect.right() - title_x, 22.0 * s),
+            Rect::new(text_x, rect.y + 8.0 * s, rect.right() - text_x, 22.0 * s),
             16.0 * s,
             if selected {
                 theme.foreground
@@ -230,7 +217,7 @@ impl Panel {
         );
     }
 
-    /// The selected entry on a backed pane: links and status, title, tick, then
+    /// The selected entry on a backed pane: title, area, tick, then
     /// what changed, the steps to test and any notes, cut off at the pane's bottom.
     fn detail_view(&mut self, pane: Rect, index: usize, s: f32) {
         self.ui.panel(pane);
@@ -242,24 +229,6 @@ impl Panel {
         let entry: &Entry = &self.entries[index];
         let mut y = pane.y + pad;
 
-        self.ui.text(
-            &entry.links,
-            Rect::new(x, y, width * 0.6, 18.0 * s),
-            13.0 * s,
-            theme.accent,
-            FontWeight::Semibold,
-            2.0 * s,
-        );
-        self.ui.text_aligned(
-            entry.status.label(),
-            Rect::new(x + width * 0.4, y, width * 0.6, 18.0 * s),
-            13.0 * s,
-            status_color(entry.status, theme.foreground),
-            FontWeight::Semibold,
-            2.0 * s,
-            TextAlign::End,
-        );
-        y += 26.0 * s;
         self.ui.text(
             &entry.title,
             Rect::new(x, y, width, 36.0 * s),
@@ -347,14 +316,5 @@ impl Panel {
             }
             y += 16.0 * s;
         }
-    }
-}
-
-/// Colour that marks an entry's status: `open` for open PRs.
-fn status_color(status: Status, open: Color) -> Color {
-    match status {
-        Status::Open => open,
-        Status::Merged => MERGED,
-        Status::Personal => NOTE,
     }
 }

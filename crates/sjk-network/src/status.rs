@@ -30,7 +30,7 @@ pub fn query_server_status(
     timeout: Duration,
 ) -> Result<ServerStatus, NetworkError> {
     let packet =
-        crate::query::first_response(server, &connectionless_packet("getstatus jkr")?, timeout)?;
+        crate::query::first_response(server, &connectionless_packet("getstatus sjk")?, timeout)?;
     parse_status_response(&packet)
 }
 

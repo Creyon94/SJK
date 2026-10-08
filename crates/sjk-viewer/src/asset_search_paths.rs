@@ -223,14 +223,14 @@ impl Options {
     pub(crate) fn mount(&self, install: &Path) -> Result<VirtualFileSystem, Box<dyn Error>> {
         // Large offline imports may opt into a higher per-asset ceiling. Keep the
         // ordinary viewer default and generic VFS policy unchanged.
-        let limit = std::env::var("JKR_MAX_ASSET_MIB")
+        let limit = std::env::var("SJK_MAX_ASSET_MIB")
             .ok()
             .map(|value| value.parse::<u64>())
             .transpose()?
             .unwrap_or(1024)
             .checked_mul(1024 * 1024)
             .filter(|&n| n > 0)
-            .ok_or("JKR_MAX_ASSET_MIB must be positive and fit in u64")?;
+            .ok_or("SJK_MAX_ASSET_MIB must be positive and fit in u64")?;
         let mut vfs = VirtualFileSystem::with_max_asset_bytes(limit);
         vfs.set_read_diagnostics(self.debug);
         // SJK's own content (Illuminate's holocron), below everything so game
@@ -287,9 +287,9 @@ impl Options {
                 crosshairs.into_iter().map(|(_, path, bytes)| (path, bytes)),
             )?;
         }
-        // `JKR_CONTENT=<dir>[:<dir>...]`: further content directories (loose files and
+        // `SJK_CONTENT=<dir>[:<dir>...]`: further content directories (loose files and
         // PK3s), above the installation: locally made content that has no place in it.
-        for directory in std::env::var_os("JKR_CONTENT")
+        for directory in std::env::var_os("SJK_CONTENT")
             .iter()
             .flat_map(std::env::split_paths)
             .filter(|directory| directory.is_dir())

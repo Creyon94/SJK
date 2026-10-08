@@ -164,7 +164,7 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         ),
         CvarDefinition::new("r_resolution", "1280x720", archive, "Window resolution"),
         // Stock r_fullscreen: fullscreen on/off (Alt+Enter toggles it). Which
-        // kind of fullscreen is JKR's choice; see settings/display.rs.
+        // kind of fullscreen is SJK's choice; see settings/display.rs.
         CvarDefinition::new("r_fullscreen", false, archive, "Fullscreen (0/1)"),
         CvarDefinition::new(
             crate::settings::EXCLUSIVE_CVAR,

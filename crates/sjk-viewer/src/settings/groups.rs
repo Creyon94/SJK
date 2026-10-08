@@ -1,4 +1,4 @@
-//! The classic Setup page's own groups. Retail's `setup.menu` and JKR's
+//! The classic Setup page's own groups. Retail's `setup.menu` and the modern
 //! settings tabs cut the settings differently, so classic+ regroups them by
 //! what they are about (`docs/classic-plus.md`): gameplay options, the
 //! menus and console, the HUD, the scoreboard. Each group lists its rows'

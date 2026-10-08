@@ -189,12 +189,12 @@ impl Gpu {
             lamp_count: set.lamps.len() as u32,
 
             grid: make(
-                "JKR lamp grid",
+                "SJK lamp grid",
                 bytemuck::bytes_of(&grid),
                 wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             ),
             data: make(
-                "JKR lamps",
+                "SJK lamps",
                 bytemuck::cast_slice(&data),
                 wgpu::BufferUsages::STORAGE,
             ),

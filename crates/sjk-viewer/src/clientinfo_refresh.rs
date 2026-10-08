@@ -1,4 +1,4 @@
-//! In-match reaction to clientinfo changes — JKR's `CG_NewClientInfo`
+//! In-match reaction to clientinfo changes — JKA's `CG_NewClientInfo`
 //! (`codemp/cgame/cg_players.c`, called from `CG_ConfigStringModified` in
 //! `cg_servercmds.c:894-896` whenever a `CS_PLAYERS` string changes).
 //!

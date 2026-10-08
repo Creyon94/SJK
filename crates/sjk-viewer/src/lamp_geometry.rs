@@ -43,12 +43,12 @@ impl Runtime {
             })
         };
         let header_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("JKR fixture header"),
+            label: Some("SJK fixture header"),
             contents: bytemuck::bytes_of(&header),
             usage: wgpu::BufferUsages::UNIFORM,
         });
         let nodes = storage(
-            "JKR fixture triangle BVH",
+            "SJK fixture triangle BVH",
             bytemuck::cast_slice(&geometry.nodes),
         );
         let triangles = if geometry.triangles.is_empty() {
@@ -56,7 +56,7 @@ impl Runtime {
         } else {
             geometry.triangles.as_slice()
         };
-        let triangle_buffer = storage("JKR fixture triangles", bytemuck::cast_slice(triangles));
+        let triangle_buffer = storage("SJK fixture triangles", bytemuck::cast_slice(triangles));
         let table: Vec<[f32; 8]> = surfaces
             .iter()
             .map(|s| {
@@ -77,7 +77,7 @@ impl Runtime {
         } else {
             table
         };
-        let surfaces_buffer = storage("JKR fixture surface table", bytemuck::cast_slice(&table));
+        let surfaces_buffer = storage("SJK fixture surface table", bytemuck::cast_slice(&table));
         let entry = |binding, ty| wgpu::BindGroupLayoutEntry {
             binding,
             visibility: wgpu::ShaderStages::COMPUTE | wgpu::ShaderStages::FRAGMENT,
@@ -90,7 +90,7 @@ impl Runtime {
             min_binding_size: None,
         };
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("JKR fixture static geometry"),
+            label: Some("SJK fixture static geometry"),
             entries: &[
                 entry(
                     0,
@@ -106,7 +106,7 @@ impl Runtime {
             ],
         });
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("JKR fixture static geometry"),
+            label: Some("SJK fixture static geometry"),
             layout: &layout,
             entries: &[
                 wgpu::BindGroupEntry {

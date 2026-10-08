@@ -1,19 +1,18 @@
 # Dedicated server
 
-`sjk-dedicated` is JKR's native headless server. It does not launch another engine.
-In SJK the program is named `sjk-server`; the commands below are the same.
-Build it alongside the client as described in [development.md](development.md).
+`sjk-server` is SJK's native headless server (the `sjk-dedicated` crate). It does
+not launch another engine. Build it alongside the client as described in [development.md](development.md).
 
 ## Local game
 
 Use an unused loopback port for development:
 
 ```sh
-./target/release/sjk-dedicated \
+./target/release/sjk-server \
   --game-data /path/to/GameData \
   --map mp/ffa3 \
   --bind 127.0.0.1:29071 \
-  --hostname "JKR local" \
+  --hostname "SJK local" \
   --gametype ffa \
   --team-auto-join \
   +set dedicated 1
@@ -50,9 +49,9 @@ These are implemented option surfaces, not a guarantee of complete parity for
 every game type or map. See [status.md](status.md).
 
 `+set` and other `+COMMAND` arguments are supported. Startup applies `+set`
-values before loading `mpdefault.cfg`, `jkr_server.cfg` and `autoexec.cfg`, then
+values before loading `mpdefault.cfg`, `sjk_server.cfg` and `autoexec.cfg`, then
 runs the command-line `+` commands in order. With `--home`, `exec` checks its
-`base` directory first and archived variables are saved in `base/jkr_server.cfg`.
+`base` directory first and archived variables are saved in `base/sjk_server.cfg`.
 Without a home, this archive is not written.
 
 Type commands such as `status`, `map mp/ffa3` and `quit` on stdin. Remote console

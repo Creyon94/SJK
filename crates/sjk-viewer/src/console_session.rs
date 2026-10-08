@@ -153,8 +153,6 @@ impl ViewerConsole {
             console_cvars::DEFAULT_MAX_PACKETS,
         )?;
         let socket = super::socket::State::bind(&mut cvars)?;
-        // JKR's `jkr_*` names become aliases once every setting is registered.
-        crate::cvar_renames::register(&mut cvars)?;
         let userinfo_dirty = Arc::new(AtomicBool::new(true));
         let overlay_dirty = Arc::clone(&userinfo_dirty);
         // Nameplate bars for teammates read the team overlay's `tinfo` too.

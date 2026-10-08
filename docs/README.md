@@ -1,4 +1,4 @@
-# JKR project wiki
+# SJK project wiki
 
 This directory is the canonical project wiki for contributors and AI assistants.
 It lives beside the source so implementation and documentation can be reviewed
@@ -14,7 +14,7 @@ and changed together. Begin with the status page, then the architecture.
 | [Dedicated server](server.md) | Hosting, configuration and local testing |
 | [Rendering](rendering.md) | BSP rendering, lighting, UI and measurement |
 | [Networking and gameplay](networking.md) | Protocol 26, prediction and server authority |
-| [SJK conventions](sjk.md) | SJK branches, names, workflows, changelog and debug panel |
+| [SJK conventions](sjk.md) | Branches, names, defaults, versions, releases, changelog, credits and debug panel |
 | [Classic+ menus](classic-plus.md) | SJK's modernised classic pages: rules, layout and code recipe |
 | [SJK UI](sjk-ui.md) | SJK's own menus (`ui_menuStyle sjk`): design, tokens, screens and plan |
 | [Player identity](identity.md) | SJK's identity key, the hub, scoreboard badges: design, limits and privacy |

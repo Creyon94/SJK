@@ -41,7 +41,7 @@ impl Runtime {
         let source = include_str!("saber.wgsl");
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR saber shader"),
+            label: Some("SJK saber shader"),
             source: wgpu::ShaderSource::Wgsl(source.into()),
         });
         let sampler_entry = |binding| wgpu::BindGroupLayoutEntry {
@@ -51,7 +51,7 @@ impl Runtime {
             count: None,
         };
         let texture_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("JKR saber texture layout"),
+            label: Some("SJK saber texture layout"),
             entries: &[
                 texture_layout_entry(0),
                 texture_layout_entry(1),
@@ -62,13 +62,13 @@ impl Runtime {
         });
         let materials = saber::create_materials(device, queue, vfs, shaders, &texture_layout)?;
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("JKR saber pipeline layout"),
+            label: Some("SJK saber pipeline layout"),
             bind_group_layouts: &[Some(camera_layout), Some(&texture_layout)],
             immediate_size: 0,
         });
         let create = |fragment| {
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("JKR saber pipeline"),
+                label: Some("SJK saber pipeline"),
                 layout: Some(&layout),
                 vertex: wgpu::VertexState {
                     module: &shader,
@@ -105,7 +105,7 @@ impl Runtime {
         let pipeline = create("fragment_main");
         let glow_pipeline = create("fragment_glow");
         let instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR saber instances"),
+            label: Some("SJK saber instances"),
             size: (saber::MAX_BLADE_INSTANCES * std::mem::size_of::<Instance>()) as u64,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,

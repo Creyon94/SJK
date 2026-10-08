@@ -1,7 +1,7 @@
 //! BSP flare points represented as shared-buffer quads. The flare-only GPU
 //! path expands them and samples the finished scene depth without readback.
 use super::*;
-pub(crate) const PREFIX: &str = "@jkr-flare/";
+pub(crate) const PREFIX: &str = "@sjk-flare/";
 
 pub(super) fn append(scene: &mut FlattenedScene, bsp: &Bsp) -> Result<(), Box<dyn Error>> {
     let root = &bsp.render().models()[0].surfaces;

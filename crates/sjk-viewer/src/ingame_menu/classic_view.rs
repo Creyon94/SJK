@@ -4,7 +4,7 @@
 //!
 //! With the player's retail artwork loaded the bar is `menu_top_mp`, the
 //! pop-ups `menu_box_ingame` and the focus glow `menu_buttonback` (both
-//! flickering as retail's shaders do); without it, JKR draws the same
+//! flickering as retail's shaders do); without it, SJK draws the same
 //! layout with flat shapes. The focused item pulses, and labels are in
 //! retail's capitals, except player and map names in vote lists and the
 //! values of the about pop-up.
@@ -109,7 +109,7 @@ fn bar(
         );
         canvas.hit_region(token, target);
     }
-    // Retail has no description line; JKR only explains dimmed buttons,
+    // Retail has no description line; SJK only explains dimmed buttons,
     // and only while no pop-up covers the space under the bar.
     let note = described
         .filter(|_| owner.is_none())

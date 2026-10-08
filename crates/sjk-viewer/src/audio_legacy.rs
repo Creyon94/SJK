@@ -20,7 +20,7 @@ impl LegacyLoadTask {
     pub(super) fn start(vfs: Arc<VirtualFileSystem>, game_state: GameState) -> Self {
         let (sender, receiver) = std::sync::mpsc::channel();
         thread::Builder::new()
-            .name("jkr-legacy-audio-load".into())
+            .name("sjk-legacy-audio-load".into())
             .spawn(move || {
                 let started = Instant::now();
                 let result = (|| {

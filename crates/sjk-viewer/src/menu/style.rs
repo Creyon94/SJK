@@ -3,7 +3,7 @@
 //! `modern` is the native hero layout ([`super::main_view`]); `classic`
 //! follows the original Jedi Academy multiplayer menus ([`super::classic`]);
 //! `sjk` is the SJK UI ([`super::sjk`]), SJK's own menus drawn over the live
-//! map, and SJK's default; JKR's default is `modern`. A profile saved with the
+//! map, and the default. A profile saved with the
 //! earlier default `classic` moves to `sjk` once (`ui_menuStyleDefaultVersion`,
 //! in the console's start); a style chosen after that stays.
 //! The in-game menu follows the same setting ([`crate::ingame_menu`]).

@@ -95,16 +95,16 @@ impl Runtime {
     ) -> Result<Self, Box<dyn Error>> {
         let texture_layout = gpu::texture_layout(device);
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR Q3 sky stage"),
+            label: Some("SJK Q3 sky stage"),
             source: wgpu::ShaderSource::Wgsl(include_str!("sky_stage.wgsl").into()),
         });
         let box_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("JKR Q3 sky-box pipeline layout"),
+            label: Some("SJK Q3 sky-box pipeline layout"),
             bind_group_layouts: &[Some(camera_layout), Some(&texture_layout)],
             immediate_size: 0,
         });
         let mask_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("JKR Q3 sky-mask pipeline layout"),
+            label: Some("SJK Q3 sky-mask pipeline layout"),
             bind_group_layouts: &[Some(camera_layout)],
             immediate_size: 0,
         });
@@ -343,7 +343,7 @@ fn load_box(
     }
     let texture = super::world_materials::upload_array(device, queue, &images)?;
     let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-        label: Some("JKR Q3 sky clamp sampler"),
+        label: Some("SJK Q3 sky clamp sampler"),
         address_mode_u: wgpu::AddressMode::ClampToEdge,
         address_mode_v: wgpu::AddressMode::ClampToEdge,
         address_mode_w: wgpu::AddressMode::ClampToEdge,
@@ -352,7 +352,7 @@ fn load_box(
         ..Default::default()
     });
     let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: Some("JKR Q3 sky-box bind group"),
+        label: Some("SJK Q3 sky-box bind group"),
         layout,
         entries: &[
             wgpu::BindGroupEntry {
@@ -368,7 +368,7 @@ fn load_box(
     let vertices = box_vertices(present);
     let vertex_count = u32::try_from(vertices.len())?;
     let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("JKR Q3 sky-box vertices"),
+        label: Some("SJK Q3 sky-box vertices"),
         contents: bytemuck::cast_slice(&vertices),
         usage: wgpu::BufferUsages::VERTEX,
     });

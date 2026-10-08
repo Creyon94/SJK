@@ -104,7 +104,7 @@ impl Shading {
             .create_view(&cube_array_view());
         let lut = device
             .create_texture(&wgpu::TextureDescriptor {
-                label: Some("JKR reflection BRDF stand-in"),
+                label: Some("SJK reflection BRDF stand-in"),
                 size: wgpu::Extent3d {
                     width: 1,
                     height: 1,
@@ -129,7 +129,7 @@ impl Shading {
 
 fn sampler(device: &wgpu::Device) -> wgpu::Sampler {
     device.create_sampler(&wgpu::SamplerDescriptor {
-        label: Some("JKR reflection probes"),
+        label: Some("SJK reflection probes"),
         address_mode_u: wgpu::AddressMode::ClampToEdge,
         address_mode_v: wgpu::AddressMode::ClampToEdge,
         address_mode_w: wgpu::AddressMode::ClampToEdge,
@@ -148,7 +148,7 @@ fn cube_array(
     usage: wgpu::TextureUsages,
 ) -> wgpu::Texture {
     device.create_texture(&wgpu::TextureDescriptor {
-        label: Some("JKR reflection probes"),
+        label: Some("SJK reflection probes"),
         size: wgpu::Extent3d {
             width: size,
             height: size,
@@ -187,7 +187,7 @@ fn table_buffer(device: &wgpu::Device, probes: &[Probe], levels: u32) -> wgpu::B
         words[at + 2] = probe.box_max.extend(0.).to_array();
     }
     device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("JKR reflection probe table"),
+        label: Some("SJK reflection probe table"),
         contents: bytemuck::cast_slice(&words),
         usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
     })
@@ -347,7 +347,7 @@ impl Probes {
         );
         let scratch_levels = size.ilog2() + 1;
         let scratch = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("JKR reflection probe scratch"),
+            label: Some("SJK reflection probe scratch"),
             size: wgpu::Extent3d {
                 width: size,
                 height: size,
@@ -370,7 +370,7 @@ impl Probes {
         };
         let color = device
             .create_texture(&wgpu::TextureDescriptor {
-                label: Some("JKR reflection probe capture"),
+                label: Some("SJK reflection probe capture"),
                 size: wgpu::Extent3d {
                     width: size,
                     height: size,
@@ -390,13 +390,13 @@ impl Probes {
             .map(|_| {
                 [0, 1].map(|_| {
                     let buffer = device.create_buffer(&wgpu::BufferDescriptor {
-                        label: Some("JKR reflection probe camera"),
+                        label: Some("SJK reflection probe camera"),
                         size: std::mem::size_of::<crate::CameraUniform>() as u64,
                         usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                         mapped_at_creation: false,
                     });
                     let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                        label: Some("JKR reflection probe camera"),
+                        label: Some("SJK reflection probe camera"),
                         layout: camera_layout,
                         entries: &[wgpu::BindGroupEntry {
                             binding: 0,
@@ -409,7 +409,7 @@ impl Probes {
             .collect();
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR reflection probe filter"),
+            label: Some("SJK reflection probe filter"),
             source: wgpu::ShaderSource::Wgsl(include_str!("reflection_probe_filter.wgsl").into()),
         });
         let storage = |binding| wgpu::BindGroupLayoutEntry {
@@ -444,16 +444,16 @@ impl Probes {
         };
         let pipeline = |entries: &[wgpu::BindGroupLayoutEntry], entry: &str| {
             let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                label: Some("JKR reflection probe filter"),
+                label: Some("SJK reflection probe filter"),
                 entries,
             });
             let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("JKR reflection probe filter"),
+                label: Some("SJK reflection probe filter"),
                 bind_group_layouts: &[Some(&layout)],
                 immediate_size: 0,
             });
             let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                label: Some("JKR reflection probe filter"),
+                label: Some("SJK reflection probe filter"),
                 layout: Some(&pipeline_layout),
                 module: &shader,
                 entry_point: Some(entry),
@@ -496,12 +496,12 @@ impl Probes {
         let copy_groups = (0..6u32)
             .map(|face| {
                 let constant = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("JKR reflection probe face"),
+                    label: Some("SJK reflection probe face"),
                     contents: bytemuck::cast_slice(&[face, 0, 0, 0]),
                     usage: wgpu::BufferUsages::UNIFORM,
                 });
                 device.create_bind_group(&wgpu::BindGroupDescriptor {
-                    label: Some("JKR reflection probe copy"),
+                    label: Some("SJK reflection probe copy"),
                     layout: &copy_layout,
                     entries: &[
                         wgpu::BindGroupEntry {
@@ -525,7 +525,7 @@ impl Probes {
                 let finer = level_view(&scratch, level - 1);
                 let coarser = level_view(&scratch, level);
                 let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                    label: Some("JKR reflection probe downsample"),
+                    label: Some("SJK reflection probe downsample"),
                     layout: &downsample_layout,
                     entries: &[
                         wgpu::BindGroupEntry {
@@ -547,7 +547,7 @@ impl Probes {
         });
         let filter_sampler = sampler(device);
         let probe_uniform = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR reflection probe slot"),
+            label: Some("SJK reflection probe slot"),
             size: 16,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
@@ -556,7 +556,7 @@ impl Probes {
             .map(|level| {
                 let roughness = level as f32 / (levels - 1).max(1) as f32;
                 let constant = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                    label: Some("JKR reflection probe level"),
+                    label: Some("SJK reflection probe level"),
                     contents: bytemuck::cast_slice(&[
                         roughness,
                         size as f32,
@@ -567,7 +567,7 @@ impl Probes {
                 });
                 let target = level_view(&cubes, level);
                 let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                    label: Some("JKR reflection probe prefilter"),
+                    label: Some("SJK reflection probe prefilter"),
                     layout: &prefilter_layout,
                     entries: &[
                         wgpu::BindGroupEntry {
@@ -637,7 +637,7 @@ impl Probes {
     /// Copy the captured `face` into the scratch cube (after its scene pass).
     pub(crate) fn copy_face(&self, encoder: &mut wgpu::CommandEncoder, face: usize) {
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-            label: Some("JKR reflection probe copy"),
+            label: Some("SJK reflection probe copy"),
             timestamp_writes: None,
         });
         pass.set_pipeline(&self.copy);
@@ -660,7 +660,7 @@ impl Probes {
             bytemuck::cast_slice(&[6 * probe as u32, 0, 0, 0]),
         );
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-            label: Some("JKR reflection probe filter"),
+            label: Some("SJK reflection probe filter"),
             timestamp_writes: None,
         });
         pass.set_pipeline(&self.downsample);
@@ -687,7 +687,7 @@ fn upload_lut(device: &wgpu::Device, queue: &crate::frame_queue::FrameQueue) -> 
     let texels = super::brdf::table();
     let size = super::brdf::SIZE;
     let texture = device.create_texture(&wgpu::TextureDescriptor {
-        label: Some("JKR reflection BRDF table"),
+        label: Some("SJK reflection BRDF table"),
         size: wgpu::Extent3d {
             width: size,
             height: size,

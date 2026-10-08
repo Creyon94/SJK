@@ -1,9 +1,8 @@
 //! Test list of every change in Sol's build, toggled with the `debug_panel` console
 //! command.
 //!
-//! **Personal to Sol's build (SJK's `main` branch); not meant for upstream.** Each entry
-//! names its pull request and status (open PR, merged upstream or personal), says in
-//! a line or two what changed and lists the steps to test it. Entries can be ticked
+//! **Personal to Sol's build (SJK's `main` branch).** Each entry names its area, says
+//! in a line or two what changed and lists the steps to test it. Entries can be ticked
 //! as tested; the ticks are saved by entry id in `debug_panel_tested.txt` beside
 //! `config.cfg` (see `debug_panel_ticks.rs`), so they survive restarts and edits.
 //!
@@ -253,7 +252,7 @@ impl Panel {
         } else {
             "Unticked"
         };
-        self.status = format!("{verb} {} {}", entry.reference, entry.title);
+        self.status = format!("{verb} {}", entry.title);
         self.status_error = false;
         if let Err(error) = self.save() {
             self.status = format!("Could not save {}: {error}", self.path.display());

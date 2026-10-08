@@ -3,7 +3,7 @@
 //! Stock draws every blended shader stage straight into an 8-bit gamma-space colour
 //! buffer (`rd-vanilla/tr_backend.cpp` `GL_State` blend factors on a UNORM target), so
 //! `GL_ONE GL_ONE` adds display values and clamps each channel to 1, and
-//! `GL_DST_COLOR GL_SRC_COLOR` is `2·src·dst` on display values. JKR's scene is linear
+//! `GL_DST_COLOR GL_SRC_COLOR` is `2·src·dst` on display values. SJK's scene is linear
 //! (an sRGB swapchain or an RGBA16F HDR target), so effects (particles, effect geometry,
 //! decals, sabers and trails) are blended here instead:
 //!
@@ -100,10 +100,10 @@ impl Layer {
                 })
                 .create_view(&Default::default())
         };
-        let blended = texture("JKR legacy effect layer");
-        let original = texture("JKR legacy effect layer, scene before effects");
+        let blended = texture("SJK legacy effect layer");
+        let original = texture("SJK legacy effect layer, scene before effects");
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR legacy effect layer"),
+            label: Some("SJK legacy effect layer"),
             source: wgpu::ShaderSource::Wgsl(
                 concat!(
                     include_str!("effect_layer.wgsl"),
@@ -133,11 +133,11 @@ impl Layer {
             },
         };
         let source_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("JKR effect layer source"),
+            label: Some("SJK effect layer source"),
             entries: &[entry(0), exposure_entry],
         });
         let drain_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("JKR effect layer write-back"),
+            label: Some("SJK effect layer write-back"),
             entries: &[entry(0), entry(2), exposure_entry],
         });
         let constants = [("ENCODING", encoding.mode())];
@@ -189,7 +189,7 @@ impl Layer {
             })],
         );
         let write_back_bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("JKR effect layer write-back"),
+            label: Some("SJK effect layer write-back"),
             layout: &drain_layout,
             entries: &[
                 wgpu::BindGroupEntry {
@@ -207,7 +207,7 @@ impl Layer {
             ],
         });
         let region = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR effect layer merge region"),
+            label: Some("SJK effect layer merge region"),
             size: 16,
             mapped_at_creation: false,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
@@ -302,7 +302,7 @@ impl Layer {
         let bind = self.source(device, scene);
         // Pixels outside `region` keep older contents: neither the merge nor the write-back
         // reads them.
-        let mut pass = self.pass(encoder, wgpu::LoadOp::Load, "JKR effect layer encode");
+        let mut pass = self.pass(encoder, wgpu::LoadOp::Load, "SJK effect layer encode");
         if let Some([x, y, w, h]) = region {
             pass.set_scissor_rect(x, y, w, h);
         }
@@ -318,7 +318,7 @@ impl Layer {
         depth: &wgpu::TextureView,
     ) -> wgpu::RenderPass<'a> {
         encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("JKR legacy blended effects"),
+            label: Some("SJK legacy blended effects"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: &self.blended,
                 resolve_target: None,
@@ -348,7 +348,7 @@ impl Layer {
         region: Option<[u32; 4]>,
     ) {
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("JKR effect layer write-back"),
+            label: Some("SJK effect layer write-back"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: scene,
                 resolve_target: None,
@@ -405,7 +405,7 @@ impl Layer {
             return bind.clone();
         }
         let bind = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("JKR effect layer source"),
+            label: Some("SJK effect layer source"),
             layout: &self.source_layout,
             entries: &[
                 wgpu::BindGroupEntry {

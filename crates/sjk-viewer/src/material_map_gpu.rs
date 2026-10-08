@@ -86,7 +86,7 @@ impl Gpu {
         ]);
         entries.extend(super::reflections::gpu::Shading::layout_entries());
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("JKR material-mapped stage layout"),
+            label: Some("SJK material-mapped stage layout"),
             entries: &entries,
         });
         let neutral = upload(
@@ -186,7 +186,7 @@ impl Gpu {
     ) -> Result<wgpu::BindGroup, Box<dyn Error>> {
         let [normal, specular, emission] = self.views(device, queue, maps);
         let params = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("JKR material map parameters"),
+            label: Some("SJK material map parameters"),
             contents: bytemuck::bytes_of(&maps.params),
             usage: wgpu::BufferUsages::UNIFORM,
         });
@@ -223,7 +223,7 @@ impl Gpu {
             .map_or(&self.neutral_reflections, |probes| &probes.shading);
         entries.extend(reflections.entries());
         Ok(device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("JKR material-mapped stage"),
+            label: Some("SJK material-mapped stage"),
             layout: &self.layout,
             entries: &entries,
         }))
@@ -247,12 +247,12 @@ impl Gpu {
             }
             (
                 device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                    label: Some("JKR material-mapped stage program"),
+                    label: Some("SJK material-mapped stage program"),
                     bind_group_layouts: &groups,
                     immediate_size: 0,
                 }),
                 device.create_shader_module(wgpu::ShaderModuleDescriptor {
-                    label: Some("JKR material-mapped stage program"),
+                    label: Some("SJK material-mapped stage program"),
                     source: wgpu::ShaderSource::Wgsl(
                         super::program::source(receiver.is_some()).into(),
                     ),
@@ -273,7 +273,7 @@ impl Gpu {
             forge
                 .device
                 .create_shader_module(wgpu::ShaderModuleDescriptor {
-                    label: Some("JKR material-mapped stage glow program"),
+                    label: Some("SJK material-mapped stage glow program"),
                     source: wgpu::ShaderSource::Wgsl(
                         super::program::glow_source(forge.model_sun.is_some()).into(),
                     ),
@@ -291,7 +291,7 @@ impl Gpu {
 
 fn frames_buffer(device: &wgpu::Device, packed: &[[u32; 2]]) -> wgpu::Buffer {
     device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("JKR material map vertex frames"),
+        label: Some("SJK material map vertex frames"),
         contents: bytemuck::cast_slice(packed),
         usage: wgpu::BufferUsages::STORAGE,
     })
@@ -308,7 +308,7 @@ fn upload(
 ) -> wgpu::TextureView {
     let chain = mip_chain(image);
     let texture = device.create_texture(&wgpu::TextureDescriptor {
-        label: Some("JKR material map"),
+        label: Some("SJK material map"),
         size: wgpu::Extent3d {
             width: image.width(),
             height: image.height(),

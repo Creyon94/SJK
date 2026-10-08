@@ -11,11 +11,6 @@ pub(in crate::console) fn register(
     for (name, help) in [("demo_camera", CAMERA), ("demo_sun", SUN)] {
         shell.commands.register(name, help, |_| Ok(Vec::new()))?;
     }
-    for &(old, new) in crate::cvar_renames::RENAMED_COMMANDS {
-        shell
-            .commands
-            .register(old, &format!("JKR's name for {new}"), |_| Ok(Vec::new()))?;
-    }
     Ok(())
 }
 
@@ -50,11 +45,6 @@ impl Director {
     /// Consume locally, including malformed commands; never forward shot controls to servers.
     pub(crate) fn command(&mut self, tokens: &[String]) -> Option<Result<Vec<String>, String>> {
         let name = tokens.first()?;
-        // JKR's old names (`RENAMED_COMMANDS`) still work.
-        let name = crate::cvar_renames::RENAMED_COMMANDS
-            .iter()
-            .find(|(old, _)| name.eq_ignore_ascii_case(old))
-            .map_or(name.as_str(), |&(_, new)| new);
         let camera = name.eq_ignore_ascii_case("demo_camera");
         if !camera && !name.eq_ignore_ascii_case("demo_sun") {
             return None;

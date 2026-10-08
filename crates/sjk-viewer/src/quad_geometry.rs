@@ -64,7 +64,7 @@ pub(crate) fn upload(
 ) -> wgpu::Buffer {
     let refs = references(count.max(1), indices, base);
     device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("JKR immutable quad lookup"),
+        label: Some("SJK immutable quad lookup"),
         contents: bytemuck::cast_slice(&refs),
         usage: wgpu::BufferUsages::STORAGE
             | wgpu::BufferUsages::COPY_SRC
@@ -74,7 +74,7 @@ pub(crate) fn upload(
 
 pub(crate) fn layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("JKR geometry deformation inputs"),
+        label: Some("SJK geometry deformation inputs"),
         entries: &[
             entry(0),
             entry(1),
@@ -142,7 +142,7 @@ pub(crate) fn bind_with_skin(
 ) -> wgpu::BindGroup {
     let tables = crate::surface_tables::buffer(device);
     device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: Some("JKR geometry deformation inputs"),
+        label: Some("SJK geometry deformation inputs"),
         layout: &layout(device),
         entries: &[
             wgpu::BindGroupEntry {
@@ -179,7 +179,7 @@ pub(crate) fn bind_with_skin(
 
 pub(crate) fn empty_binding(device: &wgpu::Device) -> wgpu::BindGroup {
     let zero = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("JKR geometry fallback"),
+        label: Some("SJK geometry fallback"),
         contents: &[0; 256],
         usage: wgpu::BufferUsages::STORAGE,
     });

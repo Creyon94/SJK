@@ -11,7 +11,7 @@ use std::path::PathBuf;
 
 /// The file `Com_WriteConfiguration` keeps archived variables in (`openjk_server.cfg`
 /// in the reference), in the home directory's `base`.
-pub const ARCHIVE_FILE: &str = "jkr_server.cfg";
+pub const ARCHIVE_FILE: &str = "sjk_server.cfg";
 
 /// The search paths.
 #[derive(Default)]

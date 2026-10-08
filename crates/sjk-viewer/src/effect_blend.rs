@@ -6,26 +6,26 @@ pub(crate) const PIPELINE_COUNT: usize = 7;
 
 pub(crate) fn specifications() -> [(&'static str, wgpu::BlendState); PIPELINE_COUNT] {
     [
-        ("JKR alpha FX", wgpu::BlendState::ALPHA_BLENDING),
-        ("JKR additive FX", wgpu::BlendState::ADDITIVE),
+        ("SJK alpha FX", wgpu::BlendState::ALPHA_BLENDING),
+        ("SJK additive FX", wgpu::BlendState::ADDITIVE),
         (
-            "JKR alpha-add FX",
+            "SJK alpha-add FX",
             factors(wgpu::BlendFactor::SrcAlpha, wgpu::BlendFactor::One),
         ),
         (
-            "JKR filter FX",
+            "SJK filter FX",
             factors(wgpu::BlendFactor::Dst, wgpu::BlendFactor::Zero),
         ),
         (
-            "JKR two-times-modulate FX",
+            "SJK two-times-modulate FX",
             factors(wgpu::BlendFactor::Dst, wgpu::BlendFactor::Src),
         ),
         (
-            "JKR destination-color additive FX",
+            "SJK destination-color additive FX",
             factors(wgpu::BlendFactor::Dst, wgpu::BlendFactor::One),
         ),
         (
-            "JKR inverse-source-alpha destination FX",
+            "SJK inverse-source-alpha destination FX",
             factors(wgpu::BlendFactor::One, wgpu::BlendFactor::OneMinusSrcAlpha),
         ),
     ]

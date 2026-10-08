@@ -101,11 +101,11 @@ impl Renderer {
         text_layout: &wgpu::BindGroupLayout,
     ) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR ground HUD shader"),
+            label: Some("SJK ground HUD shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("../ground_hud.wgsl").into()),
         });
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("JKR ground HUD uniform"),
+            label: Some("SJK ground HUD uniform"),
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
                 visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
@@ -118,13 +118,13 @@ impl Renderer {
             }],
         });
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR ground HUD uniform"),
+            label: Some("SJK ground HUD uniform"),
             size: std::mem::size_of::<Uniform>() as u64,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("JKR ground HUD uniform"),
+            label: Some("SJK ground HUD uniform"),
             layout: &layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
@@ -133,13 +133,13 @@ impl Renderer {
         });
         let depth_layout = crate::world_materials::flares::depth_layout(device);
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("JKR ground HUD"),
+            label: Some("SJK ground HUD"),
             bind_group_layouts: &[Some(&layout), Some(&depth_layout), Some(text_layout)],
             immediate_size: 0,
         });
         // Premultiplied colour over the scene; the target's alpha is left alone.
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("JKR ground HUD"),
+            label: Some("SJK ground HUD"),
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,

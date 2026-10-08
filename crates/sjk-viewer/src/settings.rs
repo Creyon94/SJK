@@ -163,7 +163,7 @@ struct TextDraft {
 enum Section {
     /// The general settings ([`TABS`]).
     General,
-    /// JKR's renderer settings ([`RENDERER_TABS`]).
+    /// SJK's renderer settings ([`RENDERER_TABS`]).
     Renderer,
     /// A classic Setup group gathering rows of several tabs ([`Group`]).
     Group(Group),
@@ -984,31 +984,49 @@ mod tests {
     }
 
     #[test]
-    fn the_renderer_tabs_hold_every_renamed_rendering_cvar() {
+    fn the_renderer_tabs_hold_every_engine_rendering_cvar() {
         // Bookkeeping, diagnostics, the ground HUD (on the HUD tab) and exclusive
-        // fullscreen (the Video tab's display-mode row) stay off it.
-        const NOT_RENDERER: [&str; 6] = [
-            "cl_bindDefaultsVersion",
-            "cl_sensitivityScaleVersion",
-            "com_maxfpsDefaultVersion",
-            "r_dayDebug",
-            "cg_groundHud",
-            "r_exclusiveFullscreen",
+        // fullscreen (the Video tab's display-mode row) are not listed.
+        const RENDERER: [&str; 27] = [
+            "r_sceneHdr",
+            "r_hdrExposure",
+            "r_toneCurve",
+            "r_sceneBloom",
+            "r_fxaa",
+            "r_superSample",
+            "r_softParticles",
+            "r_modelPixelLight",
+            "r_actorSunShadows",
+            "r_worldSunShadows",
+            "r_sunShadowDistance",
+            "r_sunShadowNear",
+            "r_sunShadowResolution",
+            "r_sunShadowTaps",
+            "r_sunShadowGapClose",
+            "r_contactShadows",
+            "r_volumetrics",
+            "r_volumetricClarity",
+            "r_dayNight",
+            "r_dayHour",
+            "r_dayMinutes",
+            "r_dayBrightness",
+            "r_ambientFill",
+            "r_ambientFillOcclusion",
+            "r_indirectBoost",
+            "r_liveLighting",
+            "r_dustMotes",
         ];
         let (_directory, console) = console();
         let renderer: Vec<_> = (0..RENDERER_TABS.len())
             .flat_map(|tab| section_settings(Section::Renderer, tab))
             .map(|setting| setting.cvar)
             .collect();
-        // JKR's own `jkr_*` cvars, under SJK's names.
-        for &(_, name) in crate::cvar_renames::RENAMED {
+        for name in RENDERER {
             assert!(console.cvar(name).is_some(), "{name} is not registered");
-            if !NOT_RENDERER.contains(&name) {
-                assert!(
-                    renderer.contains(&name),
-                    "{name} is missing from the renderer tabs"
-                );
-            }
+            assert!(
+                renderer.contains(&name),
+                "{name} is missing from the renderer tabs"
+            );
         }
         for tab in 0..TABS.len() {
             for setting in settings(tab) {

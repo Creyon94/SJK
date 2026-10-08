@@ -170,7 +170,7 @@ impl Runtime {
         let sky_target = sky_visibility
             .has_candidates()
             .then(|| gpu::Target::new(device, camera_layout, &sample_layout, format, size));
-        let portal_enabled = std::env::var_os("JKR_MAP_PORTALS").is_none_or(|v| v != "0");
+        let portal_enabled = std::env::var_os("SJK_MAP_PORTALS").is_none_or(|v| v != "0");
         let portal_target = (portal_enabled && !faces.is_empty())
             .then(|| gpu::Target::new(device, camera_layout, &sample_layout, format, size));
         let portals = Vec::with_capacity(if faces.is_empty() {
@@ -207,7 +207,7 @@ impl Runtime {
             sky_target,
             pipeline,
             needs_environment: scene.materials.iter().any(|m| {
-                m.shader.starts_with("@jkr-surface-sprites/") || m.shader.starts_with("@jkr-flare/")
+                m.shader.starts_with("@sjk-surface-sprites/") || m.shader.starts_with("@sjk-flare/")
             }),
             camera_layout: camera_layout.clone(),
             sample_layout,

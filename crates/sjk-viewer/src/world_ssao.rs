@@ -72,12 +72,12 @@ impl AmbientOcclusion {
         let depth = flares::depth_layout(device);
         let strength_layout = strength::layout(device);
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("JKR SSAO layout"),
+            label: Some("SJK SSAO layout"),
             bind_group_layouts: &[Some(camera), Some(&depth), Some(&strength_layout)],
             immediate_size: 0,
         });
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR depth-only SSAO"),
+            label: Some("SJK depth-only SSAO"),
             source: wgpu::ShaderSource::Wgsl(
                 concat!(
                     include_str!("ssao_strength.wgsl"),
@@ -88,12 +88,12 @@ impl AmbientOcclusion {
         });
         let sample = shadows::light_buffer::sample_layout(device);
         let buffered_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("JKR buffered SSAO layout"),
+            label: Some("SJK buffered SSAO layout"),
             bind_group_layouts: &[Some(camera), Some(&sample), Some(&strength_layout)],
             immediate_size: 0,
         });
         let buffered_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR buffered SSAO"),
+            label: Some("SJK buffered SSAO"),
             source: wgpu::ShaderSource::Wgsl(
                 concat!(
                     include_str!("ssao_strength.wgsl"),
@@ -106,7 +106,7 @@ impl AmbientOcclusion {
             [Some(wgpu::Face::Front), Some(wgpu::Face::Back), None]
                 .map(|cull_mode| {
                     device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                        label: Some("JKR diffuse receiver SSAO"),
+                        label: Some("SJK diffuse receiver SSAO"),
                         layout: Some(&layout),
                         vertex: wgpu::VertexState {
                             module: &shader,

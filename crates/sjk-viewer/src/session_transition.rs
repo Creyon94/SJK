@@ -170,12 +170,12 @@ impl WorldInstallTask {
         let worker_cancel = Arc::clone(&cancelled);
         let started = Instant::now();
         thread::Builder::new()
-            .name("jkr-world-install".into())
+            .name("sjk-world-install".into())
             // `new_with_context` is async, so `block_on` materialises the whole
             // world-construction future — every intermediate it holds across an
             // await — as a single frame on this thread. That outgrew the 2 MiB
             // a spawned thread gets by default and aborted the process on join
-            // ("thread 'jkr-world-install' has overflowed its stack"). The main
+            // ("thread 'sjk-world-install' has overflowed its stack"). The main
             // thread never hit it because it starts with 8 MiB. Reserve room
             // explicitly rather than depending on how much the future happens
             // to need this month; untouched pages cost nothing.

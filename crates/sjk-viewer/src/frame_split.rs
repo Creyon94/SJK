@@ -14,8 +14,8 @@
 //! than one frame ahead and a frame's swapchain image is presented before the next one
 //! is acquired.
 //!
-//! `JKR_FRAME_SPLIT=0` keeps the single encoder; any other number sets the worker count.
-//! `JKR_SUBMIT_THREAD=0` submits on the render thread instead. Hand-off uses bounded
+//! `SJK_FRAME_SPLIT=0` keeps the single encoder; any other number sets the worker count.
+//! `SJK_SUBMIT_THREAD=0` submits on the render thread instead. Hand-off uses bounded
 //! channels allocated once: a cut neither allocates nor takes a lock on the render
 //! thread. Idle workers share one queue, so the next cut always goes to a free worker
 //! instead of waiting behind a long one.
@@ -42,7 +42,7 @@ fn workers() -> Option<&'static SyncSender<Job>> {
     static WORKERS: OnceLock<Option<SyncSender<Job>>> = OnceLock::new();
     WORKERS
         .get_or_init(|| {
-            let wanted = match std::env::var("JKR_FRAME_SPLIT") {
+            let wanted = match std::env::var("SJK_FRAME_SPLIT") {
                 Ok(value) => value.parse::<usize>().ok()?,
                 Err(_) => DEFAULT_WORKERS.min(
                     std::thread::available_parallelism()
@@ -58,7 +58,7 @@ fn workers() -> Option<&'static SyncSender<Job>> {
             for index in 0..wanted {
                 let take = take.clone();
                 std::thread::Builder::new()
-                    .name(format!("jkr-encode-{index}"))
+                    .name(format!("sjk-encode-{index}"))
                     .spawn(move || work(&take))
                     .ok()?;
             }
@@ -150,16 +150,16 @@ struct Submitter {
 }
 
 impl Submitter {
-    /// `None` when `JKR_SUBMIT_THREAD=0` or the thread cannot start: submit inline.
+    /// `None` when `SJK_SUBMIT_THREAD=0` or the thread cannot start: submit inline.
     fn start(queue: &FrameQueue) -> Option<Self> {
-        if std::env::var("JKR_SUBMIT_THREAD").is_ok_and(|value| value == "0") {
+        if std::env::var("SJK_SUBMIT_THREAD").is_ok_and(|value| value == "0") {
             return None;
         }
         let (frames, take) = sync_channel::<Batch>(1);
         let (give, returned) = sync_channel(2);
         let queue = queue.clone();
         std::thread::Builder::new()
-            .name("jkr-submit".into())
+            .name("sjk-submit".into())
             .spawn(move || {
                 for mut batch in take {
                     let submitted = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
@@ -214,7 +214,7 @@ impl Splitter {
             return;
         }
         let next = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("JKR frame encoder"),
+            label: Some("SJK frame encoder"),
         });
         let job = Job {
             order,

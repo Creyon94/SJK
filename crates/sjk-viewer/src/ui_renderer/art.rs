@@ -148,11 +148,11 @@ impl ArtTextures {
         };
         let clamped = sampler(
             wgpu::AddressMode::ClampToEdge,
-            "JKR classic menu art sampler",
+            "SJK classic menu art sampler",
         );
         let wrapping = sampler(
             wgpu::AddressMode::Repeat,
-            "JKR classic menu art wrapping sampler",
+            "SJK classic menu art wrapping sampler",
         );
         let now = motion::seconds();
         for piece in ArtPiece::ALL {
@@ -167,7 +167,7 @@ impl ArtTextures {
                 }
             };
             let texture = device.create_texture(&wgpu::TextureDescriptor {
-                label: Some("JKR classic menu art"),
+                label: Some("SJK classic menu art"),
                 size: wgpu::Extent3d {
                     width: size[0],
                     height: size[1],
@@ -185,7 +185,7 @@ impl ArtTextures {
             let sampler = if piece.wraps() { &wrapping } else { &clamped };
             self.groups[piece.index()] =
                 Some(device.create_bind_group(&wgpu::BindGroupDescriptor {
-                    label: Some("JKR classic menu art bind group"),
+                    label: Some("SJK classic menu art bind group"),
                     layout,
                     entries: &[
                         wgpu::BindGroupEntry {

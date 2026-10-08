@@ -1,7 +1,7 @@
 //! Eye adaptation (`r_autoExposure`): the scene's exposure follows what the camera sees,
 //! within a small range around `r_hdrExposure`.
 //!
-//! SJK's choice, and a deliberate departure from JKR's fixed exposure: the view
+//! SJK's choice, and a deliberate departure from a fixed exposure: the view
 //! brightens slowly in dark areas and darkens a little, then settles, in bright light.
 //! Exposure changes what a player can see in the shadows, so the range is small by
 //! default (-0.5 to +1 EV), the setting is one switch on the Renderer page, and

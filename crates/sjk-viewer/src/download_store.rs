@@ -16,24 +16,24 @@ const EXPANDED_LIMIT: u64 = 2 * 1024 * 1024 * 1024;
 
 /// Isolated content home; never the configuration file or the retail installation.
 pub(crate) fn home() -> Result<PathBuf, String> {
-    if let Some(root) = std::env::var_os("JKR_DOWNLOAD_HOME").filter(|s| !s.is_empty()) {
+    if let Some(root) = std::env::var_os("SJK_DOWNLOAD_HOME").filter(|s| !s.is_empty()) {
         return Ok(PathBuf::from(root).join("base"));
     }
     if cfg!(target_os = "windows") {
         return std::env::var_os("LOCALAPPDATA")
-            .map(|p| PathBuf::from(p).join("jkr/downloads/base"))
-            .ok_or_else(|| "LOCALAPPDATA is unset; set JKR_DOWNLOAD_HOME".into());
+            .map(|p| PathBuf::from(p).join("SJK/downloads/base"))
+            .ok_or_else(|| "LOCALAPPDATA is unset; set SJK_DOWNLOAD_HOME".into());
     }
     if cfg!(target_os = "macos") {
         return std::env::var_os("HOME")
-            .map(|p| PathBuf::from(p).join("Library/Application Support/jkr/downloads/base"))
-            .ok_or_else(|| "HOME is unset; set JKR_DOWNLOAD_HOME".into());
+            .map(|p| PathBuf::from(p).join("Library/Application Support/SJK/downloads/base"))
+            .ok_or_else(|| "HOME is unset; set SJK_DOWNLOAD_HOME".into());
     }
     let root = std::env::var_os("XDG_DATA_HOME")
         .map(PathBuf::from)
         .or_else(|| std::env::var_os("HOME").map(|p| PathBuf::from(p).join(".local/share")))
-        .ok_or("cannot determine download home; set JKR_DOWNLOAD_HOME")?;
-    Ok(root.join("jkr/downloads/base"))
+        .ok_or("cannot determine download home; set SJK_DOWNLOAD_HOME")?;
+    Ok(root.join("SJK/downloads/base"))
 }
 
 /// Cached comparison plus temporary output. No ambient remote paths reach filesystem calls.

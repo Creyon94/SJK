@@ -85,7 +85,7 @@ pub enum LegacyConnectOutcome {
     /// Answer with [`LegacyConnectRefusal::write_reply`].
     Refused(LegacyConnectRefusal),
     /// A listen server's own client found no slot and not every slot is a bot.
-    /// The reference aborts the process here; JKR reports it and sends nothing.
+    /// The reference aborts the process here; this server reports it and sends nothing.
     LocalServerFull,
 }
 

@@ -324,7 +324,7 @@ impl Movers {
 
     /// `CG_AdjustPositionForMover` (`cg_ents.c:3005-3038`): translate only.
     /// Stock deliberately does not rotate a rider's origin or view angles.
-    /// JKR's presentation clock can select an older trajectory than prediction
+    /// SJK's presentation clock can select an older trajectory than prediction
     /// at a start/stop. Subtract the actual collision pose and add the actual
     /// rendered pose, rather than evaluating the older trajectory at both times.
     pub(crate) fn adjust(

@@ -21,7 +21,7 @@ struct Previous {
     identity: (u16, u16, u32),
 }
 
-/// Inputs after held-player and vehicle framing overrides; angles use JKR's up-positive pitch.
+/// Inputs after held-player and vehicle framing overrides; angles use up-positive pitch.
 pub(crate) struct Frame {
     pub(crate) focus: Vec3,
     pub(crate) yaw: f32,

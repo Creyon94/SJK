@@ -4,9 +4,9 @@ Every Sol JK release, newest first. The client shows this page in game
 (main menu > Changelog, or the `changelog` console command).
 
 Credits close each line: who made the change, and "after <client>" when it
-follows that client's behaviour. SJK is built on Bishop's JKR; see
-[CREDITS.md](CREDITS.md). Many of Sol's changes were written with Claude
-(Anthropic) as a coding assistant.
+follows that client's behaviour; [CREDITS.md](CREDITS.md) has the full record.
+Many of Sol's changes were written with Claude (Anthropic) as a coding
+assistant.
 
 <!--
 Format, read by the client (crates/sjk-viewer/src/changelog_data.rs, whose
@@ -21,6 +21,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- Sol JK stands on its own: the old jkr_ names of settings and commands, the JKR_ environment variables and the one-time import of GameData/jkr are gone. Downloaded files now go to SJK's own folder (%LOCALAPPDATA%\SJK\downloads), the dedicated server saves sjk_server.cfg and the material-map generator writes zzz_sjk_materials.pk3 _(Sol)_
 - Illuminate, a free power everyone has: the last entry of the Force wheel (or the force_illuminate bind) turns on a holocron that floats by your shoulder, slowly turning, and lights the way in dark maps. Only you see it; Settings > Game > Illuminate holocron takes it off the wheel _(Sol)_
 - A new profile starts at mouse sensitivity 5 again; the move to stock sensitivity units turned it into 13.022 _(Sol)_
 - SJK UI Character: the saber style is three buttons and the hilts a list you can scroll and click (two side by side for dual sabers); the Force page groups the powers as classic+ does (Neutral, your side, Lightsaber) with classic+'s round level marks numbered with their cost, each group in its colour (silver, blue, red, green), bought levels glowing, a hovered level charging up with a spark and its price previewed on the points bar, a ring sent out when you buy one, and a box at the bottom right shows the power under the mouse in big with what it does _(Sol)_

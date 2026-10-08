@@ -152,7 +152,7 @@ pub(crate) fn checked(
 /// keys with the case-sensitive prefix `remapshader` and an `old;new` value,
 /// split at the first `;`. Like C, the scan stops at an empty key or value, at
 /// one starting with `}`, or at a remap value without `;`. `vertexremapshader`
-/// keys apply only under `r_vertexLight`, which JKR does not have.
+/// keys apply only under `r_vertexLight`, which SJK does not have.
 pub(crate) fn worldspawn_remaps<'a>(
     fields: impl IntoIterator<Item = (&'a str, &'a str)>,
 ) -> Vec<(&'a str, &'a str)> {

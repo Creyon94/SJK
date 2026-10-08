@@ -1,72 +1,59 @@
 # SJK conventions
 
-SJK is JKR with Sol's changes on top. The rest of the wiki, [AGENTS.md](../AGENTS.md)
-and [development.md](development.md) are shared with JKR and apply unchanged;
-this page holds only the rules that exist because SJK is a separate project.
+Rules that belong to SJK as a project: names, defaults, versions, releases,
+credits. [AGENTS.md](../AGENTS.md) and [development.md](development.md) hold the
+general contributor rules.
 
 ## Branches
 
-- `main` of [Sol-Vulpes/SJK](https://github.com/Sol-Vulpes/SJK) is SJK: JKR's
-  `main` plus SJK's topic branches. It is updated by merging, never rebased.
-  JKR's `main` is merged in after Sol has reviewed the incoming changes.
-- A change meant for JKR starts from JKR's current `main` and follows the JKR
-  [branch and pull request rules](development.md#branches-commits-and-pull-requests).
-  Its pull request comes from a fork of JKR; SJK is not one, so no pull request
-  can be opened from it. The branch is merged into SJK's `main` when Sol wants it
-  there, accepted upstream or not.
-- A change only for SJK is named `personal/<topic>`, starts from SJK's `main` and
-  is merged back without a pull request.
-
-Because a JKR pull request merged into SJK's `main` brings its wiki changes with
-it, SJK's `status.md` holds sections for changes JKR has not merged yet. Leave
-them in place: the upstream merge adds the same text and resolves cleanly.
+- `main` of [Sol-Vulpes/SJK](https://github.com/Sol-Vulpes/SJK) is SJK. It is
+  updated by merging, never rebased.
+- A change is named `personal/<topic>`, starts from `main` and is merged back
+  without a pull request. Contributors' changes arrive as pull requests on SJK
+  ([development.md](development.md#branches-commits-and-pull-requests)).
 
 ## Names
 
 - Everything a player sees says SJK: the programs `sjk` and `sjk-server`, the
   release ZIPs, the `GameData/SJK/` folder and messages.
 - New settings get neutral engine names (`r_*`, `cg_*`, `cl_*`, ...), never a
-  `jkr_` or `sjk_` prefix, and must not collide with EternalJK or rend2 settings.
-  JKR's old `jkr_*` names are aliases in the client's
-  [cvar_renames.rs](../crates/sjk-viewer/src/cvar_renames.rs) and the server's
-  [cvars/mod.rs](../crates/sjk-dedicated/src/cvars/mod.rs) (`RENAMED`).
+  `sjk_` prefix, and must not collide with EternalJK or rend2 settings.
 - The crates are SJK's too: `crates/sjk-*`, packages `sjk-*` (`cargo build -p
-  sjk-viewer -p sjk-dedicated`) and Rust paths `sjk_*`. JKR's code uses `jkr-*` for
-  the same crates; [sjk_names.py](../scripts/sjk_names.py) holds the mapping.
+  sjk-viewer -p sjk-dedicated`) and Rust paths `sjk_*`. Environment variables for
+  diagnostics are `SJK_*`; the game-data and server paths keep the neutral
+  `JKA_GAME_DATA` and `JKA_DEDICATED`.
 - SJK's emblem (Sol's) is its picture: the classic and modern main menus, the
   programs' and window's icons, the README, release notes and site. Every image
   of it is generated from one original by the scripts in
   [assets/branding](../assets/branding/README.md); regenerate them rather than
   editing one by hand.
-- What stays JKR's on purpose: the old names inside the alias tables, the
-  `GameData/jkr` import, `JKR_*` environment variables, the dedicated server's
-  `jkr_server.cfg`, and "JKR" meaning Bishop's project.
 - Public text ([README](../README.md), [CREDITS.md](../CREDITS.md), the site)
   presents SJK as Sol's: Sol develops it and sets its direction, and Sol comes
-  first (Sol's rule, 06/10/2026). It names Sol and Bishop rather than using
-  pronouns, and credits JKR, the engine SJK is built on, to Bishop and its
-  contributors. Keep CREDITS.md current when SJK gains notable
-  work.
+  first (Sol's rule, 06/10/2026). SJK stands on its own (Sol's decision,
+  08/10/2026): JKR, the engine SJK began from, and Bishop, its creator, appear only
+  in the credits (CREDITS.md's "Origins", the credits page's Origins card), the
+  copyright notice and one footnote in the README and on the site. Code, wiki
+  pages and in-game text describe SJK without comparing it to JKR. Keep CREDITS.md
+  current when SJK gains notable work.
 
 ## Defaults
 
-A new profile starts with Sol's own choices where JKR's defaults differ. Defaults
-apply only to settings a `config.cfg` has not saved: an existing profile keeps its
-values and nothing is migrated, except where the table says so. Where each is
-documented:
+A new profile starts with Sol's own choices. Defaults apply only to settings a
+`config.cfg` has not saved: an existing profile keeps its values and nothing is
+migrated, except where the table says so. Where each is documented:
 
-| Setting | SJK | JKR | See |
-| --- | --- | --- | --- |
-| `ui_menuStyle` | `sjk` (the SJK UI), saved `classic` moved to `sjk` once | `modern` | [Menu style](client.md#menu-style) |
-| `ui_gameFont` | on | off | [UI ownership](rendering.md#ui-ownership) |
-| `cg_scoreboardStyle` | `auto` (SJK UI's with its menus, else `classic`) | `modern` | [Scoreboard styles](client.md#scoreboard-styles) |
-| `cg_drawTimer`, `cg_drawTeamOverlay` | on | off | [status.md](status.md#gameplay-and-interface-defaults-sjk-only) |
-| `cg_dismember` | 2 | 0 | [Dismemberment](client.md#dismemberment-and-disintegration) |
-| `snaps` | 120 (slider to 125) | 40 (slider to 60) | [status.md](status.md#gameplay-and-interface-defaults-sjk-only) |
-| `com_maxfpsUnfocused` | 30 | 0 | [Configuration](client.md#configuration-and-content) |
-| `cl_maxpackets` | 125 | 63 (unused) | [User commands and move packets](networking.md#user-commands-and-move-packets) |
-| rendering profile | noon, bloom, dust, material maps | 11:00, off | [Default visual profile](rendering.md#default-visual-profile) |
-| `cl_consoleUseScanCode` | 1, saved 0 moved to 1 once | 0 | [Useful console commands](client.md#useful-console-commands) |
+| Setting | Default | See |
+| --- | --- | --- |
+| `ui_menuStyle` | `sjk` (the SJK UI), saved `classic` moved to `sjk` once | [Menu style](client.md#menu-style) |
+| `ui_gameFont` | on | [UI ownership](rendering.md#ui-ownership) |
+| `cg_scoreboardStyle` | `auto` (SJK UI's with its menus, else `classic`) | [Scoreboard styles](client.md#scoreboard-styles) |
+| `cg_drawTimer`, `cg_drawTeamOverlay` | on | [status.md](status.md#gameplay-and-interface-defaults) |
+| `cg_dismember` | 2 | [Dismemberment](client.md#dismemberment-and-disintegration) |
+| `snaps` | 120 (slider to 125) | [status.md](status.md#gameplay-and-interface-defaults) |
+| `com_maxfpsUnfocused` | 30 | [Configuration](client.md#configuration-and-content) |
+| `cl_maxpackets` | 125 | [User commands and move packets](networking.md#user-commands-and-move-packets) |
+| rendering profile | noon, bloom, dust, material maps | [Default visual profile](rendering.md#default-visual-profile) |
+| `cl_consoleUseScanCode` | 1, saved 0 moved to 1 once | [Useful console commands](client.md#useful-console-commands) |
 
 The HUD look (`cg_hudStyle game`) and the console (`con_style auto`: the SJK UI's
 console with its menus, else the classic one; a saved `classic` moved once to
@@ -117,7 +104,8 @@ next to the fonts.
 ## Copyright notice
 
 [NOTICE](../NOTICE) is SJK's copyright notice: Sol-Vulpes, Bishop-R and the JKR
-contributors, under GPL-2.0-only. The client
+contributors, under GPL-2.0-only. Bishop-R and the JKR contributors hold the
+copyright of the code SJK began from, so the line keeps naming them. The client
 ([notice.rs](../crates/sjk-viewer/src/notice.rs), printed to its log and console
 by `app_launch.rs`) and the dedicated server (`NOTICE` in its `main.rs`) announce
 the copyright and the absence of warranty at startup, so GPLv2 section 2(c)
@@ -149,32 +137,13 @@ Dates that players see, and dates in SJK's own text (release notes, Discord post
 SJK's own pages), are written day first, `dd/mm/yyyy`, and times on the 24-hour
 clock, `HH:MM`, with no AM or PM (Sol's rule, 05/10/2026). The version label and the
 classic console's clock follow it. Machine formats are exempt: git tags, ISO 8601
-timestamps in logs and JSON, and file names meant to sort. Pages shared with JKR
-keep their own style.
-
-## Merging from JKR
-
-SJK's names differ from JKR's, so JKR's changes are merged with
-[sjk_names.py](../scripts/sjk_names.py), never with a plain `git merge`:
-
-```sh
-python scripts/sjk_names.py merge upstream/main     # or a JKR pull request branch
-python scripts/sjk_names.py continue                # after resolving any conflicts
-```
-
-It translates the JKR commit and the merge base to SJK's names with the same rules
-that renamed SJK, merges three ways and records the JKR commit as the merge's
-second parent. A JKR change therefore conflicts only where it would have without
-the renames. Renaming another setting means adding its pair to an alias table and
-running `python scripts/sjk_names.py apply` on SJK in the same change, so SJK and
-every later translation agree. Check `cargo build --locked` after a merge that
-changed dependencies.
+timestamps in logs and JSON, and file names meant to sort.
 
 ## Automation
 
 | Workflow | Runs on | Does |
 | --- | --- | --- |
-| [CI](../.github/workflows/ci.yml) | Pull requests, pushes to `main` | Formatting, workspace build and tests (shared with JKR) |
+| [CI](../.github/workflows/ci.yml) | Pull requests, pushes to `main` | Formatting, workspace build, tests and clippy |
 | [Pages](../.github/workflows/pages.yml) | Pushes to `main` changing `site/` or the workflow | Publishes `site/` to https://sol-vulpes.github.io/SJK/ |
 | [SJK release](../.github/workflows/release.yml) | Tags `sjk-v<version>` | Builds and publishes the release ZIPs |
 
@@ -199,7 +168,7 @@ Alphas are not marked as pre-releases, so the site's download link
 ## Changelog
 
 [CHANGELOG.md](../CHANGELOG.md) lists every release, newest first, each change
-closed by its credit: who made it (Sol, Bishop) and "after <client>" when it
+closed by its credit: who made it (Sol, a contributor) and "after <client>" when it
 follows another client's behaviour (EternalJK, JoF EJK). The client builds the
 file in and shows it on its changelog page (main menu > Changelog, or the
 `changelog` command; [client.md](client.md#changelog-page)), and its tests reject
@@ -214,7 +183,7 @@ list. The Discord changelog posts are made from the same file.
 [credits.txt](../crates/sjk-viewer/assets/credits.txt) feeds the client's credits
 page ([client.md](client.md#credits-page)); [CREDITS.md](../CREDITS.md) stays
 the full written record. Sol develops SJK alone since October 2026; Bishop is
-credited for JKR, the engine and renderer SJK is built on.
+credited for JKR, the engine SJK began from, in the Origins section of both.
 
 Credits are kept for everything (Sol's rule, 06/10/2026): every merge into
 `main` that brings someone's work updates credits.txt, CREDITS.md and the
@@ -244,6 +213,5 @@ without a card.
 ## Debug panel
 
 The `debug_panel` console command lists SJK's changes and how to test them, from
-[debug_panel.txt](../crates/sjk-viewer/assets/debug_panel.txt). It is personal to
-SJK and never part of a JKR pull request. Update it in the merge that brings a
-change into SJK's `main`.
+[debug_panel.txt](../crates/sjk-viewer/assets/debug_panel.txt). It is Sol's
+personal test list. Update it in the merge that brings a change into SJK's `main`.

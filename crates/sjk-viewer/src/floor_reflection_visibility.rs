@@ -25,18 +25,18 @@ impl Visibility {
         }
         let count = floors.len() as u32;
         let queries = device.create_query_set(&wgpu::QuerySetDescriptor {
-            label: Some("JKR floor visibility"),
+            label: Some("SJK floor visibility"),
             ty: wgpu::QueryType::Occlusion,
             count,
         });
         let counts = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR floor visibility counts"),
+            label: Some("SJK floor visibility counts"),
             size: u64::from(count) * 8,
             usage: wgpu::BufferUsages::QUERY_RESOLVE | wgpu::BufferUsages::STORAGE,
             mapped_at_creation: false,
         });
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR floor visibility"),
+            label: Some("SJK floor visibility"),
             source: wgpu::ShaderSource::Wgsl(
                 concat!(
                     include_str!("vertex_transform.wgsl"),
@@ -51,7 +51,7 @@ impl Visibility {
             immediate_size: 0,
         });
         let depth = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("JKR floor visibility"),
+            label: Some("SJK floor visibility"),
             layout: Some(&layout),
             vertex: wgpu::VertexState {
                 module: &shader,
@@ -123,7 +123,7 @@ impl Visibility {
             })
             .collect();
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR hidden reflection suppression"),
+            label: Some("SJK hidden reflection suppression"),
             source: wgpu::ShaderSource::Wgsl(
                 r#"
 @group(0) @binding(0) var<storage,read> counts: array<vec2<u32>>;
@@ -148,7 +148,7 @@ impl Visibility {
             immediate_size: 0,
         });
         let suppress = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label: Some("JKR hidden reflection suppression"),
+            label: Some("SJK hidden reflection suppression"),
             layout: Some(&pipeline_layout),
             module: &shader,
             entry_point: Some("suppress"),
@@ -183,7 +183,7 @@ impl Visibility {
         let floors = &gpu.scene_views.floors;
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("JKR visible reflective floors"),
+                label: Some("SJK visible reflective floors"),
                 color_attachments: &[],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: &gpu.depth.view,
@@ -219,7 +219,7 @@ impl Visibility {
             0,
         );
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-            label: Some("JKR suppress invisible floor views"),
+            label: Some("SJK suppress invisible floor views"),
             timestamp_writes: None,
         });
         pass.set_pipeline(&self.suppress);

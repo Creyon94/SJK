@@ -1,6 +1,6 @@
 # Test list shown by the `debug_panel` console command.
 #
-# PERSONAL to Sol's build (branch main of Sol-Vulpes/SJK); it is not meant for upstream.
+# PERSONAL: Sol's own checklist of the changes in SJK's main branch (Sol-Vulpes/SJK).
 # The file is built into the client (include_str!) and parsed once at startup. Unit
 # tests in debug_panel_data.rs check it, so `cargo test` catches a broken edit.
 #
@@ -10,10 +10,6 @@
 #   [entry-id]   Required. Lowercase letters, digits and '-'. Ticks are saved by this
 #                id, so keep it when editing text or moving the block; a new id
 #                starts untested.
-#   pr:          PR number(s) on Bishop-R/JKR, comma-separated. Required unless
-#                status is personal.
-#   issue:       Optional related issue number(s), comma-separated.
-#   status:      Required. open (open PR), merged (merged upstream) or personal.
 #   area:        Required. Console & chat, Input, Menus & settings, HUD,
 #                Rendering & effects, Audio or Gameplay.
 #   title:       Required. One short line.
@@ -24,14 +20,11 @@
 # Text must be ASCII (the menu font draws bytes) and each line at most 96 characters
 # after the key, or it ends in an ellipsis on narrow windows.
 #
-# Order: open PRs grouped by area, then personal entries, then merged upstream.
+# Order: the panel keeps the file's order; the "# ----" lines only mark groups.
 
-# ---- Open PRs: Console & chat ----
+# ---- Console & chat ----
 
 [tell-grapple]
-pr: 34
-issue: 28
-status: open
 area: Console & chat
 title: tell by player name, typed +button12 and +grapple
 change: tell takes a unique part of a player name; unknown or ambiguous names send nothing.
@@ -41,18 +34,14 @@ test: Type +button12 in the console, close it: the hook holds. Then type -button
 test: bind g +grapple and grapple; releasing should let go of the hook as in EternalJK.
 
 [wsi-logo]
-pr: 106
-status: open
 area: Console & chat
 title: Not-sign (0xAC) draws as the retail WSI logo
 change: With the game data, 0xAC in modern-font text draws the boxed WSI fonts logo.
 test: A player with 0xAC (Alt+0172) in the name: scoreboard, chat, crosshair show the logo.
 test: Same with Classic game fonts on and off; the logo sits on the line like a capital.
-note: Others see a stray A-circumflex before it when JKR sends it (UTF-8 on the wire).
+note: Others see a stray A-circumflex before it when this client sends it (UTF-8 on the wire).
 
 [japlus-commands]
-pr: 109
-status: open
 area: Console & chat
 title: JA+ serverconfig and pluginDisable commands
 change: serverconfig lists a JA+ server's jp_cinfo options; forwarded on jaPRO/TaystJK.
@@ -60,11 +49,9 @@ change: pluginDisable lists the 15 JA+ plugin features; pluginDisable <id> toggl
 test: On a JA+ server: serverconfig, then pluginDisable and pluginDisable 9 (toggle back).
 test: On a base server: serverconfig says the server runs neither.
 
-# ---- Open PRs: Input ----
+# ---- Input ----
 
 [locked-binds]
-pr: 118, 119
-status: open
 area: Input
 title: MOUSE1, MOUSE2 and ESC locked in the controls editor; key names in capitals
 change: Locked keys can't be captured or cleared there; a click or ESC cancels a capture.
@@ -74,9 +61,6 @@ test: Select the MOUSE1 slot, press Delete: nothing is cleared; header says it's
 test: Console: bindlist shows capitals; config.cfg keeps bind "w" spelling.
 
 [layout-key-names]
-pr: 62
-issue: 53
-status: open
 area: Input
 title: Key names follow the active keyboard layout
 change: Binds name character keys by the layout's own character (the AZERTY key labelled W is w).
@@ -87,22 +71,17 @@ test: Switch layout (Alt+Shift) while holding a movement key: it must not stay s
 note: Rebind movement to z/q/s/d: bind w/a/s/d now means the keys labelled W/A/S/D.
 
 [dead-keys]
-pr: 61
-issue: 54
-status: open
 area: Input
 title: Circumflex letters and dead keys at the caret in console and chat
-change: Reworked on upstream's editors: AZERTY ^ then e types e-circumflex again (upstream: ^e).
+change: Reworked on the new text editors: AZERTY ^ then e types e-circumflex again (was ^e).
 change: Any dead key shows at the caret at once; ^ then a digit still gives a colour code.
 test: Windows French AZERTY: in the console and in chat type ^ then e, a, i, o, u: accented letters.
 test: ^ then Shift+1 gives ^1 (colour code); ^ then Space gives ^; ^ then Backspace removes the ^.
 test: Other dead keys (accent keys) show at the caret before the next key; US layout unchanged.
 
-# ---- Open PRs: Menus & settings ----
+# ---- Menus & settings ----
 
 [sharp-levelshots]
-pr: 121
-status: open
 area: Menus & settings
 title: Sharp loading-screen and map-picker levelshots
 change: Levelshots keep their own resolution (HD packs included) with mipmaps.
@@ -110,9 +89,6 @@ test: Join a server at 4K: the loading levelshot is sharp (JoF HD wide shots too
 test: Create game: the map preview is sharp; switching maps updates it.
 
 [text-spacing]
-pr: 37
-issue: 9
-status: open
 area: Menus & settings
 title: Text size and spacing for menus and console; closer console and chat rows
 change: Settings > TEXT: menu text size, letter spacing, console text size, console line spacing.
@@ -125,9 +101,6 @@ test: ui_letterSpacing 0.05 with the console open: caret and selection still lin
 test: ui_textScale 0.8 and 1.2 on every menu screen: labels fit, titles do not collide.
 
 [menu-contrast]
-pr: 44
-issue: 8
-status: open
 area: Menus & settings
 title: Menu contrast floor behind text
 change: ui_menuContrast (off / standard / strong, Settings > GAME) keeps text backings dark enough.
@@ -140,9 +113,6 @@ test: Map picker caption sits on a dark backing; ui_menuContrast strong is close
 note: Review fix: reading ui_menuContrast no longer allocates every frame.
 
 [display-modes]
-pr: 45
-issue: 11
-status: open
 area: Menus & settings
 title: Named display modes and a resolution list
 change: Video > Display mode: Windowed, Borderless fullscreen or Exclusive fullscreen.
@@ -153,9 +123,6 @@ test: Leaving fullscreen restores the r_resolution window size.
 test: GAME tab: Saber trail and Force Seeing aura now toggle.
 
 [game-font]
-pr: 46
-issue: 13
-status: open
 area: Menus & settings
 title: Classic game fonts on every retail text surface
 change: ergoec: menus, crosshair name, centre prints, warmup, timer, scoreboard names.
@@ -169,9 +136,6 @@ test: At 4K: chat text and cg_classicHudFont 1 HUD numbers have crisp edges, no 
 note: First enable may hitch about 0.1 s while fonts convert.
 
 [force-menu]
-pr: 47
-issue: 23
-status: open
 area: Menus & settings
 title: Force page: Apply, power icons and side cards
 change: The Force page edits a draft: Apply sends it, Discard reverts, closing drops it.
@@ -185,9 +149,6 @@ test: Review fix: Character page grid shows all models (207 max), none missing a
 test: Main menu wordmark, map preview and HUD icons still draw right (atlas rows moved).
 
 [classic-menu]
-pr: 115
-issue: 24
-status: open
 area: Menus & settings
 title: Classic menu style: retail pages, browser, animation, loading screens
 change: ui_menuStyle classic draws retail-style menus and art, with no map behind them.
@@ -203,9 +164,6 @@ test: In a match Esc: retail bar; Profile/Setup/Controls open retail pop-up wind
 note: FIND PLAYER is dimmed; the 3D model is shown as a portrait icon.
 
 [settings-scroll]
-pr: 60
-issue: 57
-status: open
 area: Menus & settings
 title: Scroll settings tabs that overflow
 change: Tabs with more rows than fit scroll in whole rows; a thin mark shows the position.
@@ -215,9 +173,6 @@ test: The wheel scrolls one row per notch; hover and click still work after scro
 test: Check the same in the in-game settings menu.
 
 [fps-cap-auto]
-pr: 86, 87
-issue: 80
-status: open
 area: Menus & settings
 title: FPS cap follows the monitor; caps hold their exact rate
 change: com_maxfps defaults to -1 = AUTO (monitor refresh, 125 if unknown); 0 is uncapped.
@@ -227,11 +182,9 @@ test: Right from AUTO gives 0 (uncapped), then 25, 50...; dragging to the far le
 test: com_maxfps 144 then 60: cg_drawFPS holds 144 and 60, not a few frames below.
 test: Record with OBS uncapped vs AUTO: compare skipped frames in the OBS log.
 
-# ---- Open PRs: HUD ----
+# ---- HUD ----
 
 [menu-huds]
-pr: 117
-status: open
 area: HUD
 title: Game-data HUD: retail HUD and custom HUD packs (Radial HUD)
 change: cg_hudStyle game draws the HUD from ui/hud.menu: retail, or a pk3 replacing it.
@@ -241,8 +194,6 @@ test: Health, armor, Force, ammo tics and numbers follow damage, pickups and fir
 test: Move zz_TheRisqe_Radial_HUD.pk3 away: the retail HUD appears instead.
 
 [classic-scoreboard]
-pr: 116
-status: open
 area: HUD
 title: Classic scoreboard (JoF EJK layout) with client IDs
 change: cg_scoreboardStyle classic (Settings > HUD+): retail/JoF layout with an Id column.
@@ -251,20 +202,15 @@ test: Settings > HUD+ > scoreboard style classic; hold the scoreboard in FFA, te
 test: Ids match /status; your row highlighted; bots BOT; spectators listed last.
 
 [crosshair-name]
-pr: 59
-issue: 55
-status: open
 area: HUD
 title: Crosshair name sized and placed like stock
 change: The crosshair name scales with the HUD: a 45 px line at 1080p, like stock ergoec 20.
 change: Its top sits at y=170 of 480 like stock: well above the crosshair, not below it.
 test: Aim at another player with the modern HUD, then with the classic HUD font.
-test: The name shows about 157 px above the crosshair at 1080p (exact at 4K with #107).
+test: The name shows about 157 px above the crosshair at 1080p (exact at 4K with high-res HUD text).
 test: Try cg_hudScale; long names end in an ellipsis.
 
 [high-res-scale]
-pr: 107
-status: open
 area: HUD
 title: HUD text grows with resolution above 1440 lines
 change: HUD widget text (crosshair name, kill feed, timer, warmup, vote) 1.33x -> 2x at 4K.
@@ -272,13 +218,11 @@ change: FPS and weapon labels 1.35x -> 2x at 4K; Windows display scaling no long
 test: At 3840x2160: crosshair name, kill feed, timer, FPS and weapon name are clearly bigger.
 test: cg_hudScale 0.5 and 1.5 at 4K: nothing overflows the screen edges.
 
-# ---- Open PRs: Rendering & effects ----
+# ---- Rendering & effects ----
 
 [renderer-settings]
-pr: 120
-status: open
 area: Rendering & effects
-title: RENDERER settings page for every jkr_ renderer cvar
+title: RENDERER settings page for every renderer cvar
 change: Video > Renderer (and classic Setup > RENDERER): IMAGE, LIGHTING, SHADOWS tabs.
 change: Saber trail and Force Seeing aura rows now work (int cvars were not toggled).
 test: Open the page from Video and from classic Setup; Back returns where you came from.
@@ -286,9 +230,6 @@ test: Toggle HDR, bloom, FXAA, shadows, volumetrics; restart-marked rows say so.
 test: Game tab: Saber trail cycles and Force Seeing aura toggles ON/OFF.
 
 [speed-trail]
-pr: 35
-issue: 17
-status: open
 area: Rendering & effects
 title: Force Speed afterimages
 change: Force Speed draws two translucent copies behind players and NPCs (cg_speedTrail 1).
@@ -299,9 +240,6 @@ test: Note any hitch on the first Force Speed use.
 test: Review fix: cut-out parts (hair, fringes, belts) stay on the copies, faint with holes.
 
 [death-anim]
-pr: 36
-issue: 21
-status: open
 area: Rendering & effects
 title: Bodies continue the death animation after respawn
 change: The body left by a quick respawn keeps playing its death animation instead of snapping.
@@ -311,25 +249,18 @@ test: The body keeps falling through the rest of the animation, then holds.
 test: Watch for a body swapping to another model (likely fixed too).
 test: Respawn after the death finished: the body stays on the final frame, no jump.
 
-[third-person-camera-jkr]
-pr: 38, 132
-issue: 20
-status: open
+[third-person-camera-2]
 area: Rendering & effects
 title: Third-person camera stays out of walls and the player
-change: Now Bishop's camera from JKR #125 (same stock rules plus vehicle framing): new id, retest.
-change: Kept from PR 38: the prediction error moves the focus before the wall traces.
-change: cg_thirdPersonPitchOffset now tilts the stock way (PR 38 had the sign backwards).
+change: Now a reworked camera (same stock rules plus vehicle framing): new id, retest.
+change: Kept from the first version: the prediction error moves the focus before the wall traces.
+change: cg_thirdPersonPitchOffset now tilts the stock way (it had the sign backwards before).
 test: mp/ffa3 in third person: walk along the ship hull while turning quickly.
 test: Back into walls and corners; look fully up and down; ride the lifts.
 test: The camera stays in front of geometry and outside the player model.
 test: cg_thirdPersonPitchOffset 20: the camera looks down more; cg_thirdPersonHorzOffset 30 too.
-note: PR 38 was closed upstream: #125 has the camera, #132 the prediction-error part.
 
 [saber-trail]
-pr: 39
-issue: 18
-status: open
 area: Rendering & effects
 title: Saber trail edges and wall-hit sounds
 change: Trails stop at walls, thrown sabers trail, stock triangle order; wall hits replace each other.
@@ -339,21 +270,15 @@ test: Throw the saber: it trails in flight; catching it draws no long streak.
 test: Hold the blade in a wall: one wall-hit sound restarting about every 100 ms, no pile-up.
 
 [dust-motes]
-pr: 49
-issue: 14
-status: open
 area: Rendering & effects
 title: Sunbeam dust (dust motes only inside godrays)
 change: r_dustMotes (0 to 1, Settings > Game > Sunbeam dust) draws dust lit by sunbeams only.
-change: Bishop's rework: no godray volume or sunlight means no dust; needs r_volumetrics.
+change: Reworked: no godray volume or sunlight means no dust; needs r_volumetrics.
 test: r_volumetrics on, r_dustMotes 1, on an outdoor map: dust shows only inside sunbeams.
 test: Shadowed air, dark rooms and r_volumetrics 0 show no dust at all.
-test: Optional: JKR_FRAME_BUDGET=1, compare the volumetrics phase with r_dustMotes 0 and 1.
+test: Optional: SJK_FRAME_BUDGET=1, compare the volumetrics phase with r_dustMotes 0 and 1.
 
 [entity-types]
-pr: 63
-issue: 56
-status: open
 area: Rendering & effects
 title: Draw modelindex models only where codemp does
 change: Entities show a modelindex model only for the types stock draws (no shield or trigger models).
@@ -363,9 +288,6 @@ test: Doors, lifts, items, thrown sabers and dropped bodies still look normal.
 note: If objects still fly: note map and object type.
 
 [material-maps]
-pr: 66
-issue: 65
-status: open
 area: Rendering & effects
 title: Optional rend2-style material maps for world surfaces
 change: Normal, parallax and specular maps on lightmapped world surfaces, in rend2 pack format.
@@ -380,9 +302,6 @@ note: In baked lighting the effect is small by design.
 note: The generated maps are gentle (average tilt about 4 deg), so expect subtle changes.
 
 [stage-collapse]
-pr: 71
-issue: 69
-status: open
 area: Rendering & effects
 title: Stage collapse follows rd-vanilla's resolved colours
 change: Lightmap + texture pairs merge as in rd-vanilla (unset rgbGen = identity), first pair only.
@@ -391,36 +310,28 @@ test: A cairn map with mp_win02 windows: they look the same as before.
 note: Meant to be render-identical; any visible change on any map is a bug.
 
 [dx12-skinning]
-pr: 72
-issue: 68
-status: open
 area: Rendering & effects
 title: Skinned vertex path compiles on DX12 (FXC)
 change: The GPU skinning loop uses whole-vector updates, which FXC on DX12 can compile.
 test: Default Vulkan backend: players, NPCs and other skinned models look exactly as before.
 test: Optional: WGPU_BACKEND=dx12 now fails on the HUD shader, no longer on skinning (X3511).
-note: DX12 failing on the HUD shader (X3507) is known and not fixed by this PR.
+note: DX12 failing on the HUD shader (X3507) is known and not fixed by this change.
 
 [material-generator]
-pr: 78
-issue: 65
-status: open
 area: Rendering & effects
 title: Local generator of rend2-style material maps (sjk-materialgen)
 change: A command-line tool writes normal and roughness/metal maps for the installed maps.
-change: Output: %APPDATA%\jkr\generated\zzz_jkr_materials.pk3, never inside the game folder.
+change: Output: %APPDATA%\SJK\generated\zzz_sjk_materials.pk3, never inside the game folder.
 test: cargo run --release -p sjk-materialgen -- --limit 50, then read its printed summary.
-test: JKR_CONTENT=<that folder>, with r_normalMapping 1: the material maps log counts rise.
+test: SJK_CONTENT=<that folder>, with r_normalMapping 1: the material maps log counts rise.
 test: Its manifest.json lists every source texture with its class, and each skipped shader.
 
-[jkr-shader-remaps]
-pr: 128, 129, 130, 131
-status: open
+[shader-remaps]
 area: Rendering & effects
-title: Shader remaps are now JKR's (#127) plus your #128-#131; SJK's own version is gone
+title: Shader remaps reworked: map, server and console remaps; the old version is gone
 change: Map worldspawn, server (CS_SHADERSTATE, remapShader) and console remaps; latest one wins.
 change: Effects and skies follow remaps; undoing one restores the material; clearRemaps.
-change: SJK keeps cg_remaps 2 (EternalJK's default); JKR defaults to 1.
+change: cg_remaps defaults to 2 (EternalJK's default).
 test: devmap mp/ffa3, then: remapShader textures/desert/stucco textures/bespin/u_metalorange
 test: The stucco walls turn orange metal at once, without a map reload.
 test: remapShader textures/desert/stucco textures/desert/stucco puts the stucco back.
@@ -431,8 +342,6 @@ test: Settings > Game options: the Shader remaps row (0 / 1 / 2) and its help li
 note: HUD pictures, saber blades and trails and surface sprites still ignore remaps.
 
 [leading-slash-paths]
-pr: 133
-status: open
 area: Rendering & effects
 title: Assets named with a leading slash load, as in retail (JoF map items)
 change: A read drops one leading / or \ from the path, as FS_FOpenFileRead does.
@@ -442,21 +351,17 @@ test: The power converter item has its model; the log no longer has that line.
 note: Mounted names and pk3 entries still refuse a leading slash; only reads accept one.
 
 [forced-model-log]
-pr: 134
-status: open
 area: Rendering & effects
 title: No more 32 "force-model client N: no game state" lines at every connect
 change: The forced-model policy is recorded but not applied until there is a game state.
 test: Connect to a server; logs\last-client.log has no "force-model client" lines.
 test: cg_forceModel 1 in a match: other players still switch to your model at once.
 
-# ---- Open PRs: Audio ----
+# ---- Audio ----
 
-# ---- Open PRs: Gameplay ----
+# ---- Gameplay ----
 
 [join-retries]
-pr: 98
-status: open
 area: Gameplay
 title: Joining resends lost packets and never hangs as a floating camera
 change: A lost gamestate is resent (the floating-camera stall on Siege servers).
@@ -467,8 +372,6 @@ test: If a join stalls, it ends with an error within ~15 s instead of floating o
 test: After any failed join, logs\last-client.log shows the last join: step reached.
 
 [japlus-identity]
-pr: 108
-status: open
 area: Gameplay
 title: SJK joins JA+ servers as a JA+ plugin client
 change: Sends cjp_client 1.4B4 and your cp_pluginDisable; JA+/jaPRO detected before joining.
@@ -478,8 +381,6 @@ test: Scoreboard with several players on JA+: every row shows the right name and
 test: Set an RGB saber, join JA+: others (and /sabercolor) see your RGB blade.
 
 [debug-melee]
-pr: 110
-status: open
 area: Gameplay
 title: g_debugMelee kicks and wall holds predicted (stock and JA+)
 change: Melee alt-attack kicks, punches and jump-held wall grabs no longer snap back.
@@ -489,8 +390,6 @@ test: Jump into a wall holding jump (level 2): hold is smooth, view does not jum
 note: Attack+alt-attack grapple can still twitch briefly: only the server computes it.
 
 [japlus-movement]
-pr: 114
-status: open
 area: Gameplay
 title: JA+ movement and saber rules predicted on JA+ servers
 change: Flip kick, yellow DFA, faster grip, staff front kick, free taunts/meditate, wall runs.
@@ -500,8 +399,6 @@ test: Staff alt-attack standing; bow/meditate while moving; wall flip off a play
 test: Wall run-up right after a Force-jump flip: no snap back.
 
 [japlus-grapple]
-pr: 113
-status: open
 area: Gameplay
 title: JA+ grapple hook predicted and its rope drawn
 change: +grapple pull and the rope hang after release no longer snap back; use cancels.
@@ -510,32 +407,40 @@ test: JA+: /amAltDim first if the hook does nothing (default alt dimension disab
 test: Hold +grapple onto a wall, release, hang, then press use to drop: smooth, rope visible.
 
 [japlus-duel]
-pr: 111
-status: open
 area: Gameplay
 title: JA+ duellers pass through other players in prediction
 change: Walking through players in a private duel (or out of yours) no longer snaps back.
 test: JA+: two players duel, walk through them; while duelling, walk through a bystander.
 
-# ---- Personal (SJK only) ----
+# ---- More changes ----
+
+[sjk-standalone]
+area: Menus & settings
+title: SJK on its own: no jkr_ names, SJK folders, credits Origins
+change: jkr_ cvars/commands, JKR_ env vars and the GameData/jkr import are gone.
+change: Downloads in %LOCALAPPDATA%/SJK/downloads; server saves sjk_server.cfg.
+change: Credits: Bishop's card moved to an Origins section after Contributors.
+test: Join a server that sends a pk3: it downloads into %LOCALAPPDATA%/SJK/downloads.
+test: Type jkr_hdr in the console: unknown command. r_sceneHdr still works.
+test: Open Credits: Sol JK, Contributors, Origins (Bishop), Made with.
+test: Console at start: the copyright line, then "Free software under the GNU GPL v2...".
+note: Your zzz_jkr_materials.pk3 still loads; regenerate for zzz_sjk_materials.pk3.
 
 [sjk-branding]
-status: personal
 area: Menus & settings
 title: Sol JK (SJK) name in the client
 change: Window title "Sol JK", version line "SJK <version>", screen headers "SJK / ...", README.
-change: Programs sjk/sjk-server, crates sjk-*; settings in GameData/SJK, imported from GameData/jkr.
+change: Programs sjk/sjk-server, crates sjk-*; settings in GameData/SJK.
 test: Window title reads Sol JK; the main menu's bottom-right line reads SJK <version>.
 test: Settings, Play, Host and Player screens show SJK / ... headers; Esc menu: Quit Sol JK.
 test: After the update: GameData/SJK exists with your settings, binds and debug_panel ticks.
-test: play builds as Compiling sjk-...; play <JKR PR number> still builds and runs JKR's own client.
+test: play builds as Compiling sjk-... and starts the SJK client.
 
 [slider-entry-prefs]
-status: personal
 area: Menus & settings
 title: SJK slider entry: type to open, Space steps, clicking away applies
 change: Typing a digit on a selected slider or saber RGB row opens entry with that digit.
-change: Space steps the slider; clicking elsewhere applies a valid draft (JKR discards it).
+change: Space steps the slider; clicking elsewhere applies a valid draft (it used to be dropped).
 change: Integer rows round 142.6 to 143; drafts take one '.', '-' only below zero, 10 chars.
 test: Settings > VIDEO: select FPS cap, type 142 then Enter: it reads 142 (no need for Enter first).
 test: Select a slider, press Space: it steps once; Enter opens the entry instead.
@@ -544,7 +449,6 @@ test: FPS cap: type -1 then Enter: AUTO. Type 142.6: 143. Letters and a second '
 test: Player > Saber RGB and the F8 Shot panel sliders behave the same way.
 
 [sjk-classic-menu]
-status: personal
 area: Menus & settings
 title: SJK starts on the classic menu style
 change: ui_menuStyle defaults to classic; only modern or 0 selects the modern layout.
@@ -552,7 +456,6 @@ test: reset ui_menuStyle (or remove it from config.cfg) and restart: the classic
 test: Settings > GAME > Menu style modern still switches to the modern layout.
 
 [ui-display-colors]
-status: personal
 area: Menus & settings
 title: Text and UI colours drawn as retail did (saturated, not washed out)
 change: Text, HUD and menus draw display colours and blend them like retail; the world is unchanged.
@@ -567,7 +470,6 @@ test: Classic menu, scoreboard, levelshots, HUD icons and the scope look as in r
 note: Faint separators, borders and hover fills are fainter than before; report any too faint.
 
 [classic-console]
-status: personal
 area: Console & chat
 title: Classic console after EternalJK (con_style classic, the default)
 change: EJK console: console shader background, blue bar, charset grid, green clock, corner clock.
@@ -588,7 +490,6 @@ test: con_style modern: the old console, unchanged; con_style classic again.
 note: Your config keeps con_timestamps 0: set 2 for EJK's stamps. con_ratioFix 0 squashes.
 
 [console-key-closes]
-status: personal
 area: Console & chat
 title: The console key closes the console again, as in EternalJK
 change: The key that opens the console (~, or your cl_consoleKeys key) now closes it and types nothing.
@@ -599,7 +500,6 @@ test: Same with con_style modern. In chat (console closed), ~ still types in the
 test: AZERTY: ^ then 1 in the console still gives ^1; Esc and Shift+Esc still close it.
 
 [console-key-any-layout]
-status: personal
 area: Console & chat
 title: The key under Esc opens the console on every keyboard layout
 change: cl_consoleUseScanCode is 1, as in EternalJK: the key under Esc opens the console on any
@@ -612,7 +512,6 @@ test: In chat (console closed) on Hungarian: the key still types 0 in the chat l
 note: cl_consoleUseScanCode 0 goes back to the cl_consoleKeys characters (~ ` etc).
 
 [console-vector-font]
-status: personal
 area: Console & chat
 title: The console draws with a vector font (JetBrains Mono), no more bitmap font
 change: The classic console, notify lines, FPS, vote and kill feed use JetBrains Mono instead of
@@ -625,7 +524,6 @@ test: Symbols: say e acute, the 2 superscript, the logo key (0xAC): they draw in
 test: In a match with ui_gameFont 1: FPS counter, vote text and kill feed use the same font.
 
 [vector-game-fonts]
-status: personal
 area: Menus & settings
 title: Menu, chat and classic HUD fonts are vector fonts (SJK Menu, SJK Chat, SJK HUD)
 change: ergoec, ocr_a and arialnb are no longer read from the game data: bundled vector fonts
@@ -638,7 +536,6 @@ test: cg_classicHudFont 1: HUD numbers sharp, same place. A name with Alt+0172 s
 note: Works without the JoF HD pack installed: the fonts are built in.
 
 [game-font-spacing]
-status: personal
 area: Menus & settings
 title: Even letter spacing in the chat, menu and classic HUD fonts
 change: Most letters sat flush left in their space while C, G, O, X, c, x, - sat right: gaps.
@@ -648,7 +545,6 @@ test: Menus and cg_classicHudFont 1: words read evenly (Mill, COLOCAR), nothing 
 note: Still a letter too close or far? Tell Claude which pair.
 
 [console-browser-classic]
-status: personal
 area: Console & chat
 title: F3 browser in the classic+ style with the classic console
 change: Retail pop-up box, gold filter and action buttons, retail list box and a detail box.
@@ -661,7 +557,6 @@ test: Wheel and the gold scrollbar scroll; Esc or F3 returns to the console.
 test: con_style modern: F3 shows the old full-screen browser, unchanged.
 
 [score-display]
-status: personal
 area: HUD
 title: A negative score shows as negative, not 65535
 change: Score, health and ammo from the server are read as signed numbers, as retail reads them.
@@ -669,7 +564,6 @@ test: In a match, kill yourself (/kill) at score 0: the HUD and scoreboard show 
 test: Die with negative health (a big explosion): the death camera turns as on a normal death.
 
 [legacy-text]
-status: personal
 area: Console & chat
 title: Chat and names leave in Windows-1252, readable by EJK and retail players
 change: Text whose characters all fit Windows-1252 is sent as those bytes, not UTF-8,
@@ -681,7 +575,6 @@ test: Set a name with an accent: others and the scoreboard show it correctly.
 note: Text with other characters (Cyrillic, emoji) still goes as UTF-8: only SJK reads it.
 
 [debug-panel]
-status: personal
 area: Menus & settings
 title: This test list (debug_panel)
 change: debug_panel toggles this list anywhere; ticks are saved in debug_panel_tested.txt.
@@ -691,7 +584,6 @@ test: Tick an entry (Space, Enter or its box), restart the client: the tick is s
 test: Wheel, arrows, PageUp / PageDown, Home / End; Tab cycles TO TEST, TESTED and ALL.
 
 [indoor-normal-light]
-status: personal
 area: Rendering & effects
 title: Normal maps respond to lamps and bounce light (live lighting)
 change: The light pass also stores where lamp, bounce and sky light come from (half-res).
@@ -701,10 +593,9 @@ test: Walk into a lamp-lit interior: wall and floor relief should catch the lamp
 test: Toggle r_dayDebug 1024 / 0: 1024 is the old flat lamp light; 0 shows relief.
 test: r_materialMapsDebug 2 marks mapped surfaces (cyan = normal + specular).
 test: r_normalMapStrength 2 doubles the relief live, 0 flattens it, 1 restores it.
-note: Needs the generated pack (zzz_jkr_materials.pk3); baked lighting is unchanged.
+note: Needs the generated pack (zzz_sjk_materials.pk3); baked lighting is unchanged.
 
 [cubemap-reflections]
-status: personal
 area: Rendering & effects
 title: Reflection probes on specular-mapped surfaces
 change: Cube maps captured at spawn points (or misc_cubemap), GGX-prefiltered, box-projected.
@@ -716,34 +607,31 @@ test: r_dayHour 18 then 12: reflections follow the light within a few seconds.
 note: Players and effects never appear in reflections; that is by design.
 
 [floor-reflection-maps]
-status: personal
 area: Rendering & effects
 title: Floor mirrors follow material maps; r_floorReflections cvar
 change: Mirrored floors bend their reflection by the normal map, blur by the map's roughness.
-change: r_floorReflections 0/1 (live, Renderer IMAGE tab) replaces JKR_FLOOR_REFLECTIONS.
+change: r_floorReflections 0/1 (live, Renderer IMAGE tab) replaces SJK_FLOOR_REFLECTIONS.
 test: Load a map with shiny floors (mp/ffa1 halls); log: Floor mirrors: N planes, M with maps.
 test: r_floorReflections 0 then 1: the mirror image disappears and comes back at once.
 test: On a floor with maps (M above 0) the reflection ripples with the floor's relief.
 note: Floors need generated maps for the mapped look; regenerate the pack after the update.
 
 [materialgen-metal]
-status: personal
 area: Rendering & effects
 title: materialgen: shinier metal, polished hint, overrides file
 change: Metal class metalness 0.8, roughness 0.3; tcGen environment shaders made glossier.
 change: Metal panels get _nh height; per-texture rules in sjk-materialgen-overrides.txt.
 test: Load mp/ffa3 with the old pack: the log asks to regenerate (generation 1).
-test: Regenerate: sjk-materialgen --maps mp/ffa3,mp/duel1 --out <dir>/zzz_jkr_materials.pk3
-test: Copy it over GameData/base/zzz_jkr_materials.pk3, restart: the note is gone.
+test: Regenerate: sjk-materialgen --maps mp/ffa3,mp/duel1 --out <dir>/zzz_sjk_materials.pk3
+test: Copy it over GameData/base/zzz_sjk_materials.pk3, restart: the note is gone.
 test: Metal walls now reflect the room (r_materialMapsDebug 4 to see the reflection).
 note: --dry-run lists polished textures and applied override lines.
 
 [own-force-effects]
-status: personal
 area: Rendering & effects
 title: Your own Force streams and hand puffs are drawn
-change: Your Drain/Lightning stream and Grip/Push puffs come from your player state (JKR looked
-change: for you in the entity list, where the server never puts you). A trickster's stream shows.
+change: Your Drain/Lightning stream and Grip/Push puffs come from your player state, not the
+change: entity list, where the server never puts you. A trickster's stream shows.
 test: Local game with a bot. Drain 1-2 at the bot: red stream from your left hand, red flash on it.
 test: Same in first and third person (cg_thirdPerson 0 / 1). Drain 1-2 at a wall: no stream.
 test: Drain 3: a red fan. Lightning 1-2: a blue stream; Lightning 3: a blue fan.
@@ -751,7 +639,6 @@ test: Grip the bot: red puffs at your hand in third person only. Push / Pull: gr
 test: A second client watching you sees the same streams and puffs as before.
 
 [melee-viewmodel]
-status: personal
 area: Rendering & effects
 title: First-person melee shows no stun baton
 change: With melee selected, the first-person view no longer draws the stun baton, as in retail.
@@ -759,19 +646,17 @@ test: First person, select melee (fists): no weapon in view; punches and kicks w
 test: Select the stun baton: the baton and its three spinning parts show as before.
 
 [drain-bolt-shape]
-status: personal
 area: Rendering & effects
 title: Drain bolts are jagged like stock
-change: EFX bounce also sets an electricity bolt's jaggedness, as in retail (JKR: almost straight).
+change: EFX bounce also sets an electricity bolt's jaggedness, as in retail (was almost straight).
 test: Local game with a bot. Drain 1-2 at it: the red stream zigzags like Lightning, not a line.
 test: Drain 3: the red fan's bolts are jagged too. Lightning looks as before.
 
 [mind-trick-fade]
-status: personal
 area: Rendering & effects
 title: Mind Trick hides the trickster; confusion over your victims
 change: A trickster fades out (~0.5 s) for its victims, then is hidden; it fades back in after.
-change: You see a blue confusion swirl over the heads of players you tricked. JKR had neither.
+change: You see a blue confusion swirl over the heads of players you tricked. Neither was drawn before.
 test: Local server, two clients A and B. A mind-tricks B: on B, A fades out then disappears.
 test: On B: A's saber blades and gun go too; a thrown saber stays. A's Lightning still shows.
 test: On A: a blue swirl over B's head while the trick lasts; B's Force Sight on: swirl stops.
@@ -779,7 +664,6 @@ test: On B: turn Force Sight on while tricked: A reappears (fades back in over ~
 test: A speed-runs (Force Speed) while tricked: no afterimages on B, normal on others.
 
 [dynamic-glow]
-status: personal
 area: Rendering & effects
 title: Dynamic glow: glow stages get a halo, as in EternalJK
 change: Stages marked glow are drawn again into a glow image, blurred and added (r_DynamicGlow 1).
@@ -794,7 +678,6 @@ test: A map without glow surfaces, sabers off: no halo anywhere, FPS as with r_D
 note: Not yet in portals, sky portals or floor reflections; fog does not dim glow.
 
 [eye-adaptation]
-status: personal
 area: Rendering & effects
 title: Eye adaptation: exposure follows the view (r_autoExposure)
 change: Dark views brighten over a few seconds (up to +1 EV); bright light darkens a little (-0.5).
@@ -809,14 +692,13 @@ note: Too bright/dark overall on outdoor maps (ffa3)? Tune r_autoExposureKey (de
 note: Too slow/fast: r_autoExposureToDark (2.5 s) and r_autoExposureToBright (0.4 s).
 
 [emission-maps]
-status: personal
 area: Rendering & effects
 title: Emission maps: light panels, lamps and screens glow and light the room
 change: sjk-materialgen (generation 3) writes <texture>_e for textures that evidently give light.
 change: Emitting texels are added unlit with a glow halo; shaders that already glow are left alone.
 change: With r_dayNight 1 they also become lamps, unless the surface already lights the room.
 test: Regenerate: cargo run --release -p sjk-materialgen -- --maps <your maps>,tpcv3_ffa,amjh3te
-test: Same --maps also mp/ctf4,mp/siege_desert; copy over base/zzz_jkr_materials.pk3; restart.
+test: Same --maps also mp/ctf4,mp/siege_desert; copy over base/zzz_sjk_materials.pk3; restart.
 test: Load log: "material maps (...emission): N stages, ..., N emission"; no regenerate note.
 test: mp/ctf4 rooftops and mp/siege_desert: neon signs glow with a halo, text stays crisp.
 test: tpcv3_ffa: red, green and blue light panels glow; in live lighting they light the floor.
@@ -831,7 +713,6 @@ note: Misfire? Add "<texture path> emission=off" to sjk-materialgen-overrides.tx
 note: r_emissiveMaps 0 + restart turns it all off; the pack's normal/specular maps are unaffected.
 
 [model-tolerance]
-status: personal
 area: Rendering & effects
 title: Custom player models load as in EternalJK instead of Kyle
 change: Skins are read like rd-vanilla (no commas, stray text); a missing skin uses model_default.
@@ -846,7 +727,6 @@ note: Models you do not have installed (zabka, figo, ...) are still Kyle, as in 
 note: jedi/rgb needs EternalJK's pk3: fs_basegame EternalJK + restart (also loads its menus).
 
 [server-bsp-instances]
-status: personal
 area: Rendering & effects
 title: Map pieces a server adds stop the camera; server props have their scale
 change: Third-person camera and crosshair name trace now hit server-placed map pieces (misc_bsp).
@@ -859,7 +739,6 @@ test: Server props placed bigger or smaller than normal now show at that size, a
 note: Light there still wrong or flickering? Write down the server, map and spot.
 
 [model-fallback]
-status: personal
 area: Rendering & effects
 title: A model this client cannot load shows Kyle instead of the old model
 change: A /model (or a new player in a used slot) naming a model you lack now shows Kyle,
@@ -870,7 +749,6 @@ test: logs\last-client.log: "client N Kyle in place of models/players/<name>/def
 note: If /model still shows no change for an installed model, send logs\last-client.log.
 
 [sjk-logo]
-status: personal
 area: Menus & settings
 title: SJK emblem: classic menu ring, modern menu, program and window icons, site
 change: Classic main menu: the SJK emblem replaces the ja01 logo video in the ring (not read).
@@ -888,7 +766,6 @@ test: After the site deploys: favicon in the tab; a shared link shows the previe
 note: Icons of 40 px and under show the medallion (ring, core, blade), not the whole star.
 
 [version-label]
-status: personal
 area: HUD
 title: Version, build date and commit at the top of the screen, for screenshots
 change: Top centre, small: SJK <version> . <dd/mm/yyyy HH:MM> . <commit>, in menus and in play.
@@ -902,7 +779,6 @@ test: logs\last-client.log, near the top: "build: SJK dev ..." with today's comm
 note: A local build says dev; a release says its date version, such as 2026.1005.1.
 
 [sol-visual-defaults]
-status: personal
 area: Rendering & effects
 title: Sol's visual defaults: noon sun, bloom, sunbeam dust, material maps on
 change: New defaults: r_dayHour 12, r_sceneBloom 1, r_dustMotes 1 and r_normalMapping,
@@ -917,7 +793,6 @@ test: Without a pack: no regenerate note, "no stage of this map has maps", nothi
 test: Afterwards put the old config.cfg back; its saved values return.
 
 [sjk-gameplay-defaults]
-status: personal
 area: Menus & settings
 title: New defaults: classic scoreboard, game fonts, timer, team overlay, limbs, snaps, idle FPS
 change: cg_scoreboardStyle classic, ui_gameFont 1, cg_drawTimer 1, cg_drawTeamOverlay 1.
@@ -934,7 +809,6 @@ test: Afterwards put the old config.cfg back; its saved values return.
 note: Whether a server above 40 snaps feels better, and the limb scan's frame cost, are untested.
 
 [classic-plus-setup]
-status: personal
 area: Menus & settings
 title: Classic+ Setup/Controls: detail box, default marks; renderer as a classic page
 change: Under the rows, a box says what the focused setting does, its default, range, restart.
@@ -950,7 +824,6 @@ test: In game (Escape > Setup): same panels; the renderer pop-up has its three g
 note: The guide for this style is docs/classic-plus.md.
 
 [classic-plus-groups]
-status: personal
 area: Menus & settings
 title: Classic+ groups and pictures: merged Setup/Controls groups, binding icons, Join flags
 change: One Video and one Force Powers group; new Interface, HUD and Scoreboard groups.
@@ -964,7 +837,6 @@ test: In a team game, Escape > Join: flags and counts on Team Red and Team Blue.
 test: Profile with 13 powers known: the Force strip shows all holocrons.
 
 [classic-force-page]
-status: personal
 area: Menus & settings
 title: Classic profile: Force page with holocrons and cost stars, Force summary
 change: Profile gets a Force button (configforce art); its window: side cards, points meter,
@@ -981,7 +853,6 @@ test: Profile page: click a head tile, a part, a tint, a hilt or a blade swatch:
 note: Was: clicking a cell picked the next entry instead (the list's own region was on top).
 
 [profile-force-readable]
-status: personal
 area: Menus & settings
 title: Force page: every holocron and star readable; profile bars and Apply aligned
 change: A power you can buy shows its holocron whole, bought or not (Dark Rage at level 0).
@@ -995,7 +866,6 @@ test: In game: Apply sits in the middle of the bottom bar, level with the descri
 note: With all 100 points spent, Dark Rage cannot be raised until another power is lowered.
 
 [force-wheel]
-status: personal
 area: HUD
 title: JoF EJK's Force wheel: retail icon bar, Stasis, Repulse, Dash and the flamethrower
 change: Game and classic HUD: forcenext/forceprev show the retail icon bar with the power name.
@@ -1011,7 +881,6 @@ note: Repulse/Dash/flamethrower icons come from EternalJK/jofclient-assets.pk3 (
 note: The log line "JoF EJK content ... jofclient-assets.pk3" at startup confirms it.
 
 [classic-profile-extras]
-status: personal
 area: Menus & settings
 title: Classic profile: Force templates, part icons, live model preview
 change: Force page lists forcecfg templates (retail + packs + yours); Save Template writes yours.
@@ -1028,7 +897,6 @@ test: Lightsaber creation: the lit sabers turn on their own (see saber-page-rgb)
 note: The preview is new GPU code: if it shows wrong colours, black or nothing, say what you see.
 
 [saber-page-rgb]
-status: personal
 area: Menus & settings
 title: Lightsaber creation: the saber alone in 3D, and custom RGB colour sliders
 change: The preview shows only the lit saber(s), lying flat and turning, as retail spun the hilt.
@@ -1041,7 +909,6 @@ test: Same in game (Escape > Profile > Saber): sliders under each colour row, sa
 note: Others see your RGB colour only with a client that reads cp_sbRGB (JA+, EJK, SJK).
 
 [model-grid]
-status: personal
 area: Menus & settings
 title: Model grid: every head icon shows (no black tiles), search box
 change: Icons load as tiles are drawn (207 atlas cells as a cache): all 900+ models get icons.
@@ -1054,7 +921,6 @@ test: Scroll far down, click a head: that model is chosen (nothing else changes)
 test: ui_menuStyle modern > Player: Search row under Team colour filters the grid the same way.
 
 [jof-cosmetics]
-status: personal
 area: Menus & settings
 title: JoF EJK hats and capes: Cosmetics window, cosmetics command, drawn on players
 change: Profile > Cosmetics lists hats and capes; a click wears (color1 4santahat), again takes off.
@@ -1070,7 +936,6 @@ test: Show Cosmetics: Only Me hides others', Off hides all; Remove All takes bot
 test: ui_menuStyle modern: Player screen has Hat and Cape rows; the stage model wears them.
 
 [talk-balloon-pool]
-status: personal
 area: HUD
 title: Talk balloons no longer vanish over everyone at once in busy fights
 change: Balloons, pickup icons and hook ropes get their own share of the effect pool,
@@ -1079,7 +944,6 @@ test: Crowded JoF server, people typing while others shoot blasters: balloons st
 test: A map with heavy effects (rain, fire): balloons and item icons stay up.
 
 [rocket-trails]
-status: personal
 area: Rendering & effects
 title: Rocket trails stay visible when many rockets fly (bigger effect pool, old smoke ends early)
 change: The effect pool is 4,096 (was 2,048) and the draw buffer holds all of it (was 1,024).
@@ -1090,7 +954,6 @@ test: Many rockets: older smoke trails get shorter instead of new trails vanishi
 note: Watch the FPS counter during a barrage; send logs\last-client.log if it drops a lot.
 
 [away-talk-balloon]
-status: personal
 area: HUD
 title: Your chat balloon shows while you are alt-tabbed or minimised (EternalJK)
 change: Losing focus or minimising sends the talk button, so others see you are away.
@@ -1100,7 +963,6 @@ test: Minimise the window: same. Back in the game you move normally at once.
 test: cl_unfocusedChatbox 0, alt-tab again: no balloon.
 
 [hud-picker]
-status: personal
 area: HUD
 title: HUD picker with previews; the classic (game) HUD is the default
 change: Settings > HUD > HUD look: Left/Right step HUDs, Enter opens the picker with a preview.
@@ -1114,7 +976,6 @@ test: Same from the in-game Setup (Escape > Setup > HUD) over the match.
 note: Your config.cfg keeps cg_hudStyle modern; only new configs start on the game HUD.
 
 [weapon-select-row]
-status: personal
 area: HUD
 title: Weapon switch shows retail's icon row and gold name, sized as in JoF EJK
 change: Game HUD: switching weapons shows the icon row (big selected icon, small ones beside it).
@@ -1131,7 +992,6 @@ test: In those looks the ammo count, arc and Force timer icons stay visible whil
 note: Since SJK PR #19 the row also shows in SJK's own layouts, which hide their weapon-name widget.
 
 [credit-notice]
-status: personal
 area: Console & chat
 title: Copyright and GPL notice at startup (credits kept by forks)
 change: Client and server print "Sol JK <version>, Copyright (C) 2026 Sol-Vulpes, Bishop-R..."
@@ -1141,7 +1001,6 @@ test: They do not flash over the main menu at launch (they are quiet console lin
 test: logs\last-client.log has the same two lines near the top.
 
 [alt-codes]
-status: personal
 area: Input
 title: Alt codes (Alt + numeric keypad) type characters in text fields
 change: Hold Alt, type a number on the numeric keypad, release Alt: that character is typed.
@@ -1154,7 +1013,6 @@ test: In a match (console and chat closed), hold Alt and press keypad keys: thei
 note: AltGr (right Alt on AZERTY) and Ctrl+Alt do not compose, as in Windows.
 
 [sjk-wordmark]
-status: personal
 area: Menus & settings
 title: The modern main menu says SJK instead of JK::R
 change: The big title word on the modern main menu (ui_menuStyle modern) reads SJK.
@@ -1162,7 +1020,6 @@ test: Set the modern menu style, go to the main menu: the large title reads SJK,
 test: It sits where JK::R was, over the saber emblem, and nothing overlaps it.
 
 [changelog-page]
-status: personal
 area: Menus & settings
 title: Changelog page: every SJK release with its changes and credits
 change: Main menu > Changelog (classic: SJK > CHANGELOG) and the changelog command.
@@ -1173,7 +1030,6 @@ test: Modern menus (ui_menuStyle modern): Changelog sits above Quit and opens th
 test: In a match, type changelog in the console; Escape closes the page and the console.
 test: At 4K with 150% scaling the text wraps inside the pane and nothing overlaps.
 [center-print-names]
-status: personal
 area: Console & chat
 title: Duel challenges from names with symbols: no crash, symbol shown (SJK PR #2, Creyon)
 change: Centre prints wrap at 50 characters, not UTF-8 bytes; a name with x-sign crashed it.
@@ -1183,7 +1039,6 @@ test: No crash; the centre print and console show the symbol, not ?.
 test: Have them challenge you: same result.
 
 [settings-hub]
-status: personal
 area: Menus & settings
 title: Classic Settings: Controls + Setup in one, tabs, search everywhere, dropdowns
 change: Main menu: SETTINGS and SJK replace CONTROLS and SETUP; SJK holds Changelog/Credits/Update.
@@ -1199,7 +1054,6 @@ test: Tab walks the groups of both tabs; profile page's SETTINGS/SJK nav buttons
 note: Retail Mods and Defaults are gone; Mouse moved from Controls to OPTIONS.
 
 [sjk-ingame-menu]
-status: personal
 area: Menus & settings
 title: Classic+ changelog page, and an in-game SJK button with the changelog
 change: With classic menus the changelog page has the classic+ pop-up look (retail font and art).
@@ -1210,7 +1064,6 @@ test: Escape closes the page back to the bar; Escape again closes the pop-up, th
 test: ui_menuStyle modern: the game menu's SJK row opens Changelog / Back.
 
 [credits-page]
-status: personal
 area: Menus & settings
 title: Credits page: the team, contributors and more, animated
 change: Main menu > Credits (classic: SJK > CREDITS), in-game SJK > Credits, credits cmd.
@@ -1222,10 +1075,9 @@ test: In a match, Escape > SJK > Credits; Escape closes the page, then the pop-u
 test: Watch for a few seconds: smooth motion, no flicker, readable text at 4K 150%.
 
 [credits-links]
-status: personal
 area: Menus & settings
-title: Credits: Sol JK / Built on JKR / Contributors, clickable GitHub links
-change: Sections Sol JK (Sol), Built on JKR (Bishop), Contributors (Creyon's 20 PRs), Made with.
+title: Credits: Sol JK / Contributors / Origins, clickable GitHub links
+change: Sections Sol JK (Sol), Contributors (Creyon's 20 PRs), Origins, Made with.
 change: @handles open the GitHub profile; "> ..." rows under a card open their address.
 test: SJK > CREDITS: Creyon's card lists the PR numbers; nothing overlaps at 4K 150%.
 test: Hover @Sol-Vulpes: it brightens and underlines; click: the browser opens your profile.
@@ -1233,21 +1085,19 @@ test: Click > github.com/Sol-Vulpes/SJK and > Creyon's pull requests: both open 
 test: Scroll so a link sits under the CLOSE strip: clicking there does not open it.
 
 [credits-history]
-status: personal
 area: Menus & settings
 title: Credits: big name panels, every feature, PR and commit folded, turning god rays
 change: Panels with large names; HIGHLIGHTS and ALL WORK folds; PRs and features unfold commits.
-change: JKR #/SJK # chips and commits open on GitHub; EXPAND ALL; scrollbar; smooth scroll.
+change: PR chips and commits open on GitHub; EXPAND ALL; scrollbar; smooth scroll.
 change: Gold god rays turn down from the top and a sunburst behind the emblem, as on the site.
 test: SJK > CREDITS: rays turn slowly; the sunburst turns behind the emblem; no flicker at 4K.
 test: Every fold starts closed. Click ALL WORK: rows fade in one after another, newest day first.
-test: Click a row with + : its commits open under it; click JKR #104 chip: browser opens the PR.
+test: Click a row with + : its commits open under it; click a PR chip: browser opens the PR.
 test: Click a commit or a row's hash: the commit opens on github.com/Sol-Vulpes/SJK.
 test: EXPAND ALL, then drag the scrollbar and wheel to the end: smooth, nothing overlaps.
 test: COLLAPSE ALL closes everything; reopening the page starts folded; try classic and modern.
 
 [ui-texture-switches]
-status: personal
 area: Menus & settings
 title: Force page: every holocron and level number drawn (renderer limit raised)
 change: The UI drew at most 48 texture switches a frame; the Force page needs 59, so the last
@@ -1258,7 +1108,6 @@ test: Hover around the page: no number disappears (Lightning's kept vanishing be
 test: After playing a while, logs/last-client.log has no "UI shapes dropped" line.
 
 [flipkick]
-status: personal
 area: Input
 title: flipkick command from JoF EJK: one press, a run of jump taps
 change: flipkick toggles jump on every user command; cg_fkDuration frames last 8 ms each (50 = 0.4 s).
@@ -1270,7 +1119,6 @@ test: Controls > Movement shows "Flip kick (JoF)"; binding a key there writes bi
 test: Miss the kick and land: no second jump after landing.
 
 [shield-body]
-status: personal
 area: Rendering & effects
 title: Shield hits hug the body like single player
 change: A shield hit flashes a shell on the player's body instead of multiplayer's sphere.
@@ -1281,7 +1129,6 @@ test: Set cg_shieldSphere 1 and repeat: the sphere appears.
 test: Set cg_shieldBrightness 1, then 12: the body flash goes from faint to very strong.
 
 [ejk-prediction]
-status: personal
 area: Gameplay
 title: EternalJK prediction rules and /fakenoclip
 change: JA+ ghost players pass through others; a kicked player's camera stays steady.
@@ -1294,7 +1141,6 @@ test: /fakenoclip: fly through walls (attack = turbo, jump/crouch = up/down).
 test: Others see you standing with the chat balloon; /fakenoclip again snaps back.
 
 [self-update]
-status: personal
 area: Menus & settings
 title: Self-update: launch check and Update page
 change: At start the client checks GitHub for a newer release (cl_autoUpdate, default on).
@@ -1306,7 +1152,6 @@ test: Do not press Install on a play build unless you accept it replaces that bu
 note: Install against a real release and the Linux swap are untested.
 
 [identity]
-status: personal
 area: Menus & settings
 title: Player identity: key, SJK hub, scoreboard marks and an Identity page you can edit
 change: cl_identity (default on) makes identity.key; cl_hubUrl defaults to https://sjk.dfox.app.
@@ -1321,7 +1166,6 @@ test: Check the page at 4K / 150% and with the modern menus (in-game menu > SJK 
 note: Never started in a game yet: only off-screen renders were checked, not the live layout.
 
 [nameplates]
-status: personal
 area: HUD
 title: MMO-style nameplates: name from afar, bars up close (HP, shield, estimated FP)
 change: A small name far away; inside cg_nameplateNear a framed plate fades in under the name.
@@ -1336,7 +1180,6 @@ test: cg_nameplateWalls 1 behind a wall; cg_nameplateNpcs 1 with NPCs; open a me
 note: Never started in a game yet: font size, plate layout and the FP estimate are unchecked.
 
 [nameplate-predict]
-status: personal
 area: HUD
 title: Nameplates: estimated health and shield, an uncertainty haze, HUD Force colour, weapon icon
 change: Enemy health and shield are estimated from spawns, pains, shield/saber hits, falls, pickups.
@@ -1351,7 +1194,6 @@ test: Log line "pain events" says Honest once you were hit; Masked on a g_stopHe
 note: Never started in a game: estimates only unit-tested on synthetic snapshots.
 
 [nameplate-bars]
-status: personal
 area: HUD
 title: Nameplate bars: shield on top, HUD colours, overheal band, "?" when unsure, duels
 change: Shield bar on top and always there, broken grey when empty; health red, shield green.
@@ -1365,7 +1207,6 @@ test: cg_hudStyle radial then classic: the bars follow each HUD's health and arm
 note: Never started in a game: only the off-screen snapshot (nameplate_snapshot) was looked at.
 
 [hud-overflow]
-status: personal
 area: HUD
 title: HUD meters show overheal and overshield as a deeper inner band
 change: Health and armour over the maximum fill a thinner, deeper band inside their meter.
@@ -1377,7 +1218,6 @@ test: cg_hudStyle modern and classic: the same band inside the bars.
 note: Never started in a game: only hud-radial-overheal (radial_hud_snapshot) was looked at.
 
 [chat-protect]
-status: personal
 area: HUD
 title: Nameplate estimate: JA+ chat protection (no damage with the chat balloon up)
 change: On JA+, a chatting player not mid-action takes nothing from hits seen or from falls.
@@ -1387,7 +1227,6 @@ test: Same player swings while chatting and gets hit: the bar drops as usual.
 note: Never started in a game; JA+ behaviour is from Sol, JA+ is closed source.
 
 [hook-damage]
-status: personal
 area: HUD
 title: Nameplate estimate: a JA+ grapple hook hit is exactly 1 damage
 change: A missile hit from a WP_STUN_BATON missile (the JA+ hook) takes exactly one point.
@@ -1395,7 +1234,6 @@ test: JA+ server, cg_nameplateDebug 1: hook a player without shield; hp~ drops b
 note: Never started in a game. If JA+ sends no hit event for the hook, nothing changes.
 
 [nameplate-modes]
-status: personal
 area: HUD
 title: V cycles nameplate modes: off, names, target and duel opponent, everyone
 change: New nameplates command, bound to V (added to configs where V is free).
@@ -1408,7 +1246,6 @@ test: Controls > Other: "Nameplate mode" shows V; nameplates names in the consol
 note: Never started in a game.
 
 [identity-auto]
-status: personal
 area: HUD
 title: Identity without setup, gold verified badge on nameplates, your own nameplate
 change: The hub gets your key with the name you wear and keeps the names you wore; no name field.
@@ -1422,7 +1259,6 @@ test: Type a bio on the Identity page and Save: "Last change: saved" (needs the 
 note: The new hub is committed, not deployed: until it is, worn names and bio saves fail.
 
 [protect-absorb-combo]
-status: personal
 area: Rendering & effects
 title: Protect + Absorb together show one cyan shell
 change: With both powers on, one cyan body shell replaces the green protect and blue absorb pair.
@@ -1433,7 +1269,6 @@ test: cg_spProtAbsColor 0: back to green plus blue.
 note: Never started in a game yet.
 
 [fx-fixes]
-status: personal
 area: Rendering & effects
 title: Absorb on every player, greener body shield, spawn flash on the floor
 change: The blue Absorb shell shows on every player holding Absorb, as in JoF EJK (always on).
@@ -1444,7 +1279,6 @@ test: Get hit while shielded: the body glow reads green. Respawn: the beam stand
 note: Never started in a game yet.
 
 [quick-setup]
-status: personal
 area: Menus & settings
 title: Quick setup for first-time settings
 change: Setup page: a QUICK SETUP group first in the list (classic); QUICK tab on modern menus.
@@ -1456,7 +1290,6 @@ test: Set ui_menuStyle modern and repeat: the QUICK tab shows the same rows.
 note: Never started in a game yet.
 
 [settings-search-both]
-status: personal
 area: Menus & settings
 title: One search across Options and Key bindings
 change: Typing in Settings' SEARCH field also counts matches on the other tab in the hint line.
@@ -1467,7 +1300,6 @@ test: Search "fov" on KEY BINDINGS: nothing found there, the list says it is on 
 note: Never started in a game yet.
 
 [culling-fix]
-status: personal
 area: Rendering & effects
 title: Walls no longer pop out in third person
 change: Map visibility (PVS) now starts from the camera position, not the player's eye.
@@ -1477,7 +1309,6 @@ test: Compare with first person in the same spots: nothing should vanish in eith
 note: Never started in a game yet.
 
 [native-radial-hud]
-status: personal
 area: HUD
 title: SJK radial HUD, low on the screen, shadowed bars with the numbers on a pill, no PK3
 change: New HUD look "SJK radial" (Settings > HUD > HUD look): health, armor, Force, ammo as arcs.
@@ -1495,7 +1326,6 @@ test: Try cg_hudScale 0.7 and 1.5 and other window sizes: the bars stay at the s
 note: Never started in a game yet.
 
 [player-card]
-status: personal
 area: HUD
 title: Player card beside a player you look at, and the SJK emblem on the scoreboard
 change: A steady look at a player for 1.5 s (cg_playerCardDelay) shows a card beside their head.
@@ -1509,7 +1339,6 @@ test: With the local hub and cl_hubUrl set, your own scoreboard row shows the go
 note: Never started in a game yet: only off-screen renders were checked, not the live layout.
 
 [card-inspect]
-status: personal
 area: HUD
 title: Player card: model icon, hat and cape, inspect key, anchored to the player
 change: The card shows the model's head icon and a Hat / Cape line; it sits beside the head now.
@@ -1523,7 +1352,6 @@ test: Stand close and far from a player: the card is next to their head, not flo
 note: Never started in a game yet.
 
 [console-socket]
-status: personal
 area: Console & chat
 title: Console socket for external apps (Sol's Archive, chat tools)
 change: cl_consoleSocket <port> streams the console and chat to a local app and runs its commands.
@@ -1536,7 +1364,6 @@ test: A wrong password in the app is refused. cl_consoleSocket 0 closes the sock
 note: Never started in a game yet; covered by unit tests over loopback only.
 
 [ejk-camera-fps]
-status: personal
 area: Gameplay
 title: Third-person camera damps per frame like EternalJK, cg_cameraFPS (SJK PR #3)
 change: The third-person camera eases once per frame of cg_cameraFPS (default 125), as EternalJK.
@@ -1547,7 +1374,6 @@ test: cg_cameraFPS 0: the stock camera lag returns; cg_cameraFPS 125 again: Eter
 note: cg_cameraFPS 0 was not tried in a game by Creyon94.
 
 [ejk-crosshairs]
-status: personal
 area: HUD
 title: Retail crosshair pictures drawn as EternalJK does, cg_drawCrosshair 0-10 (SJK PR #4)
 change: cg_drawCrosshair 0 hides, 1-8 are crosshairb-i, 9 is a, 10 a white dot; picker in Settings.
@@ -1560,7 +1386,6 @@ test: With GameData/EternalJK/japro-assets.pk3 installed, crosshair 9 and 10 use
 note: cg_dynamicCrosshair and cg_crosshairX/Y are unchanged; the vehicle crosshair is not done.
 
 [dismember-disintegrate]
-status: personal
 area: Gameplay
 title: Cut-off limbs (cg_dismember) and bodies burning away, as EternalJK (SJK PR #5)
 change: cg_dismember 1 (no heads or waists) or 2+ (all): cut limbs fly off as their own models.
@@ -1573,7 +1398,6 @@ test: cg_dismember 0: no limbs are shown, the whole body stays (SJK's default is
 note: Creyon94 checked it before the last review changes (snapshot borrow, fullbright colours).
 
 [wheel-bind]
-status: personal
 area: Input
 title: Mouse wheel binds in the key-binding form (SJK PR #6)
 change: A wheel notch while a slot waits for a key binds MWHEELUP or MWHEELDOWN.
@@ -1583,14 +1407,12 @@ test: Wheel with no slot waiting: the list scrolls as before.
 test: With a trackpad, a tiny scroll does not bind by accident.
 
 [center-print-space]
-status: personal
 area: Console & chat
 title: Centre-print rows break only at a space (SJK PR #7)
 change: A vertical tab in a name no longer splits the row; only the space breaks it, as in EJK.
 test: Be named {JoF}\vToxiee\v{C}.ak (or meet one) when a centre print shows the name: it stays whole.
 
 [win1252-symbols]
-status: personal
 area: Console & chat
 title: Windows-1252 symbols and hidden name codes shown as JKA does (SJK PR #13)
 change: Euro, quotes, trademark and dashes typed or received show instead of ? or blanks.
@@ -1601,7 +1423,6 @@ test: Meet a name such as {JoF}\vToxiee\v{C}.ak: it reads {JoF}.Toxiee.{C}.ak, a
 test: tell <part of such a name> hello reaches the player; the classic console closes up those cells.
 
 [clipboard-symbols]
-status: personal
 area: Console & chat
 title: Windows clipboard keeps symbols when copying and pasting (SJK PR #14)
 change: Copy and paste go through PowerShell in UTF-8, so symbols and emoji keep their characters.
@@ -1611,7 +1432,6 @@ test: Copy from the console or chat and paste into Notepad: the same symbols com
 test: Copy several times quickly, then paste: no stale or lost text, no freeze.
 
 [saber-clash-flare]
-status: personal
 area: Rendering & effects
 title: Saber clash no longer flashes the whole screen (SJK PR #10)
 change: The flare shader is found case-insensitively and scaled round on wide screens.
@@ -1619,7 +1439,6 @@ test: Clash sabers with a bot or player on a JoF server: a short glow shows wher
 test: No full-screen yellow-white flash at any clash, at 16:9 and ultra-wide.
 
 [scoreboard-rows]
-status: personal
 area: Console & chat
 title: Every scoreboard row is read on full servers (SJK PR #11)
 change: With more than 20 players, rows no longer show client 0 with zero score and ping.
@@ -1628,7 +1447,6 @@ test: Join a server with more than 20 players (JoF's): open the scoreboard; name
 test: A small server (stock or jaPRO): the scoreboard still reads correctly.
 
 [effect-mipmaps]
-status: personal
 area: Rendering & effects
 title: Effect atlas has mipmaps; impact marks draw under explosions (SJK PR #8)
 change: Five mip levels with a border per cell: small or far marks no longer show as black dots.
@@ -1639,7 +1457,6 @@ test: With JoF's HD marks, scorch marks are faint grey (15% at 80% opacity), not
 note: The border, alpha weighting, draw order and constants were not checked in game yet.
 
 [ejk-animation-fixes]
-status: personal
 area: Gameplay
 title: EternalJK's player animation fixes; attack animations predicted as served (SJK PR #9)
 change: Without a saber, two-handed, dual and staff runs and walks play as the ordinary ones.
@@ -1651,14 +1468,12 @@ test: Same on a stock server and on SJK's own server: the torso does not jitter 
 note: Never started in a game; only unit tests (command steps 8/7/4/3 ms) cover it.
 
 [efx-bare-key]
-status: personal
 area: Rendering & effects
 title: EFX blocks keep their closing brace after a bare key (SJK PR #15)
 change: JoF's HD concussion shot.efx has a bare key; the effect used to be rejected.
 test: With JoF_HDWeaponEffects.pk3: fire the concussion rifle's main shot: the trail shows in flight.
 
 [image-order]
-status: personal
 area: Rendering & effects
 title: Images are tried as jpg, png, tga like the engine (SJK PR #17)
 change: A name with no file of its own is tried .jpg, .png, then .tga; a named extension goes first.
@@ -1667,7 +1482,6 @@ test: Skim a few maps and HUD icons: nothing turned blank or changed unexpectedl
 note: Touches every image lookup; watch for HD packs with both .png and .tga of one name.
 
 [view-model-fov]
-status: personal
 area: Rendering & effects
 title: First-person weapon scaled by cg_fovViewmodel (default 80) as EternalJK (SJK PR #16)
 change: The view weapon is drawn with the world projection, its depth scaled by cg_fovViewmodel.
@@ -1679,7 +1493,6 @@ test: Fire the blaster and pistol: the muzzle flash sits at the barrel; the hand
 note: The default 80 changes the first-person look for everyone; the blaster flash may be 0.45 off.
 
 [zoom-scope]
-status: personal
 area: Rendering & effects
 title: Zoom goes first person, HD scope mask, camera shakes from the view (SJK PR #18)
 change: A zoom (disruptor, binoculars) forces first person; the camera choice returns after it.
@@ -1692,7 +1505,6 @@ test: Fire your own gun: no camera shake from your muzzle flash; crouch: no bump
 note: The derived camera choice and the muzzle shake rule were not run in a game.
 
 [weapon-world-effects]
-status: personal
 area: Rendering & effects
 title: Trip mine beams, placed charges, charge glow and the concussion beam (SJK PR #20)
 change: Armed trip mines play their laser beam, stretched to the wall; stuck mines lie flat.
@@ -1705,7 +1517,6 @@ test: Fire the concussion rifle's alt fire: rings along the shot, a beam and a w
 note: The trace budget, ring cap and beam cull were not checked in a game.
 
 [effect-debug]
-status: personal
 area: Console & chat
 title: fx_debug and cg_debugMissiles log effects and missile trails (SJK PR #21)
 change: fx_debug 1 logs each effect as it plays, with shaders and sizes; both default to 0.
@@ -1715,7 +1526,6 @@ test: cg_debugMissiles 1, fire rockets: one log line per second about the trails
 note: The log output was not checked in a running client.
 
 [predicted-kicks]
-status: personal
 area: Gameplay
 title: Melee kicks predicted in a joined game; JA+'s own kicks hold you still (SJK PR #23)
 change: A joined game predicts with the humanoid animation.cfg: kicks and saber attacks start now.
@@ -1728,7 +1538,6 @@ test: A stock or JoF server: kicks and movement as before.
 note: Creyon94 checked the kicks on a local JA+ server only; ledges still predict gravity.
 
 [cmd-rate]
-status: personal
 area: Gameplay
 title: 125 user commands a second (JoF cl_cmdratecap) and a working cl_maxpackets
 change: A user command every 8 ms on the server's 8 ms grid, any FPS; was one every 25 ms.
@@ -1741,7 +1550,6 @@ test: flipkick on a JA+ server chains as in JoF EJK.
 note: High ping (300+ ms): watch for prediction snapping; not checked in a game.
 
 [focus-mute]
-status: personal
 area: Audio
 title: Mute in background (EternalJK snd_mute_losefocus)
 change: All sound, music included, is silent while the window is unfocused or minimised.
@@ -1752,7 +1560,6 @@ test: Mute in background off, alt-tab out: sound keeps playing.
 note: The gain drops without a fade; listen for a click when switching away.
 
 [weather]
-status: personal
 area: Rendering & effects
 title: Weather: rain, snow and mist that stay under open sky
 change: Maps' weather (fx_rain, fx_snow, fx_wind) now draws: streaks, splashes, far rain, mist.
@@ -1764,10 +1571,9 @@ test: Stand under an overhang: rain stops at its edge; none falls through the ro
 test: Any outdoor map: r_we heavyrain, then r_we snow, r_we clear; r_we hail lists commands.
 test: hoth2 (or r_we snow): flakes drift; r_weatherDensity 4 then 0.25 changes the amount.
 note: Never looked at on screen: brightness, splash size and far rain are first guesses.
-note: Optional: JKR_FRAME_BUDGET=1 and compare r_weather 0 and 1 for its cost.
+note: Optional: SJK_FRAME_BUDGET=1 and compare r_weather 0 and 1 for its cost.
 
 [weather-fog-clouds]
-status: personal
 area: Rendering & effects
 title: Weather 2: anchored splashes, grey rain, 3D fog, clouds, quality
 change: Splashes stay where they land; rain is a faint blue-grey streak, not white.
@@ -1783,7 +1589,6 @@ note: Never seen on screen: fog thickness, cloud look and both costs at 4K are f
 note: Cost check: compare FPS with r_clouds 0 and r_weatherQuality 0 against the defaults.
 
 [weather-3d-splashes]
-status: personal
 area: Rendering & effects
 title: 3D rain splashes (ring, crown, flying drops)
 change: Each splash is world geometry: ground ring and wet spot, rising crown, six drops on arcs.
@@ -1795,7 +1600,6 @@ test: A pool or puddle in rain: ripples on the water, no ground rings there.
 note: Sizes and brightness are first guesses; tell Claude bigger/smaller/brighter.
 
 [video-map]
-status: personal
 area: Rendering & effects
 title: videoMap screens play their RoQ video
 change: Video stages drew a magenta checker; RoQ videos now play on them, looping and silent.
@@ -1805,17 +1609,15 @@ test: On the JoF server's ffa1: the console that was magenta shows its video.
 note: Many videos on one map all decode every frame; watch the frame rate there.
 
 [fixture-emission]
-status: personal
 area: Rendering & effects
 title: Ceiling lamps and light strips glow (emission maps, pack generation 6)
 change: Declared lights whose overlay does not glow now take emission maps.
-test: Install %APPDATA%/jkr/generated/gen6/zzz_jkr_materials.pk3 into GameData/base.
+test: Install %APPDATA%/SJK/generated/gen6/zzz_sjk_materials.pk3 into GameData/base.
 test: mp/ffa1 lamps (s_ylight_red), mp/ctf4 blue strips (s_bluestrip): bright, with bloom.
 test: Vjun3 light_panel_01 and FFA3 s_tracklight4 glow; no light shown twice anywhere.
 note: The log warns once if the installed pack is older than generation 6.
 
 [footstep-names]
-status: personal
 area: Audio
 title: Sand, snow and grass footsteps on ground the map does not tag
 change: Untagged ground takes its footstep sounds from its shader's name (sand, snow, grass...).
@@ -1823,7 +1625,6 @@ test: mp/siege_desert: walk and run on the dunes: sand steps, not stone.
 test: Sandstone walls' floors and metal floors keep their own sounds.
 
 [notes-remap]
-status: personal
 area: Input
 title: World notes name a remap's shader
 change: inspect on a remapped surface says "<shader> remapped to <target>" and notes keep it.
@@ -1831,7 +1632,6 @@ test: devmap mp/ffa1, remapShader textures/taspir/floor textures/vjun/floor2, in
 test: notes.txt and notes.jsonl (surface.remapped_to) name textures/vjun/floor2.
 
 [fog-floor]
-status: personal
 area: Rendering & effects
 title: Ground fog keeps its height wherever you stand or jump
 change: Distant fog lay at the floor under you, so it jumped between roof and street heights.
@@ -1842,7 +1642,6 @@ test: Any map with fog: distant haze still reaches the horizon; none indoors.
 note: Far fog appears about 1.5 s after T2_Rogue loads (under 0.2 s on most maps).
 
 [settings-groups]
-status: personal
 area: Menus & settings
 title: Settings: First setup, Graphics and Gameplay pages
 change: Options lists First setup (was Quick setup), Graphics, Sound and Gameplay.
@@ -1854,7 +1653,6 @@ test: firstsetup in the console opens First setup (quicksetup is gone).
 test: Modern style: Video > Renderer has a WEATHER tab with the weather rows.
 
 [first-setup-import]
-status: personal
 area: Menus & settings
 title: First setup at every start; import name, model, FOV and keys from a .cfg
 change: First setup opens at each start until its last row, Don't show at start, is ticked.
@@ -1868,7 +1666,6 @@ test: Drop a .txt or an empty .cfg: the page says why nothing is imported.
 note: Never started in a game yet; the drop itself is untested (winit drag and drop).
 
 [legacy-cfg-text]
-status: personal
 area: Console & chat
 title: Other clients' .cfg files: exec them, or copy one over config.cfg
 change: Files that are not UTF-8 (accented names, EJK chat binds) are read as Latin-1, not refused.
@@ -1878,7 +1675,6 @@ test: Back up config.cfg, copy jampconfig.cfg over it, start: name and binds loa
 note: Restore your own config.cfg afterwards.
 
 [shader-testmap]
-status: personal
 area: Rendering & effects
 title: Shader test maps: every retail world shader on a labelled pad
 change: scripts/shader_testmap.py builds sjk_shaders_a to _e (by shader file) and _s (skies).
@@ -1889,7 +1685,6 @@ test: Same for _b to _e, then devmap sjk_shaders_s: one sky per room off the cor
 note: The pk3 is GameData/base/sjk_shadertest.pk3; delete it when done.
 
 [decal-fog-bias]
-status: personal
 area: Rendering & effects
 title: Decals inside fog no longer flicker
 change: A polygonOffset decal's fog layer gets the same depth bias as the decal (rd-vanilla).
@@ -1898,7 +1693,6 @@ test: A map with fog and wall decals (e.g. mp/siege_hoth): decals in fog stay st
 note: Decal flicker outside fog is not fixed by this: tell Claude the map and the decal.
 
 [material-wobble]
-status: personal
 area: Rendering & effects
 title: Steadier material maps: no swimming relief or rippling metal reflections
 change: Parallax fades at grazing angles and far away; fine bumps blur highlights instead.
@@ -1909,7 +1703,6 @@ test: Studded floors (desert/s_floor1, D map) and panels read raised, not pushed
 note: Still pushed in somewhere? Give Claude the pad ID: one overrides line flips it.
 
 [quick-wheels]
-status: personal
 area: Input
 title: Quick wheels: hold Q or R, point, let go
 change: Q opens the general wheel, R the weather wheel; the mouse picks a slice, release runs it.
@@ -1923,7 +1716,6 @@ test: Each choice is a round metal icon; the one pointed at grows, ringed in the
 test: Its name shows in the middle; GAME MENU and FIRST SETUP are plain discs with text.
 
 [vertex-lit-maps]
-status: personal
 area: Rendering & effects
 title: Material maps on vertex-lit terrain, sand and rock
 change: Vertex-lit paint (rgbGen vertex: terrain, _phong sand and rock) takes normal/metal maps.
@@ -1934,7 +1726,6 @@ test: A switch or door lock (imperial, kejim): its red/green lights glow, not it
 note: Blended terrain layers over a mapped base stay flat; tell Claude if seams show.
 
 [world-notes]
-status: personal
 area: Input
 title: World notes: inspect a surface, write a note, sent to the SJK team
 change: X (inspect) on a wall, floor or object names it; X again opens a note line.
@@ -1952,7 +1743,6 @@ test: cl_identity 0: the note is still kept on the PC; nothing goes to the hub.
 note: Notes go to GameData/SJK/notes.jsonl and notes.txt too: tell Claude to read them.
 
 [bug-report]
-status: personal
 area: Menus & settings
 title: Report a bug from the Escape menu, sent to the SJK hub
 change: Escape: a Report a bug button bottom centre opens a panel with Send and Cancel.
@@ -1964,7 +1754,6 @@ test: Send the same text twice: refused. A fresh key: 3 a day, then refused.
 note: The hub takes reports since 07/10/2026 (deployed); Claude reads them on the hub.
 
 [report-classic-plus]
-status: personal
 area: Menus & settings
 title: Report a bug and the note dialog in the classic+ look
 change: With the classic menus: a gold REPORT A BUG on the red band, bottom centre.
@@ -1975,7 +1764,6 @@ test: Hover the box, Send, Cancel: the line under the pop-up explains each.
 test: Send "short": the red reason shows under the count; X twice on a wall: same look.
 
 [free-camera]
-status: personal
 area: Gameplay
 title: /freecam flies the camera away from your body (SJK PR #29, lumaya)
 change: Fake-noclip flight for the view; the server sees you still, with the chat balloon.
@@ -1987,7 +1775,6 @@ test: Die, spectate, disconnect or change map while flying: you are back on your
 note: Servers with g_inactivity can still drop a flying player (as with fakenoclip).
 
 [player-peek]
-status: personal
 area: Gameplay
 title: /peek watches another player for a few seconds (SJK PR #28, lumaya)
 change: /peek <id|name> [seconds], or /peek alone on the crosshair player; /peek off returns.
@@ -1998,7 +1785,6 @@ test: Peek a player who walks into a corridor: the camera stays out of the walls
 test: /freecam during a peek ends the peek; /peek during freecam is refused.
 
 [first-person-saber-body]
-status: personal
 area: Rendering & effects
 title: First person with a saber shows your arms and body (SJK PR #26, lumaya)
 change: The local body is drawn in first person with a saber, its head hidden, as codemp does.
@@ -2008,7 +1794,6 @@ test: Swap to a gun: the normal view weapon comes back.
 note: Some community models parent body parts under the head; those parts vanish in 1st person.
 
 [saber-wall-cutoff]
-status: personal
 area: Rendering & effects
 title: Saber blades stop at walls instead of shining through (SJK PR #24, lumaya)
 change: The wall trace cuts the glow and core at the hit point, as OpenJK's CG_AddSaberBlade.
@@ -2020,7 +1805,6 @@ test: cg_saberContact 0: blades go through walls again (stock behaviour).
 note: Doors and lifts (movers) do not cut blades yet; the blade's light still passes walls.
 
 [settings-icons]
-status: personal
 area: Menus & settings
 title: Settings groups have icons (classic menus)
 change: Each group down the left of Key bindings, Options, Graphics and Gameplay has a metal disc.
@@ -2031,7 +1815,6 @@ test: In a match, Escape > Settings: the pop-up's group list shows the same icon
 note: Wrong picture for a group, or too big/small at 4K? Tell Claude which.
 
 [sjk-ui-ring]
-status: personal
 area: Menus & settings
 title: SJK UI main page (ui_menuStyle sjk): the ring, its arc menu, your recent servers
 change: Settings > Interface > Menu style > SJK; restart: the page stands on mp/duel6.
@@ -2045,7 +1828,6 @@ test: Settings, Character, the browser: open in the classic look; Back returns t
 note: Text too small at 4K, ring too faint, colours off? Tell Claude which part.
 
 [sjk-ui-browser]
-status: personal
 area: Menus & settings
 title: SJK UI: Servers (the server browser)
 change: Play > Join a server opens the SJK UI's browser: filters left, list middle, server right.
@@ -2060,7 +1842,6 @@ test: Double-click a row joins. Open it from the in-game menu too: Esc says Game
 note: Picture stretched, a column cut off, or a key not answering? Tell Claude which.
 
 [sjk-ui-loading]
-status: personal
 area: Menus & settings
 title: SJK UI: the loading screen
 change: Joining in the SJK UI keeps the map behind a block: server, address, a gold step line.
@@ -2073,7 +1854,6 @@ test: Create game: Starting your game. Try a wide and a 4:3 window: the picture 
 note: Steps stuck, the bar running back or text hard to read on a bright picture? Tell Claude.
 
 [sjk-ui-scoreboard]
-status: personal
 area: Menus & settings
 title: SJK UI: the scoreboard (Tab in a match)
 change: With ui_menuStyle sjk, Tab shows SJK's board: columns over the darkened game.
@@ -2088,7 +1868,6 @@ test: Classic menus with Scoreboard style SJK: the board still draws in Rajdhani
 note: Too dark or too faint, a column cut, or the chat overlapping? Tell Claude which part.
 
 [sjk-ui-ingame]
-status: personal
 area: Menus & settings
 title: SJK UI: the in-game menu (Escape in a match)
 change: Escape in a match: an arc of entries on the left, the match still drawing, a card right.
@@ -2104,7 +1883,6 @@ test: Leave opens on Stay; Leave the server and Quit to desktop turn ember when 
 note: Card numbers wrong (score, place, clock), or text over the match hard to read? Tell Claude.
 
 [sjk-ui-centre]
-status: personal
 area: Menus & settings
 title: SJK UI: text centred in buttons, caps, fields and rows
 change: SJK UI text sat 2-4 px high (twice at 4K); it is now centred on each control's middle.
@@ -2114,7 +1892,6 @@ test: Update and Identity: the button labels; Key bindings: the "Press a key" ca
 note: Still off somewhere? Tell Claude the screen and the control.
 
 [sjk-ui-pages]
-status: personal
 area: Menus & settings
 title: SJK UI: What's new, Update and Identity in its look
 change: Main page > Sol JK > What's new / Update / Identity open in the SJK UI's look, over the map.
@@ -2126,7 +1903,6 @@ test: The same pages from the in-game menu, and with the console's `changelog` c
 note: Text cut off or too dense at your size? Tell Claude which page.
 
 [sjk-ui-keys]
-status: personal
 area: Menus & settings
 title: SJK UI Settings: Key bindings as a category, two key caps per action
 change: Settings > Key bindings now shows the bindings in the same screen (rail, search, detail).
@@ -2138,7 +1914,6 @@ test: Tab moves on to Gameplay; the rail back to Key bindings; Esc returns to th
 note: A key name that reads oddly on its cap? Tell Claude which.
 
 [sjk-ui-character-2]
-status: personal
 area: Menus & settings
 title: SJK UI Character: hilt list, style buttons, priced Force levels, power box
 change: Saber: Single/Staff/Dual buttons; hilts as a list in JoF EJK's order (two for Dual).
@@ -2151,7 +1926,6 @@ test: Hover powers: the box bottom right shows each in big. Up/Down follow the g
 note: Want hilt pictures? None exist in the game files; tell Claude if you want them rendered.
 
 [sjk-ui-character]
-status: personal
 area: Menus & settings
 title: SJK UI Character: your character on duel6's path below the tower, the form beside
 change: Main page > Character: the camera cuts to the stage; the model wears every change at once.
@@ -2164,7 +1938,6 @@ test: Esc: the camera cuts back to the tour. From a game, Profile still shows cl
 note: Model too small or cut off at your size? Saber in front of the face? Tell Claude.
 
 [sjk-menu-tour]
-status: personal
 area: Menus & settings
 title: SJK UI: the camera tours duel6 behind the menus (ten shots, fades between)
 change: Each shot glides 15 s looking at one spot, then fades through navy to the next.
@@ -2175,7 +1948,6 @@ test: Open Settings and What's new: the tour keeps going behind them.
 note: A shot you dislike? Tell Claude which (the tower foot, the temple, a wing...).
 
 [sjk-ui-settings]
-status: personal
 area: Menus & settings
 title: SJK UI Settings: categories on a lit rail, rows, the setting explained on the right
 change: In the SJK UI, the main page's Settings (and First setup at start) open the new screen.
@@ -2189,7 +1961,6 @@ test: Resolution and HUD open their full-screen pickers; Esc from the screen: th
 note: Long lists cut, text too small at 4K, a click doing the wrong thing? Tell Claude.
 
 [settings-modern]
-status: personal
 area: Menus & settings
 title: Modern settings controls (classic menus): switches, sliders, segments
 change: On/off rows are switches, numbers slim sliders, 2-3 choices side by side, lists a field.
@@ -2203,7 +1974,6 @@ test: HUD and First setup show sub-headings (Layout, Crosshair...); the detail b
 note: Too small or too tight at 4K, or a colour off? Tell Claude which control.
 
 [screenshot-readback]
-status: personal
 area: Rendering & effects
 title: Screenshots no longer fail ("readback failed") or freeze the game
 change: The next frame dropped the screenshot buffer while it was still mapping (wgpu MapAborted).
@@ -2213,7 +1983,6 @@ test: Quick wheel (Q) > Screenshot twice in a row: two new shotNNNN.jpg files, n
 test: Inspect (X) a wall twice, write a note, Enter; again: note_*.jpg files appear for both notes.
 
 [camera-style]
-status: personal
 area: Gameplay
 title: Camera style: SJK (eases after you) or EJK (locked behind you, as JoF EJK)
 change: cg_cameraStyle ejk drops the camera and target damping: no lag as you move or turn.
@@ -2225,7 +1994,6 @@ note: Your JoF EJK profile has cg_thirdPersonRange 100; SJK keeps 80 unless you 
 note: Still not the same as JoF EJK? Tell Claude what differs (distance, height, turning).
 
 [parallax-slider]
-status: personal
 area: Rendering & effects
 title: Parallax depth slider, a tenth of the full depth by default
 change: r_parallaxStrength scales parallax live: 0 flat, 1 the pack's full depth; default 0.1.
@@ -2236,7 +2004,6 @@ test: Drag Parallax depth to 1: the relief deepens at once; 0 flattens it.
 note: Too subtle or still too deep at 0.1? Tell Claude the value that looks right.
 
 [sjk-default]
-status: personal
 area: Menus & settings
 title: SJK UI is the default menu style, also offered in First setup
 change: ui_menuStyle defaults to sjk; a saved old default (classic) moves to sjk once.
@@ -2248,7 +2015,6 @@ test: Console: type q and Tab, only quit is offered; firstsetup opens First setu
 note: A fresh profile starts at sensitivity 13.022 instead of 5 (known, not fixed yet).
 
 [wall-grab-facing]
-status: personal
 area: Gameplay
 title: Wall grab: the body stays on the wall while the camera looks around
 change: Holding a grabbed wall, the model faces the wall instead of following the view.
@@ -2261,7 +2027,6 @@ test: Watch another player (or a bot) wall grab: their body stays on the wall to
 note: Walls on movers (doors, lifts) still turn with the view. Not yet run in a game.
 
 [player-report]
-status: personal
 area: Menus & settings
 title: Players page and player reports (verified players only)
 change: Escape > Players (SJK UI) or SJK > Report a player: everyone, scores, pings, SJK marks.
@@ -2274,7 +2039,6 @@ test: Classic menus: SJK > Report a player shows the list and the report pop-up.
 note: Needs the hub update deployed first; until then Send says it cannot reach the hub.
 
 [console-sjk-designs]
-status: personal
 area: Console & chat
 title: SJK UI console (con_style sjk, the deck) and selectable F3 text
 change: con_style auto (default) uses the SJK deck with ui_menuStyle sjk, else classic.
@@ -2287,14 +2051,12 @@ test: Ctrl+C with nothing selected copies "name value"; a click on the F3 hint o
 test: con_style horizon (or dock): the deck with the SJK UI's menus, classic otherwise.
 
 [sens-default]
-status: personal
 area: Input
 title: A new profile starts at mouse sensitivity 5, not 13.022
 change: The old-units rescale of sensitivity only runs on a profile saved before it.
 test: Start with an empty profile folder (or firstsetup on a new one): sensitivity says 5.
 
 [camera-ejk-default]
-status: personal
 area: Gameplay
 title: EJK camera (locked behind you) is the default; camera style near the top of First setup
 change: cg_cameraStyle defaults to ejk; a saved old default (sjk) moves to ejk once.
@@ -2305,7 +2067,6 @@ test: Pick SJK there, restart: cg_cameraStyle stays sjk and the camera trails ag
 note: Range is still cg_thirdPersonRange (80); your JoF EJK profile uses 100.
 
 [illuminate]
-status: personal
 area: Gameplay
 title: Illuminate: a holocron by your shoulder that lights the way (only you see it)
 change: SJK's own Force-wheel entry, last on the wheel everywhere, with the holocron icon.
@@ -2318,10 +2079,9 @@ test: Die, spectate or follow someone: it goes out; respawn: it comes back at yo
 test: First person: no cube, only the light. Settings > Key bindings > Force: the bind.
 note: Tell me if it sits wrong with your camera (range 100) or feels too bright or too big.
 
-# ---- Merged upstream ----
+# ---- Older changes ----
 
 [actor-instance-cap]
-status: personal
 area: Rendering & effects
 title: No crash when a frame draws more than 1024 entities
 change: The actor instance buffer holds 4096 instead of 1024 and packing stops at its capacity.
@@ -2329,11 +2089,9 @@ test: Play a long session on a busy JoF server or a map with many movers; the cl
 note: A frame used to abort with "Instance 1026 extends beyond limit 1024".
 note: The cause of the 1026 instances was not captured; if it still crashes, send last-client.log.
 
-[jkr-vehicles]
-pr: 125
-status: merged
+[vehicles]
 area: Gameplay
-title: Riding vehicles without jitter; vehicle cameras and models (Bishop)
+title: Riding vehicles without jitter; vehicle cameras and models
 change: Your vehicle and its rider are drawn where prediction puts them, every frame.
 change: Your own vehicle no longer collides with itself in prediction; boost survives snapshots.
 change: .veh camera framing, TIE fighter model (was an X-wing), .vwp shots, land to board.
@@ -2343,17 +2101,13 @@ test: The camera uses the vehicle's own framing; jump onto an empty one: you boa
 test: AT-ST: primary and alt fire show their own shot effects, not rockets.
 
 [sand-creature]
-pr: 126
-status: merged
 area: Gameplay
-title: Sand creatures burrow, hunt and ambush on SJK servers (Bishop)
+title: Sand creatures burrow, hunt and ambush on SJK servers
 change: With g_stockRules 0 (default) a spawned sand creature hunts moving players underground.
 test: devmap mp/ffa3, npc spawn sand_creature, step away and run: it breaches and attacks.
 test: Stand still: it loses you. g_stockRules 1 before the map: the old generic NPC.
 
 [console-chat-history]
-pr: 100
-status: merged
 area: Console & chat
 title: Chat kept in the console; one row per server print line
 change: Chat and team chat are echoed into the console scrollback, not into its notify lines.
@@ -2363,16 +2117,12 @@ test: The top-left notify lines show server prints but not the chat lines.
 test: Console scrollback has no empty row after each server print (e.g. a player connecting).
 
 [colour-codes-8-9]
-pr: 105
-status: merged
 area: Console & chat
 title: ^8 orange and ^9 grey
 change: ^8 draws orange and ^9 grey as in OpenJK (they were black and red).
 test: say ^8orange ^9grey ^7white: chat, console and your name over the scoreboard.
 
 [settings-edit-fixes]
-pr: 101
-status: merged
 area: Menus & settings
 title: Text edits stay on their setting; no float noise on sliders
 change: Typing in a text setting (e.g. master server) can no longer land in another row.
@@ -2382,9 +2132,6 @@ test: The text lands in Master server only; the other rows are unchanged.
 test: Drag a 0.05-step slider and check the value in the console (cvar name): no long decimals.
 
 [crlf-shaders]
-pr: 70
-issue: 67
-status: merged
 area: Rendering & effects
 title: Shader patching accepts CRLF checkouts
 change: Shader text patches normalise Windows (CRLF) line ends first; *.wgsl is kept LF in Git.
@@ -2392,8 +2139,6 @@ test: Set r_dayNight 1 and restart: the client starts without a "stage program c
 test: The sky follows the day tint as the hour changes (r_dayHour, or r_dayMinutes 2).
 
 [old-humanoid-models]
-pr: 97
-status: merged
 area: Rendering & effects
 title: Old 72-bone player models load instead of failing the join
 change: Models like jarjar, spiderman, oldben use stock's bone remap; other bad models -> Kyle.
@@ -2403,8 +2148,6 @@ test: In third person check the pose and animations look right (arms, legs, head
 test: Join a public server with custom models: no "map transition failed" in the log.
 
 [console-browser]
-pr: 88
-status: merged
 area: Console & chat
 title: Searchable command and cvar browser
 change: F3 in the open console (or the consolebrowser command) lists every command and cvar.
@@ -2417,12 +2160,9 @@ test: Mouse: hover selects, wheel scrolls, drag the scrollbar, click rows, tabs 
 test: Esc or F3 returns to the console. Also try it during a live match.
 test: Game font on (ui_gameFont 1): no menu or chat text shows through the browser.
 test: Same with debug_panel open over a menu: no menu text shows through.
-note: Bishop's #88 replaced your #6 (you are co-author); some steps may differ.
+note: A later rework replaced the first version; some steps may differ.
 
 [console-editing]
-pr: 88
-issue: 12
-status: merged
 area: Console & chat
 title: Caret editing and output selection in the console
 change: The input line has a caret: arrows, Ctrl+arrows, Home/End, Shift selects, Ctrl+A/X/V.
@@ -2432,12 +2172,9 @@ test: Drag over an output line, Ctrl+C, then Ctrl+V it into the input line.
 test: Double-click an address such as 127.0.0.1:29070: the whole token is selected.
 test: Click in the input line: the caret lands before the clicked character.
 test: Set ui_letterSpacing 0.05 (Settings > TEXT): caret and highlights stay on their glyphs.
-note: Bishop's #88 replaced your #33 (you are co-author); some steps may differ.
+note: A later rework replaced the first version; some steps may differ.
 
 [server-prints]
-pr: 83
-issue: 52
-status: merged
 area: Console & chat
 title: Server prints go to the console, not the chat box
 change: Server print text goes to the console and its top-left notify lines, never the chat box.
@@ -2445,12 +2182,9 @@ change: Chat still shows in the chat box and is now also kept in the console scr
 test: Join a local server and run a command with a server reply (for example a mod command).
 test: The reply shows in the notify lines and in the console, not in the chat box.
 test: Send chat: it shows in the chat box and the console, not in the notify lines.
-note: Bishop's #83 keeps prints out of chat; your #58 console extras are not here.
+note: Prints stay out of chat; the first version's console extras are not here.
 
 [slider-entry]
-pr: 94
-issue: 10
-status: merged
 area: Menus & settings
 title: Type exact values into menu sliders
 change: Click a slider's number, press Enter or type digits; Enter applies, Esc cancels.
@@ -2461,12 +2195,9 @@ test: Field of view: type 97.4, it stays 97.4; type 500, it becomes 130.
 test: On a selected slider type digits directly; press Esc mid-entry; click another row mid-entry.
 test: Player > Saber: click the Red value and type 300: it becomes 255.
 test: Regression: drag along each rail; Left / Right / Space still step.
-note: Bishop's #94 replaced your #32: manual values on every slider.
+note: A later rework replaced the first version: manual values on every slider.
 
 [chat-bubble]
-pr: 92, 96
-issue: 26
-status: merged
 area: Rendering & effects
 title: Talk balloons and connection icons over players
 change: A player with the console, a menu or chat open shows a balloon; a lagging one a net icon.
@@ -2475,46 +2206,34 @@ test: Local server, two clients (bots never type): open chat, the console or Esc
 test: The other client sees an upright balloon over that player; it goes when closed.
 test: In third person you see your own balloon. cg_simpleItems 1: item icons are upright.
 test: A client that stops sending commands for over a second shows the connection icon.
-note: Bishop's #92 and #96 replaced your #30; icons no longer fade by distance.
+note: A later rework replaced the first version; icons no longer fade by distance.
 
 [anim-event-sounds]
-pr: 90
-issue: 27
-status: merged
 area: Audio
 title: Animation-event sounds (fast-style taunt)
 change: animevents.cfg sounds play: the fast taunt's saber spin, kicks, katas, punches, falls.
 test: Join a server, select the fast (blue) style and taunt: the twirl whooshes several times.
 test: Try a saber kick and melee punches.
 test: Review fix: npc spawn rancor or change model; no stutter on first appearance.
-note: Bishop's #90 replaced your #41 (footsteps and authored sound cues).
+note: A later rework replaced the first version (footsteps and authored sound cues).
 
 [noclip]
-pr: 95
-issue: 16
-status: merged
 area: Gameplay
 title: noclip cheat on the dedicated server
 change: The dedicated server has noclip with the stock cheat checks (needs --cheats or devmap).
 test: Start sjk-server --map mp/ffa3 --bind 127.0.0.1:29071 --cheats and connect.
 test: Type noclip: fly through walls, attack is turbo, no pickups, triggers or damage.
 test: Type noclip again to land. Without --cheats it answers that cheats are not enabled.
-note: Bishop's #95 replaced your #31; it also adds a client devmap command.
+note: A later rework replaced the first version; it also adds a client devmap command.
 
 [baton-sound]
-pr: 29
-issue: 25
-status: merged
 area: Audio
 title: Stun baton fire sound, not on melee
 change: The stun baton plays its fire sound on primary and alt fire; melee no longer plays it.
 test: Local server: fire the stun baton (primary and alt): both make the fire sound.
-test: Swing melee: no baton sound (melee swing sounds come from #41).
+test: Swing melee: no baton sound (melee swing sounds come from animation events).
 
 [force-lightning-frame]
-pr: 40
-issue: 22
-status: merged
 area: Rendering & effects
 title: Force lightning and drain stay level
 change: The level-3 lightning and drain fans stay horizontal whichever way you face.
@@ -2524,20 +2243,14 @@ test: Drain level 3 behaves the same.
 note: Assumed Force Lightning; tell Claude if a different effect was meant.
 
 [menu-click-sound]
-pr: 42
-issue: 7
-status: merged
 area: Audio
 title: Menu click from short MP3s with an ID3v1 tag
 change: MP3s that end in a 128-byte ID3v1 tag now decode; fixes the silent JoF button click.
 test: With JoF_CosmeticMod.pk3 in base, click any menu button: the click is heard.
 
 [audio-loops]
-pr: 43
-issue: 19
-status: merged
 area: Audio
 title: Looping sounds no longer drop out
 change: Saber hums and ambient loops keep playing while each frame's loops are re-sent.
 test: Stand near looping sounds (your saber, other sabers, map ambience); listen for crackles.
-test: Optional: JKR_TRACE_AUDIO=1; logs/last-client.log shows split loop frames=N every 5 s.
+test: Optional: SJK_TRACE_AUDIO=1; logs/last-client.log shows split loop frames=N every 5 s.

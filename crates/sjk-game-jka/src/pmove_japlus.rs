@@ -5,7 +5,7 @@
 //! `JAPLUS_CINFO_*` branches) and, where that and a JA+ server disagree, the server as
 //! the replay checks observed it. Some rules follow a `jp_cinfo` bit the server
 //! publishes in its serverinfo; others apply on every JA+ server. Stock and other
-//! servers, JKR's own included, keep the stock rules ([`JaPlusRules::default`]).
+//! servers, SJK's own included, keep the stock rules ([`JaPlusRules::default`]).
 //!
 //! Not predicted: the `jp_cinfo` options EternalJK never reads outside its
 //! `serverconfig` listing (single-player attacks, the new DFA, model scale, kata,

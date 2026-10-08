@@ -7,7 +7,7 @@ use std::fmt;
 /// The test list built into the client.
 pub(super) const EMBEDDED: &str = include_str!("../assets/debug_panel.txt");
 
-/// Areas an entry may name, in the order open PRs are grouped.
+/// Areas an entry may name.
 pub(super) const AREAS: [&str; 7] = [
     "Console & chat",
     "Input",
@@ -21,57 +21,18 @@ pub(super) const AREAS: [&str; 7] = [
 /// Longest value, in bytes; longer lines would end in an ellipsis on narrow windows.
 pub(super) const LINE_LIMIT: usize = 96;
 
-/// Where an entry's change stands.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(super) enum Status {
-    /// An open pull request on upstream, merged only into Sol's build.
-    Open,
-    /// Merged upstream.
-    Merged,
-    /// In Sol's build only, with no pull request.
-    Personal,
-}
-
-impl Status {
-    fn parse(value: &str) -> Option<Self> {
-        match value {
-            "open" => Some(Self::Open),
-            "merged" => Some(Self::Merged),
-            "personal" => Some(Self::Personal),
-            _ => None,
-        }
-    }
-
-    /// Uppercase label shown in the list and the detail pane.
-    pub(super) fn label(self) -> &'static str {
-        match self {
-            Self::Open => "OPEN PR",
-            Self::Merged => "MERGED UPSTREAM",
-            Self::Personal => "PERSONAL",
-        }
-    }
-}
-
 /// One change in the build and how to test it.
 #[derive(Debug)]
 pub(super) struct Entry {
     /// Stable key of the entry's tick.
     pub(super) id: String,
-    /// PR numbers, for the checks of the embedded list.
-    #[cfg(test)]
-    pub(super) prs: Vec<u32>,
-    pub(super) status: Status,
     pub(super) area: String,
     pub(super) title: String,
     pub(super) changes: Vec<String>,
     pub(super) tests: Vec<String>,
     pub(super) notes: Vec<String>,
-    /// `#33` or `#30, #31`; empty for a personal entry without a PR.
-    pub(super) reference: String,
-    /// Status and area in capitals, for the list's second line.
+    /// The area in capitals, for the list's second line.
     pub(super) meta: String,
-    /// `PR #32   /   ISSUE #10`, or empty, for the detail pane.
-    pub(super) links: String,
 }
 
 /// Why the test list could not be read; `line` is 1-based.
@@ -95,9 +56,6 @@ impl fmt::Display for ParseError {
 struct Draft {
     line: usize,
     id: String,
-    prs: Option<Vec<u32>>,
-    issues: Option<Vec<u32>>,
-    status: Option<Status>,
     area: Option<String>,
     title: Option<String>,
     changes: Vec<String>,
@@ -110,9 +68,6 @@ impl Draft {
         Self {
             line,
             id: id.to_owned(),
-            prs: None,
-            issues: None,
-            status: None,
             area: None,
             title: None,
             changes: Vec::new(),
@@ -129,13 +84,6 @@ impl Draft {
             Ok(())
         }
         match key {
-            "pr" => once(&mut self.prs, key, numbers(value)?),
-            "issue" => once(&mut self.issues, key, numbers(value)?),
-            "status" => {
-                let status = Status::parse(value)
-                    .ok_or_else(|| format!("status {value:?} is not open, merged or personal"))?;
-                once(&mut self.status, key, status)
-            }
             "area" => {
                 if !AREAS.contains(&value) {
                     return Err(format!("unknown area {value:?}"));
@@ -164,43 +112,20 @@ impl Draft {
             line: self.line,
             message: format!("[{}] {message}", self.id),
         };
-        let status = self.status.ok_or_else(|| error("has no status"))?;
         let area = self.area.ok_or_else(|| error("has no area"))?;
         let title = self.title.ok_or_else(|| error("has no title"))?;
         if self.tests.is_empty() {
             return Err(error("has no test step"));
         }
-        let prs = self.prs.unwrap_or_default();
-        if prs.is_empty() && status != Status::Personal {
-            return Err(error("has no pr (only personal entries may omit it)"));
-        }
-        let issues = self.issues.unwrap_or_default();
-        let reference = join_numbers("#", &prs);
-        let meta = format!("{}   /   {}", status.label(), area.to_uppercase());
-        let mut links = String::new();
-        if !prs.is_empty() {
-            links = format!("PR {reference}");
-        }
-        if !issues.is_empty() {
-            if !links.is_empty() {
-                links.push_str("   /   ");
-            }
-            links.push_str("ISSUE ");
-            links.push_str(&join_numbers("#", &issues));
-        }
+        let meta = area.to_uppercase();
         Ok(Entry {
             id: self.id,
-            #[cfg(test)]
-            prs,
-            status,
             area,
             title,
             changes: self.changes,
             tests: self.tests,
             notes: self.notes,
-            reference,
             meta,
-            links,
         })
     }
 }
@@ -268,34 +193,6 @@ pub(super) fn parse(text: &str) -> Result<Vec<Entry>, ParseError> {
     Ok(entries)
 }
 
-/// Comma-separated positive numbers, with an optional leading `#` on each.
-fn numbers(value: &str) -> Result<Vec<u32>, String> {
-    value
-        .split(',')
-        .map(|part| {
-            let part = part.trim();
-            part.strip_prefix('#')
-                .unwrap_or(part)
-                .parse::<u32>()
-                .ok()
-                .filter(|&number| number > 0)
-                .ok_or_else(|| format!("{part:?} is not a number"))
-        })
-        .collect()
-}
-
-fn join_numbers(prefix: &str, numbers: &[u32]) -> String {
-    let mut text = String::new();
-    for (index, number) in numbers.iter().enumerate() {
-        if index > 0 {
-            text.push_str(", ");
-        }
-        text.push_str(prefix);
-        text.push_str(&number.to_string());
-    }
-    text
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -319,110 +216,51 @@ mod tests {
                 entry.id
             );
             assert!(AREAS.contains(&entry.area.as_str()), "{}", entry.id);
-            if entry.status != Status::Personal {
-                assert!(!entry.prs.is_empty(), "{}", entry.id);
-            }
         }
     }
 
     #[test]
-    fn embedded_ids_and_prs_are_unique() {
+    fn embedded_ids_are_unique() {
         let entries = embedded();
         let mut ids = HashSet::new();
-        let mut prs = HashSet::new();
         for entry in &entries {
             assert!(ids.insert(entry.id.as_str()), "id {} twice", entry.id);
-            // One upstream PR can supersede several of Sol's (e.g. #88 for #6 and #33).
-            if entry.status != Status::Open {
-                continue;
-            }
-            for pr in &entry.prs {
-                assert!(prs.insert(*pr), "PR #{pr} listed twice");
-            }
-        }
-    }
-
-    #[test]
-    fn embedded_list_covers_the_build() {
-        let entries = embedded();
-        let listed: HashSet<u32> = entries.iter().flat_map(|entry| entry.prs.clone()).collect();
-        // Sol's PRs in this build: open ones, and merged ones not yet dropped.
-        let in_build = [
-            29, 34, 35, 36, 37, 38, 39, 40, 42, 43, 44, 45, 46, 47, 49, 59,
-        ]
-        .into_iter()
-        .chain([
-            60, 61, 62, 63, 66, 70, 71, 72, 78, 86, 87, 97, 98, 100, 101, 105,
-        ])
-        .chain([
-            106, 107, 108, 109, 110, 111, 113, 114, 115, 116, 117, 118, 119, 120, 121,
-        ]);
-        for pr in in_build {
-            assert!(listed.contains(&pr), "PR #{pr} is missing");
-        }
-    }
-
-    #[test]
-    fn embedded_order_groups_open_prs_by_area_then_merged() {
-        let rank = |entry: &Entry| match entry.status {
-            Status::Open => AREAS.iter().position(|area| *area == entry.area).unwrap(),
-            Status::Personal => AREAS.len(),
-            Status::Merged => AREAS.len() + 1,
-        };
-        let entries = embedded();
-        for pair in entries.windows(2) {
-            assert!(
-                rank(&pair[0]) <= rank(&pair[1]),
-                "{} should come after {}",
-                pair[0].id,
-                pair[1].id
-            );
         }
     }
 
     #[test]
     fn entries_get_their_display_labels() {
         let entries = parse(
-            "[a]\npr: 30, #31\nissue: 26\nstatus: open\narea: HUD\ntitle: T\ntest: Step\n\
-             [b]\nstatus: personal\narea: Audio\ntitle: U\ntest: Step\nnote: N\n",
+            "[a]\narea: Menus & settings\ntitle: T\ntest: Step\n\
+             [b]\narea: Audio\ntitle: U\nchange: C\ntest: Step\nnote: N\n",
         )
         .unwrap();
-        assert_eq!(entries[0].prs, [30, 31]);
-        assert_eq!(entries[0].reference, "#30, #31");
-        assert_eq!(entries[0].meta, "OPEN PR   /   HUD");
-        assert_eq!(entries[0].links, "PR #30, #31   /   ISSUE #26");
-        assert_eq!(entries[1].reference, "");
-        assert_eq!(entries[1].links, "");
+        assert_eq!(entries[0].area, "Menus & settings");
+        assert_eq!(entries[0].meta, "MENUS & SETTINGS");
+        assert_eq!(entries[1].meta, "AUDIO");
+        assert_eq!(entries[1].changes, ["C"]);
         assert_eq!(entries[1].notes, ["N"]);
     }
 
     #[test]
     fn broken_lists_name_the_line() {
-        let base = "[a]\npr: 1\nstatus: open\narea: HUD\ntitle: T\ntest: Step\n";
+        let base = "[a]\narea: HUD\ntitle: T\ntest: Step\n";
         let cases = [
-            (
-                "[a]\nstatus: open\narea: HUD\ntitle: T\ntest: S\n",
-                1,
-                "no pr",
-            ),
-            (
-                "[a]\npr: 1\nstatus: open\narea: HUD\ntest: S\n",
-                1,
-                "no title",
-            ),
-            (
-                "[a]\npr: 1\nstatus: open\narea: HUD\ntitle: T\n",
-                1,
-                "no test",
-            ),
-            ("[a]\npr: 1\nstatus: soon\n", 3, "status"),
+            ("[a]\ntitle: T\ntest: S\n", 1, "no area"),
+            ("[a]\narea: HUD\ntest: S\n", 1, "no title"),
+            ("[a]\narea: HUD\ntitle: T\n", 1, "no test"),
             ("[a]\narea: Sky\n", 2, "unknown area"),
             ("[a]\ncolour: red\n", 2, "unknown key"),
+            // Keys the list no longer has.
+            ("[a]\npr: 1\n", 2, "unknown key"),
+            ("[a]\nissue: 2\n", 2, "unknown key"),
+            ("[a]\nstatus: personal\n", 2, "unknown key"),
             ("[a]\ntitle: T\ntitle: U\n", 3, "twice"),
+            ("[a]\narea: HUD\narea: Audio\n", 3, "twice"),
             ("title: T\n", 1, "before the first"),
             ("[A b]\n", 1, "lowercase"),
             ("[a]\ntitle: caf\u{e9}\n", 2, "ASCII"),
-            ("[a]\npr: six\n", 2, "not a number"),
+            ("[a]\ntitle:\n", 2, "empty"),
             ("[a]\njust text\n", 2, "key: value"),
         ];
         for (text, line, message) in cases {
@@ -432,9 +270,11 @@ mod tests {
         }
         let doubled = format!("{base}{base}");
         let error = parse(&doubled).unwrap_err();
-        assert_eq!(error.line, 7);
+        assert_eq!(error.line, 5);
         assert!(error.message.contains("used twice"), "{error}");
         let long = format!("[a]\ntitle: {}\n", "x".repeat(LINE_LIMIT + 1));
         assert!(parse(&long).unwrap_err().message.contains("more than"));
+        let fits = format!("{base}note: {}\n", "x".repeat(LINE_LIMIT));
+        assert!(parse(&fits).is_ok());
     }
 }

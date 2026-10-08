@@ -3,7 +3,7 @@ use super::*;
 fn pipelines(forge: &Forge) -> [wgpu::RenderPipeline; 3] {
     let device = &forge.device;
     let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-        label: Some("JKR opaque depth priming"),
+        label: Some("SJK opaque depth priming"),
         source: wgpu::ShaderSource::Wgsl(include_str!("depth_prime.wgsl").into()),
     });
     let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {

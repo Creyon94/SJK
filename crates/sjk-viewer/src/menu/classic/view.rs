@@ -10,7 +10,7 @@
 //! pages, so the art's transparent centre and the pillarbox of a wide window
 //! stay dark. Where retail played its logo video in that centre, the main
 //! page shows SJK's emblem ([`emblem`]), over the frames, with or without
-//! the art. Without the art, the same layout is drawn with JKR's own vector
+//! the art. Without the art, the same layout is drawn with SJK's own vector
 //! shapes and text.
 //!
 //! The artwork moves as retail's shaders move it ([`motion`]): the ring
@@ -241,7 +241,7 @@ pub(crate) fn build(
 }
 
 /// The page's backdrop and logo: the retail artwork where it is loaded,
-/// JKR's vector version otherwise.
+/// SJK's vector version otherwise.
 pub(crate) fn page_backdrop(
     canvas: &mut MenuCanvas,
     viewport: [f32; 2],
@@ -260,7 +260,7 @@ pub(crate) fn page_backdrop(
     logo(canvas, place, art_set);
 }
 
-/// One entry's label: gold, white and pulsing while focused, grey when JKR
+/// One entry's label: gold, white and pulsing while focused, grey when SJK
 /// cannot open it yet.
 pub(crate) fn entry_label(canvas: &mut MenuCanvas, place: &Placement, slot: &Slot, active: bool) {
     let color = match (slot.enabled(), active) {

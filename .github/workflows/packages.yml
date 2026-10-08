@@ -73,7 +73,7 @@ jobs:
           --platform ${{ matrix.platform }} --output dist --smoke-check
       - uses: actions/upload-artifact@v7
         with:
-          name: JKR-${{ matrix.platform }}
+          name: SJK-${{ matrix.platform }}
           path: dist/*
           if-no-files-found: error
           retention-days: 30

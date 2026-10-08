@@ -55,7 +55,7 @@ impl WorldLoadTask {
     ) -> Self {
         let (sender, receiver) = mpsc::channel();
         std::thread::Builder::new()
-            .name("jkr-map-loader".into())
+            .name("sjk-map-loader".into())
             .spawn(move || {
                 let started = Instant::now();
                 let result = (|| {

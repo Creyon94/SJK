@@ -350,7 +350,7 @@ impl LegacyWorldAdapter {
 
     /// Apply the identity-visible part of `CG_RestoreClientGhoul_f`.
     ///
-    /// Live appearances already resolve `CS_PLAYERS` every snapshot, and JKR
+    /// Live appearances already resolve `CS_PLAYERS` every snapshot, and SJK
     /// has no detachable-limb, ragdoll, gore, or mutable Ghoul2 weapon cache.
     /// The `ircg` branch does have observable identity state: codemp calls
     /// `CG_BodyQueueCopy` (`cg_servercmds.c:1438-1455`), so capture the source

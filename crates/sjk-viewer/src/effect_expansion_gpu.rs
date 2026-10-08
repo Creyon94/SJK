@@ -19,7 +19,7 @@ impl Expansion {
         vertex: &wgpu::Buffer,
         index: &wgpu::Buffer,
     ) -> Option<Self> {
-        if std::env::var("JKR_GPU_EFFECT_GEOMETRY").as_deref() == Ok("0") {
+        if std::env::var("SJK_GPU_EFFECT_GEOMETRY").as_deref() == Ok("0") {
             return None;
         }
         let maximum = (MAX_VERTICES * std::mem::size_of::<crate::effect_geometry::Vertex>()) as u64;

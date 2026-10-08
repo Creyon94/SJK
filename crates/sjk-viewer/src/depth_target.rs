@@ -15,7 +15,7 @@ impl DepthTarget {
     /// Allocate at construction or resize; AA does not change depth sampling.
     pub(crate) fn new(device: &wgpu::Device, width: u32, height: u32) -> Self {
         let texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("JKR depth"),
+            label: Some("SJK depth"),
             size: wgpu::Extent3d {
                 width,
                 height,

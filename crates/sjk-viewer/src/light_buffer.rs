@@ -55,26 +55,26 @@ impl Images {
         let direction = target(
             device,
             if directed { size } else { [1, 1] },
-            "JKR light buffer directions",
+            "SJK light buffer directions",
             DIRECTION_FORMAT,
             wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::STORAGE_BINDING,
         );
         let normal = target(
             device,
             size,
-            "JKR light buffer normals",
+            "SJK light buffer normals",
             NORMAL_FORMAT,
             wgpu::TextureUsages::RENDER_ATTACHMENT,
         );
         let occlusion = target(
             device,
             size,
-            "JKR light buffer occlusion",
+            "SJK light buffer occlusion",
             OCCLUSION_FORMAT,
             wgpu::TextureUsages::RENDER_ATTACHMENT,
         );
         let occlusion_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("JKR light occlusion"),
+            label: Some("SJK light occlusion"),
             layout: &occlusion_layout(device),
             entries: &[
                 wgpu::BindGroupEntry {
@@ -128,7 +128,7 @@ impl Images {
 /// Layout of `LightBuffer::sample_group`.
 pub(in crate::world_materials) fn sample_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("JKR light occlusion sample"),
+        label: Some("SJK light occlusion sample"),
         entries: &[
             texture_entry(
                 0,
@@ -241,7 +241,7 @@ pub(in crate::world_materials) fn layout_entries(
 /// The occlusion pass group layout: pre-pass depth and normals in.
 fn occlusion_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("JKR light occlusion"),
+        label: Some("SJK light occlusion"),
         entries: &[
             texture_entry(
                 0,
@@ -291,14 +291,14 @@ fn targets(device: &wgpu::Device, size: [u32; 2]) -> (wgpu::TextureView, wgpu::T
         target(
             device,
             size,
-            "JKR light buffer",
+            "SJK light buffer",
             FORMAT,
             attachment | wgpu::TextureUsages::STORAGE_BINDING,
         ),
         target(
             device,
             size,
-            "JKR light buffer depth",
+            "SJK light buffer depth",
             crate::DepthTarget::FORMAT,
             attachment,
         ),
@@ -318,14 +318,14 @@ pub(in crate::world_materials) fn neutral(
     let normal = target(
         device,
         [1, 1],
-        "JKR light buffer neutral normals",
+        "SJK light buffer neutral normals",
         NORMAL_FORMAT,
         wgpu::TextureUsages::RENDER_ATTACHMENT,
     );
     let direction = target(
         device,
         [1, 1],
-        "JKR light buffer neutral directions",
+        "SJK light buffer neutral directions",
         DIRECTION_FORMAT,
         wgpu::TextureUsages::RENDER_ATTACHMENT,
     );
@@ -357,7 +357,7 @@ impl LightBuffer {
         let scale_buffer = wgpu::util::DeviceExt::create_buffer_init(
             device,
             &wgpu::util::BufferInitDescriptor {
-                label: Some("JKR light occlusion scale"),
+                label: Some("SJK light occlusion scale"),
                 contents: bytemuck::cast_slice(&scale),
                 usage: wgpu::BufferUsages::UNIFORM,
             },
@@ -370,7 +370,7 @@ impl LightBuffer {
             ..Default::default()
         });
         let sample_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("JKR light occlusion sample"),
+            label: Some("SJK light occlusion sample"),
             layout: &sample_layout(device),
             entries: &[
                 wgpu::BindGroupEntry {
@@ -470,7 +470,7 @@ impl Pipelines {
     ) -> Self {
         // The pre-pass writes the depth the receiver group samples: camera only.
         let prepass_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("JKR light pre-pass"),
+            label: Some("SJK light pre-pass"),
             bind_group_layouts: &[Some(&forge.camera_layout)],
             immediate_size: 0,
         });
@@ -483,7 +483,7 @@ impl Pipelines {
             shade
         );
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR light pass"),
+            label: Some("SJK light pass"),
             source: wgpu::ShaderSource::Wgsl(program.as_str().into()),
         });
         let static_buffers = [Some(crate::GpuVertex::layout())];
@@ -524,7 +524,7 @@ impl Pipelines {
         ]
         .map(|(cull, mover)| {
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("JKR light pre-pass"),
+                label: Some("SJK light pre-pass"),
                 layout: Some(&prepass_layout),
                 vertex: vertex(mover),
                 fragment: Some(wgpu::FragmentState {
@@ -549,16 +549,16 @@ impl Pipelines {
         });
 
         let occlusion_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR light occlusion"),
+            label: Some("SJK light occlusion"),
             source: wgpu::ShaderSource::Wgsl(include_str!("light_occlusion.wgsl").into()),
         });
         let occlusion_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("JKR light occlusion"),
+            label: Some("SJK light occlusion"),
             bind_group_layouts: &[Some(&forge.camera_layout), Some(&occlusion_layout(device))],
             immediate_size: 0,
         });
         let occlusion = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("JKR light occlusion"),
+            label: Some("SJK light occlusion"),
             layout: Some(&occlusion_layout),
             vertex: wgpu::VertexState {
                 module: &occlusion_shader,
@@ -583,7 +583,7 @@ impl Pipelines {
             cache: None,
         });
         let entity_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR entity light pass"),
+            label: Some("SJK entity light pass"),
             source: wgpu::ShaderSource::Wgsl(
                 format!(
                     "{}{}",
@@ -596,7 +596,7 @@ impl Pipelines {
         let quads = crate::shared_geometry::quads::layout(device);
         let entity_prepass_layout =
             device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                label: Some("JKR entity light pre-pass"),
+                label: Some("SJK entity light pre-pass"),
                 bind_group_layouts: &[
                     Some(&forge.camera_layout),
                     Some(&forge.stage_layout),
@@ -618,7 +618,7 @@ impl Pipelines {
             buffers: &mover_buffers,
         };
         let entity_prepass = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("JKR entity light pre-pass"),
+            label: Some("SJK entity light pre-pass"),
             layout: Some(&entity_prepass_layout),
             vertex: entity_vertex.clone(),
             fragment: Some(wgpu::FragmentState {
@@ -718,7 +718,7 @@ impl super::super::Runtime {
         };
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("JKR light pre-pass"),
+                label: Some("SJK light pre-pass"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &images.normal,
                     resolve_target: None,
@@ -757,7 +757,7 @@ impl super::super::Runtime {
         }
         {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("JKR light occlusion"),
+                label: Some("SJK light occlusion"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &images.occlusion,
                     resolve_target: None,

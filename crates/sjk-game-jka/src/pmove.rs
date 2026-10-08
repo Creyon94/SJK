@@ -200,7 +200,7 @@ pub struct MovementConfig {
     /// (`g_fixSaberMoveData`, `g_fixWeaponAttackAnim`, `g_fixRunWalkAnims`, bits 0-2).
     /// A retail server publishes none and runs none.
     pub legacy_fixes: u32,
-    /// `CS_SERVERINFO` `g_debugMelee` as the server's dialect reads it. JKR's own server
+    /// `CS_SERVERINFO` `g_debugMelee` as the server's dialect reads it. SJK's own server
     /// does not simulate it and keeps the default (off).
     pub debug_melee: crate::pmove_debug_melee::DebugMelee,
     /// The server's grapple-hook pull: JA+ only ([`grapple`]).
@@ -1619,7 +1619,7 @@ impl Predictor {
             // looked like a fresh authoritative view change and the local pitch escalated
             // past vertical. An owner session reached -121 degrees.
             // Stock returns from PM_UpdateViewAngles outright during intermission ("no view
-            // changes at all", bg_pmove.c:7831-7833), so the clamp must not reach it; JKR
+            // changes at all", bg_pmove.c:7831-7833), so the clamp must not reach it; SJK
             // keeps updating the view there and that behaviour is unchanged.
             if axis == PITCH && self.state.movement_type != crate::PM_INTERMISSION {
                 if value > PITCH_CLAMP {

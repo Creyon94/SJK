@@ -3,7 +3,7 @@
 //! The classic menus draw the original `gfx/menus` images (backgrounds,
 //! window frames, the game logo, the in-game bar and boxes) when the mounted
 //! game data has them. Nothing is bundled: a piece that is missing or fails
-//! to decode is simply absent, and the classic views fall back to JKR's own
+//! to decode is simply absent, and the classic views fall back to SJK's own
 //! vector drawing for it.
 //!
 //! The images are decoded once per process on a worker thread, the first
@@ -445,7 +445,7 @@ pub(crate) fn request(vfs: &Arc<VirtualFileSystem>) {
     }
     let vfs = Arc::clone(vfs);
     let spawned = std::thread::Builder::new()
-        .name("jkr-menu-art".into())
+        .name("sjk-menu-art".into())
         .spawn(move || {
             let decoded = decode_all(&vfs);
             let found = decoded.images.iter().flatten().count();

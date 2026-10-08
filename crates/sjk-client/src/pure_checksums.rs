@@ -31,7 +31,7 @@ pub fn legacy_server_is_pure(game_state: &GameState) -> bool {
 /// `pure_checksum` is the client's checksum of the assets it loaded, seeded
 /// with the gamestate's checksum feed. The shape mirrors
 /// `FS_ReferencedPakPureChecksums` for a single referenced pak, which is what
-/// JKR mounts; a server that references its own paks will not match it (see
+/// SJK mounts; a server that references its own paks will not match it (see
 /// `KNOWN_ISSUES.md`).
 pub fn legacy_pure_checksum_command(game_state: &GameState, pure_checksum: i32) -> Option<Vec<u8>> {
     if !legacy_server_is_pure(game_state) {

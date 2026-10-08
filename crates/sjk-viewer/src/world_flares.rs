@@ -15,7 +15,7 @@ struct Entry {
 
 pub(crate) fn depth_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("JKR flare depth sample"),
+        label: Some("SJK flare depth sample"),
         entries: &[wgpu::BindGroupLayoutEntry {
             binding: 0,
             // Froxel injection also reads scene depth to reject samples behind surfaces.
@@ -32,7 +32,7 @@ pub(crate) fn depth_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
 
 pub(crate) fn depth_binding(device: &wgpu::Device, view: &wgpu::TextureView) -> wgpu::BindGroup {
     device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: Some("JKR flare scene depth"),
+        label: Some("SJK flare scene depth"),
         layout: &depth_layout(device),
         entries: &[wgpu::BindGroupEntry {
             binding: 0,
@@ -48,7 +48,7 @@ pub(crate) fn begin_pass<'a>(
     depth: &wgpu::TextureView,
 ) -> wgpu::RenderPass<'a> {
     encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-        label: Some("JKR depth-sampled flares"),
+        label: Some("SJK depth-sampled flares"),
         color_attachments: &[Some(wgpu::RenderPassColorAttachment {
             view: color,
             resolve_target: None,
@@ -93,7 +93,7 @@ impl Runtime {
                                 instanced,
                                 entry,
                                 "fragment_main",
-                                "JKR BSP flare stage",
+                                "SJK BSP flare stage",
                                 false,
                             )
                         };
