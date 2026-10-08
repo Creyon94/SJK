@@ -1715,6 +1715,20 @@ note: The pointer's dead zone and reach are in raw mouse counts: tell Claude if 
 test: Each choice is a round metal icon; the one pointed at grows, ringed in the accent colour.
 test: Its name shows in the middle; GAME MENU and FIRST SETUP are plain discs with text.
 
+[wheel-pages]
+area: Input
+title: Quick wheel pages: scroll or click to change page, edit them in Settings
+change: One wheel with pages (General, Weather); while held, scroll or left/right click turn page.
+change: Settings > Quick wheel adds, renames, moves, removes pages and picks each page's choices.
+change: SJK UI look: navy ring, holo lines, gold for the chosen. Pages are kept in SJK/wheel.json.
+test: Hold Q, scroll down: Weather slides in; scroll up or left click: back to General.
+test: Hold Q, right click, point at Rain, let go: rain starts. No shot fired, no weapon change.
+test: Settings > Quick wheel: add a page, name it, add choices and one custom command, move them.
+test: Hold Q, scroll to the new page: its choices run. Restart: the pages are still there.
+test: Restore the default pages (Enter twice): General and Weather again, wheel.json removed.
+test: Classic and modern menus: Settings > Interface > Quick wheel pages opens the same editor.
+note: A bare +wheel bind opens the page shown last; +wheel <page> opens that page (id or name).
+
 [vertex-lit-maps]
 area: Rendering & effects
 title: Material maps on vertex-lit terrain, sand and rock

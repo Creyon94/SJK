@@ -158,6 +158,9 @@ pub(crate) struct ViewerConsole {
     pub(crate) weather: crate::weather::Settings,
     /// Eye adaptation and base exposure shared with graphics contexts.
     pub(crate) exposure: crate::frame_target::aa::exposure::Settings,
+    /// The quick wheel's pages (`wheel.json` beside the configuration), read by
+    /// the wheel when it opens and changed by Settings.
+    pub(crate) wheel_pages: crate::quick_wheel::pages::WheelPages,
     /// Optional ambient correction for supported main-view world surfaces.
     pub(crate) ssao: crate::world_materials::ssao::settings::Settings,
     pub(crate) director: director::Director,
@@ -250,6 +253,12 @@ impl ViewerConsole {
     /// Track Shift for the stock Shift+Escape toggle (`cl_keys.cpp:1318`).
     pub(crate) fn set_shift(&mut self, held: bool) {
         self.shift = held;
+    }
+
+    /// Whether Shift or Ctrl is held (`ModifiersChanged`), for keys that move
+    /// an item rather than the focus.
+    pub(crate) fn modifier_held(&self) -> bool {
+        self.shift || self.control
     }
 
     pub(crate) fn is_open(&self) -> bool {

@@ -158,8 +158,9 @@ pub(crate) const ACTIONS: &[BindableAction] = &[
     action(Other, "Peek at crosshair player", "peek", ""),
     // SJK: off, names only, bars on the target and duel opponent, bars on everyone.
     action(Other, "Nameplate mode", "nameplates", "v"),
+    // SJK: one wheel with pages (Settings > Quick wheel); each opens on its page.
     action(Other, "Quick wheel (hold)", "+wheel general", "q"),
-    action(Other, "Weather wheel (hold)", "+wheel weather", "r"),
+    action(Other, "Quick wheel, Weather (hold)", "+wheel weather", "r"),
     action(Other, "Taunt", "taunt", "g"),
     action(Other, "Bow", "bow", "b"),
     action(Other, "Meditate", "meditate", ""),

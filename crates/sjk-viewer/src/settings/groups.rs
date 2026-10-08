@@ -101,6 +101,7 @@ impl Group {
                 crate::console::console_options::STYLE_CVAR,
                 "con_scale",
                 "con_lineSpacing",
+                crate::quick_wheel::pages::FILE,
             ],
             Self::Hud => &[
                 "cg_drawHud",
@@ -160,6 +161,7 @@ impl Group {
             Self::Interface => &[
                 (crate::menu::style::CVAR, "Menus"),
                 (crate::console::console_options::STYLE_CVAR, "Console"),
+                (crate::quick_wheel::pages::FILE, "Quick wheel"),
             ],
             Self::Hud => &[
                 ("cg_drawHud", "Layout"),

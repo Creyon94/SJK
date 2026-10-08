@@ -24,6 +24,8 @@ mod search;
 mod sjk_popup;
 pub(crate) mod sjk_view;
 mod view;
+mod wheel_editor;
+mod wheel_editor_view;
 
 use catalog::*;
 pub(crate) use catalog::{FIRST_SETUP_CAPTION, RESOLUTIONS};
@@ -33,10 +35,14 @@ pub(crate) use display::{
 pub(crate) use groups::Group;
 use resolution::{PickResult, ResolutionChoice, ResolutionPicker};
 pub(crate) use sjk_view::Rail;
+pub(crate) use wheel_editor::WheelMode;
 pub(crate) enum SettingsResult {
     None,
     Back,
     OpenKeybinds,
+    /// The "Quick wheel pages" row: the SJK UI shows its Quick wheel category,
+    /// the other styles the editor on its own ([`WheelMode`]).
+    OpenWheelPages,
     /// A button of the classic panel screen around the options: index into
     /// its page's slots.
     Classic(usize),
@@ -261,6 +267,8 @@ pub(crate) struct SettingsMenu {
     /// the row. `None` under the other views.
     sjk_controls: Option<f32>,
     ui: MenuCanvas,
+    /// The quick wheel's page editor, drawn in place of the rows while open.
+    wheel: wheel_editor::WheelEditor,
 }
 
 impl SettingsMenu {
@@ -316,6 +324,7 @@ impl SettingsMenu {
             dropdown: None,
             sjk_controls: None,
             ui: MenuCanvas::new(),
+            wheel: wheel_editor::WheelEditor::default(),
         }
     }
 
@@ -360,6 +369,7 @@ impl SettingsMenu {
         self.wants_monitor = true;
         self.numeric = None;
         self.classic = None;
+        self.wheel.close();
         self.refresh(console);
     }
 
@@ -508,6 +518,19 @@ impl SettingsMenu {
         }
     }
 
+    /// Select the "Quick wheel pages" row, scrolled into view: under the
+    /// quick wheel's editor, the row it returns to.
+    pub(crate) fn select_wheel_row(&mut self) {
+        if let Some(row) = self
+            .rows()
+            .iter()
+            .position(|setting| matches!(setting.kind, ValueKind::WheelPages))
+        {
+            self.selected = row;
+            self.reveal_selected();
+        }
+    }
+
     /// Select the row of setting `cvar`, scrolled into a panel (menu snapshots).
     #[cfg(test)]
     pub(crate) fn select_cvar(&mut self, cvar: &str) {
@@ -521,6 +544,9 @@ impl SettingsMenu {
         (self.selected, false)
     }
     pub(crate) fn draw_list(&self) -> &DrawList {
+        if self.wheel.is_open() {
+            return self.wheel.draw_list();
+        }
         self.ui.draw_list()
     }
 
@@ -535,6 +561,9 @@ impl SettingsMenu {
         let PhysicalKey::Code(key) = event.physical_key else {
             return SettingsResult::None;
         };
+        if self.wheel.is_open() {
+            return self.wheel_key(key, event.text.as_deref(), console);
+        }
         if self.hud.is_open() {
             self.hud_picker_key(key, event.repeat, console);
             return SettingsResult::None;
@@ -665,6 +694,8 @@ impl SettingsMenu {
                         self.open_resolutions(console);
                     } else if matches!(setting.kind, ValueKind::HudPicker) {
                         self.open_hud_picker(console);
+                    } else if matches!(setting.kind, ValueKind::WheelPages) {
+                        return SettingsResult::OpenWheelPages;
                     } else if classic && self.open_dropdown(console, self.selected) {
                         // Classic+: a choice opens its list; nothing changes yet.
                     } else if !self.begin_numeric(console, self.selected) {
@@ -809,6 +840,7 @@ impl SettingsMenu {
             .extend(self.rows().iter().map(|setting| match setting.kind {
                 ValueKind::DisplayMode => display.label().to_owned(),
                 ValueKind::HudPicker => hud.clone(),
+                ValueKind::WheelPages => wheel_pages_text(console),
                 ValueKind::Bool => toggle_text(console, setting.cvar),
                 _ => row_text(console, setting),
             }));
@@ -890,6 +922,17 @@ fn float_text(value: f64) -> String {
         text.pop();
     }
     text
+}
+
+/// What the "Quick wheel pages" row shows: how many pages, and whether they
+/// are the defaults.
+fn wheel_pages_text(console: &ViewerConsole) -> String {
+    let pages = &console.wheel_pages;
+    match (pages.pages().len(), pages.is_default()) {
+        (_, true) => "General, Weather".to_owned(),
+        (1, false) => "1 page".to_owned(),
+        (count, false) => format!("{count} pages"),
+    }
 }
 
 /// Whether a switch row's cvar is on: true, or any nonzero number.
@@ -991,10 +1034,14 @@ mod tests {
     fn every_row_names_a_registered_cvar_of_its_kind() {
         let (_directory, console) = console();
         for setting in rows() {
-            // Rows whose value is not one cvar's (resolution, display mode, HUD).
+            // Rows whose value is not one cvar's (resolution, display mode, HUD,
+            // the quick wheel's pages).
             if matches!(
                 setting.kind,
-                ValueKind::Resolution | ValueKind::DisplayMode | ValueKind::HudPicker
+                ValueKind::Resolution
+                    | ValueKind::DisplayMode
+                    | ValueKind::HudPicker
+                    | ValueKind::WheelPages
             ) {
                 continue;
             }

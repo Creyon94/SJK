@@ -21,6 +21,9 @@ enum Shows {
     Rows(Panel),
     /// The key bindings: every action with its keys.
     Keys,
+    /// The quick wheel's pages and their choices, edited
+    /// ([`crate::settings::WheelMode::Category`]).
+    Wheel,
 }
 
 /// One category of the rail: its name, its settings icon and what it shows.
@@ -39,7 +42,7 @@ const fn tab(caption: &'static str) -> Shows {
 }
 
 /// The rail, top to bottom.
-const CATEGORIES: [Category; 11] = [
+const CATEGORIES: [Category; 12] = [
     Category {
         label: "First setup",
         icon: "first_setup",
@@ -85,6 +88,12 @@ const CATEGORIES: [Category; 11] = [
         icon: "hud",
         shows: Shows::Rows(Panel::Group(Group::Hud)),
     },
+    // A spare icon of the settings board until the wheel has its own.
+    Category {
+        label: "Quick wheel",
+        icon: "options",
+        shows: Shows::Wheel,
+    },
     Category {
         label: "Scoreboard",
         icon: "scoreboard",
@@ -110,6 +119,9 @@ const RAIL: [(&str, &str); CATEGORIES.len()] = {
 
 /// The category First setup is.
 pub(crate) const FIRST_SETUP: usize = 0;
+/// The category the quick wheel's pages are.
+pub(crate) const QUICK_WHEEL: usize = 9;
+const _: () = assert!(matches!(CATEGORIES[QUICK_WHEEL].shows, Shows::Wheel));
 /// The category the screen opens on first in a run.
 const OPENING: usize = 1;
 
@@ -150,6 +162,8 @@ impl ClientMenu {
         let index = index.min(CATEGORIES.len() - 1);
         let panel = match CATEGORIES[index].shows {
             Shows::Rows(panel) => panel,
+            // The editor shows over Interface's rows, which hold its row.
+            Shows::Wheel => Panel::Group(Group::Interface),
             Shows::Keys => {
                 self.settings.leave_classic();
                 self.keybinds.open_classic(console, 0, Span::ALL);
@@ -185,6 +199,11 @@ impl ClientMenu {
             Panel::Keybinds { .. } => return,
         }
         self.settings.set_elsewhere(0);
+        if CATEGORIES[index].shows == Shows::Wheel {
+            self.settings.select_wheel_row();
+            self.settings
+                .open_wheel_editor(console, crate::settings::WheelMode::Category);
+        }
         self.keybinds_direct = false;
         self.settings_return = target;
         self.renderer_panel = None;
@@ -315,6 +334,11 @@ impl ClientMenu {
                 self.open_sjk_settings(console, FIRST_SETUP, target);
                 Some(MenuAction::None)
             }
+            // Interface's "Quick wheel pages" row: the Quick wheel category.
+            SettingsResult::OpenWheelPages => {
+                self.open_sjk_settings(console, QUICK_WHEEL, target);
+                Some(MenuAction::None)
+            }
             _ => None,
         }
     }
@@ -353,6 +377,37 @@ impl ClientMenu {
         self.keybinds.focus_for_shot(command, capture);
     }
 
+    /// Settings > Quick wheel (opened if it is not), after `keys`, each typing
+    /// its text if it has one (world shots).
+    pub(crate) fn sjk_wheel_for_shot(
+        &mut self,
+        console: &mut ViewerConsole,
+        keys: &[(winit::keyboard::KeyCode, Option<&str>)],
+    ) {
+        if !self.settings.wheel_editor_open() {
+            self.open_sjk_settings(console, QUICK_WHEEL, ReturnTarget::MainMenu);
+        }
+        self.settings.wheel_keys_for_shot(keys, console);
+    }
+
+    /// The quick wheel's editor opened from Interface's row of the classic+
+    /// (`classic`) or the modern settings (world shots).
+    pub(crate) fn wheel_overlay_for_shot(&mut self, console: &ViewerConsole, classic: bool) {
+        if classic {
+            self.open_classic_panel(
+                console,
+                Page::Gameplay,
+                Entry::Interface,
+                PanelFrame::Main,
+                ReturnTarget::MainMenu,
+            );
+        } else {
+            self.open_settings_from(console, ReturnTarget::MainMenu, 0);
+        }
+        self.settings
+            .open_wheel_editor(console, crate::settings::WheelMode::Overlay);
+    }
+
     /// The SJK UI's Settings on category `category`, the row of `cvar` focused,
     /// its list open (`list`) or a `search` typed (menu snapshots).
     pub(crate) fn sjk_settings_for_snapshot(
@@ -388,6 +443,8 @@ fn next_category(index: usize, direction: i32) -> usize {
 fn classic_place(index: usize) -> Option<(Page, Entry)> {
     let panel = match CATEGORIES.get(index)?.shows {
         Shows::Rows(panel) => panel,
+        // Interface holds the row that opens the quick wheel's pages.
+        Shows::Wheel => Panel::Group(Group::Interface),
         Shows::Keys => return Some((Page::Controls, Entry::Movement)),
     };
     [Page::Setup, Page::Graphics, Page::Gameplay]

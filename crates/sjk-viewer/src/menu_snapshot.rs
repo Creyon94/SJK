@@ -1717,10 +1717,11 @@ fn quick_wheel_snapshot() {
     quick_wheels(&mut shots);
 }
 
-/// Both quick wheels over a match, the mouse pushed towards one choice, the choices in
-/// effect marked, in SJK's default accent.
+/// Both default pages of the quick wheel over a match, the mouse pushed towards one
+/// choice, the choices in effect marked (in Inter: these snapshots have no SJK UI
+/// families; `world_shot::tests::duel6_quick_wheel` draws the real thing).
 fn quick_wheels(shots: &mut Snapshot) {
-    use crate::quick_wheel::{ICONS, QuickWheel, WHEELS, wheel};
+    use crate::quick_wheel::{ICONS, QuickWheel, ShownPage, pages};
     for (index, (_, bytes)) in ICONS.iter().enumerate() {
         let icon = image::load_from_memory(bytes)
             .expect("a wheel icon")
@@ -1729,36 +1730,40 @@ fn quick_wheels(shots: &mut Snapshot) {
             .icons
             .insert(crate::ui_renderer::wheel_icon(index).0, icon);
     }
-    let accent = sjk_ui::Color::new(1.0, 0.416, 0.239, 1.0);
-    let cases: [(&str, &str, [f32; 2], &[usize]); 3] = [
-        ("quick-wheel-general", "general", [60.0, -60.0], &[1, 2]),
-        ("quick-wheel-weather", "weather", [80.0, 20.0], &[0, 6, 7]),
-        (
-            "quick-wheel-weather-middle",
-            "weather",
-            [6.0, -4.0],
-            &[3, 6, 7],
-        ),
+    let shown = |marked: &[usize]| -> Vec<ShownPage> {
+        pages::defaults()
+            .iter()
+            .map(|page| ShownPage {
+                id: page.id.clone(),
+                name: page.name.clone(),
+                choices: page
+                    .choices
+                    .iter()
+                    .enumerate()
+                    .map(|(index, slot)| crate::quick_wheel::ShownChoice {
+                        label: slot.label().to_owned(),
+                        command: slot.command().to_owned(),
+                        icon: slot.icon(),
+                        on: marked.contains(&index),
+                    })
+                    .collect(),
+            })
+            .collect()
+    };
+    let cases: [(&str, usize, [f32; 2], &[usize]); 3] = [
+        ("quick-wheel-general", 0, [60.0, -60.0], &[1, 2]),
+        ("quick-wheel-weather", 1, [80.0, 20.0], &[0, 6, 7]),
+        ("quick-wheel-weather-middle", 1, [6.0, -4.0], &[3, 6, 7]),
     ];
-    for (name, wheel_name, pointer, marked) in cases {
-        let index = wheel(wheel_name).expect("a built-in wheel");
-        let marks = (0..WHEELS[index].choices.len())
-            .map(|choice| marked.contains(&choice))
-            .collect();
+    for (name, page, pointer, marked) in cases {
         let mut state = QuickWheel::default();
-        state.open(index, marks);
+        let now = std::time::Instant::now();
+        state.open(shown(marked), page, now);
         state.moved(pointer);
-        state.build(VIEWPORT, accent);
+        state.build(VIEWPORT, now);
         let mut vertices = Vec::new();
-        crate::ui_renderer::append_text_commands(
-            &state.list,
-            |id| state.text(id),
-            &mut vertices,
-            &shots.font.font,
-            VIEWPORT,
-            crate::text::TextStyle::NEUTRAL,
-        );
-        shots.save(name, &state.list, &vertices, true);
+        state.append_text(None, &mut vertices, &shots.font.font, VIEWPORT);
+        shots.save(name, state.draw_list(), &vertices, true);
     }
 }
 /// Only the radial HUD, for a quicker look than the whole set.

@@ -90,6 +90,22 @@ impl GpuState {
     }
 
     pub(crate) fn pointer_button(&mut self, button: MouseButton, state: ElementState) {
+        // An open quick wheel takes the left and right buttons: they change its
+        // page, and neither attacks.
+        let side = match button {
+            MouseButton::Left => Some(crate::quick_wheel::Button::Left),
+            MouseButton::Right => Some(crate::quick_wheel::Button::Right),
+            _ => None,
+        };
+        if let Some(side) = side
+            && self.quick_wheel.button(
+                side,
+                state == ElementState::Pressed,
+                std::time::Instant::now(),
+            )
+        {
+            return;
+        }
         if state == ElementState::Pressed
             && self
                 .client_menu
@@ -130,6 +146,12 @@ impl GpuState {
 
     pub(crate) fn pointer_wheel(&mut self, delta: MouseScrollDelta) {
         let delta = normalize_wheel(delta);
+        // An open quick wheel takes the scroll: it changes page, not weapon.
+        if self.quick_wheel.is_open() {
+            self.quick_wheel
+                .scrolled(delta.y, std::time::Instant::now());
+            return;
+        }
         if let Some(up) = wheel_binding_direction(delta.y)
             && self
                 .client_menu

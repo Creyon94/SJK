@@ -18,6 +18,10 @@ impl SettingsMenu {
         reveal: f32,
     ) {
         self.sjk_controls = None;
+        if self.wheel.is_open() {
+            self.append_wheel_overlay(vertices, font, viewport, reveal);
+            return;
+        }
         if self.hud.is_open() {
             self.append_hud_picker(vertices, font, viewport, reveal, None);
             return;
@@ -145,7 +149,8 @@ fn row_view(
         ValueKind::Choice(_)
         | ValueKind::Resolution
         | ValueKind::DisplayMode
-        | ValueKind::HudPicker => ui.form_cycler(value_zone, value, None, value_color, s),
+        | ValueKind::HudPicker
+        | ValueKind::WheelPages => ui.form_cycler(value_zone, value, None, value_color, s),
         ValueKind::Text => {
             ui.form_value(value, value_zone, value_color, s);
             if editing {

@@ -677,6 +677,13 @@ impl ClientMenu {
                 self.state.open_keybinds();
                 MenuAction::None
             }
+            // The classic+ and modern settings show the quick wheel's editor on
+            // its own (the SJK UI's has its category, `sjk_settings_result`).
+            SettingsResult::OpenWheelPages => {
+                self.settings
+                    .open_wheel_editor(console, crate::settings::WheelMode::Overlay);
+                MenuAction::None
+            }
             SettingsResult::Classic(index) => self.classic_panel_button(index, console),
             SettingsResult::ClassicCycle(direction) => {
                 self.classic_panel_cycle(direction, console);
