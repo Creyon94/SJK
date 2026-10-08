@@ -20,7 +20,16 @@
 //! - **Falls** (`EV_FALL`, `EV_ROLL`): the landing's damage, exactly.
 //! - **Pickups** (`EV_ITEM_PICKUP`): medpacks and shields add their amount.
 //! - **Force heal** (its sound at the player): 5, 10 or 25 by level.
-//! - **Drain** heals the drainer by what it takes, an unknown amount.
+//! - **Team heal** (`EV_TEAM_POWER`, which names everyone it reached): 50, 33 or 25
+//!   each, by how many it reached, exactly.
+//! - **Drain**, **lightning** and **grip**, rebuilt shot by shot
+//!   ([`super::force_streams`]): drain heals the drainer by what it takes, lightning
+//!   does 1 or 2 a shot (the armour first, whose flash shows it), grip 2 a second past
+//!   the armour.
+//! - **Rage** costs 2 health every 150, 300 or 450 ms by level, down to 1, and halves
+//!   every blow (`G_Damage`); **protect** keeps 40, 60 or 80% of a blow off the health
+//!   and pays for it with Force (point for point, a half or a quarter), which the Force
+//!   estimate takes ([`ForceFacts`]).
 //! - **JA+'s grapple hook** (`EV_MISSILE_HIT` of a `WP_STUN_BATON` missile) does one
 //!   point exactly.
 //! - **Pain sounds** (`EV_ENTITY_SOUND` of `*pain25` to `*pain100`): where a server
@@ -38,14 +47,15 @@
 //!   with no death seen (a round or map restart) toggles `EF_TELEPORT_BIT`, as a
 //!   teleport does, so that only raises the high bound to the spawn values.
 //!
-//! What is missed (lightning, hurt triggers, splash under ten, anything unseen
-//! while a player is out of view) widens the range rather than moving the guess.
+//! What is missed (hurt triggers, splash under ten, anything unseen while a player is
+//! out of view) widens the range rather than moving the guess.
 //!
 //! Servers can hide the pain values: JAPro's `g_stopHealthESP` sends a fixed 50 or
 //! no pain event at all. The local player's own pain events are checked against
 //! its real health ([`PainReport`]); until one has been checked, pain values are
 //! trusted but their absence proves nothing.
 use super::estimate::Range;
+use super::force_streams::{self, Effect};
 use sjk_game_jka::items::{ITEMS, Kind};
 use sjk_protocol::{EntityState, GameState, Snapshot};
 
@@ -76,8 +86,11 @@ const MELEE_ACTIONS: [&str; 11] = [
 const EVENT_MASK: u16 = 0xff;
 const EV_FALL: u16 = 11;
 const EV_PRIVATE_DUEL: u16 = 15;
+const EV_PREDEFSOUND: u16 = 40;
+const EV_TEAM_POWER: u16 = 41;
 const EV_ENTITY_SOUND: u16 = 79;
 const EV_ROLL: u16 = 17;
+const EV_NOAMMO: u16 = 25;
 const EV_ITEM_PICKUP: u16 = 22;
 const EV_SABER_HIT: u16 = 30;
 const EV_GENERAL_SOUND: u16 = 76;
@@ -91,9 +104,14 @@ const CS_SOUNDS: usize = 811;
 /// `PERS_HITS`, `PERS_ATTACKEE_ARMOR`.
 const PERS_HITS: usize = 1;
 const PERS_ATTACKEE_ARMOR: usize = 7;
-/// `FP_PROTECT`, `FP_DRAIN`.
+/// `FP_RAGE`, `FP_PROTECT`.
+const FP_RAGE: u32 = 8;
 const FP_PROTECT: u32 = 9;
-const FP_DRAIN: u32 = 13;
+/// `FP_TEAM_HEAL`, `FP_TEAM_FORCE`: what `EV_TEAM_POWER`'s 1 and 2 cast.
+const FP_TEAM_HEAL: usize = 11;
+const FP_TEAM_FORCE: usize = 12;
+/// `PDSOUND_ABSORBHIT`, whose `trickedentindex` names the absorbing player.
+const PDSOUND_ABSORBHIT: u8 = 3;
 /// `GT_DUEL`, `GT_POWERDUEL`: no armour and no extra health at spawn.
 const GT_DUEL: i32 = 3;
 const GT_POWERDUEL: i32 = 4;
@@ -123,8 +141,17 @@ const HOOK: (f32, f32, f32) = (1.0, 1.0, 1.0);
 const WP_STUN_BATON: u8 = 1;
 /// Force heal by level, 1 to 3, the guess level 3's.
 const HEAL: (f32, f32, f32) = (5.0, 25.0, 25.0);
-/// Health a drainer may gain per millisecond (up to 4 a 100 ms tick), and the guess.
-const DRAIN_GAIN: (f32, f32) = (0.01, 0.04);
+/// Rage's health cost: 2 every so many milliseconds at level 1 (the dearest) and 3
+/// (the guess, the cheapest).
+const RAGE_COST: f32 = 2.0;
+const RAGE_MILLIS: (f32, f32) = (150.0, 450.0);
+/// Protect by level 1 (the dearest for the Force, the least kept) and 3 (the guess):
+/// the share of a blow the health still takes and the Force pays for a point.
+const PROTECT_TAKEN: (f32, f32) = (0.6, 0.2);
+const PROTECT_PAID: (f32, f32) = (1.0, 0.25);
+/// What rage leaves of a lightning bolt's 2, 1.5 and 1 (each halved, at least 1):
+/// most, guess, least.
+const RAGE_BOLT: [f32; 3] = [0.5, 2.0 / 3.0, 1.0];
 /// Remote pains all at exactly 50 in a row before the value is taken as masked.
 const MASKED_FIFTIES: u8 = 4;
 /// Heal sound attributed to the player within this distance of it.
@@ -186,6 +213,28 @@ struct Facts {
     pain_cue: Option<(f32, f32)>,
     /// `EV_PRIVATE_DUEL`: `true` when a duel starts, `false` when it ends.
     duel: Option<bool>,
+    /// Health given by a team heal.
+    team_heal: f32,
+    /// What the snapshot showed of the player's Force.
+    force: ForceFacts,
+}
+
+/// What a snapshot showed of a player's Force, for the Force estimate.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub(super) struct ForceFacts {
+    /// Force heals cast (its sound at the player), each paid at heal's price.
+    pub(super) heals: u8,
+    /// A team power cast (`FP_TEAM_HEAL` or `FP_TEAM_FORCE`), paid at its price.
+    pub(super) team_cast: Option<usize>,
+    /// Force given by a team energize.
+    pub(super) gift: f32,
+    /// Force paid to protect against blows: what the low bound, the guess and the
+    /// high bound lose.
+    pub(super) protect: [f32; 3],
+    /// An absorb took something (its hit sound).
+    pub(super) absorbed: bool,
+    /// `EV_NOAMMO` 0: a saber special was refused for want of Force.
+    pub(super) refused: bool,
 }
 
 /// What a private duel does to its duellists' health and armour.
@@ -229,7 +278,10 @@ struct Step {
     spawn: (f32, f32),
     pain: PainReport,
     protected: bool,
-    draining: bool,
+    /// Rage is up: blows are halved and health drains.
+    raging: bool,
+    /// What drain, lightning and grip did this snapshot.
+    stream: Effect,
     /// `EF_TELEPORT_BIT`, which toggles at every spawn and teleport.
     teleport: bool,
     duel: DuelRules,
@@ -265,6 +317,11 @@ pub(super) struct Estimator {
     last_time: i32,
     /// Drained this snapshot, for the Force estimate.
     drained: u32,
+    /// The last read snapshot's facts, until applied.
+    facts: [Facts; CLIENTS],
+    pending: bool,
+    /// What the last applied snapshot showed of each player's Force.
+    force_facts: [ForceFacts; CLIENTS],
 }
 
 impl Default for Estimator {
@@ -295,6 +352,9 @@ impl Default for Estimator {
             last_death: None,
             last_time: i32::MIN,
             drained: 0,
+            facts: [Facts::default(); CLIENTS],
+            pending: false,
+            force_facts: [ForceFacts::default(); CLIENTS],
         }
     }
 }
@@ -335,8 +395,24 @@ impl Estimator {
         self.drained
     }
 
-    /// Take one accepted snapshot; every snapshot must be observed once, in order.
+    /// What the last applied snapshot showed of `slot`'s Force.
+    pub(super) fn force_facts(&self, slot: u16) -> ForceFacts {
+        self.force_facts
+            .get(usize::from(slot))
+            .copied()
+            .unwrap_or_default()
+    }
+
+    /// [`Self::read`] then [`Self::apply`] with no shots.
+    #[cfg(test)]
     pub(super) fn observe(&mut self, snapshot: &Snapshot, game: &GameState, mode: i32) {
+        self.read(snapshot, game);
+        self.apply(snapshot, game, mode, &force_streams::Tracker::default());
+    }
+
+    /// Read one accepted snapshot's events; every snapshot must be read once, in
+    /// order, then applied ([`Self::apply`]) once the shots are known.
+    pub(super) fn read(&mut self, snapshot: &Snapshot, game: &GameState) {
         let time = snapshot.server_time;
         if time < self.last_time {
             // A new map or a restart.
@@ -346,16 +422,39 @@ impl Estimator {
                 ..Self::default()
             };
         }
-        if time == self.last_time {
+        self.pending = time != self.last_time;
+        if !self.pending {
             return;
         }
         self.last_time = time;
-        let local = snapshot.player.client_num();
         let mut facts = [Facts::default(); CLIENTS];
         let mut local_victims = 0_u32;
         self.learn_local(snapshot);
         self.scan(snapshot, game, &mut facts, &mut local_victims);
         self.attribute_own_hit(snapshot, &mut facts, local_victims);
+        self.drained = facts
+            .iter()
+            .enumerate()
+            .filter(|(_, fact)| fact.drained)
+            .fold(0_u32, |bits, (slot, _)| bits | 1 << slot);
+        self.facts = facts;
+    }
+
+    /// Apply the snapshot last read, with what `streams` rebuilt of its shots.
+    pub(super) fn apply(
+        &mut self,
+        snapshot: &Snapshot,
+        game: &GameState,
+        mode: i32,
+        streams: &force_streams::Tracker,
+    ) {
+        if !std::mem::take(&mut self.pending) {
+            return;
+        }
+        let time = self.last_time;
+        let local = snapshot.player.client_num();
+        let facts = self.facts;
+        self.force_facts = [ForceFacts::default(); CLIENTS];
         // A death this snapshot: an obituary, a player newly dead, or the local player.
         let newly_dead = snapshot.entities.iter().any(|entity| {
             entity.entity_type() == ET_PLAYER
@@ -383,11 +482,6 @@ impl Estimator {
             .any(|entity| entity.entity_type() == ET_PLAYER && entity.e_flags() & EF_TALK != 0)
             && ja_plus(game);
         let melee_actions = self.melee_actions;
-        self.drained = facts
-            .iter()
-            .enumerate()
-            .filter(|(_, fact)| fact.drained)
-            .fold(0_u32, |bits, (slot, _)| bits | 1 << slot);
         let (max_health, spawn, pain) = (
             self.profile.max_health,
             self.profile.spawn(mode),
@@ -399,7 +493,8 @@ impl Estimator {
             spawn,
             pain,
             protected: entity.force_powers_active() & (1 << FP_PROTECT) != 0,
-            draining: entity.force_powers_active() & (1 << FP_DRAIN) != 0,
+            raging: entity.force_powers_active() & (1 << FP_RAGE) != 0,
+            stream: streams.effect(entity.number()),
             teleport: entity.e_flags() & EF_TELEPORT_BIT != 0,
             duel,
             death_nearby,
@@ -415,7 +510,11 @@ impl Estimator {
             let context = step(entity);
             let slot = usize::from(number);
             let dead = entity.e_flags() & EF_DEAD != 0;
-            advance(&mut self.tracks[slot], &facts[slot], dead, context);
+            let protect = advance(&mut self.tracks[slot], &facts[slot], dead, context);
+            self.force_facts[slot] = ForceFacts {
+                protect,
+                ..facts[slot].force
+            };
         }
         // Players out of view who died there.
         for (slot, fact) in facts.iter().enumerate() {
@@ -576,6 +675,45 @@ impl Estimator {
                         && let Some(slot) = nearest_player(snapshot, entity.trajectory_base())
                     {
                         facts[slot].heals = facts[slot].heals.saturating_add(1);
+                        facts[slot].force.heals = facts[slot].force.heals.saturating_add(1);
+                    }
+                }
+                EV_TEAM_POWER if temporary => {
+                    // Raised where the caster stands, naming everyone it reached.
+                    let heal = entity.event_parameter() == 1;
+                    let reached = (0..CLIENTS as u16).filter(|n| entity.client_bitflag(*n));
+                    let amount = match reached.clone().count() {
+                        0 => continue,
+                        1 => 50.0,
+                        2 => 33.0,
+                        _ => 25.0,
+                    };
+                    for slot in reached {
+                        let fact = &mut facts[usize::from(slot)];
+                        if heal {
+                            fact.team_heal += amount;
+                        } else {
+                            fact.force.gift += amount;
+                        }
+                    }
+                    if let Some(slot) = nearest_player(snapshot, entity.trajectory_base()) {
+                        facts[slot].force.team_cast =
+                            Some(if heal { FP_TEAM_HEAL } else { FP_TEAM_FORCE });
+                    }
+                }
+                EV_PREDEFSOUND if temporary => {
+                    if entity.event_parameter() == PDSOUND_ABSORBHIT
+                        && let Some(slot) = about(entity.tracked_entity_num())
+                    {
+                        facts[slot].force.absorbed = true;
+                    }
+                }
+                EV_NOAMMO if player => {
+                    // 0: a move refused for want of Force (guns send their weapon).
+                    if entity.event_parameter() == 0
+                        && let Some(slot) = about(entity.number())
+                    {
+                        facts[slot].force.refused = true;
                     }
                 }
                 EV_PAIN if player => {
@@ -772,8 +910,8 @@ fn gain(range: Range, (low, best, high): (f32, f32, f32), cap: f32) -> Range {
     )
 }
 
-/// One player's estimate through one snapshot.
-fn advance(track: &mut Track, facts: &Facts, dead: bool, step: Step) {
+/// One player's estimate through one snapshot; returns the Force protect paid.
+fn advance(track: &mut Track, facts: &Facts, dead: bool, step: Step) -> [f32; 3] {
     let Step {
         time, max_health, ..
     } = step;
@@ -783,7 +921,7 @@ fn advance(track: &mut Track, facts: &Facts, dead: bool, step: Step) {
         }
         track.alive = false;
         track.last_seen = time;
-        return;
+        return [0.0; 3];
     }
     if !track.alive {
         appear(track, step);
@@ -808,14 +946,17 @@ fn advance(track: &mut Track, facts: &Facts, dead: bool, step: Step) {
         };
         track.health = track.health.map(decay);
         track.armor = track.armor.map(decay);
-        if step.draining {
+        // Drain heals the drainer by what it takes, below the maximum.
+        let [least, guess, most] = step.stream.heal;
+        track.health = gain(track.health, (least, guess, most), max_health);
+        if step.raging {
+            // `WP_ForcePowerRun`: down to 1, which the clamp below keeps.
             let elapsed = elapsed.clamp(0, GAP_MILLIS) as f32;
-            let (best, high) = DRAIN_GAIN;
-            track.health = gain(
-                track.health,
-                (0.0, best * elapsed, high * elapsed),
-                max_health,
-            );
+            let (dearest, cheapest) = RAGE_MILLIS;
+            let cost = |millis: f32| RAGE_COST * elapsed / millis;
+            track.health = track
+                .health
+                .add(-cost(dearest), -cost(cheapest), -cost(cheapest));
         }
         if step.teleport != track.teleport {
             // A teleport, or a spawn with no death seen (a round or map restart).
@@ -833,10 +974,11 @@ fn advance(track: &mut Track, facts: &Facts, dead: bool, step: Step) {
         }
     }
     track.teleport = step.teleport;
-    hurt(track, facts, step);
+    let protect = hurt(track, facts, step);
     track.health = track.health.clamp(1.0, 255.0);
     track.armor = track.armor.clamp(0.0, 255.0);
     track.last_seen = time;
+    protect
 }
 
 /// A player seen alive again: freshly spawned after a death seen not long ago,
@@ -868,8 +1010,9 @@ fn appear(track: &mut Track, step: Step) {
     track.alive = true;
 }
 
-/// Apply one snapshot's damage, healing and pain to a living player.
-fn hurt(track: &mut Track, facts: &Facts, step: Step) {
+/// Apply one snapshot's damage, healing and pain to a living player; returns the
+/// Force protect paid for the blows.
+fn hurt(track: &mut Track, facts: &Facts, step: Step) -> [f32; 3] {
     let Step {
         time,
         max_health,
@@ -884,7 +1027,18 @@ fn hurt(track: &mut Track, facts: &Facts, step: Step) {
     // Under JA+'s chat protection a hit lands only if the server says so (a pain or
     // a shield flash); a hit seen alone took nothing.
     let shielded = step.chat_protected && facts.pain.is_none() && !facts.shield_hit;
+    // Rage halves a blow before the armour takes its share (at least 1 is left).
+    let halve = |damage: f32| {
+        if step.raging && damage > 0.0 {
+            (damage * 0.5).floor().max(1.0)
+        } else {
+            damage
+        }
+    };
+    // What reaches the health this snapshot: the most, the guess, the least.
+    let mut wounds = [0.0_f32; 3];
     if let Some(hit) = facts.hit.filter(|_| !shielded) {
+        let hit = hit.map(halve);
         let absorbed = facts.absorbed;
         if facts.shield_hit {
             // The armour held at least what it took.
@@ -913,9 +1067,7 @@ fn hurt(track: &mut Track, facts: &Facts, step: Step) {
         } else {
             hit.map(|damage| (damage - absorbed).max(0.0))
         };
-        // Protect may take any of it.
-        let least = if protected { 0.0 } else { through.low };
-        track.health = track.health.add(-through.high, -through.best, -least);
+        wounds = [through.high, through.best, through.low];
     } else if facts.shield_hit {
         track.armor = track.armor.at_least(facts.absorbed).add(
             -facts.absorbed,
@@ -923,9 +1075,57 @@ fn hurt(track: &mut Track, facts: &Facts, step: Step) {
             -facts.absorbed,
         );
     }
-    if facts.fall > 0.0 && !step.chat_protected {
-        track.health = track.health.add(-facts.fall, -facts.fall, -facts.fall);
+    // Lightning: the armour takes it first and flashes. With no flash, a bolt found no
+    // armour, so each bound it struck has none left and takes it on the health.
+    let bolts = step.stream.damage;
+    if bolts[0] > 0.0 && !shielded {
+        let bolts = if step.raging {
+            std::array::from_fn(|bound| bolts[bound] * RAGE_BOLT[bound])
+        } else {
+            bolts
+        };
+        if facts.shield_hit {
+            wounds[0] += (bolts[0] - facts.absorbed).max(0.0);
+        } else {
+            let mut armor = [track.armor.low, track.armor.best, track.armor.high];
+            for bound in 0..3 {
+                // Bound 0 of the damage is the most, so it meets the armour's low bound.
+                if bolts[bound] > 0.0 {
+                    armor[bound] = 0.0;
+                    wounds[bound] += bolts[bound];
+                }
+            }
+            track.armor = Range::new(armor[0], armor[1], armor[2]);
+        }
     }
+    // Grip, past the armour.
+    if !shielded {
+        for (wound, piercing) in wounds.iter_mut().zip(step.stream.piercing) {
+            *wound += halve(piercing);
+        }
+    }
+    if facts.fall > 0.0 && !step.chat_protected {
+        let fall = halve(facts.fall);
+        for wound in &mut wounds {
+            *wound += fall;
+        }
+    }
+    // Protect keeps part of it off the health and pays for it with Force.
+    let mut paid = [0.0; 3];
+    if protected {
+        let ((most_taken, least_taken), (most_paid, least_paid)) = (PROTECT_TAKEN, PROTECT_PAID);
+        paid = [
+            wounds[0] * most_paid,
+            wounds[1] * least_paid,
+            wounds[2] * least_paid,
+        ];
+        wounds = [
+            wounds[0] * most_taken,
+            wounds[1] * least_taken,
+            wounds[2] * least_taken,
+        ];
+    }
+    track.health = track.health.add(-wounds[0], -wounds[1], -wounds[2]);
     for item in &facts.pickups[..usize::from(facts.pickup_count)] {
         let Some(row) = ITEMS.get(usize::from(*item)) else {
             continue;
@@ -957,6 +1157,15 @@ fn hurt(track: &mut Track, facts: &Facts, step: Step) {
         // Heal only works below the maximum.
         track.health = gain(track.health.at_most(max_health - 1.0), HEAL, max_health);
     }
+    if facts.team_heal > 0.0 {
+        // Team heal only reaches the hurt.
+        let amount = facts.team_heal;
+        track.health = gain(
+            track.health.at_most(max_health - 1.0),
+            (amount, amount, amount),
+            max_health,
+        );
+    }
     if let Some(value) = facts.pain {
         track.pain_until = time + PAIN_DEBOUNCE;
         if pain == PainReport::Masked {
@@ -987,6 +1196,7 @@ fn hurt(track: &mut Track, facts: &Facts, step: Step) {
         },
         _ => {}
     }
+    paid
 }
 
 /// `range` narrowed to `low..=high`; when it lay wholly outside, the bounds
@@ -1011,7 +1221,8 @@ mod tests {
             spawn: (125.0, 25.0),
             pain: PainReport::Honest,
             protected: false,
-            draining: false,
+            raging: false,
+            stream: Effect::default(),
             teleport: false,
             duel: DuelRules::default(),
             death_nearby: false,
@@ -1100,6 +1311,148 @@ mod tests {
         assert!(track.health.high <= 115.0);
         assert!(track.health.low < 70.0);
         assert!(track.health.width() > 40.0);
+    }
+
+    /// A track at `health` with no armour, seen at `time`.
+    fn standing(health: f32, time: i32) -> Track {
+        Track {
+            health: Range::exact(health),
+            armor: Range::exact(0.0),
+            alive: true,
+            last_seen: time,
+            ..Track::default()
+        }
+    }
+
+    fn streamed(time: i32, stream: Effect) -> Step {
+        Step {
+            stream,
+            ..step(time)
+        }
+    }
+
+    #[test]
+    fn lightning_meets_the_shield_first_then_the_health() {
+        let bolts = Effect {
+            damage: [2.0, 1.5, 1.0],
+            ..Effect::default()
+        };
+        // With shield left, its flash counts what it took; the health is untouched.
+        let mut track = spawned(10_000);
+        let flash = Facts {
+            absorbed: 2.0,
+            shield_hit: true,
+            ..Facts::default()
+        };
+        advance(&mut track, &flash, false, streamed(10_050, bolts));
+        assert_eq!(track.armor, Range::exact(23.0));
+        close(track.health, (124.0, 124.5, 125.0));
+        // With none, the health takes it.
+        let mut track = standing(50.0, 10_000);
+        advance(
+            &mut track,
+            &Facts::default(),
+            false,
+            streamed(10_050, bolts),
+        );
+        assert_eq!(track.health, Range::new(48.0, 48.5, 49.0));
+        // A bolt surely struck with no flash: no shield was left.
+        let mut track = spawned(10_000);
+        let struck = Effect {
+            damage: [1.0; 3],
+            struck: true,
+            ..Effect::default()
+        };
+        advance(
+            &mut track,
+            &Facts::default(),
+            false,
+            streamed(10_050, struck),
+        );
+        assert_eq!(track.armor, Range::exact(0.0));
+        close(track.health, (123.0, 123.5, 124.0));
+    }
+
+    #[test]
+    fn grip_goes_past_the_shield_and_drain_heals_up_to_the_maximum() {
+        let mut track = spawned(10_000);
+        track.health = Range::exact(50.0);
+        let grip = Effect {
+            piercing: [2.0; 3],
+            ..Effect::default()
+        };
+        advance(&mut track, &Facts::default(), false, streamed(10_050, grip));
+        assert_eq!(track.health, Range::exact(48.0));
+        assert_eq!(track.armor, Range::exact(25.0));
+        let drain = Effect {
+            heal: [2.0, 4.0, 4.0],
+            ..Effect::default()
+        };
+        advance(
+            &mut track,
+            &Facts::default(),
+            false,
+            streamed(10_100, drain),
+        );
+        assert_eq!(track.health, Range::new(50.0, 52.0, 52.0));
+        let mut full = standing(100.0, 10_000);
+        advance(&mut full, &Facts::default(), false, streamed(10_050, drain));
+        assert_eq!(full.health, Range::exact(100.0));
+    }
+
+    #[test]
+    fn rage_costs_health_and_halves_the_blows() {
+        let mut track = standing(50.0, 10_000);
+        let raging = Step {
+            raging: true,
+            ..step(10_900)
+        };
+        advance(&mut track, &Facts::default(), false, raging);
+        // 2 every 150 ms at level 1, every 450 ms at level 3.
+        assert_eq!(track.health, Range::new(38.0, 46.0, 46.0));
+        let mut track = standing(50.0, 10_000);
+        let fall = Facts {
+            fall: 20.0,
+            ..Facts::default()
+        };
+        let raging = Step {
+            raging: true,
+            ..step(10_000)
+        };
+        advance(&mut track, &fall, false, raging);
+        assert_eq!(track.health, Range::exact(40.0));
+    }
+
+    #[test]
+    fn protect_softens_a_blow_and_bills_the_force() {
+        let mut track = standing(80.0, 10_000);
+        let blow = Facts {
+            hit: Some(Range::exact(20.0)),
+            ..Facts::default()
+        };
+        let protected = Step {
+            protected: true,
+            pain: PainReport::Unchecked,
+            ..step(10_050)
+        };
+        let paid = advance(&mut track, &blow, false, protected);
+        // Level 1 keeps 40% off and pays point for point; level 3 keeps 80% off and
+        // pays a quarter.
+        assert_eq!(track.health, Range::new(68.0, 76.0, 76.0));
+        assert_eq!(paid, [20.0, 5.0, 5.0]);
+    }
+
+    #[test]
+    fn a_team_heal_gives_its_share_below_the_maximum() {
+        let mut track = standing(40.0, 10_000);
+        let healed = Facts {
+            team_heal: 50.0,
+            ..Facts::default()
+        };
+        advance(&mut track, &healed, false, step(10_050));
+        assert_eq!(track.health, Range::exact(90.0));
+        advance(&mut track, &healed, false, step(10_100));
+        assert_eq!(track.health, Range::exact(100.0));
     }
 
     #[test]
@@ -1258,6 +1611,71 @@ mod tests {
                 entities,
                 consumed_bits: 0,
             }
+        }
+
+        /// `state` moved to `at`.
+        fn placed(mut state: EntityState, at: [f32; 3]) -> EntityState {
+            for (field, value) in [2, 1, 4].into_iter().zip(at) {
+                state.set_raw_field(field, value.to_bits());
+            }
+            state
+        }
+
+        #[test]
+        fn team_powers_absorb_hits_and_refusals_are_read() {
+            let game = game();
+            let mut estimator = Estimator::default();
+            let apart = [400.0_f32, 200.0, 24.0];
+            let caster = placed(entity(4, ET_PLAYER), apart);
+            let observe = |estimator: &mut Estimator, time, entities: Vec<EntityState>| {
+                estimator.observe(&snapshot(time, local(100), entities), &game, 0);
+            };
+            observe(&mut estimator, 1_000, vec![player(0, 0), caster.clone()]);
+            observe(
+                &mut estimator,
+                1_050,
+                vec![player(0x100 | 89, 40), caster.clone()],
+            );
+            // Player 4 heals player 3 alone: 50, and pays for it.
+            let mut heal = placed(temporary(100, EV_TEAM_POWER, 1), apart);
+            heal.set_raw_field(58, 1 << 3);
+            observe(
+                &mut estimator,
+                1_100,
+                vec![player(0x100 | 89, 40), caster.clone(), heal],
+            );
+            assert_eq!(estimator.health(3), Some(Range::exact(90.0)));
+            assert_eq!(estimator.force_facts(4).team_cast, Some(FP_TEAM_HEAL));
+            // An energize: Force for player 3.
+            let mut energize = placed(temporary(101, EV_TEAM_POWER, 2), apart);
+            energize.set_raw_field(58, 1 << 3);
+            observe(
+                &mut estimator,
+                1_150,
+                vec![player(0x100 | 89, 40), caster.clone(), energize],
+            );
+            assert_eq!(estimator.force_facts(3).gift, 50.0);
+            assert_eq!(estimator.force_facts(4).team_cast, Some(FP_TEAM_FORCE));
+            // Player 3 absorbs something, then a special is refused for want of Force.
+            let mut absorb = temporary(102, EV_PREDEFSOUND, u32::from(PDSOUND_ABSORBHIT));
+            absorb.set_raw_field(58, 3);
+            observe(
+                &mut estimator,
+                1_200,
+                vec![player(0x100 | 89, 40), caster.clone(), absorb],
+            );
+            assert!(estimator.force_facts(3).absorbed);
+            observe(
+                &mut estimator,
+                1_250,
+                vec![player(0x200 | 25, 0), caster.clone()],
+            );
+            assert!(estimator.force_facts(3).refused);
+            assert_eq!(
+                estimator.force_facts(3).gift,
+                0.0,
+                "only the snapshot that gave"
+            );
         }
 
         #[test]

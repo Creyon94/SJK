@@ -1393,10 +1393,21 @@ Where the numbers come from, and what is not known:
     hit (`PERS_ATTACKEE_ARMOR`), matched to them when only one player fits (your
     saber's victim, your duel opponent, or the only estimate that allows the values);
   - falls (`EV_FALL`/`EV_ROLL`, exact), medpack and shield pickups
-    (`EV_ITEM_PICKUP`), Force heal (its sound at the player: 5 to 25), drain healing
-    the drainer, deaths (`EF_DEAD`, `EV_OBITUARY`) and the respawn after one; a spawn
-    with no death seen toggles `EF_TELEPORT_BIT`, as a teleport does, so it only
-    raises the high bound;
+    (`EV_ITEM_PICKUP`), Force heal (its sound at the player: 5 to 25), team heal
+    (`EV_TEAM_POWER` names everyone it reached: 50, 33 or 25 each by how many),
+    deaths (`EF_DEAD`, `EV_OBITUARY`) and the respawn after one; a spawn with no
+    death seen toggles `EF_TELEPORT_BIT`, as a teleport does, so it only raises the
+    high bound;
+  - drain, lightning and grip, rebuilt shot by shot (see **Force streams** below):
+    drain heals the drainer by what it takes, lightning does 1 or 2 a shot (twice
+    two-handed at level 3) to the shield first, whose flash counts it, then the
+    health, and a bolt seen landing with no flash means no shield was left; grip
+    does 2 a second past the shield (its crushing blow is a pain);
+  - rage costs 2 health every 150, 300 or 450 ms by level (the guess level 3), down
+    to 1, and halves every blow and fall before the shield; protect keeps 40, 60 or
+    80% of a blow off the health (the guess 80%) and pays for it with Force, point
+    for point, a half or a quarter (halved with the boon), which the Force estimate
+    takes;
   - private duels (`EV_PRIVATE_DUEL`, 1 at the start, 0 at the end): on JA+ both
     duellists are set to 100 health and 100 shield when it starts, and the winner to
     100 and 25 when it ends, whatever they had left; on stock JKA the start changes
@@ -1428,30 +1439,56 @@ Where the numbers come from, and what is not known:
   regen pace (measured from your own pool while you idle, which the server does send,
   else `g_forceRegenTime` from the server's info string, else 200 ms; six times as
   fast with the boon) while no power but drain is on and no saber is thrown or in a
-  special move, the price of each power when it switches on, protect, absorb, grip
-  and lightning running costs, force jumps, push, pull and saber throw at their
-  price, and drain. Power levels are not sent, so the
-  low bound pays each power at its dearest level and the high bound at its cheapest
-  (the guess at level 3); a force jump costs anything up to its price; until the pace
-  is measured the bounds refill a little slower and faster than the guess. A power
+  special move, and these costs:
+  - the price of each power when it switches on (a grip a flat 30; drain and
+    lightning need 25 to start), and the running costs of protect, absorb, grip and
+    lightning;
+  - a force jump nothing to start, then while it lasts every 300 ms (200 at level 1)
+    20, 16, 12, 8, 6 or 4 by how fast it rises (`pos.trDelta[2]` over 250, 200, 150,
+    100, 50, 0), over the jump level;
+  - push and pull (by their animation) and a saber throw at their price; a disarm
+    flies the saber too but its own entity is not in flight, and costs nothing;
+  - saber specials when their `saberMove` starts, proving the pool held the price:
+    a kata 50, a cartwheel or butterfly 10, a lunge, spin, flip attack, death from
+    above, stab down, roll stab or dual/staff jump attack 25; a wall run-up's flip
+    and a jump off a wall grab 6, a level-2 flip back off a wall half the rise's
+    band;
+  - heal (its sound) and team heal or energize (`EV_TEAM_POWER`, the caster stands
+    at it), which never show as active, at their price; an energize gives its 50,
+    33 or 25 to each named teammate;
+  - protect's share of the blows it softens; drain shots and absorb's point back a
+    drain or lightning shot (see below); an absorb's hit sound while somebody pushes
+    or pulls gives 6 to 18 back;
+  - `EV_NOAMMO` 0 (a special refused for want of Force) proves the pool under 50;
+    becoming the Jedi Master fills it.
+
+  Power levels are not sent, so the low bound pays each power at its dearest level
+  and the high bound at its cheapest (the guess at level 3); until the pace is
+  measured the bounds refill a little slower and faster than the guess. A power
   starting proves the pool held its price, which raises the low bound. It misses
   saber blocks in some mods and anything that changes costs. It refills while a
   player idles, so the range closes within about twenty seconds.
-- **Drain** ([drain_estimate.rs](../crates/sjk-viewer/src/hud/drain_estimate.rs))
-  is rebuilt shot by shot, as `ForceShootDrain` and `ForceDrainDamage` do it: a
-  drainer shoots every 50 ms; level 3 reaches everyone within 512 units of its origin,
-  in a 60-degree cone along its view and in clear sight of the map's walls, levels 1
-  and 2 the first player on a 2048-unit line. A shot takes 2, 3 or 4 Force by level
-  (against an absorb that is up, what the levels' difference leaves, with a point
-  given back), stops the victim's refill for 800 ms, and costs the drainer 5 (at
-  levels 1 and 2 only when the line found a player) and its own refill for 500 ms;
-  while drain stays on the drainer holds at least 20. Other players' levels are not
-  sent: the guess is level 3's arc, the bounds the dearest and cheapest level that
-  reach. Your own level is your Force profile's, so your drain on others is exact.
+- **Force streams** ([force_streams.rs](../crates/sjk-viewer/src/hud/force_streams.rs))
+  rebuild drain, lightning and grip shot by shot, as `ForceShootDrain`,
+  `ForceShootLightning` and `DoGripAction` do it. Drain and lightning shoot every
+  50 ms: level 3 reaches everyone within 512 units (lightning 300) of the caster's
+  origin, in a 60-degree cone along its view and in clear sight of the map's walls,
+  levels 1 and 2 the first player on a 2048-unit line. A drain shot takes 2, 3 or 4
+  Force by level, heals the drainer as much, stops the victim's refill for 800 ms,
+  and costs the drainer 5 (at levels 1 and 2 only when the line found a player) and
+  its own refill for 500 ms; while drain stays on the drainer holds at least 20. A
+  lightning shot does 1 or 2. Against an absorb that is up, what the levels'
+  difference leaves gets through and a point of Force comes back a shot. A grip holds
+  the first player on a 256-unit line from the gripper's eyes when it starts and
+  hurts them 2 then and every second. Other players' levels are not sent: the guess
+  is level 3, the bounds the dearest and cheapest level that reach. Your own levels
+  are your Force profile's, so your drain and lightning on others are exact.
   `EV_FORCE_DRAINED` (at most every 400 ms a victim) says a victim lost at least a
-  shot even where the geometry missed it. Doors, movers and other players in the
-  arc's line of sight are not checked. Your own pace measurement skips the time drain
-  holds your refill back.
+  drain shot, and a renewed electrification (`emplacedOwner`, which lightning sets
+  800 ms ahead) while somebody casts lightning that a bolt landed, even where the
+  geometry missed it. Doors, movers and other players in the arc's line of sight are
+  not checked. Your own pace measurement skips the time drain holds your refill
+  back.
 
 `cg_drawPlayerNames` keeps TaystJK's plain overhead names (0 off, 1 names, 2 adds a
 health strip, text only, off by default); they are hidden while nameplates are on.

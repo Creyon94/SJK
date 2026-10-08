@@ -10,28 +10,41 @@
 //!   fast with the boon, but not while any power but drain is active or a saber
 //!   is thrown;
 //! - a power that switches on in `forcePowersActive` costs its `forcePowerNeeded`
-//!   entry; protect and absorb take another point every 300 and 600 ms, grip every
-//!   100 ms and lightning every 50 ms while on; a force jump costs half its level's
-//!   price (the real cost scales with the jump's charge, which is not sent);
+//!   entry (a grip a flat 30); protect and absorb take another point every 300 and
+//!   600 ms, grip every 100 ms and lightning every 50 ms while on;
+//! - a force jump costs nothing to start but, while it lasts, every 300 ms (200 at
+//!   level 1) the faster it rises the more: 20, 16, 12, 8, 6 or 4 over its level
+//!   (`BG_ForcePowerDrain`'s levitation case, the rise sent as `pos.trDelta`);
 //! - a push or pull (seen as its torso animation starting) and a saber throw cost
-//!   their price;
+//!   their price; a disarm also sends the saber flying, but its own entity says it was
+//!   not thrown, and costs nothing;
+//! - saber specials cost a flat price when their move starts (`PM_SaberAttackForMovement`,
+//!   `PM_CheckKata`): a kata 50, a cartwheel or butterfly 10, a lunge, a spin, a flip
+//!   attack, a death from above, a stab down or a roll stab 25; a wall run-up, a flip
+//!   off a wall and a jump off a wall grab 6 or so;
+//! - heal and the team powers, which never show as active, cost their price when
+//!   their sound or `EV_TEAM_POWER` is seen; team energize gives what it says;
 //! - drain costs its shots and takes from its victims, who refill nothing for 800 ms
-//!   after each ([`super::drain_estimate`]).
+//!   after each; absorb gives a point back a drain or lightning shot
+//!   ([`super::force_streams`]) and more against a push or pull;
+//! - protect pays Force for the blows it softens ([`super::vitals_estimate`]);
+//! - a special refused for want of Force (`EV_NOAMMO` 0) proves the pool under 50;
+//!   becoming the Jedi Master fills it.
 //!
 //! The players' power levels are not sent either, so the pool is kept as a range
 //! ([`Range`]): the low bound pays every power at its dearest level, the high bound
 //! at its cheapest, and the guess at level 3, the level most players run. A power
 //! can only start when the pool holds its price, so each one seen raises the low
-//! bound to that price. A force jump costs anything up to its price, and while the
-//! pace has not been measured the bounds refill a little slower and faster than the
-//! guess. Saber blocks in some mods and pickups are not seen. The pool refills while
-//! a player idles, so the range closes within about twenty seconds, and a respawn
-//! resets it to full.
-use super::drain_estimate::Effect;
+//! bound to that price. While the pace has not been measured the bounds refill a
+//! little slower and faster than the guess. Saber blocks in some mods and pickups are
+//! not seen. The pool refills while a player idles, so the range closes within about
+//! twenty seconds, and a respawn resets it to full.
 use super::estimate::Range;
+use super::force_streams::Effect;
+use super::vitals_estimate::ForceFacts;
 use sjk_game_jka::force_powers::{
-    FORCE_POWER_MAX, FORCE_POWER_NEEDED, FP_ABSORB, FP_DRAIN, FP_GRIP, FP_LEVITATION, FP_LIGHTNING,
-    FP_PROTECT, FP_PULL, FP_PUSH, FP_SABER_THROW, NUM_FORCE_POWERS,
+    FORCE_POWER_MAX, FORCE_POWER_NEEDED, FP_ABSORB, FP_DRAIN, FP_GRIP, FP_HEAL, FP_LEVITATION,
+    FP_LIGHTNING, FP_PROTECT, FP_PULL, FP_PUSH, FP_SABER_THROW, NUM_FORCE_POWERS,
 };
 
 /// A full pool.
@@ -42,8 +55,54 @@ const ASSUMED_LEVEL: usize = 3;
 pub(super) const DEFAULT_REGEN_MILLIS: f32 = 200.0;
 /// A player unseen this long (in server milliseconds) is taken to have idled.
 const GAP_MILLIS: i32 = 1_500;
-/// Share of a force jump's top price the guess charges at its start.
-const JUMP_SHARE: f32 = 0.5;
+/// A force jump's charge by how fast it rises (`BG_ForcePowerDrain`): over each
+/// speed, the points before the level divides them; and how often it is charged at
+/// level 1 and above.
+const JUMP_BANDS: [(f32, f32); 6] = [
+    (250.0, 20.0),
+    (200.0, 16.0),
+    (150.0, 12.0),
+    (100.0, 8.0),
+    (50.0, 6.0),
+    (0.0, 4.0),
+];
+const JUMP_MILLIS: (i32, i32) = (200, 300);
+/// A grip's start (`GRIP_DRAIN_AMOUNT`).
+const GRIP_START: f32 = 30.0;
+/// Saber moves with a price when they start (`saberMoveName_t`), whatever the level.
+const SABER_MOVE_COSTS: [(u16, f32); 20] = [
+    // Katas (`SABER_ALT_ATTACK_POWER`).
+    (52, 50.0), // LS_A1_SPECIAL
+    (53, 50.0), // LS_A2_SPECIAL
+    (54, 50.0), // LS_A3_SPECIAL
+    (50, 50.0), // LS_DUAL_SPIN_PROTECT
+    (51, 50.0), // LS_STAFF_SOULCAL
+    // Cartwheels and butterflies (`SABER_ALT_ATTACK_POWER_LR`).
+    (20, 10.0), // LS_JUMPATTACK_ARIAL_LEFT
+    (21, 10.0), // LS_JUMPATTACK_ARIAL_RIGHT
+    (26, 10.0), // LS_BUTTERFLY_LEFT
+    (27, 10.0), // LS_BUTTERFLY_RIGHT
+    // The rest (`SABER_ALT_ATTACK_POWER_FB`).
+    (19, 25.0), // LS_JUMPATTACK_DUAL
+    (25, 25.0), // LS_JUMPATTACK_STAFF_RIGHT
+    (18, 25.0), // LS_A_FLIP_SLASH
+    (17, 25.0), // LS_A_FLIP_STAB
+    (16, 25.0), // LS_A_JUMP_T__B_
+    (15, 25.0), // LS_A_LUNGE
+    (30, 25.0), // LS_SPINATTACK
+    (29, 25.0), // LS_SPINATTACK_DUAL
+    (47, 25.0), // LS_STABDOWN
+    (48, 25.0), // LS_STABDOWN_STAFF
+    (49, 25.0), // LS_STABDOWN_DUAL
+];
+const LS_ROLL_STAB: u16 = 14;
+/// A wall run-up's flip and a jump off a wall grab, at level 3 (`420 / 3`, `336 / 3`).
+const WALL_MOVE: f32 = 6.0;
+/// What an absorb gives back against a push or pull (its price of 20, a third, times
+/// the absorb level 1 to 3): the least and the guess.
+const ABSORBED_THROW: (f32, f32) = (6.0, 18.0);
+/// A special refused for want of Force: the pool was under the dearest's 50.
+const REFUSED_CEILING: f32 = 49.0;
 /// While drain stays on the pool held 25 before the frame's shot of 5
 /// (`WP_ForcePowerRun` stops it below 25).
 const DRAINING_FLOOR: f32 = 20.0;
@@ -71,8 +130,22 @@ pub(super) struct Observation {
     pub(super) regen_multiplier: f32,
     /// The player is dead.
     pub(super) dead: bool,
-    /// What drain shots did to the pool since the last observation.
-    pub(super) drain: Effect,
+    /// What drain, lightning and grip shots did to the pool since the last observation.
+    pub(super) stream: Effect,
+    /// How fast the player rises (`pos.trDelta[2]`), for the force jump's charge.
+    pub(super) rising: f32,
+    /// Legs animation number.
+    pub(super) legs_animation: u16,
+    /// `saberMove` while a saber is held.
+    pub(super) saber_move: Option<u16>,
+    /// The saber flies because it was knocked away, not thrown.
+    pub(super) disarmed: bool,
+    /// `isJediMaster`.
+    pub(super) jedi_master: bool,
+    /// What the snapshot's events showed (heals, team powers, protect, absorb).
+    pub(super) facts: ForceFacts,
+    /// The absorb took a push or pull (its hit sound while one is thrown nearby).
+    pub(super) absorbed_throw: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -82,22 +155,58 @@ struct Track {
     seen: bool,
     /// Until when each bound's refill is held back (low, guess, high).
     held: [i32; 3],
+    /// When a force jump's next charge is due at level 1 and above.
+    jump_due: [Option<i32>; 2],
 }
 
-/// Animation numbers of the instant powers.
+/// Animation numbers of the instant powers and the moves with a price.
 #[derive(Clone, Copy, Debug)]
-struct Animations {
+pub(super) struct Animations {
     push: Option<u16>,
     pull: Option<u16>,
+    /// `BOTH_FORCEWALLRUNFLIP_START`: a level-3 wall run-up's flip.
+    run_up: Option<u16>,
+    /// `BOTH_WALL_FLIP_BACK1`: a level-2 flip back off a wall (or a JA+ flip kick).
+    flip_back: Option<u16>,
+    /// `BOTH_FORCEWALLREBOUND_*` and `BOTH_FORCEWALLHOLD_*`: hanging on a wall.
+    wall_grab: [Option<u16>; 8],
+    /// `BOTH_FORCEJUMP1` and `BOTH_FORCEWALLRELEASE_*`: leaving a wall grab.
+    wall_leave: [Option<u16>; 5],
 }
 
 impl Animations {
-    fn lookup() -> Self {
+    pub(super) fn lookup() -> Self {
         let index = |name| sjk_game_jka::legacy_animation_index(name).map(|n| n as u16);
         Self {
             push: index("BOTH_FORCEPUSH"),
             pull: index("BOTH_FORCEPULL"),
+            run_up: index("BOTH_FORCEWALLRUNFLIP_START"),
+            flip_back: index("BOTH_WALL_FLIP_BACK1"),
+            wall_grab: [
+                "BOTH_FORCEWALLREBOUND_FORWARD",
+                "BOTH_FORCEWALLREBOUND_LEFT",
+                "BOTH_FORCEWALLREBOUND_BACK",
+                "BOTH_FORCEWALLREBOUND_RIGHT",
+                "BOTH_FORCEWALLHOLD_FORWARD",
+                "BOTH_FORCEWALLHOLD_LEFT",
+                "BOTH_FORCEWALLHOLD_BACK",
+                "BOTH_FORCEWALLHOLD_RIGHT",
+            ]
+            .map(index),
+            wall_leave: [
+                "BOTH_FORCEJUMP1",
+                "BOTH_FORCEWALLRELEASE_FORWARD",
+                "BOTH_FORCEWALLRELEASE_LEFT",
+                "BOTH_FORCEWALLRELEASE_BACK",
+                "BOTH_FORCEWALLRELEASE_RIGHT",
+            ]
+            .map(index),
         }
+    }
+
+    /// Whether `torso` is a push or a pull.
+    pub(super) fn throwing(&self, torso: u16) -> bool {
+        Some(torso) == self.push || Some(torso) == self.pull
     }
 }
 
@@ -192,6 +301,11 @@ impl Estimator {
         self.regen_millis = millis.unwrap_or(DEFAULT_REGEN_MILLIS);
     }
 
+    /// Whether `torso` is a push or a pull.
+    pub(super) fn throwing(&self, torso: u16) -> bool {
+        self.animations.throwing(torso)
+    }
+
     /// Milliseconds per point in use.
     pub(super) fn regen_millis(&self) -> f32 {
         self.regen_millis
@@ -238,6 +352,7 @@ impl Estimator {
                 previous: now,
                 seen: true,
                 held: [i32::MIN; 3],
+                jump_due: [None; 2],
             };
             return;
         }
@@ -266,13 +381,23 @@ impl Estimator {
             track.pool = track.pool.at_most(MAX_POOL);
             track.pool = pay_starts(track.pool, &before, &now, &animations);
         }
-        let [low, best, high] = now.drain.loss;
+        track.pool = jump_charges(track.pool, &mut track.jump_due, &now);
+        track.pool = pay_moves(track.pool, &before, &now, &animations);
+        track.pool = pay_events(track.pool, &now);
+        let [low, best, high] = now.stream.force;
         track.pool = track.pool.add(-low, -best, -high);
-        for (held, until) in track.held.iter_mut().zip(now.drain.hold) {
+        for (held, until) in track.held.iter_mut().zip(now.stream.hold) {
             *held = (*held).max(until);
         }
         if now.active & (1 << FP_DRAIN) != 0 {
             track.pool = track.pool.at_least(DRAINING_FLOOR);
+        }
+        if now.facts.refused {
+            track.pool = track.pool.at_most(REFUSED_CEILING);
+        }
+        if now.jedi_master && !before.jedi_master {
+            // `JediMasterUpdate`: the new master's pool is full.
+            track.pool = Range::exact(MAX_POOL);
         }
         track.pool = track.pool.clamp(0.0, MAX_POOL);
         track.previous = now;
@@ -332,16 +457,18 @@ fn pay_starts(
     let pay = |pool: Range, power: usize| {
         let (cheapest, guess, dearest) = prices(power);
         let needed = if matches!(power, FP_DRAIN | FP_LIGHTNING) {
-            cheapest.min(25.0)
+            cheapest.max(25.0)
         } else {
             cheapest
         };
         let pool = pool.at_least(needed);
         match power {
-            // Its cost grows with the charge, which is not sent.
-            FP_LEVITATION => pool.add(-dearest, -guess * JUMP_SHARE, 0.0),
-            // Grip is paid by the running cost, drain by its shots.
-            FP_GRIP | FP_DRAIN => pool,
+            // Charged while it rises ([`jump_charges`]).
+            FP_LEVITATION => pool,
+            // `ForceGrip`: a flat price, then the running cost.
+            FP_GRIP => pool.add(-GRIP_START, -GRIP_START, -GRIP_START),
+            // Paid by its shots.
+            FP_DRAIN => pool,
             _ => pool.add(-dearest, -guess, -cheapest),
         }
     };
@@ -359,8 +486,109 @@ fn pay_starts(
             pool = pay(pool, FP_PULL);
         }
     }
-    if now.saber_in_flight && !before.saber_in_flight {
+    if now.saber_in_flight && !before.saber_in_flight && !now.disarmed {
         pool = pay(pool, FP_SABER_THROW);
+    }
+    pool
+}
+
+/// A force jump's charges due by `now` (`PM_CheckJump`'s upkeep): one when it starts,
+/// then every 200 ms at level 1 (the low bound's) and 300 ms above, each the points of
+/// the band it rises in over the level (1 for the low bound; 3 for the guess and the
+/// high bound, with the integer division the server does).
+fn jump_charges(pool: Range, due: &mut [Option<i32>; 2], now: &Observation) -> Range {
+    if now.active & (1 << FP_LEVITATION) == 0 {
+        *due = [None; 2];
+        return pool;
+    }
+    let band = JUMP_BANDS
+        .iter()
+        .find(|(above, _)| now.rising > *above)
+        .map_or(0.0, |(_, points)| *points);
+    let mut charges = [0.0_f32; 2];
+    for (index, millis) in [JUMP_MILLIS.0, JUMP_MILLIS.1].into_iter().enumerate() {
+        let next = due[index].get_or_insert(now.time);
+        while *next <= now.time {
+            charges[index] += 1.0;
+            *next += millis;
+        }
+    }
+    let dearest = band * charges[0];
+    let cheapest = (band / 3.0).floor() * charges[1];
+    pool.add(-dearest, -cheapest, -cheapest)
+}
+
+/// The flat prices of saber specials and wall moves that start between two
+/// observations. A special only starts with its price in the pool
+/// (`BG_EnoughForcePowerForMove`).
+fn pay_moves(
+    mut pool: Range,
+    before: &Observation,
+    now: &Observation,
+    animations: &Animations,
+) -> Range {
+    if let Some(saber_move) = now.saber_move
+        && now.saber_move != before.saber_move
+    {
+        let price = SABER_MOVE_COSTS
+            .iter()
+            .find(|(number, _)| *number == saber_move)
+            .map(|(_, price)| *price)
+            .or((saber_move == LS_ROLL_STAB).then_some(25.0));
+        if let Some(price) = price {
+            pool = pool.at_least(price).add(-price, -price, -price);
+        }
+    }
+    if now.legs_animation != before.legs_animation {
+        let legs = Some(now.legs_animation);
+        let was = Some(before.legs_animation);
+        let left_wall =
+            animations.wall_grab.contains(&was) && animations.wall_leave.contains(&legs);
+        if legs == animations.run_up || left_wall {
+            pool = pool.add(-WALL_MOVE, -WALL_MOVE, -WALL_MOVE);
+        } else if legs == animations.flip_back {
+            // Level 2's flip: the rise's band over 2.
+            let band = JUMP_BANDS
+                .iter()
+                .find(|(above, _)| now.rising > *above)
+                .map_or(0.0, |(_, points)| *points);
+            let price = (band / 2.0).floor();
+            pool = pool.add(-price, -price, -price);
+        }
+    }
+    pool
+}
+
+/// What the snapshot's events show: heals and team powers paid at their price, a team
+/// energize's gift, protect's share of the blows (halved with the boon) and what an
+/// absorb gave back against a push or pull.
+fn pay_events(mut pool: Range, now: &Observation) -> Range {
+    let facts = now.facts;
+    let paid = |pool: Range, power: usize| {
+        let (cheapest, guess, dearest) = prices(power);
+        pool.at_least(cheapest).add(-dearest, -guess, -cheapest)
+    };
+    for _ in 0..facts.heals {
+        pool = paid(pool, FP_HEAL);
+    }
+    if let Some(power) = facts.team_cast {
+        pool = paid(pool, power);
+    }
+    if facts.gift > 0.0 {
+        pool = pool
+            .add(facts.gift, facts.gift, facts.gift)
+            .at_most(MAX_POOL);
+    }
+    let boon = if now.regen_multiplier >= 6.0 {
+        0.5
+    } else {
+        1.0
+    };
+    let [low, best, high] = facts.protect.map(|points| points * boon);
+    pool = pool.add(-low, -best, -high);
+    if now.absorbed_throw {
+        let (least, guess) = ABSORBED_THROW;
+        pool = pool.add(least, guess, guess).at_most(MAX_POOL);
     }
     pool
 }
@@ -383,10 +611,11 @@ mod tests {
         observation
     }
 
-    fn drained(mut observation: Observation, loss: [f32; 3], hold: i32) -> Observation {
-        observation.drain = Effect {
-            loss,
+    fn drained(mut observation: Observation, force: [f32; 3], hold: i32) -> Observation {
+        observation.stream = Effect {
+            force,
             hold: [hold; 3],
+            ..Effect::default()
         };
         observation
     }
@@ -446,14 +675,106 @@ mod tests {
     }
 
     #[test]
-    fn a_force_jump_costs_half_its_price_once() {
+    fn a_force_jump_is_charged_by_how_fast_it_rises() {
+        let mut estimator = Estimator::default();
+        estimator.set_regen_millis(Some(200.0), true);
+        estimator.observe(3, at(0));
+        let rising = |time: i32, speed: f32| {
+            let mut jump = with(at(time), FP_LEVITATION);
+            jump.rising = speed;
+            jump
+        };
+        // Rising over 250: a charge of 20 at level 1, 20 / 3 = 6 at level 3.
+        estimator.observe(3, rising(50, 300.0));
+        assert_eq!(bounds(&estimator), (80.0, 94.0));
+        assert!((percent(&estimator) - 94.0).abs() < 0.01);
+        // 300 ms later, slower (over 100): level 3 pays 8 / 3 = 2 at 350, level 1 the
+        // whole 8 at 250 (its next is due at 450).
+        estimator.observe(3, rising(350, 120.0));
+        assert_eq!(bounds(&estimator), (72.0, 92.0));
+        // Landed: no more charges.
+        estimator.observe(3, at(400));
+        assert_eq!(bounds(&estimator), (72.0, 92.0));
+    }
+
+    #[test]
+    fn saber_specials_and_wall_moves_have_a_price() {
+        let mut estimator = Estimator::default();
+        estimator.set_regen_millis(Some(200.0), true);
+        estimator.observe(3, at(0));
+        let mut kata = at(50);
+        kata.saber_move = Some(52);
+        kata.saber_special = true;
+        estimator.observe(3, kata);
+        assert_eq!(bounds(&estimator), (50.0, 50.0));
+        // The same move seen again costs nothing more.
+        kata.time = 100;
+        estimator.observe(3, kata);
+        assert_eq!(bounds(&estimator), (50.0, 50.0));
+        // A cartwheel proves 10 and costs it.
+        let mut cartwheel = kata;
+        cartwheel.time = 150;
+        cartwheel.saber_move = Some(20);
+        estimator.observe(3, cartwheel);
+        assert_eq!(bounds(&estimator), (40.0, 40.0));
+        // A jump off a wall grab: 6.
+        let animations = Animations::lookup();
+        let mut grab = at(200);
+        grab.legs_animation = animations.wall_grab[0].expect("a wall rebound");
+        estimator.observe(3, grab);
+        let mut leave = at(250);
+        leave.legs_animation = animations.wall_leave[0].expect("a force jump");
+        estimator.observe(3, leave);
+        let (low, high) = bounds(&estimator);
+        assert!((34.0..=35.0).contains(&low) && (34.0..=35.0).contains(&high));
+    }
+
+    #[test]
+    fn heals_team_powers_protect_and_refusals() {
+        let mut estimator = Estimator::default();
+        estimator.set_regen_millis(Some(200.0), true);
+        estimator.observe(3, at(0));
+        // A heal: 65 at level 1, 50 at level 3.
+        let mut heal = at(50);
+        heal.facts.heals = 1;
+        estimator.observe(3, heal);
+        assert_eq!(bounds(&estimator), (35.0, 50.0));
+        // An energize from a teammate: exactly 33 more.
+        let mut gift = at(100);
+        gift.facts.gift = 33.0;
+        estimator.observe(3, gift);
+        assert_eq!(bounds(&estimator), (68.0, 83.0));
+        // Protect paid for a blow.
+        let mut protect = at(150);
+        protect.facts.protect = [10.0, 2.5, 2.5];
+        estimator.observe(3, protect);
+        assert_eq!(bounds(&estimator), (58.0, 81.0));
+        // A special refused: under 50.
+        let mut refused = at(200);
+        refused.facts.refused = true;
+        estimator.observe(3, refused);
+        assert_eq!(bounds(&estimator), (49.0, 49.0));
+        // Becoming the Jedi Master fills it.
+        let mut master = at(250);
+        master.jedi_master = true;
+        estimator.observe(3, master);
+        assert_eq!(bounds(&estimator), (100.0, 100.0));
+    }
+
+    #[test]
+    fn a_disarm_costs_nothing_and_a_grip_thirty() {
+        let mut estimator = Estimator::default();
+        estimator.set_regen_millis(Some(200.0), true);
+        estimator.observe(3, at(0));
+        let mut knocked = at(50);
+        knocked.saber_in_flight = true;
+        knocked.disarmed = true;
+        estimator.observe(3, knocked);
+        assert_eq!(bounds(&estimator), (100.0, 100.0));
         let mut estimator = Estimator::default();
         estimator.observe(3, at(0));
-        estimator.observe(3, with(at(50), FP_LEVITATION));
-        let jump = percent(&estimator);
-        assert!((jump - 95.0).abs() < 0.01, "level 3 jump price 10, half");
-        estimator.observe(3, with(at(100), FP_LEVITATION));
-        assert_eq!(percent(&estimator), jump);
+        estimator.observe(3, with(at(50), FP_GRIP));
+        assert_eq!(bounds(&estimator), (70.0, 70.0));
     }
 
     #[test]
@@ -560,10 +881,10 @@ mod tests {
         estimator.observe(3, with(at(150), FP_PROTECT));
         estimator.observe(3, at(200));
         assert_eq!(bounds(&estimator).0, 0.0);
-        // Grip needs 30 at least to start: the low bound rises to it.
-        estimator.observe(3, with(at(250), FP_GRIP));
+        // Drain needs 25 to start, whatever its price: the low bound rises to it.
+        estimator.observe(3, with(at(250), FP_DRAIN));
         let (low, high) = bounds(&estimator);
-        assert_eq!(low, 30.0);
+        assert_eq!(low, 25.0);
         assert!(high >= 39.0, "{high}");
     }
 
