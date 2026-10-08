@@ -19,7 +19,9 @@ use crate::game_font::{GameFonts, RetailFont};
 use crate::menu_widgets::MenuCanvas;
 use crate::text::{TextVertex, UiFont};
 use editor::Editor;
-use sjk_client::{ChatRoster, ChatTarget, ServerEventKind, chat_body, chat_display_text};
+use sjk_client::{
+    ChatRoster, ChatTarget, ServerEventKind, chat_body, chat_display_text, chat_unescape,
+};
 use sjk_ui::{DrawList, Tween};
 use std::collections::VecDeque;
 use std::time::Instant;
@@ -171,7 +173,9 @@ impl ChatOverlay {
             .and_then(|target| self.roster.display_name(target))
             .unwrap_or("")
             .to_owned();
-        let display = chat_display_text(&text);
+        // EternalJK's escapes for `%` and `"` show as what was typed, in the
+        // chat box only, as in EternalJK.
+        let display = chat_display_text(&chat_unescape(&text));
         let (body, private) = if name.is_empty() {
             (display.as_str(), false)
         } else {
@@ -305,4 +309,39 @@ impl ChatOverlay {
 pub(crate) enum ChatInputResult {
     None,
     Submit(String),
+}
+
+#[cfg(test)]
+mod escape_tests {
+    use super::*;
+
+    #[test]
+    fn eternaljk_escapes_show_as_what_was_typed() {
+        let mut chat = ChatOverlay::new();
+        chat.receive(
+            ServerEventKind::Chat,
+            "^7Creyon: ^2100\u{b0}/. ''sure''".to_owned(),
+            None,
+            Instant::now(),
+        );
+        assert_eq!(chat.lines[0].body, "^7Creyon: ^2100% \"sure\"");
+    }
+
+    #[test]
+    fn a_servers_chat_bytes_show_the_percent() {
+        // As a JA+ server sends it: a Latin-1 name, 0x19 separators and the
+        // escape's degree sign as byte 0xB0, which is not UTF-8.
+        let bytes = b"jof\xbbdmg\xabcreyon^7\x19: ^2\xb0/.\x19";
+        let text = sjk_client::decode_legacy(bytes).into_owned();
+        for emojis in [false, true] {
+            let mut chat = ChatOverlay::new();
+            chat.options.emojis = emojis;
+            chat.receive(ServerEventKind::Chat, text.clone(), None, Instant::now());
+            assert!(
+                chat.lines[0].body.ends_with("^2%"),
+                "{:?}",
+                chat.lines[0].body
+            );
+        }
+    }
 }

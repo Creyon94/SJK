@@ -3,7 +3,7 @@
 use super::Channel;
 use crate::console::line_edit::{LineEdit, Motion};
 use crate::input::dead_key::{DeadKey, TypingField, keep_caret};
-use sjk_client::{CHAT_INPUT_BYTES, ChatTarget};
+use sjk_client::{CHAT_INPUT_BYTES, ChatTarget, chat_input_cost};
 use std::ops::Range;
 use winit::keyboard::{Key, KeyCode};
 
@@ -36,8 +36,12 @@ impl Editor {
         self.dead = dead;
     }
 
+    /// Insert typed or pasted text. The draft's length counts the escapes it
+    /// is sent with (`%` takes four bytes, `"` two), as EternalJK's chat field
+    /// does, so a full field is never cut short when it is sent.
     pub(super) fn insert(&mut self, value: &str) {
-        self.edit.insert(&mut self.text, value, CHAT_INPUT_BYTES);
+        self.edit
+            .insert_counted(&mut self.text, value, CHAT_INPUT_BYTES, chat_input_cost);
     }
 
     pub(super) fn key(&mut self, key: KeyCode, control: bool, shift: bool) -> bool {
@@ -81,5 +85,30 @@ impl TypingField for Editor {
         let caret = keep_caret(self.edit.cursor(&self.text), &range);
         self.text.replace_range(range, "");
         self.edit.place(&self.text, caret, false);
+    }
+}
+
+#[cfg(test)]
+mod length_tests {
+    use super::*;
+
+    #[test]
+    fn the_field_stops_where_the_sent_message_would_be_cut() {
+        let mut editor = Editor::new(Channel::Global);
+        editor.insert(&"%".repeat(CHAT_INPUT_BYTES));
+        assert_eq!(editor.text, "%".repeat(CHAT_INPUT_BYTES / 4));
+
+        let mut editor = Editor::new(Channel::Global);
+        editor.insert(&"a".repeat(CHAT_INPUT_BYTES - 2));
+        editor.insert("%");
+        assert_eq!(editor.text.len(), CHAT_INPUT_BYTES - 2);
+        editor.insert("\"");
+        assert!(editor.text.ends_with('"'));
+        editor.insert("a");
+        assert_eq!(editor.text.len(), CHAT_INPUT_BYTES - 1);
+
+        let sent = sjk_client::chat_command(sjk_client::ChatDestination::Global, &editor.text)
+            .expect("global chat");
+        assert!(sent.ends_with("a''\""), "{sent}");
     }
 }

@@ -7,6 +7,24 @@ SJK currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Percent signs and quotes in chat
+
+Branch `fix/chat-percent` (08/10/2026, based on `15cf7a9`, Linux): a `%` typed in
+chat arrived as `.`, because the engine turns `%` into `.` in every command it
+reads (`MSG_ReadString`), and a `"` became a space. SJK now sends them as
+EternalJK does, `%` as `°/.` (byte 0xB0) and `"` as `''`, and its chat box shows
+those back as `%` and `"`, so both clients show each other's. The composer
+counts the escapes in its length limit, so a long message is never cut when sent
+([client.md](client.md#percent-signs-and-quotes-in-chat)). Unit tests cover the
+sent command and its bytes, an escape never cut by the byte budget, the
+composer's limit, showing the escapes (colour codes, three apostrophes, a cut-off
+escape, SJK's own message), a received chat line, and every printable ASCII,
+Latin-1 and Windows-1252 character coming back as typed after the server's
+`%` rewrite. On Linux with Rust 1.97, formatting, the locked
+workspace build and tests pass; workspace Clippy finishes without errors, and its
+warnings are all in code this change does not touch. Checked in game on Windows 11
+on a JoF server: a `%` sent from SJK shows as `%`.
+
 ## Remapped surfaces keep the map's light
 
 Branch `fix/remap-source-lightmap` (08/10/2026, based on `6d2eb4b`, Linux): Sol

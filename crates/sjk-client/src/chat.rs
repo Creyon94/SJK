@@ -233,19 +233,29 @@ pub fn chat_body<'a>(text: &'a str, name: &str) -> (&'a str, bool) {
     (text, false)
 }
 
-/// Construct one quoted stock command. Quotes and controls cannot terminate
-/// its payload; the byte budget always ends at a UTF-8 boundary.
+/// What EternalJK sends for `%`, which the engine turns into `.` on the way
+/// (`MSG_ReadString`): `°/.`, the degree sign going out as byte 0xB0.
+const PERCENT_ESCAPE: &str = "\u{b0}/.";
+/// What EternalJK sends for `"`, which would end the quoted command.
+const QUOTE_ESCAPE: &str = "''";
+
+/// Construct one quoted stock command. Controls become spaces; `%` and `"` are
+/// escaped as EternalJK's chat sends them (`Message_Key`, `cl_keys.cpp:896-930`
+/// at JoF EternalJK bd5e202), so EternalJK clients and SJK show them again
+/// ([`chat_unescape`]). The byte budget always ends at a UTF-8 boundary and
+/// never splits an escape.
 pub fn chat_command(destination: ChatDestination, text: &str) -> Option<String> {
     if matches!(destination, ChatDestination::Player(slot) if usize::from(slot) >= MAX_CLIENTS) {
         return None;
     }
     let mut payload = String::with_capacity(CHAT_INPUT_BYTES);
+    let mut buffer = [0; 4];
     for c in text.chars() {
-        let c = if c == '"' || c.is_control() { ' ' } else { c };
-        if payload.len() + c.len_utf8() > CHAT_INPUT_BYTES {
+        let piece = chat_piece(c, &mut buffer);
+        if payload.len() + piece.len() > CHAT_INPUT_BYTES {
             break;
         }
-        payload.push(c);
+        payload.push_str(piece);
     }
     let payload = payload.trim();
     if payload.is_empty() {
@@ -256,6 +266,49 @@ pub fn chat_command(destination: ChatDestination, text: &str) -> Option<String> 
         ChatDestination::Team => format!("say_team \"{payload}\""),
         ChatDestination::Player(slot) => format!("tell {slot} \"{payload}\""),
     })
+}
+
+/// What `c` becomes in a chat command: its escape, a space for a control, or
+/// itself.
+fn chat_piece(c: char, buffer: &mut [u8; 4]) -> &str {
+    match c {
+        '%' => PERCENT_ESCAPE,
+        '"' => QUOTE_ESCAPE,
+        c if c.is_control() => " ",
+        c => c.encode_utf8(buffer),
+    }
+}
+
+/// How much of the [`CHAT_INPUT_BYTES`] budget `c` takes once escaped, so the
+/// chat field stops where the sent message would be cut, as EternalJK's field
+/// leaves room for its escapes (`cl_keys.cpp:645-650`).
+pub fn chat_input_cost(c: char) -> usize {
+    chat_piece(c, &mut [0; 4]).len()
+}
+
+/// Show EternalJK's chat escapes as what was typed: `°/.` as `%` and `''` as
+/// `"`, scanning left to right as `CG_ChatBox_AddString` does
+/// (`cg_draw.c:9897-9916` at JoF EternalJK bd5e202). Text without them is
+/// returned borrowed.
+pub fn chat_unescape(text: &str) -> std::borrow::Cow<'_, str> {
+    if !text.contains(PERCENT_ESCAPE) && !text.contains(QUOTE_ESCAPE) {
+        return std::borrow::Cow::Borrowed(text);
+    }
+    let mut output = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(c) = rest.chars().next() {
+        if let Some(after) = rest.strip_prefix(PERCENT_ESCAPE) {
+            output.push('%');
+            rest = after;
+        } else if let Some(after) = rest.strip_prefix(QUOTE_ESCAPE) {
+            output.push('"');
+            rest = after;
+        } else {
+            output.push(c);
+            rest = &rest[c.len_utf8()..];
+        }
+    }
+    std::borrow::Cow::Owned(output)
 }
 
 /// Interpret the already-tokenized stock chat command (`G_SayTo`).
@@ -319,5 +372,110 @@ mod display_text_tests {
             chat_name_key("{JoF}\u{b}Toxiee\u{b}{C}.ak\u{81}"),
             "{JoF}Toxiee{C}.ak"
         );
+    }
+}
+
+#[cfg(test)]
+mod escape_tests {
+    use super::*;
+
+    #[test]
+    fn percent_and_quotes_go_out_as_eternaljk_sends_them() {
+        assert_eq!(
+            chat_command(ChatDestination::Global, "100% \"done\"").as_deref(),
+            Some("say \"100\u{b0}/. ''done''\"")
+        );
+        assert_eq!(
+            chat_command(ChatDestination::Team, "50%").as_deref(),
+            Some("say_team \"50\u{b0}/.\"")
+        );
+        assert_eq!(
+            chat_command(ChatDestination::Player(3), "a\tb").as_deref(),
+            Some("tell 3 \"a b\"")
+        );
+        // The degree sign leaves as the single byte EternalJK sends.
+        let command = chat_command(ChatDestination::Global, "%").unwrap();
+        assert_eq!(
+            &*crate::legacy_text::legacy_command(command.as_bytes()),
+            b"say \"\xb0/.\""
+        );
+    }
+
+    #[test]
+    fn the_input_cost_is_the_sent_length() {
+        assert_eq!(chat_input_cost('a'), 1);
+        assert_eq!(chat_input_cost('%'), PERCENT_ESCAPE.len());
+        assert_eq!(chat_input_cost('"'), 2);
+        assert_eq!(chat_input_cost('\u{e9}'), 2);
+        let text = "50% \"ok\" caf\u{e9}";
+        let command = chat_command(ChatDestination::Global, text).unwrap();
+        let cost: usize = text.chars().map(chat_input_cost).sum();
+        assert_eq!(command.len(), "say \"\"".len() + cost);
+    }
+
+    #[test]
+    fn the_budget_never_splits_an_escape() {
+        let text = format!("{}%", "a".repeat(CHAT_INPUT_BYTES - 2));
+        let command = chat_command(ChatDestination::Global, &text).unwrap();
+        assert!(!command.contains('\u{b0}'), "{command}");
+        assert_eq!(command.len(), "say \"\"".len() + CHAT_INPUT_BYTES - 2);
+    }
+
+    /// What arrives back at a client when `text` is typed in SJK's chat: the
+    /// command's bytes as the server reads them (`MSG_ReadString` turns every `%`
+    /// into `.`), the quoted message taken out, and the client's decoding and
+    /// unescaping.
+    fn round_trip(text: &str) -> String {
+        let command = chat_command(ChatDestination::Global, text).unwrap();
+        let bytes: Vec<u8> = crate::legacy_text::legacy_command(command.as_bytes())
+            .iter()
+            .map(|&byte| if byte == b'%' { b'.' } else { byte })
+            .collect();
+        let quoted = &bytes[b"say \"".len()..bytes.len() - 1];
+        assert!(!quoted.contains(&b'"'), "a quote would end the message");
+        // A byte in 0x80..=0x9F decodes as the C1 character of that value, which
+        // the renderer draws as its Windows-1252 glyph (`€`, `’`, ...).
+        chat_unescape(&crate::legacy_text::decode_legacy(quoted))
+            .chars()
+            .map(|c| match u8::try_from(u32::from(c)) {
+                Ok(byte @ 0x80..=0x9f) => sjk_protocol::windows_1252_char(byte),
+                _ => c,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn every_typed_character_comes_back() {
+        // Printable ASCII, Latin-1 and the characters Windows-1252 adds.
+        let mut typed: Vec<char> = (0x20_u8..0x7f).map(char::from).collect();
+        typed.extend((0xa0_u32..=0xff).filter_map(char::from_u32));
+        typed.extend("€‚ƒ„…†‡ˆ‰Š‹ŒŽ‘’“”•–—˜™š›œžŸ".chars());
+        for c in typed {
+            let text = format!("a{c}b");
+            assert_eq!(round_trip(&text), text, "{c:?} (U+{:04X})", u32::from(c));
+        }
+        let mixed = "100% \"x\" ^1red ;// \\ ~`@#$&*()[]{}<>|=+-_!?.,:é€ü";
+        assert_eq!(round_trip(mixed), mixed);
+    }
+
+    #[test]
+    fn escapes_show_as_what_was_typed() {
+        assert_eq!(chat_unescape("100\u{b0}/. ''done''"), "100% \"done\"");
+        assert_eq!(chat_unescape("^1a\u{b0}/.^7b"), "^1a%^7b");
+        // Left to right, as EternalJK: three apostrophes are a quote and one.
+        assert_eq!(chat_unescape("\u{27}\u{27}\u{27}"), "\"\u{27}");
+        assert_eq!(chat_unescape("\u{b0}/"), "\u{b0}/");
+        assert!(matches!(
+            chat_unescape("plain"),
+            std::borrow::Cow::Borrowed("plain")
+        ));
+        // What SJK sends shows as what was typed.
+        let sent = chat_command(ChatDestination::Global, "it's 100% \"fine\"").unwrap();
+        let body = sent
+            .strip_prefix("say \"")
+            .unwrap()
+            .strip_suffix('"')
+            .unwrap();
+        assert_eq!(chat_unescape(body), "it's 100% \"fine\"");
     }
 }

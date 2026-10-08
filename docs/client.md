@@ -2597,6 +2597,22 @@ codes is in the chat's base colour on every row, and the rows after an emoji pic
 keep it too. The console's scrollback and notify lines carry the colour in the same
 way (`wrap` in [console_classic.rs](../crates/sjk-viewer/src/console_classic.rs)).
 
+### Percent signs and quotes in chat
+
+The engine turns every `%` of a command into `.` on its way to the server
+(`MSG_ReadString`), and a `"` would end the quoted message. Messages from the chat
+composer and `tell` are therefore sent as EternalJK sends them (`Message_Key`,
+`cl_keys.cpp:896-930` at JoF EternalJK bd5e202): `%` as `°/.` (the degree sign is
+byte 0xB0) and `"` as `''`. The chat box shows those back as `%` and `"`, as
+EternalJK's `CG_ChatBox_AddString` does (`cg_draw.c:9897-9916`), so SJK and
+EternalJK players see each other's `%` and quotes; a client without this shows
+`°/.` and `''`. As in EternalJK, the console's copy of a chat line keeps the
+escapes, and two apostrophes typed together show as a quote. The composer counts
+a draft's length as it will be sent (`%` takes four bytes, `"` two), so it stops
+accepting characters where the sent message would otherwise be cut
+([chat.rs](../crates/sjk-client/src/chat.rs) `chat_command`, `chat_unescape`,
+`chat_input_cost`).
+
 ### Chat emojis
 
 `cg_chatBoxEmojis 1` (default 0, also Settings > HUD > Chat emojis) shows JoF

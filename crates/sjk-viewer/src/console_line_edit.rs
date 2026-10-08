@@ -123,16 +123,30 @@ impl LineEdit {
     /// Replace the selection with `value`, or insert it at the caret, dropping control
     /// characters and whatever would take the line past `limit` bytes.
     pub(crate) fn insert(&mut self, text: &mut String, value: &str, limit: usize) {
+        self.insert_counted(text, value, limit, char::len_utf8);
+    }
+
+    /// [`Self::insert`], with the line's length counted by `cost` per
+    /// character instead of its UTF-8 bytes.
+    pub(crate) fn insert_counted(
+        &mut self,
+        text: &mut String,
+        value: &str,
+        limit: usize,
+        cost: impl Fn(char) -> usize,
+    ) {
         if let Some(range) = self.selection(text) {
             text.replace_range(range.clone(), "");
             self.cursor = range.start;
         }
         self.anchor = None;
         let mut cursor = self.cursor(text);
+        let mut length: usize = text.chars().map(&cost).sum();
         for character in value.chars().filter(|character| !character.is_control()) {
-            if text.len() + character.len_utf8() > limit {
+            if length + cost(character) > limit {
                 break;
             }
+            length += cost(character);
             text.insert(cursor, character);
             cursor += character.len_utf8();
         }
