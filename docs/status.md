@@ -2190,6 +2190,14 @@ map. Off-screen world shots of `T2_Rogue` either side of a roof edge showed a ba
 of fog flipping before the change and none after; a local, uncommitted probe timed
 the far survey on four retail maps. Not yet tried in a game.
 
+`personal/wet-anchor` (08/10/2026, based on `2630c7a`), after Sol saw the running
+water on walls flicker and move with the camera: its streaks now lie on each wall's
+plane in world coordinates and scroll at one speed from a wrapped offset, thinner than
+before ([Weather](rendering.md#weather)). Off-screen world shots of the streak mask on a
+`T2_Rogue` wall from two cameras 6 units and 2° apart, with weather time frozen, showed
+a different, speckled pattern from each before the change and the same streaks in the
+same places after. Not yet tried in a game.
+
 `personal/rain-wet` (08/10/2026, based on `8c1ac09`), Sol's request: rain wets what it
 falls on, chosen with the weather quality (1 wet surfaces, 2 water running down slopes
 and walls, 3 puddles with rain rings), in a pass over the world before the players

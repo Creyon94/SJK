@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 08/10/2026 | - | Running water on walls stays on the wall: anchored streaks, one wrapped scroll
+- d28eb09 |  | Running water on walls stays on the wall: anchored streaks, one wrapped scroll
 + 08/10/2026 | - | Nameplates: measure the local player's drain from its own pool and heal
 - 73fa260 |  | Nameplates: measure the local player's drain from its own pool and heal
 + 08/10/2026 | - | Release 2026.1008.1 (Alpha)

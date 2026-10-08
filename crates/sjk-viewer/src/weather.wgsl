@@ -51,7 +51,8 @@ struct Weather {
     // xy the far cover's first corner, z its column width, w 1 once it is surveyed.
     far: vec4<f32>,
     // x how wet the rain makes what it falls on (0 dry), y what it does there
-    // (`r_weatherQuality`'s: 1 wet, 2 running water, 3 puddles), zw unused.
+    // (`r_weatherQuality`'s: 1 wet, 2 running water, 3 puddles), z running water's scroll
+    // down the walls (wrapped to STREAK_LENGTH), w its pattern's change (wrapped to 1).
     wet: vec4<f32>,
     // rgb the overcast sky a wet surface mirrors, in the scene's light units.
     wet_sky: vec4<f32>,
@@ -563,6 +564,34 @@ fn under_sky(q: vec3<f32>) -> f32 {
     return select(0.0, 1.0, q.z >= span.x - 8.0 && q.z <= span.y);
 }
 
+// Running water's streaks: one noise tile is this long (units) and this wide.
+const STREAK_LENGTH: f32 = 520.0;
+const STREAK_WIDTH: f32 = 40.0;
+
+fn streak_mask(q: vec3<f32>) -> f32 {
+    let sample = textureSampleLevel(noise, noise_sampler, q, 0.0);
+    return smoothstep(0.8, 0.845, sample.r) * (0.6 + 0.8 * sample.g);
+}
+
+// Running water on a wall, 0 to 1: noise stretched along the height and scrolled down
+// it, laid on the wall's plane in world coordinates (across y and up z for a wall facing
+// x, across x for one facing y, blended between the two on a slanted wall; on a slope the
+// height runs downhill). The face's normal, which the depth gives a little unsteadily,
+// only chooses the blend, so the streaks stay put on the wall however the camera moves.
+fn streaks(p: vec3<f32>, n: vec3<f32>) -> f32 {
+    let weights = pow(abs(n.xy), vec2(4.0));
+    let blend = weights / max(weights.x + weights.y, 1e-6);
+    let along = (p.z + weather.wet.z) / STREAK_LENGTH;
+    var water = 0.0;
+    if blend.x > 0.01 {
+        water += blend.x * streak_mask(vec3(p.y / STREAK_WIDTH, along, p.x / 700.0 + weather.wet.w));
+    }
+    if blend.y > 0.01 {
+        water += blend.y * streak_mask(vec3(p.x / STREAK_WIDTH, along, p.y / 700.0 + weather.wet.w));
+    }
+    return water;
+}
+
 // Rain rings on standing water, 0 to 1: a drop lands in each 16-unit cell now and
 // then (about every other second), at a random spot, and its thin ring widens and fades.
 fn ripples(xy: vec2<f32>, time: f32) -> f32 {
@@ -638,16 +667,12 @@ fn ripples(xy: vec2<f32>, time: f32) -> f32 {
     var rings = 0.0;
     let steep = length(n.xy);
     if level >= 2u && n.z > -0.2 {
-        // Running water: streaks stretched down the face, moving downhill, faster on a
-        // steeper face; fine detail, so it fades out with distance.
-        let fade = smoothstep(0.12, 0.35, steep) * (1.0 - smoothstep(500.0, 1400.0, distance));
+        // Running water on walls and steep slopes; fine detail, so it fades out with
+        // distance and at grazing views, where it would shimmer.
+        let fade = smoothstep(0.4, 0.8, steep) * (1.0 - smoothstep(500.0, 1400.0, distance))
+            * smoothstep(0.06, 0.25, abs(dot(n, view)) / max(distance, 0.001));
         if fade > 0.0 {
-            let downhill = normalize(vec3(0.0, 0.0, -1.0) + n * n.z);
-            let across = cross(n, downhill);
-            let along = dot(p, downhill) - weather.cover.w * (40.0 + 120.0 * steep);
-            let q = vec3(dot(p, across) / 90.0, along / 520.0, dot(p, n) / 700.0);
-            let streaks = textureSampleLevel(noise, noise_sampler, q, 0.0);
-            let rivulet = smoothstep(0.8, 0.845, streaks.r) * (0.6 + 0.8 * streaks.g) * fade * wet;
+            let rivulet = streaks(p, n) * fade * wet;
             darken += 0.25 * rivulet;
             film += 0.4 * rivulet;
             glint = rivulet;

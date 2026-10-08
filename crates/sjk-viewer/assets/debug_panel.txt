@@ -1679,6 +1679,16 @@ test: Distant fog stays put: no bright band at eye height that comes and goes.
 test: Any map with fog: distant haze still reaches the horizon; none indoors.
 note: Far fog appears about 1.5 s after T2_Rogue loads (under 0.2 s on most maps).
 
+[wet-anchor]
+area: Rendering & effects
+title: Running water on walls stays put (no flicker)
+change: Wall streaks lie on the wall in world coordinates and run down at one speed.
+change: They were tied to an unsteady per-pixel normal and to play time, so they swam.
+test: devmap T2_Rogue, r_weatherForce 3, r_weatherQuality 2: look at a wet wall.
+test: Strafe and turn: the streaks keep their place on the wall, only running down it.
+test: Stay a few minutes on the map: still no flicker.
+note: Streaks are thinner now; they fade out beyond about 1000 units and at grazing views.
+
 [rain-wet]
 area: Rendering & effects
 title: Rain wets the world: wet surfaces, running water, puddles
