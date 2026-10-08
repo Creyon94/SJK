@@ -7,10 +7,15 @@
 //! `. , ! ? ' - : ( )`, at most 600 characters) and is checked again here
 //! before it leaves; the hub checks it a third time and limits how often a key and an
 //! address may report (`PROTOCOL.md` in the hub, "Bug reports"). The outcome comes back
-//! as a centre print.
+//! on the SJK UI's card while it waits for it (`TextDialog::answer`), else as a centre
+//! print.
 
+use crate::text_dialog::Report;
 use sjk_client::ServerEventKind;
 use std::time::Instant;
+
+/// Why a report cannot go while the identity service has not started.
+pub(crate) const IDENTITY_OFF: &str = "the SJK identity is off (cl_identity 1 turns it on)";
 
 impl crate::GpuState {
     /// Report a bug: close the game menu and open the report dialog.
@@ -40,8 +45,9 @@ impl crate::GpuState {
 
     /// The report line's Enter: check the text and hand it to the identity service.
     pub(crate) fn send_bug_report(&mut self, text: &str) {
-        let message = match sjk_identity::report::text(text) {
-            Err(why) => format!("Bug report not sent: {why}"),
+        let refused = |why: &str| (format!("Bug report not sent: {why}"), Some(why.to_owned()));
+        let (message, failure) = match sjk_identity::report::text(text) {
+            Err(why) => refused(why),
             Ok(text) => {
                 let map = if self.resident.exploring() {
                     self.resident.map.clone()
@@ -64,15 +70,20 @@ impl crate::GpuState {
                 };
                 if crate::player_identity::report(report) {
                     self.bug_report_waiting = true;
-                    "Sending the bug report...".to_owned()
+                    ("Sending the bug report...".to_owned(), None)
                 } else {
-                    "Bug report not sent: the SJK identity is off (cl_identity 1 turns it on)"
-                        .to_owned()
+                    refused(IDENTITY_OFF)
                 }
             }
         };
-        self.chat
-            .receive(ServerEventKind::CenterPrint, message, None, Instant::now());
+        let shown = match failure {
+            Some(why) => self.text_dialog.answer(Report::Bug, Err(why)),
+            None => self.text_dialog.sending(Report::Bug),
+        };
+        if !shown {
+            self.chat
+                .receive(ServerEventKind::CenterPrint, message, None, Instant::now());
+        }
     }
 
     /// Once a frame: show the outcome of a report sent with [`Self::send_bug_report`].
@@ -93,7 +104,14 @@ impl crate::GpuState {
             format!("Bug report not sent: {}", outcome.message)
         };
         crate::log::progress(format_args!("{message}"));
-        self.chat
-            .receive(ServerEventKind::CenterPrint, message, None, Instant::now());
+        let answer = if outcome.sent {
+            Ok(outcome.message)
+        } else {
+            Err(outcome.message)
+        };
+        if !self.text_dialog.answer(Report::Bug, answer) {
+            self.chat
+                .receive(ServerEventKind::CenterPrint, message, None, Instant::now());
+        }
     }
 }

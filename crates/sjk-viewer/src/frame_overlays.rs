@@ -14,10 +14,12 @@ impl GpuState {
         text: u32,
         classic_text: u32,
     ) {
-        // The game menu also opens over a map explored without a server.
+        // The game menu and the report and note dialog also open over a map explored
+        // without a server.
         let hud = self.live_session.is_some()
             || self.demo_session.is_some()
             || self.game_menu
+            || self.text_dialog.is_open()
             || self.console.as_ref().is_some_and(|c| c.is_open())
             || !self.console_layer.is_empty()
             || self.client_menu.as_ref().is_some_and(|m| m.is_visible());

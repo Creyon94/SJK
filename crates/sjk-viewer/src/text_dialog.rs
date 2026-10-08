@@ -10,7 +10,14 @@
 //!
 //! The launcher is the Report a bug button drawn centred at the bottom of the screen
 //! while the game menu is open. With the classic menus both take the classic+ look
-//! ([`classic`]).
+//! ([`classic`]); with the SJK UI the dialog is its pop-up card ([`sjk`]) and has no
+//! launcher (Report a bug is on the in-game menu's Sol JK page).
+//!
+//! In the SJK UI a bug or player report keeps its card after Send: "Sending..." until
+//! the hub answers, then what it stored the report as, or why it did not go, with Edit
+//! to change the text and send it again ([`TextDialog::answer`]). The other looks close
+//! on Send and the answer comes as a centre print, as it does when the card was closed
+//! first. A note always closes on Send: its screenshot is taken of the next frame.
 
 use crate::menu::art::ArtSet;
 use crate::menu_widgets::{ButtonStyle, MenuCanvas};
@@ -22,6 +29,8 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 
 #[path = "text_dialog_classic.rs"]
 mod classic;
+#[path = "text_dialog_sjk.rs"]
+mod sjk;
 
 /// Longest world note, in characters.
 pub(crate) const NOTE_MAX: usize = sjk_identity::report::NOTE_MAX;
@@ -32,6 +41,42 @@ const FIELD_TOKEN: u16 = 960;
 const SEND_TOKEN: u16 = 961;
 const CANCEL_TOKEN: u16 = 962;
 const LAUNCH_TOKEN: u16 = 963;
+/// The SJK UI card's Close (Done once sent) and Edit, after Send.
+const CLOSE_TOKEN: u16 = 964;
+const EDIT_TOKEN: u16 = 965;
+
+/// Which look the dialog is drawn in, following `ui_menuStyle`.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) enum Look {
+    /// The modern panel.
+    #[default]
+    Modern,
+    /// The classic+ pop-up, with the retail menu art it can draw.
+    Classic,
+    /// The SJK UI's pop-up card.
+    Sjk,
+}
+
+/// Where a report stands in the SJK UI's card.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+enum Phase {
+    /// The text is being written.
+    #[default]
+    Writing,
+    /// Handed to the identity service; the hub has not answered yet.
+    Sending,
+    /// The hub stored it: what as ("report #12").
+    Sent(String),
+    /// It did not go: why.
+    Failed(String),
+}
+
+/// Which report an answer is for ([`TextDialog::answer`]).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum Report {
+    Bug,
+    Player,
+}
 
 /// What the dialog is for.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -51,7 +96,7 @@ pub(crate) enum Kind {
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) enum Action {
     None,
-    /// Closed without sending.
+    /// Closed without sending, or (the SJK UI's card) after its answer.
     Cancel,
     /// Send this text (the dialog has closed).
     Send(Kind, String),
@@ -75,9 +120,11 @@ pub(crate) struct TextDialog {
     epoch: Instant,
     /// Shift is held (Shift+Tab goes back).
     shift: bool,
-    /// The classic+ look is drawn, with the retail menu art it can use.
-    classic: bool,
+    /// The look drawn, and the retail menu art the classic+ one can use.
+    look: Look,
     art: ArtSet,
+    /// Where a report stands; always [`Phase::Writing`] outside the SJK UI.
+    phase: Phase,
 }
 
 impl Default for TextDialog {
@@ -87,12 +134,14 @@ impl Default for TextDialog {
             text: String::with_capacity(2_400),
             focus: Focus::Field,
             message: String::new(),
-            ui: MenuCanvas::with_capacities(24, 192, 96),
+            // The SJK UI's card draws about 30 runs and 70 commands.
+            ui: MenuCanvas::with_capacities(48, 192, 160),
             launcher: MenuCanvas::with_capacities(4, 32, 16),
             epoch: Instant::now(),
             shift: false,
-            classic: false,
+            look: Look::default(),
             art: ArtSet::default(),
+            phase: Phase::Writing,
         }
     }
 }
@@ -103,6 +152,15 @@ fn limit(kind: &Kind) -> usize {
         Kind::Note { .. } => NOTE_MAX,
         Kind::Report => sjk_identity::report::TEXT_MAX,
         Kind::PlayerReport { .. } => sjk_identity::report::PLAYER_MAX,
+    }
+}
+
+/// Why `text` cannot be sent as `kind`, or `None` when it can.
+fn refusal(kind: &Kind, text: &str) -> Option<&'static str> {
+    match kind {
+        Kind::Report => sjk_identity::report::text(text).err(),
+        Kind::Note { .. } => sjk_identity::report::note_text(text).err(),
+        Kind::PlayerReport { .. } => sjk_identity::report::player_text(text).err(),
     }
 }
 
@@ -190,31 +248,71 @@ impl TextDialog {
         self.text.clear();
         self.message.clear();
         self.focus = Focus::Field;
+        self.phase = Phase::Writing;
         self.epoch = Instant::now();
     }
 
     fn close(&mut self) -> Action {
         self.kind = None;
+        self.phase = Phase::Writing;
         Action::Cancel
     }
 
-    /// Enter or Send: hand the text over, or say why it cannot go.
+    /// Enter or Send: hand the text over, or say why it cannot go. The SJK UI's card
+    /// stays open on a report, to show the hub's answer ([`Self::answer`]), and keeps
+    /// the text for Edit.
     fn send(&mut self) -> Action {
         let Some(kind) = self.kind.clone() else {
             return Action::None;
         };
-        let refusal = match &kind {
-            Kind::Report => sjk_identity::report::text(&self.text).err(),
-            Kind::Note { .. } => sjk_identity::report::note_text(&self.text).err(),
-            Kind::PlayerReport { .. } => sjk_identity::report::player_text(&self.text).err(),
-        };
-        if let Some(why) = refusal {
+        if let Some(why) = refusal(&kind, &self.text) {
             self.message = why.to_owned();
             self.focus = Focus::Field;
             return Action::None;
         }
+        if self.look == Look::Sjk && !matches!(kind, Kind::Note { .. }) {
+            self.phase = Phase::Sending;
+            self.focus = Focus::Send;
+            return Action::Send(kind, self.text.clone());
+        }
         self.kind = None;
         Action::Send(kind, std::mem::take(&mut self.text))
+    }
+
+    /// Edit after a report failed: back to the text, kept as it was.
+    fn edit(&mut self) {
+        self.phase = Phase::Writing;
+        self.focus = Focus::Field;
+        self.message.clear();
+        self.epoch = Instant::now();
+    }
+
+    /// Whether the card shows a `report` waiting for the hub's answer.
+    pub(crate) fn sending(&self, report: Report) -> bool {
+        self.phase == Phase::Sending && self.reports(report)
+    }
+
+    /// Whether the open dialog is for `report`.
+    fn reports(&self, report: Report) -> bool {
+        matches!(
+            (&self.kind, report),
+            (Some(Kind::Report), Report::Bug) | (Some(Kind::PlayerReport { .. }), Report::Player)
+        )
+    }
+
+    /// The hub's answer to `report`: what it stored it as, or why it did not go. True
+    /// when the card waiting for it shows it; false when there is none (another look,
+    /// or the card closed first), and the caller shows it as a centre print.
+    pub(crate) fn answer(&mut self, report: Report, outcome: Result<String, String>) -> bool {
+        if !self.sending(report) {
+            return false;
+        }
+        self.phase = match outcome {
+            Ok(stored) => Phase::Sent(stored),
+            Err(why) => Phase::Failed(why),
+        };
+        self.focus = Focus::Send;
+        true
     }
 
     /// Fill the dialog for the menu snapshots: its `text`, the focus on Send or the field,
@@ -226,9 +324,25 @@ impl TextDialog {
         self.message = message.to_owned();
     }
 
-    /// Choose the look: classic+ with the retail `art` it can draw, or modern.
-    pub(crate) fn set_look(&mut self, classic: bool, art: ArtSet) {
-        self.classic = classic;
+    /// Hold the caret lit, for the world shots.
+    #[cfg(test)]
+    pub(crate) fn caret_for_shot(&mut self) {
+        self.epoch = Instant::now() + std::time::Duration::from_secs(60);
+    }
+
+    /// Press Send, for the world shots.
+    #[cfg(test)]
+    pub(crate) fn send_for_shot(&mut self) -> Action {
+        self.send()
+    }
+
+    /// Choose the look, with the retail `art` the classic+ one can draw.
+    pub(crate) fn set_look(&mut self, look: Look, art: ArtSet) {
+        if look != Look::Sjk && self.phase != Phase::Writing {
+            // Only the SJK UI's card waits for an answer.
+            self.close();
+        }
+        self.look = look;
         self.art = art;
     }
 
@@ -238,13 +352,24 @@ impl TextDialog {
     }
 
     pub(crate) fn handle_key(&mut self, event: &KeyEvent) -> Action {
-        let shift = self.shift;
-        if event.state != ElementState::Pressed || self.kind.is_none() {
+        if event.state != ElementState::Pressed {
             return Action::None;
         }
         let PhysicalKey::Code(key) = event.physical_key else {
             return Action::None;
         };
+        self.key(key, event.text.as_deref())
+    }
+
+    /// A key pressed, with the `text` it types (Ctrl+V types `\u{16}`, which pastes).
+    fn key(&mut self, key: KeyCode, text: Option<&str>) -> Action {
+        if self.kind.is_none() {
+            return Action::None;
+        }
+        if self.phase != Phase::Writing {
+            return self.answered_key(key);
+        }
+        let shift = self.shift;
         match key {
             KeyCode::Escape => return self.close(),
             KeyCode::Tab => {
@@ -269,10 +394,12 @@ impl TextDialog {
             KeyCode::Backspace if self.focus == Focus::Field => {
                 self.text.pop();
                 self.message.clear();
+                // The caret stays lit while typing.
+                self.epoch = Instant::now();
             }
             _ if self.focus == Focus::Field => {
                 let pasted;
-                let text = match event.text.as_deref() {
+                let text = match text {
                     Some("\u{16}") => {
                         pasted = crate::console::clipboard::paste().unwrap_or_default();
                         pasted.as_str()
@@ -285,11 +412,39 @@ impl TextDialog {
                 if !kept.is_empty() {
                     self.text.push_str(&kept);
                     self.message.clear();
+                    self.epoch = Instant::now();
                 }
             }
             _ => {}
         }
         Action::None
+    }
+
+    /// A key on the SJK UI's card after Send: Escape closes; Enter or Space takes the
+    /// focused button (Close while sending, Done once sent, Edit or Close after a
+    /// failure, between which Tab moves).
+    fn answered_key(&mut self, key: KeyCode) -> Action {
+        let failed = matches!(self.phase, Phase::Failed(_));
+        match key {
+            KeyCode::Escape => self.close(),
+            KeyCode::Tab if failed => {
+                self.focus = if self.focus == Focus::Send {
+                    Focus::Cancel
+                } else {
+                    Focus::Send
+                };
+                Action::None
+            }
+            KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Space => {
+                if failed && self.focus == Focus::Send {
+                    self.edit();
+                    Action::None
+                } else {
+                    self.close()
+                }
+            }
+            _ => Action::None,
+        }
     }
 
     pub(crate) fn handle_pointer(&mut self, event: InputEvent) -> Action {
@@ -299,13 +454,20 @@ impl TextDialog {
         if event.kind != UiEventKind::Activate {
             return Action::None;
         }
+        let writing = self.phase == Phase::Writing;
         match event.token {
-            Some(FIELD_TOKEN) => {
+            Some(FIELD_TOKEN) if writing => {
                 self.focus = Focus::Field;
                 Action::None
             }
-            Some(SEND_TOKEN) => self.send(),
-            Some(CANCEL_TOKEN) => self.close(),
+            // A click on a failed report's text edits it.
+            Some(FIELD_TOKEN | EDIT_TOKEN) if matches!(self.phase, Phase::Failed(_)) => {
+                self.edit();
+                Action::None
+            }
+            Some(SEND_TOKEN) if writing => self.send(),
+            Some(CANCEL_TOKEN) if writing => self.close(),
+            Some(CLOSE_TOKEN) => self.close(),
             _ => Action::None,
         }
     }
@@ -324,7 +486,7 @@ impl TextDialog {
         font: &UiFont,
         viewport: [f32; 2],
     ) {
-        if self.classic {
+        if self.look == Look::Classic {
             self.append_launcher_classic(vertices, font, viewport);
             return;
         }
@@ -363,7 +525,8 @@ impl TextDialog {
     }
 
     /// Draw the dialog over the whole frame; text other overlays appended earlier this
-    /// frame is dropped rather than shown through the panel.
+    /// frame is dropped rather than shown through the panel. The SJK UI's card draws in
+    /// `font` here; [`crate::GpuState::append_text_dialog`] gives it its families.
     pub(crate) fn append(
         &mut self,
         vertices: &mut Vec<TextVertex>,
@@ -374,7 +537,14 @@ impl TextDialog {
             return;
         };
         vertices.clear();
-        if self.classic {
+        if self.look == Look::Sjk {
+            self.append_sjk(
+                crate::menu::sjk::TextTarget::Inter(vertices, font),
+                viewport,
+            );
+            return;
+        }
+        if self.look == Look::Classic {
             self.append_classic(&kind, vertices, font, viewport);
             return;
         }
@@ -546,6 +716,33 @@ impl TextDialog {
             Focus::Cancel => CANCEL_TOKEN,
         });
         ui.append_text(vertices, font, viewport);
+    }
+
+    /// Whether the dialog is drawn as the SJK UI's card.
+    pub(crate) fn is_sjk(&self) -> bool {
+        self.look == Look::Sjk
+    }
+}
+
+impl crate::GpuState {
+    /// Draw the open text dialog over the frame. The SJK UI's card darkens the whole
+    /// frame, so every font batch appended before it is dropped (text draws above all
+    /// shapes), and its own text goes to the UI's families once they are loaded.
+    pub(crate) fn append_text_dialog(&mut self, viewport: [f32; 2]) {
+        if self.text_dialog.is_sjk() {
+            self.text_vertices.clear();
+            self.classic_text_vertices.clear();
+            self.game_fonts.clear_text();
+            let target = crate::ingame_menu::sjk_view::text_target(
+                &mut self.game_fonts,
+                &mut self.text_vertices,
+                &self.ui_font,
+            );
+            self.text_dialog.append_sjk(target, viewport);
+        } else {
+            let (vertices, font) = self.game_fonts.menu(&mut self.text_vertices, &self.ui_font);
+            self.text_dialog.append(vertices, font, viewport);
+        }
     }
 }
 

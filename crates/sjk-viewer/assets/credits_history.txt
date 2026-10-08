@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 08/10/2026 | - | Report a bug and its dialogs in the SJK UI
+- a037ebb |  | SJK UI: Report a bug and its dialogs as a pop-up card
 + 08/10/2026 | - | Nameplates: predict lightning, grip, rage, protect, team powers and Force costs
 - 1d36983 |  | Nameplates: predict lightning, grip, rage, protect, team powers and Force costs
 + 08/10/2026 | - | Shot controls becomes Camera control, with the SJK UI's look

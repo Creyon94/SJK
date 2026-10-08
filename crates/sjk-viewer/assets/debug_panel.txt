@@ -1811,6 +1811,20 @@ test: Click it: REPORT A BUG pop-up; long text wraps to the box's width, 8 lines
 test: Hover the box, Send, Cancel: the line under the pop-up explains each.
 test: Send "short": the red reason shows under the count; X twice on a wall: same look.
 
+[sjk-ui-report]
+area: Menus & settings
+title: SJK UI: Report a bug, player reports and notes as a pop-up card
+change: The text dialog is a card over the darkened game: question, text, rules, count, Send.
+change: A report's card waits for the hub: Sending..., then Sent (its number) or Not sent + why.
+change: Not sent keeps your text: Edit goes back to it. Notes still close on Send (screenshot).
+test: In a match, Escape > Sol JK > Report a bug: the card, gold caret, Send dim until 10 chars.
+test: Type a long text: it wraps, the last 6 lines show; Ctrl+V pastes; Tab: Send, Cancel, text.
+test: Send: Sending..., then Sent. Thank you! with the report number; Enter or Done closes.
+test: cl_identity 0, send again: Not sent and why; Edit: your text is still there.
+test: Players > a player > a reason: same card, the name and reason as its title.
+test: X twice on a wall: the note card, the wall's green outline still visible round it.
+note: Checked in world shots only (no game started); tell Claude what looks off in game.
+
 [free-camera]
 area: Gameplay
 title: /freecam flies the camera away from your body (SJK PR #29, lumaya)

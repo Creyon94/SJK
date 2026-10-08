@@ -282,6 +282,12 @@ impl GpuState {
             }
             return true;
         }
+        // The dialog is drawn over everything and takes the keys first; the pointer too.
+        if self.text_dialog.is_open() {
+            let action = self.text_dialog.handle_pointer(event);
+            self.apply_dialog_action(action);
+            return true;
+        }
         if self.medal_popup.is_open() {
             self.medal_popup.handle_pointer(event);
             return true;
@@ -296,11 +302,6 @@ impl GpuState {
                 _ => menu::MenuAction::None,
             };
             self.apply_client_menu_action(action);
-            return true;
-        }
-        if self.text_dialog.is_open() {
-            let action = self.text_dialog.handle_pointer(event);
-            self.apply_dialog_action(action);
             return true;
         }
         if self.game_menu {

@@ -119,7 +119,8 @@ characters. Enter or Send checks the hub's rules (a refusal is shown in the pane
 stays open) (10 to 600 characters, a few real words, no
 long run of one character) and hands the report to the identity service, which sends
 `POST /v1/report` signed with the player's key; the outcome (the hub's report number,
-or why it refused, for example a quota) shows as a centre print. The report carries the
+or why it refused, for example a quota) shows on the SJK UI's card, which waits for it
+([sjk-ui.md](sjk-ui.md#report-a-bug-and-its-dialogs)), else as a centre print. The report carries the
 in-game name the player wears (the service fills it from the `name` it already sends the
 hub); the hub keeps it with the report and adds it to the key's worn names. The hub checks
 everything again and limits reports per key (3 a day, 20 once verified, 5 an hour, no
@@ -142,7 +143,8 @@ or advertising, something else) and Back. A reason closes the menu and opens the
 dialog for a few words (10 to 300 characters, the bug reports' alphabet and noise rules);
 Send hands the report to the identity service, which sends `POST /v1/player-report`
 signed with the player's key, and the outcome (the hub's number, or why it refused) shows
-as a centre print. The player is copied when chosen, so the report names them as they were.
+on the SJK UI's card, else as a centre print. The player is copied when chosen, so the
+report names them as they were.
 
 Only a verified SJK player may report (`player_identity::report_gate`): with the identity
 off, the hub not answering yet, an unverified key or a game on this PC, the Players page
@@ -183,7 +185,9 @@ With the classic menus (`ui_menuStyle classic`) the dialog and the button take t
 classic+ look ([text_dialog_classic.rs](../crates/sjk-viewer/src/text_dialog_classic.rs),
 [classic-plus.md](classic-plus.md#pages)): the in-game pop-up box with its title band,
 the text in a retail list box, gold Send and Cancel, the description line under the box,
-and a gold REPORT A BUG on retail's red band at the bottom of the canvas.
+and a gold REPORT A BUG on retail's red band at the bottom of the canvas. With the SJK UI
+the dialog is its pop-up card and there is no button (Report a bug is on the in-game
+menu's Sol JK page): [sjk-ui.md](sjk-ui.md#report-a-bug-and-its-dialogs).
 
 ## Medals
 
