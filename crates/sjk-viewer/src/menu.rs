@@ -680,7 +680,8 @@ impl ClientMenu {
                 self.classic_panel_cycle(direction, console);
                 MenuAction::None
             }
-            SettingsResult::None => MenuAction::None,
+            // Only the SJK UI's First setup pop-up offers it.
+            SettingsResult::AllSettings | SettingsResult::None => MenuAction::None,
         }
     }
 

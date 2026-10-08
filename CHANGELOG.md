@@ -21,6 +21,8 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- SJK UI First setup is a pop-up over the map: its settings scroll inside the card, and "Don't show at start" is a tick always in view at its foot, beside All settings and Done _(Sol)_
+- SJK UI Update is a pop-up card too: the version, what the check found, the download's progress, and Release notes, Check again, Close and Install along its foot _(Sol)_
 - SJK UI Character: the saber style is three buttons and the hilts a list you can scroll and click (two side by side for dual sabers); the Force page groups the powers as classic+ does (Neutral, your side, Lightsaber), shows what each level costs, previews a level's price on the points bar, and a box at the bottom right shows the power under the mouse in big with what it does _(Sol)_
 - Saber hilt lists come in the same order as in JoF EJK (the game's load order, not alphabetical), in every menu style _(Sol, after JoF EJK)_
 - The SJK UI is now the default menu style. Profiles still on the old default (classic) switch to it once when you update; pick Classic or Modern again and it stays _(Sol)_

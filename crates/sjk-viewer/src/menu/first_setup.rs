@@ -1,5 +1,6 @@
-//! The First setup screen: Settings' FIRST SETUP tab, offered at every start until
-//! its "Don't show at start" row is ticked, and opened by the `firstsetup` command;
+//! The First setup screen: Settings' FIRST SETUP tab (a pop-up in the SJK UI),
+//! offered at every start until its "Don't show at start" row is ticked, and
+//! opened by the `firstsetup` command;
 //! `firstsetup import` opens the Import page (`config_import.rs`). Its first row
 //! picks the menu style. The command's old name `quicksetup` is gone, so that `quit`
 //! is the only command a `q` completes to.
@@ -18,12 +19,12 @@ pub(crate) const IMPORT: &str = "import";
 
 impl ClientMenu {
     /// Open the First setup screen, returning to `target` when it closes: the
-    /// SJK UI's Settings on First setup from its main page, the classic Setup
-    /// panel's FIRST SETUP group under the classic style (and the SJK UI in a
-    /// game), the FIRST SETUP tab of the modern screen otherwise.
+    /// SJK UI's pop-up over its main page, the classic Setup panel's FIRST
+    /// SETUP group under the classic style (and the SJK UI in a game), the
+    /// FIRST SETUP tab of the modern screen otherwise.
     pub(crate) fn open_first_setup(&mut self, console: &ViewerConsole, target: ReturnTarget) {
         if self.menu_style == MenuStyle::Sjk && target == ReturnTarget::MainMenu {
-            self.open_sjk_settings(console, super::sjk::settings::FIRST_SETUP, target);
+            self.open_sjk_first_setup(console, target);
             return;
         }
         if self.menu_style.classic_screens() {
@@ -102,13 +103,13 @@ mod tests {
     }
 
     #[test]
-    fn the_sjk_ui_opens_its_settings_on_first_setup_and_the_panel_in_a_game() {
+    fn the_sjk_ui_opens_its_popup_on_first_setup_and_the_panel_in_a_game() {
         let (_directory, console) = console();
         let mut menu = ClientMenu::new(true, String::new());
         // The SJK UI is the default style.
         assert_eq!(menu.menu_style, MenuStyle::Sjk);
         menu.open_first_setup(&console, ReturnTarget::MainMenu);
-        assert!(menu.sjk_settings_on_show());
+        assert!(menu.sjk_settings_on_show() && menu.settings.popup());
         assert_eq!(
             menu.sjk_settings.category(),
             super::super::sjk::settings::FIRST_SETUP
@@ -139,6 +140,51 @@ mod tests {
         menu.set_menu_style(MenuStyle::Modern, &console);
         assert!(menu.classic_panel.is_none());
         assert_eq!(*menu.state.phase(), ClientPhase::Settings);
+    }
+
+    /// All settings (or Tab) leaves the pop-up for the whole screen on First
+    /// setup; Done (or Escape) goes back to the main page.
+    #[test]
+    fn all_settings_opens_the_screen_on_first_setup_and_done_closes() {
+        use crate::settings::SettingsResult;
+        let (_directory, mut console) = console();
+        let mut menu = ClientMenu::new(true, String::new());
+        menu.open_first_setup(&console, ReturnTarget::MainMenu);
+        let action = menu.settings_result(SettingsResult::AllSettings, &mut console);
+        assert_eq!(action, MenuAction::None);
+        assert!(menu.sjk_settings_on_show() && !menu.settings.popup());
+        assert_eq!(
+            menu.sjk_settings.category(),
+            super::super::sjk::settings::FIRST_SETUP
+        );
+        menu.open_first_setup(&console, ReturnTarget::MainMenu);
+        menu.settings_result(SettingsResult::Back, &mut console);
+        assert_eq!(*menu.state.phase(), ClientPhase::MainMenu);
+        assert!(!menu.sjk_settings_on_show());
+    }
+
+    /// Picking the SJK UI on First setup's Menu style row, from the classic
+    /// panel or the modern tab, goes on as the pop-up.
+    #[test]
+    fn first_setup_picked_to_the_sjk_ui_goes_on_as_its_popup() {
+        let (_directory, console) = console();
+        for style in [MenuStyle::Classic, MenuStyle::Modern] {
+            let mut menu = ClientMenu::new(true, String::new());
+            menu.menu_style = style;
+            menu.open_first_setup(&console, ReturnTarget::MainMenu);
+            assert!(!menu.settings.popup(), "{style:?}");
+            menu.set_menu_style(MenuStyle::Sjk, &console);
+            assert!(
+                menu.sjk_settings_on_show() && menu.settings.popup(),
+                "{style:?}"
+            );
+            assert!(menu.classic_panel.is_none(), "{style:?}");
+        }
+        // Another screen switched to the SJK UI stays itself.
+        let mut menu = ClientMenu::new(true, String::new());
+        menu.menu_style = MenuStyle::Classic;
+        menu.set_menu_style(MenuStyle::Sjk, &console);
+        assert_eq!(*menu.state.phase(), ClientPhase::MainMenu);
     }
 
     #[test]

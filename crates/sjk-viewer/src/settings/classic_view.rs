@@ -116,6 +116,7 @@ impl SettingsMenu {
             slider_span: frame.slider_span(),
             first: 0,
             visible: frame.capacity(),
+            pinned: None,
         });
     }
 
@@ -136,6 +137,7 @@ impl SettingsMenu {
             slider_span: frame.slider_span(),
             first: 0,
             visible: frame.capacity(),
+            pinned: None,
         });
     }
 
@@ -157,7 +159,34 @@ impl SettingsMenu {
             slider_span: frame.slider_span(),
             first: 0,
             visible: frame.capacity(),
+            pinned: None,
         });
+    }
+
+    /// Show First setup as the SJK UI's pop-up: its rows, but for "Don't show
+    /// at start", which is pinned at the pop-up's foot, in view however far the
+    /// rows scroll.
+    pub(crate) fn open_first_setup_popup(&mut self, console: &ViewerConsole) {
+        self.open_classic_group(
+            console,
+            Group::Quick,
+            crate::menu::classic::panel::Frame::Main,
+        );
+        let hide = self
+            .rows()
+            .iter()
+            .position(|setting| setting.cvar == super::quick::HIDE_CVAR);
+        if let (Some(classic), Some(hide)) = (&mut self.classic, hide) {
+            classic.lines.retain(|line| *line != Line::Row(hide));
+            classic.pinned = Some(hide);
+        }
+    }
+
+    /// Whether First setup's pop-up is on show (its rows pin one at its foot).
+    pub(crate) fn popup(&self) -> bool {
+        self.classic
+            .as_ref()
+            .is_some_and(|classic| classic.pinned.is_some())
     }
 
     /// Carry on as the modern screen after the menu style changed under a
@@ -964,6 +993,7 @@ mod tests {
 
     fn classic(rows: std::ops::Range<usize>, visible: usize) -> ClassicRows {
         ClassicRows {
+            pinned: None,
             lines: ClassicRows::span(rows),
             slider_span: (0.5, 0.25),
             first: 0,

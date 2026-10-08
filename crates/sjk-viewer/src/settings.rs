@@ -21,6 +21,7 @@ mod resolution;
 mod resolution_list;
 mod scroll;
 mod search;
+mod sjk_popup;
 pub(crate) mod sjk_view;
 mod view;
 
@@ -41,6 +42,21 @@ pub(crate) enum SettingsResult {
     Classic(usize),
     /// Move the classic panel to the next (1) or previous (-1) group.
     ClassicCycle(i32),
+    /// Leave First setup's pop-up for the whole Settings screen.
+    AllSettings,
+}
+
+/// What First setup's pop-up does with `key` before its rows see it: Tab
+/// leaves for the whole Settings screen; the search's and the groups' keys do
+/// nothing, as it has neither.
+fn popup_key(key: KeyCode) -> Option<SettingsResult> {
+    match key {
+        KeyCode::Tab => Some(SettingsResult::AllSettings),
+        KeyCode::Slash | KeyCode::NumpadDivide | KeyCode::BracketLeft | KeyCode::BracketRight => {
+            Some(SettingsResult::None)
+        }
+        _ => None,
+    }
 }
 
 /// One line of a classic option panel: a heading (a group of search
@@ -61,6 +77,10 @@ struct ClassicRows {
     first: usize,
     /// Lines the panel showed last frame.
     visible: usize,
+    /// A row shown apart from the lines, after them in the keyboard's order:
+    /// First setup's pop-up keeps "Don't show at start" at its foot, always
+    /// in view. Only that pop-up pins one.
+    pinned: Option<usize>,
 }
 
 impl ClassicRows {
@@ -79,12 +99,20 @@ impl ClassicRows {
         self.lines.iter().position(|line| *line == Line::Row(row))
     }
 
-    /// The setting rows, in order.
+    /// The setting rows, in order, the pinned one last.
     fn rows(&self) -> impl Iterator<Item = usize> + '_ {
-        self.lines.iter().filter_map(|line| match line {
-            Line::Row(row) => Some(*row),
-            Line::Heading(_) => None,
-        })
+        self.lines
+            .iter()
+            .filter_map(|line| match line {
+                Line::Row(row) => Some(*row),
+                Line::Heading(_) => None,
+            })
+            .chain(self.pinned)
+    }
+
+    /// Whether the panel shows row `row`, in its lines or pinned.
+    fn shows(&self, row: usize) -> bool {
+        self.pinned == Some(row) || self.position(row).is_some()
     }
 
     /// The row `direction` rows away from `selected`, wrapping; the first
@@ -296,6 +324,16 @@ impl SettingsMenu {
         QUICK_TAB
     }
 
+    /// Whether First setup's rows are on show: its classic group (the SJK UI's
+    /// category or pop-up), or the modern FIRST SETUP tab.
+    pub(crate) fn on_first_setup(&self) -> bool {
+        match self.section {
+            Section::Group(group) => group == Group::Quick,
+            Section::General => self.tab == QUICK_TAB,
+            _ => false,
+        }
+    }
+
     /// Index of the tab that carries the "Key bindings" row.
     pub(crate) fn keybinds_tab() -> usize {
         KEYBINDS_TAB
@@ -441,7 +479,7 @@ impl SettingsMenu {
     /// of the tab.
     fn shows(&self, row: usize) -> bool {
         match &self.classic {
-            Some(classic) => classic.position(row).is_some(),
+            Some(classic) => classic.shows(row),
             None => row < self.row_count(),
         }
     }
@@ -550,9 +588,14 @@ impl SettingsMenu {
             return SettingsResult::None;
         }
         let classic = self.classic.is_some();
-        // Classic+: `/` or Up from the first row gives the search field the
-        // keyboard; Escape clears a search before it leaves.
-        if classic {
+        // Up from the pop-up's first row wraps to its foot, as it has no search.
+        if self.popup() {
+            if let Some(result) = popup_key(key) {
+                return result;
+            }
+        } else if classic {
+            // Classic+: `/` or Up from the first row gives the search field
+            // the keyboard; Escape clears a search before it leaves.
             let at_top = self.classic.as_ref().and_then(|c| c.rows().next()) == Some(self.selected);
             match key {
                 KeyCode::Slash | KeyCode::NumpadDivide => {

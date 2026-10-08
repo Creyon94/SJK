@@ -1,7 +1,8 @@
 //! The SJK UI's controls, as the kit sheet of its design draws them: the focused
-//! row's band, the switch, the slider, segments, the field that opens a list,
-//! the list itself, the reset arrow, the changed dot, sub-headings, the search
-//! pill and the lit rail. Every position is in frame pixels ([`Frame`]); text
+//! row's band, the switch, the tick box, the slider, segments, the field that
+//! opens a list, the list itself, the reset arrow, the changed dot,
+//! sub-headings, the search pill, the lit rail, and the pop-up card over its
+//! scrim. Every position is in frame pixels ([`Frame`]); text
 //! goes through [`text`] in the UI's families.
 
 use super::{Frame, color, text};
@@ -15,6 +16,8 @@ const SWITCH: [f32; 2] = [52.0, 28.0];
 /// A slider's knob and track thickness.
 const KNOB: f32 = 20.0;
 const TRACK: f32 = 4.0;
+/// A tick box's side.
+pub(crate) const TICK_BOX: f32 = 26.0;
 
 fn push(canvas: &mut MenuCanvas, command: DrawCommand) {
     let _ = canvas.draw_list_mut().push(command);
@@ -78,6 +81,132 @@ pub(crate) fn band(canvas: &mut MenuCanvas, frame: &Frame, rect: [f32; 4]) {
             color: color::GOLD_BRIGHT,
         },
     );
+}
+
+/// Darkness over the whole window under a pop-up card, deep enough that the
+/// card reads as the one thing on screen while the map still shows round it.
+pub(crate) fn scrim(canvas: &mut MenuCanvas, viewport: [f32; 2]) {
+    push(
+        canvas,
+        DrawCommand::SolidRect {
+            rect: Rect::new(0.0, 0.0, viewport[0], viewport[1]),
+            color: color::alpha(color::SPACE, 0.78),
+        },
+    );
+}
+
+/// A pop-up card over `rect` (frame pixels): its drop shadow, the dark glass
+/// and a holo edge. Text draws over every shape, so whatever the card covers
+/// must be left out by its screen.
+pub(crate) fn card(canvas: &mut MenuCanvas, frame: &Frame, rect: [f32; 4]) {
+    let [x, y, width, height] = rect;
+    let s = frame.s;
+    push(
+        canvas,
+        DrawCommand::RoundedRect {
+            rect: frame.rect(x + 4.0, y + 10.0, width, height),
+            radius: 18.0 * s,
+            color: color::alpha(color::SPACE, 0.6),
+        },
+    );
+    push(
+        canvas,
+        DrawCommand::RoundedRect {
+            rect: frame.rect(x, y, width, height),
+            radius: 18.0 * s,
+            color: Color::new(0.04, 0.06, 0.12, 0.98),
+        },
+    );
+    push(
+        canvas,
+        DrawCommand::Border {
+            rect: frame.rect(x, y, width, height),
+            radius: 18.0 * s,
+            width: 1.5 * s,
+            color: color::alpha(color::HOLO, 0.45),
+        },
+    );
+}
+
+/// A tick box whose left edge is `x`, centred on `y`: an outlined square, gold
+/// with a dark tick when `ticked`, ringed while `focused`. Returns its right
+/// edge.
+pub(crate) fn tick(
+    canvas: &mut MenuCanvas,
+    frame: &Frame,
+    x: f32,
+    y: f32,
+    ticked: bool,
+    focused: bool,
+) -> f32 {
+    let size = TICK_BOX;
+    let s = frame.s;
+    let rect = frame.rect(x, y - size * 0.5, size, size);
+    if ticked {
+        push(
+            canvas,
+            DrawCommand::RoundedRect {
+                rect,
+                radius: 6.0 * s,
+                color: color::GOLD,
+            },
+        );
+        // The tick, a short stroke down then a long one up, laid as
+        // overlapping dots along its two strokes.
+        let ink = Color::new(0.078, 0.063, 0.02, 1.0);
+        let corner = [x + size * 0.42, y + size * 0.24];
+        let strokes = [
+            ([x + size * 0.2, y - size * 0.02], corner),
+            (corner, [x + size * 0.8, y - size * 0.26]),
+        ];
+        let dot = 3.6;
+        for (from, to) in strokes {
+            let steps = ((to[0] - from[0]).hypot(to[1] - from[1]) / 0.8).ceil() as usize;
+            for step in 0..=steps {
+                let t = step as f32 / steps as f32;
+                let [cx, cy] = [
+                    from[0] + (to[0] - from[0]) * t,
+                    from[1] + (to[1] - from[1]) * t,
+                ];
+                pill(
+                    canvas,
+                    frame,
+                    [cx - dot * 0.5, cy - dot * 0.5, dot, dot],
+                    ink,
+                );
+            }
+        }
+    } else {
+        push(
+            canvas,
+            DrawCommand::RoundedRect {
+                rect,
+                radius: 6.0 * s,
+                color: color::alpha(color::SPACE, 0.85),
+            },
+        );
+        push(
+            canvas,
+            DrawCommand::Border {
+                rect,
+                radius: 6.0 * s,
+                width: 1.5 * s,
+                color: color::alpha(color::HOLO, 0.7),
+            },
+        );
+    }
+    if focused {
+        push(
+            canvas,
+            DrawCommand::Border {
+                rect: frame.rect(x - 4.0, y - size * 0.5 - 4.0, size + 8.0, size + 8.0),
+                radius: 9.0 * s,
+                width: 1.5 * s,
+                color: edge(true),
+            },
+        );
+    }
+    x + size
 }
 
 /// A switch ending at `right`, centred on `y`: a pill, gold with its knob right

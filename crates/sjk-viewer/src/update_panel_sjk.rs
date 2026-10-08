@@ -1,17 +1,34 @@
-//! Update in the SJK UI (`docs/sjk-ui.md`, Sol JK's pages): the version this
-//! is, then what the update check found as a headline over its detail, the
-//! download's gold progress, and the page's actions as buttons (the one Enter
-//! takes gold), over the map. The state and its actions are the page's own.
+//! Update in the SJK UI (`docs/sjk-ui.md`, Sol JK's pages): a pop-up card
+//! over the darkened map, as First setup's. Update and the version this is
+//! over what the update check found as a headline and its detail, the
+//! download's gold progress, then the actions along the card's foot: Release
+//! notes and Check again on the left, Close and the one Enter takes, gold, on
+//! the right. The state and its actions are the page's own.
 
 use super::*;
 use crate::menu::sjk::{Frame, TextTarget, color, key_hint, key_hint_width, kit, text, wrap};
 use crate::menu_widgets::TextFamily;
 use sjk_ui::TextAlign;
 
-/// The page's column.
-const COLUMN_X: f32 = 520.0;
-const COLUMN_WIDTH: f32 = 900.0;
-const TOP: f32 = 220.0;
+/// The card's left edge, top and width; it is as tall as what it says.
+const CARD_X: f32 = 540.0;
+const CARD_TOP: f32 = 340.0;
+const CARD_WIDTH: f32 = 840.0;
+/// The card's inner margin, and its text's column.
+const MARGIN: f32 = 44.0;
+const TEXT_X: f32 = CARD_X + MARGIN;
+const TEXT_WIDTH: f32 = CARD_WIDTH - MARGIN * 2.0;
+/// The detail's first line, its line step and most lines.
+const DETAIL_TOP: f32 = CARD_TOP + 138.0;
+const DETAIL_LINE: f32 = 30.0;
+const DETAIL_LINES: usize = 4;
+/// The progress bar's track, and its place under the detail.
+const TRACK_WIDTH: f32 = 620.0;
+const TRACK_GAP: f32 = 20.0;
+/// The buttons along the card's foot, this far under the text.
+const BUTTONS_GAP: f32 = 40.0;
+const BUTTON_HEIGHT: f32 = 46.0;
+const BUTTON_GAP: f32 = 14.0;
 /// The keys' line.
 const KEYS_Y: f32 = 992.0;
 
@@ -22,19 +39,22 @@ impl Panel {
         let s = frame.s;
         let installed = crate::build_info::VERSION;
         let view = view(&update::state(), installed);
+        let detail: Vec<&str> = wrap(&view.detail, 76).take(DETAIL_LINES).collect();
+        let text_end = DETAIL_TOP
+            + detail.len() as f32 * DETAIL_LINE
+            + view.progress.map_or(0.0, |_| TRACK_GAP + 6.0);
+        let buttons_y = text_end + BUTTONS_GAP;
+        let height = buttons_y + BUTTON_HEIGHT + MARGIN - CARD_TOP;
         self.ui.begin_transparent(viewport);
-        crate::settings::sjk_view::backdrop(&mut self.ui, viewport);
-        let [x, y] = frame.point(96.0, 75.0);
-        let end = key_hint(&mut self.ui, &["Esc"], "Back", x, y, s);
-        self.ui
-            .hit_region(BACK_TOKEN, Rect::new(x, y, end - x, 24.0 * s));
+        kit::scrim(&mut self.ui, viewport);
+        kit::card(&mut self.ui, &frame, [CARD_X, CARD_TOP, CARD_WIDTH, height]);
         text(
             &mut self.ui,
             TextFamily::Display,
             format_args!("Update"),
-            frame.rect((end - frame.origin[0]) / s + 22.0, 57.0, 600.0, 60.0),
-            48.0 * s,
-            color::TEXT,
+            frame.rect(TEXT_X, CARD_TOP + 30.0, TEXT_WIDTH, 30.0),
+            22.0 * s,
+            color::GOLD_BRIGHT,
             FontWeight::Semibold,
             TextAlign::Start,
         );
@@ -42,39 +62,39 @@ impl Panel {
             &mut self.ui,
             TextFamily::Body,
             format_args!("This is Sol JK {installed}"),
-            frame.rect(COLUMN_X, TOP, COLUMN_WIDTH, 26.0),
-            19.0 * s,
+            frame.rect(TEXT_X, CARD_TOP + 33.0, TEXT_WIDTH, 26.0),
+            16.0 * s,
             color::MUTED,
             FontWeight::Regular,
-            TextAlign::Start,
+            TextAlign::End,
         );
         text(
             &mut self.ui,
             TextFamily::Display,
             format_args!("{}", view.headline),
-            frame.rect(COLUMN_X, TOP + 36.0, COLUMN_WIDTH, 70.0),
-            56.0 * s,
+            frame.rect(TEXT_X, CARD_TOP + 70.0, TEXT_WIDTH, 52.0),
+            40.0 * s,
             color::TEXT,
             FontWeight::Semibold,
             TextAlign::Start,
         );
-        let mut y = TOP + 120.0;
-        for line in wrap(&view.detail, 80).take(4) {
+        let mut y = DETAIL_TOP;
+        for line in detail {
             text(
                 &mut self.ui,
                 TextFamily::Body,
                 format_args!("{line}"),
-                frame.rect(COLUMN_X, y, COLUMN_WIDTH, 30.0),
-                20.0 * s,
+                frame.rect(TEXT_X, y, TEXT_WIDTH, 28.0),
+                18.0 * s,
                 color::alpha(color::TEXT, 0.86),
                 FontWeight::Regular,
                 TextAlign::Start,
             );
-            y += 32.0;
+            y += DETAIL_LINE;
         }
         if let Some(progress) = view.progress {
-            y += 18.0;
-            let track = frame.rect(COLUMN_X, y, 640.0, 6.0);
+            y += TRACK_GAP;
+            let track = frame.rect(TEXT_X, y, TRACK_WIDTH, 6.0);
             let _ = self
                 .ui
                 .draw_list_mut()
@@ -83,7 +103,7 @@ impl Panel {
                     radius: track.height * 0.5,
                     color: color::alpha(color::HOLO, 0.2),
                 });
-            let filled = frame.rect(COLUMN_X, y, 640.0 * progress, 6.0);
+            let filled = frame.rect(TEXT_X, y, TRACK_WIDTH * progress, 6.0);
             let _ = self
                 .ui
                 .draw_list_mut()
@@ -96,43 +116,71 @@ impl Panel {
                 &mut self.ui,
                 TextFamily::Display,
                 format_args!("{:.0} %", progress * 100.0),
-                frame.rect(COLUMN_X + 660.0, y - 13.0, 100.0, 30.0),
+                frame.rect(TEXT_X + TRACK_WIDTH + 20.0, y - 13.0, 100.0, 30.0),
                 22.0 * s,
                 color::GOLD_BRIGHT,
                 FontWeight::Regular,
                 TextAlign::Start,
             );
-            y += 6.0;
         }
-        y += 40.0;
-        let mut x = COLUMN_X;
-        let mut button = |ui: &mut MenuCanvas, label: &str, primary: bool, token: u16| {
-            // Rajdhani at 20 is about 9.5 pixels a character.
-            let width = (48.0 + 9.5 * label.chars().count() as f32).max(150.0);
-            kit::button(
-                ui,
-                &frame,
-                [x, y, width, 50.0],
-                label,
-                primary,
-                true,
-                primary,
-                token,
-            );
-            x += width + 14.0;
-        };
-        if let Some(primary) = view.primary {
-            button(&mut self.ui, primary, true, PRIMARY_TOKEN);
-        }
-        if view.check {
-            button(&mut self.ui, "Check again", false, CHECK_TOKEN);
-        }
-        if view.notes {
-            button(&mut self.ui, "Release notes", false, NOTES_TOKEN);
-        }
+        self.sjk_buttons(&frame, &view, buttons_y);
         self.sjk_keys(&frame, &view);
         self.ui.finish(PRIMARY_TOKEN);
         target.append(&self.ui, viewport);
+    }
+
+    /// The actions along the card's foot at `y`: Release notes and Check
+    /// again from the left, the one Enter takes (gold) and Close from the right.
+    fn sjk_buttons(&mut self, frame: &Frame, view: &View, y: f32) {
+        // Rajdhani at 20 is about 9.5 pixels a character.
+        let width = |label: &str| (48.0 + 9.5 * label.chars().count() as f32).max(140.0);
+        let mut left = TEXT_X;
+        for (shown, label, token) in [
+            (view.notes, "Release notes", NOTES_TOKEN),
+            (view.check, "Check again", CHECK_TOKEN),
+        ] {
+            if shown {
+                let w = width(label);
+                kit::button(
+                    &mut self.ui,
+                    frame,
+                    [left, y, w, BUTTON_HEIGHT],
+                    label,
+                    false,
+                    true,
+                    false,
+                    token,
+                );
+                left += w + BUTTON_GAP;
+            }
+        }
+        let mut right = CARD_X + CARD_WIDTH - MARGIN;
+        if let Some(primary) = view.primary {
+            let w = width(primary);
+            right -= w;
+            kit::button(
+                &mut self.ui,
+                frame,
+                [right, y, w, BUTTON_HEIGHT],
+                primary,
+                true,
+                true,
+                true,
+                PRIMARY_TOKEN,
+            );
+            right -= BUTTON_GAP;
+        }
+        let w = width("Close");
+        kit::button(
+            &mut self.ui,
+            frame,
+            [right - w, y, w, BUTTON_HEIGHT],
+            "Close",
+            false,
+            true,
+            false,
+            BACK_TOKEN,
+        );
     }
 
     /// The page's keys, right-aligned at the bottom.
@@ -148,7 +196,7 @@ impl Panel {
         if view.notes {
             keys.push((&["N"], "release notes"));
         }
-        keys.push((&["Esc"], "back"));
+        keys.push((&["Esc"], "close"));
         let gap = 30.0 * s;
         let width: f32 = keys
             .iter()
@@ -162,3 +210,17 @@ impl Panel {
         }
     }
 }
+
+// At its tallest (every line of detail and the progress bar) the card ends
+// above the keys; the bar's percentage fits beside it.
+const _: () = assert!(
+    DETAIL_TOP
+        + DETAIL_LINES as f32 * DETAIL_LINE
+        + TRACK_GAP
+        + 6.0
+        + BUTTONS_GAP
+        + BUTTON_HEIGHT
+        + MARGIN
+        < KEYS_Y - 20.0
+);
+const _: () = assert!(TEXT_X + TRACK_WIDTH + 20.0 + 60.0 <= CARD_X + CARD_WIDTH - MARGIN);

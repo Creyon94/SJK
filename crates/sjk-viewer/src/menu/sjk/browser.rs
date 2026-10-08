@@ -1498,31 +1498,7 @@ fn draw_dialog(ui: &mut MenuCanvas, frame: &Frame, viewport: [f32; 2], dialog: &
     };
     ui.hit_region(backdrop, Rect::new(0.0, 0.0, viewport[0], viewport[1]));
     let [x, y, width, height] = CARD;
-    push(
-        ui,
-        DrawCommand::RoundedRect {
-            rect: frame.rect(x + 4.0, y + 10.0, width, height),
-            radius: 18.0 * s,
-            color: color::alpha(color::SPACE, 0.6),
-        },
-    );
-    push(
-        ui,
-        DrawCommand::RoundedRect {
-            rect: frame.rect(x, y, width, height),
-            radius: 18.0 * s,
-            color: Color::new(0.04, 0.06, 0.12, 0.98),
-        },
-    );
-    push(
-        ui,
-        DrawCommand::Border {
-            rect: frame.rect(x, y, width, height),
-            radius: 18.0 * s,
-            width: 1.5 * s,
-            color: color::alpha(color::HOLO, 0.45),
-        },
-    );
+    kit::card(ui, frame, CARD);
     let (title, body, value, error, action, ready) = match dialog {
         Dialog::Password { server, length } => (
             "Password",

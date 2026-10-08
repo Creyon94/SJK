@@ -2285,6 +2285,19 @@ test: F3: drag over a description, double-click a word, Ctrl+C, paste it elsewhe
 test: Ctrl+C with nothing selected copies "name value"; the F3 hint or Dock tab opens it.
 note: Tell Claude which design you keep (or what to mix); the others can go.
 
+[first-setup-popup]
+status: personal
+area: Menus & settings
+title: SJK UI: First setup and Update as pop-up cards
+change: First setup opens as a card over the map; its rows scroll inside it.
+change: Don't show at start is a tick at the card's foot, always visible; Update is a card too.
+test: Start the game (or console: firstsetup): the First setup card, the tick at its foot.
+test: Scroll the rows (wheel, Down): the tick stays put. Click the tick, restart: no card.
+test: Up from the first row reaches the tick; Enter flips it. All settings: Settings screen.
+test: Done or Esc: back to the main page. Menu style Classic in the card, then SJK: card again.
+test: Console: update. A card with Close and the gold action; Esc closes it.
+note: Resolution and HUD pickers opened from the card are untested; tell Claude if they look off.
+
 [camera-ejk-default]
 status: personal
 area: Gameplay
