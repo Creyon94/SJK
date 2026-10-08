@@ -7,6 +7,48 @@ SJK currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## SJK UI: Report a bug and its dialogs
+
+SJK-only branch `personal/sjk-ui-report` (08/10/2026, based on `5daf065`,
+Windows 11): Sol asked to restyle Report a bug in the SJK UI. With the SJK UI's
+menus the text dialog, which serves Report a bug, a player report's few words
+and the world note, is the UI's pop-up card
+([text_dialog_sjk.rs](../crates/sjk-viewer/src/text_dialog_sjk.rs),
+[SJK UI](sjk-ui.md#report-a-bug-and-its-dialogs)); the classic+ and modern looks
+are unchanged. A report's card stays after Send: "Sending...", then the hub's
+number, or why it was not sent (the identity off, the hub out of reach, its
+refusal) with Edit back to the kept text. The centre print carries the outcome
+only when no card waits for it (the other looks, or the card closed first). A
+note still closes on Send, as its screenshot is of the next frame. Fixed with
+it: the 2D pass now runs while the dialog is open without a session or menu (a
+note on a map explored alone was not drawn); each layer of the 2D pass starts
+alpha blended (a layer ending on the emblem's additive light, as the SJK UI's
+main page does, drew the next layer's shapes additively, so a card's glass and
+scrim over it added nothing); the pointer reaches the dialog before the menus,
+as the keys did; the client menu is not drawn under the card.
+
+Verified: unit tests (`text_dialog::sjk`: Tab and Shift+Tab, Enter and Space on
+each control, typing and Backspace; the card waiting only for its own report's
+answer, a second answer refused, Edit keeping the text, Escape while sending
+leaving the answer to the centre print; a note and the classic and modern looks
+closing on Send, and a card waiting dropped when the look changes; the pointer
+reaching the field, Send, Cancel, Close, Done and Edit by their tokens; every
+kind, state and focus within the canvas at 1080 lines, 4K and 4:3, in the
+families and in Inter; the text wrapping inside the field; a long headline cut;
+`ui_renderer::art`: a layer never inheriting the light blend), the full
+`cargo test --release -p sjk-viewer` (1059 passed), and the world shots
+(`duel6_sjk_report`, looked at: the empty report, a long text, a refusal,
+sending, sent, not sent through the client's own path with the identity off,
+a player report, a note, a 4:3 window, and over the main page, where the layer
+fix was seen to work). `cargo clippy --locked --workspace --all-targets` adds no
+warning in the files touched.
+
+Not verified: no game was started, so the keys, the pointer, Ctrl+V, the
+caret's blink and the cursor were not tried in a running client; nothing was
+sent to the hub (the shots' identity is off; Sent is a made-up answer), so the
+real hub's answers and how long Sending shows are untested; the note card over a
+real selection's highlight; the layer fix on screens other than these shots.
+
 ## Nameplates: drain and the verified badge
 
 SJK-only branch `personal/nameplate-drain` (08/10/2026, based on `27696e5`,

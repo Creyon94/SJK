@@ -139,7 +139,14 @@ pub(crate) fn texture_switches(lists: &[&DrawList]) -> usize {
         source: Source::Atlas,
     }];
     let mut vertices = 0;
-    for command in lists.iter().flat_map(|list| list.commands()) {
+    let commands = lists
+        .iter()
+        .flat_map(|list| std::iter::once(None).chain(list.commands().iter().map(Some)));
+    for command in commands {
+        let Some(command) = command else {
+            art::begin_layer(&mut runs, vertices);
+            continue;
+        };
         let texture = match command {
             DrawCommand::TexturedQuad { texture, .. }
             | DrawCommand::TexturedQuadUv { texture, .. } => *texture,
@@ -420,7 +427,15 @@ impl ShapeRenderer {
         let mut opacity_depth = 0_usize;
         let mut clips = [Rect::new(0.0, 0.0, viewport[0], viewport[1]); 8];
         let mut clip_depth = 0_usize;
-        for command in draw_lists.into_iter().flat_map(DrawList::commands) {
+        let commands = draw_lists.into_iter().flat_map(|list| {
+            // Marks where a layer begins; `None` is never a command.
+            std::iter::once(None).chain(list.commands().iter().map(Some))
+        });
+        for command in commands {
+            let Some(command) = command else {
+                art::begin_layer(&mut self.runs, self.vertices.len());
+                continue;
+            };
             match *command {
                 DrawCommand::SolidRect { rect, color }
                 | DrawCommand::RoundedRect {

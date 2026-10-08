@@ -163,10 +163,18 @@ impl crate::GpuState {
         }
         self.in_game_menu.set_style(style, art);
         let classic = style.classic_screens();
-        self.text_dialog.set_look(classic, art);
+        let sjk = style == MenuStyle::Sjk;
+        // The report and note dialog is the SJK UI's card with its menus.
+        self.text_dialog.set_look(
+            match style {
+                MenuStyle::Sjk => crate::text_dialog::Look::Sjk,
+                MenuStyle::Classic => crate::text_dialog::Look::Classic,
+                MenuStyle::Modern => crate::text_dialog::Look::Modern,
+            },
+            art,
+        );
         if let Some(console) = &mut self.console {
             // What's new, Update and Identity have the SJK UI's own look.
-            let sjk = style == MenuStyle::Sjk;
             console.set_browser_art(art);
             console.set_changelog_look(classic && !sjk, art);
             console.set_credits_look(classic);

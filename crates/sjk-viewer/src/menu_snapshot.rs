@@ -1277,7 +1277,14 @@ fn text_dialog(shots: &Snapshot, art: ArtSet) {
     for classic in [false, true] {
         let suffix = if classic { "-classic" } else { "" };
         let mut dialog = TextDialog::default();
-        dialog.set_look(classic, art);
+        dialog.set_look(
+            if classic {
+                crate::text_dialog::Look::Classic
+            } else {
+                crate::text_dialog::Look::Modern
+            },
+            art,
+        );
         let mut vertices = Vec::new();
         dialog.append_launcher(&mut vertices, &shots.font.font, VIEWPORT);
         shots.save(

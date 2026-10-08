@@ -1664,7 +1664,9 @@ glance at the scoreboard would not: no health, Force or position.
   the screen with the subject, a text box of six wrapped lines (any printable text, up to
   500 characters), a character count, Send and Cancel; Tab moves between them. With the
   classic menus it takes the classic+ look of the in-game pop-ups, eight lines in a
-  retail list box ([identity.md](identity.md#bug-reports)). As it is typed the text
+  retail list box ([identity.md](identity.md#bug-reports)); with the SJK UI it is its
+  pop-up card over the scene, darkened by half so the selection still shows round it
+  ([sjk-ui.md](sjk-ui.md#report-a-bug-and-its-dialogs)). As it is typed the text
   keeps the bug reports' alphabet (letters, digits, spaces and `. , ! ? ' - : ( )`), and
   Send needs 3 characters with 2 letters. Enter or
   Send appends the note to `notes.jsonl` (one JSON object: map, UTC time,

@@ -8,10 +8,12 @@
 //! names the player as they were when chosen (name, slot, the key the hub's presence
 //! list shows for them), the server's address and name, the map and the match clock;
 //! the hub checks everything again and limits how often a key may report and how often
-//! one player may be reported. The outcome comes back as a centre print.
+//! one player may be reported. The outcome comes back on the SJK UI's card while it
+//! waits for it, else as a centre print.
 
 use crate::ingame_menu::Page;
 use crate::ingame_menu::players::{self, Action, Gate};
+use crate::text_dialog::Report;
 use sjk_client::ServerEventKind;
 use sjk_identity::Category;
 use sjk_protocol::InfoString;
@@ -128,21 +130,29 @@ impl crate::GpuState {
     }
 
     /// The dialog's Send: check the text and hand the report to the identity service.
+    /// The outcome shows on the SJK UI's card while it waits for it, else as a centre
+    /// print.
     pub(crate) fn send_player_report(&mut self, category: Category, text: &str) {
-        let message = match self.player_report(category, text) {
-            Err(why) => format!("Player report not sent: {why}"),
+        let refused = |why: String| (format!("Player report not sent: {why}"), Some(why));
+        let (message, failure) = match self.player_report(category, text) {
+            Err(why) => refused(why),
             Ok(report) => {
                 if crate::player_identity::player_report(report) {
                     self.in_game_menu.players.waiting = true;
-                    "Sending the player report...".to_owned()
+                    ("Sending the player report...".to_owned(), None)
                 } else {
-                    "Player report not sent: the SJK identity is off (cl_identity 1 turns it on)"
-                        .to_owned()
+                    refused(crate::bug_report::IDENTITY_OFF.to_owned())
                 }
             }
         };
-        self.chat
-            .receive(ServerEventKind::CenterPrint, message, None, Instant::now());
+        let shown = match failure {
+            Some(why) => self.text_dialog.answer(Report::Player, Err(why)),
+            None => self.text_dialog.sending(Report::Player),
+        };
+        if !shown {
+            self.chat
+                .receive(ServerEventKind::CenterPrint, message, None, Instant::now());
+        }
     }
 
     /// The report for the chosen player, with where and when, or why it cannot go.
@@ -222,8 +232,15 @@ impl crate::GpuState {
             format!("Player report not sent: {}", outcome.message)
         };
         crate::log::progress(format_args!("{message}"));
-        self.chat
-            .receive(ServerEventKind::CenterPrint, message, None, Instant::now());
+        let answer = if outcome.sent {
+            Ok(outcome.message)
+        } else {
+            Err(outcome.message)
+        };
+        if !self.text_dialog.answer(Report::Player, answer) {
+            self.chat
+                .receive(ServerEventKind::CenterPrint, message, None, Instant::now());
+        }
     }
 }
 

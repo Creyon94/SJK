@@ -1341,7 +1341,8 @@ mod tests {
                     let name = format!("duel6-ingame-{style}-{name}");
                     println!("{}", shoot(&mut gpu, 16, &name).display());
                 }
-                // The SJK UI's dialog is the classic one (`classic_screens`).
+                // The SJK UI's card has its own shots (`duel6_sjk_report`), without
+                // the menu under it, as in a match.
                 if style == "sjk" {
                     continue;
                 }
@@ -1360,6 +1361,104 @@ mod tests {
                 let name = format!("duel6-ingame-{style}-report-dialog");
                 println!("{}", shoot(&mut gpu, 8, &name).display());
             }
+        });
+    }
+
+    /// Report a bug and the dialogs sharing it as the SJK UI's card. Over duel6 from a
+    /// player's view with no menu up, as in a match (no server, so no HUD): the empty
+    /// report, a long text typed, a text refused, sending, sent, not sent (the real
+    /// path: the shots' identity is off, so nothing reaches the hub), a player report,
+    /// a world note; a 4:3 window; and over the menu map with the main page under it.
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_sjk_report() {
+        use crate::text_dialog::{Kind, Report};
+        const TYPED: &str = "The door by the tower's foot flickers when I walk through it, and the light behind it goes black for a second. I expected it to open smoothly, as it does on ffa3. It happens every time on this server.";
+        on_big_stack(|| {
+            let cvars = [
+                ("ui_menuStyle", "sjk"),
+                (crate::settings::quick::HIDE_CVAR, "1"),
+            ];
+            // No client menu: a disconnected game client would show its console
+            // full screen.
+            let in_match = |size: [u32; 2]| {
+                let (mut gpu, profile) = open("maps/mp/duel6.bsp", size, None, &cvars)?;
+                let shots = menu_backdrop::tour_for("Yavin Training Grounds").expect("the tour");
+                let (yaw, pitch) = look(shots[0].from, shots[0].at);
+                aim(&mut gpu, shots[0].from, yaw, pitch);
+                if let Some(console) = gpu.console.as_mut() {
+                    console.close_for_connection();
+                }
+                let _ = frame(&mut gpu, 60);
+                Some((gpu, profile))
+            };
+            let Some((mut gpu, _profile)) = in_match([1920, 1080]) else {
+                return;
+            };
+            // Nothing may reach the hub: the shots' profile never starts the service.
+            assert!(crate::player_identity::snapshot().is_none());
+            let report = |gpu: &mut GpuState, name: &str, text: &str, message: &str| {
+                gpu.text_dialog.open(Kind::Report);
+                gpu.text_dialog.preview(text, false, message);
+                gpu.text_dialog.caret_for_shot();
+                println!("{}", shoot(gpu, 6, name).display());
+            };
+            report(&mut gpu, "duel6-report", "", "");
+            report(&mut gpu, "duel6-report-typed", TYPED, "");
+            report(
+                &mut gpu,
+                "duel6-report-refused",
+                "door",
+                "a report needs at least 10 characters",
+            );
+            // Sent: the card waits, then shows what the hub stored it as.
+            gpu.text_dialog.preview(TYPED, true, "");
+            assert!(matches!(
+                gpu.text_dialog.send_for_shot(),
+                crate::text_dialog::Action::Send(..)
+            ));
+            println!("{}", shoot(&mut gpu, 6, "duel6-report-sending").display());
+            assert!(
+                gpu.text_dialog
+                    .answer(Report::Bug, Ok("report #12".to_owned()))
+            );
+            println!("{}", shoot(&mut gpu, 6, "duel6-report-sent").display());
+            // Not sent, through the client's own path: the identity is off.
+            gpu.text_dialog.open(Kind::Report);
+            gpu.text_dialog.preview(TYPED, true, "");
+            let action = gpu.text_dialog.send_for_shot();
+            gpu.apply_dialog_action(action);
+            assert!(gpu.text_dialog.is_open(), "the card shows why");
+            println!("{}", shoot(&mut gpu, 6, "duel6-report-failed").display());
+            gpu.text_dialog.open(Kind::PlayerReport {
+                subject: "Kyle: Cheating".to_owned(),
+                category: sjk_identity::Category::Cheating,
+            });
+            gpu.text_dialog
+                .preview("Speed hacking and flying through walls all match", true, "");
+            println!("{}", shoot(&mut gpu, 6, "duel6-report-player").display());
+            gpu.text_dialog.open(Kind::Note {
+                subject: "Wall: textures/yavin/wall_3 (lightmapped, BSP surface 812) on mp/duel6"
+                    .to_owned(),
+            });
+            gpu.text_dialog.caret_for_shot();
+            println!("{}", shoot(&mut gpu, 6, "duel6-report-note").display());
+            drop(gpu);
+            let Some((mut gpu, _profile)) = in_match([1440, 1080]) else {
+                return;
+            };
+            report(&mut gpu, "duel6-report-4x3", TYPED, "");
+            drop(gpu);
+            // Over the menu map, the main page under the card.
+            let menu = menu::ClientMenu::new(true, String::new());
+            let Some((mut gpu, _profile)) =
+                open("maps/mp/duel6.bsp", [1920, 1080], Some(menu), &cvars)
+            else {
+                return;
+            };
+            let _ = frame(&mut gpu, 20);
+            gpu.ui_epoch -= std::time::Duration::from_millis(2_000);
+            report(&mut gpu, "duel6-report-menu", TYPED, "");
         });
     }
 

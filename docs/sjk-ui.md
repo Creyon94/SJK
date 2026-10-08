@@ -9,9 +9,10 @@ had its version); [classic+](classic-plus.md) stays a choice and keeps getting
 fixes. A profile saved with the old default `classic` moves to `sjk` once
 ([client.md](client.md#menu-style)).
 
-Status (07/10/2026): the main page, Settings (with the key bindings),
+Status (08/10/2026): the main page, Settings (with the key bindings),
 Character, What's new, Update, Identity, Servers (the server browser), the
-loading screen, the scoreboard and the in-game menu are done. Every other
+loading screen, the scoreboard, the in-game menu and the report and note dialog
+(Report a bug) are done. Every other
 screen opens in its classic+ version (`MenuStyle::classic_screens`), which
 covers the map as the classic style does.
 Other styles: First setup's first row, Settings > Interface > Menu style, or
@@ -650,7 +651,8 @@ page's 16:9 frame.
   - Report a player: the seven reasons on the arc with what each covers, and Back;
     the player's card stays on the right. Without the right to report, the
     reasons are dimmed and passed over, and Back's line says why. A reason opens
-    the text dialog; Escape returns to the player's row.
+    the report card ([Report a bug](#report-a-bug-and-its-dialogs)); Escape
+    returns to the player's row.
   - Team: Join the game and Spectate, or in a team game Auto-join, Red team,
     Blue team (each with its colour and players) and Spectate; the side the
     player is on is quiet ("Your team", "You are watching") and passed over by
@@ -686,6 +688,60 @@ in a live preview, as there is no stage in a match: see Character). Shot control
 opens the shot panel in its own look. Server info and Controls have no entries:
 the card shows the server and Settings holds the key bindings. The Report a bug
 button the other looks put at the bottom is left out; Sol JK's page has it.
+
+## Report a bug and its dialogs
+
+[text_dialog_sjk.rs](../crates/sjk-viewer/src/text_dialog_sjk.rs) draws the
+text dialog as the SJK UI's pop-up card (Sol's request, 08/10/2026). One dialog
+serves three things, and all three take this look with the SJK UI's menus:
+Report a bug (the in-game menu's Sol JK page), a player report's few words
+(Players, a player, a reason) and a world note (`inspect` twice,
+[client.md](client.md#player-card)). The classic+ and modern looks stay with
+their styles ([identity.md](identity.md#bug-reports)).
+
+- **Card:** 920 wide and 592 tall, centred on the frame, with the browser
+  prompts' glass, shadow and holo edge (`kit::card`), over the scene darkened
+  all over as under the other cards (78 %); a note's scene is darkened by half,
+  so the surface it is about still shows round the card. The menus and every
+  text drawn before it are left out under it.
+- **Top:** what it is in gold (Report a bug, Report a player, Note for Claude)
+  and, muted on the right, where it goes ("To the SJK team, signed with your
+  identity", "Kept on this PC with a screenshot"); the question as the headline
+  (Rajdhani 40: "What went wrong?", the player and the reason, "What should
+  change here?"), cut with an ellipsis when too long; a line or two of
+  guidance (for a note, the surface it is about).
+- **Field:** six lines of the text (Exo 2 19) wrapped by the font's width, the
+  last six of a longer text; a gold caret while it has the keyboard, lit
+  steadily while typing; "Type here" while empty; outlined white while focused.
+- **Under it:** the rules ("Letters, digits, spaces and . , ! ? ' - : ( )
+  only") and the count against the limit (600, 300 for a player report, 500 for
+  a note; gold at the limit), then why the last Send was refused, in gold.
+- **Foot:** Cancel and Send (gold, dimmed until the text would pass the hub's
+  rules; Enter or a click then says why).
+- **Keys:** under the card, bottom right: Enter send, Ctrl V paste (while the
+  field has the keyboard), Tab next, Esc cancel.
+
+After Send a report keeps its card; the other looks close and show the outcome
+as a centre print, as the card does when it was closed first:
+
+- **Sending:** "Sending...", a turning gold arc and "Waiting for the SJK hub" at
+  the foot, the text dimmed, Close.
+- **Sent:** "Sent. Thank you!" over the hub's number ("The SJK team has it as
+  report #12."), a gold tick, Done (gold).
+- **Not sent:** "Not sent" over the reason as a sentence: the identity off
+  ("The SJK identity is off (cl_identity 1 turns it on)"), the hub out of reach
+  or its refusal (a quota); "Your text is kept", Edit (gold: back to the text as
+  it was) and Close.
+
+A note closes on Send in every look, since its screenshot is taken of the next
+frame; its outcome stays a centre print and a console line.
+
+Keys: Tab and Shift+Tab move between the field, Send and Cancel; Enter sends
+(on Cancel, cancels); Space acts on a button and types in the field; Escape
+cancels. After Send, Enter or Space takes the focused button (Close, Done or
+Edit), Tab moves between Edit and Close, Escape closes. The pointer: a click on
+the field gives it the keyboard (on a failed report's text, edits it), on a
+button acts.
 
 ## Implementation
 
@@ -781,6 +837,25 @@ button the other looks put at the bottom is left out; Sol JK's page has it.
   `duel6_quick_wheel_settings` its Settings category (pages, a choice, the
   catalogue, a custom choice, a new page) and the editor over the classic+ and
   modern settings.
+- The report card is the text dialog's state with another look
+  (`text_dialog::Look::Sjk`, set from `ui_menuStyle` by `sync_menu_style`): its
+  text, focus, pointer tokens and the hub's rules are the other looks'. A
+  report's card holds a `Phase` (writing, sending, sent, failed); the senders
+  (`send_bug_report`, `send_player_report`) and their pollers hand it the
+  identity service's outcome with `TextDialog::answer`, which shows it when
+  the card waits for it and else leaves the centre print to them.
+  `GpuState::append_text_dialog` clears every text batch before it (the Inter
+  and classic HUD vertices, `GameFonts::clear_text`) and routes the card's text
+  to the families; the client menu's draw list is left out under it, as under
+  a new medal. Two fixes came with it: the 2D pass now runs while the dialog is
+  open without a session or menu (a note written on a map explored alone was
+  not drawn), and each layer of the 2D pass starts alpha blended
+  (`ui_renderer::art::begin_layer`): a layer ending on the emblem's light, as
+  the main page does, drew the next layer's shapes additively. The pointer
+  reaches the dialog before the menus, as the keys did. `duel6_sjk_report`
+  renders it: the empty report, a long text, a refusal, sending, sent, not
+  sent (the identity off, through the client's own path), a player report, a
+  note, a 4:3 window and over the main page.
 - The quick wheel's ring ([ring.rs](../crates/sjk-viewer/src/quick_wheel/ring.rs))
   is drawn on the HUD's layer with a canvas of its own, its text routed to the
   families when they are loaded (`quick_wheel::append`), else to Inter; it does
@@ -791,7 +866,8 @@ button the other looks put at the bottom is left out; Sol JK's page has it.
 The next screens, in order; each gets snapshot tests before it replaces its
 classic version:
 
-1. The dialogs (the report box, the import page) and Credits.
+1. The dialogs (the import page) and Credits. The report box is done
+   (08/10/2026, [Report a bug](#report-a-bug-and-its-dialogs)).
 2. Settings' search finding key bindings too (it finds settings; Key bindings'
    finds keys).
 3. Create a game.

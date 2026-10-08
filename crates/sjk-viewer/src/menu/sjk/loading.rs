@@ -857,8 +857,8 @@ fn draw_row(ui: &mut MenuCanvas, frame: &Frame, view: &View<'_>) {
 }
 
 /// The activity mark centred on (`x`, `y`): a faint ring with a gold arc
-/// slowly turning round it.
-fn activity(ui: &mut MenuCanvas, frame: &Frame, x: f32, y: f32, seconds: f64) {
+/// slowly turning round it (the report card's while it sends, too).
+pub(crate) fn activity(ui: &mut MenuCanvas, frame: &Frame, x: f32, y: f32, seconds: f64) {
     let s = frame.s;
     let center = frame.point(x, y);
     push(

@@ -326,9 +326,38 @@ pub(super) fn switch(runs: &mut Vec<Run>, start: usize, source: Source) -> bool 
     true
 }
 
+/// Begin the next layer (draw list) at vertex `start`. Its untextured shapes
+/// stay in the current run, so a layer that ended on the emblem's light
+/// would draw the next one's additively: a pop-up card's dark glass and scrim
+/// over the SJK UI's main page added nothing. Back to the alpha-blended atlas.
+pub(super) fn begin_layer(runs: &mut Vec<Run>, start: usize) {
+    if runs.last().is_some_and(|run| run.source.additive()) {
+        let _ = switch(runs, start, Source::Atlas);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn a_layer_never_inherits_the_light_blend() {
+        let mut runs = vec![Run {
+            start: 0,
+            source: Source::Atlas,
+        }];
+        assert!(switch(&mut runs, 6, Source::Emblem(EmblemLayer::Lights)));
+        begin_layer(&mut runs, 12);
+        assert_eq!(
+            runs.last().map(|run| (run.start, run.source)),
+            Some((12, Source::Atlas))
+        );
+        // An alpha-blended run carries on.
+        assert!(switch(&mut runs, 18, Source::Art(ArtPiece::Background)));
+        begin_layer(&mut runs, 24);
+        assert_eq!(runs.len(), 4);
+        assert_eq!(runs[3].source, Source::Art(ArtPiece::Background));
+    }
 
     #[test]
     fn runs_switch_only_on_a_new_source() {

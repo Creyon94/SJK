@@ -1621,6 +1621,8 @@ impl GpuState {
         let console_covers_frame = self.console_covers_frame();
         // A new medal shows over the menus, which are not drawn under it.
         let medal_popup = self.prepare_medal_popup(console_covers_frame);
+        // Nor under the SJK UI's report card, as under its other cards.
+        let report_card = self.text_dialog.is_open() && self.text_dialog.is_sjk();
         self.text_vertices.clear();
         self.classic_text_vertices.clear();
         game_font::prepare(self);
@@ -1724,7 +1726,7 @@ impl GpuState {
         if let Some(menu) = self
             .client_menu
             .as_mut()
-            .filter(|_| !console_covers_frame && !medal_popup)
+            .filter(|_| !console_covers_frame && !medal_popup && !report_card)
         {
             if menu.sjk_screen() {
                 // The SJK UI draws in its own families once they are loaded.
@@ -1758,8 +1760,7 @@ impl GpuState {
             self.text_dialog.append_launcher(vertices, font, viewport);
         }
         if self.text_dialog.is_open() {
-            let (vertices, font) = self.game_fonts.menu(&mut self.text_vertices, &self.ui_font);
-            self.text_dialog.append(vertices, font, viewport);
+            self.append_text_dialog(viewport);
         } else {
             self.world_notes.composer_closed();
         }
@@ -1798,7 +1799,7 @@ impl GpuState {
                 .and_then(|menu| menu.backdrop_draw_list()),
             self.client_menu
                 .as_ref()
-                .filter(|_| !console_covers_frame && !medal_popup)
+                .filter(|_| !console_covers_frame && !medal_popup && !report_card)
                 .and_then(|menu| menu.draw_list()),
             self.console.as_ref().map(|console| console.draw_list()),
             launcher.then(|| self.text_dialog.launcher_draw_list()),
