@@ -531,6 +531,14 @@ impl ViewerConsole {
         self.force_profile.set_server_forcepowers(value);
     }
 
+    /// The Force profile the server plays the local player with: the one negotiated
+    /// for it, else the player's own `forcepowers`.
+    pub(crate) fn own_forcepowers(&self) -> Option<&str> {
+        self.force_profile
+            .server_forcepowers()
+            .or_else(|| self.text_value("forcepowers"))
+    }
+
     /// Refresh `serverinfo` and profile-specific completion from the active session.
     pub(crate) fn set_server_info(&mut self, session: &ClientSession) {
         // Each connection starts with the base userinfo payload, without teamoverlay.

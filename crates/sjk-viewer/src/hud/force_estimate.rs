@@ -14,7 +14,9 @@
 //!   100 ms and lightning every 50 ms while on; a force jump costs half its level's
 //!   price (the real cost scales with the jump's charge, which is not sent);
 //! - a push or pull (seen as its torso animation starting) and a saber throw cost
-//!   their price.
+//!   their price;
+//! - drain costs its shots and takes from its victims, who refill nothing for 800 ms
+//!   after each ([`super::drain_estimate`]).
 //!
 //! The players' power levels are not sent either, so the pool is kept as a range
 //! ([`Range`]): the low bound pays every power at its dearest level, the high bound
@@ -22,9 +24,10 @@
 //! can only start when the pool holds its price, so each one seen raises the low
 //! bound to that price. A force jump costs anything up to its price, and while the
 //! pace has not been measured the bounds refill a little slower and faster than the
-//! guess. Being drained (`EV_FORCE_DRAINED`) takes a few points; saber blocks in some
-//! mods and pickups are not seen. The pool refills while a player idles, so the
-//! range closes within about twenty seconds, and a respawn resets it to full.
+//! guess. Saber blocks in some mods and pickups are not seen. The pool refills while
+//! a player idles, so the range closes within about twenty seconds, and a respawn
+//! resets it to full.
+use super::drain_estimate::Effect;
 use super::estimate::Range;
 use sjk_game_jka::force_powers::{
     FORCE_POWER_MAX, FORCE_POWER_NEEDED, FP_ABSORB, FP_DRAIN, FP_GRIP, FP_LEVITATION, FP_LIGHTNING,
@@ -41,13 +44,13 @@ pub(super) const DEFAULT_REGEN_MILLIS: f32 = 200.0;
 const GAP_MILLIS: i32 = 1_500;
 /// Share of a force jump's top price the guess charges at its start.
 const JUMP_SHARE: f32 = 0.5;
+/// While drain stays on the pool held 25 before the frame's shot of 5
+/// (`WP_ForcePowerRun` stops it below 25).
+const DRAINING_FLOOR: f32 = 20.0;
 /// How much slower and faster than the guess the bounds refill while the pace is
 /// only assumed (not measured from the local pool).
 const SLOW_PACE: f32 = 1.5;
 const FAST_PACE: f32 = 0.75;
-/// What one `EV_FORCE_DRAINED` (at most every 400 ms) takes: up to 4 points a
-/// server frame at drain level 3; the guess is a level-3 drain for 100 ms.
-const DRAINED: (f32, f32, f32) = (-16.0, -8.0, -2.0);
 /// Clients tracked.
 const CLIENTS: usize = 32;
 
@@ -68,6 +71,8 @@ pub(super) struct Observation {
     pub(super) regen_multiplier: f32,
     /// The player is dead.
     pub(super) dead: bool,
+    /// What drain shots did to the pool since the last observation.
+    pub(super) drain: Effect,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -75,6 +80,8 @@ struct Track {
     pool: Range,
     previous: Observation,
     seen: bool,
+    /// Until when each bound's refill is held back (low, guess, high).
+    held: [i32; 3],
 }
 
 /// Animation numbers of the instant powers.
@@ -196,30 +203,20 @@ impl Estimator {
         (track.seen && !track.previous.dead).then(|| track.pool.share(MAX_POOL))
     }
 
-    /// `slot` was drained (`EV_FORCE_DRAINED`).
-    pub(super) fn drained(&mut self, slot: u16) {
-        if let Some(track) = self.tracks.get_mut(usize::from(slot))
-            && track.seen
-        {
-            let (low, best, high) = DRAINED;
-            track.pool = track.pool.add(low, best, high).clamp(0.0, MAX_POOL);
-        }
-    }
-
-    /// Points regained over `elapsed` milliseconds at `multiplier` times the
-    /// pace: the low bound's, the guess's and the high bound's.
-    fn regained(&self, elapsed: f32, multiplier: f32) -> (f32, f32, f32) {
-        let points = |millis: f32| elapsed / millis * multiplier.max(1.0);
-        let guess = points(self.regen_millis);
-        if self.measured {
-            (guess, guess, guess)
+    /// Points regained at `multiplier` times the pace over each bound's `elapsed`
+    /// milliseconds: the low bound's, the guess's and the high bound's.
+    fn regained(&self, elapsed: [f32; 3], multiplier: f32) -> (f32, f32, f32) {
+        let points = |elapsed: f32, millis: f32| elapsed / millis * multiplier.max(1.0);
+        let (slow, fast) = if self.measured {
+            (1.0, 1.0)
         } else {
-            (
-                points(self.regen_millis * SLOW_PACE),
-                guess,
-                points(self.regen_millis * FAST_PACE),
-            )
-        }
+            (SLOW_PACE, FAST_PACE)
+        };
+        (
+            points(elapsed[0], self.regen_millis * slow),
+            points(elapsed[1], self.regen_millis),
+            points(elapsed[2], self.regen_millis * fast),
+        )
     }
 
     /// Take one snapshot's view of `slot`. Observations must come in server-time order;
@@ -240,6 +237,7 @@ impl Estimator {
                 pool: Range::exact(MAX_POOL),
                 previous: now,
                 seen: true,
+                held: [i32::MIN; 3],
             };
             return;
         }
@@ -251,18 +249,30 @@ impl Estimator {
         let elapsed_f = elapsed as f32;
         if elapsed > GAP_MILLIS {
             // Unseen: the guess idled, but nothing says the low bound did not spend it.
-            let (_, best, high) = self.regained(elapsed_f, now.regen_multiplier);
+            let (_, best, high) = self.regained([elapsed_f; 3], now.regen_multiplier);
             track.pool = track.pool.add(0.0, best, high);
         } else {
             let cost = running_cost(before.active, elapsed_f);
             track.pool = track.pool.add(-cost, -cost, -cost);
             if regenerates(&before) {
-                let (low, best, high) = self.regained(elapsed_f, before.regen_multiplier);
+                // A drain shot holds the refill back until its time is up.
+                let open = track
+                    .held
+                    .map(|until| now.time.saturating_sub(before.time.max(until)).max(0) as f32);
+                let (low, best, high) = self.regained(open, before.regen_multiplier);
                 track.pool = track.pool.add(low, best, high);
             }
             // The pool tops out before what began in this interval is paid.
             track.pool = track.pool.at_most(MAX_POOL);
             track.pool = pay_starts(track.pool, &before, &now, &animations);
+        }
+        let [low, best, high] = now.drain.loss;
+        track.pool = track.pool.add(-low, -best, -high);
+        for (held, until) in track.held.iter_mut().zip(now.drain.hold) {
+            *held = (*held).max(until);
+        }
+        if now.active & (1 << FP_DRAIN) != 0 {
+            track.pool = track.pool.at_least(DRAINING_FLOOR);
         }
         track.pool = track.pool.clamp(0.0, MAX_POOL);
         track.previous = now;
@@ -330,7 +340,7 @@ fn pay_starts(
         match power {
             // Its cost grows with the charge, which is not sent.
             FP_LEVITATION => pool.add(-dearest, -guess * JUMP_SHARE, 0.0),
-            // Streams and grip are paid by the running cost.
+            // Grip is paid by the running cost, drain by its shots.
             FP_GRIP | FP_DRAIN => pool,
             _ => pool.add(-dearest, -guess, -cheapest),
         }
@@ -370,6 +380,14 @@ mod tests {
 
     fn with(mut observation: Observation, power: usize) -> Observation {
         observation.active |= 1 << power;
+        observation
+    }
+
+    fn drained(mut observation: Observation, loss: [f32; 3], hold: i32) -> Observation {
+        observation.drain = Effect {
+            loss,
+            hold: [hold; 3],
+        };
         observation
     }
 
@@ -563,14 +581,30 @@ mod tests {
     }
 
     #[test]
-    fn being_drained_lowers_the_pool() {
+    fn drain_shots_take_from_the_pool_and_hold_its_refill() {
+        let mut estimator = Estimator::default();
+        estimator.set_regen_millis(Some(200.0), true);
+        estimator.observe(3, at(0));
+        estimator.observe(3, drained(at(50), [4.0, 4.0, 2.0], 850));
+        assert!((percent(&estimator) - 96.0).abs() < 0.01);
+        assert_eq!(bounds(&estimator), (96.0, 98.0));
+        // Nothing comes back until 800 ms after the shot, then a point every 200 ms.
+        estimator.observe(3, at(850));
+        assert!((percent(&estimator) - 96.0).abs() < 0.01);
+        estimator.observe(3, at(1_250));
+        assert!((percent(&estimator) - 98.0).abs() < 0.01);
+    }
+
+    #[test]
+    fn a_drainer_keeps_what_its_drain_needs() {
         let mut estimator = Estimator::default();
         estimator.observe(3, at(0));
-        estimator.drained(3);
-        assert!((percent(&estimator) - 92.0).abs() < 0.01);
-        assert_eq!(bounds(&estimator), (84.0, 98.0));
-        estimator.drained(9);
-        assert_eq!(estimator.ratio(9), None);
+        // More shots counted than it could pay: the drain would have stopped under 25.
+        estimator.observe(3, drained(with(at(500), FP_DRAIN), [120.0; 3], 1_000));
+        assert_eq!(bounds(&estimator), (20.0, 20.0));
+        // Once it stops, nothing says it kept anything.
+        estimator.observe(3, drained(at(550), [5.0; 3], 1_050));
+        assert_eq!(bounds(&estimator), (15.0, 15.0));
     }
 
     #[test]

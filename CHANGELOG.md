@@ -21,6 +21,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- Nameplates count Force drain: the Force bar of whoever you (or anyone) drain drops shot by shot and stops refilling for a moment, and drainers pay for their drain. The verified tick now sits level with the name _(Sol)_
 - The quick wheel has pages: hold Q, then scroll or left and right click to go from General to Weather and any page you add. Settings > Quick wheel (Interface > Quick wheel pages with the classic and modern menus) adds, names, orders and removes pages and picks each page's choices from SJK's actions or your own console commands. The wheel now has the SJK UI's look _(Sol)_
 - SJK UI First setup is a pop-up over the map: its settings scroll inside the card, and "Don't show at start" is a tick always in view at its foot, beside All settings and Done _(Sol)_
 - SJK UI Update is a pop-up card too: the version, what the check found, the download's progress, and Release notes, Check again, Close and Install along its foot _(Sol)_

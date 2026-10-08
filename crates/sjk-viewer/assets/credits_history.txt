@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 08/10/2026 | - | Nameplates: drain takes from its victims; verified tick level with the name
+- c873b80 |  | Nameplates: drain takes from its victims; verified tick level with the name
 + 08/10/2026 | - | Quick wheel pages, a Settings editor and the SJK look
 - 3fbf252 |  | Quick wheel: pages, a Settings editor and the SJK UI's look
 + 08/10/2026 | - | SJK UI: First setup and Update as pop-up cards
