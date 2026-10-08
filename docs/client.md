@@ -1853,8 +1853,10 @@ towards one and let go to run it. The wheel has pages (General and Weather unles
 the player changed them); while it is open, the mouse wheel and buttons change
 page. Letting go with the mouse still near the middle, or Escape, runs nothing;
 opening the console, chat or a menu closes the wheel. While it is open the mouse
-moves its pointer instead of the view and the crosshair hides; the movement keys
-keep working. A choice is the console command it stands for, so it does exactly
+moves its pointer instead of the view and the HUD steps aside as `cg_drawHud 0`
+would have it (status, weapon, timers, vote and kill lines, crosshair and the
+game-data HUD; chat and nameplates stay, `QuickWheel::hides_hud`); the movement
+keys keep working. A choice is the console command it stands for, so it does exactly
 what typing it would.
 
 ### Binds and pages

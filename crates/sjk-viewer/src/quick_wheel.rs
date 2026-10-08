@@ -145,6 +145,13 @@ impl QuickWheel {
         self.open.is_some()
     }
 
+    /// While the wheel is open the HUD steps aside, as `cg_drawHud 0` would
+    /// have it (Sol, 08/10/2026): the status, weapon, timers, crosshair and the
+    /// game-data HUD hide; chat and nameplates stay.
+    pub(crate) fn hides_hud(&self) -> bool {
+        self.is_open()
+    }
+
     /// Open on page `page` of `pages` with the pointer in the middle; when the
     /// wheel is already open (a second wheel key), change to that page instead.
     pub(crate) fn open(&mut self, pages: Vec<ShownPage>, page: usize, now: Instant) {
@@ -577,6 +584,20 @@ mod tests {
         assert!((distance - REACH).abs() < 0.01);
         // Pushed down after right: past the right choice, towards the bottom ones.
         assert!(matches!(wheel.highlighted(), Some(3 | 4)));
+    }
+
+    #[test]
+    fn the_hud_steps_aside_only_while_the_wheel_is_open() {
+        let now = Instant::now();
+        let mut wheel = QuickWheel::default();
+        assert!(!wheel.hides_hud());
+        wheel.open(shown(), 0, now);
+        assert!(wheel.hides_hud());
+        let _ = wheel.release();
+        assert!(!wheel.hides_hud(), "letting go brings the HUD back");
+        wheel.open(shown(), 1, now);
+        wheel.cancel();
+        assert!(!wheel.hides_hud(), "so does cancelling it");
     }
 
     #[test]

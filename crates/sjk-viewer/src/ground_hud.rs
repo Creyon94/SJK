@@ -68,11 +68,12 @@ impl GroundHud {
 /// while the ground HUD stands in for them. `time_ms` picks the demo snapshot
 /// when no live session runs.
 pub(crate) fn frame(gpu: &mut GpuState, intermission: bool, time_ms: i32) -> HudVisibility {
-    let mut visibility = if intermission || crate::menu_backdrop::hides_hud(gpu) {
-        HudVisibility::HIDDEN
-    } else {
-        HudVisibility::from_console(gpu.console.as_ref())
-    };
+    let mut visibility =
+        if intermission || crate::menu_backdrop::hides_hud(gpu) || gpu.quick_wheel.hides_hud() {
+            HudVisibility::HIDDEN
+        } else {
+            HudVisibility::from_console(gpu.console.as_ref())
+        };
     let enabled = gpu
         .console
         .as_ref()

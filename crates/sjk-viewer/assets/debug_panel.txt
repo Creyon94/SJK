@@ -1817,6 +1817,13 @@ test: Restore the default pages (Enter twice): General and Weather again, wheel.
 test: Classic and modern menus: Settings > Interface > Quick wheel pages opens the same editor.
 note: A bare +wheel bind opens the page shown last; +wheel <page> opens that page (id or name).
 
+[wheel-hides-hud]
+area: Input
+title: The HUD hides while the quick wheel is open
+change: Holding the wheel hides what HUD off hides; chat and nameplates stay.
+test: In a match, hold Q: health, ammo, timer and crosshair vanish; let go: they come back.
+test: Same with each HUD style (Game, the default, then Radial, Modern, Classic).
+
 [wheel-icons-sounds]
 area: Input
 title: Quick wheel: an icon for every choice, and sounds
