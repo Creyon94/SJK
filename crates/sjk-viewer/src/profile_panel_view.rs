@@ -4,7 +4,7 @@
 //! right; on Achievements, the board, three columns of cards.
 
 use super::*;
-use crate::achievements::{self, Category};
+use crate::achievements::medallion::{self, tint};
 use crate::menu::sjk::{
     Frame, TextTarget, color, key_hint, key_hint_width, kit, text, top_bar, wrap,
 };
@@ -44,27 +44,6 @@ const UNLOCKS_SHOWN: usize = 4;
 /// What the page says when the player holds no medal yet.
 const NO_MEDALS: &str =
     "No medals yet. The SJK team gives medals for testing, contributing and more.";
-
-/// A category's colour on the board.
-fn tint(category: Category) -> Color {
-    match category {
-        Category::Combat => color::EMBER,
-        Category::Duels => color::GOLD,
-        Category::Journeys => color::HOLO,
-        Category::Community => Color::new(0.45, 0.86, 0.62, 1.0),
-    }
-}
-
-/// The goal as a medallion reads it: `1`, `100`, `1K`, `10h`.
-fn goal_label(kind: &achievements::Kind) -> String {
-    if kind.source == achievements::Source::Client(achievements::Counter::Minutes) {
-        return format!("{}h", kind.goal / 60);
-    }
-    if kind.goal >= 1_000 && kind.goal.is_multiple_of(1_000) {
-        return format!("{}K", kind.goal / 1_000);
-    }
-    kind.goal.to_string()
-}
 
 /// Who the player is, as the Profile tab's left column says it.
 struct Who {
@@ -696,59 +675,16 @@ impl Panel {
             },
         });
         // The medallion: a ring filling with the count, gold and lit once unlocked.
-        let centre = frame.point(x + 50.0, y + CARD_HEIGHT * 0.5);
-        let radius = 31.0;
-        if done {
-            let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
-                rect: frame.rect(
-                    x + 50.0 - radius,
-                    y + CARD_HEIGHT * 0.5 - radius,
-                    radius * 2.0,
-                    radius * 2.0,
-                ),
-                radius: radius * s,
-                color: color::alpha(hue, 0.28),
-            });
-        }
-        let _ = self.ui.draw_list_mut().push(DrawCommand::Arc {
-            center: centre,
-            radius: radius * s,
-            width: 3.0 * s,
-            start: 0.0,
-            sweep: std::f32::consts::TAU,
-            color: color::alpha(color::HOLO, 0.16),
-            knockout: None,
-        });
         let fraction = standing.fraction();
-        if fraction > 0.0 {
-            let _ = self.ui.draw_list_mut().push(DrawCommand::Arc {
-                center: centre,
-                radius: radius * s,
-                width: 4.0 * s,
-                start: -std::f32::consts::FRAC_PI_2,
-                sweep: std::f32::consts::TAU * fraction,
-                color: if done { color::GOLD_BRIGHT } else { hue },
-                knockout: None,
-            });
-        }
-        text(
+        medallion::draw(
             &mut self.ui,
-            TextFamily::Display,
-            format_args!("{}", goal_label(kind)),
-            frame.rect(
-                x + 50.0 - radius,
-                y + CARD_HEIGHT * 0.5 - 16.0,
-                radius * 2.0,
-                32.0,
-            ),
-            22.0 * s,
-            if done {
-                color::GOLD_BRIGHT
-            } else {
-                color::QUIET
+            medallion::Medallion {
+                kind,
+                centre: frame.point(x + 50.0, y + CARD_HEIGHT * 0.5),
+                radius: 31.0 * s,
+                fraction,
+                done,
             },
-            FontWeight::Semibold,
-            TextAlign::Center,
         );
         let text_x = x + 98.0;
         let text_width = CARD_WIDTH - 98.0 - 18.0;
@@ -891,6 +827,7 @@ fn bio_lines(bio_text: &str, body: &UiFont, room: f32) -> Vec<String> {
 mod tests {
     use super::super::tests::snapshot;
     use super::*;
+    use crate::achievements;
     use sjk_identity::{Medal, Profile, WornName};
 
     struct Fonts {
@@ -1091,14 +1028,5 @@ mod tests {
             let _ = panel.handle_pointer(event, None);
         }
         assert_eq!(panel.tab(), Tab::Profile);
-    }
-
-    #[test]
-    fn medallions_read_the_goal() {
-        let label = |id| goal_label(achievements::find(id).unwrap());
-        assert_eq!(label("first_blood"), "1");
-        assert_eq!(label("kills_1000"), "1K");
-        assert_eq!(label("hours_100"), "100h");
-        assert_eq!(label("arsenal"), "8");
     }
 }

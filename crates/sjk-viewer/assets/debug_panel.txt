@@ -2303,13 +2303,26 @@ area: Gameplay
 title: Achievements: 21, counted in matches, synced to the hub, board in Profile
 change: Kills, saber kills, streaks, lightning/drain, pit pushes, weapons, duels, flags, maps.
 change: Counts in GameData/SJK achievements.json; sent to the hub (needs the hub update).
-change: Unlock: console line + centre print. Board: Profile > Achievements or `achievements`.
-test: On a server (not a local game), defeat someone: centre print "Achievement unlocked".
+change: Unlock: console line + pop-up. Board: Profile > Achievements or `achievements`.
+test: On a server (not a local game), defeat someone: the "Achievement unlocked" pop-up.
 test: Profile > Achievements: First Blood unlocked with today's date; Centurion 1 / 100.
 test: Play 2 min, check Profile: Time played rises; Maps played and Servers played say 1.
 test: Win a private duel: Duels won goes up. Capture a flag in CTF: Flags captured goes up.
 test: Spectate and follow someone who kills: nothing counts for you.
 note: Self-reported like claims: the hub only caps how fast counts rise. No icons yet.
+
+[achievement-toast]
+area: HUD
+title: Achievement pop-up: animated card at the top centre, secret-area chime
+change: An unlock shows a card at the top centre: medallion, name, category, what it took.
+change: Comes in with a gold ring sweep, a burst of light and sparks; holds 5 s, fades out.
+change: No input taken, no pause; queues; SP secret-area chime (cg_achievementSound 0: off).
+test: On a server, unlock First Blood: card slides in, ring sweeps, chime plays once.
+test: Keep moving and shooting while it shows: input and aim are not taken.
+test: Unlocks close together (e.g. a 10th map and a kill): cards show in turn, never overlap.
+test: Open the console during an unlock: the next card waits until it closes.
+test: cg_achievementSound 0: the card still shows, without the chime.
+note: Hub-counted unlocks (bio, bug report) show it on the menus too.
 
 # ---- Older changes ----
 

@@ -1,3 +1,4 @@
+mod achievement_toast;
 mod achievements;
 mod actor_instance;
 mod actor_load;
@@ -357,6 +358,8 @@ struct GpuState {
     text_dialog: text_dialog::TextDialog,
     /// The new medal pop-up (`medal_popup`).
     medal_popup: medal_popup::MedalPopup,
+    /// The achievement pop-up over play and the menus (`achievement_toast`).
+    achievement_toast: achievement_toast::AchievementToast,
     /// A bug report is on its way to the hub (`bug_report`).
     bug_report_waiting: bool,
     /// The outcome last shown, so the next one is told apart.
@@ -1200,6 +1203,7 @@ impl GpuState {
             world_notes: world_notes::Notes::default(),
             text_dialog: text_dialog::TextDialog::default(),
             medal_popup: medal_popup::MedalPopup::default(),
+            achievement_toast: achievement_toast::AchievementToast::default(),
             bug_report_waiting: false,
             bug_report_serial: 0,
             entity_lighting,
@@ -1780,6 +1784,9 @@ impl GpuState {
             let (vertices, font) = self.game_fonts.menu(&mut self.text_vertices, &self.ui_font);
             self.medal_popup.append(vertices, font, viewport);
         }
+        // An achievement unlocked: its pop-up over play or the menus, never input-taking.
+        let achievement_toast =
+            self.append_achievement_toast(viewport, console_covers_frame || medal_popup);
         self.world_notes.draw_highlight(viewport);
         // The menu camera tour's fades, over the menu world only.
         let world_fade = menu_backdrop::standalone_menu_visible(self)
@@ -1819,6 +1826,7 @@ impl GpuState {
                 .is_open()
                 .then(|| self.text_dialog.draw_list()),
             medal_popup.then(|| self.medal_popup.draw_list()),
+            achievement_toast.then(|| self.achievement_toast.draw_list()),
         ];
         self.ui_shapes
             .prepare_layers(&self.queue, layers.into_iter().flatten(), viewport);

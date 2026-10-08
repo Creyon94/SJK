@@ -1047,6 +1047,74 @@ like this one.",
         });
     }
 
+    /// The achievement pop-up over play on the live duel6 (no menu), at 1920x1080 and
+    /// 1440x1080: coming in (the ring sweeping, the burst, the glint), held and
+    /// leaving, each moment held still; a sheet of the top of the screen at every
+    /// moment; then over the SJK UI's main page.
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_achievement_toast() {
+        use crate::achievement_toast::{AchievementToast, ENTER, HOLD, LEAVE};
+        on_big_stack(|| {
+            let streak = crate::achievements::find("streak_5").expect("Rampage");
+            let lightning = crate::achievements::find("dark_side_25").expect("Unlimited Power");
+            let moments = [
+                (0.1, "entering"),
+                (0.25, "landing"),
+                (0.45, "sweep"),
+                (0.7, "burst"),
+                (0.95, "glint"),
+                (2.5, "held"),
+                (ENTER + HOLD + LEAVE * 0.4, "leaving"),
+            ];
+            let cvars = [
+                ("ui_menuStyle", "sjk"),
+                (crate::settings::quick::HIDE_CVAR, "1"),
+            ];
+            for (size, prefix) in [
+                ([1920, 1080], "duel6-achievement"),
+                ([1440, 1080], "duel6-achievement-4x3"),
+            ] {
+                let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", size, None, &cvars)
+                else {
+                    return;
+                };
+                let tour = menu_backdrop::tour_for("Yavin Training Grounds").expect("the tour");
+                let (yaw, pitch) = look(tour[0].from, tour[0].at);
+                aim(&mut gpu, tour[0].from, yaw, pitch);
+                if let Some(console) = gpu.console.as_mut() {
+                    console.close_for_connection();
+                }
+                let _ = frame(&mut gpu, 60);
+                std::fs::create_dir_all(directory()).expect("the shot directory");
+                let mut tops = Vec::new();
+                for (at, name) in moments {
+                    gpu.achievement_toast = AchievementToast::preview(&[streak, lightning], at);
+                    let image = frame(&mut gpu, 3);
+                    let path = directory().join(format!("{prefix}-{name}.png"));
+                    image.save(&path).expect("write the shot");
+                    println!("{}", path.display());
+                    let width = image.width().min(760);
+                    let x = (image.width() - width) / 2;
+                    tops.push(image::imageops::crop_imm(&image, x, 50, width, 240).to_image());
+                }
+                println!(
+                    "{}",
+                    sheet(&tops, 2, 760, &format!("{prefix}-moments")).display()
+                );
+            }
+            let menu = menu::ClientMenu::new(true, String::new());
+            let Some((mut gpu, _profile)) =
+                open("maps/mp/duel6.bsp", [1920, 1080], Some(menu), &cvars)
+            else {
+                return;
+            };
+            let _ = frame(&mut gpu, 10);
+            gpu.achievement_toast = AchievementToast::preview(&[lightning], 2.5);
+            println!("{}", shoot(&mut gpu, 6, "duel6-achievement-menu").display());
+        });
+    }
+
     /// Every scoreboard look with the SJK emblem and medal ribbon bars after the names
     /// of the made-up players the hub knows: classic and modern on a free for all, the
     /// SJK UI's on a free for all and a duel (the bars on a duelist's card).

@@ -12,6 +12,7 @@
 //! the hub bounds how fast each count may rise, nothing more. Adding an achievement is
 //! one entry in [`ALL`] and the same id in the hub's catalogue.
 
+pub(crate) mod medallion;
 pub(crate) mod tracker;
 
 use serde_json::{Value, json};
