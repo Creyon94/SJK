@@ -691,6 +691,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Internal migration marker for the auto scoreboard style default",
         ),
         CvarDefinition::new(
+            "cl_wheelBindVersion",
+            0_i64,
+            archive,
+            "Internal migration marker for Q's quick wheel bind opening the last page",
+        ),
+        CvarDefinition::new(
             "ui_menuStyleDefaultVersion",
             0_i64,
             archive,
