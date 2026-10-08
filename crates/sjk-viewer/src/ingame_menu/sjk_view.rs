@@ -8,7 +8,7 @@
 //! The pages are the in-game menu's own ([`Page`]): the main one, Team (or
 //! Siege's classes), Players (a small scoreboard, drawn as a table with the chosen
 //! player's card on the right) and its Report page, Vote and the call-vote lists,
-//! Sol JK and Leave. Their rows
+//! SJK and Leave. Their rows
 //! are the modern menu's where they are the same (Siege's, the call-vote
 //! lists') and this module's where they differ ([`prepare`]); what a row does
 //! is in `sjk_actions.rs` and, for the shared pages, `game_menu_actions.rs`.
@@ -40,7 +40,7 @@ pub(crate) enum Entry {
     Servers,
     /// Camera control ([`Page::Shot`]).
     Shot,
-    SolJk,
+    Sjk,
     Leave,
 }
 
@@ -55,7 +55,7 @@ impl Entry {
         Self::Settings,
         Self::Servers,
         Self::Shot,
-        Self::SolJk,
+        Self::Sjk,
         Self::Leave,
     ];
 
@@ -79,7 +79,7 @@ impl Entry {
             Self::Settings => "Settings",
             Self::Servers => "Servers",
             Self::Shot => super::CAMERA_CONTROL,
-            Self::SolJk => "Sol JK",
+            Self::Sjk => "SJK",
             Self::Leave => "Leave",
         }
     }
@@ -98,7 +98,7 @@ impl Entry {
             Self::Settings => "Every option and key, with search",
             Self::Servers => "Find another server; joining leaves this one",
             Self::Shot => "Frame shots and recordings: the camera and the sun",
-            Self::SolJk => "What's new, credits, identity, report a bug",
+            Self::Sjk => "What's new, credits, identity, report a bug",
             Self::Leave => "Leave the server, or quit",
         }
     }
@@ -144,7 +144,7 @@ pub(crate) fn parent(page: Page) -> Option<(Page, usize)> {
         Page::Players => (Page::Main, Entry::Players.index()),
         // The chosen player's row: `sjk_back` takes it from the roster.
         Page::ReportPlayer => (Page::Players, 0),
-        Page::Sjk => (Page::Main, Entry::SolJk.index()),
+        Page::Sjk => (Page::Main, Entry::Sjk.index()),
         Page::Leave => (Page::Main, Entry::Leave.index()),
         Page::About => (Page::Main, Entry::Resume.index()),
         Page::ConfirmLeave => (Page::Leave, leave::SERVER),
@@ -274,7 +274,7 @@ pub(super) fn prepare(
         }
         Page::Sjk => {
             for (row, entry) in super::sjk::ENTRIES.iter().enumerate() {
-                // The main page's Sol JK page calls the changelog What's new.
+                // The main page's SJK page calls the changelog What's new.
                 let label = if row == super::sjk::CHANGELOG {
                     "What's new"
                 } else {
@@ -349,7 +349,7 @@ fn page_title(page: Page, siege: bool) -> Option<&'static str> {
         Page::VoteWarmup => "Warmup",
         Page::VoteTimeLimit => "Time limit, minutes",
         Page::VoteFragLimit => "Frag limit",
-        Page::Sjk => "Sol JK",
+        Page::Sjk => "SJK",
         Page::Leave => "Leave",
         Page::About => "Server info",
         Page::ConfirmLeave => "Leave the server?",
@@ -1826,7 +1826,7 @@ mod tests {
                 "Settings",
                 "Servers",
                 "Camera control",
-                "Sol JK",
+                "SJK",
                 "Leave"
             ]
         );
@@ -1919,7 +1919,7 @@ mod tests {
             parent(Page::CallVote),
             Some((Page::Main, Entry::Vote.index()))
         );
-        assert_eq!(parent(Page::Sjk), Some((Page::Main, Entry::SolJk.index())));
+        assert_eq!(parent(Page::Sjk), Some((Page::Main, Entry::Sjk.index())));
         assert_eq!(
             parent(Page::Players),
             Some((Page::Main, Entry::Players.index()))

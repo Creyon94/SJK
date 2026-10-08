@@ -1,4 +1,4 @@
-//! Sol JK's pages (What's new, Update, Identity, Credits) in the SJK UI's look:
+//! SJK's pages (What's new, Update, Identity, Credits) in the SJK UI's look:
 //! with `ui_menuStyle sjk` they are drawn by their SJK views, in the UI's
 //! families ([`crate::menu::sjk::TextTarget`]), over the map. Opening, closing
 //! and their keys and pointer stay the console's, as for the other looks.

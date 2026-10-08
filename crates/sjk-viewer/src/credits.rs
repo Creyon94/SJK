@@ -1,4 +1,4 @@
-//! The credits page: who makes Sol JK, from `assets/credits.txt` and everyone's
+//! The credits page: who makes SJK, from `assets/credits.txt` and everyone's
 //! work from `assets/credits_history.txt` (both built in, parsed once; see
 //! `credits_data.rs`). Opened by the main menu's Credits entry, the in-game SJK
 //! menu or the `credits` console command. Like the changelog it lives in the
@@ -38,7 +38,7 @@ mod sjk;
 /// Console command that toggles the page.
 pub(crate) const COMMAND: &str = "credits";
 /// Help text for completion and `cmdlist`.
-pub(crate) const HELP: &str = "Show who makes Sol JK";
+pub(crate) const HELP: &str = "Show who makes SJK";
 
 /// Wheel target over the page.
 const PAGE_TOKEN: u16 = 906;
@@ -60,7 +60,7 @@ const ROW_AREAS: usize = 84;
 /// Pixels (at 1080 lines) one wheel notch or arrow key scrolls.
 const STEP: f32 = 110.0;
 /// The closing line, as in CREDITS.md.
-const NOTICE: &str = "Star Wars, Jedi Knight and Jedi Academy are trademarks of their respective owners. Sol JK is a fan project, not affiliated with or endorsed by Lucasfilm, Disney, Raven Software or Activision.";
+const NOTICE: &str = "Star Wars, Jedi Knight and Jedi Academy are trademarks of their respective owners. SJK is a fan project, not affiliated with or endorsed by Lucasfilm, Disney, Raven Software or Activision.";
 /// Sparks rising through the backdrop.
 const SPARKS: usize = 64;
 /// The site's god-ray gold (`#e8b84a`) and sunburst gold (`#ffcf70`).

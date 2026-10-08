@@ -279,7 +279,7 @@ fn startup_configs(cvars: &mut Cvars, files: &mut ConfigFiles) {
 /// the build's, from `scripts/build_version.rs`.
 const NOTICE: [&str; 2] = [
     concat!(
-        "Sol JK server ",
+        "SJK server ",
         env!("SJK_BUILD_VERSION"),
         ", Copyright (C) 2026 Sol-Vulpes, Bishop-R and the JKR contributors"
     ),

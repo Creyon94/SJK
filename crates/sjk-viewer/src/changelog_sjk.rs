@@ -1,4 +1,4 @@
-//! What's new in the SJK UI (`docs/sjk-ui.md`, Sol JK's pages): the releases
+//! What's new in the SJK UI (`docs/sjk-ui.md`, SJK's pages): the releases
 //! down a lit rail on the left, newest first, the chosen one's notes in a
 //! reading column beside them (its date and size, its name, its introduction,
 //! then each change after a gold dot with its credit under it), over the map.

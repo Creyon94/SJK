@@ -8,7 +8,7 @@ Jedi Academy `GameData` directory with the retail `base/assets*.pk3` files.
 The client program is `sjk` and the dedicated server `sjk-server` (`.exe` on
 Windows). Developer and diagnostic environment variables are named `SJK_*`
 (`SJK_TRACE_*`, `SJK_LAMP_*`, `SJK_GPU_*` and the like). On Windows both programs
-carry SJK's icon and call themselves "Sol JK" and "Sol JK dedicated server" in
+carry SJK's icon and call themselves "SJK" and "SJK dedicated server" in
 their version information; the client also sets the icon on its window (title bar
 and taskbar on Windows, the window icon on X11; Wayland has none). See
 [assets/branding](../assets/branding/README.md).
@@ -95,7 +95,7 @@ style.
 The SJK UI is SJK's own menus drawn over the live map in SJK's type
 ([SJK UI](sjk-ui.md)). It has its main page: the emblem in a
 turning holo ring with the menu on an arc round it (Play, Character, Settings,
-Sol JK and Quit, the first, fourth and last opening pages of their own on the
+SJK and Quit, the first, fourth and last opening pages of their own on the
 ring), and the servers joined last in a column on the right, joined with one
 click; and its Settings: every category down a lit rail, the rows with switches,
 sliders and segments under sub-headings, the focused setting explained on the
@@ -1593,7 +1593,7 @@ The client looks for a newer SJK release when it starts and from the Update page
   nothing else; turn it off to send none.
 - Main menu > Update (classic: SJK > UPDATE) or the
   `update` command opens the page (with the SJK UI's menus, a pop-up card over
-  the map: [sjk-ui.md](sjk-ui.md#sol-jks-pages)). It shows the state and offers Install (Enter),
+  the map: [sjk-ui.md](sjk-ui.md#sjks-pages)). It shows the state and offers Install (Enter),
   Check again (C) and Release notes (N); Escape closes. Opening it with nothing
   checked yet checks at once.
 - Install downloads `SJK-<version>-<platform>.zip`, refuses it unless its SHA-256
@@ -1614,7 +1614,7 @@ The client looks for a newer SJK release when it starts and from the Update page
 ## Credits page
 
 The main menu's Credits entry (modern list; SJK > CREDITS on the classic page), the in-game SJK pop-up's Credits and the
-`credits` console command show who makes Sol JK, from
+`credits` console command show who makes SJK, from
 [credits.txt](../crates/sjk-viewer/assets/credits.txt), built into the client
 ([credits.rs](../crates/sjk-viewer/src/credits.rs), parsed by
 [credits_data.rs](../crates/sjk-viewer/src/credits_data.rs)), and everyone's
@@ -1657,7 +1657,7 @@ renderer's additive pipeline and turned by their texture coordinates
 in turn. With the classic menus it takes retail's gold and blue and the menus'
 retail font; with the SJK UI it has that UI's look, the emblem as a sun on the
 left with the sections under it and the people in a column on the right
-([sjk-ui.md](sjk-ui.md#sol-jks-pages)). Arrow keys, Page Up and Page Down, Space,
+([sjk-ui.md](sjk-ui.md#sjks-pages)). Arrow keys, Page Up and Page Down, Space,
 the wheel and the scrollbar at the right edge scroll it, gliding to the place
 asked; Tab (or `]`) scrolls to the next section and Shift+Tab (or `[`) to the one
 before, round to the first past the last; E opens every fold or closes them;

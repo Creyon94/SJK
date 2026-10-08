@@ -2238,6 +2238,17 @@ test: Die, spectate or follow someone: it goes out; respawn: it comes back at yo
 test: First person: no cube, only the light. Settings > Key bindings > Force: the bind.
 note: Tell me if it sits wrong with your camera (range 100) or feels too bright or too big.
 
+[sjk-name-menus]
+area: Menus & settings
+title: Menus say SJK instead of Sol JK
+change: Main menu entry and page, the in-game menu's page, Quit, version line and Update say SJK.
+change: Also the window title, the console's ready line and the programs' version information.
+test: Main page: the fourth entry reads SJK; its page title reads SJK; Quit's hint: Leave SJK.
+test: Bottom of the main page: SJK <version>. Update card: This is SJK <version>.
+test: In a match, Esc: the SJK entry and page; modern menus: Quit SJK.
+test: The window title and the console's first line say SJK.
+note: Credits keep "Sol JK" for Sol's own section, as the name's origin.
+
 # ---- Older changes ----
 
 [actor-instance-cap]

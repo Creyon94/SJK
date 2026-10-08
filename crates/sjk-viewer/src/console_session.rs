@@ -415,7 +415,7 @@ impl ViewerConsole {
             }
             let _ = shell.cvars.set_text("cg_cameraStyleDefaultVersion", "1");
         }
-        shell.push_log("^5Sol JK console ready. ^7Type cmdlist for commands.");
+        shell.push_log("^5SJK console ready. ^7Type cmdlist for commands.");
         Ok(Self {
             shell,
             open: false,

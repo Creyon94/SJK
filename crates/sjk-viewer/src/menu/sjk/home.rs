@@ -2,7 +2,7 @@
 //! map, the menu on an arc round the ring's right side, and the servers the
 //! player joined last in a column on the right, each joined with one click.
 //!
-//! The ring's gold arc points at the chosen entry. Play, Sol JK and Quit open
+//! The ring's gold arc points at the chosen entry. Play, SJK and Quit open
 //! pages of their own on the same ring (the arc swaps to their entries, as
 //! retail's pages swapped inside one frame); Character and Settings open their
 //! screens. Escape leaves a page for the main one, and on the main one asks to
@@ -64,7 +64,7 @@ impl Page {
         match self {
             Self::Main => None,
             Self::Play => Some("Play"),
-            Self::Sjk => Some("Sol JK"),
+            Self::Sjk => Some("SJK"),
             Self::Quit => Some("Quit"),
         }
     }
@@ -125,11 +125,11 @@ const MAIN: [Entry; 5] = [
         open(MainDestination::Settings { tab: 0 }),
     ),
     entry(
-        "Sol JK",
+        "SJK",
         "What's new, updates, credits, your identity",
         Step::Page(Page::Sjk),
     ),
-    entry("Quit", "Leave Sol JK", Step::Page(Page::Quit)),
+    entry("Quit", "Leave SJK", Step::Page(Page::Quit)),
 ];
 const PLAY: [Entry; 3] = [
     entry(
@@ -152,12 +152,12 @@ const SJK: [Entry; 5] = [
     ),
     entry(
         "Update",
-        "Check for a newer Sol JK",
+        "Check for a newer SJK",
         open(MainDestination::Update),
     ),
     entry(
         "Credits",
-        "The people who make Sol JK",
+        "The people who make SJK",
         open(MainDestination::Credits),
     ),
     entry(
@@ -825,7 +825,7 @@ fn version(canvas: &mut MenuCanvas, frame: &Frame, view: &HomeView<'_>) {
     text(
         canvas,
         TextFamily::Display,
-        format_args!("Sol JK {}", view.version),
+        format_args!("SJK {}", view.version),
         frame.rect(1224.0, 962.0, 600.0, 28.0),
         22.0 * s,
         color::TEXT,
@@ -836,7 +836,7 @@ fn version(canvas: &mut MenuCanvas, frame: &Frame, view: &HomeView<'_>) {
         text(
             canvas,
             TextFamily::Body,
-            format_args!("Sol JK {update} is ready to install"),
+            format_args!("SJK {update} is ready to install"),
             frame.rect(1224.0, 994.0, 600.0, 22.0),
             16.0 * s,
             color::GOLD_BRIGHT,
@@ -952,7 +952,7 @@ mod tests {
             Some(Action::Join(1))
         );
         assert_eq!(home.pointer(SERVER_TOKEN + 3, true, 3), None);
-        // Hovering an entry chooses it; a click on Sol JK opens its page.
+        // Hovering an entry chooses it; a click on SJK opens its page.
         home.pointer(ENTRY_TOKEN + 3, false, 3);
         assert_eq!((home.entry, home.focus), (3, Focus::Arc));
         assert_eq!(home.pointer(ENTRY_TOKEN + 3, true, 3), None);

@@ -38,11 +38,11 @@ impl ApplicationHandler for ViewerApplication {
             .as_ref()
             .is_some_and(|menu| menu.is_visible())
         {
-            "Sol JK"
+            "SJK"
         } else if self.live_session.is_some() {
-            "Sol JK live client"
+            "SJK live client"
         } else {
-            "Sol JK world viewer"
+            "SJK world viewer"
         };
         let attributes = window_icon::with_icons(
             WindowAttributes::default()

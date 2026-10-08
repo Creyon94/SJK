@@ -1368,7 +1368,7 @@ fn player_card(shots: &mut Snapshot) {
 
 /// The SJK UI's main page over its map (the JoF HD wide levelshot of
 /// mp/duel6 standing in for the live backdrop), with each family drawn from
-/// its own atlas: the main page with three recent servers, the Play and Sol JK
+/// its own atlas: the main page with three recent servers, the Play and SJK
 /// pages, a server focused, the JoF suggestion of a first start, and at 4:3.
 #[test]
 #[ignore = "reads the installed game data named by JKA_GAME_DATA"]

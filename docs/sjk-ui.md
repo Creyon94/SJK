@@ -150,9 +150,9 @@ one (4:3, 5:4) scales the frame down to its width.
   side, 16 degrees apart; the chosen one gold and larger, with a line saying
   what it opens. The pages:
   - Main: Play, Character (the player screen), Settings (the settings screen),
-    Sol JK, Quit.
+    SJK, Quit.
   - Play: Join a server (the browser), Create a game, Back.
-  - Sol JK: What's new (the changelog), Update, Credits, Identity, Back.
+  - SJK: What's new (the changelog), Update, Credits, Identity, Back.
   - Quit: Quit to desktop (ember when chosen), Stay. It opens on Stay.
   A page's name stands small over its first entry.
 - **Recent servers:** a column on the right (its rule at x 1470) of the servers
@@ -258,9 +258,9 @@ retail's room so a raised blade stays in the picture, on a soft shadow and a
 thin gold line at its feet. `ClientMenu::stage_model` never stages a screen
 opened from a game.
 
-## Sol JK's pages
+## SJK's pages
 
-What's new, Update, Identity and Credits, which the main page's Sol JK page opens
+What's new, Update, Identity and Credits, which the main page's SJK page opens
 (and their console commands), have the SJK UI's look in this style: drawn in its
 families over the map darkened as Settings is (Update as a pop-up card, as First
 setup), each with the way back (Esc, "Back") and its name at the top and its
@@ -298,7 +298,7 @@ overlay routes their text to the UI's families (`console_sjk_pages.rs`).
   golden god rays (`EmblemLayer::Godrays`, two sets against each other) reach out
   from it across the page and sparks rise through their light on the left; the
   reading column has a navy shade of its own (half), so the rays cross it softly.
-  Under the emblem "The people who make Sol JK", then the sections down a lit
+  Under the emblem "The people who make SJK", then the sections down a lit
   rail, the one in view gold (a click scrolls to it), and Expand all (Collapse
   all once a fold is open). The column (x 640, 1120 wide, from y 140 to 960,
   scrolled by the arrows, Page Up and Down, Space, Home and End, the wheel and a
@@ -675,7 +675,7 @@ page's 16:9 frame.
   quiet, as is the main page's Leave.
 - **Pages:**
   - Main: Resume, Team, Players, Vote, Character, Settings, Servers, Camera
-    control, Sol JK, Leave.
+    control, SJK, Leave.
   - Players: a small scoreboard in place of the arc ([identity.md](identity.md#player-reports)):
     the title and how many are on the server (or why the player cannot report, in
     ember), then a table from x 340 to 1330 under a darker fade: a team's colour
@@ -701,7 +701,7 @@ page's 16:9 frame.
     Call a vote directly, whose lists (map, game type, kick, warmup, limits)
     are the shared call-vote lists. Voting or calling a vote returns to the
     match, as retail's pop-ups do.
-  - Sol JK: What's new, Credits, Identity, Report a bug, Report a player (the
+  - SJK: What's new, Credits, Identity, Report a bug, Report a player (the
     Players page).
   - Leave: Leave the server, Quit to desktop (ember when chosen), Stay. It opens on Stay, since its rows act at once.
 - **Match card:** on the right (x 1360, 464 wide) over its own fade: the
@@ -726,7 +726,7 @@ in a live preview, as there is no stage in a match: see Character). Camera
 control opens its panel in the SJK UI's look ([Camera control](#camera-control)).
 Server info and Controls have no entries:
 the card shows the server and Settings holds the key bindings. The Report a bug
-button the other looks put at the bottom is left out; Sol JK's page has it.
+button the other looks put at the bottom is left out; SJK's page has it.
 
 ## Camera control
 
@@ -778,7 +778,7 @@ draws as before, renamed.
 [text_dialog_sjk.rs](../crates/sjk-viewer/src/text_dialog_sjk.rs) draws the
 text dialog as the SJK UI's pop-up card (Sol's request, 08/10/2026). One dialog
 serves three things, and all three take this look with the SJK UI's menus:
-Report a bug (the in-game menu's Sol JK page), a player report's few words
+Report a bug (the in-game menu's SJK page), a player report's few words
 (Players, a player, a reason) and a world note (`inspect` twice,
 [client.md](client.md#player-card)). The classic+ and modern looks stay with
 their styles ([identity.md](identity.md#bug-reports)).
@@ -879,7 +879,7 @@ button acts.
 - The in-game menu keeps the in-game menu's pages, rows and actions
   (`ingame_menu::InGameMenu`, `Page`): `InGameMenu::is_sjk` picks the SJK UI's
   look (`is_classic` no longer covers it), `sjk_view::prepare` writes the rows
-  it words its own way (Main, Team, Vote, Sol JK, Leave) with their hints, and
+  it words its own way (Main, Team, Vote, SJK, Leave) with their hints, and
   the shared rows (Siege, the call-vote lists) keep theirs, a "label  /
   detail" row splitting into label and hint. `GpuState::activate_sjk_ui_row`
   acts on its own rows before the shared actions; `back_or_close_game_menu`
