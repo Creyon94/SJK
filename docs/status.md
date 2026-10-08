@@ -7,6 +7,37 @@ SJK currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## SJK UI: First setup and Update as pop-ups
+
+SJK-only branch `personal/first-setup-popup` (08/10/2026, based on `b9db8c0`,
+Windows 11): Sol asked for First setup as a pop-up with a clear, always visible
+tick to stop it showing at start at its foot, and for the Update page as the
+same kind of pop-up. In the SJK UI, First setup at start and `firstsetup` now
+open a card over the map (`settings/sjk_popup.rs`): its rows are Settings'
+(`sjk_view.rs` draws them in a moved frame, `Frame::shifted`; its row column,
+open list and keys take their size and bounds as arguments), eleven lines
+scrolling inside the card, the focused row's help under them, and a foot with
+the "Don't show at start" tick, All settings and Done. The tick is the group's
+own `ui_hideFirstSetup` row, pinned out of the scrolling lines
+(`ClassicRows::pinned`), so the keyboard, clicks and the default reset work as
+on any row. Tab and All settings open the Settings screen on First setup
+(`SettingsResult::AllSettings`); the pop-up has no search. Picking the SJK UI on
+the classic or modern First setup's Menu style row now comes back to the pop-up
+(`set_menu_style`). Update in the SJK UI is a card too (`update_panel_sjk.rs`),
+as tall as its text, with Release notes and Check again on the left and Close
+and the gold action on the right. The browser's prompts share the card
+(`kit::card`); `kit::scrim` and `kit::tick` are new.
+
+Verified: unit tests for the pinned row (out of the lines, reached by Up from
+the first row and Down back, flipped and reset), the pop-up's keys, All
+settings and Done, and the hand-over from the classic and modern First setup;
+workspace fmt, build, tests and clippy. `world_shot::tests::duel6_first_setup`
+rendered the pop-up over duel6 (Styles, the rows, the menu style's help, the
+foot) and `duel6_sjk_pages` the Update card. Not verified: no game was started,
+so the pointer on the tick and buttons, scrolling inside the card and the
+pickers (resolution, HUD) opened from it are untested in play. Classic and
+modern First setup are unchanged.
+
 ## SJK UI Character in a game
 
 Branch `personal/sjk-ui-ingame-character` (08/10/2026, based on

@@ -80,6 +80,7 @@ impl ClientMenu {
         if style != self.menu_style {
             let classic_screens = self.menu_style.classic_screens();
             let sjk_settings = self.sjk_settings_on_show();
+            let first_setup = self.first_setup_on_show();
             self.menu_style = style;
             self.main_selection = 0;
             self.classic.reset();
@@ -95,6 +96,27 @@ impl ClientMenu {
                 self.settings.continue_modern(console);
             } else if sjk_settings {
                 self.sjk_settings_to_classic(console);
+            }
+            // First setup picked to the SJK UI goes on as its pop-up.
+            if style == MenuStyle::Sjk && first_setup {
+                self.open_sjk_first_setup(console, crate::player_menu::ReturnTarget::MainMenu);
+            }
+        }
+    }
+
+    /// Whether First setup is on show over the main menu, in any style: the
+    /// classic Setup panel's group, the SJK UI's pop-up or category, or the
+    /// modern FIRST SETUP tab.
+    fn first_setup_on_show(&self) -> bool {
+        use super::classic::layout::Entry;
+        if self.settings_return != crate::player_menu::ReturnTarget::MainMenu {
+            return false;
+        }
+        match self.classic_panel {
+            Some(panel) => panel.entry == Entry::FirstSetup,
+            None => {
+                *self.state.phase() == super::ClientPhase::Settings
+                    && self.settings.on_first_setup()
             }
         }
     }

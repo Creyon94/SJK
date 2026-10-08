@@ -1,6 +1,7 @@
 //! The SJK UI's Settings screen (`docs/sjk-ui.md`, Settings): every category
-//! of settings down one rail, opened from the main page's Settings (and at
-//! start for First setup). The rows are the classic+ panels' groups
+//! of settings down one rail, opened from the main page's Settings; First
+//! setup at start (and the `firstsetup` command) shows its category as a
+//! pop-up instead ([`crate::settings::SettingsMenu::append_sjk_popup`]). The rows are the classic+ panels' groups
 //! ([`crate::settings::SettingsMenu`] draws them in [`crate::settings::Rail`]'s
 //! frame), and Key bindings the classic+ list of every binding
 //! ([`crate::keybind_editor::KeybindEditor`] draws it in the same frame).
@@ -195,6 +196,14 @@ impl ClientMenu {
         self.state.open_settings();
     }
 
+    /// Open First setup as the SJK UI's pop-up over the map, returning to
+    /// `target` when it closes; its All settings opens the whole screen on
+    /// First setup.
+    pub(crate) fn open_sjk_first_setup(&mut self, console: &ViewerConsole, target: ReturnTarget) {
+        self.open_sjk_settings(console, FIRST_SETUP, target);
+        self.settings.open_first_setup_popup(console);
+    }
+
     /// Open the SJK UI's Settings over a match, from its in-game menu, on the
     /// category last shown; it returns to the in-game menu.
     pub(crate) fn open_sjk_settings_from_game(&mut self, console: &ViewerConsole) {
@@ -302,13 +311,21 @@ impl ClientMenu {
                 self.open_sjk_settings(console, next, target);
                 Some(MenuAction::None)
             }
+            SettingsResult::AllSettings => {
+                self.open_sjk_settings(console, FIRST_SETUP, target);
+                Some(MenuAction::None)
+            }
             _ => None,
         }
     }
 
-    /// Draw the SJK UI's Settings.
+    /// Draw the SJK UI's Settings, or First setup's pop-up.
     pub(crate) fn append_sjk_settings(&mut self, target: TextTarget<'_>, viewport: [f32; 2]) {
         let reveal = self.screen_reveal();
+        if self.settings.popup() {
+            self.settings.append_sjk_popup(target, viewport, reveal);
+            return;
+        }
         let rail = crate::settings::Rail {
             categories: &RAIL,
             current: (!self.settings.searching_results()).then_some(self.sjk_settings.category),

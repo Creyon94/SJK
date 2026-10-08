@@ -259,8 +259,9 @@ opened from a game.
 
 What's new, Update and Identity, which the main page's Sol JK page opens (and
 their console commands), have the SJK UI's look in this style: drawn in its
-families over the map darkened as Settings is, each with the way back (Esc,
-"Back") and its name at the top and its keys bottom right. They stay the
+families over the map darkened as Settings is (Update as a pop-up card, as First
+setup), each with the way back (Esc, "Back") and its name at the top and its
+keys bottom right. They stay the
 console's pages (their state, keys, pointer and opening and closing are as in
 the other looks); `ViewerConsole::set_sjk_pages` picks the look and the console
 overlay routes their text to the UI's families (`console_sjk_pages.rs`).
@@ -272,10 +273,13 @@ overlay routes their text to the UI's families (`console_sjk_pages.rs`).
   each change after a gold dot with its credit under it, scrolled by Page Up
   and Down or the wheel. Lines are wrapped by characters.
 - **Update** ([update_panel_sjk.rs](../crates/sjk-viewer/src/update_panel_sjk.rs)):
-  the version this is, what the check found as a headline over its detail, the
-  download's progress as a gold bar with its percentage, and the page's actions
-  as buttons, the one Enter takes gold (Install, Restart now, Check, Open
-  release page), then Check again and Release notes when offered.
+  a pop-up card (840 wide, as tall as what it says) over the map darkened all
+  over, since 08/10/2026 (Sol asked for it with First setup's). Update (gold)
+  and the version this is along its top, what the check found as a headline
+  over its detail, the download's progress as a gold bar with its percentage,
+  then the actions along its foot: Release notes and Check again on the left
+  when offered, Close and the one Enter takes (gold: Install, Restart now,
+  Check, Open release page) on the right.
 - **Identity** ([identity_panel_sjk.rs](../crates/sjk-viewer/src/identity_panel_sjk.rs)):
   the identity's state as a headline (the name the hub knows, or "Identity is
   off") over its lines, the switch sharing it with the hub, then while it is on
@@ -308,8 +312,9 @@ console's full-width rows, and the other two were removed.
 [sjk_view.rs](../crates/sjk-viewer/src/settings/sjk_view.rs) draws it, and
 [settings.rs](../crates/sjk-viewer/src/menu/sjk/settings.rs) lists its
 categories and opens, switches and closes it. The main page's Settings opens it
-on the category last shown (Display the first time in a run), and First setup at
-start opens it on First setup. It is laid out on the main page's 16:9 frame,
+on the category last shown (Display the first time in a run); First setup at
+start and the `firstsetup` command open First setup as a pop-up
+([First setup](#first-setup)). It is laid out on the main page's 16:9 frame,
 over the map darkened from the left (95 %) to the right (80 %), as the Settings
 mock-up draws it.
 
@@ -369,6 +374,37 @@ every setting, the lists, the defaults and typed numbers are the classic+
 panels' own; only the drawing and the frame are the SJK UI's. Changing Menu
 style on the screen (it is on Interface) hands over to the classic+ panel of the
 same group (Graphics: the renderer's image tab), or to the modern screen.
+
+### First setup
+
+At start (until it is ticked off) and from the `firstsetup` command, First setup
+is a pop-up card over the map, not the Settings screen (Sol's request,
+08/10/2026, with the tick that stops it opening always in view at its foot). [sjk_popup.rs](../crates/sjk-viewer/src/settings/sjk_popup.rs)
+draws it; the rail's First setup category still shows the same rows in the
+Settings screen.
+
+- **Card:** 960 wide and 948 tall, centred, over the map darkened all over
+  (78 %), with the browser prompts' glass, shadow and holo edge (`kit::card`).
+- **Top:** "First setup", what it is for, and how to bring another client's
+  .cfg over.
+- **Rows:** First setup's rows as Settings draws them, its column moved into
+  the card, under its sub-headings (Styles first: menu and camera style).
+  Eleven lines show; the rest scroll inside the card. The focused row's help
+  sits in two lines under them (left out while a list is open).
+- **Foot,** always in view under a rule: the "Don't show at start" tick box
+  (`kit::tick`, gold with a dark tick when ticked) and its name on the left, All
+  settings and Done (gold) on the right.
+- **Keys:** under the card, bottom right: the focused row's, Tab all settings,
+  Esc done.
+
+The tick is First setup's own last row (`ui_hideFirstSetup`), pinned out of the
+scrolling lines (`ClassicRows::pinned`): the keyboard reaches it after the last
+row (Up from the first wraps to it), Enter or a click flips it, Backspace
+returns it to its default. Done or Escape goes back to the main page; All
+settings or Tab opens the Settings screen on First setup. The pop-up has no
+search. Picking the classic or modern style on its Menu style row goes on as
+that style's First setup, and picking the SJK UI on theirs comes back to the
+pop-up. In a game the SJK UI's First setup is still the classic panel.
 
 ## Servers
 

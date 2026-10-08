@@ -2081,6 +2081,18 @@ title: A new profile starts at mouse sensitivity 5, not 13.022
 change: The old-units rescale of sensitivity only runs on a profile saved before it.
 test: Start with an empty profile folder (or firstsetup on a new one): sensitivity says 5.
 
+[first-setup-popup]
+area: Menus & settings
+title: SJK UI: First setup and Update as pop-up cards
+change: First setup opens as a card over the map; its rows scroll inside it.
+change: Don't show at start is a tick at the card's foot, always visible; Update is a card too.
+test: Start the game (or console: firstsetup): the First setup card, the tick at its foot.
+test: Scroll the rows (wheel, Down): the tick stays put. Click the tick, restart: no card.
+test: Up from the first row reaches the tick; Enter flips it. All settings: Settings screen.
+test: Done or Esc: back to the main page. Menu style Classic in the card, then SJK: card again.
+test: Console: update. A card with Close and the gold action; Esc closes it.
+note: Resolution and HUD pickers opened from the card are untested; tell Claude if they look off.
+
 [camera-ejk-default]
 area: Gameplay
 title: EJK camera (locked behind you) is the default; camera style near the top of First setup

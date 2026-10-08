@@ -151,6 +151,9 @@ impl SettingsMenu {
                 self.select_tab(console, usize::from(token - 500));
             }
             900 => return self.back(console),
+            super::sjk_popup::ALL_SETTINGS_TOKEN if self.popup() => {
+                return SettingsResult::AllSettings;
+            }
             _ if self.action().is_some() && usize::from(token) == self.rows().len() => {
                 return self.activate_action(console);
             }

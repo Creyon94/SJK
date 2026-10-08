@@ -522,6 +522,15 @@ impl Frame {
         let [x, y] = self.point(x, y);
         Rect::new(x, y, width * self.s, height * self.s)
     }
+
+    /// The same frame moved `dx`, `dy` frame pixels, to draw a laid-out part
+    /// of one screen at another place (Settings' rows in First setup's card).
+    pub(crate) fn shifted(&self, dx: f32, dy: f32) -> Self {
+        Self {
+            s: self.s,
+            origin: self.point(dx, dy),
+        }
+    }
 }
 
 /// `text` cut into lines of at most `chars` characters at spaces (a word longer

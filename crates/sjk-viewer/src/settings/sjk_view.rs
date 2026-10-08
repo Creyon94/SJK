@@ -53,15 +53,16 @@ pub(crate) const VISIBLE: usize = 14;
 /// no further left than [`CONTROL_LEFT`]; the reset arrow is centred after it.
 pub(crate) const LABEL_X: f32 = ROWS_X + 22.0;
 pub(crate) const CONTROL_RIGHT: f32 = ROWS_X + ROWS_WIDTH - 44.0;
-const CONTROL_LEFT: f32 = CONTROL_RIGHT - 330.0;
+pub(super) const CONTROL_LEFT: f32 = CONTROL_RIGHT - 330.0;
 const RESET_X: f32 = ROWS_X + ROWS_WIDTH - 22.0;
 /// A field's width, a slider's track and its number.
 const FIELD_WIDTH: f32 = 230.0;
 const TRACK_WIDTH: f32 = 230.0;
 const NUMBER_WIDTH: f32 = 46.0;
 const TRACK_X: f32 = CONTROL_RIGHT - NUMBER_WIDTH - 18.0 - TRACK_WIDTH;
-/// An open list's rows.
+/// An open list's rows, and the lowest it reaches.
 const LIST_ROW: f32 = 40.0;
+const LIST_BOTTOM: f32 = KEYS_Y - 16.0;
 /// The detail column.
 pub(crate) const DETAIL_X: f32 = 1360.0;
 pub(crate) const DETAIL_TOP: f32 = 190.0;
@@ -89,10 +90,10 @@ impl SettingsMenu {
         backdrop(&mut self.ui, viewport);
         self.top_bar(&frame, rail.back);
         draw_rail(&mut self.ui, &frame, rail);
-        let slots = self.sjk_rows(&frame);
+        let slots = self.sjk_rows(&frame, VISIBLE, LIST_BOTTOM);
         self.sjk_detail(&frame, rail);
         self.sjk_keys(&frame);
-        self.sjk_dropdown(&frame, &slots);
+        self.sjk_dropdown(&frame, &slots, VISIBLE, LIST_BOTTOM);
         self.ui.pop_opacity();
         self.ui.finish(self.selected as u16);
         target.append(&self.ui, viewport);
@@ -117,12 +118,19 @@ impl SettingsMenu {
         );
     }
 
-    /// The rows on show and their controls; returns each shown row's line top.
-    fn sjk_rows(&mut self, frame: &Frame) -> Vec<(usize, f32)> {
+    /// The rows on show, at most `visible` lines of them, and their controls,
+    /// those under the open list (which ends above `list_bottom`) left out;
+    /// returns each shown row's line top.
+    pub(super) fn sjk_rows(
+        &mut self,
+        frame: &Frame,
+        visible: usize,
+        list_bottom: f32,
+    ) -> Vec<(usize, f32)> {
         let s = frame.s;
         let lines: Vec<Line> = match &mut self.classic {
             Some(classic) => {
-                classic.visible = VISIBLE;
+                classic.visible = visible;
                 classic.first = classic.first.min(classic.max_first());
                 // Where the track lies across a row, for the pointer.
                 classic.slider_span = ((TRACK_X - ROWS_X) / ROWS_WIDTH, TRACK_WIDTH / ROWS_WIDTH);
@@ -131,11 +139,11 @@ impl SettingsMenu {
             None => Vec::new(),
         };
         let first = self.classic.as_ref().map_or(0, |classic| classic.first);
-        let shown = first..lines.len().min(first + VISIBLE);
-        if lines.len() > VISIBLE {
+        let shown = first..lines.len().min(first + visible);
+        if lines.len() > visible {
             self.ui.scroll_region(
                 CLASSIC_SCROLL_TOKEN,
-                frame.rect(ROWS_X, ROWS_TOP, ROWS_WIDTH, VISIBLE as f32 * LINE),
+                frame.rect(ROWS_X, ROWS_TOP, ROWS_WIDTH, visible as f32 * LINE),
             );
         }
         if lines.is_empty() && !self.search.trim().is_empty() {
@@ -152,8 +160,8 @@ impl SettingsMenu {
         }
         // An open list hides the controls of the rows under it: text draws
         // over every shape, so the list could not.
-        let covered = self.list_rect(&lines[shown.clone()]);
-        let mut slots = Vec::with_capacity(VISIBLE);
+        let covered = self.list_rect(&lines[shown.clone()], list_bottom);
+        let mut slots = Vec::with_capacity(visible);
         for (index, line) in lines[shown.clone()].iter().enumerate() {
             let top = ROWS_TOP + index as f32 * LINE;
             let row = match *line {
@@ -169,17 +177,17 @@ impl SettingsMenu {
                 && covered.is_some_and(|[_, y, _, height]| top + LINE > y && top < y + height);
             self.sjk_row(frame, row, top, under_list);
         }
-        if lines.len() > VISIBLE {
+        if lines.len() > visible {
             self.ui.scrollbar(
                 CLASSIC_SCROLLBAR_TOKEN,
                 frame.rect(
                     ROWS_X + ROWS_WIDTH + 14.0,
                     ROWS_TOP,
                     4.0,
-                    VISIBLE as f32 * LINE,
+                    visible as f32 * LINE,
                 ),
                 first,
-                VISIBLE,
+                visible,
                 lines.len(),
             );
         }
@@ -404,9 +412,9 @@ impl SettingsMenu {
     }
 
     /// Where the open list lies (frame pixels), when its row is among the
-    /// lines shown, `lines`: under the row's field, or over it when the screen
-    /// ends first.
-    fn list_rect(&self, lines: &[Line]) -> Option<[f32; 4]> {
+    /// lines shown, `lines`: under the row's field, or over it when it would
+    /// pass `bottom` first.
+    fn list_rect(&self, lines: &[Line], bottom: f32) -> Option<[f32; 4]> {
         let dropdown = self.dropdown.as_ref()?;
         let index = lines
             .iter()
@@ -414,7 +422,7 @@ impl SettingsMenu {
         let middle = ROWS_TOP + index as f32 * LINE + LINE * 0.5;
         let height = 16.0 + dropdown.picks.len() as f32 * LIST_ROW;
         let below = middle + kit::CONTROL_HEIGHT * 0.5 + 6.0;
-        let y = if below + height <= KEYS_Y - 16.0 {
+        let y = if below + height <= bottom {
             below
         } else {
             (middle - kit::CONTROL_HEIGHT * 0.5 - 6.0 - height).max(ROWS_TOP)
@@ -422,9 +430,16 @@ impl SettingsMenu {
         Some([CONTROL_RIGHT - FIELD_WIDTH, y, FIELD_WIDTH, height])
     }
 
-    /// The open list, last so it takes the pointer over the rows; a list whose
-    /// row scrolled away (`slots` are the rows shown) closes.
-    fn sjk_dropdown(&mut self, frame: &Frame, slots: &[(usize, f32)]) {
+    /// The open list, last so it takes the pointer over the rows, above
+    /// `bottom`; a list whose row scrolled away (`slots` are the rows shown of
+    /// at most `visible` lines) closes.
+    pub(super) fn sjk_dropdown(
+        &mut self,
+        frame: &Frame,
+        slots: &[(usize, f32)],
+        visible: usize,
+        bottom: f32,
+    ) {
         let Some(dropdown) = &self.dropdown else {
             return;
         };
@@ -435,8 +450,8 @@ impl SettingsMenu {
         let Some(classic) = &self.classic else {
             return;
         };
-        let shown = &classic.lines[classic.first..classic.lines.len().min(classic.first + VISIBLE)];
-        let Some(rect) = self.list_rect(shown) else {
+        let shown = &classic.lines[classic.first..classic.lines.len().min(classic.first + visible)];
+        let Some(rect) = self.list_rect(shown, bottom) else {
             return;
         };
         let labels: Vec<&str> = dropdown
@@ -657,7 +672,7 @@ impl SettingsMenu {
     }
 
     /// The keys of what has the keyboard, right-aligned at the bottom.
-    fn sjk_keys(&mut self, frame: &Frame) {
+    pub(super) fn sjk_keys(&mut self, frame: &Frame) {
         let s = frame.s;
         let mut keys: Vec<(&[&str], &str)> = Vec::with_capacity(5);
         if self.numeric.is_some() || self.editing.is_some() {
@@ -696,7 +711,10 @@ impl SettingsMenu {
             {
                 keys.push((&["Backspace"][..], "default"));
             }
-            if self.section == Section::Search {
+            if self.popup() {
+                keys.push((&["Tab"][..], "all settings"));
+                keys.push((&["Esc"][..], "done"));
+            } else if self.section == Section::Search {
                 keys.push((&["Esc"][..], "clear the search"));
             } else {
                 keys.push((&["Tab"][..], "next group"));

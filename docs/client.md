@@ -934,11 +934,15 @@ other tabs keep their numbers.
 With the classic menus the same rows are the first group of the
 Setup page, FIRST SETUP (`Group::Quick`, [groups.rs](../crates/sjk-viewer/src/settings/groups.rs)),
 drawn as a classic+ option panel like the others, with search, descriptions and
-defaults; the SJK UI shows them as the first category of its Settings, and the
-modern style as the FIRST SETUP tab. Picking another menu style on its first row
-keeps First setup on show in the new style: the classic Setup page's FIRST SETUP
-group, the SJK UI's First setup category or the modern FIRST SETUP tab (not
-Interface, which also has the row).
+defaults; the modern style shows them as the FIRST SETUP tab. The SJK UI shows
+them as a pop-up card over the map (since 08/10/2026,
+[sjk_popup.rs](../crates/sjk-viewer/src/settings/sjk_popup.rs),
+[sjk-ui.md](sjk-ui.md#first-setup)): the rows scroll inside it, and "Don't show
+at start" is a tick box pinned at its foot, always in view, beside All settings
+(the Settings screen on its First setup category, which keeps the rows too) and
+Done. Picking another menu style on its first row keeps First setup on show in
+the new style: the classic Setup page's FIRST SETUP group, the SJK UI's pop-up
+or the modern FIRST SETUP tab (not Interface, which also has the row).
 
 At every start, the first time the main menu is up and the menu style is known, it
 opens in the active style, until the player ticks "Don't show at start"
@@ -1486,7 +1490,8 @@ The client looks for a newer SJK release when it starts and from the Update page
   ("update 2026.1010.1 available"). The check sends the request GitHub needs and
   nothing else; turn it off to send none.
 - Main menu > Update (classic: SJK > UPDATE) or the
-  `update` command opens the page. It shows the state and offers Install (Enter),
+  `update` command opens the page (with the SJK UI's menus, a pop-up card over
+  the map: [sjk-ui.md](sjk-ui.md#sol-jks-pages)). It shows the state and offers Install (Enter),
   Check again (C) and Release notes (N); Escape closes. Opening it with nothing
   checked yet checks at once.
 - Install downloads `SJK-<version>-<platform>.zip`, refuses it unless its SHA-256
