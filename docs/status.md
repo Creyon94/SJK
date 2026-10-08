@@ -2022,6 +2022,18 @@ map. Off-screen world shots of `T2_Rogue` either side of a roof edge showed a ba
 of fog flipping before the change and none after; a local, uncommitted probe timed
 the far survey on four retail maps. Not yet tried in a game.
 
+`personal/rain-wet` (08/10/2026, based on `8c1ac09`), Sol's request: rain wets what it
+falls on, chosen with the weather quality (1 wet surfaces, 2 water running down slopes
+and walls, 3 puddles with rain rings), in a pass over the world before the players
+are drawn, so players stay dry; no drying, as weather rarely changes during a map
+([Weather](rendering.md#weather)). Unit tests cover the quality levels, how wet each
+rain makes things and its slant, the mirrored sky, the uniform layout and the new
+shader's translation to SPIR-V and HLSL. Off-screen world shots of `T2_Rogue` in a
+forced storm, with the pass on and off and as a debug mask, showed walls and roofs
+wet, ledges' undersides and the pad under a parked ship dry, streaks on walls,
+puddle patches and rings; the GPU cost was measured at 4K (rendering page). Not yet
+tried in a game; how the streaks and rings look in motion is unverified.
+
 ## Shader review
 
 Sol is reviewing every retail world shader on the test maps of

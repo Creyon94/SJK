@@ -20,6 +20,9 @@
 //!   the cover instead of the reference's smoke sprites (`r_weatherFog`).
 //! - **Clouds** ([`clouds`]) over every map with sky, lit by its sun, drifting with
 //!   the wind and darkening in a storm (`r_clouds`).
+//! - **Wet surfaces**: what the rain falls on darkens and mirrors the sky, water runs
+//!   down slopes and walls, and flat ground gathers puddles, by quality level, in a
+//!   pass over the world before the players are drawn (`fragment_wet`).
 //! - Particles are generated on the GPU from their index and the wind the CPU
 //!   integrates (`weather.wgsl`) and drawn into the display-space effect layer after the
 //!   effects; rain is blended as a faint tinted streak rather than added.
@@ -83,6 +86,8 @@ const FOG_DRIFT: [f32; 3] = [24.0, 9.0, 0.0];
 const FOG_WIND: f32 = 0.35;
 /// Rain haze and ground fog colour before light (display values): a cool grey.
 const FOG_GREY: [f32; 3] = [0.64, 0.68, 0.74];
+/// The rain haze of a downpour: what wets surfaces fully. Drizzle wets them about half.
+const SOAKING_HAZE: f32 = 2.8e-4;
 
 /// The map's weather state, its cover and its GPU resources.
 pub(crate) struct Runtime {
@@ -114,6 +119,8 @@ pub(crate) struct Runtime {
     clouds: Option<clouds::Gpu>,
     /// Clouds are drawn this frame.
     clouds_visible: bool,
+    /// Rain wets the world this frame.
+    wet: bool,
     uniform: GpuWeather,
     batches: Vec<Batch>,
 }
@@ -190,6 +197,7 @@ impl Runtime {
             gpu: None,
             clouds: None,
             clouds_visible: false,
+            wet: false,
             uniform: GpuWeather::zeroed(),
             batches: Vec::with_capacity(2 * MAX_CLOUDS + 2),
         };
@@ -236,6 +244,11 @@ impl Runtime {
         self.flows = [[0.0; 3]; MAX_CLOUDS];
     }
 
+    /// Rain to wet the world with this frame ([`Runtime::draw_wet`]).
+    pub(crate) fn wet(&self) -> bool {
+        self.wet
+    }
+
     /// Weather to draw into the effect layer this frame.
     pub(crate) fn visible(&self) -> bool {
         !self.batches.is_empty()
@@ -271,6 +284,7 @@ impl Runtime {
     /// Allocation-free once set up, unless the cover window moves.
     pub(crate) fn prepare(&mut self, input: FrameInput<'_>) {
         self.batches.clear();
+        self.wet = false;
         let now = std::time::Instant::now();
         let seconds = self
             .last_frame
@@ -324,6 +338,7 @@ impl Runtime {
                     input.queue,
                     input.images,
                     input.camera_layout,
+                    input.scene_format,
                     &cover.view,
                     &cover.far_view,
                     noise,
@@ -443,6 +458,13 @@ impl Runtime {
                 0.0
             },
         ];
+        let (wetness, rain) = wetting(&self.effects.clouds, wind);
+        // Without a cover (a map with no sky) the rain falls everywhere; it wets nothing.
+        self.wet = quality.wet > 0 && wetness > 0.0 && window.enabled;
+        self.uniform.wet = [wetness, quality.wet as f32, 0.0, 0.0];
+        let sky = wet_sky(input.sky, storm);
+        self.uniform.wet_sky = [sky[0], sky[1], sky[2], 0.0];
+        self.uniform.rain = [rain[0], rain[1], rain[2], 0.0];
         let color = fog_color(tint, self.light, storm);
         self.uniform.fog_color = [
             color[0],
@@ -491,6 +513,19 @@ impl Runtime {
         self.clouds_visible = ready;
     }
 
+    /// Wet the opaque world just drawn into `target`; `depth` samples the depth it left.
+    pub(crate) fn draw_wet(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        target: &wgpu::TextureView,
+        camera: &wgpu::BindGroup,
+        depth: &wgpu::BindGroup,
+    ) {
+        if let Some(gpu) = self.gpu.as_ref().filter(|_| self.wet) {
+            gpu.draw_wet(encoder, target, camera, depth);
+        }
+    }
+
     /// Record this frame's weather into the effect layer's pass.
     pub(crate) fn draw<'pass>(
         &'pass self,
@@ -532,6 +567,27 @@ fn fog_color(tint: [f32; 4], light: [f32; 3], storm: f32) -> [f32; 3] {
         [0, 1, 2].map(|channel| tint[channel] / peak * 0.72)
     };
     std::array::from_fn(|channel| hue[channel] * light[channel] * (1.0 - 0.3 * storm))
+}
+
+/// How wet the rain makes what it falls on (0 dry, 1 a downpour) and the direction it
+/// falls in: the rain clouds' haze, and the densest one's force.
+fn wetting(clouds: &[Cloud], wind: [f32; 3]) -> (f32, [f32; 3]) {
+    let rain = clouds.iter().filter(|cloud| cloud.is_rain());
+    let haze: f32 = rain.clone().map(|cloud| cloud.haze).sum();
+    let Some(densest) = rain.max_by(|a, b| a.haze.total_cmp(&b.haze)) else {
+        return (0.0, [0.0, 0.0, -1.0]);
+    };
+    let force = glam::Vec3::from(force(densest, wind));
+    let direction = force.try_normalize().unwrap_or(glam::Vec3::NEG_Z);
+    let wetness = (0.35 + 0.65 * haze / SOAKING_HAZE).min(1.0);
+    (wetness, direction.to_array())
+}
+
+/// The overcast sky a wet surface mirrors, in the scene's light units: the clouds' own
+/// skylight, dimmer at night and in a storm.
+fn wet_sky(sky: clouds::SkyLight, storm: f32) -> [f32; 3] {
+    let level = sky.radiance.max(0.0) * (0.08 + 0.92 * sky.strength.clamp(0.0, 1.0));
+    [0.46, 0.52, 0.6].map(|channel| channel * level * (1.0 - 0.4 * storm))
 }
 
 /// Gravity and wind on a cloud's particles.
@@ -742,6 +798,34 @@ mod tests {
         assert_eq!(weather.effects.clouds[0].look, Look::Streak);
         weather.command("spacedust 100").unwrap();
         assert!(weather.space, "space maps get no clouds");
+    }
+
+    #[test]
+    fn rain_wets_by_its_haze_and_falls_with_the_wind() {
+        let clouds = |commands: &[&str]| Effects::from_commands(commands.iter().copied()).clouds;
+        assert_eq!(
+            wetting(&clouds(&["snow"]), [0.0; 3]).0,
+            0.0,
+            "snow is not rain"
+        );
+        assert_eq!(wetting(&[], [0.0; 3]), (0.0, [0.0, 0.0, -1.0]));
+        let (drizzle, down) = wetting(&clouds(&["lightrain"]), [0.0; 3]);
+        let (downpour, _) = wetting(&clouds(&["heavyrain"]), [0.0; 3]);
+        assert!(drizzle > 0.4 && drizzle < 0.7, "{drizzle}");
+        assert_eq!(downpour, 1.0);
+        assert_eq!(down, [0.0, 0.0, -1.0]);
+        // A wind along +x slants the rain that way.
+        let (_, slanted) = wetting(&clouds(&["rain"]), [2000.0, 0.0, 0.0]);
+        assert!(slanted[0] > 0.5 && slanted[2] < -0.5, "{slanted:?}");
+        // The mirrored sky follows the light: none at night, dimmer in a storm.
+        let night = clouds::SkyLight {
+            strength: 0.0,
+            ..clouds::SkyLight::DEFAULT
+        };
+        assert!(wet_sky(night, 0.0)[2] < 0.1 * wet_sky(clouds::SkyLight::DEFAULT, 0.0)[2]);
+        assert!(
+            wet_sky(clouds::SkyLight::DEFAULT, 1.0)[0] < wet_sky(clouds::SkyLight::DEFAULT, 0.0)[0]
+        );
     }
 
     #[test]

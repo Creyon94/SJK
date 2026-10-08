@@ -37,6 +37,9 @@ pub(crate) struct GpuWeather {
     pub(crate) fog_color: [f32; 4],
     pub(crate) fog_flow: [f32; 4],
     pub(crate) far: [f32; 4],
+    pub(crate) wet: [f32; 4],
+    pub(crate) wet_sky: [f32; 4],
+    pub(crate) rain: [f32; 4],
     pub(crate) clouds: [GpuCloud; super::effects::MAX_CLOUDS],
 }
 
@@ -67,17 +70,22 @@ pub(crate) struct Gpu {
     sprite: wgpu::RenderPipeline,
     sprite_alpha: wgpu::RenderPipeline,
     volume: wgpu::RenderPipeline,
+    /// Rain-wet surfaces, drawn into the scene itself before the players.
+    wet: wgpu::RenderPipeline,
     uniform: wgpu::Buffer,
     bind_group: wgpu::BindGroup,
 }
 
 impl Gpu {
-    /// Build the pipelines for the effect layer, the uniform and the image array.
+    /// Build the pipelines for the effect layer and the scene, the uniform and the image
+    /// array.
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn new(
         device: &wgpu::Device,
         queue: &crate::frame_queue::FrameQueue,
         images: Option<(&sjk_vfs::VirtualFileSystem, &sjk_shader::ShaderCatalog)>,
         camera: &wgpu::BindGroupLayout,
+        scene_format: wgpu::TextureFormat,
         cover: &wgpu::TextureView,
         far_cover: &wgpu::TextureView,
         noise: &super::noise::Texture,
@@ -268,6 +276,40 @@ impl Gpu {
                 cache: None,
             })
         };
+        // The scene times the alpha the shader writes, plus its colour: wet surfaces darken
+        // and take a sheen in one blend, without reading the scene.
+        let wet = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("fragment_wet"),
+            layout: Some(&pipeline_layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: Some("vertex_volume"),
+                compilation_options: Default::default(),
+                buffers: &[],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: Some("fragment_wet"),
+                compilation_options: Default::default(),
+                targets: &[Some(wgpu::ColorTargetState {
+                    format: scene_format,
+                    blend: Some(wgpu::BlendState {
+                        color: wgpu::BlendComponent {
+                            src_factor: wgpu::BlendFactor::One,
+                            dst_factor: wgpu::BlendFactor::SrcAlpha,
+                            operation: wgpu::BlendOperation::Add,
+                        },
+                        alpha: added.alpha,
+                    }),
+                    write_mask: wgpu::ColorWrites::ALL,
+                })],
+            }),
+            primitive: wgpu::PrimitiveState::default(),
+            depth_stencil: None,
+            multisample: Default::default(),
+            multiview_mask: None,
+            cache: None,
+        });
         // Rain and its splashes are blended over the scene, a faint tinted streak, rather
         // than added to it: the reference's added grey turns a dense storm into white.
         Self {
@@ -307,9 +349,41 @@ impl Gpu {
                 false,
                 wgpu::CompareFunction::Always,
             ),
+            wet,
             uniform,
             bind_group,
         }
+    }
+
+    /// Wet the opaque world in `target`, reading the depth it left (`depth`, sampled).
+    pub(crate) fn draw_wet(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        target: &wgpu::TextureView,
+        camera: &wgpu::BindGroup,
+        depth: &wgpu::BindGroup,
+    ) {
+        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("SJK rain-wet surfaces"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: target,
+                resolve_target: None,
+                depth_slice: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Load,
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+            multiview_mask: None,
+        });
+        pass.set_pipeline(&self.wet);
+        pass.set_bind_group(0, camera, &[]);
+        pass.set_bind_group(1, &self.bind_group, &[]);
+        pass.set_bind_group(2, depth, &[]);
+        pass.draw(0..3, 0..1);
     }
 
     /// Upload this frame's uniform.
@@ -443,7 +517,7 @@ mod tests {
         assert_eq!(std::mem::size_of::<GpuCloud>(), (5 + 2 * BUCKETS) * 16);
         assert_eq!(
             std::mem::size_of::<GpuWeather>(),
-            12 * 16 + super::super::effects::MAX_CLOUDS * std::mem::size_of::<GpuCloud>()
+            15 * 16 + super::super::effects::MAX_CLOUDS * std::mem::size_of::<GpuCloud>()
         );
         let shader = include_str!("weather.wgsl");
         assert!(shader.contains("array<vec4<f32>, 8>"));
@@ -475,6 +549,7 @@ mod tests {
             (Fragment, "fragment_splash"),
             (Vertex, "vertex_volume"),
             (Fragment, "fragment_volume"),
+            (Fragment, "fragment_wet"),
         ];
         for (stage, entry) in entries {
             for additive in [0.0, 1.0] {

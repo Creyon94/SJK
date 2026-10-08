@@ -1631,9 +1631,35 @@ distant fog down 500 units, and a bright band at eye height came and went.)
 | Level | Draws |
 | --- | --- |
 | 0 low | Near streaks, the original's fog sprites; clouds with 10 samples |
-| 1 medium | Splashes, volumetric fog with 8 samples a ray; clouds 16 |
-| 2 high (default) | The far rain layer, fog 12, clouds 24 |
-| 3 ultra | More far rain and splashes, fog 20, clouds 40 |
+| 1 medium | Splashes, volumetric fog with 8 samples a ray, wet surfaces; clouds 16 |
+| 2 high (default) | The far rain layer, fog 12, water running down slopes and walls; clouds 24 |
+| 3 ultra | More far rain and splashes, fog 20, puddles with rain rings; clouds 40 |
+
+**Wet surfaces** (`fragment_wet` in weather.wgsl, from `r_weatherQuality` 1). Rain
+wets what it falls on, in one full-screen pass drawn into the scene right after the
+opaque world and before the players, so the depth it reads holds only the world and
+players and models stay dry. Each pixel rebuilds its point and face from the depth
+(the neighbour on each axis nearer in depth, so edges keep their face) and is wet
+where the air 6 units in front of it is under open sky: the cover, blended between
+the four nearest columns so a roof's shelter ends in a soft line, and the far cover
+beyond the window. Floors under roofs, the undersides of ledges and indoor surfaces
+stay dry; faces the rain slants onto get wetter, the lee side of a wall drier.
+Drizzle wets about half as much as a downpour (`SOAKING_HAZE`), snow not at all, and
+a map without sky (no cover) is never wet. Wet surfaces darken by up to 36% as water
+fills their pores, and a film mirrors the overcast sky (the clouds' skylight, dimmer at
+night and in a storm) with water's Fresnel term, strongest at grazing angles and only
+where the mirrored ray points above the horizon. Level 2 adds running water: noise
+streaks stretched down each face and scrolling downhill, faster on steeper faces,
+darker and glossier, fading out between 500 and 1400 units. Level 3 adds puddles on
+flat ground (about a third of it, in noise patches 1100 units across), darker and an
+almost full mirror, with thin rain rings within 700 units. The pass blends
+`scene × alpha + colour` and never reads the scene, so the weather does not copy the
+frame; the price is that light painted into a wet wall's texture dims with it (by at
+most about a sixth on a wall). Not drawn: reflections of the scene in puddles (only
+the sky is mirrored) and wet models. Measured on 08/10/2026 (release, Windows, RTX
+5080, off-screen at 3840×2160 on `T2_Rogue` in a forced storm, `SJK_GPU_PHASES` marks
+`world-opaque`/`rain-wet`): 0.19–0.26 ms a frame at levels 1 and 2, 0.27–0.37 ms at 3,
+in GPU frames of 5.5–7.9 ms.
 
 **Forced weather** (`r_weatherForce`): 1 drizzle (`lightrain`), 2 rain with a
 random wind, 3 a storm (`heavyrain`, gusting wind), 4 snow with wind, in place of the

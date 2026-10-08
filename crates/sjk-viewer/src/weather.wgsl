@@ -50,6 +50,13 @@ struct Weather {
     fog_flow: vec4<f32>,
     // xy the far cover's first corner, z its column width, w 1 once it is surveyed.
     far: vec4<f32>,
+    // x how wet the rain makes what it falls on (0 dry), y what it does there
+    // (`r_weatherQuality`'s: 1 wet, 2 running water, 3 puddles), zw unused.
+    wet: vec4<f32>,
+    // rgb the overcast sky a wet surface mirrors, in the scene's light units.
+    wet_sky: vec4<f32>,
+    // xyz the direction the rain falls (unit), w unused.
+    rain: vec4<f32>,
     clouds: array<Cloud, 5>,
 };
 
@@ -530,4 +537,138 @@ fn fog_span(p: vec2<f32>) -> vec2<f32> {
     }
     let alpha = 1.0 - exp(-optical * step);
     return vec4(weather.fog_color.rgb, alpha);
+}
+
+// Rain-wet surfaces: one full-screen pass over the opaque world before the players are
+// drawn, so the depth holds only the world. A surface is wet where the air just in front
+// of it is under open sky (the cover, and the far cover beyond the window): it darkens
+// as water fills its pores, and its film mirrors the overcast sky, most at grazing
+// angles. From level 2 water runs down slopes and walls in streaks; at level 3 flat
+// ground gathers puddles. The alpha multiplies the scene and the colour is added
+// (blend One, SrcAlpha), so the pass never reads the scene.
+
+// The world point under texel `xy` of the depth, and that depth.
+fn wet_point(xy: vec2<i32>, size: vec2<f32>) -> vec4<f32> {
+    let depth = textureLoad(scene_depth, xy, 0);
+    let uv = (vec2<f32>(xy) + 0.5) / size;
+    let ndc = vec2(uv.x * 2.0 - 1.0, 1.0 - uv.y * 2.0);
+    let p = weather.inverse_view_projection * vec4(ndc, depth, 1.0);
+    return vec4(p.xyz / p.w, depth);
+}
+
+// 1 where `q` lies in a column's open air. A little below the column's floor still
+// counts: on a slope, a pixel off the column's centre lies below the floor surveyed there.
+fn under_sky(q: vec3<f32>) -> f32 {
+    let span = fog_span(q.xy);
+    return select(0.0, 1.0, q.z >= span.x - 8.0 && q.z <= span.y);
+}
+
+// Rain rings on standing water, 0 to 1: a drop lands in each 16-unit cell now and
+// then (about every other second), at a random spot, and its thin ring widens and fades.
+fn ripples(xy: vec2<f32>, time: f32) -> f32 {
+    let size = 16.0;
+    let base = floor(xy / size - 0.5);
+    var ring = 0.0;
+    for (var k = 0u; k < 4u; k++) {
+        let cell = base + vec2(f32(k & 1u), f32(k >> 1u));
+        let key = bitcast<u32>(i32(cell.x)) * 0x8DA6B343u ^ bitcast<u32>(i32(cell.y)) * 0xD8163841u;
+        let timing = hash3(key);
+        let clock = time / (0.5 + 0.4 * timing.z) + timing.x;
+        let age = fract(clock);
+        let spot = hash3(key ^ (u32(floor(clock)) * 0x9E3779B1u));
+        if spot.z > 0.5 { continue; }
+        let centre = (cell + 0.2 + 0.6 * spot.xy) * size;
+        let off = (length(xy - centre) - (0.5 + 6.5 * age)) / 0.45;
+        let fading = 1.0 - age;
+        ring += exp(-off * off) * fading * fading * fading;
+    }
+    return min(ring, 1.0);
+}
+
+@fragment fn fragment_wet(@builtin(position) pixel: vec4<f32>) -> @location(0) vec4<f32> {
+    let size = vec2<f32>(textureDimensions(scene_depth));
+    let last = vec2<i32>(size) - 1;
+    let xy = vec2<i32>(pixel.xy);
+    let centre = wet_point(xy, size);
+    if centre.w >= 1.0 { discard; }
+    let p = centre.xyz;
+    // The face's normal, from the neighbour on each axis whose depth is nearer this
+    // pixel's, so a pixel at an edge takes the face it belongs to.
+    let left = wet_point(max(xy - vec2(1, 0), vec2(0)), size);
+    let right = wet_point(min(xy + vec2(1, 0), last), size);
+    let above = wet_point(max(xy - vec2(0, 1), vec2(0)), size);
+    let below = wet_point(min(xy + vec2(0, 1), last), size);
+    let use_right = xy.x == 0 || (xy.x < last.x && abs(right.w - centre.w) < abs(left.w - centre.w));
+    let use_below = xy.y == 0 || (xy.y < last.y && abs(below.w - centre.w) < abs(above.w - centre.w));
+    let dx = select(p - left.xyz, right.xyz - p, use_right);
+    let dy = select(p - above.xyz, below.xyz - p, use_below);
+    var n = cross(dx, dy);
+    if dot(n, n) < 1e-12 { discard; }
+    n = normalize(n);
+    let view = camera.position - p;
+    if dot(n, view) < 0.0 { n = -n; }
+
+    // Rain reaches the face where the air in front of it is under open sky, blended
+    // between the four nearest columns so a roof's shelter ends in a soft line, not in
+    // the columns' steps.
+    let lift = p + n * 6.0;
+    let cell = lift.xy / weather.cover.x - 0.5;
+    let first = floor(cell);
+    let blend = cell - first;
+    let centre_of = (first + 0.5) * weather.cover.x;
+    let step = weather.cover.x;
+    let open = mix(
+        mix(under_sky(vec3(centre_of, lift.z)), under_sky(vec3(centre_of + vec2(step, 0.0), lift.z)), blend.x),
+        mix(under_sky(vec3(centre_of + vec2(0.0, step), lift.z)),
+            under_sky(vec3(centre_of + vec2(step, step), lift.z)), blend.x),
+        blend.y);
+    // Faces the rain slants onto take more of it, the lee side of a wall less.
+    let facing = clamp(0.55 + 0.9 * dot(n, -weather.rain.xyz), 0.3, 1.0);
+    let wet = weather.wet.x * open * facing;
+    if wet <= 0.004 { discard; }
+
+    let level = u32(weather.wet.y);
+    let distance = length(view);
+    let ground = smoothstep(0.75, 0.97, n.z);
+    // Water fills the pores and darkens the surface; its film mirrors the sky, thin and
+    // rough on a wall, smoother on the ground.
+    var darken = 0.36 * wet;
+    var film = wet * mix(0.1, 0.22, ground);
+    var glint = 0.0;
+    var rings = 0.0;
+    let steep = length(n.xy);
+    if level >= 2u && n.z > -0.2 {
+        // Running water: streaks stretched down the face, moving downhill, faster on a
+        // steeper face; fine detail, so it fades out with distance.
+        let fade = smoothstep(0.12, 0.35, steep) * (1.0 - smoothstep(500.0, 1400.0, distance));
+        if fade > 0.0 {
+            let downhill = normalize(vec3(0.0, 0.0, -1.0) + n * n.z);
+            let across = cross(n, downhill);
+            let along = dot(p, downhill) - weather.cover.w * (40.0 + 120.0 * steep);
+            let q = vec3(dot(p, across) / 90.0, along / 520.0, dot(p, n) / 700.0);
+            let streaks = textureSampleLevel(noise, noise_sampler, q, 0.0);
+            let rivulet = smoothstep(0.8, 0.845, streaks.r) * (0.6 + 0.8 * streaks.g) * fade * wet;
+            darken += 0.25 * rivulet;
+            film += 0.4 * rivulet;
+            glint = rivulet;
+        }
+    }
+    if level >= 3u {
+        // Standing water on flat ground: darker still, and smooth enough to mirror the sky.
+        let patches = textureSampleLevel(noise, noise_sampler, vec3(p.xy / 1100.0, 0.37), 0.0);
+        let puddle = smoothstep(0.785, 0.815, patches.r) * smoothstep(0.96, 0.995, n.z) * open
+            * weather.wet.x;
+        darken = mix(darken, 0.55, puddle);
+        film = mix(film, 1.0, puddle);
+        // Rings where drops land in it, near enough to see.
+        rings = puddle * ripples(p.xy, weather.cover.w) * (1.0 - smoothstep(300.0, 700.0, distance));
+    }
+    let to_eye = view / max(distance, 0.001);
+    let fresnel = 0.02 + 0.98 * pow(1.0 - clamp(dot(n, to_eye), 0.0, 1.0), 5.0);
+    // The mirrored ray sees the sky only above the horizon.
+    let sky = smoothstep(-0.05, 0.35, reflect(-to_eye, n).z);
+    let mirror = clamp(fresnel * film * sky, 0.0, 1.0);
+    // Running water and rain rings catch the light even seen from above.
+    let added = weather.wet_sky.rgb * (mirror + 0.2 * glint + 0.2 * rings);
+    return vec4(added, (1.0 - clamp(darken, 0.0, 0.6)) * (1.0 - mirror));
 }

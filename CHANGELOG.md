@@ -21,6 +21,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- Rain wets the world: what it falls on darkens and takes a sheen of the sky, while floors under roofs and players stay dry. With weather quality high, water runs down walls and slopes; with ultra, puddles gather on flat ground with rain rings in them (Settings > Graphics, Weather quality) _(Sol)_
 - Q opens the quick wheel on the page you used last (it always opened on General); R still opens Weather _(Sol)_
 - Nameplates count Force drain: the Force bar of whoever you (or anyone) drain drops shot by shot and stops refilling for a moment, and drainers pay for their drain. The verified tick now sits level with the name _(Sol)_
 - The quick wheel has pages: hold Q, then scroll or left and right click to go from General to Weather and any page you add. Settings > Quick wheel (Interface > Quick wheel pages with the classic and modern menus) adds, names, orders and removes pages and picks each page's choices from SJK's actions or your own console commands. The wheel now has the SJK UI's look _(Sol)_

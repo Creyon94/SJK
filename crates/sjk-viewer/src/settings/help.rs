@@ -481,7 +481,8 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::weather::QUALITY_CVAR,
-        "0 low, 1 adds splashes and 3D fog, 2 distant rain, 3 ultra: finer fog and clouds.",
+        "0 low, 1 splashes, 3D fog, wet ground, 2 distant rain, water running down walls, \
+         3 ultra: puddles, finer fog and clouds.",
     ),
     (
         crate::weather::FORCE_CVAR,
