@@ -84,6 +84,12 @@ const FOG_TILE: [f64; 3] = [1400.0, 1400.0, 500.0];
 /// The fog's own slow drift, and its share of the wind.
 const FOG_DRIFT: [f32; 3] = [24.0, 9.0, 0.0];
 const FOG_WIND: f32 = 0.35;
+/// Running water on walls: how fast it runs down (units a second), one noise tile of
+/// its length (`STREAK_LENGTH` in weather.wgsl, where the scroll wraps), and how fast its
+/// pattern changes as it runs (noise tiles a second).
+const STREAK_SPEED: f64 = 110.0;
+const STREAK_LENGTH: f64 = 520.0;
+const STREAK_CHANGE: f64 = 0.04;
 /// Rain haze and ground fog colour before light (display values): a cool grey.
 const FOG_GREY: [f32; 3] = [0.64, 0.68, 0.74];
 /// The rain haze of a downpour: what wets surfaces fully. Drizzle wets them about half.
@@ -109,6 +115,10 @@ pub(crate) struct Runtime {
     flows: [[f64; 3]; MAX_CLOUDS],
     /// The fog's and the clouds' drift.
     fog_flow: [f64; 3],
+    /// Running water's scroll down the walls (wrapped to [`STREAK_LENGTH`]) and its
+    /// pattern's change (wrapped to one tile).
+    streak_flow: f64,
+    streak_change: f64,
     cloud_flow: [f64; 2],
     time: f64,
     light: [f32; 3],
@@ -188,6 +198,8 @@ impl Runtime {
             wind: wind::Wind::default(),
             flows: [[0.0; 3]; MAX_CLOUDS],
             fog_flow: [0.0; 3],
+            streak_flow: 0.0,
+            streak_change: 0.0,
             cloud_flow: [0.0; 2],
             time: 0.0,
             light: [1.0; 3],
@@ -373,6 +385,10 @@ impl Runtime {
                 self.fog_flow[axis] =
                     (self.fog_flow[axis] + speed * f64::from(seconds)).rem_euclid(FOG_TILE[axis]);
             }
+            self.streak_flow =
+                (self.streak_flow + STREAK_SPEED * f64::from(seconds)).rem_euclid(STREAK_LENGTH);
+            self.streak_change =
+                (self.streak_change + STREAK_CHANGE * f64::from(seconds)).rem_euclid(1.0);
         }
 
         self.uniform.window = window.cells;
@@ -461,7 +477,12 @@ impl Runtime {
         let (wetness, rain) = wetting(&self.effects.clouds, wind);
         // Without a cover (a map with no sky) the rain falls everywhere; it wets nothing.
         self.wet = quality.wet > 0 && wetness > 0.0 && window.enabled;
-        self.uniform.wet = [wetness, quality.wet as f32, 0.0, 0.0];
+        self.uniform.wet = [
+            wetness,
+            quality.wet as f32,
+            self.streak_flow as f32,
+            self.streak_change as f32,
+        ];
         let sky = wet_sky(input.sky, storm);
         self.uniform.wet_sky = [sky[0], sky[1], sky[2], 0.0];
         self.uniform.rain = [rain[0], rain[1], rain[2], 0.0];
@@ -802,6 +823,9 @@ mod tests {
 
     #[test]
     fn rain_wets_by_its_haze_and_falls_with_the_wind() {
+        // Running water's scroll wraps where the shader's noise tile repeats.
+        let shader = include_str!("weather.wgsl");
+        assert!(shader.contains(&format!("const STREAK_LENGTH: f32 = {STREAK_LENGTH:.1};")));
         let clouds = |commands: &[&str]| Effects::from_commands(commands.iter().copied()).clouds;
         assert_eq!(
             wetting(&clouds(&["snow"]), [0.0; 3]).0,

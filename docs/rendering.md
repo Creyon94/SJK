@@ -1648,9 +1648,18 @@ Drizzle wets about half as much as a downpour (`SOAKING_HAZE`), snow not at all,
 a map without sky (no cover) is never wet. Wet surfaces darken by up to 36% as water
 fills their pores, and a film mirrors the overcast sky (the clouds' skylight, dimmer at
 night and in a storm) with water's Fresnel term, strongest at grazing angles and only
-where the mirrored ray points above the horizon. Level 2 adds running water: noise
-streaks stretched down each face and scrolling downhill, faster on steeper faces,
-darker and glossier, fading out between 500 and 1400 units. Level 3 adds puddles on
+where the mirrored ray points above the horizon. Level 2 adds running water on walls
+and steep slopes: thin noise streaks, 40 units to a noise tile across and 520 along,
+darker and glossier, running down at 110 units a second while their pattern slowly
+changes. They are laid on each wall's plane in world coordinates (across y and up z for
+a wall facing x, across x for one facing y, blended between the two on a slanted wall;
+on a slope the height runs downhill), and the scroll and change are kept wrapped to
+one noise tile on the CPU, so the streaks stay put on the wall. The first version took
+its coordinates from the face's normal, which the depth gives a little unsteadily, times
+world positions in the thousands, and its scroll from the time since the map loaded
+times a slope-dependent speed: the streaks flickered and slid as the camera moved
+(Sol, 08/10/2026). They fade out between 500 and 1400 units and at grazing views, where
+they would shimmer. Level 3 adds puddles on
 flat ground (about a third of it, in noise patches 1100 units across), darker and an
 almost full mirror, with thin rain rings within 700 units. The pass blends
 `scene × alpha + colour` and never reads the scene, so the weather does not copy the
