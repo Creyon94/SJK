@@ -1127,6 +1127,159 @@ mod tests {
         });
     }
 
+    /// The quick wheel over duel6 as a player holding its key sees it, without a
+    /// server: General with a choice highlighted, the change to Weather caught
+    /// half-way, Weather settled with the mouse on Rain, the pointer still in the
+    /// middle; a 4:3 window; and in Inter, with the classic menus (whose style
+    /// does not load the SJK UI's families).
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_quick_wheel() {
+        use std::time::{Duration, Instant};
+        on_big_stack(|| {
+            for (size, style, prefix) in [
+                ([1920, 1080], "sjk", "duel6-wheel"),
+                ([1440, 1080], "sjk", "duel6-wheel-4x3"),
+                ([1920, 1080], "classic", "duel6-wheel-inter"),
+            ] {
+                // No client menu: a disconnected game client would show its
+                // console full screen.
+                let cvars = [
+                    ("ui_menuStyle", style),
+                    (crate::settings::quick::HIDE_CVAR, "1"),
+                ];
+                let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", size, None, &cvars)
+                else {
+                    return;
+                };
+                let shots = menu_backdrop::tour_for("Yavin Training Grounds").expect("the tour");
+                let (yaw, pitch) = look(shots[0].from, shots[0].at);
+                aim(&mut gpu, shots[0].from, yaw, pitch);
+                if let Some(console) = gpu.console.as_mut() {
+                    console.close_for_connection();
+                }
+                gpu.quick_wheel.shot = true;
+                let _ = frame(&mut gpu, 60);
+                // As Q's bind opens it: the page, then the key's number and time.
+                let bound = |page: &str| [page.to_owned(), "81".to_owned(), "1000".to_owned()];
+                gpu.open_quick_wheel(&bound("general"))
+                    .expect("the wheel opens");
+                gpu.quick_wheel.moved([50.0, -50.0]);
+                println!(
+                    "{}",
+                    shoot(&mut gpu, 4, &format!("{prefix}-general")).display()
+                );
+                if prefix != "duel6-wheel" {
+                    continue;
+                }
+                gpu.quick_wheel
+                    .turn(1, Instant::now() - Duration::from_millis(45));
+                println!("{}", shoot(&mut gpu, 1, "duel6-wheel-switching").display());
+                gpu.quick_wheel.moved([70.0, 50.0]);
+                println!("{}", shoot(&mut gpu, 12, "duel6-wheel-weather").display());
+                gpu.quick_wheel.cancel();
+                gpu.open_quick_wheel(&bound("weather"))
+                    .expect("the wheel opens");
+                println!("{}", shoot(&mut gpu, 4, "duel6-wheel-middle").display());
+            }
+        });
+    }
+
+    /// Settings > Quick wheel in the SJK UI over duel6: the pages with General
+    /// focused, a choice focused (the preview highlighting it), the catalogue
+    /// changing it, a custom choice's form, a new page being named, then the
+    /// page filled; and the same editor opened from the classic+ and modern
+    /// settings' Interface row.
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_quick_wheel_settings() {
+        use winit::keyboard::KeyCode::*;
+        /// Keys pressed in the editor, each with what it types.
+        type Keys = &'static [(winit::keyboard::KeyCode, Option<&'static str>)];
+        on_big_stack(|| {
+            let menu = menu::ClientMenu::new(true, String::new());
+            let cvars = [
+                ("ui_menuStyle", "sjk"),
+                (crate::settings::quick::HIDE_CVAR, "1"),
+            ];
+            let Some((mut gpu, _profile)) =
+                open("maps/mp/duel6.bsp", [1920, 1080], Some(menu), &cvars)
+            else {
+                return;
+            };
+            let _ = frame(&mut gpu, 20);
+            gpu.ui_epoch -= std::time::Duration::from_millis(2_000);
+            let steps: [(&str, Keys); 6] = [
+                ("duel6-wheel-settings", &[]),
+                (
+                    "duel6-wheel-settings-choice",
+                    &[(ArrowRight, None), (ArrowDown, None)],
+                ),
+                ("duel6-wheel-settings-catalogue", &[(Enter, None)]),
+                (
+                    "duel6-wheel-settings-custom",
+                    &[
+                        (Escape, None),
+                        (ArrowUp, None),
+                        (ArrowUp, None),
+                        (Enter, None),
+                        (End, None),
+                        (Enter, None),
+                        (KeyA, Some("Ready")),
+                        (Enter, None),
+                        (KeyA, Some("say ready; ready")),
+                    ],
+                ),
+                (
+                    "duel6-wheel-settings-new-page",
+                    &[
+                        (Enter, None),
+                        (ArrowLeft, None),
+                        (ArrowDown, None),
+                        (ArrowDown, None),
+                        (Enter, None),
+                        (KeyA, Some("Duels")),
+                    ],
+                ),
+                (
+                    "duel6-wheel-settings-filled",
+                    &[
+                        (Enter, None),
+                        (Enter, None),
+                        (Enter, None),
+                        (Enter, None),
+                        (ArrowDown, None),
+                        (Enter, None),
+                        (ArrowDown, None),
+                        (ArrowDown, None),
+                        (Enter, None),
+                    ],
+                ),
+            ];
+            for (name, keys) in steps {
+                if let (Some(menu), Some(console)) =
+                    (gpu.client_menu.as_mut(), gpu.console.as_mut())
+                {
+                    menu.sjk_wheel_for_shot(console, keys);
+                }
+                println!("{}", shoot(&mut gpu, 6, name).display());
+            }
+            for (style, classic) in [("classic", true), ("modern", false)] {
+                if let Some(console) = gpu.console.as_mut() {
+                    console.set_cvar(crate::menu::style::CVAR, style);
+                }
+                let _ = frame(&mut gpu, 2);
+                if let (Some(menu), Some(console)) =
+                    (gpu.client_menu.as_mut(), gpu.console.as_ref())
+                {
+                    menu.wheel_overlay_for_shot(console, classic);
+                }
+                let path = shoot(&mut gpu, 6, &format!("duel6-wheel-settings-{style}"));
+                println!("{}", path.display());
+            }
+        });
+    }
+
     /// The game menu's Players page (a small scoreboard) and its Report page, in the
     /// SJK UI, the classic and the modern menus, for a verified player and for one who
     /// is not, and

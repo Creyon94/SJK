@@ -10,6 +10,9 @@ impl SettingsMenu {
         event: InputEvent,
         console: &mut ViewerConsole,
     ) -> SettingsResult {
+        if self.wheel.is_open() {
+            return self.wheel_pointer(event, console);
+        }
         if self.hud.is_open() {
             self.hud_picker_pointer(event, console);
             return SettingsResult::None;
@@ -180,6 +183,8 @@ impl SettingsMenu {
                         self.open_resolutions(console);
                     } else if matches!(setting.kind, ValueKind::HudPicker) {
                         self.open_hud_picker(console);
+                    } else if matches!(setting.kind, ValueKind::WheelPages) {
+                        return SettingsResult::OpenWheelPages;
                     } else if self.classic.is_some() && self.open_dropdown(console, row) {
                         // Classic+: a choice opens its list; nothing changes yet.
                     } else if let Some(position) = event.position {

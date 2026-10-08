@@ -52,6 +52,9 @@ pub(super) enum ValueKind {
     /// The HUD in use (`cg_hudStyle`, `cg_hudFiles`, `cg_hudPack`): steps
     /// through the HUDs, Enter opens the HUD picker with its previews.
     HudPicker,
+    /// The quick wheel's pages (`wheel.json`, not a cvar): Enter opens their
+    /// editor ([`super::wheel_editor`]).
+    WheelPages,
 }
 
 #[derive(Clone, Copy)]
@@ -534,6 +537,11 @@ pub(super) const GAME: &[Setting] = &[
         label: "Menu style",
         cvar: crate::menu::style::CVAR,
         kind: ValueKind::Choice(&crate::menu::style::MenuStyle::NAMES),
+    },
+    Setting {
+        label: "Quick wheel pages",
+        cvar: crate::quick_wheel::pages::FILE,
+        kind: ValueKind::WheelPages,
     },
 ];
 pub(super) const NETWORK: &[Setting] = &[

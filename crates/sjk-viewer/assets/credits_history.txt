@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 08/10/2026 | - | Quick wheel pages, a Settings editor and the SJK look
+- 3fbf252 |  | Quick wheel: pages, a Settings editor and the SJK UI's look
 + 08/10/2026 | - | SJK UI: First setup and Update as pop-up cards
 - abdbcee |  | SJK UI: First setup and Update as pop-up cards
 - 6970852 |  | Debug panel: drop the status key the standalone format removed

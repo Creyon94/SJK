@@ -85,6 +85,11 @@ impl SettingsMenu {
         rail: &Rail<'_>,
     ) {
         let frame = Frame::new(viewport);
+        if self.wheel.is_open() {
+            self.sjk_controls = None;
+            self.append_wheel_sjk(target, viewport, reveal, rail);
+            return;
+        }
         self.ui.begin_transparent(viewport);
         self.ui.push_opacity(reveal);
         backdrop(&mut self.ui, viewport);
@@ -314,7 +319,8 @@ impl SettingsMenu {
             ValueKind::Choice(_)
             | ValueKind::Resolution
             | ValueKind::DisplayMode
-            | ValueKind::HudPicker => {
+            | ValueKind::HudPicker
+            | ValueKind::WheelPages => {
                 let open = self.dropdown.as_ref().is_some_and(|open| open.row == row);
                 kit::field(
                     &mut self.ui,
@@ -609,10 +615,14 @@ impl SettingsMenu {
         if let Some(group) = found_in {
             self.fact(frame, &mut y, "In", format_args!("{group}"), color::TEXT);
         }
+        let source = match setting.kind {
+            ValueKind::WheelPages => "File",
+            _ => "Console",
+        };
         self.fact(
             frame,
             &mut y,
-            "Console",
+            source,
             format_args!("{}", setting.cvar),
             color::HOLO,
         );
@@ -700,6 +710,7 @@ impl SettingsMenu {
                     }
                     ValueKind::Resolution => (&["Enter"][..], "sizes"),
                     ValueKind::HudPicker => (&["Enter"][..], "pictures"),
+                    ValueKind::WheelPages => (&["Enter"][..], "edit"),
                     ValueKind::Text => (&["Enter"][..], "type"),
                     _ => (&["Left", "Right"][..], "change"),
                 });

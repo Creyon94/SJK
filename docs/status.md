@@ -7,6 +7,48 @@ SJK currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Quick wheel pages
+
+SJK-only branch `personal/wheel-pages` (08/10/2026, based on `27696e5`, Windows
+11): Sol asked for a better `+wheel`: one wheel with pages, the two existing
+wheels its default pages, changed with the mouse wheel or the buttons while it
+is held, pages edited in Settings, and a better look
+([client.md](client.md#quick-wheels), [SJK UI](sjk-ui.md#quick-wheel)). The
+wheel's data moved into `quick_wheel/` (`catalog.rs`: 42 actions in seven
+groups, `pages.rs`: the pages and `wheel.json`, `ring.rs`: the SJK UI's ring);
+the pages live on the console (`ViewerConsole::wheel_pages`), which the wheel
+copies when it opens and Settings edits. Scroll down or right click is the next
+page, scroll up or left click the previous, wrapping; neither fires nor changes
+weapon while the wheel is open (`pointer_input.rs`). `+wheel general` and
+`+wheel weather` (Q, R) open on their pages; a bare `+wheel` on the page shown
+last. Settings has a Quick wheel category in the SJK UI and an Interface row
+("Quick wheel pages") that opens the same editor over the classic+ and modern
+settings. Limits: 8 pages, 10 choices a page.
+
+Verified: unit tests for page changes (scroll notches, a trackpad's steps
+adding up, the buttons with their releases kept from the game while a release
+pressed before the wheel opened goes on, wrapping, a second wheel key, a single
+page), release and cancel, the layout and text of both default pages, a full
+wheel of custom choices inside its canvas at 4K; the pages store (defaults
+without a file, edits saved and read back, limits, ids kept across a rename and
+kept unique, a hand-written or broken file); the catalogue; the editor's keys
+(a page added, named, filled with an action and a custom command, moved; a
+choice changed, moved, removed; a page removed and the defaults restored, each
+asked twice; Tab and Escape in the category) and pointer (hover focuses, clicks
+act, the catalogue, the remove control, the way back), and every editor state of
+a full wheel inside its canvas at 1080p, 4:3 and 4K. `cargo test --release -p
+sjk-viewer` (1038 passed), `cargo fmt`, workspace clippy (no new warnings in the
+files changed). World shots (`world_shot::tests::duel6_quick_wheel`,
+`duel6_quick_wheel_settings`) rendered the ring over duel6 at 1080p and 4:3, in
+the SJK UI's families and in Inter, half-way through a change of page, and the
+Settings category in each state and the editor over the classic+ and modern
+settings. Not verified: no game was started, so the mouse wheel and buttons
+changing page in a match (and that nothing reaches the game meanwhile), the
+change of page's feel, the hidden crosshair, typing in the editor's fields and
+Shift or Ctrl moves with a real keyboard, the new actions in play (Day and
+Night, Spectate, Respawn, the others) and a custom command run from the wheel
+are untested.
+
 ## SJK UI: First setup and Update as pop-ups
 
 SJK-only branch `personal/first-setup-popup` (08/10/2026, based on `b9db8c0`,

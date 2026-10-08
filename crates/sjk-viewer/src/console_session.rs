@@ -429,6 +429,7 @@ impl ViewerConsole {
             dust_motes,
             weather,
             exposure,
+            wheel_pages: crate::quick_wheel::pages::WheelPages::load(&config_directory),
             ssao,
             geometry_controls,
             director: director::Director::default(),

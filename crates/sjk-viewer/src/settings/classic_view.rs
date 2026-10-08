@@ -495,6 +495,10 @@ impl SettingsMenu {
         frame: &PanelFrame,
     ) {
         self.sjk_controls = None;
+        if self.wheel.is_open() {
+            self.append_wheel_overlay(vertices, font, viewport, reveal);
+            return;
+        }
         if self.hud.is_open() {
             self.append_hud_picker(vertices, font, viewport, reveal, Some(frame.art));
             return;
@@ -631,7 +635,8 @@ impl SettingsMenu {
                 ValueKind::Choice(_)
                 | ValueKind::Resolution
                 | ValueKind::DisplayMode
-                | ValueKind::HudPicker => {
+                | ValueKind::HudPicker
+                | ValueKind::WheelPages => {
                     let open = self.dropdown.as_ref().is_some_and(|open| open.row == row);
                     place.choice_field(
                         &mut self.ui,
@@ -842,6 +847,7 @@ impl SettingsMenu {
             ValueKind::Text => "ENTER to type a new value",
             ValueKind::Resolution => "LEFT or RIGHT to step, ENTER for the list of sizes",
             ValueKind::HudPicker => "LEFT or RIGHT to step, ENTER to pick from pictures",
+            ValueKind::WheelPages => "ENTER to edit the pages and their choices",
         });
         if self
             .defaults
@@ -951,10 +957,14 @@ impl std::fmt::Display for Number {
 /// What row `setting` shows for its default, and whether `console`'s value
 /// differs from it. Rows whose value is not one cvar's have neither.
 pub(super) fn row_default(console: &ViewerConsole, setting: &Setting) -> RowDefault {
-    // The HUD row names a HUD that two cvars select together.
+    // The HUD row names a HUD that two cvars select together; the quick
+    // wheel's pages are a file, restored to the defaults in their editor.
     if matches!(
         setting.kind,
-        ValueKind::Resolution | ValueKind::DisplayMode | ValueKind::HudPicker
+        ValueKind::Resolution
+            | ValueKind::DisplayMode
+            | ValueKind::HudPicker
+            | ValueKind::WheelPages
     ) {
         return RowDefault::default();
     }

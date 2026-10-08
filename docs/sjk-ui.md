@@ -323,8 +323,9 @@ mock-up draws it.
   `/` key, then the number found).
 - **Rail:** the categories down a lit holo line on the left, each with its
   settings icon: First setup, Display, Graphics, Sound, Mouse, Key bindings,
-  Gameplay, Interface, HUD, Scoreboard, Network. The one on show is gold with a
-  gold bar on the line; none is lit while a search shows its results.
+  Gameplay, Interface, HUD, Quick wheel, Scoreboard, Network. The one on show is
+  gold with a gold bar on the line; none is lit while a search shows its results.
+  Quick wheel has the board's spare sliders icon (`options`) until it has its own.
   - They are the classic+ Setup page's groups (`settings::Group` and tabs), but
     Graphics gathers the renderer's four tabs (image, lighting, shadows, weather)
     under their names (`Group::Graphics`).
@@ -405,6 +406,39 @@ settings or Tab opens the Settings screen on First setup. The pop-up has no
 search. Picking the classic or modern style on its Menu style row goes on as
 that style's First setup, and picking the SJK UI on theirs comes back to the
 pop-up. In a game the SJK UI's First setup is still the classic panel.
+
+### Quick wheel
+
+The quick wheel's pages, edited (since 08/10/2026, Sol's request:
+[client.md](client.md#quick-wheels) has what the wheel does). Its category
+([wheel_editor.rs](../crates/sjk-viewer/src/settings/wheel_editor.rs), drawn by
+[wheel_editor_view.rs](../crates/sjk-viewer/src/settings/wheel_editor_view.rs))
+keeps Settings' top bar (without the search) and rail and fills the rows' and
+detail's columns:
+
+- **Pages** (x 470, 360 wide), under a sub-heading: a row each (56 tall), its
+  name and how many choices it has, the page whose choices show in gold (a gold
+  bar at its left while the focus is elsewhere); the focused row has the band
+  and, at its end, Rename, up, down and remove as small round controls (remove
+  turns ember while it waits for a second Delete). Then "+ Add a page" in gold
+  and Restore the default pages (muted; quiet "These are the default pages"
+  when they are; ember while it waits for a second Enter).
+- **Choices** (x 870, 400 wide), under "On <page>": each choice's picture (a holo
+  ring without one), its name and, muted on the right, its group or "Custom";
+  the focused one's up, down and remove; then "+ Add a choice".
+- **Right column** (the detail's, x 1360): the page's ring as the wheel draws
+  it at 0.78 of its size, the focused choice highlighted, then facts (Key in
+  gold, Bind and Runs in holo) and a line of help. Picking a choice: its title
+  ("Change Rain", "Add to Weather") with Cancel, then the catalogue, 17 lines of
+  40 under the groups' sub-headings, the highlighted line on the band, "On the
+  page" in gold after actions the page has. A custom choice: its title, what a
+  command can be, the Name and Command fields, Cancel and Save (gold).
+- **Keys:** bottom right, what has the keyboard's, and Tab for the next group.
+
+Outside the SJK UI the editor draws the same columns on its own over the
+classic+ or modern settings (the navy ground, "Esc Settings" and "Quick wheel"
+as its title), moved 190 left where the rail would be. The editor has its own
+canvas (1024 draw commands); every state of a full wheel fits it (a test).
 
 ## Servers
 
@@ -741,7 +775,16 @@ button the other looks put at the bottom is left out; Sol JK's page has it.
   `duel6_sjk_ingame` the in-game menu over
   duel6 on a made-up match (`Card::for_shot`, `InGameMenu::sjk_for_shot`):
   the main page, Team in a CTF, a vote on, the installed maps to vote for,
-  Leave, a spectator's card and Settings opened from it.
+  Leave, a spectator's card and Settings opened from it;
+  `duel6_quick_wheel` the quick wheel's ring over duel6 (General, the change to
+  Weather half-way, Weather, the middle, 4:3, in Inter) and
+  `duel6_quick_wheel_settings` its Settings category (pages, a choice, the
+  catalogue, a custom choice, a new page) and the editor over the classic+ and
+  modern settings.
+- The quick wheel's ring ([ring.rs](../crates/sjk-viewer/src/quick_wheel/ring.rs))
+  is drawn on the HUD's layer with a canvas of its own, its text routed to the
+  families when they are loaded (`quick_wheel::append`), else to Inter; it does
+  not load them itself.
 
 ## Plan
 

@@ -1515,7 +1515,10 @@ impl GpuState {
         self.update_auto_switch();
         let mut hud_visibility =
             ground_hud::frame(self, intermission_view.is_some(), presentation_time as i32);
-        if self.scope.mode != 0 && cgame_options::scope_style(self.console.as_ref()) != 1 {
+        // The quick wheel's middle shows its names where the crosshair would be.
+        if self.quick_wheel.is_open()
+            || (self.scope.mode != 0 && cgame_options::scope_style(self.console.as_ref()) != 1)
+        {
             hud_visibility.crosshair = false;
             hud_visibility.crosshair_names = false;
         }
@@ -1646,6 +1649,11 @@ impl GpuState {
                 viewport,
             );
         }
+        quick_wheel::append(
+            self,
+            viewport,
+            information_visible && intermission_view.is_none(),
+        );
         let hud_scale = runtime_settings::hud_scale(self.console.as_ref());
         let menu_readout = (information_visible && intermission_view.is_none())
             .then(|| menu_hud::readout(self, presentation_time as i32))
@@ -1776,7 +1784,9 @@ impl GpuState {
             information_visible.then(|| &self.hud.nameplate.list),
             information_visible.then(|| &self.hud.identification.list),
             information_visible.then(|| &self.hud.card.list),
-            self.quick_wheel.is_open().then_some(&self.quick_wheel.list),
+            self.quick_wheel
+                .is_open()
+                .then(|| self.quick_wheel.draw_list()),
             information_visible.then(|| self.hud.draw_list()),
             chat_visible.then(|| self.chat.draw_list()),
             scoreboard_visible.then(|| self.scoreboard.draw_list()),
