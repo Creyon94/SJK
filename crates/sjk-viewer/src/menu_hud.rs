@@ -446,6 +446,7 @@ pub(crate) fn readout(gpu: &GpuState, time: i32) -> Option<Readout> {
         || player.is_spectator()
         || player.health() <= 0
         || gpu.gameplay_input.held(crate::input::GameButton::Scores)
+        || gpu.quick_wheel.hides_hud()
     {
         return None;
     }

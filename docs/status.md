@@ -7,6 +7,17 @@ SJK currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Quick wheel hides the HUD
+
+SJK-only branch `personal/wheel-hides-hud` (08/10/2026, Windows 11): Sol asked for
+the HUD to be hidden while the quick wheel is open. `QuickWheel::hides_hud` makes
+the frame's HUD visibility the hidden one (`ground_hud::frame`, as intermission
+and the menus do) and the game-data HUD's readout none (`menu_hud::readout`), so
+what `cg_drawHud 0` hides goes away (status, weapon, timers, vote and kill lines,
+crosshair, the third-person ground readout); chat and nameplates stay. A unit test
+covers the switch following the wheel (open, let go, cancel); the HUD going away
+over a match was not seen in a running client or a world shot.
+
 ## Chat emojis
 
 Branch `feat/chat-emojis` (08/10/2026, based on `f91e8ac`, Linux and Windows 11):
