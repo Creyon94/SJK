@@ -16,7 +16,7 @@ use sjk_protocol::{InfoString, JaPlusCapabilities};
 /// The userinfo cvar holding the plugin's disabled-feature bits.
 pub(super) const PLUGIN_DISABLE: &str = "cp_pluginDisable";
 /// Holstered saber (512) and ledge grab (1024) off: both need JA+ animations
-/// JKR does not have (EternalJK `cg_xcvar.h:166`; TaystJK sends the same).
+/// the client does not have (EternalJK `cg_xcvar.h:166`; TaystJK sends the same).
 const PLUGIN_DISABLE_DEFAULT: i64 = 1_536;
 
 /// JA+ plugin features in `cp_pluginDisable` bit order.

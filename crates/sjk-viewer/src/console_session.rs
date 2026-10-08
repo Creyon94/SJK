@@ -153,8 +153,6 @@ impl ViewerConsole {
             console_cvars::DEFAULT_MAX_PACKETS,
         )?;
         let socket = super::socket::State::bind(&mut cvars)?;
-        // JKR's `jkr_*` names become aliases once every setting is registered.
-        crate::cvar_renames::register(&mut cvars)?;
         let userinfo_dirty = Arc::new(AtomicBool::new(true));
         let overlay_dirty = Arc::clone(&userinfo_dirty);
         // Nameplate bars for teammates read the team overlay's `tinfo` too.
@@ -228,6 +226,10 @@ impl ViewerConsole {
             .parent()
             .ok_or("console config path has no parent")?
             .to_owned();
+        // A profile that has no config yet starts on the current defaults, which
+        // no migration below should touch (sensitivity's rescale turned a new
+        // profile's 5 into 13.022).
+        let new_profile = !config_path.exists();
         shell.set_config_path(config_path);
         shell.set_log_path(config_directory.join("qconsole.log"));
         if let Err(error) = shell.load() {
@@ -254,6 +256,7 @@ impl ViewerConsole {
             if let Some(saved) = shell
                 .cvars
                 .get("sensitivity")
+                .filter(|_| !new_profile)
                 .and_then(|cvar| match cvar.value {
                     CvarValue::Float(value) => Some(value),
                     CvarValue::Integer(value) => Some(value as f64),
@@ -658,5 +661,32 @@ impl ViewerConsole {
         let _ = self.shell.cvars.set_text("ui_myteam", "3");
         self.shell
             .push_log("^5Server moved you to spectator mode pending the Force profile check");
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use crate::console::ViewerConsole;
+
+    /// A new profile keeps the default 5; a profile saved before the stock units
+    /// is rescaled once, and only once.
+    #[test]
+    fn sensitivity_rescales_old_profiles_only() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("config.cfg");
+        {
+            let console = ViewerConsole::new(path.clone()).unwrap();
+            assert_eq!(console.float_cvar("sensitivity"), Some(5.0));
+        }
+        let old = directory.path().join("old.cfg");
+        std::fs::write(&old, "seta sensitivity \"5\"\n").unwrap();
+        {
+            let console = ViewerConsole::new(old.clone()).unwrap();
+            let rescaled = console.float_cvar("sensitivity").unwrap();
+            assert!((rescaled - 13.022).abs() < 1e-9, "{rescaled}");
+        }
+        let console = ViewerConsole::new(old).unwrap();
+        let kept = console.float_cvar("sensitivity").unwrap();
+        assert!((kept - 13.022).abs() < 1e-9, "{kept}");
     }
 }

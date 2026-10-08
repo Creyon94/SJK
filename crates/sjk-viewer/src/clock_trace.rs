@@ -1,6 +1,6 @@
 //! Once-per-second stderr trace of the live-session clocks.
 //!
-//! Enabled by `JKR_TRACE_CLOCKS=1`. Relates the presented time, the command
+//! Enabled by `SJK_TRACE_CLOCKS=1`. Relates the presented time, the command
 //! stamp clock, the newest snapshot and the acknowledged command so a delayed
 //! or frozen local animation can be attributed to the clock that drifted.
 
@@ -16,7 +16,7 @@ pub(crate) struct ClockTrace {
 impl ClockTrace {
     pub(crate) fn new() -> Self {
         Self {
-            enabled: std::env::var_os("JKR_TRACE_CLOCKS").is_some(),
+            enabled: std::env::var_os("SJK_TRACE_CLOCKS").is_some(),
             next: Instant::now(),
         }
     }

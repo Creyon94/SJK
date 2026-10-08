@@ -1,6 +1,6 @@
 //! The console's command and cvar browser (F3) in the SJK UI's look, drawn
-//! while the console is one of the SJK UI's designs (`con_style sjk`,
-//! `horizon`, `dock`): laid out as the SJK UI's Settings, over the darkened
+//! while the console is the SJK UI's (`con_style sjk`): laid out as the SJK
+//! UI's Settings, over the darkened
 //! frame in its families. The way back and the screen's name with the search
 //! pill at the top; the four filters down a lit rail with their counts; the
 //! entries in the middle (name and description, value right, a gold dot when

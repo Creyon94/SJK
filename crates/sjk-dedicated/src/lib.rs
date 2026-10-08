@@ -1,4 +1,4 @@
-//! JKR's headless server: platform composition of the native server core
+//! SJK's headless server: platform composition of the native server core
 //! (`sjk-server`), the JKA game rules (`sjk-game-jka`) and the protocol-26 endpoint
 //! (`sjk-network`). The executable in `main.rs` adds only the socket, the clocks and
 //! the operator's options.

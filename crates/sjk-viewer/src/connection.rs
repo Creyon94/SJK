@@ -397,7 +397,7 @@ fn join_socket(
                 // need not answer the force profile with `nfr`. A stock
                 // client sits there connected with the join menu open, which
                 // is what the spectator reflex in `present_live_snapshot`
-                // does; hanging up instead locked JKR out of servers it was
+                // does; hanging up instead locked the client out of servers it was
                 // already connected to.
                 log::progress(format_args!(
                     "join: not spawned yet (force profile confirmed={}, spectating={}); \
@@ -440,7 +440,7 @@ fn base_jka_pure_command(game_state: &GameState, assets: &Pk3Fingerprint) -> Opt
     // Answer every pure server, whatever mod it runs. A client that stays
     // silent is never entered into the world (`sv_client.cpp:1394-1400`), and
     // the JKA ecosystem expects any client to be able to join a JA+ or JAPro
-    // server, so keying this on the server running stock JKA locked JKR out
+    // server, so keying this on the server running stock JKA locked the client out
     // of most of it.
     let checksum = assets.pure_checksum(game_state.checksum_feed);
     let command = sjk_client::legacy_pure_checksum_command(game_state, checksum)?;

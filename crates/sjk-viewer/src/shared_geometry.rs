@@ -45,7 +45,7 @@ impl SharedGeometry {
     /// Upload the load-time scene.
     pub(crate) fn upload(device: &wgpu::Device, vertices: &[GpuVertex], indices: &[u32]) -> Self {
         let vertex_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("JKR world vertices"),
+            label: Some("SJK world vertices"),
             contents: if vertices.is_empty() {
                 &[0; std::mem::size_of::<GpuVertex>()]
             } else {
@@ -54,7 +54,7 @@ impl SharedGeometry {
             usage: VERTEX_USAGE,
         });
         let index_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("JKR world indices"),
+            label: Some("SJK world indices"),
             contents: if indices.is_empty() {
                 &[0; 4]
             } else {
@@ -103,7 +103,7 @@ impl SharedGeometry {
             })
             .collect::<Result<Vec<u32>, _>>()?;
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("JKR shared geometry growth"),
+            label: Some("SJK shared geometry growth"),
         });
         self.vertex_buffer = grow(
             device,
@@ -111,7 +111,7 @@ impl SharedGeometry {
             &mut encoder,
             &self.vertex_buffer,
             u64::from(self.vertex_count) * std::mem::size_of::<GpuVertex>() as u64,
-            "JKR world vertices",
+            "SJK world vertices",
             VERTEX_USAGE,
             bytemuck::cast_slice(vertices),
         );
@@ -121,7 +121,7 @@ impl SharedGeometry {
             &mut encoder,
             &self.index_buffer,
             u64::from(self.index_count) * 4,
-            "JKR world indices",
+            "SJK world indices",
             INDEX_USAGE,
             bytemuck::cast_slice(&rebased),
         );
@@ -132,7 +132,7 @@ impl SharedGeometry {
             &mut encoder,
             &self.quad_buffer,
             u64::from(self.vertex_count) * std::mem::size_of::<quads::QuadRef>() as u64,
-            "JKR quad lookup",
+            "SJK quad lookup",
             wgpu::BufferUsages::STORAGE
                 | wgpu::BufferUsages::COPY_DST
                 | wgpu::BufferUsages::COPY_SRC,

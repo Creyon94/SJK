@@ -59,7 +59,7 @@ pub(crate) fn upload_chains(
     chains: &[Vec<RgbaImage>],
 ) -> Result<wgpu::TextureView, Box<dyn Error>> {
     let texture = device.create_texture(&wgpu::TextureDescriptor {
-        label: Some("JKR optional mipmapped material"),
+        label: Some("SJK optional mipmapped material"),
         size: wgpu::Extent3d {
             width,
             height,

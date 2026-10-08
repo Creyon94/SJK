@@ -15,7 +15,7 @@ use zip::write::SimpleFileOptions;
 use zip::{CompressionMethod, DateTime, ZipWriter};
 
 /// Where the manifest sits inside the pk3.
-pub const MANIFEST_PATH: &str = "jkr-materialgen/manifest.json";
+pub const MANIFEST_PATH: &str = "sjk-materialgen/manifest.json";
 
 /// Which tuning generated a pack. Raised whenever the generated maps change meaning,
 /// so the client can tell a pack needs regenerating (`material_maps::GENERATION`);
@@ -263,7 +263,7 @@ mod tests {
     fn pk3_layout_and_manifest() {
         let directory =
             std::env::temp_dir().join(format!("sjk-materialgen-test-{}", std::process::id()));
-        let path = directory.join("zzz_jkr_materials.pk3");
+        let path = directory.join("zzz_sjk_materials.pk3");
         let normal = RgbaImage::from_pixel(4, 4, Rgba([128, 128, 255, 77]));
         let packed = RgbImage::from_pixel(4, 4, image::Rgb([200, 0, 255]));
         let mut entries = vec![

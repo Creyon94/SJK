@@ -19,7 +19,7 @@ pub(super) fn run() -> Result<(), Box<dyn Error>> {
         }
         (request.game_data, None, None, None, false, Some(session))
     } else {
-        let configured = platform::legacy_config_file()
+        let configured = platform::per_user_config_file()
             .ok()
             .and_then(|path| launch::saved_game_data(&path));
         let launch = launch::resolve(arguments.into_iter(), configured)?;

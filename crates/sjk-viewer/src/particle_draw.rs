@@ -20,7 +20,7 @@ pub(crate) fn create(
     format: wgpu::TextureFormat,
 ) -> (wgpu::RenderPipeline, Pipelines) {
     let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-        label: Some("JKR particle shader"),
+        label: Some("SJK particle shader"),
         source: wgpu::ShaderSource::Wgsl(
             concat!(
                 include_str!("entity.wgsl"),
@@ -46,7 +46,7 @@ pub(crate) fn create(
 
         let selected = &shader;
         device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("JKR particle pipeline"),
+            label: Some("SJK particle pipeline"),
             layout: Some(if slot.is_some() { &soft } else { &plain }),
             vertex: wgpu::VertexState {
                 module: selected,

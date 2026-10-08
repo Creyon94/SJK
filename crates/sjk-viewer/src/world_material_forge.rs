@@ -58,11 +58,11 @@ impl Forge {
     ) -> Self {
         let stage_layout = create_stage_layout(device);
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR Q3 world stage runtime"),
+            label: Some("SJK Q3 world stage runtime"),
             source: wgpu::ShaderSource::Wgsl(STAGE_SHADER.into()),
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("JKR Q3 world stage pipeline layout"),
+            label: Some("SJK Q3 world stage pipeline layout"),
             bind_group_layouts: &[
                 Some(camera_layout),
                 Some(&stage_layout),
@@ -73,14 +73,14 @@ impl Forge {
         let fallback_lightmap = create_rgba8_texture(
             device,
             queue,
-            "JKR unlit world lightmap",
+            "SJK unlit world lightmap",
             1,
             1,
             &[128, 128, 128, 255],
             true,
         );
         let flare_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("JKR depth-tested flare stages"),
+            label: Some("SJK depth-tested flare stages"),
             bind_group_layouts: &[
                 Some(camera_layout),
                 Some(&stage_layout),
@@ -92,7 +92,7 @@ impl Forge {
         let identity_instance = wgpu::util::DeviceExt::create_buffer_init(
             device,
             &wgpu::util::BufferInitDescriptor {
-                label: Some("JKR identity world instance"),
+                label: Some("SJK identity world instance"),
                 contents: bytemuck::bytes_of(&crate::ActorInstance::world_identity()),
                 usage: wgpu::BufferUsages::VERTEX,
             },
@@ -113,7 +113,7 @@ impl Forge {
             point_lights: wgpu::util::DeviceExt::create_buffer_init(
                 device,
                 &wgpu::util::BufferInitDescriptor {
-                    label: Some("JKR fixed world point lights"),
+                    label: Some("SJK fixed world point lights"),
                     contents: bytemuck::bytes_of(&crate::dynamic_lights::empty_gpu_block()),
                     usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                 },
@@ -224,7 +224,7 @@ pub(super) fn build_passes(
         table_bytes[start..start + entry_size].copy_from_slice(bytemuck::bytes_of(&stage.gpu));
     }
     let stage_table = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("JKR immutable Q3 material stage table"),
+        label: Some("SJK immutable Q3 material stage table"),
         contents: &table_bytes,
         usage: wgpu::BufferUsages::UNIFORM,
     });
@@ -275,7 +275,7 @@ pub(super) fn build_passes(
             },
         ];
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("JKR Q3 world stage bind group"),
+            label: Some("SJK Q3 world stage bind group"),
             layout: &forge.stage_layout,
             entries: &entries,
         });

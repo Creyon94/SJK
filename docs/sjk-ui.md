@@ -204,12 +204,19 @@ on the 16:9 frame, dark behind the form on the left and clear over the model.
   with their emblems; the powers in classic+'s groups under sub-headings,
   Neutral and Lightsaber down the left, the side's five on the right (the
   other side's left out, as on classic+): each its holocron, its name and its
-  three levels as cells marked with what each costs (or "free"), the bought
-  ones gold. Hovering a level previews buying up to it: its cells lit, the
-  points it would take white at the bar's end (ember, cells and bar, when
-  there are too few). A click on a level buys up to it, on the power's own
-  level drops one. Then Start over, Discard and Apply (gold while there is
-  something to apply).
+  three levels as classic+ draws them (retail's `forcecircle` and `forcestar`,
+  drawn by the UI): round marks numbered with what each level costs (0 when
+  free), a ring until bought, a disc once bought, on a channel lit up to the
+  power's level. Each group has its colour, its sub-heading's too: Neutral
+  silver, the light side blue, the dark side red, Lightsaber green
+  (`power_tint`). The bought discs glow. Hovering a level beyond the power's
+  charges the channel up to it, a white spark running along it, the marks it
+  would buy breathing; the points it would take show white at the bar's end
+  (ember, marks and bar, when there are too few). A click on a level buys up to
+  it, on the power's own level drops one; a level bought (by click or Right)
+  sends a ring out from its mark. These are the only things that move on the
+  page, and only answering the pointer or a purchase. Then Start over, Discard
+  and Apply (gold while there is something to apply).
 - **Power box:** on the Force page, bottom right, the power under the pointer
   (or the keyboard) in big: its holocron, name, group, level, what it does in a
   line or two, the next level's price (or Mastered, Team games only...) and
@@ -235,8 +242,18 @@ hilts and the lists' wheel areas, tokens from 1000) go to
 It is the modern screen's state and controller with another view: the rows,
 tiles, tabs and back key answer to the modern screen's tokens, each row
 registering its control before the whole row so the token's rectangle is the
-control's. Opened from a game, where there is no stage, the player screen shows
-its classic pages and their preview instead.
+control's.
+
+Opened from a game (the in-game menu's Character), where the menu map's stage
+is not, the same screen shows with "Game menu" as its way back, over the match
+dimmed by half, and the model stands right of the form in a live preview of its
+own (`menu_stage::preview`, the classic pages' preview, asked for by
+`PlayerMenu::sjk_model_preview` in the frame's `MODEL_AREA`): holding the saber
+draft lit in its style's stance, held still at a three-quarter angle (28 degrees
+to its right) rather than turning as retail's did, framed with 1.35 times
+retail's room so a raised blade stays in the picture, on a soft shadow and a
+thin gold line at its feet. `ClientMenu::stage_model` never stages a screen
+opened from a game.
 
 ## Sol JK's pages
 
@@ -267,23 +284,28 @@ overlay routes their text to the UI's families (`console_sjk_pages.rs`).
   the identity's state as a headline (the name the hub knows, or "Identity is
   off") over its lines, the switch sharing it with the hub, then while it is on
   the bio's field and Save (gold), Copy my key id and Use the official hub, and
-  the known players here under a sub-heading, verified ones marked gold.
+  the known players here under a sub-heading, verified ones marked gold. A Medals
+  column right of the page's lists the player's own medals once the hub answered
+  (picture, name in gold, description, date given, the team's note), or says how
+  medals come ([identity.md](identity.md#medals)).
 
 Credits keeps its own page.
 
 ## Console
 
 With the SJK UI's menus the console (`con_style auto`) is the SJK UI's deck;
-`con_style sjk`, `horizon` and `dock` choose one of its three designs whatever
-the menus ([client.md](client.md#sjk-ui-consoles)). They are the classic
-console's grid and keys in this style's colours, its gold `›` and caret, labels
-in its families and key caps, on the console's own layer. The command browser
-(F3) is drawn in this style with them, laid out as Settings (filters down a lit
-rail, entries, the chosen entry's detail column), and its detail's text can be
-selected with the mouse and copied
-([client.md](client.md#useful-console-commands)). The deck is the default
-because it reads best over a bright map and keeps the classic console's
-full-width rows; the horizon is the lightest, the dock the most framed.
+`con_style sjk` chooses it whatever the menus
+([client.md](client.md#sjk-ui-console)). It is the classic console's grid and
+keys in this style's colours, its gold `›` and caret, labels in its families
+and key caps, on the console's own layer. The command browser (F3) is drawn in
+this style with it, laid out as Settings (filters down a lit rail, entries, the
+chosen entry's detail column), and its detail's text can be selected with the
+mouse and copied
+([client.md](client.md#useful-console-commands)). Two other designs, a
+horizon (no panel edge, the navy fading out under a gold line) and a dock (an
+outlined card with tabs), were offered beside it; Sol chose the deck
+(08/10/2026), which reads best over a bright map and keeps the classic
+console's full-width rows, and the other two were removed.
 
 ## Settings
 
@@ -588,7 +610,8 @@ page's 16:9 frame.
     hub knows ("Verified" in gold, "SJK" in holo, "You"), 37 apart, sixteen a page
     with More players... and Back; the chosen row has a gold band and edge. The
     card on the right becomes the chosen player's: name, slot and side, what the
-    hub knows (key and hub name), score and ping, and "Enter: report this player"
+    hub knows (key and hub name) and their medals (medallion and name, two a line;
+    [identity.md](identity.md#medals)), score and ping, and "Enter: report this player"
     in gold, or why not after an ember mark. Enter opens Report.
   - Report a player: the seven reasons on the arc with what each covers, and Back;
     the player's card stays on the right. Without the right to report, the
@@ -623,9 +646,9 @@ Escape on a page returns to the main page on the entry that opened it (a
 call-vote list to its row of Call a vote); on the main page it resumes. The
 pointer chooses by hovering and acts with a click. Character, Settings and
 Servers hand over to their screens over the match and come back on their
-entry: Settings and Servers are the SJK UI's, opened on the category last shown
-and with "Game menu" as their way back; Character opens the classic pages, as
-the player screen does in a game (there is no stage there). Shot controls
+entry: Settings, Servers and Character are the SJK UI's, Settings opened on the
+category last shown, all with "Game menu" as their way back (Character's model
+in a live preview, as there is no stage in a match: see Character). Shot controls
 opens the shot panel in its own look. Server info and Controls have no entries:
 the card shows the server and Settings holds the key bindings. The Report a bug
 button the other looks put at the bottom is left out; Sol JK's page has it.
@@ -728,9 +751,7 @@ classic version:
 1. The dialogs (the report box, the import page) and Credits.
 2. Settings' search finding key bindings too (it finds settings; Key bindings'
    finds keys).
-3. A player screen for the in-game menu without the stage (it opens the
-   classic pages for now).
-4. Create a game.
+3. Create a game.
 
 `sjk` became the default `ui_menuStyle` before these were done. mp/duel6 has
 its tour, player stage and saber shot; it has no gate, which mp/ffa3's browser

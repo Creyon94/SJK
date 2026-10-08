@@ -8,7 +8,7 @@
 //!
 //! Queue writes all land ahead of the frame's commands, so every view of a frame takes
 //! its own region of the buffer; a frame that outgrows it draws directly, as before.
-//! `JKR_INDIRECT_DRAWS=0` keeps direct draws for same-binary comparisons.
+//! `SJK_INDIRECT_DRAWS=0` keeps direct draws for same-binary comparisons.
 use std::cell::{Cell, RefCell};
 use std::ops::Range;
 
@@ -58,7 +58,7 @@ impl Lists {
         let capacity = (draws.max(1) as u64 * ARGS * 8).min(64 * 1024 * 1024);
         Self {
             buffer: device.create_buffer(&wgpu::BufferDescriptor {
-                label: Some("JKR world indirect draws"),
+                label: Some("SJK world indirect draws"),
                 size: capacity,
                 usage: wgpu::BufferUsages::INDIRECT
                     | wgpu::BufferUsages::COPY_DST
@@ -76,7 +76,7 @@ impl Lists {
                 Vec::with_capacity(draws * ARGS as usize * 4),
                 Vec::with_capacity(256),
             )),
-            enabled: std::env::var_os("JKR_INDIRECT_DRAWS").is_none_or(|value| value != "0"),
+            enabled: std::env::var_os("SJK_INDIRECT_DRAWS").is_none_or(|value| value != "0"),
         }
     }
 

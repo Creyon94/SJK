@@ -3,7 +3,7 @@
 //! Commands are the stock client's bind names (`codemp/client/cl_input.cpp`
 //! command table, cgame console commands) so pasted JKA configs keep working.
 //! Default keys follow retail `mpdefault.cfg` where the key is free; the
-//! JKR-only rows (votes, team menu, camera) take keys retail leaves unbound.
+//! SJK-only rows (votes, team menu, camera) take keys retail leaves unbound.
 //! `forcenext`/`forceprev`/`invnext`/`invprev` wait on local force and
 //! inventory selection.
 //!
@@ -128,6 +128,7 @@ pub(crate) const ACTIONS: &[BindableAction] = &[
     action(Force, "Dash (JoF)", "force_dash", ""),
     action(Force, "Stasis (JoF, hold)", "+force_stasis", ""),
     action(Force, "Repulse (JoF)", "force_repulse", ""),
+    action(Force, "Illuminate (SJK holocron)", "force_illuminate", ""),
     // OTHER
     // Server commands (`codemp/game/g_cmds.c:3402-3404`); the console forwards
     // them, but they were unbindable from this screen until now.

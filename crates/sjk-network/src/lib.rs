@@ -157,7 +157,7 @@ pub struct LegacyUserInfo {
 }
 
 impl LegacyUserInfo {
-    /// Construct the historical JKR defaults while replacing the player name.
+    /// Construct the historical defaults while replacing the player name.
     pub fn with_name(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
@@ -671,7 +671,7 @@ pub fn basic_userinfo(
     legacy_userinfo(server_challenge, qport, &LegacyUserInfo::with_name(name))
 }
 
-/// Assemble the legacy userinfo in the byte ordering used by JKR's captured
+/// Assemble the legacy userinfo in the byte ordering used by the captured
 /// protocol-26 connect path.
 pub fn legacy_userinfo(
     server_challenge: i32,
@@ -935,7 +935,7 @@ pub fn query_server_infos(
                 slot.insert(socket)
             }
         };
-        socket.send_to(&connectionless_packet("getinfo jkr")?, server)?;
+        socket.send_to(&connectionless_packet("getinfo sjk")?, server)?;
         asked.insert(server, Instant::now());
     }
     let deadline = Instant::now() + timeout;
@@ -967,7 +967,7 @@ pub fn query_server_info(
     server: SocketAddr,
     timeout: Duration,
 ) -> Result<InfoString, NetworkError> {
-    let packet = query::first_response(server, &connectionless_packet("getinfo jkr")?, timeout)?;
+    let packet = query::first_response(server, &connectionless_packet("getinfo sjk")?, timeout)?;
     parse_info_response(&packet)
 }
 

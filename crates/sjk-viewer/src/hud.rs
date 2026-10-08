@@ -83,7 +83,7 @@ pub(crate) struct HudVisibility {
     /// stance this frame (`crate::ground_hud`), so those widgets hide.
     pub(crate) ground_hud: bool,
     /// The game-data menu HUD (`crate::menu_hud`) draws health, armor,
-    /// Force and ammo this frame, so JKR's status and weapon widgets hide.
+    /// Force and ammo this frame, so the built-in status and weapon widgets hide.
     pub(crate) menu_hud: bool,
 }
 

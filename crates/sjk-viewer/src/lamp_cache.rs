@@ -11,7 +11,7 @@
 //! space, texels where the light bends too sharply to interpolate (`lamp_cache_rim.wgsl`),
 //! and chart borders beyond the one-texel rim.
 //!
-//! `JKR_LAMP_CACHE=0` disables the cache for same-binary comparisons.
+//! `SJK_LAMP_CACHE=0` disables the cache for same-binary comparisons.
 use std::ops::Range;
 
 /// World units per cache texel. Lamp shadows are filtered over five texels of a 128²
@@ -62,7 +62,7 @@ impl Pages {
         surfaces: &[Surface],
         max_layers: u32,
     ) -> Option<Self> {
-        if std::env::var_os("JKR_LAMP_CACHE").is_some_and(|value| value == "0") {
+        if std::env::var_os("SJK_LAMP_CACHE").is_some_and(|value| value == "0") {
             return None;
         }
         // World units per lightmap coordinate unit, per surface and area-weighted overall.
@@ -236,8 +236,8 @@ impl Cache {
                 .collect::<Vec<_>>();
             (array, layers)
         };
-        let (array, layers) = layered("JKR lamp light cache", FORMAT);
-        let directions = directed.then(|| layered("JKR lamp light directions", DIRECTION_FORMAT));
+        let (array, layers) = layered("SJK lamp light cache", FORMAT);
+        let directions = directed.then(|| layered("SJK lamp light directions", DIRECTION_FORMAT));
         let texel_bytes = TEXEL_BYTES + if directed { DIRECTION_TEXEL_BYTES } else { 0 };
         crate::log::progress(format_args!(
             "Lamp light cache: {} layers of {}x{} texels{}, {:.1} MiB",
@@ -258,12 +258,12 @@ impl Cache {
             layers,
             directions,
             pages: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("JKR lamp cache pages"),
+                label: Some("SJK lamp cache pages"),
                 contents: bytemuck::cast_slice(&pages.stream),
                 usage: wgpu::BufferUsages::VERTEX,
             }),
             sampler: device.create_sampler(&wgpu::SamplerDescriptor {
-                label: Some("JKR lamp cache"),
+                label: Some("SJK lamp cache"),
                 mag_filter: wgpu::FilterMode::Linear,
                 min_filter: wgpu::FilterMode::Linear,
                 ..Default::default()
@@ -320,7 +320,7 @@ impl Cache {
             entries.push(texture(4, true, wgpu::TextureViewDimension::D2Array));
         }
         device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("JKR lamp cache receivers"),
+            label: Some("SJK lamp cache receivers"),
             entries: &entries,
         })
     }
@@ -424,20 +424,20 @@ impl Cache {
         let depth_usage =
             wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING;
         let nearest = scratch(
-            "JKR lamp cache nearest",
+            "SJK lamp cache nearest",
             wgpu::TextureFormat::Depth32Float,
             depth_usage,
         );
         let farthest = scratch(
-            "JKR lamp cache farthest",
+            "SJK lamp cache farthest",
             wgpu::TextureFormat::Depth32Float,
             depth_usage,
         );
-        let rim = scratch("JKR lamp cache rim", FORMAT, depth_usage);
+        let rim = scratch("SJK lamp cache rim", FORMAT, depth_usage);
         let directed = self.directions.is_some();
         let rim_direction = directed.then(|| {
             scratch(
-                "JKR lamp cache rim directions",
+                "SJK lamp cache rim directions",
                 DIRECTION_FORMAT,
                 depth_usage,
             )
@@ -505,11 +505,11 @@ impl Cache {
         });
 
         let extent_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR lamp cache extent"),
+            label: Some("SJK lamp cache extent"),
             source: wgpu::ShaderSource::Wgsl(include_str!("lamp_cache_bake.wgsl").into()),
         });
         let light_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR lamp cache light"),
+            label: Some("SJK lamp cache light"),
             source: wgpu::ShaderSource::Wgsl(
                 format!(
                     "{}{}{}",
@@ -563,21 +563,21 @@ impl Cache {
             })
         };
         let near_pipeline = pipeline(
-            "JKR lamp cache nearest",
+            "SJK lamp cache nearest",
             &extent_layout,
             &extent_shader,
             None,
             Some(wgpu::CompareFunction::Less),
         );
         let far_pipeline = pipeline(
-            "JKR lamp cache farthest",
+            "SJK lamp cache farthest",
             &extent_layout,
             &extent_shader,
             None,
             Some(wgpu::CompareFunction::Greater),
         );
         let light_pipeline = pipeline(
-            "JKR lamp cache light",
+            "SJK lamp cache light",
             &light_layout,
             &light_shader,
             Some(if directed {
@@ -603,7 +603,7 @@ impl Cache {
             entries: &[rim_entry(0), rim_entry(1)][..if directed { 2 } else { 1 }],
         });
         let rim_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR lamp cache rim"),
+            label: Some("SJK lamp cache rim"),
             source: wgpu::ShaderSource::Wgsl(
                 format!(
                     "{}{}",
@@ -620,7 +620,7 @@ impl Cache {
         });
         let post = |entry| {
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("JKR lamp cache rim"),
+                label: Some("SJK lamp cache rim"),
                 layout: Some(&rim_pipeline_layout),
                 vertex: wgpu::VertexState {
                     module: &rim_shader,
@@ -682,7 +682,7 @@ impl Cache {
                 (&farthest, 0., &far_pipeline),
             ] {
                 let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("JKR lamp cache extent"),
+                    label: Some("SJK lamp cache extent"),
                     color_attachments: &[],
                     depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                         view: target,
@@ -706,7 +706,7 @@ impl Cache {
             }
             {
                 let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("JKR lamp cache light"),
+                    label: Some("SJK lamp cache light"),
                     color_attachments: &[Some(layer), direction]
                         .into_iter()
                         .flatten()
@@ -732,7 +732,7 @@ impl Cache {
                 (layer, direction, &from_rim, &rim_pipeline),
             ] {
                 let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("JKR lamp cache rim"),
+                    label: Some("SJK lamp cache rim"),
                     color_attachments: &[Some(target), target_direction]
                         .into_iter()
                         .flatten()

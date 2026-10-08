@@ -19,14 +19,10 @@ use std::time::{Duration, Instant};
 
 /// File name of the server binary next to the client.
 const SERVER_BINARY: &str = "sjk-server";
-/// JKR's name for the same server, tried after SJK's beside the client.
-const JKR_SERVER_BINARY: &str = "jkr-dedicated";
 /// Environment variable naming the server binary explicitly.
 pub(crate) const SERVER_BINARY_ENV: &str = "JKA_DEDICATED";
-/// JKR's name for [`SERVER_BINARY_ENV`], still read when that is unset.
-pub(crate) const JKR_SERVER_BINARY_ENV: &str = "JKR_DEDICATED";
 /// Environment variable naming the server log file explicitly.
-pub(crate) const SERVER_LOG_ENV: &str = "JKR_SERVER_LOG";
+pub(crate) const SERVER_LOG_ENV: &str = "SJK_SERVER_LOG";
 /// File name of the server log beside the client's own log.
 const SERVER_LOG: &str = "last-server.log";
 /// Ports a LAN-visible server tries first: the stock game port and the nine
@@ -154,8 +150,7 @@ pub(crate) fn choose_port(settings: &HostSettings) -> u16 {
 
 /// Where the server binary is: `override_path` if given; else beside the
 /// client (`sjk-server-<suffix>` for a client named `sjk-<suffix>`, then plain
-/// `sjk-server`, then JKR's `sjk-dedicated`); else the first `sjk-server` on
-/// `search_path`.
+/// `sjk-server`); else the first `sjk-server` on `search_path`.
 pub(crate) fn find_server_binary(
     client: &Path,
     override_path: Option<PathBuf>,
@@ -179,7 +174,6 @@ pub(crate) fn find_server_binary(
             candidates.push(directory.join(file(&format!("{SERVER_BINARY}-{suffix}"))));
         }
         candidates.push(directory.join(file(SERVER_BINARY)));
-        candidates.push(directory.join(file(JKR_SERVER_BINARY)));
     }
     if let Some(search_path) = search_path {
         candidates
@@ -191,10 +185,8 @@ pub(crate) fn find_server_binary(
 /// [`find_server_binary`] for this process.
 pub(crate) fn locate_server_binary() -> Option<PathBuf> {
     let client = std::env::current_exe().ok()?;
-    let override_path = [SERVER_BINARY_ENV, JKR_SERVER_BINARY_ENV]
-        .into_iter()
-        .filter_map(std::env::var_os)
-        .find(|path| !path.is_empty())
+    let override_path = std::env::var_os(SERVER_BINARY_ENV)
+        .filter(|path| !path.is_empty())
         .map(PathBuf::from);
     find_server_binary(
         &client,
@@ -205,8 +197,8 @@ pub(crate) fn locate_server_binary() -> Option<PathBuf> {
 }
 
 /// Where the server log goes: `override_path` if given; else beside the
-/// client's own log when standard error is a file (`~/jkr-test/last-run.log`
-/// gives `~/jkr-test/last-server.log`); else in `config_directory`.
+/// client's own log when standard error is a file (`~/sjk-test/last-run.log`
+/// gives `~/sjk-test/last-server.log`); else in `config_directory`.
 pub(crate) fn server_log_path(
     override_path: Option<PathBuf>,
     client_log: Option<PathBuf>,

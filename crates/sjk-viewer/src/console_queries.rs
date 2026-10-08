@@ -166,7 +166,7 @@ pub(super) fn start(
     let (sender, receiver) = std::sync::mpsc::sync_channel(1);
     let show_ip = name == "showip";
     std::thread::Builder::new()
-        .name("jkr-console-query".into())
+        .name("sjk-console-query".into())
         .spawn(move || {
             let mut lines = Vec::new();
             if show_ip {

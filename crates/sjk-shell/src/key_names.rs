@@ -220,7 +220,7 @@ const ALIASES: &[(&str, &str)] = &[
 ];
 
 // Key_WriteBindings (cl_keys.cpp:1110-1115) writes a bare backslash inside
-// quotes. Only reinterpret that key token; JKR script string escapes remain intact.
+// quotes. Only reinterpret that key token; other script string escapes remain intact.
 pub(crate) fn normalize_stock_backslash(input: &str) -> std::borrow::Cow<'_, str> {
     let trimmed = input.trim_start();
     let Some(end) = trimmed.find(char::is_whitespace) else {

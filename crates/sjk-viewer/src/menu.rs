@@ -506,8 +506,10 @@ impl ClientMenu {
     /// from the Player screen).
     pub(crate) fn stage_model(&self) -> Option<(Stage, &str)> {
         // The classic profile pages draw the model's portrait over retail
-        // art; nothing stands on the stage behind them.
-        if self.player.is_classic() {
+        // art; nothing stands on the stage behind them. Opened from a game,
+        // the screen shows the model in its own preview: the menu map's stage
+        // is not the match's.
+        if self.player.is_classic() || self.player.return_target() == ReturnTarget::InGame {
             return None;
         }
         let stage = self.backdrop.as_ref()?.stage()?;
@@ -741,6 +743,11 @@ impl ClientMenu {
 
     pub(crate) fn is_visible(&self) -> bool {
         self.state.is_overlay_visible()
+    }
+
+    /// The main menu is up: not a settings, browser or connection screen.
+    pub(crate) fn on_main_menu(&self) -> bool {
+        matches!(self.state.phase(), ClientPhase::MainMenu)
     }
 
     /// The Renderer settings page is on show; eye adaptation holds still under it.
@@ -1149,6 +1156,11 @@ impl ClientMenu {
     #[cfg(test)]
     pub(crate) fn player_page_for_shot(&mut self, index: usize, row: usize) {
         self.player.show_page_for_shot(index, row);
+    }
+
+    #[cfg(test)]
+    pub(crate) fn player_hover_level_for_shot(&mut self, power: usize, level: u8) {
+        self.player.hover_level_for_shot(power, level);
     }
 
     #[cfg(test)]

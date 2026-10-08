@@ -521,6 +521,31 @@ impl Painter<'_> {
         let _ = self.ui.draw_list_mut().push(command);
     }
 
+    /// SJK's emblem `side` across from `x`, centred on `middle`, gold for a player the
+    /// hub's operator vouches for, then `count` ribbon bars of their medals
+    /// (`identity_mark`); in the board's units.
+    fn marks(
+        &mut self,
+        x: f32,
+        middle: f32,
+        side: f32,
+        tag: crate::player_identity::Tag,
+        count: usize,
+    ) {
+        let emblem = self.frame.rect(x, middle - side * 0.5, side, side);
+        let list = self.ui.draw_list_mut();
+        super::identity_mark::draw_marks(
+            emblem.x,
+            emblem.y + emblem.height * 0.5,
+            emblem.width,
+            tag,
+            count,
+            |command| {
+                let _ = list.push(command);
+            },
+        );
+    }
+
     fn is_local(&self, row: &ScoreRow) -> bool {
         u16::from(row.client_num) == self.header.local.client
     }
@@ -922,13 +947,19 @@ impl Painter<'_> {
         );
         if let Some(tag) = row.identity {
             let side = name_size * 0.62;
+            // The bars go where the name leaves room on the card.
+            let count = super::identity_mark::ribbon_count(
+                tag.medals,
+                side,
+                (width - name_width - 12.0).max(0.0),
+            );
+            let marks = super::identity_mark::marks_width(side, count);
             let at = if right {
                 x + name_width + 12.0
             } else {
-                x + width - name_width - 12.0 - side
+                x + width - name_width - 12.0 - marks
             };
-            let rect = self.frame.rect(at, name_y - side * 0.5, side, side);
-            self.push(emblem(rect, tag));
+            self.marks(at, name_y, side, tag, count);
         }
         let score_y = if big { top + 150.0 } else { top + 78.0 };
         self.run(
@@ -1222,8 +1253,12 @@ impl Painter<'_> {
         let ready = self.header.local.intermission
             && row.client_num < 32
             && self.header.local.ready & (1 << row.client_num) != 0;
+        // The bars take no more than a third of the name's room.
+        let ribbons = row.identity.map_or(0, |tag| {
+            super::identity_mark::ribbon_count(tag.medals, side, room / 3.0)
+        });
         let marks = if row.identity.is_some() {
-            side + 10.0
+            super::identity_mark::marks_width(side, ribbons) + 10.0
         } else {
             0.0
         } + if ready { 60.0 } else { 0.0 };
@@ -1247,9 +1282,8 @@ impl Painter<'_> {
         );
         let mut after = columns.name + name_width + 10.0;
         if let Some(tag) = row.identity {
-            let rect = self.frame.rect(after, middle - side * 0.5, side, side);
-            self.push(emblem(rect, tag));
-            after += side + 10.0;
+            self.marks(after, middle, side, tag, ribbons);
+            after += super::identity_mark::marks_width(side, ribbons) + 10.0;
         }
         if ready {
             self.run(
@@ -1390,16 +1424,6 @@ impl fmt::Display for Facts {
     }
 }
 
-/// SJK's emblem over `rect`, gold for a player the hub's operator vouches
-/// for (`identity_mark`).
-fn emblem(rect: Rect, tag: crate::player_identity::Tag) -> DrawCommand {
-    DrawCommand::TexturedQuad {
-        rect,
-        texture: crate::ui_renderer::LOGO_TEXTURE,
-        color: super::identity_mark::tint(tag),
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1422,6 +1446,7 @@ mod tests {
             captures: 3,
             identity: (client % 6 == 1).then_some(crate::player_identity::Tag {
                 verified: client % 12 == 1,
+                ..Default::default()
             }),
         }
     }

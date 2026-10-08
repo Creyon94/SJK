@@ -20,6 +20,9 @@ use std::time::{Duration, Instant};
 const CLAIM_EVERY: Duration = Duration::from_secs(45);
 /// How often the roster of known players is read.
 const POLL_EVERY: Duration = Duration::from_secs(15);
+/// How often the player's own profile is read again while registered, so a medal
+/// the SJK team gives during a session shows without a restart.
+const PROFILE_EVERY: Duration = Duration::from_secs(600);
 /// First wait after a failure, doubled up to [`RETRY_MAX`].
 const RETRY_MIN: Duration = Duration::from_secs(10);
 const RETRY_MAX: Duration = Duration::from_secs(120);
@@ -170,6 +173,7 @@ struct Worker {
     due_name: Instant,
     due_claim: Instant,
     due_poll: Instant,
+    due_profile: Instant,
     backoff: Duration,
     lookups: Vec<String>,
     /// Notes the hub took, as (tag, hub id), while their pictures may come.
@@ -226,6 +230,7 @@ impl Worker {
             due_name: now,
             due_claim: now,
             due_poll: now,
+            due_profile: now,
             backoff: RETRY_MIN,
             lookups: Vec::new(),
             notes_sent: Vec::new(),
@@ -459,6 +464,7 @@ impl Worker {
                     self.registered = true;
                     self.name_sent = name;
                     self.backoff = RETRY_MIN;
+                    self.due_profile = now + PROFILE_EVERY;
                     self.update(|snapshot| {
                         snapshot.me = Some(profile);
                         snapshot.status = Status::Online;
@@ -481,6 +487,7 @@ impl Worker {
         if self.name != self.name_sent {
             wait = wait.min(self.due_name.saturating_duration_since(now));
         }
+        wait = wait.min(self.due_profile.saturating_duration_since(now));
         if !self.lookups.is_empty() {
             wait = Duration::ZERO;
         }
@@ -497,10 +504,25 @@ impl Worker {
             match hub.register(&self.identity, self.name.as_deref()) {
                 Ok(profile) => {
                     self.name_sent = self.name.clone();
+                    self.due_profile = now + PROFILE_EVERY;
                     lock(&self.snapshot).me = Some(profile);
                 }
                 Err(failure) => {
                     self.due_name = now + self.backoff;
+                    error = Some(failure);
+                }
+            }
+        }
+        // The own profile again from time to time: medals and the verified flag change
+        // at the hub, not here.
+        if now >= self.due_profile {
+            match hub.profile(&self.identity.key_id()) {
+                Ok(profile) => {
+                    self.due_profile = now + PROFILE_EVERY;
+                    lock(&self.snapshot).me = Some(profile);
+                }
+                Err(failure) => {
+                    self.due_profile = now + self.backoff;
                     error = Some(failure);
                 }
             }
@@ -727,6 +749,7 @@ mod tests {
             verified: false,
             created: 0,
             names: Vec::new(),
+            medals: Vec::new(),
         }
     }
 
@@ -957,6 +980,7 @@ mod tests {
             key_id: "0123456789abcdef".to_owned(),
             name: "Sol".to_owned(),
             verified: true,
+            medals: Vec::new(),
         }];
         let t0 = Instant::now();
         let (mut worker, snapshot) = worker(&fake, t0);
@@ -1119,5 +1143,24 @@ mod tests {
         fake.fail.store(false, Ordering::SeqCst);
         worker.tick(t0 + Duration::from_secs(30));
         assert_eq!(fake.log().last().unwrap(), "register Wolf");
+    }
+
+    #[test]
+    fn the_own_profile_is_read_again_now_and_then() {
+        let fake = Fake::default();
+        let t0 = Instant::now();
+        let (mut worker, snapshot) = worker(&fake, t0);
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        let wait = worker.tick(t0);
+        assert_eq!(fake.log(), ["register"]);
+        assert!(wait <= PROFILE_EVERY);
+        worker.tick(t0 + PROFILE_EVERY - Duration::from_secs(1));
+        assert_eq!(fake.log().len(), 1, "not yet");
+        worker.tick(t0 + PROFILE_EVERY);
+        let own = format!("lookup {}", Identity::from_seed([1; 32]).key_id());
+        assert_eq!(fake.log().last(), Some(&own));
+        assert_eq!(lock(&snapshot).me.as_ref().unwrap().name, "Other");
+        worker.tick(t0 + PROFILE_EVERY + Duration::from_secs(1));
+        assert_eq!(fake.log().len(), 2, "and then not for a while");
     }
 }

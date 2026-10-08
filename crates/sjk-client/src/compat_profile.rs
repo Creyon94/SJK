@@ -3,7 +3,7 @@
 //! Protocol 26 reserves configstring zero as `CS_SERVERINFO`
 //! (`codemp/qcommon/q_shared.h:941`).  Stock cgame reads that info string in
 //! `CG_ParseServerinfo` (`codemp/cgame/cg_servercmds.c`) at gamestate time.
-//! JKR makes the same boundary explicit so BaseJKA and mod behavior cannot
+//! SJK makes the same boundary explicit so BaseJKA and mod behavior cannot
 //! silently bleed into each other.
 
 use sjk_network::LegacyUserInfo;
@@ -56,7 +56,7 @@ pub enum CompatProfile {
     JaPlus { version: Option<String> },
     /// TaystJK or its public jaPRO game-module lineage.
     TaystJk,
-    /// A protocol-26 game module for which JKR has no explicit policy yet.
+    /// A protocol-26 game module for which SJK has no explicit policy yet.
     Unknown(String),
 }
 

@@ -110,7 +110,12 @@ impl Panel {
         font: &UiFont,
         viewport: [f32; 2],
     ) {
-        let page = page_view(inputs);
+        let mut page = page_view(inputs);
+        // The medals are the status's last line, their medallions at its right end.
+        let medal_line = super::medals::classic_line(page.medals.as_deref()).map(|line| {
+            page.lines.push(line);
+            page.lines.len() - 1
+        });
         let place = Placement::new(viewport);
         let rows = layout(page.lines.len(), self.fields, page.players.len());
         let mut hint: Option<&'static str> = None;
@@ -144,6 +149,25 @@ impl Panel {
                 FontWeight::Regular,
                 TextAlign::Start,
             );
+        }
+        if let (Some(index), Some(medals)) = (medal_line, page.medals.as_deref()) {
+            let line_y = y + 22.0 + index as f32 * LINE;
+            for (slot, award) in medals.iter().rev().enumerate() {
+                let side = LINE - 1.0;
+                let _ = self
+                    .ui
+                    .draw_list_mut()
+                    .push(sjk_ui::DrawCommand::TexturedQuad {
+                        rect: place.rect([
+                            x + width - 8.0 - (slot + 1) as f32 * (side + 2.0),
+                            line_y,
+                            side,
+                            side,
+                        ]),
+                        texture: award.medal.icon(),
+                        color: Color::new(1.0, 1.0, 1.0, 1.0),
+                    });
+            }
         }
 
         self.classic_toggle(&place, rows.toggle, &mut hint);

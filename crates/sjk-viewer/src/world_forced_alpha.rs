@@ -9,7 +9,7 @@
 //! [`FORCED_ALPHA`] removes from the stage program. Without that, a GE128 cut-out
 //! whose forced alpha is below one half would discard every fragment. Culling and
 //! `polygonOffset` are applied outside `GL_State` and stay the shader's, as do
-//! JKR's other specialization bits. The alpha override itself is the stage
+//! the other specialization bits. The alpha override itself is the stage
 //! program's `entity_control.y`.
 
 use crate::world_stage::{FORCED_ALPHA, PipelineKey};

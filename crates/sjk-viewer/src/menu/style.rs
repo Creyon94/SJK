@@ -3,7 +3,7 @@
 //! `modern` is the native hero layout ([`super::main_view`]); `classic`
 //! follows the original Jedi Academy multiplayer menus ([`super::classic`]);
 //! `sjk` is the SJK UI ([`super::sjk`]), SJK's own menus drawn over the live
-//! map, and SJK's default; JKR's default is `modern`. A profile saved with the
+//! map, and the default. A profile saved with the
 //! earlier default `classic` moves to `sjk` once (`ui_menuStyleDefaultVersion`,
 //! in the console's start); a style chosen after that stays.
 //! The in-game menu follows the same setting ([`crate::ingame_menu`]).
@@ -124,11 +124,10 @@ impl ClientMenu {
     /// The retail artwork the classic pages can draw this frame; the player
     /// screen follows the style and gets the same pieces. The SJK UI's player
     /// screen stands the model on the menu map's stage; opened from a game,
-    /// where there is none, it shows the classic pages and their preview.
+    /// where there is none, it shows the model in a live preview of its own.
     pub(crate) fn set_menu_art(&mut self, art: ArtSet) {
         self.art = art;
-        let sjk = self.menu_style == MenuStyle::Sjk
-            && self.player.return_target() == crate::player_menu::ReturnTarget::MainMenu;
+        let sjk = self.menu_style == MenuStyle::Sjk;
         self.player
             .set_style(self.menu_style.classic_screens() && !sjk, art);
         self.player.set_sjk(sjk);
@@ -150,6 +149,7 @@ impl crate::GpuState {
         // SJK's emblem is on every style's main page.
         crate::menu::emblem::request();
         self.ui_shapes.install_emblem(&self.device, &self.queue);
+        self.ui_shapes.install_medals(&self.device, &self.queue);
         if style.classic_screens() || classic_console {
             if let Some(vfs) = &self.vfs {
                 art::request(vfs);

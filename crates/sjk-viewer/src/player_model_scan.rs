@@ -46,10 +46,8 @@ struct Row {
 #[test]
 #[ignore = "reads the installed game data named by JKA_GAME_DATA"]
 fn player_model_scan() {
-    let Some(game_data) = ["JKA_GAME_DATA", "JKR_GAME_DATA"]
-        .into_iter()
-        .filter_map(std::env::var_os)
-        .find(|value| !value.is_empty())
+    let Some(game_data) = std::env::var_os("JKA_GAME_DATA")
+        .filter(|value| !value.is_empty())
         .map(PathBuf::from)
     else {
         panic!("set JKA_GAME_DATA to the GameData directory to scan");

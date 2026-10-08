@@ -31,7 +31,7 @@ impl FramePacer {
     /// Create retained statistics and formatting storage outside the frame loop.
     pub(crate) fn new() -> Self {
         let now = Instant::now();
-        let report = std::env::var_os("JKR_FRAME_BUDGET").is_some();
+        let report = std::env::var_os("SJK_FRAME_BUDGET").is_some();
         Self {
             next: now,
             frame_started: now,

@@ -1,7 +1,7 @@
 //! Per-frame stderr trace of the view around the cut from the menu world
 //! into a joined map.
 //!
-//! Enabled by `JKR_TRACE_CUT=1`. Prints the rendered view for the last part
+//! Enabled by `SJK_TRACE_CUT=1`. Prints the rendered view for the last part
 //! of the glide through the gate (the menu world, with the portal's mirrored
 //! camera), every one of the first frames of the installed world, and after
 //! those any frame in the first seconds whose view, snapshot or size moved,
@@ -58,7 +58,7 @@ pub(crate) struct CutTrace {
 impl CutTrace {
     pub(crate) fn new() -> Self {
         Self {
-            enabled: std::env::var_os("JKR_TRACE_CUT").is_some(),
+            enabled: std::env::var_os("SJK_TRACE_CUT").is_some(),
             frames: 0,
             first_live: None,
             shown: None,

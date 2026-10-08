@@ -107,12 +107,12 @@ fn depth_array(
 pub(in crate::world_materials) fn neutral(
     device: &wgpu::Device,
 ) -> (wgpu::TextureView, wgpu::TextureView, wgpu::Buffer) {
-    let (a, _) = depth_array(device, "JKR lamp shadows neutral", 1);
-    let (b, _) = depth_array(device, "JKR lamp shadows neutral", 1);
+    let (a, _) = depth_array(device, "SJK lamp shadows neutral", 1);
+    let (b, _) = depth_array(device, "SJK lamp shadows neutral", 1);
     let table = wgpu::util::DeviceExt::create_buffer_init(
         device,
         &wgpu::util::BufferInitDescriptor {
-            label: Some("JKR lamp shadow table"),
+            label: Some("SJK lamp shadow table"),
             contents: bytemuck::bytes_of(&Table {
                 lamps: [[u32::MAX; 4]; 2],
                 count: [0; 4],
@@ -165,18 +165,18 @@ impl Runtime {
         lamps: &crate::lamp_lights::LampSet,
     ) -> Self {
         // Small source arrays are cheaper to scan; the index pays on dense maps.
-        let indexed = match std::env::var("JKR_LAMP_SHADOW_BVH").as_deref() {
+        let indexed = match std::env::var("SJK_LAMP_SHADOW_BVH").as_deref() {
             Ok("0") => false,
             Ok("1") => true,
             _ => lamps.lamps.len() >= 8192,
         };
         // Keep the existing binding layout; static depth is no longer camera selected.
-        let (static_depth, _) = depth_array(device, "JKR lamp static binding placeholder", 1);
-        let (dynamic_depth, dynamic_layers) = depth_array(device, "JKR lamp shadows actors", SIZE);
+        let (static_depth, _) = depth_array(device, "SJK lamp static binding placeholder", 1);
+        let (dynamic_depth, dynamic_layers) = depth_array(device, "SJK lamp shadows actors", SIZE);
         let cameras = (0..SLOTS * FACES)
             .map(|_| {
                 let buffer = device.create_buffer(&wgpu::BufferDescriptor {
-                    label: Some("JKR lamp face camera"),
+                    label: Some("SJK lamp face camera"),
                     size: std::mem::size_of::<crate::CameraUniform>() as u64,
                     usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
                     mapped_at_creation: false,
@@ -193,7 +193,7 @@ impl Runtime {
             })
             .collect();
         let table = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR lamp shadow table"),
+            label: Some("SJK lamp shadow table"),
             size: std::mem::size_of::<Table>() as u64,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
@@ -208,7 +208,7 @@ impl Runtime {
                 .then(|| candidates::Candidates::new(&lamps.lamps, selection::EXTRA_RADIUS)),
             candidate_reference: std::cell::Cell::new(!indexed),
             camera_dirty: std::cell::Cell::new(u64::MAX),
-            cache_cameras: std::env::var("JKR_LAMP_CAMERA_CACHE").as_deref() != Ok("0"),
+            cache_cameras: std::env::var("SJK_LAMP_CAMERA_CACHE").as_deref() != Ok("0"),
             assigned: std::cell::RefCell::new(vec![None; SLOTS]),
             matrices: std::cell::RefCell::new(vec![glam::Mat4::IDENTITY; SLOTS * FACES]),
             clear: std::cell::Cell::new(0),

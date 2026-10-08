@@ -27,7 +27,7 @@ impl Bounds {
         let base = resolution.div_ceil(TILE_SIZE).next_power_of_two();
         let levels = base.ilog2() + 1;
         let texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("JKR static shadow bounds"),
+            label: Some("SJK static shadow bounds"),
             size: wgpu::Extent3d {
                 width: base,
                 height: base,
@@ -54,12 +54,12 @@ impl Bounds {
         };
         let levels_views: Vec<_> = (0..levels).map(level).collect();
         let module = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR static shadow bounds"),
+            label: Some("SJK static shadow bounds"),
             source: wgpu::ShaderSource::Wgsl(include_str!("sun_shadow_bounds.wgsl").into()),
         });
         let pipeline = |entry| {
             device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                label: Some("JKR static shadow bounds"),
+                label: Some("SJK static shadow bounds"),
                 layout: None,
                 module: &module,
                 entry_point: Some(entry),
@@ -102,7 +102,7 @@ impl Bounds {
                         }
                     });
                     let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                        label: Some("JKR static shadow bounds"),
+                        label: Some("SJK static shadow bounds"),
                         layout: &if mip == 0 { &build } else { &reduce }.get_bind_group_layout(0),
                         entries: &entries,
                     });
@@ -120,7 +120,7 @@ impl Bounds {
     /// Rebuild just the changed static cascade; moving casters never enter these bounds.
     pub(super) fn encode(&self, encoder: &mut wgpu::CommandEncoder, index: usize) {
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-            label: Some("JKR static shadow bounds"),
+            label: Some("SJK static shadow bounds"),
             timestamp_writes: None,
         });
         for (mip, (group, groups)) in self.passes[index].iter().enumerate() {

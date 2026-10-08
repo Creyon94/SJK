@@ -148,7 +148,7 @@ impl Runtime {
     ) -> Self {
         use wgpu::util::DeviceExt;
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("JKR dust layout"),
+            label: Some("SJK dust layout"),
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
                 visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
@@ -161,12 +161,12 @@ impl Runtime {
             }],
         });
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("JKR dust uniform"),
+            label: Some("SJK dust uniform"),
             contents: bytemuck::bytes_of(&DustUniform::default()),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("JKR dust bind group"),
+            label: Some("SJK dust bind group"),
             layout: &layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
@@ -174,12 +174,12 @@ impl Runtime {
             }],
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("JKR dust pipeline layout"),
+            label: Some("SJK dust pipeline layout"),
             bind_group_layouts: &[Some(camera), Some(&layout), Some(&beams::layout(device))],
             immediate_size: 0,
         });
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR dust shader"),
+            label: Some("SJK dust shader"),
             source: wgpu::ShaderSource::Wgsl(
                 concat!(
                     include_str!("volumetric_coordinates.wgsl"),
@@ -190,7 +190,7 @@ impl Runtime {
             ),
         });
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("JKR dust pipeline"),
+            label: Some("SJK dust pipeline"),
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,

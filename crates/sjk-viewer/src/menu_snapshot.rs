@@ -1136,6 +1136,7 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
                     last_seen: 0,
                 })
                 .collect(),
+            medals: Vec::new(),
         }),
         server: None,
         players: vec![
@@ -1145,6 +1146,7 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
                 key_id: "aaaaaaaaaaaaaaaa".to_owned(),
                 name: "Fox".to_owned(),
                 verified: true,
+                medals: Vec::new(),
             },
             Presence {
                 slot: 7,
@@ -1152,6 +1154,7 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
                 key_id: "bbbbbbbbbbbbbbbb".to_owned(),
                 name: String::new(),
                 verified: false,
+                medals: Vec::new(),
             },
         ],
         profiles: std::collections::HashMap::new(),
@@ -1307,6 +1310,7 @@ fn player_card(shots: &mut Snapshot) {
                 Some(HubInfo {
                     name: "Sol".to_owned(),
                     verified: true,
+                    medals: crate::medals::Medals::default(),
                 }),
             ),
             [760.0, 470.0],
@@ -1318,6 +1322,7 @@ fn player_card(shots: &mut Snapshot) {
                 Some(HubInfo {
                     name: String::new(),
                     verified: false,
+                    medals: crate::medals::Medals::default(),
                 }),
             ),
             [760.0, 470.0],
@@ -1334,7 +1339,7 @@ fn player_card(shots: &mut Snapshot) {
         ),
     ];
     for (name, card, head) in cards {
-        let state = State::preview(card, head, VIEWPORT);
+        let state = State::preview(card, head, VIEWPORT, false);
         let mut vertices = Vec::new();
         crate::ui_renderer::append_text_commands(
             &state.list,
@@ -1852,7 +1857,7 @@ fn radial_hud(shots: &mut Snapshot) {
 
 fn force_wheel(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
     use crate::hud::force_wheel::{ICONS, picture_names, snapshot};
-    use sjk_client::force_wheel::{DASH, REPULSE, STASIS};
+    use sjk_client::force_wheel::{CLIENT_MASK, DASH, ILLUMINATE, REPULSE, STASIS};
     let mut icons = [None; ICONS];
     for (slot, name) in picture_names() {
         let image = ["tga", "png", "jpg"]
@@ -1868,10 +1873,11 @@ fn force_wheel(shots: &mut Snapshot, vfs: &sjk_vfs::VirtualFileSystem) {
     let powers = [0, 2, 3, 4, 5, 14, 7, 6, 13]
         .iter()
         .fold(0_u32, |bits, p| bits | 1 << p);
-    let jof = (1 << STASIS) | (1 << REPULSE) | (1 << DASH);
+    let jof = (1 << STASIS) | (1 << REPULSE) | (1 << DASH) | CLIENT_MASK;
     for (name, selected, flamethrower) in [
         ("hud-force-wheel-jof", REPULSE, false),
         ("hud-force-wheel-merc", 7, true),
+        ("hud-force-wheel-illuminate", ILLUMINATE, false),
     ] {
         let view = sjk_client::selection::SelectionView {
             inventory: false,
@@ -2019,5 +2025,197 @@ fn in_game_menu(shots: &Snapshot, art: ArtSet) {
         let mut vertices = Vec::new();
         menu.append(view, &mut vertices, &shots.font.font, VIEWPORT);
         shots.save(name, menu.draw_list(), &vertices, true);
+    }
+}
+
+/// The medals' pictures as the renderer has them: each small medallion in its atlas
+/// cell and each whole medal under its own texture (scaled down once, as the sampled
+/// mip level would be, since these snapshots sample the nearest texel).
+fn medal_icons(icons: &mut HashMap<u32, RgbaImage>) {
+    for medal in crate::medals::Medal::ALL {
+        let small = image::load_from_memory(medal.small_png()).expect("a medallion");
+        icons.insert(medal.icon().0, small.into_rgba8());
+        let art = image::load_from_memory(medal.art_png()).expect("a medal");
+        let art = image::imageops::resize(
+            &art.into_rgba8(),
+            256,
+            256,
+            image::imageops::FilterType::Lanczos3,
+        );
+        icons.insert(medal.art().0, art);
+    }
+}
+
+/// Made-up medals as the hub sends them in a profile.
+fn shot_medals() -> Vec<sjk_identity::Medal> {
+    let medal = |id: &str, count, awarded, note: &str| sjk_identity::Medal {
+        id: id.to_owned(),
+        count,
+        awarded,
+        note: note.to_owned(),
+    };
+    vec![
+        medal("early_tester", 1, 1_790_208_000, ""),
+        medal(
+            "early_contributor",
+            1,
+            1_790_640_000,
+            "Thank you for the ^3remaps^7 and the HUD work in the first weeks.",
+        ),
+        medal(
+            "bug_hunter",
+            3,
+            1_791_336_225,
+            "The fog that followed the camera floor, the flickering door on ffa3 and the lost lightmaps.",
+        ),
+        medal("jof_clan", 1, 1_790_900_000, ""),
+    ]
+}
+
+/// The medals everywhere they show, on made-up hub data: the player card glanced at and
+/// pinned, the Identity page in every look with medals and without, the SJK UI's at
+/// 16:9 and 4:3, and the new medal pop-up alone and as the first of three.
+#[test]
+#[ignore = "reads the installed game data named by JKA_GAME_DATA"]
+fn medals_snapshot() {
+    use crate::console::identity_panel::{Inputs, Panel};
+    use crate::game_font::SjkFonts;
+    use crate::hud::player_card::{HubInfo, State, card_from};
+    use crate::menu::sjk::TextTarget;
+    use sjk_identity::{Profile, Snapshot as Hub, Status};
+    let (art, vfs) = art();
+    let mut shots = Snapshot {
+        font: crate::text::load_modern(1.0, None).expect("build the menu font"),
+        icons: HashMap::from([(crate::ui_renderer::LOGO_TEXTURE.0, logo_icon())]),
+        in_match: match_backdrop(&vfs),
+    };
+    medal_icons(&mut shots.icons);
+    // The player card, glanced at and pinned.
+    let info = |text: &str| text.replace('|', "\\").into_bytes();
+    let medals = crate::medals::Medals::from_wire(&shot_medals());
+    for (name, pinned) in [("medals-card", false), ("medals-card-pinned", true)] {
+        let card = card_from(
+            &info("n|^1Sol^7 the Fox|t|1|model|kyle/default|st|single_1|st2|none|c1|4|c2|0|"),
+            Some(HubInfo {
+                name: "Sol".to_owned(),
+                verified: true,
+                medals,
+            }),
+        );
+        let state = State::preview(card, [760.0, 470.0], VIEWPORT, pinned);
+        let mut vertices = Vec::new();
+        crate::ui_renderer::append_text_commands(
+            &state.list,
+            |id| state.resolve_text(id),
+            &mut vertices,
+            &shots.font.font,
+            VIEWPORT,
+            crate::text::TextStyle::NEUTRAL,
+        );
+        shots.save(name, &state.list, &vertices, true);
+    }
+    // The Identity page.
+    let hub = |medals: Vec<sjk_identity::Medal>| Hub {
+        status: Status::Online,
+        key_id: "44f3d0b36c9b2510".to_owned(),
+        me: Some(Profile {
+            key_id: "44f3d0b36c9b2510".to_owned(),
+            key: String::new(),
+            name: "^1Sol".to_owned(),
+            bio: String::new(),
+            verified: true,
+            created: 0,
+            names: Vec::new(),
+            medals,
+        }),
+        server: None,
+        players: Vec::new(),
+        profiles: HashMap::new(),
+        notice: None,
+        revision: 0,
+        report: None,
+        note: None,
+        player_report: None,
+    };
+    let with = hub(shot_medals());
+    let without = hub(Vec::new());
+    let key_file =
+        "C:/Program Files (x86)/Steam/steamapps/common/Jedi Academy/GameData/SJK/identity.key";
+    let inputs = |snapshot| Inputs {
+        enabled: true,
+        hub_url: "https://sjk.dfox.app",
+        key_error: None,
+        snapshot: Some(snapshot),
+        key_file,
+    };
+    for (name, snapshot) in [
+        ("medals-identity", &with),
+        ("medals-identity-none", &without),
+    ] {
+        for classic in [false, true] {
+            let mut panel = Panel::new();
+            panel.open(false);
+            panel.set_look(classic, art);
+            let mut vertices = Vec::new();
+            panel.append(&inputs(snapshot), &mut vertices, &shots.font.font, VIEWPORT);
+            let name = if classic {
+                format!("{name}-classic")
+            } else {
+                name.to_owned()
+            };
+            shots.save(&name, panel.draw_list(), &vertices, true);
+        }
+    }
+    let display = crate::text::load_family(&crate::text::DISPLAY, 1.0, None).expect("Rajdhani");
+    let body = crate::text::load_family(&crate::text::BODY, 1.0, None).expect("Exo 2");
+    let backdrop = decode(&vfs, "levelshots/mp/duel6.jpg").expect("the duel6 levelshot");
+    for (name, snapshot, viewport) in [
+        ("medals-identity-sjk", &with, VIEWPORT_WIDE),
+        ("medals-identity-sjk-none", &without, VIEWPORT_WIDE),
+        ("medals-identity-sjk-4x3", &with, VIEWPORT),
+    ] {
+        let mut panel = Panel::new();
+        panel.open(false);
+        panel.set_sjk(true);
+        let (mut display_text, mut body_text) = (Vec::new(), Vec::new());
+        panel.append_sjk(
+            &inputs(snapshot),
+            TextTarget::Families(
+                SjkFonts {
+                    display: (&mut display_text, &display.font),
+                    body: (&mut body_text, &body.font),
+                },
+                crate::text::TextStyle::NEUTRAL,
+            ),
+            viewport,
+        );
+        let fonts = SjkShotFonts {
+            display: (&display_text, &display.image),
+            body: (&body_text, &body.image),
+        };
+        save_sjk_shot(
+            name,
+            viewport,
+            &backdrop,
+            panel.draw_list(),
+            &shots.icons,
+            fonts,
+        );
+    }
+    // The new medal pop-up.
+    let awards = crate::medals::awards(&shot_medals());
+    for (name, shown, viewport) in [
+        ("medals-popup", vec![awards[2].clone()], VIEWPORT),
+        (
+            "medals-popup-first-of-three",
+            awards[..3].to_vec(),
+            VIEWPORT,
+        ),
+        ("medals-popup-wide", vec![awards[1].clone()], VIEWPORT_WIDE),
+    ] {
+        let mut popup = crate::medal_popup::MedalPopup::preview(shown);
+        let mut vertices = Vec::new();
+        popup.append(&mut vertices, &shots.font.font, viewport);
+        shots.save_at(name, popup.draw_list(), &vertices, true, viewport);
     }
 }

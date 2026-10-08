@@ -105,7 +105,7 @@ pub(super) fn receiver_layout_with(
         }
     }
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("JKR shared sun receiver"),
+        label: Some("SJK shared sun receiver"),
         entries: &entries,
     })
 }
@@ -235,7 +235,7 @@ pub(super) fn receiver_group(
         });
     }
     device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: Some("JKR sun receiver"),
+        label: Some("SJK sun receiver"),
         layout,
         entries: &entries,
     })
@@ -251,7 +251,7 @@ impl Runtime {
     ) -> Self {
         let receiver = receiver_layout(device);
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("JKR model sun program"),
+            label: Some("SJK model sun program"),
             bind_group_layouts: &[
                 Some(&forge.camera_layout),
                 Some(&forge.stage_layout),
@@ -261,7 +261,7 @@ impl Runtime {
             immediate_size: 0,
         });
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR light buffer stage program"),
+            label: Some("SJK light buffer stage program"),
             source: wgpu::ShaderSource::Wgsl({
                 let source = world_sun_shader();
 
@@ -275,7 +275,7 @@ impl Runtime {
             ..Default::default()
         });
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR model sun disabled"),
+            label: Some("SJK model sun disabled"),
             size: std::mem::size_of::<super::shadows::Parameters>() as u64,
             usage: wgpu::BufferUsages::UNIFORM,
             mapped_at_creation: false,

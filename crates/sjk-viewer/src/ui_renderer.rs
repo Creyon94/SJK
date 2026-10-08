@@ -8,6 +8,7 @@ pub(crate) mod art;
 mod emblem;
 mod icons;
 mod levelshot;
+mod medal_art;
 mod verified_badge;
 use art::{ArtTextures, Run, Source};
 use emblem::EmblemTextures;
@@ -19,6 +20,7 @@ pub(crate) use icons::{
     PART_ICON_CELLS, PART_ICON_FIRST, SCOREBOARD_ICON_CELLS,
 };
 pub(crate) use levelshot::LEVELSHOT_TEXTURE;
+use medal_art::MedalTextures;
 
 /// `TexturedQuad` texture naming the classic profile's model preview
 /// (`menu_stage::preview`), bound by [`ShapeRenderer::set_preview`].
@@ -47,6 +49,16 @@ pub(crate) const SETTINGS_ICON_CELLS: usize = icons::SETTINGS_ICON_CELLS as usiz
 pub(crate) fn settings_icon(index: usize) -> sjk_ui::TextureId {
     debug_assert!(index < SETTINGS_ICON_CELLS);
     sjk_ui::TextureId(icons::SETTINGS_ICON_FIRST + index as u32)
+}
+
+/// Atlas cells reserved for the medals' small medallions.
+pub(crate) const MEDAL_ICON_CELLS: usize = icons::MEDAL_ICON_CELLS as usize;
+
+/// `TexturedQuad` texture naming the small medallion of medal `index`
+/// (`medals::Medal::icon`).
+pub(crate) fn medal_icon(index: usize) -> sjk_ui::TextureId {
+    debug_assert!(index < MEDAL_ICON_CELLS);
+    sjk_ui::TextureId(icons::MEDAL_ICON_FIRST + index as u32)
 }
 
 /// The verified badge's pixels in one cell, as the renderer uploads them, for the
@@ -138,8 +150,11 @@ pub(crate) fn texture_switches(lists: &[&DrawList]) -> usize {
             None if texture == LEVELSHOT_TEXTURE => Source::Levelshot,
             None if texture == HUD_PREVIEW_TEXTURE => Source::HudPreview,
             None if texture == PREVIEW_TEXTURE => Source::Preview,
-            None => crate::menu::emblem::EmblemLayer::from_texture(texture)
-                .map_or(Source::Atlas, Source::Emblem),
+            None => match crate::medals::Medal::from_art(texture) {
+                Some(medal) => Source::Medal(medal),
+                None => crate::menu::emblem::EmblemLayer::from_texture(texture)
+                    .map_or(Source::Atlas, Source::Emblem),
+            },
         };
         if runs.len() < art::MAX_RUNS {
             art::switch(&mut runs, vertices, source);
@@ -171,6 +186,8 @@ pub(crate) struct ShapeRenderer {
     art: ArtTextures,
     /// SJK's menu emblem, one texture per layer.
     emblem: EmblemTextures,
+    /// The medals' whole pictures, one texture each, once a screen drew one.
+    medals: MedalTextures,
     /// The current map preview at its own resolution.
     levelshot: LevelshotTexture,
     /// The HUD picker's preview of the highlighted HUD.
@@ -192,11 +209,11 @@ impl ShapeRenderer {
         depth_format: wgpu::TextureFormat,
     ) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR retained UI shape shader"),
+            label: Some("SJK retained UI shape shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("ui_shapes.wgsl").into()),
         });
         let texture_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("JKR retained UI texture layout"),
+            label: Some("SJK retained UI texture layout"),
             entries: &[
                 crate::render_helpers::texture_layout_entry(0),
                 wgpu::BindGroupLayoutEntry {
@@ -208,7 +225,7 @@ impl ShapeRenderer {
             ],
         });
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("JKR retained UI shape pipeline layout"),
+            label: Some("SJK retained UI shape pipeline layout"),
             bind_group_layouts: &[Some(&texture_layout)],
             immediate_size: 0,
         });
@@ -246,13 +263,13 @@ impl ShapeRenderer {
             })
         };
         let pipeline = create_pipeline(
-            "JKR retained UI shape pipeline",
+            "SJK retained UI shape pipeline",
             wgpu::BlendState::ALPHA_BLENDING,
         );
         let additive_pipeline =
             create_pipeline("SJK retained UI additive shape pipeline", ADDITIVE_BLENDING);
         let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR retained UI shape vertices"),
+            label: Some("SJK retained UI shape vertices"),
             size: (MAX_SHAPE_VERTICES * std::mem::size_of::<ShapeVertex>()) as u64,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
@@ -285,7 +302,14 @@ impl ShapeRenderer {
         let wheel = wheel.map(|(index, icon)| ("quick wheel", wheel_icon(index), icon));
         let settings = crate::settings_icons::ICONS.iter().enumerate();
         let settings = settings.map(|(index, icon)| ("settings", settings_icon(index), icon));
-        for (set, texture, (name, bytes)) in wheel.chain(settings) {
+        let medals = crate::medals::Medal::ALL
+            .into_iter()
+            .map(|medal| ("medal", medal.icon(), (medal.id(), medal.small_png())));
+        let icons_at_start = wheel
+            .chain(settings)
+            .map(|(set, texture, &(name, bytes))| (set, texture, (name, bytes)))
+            .chain(medals);
+        for (set, texture, (name, bytes)) in icons_at_start {
             match image::load_from_memory(bytes) {
                 Ok(icon) => {
                     let icon = icon.into_rgba8();
@@ -306,6 +330,7 @@ impl ShapeRenderer {
             texture_layout,
             art: ArtTextures::new(),
             emblem: EmblemTextures::new(),
+            medals: MedalTextures::new(),
             levelshot,
             hud_preview,
             preview: None,
@@ -351,6 +376,22 @@ impl ShapeRenderer {
         }
         if let Some(decoded) = crate::menu::emblem::decoded() {
             self.emblem
+                .install(device, queue, &self.texture_layout, decoded);
+        }
+    }
+
+    /// Upload the medals' whole pictures once a screen asked for them and their decode
+    /// has finished; does nothing before that or after they have been installed.
+    pub(crate) fn install_medals(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &crate::frame_queue::FrameQueue,
+    ) {
+        if self.medals.installed() || !crate::medals::art::requested() {
+            return;
+        }
+        if let Some(decoded) = crate::medals::art::decoded() {
+            self.medals
                 .install(device, queue, &self.texture_layout, decoded);
         }
     }
@@ -478,6 +519,7 @@ impl ShapeRenderer {
                     let uv = match source {
                         Source::Art(_)
                         | Source::Emblem(_)
+                        | Source::Medal(_)
                         | Source::Levelshot
                         | Source::HudPreview
                         | Source::Preview => ([0.0, 0.0], [1.0, 1.0]),
@@ -508,6 +550,7 @@ impl ShapeRenderer {
                     let uv = match source {
                         Source::Art(_)
                         | Source::Emblem(_)
+                        | Source::Medal(_)
                         | Source::Levelshot
                         | Source::HudPreview
                         | Source::Preview => uv,
@@ -600,7 +643,15 @@ impl ShapeRenderer {
             None => match crate::menu::emblem::EmblemLayer::from_texture(texture) {
                 Some(layer) if self.emblem.group(layer).is_some() => Source::Emblem(layer),
                 Some(_) => return None,
-                None => Source::Atlas,
+                None => match crate::medals::Medal::from_art(texture) {
+                    Some(medal) if self.medals.group(medal).is_some() => Source::Medal(medal),
+                    // Asked for the first time: decoded on a worker, drawn once uploaded.
+                    Some(_) => {
+                        crate::medals::art::request();
+                        return None;
+                    }
+                    None => Source::Atlas,
+                },
             },
         };
         if art::switch(&mut self.runs, self.vertices.len(), source) {
@@ -636,6 +687,7 @@ impl ShapeRenderer {
             let group = match run.source {
                 Source::Art(piece) => self.art.group(piece),
                 Source::Emblem(layer) => self.emblem.group(layer),
+                Source::Medal(medal) => self.medals.group(medal),
                 Source::Levelshot => Some(self.levelshot.bind_group()),
                 Source::HudPreview => Some(self.hud_preview.bind_group()),
                 Source::Preview => self.preview.as_ref(),

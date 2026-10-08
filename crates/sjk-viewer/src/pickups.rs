@@ -134,7 +134,7 @@ fn present(
     let dropped = flags & EF_DROPPEDWEAPON != 0;
     let grey = grey_override(item_index, force_side);
     // BaseJKA MP draws this decoration before the ordinary item at
-    // cg_ents.c:1918-1953 whenever simple-items is disabled (JKR's current
+    // cg_ents.c:1918-1953 whenever simple-items is disabled (SJK's current
     // default) and the weapon/powerup was not dropped.
     let holo = (matches!(kind, Kind::Weapon | Kind::Powerup) && !dropped).then(|| Holo {
         origin,

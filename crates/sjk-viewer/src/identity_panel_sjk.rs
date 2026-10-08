@@ -106,6 +106,9 @@ impl Panel {
             y = self.sjk_bio(&frame, y);
         }
         self.sjk_players(&frame, &view, y);
+        if let Some(medals) = &view.medals {
+            self.sjk_medals(&frame, medals, TOP, KEYS_Y - 24.0);
+        }
         self.sjk_keys(&frame);
         self.ui.finish(self.focus.token());
         target.append(&self.ui, viewport);

@@ -14,7 +14,7 @@ pub(crate) fn layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
         multisampled: false,
     };
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("JKR dust beam layout"),
+        label: Some("SJK dust beam layout"),
         entries: &[
             entry(
                 0,
@@ -43,7 +43,7 @@ pub(crate) fn bind(
     sampler: &wgpu::Sampler,
 ) -> wgpu::BindGroup {
     device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: Some("JKR dust beam inputs"),
+        label: Some("SJK dust beam inputs"),
         layout: &layout(device),
         entries: &[
             wgpu::BindGroupEntry {

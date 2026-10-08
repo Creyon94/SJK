@@ -56,7 +56,7 @@ impl super::super::Runtime {
                 .try_into()
                 .expect("shadow hull vertex count fits u32"),
             vertices: device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("JKR opaque brush shadow boundaries"),
+                label: Some("SJK opaque brush shadow boundaries"),
                 contents: bytemuck::cast_slice(&vertices),
                 usage: wgpu::BufferUsages::VERTEX,
             }),

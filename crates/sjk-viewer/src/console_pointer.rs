@@ -21,7 +21,7 @@ impl ViewerConsole {
             return;
         }
         if self.console_style().is_grid() {
-            // The SJK UI's designs open the command browser from its hint or tab.
+            // The SJK UI's console opens the command browser from its F3 hint.
             if let InputEvent::PointerPress {
                 position,
                 button: sjk_ui::PointerButton::Primary,

@@ -40,7 +40,7 @@ pub(super) fn receiver_shader() -> String {
 
 /// Scene pixels per light-buffer texel: half the display resolution whatever the
 /// supersampling, so supersampling sharpens edges and textures but not the light cost.
-/// `JKR_LIGHT_DIVISOR` overrides it for evidence (one isolates the upsample).
+/// `SJK_LIGHT_DIVISOR` overrides it for evidence (one isolates the upsample).
 fn light_divisor(supersampling: u32) -> u32 {
     2 * supersampling.max(1)
 }
@@ -169,7 +169,7 @@ fn face_pass<'a>(
     view: &wgpu::TextureView,
 ) -> wgpu::RenderPass<'a> {
     encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-        label: Some("JKR lamp shadow face"),
+        label: Some("SJK lamp shadow face"),
         color_attachments: &[],
         depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
             view,
@@ -1034,7 +1034,7 @@ impl super::Runtime {
             clear: bool,
         ) -> wgpu::RenderPass<'encoder> {
             encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("JKR sun cascade"),
+                label: Some("SJK sun cascade"),
                 color_attachments: &[],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: depth,

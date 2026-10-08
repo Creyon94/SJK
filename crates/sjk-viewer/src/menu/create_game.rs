@@ -1,6 +1,6 @@
 //! Create game: the player picks a mode, a map, bots and limits, and the
 //! client starts its own `sjk-server` on this machine and joins it — the
-//! stock "Create game" flow on JKR's native server. The choices are kept in
+//! stock "Create game" flow on SJK's native server. The choices are kept in
 //! archived `ui_host*` cvars; the server process is owned here, so it lives
 //! exactly as long as the hosted game (see [`crate::connection::local_server`]).
 

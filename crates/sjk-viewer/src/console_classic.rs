@@ -20,9 +20,9 @@
 //! at the top left while a game is running and no menu has focus. A
 //! disconnected client without a menu shows the console full screen.
 //!
-//! The SJK UI's console designs ([`sjk`]) are this console with another skin:
+//! The SJK UI's console, the deck ([`sjk`]), is this console with another skin:
 //! the same grid, rows, keys, selection and notify lines, drawn in the SJK UI's
-//! colours with their own background, header, input row and rails.
+//! colours with its own background, header, input row and rail.
 
 #[path = "console_sjk.rs"]
 pub(crate) mod sjk;
@@ -86,7 +86,7 @@ pub(super) struct Grid {
     /// Left edge of column 0: one cell in the classic console.
     pub(super) left: f32,
     /// Distance between rows: the cell height in the classic console, more in
-    /// the SJK UI's designs, whose cells sit centred in their row.
+    /// the SJK UI's, whose cells sit centred in their row.
     pub(super) pitch: f32,
 }
 
@@ -382,7 +382,7 @@ pub(super) struct State {
     clock_time: Option<LocalTime>,
     corner: String,
     clock: [u8; 8],
-    /// What the SJK UI's designs keep between frames.
+    /// What the SJK UI's console keeps between frames.
     pub(super) sjk: sjk::Chrome,
 }
 
@@ -565,9 +565,9 @@ impl Prompt {
 }
 
 impl ViewerConsole {
-    /// Lay out the classic console, or one of the SJK UI's designs, for this
-    /// frame into `frame`, with `font` (the console font when `atlas` says so)
-    /// and the designs' labels in `labels`.
+    /// Lay out the classic console, or the SJK UI's, for this frame into
+    /// `frame`, with `font` (the console font when `atlas` says so) and the
+    /// SJK UI's labels in `labels`.
     pub(crate) fn append_classic(
         &mut self,
         frame: &mut ConsoleFrame,
@@ -590,7 +590,7 @@ impl ViewerConsole {
             return;
         }
         let options = self.options();
-        let design = options.style.sjk();
+        let sjk_look = options.style.is_sjk();
         let full_screen = env.full_screen;
         let fraction = if full_screen {
             self.presentation.snap(1.0)
@@ -602,9 +602,10 @@ impl ViewerConsole {
             };
             self.presentation.slide(target, options.speed)
         };
-        let (grid, ink) = match design {
-            Some(design) => (sjk::grid(design, viewport, options.scale), sjk::INK),
-            None => (Grid::new(viewport, options.scale), Ink::CLASSIC),
+        let (grid, ink) = if sjk_look {
+            (sjk::grid(viewport, options.scale), sjk::INK)
+        } else {
+            (Grid::new(viewport, options.scale), Ink::CLASSIC)
         };
         let painter = Painter {
             font,
@@ -616,7 +617,7 @@ impl ViewerConsole {
         let lines = (viewport[1] * fraction).floor().min(viewport[1]);
         if lines <= 0.0 {
             if env.in_game && !env.menu_focus {
-                // The notify lines stay EternalJK's in every design, over the game.
+                // The notify lines stay EternalJK's in every look, over the game.
                 let painter = Painter {
                     grid: Grid::new(viewport, options.scale),
                     ink: Ink::CLASSIC,
@@ -637,13 +638,14 @@ impl ViewerConsole {
         }
         self.scroll_offset = self.scroll_offset.min(total.saturating_sub(1));
 
-        let layout = match design {
-            Some(design) => self.sjk_chrome(frame, &painter, labels, design, lines, options),
-            None => self.classic_chrome(frame, &painter, fraction, lines, options),
+        let layout = if sjk_look {
+            self.sjk_chrome(frame, &painter, labels, lines, options)
+        } else {
+            self.classic_chrome(frame, &painter, fraction, lines, options)
         };
         let mut y = layout.rows_y;
         if self.scroll_offset > 0 {
-            if design.is_some() {
+            if sjk_look {
                 self.sjk_scrolled_back(frame, &painter, labels, y);
             } else {
                 for column in (0..grid.columns).step_by(4) {
@@ -675,19 +677,19 @@ impl ViewerConsole {
             text_column,
             stamps,
         );
-        if design.is_some() {
+        if sjk_look {
             self.sjk_scrollbar(frame, &painter, &layout, rows_bottom, total);
         }
 
         // Input row, while the console has the keyboard or fills the screen.
         if self.open || full_screen {
-            let prompt = if design.is_some() {
+            let prompt = if sjk_look {
                 sjk::PROMPT
             } else {
                 Prompt::CLASSIC
             };
             self.classic_input(frame, &painter, layout.input_y, prompt);
-            if design.is_some() {
+            if sjk_look {
                 self.sjk_ghost(frame, &painter, layout.input_y, prompt);
             }
         }
@@ -902,7 +904,7 @@ impl ViewerConsole {
     }
 
     /// The input row at `y`: the green clock and `]` (classic) or the prompt
-    /// the design draws, the raw input and the cursor.
+    /// the SJK UI's draws, the raw input and the cursor.
     fn classic_input(
         &mut self,
         frame: &mut ConsoleFrame,

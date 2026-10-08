@@ -21,6 +21,8 @@ This page is the design and the current limits. The player-facing summary is
 | Scoreboard mark | [identity_mark.rs](../crates/sjk-viewer/src/scoreboard/identity_mark.rs) |
 | Identity page, `identity` command | [identity_panel.rs](../crates/sjk-viewer/src/identity_panel.rs), [identity_command.rs](../crates/sjk-viewer/src/identity_command.rs) |
 | Players page and player reports | [players.rs](../crates/sjk-viewer/src/ingame_menu/players.rs), [player_report.rs](../crates/sjk-viewer/src/player_report.rs) |
+| Medals: catalogue, ribbons, pictures | [medals.rs](../crates/sjk-viewer/src/medals.rs), [medals/](../crates/sjk-viewer/src/medals/), [identity_panel_medals.rs](../crates/sjk-viewer/src/identity_panel_medals.rs) |
+| New medal pop-up | [medal_popup.rs](../crates/sjk-viewer/src/medal_popup.rs) |
 | The hub itself and its protocol | repository Sol-Vulpes/SJK-hub (`PROTOCOL.md`) |
 
 The hub is a separate repository because it is deployed on its own schedule. The
@@ -54,7 +56,9 @@ which list every key with its worn names); a player asks for nothing and sets no
 
 Nothing blocks a frame: the viewer compares settings and place with what the thread
 was last told twice a second, and the scoreboard re-derives its marks only when the
-hub's roster or its own rows change.
+hub's roster or its own rows change. While registered, the thread also reads the
+player's own profile again every ten minutes, so the verified flag and medals the SJK
+team changes reach a running client.
 
 ## What a badge proves
 
@@ -180,6 +184,62 @@ classic+ look ([text_dialog_classic.rs](../crates/sjk-viewer/src/text_dialog_cla
 [classic-plus.md](classic-plus.md#pages)): the in-game pop-up box with its title band,
 the text in a retail list box, gold Send and Cancel, the description line under the box,
 and a gold REPORT A BUG on retail's red band at the bottom of the canvas.
+
+## Medals
+
+A medal is recognition the SJK team gives a player by hand: for testing SJK early,
+contributing to its code, finding bugs, or belonging to the JoF clan. A medal grants
+nothing: no setting, cosmetic, power or right comes with it, on any server. Players do
+not ask for medals or choose them; the SJK team gives them.
+
+| Medal | Id | For | Given again |
+| --- | --- | --- | --- |
+| Early Tester | `early_tester` | Helped test SJK in its early days. | no |
+| Early Contributor | `early_contributor` | Contributed to SJK's code in its early days. | no |
+| Bug Hunter | `bug_hunter` | Found bugs that got fixed. | yes, with a count ("Bug Hunter x2") |
+| JoF Clan | `jof_clan` | A member of the JoF clan. | no |
+
+The hub lists a key's medals in its profile (`"medals":[{"id","count","awarded","note"}]`:
+the count, when it was last given and a short note from the team, often empty) and in its
+presence entry (`id` and `count` only), so the scoreboard needs no request per player.
+Lists come in the table's order; a client shows only the ids it knows and older hubs
+send none. The catalogue is [medals.rs](../crates/sjk-viewer/src/medals.rs): each medal's
+name, description, ribbon colours and two pictures in `assets/medals` (`<id>.png`, the
+whole medal on its ribbon, 512 square; `<id>_small.png`, the medallion alone, 128
+square, for anything under about 64 pixels). A new medal is one entry there and two
+pictures; new art is a file replacement. The JoF Clan picture is provisional.
+
+Where they show:
+
+- The scoreboard, every style: up to three small ribbon bars after the SJK emblem, on
+  rows whose claim the emblem trusts (the claimed name matches the name the game shows).
+  They are coloured rectangles drawn from the catalogue (Early Tester amber with black
+  stripes, Early Contributor navy with a white centre stripe, Bug Hunter emerald and JoF
+  Clan crimson with black edges), sized after the emblem; they take room from the name,
+  never the columns, and fewer show where the name would keep less than half its room
+  (the SJK UI: a third). Derived only when the roster or the rows change.
+- The player card (`inspect`): the medallions in a row under the hub name; a pinned card
+  names them too, with a repeatable one's count.
+- The SJK UI's Players page: the chosen player's card lists their medallions and names.
+- The Identity page: the player's own medals, each with its whole picture, name and
+  count, description, the date it was given (`dd/mm/yyyy`) and the team's note; with
+  none, a line saying the SJK team gives medals for testing, contributing and more.
+- The new medal pop-up ([medal_popup.rs](../crates/sjk-viewer/src/medal_popup.rs)): the
+  first time the client sees a medal in the player's own profile, or a repeatable one's
+  count rise, it shows it once, large, with its name, description, date and note;
+  Enter, Escape, Space or a click closes it, and several show one after another. It
+  opens on the main menu, or when the game menu opens in a match, never over play: a
+  medal that arrives during a match is announced once by a centre print pointing to the
+  game menu. While it shows, the menu under it is neither drawn nor given input. What was
+  shown is kept in `medals_seen.txt` beside `identity.key` (the key id, then one
+  `<id> <count>` a line; ids the build does not know are kept), so each medal and each
+  new count shows once per identity, and an install that already held medals when it
+  first read its profile still shows them.
+- Not on nameplates.
+
+Medals are public: anyone can read a key's profile and the presence list of a server,
+so a player's medals, counts, dates and notes are visible to everyone, as their hub
+name and verified flag are. The client sends nothing about medals.
 
 ## Settings and commands
 

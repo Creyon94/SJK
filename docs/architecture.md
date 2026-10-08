@@ -1,8 +1,8 @@
 # Architecture
 
-JKR implements the client and server as native Rust programs. The current game
+SJK implements the client and server as native Rust programs. The current game
 is Jedi Academy multiplayer; engine services use owned worlds and explicit
-interfaces rather than a process-wide legacy "current map". JKR implements game
+interfaces rather than a process-wide legacy "current map". SJK implements game
 rules itself rather than hosting the original game DLLs.
 
 ## Boundaries

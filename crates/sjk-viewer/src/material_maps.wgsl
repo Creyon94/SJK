@@ -224,7 +224,7 @@ fn material_map_shade(world: vec3<f32>, direct: vec3<f32>, light: vec3<f32>, fac
     if material_map_layout() == 0u { return direct*facing + ambient; }
     let response = material_map_response();
     let view = normalize(camera.camera_position - world);
-    // Lambert divides by pi where JKR's light units do not: the highlight is scaled by pi.
+    // Lambert divides by pi where SJK's light units do not: the highlight is scaled by pi.
     material_map_highlight += direct*facing*3.14159265*material_map_brdf(
         material_map_surface.normal, light, view, response.specular, response.roughness);
     return (direct*facing + ambient*response.occlusion)*(1.0 - response.metalness);

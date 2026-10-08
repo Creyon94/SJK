@@ -10,7 +10,7 @@
 //!
 //! The reference look is TaystJK at `com_maxfps 125`, the engine default
 //! (`shared/sys/sys_main.cpp:172-174`): a repeater alt orb then carries about six copies of
-//! each sprite. JKR renders at 500 FPS and more, which stacked four times as many and turned
+//! each sprite. SJK renders at 500 FPS and more, which stacked four times as many and turned
 //! the orb into a flat white disc. These effects
 //! are therefore re-played on a fixed 8 ms cgame cadence, independent of the render rate.
 //! Everything else about them (lights, positions, lifetimes) is unchanged.

@@ -1,6 +1,6 @@
 //! The `cg_scoreboardStyle` setting and the classic scoreboard's options.
 //!
-//! `modern` is JKR's floating table ([`super::view`]); `classic` follows the
+//! `modern` is SJK's floating table ([`super::view`]); `classic` follows the
 //! retail scoreboard as EternalJK-derived clients draw it ([`super::classic`]),
 //! with their `cg_smallScoreboard`, `cg_showClientIDs`,
 //! `cg_drawScoreboardIcons` and `cg_drawScoreboardPlayerCount` options; `sjk`
@@ -9,7 +9,7 @@
 //! otherwise (what SJK drew before the choice existed). Every profile had saved
 //! the old default `classic`, so it moves once to `auto`
 //! (`cg_scoreboardStyleDefaultVersion`, in the console's start); a look chosen
-//! after that keeps it whatever the menu style. JKR's default is `modern`.
+//! after that keeps it whatever the menu style.
 
 use crate::console::ViewerConsole;
 use crate::menu::style::MenuStyle;
@@ -20,7 +20,7 @@ pub(crate) const CVAR: &str = "cg_scoreboardStyle";
 /// Layout family of the scoreboard, as drawn.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) enum ScoreboardStyle {
-    /// JKR's floating table beside the chat column.
+    /// SJK's floating table beside the chat column.
     Modern,
     /// The retail layout: centred columns, team bands and the client ID.
     #[default]

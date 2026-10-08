@@ -70,11 +70,13 @@ pub(crate) enum PlayerMenuResult {
     ClassicPage(crate::menu::classic::layout::Page),
 }
 
-/// Where the classic profile shows the live model ([`crate::menu_stage::preview`]):
-/// its rectangle on the 640x480 canvas and the animation it plays.
+/// Where the profile shows the live model ([`crate::menu_stage::preview`])
+/// instead of on the menu map's stage: the classic pages, and the SJK UI's
+/// pages opened from a game (where there is no stage). Its area and the
+/// animation it plays.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct ModelPreview {
-    pub(crate) rect: [f32; 4],
+    pub(crate) area: PreviewArea,
     pub(crate) stance: &'static str,
     /// The model holds the saber draft's sabers, lit, in their style's
     /// stance (`stance` is then unused).
@@ -82,6 +84,34 @@ pub(crate) struct ModelPreview {
     /// Only the sabers are drawn, laid on their side and turning as
     /// retail's lightsaber creation spun its hilt.
     pub(crate) showcase: bool,
+    /// How much room the camera leaves round the body: 1 frames it as retail
+    /// did, more keeps a raised blade in the picture.
+    pub(crate) room: f32,
+    /// The camera's angle round the model in degrees, held still; `None`
+    /// turns round it as retail's preview did.
+    pub(crate) angle: Option<f32>,
+}
+
+/// A model preview's area: a rectangle of retail's 640x480 canvas (the
+/// classic pages) or of the SJK UI's 16:9 frame of 1080-line pixels.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum PreviewArea {
+    Classic([f32; 4]),
+    Sjk([f32; 4]),
+}
+
+impl PreviewArea {
+    /// The area in window pixels for a window of `viewport`.
+    pub(crate) fn window_rect(self, viewport: [f32; 2]) -> sjk_ui::Rect {
+        match self {
+            Self::Classic(rect) => {
+                crate::menu::classic::layout::Placement::new(viewport).rect(rect)
+            }
+            Self::Sjk([x, y, width, height]) => {
+                crate::menu::sjk::Frame::new(viewport).rect(x, y, width, height)
+            }
+        }
+    }
 }
 
 /// Which catalogue entry the `model` cvar currently names.
@@ -166,6 +196,9 @@ pub(crate) struct PlayerMenu {
     sjk: bool,
     /// The SJK UI's hilt lists: the first saber's and the second's.
     sjk_hilts: [sjk_view::HiltList; 2],
+    /// The Force level last bought and when (menu clock seconds), for the
+    /// ring the SJK UI sends out from it.
+    sjk_burst: Option<(usize, u8, f64)>,
     classic: classic::ClassicState,
     /// The character draft changed on entering a classic page and is not
     /// written yet.
@@ -208,6 +241,7 @@ impl PlayerMenu {
             classic_style: false,
             sjk: false,
             sjk_hilts: Default::default(),
+            sjk_burst: None,
             classic: classic::ClassicState::default(),
             classic_dirty: false,
             preview_ready: false,
@@ -306,6 +340,19 @@ impl PlayerMenu {
     pub(crate) fn show_page_for_shot(&mut self, index: usize, row: usize) {
         self.set_page(ProfilePage::ALL[index.min(2)]);
         self.selected = row;
+    }
+
+    /// Move the pointer onto level `level` of power `power` as the last frame
+    /// laid it out, for the world shots.
+    pub(crate) fn hover_level_for_shot(&mut self, power: usize, level: u8) {
+        if let Some(rect) = self.canvas.rect_for(sjk_view::level_token(power, level)) {
+            let _ = self
+                .canvas
+                .pointer(sjk_ui::InputEvent::PointerMove(sjk_ui::Vec2::new(
+                    rect.x + rect.width * 0.5,
+                    rect.y + rect.height * 0.5,
+                )));
+        }
     }
 
     /// Make the draft Dual (not written to the profile), for the world shots.

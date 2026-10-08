@@ -37,7 +37,6 @@ mod console_runtime;
 mod cosmetics;
 mod crosshair_scan;
 mod cut_trace;
-mod cvar_renames;
 mod damage_feedback;
 mod decal_marks;
 mod decal_store;
@@ -103,6 +102,8 @@ mod local_prediction;
 mod localization;
 mod log;
 mod main_scene_pass;
+mod medal_popup;
+mod medals;
 mod menu;
 mod menu_backdrop;
 mod menu_hud;
@@ -135,6 +136,7 @@ mod bug_report;
 mod gi_voxels;
 mod identity_command;
 mod identity_frame;
+mod illuminate;
 mod live_session;
 mod net_timing;
 mod particle_motion;
@@ -317,6 +319,8 @@ struct GpuState {
     saber_states: saber_trail::StateSlab,
     saber_trail_segments: saber_trail::SegmentPool,
     speed_trails: actor_world_submission::speed_trail::Trails,
+    /// Illuminate's holocron, the client's own Force-wheel light.
+    illuminate: illuminate::Holocron,
     trick_fades: sjk_client::LegacyTrickFades,
     projectiles: Vec<projectiles::Presented>,
     missile_effects: LegacyMissileEffects,
@@ -348,6 +352,8 @@ struct GpuState {
     world_notes: world_notes::Notes,
     /// The note and bug report panel, and the Report a bug button (`text_dialog`).
     text_dialog: text_dialog::TextDialog,
+    /// The new medal pop-up (`medal_popup`).
+    medal_popup: medal_popup::MedalPopup,
     /// A bug report is on its way to the hub (`bug_report`).
     bug_report_waiting: bool,
     /// The outcome last shown, so the next one is told apart.
@@ -700,7 +706,7 @@ impl GpuState {
         let world_maximums = Vec3::from_array(world_maximums);
         let far_plane = (world_maximums - world_minimums).length().max(4096.0) * 2.0;
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("JKR camera"),
+            label: Some("SJK camera"),
             contents: bytemuck::bytes_of(&CameraUniform {
                 view_projection: Mat4::IDENTITY.to_cols_array_2d(),
                 camera_position: camera_origin,
@@ -711,7 +717,7 @@ impl GpuState {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
         let camera_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("JKR camera layout"),
+            label: Some("SJK camera layout"),
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
                 visibility: wgpu::ShaderStages::VERTEX_FRAGMENT | wgpu::ShaderStages::COMPUTE,
@@ -724,7 +730,7 @@ impl GpuState {
             }],
         });
         let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("JKR camera bind group"),
+            label: Some("SJK camera bind group"),
             layout: &camera_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
@@ -732,7 +738,7 @@ impl GpuState {
             }],
         });
         let hud_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("JKR HUD state"),
+            label: Some("SJK HUD state"),
             contents: bytemuck::bytes_of(&HudUniform {
                 crosshair_color: cgame_options::crosshair_color(None),
                 health_ratio: 1.0,
@@ -761,7 +767,7 @@ impl GpuState {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
         let hud_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("JKR HUD layout"),
+            label: Some("SJK HUD layout"),
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
                 visibility: wgpu::ShaderStages::FRAGMENT,
@@ -774,7 +780,7 @@ impl GpuState {
             }],
         });
         let hud_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("JKR HUD bind group"),
+            label: Some("SJK HUD bind group"),
             layout: &hud_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
@@ -792,13 +798,13 @@ impl GpuState {
         let font_view = gpu_texture::create_rgba8_texture_mipmapped(
             &device,
             &queue,
-            "JKR UI font atlas",
+            "SJK UI font atlas",
             &modern_atlas.image,
             true,
             text::ATLAS_MIP_LEVELS,
         );
         let text_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("JKR text layout"),
+            label: Some("SJK text layout"),
             entries: &[
                 texture_layout_entry(0),
                 wgpu::BindGroupLayoutEntry {
@@ -810,7 +816,7 @@ impl GpuState {
             ],
         });
         let text_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            label: Some("JKR text sampler"),
+            label: Some("SJK text sampler"),
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             address_mode_w: wgpu::AddressMode::ClampToEdge,
@@ -820,7 +826,7 @@ impl GpuState {
             ..Default::default()
         });
         let text_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("JKR text bind group"),
+            label: Some("SJK text bind group"),
             layout: &text_layout,
             entries: &[
                 wgpu::BindGroupEntry {
@@ -846,13 +852,13 @@ impl GpuState {
                 let view = gpu_texture::create_rgba8_texture_mipmapped(
                     &device,
                     &queue,
-                    "JKR classic HUD font atlas",
+                    "SJK classic HUD font atlas",
                     &atlas.image,
                     true,
                     game_font::mip_levels(atlas.image.width(), atlas.image.height()),
                 );
                 let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                    label: Some("JKR classic HUD text bind group"),
+                    label: Some("SJK classic HUD text bind group"),
                     layout: &text_layout,
                     entries: &[
                         wgpu::BindGroupEntry {
@@ -954,16 +960,16 @@ impl GpuState {
         // Every 2D pipeline writes display values through a UNORM view (`ui_target.rs`).
         let ui_format = ui_target::format(format);
         let hud_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR HUD shader"),
+            label: Some("SJK HUD shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("hud.wgsl").into()),
         });
         let hud_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("JKR HUD pipeline layout"),
+            label: Some("SJK HUD pipeline layout"),
             bind_group_layouts: &[Some(&hud_layout)],
             immediate_size: 0,
         });
         let hud_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("JKR HUD pipeline"),
+            label: Some("SJK HUD pipeline"),
             layout: Some(&hud_pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &hud_shader,
@@ -994,11 +1000,11 @@ impl GpuState {
             cache: None,
         });
         let text_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR text shader"),
+            label: Some("SJK text shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("text.wgsl").into()),
         });
         let text_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("JKR text pipeline layout"),
+            label: Some("SJK text pipeline layout"),
             bind_group_layouts: &[Some(&text_layout)],
             immediate_size: 0,
         });
@@ -1037,30 +1043,30 @@ impl GpuState {
                 cache: None,
             })
         };
-        let text_pipeline = create_text_pipeline("JKR text pipeline", "fragment_main");
+        let text_pipeline = create_text_pipeline("SJK text pipeline", "fragment_main");
         let sdf_text_pipeline =
-            create_text_pipeline("JKR distance-field text pipeline", "fragment_sdf");
+            create_text_pipeline("SJK distance-field text pipeline", "fragment_sdf");
         let text_vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR dynamic text vertices"),
+            label: Some("SJK dynamic text vertices"),
             size: (MAX_TEXT_VERTICES * std::mem::size_of::<TextVertex>()) as u64,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
         let classic_text_vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR dynamic classic HUD text vertices"),
+            label: Some("SJK dynamic classic HUD text vertices"),
             size: (MAX_TEXT_VERTICES * std::mem::size_of::<TextVertex>()) as u64,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
         let entity_instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR dynamic entity instances"),
+            label: Some("SJK dynamic entity instances"),
             size: (particle_types::INSTANCE_CAPACITY * std::mem::size_of::<EntityInstance>())
                 as u64,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
         let actor_instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR actor instances"),
+            label: Some("SJK actor instances"),
             size: (actor_instance::CAPACITY * std::mem::size_of::<ActorInstance>()) as u64,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
@@ -1153,6 +1159,7 @@ impl GpuState {
             saber_states: saber_trail::StateSlab::default(),
             saber_trail_segments: saber_trail::SegmentPool::default(),
             speed_trails: Default::default(),
+            illuminate: Default::default(),
             trick_fades: Default::default(),
             projectiles: Vec::with_capacity(sjk_protocol::MAX_LEGACY_ENTITIES),
             missile_effects,
@@ -1184,6 +1191,7 @@ impl GpuState {
             trace_scratch,
             world_notes: world_notes::Notes::default(),
             text_dialog: text_dialog::TextDialog::default(),
+            medal_popup: medal_popup::MedalPopup::default(),
             bug_report_waiting: false,
             bug_report_serial: 0,
             entity_lighting,
@@ -1326,13 +1334,13 @@ impl GpuState {
         let view = gpu_texture::create_rgba8_texture_mipmapped(
             &self.device,
             &self.queue,
-            "JKR Inter UI font atlas",
+            "SJK Inter UI font atlas",
             &atlas.image,
             true,
             text::ATLAS_MIP_LEVELS,
         );
         self.text_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("JKR text bind group"),
+            label: Some("SJK text bind group"),
             layout: &self.text_layout,
             entries: &[
                 wgpu::BindGroupEntry {
@@ -1608,6 +1616,8 @@ impl GpuState {
         self.hud_scissors =
             hud_uniform.scissors(self.configuration.width, self.configuration.height);
         let console_covers_frame = self.console_covers_frame();
+        // A new medal shows over the menus, which are not drawn under it.
+        let medal_popup = self.prepare_medal_popup(console_covers_frame);
         self.text_vertices.clear();
         self.classic_text_vertices.clear();
         game_font::prepare(self);
@@ -1668,7 +1678,7 @@ impl GpuState {
             self.append_configured_chat(viewport, text_scale, scoreboard_visible);
         }
         self.append_weapon_select_name(viewport);
-        if self.game_menu && !self.console_covers_frame() {
+        if self.game_menu && !self.console_covers_frame() && !medal_popup {
             self.refresh_game_menu_players();
             let team_sizes = self.live_session.as_ref().map_or([0, 0], |session| {
                 ingame_menu::team_sizes(session.game_state())
@@ -1703,7 +1713,11 @@ impl GpuState {
         if scoreboard_visible {
             scoreboard::append_overlay(self, viewport, text_scale * 1.05);
         }
-        if let Some(menu) = self.client_menu.as_mut().filter(|_| !console_covers_frame) {
+        if let Some(menu) = self
+            .client_menu
+            .as_mut()
+            .filter(|_| !console_covers_frame && !medal_popup)
+        {
             if menu.sjk_screen() {
                 // The SJK UI draws in its own families once they are loaded.
                 let target = if self.game_fonts.has_sjk() {
@@ -1729,6 +1743,7 @@ impl GpuState {
             && self.game_menu_page != GameMenuPage::Shot
             && !self.in_game_menu.is_sjk()
             && !console_covers_frame
+            && !medal_popup
             && !self.text_dialog.is_open();
         if launcher {
             let (vertices, font) = self.game_fonts.menu(&mut self.text_vertices, &self.ui_font);
@@ -1739,6 +1754,10 @@ impl GpuState {
             self.text_dialog.append(vertices, font, viewport);
         } else {
             self.world_notes.composer_closed();
+        }
+        if medal_popup {
+            let (vertices, font) = self.game_fonts.menu(&mut self.text_vertices, &self.ui_font);
+            self.medal_popup.append(vertices, font, viewport);
         }
         self.world_notes.draw_highlight(viewport);
         // The menu camera tour's fades, over the menu world only.
@@ -1761,20 +1780,22 @@ impl GpuState {
             information_visible.then(|| self.hud.draw_list()),
             chat_visible.then(|| self.chat.draw_list()),
             scoreboard_visible.then(|| self.scoreboard.draw_list()),
-            (self.game_menu && !console_covers_frame).then(|| self.in_game_menu.draw_list()),
+            (self.game_menu && !console_covers_frame && !medal_popup)
+                .then(|| self.in_game_menu.draw_list()),
             self.client_menu
                 .as_ref()
                 .filter(|_| !console_covers_frame)
                 .and_then(|menu| menu.backdrop_draw_list()),
             self.client_menu
                 .as_ref()
-                .filter(|_| !console_covers_frame)
+                .filter(|_| !console_covers_frame && !medal_popup)
                 .and_then(|menu| menu.draw_list()),
             self.console.as_ref().map(|console| console.draw_list()),
             launcher.then(|| self.text_dialog.launcher_draw_list()),
             self.text_dialog
                 .is_open()
                 .then(|| self.text_dialog.draw_list()),
+            medal_popup.then(|| self.medal_popup.draw_list()),
         ];
         self.ui_shapes
             .prepare_layers(&self.queue, layers.into_iter().flatten(), viewport);
@@ -1841,6 +1862,7 @@ impl GpuState {
         self.begin_saber_instances();
         self.particle_groups.iter_mut().for_each(Vec::clear);
         self.dynamic_lights.clear();
+        self.submit_illuminate(presentation_time, visual_now);
         let debug_missiles = effect_debug::sync(self.console.as_ref());
         let active_snapshot = first_person_view::presented_snapshot(
             self.live_session.as_ref(),
@@ -2023,7 +2045,7 @@ impl GpuState {
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("JKR frame encoder"),
+                label: Some("SJK frame encoder"),
             });
         if let Some(phases) = &self.gpu_phases {
             phases.begin(&mut encoder);

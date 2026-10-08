@@ -70,7 +70,7 @@ impl EmblemTextures {
 }
 
 /// Create a texture for `chain`, write every level and return its view.
-fn upload(
+pub(super) fn upload(
     device: &wgpu::Device,
     queue: &crate::frame_queue::FrameQueue,
     chain: &MipChain,

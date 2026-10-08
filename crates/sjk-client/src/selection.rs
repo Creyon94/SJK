@@ -22,6 +22,8 @@ pub struct Selection {
     pseudo: Option<u8>,
     force_time: Option<i32>,
     item_time: Option<i32>,
+    /// `cg_illuminate`: the wheel has SJK's Illuminate ([`force_wheel::ILLUMINATE`]).
+    illuminate: bool,
 }
 
 /// Read-only selector projection for a renderer, with no strings or allocations.
@@ -52,9 +54,10 @@ impl Selection {
             return;
         }
         self.sync(player, time);
-        let known = player.raw_field(51).unwrap_or(0);
+        let known = self.known(player);
         // CG_NoUseableForce checks known bits only, not energy or force levels;
-        // JoF EJK counts the granted pseudo-slots as usable.
+        // JoF EJK counts the granted pseudo-slots as usable. Illuminate does not
+        // count: without Force, the keys still walk the inventory, as in stock.
         if inventory || use_held || known & (FORCE_MASK | force_wheel::PSEUDO_MASK) == 0 {
             let current = self.inventory.unwrap_or_else(|| item_tag(player));
             let mut next = current as i32;
@@ -126,10 +129,21 @@ impl Selection {
         self.pseudo
     }
 
+    /// Put SJK's Illuminate on the wheel or take it off (`cg_illuminate`).
+    pub fn set_illuminate(&mut self, illuminate: bool) {
+        self.illuminate = illuminate;
+    }
+
+    /// The player's `forcePowersKnown` as the wheel reads it: the server's bits,
+    /// with Illuminate's as [`Selection::set_illuminate`] last set it.
+    pub fn known(&self, player: &PlayerState) -> u32 {
+        force_wheel::client_known(player.raw_field(51).unwrap_or(0), self.illuminate)
+    }
+
     /// Reset expired Force overrides and consumed items to authoritative selection.
     /// A pseudo-slot outlives the selector, as in JoF EJK, until the server revokes it.
     pub fn sync(&mut self, player: &PlayerState, time: i32) {
-        let known = player.raw_field(51).unwrap_or(0);
+        let known = self.known(player);
         if self
             .pseudo
             .is_some_and(|slot| !force_wheel::valid(known, slot))
@@ -176,7 +190,8 @@ impl Selection {
             available: if inventory {
                 player.stats[2] & ITEM_MASK
             } else {
-                player.raw_field(51).unwrap_or(0) & (FORCE_MASK | force_wheel::PSEUDO_MASK)
+                self.known(player)
+                    & (FORCE_MASK | force_wheel::PSEUDO_MASK | force_wheel::CLIENT_MASK)
             },
             selected: if inventory {
                 self.inventory.unwrap_or_else(|| item_tag(player))
@@ -251,5 +266,37 @@ mod tests {
         selection.cycle(Some(&only), 0, false, 1, false);
         assert_eq!(selection.wheel_pseudo(), Some(REPULSE));
         assert_eq!(selection.inventory, None);
+    }
+
+    #[test]
+    fn illuminate_ends_the_wheel_while_the_setting_is_on() {
+        // Push alone, the server sending Illuminate's bit set: the client decides.
+        let push = player((1 << 3) | force_wheel::CLIENT_MASK, 3);
+        let mut selection = Selection::default();
+        selection.cycle(Some(&push), 0, false, 1, false);
+        assert_eq!(selection.wheel_pseudo(), None);
+        selection.set_illuminate(true);
+        selection.cycle(Some(&push), 10, false, 1, false);
+        assert_eq!(selection.wheel_pseudo(), Some(force_wheel::ILLUMINATE));
+        assert_eq!(
+            selection.view(&push, 20).unwrap().selected,
+            force_wheel::ILLUMINATE
+        );
+        // Turned off: the selection goes with it.
+        selection.set_illuminate(false);
+        selection.sync(&push, 30);
+        assert_eq!(selection.wheel_pseudo(), None);
+    }
+
+    #[test]
+    fn illuminate_alone_leaves_the_keys_on_the_inventory() {
+        // No Force at all (a gun server): forcenext walks the items, as in stock.
+        let mut gunner = player(0, 0);
+        gunner.stats[2] = 1 << 3;
+        let mut selection = Selection::default();
+        selection.set_illuminate(true);
+        selection.cycle(Some(&gunner), 0, false, 1, false);
+        assert_eq!(selection.wheel_pseudo(), None);
+        assert_eq!(selection.inventory, Some(3));
     }
 }

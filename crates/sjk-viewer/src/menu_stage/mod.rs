@@ -138,9 +138,11 @@ impl GpuState {
                 self.configuration.width as f32,
                 self.configuration.height as f32,
             ];
-            let rect = crate::menu::classic::layout::Placement::new(viewport).rect(preview.rect);
+            let rect = preview.area.window_rect(viewport);
             [rect.width.round() as u32, rect.height.round() as u32]
         });
+        self.menu_stage.preview.room = preview.map_or(1.0, |preview| preview.room);
+        self.menu_stage.preview.angle = preview.and_then(|preview| preview.angle);
         // The preview holds no sabers (retail's and JoF's held none) but on
         // lightsaber creation.
         let wanted = match preview {
@@ -274,7 +276,7 @@ impl GpuState {
         let vertex_buffer = self
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("JKR player stage vertices"),
+                label: Some("SJK player stage vertices"),
                 contents: bytemuck::cast_slice(&flattened.vertices),
                 usage: wgpu::BufferUsages::VERTEX
                     | wgpu::BufferUsages::COPY_DST
@@ -283,7 +285,7 @@ impl GpuState {
         let index_buffer = self
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("JKR player stage indices"),
+                label: Some("SJK player stage indices"),
                 contents: bytemuck::cast_slice(&flattened.indices),
                 usage: wgpu::BufferUsages::INDEX,
             });
@@ -307,7 +309,7 @@ impl GpuState {
         let instance_buffer = self
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("JKR player stage instance"),
+                label: Some("SJK player stage instance"),
                 contents: bytemuck::bytes_of(&instance),
                 usage: wgpu::BufferUsages::VERTEX,
             });

@@ -14,7 +14,7 @@ use crate::decoded_image_cache::cached_decoded_image;
 
 pub(super) fn create_stage_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("JKR Q3 world stage layout"),
+        label: Some("SJK Q3 world stage layout"),
         entries: &stage_layout_entries(),
     })
 }
@@ -89,7 +89,7 @@ pub(super) fn create_sampler(device: &wgpu::Device, clamp: bool) -> wgpu::Sample
         wgpu::AddressMode::Repeat
     };
     device.create_sampler(&wgpu::SamplerDescriptor {
-        label: Some("JKR Q3 stage sampler"),
+        label: Some("SJK Q3 stage sampler"),
         address_mode_u: address,
         address_mode_v: address,
         address_mode_w: address,
@@ -122,9 +122,9 @@ pub(super) fn create_pipeline(
         },
         "fragment_main",
         if instanced {
-            "JKR Q3 inline-model stage pipeline"
+            "SJK Q3 inline-model stage pipeline"
         } else {
-            "JKR Q3 static-world stage pipeline"
+            "SJK Q3 static-world stage pipeline"
         },
         true,
     )
@@ -147,7 +147,7 @@ pub(super) fn create_entity_pipeline(
         true,
         "entity_vertex_main",
         "fragment_main",
-        "JKR Q3 skinned/rigid entity stage pipeline",
+        "SJK Q3 skinned/rigid entity stage pipeline",
         depth_test,
     )
 }
@@ -355,7 +355,7 @@ pub(crate) fn upload_array(
     let height = images.iter().map(|image| image.height()).max().unwrap_or(1);
     let layers = u32::try_from(images.len().max(1))?;
     let texture = device.create_texture(&wgpu::TextureDescriptor {
-        label: Some("JKR Q3 stage animation frames"),
+        label: Some("SJK Q3 stage animation frames"),
         size: wgpu::Extent3d {
             width,
             height,
@@ -406,7 +406,7 @@ pub(crate) fn upload_array(
         );
     }
     Ok(texture.create_view(&wgpu::TextureViewDescriptor {
-        label: Some("JKR Q3 stage animation array view"),
+        label: Some("SJK Q3 stage animation array view"),
         format: None,
         dimension: Some(wgpu::TextureViewDimension::D2Array),
         usage: None,
@@ -438,7 +438,7 @@ pub(crate) fn upload_lightmaps(
             create_rgba8_texture(
                 device,
                 queue,
-                "JKR Q3 stage lightmap",
+                "SJK Q3 stage lightmap",
                 128,
                 128,
                 &rgba,

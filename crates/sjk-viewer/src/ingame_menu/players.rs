@@ -64,6 +64,8 @@ pub(crate) struct HubMark {
     /// Their hub display name.
     pub(crate) name: String,
     pub(crate) verified: bool,
+    /// The medals the SJK team gave them.
+    pub(crate) medals: crate::medals::Medals,
 }
 
 /// One client on the server.
@@ -466,6 +468,21 @@ fn team_game(game: &GameState) -> bool {
         .is_some_and(|gametype| gametype >= 6)
 }
 
+/// Made-up medals for the world shots, a repeatable one given twice.
+#[cfg(test)]
+fn shot_medals(ids: &[&str]) -> crate::medals::Medals {
+    let list: Vec<sjk_identity::Medal> = ids
+        .iter()
+        .map(|id| sjk_identity::Medal {
+            id: (*id).to_owned(),
+            count: 2,
+            awarded: 0,
+            note: String::new(),
+        })
+        .collect();
+    crate::medals::Medals::from_wire(&list)
+}
+
 #[cfg(test)]
 impl State {
     /// A made-up roster of `count` players for the world shots and tests, the local
@@ -495,11 +512,13 @@ impl State {
                         key_id: "0123456789abcdef".to_owned(),
                         name: "Vulpes".to_owned(),
                         verified: false,
+                        medals: shot_medals(&["jof_clan"]),
                     }),
                     2 | 3 => Some(HubMark {
                         key_id: "fedcba9876543210".to_owned(),
                         name: "Sol".to_owned(),
                         verified: true,
+                        medals: shot_medals(&["early_tester", "early_contributor", "bug_hunter"]),
                     }),
                     _ => None,
                 },
@@ -559,6 +578,7 @@ mod tests {
                 key_id: "0123456789abcdef".to_owned(),
                 name: "Troll".to_owned(),
                 verified: false,
+                medals: crate::medals::Medals::default(),
             })
         });
         let slots: Vec<u8> = state.shown().iter().map(|p| p.slot).collect();

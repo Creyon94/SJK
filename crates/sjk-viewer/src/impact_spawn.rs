@@ -86,7 +86,7 @@ pub(crate) fn observe_snapshot(
 /// A saber-on-saber block latches only for nonzero `eventParm`, after the
 /// block EFX, unless a custom saber sets `SFL2_NO_CLASH_FLARE`
 /// (`codemp/cgame/cg_event.c:2287-2356`). The standalone flare event always
-/// latches (`cg_event.c:2372-2377`). JKR does not yet resolve custom per-blade
+/// latches (`cg_event.c:2372-2377`). SJK does not yet resolve custom per-blade
 /// saber flags, so this applies the stock branch used by the bundled demos.
 pub(crate) fn latch_clash_flare(
     clash_flare: &mut LegacySaberClashFlare,

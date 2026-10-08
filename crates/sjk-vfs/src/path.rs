@@ -2,7 +2,7 @@ use std::error::Error;
 use std::fmt;
 use std::path::{Component, Path};
 
-/// A normalized, case-insensitive path inside the JKR virtual filesystem.
+/// A normalized, case-insensitive path inside the SJK virtual filesystem.
 #[derive(Clone, Debug, Eq, Hash, Ord, PartialEq, PartialOrd)]
 pub struct VirtualPath(String);
 

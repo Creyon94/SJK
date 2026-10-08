@@ -22,7 +22,7 @@ impl Target {
         size: [u32; 2],
     ) -> Self {
         let texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("JKR map portal view"),
+            label: Some("SJK map portal view"),
             size: wgpu::Extent3d {
                 width: size[0],
                 height: size[1],
@@ -37,7 +37,7 @@ impl Target {
         });
         let color = texture.create_view(&Default::default());
         let camera = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR portal camera"),
+            label: Some("SJK portal camera"),
             size: std::mem::size_of::<CameraUniform>() as u64,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
@@ -51,7 +51,7 @@ impl Target {
             }],
         });
         let instances = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR portal surface transform"),
+            label: Some("SJK portal surface transform"),
             size: std::mem::size_of::<ActorInstance>() as u64,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
@@ -63,7 +63,7 @@ impl Target {
                 usage: wgpu::BufferUsages::UNIFORM,
             });
             device.create_bind_group(&wgpu::BindGroupDescriptor {
-                label: Some("JKR portal composite sample"),
+                label: Some("SJK portal composite sample"),
                 layout: samples,
                 entries: &[
                     wgpu::BindGroupEntry {
@@ -127,7 +127,7 @@ pub(super) fn pipeline(
     format: wgpu::TextureFormat,
 ) -> wgpu::RenderPipeline {
     let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-        label: Some("JKR portal composite"),
+        label: Some("SJK portal composite"),
         source: wgpu::ShaderSource::Wgsl(
             concat!(
                 include_str!("vertex_transform.wgsl"),
@@ -143,7 +143,7 @@ pub(super) fn pipeline(
     });
     let buffers = [Some(GpuVertex::layout()), Some(ActorInstance::layout())];
     device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("JKR map view composite"),
+        label: Some("SJK map view composite"),
         layout: Some(&layout),
         vertex: wgpu::VertexState {
             module: &shader,

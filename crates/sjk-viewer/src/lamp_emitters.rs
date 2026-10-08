@@ -59,7 +59,7 @@ pub(crate) fn collect(vertices: &[Corner], indices: &[u32], emitters: &[Emitter<
     } else {
         1
     };
-    let workers = std::env::var("JKR_LAMP_COOK_THREADS")
+    let workers = std::env::var("SJK_LAMP_COOK_THREADS")
         .ok()
         .and_then(|v| v.parse().ok())
         .unwrap_or(default)

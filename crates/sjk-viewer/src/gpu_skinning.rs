@@ -227,7 +227,7 @@ impl Buffers {
             .collect();
         let bones = mesh.preview.mesh.bone_count;
         let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
-            label: Some("JKR skinning growth"),
+            label: Some("SJK skinning growth"),
         });
         let grow = |encoder: &mut wgpu::CommandEncoder, old: &wgpu::Buffer, label, size: u64| {
             let new = device.create_buffer(&wgpu::BufferDescriptor {
@@ -290,9 +290,9 @@ pub(crate) fn upload(
 ) -> Result<SharedGeometry, Box<dyn Error>> {
     let mut geometry = SharedGeometry::upload(device, &scene.vertices, &scene.indices);
     // Default on: measured pixel-identical output, 27x less pose time and 29.5x less
-    // upload traffic. `JKR_GPU_SKINNING=0` restores CPU skinning as an escape hatch,
+    // upload traffic. `SJK_GPU_SKINNING=0` restores CPU skinning as an escape hatch,
     // sampled once at load, never in a frame.
-    if std::env::var("JKR_GPU_SKINNING").as_deref() == Ok("0") {
+    if std::env::var("SJK_GPU_SKINNING").as_deref() == Ok("0") {
         return Ok(geometry);
     }
     // A model whose skin topology differs from its render topology cannot be palette

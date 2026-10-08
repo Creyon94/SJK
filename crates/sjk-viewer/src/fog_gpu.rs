@@ -32,11 +32,11 @@ impl FogGpu {
     pub(super) fn new(device: &wgpu::Device, camera: &wgpu::BindGroupLayout, table: Table) -> Self {
         let entries = [uniform_entry(0, false), uniform_entry(1, true)];
         let bind_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("JKR fog volume layout"),
+            label: Some("SJK fog volume layout"),
             entries: &entries,
         });
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("JKR map fog table"),
+            label: Some("SJK map fog table"),
             contents: bytemuck::cast_slice(&table.entries),
             usage: wgpu::BufferUsages::UNIFORM,
         });
@@ -50,12 +50,12 @@ impl FogGpu {
             selectors[offset + 4..offset + 8].copy_from_slice(&global_exp2.to_le_bytes());
         }
         let selector = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("JKR immutable fog selectors"),
+            label: Some("SJK immutable fog selectors"),
             contents: &selectors,
             usage: wgpu::BufferUsages::UNIFORM,
         });
         let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("JKR fog volumes"),
+            label: Some("SJK fog volumes"),
             layout: &bind_layout,
             entries: &[
                 wgpu::BindGroupEntry {
@@ -73,7 +73,7 @@ impl FogGpu {
             ],
         });
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("JKR fog pipeline layout"),
+            label: Some("SJK fog pipeline layout"),
             bind_group_layouts: &[
                 Some(camera),
                 Some(&bind_layout),
@@ -83,7 +83,7 @@ impl FogGpu {
             immediate_size: 0,
         });
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR RB_FogPass"),
+            label: Some("SJK RB_FogPass"),
             source: wgpu::ShaderSource::Wgsl(crate::fog_volumes::SHADER.into()),
         });
         Self {

@@ -33,7 +33,7 @@ pub(super) fn region(rect: [f32; 4], size: [u32; 2], scale: f32, roughness: f32)
 
 pub(super) fn layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("JKR satin floor sample"),
+        label: Some("SJK satin floor sample"),
         entries: &[
             wgpu::BindGroupLayoutEntry {
                 binding: 0,
@@ -76,7 +76,7 @@ impl Finish {
         color: &wgpu::TextureView,
     ) -> Self {
         let control = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("JKR floor finish"),
+            label: Some("SJK floor finish"),
             contents: bytemuck::cast_slice(&[0_f32; 4]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });

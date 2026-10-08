@@ -14,7 +14,7 @@
 //! Static world surfaces name their stage by instance index, entity draws by an
 //! immediate. Bind-group switches in the colour passes fall from about 1,770 to 190 per
 //! frame. The table costs the GPU 0.06-0.08 ms at render scale 2 (dynamically indexed
-//! binding arrays); `JKR_STAGE_TABLE=0` turns it off for same-binary comparisons.
+//! binding arrays); `SJK_STAGE_TABLE=0` turns it off for same-binary comparisons.
 use super::*;
 use crate::world_stage::GpuStage;
 
@@ -212,7 +212,7 @@ impl Table {
         materials: &[Material],
     ) -> Option<Self> {
         if !device.features().contains(FEATURES)
-            || std::env::var_os("JKR_STAGE_TABLE").is_some_and(|value| value == "0")
+            || std::env::var_os("SJK_STAGE_TABLE").is_some_and(|value| value == "0")
         {
             return None;
         }
@@ -242,7 +242,7 @@ impl Table {
             count: count(n),
         };
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("JKR stage table"),
+            label: Some("SJK stage table"),
             entries: &[
                 buffer_entry(0, wgpu::ShaderStages::VERTEX_FRAGMENT),
                 texture_entry(1, wgpu::TextureViewDimension::D2Array, MAX_IMAGES),
@@ -346,14 +346,14 @@ impl Table {
     ) -> wgpu::BindGroup {
         use wgpu::util::DeviceExt;
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("JKR stage table"),
+            label: Some("SJK stage table"),
             contents: bytemuck::cast_slice(table),
             usage: wgpu::BufferUsages::STORAGE,
         });
         let image_views: Vec<&wgpu::TextureView> = images.iter().collect();
         let lightmap_views: Vec<&wgpu::TextureView> = lightmaps.iter().collect();
         device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("JKR stage table"),
+            label: Some("SJK stage table"),
             layout,
             entries: &[
                 wgpu::BindGroupEntry {
@@ -430,12 +430,12 @@ impl Table {
                 };
                 (
                     device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-                        label: Some("JKR stage table program"),
+                        label: Some("SJK stage table program"),
                         bind_group_layouts: &groups,
                         immediate_size: 4,
                     }),
                     device.create_shader_module(wgpu::ShaderModuleDescriptor {
-                        label: Some("JKR stage table program"),
+                        label: Some("SJK stage table program"),
                         source: wgpu::ShaderSource::Wgsl(program_source(source).into()),
                     }),
                 )
@@ -457,7 +457,7 @@ impl Table {
                 } else {
                     "table_fragment_main"
                 },
-                "JKR stage table pipeline",
+                "SJK stage table pipeline",
                 true,
             )
         }))

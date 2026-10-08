@@ -3,7 +3,7 @@
 //! `CG_ParseTeamInfo` uses `TEAMINFO_OFFSET == 6`: after the row count each
 //! row is client number, location, health, armor, current weapon, and powerup
 //! bits (`codemp/cgame/cg_servercmds.c:90-118`). Invalid counts or client
-//! numbers call `ERR_DROP`; JKR exposes the same failures to the session.
+//! numbers call `ERR_DROP`; SJK exposes the same failures to the session.
 
 use sjk_protocol::GameState;
 use std::error::Error;

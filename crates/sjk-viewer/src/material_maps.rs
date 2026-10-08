@@ -8,7 +8,7 @@
 //!
 //! The controls are `r_normalMapping`, `r_specularMapping`, `r_parallaxMapping`
 //! and `r_emissiveMaps`, sampled at startup like rend2's latched cvars. SJK turns
-//! them all on by default (Sol's choice; rend2 and JKR default the first three
+//! them all on by default (Sol's choice; rend2 defaults the first three
 //! off); they act only where a pack supplies maps. `r_parallaxStrength`
 //! (`world_lighting_mode.rs`, live, default 0.1) scales the parallax depth. Off, no
 //! image is looked up, no layout, buffer or program exists and every stage compiles
@@ -291,7 +291,7 @@ pub(crate) mod lights {
 /// whose overlay does not glow emit ([`shows_light`]).
 pub(crate) const GENERATION: u32 = 6;
 /// Where the generator's manifest sits in its pk3.
-const MANIFEST: &str = "jkr-materialgen/manifest.json";
+const MANIFEST: &str = "sjk-materialgen/manifest.json";
 /// The older-pack note was printed: once per run is enough.
 static GENERATION_REPORTED: std::sync::atomic::AtomicBool =
     std::sync::atomic::AtomicBool::new(false);

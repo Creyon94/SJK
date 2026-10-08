@@ -2,7 +2,7 @@
 //! actually draw on lightmapped or vertex-lit surfaces, minus everything that must
 //! not get maps ([`SkipReason`]).
 //!
-//! A shader qualifies the way JKR's material maps select stages (and rend2's
+//! A shader qualifies the way the client's material maps select stages (and rend2's
 //! `CollapseStagesToLightall`): its lightmap and diffuse stages must collapse
 //! into one opaque pass (rd-vanilla `CollapseMultitexture` rules) with plain
 //! colour generators. The maps belong to that diffuse stage's image. A
@@ -353,7 +353,7 @@ fn skipped_path(path: &str) -> Option<SkipReason> {
 }
 
 /// The diffuse stage of the first lightmap/diffuse pair that collapses into
-/// one opaque pass, checked as JKR's material maps check it.
+/// one opaque pass, checked as the client's material maps check it.
 pub fn diffuse_stage(definition: &ShaderDefinition) -> Result<&ShaderStage, SkipReason> {
     if definition.sky.is_some() {
         return Err(SkipReason::Sky);

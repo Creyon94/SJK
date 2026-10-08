@@ -9,6 +9,21 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 08/10/2026 | - | SJK standalone: JKR and Bishop only in credits
+- e5c3b68 |  | Make SJK standalone: JKR and Bishop only in credits
++ 08/10/2026 | - | SJK UI Character in a game: the SJK pages with a live model preview
+- 77acbb3 |  | SJK UI Character in a game: the SJK pages with a live model preview
++ 08/10/2026 | - | SJK medals: card, Identity page, new-medal pop-up, scoreboard ribbons
+- ce4685b |  | Identity: read medals from the hub's profiles and presence
+- b53f71f |  | Medals: ribbons on the scoreboard, the player card, the Identity page and a pop-up
++ 08/10/2026 | - | Illuminate: a holocron by the shoulder that lights the way
+- 138ff72 |  | Illuminate: a holocron by the shoulder that lights the way
++ 08/10/2026 | - | SJK console keeps the Deck design only
+- 8ddceed |  | Console: keep the SJK UI's deck, remove the horizon and dock designs
++ 08/10/2026 | - | SJK UI Force page: classic+ level marks, coloured by group, lit
+- 28c5c40 |  | SJK UI Force page: classic+ level marks, coloured by group, lit
++ 08/10/2026 | - | New profiles start at sensitivity 5
+- d7adf4c |  | Start a new profile at sensitivity 5: rescale only saved profiles
 + 08/10/2026 | - | Video screens, glowing lights, named footsteps, remaps in notes
 - 9ae42e6 |  | World shots of the player's world notes
 - 04e11bf |  | Play videoMap stages: a RoQ decoder and per-frame video textures

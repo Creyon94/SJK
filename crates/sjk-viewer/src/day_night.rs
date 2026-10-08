@@ -140,9 +140,9 @@ pub(super) fn authored_hour(authored: sjk_shader::SunParms) -> f32 {
 }
 
 /// How much of the lighting is computed live (`r_liveLighting`): 2 everything, 0 baked
-/// indirect light under a live sun. `JKR_REALTIME` overrides the cvar for one run.
+/// indirect light under a live sun. `SJK_REALTIME` overrides the cvar for one run.
 pub(crate) fn realtime_tier(console: Option<&crate::console::ViewerConsole>) -> i64 {
-    std::env::var("JKR_REALTIME")
+    std::env::var("SJK_REALTIME")
         .ok()
         .and_then(|tier| tier.parse().ok())
         .or_else(|| console.and_then(|console| console.integer_cvar("r_liveLighting")))

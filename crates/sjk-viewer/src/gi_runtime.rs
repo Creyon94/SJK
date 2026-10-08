@@ -49,12 +49,12 @@ impl Runtime {
             })
         };
         let header_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("JKR GI header"),
+            label: Some("SJK GI header"),
             contents: bytemuck::bytes_of(&header),
             usage: wgpu::BufferUsages::UNIFORM,
         });
         let occupancy = storage(
-            "JKR GI occupancy bits",
+            "SJK GI occupancy bits",
             bytemuck::cast_slice(&world.occupancy),
         );
         // u16 material ids packed in pairs; the shader unpacks by parity.
@@ -63,7 +63,7 @@ impl Runtime {
             .chunks(2)
             .map(|pair| u32::from(pair[0]) | (u32::from(*pair.get(1).unwrap_or(&0)) << 16))
             .collect();
-        let materials = storage("JKR GI material grid", bytemuck::cast_slice(&packed));
+        let materials = storage("SJK GI material grid", bytemuck::cast_slice(&packed));
         let table: Vec<[f32; 8]> = surfaces
             .iter()
             .map(|s| {
@@ -84,7 +84,7 @@ impl Runtime {
         } else {
             table
         };
-        let surfaces_buffer = storage("JKR GI surface table", bytemuck::cast_slice(&table));
+        let surfaces_buffer = storage("SJK GI surface table", bytemuck::cast_slice(&table));
         let entry = |binding, ty| wgpu::BindGroupLayoutEntry {
             binding,
             visibility: wgpu::ShaderStages::COMPUTE | wgpu::ShaderStages::FRAGMENT,
@@ -97,7 +97,7 @@ impl Runtime {
             min_binding_size: None,
         };
         let layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("JKR GI voxel world"),
+            label: Some("SJK GI voxel world"),
             entries: &[
                 entry(
                     0,
@@ -113,7 +113,7 @@ impl Runtime {
             ],
         });
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("JKR GI voxel world"),
+            label: Some("SJK GI voxel world"),
             layout: &layout,
             entries: &[
                 wgpu::BindGroupEntry {

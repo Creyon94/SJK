@@ -52,6 +52,11 @@ impl GpuState {
             self.apply_dialog_action(action);
             return;
         }
+        // A new medal on show takes every key until it is closed.
+        if !console_open && self.medal_popup.is_open() {
+            self.medal_popup.handle_key(&event);
+            return;
+        }
         if !console_open && typed && self.chat.is_typing() {
             self.chat_key(&event);
             return;

@@ -9,7 +9,7 @@
 //! the bar is the main page, each pop-up a page. This module holds what
 //! differs from the modern hero layout: the bar's buttons, the retail rows
 //! of the join, vote and exit pop-ups (with the exit confirmations), which
-//! entries JKR cannot offer yet, and the pop-up geometry on the 640x480
+//! entries SJK cannot offer yet, and the pop-up geometry on the 640x480
 //! canvas. Drawing is in [`super::classic_view`], activation in
 //! [`super::classic_actions`].
 
@@ -86,7 +86,7 @@ impl Tab {
         }
     }
 
-    /// Why the button does nothing in JKR yet, if it does nothing.
+    /// Why the button does nothing in SJK yet, if it does nothing.
     pub(crate) fn unavailable(self, siege: bool) -> Option<&'static str> {
         match (self, siege) {
             (Self::Profile, true) => Some("Not in SJK yet: no Siege objectives page"),
@@ -294,7 +294,7 @@ mod tests {
     }
 
     #[test]
-    fn siege_swaps_buttons_and_dims_what_jkr_lacks() {
+    fn siege_swaps_buttons_and_dims_what_sjk_lacks() {
         assert_eq!(Tab::Profile.label(true), "Objectives");
         assert_eq!(Tab::AddBot.label(true), "V Chat");
         for siege in [false, true] {

@@ -4,7 +4,7 @@ version.workspace = true
 edition.workspace = true
 license.workspace = true
 rust-version.workspace = true
-description = "Jedi Academy game rules as a compatibility profile, shared by JKR's client prediction and its server"
+description = "Jedi Academy game rules as a compatibility profile, shared by SJK's client prediction and its server"
 
 [dependencies]
 glam.workspace = true

@@ -31,7 +31,7 @@ impl Runtime {
         let sword_image = stage_image(sword, 0)?;
         let blend = shader_blend(blur)?;
         let texture_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("JKR saber trail texture layout"),
+            label: Some("SJK saber trail texture layout"),
             entries: &[
                 texture_layout_entry(0),
                 texture_layout_entry(1),
@@ -45,7 +45,7 @@ impl Runtime {
             ],
         });
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            label: Some("JKR saber trail sampler"),
+            label: Some("SJK saber trail sampler"),
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             address_mode_w: wgpu::AddressMode::ClampToEdge,
@@ -57,7 +57,7 @@ impl Runtime {
         let core = load_shader_texture(device, queue, vfs, shaders, core_image)?;
         let sword = load_shader_texture(device, queue, vfs, shaders, sword_image)?;
         let material = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("JKR stock saber trail material"),
+            label: Some("SJK stock saber trail material"),
             layout: &texture_layout,
             entries: &[
                 wgpu::BindGroupEntry {
@@ -79,16 +79,16 @@ impl Runtime {
             ],
         });
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("JKR saber trail pipeline layout"),
+            label: Some("SJK saber trail pipeline layout"),
             bind_group_layouts: &[Some(camera_layout), Some(&texture_layout)],
             immediate_size: 0,
         });
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR saber trail shader"),
+            label: Some("SJK saber trail shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("saber_trail.wgsl").into()),
         });
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("JKR additive saber trail pipeline"),
+            label: Some("SJK additive saber trail pipeline"),
             layout: Some(&layout),
             vertex: wgpu::VertexState {
                 module: &shader,
@@ -122,7 +122,7 @@ impl Runtime {
             cache: None,
         });
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR saber trail vertices"),
+            label: Some("SJK saber trail vertices"),
             size: (MAX_SEGMENTS * 6 * std::mem::size_of::<Vertex>()) as u64,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,

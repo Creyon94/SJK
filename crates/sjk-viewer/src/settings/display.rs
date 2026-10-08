@@ -2,10 +2,10 @@
 //! screen offers choices from.
 //!
 //! Stock `r_fullscreen` keeps its meaning, fullscreen on or off, and Alt+Enter
-//! still toggles it. JKR adds `r_exclusiveFullscreen` to say which kind of
+//! still toggles it. SJK adds `r_exclusiveFullscreen` to say which kind of
 //! fullscreen that is: 0 (the default) is borderless at the desktop size, 1 is
 //! an exclusive video mode at `r_resolution`. Stock JA's fullscreen is always
-//! the exclusive kind; JKR keeps borderless as its default because it does
+//! the exclusive kind; SJK keeps borderless as its default because it does
 //! not change the monitor's mode and switches away instantly.
 
 use crate::console::ViewerConsole;

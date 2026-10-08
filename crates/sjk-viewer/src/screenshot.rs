@@ -185,7 +185,7 @@ impl Manager {
         let row_bytes = size[0] * BYTES_PER_PIXEL;
         let padded_row_bytes = row_bytes.div_ceil(COPY_ALIGNMENT) * COPY_ALIGNMENT;
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR console screenshot readback"),
+            label: Some("SJK console screenshot readback"),
             size: u64::from(padded_row_bytes) * u64::from(size[1]),
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
             mapped_at_creation: false,

@@ -296,7 +296,7 @@ pub(crate) fn scene_pass<'a>(
     depth_load: wgpu::LoadOp<f32>,
 ) -> wgpu::RenderPass<'a> {
     encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-        label: Some("JKR world pass"),
+        label: Some("SJK world pass"),
         color_attachments: &[Some(wgpu::RenderPassColorAttachment {
             view: color,
             resolve_target: None,

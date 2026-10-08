@@ -14,7 +14,7 @@ pub(super) const BRANCH: u32 = 1 << 31;
 pub(super) fn apply(set: &mut LampSet) {
     apply_with_lists(
         set,
-        std::env::var("JKR_LAMP_LIST_DEDUP").as_deref() != Ok("0"),
+        std::env::var("SJK_LAMP_LIST_DEDUP").as_deref() != Ok("0"),
     );
 }
 fn apply_with_lists(set: &mut LampSet, deduplicate: bool) {
@@ -38,7 +38,7 @@ fn apply_with_lists(set: &mut LampSet, deduplicate: bool) {
     if set.cells.iter().all(|entry| entry[1] as usize <= CROWDED) {
         return;
     }
-    let side = if std::env::var("JKR_LAMP_REFINEMENT_SIDE").as_deref() == Ok("2") {
+    let side = if std::env::var("SJK_LAMP_REFINEMENT_SIDE").as_deref() == Ok("2") {
         2usize
     } else {
         4

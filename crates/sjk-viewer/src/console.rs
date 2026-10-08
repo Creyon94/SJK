@@ -339,12 +339,6 @@ impl ViewerConsole {
         self.shell.cvars.get(name).map(|cvar| &cvar.default)
     }
 
-    /// Every registered cvar name, for checks against the registry.
-    #[cfg(test)]
-    pub(crate) fn cvar_names(&self) -> impl Iterator<Item = &str> {
-        self.shell.cvars.iter().map(|cvar| cvar.name.as_str())
-    }
-
     pub(crate) fn bool_cvar(&self, name: &str) -> Option<bool> {
         match self.cvar(name) {
             Some(CvarValue::Bool(value)) => Some(*value),
@@ -599,11 +593,11 @@ impl ViewerConsole {
 
     /// The command browser follows the console style: the classic console's is
     /// drawn classic+, with the retail menu `art` it can use, the SJK UI's
-    /// designs' in its look.
+    /// console's in its look.
     pub(crate) fn set_browser_art(&mut self, art: crate::menu::art::ArtSet) {
         let look = match self.console_style() {
             console_options::ConsoleStyle::Classic => browser::Look::Classic,
-            console_options::ConsoleStyle::Sjk(_) => browser::Look::Sjk,
+            console_options::ConsoleStyle::Sjk => browser::Look::Sjk,
             console_options::ConsoleStyle::Modern => browser::Look::Modern,
         };
         self.browser.set_look(look, art);
@@ -646,7 +640,7 @@ impl ViewerConsole {
             "]cg_fov 110",
             "]con_style",
             "\"con_style\" is:\"auto^7\" default:\"auto^7\"",
-            "Console style: auto (the SJK UI's with its menus, else classic), sjk, horizon, dock, classic (after EternalJK) or modern",
+            "Console style: auto (the SJK UI's with its menus, else classic), sjk, classic (after EternalJK) or modern",
             "^1Unknown command \"saberthrow\"",
             "Kyle was cut in half by Sol's saber",
             "^3Bishop^7 entered the game",

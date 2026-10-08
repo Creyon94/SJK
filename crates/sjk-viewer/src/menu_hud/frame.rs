@@ -399,7 +399,7 @@ impl Frame {
         }
     }
 
-    /// `CG_DrawForcePower`. The out-of-Force flash is not driven: JKR does
+    /// `CG_DrawForcePower`. The out-of-Force flash is not driven: SJK does
     /// not track `cg.forceHUDTotalFlashTime`.
     fn force(&mut self, layout: &Layout, readout: &Readout, digits: u16) {
         let inc = 100.0 / TICS as f32;

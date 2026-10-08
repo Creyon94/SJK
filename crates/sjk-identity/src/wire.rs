@@ -28,6 +28,33 @@ pub struct Profile {
     /// than the name history).
     #[serde(default)]
     pub names: Vec<WornName>,
+    /// Medals the SJK team gave the key, in the hub's catalogue order (absent from
+    /// hubs older than medals).
+    #[serde(default)]
+    pub medals: Vec<Medal>,
+}
+
+/// One medal the SJK team gave a key: recognition only, it grants nothing.
+///
+/// A profile carries every field; a presence entry only `id` and `count`, the rest
+/// keeping their defaults. A client shows only the ids it knows.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct Medal {
+    /// The medal's id (`early_tester`, `bug_hunter`, ...).
+    pub id: String,
+    /// How many times it was given: 1 unless the medal is repeatable.
+    #[serde(default = "one")]
+    pub count: u32,
+    /// When it was last given, unix seconds; 0 when not sent (presence).
+    #[serde(default)]
+    pub awarded: i64,
+    /// Public plain text from the team about why, often empty. Never markup.
+    #[serde(default)]
+    pub note: String,
+}
+
+fn one() -> u32 {
+    1
 }
 
 /// One in-game name a key has worn, as the hub saw it in registrations and claims.
@@ -54,6 +81,10 @@ pub struct Presence {
     pub name: String,
     /// Whether the hub's operator vouches for the claimant.
     pub verified: bool,
+    /// The claimant's medals, ids and counts only (absent from hubs older than
+    /// medals), so the scoreboard shows them without a request per player.
+    #[serde(default)]
+    pub medals: Vec<Medal>,
 }
 
 /// The text a request's signature covers.
@@ -167,5 +198,49 @@ mod tests {
         )
         .unwrap();
         assert_eq!(presence.slot, 3);
+        assert!(presence.medals.is_empty(), "an older hub sends no medals");
+    }
+
+    #[test]
+    fn medals_parse_in_profiles_and_presence() {
+        let profile: Profile = serde_json::from_str(
+            r#"{"key_id":"aa","key":"bb","name":"Sol","bio":"","verified":true,"created":5,
+                "medals":[{"id":"early_tester","count":1,"awarded":1791000000,"note":""},
+                          {"id":"bug_hunter","count":2,"awarded":1791300000,"note":"The ^1fog^7 bug"},
+                          {"id":"from_the_future","count":1,"awarded":1,"note":""}]}"#,
+        )
+        .unwrap();
+        assert!(profile.names.is_empty());
+        let ids: Vec<&str> = profile
+            .medals
+            .iter()
+            .map(|medal| medal.id.as_str())
+            .collect();
+        assert_eq!(ids, ["early_tester", "bug_hunter", "from_the_future"]);
+        assert_eq!(profile.medals[1].count, 2);
+        assert_eq!(profile.medals[1].awarded, 1_791_300_000);
+        assert_eq!(profile.medals[1].note, "The ^1fog^7 bug");
+        let presence: Presence = serde_json::from_str(
+            r#"{"slot":3,"claimed_name":"x","key_id":"aa","name":"Sol","verified":false,
+                "medals":[{"id":"early_tester","count":1},{"id":"jof_clan"}]}"#,
+        )
+        .unwrap();
+        assert_eq!(
+            presence.medals,
+            [
+                Medal {
+                    id: "early_tester".to_owned(),
+                    count: 1,
+                    awarded: 0,
+                    note: String::new(),
+                },
+                Medal {
+                    id: "jof_clan".to_owned(),
+                    count: 1,
+                    awarded: 0,
+                    note: String::new(),
+                },
+            ]
+        );
     }
 }

@@ -405,12 +405,12 @@ impl Samplers {
         };
         Self {
             glow: device.create_sampler(&clamped(
-                "JKR saber glow sampler",
+                "SJK saber glow sampler",
                 wgpu::MipmapFilterMode::Nearest,
                 1,
             )),
             core: device.create_sampler(&clamped(
-                "JKR saber core sampler",
+                "SJK saber core sampler",
                 wgpu::MipmapFilterMode::Linear,
                 Self::CORE_ANISOTROPY,
             )),
@@ -464,9 +464,9 @@ pub(crate) fn material(
     core: &image::RgbaImage,
 ) -> wgpu::BindGroup {
     let integral = crate::saber_gpu::glow_integral::upload(device, queue, glow);
-    let glow = crate::gpu_texture::upload_display_image(device, queue, "JKR saber glow", glow);
+    let glow = crate::gpu_texture::upload_display_image(device, queue, "SJK saber glow", glow);
     let core =
-        crate::gpu_texture::upload_display_image_mipmapped(device, queue, "JKR saber core", core);
+        crate::gpu_texture::upload_display_image_mipmapped(device, queue, "SJK saber core", core);
     let view = |binding, view| wgpu::BindGroupEntry {
         binding,
         resource: wgpu::BindingResource::TextureView(view),
@@ -476,7 +476,7 @@ pub(crate) fn material(
         resource: wgpu::BindingResource::Sampler(sampler),
     };
     device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: Some("JKR saber shader pair"),
+        label: Some("SJK saber shader pair"),
         layout,
         entries: &[
             view(0, &glow),

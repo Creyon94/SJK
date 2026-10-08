@@ -3,7 +3,7 @@
 //! rd-vanilla submits MD3 surfaces in `tr_mesh.cpp:386-416` and Ghoul2
 //! surfaces in `tr_ghoul2.cpp:2460-2502` through `R_AddDrawSurf`, alongside
 //! world surfaces. `R_SortDrawSurfs` (`tr_main.cpp:1134-1185`) orders by the
-//! shader sort key and entity. JKR keeps separate world/entity traversal for
+//! shader sort key and entity. SJK keeps separate world/entity traversal for
 //! batching, but preserves the required ordering: all opaque work precedes
 //! blended work, then entity blends are ordered by shader sort and entity
 //! distance back-to-front. `RF_FORCE_ENT_ALPHA` entities are post-rendered

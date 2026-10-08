@@ -100,11 +100,11 @@ impl Runtime {
                 })
                 .create_view(&Default::default())
         };
-        let injected = volume("JKR froxel sunlit source");
-        let integrated = volume("JKR froxel additive scattering");
+        let injected = volume("SJK froxel sunlit source");
+        let integrated = volume("SJK froxel additive scattering");
         let column_range = device
             .create_texture(&wgpu::TextureDescriptor {
-                label: Some("JKR froxel column surface range"),
+                label: Some("SJK froxel column surface range"),
                 size: wgpu::Extent3d {
                     width: grid[0],
                     height: grid[1],
@@ -120,7 +120,7 @@ impl Runtime {
             .create_view(&Default::default());
         let tiles = device
             .create_texture(&wgpu::TextureDescriptor {
-                label: Some("JKR froxel slice tile means"),
+                label: Some("SJK froxel slice tile means"),
                 size: wgpu::Extent3d {
                     width: TILES,
                     height: TILES,
@@ -139,13 +139,13 @@ impl Runtime {
             u64::from(grid[0]) * u64::from(grid[1]) * u64::from(grid[2]) * 16
         ));
         let parameters = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR medium parameters"),
+            label: Some("SJK medium parameters"),
             size: std::mem::size_of::<Parameters>() as u64,
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
         let fog_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("JKR authored-fog transmission"),
+            label: Some("SJK authored-fog transmission"),
             contents: bytemuck::cast_slice(&fog.entries),
             usage: wgpu::BufferUsages::UNIFORM,
         });
@@ -166,7 +166,7 @@ impl Runtime {
         );
 
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR participating media"),
+            label: Some("SJK participating media"),
             source: wgpu::ShaderSource::Wgsl(source.into()),
         });
         let compute = |entry, layout| {
@@ -192,7 +192,7 @@ impl Runtime {
             min_binding_size: None,
         };
         let inject_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("JKR froxel injection"),
+            label: Some("SJK froxel injection"),
             entries: &[
                 compute_entry(0, uniform),
                 compute_entry(
@@ -269,7 +269,7 @@ impl Runtime {
             });
         let inject = compute("inject", Some(&inject_pipeline_layout));
         let column_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("JKR froxel columns"),
+            label: Some("SJK froxel columns"),
             entries: &[
                 compute_entry(0, uniform),
                 compute_entry(
@@ -409,7 +409,7 @@ impl Runtime {
             immediate_size: 0,
         });
         let composite = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("JKR medium composite"),
+            label: Some("SJK medium composite"),
             layout: Some(&pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &shader,
@@ -556,7 +556,7 @@ impl Runtime {
 
         if let Some((pipeline, group)) = &self.columns {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: Some("JKR froxel column ranges"),
+                label: Some("SJK froxel column ranges"),
                 timestamp_writes: None,
             });
             pass.set_pipeline(pipeline);
@@ -566,7 +566,7 @@ impl Runtime {
         }
         {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: Some("JKR froxel injection"),
+                label: Some("SJK froxel injection"),
                 timestamp_writes: None,
             });
             pass.set_pipeline(&self.inject);
@@ -580,7 +580,7 @@ impl Runtime {
         }
         {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: Some("JKR froxel slice means"),
+                label: Some("SJK froxel slice means"),
                 timestamp_writes: None,
             });
             pass.set_pipeline(&self.reduce);
@@ -589,7 +589,7 @@ impl Runtime {
         }
         {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: Some("JKR medium prefix integration"),
+                label: Some("SJK medium prefix integration"),
                 timestamp_writes: None,
             });
             pass.set_pipeline(&self.integrate);
@@ -598,7 +598,7 @@ impl Runtime {
         }
 
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("JKR medium main-view composite"),
+            label: Some("SJK medium main-view composite"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: target,
                 resolve_target: None,

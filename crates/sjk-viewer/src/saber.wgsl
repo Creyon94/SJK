@@ -5,7 +5,7 @@
 // 0.65·radius from the tip down, each 0.017 wider, plus a hilt sprite of radius 5.5-5.75
 // (rd-vanilla tr_surface.cpp:470-490), and the core as RB_SurfaceLine's flat quad from the
 // tip to one unit behind the hilt (tr_surface.cpp:511-566, CG_DoSaber cg_players.c:5359).
-// JKR keeps one smooth capsule (owner decision, step 526i) with the same brightness: the
+// SJK keeps one smooth capsule (owner decision, step 526i) with the same brightness: the
 // chain's sum is integrated along the blade instead of summed per sprite, which is its
 // continuous limit. For sprites at density 1/(0.65 r) along a blade whose projection is
 // `shaft` long, a point at (x, y) receives

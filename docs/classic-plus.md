@@ -12,7 +12,7 @@ reference example, with the cosmetics window and the creation pages' live model
 and part icons.
 
 This page holds the rules and the recipe, for new classic pages and for older
-ones being reworked. It is SJK-only, like the classic menus' additions.
+ones being reworked.
 
 ## What stays retail
 
@@ -112,7 +112,7 @@ Each rule names a page that already follows it.
 11. **One group per subject.** Retail split a subject over two pages when a page
     ran out of items (Video and More Video, Force Powers 1 and 2); a classic+
     panel scrolls and explains its items, so it shows the subject as one group,
-    and sorts JKR's additions by what they are about (Interface, HUD,
+    and sorts SJK's additions by what they are about (Interface, HUD,
     Scoreboard) rather than by the tab they came from.
 
 ## Layout conventions

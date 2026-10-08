@@ -22,7 +22,7 @@ pub(super) struct Release {
 #[derive(Debug)]
 pub(super) struct Change {
     pub(super) text: String,
-    /// Who made it: "Sol", "Bishop", "Sol, after JoF EJK".
+    /// Who made it: "Sol", "Creyon", "Sol, after JoF EJK".
     pub(super) credit: String,
 }
 
@@ -167,7 +167,7 @@ mod tests {
 
     #[test]
     fn sections_intro_items_and_errors() {
-        let text = "# Changelog\nPage intro.\n<!--\n## not a release\n-->\n\n## 1.0 | 05/10/2026\n\nFirst `line`\nsame paragraph.\n\nSecond.\n\n- Did a thing _(Sol, after JoF EJK)_\n- Another _(Bishop)_\n";
+        let text = "# Changelog\nPage intro.\n<!--\n## not a release\n-->\n\n## 1.0 | 05/10/2026\n\nFirst `line`\nsame paragraph.\n\nSecond.\n\n- Did a thing _(Sol, after JoF EJK)_\n- Another _(Creyon)_\n";
         let releases = parse(text).unwrap();
         assert_eq!(releases.len(), 1);
         let release = &releases[0];

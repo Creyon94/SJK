@@ -56,7 +56,7 @@ impl SkyVisibility {
         Self {
             surfaces,
             areas: crate::world_materials::areas::Areas::new(bsp),
-            enabled: std::env::var_os("JKR_SKY_PORTAL").is_none_or(|value| value != "0"),
+            enabled: std::env::var_os("SJK_SKY_PORTAL").is_none_or(|value| value != "0"),
         }
     }
 

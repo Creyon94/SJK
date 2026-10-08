@@ -24,7 +24,7 @@ pub(super) const QUICK_TAB: usize = 8;
 pub(super) const KEYBINDS_TAB: usize = 3;
 /// The tab whose last row opens the renderer settings ([`RENDERER_TABS`]).
 pub(super) const RENDERER_TAB: usize = 0;
-/// Tabs of the renderer settings, JKR's own rendering cvars (`jkr_*` in JKR), reached
+/// Tabs of the renderer settings, SJK's own rendering cvars, reached
 /// from the last row of [`VIDEO`] as JoF EJK reaches its advanced renderer page
 /// from Video.
 pub(super) const RENDERER_TABS: [&str; 4] = ["IMAGE", "LIGHTING", "SHADOWS", "WEATHER"];
@@ -462,6 +462,11 @@ pub(super) const GAME: &[Setting] = &[
             max: 12,
             step: 1,
         },
+    },
+    Setting {
+        label: "Illuminate holocron",
+        cvar: crate::illuminate::CVAR,
+        kind: ValueKind::Bool,
     },
     Setting {
         label: "Force Seeing aura",
