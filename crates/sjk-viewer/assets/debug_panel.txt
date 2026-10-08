@@ -1772,7 +1772,7 @@ test: While holding, the view does not turn; W/A/S/D still move.
 test: Hold Q and press Escape, or let go without moving: nothing happens.
 note: The pointer's dead zone and reach are in raw mouse counts: tell Claude if too twitchy.
 test: Each choice is a round metal icon; the one pointed at grows, ringed in the accent colour.
-test: Its name shows in the middle; GAME MENU and FIRST SETUP are plain discs with text.
+test: Its name shows in the middle; GAME MENU (three bars) and FIRST SETUP (a gear) have icons.
 
 [wheel-q-last]
 area: Input
@@ -1794,6 +1794,20 @@ test: Hold Q, scroll to the new page: its choices run. Restart: the pages are st
 test: Restore the default pages (Enter twice): General and Weather again, wheel.json removed.
 test: Classic and modern menus: Settings > Interface > Quick wheel pages opens the same editor.
 note: A bare +wheel bind opens the page shown last; +wheel <page> opens that page (id or name).
+
+[wheel-icons-sounds]
+area: Input
+title: Quick wheel: an icon for every choice, and sounds
+change: Every action has its own icon from your second board; custom commands show the {.} disc.
+change: Sounds: sub_select on a page change, menuroam on a new choice, button1 when one runs.
+change: cg_wheelSounds 0 silences them: Settings > Quick wheel > Sound, or Interface's row.
+test: Hold Q, sweep the mouse round: one soft tick per new choice, none while still within one.
+test: Scroll or click to change page: one short tick per page, no extra tick for the choice.
+test: Let go on a choice: the button sound as it runs. Let go in the middle, or Esc: silence.
+test: In a fight: heard, but quieter than sabers and shots; lowering s_volume lowers them too.
+test: Settings > Quick wheel: Wheel sounds Off, then use the wheel: silent. Switch it back On.
+test: Settings > Quick wheel: every choice and catalogue line has an icon; the rail shows a ring.
+note: Too loud, too quiet or the wrong sound? Tell Claude which one; volumes are 0.4/0.5/0.5.
 
 [vertex-lit-maps]
 area: Rendering & effects

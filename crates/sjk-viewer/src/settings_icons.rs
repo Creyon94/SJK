@@ -94,12 +94,17 @@ pub(crate) const ICONS: [(&str, &[u8]); 32] = [
     ("import", include_bytes!("../assets/settings/import.png")),
 ];
 
-/// The atlas texture of icon `name`, if there is one by that name.
+/// The atlas texture of icon `name`, if there is one by that name: a settings
+/// icon, else a quick wheel icon (Settings' Quick wheel category wears the
+/// wheel's own, [`crate::quick_wheel::catalog::WHEEL_ICON`]).
 pub(crate) fn texture(name: &str) -> Option<sjk_ui::TextureId> {
     ICONS
         .iter()
         .position(|(icon, _)| *icon == name)
         .map(crate::ui_renderer::settings_icon)
+        .or_else(|| {
+            crate::quick_wheel::catalog::icon_index(name).map(crate::ui_renderer::wheel_icon)
+        })
 }
 
 #[cfg(test)]

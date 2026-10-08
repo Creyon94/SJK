@@ -54,8 +54,9 @@ pub(crate) const VERIFIED_ICON: u32 = CROSSHAIR_ICON_FIRST + CROSSHAIR_ICON_CELL
 /// First of the quick wheels' icon cells (`quick_wheel::ICONS`), after the verified
 /// badge's.
 pub(crate) const WHEEL_ICON_FIRST: u32 = VERIFIED_ICON + 1;
-/// Quick wheel cells: one row.
-pub(crate) const WHEEL_ICON_CELLS: u32 = COLUMNS;
+/// Quick wheel cells: three rows (the 44 icons of two boards, with room for four
+/// more).
+pub(crate) const WHEEL_ICON_CELLS: u32 = 3 * COLUMNS;
 /// First of the settings menu's icon cells (`settings_icons::ICONS`), after the
 /// quick wheels'.
 pub(crate) const SETTINGS_ICON_FIRST: u32 = WHEEL_ICON_FIRST + WHEEL_ICON_CELLS;
@@ -298,5 +299,14 @@ mod tests {
         );
         let (_, end) = uv_range(TextureId(SCOREBOARD_ICON_CELLS + 31));
         assert!(end[1] <= BANNER_Y as f32 / ATLAS_HEIGHT as f32);
+    }
+
+    #[test]
+    fn the_atlas_fits_the_texture_size_the_client_asks_for() {
+        // The device is created with wgpu's default limits (`gpu_context.rs`),
+        // whose largest 2D texture is 8192 on a side; the atlas is taller than
+        // it is wide.
+        let limit = wgpu::Limits::default().max_texture_dimension_2d;
+        assert!(ATLAS_HEIGHT <= limit, "{ATLAS_HEIGHT}");
     }
 }

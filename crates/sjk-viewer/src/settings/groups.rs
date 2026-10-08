@@ -102,6 +102,7 @@ impl Group {
                 "con_scale",
                 "con_lineSpacing",
                 crate::quick_wheel::pages::FILE,
+                crate::quick_wheel::SOUNDS_CVAR,
             ],
             Self::Hud => &[
                 "cg_drawHud",

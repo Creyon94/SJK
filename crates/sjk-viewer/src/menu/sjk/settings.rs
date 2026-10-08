@@ -88,10 +88,10 @@ const CATEGORIES: [Category; 12] = [
         icon: "hud",
         shows: Shows::Rows(Panel::Group(Group::Hud)),
     },
-    // A spare icon of the settings board until the wheel has its own.
+    // The wheel's own icon, a ring of discs, from the wheel's second board.
     Category {
         label: "Quick wheel",
-        icon: "options",
+        icon: crate::quick_wheel::catalog::WHEEL_ICON,
         shows: Shows::Wheel,
     },
     Category {
@@ -508,14 +508,17 @@ mod tests {
             );
         }
         assert_eq!(CATEGORIES[FIRST_SETUP].label, "First setup");
+        // Every category has its icon: a settings one, or the wheel's own.
         for (label, icon) in RAIL {
             assert!(
-                crate::settings_icons::ICONS
-                    .iter()
-                    .any(|(name, _)| *name == icon),
+                crate::settings_icons::texture(icon).is_some(),
                 "{label}: {icon}"
             );
         }
+        assert_eq!(
+            CATEGORIES[QUICK_WHEEL].icon,
+            crate::quick_wheel::catalog::WHEEL_ICON
+        );
     }
 
     #[test]

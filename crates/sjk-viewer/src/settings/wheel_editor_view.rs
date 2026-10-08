@@ -47,7 +47,8 @@ const OVERLAY_SHIFT: f32 = -190.0;
 const _: () = assert!(PAGES_X + PAGES_WIDTH < CHOICES_X);
 const _: () = assert!(CHOICES_X + CHOICES_WIDTH < DETAIL_X);
 const _: () = assert!(TOP + (MAX_CHOICES + 2) as f32 * LINE < KEYS_Y - 20.0);
-const _: () = assert!(TOP + (MAX_PAGES + 3) as f32 * LINE < KEYS_Y - 20.0);
+// Eight pages, Add a page, Restore, then the Sound heading and its switch.
+const _: () = assert!(TOP + (MAX_PAGES + 5) as f32 * LINE < KEYS_Y - 20.0);
 const _: () = assert!(PICK_TOP + PICK_LINES as f32 * PICK_LINE < KEYS_Y - 20.0);
 
 impl SettingsMenu {
@@ -130,7 +131,8 @@ impl WheelEditor {
     }
 
     /// The pages: each with its name (gold for the page shown) and how many
-    /// choices it has, then Add a page and Restore the default pages.
+    /// choices it has, then Add a page and Restore the default pages; under
+    /// them, the switch of the wheel's sounds.
     fn draw_pages(&mut self, frame: &Frame) {
         let s = frame.s;
         kit::heading(
@@ -271,6 +273,49 @@ impl WheelEditor {
             },
             FontWeight::Regular,
             TextAlign::Start,
+        );
+        // The wheel's sounds, under their own heading a line below.
+        kit::heading(
+            &mut self.ui,
+            frame,
+            PAGES_X,
+            TOP + LINE * (add + 3) as f32 + 36.0,
+            PAGES_WIDTH,
+            "Sound",
+        );
+        let top = TOP + LINE * (add + 4) as f32;
+        let focused = focus == Some(self.sounds_row());
+        if focused {
+            kit::band(&mut self.ui, frame, [PAGES_X, top, PAGES_WIDTH, LINE]);
+        }
+        self.ui
+            .hit_region(SOUNDS, frame.rect(PAGES_X, top, PAGES_WIDTH, LINE));
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("Wheel sounds"),
+            frame.rect(
+                PAGES_X + 22.0,
+                top + LINE * 0.5 - 14.0,
+                PAGES_WIDTH - 180.0,
+                28.0,
+            ),
+            19.0 * s,
+            if focused {
+                color::TEXT
+            } else {
+                color::alpha(color::TEXT, 0.88)
+            },
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+        kit::switch(
+            &mut self.ui,
+            frame,
+            PAGES_X + PAGES_WIDTH - 16.0,
+            top + LINE * 0.5,
+            self.sounds,
+            focused,
         );
     }
 
@@ -552,11 +597,17 @@ impl WheelEditor {
                 &mut y,
                 "A new page starts empty; name it, then add its choices. Up to 8 pages.",
             ),
-            (Column::Pages, _) => note(
+            (Column::Pages, row) if row == pages + 1 => note(
                 &mut self.ui,
                 frame,
                 &mut y,
                 "Back to the wheel's own two pages, General and Weather. Your pages and choices are removed.",
+            ),
+            (Column::Pages, _) => note(
+                &mut self.ui,
+                frame,
+                &mut y,
+                "The game's menu sounds as the wheel changes page, moves to another choice and runs one, at the effects volume. Enter switches them.",
             ),
             (Column::Choices, row) => match slots.get(row) {
                 Some(slot) => {
@@ -680,7 +731,10 @@ impl WheelEditor {
                 PickLine::Action(action) => ACTIONS[action]
                     .icon
                     .and_then(crate::quick_wheel::catalog::icon_index),
-                _ => None,
+                PickLine::Custom => crate::quick_wheel::catalog::icon_index(
+                    crate::quick_wheel::catalog::CUSTOM_ICON,
+                ),
+                PickLine::Heading(_) => None,
             };
             choice_icon(&mut self.ui, frame, DETAIL_X + 30.0, middle, 30.0, icon);
             text(

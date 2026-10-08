@@ -1,6 +1,7 @@
 //! Settings > Quick wheel: the quick wheel's pages, edited (`docs/client.md`,
 //! Quick wheels). The pages in a column on the left (add, rename, move, remove,
-//! restore the defaults), the shown page's choices in the middle (add, change,
+//! restore the defaults; under them the switch of the wheel's sounds,
+//! [`crate::quick_wheel::SOUNDS_CVAR`]), the shown page's choices in the middle (add, change,
 //! move round the ring, remove), and on the right a live preview of the page's
 //! ring with what the focused item does, or, while a choice is being picked, the
 //! catalogue of actions ([`crate::quick_wheel::catalog`]) with a custom console
@@ -96,6 +97,7 @@ pub(super) const PAGE_RENAME: u16 = 3042;
 pub(super) const PAGE_UP: u16 = 3043;
 pub(super) const PAGE_DOWN: u16 = 3044;
 pub(super) const PAGE_REMOVE: u16 = 3045;
+pub(super) const SOUNDS: u16 = 3046;
 pub(super) const CHOICE_BASE: u16 = 3100;
 pub(super) const ADD_CHOICE: u16 = 3140;
 pub(super) const CHOICE_UP: u16 = 3143;
@@ -119,7 +121,7 @@ pub(crate) struct WheelEditor {
     /// The page whose choices show.
     pub(super) page: usize,
     /// The focused row of each column: a page (then Add a page, Restore the
-    /// default pages), a choice (then Add a choice).
+    /// default pages, the wheel's sounds), a choice (then Add a choice).
     pub(super) rows: [usize; 2],
     pub(super) picker: Option<Picker>,
     pub(super) typing: Option<Typing>,
@@ -129,6 +131,8 @@ pub(crate) struct WheelEditor {
     pub(super) keys: Vec<String>,
     /// Whether the pages are the defaults.
     pub(super) default: bool,
+    /// Whether the wheel plays its sounds ([`crate::quick_wheel::SOUNDS_CVAR`]).
+    pub(super) sounds: bool,
     pub(super) ui: MenuCanvas,
 }
 
@@ -146,6 +150,7 @@ impl Default for WheelEditor {
             pages: Vec::new(),
             keys: Vec::new(),
             default: true,
+            sounds: true,
             ui: MenuCanvas::with_capacities(224, 64, 1024),
         }
     }
@@ -203,6 +208,9 @@ impl WheelEditor {
     pub(super) fn sync(&mut self, console: &ViewerConsole) {
         self.pages = console.wheel_pages.pages().to_vec();
         self.default = console.wheel_pages.is_default();
+        self.sounds = console
+            .bool_cvar(crate::quick_wheel::SOUNDS_CVAR)
+            .unwrap_or(true);
         // A page with no key of its own names the keys of the bare `+wheel`
         // (Q by default), which opens on the page used last.
         let last = console.keys_for_command(crate::quick_wheel::OPEN_COMMAND);
@@ -225,9 +233,22 @@ impl WheelEditor {
         self.rows[1] = self.rows[1].min(self.choice_rows() - 1);
     }
 
-    /// Rows of the pages column: the pages, Add a page, Restore the defaults.
+    /// Rows of the pages column: the pages, Add a page, Restore the defaults,
+    /// the wheel's sounds.
     pub(super) fn page_rows(&self) -> usize {
+        self.pages.len() + 3
+    }
+
+    /// The pages column's row of the wheel's sounds.
+    pub(super) fn sounds_row(&self) -> usize {
         self.pages.len() + 2
+    }
+
+    /// Turn the wheel's sounds on or off.
+    fn toggle_sounds(&mut self, console: &mut ViewerConsole) {
+        let on = !self.sounds;
+        console.set_cvar(crate::quick_wheel::SOUNDS_CVAR, if on { "1" } else { "0" });
+        self.sync(console);
     }
 
     /// Rows of the choices column: the shown page's choices, Add a choice.
@@ -356,7 +377,8 @@ impl WheelEditor {
                 self.rows[1] = 0;
             }
             (Column::Pages, row) if row == pages => self.add_page(console),
-            (Column::Pages, _) => self.restore(console),
+            (Column::Pages, row) if row == pages + 1 => self.restore(console),
+            (Column::Pages, _) => self.toggle_sounds(console),
             (Column::Choices, row) => match self.choices().get(row) {
                 Some(Slot::Custom { .. }) => self.open_custom(Some(row)),
                 Some(Slot::Action(_)) => self.open_picker(Some(row)),
@@ -760,6 +782,10 @@ impl WheelEditor {
                 self.column = Column::Pages;
                 self.rows[0] = pages + usize::from(token == RESTORE);
             }
+            SOUNDS => {
+                self.column = Column::Pages;
+                self.rows[0] = self.sounds_row();
+            }
             ADD_CHOICE => {
                 self.column = Column::Choices;
                 self.rows[1] = self.choices().len();
@@ -839,6 +865,11 @@ impl WheelEditor {
                     confirm.filter(|confirm| *confirm == Confirm::RemovePage(self.rows[0]));
                 self.column = Column::Pages;
                 self.remove(console);
+            }
+            SOUNDS => {
+                self.column = Column::Pages;
+                self.rows[0] = self.sounds_row();
+                self.toggle_sounds(console);
             }
             CHOICE_BASE.. if token < CHOICE_BASE + MAX_CHOICES as u16 || token == ADD_CHOICE => {
                 self.column = Column::Choices;
@@ -1004,7 +1035,10 @@ mod tests {
         press(&mut menu, &mut console, KeyCode::Delete);
         assert_eq!(names(&console), ["Weather"]);
         assert_eq!(menu.wheel.confirm, None);
-        // Restore: Up from the first row wraps to it; Enter twice.
+        // Restore: Up from the first row wraps to the sounds, then to it; Enter
+        // twice.
+        press(&mut menu, &mut console, KeyCode::ArrowUp);
+        assert_eq!(menu.wheel.rows[0], menu.wheel.sounds_row());
         press(&mut menu, &mut console, KeyCode::ArrowUp);
         assert_eq!(menu.wheel.rows[0], 2);
         press(&mut menu, &mut console, KeyCode::Enter);
@@ -1060,6 +1094,36 @@ mod tests {
             "general",
             "binds keep working"
         );
+    }
+
+    #[test]
+    fn the_sounds_row_switches_the_wheels_sounds_from_the_keys_and_a_click() {
+        let (_directory, mut console) = console();
+        let sounds = |console: &ViewerConsole| console.bool_cvar(crate::quick_wheel::SOUNDS_CVAR);
+        assert_eq!(sounds(&console), Some(true), "on by default");
+        let mut menu = SettingsMenu::new();
+        menu.open_wheel_editor(&console, WheelMode::Category);
+        // Under the pages, Add a page and Restore: the last row.
+        for _ in 0..4 {
+            press(&mut menu, &mut console, KeyCode::ArrowDown);
+        }
+        assert_eq!(menu.wheel.rows[0], menu.wheel.sounds_row());
+        press(&mut menu, &mut console, KeyCode::Enter);
+        assert_eq!(sounds(&console), Some(false));
+        assert!(!menu.wheel.sounds);
+        // The pages are untouched, and Space turns them back on.
+        assert!(console.wheel_pages.is_default());
+        press(&mut menu, &mut console, KeyCode::Space);
+        assert_eq!(sounds(&console), Some(true));
+        // A click on the row, wherever the focus was.
+        press(&mut menu, &mut console, KeyCode::ArrowRight);
+        menu.wheel.click(Some(SOUNDS), &mut console);
+        assert_eq!(sounds(&console), Some(false));
+        assert_eq!(menu.wheel.column, Column::Pages);
+        // Set elsewhere (the Interface row, the console), the editor follows.
+        console.set_cvar(crate::quick_wheel::SOUNDS_CVAR, "1");
+        menu.open_wheel_editor(&console, WheelMode::Overlay);
+        assert!(menu.wheel.sounds);
     }
 
     #[test]

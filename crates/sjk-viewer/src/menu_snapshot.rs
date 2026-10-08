@@ -1533,6 +1533,11 @@ fn sjk_settings_snapshot() {
             icon.into_rgba8(),
         );
     }
+    // The rail's Quick wheel wears the wheel's own icon.
+    for (index, (_, bytes)) in crate::quick_wheel::ICONS.iter().enumerate() {
+        let icon = image::load_from_memory(bytes).expect("a wheel icon");
+        icons.insert(crate::ui_renderer::wheel_icon(index).0, icon.into_rgba8());
+    }
     let directory = tempfile::tempdir().unwrap();
     let mut console =
         crate::console::ViewerConsole::new(directory.path().join("config.cfg")).unwrap();

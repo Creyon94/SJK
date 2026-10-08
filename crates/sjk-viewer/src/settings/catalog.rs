@@ -543,6 +543,11 @@ pub(super) const GAME: &[Setting] = &[
         cvar: crate::quick_wheel::pages::FILE,
         kind: ValueKind::WheelPages,
     },
+    Setting {
+        label: "Quick wheel sounds",
+        cvar: crate::quick_wheel::SOUNDS_CVAR,
+        kind: ValueKind::Bool,
+    },
 ];
 pub(super) const NETWORK: &[Setting] = &[
     Setting {

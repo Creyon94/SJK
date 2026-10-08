@@ -364,7 +364,9 @@ mock-up draws it.
   settings icon: First setup, Display, Graphics, Sound, Mouse, Key bindings,
   Gameplay, Interface, HUD, Quick wheel, Scoreboard, Network. The one on show is
   gold with a gold bar on the line; none is lit while a search shows its results.
-  Quick wheel has the board's spare sliders icon (`options`) until it has its own.
+  Quick wheel wears the wheel's own icon, a ring of discs from its second board
+  (`quick_wheel::catalog::WHEEL_ICON`; `settings_icons::texture` falls back to
+  the wheel's icons), since 08/10/2026.
   - They are the classic+ Setup page's groups (`settings::Group` and tabs), but
     Graphics gathers the renderer's four tabs (image, lighting, shadows, weather)
     under their names (`Group::Graphics`).
@@ -461,9 +463,13 @@ detail's columns:
   and, at its end, Rename, up, down and remove as small round controls (remove
   turns ember while it waits for a second Delete). Then "+ Add a page" in gold
   and Restore the default pages (muted; quiet "These are the default pages"
-  when they are; ember while it waits for a second Enter).
+  when they are; ember while it waits for a second Enter). Under a "Sound"
+  sub-heading a line below, "Wheel sounds" with the kit's switch
+  (`cg_wheelSounds`; the pages column's last row: Enter, Space or a click
+  switches it, and the right column says what it does).
 - **Choices** (x 870, 400 wide), under "On <page>": each choice's picture (a holo
-  ring without one), its name and, muted on the right, its group or "Custom";
+  ring without one; a custom command's is the `{•}` disc), its name and, muted
+  on the right, its group or "Custom";
   the focused one's up, down and remove; then "+ Add a choice".
 - **Right column** (the detail's, x 1360): the page's ring as the wheel draws
   it at 0.78 of its size, the focused choice highlighted, then facts (Key in
@@ -921,10 +927,11 @@ button acts.
   typed, the Sun page where the sun cannot be set, a 4:3 window and the modern
   look;
   `duel6_quick_wheel` the quick wheel's ring over duel6 (General, the change to
-  Weather half-way, Weather, the middle, 4:3, in Inter) and
-  `duel6_quick_wheel_settings` its Settings category (pages, a choice, the
-  catalogue, a custom choice, a new page) and the editor over the classic+ and
-  modern settings;
+  Weather half-way, Weather, the middle, 4:3, in Inter, and three full pages of
+  the second board's icons, `duel6-wheel-icons-1` to `-3`) and
+  `duel6_quick_wheel_settings` its Settings category (pages, the sound switch
+  off, a choice, the catalogue, a custom choice, a new page) and the editor over
+  the classic+ and modern settings;
   `duel6_sjk_credits` Credits over duel6: the top, Creyon's and Lumaya's
   panels with their folds open and their medals, Creyon's work unfolded, and
   the end of the page.
