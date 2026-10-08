@@ -1527,6 +1527,17 @@ Where the numbers come from, and what is not known:
   not checked. Your own pace measurement skips the time drain holds your refill
   back.
 
+  Your own drain is measured, not rebuilt: the server sends you your pool, which
+  each shot takes 5 from, and your health, which each shot raises by what it took
+  (below your maximum). Your victims lose what you gained (at the maximum, the shots
+  you paid for times what a shot takes), shared among those in reach, else those
+  the drained event names, else the player most in front. Your drains also teach
+  the server's pace (milliseconds a shot) and a shot's strength, which then apply to
+  everyone's drain and lightning: servers built on the original game (JA+) shoot
+  every server frame rather than every 50 ms. Each of your drains writes one line
+  to the log (`nameplate drain:` with its shots, heal, victims, how they were found
+  and the pace).
+
 `cg_drawPlayerNames` keeps TaystJK's plain overhead names (0 off, 1 names, 2 adds a
 health strip, text only, off by default); they are hidden while nameplates are on.
 `cg_drawFriend` draws the ally marker for either. At most 32 players and 16 NPCs are
