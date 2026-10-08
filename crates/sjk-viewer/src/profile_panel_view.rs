@@ -248,6 +248,18 @@ impl Panel {
             self.focus == Focus::Identity,
             IDENTITY_TOKEN,
         );
+        if self.staff {
+            kit::button(
+                &mut self.ui,
+                frame,
+                [LEFT_X + 236.0, button_y, 180.0, 42.0],
+                "Staff tools",
+                true,
+                true,
+                self.focus == Focus::Staff,
+                STAFF_TOKEN,
+            );
+        }
         y = button_y + 42.0 + 34.0;
         kit::heading(&mut self.ui, frame, LEFT_X, y, LEFT_WIDTH, "Your record");
         y += 30.0;
@@ -824,7 +836,7 @@ impl Panel {
         let typing = self.focus == Focus::Bio && self.writable;
         let enter = match self.focus {
             Focus::Tabs => "switch tab",
-            Focus::Identity => "open",
+            Focus::Identity | Focus::Staff => "open",
             Focus::Bio | Focus::Save => "save",
             Focus::Revert => "revert",
             Focus::Board => "open",
@@ -917,6 +929,7 @@ mod tests {
                 "x".repeat(60)
             ),
             verified: true,
+            staff: false,
             created: 1_759_708_800,
             names: ["^2Fox", "Sol", "^4Another Long Name", "Fourth"]
                 .iter()

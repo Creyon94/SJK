@@ -308,6 +308,16 @@ overlay routes their text to the UI's families (`console_sjk_pages.rs`).
   holo, Community green), filled and gold once unlocked, the goal inside; the name,
   the category, what to do, a bar and the count or the date. World shot:
   `world_shot::tests::duel6_sjk_profile`.
+- **Staff** ([staff_panel_view.rs](../crates/sjk-viewer/src/staff_panel_view.rs),
+  08/10/2026, for staff keys, [identity.md](identity.md#staff)): the top bar's
+  search pill finds players; Me and Seen lately over the list of players found (14
+  rows of 50, the chosen one banded, tags Staff and Verified in gold); the chosen
+  player's name at 38 and facts over the middle and right; Medals: each medal's
+  medallion (dim when not held), name and count, date given, Give (gold) and Take
+  back, then the note's field; Achievements: Clear all (Press again while it waits),
+  each achievement with a count, its date or count and Clear, and a line on what
+  clearing does. The last request's answer bottom left (gold, ember when refused).
+  World shot: `world_shot::tests::duel6_sjk_staff`.
 - **Credits** ([credits_sjk.rs](../crates/sjk-viewer/src/credits_sjk.rs), since
   08/10/2026, Sol's request: restyle Credits but keep its sun): on the left SJK's
   emblem (220 across, centred at (300, 330)) is the page's sun, the one memorable

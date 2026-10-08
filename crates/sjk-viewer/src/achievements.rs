@@ -424,6 +424,48 @@ impl Record {
         set.insert(name)
     }
 
+    /// Forget achievement `kind` as cleared: its counter goes just below its goal, so
+    /// the next count unlocks it again, and every achievement on that counter that the
+    /// lower count no longer reaches is unlocked no more. A hub-counted one only loses
+    /// its local mark.
+    fn forget(&mut self, kind: &Kind) {
+        self.unlocked.remove(kind.id);
+        let Client(counter) = kind.source else {
+            return;
+        };
+        let below = kind.goal.saturating_sub(1);
+        let index = counter as usize;
+        self.floors[index] = self.floors[index].min(below);
+        match counter {
+            Counter::Maps | Counter::Servers => {
+                let set = if counter == Counter::Maps {
+                    &mut self.maps
+                } else {
+                    &mut self.servers
+                };
+                while set.len() as u64 > below {
+                    set.pop_last();
+                }
+            }
+            Counter::Weapons => {
+                while u64::from(self.weapons.count_ones()) > below {
+                    self.weapons &= self.weapons - 1;
+                }
+            }
+            _ => {
+                self.counts[index] = self.counts[index].min(below);
+                if counter == Counter::Minutes {
+                    self.play_ms = 0;
+                }
+            }
+        }
+        for other in &ALL {
+            if other.source == kind.source && other.goal > below {
+                self.unlocked.remove(other.id);
+            }
+        }
+    }
+
     /// The counts of the achievements the client counts, by id, as the hub takes them.
     pub(crate) fn hub_counts(&self) -> BTreeMap<String, u64> {
         ALL.iter()
@@ -698,6 +740,38 @@ pub(crate) fn standings(held: &[sjk_identity::Achievement]) -> Vec<Standing> {
     lock().record.standings(held)
 }
 
+/// The achievements that clearing `id` takes with it on this client: `id`, and for
+/// one the client counts, every one on the same counter with a goal at least as high
+/// (their count goes below `id`'s goal). Empty for an unknown id.
+pub(crate) fn cleared_with(id: &str) -> Vec<&'static str> {
+    let Some(kind) = find(id) else {
+        return Vec::new();
+    };
+    match kind.source {
+        Hub => vec![kind.id],
+        Client(_) => ALL
+            .iter()
+            .filter(|other| other.source == kind.source && other.goal >= kind.goal)
+            .map(|other| other.id)
+            .collect(),
+    }
+}
+
+/// Forget achievements on this client, after the player's own were cleared at the
+/// hub: `Some(id)` as [`Record::forget`] does, `None` every count and unlock.
+pub(crate) fn forget(id: Option<&str>) {
+    let mut shared = lock();
+    if shared.file.is_none() {
+        return;
+    }
+    match id.and_then(find) {
+        Some(kind) => shared.record.forget(kind),
+        None if id.is_none() => shared.record = Record::default(),
+        None => return,
+    }
+    shared.dirty = true;
+}
+
 /// The record's counts, for the profile's numbers.
 pub(crate) fn count(counter: Counter) -> u64 {
     lock().record.count(counter)
@@ -829,6 +903,57 @@ mod tests {
         assert_eq!(of("surveyor").progress, 0);
         assert!((of("kills_100").fraction() - 0.1).abs() < 1e-6);
         assert_eq!(standings.len(), ALL.len());
+    }
+
+    #[test]
+    fn forgetting_sets_the_count_just_below_the_goal() {
+        let mut record = Record::default();
+        record.add(Counter::Kills, 150);
+        for name in ["a", "b", "c", "d", "e", "f", "g", "h", "i", "j", "k"] {
+            Record::remember(&mut record.maps, name);
+        }
+        record.weapons = 0b1111_1111;
+        record.play(700 * 60_000 + 5);
+        let _ = record.unlock(1);
+        assert!(record.unlocked.contains_key("kills_100"));
+        record.forget(find("kills_100").unwrap());
+        assert_eq!(record.count(Counter::Kills), 99);
+        assert!(!record.unlocked.contains_key("kills_100"));
+        assert!(record.unlocked.contains_key("first_blood"), "still reached");
+        // The next count unlocks it again.
+        record.add(Counter::Kills, 1);
+        assert_eq!(
+            record.unlock(2).iter().map(|k| k.id).collect::<Vec<_>>(),
+            ["kills_100"]
+        );
+        record.forget(find("first_blood").unwrap());
+        assert_eq!(record.count(Counter::Kills), 0);
+        assert!(
+            !record.unlocked.contains_key("kills_100"),
+            "no longer reached"
+        );
+        record.forget(find("maps_10").unwrap());
+        assert_eq!(record.count(Counter::Maps), 9);
+        record.forget(find("arsenal").unwrap());
+        assert_eq!(record.count(Counter::Weapons), 7);
+        record.forget(find("hours_10").unwrap());
+        assert_eq!((record.count(Counter::Minutes), record.play_ms), (599, 0));
+        record.unlocked.insert("storyteller".into(), 5);
+        record.forget(find("storyteller").unwrap());
+        assert!(!record.unlocked.contains_key("storyteller"));
+    }
+
+    #[test]
+    fn clearing_takes_the_higher_goals_on_the_same_counter() {
+        assert_eq!(
+            cleared_with("first_blood"),
+            ["first_blood", "kills_100", "kills_1000"]
+        );
+        assert_eq!(cleared_with("kills_100"), ["kills_100", "kills_1000"]);
+        assert_eq!(cleared_with("saber_kills_100"), ["saber_kills_100"]);
+        assert_eq!(cleared_with("maps_10"), ["maps_10", "maps_25"]);
+        assert_eq!(cleared_with("storyteller"), ["storyteller"]);
+        assert!(cleared_with("nope").is_empty());
     }
 
     #[test]

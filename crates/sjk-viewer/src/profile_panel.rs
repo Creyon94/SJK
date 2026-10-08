@@ -30,6 +30,7 @@ const SAVE_TOKEN: u16 = 1_011;
 const REVERT_TOKEN: u16 = 1_012;
 const BOARD_TOKEN: u16 = 1_013;
 const IDENTITY_TOKEN: u16 = 1_014;
+const STAFF_TOKEN: u16 = 1_015;
 
 /// The page's two tabs.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -51,6 +52,7 @@ impl Tab {
 enum Focus {
     Tabs,
     Identity,
+    Staff,
     Bio,
     Save,
     Revert,
@@ -68,6 +70,8 @@ pub(crate) enum PanelAction {
     },
     /// Open the Identity page.
     Identity,
+    /// Open the Staff page.
+    Staff,
 }
 
 /// A save on its way: the bio sent and the service's notice before it, to tell the
@@ -106,6 +110,8 @@ pub(crate) struct Panel {
     message: String,
     /// The bio can be written: the identity is on and the hub answered.
     writable: bool,
+    /// The hub made the player's key staff: Staff tools are offered.
+    staff: bool,
     epoch: Instant,
     /// What a world shot shows in place of the live identity and counts.
     #[cfg(test)]
@@ -164,6 +170,7 @@ impl Panel {
             saving: None,
             message: String::new(),
             writable: false,
+            staff: false,
             epoch: Instant::now(),
             #[cfg(test)]
             preview: None,
@@ -207,6 +214,10 @@ impl Panel {
             .filter(|snapshot| snapshot.status == Status::Online)
             .and_then(|snapshot| snapshot.me.as_ref());
         self.writable = inputs.enabled && me.is_some();
+        self.staff = self.writable && me.is_some_and(|me| me.staff);
+        if !self.staff && self.focus == Focus::Staff {
+            self.focus = Focus::Tabs;
+        }
         if !self.writable && matches!(self.focus, Focus::Bio | Focus::Save | Focus::Revert) {
             self.focus = Focus::Tabs;
         }
@@ -267,6 +278,17 @@ impl Panel {
 
     /// The controls Tab visits on this tab, in order.
     fn order(&self) -> &'static [Focus] {
+        if self.staff && self.tab == Tab::Profile {
+            return &[
+                Focus::Tabs,
+                Focus::Identity,
+                Focus::Staff,
+                Focus::Bio,
+                Focus::Save,
+                Focus::Revert,
+                Focus::Board,
+            ];
+        }
         match (self.tab, self.writable) {
             (Tab::Achievements, _) => &[Focus::Tabs],
             (Tab::Profile, false) => &[Focus::Tabs, Focus::Identity, Focus::Board],
@@ -306,6 +328,7 @@ impl Panel {
                 PanelAction::None
             }
             Focus::Identity => PanelAction::Identity,
+            Focus::Staff => PanelAction::Staff,
             Focus::Bio | Focus::Save => self.save(notice),
             Focus::Revert => {
                 self.revert();
@@ -406,6 +429,10 @@ impl Panel {
                 self.revert();
                 PanelAction::None
             }
+            Some(STAFF_TOKEN) if self.staff && self.tab == Tab::Profile => {
+                self.focus = Focus::Staff;
+                PanelAction::Staff
+            }
             Some(IDENTITY_TOKEN) if self.tab == Tab::Profile => {
                 self.focus = Focus::Identity;
                 PanelAction::Identity
@@ -432,6 +459,7 @@ impl Panel {
         match self.focus {
             Focus::Tabs => TAB_TOKEN + self.tab.index() as u16,
             Focus::Identity => IDENTITY_TOKEN,
+            Focus::Staff => STAFF_TOKEN,
             Focus::Bio => BIO_TOKEN,
             Focus::Save => SAVE_TOKEN,
             Focus::Revert => REVERT_TOKEN,
@@ -453,6 +481,7 @@ mod tests {
             name: "^1Sol".to_owned(),
             bio: bio.to_owned(),
             verified: true,
+            staff: false,
             created: 1_759_708_800,
             names: Vec::new(),
             medals: Vec::new(),

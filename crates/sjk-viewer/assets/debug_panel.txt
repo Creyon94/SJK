@@ -2311,6 +2311,18 @@ test: Win a private duel: Duels won goes up. Capture a flag in CTF: Flags captur
 test: Spectate and follow someone who kills: nothing counts for you.
 note: Self-reported like claims: the hub only caps how fast counts rise. No icons yet.
 
+[staff-page]
+area: Menus & settings
+title: Staff tools: medals and achievements from the game (staff keys only)
+change: Profile > Staff tools (or `staff`): find players, Give / Take back medals, a note.
+change: Clear one achievement or Clear all (press twice); your own also resets local counts.
+test: Needs the hub update and your key made staff. Profile shows the gold Staff tools button.
+test: Staff tools: Seen lately lists players; type a name in the search pill, Enter: found.
+test: Me, Bug Hunter > Give +1: the count rises, Profile's medals too. Take back: it drops.
+test: Clear First Blood on yourself: it and Centurion go; kill someone on a server: unlocked.
+test: Clear all, press again within 3 s: the board is empty; play: counts start over.
+note: Without the staff flag the command says the tools are for staff, and nothing opens.
+
 # ---- Older changes ----
 
 [actor-instance-cap]

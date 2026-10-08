@@ -321,3 +321,112 @@ fn a_bio_keeps_to_the_rules_and_achievements_rise_within_their_allowance() {
             .any(|a| a.id == "kills_1000" && a.progress == 150)
     );
 }
+
+/// A staff key: also needs `SJK_HUB_TEST_STAFF_SEED`, the 64 hex digits of a key's
+/// seed that the test hub's operator made staff (`SJK_HUB_TEST_PLAIN_SEED` likewise for
+/// a registered key that is not staff, to see it refused).
+#[test]
+#[ignore = "needs a running hub (SJK_HUB_TEST_URL) and its staff key (SJK_HUB_TEST_STAFF_SEED)"]
+fn a_staff_key_finds_players_gives_and_takes_back_medals_and_clears_achievements() {
+    use sjk_identity::StaffRequest;
+    let mut hub = hub();
+    let seed = |name: &str| {
+        let hex = std::env::var(name).expect(name);
+        let mut seed = [0_u8; 32];
+        for (index, byte) in seed.iter_mut().enumerate() {
+            *byte = u8::from_str_radix(&hex[index * 2..index * 2 + 2], 16).unwrap();
+        }
+        Identity::from_seed(seed)
+    };
+    let staff = seed("SJK_HUB_TEST_STAFF_SEED");
+    let plain = seed("SJK_HUB_TEST_PLAIN_SEED");
+    let player = Identity::generate().unwrap();
+    let suffix = &player.key_id()[..6];
+    hub.register(&staff, Some("^1Staffer")).unwrap();
+    hub.register(&plain, Some("Plain")).unwrap();
+    hub.register(&player, Some(&format!("^4Padawan{suffix}")))
+        .unwrap();
+    assert!(hub.profile(&staff.key_id()).unwrap().staff);
+
+    // A key that is not staff is refused.
+    match hub
+        .staff(&plain, &StaffRequest::Search(String::new()))
+        .unwrap_err()
+    {
+        HubError::Rejected { code, .. } => assert_eq!(code, "not_staff"),
+        other => panic!("{other:?}"),
+    }
+
+    let found = hub
+        .staff(&staff, &StaffRequest::Search(format!("padawan{suffix}")))
+        .unwrap();
+    assert_eq!(found.len(), 1);
+    assert_eq!(found[0].key_id, player.key_id());
+    let by_key = hub
+        .staff(&staff, &StaffRequest::Search(player.key_id()))
+        .unwrap();
+    assert_eq!(by_key[0].key_id, player.key_id());
+
+    let given = hub
+        .staff(
+            &staff,
+            &StaffRequest::Award {
+                key_id: player.key_id(),
+                medal: "bug_hunter".into(),
+                note: "found the fog bug".into(),
+            },
+        )
+        .unwrap();
+    assert_eq!(given[0].medals[0].id, "bug_hunter");
+    assert_eq!(given[0].medals[0].note, "found the fog bug");
+    assert!(
+        given[0]
+            .achievements
+            .iter()
+            .any(|a| a.id == "decorated" && a.unlocked > 0)
+    );
+    let taken = hub
+        .staff(
+            &staff,
+            &StaffRequest::Unaward {
+                key_id: player.key_id(),
+                medal: "bug_hunter".into(),
+            },
+        )
+        .unwrap();
+    assert!(taken[0].medals.is_empty());
+
+    let counts = [
+        ("first_blood".to_owned(), 1_u64),
+        ("streak_5".to_owned(), 2),
+    ]
+    .into_iter()
+    .collect();
+    hub.set_achievements(&player, &counts).unwrap();
+    let cleared = hub
+        .staff(
+            &staff,
+            &StaffRequest::ClearAchievements {
+                key_id: player.key_id(),
+                id: "first_blood".into(),
+            },
+        )
+        .unwrap();
+    assert!(
+        !cleared[0]
+            .achievements
+            .iter()
+            .any(|a| a.id == "first_blood")
+    );
+    assert!(cleared[0].achievements.iter().any(|a| a.id == "streak_5"));
+    let all = hub
+        .staff(
+            &staff,
+            &StaffRequest::ClearAchievements {
+                key_id: player.key_id(),
+                id: String::new(),
+            },
+        )
+        .unwrap();
+    assert!(all[0].achievements.is_empty());
+}

@@ -739,6 +739,7 @@ mod tests {
 Found the fog bug, ask me about it!"
                     .to_owned(),
                 verified: true,
+                staff: false,
                 created: 1_791_250_000,
                 names: ["^1Sol^7Vulpes", "^4Fox", "Sol"]
                     .iter()
@@ -853,6 +854,87 @@ like this one.",
                 console.open_profile_panel(Tab::Profile);
             }
             println!("{}", shoot(&mut gpu, 6, "duel6-profile-off").display());
+        });
+    }
+
+    /// The Staff page over the live duel6: players found, the player's own medals and
+    /// achievements, another player chosen, and Clear all waiting for its second press.
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_sjk_staff() {
+        let profile = |key: &str, name: &str| sjk_identity::Profile {
+            key_id: key.to_owned(),
+            key: String::new(),
+            name: name.to_owned(),
+            bio: String::new(),
+            verified: false,
+            staff: false,
+            created: 1_791_250_000,
+            names: Vec::new(),
+            medals: Vec::new(),
+            achievements: Vec::new(),
+        };
+        let medal = |id: &str, count| sjk_identity::Medal {
+            id: id.to_owned(),
+            count,
+            awarded: 1_791_336_225,
+            note: String::new(),
+        };
+        let me = sjk_identity::Profile {
+            staff: true,
+            verified: true,
+            medals: vec![medal("early_tester", 1), medal("bug_hunter", 2)],
+            achievements: crate::achievements::ALL
+                .iter()
+                .step_by(2)
+                .map(|kind| sjk_identity::Achievement {
+                    id: kind.id.to_owned(),
+                    progress: kind.goal,
+                    goal: kind.goal,
+                    unlocked: 1_791_336_225,
+                })
+                .collect(),
+            ..profile("44f3d0b36c9b2510", "^1Sol^7Vulpes")
+        };
+        let players = vec![
+            me.clone(),
+            sjk_identity::Profile {
+                verified: true,
+                medals: vec![medal("early_contributor", 1)],
+                ..profile("9a0c51e2b7d34f80", "^5Creyon")
+            },
+            profile("1f2e3d4c5b6a7980", "^3Lumaya"),
+            profile("0b1c2d3e4f5a6b7c", "Padawan^1Fox"),
+        ];
+        let staff = sjk_identity::StaffState {
+            serial: 3,
+            players,
+            message: "4 players seen lately".to_owned(),
+            failed: false,
+            busy: false,
+        };
+        on_big_stack(move || {
+            let menu = menu::ClientMenu::new(true, String::new());
+            let cvars = [
+                ("ui_menuStyle", "sjk"),
+                (crate::settings::quick::HIDE_CVAR, "1"),
+            ];
+            let Some((mut gpu, _profile)) =
+                open("maps/mp/duel6.bsp", [1920, 1080], Some(menu), &cvars)
+            else {
+                return;
+            };
+            let _ = frame(&mut gpu, 10);
+            if let Some(console) = gpu.console.as_mut() {
+                console.preview_staff(me.clone(), staff.clone());
+            }
+            for _ in 0..240 {
+                let _ = frame(&mut gpu, 1);
+                if crate::medals::art::decoded().is_some() {
+                    break;
+                }
+            }
+            println!("{}", shoot(&mut gpu, 6, "duel6-staff").display());
         });
     }
 

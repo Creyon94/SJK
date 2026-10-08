@@ -199,6 +199,7 @@ impl ViewerConsole {
             || self.update_panel_key(event)
             || self.identity_panel_key(event)
             || self.profile_panel_key(event)
+            || self.staff_panel_key(event)
             || self.debug_panel_key(event)
         {
             return true;

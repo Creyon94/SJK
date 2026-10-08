@@ -22,6 +22,9 @@ pub struct Profile {
     pub bio: String,
     /// Whether the hub's operator vouches for this key.
     pub verified: bool,
+    /// Whether the hub's operator made this key staff (absent from older hubs).
+    #[serde(default)]
+    pub staff: bool,
     /// Registration time, unix seconds.
     pub created: i64,
     /// In-game names the key has worn, most recent first (absent from hubs older
@@ -52,6 +55,13 @@ pub struct Achievement {
     /// When the count first reached the goal, unix seconds; 0 while it has not.
     #[serde(default)]
     pub unlocked: i64,
+}
+
+/// The hub's answer to `POST /v1/staff/search`.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct Players {
+    /// The players found, most recently seen first.
+    pub players: Vec<Profile>,
 }
 
 /// The hub's answer to `PUT /v1/achievements`.

@@ -26,7 +26,7 @@ impl ViewerConsole {
             return self.credits.is_sjk();
         }
         // The Profile page has the SJK UI's look in every menu style.
-        if self.profile_panel.is_open() {
+        if self.profile_panel.is_open() || self.staff_panel.is_open() {
             return true;
         }
         if !self.changelog.is_open()
@@ -51,6 +51,8 @@ impl ViewerConsole {
             self.credits.append_sjk(target, viewport);
         } else if self.profile_panel.is_open() {
             self.append_profile_panel(target, viewport);
+        } else if self.staff_panel.is_open() {
+            self.append_staff_panel(target, viewport);
         } else if self.changelog.is_open() {
             self.changelog.append_sjk(target, viewport);
         } else if self.update_panel.is_open() {

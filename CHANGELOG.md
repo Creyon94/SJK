@@ -21,6 +21,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- Staff tools (for SJK staff, from Profile or the staff command): find any player, give or take back their medals with a note, and clear their achievements; clearing your own also resets your counts, so you can unlock them again _(Sol)_
 - Chat emojis: `cg_chatBoxEmojis 1` (Settings > HUD > Chat emojis) draws JoF EternalJK's emoji pictures in place of their names, like `:poop:`, in new chat messages; `listEmojis` lists them (the pictures come from japro-assets.pk3 in the EternalJK folder) _(Creyon, after JoF EternalJK)_
 - Typing in the console shows colour codes in their colours: `^1` turns what follows red and the code itself is drawn in that colour, in the classic console and the SJK UI's _(Creyon, after JoF EternalJK)_
 - Profile (SJK > Profile, or the profile command): your SJK profile as other players see it, with your medals, your name and the names you wore, your record and your bio, which you now write there on up to 6 lines. Bios keep to letters, digits, spaces and simple punctuation: no emoji, invisible or direction-changing characters, and nothing else shows even if a hub sent it _(Sol)_

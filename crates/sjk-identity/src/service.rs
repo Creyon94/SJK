@@ -9,6 +9,7 @@
 use crate::hub::{Hub, HubError};
 use crate::keys::Identity;
 use crate::report::{BugReport, PlayerReport, WorldNote};
+use crate::staff::{StaffRequest, StaffState};
 use crate::wire::{Achievement, Presence, Profile, names_match};
 use std::collections::{BTreeMap, HashMap};
 use std::net::SocketAddr;
@@ -145,6 +146,8 @@ enum Command {
     SetBio(String),
     /// The counts the client keeps for its achievements, by id.
     Achievements(BTreeMap<String, u64>),
+    /// A staff request.
+    Staff(StaffRequest),
     LookUp(String),
     Report(BugReport),
     PlayerReport(PlayerReport),
@@ -190,6 +193,8 @@ struct Worker {
     counts: BTreeMap<String, u64>,
     counts_sent: Option<BTreeMap<String, u64>>,
     due_counts: Instant,
+    /// What staff requests brought back.
+    staff: Arc<Mutex<StaffState>>,
 }
 
 /// What the player is told of a report or a note: what the hub stored it as, or why
@@ -225,6 +230,7 @@ impl Worker {
         identity: Identity,
         make_hub: HubFactory,
         snapshot: Arc<Mutex<Snapshot>>,
+        staff: Arc<Mutex<StaffState>>,
         now: Instant,
     ) -> Self {
         Self {
@@ -249,6 +255,7 @@ impl Worker {
             counts: BTreeMap::new(),
             counts_sent: None,
             due_counts: now,
+            staff,
         }
     }
 
@@ -303,6 +310,7 @@ impl Worker {
             }
             Command::SetBio(bio) => self.set_bio(&bio),
             Command::Achievements(counts) => self.counts = counts,
+            Command::Staff(request) => self.staff(&request),
             Command::Report(mut report) => {
                 if report.name.is_empty() {
                     report.name = self.name.clone().unwrap_or_default();
@@ -455,6 +463,52 @@ impl Worker {
             }
             Err(error) => snapshot.notice = Some(error.to_string()),
         });
+    }
+
+    /// Send a staff request: only once registered, and only for a key whose profile
+    /// says staff (the hub refuses the others too).
+    fn staff(&mut self, request: &StaffRequest) {
+        let me = lock(&self.snapshot).me.clone();
+        let outcome = match (self.hub.as_mut(), self.registered, &me) {
+            (Some(hub), true, Some(me)) if me.staff => hub.staff(&self.identity, request),
+            (Some(_), true, _) => Err(HubError::Rejected {
+                status: 403,
+                code: "not_staff".to_owned(),
+                message: "only SJK staff can do this".to_owned(),
+            }),
+            _ => Err(HubError::Protocol(
+                "not connected to the hub (is identity on, cl_identity 1?)".to_owned(),
+            )),
+        };
+        let mut staff = self
+            .staff
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        staff.serial += 1;
+        staff.busy = false;
+        match outcome {
+            Ok(profiles) => {
+                staff.failed = false;
+                staff.message = crate::staff::done(request, profiles.len());
+                if matches!(request, StaffRequest::Search(_)) {
+                    staff.players = profiles;
+                } else if let Some(profile) = profiles.first() {
+                    staff.replace(profile);
+                    // A change to the player's own key shows on their pages at once.
+                    if Some(profile.key_id.as_str()) == me.as_ref().map(|me| me.key_id.as_str()) {
+                        lock(&self.snapshot).me = Some(profile.clone());
+                    }
+                }
+            }
+            Err(HubError::Rejected { message, .. }) => {
+                staff.failed = true;
+                staff.message = message;
+            }
+            Err(error) => {
+                staff.failed = true;
+                staff.message = error.to_string();
+            }
+        }
     }
 
     /// Do whatever is due at `now`; return how long to wait for the next thing.
@@ -678,6 +732,7 @@ fn set_achievements(snapshot: &mut Snapshot, achievements: Vec<Achievement>) {
 pub struct Service {
     commands: Sender<Command>,
     snapshot: Arc<Mutex<Snapshot>>,
+    staff: Arc<Mutex<StaffState>>,
     finished: Mutex<Receiver<()>>,
     /// The last tag given to a note ([`Service::note`]).
     note_tags: std::sync::atomic::AtomicU64,
@@ -688,9 +743,16 @@ impl Service {
     /// the configured address.
     pub fn start(identity: Identity, make_hub: HubFactory) -> Self {
         let snapshot = Arc::new(Mutex::new(Snapshot::new(identity.key_id())));
+        let staff = Arc::new(Mutex::new(StaffState::default()));
         let (commands, inbox) = channel();
         let (done, finished) = channel();
-        let mut worker = Worker::new(identity, make_hub, Arc::clone(&snapshot), Instant::now());
+        let mut worker = Worker::new(
+            identity,
+            make_hub,
+            Arc::clone(&snapshot),
+            Arc::clone(&staff),
+            Instant::now(),
+        );
         let spawned = std::thread::Builder::new()
             .name("sjk-identity".to_owned())
             .spawn(move || {
@@ -714,6 +776,7 @@ impl Service {
         Self {
             commands,
             snapshot,
+            staff,
             finished: Mutex::new(finished),
             note_tags: std::sync::atomic::AtomicU64::new(0),
         }
@@ -750,6 +813,23 @@ impl Service {
     /// back. The hub's answer arrives in the profile's `achievements`.
     pub fn set_achievement_counts(&self, counts: BTreeMap<String, u64>) {
         let _ = self.commands.send(Command::Achievements(counts));
+    }
+
+    /// Send a staff request; its answer arrives in [`Service::staff_state`].
+    pub fn staff(&self, request: StaffRequest) {
+        self.staff
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .busy = true;
+        let _ = self.commands.send(Command::Staff(request));
+    }
+
+    /// What staff requests brought back.
+    pub fn staff_state(&self) -> StaffState {
+        self.staff
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .clone()
     }
 
     /// Send a bug report; its outcome arrives in [`Snapshot::report`].
@@ -845,6 +925,7 @@ mod tests {
             name: name.to_owned(),
             bio: String::new(),
             verified: false,
+            staff: true,
             created: 0,
             names: Vec::new(),
             medals: Vec::new(),
@@ -931,6 +1012,31 @@ mod tests {
             *self.held.lock().unwrap() = held.clone();
             Ok(held)
         }
+        fn staff(
+            &mut self,
+            _: &Identity,
+            request: &StaffRequest,
+        ) -> Result<Vec<Profile>, HubError> {
+            Fake::record(self, format!("staff {request:?}"))?;
+            Ok(match request {
+                StaffRequest::Search(_) => vec![profile("Found"), profile("Other")],
+                StaffRequest::Award { key_id, medal, .. } => vec![Profile {
+                    key_id: key_id.clone(),
+                    medals: vec![crate::wire::Medal {
+                        id: medal.clone(),
+                        count: 1,
+                        awarded: 1,
+                        note: String::new(),
+                    }],
+                    ..profile("Target")
+                }],
+                StaffRequest::Unaward { key_id, .. }
+                | StaffRequest::ClearAchievements { key_id, .. } => vec![Profile {
+                    key_id: key_id.clone(),
+                    ..profile("Target")
+                }],
+            })
+        }
     }
 
     fn worker(fake: &Fake, now: Instant) -> (Worker, Arc<Mutex<Snapshot>>) {
@@ -945,7 +1051,13 @@ mod tests {
             }
         });
         (
-            Worker::new(identity, make, Arc::clone(&snapshot), now),
+            Worker::new(
+                identity,
+                make,
+                Arc::clone(&snapshot),
+                Arc::new(Mutex::new(StaffState::default())),
+                now,
+            ),
             snapshot,
         )
     }
@@ -1037,6 +1149,42 @@ mod tests {
         );
         worker.handle(Command::SetBio("  hello   there ".to_owned()), t0);
         assert_eq!(fake.log().last().unwrap(), "bio hello there");
+    }
+
+    #[test]
+    fn staff_requests_need_a_staff_profile_and_update_what_they_change() {
+        let fake = Fake::default();
+        let t0 = Instant::now();
+        let (mut worker, snapshot) = worker(&fake, t0);
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.tick(t0);
+        let staff = Arc::clone(&worker.staff);
+        let state = || staff.lock().unwrap().clone();
+        worker.handle(Command::Staff(StaffRequest::Search("so".into())), t0);
+        let found = state();
+        assert_eq!(found.players.len(), 2);
+        assert_eq!(found.message, "2 players found");
+        assert!(!found.failed);
+        // A change to another key replaces it in the list; to the player's own key,
+        // their profile too.
+        let me = lock(&snapshot).me.clone().unwrap().key_id;
+        worker.handle(
+            Command::Staff(StaffRequest::Award {
+                key_id: me.clone(),
+                medal: "bug_hunter".into(),
+                note: String::new(),
+            }),
+            t0,
+        );
+        assert_eq!(lock(&snapshot).me.as_ref().unwrap().medals.len(), 1);
+        assert_eq!(state().message, "Gave bug_hunter");
+        // A key that is not staff is refused here, before the hub hears it.
+        lock(&snapshot).me.as_mut().unwrap().staff = false;
+        let before = fake.log().len();
+        worker.handle(Command::Staff(StaffRequest::Search(String::new())), t0);
+        assert_eq!(fake.log().len(), before);
+        assert!(state().failed);
+        assert_eq!(state().message, "only SJK staff can do this");
     }
 
     #[test]
