@@ -19,7 +19,12 @@ tests check this file):
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 
-## Unreleased
+## 2026.1008.1 (Alpha) | 08/10/2026
+
+The SJK UI becomes the default menu style, with pop-up cards, its credits and the
+character pages in game; rain wets the world; medals, player reports and Illuminate
+arrive; nameplates follow the Force powers; the camera stays locked behind you by
+default, and Sol JK stands on its own.
 
 - Rain wets the world: what it falls on darkens and takes a sheen of the sky, while floors under roofs and players stay dry. With weather quality high, water runs down walls and slopes; with ultra, puddles gather on flat ground with rain rings in them (Settings > Graphics, Weather quality) _(Sol)_
 - SJK UI Credits: the emblem is the page's sun on the left, its sunburst and god rays kept, with the sections under it (Tab jumps between them, E opens every fold) and the people in a column on the right. Cards show their medals in every menu style; Creyon and Lumaya wear Early Contributor _(Sol)_
