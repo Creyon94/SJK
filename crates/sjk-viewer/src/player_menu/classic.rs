@@ -115,6 +115,9 @@ impl PlayerMenu {
     /// standing as JoF's does (`BOTH_STAND1`), and lightsaber creation's
     /// sabers alone, lit and turning, as retail spun the hilt.
     pub(crate) fn model_preview(&self) -> Option<ModelPreview> {
+        if self.is_sjk() {
+            return self.sjk_model_preview();
+        }
         if !self.classic_style {
             return None;
         }
@@ -126,10 +129,12 @@ impl PlayerMenu {
             _ => return None,
         };
         Some(ModelPreview {
-            rect: layout::preview_rect(page, self.frame())?,
+            area: super::PreviewArea::Classic(layout::preview_rect(page, self.frame())?),
             stance,
             sabers,
             showcase: sabers,
+            room: 1.0,
+            angle: None,
         })
     }
 

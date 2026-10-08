@@ -72,6 +72,16 @@ const SPARK_SECONDS: f64 = 0.9;
 const BURST_SECONDS: f32 = 0.55;
 /// The box at the bottom right showing the power under the pointer.
 const POWER_BOX: Area = [1_384.0, 640.0, 440.0, 300.0];
+/// Opened from a game, where the menu map's stage is not: where the model's
+/// live preview stands, right of the form: square, so a raised blade stays in
+/// it (the preview camera frames the body's height and widens with the
+/// area), and the line its feet are on.
+const MODEL_AREA: Area = [780.0, 110.0, 860.0, 840.0];
+/// The room the preview camera leaves round the body (retail's framing is 1).
+const MODEL_ROOM: f32 = 1.35;
+/// Where the feet fall in the area: the body's 64 units from 24 below the
+/// framed middle's origin, in a frame `MODEL_ROOM` times retail's 80.
+const MODEL_FEET_Y: f32 = MODEL_AREA[1] + MODEL_AREA[3] * (0.5 + 32.0 / (80.0 * MODEL_ROOM));
 /// Level `l` (1 to 3) of power `p` answers to `LEVEL_BASE + p * 3 + l - 1`.
 const LEVEL_BASE: u16 = 1_000;
 /// The saber styles as the Style row's buttons offer them.
@@ -212,7 +222,19 @@ impl PlayerMenu {
         let frame = Frame::new(viewport);
         self.canvas.begin_transparent(viewport);
         self.canvas.push_opacity(reveal);
+        let in_game = self.return_target == ReturnTarget::InGame;
+        if in_game {
+            // Over a match: dim it all, then the model's live preview on a
+            // soft shadow where the menu map's stage would hold it.
+            let _ = self.canvas.draw_list_mut().push(DrawCommand::SolidRect {
+                rect: sjk_ui::Rect::new(0.0, 0.0, viewport[0], viewport[1]),
+                color: color::alpha(color::SPACE, 0.5),
+            });
+        }
         scrims(&mut self.canvas, viewport, &frame);
+        if in_game {
+            self.sjk_preview(&frame);
+        }
         self.sjk_top(&frame);
         match self.page {
             ProfilePage::Character => self.sjk_character(&frame),
@@ -364,6 +386,45 @@ impl PlayerMenu {
         true
     }
 
+    /// Opened from a game, the live model this view wants
+    /// ([`crate::menu_stage::preview`]): standing right of the form, holding
+    /// the saber draft lit in its style's stance, as the stage model does on
+    /// the menu map. On the menu map the stage holds it instead.
+    pub(super) fn sjk_model_preview(&self) -> Option<ModelPreview> {
+        (self.return_target == ReturnTarget::InGame).then_some(ModelPreview {
+            area: PreviewArea::Sjk(MODEL_AREA),
+            stance: "BOTH_STAND2",
+            sabers: true,
+            showcase: false,
+            room: MODEL_ROOM,
+            // Still, as the stage model stands, a little to its right.
+            angle: Some(-28.0),
+        })
+    }
+
+    /// The live preview on its shadow, once the renderer has drawn a frame.
+    fn sjk_preview(&mut self, frame: &Frame) {
+        let s = frame.s;
+        let [x, y, width, height] = MODEL_AREA;
+        let shadow = [x + width * 0.34, MODEL_FEET_Y - 12.0, width * 0.32, 24.0];
+        let _ = self.canvas.draw_list_mut().push(DrawCommand::RoundedRect {
+            rect: frame.rect(shadow[0], shadow[1], shadow[2], shadow[3]),
+            radius: 14.0 * s,
+            color: color::alpha(color::SPACE, 0.55),
+        });
+        let _ = self.canvas.draw_list_mut().push(DrawCommand::SolidRect {
+            rect: frame.rect(x + width * 0.25, MODEL_FEET_Y, width * 0.5, 1.5),
+            color: color::alpha(color::GOLD, 0.35),
+        });
+        if self.preview_ready {
+            let _ = self.canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
+                rect: frame.rect(x, y, width, height),
+                texture: crate::ui_renderer::PREVIEW_TEXTURE,
+                color: Color::new(1.0, 1.0, 1.0, 1.0),
+            });
+        }
+    }
+
     /// Whether a click at `point` on row token `token` lands outside the
     /// row's control, so it only chooses the row.
     pub(super) fn sjk_beside_control(&self, token: u16, point: sjk_ui::Vec2) -> bool {
@@ -380,7 +441,11 @@ impl PlayerMenu {
     fn sjk_top(&mut self, frame: &Frame) {
         let s = frame.s;
         let [x, y] = frame.point(COLUMN_X, BAR_Y - 12.0);
-        let end = key_hint(&mut self.canvas, &["Esc"], "Main menu", x, y, s);
+        let back = match self.return_target {
+            ReturnTarget::MainMenu => "Main menu",
+            ReturnTarget::InGame => "Game menu",
+        };
+        let end = key_hint(&mut self.canvas, &["Esc"], back, x, y, s);
         self.canvas
             .hit_region(BACK_TOKEN, sjk_ui::Rect::new(x, y, end - x, 24.0 * s));
         let title_x = (end - frame.origin[0]) / s + 22.0;
@@ -2031,6 +2096,39 @@ mod tests {
                 .sjk_key_order()
                 .is_none()
         );
+    }
+
+    #[test]
+    fn opened_from_a_game_the_model_stands_in_its_own_preview() {
+        let mut menu = drawn(ProfilePage::Character, false);
+        // On the menu map the stage holds the model.
+        assert_eq!(menu.model_preview(), None);
+        menu.return_target = ReturnTarget::InGame;
+        let preview = menu.model_preview().expect("a preview in game");
+        assert_eq!(preview.area, PreviewArea::Sjk(MODEL_AREA));
+        assert!(preview.sabers && !preview.showcase);
+        assert!(preview.angle.is_some() && preview.room > 1.0);
+        let previews = |menu: &PlayerMenu| {
+            menu.canvas
+                .draw_list()
+                .commands()
+                .iter()
+                .filter(|command| {
+                    matches!(command, DrawCommand::TexturedQuad { texture, .. }
+                        if *texture == crate::ui_renderer::PREVIEW_TEXTURE)
+                })
+                .count()
+        };
+        // Until the renderer has a frame, its shadow alone; then the model.
+        draw(&mut menu);
+        assert_eq!(previews(&menu), 0);
+        menu.set_preview_ready(true);
+        for page in ProfilePage::ALL {
+            menu.set_page(page);
+            draw(&mut menu);
+            assert_eq!(previews(&menu), 1, "{page:?}");
+            assert!(!menu.canvas.overflowed());
+        }
     }
 
     #[test]

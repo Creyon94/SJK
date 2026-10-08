@@ -21,6 +21,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- SJK UI in game: the in-game menu's Character opens the SJK UI's character, saber and Force pages too, your model standing beside them in a live preview holding your sabers, over the dimmed match _(Sol)_
 - Medals: the SJK team can give players medals (Early Tester, Early Contributor, Bug Hunter, JoF Clan). They grant nothing; they show as ribbon bars after the SJK emblem on the scoreboard, as medallions on the player card (X) and on the SJK UI's Players page, and in full with the date and the team's note on your Identity page. A medal new to you shows once in a pop-up on the main menu, or when you open the game menu in a match _(Sol)_
 - Illuminate, a free power everyone has: the last entry of the Force wheel (or the force_illuminate bind) turns on a holocron that floats by your shoulder, slowly turning, and lights the way in dark maps. Only you see it; Settings > Game > Illuminate holocron takes it off the wheel _(Sol)_
 - A new profile starts at mouse sensitivity 5 again; the move to stock sensitivity units turned it into 13.022 _(Sol)_

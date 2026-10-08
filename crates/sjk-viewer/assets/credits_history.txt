@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 08/10/2026 | - | SJK UI Character in a game: the SJK pages with a live model preview
+- 77acbb3 |  | SJK UI Character in a game: the SJK pages with a live model preview
 + 08/10/2026 | - | SJK medals: card, Identity page, new-medal pop-up, scoreboard ribbons
 - ce4685b |  | Identity: read medals from the hub's profiles and presence
 - b53f71f |  | Medals: ribbons on the scoreboard, the player card, the Identity page and a pop-up

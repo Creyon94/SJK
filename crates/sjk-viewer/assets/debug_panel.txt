@@ -2137,6 +2137,17 @@ test: Search "jump", "+attack", "space": the action shows; Esc clears the search
 test: Tab moves on to Gameplay; the rail back to Key bindings; Esc returns to the main page.
 note: A key name that reads oddly on its cap? Tell Claude which.
 
+[sjk-ui-ingame-character]
+status: personal
+area: Menus & settings
+title: SJK UI Character in a game: the SJK pages with a live model preview
+change: In a match, Esc > Character opens the SJK UI pages (was classic); Esc says Game menu.
+change: Your model stands right of the form, still, holding your sabers, over the dimmed match.
+test: Join a local server, Esc > Character: the SJK pages; the model shows within a second.
+test: Change model, hilt, blade colour: the preview follows at once; Dual shows both sabers.
+test: Force page: levels, the power box; Esc returns to the game menu on Character.
+note: Model too dark, cut off or too big at your size? Tell Claude.
+
 [sjk-ui-character-2]
 status: personal
 area: Menus & settings

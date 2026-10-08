@@ -138,9 +138,11 @@ impl GpuState {
                 self.configuration.width as f32,
                 self.configuration.height as f32,
             ];
-            let rect = crate::menu::classic::layout::Placement::new(viewport).rect(preview.rect);
+            let rect = preview.area.window_rect(viewport);
             [rect.width.round() as u32, rect.height.round() as u32]
         });
+        self.menu_stage.preview.room = preview.map_or(1.0, |preview| preview.room);
+        self.menu_stage.preview.angle = preview.and_then(|preview| preview.angle);
         // The preview holds no sabers (retail's and JoF's held none) but on
         // lightsaber creation.
         let wanted = match preview {
