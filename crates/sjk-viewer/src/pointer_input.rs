@@ -305,7 +305,7 @@ impl GpuState {
             return true;
         }
         if self.game_menu {
-            // The SJK UI has no Report a bug button: it is on its Sol JK page.
+            // The SJK UI has no Report a bug button: it is on its SJK page.
             if self.game_menu_page != GameMenuPage::Shot
                 && !self.in_game_menu.is_sjk()
                 && self.text_dialog.launcher_pointer(event)

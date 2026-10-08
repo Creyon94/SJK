@@ -1,4 +1,4 @@
-//! Identity in the SJK UI (`docs/sjk-ui.md`, Sol JK's pages): the identity's
+//! Identity in the SJK UI (`docs/sjk-ui.md`, SJK's pages): the identity's
 //! state as a headline over its lines, the switch that shares it, the bio and
 //! the page's buttons, then the known players here, over the map. The state,
 //! focus, typing and actions are the page's own; only the drawing differs.

@@ -7,6 +7,18 @@ SJK currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## The menus say SJK
+
+SJK-only branch `personal/sjk-name` (08/10/2026, based on `01c29aa`, Windows 11):
+Sol asked for the menus to say SJK instead of Sol JK. The main page's entry and
+page, the in-game menu's entry and page, Quit and its hint, the version line,
+Update's card, the hints that named the client, the window title, the console's
+ready line, the startup notice, the GameData error and both programs' version
+information now say SJK. The credits keep "Sol JK" for Sol's own section, as
+the name's origin, and so do CREDITS.md, the site and the release titles.
+Verified: `cargo test --release -p sjk-viewer` (1090 passed), workspace build,
+no clippy warning in the files changed. Not verified: no game was started.
+
 ## SJK UI Credits and medals on the cards
 
 SJK-only branch `personal/sjk-ui-credits` (08/10/2026, based on `5daf065`,
@@ -14,7 +26,7 @@ Windows 11): Sol asked to restyle Credits while keeping its sun animation, to
 put the medals of Creyon and Lumaya on their cards, and to write Lumaya with a
 capital L. With the SJK UI the page now has that UI's look
 ([credits_sjk.rs](../crates/sjk-viewer/src/credits_sjk.rs),
-[SJK UI](sjk-ui.md#sol-jks-pages)): the emblem on the left is the sun (the
+[SJK UI](sjk-ui.md#sjks-pages)): the emblem on the left is the sun (the
 classic page's two sunbursts and two sets of god rays, from the same light
 pictures, and its sparks), the sections down a lit rail under it and the people
 in a reading column on the right. The page's state, folds, links, scrolling and

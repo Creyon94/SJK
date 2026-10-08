@@ -70,7 +70,7 @@ const MAIN_ITEMS: [MainItem; 8] = [
     },
     MainItem {
         label: "Credits",
-        hint: "The people who make Sol JK",
+        hint: "The people who make SJK",
     },
     MainItem {
         label: "Update",

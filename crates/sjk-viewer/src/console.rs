@@ -630,7 +630,7 @@ impl ViewerConsole {
     pub(crate) fn console_for_shot(&mut self, typed: &str) {
         self.shell.clear_lines();
         for line in [
-            "^5Sol JK console ready. ^7Type cmdlist for commands.",
+            "^5SJK console ready. ^7Type cmdlist for commands.",
             "Loading maps/mp/duel6.bsp",
             "map: mp/duel6, 2 surfaces sorted, 12 lights",
             "]connect 135.125.145.49:29070",

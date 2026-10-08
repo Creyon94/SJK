@@ -187,7 +187,7 @@ classic+ look ([text_dialog_classic.rs](../crates/sjk-viewer/src/text_dialog_cla
 the text in a retail list box, gold Send and Cancel, the description line under the box,
 and a gold REPORT A BUG on retail's red band at the bottom of the canvas. With the SJK UI
 the dialog is its pop-up card and there is no button (Report a bug is on the in-game
-menu's Sol JK page): [sjk-ui.md](sjk-ui.md#report-a-bug-and-its-dialogs).
+menu's SJK page): [sjk-ui.md](sjk-ui.md#report-a-bug-and-its-dialogs).
 
 ## Medals
 

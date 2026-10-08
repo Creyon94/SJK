@@ -1,4 +1,4 @@
-//! Update in the SJK UI (`docs/sjk-ui.md`, Sol JK's pages): a pop-up card
+//! Update in the SJK UI (`docs/sjk-ui.md`, SJK's pages): a pop-up card
 //! over the darkened map, as First setup's. Update and the version this is
 //! over what the update check found as a headline and its detail, the
 //! download's gold progress, then the actions along the card's foot: Release
@@ -61,7 +61,7 @@ impl Panel {
         text(
             &mut self.ui,
             TextFamily::Body,
-            format_args!("This is Sol JK {installed}"),
+            format_args!("This is SJK {installed}"),
             frame.rect(TEXT_X, CARD_TOP + 33.0, TEXT_WIDTH, 26.0),
             16.0 * s,
             color::MUTED,

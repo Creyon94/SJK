@@ -1,4 +1,4 @@
-//! Credits in the SJK UI (`docs/sjk-ui.md`, Sol JK's pages). SJK's emblem
+//! Credits in the SJK UI (`docs/sjk-ui.md`, SJK's pages). SJK's emblem
 //! stands on the left as the page's sun: its sunburst turns behind it, golden
 //! god rays reach out from it across the page and sparks rise through their
 //! light, as on SJK's site; under it the sections down a lit rail and Expand
@@ -1003,7 +1003,7 @@ impl Panel {
         text(
             canvas,
             TextFamily::Body,
-            format_args!("The people who make Sol JK"),
+            format_args!("The people who make SJK"),
             frame.rect(SUN[0] - 240.0, CAPTION_Y, 480.0, 30.0),
             19.0 * s,
             color::MUTED,

@@ -17,7 +17,7 @@ impl GpuState {
             self.game_fonts.clear_text();
         }
         self.append_classic_console(viewport, covers_frame);
-        // Sol JK's pages in the SJK UI draw in its families once they are loaded.
+        // SJK's pages in the SJK UI draw in its families once they are loaded.
         if covers_frame
             && let Some(console) = self
                 .console

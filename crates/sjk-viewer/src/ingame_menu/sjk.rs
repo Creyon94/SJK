@@ -18,7 +18,7 @@ pub(crate) const ENTRIES: [Entry; 5] = [
     },
     Entry {
         label: "Credits",
-        hint: "The people who make Sol JK",
+        hint: "The people who make SJK",
     },
     Entry {
         label: "Identity",

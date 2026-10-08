@@ -672,7 +672,7 @@ mod tests {
         duel6_player("sjk", "duel6-player-sjk");
     }
 
-    /// Sol JK's pages in the SJK UI over the live duel6: What's new, Update
+    /// SJK's pages in the SJK UI over the live duel6: What's new, Update
     /// (a newer release pretended out) and Identity (switched off: the shots'
     /// profile never registers).
     #[test]

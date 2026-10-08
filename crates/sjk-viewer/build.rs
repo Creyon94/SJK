@@ -6,7 +6,7 @@
 //! 8 MiB; the client overflows 1 MiB while loading a map, so Windows binaries
 //! are linked with the Linux size. `sjk.exe` carries SJK's icon
 //! (`assets/branding/sjk.ico`, which Explorer and shortcuts show) and names
-//! itself "Sol JK" in its version strings, which Task Manager shows. Other
+//! itself "SJK" in its version strings, which Task Manager shows. Other
 //! platforms have no executable icons.
 
 #[path = "../../scripts/build_version.rs"]
@@ -32,8 +32,8 @@ fn main() {
     let mut resource = winresource::WindowsResource::new();
     resource
         .set_icon(ICON)
-        .set("ProductName", "Sol JK")
-        .set("FileDescription", "Sol JK")
+        .set("ProductName", "SJK")
+        .set("FileDescription", "SJK")
         .set("ProductVersion", &version)
         .set("OriginalFilename", "sjk.exe");
     // A missing resource compiler costs the icon, not the build.

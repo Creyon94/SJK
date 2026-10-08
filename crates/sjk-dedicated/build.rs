@@ -2,7 +2,7 @@
 //! commit time (`scripts/build_version.rs`, shared with the client), and on
 //! Windows the program's icon and version strings. `sjk-server.exe` carries
 //! SJK's icon (`assets/branding/sjk.ico`, which Explorer and shortcuts show)
-//! and names itself "Sol JK dedicated server" in its version strings, which
+//! and names itself "SJK dedicated server" in its version strings, which
 //! Task Manager shows. Other platforms have no executable icons.
 
 #[path = "../../scripts/build_version.rs"]
@@ -22,8 +22,8 @@ fn main() {
     let mut resource = winresource::WindowsResource::new();
     resource
         .set_icon(ICON)
-        .set("ProductName", "Sol JK")
-        .set("FileDescription", "Sol JK dedicated server")
+        .set("ProductName", "SJK")
+        .set("FileDescription", "SJK dedicated server")
         .set("ProductVersion", &version)
         .set("OriginalFilename", "sjk-server.exe");
     // A missing resource compiler costs the icon, not the build.

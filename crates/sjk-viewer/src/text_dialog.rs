@@ -11,7 +11,7 @@
 //! The launcher is the Report a bug button drawn centred at the bottom of the screen
 //! while the game menu is open. With the classic menus both take the classic+ look
 //! ([`classic`]); with the SJK UI the dialog is its pop-up card ([`sjk`]) and has no
-//! launcher (Report a bug is on the in-game menu's Sol JK page).
+//! launcher (Report a bug is on the in-game menu's SJK page).
 //!
 //! In the SJK UI a bug or player report keeps its card after Send: "Sending..." until
 //! the hub answers, then what it stored the report as, or why it did not go, with Edit

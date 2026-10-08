@@ -2,7 +2,7 @@
 //! from the modern menu: its main page's entries, its Vote and Leave pages,
 //! Escape returning to the entry that opened a page, and the match card read
 //! from the live session. Siege's classes, the call-vote lists, Team's rows and
-//! Sol JK's keep the shared actions (`game_menu_actions.rs`).
+//! SJK's keep the shared actions (`game_menu_actions.rs`).
 
 use super::Page;
 use super::sjk_view::{self, Entry, Local, leave, vote};
@@ -77,7 +77,7 @@ impl GpuState {
                 self.open_browser_from_game();
             }
             Entry::Shot => self.open_shot_panel(),
-            Entry::SolJk => self.open_game_menu_page(Page::Sjk),
+            Entry::Sjk => self.open_game_menu_page(Page::Sjk),
             Entry::Leave => {
                 // As the main page's Quit, it opens on Stay: its rows act at once.
                 self.open_game_menu_page(Page::Leave);
