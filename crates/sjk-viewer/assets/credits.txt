@@ -14,6 +14,13 @@
 #   link: https://...  A clickable address under the card (repeat the key);
 #                      optional, https only. "link: Label | https://..." shows
 #                      the label instead of the address.
+#   medal: id          A medal from the SJK team, shown on the card with its
+#                      picture and name (repeat the key for more); optional.
+#                      The ids are the hub's (crates/sjk-viewer/src/medals.rs):
+#                      early_tester, early_contributor, bug_hunter, jof_clan.
+#                      An unknown id is an error; bug_hunter listed again
+#                      counts up ("Bug Hunter x2"), any other one twice is an
+#                      error.
 #
 # Lines starting with '#' and blank lines are ignored. ASCII only: the menu fonts
 # draw bytes. Every merge into main that brings someone's work adds it here: a
@@ -46,6 +53,7 @@ link: https://sol-vulpes.github.io/SJK/
 [Creyon]
 github: Creyon94
 role: Contributor and tester: 21 merged pull requests, EternalJK parity
+medal: early_contributor
 did: #2 #7 Duel challenges from names with symbols, centre prints kept whole
 did: #3 The third-person camera damped per frame as EternalJK (cg_cameraFPS)
 did: #4 #19 Retail crosshair pictures, the weapon row in every HUD style
@@ -62,14 +70,15 @@ did: #21 fx_debug and cg_debugMissiles diagnostics
 did: #23 Smooth melee kicks, predicted in a joined game and held still on JA+
 link: Creyon's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ACreyon94
 
-[lumaya]
+[Lumaya]
 github: lumayaa
 role: Contributor: 4 merged pull requests
+medal: early_contributor
 did: #24 Saber blades stop at walls instead of shining through them
 did: #29 Free camera: /freecam flies the camera away from your body
 did: #28 Peek: /peek watches another player for a few seconds
 did: #26 First person with a saber shows your arms and body holding it
-link: lumaya's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa
+link: Lumaya's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa
 
 == Origins
 

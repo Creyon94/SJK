@@ -536,6 +536,8 @@ fn menu_snapshot() {
         let texture = crate::ui_renderer::settings_icon(index);
         shots.icons.insert(texture.0, icon.into_rgba8());
     }
+    // The credits' cards wear medals.
+    medal_icons(&mut shots.icons);
     let font = &shots.font;
     let directory = tempfile::tempdir().expect("scratch profile");
     let mut console =

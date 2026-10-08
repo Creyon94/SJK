@@ -823,7 +823,7 @@
 - 8db7327 |  | Wrap centre prints at 50 characters, not UTF-8 bytes
 - 0874042 |  | Decode print and cp text as legacy bytes
 
-= lumaya
+= Lumaya
 + 07/10/2026 | SJK #26 | Show the posed saber body in first person
 - 26719eb |  | Show the posed saber body in first person
 - eea02f1 |  | Record the first-person saber GPU smoke check

@@ -24,7 +24,8 @@ use sjk_ui::{
 /// Text runs a canvas keeps a frame: the SJK UI's server browser draws about
 /// 170 (six to a server row).
 const MAX_TEXT: usize = 224;
-const MAX_WIDGETS: usize = 96;
+/// Pointer areas a canvas keeps a frame.
+pub(crate) const MAX_WIDGETS: usize = 96;
 const MAX_DRAW: usize = 512;
 
 /// Visual state shared by ordinary, team-accented, and disabled buttons.

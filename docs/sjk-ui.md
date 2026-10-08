@@ -9,9 +9,9 @@ had its version); [classic+](classic-plus.md) stays a choice and keeps getting
 fixes. A profile saved with the old default `classic` moves to `sjk` once
 ([client.md](client.md#menu-style)).
 
-Status (07/10/2026): the main page, Settings (with the key bindings),
-Character, What's new, Update, Identity, Servers (the server browser), the
-loading screen, the scoreboard and the in-game menu are done. Every other
+Status (08/10/2026): the main page, Settings (with the key bindings),
+Character, What's new, Update, Identity, Credits, Servers (the server browser),
+the loading screen, the scoreboard and the in-game menu are done. Every other
 screen opens in its classic+ version (`MenuStyle::classic_screens`), which
 covers the map as the classic style does.
 Other styles: First setup's first row, Settings > Interface > Menu style, or
@@ -100,7 +100,9 @@ The ring turns once every four minutes and the sunburst behind the emblem
 slowly the other way; the gold arc eases towards the chosen entry (about 0.3 s);
 the camera behind glides through its tour (The map behind); on the loading
 screen a gold arc turns once every three seconds and the destination's
-levelshot fades in (0.45 s). Nothing else moves on its own.
+levelshot fades in (0.45 s); on Credits the sun (its sunburst, god rays and
+sparks) keeps turning and rising, and the page's rows rise into place as it
+opens or a fold unfolds. Nothing else moves on its own.
 
 ## The map behind
 
@@ -257,8 +259,8 @@ opened from a game.
 
 ## Sol JK's pages
 
-What's new, Update and Identity, which the main page's Sol JK page opens (and
-their console commands), have the SJK UI's look in this style: drawn in its
+What's new, Update, Identity and Credits, which the main page's Sol JK page opens
+(and their console commands), have the SJK UI's look in this style: drawn in its
 families over the map darkened as Settings is (Update as a pop-up card, as First
 setup), each with the way back (Esc, "Back") and its name at the top and its
 keys bottom right. They stay the
@@ -288,8 +290,44 @@ overlay routes their text to the UI's families (`console_sjk_pages.rs`).
   column right of the page's lists the player's own medals once the hub answered
   (picture, name in gold, description, date given, the team's note), or says how
   medals come ([identity.md](identity.md#medals)).
-
-Credits keeps its own page.
+- **Credits** ([credits_sjk.rs](../crates/sjk-viewer/src/credits_sjk.rs), since
+  08/10/2026, Sol's request: restyle Credits but keep its sun): on the left SJK's
+  emblem (220 across, centred at (300, 330)) is the page's sun, the one memorable
+  thing: the classic page's two sunbursts turn opposite ways behind it, its
+  golden god rays (`EmblemLayer::Godrays`, two sets against each other) reach out
+  from it across the page and sparks rise through their light on the left; the
+  reading column has a navy shade of its own (half), so the rays cross it softly.
+  Under the emblem "The people who make Sol JK", then the sections down a lit
+  rail, the one in view gold (a click scrolls to it), and Expand all (Collapse
+  all once a fold is open). The column (x 640, 1120 wide, from y 140 to 960,
+  scrolled by the arrows, Page Up and Down, Space, Home and End, the wheel and a
+  thin holo scrollbar at x 1800) holds each section under a sub-heading:
+  - Someone with a history: the name (Rajdhani 84 for Sol JK's section, 62 for
+    the rest), the GitHub handle in gold at the right of its line, the role, the
+    counts (changes when some are not pull requests, pull requests, commits) as
+    gold numbers with their words, the links in gold after a holo dot, and the
+    card's medals in a column on the right (the whole medal on its ribbon, 104
+    across, its name in gold and what it is for). Then the folds as rows of 50,
+    a plus (a gold minus when open) before Highlights or All work (All pull
+    requests when all of it is), their count on the right, the band under the
+    pointer. All work runs down a holo thread, each day a dot and its date over a
+    rule; a row is the title, its pull request as a gold outlined tag (which
+    opens it) and its commits; a row of several has a plus that unfolds them
+    (hash in gold, subject, who made it when not the owner), a row of one a gold
+    dot and its hash (it opens the commit).
+  - Everyone else (Claude, the fonts, the references): cards two across the
+    column, each under a thin holo rule: name, handle, role, medals (medallion
+    and name), lines after gold dots, links.
+  - Then the trademark notice.
+  Keys bottom right: Up Down scroll, Tab section (Shift+Tab, `[` and `]` too), E
+  expand all, Esc back. The layout is in frame pixels measured in the families
+  (with the player's text style), so it holds at every window size and is laid
+  out again only when a fold, the fonts or the style change. Pointer areas go to
+  the rows the column shows whole, within the canvas's 96 (a test sweeps every
+  scroll, folded and fully unfolded, at 1080p, 4K, 4:3 and 21:9). Pictures and
+  arcs are kept out of the column's edges: the renderer clips a picture by
+  squeezing it and leaves arcs whole, so the fold marks are rectangles and a
+  medal's picture shows only while the column shows it whole.
 
 ## Console
 
@@ -780,7 +818,10 @@ button the other looks put at the bottom is left out; Sol JK's page has it.
   Weather half-way, Weather, the middle, 4:3, in Inter) and
   `duel6_quick_wheel_settings` its Settings category (pages, a choice, the
   catalogue, a custom choice, a new page) and the editor over the classic+ and
-  modern settings.
+  modern settings;
+  `duel6_sjk_credits` Credits over duel6: the top, Creyon's and Lumaya's
+  panels with their folds open and their medals, Creyon's work unfolded, and
+  the end of the page.
 - The quick wheel's ring ([ring.rs](../crates/sjk-viewer/src/quick_wheel/ring.rs))
   is drawn on the HUD's layer with a canvas of its own, its text routed to the
   families when they are loaded (`quick_wheel::append`), else to Inter; it does
@@ -791,7 +832,7 @@ button the other looks put at the bottom is left out; Sol JK's page has it.
 The next screens, in order; each gets snapshot tests before it replaces its
 classic version:
 
-1. The dialogs (the report box, the import page) and Credits.
+1. The dialogs (the report box, the import page).
 2. Settings' search finding key bindings too (it finds settings; Key bindings'
    finds keys).
 3. Create a game.

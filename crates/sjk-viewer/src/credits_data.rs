@@ -2,6 +2,8 @@
 //! into the client and shown by the credits page (`credits.rs`). The files'
 //! headers give their formats; the tests here check the real files.
 
+use crate::medals::Medal;
+
 /// The built-in credits.
 pub(super) const EMBEDDED: &str = include_str!("../assets/credits.txt");
 /// Everyone's features, pull requests and commits, written by
@@ -28,6 +30,10 @@ pub(super) struct Card {
     pub(super) role: String,
     pub(super) did: Vec<String>,
     pub(super) links: Vec<Link>,
+    /// The medals the SJK team gave them (`medal:` lines), in the catalogue's
+    /// order, each with how often it was given (more than once only for a
+    /// repeatable one).
+    pub(super) medals: Vec<(Medal, u32)>,
     /// Their work from the history, newest first; empty for a card without.
     pub(super) work: Vec<Work>,
 }
@@ -133,6 +139,28 @@ fn parse_link(value: &str) -> Option<Link> {
     })
 }
 
+/// Add the medal `id` names to a card's `medals`, kept in the catalogue's order: a
+/// repeatable medal given again counts up, any other one listed twice is an error,
+/// as is an id the client does not know.
+fn add_medal(medals: &mut Vec<(Medal, u32)>, id: &str) -> Result<(), String> {
+    let Some(medal) = Medal::from_id(id) else {
+        let known: Vec<_> = Medal::ALL.iter().map(|medal| medal.id()).collect();
+        return Err(format!(
+            "unknown medal {id:?}, expected one of {}",
+            known.join(", ")
+        ));
+    };
+    match medals.iter_mut().find(|(held, _)| *held == medal) {
+        Some((_, count)) if medal.repeatable() => *count += 1,
+        Some(_) => return Err(format!("medal {id} is listed twice")),
+        None => {
+            medals.push((medal, 1));
+            medals.sort_by_key(|(medal, _)| medal.index());
+        }
+    }
+    Ok(())
+}
+
 pub(super) fn parse(text: &str) -> Result<Vec<Section>, String> {
     let mut sections: Vec<Section> = Vec::new();
     for (number, line) in text.lines().enumerate() {
@@ -166,6 +194,7 @@ pub(super) fn parse(text: &str) -> Result<Vec<Section>, String> {
                 role: String::new(),
                 did: Vec::new(),
                 links: Vec::new(),
+                medals: Vec::new(),
                 work: Vec::new(),
             });
             continue;
@@ -193,6 +222,8 @@ pub(super) fn parse(text: &str) -> Result<Vec<Section>, String> {
                     ));
                 }
             },
+            "medal" => add_medal(&mut card.medals, &value)
+                .map_err(|why| format!("credits.txt line {number}: {why}"))?,
             other => return Err(format!("credits.txt line {number}: unknown key {other:?}")),
         }
     }
@@ -326,10 +357,44 @@ mod tests {
             Some("https://github.com/Sol-Vulpes")
         );
         let cards: Vec<_> = sections.iter().flat_map(|section| &section.cards).collect();
-        for name in ["Bishop", "Creyon"] {
+        for name in ["Bishop", "Creyon", "Lumaya"] {
             assert!(cards.iter().any(|card| card.name == name), "{name} missing");
         }
         assert!(cards.iter().flat_map(|card| &card.links).count() > 0);
+        // Both contributors with merged pull requests wear Early Contributor.
+        let card = |name: &str| *cards.iter().find(|card| card.name == name).unwrap();
+        for name in ["Creyon", "Lumaya"] {
+            assert_eq!(card(name).medals, [(Medal::EarlyContributor, 1)], "{name}");
+        }
+        assert_eq!(card("Lumaya").github, "@lumayaa");
+        assert!(card("Sol").medals.is_empty());
+    }
+
+    #[test]
+    fn medals_are_known_ids_in_the_catalogues_order() {
+        let text =
+            "== A\n[X]\nrole: r\nmedal: bug_hunter\nmedal: early_contributor\nmedal: bug_hunter\n";
+        let sections = parse(text).unwrap();
+        assert_eq!(
+            sections[0].cards[0].medals,
+            [(Medal::EarlyContributor, 1), (Medal::BugHunter, 2)]
+        );
+        for bad in [
+            "medal: from_the_future",
+            "medal: Early_Contributor",
+            "medal: early contributor",
+            "medal:",
+            "medal: early_tester\nmedal: early_tester",
+        ] {
+            let text = format!("== A\n[X]\nrole: r\n{bad}\n");
+            let error = parse(&text).expect_err(bad);
+            assert!(error.starts_with("credits.txt line "), "{error}");
+        }
+        assert!(
+            parse("== A\n[X]\nrole: r\nmedal: nope\n")
+                .unwrap_err()
+                .contains("early_tester, early_contributor, bug_hunter, jof_clan")
+        );
     }
 
     #[test]
@@ -365,6 +430,7 @@ mod tests {
             }
         }
         assert!(card("Claude").work.is_empty());
+        assert!(!card("Lumaya").work.is_empty());
     }
 
     #[test]

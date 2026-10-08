@@ -165,11 +165,11 @@ impl crate::GpuState {
         let classic = style.classic_screens();
         self.text_dialog.set_look(classic, art);
         if let Some(console) = &mut self.console {
-            // What's new, Update and Identity have the SJK UI's own look.
+            // What's new, Update, Identity and Credits have the SJK UI's own look.
             let sjk = style == MenuStyle::Sjk;
             console.set_browser_art(art);
             console.set_changelog_look(classic && !sjk, art);
-            console.set_credits_look(classic);
+            console.set_credits_look(classic && !sjk);
             console.set_identity_look(classic && !sjk, art);
             console.set_sjk_pages(sjk);
         }

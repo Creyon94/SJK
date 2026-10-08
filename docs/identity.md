@@ -235,6 +235,11 @@ Where they show:
   `<id> <count>` a line; ids the build does not know are kept), so each medal and each
   new count shows once per identity, and an install that already held medals when it
   first read its profile still shows them.
+- The credits page's cards: not from the hub but from credits.txt's `medal:` lines,
+  which use the same ids (Creyon and Lumaya wear Early Contributor), so a contributor's
+  card shows its medals without a request; the SJK UI draws each whole with its name
+  and description beside the card's lines, the other looks as chips (medallion and
+  name) after the counts ([client.md](client.md#credits-page)).
 - Not on nameplates.
 
 Medals are public: anyone can read a key's profile and the presence list of a server,

@@ -36,8 +36,8 @@ PEOPLE = {
     "Sol-Vulpes": "Sol",
     "Bishop-R": "Bishop",
     "Creyon94": "Creyon",
-    "lumaya": "lumaya",
-    "lumayaa": "lumaya",
+    "lumaya": "Lumaya",
+    "lumayaa": "Lumaya",
     "Claude": None,
 }
 # The person a piece made only of Claude's commits belongs to.

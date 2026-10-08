@@ -716,6 +716,67 @@ mod tests {
         });
     }
 
+    /// Credits in the SJK UI over the live duel6: the top (the sun, the rail,
+    /// Sol's panel), Creyon's panel with its folds open and his medal, Lumaya's
+    /// panel, and the end of the page (the cards in twos and the notice).
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_sjk_credits() {
+        on_big_stack(|| {
+            let menu = menu::ClientMenu::new(true, String::new());
+            let cvars = [
+                ("ui_menuStyle", "sjk"),
+                (crate::settings::quick::HIDE_CVAR, "1"),
+            ];
+            let Some((mut gpu, _profile)) =
+                open("maps/mp/duel6.bsp", [1920, 1080], Some(menu), &cvars)
+            else {
+                return;
+            };
+            let _ = frame(&mut gpu, 10);
+            if let Some(console) = gpu.console.as_mut() {
+                console.open_credits();
+                console.credits_mut().settle();
+            }
+            // The emblem's layers and the medals' pictures decode on workers.
+            let _ = frame(&mut gpu, 40);
+            println!("{}", shoot(&mut gpu, 4, "duel6-page-credits").display());
+            for (person, name) in [
+                (1, "duel6-page-credits-creyon"),
+                (2, "duel6-page-credits-lumaya"),
+            ] {
+                if let Some(console) = gpu.console.as_mut() {
+                    console.credits_mut().unfold(person);
+                    console.credits_mut().settle();
+                }
+                let _ = frame(&mut gpu, 2);
+                if let Some(console) = gpu.console.as_mut() {
+                    console.credits_mut().scroll_to_person(person);
+                }
+                println!("{}", shoot(&mut gpu, 6, name).display());
+            }
+            // Creyon's work unfolded: the days, his pull requests with their
+            // tags, and the commits of the first with several.
+            if let Some(console) = gpu.console.as_mut() {
+                console.credits_mut().scroll_to_person(1);
+                console.credits_mut().scroll_on(700.0);
+            }
+            println!(
+                "{}",
+                shoot(&mut gpu, 6, "duel6-page-credits-creyon-work").display()
+            );
+            if let Some(console) = gpu.console.as_mut() {
+                console.open_credits();
+                console.credits_mut().settle();
+            }
+            let _ = frame(&mut gpu, 2);
+            if let Some(console) = gpu.console.as_mut() {
+                console.credits_mut().scroll_to(100_000.0);
+            }
+            println!("{}", shoot(&mut gpu, 6, "duel6-page-credits-end").display());
+        });
+    }
+
     /// The SJK UI's server browser over the live duel6, on made-up servers:
     /// the list with the first server's map, numbers and players; a search
     /// with the left column's game type taking the keys; the password prompt.

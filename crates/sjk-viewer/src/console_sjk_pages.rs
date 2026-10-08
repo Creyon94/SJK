@@ -1,7 +1,7 @@
-//! Sol JK's pages (What's new, Update, Identity) in the SJK UI's look: with
-//! `ui_menuStyle sjk` they are drawn by their SJK views, in the UI's families
-//! ([`crate::menu::sjk::TextTarget`]), over the map. Opening, closing and their
-//! keys and pointer stay the console's, as for the other looks.
+//! Sol JK's pages (What's new, Update, Identity, Credits) in the SJK UI's look:
+//! with `ui_menuStyle sjk` they are drawn by their SJK views, in the UI's
+//! families ([`crate::menu::sjk::TextTarget`]), over the map. Opening, closing
+//! and their keys and pointer stay the console's, as for the other looks.
 
 use super::*;
 use crate::menu::sjk::TextTarget;
@@ -12,14 +12,18 @@ impl ViewerConsole {
         self.changelog.set_sjk(sjk);
         self.update_panel.set_sjk(sjk);
         self.identity_panel.set_sjk(sjk);
+        self.credits.set_sjk(sjk);
     }
 
     /// Whether the page drawn in place of the console is one of them in the
-    /// SJK UI's look (the import and credits pages come first when open), or
+    /// SJK UI's look (the import page comes first when open, then credits), or
     /// the command browser in it.
     pub(crate) fn sjk_page_open(&self) -> bool {
-        if !self.open || self.config_import.is_open() || self.credits.is_open() {
+        if !self.open || self.config_import.is_open() {
             return false;
+        }
+        if self.credits.is_open() {
+            return self.credits.is_sjk();
         }
         if !self.changelog.is_open()
             && !self.update_panel.is_open()
@@ -39,7 +43,9 @@ impl ViewerConsole {
 
     /// Draw the open page ([`Self::sjk_page_open`]) with its text to `target`.
     pub(crate) fn append_sjk_page(&mut self, target: TextTarget<'_>, viewport: [f32; 2]) {
-        if self.changelog.is_open() {
+        if self.credits.is_open() {
+            self.credits.append_sjk(target, viewport);
+        } else if self.changelog.is_open() {
             self.changelog.append_sjk(target, viewport);
         } else if self.update_panel.is_open() {
             self.update_panel.append_sjk(target, viewport);
