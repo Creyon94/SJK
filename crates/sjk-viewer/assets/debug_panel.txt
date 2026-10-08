@@ -1246,6 +1246,17 @@ test: Watch a bot drain another: both bars drop (the drainer pays 5 a shot).
 test: A verified player (or cg_nameplateSelf 1 with a verified key): tick level with the name.
 note: Never started in a game: unit tests and the nameplate_snapshot render only.
 
+[drain-measured]
+area: HUD
+title: Your drain measured: the victim's Force bar loses what your health gained
+change: Your own pool (5 a shot) and heal say how much your drain took, on any server.
+change: The pace and strength learnt from your drains apply to others' drain and lightning.
+change: Each of your drains writes a "nameplate drain:" line to the log.
+test: JA+ server, below full health, drain someone: their bar drops by your health gained.
+test: Drain at full health: their bar drops about 4 per 5 Force you spend.
+test: After a few drains, watch someone else drain: their victim's bar drops at that pace.
+note: Send logs\last-client.log after a test: the "nameplate drain:" lines tell what happened.
+
 [nameplate-sources]
 area: HUD
 title: Nameplate estimates: lightning, grip, rage, protect, team powers, jumps, specials

@@ -91,6 +91,23 @@ sent to the hub (the shots' identity is off; Sent is a made-up answer), so the
 real hub's answers and how long Sending shows are untested; the note card over a
 real selection's highlight; the layer fix on screens other than these shots.
 
+## Nameplates: your drain measured
+
+SJK-only branch `personal/drain-fix` (08/10/2026, based on `6d2eb4b`, Windows 11):
+Sol drained players on the JoF JA+ server and their Force bars dropped only a
+little. A test feeding the whole nameplate pipeline synthetic snapshots of a level-3
+drain took the stock 4 a shot, so the rebuilt shots work as written; in the real
+game either the rebuilt shot missed (leaving only the drained event's one shot every
+0.45 s) or JA+, built on the original game, shoots every server frame rather than
+every 50 ms. The local player's own drain is now measured from what the server
+sends it (5 Force a shot, the heal equal to what was taken): its victims lose what
+it healed, found in reach, by the event, or most in front; its pace and strength
+are learnt for everyone's drain and lightning; and each drain writes a
+`nameplate drain:` line to the log to settle which it was. Verified: unit tests
+(the heal taken, the maximum, the event and front fallbacks, the learnt pace and
+strength, the end-to-end pipeline). Not verified: in game; how JA+ really shoots is
+still unknown until a log line comes back.
+
 ## Nameplates: the rest of the Force and health rules
 
 SJK-only branch `personal/nameplate-sources` (08/10/2026, based on `5daf065`,

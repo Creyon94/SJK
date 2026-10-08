@@ -579,13 +579,23 @@ impl State {
         let rules = force_streams::Rules {
             teams: mode >= GT_TEAM,
         };
+        let own = (player.health() > 0 && !player.is_spectator()).then(|| force_streams::Own {
+            number: player.client_num(),
+            pool: i32::from(player.force_power()),
+            health: player.health(),
+            max_health: player.max_health(),
+        });
         self.streams.observe(
             snapshot.server_time,
             &bodies[..count],
             rules,
             self.vitals.drained(),
+            own,
             force_streams::world_sight(bsp, scratch),
         );
+        if let Some(run) = self.streams.take_finished() {
+            log_drain(&run, game);
+        }
     }
 
     /// Drop every collected plate and drawn shape.
@@ -1507,6 +1517,47 @@ impl State {
     }
 }
 
+/// One line in the log for each drain of the local player: what its pool and health
+/// measured, and whom it was put on, so a report says what the plates were told.
+fn log_drain(run: &force_streams::Run, game: &GameState) {
+    use std::fmt::Write;
+    let mut victims = String::new();
+    for (slot, taken) in run.taken.iter().enumerate() {
+        if *taken > 0.0 {
+            let name = game
+                .config_string(1131 + slot)
+                .and_then(|info| sjk_client::LegacyClientInfo::new(info).text("n"))
+                .unwrap_or("?");
+            let _ = write!(
+                victims,
+                "{}{} {:.0}",
+                if victims.is_empty() { "" } else { ", " },
+                crate::text::Plain(name),
+                taken
+            );
+        }
+    }
+    let healed = run.healed.map_or_else(
+        || "health at its maximum".to_owned(),
+        |healed| format!("healed {healed:.0}"),
+    );
+    let [reach, event, front] = run.found;
+    crate::log::progress(format_args!(
+        "nameplate drain: {:.2} s, {:.0} shots paid ({:.0} Force), {healed}; taken: {} \
+         (found in reach {reach}, by the drained event {event}, in front {front}); \
+         pace {:.0} ms a shot",
+        run.millis as f32 / 1_000.0,
+        run.shots,
+        run.shots * 5.0,
+        if victims.is_empty() {
+            "nothing"
+        } else {
+            &victims
+        },
+        run.pace,
+    ));
+}
+
 /// The Force powers of `active` that get an icon, in display order, at most
 /// [`MAX_ICONS`] of them.
 fn icon_powers(active: u32) -> ([u8; MAX_ICONS], u8) {
@@ -1846,5 +1897,80 @@ mod tests {
         // After the name, not over it.
         let width = crate::text::visible_text_width(&font, "Hello", scale);
         assert!(badge.x >= line.x + (line.width + width) * 0.5);
+    }
+
+    /// Snapshots of the local player (0) at the origin looking along +x, draining
+    /// when `draining`, and player 3 standing `ahead` units in front.
+    mod drain {
+        use super::*;
+        use sjk_protocol::{EntityState, LEGACY_ENTITY_FIELDS, PlayerState};
+
+        pub(super) fn snapshot(time: i32, draining: bool, ahead: f32, pool: u32) -> Snapshot {
+            let mut player = PlayerState::zero();
+            player.set_client_num(0);
+            player.stats[0] = 100;
+            player.stats[8] = 100;
+            player.set_raw_field(18, pool);
+            player.set_origin([0.0, 0.0, 24.0]);
+            player.set_view_angles([0.0, 0.0, 0.0]);
+            if draining {
+                player.set_raw_field(82, 1 << FP_DRAIN);
+            }
+            let mut victim = EntityState::zero(3, &LEGACY_ENTITY_FIELDS);
+            victim.set_raw_field(8, u32::from(ET_PLAYER));
+            for (field, value) in [2, 1, 4].into_iter().zip([ahead, 0.0, 24.0]) {
+                victim.set_raw_field(field, value.to_bits());
+            }
+            Snapshot {
+                message_sequence: 0,
+                reliable_acknowledge: 0,
+                server_commands: Vec::new(),
+                server_time: time,
+                delta_from: None,
+                flags: 0,
+                area_mask: Vec::new(),
+                player,
+                vehicle_player: None,
+                entities: vec![victim],
+                consumed_bits: 0,
+            }
+        }
+    }
+
+    #[test]
+    fn your_drain_empties_the_bar_of_the_player_in_front() {
+        let game = GameState::empty_local(0);
+        let bsp = Bsp::empty([-4_096.0; 3], [4_096.0; 3]);
+        let mut scratch = TraceScratch::default();
+        let mut state = State::default();
+        state.settings.drain_level = Some(3);
+        let mut time = 1_000;
+        for _ in 0..10 {
+            state.observe_snapshot(
+                &drain::snapshot(time, false, 200.0, 100),
+                &game,
+                &bsp,
+                &mut scratch,
+            );
+            time += 25;
+        }
+        assert_eq!(state.force.ratio(3).map(|r| r.best), Some(1.0));
+        // Half a second of level 3 drain at full health: 10 shots paid (5 each, every
+        // other snapshot), 4 taken each.
+        let mut pool = 100;
+        for step in 0..20 {
+            if step % 2 == 0 {
+                pool -= 5;
+            }
+            state.observe_snapshot(
+                &drain::snapshot(time, true, 200.0, pool),
+                &game,
+                &bsp,
+                &mut scratch,
+            );
+            time += 25;
+        }
+        let left = state.force.ratio(3).expect("tracked").best * 100.0;
+        assert!((left - 60.0).abs() < 4.5, "{left}");
     }
 }

@@ -27,6 +27,13 @@
 //! in the arc's line of sight). Other players' levels are not sent: the guess is level
 //! 3's arc, a value's low bound takes the dearest level that reaches it and its high
 //! bound the cheapest. The local player's own levels are its Force profile's.
+//!
+//! The local player's own drain is measured rather than rebuilt ([`Own`]): the server
+//! sends it its pool, which each shot takes 5 from, and its health, which each shot
+//! raises by what it took (below the maximum). So its victims lose what it gained,
+//! whatever the server's rules, and the shots' pace and strength it shows are learnt
+//! for everyone else's drain: servers built on the original game (JA+) shoot every
+//! server frame rather than every 50 ms.
 use glam::Vec3;
 use sjk_game_jka::force_powers::{FP_ABSORB, FP_DRAIN, FP_GRIP, FP_LIGHTNING};
 
@@ -53,6 +60,9 @@ const WP_MELEE: u8 = 2;
 const WORLD_SHOT: u32 = 0x1 | 0x1000;
 /// A player with no packed box (`SV_LinkEntity`) stands.
 const STANDING: ([f32; 3], [f32; 3]) = ([-15.0, -15.0, -24.0], [15.0, 15.0, 40.0]);
+
+/// Shots and points seen before the learnt pace and strength are used.
+const LEARNT_SHOTS: f32 = 8.0;
 
 /// Bounds of a value, in [`super::estimate::Range`] order.
 const LOW: usize = 0;
@@ -189,6 +199,53 @@ pub(super) struct Rules {
     pub(super) teams: bool,
 }
 
+/// The local player's pool and health, which the server sends it.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub(super) struct Own {
+    pub(super) number: u16,
+    pub(super) pool: i32,
+    pub(super) health: i32,
+    pub(super) max_health: i32,
+}
+
+/// What the local player's pool and health say its drain did since the last snapshot.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+struct Measured {
+    /// Shots paid for (5 each).
+    shots: f32,
+    /// What they took, from the heal: `None` at the maximum, where nothing heals.
+    taken: Option<f32>,
+    elapsed: i32,
+    /// The drain was on at the last snapshot too.
+    continued: bool,
+}
+
+/// How the victims of a local drain were found.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum Found {
+    /// In the shot's reach.
+    Reach,
+    /// Named by `EV_FORCE_DRAINED`.
+    Event,
+    /// None in reach: the player most in front.
+    Front,
+}
+
+/// One drain by the local player from start to end, for the log.
+#[derive(Clone, Copy, Debug)]
+pub(super) struct Run {
+    pub(super) millis: i32,
+    pub(super) shots: f32,
+    /// What it healed, when the health was under its maximum throughout.
+    pub(super) healed: Option<f32>,
+    /// What each player lost to it.
+    pub(super) taken: [f32; CLIENTS],
+    /// How often the victims were found each way: reach, event, front.
+    pub(super) found: [u16; 3],
+    /// The pace in use at its end, milliseconds a shot.
+    pub(super) pace: f32,
+}
+
 /// Each caster's shots in progress.
 #[derive(Clone, Copy, Debug, Default)]
 struct Casting {
@@ -207,6 +264,14 @@ pub(super) struct Tracker {
     electrified: [i32; CLIENTS],
     effects: [Effect; CLIENTS],
     last_time: i32,
+    /// The local player at the last snapshot, and whether it drained.
+    own_before: Option<(i32, Own, bool)>,
+    /// Learnt from the local player's drains: milliseconds and shots while draining,
+    /// and points taken from a lone victim over the shots that took them, at a level.
+    learnt_pace: (f32, f32),
+    learnt_take: (f32, f32, u8),
+    run: Option<Run>,
+    finished: Option<Run>,
 }
 
 impl Default for Tracker {
@@ -216,11 +281,181 @@ impl Default for Tracker {
             electrified: [0; CLIENTS],
             effects: [Effect::default(); CLIENTS],
             last_time: i32::MIN,
+            own_before: None,
+            learnt_pace: (0.0, 0.0),
+            learnt_take: (0.0, 0.0, 3),
+            run: None,
+            finished: None,
         }
     }
 }
 
 impl Tracker {
+    /// The local player's last finished drain, once.
+    pub(super) fn take_finished(&mut self) -> Option<Run> {
+        self.finished.take()
+    }
+
+    /// Milliseconds between drain and lightning shots: learnt from the local player's
+    /// drains, else `FORCE_DEBOUNCE_TIME`'s 50.
+    pub(super) fn pace(&self) -> f32 {
+        let (millis, shots) = self.learnt_pace;
+        if shots >= LEARNT_SHOTS {
+            (millis / shots).clamp(10.0, 100.0)
+        } else {
+            DRAIN.interval as f32
+        }
+    }
+
+    /// What a drain shot at `level` takes: as learnt from the local player's drains
+    /// (scaled from its level), else the stock 2, 3 or 4.
+    fn taken(&self, level: u8) -> f32 {
+        let stock = TAKEN[usize::from(level.clamp(1, 3))];
+        let (points, shots, learnt) = self.learnt_take;
+        if shots >= LEARNT_SHOTS {
+            let scale = points / shots / TAKEN[usize::from(learnt.clamp(1, 3))];
+            stock * scale.clamp(0.25, 4.0)
+        } else {
+            stock
+        }
+    }
+
+    /// What the local player's pool and health say about its drain since the last
+    /// snapshot, and the run it belongs to.
+    fn measure(&mut self, time: i32, own: Own, draining: bool) -> Option<Measured> {
+        let before = self.own_before.replace((time, own, draining));
+        if !draining {
+            if let Some(mut run) = self.run.take() {
+                run.pace = self.pace();
+                self.finished = Some(run);
+            }
+            return None;
+        }
+        let (then, was, was_draining) = before?;
+        if time - then > GAP_MILLIS || was.number != own.number {
+            return None;
+        }
+        let spent = (was.pool - own.pool).max(0) as f32;
+        let healed = own.health - was.health;
+        let measured = Measured {
+            shots: (spent / SHOT_COST).round(),
+            taken: (was.health < was.max_health && healed >= 0).then_some(healed as f32),
+            elapsed: time - then,
+            continued: was_draining,
+        };
+        let run = self.run.get_or_insert(Run {
+            millis: 0,
+            shots: 0.0,
+            healed: Some(0.0),
+            taken: [0.0; CLIENTS],
+            found: [0; 3],
+            pace: 0.0,
+        });
+        run.millis += measured.elapsed;
+        run.shots += measured.shots;
+        run.healed = run
+            .healed
+            .zip(measured.taken)
+            .map(|(sum, taken)| sum + taken);
+        if measured.continued {
+            self.learnt_pace.0 += measured.elapsed as f32;
+            self.learnt_pace.1 += measured.shots;
+        }
+        Some(measured)
+    }
+
+    /// The local player's drain: the shots its pool paid for take what its health
+    /// gained, from those in reach, else those the event names, else the player most in
+    /// front.
+    #[allow(clippy::too_many_arguments)]
+    fn shoot_own(
+        &mut self,
+        caster: &Body,
+        measured: Measured,
+        bodies: &[Body],
+        rules: Rules,
+        named: u32,
+        time: i32,
+        sight: &mut impl FnMut([f32; 3], [f32; 3]) -> f32,
+    ) -> u32 {
+        if measured.shots <= 0.0 {
+            return 0;
+        }
+        let level = caster.level(DRAIN).unwrap_or(3);
+        let centre = Vec3::from_array(caster.origin);
+        let forward = caster.forward();
+        let line = first_on_line(caster, bodies, centre, forward, LINE_REACH, sight);
+        let candidates = || {
+            bodies.iter().filter(|victim| {
+                victim.estimated
+                    && victim.number != caster.number
+                    && usize::from(victim.number) < CLIENTS
+                    && reachable(caster, victim, rules)
+            })
+        };
+        let mut victims = 0_u32;
+        for victim in candidates() {
+            let reached = if level == 3 {
+                in_arc(victim, centre, forward, DRAIN.arc, sight)
+            } else {
+                line == Some(victim.number)
+            };
+            if reached {
+                victims |= 1 << victim.number;
+            }
+        }
+        let mut found = Found::Reach;
+        if victims == 0 {
+            found = Found::Event;
+            victims = candidates().fold(0, |bits, victim| bits | (named & 1 << victim.number));
+        }
+        if victims == 0 {
+            found = Found::Front;
+            let front = candidates()
+                .map(|victim| {
+                    let (low, high) = victim.bounds();
+                    let toward = ((low + high) * 0.5 - centre).normalize_or_zero();
+                    (victim.number, toward.dot(forward))
+                })
+                .filter(|(_, facing)| *facing >= ARC_COSINE)
+                .max_by(|a, b| a.1.total_cmp(&b.1));
+            if let Some((number, _)) = front {
+                victims = 1 << number;
+            }
+        }
+        if victims == 0 {
+            return 0;
+        }
+        let total = measured
+            .taken
+            .unwrap_or_else(|| measured.shots * self.taken(level));
+        let each = total / victims.count_ones() as f32;
+        if let Some(taken) = measured.taken
+            && victims.count_ones() == 1
+        {
+            let (points, shots, _) = self.learnt_take;
+            self.learnt_take = (points + taken, shots + measured.shots, level);
+        }
+        let run = self.run.as_mut();
+        let mut taken = [0.0; CLIENTS];
+        for (slot, taken) in taken.iter_mut().enumerate() {
+            if victims & (1 << slot) != 0 {
+                *taken = each;
+                let effect = &mut self.effects[slot];
+                for bound in [LOW, BEST, HIGH] {
+                    effect.lose(bound, each, time + VICTIM_HOLD);
+                }
+            }
+        }
+        if let Some(run) = run {
+            for (sum, taken) in run.taken.iter_mut().zip(taken) {
+                *sum += taken;
+            }
+            run.found[found as usize] = run.found[found as usize].saturating_add(1);
+        }
+        victims
+    }
+
     /// What the last observed snapshot's shots did to `slot`.
     pub(super) fn effect(&self, slot: u16) -> Effect {
         self.effects
@@ -238,6 +473,7 @@ impl Tracker {
         bodies: &[Body],
         rules: Rules,
         named: u32,
+        own: Option<Own>,
         mut sight: impl FnMut([f32; 3], [f32; 3]) -> f32,
     ) {
         if time < self.last_time {
@@ -260,28 +496,45 @@ impl Tracker {
                 *casting = Casting::default();
             }
         }
+        // The local player's drain, measured.
+        let measured = own.and_then(|own| {
+            let draining = bodies
+                .iter()
+                .any(|body| body.number == own.number && body.uses(FP_DRAIN));
+            self.measure(time, own, draining)
+        });
+        let pace = self.pace().round() as i32;
         // The dearest and cheapest drain shot any drainer in sight can fire, for the
         // victims the event names.
         let mut floor: Option<[f32; 3]> = None;
         let mut lightning = false;
+        // Victims the local player's measured drain has already accounted for.
+        let mut measured_victims = 0_u32;
         for caster in bodies {
             let slot = usize::from(caster.number);
             if slot >= CLIENTS {
                 continue;
             }
             let mut casting = self.casting[slot];
-            let drain_shots = shots(&mut casting.drain, caster.uses(FP_DRAIN), DRAIN, time);
+            let mut drain_shots = shots(&mut casting.drain, caster.uses(FP_DRAIN), pace, time);
             let bolts = shots(
                 &mut casting.lightning,
                 caster.uses(FP_LIGHTNING),
-                LIGHTNING,
+                pace,
                 time,
             );
             let grips = self.grip(&mut casting, caster, bodies, rules, time, &mut sight);
             self.casting[slot] = casting;
+            if let (Some(measured), Some(own)) = (measured, own)
+                && own.number == caster.number
+            {
+                measured_victims =
+                    self.shoot_own(caster, measured, bodies, rules, named, time, &mut sight);
+                drain_shots = 0;
+            }
             if caster.uses(FP_DRAIN) {
                 let (levels, guess) = levels(caster.level(DRAIN));
-                let price = |level: u8| TAKEN[usize::from(level)];
+                let price = |level: u8| self.taken(level);
                 let shot = [
                     levels.clone().map(price).fold(0.0, f32::max),
                     price(guess),
@@ -312,7 +565,7 @@ impl Tracker {
         }
         let floor = floor.unwrap_or([TAKEN[3], TAKEN[3], TAKEN[1]]);
         for slot in 0..CLIENTS {
-            if named & (1 << slot) == 0 {
+            if named & !measured_victims & (1 << slot) == 0 {
                 continue;
             }
             let effect = &mut self.effects[slot];
@@ -382,16 +635,7 @@ impl Tracker {
         if casting.gripped.is_none() {
             return 0;
         }
-        shots(
-            &mut casting.grip,
-            true,
-            Stream {
-                power: FP_GRIP,
-                interval: GRIP_MILLIS,
-                arc: GRIP_REACH,
-            },
-            time,
-        )
+        shots(&mut casting.grip, true, GRIP_MILLIS, time)
     }
 
     /// `shots` shots of `caster`'s `stream` at the levels it may have it at.
@@ -429,6 +673,8 @@ impl Tracker {
             }
         }
         let two_handed = caster.weapon == WP_MELEE;
+        let learnt = [self.taken(1), self.taken(1), self.taken(2), self.taken(3)];
+        let taken = |level: u8| learnt[usize::from(level.clamp(1, 3))];
         let mut heal = [0.0; 3];
         for victim in bodies {
             if !victim.estimated
@@ -456,7 +702,7 @@ impl Tracker {
                         let guess = f32::from(level.saturating_sub(3)) - 1.0;
                         [most, guess, -1.0]
                     } else {
-                        [TAKEN[usize::from(level)]; 3]
+                        [taken(level); 3]
                     }
                 } else {
                     let double = if two_handed && level == 3 { 2.0 } else { 1.0 };
@@ -511,8 +757,9 @@ impl Tracker {
     }
 }
 
-/// Shots of `stream` due by `time` while `on`, starting with one when it starts.
-fn shots(next: &mut Option<i32>, on: bool, stream: Stream, time: i32) -> u32 {
+/// Shots `interval` milliseconds apart due by `time` while `on`, starting with one when
+/// it starts.
+fn shots(next: &mut Option<i32>, on: bool, interval: i32, time: i32) -> u32 {
     if !on {
         *next = None;
         return 0;
@@ -522,13 +769,13 @@ fn shots(next: &mut Option<i32>, on: bool, stream: Stream, time: i32) -> u32 {
             let mut count = 0;
             while due <= time {
                 count += 1;
-                due += stream.interval;
+                due += interval;
             }
             *next = Some(due);
             count
         }
         None => {
-            *next = Some(time + stream.interval);
+            *next = Some(time + interval);
             1
         }
     }
@@ -670,7 +917,7 @@ mod tests {
     }
 
     fn observe(tracker: &mut Tracker, time: i32, bodies: &[Body]) {
-        tracker.observe(time, bodies, Rules::default(), 0, clear);
+        tracker.observe(time, bodies, Rules::default(), 0, None, clear);
     }
 
     #[test]
@@ -741,14 +988,21 @@ mod tests {
         let drainer = draining(body(CASTER, [0.0; 3], 0.0), Some(3));
         let victim = body(VICTIM, [200.0, 0.0, 0.0], 0.0);
         let mut tracker = Tracker::default();
-        tracker.observe(1_000, &[drainer, victim], Rules::default(), 0, |_, _| 0.5);
+        tracker.observe(
+            1_000,
+            &[drainer, victim],
+            Rules::default(),
+            0,
+            None,
+            |_, _| 0.5,
+        );
         assert_eq!(tracker.effect(VICTIM), Effect::default(), "a wall between");
         let teams = Rules { teams: true };
         let (mut red, mut also_red) = (drainer, victim);
         red.team = 1;
         also_red.team = 1;
         let mut tracker = Tracker::default();
-        tracker.observe(1_000, &[red, also_red], teams, 0, clear);
+        tracker.observe(1_000, &[red, also_red], teams, 0, None, clear);
         assert_eq!(tracker.effect(VICTIM), Effect::default(), "a teammate");
         let mut duellist = victim;
         duellist.duelling = true;
@@ -779,12 +1033,13 @@ mod tests {
             &[drainer, victim],
             Rules::default(),
             1 << VICTIM,
+            None,
             clear,
         );
         assert_eq!(tracker.effect(VICTIM).force, [4.0, 4.0, 2.0]);
         assert_eq!(tracker.effect(VICTIM).hold, [1_800; 3]);
         let mut tracker = Tracker::default();
-        tracker.observe(1_000, &[victim], Rules::default(), 1 << VICTIM, clear);
+        tracker.observe(1_000, &[victim], Rules::default(), 1 << VICTIM, None, clear);
         assert_eq!(tracker.effect(VICTIM).force, [4.0, 4.0, 2.0]);
     }
 
@@ -908,5 +1163,117 @@ mod tests {
             None,
             "starts inside"
         );
+    }
+
+    fn own(pool: i32, health: i32) -> Option<Own> {
+        Some(Own {
+            number: LOCAL,
+            pool,
+            health,
+            max_health: 100,
+        })
+    }
+
+    #[test]
+    fn your_drain_takes_what_your_health_gained() {
+        let mut tracker = Tracker::default();
+        let idle = body(LOCAL, [0.0; 3], 0.0);
+        let local = draining(idle, Some(3));
+        let victim = body(VICTIM, [200.0, 0.0, 0.0], 0.0);
+        let rules = Rules::default();
+        tracker.observe(1_000, &[idle, victim], rules, 0, own(100, 50), clear);
+        // Two shots paid (10) between snapshots healed 12: the victim lost 12.
+        tracker.observe(1_025, &[local, victim], rules, 0, own(90, 62), clear);
+        assert_eq!(tracker.effect(VICTIM).force, [12.0; 3]);
+        assert_eq!(tracker.effect(VICTIM).hold, [1_825; 3]);
+        // Nothing paid: no shot landed in between.
+        tracker.observe(1_050, &[local, victim], rules, 0, own(90, 62), clear);
+        assert_eq!(tracker.effect(VICTIM), Effect::default());
+        // Healed up to the maximum: what the heal shows.
+        tracker.observe(1_075, &[local, victim], rules, 0, own(80, 100), clear);
+        assert_eq!(tracker.effect(VICTIM).force, [38.0; 3]);
+        // At the maximum nothing heals: the shots paid take the stock 4 each.
+        tracker.observe(1_100, &[local, victim], rules, 0, own(70, 100), clear);
+        assert_eq!(tracker.effect(VICTIM).force, [8.0; 3]);
+        // The drain ends: its run is told once.
+        tracker.observe(1_125, &[idle, victim], rules, 0, own(70, 100), clear);
+        let run = tracker.take_finished().expect("a run");
+        assert_eq!(run.shots, 6.0);
+        assert_eq!(run.taken[usize::from(VICTIM)], 12.0 + 38.0 + 8.0);
+        assert_eq!(run.healed, None, "it reached the maximum");
+        assert_eq!(run.found, [3, 0, 0]);
+        assert!(tracker.take_finished().is_none());
+    }
+
+    #[test]
+    fn a_victim_out_of_reach_is_found_by_the_event_or_in_front() {
+        let rules = Rules::default();
+        let idle = body(LOCAL, [0.0; 3], 0.0);
+        let local = draining(idle, Some(3));
+        // Behind a wall the rebuilt shot misses; the event names the victim.
+        let victim = body(VICTIM, [200.0, 0.0, 0.0], 0.0);
+        let wall = |_: [f32; 3], _: [f32; 3]| 0.5;
+        let mut tracker = Tracker::default();
+        tracker.observe(1_000, &[idle, victim], rules, 0, own(100, 50), wall);
+        tracker.observe(
+            1_050,
+            &[local, victim],
+            rules,
+            1 << VICTIM,
+            own(95, 54),
+            wall,
+        );
+        assert_eq!(tracker.effect(VICTIM).force[BEST], 4.0);
+        // No event either: the one most in front.
+        let mut tracker = Tracker::default();
+        tracker.observe(1_000, &[idle, victim], rules, 0, own(100, 50), wall);
+        tracker.observe(1_050, &[local, victim], rules, 0, own(95, 54), wall);
+        assert_eq!(tracker.effect(VICTIM).force[BEST], 4.0);
+        tracker.observe(1_075, &[idle, victim], rules, 0, own(95, 54), wall);
+        assert_eq!(tracker.take_finished().expect("a run").found, [0, 0, 1]);
+    }
+
+    #[test]
+    fn your_drains_teach_the_pace_and_strength_for_everyone() {
+        let rules = Rules::default();
+        let idle = body(LOCAL, [0.0; 3], 0.0);
+        let local = draining(idle, Some(3));
+        let victim = body(VICTIM, [200.0, 0.0, 0.0], 0.0);
+        let mut tracker = Tracker::default();
+        assert_eq!(tracker.pace(), 50.0);
+        // A server shooting every 25 ms (a frame), 6 a shot.
+        let (mut pool, mut health) = (100, 10);
+        tracker.observe(1_000, &[idle, victim], rules, 0, own(pool, health), clear);
+        for step in 1..=10 {
+            pool -= 5;
+            health += 6;
+            tracker.observe(
+                1_000 + step * 25,
+                &[local, victim],
+                rules,
+                0,
+                own(pool, health),
+                clear,
+            );
+        }
+        assert_eq!(tracker.pace(), 25.0);
+        assert_eq!(tracker.taken(3), 6.0);
+        assert_eq!(tracker.taken(1), 3.0);
+        // Another drainer now shoots at that pace and strength.
+        let other = draining(body(CASTER, [0.0, 400.0, 0.0], 0.0), Some(3));
+        let near = body(3, [200.0, 400.0, 0.0], 0.0);
+        let mut taken = 0.0;
+        for step in 0..4 {
+            tracker.observe(
+                2_000 + step * 25,
+                &[idle, other, near],
+                rules,
+                0,
+                own(100, 100),
+                clear,
+            );
+            taken += tracker.effect(3).force[BEST];
+        }
+        assert_eq!(taken, 4.0 * 6.0);
     }
 }

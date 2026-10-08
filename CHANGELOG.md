@@ -19,6 +19,10 @@ tests check this file):
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 
+## Unreleased
+
+- Your drain now empties your victim's nameplate Force bar by exactly what it took (your own heal says how much), and what it shows of the server's drain speed and strength is used for everyone else's drain and lightning _(Sol)_
+
 ## 2026.1008.1 (Alpha) | 08/10/2026
 
 The SJK UI becomes the default menu style, with pop-up cards, its credits and the
