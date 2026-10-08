@@ -21,6 +21,7 @@ impl ViewerConsole {
         self.changelog.close();
         self.credits.close();
         self.update_panel.close();
+        self.profile_panel.close();
         self.identity_panel.close();
         self.dead_key.settle();
         let file = path

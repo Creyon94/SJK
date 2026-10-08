@@ -27,6 +27,8 @@ pub(crate) enum MainDestination {
     Update,
     /// The identity page, drawn by the console over the menu.
     Identity,
+    /// The Profile page, drawn by the console over the menu.
+    Profile,
     /// Exit to the desktop.
     Quit,
 }
@@ -98,6 +100,10 @@ impl ClientMenu {
             }
             MainDestination::Identity => {
                 console.open_identity_panel();
+                MenuAction::None
+            }
+            MainDestination::Profile => {
+                console.open_profile_panel(crate::console::profile_panel::Tab::Profile);
                 MenuAction::None
             }
             MainDestination::Quit => MenuAction::Quit,

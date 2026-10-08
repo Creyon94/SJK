@@ -1703,6 +1703,16 @@ are in [identity.md](identity.md).
   the bio (`identity name` says the name is the one played under), `identity key` prints
   the key id and file,
   `identity who [slot]` lists known players (with a slot, that player's bio).
+- The Profile page (the SJK UI's main page > SJK > Profile, the classic menu's SJK
+  page, the in-game SJK menu, or the `profile` command) shows the player's profile as
+  others read it on the hub: name, verified, member since, other names, medals, the
+  bio (written there, up to 6 lines under the hub's rules), their record from the
+  achievement counts, and a second tab, the achievements board (`achievements`). It
+  has the SJK UI's look in every menu style; its Identity settings button opens the
+  Identity page ([identity.md](identity.md#profile)).
+- Achievements are counted in matches on servers and kept in `achievements.json`
+  beside `identity.key`, sent to the hub with the identity on; an unlock says so in the
+  console and as a centre print ([identity.md](identity.md#achievements)).
 - The scoreboard (every style) draws SJK's emblem at the end of the name of a
   player the hub knows (the SJK UI's right after the name), in gold when the
   hub's operator vouches for them, then up to three ribbon bars for the medals the

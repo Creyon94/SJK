@@ -347,6 +347,30 @@ pub(crate) fn set_bio(bio: String) -> bool {
         .is_some()
 }
 
+/// Give the service the counts the client keeps for its achievements (`achievements.rs`),
+/// to send to the hub; false when the service has not started (the identity is off).
+pub(crate) fn set_achievement_counts(counts: &std::collections::BTreeMap<String, u64>) -> bool {
+    lock()
+        .service
+        .as_ref()
+        .map(|service| service.set_achievement_counts(counts.clone()))
+        .is_some()
+}
+
+/// The achievements the hub holds for the player, once their profile came; `None`
+/// before that or with the feature off.
+pub(crate) fn own_achievements() -> Option<Vec<sjk_identity::Achievement>> {
+    lock().service.as_ref()?.with_snapshot(|snapshot| {
+        if matches!(
+            snapshot.status,
+            sjk_identity::Status::Disabled | sjk_identity::Status::NoHub
+        ) {
+            return None;
+        }
+        snapshot.me.as_ref().map(|me| me.achievements.clone())
+    })
+}
+
 /// Ask the hub for another player's profile (their bio).
 pub(crate) fn look_up(key_id: &str) {
     if let Some(service) = lock().service.as_ref() {
@@ -377,5 +401,7 @@ mod tests {
         assert_eq!(hub_mark(3, "Sol"), None);
         assert!(player_report_outcome().is_none());
         assert!(own_medals().is_none());
+        assert!(own_achievements().is_none());
+        assert!(!set_achievement_counts(&std::collections::BTreeMap::new()));
     }
 }

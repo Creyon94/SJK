@@ -126,7 +126,7 @@ const MAIN: [Entry; 5] = [
     ),
     entry(
         "SJK",
-        "What's new, updates, credits, your identity",
+        "Your profile and achievements, what's new, credits",
         Step::Page(Page::Sjk),
     ),
     entry("Quit", "Leave SJK", Step::Page(Page::Quit)),
@@ -161,9 +161,9 @@ const SJK: [Entry; 5] = [
         open(MainDestination::Credits),
     ),
     entry(
-        "Identity",
-        "Your SJK name, bio and badge",
-        open(MainDestination::Identity),
+        "Profile",
+        "Your medals, bio, record and achievements",
+        open(MainDestination::Profile),
     ),
     entry("Back", "", Step::Back),
 ];

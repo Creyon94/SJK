@@ -41,6 +41,13 @@ pub(crate) mod debug_panel;
 pub(crate) mod director;
 #[path = "identity_panel.rs"]
 pub(crate) mod identity_panel;
+#[path = "console_profile_page.rs"]
+mod profile_page;
+#[path = "profile_panel.rs"]
+pub(crate) mod profile_panel;
+pub(crate) use profile_page::{
+    ACHIEVEMENTS_COMMAND, ACHIEVEMENTS_HELP, PROFILE_COMMAND, PROFILE_HELP,
+};
 #[path = "console_qcommon.rs"]
 mod qcommon;
 #[path = "update_panel.rs"]
@@ -136,6 +143,7 @@ pub(crate) struct ViewerConsole {
     update_panel: update_panel::Panel,
     /// The Identity page, drawn in place of the console while open.
     identity_panel: identity_panel::Panel,
+    profile_panel: profile_panel::Panel,
     /// The Import page (a dropped `.cfg`), drawn in place of the console while open.
     config_import: config_import_panel::Panel,
     userinfo_dirty: Arc<AtomicBool>,
@@ -275,6 +283,7 @@ impl ViewerConsole {
                 || self.credits.is_open()
                 || self.update_panel.is_open()
                 || self.identity_panel.is_open()
+                || self.profile_panel.is_open()
                 || self.config_import.is_open())
     }
 
@@ -705,6 +714,9 @@ impl ViewerConsole {
         if let Some(draw_list) = self.identity_panel_draw_list() {
             return draw_list;
         }
+        if let Some(draw_list) = self.profile_panel_draw_list() {
+            return draw_list;
+        }
         if let Some(draw_list) = self.debug_panel_draw_list() {
             return draw_list;
         }
@@ -765,6 +777,7 @@ impl ViewerConsole {
             self.credits.close();
             self.update_panel.close();
             self.identity_panel.close();
+            self.profile_panel.close();
             self.config_import.close();
         }
     }

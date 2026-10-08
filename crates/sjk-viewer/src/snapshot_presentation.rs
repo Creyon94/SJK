@@ -292,6 +292,7 @@ impl GpuState {
             self.auto_opened_team_menu = true;
             self.gameplay_input.release_keys();
         }
+        let obituaries_before = self.obituaries.decoded();
         if observe_events {
             observe(
                 snapshot,
@@ -328,6 +329,14 @@ impl GpuState {
                     bsp: &self.bsp,
                     trace_scratch: &mut self.trace_scratch,
                 },
+            );
+            crate::achievements_frame::observe(
+                &mut self.achievement_tracker,
+                &self.obituaries,
+                session,
+                snapshot,
+                obituaries_before,
+                visual_now,
             );
         }
         if let Some(adapter) = &mut self.legacy_world_adapter {

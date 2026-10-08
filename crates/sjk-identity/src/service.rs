@@ -9,8 +9,8 @@
 use crate::hub::{Hub, HubError};
 use crate::keys::Identity;
 use crate::report::{BugReport, PlayerReport, WorldNote};
-use crate::wire::{Presence, Profile, names_match};
-use std::collections::HashMap;
+use crate::wire::{Achievement, Presence, Profile, names_match};
+use std::collections::{BTreeMap, HashMap};
 use std::net::SocketAddr;
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender, channel};
 use std::sync::{Arc, Mutex, MutexGuard};
@@ -23,6 +23,11 @@ const POLL_EVERY: Duration = Duration::from_secs(15);
 /// How often the player's own profile is read again while registered, so a medal
 /// the SJK team gives during a session shows without a restart.
 const PROFILE_EVERY: Duration = Duration::from_secs(600);
+/// Shortest time between two sendings of the achievement counts.
+const ACHIEVEMENTS_EVERY: Duration = Duration::from_secs(60);
+/// How long counts the hub held back (over an hourly allowance) wait before they are
+/// sent again unchanged, and how long a refusal waits.
+const ACHIEVEMENTS_AGAIN: Duration = Duration::from_secs(3_600);
 /// First wait after a failure, doubled up to [`RETRY_MAX`].
 const RETRY_MIN: Duration = Duration::from_secs(10);
 const RETRY_MAX: Duration = Duration::from_secs(120);
@@ -138,6 +143,8 @@ enum Command {
     /// The in-game name the player now wears.
     Name(String),
     SetBio(String),
+    /// The counts the client keeps for its achievements, by id.
+    Achievements(BTreeMap<String, u64>),
     LookUp(String),
     Report(BugReport),
     PlayerReport(PlayerReport),
@@ -178,6 +185,11 @@ struct Worker {
     lookups: Vec<String>,
     /// Notes the hub took, as (tag, hub id), while their pictures may come.
     notes_sent: Vec<(u64, i64)>,
+    /// The achievement counts the client keeps, the last ones the hub was sent, and
+    /// when they may be sent next.
+    counts: BTreeMap<String, u64>,
+    counts_sent: Option<BTreeMap<String, u64>>,
+    due_counts: Instant,
 }
 
 /// What the player is told of a report or a note: what the hub stored it as, or why
@@ -234,6 +246,9 @@ impl Worker {
             backoff: RETRY_MIN,
             lookups: Vec::new(),
             notes_sent: Vec::new(),
+            counts: BTreeMap::new(),
+            counts_sent: None,
+            due_counts: now,
         }
     }
 
@@ -287,6 +302,7 @@ impl Worker {
                 }
             }
             Command::SetBio(bio) => self.set_bio(&bio),
+            Command::Achievements(counts) => self.counts = counts,
             Command::Report(mut report) => {
                 if report.name.is_empty() {
                     report.name = self.name.clone().unwrap_or_default();
@@ -415,8 +431,16 @@ impl Worker {
     }
 
     fn set_bio(&mut self, bio: &str) {
+        // The hub's rules, checked here first so the player hears why at once.
+        let bio = match crate::bio::check(bio) {
+            Ok(bio) => bio,
+            Err(error) => {
+                self.update(|snapshot| snapshot.notice = Some(error.to_string()));
+                return;
+            }
+        };
         let outcome = match (self.hub.as_mut(), self.registered) {
-            (Some(hub), true) => hub.set_bio(&self.identity, bio),
+            (Some(hub), true) => hub.set_bio(&self.identity, &bio),
             _ => {
                 self.update(|snapshot| {
                     snapshot.notice = Some("not connected to the hub".to_owned())
@@ -488,14 +512,70 @@ impl Worker {
             wait = wait.min(self.due_name.saturating_duration_since(now));
         }
         wait = wait.min(self.due_profile.saturating_duration_since(now));
+        if self.counts_waiting() {
+            wait = wait.min(self.due_counts.saturating_duration_since(now));
+        }
         if !self.lookups.is_empty() {
             wait = Duration::ZERO;
         }
         wait
     }
 
+    /// Whether the hub should hear the achievement counts: they changed since they
+    /// were last sent, or one is above what the hub holds (it was held back by its
+    /// hourly allowance) and the last sending is an hour old.
+    fn counts_waiting(&self) -> bool {
+        if self.counts.is_empty() {
+            return false;
+        }
+        if self.counts_sent.as_ref() != Some(&self.counts) {
+            return true;
+        }
+        let held = lock(&self.snapshot).me.as_ref().map(|me| {
+            self.counts.iter().any(|(id, &count)| {
+                match me.achievements.iter().find(|held| &held.id == id) {
+                    Some(held) => count > held.progress && held.unlocked == 0,
+                    None => count > 0,
+                }
+            })
+        });
+        held.unwrap_or(false)
+    }
+
+    /// Send the achievement counts if they are waiting and due.
+    fn send_counts(&mut self, now: Instant) -> Option<HubError> {
+        if now < self.due_counts || !self.counts_waiting() {
+            return None;
+        }
+        let hub = self.hub.as_mut()?;
+        match hub.set_achievements(&self.identity, &self.counts) {
+            Ok(achievements) => {
+                set_achievements(&mut lock(&self.snapshot), achievements);
+                self.counts_sent = Some(self.counts.clone());
+                self.due_counts = now + ACHIEVEMENTS_EVERY;
+                // Counts the hub held back wait an hour unless they change.
+                if self.counts_waiting() {
+                    self.due_counts = now + ACHIEVEMENTS_AGAIN;
+                }
+                None
+            }
+            Err(HubError::Rejected { status, .. }) if (400..500).contains(&status) => {
+                // A refusal (a quota, an older hub without achievements) is not
+                // retried soon; it is not the hub being down either.
+                self.counts_sent = Some(self.counts.clone());
+                self.due_counts = now + ACHIEVEMENTS_AGAIN;
+                None
+            }
+            Err(failure) => {
+                self.due_counts = now + self.backoff;
+                Some(failure)
+            }
+        }
+    }
+
     /// A new name, the claim, the roster read and the pending lookups, where due.
     fn run_due(&mut self, now: Instant) {
+        let counts_error = self.send_counts(now);
         let Some(hub) = self.hub.as_mut() else { return };
         let mut error = None;
         // A name worn since registering joins the key's history at the hub (a
@@ -570,7 +650,7 @@ impl Worker {
                 }
             }
         }
-        match error {
+        match error.or(counts_error) {
             Some(failure) => {
                 self.backoff = (self.backoff * 2).min(RETRY_MAX);
                 self.update(|snapshot| snapshot.status = Status::Failed(failure.to_string()));
@@ -584,6 +664,13 @@ impl Worker {
                 });
             }
         }
+    }
+}
+
+/// Put the hub's answer about the player's achievements into their profile.
+fn set_achievements(snapshot: &mut Snapshot, achievements: Vec<Achievement>) {
+    if let Some(me) = snapshot.me.as_mut() {
+        me.achievements = achievements;
     }
 }
 
@@ -658,6 +745,13 @@ impl Service {
         let _ = self.commands.send(Command::SetBio(bio));
     }
 
+    /// The counts the client keeps for the achievements it counts, by id: sent to the
+    /// hub once registered, at most once a minute, and again when the hub held part
+    /// back. The hub's answer arrives in the profile's `achievements`.
+    pub fn set_achievement_counts(&self, counts: BTreeMap<String, u64>) {
+        let _ = self.commands.send(Command::Achievements(counts));
+    }
+
     /// Send a bug report; its outcome arrives in [`Snapshot::report`].
     pub fn report(&self, report: BugReport) {
         let _ = self.commands.send(Command::Report(report));
@@ -723,6 +817,10 @@ mod tests {
         log: Arc<Mutex<Vec<String>>>,
         fail: Arc<AtomicBool>,
         roster: Arc<Mutex<Vec<Presence>>>,
+        /// The most of any count the fake hub takes, as its hourly allowance would.
+        cap: Arc<Mutex<Option<u64>>>,
+        /// The achievements the fake hub holds, as its profiles list them.
+        held: Arc<Mutex<Vec<Achievement>>>,
     }
 
     impl Fake {
@@ -750,6 +848,7 @@ mod tests {
             created: 0,
             names: Vec::new(),
             medals: Vec::new(),
+            achievements: Vec::new(),
         }
     }
 
@@ -766,8 +865,10 @@ mod tests {
             self.record(format!("bio {bio}")).map(|()| profile(""))
         }
         fn profile(&mut self, key_id: &str) -> Result<Profile, HubError> {
-            self.record(format!("lookup {key_id}"))
-                .map(|()| profile("Other"))
+            self.record(format!("lookup {key_id}")).map(|()| Profile {
+                achievements: self.held.lock().unwrap().clone(),
+                ..profile("Other")
+            })
         }
         fn claim(
             &mut self,
@@ -810,6 +911,26 @@ mod tests {
         fn note_image(&mut self, _: &Identity, id: i64, jpeg: &[u8]) -> Result<(), HubError> {
             Fake::record(self, format!("image {id} {} bytes", jpeg.len()))
         }
+        fn set_achievements(
+            &mut self,
+            _: &Identity,
+            progress: &BTreeMap<String, u64>,
+        ) -> Result<Vec<Achievement>, HubError> {
+            let line: Vec<String> = progress.iter().map(|(id, n)| format!("{id}={n}")).collect();
+            Fake::record(self, format!("achievements {}", line.join(",")))?;
+            let cap = *self.cap.lock().unwrap();
+            let held: Vec<Achievement> = progress
+                .iter()
+                .map(|(id, &count)| Achievement {
+                    id: id.clone(),
+                    progress: cap.map_or(count, |cap| count.min(cap)),
+                    goal: 100,
+                    unlocked: 0,
+                })
+                .collect();
+            *self.held.lock().unwrap() = held.clone();
+            Ok(held)
+        }
     }
 
     fn worker(fake: &Fake, now: Instant) -> (Worker, Arc<Mutex<Snapshot>>) {
@@ -842,6 +963,80 @@ mod tests {
             slot,
             name: name.to_owned(),
         }
+    }
+
+    fn counts(pairs: &[(&str, u64)]) -> BTreeMap<String, u64> {
+        pairs.iter().map(|(id, n)| ((*id).to_owned(), *n)).collect()
+    }
+
+    fn sent_counts(fake: &Fake) -> Vec<String> {
+        fake.log()
+            .into_iter()
+            .filter(|line| line.starts_with("achievements"))
+            .collect()
+    }
+
+    #[test]
+    fn achievement_counts_go_to_the_hub_at_most_once_a_minute() {
+        let fake = Fake::default();
+        let t0 = Instant::now();
+        let (mut worker, snapshot) = worker(&fake, t0);
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.handle(Command::Achievements(counts(&[("kills_100", 3)])), t0);
+        worker.tick(t0);
+        assert_eq!(sent_counts(&fake), ["achievements kills_100=3"]);
+        let me = lock(&snapshot).me.clone().unwrap();
+        assert_eq!(me.achievements[0].progress, 3);
+        // The same counts are not sent again; new ones wait for the minute.
+        worker.tick(t0 + Duration::from_secs(30));
+        worker.handle(
+            Command::Achievements(counts(&[("kills_100", 4)])),
+            t0 + Duration::from_secs(30),
+        );
+        worker.tick(t0 + Duration::from_secs(40));
+        assert_eq!(sent_counts(&fake).len(), 1);
+        worker.tick(t0 + Duration::from_secs(61));
+        assert_eq!(
+            sent_counts(&fake).last().unwrap(),
+            "achievements kills_100=4"
+        );
+        worker.tick(t0 + Duration::from_secs(5_000));
+        assert_eq!(sent_counts(&fake).len(), 2, "nothing waits");
+    }
+
+    #[test]
+    fn counts_the_hub_held_back_are_sent_again_an_hour_later() {
+        let fake = Fake::default();
+        *fake.cap.lock().unwrap() = Some(2);
+        let t0 = Instant::now();
+        let (mut worker, _) = worker(&fake, t0);
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.handle(Command::Achievements(counts(&[("kills_100", 5)])), t0);
+        worker.tick(t0);
+        worker.tick(t0 + Duration::from_secs(120));
+        assert_eq!(sent_counts(&fake).len(), 1, "held back: waits the hour");
+        *fake.cap.lock().unwrap() = None;
+        worker.tick(t0 + Duration::from_secs(3_601));
+        assert_eq!(sent_counts(&fake).len(), 2);
+        worker.tick(t0 + Duration::from_secs(8_000));
+        assert_eq!(sent_counts(&fake).len(), 2, "all taken: nothing waits");
+    }
+
+    #[test]
+    fn a_bio_breaking_the_rules_is_refused_before_the_hub_hears_it() {
+        let fake = Fake::default();
+        let t0 = Instant::now();
+        let (mut worker, snapshot) = worker(&fake, t0);
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.tick(t0);
+        worker.handle(Command::SetBio("hi \u{1F600}".to_owned()), t0);
+        assert!(!fake.log().iter().any(|line| line.starts_with("bio")));
+        assert_eq!(
+            lock(&snapshot).notice.as_deref(),
+            Some(crate::bio::BioError::Character.message())
+        );
+        worker.handle(Command::SetBio("  hello   there ".to_owned()), t0);
+        assert_eq!(fake.log().last().unwrap(), "bio hello there");
     }
 
     #[test]

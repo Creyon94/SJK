@@ -23,6 +23,9 @@ This page is the design and the current limits. The player-facing summary is
 | Players page and player reports | [players.rs](../crates/sjk-viewer/src/ingame_menu/players.rs), [player_report.rs](../crates/sjk-viewer/src/player_report.rs) |
 | Medals: catalogue, ribbons, pictures | [medals.rs](../crates/sjk-viewer/src/medals.rs), [medals/](../crates/sjk-viewer/src/medals/), [identity_panel_medals.rs](../crates/sjk-viewer/src/identity_panel_medals.rs) |
 | New medal pop-up | [medal_popup.rs](../crates/sjk-viewer/src/medal_popup.rs) |
+| Bio rules (shared word for word with the hub) | [bio.rs](../crates/sjk-identity/src/bio.rs) |
+| Profile page, `profile` and `achievements` commands | [profile_panel.rs](../crates/sjk-viewer/src/profile_panel.rs), [profile_panel_view.rs](../crates/sjk-viewer/src/profile_panel_view.rs), [console_profile_page.rs](../crates/sjk-viewer/src/console_profile_page.rs) |
+| Achievements: catalogue, counts, tracker | [achievements.rs](../crates/sjk-viewer/src/achievements.rs), [achievements/tracker.rs](../crates/sjk-viewer/src/achievements/tracker.rs), [achievements_frame.rs](../crates/sjk-viewer/src/achievements_frame.rs) |
 | The hub itself and its protocol | repository Sol-Vulpes/SJK-hub (`PROTOCOL.md`) |
 
 The hub is a separate repository because it is deployed on its own schedule. The
@@ -250,14 +253,127 @@ Medals are public: anyone can read a key's profile and the presence list of a se
 so a player's medals, counts, dates and notes are visible to everyone, as their hub
 name and verified flag are. The client sends nothing about medals.
 
+## Profile
+
+The Profile page (the SJK UI's main page > SJK > Profile, the classic menu's SJK
+page, the in-game SJK menu, or the `profile` command) is the player's SJK profile
+as other players read it on the hub, in the SJK UI's look in every menu style:
+
+- who they are: the hub name with its colours, Verified by the SJK team or not yet,
+  the date the key was registered (`Member since`), the key id and up to three other
+  names worn; Identity settings opens the Identity page (the switch, the key, the hub);
+- their record, from the achievement counts kept on this PC (players defeated, saber
+  kills, best streak, duels won, flags captured, maps and servers played, time
+  played) and the last four achievements unlocked;
+- the bio, written in a box of up to 6 lines (Enter saves, Shift+Enter starts a new
+  line, Revert puts back the hub's copy), with its counts, the hub's answer and the
+  rules in a line under it;
+- their medals (picture, name, date given) and how many achievements are unlocked,
+  with a way to the board.
+
+Its second tab is the achievements board (below; the `achievements` command opens
+it). With the identity off, or the hub out of reach, the page says so: the bio cannot
+be written and the record and board show this PC's counts.
+
+### The bio's rules
+
+A bio is free text every player can read, so it keeps to what SJK's fonts draw and
+to nothing that hides, reorders or piles characters up. Before it is checked, line
+ends become `\n`, each line's runs of spaces and tabs become one space and its ends
+are trimmed, and runs of blank lines become one. Then it must hold at most 500
+characters, at most 6 lines, no run of one character longer than 8, and only Latin
+letters (with their accented and extended forms, Vietnamese included) and Cyrillic
+ones, ASCII digits, the space, newlines, ``. , ! ? ' " - : ; ( ) [ ] & / + # @ % * _ =
+~ < > | $`` and colour codes (`^` and a digit). That refuses emoji, symbols, combining
+marks (no piled-up "Zalgo" text), zero-width and direction-changing characters, other
+spaces, private-use and unassigned code points and control characters.
+
+[bio.rs](../crates/sjk-identity/src/bio.rs) holds the rules, and the hub's copy is the
+same code. They are applied three times: the bio box (and the Identity page's field)
+cannot type what a bio cannot hold; the client checks the whole bio before sending it
+and says which rule it breaks; the hub refuses a bio that breaks one (`bio_length`,
+`bio_characters`, `bio_lines`, `bio_noise`). And whatever a hub sends back, the
+client shows a bio only through `bio::for_display`, which drops what the rules
+refuse, so a bio stored before the rules, or a foreign hub, cannot put anything else
+on screen. A bio is plain text: nothing in it is ever a link or markup.
+
+## Achievements
+
+An achievement is a milestone of the player's own play. Like a medal it grants
+nothing. The catalogue, in [achievements.rs](../crates/sjk-viewer/src/achievements.rs)
+and in the hub (same ids):
+
+| Achievement | Id | Goal | Counted by |
+| --- | --- | --- | --- |
+| First Blood, Centurion, Legend of the Arena | `first_blood`, `kills_100`, `kills_1000` | 1, 100, 1000 players defeated | client |
+| Blademaster | `saber_kills_100` | 100 players defeated with a saber | client |
+| Rampage, Unstoppable | `streak_5`, `streak_10` | 5, 10 players defeated in one life | client |
+| Unlimited Power | `dark_side_25` | 25 players defeated by Force lightning or drain | client |
+| Watch Your Step | `ledge_10` | 10 players finished by a fall, a pit or a hazard after the player hit or pushed them | client |
+| Arsenal | `arsenal` | players defeated with 8 kinds of weapon | client |
+| Duelist, Duel Master | `duel_wins_10`, `duel_wins_100` | 10, 100 duels won | client |
+| Flag Runner | `captures_10` | 10 flags captured | client |
+| Traveller, Galaxy Tour | `maps_10`, `maps_25` | 10, 25 different maps played | client |
+| Server Hopper | `servers_5` | 5 different servers played on | client |
+| Regular, Veteran | `hours_10`, `hours_100` | 10, 100 hours played on servers | client |
+| Storyteller | `storyteller` | a bio | hub |
+| Bug Reporter | `bug_reporter` | a bug report the hub took | hub |
+| Surveyor | `surveyor` | 5 world notes the hub took | hub |
+| Decorated | `decorated` | a medal | hub |
+
+What the client counts comes from its live matches on servers, never a demo or a game
+it hosts ([tracker.rs](../crates/sjk-viewer/src/achievements/tracker.rs), fed each
+live snapshot by `achievements_frame.rs`):
+
+- a kill is an obituary (`EV_OBITUARY`) whose attacker is the player's own client
+  number (`GameState::client_num`, so watching someone else counts nothing) and whose
+  victim is another player, not a teammate in a team game; its means of death says a
+  saber, Force lightning or drain (`MOD_FORCE_DARK`), a fall or hazard (water, slime,
+  lava, crush, falling, `trigger_hurt`: the game credits the player who pushed or hit
+  the victim last), and the weapon kind for Arsenal (15 kinds);
+- a streak counts kills since the player's own last death (or suicide), and the best
+  one is kept;
+- a duel is won by a kill of the opponent of the private duel the player state shows
+  (`duelInProgress`, `duelIndex`, read the snapshot before too, as the duel ends with
+  the kill), or any kill in a Duel or Power Duel game;
+- captures are the player's own `persistant[PERS_CAPTURES]` rising (a rise of at most
+  3 at once, with the same team; a team, map, server or slot change starts afresh);
+- a map and a server count once the player is in the game there (not spectating, not
+  following, not in the intermission), and time played is the time between such
+  snapshots, at most a second at once.
+
+The counts are kept in `achievements.json` beside `identity.key` (written at most
+every 20 seconds while they change, through a temporary file, and on the way out),
+so they work with the identity off. With it on, the identity service sends the
+counts of the achievements the client counts to the hub (`PUT /v1/achievements`, a
+signed request, at most once a minute, and again an hour later when the hub held
+part back). The hub keeps each key's best count, up to the goal, and when it was
+reached. Because the hub cannot see a match, it takes the counts as the player's own
+record and bounds how fast each may rise (an hourly allowance per achievement: what
+is over is taken in a later hour); a count the client keeps is never lower than the
+hub's, so another PC or a reinstall takes the hub's counts back. Achievements the hub
+counts itself come from what the key did there and no request can set them.
+
+When the client sees one of its achievements reach its goal in a match, it writes
+"Achievement unlocked" to the console and as a centre print. The board shows every
+achievement in three columns: a medallion with the goal that fills with the count,
+gold once unlocked, the name, the category (Combat, Duels and flags, Journeys,
+Community), what to do, a bar and the count or the date it was unlocked.
+
+What this proves: an achievement is the player's own record, as a claim is the
+player's own word. A modified client or an edited `achievements.json` can send counts
+nothing happened for; the hourly allowances only slow that down. Achievements a
+dedicated server would vouch for are not built.
+
 ## Settings and commands
 
 - `cl_identity` (default 1; Settings > Network > SJK identity) turns the feature on.
 - `cl_hubUrl` (default `https://sjk.dfox.app`; Settings > Network > SJK hub) is the hub's address.
   It must be `https://host[:port]` with no path; plain `http://` is accepted for
   localhost only.
-- The Identity page (main menu > SJK > IDENTITY, the in-game SJK menu, or the `identity`
-  command) shows what the hub knows: the name worn now and up to three earlier ones,
+- `profile` opens the Profile page and `achievements` its board (again: closes it).
+- The Identity page (main menu > SJK > IDENTITY, the Profile page's Identity settings,
+  the in-game SJK menu, or the `identity` command) shows what the hub knows: the name worn now and up to three earlier ones,
   whether the key is verified, the key file's location and the players the hub knows here.
   Its controls are optional: the on/off switch, a bio field with Save, a button that copies
   the key id. The words do the same without it: `identity bio <text>` sets the bio,
@@ -278,6 +394,7 @@ permissions.
 ## Planned, not built
 
 The hub is meant to grow: a signed asset manifest, music and video, and private
-chat. None of that exists. A main-menu entry for the page is also not added (the
-main menu's rows are tight); the page opens from the in-game SJK menu and the
-`identity` command.
+chat. None of that exists. In the SJK UI the Identity page opens from the Profile
+page (its arc holds five entries), the in-game SJK menu and the `identity` command.
+Achievements a dedicated server would vouch for, and pictures for the achievements,
+are not made yet.

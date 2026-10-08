@@ -8,6 +8,7 @@
 
 #![warn(missing_docs)]
 
+pub mod bio;
 pub mod hub;
 mod keys;
 pub mod report;
@@ -18,4 +19,4 @@ pub use hub::{HttpHub, Hub, HubError, valid_base_url};
 pub use keys::{Identity, KeyError};
 pub use report::{BugReport, Category, PlayerReport, WorldNote};
 pub use service::{HubFactory, Location, ReportOutcome, Service, Settings, Snapshot, Status};
-pub use wire::{Medal, Presence, Profile, WornName, names_match, normal_form};
+pub use wire::{Achievement, Medal, Presence, Profile, WornName, names_match, normal_form};

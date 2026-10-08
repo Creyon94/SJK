@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 08/10/2026 | - | Profile page with medals, a bio under strict rules, and achievements
+- 5ef82f5 |  | Profile page with medals, a bio under strict rules, and achievements
 + 08/10/2026 | - | Quick wheel editor: Q (last page) in normal case
 - 8f60548 |  | Quick wheel editor: key names in capitals, the last-page note as written
 + 08/10/2026 | - | Quick wheel: Sol's icons for every action, and sounds

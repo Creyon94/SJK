@@ -198,6 +198,7 @@ impl ViewerConsole {
             || self.changelog_key(event)
             || self.update_panel_key(event)
             || self.identity_panel_key(event)
+            || self.profile_panel_key(event)
             || self.debug_panel_key(event)
         {
             return true;

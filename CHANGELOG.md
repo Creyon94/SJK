@@ -21,6 +21,8 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- Profile (SJK > Profile, or the profile command): your SJK profile as other players see it, with your medals, your name and the names you wore, your record and your bio, which you now write there on up to 6 lines. Bios keep to letters, digits, spaces and simple punctuation: no emoji, invisible or direction-changing characters, and nothing else shows even if a hub sent it _(Sol)_
+- Achievements: 21 to unlock, from First Blood to a hundred duels won, ten flags captured or 25 maps played, counted in your matches on servers and kept on the SJK hub with your profile; a centre print tells you when one unlocks, and Profile's Achievements tab (or the achievements command) shows the board _(Sol)_
 - Quick wheel: every choice has its own icon (custom commands share one), and the wheel plays the game's menu sounds as you change page, move to another choice and run one; Settings > Quick wheel > Wheel sounds turns them off _(Sol)_
 - The menus, the window title and the console call the client SJK instead of Sol JK _(Sol)_
 - Running water on walls stays on the wall: it no longer flickers or slides as you move or look around, and runs down in thinner streaks _(Sol)_

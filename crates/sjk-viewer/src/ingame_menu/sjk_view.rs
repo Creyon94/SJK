@@ -98,7 +98,7 @@ impl Entry {
             Self::Settings => "Every option and key, with search",
             Self::Servers => "Find another server; joining leaves this one",
             Self::Shot => "Frame shots and recordings: the camera and the sun",
-            Self::Sjk => "What's new, credits, identity, report a bug",
+            Self::Sjk => "Profile and achievements, what's new, report a bug",
             Self::Leave => "Leave the server, or quit",
         }
     }

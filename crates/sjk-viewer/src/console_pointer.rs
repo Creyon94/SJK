@@ -11,6 +11,7 @@ impl ViewerConsole {
             || self.changelog_pointer(event)
             || self.update_panel_pointer(event)
             || self.identity_panel_pointer(event)
+            || self.profile_panel_pointer(event)
             || self.debug_panel_pointer(event)
         {
             return;
