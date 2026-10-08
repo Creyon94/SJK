@@ -102,6 +102,7 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
     ("model", "Set player model and optional skin"),
     ("forcepowers", "Set the player force profile"),
     ("configstrings", "Print non-empty indexed configstrings"),
+    ("listEmojis", "List the chat emojis (cg_chatBoxEmojis)"),
     (
         "serverconfig",
         "List the JA+ server's options (forwarded to jaPRO/TaystJK servers)",

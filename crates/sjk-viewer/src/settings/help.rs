@@ -255,6 +255,10 @@ const HELP: &[(&str, &str)] = &[
     ),
     ("cg_drawChat", "Shows chat messages over the game."),
     (
+        crate::chat::emoji::CVAR,
+        "Shows emoji pictures in place of names like :poop: in new chat messages.",
+    ),
+    (
         crate::menu_hud::STYLE_CVAR,
         "Which HUD shows health, armor, Force and ammo: the game's, an installed HUD pack's, or SJK's.",
     ),

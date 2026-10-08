@@ -763,6 +763,8 @@
 - 0d215f1 |  | Initial JKR source
 
 = Creyon
++ 08/10/2026 | SJK #30 | Show JoF EternalJK's chat emojis
+- dc0cbcc |  | Show JoF EternalJK's chat emojis
 + 08/10/2026 | SJK #31 | Show the console input in its colour codes, as EternalJK does
 - d36af95 |  | Show the console input in its colour codes, as EternalJK does
 + 07/10/2026 | SJK #23 | Smooth melee kicks: predict them in a joined game and hold still through JA+'s own kicks

@@ -6,9 +6,10 @@ mod name;
 mod player_menu;
 
 use super::*;
+use crate::menu_widgets::MenuCanvas;
 use crate::text::{TextFace, visible_text_width_face};
 use layout::Geometry;
-use sjk_ui::{Color, Easing, FontWeight, Rect, TextAlign};
+use sjk_ui::{Color, DrawCommand, Easing, FontWeight, Rect, TextAlign};
 
 pub(super) fn tint(channel: Channel, alpha: f32) -> Color {
     match channel {
@@ -239,22 +240,96 @@ impl ChatOverlay {
                 for (row, range) in line.wrap.rows[..line.wrap.len].iter().enumerate() {
                     let color = Color::new(0.982, 0.987, 0.996, alpha);
                     let truncated = row + 1 == line.wrap.len && range.end < line.body.len();
-                    self.ui.text_fmt_aligned(
-                        format_args!(
-                            "{}{}",
-                            &line.body[range.clone()],
-                            if truncated { "..." } else { "" }
-                        ),
+                    body_row(
+                        &mut self.ui,
+                        BodyRow {
+                            text: &line.body[range.clone()],
+                            marks: &line.emojis,
+                            emojis: self.options.emojis.then_some(&self.emojis),
+                            truncated,
+                        },
+                        font,
                         Rect::new(x, body_y + row as f32 * g.row, g.width, row_box(g)),
                         g.font,
                         color,
-                        FontWeight::Regular,
-                        0.0,
-                        TextAlign::Start,
                     );
                 }
             }
         }
+    }
+}
+
+/// One wrapped row of a message body and the emojis its marks stand for.
+struct BodyRow<'a> {
+    text: &'a str,
+    marks: &'a [u16],
+    /// The pictures, while `cg_chatBoxEmojis` is on; off, a mark is a blank.
+    emojis: Option<&'a emoji::Emojis>,
+    truncated: bool,
+}
+
+/// Draw a body row: as one text when it holds no emoji, else as its text runs
+/// with each emoji picture between them, a run after a picture keeping the colour
+/// the row had reached.
+fn body_row(
+    ui: &mut MenuCanvas,
+    row: BodyRow<'_>,
+    font: &UiFont,
+    rect: Rect,
+    size: f32,
+    color: Color,
+) {
+    let ellipsis = if row.truncated { "..." } else { "" };
+    let is_mark = |character: char| emoji::mark_index(character).is_some();
+    if !row.text.contains(is_mark) {
+        ui.text_fmt_aligned(
+            format_args!("{}{ellipsis}", row.text),
+            rect,
+            size,
+            color,
+            FontWeight::Regular,
+            0.0,
+            TextAlign::Start,
+        );
+        return;
+    }
+    let mut x = rect.x;
+    let mut colour = "";
+    let mut rest = row.text;
+    loop {
+        let (run, after) = rest.split_at(rest.find(is_mark).unwrap_or(rest.len()));
+        let tail = if after.is_empty() { ellipsis } else { "" };
+        if !run.is_empty() || !tail.is_empty() {
+            ui.text_fmt_aligned(
+                format_args!("{colour}{run}{tail}"),
+                Rect::new(x, rect.y, (rect.right() - x).max(1.0), rect.height),
+                size,
+                color,
+                FontWeight::Regular,
+                0.0,
+                TextAlign::Start,
+            );
+            x += visible_text_width_face(font, run, size / font.height, TextFace::Regular);
+            colour = crate::text::last_colour(run).unwrap_or(colour);
+        }
+        let Some(mark) = after.chars().next() else {
+            break;
+        };
+        let picture = emoji::mark_index(mark)
+            .and_then(|index| row.marks.get(index))
+            .zip(row.emojis)
+            .and_then(|(&emoji, emojis)| emojis.picture(emoji));
+        if let Some((texture, uv)) = picture {
+            let side = emoji::side(size);
+            let _ = ui.draw_list_mut().push(DrawCommand::TexturedQuadUv {
+                rect: Rect::new(x, rect.y + (size - side) * 0.5, side, side),
+                texture,
+                color: Color::new(1.0, 1.0, 1.0, color.a),
+                uv,
+            });
+        }
+        x += emoji::advance(size);
+        rest = &after[mark.len_utf8()..];
     }
 }
 
@@ -309,6 +384,87 @@ impl<'a> Iterator for WrapRow<'a> {
 #[cfg(test)]
 mod tests {
     use super::center_rows;
+    use super::{BodyRow, body_row, emoji};
+    use crate::menu_widgets::MenuCanvas;
+    use sjk_ui::{Color, DrawCommand, Rect};
+
+    /// The texts and emoji rectangles drawn for `body` with `names` loaded.
+    fn drawn(names: &[&str], body: &str, truncated: bool) -> (Vec<(f32, String)>, Vec<Rect>) {
+        drawn_shown(names, body, truncated, true)
+    }
+
+    fn drawn_shown(
+        names: &[&str],
+        body: &str,
+        truncated: bool,
+        shown: bool,
+    ) -> (Vec<(f32, String)>, Vec<Rect>) {
+        let emojis = emoji::Emojis::from_names(names);
+        let (text, marks) = emojis.markup(body);
+        let mut ui = MenuCanvas::with_text_capacity(512);
+        ui.begin_transparent([640.0, 480.0]);
+        let font = crate::text::test_font();
+        body_row(
+            &mut ui,
+            BodyRow {
+                text: &text,
+                marks: &marks,
+                emojis: shown.then_some(&emojis),
+                truncated,
+            },
+            &font,
+            Rect::new(10.0, 20.0, 400.0, 13.0),
+            12.0,
+            Color::new(1.0, 1.0, 1.0, 1.0),
+        );
+        let mut texts = Vec::new();
+        let mut pictures = Vec::new();
+        for command in ui.draw_list().commands() {
+            match command {
+                DrawCommand::Text { rect, text, .. } => {
+                    texts.push((rect.x, ui.stored_text(*text).to_owned()));
+                }
+                DrawCommand::TexturedQuadUv { rect, .. } => pictures.push(*rect),
+                _ => {}
+            }
+        }
+        (texts, pictures)
+    }
+
+    #[test]
+    fn a_row_without_emojis_is_one_text() {
+        let (texts, pictures) = drawn(&[":x:"], "^2plain", true);
+        assert_eq!(texts, [(10.0, "^2plain...".to_owned())]);
+        assert!(pictures.is_empty());
+    }
+
+    #[test]
+    fn an_emoji_sits_between_its_text_runs_and_the_colour_carries_on() {
+        // Test glyphs advance 8 units at height 12, so "^1hi " is 24 wide.
+        let (texts, pictures) = drawn(&[":x:"], "^1hi :x: there", false);
+        let after = 10.0 + 24.0 + emoji::advance(12.0);
+        assert_eq!(
+            texts,
+            [(10.0, "^1hi ".to_owned()), (after, "^1 there".to_owned())]
+        );
+        assert_eq!(pictures.len(), 1);
+        assert_eq!(pictures[0].x, 34.0);
+        assert_eq!(pictures[0].width, emoji::side(12.0));
+    }
+
+    #[test]
+    fn switched_off_the_pictures_leave_their_blanks() {
+        let (texts, pictures) = drawn_shown(&[":x:"], "hi :x: there", false, false);
+        assert!(pictures.is_empty());
+        assert_eq!(texts[1].0, 10.0 + 24.0 + emoji::advance(12.0));
+    }
+
+    #[test]
+    fn a_row_ending_in_an_emoji_still_shows_the_ellipsis() {
+        let (texts, pictures) = drawn(&[":x:"], "a:x:", true);
+        assert_eq!(pictures.len(), 1);
+        assert_eq!(texts.last().map(|(_, text)| text.as_str()), Some("..."));
+    }
 
     #[test]
     fn center_rows_wrap_long_rows_at_a_space() {

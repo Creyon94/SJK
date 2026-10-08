@@ -100,6 +100,11 @@ impl ViewerConsole {
                 )
             }
             "afk" | "colorname" | "colorstring" => self.identity_command(name, args),
+            "listemojis" => Ok(crate::chat::emoji::list_lines(
+                self.script_vfs
+                    .as_ref()
+                    .ok_or("No asset search path attached")?,
+            )),
             "serverconfig" => self.server_config(session),
             "plugindisable" => self.plugin_disable(args),
             _ => Err(format!("Unsupported client command: {name}")),

@@ -59,6 +59,18 @@ test: SJK UI console (ui_menuStyle sjk): same text, in the legible colours its r
 test: A plain command stays white; a long input still scrolls and the cursor is unchanged.
 note: Creyon94 checked both consoles in game on Windows 11.
 
+[chat-emojis]
+area: Console & chat
+title: Chat emojis from JoF EternalJK (SJK PR #30)
+change: cg_chatBoxEmojis 1 (default 0; Settings > HUD > Chat emojis) draws gfx/emoji in chat.
+change: A name like :poop: becomes its picture in messages that arrive while it is on.
+change: listEmojis prints the names; the pictures come from EternalJK/japro-assets.pk3.
+test: With EternalJK/japro-assets.pk3 in GameData: listEmojis ends with the emoji count.
+test: cg_chatBoxEmojis 1, then say :poop: on a server: the picture shows in the chat line.
+test: Colours carry on after a picture; a long line wraps with its pictures in place.
+test: cg_chatBoxEmojis 0 (default): chat looks as before.
+note: Creyon94 checked it in game on Windows 11 on a JoF server; needs the EternalJK folder.
+
 # ---- Input ----
 
 [locked-binds]
