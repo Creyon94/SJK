@@ -7,6 +7,37 @@ SJK currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Nameplates: the rest of the Force and health rules
+
+SJK-only branch `personal/nameplate-sources` (08/10/2026, based on `5daf065`,
+Windows 11): after drain, Sol asked for every prediction we had forgotten. Against
+OpenJK's `w_force.c`, `g_combat.c`, `bg_pmove.c` and `bg_saber.c` (and SJK's ports
+in `sjk-game-jka`), the estimates gained, by what each needs to be seen:
+
+- shots ([force_streams.rs](../crates/sjk-viewer/src/hud/force_streams.rs), which
+  replaces `drain_estimate.rs`): lightning (1-2 a 50 ms shot, doubled two-handed at
+  level 3, 300-unit arc), confirmed by a renewed electrification; grip (its victim
+  from the 256-unit line at its start, 2 a second past the shield); drain now also
+  heals the drainer by what it takes (it was 0.01-0.04 a millisecond guessed);
+- health: rage's 2 every 150/300/450 ms and its halving of blows and falls,
+  protect's 40/60/80% kept off (it was "anything"), team heal from `EV_TEAM_POWER`'s
+  named teammates (exact);
+- Force: the force jump as the server charges it (nothing to start, then by the
+  rise's speed every 200/300 ms; it was half the price at the start), the saber
+  specials' flat prices (kata 50, cartwheel 10, the 25s), the wall moves' 6, a grip's
+  start of 30, heal and team powers at their price (none show as active), an
+  energize's gift, protect paying for blows, absorb giving back against a push or
+  pull, `EV_NOAMMO` 0 proving under 50, the Jedi Master's full pool, and a disarm no
+  longer charged as a throw. Drain and lightning were proven to start from their
+  price instead of 25.
+
+The vitals estimator now reads a snapshot's events first (`read`), lets the shots be
+rebuilt, then applies both (`apply`); it hands the Force estimate what it saw
+(`ForceFacts`). Verified: unit tests for each rule (143 HUD tests). Not verified:
+no game was started; other players' levels are guessed at 3; JA+ (closed source) may
+differ from OpenJK; held saber blocks in mods, hurt triggers and movers are not
+seen.
+
 ## Camera control
 
 SJK-only branch `personal/camera-control` (08/10/2026, based on `5daf065`,
@@ -60,8 +91,8 @@ SJK-only branch `personal/nameplate-drain` (08/10/2026, based on `27696e5`,
 Windows 11): Sol asked that the nameplates' Force estimate count what drain takes
 from its victims, theirs or anyone's, and said the verified tick was misaligned
 with the name. Drain is now rebuilt shot by shot
-([drain_estimate.rs](../crates/sjk-viewer/src/hud/drain_estimate.rs), see
-[client.md](client.md) "Force" and "Drain"): every 50 ms, level 3's 512-unit arc
+(now [force_streams.rs](../crates/sjk-viewer/src/hud/force_streams.rs), see
+[client.md](client.md) "Force" and "Force streams"): every 50 ms, level 3's 512-unit arc
 or levels 1-2's line from each drainer's origin and view, with the map's walls
 traced; 2/3/4 a shot (absorb reduces it and gives a point back), the victim's
 refill held 800 ms, the drainer paying 5 and holding its own refill 500 ms. The

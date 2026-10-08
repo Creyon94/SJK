@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 08/10/2026 | - | Nameplates: predict lightning, grip, rage, protect, team powers and Force costs
+- 1d36983 |  | Nameplates: predict lightning, grip, rage, protect, team powers and Force costs
 + 08/10/2026 | - | Shot controls becomes Camera control, with the SJK UI's look
 - b0e4f69 |  | Camera control: Shot controls renamed, with the SJK UI's look
 + 08/10/2026 | - | Quick wheel: Q opens the page used last

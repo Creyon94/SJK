@@ -1246,6 +1246,20 @@ test: Watch a bot drain another: both bars drop (the drainer pays 5 a shot).
 test: A verified player (or cg_nameplateSelf 1 with a verified key): tick level with the name.
 note: Never started in a game: unit tests and the nameplate_snapshot render only.
 
+[nameplate-sources]
+area: HUD
+title: Nameplate estimates: lightning, grip, rage, protect, team powers, jumps, specials
+change: Health: lightning, grip, rage (and its half damage), protect's share, team heal.
+change: Force: jumps by climb speed, katas 50, cartwheels 10, lunges/DFA/flips 25, heals.
+change: Drainers heal; absorb gives back; disarms are free; a refused kata means under 50.
+test: Bot with lightning on you or another bot: the victim's health bar drops while it lasts.
+test: Bot raging: its health ticks down slowly; your hits on it take about half.
+test: Bot uses protect and you hit it: its health drops less and its Force bar drops too.
+test: Watch a bot force jump high: its Force bar drops in steps while it climbs, not at once.
+test: Bot does a kata: 50 Force gone at once; a cartwheel 10; a lunge or DFA 25.
+test: Team game: a teammate team-heals the bot: its health jumps by 50 (one) or 33 (two).
+note: Never started in a game: unit tests only. Levels of other players guessed at 3.
+
 [nameplate-modes]
 area: HUD
 title: V cycles nameplate modes: off, names, target and duel opponent, everyone

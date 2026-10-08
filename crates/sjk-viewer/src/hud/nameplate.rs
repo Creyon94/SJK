@@ -10,9 +10,9 @@
 //! each as a range whose uncertainty the bar shows as a grey haze. The plain
 //! TaystJK names stay in [`super::identification`] (`cg_drawPlayerNames`); a
 //! nameplate replaces them.
-use super::drain_estimate;
 use super::estimate::Range;
 use super::force_estimate::{self, Calibration, Estimator};
+use super::force_streams;
 use super::identification::{Camera, friend_icon, info_number, unoccluded};
 use super::nameplate_math::{self as math, Rows, Stack};
 use super::vitals_estimate;
@@ -20,7 +20,7 @@ use crate::{TextVertex, UiFont, chat::ChatOverlay, console::ViewerConsole};
 use glam::Vec3;
 use sjk_bsp::{Aabb, Bsp, TraceScratch};
 use sjk_client::TeamInfoTable;
-use sjk_game_jka::force_powers::FP_DRAIN;
+use sjk_game_jka::force_powers::{FP_DRAIN, FP_LIGHTNING};
 use sjk_protocol::{GameState, Snapshot};
 use sjk_shell::{CvarDefinition, CvarFlags, CvarRegistry};
 use sjk_ui::{
@@ -272,8 +272,9 @@ struct Settings {
     /// The local player's own plate, in third person.
     own: bool,
     debug: bool,
-    /// The local player's drain level from its Force profile.
+    /// The local player's drain and lightning levels from its Force profile.
     drain_level: Option<u8>,
+    lightning_level: Option<u8>,
 }
 
 impl Default for Settings {
@@ -294,6 +295,7 @@ impl Default for Settings {
             own: false,
             debug: false,
             drain_level: None,
+            lightning_level: None,
         }
     }
 }
@@ -362,7 +364,7 @@ pub(crate) struct State {
     last_update: i64,
     last_debug: i64,
     force: Estimator,
-    drains: drain_estimate::Tracker,
+    streams: force_streams::Tracker,
     calibration: Calibration,
     /// Until when drain holds the local player's own refill back (calibration).
     own_hold: i32,
@@ -392,7 +394,7 @@ impl Default for State {
             last_update: 0,
             last_debug: 0,
             force: Estimator::default(),
-            drains: drain_estimate::Tracker::default(),
+            streams: force_streams::Tracker::default(),
             calibration: Calibration::default(),
             own_hold: i32::MIN,
             regen_source: "default",
@@ -417,6 +419,9 @@ impl State {
                 .and_then(|c| c.integer_cvar(name))
                 .map_or(default, |value| value as f32)
         };
+        let profile = console
+            .and_then(ViewerConsole::own_forcepowers)
+            .and_then(|profile| sjk_client::ForceAllocation::parse(profile).ok());
         self.settings = Settings {
             enabled: flag("cg_nameplate", true),
             range: number("cg_nameplaterange", 3000.0).clamp(500.0, 10_000.0),
@@ -434,10 +439,8 @@ impl State {
             friends: flag("cg_drawfriend", true),
             own: flag("cg_nameplateself", false),
             debug: flag("cg_nameplatedebug", false),
-            drain_level: console
-                .and_then(ViewerConsole::own_forcepowers)
-                .and_then(|profile| sjk_client::ForceAllocation::parse(profile).ok())
-                .map(|profile| profile.levels[FP_DRAIN]),
+            drain_level: profile.as_ref().map(|profile| profile.levels[FP_DRAIN]),
+            lightning_level: profile.as_ref().map(|profile| profile.levels[FP_LIGHTNING]),
         };
     }
 
@@ -504,14 +507,18 @@ impl State {
         scratch: &mut TraceScratch,
     ) {
         let mode = info_number(game.config_string(0), "g_gametype");
-        self.vitals.observe(snapshot, game, mode);
-        self.observe_drains(snapshot, game, mode, bsp, scratch);
+        // The events first (drain names its victims), then the shots, which the
+        // health and the Force both take.
+        self.vitals.read(snapshot, game);
+        self.observe_streams(snapshot, game, mode, bsp, scratch);
+        self.vitals.apply(snapshot, game, mode, &self.streams);
         self.observe_force(snapshot, game, mode);
     }
 
-    /// Rebuild this snapshot's drain shots from where every living player stands
-    /// and looks ([`drain_estimate`]); `bsp` gives the walls that stop them.
-    fn observe_drains(
+    /// Rebuild this snapshot's drain, lightning and grip shots from where every
+    /// living player stands and looks ([`force_streams`]); `bsp` gives the walls that
+    /// stop them.
+    fn observe_streams(
         &mut self,
         snapshot: &Snapshot,
         game: &GameState,
@@ -519,7 +526,7 @@ impl State {
         bsp: &Bsp,
         scratch: &mut TraceScratch,
     ) {
-        use drain_estimate::Body;
+        use force_streams::Body;
         let mut bodies = [Body::default(); 33];
         let mut count = 0;
         for entity in &snapshot.entities {
@@ -539,9 +546,12 @@ impl State {
                 mins,
                 maxs,
                 active: entity.force_powers_active(),
+                weapon: entity.weapon(),
                 team: info_number(game.config_string(1131 + usize::from(number)), "t"),
                 duelling: entity.bolt1(),
-                level: None,
+                electrified: entity.emplaced_owner(),
+                drain_level: None,
+                lightning_level: None,
                 estimated: true,
             };
             count += 1;
@@ -556,22 +566,25 @@ impl State {
                 mins,
                 maxs,
                 active: player.force_powers_active(),
+                weapon: player.weapon(),
                 team: i32::from(player.team()),
                 duelling: player.duel_in_progress(),
-                level: self.settings.drain_level,
+                electrified: player.electrify_time(),
+                drain_level: self.settings.drain_level,
+                lightning_level: self.settings.lightning_level,
                 estimated: false,
             };
             count += 1;
         }
-        let rules = drain_estimate::Rules {
+        let rules = force_streams::Rules {
             teams: mode >= GT_TEAM,
         };
-        self.drains.observe(
+        self.streams.observe(
             snapshot.server_time,
             &bodies[..count],
             rules,
             self.vitals.drained(),
-            drain_estimate::world_sight(bsp, scratch),
+            force_streams::world_sight(bsp, scratch),
         );
     }
 
@@ -990,6 +1003,25 @@ impl State {
             if entity.entity_type() != ET_PLAYER || number >= 32 {
                 continue;
             }
+            let stream = self.streams.effect(number);
+            let facts = self.vitals.force_facts(number);
+            // An absorb's hit sound while somebody else pushes or pulls, with no shot
+            // of drain or lightning absorbed: the throw gave Force back.
+            let absorbed_throw = facts.absorbed
+                && stream.force[1] >= 0.0
+                && snapshot.entities.iter().any(|other| {
+                    other.entity_type() == ET_PLAYER
+                        && other.number() != number
+                        && self.force.throwing(other.torso_animation())
+                });
+            // A saber knocked away flies too, but its own entity says it was not thrown.
+            let disarmed = entity.saber_in_flight()
+                && snapshot
+                    .entities
+                    .binary_search_by_key(&entity.event_sound_channel(), |e| e.number())
+                    .ok()
+                    .is_some_and(|index| !snapshot.entities[index].saber_in_flight());
+            let saber = entity.weapon() == WP_SABER;
             let regen_multiplier = if entity.powerups() & (1 << PW_FORCE_BOON) != 0 {
                 6.0
             } else if mode == GT_JEDIMASTER && entity.is_jedi_master() {
@@ -1004,11 +1036,18 @@ impl State {
                     active: entity.force_powers_active(),
                     torso_animation: entity.torso_animation(),
                     saber_in_flight: entity.saber_in_flight(),
-                    saber_special: entity.weapon() == WP_SABER
+                    saber_special: saber
                         && sjk_game_jka::saber_rules::in_special(entity.saber_move()),
                     regen_multiplier,
                     dead: entity.e_flags() & EF_DEAD != 0,
-                    drain: self.drains.effect(number),
+                    stream,
+                    rising: entity.trajectory_delta()[2],
+                    legs_animation: entity.leg_animation(),
+                    saber_move: saber.then_some(entity.saber_move() as u16),
+                    disarmed,
+                    jedi_master: mode == GT_JEDIMASTER && entity.is_jedi_master(),
+                    facts,
+                    absorbed_throw,
                 },
             );
         }
