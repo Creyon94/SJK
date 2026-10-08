@@ -7,7 +7,7 @@ mod player_menu;
 
 use super::*;
 use crate::menu_widgets::MenuCanvas;
-use crate::text::{TextFace, visible_text_width_face};
+use crate::text::{Carry, TextFace, visible_text_width_face};
 use layout::Geometry;
 use sjk_ui::{Color, DrawCommand, Easing, FontWeight, Rect, TextAlign};
 
@@ -244,6 +244,7 @@ impl ChatOverlay {
                         &mut self.ui,
                         BodyRow {
                             text: &line.body[range.clone()],
+                            carry: line.wrap.carry[row],
                             marks: &line.emojis,
                             emojis: self.options.emojis.then_some(&self.emojis),
                             truncated,
@@ -262,6 +263,9 @@ impl ChatOverlay {
 /// One wrapped row of a message body and the emojis its marks stand for.
 struct BodyRow<'a> {
     text: &'a str,
+    /// The colour code in force where the row starts: a wrapped message goes on in
+    /// the colour the row before it ended in, not in the base colour.
+    carry: Carry,
     marks: &'a [u16],
     /// The pictures, while `cg_chatBoxEmojis` is on; off, a mark is a blank.
     emojis: Option<&'a emoji::Emojis>,
@@ -270,7 +274,9 @@ struct BodyRow<'a> {
 
 /// Draw a body row: as one text when it holds no emoji, else as its text runs
 /// with each emoji picture between them, a run after a picture keeping the colour
-/// the row had reached.
+/// the row had reached. Every run is written after the colour in force where it
+/// starts ([`BodyRow::carry`] for the first), since each is drawn as its own text,
+/// which restarts in the base colour.
 fn body_row(
     ui: &mut MenuCanvas,
     row: BodyRow<'_>,
@@ -283,7 +289,7 @@ fn body_row(
     let is_mark = |character: char| emoji::mark_index(character).is_some();
     if !row.text.contains(is_mark) {
         ui.text_fmt_aligned(
-            format_args!("{}{ellipsis}", row.text),
+            format_args!("{}{}{ellipsis}", row.carry, row.text),
             rect,
             size,
             color,
@@ -294,7 +300,7 @@ fn body_row(
         return;
     }
     let mut x = rect.x;
-    let mut colour = "";
+    let mut colour = row.carry;
     let mut rest = row.text;
     loop {
         let (run, after) = rest.split_at(rest.find(is_mark).unwrap_or(rest.len()));
@@ -310,7 +316,7 @@ fn body_row(
                 TextAlign::Start,
             );
             x += visible_text_width_face(font, run, size / font.height, TextFace::Regular);
-            colour = crate::text::last_colour(run).unwrap_or(colour);
+            colour = colour.after(run);
         }
         let Some(mark) = after.chars().next() else {
             break;
@@ -384,9 +390,13 @@ impl<'a> Iterator for WrapRow<'a> {
 #[cfg(test)]
 mod tests {
     use super::center_rows;
-    use super::{BodyRow, body_row, emoji};
+    use super::{BodyRow, Carry, body_row, emoji};
+    use crate::chat::ChatOverlay;
     use crate::menu_widgets::MenuCanvas;
+    use crate::text::TextStyle;
+    use sjk_client::ServerEventKind;
     use sjk_ui::{Color, DrawCommand, Rect};
+    use std::time::Instant;
 
     /// The texts and emoji rectangles drawn for `body` with `names` loaded.
     fn drawn(names: &[&str], body: &str, truncated: bool) -> (Vec<(f32, String)>, Vec<Rect>) {
@@ -399,6 +409,17 @@ mod tests {
         truncated: bool,
         shown: bool,
     ) -> (Vec<(f32, String)>, Vec<Rect>) {
+        drawn_after(names, body, truncated, shown, Carry::NONE)
+    }
+
+    /// As [`drawn_shown`], for a row that starts in the colour `carry` stands for.
+    fn drawn_after(
+        names: &[&str],
+        body: &str,
+        truncated: bool,
+        shown: bool,
+        carry: Carry,
+    ) -> (Vec<(f32, String)>, Vec<Rect>) {
         let emojis = emoji::Emojis::from_names(names);
         let (text, marks) = emojis.markup(body);
         let mut ui = MenuCanvas::with_text_capacity(512);
@@ -408,6 +429,7 @@ mod tests {
             &mut ui,
             BodyRow {
                 text: &text,
+                carry,
                 marks: &marks,
                 emojis: shown.then_some(&emojis),
                 truncated,
@@ -450,6 +472,82 @@ mod tests {
         assert_eq!(pictures.len(), 1);
         assert_eq!(pictures[0].x, 34.0);
         assert_eq!(pictures[0].width, emoji::side(12.0));
+    }
+
+    #[test]
+    fn a_row_after_a_break_starts_in_the_colour_the_row_before_ended_in() {
+        let green = Carry::NONE.after("^2first row");
+        let (texts, _) = drawn_after(&[], "second row", false, true, green);
+        assert_eq!(texts, [(10.0, "^2second row".to_owned())]);
+        // The ellipsis of a cut last row is in that colour too.
+        let (texts, _) = drawn_after(&[], "last", true, true, green);
+        assert_eq!(texts, [(10.0, "^2last...".to_owned())]);
+        // A row with no code before it is drawn as it is.
+        let (texts, _) = drawn_after(&[], "second row", false, true, Carry::NONE);
+        assert_eq!(texts, [(10.0, "second row".to_owned())]);
+    }
+
+    #[test]
+    fn a_wrapped_row_with_an_emoji_goes_on_in_the_carried_colour() {
+        let red = Carry::NONE.after("^1");
+        let (texts, pictures) = drawn_after(&[":x:"], "hi :x: ^3there :x: you", false, true, red);
+        assert_eq!(pictures.len(), 2);
+        // The first run starts in the colour the row before ended in, and each run
+        // after a picture in the colour the run before it reached.
+        let runs: Vec<_> = texts.iter().map(|(_, text)| text.as_str()).collect();
+        assert_eq!(runs, ["^1hi ", "^1 ^3there ", "^3 you"]);
+    }
+
+    /// The rows the feed draws for chat `text` from an unknown sender, in a
+    /// 1920 x 1080 frame, and the colours of the glyphs they put on screen.
+    fn feed(text: &str) -> (Vec<String>, Vec<[f32; 3]>) {
+        let font = crate::text::test_font();
+        let viewport = [1920.0, 1080.0];
+        let mut chat = ChatOverlay::new();
+        chat.receive(ServerEventKind::Chat, text.to_owned(), None, Instant::now());
+        chat.build(true, &font, viewport, 1_000);
+        let rows = chat.ui.text_runs().map(str::to_owned).collect();
+        let mut vertices = Vec::new();
+        chat.ui
+            .append_text_styled(&mut vertices, &font, viewport, TextStyle::NEUTRAL);
+        // Each glyph is a shadow quad then its own, six vertices each; the shadows
+        // are black.
+        let glyphs = vertices
+            .iter()
+            .map(|vertex| vertex.colour())
+            .filter(|colour| colour[..3] != [0.0, 0.0, 0.0])
+            .map(|[red, green, blue, _]| [red, green, blue])
+            .collect();
+        (rows, glyphs)
+    }
+
+    #[test]
+    fn a_long_message_is_green_on_every_row_it_is_drawn_on() {
+        // `^2` leads the text of a stock `say`; this is long enough for three rows.
+        let words = "the quick brown fox jumps over the lazy dog ".repeat(5);
+        let (rows, glyphs) = feed(&format!("^2{}", words.trim_end()));
+        assert!(rows.len() >= 2, "{rows:?}");
+        for row in &rows {
+            assert!(row.starts_with("^2"), "{row:?}");
+        }
+        // Six vertices a glyph quad; every glyph drawn is pure green.
+        let visible: usize = rows
+            .iter()
+            .map(|row| crate::text::Plain(row).to_string().len())
+            .sum();
+        assert_eq!(glyphs.len(), visible * 6);
+        assert!(glyphs.iter().all(|colour| *colour == [0.0, 1.0, 0.0]));
+    }
+
+    #[test]
+    fn a_message_without_codes_is_in_one_colour_on_every_row() {
+        let words = "no codes here at all but a rather long message ".repeat(5);
+        let (rows, glyphs) = feed(words.trim_end());
+        assert!(rows.len() >= 2, "{rows:?}");
+        assert!(rows.iter().all(|row| !row.contains('^')), "{rows:?}");
+        let first = glyphs[0];
+        assert_ne!(first, [0.0, 1.0, 0.0]);
+        assert!(glyphs.iter().all(|colour| *colour == first));
     }
 
     #[test]

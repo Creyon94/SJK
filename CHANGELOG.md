@@ -31,6 +31,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - The menus, the window title and the console call the client SJK instead of Sol JK _(Sol)_
 - Running water on walls stays on the wall: it no longer flickers or slides as you move or look around, and runs down in thinner streaks _(Sol)_
 - Your drain now empties your victim's nameplate Force bar by exactly what it took (your own heal says how much), and what it shows of the server's drain speed and strength is used for everyone else's drain and lightning _(Sol)_
+- A chat message that wraps onto more rows keeps its colour: a green message is green on every row and a colour change carries into the next row, where the second row used to turn white _(Sol)_
 
 ## 2026.1008.1 (Alpha) | 08/10/2026
 

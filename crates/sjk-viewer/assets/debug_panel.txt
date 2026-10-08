@@ -71,6 +71,18 @@ test: Colours carry on after a picture; a long line wraps with its pictures in p
 test: cg_chatBoxEmojis 0 (default): chat looks as before.
 note: Creyon94 checked it in game on Windows 11 on a JoF server; needs the EternalJK folder.
 
+[chat-wrap-colour]
+area: Console & chat
+title: A wrapped chat message keeps its colour on every row
+change: Chat rows after the first start in the colour the row before them ended in, not white.
+change: Also a name cut across rows, a colour change mid-message and rows with emoji pictures.
+change: The console's rows and notify lines already carried it; a test now pins that too.
+test: On a server, say a message long enough for two or three rows: every row is green.
+test: Say ^1red words ^4blue words ^2green words past a row end: the new row goes on in the colour.
+test: A message with no colour codes is one colour on every row, as it is on the first.
+test: cg_chatBoxEmojis 1, a long coloured line with :poop: wraps and keeps its colour after it.
+note: Unit-tested only; not run in game yet. The typed draft is one scrolling row, unchanged.
+
 # ---- Input ----
 
 [locked-binds]

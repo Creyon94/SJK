@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 08/10/2026 | - | Wrapped chat rows go on in the colour the row before ended in
+- 2b4f074 |  | Keep a wrapped chat message's colour on every row
 + 08/10/2026 | - | The HUD steps aside while the quick wheel is open
 - eec8832 |  | Quick wheel: the HUD steps aside while it is open
 + 08/10/2026 | - | Profile page with medals, a bio under strict rules, and achievements
