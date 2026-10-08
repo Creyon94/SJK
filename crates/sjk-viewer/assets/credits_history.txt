@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 08/10/2026 | - | Nameplates: measure the local player's drain from its own pool and heal
+- 73fa260 |  | Nameplates: measure the local player's drain from its own pool and heal
++ 08/10/2026 | - | Release 2026.1008.1 (Alpha)
+- 6d2eb4b |  | Release 2026.1008.1 (Alpha)
 + 08/10/2026 | - | Rain wets the world: wet surfaces, running water and puddles by weather quality
 - f2c72f9 |  | Rain wets the world: wet surfaces, running water and puddles by weather quality
 + 08/10/2026 | - | Credits in the SJK UI, medals on the cards
