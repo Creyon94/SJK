@@ -228,7 +228,13 @@ fn wrap_by(text: &str, fits: impl Fn(&str) -> bool) -> Vec<String> {
 
 /// `text` broken into lines no wider than `width` pixels when drawn `size` pixels high
 /// in `font` with `spacing` pixels between glyphs, leaving room for the caret.
-fn wrap_to(text: &str, font: &UiFont, size: f32, spacing: f32, width: f32) -> Vec<String> {
+pub(crate) fn wrap_to(
+    text: &str,
+    font: &UiFont,
+    size: f32,
+    spacing: f32,
+    width: f32,
+) -> Vec<String> {
     let scale = size / font.height.max(1.0);
     let room = width - size * 0.5;
     wrap_by(text, |line| {

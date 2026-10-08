@@ -25,6 +25,10 @@ impl ViewerConsole {
         if self.credits.is_open() {
             return self.credits.is_sjk();
         }
+        // The Profile page has the SJK UI's look in every menu style.
+        if self.profile_panel.is_open() {
+            return true;
+        }
         if !self.changelog.is_open()
             && !self.update_panel.is_open()
             && !self.identity_panel.is_open()
@@ -45,6 +49,8 @@ impl ViewerConsole {
     pub(crate) fn append_sjk_page(&mut self, target: TextTarget<'_>, viewport: [f32; 2]) {
         if self.credits.is_open() {
             self.credits.append_sjk(target, viewport);
+        } else if self.profile_panel.is_open() {
+            self.append_profile_panel(target, viewport);
         } else if self.changelog.is_open() {
             self.changelog.append_sjk(target, viewport);
         } else if self.update_panel.is_open() {

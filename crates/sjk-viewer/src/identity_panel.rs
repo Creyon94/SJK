@@ -112,11 +112,13 @@ fn step(current: Focus, forward: bool, fields: bool, hub: bool) -> Focus {
     order[next]
 }
 
-/// Append `text` (control characters dropped) to `field`, up to `limit` characters; whether
-/// the field changed.
+/// Append `text` to `field` as far as a bio may hold it (`sjk_identity::bio`: no emoji,
+/// symbols or invisible characters; this one-line field takes no line breaks), up to
+/// `limit` characters; whether the field changed.
 fn type_chars(field: &mut String, text: &str, limit: usize) -> bool {
     let mut changed = false;
-    for character in text.chars().filter(|character| !character.is_control()) {
+    let allowed = |c: &char| sjk_identity::bio::allowed(*c) || *c == '^';
+    for character in text.chars().filter(allowed) {
         if field.chars().count() >= limit {
             break;
         }
@@ -535,10 +537,12 @@ impl Panel {
             self.focus = Focus::Copy;
         }
         if let Some(me) = inputs.snapshot.and_then(|snapshot| snapshot.me.as_ref()) {
-            if self.bio == me.bio {
+            // Only what a bio may hold reaches the screen, whatever the hub sent.
+            let hub = sjk_identity::bio::for_display(&me.bio);
+            if self.bio == hub {
                 self.edited = false;
             } else if !self.edited {
-                self.bio.clone_from(&me.bio);
+                self.bio = hub;
             }
         }
     }
@@ -878,6 +882,7 @@ mod tests {
             created: 0,
             names: Vec::new(),
             medals: Vec::new(),
+            achievements: Vec::new(),
         }
     }
 

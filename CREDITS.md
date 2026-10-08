@@ -60,6 +60,8 @@ Sol develops SJK and sets its direction. Sol's work includes:
   volumetric clouds;
 - SJK identity: the identity key, the SJK hub, its verified badges, bug reports
   and player reports;
+- the Profile page (medals, the bio under strict rules, the player's record) and
+  achievements counted in matches and kept on the SJK hub, with their board;
 - the console socket for external apps (after JoF EJK), muting in the
   background (after EternalJK) and the JA+ `flipkick` command (after JoF EJK);
 - the camera style setting, its locked camera after JoF EJK (`cg_cameraStyle`).

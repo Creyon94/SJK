@@ -246,3 +246,78 @@ fn only_a_verified_player_on_the_server_reports_another() {
     assert_eq!(row["level_time"], 754);
     assert_eq!(row["worn"], "^2Reporter");
 }
+
+#[test]
+#[ignore = "needs a running hub (SJK_HUB_TEST_URL)"]
+fn a_bio_keeps_to_the_rules_and_achievements_rise_within_their_allowance() {
+    let mut hub = hub();
+    let me = Identity::generate().unwrap();
+    hub.register(&me, Some("^2Achiever")).unwrap();
+
+    // The hub tidies a bio as the client does, and refuses one breaking a rule.
+    let saved = hub
+        .set_bio(&me, "  two   spaces \r\n\r\n\r\nnext ")
+        .unwrap();
+    assert_eq!(saved.bio, "two spaces\n\nnext");
+    for (bio, code) in [
+        ("emoji \u{1F600}", "bio_characters"),
+        ("right\u{202E}left", "bio_characters"),
+        ("1\n2\n3\n4\n5\n6\n7", "bio_lines"),
+        ("aaaaaaaaaaaa", "bio_noise"),
+    ] {
+        match hub.set_bio(&me, bio).unwrap_err() {
+            HubError::Rejected { code: got, .. } => assert_eq!(got, code, "{bio:?}"),
+            other => panic!("{bio:?}: {other:?}"),
+        }
+    }
+    // A non-empty bio is the hub's own Storyteller.
+    let profile = hub.profile(&me.key_id()).unwrap();
+    let storyteller = profile
+        .achievements
+        .iter()
+        .find(|achievement| achievement.id == "storyteller")
+        .expect("storyteller");
+    assert!(storyteller.unlocked > 0);
+
+    // Counts rise up to their goal and hourly allowance; the hub's own and unknown
+    // ids are ignored.
+    let progress: std::collections::BTreeMap<String, u64> = [
+        ("first_blood", 5),
+        ("kills_100", 400),
+        ("streak_5", 3),
+        ("decorated", 1),
+        ("from_the_future", 9),
+    ]
+    .into_iter()
+    .map(|(id, n)| (id.to_owned(), n))
+    .collect();
+    let held = hub.set_achievements(&me, &progress).unwrap();
+    let of = |id: &str| held.iter().find(|a| a.id == id).cloned();
+    let first = of("first_blood").expect("first_blood");
+    assert_eq!((first.progress, first.goal), (1, 1));
+    assert!(first.unlocked > 0);
+    let kills = of("kills_100").expect("kills_100");
+    assert_eq!(
+        kills.progress, 100,
+        "capped at the goal (the allowance is 150)"
+    );
+    assert_eq!(of("streak_5").map(|a| a.progress), Some(3));
+    assert!(of("decorated").is_none(), "the hub counts its own");
+    assert!(of("from_the_future").is_none());
+    let thousand = of("kills_1000");
+    assert!(thousand.is_none(), "not sent, not counted");
+    // A thousand at once is held to the hourly allowance.
+    let more = [("kills_1000".to_owned(), 1_000_u64)].into_iter().collect();
+    let held = hub.set_achievements(&me, &more).unwrap();
+    let thousand = held.iter().find(|a| a.id == "kills_1000").unwrap();
+    assert_eq!(thousand.progress, 150);
+    assert_eq!(thousand.unlocked, 0);
+    // The profile lists them too.
+    let profile = hub.profile(&me.key_id()).unwrap();
+    assert!(
+        profile
+            .achievements
+            .iter()
+            .any(|a| a.id == "kills_1000" && a.progress == 150)
+    );
+}

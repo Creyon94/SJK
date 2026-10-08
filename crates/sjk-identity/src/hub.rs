@@ -2,9 +2,10 @@
 
 use crate::keys::{Identity, random_bytes};
 use crate::report::{BugReport, PlayerReport, WorldNote};
-use crate::wire::{Presence, Profile, authorization};
+use crate::wire::{Achievement, Achievements, Presence, Profile, authorization};
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
+use std::collections::BTreeMap;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 /// Longest the hub may take to answer.
@@ -52,6 +53,17 @@ pub trait Hub: Send {
     fn register(&mut self, identity: &Identity, name: Option<&str>) -> Result<Profile, HubError>;
     /// Set the identity's bio (the name is the one worn in game).
     fn set_bio(&mut self, identity: &Identity, bio: &str) -> Result<Profile, HubError>;
+    /// Send the counts the client keeps for the achievements it counts (`id` to
+    /// count); the hub answers with the key's achievements as it now holds them.
+    fn set_achievements(
+        &mut self,
+        _identity: &Identity,
+        _progress: &BTreeMap<String, u64>,
+    ) -> Result<Vec<Achievement>, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not send achievements".to_owned(),
+        ))
+    }
     /// Any player's public profile.
     fn profile(&mut self, key_id: &str) -> Result<Profile, HubError>;
     /// Say the identity's player is in `slot` of `server` as `name`.
@@ -374,6 +386,17 @@ impl Hub for HttpHub {
     fn set_bio(&mut self, identity: &Identity, bio: &str) -> Result<Profile, HubError> {
         let body = json!({ "bio": bio });
         parse(self.send(Some(identity), "PUT", "/v1/profile", Some(body))?)
+    }
+
+    fn set_achievements(
+        &mut self,
+        identity: &Identity,
+        progress: &BTreeMap<String, u64>,
+    ) -> Result<Vec<Achievement>, HubError> {
+        let body = json!({ "progress": progress });
+        let answer: Achievements =
+            parse(self.send(Some(identity), "PUT", "/v1/achievements", Some(body))?)?;
+        Ok(answer.achievements)
     }
 
     fn profile(&mut self, key_id: &str) -> Result<Profile, HubError> {

@@ -716,6 +716,146 @@ mod tests {
         });
     }
 
+    /// The Profile page over the live duel6: a made-up profile with medals, worn names, a
+    /// record and half the achievements, the bio being written, the achievements board,
+    /// the page with the identity off (the shots' own), and a 4:3 window.
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_sjk_profile() {
+        use crate::console::profile_panel::{Preview, Tab};
+        let preview = || {
+            let medal = |id: &str, count| sjk_identity::Medal {
+                id: id.to_owned(),
+                count,
+                awarded: 1_791_336_225,
+                note: String::new(),
+            };
+            let me = sjk_identity::Profile {
+                key_id: "44f3d0b36c9b2510".to_owned(),
+                key: String::new(),
+                name: "^1Sol^7Vulpes".to_owned(),
+                bio: "Saber duelist, mostly staff and yellow. On JoF most evenings.
+
+Found the fog bug, ask me about it!"
+                    .to_owned(),
+                verified: true,
+                created: 1_791_250_000,
+                names: ["^1Sol^7Vulpes", "^4Fox", "Sol"]
+                    .iter()
+                    .map(|name| sjk_identity::WornName {
+                        name: (*name).to_owned(),
+                        first_seen: 0,
+                        last_seen: 0,
+                    })
+                    .collect(),
+                medals: vec![medal("early_tester", 1), medal("bug_hunter", 2)],
+                achievements: Vec::new(),
+            };
+            let snapshot = sjk_identity::Snapshot {
+                status: sjk_identity::Status::Online,
+                key_id: me.key_id.clone(),
+                me: Some(me),
+                server: None,
+                players: Vec::new(),
+                profiles: std::collections::HashMap::new(),
+                notice: None,
+                revision: 0,
+                report: None,
+                note: None,
+                player_report: None,
+            };
+            let standings = crate::achievements::ALL
+                .iter()
+                .enumerate()
+                .map(|(index, kind)| crate::achievements::Standing {
+                    kind,
+                    progress: match index % 3 {
+                        0 => kind.goal,
+                        1 => kind.goal * 2 / 5,
+                        _ => 0,
+                    },
+                    unlocked: (index % 3 == 0).then_some(1_791_336_225 + index as i64 * 3_600),
+                })
+                .collect();
+            let record = vec![
+                ("Players defeated", "412".to_owned()),
+                ("Saber kills", "388".to_owned()),
+                ("Best streak", "9".to_owned()),
+                ("Duels won", "57".to_owned()),
+                ("Flags captured", "6".to_owned()),
+                ("Maps played", "14".to_owned()),
+                ("Servers played", "3".to_owned()),
+                ("Time played", "23 h 40 min".to_owned()),
+            ];
+            Preview {
+                snapshot,
+                standings,
+                record,
+            }
+        };
+        on_big_stack(move || {
+            let menu = menu::ClientMenu::new(true, String::new());
+            let cvars = [
+                ("ui_menuStyle", "sjk"),
+                (crate::settings::quick::HIDE_CVAR, "1"),
+            ];
+            for size in [[1920, 1080], [1440, 1080]] {
+                let Some((mut gpu, _profile)) = open(
+                    "maps/mp/duel6.bsp",
+                    size,
+                    Some(menu::ClientMenu::new(true, String::new())),
+                    &cvars,
+                ) else {
+                    return;
+                };
+                let _ = frame(&mut gpu, 10);
+                let suffix = if size[0] == 1920 { "" } else { "-4x3" };
+                if let Some(console) = gpu.console.as_mut() {
+                    console.open_profile_panel(Tab::Profile);
+                    console.preview_profile(preview());
+                }
+                for _ in 0..240 {
+                    let _ = frame(&mut gpu, 1);
+                    if crate::medals::art::decoded().is_some() {
+                        break;
+                    }
+                }
+                println!(
+                    "{}",
+                    shoot(&mut gpu, 6, &format!("duel6-profile{suffix}")).display()
+                );
+                if let Some(console) = gpu.console.as_mut() {
+                    console.profile_type_bio(
+                        "Writing my bio here, with ^3colour^7 and a second line
+like this one.",
+                    );
+                }
+                println!(
+                    "{}",
+                    shoot(&mut gpu, 6, &format!("duel6-profile-typing{suffix}")).display()
+                );
+                if let Some(console) = gpu.console.as_mut() {
+                    console.open_profile_panel(Tab::Achievements);
+                    console.preview_profile(preview());
+                }
+                println!(
+                    "{}",
+                    shoot(&mut gpu, 6, &format!("duel6-achievements{suffix}")).display()
+                );
+            }
+            let Some((mut gpu, _profile)) =
+                open("maps/mp/duel6.bsp", [1920, 1080], Some(menu), &cvars)
+            else {
+                return;
+            };
+            let _ = frame(&mut gpu, 10);
+            if let Some(console) = gpu.console.as_mut() {
+                console.open_profile_panel(Tab::Profile);
+            }
+            println!("{}", shoot(&mut gpu, 6, "duel6-profile-off").display());
+        });
+    }
+
     /// Credits in the SJK UI over the live duel6: the top (the sun, the rail,
     /// Sol's panel), Creyon's panel with its folds open and his medal, Lumaya's
     /// panel, and the end of the page (the cards in twos and the notice).

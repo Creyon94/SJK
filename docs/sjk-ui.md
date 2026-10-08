@@ -152,7 +152,9 @@ one (4:3, 5:4) scales the frame down to its width.
   - Main: Play, Character (the player screen), Settings (the settings screen),
     SJK, Quit.
   - Play: Join a server (the browser), Create a game, Back.
-  - SJK: What's new (the changelog), Update, Credits, Identity, Back.
+  - SJK: What's new (the changelog), Update, Credits, Profile, Back. The arc
+    holds five entries (a sixth curls back into the ring), so Identity opens
+    from the Profile page.
   - Quit: Quit to desktop (ember when chosen), Stay. It opens on Stay.
   A page's name stands small over its first entry.
 - **Recent servers:** a column on the right (its rule at x 1470) of the servers
@@ -260,7 +262,7 @@ opened from a game.
 
 ## SJK's pages
 
-What's new, Update, Identity and Credits, which the main page's SJK page opens
+What's new, Update, Identity, Profile and Credits, which the main page's SJK page opens
 (and their console commands), have the SJK UI's look in this style: drawn in its
 families over the map darkened as Settings is (Update as a pop-up card, as First
 setup), each with the way back (Esc, "Back") and its name at the top and its
@@ -291,6 +293,21 @@ overlay routes their text to the UI's families (`console_sjk_pages.rs`).
   column right of the page's lists the player's own medals once the hub answered
   (picture, name in gold, description, date given, the team's note), or says how
   medals come ([identity.md](identity.md#medals)).
+- **Profile** ([profile_panel_view.rs](../crates/sjk-viewer/src/profile_panel_view.rs),
+  08/10/2026, Sol's request: a real profile with the medals and an editable bio, and
+  an achievements board): drawn in this look in every menu style. The top bar has
+  Profile and Achievements as segments at its right. Profile: three columns, who
+  the player is (hub name in its colours at 44, verified, member since, key id,
+  other names, Identity settings) over "Your record" (eight numbers in two columns)
+  and "Unlocked lately"; "About you", the bio's box (620 by 300, Exo 2 at 18,
+  wrapped by measured width, the end being written kept in view) with its counts,
+  Revert and Save (gold) and the rules; Medals (pictures at 84) and Achievements (how
+  many unlocked, a gold bar, See the board). Achievements: how many unlocked with a
+  bar, then the 21 cards in three columns of seven (560 by 94): a medallion ringed by
+  the count in the category's colour (Combat ember, Duels and flags gold, Journeys
+  holo, Community green), filled and gold once unlocked, the goal inside; the name,
+  the category, what to do, a bar and the count or the date. World shot:
+  `world_shot::tests::duel6_sjk_profile`.
 - **Credits** ([credits_sjk.rs](../crates/sjk-viewer/src/credits_sjk.rs), since
   08/10/2026, Sol's request: restyle Credits but keep its sun): on the left SJK's
   emblem (220 across, centred at (300, 330)) is the page's sun, the one memorable
@@ -701,8 +718,8 @@ page's 16:9 frame.
     Call a vote directly, whose lists (map, game type, kick, warmup, limits)
     are the shared call-vote lists. Voting or calling a vote returns to the
     match, as retail's pop-ups do.
-  - SJK: What's new, Credits, Identity, Report a bug, Report a player (the
-    Players page).
+  - SJK: What's new, Credits, Profile, Identity, Report a bug, Report a player
+    (the Players page).
   - Leave: Leave the server, Quit to desktop (ember when chosen), Stay. It opens on Stay, since its rows act at once.
 - **Match card:** on the right (x 1360, 464 wide) over its own fade: the
   server's name with its colours and its address, a rule, the map without

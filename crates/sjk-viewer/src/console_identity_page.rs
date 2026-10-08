@@ -20,6 +20,11 @@ impl ViewerConsole {
     /// Show the page (the SJK menus' Identity entry).
     pub(crate) fn open_identity_panel(&mut self) {
         let owns_console = !self.open;
+        self.open_identity_panel_owned(owns_console);
+    }
+
+    /// Show the page; closing it closes the console too when `owns_console`.
+    pub(crate) fn open_identity_panel_owned(&mut self, owns_console: bool) {
         if !self.open {
             self.set_open(true);
         }
@@ -27,6 +32,7 @@ impl ViewerConsole {
         self.debug_panel.close();
         self.changelog.close();
         self.update_panel.close();
+        self.profile_panel.close();
         self.config_import.close();
         self.credits.close();
         self.dead_key.settle();

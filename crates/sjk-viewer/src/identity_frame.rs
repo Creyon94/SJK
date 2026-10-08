@@ -1,6 +1,7 @@
 //! The per-frame hook of player identity (`player_identity.rs`): twice a second,
-//! hand the service the player's settings and where they are playing, and the new
-//! medal pop-up the medals of the player's own profile (`medal_popup.rs`).
+//! hand the service the player's settings and where they are playing, the new
+//! medal pop-up the medals of the player's own profile (`medal_popup.rs`), and the
+//! achievements their counts (`achievements_frame.rs`).
 
 use super::*;
 use sjk_identity::Settings;
@@ -33,5 +34,6 @@ impl GpuState {
         });
         player_identity::apply(console.config_directory(), settings, name, location);
         self.offer_medals();
+        self.update_achievements();
     }
 }

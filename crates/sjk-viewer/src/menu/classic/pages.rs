@@ -63,7 +63,8 @@ const EXIT_HINT: &str = "Leave the game";
 const CREDITS_HINT: &str = "The people who make SJK";
 const CHANGELOG_HINT: &str = "What changed in each SJK release, and who made it";
 const UPDATE_HINT: &str = "Check for a newer SJK release and install it";
-const IDENTITY_HINT: &str = "Your SJK identity: your name and bio, and the SJK hub";
+const IDENTITY_HINT: &str = "Your SJK identity: your key and the SJK hub";
+const SJK_PROFILE_HINT: &str = "Your SJK profile: medals, bio, record and achievements";
 const BACK_HINT: &str = "Return to the main menu";
 
 /// Retail `main.menu`: two columns either side of the centre window, Exit
@@ -409,7 +410,7 @@ const GAMEPLAY: [Slot; 12] = {
 };
 /// SJK's page behind its button: the start-playing list's layout, holding
 /// SJK's own screens.
-const SJK: [Slot; 10] = {
+const SJK: [Slot; 11] = {
     let [play, profile, settings, sjk] = nav_row();
     let [back, exit] = back_exit();
     [
@@ -420,7 +421,8 @@ const SJK: [Slot; 10] = {
         centre_row(Entry::Changelog, "CHANGELOG", CHANGELOG_HINT, 191.0),
         centre_row(Entry::Credits, "CREDITS", CREDITS_HINT, 226.0),
         centre_row(Entry::Update, "UPDATE", UPDATE_HINT, 261.0),
-        centre_row(Entry::Identity, "IDENTITY", IDENTITY_HINT, 296.0),
+        centre_row(Entry::SjkProfile, "PROFILE", SJK_PROFILE_HINT, 296.0),
+        centre_row(Entry::Identity, "IDENTITY", IDENTITY_HINT, 331.0),
         back,
         exit,
     ]

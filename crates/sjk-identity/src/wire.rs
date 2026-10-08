@@ -32,6 +32,33 @@ pub struct Profile {
     /// hubs older than medals).
     #[serde(default)]
     pub medals: Vec<Medal>,
+    /// Achievements with a count above 0, in the hub's catalogue order (absent from
+    /// hubs older than achievements).
+    #[serde(default)]
+    pub achievements: Vec<Achievement>,
+}
+
+/// A milestone of the player's own play (`PROTOCOL.md`, "Achievements"): how far its
+/// count is and when it was unlocked. Recognition only, it grants nothing.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct Achievement {
+    /// The achievement's id (`first_blood`, `kills_100`, ...).
+    pub id: String,
+    /// The count the hub took, at most `goal`.
+    pub progress: u64,
+    /// The count that unlocks it.
+    #[serde(default)]
+    pub goal: u64,
+    /// When the count first reached the goal, unix seconds; 0 while it has not.
+    #[serde(default)]
+    pub unlocked: i64,
+}
+
+/// The hub's answer to `PUT /v1/achievements`.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct Achievements {
+    /// The key's achievements, as a profile lists them.
+    pub achievements: Vec<Achievement>,
 }
 
 /// One medal the SJK team gave a key: recognition only, it grants nothing.

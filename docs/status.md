@@ -7,6 +7,42 @@ SJK currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Profile page, bio rules and achievements
+
+SJK-only branch `personal/profile` (08/10/2026, based on `c08e6cb`, Windows 11):
+Sol asked for a real SJK profile with the medals and an editable bio that only
+takes sane characters, and an achievements board synced with the hub. Built
+([identity.md](identity.md#profile), [identity.md](identity.md#achievements),
+[SJK UI](sjk-ui.md#sjks-pages)): the Profile page (SJK UI look in every menu style,
+Profile and Achievements tabs; it replaces Identity on the SJK UI's SJK page, whose
+arc holds five entries, and opens Identity from a button); the bio's rules in
+`sjk_identity::bio`, shared word for word with the hub, applied to typing, before
+sending and to anything shown; 21 achievements, 17 counted by the client from live
+matches (obituaries, the player's own captures, duels, maps, servers, time) into
+`achievements.json` and sent to the hub (`PUT /v1/achievements`), 4 counted by the
+hub. The hub's side is in the hub's repository (bio rules, achievements table,
+hourly allowances, backfill), committed there and not deployed.
+
+Verified: unit tests for the bio rules (plain bios, tidying, 24 kinds of refused
+character, limits, display of anything a hub sends), the service (counts sent at
+most once a minute, held-back counts again after an hour, a bad bio refused before
+the hub), the catalogue, the record (unlocks once, minutes, sets bounded, the hub's
+counts restoring a reinstall, the file round trip and damage), the tracker (kills
+by means of death, streaks and suicides, teammates, private and tournament duels,
+captures and their resets, maps, servers and time while playing, following someone
+and local games counting nothing), the page (typing filter, the hub's copy and a
+draft, saving and the answers, no hub, Tab order, every tab, focus and state within
+its canvas at 1080p, 4K, 4:3 and 21:9 in the families and Inter, the bio wrapped
+inside its box, the board and the tabs' pointer); `cargo test --release -p
+sjk-viewer` and `-p sjk-identity` pass. World shots `duel6_sjk_profile` (made-up
+profile, typing, board, identity off, 4:3) were looked at.
+
+Not verified: no game was started, so no real kill, duel, capture or unlock, the
+centre print, the keys and pointer in a running client, and the shared save of
+`achievements.json` are untested; nothing reached the hub (the shots' identity is
+off). Until the hub update is deployed, the old hub answers achievements with 404
+(the client waits an hour and tries again) and keeps its old bio rule.
+
 ## The menus say SJK
 
 SJK-only branch `personal/sjk-name` (08/10/2026, based on `01c29aa`, Windows 11):

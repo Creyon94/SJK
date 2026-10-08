@@ -140,6 +140,12 @@ impl GpuState {
                 }
                 self.sync_cursor_policy();
             }
+            ingame_menu::sjk::PROFILE => {
+                if let Some(console) = &mut self.console {
+                    console.open_profile_panel(crate::console::profile_panel::Tab::Profile);
+                }
+                self.sync_cursor_policy();
+            }
             ingame_menu::sjk::IDENTITY => {
                 if let Some(console) = &mut self.console {
                     console.open_identity_panel();

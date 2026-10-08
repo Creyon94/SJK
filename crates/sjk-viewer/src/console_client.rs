@@ -77,6 +77,14 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
     (crate::weather::COMMAND, crate::weather::HELP),
     (super::changelog::COMMAND, super::changelog::HELP),
     (super::credits::COMMAND, super::credits::HELP),
+    (
+        crate::console::PROFILE_COMMAND,
+        crate::console::PROFILE_HELP,
+    ),
+    (
+        crate::console::ACHIEVEMENTS_COMMAND,
+        crate::console::ACHIEVEMENTS_HELP,
+    ),
     (super::update_panel::COMMAND, super::update_panel::HELP),
     (
         crate::identity_command::COMMAND,
@@ -437,6 +445,18 @@ impl crate::GpuState {
             super::update_panel::COMMAND => {
                 if let Some(console) = &mut self.console {
                     console.toggle_update_panel();
+                }
+                self.sync_cursor_policy();
+            }
+            crate::console::PROFILE_COMMAND => {
+                if let Some(console) = &mut self.console {
+                    console.toggle_profile_panel(crate::console::profile_panel::Tab::Profile);
+                }
+                self.sync_cursor_policy();
+            }
+            crate::console::ACHIEVEMENTS_COMMAND => {
+                if let Some(console) = &mut self.console {
+                    console.toggle_profile_panel(crate::console::profile_panel::Tab::Achievements);
                 }
                 self.sync_cursor_policy();
             }

@@ -2249,6 +2249,32 @@ test: In a match, Esc: the SJK entry and page; modern menus: Quit SJK.
 test: The window title and the console's first line say SJK.
 note: Credits keep "Sol JK" for Sol's own section, as the name's origin.
 
+[profile-page]
+area: Menus & settings
+title: Profile page: medals, bio, record; Identity opens from it
+change: Main page > SJK > Profile (was Identity); in game Esc > SJK > Profile; `profile`.
+change: Name, verified, member since, other names, medals, record, bio box (6 lines).
+change: Bio rules: no emoji/invisible/symbol characters; hub copies shown only through them.
+test: Main page > SJK > Profile: your name, Verified, Member since, your medals on the right.
+test: Tab to the bio box, type two lines (Shift+Enter), Enter: "Saving...", then "Saved".
+test: Paste an emoji or a symbol: it is not typed. Type 12 a's and Enter: refused, with why.
+test: Identity settings opens the Identity page; Esc there goes back to the menu.
+test: Classic menus: SJK page has PROFILE; the page has the SJK UI look there too.
+note: The rules are checked here; the hub checks them too once its update is deployed.
+
+[achievements]
+area: Gameplay
+title: Achievements: 21, counted in matches, synced to the hub, board in Profile
+change: Kills, saber kills, streaks, lightning/drain, pit pushes, weapons, duels, flags, maps.
+change: Counts in GameData/SJK achievements.json; sent to the hub (needs the hub update).
+change: Unlock: console line + centre print. Board: Profile > Achievements or `achievements`.
+test: On a server (not a local game), defeat someone: centre print "Achievement unlocked".
+test: Profile > Achievements: First Blood unlocked with today's date; Centurion 1 / 100.
+test: Play 2 min, check Profile: Time played rises; Maps played and Servers played say 1.
+test: Win a private duel: Duels won goes up. Capture a flag in CTF: Flags captured goes up.
+test: Spectate and follow someone who kills: nothing counts for you.
+note: Self-reported like claims: the hub only caps how fast counts rise. No icons yet.
+
 # ---- Older changes ----
 
 [actor-instance-cap]

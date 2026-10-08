@@ -1,3 +1,4 @@
+mod achievements;
 mod actor_instance;
 mod actor_load;
 mod actor_mesh;
@@ -132,6 +133,7 @@ mod surface_tables;
 mod trip_mine_lasers;
 mod viewer_app;
 use object_meshes::StaticModelMesh;
+mod achievements_frame;
 mod bug_report;
 mod gi_voxels;
 mod identity_command;
@@ -258,7 +260,8 @@ fn main() {
         log::progress(format_args!("sjk: {error}"));
         std::process::exit(1);
     }
-    // Withdraw the identity claim on the hub, if the player had one.
+    // Keep the last achievement counts, then withdraw the identity claim on the hub.
+    achievements::sync(None, true);
     player_identity::shutdown();
     // After the settings were saved on the way out, start an installed update.
     update::restart_if_requested();
@@ -478,6 +481,8 @@ struct GpuState {
     world_load_map: String,
     snapshot_observations: snapshot_presentation::Counters,
     obituaries: sjk_client::ObituaryTracker,
+    /// What the player does in matches, for the achievements (`achievements.rs`).
+    achievement_tracker: achievements::tracker::Tracker,
     lagometer: sjk_client::LagometerSamples,
     crosshair_scan: crosshair_scan::State,
     auto_switch: auto_switch::Tracker,
@@ -1296,6 +1301,7 @@ impl GpuState {
             world_load_map: String::with_capacity(64),
             snapshot_observations: snapshot_presentation::Counters::default(),
             obituaries: sjk_client::ObituaryTracker::new(),
+            achievement_tracker: achievements::tracker::Tracker::default(),
             lagometer: sjk_client::LagometerSamples::new(),
             auto_switch: auto_switch::Tracker::default(),
             previous_particle_events: HashMap::new(),

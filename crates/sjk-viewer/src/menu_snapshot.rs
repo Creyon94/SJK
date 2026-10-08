@@ -1143,6 +1143,7 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
                 })
                 .collect(),
             medals: Vec::new(),
+            achievements: Vec::new(),
         }),
         server: None,
         players: vec![
@@ -2145,6 +2146,7 @@ fn medals_snapshot() {
             created: 0,
             names: Vec::new(),
             medals,
+            achievements: Vec::new(),
         }),
         server: None,
         players: Vec::new(),

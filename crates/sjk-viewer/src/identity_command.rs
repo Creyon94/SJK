@@ -86,7 +86,8 @@ pub(crate) fn who_lines(snapshot: &Snapshot, slot: Option<u8>) -> Vec<String> {
         if slot.is_some() {
             match snapshot.profiles.get(&player.key_id) {
                 Some(profile) if !profile.bio.is_empty() => {
-                    lines.extend(profile.bio.lines().map(|line| format!("    {line}")));
+                    let bio = sjk_identity::bio::for_display(&profile.bio);
+                    lines.extend(bio.lines().map(|line| format!("    {line}")));
                 }
                 Some(_) => lines.push("    (no bio)".to_owned()),
                 None => {
@@ -170,6 +171,7 @@ mod tests {
                 created: 0,
                 names: Vec::new(),
                 medals: Vec::new(),
+                achievements: Vec::new(),
             }),
             server: None,
             players: vec![Presence {
@@ -240,6 +242,7 @@ mod tests {
                 created: 0,
                 names: Vec::new(),
                 medals: Vec::new(),
+                achievements: Vec::new(),
             },
         );
         let lines = who_lines(&shown, Some(3));
