@@ -2082,7 +2082,6 @@ change: The old-units rescale of sensitivity only runs on a profile saved before
 test: Start with an empty profile folder (or firstsetup on a new one): sensitivity says 5.
 
 [first-setup-popup]
-status: personal
 area: Menus & settings
 title: SJK UI: First setup and Update as pop-up cards
 change: First setup opens as a card over the map; its rows scroll inside it.
