@@ -14,6 +14,12 @@
 //! movement keys keep working. Choices are console commands, so a choice does
 //! exactly what typing it would; a dot marks those in effect. The ring is drawn
 //! in the SJK UI's look ([`ring`]).
+//!
+//! With [`SOUNDS_CVAR`] on, the wheel plays the game's own interface sounds
+//! ([`crate::audio::ui_cues`]): one as it turns to another page, one as the
+//! highlight moves to another choice (not for every mouse movement), and one as
+//! the chosen choice runs. Letting go on nothing, Escape and closing it play
+//! none: nothing ran.
 
 pub(crate) mod catalog;
 pub(crate) mod pages;
@@ -21,6 +27,7 @@ pub(crate) mod ring;
 
 pub(crate) use catalog::ICONS;
 
+use crate::audio::ui_cues::{self, Cue};
 use crate::menu_widgets::MenuCanvas;
 use crate::text::{TextStyle, TextVertex, UiFont};
 use catalog::State;
@@ -33,6 +40,8 @@ pub(crate) const OPEN_COMMAND: &str = "+wheel";
 pub(crate) const RUN_COMMAND: &str = "-wheel";
 pub(crate) const OPEN_HELP: &str = "Hold to open the quick wheel: +wheel <page> (general, weather...), or +wheel for the last page";
 pub(crate) const RUN_HELP: &str = "Run the quick wheel's highlighted choice and close it";
+/// Whether the wheel plays its sounds (archived, on by default).
+pub(crate) const SOUNDS_CVAR: &str = "cg_wheelSounds";
 
 /// Mouse counts from the middle before a choice is highlighted, and the farthest the
 /// pointer goes: any further movement only turns it.
@@ -83,6 +92,9 @@ struct Open {
     pointer: [f32; 2],
     /// When the page last changed and which way (-1 back, 1 on).
     arrived: Option<(Instant, f32)>,
+    /// The choice highlighted when the pointer last moved or the page changed:
+    /// the move cue plays only when another one is.
+    highlighted: Option<usize>,
 }
 
 /// The mouse buttons that change page while the wheel is open.
@@ -104,6 +116,8 @@ pub(crate) struct QuickWheel {
     scroll: f32,
     /// Buttons whose press changed page: their release is the wheel's too.
     held: [bool; 2],
+    /// Whether the wheel plays its sounds ([`SOUNDS_CVAR`], read as it opens).
+    sounds: bool,
     canvas: MenuCanvas,
     /// Drawn without a game (world shots).
     #[cfg(test)]
@@ -118,6 +132,7 @@ impl Default for QuickWheel {
             last: String::new(),
             scroll: 0.0,
             held: [false; 2],
+            sounds: true,
             canvas: MenuCanvas::with_capacities(48, 48, 256),
             #[cfg(test)]
             shot: false,
@@ -144,6 +159,7 @@ impl QuickWheel {
                 let direction = if page > open.page { 1.0 } else { -1.0 };
                 open.page = page;
                 open.arrived = Some((now, direction));
+                self.page_changed();
             }
             Some(_) => {}
             None => {
@@ -152,8 +168,21 @@ impl QuickWheel {
                     page,
                     pointer: [0.0; 2],
                     arrived: None,
+                    highlighted: None,
                 });
             }
+        }
+    }
+
+    /// Whether the wheel plays its sounds ([`SOUNDS_CVAR`]).
+    pub(crate) fn set_sounds(&mut self, on: bool) {
+        self.sounds = on;
+    }
+
+    /// Post `cue` when the wheel plays its sounds.
+    fn cue(&self, cue: Cue) {
+        if self.sounds {
+            ui_cues::post(cue);
         }
     }
 
@@ -162,17 +191,22 @@ impl QuickWheel {
         self.open = None;
     }
 
-    /// Close and return the highlighted choice's command.
+    /// Close and return the highlighted choice's command (its run cue played).
     pub(crate) fn release(&mut self) -> Option<String> {
         let highlighted = self.highlighted();
         let open = self.open.take()?;
         let page = self.pages.get(open.page)?;
-        highlighted
+        let command = highlighted
             .and_then(|index| page.choices.get(index))
-            .map(|choice| choice.command.clone())
+            .map(|choice| choice.command.clone());
+        if command.is_some() {
+            self.cue(Cue::WheelRun);
+        }
+        command
     }
 
-    /// Mouse movement while open, in raw counts: moves the pointer, never past [`REACH`].
+    /// Mouse movement while open, in raw counts: moves the pointer, never past
+    /// [`REACH`]; the move cue plays when another choice is highlighted.
     pub(crate) fn moved(&mut self, delta: [f32; 2]) {
         let Some(open) = &mut self.open else {
             return;
@@ -183,6 +217,16 @@ impl QuickWheel {
             pointer = pointer.map(|value| value * REACH / distance);
         }
         open.pointer = pointer;
+        let count = self
+            .pages
+            .get(open.page)
+            .map_or(0, |page| page.choices.len());
+        let highlighted = selection(pointer, count);
+        let before = std::mem::replace(&mut open.highlighted, highlighted);
+        // Back to the middle highlights nothing: no choice to sound.
+        if highlighted.is_some() && highlighted != before {
+            self.cue(Cue::WheelMove);
+        }
     }
 
     /// Change page `direction` pages on (-1 back), wrapping round; the pointer
@@ -198,6 +242,17 @@ impl QuickWheel {
         open.page = (open.page as i64 + i64::from(direction)).rem_euclid(count as i64) as usize;
         open.arrived = Some((now, direction.signum() as f32));
         self.last.clone_from(&self.pages[open.page].id);
+        self.page_changed();
+    }
+
+    /// The page changed: its cue plays (and no move cue for the choice the
+    /// pointer now points at on it).
+    fn page_changed(&mut self) {
+        let highlighted = self.highlighted();
+        if let Some(open) = &mut self.open {
+            open.highlighted = highlighted;
+        }
+        self.cue(Cue::WheelPage);
     }
 
     /// Mouse-wheel scroll while open (positive away from the player): a page
@@ -449,6 +504,8 @@ impl crate::GpuState {
             }
         };
         let pages = shown_pages(console);
+        self.quick_wheel
+            .set_sounds(console.bool_cvar(SOUNDS_CVAR).unwrap_or(true));
         self.quick_wheel.open(pages, page, Instant::now());
         Ok(Vec::new())
     }
@@ -614,6 +671,83 @@ mod tests {
             assert!(texts.len() >= 2 + 4 + 1 + count - pictured, "{texts:?}");
             assert!(!wheel.canvas.overflowed());
         }
+    }
+
+    #[test]
+    fn each_event_posts_its_cue_and_moves_within_a_choice_post_none() {
+        let now = Instant::now();
+        let mut wheel = QuickWheel::default();
+        ui_cues::take_posted();
+        // Opening, and moving about the middle, sound nothing.
+        wheel.open(shown(), 0, now);
+        wheel.moved([5.0, -5.0]);
+        assert!(ui_cues::take_posted().is_empty());
+        // Out of the middle onto the first choice: the move cue, once.
+        wheel.moved([0.0, -60.0]);
+        assert_eq!(ui_cues::take_posted(), [Cue::WheelMove]);
+        // Moving about within that choice: none.
+        wheel.moved([3.0, -10.0]);
+        wheel.moved([-6.0, 0.0]);
+        wheel.moved([0.0, 40.0]);
+        assert!(ui_cues::take_posted().is_empty());
+        // On to the next choice (up and right, of eight): once.
+        wheel.moved([48.0, -15.0]);
+        assert_eq!(wheel.highlighted(), Some(1));
+        assert_eq!(ui_cues::take_posted(), [Cue::WheelMove]);
+        // Back to the middle sounds nothing; out again to the same choice does.
+        wheel.moved([-50.0, 50.0]);
+        assert_eq!(wheel.highlighted(), None);
+        assert!(ui_cues::take_posted().is_empty());
+        wheel.moved([50.0, -50.0]);
+        assert_eq!(ui_cues::take_posted(), [Cue::WheelMove]);
+        // A page change by scroll, by click or by a second wheel key: the page
+        // cue alone, though the pointer now points at another page's choice.
+        wheel.scrolled(-40.0, now);
+        assert_eq!(ui_cues::take_posted(), [Cue::WheelPage]);
+        assert!(wheel.button(Button::Left, true, now));
+        assert!(wheel.button(Button::Left, false, now));
+        assert_eq!(ui_cues::take_posted(), [Cue::WheelPage]);
+        wheel.open(shown(), 1, now);
+        assert_eq!(ui_cues::take_posted(), [Cue::WheelPage]);
+        // The same page again: nothing.
+        wheel.open(shown(), 1, now);
+        assert!(ui_cues::take_posted().is_empty());
+        // Moving within the choice it points at on the new page: none.
+        wheel.moved([2.0, 2.0]);
+        assert!(ui_cues::take_posted().is_empty());
+        // Letting go on a choice runs it: the run cue.
+        assert!(wheel.release().is_some());
+        assert_eq!(ui_cues::take_posted(), [Cue::WheelRun]);
+        // Letting go on nothing, Escape, or no wheel at all: nothing.
+        wheel.open(shown(), 0, now);
+        assert_eq!(wheel.release(), None);
+        wheel.open(shown(), 0, now);
+        wheel.moved([0.0, -90.0]);
+        ui_cues::take_posted();
+        wheel.cancel();
+        assert_eq!(wheel.release(), None);
+        assert!(ui_cues::take_posted().is_empty());
+        // One page only: turning it sounds nothing.
+        let mut single = shown();
+        single.truncate(1);
+        wheel.open(single, 0, now);
+        wheel.scrolled(-40.0, now);
+        wheel.cancel();
+        assert!(ui_cues::take_posted().is_empty());
+    }
+
+    #[test]
+    fn the_sounds_switch_silences_every_cue() {
+        let now = Instant::now();
+        let mut wheel = QuickWheel::default();
+        ui_cues::take_posted();
+        wheel.set_sounds(false);
+        wheel.open(shown(), 0, now);
+        wheel.moved([0.0, -60.0]);
+        wheel.moved([80.0, 0.0]);
+        wheel.scrolled(-40.0, now);
+        assert!(wheel.release().is_some());
+        assert!(ui_cues::take_posted().is_empty());
     }
 
     #[test]

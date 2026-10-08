@@ -478,6 +478,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Illuminate on the Force wheel: a holocron by your shoulder that lights the way,              seen only by you (0 removes it)",
         ),
         CvarDefinition::new(
+            crate::quick_wheel::SOUNDS_CVAR,
+            true,
+            archive,
+            "Quick wheel sounds: changing page, moving to another choice and running one (0 silent)",
+        ),
+        CvarDefinition::new(
             "cg_shieldSphere",
             0_i64,
             archive,

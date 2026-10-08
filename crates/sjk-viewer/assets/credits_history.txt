@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 08/10/2026 | - | Quick wheel: Sol's icons for every action, and sounds
+- 77a8194 |  | Quick wheel: an icon for every action, and page, move and run sounds
 + 08/10/2026 | - | Menus say SJK instead of Sol JK
 - 58c2da3 |  | Menus say SJK instead of Sol JK
 + 08/10/2026 | - | Running water on walls stays on the wall: anchored streaks, one wrapped scroll

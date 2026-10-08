@@ -21,6 +21,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- Quick wheel: every choice has its own icon (custom commands share one), and the wheel plays the game's menu sounds as you change page, move to another choice and run one; Settings > Quick wheel > Wheel sounds turns them off _(Sol)_
 - The menus, the window title and the console call the client SJK instead of Sol JK _(Sol)_
 - Running water on walls stays on the wall: it no longer flickers or slides as you move or look around, and runs down in thinner streaks _(Sol)_
 - Your drain now empties your victim's nameplate Force bar by exactly what it took (your own heal says how much), and what it shows of the server's drain speed and strength is used for everyone else's drain and lightning _(Sol)_

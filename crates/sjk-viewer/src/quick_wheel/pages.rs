@@ -60,11 +60,12 @@ impl Slot {
         }
     }
 
-    /// Its picture's index in [`catalog::ICONS`]; a custom choice has none.
+    /// Its picture's index in [`catalog::ICONS`]: a custom choice shows the
+    /// custom command's ([`catalog::CUSTOM_ICON`]).
     pub(crate) fn icon(&self) -> Option<usize> {
         match self {
             Self::Action(index) => ACTIONS[*index].icon.and_then(catalog::icon_index),
-            Self::Custom { .. } => None,
+            Self::Custom { .. } => catalog::icon_index(catalog::CUSTOM_ICON),
         }
     }
 

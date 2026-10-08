@@ -1322,8 +1322,98 @@ mod tests {
                 gpu.open_quick_wheel(&bound("weather"))
                     .expect("the wheel opens");
                 println!("{}", shoot(&mut gpu, 4, "duel6-wheel-middle").display());
+                // The second board's icons on three full pages, the last with
+                // a custom command and three of the first board's beside them.
+                gpu.quick_wheel.cancel();
+                let settled = Instant::now() - Duration::from_secs(1);
+                gpu.quick_wheel.open(second_board_pages(), 0, settled);
+                gpu.quick_wheel.moved([60.0, -60.0]);
+                for page in 1..=3 {
+                    let name = format!("duel6-wheel-icons-{page}");
+                    println!("{}", shoot(&mut gpu, 4, &name).display());
+                    gpu.quick_wheel.turn(1, settled);
+                }
             }
         });
+    }
+
+    /// Three pages holding every action of the wheel's second icon board, the
+    /// custom command's icon and, to compare, three of the first board's.
+    fn second_board_pages() -> Vec<crate::quick_wheel::ShownPage> {
+        use crate::quick_wheel::pages::Slot;
+        use crate::quick_wheel::{ShownChoice, ShownPage, catalog};
+        let pages: [(&str, [&str; 10]); 3] = [
+            (
+                "Interface",
+                [
+                    "game_menu",
+                    "first_setup",
+                    "free_camera",
+                    "timer",
+                    "fps",
+                    "speedometer",
+                    "lagometer",
+                    "console",
+                    "whats_new",
+                    "team_menu",
+                ],
+            ),
+            (
+                "Player",
+                [
+                    "spectate",
+                    "respawn",
+                    "inspect",
+                    "duel",
+                    "saber_style",
+                    "saber_toggle",
+                    "taunt",
+                    "bow",
+                    "meditate",
+                    "flourish",
+                ],
+            ),
+            (
+                "Server",
+                [
+                    "gloat",
+                    "vote_yes",
+                    "vote_no",
+                    "record",
+                    "stop_record",
+                    "reconnect",
+                    "",
+                    "third_person",
+                    "rain",
+                    "day",
+                ],
+            ),
+        ];
+        pages
+            .iter()
+            .map(|(name, ids)| ShownPage {
+                id: name.to_lowercase(),
+                name: (*name).to_owned(),
+                choices: ids
+                    .iter()
+                    .map(|id| {
+                        let slot = catalog::action_index(id).map_or_else(
+                            || Slot::Custom {
+                                label: "Ready".to_owned(),
+                                command: "ready".to_owned(),
+                            },
+                            Slot::Action,
+                        );
+                        ShownChoice {
+                            label: slot.label().to_owned(),
+                            command: slot.command().to_owned(),
+                            icon: slot.icon(),
+                            on: false,
+                        }
+                    })
+                    .collect(),
+            })
+            .collect()
     }
 
     /// Settings > Quick wheel in the SJK UI over duel6: the pages with General
@@ -1350,11 +1440,29 @@ mod tests {
             };
             let _ = frame(&mut gpu, 20);
             gpu.ui_epoch -= std::time::Duration::from_millis(2_000);
-            let steps: [(&str, Keys); 6] = [
+            let steps: [(&str, Keys); 7] = [
                 ("duel6-wheel-settings", &[]),
+                // Down past the pages, Add a page and Restore to the sounds,
+                // switched off; switched on again before the next step, then
+                // Down wraps back to General.
+                (
+                    "duel6-wheel-settings-sounds",
+                    &[
+                        (ArrowDown, None),
+                        (ArrowDown, None),
+                        (ArrowDown, None),
+                        (ArrowDown, None),
+                        (Enter, None),
+                    ],
+                ),
                 (
                     "duel6-wheel-settings-choice",
-                    &[(ArrowRight, None), (ArrowDown, None)],
+                    &[
+                        (Enter, None),
+                        (ArrowDown, None),
+                        (ArrowRight, None),
+                        (ArrowDown, None),
+                    ],
                 ),
                 ("duel6-wheel-settings-catalogue", &[(Enter, None)]),
                 (

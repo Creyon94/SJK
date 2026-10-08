@@ -7,6 +7,54 @@ SJK currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Quick wheel: every action's icon, and sounds
+
+SJK-only branch `personal/wheel-icons-sounds` (08/10/2026, based on `01c29aa`,
+Windows 11). Sol drew a second icon board (28 discs) for the quick wheel and
+asked (08/10/2026) for "a sound effect while changing pages, moving selection
+and actually validating selection". `scripts/wheel_icons.py` learnt the board
+(`second`, a list of names per board) and cut its 28 icons
+([assets/wheel](../crates/sjk-viewer/assets/wheel/README.md)): every catalogue
+action now has its icon, every custom command shows the `{•}` disc, and Settings'
+Quick wheel category wears the ring-of-discs icon on its rail instead of the
+settings board's sliders. The UI atlas gives the wheel three rows (48 cells)
+instead of one, which makes it 5504 texels tall instead of 5248 (2048 wide,
+within the 8192 the device asks for). The wheel posts three cues through the
+menus' mailbox ([client.md](client.md#sounds)): `sub_select` on a page change,
+`menuroam` when the highlight moves to another choice, `button1` when the
+chosen choice runs, quieter than the menus; nothing on letting go on nothing,
+Escape or a close. `cg_wheelSounds` (archived, default 1) turns them off, from
+Settings > Quick wheel's new Sound row or Interface's "Quick wheel sounds" row.
+
+Verified: the first board, cut again by the changed script, gives its sixteen
+icons back byte for byte; the second board's icons were compared with them on a
+contact sheet on dark and light grounds (same disc size, the alpha edge crossing
+half at 61.75 pixels in all 44, no dark fringe at the rim). Unit tests: every
+action has an icon and every icon a use, the atlas fits the device's texture
+limit, each cue has its own bit and the wheel's are quieter than the menus'; the
+wheel posts the move cue only when another choice is highlighted (from none
+too; not for moves within a choice or back to the middle), the page cue alone
+on a scroll, a click or a second wheel key, the run cue only when a choice runs,
+nothing for letting go on nothing, Escape or a single page, and nothing at all
+with `cg_wheelSounds 0`; the editor's Sound row switches the cvar from Enter,
+Space and a click. The world shots `duel6_quick_wheel` (now also
+`duel6-wheel-icons-1` to `-3`, three full pages of the new icons beside three of
+the first board's) and `duel6_quick_wheel_settings` (now also
+`duel6-wheel-settings-sounds`, the switch off; the rail's icon in every shot; the
+classic+ and modern editors with the row) were looked at.
+`cargo test --release -p sjk-viewer` passed (1095), clippy reports nothing in
+the files changed.
+
+Not verified: no game was started, so no sound was heard. The cues' choice and
+volumes (0.4, 0.5, 0.5 against the menus' 0.6 to 0.9) were picked from the
+retail menus' use of each file and from their measured length and loudness
+(`sub_select` 0.10 s, `menuroam` 0.16 s, `button1` 0.6 s, or 0.26 s for the
+version JoF's cosmetic mod puts in its place); whether they are heard over a
+fight, too loud, or whether the retail `button1`'s slow rise reads as a
+confirmation, is for a listen. The second board's discs are a little brighter
+than the first's, and its Saber style icon (arcs crossed by a saber) can read as
+a "Wi-Fi off" symbol.
+
 ## The menus say SJK
 
 SJK-only branch `personal/sjk-name` (08/10/2026, based on `01c29aa`, Windows 11):

@@ -354,6 +354,10 @@ const HELP: &[(&str, &str)] = &[
         crate::quick_wheel::pages::FILE,
         "The quick wheel's pages (+wheel) and the choices on each, kept in wheel.json. Enter edits them.",
     ),
+    (
+        crate::quick_wheel::SOUNDS_CVAR,
+        "The game's menu sounds as the quick wheel changes page, moves to another choice and runs one.",
+    ),
     // NETWORK
     (
         "cl_master",
