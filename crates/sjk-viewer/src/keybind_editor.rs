@@ -11,7 +11,8 @@ mod sjk_view;
 
 use catalog::CATEGORIES;
 pub(crate) use catalog::{
-    ACTIONS, Category, category_range, default_bindings, migrate_missing_defaults,
+    ACTIONS, Category, category_range, default_bindings, migrate_chat_default,
+    migrate_missing_defaults,
 };
 use sjk_ui::{DrawList, Rect};
 use std::ops::Range;

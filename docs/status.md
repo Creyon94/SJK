@@ -7,6 +7,17 @@ SJK currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Crosshair-target private chat on U
+
+`fix/chat-u-default`, based on `cfbc789` (2026-10-07, Windows, Rust 1.99):
+U defaults to `messagemode3`, which opens a tell to the crosshair player;
+global chat remains on Y. Migration preserves occupied keys and custom
+crosshair-chat bindings and repairs the previous version-2 global-U default.
+Focused tests cover fresh defaults, legacy migration, repair and custom keys.
+Workspace build, tests and clippy passed before this correction; correction
+checks are pending. Workspace formatting fails on existing material-generator
+formatting. Physical-key targeting behavior has not been checked in game.
+
 ## Quick wheel hides the HUD
 
 SJK-only branch `personal/wheel-hides-hud` (08/10/2026, Windows 11): Sol asked for

@@ -1191,7 +1191,16 @@ unchanged. The command is bindable under Settings > Key bindings > Other.
 
 ### Chat player actions
 
-Open the chat composer with your chat binding (`messagemode`), then click a
+U defaults to crosshair-target private chat (`messagemode3`): aim at a player,
+press U, then compose a tell addressed to that player. Global chat remains on
+Y (`messagemode`), and team chat on T (`messagemode2`). Existing profiles gain
+U when it is free and no custom crosshair-chat key exists. Version-2 profiles
+from the earlier incorrect global-U default repair U to `messagemode3` and
+restore Y global chat if needed and free; other occupied keys stay unchanged.
+This migration advances `cl_bindDefaultsVersion` to 3. Use
+`bind u messagemode3` to select U explicitly. No message is sent until Enter.
+
+Open the chat composer with your chat binding, then click a
 sender's name. The cursor is free while composing. The player menu offers:
 
 - **whisper:** keeps the current draft and addresses the selected player using

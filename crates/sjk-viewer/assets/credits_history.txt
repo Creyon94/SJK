@@ -856,6 +856,10 @@
 - 0874042 |  | Decode print and cp text as legacy bytes
 
 = Lumaya
++ 08/10/2026 | SJK #25 | Default U to crosshair-target private chat
+- 31b9f6d |  | Default global chat to U
+- c9d6db8 |  | Migrate existing chat bindings to the U default
+- 8143c40 |  | Bind U to crosshair private chat and repair the global-chat default
 + 07/10/2026 | SJK #26 | Show the posed saber body in first person
 - 26719eb |  | Show the posed saber body in first person
 - eea02f1 |  | Record the first-person saber GPU smoke check

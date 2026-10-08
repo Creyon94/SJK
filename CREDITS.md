@@ -102,7 +102,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   (`cg_chatBoxEmojis`, `listEmojis`);
 - #31 the console input row drawn in its colour codes, as EternalJK.
 
-Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 4 pull requests
+Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 5 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa)):
 
@@ -114,6 +114,9 @@ merged into SJK
   up to sixty seconds, as JoF EJK's `CG_Peek_f`, with wall collision.
 - #26 the posed saber body in first person: the local body is drawn with its head
   hidden, as codemp's `CG_Player` and JoF EJK's `CG_ForceFPLSPlayerModel` do.
+- #25 U is the default key for a private message to the player under the
+  crosshair (`messagemode3`, OpenJK's `Con_MessageMode3_f`); Y and T chat stay,
+  and an existing profile gets U only when it is free.
 
 ## Origins: JKR, by Bishop
 

@@ -101,6 +101,17 @@ test: Windows French AZERTY: in the console and in chat type ^ then e, a, i, o, 
 test: ^ then Shift+1 gives ^1 (colour code); ^ then Space gives ^; ^ then Backspace removes the ^.
 test: Other dead keys (accent keys) show at the caret before the next key; US layout unchanged.
 
+[crosshair-chat-key]
+area: Input
+title: U whispers to the player under your crosshair (SJK PR #25)
+change: U is bound to messagemode3 by default: a private message to the crosshair player.
+change: Y stays chat and T team chat; an existing profile gets U only when it is free.
+change: A profile that binds messagemode3 to another key keeps it and gets no U.
+test: On a server, aim at a player and press U: the chat box opens addressed to them.
+test: Press U aiming at nobody: nothing opens. Key bindings > Other lists U on Whisper.
+test: A bind of your own on U (for example taunt) is still there after a restart.
+note: Lumaya did not check the physical U targeting in game.
+
 # ---- Menus & settings ----
 
 [sharp-levelshots]

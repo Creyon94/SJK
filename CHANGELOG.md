@@ -21,6 +21,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- U is now bound by default to a private message to the player under your crosshair (`messagemode3`); Y chat and T team chat stay, and an existing profile gets U only when it is free _(Lumaya, after OpenJK)_
 - The HUD steps aside while the quick wheel is open (what HUD off hides; chat and nameplates stay) _(Sol)_
 - Chat emojis: `cg_chatBoxEmojis 1` (Settings > HUD > Chat emojis) draws JoF EternalJK's emoji pictures in place of their names, like `:poop:`, in new chat messages; `listEmojis` lists them (the pictures come from japro-assets.pk3 in the EternalJK folder) _(Creyon, after JoF EternalJK)_
 - Typing in the console shows colour codes in their colours: `^1` turns what follows red and the code itself is drawn in that colour, in the classic console and the SJK UI's _(Creyon, after JoF EternalJK)_
