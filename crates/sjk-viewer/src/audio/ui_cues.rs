@@ -1,7 +1,7 @@
 //! Interface sound cues: hover, click and back posted by every menu canvas as
 //! it routes input, the stage model's saber throw and catch posted by the
-//! menu stage, the quick wheel's page, move and run cues, all played once per
-//! frame by the audio owner.
+//! menu stage, the quick wheel's page, move and run cues, the achievement
+//! pop-up's fanfare, all played once per frame by the audio owner.
 //!
 //! The posters live inside screens that have no audio access, so cues go
 //! through one process-wide atomic mailbox. A cue is a bit, not a queue:
@@ -30,6 +30,8 @@ pub(crate) enum Cue {
     WheelMove = 64,
     /// The quick wheel ran the chosen choice.
     WheelRun = 128,
+    /// An achievement's pop-up appeared (`achievement_toast.rs`).
+    Achievement = 256,
 }
 
 /// `(cue, sound path, volume)` — the game's own sounds, looked up through
@@ -44,7 +46,12 @@ pub(crate) enum Cue {
 /// `menuroam`, every menu's focus sound (`itemFocusSound`), which the Force
 /// power screen also plays as powers are picked (`ui/ingameforceselect.menu`);
 /// a run is `button1`, the menus' button press.
-pub(crate) const CUE_SOUNDS: [(Cue, &str, f32); 8] = [
+///
+/// An achievement plays `secret_area`, the single-player game's sound for a
+/// secret area found: its game module (`jagamex86.dll`) plays it with the
+/// `@SP_INGAME_SECRET_AREA` centre print. Its file is in the shared
+/// `assets0.pk3`, so a multiplayer install has it.
+pub(crate) const CUE_SOUNDS: [(Cue, &str, f32); 9] = [
     (Cue::Hover, "sound/interface/menuroam.mp3", 0.6),
     (Cue::Click, "sound/interface/button1.mp3", 0.9),
     (Cue::Back, "sound/interface/esc.mp3", 0.9),
@@ -53,6 +60,7 @@ pub(crate) const CUE_SOUNDS: [(Cue, &str, f32); 8] = [
     (Cue::WheelPage, "sound/interface/sub_select.mp3", 0.4),
     (Cue::WheelMove, "sound/interface/menuroam.mp3", 0.5),
     (Cue::WheelRun, "sound/interface/button1.mp3", 0.5),
+    (Cue::Achievement, "sound/interface/secret_area.mp3", 0.8),
 ];
 
 /// Interface cues never share a channel with world sounds.

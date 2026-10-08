@@ -160,6 +160,10 @@ const HELP: &[(&str, &str)] = &[
         "snd_mute_losefocus",
         "Silences the game while its window is alt-tabbed out or minimised.",
     ),
+    (
+        crate::achievement_toast::SOUND_CVAR,
+        "Plays the secret-area chime when an achievement's pop-up appears.",
+    ),
     // HUD
     (
         "cg_drawHud",

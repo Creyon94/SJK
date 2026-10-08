@@ -27,6 +27,7 @@ This page is the design and the current limits. The player-facing summary is
 | Profile page, `profile` and `achievements` commands | [profile_panel.rs](../crates/sjk-viewer/src/profile_panel.rs), [profile_panel_view.rs](../crates/sjk-viewer/src/profile_panel_view.rs), [console_profile_page.rs](../crates/sjk-viewer/src/console_profile_page.rs) |
 | Staff requests, Staff page, `staff` command | [staff.rs](../crates/sjk-identity/src/staff.rs), [staff_panel.rs](../crates/sjk-viewer/src/staff_panel.rs), [staff_panel_view.rs](../crates/sjk-viewer/src/staff_panel_view.rs), [console_staff_page.rs](../crates/sjk-viewer/src/console_staff_page.rs) |
 | Achievements: catalogue, counts, tracker | [achievements.rs](../crates/sjk-viewer/src/achievements.rs), [achievements/tracker.rs](../crates/sjk-viewer/src/achievements/tracker.rs), [achievements_frame.rs](../crates/sjk-viewer/src/achievements_frame.rs) |
+| Achievements: medallion look, unlock pop-up | [achievements/medallion.rs](../crates/sjk-viewer/src/achievements/medallion.rs), [achievement_toast.rs](../crates/sjk-viewer/src/achievement_toast.rs) |
 | The hub itself and its protocol | repository Sol-Vulpes/SJK-hub (`PROTOCOL.md`) |
 
 The hub is a separate repository because it is deployed on its own schedule. The
@@ -355,8 +356,21 @@ is over is taken in a later hour); a count the client keeps is never lower than 
 hub's, so another PC or a reinstall takes the hub's counts back. Achievements the hub
 counts itself come from what the key did there and no request can set them.
 
-When the client sees one of its achievements reach its goal in a match, it writes
-"Achievement unlocked" to the console and as a centre print. The board shows every
+When the client sees one of its achievements reach its goal (in a match, or the hub's
+count arriving), it writes "Achievement unlocked" to the console and shows its pop-up
+([achievement_toast.rs](../crates/sjk-viewer/src/achievement_toast.rs)): a card at the
+top centre of the screen, clear of the crosshair, the chat and the HUD's corners, with
+the board's medallion, "Achievement unlocked", the name, the category and what it
+asked. It takes no input and pauses nothing, over play and over the menus alike. It
+slides down and grows into place in under half a second while a gold ring sweeps
+round the medallion, light bursts from it (a glow, a ring of light, sparks), its edge
+flares and a glint crosses the card; it holds five seconds and fades out. Several
+unlocks queue and show one after another. It waits while the console is open or the
+medal pop-up shows. Each pop-up plays `sound/interface/secret_area.mp3`, the
+single-player game's sound for a secret area found (its game module plays it with the
+`@SP_INGAME_SECRET_AREA` centre print), which multiplayer installs have in the shared
+`assets0.pk3`; `cg_achievementSound 0` (Settings > Sound > Achievement sound) leaves it
+out. The board shows every
 achievement in three columns: a medallion with the goal that fills with the count,
 gold once unlocked, the name, the category (Combat, Duels and flags, Journeys,
 Community), what to do, a bar and the count or the date it was unlocked.
@@ -407,6 +421,8 @@ sends its counts, which the page says.
   localhost only.
 - `profile` opens the Profile page and `achievements` its board (again: closes it).
 - `staff` opens the Staff page, for a staff key only.
+- `cg_achievementSound` (default 1; Settings > Sound > Achievement sound) plays the
+  secret-area sound with each achievement's pop-up.
 - The Identity page (main menu > SJK > IDENTITY, the Profile page's Identity settings,
   the in-game SJK menu, or the `identity` command) shows what the hub knows: the name worn now and up to three earlier ones,
   whether the key is verified, the key file's location and the players the hub knows here.

@@ -7,6 +7,34 @@ SJK currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Achievement pop-up
+
+SJK-only branch `personal/achievement-toast` (08/10/2026, based on `cf77cf8`,
+Windows 11): Sol asked for a World of Warcraft style pop-up when an achievement
+unlocks, with the single-player secret-area sound. Built
+([identity.md](identity.md#achievements)): the unlock's centre print is replaced by
+a card at the top centre of the screen with the board's medallion (now shared,
+`achievements/medallion.rs`), "Achievement unlocked", the name, category and
+description, in the SJK UI's families (Inter when they are not loaded). It takes no
+input and pauses nothing, shows over play and the menus, queues several unlocks and
+waits while the console is open or the medal pop-up shows. It slides down and grows
+into place (0.45 s) with a gold ring sweeping round the medallion, a glow, a ring of
+light, sparks, an edge flare and a glint, holds 5 s and fades out (0.65 s). Each
+pop-up plays `sound/interface/secret_area.mp3` once through the interface cues; the
+file is in `assets0.pk3`, and the single-player game module (`jagamex86.dll`) names
+it beside `@SP_INGAME_SECRET_AREA`. `cg_achievementSound 0` (Settings > Sound)
+leaves the sound out. Verified: unit tests for the queue (one at a time, no
+duplicates, the pause between two), the phases and their opacity, lift and scale,
+nothing drawn while idle, the sound posted once per pop-up and not with the setting
+off, and every achievement's words fitting their column in the families and Inter
+with the card on screen and clear of the crosshair at 1080p, 4K, 4:3, 21:9 and
+800x600; off-screen world shots (`duel6_achievement_toast`) of seven moments over
+duel6 at 1920x1080 and 1440x1080 and over the SJK UI's main page were reviewed.
+Formatting, the locked workspace build, the viewer's tests and workspace Clippy
+(no warnings in the changed code) pass. Not verified: the sound actually playing
+and its loudness, the animation's motion at speed, and an unlock in a live match,
+none of which a world shot shows.
+
 ## Staff tools
 
 SJK-only branch `personal/staff-page` (08/10/2026, based on `cf77cf8`, Windows 11):

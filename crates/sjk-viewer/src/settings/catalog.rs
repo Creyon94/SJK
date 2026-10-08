@@ -169,6 +169,11 @@ pub(super) const AUDIO: &[Setting] = &[
         cvar: "snd_mute_losefocus",
         kind: ValueKind::Bool,
     },
+    Setting {
+        label: "Achievement sound",
+        cvar: crate::achievement_toast::SOUND_CVAR,
+        kind: ValueKind::Bool,
+    },
 ];
 pub(super) const HUD_OPTIONS: &[Setting] = &[
     Setting {

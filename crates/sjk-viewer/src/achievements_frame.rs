@@ -1,7 +1,7 @@
 //! The per-frame side of achievements (`achievements.rs`): each live snapshot goes to
 //! the tracker with the obituaries it brought, and twice a second (with the identity's
 //! turn, `identity_frame.rs`) the counts are loaded, synced with the hub, saved, and
-//! new unlocks announced with a centre print and a console line.
+//! new unlocks announced with a console line and the pop-up (`achievement_toast.rs`).
 
 use super::*;
 
@@ -48,14 +48,7 @@ impl GpuState {
                 "^3Achievement unlocked: ^7{} ^5({})",
                 kind.name, kind.description
             ));
-            if self.live_session.is_some() {
-                self.chat.receive(
-                    sjk_client::ServerEventKind::CenterPrint,
-                    format!("^3Achievement unlocked\n^7{}", kind.name),
-                    None,
-                    Instant::now(),
-                );
-            }
+            self.achievement_toast.push(kind);
         }
     }
 }
