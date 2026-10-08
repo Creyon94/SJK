@@ -1301,6 +1301,45 @@ mod tests {
     }
 
     #[test]
+    fn a_chat_line_goes_on_in_its_colours_on_every_row() {
+        // A chat line as the console keeps it: the coloured name, the `^7: `
+        // separator and the message in the colour the server chose (`say` is `^2`).
+        let text = "^1Darth^4Vader^7: ^2hello there general kenobi, you are a bold one";
+        for width in [8, 11, 16, 20] {
+            let mut spans = Vec::new();
+            wrap(text, width, |span| spans.push(span));
+            assert!(spans.len() >= 3, "{width} wide");
+            for span in &spans {
+                // The colour in force where the row starts, whichever rows (the
+                // name's, the separator's or the message's) the break fell in.
+                let carried = crate::text::Carry::NONE.after(&text[..span.start]);
+                let expected = span
+                    .colour
+                    .map(|code| format!("^{code}"))
+                    .unwrap_or_default();
+                assert_eq!(
+                    carried.to_string(),
+                    expected,
+                    "{width} wide, row at {}",
+                    span.start
+                );
+            }
+        }
+        // At 8 columns the first row ends inside the name, in the name's second colour.
+        let mut spans = Vec::new();
+        wrap(text, 8, |span| spans.push(span));
+        assert_eq!(&text[spans[0].start..spans[0].end], "^1Darth^4Vad");
+        assert_eq!(spans[0].colour, None);
+        assert_eq!(spans[1].colour, Some(4));
+        // A message with no codes of its own, after a plain name, has none to carry.
+        let mut spans = Vec::new();
+        wrap("Plain: a message with no colour codes at all", 12, |span| {
+            spans.push(span)
+        });
+        assert!(spans.len() >= 3 && spans.iter().all(|span| span.colour.is_none()));
+    }
+
+    #[test]
     fn stamped_rows_wrap_at_the_columns_after_the_stamp() {
         let grid = Grid::new([160.0, 1080.0], 1.0);
         // 160 / 8 - 2 = 18 columns, 9 after the stamp.

@@ -7,6 +7,33 @@ SJK currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Wrapped chat rows keep their colour
+
+Branch `personal/chat-wrap-colour` (08/10/2026, based on `cf77cf8`, Windows 11, Rust
+1.96.0): Sol reported that the second line of a multi-line chat message turned white
+though the message was green. The chat feed wrapped a message into up to four rows
+(`Wrapped::update`, `chat/layout.rs`) but drew every row as its own text
+(`chat/view.rs`, `build_feed`), and a text starts in its base colour, so a `^2` on
+the first row never reached the next. `Wrapped` now keeps, for each row, the colour
+code in force where it starts (`text::Carry`, built on the server browser's
+`last_colour`), and the row is drawn after it, emoji rows included: a code takes no
+room, so no wrap changes, and a wrap never cuts a code. A message with no codes is in
+the base colour on every row. The console's scrollback and notify lines already
+carried the colour into the next row (`console::classic::wrap`); they are unchanged,
+and a test now pins chat lines there. Unit tests cover a long green message, a
+coloured name cut across rows then the `^7: ^2` separator and message, a colour
+change mid-message, no codes, a code at a break or before the space a break eats,
+every width against a code between each pair of letters, a broken long word, rows
+with emoji pictures, the feed's drawn glyph colours (every glyph of a long green
+message is pure green on every row), and the console's wrap of a chat line; the
+tests that need rows to carry fail without the change. On Windows 11 with Rust 1.96.0,
+`cargo fmt --all`, `cargo test --release -p sjk-viewer` and
+`cargo clippy --locked --workspace --all-targets` pass, with no clippy warning in
+the changed code. Not checked in game (the client was not started): how it looks on
+a JoF server, and a screenshot. The typed draft is one scrolling row, not wrapped,
+and still starts in the base colour where it has scrolled past a code; this change
+leaves it as it was.
+
 ## Chat emojis
 
 Branch `feat/chat-emojis` (08/10/2026, based on `f91e8ac`, Linux and Windows 11):

@@ -166,6 +166,14 @@ pub(crate) struct TextVertex {
     color: [f32; 4],
 }
 
+#[cfg(test)]
+impl TextVertex {
+    /// The vertex's colour, for tests of what a surface drew.
+    pub(crate) fn colour(&self) -> [f32; 4] {
+        self.color
+    }
+}
+
 impl TextVertex {
     const ATTRIBUTES: [wgpu::VertexAttribute; 3] =
         wgpu::vertex_attr_array![0 => Float32x2, 1 => Float32x2, 2 => Float32x4];
@@ -683,6 +691,59 @@ pub(crate) fn last_colour(text: &str) -> Option<&str> {
         .map(|(at, _)| &text[at..at + 2])
 }
 
+/// Each visible character of `text` drawn from its base colour, with the digit of
+/// the colour code in force at it (`None`: the base colour), for tests of rows that
+/// must go on in the colour the row before them ended in.
+#[cfg(test)]
+pub(crate) fn code_per_char(text: &str) -> Vec<(char, Option<u8>)> {
+    let mut drawn = Vec::new();
+    let mut code = None;
+    let mut chars = text.chars().peekable();
+    while let Some(character) = chars.next() {
+        if character == '^' && chars.peek().is_some_and(char::is_ascii_digit) {
+            code = chars
+                .next()
+                .and_then(|digit| digit.to_digit(10))
+                .map(|digit| digit as u8);
+        } else {
+            drawn.push((character, code));
+        }
+    }
+    drawn
+}
+
+/// The colour code in force where a row of wrapped text starts: what a row drawn
+/// on its own would otherwise lose. Text that is cut into rows and drawn row by
+/// row restarts in the base colour at every row, so each row after the first is
+/// written with its `Carry` in front (it prints as `^<digit>`, or nothing when no
+/// code came before), as if the whole text were drawn as one line. A code takes
+/// no room, so the prefix changes no width and no wrap.
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
+pub(crate) struct Carry(Option<u8>);
+
+impl Carry {
+    /// No colour code in force: the row draws in its base colour.
+    pub(crate) const NONE: Self = Self(None);
+
+    /// The colour in force after `text`, which starts in `self`'s: the last code
+    /// in `text`, else the one it started in.
+    pub(crate) fn after(self, text: &str) -> Self {
+        match last_colour(text) {
+            Some(code) => Self(Some(code.as_bytes()[1] - b'0')),
+            None => self,
+        }
+    }
+}
+
+impl std::fmt::Display for Carry {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self.0 {
+            Some(digit) => write!(formatter, "^{digit}"),
+            None => Ok(()),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -744,6 +805,25 @@ mod tests {
         for (byte, character) in [(0x80, '€'), (0x85, '…'), (0x92, '’'), (0xd7, '×')] {
             assert_eq!(slot_character(&font, byte), character);
         }
+    }
+
+    #[test]
+    fn a_carry_writes_the_code_a_row_starts_in() {
+        let none = Carry::NONE;
+        assert_eq!(none.to_string(), "");
+        // The last code of a row is the next one's start; a row with none keeps it.
+        let green = none.after("^1red ^2green");
+        assert_eq!(green.to_string(), "^2");
+        assert_eq!(green.after("still green").to_string(), "^2");
+        assert_eq!(green.after("then ^0black").to_string(), "^0");
+        // A caret with no digit after it is no code, at the end of a row or not.
+        assert_eq!(green.after("end^"), green);
+        assert_eq!(none.after("a ^ b ^x"), none);
+        assert_eq!(none.after("a^^5b").to_string(), "^5");
+        assert_eq!(
+            code_per_char("a^1b^2^3c"),
+            [('a', None), ('b', Some(1)), ('c', Some(3))]
+        );
     }
 
     #[test]

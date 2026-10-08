@@ -2574,6 +2574,18 @@ pixels apart, `CG_ChatBox_DrawStrings`), and descenders clear the next row by
 messages are 8 px apart (were 10 after a named message, 14 otherwise); see
 [chat/layout.rs](../crates/sjk-viewer/src/chat/layout.rs).
 
+A message too long for one row wraps onto up to four, each drawn as its own text,
+and every row after the first starts in the colour code in force where the row
+before it ended, as if the message were one line: a green `say` (the server puts
+`^2` in front of its text) stays green on every row, and a code set on one row
+reaches the next. A row's carried code is kept with its range when the message is
+wrapped (`Wrapped::carry`, [chat/layout.rs](../crates/sjk-viewer/src/chat/layout.rs)),
+written in front of the row as `^<digit>` (`text::Carry`), which takes no room, so
+no wrap moves; a code is never cut between its `^` and its digit. A message with no
+codes is in the chat's base colour on every row, and the rows after an emoji picture
+keep it too. The console's scrollback and notify lines carry the colour in the same
+way (`wrap` in [console_classic.rs](../crates/sjk-viewer/src/console_classic.rs)).
+
 ### Chat emojis
 
 `cg_chatBoxEmojis 1` (default 0, also Settings > HUD > Chat emojis) shows JoF
