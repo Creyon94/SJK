@@ -12,6 +12,7 @@ impl ViewerConsole {
             || self.update_panel_pointer(event)
             || self.identity_panel_pointer(event)
             || self.profile_panel_pointer(event)
+            || self.staff_panel_pointer(event)
             || self.debug_panel_pointer(event)
         {
             return;

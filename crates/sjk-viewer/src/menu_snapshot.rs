@@ -1133,6 +1133,7 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
             name: name.to_owned(),
             bio: String::new(),
             verified: false,
+            staff: false,
             created: 0,
             names: std::iter::once(name)
                 .chain(earlier.iter().copied())
@@ -2148,6 +2149,7 @@ fn medals_snapshot() {
             name: "^1Sol".to_owned(),
             bio: String::new(),
             verified: true,
+            staff: false,
             created: 0,
             names: Vec::new(),
             medals,

@@ -25,6 +25,7 @@ This page is the design and the current limits. The player-facing summary is
 | New medal pop-up | [medal_popup.rs](../crates/sjk-viewer/src/medal_popup.rs) |
 | Bio rules (shared word for word with the hub) | [bio.rs](../crates/sjk-identity/src/bio.rs) |
 | Profile page, `profile` and `achievements` commands | [profile_panel.rs](../crates/sjk-viewer/src/profile_panel.rs), [profile_panel_view.rs](../crates/sjk-viewer/src/profile_panel_view.rs), [console_profile_page.rs](../crates/sjk-viewer/src/console_profile_page.rs) |
+| Staff requests, Staff page, `staff` command | [staff.rs](../crates/sjk-identity/src/staff.rs), [staff_panel.rs](../crates/sjk-viewer/src/staff_panel.rs), [staff_panel_view.rs](../crates/sjk-viewer/src/staff_panel_view.rs), [console_staff_page.rs](../crates/sjk-viewer/src/console_staff_page.rs) |
 | Achievements: catalogue, counts, tracker | [achievements.rs](../crates/sjk-viewer/src/achievements.rs), [achievements/tracker.rs](../crates/sjk-viewer/src/achievements/tracker.rs), [achievements_frame.rs](../crates/sjk-viewer/src/achievements_frame.rs) |
 | The hub itself and its protocol | repository Sol-Vulpes/SJK-hub (`PROTOCOL.md`) |
 
@@ -365,6 +366,39 @@ player's own word. A modified client or an edited `achievements.json` can send c
 nothing happened for; the hourly allowances only slow that down. Achievements a
 dedicated server would vouch for are not built.
 
+## Staff
+
+Staff is a flag on a key, like verified, that only the hub operator sets; a player
+cannot ask for it or set it. Profiles carry it, so anyone can see who is staff. A
+staff key gets the SJK team's tools in the game: the Profile page shows Staff tools
+(and the `staff` command opens them; for any other key it says they are for staff).
+
+The Staff page ([staff_panel.rs](../crates/sjk-viewer/src/staff_panel.rs), the SJK
+UI's look) finds players (a name or part of one, colour codes ignored; a key id; or,
+with Seen lately, the players the hub saw last), shows the chosen one (the player
+themself until another is chosen, or with Me), and offers:
+
+- every medal of the catalogue with what the player holds: Give (Give +1 for a
+  repeatable one already held), Take back (one award; a repeatable one counts down),
+  and a note sent with the next medal, which everyone can read;
+- the player's achievements at the hub, each with Clear, and Clear all, which waits
+  for a second press within 3 seconds.
+
+Each action is a request signed by the staff member's own key (`PROTOCOL.md`,
+"Staff"); the hub refuses it from a key that is not staff, keeps a log of every staff
+action, and limits a staff key to 120 requests an hour. Staff cannot make staff,
+verify keys or change names and bios.
+
+Clearing achievements at the hub alone does not stick for the ones a client counts:
+the player's game sends its counts again. So when staff members clear their own,
+the client also forgets them (`achievements::forget`): the counter goes just below
+the cleared achievement's goal, and every achievement on the same counter with a
+higher goal is cleared with it (clearing First Blood clears Centurion and Legend of
+the Arena, as the kill count goes to 0). The next kill, duel or map then unlocks it
+again, which is how the unlock is tested. Clear all forgets every count on this PC.
+Clearing another player's client-counted achievements only lasts until their game
+sends its counts, which the page says.
+
 ## Settings and commands
 
 - `cl_identity` (default 1; Settings > Network > SJK identity) turns the feature on.
@@ -372,6 +406,7 @@ dedicated server would vouch for are not built.
   It must be `https://host[:port]` with no path; plain `http://` is accepted for
   localhost only.
 - `profile` opens the Profile page and `achievements` its board (again: closes it).
+- `staff` opens the Staff page, for a staff key only.
 - The Identity page (main menu > SJK > IDENTITY, the Profile page's Identity settings,
   the in-game SJK menu, or the `identity` command) shows what the hub knows: the name worn now and up to three earlier ones,
   whether the key is verified, the key file's location and the players the hub knows here.

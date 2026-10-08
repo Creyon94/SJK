@@ -879,6 +879,7 @@ mod tests {
             name: name.to_owned(),
             bio: bio.to_owned(),
             verified: false,
+            staff: false,
             created: 0,
             names: Vec::new(),
             medals: Vec::new(),

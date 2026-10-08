@@ -43,6 +43,11 @@ pub(crate) mod director;
 pub(crate) mod identity_panel;
 #[path = "console_profile_page.rs"]
 mod profile_page;
+#[path = "console_staff_page.rs"]
+mod staff_page;
+#[path = "staff_panel.rs"]
+pub(crate) mod staff_panel;
+pub(crate) use staff_page::{STAFF_COMMAND, STAFF_HELP};
 #[path = "profile_panel.rs"]
 pub(crate) mod profile_panel;
 pub(crate) use profile_page::{
@@ -144,6 +149,7 @@ pub(crate) struct ViewerConsole {
     /// The Identity page, drawn in place of the console while open.
     identity_panel: identity_panel::Panel,
     profile_panel: profile_panel::Panel,
+    staff_panel: staff_panel::Panel,
     /// The Import page (a dropped `.cfg`), drawn in place of the console while open.
     config_import: config_import_panel::Panel,
     userinfo_dirty: Arc<AtomicBool>,
@@ -284,6 +290,7 @@ impl ViewerConsole {
                 || self.update_panel.is_open()
                 || self.identity_panel.is_open()
                 || self.profile_panel.is_open()
+                || self.staff_panel.is_open()
                 || self.config_import.is_open())
     }
 
@@ -717,6 +724,9 @@ impl ViewerConsole {
         if let Some(draw_list) = self.profile_panel_draw_list() {
             return draw_list;
         }
+        if let Some(draw_list) = self.staff_panel_draw_list() {
+            return draw_list;
+        }
         if let Some(draw_list) = self.debug_panel_draw_list() {
             return draw_list;
         }
@@ -778,6 +788,7 @@ impl ViewerConsole {
             self.update_panel.close();
             self.identity_panel.close();
             self.profile_panel.close();
+            self.staff_panel.close();
             self.config_import.close();
         }
     }

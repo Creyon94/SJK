@@ -46,6 +46,7 @@ did: Weather: rain, snow, splashes, ground fog and volumetric clouds
 did: Eye adaptation, dynamic glow, metal materials and many renderer fixes
 did: SJK identity and its hub, player reports, the changelog and these credits
 did: The Profile page and achievements counted in matches, with their board
+did: Staff tools in the game: medals and achievements for the SJK team
 link: https://github.com/Sol-Vulpes/SJK
 link: https://sol-vulpes.github.io/SJK/
 

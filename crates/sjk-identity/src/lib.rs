@@ -13,10 +13,12 @@ pub mod hub;
 mod keys;
 pub mod report;
 pub mod service;
+pub mod staff;
 pub mod wire;
 
 pub use hub::{HttpHub, Hub, HubError, valid_base_url};
 pub use keys::{Identity, KeyError};
 pub use report::{BugReport, Category, PlayerReport, WorldNote};
 pub use service::{HubFactory, Location, ReportOutcome, Service, Settings, Snapshot, Status};
+pub use staff::{StaffRequest, StaffState};
 pub use wire::{Achievement, Medal, Presence, Profile, WornName, names_match, normal_form};

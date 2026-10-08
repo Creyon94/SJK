@@ -371,6 +371,38 @@ pub(crate) fn own_achievements() -> Option<Vec<sjk_identity::Achievement>> {
     })
 }
 
+/// Whether the hub says the player's own key is staff.
+pub(crate) fn is_staff() -> bool {
+    lock().service.as_ref().is_some_and(|service| {
+        service.with_snapshot(|snapshot| snapshot.me.as_ref().is_some_and(|me| me.staff))
+    })
+}
+
+/// The player's own key id, once the service started.
+pub(crate) fn own_key_id() -> Option<String> {
+    lock()
+        .service
+        .as_ref()
+        .map(|service| service.with_snapshot(|snapshot| snapshot.key_id.clone()))
+}
+
+/// Send a staff request through the service; false when the service has not started.
+pub(crate) fn staff(request: sjk_identity::StaffRequest) -> bool {
+    lock()
+        .service
+        .as_ref()
+        .map(|service| service.staff(request))
+        .is_some()
+}
+
+/// What staff requests brought back, once the service started.
+pub(crate) fn staff_state() -> Option<sjk_identity::StaffState> {
+    lock()
+        .service
+        .as_ref()
+        .map(sjk_identity::Service::staff_state)
+}
+
 /// Ask the hub for another player's profile (their bio).
 pub(crate) fn look_up(key_id: &str) {
     if let Some(service) = lock().service.as_ref() {
@@ -402,6 +434,9 @@ mod tests {
         assert!(player_report_outcome().is_none());
         assert!(own_medals().is_none());
         assert!(own_achievements().is_none());
+        assert!(!is_staff());
+        assert!(staff_state().is_none());
+        assert!(own_key_id().is_none());
         assert!(!set_achievement_counts(&std::collections::BTreeMap::new()));
     }
 }

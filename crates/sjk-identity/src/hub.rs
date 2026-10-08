@@ -2,7 +2,8 @@
 
 use crate::keys::{Identity, random_bytes};
 use crate::report::{BugReport, PlayerReport, WorldNote};
-use crate::wire::{Achievement, Achievements, Presence, Profile, authorization};
+use crate::staff::StaffRequest;
+use crate::wire::{Achievement, Achievements, Players, Presence, Profile, authorization};
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
 use std::collections::BTreeMap;
@@ -62,6 +63,17 @@ pub trait Hub: Send {
     ) -> Result<Vec<Achievement>, HubError> {
         Err(HubError::Protocol(
             "this hub client does not send achievements".to_owned(),
+        ))
+    }
+    /// A staff request signed by the identity (`PROTOCOL.md`, "Staff"): the players a
+    /// search found, or the changed key's profile.
+    fn staff(
+        &mut self,
+        _identity: &Identity,
+        _request: &StaffRequest,
+    ) -> Result<Vec<Profile>, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not send staff requests".to_owned(),
         ))
     }
     /// Any player's public profile.
@@ -397,6 +409,39 @@ impl Hub for HttpHub {
         let answer: Achievements =
             parse(self.send(Some(identity), "PUT", "/v1/achievements", Some(body))?)?;
         Ok(answer.achievements)
+    }
+
+    fn staff(
+        &mut self,
+        identity: &Identity,
+        request: &StaffRequest,
+    ) -> Result<Vec<Profile>, HubError> {
+        let (path, body) = match request {
+            StaffRequest::Search(query) => ("/v1/staff/search", json!({ "query": query })),
+            StaffRequest::Award {
+                key_id,
+                medal,
+                note,
+            } => (
+                "/v1/staff/award",
+                json!({ "key_id": key_id, "medal": medal, "note": note }),
+            ),
+            StaffRequest::Unaward { key_id, medal } => (
+                "/v1/staff/unaward",
+                json!({ "key_id": key_id, "medal": medal }),
+            ),
+            StaffRequest::ClearAchievements { key_id, id } => (
+                "/v1/staff/clear-achievements",
+                json!({ "key_id": key_id, "id": id }),
+            ),
+        };
+        let answer = self.send(Some(identity), "POST", path, Some(body))?;
+        if matches!(request, StaffRequest::Search(_)) {
+            let found: Players = parse(answer)?;
+            Ok(found.players)
+        } else {
+            Ok(vec![parse(answer)?])
+        }
     }
 
     fn profile(&mut self, key_id: &str) -> Result<Profile, HubError> {

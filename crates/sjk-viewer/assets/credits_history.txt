@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 08/10/2026 | - | Staff tools: give and take back medals, clear achievements, from the game
+- df118ac |  | Staff tools: give and take back medals, clear achievements, from the game
 + 08/10/2026 | - | Wrapped chat rows go on in the colour the row before ended in
 - 2b4f074 |  | Keep a wrapped chat message's colour on every row
 + 08/10/2026 | - | The HUD steps aside while the quick wheel is open

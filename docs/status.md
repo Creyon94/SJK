@@ -7,6 +7,32 @@ SJK currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Staff tools
+
+SJK-only branch `personal/staff-page` (08/10/2026, based on `cf77cf8`, Windows 11):
+Sol asked for an in-game page, for Sol only for now, to give and take back medals
+and clear achievements (his own, to test them). Sol chose a staff flag on keys,
+set only by the hub operator, over a shared secret. Built
+([identity.md](identity.md#staff), [SJK UI](sjk-ui.md#sjks-pages)): `staff` in
+Profile, signed `StaffRequest`s in `sjk-identity` (search, award, unaward, clear
+achievements) with their answers in `Service::staff_state`, the Staff page (Profile's
+Staff tools, `staff`), and the client forgetting its own counts when a staff member
+clears their own achievements. The hub's side is in the hub's repository, committed
+there and not deployed.
+
+Verified: unit tests (the service refusing a key that is not staff before the hub
+hears it, answers replacing the player found and the player's own profile; the
+page's target, Give and Take back as the catalogue allows, Clear all's second press,
+Tab and typing; every focus within its canvas at 1080p, 4K, 4:3 and 21:9; forgetting
+a count just below the goal and the higher goals on the same counter);
+`cargo test --release -p sjk-viewer -p sjk-identity`; an end-to-end test against the
+new hub built and run on this PC (`hub_e2e`, a key that is not staff refused, a key the test hub made staff
+finding a player by name and key, giving and taking back a medal
+with Decorated unlocked, clearing one achievement and all); the world shot
+`duel6_sjk_staff`, looked at. Not verified: no game was started (the keys and pointer
+on the page, a cleared own achievement unlocking again in a match); nothing reached
+the deployed hub, which does not have staff yet.
+
 ## Wrapped chat rows keep their colour
 
 Branch `personal/chat-wrap-colour` (08/10/2026, based on `cf77cf8`, Windows 11, Rust

@@ -38,6 +38,7 @@ impl ViewerConsole {
         self.config_import.close();
         self.credits.close();
         self.identity_panel.close();
+        self.staff_panel.close();
         self.dead_key.settle();
         self.profile_panel.open(tab, owns_console);
     }
@@ -52,6 +53,13 @@ impl ViewerConsole {
         match action {
             PanelAction::None => {}
             PanelAction::Close => self.close_profile_panel(),
+            PanelAction::Staff => {
+                let owns_console = self.profile_panel.close();
+                self.open_staff_panel();
+                if owns_console {
+                    self.staff_panel_owns_console();
+                }
+            }
             PanelAction::Identity => {
                 // The Identity page takes the console over; Escape there closes both
                 // when the Profile page had opened the console.

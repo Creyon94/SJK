@@ -33,6 +33,7 @@ impl ViewerConsole {
         self.changelog.close();
         self.update_panel.close();
         self.profile_panel.close();
+        self.staff_panel.close();
         self.config_import.close();
         self.credits.close();
         self.dead_key.settle();
