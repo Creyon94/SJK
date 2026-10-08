@@ -1,4 +1,5 @@
-//! Bridge shot UI actions to the existing presentation director and cursor policy.
+//! Bridge Camera control's actions to the existing presentation director and
+//! cursor policy.
 use super::*;
 use crate::console::{ViewerConsole, director::Request};
 use crate::{GpuState, ingame_menu::Page};
@@ -124,14 +125,7 @@ impl GpuState {
                 KeyCode::ArrowLeft => panel.adjust(-1.),
                 KeyCode::ArrowRight => panel.adjust(1.),
                 KeyCode::ArrowUp | KeyCode::ArrowDown | KeyCode::Tab => {
-                    let direction = if key == KeyCode::ArrowUp {
-                        sjk_ui::AbstractAction::Previous
-                    } else {
-                        sjk_ui::AbstractAction::Next
-                    };
-                    if let Some(token) = self.in_game_menu.canvas.action(direction) {
-                        panel.selected = token;
-                    }
+                    panel.step(&mut self.in_game_menu.canvas, key != KeyCode::ArrowUp);
                     None
                 }
                 // SJK: Space keeps stepping a slider; Enter opens its entry.

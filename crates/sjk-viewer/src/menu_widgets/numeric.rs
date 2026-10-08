@@ -1,4 +1,4 @@
-//! Shared bounded numeric drafts for settings, saber colours and shot controls.
+//! Shared bounded numeric drafts for settings, saber colours and Camera control.
 
 use super::MenuCanvas;
 use crate::console::line_edit::{LineEdit, Motion};

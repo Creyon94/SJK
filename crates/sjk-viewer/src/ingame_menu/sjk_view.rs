@@ -38,6 +38,7 @@ pub(crate) enum Entry {
     Character,
     Settings,
     Servers,
+    /// Camera control ([`Page::Shot`]).
     Shot,
     SolJk,
     Leave,
@@ -77,7 +78,7 @@ impl Entry {
             Self::Character => "Character",
             Self::Settings => "Settings",
             Self::Servers => "Servers",
-            Self::Shot => "Shot controls",
+            Self::Shot => super::CAMERA_CONTROL,
             Self::SolJk => "Sol JK",
             Self::Leave => "Leave",
         }
@@ -96,7 +97,7 @@ impl Entry {
             Self::Character => "Name, model, saber and Force",
             Self::Settings => "Every option and key, with search",
             Self::Servers => "Find another server; joining leaves this one",
-            Self::Shot => "Camera framing and sunlight for recording",
+            Self::Shot => "Frame shots and recordings: the camera and the sun",
             Self::SolJk => "What's new, credits, identity, report a bug",
             Self::Leave => "Leave the server, or quit",
         }
@@ -1824,7 +1825,7 @@ mod tests {
                 "Character",
                 "Settings",
                 "Servers",
-                "Shot controls",
+                "Camera control",
                 "Sol JK",
                 "Leave"
             ]

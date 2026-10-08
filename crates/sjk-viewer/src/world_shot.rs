@@ -1127,6 +1127,86 @@ mod tests {
         });
     }
 
+    /// Camera control over duel6 as a match would show it, on a made-up match
+    /// (there is no server): the game menu with its Camera control entry
+    /// chosen, then the panel on its Camera page; in the SJK UI also the Sun
+    /// page, a number being typed and the Sun page where the sun cannot be
+    /// set, and a 4:3 window; the modern look for its new name.
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_camera_control() {
+        use crate::ingame_menu::shot::SUN;
+        use crate::ingame_menu::{
+            Page, ShotView,
+            sjk_view::{Card, Entry},
+        };
+        on_big_stack(|| {
+            for (style, size, prefix) in [
+                ("sjk", [1920, 1080], "duel6-camera"),
+                ("sjk", [1440, 1080], "duel6-camera-4x3"),
+                ("modern", [1920, 1080], "duel6-camera-modern"),
+            ] {
+                let menu = menu::ClientMenu::new(false, String::new());
+                let cvars = [
+                    ("ui_menuStyle", style),
+                    (crate::settings::quick::HIDE_CVAR, "1"),
+                ];
+                let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", size, Some(menu), &cvars)
+                else {
+                    return;
+                };
+                let shots =
+                    menu_backdrop::tour_for("Yavin Training Grounds").expect("duel6's tour");
+                let (yaw, pitch) = look(shots[0].from, shots[0].at);
+                aim(&mut gpu, shots[0].from, yaw, pitch);
+                gpu.game_menu = true;
+                if let Some(console) = gpu.console.as_mut() {
+                    console.close_for_connection();
+                }
+                let _ = frame(&mut gpu, 60);
+                gpu.game_menu_page = Page::Main;
+                if style == "sjk" {
+                    let ffa = ShotView {
+                        team: 0,
+                        team_game: false,
+                        red_players: 0,
+                        blue_players: 0,
+                        vote_active: false,
+                    };
+                    gpu.in_game_menu
+                        .sjk_for_shot(Card::for_shot(false, false), ffa);
+                    gpu.game_menu_row = Entry::Shot.index();
+                } else {
+                    // Without a vote on, the modern main page's tenth row.
+                    gpu.game_menu_row = 9;
+                }
+                let entry = format!("{prefix}-entry");
+                println!("{}", shoot(&mut gpu, 16, &entry).display());
+                // As the entry (or F8) opens it.
+                gpu.open_shot_panel();
+                let panel = format!("{prefix}-panel");
+                println!("{}", shoot(&mut gpu, 8, &panel).display());
+                if prefix != "duel6-camera" {
+                    continue;
+                }
+                let sun_available = gpu.in_game_menu.shot.sun_available;
+                println!("the sun can be set here: {sun_available}");
+                gpu.in_game_menu.shot.activate(SUN);
+                println!("{}", shoot(&mut gpu, 4, "duel6-camera-sun").display());
+                // Back on Camera, Distance chosen and a number typed on it.
+                let shot = &mut gpu.in_game_menu.shot;
+                shot.sun_tab = false;
+                shot.selected = 2;
+                assert!(shot.begin_typed("12"));
+                println!("{}", shoot(&mut gpu, 4, "duel6-camera-typing").display());
+                let shot = &mut gpu.in_game_menu.shot;
+                shot.activate(SUN);
+                shot.sun_available = !sun_available;
+                println!("{}", shoot(&mut gpu, 4, "duel6-camera-sun-other").display());
+            }
+        });
+    }
+
     /// The quick wheel over duel6 as a player holding its key sees it, without a
     /// server: General with a choice highlighted, the change to Weather caught
     /// half-way, Weather settled with the mouse on Rain, the pointer still in the

@@ -30,10 +30,15 @@ pub(crate) use callvote::Action as CallVoteAction;
 
 const VOTE_SCROLL_TOKEN: u16 = u16::MAX;
 
+/// What players read for the camera and sunlight panel ([`Page::Shot`]): its
+/// game-menu entry and title in every style (Shot controls until 08/10/2026).
+pub(crate) const CAMERA_CONTROL: &str = "Camera control";
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Page {
     Main,
-    /// Camera and sun controls over the live world.
+    /// Camera control: camera and sun controls over the live world
+    /// ([`shot`]).
     Shot,
     Team,
     /// Map/theme constrained Siege class selection.
@@ -247,7 +252,13 @@ impl InGameMenu {
         target: TextTarget<'_>,
         viewport: [f32; 2],
     ) {
-        self.build_sjk(view, viewport);
+        if view.page == Page::Shot {
+            // Camera control has its own column, not the arc.
+            self.active_page = Page::Shot;
+            self.shot.build_sjk(&mut self.canvas, viewport);
+        } else {
+            self.build_sjk(view, viewport);
+        }
         target.append(&self.canvas, viewport);
     }
 
@@ -481,7 +492,7 @@ impl InGameMenu {
                     self.rows[count + 1].push_str("Vote no");
                     count += 2;
                 }
-                self.rows[count].push_str("Shot controls");
+                self.rows[count].push_str(CAMERA_CONTROL);
                 count += 1;
                 self.rows[count].push_str("Leave");
                 count + 1
@@ -751,6 +762,41 @@ mod sjk_tests {
         // Another page than the one drawn: every row counts.
         assert_eq!(menu.sjk_step(Page::Main, 0, 9, true), 1);
         assert_eq!(menu.sjk_step(Page::Main, 0, 0, true), 0);
+    }
+
+    #[test]
+    fn every_style_calls_the_panel_camera_control() {
+        for style in [MenuStyle::Modern, MenuStyle::Sjk] {
+            let mut menu = InGameMenu::new();
+            menu.set_style(style, ArtSet::default());
+            for vote_active in [false, true] {
+                let mut main = view(Page::Main, 0, false, 0);
+                main.vote_active = vote_active;
+                menu.prepare_rows(&main);
+                let rows = &menu.rows[..menu.row_count];
+                // The row the main page's actions open the panel from.
+                let row = match style {
+                    MenuStyle::Sjk => sjk_view::Entry::Shot.index(),
+                    _ if vote_active => 11,
+                    _ => 9,
+                };
+                assert_eq!(rows[row], CAMERA_CONTROL, "{style:?} {vote_active}");
+                assert!(
+                    rows.iter()
+                        .all(|row| !row.to_ascii_lowercase().contains("shot")),
+                    "{style:?}: {rows:?}"
+                );
+            }
+        }
+        // The classic bar has no entry: F8 opens the panel there.
+        let mut classic = InGameMenu::new();
+        classic.set_style(MenuStyle::Classic, ArtSet::default());
+        classic.prepare_rows(&view(Page::Main, 0, false, 0));
+        assert!(
+            classic.rows[..classic.row_count]
+                .iter()
+                .all(|row| !row.to_ascii_lowercase().contains("shot"))
+        );
     }
 
     #[test]

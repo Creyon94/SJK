@@ -430,9 +430,9 @@ Its Join Red, Join Blue and Spectate buttons are left to the Join tab. Settings 
 the option panels described above. Siege swaps in Objectives and V Chat as retail does. Add Bot,
 Objectives, V Chat and Restart Match are dimmed with a note, because the client
 cannot add bots or restart a match it does not host. Left and Right move along
-the bar; Escape closes a pop-up, then the menu. The Server browser and Shot
-controls entries, which retail did not have, are in the modern style and the SJK
-UI only.
+the bar; Escape closes a pop-up, then the menu. The Server browser and
+[Camera control](#camera-control) entries, which retail did not have, are in the
+modern style and the SJK UI only (F8 opens Camera control in every style).
 
 With the player's retail game data mounted, the classic menus draw its own
 artwork: the backdrop, side glyph columns, ring, windows, logo, sub-page frames,
@@ -851,6 +851,43 @@ and the first/third person choice are the same in both styles; Sol's JoF EJK
 profile also sets `cg_thirdPersonRange 100`, which SJK leaves to that cvar. SJK's
 `sjk` style does not apply EternalJK's strafe helper rule.
 
+### Camera control
+
+Camera control (named Shot controls until 08/10/2026) is a panel for framing
+screenshots and recordings in a match or a demo
+([ingame_menu/shot.rs](../crates/sjk-viewer/src/ingame_menu/shot.rs)). The game
+menu's Camera control entry opens it (the SJK UI's arc and the modern menu; the
+classic bar has no entry), as does F8 while F8 has no binding. It drives the
+console's presentation director, the same one as the `demo_camera` and
+`demo_sun` commands, which keep their names: nothing it does reaches the
+server, prediction or the player's input.
+
+- **Camera page:** View from Back, Front, Left or Right; Angle (-180 to 180),
+  Pitch (-80 to 80), Distance (16 to 512) and Height (-64 to 160) of the
+  third-person camera, starting from where it is (`cg_thirdPersonAngle`,
+  `cg_thirdPersonPitchOffset`, `cg_thirdPersonRange`,
+  `cg_thirdPersonVertOffset`). A change turns third person on.
+- **Sun page:** the sun's direction (0 to 360) and elevation (-20 to 90), when
+  the view has real-time lighting (`r_dayNight 1` at launch) and open sky, what
+  holds the sun now (the day settings, Camera control, or returning), and Reset
+  sun, which hands it back to the day settings at once.
+- **Motion:** Move duration (0.2 to 20 seconds) and Orbit speed (-30 to 30
+  degrees a second); Orbit turns the camera (or the sun) round, Stop holds it,
+  Reset (the Sun page's Ease back) eases back to the settings over the move's
+  duration.
+- **Live preview** (on by default) shows each change at once; off, changes wait
+  for Move and hide, which moves there over the move's duration. **HUD**
+  switches `cg_draw2D`. **Hide panel** (Move and hide) closes the panel and
+  applies; **Close** closes it without moving.
+
+Keys: Up, Down and Tab move from control to control (a slider's number and track
+are one stop), Left and Right step a slider, a digit types its value (Enter
+applies, Escape cancels), Enter or Space acts, F8 or Escape hides the panel. The
+pointer drags a slider's track, a click on its number types it, and a click acts
+on a button, a tab or a switch. With the SJK UI's menus the panel has the SJK
+UI's look ([SJK UI](sjk-ui.md#camera-control)); with the classic and modern
+menus, the modern panel.
+
 ## Animation sounds and voice variants
 
 Footsteps and authored swing/spin sounds follow the evaluated lower/upper Ghoul2
@@ -983,7 +1020,7 @@ page is drawn like the Update page in both menu styles.
 ## Slider values
 
 Every slider in Settings (including the classic Setup panels), the saber RGB
-controls (including the second saber), and the Shot panel supports direct
+controls (including the second saber), and Camera control supports direct
 numeric entry. Click its displayed value, select the row and press Enter, or
 just type a number on the selected row: the draft starts with what was typed.
 Enter applies it; Escape cancels. Left/Right, Home/End, Backspace and Delete

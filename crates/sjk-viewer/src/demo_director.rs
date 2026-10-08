@@ -1,4 +1,5 @@
-//! Local shot controls. Camera offsets never enter input, prediction or usercmds.
+//! Local camera and sun control (the Camera control panel, `demo_camera` and
+//! `demo_sun`). Camera offsets never enter input, prediction or usercmds.
 use glam::Vec3;
 use std::time::Instant;
 #[path = "demo_director_commands.rs"]

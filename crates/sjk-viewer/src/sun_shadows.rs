@@ -282,7 +282,7 @@ impl super::Runtime {
             })
     }
 
-    /// Unmodified day-clock sun, for continuous handoffs out of shot controls.
+    /// Unmodified day-clock sun, for continuous handoffs out of Camera control.
     pub(crate) fn natural_sun(&self, time: f32) -> Option<Vec3> {
         self.shadows
             .as_ref()

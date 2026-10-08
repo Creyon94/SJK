@@ -1,4 +1,5 @@
-//! Responsive right-edge panel; the rest of the world stays untinted.
+//! Camera control's modern look (also the classic style's): a responsive
+//! right-edge panel; the rest of the world stays untinted.
 use super::*;
 use sjk_ui::{Color, DrawCommand, FontWeight, Rect, TextAlign};
 
@@ -37,7 +38,7 @@ pub(super) fn build(panel: &Panel, ui: &mut MenuCanvas, viewport: [f32; 2]) {
     });
     label(
         ui,
-        "SHOT CONTROLS",
+        "CAMERA CONTROL",
         l.r(20., 18., 320., 30.),
         24. * l.s,
         true,
@@ -114,7 +115,7 @@ fn sun(ui: &mut MenuCanvas, panel: &Panel, l: &Layout) {
             ui,
             match panel.sun_mode {
                 crate::console::director::SunMode::Automatic => "Automatic · using day settings",
-                crate::console::director::SunMode::Manual => "Manual · shot controls own the sun",
+                crate::console::director::SunMode::Manual => "Manual · camera control owns the sun",
                 crate::console::director::SunMode::Returning => "Returning to day settings…",
             },
             l.r(20., 310., 356., 22.),
