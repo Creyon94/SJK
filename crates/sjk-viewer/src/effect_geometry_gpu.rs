@@ -37,11 +37,11 @@ impl Runtime {
         format: wgpu::TextureFormat,
     ) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR cylinder/electricity shader"),
+            label: Some("SJK cylinder/electricity shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("effect_geometry.wgsl").into()),
         });
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("JKR cylinder/electricity pipeline layout"),
+            label: Some("SJK cylinder/electricity pipeline layout"),
             bind_group_layouts: &[Some(camera_layout), Some(atlas_layout)],
             immediate_size: 0,
         });
@@ -87,7 +87,7 @@ impl Runtime {
         let decal_pipelines = crate::effect_blend::specifications()
             .map(|(label, blend)| create_pipeline(label, blend, DECAL_BIAS));
         let vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR fixed FX geometry vertices"),
+            label: Some("SJK fixed FX geometry vertices"),
             size: (crate::effect_geometry::MAX_VERTICES
                 * std::mem::size_of::<crate::effect_geometry::Vertex>()) as u64,
             usage: wgpu::BufferUsages::VERTEX
@@ -97,7 +97,7 @@ impl Runtime {
             mapped_at_creation: false,
         });
         let index_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR fixed FX geometry indices"),
+            label: Some("SJK fixed FX geometry indices"),
             size: (crate::effect_geometry::MAX_INDICES * std::mem::size_of::<u32>()) as u64,
             usage: wgpu::BufferUsages::INDEX
                 | wgpu::BufferUsages::COPY_DST

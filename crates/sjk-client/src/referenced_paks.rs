@@ -14,7 +14,7 @@ pub struct ReferencedPak<'a> {
 /// OpenJK codemp `FS_PureServerSetReferencedPaks` uses the shorter list. Some
 /// servers omit names while still advertising checksums; these unnamed entries
 /// are not downloadable references. Never shift a name onto a later checksum.
-/// Retains JKR's bounded inventory and strict validation of paired checksums;
+/// Keeps a bounded inventory and strict validation of paired checksums;
 /// callers remain responsible for path and downloaded-content validation.
 pub fn parse<'a>(checksums: &str, names: &'a str) -> Result<Vec<ReferencedPak<'a>>, &'static str> {
     let mut references = Vec::new();

@@ -4,9 +4,9 @@ Every Sol JK release, newest first. The client shows this page in game
 (main menu > Changelog, or the `changelog` console command).
 
 Credits close each line: who made the change, and "after <client>" when it
-follows that client's behaviour. SJK is built on Bishop's JKR; see
-[CREDITS.md](CREDITS.md). Many of Sol's changes were written with Claude
-(Anthropic) as a coding assistant.
+follows that client's behaviour; [CREDITS.md](CREDITS.md) has the full record.
+Many of Sol's changes were written with Claude (Anthropic) as a coding
+assistant.
 
 <!--
 Format, read by the client (crates/sjk-viewer/src/changelog_data.rs, whose
@@ -21,6 +21,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- Sol JK stands on its own: the old jkr_ names of settings and commands, the JKR_ environment variables and the one-time import of GameData/jkr are gone. Downloaded files now go to SJK's own folder (%LOCALAPPDATA%\SJK\downloads), the dedicated server saves sjk_server.cfg and the material-map generator writes zzz_sjk_materials.pk3 _(Sol)_
 - SJK UI in game: the in-game menu's Character opens the SJK UI's character, saber and Force pages too, your model standing beside them in a live preview holding your sabers, over the dimmed match _(Sol)_
 - Medals: the SJK team can give players medals (Early Tester, Early Contributor, Bug Hunter, JoF Clan). They grant nothing; they show as ribbon bars after the SJK emblem on the scoreboard, as medallions on the player card (X) and on the SJK UI's Players page, and in full with the date and the team's note on your Identity page. A medal new to you shows once in a pop-up on the main menu, or when you open the game menu in a match _(Sol)_
 - Illuminate, a free power everyone has: the last entry of the Force wheel (or the force_illuminate bind) turns on a holocron that floats by your shoulder, slowly turning, and lights the way in dark maps. Only you see it; Settings > Game > Illuminate holocron takes it off the wheel _(Sol)_

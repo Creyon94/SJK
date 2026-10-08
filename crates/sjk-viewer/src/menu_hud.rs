@@ -5,14 +5,14 @@
 //! OpenJK codemp `CG_DrawHUD` (`cg_draw.c`) draws named items of their
 //! `lefthud` and `righthud` menus. Loading those files gives the original
 //! HUD, and any PK3 that replaces `ui/hud.menu` or names another list in
-//! `cg_hudFiles` gives a custom HUD, with no JKR-specific format. A nonzero
+//! `cg_hudFiles` gives a custom HUD, with no SJK-specific format. A nonzero
 //! integer `cg_hudFiles` selects the stock text-only HUD instead.
 //!
-//! `cg_hudStyle` chooses between JKR's own modern and classic layouts and
-//! this game-data HUD (`game`, SJK's default). In `game` mode the JKR status
+//! `cg_hudStyle` chooses between the client's own modern and classic layouts and
+//! this game-data HUD (`game`, SJK's default). In `game` mode the built-in status
 //! widgets hide ([`crate::hud::HudVisibility::menu_hud`]) and everything else
-//! the JKR HUD shows (crosshair, obituaries, timers, chat) stays. Files that
-//! cannot be read, or that define no HUD menus, leave JKR's HUD in place.
+//! the built-in HUD shows (crosshair, obituaries, timers, chat) stays. Files that
+//! cannot be read, or that define no HUD menus, leave the built-in HUD in place.
 //!
 //! Several installed HUD packs replace the same `ui/hud.menu` (and often the
 //! retail pictures too); the last one mounted wins, as in the game.
@@ -69,9 +69,9 @@ const INCLUDE_DEPTH: usize = 4;
 /// `cg_hudStyle` values.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum HudStyle {
-    /// JKR's own layout (or the classic one while `cg_classicHudFont` is on).
+    /// SJK's own layout (or the classic one while `cg_classicHudFont` is on).
     Modern,
-    /// JKR's classic layout in either font.
+    /// SJK's classic layout in either font.
     Classic,
     /// SJK's radial layout: health, armor, Force and ammunition as arcs around the
     /// crosshair, drawn by the engine (the TheRisqe Radial HUD, without its PK3).
@@ -209,7 +209,7 @@ pub(crate) struct MenuHud {
     frame: Frame,
     timers: Timers,
     score_label: String,
-    /// Whether the game-data HUD stands in for JKR's status widgets.
+    /// Whether the game-data HUD stands in for the built-in status widgets.
     active: bool,
     /// Whether this frame's pictures and text are drawn.
     drawn: bool,
@@ -229,7 +229,7 @@ impl MenuHud {
         }
     }
 
-    /// Whether JKR's status widgets should hide this frame.
+    /// Whether the built-in status widgets should hide this frame.
     pub(crate) fn active(&self) -> bool {
         self.active
     }

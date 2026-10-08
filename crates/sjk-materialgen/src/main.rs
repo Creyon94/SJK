@@ -92,10 +92,10 @@ fn report(options: &sjk_materialgen::run::Options, summary: &Summary) {
         .parent()
         .map_or_else(|| ".".into(), |p| p.display().to_string());
     println!();
-    println!("To try the maps without touching the game folder, start JKR with");
-    println!("  JKR_CONTENT={directory}");
+    println!("To try the maps without touching the game folder, start SJK with");
+    println!("  SJK_CONTENT={directory}");
     println!(
-        "(cmd: set \"JKR_CONTENT={directory}\"; PowerShell: $env:JKR_CONTENT=\"{directory}\")."
+        "(cmd: set \"SJK_CONTENT={directory}\"; PowerShell: $env:SJK_CONTENT=\"{directory}\")."
     );
     println!(
         "Or copy the pk3 into {}/base yourself; its zzz_ name loads after the retail pk3s.",

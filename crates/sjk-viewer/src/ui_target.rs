@@ -62,7 +62,7 @@ pub(crate) fn surface_view(
 ) -> Option<wgpu::TextureView> {
     (direct && display.is_srgb()).then(|| {
         texture.create_view(&wgpu::TextureViewDescriptor {
-            label: Some("JKR 2D layer view"),
+            label: Some("SJK 2D layer view"),
             format: Some(format(display)),
             ..Default::default()
         })

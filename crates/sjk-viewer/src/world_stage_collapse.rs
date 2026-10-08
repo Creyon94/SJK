@@ -19,7 +19,7 @@ mod tests;
 /// depth function, and carries a leading lightmap in its second bundle.
 ///
 /// rd-vanilla also requires both stages to be active, which a stage without an
-/// image is not. JKR draws such a stage with the surface's own texture instead,
+/// image is not. SJK draws such a stage with the surface's own texture instead,
 /// as its implicit default stages rely on, so that check has no counterpart here.
 pub(crate) fn collapse_multitexture(stages: &[ShaderStage]) -> Vec<CompiledStage> {
     let mut result = Vec::with_capacity(stages.len());

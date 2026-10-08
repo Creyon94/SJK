@@ -141,14 +141,14 @@ impl GpuState {
         let vertex_buffer = self
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("JKR player stage hilt vertices"),
+                label: Some("SJK player stage hilt vertices"),
                 contents: bytemuck::cast_slice(&flattened.vertices),
                 usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::STORAGE,
             });
         let index_buffer = self
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("JKR player stage hilt indices"),
+                label: Some("SJK player stage hilt indices"),
                 contents: bytemuck::cast_slice(&flattened.indices),
                 usage: wgpu::BufferUsages::INDEX,
             });
@@ -164,7 +164,7 @@ impl GpuState {
         let instance_buffer = self
             .device
             .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-                label: Some("JKR player stage hilt instance"),
+                label: Some("SJK player stage hilt instance"),
                 contents: bytemuck::bytes_of(&instance),
                 usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             });

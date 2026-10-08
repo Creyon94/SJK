@@ -100,11 +100,8 @@ fn find_game_data(configured: Option<&Path>) -> Result<PathBuf, LaunchError> {
     let current = env::current_dir().ok();
     let executable = env::current_exe().ok();
     let home = env::var_os("HOME").map(PathBuf::from);
-    // SJK's neutral name first, then JKR's.
-    let environment = ["JKA_GAME_DATA", "JKR_GAME_DATA"]
-        .into_iter()
-        .filter_map(env::var_os)
-        .find(|path| !path.is_empty())
+    let environment = env::var_os("JKA_GAME_DATA")
+        .filter(|path| !path.is_empty())
         .map(PathBuf::from);
     find_game_data_in(
         configured,

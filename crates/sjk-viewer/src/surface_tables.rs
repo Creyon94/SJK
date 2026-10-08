@@ -321,7 +321,7 @@ pub(crate) fn buffer(device: &wgpu::Device) -> wgpu::Buffer {
     wgpu::util::DeviceExt::create_buffer_init(
         device,
         &wgpu::util::BufferInitDescriptor {
-            label: Some("JKR surface tables"),
+            label: Some("SJK surface tables"),
             contents: &bytes(),
             usage: wgpu::BufferUsages::STORAGE,
         },

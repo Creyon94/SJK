@@ -10,7 +10,7 @@ impl Idle {
     pub fn new() -> Self {
         Self {
             previous: Cell::new(None),
-            reference: Cell::new(std::env::var("JKR_PROBE_IDLE_CACHE").as_deref() == Ok("0")),
+            reference: Cell::new(std::env::var("SJK_PROBE_IDLE_CACHE").as_deref() == Ok("0")),
         }
     }
     /// Refreshes always execute. With no refresh, identical inputs already have

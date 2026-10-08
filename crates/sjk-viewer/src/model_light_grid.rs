@@ -74,7 +74,7 @@ pub(super) fn upload(device: &wgpu::Device, bsp: &sjk_bsp::Bsp) -> wgpu::Buffer 
     }
     eprintln!("model light grid: {} immutable GPU bytes", data.len());
     device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("JKR spatial model light grid"),
+        label: Some("SJK spatial model light grid"),
         contents: &data,
         usage: wgpu::BufferUsages::STORAGE,
     })
@@ -83,7 +83,7 @@ pub(super) fn upload(device: &wgpu::Device, bsp: &sjk_bsp::Bsp) -> wgpu::Buffer 
 /// A valid empty binding for material factories before their map grid is installed.
 pub(super) fn empty(device: &wgpu::Device) -> wgpu::Buffer {
     device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("JKR absent model light grid"),
+        label: Some("SJK absent model light grid"),
         contents: &[0; 80],
         usage: wgpu::BufferUsages::STORAGE,
     })

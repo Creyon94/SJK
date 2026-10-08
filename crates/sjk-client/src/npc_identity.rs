@@ -1,4 +1,4 @@
-//! BaseJKA NPC (`ET_NPC`) identity — JKR's `CG_G2AnimEntModelLoad`
+//! BaseJKA NPC (`ET_NPC`) identity — JKA's `CG_G2AnimEntModelLoad`
 //! (`codemp/cgame/cg_players.c:7046-7308`).
 //!
 //! NPCs are not clients: their entity number is at or above `MAX_CLIENTS`

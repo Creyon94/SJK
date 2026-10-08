@@ -5,7 +5,7 @@
 //! where each one leads. The page tables themselves are in [`super::pages`].
 //!
 //! Positions are the retail item rectangles reduced to a text centre; labels
-//! are the retail words. Hints and titles are JKR's own text.
+//! are the retail words. Hints and titles are SJK's own text.
 
 use crate::keybind_editor::Category;
 use crate::menu::destination::MainDestination;
@@ -83,7 +83,7 @@ pub(crate) enum Entry {
     /// SJK: the menus' and console's look.
     Interface,
     Hud,
-    /// SJK: the scoreboard (JKR's HUD+ settings regrouped).
+    /// SJK: the scoreboard (the HUD+ settings regrouped).
     Scoreboard,
     /// SJK: the settings worth choosing on a first start.
     FirstSetup,
@@ -131,7 +131,7 @@ pub(crate) struct Slot {
     pub(crate) entry: Entry,
     pub(crate) label: &'static str,
     /// The description line shown while the entry has focus; for an entry
-    /// JKR cannot open yet, the note saying so.
+    /// SJK cannot open yet, the note saying so.
     pub(crate) hint: &'static str,
     /// Centre of the target on the 640x480 canvas.
     pub(crate) center: [f32; 2],
@@ -232,7 +232,7 @@ pub(crate) enum Outcome {
     Settings(&'static str),
     /// Open the key-binding editor on this category.
     Keybinds(Category),
-    /// A retail screen JKR has no equivalent for yet: nothing happens.
+    /// A retail screen SJK has no equivalent for yet: nothing happens.
     Unavailable,
 }
 
@@ -322,11 +322,11 @@ pub(crate) enum Panel {
 
 impl Entry {
     /// The option group this entry shows in the classic panel; `None` for
-    /// entries that are not option groups, or that JKR cannot show yet.
+    /// entries that are not option groups, or that SJK cannot show yet.
     ///
     /// Retail split video and the Force binds over two pages each because a
     /// page held few items; classic+ panels scroll and explain the focused
-    /// item, so SJK shows each as one group, and regroups JKR's GAME, HUD,
+    /// item, so SJK shows each as one group, and regroups the GAME, HUD,
     /// HUD+ and TEXT tabs by subject ([`Group`]).
     pub(crate) fn panel(self) -> Option<Panel> {
         let settings = |caption| Panel::Settings {

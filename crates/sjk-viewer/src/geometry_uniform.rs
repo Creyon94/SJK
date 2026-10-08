@@ -4,7 +4,7 @@ use wgpu::util::DeviceExt;
 
 pub(crate) fn layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("JKR fog geometry stage"),
+        label: Some("SJK fog geometry stage"),
         entries: &[wgpu::BindGroupLayoutEntry {
             binding: 5,
             visibility: wgpu::ShaderStages::VERTEX,
@@ -19,7 +19,7 @@ pub(crate) fn layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
 }
 pub(crate) fn bind(device: &wgpu::Device, buffer: &wgpu::Buffer, offset: u64) -> wgpu::BindGroup {
     device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: Some("JKR fog geometry stage"),
+        label: Some("SJK fog geometry stage"),
         layout: &layout(device),
         entries: &[wgpu::BindGroupEntry {
             binding: 5,
@@ -33,7 +33,7 @@ pub(crate) fn bind(device: &wgpu::Device, buffer: &wgpu::Buffer, offset: u64) ->
 }
 pub(crate) fn empty(device: &wgpu::Device) -> wgpu::BindGroup {
     let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("JKR undeformed fog geometry"),
+        label: Some("SJK undeformed fog geometry"),
         contents: bytemuck::bytes_of(&<GpuStage as bytemuck::Zeroable>::zeroed()),
         usage: wgpu::BufferUsages::UNIFORM,
     });

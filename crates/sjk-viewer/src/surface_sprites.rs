@@ -8,7 +8,7 @@ use std::error::Error;
 mod random;
 use random::RANDOM;
 
-const PREFIX: &str = "@jkr-surface-sprites/";
+const PREFIX: &str = "@sjk-surface-sprites/";
 const MAX_SEEDS: usize = 262_144;
 
 pub(crate) fn source(key: &str) -> Option<(&str, usize)> {

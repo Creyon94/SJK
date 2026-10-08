@@ -220,7 +220,7 @@ impl GpuState {
 
             let main_areas = unmasked_sky.then(|| std::mem::take(&mut self.world_materials.areas));
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("JKR map secondary view"),
+                label: Some("SJK map secondary view"),
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &target.color,
                     resolve_target: None,

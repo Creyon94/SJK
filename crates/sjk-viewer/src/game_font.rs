@@ -137,13 +137,13 @@ impl Layer {
         let view = gpu_texture::create_rgba8_texture_mipmapped(
             gpu.device,
             gpu.queue,
-            "JKR game font atlas",
+            "SJK game font atlas",
             &field,
             true,
             mip_levels(field.width(), field.height()),
         );
         let bind_group = gpu.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("JKR game font bind group"),
+            label: Some("SJK game font bind group"),
             layout: gpu.layout,
             entries: &[
                 wgpu::BindGroupEntry {
@@ -157,7 +157,7 @@ impl Layer {
             ],
         });
         let buffer = gpu.device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR game font text vertices"),
+            label: Some("SJK game font text vertices"),
             size: (MAX_TEXT_VERTICES * std::mem::size_of::<TextVertex>()) as u64,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,

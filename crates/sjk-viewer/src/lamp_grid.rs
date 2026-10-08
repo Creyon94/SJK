@@ -8,7 +8,7 @@ const MAX_CELLS: u64 = 1_048_576;
 /// Build conservative cell lists and their shared importance field at installation.
 pub(super) fn build(lamps: Vec<Lamp>) -> LampSet {
     let mut set = unrefined(lamps);
-    if std::env::var("JKR_LAMP_REFINEMENT").as_deref() != Ok("0") {
+    if std::env::var("SJK_LAMP_REFINEMENT").as_deref() != Ok("0") {
         super::refine::apply(&mut set);
     }
     set

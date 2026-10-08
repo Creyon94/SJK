@@ -11,7 +11,7 @@
 //! from the default sun direction (`tr_light.cpp:335-341`); that is
 //! `EntityLight::FALLBACK`.
 //!
-//! JKR runs without overbright bits (windowed/modern presentation), so
+//! SJK runs without overbright bits (windowed/modern presentation), so
 //! `tr.identityLight == 1` and `identityLightByte == 255` throughout.
 //! Light styles are treated as white: `CG_RunLightStyles`
 //! (`cgame/cg_light.c:52-79`) emits 255 for every style that has no
@@ -85,7 +85,7 @@ impl EntityLighting {
     /// Light/fog every instance at its origin; return the number with nonzero fog.
     ///
     /// Deviation: cgame lights attached weapons from the owner's
-    /// `lightingOrigin` (`RF_LIGHTING_ORIGIN`); JKR samples the hilt at its
+    /// `lightingOrigin` (`RF_LIGHTING_ORIGIN`); this samples the hilt at its
     /// own position, which stays within one grid cell of the owner.
     pub(crate) fn apply(
         &self,

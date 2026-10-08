@@ -3,7 +3,7 @@
 //! Commands are the stock client's bind names (`codemp/client/cl_input.cpp`
 //! command table, cgame console commands) so pasted JKA configs keep working.
 //! Default keys follow retail `mpdefault.cfg` where the key is free; the
-//! JKR-only rows (votes, team menu, camera) take keys retail leaves unbound.
+//! SJK-only rows (votes, team menu, camera) take keys retail leaves unbound.
 //! `forcenext`/`forceprev`/`invnext`/`invprev` wait on local force and
 //! inventory selection.
 //!

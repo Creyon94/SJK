@@ -135,7 +135,7 @@ fn layout(device: &wgpu::Device, read_only: bool) -> wgpu::BindGroupLayout {
         entries.push(crate::lamp_lights::Gpu::visibility_layout(6));
     }
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("JKR GI probes"),
+        label: Some("SJK GI probes"),
         entries: &entries,
     })
 }
@@ -220,11 +220,11 @@ impl Neutral {
         };
         Self {
             params: buffer(
-                "JKR GI probes absent",
+                "SJK GI probes absent",
                 std::mem::size_of::<Params>() as u64,
                 wgpu::BufferUsages::UNIFORM,
             ),
-            storage: buffer("JKR GI probes absent", 64, wgpu::BufferUsages::STORAGE),
+            storage: buffer("SJK GI probes absent", 64, wgpu::BufferUsages::STORAGE),
         }
     }
 }
@@ -271,23 +271,23 @@ impl Runtime {
             | wgpu::BufferUsages::COPY_DST
             | wgpu::BufferUsages::COPY_SRC;
         let params = buffer(
-            "JKR GI probe parameters",
+            "SJK GI probe parameters",
             std::mem::size_of::<Params>() as u64,
             wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         );
         // Three L1 components (unit sun, unit sky, emission): 12 vec4 per probe, and the
         // per-frame combination under the current light that pixels read (4 vec4).
-        let sh = buffer("JKR GI probe irradiance SH", (total * 192) as u64, storage);
-        let display = buffer("JKR GI probe display SH", (total * 64) as u64, storage);
+        let sh = buffer("SJK GI probe irradiance SH", (total * 192) as u64, storage);
+        let display = buffer("SJK GI probe display SH", (total * 64) as u64, storage);
         let depth = buffer(
-            "JKR GI probe depth moments",
+            "SJK GI probe depth moments",
             (total * 64 * 8) as u64,
             storage,
         );
         let state_buffer = wgpu::util::DeviceExt::create_buffer_init(
             device,
             &wgpu::util::BufferInitDescriptor {
-                label: Some("JKR GI probe state"),
+                label: Some("SJK GI probe state"),
                 contents: bytemuck::cast_slice(&state),
                 usage: storage,
             },
@@ -336,7 +336,7 @@ impl Runtime {
         let update_layout = layout(device, false);
 
         let update_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("JKR GI probes update"),
+            label: Some("SJK GI probes update"),
             layout: &update_layout,
             entries: &with_live,
         });
@@ -352,7 +352,7 @@ impl Runtime {
             include_str!("gi_probes.wgsl")
         );
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR GI probe update"),
+            label: Some("SJK GI probe update"),
             source: wgpu::ShaderSource::Wgsl(source.into()),
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -361,7 +361,7 @@ impl Runtime {
             immediate_size: 0,
         });
         let update = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label: Some("JKR GI probe update"),
+            label: Some("SJK GI probe update"),
             layout: Some(&pipeline_layout),
             module: &shader,
             entry_point: Some("update"),
@@ -369,7 +369,7 @@ impl Runtime {
             cache: None,
         });
         let combine = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label: Some("JKR GI probe combine"),
+            label: Some("SJK GI probe combine"),
             layout: Some(&pipeline_layout),
             module: &shader,
             entry_point: Some("combine"),
@@ -465,7 +465,7 @@ impl Runtime {
         }
         queue.write_buffer(&self.params, 0, bytemuck::bytes_of(&params));
         let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-            label: Some("JKR GI probe update"),
+            label: Some("SJK GI probe update"),
             timestamp_writes: None,
         });
         pass.set_pipeline(&self.update);

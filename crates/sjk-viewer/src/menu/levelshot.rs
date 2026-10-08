@@ -221,7 +221,7 @@ fn spawn_worker(vfs: Arc<VirtualFileSystem>) -> (Sender<String>, Receiver<(Strin
     let (request_tx, request_rx) = mpsc::channel::<String>();
     let (result_tx, result_rx) = mpsc::channel();
     let spawned = std::thread::Builder::new()
-        .name("jkr-levelshots".to_owned())
+        .name("sjk-levelshots".to_owned())
         .spawn(move || {
             while let Ok(mut map) = request_rx.recv() {
                 // Scrolling queues many maps; only the latest is still wanted.

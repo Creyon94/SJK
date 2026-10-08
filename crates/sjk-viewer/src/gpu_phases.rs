@@ -1,6 +1,6 @@
 //! Optional per-pass GPU timing of the main frame: timestamps between the encoder's
 //! sections, resolved on a sampled frame and printed with the frame-budget report
-//! (`JKR_FRAME_BUDGET` or `JKR_GPU_PHASES`). Off, nothing is allocated or encoded.
+//! (`SJK_FRAME_BUDGET` or `SJK_GPU_PHASES`). Off, nothing is allocated or encoded.
 use std::cell::{Cell, RefCell};
 use std::sync::{
     Arc,
@@ -41,8 +41,8 @@ impl Profiler {
         device: &wgpu::Device,
         queue: &crate::frame_queue::FrameQueue,
     ) -> Option<Self> {
-        let wanted = std::env::var_os("JKR_FRAME_BUDGET").is_some()
-            || std::env::var_os("JKR_GPU_PHASES").is_some();
+        let wanted = std::env::var_os("SJK_FRAME_BUDGET").is_some()
+            || std::env::var_os("SJK_GPU_PHASES").is_some();
         let supported = device.features().contains(
             wgpu::Features::TIMESTAMP_QUERY | wgpu::Features::TIMESTAMP_QUERY_INSIDE_ENCODERS,
         );
@@ -50,19 +50,19 @@ impl Profiler {
             return None;
         }
         let set = device.create_query_set(&wgpu::QuerySetDescriptor {
-            label: Some("JKR gpu phases"),
+            label: Some("SJK gpu phases"),
             ty: wgpu::QueryType::Timestamp,
             count: CAPACITY,
         });
         let size = u64::from(CAPACITY) * 8;
         let resolve = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR gpu phases resolve"),
+            label: Some("SJK gpu phases resolve"),
             size,
             usage: wgpu::BufferUsages::QUERY_RESOLVE | wgpu::BufferUsages::COPY_SRC,
             mapped_at_creation: false,
         });
         let read = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR gpu phases read"),
+            label: Some("SJK gpu phases read"),
             size,
             usage: wgpu::BufferUsages::COPY_DST | wgpu::BufferUsages::MAP_READ,
             mapped_at_creation: false,

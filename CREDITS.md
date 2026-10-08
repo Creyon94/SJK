@@ -1,17 +1,14 @@
 # Credits
 
 Sol JK (SJK) is developed by Sol ([Sol-Vulpes](https://github.com/Sol-Vulpes)):
-it is Sol's vision of Jedi Academy, built on Bishop's
-[JKR](https://github.com/Bishop-R/JKR) engine, of which it is a modified
-version. Contributors send pull requests (see
-[Contributors to SJK](#contributors-to-sjk)). This page records who made what. The git history is the authoritative record:
-every commit carries its author, and SJK's own changes are kept as separate
-topic branches merged into SJK's `main`.
+it is Sol's vision of Jedi Academy. Contributors send pull requests (see
+[Contributors to SJK](#contributors-to-sjk)). This page records who made what.
+The git history is the authoritative record: every commit carries its author,
+and changes are kept as separate topic branches merged into SJK's `main`.
 
 ## Sol JK, by Sol
 
-Sol develops SJK and sets its direction; Bishop's JKR is its foundation.
-Changes that stay in SJK, by Sol:
+Sol develops SJK and sets its direction. Sol's work includes:
 
 - the Sol JK name, README, credits and website;
 - the SJK emblem, provided by Sol: in the classic menu's ring (in place of the
@@ -67,67 +64,6 @@ Changes that stay in SJK, by Sol:
   background (after EternalJK) and the JA+ `flipkick` command (after JoF EJK);
 - the camera style setting, its locked camera after JoF EJK (`cg_cameraStyle`).
 
-## JKR, by Bishop
-
-[Bishop (Bishop-R)](https://github.com/Bishop-R) created JKR, has developed it
-continuously since, and wrote its initial source and most of its code: the Rust engine,
-the wgpu renderer and its lighting, the native client and dedicated server,
-protocol 26 networking, prediction and the shared Jedi Academy game rules,
-content loading (PK3, BSP, models, shaders, sounds), the console, menus, HUD,
-server browser, demos and the project wiki, over weeks of work before anyone
-else joined. Sol had meanwhile set out to write a Jedi Academy client from
-scratch; on learning of JKR the two talked, Sol began contributing, and Bishop
-made JKR open source in October 2026.
-
-Bishop's later pull requests to JKR include:
-
-- renderer frame cost, frame submission and deferred lighting (#50, #79), fixture
-  lighting and sky/terrain stability (#81), volumetric fringes (#84), the default
-  visual profile (#85), sun-shadow banding (#4) and billboard orientation (#51);
-- playable worlds through joins and map changes (#82), intermission (#83, which
-  also keeps server prints out of chat in place of Sol's #58) and faster map
-  loading (#89);
-- console browsing, editing and colour-code input (#88, replacing Sol's #6 and
-  #33, with Sol as co-author); manual values for every menu slider (#94,
-  replacing Sol's #32);
-- compact chat player actions (#92) and upright player status icons (#96),
-  together replacing Sol's talk balloons and connection icons (#30);
-- footsteps and authored animation sound cues (#90, replacing Sol's #41), legacy
-  server pak references (#91), the leader display (#93), client devmap and server
-  noclip (#95, replacing Sol's #31);
-- drop-in installs and portable client storage (#103), distributable ZIPs (#104)
-  and actor animation isolation (#112).
-
-## Sol's contributions to JKR
-
-Sol ([Sol-Vulpes](https://github.com/Sol-Vulpes)) has contributed to JKR since
-October 2026: by early October 2026 Sol had opened 100 of
-JKR's first 121 issues and pull requests (all 39 issues and 61 of the 82 pull
-requests). Merged into JKR:
-
-- #1 branch, commit and pull request rules; #5 the CI workflow
-- #2 an 8 MiB main-thread stack for the Windows client
-- #3 shared console prefix completion
-- #29 the stun baton's fire sound; #42 short MP3 sounds ending in an ID3v1 tag;
-  #43 looping sounds kept playing
-- #40 the Force lightning and drain effect kept level
-- #70 CRLF WGSL shader sources
-- #97 old 72-bone humanoid models remapped as rd-vanilla does
-- #100 chat kept in the console, one row per print line
-- #101 text edits kept on their setting, no slider float noise
-- #102 the server's cheat commands documented
-- #105 `^8` orange and `^9` grey
-
-Open pull requests to JKR, all included in SJK, cover the classic menu style,
-classic scoreboard and game-data HUDs, retail game fonts, text spacing and
-high-resolution scaling, JA+ support (plugin identity, `serverconfig`,
-`g_debugMelee`, JA+ movement and saber rules, grapple, duel pass-through),
-reliable joining, old models, material maps, FPS cap behaviour, key handling
-(layout key names, dead keys, locked binds, capital key names), the renderer
-settings page, sharp levelshots, saber trails, the third-person camera, Force
-Speed afterimages, death animations and dust motes. See
-[Sol's pull requests](https://github.com/Bishop-R/JKR/pulls?q=is%3Apr+author%3ASol-Vulpes).
-
 ## Contributors to SJK
 
 Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 21
@@ -171,16 +107,38 @@ merged into SJK
 - #26 the posed saber body in first person: the local body is drawn with its head
   hidden, as codemp's `CG_Player` and JoF EJK's `CG_ForceFPLSPlayerModel` do.
 
+## Origins: JKR, by Bishop
+
+SJK began in October 2026 as a modified version of
+[JKR](https://github.com/Bishop-R/JKR). [Bishop (Bishop-R)](https://github.com/Bishop-R)
+created JKR and wrote its initial source and most of its code: the Rust engine,
+the wgpu renderer and its lighting, the native client and dedicated server,
+protocol 26 networking, prediction and the shared Jedi Academy game rules,
+content loading (PK3, BSP, models, shaders, sounds), the console, menus, HUD,
+server browser, demos and the project wiki. Bishop's later JKR pull requests
+brought renderer frame cost, frame submission and deferred lighting (#50, #79),
+fixture lighting and sky/terrain stability (#81), volumetric fringes (#84), the
+default visual profile (#85), sun-shadow banding (#4), billboard orientation
+(#51), playable worlds through joins and map changes (#82), intermission (#83),
+faster map loading (#89), console browsing and editing (#88, with Sol as
+co-author), manual slider values (#94), compact chat player actions (#92),
+upright player status icons (#96), footsteps and animation sound cues (#90),
+legacy server pak references (#91), the leader display (#93), client devmap and
+server noclip (#95), drop-in installs and portable storage (#103),
+distributable ZIPs (#104) and actor animation isolation (#112). Sol contributed
+to JKR before SJK
+([Sol's JKR pull requests](https://github.com/Bishop-R/JKR/pulls?q=is%3Apr+author%3ASol-Vulpes)).
+
 ## Tools
 
-Many of Sol's changes, in JKR and SJK, were written with Claude (Anthropic) as a
+Many of Sol's changes were written with Claude (Anthropic) as a
 coding assistant; such commits carry a `Co-Authored-By: Claude` trailer.
 
 ## References and third-party material
 
 OpenJK (`codemp`), EternalJK, JoF EJK and TaystJK/jaPRO are compatibility
-references for Jedi Academy behaviour; JKR and SJK reimplement that behaviour and
-do not include their code. The bundled Inter fonts keep their
+references for Jedi Academy behaviour; SJK reimplements that behaviour and does
+not include their code. The bundled Inter fonts keep their
 [license](crates/sjk-viewer/assets/fonts/LICENSE.txt), the console font, JetBrains
 Mono by The JetBrains Mono Project Authors, keeps its
 [SIL Open Font License](crates/sjk-viewer/assets/fonts/JetBrainsMono-OFL.txt), the SJK UI's

@@ -1,4 +1,4 @@
-//! JKR's headless server process.
+//! SJK's headless server process.
 //!
 //! Platform composition only: a UDP socket, the clocks and the operator's
 //! settings. Every protocol decision lives in `sjk-network`'s legacy endpoint and
@@ -98,10 +98,10 @@ const USAGE: &str = "sjk-server [--bind ADDRESS:PORT] [--hostname NAME] [--map N
                   combat points are placed at cover. Read as a level begins (`--set
                   g_npcNav 2`, or `g_npcNav 2` then `map_restart`)
   --home          the operator's directory: `exec` looks in its `base` first, and the
-                  archived variables are kept in `base/jkr_server.cfg` there (read at
+                  archived variables are kept in `base/sjk_server.cfg` there (read at
                   start, rewritten when one changes). Without it nothing is written
   +COMMAND        a console line, as the reference's command line takes them: `+set`
-                  lines before the configs, then `mpdefault.cfg`, `jkr_server.cfg` and
+                  lines before the configs, then `mpdefault.cfg`, `sjk_server.cfg` and
                   `autoexec.cfg`, then every `+` line in order (`+exec server.cfg`,
                   `+map mp/ffa3`, ...)
   --rconpassword  rconpassword: the remote console's password; without one every
@@ -283,8 +283,7 @@ const NOTICE: [&str; 2] = [
         env!("SJK_BUILD_VERSION"),
         ", Copyright (C) 2026 Sol-Vulpes, Bishop-R and the JKR contributors"
     ),
-    "Based on JKR by Bishop. Free software under the GNU GPL v2, \
-     with ABSOLUTELY NO WARRANTY; see LICENSE and CREDITS.md",
+    "Free software under the GNU GPL v2, with ABSOLUTELY NO WARRANTY; see LICENSE and CREDITS.md",
 ];
 
 fn main() -> Result<(), Box<dyn Error>> {

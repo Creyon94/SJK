@@ -1,4 +1,4 @@
-//! Navigation for levels that ship none: a JKR server option (`g_npcNav`), not the
+//! Navigation for levels that ship none: an SJK server option (`g_npcNav`), not the
 //! reference's. The stock multiplayer maps carry no usable NPC navigation (their `.nav`
 //! files are other maps' graphs or empty, and they place no waypoints), so the reference's NPCs mostly stand and shoot.
 //! With the option on, a level without navigation of its own is given a graph made from

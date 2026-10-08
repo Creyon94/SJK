@@ -180,7 +180,7 @@ impl Runtime {
         let usage = wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::TEXTURE_BINDING;
 
         let texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("JKR FXAA scene"),
+            label: Some("SJK FXAA scene"),
             size: wgpu::Extent3d {
                 width: size[0],
                 height: size[1],
@@ -206,13 +206,13 @@ impl Runtime {
             ..Default::default()
         });
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR FXAA"),
+            label: Some("SJK FXAA"),
             source: wgpu::ShaderSource::Wgsl(
                 concat!(include_str!("post_aa.wgsl"), include_str!("post_hdr.wgsl")).into(),
             ),
         });
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("JKR scene FXAA before HUD"),
+            label: Some("SJK scene FXAA before HUD"),
             layout: None,
             vertex: wgpu::VertexState {
                 module: &shader,
@@ -246,7 +246,7 @@ impl Runtime {
             cache: None,
         });
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            label: Some("JKR FXAA clamp"),
+            label: Some("SJK FXAA clamp"),
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
             ..Default::default()
@@ -256,7 +256,7 @@ impl Runtime {
             values[2] = 1.0;
         }
         let parameters = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("JKR color controls"),
+            label: Some("SJK color controls"),
             contents: bytemuck::cast_slice(&values),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
@@ -363,7 +363,7 @@ impl Runtime {
             },
         ];
         device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("JKR FXAA scene sample"),
+            label: Some("SJK FXAA scene sample"),
             layout: &pipeline.get_bind_group_layout(0),
             entries: &entries,
         })
@@ -502,7 +502,7 @@ impl Runtime {
             glow.blur(encoder);
         }
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("JKR FXAA resolve"),
+            label: Some("SJK FXAA resolve"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: output,
                 resolve_target: None,

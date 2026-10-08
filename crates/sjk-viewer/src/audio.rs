@@ -71,7 +71,7 @@ pub(crate) struct GameAudio {
     voice_policy: feedback::VoicePolicy,
     kill_sounds: i64,
     transitions: transitions::Transitions,
-    /// `JKR_TRACE_AUDIO=1`: when the next level line is due.
+    /// `SJK_TRACE_AUDIO=1`: when the next level line is due.
     trace_due: Option<Instant>,
 }
 
@@ -135,7 +135,7 @@ impl GameAudio {
             voice_policy: feedback::VoicePolicy::default(),
             kill_sounds: 2,
             transitions: transitions::Transitions::default(),
-            trace_due: std::env::var_os("JKR_TRACE_AUDIO").map(|_| Instant::now()),
+            trace_due: std::env::var_os("SJK_TRACE_AUDIO").map(|_| Instant::now()),
         };
         // `s_volume`/`s_musicvolume` defaults from `S_Init` in
         // codemp/client/snd_dma.cpp:462-466. The console overwrites these on

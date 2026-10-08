@@ -7,15 +7,15 @@ use std::path::{Path, PathBuf};
 
 /// File name of the generated archive: `zzz_` sorts after the retail
 /// `assets*.pk3`, so the maps load after (and never replace) retail content.
-pub const DEFAULT_FILE_NAME: &str = "zzz_jkr_materials.pk3";
+pub const DEFAULT_FILE_NAME: &str = "zzz_sjk_materials.pk3";
 
 /// Whether `path` looks like a Jedi Academy `GameData` directory.
 pub fn is_game_data(path: &Path) -> bool {
     path.join("base/assets0.pk3").is_file() && path.join("base/assets3.pk3").is_file()
 }
 
-/// The `GameData` directory: `explicit`, then `JKR_GAME_DATA`, then
-/// `fs_gameData` from the JKR config file, then the usual install locations.
+/// The `GameData` directory: `explicit`, then `JKA_GAME_DATA`, then
+/// `fs_gameData` from the per-user config file, then the usual install locations.
 pub fn find_game_data(explicit: Option<&Path>) -> Result<PathBuf, String> {
     if let Some(path) = explicit {
         return if is_game_data(path) {
@@ -28,7 +28,7 @@ pub fn find_game_data(explicit: Option<&Path>) -> Result<PathBuf, String> {
         };
     }
     let mut candidates = Vec::new();
-    candidates.extend(env::var_os("JKR_GAME_DATA").map(PathBuf::from));
+    candidates.extend(env::var_os("JKA_GAME_DATA").map(PathBuf::from));
     if let Some(config) = user_data_root().map(|root| root.join("config.cfg"))
         && let Ok(text) = std::fs::read_to_string(config)
     {
@@ -54,7 +54,7 @@ pub fn find_game_data(explicit: Option<&Path>) -> Result<PathBuf, String> {
         .into_iter()
         .find(|path| is_game_data(path))
         .ok_or_else(|| {
-            "Jedi Academy GameData was not found: pass --game-data, or set JKR_GAME_DATA".into()
+            "Jedi Academy GameData was not found: pass --game-data, or set JKA_GAME_DATA".into()
         })
 }
 
@@ -76,8 +76,8 @@ fn config_game_data(text: &str) -> Option<PathBuf> {
     })
 }
 
-/// JKR's per-user directory: `%APPDATA%\jkr` on Windows, `~/Library/Application
-/// Support/jkr` on macOS, `$XDG_CONFIG_HOME/jkr` or `~/.config/jkr` elsewhere
+/// SJK's per-user directory: `%APPDATA%\SJK` on Windows, `~/Library/Application
+/// Support/SJK` on macOS, `$XDG_CONFIG_HOME/SJK` or `~/.config/SJK` elsewhere
 /// (where the client keeps `config.cfg`).
 pub fn user_data_root() -> Option<PathBuf> {
     let variable = |name: &str| {
@@ -94,10 +94,10 @@ pub fn user_data_root() -> Option<PathBuf> {
     } else {
         variable("HOME")?.join(".config")
     };
-    Some(root.join("jkr"))
+    Some(root.join("SJK"))
 }
 
-/// `<user data>/generated/zzz_jkr_materials.pk3`.
+/// `<user data>/generated/zzz_sjk_materials.pk3`.
 pub fn default_output() -> Result<PathBuf, String> {
     user_data_root()
         .map(|root| root.join("generated").join(DEFAULT_FILE_NAME))
@@ -135,9 +135,9 @@ pub fn is_inside(path: &Path, directory: &Path) -> bool {
     path == directory || path.starts_with(&format!("{directory}/"))
 }
 
-/// Mount `GameData/base`, then `GameData/<fs_game>`, then every `JKR_CONTENT`
+/// Mount `GameData/base`, then `GameData/<fs_game>`, then every `SJK_CONTENT`
 /// directory, as the client does (loose files below each directory's pk3s,
-/// pk3s in Quake 3 order; `JKR_CONTENT` pk3s below its loose files). Archives
+/// pk3s in Quake 3 order; `SJK_CONTENT` pk3s below its loose files). Archives
 /// named `exclude` (the tool's own earlier output) are left out and returned.
 pub fn mount_game_data(
     game_data: &Path,
@@ -169,7 +169,7 @@ pub fn mount_game_data(
         vfs.mount_directory(&directory)?;
         mount_pk3s(&mut vfs, &directory)?;
     }
-    for directory in env::var_os("JKR_CONTENT")
+    for directory in env::var_os("SJK_CONTENT")
         .iter()
         .flat_map(env::split_paths)
         .filter(|directory| directory.is_dir())

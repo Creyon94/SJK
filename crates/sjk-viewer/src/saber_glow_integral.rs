@@ -40,7 +40,7 @@ pub(crate) fn upload(
         .create_texture_with_data(
             queue.raw(),
             &wgpu::TextureDescriptor {
-                label: Some("JKR saber glow column integral"),
+                label: Some("SJK saber glow column integral"),
                 size: wgpu::Extent3d {
                     width,
                     height: height + 1,

@@ -24,7 +24,7 @@ impl LevelshotTexture {
     /// A transparent 1x1 placeholder until the first levelshot is uploaded.
     pub(super) fn new(device: &wgpu::Device, layout: &wgpu::BindGroupLayout) -> Self {
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            label: Some("JKR levelshot sampler"),
+            label: Some("SJK levelshot sampler"),
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
             mipmap_filter: wgpu::MipmapFilterMode::Linear,
@@ -104,7 +104,7 @@ fn create(
     levels: u32,
 ) -> (wgpu::Texture, wgpu::BindGroup) {
     let texture = device.create_texture(&wgpu::TextureDescriptor {
-        label: Some("JKR levelshot"),
+        label: Some("SJK levelshot"),
         size: wgpu::Extent3d {
             width: size[0],
             height: size[1],
@@ -119,7 +119,7 @@ fn create(
     });
     let view = texture.create_view(&wgpu::TextureViewDescriptor::default());
     let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: Some("JKR levelshot bind group"),
+        label: Some("SJK levelshot bind group"),
         layout,
         entries: &[
             wgpu::BindGroupEntry {

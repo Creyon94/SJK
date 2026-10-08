@@ -38,7 +38,7 @@ pub(super) fn new(
             | wgpu::TextureUsages::COPY_SRC | wgpu::TextureUsages::COPY_DST,
         view_formats: &[] }).create_view(&Default::default())
         };
-    let depth = depth_map("JKR dynamic sun shadow map");
+    let depth = depth_map("SJK dynamic sun shadow map");
     let buffer = |size| {
         device.create_buffer(&wgpu::BufferDescriptor {
             label: None,
@@ -70,14 +70,14 @@ pub(super) fn new(
         }
     };
     let far = settings.world.then(|| FarCascade {
-        cascade: cascade("JKR far sun cascade"),
+        cascade: cascade("SJK far sun cascade"),
         rendered: std::cell::Cell::new(None),
     });
-    let close = settings.world.then(|| cascade("JKR close sun cascade"));
+    let close = settings.world.then(|| cascade("SJK close sun cascade"));
     let held = settings.world.then(|| {
         [
-            held::Held::new(depth_map("JKR held view casters")),
-            held::Held::new(depth_map("JKR held close casters")),
+            held::Held::new(depth_map("SJK held view casters")),
+            held::Held::new(depth_map("SJK held close casters")),
         ]
     });
     let probes = match (gi, &far) {
@@ -128,7 +128,7 @@ pub(super) fn new(
         held.as_ref(),
     );
     let sun_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: Some("JKR receiver sun visibility"),
+        label: Some("SJK receiver sun visibility"),
         layout: &super::light_buffer::sun_layout(device),
         entries: &receiver_entries,
     });
@@ -191,7 +191,7 @@ pub(super) fn new(
         ),
     });
     let caster = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("JKR sun opaque actor depth"),
+        label: Some("SJK sun opaque actor depth"),
         layout: Some(&caster_layout),
         vertex: wgpu::VertexState {
             module: &caster_shader,
@@ -228,7 +228,7 @@ pub(super) fn new(
         cache: None,
     });
     let world_caster = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("JKR opaque BSP sun depth"),
+        label: Some("SJK opaque BSP sun depth"),
         layout: Some(&caster_layout),
         vertex: wgpu::VertexState {
             module: &caster_shader,
@@ -277,7 +277,7 @@ pub(super) fn new(
     let receiver_pipelines =
         [Some(wgpu::Face::Front), Some(wgpu::Face::Back), None].map(|cull_mode| {
             device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("JKR sun diffuse receiver"),
+                label: Some("SJK sun diffuse receiver"),
                 layout: Some(&layout),
                 vertex: wgpu::VertexState {
                     module: &shader,
@@ -325,7 +325,7 @@ pub(super) fn new(
         time: std::cell::Cell::new(0.),
         director_sun: std::cell::Cell::new(None),
         filter_reference: std::cell::Cell::new(
-            std::env::var("JKR_SHADOW_FILTER_REFERENCE").as_deref() == Ok("1"),
+            std::env::var("SJK_SHADOW_FILTER_REFERENCE").as_deref() == Ok("1"),
         ),
         day: std::cell::Cell::new(settings.day),
         clarity: std::cell::Cell::new(1.),

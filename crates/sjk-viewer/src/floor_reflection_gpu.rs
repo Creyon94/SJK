@@ -15,7 +15,7 @@ pub(super) fn maps_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
         count: None,
     };
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("JKR floor finish maps"),
+        label: Some("SJK floor finish maps"),
         entries: &[
             texture(0),
             texture(1),
@@ -49,7 +49,7 @@ pub(super) fn maps_group(
     let neutral = || {
         device
             .create_texture(&wgpu::TextureDescriptor {
-                label: Some("JKR floor finish stand-in"),
+                label: Some("SJK floor finish stand-in"),
                 size: wgpu::Extent3d {
                     width: 1,
                     height: 1,
@@ -74,7 +74,7 @@ pub(super) fn maps_group(
         wgpu::AddressMode::Repeat
     };
     let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-        label: Some("JKR floor finish maps"),
+        label: Some("SJK floor finish maps"),
         address_mode_u: address,
         address_mode_v: address,
         mag_filter: wgpu::FilterMode::Linear,
@@ -84,12 +84,12 @@ pub(super) fn maps_group(
     });
     let params = maps.map_or([0.; 12], |maps| maps.params);
     let uniform = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("JKR floor finish parameters"),
+        label: Some("SJK floor finish parameters"),
         contents: bytemuck::cast_slice(&params),
         usage: wgpu::BufferUsages::UNIFORM,
     });
     device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: Some("JKR floor finish maps"),
+        label: Some("SJK floor finish maps"),
         layout,
         entries: &[
             wgpu::BindGroupEntry {
@@ -119,7 +119,7 @@ pub(super) struct Camera {
 impl Camera {
     pub fn new(device: &wgpu::Device, layout: &wgpu::BindGroupLayout) -> Self {
         let buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR floor mirror camera"),
+            label: Some("SJK floor mirror camera"),
             size: std::mem::size_of::<CameraUniform>() as u64,
             usage: wgpu::BufferUsages::UNIFORM
                 | wgpu::BufferUsages::COPY_DST
@@ -150,7 +150,7 @@ pub(super) fn pipeline(
         include_str!("floor_reflection.wgsl")
     );
     let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-        label: Some("JKR polished floor mirror"),
+        label: Some("SJK polished floor mirror"),
         source: wgpu::ShaderSource::Wgsl(source.into()),
     });
     let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -159,7 +159,7 @@ pub(super) fn pipeline(
         immediate_size: 0,
     });
     device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("JKR polished floor mirror"),
+        label: Some("SJK polished floor mirror"),
         layout: Some(&layout),
         vertex: wgpu::VertexState {
             module: &shader,

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Package a clean, already-built JKR revision into a drop-in GameData ZIP."""
+"""Package a clean, already-built SJK revision into a drop-in GameData ZIP."""
 
 import argparse
 import hashlib
@@ -11,8 +11,8 @@ import tempfile
 import tomllib
 import zipfile
 
-# Where the source of a default (JKR) package is published.
-DEFAULT_REPOSITORY = "https://github.com/Bishop-R/JKR"
+# Where the source of a package is published.
+DEFAULT_REPOSITORY = "https://github.com/Sol-Vulpes/SJK"
 
 
 def bin_name(source, crate):
@@ -27,9 +27,9 @@ def command(source, *args):
 
 
 def text_name(stem, name):
-    """README.txt and LICENSES.txt for JKR; README-SJK.txt and LICENSES-SJK.txt for SJK,
-    so the two can share a GameData folder without replacing each other's files."""
-    return f"{stem}.txt" if name == "JKR" else f"{stem}-{name}.txt"
+    """README-SJK.txt and LICENSES-SJK.txt, so they do not replace another program's
+    README.txt or LICENSES.txt in the shared GameData folder."""
+    return f"{stem}-{name}.txt"
 
 
 def add_file(archive, source, name, executable=False):
@@ -40,7 +40,7 @@ def add_file(archive, source, name, executable=False):
     archive.writestr(info, source.read_bytes())
 
 
-def dependency_notices(source, target, name="JKR"):
+def dependency_notices(source, target, name="SJK"):
     """Yield original dependency license texts and their attribution inventory."""
     metadata = json.loads(command(source, "cargo", "metadata", "--locked",
                                   "--format-version", "1", "--filter-platform", target))
@@ -76,7 +76,7 @@ def dependency_notices(source, target, name="JKR"):
     yield "Dependency inventory", (json.dumps(notices, indent=2) + "\n").encode("utf-8")
 
 
-def license_text(entries, name="JKR"):
+def license_text(entries, name="SJK"):
     """Consolidate notices without altering or dropping their original bytes."""
     parts = [f"{name} - licenses and third-party notices\n".encode("utf-8"),
              b"Each section identifies its original source file.\n"]
@@ -86,8 +86,8 @@ def license_text(entries, name="JKR"):
     return b"".join(parts)
 
 
-def instructions(platform, revision, name="JKR", repository=DEFAULT_REPOSITORY, version=None,
-                 profile="jkr", client="sjk-viewer", server="sjk-dedicated"):
+def instructions(platform, revision, name="SJK", repository=DEFAULT_REPOSITORY, version=None,
+                 profile="SJK", client="sjk", server="sjk-server"):
     suffix = ".exe" if platform == "windows-x64" else ""
     requirements = ("Windows 10/11 x64 and a working graphics driver. The MSVC runtime is statically linked."
                     if suffix else
@@ -107,8 +107,7 @@ An existing shortcut must point to this client, not an older named playtest bina
 
 YOUR FILES
 Settings, marks, screenshots, demos, favorites and friends live in GameData/{profile}/.
-Existing JKR user files are imported once; originals and existing destination
-files are preserved. Unwritable installations use the per-user profile instead.
+Unwritable installations use the per-user profile instead.
 The console command path shows the selected folder. Downloaded PK3s retain their
 separate per-user cache. This archive contains no game assets or personal settings.
 Close {name} before replacing its executables; retain your {profile} folder when updating.
@@ -126,8 +125,8 @@ Build metadata and SHA-256 checksums are distributed separately from this instal
 """
 
 
-def smoke_check(package, platform, source, profile="jkr", client="sjk-viewer", server="sjk-dedicated",
-                name="JKR"):
+def smoke_check(package, platform, source, profile="SJK", client="sjk", server="sjk-server",
+                name="SJK"):
     # All scratch stays under the repository target directory, never system /tmp.
     scratch = source / "target/parity-reports"
     scratch.mkdir(parents=True, exist_ok=True)
@@ -155,7 +154,7 @@ def smoke_check(package, platform, source, profile="jkr", client="sjk-viewer", s
         for number in (0, 3):
             (game / f"base/assets{number}.pk3").touch()
         env = os.environ.copy()
-        for name in ("JKA_GAME_DATA", "JKR_GAME_DATA", "DISPLAY", "WAYLAND_DISPLAY"):
+        for name in ("JKA_GAME_DATA", "DISPLAY", "WAYLAND_DISPLAY"):
             env.pop(name, None)
         env["XDG_CONFIG_HOME"] = str(root / "profile")
         env["APPDATA"] = str(root / "profile")
@@ -174,15 +173,15 @@ def main():
     parser.add_argument("--platform", choices=("linux-x64", "windows-x64"), required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--smoke-check", action="store_true")
-    # SJK release builds name their files after the product and version and point
-    # the bundled instructions at the repository that publishes the source.
-    parser.add_argument("--name", default="JKR")
+    # Release builds name their files after the product and version and point the
+    # bundled instructions at the repository that publishes the source.
+    parser.add_argument("--name", default="SJK")
     parser.add_argument("--version")
     parser.add_argument("--repository", default=DEFAULT_REPOSITORY)
-    # The client folder the packaged client creates in GameData (SJK uses "SJK").
-    parser.add_argument("--profile-dir", default="jkr")
+    # The client folder the packaged client creates in GameData.
+    parser.add_argument("--profile-dir", default="SJK")
     # The client and server program names; by default the [[bin]] names the crates
-    # declare (sjk and sjk-server in SJK).
+    # declare (sjk and sjk-server).
     parser.add_argument("--client-bin")
     parser.add_argument("--server-bin")
     args = parser.parse_args()
@@ -205,18 +204,15 @@ def main():
                          instructions(args.platform, revision, args.name, args.repository, args.version,
                                       args.profile_dir, args.client_bin, args.server_bin))
         fonts = source / "crates/sjk-viewer/assets/fonts"
-        notices = [(f"{args.name}/LICENSE", (source / "LICENSE").read_bytes()),
+        # The copyright notice leads the file.
+        notices = [(f"{args.name}/NOTICE", (source / "NOTICE").read_bytes()),
+                   (f"{args.name}/LICENSE", (source / "LICENSE").read_bytes()),
                    ("Inter/LICENSE.txt", (fonts / "LICENSE.txt").read_bytes())]
-        # Font notices that exist in this tree (JKR has neither).
         notices.extend((f"{name}/{path.name}", path.read_bytes())
                        for name, path in (("JetBrains Mono", fonts / "JetBrainsMono-OFL.txt"),
                                           ("Rajdhani", fonts / "Rajdhani-OFL.txt"),
                                           ("Exo 2", fonts / "Exo2-OFL.txt"),
-                                          ("SJK fonts", fonts / "SJK-fonts.txt"))
-                       if path.is_file())
-        # SJK's copyright notice leads the file; JKR has none.
-        if (source / "NOTICE").is_file():
-            notices.insert(0, (f"{args.name}/NOTICE", (source / "NOTICE").read_bytes()))
+                                          ("SJK fonts", fonts / "SJK-fonts.txt")))
         notices.extend(dependency_notices(source, args.target, args.name))
         archive.writestr(text_name("LICENSES", args.name), license_text(notices, args.name))
     manifest = output / f"{stem}-{args.platform}-build.json"

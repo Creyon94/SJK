@@ -11,7 +11,7 @@ fn is_white_image(name: &str) -> bool {
 /// The shared bind-group layout used by effect rendering and atlas expansion.
 pub(crate) fn layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("JKR effect texture atlas layout"),
+        label: Some("SJK effect texture atlas layout"),
         entries: &[
             texture_layout_entry(0),
             wgpu::BindGroupLayoutEntry {
@@ -248,11 +248,11 @@ pub(crate) fn create(
     let texture = crate::gpu_texture::upload_levels(
         device,
         queue,
-        "JKR retail effect texture atlas",
+        "SJK retail effect texture atlas",
         &premultiplied_levels(atlas, ATLAS_MIP_LEVELS),
     );
     let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-        label: Some("JKR effect texture sampler"),
+        label: Some("SJK effect texture sampler"),
         address_mode_u: wgpu::AddressMode::ClampToEdge,
         address_mode_v: wgpu::AddressMode::ClampToEdge,
         address_mode_w: wgpu::AddressMode::ClampToEdge,
@@ -262,7 +262,7 @@ pub(crate) fn create(
         ..Default::default()
     });
     let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-        label: Some("JKR effect texture atlas bind group"),
+        label: Some("SJK effect texture atlas bind group"),
         layout,
         entries: &[
             wgpu::BindGroupEntry {

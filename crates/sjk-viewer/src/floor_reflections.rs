@@ -23,7 +23,7 @@ const MAX_MIRRORS: usize = 6;
 const ENTER: f32 = 0.010;
 const LEAVE: f32 = 0.007;
 
-/// Live `r_floorReflections`; `JKR_FLOOR_REFLECTIONS=0` still forces mirrors off.
+/// Live `r_floorReflections`; `SJK_FLOOR_REFLECTIONS=0` still forces mirrors off.
 static ENABLED: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(true);
 
 /// Register `r_floorReflections` (default 1, live): polished floors mirror the scene.
@@ -132,7 +132,7 @@ impl Floors {
         let visibility = visibility::Visibility::new(device, camera, &floors);
         Self {
             commands_disabled: std::cell::Cell::new(
-                std::env::var("JKR_FLOOR_COMMANDS").as_deref() == Ok("0"),
+                std::env::var("SJK_FLOOR_COMMANDS").as_deref() == Ok("0"),
             ),
             visibility,
             target,
@@ -144,8 +144,8 @@ impl Floors {
             floors,
             pipeline,
             cluster: None,
-            // `JKR_FLOOR_REFLECTIONS=0` predates the cvar and still forces mirrors off.
-            enabled: std::env::var_os("JKR_FLOOR_REFLECTIONS").is_none_or(|v| v != "0"),
+            // `SJK_FLOOR_REFLECTIONS=0` predates the cvar and still forces mirrors off.
+            enabled: std::env::var_os("SJK_FLOOR_REFLECTIONS").is_none_or(|v| v != "0"),
         }
     }
     pub(super) fn configure_commands(

@@ -14,7 +14,7 @@ USAGE:
     sjk-materialgen [OPTIONS]
 
 OPTIONS:
-    --game-data DIR   the game's GameData directory (default: JKR_GAME_DATA, the JKR
+    --game-data DIR   the game's GameData directory (default: JKA_GAME_DATA, the SJK
                       config's fs_gameData, or the usual Steam location)
     --fs-game NAME    also mount GameData/NAME after base, like fs_game
     --maps LIST       only textures of these maps, comma-separated (mp/ffa3,mp/duel1);
@@ -27,14 +27,14 @@ OPTIONS:
                       (see the crate documentation); default: sjk-materialgen-overrides.txt
                       next to the output pk3, when it exists
     --dry-run         list what would be generated and what is skipped; write nothing
-    --out FILE        output pk3 (default: <JKR user data>/generated/zzz_jkr_materials.pk3,
-                      i.e. %APPDATA%\\jkr\\generated on Windows); never inside GameData
+    --out FILE        output pk3 (default: <SJK user data>/generated/zzz_sjk_materials.pk3,
+                      i.e. %APPDATA%\\SJK\\generated on Windows); never inside GameData
     -h, --help        print this help
 
 For each world texture that installed maps draw on lightmapped surfaces, the tool
 writes a normal map (<texture>_nh with height for parallax on stone, tiles and
 ground, <texture>_n otherwise) and a packed <texture>_rmo map (roughness,
-metalness, occlusion) into one pk3, plus jkr-materialgen/manifest.json listing
+metalness, occlusion) into one pk3, plus sjk-materialgen/manifest.json listing
 every source, output, skipped shader and setting. Textures that give light
 (q3map_surfacelight, an authored _glow image, light, lamp or screen names) also get
 an emission map <texture>_e of their luminous texels, unless their shader already
@@ -44,7 +44,7 @@ interface images, effects, glowing, animated and alpha-tested foliage stages, an
 textures that already have rend2 maps get none. Game data is only read.
 
 To use the maps, either point the client at the output directory
-(JKR_CONTENT=<directory>) or copy the pk3 into GameData/base yourself, then enable
+(SJK_CONTENT=<directory>) or copy the pk3 into GameData/base yourself, then enable
 r_normalMapping, r_specularMapping and optionally r_parallaxMapping. Emission maps
 show with r_emissiveMaps (on by default).
 

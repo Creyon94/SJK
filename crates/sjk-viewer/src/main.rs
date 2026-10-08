@@ -37,7 +37,6 @@ mod console_runtime;
 mod cosmetics;
 mod crosshair_scan;
 mod cut_trace;
-mod cvar_renames;
 mod damage_feedback;
 mod decal_marks;
 mod decal_store;
@@ -707,7 +706,7 @@ impl GpuState {
         let world_maximums = Vec3::from_array(world_maximums);
         let far_plane = (world_maximums - world_minimums).length().max(4096.0) * 2.0;
         let camera_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("JKR camera"),
+            label: Some("SJK camera"),
             contents: bytemuck::bytes_of(&CameraUniform {
                 view_projection: Mat4::IDENTITY.to_cols_array_2d(),
                 camera_position: camera_origin,
@@ -718,7 +717,7 @@ impl GpuState {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
         let camera_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("JKR camera layout"),
+            label: Some("SJK camera layout"),
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
                 visibility: wgpu::ShaderStages::VERTEX_FRAGMENT | wgpu::ShaderStages::COMPUTE,
@@ -731,7 +730,7 @@ impl GpuState {
             }],
         });
         let camera_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("JKR camera bind group"),
+            label: Some("SJK camera bind group"),
             layout: &camera_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
@@ -739,7 +738,7 @@ impl GpuState {
             }],
         });
         let hud_buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("JKR HUD state"),
+            label: Some("SJK HUD state"),
             contents: bytemuck::bytes_of(&HudUniform {
                 crosshair_color: cgame_options::crosshair_color(None),
                 health_ratio: 1.0,
@@ -768,7 +767,7 @@ impl GpuState {
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
         let hud_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("JKR HUD layout"),
+            label: Some("SJK HUD layout"),
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
                 visibility: wgpu::ShaderStages::FRAGMENT,
@@ -781,7 +780,7 @@ impl GpuState {
             }],
         });
         let hud_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("JKR HUD bind group"),
+            label: Some("SJK HUD bind group"),
             layout: &hud_layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,
@@ -799,13 +798,13 @@ impl GpuState {
         let font_view = gpu_texture::create_rgba8_texture_mipmapped(
             &device,
             &queue,
-            "JKR UI font atlas",
+            "SJK UI font atlas",
             &modern_atlas.image,
             true,
             text::ATLAS_MIP_LEVELS,
         );
         let text_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("JKR text layout"),
+            label: Some("SJK text layout"),
             entries: &[
                 texture_layout_entry(0),
                 wgpu::BindGroupLayoutEntry {
@@ -817,7 +816,7 @@ impl GpuState {
             ],
         });
         let text_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            label: Some("JKR text sampler"),
+            label: Some("SJK text sampler"),
             address_mode_u: wgpu::AddressMode::ClampToEdge,
             address_mode_v: wgpu::AddressMode::ClampToEdge,
             address_mode_w: wgpu::AddressMode::ClampToEdge,
@@ -827,7 +826,7 @@ impl GpuState {
             ..Default::default()
         });
         let text_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("JKR text bind group"),
+            label: Some("SJK text bind group"),
             layout: &text_layout,
             entries: &[
                 wgpu::BindGroupEntry {
@@ -853,13 +852,13 @@ impl GpuState {
                 let view = gpu_texture::create_rgba8_texture_mipmapped(
                     &device,
                     &queue,
-                    "JKR classic HUD font atlas",
+                    "SJK classic HUD font atlas",
                     &atlas.image,
                     true,
                     game_font::mip_levels(atlas.image.width(), atlas.image.height()),
                 );
                 let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                    label: Some("JKR classic HUD text bind group"),
+                    label: Some("SJK classic HUD text bind group"),
                     layout: &text_layout,
                     entries: &[
                         wgpu::BindGroupEntry {
@@ -961,16 +960,16 @@ impl GpuState {
         // Every 2D pipeline writes display values through a UNORM view (`ui_target.rs`).
         let ui_format = ui_target::format(format);
         let hud_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR HUD shader"),
+            label: Some("SJK HUD shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("hud.wgsl").into()),
         });
         let hud_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("JKR HUD pipeline layout"),
+            label: Some("SJK HUD pipeline layout"),
             bind_group_layouts: &[Some(&hud_layout)],
             immediate_size: 0,
         });
         let hud_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("JKR HUD pipeline"),
+            label: Some("SJK HUD pipeline"),
             layout: Some(&hud_pipeline_layout),
             vertex: wgpu::VertexState {
                 module: &hud_shader,
@@ -1001,11 +1000,11 @@ impl GpuState {
             cache: None,
         });
         let text_shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR text shader"),
+            label: Some("SJK text shader"),
             source: wgpu::ShaderSource::Wgsl(include_str!("text.wgsl").into()),
         });
         let text_pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("JKR text pipeline layout"),
+            label: Some("SJK text pipeline layout"),
             bind_group_layouts: &[Some(&text_layout)],
             immediate_size: 0,
         });
@@ -1044,30 +1043,30 @@ impl GpuState {
                 cache: None,
             })
         };
-        let text_pipeline = create_text_pipeline("JKR text pipeline", "fragment_main");
+        let text_pipeline = create_text_pipeline("SJK text pipeline", "fragment_main");
         let sdf_text_pipeline =
-            create_text_pipeline("JKR distance-field text pipeline", "fragment_sdf");
+            create_text_pipeline("SJK distance-field text pipeline", "fragment_sdf");
         let text_vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR dynamic text vertices"),
+            label: Some("SJK dynamic text vertices"),
             size: (MAX_TEXT_VERTICES * std::mem::size_of::<TextVertex>()) as u64,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
         let classic_text_vertex_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR dynamic classic HUD text vertices"),
+            label: Some("SJK dynamic classic HUD text vertices"),
             size: (MAX_TEXT_VERTICES * std::mem::size_of::<TextVertex>()) as u64,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
         let entity_instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR dynamic entity instances"),
+            label: Some("SJK dynamic entity instances"),
             size: (particle_types::INSTANCE_CAPACITY * std::mem::size_of::<EntityInstance>())
                 as u64,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
         let actor_instance_buffer = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR actor instances"),
+            label: Some("SJK actor instances"),
             size: (actor_instance::CAPACITY * std::mem::size_of::<ActorInstance>()) as u64,
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
@@ -1335,13 +1334,13 @@ impl GpuState {
         let view = gpu_texture::create_rgba8_texture_mipmapped(
             &self.device,
             &self.queue,
-            "JKR Inter UI font atlas",
+            "SJK Inter UI font atlas",
             &atlas.image,
             true,
             text::ATLAS_MIP_LEVELS,
         );
         self.text_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("JKR text bind group"),
+            label: Some("SJK text bind group"),
             layout: &self.text_layout,
             entries: &[
                 wgpu::BindGroupEntry {
@@ -2046,7 +2045,7 @@ impl GpuState {
         let mut encoder = self
             .device
             .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                label: Some("JKR frame encoder"),
+                label: Some("SJK frame encoder"),
             });
         if let Some(phases) = &self.gpu_phases {
             phases.begin(&mut encoder);

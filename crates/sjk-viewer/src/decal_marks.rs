@@ -28,7 +28,7 @@ pub(crate) const MAX_VERTICES_ON_DECAL: usize = 10;
 /// Decals project 20 units into the surface (`tr_decals.cpp:198`).
 const PROJECTION_DEPTH: f32 = 20.0;
 /// Curved-patch triangles must face the projection (`tr_marks.cpp:364`).
-/// The reference alternates -0.1 / -0.05 per cell half; JKR applies the
+/// The reference alternates -0.1 / -0.05 per cell half; this applies the
 /// stricter limit to every triangle.
 const GRID_FACING_LIMIT: f32 = -0.1;
 

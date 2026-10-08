@@ -1,4 +1,4 @@
-//! `g_stockRules`: this server's own option (not the reference's). JKR's server lifts
+//! `g_stockRules`: this server's own option (not the reference's). SJK's server lifts
 //! the limits and quirks a stock server has — `0`, the default — and keeps the stock
 //! behaviour exactly with `1`, for operators who want a server indistinguishable from a
 //! stock one. Each place that differs says so where it reads [`NativeGame::stock_rules`]:

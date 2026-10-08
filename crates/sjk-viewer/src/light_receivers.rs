@@ -12,7 +12,7 @@ pub(in crate::world_materials) fn sun_layout(device: &wgpu::Device) -> wgpu::Bin
         )
     };
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("JKR receiver sun visibility"),
+        label: Some("SJK receiver sun visibility"),
         entries: &[
             depth(0),
             wgpu::BindGroupLayoutEntry {
@@ -43,7 +43,7 @@ pub(in crate::world_materials) fn sun_layout(device: &wgpu::Device) -> wgpu::Bin
 fn layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
     let stages = wgpu::ShaderStages::FRAGMENT | wgpu::ShaderStages::COMPUTE;
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("JKR receiver attributes"),
+        label: Some("SJK receiver attributes"),
         entries: &[
             texture_entry(
                 0,
@@ -79,7 +79,7 @@ impl Direct {
     fn new(device: &wgpu::Device, size: [u32; 2], images: &Images) -> Self {
         use wgpu::util::DeviceExt;
         let list = device.create_buffer(&wgpu::BufferDescriptor {
-            label: Some("JKR direct-lamp receivers"),
+            label: Some("SJK direct-lamp receivers"),
             size: DIRECT_HEADER + 4 * u64::from(size[0]) * u64::from(size[1]),
             usage: wgpu::BufferUsages::STORAGE
                 | wgpu::BufferUsages::INDIRECT
@@ -87,7 +87,7 @@ impl Direct {
             mapped_at_creation: false,
         });
         let reset = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("JKR direct-lamp list reset"),
+            label: Some("SJK direct-lamp list reset"),
             contents: bytemuck::cast_slice(&[0u32, 1, 1, 0]),
             usage: wgpu::BufferUsages::COPY_SRC,
         });
@@ -174,7 +174,7 @@ fn direct_layout(device: &wgpu::Device, directed: bool) -> wgpu::BindGroupLayout
         });
     }
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("JKR direct-lamp receivers"),
+        label: Some("SJK direct-lamp receivers"),
         entries: &entries,
     })
 }
@@ -195,14 +195,14 @@ impl Targets {
         let world = target(
             device,
             size,
-            "JKR world attributes",
+            "SJK world attributes",
             wgpu::TextureFormat::Rgba32Float,
             wgpu::TextureUsages::RENDER_ATTACHMENT,
         );
         let normal = target(
             device,
             size,
-            "JKR normal attributes",
+            "SJK normal attributes",
             wgpu::TextureFormat::Rgba32Float,
             wgpu::TextureUsages::RENDER_ATTACHMENT,
         );
@@ -226,7 +226,7 @@ impl Targets {
                 target(
                     device,
                     size,
-                    "JKR lamp cache attributes",
+                    "SJK lamp cache attributes",
                     wgpu::TextureFormat::Rgba32Float,
                     wgpu::TextureUsages::RENDER_ATTACHMENT,
                 )
@@ -337,7 +337,7 @@ impl Pipelines {
             immediate_size: 0,
         });
         let light = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("JKR once-per-pixel lighting"),
+            label: Some("SJK once-per-pixel lighting"),
             layout: Some(&light_layout),
             vertex: wgpu::VertexState {
                 module: world,
@@ -422,7 +422,7 @@ impl Pipelines {
                 immediate_size: 0,
             });
             let light = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-                label: Some("JKR once-per-pixel lighting, cached lamps"),
+                label: Some("SJK once-per-pixel lighting, cached lamps"),
                 layout: Some(&light_layout),
                 vertex: wgpu::VertexState {
                     module: &from.world,
@@ -457,7 +457,7 @@ impl Pipelines {
                 immediate_size: 0,
             });
             let direct = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-                label: Some("JKR direct lamps"),
+                label: Some("SJK direct lamps"),
                 layout: Some(&direct_layout),
                 module: &from.world,
                 entry_point: Some(if self.directed {
@@ -522,7 +522,7 @@ fn attribute_pipeline(
     });
     let constants = [("geometry_deforms", 1.0), ("geometry_sprites", 1.0)];
     device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("JKR exact receiver attributes"),
+        label: Some("SJK exact receiver attributes"),
         layout: Some(layout),
         vertex: wgpu::VertexState {
             module: shader,
@@ -616,7 +616,7 @@ impl super::super::super::Runtime {
         if let Some(((cache, coordinates), _)) = cache {
             let cached = pipelines.cached(&self.forge.device);
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("JKR receiver pass"),
+                label: Some("SJK receiver pass"),
                 color_attachments: &[
                     attachment(&target.world),
                     attachment(&target.normal),
@@ -643,7 +643,7 @@ impl super::super::super::Runtime {
             );
         } else {
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: Some("JKR receiver pass"),
+                label: Some("SJK receiver pass"),
                 color_attachments: &[attachment(&target.world), attachment(&target.normal)],
                 depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
                     view: &buffer.images().depth,
@@ -684,7 +684,7 @@ impl super::super::super::Runtime {
             })
         });
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("JKR deferred lighting"),
+            label: Some("SJK deferred lighting"),
             color_attachments: &lit[..if images.directed { 2 } else { 1 }],
             depth_stencil_attachment: None,
             timestamp_writes: None,
@@ -705,7 +705,7 @@ impl super::super::super::Runtime {
         drop(pass);
         if let Some(direct) = direct {
             let mut pass = encoder.begin_compute_pass(&wgpu::ComputePassDescriptor {
-                label: Some("JKR direct lamps"),
+                label: Some("SJK direct lamps"),
                 timestamp_writes: None,
             });
             pass.set_pipeline(&pipelines.cached(&self.forge.device).direct);

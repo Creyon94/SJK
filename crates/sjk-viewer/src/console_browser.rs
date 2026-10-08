@@ -48,7 +48,7 @@ pub(crate) enum BrowserAction {
 /// How the browser is drawn, after the console's style.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) enum Look {
-    /// JKR's: a hero header, tabs and two-line rows (`con_style modern`).
+    /// SJK's: a hero header, tabs and two-line rows (`con_style modern`).
     #[default]
     Modern,
     /// Classic+: a retail pop-up box (`con_style classic`).

@@ -3,13 +3,13 @@
 Reviewed 2026-10-04 against GitHub baseline `b394022` and the owner-approved
 client, server, rendering and loading changes described below.
 
-JKR currently contains a native client and standard dedicated server in a
+SJK currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
 ## SJK UI Character in a game
 
-SJK-only branch `personal/sjk-ui-ingame-character` (08/10/2026, based on
+Branch `personal/sjk-ui-ingame-character` (08/10/2026, based on
 `0e4c914`, Windows 11): Sol asked for the SJK UI while in game. The player
 screen opened from the in-game menu (Character) now shows its SJK UI pages
 instead of the classic ones: `set_menu_art` makes it SJK in a game too, and the
@@ -26,9 +26,9 @@ every page, and the camera's room keeping a held-out blade in view;
 the preview's lighting where the player stands, and handing back to the game
 menu.
 
-## Medals (SJK)
+## Medals
 
-SJK-only branch `personal/medals` (08/10/2026, based on `8a45662`, Windows 11): Sol
+Branch `personal/medals` (08/10/2026, based on `8a45662`, Windows 11): Sol
 asked for medals, recognition the SJK team gives players by hand that grants nothing
 ([identity.md](identity.md#medals)). The hub's profile and presence entries gain a
 `medals` list (`sjk_identity::Medal`, empty from older hubs); the service reads the
@@ -55,9 +55,9 @@ was started and no hub was contacted, so the live roster, the refresh, the pop-u
 timing, keys and pointer in a running client are unchecked. The hub side is in its own
 repository.
 
-## Illuminate (SJK)
+## Illuminate
 
-SJK-only branch `personal/force-illuminate` (08/10/2026, based on `b9db8c0`,
+Branch `personal/force-illuminate` (08/10/2026, based on `b9db8c0`,
 Windows 11): Sol asked for a free power every player has, a light to see better
 in dark maps, toggled off in the settings. [Illuminate](client.md#illuminate) is
 a client-only Force-wheel pseudo-slot (21, after JoF's three) whose `+useforce`
@@ -83,7 +83,7 @@ unverified.
 
 ## SJK UI Character: classic+ Force level marks, coloured and lit
 
-SJK-only branch `personal/sjk-ui-force-marks` (08/10/2026, based on `1eb2d77`,
+Branch `personal/sjk-ui-force-marks` (08/10/2026, based on `1eb2d77`,
 Windows 11): Sol found the square level cells foreign and asked for classic+'s
 style, a Force effect and colours by type. The levels are now classic+'s round
 marks (the JoF HD `forcecircle`/`forcestar` art's shape, drawn by the UI):
@@ -98,7 +98,7 @@ breath and ring timings are from the code only.
 
 ## SJK UI Character: hilt list, style buttons, priced Force levels
 
-SJK-only branch `personal/sjk-ui-character-2` (08/10/2026, based on `dd38afc`,
+Branch `personal/sjk-ui-character-2` (08/10/2026, based on `dd38afc`,
 Windows 11): Sol asked for a better character editor in the SJK UI. Saber page:
 the style is three buttons and the hilts a list (two side by side for Dual),
 in the order JoF EJK lists them; the catalogue now orders `saber_hilts` by
@@ -121,7 +121,7 @@ the installed pk3s and it matched the shot's).
 
 ## EJK camera style by default
 
-SJK-only branch `personal/camera-ejk-default` (08/10/2026, based on `dd38afc`,
+Branch `personal/camera-ejk-default` (08/10/2026, based on `dd38afc`,
 Windows 11): Sol asked for the locked JoF EJK camera as the default and for the
 camera style to be a style chosen near the top of First setup. `cg_cameraStyle`
 now defaults to `ejk` and an unknown value falls back to it (`sjk` still selects
@@ -143,7 +143,7 @@ play are untested.
 
 ## SJK UI as the default menu style
 
-SJK-only branch `personal/sjk-default` (08/10/2026, based on `7a85516`, Windows
+Branch `personal/sjk-default` (08/10/2026, based on `7a85516`, Windows
 11): Sol asked for the SJK UI as the default, also for players updating, with
 the choice offered in First setup, and for `quicksetup` to go so that `q`
 completes to `quit` alone. `ui_menuStyle` now defaults to `sjk` and an unknown
@@ -173,7 +173,7 @@ every new player are untested in play.
 
 ## Wall grab facing
 
-SJK-only branch `personal/wall-grab` (07/10/2026, based on `7a85516`, Windows 11):
+Branch `personal/wall-grab` (07/10/2026, based on `7a85516`, Windows 11):
 Sol found that on a JA+ server a player holding a grabbed wall could turn their
 body with the mouse, floating off the wall. A JA+ server leaves the view free
 during the hold while `CG_G2PlayerAngles` turns the body with the view; the model
@@ -190,7 +190,7 @@ in a running client.
 
 ## Players page and player reports
 
-SJK-only branch `personal/player-report` (07/10/2026, based on `7a85516`, Windows 11):
+Branch `personal/player-report` (07/10/2026, based on `7a85516`, Windows 11):
 Sol asked for a small scoreboard in the in-game menu and a way to report a player to
 the hub, for verified players only, with antispam. The game menu gains a Players page
 (`ingame_menu::players`: the roster read from the session once a second, scores asked
@@ -216,7 +216,7 @@ pages in a running client, and the outcome's centre print are unverified.
 
 ## SJK UI: console design and selectable browser text
 
-SJK-only branch `personal/console-style` (08/10/2026, based on `7a85516`,
+Branch `personal/console-style` (08/10/2026, based on `7a85516`,
 Windows 11): Sol asked for the console in the SJK UI's look, its text
 selectable with the mouse and copied with Ctrl+C, the same in the F3 command
 browser, and several designs to choose from. `con_style` gained `sjk` (deck),
@@ -238,7 +238,7 @@ started, so real typing, dragging, the clipboard, the opening slide, `con_scale`
 and `con_opacity` with these looks, narrow windows and the families' first load
 are untested in a running client.
 
-Sol chose the deck, and SJK-only branch `personal/console-deck` (08/10/2026,
+Sol chose the deck, and branch `personal/console-deck` (08/10/2026,
 based on `b9db8c0`) removed `horizon` and `dock`: a profile that saved either
 now gets `auto`'s console, the deck with the SJK UI's menus. The cvar's unit
 tests cover that fallback; the deck's code and world shots are unchanged, and
@@ -246,7 +246,7 @@ it is still untested in a running client.
 
 ## Sol's world notes of 07/10/2026
 
-SJK-only branch `personal/inspect-notes` (08/10/2026, based on `7a85516`, Windows 11):
+Branch `personal/inspect-notes` (08/10/2026, based on `7a85516`, Windows 11):
 the 45 world notes Sol wrote on 07/10/2026 (`notes.jsonl`; the nine sent to the hub
 are copies of local ones) on `mp/ctf4`, `mp/ffa1`-`ffa4`, `mp/siege_desert`,
 `ffa_bespin`, `t2_rogue` and `vjun3`, three of them tests. A new ignored world shot,
@@ -274,8 +274,8 @@ with remaps (`SJK_NOTES`, `SJK_NOTES_CVARS`, `SJK_NOTES_REMAP`; see its rustdoc)
   3d", "too shiny", "reversed", "metallic", flagstones and a landing pad classed as
   cloth and metal) became lines in his local overrides file, and a generation-6 pack
   for the MP maps, the test maps, `t2_rogue`, `vjun3` and `ffa_bespin` (1,326
-  textures, 70 emission maps) was written to `%APPDATA%\jkr\generated\gen6` for Sol to
-  install. Most "too shiny" notes were made with `r_specularMapping 0`, where the
+  textures, 70 emission maps) was written to the per-user folder's `generated\gen6`
+  for Sol to install. Most "too shiny" notes were made with `r_specularMapping 0`, where the
   pack's roughness and metalness do not apply.
 - Open: the decal of `mp/ctf4` that "appears like there is no fog". Measured in a
   world shot, the decal takes about 40% of the fog its wall takes: as in rd-vanilla,
@@ -286,7 +286,7 @@ with remaps (`SJK_NOTES`, `SJK_NOTES_CVARS`, `SJK_NOTES_REMAP`; see its rustdoc)
 
 ## SJK UI: coloured names and the browser's sort mark
 
-SJK-only branch `personal/sjk-ui-browser-colours` (07/10/2026, Windows 11): Sol
+Branch `personal/sjk-ui-browser-colours` (07/10/2026, Windows 11): Sol
 asked for the browser's server names in their colours and found its sort caret
 odd. The list, the chosen server's title (a wrapped second line carries the
 first line's last colour) and its players now draw their `^<digit>` codes; the
@@ -300,7 +300,7 @@ in a running client.
 
 ## SJK UI: loading screen
 
-SJK-only branch `personal/sjk-ui-loading` (07/10/2026, based on `076806e`, Windows 11):
+Branch `personal/sjk-ui-loading` (07/10/2026, based on `076806e`, Windows 11):
 the SJK UI's own connect and loading screen replaces the classic one in
 `ui_menuStyle sjk` ([sjk-ui.md](sjk-ui.md#loading)). `menu::sjk::loading`
 draws `ClassicLoading`'s state: before the map is known a block at the bottom
@@ -332,7 +332,7 @@ whole; the frames were rendered again.
 
 ## SJK UI: Scoreboard
 
-SJK-only branch `personal/sjk-ui-scoreboard` (07/10/2026, based on `076806e`,
+Branch `personal/sjk-ui-scoreboard` (07/10/2026, based on `076806e`,
 Windows 11): the scoreboard in the SJK UI ([sjk-ui.md](sjk-ui.md#scoreboard)).
 `scoreboard::sjk` draws the board's rows and match facts as columns floating
 over the darkened game, right of the chat column: a header line (map, mode and
@@ -369,7 +369,7 @@ under its dim and the Settings row's list of four are untested in play.
 
 ## SJK UI: in-game menu
 
-SJK-only branch `personal/sjk-ui-ingame` (07/10/2026, based on `076806e`, Windows 11):
+Branch `personal/sjk-ui-ingame` (07/10/2026, based on `076806e`, Windows 11):
 the SJK UI gets its own in-game menu ([sjk-ui.md](sjk-ui.md#in-game-menu));
 until now `ui_menuStyle sjk` showed the classic bar there. `ingame_menu::sjk_view`
 draws the in-game menu's pages as a compact arc over a fade on the match's left,
@@ -404,7 +404,7 @@ match card's side; the frames were rendered again.
 
 ## SJK UI: Servers
 
-SJK-only branch `personal/sjk-ui-browser` (07/10/2026, based on `b0470fc`, Windows 11):
+Branch `personal/sjk-ui-browser` (07/10/2026, based on `b0470fc`, Windows 11):
 Sol asked for the server browser in the SJK UI next. `menu::sjk::browser` draws
 the browser's state and tokens on the UI's frame ([sjk-ui.md](sjk-ui.md#servers)):
 sources and Show filters on the left, the sortable list, the chosen server's
@@ -424,7 +424,7 @@ from it are unverified.
 
 ## Third-person camera style
 
-SJK-only branch `personal/camera-style` (07/10/2026, based on `7741498`, Windows 11):
+Branch `personal/camera-style` (07/10/2026, based on `7741498`, Windows 11):
 Sol found SJK's third-person camera like single player's and asked for a setting
 to have it as in JoF EJK. Reading JoF EJK's `cg_view.c` against `camera.rs` and
 `camera_motion.rs` found the same camera: EternalJK's `CG_OffsetThirdPersonView`
@@ -446,7 +446,7 @@ would turn damping off in EternalJK).
 
 ## SJK UI: text centred in its controls
 
-SJK-only branch `personal/sjk-ui-centre` (07/10/2026, based on `7741498`, Windows 11):
+Branch `personal/sjk-ui-centre` (07/10/2026, based on `7741498`, Windows 11):
 Sol saw the SJK UI's text sit off centre in its buttons. The renderer sets a
 run's line box from its rectangle's top and the capitals' middle lies 0.48
 (Rajdhani) or 0.54 (Exo 2) of the size below it, so text drew 2 to 4 pixels high
@@ -459,7 +459,7 @@ on their arc points (they drew about a tenth of their size high).
 
 ## Reports and notes carry the worn name
 
-SJK-only branch `personal/hub-names` (07/10/2026, based on `6678967`, Windows 11): Sol
+Branch `personal/hub-names` (07/10/2026, based on `6678967`, Windows 11): Sol
 asked for the player's name with every note and its history kept. `BugReport` and
 `WorldNote` gain `name`; the identity service fills it from the in-game name it already
 sends the hub, and the hub stores it with the row and in the key's worn names
@@ -468,7 +468,7 @@ sends the hub, and the hub stores it with the row and in the key's worn names
 
 ## World notes sent to the hub
 
-SJK-only branch `personal/hub-notes` (07/10/2026, based on `57fcc62`, Windows 11):
+Branch `personal/hub-notes` (07/10/2026, based on `57fcc62`, Windows 11):
 Sol asked for world notes to reach the hub so players can send them too. The note
 dialog keeps the bug reports' alphabet; Send checks the hub's note rules
 (`sjk_identity::report::note_text`). Saving a note still writes `notes.jsonl`,
@@ -484,7 +484,7 @@ client (dialog, centre print, picture upload) is unverified.
 
 ## SJK UI: What's new, Update and Identity
 
-SJK-only branch `personal/sjk-ui-pages` (07/10/2026, based on `57fcc62`, Windows 11):
+Branch `personal/sjk-ui-pages` (07/10/2026, based on `57fcc62`, Windows 11):
 Sol asked for the What's new, Update and Identity pages in the SJK UI. Each
 console page gets a third look ([sjk-ui.md](sjk-ui.md), Sol JK's pages), picked
 with the menu style (`ViewerConsole::set_sjk_pages`) and drawn in the UI's
@@ -499,7 +499,7 @@ unverified in a running client.
 
 ## SJK UI: Key bindings in Settings
 
-SJK-only branch `personal/sjk-ui-keys` (07/10/2026, based on `5ad57a0`, Windows 11):
+Branch `personal/sjk-ui-keys` (07/10/2026, based on `5ad57a0`, Windows 11):
 Sol asked for the key-binding menu in the SJK UI. Key bindings is now a category
 of the SJK UI's Settings, drawn in the same frame ([sjk-ui.md](sjk-ui.md),
 Settings): the key-binding editor's classic+ list with a new view
@@ -517,9 +517,9 @@ started: capture and clearing are unverified in a running client.
 
 ## SJK UI: Character on duel6's stage
 
-SJK-only branch `personal/sjk-ui-character` (07/10/2026, based on `af22dd7`, Windows
-11): Sol asked for the character creator in the SJK UI "on the map we have, like
-JKR did a bit, but our own way" ([sjk-ui.md](sjk-ui.md), Character). duel6 gets a
+Branch `personal/sjk-ui-character` (07/10/2026, based on `af22dd7`, Windows
+11): Sol asked for the character creator in the SJK UI "on the map we have, ...
+but our own way" ([sjk-ui.md](sjk-ui.md), Character). duel6 gets a
 player stage on the south-west path below the tower and a saber shot (routes
 placed with the world shots), reached by cuts on the toured map; the player
 screen draws the modern screen's state in a new SJK view: the name as title,
@@ -536,7 +536,7 @@ running client.
 
 ## SJK UI: the camera tour of mp/duel6, and off-screen world shots
 
-SJK-only branch `personal/menu-camera` (07/10/2026, based on `39323fe`, Windows 11):
+Branch `personal/menu-camera` (07/10/2026, based on `39323fe`, Windows 11):
 Sol asked for more camera angles from the map behind the menu. The backdrop plays
 a tour on maps that have one ([sjk-ui.md](sjk-ui.md), The map behind): duel6 has
 ten 15-second glides with fades between, opening on the intermission view, the
@@ -555,7 +555,7 @@ started: the tour's pace and fades are unverified in a running client.
 
 ## SJK UI: Settings
 
-SJK-only branch `personal/sjk-ui-settings` (07/10/2026, based on `be3b45d`, Windows
+Branch `personal/sjk-ui-settings` (07/10/2026, based on `be3b45d`, Windows
 11): the SJK UI's second screen, Settings ([sjk-ui.md](sjk-ui.md)), as the
 mock-up draws it: the categories down a lit rail with their icons (First setup,
 Display, Graphics, Sound, Mouse, Key bindings, Gameplay, Interface, HUD,
@@ -576,7 +576,7 @@ in game.
 
 ## SJK UI: the ring main page and recent servers
 
-SJK-only branch `personal/sjk-ui-ring` (07/10/2026, based on `f780bd8`, Windows 11):
+Branch `personal/sjk-ui-ring` (07/10/2026, based on `f780bd8`, Windows 11):
 Sol went back to direction A for the SJK UI's main page ([sjk-ui.md](sjk-ui.md)):
 the emblem in its turning ring at the left, the menu on an arc round it (Play, Sol
 JK and Quit open pages of their own on the ring), and the servers joined last in a
@@ -592,7 +592,7 @@ live map behind the page and joining from the column are unverified in game.
 
 ## SJK UI: main page
 
-SJK-only branch `personal/sjk-ui` (07/10/2026, based on `afd3625`, Windows 11): a
+Branch `personal/sjk-ui` (07/10/2026, based on `afd3625`, Windows 11): a
 third menu style, `ui_menuStyle sjk`, SJK's own menus redesigned from the ground up
 ([sjk-ui.md](sjk-ui.md)), with its main page: SJK's emblem in a turning holo ring
 over the live map (mp/duel6 when the client starts in it), the menu on a horizon line
@@ -612,7 +612,7 @@ page and the switch between styles are unverified in game.
 
 ## Classic+ settings controls
 
-SJK-only branch `personal/settings-modern` (07/10/2026, based on `fe9face`, Windows
+Branch `personal/settings-modern` (07/10/2026, based on `fe9face`, Windows
 11): the classic option panels draw their own controls instead of retail's YES/NO
 text and slider art: switches for on/off settings, slim sliders with their value in
 a frame, segments for choices of two or three values, fields with a caret for longer
@@ -1198,9 +1198,9 @@ Unit tests cover the flag following the cvars and resetting without a console.
 The workspace checks passed on Windows 11 (06/10/2026). Unverified: the log
 output in a running client.
 
-## Classic Settings hub (SJK)
+## Classic Settings hub
 
-SJK-only branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the
+Branch `personal/settings-hub` (06/10/2026, based on `5c66ccd`): the
 classic menus' Controls and Setup are one Settings screen with KEY BINDINGS and
 OPTIONS tabs on the panel's title band (main page, navigation rows, profile
 pages and the in-game bar, whose Controls and Setup buttons are one Settings).
@@ -1297,7 +1297,7 @@ Local change against `af65396` (2026-10-05, Windows 11) adds EternalJK's
 `clearRemaps` console command and a Settings > GAME row for `cg_remaps`
 (0 off / 1 map / 2 all; the default stays 1). EternalJK's `R_ClearRemaps_f`
 (`codemp/rd-vanilla/tr_init.cpp`) resets every renderer shader's remap and keeps
-destination time offsets. JKR clears the live or demo session's server remaps and
+destination time offsets. The client clears the live or demo session's server remaps and
 local overrides the same way, sends nothing to the server, and lets a later
 shader-state change, reliable `remapShader` command or new gamestate apply again.
 See [shader remap controls](client.md#shader-remap-controls).
@@ -1358,10 +1358,10 @@ Local change on `af65396` (2026-10-05, Windows 11): the third-person camera adds
 the decaying prediction error to its focus before the collision and damping traces,
 following `CG_CalcViewValues` (OpenJK `codemp/cgame/cg_view.c:1597-1608`), instead
 of adding it to the finished camera position. First-person, intermission and free
-views are unchanged. This is the part of Sol's camera PR #38 that #125 did not
-include; SJK has carried it on top of #125. Workspace formatting, the locked build
-and tests passed. No client was run here and no harness compared it with the C
-camera; SJK's builds have used it since #125 was merged into SJK.
+views are unchanged. This completes the earlier camera and vehicle change, which
+had left it out. Workspace formatting, the locked build and tests passed. No client
+was run here and no harness compared it with the C camera; SJK's builds have used
+it since the camera and vehicle change was merged.
 
 ## Third-person camera collision and vehicle framing
 
@@ -1510,8 +1510,8 @@ open. See [rendering](rendering.md#actor-animation-failures).
 ## Distributable builds
 
 Windows x64 and Linux x64 release ZIPs for merged source `3a70c22` were built
-and checked on 2026-10-04 using the
-[GameData packages workflow](https://github.com/Bishop-R/JKR/actions/runs/37194839545).
+and checked on 2026-10-04 by the
+[GameData packages workflow](../.github/workflows/packages.yml).
 Both native jobs extracted their archives, started/stopped an isolated loopback
 dedicated server, and verified client discovery and portable settings with
 synthetic assets. The source snapshots match on both platforms; checkout and
@@ -1546,7 +1546,7 @@ packaging-only update; its executables are identical to the previous release.
 Local change based on `da8adc9` (2026-10-04): the client discovers game data
 beside its executable (or in its `GameData` subdirectory), independently of the
 working directory. This takes priority over saved paths; explicit positional
-paths and `JKR_GAME_DATA` remain overrides. Direct `--connect HOST:PORT` also
+paths and `JKA_GAME_DATA` remain overrides. Direct `--connect HOST:PORT` also
 supports discovery. See [client launch](client.md#launch) for the full order.
 
 Linux verification: 19 external startup checks passed with synthetic asset-file
@@ -1560,12 +1560,10 @@ locked workspace build/tests and the optimized client build passed. Windows
 double-click/shortcut behavior and full rendering from a drop-in install have not
 been exercised by these checks.
 
-The same local work now defaults generated client files to `GameData/jkr/`.
-Storage is selected before the console, browser or HUD is created, so settings,
-marks, screenshots, recordings, favorites, friends and identity share one root.
-A one-time, non-overwriting import copies supported files from the old user
-folder and leaves originals intact. Unwritable installations use the existing
-per-user profile. Downloaded content keeps its separate cache.
+The same local work defaults generated client files to a folder in `GameData`
+(now `GameData/SJK/`). Storage is selected before the console, browser or HUD is
+created, so settings, marks, screenshots, recordings, favorites, friends and
+identity share one root. Unwritable installations use the per-user profile. Downloaded content keeps its separate cache.
 
 Eleven external Linux storage scenarios passed using synthetic profiles:
 first-run creation, supported-file import and byte preservation, identity-file
@@ -1583,8 +1581,8 @@ Windows ACLs and native Windows launch remain unverified.
 
 ## Console editing and command browser
 
-The console includes the command/cvar browser contributed in PR #6 and the
-caret/output-selection controls from PR #33. Browser Apply/Cancel pointer actions
+The console includes a command/cvar browser and caret/output-selection
+controls. Browser Apply/Cancel pointer actions
 match the keyboard, the footer Filter control works, and underlying menu shapes,
 text and FPS output are suppressed while browsing. Printable opening shortcuts
 become text when the console is open. Dead-key `^` inserts a literal colour-code
@@ -1599,12 +1597,13 @@ remains outside the repository. A release X11/Vulkan desktop run exercised
 browser opening, search and edit mode. Native keyboard probes reproduced and
 corrected the pending-accent problem; the owner confirmed that fix and accepted
 the console preview. A separate-profile release run typed a dead-circumflex
-followed by `1Bishop` and saved exactly `^1Bishop`, with the console still open.
+followed by `1` and a name and saved exactly `^1` and the name, with the console
+still open.
 Formatting, locked workspace build/tests and the release build passed. Clipboard
 round trips, drag behavior and platform/layout combinations are not exhaustively
 verified.
 
-## Classic console (SJK)
+## Classic console
 
 SJK's default console (`con_style classic`) follows EternalJK's: the `console`
 shader's background with its stage motion, `con_ratioFix`, the bar, a monospaced
@@ -1640,7 +1639,7 @@ the box without overlapping; menu snapshots (`console-browser-classic`,
 `console-browser-modern`) were looked at. Not tried in a game: the retail font's
 fit in the rows and pointer use are unverified.
 
-## UI texture-switch limit (SJK)
+## UI texture-switch limit
 
 Branch `personal/ui-runs` (06/10/2026, based on `16f1b20`): the UI shape renderer
 allowed 48 texture switches (bind-group runs) per frame across every layer and
@@ -1654,9 +1653,9 @@ switches as the renderer does (`ui_renderer::texture_switches`) and keeps them
 under a third of the limit. Workspace tests and clippy passed; not checked in
 game.
 
-## Credits page (SJK)
+## Credits page
 
-SJK-only branch `personal/credits` (06/10/2026, based on `5f14439`) adds the
+Branch `personal/credits` (06/10/2026, based on `5f14439`) adds the
 animated credits page and its file
 ([credits.txt](../crates/sjk-viewer/assets/credits.txt): Sol, Bishop, Creyon,
 then Claude and the reference clients), opened from the main menu, the in-game
@@ -1667,7 +1666,7 @@ Off-screen snapshots drew the page in both palettes, scrolled and at 21:9; the
 snapshot rasterizer has no emblem texture and draws rounded shapes square, so
 the halo and card corners are unverified, as is the motion. No game was started.
 
-SJK-only branch `personal/credits-history-page` (07/10/2026, based on `82bd816`)
+Branch `personal/credits-history-page` (07/10/2026, based on `82bd816`)
 gives everyone with a history a panel with their name large and their whole
 history folded under it (features, pull requests and commits from
 `credits_history.txt`, written by `scripts/credits_history.py`), and replaces the
@@ -1680,9 +1679,9 @@ nothing new. The snapshot rasterizer now draws the emblem and ray layers
 both palettes and at 21:9. The motion, the fade-in of unfolded rows, the
 scrollbar and the links were not tried in game.
 
-## In-game SJK menu and classic+ changelog (SJK)
+## In-game SJK menu and classic+ changelog
 
-SJK-only branch `personal/sjk-menu` (06/10/2026, based on `75bec2e`): the
+Branch `personal/sjk-menu` (06/10/2026, based on `75bec2e`): the
 changelog page takes the classic+ pop-up look with the classic menus, and the
 in-game menu gains an SJK button left of About on the classic bar (an SJK row in
 the modern menu) whose pop-up opens the changelog; more SJK screens are to be
@@ -1693,9 +1692,9 @@ sjk-viewer tests and clippy passed. Off-screen snapshots drew the classic+ page
 and the bar with the SJK pop-up. No game was started: both are unverified in the
 running client.
 
-## Changelog page (SJK)
+## Changelog page
 
-SJK-only branch `personal/changelog` (06/10/2026, based on `86ad1be`) adds
+Branch `personal/changelog` (06/10/2026, based on `86ad1be`) adds
 [CHANGELOG.md](../CHANGELOG.md) (every release, each change with its credit) and
 the client's changelog page: main menu > Changelog on both menu styles, or the
 `changelog` command; see [client.md](client.md#changelog-page) and
@@ -1705,9 +1704,9 @@ selection and scrolling; the sjk-viewer tests and workspace clippy passed.
 Off-screen snapshots (`menu_snapshot`) drew the page and both main menus with the
 new entry. No game was started: the page in the running client is unverified.
 
-## Self-update (SJK)
+## Self-update
 
-SJK-only branch `personal/self-update` (06/10/2026, based on `f61230b`) adds an
+Branch `personal/self-update` (06/10/2026, based on `f61230b`) adds an
 update check at start-up (`cl_autoUpdate`, default on) and an Update page (main
 menu > Update, or the `update` command) that downloads the latest release ZIP,
 verifies its SHA-256 and swaps the programs, starting the new one when the client
@@ -1719,9 +1718,9 @@ no clippy warnings. Not verified: a real download and install against a publishe
 release (none newer than the build exists yet), the page in the running client, and
 a Linux swap. No game was started.
 
-## Player identity (SJK)
+## Player identity
 
-SJK-only branch `personal/identity` (06/10/2026, based on `5f14439`) adds the
+Branch `personal/identity` (06/10/2026, based on `5f14439`) adds the
 `sjk-identity` crate (Ed25519 key file, signed hub requests, an HTTPS hub client and
 a background service), `cl_identity` and `cl_hubUrl`, an `SJK`/`VERIFIED` mark on both
 scoreboard styles, an Identity page (in-game SJK menu, `identity` command) and
@@ -1747,9 +1746,9 @@ host behind HTTPS; behaviour when the hub's clock and the client's differ by mor
 than a minute outside the retry; a Linux build. Not built: a main-menu entry, the
 confirmed badge from SJK's own server, assets, music, video and chat.
 
-## Player card and scoreboard emblem (SJK)
+## Player card and scoreboard emblem
 
-SJK-only branch `personal/player-card` (06/10/2026, based on `663083b`): looking at
+Branch `personal/player-card` (06/10/2026, based on `663083b`): looking at
 a player with a steady view for `cg_playerCardDelay` seconds shows a card beside
 their head (name, model, saber hilts and blade colours, duel record or bot skill,
 and for hub players SJK's emblem, hub name and VERIFIED), and the scoreboard marks
@@ -1770,9 +1769,9 @@ renderer (flat corners, one font). Not verified: the card and the emblem in the
 running client (no game was started), their scaling at 4K, the target tracking on
 a live server and demos. Not built: the hub bio on the card.
 
-## Default hub address (SJK)
+## Default hub address
 
-SJK-only branch `personal/hub-default` (06/10/2026): `cl_hubUrl` now defaults to
+Branch `personal/hub-default` (06/10/2026): `cl_hubUrl` now defaults to
 `https://sjk.dfox.app`, the hub running on the prod box, so players set nothing and a
 default install tells that hub where it plays (see [identity.md](identity.md#privacy)).
 The Identity page states what is sent and how to stop it. Verified: the sjk-viewer tests;
@@ -1780,9 +1779,9 @@ the hub answered the real client's end-to-end tests over HTTPS through Cloudflar
 (06/10/2026). Not verified: the client from outside France (the zone's WAF rule was
 widened for the host the same day), a default install end to end.
 
-## Identity page you can edit (SJK)
+## Identity page you can edit
 
-SJK-only branch `personal/identity-menu` (06/10/2026): the Identity page is now an interface,
+Branch `personal/identity-menu` (06/10/2026): the Identity page is now an interface,
 not a read-only list: an on/off switch for `cl_identity`, name and bio fields with Save,
 "Copy my key id", and the key file's location; it opens from the classic main menu's SJK page
 (new IDENTITY entry), the in-game SJK menu or the `identity` command; see
@@ -1796,9 +1795,9 @@ profile and known players, and for a player with no name yet; that drawing is an
 of the renderer (text sits at the top of its box). Not verified: the page in the running
 client (typing, Tab, the pointer, the clipboard button), the new classic entry's position.
 
-## Identity page in classic+ (SJK)
+## Identity page in classic+
 
-SJK-only branch `personal/identity-classic` (06/10/2026): with the classic menus the Identity
+Branch `personal/identity-classic` (06/10/2026): with the classic menus the Identity
 page takes the classic+ look (retail pop-up, option rows, list-box fields, gold buttons; see
 [client.md](client.md#identity)), and a "Use the official hub" button sets `cl_hubUrl` back
 to `https://sjk.dfox.app` while another address is saved (a saved value wins over the new
@@ -1811,9 +1810,9 @@ the off-screen snapshots (`menu_snapshot`, `identity-*-classic`) drew the classi
 states. Not verified: the classic+ page in the running client (retail font and art, typing,
 the pointer).
 
-## Automatic identity, verified badge and own nameplate (SJK)
+## Automatic identity, verified badge and own nameplate
 
-SJK-only branch `personal/identity-auto` (07/10/2026): a player no longer chooses a hub
+Branch `personal/identity-auto` (07/10/2026): a player no longer chooses a hub
 name. The client registers its key with the in-game name it wears and registers again
 when the name changes; the hub (Sol-Vulpes/SJK-hub `19ddcdd`) keeps each key's worn
 names (also from claims) and serves the latest as the profile's name unless the
@@ -1832,9 +1831,9 @@ match. Not verified: the badge and the own plate in the running client; the new 
 committed but not deployed, so until it is, the deployed hub ignores the worn name
 (new players show as "Registered") and refuses a bio-only save.
 
-## Nameplate bars and duel rules (SJK)
+## Nameplate bars and duel rules
 
-SJK-only branch `personal/nameplate-bars` (07/10/2026): the shield bar sits on top and
+Branch `personal/nameplate-bars` (07/10/2026): the shield bar sits on top and
 is always drawn (grey dashes when known to be empty); health and shield take the HUD's
 `health_ratio` and `armor_ratio` colours (red and green on the Radial HUD), health no
 longer ramps through yellow; values over the maximum show as a deeper inner band; a
@@ -1857,9 +1856,9 @@ the off-screen snapshot `nameplate_snapshot` (overheal, an empty shield, the "?"
 verified: any of it in the running client or on a JA+ server; JA+'s duel values are
 Sol's account, not read from code (JA+ is closed source).
 
-## Alt codes (SJK)
+## Alt codes
 
-SJK-only branch `personal/alt-codes` (2026-10-05, based on `2696590`) types
+Branch `personal/alt-codes` (2026-10-05, based on `2696590`) types
 Windows Alt codes (Alt + numeric keypad) in the console, chat and menu fields,
 which winit 0.30 drops; see [client typing](client.md#useful-console-commands).
 Unit tests cover the code page 1252 and 437 tables, modulo 256, control codes,
@@ -1868,9 +1867,9 @@ keys, Shift, key repeat and focus loss; the locked workspace build and tests
 passed. No game was started: typing a code in the running client is unverified.
 Codes without a leading 0 always use code page 437, not the system OEM page.
 
-## Flip kick bind (SJK)
+## Flip kick bind
 
-SJK-only branch `personal/flipkick` (06/10/2026, based on `86ad1be`) ports JoF
+Branch `personal/flipkick` (06/10/2026, based on `86ad1be`) ports JoF
 EJK's `flipkick` command and its `cg_fkDuration`, `cg_fkFirstJumpDuration` and
 `cg_fkSecondJumpDelay` cvars: one press starts a run of jump taps, stepped once
 per user command (EJK steps per frame; both run at 125 a second since
@@ -1880,9 +1879,9 @@ Unit tests cover the run (alternation, first-jump hold, second-jump delay,
 restart); the sjk-viewer tests and workspace clippy passed. No game was started:
 a flip kick on a live JA+ server is unverified.
 
-## Weather (SJK)
+## Weather
 
-SJK-only branch `personal/weather` (06/10/2026, based on `2e348b0`) draws the
+Branch `personal/weather` (06/10/2026, based on `2e348b0`) draws the
 rain, snow, dust and mist that maps' weather entities ask for, which the client
 ignored before, kept under open sky by a surveyed rain cover, with splashes and a
 far rain layer; `r_we` runs weather commands from the console. See
@@ -1915,7 +1914,7 @@ map. Off-screen world shots of `T2_Rogue` either side of a roof edge showed a ba
 of fog flipping before the change and none after; a local, uncommitted probe timed
 the far survey on four retail maps. Not yet tried in a game.
 
-## Shader review (SJK)
+## Shader review
 
 Sol is reviewing every retail world shader on the test maps of
 [Shader test maps](rendering.md#shader-test-maps) (06/10/2026, first 30 notes on
@@ -1959,9 +1958,9 @@ Sol is reviewing every retail world shader on the test maps of
 - Open, found on the way: shaders whose `wave` has fewer than four numbers are
   dropped whole (JoF holosigns); rd-vanilla only warns.
 
-## Settings grouped into Graphics and Gameplay (SJK)
+## Settings grouped into Graphics and Gameplay
 
-SJK-only branch `personal/settings-groups` (06/10/2026, based on `9145a86`), Sol's
+Branch `personal/settings-groups` (06/10/2026, based on `9145a86`), Sol's
 regrouping of the classic Setup page: OPTIONS lists First setup (Quick setup
 renamed, the `firstsetup` command, `quicksetup` still accepted), Graphics (Video,
 the renderer's Image, Lighting and Shadows, and a new Weather group, also a WEATHER
@@ -1971,18 +1970,18 @@ OPTIONS, as the renderer page was. See [client.md](client.md). The modern screen
 flat tabs are unchanged apart from FIRST SETUP and WEATHER. The sjk-viewer tests
 cover the pages, their groups, Back and Escape; no game was started.
 
-## Quick wheels (SJK)
+## Quick wheels
 
-SJK-only branch `personal/quick-wheel` (07/10/2026, based on `3a875f2`): hold
+Branch `personal/quick-wheel` (07/10/2026, based on `3a875f2`): hold
 `+wheel general` (Q) or `+wheel weather` (R), point the mouse at a choice and let go;
 see [client.md](client.md#quick-wheels). Unit tests cover the pointer-to-choice
 mapping, release and cancel, the pointer's reach, and every wheel's layout; the
 off-screen `menu_snapshot` renders both wheels. No game was started: the feel of the
 pointer (its dead zone and reach in raw mouse counts) is unverified.
 
-## Force wheel (SJK)
+## Force wheel
 
-SJK-only branch `personal/force-wheel` (05/10/2026, based on `3f57938`) ports
+Branch `personal/force-wheel` (05/10/2026, based on `3f57938`) ports
 JoF EJK's Force wheel: the retail Force selection bar for the game and classic
 HUD styles, JoF JA+'s Stasis, Repulse and Dash pseudo-slots with their
 `+useforce` handling and binds, and JA+ merc mode's flamethrower; SJK now also
@@ -1996,7 +1995,7 @@ the workspace build, tests and clippy (0 errors) passed. An off-screen snapshot
 the bar in a match, and Stasis, Repulse and Dash on a live JoF JA+ server, are
 unverified.
 
-## Classic profile Force page and cosmetics (SJK)
+## Classic profile Force page and cosmetics
 
 The classic profile gains a Force page (retail's `ingame_playerforce`, on both
 frames, with holocrons, cost-numbered level stars, side cards, a points meter
@@ -2038,9 +2037,9 @@ of a JoF clientinfo, the installed-piece scan (new and old folders), the
 change's author: the pages' look, a piece's fit on a model and other clients
 seeing it are untested.
 
-### Lightsaber creation: sabers alone and custom colour (SJK)
+### Lightsaber creation: sabers alone and custom colour
 
-SJK-only branch `personal/saber-page` (05/10/2026, based on `af2656f`), from
+Branch `personal/saber-page` (05/10/2026, based on `af2656f`), from
 Sol's testing: the classic lightsaber creation preview shows only the sabers,
 lit, laid on their side and turning about their length as retail's `isSaber`
 items did (`Item_Model_Paint`), instead of the model holding them; and the page
@@ -2055,9 +2054,9 @@ the page (single, dual with a custom colour, staff, in game) were looked at;
 they show the drawn stand-in saber, since the 3D preview needs the renderer:
 the showcase on a GPU is unverified, as is another client seeing the colour.
 
-## Classic profile Force page readability and bars (SJK)
+## Classic profile Force page readability and bars
 
-SJK-only branch `personal/profile-force-fixes` (05/10/2026, based on `af2656f`).
+Branch `personal/profile-force-fixes` (05/10/2026, based on `af2656f`).
 Sol reported Dark Rage and Team Energize without holocrons or visible costs on the
 Force page. With Sol's profile (`7-2-031330310000030333`: dark side, all 100 points
 spent, both powers at level 0, a free-for-all) the menu snapshot showed both rows
@@ -2079,9 +2078,9 @@ panics in debug builds (logs once in release) instead of dropping areas or label
 silently, and the tests cover both. Not seen in the client: whether the
 in-game renderer showed the same faded rows Sol saw is inferred, not reproduced.
 
-## Model grid icons and search (SJK)
+## Model grid icons and search
 
-SJK-only branch `personal/model-grid` (2026-10-05, based on `0fc6e24`): the
+Branch `personal/model-grid` (2026-10-05, based on `0fc6e24`): the
 character grids' icons are a cache over the 207 atlas cells instead of the
 first 207 catalogue entries, so every model shows its icon; tiles answer to the
 pointer by their place on screen (in the classic profile, a click on a head past
@@ -2271,9 +2270,9 @@ not bundled with the source. No windows, game instances or servers were opened;
 visual playtesting remains with the owner. Formatting, locked workspace build/tests
 and the optimized build passed.
 
-## Dynamic glow (SJK)
+## Dynamic glow
 
-SJK-only branch `personal/dynamic-glow` (2026-10-04, based on `024c22a`) draws
+Branch `personal/dynamic-glow` (2026-10-04, based on `024c22a`) draws
 stock's dynamic glow: `glow` shader stages get a blurred halo, with rd-vulkan's
 blur by default and rd-vanilla's as `r_dynamicGlowStyle 0`. See
 [Dynamic glow](rendering.md#dynamic-glow). Unit tests (glow flags through the
@@ -2282,9 +2281,9 @@ of the changed programs passed with the locked workspace build and tests. No gam
 or window was started: appearance, GPU cost and the first-use pipeline compile
 remain to be checked on screen. Secondary views and fog do not affect glow yet.
 
-## Player model tolerance (SJK)
+## Player model tolerance
 
-SJK-only branch `personal/model-tolerance` (2026-10-05, based on `bcb0b76`) loads
+Branch `personal/model-tolerance` (2026-10-05, based on `bcb0b76`) loads
 player models, skins and animation tables as rd-vanilla and the retail cgame do
 instead of drawing Kyle; see [player models](client.md#player-models). The
 headless `player_model_scan` ran on a local Windows 11 install (782 model
@@ -2300,9 +2299,9 @@ retail refuses it as a player model too. Unit tests cover each class on syntheti
 files. No game or window was started: how the fixed models look and animate in
 play, and the GPU skinning of the rescued meshes, remain to be checked.
 
-## Player model fallback during a match (SJK)
+## Player model fallback during a match
 
-SJK-only branch `personal/model-fallback` (2026-10-05, based on `2696590`): a
+Branch `personal/model-fallback` (2026-10-05, based on `2696590`): a
 player whose clientinfo names a model this client cannot load now shows Kyle, as
 `CG_LoadClientInfo` falls back to `DEFAULT_MODEL`, instead of keeping the slot's
 previous model; body copies of that player use the same stand-in. It is the only
@@ -2311,9 +2310,9 @@ the old model (logged as `cs <1131+n>: clientinfo failed`); see
 [player models](client.md#player-models). The locked workspace build and tests
 passed; there is no unit test of the GPU-side rebuild, and no game was started.
 
-## Native radial HUD (SJK)
+## Native radial HUD
 
-SJK-only branch `personal/native-radial-hud` (2026-10-06, based on `de7380b`): the
+Branch `personal/native-radial-hud` (2026-10-06, based on `de7380b`): the
 `radial` HUD style, a cleaned-up TheRisqe Radial HUD drawn by the engine with no PK3
 ([rendering](rendering.md#hud-style)). Verified: unit tests for the arc geometry,
 distance function, ammunition ratio, picker order and style names; the WGSL passes
@@ -2359,9 +2358,9 @@ forced for this look with the digits centred on the pill, aligns each number tow
 blends the shadow with the pill exactly (`knockout_remainder`) so their edge leaves no seam.
 Not verified: the shader on a GPU (no window was opened), and the layout in a running client.
 
-## HUD picker (SJK)
+## HUD picker
 
-SJK-only branch `personal/hud-picker` (2026-10-05, based on `0fc6e24`): the
+Branch `personal/hud-picker` (2026-10-05, based on `0fc6e24`): the
 game-data HUD (`cg_hudStyle game`, the retail HUD unless a HUD pack is
 installed) is SJK's default for new configs. `cg_hudPack` uses one PK3's
 `ui/hud.menu` and pictures as if the HUD packs mounted after it were not
@@ -2383,9 +2382,9 @@ bottom corners, the Radial HUD around the crosshair, over the retail `ffa3`
 levelshot. No client window was opened: the picker on screen, the preview
 texture upload and the live HUD switching are untested.
 
-## Weapon selection row (SJK)
+## Weapon selection row
 
-SJK-only branch `personal/weapon-select-style` (05/10/2026, based on `3f57938`):
+Branch `personal/weapon-select-style` (05/10/2026, based on `3f57938`):
 with the game-data HUD, a weapon change shows retail's `CG_DrawWeaponSelect` row
 as JoF EternalJK draws it (square icons, 3/5/7 per side by aspect ratio, `_na`
 and staff/dual saber icons, gold `SP_INGAME` name in `FONT_SMALL`, 1.4 s)
@@ -2399,9 +2398,9 @@ row at 4:3 and 16:9 over a levelshot. The locked workspace build, tests and
 clippy passed. No game was started: the row in play, the `ocr_a` name and the
 row against a JoF EternalJK screenshot are unverified.
 
-## Classic+ option panels and renderer page (SJK)
+## Classic+ option panels and renderer page
 
-SJK-only branch `personal/classic-plus` (2026-10-05, based on `7643ca4`) writes
+Branch `personal/classic-plus` (2026-10-05, based on `7643ca4`) writes
 down how SJK modernises classic pages ([Classic+ menus](classic-plus.md)) and
 applies it to the option panels: a detail box under the Setup and Controls rows
 describes the focused setting or binding, rows changed from their default and
@@ -2424,7 +2423,7 @@ keyboard behaviour on screen are untested.
 
 A second pass (same day) merges what retail split for room: one Video group,
 one Force Powers group, and Interface, HUD and Scoreboard groups gathering
-JKR's GAME, HUD, HUD+ and TEXT rows by subject (switching to the modern style
+the modern GAME, HUD, HUD+ and TEXT rows by subject (switching to the modern style
 from a group continues on the tab holding its row). Key bindings carry the
 retail picture of the weapon, item or Force power they select, in a column and
 in the detail box, and the weapon rows are named. Join's team rows in the
@@ -2439,8 +2438,8 @@ and power pictured), the strip's fit, every row label fitting its column and
 the slider numbers; the snapshots, now with atlas icons and
 the in-game bar's pop-ups over a levelshot, showed the in-game panels, bindings
 and Join pop-up. `cargo clippy --no-deps` on the viewer added no finding in the
-changed code; clippy on the workspace stops on four `sjk-game-jka` errors merged
-from JKR, which Sol's JKR PR #123 fixes. No client window was opened.
+changed code; clippy on the workspace then stopped on four older `sjk-game-jka`
+lint errors, fixed since. No client window was opened.
 
 Merged into SJK main with `personal/hud-picker` and `personal/model-grid`
 (2026-10-05): the HUD picker's "HUD look" row sits in the classic HUD group,
@@ -2469,7 +2468,8 @@ the optimized build passed.
 ## Noclip and talk balloons preview
 
 Local `playfeatures1` preview (2026-10-04, based on `7155455`) integrates
-PR #31 (`60533c8`) and PR #30 (`379aaa2`) into the current client/server sources,
+the server noclip command (`60533c8`) and the talk balloon's upright texture
+coordinates (`379aaa2`) into the current client/server sources,
 retaining the later upright billboard correction and current UI changes.
 Native `noclip` requires cheats and a living player; spawning clears it.
 Talk/connection icons use stock priority, placement and visibility rules. See
@@ -2499,9 +2499,9 @@ confirmation remains with the owner. Formatting, locked workspace build/tests
 and the optimized client build passed.
 
 
-## Rocket trails in a barrage (SJK)
+## Rocket trails in a barrage
 
-SJK-only branch `personal/effect-pool` (05/10/2026, based on `771cb43`): rocket trails
+Branch `personal/effect-pool` (05/10/2026, based on `771cb43`): rocket trails
 vanished when many rockets flew. JoF's HD `rocket/shot` (it overrides retail in
 `JoF_HDWeaponEffects.pk3`) keeps about 1,200 particles alive per rocket: six fire puffs
 for half a second and two or three physics smoke puffs for two to three seconds, played
@@ -2531,9 +2531,9 @@ The billboard count above ignores the 1,024-instance limit, which hid trail head
 earlier still. No game was started: the barrage on screen, GPU time for 4,000
 billboards and other heavy effects (map smoke, explosions) are unverified.
 
-## Talk balloons in busy scenes (SJK)
+## Talk balloons in busy scenes
 
-SJK-only branch `personal/talk-balloon` (05/10/2026, based on `3f57938`): talk
+Branch `personal/talk-balloon` (05/10/2026, based on `3f57938`): talk
 balloons sometimes vanished over every player at once. Player sprites, pickup icons
 and hook ropes are per-frame billboards in the effect particle pool: cleared and
 appended again every frame, they lost the slots they had freed to effects spawned in
@@ -2550,13 +2550,13 @@ Windows has the window minimised (which the minimised case needs) is unverified.
 
 ## Force power presentation
 
-SJK change based on `024c22a` (2026-10-04), fixing gaps inherited from JKR.
+Change based on `024c22a` (2026-10-04), fixing gaps in the Force effects.
 Evidence is EternalJK's stock `codemp` code (`cg_players.c`, `cg_ents.c`,
 `w_force.c`, `FxTemplate.cpp`, `FxScheduler.cpp`) and the retail EFX files.
 
 - Own Force effects: the local player's Lightning and Drain beams, Push/Pull and
-  Grip puffs and body push blur now come from its player state (JKR searched the
-  snapshot's entity list, which never holds the local player). A trickster's
+  Grip puffs and body push blur now come from its player state (they were looked
+  up in the snapshot's entity list, which never holds the local player). A trickster's
   beam and hand puffs stay visible to its victim, as in stock. See
   [rendering](rendering.md#entity-render-effects).
 - Drain bolt shape: EFX `bounce` now sets an electricity bolt's jaggedness, as
@@ -2567,7 +2567,8 @@ Evidence is EternalJK's stock `codemp` code (`cg_players.c`, `cg_ents.c`,
   `mp/spawn`, `mp/jedispawn`), which now rebound weakly instead of stopping.
 - Mind Trick: a trickster fades out for its victims and is then hidden, fading
   back in when the trick ends; the trickster sees the confusion effect over its
-  victims' heads; active Force Sight sees through it. JKR drew tricksters fully.
+  victims' heads; active Force Sight sees through it. Tricksters were drawn fully
+  before.
 
 Not done yet, with what each needs:
 
@@ -2614,7 +2615,7 @@ with the cvar off too (stock punches). On the JA+ dialect the levels follow JA+:
 1 is the melee attacks only and 2 adds the wall hold; a grabbed wall leaves the
 view to the player, and alternate attack standing still is a front kick. The
 TaystJK dialect takes the JA+ levels without the view or standing kick (from
-jaPRO's server code; not observed). JKR's own server does not simulate the cvar,
+jaPRO's server code; not observed). SJK's dedicated server does not simulate the cvar,
 whose default there is 0. See [networking](networking.md#server-dialect-movement-rules).
 
 Evidence (Windows 11): a scratch harness outside the repository joined a local,
@@ -2652,7 +2653,7 @@ scratch home) with three windowless clients, two in a private duel. The server
 let a bystander walk through a dueller (closest approach 0.2–2.4 units) and a
 dueller walk through the bystander. For a client sending no plugin identity the
 dueller arrived with `solid 0` and bystanders were never sent to duellers, so
-prediction already matched. With the JA+ plugin identity (sent by #108) the
+prediction already matched. With the JA+ plugin identity the
 dueller arrived as a solid box with `bolt1`: replaying the bystander's commands
 through the predictor with player boxes, the stock rule mispredicted 30–33 of
 about 88 intervals around the crossing at 8/7/4/3 ms steps, the duel rule none.
@@ -2689,7 +2690,7 @@ button, free taunts and the staff's standing front kick. JA+ is closed source;
 EternalJK's JA+ plugin reimplementation is the reference, and the server decides
 where they differ (yellow DFA launch 60, not EternalJK's 50; no flip-kick branch
 blocking wall runs; wall runs from flips, which EternalJK lacks). Other servers,
-JKR's own included, keep the stock rules.
+SJK's dedicated server included, keep the stock rules.
 
 Evidence (Windows 11): the windowless replay harness outside the repository (as
 for `g_debugMelee`), extended with an idle second client, `setviewpos`
@@ -2723,10 +2724,10 @@ EternalJK never reads, the Jedi Outcast red DFA, a changed `jp_gripSpeedScale`
 and holds for JA+'s extra animations. Not run in the client, and not checked
 against a public JA+ server or another JA+ version.
 
-## Eye adaptation (SJK only)
+## Eye adaptation
 
 SJK's exposure follows the view (`r_autoExposure`, on by default, -0.5 to +1 EV
-around `r_hdrExposure`, only brightening with `r_sceneHdr 0`); JKR's stays fixed.
+around `r_hdrExposure`, only brightening with `r_sceneHdr 0`).
 Headless Vulkan and DX12 probes on 2026-10-04 (Windows 11, RTX 5080) showed the
 resolve and effect layer byte-identical to the fixed exposure at exposure 1 and
 checked metering, snapping and smoothing on synthetic scenes; both passes took
@@ -2734,9 +2735,9 @@ about 0.01 ms at 1080p and 0.02–0.03 ms at 4K. No client was run: the look in
 play, the default key on real maps and the cost in a full frame are unverified.
 See [rendering](rendering.md#eye-adaptation).
 
-## Emission maps (SJK)
+## Emission maps
 
-SJK-only branch `personal/emission-maps` (2026-10-05, based on `bcb0b76`): `_e`
+Branch `personal/emission-maps` (2026-10-05, based on `bcb0b76`): `_e`
 emission maps on lightmapped world surfaces, added unlit with a dynamic-glow halo,
 and, in real-time lighting, lamps for surfaces with no light of their own (capped at
 1,024 per map); `sjk-materialgen` generation 3 writes them from shader, glow-image,
@@ -2748,15 +2749,17 @@ and left 619 textures alone whose shaders already glow; on the 23 retail MP maps
 it wrote 8 (neon signs, Bespin windows). No client was run: appearance, halo, the
 light added in real-time lighting, load time and frame cost are unverified.
 
-## Shader remaps from JKR (SJK)
+## Shader remap implementation
 
-SJK branch `personal/jkr-remaps` (2026-10-05, based on `7969f0b`) drops SJK's own
-shader remap implementation (`personal/shader-remaps`) for JKR's: `main` at
-`af65396` (#127) and Sol's open JKR follow-ups #128-#131, merged in that order.
-The follow-ups overlap: #129's shared lookup and #131's `clearRemaps` were adapted
-to #128's map remaps (latest remap wins), and `clearRemaps` also drops the map's
-worldspawn remaps, as EternalJK's renderer command does. SJK keeps `cg_remaps 2`
-(EternalJK's default; JKR's is 1). JKR's remap path did not know SJK's dynamic
+A change on 2026-10-05 (based on `7969f0b`) replaces SJK's first shader remap
+implementation (`personal/shader-remaps`) with the server shader remaps at
+`af65396` and their follow-ups, merged in that order: worldspawn remaps with the
+latest remap winning, effects following remaps, undoing a remap restoring the
+material's own state, and `clearRemaps` with the Settings row. The follow-ups
+overlap: the effects' shared lookup and `clearRemaps` were adapted to the map
+remaps (latest remap wins), and `clearRemaps` also drops the map's worldspawn
+remaps, as EternalJK's renderer command does. The default stays `cg_remaps 2`
+(EternalJK's default). The new remap path did not know about dynamic
 glow: a remap that changed a material's stages left the glow pass with a stale
 stage index, and joining a JoF server crashed (`world_glow.rs`, 05/10/2026). The
 remap now rebuilds the glow order and the material's glow flag, and the glow pass
@@ -2764,9 +2767,9 @@ skips a stage that no longer exists. The locked workspace build of all targets a
 the workspace tests passed. No game was started: remaps on screen, from a JoF
 server or a map with worldspawn remaps, are unverified in this combination.
 
-## Signed player-state arrays (SJK)
+## Signed player-state arrays
 
-SJK-only branch `personal/score-display` (05/10/2026, based on `3f57938`): the
+Branch `personal/score-display` (05/10/2026, based on `3f57938`): the
 score showed about 65000 after it went below zero. The client decoded the
 snapshot's 16-bit `stats`, `persistant` and `ammo` entries unsigned, where codemp's
 `MSG_ReadShort` sign-extends them; they are now signed, as in codemp. This also
@@ -2776,18 +2779,18 @@ weapon bitset through the player-state writer and reader; the locked workspace
 build and tests passed. No game was started: a negative score on a live server
 is unverified on screen.
 
-## First-person melee shows no baton (SJK)
+## First-person melee shows no baton
 
-SJK-only branch `personal/melee-viewmodel` (05/10/2026, based on `3f57938`): with
+Branch `personal/melee-viewmodel` (05/10/2026, based on `3f57938`): with
 melee selected, the first-person view drew the stun baton on the baton's hand rig.
 Stock registers no hand rig for `WP_MELEE`, which leaves the baton behind the eye,
 so melee now has no view model. A unit test checks melee has none and the stun
 baton keeps its model and three barrels; the locked workspace build and tests
 passed. No game was started: the first-person view is unverified on screen.
 
-## Server BSP instances in edited maps (SJK)
+## Server BSP instances in edited maps
 
-SJK branch `personal/misc-bsp-maps` (05/10/2026, based on `3f57938`). JoF's server
+Branch `personal/misc-bsp-maps` (05/10/2026, based on `3f57938`). JoF's server
 places retail map pieces (`maps/mp/duel1.bsp`, `maps/academy2.bsp`) in a map's void
 as `misc_bsp` entities (codemp `SP_misc_bsp`): `EF_PERMANENT` `ET_MOVER`s with the
 sub-BSP's world as their inline model, sent only in the baselines. Prediction
@@ -2809,7 +2812,7 @@ instances was not changed: their surfaces use their own lightmaps, and models on
 them sample the main map's light grid outside its bounds, clamped as rd-vanilla
 does; SJK's real-time light caches cover only the main map.
 
-## Lightsaber creation: one Apply (SJK)
+## Lightsaber creation: one Apply
 
 The classic lightsaber creation page drew two "Apply" buttons; the middle one did
 nothing. Retail's `ui/jamp/saber.menu` keeps that button (`apply`, 255 444) inside a
@@ -2817,9 +2820,9 @@ commented-out block, so retail shows only EXIT and one Apply, which writes the s
 and returns to the main menu. SJK now draws the same (05/10/2026); a unit test keeps
 one Apply on the page. Not checked in the running client.
 
-## Outgoing text encoding (SJK)
+## Outgoing text encoding
 
-SJK-only branch `personal/legacy-text` (2026-10-05, based on `2696590`) sends
+Branch `personal/legacy-text` (2026-10-05, based on `2696590`) sends
 names, chat, forwarded commands and `rcon` text in Windows-1252 when every
 character fits, as retail and EternalJK do, instead of UTF-8; other text stays
 UTF-8. See [player text](networking.md#player-text). Unit tests cover the
@@ -2830,9 +2833,9 @@ packet and `rcon` datagram bytes; the locked workspace build and tests passed. N
 game was started: how a retail or EternalJK client shows SJK's chat and names on
 a live server is unverified.
 
-## SJK emblem (SJK only)
+## SJK emblem
 
-SJK-only branch `personal/sjk-logo` (2026-10-05, based on `bcb0b76`) puts Sol's
+Branch `personal/sjk-logo` (2026-10-05, based on `bcb0b76`) puts Sol's
 emblem in the classic main menu's ring, where the `ja01` logo video played (the
 video is no longer read), and above the modern main menu's title, with a pulsing
 core and shimmering blade lights drawn as additive layers. `sjk.exe` and
@@ -2851,9 +2854,9 @@ was opened: the look on screen, the additive pipeline on a GPU, the window and
 taskbar icons and the X11 icon are unverified, as is the GNU toolchain's
 `windres` path.
 
-## Version label and dates (SJK)
+## Version label and dates
 
-SJK-only branch `personal/version-overlay` (05/10/2026, based on `3f57938`): the
+Branch `personal/version-overlay` (05/10/2026, based on `3f57938`): the
 client draws `SJK <version> · <dd/mm/yyyy HH:MM> · <commit>` at the top centre of
 every frame (`cg_drawVersion`, default on) and logs it at startup; the version
 comes from one build script for both programs (`SJK_VERSION` in releases,
@@ -2865,9 +2868,9 @@ the locked workspace build, tests and workspace clippy passed. No client was
 started: the label's place over each HUD, menu and screen size, and a release
 build's version from the workflow, are unverified.
 
-## Visual defaults (SJK only)
+## Visual defaults
 
-SJK-only branch `personal/sol-visual-defaults` (2026-10-05, based on `78b8bf7`)
+Branch `personal/sol-visual-defaults` (2026-10-05, based on `78b8bf7`)
 makes Sol's own settings the defaults: noon sun (`r_dayHour 12`), bloom
 (`r_sceneBloom 1`), sunbeam dust (`r_dustMotes 1`) and material maps
 (`r_normalMapping`, `r_specularMapping`, `r_parallaxMapping` 1, which act only
@@ -2876,9 +2879,9 @@ migrated. See [Default visual profile](rendering.md#default-visual-profile).
 Formatting, the locked workspace build, tests and Clippy passed. No client was
 run: the look and frame cost of the new defaults are unverified.
 
-## Gameplay and interface defaults (SJK only)
+## Gameplay and interface defaults
 
-SJK-only branch `personal/defaults` (2026-10-06, based on `5c22d2d`) turns the
+Branch `personal/defaults` (2026-10-06, based on `5c22d2d`) turns the
 settings Sol had chosen into defaults for a new profile: the classic scoreboard
 (`cg_scoreboardStyle`, parsed like `ui_menuStyle`: only `modern` or `0` selects
 the modern one) and the retail fonts (`ui_gameFont`) to go with the classic menus
@@ -2896,9 +2899,9 @@ the reference); other servers' handling was not checked. Not measured: the
 per-frame cost of the limb scan now that `cg_dismember` is not 0 by default (one
 pass over the snapshot's entities). No client was run; Sol tests through `play`.
 
-## Classic+ text dialog and Report a bug button (SJK)
+## Classic+ text dialog and Report a bug button
 
-SJK-only branch `personal/report-classic-plus` (07/10/2026, based on `61eecc2`): with
+Branch `personal/report-classic-plus` (07/10/2026, based on `61eecc2`): with
 the classic menus the text dialog (bug reports and world notes) and the Report a bug
 button take the classic+ look; see [classic-plus.md](classic-plus.md#pages). The text
 now wraps by the drawn font's measured width in both looks. Layout tests and the menu
@@ -2907,9 +2910,9 @@ each also `-classic`) checked it; no game was started. The hub's `POST /v1/repor
 and worn-name history were deployed to sjk.dfox.app the same day (an unsigned report
 gets 401 instead of the earlier 404).
 
-## Legacy config text (SJK)
+## Legacy config text
 
-SJK-only branch `personal/legacy-cfg-text` (07/10/2026, based on `8fea9b8`): `exec`
+Branch `personal/legacy-cfg-text` (07/10/2026, based on `8fea9b8`): `exec`
 refused any file that was not UTF-8 ("is not valid UTF-8 command text"), and a
 legacy `config.cfg` with a Latin-1 name, a byte-order mark, `unbindall` or a key
 SJK has no name for failed to load, which also stops every save. Such files are now
@@ -2917,9 +2920,9 @@ read as Latin-1 and those lines accepted; see
 [client.md](client.md#configuration-and-content). sjk-shell unit tests cover the
 decoding and a legacy saved config; no game was started.
 
-## First setup at start and config import (SJK)
+## First setup at start and config import
 
-SJK-only branch `personal/first-setup-import` (07/10/2026, based on `9ca3ec4`): First
+Branch `personal/first-setup-import` (07/10/2026, based on `9ca3ec4`): First
 setup opens at every start until its "Don't show at start" row is ticked
 (`ui_hideFirstSetup`, replacing the once-only `ui_quickSetup`), and a `.cfg` from
 another client dropped on the window (or given to `firstsetup import <path>`)
@@ -2930,10 +2933,10 @@ ticks and the copy into the profile, including a whole bind table keeping locked
 keys. No game was started: the drop itself (winit's drag and drop on Windows) and
 the page's look are unverified.
 
-## 125 Hz user commands and cl_maxpackets (SJK)
+## 125 Hz user commands and cl_maxpackets
 
-SJK-only branch `personal/cmd-rate` (06/10/2026, based on `3b620bb`) replaces
-JKR's fixed one user command per packet every 25 ms (40 a second) with JoF
+Branch `personal/cmd-rate` (06/10/2026, based on `3b620bb`) replaces
+the earlier fixed one user command per packet every 25 ms (40 a second) with JoF
 EJK's `cl_cmdratecap`: a command every 8 ms on an 8 ms grid of server time,
 batched into packets paced by `cl_maxpackets` (now working, SJK default 125,
 was 63 and unused), with `cl_packetdup` repeating earlier packets rather than
@@ -2948,9 +2951,9 @@ sjk-viewer tests passed. No client was run: movement, prediction and the input
 loss on a JoF `pmove_fixed` server are unverified in game, as is the replay cost
 of three times as many pending commands at high ping.
 
-## Mute in background (SJK)
+## Mute in background
 
-SJK-only branch `personal/focus-mute` (06/10/2026, based on `2e348b0`) adds
+Branch `personal/focus-mute` (06/10/2026, based on `2e348b0`) adds
 EternalJK's `snd_mute_losefocus` (default 1): all sound is silent while the window
 is unfocused or minimized, by zero effects and music gains rather than a paused
 device; see [client.md](client.md#configuration-and-content). It is a row on the
@@ -2981,8 +2984,8 @@ The lists above describe source coverage; they do not close the validation gaps 
 | Optimized client and dedicated-server build | Passed with Rust 1.96.1 on Linux |
 | External OpenJK movement reference checks | 560 cases / 72,275 commands at 8/7/4/3 ms; movement, animation, events and compared wire fields matched |
 | External player-angle checks | 125 samples matched the OpenJK reference |
-| Local OpenJK client against JKR server | Joined `mp/ffa3`, walked, jumped and turned; no prediction misses observed in that run |
-| Native Vulkan rendering | Local JKR client/server completed joined-map rendering on `mp/ffa3` with defaults and with day/night + lighting tier 2 + HDR; each continued for 15 seconds without panic or GPU validation error |
+| Local OpenJK client against the dedicated server | Joined `mp/ffa3`, walked, jumped and turned; no prediction misses observed in that run |
+| Native Vulkan rendering | The local client and dedicated server completed joined-map rendering on `mp/ffa3` with defaults and with day/night + lighting tier 2 + HDR; each continued for 15 seconds without panic or GPU validation error |
 
 The reference checkout used for the external checks was OpenJK
 `1a6a643427aa347553e9073dac5570b33337c4d9`, multiplayer `codemp`.
@@ -3057,7 +3060,7 @@ Finite image comparisons and workspace/release checks passed; see
 [rendering](rendering.md#submission-and-lighting-work-reduction) for evidence
 and limits. Gameplay and protocol code are unchanged.
 
-Optional dust (`r_dustMotes`, default off in JKR, on in SJK) is restricted to local godray scattering,
+Optional dust (`r_dustMotes`, default on) is restricted to local godray scattering,
 with colour and visibility sampled at each mote's depth. It requires active
 volumetrics and follows their shadows and clarity. Linux workspace/release
 checks, GPU sampling probes and native HDR/SDR captures passed on 2026-10-02
@@ -3134,7 +3137,7 @@ It does not establish hitch-free transitions or complete content coverage.
 Transition/input polish (2026-10-03, unmerged changes based on `8f692ac`):
 a queued Alt bind was reproduced surviving focus loss; focus handling now drops
 that frame's gameplay input and ignores synthetic keyboard events. Isolated
-TaystJK and native JKR runs observed a genuine saber throw return after focus
+TaystJK and native client runs observed a genuine saber throw return after focus
 loss. The retained actor keeps its animation tracks and displayed prediction,
 with local presentation paced by the same wall-clock origin as local commands.
 Remote world adoption and backwards server time retire stale runtime samples;
@@ -3252,9 +3255,9 @@ remain open.
   the client overflowed it after loading `mp/ffa3`; [the viewer build
   script](../crates/sjk-viewer/build.rs) now links Windows binaries with the
   8 MiB Linux size. On Windows 11 (Rust 1.96, MSVC), release and debug clients
-  then loaded `mp/ffa3`, and a release client joined a local JKR server and
+  then loaded `mp/ffa3`, and a release client joined a local dedicated server and
   completed its map load. Longer play, other maps and the GNU toolchain are unchecked.
-- DX12 rendering is unverified. JKR does not select DX12 itself (Vulkan is preferred
+- DX12 rendering is unverified. The client does not select DX12 itself (Vulkan is preferred
   where present); with `WGPU_BACKEND=dx12` and no `dxcompiler.dll`, wgpu compiles
   shaders with FXC. A headless pipeline build of every entry point of the 39 viewer
   shader modules on DX12/FXC (Windows 11, RTX 5080, 2026-10-02) fails only for the

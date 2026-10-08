@@ -1,4 +1,4 @@
-//! Platform composition for per-user JKR state.
+//! Platform composition for per-user SJK state.
 
 use std::env;
 use std::io::{Error, ErrorKind};
@@ -15,11 +15,11 @@ pub(crate) fn initialize_storage(game_data: &std::path::Path) -> Result<(), Erro
     if CONFIG_FILE.get().is_some() {
         return Err(Error::other("client storage already initialized"));
     }
-    let legacy = legacy_config_file().ok();
-    let selection = storage::select(game_data, legacy.as_deref())?;
+    let per_user = per_user_config_file().ok();
+    let selection = storage::select(game_data, per_user.as_deref())?;
     if let Some(reason) = selection.fallback_reason {
         crate::log::progress(format_args!(
-            "GameData/jkr is not writable ({reason}); using user storage"
+            "GameData/SJK is not writable ({reason}); using user storage"
         ));
     }
     crate::log::progress(format_args!("client files: {}", selection.config.display()));
@@ -51,11 +51,12 @@ pub(crate) fn user_config_file() -> Result<PathBuf, Error> {
     CONFIG_FILE
         .get()
         .cloned()
-        .map_or_else(legacy_config_file, Ok)
+        .map_or_else(per_user_config_file, Ok)
 }
 
-/// Previous per-user location, retained for discovery, import and fallback.
-pub(crate) fn legacy_config_file() -> Result<PathBuf, Error> {
+/// The per-user configuration, used when `GameData/SJK` is not writable and read
+/// for a saved `fs_gameData` before the game data is known.
+pub(crate) fn per_user_config_file() -> Result<PathBuf, Error> {
     let root = if cfg!(target_os = "windows") {
         env_path("APPDATA")?
     } else if cfg!(target_os = "macos") {
@@ -65,7 +66,7 @@ pub(crate) fn legacy_config_file() -> Result<PathBuf, Error> {
     } else {
         env_path("HOME")?.join(".config")
     };
-    Ok(root.join("jkr/config.cfg"))
+    Ok(root.join("SJK/config.cfg"))
 }
 
 fn env_path(name: &str) -> Result<PathBuf, Error> {

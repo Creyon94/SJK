@@ -137,7 +137,7 @@ impl Policy {
             wgpu::FilterMode::Linear
         };
         wgpu::SamplerDescriptor {
-            label: Some("JKR Q3 stage sampler"),
+            label: Some("SJK Q3 stage sampler"),
             address_mode_u: address,
             address_mode_v: address,
             address_mode_w: address,

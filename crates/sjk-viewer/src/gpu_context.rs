@@ -94,7 +94,7 @@ impl Context {
             .contains(crate::world_materials::stage_table::FEATURES);
         let (device, queue) = adapter
             .request_device(&wgpu::DeviceDescriptor {
-                label: Some("JKR device"),
+                label: Some("SJK device"),
                 // The stage table binds every world texture in one group, where offered.
                 required_features: (adapter.features() & wgpu::Features::TEXTURE_COMPRESSION_BC)
                     | crate::gpu_phases::features(&adapter)

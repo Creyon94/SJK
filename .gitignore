@@ -6,3 +6,4 @@
 /GameData/
 *.pk3
 identity.key
+__pycache__/

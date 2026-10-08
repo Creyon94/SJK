@@ -10,7 +10,7 @@ pub(crate) const STYLE_VERSION_CVAR: &str = "con_styleDefaultVersion";
 /// How the console looks and behaves (`con_style`).
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) enum ConsoleStyle {
-    /// JKR's console: Inter text over a tinted panel with a header and hints.
+    /// SJK's console: Inter text over a tinted panel with a header and hints.
     Modern,
     /// After EternalJK (`cl_console.cpp`): the `console` shader's background,
     /// a monospaced character grid, timestamps, a clock and the version line.

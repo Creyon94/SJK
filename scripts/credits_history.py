@@ -228,7 +228,7 @@ def sentence(title):
 
 
 def render(people):
-    order = sorted(people, key=lambda name: (name != "Sol", name != "Bishop", name.lower()))
+    order = sorted(people, key=lambda name: (name != "Sol", name.lower()))
     out = [HEADER]
     for name in order:
         out.append(f"\n= {name}\n")

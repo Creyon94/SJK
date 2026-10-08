@@ -1291,7 +1291,7 @@ impl NativeGame {
                 // once a second, for anyone chasing an intermission that looks wrong on
                 // a client. It was built to settle exactly that and it settled it: the
                 // probe's first failure was its own `viewpos` timing, not the server.
-                if std::env::var_os("JKR_INTERMISSION_TRACE").is_some() && server_time % 1000 < 50 {
+                if std::env::var_os("SJK_INTERMISSION_TRACE").is_some() && server_time % 1000 < 50 {
                     for client in 0..self.players.places() {
                         if let Some(peer) = self.peer(client) {
                             println!(

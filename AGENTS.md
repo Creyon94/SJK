@@ -1,6 +1,6 @@
-# Working on JKR
+# Working on SJK
 
-JKR is a native Rust engine, client and dedicated server for Jedi Academy
+SJK is a native Rust engine, client and dedicated server for Jedi Academy
 multiplayer. Read [docs/status.md](docs/status.md),
 [docs/architecture.md](docs/architecture.md) and the relevant page in the
 [project wiki](docs/README.md) before changing code.

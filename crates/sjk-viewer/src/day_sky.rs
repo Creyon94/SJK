@@ -19,7 +19,7 @@ impl Runtime {
         }
         use wgpu::util::DeviceExt;
         let clock_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-            label: Some("JKR live day clock"),
+            label: Some("SJK live day clock"),
             entries: &[wgpu::BindGroupLayoutEntry {
                 binding: 0,
                 visibility: wgpu::ShaderStages::FRAGMENT,
@@ -32,7 +32,7 @@ impl Runtime {
             }],
         });
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("JKR live day clock"),
+            label: Some("SJK live day clock"),
             contents: bytemuck::cast_slice(&[
                 settings.hour,
                 settings.minutes,
@@ -56,12 +56,12 @@ impl Runtime {
         self.day_clock = Some((buffer, binding));
         let texture = gpu::texture_layout(device);
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("JKR day sky layout"),
+            label: Some("SJK day sky layout"),
             bind_group_layouts: &[Some(camera), Some(&texture), Some(&clock_layout)],
             immediate_size: 0,
         });
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR day sky"),
+            label: Some("SJK day sky"),
             source: wgpu::ShaderSource::Wgsl(source().into()),
         });
         self.box_pipeline = gpu::box_pipeline(device, &layout, &shader, format, self.radiance);

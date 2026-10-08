@@ -131,7 +131,7 @@ pub(crate) fn flicker(piece: ArtPiece) -> Option<[f32; 4]> {
 
 /// Recompose a flickering piece at `seconds` into `out` (RGBA, `base`'s
 /// size), ready to upload. Retail adds the piece to the screen, then each
-/// noise layer multiplies the screen by `1 + noise`; over JKR's
+/// noise layer multiplies the screen by `1 + noise`; over SJK's
 /// alpha-blended UI the product is taken over the piece alone and turned
 /// into colour and coverage as the static pieces are
 /// ([`super::additive_texel`]). Noise is sampled at the nearest texel.

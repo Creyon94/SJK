@@ -146,7 +146,7 @@ impl GpuState {
         let source_cluster = usize::try_from(self.bsp.leaves()[leaf].cluster).ok();
         let visibility = self.bsp.render().visibility();
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("JKR portal pass"),
+            label: Some("SJK portal pass"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view,
                 resolve_target: None,

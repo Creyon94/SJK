@@ -1,12 +1,12 @@
 //! `sjk-materialgen`: a local generator of material maps for the world
 //! textures of an installed Jedi Academy, in the convention of OpenJK's rend2
-//! renderer that JKR's optional material maps read (`r_normalMapping`,
+//! renderer that SJK's optional material maps read (`r_normalMapping`,
 //! `r_specularMapping`, `r_parallaxMapping`).
 //!
 //! # What it does
 //!
 //! 1. Mounts the game data like the client ([`mount`]): `GameData/base`, an
-//!    optional `fs_game` directory and `JKR_CONTENT`, loose files and pk3s in
+//!    optional `fs_game` directory and `SJK_CONTENT`, loose files and pk3s in
 //!    Quake 3 order, case-insensitive. Its own earlier output is left out.
 //! 2. Reads the shader lumps and surfaces of the installed maps (or `--maps`)
 //!    and the shader scripts, and picks the diffuse images of shaders drawn on
@@ -25,7 +25,7 @@
 //! 4. Writes one pk3 ([`package`]) of PNGs at the names rend2's automatic
 //!    lookup tries next to the diffuse image: `<texture>_nh.png` (normal RGB,
 //!    height in alpha) for parallax-worthy classes, `<texture>_n.png`
-//!    otherwise, and `<texture>_rmo.png`, plus `jkr-materialgen/manifest.json`.
+//!    otherwise, and `<texture>_rmo.png`, plus `sjk-materialgen/manifest.json`.
 //! 5. Writes `<texture>_e.png`, an emission map, for textures that evidently give
 //!    light (surface lights, authored glow images, fixture and screen names) and
 //!    only for their luminous texels ([`emission`]); shaders that already show
@@ -34,12 +34,12 @@
 //! # Why `_rmo`
 //!
 //! rend2 reads two specular conventions: `_specGloss` (specular colour and
-//! gloss, which JKR passes through rend2's SDR colour-ratio conversion) and the
+//! gloss, which the client passes through rend2's SDR colour-ratio conversion) and the
 //! packed `_rmo`/`_orm` (roughness, metalness, occlusion). The heuristics
 //! produce roughness and metalness directly, and the packed path uses the
 //! albedo as the metal colour and a 0.04 dielectric reflectance on its own, so
 //! `_rmo` needs no colour guesswork and no conversion to undo. Its red,
-//! green and blue are roughness, metalness and occlusion; JKR reorders them to
+//! green and blue are roughness, metalness and occlusion; the client reorders them to
 //! occlusion, roughness, metalness at load, as rend2's swizzle does.
 //! In that path metal loses its diffuse light; the client's reflection probes
 //! (`r_cubeMapping`) reflect the room back into it, so the metal class is
@@ -57,9 +57,9 @@
 //!
 //! # Using the output
 //!
-//! The default output is `<JKR user data>/generated/zzz_jkr_materials.pk3`
-//! (`%APPDATA%\jkr\generated` on Windows), never the game folder. Either set
-//! `JKR_CONTENT` to that directory, which the client mounts above the game
+//! The default output is `<SJK user data>/generated/zzz_sjk_materials.pk3`
+//! (`%APPDATA%\SJK\generated` on Windows), never the game folder. Either set
+//! `SJK_CONTENT` to that directory, which the client mounts above the game
 //! data, or copy the pk3 into `GameData/base` (the `zzz_` name sorts after the
 //! retail `assets*.pk3`). Then set `r_normalMapping 1`, `r_specularMapping 1`
 //! and optionally `r_parallaxMapping 1` and restart. Emission maps need only

@@ -10,7 +10,7 @@ pub(super) struct Uniform {
 
 pub(super) fn layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("JKR SSAO strength"),
+        label: Some("SJK SSAO strength"),
         entries: &[wgpu::BindGroupLayoutEntry {
             binding: 0,
             visibility: wgpu::ShaderStages::FRAGMENT,
@@ -28,12 +28,12 @@ impl Uniform {
     pub(super) fn new(device: &wgpu::Device, layout: &wgpu::BindGroupLayout) -> Self {
         let value = super::settings::DEFAULT_INTENSITY;
         let buffer = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("JKR SSAO strength"),
+            label: Some("SJK SSAO strength"),
             contents: bytemuck::cast_slice(&[value, 0., 0., 0.]),
             usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
         });
         let group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("JKR SSAO strength"),
+            label: Some("SJK SSAO strength"),
             layout,
             entries: &[wgpu::BindGroupEntry {
                 binding: 0,

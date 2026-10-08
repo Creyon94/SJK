@@ -24,7 +24,7 @@
 //!    replacements covering the same wall as the retail texture, measure them
 //!    per 1/512 of the texture over a lightly blurred height, so their texel
 //!    noise is not steepened. Red follows +s (right), green +t
-//!    (down the image): the tangent frame of rend2 and of JKR's material
+//!    (down the image): the tangent frame of rend2 and of SJK's material
 //!    program. Encoded as `round((n * 0.5 + 0.5) * 255)`, so flat is
 //!    (128, 128, 255).
 //! 3. **Packed roughness, metalness, occlusion** (`_rmo`, red, green, blue):

@@ -33,7 +33,7 @@ impl GpuState {
             return;
         }
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("JKR flares and overlays"),
+            label: Some("SJK flares and overlays"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: target,
                 resolve_target: None,
@@ -102,7 +102,7 @@ impl GpuState {
         // The 2D layer draws display values through a UNORM view (`ui_target.rs`),
         // so it gets its own pass after the linear world and its resolve.
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: Some("JKR unfiltered HUD after FXAA"),
+            label: Some("SJK unfiltered HUD after FXAA"),
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: self
                     .post_aa

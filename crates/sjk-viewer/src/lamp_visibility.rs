@@ -33,7 +33,7 @@ fn shape(count: u32, limit: u32) -> Option<(u32, u32, [u32; 2])> {
 pub(super) fn texture(device: &wgpu::Device, size: [u32; 2]) -> wgpu::TextureView {
     device
         .create_texture(&wgpu::TextureDescriptor {
-            label: Some("JKR all-fixture static visibility"),
+            label: Some("SJK all-fixture static visibility"),
             size: wgpu::Extent3d {
                 width: size[0],
                 height: size[1],
@@ -97,7 +97,7 @@ impl Gpu {
             include_str!("lamp_visibility_build.wgsl")
         );
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("JKR fixture visibility tracing"),
+            label: Some("SJK fixture visibility tracing"),
             source: wgpu::ShaderSource::Wgsl(source.into()),
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -106,7 +106,7 @@ impl Gpu {
             immediate_size: 0,
         });
         let pipeline = device.create_compute_pipeline(&wgpu::ComputePipelineDescriptor {
-            label: Some("JKR fixture visibility tracing"),
+            label: Some("SJK fixture visibility tracing"),
             layout: Some(&pipeline_layout),
             module: &shader,
             entry_point: Some("build"),

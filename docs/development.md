@@ -51,8 +51,6 @@ build, `cargo test` and clippy on Linux and Windows with the latest stable
 Rust. It does not run the optimized build, check the declared minimum Rust
 version or perform any of the evidence checks below, so a passing run does not
 replace them.
-Because the repository is private, pull requests from forks are checked only
-while its Actions settings allow workflows from fork pull requests.
 
 ## Verification appropriate to the change
 

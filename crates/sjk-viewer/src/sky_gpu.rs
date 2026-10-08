@@ -4,7 +4,7 @@ use super::{GpuVertex, SkyVertex};
 
 pub(super) fn texture_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
     device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-        label: Some("JKR Q3 sky-box texture layout"),
+        label: Some("SJK Q3 sky-box texture layout"),
         entries: &[
             wgpu::BindGroupLayoutEntry {
                 binding: 0,
@@ -121,7 +121,7 @@ fn pipeline(
         write_mask,
     })];
     device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-        label: Some("JKR Q3 sky pipeline"),
+        label: Some("SJK Q3 sky pipeline"),
         layout: Some(layout),
         vertex: wgpu::VertexState {
             module: shader,

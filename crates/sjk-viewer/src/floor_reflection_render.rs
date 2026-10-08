@@ -97,7 +97,7 @@ impl GpuState {
                     Some([x, y, w, h]),
                 );
                 let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("JKR floor reflected scene"),
+                    label: Some("SJK floor reflected scene"),
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                         view: &target.color,
                         resolve_target: None,
@@ -193,7 +193,7 @@ impl GpuState {
                 let queries = None;
 
                 let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("JKR floor composite"),
+                    label: Some("SJK floor composite"),
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                         view: color,
                         resolve_target: None,

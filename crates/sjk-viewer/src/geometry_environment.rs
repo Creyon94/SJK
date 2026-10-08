@@ -79,7 +79,7 @@ impl Default for Data {
 }
 pub(crate) fn buffer(device: &wgpu::Device, data: &Data) -> wgpu::Buffer {
     device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-        label: Some("JKR surface frame environment"),
+        label: Some("SJK surface frame environment"),
         contents: bytemuck::bytes_of(data),
         usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
     })

@@ -110,7 +110,7 @@ impl LocalPrediction {
         );
         let mut endpoints = None;
         let mut counts = telemetry::Counts::default();
-        // Stock checks before the next command. JKR receives snapshots before
+        // Stock checks before the next command. SJK receives snapshots before
         // creating that frame's command, so the final replay endpoint is also
         // a comparison boundary (including a fully acknowledged empty queue).
         let mut measure = |state: Option<&MovementState>| {

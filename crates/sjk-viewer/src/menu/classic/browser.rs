@@ -5,19 +5,19 @@
 //! headers, scrollbar, refresh, favourite, filter, join, back, the filter
 //! toggles and the password and address prompts), so the keyboard, pointer
 //! and wheel handling in [`crate::menu`] serve both styles. Retail's items
-//! map onto JKR's browser as follows:
+//! map onto SJK's browser as follows:
 //!
 //! - GET NEW LIST and REFRESH LIST fetch the master list again (retail's
 //!   `RefreshServers` behind both);
 //! - the source selector switches between every server and the favourites;
-//! - retail's mod filter row is JKR's text filter over names and maps;
+//! - retail's mod filter row is SJK's text filter over names and maps;
 //! - TYPE cycles the game-type filter, VIEW EMPTY / VIEW FULL / VIEW LOCKED
 //!   toggle the archived `ui_browserShow*` cvars (VIEW LOCKED takes the place
 //!   of retail's data-rate selector);
 //! - SERVER INFO opens a pop-up of the selected server's status;
-//! - CONNECT IP stands where retail's NEW FAVORITE was and opens JKR's
+//! - CONNECT IP stands where retail's NEW FAVORITE was and opens SJK's
 //!   direct connect;
-//! - PASSWORD and FIND PLAYER are shown dimmed: JKR asks for the password
+//! - PASSWORD and FIND PLAYER are shown dimmed: SJK asks for the password
 //!   when a locked server is joined and has no player search yet.
 
 use super::layout::{CANVAS, Placement};
@@ -212,7 +212,7 @@ fn secondary_buttons(favourite: bool) -> [Button; 5] {
     [
         button(
             "PASSWORD",
-            "JKR asks for the password when you join a locked server.",
+            "SJK asks for the password when you join a locked server.",
             10.0,
             PASSWORD_TOKEN,
         ),
@@ -391,7 +391,7 @@ pub(crate) fn build(
 }
 
 /// Retail's backdrop, opaque: `main_centerblue`, the glyph columns and
-/// `main_background`, or JKR's dark ink where the art is missing.
+/// `main_background`, or SJK's dark ink where the art is missing.
 fn backdrop(canvas: &mut MenuCanvas, viewport: [f32; 2], place: &Placement, art: ArtSet) {
     let _ = canvas.draw_list_mut().push(DrawCommand::SolidRect {
         rect: Rect::new(0.0, 0.0, viewport[0], viewport[1]),
@@ -893,7 +893,7 @@ fn list(
     }
 }
 
-/// The mod a server runs, after its game type, where JKR knows it.
+/// The mod a server runs, after its game type, where SJK knows it.
 fn profile_suffix(profile: &CompatProfile) -> &'static str {
     match profile {
         CompatProfile::BaseJka => "",
@@ -1123,7 +1123,7 @@ fn password_prompt(canvas: &mut MenuCanvas, viewport: [f32; 2], place: &Placemen
     );
 }
 
-/// Direct connect by address, in JKR's own prompt's tokens.
+/// Direct connect by address, in SJK's own prompt's tokens.
 fn address_prompt(
     canvas: &mut MenuCanvas,
     viewport: [f32; 2],

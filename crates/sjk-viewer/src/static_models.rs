@@ -1,4 +1,4 @@
-//! Client-side `misc_model_static` props — JKR's `SP_misc_model_static`
+//! Client-side `misc_model_static` props — JKA's `SP_misc_model_static`
 //! (`codemp/cgame/cg_spawn.c:170-233`) and `CG_DrawMiscStaticModels`
 //! (`codemp/cgame/cg_draw.c:8348-8394`).
 //!

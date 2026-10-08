@@ -1,6 +1,6 @@
 # Networking and gameplay
 
-JKR targets Jedi Academy multiplayer protocol 26. Keep the network representation
+SJK targets Jedi Academy multiplayer protocol 26. Keep the network representation
 compatible with ordinary servers and clients; internal engine modernization does
 not authorize a wire change.
 
@@ -22,7 +22,7 @@ Client [compatibility profiles](../crates/sjk-client/src/compat_profile.rs)
 explicitly distinguish BaseJKA, JA+, TaystJK/jaPRO and unknown modules from
 serverinfo, or before connecting from a `getinfo` reply's `game` directory.
 Profile detection and implemented adapter behavior are not a promise that every
-feature of those servers is reproduced by JKR's dedicated server.
+feature of those servers is reproduced by SJK's dedicated server.
 
 On JA+ and TaystJK/jaPRO servers the client identifies as a client-plugin user
 through extra userinfo keys. JA+ gets the JA+ 1.4B4 plugin's `cjp_client
@@ -90,7 +90,7 @@ alternate attack standing still. Kicks, like saber attacks, are predicted only w
 an animation length table: a joined game reads the humanoid
 `models/players/_humanoid/animation.cfg` for it
 ([local_prediction.rs](../crates/sjk-viewer/src/local_prediction.rs)), as EternalJK
-hands Pmove the local player's animation set (`cg_predict.c:1311` at a40e793). JKR's
+hands Pmove the local player's animation set (`cg_predict.c:1311` at a40e793). The dedicated
 server does not simulate `g_debugMelee`; its default there is 0, which keeps
 prediction on the stock behavior.
 
@@ -107,13 +107,13 @@ entity solids). Stock and unknown servers keep duellers solid.
 
 On JA+ servers the client predicts the grapple hook (`+button12`) with the rules
 in [pmove_grapple.rs](../crates/sjk-game-jka/src/pmove_grapple.rs); other
-servers, JKR's own included, get no hook movement. The JA+ game fires the hook,
+servers, SJK's dedicated server included, get no hook movement. The JA+ game fires the hook,
 stores its anchor in `lastHitLoc` and flags the pulled player with `PMF_GRAPPLE`
 (pm_flags bit 15). Each move then aims 16 units short of the anchor along the
 view and replaces the velocity with a pull of 800 units/s (10 units/s per unit
 inside 100 units), EternalJK's arithmetic and the JA+ 2.4 B7 module's, followed
 by an air move whatever the ground or water below. A client-plugin user
-(#108) who lets go of the key stays on the rope: the game clears the flag and
+who lets go of the key stays on the rope: the game clears the flag and
 sets entity flag bit 16, and each move runs an air move and then swings the
 player on a rope as long as the distance from the anchor to where the move began.
 Use lets go of the hook in the game before the move, so a pull or hang with use
@@ -129,7 +129,7 @@ On a JA+ server, prediction follows the rules
 `CS_SERVERINFO`: the dialect and its `jp_cinfo` bits. JA+ is closed source; the
 client side follows EternalJK's reimplementation of the JA+ client plugin and,
 where that and a JA+ 2.4 server disagree, the server as replays observed it.
-Stock and other servers, JKR's own included, keep the stock rules.
+Stock and other servers, SJK's dedicated server included, keep the stock rules.
 
 | Rule | When | Effect |
 | --- | --- | --- |

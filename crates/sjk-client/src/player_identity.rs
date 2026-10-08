@@ -88,7 +88,7 @@ pub fn legacy_client_saber_name(game_state: &GameState, client_num: u16) -> Opti
 ///
 /// Raven cgame reads the compact `st`/`st2` keys (`cg_players.c:1750-1773`);
 /// older BaseJKA-compatible servers also emit the long `saber1`/`saber2`
-/// spellings, which retain precedence for existing JKR fixtures. A second
+/// spellings, which retain precedence for existing fixtures. A second
 /// saber named `none` or `remove` is no saber: `WP_SetSaber`
 /// (`bg_saberLoad.c:2219-2225`) removes that slot instead of loading it, so
 /// it resolves to `None` rather than to a hilt fallback.

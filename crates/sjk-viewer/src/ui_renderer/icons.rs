@@ -81,7 +81,7 @@ pub(super) struct IconAtlas {
 impl IconAtlas {
     pub(super) fn new(device: &wgpu::Device, layout: &wgpu::BindGroupLayout) -> Self {
         let texture = device.create_texture(&wgpu::TextureDescriptor {
-            label: Some("JKR retained UI icon atlas"),
+            label: Some("SJK retained UI icon atlas"),
             size: wgpu::Extent3d {
                 width: ATLAS_SIZE,
                 height: ATLAS_HEIGHT,
@@ -96,13 +96,13 @@ impl IconAtlas {
         });
         let view = texture.create_view(&Default::default());
         let sampler = device.create_sampler(&wgpu::SamplerDescriptor {
-            label: Some("JKR retained UI icon sampler"),
+            label: Some("SJK retained UI icon sampler"),
             mag_filter: wgpu::FilterMode::Linear,
             min_filter: wgpu::FilterMode::Linear,
             ..Default::default()
         });
         let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("JKR retained UI icon atlas bind group"),
+            label: Some("SJK retained UI icon atlas bind group"),
             layout,
             entries: &[
                 wgpu::BindGroupEntry {

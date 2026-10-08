@@ -89,22 +89,6 @@ pub struct Cvars {
     sort_pending: bool,
 }
 
-/// SJK's names for JKR's own server variables. A configuration written for JKR
-/// (`set jkr_stockRules 1`) still reaches them, before or after the game
-/// registers them, and they are listed and archived under SJK's names.
-const RENAMED: [(&[u8], &[u8]); 2] = [
-    (b"jkr_npcNav", b"g_npcNav"),
-    (b"jkr_stockRules", b"g_stockRules"),
-];
-
-/// The SJK name of `name`, or `name` itself.
-fn canonical(name: &[u8]) -> &[u8] {
-    RENAMED
-        .iter()
-        .find(|(old, _)| old.eq_ignore_ascii_case(name))
-        .map_or(name, |&(_, new)| new)
-}
-
 /// `Cvar_ValidateString`.
 fn valid_name(name: &[u8]) -> bool {
     !name.iter().any(|byte| matches!(byte, b'\\' | b'"' | b';'))
@@ -159,10 +143,9 @@ impl Cvars {
     }
 
     fn find(&self, name: &[u8]) -> Option<usize> {
-        let name = canonical(name);
         self.vars
             .iter()
-            .position(|var| canonical(&var.name).eq_ignore_ascii_case(name))
+            .position(|var| var.name.eq_ignore_ascii_case(name))
     }
 
     /// A variable by name, any case.
@@ -231,10 +214,6 @@ impl Cvars {
         };
         let value = self.validate(index, value, &mut |_| {});
         let var = &mut self.vars[index];
-        // Set under JKR's name before the game registered SJK's: take SJK's.
-        if !var.name.eq_ignore_ascii_case(name) && canonical(name) == name {
-            var.name = name.to_vec();
-        }
         if var.flags & CVAR_VM_CREATED != 0 {
             if flags & CVAR_VM_CREATED == 0 {
                 var.flags &= !CVAR_VM_CREATED;
@@ -504,37 +483,5 @@ impl Cvars {
             }
         }
         changed
-    }
-}
-
-#[cfg(test)]
-mod rename_tests {
-    use super::*;
-
-    #[test]
-    fn jkr_server_names_reach_and_become_sjk_names() {
-        let mut cvars = Cvars::new();
-        // A JKR config sets the old name before the game registers the new one.
-        cvars.set(b"jkr_stockRules", b"1");
-        cvars.get(b"g_stockRules", b"0", CVAR_ARCHIVE, None);
-        assert_eq!(cvars.integer(b"g_stockRules"), 1);
-        assert_eq!(cvars.integer(b"jkr_stockRules"), 1);
-        assert_eq!(cvars.var(b"g_stockRules").unwrap().name, b"g_stockRules");
-        assert_eq!(
-            cvars
-                .iter()
-                .filter(|var| var.name.eq_ignore_ascii_case(b"g_stockRules"))
-                .count(),
-            1
-        );
-        // After registration the old name still sets the same variable.
-        cvars.get(b"g_npcNav", b"0", CVAR_ARCHIVE, None);
-        cvars.set(b"jkr_npcNav", b"2");
-        assert_eq!(cvars.integer(b"g_npcNav"), 2);
-        assert!(
-            cvars
-                .iter()
-                .all(|var| !var.name.to_ascii_lowercase().starts_with(b"jkr_"))
-        );
     }
 }

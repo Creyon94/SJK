@@ -120,7 +120,7 @@ impl GpuState {
             }
             {
                 let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                    label: Some("JKR reflection probe face"),
+                    label: Some("SJK reflection probe face"),
                     color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                         view: &probes.color,
                         resolve_target: None,
