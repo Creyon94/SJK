@@ -21,6 +21,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- SJK UI Credits: the emblem is the page's sun on the left, its sunburst and god rays kept, with the sections under it (Tab jumps between them, E opens every fold) and the people in a column on the right. Cards show their medals in every menu style; Creyon and Lumaya wear Early Contributor _(Sol)_
 - SJK UI Report a bug is a pop-up card, as are a player report's words and the world note: the question, your text with a gold caret, the rules and the count, Cancel and Send. A report's card then waits for the SJK hub and says it was sent (with its number) or why not, with Edit to change your text and send it again _(Sol)_
 - Nameplates predict much more: lightning, grip and rage now cost health (and rage halves the hits a player takes), protect turns hits into Force spent, team heal and energize give their exact share, drainers heal by what they drain, and the Force bar charges force jumps by how fast they climb, katas, cartwheels, lunges and other saber specials, wall jumps, heals, team powers and the start of a grip. Absorb gives Force back, a knocked-away saber no longer counts as a throw, and a special refused for want of Force shows the bar under half _(Sol)_
 - Shot controls is now Camera control (the game menu's entry, or F8), and with the SJK UI it has its look: a column down the right edge over a fade, the rest of the scene left clear with viewfinder corners and thirds marks, Camera and Sun as tabs, switches for live preview and the HUD, and the keys of what you are on. Up and Down stop once on each slider _(Sol)_
@@ -51,7 +52,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## 2026.1007.3 (Alpha) | 07/10/2026
 
-lumaya's free camera, peek and first-person saber body; the SJK UI gains its server
+Lumaya's free camera, peek and first-person saber body; the SJK UI gains its server
 browser, scoreboard, loading screen and in-game menu; ground fog keeps its height,
 parallax returns with a depth slider, and the chat font is evenly spaced.
 
@@ -59,9 +60,9 @@ parallax returns with a depth slider, and the chat font is evenly spaced.
 - SJK UI loading screen: joining a server keeps the menu's map behind the server's name and a gold line that fills step by step, then fades to the destination's picture with the map's name, the server, its rules and message of the day and a gold load bar along the bottom; a failed join says why in the same place _(Sol)_
 - SJK UI scoreboard: with the SJK UI's menus, Tab shows SJK's own scoreboard, its columns floating over the darkened game: the map, mode, time left and your place in gold on top, the teams side by side under their scores, duelists as facing cards with their records, pings as signal bars. Settings > Scoreboard > Scoreboard style offers Auto (the new default: SJK's with the SJK UI, else classic), SJK, Classic and Modern; profiles move to Auto once, and a style you pick after that stays _(Sol)_
 - Parallax is back at a tenth of its old depth, with a Parallax depth slider (and a Parallax mapping switch) in Settings > Graphics > Image: 0 flat, 1 the full depth of the maps; the slider shows its change at once _(Sol)_
-- First person with a saber shows your arms and body holding it, as the original game does, instead of a hilt floating alone; the head stays hidden, and dying or following someone goes back to the old view _(lumaya, after JoF EJK)_
-- Peek: `/peek <id or name> [seconds]` (or `/peek` on the player under your crosshair) watches another player for a few seconds from behind, as JoF EJK's peek does, with the camera kept out of walls; `/peek off` returns _(lumaya, after JoF EJK)_
-- Free camera: `/freecam` (bindable under Key bindings > Other) flies the camera away from your body as JoF EJK's fake noclip does, while you stand still on the server with the chat balloon; actions are held back while flying, and death, spectating, a vehicle, a disconnect or a map change end it _(lumaya, after JoF EJK)_
+- First person with a saber shows your arms and body holding it, as the original game does, instead of a hilt floating alone; the head stays hidden, and dying or following someone goes back to the old view _(Lumaya, after JoF EJK)_
+- Peek: `/peek <id or name> [seconds]` (or `/peek` on the player under your crosshair) watches another player for a few seconds from behind, as JoF EJK's peek does, with the camera kept out of walls; `/peek off` returns _(Lumaya, after JoF EJK)_
+- Free camera: `/freecam` (bindable under Key bindings > Other) flies the camera away from your body as JoF EJK's fake noclip does, while you stand still on the server with the chat balloon; actions are held back while flying, and death, spectating, a vehicle, a disconnect or a map change end it _(Lumaya, after JoF EJK)_
 - Even letter spacing in the chat font: most letters sat against the left of their space while C, G, O and a few others sat against the right, leaving holes inside words. The menu and classic HUD fonts had the same fault, less visibly _(Sol)_
 - Bug reports and world notes carry the name you play under, so the SJK team knows who sent them; the hub adds it to your identity's name history like the names it sees on servers _(Sol)_
 - SJK UI Servers: the server browser over the map. Favourites and the filters for empty, full and locked servers and the game type sit on the left; the list sorts by any column and shows each server's name in its colours, its mod and signal bars; the chosen server shows its map's picture, its numbers and who is playing. The keyboard reaches everything, and the password and address prompts match the rest. Searching finds servers by their name without its colour codes _(Sol)_
@@ -96,7 +97,7 @@ work.
 - The credits page lists everything: each person has a panel with their name in large letters, their role and counts, and folds that open their highlights and all their work, every feature and pull request by day, each unfolding into its commits, with pull requests and commits opening on GitHub; golden god rays turn down from the top and a sunburst turns behind the emblem, as on the website _(Sol)_
 - Settings groups have icons (classic menus): every group down the left of Key bindings, Options, Graphics and Gameplay shows a grey metal disc in the quick wheels' style, lit while the group is open or pointed at _(Sol)_
 - The console draws with a sharp vector font, JetBrains Mono, instead of the old blocky bitmap font, on the same grid; so do the FPS counter, vote text and kill feed _(Sol)_
-- Saber blades stop at walls: the glow and core end where the blade meets a wall instead of shining through it, and reach full length again as it leaves, also on hilts that leave no wall marks _(lumaya)_
+- Saber blades stop at walls: the glow and core end where the blade meets a wall instead of shining through it, and reach full length again as it leaves, also on hilts that leave no wall marks _(Lumaya)_
 - Configs from other clients load: exec runs a .cfg whose name or binds use accented letters (it said "not valid UTF-8"), and a jampconfig.cfg copied over SJK's config.cfg loads with its unbindall and unknown keys instead of losing all your settings _(Sol)_
 - First setup opens at every start until you tick "Don't show at start", and you can drop a .cfg from another client (jampconfig.cfg, EternalJK, JA+) on the window to import your name, model, field of view and key bindings, ticking the ones you want _(Sol)_
 - The key under Escape opens the console on every keyboard layout, including Hungarian where it types 0; where it types ^ (German), Shift+^ opens it _(Sol, after EternalJK)_

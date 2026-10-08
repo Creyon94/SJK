@@ -1827,7 +1827,7 @@ note: Checked in world shots only (no game started); tell Claude what looks off 
 
 [free-camera]
 area: Gameplay
-title: /freecam flies the camera away from your body (SJK PR #29, lumaya)
+title: /freecam flies the camera away from your body (SJK PR #29, Lumaya)
 change: Fake-noclip flight for the view; the server sees you still, with the chat balloon.
 change: Actions, weapon changes and Force-wheel commands are held back while flying.
 test: /freecam on a local server: fly with the movement keys, jump/crouch go up and down.
@@ -1838,7 +1838,7 @@ note: Servers with g_inactivity can still drop a flying player (as with fakenocl
 
 [player-peek]
 area: Gameplay
-title: /peek watches another player for a few seconds (SJK PR #28, lumaya)
+title: /peek watches another player for a few seconds (SJK PR #28, Lumaya)
 change: /peek <id|name> [seconds], or /peek alone on the crosshair player; /peek off returns.
 change: The camera sits behind the target, kept out of walls; it pauses while they are unseen.
 test: /peek on a bot: the view follows it for 5 seconds, then comes back.
@@ -1848,7 +1848,7 @@ test: /freecam during a peek ends the peek; /peek during freecam is refused.
 
 [first-person-saber-body]
 area: Rendering & effects
-title: First person with a saber shows your arms and body (SJK PR #26, lumaya)
+title: First person with a saber shows your arms and body (SJK PR #26, Lumaya)
 change: The local body is drawn in first person with a saber, its head hidden, as codemp does.
 test: First person with a saber lit: arms and hands hold the hilt, no head in view.
 test: Die in first person, then follow a player as spectator: no headless body at the camera.
@@ -1857,7 +1857,7 @@ note: Some community models parent body parts under the head; those parts vanish
 
 [saber-wall-cutoff]
 area: Rendering & effects
-title: Saber blades stop at walls instead of shining through (SJK PR #24, lumaya)
+title: Saber blades stop at walls instead of shining through (SJK PR #24, Lumaya)
 change: The wall trace cuts the glow and core at the hit point, as OpenJK's CG_AddSaberBlade.
 change: Hilts with noWallMarks are cut too; leaving the wall brings back the full length.
 test: Push a lit saber into a wall: no glow or core on the far side, sparks at the contact.
@@ -2154,6 +2154,20 @@ test: Up from the first row reaches the tick; Enter flips it. All settings: Sett
 test: Done or Esc: back to the main page. Menu style Classic in the card, then SJK: card again.
 test: Console: update. A card with Close and the gold action; Esc closes it.
 note: Resolution and HUD pickers opened from the card are untested; tell Claude if they look off.
+
+[sjk-ui-credits]
+area: Menus & settings
+title: SJK UI: Credits with the emblem as its sun, and medals on the cards
+change: Sol JK > Credits in the SJK UI: the sun and the sections on the left, the people right.
+change: Cards show their medals in every style; Creyon and Lumaya wear Early Contributor.
+test: Main page > Sol JK > Credits: the sunburst turns, god rays cross the page, sparks rise.
+test: Wheel, Up/Down, Page Up/Down scroll; Tab / Shift+Tab jump sections, the rail follows.
+test: Click a section on the rail; Expand all (or E): every fold opens, rows fade in.
+test: Click Highlights / All work; a + on a work row opens its commits; hover shows the band.
+test: Click a PR tag, a commit, an @handle or a link: GitHub opens in your browser.
+test: Creyon's and Lumaya's panels: the Early Contributor medal right of their lines.
+test: Also from the in-game menu's Sol JK page, and with classic and modern (medal chips).
+note: Rays too strong behind the text, medals too small, text cut? Tell Claude where.
 
 [camera-control]
 area: Menus & settings

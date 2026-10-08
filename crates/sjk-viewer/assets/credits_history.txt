@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 08/10/2026 | - | Credits in the SJK UI, medals on the cards
+- 6086be3 |  | SJK UI Credits: the emblem as the page's sun, medals on the cards
 + 08/10/2026 | - | Report a bug and its dialogs in the SJK UI
 - a037ebb |  | SJK UI: Report a bug and its dialogs as a pop-up card
 + 08/10/2026 | - | Nameplates: predict lightning, grip, rage, protect, team powers and Force costs
@@ -831,7 +833,7 @@
 - 8db7327 |  | Wrap centre prints at 50 characters, not UTF-8 bytes
 - 0874042 |  | Decode print and cp text as legacy bytes
 
-= lumaya
+= Lumaya
 + 07/10/2026 | SJK #26 | Show the posed saber body in first person
 - 26719eb |  | Show the posed saber body in first person
 - eea02f1 |  | Record the first-person saber GPU smoke check

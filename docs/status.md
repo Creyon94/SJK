@@ -7,6 +7,48 @@ SJK currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## SJK UI Credits and medals on the cards
+
+SJK-only branch `personal/sjk-ui-credits` (08/10/2026, based on `5daf065`,
+Windows 11): Sol asked to restyle Credits while keeping its sun animation, to
+put the medals of Creyon and Lumaya on their cards, and to write Lumaya with a
+capital L. With the SJK UI the page now has that UI's look
+([credits_sjk.rs](../crates/sjk-viewer/src/credits_sjk.rs),
+[SJK UI](sjk-ui.md#sol-jks-pages)): the emblem on the left is the sun (the
+classic page's two sunbursts and two sets of god rays, from the same light
+pictures, and its sparks), the sections down a lit rail under it and the people
+in a reading column on the right. The page's state, folds, links, scrolling and
+keys are shared with the other looks, which keep their drawing; Tab, Shift+Tab,
+`[` and `]` step through the sections and E opens or closes every fold in every
+look. credits.txt has a `medal:` key (the hub's ids, checked by
+`credits_data.rs`); the cards show their medals in every look, and Creyon's and
+Lumaya's carry Early Contributor. The card `[lumaya]` became `[Lumaya]` (handle
+`lumayaa` kept), with `scripts/credits_history.py` mapping both names to it and
+the history regenerated (one line changed), and the name capitalised in
+CREDITS.md, the changelog, the debug panel, the site and the docs.
+
+Verified: unit tests for the key (catalogue order, a repeated Bug Hunter
+counting up, unknown, misspelt, empty and repeated ids rejected with their line,
+the built-in cards' medals), and for the SJK look: every scroll position of the
+page, folded and with every fold open, fits its canvas (no dropped draw, text or
+pointer area) at 1920x1080, 3840x2160, 1024x768 and 2560x1080; the layout stays
+in the column and does not change with the window; Creyon's medal picture and
+name are drawn; Tab, Shift+Tab and E move as described and stop at both ends.
+The world shots `duel6_sjk_credits` (1080p over duel6: the top, Creyon's and
+Lumaya's panels unfolded, Creyon's work with a commit list open, the end of the
+page) and the modern and classic `menu_snapshot` credits pages with the medal
+chips were looked at. `cargo test --release -p sjk-viewer` passed (1054),
+clippy reports nothing in the files changed.
+
+Not verified: no game was started, so the pointer (hover bands, the rail's and
+Expand all's clicks, links opening GitHub, dragging the scrollbar), the keys on
+a real keyboard and the opening and unfolding animations in motion are untested;
+the shots are 1080p only (other sizes only by the unit tests), and the page in
+Inter before the families load was not shot. In a commit row at 16 pixels the
+body family's underscores did not show (the run's rectangle was not the cause;
+probably the atlas's minification); commit subjects are now 17 pixels, where
+they show, but other small SJK UI text was not checked for it.
+
 ## SJK UI: Report a bug and its dialogs
 
 SJK-only branch `personal/sjk-ui-report` (08/10/2026, based on `5daf065`,
@@ -848,7 +890,7 @@ unverified in game; the modern settings screen is unchanged.
 
 ## Saber wall cutoff
 
-SJK pull request #24 by lumaya, branch `fix/saber-wall-cutoff` (based on
+SJK pull request #24 by Lumaya, branch `fix/saber-wall-cutoff` (based on
 `cfbc789`, 2026-10-07, Windows): blade contact clips the glow and core as well
 as the trail, including with trails or wall marks disabled. Reference: local OpenJK
 `4d0dfaf1`, `codemp/cgame/cg_players.c`, `CG_AddSaberBlade`'s `saberLen =

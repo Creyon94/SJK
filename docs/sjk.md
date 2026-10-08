@@ -192,10 +192,13 @@ that brings their first change (Creyon with SJK pull request #2), and their card
 gains lines, with the pull request numbers, as they keep contributing; Sol's own
 card gains a line when a notable feature lands. Cards carry the person's GitHub
 handle (`github:`, opens their profile when clicked) and may carry `link:`
-addresses (https only, optionally `Label | https://...`). Sections are free: a
-later "Supporters" section is a `== Supporters` heading and its cards, with no
-code. The tests reject a card without a role, an unknown key, a link that is not
-https or a non-ASCII character.
+addresses (https only, optionally `Label | https://...`) and `medal:` lines, the
+medals the SJK team gave them, by the hub's ids (`early_contributor`;
+[identity.md](identity.md#medals)), shown on the card with their pictures and
+names. Sections are free: a later "Supporters" section is a `== Supporters`
+heading and its cards, with no code. The tests reject a card without a role, an
+unknown key, a link that is not https, an unknown medal id, a medal listed twice
+(but Bug Hunter, which counts up) or a non-ASCII character.
 
 Under each card the page folds that person's whole history: every feature and
 pull request merged into `main`, with its commits. It comes from

@@ -1611,7 +1611,7 @@ work from [credits_history.txt](../crates/sjk-viewer/assets/credits_history.txt)
 which `scripts/credits_history.py` writes from git and GitHub. Each section of
 the file (Sol JK, Contributors, Origins, ...) is a heading with its people.
 
-- Everyone with a history (Sol, Bishop, Creyon, lumaya) has a panel across the
+- Everyone with a history (Sol, Bishop, Creyon, Lumaya) has a panel across the
   column: the name large (the first section's larger still), the role, chips
   counting their changes, pull requests and commits, their links, and two folds.
   HIGHLIGHTS holds the card's own lines; ALL WORK (ALL PULL REQUESTS when all of
@@ -1629,6 +1629,10 @@ the file (Sol JK, Contributors, Origins, ...) is a heading with its people.
   84 targets a frame, under the menu canvas's limit.
 - The rest (Claude, the fonts, the reference clients) sit on cards in rows of up
   to three with their lines shown.
+- A card's medals (credits.txt `medal:` lines, the hub's ids:
+  [identity.md](identity.md#medals)) show on it: a chip with the medallion and the
+  name after the counts (under the role on a card without a history). Creyon and
+  Lumaya wear Early Contributor.
 
 The page is animated from the clock alone. Golden god rays turn slowly down from
 above the top of the screen, two sets against each other so the shafts shimmer
@@ -1640,9 +1644,13 @@ module draws on its worker at start (`EmblemLayer::Sunburst` and `Godrays` in
 renderer's additive pipeline and turned by their texture coordinates
 (`emblem::rays`). Panels rise into place as the page opens and their edges glow
 in turn. With the classic menus it takes retail's gold and blue and the menus'
-retail font. Arrow keys, Page Up and Page Down, Space, the wheel and the
-scrollbar at the right edge scroll it, gliding to the place asked; Escape, Enter
-or CLOSE closes it. Like the changelog it lives in the console, so it opens over
+retail font; with the SJK UI it has that UI's look, the emblem as a sun on the
+left with the sections under it and the people in a column on the right
+([sjk-ui.md](sjk-ui.md#sol-jks-pages)). Arrow keys, Page Up and Page Down, Space,
+the wheel and the scrollbar at the right edge scroll it, gliding to the place
+asked; Tab (or `]`) scrolls to the next section and Shift+Tab (or `[`) to the one
+before, round to the first past the last; E opens every fold or closes them;
+Escape, Enter or CLOSE closes it. Like the changelog it lives in the console, so it opens over
 the menus and in a match. How the files are kept is in
 [SJK conventions](sjk.md#credits).
 

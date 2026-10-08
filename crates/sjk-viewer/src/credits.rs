@@ -14,10 +14,13 @@
 //! or pull request unfolding into its commits. Unfolded rows fade in one after the
 //! other. A pull request's number and a commit open on GitHub when clicked, as do
 //! GitHub handles and the cards' links. The rest (fonts, references) sit on small
-//! cards. With the classic menus the palette is retail's gold and blue and the
-//! text is drawn in the menus' retail font. Sections come from the file, so a
+//! cards. A card's medals (`medal:` in credits.txt) show on it, picture and name.
+//! With the classic menus the palette is retail's gold and blue and the text is
+//! drawn in the menus' retail font; with the SJK UI the page has that UI's look
+//! (`credits_sjk.rs`), its sun on the left. Sections come from the file, so a
 //! later "Supporters" section needs no code.
 
+use crate::medals::Medal;
 use crate::menu::art::motion;
 use crate::menu::emblem::{self, EmblemLayer};
 use crate::menu_widgets::{BACK_TOKEN, MenuCanvas};
@@ -29,6 +32,8 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 
 #[path = "credits_data.rs"]
 mod data;
+#[path = "credits_sjk.rs"]
+mod sjk;
 
 /// Console command that toggles the page.
 pub(crate) const COMMAND: &str = "credits";
@@ -41,6 +46,10 @@ const PAGE_TOKEN: u16 = 906;
 const ALL_TOKEN: u16 = 907;
 /// The scrollbar's track.
 const SCROLLBAR_TOKEN: u16 = 908;
+/// First section of the SJK UI's rail; section `i` is `SECTION_BASE + i`.
+const SECTION_BASE: u16 = 920;
+/// Sections the rail can answer for (tokens up to `URL_BASE` stay free).
+const SECTION_TOKENS: u16 = 64;
 /// First address token; address `i` of `Panel::urls` is `URL_BASE + i`.
 const URL_BASE: u16 = 10_000;
 /// First fold token; fold `i` of `Panel::actions` is `FOLD_BASE + i`.
@@ -186,6 +195,9 @@ enum Piece {
         rect: Rect,
         section: usize,
         card: usize,
+        /// The role wrapped to the card (the SJK UI's; the other looks draw
+        /// it on one line).
+        role: Vec<String>,
         /// The contributions wrapped to the card: text, and whether it starts one.
         lines: Vec<(String, bool)>,
         handle: Option<(u16, f32)>,
@@ -257,9 +269,15 @@ pub(crate) struct Panel {
     urls: Vec<String>,
     /// The folds the laid-out rows toggle, indexed by token - `FOLD_BASE`.
     actions: Vec<Action>,
-    /// What `pieces` was laid out for: viewport and text size (bits); `None`
-    /// after a fold changed.
-    laid_out_for: Option<(u32, u32, u32)>,
+    /// What `pieces` was laid out for: the look, then the viewport and text
+    /// size (bits), or the SJK UI's text style and fonts; `None` after a fold
+    /// or the look changed.
+    laid_out_for: Option<[u32; 4]>,
+    /// Each section's heading, in the laid-out pieces' units.
+    heading_ys: Vec<f32>,
+    /// Where a heading sits when scrolled to (pieces' units) and window
+    /// pixels per piece unit, from the last frame.
+    anchor: [f32; 2],
     /// The fold just opened (all of them for Expand all) and when, so its rows
     /// fade in.
     reveal: Option<(Option<Fold>, f64)>,
@@ -267,6 +285,8 @@ pub(crate) struct Panel {
     content: f32,
     notice_y: f32,
     classic: bool,
+    /// The SJK UI's look (`credits_sjk.rs`).
+    sjk: bool,
     opened_at: f64,
     /// The clock at the last frame, for smooth scrolling.
     last_frame: f64,
@@ -313,10 +333,13 @@ impl Panel {
             urls: Vec::new(),
             actions: Vec::new(),
             laid_out_for: None,
+            heading_ys: Vec::new(),
+            anchor: [0.0, 1.0],
             reveal: None,
             content: 0.0,
             notice_y: 0.0,
             classic: false,
+            sjk: false,
             opened_at: 0.0,
             last_frame: 0.0,
             ui: MenuCanvas::with_capacities(512, 384, 2_048),
@@ -351,12 +374,28 @@ impl Panel {
 
     /// Choose the palette: retail's with the classic menus, else the theme's.
     pub(crate) fn set_classic(&mut self, classic: bool) {
+        if self.classic != classic {
+            self.laid_out_for = None;
+        }
         self.classic = classic;
     }
 
     /// Whether the classic palette is drawn, so its text uses the retail font.
     pub(crate) fn is_classic(&self) -> bool {
         self.classic
+    }
+
+    /// Draw the SJK UI's look (`sjk`), in its families, or not.
+    pub(crate) fn set_sjk(&mut self, sjk: bool) {
+        if self.sjk != sjk {
+            self.laid_out_for = None;
+        }
+        self.sjk = sjk;
+    }
+
+    /// Whether the SJK UI's look is drawn.
+    pub(crate) fn is_sjk(&self) -> bool {
+        self.sjk && !self.classic
     }
 
     /// Skip the opening and unfolding animations, for snapshots.
@@ -372,6 +411,12 @@ impl Panel {
     pub(crate) fn scroll_to(&mut self, pixels: f32) {
         self.scroll = pixels;
         self.target = pixels;
+    }
+
+    /// Scroll on by `pixels` from where the page is, for snapshots.
+    #[cfg(test)]
+    pub(crate) fn scroll_on(&mut self, pixels: f32) {
+        self.scroll_to(self.target + pixels);
     }
 
     /// Open `person`'s folds and the commits of their newest work that has
@@ -401,20 +446,34 @@ impl Panel {
             } if *p == person => Some(rect.y),
             _ => None,
         });
-        self.scroll_to(top.unwrap_or(0.0) - 20.0);
+        let [above, scale] = self.anchor;
+        self.scroll_to((top.unwrap_or(0.0) - above) * scale);
+    }
+
+    /// Whether the last frame overflowed the canvas, and how many pointer
+    /// areas it registered, for tests.
+    #[cfg(test)]
+    pub(crate) fn canvas_use(&self) -> (bool, usize) {
+        (self.ui.overflowed(), self.ui.widget_count())
     }
 
     pub(crate) fn draw_list(&self) -> &sjk_ui::DrawList {
         self.ui.draw_list()
     }
 
-    pub(crate) fn handle_key(&mut self, event: &KeyEvent) -> bool {
+    /// A key event; `shift` is held. Returns true when it closes the page.
+    pub(crate) fn handle_key(&mut self, event: &KeyEvent, shift: bool) -> bool {
         if event.state != ElementState::Pressed {
             return false;
         }
         let PhysicalKey::Code(key) = event.physical_key else {
             return false;
         };
+        self.key(key, shift)
+    }
+
+    /// A pressed key; returns true when it closes the page.
+    fn key(&mut self, key: KeyCode, shift: bool) -> bool {
         let step = STEP * self.page / 1080.0;
         match key {
             KeyCode::Escape | KeyCode::Enter | KeyCode::NumpadEnter => return true,
@@ -424,9 +483,69 @@ impl Panel {
             KeyCode::PageDown | KeyCode::Space => self.scroll_by(self.page * 0.8),
             KeyCode::Home => self.target = 0.0,
             KeyCode::End => self.target = self.max_scroll,
+            KeyCode::Tab => self.step_section(!shift),
+            KeyCode::BracketRight => self.step_section(true),
+            KeyCode::BracketLeft => self.step_section(false),
+            KeyCode::KeyE => self.toggle_all(),
             _ => {}
         }
         false
+    }
+
+    /// Where the page scrolls to show section `index` at its top, in window
+    /// pixels, as last laid out.
+    fn section_scroll(&self, index: usize) -> f32 {
+        let [above, scale] = self.anchor;
+        self.heading_ys
+            .get(index)
+            .map_or(0.0, |y| ((y - above) * scale).clamp(0.0, self.max_scroll))
+    }
+
+    /// The section in view: the last one whose heading has reached the upper
+    /// third of the page.
+    fn current_section(&self) -> usize {
+        let here = self.scroll + self.page * 0.35;
+        (0..self.heading_ys.len())
+            .rev()
+            .find(|&index| self.section_scroll(index) <= here)
+            .unwrap_or(0)
+    }
+
+    /// Scroll to the next section (`forward`) or the one before, round to the
+    /// first or the last past the ends.
+    fn step_section(&mut self, forward: bool) {
+        let count = self.heading_ys.len();
+        if count == 0 {
+            return;
+        }
+        let here = self.target;
+        self.target = if forward {
+            (0..count)
+                .map(|index| self.section_scroll(index))
+                .find(|&at| at > here + 1.0)
+                .unwrap_or(0.0)
+        } else {
+            (0..count)
+                .rev()
+                .map(|index| self.section_scroll(index))
+                .find(|&at| at < here - 1.0)
+                .unwrap_or_else(|| self.section_scroll(count - 1))
+        };
+    }
+
+    /// Glide the scroll towards where the wheel, keys or scrollbar sent it,
+    /// for the frame drawn now; returns the clock.
+    fn glide(&mut self) -> f64 {
+        let now = motion::seconds();
+        let dt = (now - self.last_frame).clamp(0.0, 0.1) as f32;
+        self.last_frame = now;
+        self.target = self.target.clamp(0.0, self.max_scroll);
+        self.scroll += (self.target - self.scroll) * (1.0 - (-dt * 14.0).exp());
+        if (self.target - self.scroll).abs() < 0.5 {
+            self.scroll = self.target;
+        }
+        self.scroll = self.scroll.clamp(0.0, self.max_scroll);
+        now
     }
 
     /// A pointer event; returns true when it closes the page.
@@ -459,6 +578,11 @@ impl Panel {
                 }
                 if token == ALL_TOKEN {
                     self.toggle_all();
+                } else if let Some(section) = token
+                    .checked_sub(SECTION_BASE)
+                    .filter(|section| *section < SECTION_TOKENS)
+                {
+                    self.target = self.section_scroll(usize::from(section));
                 } else if let Some(action) = token
                     .checked_sub(FOLD_BASE)
                     .and_then(|index| self.actions.get(usize::from(index)).copied())
@@ -523,11 +647,12 @@ impl Panel {
     fn layout(&mut self, font: &UiFont, viewport: [f32; 2]) {
         let s = crate::ui_scale::height_scale(viewport[1]);
         let style = font.style();
-        let key = (
+        let key = [
+            0,
             viewport[0].to_bits(),
             viewport[1].to_bits(),
             style.scale.to_bits(),
-        );
+        ];
         if self.laid_out_for == Some(key) {
             return;
         }
@@ -536,6 +661,7 @@ impl Panel {
         self.born.clear();
         self.urls.clear();
         self.actions.clear();
+        self.heading_ys.clear();
         let measure = |text: &str, size: f32| {
             let size = size * s;
             let placement = style.place(Rect::new(0.0, 0.0, 0.0, size), size, 0.2 * s);
@@ -565,6 +691,7 @@ impl Panel {
         let mut y = header_height(s);
         let mut person = 0_u16;
         for (section_index, section) in self.sections.iter().enumerate() {
+            self.heading_ys.push(y);
             lay.push(Piece::Heading {
                 y,
                 section: section_index,
@@ -615,7 +742,13 @@ impl Panel {
                             lines.push((line, index == 0));
                         }
                     }
-                    tallest = tallest.max(card_height(lines.len(), card.did.len(), links.len(), s));
+                    tallest = tallest.max(card_height(
+                        lines.len(),
+                        card.did.len(),
+                        links.len(),
+                        !card.medals.is_empty(),
+                        s,
+                    ));
                     wrapped.push((lines, handle, links));
                 }
                 for (slot, (lines, handle, links)) in wrapped.into_iter().enumerate() {
@@ -623,6 +756,7 @@ impl Panel {
                         rect: Rect::new(left + slot as f32 * (width + gap), y, width, tallest),
                         section: section_index,
                         card: row[slot].0,
+                        role: Vec::new(),
                         lines,
                         handle,
                         links,
@@ -651,16 +785,9 @@ impl Panel {
         let footer = 64.0 * s;
         let view_height = viewport[1] - footer;
         self.max_scroll = (self.content - view_height).max(0.0);
-        let now = motion::seconds();
-        // Scrolling glides to where the wheel, keys or scrollbar sent it.
-        let dt = (now - self.last_frame).clamp(0.0, 0.1) as f32;
-        self.last_frame = now;
-        self.target = self.target.clamp(0.0, self.max_scroll);
-        self.scroll += (self.target - self.scroll) * (1.0 - (-dt * 14.0).exp());
-        if (self.target - self.scroll).abs() < 0.5 {
-            self.scroll = self.target;
-        }
-        self.scroll = self.scroll.clamp(0.0, self.max_scroll);
+        // A section scrolled to keeps a little room above its heading.
+        self.anchor = [20.0 * s, 1.0];
+        let now = self.glide();
 
         self.ui.begin_transparent(viewport);
         let theme = self.ui.theme();
@@ -905,6 +1032,9 @@ impl Panel {
                         continue;
                     }
                     chip_x += chip(canvas, chip_x, y, count, label, palette, s) + 10.0 * s;
+                }
+                for &(medal, count) in &card.medals {
+                    chip_x += medal_chip(canvas, chip_x, y, medal, count, palette, s) + 10.0 * s;
                 }
                 if !links.is_empty() {
                     y += 30.0 * s + 14.0 * s;
@@ -1314,6 +1444,7 @@ impl Panel {
                 lines,
                 handle,
                 links,
+                ..
             } => {
                 let rect = Rect::new(rect.x, top + rect.y + lift, rect.width, rect.height);
                 let person = &self.sections[*section].cards[*card];
@@ -1356,6 +1487,14 @@ impl Panel {
                     0.3 * s,
                 );
                 y += 30.0 * s;
+                if !person.medals.is_empty() {
+                    let mut chip_x = x;
+                    for &(medal, count) in &person.medals {
+                        chip_x += medal_chip(canvas, chip_x, y - 2.0 * s, medal, count, palette, s)
+                            + 10.0 * s;
+                    }
+                    y += MEDAL_ROW * s;
+                }
                 if !lines.is_empty() {
                     let _ = canvas.draw_list_mut().push(DrawCommand::SolidRect {
                         rect: Rect::new(x, y - 8.0 * s, width, s.max(1.0)),
@@ -1957,6 +2096,63 @@ fn chip(
     width
 }
 
+/// A medal's chip, as wide as it needs: its medallion, then its name (with how
+/// often it was given, past once) in the count chips' lettering.
+fn medal_chip(
+    canvas: &mut MenuCanvas,
+    x: f32,
+    y: f32,
+    medal: Medal,
+    count: u32,
+    palette: Palette,
+    s: f32,
+) -> f32 {
+    let times = if count > 1 {
+        3 + count.checked_ilog10().unwrap_or(0) as usize
+    } else {
+        0
+    };
+    // The label's capitals, spaced as the count chips', are about 8.2 a letter.
+    let letters = (medal.name().len() + times) as f32;
+    let width = (38.0 + letters * 8.2 + 20.0) * s;
+    let rect = Rect::new(x, y, width, 30.0 * s);
+    let _ = canvas.draw_list_mut().push(DrawCommand::RoundedRect {
+        rect,
+        radius: 15.0 * s,
+        color: alpha(palette.accent, 0.12),
+    });
+    let _ = canvas.draw_list_mut().push(DrawCommand::Border {
+        rect,
+        radius: 15.0 * s,
+        width: s.max(1.0),
+        color: alpha(palette.accent, 0.4),
+    });
+    let _ = canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
+        rect: Rect::new(x + 5.0 * s, y + 2.0 * s, 26.0 * s, 26.0 * s),
+        texture: medal.icon(),
+        color: Color::new(1.0, 1.0, 1.0, 1.0),
+    });
+    let label = Rect::new(x + 38.0 * s, y + 8.0 * s, width, 16.0 * s);
+    let caps = crate::menu::classic::view::Caps(medal.name());
+    let mut write = |args: std::fmt::Arguments<'_>| {
+        canvas.text_fmt_aligned(
+            args,
+            label,
+            11.0 * s,
+            palette.shine,
+            FontWeight::Semibold,
+            2.2 * s,
+            TextAlign::Start,
+        );
+    };
+    if count > 1 {
+        write(format_args!("{caps} X{count}"));
+    } else {
+        write(format_args!("{caps}"));
+    }
+    width
+}
+
 /// Text that opens an address: shines and is underlined under the pointer,
 /// and takes clicks while shown and while the frame has areas left.
 #[allow(clippy::too_many_arguments)]
@@ -2068,10 +2264,14 @@ fn header_height(s: f32) -> f32 {
 /// Space above a card's links.
 const LINK_GAP: f32 = 10.0;
 
-/// A card's height for `lines` wrapped lines from `items` contributions and
-/// `links` links.
-fn card_height(lines: usize, items: usize, links: usize, s: f32) -> f32 {
-    let head = 18.0 + NAME * 1.25 + 4.0 + 30.0;
+/// Room a card's row of medal chips takes under its role.
+const MEDAL_ROW: f32 = 38.0;
+
+/// A card's height for `lines` wrapped lines from `items` contributions,
+/// `links` links and a row of medals when it has `medals`.
+fn card_height(lines: usize, items: usize, links: usize, medals: bool, s: f32) -> f32 {
+    let medals = if medals { MEDAL_ROW } else { 0.0 };
+    let head = 18.0 + NAME * 1.25 + 4.0 + 30.0 + medals;
     let body = lines as f32 * BODY_LINE + items as f32 * 4.0;
     let links = if links == 0 {
         0.0
@@ -2138,27 +2338,44 @@ fn backdrop(canvas: &mut MenuCanvas, viewport: [f32; 2], palette: Palette, now: 
         alpha(RAY_GOLD, 0.30 - 0.08 * breathe),
     );
     let s = crate::ui_scale::height_scale(height);
-    for spark in 0..SPARKS {
+    sparks(
+        canvas,
+        Rect::new(0.0, 0.0, width, height),
+        now,
+        [palette.shine, palette.accent],
+        (SPARKS, 0.55),
+        s,
+    );
+}
+
+/// `count` sparks rising through `area` (window pixels) at most `strength`
+/// opaque, every third in `colors[0]` and the rest in `colors[1]`, from the
+/// clock alone; `s` is the layout scale.
+fn sparks(
+    canvas: &mut MenuCanvas,
+    area: Rect,
+    now: f32,
+    colors: [Color; 2],
+    (count, strength): (usize, f32),
+    s: f32,
+) {
+    for spark in 0..count {
         let seed = emblem::hash(spark as u32);
         let column = (seed & 0xffff) as f32 / 65_535.0;
         let speed = 18.0 + ((seed >> 16) & 0xff) as f32 / 255.0 * 46.0;
         let start = ((seed >> 24) & 0xff) as f32 / 255.0;
-        let rise = (start + now * speed * s / height).fract();
-        let y = height * (1.0 - rise);
+        let rise = (start + now * speed * s / area.height.max(1.0)).fract();
+        let y = area.y + area.height * (1.0 - rise);
         let sway = (now * 0.6 + spark as f32).sin() * 14.0 * s;
         let size = (1.5 + (seed % 5) as f32 * 0.6) * s;
         let twinkle = 0.25 + 0.75 * (0.5 + 0.5 * (now * 2.3 + spark as f32 * 1.7).sin());
         // Sparks fade in at the bottom and out at the top.
         let fade = (rise * 4.0).min(1.0) * ((1.0 - rise) * 3.0).min(1.0);
-        let color = if spark % 3 == 0 {
-            palette.shine
-        } else {
-            palette.accent
-        };
+        let color = colors[usize::from(spark % 3 != 0)];
         let _ = canvas.draw_list_mut().push(DrawCommand::RoundedRect {
-            rect: Rect::new(column * width + sway, y, size, size),
+            rect: Rect::new(area.x + column * area.width + sway, y, size, size),
             radius: size * 0.5,
-            color: alpha(color, 0.55 * twinkle * fade),
+            color: alpha(color, strength * twinkle * fade),
         });
     }
 }
