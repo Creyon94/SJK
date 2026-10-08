@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 08/10/2026 | - | Quick wheel editor: Q (last page) in normal case
+- 8f60548 |  | Quick wheel editor: key names in capitals, the last-page note as written
 + 08/10/2026 | - | Quick wheel: Sol's icons for every action, and sounds
 - 77a8194 |  | Quick wheel: an icon for every action, and page, move and run sounds
 + 08/10/2026 | - | Menus say SJK instead of Sol JK

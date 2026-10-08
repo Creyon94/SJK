@@ -578,7 +578,7 @@ impl WheelEditor {
                         frame,
                         &mut y,
                         "Key",
-                        &keys.to_uppercase(),
+                        &keys,
                         color::GOLD_BRIGHT,
                     );
                 }

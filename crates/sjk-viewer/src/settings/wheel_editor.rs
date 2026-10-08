@@ -212,16 +212,19 @@ impl WheelEditor {
             .bool_cvar(crate::quick_wheel::SOUNDS_CVAR)
             .unwrap_or(true);
         // A page with no key of its own names the keys of the bare `+wheel`
-        // (Q by default), which opens on the page used last.
+        // (Q by default), which opens on the page used last. Key names show
+        // in capitals, the note after them as written.
         let last = console.keys_for_command(crate::quick_wheel::OPEN_COMMAND);
-        let last = (!last.is_empty()).then(|| format!("{} (last page)", last.join(", ")));
+        let last =
+            (!last.is_empty()).then(|| format!("{} (last page)", last.join(", ").to_uppercase()));
         self.keys = self
             .pages
             .iter()
             .map(|page| {
                 let own = console
                     .keys_for_command(&format!("{} {}", crate::quick_wheel::OPEN_COMMAND, page.id))
-                    .join(", ");
+                    .join(", ")
+                    .to_uppercase();
                 match &last {
                     Some(last) if own.is_empty() => last.clone(),
                     _ => own,
@@ -1132,7 +1135,7 @@ mod tests {
         let mut editor = WheelEditor::default();
         editor.open(&console, WheelMode::Category);
         // Q opens the page used last; General has no key of its own.
-        assert_eq!(editor.keys[0], "q (last page)");
-        assert_eq!(editor.keys[1], "r");
+        assert_eq!(editor.keys[0], "Q (last page)");
+        assert_eq!(editor.keys[1], "R");
     }
 }
