@@ -61,6 +61,16 @@ by its users and subtracted from shader time; server offsets are parsed like C
 `atof`. Removing an entry from the server's configstring alone does not undo it,
 matching stock cgame.
 
+A replacement keeps the lighting of the surface it replaces: a lightmapped world
+surface samples its own lightmap page, a vertex-lit one its vertex light, and an
+entity material its entity light. Here SJK departs from rd-vanilla, whose
+`R_RemapShader` draws the target as first registered: with `LIGHTMAP_NONE` when the
+world never used it (a `$lightmap` stage becomes the white image, an unscripted
+texture is lit by `rgbGen lightingDiffuse`), or with whichever lightmap page another
+surface gave it. Either way the remapped surface ignored the map's light, uniformly
+bright or patchy (08/10/2026). A target shader without a `$lightmap` stage still
+shows only the lighting its stages ask for.
+
 The map's own worldspawn remaps apply when its world loads, as rd-vanilla
 `R_LoadEntities` applies them: every key starting with `remapshader` (case-sensitive,
 so `remapshader2` too) whose value is `old;new`, split at the first `;`. A value

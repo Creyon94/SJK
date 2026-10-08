@@ -84,30 +84,18 @@ impl Runtime {
         if index == usize::MAX {
             return Ok(false);
         }
-        // R_RemapShader selects an already registered target by name, or
-        // registers it with LIGHTMAP_NONE. It does not borrow the source's
-        // lightmap when the replacement has never been used by this world.
-        let target_source = self
-            .remaps
-            .sources
-            .iter()
-            .rev()
-            .find(|s| s.name.as_deref() == Some(target));
-        let (lightmap_index, lightmap) = if original.name.as_deref() == Some(target) {
-            (original.key.lightmap, &original.lightmap)
-        } else {
-            target_source.map_or(
-                (
-                    crate::world_stage::LIGHTMAP_NONE,
-                    &self.forge.fallback_lightmap,
-                ),
-                |s| (s.key.lightmap, &s.lightmap),
-            )
-        };
+        // The replacement keeps the slot's own lighting: its lightmap page, vertex
+        // light or per-entity light. rd-vanilla's R_RemapShader instead draws the
+        // target as it was first registered: with LIGHTMAP_NONE when the world never
+        // used it (`$lightmap` becomes the white image, an unscripted texture
+        // `lightingDiffuse`), or with another surface's lightmap page, which this
+        // surface's lightmap coordinates do not address. Both leave the surface unlit
+        // by the map, so SJK departs from it here.
         let key = ViewerMaterial {
             shader: target.to_owned(),
-            lightmap: lightmap_index,
+            lightmap: original.key.lightmap,
         };
+        let lightmap = &original.lightmap;
         let definition = shaders.get(target);
         let mut compiled = compile_material(
             vfs,
