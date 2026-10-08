@@ -402,6 +402,16 @@ change: The forced-model policy is recorded but not applied until there is a gam
 test: Connect to a server; logs\last-client.log has no "force-model client" lines.
 test: cg_forceModel 1 in a match: other players still switch to your model at once.
 
+[remap-lighting]
+area: Rendering & effects
+title: Remapped surfaces keep the map's light (SJK PR #32)
+change: A surface remapped to another shader keeps its own lightmap, vertex light or entity light.
+change: They were drawn unlit, flat and uniformly pale, as rd-vanilla's R_RemapShader registers them.
+test: On a JA+ server that remaps world textures: the surfaces show the map's light and shadow.
+test: remapShader <old> <new> on a map: the surface keeps its shadows; clearRemaps undoes it.
+test: Glowing, sky and effect targets with their own stages look as before.
+note: Checked offline on mp/duel6 only; not on a live server or with a $lightmap target shader.
+
 # ---- Audio ----
 
 # ---- Gameplay ----

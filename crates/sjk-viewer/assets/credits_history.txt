@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 08/10/2026 | SJK #32 | Keep the replaced surface's lighting on shader remaps
+- 82d4108 |  | Keep the replaced surface's lighting on shader remaps
 + 08/10/2026 | - | Achievement unlocked pop-up with JKA's secret-area sound
 - 3d143e7 |  | Achievement pop-up: animated card with the secret-area sound
 + 08/10/2026 | - | Staff tools: give and take back medals, clear achievements, from the game

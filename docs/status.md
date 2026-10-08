@@ -7,6 +7,25 @@ SJK currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Remapped surfaces keep the map's light
+
+Branch `fix/remap-source-lightmap` (08/10/2026, based on `6d2eb4b`, Linux): Sol
+saw that surfaces a server remaps seem not to react to light. A replacement was
+compiled as rd-vanilla `R_RemapShader` registers it: with `LIGHTMAP_NONE` when the
+world never used the target (a flat grey lightmap, or the fixed fallback entity
+light for an unscripted texture), or with another surface's lightmap page. It now
+keeps the replaced surface's own lightmap, vertex light or entity light
+([rendering](rendering.md#server-shader-remaps)). This explains the "not affected by
+light", uniformly pale surfaces in Sol's world notes from a JA+ server (below).
+
+Verified: workspace formatting, the locked build, clippy (no new warnings) and the
+locked tests passed on Linux. The ignored world shot `world_shot::notes::world_notes`
+on `mp/duel6`, with yavin floors and walls remapped to `textures/imperial/*` images,
+showed them flat and uniformly lit before the change and with the map's light and
+shadow after it, matching the unremapped map; the harness's process exits with a
+SIGSEGV after the test passes, with and without the change. Not checked on a live
+server or demo, nor with a remap target shader that has a `$lightmap` stage.
+
 ## Achievement pop-up
 
 SJK-only branch `personal/achievement-toast` (08/10/2026, based on `cf77cf8`,
