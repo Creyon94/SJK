@@ -15,10 +15,10 @@
 //! to the open fraction, a bar in `console_color` under it, the version line and
 //! the local date and time in the bottom-right corner, the scrollback from the
 //! bottom up to the top of the screen (a row of `^` when scrolled back), and the
-//! input row: a green clock, `]` and the raw input with a blinking cursor (an
-//! underscore, or a block in overstrike mode). Closed, it draws the notify lines
-//! at the top left while a game is running and no menu has focus. A
-//! disconnected client without a menu shows the console full screen.
+//! input row: a green clock, `]` and the input, colour codes shown and applied,
+//! with a blinking cursor (an underscore, or a block in overstrike mode). Closed,
+//! it draws the notify lines at the top left while a game is running and no menu
+//! has focus. A disconnected client without a menu shows the console full screen.
 //!
 //! The SJK UI's console, the deck ([`sjk`]), is this console with another skin:
 //! the same grid, rows, keys, selection and notify lines, drawn in the SJK UI's
@@ -212,6 +212,28 @@ fn colour_code(bytes: &[u8], index: usize) -> Option<u8> {
         .flatten()
         .filter(u8::is_ascii_digit)
         .map(|digit| digit - b'0')
+}
+
+/// The characters of the input row with the colour each is drawn in, starting in
+/// `color`, the codes in `palette` (the game's colours, or the SJK UI's legible
+/// ones as the deck draws its rows). EternalJK draws the input with its colour codes
+/// shown but obeyed (`Con_DrawInput` passes `noColorEscape`, JoF EternalJK
+/// `codemp/client/cl_console.cpp:847-848` at bd5e202, through
+/// `Field_VariableSizeDraw`, `cl_keys.cpp:455`, to `SCR_DrawSmallStringExt`,
+/// `cl_scrn.cpp:388-414`): a colour code switches the colour and is itself drawn in
+/// the new one, so `^1a` shows `^1a` in red.
+fn input_colours(
+    text: &str,
+    mut color: [f32; 4],
+    palette: CodePalette,
+) -> impl Iterator<Item = (char, [f32; 4])> + '_ {
+    let bytes = text.as_bytes();
+    text.char_indices().map(move |(index, character)| {
+        if let Some(code) = colour_code(bytes, index) {
+            color = palette.colour(code);
+        }
+        (character, color)
+    })
 }
 
 /// Whether `character` takes no cell: Windows-1252's typographic characters
@@ -476,6 +498,17 @@ impl Painter<'_> {
     fn raw(&self, frame: &mut ConsoleFrame, text: &str, column: usize, y: f32, color: [f32; 4]) {
         let visible = text.chars().filter(|&character| !hidden(character));
         for (offset, character) in visible.enumerate() {
+            let byte = console_byte(character);
+            self.glyph(frame, byte, self.grid.x(column + offset), y, color);
+        }
+    }
+
+    /// Draw the input row's `text` from column `column` on, every character colour
+    /// codes included, each in the colour [`input_colours`] gives it.
+    fn input(&self, frame: &mut ConsoleFrame, text: &str, column: usize, y: f32, color: [f32; 4]) {
+        let visible = input_colours(text, color, self.ink.palette)
+            .filter(|&(character, _)| !hidden(character));
+        for (offset, (character, color)) in visible.enumerate() {
             let byte = console_byte(character);
             self.glyph(frame, byte, self.grid.x(column + offset), y, color);
         }
@@ -905,7 +938,7 @@ impl ViewerConsole {
     }
 
     /// The input row at `y`: the green clock and `]` (classic) or the prompt
-    /// the SJK UI's draws, the raw input and the cursor.
+    /// the SJK UI's draws, the input in its colour codes and the cursor.
     fn classic_input(
         &mut self,
         frame: &mut ConsoleFrame,
@@ -971,7 +1004,7 @@ impl ViewerConsole {
             }
         }
         let white = prompt.text_color;
-        painter.raw(
+        painter.input(
             frame,
             &self.input[start..shown_end],
             prompt.input_column,
@@ -1088,6 +1121,45 @@ fn console_byte(character: char) -> u8 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_input_obeys_its_colour_codes_and_shows_them() {
+        let white = quake_color(7);
+        let drawn: Vec<(char, [f32; 4])> =
+            input_colours("x^1a^2b^", white, CodePalette::Game).collect();
+        let colours: Vec<[f32; 4]> = drawn.iter().map(|&(_, colour)| colour).collect();
+        assert_eq!(
+            drawn
+                .iter()
+                .map(|&(character, _)| character)
+                .collect::<String>(),
+            "x^1a^2b^"
+        );
+        assert_eq!(
+            colours,
+            [
+                white,
+                quake_color(1),
+                quake_color(1),
+                quake_color(1),
+                quake_color(2),
+                quake_color(2),
+                quake_color(2),
+                // A caret with no digit after it changes nothing.
+                quake_color(2),
+            ]
+        );
+    }
+
+    #[test]
+    fn the_deck_colours_its_input_in_its_legible_palette() {
+        let legible = CodePalette::Legible;
+        let drawn: Vec<[f32; 4]> = input_colours("^1a", quake_color(7), legible)
+            .map(|(_, colour)| colour)
+            .collect();
+        assert_eq!(drawn, [legible.colour(1); 3]);
+        assert_ne!(legible.colour(1), quake_color(1));
+    }
 
     #[test]
     fn typographic_symbols_take_no_cell_but_stay_in_the_text() {

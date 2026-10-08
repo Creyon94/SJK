@@ -53,7 +53,7 @@ link: https://sol-vulpes.github.io/SJK/
 
 [Creyon]
 github: Creyon94
-role: Contributor and tester: 21 merged pull requests, EternalJK parity
+role: Contributor and tester: 22 merged pull requests, EternalJK parity
 medal: early_contributor
 did: #2 #7 Duel challenges from names with symbols, centre prints kept whole
 did: #3 The third-person camera damped per frame as EternalJK (cg_cameraFPS)
@@ -69,6 +69,7 @@ did: #15 #17 JoF's HD effects and images load
 did: #16 #18 View weapon FOV, first-person zoom, HD scope mask, camera shakes
 did: #21 fx_debug and cg_debugMissiles diagnostics
 did: #23 Smooth melee kicks, predicted in a joined game and held still on JA+
+did: #31 Console input shown in its colour codes
 link: Creyon's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ACreyon94
 
 [Lumaya]

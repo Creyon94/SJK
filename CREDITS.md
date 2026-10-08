@@ -71,7 +71,7 @@ Sol develops SJK and sets its direction. Sol's work includes:
 Creyon and Lumaya wear the SJK team's Early Contributor medal, shown on their
 cards of the in-game credits page.
 
-Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 21
+Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 22
 pull requests merged into SJK, most of them bringing SJK in line with EternalJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ACreyon94)):
 
@@ -97,7 +97,8 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   the HD scope mask and camera shakes measured from the view;
 - #21 the `fx_debug` and `cg_debugMissiles` diagnostics;
 - #23 smooth melee kicks: kicks and saber attacks predicted in a joined game,
-  and the kicker held still through JA+'s own kicks, as JoF EternalJK.
+  and the kicker held still through JA+'s own kicks, as JoF EternalJK;
+- #31 the console input row drawn in its colour codes, as EternalJK.
 
 Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 4 pull requests
 merged into SJK

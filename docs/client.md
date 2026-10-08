@@ -2248,8 +2248,9 @@ Scrolled back, a row of `^` every four columns in the bar colour sits under the
 rows, and new output does not move the view.
 
 The input row is two cells above the bottom edge: the local time in green in
-columns 1 to 8, `]` in column 10, then the input as typed, colour codes shown
-rather than applied, and a cursor that blinks every 256 ms: a bar on the cell's
+columns 1 to 8, `]` in column 10, then the input as typed, colour codes shown and
+applied as EternalJK draws them (`^1a` shows `^1a` in red; it was all white before),
+and a cursor that blinks every 256 ms: a bar on the cell's
 bottom rows or, in overstrike mode, a block, both solid shapes in the retail
 character set's cursor proportions (Inter cells use `_` and a box). The
 input scrolls sideways to keep the cursor on screen. In the bottom-right corner

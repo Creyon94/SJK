@@ -49,6 +49,16 @@ change: pluginDisable lists the 15 JA+ plugin features; pluginDisable <id> toggl
 test: On a JA+ server: serverconfig, then pluginDisable and pluginDisable 9 (toggle back).
 test: On a base server: serverconfig says the server runs neither.
 
+[console-input-colours]
+area: Console & chat
+title: Console input shown in its colour codes (SJK PR #31)
+change: The console's input row draws ^1 to ^9 codes in their colours, the codes included.
+change: Classic console and SJK UI console alike; the completion hint stays muted.
+test: Classic console: type ^1a^2b^3c^4d^5e^6f^7g^8h^9i^0j: each part has its colour.
+test: SJK UI console (ui_menuStyle sjk): same text, in the legible colours its rows use.
+test: A plain command stays white; a long input still scrolls and the cursor is unchanged.
+note: Creyon94 checked both consoles in game on Windows 11.
+
 # ---- Input ----
 
 [locked-binds]
