@@ -25,9 +25,10 @@ const CS_LEVEL_START_TIME: usize = 21;
 const CS_CLIENT_DUELISTS: usize = 30;
 const CS_CLIENT_DUELHEALTHS: usize = 31;
 /// The board's text runs and draw commands a frame: 32 rows of up to seven
-/// runs (a capture mode's, or any at intermission) and their shapes.
+/// runs (a capture mode's, or any at intermission) and their shapes, with room for
+/// three medal ribbon bars of four rectangles on every row.
 const TEXT_SLOTS: usize = 320;
-const DRAWS: usize = 1_024;
+const DRAWS: usize = 1_536;
 
 /// Chat remains available beside the scoreboard.
 pub(crate) fn chat_visible(information: bool, history: bool) -> bool {

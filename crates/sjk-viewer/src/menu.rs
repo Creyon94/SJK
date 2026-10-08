@@ -742,6 +742,11 @@ impl ClientMenu {
         self.state.is_overlay_visible()
     }
 
+    /// The main menu is up: not a settings, browser or connection screen.
+    pub(crate) fn on_main_menu(&self) -> bool {
+        matches!(self.state.phase(), ClientPhase::MainMenu)
+    }
+
     /// The Renderer settings page is on show; eye adaptation holds still under it.
     pub(crate) fn renderer_settings_open(&self) -> bool {
         self.is_visible()

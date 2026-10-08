@@ -270,6 +270,8 @@ pub(super) enum Source {
     Art(ArtPiece),
     /// One layer of SJK's menu emblem.
     Emblem(EmblemLayer),
+    /// One medal's whole picture.
+    Medal(crate::medals::Medal),
     /// The map preview's own texture.
     Levelshot,
     /// The classic profile's model preview.

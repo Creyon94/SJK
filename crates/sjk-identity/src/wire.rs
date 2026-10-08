@@ -211,7 +211,11 @@ mod tests {
         )
         .unwrap();
         assert!(profile.names.is_empty());
-        let ids: Vec<&str> = profile.medals.iter().map(|medal| medal.id.as_str()).collect();
+        let ids: Vec<&str> = profile
+            .medals
+            .iter()
+            .map(|medal| medal.id.as_str())
+            .collect();
         assert_eq!(ids, ["early_tester", "bug_hunter", "from_the_future"]);
         assert_eq!(profile.medals[1].count, 2);
         assert_eq!(profile.medals[1].awarded, 1_791_300_000);

@@ -270,7 +270,10 @@ overlay routes their text to the UI's families (`console_sjk_pages.rs`).
   the identity's state as a headline (the name the hub knows, or "Identity is
   off") over its lines, the switch sharing it with the hub, then while it is on
   the bio's field and Save (gold), Copy my key id and Use the official hub, and
-  the known players here under a sub-heading, verified ones marked gold.
+  the known players here under a sub-heading, verified ones marked gold. A Medals
+  column right of the page's lists the player's own medals once the hub answered
+  (picture, name in gold, description, date given, the team's note), or says how
+  medals come ([identity.md](identity.md#medals)).
 
 Credits keeps its own page.
 
@@ -561,7 +564,8 @@ page's 16:9 frame.
     hub knows ("Verified" in gold, "SJK" in holo, "You"), 37 apart, sixteen a page
     with More players... and Back; the chosen row has a gold band and edge. The
     card on the right becomes the chosen player's: name, slot and side, what the
-    hub knows (key and hub name), score and ping, and "Enter: report this player"
+    hub knows (key and hub name) and their medals (medallion and name, two a line;
+    [identity.md](identity.md#medals)), score and ping, and "Enter: report this player"
     in gold, or why not after an ember mark. Enter opens Report.
   - Report a player: the seven reasons on the arc with what each covers, and Back;
     the player's card stays on the right. Without the right to report, the

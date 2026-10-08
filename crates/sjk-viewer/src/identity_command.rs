@@ -169,6 +169,7 @@ mod tests {
                 verified: false,
                 created: 0,
                 names: Vec::new(),
+                medals: Vec::new(),
             }),
             server: None,
             players: vec![Presence {
@@ -177,6 +178,7 @@ mod tests {
                 key_id: "fedcba9876543210".to_owned(),
                 name: "Fox".to_owned(),
                 verified: true,
+                medals: Vec::new(),
             }],
             profiles: HashMap::new(),
             notice: None,
@@ -237,6 +239,7 @@ mod tests {
                 verified: true,
                 created: 0,
                 names: Vec::new(),
+                medals: Vec::new(),
             },
         );
         let lines = who_lines(&shown, Some(3));

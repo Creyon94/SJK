@@ -128,6 +128,7 @@ impl crate::GpuState {
         // SJK's emblem is on every style's main page.
         crate::menu::emblem::request();
         self.ui_shapes.install_emblem(&self.device, &self.queue);
+        self.ui_shapes.install_medals(&self.device, &self.queue);
         if style.classic_screens() || classic_console {
             if let Some(vfs) = &self.vfs {
                 art::request(vfs);

@@ -32,10 +32,12 @@ const CS_PLAYERS: usize = 1131;
 const MAX_CLIENTS: usize = 32;
 
 /// How a player appears on the scoreboard.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) struct Tag {
     /// The hub's operator vouches for this player's key.
     pub(crate) verified: bool,
+    /// The medals the SJK team gave them, for the ribbon bars.
+    pub(crate) medals: crate::medals::Medals,
 }
 
 #[derive(Default)]
@@ -244,6 +246,7 @@ pub(crate) fn hub_mark(slot: u8, shown: &str) -> Option<crate::ingame_menu::play
                 key_id: player.key_id.clone(),
                 name: player.name.clone(),
                 verified: player.verified,
+                medals: crate::medals::Medals::from_wire(&player.medals),
             })
     })
 }
@@ -272,6 +275,7 @@ pub(crate) fn tag(slot: u8, shown: &str) -> Option<Tag> {
     lock().service.as_ref()?.with_snapshot(|snapshot| {
         snapshot.badge(slot, shown).map(|player| Tag {
             verified: player.verified,
+            medals: crate::medals::Medals::from_wire(&player.medals),
         })
     })
 }
@@ -284,7 +288,24 @@ pub(crate) fn hub_info(slot: u8, shown: &str) -> Option<crate::hud::player_card:
             .map(|player| crate::hud::player_card::HubInfo {
                 name: player.name.clone(),
                 verified: player.verified,
+                medals: crate::medals::Medals::from_wire(&player.medals),
             })
+    })
+}
+
+/// The player's own key id and the medals their profile lists, once the hub has
+/// answered; `None` before that or with the feature off. Read twice a second at most,
+/// for the new medal pop-up.
+pub(crate) fn own_medals() -> Option<(String, Vec<sjk_identity::Medal>)> {
+    lock().service.as_ref()?.with_snapshot(|snapshot| {
+        let me = snapshot.me.as_ref()?;
+        if matches!(
+            snapshot.status,
+            sjk_identity::Status::Disabled | sjk_identity::Status::NoHub
+        ) {
+            return None;
+        }
+        Some((snapshot.key_id.clone(), me.medals.clone()))
     })
 }
 
@@ -355,5 +376,6 @@ mod tests {
         assert_eq!(report_gate(), crate::ingame_menu::players::Gate::NoIdentity);
         assert_eq!(hub_mark(3, "Sol"), None);
         assert!(player_report_outcome().is_none());
+        assert!(own_medals().is_none());
     }
 }

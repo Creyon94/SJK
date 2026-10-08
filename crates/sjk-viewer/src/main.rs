@@ -103,6 +103,8 @@ mod local_prediction;
 mod localization;
 mod log;
 mod main_scene_pass;
+mod medal_popup;
+mod medals;
 mod menu;
 mod menu_backdrop;
 mod menu_hud;
@@ -351,6 +353,8 @@ struct GpuState {
     world_notes: world_notes::Notes,
     /// The note and bug report panel, and the Report a bug button (`text_dialog`).
     text_dialog: text_dialog::TextDialog,
+    /// The new medal pop-up (`medal_popup`).
+    medal_popup: medal_popup::MedalPopup,
     /// A bug report is on its way to the hub (`bug_report`).
     bug_report_waiting: bool,
     /// The outcome last shown, so the next one is told apart.
@@ -1188,6 +1192,7 @@ impl GpuState {
             trace_scratch,
             world_notes: world_notes::Notes::default(),
             text_dialog: text_dialog::TextDialog::default(),
+            medal_popup: medal_popup::MedalPopup::default(),
             bug_report_waiting: false,
             bug_report_serial: 0,
             entity_lighting,
@@ -1612,6 +1617,8 @@ impl GpuState {
         self.hud_scissors =
             hud_uniform.scissors(self.configuration.width, self.configuration.height);
         let console_covers_frame = self.console_covers_frame();
+        // A new medal shows over the menus, which are not drawn under it.
+        let medal_popup = self.prepare_medal_popup(console_covers_frame);
         self.text_vertices.clear();
         self.classic_text_vertices.clear();
         game_font::prepare(self);
@@ -1672,7 +1679,7 @@ impl GpuState {
             self.append_configured_chat(viewport, text_scale, scoreboard_visible);
         }
         self.append_weapon_select_name(viewport);
-        if self.game_menu && !self.console_covers_frame() {
+        if self.game_menu && !self.console_covers_frame() && !medal_popup {
             self.refresh_game_menu_players();
             let team_sizes = self.live_session.as_ref().map_or([0, 0], |session| {
                 ingame_menu::team_sizes(session.game_state())
@@ -1707,7 +1714,11 @@ impl GpuState {
         if scoreboard_visible {
             scoreboard::append_overlay(self, viewport, text_scale * 1.05);
         }
-        if let Some(menu) = self.client_menu.as_mut().filter(|_| !console_covers_frame) {
+        if let Some(menu) = self
+            .client_menu
+            .as_mut()
+            .filter(|_| !console_covers_frame && !medal_popup)
+        {
             if menu.sjk_screen() {
                 // The SJK UI draws in its own families once they are loaded.
                 let target = if self.game_fonts.has_sjk() {
@@ -1733,6 +1744,7 @@ impl GpuState {
             && self.game_menu_page != GameMenuPage::Shot
             && !self.in_game_menu.is_sjk()
             && !console_covers_frame
+            && !medal_popup
             && !self.text_dialog.is_open();
         if launcher {
             let (vertices, font) = self.game_fonts.menu(&mut self.text_vertices, &self.ui_font);
@@ -1743,6 +1755,10 @@ impl GpuState {
             self.text_dialog.append(vertices, font, viewport);
         } else {
             self.world_notes.composer_closed();
+        }
+        if medal_popup {
+            let (vertices, font) = self.game_fonts.menu(&mut self.text_vertices, &self.ui_font);
+            self.medal_popup.append(vertices, font, viewport);
         }
         self.world_notes.draw_highlight(viewport);
         // The menu camera tour's fades, over the menu world only.
@@ -1765,20 +1781,22 @@ impl GpuState {
             information_visible.then(|| self.hud.draw_list()),
             chat_visible.then(|| self.chat.draw_list()),
             scoreboard_visible.then(|| self.scoreboard.draw_list()),
-            (self.game_menu && !console_covers_frame).then(|| self.in_game_menu.draw_list()),
+            (self.game_menu && !console_covers_frame && !medal_popup)
+                .then(|| self.in_game_menu.draw_list()),
             self.client_menu
                 .as_ref()
                 .filter(|_| !console_covers_frame)
                 .and_then(|menu| menu.backdrop_draw_list()),
             self.client_menu
                 .as_ref()
-                .filter(|_| !console_covers_frame)
+                .filter(|_| !console_covers_frame && !medal_popup)
                 .and_then(|menu| menu.draw_list()),
             self.console.as_ref().map(|console| console.draw_list()),
             launcher.then(|| self.text_dialog.launcher_draw_list()),
             self.text_dialog
                 .is_open()
                 .then(|| self.text_dialog.draw_list()),
+            medal_popup.then(|| self.medal_popup.draw_list()),
         ];
         self.ui_shapes
             .prepare_layers(&self.queue, layers.into_iter().flatten(), viewport);

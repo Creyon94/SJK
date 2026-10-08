@@ -1,6 +1,7 @@
 //! The Identity page: switch the SJK identity on or off, write an optional bio, copy the key
-//! id, and see who the hub knows on the server (state and work in `player_identity.rs`; the
-//! same things can be typed with `identity_command.rs`). There is no name to choose: the hub
+//! id, see the medals the SJK team gave you (`identity_panel_medals.rs`) and who the hub
+//! knows on the server (state and work in `player_identity.rs`; the same things can be
+//! typed with `identity_command.rs`). There is no name to choose: the hub
 //! takes the name the player plays under, so a new player has nothing to do here.
 //!
 //! Opened by the main menu's SJK page, the in-game SJK menu or the `identity` console
@@ -19,6 +20,8 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 
 #[path = "identity_panel_classic.rs"]
 mod classic;
+#[path = "identity_panel_medals.rs"]
+mod medals;
 #[path = "identity_panel_sjk.rs"]
 mod sjk;
 
@@ -191,6 +194,8 @@ struct View {
     headline: String,
     lines: Vec<String>,
     players: Vec<PlayerLine>,
+    /// The player's own medals, once the hub sent their profile.
+    medals: Option<Vec<crate::medals::Award>>,
 }
 
 fn plain(headline: &str, lines: &[&str]) -> View {
@@ -198,6 +203,7 @@ fn plain(headline: &str, lines: &[&str]) -> View {
         headline: headline.to_owned(),
         lines: lines.iter().map(|line| (*line).to_owned()).collect(),
         players: Vec::new(),
+        medals: None,
     }
 }
 
@@ -260,6 +266,12 @@ fn view(inputs: &Inputs<'_>) -> View {
     };
     if let Some(notice) = &snapshot.notice {
         view.lines.push(format!("Last change: {notice}"));
+    }
+    if !matches!(snapshot.status, Status::Disabled | Status::NoHub) {
+        view.medals = snapshot
+            .me
+            .as_ref()
+            .map(|me| crate::medals::awards(&me.medals));
     }
     view.players = snapshot
         .players
@@ -330,6 +342,7 @@ fn online(snapshot: &Snapshot, key: String, backup: [String; 2]) -> View {
         headline,
         lines,
         players: Vec::new(),
+        medals: None,
     }
 }
 
@@ -598,7 +611,15 @@ impl Panel {
         let theme = self.ui.theme();
         let x = layout.margin;
         let top = viewport[1] * 0.17 + 112.0 * s;
-        let width = (viewport[0] - x * 2.0).min(840.0 * s);
+        let mut width = (viewport[0] - x * 2.0).min(840.0 * s);
+        // The medals' panel sits right of the card, which narrows to leave it room.
+        let medals_gap = 24.0 * s;
+        let medals_width = view.medals.as_ref().map(|_| {
+            let room = viewport[0] - x * 2.0 - medals_gap;
+            let panel = (room - width).clamp(300.0 * s, 520.0 * s);
+            width = width.min(room - panel);
+            panel
+        });
         let pad = 24.0 * s;
         let line = 22.0 * s;
         let fields_height = if self.fields {
@@ -765,6 +786,17 @@ impl Panel {
                 y += 26.0 * s;
             }
         }
+        if let (Some(medals), Some(panel)) = (&view.medals, medals_width) {
+            self.modern_medals(
+                medals,
+                font,
+                card.right() + medals_gap,
+                top,
+                panel,
+                viewport[1] - 96.0 * s,
+                s,
+            );
+        }
         let enter = match self.focus {
             Focus::Toggle => "Switch",
             Focus::Bio | Focus::Save => "Save",
@@ -845,6 +877,7 @@ mod tests {
             verified: false,
             created: 0,
             names: Vec::new(),
+            medals: Vec::new(),
         }
     }
 
@@ -904,6 +937,7 @@ mod tests {
             key_id: "aaaaaaaaaaaaaaaa".to_owned(),
             name: "Kit".to_owned(),
             verified: true,
+            medals: Vec::new(),
         }];
         let shown = view(&inputs(Some(&state)));
         assert_eq!(shown.headline, "Sol");
@@ -956,6 +990,29 @@ mod tests {
     }
 
     #[test]
+    fn the_page_lists_the_players_own_known_medals_once_the_hub_answered() {
+        let mut state = snapshot(Status::Online);
+        assert_eq!(view(&inputs(Some(&state))).medals, None, "no profile yet");
+        state.me = Some(me("Sol", ""));
+        assert_eq!(view(&inputs(Some(&state))).medals, Some(Vec::new()));
+        let medal = |id: &str, count| sjk_identity::Medal {
+            id: id.to_owned(),
+            count,
+            awarded: 1_791_336_225,
+            note: "^2Thanks".to_owned(),
+        };
+        state.me = Some(Profile {
+            medals: vec![medal("bug_hunter", 2), medal("unknown", 1)],
+            ..me("Sol", "")
+        });
+        let medals = view(&inputs(Some(&state))).medals.expect("medals");
+        assert_eq!(medals.len(), 1);
+        assert_eq!(medals[0].label(), "Bug Hunter x2");
+        assert_eq!(medals[0].note, "Thanks");
+        assert_eq!(view(&inputs(None)).medals, None);
+    }
+
+    #[test]
     fn a_failed_hub_says_why_and_that_it_retries() {
         let state = snapshot(Status::Failed("cannot reach the hub: timed out".to_owned()));
         let shown = view(&inputs(Some(&state)));
@@ -974,6 +1031,7 @@ mod tests {
                 key_id: format!("{slot:016x}"),
                 name: format!("p{slot}"),
                 verified: false,
+                medals: Vec::new(),
             })
             .collect();
         assert_eq!(view(&inputs(Some(&state))).players.len(), PLAYERS_SHOWN);
