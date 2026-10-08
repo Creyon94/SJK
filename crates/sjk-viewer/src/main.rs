@@ -1705,8 +1705,11 @@ impl GpuState {
                 vote_active: self.vote_active(),
                 _frame: std::marker::PhantomData,
             };
-            if self.in_game_menu.is_sjk() && view.page != GameMenuPage::Shot {
-                self.refresh_game_menu_card();
+            if self.in_game_menu.is_sjk() {
+                // Camera control has no match card.
+                if view.page != GameMenuPage::Shot {
+                    self.refresh_game_menu_card();
+                }
                 let target = ingame_menu::sjk_view::text_target(
                     &mut self.game_fonts,
                     &mut self.text_vertices,

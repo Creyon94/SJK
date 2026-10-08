@@ -1648,7 +1648,7 @@ right after the sky, with the sky faces' own geometry and depth test, so it neve
 covers the world: each pixel marches its view ray through the layer (fading out
 towards the horizon and with distance), with two looks towards the sun for its
 shadowing, a forward-scattering rim, darker dense insides and skylight. The sun is
-the lighting passes' (the day clock's, or the shot director's) or else the sky's
+the lighting passes' (the day clock's, or Camera control's) or else the sky's
 authored one; night leaves only a dim skylight. The layer drifts across the world at
 a slow breeze plus half the weather's wind; rain and snow raise the cover from 0.42
 to up to 0.92 and darken it. Its colour is in the scene's light units (the sky's

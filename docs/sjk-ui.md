@@ -11,7 +11,8 @@ fixes. A profile saved with the old default `classic` moves to `sjk` once
 
 Status (07/10/2026): the main page, Settings (with the key bindings),
 Character, What's new, Update, Identity, Servers (the server browser), the
-loading screen, the scoreboard and the in-game menu are done. Every other
+loading screen, the scoreboard and the in-game menu are done, and Camera
+control (08/10/2026). Every other
 screen opens in its classic+ version (`MenuStyle::classic_screens`), which
 covers the map as the classic style does.
 Other styles: First setup's first row, Settings > Interface > Menu style, or
@@ -635,8 +636,8 @@ page's 16:9 frame.
   in its turning ring. Leaving entries are ember when chosen; Back and Stay are
   quiet, as is the main page's Leave.
 - **Pages:**
-  - Main: Resume, Team, Players, Vote, Character, Settings, Servers, Shot
-    controls, Sol JK, Leave.
+  - Main: Resume, Team, Players, Vote, Character, Settings, Servers, Camera
+    control, Sol JK, Leave.
   - Players: a small scoreboard in place of the arc ([identity.md](identity.md#player-reports)):
     the title and how many are on the server (or why the player cannot report, in
     ember), then a table from x 340 to 1330 under a darker fade: a team's colour
@@ -682,10 +683,56 @@ pointer chooses by hovering and acts with a click. Character, Settings and
 Servers hand over to their screens over the match and come back on their
 entry: Settings, Servers and Character are the SJK UI's, Settings opened on the
 category last shown, all with "Game menu" as their way back (Character's model
-in a live preview, as there is no stage in a match: see Character). Shot controls
-opens the shot panel in its own look. Server info and Controls have no entries:
+in a live preview, as there is no stage in a match: see Character). Camera
+control opens its panel in the SJK UI's look ([Camera control](#camera-control)).
+Server info and Controls have no entries:
 the card shows the server and Settings holds the key bindings. The Report a bug
 button the other looks put at the bottom is left out; Sol JK's page has it.
+
+## Camera control
+
+[shot/sjk_view.rs](../crates/sjk-viewer/src/ingame_menu/shot/sjk_view.rs): the
+panel for framing shots ([client.md](client.md#camera-control) has what it
+does), opened by the in-game menu's Camera control or F8. Sol renamed it from Shot
+controls and asked for this look on 08/10/2026. Its purpose is the scene, so the
+match draws undimmed over most of the window, and the panel is a column down the
+right edge:
+
+- **Frame:** a 1080-line frame whose right edge is the window's, not the main
+  page's centred one, so the column hugs the edge on any window (x 1440, 416
+  wide) and a wider window shows more scene. Under it a navy fade, clear at x
+  1200, 72 % at 1400, 86 % at the edge, the full height; nothing else darkens the
+  scene.
+- **Viewfinder:** the screen's one memorable thing. Thin holo corner marks at
+  the window's corners (the picture once the panel hides) and small crosses where
+  its thirds cross, for placing the subject.
+- **Top:** "Camera control" (Rajdhani 42), what it is for, then the pages as tabs,
+  Camera and Sun, the one on show gold and underlined (Character's tabs).
+- **Camera page:** View from (Back, Front, Left, Right as kit buttons), then
+  Framing: Angle, Pitch, Distance and Height.
+- **Sun page:** Sunlight: the sun's direction and elevation, a line on what the
+  angles mean and one on what holds the sun now (white when Camera control does),
+  and Reset sun as a full-width button; without real-time lighting or open sky,
+  why the sun cannot be set here.
+- **Motion** (both pages, at the same place): Move duration and Orbit speed,
+  Orbit, Stop and Reset (Ease back on the Sun page), the Live preview and HUD
+  switches, then Hide panel (gold, Move and hide while live preview is off) and
+  Close.
+- **Sliders:** a row of 56: the name (Exo 2 19) and the number (Rajdhani 21, to a
+  tenth, its unit in Exo 2, since Rajdhani's degree sign reads as an apostrophe)
+  on one line, the kit's slider across the whole column under them. The
+  track's pointer area is exactly the drawn track, so a click or a drag lands
+  where it shows; the number is its own area (a click types it).
+- **Keys:** two lines at the column's foot, right-aligned: what has the keyboard
+  (Left Right adjust and Enter type on a slider, Enter show, switch or act
+  elsewhere, Enter apply and Esc cancel while a number is typed), Up Down and F8
+  Esc.
+
+The focused control has the kit's band (a slider's or switch's whole row, a tab)
+or a button's white edge. It is the panel's state, tokens, keys and pointer
+(`shot::Panel`), drawn by another view: `InGameMenu::append_sjk` builds it when
+the page is `Page::Shot`. With the classic and modern menus the modern panel
+draws as before, renamed.
 
 ## Implementation
 
@@ -776,6 +823,10 @@ button the other looks put at the bottom is left out; Sol JK's page has it.
   duel6 on a made-up match (`Card::for_shot`, `InGameMenu::sjk_for_shot`):
   the main page, Team in a CTF, a vote on, the installed maps to vote for,
   Leave, a spectator's card and Settings opened from it;
+  `duel6_camera_control` Camera control over duel6 on a made-up match: the
+  in-game menu with its entry chosen, the panel's Camera and Sun pages, a number
+  typed, the Sun page where the sun cannot be set, a 4:3 window and the modern
+  look;
   `duel6_quick_wheel` the quick wheel's ring over duel6 (General, the change to
   Weather half-way, Weather, the middle, 4:3, in Inter) and
   `duel6_quick_wheel_settings` its Settings category (pages, a choice, the

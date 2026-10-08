@@ -21,6 +21,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 ## Unreleased
 
+- Shot controls is now Camera control (the game menu's entry, or F8), and with the SJK UI it has its look: a column down the right edge over a fade, the rest of the scene left clear with viewfinder corners and thirds marks, Camera and Sun as tabs, switches for live preview and the HUD, and the keys of what you are on. Up and Down stop once on each slider _(Sol)_
 - Q opens the quick wheel on the page you used last (it always opened on General); R still opens Weather _(Sol)_
 - Nameplates count Force drain: the Force bar of whoever you (or anyone) drain drops shot by shot and stops refilling for a moment, and drainers pay for their drain. The verified tick now sits level with the name _(Sol)_
 - The quick wheel has pages: hold Q, then scroll or left and right click to go from General to Weather and any page you add. Settings > Quick wheel (Interface > Quick wheel pages with the classic and modern menus) adds, names, orders and removes pages and picks each page's choices from SJK's actions or your own console commands. The wheel now has the SJK UI's look _(Sol)_

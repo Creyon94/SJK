@@ -7,6 +7,42 @@ SJK currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Camera control
+
+SJK-only branch `personal/camera-control` (08/10/2026, based on `5daf065`,
+Windows 11): Sol asked to rename Shot controls to Camera control and to restyle
+it. Everything a player reads says Camera control: the SJK UI's and the modern
+game menu's entry, the panel's title in both looks, its Sun page's line, the docs
+and the debug panel ([client.md](client.md#camera-control)). Nothing it reads or
+binds had "shot" in its name: `demo_camera`, `demo_sun`, F8 and the cvars it
+sets are unchanged, and the code keeps its identifiers (`Page::Shot`,
+`ingame_menu::shot`). With the SJK UI's menus the panel has the SJK UI's look
+([SJK UI](sjk-ui.md#camera-control)): a column down the window's right edge over
+a fade, the scene clear left of it with viewfinder corner and thirds marks, the
+kit's tabs, sliders, buttons and switches, and the keys of what has the keyboard;
+the classic and modern menus keep the modern panel. Up, Down and Tab now stop
+once on each slider in both looks (its number and track were two stops), and the
+SJK look shows numbers to a tenth.
+
+Verified: unit tests for the rename (every style's main page has Camera control
+on the row that opens the panel and no "shot"; both looks' text), the SJK look
+(every state, Camera, Sun, no sun, live preview off and a number typed, inside
+its canvas with every control's pointer area at 1080p, 4K, 21:9, 4:3 and
+1024x768; nothing but the viewfinder's hairlines left of the window's middle; the
+current tab gold, Hide panel gold, the navy fade), its pointer (a click on a
+track sets the value where it lands, on the number opens typing, on a tab, a
+switch and Hide panel acts), the keys' order in both looks, and the numbers.
+`cargo test --release -p sjk-viewer` (1055 passed), `cargo fmt`, workspace
+clippy (no new warnings in the files changed). World shots
+(`world_shot::tests::duel6_camera_control`) rendered the SJK UI's game menu with
+the entry chosen and the panel on its Camera page, the Sun page, a number being
+typed and the Sun page where the sun cannot be set over duel6 at 1080p and 4:3,
+and the modern look's entry and panel. Not verified: no game was started, so
+the panel in a real match or demo (the camera and sun moving, orbit, live
+preview, Move and hide, the HUD switch, F8), dragging with a real mouse and
+typing with a real keyboard are untested; the panel's text widths are estimated
+from the fonts, checked only in the shots.
+
 ## Quick wheel: Q opens the page used last
 
 SJK-only branch `personal/wheel-q-last` (08/10/2026, based on `5daf065`, Windows
@@ -2365,7 +2401,8 @@ Formatting, locked workspace build/tests passed.
 ## Manual slider entry preview
 
 Local preview `sliders1` (2026-10-04, based on `7155455`) adds direct numeric
-entry to every Settings slider, both sabers' RGB sliders, and all Shot sliders.
+entry to every Settings slider, both sabers' RGB sliders, and all Shot sliders
+(Camera control since 08/10/2026).
 Click the value or press Enter on its row; Enter applies, Escape cancels.
 Bounds are enforced without drag-step quantization. Drafts stay attached to
 their original row, and invalid values leave the previous setting intact.

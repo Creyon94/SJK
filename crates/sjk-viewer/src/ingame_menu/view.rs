@@ -146,7 +146,7 @@ fn team_mark(view: &View<'_>, row: usize) -> Option<Color> {
 fn page_title(page: Page) -> &'static str {
     match page {
         Page::Main => "Game menu",
-        Page::Shot => "Shot controls",
+        Page::Shot => super::CAMERA_CONTROL,
         Page::Team => "Join / team",
         Page::Siege => "Choose your class",
         Page::Sjk => "SJK",

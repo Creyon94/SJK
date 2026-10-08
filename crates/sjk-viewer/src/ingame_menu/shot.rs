@@ -1,13 +1,21 @@
-//! Compact recording controls sharing the console's presentation director.
+//! Camera control (called Shot controls until 08/10/2026): the camera and
+//! sunlight panel for framing shots and recordings, sharing the console's
+//! presentation director (`demo_camera`, `demo_sun`). The game menu's Camera
+//! control entry or F8 (while unbound) opens it. It has two looks over the same
+//! state, tokens, keys and pointer: the modern one ([`view`]) and the SJK UI's
+//! ([`sjk_view`]).
 mod numeric;
 mod runtime;
 
+mod sjk_view;
 mod view;
 use crate::menu_widgets::MenuCanvas;
-use sjk_ui::{InputEvent, UiEventKind};
+use sjk_ui::{AbstractAction, InputEvent, UiEventKind};
 
 pub(crate) const CAMERA: u16 = 10;
 pub(crate) const SUN: u16 = 11;
+/// The first of the four view presets (Back, Front, Left, Right).
+pub(crate) const PRESET: u16 = 12;
 pub(crate) const LIVE: u16 = 16;
 pub(crate) const ORBIT: u16 = 17;
 pub(crate) const STOP: u16 = 18;
@@ -84,6 +92,34 @@ impl Panel {
         view::build(self, canvas, viewport);
     }
 
+    /// Lay the panel out in the SJK UI's look.
+    pub(crate) fn build_sjk(&self, canvas: &mut MenuCanvas, viewport: [f32; 2]) {
+        sjk_view::build(self, canvas, viewport);
+    }
+
+    /// Up, Down or Tab: the next control in the drawn order, `forward` or
+    /// back. A slider's number and its track are one stop.
+    pub(crate) fn step(&mut self, canvas: &mut MenuCanvas, forward: bool) {
+        let direction = if forward {
+            AbstractAction::Next
+        } else {
+            AbstractAction::Previous
+        };
+        let stop = |token: u16| {
+            crate::menu_widgets::numeric::value_row(token).unwrap_or(usize::from(token))
+        };
+        let from = stop(self.selected);
+        for _ in 0..2 {
+            let Some(token) = canvas.action(direction) else {
+                return;
+            };
+            self.selected = token;
+            if stop(token) != from {
+                return;
+            }
+        }
+    }
+
     pub(crate) fn pointer(&mut self, canvas: &mut MenuCanvas, event: InputEvent) -> Option<Action> {
         let event = canvas.pointer(event)?;
         let token = event.token?;
@@ -157,8 +193,8 @@ impl Panel {
                 self.selected = token;
                 None
             }
-            12..=15 => {
-                self.values[0] = [0., 180., -90., 90.][(token - 12) as usize];
+            PRESET..=15 => {
+                self.values[0] = [0., 180., -90., 90.][(token - PRESET) as usize];
                 self.dirty[0] = true;
                 self.live.then_some(Action::Preview)
             }

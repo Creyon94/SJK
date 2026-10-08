@@ -42,7 +42,8 @@ fn shared<const N: usize>(args: &[String]) -> Result<Option<Request<N>>, String>
 }
 
 impl Director {
-    /// Consume locally, including malformed commands; never forward shot controls to servers.
+    /// Consume locally, including malformed commands; never forward camera
+    /// control to servers.
     pub(crate) fn command(&mut self, tokens: &[String]) -> Option<Result<Vec<String>, String>> {
         let name = tokens.first()?;
         let camera = name.eq_ignore_ascii_case("demo_camera");

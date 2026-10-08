@@ -446,7 +446,7 @@ test: Settings > VIDEO: select FPS cap, type 142 then Enter: it reads 142 (no ne
 test: Select a slider, press Space: it steps once; Enter opens the entry instead.
 test: Click a value, type 97.5, click another row: the value is applied (an invalid one is not).
 test: FPS cap: type -1 then Enter: AUTO. Type 142.6: 143. Letters and a second '.' are ignored.
-test: Player > Saber RGB and the F8 Shot panel sliders behave the same way.
+test: Player > Saber RGB and the F8 Camera control sliders behave the same way.
 
 [sjk-classic-menu]
 area: Menus & settings
@@ -1912,7 +1912,7 @@ test: Up/Down choose (gold mark follows), Enter opens; Esc on a page returns to 
 test: Team: join, spectate; in a team game your side is quiet and skipped by the keys.
 test: Vote: call a vote (map list pages with More maps); with a vote on, Vote yes / Vote no.
 test: Settings and Servers open over the match; Esc comes back on the same entry.
-test: Character opens the classic pages; Shot controls; Sol JK (What's new, Report a bug).
+test: Character opens the classic pages; Camera control; Sol JK (What's new, Report a bug).
 test: Leave opens on Stay; Leave the server and Quit to desktop turn ember when chosen.
 note: Card numbers wrong (score, place, clock), or text over the match hard to read? Tell Claude.
 
@@ -2126,6 +2126,20 @@ test: Up from the first row reaches the tick; Enter flips it. All settings: Sett
 test: Done or Esc: back to the main page. Menu style Classic in the card, then SJK: card again.
 test: Console: update. A card with Close and the gold action; Esc closes it.
 note: Resolution and HUD pickers opened from the card are untested; tell Claude if they look off.
+
+[camera-control]
+area: Menus & settings
+title: Camera control (was Shot controls), in the SJK UI's look
+change: Renamed in the game menu (SJK UI and modern) and on the panel; F8 still opens it.
+change: SJK UI: a column down the right edge over a fade; the scene stays clear, viewfinder marks.
+change: Up/Down stop once on each slider (its number and track were two stops), in both looks.
+test: Join a local server, Esc > Camera control: the column on the right, the scene clear left.
+test: Drag Distance and Angle: the camera follows. Click a number, type 120, Enter: it applies.
+test: Sun tab: direction and elevation move the sun; Reset sun hands it back to the day settings.
+test: Orbit, Stop, Reset. Live preview off, change Angle, Move and hide: it glides there.
+test: The HUD switch hides the HUD; F8 or Esc hides the panel; F8 opens it again.
+test: Modern menus: entry and panel title say Camera control; demo_camera back still works.
+note: Corner and thirds marks in the way, or the column too dark or too light? Tell Claude.
 
 [camera-ejk-default]
 area: Gameplay

@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 08/10/2026 | - | Shot controls becomes Camera control, with the SJK UI's look
+- b0e4f69 |  | Camera control: Shot controls renamed, with the SJK UI's look
 + 08/10/2026 | - | Quick wheel: Q opens the page used last
 - ca9a5ea |  | Quick wheel: Q opens the page used last
 + 08/10/2026 | - | Nameplates: drain takes from its victims; verified tick level with the name
