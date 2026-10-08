@@ -7,6 +7,17 @@ SJK currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## Quick wheel: Q opens the page used last
+
+SJK-only branch `personal/wheel-q-last` (08/10/2026, based on `5daf065`, Windows
+11): Sol asked for Q to open the quick wheel on the page used last. Q's default
+is now a bare `+wheel` (Key bindings > Other > Quick wheel); profiles that saved
+the old default `+wheel general` on Q are moved once (`cl_wheelBindVersion`,
+in the console's start, as the console key's default moved); a page bound later
+on Q, or on another key, stays, and R keeps `+wheel weather`. A unit test covers
+a new profile, the move, other keys left alone and a later choice kept. Not tried
+in a running client.
+
 ## Nameplates: drain and the verified badge
 
 SJK-only branch `personal/nameplate-drain` (08/10/2026, based on `27696e5`,

@@ -334,6 +334,26 @@ impl ViewerConsole {
                 .cvars
                 .set_text("cg_scoreboardStyleDefaultVersion", "1");
         }
+        // Q opened the quick wheel on General (`+wheel general`), and every
+        // profile saved that default; it now opens on the page used last (a
+        // bare `+wheel`). Move Q's old default once; a page bound on purpose
+        // after this, or on another key, stays.
+        if matches!(
+            shell
+                .cvars
+                .get("cl_wheelBindVersion")
+                .map(|cvar| &cvar.value),
+            Some(CvarValue::Integer(0))
+        ) {
+            if shell
+                .binds
+                .get("q")
+                .is_some_and(|command| command.trim().eq_ignore_ascii_case("+wheel general"))
+            {
+                let _ = shell.binds.bind("q", "+wheel");
+            }
+            let _ = shell.cvars.set_text("cl_wheelBindVersion", "1");
+        }
         // ui_menuStyle defaulted to classic and every profile saved it, so the
         // SJK UI, the new default, would reach none. Move a saved classic once
         // to the default; a classic (or modern) chosen after this stays.
@@ -697,5 +717,35 @@ mod tests {
         let console = ViewerConsole::new(old).unwrap();
         let kept = console.float_cvar("sensitivity").unwrap();
         assert!((kept - 13.022).abs() < 1e-9, "{kept}");
+    }
+
+    /// Q's quick wheel opens on the page used last: a new profile binds the
+    /// bare `+wheel`, Q's old saved default moves to it once, and a page bound
+    /// on purpose later (or on another key) stays.
+    #[test]
+    fn q_opens_the_quick_wheel_on_the_page_used_last() {
+        let directory = tempfile::tempdir().unwrap();
+        let fresh = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        assert_eq!(fresh.shell.binds.get("q"), Some("+wheel"));
+        let old = directory.path().join("old.cfg");
+        std::fs::write(
+            &old,
+            "bind q \"+wheel general\"\nbind e \"+wheel general\"\nbind r \"+wheel weather\"\n",
+        )
+        .unwrap();
+        let console = ViewerConsole::new(old).unwrap();
+        assert_eq!(console.shell.binds.get("q"), Some("+wheel"));
+        assert_eq!(console.shell.binds.get("e"), Some("+wheel general"));
+        assert_eq!(console.shell.binds.get("r"), Some("+wheel weather"));
+        // A profile saved after the move (the marker set) keeps a General
+        // page chosen on purpose.
+        let chosen = directory.path().join("chosen.cfg");
+        std::fs::write(
+            &chosen,
+            "seta cl_wheelBindVersion \"1\"\nbind q \"+wheel general\"\n",
+        )
+        .unwrap();
+        let console = ViewerConsole::new(chosen).unwrap();
+        assert_eq!(console.shell.binds.get("q"), Some("+wheel general"));
     }
 }

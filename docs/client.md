@@ -1756,10 +1756,13 @@ what typing it would.
 
 | Bind | Opens |
 | --- | --- |
-| `+wheel general`, Q by default | On General |
+| `+wheel`, Q by default | On the page shown last in this run (the first page in a new run) |
 | `+wheel weather`, R by default | On Weather |
-| `+wheel <page>` | On that page, named by its id or its name (case and spaces ignored) |
-| `+wheel` | On the page shown last in this run (the first page in a new run) |
+| `+wheel <page>` | On that page, named by its id or its name (case and spaces ignored), e.g. `+wheel general` |
+
+Q was `+wheel general` until 08/10/2026; a profile that saved that default has
+it moved once to `+wheel` (`cl_wheelBindVersion`), and a page bound on Q after
+that, or on another key, stays.
 
 Q and R are in Settings > Key bindings > Other (Quick wheel, and Quick wheel,
 Weather); their defaults are bound only where a profile has nothing on Q or R. A

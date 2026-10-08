@@ -1728,6 +1728,13 @@ note: The pointer's dead zone and reach are in raw mouse counts: tell Claude if 
 test: Each choice is a round metal icon; the one pointed at grows, ringed in the accent colour.
 test: Its name shows in the middle; GAME MENU and FIRST SETUP are plain discs with text.
 
+[wheel-q-last]
+area: Input
+title: Q opens the quick wheel on the page used last
+change: Q is now a bare +wheel; profiles with the old +wheel general on Q move once.
+test: Hold Q, switch to Weather, let go; hold Q again: it opens on Weather.
+test: Settings > Key bindings > Other: Quick wheel shows Q; R still opens Weather.
+
 [wheel-pages]
 area: Input
 title: Quick wheel pages: scroll or click to change page, edit them in Settings
