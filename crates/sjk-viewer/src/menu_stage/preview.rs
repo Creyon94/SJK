@@ -67,6 +67,10 @@ pub(crate) struct Preview {
     target: Option<Target>,
     /// The preview's size on screen in pixels, while the UI shows one.
     pub(super) wanted: Option<[u32; 2]>,
+    /// The room round the body (1: retail's framing) and the still angle
+    /// (none: turning), as the profile asked ([crate::player_menu::ModelPreview]).
+    pub(super) room: f32,
+    pub(super) angle: Option<f32>,
     started: Option<Instant>,
     /// The target holds a drawn frame the UI can show.
     pub(super) ready: bool,
@@ -113,11 +117,19 @@ pub(super) fn target_size([width, height]: [u32; 2]) -> [u32; 2] {
 }
 
 /// The camera for an actor at `origin` facing `facing`, `seconds` into the
-/// turn, for a target of `aspect` (width over height).
-pub(super) fn camera(origin: Vec3, facing: Vec3, aspect: f32, seconds: f32) -> (Mat4, Vec3, Vec3) {
+/// turn, for a target of `aspect` (width over height), leaving `room` times
+/// retail's framing round the body.
+pub(super) fn camera(
+    origin: Vec3,
+    facing: Vec3,
+    aspect: f32,
+    seconds: f32,
+    room: f32,
+) -> (Mat4, Vec3, Vec3) {
     let middle = origin + Vec3::Z * MIDDLE_ABOVE_ORIGIN;
     let half = (FIELD_OF_VIEW_DEGREES * 0.5).to_radians().tan();
-    let distance = (HALF_HEIGHT / half).max(HALF_WIDTH / (half * aspect.max(0.1)));
+    let room = room.max(0.5);
+    let distance = (HALF_HEIGHT * room / half).max(HALF_WIDTH * room / (half * aspect.max(0.1)));
     let turn = Quat::from_rotation_z((seconds * TURN_DEGREES_PER_SECOND).to_radians());
     let facing = Vec3::new(facing.x, facing.y, 0.0).normalize_or(Vec3::X);
     let eye = middle + turn * facing * distance + Vec3::Z * 4.0;
@@ -407,16 +419,22 @@ impl GpuState {
         ) else {
             return;
         };
-        let seconds = preview
-            .started
-            .map_or(0.0, |started| started.elapsed().as_secs_f32());
+        // Turning since it started, or held at the angle asked for.
+        let seconds = preview.angle.map_or_else(
+            || {
+                preview
+                    .started
+                    .map_or(0.0, |started| started.elapsed().as_secs_f32())
+            },
+            |angle| angle / TURN_DEGREES_PER_SECOND,
+        );
         // The model faces its yaw; the actor's rotation includes the Ghoul2
         // facing turn (`weapon_view::actor_world_rotation`).
         let facing = actor.rotation * Quat::from_rotation_z(-std::f32::consts::FRAC_PI_2) * Vec3::X;
         let aspect = target.size[0] as f32 / target.size[1] as f32;
         let (view_projection, eye, forward) = match preview.showcase {
             Some(showcase) if self.menu_stage.showcase => showcase.camera(aspect),
-            _ => camera(actor.origin, facing, aspect, seconds),
+            _ => camera(actor.origin, facing, aspect, seconds, preview.room),
         };
         let uniform = CameraUniform {
             view_projection: view_projection.to_cols_array_2d(),
@@ -531,7 +549,7 @@ mod tests {
     #[test]
     fn the_camera_frames_the_model_from_in_front() {
         let origin = Vec3::new(100.0, 50.0, 24.0);
-        let (view_projection, eye, forward) = camera(origin, Vec3::X, 1.0, 0.0);
+        let (view_projection, eye, forward) = camera(origin, Vec3::X, 1.0, 0.0, 1.0);
         // In front (on the facing side) and looking back at it.
         assert!(eye.x > origin.x + 100.0);
         assert!(forward.x < -0.9);
@@ -541,8 +559,19 @@ mod tests {
             let ndc = clip.truncate() / clip.w;
             assert!(ndc.y.abs() < 1.0 && ndc.x.abs() < 1.0, "{z}: {ndc}");
         }
+        // More room keeps a blade held out beside the body in view, where
+        // retail's framing loses it.
+        let blade_tip = Vec3::new(origin.x, origin.y + 50.0, origin.z + 30.0);
+        let inside = |room: f32| {
+            let (view_projection, ..) = camera(origin, Vec3::X, 1.0, 0.0, room);
+            let clip = view_projection * blade_tip.extend(1.0);
+            let ndc = clip.truncate() / clip.w;
+            ndc.x.abs() < 1.0 && ndc.y.abs() < 1.0
+        };
+        assert!(!inside(1.0));
+        assert!(inside(1.35));
         // A quarter turn later the camera has moved round to the side.
-        let (_, eye, _) = camera(origin, Vec3::X, 1.0, 90.0 / TURN_DEGREES_PER_SECOND);
+        let (_, eye, _) = camera(origin, Vec3::X, 1.0, 90.0 / TURN_DEGREES_PER_SECOND, 1.0);
         assert!((eye.y - origin.y).abs() > 100.0);
     }
 }

@@ -506,8 +506,10 @@ impl ClientMenu {
     /// from the Player screen).
     pub(crate) fn stage_model(&self) -> Option<(Stage, &str)> {
         // The classic profile pages draw the model's portrait over retail
-        // art; nothing stands on the stage behind them.
-        if self.player.is_classic() {
+        // art; nothing stands on the stage behind them. Opened from a game,
+        // the screen shows the model in its own preview: the menu map's stage
+        // is not the match's.
+        if self.player.is_classic() || self.player.return_target() == ReturnTarget::InGame {
             return None;
         }
         let stage = self.backdrop.as_ref()?.stage()?;

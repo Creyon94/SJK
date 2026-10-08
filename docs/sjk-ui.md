@@ -242,8 +242,18 @@ hilts and the lists' wheel areas, tokens from 1000) go to
 It is the modern screen's state and controller with another view: the rows,
 tiles, tabs and back key answer to the modern screen's tokens, each row
 registering its control before the whole row so the token's rectangle is the
-control's. Opened from a game, where there is no stage, the player screen shows
-its classic pages and their preview instead.
+control's.
+
+Opened from a game (the in-game menu's Character), where the menu map's stage
+is not, the same screen shows with "Game menu" as its way back, over the match
+dimmed by half, and the model stands right of the form in a live preview of its
+own (`menu_stage::preview`, the classic pages' preview, asked for by
+`PlayerMenu::sjk_model_preview` in the frame's `MODEL_AREA`): holding the saber
+draft lit in its style's stance, held still at a three-quarter angle (28 degrees
+to its right) rather than turning as retail's did, framed with 1.35 times
+retail's room so a raised blade stays in the picture, on a soft shadow and a
+thin gold line at its feet. `ClientMenu::stage_model` never stages a screen
+opened from a game.
 
 ## Sol JK's pages
 
@@ -594,9 +604,9 @@ Escape on a page returns to the main page on the entry that opened it (a
 call-vote list to its row of Call a vote); on the main page it resumes. The
 pointer chooses by hovering and acts with a click. Character, Settings and
 Servers hand over to their screens over the match and come back on their
-entry: Settings and Servers are the SJK UI's, opened on the category last shown
-and with "Game menu" as their way back; Character opens the classic pages, as
-the player screen does in a game (there is no stage there). Shot controls
+entry: Settings, Servers and Character are the SJK UI's, Settings opened on the
+category last shown, all with "Game menu" as their way back (Character's model
+in a live preview, as there is no stage in a match: see Character). Shot controls
 opens the shot panel in its own look. Server info and Controls have no entries:
 the card shows the server and Settings holds the key bindings. The Report a bug
 button the other looks put at the bottom is left out; Sol JK's page has it.
@@ -699,9 +709,7 @@ classic version:
 1. The dialogs (the report box, the import page) and Credits.
 2. Settings' search finding key bindings too (it finds settings; Key bindings'
    finds keys).
-3. A player screen for the in-game menu without the stage (it opens the
-   classic pages for now).
-4. Create a game.
+3. Create a game.
 
 `sjk` became the default `ui_menuStyle` before these were done. mp/duel6 has
 its tour, player stage and saber shot; it has no gate, which mp/ffa3's browser

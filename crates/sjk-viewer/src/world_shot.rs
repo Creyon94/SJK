@@ -903,6 +903,49 @@ mod tests {
         });
     }
 
+    /// The SJK UI's player screen opened from a game, over duel6 as a match
+    /// would show it (there is no server): no menu-map stage, so the model
+    /// stands in its live preview right of the form; its three pages.
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_sjk_character_in_game() {
+        on_big_stack(|| {
+            let menu = menu::ClientMenu::new(false, String::new());
+            let cvars = [
+                ("ui_menuStyle", "sjk"),
+                (crate::settings::quick::HIDE_CVAR, "1"),
+            ];
+            let Some((mut gpu, _profile)) =
+                open("maps/mp/duel6.bsp", [1920, 1080], Some(menu), &cvars)
+            else {
+                return;
+            };
+            let shots = menu_backdrop::tour_for("Yavin Training Grounds").expect("duel6's tour");
+            let (yaw, pitch) = look(shots[3].from, shots[3].at);
+            aim(&mut gpu, shots[3].from, yaw, pitch);
+            gpu.is_menu_world = false;
+            if let Some(console) = gpu.console.as_mut() {
+                console.close_for_connection();
+            }
+            let _ = frame(&mut gpu, 20);
+            // As the in-game menu's Character opens it.
+            gpu.open_player_menu_from_game();
+            // The model and its preview load.
+            let _ = frame(&mut gpu, 60);
+            println!(
+                "{}",
+                shoot(&mut gpu, 4, "duel6-character-in-game").display()
+            );
+            for (page, row, suffix) in [(1, 1, "saber"), (2, 4, "force")] {
+                if let Some(menu) = gpu.client_menu.as_mut() {
+                    menu.player_page_for_shot(page, row);
+                }
+                let path = shoot(&mut gpu, 30, &format!("duel6-character-in-game-{suffix}"));
+                println!("{}", path.display());
+            }
+        });
+    }
+
     /// The SJK UI's in-game menu over duel6 as a match would show it, on a
     /// made-up match (there is no server): the main page over an FFA, Team in
     /// a CTF with the player on blue, the ballot of a vote on, the call-vote

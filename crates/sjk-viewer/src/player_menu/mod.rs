@@ -70,11 +70,13 @@ pub(crate) enum PlayerMenuResult {
     ClassicPage(crate::menu::classic::layout::Page),
 }
 
-/// Where the classic profile shows the live model ([`crate::menu_stage::preview`]):
-/// its rectangle on the 640x480 canvas and the animation it plays.
+/// Where the profile shows the live model ([`crate::menu_stage::preview`])
+/// instead of on the menu map's stage: the classic pages, and the SJK UI's
+/// pages opened from a game (where there is no stage). Its area and the
+/// animation it plays.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct ModelPreview {
-    pub(crate) rect: [f32; 4],
+    pub(crate) area: PreviewArea,
     pub(crate) stance: &'static str,
     /// The model holds the saber draft's sabers, lit, in their style's
     /// stance (`stance` is then unused).
@@ -82,6 +84,34 @@ pub(crate) struct ModelPreview {
     /// Only the sabers are drawn, laid on their side and turning as
     /// retail's lightsaber creation spun its hilt.
     pub(crate) showcase: bool,
+    /// How much room the camera leaves round the body: 1 frames it as retail
+    /// did, more keeps a raised blade in the picture.
+    pub(crate) room: f32,
+    /// The camera's angle round the model in degrees, held still; `None`
+    /// turns round it as retail's preview did.
+    pub(crate) angle: Option<f32>,
+}
+
+/// A model preview's area: a rectangle of retail's 640x480 canvas (the
+/// classic pages) or of the SJK UI's 16:9 frame of 1080-line pixels.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) enum PreviewArea {
+    Classic([f32; 4]),
+    Sjk([f32; 4]),
+}
+
+impl PreviewArea {
+    /// The area in window pixels for a window of `viewport`.
+    pub(crate) fn window_rect(self, viewport: [f32; 2]) -> sjk_ui::Rect {
+        match self {
+            Self::Classic(rect) => {
+                crate::menu::classic::layout::Placement::new(viewport).rect(rect)
+            }
+            Self::Sjk([x, y, width, height]) => {
+                crate::menu::sjk::Frame::new(viewport).rect(x, y, width, height)
+            }
+        }
+    }
 }
 
 /// Which catalogue entry the `model` cvar currently names.

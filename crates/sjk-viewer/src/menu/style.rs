@@ -102,11 +102,10 @@ impl ClientMenu {
     /// The retail artwork the classic pages can draw this frame; the player
     /// screen follows the style and gets the same pieces. The SJK UI's player
     /// screen stands the model on the menu map's stage; opened from a game,
-    /// where there is none, it shows the classic pages and their preview.
+    /// where there is none, it shows the model in a live preview of its own.
     pub(crate) fn set_menu_art(&mut self, art: ArtSet) {
         self.art = art;
-        let sjk = self.menu_style == MenuStyle::Sjk
-            && self.player.return_target() == crate::player_menu::ReturnTarget::MainMenu;
+        let sjk = self.menu_style == MenuStyle::Sjk;
         self.player
             .set_style(self.menu_style.classic_screens() && !sjk, art);
         self.player.set_sjk(sjk);

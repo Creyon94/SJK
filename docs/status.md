@@ -7,6 +7,25 @@ JKR currently contains a native client and standard dedicated server in a
 20-crate Rust workspace. This page records scope and verification, rather than
 claiming complete parity from the presence of an implementation.
 
+## SJK UI Character in a game
+
+SJK-only branch `personal/sjk-ui-ingame-character` (08/10/2026, based on
+`0e4c914`, Windows 11): Sol asked for the SJK UI while in game. The player
+screen opened from the in-game menu (Character) now shows its SJK UI pages
+instead of the classic ones: `set_menu_art` makes it SJK in a game too, and the
+model, with no menu-map stage in a match, stands in the classic pages' live
+preview (`menu_stage::preview`) right of the form. `ModelPreview` carries a
+`PreviewArea` (classic canvas or SJK frame), a `room` round the body (1.35 here,
+so a raised blade stays in view) and a still `angle` (none: turning, as
+classic). `ClientMenu::stage_model` never stages a screen opened from a game.
+The match is dimmed by half behind the screen; the back key reads "Game menu".
+Unit tests cover the preview request in and out of a game, the preview quad on
+every page, and the camera's room keeping a held-out blade in view;
+`duel6_sjk_character_in_game` rendered the three pages over duel6 with no server
+(the in-game path forced by the return target). Not verified in a real match:
+the preview's lighting where the player stands, and handing back to the game
+menu.
+
 ## SJK UI Character: classic+ Force level marks, coloured and lit
 
 SJK-only branch `personal/sjk-ui-force-marks` (08/10/2026, based on `1eb2d77`,
