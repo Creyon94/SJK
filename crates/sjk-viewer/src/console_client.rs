@@ -70,6 +70,7 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
         "messagemode5",
         "Compose SJK chat, which every SJK player shares through the SJK hub",
     ),
+    (crate::am_color::COMMAND, crate::am_color::HELP),
     (
         "reply",
         "Whisper to the last player who whispered to you: reply <message>, or bare to open the chat on it",
@@ -571,6 +572,10 @@ impl crate::GpuState {
             }
             "messagemode5" => {
                 self.apply_input_action(Some(crate::input::InputAction::SjkMessageMode));
+            }
+            crate::am_color::COMMAND => {
+                let console = self.console.as_mut().ok_or("Console unavailable")?;
+                return crate::am_color::run(console, args);
             }
             "reply" => return self.reply_command(args),
             "toggleconsole" => {

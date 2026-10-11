@@ -5,6 +5,7 @@ mod actor_mesh;
 mod actor_pose;
 mod actor_tint;
 mod actor_world_submission;
+mod am_color;
 mod animation_timing;
 mod app_launch;
 mod assets;

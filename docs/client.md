@@ -1844,6 +1844,12 @@ restore Y global chat if needed and free; other occupied keys stay unchanged.
 This migration advances `cl_bindDefaultsVersion` to 3. Use
 `bind u messagemode3` to select U explicitly. No message is sent until Enter.
 
+`amcolor <red> <green> <blue>` (EternalJK's `amColor`) sets the player tint, the archived
+`char_color_red`, `_green` and `_blue` userinfo cvars, each 0 to 255, so the server gets
+it at once and it is kept for the next connect; bare, it prints the current tint
+([am_color.rs](../crates/sjk-viewer/src/am_color.rs)). Before, `amcolor` went to the
+server as an unknown command and the tint was lost on reconnect.
+
 `reply <message>` (JoF EternalJK's) whispers to the last player who whispered to
 you; a bare `reply`, bindable as "Reply to last whisper" in Settings > Key bindings >
 Other (unbound by default), opens the composer on that whisper instead. Tab in the
