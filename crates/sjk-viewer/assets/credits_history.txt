@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 11/10/2026 | - | JA+ servers get JoF EJK's cjp_client, so amstatus shows JoF EJK
+- 14c5841 |  | JA+ servers: send JoF EJK's cjp_client so amstatus shows JoF EJK
 + 11/10/2026 | - | Ghost and mimic behind an experimental switch, off by default
 - 8fa48f4 |  | Ghost and mimic: experimental, off by default
 + 11/10/2026 | - | Mimic walk option; walks hold their walk
