@@ -1242,6 +1242,14 @@ flash never shakes the camera (JoF's HD muzzle effects carry a radius-60
 in first or third person); other players' flashes and all other effects shake by
 distance as in the reference.
 
+The local player's muzzle flash starts with the predicted shot, as `CG_FireWeapon` runs
+for predicted events, and the snapshot that confirms the shot does not start it again
+([muzzle_effects.rs](../crates/sjk-client/src/muzzle_effects.rs)). The flash replays its
+effect every frame for 30 ms, and an effect's `Sound` plays each time: JoF's HD muzzle
+effects carry the weapon's fire sound, which so lands on the event's own fire sound. Until
+12/10/2026 the local flash waited for the snapshot, a round trip after the shot, so every
+gun sounded twice (Creyon's report). Other players' flashes still start from the snapshot.
+
 ## First-person saber body
 
 First-person saber mode draws the local posed body and arms instead of hiding

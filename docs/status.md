@@ -1,5 +1,18 @@
 # Status and priorities
 
+## Guns sound once
+
+Branch `fix/muzzle-sound-double` (12/10/2026, based on `9dbbdf19`, Linux): Creyon heard
+every gun fire twice. His sound trace showed the fire sound played by the predicted
+`EV_FIRE_WEAPON`, then the same sound three more times about a round trip later: JoF's HD
+muzzle effects carry the fire sound, and SJK started the local player's muzzle flash only
+when the snapshot confirmed the shot, where `CG_FireWeapon` starts it with the predicted
+event. The local flash now starts with the predicted shot, and the confirmation does not
+start it again ([rendering.md](rendering.md)). Verified: tests (a predicted shot flashes
+once; neither its replay nor its confirmation flashes again; a followed or unpredicted
+player's shot flashes from the snapshot), the workspace checks, and in game on Windows 11 by
+Creyon (each shot heard once).
+
 ## Downloads that work, and what they may bring
 
 Branch `personal/allow-download` (12/10/2026, based on `c2016fbf`, Windows 11). Sol
