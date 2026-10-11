@@ -1,5 +1,38 @@
 # Status and priorities
 
+## Equipped jetpack attachment and prediction
+
+Branch `fix/jetpack-prediction` (11/10/2026, based on `3654f5b`, Windows 11 Pro,
+Rust 1.99.0),
+for the missing equipped model and jitter reported on JoF's JA+ server. The
+pack now has a resting chest attachment on the shared fallback body and resolves
+the current bolt on the equip frame. `PM_JETPACK` predicts reduced gravity,
+height-dependent per-slice thrust, idle hovering/descent, directional legs,
+air control and airborne ground tracing. The jump-pad adapter now recognizes
+its actual movement type, 1, rather than spectator-intermission type 8.
+
+Evidence: source comparison against OpenJK `codemp` at `4d0dfaf1`, with the
+unmodified gravity/thrust blocks extracted and compiled using MSVC 14.44;
+all six height/velocity/flag boundary cases matched the Rust tests. Focused
+command tests cover 8/7/4/3 ms, animation directions, gravity restoration and
+jump-pad eligibility. A release measurement on Ryzen 7 5800X3D gave 0.242 us
+per 8 ms jetpack command over 100,000 commands on a synthetic floor, versus
+0.340 us for normal movement; it excludes BSP tracing and rendering and is
+not a live-game performance claim. The ignored `jetpack::tests::equipped_pack_on_duel6`
+started the actual GPU (RTX 5070 Ti, driver 617.14), loaded retail assets only,
+and compared unequipped/equipped frames of a synthetic Kyle fallback body on
+`mp/duel6`. Its resting chest bolt was available immediately, both stock flame
+bolts resolved, and the pack reached the model pass and visibly sat on the back.
+This asset/attachment/model-pass check supplies the pack instance directly;
+it does not exercise a received server snapshot or flight. Workspace formatting,
+build, tests and clippy passed; existing clippy warnings remain.
+
+Unverified: the reported disappearance and corrections on the live JoF JA+
+server, other player models and replacement packs, actual sound/flame playback,
+fuel/toggle timing, stock spinning-saber random impulses and jaPRO's separate
+new/race flight. See [networking.md](networking.md#equipped-jetpack-prediction)
+and [rendering.md](rendering.md#entity-render-effects).
+
 ## Mythical shader parts
 
 Branch `personal/shader-options` (11/10/2026, based on `5dadea06`, Windows 11), with the

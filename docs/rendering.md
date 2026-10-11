@@ -1055,8 +1055,13 @@ A player with `EF_JETPACK` wears `models/weapons2/jetpack/model.glm` on the body
 ([jetpack.rs](../crates/sjk-viewer/src/jetpack.rs),
 [jetpack_submission.rs](../crates/sjk-viewer/src/jetpack_submission.rs),
 `cg_players.c:11843-11935`). A player who mind-tricks you shows no flames and makes no
-jet sound. Prediction does not port JA+'s jetpack physics or its jetpack leg
-animations yet, so your own flight follows the server's corrections.
+jet sound. The chest attachment is initialized with the body's resting pose,
+including the shared fallback body, and equipping resolves the current pose
+immediately rather than waiting for the next pose upload. The stock pack's bind
+pose is already identity; personal replacement packs may omit its flame bolts.
+Flight prediction now implements the equipped `PM_JETPACK` path described in
+[networking.md](networking.md#equipped-jetpack-prediction). In first person the
+pack remains hidden with the body, as in the reference.
 
 `EV_PLAYER_TELEPORT_IN/OUT` play `mp/spawn`, and `EV_BECOME_JEDIMASTER` plays
 `mp/jedispawn`, where the player's box (mins z -16, maxs z 40) lands when dropped up to

@@ -164,6 +164,27 @@ grab, alternate dimension, macro scan), the Jedi Outcast red DFA
 (`jp_jk2RedDFA`, off by default), a changed `jp_gripSpeedScale` (not published)
 and the animation holds for JA+'s extra GLA animations.
 
+### Equipped jetpack prediction
+
+`PM_JETPACK` (movement type 1), used by the equipped jetpack on stock-derived
+servers including JA+, runs the reference's gravity, thrust and air-control
+rules ([pmove_jetpack.rs](../crates/sjk-game-jka/src/pmove_jetpack.rs)). The
+4096-unit box trace uses `MASK_SOLID`; below 128 units gravity is 0.1 of normal,
+otherwise 0.25, truncated to an integer and restored after each command slice.
+Jump applies up to 12 units of vertical thrust per slice, reduced by height
+when already rising; the 256 threshold gates thrust rather than clamping its
+result. Idle flight limits descent to -100 and adds 2 units below 64 units.
+Air control is 0.8 while idling and 2 while thrusting. Ground tracing leaves
+the pack airborne even directly above a floor, its legs follow movement
+direction, and jump pads accept movement type 1.
+
+Reference: OpenJK `codemp/game/bg_pmove.c` `PmoveSingle`, `PM_AirMove` and
+`PM_GroundTrace`, at `4d0dfaf1`. Focused tests cover 8/7/4/3 ms commands and
+height/thrust boundaries. This is not verification against a running JA+ server;
+its unpublished settings, the stock spinning-saber random horizontal impulses,
+and jaPRO's separate new/race jetpack path remain outside this implementation.
+Equipping and fuel state still arrive from the server.
+
 ### When prediction steps aside
 
 Three cases show the server's state instead of predicting, as JoF EternalJK's

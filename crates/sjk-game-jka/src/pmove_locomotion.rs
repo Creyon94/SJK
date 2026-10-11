@@ -429,7 +429,9 @@ pub(crate) fn left_the_ground(
             SETANIM_FLAG_OVERRIDE,
             lengths,
         );
-    } else if state.ground_entity_number != ENTITY_NUMBER_NONE || state.legs_anim == BOTH_CHOKE3 {
+    } else if state.movement_type != 1
+        && (state.ground_entity_number != ENTITY_NUMBER_NONE || state.legs_anim == BOTH_CHOKE3)
+    {
         // Without the trace a player would back-flip down staircases.
         if floor_is_far(state) {
             if state.velocity[2] <= 0.0 && state.movement_flags & PMF_JUMP_HELD == 0 {

@@ -1404,7 +1404,10 @@ impl Predictor {
         self.box_bounds = (bounds.minimums, bounds.maximums);
         // A wall run falls at half gravity (`bg_pmove.c:10726-10730`), until the slice ends.
         let gravity = self.state.gravity;
-        if self.slow_fall {
+        let jetpacking = self.state.movement_type == 1;
+        if jetpacking {
+            self.jetpack_move(&command, bounds, collision);
+        } else if self.slow_fall {
             self.state.gravity = wall_moves::halved_gravity(gravity);
         }
         self.state.legs_timer_at_entry = self.state.legs_timer;
@@ -1600,7 +1603,7 @@ impl Predictor {
         if self.config.snap_velocity {
             self.state.velocity = self.state.velocity.map(f32::round_ties_even);
         }
-        if self.slow_fall {
+        if jetpacking || self.slow_fall {
             self.state.gravity = gravity;
         }
         // `AttachRiders` (`bg_pmove.c:11138-11154`).
@@ -1772,7 +1775,7 @@ impl Predictor {
         );
         // PM_FLOAT always takes PM_GroundTraceMissed, even above a floor
         // (bg_pmove.c:4137-4143); it must not acquire walking friction/land timers.
-        if trace.all_solid || trace.fraction == 1.0 || self.state.movement_type == 2 {
+        if trace.all_solid || trace.fraction == 1.0 || matches!(self.state.movement_type, 1 | 2) {
             if !trace.all_solid
                 && let Some(lengths) = self.animation_lengths.as_deref()
             {
@@ -1972,11 +1975,14 @@ impl Predictor {
         let (forward, right) = (vector_normalize(forward), vector_normalize(right));
         // A hovering vehicle has air control along its `moveDir` (`bg_pmove.c:3087-3095`).
         let (wish_direction, wish_speed) = self.vehicle_air_wish().unwrap_or_else(|| {
-            let wish_velocity = if self.slow_fall {
+            let mut wish_velocity = if self.slow_fall {
                 Vec3::ZERO
             } else {
                 forward * f32::from(command.forward_move) + right * f32::from(command.right_move)
             };
+            if self.state.movement_type == 1 && !self.slow_fall {
+                wish_velocity *= if command.up_move <= 0 { 0.8 } else { 2.0 };
+            }
             (
                 vector_normalize(wish_velocity),
                 wish_velocity.length() * self.command_scale(command),
@@ -2293,6 +2299,8 @@ mod weapon_history;
 
 #[path = "pmove_flight.rs"]
 pub mod flight;
+#[path = "pmove_jetpack.rs"]
+mod jetpack;
 
 #[path = "pmove_npc.rs"]
 pub mod npc;
