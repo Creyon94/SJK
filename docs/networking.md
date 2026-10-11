@@ -252,18 +252,21 @@ do not reset the inactivity timer, as with fake noclip.
 
 ## User commands and move packets
 
-The client makes user commands on a clock of their own, whatever its frame rate,
-as JoF EternalJK's `cl_cmdratecap 1` does: by default one every 8 ms, 125 a second,
-so the server moves the player in the steps of a 125 FPS client. In the original
-game the frame rate is the movement (one command a frame, `1000 / com_maxfps`
-whole milliseconds), and players lock 125, 142, 250 or 333 for how jumps and strafes
-feel at 8, 7, 4 or 3 ms. SJK keeps that choice apart from the frames drawn: the
-gameplay FPS (`cl_gameplayFps`, archived, default 125, 20 to 1000; Settings > Video
-> Gameplay FPS, the `gameplayfps` command, and the step after an import,
-[client.md](client.md#gameplay-fps)) sets the step, `1000 / cl_gameplayFps` whole
-milliseconds as stock rounds it (400 makes 2 ms steps, 500 a second). On a
-`pmove_fixed` server the server's `pmove_msec` is the step instead: it moves
-everyone in those steps and would drop a second command in one. Each command is
+The client makes user commands on a clock of their own, on a steady grid rather
+than one per rendered frame, as JoF EternalJK's `cl_cmdratecap 1` does. In the
+original game the frame rate is the movement (one command a frame, `1000 /
+com_maxfps` whole milliseconds), and players lock 125, 142, 250 or 333 for how jumps
+and strafes feel at 8, 7, 4 or 3 ms. The step
+([command_rate.rs](../crates/sjk-client/src/command_rate.rs) `command_step`) is, in
+order: on a `pmove_fixed` server its `pmove_msec` (JoF's 8 ms), since it moves
+everyone in those steps and would drop a second command in one; the gameplay FPS
+when the player set one (`gameplay_fps`, archived, 20 to 1000; Settings > Video >
+Gameplay FPS, `help_gameplay_fps`, the step after an import,
+[client.md](client.md#gameplay-fps)), `1000 / gameplay_fps` whole milliseconds as
+stock rounds it (400 makes 2 ms steps, 500 a second); and on Auto (`gameplay_fps 0`,
+the default, Sol's choice on 11/10/2026) the FPS cap's step, so `com_maxfps 333` moves
+like 333 and AUTO's 125 like 125, as in the other clients (uncapped is 1 ms, the
+shortest a server takes; the unfocused and minimized caps are not followed). Each command is
 stamped on a boundary of the step in server time, one per slot
 ([command_rate.rs](../crates/sjk-client/src/command_rate.rs)); a changed step starts
 at the next boundary after the last command sent.
@@ -278,7 +281,12 @@ time, so packets keep acknowledging the server. Every command is predicted when
 it is made; between commands the frame presents a preview through its own input
 ([prediction_preview.rs](../crates/sjk-viewer/src/prediction_preview.rs)).
 
-The userinfo's `rate` and `snaps` are sent clamped to what a server accepts (a rate
+`rate` defaults to 90000 bytes a second (11/10/2026, Sol's choice): stock's 25000
+leaves about 600 bytes a snapshot at a server's 40 a second, less than a busy
+free-for-all's snapshot, so the server delayed snapshots and other players looked
+choppy. Servers still cap it with `sv_maxRate`. Every profile saved stock's 25000, so a
+saved 25000 is moved once to 90000 (marker `rateDefaultVersion`); one set after that
+stays. The userinfo's `rate` and `snaps` are sent clamped to what a server accepts (a rate
 of at least 1000, 1 to 1000 snapshots; OpenJK's `SV_UserinfoChanged` raises lower
 values the same way), so `rate 0` or `snaps 0` typed in the console no longer stops
 joins and every later userinfo update (until 11/10/2026 the client refused them).

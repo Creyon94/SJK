@@ -1543,9 +1543,9 @@ of view (`cg_fov`), FPS cap (`com_maxfps`, the frames drawn) and Key bindings.
 Space, Left/Right or a click ticks a row; Enter copies the ticked parts into the
 profile (also logged to the console), then asks for the gameplay FPS with what the
 file's frame rate meant for its movement picked ([Gameplay FPS](#gameplay-fps)):
-its `com_maxfps` (333 picks 333), or 125 when it had `cl_cmdratecap 1`, as JoF EJK
-moved at 125 whatever it drew. Use sets it, Skip (Escape) leaves it; either way the
-page ends on everything that changed. A file that clears every binding first (`unbindall`, as a saved
+Auto, which follows the FPS cap just imported (333 moves like 333), or 125 when it
+had `cl_cmdratecap 1`, as JoF EJK moved at 125 whatever it drew. Use sets it, Skip
+(Escape) leaves it; either way the page ends on everything that changed. A file that clears every binding first (`unbindall`, as a saved
 `jampconfig.cfg` does) replaces the player's table: the keys the binding editor
 locks keep their binding, and SJK's own actions get their default key back when
 the file left both the action and its key free. A file without `unbindall` only
@@ -1560,26 +1560,29 @@ In the original game the frame rate is also the movement: every rendered frame m
 one user command, and the movement code's rounding makes jumps, strafes and
 acceleration differ at 125, 142, 250 or 333 FPS, so players lock `com_maxfps` at the
 one they are used to. SJK makes commands on their own clock
-([networking.md](networking.md#user-commands-and-move-packets)): the FPS cap only sets
-the frames drawn, and the gameplay FPS (`cl_gameplayFps`, archived, default 125, 20 to
-1000) the movement, whatever the frame rate. Players kept asking Sol why SJK draws
-200 frames yet moves like 125 (11/10/2026), so it is asked where they arrive: First
-setup's second row, the step after an import, Settings > Video > Gameplay FPS beside
-the FPS cap (Left/Right step through 125, 142, 250 and 333, Enter opens the card),
-and the `gameplayfps` command ([gameplay_fps.rs](../crates/sjk-viewer/src/gameplay_fps.rs)).
+([networking.md](networking.md#user-commands-and-move-packets)). The gameplay FPS
+(`gameplay_fps`, archived) sets it: on Auto (0, the default) the clock follows the
+FPS cap, so the movement is what the other clients give at that cap, and a server that
+fixes the step (`pmove_fixed`, JoF's) uses its own; a number from 20 to 1000 keeps that
+movement whatever the FPS cap. Players kept asking Sol how the frame rate and the
+movement relate (11/10/2026), so it is asked where they arrive: First setup's second
+row, the step after an import, Settings > Video > Gameplay FPS beside the FPS cap
+(Left/Right step through Auto, 125, 142, 250 and 333, Enter opens the card), and the
+`help_gameplay_fps` command ([gameplay_fps.rs](../crates/sjk-viewer/src/gameplay_fps.rs)).
 
 The card ([config_import_panel_fps.rs](../crates/sjk-viewer/src/config_import_panel_fps.rs),
-the Import page's step, an SJK UI pop-up in every menu style) explains it in four
-lines, says what the imported config had and why that is picked, and offers the four
-presets as tiles (JoF EJK under 125, "your old one" or "in use" under the matching
-one) and Other: typing digits (top row or keypad) fills Other with any value from 20
+the Import page's step, an SJK UI pop-up in every menu style) explains it in three
+lines, says what the imported config had and why that is picked, and offers Auto ("your
+FPS cap" under it), the four presets (JoF EJK under 125, "your old one" or "in use"
+under the matching one) and Other: typing digits (top row or keypad) fills Other with any value from 20
 to 1000 and says what it moves like (400 moves in 2 ms steps, 500 a second, as stock
 rounds `1000 / fps`). Left/Right choose, Enter uses, Escape cancels (Skip after an
 import). Its notes: a `pmove_fixed` server moves everyone in its own step (named when
 the current server does), and the frames drawn are the FPS cap, shown with its value.
-`gameplayfps` prints the explanation and the value in use to the console and opens the
-card; `gameplayfps <fps>` sets it directly. The settings row shows the server's step
-beside the value while a `pmove_fixed` server overrides it.
+`help_gameplay_fps` prints the explanation and the value in use to the console and
+opens the card; `help_gameplay_fps <fps>` or `gameplay_fps <fps>` sets it (0 for Auto).
+The settings row shows Auto with the cap it follows (`Auto (125)`), and the server's
+step beside the value while a `pmove_fixed` server overrides it.
 
 ## Slider values
 

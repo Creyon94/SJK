@@ -164,6 +164,12 @@ impl GpuState {
         }
     }
 
+    /// The FPS cap `com_maxfps` asks for (AUTO resolved, 0 uncapped), without the
+    /// unfocused and minimized caps: what the gameplay FPS's Auto follows.
+    pub(crate) fn frame_cap(&self) -> u32 {
+        normal_cap(self.console.as_ref(), || self.refresh_rate_cap())
+    }
+
     pub(crate) fn maximum_fps(&self) -> u32 {
         let console = self.console.as_ref();
         let normal = normal_cap(console, || self.refresh_rate_cap());
@@ -204,6 +210,9 @@ pub(crate) const MONITOR_CAP_CVAR: &str = "com_maxfpsMonitor";
 /// Stock's `com_maxfps` default: AUTO's cap with [`MONITOR_CAP_CVAR`] off, or
 /// when the monitor reports no refresh rate.
 const UNKNOWN_REFRESH_CAP: u32 = 125;
+/// AUTO's cap with the monitor's rate off: what the console assumes before the
+/// first frame.
+pub(crate) const STOCK_FPS_CAP: u32 = UNKNOWN_REFRESH_CAP;
 /// How long a monitor refresh-rate reading is reused; moving the window to
 /// another monitor is picked up within this.
 const REFRESH_RECHECK: Duration = Duration::from_secs(1);

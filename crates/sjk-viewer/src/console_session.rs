@@ -31,7 +31,12 @@ impl ViewerConsole {
                 user,
                 "Multiplayer player model and skin",
             ),
-            CvarDefinition::new("rate", 25_000_i64, user, "Maximum connection data rate"),
+            CvarDefinition::new(
+                "rate",
+                console_cvars::DEFAULT_RATE,
+                user,
+                "Maximum connection data rate (bytes a second); servers cap it with sv_maxRate",
+            ),
             CvarDefinition::new("snaps", 120_i64, user, "Requested server snapshot rate"),
             CvarDefinition::new(
                 "forcepowers",
@@ -152,7 +157,7 @@ impl ViewerConsole {
         let gameplay_fps = console_cvars::IntegerSetting::bind(
             &mut cvars,
             crate::gameplay_fps::CVAR,
-            sjk_client::command_rate::DEFAULT_GAMEPLAY_FPS,
+            sjk_client::command_rate::AUTO_GAMEPLAY_FPS,
         )?;
         let pmove_fixed = console_cvars::IntegerSetting::bind(&mut cvars, "pmove_fixed", 0)?;
         let pmove_msec = console_cvars::IntegerSetting::bind(&mut cvars, "pmove_msec", 8)?;
@@ -315,6 +320,24 @@ impl ViewerConsole {
             );
             keybind_editor::migrate_chat_default(&mut shell.binds, repair_global_u);
             let _ = shell.cvars.set_text("cl_bindDefaultsVersion", "3");
+        }
+        // rate defaulted to stock's 25000, which chokes the 40 snapshots of a busy
+        // server, and every profile saved it. Move a saved 25000 once to the new
+        // default; a 25000 chosen after this stays.
+        if matches!(
+            shell
+                .cvars
+                .get(console_cvars::RATE_VERSION_CVAR)
+                .map(|cvar| &cvar.value),
+            Some(CvarValue::Integer(0))
+        ) {
+            if matches!(
+                shell.cvars.get("rate").map(|cvar| &cvar.value),
+                Some(CvarValue::Integer(console_cvars::OLD_DEFAULT_RATE))
+            ) {
+                let _ = shell.cvars.reset("rate");
+            }
+            let _ = shell.cvars.set_text(console_cvars::RATE_VERSION_CVAR, "1");
         }
         // com_maxfps defaulted to 1000 and every archived cvar was saved, so each
         // existing profile carries that old default. Move it once to the new
@@ -539,6 +562,7 @@ impl ViewerConsole {
             packet_dup,
             max_packets,
             gameplay_fps,
+            frame_cap: crate::runtime_settings::STOCK_FPS_CAP,
             pmove_fixed,
             pmove_msec,
             post_color,

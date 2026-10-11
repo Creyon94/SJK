@@ -1,42 +1,51 @@
 //! Gameplay FPS: the frame rate whose movement the player wants, apart from the
-//! frames the screen draws (`cl_gameplayFps`, `sjk_client::command_rate`).
+//! frames the screen draws (`gameplay_fps`, `sjk_client::command_rate`).
 //!
 //! In the original game the frame rate is also the movement: each rendered frame
 //! makes one user command, and `com_maxfps` 125, 142, 250 or 333 moves the player
 //! in steps of 8, 7, 4 or 3 ms, whose rounding changes jumps, strafes and
-//! acceleration. Players lock those numbers for that feel and ask why SJK draws
-//! 200 frames yet moves like 125. SJK makes commands on their own clock, as JoF
-//! EJK's `cl_cmdratecap`, at the gameplay FPS the player picks; the FPS cap
-//! (`com_maxfps`) only sets the frames drawn.
+//! acceleration. Players lock those numbers for that feel. SJK makes commands on
+//! their own clock, as JoF EJK's `cl_cmdratecap`. On Auto (`gameplay_fps 0`, the
+//! default) the clock runs at the FPS cap, so the movement is what the other
+//! clients give at that cap, and a server that fixes the step (JoF's
+//! `pmove_fixed`) uses its own; a number keeps that movement whatever the FPS cap.
 //!
 //! The choice is a step of the Import card (`config_import_panel.rs`), after a
-//! config from another client is read, with that config's old frame rate picked;
-//! the `gameplayfps` command and the Video settings' Gameplay FPS row open the same
-//! card on its own. Four presets cover what players lock; "Other" takes any value.
+//! config from another client is read; the `help_gameplay_fps` command and the
+//! Video settings' Gameplay FPS row open the same card on its own. Auto, four
+//! presets for what players lock, and "Other" for any value.
 
 use sjk_client::command_rate::{
-    DEFAULT_GAMEPLAY_FPS, GAMEPLAY_FPS_PRESETS, MAX_GAMEPLAY_FPS, MIN_GAMEPLAY_FPS,
-    commands_per_second, gameplay_step,
+    AUTO_GAMEPLAY_FPS, DEFAULT_GAMEPLAY_FPS, GAMEPLAY_FPS_PRESETS, MAX_GAMEPLAY_FPS,
+    MIN_GAMEPLAY_FPS, commands_per_second, gameplay_step,
 };
 
-/// The setting.
-pub(crate) const CVAR: &str = "cl_gameplayFps";
-/// Opens the card, or with a number sets it.
-pub(crate) const COMMAND: &str = "gameplayfps";
-pub(crate) const HELP: &str = "Explain and choose your gameplay FPS (the movement of 125, 142, 250, 333...); gameplayfps <fps> sets it";
+/// The setting: 0 is Auto.
+pub(crate) const CVAR: &str = "gameplay_fps";
+/// Explains it and opens the card, or with a number sets it.
+pub(crate) const COMMAND: &str = "help_gameplay_fps";
+pub(crate) const HELP: &str = "Explain and choose your gameplay FPS (Auto, or the movement of 125, 142, 250, 333...); help_gameplay_fps <fps> sets it";
 
 /// What the card and the command say about it, one paragraph.
 pub(crate) const EXPLANATION: &str = "In the original game your FPS was also your physics: at \
-    125, 142, 250 or 333 FPS jumps, strafes and acceleration felt different. SJK keeps the two \
-    apart. The screen draws as many frames as your FPS cap allows, and your movement runs at the \
-    gameplay FPS you pick, whatever your frame rate.";
+    125, 142, 250 or 333 FPS jumps, strafes and acceleration felt different. On Auto SJK moves \
+    you at your FPS cap, as the other clients do. Pick a number to keep that movement whatever \
+    FPS you draw.";
 
 /// The note on servers that fix the movement step.
 pub(crate) const FIXED_NOTE: &str =
-    "Servers that fix the movement step (pmove_fixed) move everyone in their own step instead.";
+    "Servers that fix the movement step (pmove_fixed, as JoF's) move everyone in their own step.";
 
-/// The "Other" choice after the presets.
-pub(crate) const OTHER: usize = GAMEPLAY_FPS_PRESETS.len();
+/// The choices in the card's order: Auto, then the presets; "Other" comes after.
+const CHOICES: [i64; 5] = [
+    AUTO_GAMEPLAY_FPS,
+    GAMEPLAY_FPS_PRESETS[0],
+    GAMEPLAY_FPS_PRESETS[1],
+    GAMEPLAY_FPS_PRESETS[2],
+    GAMEPLAY_FPS_PRESETS[3],
+];
+/// The "Other" choice after Auto and the presets.
+pub(crate) const OTHER: usize = CHOICES.len();
 /// Most digits the advanced value takes.
 const DRAFT_DIGITS: usize = 4;
 
@@ -47,43 +56,42 @@ pub(crate) struct Origin {
     pub(crate) file: String,
     /// Its `com_maxfps`, when set and above 0.
     pub(crate) max_fps: Option<i64>,
-    /// Its `cl_cmdratecap` was on (JoF EJK): its movement already ran at 125.
+    /// Its `cl_cmdratecap` was on (JoF EJK): its movement ran at 125.
     pub(crate) cmd_rate_cap: bool,
 }
 
 impl Origin {
-    /// The gameplay FPS the old client moved at: 125 under `cl_cmdratecap`, else
-    /// its frame cap, clamped to the range.
-    pub(crate) fn old_fps(&self) -> Option<i64> {
+    /// The gameplay FPS to pick for the old client's movement: 125 under JoF EJK's
+    /// `cl_cmdratecap`, which moved at 125 whatever it drew; otherwise Auto, which
+    /// follows the FPS cap the import brings.
+    pub(crate) fn old_fps(&self) -> i64 {
         if self.cmd_rate_cap {
-            return Some(DEFAULT_GAMEPLAY_FPS);
+            DEFAULT_GAMEPLAY_FPS
+        } else {
+            AUTO_GAMEPLAY_FPS
         }
-        self.max_fps
-            .map(|fps| fps.clamp(MIN_GAMEPLAY_FPS, MAX_GAMEPLAY_FPS))
     }
 
     /// The line under the explanation that says what was picked and why.
     pub(crate) fn line(&self) -> Option<String> {
         if self.cmd_rate_cap {
             return Some(format!(
-                "{} had cl_cmdratecap 1 (JoF EJK): your movement already ran at 125, so 125 is \
-                 picked.",
+                "{} had cl_cmdratecap 1 (JoF EJK): your movement ran at 125, so 125 is picked.",
                 self.file
             ));
         }
         let fps = self.max_fps?;
         Some(format!(
-            "{} locked com_maxfps at {fps}, so {} is picked: you keep the movement you are used to.",
-            self.file,
-            self.old_fps().unwrap_or(fps)
+            "{} locked com_maxfps at {fps}: Auto moves you at it, as you are used to.",
+            self.file
         ))
     }
 }
 
-/// The card's choice: a preset or "Other" with its typed value.
+/// The card's choice: Auto, a preset or "Other" with its typed value.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct Choice {
-    /// A preset's index, or [`OTHER`].
+    /// A choice's index (0 Auto, then the presets), or [`OTHER`].
     pub(crate) selected: usize,
     /// "Other"'s digits.
     pub(crate) draft: String,
@@ -93,9 +101,9 @@ pub(crate) struct Choice {
 }
 
 impl Choice {
-    /// Open on the old config's frame rate when there is one, else the setting.
+    /// Open on what suits the old config when there is one, else the setting.
     pub(crate) fn new(current: i64, origin: Option<Origin>) -> Self {
-        let start = origin.as_ref().and_then(Origin::old_fps).unwrap_or(current);
+        let start = origin.as_ref().map_or(current, Origin::old_fps);
         let mut choice = Self {
             selected: OTHER,
             draft: String::new(),
@@ -106,12 +114,9 @@ impl Choice {
         choice
     }
 
-    /// Select `fps`: its preset, or "Other" holding it.
+    /// Select `fps`: Auto or its preset, or "Other" holding it.
     fn pick(&mut self, fps: i64) {
-        match GAMEPLAY_FPS_PRESETS
-            .iter()
-            .position(|preset| *preset == fps)
-        {
+        match CHOICES.iter().position(|choice| *choice == fps) {
             Some(index) => self.selected = index,
             None => {
                 self.selected = OTHER;
@@ -120,15 +125,22 @@ impl Choice {
         }
     }
 
-    /// The chosen value when it is in range.
+    /// The chosen value when it is Auto or in range.
     pub(crate) fn value(&self) -> Option<i64> {
-        let fps = match GAMEPLAY_FPS_PRESETS.get(self.selected) {
-            Some(preset) => *preset,
+        let fps = match CHOICES.get(self.selected) {
+            Some(choice) => *choice,
             None => self.draft.parse().ok()?,
         };
-        (MIN_GAMEPLAY_FPS..=MAX_GAMEPLAY_FPS)
-            .contains(&fps)
-            .then_some(fps)
+        valid(fps).then_some(fps)
+    }
+
+    /// What a choice's tile shows.
+    pub(crate) fn label(index: usize) -> String {
+        match CHOICES.get(index) {
+            Some(&AUTO_GAMEPLAY_FPS) => "Auto".to_owned(),
+            Some(fps) => fps.to_string(),
+            None => "Other".to_owned(),
+        }
     }
 
     /// Move the selection by `delta` choices, wrapping.
@@ -160,13 +172,14 @@ impl Choice {
         }
     }
 
-    /// What a preset's tile says under its number.
+    /// What a choice's tile says under it.
     pub(crate) fn caption(&self, index: usize) -> &'static str {
-        let fps = GAMEPLAY_FPS_PRESETS.get(index).copied();
-        let old = self.origin.as_ref().and_then(Origin::old_fps);
+        let fps = CHOICES.get(index).copied();
+        let imported = self.origin.as_ref().map(Origin::old_fps);
         match fps {
-            Some(fps) if old == Some(fps) => "your old one",
-            Some(fps) if fps == self.current && old.is_none() => "in use",
+            Some(DEFAULT_GAMEPLAY_FPS) if imported == Some(DEFAULT_GAMEPLAY_FPS) => "your old one",
+            Some(AUTO_GAMEPLAY_FPS) => "your FPS cap",
+            Some(fps) if fps == self.current && imported.is_none() => "in use",
             Some(DEFAULT_GAMEPLAY_FPS) => "JoF EJK",
             Some(_) => "",
             None => "any value",
@@ -190,35 +203,48 @@ impl Choice {
     }
 }
 
-/// Left/Right on the setting: the next preset above (`direction` > 0) or below
-/// `current`, wrapping; a typed value steps to its nearest preset that way.
+/// Auto, or a gameplay FPS in range.
+fn valid(fps: i64) -> bool {
+    fps == AUTO_GAMEPLAY_FPS || (MIN_GAMEPLAY_FPS..=MAX_GAMEPLAY_FPS).contains(&fps)
+}
+
+/// Left/Right on the setting: the next choice (Auto, then the presets) above
+/// (`direction` > 0) or below `current`, wrapping; a typed value steps to its
+/// nearest preset that way.
 pub(crate) fn step_preset(current: i64, direction: i32) -> i64 {
-    let presets = GAMEPLAY_FPS_PRESETS;
     if direction > 0 {
-        presets
+        CHOICES
             .into_iter()
-            .find(|preset| *preset > current)
-            .unwrap_or(presets[0])
+            .find(|choice| *choice > current)
+            .unwrap_or(CHOICES[0])
     } else {
-        presets
+        CHOICES
             .into_iter()
             .rev()
-            .find(|preset| *preset < current)
-            .unwrap_or(presets[presets.len() - 1])
+            .find(|choice| *choice < current)
+            .unwrap_or(CHOICES[CHOICES.len() - 1])
     }
 }
 
-/// The setting's row value: the number, and the server's step while it fixes one.
+/// The setting's row value: Auto with the FPS cap it follows, or the number; and
+/// the server's step while it fixes one.
 pub(crate) fn row_text(console: &crate::console::ViewerConsole) -> String {
-    let fps = console.gameplay_fps();
+    let shown = match console.gameplay_fps() {
+        AUTO_GAMEPLAY_FPS if console.frame_cap() == 0 => "Auto (uncapped)".to_owned(),
+        AUTO_GAMEPLAY_FPS => format!("Auto ({})", console.frame_cap()),
+        fps => fps.to_string(),
+    };
     match console.pmove_fixed_msec() {
-        Some(step) => format!("{fps} (this server: {step} ms)"),
-        None => fps.to_string(),
+        Some(step) => format!("{shown}, this server {step} ms"),
+        None => shown,
     }
 }
 
 /// What `fps` moves like, for the console and the card's result line.
 pub(crate) fn describe(fps: i64) -> String {
+    if fps == AUTO_GAMEPLAY_FPS {
+        return "Auto (your FPS cap)".to_owned();
+    }
     let made = commands_per_second(fps);
     let step = gameplay_step(fps);
     if made == fps {
@@ -228,20 +254,22 @@ pub(crate) fn describe(fps: i64) -> String {
     }
 }
 
-/// `gameplayfps <fps>`: the value to set, or why not.
+/// `help_gameplay_fps <fps>`: the value to set, or why not.
 pub(crate) fn parse_argument(text: &str) -> Result<i64, String> {
     text.trim()
         .parse::<i64>()
         .ok()
-        .filter(|fps| (MIN_GAMEPLAY_FPS..=MAX_GAMEPLAY_FPS).contains(fps))
+        .filter(|fps| valid(*fps))
         .ok_or_else(|| {
-            format!("usage: {COMMAND} [fps], fps from {MIN_GAMEPLAY_FPS} to {MAX_GAMEPLAY_FPS}")
+            format!(
+                "usage: {COMMAND} [fps], 0 for Auto or {MIN_GAMEPLAY_FPS} to {MAX_GAMEPLAY_FPS}"
+            )
         })
 }
 
 impl crate::GpuState {
-    /// `gameplayfps`: explain it in the console and open the card to choose;
-    /// `gameplayfps <fps>` sets it. The lines go to the console.
+    /// `help_gameplay_fps`: explain it in the console and open the card to choose;
+    /// `help_gameplay_fps <fps>` sets it. The lines go to the console.
     pub(crate) fn gameplay_fps_command(&mut self, args: &[String]) -> Result<Vec<String>, String> {
         let console = self.console.as_mut().ok_or("Console unavailable")?;
         let lines = match args {
@@ -249,7 +277,7 @@ impl crate::GpuState {
                 let lines = vec![
                     EXPLANATION.to_owned(),
                     format!(
-                        "Yours is {}. {FIXED_NOTE}",
+                        "Yours is {} ({CVAR}). {FIXED_NOTE}",
                         describe(console.gameplay_fps())
                     ),
                 ];
@@ -283,33 +311,25 @@ mod tests {
     }
 
     #[test]
-    fn the_old_configs_frame_rate_is_picked() {
-        let choice = Choice::new(125, Some(origin(Some(333), false)));
-        assert_eq!(choice.selected, 3);
-        assert_eq!(choice.value(), Some(333));
-        assert_eq!(choice.caption(3), "your old one");
-        // JoF EJK's cl_cmdratecap already moved at 125, whatever its FPS cap.
-        let choice = Choice::new(250, Some(origin(Some(333), true)));
+    fn an_import_picks_auto_or_jof_125() {
+        // Auto follows the imported FPS cap: 333 moves like 333.
+        let choice = Choice::new(142, Some(origin(Some(333), false)));
+        assert_eq!((choice.selected, choice.value()), (0, Some(0)));
+        assert_eq!(choice.caption(0), "your FPS cap");
+        // JoF EJK's cl_cmdratecap moved at 125, whatever its FPS cap.
+        let choice = Choice::new(0, Some(origin(Some(333), true)));
         assert_eq!(choice.value(), Some(125));
-        // An odd cap opens on Other with it typed.
-        let choice = Choice::new(125, Some(origin(Some(200), false)));
-        assert_eq!((choice.selected, choice.value()), (OTHER, Some(200)));
-        // No cap in the file: the setting in use.
-        let choice = Choice::new(142, Some(origin(None, false)));
-        assert_eq!(choice.value(), Some(142));
-        assert!(
-            Choice::new(142, Some(origin(None, false)))
-                .origin
-                .unwrap()
-                .line()
-                .is_none()
-        );
+        assert_eq!(choice.caption(1), "your old one");
+        assert!(origin(None, false).line().is_none());
+        assert_eq!(Choice::label(0), "Auto");
+        assert_eq!(Choice::label(4), "333");
+        assert_eq!(Choice::label(OTHER), "Other");
     }
 
     #[test]
     fn digits_go_to_other_and_only_in_range_values_count() {
         let mut choice = Choice::new(125, None);
-        assert_eq!(choice.caption(0), "in use");
+        assert_eq!(choice.caption(1), "in use");
         choice.type_digit('4');
         choice.type_digit('0');
         assert_eq!(choice.selected, OTHER);
@@ -325,16 +345,17 @@ mod tests {
         choice.backspace();
         assert_eq!(choice.value(), None, "4 is below 20");
         choice.step(1);
-        assert_eq!(choice.value(), Some(125), "wraps to the first preset");
+        assert_eq!(choice.value(), Some(0), "wraps to Auto");
         choice.step(-1);
         assert_eq!(choice.selected, OTHER);
     }
 
     #[test]
     fn left_and_right_step_through_the_presets() {
+        assert_eq!(step_preset(0, 1), 125);
         assert_eq!(step_preset(125, 1), 142);
-        assert_eq!(step_preset(333, 1), 125, "wraps");
-        assert_eq!(step_preset(125, -1), 333, "wraps");
+        assert_eq!(step_preset(333, 1), 0, "wraps to Auto");
+        assert_eq!(step_preset(0, -1), 333, "wraps");
         assert_eq!(
             step_preset(200, 1),
             250,
@@ -346,8 +367,10 @@ mod tests {
     #[test]
     fn the_command_takes_a_number_in_range() {
         assert_eq!(parse_argument("333"), Ok(333));
+        assert_eq!(parse_argument("0"), Ok(0), "Auto");
         assert!(parse_argument("10").is_err());
         assert!(parse_argument("fast").is_err());
+        assert_eq!(describe(0), "Auto (your FPS cap)");
         assert_eq!(describe(333), "333 (3 ms steps)");
         assert_eq!(describe(142), "142 (7 ms steps)");
         assert_eq!(describe(400), "400 (2 ms steps, 500 a second)");

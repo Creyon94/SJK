@@ -23,6 +23,19 @@ Not verified: in a game (the card on a real request, the editor opening, a real
 session log across a crash); the hub branch is not deployed, so live hubs answer 404
 and clients ask them again hourly.
 
+## Gameplay FPS on Auto, and rate 90000
+
+Branch `personal/auto-ticks` (11/10/2026). Sol asked for the command clock to follow
+"the server's max" by default, only JoF's server capping it, with an easy cvar that
+does nothing at 0; asked what that max is elsewhere, Sol chose the FPS cap. The cvar is
+now `gameplay_fps` (was `cl_gameplayFps`, never released), default 0 (Auto): the FPS
+cap's step, a `pmove_fixed` server's step first; the card and the setting gained Auto,
+an import picks Auto (or 125 for JoF EJK's `cl_cmdratecap`), and the command is
+`help_gameplay_fps`. `rate` defaults to 90000, a saved 25000 moved once. Verified: unit
+tests (Auto at caps 333, 125, 0 and 10, the server's step over Auto, the card's choices
+and import picks, the rate move and a rate chosen after it), and a world shot of the
+step after an import. Not verified in a game.
+
 ## Gameplay FPS and importing from other clients
 
 Branch `personal/gameplay-fps` (11/10/2026, based on `491ee67c`, Windows 11). Sol asked

@@ -142,7 +142,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::gameplay_fps::CVAR,
-        "The FPS your movement runs at (125, 142, 250, 333), apart from the frames drawn. Enter explains it and takes any value.",
+        "Auto moves you at your FPS cap; 125, 142, 250 or 333 keep that movement at any FPS. Enter explains it and takes any value.",
     ),
     (
         crate::runtime_settings::MONITOR_CAP_CVAR,

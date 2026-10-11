@@ -611,7 +611,9 @@ mod tests {
         let mut panel = fps_panel(Some(vec!["Name: a".to_owned()]));
         assert_eq!(panel.primary(), PanelAction::UseFps(125));
         assert!(panel.fps_key(KeyCode::ArrowLeft));
-        // Left from the first preset wraps to Other, empty until a value is typed.
+        assert_eq!(panel.primary(), PanelAction::UseFps(0), "Auto");
+        assert!(panel.fps_key(KeyCode::ArrowLeft));
+        // Left from Auto wraps to Other, empty until a value is typed.
         assert_eq!(panel.primary(), PanelAction::None);
         assert!(panel.fps_key(KeyCode::Digit4));
         assert!(panel.fps_key(KeyCode::Numpad0));

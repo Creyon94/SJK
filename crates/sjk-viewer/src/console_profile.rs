@@ -41,7 +41,7 @@ impl ViewerConsole {
     fn rate_and_snaps(&self) -> (u32, u16) {
         let rate = self
             .integer_cvar("rate")
-            .unwrap_or(25_000)
+            .unwrap_or(super::console_cvars::DEFAULT_RATE)
             .clamp(MIN_RATE, i64::from(u32::MAX)) as u32;
         let snaps = self.integer_cvar("snaps").unwrap_or(40).clamp(1, MAX_SNAPS) as u16;
         (rate, snaps)
@@ -80,7 +80,7 @@ mod tests {
     fn a_zero_or_huge_rate_and_snaps_are_clamped_not_refused() {
         let directory = tempfile::tempdir().unwrap();
         let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
-        assert_eq!(console.rate_and_snaps(), (25_000, 120));
+        assert_eq!(console.rate_and_snaps(), (90_000, 120));
         console.set_cvar("rate", "0");
         console.set_cvar("snaps", "0");
         assert_eq!(console.rate_and_snaps(), (1_000, 1));
@@ -88,5 +88,24 @@ mod tests {
         console.set_cvar("snaps", "70000");
         console.set_cvar("rate", "-5");
         assert_eq!(console.rate_and_snaps(), (1_000, 1_000));
+    }
+
+    #[test]
+    fn a_saved_stock_rate_moves_once_to_90000() {
+        let directory = tempfile::tempdir().unwrap();
+        let path = directory.path().join("config.cfg");
+        std::fs::write(&path, "seta rate 25000\nseta snaps 40\n").unwrap();
+        let console = ViewerConsole::new(path.clone()).unwrap();
+        assert_eq!(console.rate_and_snaps(), (90_000, 40));
+        drop(console);
+        // Chosen again after the move, it stays.
+        std::fs::write(&path, "seta rateDefaultVersion 1\nseta rate 25000\n").unwrap();
+        let console = ViewerConsole::new(path.clone()).unwrap();
+        assert_eq!(console.rate_and_snaps().0, 25_000);
+        drop(console);
+        // Another rate is the player's.
+        std::fs::write(&path, "seta rate 50000\n").unwrap();
+        let console = ViewerConsole::new(path).unwrap();
+        assert_eq!(console.rate_and_snaps().0, 50_000);
     }
 }

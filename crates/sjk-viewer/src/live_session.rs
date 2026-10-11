@@ -117,6 +117,8 @@ impl GpuState {
         timing.mark(Phase::Commands);
         self.ghost_frame();
         let talking = self.talk_button();
+        // The FPS cap the gameplay FPS's Auto follows (`command_rate`).
+        let frame_cap = self.frame_cap();
         let Some(session) = &mut self.live_session else {
             return;
         };
@@ -154,10 +156,13 @@ impl GpuState {
         // `cl_maxpackets` packet (`command_rate`).
         let now = Instant::now();
         let server_time = self.server_clock.server_time(now);
-        let step = self.console.as_ref().map_or(
-            sjk_client::command_rate::COMMAND_MILLIS,
-            crate::console::ViewerConsole::command_step,
-        );
+        let step =
+            self.console
+                .as_mut()
+                .map_or(sjk_client::command_rate::COMMAND_MILLIS, |console| {
+                    console.set_frame_cap(frame_cap);
+                    console.command_step()
+                });
         let due = self
             .command_schedule
             .due(server_time, self.server_clock.anchored(), now, step);
