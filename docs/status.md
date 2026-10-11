@@ -1,5 +1,17 @@
 # Status and priorities
 
+## Server browser: names in the game's charset
+
+Branch `fix/browser-name-symbols` (11/10/2026, based on `9dbbdf19`, Linux): Creyon saw
+`?jof?entinel?rollem2` in the browser for `jof§entinel·rollem2`, and servers missing from
+the list. Server replies carry names as Windows-1252 bytes; the browser refused a server
+info that was not UTF-8 (the server vanished from the list) and replaced such bytes in
+players' names with `?`. Infos, statuses and printed replies are now read as the game reads
+chat (`sjk_protocol::decode_legacy_text`: UTF-8 when valid, else byte by byte)
+([client.md](client.md#menu-style)). Verified: tests that a host name with `»«§` keeps its
+server and that a status's player names keep `·§`, and the workspace checks; in game on
+Windows 11 by Creyon, the names showing right and those servers listed.
+
 ## Downloads that work, and what they may bring
 
 Branch `personal/allow-download` (12/10/2026, based on `c2016fbf`, Windows 11). Sol

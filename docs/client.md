@@ -341,6 +341,12 @@ carry over between styles. Labels and buttons are in capitals:
   browser was opened from the game menu), JOIN joins the selected server (a
   double-click on a row too).
 
+Server names, rules and players' names arrive in the game's byte charset, not UTF-8:
+the browser reads them byte by byte as the game reads chat (UTF-8 when the bytes are
+UTF-8), so `»`, `«`, `§` or `·` show as themselves. Until 11/10/2026 a server whose host
+name had such a byte was dropped from the list (its info was refused as not UTF-8), and
+players' names showed `?` for them.
+
 The status line under the list shows the fetch progress where retail showed
 the refresh time, and the description line shows the hovered item's
 description. The screen is in

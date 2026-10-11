@@ -1251,7 +1251,7 @@ fn parse_print_response(packet: &[u8]) -> Option<String> {
     let payload = packet.strip_prefix(&OOB_PREFIX)?;
     let message = payload.strip_prefix(b"print\n")?;
     Some(
-        String::from_utf8_lossy(message)
+        sjk_protocol::decode_legacy_text(message)
             .trim_matches(['\0', '\n', '\r'])
             .to_owned(),
     )
@@ -1306,8 +1306,10 @@ fn parse_info_response(packet: &[u8]) -> Result<InfoString, NetworkError> {
         .split(|byte| *byte == b'\n' || *byte == 0)
         .next()
         .unwrap_or_default();
-    let info = std::str::from_utf8(info).map_err(|_| NetworkError::NonUtf8Info)?;
-    Ok(InfoString::parse(info)?)
+    // A host name in Windows-1252 (`»`, `§`, accented letters) is no UTF-8: read it as
+    // the game does, byte by byte, rather than dropping the server from the list.
+    let info = sjk_protocol::decode_legacy_text(info);
+    Ok(InfoString::parse(&info)?)
 }
 
 #[derive(Debug)]
@@ -1324,7 +1326,6 @@ pub enum NetworkError {
         offset: usize,
     },
     NoResolvedAddress,
-    NonUtf8Info,
     NonUtf8Response,
     MalformedChallengeResponse,
     ChallengeEchoMismatch {
@@ -1362,7 +1363,6 @@ impl fmt::Display for NetworkError {
                 write!(formatter, "malformed master response at byte {offset}")
             }
             Self::NoResolvedAddress => write!(formatter, "host resolved to no addresses"),
-            Self::NonUtf8Info => write!(formatter, "server info response is not UTF-8"),
             Self::NonUtf8Response => write!(formatter, "connectionless response is not UTF-8"),
             Self::MalformedChallengeResponse => formatter.write_str("malformed challenge response"),
             Self::ChallengeEchoMismatch { expected, received } => write!(
@@ -1420,6 +1420,28 @@ impl From<AdaptiveHuffmanError> for NetworkError {
 impl From<MessageError> for NetworkError {
     fn from(value: MessageError) -> Self {
         Self::Message(value)
+    }
+}
+
+#[cfg(test)]
+mod info_charset_tests {
+    use super::parse_info_response;
+
+    /// A host name in Windows-1252 (`»`, `«`, `§`) no longer drops the server from the
+    /// list: its info used to be refused as not UTF-8 (Sol's report of missing servers,
+    /// 11/10/2026).
+    #[test]
+    fn a_windows_1252_host_name_keeps_the_server() {
+        let packet =
+            b"\xff\xff\xff\xffinfoResponse\n\\hostname\\\xbbJoF\xab \xa7Duels\\clients\\3\n";
+        let info = parse_info_response(packet).expect("the server's info");
+        assert_eq!(info.get("hostname"), Some("\u{bb}JoF\u{ab} \u{a7}Duels"));
+        assert_eq!(info.get_i32("clients"), Some(3));
+        let plain = b"\xff\xff\xff\xffinfoResponse\n\\hostname\\Temple\n";
+        assert_eq!(
+            parse_info_response(plain).unwrap().get("hostname"),
+            Some("Temple")
+        );
     }
 }
 
