@@ -128,6 +128,7 @@ mod menu_snapshot;
 mod menu_stage;
 mod menu_widgets;
 mod menu_world;
+mod mimic;
 mod missile_trails;
 mod model_materials;
 mod mods;
@@ -564,6 +565,8 @@ struct GpuState {
     peek: peek::State,
     /// `ghost`: recording and replaying the player's own run.
     ghost: ghost_replay::Ghost,
+    /// `mimic`: copying another player's moves live.
+    mimic: mimic::Mimic,
 
     selected_weapon: Option<u8>,
     weapon_selected_at: Option<Instant>,
@@ -1417,6 +1420,7 @@ impl GpuState {
             detached_camera: false,
             peek: peek::State::default(),
             ghost: ghost_replay::Ghost::default(),
+            mimic: mimic::Mimic::default(),
 
             selected_weapon: None,
             weapon_selected_at: None,

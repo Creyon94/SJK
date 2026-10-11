@@ -1077,6 +1077,18 @@ test: Fire at a wall on your left: the impact plays mostly in the left ear.
 
 # ---- Gameplay ----
 
+[mimic]
+area: Gameplay
+title: Mimic: copy another player's moves and saber attacks live, as their mirror
+change: mimic <player> [delay] [mirror|copy] copies view, movement, jumps, crouches, sabers.
+change: Mirror (default) swaps left and right so you stay face to face; copy keeps sides.
+test: Face the other player, mimic <name> 0.3: walk, strafe, jump, crouch; you follow.
+test: Do a saber chain: you do the same attacks, mirrored (their left swing is your right).
+test: Change stance or holster the saber: yours follows.
+test: Try mimic <name> 0, then mimic <name> 2 copy: no delay, then sides kept after 2 s.
+test: Press any key: it stops. mimic off also stops it.
+note: A 0.2-0.3 s delay or more keeps it tight; with 0 it reacts after your pings.
+
 [ghost-replay]
 area: Gameplay
 title: Ghost replay: record your run, replay it on the server to film a showcase

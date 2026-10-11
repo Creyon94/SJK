@@ -4,18 +4,35 @@
 
 use super::*;
 
+/// Where the player is when a `ghost` command runs.
+#[derive(Clone, Copy, Default)]
+pub(crate) struct Place<'a> {
+    /// The current map (`mp/ffa3`).
+    pub(crate) map: Option<&'a str>,
+    pub(crate) player: Option<&'a PlayerState>,
+    /// The player's committed pose.
+    pub(crate) pose: Option<Pose>,
+    /// False while flying or spectating locally.
+    pub(crate) can_drive: bool,
+    /// The mimic is copying someone (`mimic`).
+    pub(crate) mimicking: bool,
+}
+
 impl Ghost {
-    /// `ghost <record|stop|play|list|info>`; `pose` is the player's committed pose,
-    /// `map` the current map, `can_drive` false while flying or spectating locally.
+    /// `ghost <record|stop|play|list|info>`.
     pub(crate) fn command(
         &mut self,
         args: &[String],
         config: &Path,
-        map: Option<&str>,
-        player: Option<&PlayerState>,
-        pose: Option<Pose>,
-        can_drive: bool,
+        place: Place<'_>,
     ) -> Result<Vec<String>, String> {
+        let Place {
+            map,
+            player,
+            pose,
+            can_drive,
+            mimicking,
+        } = place;
         let directory = ghost_directory(config);
         let verb = args.first().map(|arg| arg.to_ascii_lowercase());
         match (verb.as_deref(), args.get(1)) {
@@ -63,6 +80,9 @@ impl Ghost {
                 let (map, player) = map.zip(player).ok_or("ghost: not in a game")?;
                 if self.recording() || self.driving() {
                     return Err("ghost: already running; ghost stop first".into());
+                }
+                if mimicking {
+                    return Err("ghost: the mimic is running; mimic off first".into());
                 }
                 if !run.map.eq_ignore_ascii_case(map) {
                     return Err(format!(
@@ -191,13 +211,17 @@ impl crate::GpuState {
         let pose = self.local_prediction.committed_state().map(Pose::of);
         let can_drive =
             !self.local_prediction.fake_noclip() && !self.local_prediction.free_camera();
+        let mimicking = self.mimic.active();
         self.ghost.command(
             args,
             &directory,
-            map.as_deref(),
-            player.as_ref(),
-            pose,
-            can_drive,
+            Place {
+                map: map.as_deref(),
+                player: player.as_ref(),
+                pose,
+                can_drive,
+                mimicking,
+            },
         )
     }
 
@@ -207,13 +231,19 @@ impl crate::GpuState {
             return;
         };
         self.ghost.save_pending(console.config_directory());
-        for line in self.ghost.take_messages() {
+        for line in self
+            .ghost
+            .take_messages()
+            .into_iter()
+            .chain(self.mimic.take_messages())
+        {
             console.push_log(line);
         }
     }
 
     /// Leaving the game or changing map ends the ghost; a recording is saved.
     pub(crate) fn ghost_leave(&mut self) {
+        self.mimic.stop_with("^3mimic: stopped, you left the game.");
         if let Some(console) = &self.console {
             let directory = console.config_directory().to_owned();
             self.ghost.leave(&directory);

@@ -287,10 +287,13 @@ fn a_far_start_asks_to_go_there() {
         .command(
             &args(&["play", "far"]),
             &directory,
-            Some("mp/ffa3"),
-            Some(&player),
-            Some(pose),
-            true,
+            frame::Place {
+                map: Some("mp/ffa3"),
+                player: Some(&player),
+                pose: Some(pose),
+                can_drive: true,
+                mimicking: false,
+            },
         )
         .unwrap_err();
     assert!(refused.contains("teleport there"), "{refused}");
@@ -298,15 +301,18 @@ fn a_far_start_asks_to_go_there() {
         .command(
             &args(&["play", "far"]),
             &directory,
-            Some("mp/duel6"),
-            Some(&player),
-            Some(standing()),
-            true,
+            frame::Place {
+                map: Some("mp/duel6"),
+                player: Some(&player),
+                pose: Some(standing()),
+                can_drive: true,
+                mimicking: false,
+            },
         )
         .unwrap_err();
     assert!(wrong_map.contains("recorded on mp/ffa3"), "{wrong_map}");
     let listed = ghost
-        .command(&args(&["list"]), &directory, None, None, None, true)
+        .command(&args(&["list"]), &directory, frame::Place::default())
         .unwrap();
     assert!(listed[0].starts_with("far: mp/ffa3"), "{listed:?}");
     std::fs::remove_dir_all(&directory).unwrap();

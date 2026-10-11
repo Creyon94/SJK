@@ -1,5 +1,28 @@
 # Status and priorities
 
+## Mimic
+
+Branch `personal/mimic` (11/10/2026, based on `71acafb0`, Windows 11). Sol asked for a
+mimic for saber showcases: stand facing another player and copy their mouse movement,
+movement, crouches and saber attacks, with a configurable delay. `mimic <player>
+[delay] [mirror|copy]` ([client.md](client.md#mimic)) rebuilds commands from what
+snapshots show of the leader. The real-Pmove tests found and fixed four things a plain
+copy gets wrong: crouching while running rolls, so a crouch waits for walking pace;
+holding an attack's keys through the move walks too far, so they are pressed only where
+JKA chooses the next move; chasing the offset in the air bends the flight, so the air
+follows the leader's acceleration; and any backward key component slows the player, so
+a slight one is dropped.
+
+Verified: unit tests (the command's arguments, the facing and mirror frames, sample
+interpolation, a key stopping the copy, every directional attack's keys, transitions,
+the mirror's swaps, specials and reactions) and the real Pmove for leader and mimic on a
+flat floor with snapshots 24 ms apart arriving 60 ms late: at delays of 0, 0.3 and 1
+second the mirror copies the saber chain mirrored, each attack 4-24 ms late, jumps,
+crouches, mirrors a 30-degree turn and ends within 2 units; it tracks within 10 units
+with a delay and 31 without. Not verified: in a game on a server (real snapshot rates,
+specials needing Force or a nearby enemy, JA+ moves, collisions between the two
+players).
+
 ## Ghost replay
 
 Branch `personal/ghost-replay` (11/10/2026, based on `2dae1fa1`, Windows 11). Sol asked

@@ -224,9 +224,10 @@ reseeded from snapshots, every map area is drawn, and turning it off (or dying,
 spectating or boarding a vehicle) snaps back to the server's position without error
 smoothing. Turbo (attack held) sets the velocity along the aim directly.
 
-A ghost replay ([Ghost replay](client.md#ghost-replay)) sends recorded commands in place
-of the keys' ones through the same path, with fresh stamps on the 125 Hz grid; the
-command loop asks it before the Force-wheel reliable command, which a replay suppresses.
+A ghost replay ([Ghost replay](client.md#ghost-replay)) or the mimic
+([Mimic](client.md#mimic)) sends its own commands in place of the keys' ones through the
+same path, with fresh stamps on the 125 Hz grid; the command loop asks them before the
+Force-wheel reliable command, which both suppress.
 
 ### Detached free camera
 

@@ -401,7 +401,7 @@ enum Step {
 }
 
 /// The player pressed a movement key or a button during a replay.
-fn took_control(input: &UserCommand) -> bool {
+pub(crate) fn took_control(input: &UserCommand) -> bool {
     input.forward_move != 0
         || input.right_move != 0
         || input.up_move != 0
