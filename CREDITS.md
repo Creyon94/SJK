@@ -159,7 +159,7 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   and two apostrophes) and shown as typed, so SJK and EternalJK players see each
   other's percent signs and quotes.
 
-Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 11 pull requests
+Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 17 pull requests
 merged into SJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa)):
 
@@ -186,6 +186,17 @@ merged into SJK
   damage-direction indicator near the crosshair; it is off by default, camera kick and sounds stay.
 - #70 a quieter shield flash: the body shield-hit shader runs one pass by default
   (`cg_shieldBrightness 1`); a profile on the old default 4 moves to 1 once.
+- #71 the wall-move view hold: wall runs, run-ups, ledge flips and rebounds keep the
+  predicted view every frame, so fresh mouse movement no longer leaks in (JA+ free look kept).
+- #73 `con_height` applies at once: a normally opened console follows the setting live;
+  only Ctrl (full) and Shift (quarter) keep an override.
+- #74 saber steam in rain: `cg_saberRainSteam` (0 off, 1 everyone, 2 only you) plays the stock
+  `saber/fizz` steam and sizzle on exposed blades in rain, after JoF EJK #257.
+- #75 the lagometer scale: `cg_lagometerScale` (0.25 to 4) resizes the lagometer around its corner.
+- #76 the classic scoreboard follows JoF EJK's interaction rules: bottom-left chat, a compact
+  list on crowded servers, instant open, duel intermission names, roster changes tracked.
+- #77 jetpack flight prediction after OpenJK `PM_JETPACK` (gravity, thrust, hover, directional
+  legs) and the pack's chest attachment on equip; jump pads recognise the jetpack movement type.
 
 ## Origins: JKR, by Bishop
 

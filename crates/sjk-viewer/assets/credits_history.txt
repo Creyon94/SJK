@@ -1186,6 +1186,18 @@
 - 0874042 |  | Decode print and cp text as legacy bytes
 
 = Lumaya
++ 11/10/2026 | SJK #77 | Fix equipped jetpack attachment and movement prediction
+- 45fccac |  | Fix equipped jetpack attachment and movement prediction
++ 11/10/2026 | SJK #75 | Add an independent lagometer scale setting
+- ee5334c |  | Add an independent lagometer scale setting
++ 11/10/2026 | SJK #76 | Align classic scoreboard interactions with JoF EJK
+- 9a48437 |  | Align classic scoreboard interactions with JoF EJK
++ 11/10/2026 | SJK #73 | Fix con_height changes being ignored by the open console
+- 605a4d3 |  | Apply console height changes without reopening
++ 11/10/2026 | SJK #74 | Add configurable saber steam during rain
+- 78850fc |  | Add configurable saber steam during rain
++ 11/10/2026 | SJK #71 | Fix wall-jump view prediction between simulation slices
+- de7fc68 |  | Preserve the predicted wall-move view between simulation slices
 + 10/10/2026 | SJK #70 | Reduce the default body shield-hit flash
 - 7b7ad20 |  | Reduce the default body shield flash to one pass
 + 10/10/2026 | SJK #69 | Add a damage hitmarker toggle, disabled by default

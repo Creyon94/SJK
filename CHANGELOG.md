@@ -20,6 +20,12 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Wall runs, run-ups, ledge flips and rebounds hold the view every frame, so fresh mouse movement no longer turns the camera or your character while the wall move holds the view; JA+ free look is unchanged _(Lumaya, after OpenJK)_
+- Changing con_height while the console is open resizes it at once, and a toggleconsole bind follows the setting; Ctrl (full) and Shift (quarter) still force their height _(Lumaya)_
+- Saber steam in rain: exposed blades give off the stock steam and sizzle under open sky, not under roofs or in water; Settings > Game > Saber rain steam (cg_saberRainSteam: 0 off, 1 everyone, 2 only your blades) _(Lumaya, after JoF EJK)_
+- Lagometer scale: Settings > HUD > Lagometer scale (cg_lagometerScale, 0.25 to 4) resizes the lagometer around its bottom-right corner in every HUD _(Lumaya)_
+- Classic scoreboard like JoF EJK's: chat at the bottom left (hidden while you hold the scores on a crowded server), a compact list on crowded servers with a hold-Tab hint, instant open with a fade on release, duel winners at the intermission, and joins and leaves between score updates tracked; it still does not open on death, and the SJK scoreboard is unchanged _(Lumaya, after JoF EJK)_
+- Jetpack flight is predicted as the original game does (gravity, thrust, hover, leg animations), which should end the corrections while flying on JA+ servers, and the pack shows on your back as soon as you equip it; jump pads now recognise the jetpack _(Lumaya, after OpenJK)_
 - The Sun's glint leaves the tip: two glints, one smaller, circle the blade a little below it, dimming as they pass behind; the part is now Orbiting glints _(Sol)_
 
 ## 2026.1011.2 (Alpha) | 11/10/2026

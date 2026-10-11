@@ -105,7 +105,7 @@ link: Creyon's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr
 
 [Lumaya]
 github: lumayaa
-role: Contributor: 11 merged pull requests
+role: Contributor: 17 merged pull requests
 medal: early_contributor
 did: #24 Saber blades stop at walls instead of shining through them
 did: #29 Free camera: /freecam flies the camera away from your body
@@ -118,6 +118,12 @@ did: #67 Server models nothing uses are loaded when first shown, not at join
 did: #68 Asset browser: switch installed PK3 packs on and off
 did: #69 Damage hitmarker: the red indicator is a setting, off by default
 did: #70 The shield-hit flash on the body is quieter by default
+did: #71 Wall runs and rebounds keep the predicted view, no mouse leak
+did: #73 The console follows con_height live while it is open
+did: #74 Rain steam and sizzle on exposed saber blades
+did: #75 Lagometer scale setting
+did: #76 Classic scoreboard behaves like JoF EJK's
+did: #77 Jetpack flight prediction and the pack on your back
 link: Lumaya's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3Alumayaa
 
 == Origins
