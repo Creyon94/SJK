@@ -296,6 +296,9 @@ mod map_change;
 #[path = "world_shot_brushes.rs"]
 mod brushes;
 
+#[path = "world_shot_log_requests.rs"]
+mod log_requests;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1116,6 +1119,8 @@ Found the fog bug, ask me about it!"
             crashes_sent: 0,
             crash_note: None,
             holocrons: None,
+            log_requests: Vec::new(),
+            log_answer: None,
         };
         let standings = crate::achievements::ALL
             .iter()
@@ -1283,6 +1288,7 @@ like this one.",
             message: "4 players seen lately".to_owned(),
             failed: false,
             busy: false,
+            ..sjk_identity::StaffState::default()
         };
         on_big_stack(move || {
             let menu = menu::ClientMenu::new(true, String::new());

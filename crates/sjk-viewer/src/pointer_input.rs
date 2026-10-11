@@ -310,6 +310,11 @@ impl GpuState {
             self.fps_card_choice(choice);
             return true;
         }
+        if self.log_request_card.is_open() {
+            let choice = self.log_request_card.handle_pointer(event);
+            self.log_request_card_choice(choice);
+            return true;
+        }
         if self
             .client_menu
             .as_ref()

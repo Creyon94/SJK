@@ -28,6 +28,7 @@ This page is the design and the current limits. The player-facing summary is
 | Profile card (main page, in-game menu) | [profile_card.rs](../crates/sjk-viewer/src/profile_card.rs) |
 | Pictures: wire, cache, crop and scale, kept files, `sjkavatar` | [avatar.rs](../crates/sjk-identity/src/avatar.rs), [avatars.rs](../crates/sjk-viewer/src/avatars.rs), [avatars/picture.rs](../crates/sjk-viewer/src/avatars/picture.rs), [avatars/store.rs](../crates/sjk-viewer/src/avatars/store.rs), [avatar_command.rs](../crates/sjk-viewer/src/avatar_command.rs) |
 | Staff requests, Staff page, `staff` command | [staff.rs](../crates/sjk-identity/src/staff.rs), [staff_panel.rs](../crates/sjk-viewer/src/staff_panel.rs), [staff_panel_view.rs](../crates/sjk-viewer/src/staff_panel_view.rs), [console_staff_page.rs](../crates/sjk-viewer/src/console_staff_page.rs) |
+| Log requests: wire, session log, the player's card | [logs.rs](../crates/sjk-identity/src/logs.rs), [session_log.rs](../crates/sjk-viewer/src/session_log.rs), [log_request_card.rs](../crates/sjk-viewer/src/log_request_card.rs) |
 | Achievements: catalogue, counts, tracker | [achievements.rs](../crates/sjk-viewer/src/achievements.rs), [achievements/tracker.rs](../crates/sjk-viewer/src/achievements/tracker.rs), [achievements_frame.rs](../crates/sjk-viewer/src/achievements_frame.rs) |
 | Achievements: medallion look, unlock pop-up | [achievements/medallion.rs](../crates/sjk-viewer/src/achievements/medallion.rs), [achievement_toast.rs](../crates/sjk-viewer/src/achievement_toast.rs) |
 | SJK chat and emotes | [hub-chat.md](hub-chat.md) |
@@ -133,6 +134,15 @@ player's key. The hub keeps the newest 5000 until the operator removes them. Wit
 `cl_crashReports 0` nothing is sent and the report stays on the PC
 (`crashes/last-crash.txt`).
 
+Logs ([Log requests](#log-requests)) are sent only when the SJK team asked for them and
+the player chose Send logs on the card that asks: the newest console and diagnostic
+lines of this session and the one before (chat lines left out, the player's folder
+replaced by `%USERPROFILE%`), the last crash report when it is under 14 days old, the
+build, the operating system, the graphics adapter, the map and the game server, signed
+with the player's key. Staff read them; the hub keeps the newest 300 requests. With
+identity off nobody can ask. The session log itself (`logs/session.log` and
+`logs/previous-session.log` beside the configuration) stays on the PC.
+
 A player report (Escape, Players, or Escape, SJK, Report a player) is sent only by a
 verified player who chooses a player and a reason and presses Send: the reason and its few
 words, the reported player's slot and the name the game shows for them, the key the hub's
@@ -222,8 +232,57 @@ unexpectedly last time and when a report went. With `cl_crashReports 0` only
 `last-crash.txt` is written, and identity off sends nothing either.
 
 The hub groups reports by kind, the location's file and the message's first line (digits
-aside), so one bug across builds is one group; the operator reads them with the hub's
-`crash-groups`, `crashes`, `crash <id>` commands or `/admin/v1/crashes`.
+aside), so one bug across builds is one group; staff read them on the Staff page's
+Crashes tab ([Log requests](#log-requests)).
+
+## Log requests
+
+Since 11/10/2026 (Sol asked: friends with problems, their logs collected through the
+hub, and crash reports on the Staff page). [logs.rs](../crates/sjk-identity/src/logs.rs)
+(the wire), [session_log.rs](../crates/sjk-viewer/src/session_log.rs) (what is sent),
+[log_request_card.rs](../crates/sjk-viewer/src/log_request_card.rs) (the player's card)
+and the Staff page's Logs and Crashes tabs ([Staff](#staff)); hub `PROTOCOL.md`, "Log
+requests".
+
+**The session log.** Every line of the crash trail ([Crash reports](#crash-reports): the
+console's lines without chat, colour codes removed, and the `log::progress` diagnostics)
+is also written to `logs/session.log` beside the configuration, from the first line of
+the session (the lines kept before the configuration was known are written first). A
+start renames the last one `logs/previous-session.log`, so after a freeze or a crash the
+bad session's lines survive the restart. Past 16 MB the file starts again with the
+newest lines. It is written whatever the settings; nothing sends it by itself.
+
+**Asking.** A staff member chooses the player on the Staff page, opens the Logs tab and
+presses Request logs; the note field's text goes with it (one line, at most 200
+characters). A player has at most one open request (the button is off while one is
+open); a request nobody answered expires after 7 days.
+
+**The player's side.** Once registered, the identity service asks the hub for the
+player's open requests (`GET /v1/log-requests`) at the registration and every 2 minutes
+(a hub that refuses, one from before log requests, is asked again an hour later). The
+console says when one comes in ("<name> from the SJK team asks for your game's logs:
+open the menu to answer"); the card ([sjk-ui.md](sjk-ui.md#log-request)) waits for the
+main page or the game menu, never interrupting play, and says who asks, their note,
+what the logs hold, that the Windows user name is left out and that nothing goes unless
+the player chooses Send logs. Send logs (Enter) gathers the logs then
+(`crash_report::log_upload`): a header (time, build, system, graphics adapter, map,
+server), the newest 200 KB of this session's log, 120 KB of the previous one's and the
+last crash report (40 KB, when under 14 days old), the player's folder replaced by
+`%USERPROFILE%`; the service fits it to the hub's limits (400 000 characters, a body
+under 512 KiB; the oldest lines go first, at a line) and sends it (`POST /v1/logs`).
+Don't send (Escape) tells the hub (`POST /v1/logs/decline`). The request leaves the list
+at once either way; one the hub could not be reached for comes back with the next
+listing to answer again. The console says what became of the answer.
+
+**Reading.** The Logs tab lists the requests (newest first, 12 shown: player, state and
+date, size, who asked; Refresh reads them again). Open on a sent one reads its logs
+(`StaffQuery::Log`), which the page saves as `staff/sjk-logs-<id>-<name>.txt` beside the
+configuration and opens in the system's text editor. The Crashes tab lists every
+player's crash reports by kind (the hub's signature: kind, file, how many reports from
+how many players, the last date and the message's first line); a kind lists its newest
+reports (player, date, build), and Open saves one whole as
+`staff/sjk-crash-<id>-<name>.txt` and opens it. Each of these is a signed staff request
+the hub keeps in its staff log.
 
 ## Player reports
 
@@ -753,7 +812,11 @@ themself until another is chosen, or with Me), and offers:
 - the right column's second tab, Keys and merge: the player's main key and their
   linked keys, each with Unlink (`StaffRequest::Unlink`, which waits for a second press
   within 3 seconds), then Merge another key into this player ([Players with several
-  keys](#players-with-several-keys)).
+  keys](#players-with-several-keys));
+- its third, Logs: Request logs for the chosen player and the log requests with Open,
+  and its fourth, Crashes: every player's crash reports by kind, then one kind's with
+  Open ([Log requests](#log-requests)). Clear all sits at the top of the achievements
+  since 11/10/2026, the tabs' row being full.
 
 Each action is a request signed by the staff member's own key (`PROTOCOL.md`,
 "Staff"); the hub refuses it from a key that is not staff, keeps a log of every staff

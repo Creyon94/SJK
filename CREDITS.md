@@ -109,6 +109,9 @@ Sol develops SJK and sets its direction. Sol's work includes:
   emblem on SJK lines;
 - crash reports sent to the SJK team at the next start, and world notes sent to the
   SJK hub from the inspect key;
+- log requests: the SJK team asks a player for their game's logs from the Staff page,
+  the player's game asks them before it sends the console lines of this session and
+  the last (no chat), and staff read every player's crash reports by kind;
 - ghost replay (`ghost`): a run recorded once and replayed on the same server to film
   a showcase, walking to its start and correcting drift through the movement keys;
 - the mimic (`mimic`): another player's view, movement, jumps, crouches, saber attacks,

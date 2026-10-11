@@ -1,5 +1,28 @@
 # Status and priorities
 
+## Log requests
+
+Branch `personal/log-requests` (11/10/2026, based on `491ee67c`, Windows 11), with the
+hub's `feat/log-requests`. Sol asked to request logs from friends who have problems
+through the hub, and to see crash reports on the Staff page. Staff press Request logs on
+a player (Staff page, Logs tab); the player's game shows a card on the menu asking
+whether to send; Send logs uploads the newest lines of `logs/session.log` (new: the
+chat-free crash trail written to disk, the previous session kept) and of the session
+before, and the last crash report. Staff open the logs and every player's crash reports
+(Crashes tab) as text files ([identity.md](identity.md#log-requests)).
+
+Verified: unit tests (the fitting under the hub's limits, the wire's paths and fields,
+the service's polling, answering once, retrying an answer the hub never heard, staff
+only, the opened text's safe file name, the card's keys, words and announcements, the
+session log's rotation, restart at 16 MB and tails, the Staff page's actions and every
+view fitting the canvas); `hub_e2e`'s `a_staff_key_asks_for_logs_and_reads_them_and_crash_reports`
+against the hub branch built and run locally (request, listing, a fitted ~400 KB
+multi-byte upload taken whole, decline, crash groups, reports and one read back); world
+shots `log_request_shots` (the card, the Logs and Crashes tabs) and `duel6_sjk_staff`.
+Not verified: in a game (the card on a real request, the editor opening, a real
+session log across a crash); the hub branch is not deployed, so live hubs answer 404
+and clients ask them again hourly.
+
 ## Mimic
 
 Since branch `personal/experimental-showcase` (11/10/2026) `ghost` and `mimic` are

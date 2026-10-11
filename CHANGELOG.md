@@ -20,6 +20,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Log requests: when you have a problem, the SJK team can ask for your game's logs; a card on the menu asks you first and nothing is sent unless you choose Send logs. SJK now keeps the console lines of this session and the last one (no chat) in logs/ beside your settings _(Sol)_
 - Strafe lines like JoF EJK's: two lines from the bottom of the screen show the best heading for strafe-jumping with WA and WD, the one for the keys you hold in green; in first and third person, in the air and on the ground. Settings > HUD+ > Strafe lines, or cg_strafeHelper 2242 as in JoF EJK (strafehelper lists the keys) _(Sol, after JoF EJK)_
 - Mimic for saber showcases (experimental, off by default: Settings > Gameplay > Experimental: showcase tools): mimic <player> [delay] [mirror|copy] [walk] copies another player's view, movement, jumps, crouches, saber attacks, stance and holster live while you face them, as a mirror by default, after the delay you set; walk keeps you walking the whole time; any key stops it _(Sol)_
 - Ghost replay for filming showcases (experimental, off by default: Settings > Gameplay > Experimental: showcase tools): ghost record <name> records your run, ghost play <name> walks you to its start and replays it on the same server while someone films, correcting small drift on the ground; any key stops it _(Sol)_

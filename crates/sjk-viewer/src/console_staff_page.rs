@@ -88,6 +88,11 @@ impl ViewerConsole {
                     self.push_log("^3staff: the identity is not running");
                 }
             }
+            PanelAction::Query(query) => {
+                if !crate::player_identity::staff_query(query) {
+                    self.push_log("^3staff: the identity is not running");
+                }
+            }
         }
     }
 
@@ -127,6 +132,9 @@ impl ViewerConsole {
             self.staff_panel.preview = Some((me, staff));
             return;
         }
+        if let Some(opened) = crate::player_identity::take_opened() {
+            self.open_staff_text(&opened);
+        }
         let snapshot = crate::player_identity::snapshot();
         let staff = crate::player_identity::staff_state().unwrap_or_default();
         let inputs = Inputs {
@@ -134,6 +142,24 @@ impl ViewerConsole {
             staff: &staff,
         };
         self.staff_panel.append_sjk(&inputs, target, viewport);
+    }
+
+    /// Save logs or a crash report a staff query opened in `staff/` beside the
+    /// configuration and open the file in the system's text editor.
+    fn open_staff_text(&mut self, opened: &sjk_identity::OpenedText) {
+        let dir = self.config_directory().join("staff");
+        let path = dir.join(format!("{}.txt", opened.name));
+        let written = std::fs::create_dir_all(&dir)
+            .and_then(|()| std::fs::write(&path, opened.text.replace('\n', "\r\n")));
+        match written {
+            Ok(()) => {
+                self.push_log(format!("staff: saved {}", path.display()));
+                open_in_editor(&path);
+            }
+            Err(error) => {
+                self.push_log(format!("^3staff: cannot save {}: {error}", path.display()))
+            }
+        }
     }
 
     /// Open the page on `me` and `staff` in place of the live ones, for a world shot.
@@ -146,6 +172,13 @@ impl ViewerConsole {
         self.staff_panel.open(true);
         self.staff_panel.preview = Some((me, staff));
         self.set_open(true);
+    }
+
+    /// Show the open page's Logs view, or its Crashes view (one kind's reports with
+    /// `group`), for a world shot.
+    #[cfg(test)]
+    pub(crate) fn staff_view(&mut self, logs: bool, group: Option<&str>) {
+        self.staff_panel.view_for_shot(logs, group);
     }
 
     /// Choose the player with `key_id` on the open page, for a world shot.
@@ -165,4 +198,17 @@ impl ViewerConsole {
     pub(super) fn staff_panel_draw_list(&self) -> Option<&sjk_ui::DrawList> {
         (self.open && self.staff_panel.is_open()).then(|| self.staff_panel.draw_list())
     }
+}
+
+/// Open `path` with the program the system gives text files: Notepad or the
+/// player's own editor on Windows. Only files the page itself wrote are opened.
+fn open_in_editor(path: &std::path::Path) {
+    if cfg!(test) {
+        return;
+    }
+    let _ = if cfg!(target_os = "windows") {
+        std::process::Command::new("explorer").arg(path).spawn()
+    } else {
+        std::process::Command::new("xdg-open").arg(path).spawn()
+    };
 }

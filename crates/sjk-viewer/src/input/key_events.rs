@@ -74,6 +74,12 @@ impl GpuState {
             self.fps_card_choice(choice);
             return;
         }
+        // And the log request card.
+        if !console_open && self.log_request_card.is_open() {
+            let choice = self.log_request_card.handle_key(&event);
+            self.log_request_card_choice(choice);
+            return;
+        }
         // Ctrl+Tab changes the Profile screen's tab, whichever screen shows it.
         if self.profile_hub_key(&event) {
             return;

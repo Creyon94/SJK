@@ -57,6 +57,19 @@ test: After that start, crashes/last-crash.txt reads like the session (map, last
 test: With the hub deployed: the console says the report was sent; crash-groups lists it.
 note: The hub has taken reports since 11/10/2026; the operator reads them with crash-groups.
 
+[log-requests]
+area: Console & chat
+title: Log requests: staff ask a player for logs, the player's card sends them
+change: The game writes logs/session.log (no chat); a start keeps the last as previous-session.
+change: Staff page > Logs: Request logs; the player's menu shows a Send logs card.
+change: Staff page > Crashes: crash reports by kind; Open saves one and opens it as text.
+test: Start SJK twice: logs/previous-session.log holds the first run, session.log the second.
+test: Staff > choose a test key > Logs > Request logs (the note field goes with it).
+test: In that key's game: the console says the team asks; the main menu shows the card.
+test: Send logs: the console thanks you. Staff > Logs > Refresh: sent; Open opens the text.
+test: Staff > Crashes: kinds listed; choose one, Open a report: it opens as a text file.
+note: Needs the hub's feat/log-requests deployed; older hubs answer 404 (asked again hourly).
+
 [config-save-quiet]
 area: Console & chat
 title: config.cfg saved only on real changes, 2 s later, off the main thread

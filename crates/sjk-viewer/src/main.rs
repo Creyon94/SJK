@@ -117,6 +117,7 @@ mod local_actor_state;
 mod local_prediction;
 mod localization;
 mod log;
+mod log_request_card;
 mod main_scene_pass;
 mod medal_popup;
 mod medals;
@@ -215,6 +216,7 @@ mod scoreboard;
 mod screenshot;
 mod server_browser;
 mod server_commands;
+mod session_log;
 mod session_transition;
 mod settings;
 mod settings_icons;
@@ -329,6 +331,8 @@ struct GpuState {
     fps_help: fps_help::State,
     /// The low-FPS card (`help_fps`).
     fps_card: fps_help::card::Card,
+    /// The SJK team's request for the player's logs ([`log_request_card`]).
+    log_request_card: log_request_card::Card,
     window: Option<Arc<Window>>,
     post_aa: Option<frame_target::aa::Runtime>,
     render_scale: Option<frame_target::scale::Runtime>,
@@ -1243,6 +1247,7 @@ impl GpuState {
             graphics_reload: graphics_reload::State::default(),
             fps_help: fps_help::State::default(),
             fps_card: fps_help::card::Card::default(),
+            log_request_card: log_request_card::Card::default(),
 
             screenshots: screenshot_setup.manager,
             headless_frame: None,
@@ -1794,7 +1799,17 @@ impl GpuState {
                 || self.medal_popup.pending()
                 || self.holocron_popup.pending(),
         );
-        let medal_popup = medal_shown || holocron_shown || reload_shown || fps_shown;
+        // And the SJK team's request for the player's logs.
+        let logs_shown = self.prepare_log_request_card(
+            console_covers_frame
+                || medal_shown
+                || holocron_shown
+                || reload_shown
+                || fps_shown
+                || self.medal_popup.pending()
+                || self.holocron_popup.pending(),
+        );
+        let medal_popup = medal_shown || holocron_shown || reload_shown || fps_shown || logs_shown;
         // Nor under the SJK UI's report card, as under its other cards.
         let report_card = self.text_dialog.is_open() && self.text_dialog.is_sjk();
         self.text_vertices.clear();
@@ -1964,6 +1979,8 @@ impl GpuState {
             self.append_reload_card(viewport);
         } else if fps_shown {
             self.append_fps_card(viewport);
+        } else if logs_shown {
+            self.append_log_request_card(viewport);
         }
         // An achievement unlocked, or a medal or holocron in a match: its card over play or
         // the menus, never input-taking.
@@ -2010,6 +2027,7 @@ impl GpuState {
             holocron_shown.then(|| self.holocron_popup.draw_list()),
             reload_shown.then(|| self.graphics_reload.card.draw_list()),
             fps_shown.then(|| self.fps_card.draw_list()),
+            logs_shown.then(|| self.log_request_card.draw_list()),
             unlock_toast.then(|| self.unlock_toast.draw_list()),
         ];
         self.ui_shapes
