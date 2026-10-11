@@ -1125,10 +1125,18 @@ test: Join several public servers a few times each: no "timed out waiting for ch
 test: If a join stalls, it ends with an error within ~15 s instead of floating on the map.
 test: After any failed join, logs\last-client.log shows the last join: step reached.
 
+[amstatus-jof]
+area: Gameplay
+title: Admins' amstatus shows SJK players as JoF EJK on JA+ servers
+change: cjp_client is now JoF EJK's "1.6.4 JoF" instead of the old JA+ plugin's "1.4B4".
+test: Join a JoF server and ask an admin for /amstatus: your client reads as JoF EJK's.
+test: Join a JA+ server: no "You haven't the JA+ client plugin installed" message.
+test: Set an RGB saber on JA+: others still see your RGB blade; the scoreboard reads right.
+
 [japlus-identity]
 area: Gameplay
 title: SJK joins JA+ servers as a JA+ plugin client
-change: Sends cjp_client 1.4B4 and your cp_pluginDisable; JA+/jaPRO detected before joining.
+change: Sends cjp_client and your cp_pluginDisable; JA+/jaPRO detected before joining.
 change: Scoreboard rows with the plugin's extra deaths field now read correctly.
 test: Join a JA+ server: no "You haven't the JA+ client plugin installed" message.
 test: Scoreboard with several players on JA+: every row shows the right name and score.

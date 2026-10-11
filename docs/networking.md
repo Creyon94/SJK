@@ -25,8 +25,10 @@ Profile detection and implemented adapter behavior are not a promise that every
 feature of those servers is reproduced by SJK's dedicated server.
 
 On JA+ and TaystJK/jaPRO servers the client identifies as a client-plugin user
-through extra userinfo keys. JA+ gets the JA+ 1.4B4 plugin's `cjp_client
-1.4B4` and `cp_clanPwd none`. Both plugin profiles also get the player's
+through extra userinfo keys. JA+ gets `cp_clanPwd none` and JoF EJK's
+`cjp_client` (`1.6.4 JoF`, the value JoF EJK's latest release sends there), so
+an admin's `amstatus` lists an SJK player as a JoF EJK one until SJK is
+announced; it was the JA+ 1.4B4 plugin's `1.4B4` before 11/10/2026. Both plugin profiles also get the player's
 `cp_pluginDisable` cvar (archived; a set bit switches a plugin feature off),
 from the connect packet on and in every later `userinfo` update; stock and
 unknown servers never receive it. Its default is EternalJK's 1536, which opts

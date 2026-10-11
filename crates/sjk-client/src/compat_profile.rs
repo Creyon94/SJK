@@ -26,10 +26,11 @@ const TAYSTJK_USERINFO: [(&str, &str); 5] = [
 /// JA+ client-plugin USERINFO keys, by which a JA+ server recognises a plugin
 /// user and serves it plugin features such as custom RGB blades.
 ///
-/// - `cjp_client` is the JA+ 1.4B4 plugin's own value: its `cgamex86.dll`
-///   registers `cjp_client` `"1.4B4"` with `CVAR_USERINFO | CVAR_ROM`, and the
-///   JA+ server's `jampgamex86.dll` names `1.4B4` as the latest plugin it
-///   knows, so it does not ask for an update.
+/// - `cjp_client` is the value JoF EJK sends on JA+ servers
+///   ([`JOF_EJK_CLIENT`]), so an admin's `amstatus` lists an SJK player as a
+///   JoF EJK one until SJK is announced (Sol, 11/10/2026). SJK sent the JA+
+///   1.4B4 plugin's own `1.4B4` before; JA+ servers take any value as a plugin
+///   user, as they take JoF EJK's and EternalJK's `1.4JAPRO`.
 /// - `cp_clanPwd` `"none"` is the default of both the plugin and EternalJK.
 ///
 /// `cp_pluginDisable` is the player's setting and is added per profile by
@@ -38,7 +39,13 @@ const TAYSTJK_USERINFO: [(&str, &str); 5] = [
 /// `cp_sbRGB1`/`cp_sbRGB2` are added by the userinfo codec whenever a blade
 /// selects RGB, for every profile. The plugin's other USERINFO cvars
 /// (`cp_login`, `cp_holster`) are left out, as EternalJK leaves them out.
-const JAPLUS_USERINFO: [(&str, &str); 2] = [("cjp_client", "1.4B4"), ("cp_clanPwd", "none")];
+const JAPLUS_USERINFO: [(&str, &str); 2] = [("cjp_client", JOF_EJK_CLIENT), ("cp_clanPwd", "none")];
+
+/// JoF EJK's `cjp_client` on JA+ servers: its `JOFCLIENTVERSION`, the release
+/// number then ` JoF` (`codemp/qcommon/q_shared.h:36`, set in
+/// `cg_servercmds.c:317`), here its latest release, 1.6.4. Follow JoF EJK's
+/// releases to keep matching it.
+const JOF_EJK_CLIENT: &str = "1.6.4 JoF";
 
 /// `cp_pluginDisable` sent to plugin servers when the player has not set one:
 /// EternalJK's value (`codemp/cgame/cg_xcvar.h:166`) rather than the JA+
@@ -228,7 +235,7 @@ mod tests {
     #[test]
     fn ja_plus_identifies_as_the_client_plugin() {
         let keys = CompatProfile::JaPlus { version: None }.userinfo_extensions();
-        assert_eq!(keys, &[("cjp_client", "1.4B4"), ("cp_clanPwd", "none")]);
+        assert_eq!(keys, &[("cjp_client", "1.6.4 JoF"), ("cp_clanPwd", "none")]);
         // 1536 opts out of exactly holstered sabers (bit 9) and ledge grab (bit 10).
         assert_eq!(PLUGIN_DISABLE_DEFAULT, (1 << 9) | (1 << 10));
         assert!(CompatProfile::BaseJka.userinfo_extensions().is_empty());
@@ -251,7 +258,7 @@ mod tests {
         )
         .unwrap();
         let parsed = info(&payload);
-        assert_eq!(parsed.get("cjp_client"), Some("1.4B4"));
+        assert_eq!(parsed.get("cjp_client"), Some("1.6.4 JoF"));
         assert_eq!(parsed.get("cp_pluginDisable"), Some("1536"));
         assert_eq!(parsed.get("cp_clanPwd"), Some("none"));
         assert_eq!(parsed.get("color1"), Some("6"));
