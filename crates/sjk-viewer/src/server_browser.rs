@@ -148,6 +148,16 @@ impl ServerBrowser {
         self.details.state()
     }
 
+    /// The first of the selected server's players the details panel shows.
+    pub(crate) fn player_scroll(&self) -> usize {
+        self.details.player_scroll()
+    }
+
+    /// Wheel the selected server's players `by` rows, `page` in view.
+    pub(crate) fn scroll_players(&mut self, by: i32, page: usize) {
+        self.details.scroll_players(by, page);
+    }
+
     pub(crate) fn entries(&self) -> &[ServerEntry] {
         &self.entries
     }

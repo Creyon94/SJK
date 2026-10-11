@@ -1,5 +1,15 @@
 # Status and priorities
 
+## Server browser: the players scroll
+
+Branch `feat/browser-players-scroll` (12/10/2026, based on `9dbbdf19`, Linux): Creyon asked
+for the SJK browser's "Playing now" list to scroll instead of ending in "and 16 more". Past
+six players the wheel over the list scrolls it, two rows a notch, with a thin bar showing
+where the rows in view are; it starts at the top for each server ([sjk-ui.md](sjk-ui.md)).
+Verified: a test wheeling through ten players (down, clamped at the last row, up, the server
+table unmoved, everything fitting) and the workspace checks; in game on Windows 11 by
+Creyon.
+
 ## Downloads that work, and what they may bring
 
 Branch `personal/allow-download` (12/10/2026, based on `c2016fbf`, Windows 11). Sol

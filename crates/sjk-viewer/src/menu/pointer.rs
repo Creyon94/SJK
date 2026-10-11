@@ -89,7 +89,7 @@ impl ClientMenu {
         }
     }
 
-    fn handle_browser_pointer(
+    pub(super) fn handle_browser_pointer(
         &mut self,
         token: u16,
         kind: UiEventKind,
@@ -109,6 +109,14 @@ impl ClientMenu {
                 return MenuAction::None;
             }
             let direction = delta.map_or(0, |delta| -delta.y.signum() as i32);
+            if self.menu_style == MenuStyle::Sjk && token == super::sjk::browser::PLAYERS_TOKEN {
+                // The details panel's players, not the server table.
+                self.browser.scroll_players(
+                    direction * super::sjk::browser::PLAYER_WHEEL_ROWS,
+                    super::sjk::browser::PLAYER_LINES,
+                );
+                return MenuAction::None;
+            }
             self.browser.scroll_by(direction * WHEEL_ROWS);
             return MenuAction::None;
         }
