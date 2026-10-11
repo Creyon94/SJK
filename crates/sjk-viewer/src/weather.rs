@@ -261,6 +261,16 @@ impl Runtime {
         self.wet
     }
 
+    /// Rain emitters currently configured, including forced and local weather.
+    /// Frozen weather has no new drops to strike a saber.
+    pub(crate) fn saber_rain(&mut self, settings: &settings::Settings) -> bool {
+        if settings.force() != self.force {
+            self.force = settings.force();
+            self.rebuild();
+        }
+        settings.enabled() && !self.effects.frozen && self.effects.clouds.iter().any(Cloud::is_rain)
+    }
+
     /// Weather to draw into the effect layer this frame.
     pub(crate) fn visible(&self) -> bool {
         !self.batches.is_empty()

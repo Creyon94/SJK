@@ -15,6 +15,9 @@ use std::time::{Duration, Instant};
 #[path = "saber_contacts.rs"]
 pub(crate) mod saber_contacts;
 
+#[path = "saber_rain_steam.rs"]
+pub(crate) mod saber_rain_steam;
+
 #[path = "effect_cadence.rs"]
 pub(crate) mod cadence;
 
@@ -71,6 +74,7 @@ pub(crate) struct Runtime {
     /// World marks requested by `Decal` components (`decal_store`).
     pub(crate) decals: crate::decal_store::DecalStore,
     pub(crate) saber_contacts: saber_contacts::Runtime,
+    pub(crate) saber_rain_steam: saber_rain_steam::Runtime,
     /// Paces effects that stock re-plays every rendered frame (`effect_cadence.rs`).
     pub(crate) continuous: cadence::Cadence,
     /// Lights a world shot holds in place every frame (`world_shot_notes.rs`).
@@ -89,6 +93,7 @@ impl Default for Runtime {
             emitters: crate::effect_emitter::Runtime::default(),
             decals: crate::decal_store::DecalStore::default(),
             saber_contacts: saber_contacts::Runtime::default(),
+            saber_rain_steam: saber_rain_steam::Runtime::default(),
             continuous: cadence::Cadence::default(),
             #[cfg(test)]
             held_lights: Vec::new(),

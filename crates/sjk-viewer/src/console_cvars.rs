@@ -498,6 +498,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             archive,
             "Saber motion trails; mode 2 currently uses the normal trail",
         ),
+        CvarDefinition::new(
+            crate::effect_aux::saber_rain_steam::CVAR,
+            1_i64,
+            archive,
+            "Saber steam in rain: 0 off, 1 everyone, 2 only me",
+        ),
         // Stock default "1" (`codemp/cgame/cg_xcvar.h`).
         CvarDefinition::new(
             "cg_speedTrail",

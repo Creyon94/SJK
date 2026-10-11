@@ -19,6 +19,32 @@ and `duel6_sun_orbit` (an upright Sun up close over one orbit, `duel6-sun-orbit.
 The hub (`feat/sun-orbit`, merged `8568413`) was deployed on 11/10/2026 and serves the
 new pack. Not verified: in a live match.
 
+## Saber steam in rain
+
+Branch `feat/saber-rain-steam` (11/10/2026, based on `3654f5b2`, Windows 11 Pro,
+Rust 1.99.0) ports [JoF EJK PR #257](https://github.com/JediofFreedom/JoF_EJK/pull/257).
+Exposed rendered blades play the stock `saber/fizz` steam/sizzle effect at independent
+300–600 ms intervals. `cg_saberRainSteam` is archived: `1` everyone (default), `2`
+only your blades, `0` off; both settings interfaces expose it. Dry-point and sky
+traces include moving inline solids and permanent BSP instances. See
+[rendering.md](rendering.md#weather).
+
+Verified: formatting, locked workspace build/tests and all-target clippy pass
+(existing warnings remain). Eight focused unit tests cover mode ownership, archived
+defaults, timer bounds at 8/7/4/3 ms, duplicate submissions and demo rewinds, roofs,
+indoor/liquid volumes, a translated inline door, rain commands, clear/die/freeze,
+forced rain/snow and disabling weather. The release run also passes an off-screen
+GPU test on `mp/duel6` at 960×540 with forced rain, fog/clouds off, and installed
+retail assets: Off creates no particles, On creates the stock fizz particles, the
+graph contains its sound component, and the Off/On images were reviewed. GPU:
+RTX 5070 Ti, driver 617.14; CPU: Ryzen 7 5800X3D. One blade's added submission cost
+averaged 0.199 µs over 1,000 release iterations at 8 ms presentation intervals, with no
+snapshot solids or audio; this excludes rendering and does not measure a crowd.
+
+Unverified: a live match's held, first-person, dual/multi-blade and thrown saber
+views, actually hearing the sizzle, moving-door visuals, other maps/GPUs, and
+crowd/frame-time cost. The GPU check uses a tagged blade, not a connected player.
+
 ## Mythical shader parts
 
 Branch `personal/shader-options` (11/10/2026, based on `5dadea06`, Windows 11), with the

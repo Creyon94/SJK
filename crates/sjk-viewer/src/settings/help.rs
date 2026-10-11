@@ -342,6 +342,10 @@ const HELP: &[(&str, &str)] = &[
         "The light trail behind a swinging saber blade.",
     ),
     (
+        crate::effect_aux::saber_rain_steam::CVAR,
+        "Steam and sizzle in rain on exposed blades. 0: off, 1: everyone, 2: only you.",
+    ),
+    (
         "cg_speedTrail",
         "Afterimages behind players using Force Speed.",
     ),

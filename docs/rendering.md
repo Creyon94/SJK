@@ -2334,12 +2334,33 @@ run on a worker thread, and the clouds and the fog's billows appear when it is r
 
 `r_weather 0` turns weather off (the clouds stay with `r_clouds`);
 `r_weatherDensity` scales the counts (1 is the original's, SJK's default 2).
+
+`cg_saberRainSteam` adds steam and a sizzle to exposed saber blades during rain:
+`1` (default) for everyone, `2` for your own held and thrown sabers, `0` off.
+Both settings interfaces offer **Saber rain steam** under Game options / Effects.
+The presentation follows [JoF EJK PR #257](https://github.com/JediofFreedom/JoF_EJK/pull/257):
+each blade samples a point between 10% and 100% of its visible length every
+300–600 ms and plays the stock `saber/fizz` effect upward. Dual and multi-blade
+hilts have independent timers; throwing or catching retains the primary blade's
+timer. Ghosts, trails, hidden blades and menu previews do not emit rain steam.
+The sampled point must be dry and outside indoor volumes, with an upward point
+trace reaching sky (or escaping from a marked outside volume). Static roofs and
+presented solid brush models, including doors and permanent BSP instances, block
+it. Frozen weather and repeated presentation times do not emit new strikes;
+rewinding a demo resets the deadlines.
+
+SJK reads its active weather emitters, including `r_weatherForce` and `r_we`, so
+`rain`, `acidrain`, `lightrain` and `heavyrain` can cause steam. Snow, fog and wind
+alone cannot. `r_weather 0` suppresses it. `clear` removes rain while preserving
+freeze; `die` also clears freeze. This affects presentation only.
+
 Secondary views (portals, mirrors, sky portals) show no weather or clouds. Not
 implemented: the outside camera shake (`outsideshake`), acid rain's pain hint, the
-saber hiss in rain, lightning flashes (a single-player `fx_rain` flag the
+lightning flashes (a single-player `fx_rain` flag the
 multiplayer game ignores), wind zones with bounds, and clouds casting shadows on the
 world. A map's skybox may already paint clouds; the volumetric ones go over them.
-Unverified: everything visible, and the cost. The cover, commands, wind, settings,
+Full visual and cost verification of the weather remains incomplete. The cover,
+commands, wind, settings,
 noise, cloud and fog parameters and the translation of both shaders have unit
 tests; how fog and clouds look, and what they cost at 4K, is untested. Off-screen
 world shots of `T2_Rogue` with `r_weatherFog 2` (07/10/2026), from cameras 24 units
