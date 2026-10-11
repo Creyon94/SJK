@@ -475,13 +475,18 @@ mod tests {
         assert_eq!(found.max_fps, Some(333));
         assert_eq!(found.cmd_rate_cap, Some(false));
         assert!(found.has(Item::FpsCap));
-        assert_eq!(origin("jampconfig.cfg", &found).old_fps(), Some(333));
+        assert_eq!(origin("jampconfig.cfg", &found).max_fps, Some(333));
+        assert_eq!(
+            origin("jampconfig.cfg", &found).old_fps(),
+            0,
+            "Auto follows the cap"
+        );
         // An uncapped client (0) imports its cap, but says nothing of its movement.
         let found = parse("seta com_maxfps 0\nseta cl_cmdratecap 1\n");
         assert_eq!(found.max_fps, Some(0));
         let jof = origin("eternaljk.cfg", &found);
         assert_eq!(jof.max_fps, None);
-        assert_eq!(jof.old_fps(), Some(125), "cl_cmdratecap moved at 125");
+        assert_eq!(jof.old_fps(), 125, "cl_cmdratecap moved at 125");
         assert!(parse("seta com_maxfps fast").max_fps.is_none());
     }
 

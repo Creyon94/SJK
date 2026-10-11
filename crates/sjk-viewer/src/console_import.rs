@@ -322,7 +322,16 @@ mod tests {
         let lines = console.import_config(&found, &[Item::FpsCap]);
         assert_eq!(lines, ["FPS cap: 333"]);
         assert_eq!(console.integer_cvar("com_maxfps"), Some(333));
-        assert_eq!(console.gameplay_fps(), 125, "the movement is asked apart");
+        assert_eq!(
+            console.gameplay_fps(),
+            0,
+            "Auto: the movement is asked apart"
+        );
+        // Auto follows the FPS cap (AUTO's 125 until the frame pacer says more).
+        assert_eq!(console.command_step(), 8);
+        console.set_frame_cap(333);
+        assert_eq!(console.command_step(), 3);
+        console.set_frame_cap(125);
         let line = console.set_gameplay_fps(333).unwrap();
         assert_eq!(line, "Gameplay FPS: 333 (3 ms steps)");
         assert_eq!(console.command_step(), 3);

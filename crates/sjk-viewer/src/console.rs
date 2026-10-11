@@ -202,8 +202,11 @@ pub(crate) struct ViewerConsole {
     remap_blocked_maps: console_cvars::RevisionSetting,
     packet_dup: console_cvars::IntegerSetting,
     max_packets: console_cvars::IntegerSetting,
-    /// `cl_gameplayFps`, and the server's `pmove_fixed`/`pmove_msec` that override it.
+    /// `gameplay_fps`, and the server's `pmove_fixed`/`pmove_msec` that override it.
     gameplay_fps: console_cvars::IntegerSetting,
+    /// The FPS cap Auto follows, as the frame pacer last read it
+    /// ([`Self::set_frame_cap`]).
+    frame_cap: u32,
     pmove_fixed: console_cvars::IntegerSetting,
     pmove_msec: console_cvars::IntegerSetting,
     pub(crate) geometry_controls: crate::shared_geometry::environment::Cvars,
@@ -299,7 +302,8 @@ impl ViewerConsole {
         self.max_packets.value()
     }
 
-    /// Cached `cl_gameplayFps`: the frame rate whose movement the player wants.
+    /// Cached `gameplay_fps`: the frame rate whose movement the player wants, or
+    /// 0 (Auto) to follow the FPS cap.
     pub(crate) fn gameplay_fps(&self) -> i64 {
         self.gameplay_fps.value()
     }
@@ -311,9 +315,23 @@ impl ViewerConsole {
             .then(|| self.pmove_msec.value().clamp(1, 50) as i32)
     }
 
+    /// The FPS cap in use (`com_maxfps`, AUTO resolved; 0 is uncapped), which the
+    /// gameplay FPS's Auto follows. Set every frame of a game.
+    pub(crate) fn set_frame_cap(&mut self, cap: u32) {
+        self.frame_cap = cap;
+    }
+
+    pub(crate) fn frame_cap(&self) -> u32 {
+        self.frame_cap
+    }
+
     /// Milliseconds between user commands ([`sjk_client::command_rate::command_step`]).
     pub(crate) fn command_step(&self) -> i32 {
-        sjk_client::command_rate::command_step(self.gameplay_fps(), self.pmove_fixed_msec())
+        sjk_client::command_rate::command_step(
+            self.gameplay_fps(),
+            self.pmove_fixed_msec(),
+            self.frame_cap,
+        )
     }
 
     pub(crate) fn config_directory(&self) -> &std::path::Path {

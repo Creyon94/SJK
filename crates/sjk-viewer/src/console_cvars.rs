@@ -8,6 +8,15 @@ use std::sync::atomic::{AtomicI64, AtomicU64, Ordering};
 /// JoF EJK. Stock's 30 and EternalJK's 63 batch two to four commands a packet.
 pub(crate) const DEFAULT_MAX_PACKETS: i64 = 125;
 
+/// `rate` default: 90000 bytes a second, so the 40 snapshots of a busy server are
+/// not delayed by the client's own rate; servers cap it with `sv_maxRate`. Stock's
+/// 25000 left about 600 bytes a snapshot at 40 a second.
+pub(crate) const DEFAULT_RATE: i64 = 90_000;
+/// The stock default every profile saved, moved once to [`DEFAULT_RATE`].
+pub(crate) const OLD_DEFAULT_RATE: i64 = 25_000;
+/// Marks that move as done.
+pub(crate) const RATE_VERSION_CVAR: &str = "rateDefaultVersion";
+
 /// Change-callback cache for integer values; frame reads never look up a name.
 pub(super) struct IntegerSetting(Arc<AtomicI64>);
 
@@ -664,15 +673,15 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "cl_maxpackets",
             DEFAULT_MAX_PACKETS,
             archive,
-            "Most move packets sent a second (15 to 1000); user commands are made at your gameplay FPS (cl_gameplayFps) and wait for the next packet",
+            "Most move packets sent a second (15 to 1000); user commands are made at your gameplay FPS (gameplay_fps) and wait for the next packet",
         ),
         // SJK's: the frame rate whose movement the player wants, apart from the
-        // frames drawn (`command_rate`, `gameplay_fps.rs`).
+        // frames drawn, or 0 to follow the FPS cap (`command_rate`, `gameplay_fps.rs`).
         CvarDefinition::new(
             crate::gameplay_fps::CVAR,
-            sjk_client::command_rate::DEFAULT_GAMEPLAY_FPS,
+            sjk_client::command_rate::AUTO_GAMEPLAY_FPS,
             archive,
-            "Gameplay FPS: the frame rate your movement runs at (125, 142, 250, 333 or 20 to 1000), whatever FPS you draw; a pmove_fixed server's step wins; gameplayfps explains it",
+            "Gameplay FPS: 0 (Auto) moves you at your FPS cap; 125, 142, 250, 333 or 20 to 1000 keep that movement whatever FPS you draw; a pmove_fixed server's step wins; help_gameplay_fps explains it",
         ),
         // Stock default "1", clamped 0..5 (`codemp/client/cl_input.cpp:1539`).
         CvarDefinition::new(
@@ -792,6 +801,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             0_i64,
             archive,
             "Internal migration marker for the move to stock sensitivity units",
+        ),
+        CvarDefinition::new(
+            RATE_VERSION_CVAR,
+            0_i64,
+            archive,
+            "Internal migration marker for the 90000 rate default",
         ),
         CvarDefinition::new(
             "com_maxfpsDefaultVersion",

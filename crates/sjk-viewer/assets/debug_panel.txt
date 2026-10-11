@@ -377,10 +377,10 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 area: Menus & settings
 title: First setup starts with Import from a client: configs found, FPS cap, gameplay FPS
 change: The first row lists Base/JA+, OpenJK, EJK/JoF and TaystJK configs found, newest first.
-change: The FPS cap (com_maxfps) is imported; then the gameplay FPS step, old frame rate picked.
+change: The FPS cap (com_maxfps) is imported; then the gameplay FPS step, Auto picked.
 test: First setup > Import from a client: your EternalJK and Jedi Academy configs are listed.
 test: Pick one: name, model, FOV, FPS cap and keys ticked; Import: the gameplay FPS card opens.
-test: Its old com_maxfps is picked (125 for a JoF config with cl_cmdratecap 1); Use, then Done.
+test: Auto is picked (125 for a JoF config with cl_cmdratecap 1); Use, then Done.
 test: Escape on the gameplay FPS step: skipped, the page still ends on what was imported.
 test: Browse (B) still opens the file dialog; dropping a .cfg still works.
 
@@ -1133,6 +1133,14 @@ test: Fire at a wall on your left: the impact plays mostly in the left ear.
 
 # ---- Gameplay ----
 
+[rate-90000]
+area: Gameplay
+title: rate defaults to 90000; a saved 25000 moves to 90000 once
+change: Stock's 25000 made busy servers delay snapshots; servers still cap it with sv_maxRate.
+test: Start once: rate in the console says 90000 (it was 25000).
+test: rate 25000, restart: it stays 25000.
+test: A busy FFA server: other players move smoothly.
+
 [net-cvars-clamp]
 area: Gameplay
 title: rate 0 or snaps 0 no longer stops joins and userinfo updates
@@ -1143,14 +1151,14 @@ test: Set rate 25000 and snaps 120 back afterwards.
 
 [gameplay-fps]
 area: Gameplay
-title: Gameplay FPS: movement at 125, 142, 250, 333 or any value, apart from frames drawn
-change: cl_gameplayFps (default 125) sets the user command step; com_maxfps only draws frames.
-change: Settings > Video > Gameplay FPS (Left/Right presets, Enter the card); gameplayfps.
+title: Gameplay FPS: Auto follows the FPS cap, or fixed 125, 142, 250, 333 or any value
+change: gameplay_fps 0 (Auto, default) moves you at com_maxfps; a number keeps that movement.
+change: Settings > Video > Gameplay FPS (Left/Right Auto/presets, Enter the card); help_gameplay_fps.
 change: A pmove_fixed server's own step wins; prediction keeps 512 commands.
-test: gameplayfps: the console explains it and the card opens; type 400: 2 ms steps, 500/s.
-test: On a server without pmove_fixed, 333: jumps and strafes feel like EJK at 333 FPS.
-test: Back to 125: movement as before. FPS cap 240 with gameplay 125: smooth view, 125 moves.
-test: On a JoF (pmove_fixed) server: the Video row says "this server: 8 ms"; taps all register.
+test: help_gameplay_fps: the console explains it and the card opens; type 400: 2 ms steps, 500/s.
+test: No pmove_fixed server, Auto with com_maxfps 333: jumps and strafes feel like EJK at 333.
+test: gameplay_fps 125 with com_maxfps 240: smooth view, movement like 125.
+test: On a JoF (pmove_fixed) server: the Video row says "this server 8 ms"; taps all register.
 test: flipkick at 333 lasts as long as at 125.
 note: High ping at 333 (300+ ms) is unchecked: watch for prediction snapping.
 

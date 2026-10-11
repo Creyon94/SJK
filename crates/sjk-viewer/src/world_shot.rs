@@ -789,7 +789,7 @@ mod tests {
             let path = shoot(&mut gpu, 6, "duel6-import-page-loaded");
             println!("{}", path.display());
             // Imported: the gameplay FPS step with the file's 333 picked, then on its
-            // own (gameplayfps) with Other typed.
+            // own (help_gameplay_fps) with Other typed.
             if let Some(console) = gpu.console.as_mut() {
                 console.import_for_shot();
             }

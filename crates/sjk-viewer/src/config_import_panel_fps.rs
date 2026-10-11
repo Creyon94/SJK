@@ -2,7 +2,7 @@
 //! pop-up card as the Import page's, taller and higher up. "Gameplay FPS" and the
 //! old config's name over a headline; what the import changed; why the frame
 //! rate no longer moves you and what the old config's said; the choices as tiles
-//! (125, 142, 250, 333 and Other, with what each is to the player under it); the
+//! (Auto, 125, 142, 250, 333 and Other, with what each is to the player under it); the
 //! typed value; the note on servers that fix the step and the FPS cap in use;
 //! then Use (gold) with Cancel, or Skip after an import.
 
@@ -10,7 +10,6 @@ use super::*;
 use crate::gameplay_fps::{EXPLANATION, FIXED_NOTE, OTHER};
 use crate::menu::sjk::{Frame, TextTarget, color, key_hint, key_hint_width, kit, text, wrap};
 use crate::menu_widgets::TextFamily;
-use sjk_client::command_rate::GAMEPLAY_FPS_PRESETS;
 use sjk_ui::TextAlign;
 
 /// The card's left edge, top and width; it is as tall as what it holds.
@@ -79,7 +78,7 @@ impl Panel {
         }
         notes.extend(wrapped(
             &format!(
-                "Frames drawn are your FPS cap, {}, in Settings > Video.",
+                "Your FPS cap is {} (Settings > Video): the frames drawn, and Auto's movement.",
                 info.cap
             ),
             1,
@@ -212,10 +211,7 @@ impl Panel {
         let width = (TEXT_WIDTH - TILE_GAP * (count - 1) as f32) / count as f32;
         for index in 0..count {
             let x = TEXT_X + index as f32 * (width + TILE_GAP);
-            let label = match GAMEPLAY_FPS_PRESETS.get(index) {
-                Some(fps) => fps.to_string(),
-                None => "Other".to_owned(),
-            };
+            let label = crate::gameplay_fps::Choice::label(index);
             let chosen = index == choice.selected;
             kit::button(
                 &mut self.ui,
@@ -251,6 +247,7 @@ impl Panel {
         let width = |label: &str| (48.0 + 9.5 * label.chars().count() as f32).max(140.0);
         let value = choice.value();
         let primary = match value {
+            Some(0) => "Use Auto".to_owned(),
             Some(fps) => format!("Use {fps}"),
             None => "Use".to_owned(),
         };

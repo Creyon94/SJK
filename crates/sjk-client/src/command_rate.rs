@@ -12,10 +12,12 @@
 //! (`g_active.c`) and drops one that lands in a slot already run (`msec < 1`),
 //! button presses included.
 //!
-//! SJK keeps the two apart, as `cl_cmdratecap` does, but lets the player pick
-//! the step: the gameplay FPS (`cl_gameplayFps`, [`gameplay_step`]) is the frame
-//! rate whose movement they want, 125 by default, whatever they draw. On a
-//! `pmove_fixed` server the server's own step wins ([`command_step`]).
+//! SJK makes commands on a clock of their own, as `cl_cmdratecap` does, and picks
+//! the step ([`command_step`]): a `pmove_fixed` server's own step (JoF's 8 ms)
+//! wins; otherwise the gameplay FPS (`gameplay_fps`, [`gameplay_step`]) when the
+//! player set one, the frame rate whose movement they want whatever they draw;
+//! and on Auto (0, the default) the FPS cap, so a cap of 333 moves like 333 as in
+//! the other clients, on a steady grid rather than every rendered frame.
 //!
 //! [`CommandSchedule`] stamps every command on a boundary of the step in server
 //! time, one per slot, so no two commands share a slot on the server's grid. A
@@ -31,8 +33,10 @@ use std::time::{Duration, Instant};
 
 /// Milliseconds between user commands at the default gameplay FPS (125 a second).
 pub const COMMAND_MILLIS: i32 = 8;
-/// The gameplay FPS a new profile gets: JoF EJK's `cl_cmdratecap` rate.
+/// JoF EJK's `cl_cmdratecap` rate, and the step of JoF's `pmove_fixed` servers.
 pub const DEFAULT_GAMEPLAY_FPS: i64 = 125;
+/// `gameplay_fps` 0: the step follows the FPS cap ([`command_step`]).
+pub const AUTO_GAMEPLAY_FPS: i64 = 0;
 /// The gameplay FPS range: stock's 1 ms floor, and no step longer than 50 ms.
 pub const MIN_GAMEPLAY_FPS: i64 = 20;
 pub const MAX_GAMEPLAY_FPS: i64 = 1000;
@@ -62,13 +66,17 @@ pub fn commands_per_second(fps: i64) -> i64 {
     1000 / i64::from(gameplay_step(fps))
 }
 
-/// The step commands are made at: the gameplay FPS's, or on a `pmove_fixed`
-/// server its `pmove_msec` (`pmove_fixed` = `Some(msec)`), since the server moves
-/// every player in those steps and drops a second command in one.
-pub fn command_step(gameplay_fps: i64, pmove_fixed: Option<i32>) -> i32 {
+/// The step commands are made at. On a `pmove_fixed` server its `pmove_msec`
+/// (`pmove_fixed` = `Some(msec)`), since the server moves every player in those
+/// steps and drops a second command in one. Otherwise the gameplay FPS's step, or
+/// on Auto ([`AUTO_GAMEPLAY_FPS`]) the step of `frame_cap`, the FPS cap (0 is
+/// uncapped: 1 ms, the shortest a server takes).
+pub fn command_step(gameplay_fps: i64, pmove_fixed: Option<i32>, frame_cap: u32) -> i32 {
     match pmove_fixed {
         Some(msec) => msec.clamp(1, 1000 / MIN_GAMEPLAY_FPS as i32),
-        None => gameplay_step(gameplay_fps),
+        None if gameplay_fps > AUTO_GAMEPLAY_FPS => gameplay_step(gameplay_fps),
+        None if frame_cap == 0 => 1,
+        None => gameplay_step(i64::from(frame_cap)),
     }
 }
 
@@ -274,8 +282,18 @@ mod tests {
         assert_eq!(gameplay_step(0), 50, "clamped to 20");
         assert_eq!(gameplay_step(5_000), 1, "clamped to 1000");
         // A pmove_fixed server's step wins over the player's choice.
-        assert_eq!(command_step(333, Some(8)), 8);
-        assert_eq!(command_step(333, None), 3);
+        assert_eq!(command_step(333, Some(8), 125), 8);
+        assert_eq!(command_step(333, None, 125), 3);
+        // Auto follows the FPS cap: 333 moves like 333, uncapped in 1 ms steps.
+        assert_eq!(command_step(AUTO_GAMEPLAY_FPS, None, 333), 3);
+        assert_eq!(command_step(AUTO_GAMEPLAY_FPS, None, 125), 8);
+        assert_eq!(command_step(AUTO_GAMEPLAY_FPS, None, 0), 1);
+        assert_eq!(
+            command_step(AUTO_GAMEPLAY_FPS, None, 10),
+            50,
+            "slow caps clamp"
+        );
+        assert_eq!(command_step(AUTO_GAMEPLAY_FPS, Some(8), 333), 8);
     }
 
     #[test]
