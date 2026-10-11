@@ -1,5 +1,16 @@
 # Status and priorities
 
+## Upper right: the frame rate and the match clock as in JoF EJK
+
+Branch `feat/upper-right-fps-timer` (11/10/2026, based on `9dbbdf19`, Linux): `cg_drawFPS`
+showed one long line ("125 FPS host 2.44 ms p99 3.83 max 4.87 1%low 115", wrapping at the
+edge) and `cg_drawTimer` nothing with the game-data HUD. The upper right now stacks them as
+JoF EJK does: "125fps" in big console characters, the frame times smaller under it, then
+the match clock, right-aligned, in every HUD style; the layouts' top-centre clock is retired
+([client.md](client.md#hud-style)). Verified: a test of the stack's order and height, an
+off-screen render of the three lines in the console font (reviewed) and the workspace
+checks; in game on Windows 11 by Creyon.
+
 ## Downloads that work, and what they may bring
 
 Branch `personal/allow-download` (12/10/2026, based on `c2016fbf`, Windows 11). Sol

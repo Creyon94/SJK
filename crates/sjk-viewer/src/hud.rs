@@ -213,6 +213,9 @@ pub(crate) struct HudOverlay {
     crosshair_alpha: f32,
     crosshair_teammate: bool,
     match_timer: String,
+    /// Whether the match clock shows in the upper right this frame (`cg_drawTimer`,
+    /// `cg_drawUpperRight`, a clock to show), as JoF EJK's `CG_DrawUpperRight` puts it.
+    upper_right_timer: bool,
     warmup_text: String,
     interrupted: bool,
     lagometer: sjk_client::LagometerSamples,
@@ -335,6 +338,7 @@ impl HudOverlay {
             crosshair_alpha: 0.0,
             crosshair_teammate: false,
             match_timer: String::with_capacity(16),
+            upper_right_timer: false,
             warmup_text: String::with_capacity(48),
             interrupted: false,
             lagometer: sjk_client::LagometerSamples::new(),
@@ -362,6 +366,12 @@ impl HudOverlay {
 
     /// Build, lay out and retain the HUD widget draw list. `user_scale` is
     /// the player's `cg_hudScale` on top of the resolution-derived scale.
+    /// The match clock to show in the upper right under the frame rate, as JoF EJK's
+    /// `CG_DrawTimer` does, when it shows ([`Self::layout`] decides each frame).
+    pub(crate) fn upper_right_timer(&self) -> Option<&str> {
+        self.upper_right_timer.then_some(self.match_timer.as_str())
+    }
+
     pub(crate) fn layout(
         &mut self,
         font: &UiFont,
@@ -371,6 +381,8 @@ impl HudOverlay {
         visibility: HudVisibility,
         time_ms: u64,
     ) -> HudLayout {
+        self.upper_right_timer =
+            visibility.timer && self.family.upper && !self.match_timer.is_empty();
         self.displayed_ratios = self.ratios.map(|tween| tween.sample(time_ms));
         self.displayed_ammo = self.ammo_ratio.sample(time_ms);
         self.weapon_alpha = self.weapon_shown_ms.map_or(0.0, |shown| {
@@ -581,8 +593,12 @@ impl HudOverlay {
                 self.weapon_alpha,
             ));
             let options = self.kill_feed.options();
-            if options.fps {
-                top_right = top_right.max(crate::console_overlay::fps_bottom(viewport[1]));
+            if options.fps || self.upper_right_timer {
+                top_right = top_right.max(crate::console_overlay::upper_right_bottom(
+                    viewport[1],
+                    options.fps,
+                    self.upper_right_timer,
+                ));
             }
             self.kill_feed.emit(
                 &mut self.draw_list,
