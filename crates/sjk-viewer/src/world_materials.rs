@@ -33,6 +33,8 @@ pub(crate) mod shadows;
 #[path = "stage_table.rs"]
 pub(crate) mod stage_table;
 
+#[path = "world_card_outline.rs"]
+mod card_outline;
 #[path = "world_flares.rs"]
 pub(crate) mod flares;
 #[path = "fog_draws.rs"]
@@ -345,6 +347,8 @@ pub(crate) struct Runtime {
     glow_order: Vec<PassRef>,
     /// Glow-target variants of the pipeline keys, compiled on first glow draw.
     glow_pipelines: glow::Pipelines,
+    /// The player card outline's mask pipeline, compiled on its first draw.
+    card_outline_mask: std::cell::OnceCell<wgpu::RenderPipeline>,
     /// Bumped when the pipeline slots empty for a new program, so pipelines a worker
     /// compiled against the old one are dropped ([`pipeline_jobs`]).
     pipeline_generation: u32,
@@ -530,6 +534,7 @@ fn finish_runtime(
         blended_order,
         glow_order,
         glow_pipelines: glow::Pipelines::default(),
+        card_outline_mask: std::cell::OnceCell::new(),
         pipeline_generation: 0,
         dynamic_light_buffer,
         lighting_mode: std::cell::Cell::new(0),

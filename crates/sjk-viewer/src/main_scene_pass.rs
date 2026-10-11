@@ -226,6 +226,7 @@ impl GpuState {
                 }
             }
         }
+        self.encode_card_outline_mask(encoder, source_cluster);
         self.composite_effects(
             encoder,
             target_view,
@@ -253,6 +254,56 @@ impl GpuState {
         if let Some(phases) = &self.gpu_phases {
             phases.mark(encoder, "volumetrics");
         }
+    }
+}
+
+impl GpuState {
+    /// Draw the inspected player's body into the card outline's mask, against the
+    /// finished scene depth (`card_outline.rs`). Cleared even with no body this frame.
+    fn encode_card_outline_mask(
+        &self,
+        encoder: &mut wgpu::CommandEncoder,
+        source_cluster: Option<usize>,
+    ) {
+        let Some(mask) = self.card_outline.mask_target() else {
+            return;
+        };
+        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: Some("SJK card outline mask"),
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: mask,
+                resolve_target: None,
+                depth_slice: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                    store: wgpu::StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                view: &self.depth.view,
+                depth_ops: None,
+                stencil_ops: None,
+            }),
+            timestamp_writes: None,
+            occlusion_query_set: None,
+            multiview_mask: None,
+        });
+        let draws = self.entity_draw_queue.outline();
+        if draws.is_empty() {
+            return;
+        }
+        let frame = world_materials::FrameDraw {
+            camera: &self.camera_bind_group,
+            vertices: &self.geometry.vertex_buffer,
+            indices: &self.geometry.index_buffer,
+            instances: &self.actor_instance_buffer,
+            mover_ranges: &self.mover_instance_ranges,
+            source_cluster,
+            visibility: self.bsp.render().visibility(),
+            entities: &[],
+        };
+        self.world_materials
+            .draw_card_outline_mask(&mut pass, &frame, draws);
     }
 }
 

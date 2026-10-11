@@ -734,12 +734,13 @@ note: Not tried in a running client; how far a crouch drops the hips (HIP_DROP 0
 area: HUD
 title: Player card: line meets the hips, outline on the inspected player
 change: The card's dot and line sit 10 units higher, on the hips (the skeleton's pelvis height).
-change: The player whose card is up is outlined in the card's colour; cg_playerCardOutline 0 hides it.
+change: A ring in the card's colour runs around the outside of the player whose card is up.
 test: Inspect (X) a standing player: the dot sits on the belt, not below it; crouching, lower.
-test: The outline hugs the body, about as thick near as far; no outline through walls.
+test: Only the outer edge: no line where an arm crosses the body; same width near and far.
+test: Pin a player, then let a wall hide them: no ring through the wall.
 test: Team game: red or blue outline; FFA: light blue. It fades with the card.
 test: Settings > HUD+ > Card outline off: no outline, the card stays.
-note: Not tried in a running client: the outline's width and seams on some models are guesses.
+note: Seen in an off-screen demo render (world_shot_card_outline.rs), not in a running client yet.
 
 [compact-scoreboard]
 area: HUD

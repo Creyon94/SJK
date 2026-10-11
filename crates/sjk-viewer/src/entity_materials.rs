@@ -16,6 +16,8 @@ use glam::Vec3;
 use std::ops::Range;
 
 const MAX_ENTITY_DRAWS: usize = 16_384;
+/// Surfaces of the one outlined body (player models have a few dozen).
+const OUTLINE_DRAWS: usize = 256;
 
 /// One extra entity draw of an existing mesh: a cgame custom shader replacing
 /// every surface shader, or the surfaces' own shaders drawn with forced alpha.
@@ -81,6 +83,9 @@ impl Submission {
 pub(crate) struct Queue {
     opaque: Vec<Draw>,
     blended: Vec<Draw>,
+    /// The player card outline's mask draws, kept out of every scene pass
+    /// (`card_outline.rs`).
+    outline: Vec<Draw>,
     dropped: usize,
 }
 
@@ -89,11 +94,13 @@ impl Queue {
         Self {
             opaque: Vec::with_capacity(MAX_ENTITY_DRAWS),
             blended: Vec::with_capacity(MAX_ENTITY_DRAWS),
+            outline: Vec::with_capacity(OUTLINE_DRAWS),
             dropped: 0,
         }
     }
 
-    /// Rebuild draw references without cloning meshes or growing storage.
+    /// Rebuild draw references without cloning meshes or growing storage. Overrides
+    /// drawn with `outline` (the card outline's mask material) go to [`Self::outline`].
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn rebuild(
         &mut self,
@@ -105,9 +112,11 @@ impl Queue {
         overrides: &[OverrideRange],
         instances: &[ActorInstance],
         camera: Vec3,
+        outline: usize,
     ) {
         self.opaque.clear();
         self.blended.clear();
+        self.outline.clear();
         self.dropped = 0;
         for (mesh, range) in actors.iter().zip(actor_ranges) {
             self.append_mesh(
@@ -143,6 +152,24 @@ impl Queue {
             let Some((draws, visible)) = draws else {
                 continue;
             };
+            if entry.material == Some(outline) {
+                for (index, surface) in draws.iter().enumerate() {
+                    if visible.get(index).copied().unwrap_or(true)
+                        && self.outline.len() < self.outline.capacity()
+                    {
+                        self.outline.push(Draw {
+                            indices: surface.indices.clone(),
+                            material: outline,
+                            instances: entry.instances.clone(),
+                            no_depth: false,
+                            forced_alpha: false,
+                            distance_squared: 0.0,
+                            stage_major: false,
+                        });
+                    }
+                }
+                continue;
+            }
             let submission = Submission {
                 material: entry.material,
                 no_depth: entry.no_depth,
@@ -263,6 +290,11 @@ impl Queue {
 
     pub(crate) fn blended(&self) -> &[Draw] {
         &self.blended
+    }
+
+    /// The card outline's mask draws: the body's visible surfaces, one instance.
+    pub(crate) fn outline(&self) -> &[Draw] {
+        &self.outline
     }
 }
 

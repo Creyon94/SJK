@@ -321,6 +321,10 @@ fn animated_image_frame(animation: vec4<f32>, index: i32) -> i32 {
 @fragment fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
     return stage_fragment(input);
 }
+// The player card outline's mask (`world_card_outline.rs`): where the body is in view.
+@fragment fn card_outline_mask_fragment() -> @location(0) vec4<f32> {
+    return vec4<f32>(1.0);
+}
 fn stage_fragment(input: VertexOutput) -> vec4<f32> {
     fragment_point_mask = finite_point_mask(input.world_position);
     let uv = input.stage_uv;

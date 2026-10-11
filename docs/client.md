@@ -2611,30 +2611,36 @@ are in [identity.md](identity.md).
 Look at a player, keeping the view steady, and a card appears beside their hips
 ([player_card.rs](../crates/sjk-viewer/src/hud/player_card.rs)): a leader runs from a
 dot at the player's hips (10 units above the origin, near the humanoid skeleton's
-pelvis; a crouch lowers it by half the box's drop) to the card, centred on it. While
-the card is up the player's body is outlined in the card's accent colour (red or blue
-by team, else SJK's light blue), fading with it
-([card_outline.rs](../crates/sjk-viewer/src/card_outline.rs)): the body is drawn again
-from a bundled shader as an inverted hull (back faces only, pushed out along the
-normals, depth tested, so no outline shows through walls), its push one of ten levels
-from 0.2 to 4.1 units picked by distance to keep the rim about the same width on
-screen (11/10/2026). Hats, capes and sabers are not outlined. It shows what the server
-already publishes to every client (name with its colour codes, model and its head
-icon, saber hilts with their blade colours, the hat and cape worn, bot skill; not the
-duel wins and losses), the saber shader they wear (a live swatch, as the Collection draws it, and its name; only when it
-draws on their blade on this PC: worn by their look, its pack loaded) and, when the hub
-knows the player, their profile picture in place of the head icon (the icon then sits
-small on its lower left corner), SJK's emblem, their hub name, a gold VERIFIED, a teal
-SJK TEAM pill for staff, a gem of the rarest holocron tier they hold with its name and
-the medallions of the medals the SJK team gave them ([identity.md](identity.md#medals)).
-A pinned card adds what takes reading: the medals' names in small print (a repeatable
-one with its count), "Achievements N / 21" with the three rarest unlocked as small
-medallions (the highest step of their ladder first, the latest first among equals), the
-first line of their bio and "In SJK since dd/mm/yyyy". The profile is asked of the hub
-when the card is built for a player, at most every ten minutes a player and never per
-frame; until it comes, and from a hub that does not send a field, that line is left out
-(10/10/2026). It adds nothing a glance at the scoreboard would not: no health, Force or
-position.
+pelvis; a crouch lowers it by half the box's drop) to the card, centred on it. While the
+card is up a ring in the card's accent colour (red or blue by team, else SJK's light
+blue), fading with it, runs around the outside of the player's body and only the
+outside: no line where an arm crosses the chest
+([card_outline.rs](../crates/sjk-viewer/src/card_outline.rs)). After the scene the body
+is drawn again, with its usual vertex path, into a one-channel mask against the scene's
+depth, so only the part in view counts and nothing shows through walls; the 2D layer
+then draws every pixel outside the mask within 4 pixels of a 1080-line screen (scaled
+with the height, 8 at 2160) in a scissor around the player, after anti-aliasing so the
+colour is the card's (11/10/2026). Hats, capes and sabers are not outlined. The ignored
+world shot `card_outline_on_a_demo`
+([world_shot_card_outline.rs](../crates/sjk-viewer/src/world_shot_card_outline.rs))
+plays the demo `SJK_TEST_DEMO` names off screen, pins the card on another player and
+renders the ring from an orbit around them and from behind the recorder. It shows what
+the server already publishes to every client (name with its colour codes, model and its
+head icon, saber hilts with their blade colours, the hat and cape worn, bot skill; not
+the duel wins and losses), the saber shader they wear (a live swatch, as the Collection
+draws it, and its name; only when it draws on their blade on this PC: worn by their
+look, its pack loaded) and, when the hub knows the player, their profile picture in
+place of the head icon (the icon then sits small on its lower left corner), SJK's
+emblem, their hub name, a gold VERIFIED, a teal SJK TEAM pill for staff, a gem of the
+rarest holocron tier they hold with its name and the medallions of the medals the SJK
+team gave them ([identity.md](identity.md#medals)). A pinned card adds what takes
+reading: the medals' names in small print (a repeatable one with its count),
+"Achievements N / 21" with the three rarest unlocked as small medallions (the highest
+step of their ladder first, the latest first among equals), the first line of their bio
+and "In SJK since dd/mm/yyyy". The profile is asked of the hub when the card is built
+for a player, at most every ten minutes a player and never per frame; until it comes,
+and from a hub that does not send a field, that line is left out (10/10/2026). It adds
+nothing a glance at the scoreboard would not: no health, Force or position.
 
 - `cg_playerCard` (default 1; Settings > HUD+ > Player card) turns it on.
 - `cg_playerCardDelay` (default 1.5; Settings > HUD+ > Card delay) is the seconds

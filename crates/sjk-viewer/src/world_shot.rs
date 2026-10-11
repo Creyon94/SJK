@@ -272,6 +272,9 @@ mod holocron;
 #[path = "world_shot_saber_skins.rs"]
 mod saber_skins;
 
+#[path = "world_shot_card_outline.rs"]
+mod card_outline_shots;
+
 #[path = "world_shot_collection.rs"]
 mod collection;
 
