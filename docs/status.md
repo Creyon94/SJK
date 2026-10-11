@@ -18,7 +18,8 @@ needing one, the uniform lanes, the option leaving the instances out) and `saber
 validated by naga; world shots with the hub branch's built pack: `duel6_mythical_parts`
 (the Void all parts on beside all off, close up, upright) and `duel6_orbits`
 (`duel6-void-orbit.gif`: the horizons black, the ring violet, the pedestal behind bent).
-Not verified: in a live match, the lens's and horizon's cost on a GPU, the deployed hub.
+The hub (`feat/void-holes`, merged `49f2e69`) was deployed on 11/10/2026 and serves the
+new pack. Not verified: in a live match, the lens's and horizon's cost on a GPU.
 
 ## The Sun's orbiting glints
 

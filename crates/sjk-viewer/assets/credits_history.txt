@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 11/10/2026 | - | The Void's pack deployed
+- ea697bb |  | Void holes: the hub's pack is deployed
 + 11/10/2026 | - | The Void's orbiting black holes and more effects
 - 5b2c92b |  | Void: black holes orbiting the blade, and the format's holes
 + 11/10/2026 | - | Credits and changelog for Lumaya's PRs #71, #73-#77
