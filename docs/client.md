@@ -1563,7 +1563,8 @@ one they are used to. SJK makes commands on their own clock
 ([networking.md](networking.md#user-commands-and-move-packets)). The gameplay FPS
 (`gameplay_fps`, archived) sets it: on Auto (0, the default) the clock follows the
 FPS cap, so the movement is what the other clients give at that cap, and a server that
-fixes the step (`pmove_fixed`, JoF's) uses its own; a number from 20 to 1000 keeps that
+fixes the step (`pmove_fixed`) uses its own, and JoF's servers take 125 a second at
+most; a number from 20 to 1000 keeps that
 movement whatever the FPS cap. Players kept asking Sol how the frame rate and the
 movement relate (11/10/2026), so it is asked where they arrive: First setup's second
 row, the step after an import, Settings > Video > Gameplay FPS beside the FPS cap
@@ -1579,6 +1580,11 @@ to 1000 and says what it moves like (400 moves in 2 ms steps, 500 a second, as s
 rounds `1000 / fps`). Left/Right choose, Enter uses, Escape cancels (Skip after an
 import). Its notes: a `pmove_fixed` server moves everyone in its own step (named when
 the current server does), and the frames drawn are the FPS cap, shown with its value.
+When a server does not take the inputs at a gameplay FPS above 125 (snapshots keep
+saying it ran none of our commands, or keep correcting the prediction;
+[networking.md](networking.md#user-commands-and-move-packets)), the card opens by
+itself, once per server and value, with a line in orange saying the inputs are not
+going through at that rate and 125 picked.
 `help_gameplay_fps` prints the explanation and the value in use to the console and
 opens the card; `help_gameplay_fps <fps>` or `gameplay_fps <fps>` sets it (0 for Auto).
 The settings row shows Auto with the cap it follows (`Auto (125)`), and the server's

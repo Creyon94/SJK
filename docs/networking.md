@@ -258,15 +258,25 @@ original game the frame rate is the movement (one command a frame, `1000 /
 com_maxfps` whole milliseconds), and players lock 125, 142, 250 or 333 for how jumps
 and strafes feel at 8, 7, 4 or 3 ms. The step
 ([command_rate.rs](../crates/sjk-client/src/command_rate.rs) `command_step`) is, in
-order: on a `pmove_fixed` server its `pmove_msec` (JoF's 8 ms), since it moves
-everyone in those steps and would drop a second command in one; the gameplay FPS
+order: on a `pmove_fixed` server its `pmove_msec`, since it moves everyone in those
+steps and would drop a second command in one; the gameplay FPS
 when the player set one (`gameplay_fps`, archived, 20 to 1000; Settings > Video >
 Gameplay FPS, `help_gameplay_fps`, the step after an import,
 [client.md](client.md#gameplay-fps)), `1000 / gameplay_fps` whole milliseconds as
 stock rounds it (400 makes 2 ms steps, 500 a second); and on Auto (`gameplay_fps 0`,
 the default, Sol's choice on 11/10/2026) the FPS cap's step, so `com_maxfps 333` moves
 like 333 and AUTO's 125 like 125, as in the other clients (uncapped is 1 ms, the
-shortest a server takes; the unfocused and minimized caps are not followed). Each command is
+shortest a server takes; the unfocused and minimized caps are not followed). Never
+shorter than 8 ms on JoF's servers (JA+ with serverinfo `V` 2.5B0): they are not
+`pmove_fixed` (they report 0), yet faster commands made the game unplayable there
+(Sol, 11/10/2026), and JoF EJK sends them 125 a second. On any other server, inputs
+that do not go through at a step shorter than 8 ms open the gameplay FPS card by
+themselves with 125 suggested
+([input_health.rs](../crates/sjk-viewer/src/input_health.rs)): over two windows of 3
+seconds in a row (30 predicted snapshots at least), 40% or more of the snapshots say
+the server ran none of our commands (`ps.commandTime` stalled or not one we sent) or
+corrected the prediction by more than 8 units. It opens once per step and server, and
+says so in the console. Each command is
 stamped on a boundary of the step in server time, one per slot
 ([command_rate.rs](../crates/sjk-client/src/command_rate.rs)); a changed step starts
 at the next boundary after the last command sent.
