@@ -20,7 +20,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
-- cjp_client sets the client plugin name sent to JA+ and jaPRO servers (what admins see in amstatus); empty keeps SJK's default for the server _(Sol)_
+- JA+ server admins see SJK in amstatus; cjp_client sets another name (sent to JA+ and jaPRO servers; jaPRO servers keep 1.4JAPRO by default, the value their client support needs) _(Sol)_
 - Downloads (cl_allowDownload 1): server paks with spaces, braces or apostrophes in their names now download (JoF's did not), one pak the server refuses no longer stops you joining, and a map you downloaded once still loads on a server that stops listing its paks. A download only adds content now: its configs, scripts, menus and programs are never loaded, it cannot replace your game's or your packs' files, and its shaders cannot change existing ones _(Sol)_
 - Log requests: when you have a problem, the SJK team can ask for your game's logs; a card on the menu asks you first and nothing is sent unless you choose Send logs. SJK now keeps the console lines of this session and the last one (no chat) in logs/ beside your settings _(Sol)_
 - Typing rate 0 or snaps 0 in the console no longer stops you joining servers or changing your name in a game: they are sent as the lowest values servers accept _(Sol)_

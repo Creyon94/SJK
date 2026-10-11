@@ -1149,7 +1149,7 @@ note: JoF servers have downloads off and list no paks: nothing can download from
 area: Gameplay
 title: Known servers in one table; cjp_client sets the plugin name sent to JA+ servers
 change: JoF servers are told in one table the jof mod and the command caps both read.
-change: cjp_client (empty = default 1.6.4 JoF on JA+) replaces the plugin name sent.
+change: cjp_client (empty = SJK on JA+, 1.4JAPRO on jaPRO) replaces the plugin name sent.
 test: Join JoF: jof.commands says it is a JoF server; the Video row still says JoF server 8 ms.
 test: cjp_client "test", rejoin JA+: an admin's /amstatus shows test. Clear it after.
 
@@ -1224,9 +1224,9 @@ test: After any failed join, logs\last-client.log shows the last join: step reac
 
 [amstatus-jof]
 area: Gameplay
-title: Admins' amstatus shows SJK players as JoF EJK on JA+ servers
-change: cjp_client is now JoF EJK's "1.6.4 JoF" instead of the old JA+ plugin's "1.4B4".
-test: Join a JoF server and ask an admin for /amstatus: your client reads as JoF EJK's.
+title: Admins' amstatus shows SJK on JA+ servers
+change: cjp_client is now SJK instead of the old JA+ plugin's "1.4B4" (JoF EJK's for a day).
+test: Join a JoF server and ask an admin for /amstatus: your client reads SJK.
 test: Join a JA+ server: no "You haven't the JA+ client plugin installed" message.
 test: Set an RGB saber on JA+: others still see your RGB blade; the scoreboard reads right.
 
