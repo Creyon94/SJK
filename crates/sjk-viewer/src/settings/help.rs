@@ -65,6 +65,7 @@ const SHORT_LABELS: &[(&str, &str)] = &[
     ("cg_thirdPersonCameraDamp", "Camera damping"),
     ("cg_thirdPersonTargetDamp", "Target damping"),
     ("cg_errorDecay", "Error smoothing"),
+    (crate::ghost_replay::SHOWCASE_CVAR, "Experimental showcase"),
     (crate::frame_target::aa::exposure::MIN_EV, "Max darken, EV"),
     (
         crate::frame_target::aa::exposure::MAX_EV,
@@ -400,6 +401,10 @@ const HELP: &[(&str, &str)] = &[
     (
         "mod_jof",
         "On JoF servers: jof.commands and completion of their own commands (gun admin commands, jetpack, emotes).",
+    ),
+    (
+        crate::ghost_replay::SHOWCASE_CVAR,
+        "Experimental, for filming: ghost replays a run you recorded, mimic copies a player facing you. Any key stops them.",
     ),
     (
         crate::brush_view::CVAR,

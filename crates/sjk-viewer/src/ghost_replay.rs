@@ -30,7 +30,19 @@ mod frame;
 mod steer;
 
 pub(crate) const COMMAND: &str = "ghost";
-pub(crate) const HELP: &str = "Record and replay your own run: ghost record <name>, ghost stop, \
+/// The experimental switch that makes `ghost` and `mimic` available (Settings >
+/// Gameplay); off by default.
+pub(crate) const SHOWCASE_CVAR: &str = "cl_experimentalShowcase";
+/// Why `command` refuses while the switch is off.
+pub(crate) fn showcase_off(command: &str) -> String {
+    format!(
+        "{command} is experimental and off: turn on Settings > Gameplay > Experimental: \
+         showcase tools ({SHOWCASE_CVAR} 1)"
+    )
+}
+
+pub(crate) const HELP: &str = "Experimental (cl_experimentalShowcase): record and replay your own \
+     run: ghost record <name>, ghost stop, \
      ghost play <name>, ghost list, ghost info <name>";
 
 /// No ground entity (`ENTITYNUM_NONE`).

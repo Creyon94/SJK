@@ -1035,8 +1035,13 @@ was removed on 10/10/2026.
 
 `ghost` records the player's own run and plays it back later on the same server, to
 film a showcase: the player records a run once, then replays it while another player
-films ([ghost_replay.rs](../crates/sjk-viewer/src/ghost_replay.rs)). It has no menu
-entry and is off until used.
+films ([ghost_replay.rs](../crates/sjk-viewer/src/ghost_replay.rs)).
+
+`ghost` and [`mimic`](#mimic) are experimental and off by default: Settings > Gameplay >
+"Experimental: showcase tools (ghost, mimic)" (`cl_experimentalShowcase`, archived;
+"Experimental showcase" in the classic menus) turns both on. Off, either command says
+so and where to turn it on; switching it off ends a replay or a copy, and a recording
+is saved. They have no other menu entry.
 
 | Command | Does |
 | --- | --- |
@@ -1114,7 +1119,8 @@ two players facing each other. The player is a slot number or part of a name (as
 default, copies like a reflection, and `copy` keeps the leader's sides; `walk` walks
 always, for a choreography done at walking pace, instead of walking only while the
 leader moves slower than 140. `mimic off` stops it and `mimic` alone says what it does.
-It has no menu entry.
+Like `ghost`, it is experimental and off until Settings > Gameplay > "Experimental:
+showcase tools" turns it on ([Ghost replay](#ghost-replay)).
 
 The client never sees another player's keys, only what they lead to: each snapshot
 carries their origin and velocity (`trBase`, `trDelta`), view angles (`apos.trBase`),

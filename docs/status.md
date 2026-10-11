@@ -2,6 +2,11 @@
 
 ## Mimic
 
+Since branch `personal/experimental-showcase` (11/10/2026) `ghost` and `mimic` are
+experimental, off by default behind Settings > Gameplay > "Experimental: showcase
+tools" (`cl_experimentalShowcase`), at Sol's request: they drive the player on live
+servers and are a little glitchy, fine for filming.
+
 Branch `personal/mimic` (11/10/2026, based on `71acafb0`, Windows 11). Sol asked for a
 mimic for saber showcases: stand facing another player and copy their mouse movement,
 movement, crouches and saber attacks, with a configurable delay. `mimic <player>

@@ -674,6 +674,12 @@ pub(super) const GAME: &[Setting] = &[
             step: 1,
         },
     },
+    // Experimental features, off by default.
+    Setting {
+        label: "Experimental: showcase tools (ghost, mimic)",
+        cvar: crate::ghost_replay::SHOWCASE_CVAR,
+        kind: ValueKind::Bool,
+    },
 ];
 pub(super) const NETWORK: &[Setting] = &[
     Setting {
