@@ -1109,6 +1109,14 @@ test: Fire at a wall on your left: the impact plays mostly in the left ear.
 
 # ---- Gameplay ----
 
+[net-cvars-clamp]
+area: Gameplay
+title: rate 0 or snaps 0 no longer stops joins and userinfo updates
+change: rate and snaps are sent clamped (rate at least 1000, snaps 1 to 1000) instead of refused.
+test: Console: rate 0 and snaps 0, then join a server: it connects.
+test: In the game, change your name: the server shows the new name.
+test: Set rate 25000 and snaps 120 back afterwards.
+
 [gameplay-fps]
 area: Gameplay
 title: Gameplay FPS: movement at 125, 142, 250, 333 or any value, apart from frames drawn

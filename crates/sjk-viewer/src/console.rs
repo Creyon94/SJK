@@ -929,14 +929,6 @@ impl ViewerConsole {
             _ => Err(invalid_cvar(name, "must be text").into()),
         }
     }
-
-    fn positive_u32_cvar(&self, name: &str) -> Result<u32, Box<dyn Error>> {
-        match self.shell.cvars.get(name).map(|cvar| &cvar.value) {
-            Some(CvarValue::Integer(value)) if *value > 0 => u32::try_from(*value)
-                .map_err(|_| invalid_cvar(name, "must fit in an unsigned 32-bit integer").into()),
-            _ => Err(invalid_cvar(name, "must be a positive integer").into()),
-        }
-    }
 }
 
 impl Drop for ViewerConsole {
