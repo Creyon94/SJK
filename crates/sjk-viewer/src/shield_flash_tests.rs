@@ -62,6 +62,7 @@ fn body_shield_gpu_comparison() {
                 &ranges,
                 &instances,
                 gpu.camera_position,
+                gpu.model_material_overrides.card_outline,
             );
             assert!(!overlays.is_empty() || passes == 0);
             assert_eq!(ranges.len(), passes);

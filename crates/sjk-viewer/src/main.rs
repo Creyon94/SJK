@@ -499,6 +499,8 @@ struct GpuState {
     field_of_view: f32,
     scope: scope::Zoom,
     scope_mask: Option<scope::Mask>,
+    /// The player card outline's mask and ring (`card_outline.rs`).
+    card_outline: card_outline::Gpu,
     /// The classic console's background, bar and text, drawn over all other 2D.
     console_layer: console_backdrop::ConsoleLayer,
     /// The game's menu-file status HUD (`cg_hudStyle game`).
@@ -1209,6 +1211,7 @@ impl GpuState {
             &shaders,
             game_font::classic_console(console.as_ref()),
         );
+        let card_outline = card_outline::Gpu::new(device, ui_format);
         let (scope_mask, ground_hud) = (
             scope::Mask::new(&device, &queue, ui_format, &vfs, &shaders),
             ground_hud::GroundHud::new(device, context.scene_format(), &text_layout),
@@ -1385,6 +1388,7 @@ impl GpuState {
             field_of_view: 90.0,
             scope: scope::Zoom::default(),
             scope_mask,
+            card_outline,
             console_layer,
             menu_hud,
             ground_hud,
@@ -2279,6 +2283,14 @@ impl GpuState {
             visual_now,
             game_audio,
         );
+        let depth_size = self.depth.view.texture().size();
+        self.card_outline.prepare(
+            &self.device,
+            &self.queue,
+            self.hud.card.outline().map(|(_, frame)| frame),
+            [depth_size.width, depth_size.height],
+            [self.configuration.width, self.configuration.height],
+        );
         timing.mark(Phase::Acquire);
         let target = match frame_target::prepare(self) {
             Ok(target) => target,
@@ -2452,6 +2464,7 @@ impl GpuState {
             &self.pickup_override_ranges,
             actor_instances,
             self.camera_position,
+            self.model_material_overrides.card_outline,
         );
         self.saber_gpu.prepare(
             &self.queue,

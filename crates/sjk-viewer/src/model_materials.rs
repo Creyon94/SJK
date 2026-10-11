@@ -19,8 +19,8 @@ pub(crate) struct Overrides {
     /// `cgs.media.disruptorShader`, `CG_Disintegration`'s burning pass.
     pub(crate) disruptor_burn: usize,
     force: [usize; 15],
-    /// The player card's outline, one per push ([`crate::card_outline`]).
-    pub(crate) card_outline: [usize; crate::card_outline::LEVELS],
+    /// The player card outline's mask ([`crate::card_outline`]).
+    pub(crate) card_outline: usize,
 }
 
 /// Append or reuse the cgame entity-override materials before the shared Q3
@@ -32,7 +32,7 @@ pub(crate) fn append_overrides(materials: &mut Vec<ViewerMaterial>) -> Overrides
         dark_disabled: ensure(materials, "gfx/misc/mp_dark_enlight_disable"),
         disruptor_burn: ensure(materials, crate::disintegration::BURN_SHADER),
         force: [0; 15],
-        card_outline: crate::card_outline::SHADERS.map(|shader| ensure(materials, shader)),
+        card_outline: ensure(materials, crate::card_outline::MASK_SHADER),
     };
     for (slot, shader) in result.force.iter_mut().zip(FORCE_SHADERS) {
         *slot = ensure(materials, shader);

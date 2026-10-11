@@ -10,8 +10,9 @@
 //! `inspect` is pressed again or Escape is. A pinned card adds what takes reading:
 //! the medals' names in small print, the achievements unlocked out of the catalogue
 //! with the three rarest as medallions, the first line of their bio and since when
-//! they are in SJK. While the card is up, the player's body is drawn with an outline
-//! in the card's accent colour (`cg_playerCardOutline`, [`crate::card_outline`]).
+//! they are in SJK. While the card is up, a ring in the card's accent colour runs
+//! around the outside of the player's body (`cg_playerCardOutline`,
+//! [`crate::card_outline`]).
 //!
 //! Everything shown is already public to every client (the player's `CS_PLAYERS`
 //! string, the hub's public profile and the looks every SJK player sees), so the card
@@ -49,6 +50,11 @@ const HIP_HEIGHT: f32 = 10.0;
 const HIP_DROP: f32 = 0.5;
 /// World units from the hips to the side of the body the card keeps clear of.
 const BODY_SIDE: f32 = 22.0;
+/// How far a body may reach from its origin, sideways (arms, a flip) and below and
+/// above its box, for the screen area its outline may cover.
+const REACH_SIDE: f32 = 40.0;
+const REACH_BELOW: f32 = -30.0;
+const REACH_ABOVE: f32 = 24.0;
 /// How far off screen (in half screens) a pinned player may be and still be followed.
 const PINNED_LIMIT: f32 = 40.0;
 /// Colour index of a saber's blade in `c1`/`c2`: only the six retail colours have
@@ -527,6 +533,32 @@ fn anchor_on_screen(camera: Camera, anchor: Vec3, limit: f32) -> Option<([f32; 2
     Some((point, side))
 }
 
+/// The screen area (`[x, y, width, height]`) a body at `origin` whose box top is `top`
+/// may cover: its reach projected, or the whole screen when part of it is behind the
+/// eye or far off screen.
+fn body_area(camera: Camera, origin: Vec3, top: f32) -> [f32; 4] {
+    let [width, height] = camera.viewport;
+    let mut low = [f32::MAX; 2];
+    let mut high = [f32::MIN; 2];
+    for corner in 0..8 {
+        let pick = |bit: usize, a: f32, b: f32| if corner & bit == 0 { a } else { b };
+        let point = origin
+            + Vec3::new(
+                pick(1, -REACH_SIDE, REACH_SIDE),
+                pick(2, -REACH_SIDE, REACH_SIDE),
+                pick(4, REACH_BELOW, top + REACH_ABOVE),
+            );
+        let Some(at) = camera.project_within(point, PINNED_LIMIT) else {
+            return [0.0, 0.0, width, height];
+        };
+        for axis in 0..2 {
+            low[axis] = low[axis].min(at[axis]);
+            high[axis] = high[axis].max(at[axis]);
+        }
+    }
+    [low[0], low[1], high[0] - low[0], high[1] - low[1]]
+}
+
 /// Push a text command for the card's text slot `id`.
 fn put_text(
     list: &mut DrawList,
@@ -594,6 +626,8 @@ pub(crate) struct State {
     card: Card,
     alpha: f32,
     last_frame: i32,
+    /// The screen area the shown player's body may cover (`[x, y, width, height]`).
+    area: [f32; 4],
     /// Shapes and text ids; texts resolve through [`Card::texts`].
     pub(crate) list: DrawList,
 }
@@ -612,6 +646,7 @@ impl Default for State {
             card: Card::default(),
             alpha: 0.0,
             last_frame: 0,
+            area: [0.0; 4],
             list: DrawList::new(LIST_CAPACITY),
         }
     }
@@ -646,13 +681,29 @@ impl State {
         self.shown.filter(|_| self.alpha > 0.0)
     }
 
-    /// The player to outline and the outline's colour (the card's accent, at the card's
-    /// fade), while the card is up and `cg_playerCardOutline` is on.
-    pub(crate) fn outline(&self) -> Option<(u16, [u8; 4])> {
+    /// The player to outline, the outline's colour (the card's accent, at the card's
+    /// fade) and the screen area their body may cover, while the card is up and
+    /// `cg_playerCardOutline` is on.
+    pub(crate) fn outline(&self) -> Option<(u16, crate::card_outline::Frame)> {
         let client = self.shown_client().filter(|_| self.outline)?;
         let [r, g, b] = accent_rgb(self.card.team);
         let byte = |value: f32| (value * 255.0).round() as u8;
-        Some((client, [byte(r), byte(g), byte(b), byte(self.alpha)]))
+        Some((
+            client,
+            crate::card_outline::Frame {
+                color: [byte(r), byte(g), byte(b), byte(self.alpha)],
+                area: self.area,
+            },
+        ))
+    }
+
+    /// Pin the card to `client` without a press, for world shots.
+    #[cfg(test)]
+    pub(crate) fn pin_for_shot(&mut self, client: u16) {
+        self.pin = Pin {
+            target: Some(client),
+            request: false,
+        };
     }
 
     /// Forget everything shown (no session).
@@ -668,6 +719,8 @@ impl State {
     /// Advance the dwell and the fade and rebuild the draw list.
     pub(crate) fn update(&mut self, input: Input<'_>) {
         self.list.clear();
+        let [width, height] = input.camera.viewport;
+        self.area = [0.0, 0.0, width, height];
         let now = input.now;
         let forward = (input.camera.target - input.camera.eye).normalize_or_zero();
         // The clock going back is a map change: nothing pinned or shown carries over.
@@ -747,6 +800,7 @@ impl State {
             .map_or(standing, |entity| {
                 super::nameplate_math::head_height(entity.solid())
             });
+        self.area = body_area(input.camera, origin, top);
         let limit = if pinned.is_some() { PINNED_LIMIT } else { 1.2 };
         let anchor = origin + Vec3::Z * (HIP_HEIGHT + (top - standing).min(0.0) * HIP_DROP);
         let Some((hips, side)) = anchor_on_screen(input.camera, anchor, limit) else {
@@ -1959,6 +2013,22 @@ mod tests {
             fov: 90.0,
             viewport: [1_920.0, 1_080.0],
         }
+    }
+
+    #[test]
+    fn the_outline_area_holds_the_body_and_shrinks_with_range() {
+        let near = body_area(camera(), Vec3::new(150.0, 0.0, 0.0), 40.0);
+        let far = body_area(camera(), Vec3::new(600.0, 0.0, 0.0), 40.0);
+        for [x, y, width, height] in [near, far] {
+            // Around the screen centre, where the player stands.
+            assert!(x < 960.0 && x + width > 960.0 && y < 540.0 && y + height > 540.0);
+        }
+        assert!(far[2] < near[2] && far[3] < near[3]);
+        // Standing over the eye: part of the reach is behind it, so the whole screen.
+        assert_eq!(
+            body_area(camera(), Vec3::new(10.0, 0.0, 0.0), 40.0),
+            [0.0, 0.0, 1_920.0, 1_080.0]
+        );
     }
 
     #[test]
