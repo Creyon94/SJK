@@ -324,6 +324,12 @@ impl LocalPrediction {
         })
     }
 
+    /// The state after the last command sent (not the frame's preview), when
+    /// prediction is active: what the next command starts from.
+    pub(crate) fn committed_state(&self) -> Option<&MovementState> {
+        self.predictor.as_ref().map(Predictor::state)
+    }
+
     /// Vehicle strafing already computed by prediction; read-only camera input.
     pub(crate) fn vehicle_camera_strafe(&self) -> Option<i32> {
         self.rides

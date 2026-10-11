@@ -76,6 +76,7 @@ did: Create game and its map picker, Import and the test list in the SJK look
 did: Faster play: players' models loaded off the render thread, no hitch when players join
 did: Lighting that stops at walls, doors that block lamps, a faster JoFTemple
 did: Weather under sabers and effects, shield hits, idrive and +duck after JoF EJK
+did: Ghost replay: record a run once, replay it on the server to film a showcase
 link: https://github.com/Sol-Vulpes/SJK
 link: https://sol-vulpes.github.io/SJK/
 

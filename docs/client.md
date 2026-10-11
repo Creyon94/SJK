@@ -1031,6 +1031,79 @@ on a button, a tab or a switch. The panel has the SJK UI's look in every menu
 style ([SJK UI](sjk-ui.md#camera-control)); the classic menus' right-edge panel
 was removed on 10/10/2026.
 
+## Ghost replay
+
+`ghost` records the player's own run and plays it back later on the same server, to
+film a showcase: the player records a run once, then replays it while another player
+films ([ghost_replay.rs](../crates/sjk-viewer/src/ghost_replay.rs)). It has no menu
+entry and is off until used.
+
+| Command | Does |
+| --- | --- |
+| `ghost record <name>` | Records every command from the next one: view, movement keys, buttons, weapon, Force selection and generic actions, with the position and speed after each |
+| `ghost stop` | Ends a recording and saves it, or ends a replay |
+| `ghost play <name>` | Walks to the recorded start, then plays the run |
+| `ghost list` | Lists the saved runs with their maps and lengths |
+| `ghost info <name>` | A run's map, length, start (position and facing, to teleport there) and how much of it the server confirmed |
+| `ghost` | Help and what it is doing |
+
+Runs are text files in `ghosts/` beside `config.cfg` (`<name>.ghost`, letters,
+digits, `-` and `_`): a header with the map and start, then one line per command
+(time, view, keys, buttons, selections, then the origin, velocity and ground after
+it). While recording, each command keeps the predicted state after it until a
+snapshot acknowledges that command; the server's state then replaces it. A recording
+ends on its own at ten minutes, on death or spectating, on flight, or on leaving or
+changing map, and is saved.
+
+**Replaying.** Movement is deterministic: the same start and the same commands with
+the same durations give the same run whatever the ping, because the server steps each
+command by its own time (`ClientThink_real`). A replay sends the recorded commands with
+fresh stamps; the view the server derives (`cmd.angles + delta_angles`) is the
+recorded one, so a different `delta_angles` (after a respawn or a teleport) does not
+turn it. The camera follows the replayed view. Commands the clock passes over (a
+slower frame) give their presses to the next one, so a one-command jump or Force press
+is not lost. Force-wheel reliable commands (Stasis, Repulse, Dash) are not recorded.
+
+**The start.** `ghost play` refuses a run recorded on another map or a start more
+than 192 units away (it prints the start, to go or teleport there). Closer, it walks
+there at walking speed in the current view, switches to the recorded weapon, faces
+the recorded view and stands still for a few commands, then begins. A start reached
+within half a unit and standing still replays the run untouched. Start recordings
+standing still too.
+
+**Drift.** The server owns the position, so a replay corrects drift (a command
+lost twice merges into the next one, a shove) through the movement keys alone, and
+only on the ground:
+
+- The keys turn, up to 20 degrees, keeping the largest key's size so the speed
+  stays (`PM_CmdScale`); the view stays the recorded one. They first take out a
+  sideways speed, then close the offset at a unit a second per unit of drift (at
+  most 20). Drift under 2 units with a sideways speed under 1.5 is left alone:
+  Pmove rounds the velocity to whole units after every command and friction cannot
+  shrink a small sideways speed past that rounding, so a tiny correction would leave
+  a sideways speed for the whole run.
+- In the air nothing steers: air control (`pm_airaccelerate` 1) adds less than the
+  rounding takes back. What a jump carries is the speed it left the ground with,
+  which the ground steering has already matched.
+- Behind or ahead along the path by more than 2 units on steady ground (the same
+  keys as the next command), the recorded clock waits a command or skips one, up to
+  a second in all.
+
+A replay stops, giving control back, at the end of the run, when the player presses
+any movement key or button, takes damage, dies, spectates, starts flying
+(`freecam`, `fakenoclip`) or a duel begins, or when it drifts more than 48 units
+sideways or 64 vertically ("lost the run"). It refuses to start in a duel or within
+five seconds of taking damage. The last line says how many corrections it made and
+the worst drift.
+
+The tests run the real Pmove on a synthetic course (a platform, four pillars over a
+pit, a landing) with a scripted pillar-jumping run: replayed from its start it ends
+where the recording did; walked to from 30 units away with the server losing the
+second takeoff's command and a command in the air, it lands every pillar and ends
+0.4 units from the recording; shoved sideways at 60 units a second on the platform,
+it ends 7 units off where an unsteered replay ends 46 off. Not yet tried on a live
+server.
+
 ## Saber ignition and retraction sounds
 
 Two sources voice a saber turning on or off, as in OpenJK `codemp`. The server
@@ -3199,6 +3272,8 @@ It adds to the map's own weather until the next map; see
 
 `connect host:port`, `disconnect` and `reconnect` control the session.
 `record`, `stoprecord`, `demo` and `playdemo` control demos.
+`ghost record`, `ghost stop` and `ghost play` record and replay the player's own run
+([Ghost replay](#ghost-replay)).
 `screenshot` and `screenshotJPEG` request captures; `condump filename` saves
 console output. A capture copies the final swapchain image into a buffer that is
 mapped over the next frames; frames keep running meanwhile, and the readback stays

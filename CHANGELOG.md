@@ -20,6 +20,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Ghost replay for filming showcases: ghost record <name> records your run, ghost play <name> walks you to its start and replays it on the same server while someone films, correcting small drift on the ground; any key stops it _(Sol)_
 - The Void gets more effects: two small black holes orbit its blade below the tip, bending the world behind them, plus warped space, a gravity pulse beating with its drone and afterimages; each is a part you can switch off _(Sol)_
 - Wall runs, run-ups, ledge flips and rebounds hold the view every frame, so fresh mouse movement no longer turns the camera or your character while the wall move holds the view; JA+ free look is unchanged _(Lumaya, after OpenJK)_
 - Changing con_height while the console is open resizes it at once, and a toggleconsole bind follows the setting; Ctrl (full) and Shift (quarter) still force their height _(Lumaya)_

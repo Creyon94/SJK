@@ -1,5 +1,28 @@
 # Status and priorities
 
+## Ghost replay
+
+Branch `personal/ghost-replay` (11/10/2026, based on `2dae1fa1`, Windows 11). Sol asked
+for a way to record a run (jumping across pillars and back) and have the client redo it
+exactly on a server with other players, while another player films, adjusting itself
+if lag or anything else knocks it off. `ghost record`, `ghost stop` and `ghost play`
+([client.md](client.md#ghost-replay)) record the commands with the state after each and
+resend them later with fresh stamps, walking to the start first; drift is corrected
+through the movement keys on the ground only, with a deadband, because Pmove rounds the
+velocity every command and small corrections otherwise leave a lasting sideways speed
+(found by the real-Pmove test below; the first controller made a 0.4-unit start offset
+into 11 units by the end).
+
+Verified: unit tests (the file format, names, the key turn keeping the speed, the
+steering's deadband and caps, the walk's push, presses carried over skipped commands,
+stops on a key, drift, a far start and another map) and the real Pmove on a synthetic
+pillar course: replayed from its start the run ends where the recording did; walked to
+from 30 units off with the second takeoff's command and one in the air lost, it lands
+every pillar and ends 0.4 units off; a 60 units a second shove on the platform ends 7
+units off against 46 unsteered. Not verified: in a game on a live server (prediction
+against a JA+ or JoF server's own movement, a real map's movers, the filming player's
+view of it); race modes are not detected.
+
 ## The Void's black holes and more effects
 
 Branch `personal/void-holes` (11/10/2026, based on `ac84cbc0`, Windows 11), with the

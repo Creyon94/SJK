@@ -78,6 +78,7 @@ impl GpuState {
                 // world built for the new timeline anchors the clock again.
                 self.server_clock.restart();
                 self.pending_map_reload = true;
+                self.ghost_leave();
                 self.retain_world_for_connection();
                 self.resident.after_sequence = reactions.gamestate_sequence.or_else(|| {
                     self.resident
@@ -114,6 +115,7 @@ impl GpuState {
             true
         });
         timing.mark(Phase::Commands);
+        self.ghost_frame();
         let talking = self.talk_button();
         let Some(session) = &mut self.live_session else {
             return;
@@ -219,7 +221,24 @@ impl GpuState {
                 .gameplay_input
                 .force_wheel_buttons(command.buttons, known);
             command.buttons = buttons;
+            // A ghost replay sends the recorded command instead (`ghost_replay`).
+            if self.local_prediction.fake_noclip() {
+                self.ghost.interrupt("you are flying");
+            }
+            let pose = self
+                .local_prediction
+                .committed_state()
+                .map(crate::ghost_replay::Pose::of);
+            let replay = pose.and_then(|pose| self.ghost.drive(&command, &pose));
+            if let Some(drive) = &replay {
+                command = drive.command;
+                if let Some([pitch, yaw]) = drive.view {
+                    self.camera_pitch = (-pitch).to_radians();
+                    self.camera_yaw = yaw.to_radians();
+                }
+            }
             if !self.local_prediction.free_camera()
+                && replay.is_none()
                 && let Some(wheel_command) = wheel_command
                 && let Err(error) = session.send_reliable_command(wheel_command.as_bytes())
             {
@@ -237,6 +256,10 @@ impl GpuState {
                 )
             {
                 self.camera_position = position;
+            }
+            if !intermission && let Some(pose) = pose {
+                self.ghost
+                    .record(&command, &pose, self.local_prediction.committed_state());
             }
             self.pending_generic_command = 0;
         }
