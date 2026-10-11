@@ -35,7 +35,7 @@ mod saber;
 
 pub(crate) const COMMAND: &str = "mimic";
 pub(crate) const HELP: &str = "Copy a player's moves while facing them: mimic <player> \
-     [delay seconds] [mirror|copy], mimic off";
+     [delay seconds] [mirror|copy] [walk], mimic off";
 
 /// No ground entity (`ENTITYNUM_NONE`).
 const NO_GROUND: u16 = 1023;
@@ -43,6 +43,9 @@ const NO_GROUND: u16 = 1023;
 const WP_SABER: u8 = 3;
 /// `BUTTON_WALKING`.
 const BUTTON_WALKING: u16 = 16;
+/// The largest key that keeps walking: Pmove clears `BUTTON_WALKING` past it, "to
+/// avoid proxy no-footsteps cheats" (`bg_pmove.c:10490-10494`).
+const WALK_KEY: i8 = 64;
 /// `GENCMD_SABER_SWITCH` and `GENCMD_SABER_ATTACK_CYCLE`.
 const GENCMD_SABER_SWITCH: u8 = 1;
 const GENCMD_SABER_ATTACK_CYCLE: u8 = 26;
@@ -140,6 +143,8 @@ struct Following {
     name: String,
     delay: i32,
     mirror: bool,
+    /// `walk`: walk always (keys within [`WALK_KEY`]), whatever the leader's speed.
+    always_walk: bool,
     samples: VecDeque<Sample>,
     anchors: Option<Anchors>,
     /// Command stamp minus sample time at the start: maps commands onto the leader's
@@ -197,12 +202,13 @@ impl Mimic {
     }
 
     /// Begin copying `slot`.
-    pub(crate) fn start(&mut self, slot: u16, name: String, delay: i32, mirror: bool) {
+    pub(crate) fn start(&mut self, slot: u16, name: String, delay: i32, mirror: bool, walk: bool) {
         self.following = Some(Box::new(Following {
             slot,
             name,
             delay: delay.clamp(0, MAX_DELAY),
             mirror,
+            always_walk: walk,
             samples: VecDeque::with_capacity(512),
             anchors: None,
             offset: None,
@@ -277,7 +283,7 @@ impl Mimic {
         }
         let stamp = input.server_time;
         let Some(newest) = following.samples.back().copied() else {
-            return Some(still(input, state));
+            return Some(still(input, following.always_walk));
         };
         let offset = *following.offset.get_or_insert(stamp - newest.time);
         let anchors = *following.anchors.get_or_insert(Anchors {
@@ -297,7 +303,7 @@ impl Mimic {
         }
         let Some(leader) = sample_at(&following.samples, time) else {
             // The delay has not passed since the copy began.
-            return Some(still(input, state));
+            return Some(still(input, following.always_walk));
         };
         // Velocity a little ahead, where the delay leaves samples there: the keys then
         // turn when the leader's did rather than an acceleration later.
@@ -382,7 +388,7 @@ impl Following {
             up: 0,
             buttons: 0,
         };
-        if leader.on_ground && leader_speed > 5.0 && leader_speed < WALK_SPEED {
+        if self.always_walk || leader.on_ground && leader_speed > 5.0 && leader_speed < WALK_SPEED {
             press.buttons |= BUTTON_WALKING;
         }
 
@@ -422,7 +428,6 @@ impl Following {
             }
             saber::Plan::Hold(hold) => {
                 press.buttons |= hold.buttons;
-                press.buttons &= !BUTTON_WALKING;
                 if deciding || hold.whole_move {
                     press.forward = hold.forward;
                     press.right = hold.right;
@@ -431,6 +436,11 @@ impl Following {
                     }
                 }
             }
+        }
+        // Walking keeps every key within half (a saber attack is chosen by the keys'
+        // signs alone), or Pmove would clear the walk and run.
+        if press.buttons & BUTTON_WALKING != 0 {
+            (press.forward, press.right) = cap_keys(press.forward, press.right, WALK_KEY);
         }
         // Pmove jumps once per press (`PMF_JUMP_HELD`): a takeoff while jump is still
         // held from the last one lets go for a command first.
@@ -497,14 +507,15 @@ impl Following {
     }
 }
 
-/// Stand still, keeping the view the player has.
-fn still(input: &UserCommand, _state: &MovementState) -> Drive {
+/// Stand still, keeping the view the player has (and the walk when walking always).
+fn still(input: &UserCommand, walk: bool) -> Drive {
     Drive {
         command: UserCommand {
             forward_move: 0,
             right_move: 0,
             up_move: 0,
-            buttons: input.buttons & sjk_game_jka::pmove_talk::BUTTON_TALK,
+            buttons: input.buttons & sjk_game_jka::pmove_talk::BUTTON_TALK
+                | if walk { BUTTON_WALKING } else { 0 },
             generic_command: 0,
             ..*input
         },
@@ -633,6 +644,25 @@ fn air_keys(turn: [f32; 3], yaw: f32) -> (i8, i8) {
         return (0, 0);
     }
     keys_toward([turn[0], turn[1]], yaw, 127.0)
+}
+
+/// `forward` and `right` scaled down together so the larger is at most `limit`, keeping
+/// their direction and signs.
+fn cap_keys(forward: i8, right: i8, limit: i8) -> (i8, i8) {
+    let largest = forward.unsigned_abs().max(right.unsigned_abs());
+    if largest <= limit.unsigned_abs() {
+        return (forward, right);
+    }
+    let scale = f32::from(limit) / f32::from(largest);
+    let shrink = |key: i8| {
+        let scaled = (f32::from(key) * scale).round() as i8;
+        if scaled == 0 && key != 0 {
+            key.signum()
+        } else {
+            scaled
+        }
+    };
+    (shrink(forward), shrink(right))
 }
 
 fn sub(a: [f32; 3], b: [f32; 3]) -> [f32; 3] {

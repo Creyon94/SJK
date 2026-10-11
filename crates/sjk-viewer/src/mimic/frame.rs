@@ -3,7 +3,7 @@
 
 use super::*;
 
-/// `mimic <player> [delay] [mirror|copy]` or `mimic off`, parsed.
+/// `mimic <player> [delay] [mirror|copy] [walk]` or `mimic off`, parsed.
 #[derive(Debug, PartialEq)]
 pub(crate) enum Request {
     Off,
@@ -12,11 +12,12 @@ pub(crate) enum Request {
         player: String,
         delay: i32,
         mirror: bool,
+        walk: bool,
     },
 }
 
 /// Parse the command's arguments: the player (a slot or part of a name), then in any
-/// order a delay in seconds and `mirror` (the default) or `copy`.
+/// order a delay in seconds, `mirror` (the default) or `copy`, and `walk` to walk always.
 pub(crate) fn parse(args: &[String]) -> Result<Request, String> {
     let Some((player, rest)) = args.split_first() else {
         return Ok(Request::Status);
@@ -26,8 +27,11 @@ pub(crate) fn parse(args: &[String]) -> Result<Request, String> {
     }
     let mut delay = 0;
     let mut mirror = true;
+    let mut walk = false;
     for word in rest {
-        if word.eq_ignore_ascii_case("mirror") {
+        if word.eq_ignore_ascii_case("walk") {
+            walk = true;
+        } else if word.eq_ignore_ascii_case("mirror") {
             mirror = true;
         } else if word.eq_ignore_ascii_case("copy") {
             mirror = false;
@@ -47,6 +51,7 @@ pub(crate) fn parse(args: &[String]) -> Result<Request, String> {
         player: player.clone(),
         delay,
         mirror,
+        walk,
     })
 }
 
@@ -65,9 +70,14 @@ impl crate::GpuState {
                 HELP.to_owned(),
                 match &self.mimic.following {
                     Some(following) => format!(
-                        "mimic: copying {}^7 ({}, {:.1} s delay)",
+                        "mimic: copying {}^7 ({}{}, {:.1} s delay)",
                         following.name,
                         if following.mirror { "mirror" } else { "copy" },
+                        if following.always_walk {
+                            ", walking"
+                        } else {
+                            ""
+                        },
                         following.delay as f32 / 1000.0
                     ),
                     None => "mimic: off".into(),
@@ -77,6 +87,7 @@ impl crate::GpuState {
                 player,
                 delay,
                 mirror,
+                walk,
             } => {
                 let session = self.live_session.as_ref().ok_or("mimic: not in a game")?;
                 let snapshot = session.latest_snapshot();
@@ -126,11 +137,12 @@ impl crate::GpuState {
                 {
                     return Err("mimic: needs your own predicted view (not flying)".into());
                 }
-                self.mimic.start(slot, name.clone(), delay, mirror);
+                self.mimic.start(slot, name.clone(), delay, mirror, walk);
                 Ok(vec![format!(
-                    "^2mimic: copying {name}^2 ({}, {:.1} s delay)^7. Face them; hands off, \
+                    "^2mimic: copying {name}^2 ({}{}, {:.1} s delay)^7. Face them; hands off, \
                      any key stops it. ^5mimic off^7 ends it.",
                     if mirror { "mirror" } else { "copy" },
+                    if walk { ", walking" } else { "" },
                     delay as f32 / 1000.0
                 )])
             }

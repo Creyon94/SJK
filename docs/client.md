@@ -1106,13 +1106,15 @@ server.
 
 ## Mimic
 
-`mimic <player> [delay] [mirror|copy]` copies another player's moves live: their view,
+`mimic <player> [delay] [mirror|copy] [walk]` copies another player's moves live: their view,
 movement, jumps, crouches, saber attacks, stance and holster
 ([mimic.rs](../crates/sjk-viewer/src/mimic.rs)). It is meant for a saber showcase with
 two players facing each other. The player is a slot number or part of a name (as
 `tell` takes it); the delay goes from 0 to 10 seconds (`0.5`, `2s`); `mirror`, the
-default, copies like a reflection, and `copy` keeps the leader's sides. `mimic off`
-stops it and `mimic` alone says what it does. It has no menu entry.
+default, copies like a reflection, and `copy` keeps the leader's sides; `walk` walks
+always, for a choreography done at walking pace, instead of walking only while the
+leader moves slower than 140. `mimic off` stops it and `mimic` alone says what it does.
+It has no menu entry.
 
 The client never sees another player's keys, only what they lead to: each snapshot
 carries their origin and velocity (`trBase`, `trDelta`), view angles (`apos.trBase`),
@@ -1132,7 +1134,11 @@ the newest) and rebuilds commands:
   per unit beyond 2, with part of the gap to the current velocity added to take a
   sideways speed out. A slight backward component is dropped, since any backward key
   slows the player (`BG_AdjustClientSpeed`: 0.75, 0.45-0.75 in an attack). Walking
-  pace (under 140) sets `BUTTON_WALKING` for the walk animation. In the air the keys
+  pace (under 140), or always with `walk`, sets `BUTTON_WALKING` for the walk
+  animation, and every key is then scaled within 64: Pmove clears the walk past half a
+  key, "to avoid proxy no-footsteps cheats" (`bg_pmove.c:10490-10494`), so a mimic
+  catching up with a larger key would run. A saber attack is chosen by the keys' signs,
+  so walking attacks keep their direction. In the air the keys
   follow the leader's horizontal acceleration (air control pushes along the keys), not
   the offset.
 - **Jumps and crouches.** A takeoff faster than 100 upward is a jump, held while the
@@ -1169,8 +1175,11 @@ away. With delays of 0, 0.3 and 1 second the mirror does every saber move mirror
 right, from the left, then the overhead), each attack starting 4 to 24 ms after it
 should, jumps and crouches, turns its view 30 degrees the other way and ends within 2
 units of the mirrored spot; during the run it stays within 10 units with a delay and 31
-with none (a full-speed leader cannot be caught up). `copy` keeps the sides. Not yet
-tried in a game.
+with none (a full-speed leader cannot be caught up). `copy` keeps the sides. With `walk`
+and a leader doing the same choreography at walking pace (keys of 46, walk held,
+attacks included) every command holds the walk with no key past 64, the attacks come
+mirrored 4-24 ms late, it crouches, tracks within 8 units with no delay and 5 with 0.3
+seconds, and ends within 2. Not yet tried in a game.
 
 ## Saber ignition and retraction sounds
 
@@ -3425,8 +3434,8 @@ It adds to the map's own weather until the next map; see
 `connect host:port`, `disconnect` and `reconnect` control the session.
 `record`, `stoprecord`, `demo` and `playdemo` control demos.
 `ghost record`, `ghost stop` and `ghost play` record and replay the player's own run
-([Ghost replay](#ghost-replay)); `mimic <player> [delay] [mirror|copy]` copies another
-player's moves live ([Mimic](#mimic)).
+([Ghost replay](#ghost-replay)); `mimic <player> [delay] [mirror|copy] [walk]` copies another
+player's moves live, `walk` to walk always ([Mimic](#mimic)).
 `screenshot` and `screenshotJPEG` request captures; `condump filename` saves
 console output. A capture copies the final swapchain image into a buffer that is
 mapped over the next frames; frames keep running meanwhile, and the readback stays

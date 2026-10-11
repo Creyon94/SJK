@@ -19,7 +19,11 @@ the mirror's swaps, specials and reactions) and the real Pmove for leader and mi
 flat floor with snapshots 24 ms apart arriving 60 ms late: at delays of 0, 0.3 and 1
 second the mirror copies the saber chain mirrored, each attack 4-24 ms late, jumps,
 crouches, mirrors a 30-degree turn and ends within 2 units; it tracks within 10 units
-with a delay and 31 without. Not verified: in a game on a server (real snapshot rates,
+with a delay and 31 without. `walk` (branch `personal/mimic-walk`, Sol's request for a
+walking choreography) walks always, and any walk keeps its keys within 64, past which
+Pmove clears the walk; with a walking leader the tests hold the walk on every command,
+track within 8 units with no delay and 5 with 0.3 seconds, and copy the attacks.
+Not verified: in a game on a server (real snapshot rates,
 specials needing Force or a nearby enemy, JA+ moves, collisions between the two
 players).
 
