@@ -539,7 +539,6 @@ struct GpuState {
     /// The 125 Hz user-command clock and the `cl_maxpackets` packet pace.
     command_schedule: sjk_client::command_rate::CommandSchedule,
     packet_pacer: sjk_client::command_rate::PacketPacer,
-    intermission_score_request_time: Option<i32>,
     /// Server-time estimate that stamps outgoing user commands.
     server_clock: ServerClock,
     clock_trace: clock_trace::ClockTrace,
@@ -1399,7 +1398,6 @@ impl GpuState {
             net_timing: net_timing::NetTiming::default(),
             command_schedule: Default::default(),
             packet_pacer: Default::default(),
-            intermission_score_request_time: None,
             server_clock,
             clock_trace: clock_trace::ClockTrace::new(),
             cut_trace: cut_trace::CutTrace::new(),
@@ -1832,6 +1830,7 @@ impl GpuState {
             self.menu_hud
                 .append_text(&mut self.text_vertices, &self.ui_font, viewport, hud_scale);
         }
+        scoreboard::update_context(self, intermission_view.is_some());
         let scores_requested = scoreboard::requested(self, intermission_view.is_some());
         let scores_allowed = information_visible
             && self

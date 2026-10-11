@@ -1639,7 +1639,7 @@ unchanged.
 ## Scoreboard styles
 
 `cg_scoreboardStyle` (Settings > Scoreboard > "Scoreboard style") picks the
-scoreboard layout. While the scoreboard is held, in every style, the HUD steps
+scoreboard layout. While either scoreboard is held, the HUD steps
 aside as for the quick wheel (status, weapon, timers, vote and kill lines,
 crosshair, the team overlay, lagometer, speedometer, warmup line, Force and item
 selectors, movement guides, the red damage-direction flash, the ground readout
@@ -1681,17 +1681,51 @@ the menus are the SJK UI. A look chosen after that stays. The classic board
   flag icon before their row; at intermission, ready players are marked `READY`.
 - Rows are 25 units of the 480-line screen, 15 units once more than 12 players
   are listed (always with `cg_smallScoreboard` and in CTF), and 12 units with the
-  header moved up from 20 clients. `cg_drawScoreboardIcons` (on by default) shows
+  header moved up above 20 clients. `cg_drawScoreboardIcons` (on by default) shows
   each player's head icon (`models/players/<model>/icon_<skin>`), decoded when a
   model changes, two per frame at most.
 - Positions follow the 640x480 screen fitted to the window height, spreading up
   to 1.25x horizontally on wide windows while text keeps its proportions. Names
   and headings are sized like retail `ergoec` text and numbers like `ocr_a`.
 
-The classic board also fades in over 120 ms and out over 200 ms after release
-(retail's fade time), rows glide to their new places when the order changes, pings
-are coloured from green to red, and rows alternate a faint stripe. Nothing is
-allocated per frame; the text and draw storage is reserved for 32 clients.
+The classic board's interaction follows
+[JoF EJK revision bd5e202d](https://github.com/JediofFreedom/JoF_EJK/blob/bd5e202dfedd49500f1b7aadd655619bac152167/codemp/cgame/cg_scoreboard.c)
+(`CG_DrawOldScoreboard`) and its
+[chat/HUD rules](https://github.com/JediofFreedom/JoF_EJK/blob/bd5e202dfedd49500f1b7aadd655619bac152167/codemp/cgame/cg_draw.c).
+It opens instantly when held and at intermission. Releasing the key retains the
+board for a 200 ms fade; intermission keeps it open. SJK deliberately keeps the
+chosen policy of no automatic board on death. Warmup suppresses a released board;
+holding the key and intermission still work. Menus, console, pause and
+`cg_drawScores 0` suppress it.
+Rows change places instantly. The SJK style keeps its animated opening and rows.
+
+Classic moves chat to virtual x=8, bottom y=475 on the 640x480 screen, retaining
+the configured font, width, lines and message expiry. Above 25 connected players,
+holding scores hides the chat feed; release restores it, even when the automatic
+intermission board remains open. That automatic crowded board limits the
+list to 24 rows, adds a missed playing client's own row and a **HOLD TAB TO VIEW
+FULL SCOREBOARD** hint. Holding the key shows the full list. Center prints stay
+hidden through the scoreboard fade. SJK's chat composer stays inside the window
+and can still be used independently of the feed.
+
+SJK deliberately keeps hiding the whole HUD while scores are held, in both
+styles, rather than JoF's selective HUD visibility. Intermission also hides
+the gameplay HUD. Team rows reserve space for the losing side, with connecting
+clients listed after scored clients. An intermission duel winner takes precedence
+over the next duel's participants and the killer/player-count header.
+
+[Score requests](https://github.com/JediofFreedom/JoF_EJK/blob/bd5e202dfedd49500f1b7aadd655619bac152167/codemp/cgame/cg_consolecmds.c)
+share a two-second gate with intermission refreshes; an explicit stale classic
+request clears cached rows until the server responds. Demo key presses neither
+request nor clear scores. The roster cache also tracks connected clients absent
+from a score response, so joins, departures and team changes update the layout.
+
+SJK retains its ping colours, faint alternating stripes and identity marks, and
+its existing meaning of `cg_drawScores` as the bound-board enable switch (JoF
+uses it for the small HUD scores). Server-plugin deaths without a verified plugin
+handshake, Siege class/winner presentation and recorded demo score rows remain
+existing compatibility gaps; this change does not synthesize those server facts.
+The retained text and draw storage is reserved for 32 clients.
 
 ## HUD style
 

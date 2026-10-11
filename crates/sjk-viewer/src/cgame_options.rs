@@ -194,7 +194,8 @@ impl crate::GpuState {
         scoreboard: bool,
     ) {
         self.chat.configure(self.console.as_ref());
-        self.chat.set_scoreboard_layout(scoreboard);
+        self.chat
+            .set_scoreboard_layout(crate::scoreboard::behavior::chat_layout(self, scoreboard));
         let visible = self
             .console
             .as_ref()

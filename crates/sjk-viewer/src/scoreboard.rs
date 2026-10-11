@@ -1,5 +1,6 @@
 //! Cached authoritative scoreboard projection rendered through `sjk-ui`.
 
+pub(crate) mod behavior;
 mod classic;
 mod deaths;
 mod icons;
@@ -82,6 +83,8 @@ pub(crate) struct Scoreboard {
     /// Who last killed the viewing player, named in `killer_name`.
     killer: Option<u16>,
     killer_name: String,
+    context: behavior::Context,
+    requests: behavior::Requests,
     /// The hub roster revision the rows' `identity` tags were derived from;
     /// `u64::MAX` when the rows were rebuilt and need tagging again.
     identity_revision: u64,
@@ -91,6 +94,10 @@ pub(crate) struct Scoreboard {
 }
 
 impl Scoreboard {
+    pub(crate) fn score_request_due(&mut self, time: i32) -> bool {
+        self.requests.due(time)
+    }
+
     pub(crate) fn new() -> Self {
         Self {
             cached_scores: Vec::new(),
@@ -112,6 +119,8 @@ impl Scoreboard {
             icons: icons::HeadIcons::default(),
             killer: None,
             killer_name: String::with_capacity(64),
+            context: behavior::Context::default(),
+            requests: behavior::Requests::default(),
             identity_revision: u64::MAX,
             #[cfg(test)]
             shot: None,
@@ -127,12 +136,28 @@ impl Scoreboard {
         allowed: bool,
     ) -> bool {
         self.style = style::ScoreboardStyle::from_console(console);
+        self.motion
+            .set_classic(self.style == style::ScoreboardStyle::Classic);
         #[cfg(test)]
         if self.shot.is_some() {
             return self.motion.present(true, true, std::time::Instant::now());
         }
-        self.motion
-            .present(requested, allowed, std::time::Instant::now())
+        let allowed = allowed
+            && (self.style != style::ScoreboardStyle::Classic
+                || (!console.is_some_and(|c| c.bool_cvar("cl_paused") == Some(true))
+                    && (!self.context.warmup || self.context.held || self.context.intermission)));
+        let visible = self
+            .motion
+            .present(requested, allowed, std::time::Instant::now());
+        if allowed
+            && !visible
+            && !self.context.dead
+            && self.style == style::ScoreboardStyle::Classic
+        {
+            self.killer = None;
+            self.killer_name.clear();
+        }
+        visible
     }
 
     pub(crate) fn draw_list(&self) -> &DrawList {
@@ -176,7 +201,9 @@ impl Scoreboard {
             intermission: player.movement_type() == PM_INTERMISSION,
         };
         // Named when the kill was observed, shown while you are dead.
-        let killer = (self.killer.is_some() && player.health() <= 0 && !player.is_spectator())
+        let killer = (self.killer.is_some()
+            && !player.is_spectator()
+            && (player.health() <= 0 || self.style == style::ScoreboardStyle::Classic))
             .then_some(self.killer_name.as_str());
         if self.style == style::ScoreboardStyle::Sjk {
             let game = session.game_state();
@@ -235,6 +262,13 @@ impl Scoreboard {
             team_scores: session.team_scores(),
             local: local_status,
             killer,
+            context: self.context,
+            duel_result: classic_duel_result(
+                session.game_state(),
+                &self.rows,
+                self.gametype,
+                local_status.intermission,
+            ),
         };
         classic::build(
             &mut self.ui,
@@ -257,7 +291,7 @@ impl Scoreboard {
     }
 
     fn refresh(&mut self, session: &ClientSession) {
-        let signature = config_signature(session.game_state(), session.scores());
+        let signature = config_signature(session.game_state());
         let server_signature = session
             .game_state()
             .config_string(0)
@@ -362,6 +396,38 @@ impl Scoreboard {
 fn config_text(game: &GameState, index: usize) -> Option<&str> {
     game.config_string(index)
         .and_then(|bytes| std::str::from_utf8(bytes).ok())
+}
+
+fn classic_duel_result<'a>(
+    game: &GameState,
+    rows: &'a [ScoreRow],
+    gametype: i32,
+    intermission: bool,
+) -> Option<classic::DuelResult<'a>> {
+    if !intermission || !matches!(gametype, 3 | 4) {
+        return None;
+    }
+    let name = |client: u8| {
+        rows.iter()
+            .find(|row| row.client_num == client)
+            .map(|row| row.name.as_str())
+    };
+    if let Some(winner) = config_text(game, 29)
+        .and_then(|s| s.parse::<u8>().ok())
+        .and_then(name)
+    {
+        return Some(classic::DuelResult::Winner(winner));
+    }
+    let clients = duelists(game).clients;
+    Some(classic::DuelResult::Versus(
+        name(clients[0]?)?,
+        name(clients[1]?)?,
+        if gametype == 4 {
+            clients[2].and_then(name)
+        } else {
+            None
+        },
+    ))
 }
 
 /// Milliseconds since the level started (`CS_LEVEL_START_TIME`), at
@@ -563,18 +629,21 @@ fn is_team_game(game_state: &GameState) -> bool {
         .and_then(|v| v.get_i32("g_gametype"))
         .is_some_and(|v| v >= 6)
 }
-fn config_signature(game_state: &GameState, scores: &[ScoreEntry]) -> u64 {
-    scores
-        .iter()
-        .fold(0xcbf29ce484222325_u64, |mut hash, score| {
-            if let Some(bytes) =
-                game_state.config_string(CS_PLAYERS + usize::from(score.client_num))
-            {
-                hash ^= byte_signature(bytes);
-                hash = hash.wrapping_mul(0x100000001b3);
-            }
-            hash
-        })
+fn config_signature(game_state: &GameState) -> u64 {
+    // The connected roster also supplies fake rows and player counts. Watching
+    // only clients already in `scores` misses joins and departures between
+    // score responses, and leaves JoF's roster-dependent layout stale.
+    (0..32).fold(0xcbf29ce484222325_u64, |mut hash, client| {
+        if let Some(bytes) = game_state
+            .config_string(CS_PLAYERS + client)
+            .filter(|bytes| !bytes.is_empty())
+        {
+            hash ^= client as u64;
+            hash ^= byte_signature(bytes);
+            hash = hash.wrapping_mul(0x100000001b3);
+        }
+        hash
+    })
 }
 fn byte_signature(bytes: &[u8]) -> u64 {
     bytes.iter().fold(0xcbf29ce484222325_u64, |hash, byte| {
@@ -584,14 +653,17 @@ fn byte_signature(bytes: &[u8]) -> u64 {
 
 /// Automatic intermission scores and the ordinary held scoreboard share one layout.
 pub(crate) fn requested(gpu: &crate::GpuState, intermission: bool) -> bool {
-    intermission || gpu.gameplay_input.held(crate::input::GameButton::Scores)
+    behavior::context(gpu, intermission).requested()
 }
 
-/// While the scoreboard is held the HUD steps aside, as for the quick wheel:
-/// the status, weapon, timers, crosshair and the game-data HUD hide; chat and
-/// the board stay. Not with `cg_drawScores 0`, when holding it shows nothing.
+/// Sample before presentation so death, warmup and roster changes apply together.
+pub(crate) fn update_context(gpu: &mut crate::GpuState, intermission: bool) {
+    gpu.scoreboard.context = behavior::context(gpu, intermission);
+}
+
+/// Both looks replace the whole HUD while held, as chosen for SJK.
 pub(crate) fn hides_hud(gpu: &crate::GpuState) -> bool {
-    requested(gpu, false)
+    gpu.gameplay_input.held(crate::input::GameButton::Scores)
         && gpu
             .console
             .as_ref()
@@ -602,6 +674,79 @@ pub(crate) fn hides_hud(gpu: &crate::GpuState) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn manual_death_scores_keep_the_killer_until_respawn_and_close() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console =
+            crate::console::ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        console.set_cvar(style::CVAR, "classic");
+        let mut board = Scoreboard::new();
+        board.context.dead = true;
+        board.killer = Some(7);
+        board.killer_name.push_str("Attacker");
+        assert!(!board.present(Some(&console), false, true));
+        assert_eq!(board.killer, Some(7));
+        assert!(board.present(Some(&console), true, true));
+        board.context.dead = false;
+        assert!(board.present(Some(&console), true, true));
+        board.motion.hide();
+        assert!(!board.present(Some(&console), false, true));
+        assert_eq!(board.killer, None);
+        assert!(board.killer_name.is_empty());
+    }
+
+    #[test]
+    fn duel_intermission_names_take_priority_and_invalid_winners_fall_back() {
+        let mut board = Scoreboard::new();
+        board.show_for_shot(shot::Match::PowerDuel);
+        let mut game = GameState::empty_local(0);
+        game.replace_config_string(29, b"5".to_vec()).unwrap();
+        game.replace_config_string(30, b"5|0|1".to_vec()).unwrap();
+        let name = |client| {
+            board
+                .rows
+                .iter()
+                .find(|row| row.client_num == client)
+                .unwrap()
+                .name
+                .as_str()
+        };
+        assert_eq!(
+            classic_duel_result(&game, &board.rows, 4, true),
+            Some(classic::DuelResult::Winner(name(5)))
+        );
+        assert_eq!(classic_duel_result(&game, &board.rows, 4, false), None);
+        assert_eq!(classic_duel_result(&game, &board.rows, 0, true), None);
+        game.replace_config_string(29, b"-1".to_vec()).unwrap();
+        assert_eq!(
+            classic_duel_result(&game, &board.rows, 4, true),
+            Some(classic::DuelResult::Versus(name(5), name(0), Some(name(1))))
+        );
+        assert_eq!(
+            classic_duel_result(&game, &board.rows, 3, true),
+            Some(classic::DuelResult::Versus(name(5), name(0), None))
+        );
+        game.replace_config_string(30, b"-1|0|1".to_vec()).unwrap();
+        assert_eq!(classic_duel_result(&game, &board.rows, 4, true), None);
+    }
+
+    #[test]
+    fn roster_signature_tracks_clients_without_score_rows() {
+        let mut game = GameState::empty_local(0);
+        let empty = config_signature(&game);
+        game.replace_config_string(CS_PLAYERS + 7, br"\n\Joining\t\3".to_vec())
+            .unwrap();
+        let joined = config_signature(&game);
+        assert_ne!(empty, joined);
+        game.replace_config_string(CS_PLAYERS + 7, br"\n\Joining\t\0".to_vec())
+            .unwrap();
+        assert_ne!(joined, config_signature(&game));
+        game.replace_config_string(CS_PLAYERS + 7, Vec::new())
+            .unwrap();
+        // Empty and absent player configstrings describe the same roster.
+        assert_eq!(empty, config_signature(&game));
+    }
 
     /// The SJK look's clock and duelists come from config strings.
     #[test]

@@ -45,7 +45,7 @@ impl ChatOverlay {
         self.visible_targets.fill(None);
         self.visible_people.fill(None);
         let mut g = self.options.geometry(viewport);
-        if self.scoreboard_layout {
+        if self.scoreboard_layout == crate::scoreboard::behavior::ChatLayout::SideColumn {
             let layout = crate::scoreboard::layout::Layout::new(viewport);
             g.scale = layout.scale * self.options.font.min(1.5);
             g.left = layout.chat_left;
@@ -55,13 +55,22 @@ impl ChatOverlay {
             g.font = 18.0 * g.scale;
             g.row = g.font * layout::ROW_PITCH;
         }
-        if self.is_typing() || (draw_feed && self.options.lifetime != 0) {
+        if let crate::scoreboard::behavior::ChatLayout::Classic { .. } = self.scoreboard_layout {
+            // CG_ChatBox_DrawStrings overrides only x/y; retain the player's
+            // font, width, expiry and line-count choices.
+            [g.left, g.bottom] = crate::scoreboard::behavior::ChatLayout::classic_origin(viewport);
+        }
+        let hide_feed = matches!(
+            self.scoreboard_layout,
+            crate::scoreboard::behavior::ChatLayout::Classic { hide_feed: true }
+        );
+        if !hide_feed && (self.is_typing() || (draw_feed && self.options.lifetime != 0)) {
             self.build_feed(font, &g, ms);
         }
         let center_start = self.ui.next_text_id();
         if let Some((text, received)) = &self.center {
             let age = ms.saturating_sub(*received);
-            if age < self.options.center_time && !self.scoreboard_layout {
+            if age < self.options.center_time && !self.scoreboard_layout.active() {
                 // CG_DrawCenterString (cg_draw.c:4488): every `\n` row is its own
                 // centred draw with the base colour, so colour codes never bleed
                 // into the next row; the block sits around cg.centerPrintY (0.30).
@@ -97,10 +106,18 @@ impl ChatOverlay {
             }
         }
         self.center_text = (center_start, self.ui.next_text_id());
-        if !self.scoreboard_layout {
+        if !self.scoreboard_layout.active() {
             self.draw_plums();
         }
         if self.is_typing() {
+            // JoF's message input is independent of its chat feed. Keep SJK's
+            // composer inside the window when the feed sits at virtual y=475.
+            if matches!(
+                self.scoreboard_layout,
+                crate::scoreboard::behavior::ChatLayout::Classic { .. }
+            ) {
+                g.bottom = g.bottom.min(viewport[1] - 200.0 * g.scale);
+            }
             self.build_composer(font, &g, ms);
             self.build_player_menu(&g, viewport);
         }

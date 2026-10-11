@@ -623,6 +623,12 @@ impl ClientSession {
         &self.scores
     }
 
+    /// Discard cached rows when a legacy client first opens a stale scoreboard.
+    /// Team totals remain available until the next authoritative `scores` command.
+    pub fn clear_scores(&mut self) {
+        self.scores.clear();
+    }
+
     pub fn team_scores(&self) -> [i32; 2] {
         self.team_scores
     }

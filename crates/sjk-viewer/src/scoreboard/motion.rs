@@ -1,10 +1,9 @@
-//! Opening, closing and re-sorting motion for the classic scoreboard.
+//! Presence and row motion for both scoreboard styles.
 //!
 //! The retail scoreboard fades out over 200 ms once released (`FADE_TIME`,
-//! `CG_FadeColor` in `CG_DrawOldScoreboard`). The classic style keeps that
-//! fade, adds a short fade and drop on opening, and moves rows to their new
-//! places when the server re-sorts the scores instead of jumping. Everything
-//! is fixed storage stepped by frame time.
+//! `CG_FadeColor` in `CG_DrawOldScoreboard`). Classic opens and reorders at
+//! once; SJK opens gradually and glides between row positions. Everything is
+//! fixed storage stepped by frame time.
 
 use std::time::Instant;
 
@@ -24,6 +23,8 @@ pub(super) struct Motion {
     step: f32,
     rows: [f32; 32],
     placed: [bool; 32],
+    classic: bool,
+    released: Option<Instant>,
 }
 
 impl Default for Motion {
@@ -34,11 +35,21 @@ impl Default for Motion {
             step: 0.0,
             rows: [0.0; 32],
             placed: [false; 32],
+            classic: false,
+            released: None,
         }
     }
 }
 
 impl Motion {
+    /// Classic opens at once, fades for 200 ms after release, and snaps rows.
+    pub(super) fn set_classic(&mut self, classic: bool) {
+        if self.classic != classic {
+            self.placed.fill(false);
+            self.released = None;
+        }
+        self.classic = classic;
+    }
     /// Step presence to `now`: rising while `requested`, falling otherwise.
     /// Returns whether the scoreboard draws this frame. When it may not draw
     /// at all (`allowed` false: console, menus, `cg_drawScores 0`) it hides
@@ -53,6 +64,16 @@ impl Motion {
         if !allowed {
             self.hide();
             return false;
+        }
+        if self.classic {
+            if requested {
+                self.shown = 1.0;
+                self.released = None;
+            } else if self.shown > 0.0 {
+                let released = *self.released.get_or_insert(now);
+                self.shown = 1.0 - now.duration_since(released).as_secs_f32() / CLOSE_SECONDS;
+            }
+            return self.shown > 0.0;
         }
         let was_hidden = self.shown <= 0.0;
         self.shown = if requested {
@@ -77,16 +98,23 @@ impl Motion {
     /// Hide at once.
     pub(super) fn hide(&mut self) {
         self.shown = 0.0;
+        self.released = None;
     }
 
     /// Smoothstep opacity of the whole board.
     pub(super) fn opacity(&self) -> f32 {
         let t = self.shown.clamp(0.0, 1.0);
+        if self.classic {
+            return t;
+        }
         t * t * (3.0 - 2.0 * t)
     }
 
     /// Where `client`'s row is drawn this frame, moving towards `target`.
     pub(super) fn row(&mut self, client: u8, target: f32) -> f32 {
+        if self.classic {
+            return target;
+        }
         let slot = usize::from(client).min(31);
         if !self.placed[slot] {
             self.placed[slot] = true;
@@ -109,6 +137,23 @@ impl Motion {
 mod tests {
     use super::*;
     use std::time::Duration;
+
+    #[test]
+    fn classic_opens_and_reorders_at_once_and_closes_at_the_release_deadline() {
+        let mut motion = Motion::default();
+        motion.set_classic(true);
+        let start = Instant::now();
+        assert!(motion.present(true, true, start));
+        assert_eq!(motion.opacity(), 1.0);
+        assert_eq!(motion.row(3, 100.0), 100.0);
+        assert_eq!(motion.row(3, 200.0), 200.0);
+        assert!(motion.present(false, true, start + Duration::from_millis(10)));
+        assert!(motion.present(false, true, start + Duration::from_millis(110)));
+        assert!((motion.opacity() - 0.5).abs() < 0.001);
+        assert!(!motion.present(false, true, start + Duration::from_millis(210)));
+        assert!(motion.present(true, true, start + Duration::from_secs(3)));
+        assert!(!motion.present(true, false, start + Duration::from_secs(4)));
+    }
 
     #[test]
     fn opens_quickly_and_fades_out_like_retail() {

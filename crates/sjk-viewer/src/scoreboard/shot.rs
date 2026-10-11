@@ -28,6 +28,7 @@ pub(crate) enum Match {
 
 /// The match facts behind a shot's rows.
 pub(crate) struct Shot {
+    held: bool,
     gametype: i32,
     limits: Limits,
     elapsed: i32,
@@ -170,6 +171,7 @@ impl Scoreboard {
                     self.rows.push(row(slot(index), name, 3, 0));
                 }
                 Shot {
+                    held: false,
                     gametype: 0,
                     limits,
                     elapsed: 7 * 60_000 + 48_000,
@@ -201,6 +203,7 @@ impl Scoreboard {
                 }
                 self.rows.push(row(slot(11), NAMES[11], 3, 0));
                 Shot {
+                    held: false,
                     gametype: 8,
                     limits,
                     elapsed: 12 * 60_000 + 5_000,
@@ -228,6 +231,7 @@ impl Scoreboard {
                     self.rows.push(player);
                 }
                 Shot {
+                    held: false,
                     gametype: if power { 4 } else { 3 },
                     limits: Limits {
                         frags: 5,
@@ -254,6 +258,16 @@ impl Scoreboard {
     /// Whether a made-up match is on show.
     pub(crate) fn showing_shot(&self) -> bool {
         self.shot.is_some()
+    }
+
+    pub(super) fn shot_context(&self) -> Option<super::behavior::Context> {
+        self.shot.as_ref().map(|shot| super::behavior::Context {
+            held: shot.held,
+            connected: self.rows.len(),
+            dead: shot.killer.is_some(),
+            intermission: shot.local.intermission,
+            ..Default::default()
+        })
     }
 
     /// Back to the server's scores.
@@ -292,6 +306,14 @@ pub(super) fn append(gpu: &mut crate::GpuState, viewport: [f32; 2]) {
                 team_scores: shot.team_scores,
                 local: shot.local,
                 killer: shot.killer,
+                context: super::behavior::Context {
+                    held: shot.held,
+                    connected: rows.len(),
+                    dead: shot.killer.is_some(),
+                    intermission: shot.local.intermission,
+                    ..Default::default()
+                },
+                duel_result: None,
             };
             let options = super::style::ClassicOptions::from_console(gpu.console.as_ref());
             super::classic::build(ui, rows, &header, options, icons, flags, motion, viewport);
@@ -344,6 +366,63 @@ pub(super) fn append(gpu: &mut crate::GpuState, viewport: [f32; 2]) {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[ignore = "renders with the GPU and installed game data named by JKA_GAME_DATA"]
+    fn classic_scoreboard_chat_and_crowded_states() {
+        crate::world_shot::on_big_stack(|| {
+            let (mut gpu, _profile) = crate::world_shot::open(
+                "maps/mp/duel6.bsp",
+                [1920, 1080],
+                None,
+                &[("cg_scoreboardStyle", "classic"), ("cg_chatbox", "60000")],
+            )
+            .expect("GPU startup for the scoreboard check");
+            gpu.chat.for_shot = true;
+            for text in [
+                "^2The scoreboard should leave this chat visible.",
+                "^7Holding scores on a full server hides the feed.",
+                "^5Releasing scores restores chat beside the compact list.",
+            ] {
+                gpu.chat.receive(
+                    sjk_client::ServerEventKind::Chat,
+                    text.to_owned(),
+                    None,
+                    std::time::Instant::now(),
+                );
+            }
+            let directory = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../target/parity-reports");
+            std::fs::create_dir_all(&directory).unwrap();
+            for (game, held, name) in [
+                (Match::Free, true, "ordinary"),
+                (Match::Crowd, false, "automatic"),
+                (Match::Crowd, true, "held"),
+            ] {
+                gpu.scoreboard.show_for_shot(game);
+                gpu.scoreboard.shot.as_mut().unwrap().held = held;
+                if game == Match::Crowd {
+                    gpu.scoreboard.shot.as_mut().unwrap().local.intermission = true;
+                }
+                let frame = crate::world_shot::frame(&mut gpu, 16);
+                frame
+                    .save(directory.join(format!("classic-scoreboard-{name}.png")))
+                    .unwrap();
+                let layout = super::super::behavior::chat_layout(&gpu, true);
+                assert_eq!(
+                    layout,
+                    super::super::behavior::ChatLayout::Classic {
+                        hide_feed: game == Match::Crowd && held
+                    }
+                );
+                assert!(!gpu.scoreboard.draw_list().commands().is_empty());
+                assert_eq!(
+                    gpu.chat.draw_list().commands().is_empty(),
+                    game == Match::Crowd && held
+                );
+            }
+        });
+    }
 
     /// The shot's match facts, compact or not.
     fn header(shot: &Shot, compact: bool) -> SjkHeader<'static> {

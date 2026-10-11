@@ -601,11 +601,7 @@ impl super::GpuState {
                 }
             }
             Some(InputAction::RequestScores) => {
-                if let Some(session) = self.communication_session_mut()
-                    && let Err(error) = session.send_reliable_command(b"score")
-                {
-                    eprintln!("failed to request scoreboard: {error}");
-                }
+                crate::scoreboard::behavior::request_scores(self);
             }
             Some(InputAction::CameraControl)
                 if self.live_session.is_some() || self.demo_session.is_some() =>

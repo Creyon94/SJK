@@ -164,24 +164,13 @@ impl GpuState {
         }
         let intermission =
             session.latest_snapshot().player.movement_type() == sjk_client::PM_INTERMISSION;
-        if !intermission && !session.is_local() {
-            self.intermission_score_request_time = None;
-        }
         if intermission
             && self
-                .intermission_score_request_time
-                .is_none_or(|requested| {
-                    session
-                        .latest_snapshot()
-                        .server_time
-                        .wrapping_sub(requested)
-                        > 2_000
-                })
+                .scoreboard
+                .score_request_due(session.latest_snapshot().server_time)
+            && let Err(error) = session.send_reliable_command(b"score")
         {
-            if let Err(error) = session.send_reliable_command(b"score") {
-                eprintln!("failed to request intermission scoreboard: {error}");
-            }
-            self.intermission_score_request_time = Some(session.latest_snapshot().server_time);
+            eprintln!("failed to request intermission scoreboard: {error}");
         }
         let snapshot = session.latest_snapshot();
         let delta_angles = self

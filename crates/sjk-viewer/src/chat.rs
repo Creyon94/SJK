@@ -111,7 +111,7 @@ pub(crate) struct ChatOverlay {
     /// Client slots muted on this PC (bits, `muted_players.rs`): their lines are hidden.
     muted_slots: u32,
     layout_viewport: [f32; 2],
-    scoreboard_layout: bool,
+    scoreboard_layout: crate::scoreboard::behavior::ChatLayout,
     options: options::Options,
     emojis: emoji::Emojis,
     /// The newest SJK chat id the feed has seen; `None` before the first sync.
@@ -173,7 +173,7 @@ impl ChatOverlay {
             mute_request: None,
             muted_slots: 0,
             layout_viewport: [0.0; 2],
-            scoreboard_layout: false,
+            scoreboard_layout: crate::scoreboard::behavior::ChatLayout::Normal,
             options: options::Options::default(),
             emojis: emoji::Emojis::default(),
             sjk_seen: None,
@@ -393,7 +393,10 @@ impl ChatOverlay {
         self.ui.draw_list()
     }
 
-    pub(crate) fn set_scoreboard_layout(&mut self, enabled: bool) {
+    pub(crate) fn set_scoreboard_layout(
+        &mut self,
+        enabled: crate::scoreboard::behavior::ChatLayout,
+    ) {
         if self.scoreboard_layout != enabled {
             self.scoreboard_layout = enabled;
             for line in &mut self.lines {
