@@ -429,6 +429,26 @@ was busy with the game during the runs), the FPS swings, the 1 GB of CPU memory 
 world keeps, and the menu in the game window (the last server's map under the menus
 for a few seconds after leaving).
 
+## Wall-jump view prediction
+
+Branch `fix/wall-jump-prediction` (2026-10-11, based on `3654f5b2`, Windows,
+Rust 1.99): wall-move prediction now reports when it held the view, and the
+camera presents those held angles even on frames that reuse the same predicted
+command time. Delta changes alone could leave fresh mouse movement visible on
+such frames, also turning the local character's root. JA+'s free-look rebound
+keeps its existing behavior. See [wall-move view holds](networking.md#wall-move-view-holds).
+
+Reference comparison: OpenJK `codemp` revision `4d0dfaf1`, `bg_pmove.c`
+(`PM_SetPMViewAngle`, the wall handlers and their ordering in `PmoveSingle`),
+and `cg_view.c`'s use of `cg.predictedPlayerState.viewangles`. Focused synthetic
+tests cover rebounds, wall runs on both sides, runs up walls, ledge flips,
+release, JA+ free look and repeated presentation with unchanged deltas at
+8/7/4/3 ms command steps. No gameplay velocity, animation timing or wire
+field changes. Workspace fmt, locked build, locked tests and all-targets
+clippy passed (existing warnings; the viewer tests have 75 existing ignored
+cases). In-game reproduction of the reported turning, remote-server
+behavior and full wall-acrobatics parity remain unverified.
+
 ## Graphics reload
 
 Branch `personal/graphics-reload` (10/10/2026, based on `5faf4944`, Windows 11, RTX

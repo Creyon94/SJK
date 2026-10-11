@@ -164,6 +164,18 @@ grab, alternate dimension, macro scan), the Jedi Outcast red DFA
 (`jp_jk2RedDFA`, off by default), a changed `jp_gripSpeedScale` (not published)
 and the animation holds for JA+'s extra GLA animations.
 
+### Wall-move view holds
+
+Wall runs, runs up walls, ledge flips and stock wall rebounds report when their
+last simulated slice called `PM_SetPMViewAngle`
+([pmove_wall_moves.rs](../crates/sjk-game-jka/src/pmove_wall_moves.rs)). The
+camera then presents that slice's held pitch and yaw, including frames that
+reuse prediction at the same command time. Applying only changes in
+`delta_angles` left fresh mouse movement visible on those frames; the local
+character's root also follows the camera yaw. The hold clears on the next
+slice that does not hold the view. JA+'s free-look rebound does not set it.
+This is local presentation state, with no protocol field or movement change.
+
 ### When prediction steps aside
 
 Three cases show the server's state instead of predicting, as JoF EternalJK's
