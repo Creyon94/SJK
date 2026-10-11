@@ -204,6 +204,18 @@ its unpublished settings, the stock spinning-saber random horizontal impulses,
 and jaPRO's separate new/race jetpack path remain outside this implementation.
 Equipping and fuel state still arrive from the server.
 
+### Standing on uneven ground
+
+A saber carrier standing still on uneven ground (one foot over a ledge, a slope) takes one
+of the stance's slope poses, `PM_AdjustStandAnimForSlope`, which reads where the feet are on
+the player's own model. The dedicated server reads them on its model
+([pmove_slope.rs](../crates/sjk-game-jka/src/pmove_slope.rs)); the client predicts without
+the model, so its prediction keeps the slope pose the server sent for as long as the player
+stands still ([pmove_locomotion.rs](../crates/sjk-game-jka/src/pmove_locomotion.rs)). It
+used to step the pose back to the stance, so the legs flicked between the hanging foot and
+the stance after every snapshot. A new pose or the return to the stance arrives with the
+next snapshot rather than at once, as it would if the client read its own feet.
+
 ### When prediction steps aside
 
 Three cases show the server's state instead of predicting, as JoF EternalJK's

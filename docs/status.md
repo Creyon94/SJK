@@ -1,5 +1,17 @@
 # Status and priorities
 
+## Standing on a ledge: no leg stutter
+
+Branch `fix/slope-stand-prediction` (11/10/2026, based on `9dbbdf19`, Linux): Creyon saw his
+legs stutter standing still, worst with one foot over a ledge. His trace showed the server
+sending a slope pose (`LEGS_S1_LUP5`, the foot hanging) while the client, predicting without
+the model's feet, stepped it back to `BOTH_STAND1` within a few commands, every snapshot.
+Prediction now keeps the server's slope pose while the player stands still
+([networking.md](networking.md#standing-on-uneven-ground)). Verified: a predictor test at
+8, 7, 4 and 3 ms command steps (the pose holds; before, it stepped back at the first
+command), the workspace checks, and in game on Windows 11 by Creyon (no stutter standing
+still or on a ledge, the foot hanging).
+
 ## Downloads that work, and what they may bring
 
 Branch `personal/allow-download` (12/10/2026, based on `c2016fbf`, Windows 11). Sol
