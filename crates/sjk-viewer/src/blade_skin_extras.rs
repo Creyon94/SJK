@@ -10,10 +10,11 @@
 //! (`blade_skin_file::load`). As before, a section left out draws nothing and, when
 //! present, every field of it is required.
 //!
-//! The fourth set (11/10/2026) is the glint's `orbit`, lower on the blade and circling it.
-//! A client of the third set refuses a field it does not know there too, so it lives in a
-//! later additions file (`<id>.bladeextra2`, [`LATER_ADDITIONS`]), laid over the first:
-//! a client of the third set draws the glint at the tip as before.
+//! The fourth set (11/10/2026) is the glint's `orbit`, lower on the blade and circling it,
+//! and `holes`, small black holes drawn in the glints' places. A client of the third set
+//! refuses a field it does not know there too, so it lives in a later additions file
+//! (`<id>.bladeextra2`, [`LATER_ADDITIONS`]), laid over the first: a client of the third
+//! set draws the glint at the tip as before, and no black hole.
 
 use super::{BladeSkinDef, Rgb, colour, within};
 use serde::Deserialize;
@@ -57,10 +58,11 @@ pub(crate) struct Star {
     pub(crate) halo: f32,
 }
 
-/// The glint's orbit (the fourth set): `count` glints `at` units below the tip, circling
+/// The glint's (or the black holes') orbit (the fourth set): `count` of them `at` units
+/// below the tip, circling
 /// the blade `radius` units out, `rate` turns a second, their circle tilted by `tilt`
 /// (radians: the near side higher) so it shows as a ring round the blade. Every other glint
-/// is smaller, and one behind the blade dims. Without it the one glint stays at the tip.
+/// is smaller, and one behind the blade dims. Without it the one stays at the tip.
 #[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub(crate) struct Orbit {
@@ -70,6 +72,27 @@ pub(crate) struct Orbit {
     pub(crate) radius: f32,
     pub(crate) rate: f32,
     pub(crate) tilt: f32,
+}
+
+/// Black holes (the fourth set), in the glints' places (one at the tip, or circling with
+/// `orbit`): a black disc `size` units across its horizon, bending the scene behind it
+/// round itself (`lens`, the ring the background is drawn into, in horizon radii), with a
+/// thin bright photon ring and a fainter accretion swirl turning `spin` turns a second.
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Holes {
+    pub(crate) color: Rgb,
+    pub(crate) brightness: f32,
+    pub(crate) size: f32,
+    pub(crate) lens: f32,
+    pub(crate) spin: f32,
+}
+
+impl Holes {
+    /// How far (units) a hole's quad reaches from its heart: its swirl and its lens.
+    pub(crate) fn reach(&self) -> f32 {
+        self.size * (2.5 + 2.0 * self.lens)
+    }
 }
 
 /// Wisps: thin smoke curling off the blade and rising, whichever way the blade is held.
@@ -150,10 +173,11 @@ pub(crate) enum Section {
     Wisps,
     Haze,
     Echo,
+    Holes,
 }
 
 impl Section {
-    pub(crate) const ALL: [Self; 17] = [
+    pub(crate) const ALL: [Self; 18] = [
         Self::Arcs,
         Self::Motes,
         Self::Hue,
@@ -171,6 +195,7 @@ impl Section {
         Self::Wisps,
         Self::Haze,
         Self::Echo,
+        Self::Holes,
     ];
 
     /// Its field's name in the file.
@@ -193,6 +218,7 @@ impl Section {
             Self::Wisps => "wisps",
             Self::Haze => "haze",
             Self::Echo => "echo",
+            Self::Holes => "holes",
         }
     }
 
@@ -245,6 +271,7 @@ impl BladeSkinDef {
             Section::Wisps => self.wisps.is_some(),
             Section::Haze => self.haze.is_some(),
             Section::Echo => self.echo.is_some(),
+            Section::Holes => self.holes.is_some(),
         }
     }
 
@@ -289,9 +316,19 @@ impl BladeSkinDef {
             within("star.depth", s.depth, 0.0, 1.0)?;
             within("star.halo", s.halo, 0.0, 2.0)?;
         }
+        if let Some(h) = &self.holes {
+            if self.star.is_some() {
+                return Err("star and holes may not both be given".to_owned());
+            }
+            colour("holes.color", h.color, 4.0)?;
+            within("holes.brightness", h.brightness, 0.0, 10.0)?;
+            within("holes.size", h.size, 0.2, 4.0)?;
+            within("holes.lens", h.lens, 0.0, 3.0)?;
+            within("holes.spin", h.spin, -4.0, 4.0)?;
+        }
         if let Some(o) = &self.orbit {
-            if self.star.is_none() {
-                return Err("orbit needs a star to circle the blade".to_owned());
+            if self.star.is_none() && self.holes.is_none() {
+                return Err("orbit needs a star or holes to circle the blade".to_owned());
             }
             within("orbit.at", o.at, 0.0, 40.0)?;
             if !(1..=MAX_GLINTS).contains(&o.count) {

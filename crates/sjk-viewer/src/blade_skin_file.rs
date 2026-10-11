@@ -105,9 +105,12 @@ pub(crate) struct BladeSkinDef {
     /// The third set ([`extras`]), from the additions file; each none when absent.
     #[serde(default)]
     pub(crate) star: Option<extras::Star>,
-    /// The fourth set, from the later additions file: the glint's orbit; none when absent.
+    /// The fourth set, from the later additions file: the glint's orbit and black holes;
+    /// each none when absent.
     #[serde(default)]
     pub(crate) orbit: Option<extras::Orbit>,
+    #[serde(default)]
+    pub(crate) holes: Option<extras::Holes>,
     #[serde(default)]
     pub(crate) wisps: Option<extras::Wisps>,
     #[serde(default)]

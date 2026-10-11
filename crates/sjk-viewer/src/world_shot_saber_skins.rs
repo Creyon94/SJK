@@ -354,10 +354,11 @@ fn duel6_second_blades() {
     });
 }
 
-/// Every option the Sun and the Spectral offer, switched off.
+/// Every option the Sun, the Spectral and the Void offer, switched off.
 fn all_parts_off(id: &str) -> crate::saber_skin_options::OptionsOff {
     let options = match id {
         "saber_sun" => &["prominences", "sparks", "glint", "haze"][..],
+        "saber_void" => &["holes", "stars", "warp", "pulse", "afterimages"][..],
         _ => &["wisps", "spirits", "smoke", "rim", "echo", "afterimages"][..],
     };
     crate::saber_skin_options::bits(options.iter().copied())
@@ -382,18 +383,16 @@ fn duel6_mythical_parts() {
         let eye = Vec3::from_array(spawn);
         let ahead = |x: f32, y: f32, z: f32| eye + turn * Vec3::new(x, y, z);
         gpu.saber_skins.shot_persona = crate::saber_persona::Persona::of(b"^1Sol^7Vulpes", 0);
-        let ids = ["saber_sun", "saber_spectral"];
-        let standing = [
-            ShotColor::Skin(ids[0]),
-            ShotColor::Parts(ids[0], all_parts_off(ids[0])),
-            ShotColor::Skin(ids[1]),
-            ShotColor::Parts(ids[1], all_parts_off(ids[1])),
-        ];
+        let ids = ["saber_sun", "saber_spectral", "saber_void"];
+        let standing: Vec<_> = ids
+            .iter()
+            .flat_map(|id| [ShotColor::Skin(id), ShotColor::Parts(id, all_parts_off(id))])
+            .collect();
         gpu.saber_skins.shot_blades = standing
             .iter()
             .enumerate()
             .map(|(index, color)| {
-                let offset = (index as f32 - 1.5) * 16.0;
+                let offset = (index as f32 - 2.5) * 13.0;
                 (
                     Blade {
                         base: ahead(70.0, -offset, -24.0).to_array(),
@@ -488,12 +487,12 @@ fn duel6_mythical_parts() {
     });
 }
 
-/// The Sun's glints circling its blade below the tip (11/10/2026): an upright blade up
-/// close, one orbit in 36 frames, cropped round the glints into `duel6-sun-orbit.gif`, and
-/// four of them side by side (`duel6-sun-orbit`).
+/// The Sun's glints and the Void's black holes circling their blades below the tip
+/// (11/10/2026): an upright blade up close, one orbit in 36 frames, cropped round them
+/// into `duel6-<name>-orbit.gif`, and four of them side by side (`duel6-<name>-orbit`).
 #[test]
 #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
-fn duel6_sun_orbit() {
+fn duel6_orbits() {
     on_big_stack(|| {
         mount_test_packs();
         let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", [1280, 720], None, &[]) else {
@@ -509,32 +508,35 @@ fn duel6_sun_orbit() {
             length: 40.0,
             radius: 3.0,
         };
-        gpu.saber_skins.shot_blades = vec![(blade, ShotColor::Skin("saber_sun"), 2)];
         let (look_yaw, look_pitch) = look(eye.to_array(), ahead(34.0, 3.0, -4.0).to_array());
         aim(&mut gpu, eye.to_array(), look_yaw, look_pitch);
-        // One turn of an orbit at the Sun's 0.45 turns a second.
-        let period = 1.0 / 0.45;
-        let mut frames = Vec::new();
-        for step in 0..36 {
-            gpu.saber_skins.shot_seconds = Some(3.0 + period * f64::from(step) / 36.0);
-            let full = frame(&mut gpu, if step == 0 { 40 } else { 2 });
-            frames.push(image::imageops::crop_imm(&full, 400, 200, 480, 400).to_image());
-        }
-        let path = super::directory().join("duel6-sun-orbit.gif");
-        let file = std::fs::File::create(&path).expect("the gif");
-        let mut encoder = image::codecs::gif::GifEncoder::new_with_speed(file, 10);
-        encoder
-            .set_repeat(image::codecs::gif::Repeat::Infinite)
-            .expect("repeat");
-        for shot in &frames {
-            let delay = image::Delay::from_numer_denom_ms((period * 1000.0 / 36.0) as u32, 1);
+        // One turn of each orbit: the Sun's 0.45 turns a second, the Void's 0.3.
+        for (id, rate) in [("saber_sun", 0.45), ("saber_void", 0.3)] {
+            gpu.saber_skins.shot_blades = vec![(blade, ShotColor::Skin(id), 2)];
+            let period = 1.0 / rate;
+            let name = format!("duel6-{}-orbit", id.trim_start_matches("saber_"));
+            let mut frames = Vec::new();
+            for step in 0..36 {
+                gpu.saber_skins.shot_seconds = Some(3.0 + period * f64::from(step) / 36.0);
+                let full = frame(&mut gpu, if step == 0 { 40 } else { 2 });
+                frames.push(image::imageops::crop_imm(&full, 400, 200, 480, 400).to_image());
+            }
+            let path = super::directory().join(format!("{name}.gif"));
+            let file = std::fs::File::create(&path).expect("the gif");
+            let mut encoder = image::codecs::gif::GifEncoder::new_with_speed(file, 10);
             encoder
-                .encode_frame(image::Frame::from_parts(shot.clone(), 0, 0, delay))
-                .expect("a frame");
+                .set_repeat(image::codecs::gif::Repeat::Infinite)
+                .expect("repeat");
+            for shot in &frames {
+                let delay = image::Delay::from_numer_denom_ms((period * 1000.0 / 36.0) as u32, 1);
+                encoder
+                    .encode_frame(image::Frame::from_parts(shot.clone(), 0, 0, delay))
+                    .expect("a frame");
+            }
+            println!("{}", path.display());
+            let four: Vec<_> = frames.iter().step_by(9).cloned().collect();
+            println!("{}", sheet(&four, 4, 480, &name).display());
         }
-        println!("{}", path.display());
-        let four: Vec<_> = frames.iter().step_by(9).cloned().collect();
-        println!("{}", sheet(&four, 4, 480, "duel6-sun-orbit").display());
     });
 }
 

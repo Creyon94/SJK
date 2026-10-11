@@ -125,18 +125,18 @@ pub(crate) struct SkinColor {
     pub(crate) off: u32,
     /// How far (units) the glow's quad reaches past the glow, for wisps and haze.
     pub(crate) room: f32,
-    /// The glint at the tip, or the glints circling the blade below it; none when absent
-    /// or off.
+    /// The glint at the tip, or the glints circling the blade below it, or the black
+    /// holes in their places; none when absent or off.
     pub(crate) star: Option<Glint>,
     /// The echo beside the blade; none when absent or off.
     pub(crate) echo: Option<crate::blade_skin_file::extras::Echo>,
 }
 
-/// Where a skin's glints are, for their quads ([`crate::saber::Instance::stars`]):
-/// `saber.wgsl` moves them round their circle.
+/// Where a skin's glints (or black holes) are, for their quads
+/// ([`crate::saber::Instance::stars`]): `saber.wgsl` moves them round their circle.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct Glint {
-    /// Its rays' length (units).
+    /// Its rays' length, or how far a hole's quad reaches (units).
     pub(crate) length: f32,
     /// How far below the tip (units) they circle (0 at the tip), and how many.
     pub(crate) at: f32,
@@ -246,9 +246,9 @@ pub(crate) fn turn_hue(rgb: [f32; 3], turns: f32) -> [f32; 3] {
     std::array::from_fn(|i| (rgb[i] * c + cross[i] * s + along_axis).max(0.0))
 }
 
-/// One skin's parameters as `saber.wgsl`'s `Skin` holds them: 60 `vec4`s (960 bytes, so
-/// the [`MAX_SKINS`] array is 15360 bytes, inside the 16 KiB uniform binding WebGPU
-/// guarantees: five more lanes a skin would not fit). The layout is the shader's; see there for what each lane is. A section
+/// One skin's parameters as `saber.wgsl`'s `Skin` holds them: 62 `vec4`s (992 bytes, so
+/// the [`MAX_SKINS`] array is 15872 bytes, inside the 16 KiB uniform binding WebGPU
+/// guarantees: three more lanes a skin would not fit). The layout is the shader's; see there for what each lane is. A section
 /// the skin's file leaves out (arcs, motes, hue and the later ones) is zeros, which the
 /// shader draws as nothing.
 #[repr(C)]
@@ -310,6 +310,8 @@ pub(crate) struct SkinUniform {
     star_shape: [f32; 4],
     star_motion: [f32; 4],
     star_orbit: [f32; 4],
+    hole_color: [f32; 4],
+    hole_shape: [f32; 4],
     wisp_color: [f32; 4],
     wisp_shape: [f32; 4],
     wisp_field: [f32; 4],
@@ -391,7 +393,14 @@ impl SkinUniform {
             self.star_shape = [s.rays as f32, s.length, s.width, s.halo];
             self.star_motion = [s.spin, s.twinkle, s.depth, 0.0];
         }
-        if let (Some(o), Some(_)) = (&def.orbit, &def.star) {
+        if let Some(h) = &def.holes {
+            self.hole_color = rgb(h.color, h.brightness);
+            self.hole_shape = [h.size, h.lens, h.spin, h.reach()];
+        }
+        if let Some(o) = def
+            .orbit
+            .filter(|_| def.star.is_some() || def.holes.is_some())
+        {
             self.star_motion[3] = o.count as f32;
             self.star_orbit = [o.at, o.radius, o.rate, o.tilt];
         }
@@ -585,15 +594,22 @@ impl LoadedSkin {
                 .def
                 .star
                 .filter(|_| on(Section::Star))
-                .map(|star| match self.def.orbit {
+                .map(|star| star.length)
+                .or_else(|| {
+                    self.def
+                        .holes
+                        .filter(|_| on(Section::Holes))
+                        .map(|holes| holes.reach())
+                })
+                .map(|length| match self.def.orbit {
                     Some(orbit) => Glint {
-                        length: star.length,
+                        length,
                         at: orbit.at,
                         count: orbit.count as u8,
                         reach: orbit.radius / orbit.tilt.cos(),
                     },
                     None => Glint {
-                        length: star.length,
+                        length,
                         at: 0.0,
                         count: 1,
                         reach: 0.0,

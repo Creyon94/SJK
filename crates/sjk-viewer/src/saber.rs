@@ -805,15 +805,15 @@ mod cutoff_tests {
             crate::saber_skins::MAX_SKINS
         )));
         assert!(shader.contains("var<uniform> skins: array<Skin, MAX_SKINS>;"));
-        // `Skin` is 60 vec4s, as `SkinUniform`, and the array fits WebGPU's 16 KiB.
+        // `Skin` is 62 vec4s, as `SkinUniform`, and the array fits WebGPU's 16 KiB.
         assert_eq!(
             std::mem::size_of::<crate::saber_skins::SkinUniform>(),
-            60 * 16
+            62 * 16
         );
-        const { assert!(60 * 16 * crate::saber_skins::MAX_SKINS <= 16 * 1024) };
+        const { assert!(62 * 16 * crate::saber_skins::MAX_SKINS <= 16 * 1024) };
         let skin = &shader[shader.find("struct Skin {").unwrap()..];
         let skin = &skin[..skin.find('}').unwrap()];
-        assert_eq!(skin.matches(": vec4<f32>,").count(), 60);
+        assert_eq!(skin.matches(": vec4<f32>,").count(), 62);
         // In `SkinUniform`'s order (its lanes are pinned by `saber_skins`' tests).
         let lanes: Vec<&str> = skin
             .lines()
@@ -878,6 +878,8 @@ mod cutoff_tests {
                 "star_shape",
                 "star_motion",
                 "star_orbit",
+                "hole_color",
+                "hole_shape",
                 "wisp_color",
                 "wisp_shape",
                 "wisp_field",

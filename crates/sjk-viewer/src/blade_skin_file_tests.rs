@@ -487,6 +487,64 @@ fn the_orbit_needs_a_star_and_is_checked_strictly() {
     );
 }
 
+/// A made-up later additions file with black holes instead of the glint (no real skin's
+/// values): the first file's star goes, the holes circle.
+pub(crate) const HOLES: &str = r#"{
+  "star": null,
+  "holes": {"color": [0.8, 0.6, 1.0], "brightness": 2.0, "size": 1.2, "lens": 1.0,
+    "spin": 0.5},
+  "orbit": {"at": 12.0, "count": 2, "radius": 5.0, "rate": 0.3, "tilt": 0.25},
+  "options": [{"id": "holes", "name": "Black holes", "sections": ["holes"]}]
+}"#;
+
+#[test]
+fn black_holes_take_the_glints_place_and_are_checked_strictly() {
+    let holes = |later: &str| {
+        let text = extras::merged(&sample_with_additions(), later).unwrap();
+        parse("saber_test", &text)
+    };
+    let def = holes(HOLES).unwrap();
+    let h = def.holes.unwrap();
+    assert_eq!((h.size, h.lens, h.spin), (1.2, 1.0, 0.5));
+    // The quad reaches the swirl and the lens: 1.2 x (2.5 + 2 x 1).
+    assert!((h.reach() - 5.4).abs() < 1e-6);
+    assert!(def.star.is_none() && def.orbit.unwrap().count == 2);
+    assert!(def.has(extras::Section::Holes));
+    let refused = |old: &str, new: &str, why: &str| {
+        assert!(HOLES.contains(old), "{old}");
+        let error = holes(&HOLES.replacen(old, new, 1)).unwrap_err();
+        assert!(error.contains(why), "{new}: {error}");
+    };
+    refused(r#""size": 1.2"#, r#""size": 0.1"#, "holes.size");
+    refused(r#""lens": 1.0"#, r#""lens": 4.0"#, "holes.lens");
+    refused(r#""spin": 0.5"#, r#""spin": 9.0"#, "holes.spin");
+    refused(
+        r#""brightness": 2.0"#,
+        r#""brightness": 20.0"#,
+        "holes.brightness",
+    );
+    refused(r#""lens": 1.0,"#, "", "missing field `lens`");
+    // A star and holes at once: which is drawn in the glints' places?
+    refused(
+        r#""star": null,"#,
+        "",
+        "star and holes may not both be given",
+    );
+    // Holes without an orbit sit at the tip; an orbit with neither has nothing to circle.
+    assert!(holes(&HOLES.replacen(r#""orbit""#, r#""x_orbit""#, 1)).is_err());
+    let at_tip = HOLES.replace(
+        r#""orbit": {"at": 12.0, "count": 2, "radius": 5.0, "rate": 0.3, "tilt": 0.25},"#,
+        "",
+    );
+    assert!(holes(&at_tip).unwrap().orbit.is_none());
+    let text = extras::merged(&sample_with_effects(), LATER_ADDITIONS).unwrap();
+    assert!(
+        parse("saber_test", &text)
+            .unwrap_err()
+            .contains("orbit needs a star or holes")
+    );
+}
+
 #[test]
 fn the_later_additions_file_is_laid_over_the_first() {
     let mut vfs = sjk_vfs::VirtualFileSystem::new();

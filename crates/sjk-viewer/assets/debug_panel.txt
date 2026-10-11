@@ -801,6 +801,19 @@ test: Console: saberskin saber_sun parts lists them; saberskin saber_sun haze on
 test: With a second SJK client on the server: it sees your blade with the parts you chose.
 note: Hub deployed 11/10/2026 with the new pack and the look field.
 
+[void-holes]
+area: Rendering & effects
+title: Void: orbiting black holes, warped space, gravity pulse, afterimages
+change: Two small black holes (one smaller) circle the Void 10 units below the tip.
+change: Their centres are black, a violet ring round them, the world behind bent round.
+change: Also warped space (haze), a pulse beating with the drone, afterimages on swings.
+test: Wear the Void, hold it up: two black holes circle it; one in front hides the blade.
+test: Look at a wall through a hole: the wall bends into a ring round the black centre.
+test: Swing the blade: dark-violet afterimages follow it; held still it pulses slowly.
+test: Collection > Shaders, Void: untick each of the 5 parts in turn: only that one goes.
+test: A 2026.1011.2 client sees the warp, pulse and afterimages, but no black holes.
+note: Needs the hub's feat/void-holes pack (saber_void.bladeextra and .bladeextra2).
+
 [sun-orbit]
 area: Rendering & effects
 title: Sun: two glints circle the blade below the tip

@@ -41,6 +41,13 @@ pub(crate) struct Runtime {
     haze_source: std::cell::RefCell<Option<(wgpu::TextureView, wgpu::BindGroup)>>,
     /// Whether a loaded skin has haze at all.
     any_haze: bool,
+    /// Skins' black holes: their lens (`saber.wgsl` `fragment_lens`), drawn with the haze
+    /// and blended over it, and their horizons (`fragment_shade`), blended black over
+    /// the blades' glow after it.
+    lens_pipeline: wgpu::RenderPipeline,
+    shade_pipeline: wgpu::RenderPipeline,
+    /// Whether a loaded skin has black holes at all.
+    any_holes: bool,
 }
 
 /// Blade instances the model preview can draw: two sabers of eight blades, each its glow,
@@ -171,41 +178,65 @@ impl Runtime {
         let pipeline = create("fragment_main");
         let glow_pipeline = create("fragment_glow");
         // The haze replaces what it covers (the layer still holds the scene there, as no
-        // effect has drawn yet), depth-tested so a wall before the blade stays sharp.
-        let haze_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("SJK saber haze pipeline"),
-            layout: Some(&haze_pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: Some("vertex_haze"),
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                buffers: &[Some(Instance::layout())],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: Some("fragment_haze"),
-                compilation_options: wgpu::PipelineCompilationOptions::default(),
-                targets: &[Some(wgpu::ColorTargetState {
-                    format,
-                    blend: None,
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-            }),
-            primitive: wgpu::PrimitiveState {
-                cull_mode: None,
-                ..Default::default()
-            },
-            depth_stencil: Some(wgpu::DepthStencilState {
-                format: DepthTarget::FORMAT,
-                depth_write_enabled: Some(false),
-                depth_compare: Some(wgpu::CompareFunction::LessEqual),
-                stencil: Default::default(),
-                bias: Default::default(),
-            }),
-            multisample: wgpu::MultisampleState::default(),
-            multiview_mask: None,
-            cache: None,
-        });
+        // effect has drawn yet), depth-tested so a wall before the blade stays sharp; a
+        // black hole's lens and horizon blend over what is there.
+        let special = |label, layout, vertex, fragment, blend| {
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some(label),
+                layout: Some(layout),
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: Some(vertex),
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    buffers: &[Some(Instance::layout())],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: Some(fragment),
+                    compilation_options: wgpu::PipelineCompilationOptions::default(),
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format,
+                        blend,
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                }),
+                primitive: wgpu::PrimitiveState {
+                    cull_mode: None,
+                    ..Default::default()
+                },
+                depth_stencil: Some(wgpu::DepthStencilState {
+                    format: DepthTarget::FORMAT,
+                    depth_write_enabled: Some(false),
+                    depth_compare: Some(wgpu::CompareFunction::LessEqual),
+                    stencil: Default::default(),
+                    bias: Default::default(),
+                }),
+                multisample: wgpu::MultisampleState::default(),
+                multiview_mask: None,
+                cache: None,
+            })
+        };
+        let haze_pipeline = special(
+            "SJK saber haze pipeline",
+            &haze_pipeline_layout,
+            "vertex_haze",
+            "fragment_haze",
+            None,
+        );
+        let lens_pipeline = special(
+            "SJK saber black hole lens pipeline",
+            &haze_pipeline_layout,
+            "vertex_hole",
+            "fragment_lens",
+            Some(wgpu::BlendState::ALPHA_BLENDING),
+        );
+        let shade_pipeline = special(
+            "SJK saber black hole horizon pipeline",
+            &layout,
+            "vertex_hole",
+            "fragment_shade",
+            Some(wgpu::BlendState::ALPHA_BLENDING),
+        );
         let haze_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some("SJK saber haze sampler"),
             address_mode_u: wgpu::AddressMode::ClampToEdge,
@@ -243,6 +274,9 @@ impl Runtime {
             haze_sampler,
             haze_source: std::cell::RefCell::new(None),
             any_haze: false,
+            lens_pipeline,
+            shade_pipeline,
+            any_holes: false,
             trails: crate::saber_trail_gpu::Runtime::new(
                 device,
                 queue,
@@ -268,6 +302,7 @@ impl Runtime {
             bytemuck::cast_slice(&skins.uniforms()),
         );
         self.any_haze = skins.iter().any(|(_, skin)| skin.def.haze.is_some());
+        self.any_holes = skins.iter().any(|(_, skin)| skin.def.holes.is_some());
         for (index, skin) in skins.iter() {
             self.materials[crate::saber_rgb::SKIN_MATERIAL as usize + usize::from(index)] =
                 saber::material(
@@ -302,15 +337,35 @@ impl Runtime {
     ) {
         self.trails.draw(pass, camera);
         self.draw_blades(pass, camera, &self.pipeline);
+        self.draw_horizons(pass, camera, &self.instance_buffer, &self.ranges);
     }
 
-    /// Whether this frame's blades may bend the scene with heat haze: a loaded skin has
-    /// it and a skinned blade is drawn (the vertex stage folds away every other one).
+    /// Whether this frame's blades may bend the scene with heat haze or a black hole's
+    /// lens: a loaded skin has one and a skinned blade is drawn (the vertex stage folds
+    /// away every other one).
     pub(crate) fn has_haze(&self) -> bool {
-        self.any_haze
-            && self.ranges[crate::saber_rgb::SKIN_MATERIAL as usize..]
-                .iter()
-                .any(|range| !range.is_empty())
+        (self.any_haze || self.any_holes) && skinned(&self.ranges)
+    }
+
+    /// The black holes' horizons over the blades just drawn from `buffer`.
+    fn draw_horizons<'pass>(
+        &'pass self,
+        pass: &mut wgpu::RenderPass<'pass>,
+        camera: &'pass wgpu::BindGroup,
+        buffer: &'pass wgpu::Buffer,
+        ranges: &[Range<u32>],
+    ) {
+        if self.any_holes && skinned(ranges) {
+            draw_instances(
+                pass,
+                camera,
+                &self.skins,
+                &self.shade_pipeline,
+                &self.materials,
+                buffer,
+                ranges,
+            );
+        }
     }
 
     /// Draw the skins' heat haze into the effect layer whose scene image is `scene`
@@ -350,23 +405,31 @@ impl Runtime {
                 }
             }
         };
-        pass.set_pipeline(&self.haze_pipeline);
-        pass.set_bind_group(0, camera, &[]);
-        pass.set_bind_group(2, &self.skins, &[]);
-        pass.set_bind_group(3, &bind, &[]);
-        pass.set_vertex_buffer(0, self.instance_buffer.slice(..));
-        let skins = crate::saber_rgb::SKIN_MATERIAL as usize;
-        for (material, instances) in self
-            .materials
-            .iter()
-            .zip(self.ranges.iter().cloned())
-            .skip(skins)
-        {
-            if instances.is_empty() {
-                continue;
+        // The haze first, then the lenses over it: each in its own run, as the instances
+        // of a material are in no set order.
+        let pipelines = [
+            (self.any_haze, &self.haze_pipeline),
+            (self.any_holes, &self.lens_pipeline),
+        ];
+        for (_, pipeline) in pipelines.into_iter().filter(|(any, _)| *any) {
+            pass.set_pipeline(pipeline);
+            pass.set_bind_group(0, camera, &[]);
+            pass.set_bind_group(2, &self.skins, &[]);
+            pass.set_bind_group(3, &bind, &[]);
+            pass.set_vertex_buffer(0, self.instance_buffer.slice(..));
+            let skins = crate::saber_rgb::SKIN_MATERIAL as usize;
+            for (material, instances) in self
+                .materials
+                .iter()
+                .zip(self.ranges.iter().cloned())
+                .skip(skins)
+            {
+                if instances.is_empty() {
+                    continue;
+                }
+                pass.set_bind_group(1, material, &[]);
+                pass.draw(0..6, instances);
             }
-            pass.set_bind_group(1, material, &[]);
-            pass.draw(0..6, instances);
         }
     }
 
@@ -399,6 +462,7 @@ impl Runtime {
             &self.preview_buffer,
             &self.preview_ranges,
         );
+        self.draw_horizons(pass, camera, &self.preview_buffer, &self.preview_ranges);
     }
 
     /// Draw into the dynamic glow image: the trails (`saberBlur`/`swordTrail` glow)
@@ -414,6 +478,8 @@ impl Runtime {
             self.trails.draw(pass, camera);
         }
         self.draw_blades(pass, camera, &self.glow_pipeline);
+        // A hole in front of the blade hides its glow there too.
+        self.draw_horizons(pass, camera, &self.instance_buffer, &self.ranges);
     }
 
     /// Whether the glow image gets any saber this frame.
@@ -452,6 +518,13 @@ impl Runtime {
     pub(crate) fn has_draws(&self) -> bool {
         self.trails.has_draws() || self.ranges.iter().any(|range| !range.is_empty())
     }
+}
+
+/// Whether `ranges` holds a skinned blade.
+fn skinned(ranges: &[Range<u32>]) -> bool {
+    ranges[crate::saber_rgb::SKIN_MATERIAL as usize..]
+        .iter()
+        .any(|range| !range.is_empty())
 }
 
 /// Draw the blade instances of `buffer`, a run per material.
