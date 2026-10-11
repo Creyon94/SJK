@@ -360,6 +360,17 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 # ---- Menus & settings ----
 
+[import-clients]
+area: Menus & settings
+title: First setup starts with Import from a client: configs found, FPS cap, gameplay FPS
+change: The first row lists Base/JA+, OpenJK, EJK/JoF and TaystJK configs found, newest first.
+change: The FPS cap (com_maxfps) is imported; then the gameplay FPS step, old frame rate picked.
+test: First setup > Import from a client: your EternalJK and Jedi Academy configs are listed.
+test: Pick one: name, model, FOV, FPS cap and keys ticked; Import: the gameplay FPS card opens.
+test: Its old com_maxfps is picked (125 for a JoF config with cl_cmdratecap 1); Use, then Done.
+test: Escape on the gameplay FPS step: skipped, the page still ends on what was imported.
+test: Browse (B) still opens the file dialog; dropping a .cfg still works.
+
 [menu-rebuild-loop]
 area: Gameplay
 title: Map change no longer loops reloading the menu map (could not join, crash)
@@ -1086,6 +1097,19 @@ test: Turn round with a sound running: it moves to the other ear.
 test: Fire at a wall on your left: the impact plays mostly in the left ear.
 
 # ---- Gameplay ----
+
+[gameplay-fps]
+area: Gameplay
+title: Gameplay FPS: movement at 125, 142, 250, 333 or any value, apart from frames drawn
+change: cl_gameplayFps (default 125) sets the user command step; com_maxfps only draws frames.
+change: Settings > Video > Gameplay FPS (Left/Right presets, Enter the card); gameplayfps.
+change: A pmove_fixed server's own step wins; prediction keeps 512 commands.
+test: gameplayfps: the console explains it and the card opens; type 400: 2 ms steps, 500/s.
+test: On a server without pmove_fixed, 333: jumps and strafes feel like EJK at 333 FPS.
+test: Back to 125: movement as before. FPS cap 240 with gameplay 125: smooth view, 125 moves.
+test: On a JoF (pmove_fixed) server: the Video row says "this server: 8 ms"; taps all register.
+test: flipkick at 333 lasts as long as at 125.
+note: High ping at 333 (300+ ms) is unchecked: watch for prediction snapping.
 
 [mimic]
 area: Gameplay

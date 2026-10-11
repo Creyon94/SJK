@@ -1,10 +1,12 @@
 //! Importing a player's setup from another client: a `.cfg` file (Jedi Academy's
-//! `jampconfig.cfg`, EternalJK's or JA+'s) dropped on the window, or named to
-//! `firstsetup import`, gives the player's name, model, field of view and key
-//! bindings. The Import page (`config_import_panel.rs`) lists what was found and
-//! copies the ticked parts; nothing else in the file is read or run.
+//! `jampconfig.cfg`, EternalJK's or JA+'s) dropped on the window, named to
+//! `firstsetup import`, or one of the configs [`detect`] finds from the clients
+//! installed beside SJK, gives the player's name, model, field of view, FPS cap
+//! and key bindings, and what the frame rate meant for their movement
+//! (`gameplay_fps.rs`). The Import page (`config_import_panel.rs`) lists what was
+//! found and copies the ticked parts; nothing else in the file is read or run.
 
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// Files larger than this are not configs.
 const MAX_BYTES: u64 = 1024 * 1024;
@@ -16,17 +18,27 @@ pub(crate) enum Item {
     /// `model`, with the `char_color_*` tint when the file sets it.
     Model,
     Fov,
+    /// `com_maxfps`: the frames drawn. The movement it gave is asked after
+    /// (`gameplay_fps.rs`).
+    FpsCap,
     Binds,
 }
 
 impl Item {
-    pub(crate) const ALL: [Self; 4] = [Self::Name, Self::Model, Self::Fov, Self::Binds];
+    pub(crate) const ALL: [Self; 5] = [
+        Self::Name,
+        Self::Model,
+        Self::Fov,
+        Self::FpsCap,
+        Self::Binds,
+    ];
 
     pub(crate) fn label(self) -> &'static str {
         match self {
             Self::Name => "Name",
             Self::Model => "Model",
             Self::Fov => "Field of view",
+            Self::FpsCap => "FPS cap",
             Self::Binds => "Key bindings",
         }
     }
@@ -40,6 +52,10 @@ pub(crate) struct Found {
     /// `char_color_red`, `_green` and `_blue`, copied with the model.
     pub(crate) colors: [Option<String>; 3],
     pub(crate) fov: Option<String>,
+    /// `com_maxfps`, 0 (uncapped) included.
+    pub(crate) max_fps: Option<i64>,
+    /// `cl_cmdratecap` (JoF EJK): on, its movement ran at 125 whatever its FPS.
+    pub(crate) cmd_rate_cap: Option<bool>,
     /// Key and script of each binding, in file order, one per key.
     pub(crate) binds: Vec<(String, String)>,
     /// The file clears every binding first (`unbindall`), as a client's saved
@@ -58,6 +74,7 @@ impl Found {
             Item::Name => self.name.is_some(),
             Item::Model => self.model.is_some(),
             Item::Fov => self.fov.is_some(),
+            Item::FpsCap => self.max_fps.is_some(),
             Item::Binds => !self.binds.is_empty(),
         }
     }
@@ -73,6 +90,18 @@ impl Found {
             "model" if !value.trim().is_empty() => self.model = Some(value),
             "cg_fov" if value.trim().parse::<f64>().is_ok_and(|fov| fov > 0.0) => {
                 self.fov = Some(value.trim().to_owned());
+            }
+            "com_maxfps" => {
+                if let Ok(fps) = value.trim().parse::<i64>()
+                    && fps >= 0
+                {
+                    self.max_fps = Some(fps);
+                }
+            }
+            "cl_cmdratecap" => {
+                if let Ok(on) = value.trim().parse::<i64>() {
+                    self.cmd_rate_cap = Some(on != 0);
+                }
             }
             other => {
                 if let Some(slot) = COLOR_CVARS.iter().position(|cvar| *cvar == other)
@@ -113,9 +142,20 @@ pub(crate) fn read(path: &Path) -> Result<Found, String> {
     let bytes = std::fs::read(path).map_err(|error| format!("Could not read it: {error}."))?;
     let found = parse(&sjk_shell::decode_config_text(bytes));
     if found.is_empty() {
-        return Err("No name, model, field of view or key bindings were found in it.".to_owned());
+        return Err(
+            "No name, model, field of view, FPS cap or key bindings were found in it.".to_owned(),
+        );
     }
     Ok(found)
+}
+
+/// What a config said about its frame rate, for the gameplay FPS step.
+pub(crate) fn origin(file: &str, found: &Found) -> crate::gameplay_fps::Origin {
+    crate::gameplay_fps::Origin {
+        file: file.to_owned(),
+        max_fps: found.max_fps.filter(|fps| *fps > 0),
+        cmd_rate_cap: found.cmd_rate_cap == Some(true),
+    }
 }
 
 /// The importable parts of a config's text. Only `seta`/`set` (and a bare
@@ -151,6 +191,127 @@ pub(crate) fn parse(text: &str) -> Found {
         }
     }
     found
+}
+
+/// The configs other clients write, by file name, and the client each belongs to:
+/// retail Jedi Academy and JA+ (`jampconfig.cfg` in the game folder), OpenJK
+/// (`openjk.cfg`), EternalJK and JoF EJK (`eternaljk.cfg`) and TaystJK
+/// (`taystjk.cfg`), as their `Q3CONFIG_CFG` names them.
+const CLIENT_CONFIGS: [(&str, &str); 4] = [
+    ("jampconfig.cfg", "Jedi Academy"),
+    ("openjk.cfg", "OpenJK"),
+    ("eternaljk.cfg", "EternalJK / JoF EJK"),
+    ("taystjk.cfg", "TaystJK"),
+];
+
+/// The folders under `Documents/My Games` the OpenJK-based clients write to when
+/// they are not portable (`HOMEPATH_NAME_WIN`).
+const HOME_FOLDERS: [&str; 3] = ["OpenJK", "EternalJK", "TaystJK"];
+
+/// A config folder that is the client's own rather than a mod's.
+const OWN_FOLDERS: [&str; 4] = ["base", "eternaljk", "taystjk", "openjk"];
+
+/// Most configs the Import page offers.
+pub(crate) const MAX_DETECTED: usize = 4;
+
+/// A config another client wrote, found on this computer.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct Detected {
+    /// The client, and its mod folder when it is not the client's own.
+    pub(crate) client: String,
+    pub(crate) path: PathBuf,
+    /// The player name it holds, without colour codes.
+    pub(crate) name: Option<String>,
+    /// When it was last written, `dd/mm/yyyy`.
+    pub(crate) date: String,
+    modified: std::time::SystemTime,
+}
+
+/// The configs other clients wrote, newest first, at most [`MAX_DETECTED`]: in each
+/// folder of `game_data` (portable installs and retail) and of the OpenJK clients'
+/// `My Games` folders under `my_games`. Configs holding nothing to import are
+/// left out, and so is SJK's own folder.
+pub(crate) fn detect(game_data: Option<&Path>, my_games: Option<&Path>) -> Vec<Detected> {
+    let mut folders: Vec<PathBuf> = Vec::new();
+    let mut subfolders = |root: &Path| {
+        if let Ok(entries) = std::fs::read_dir(root) {
+            folders.extend(
+                entries
+                    .flatten()
+                    .map(|entry| entry.path())
+                    .filter(|path| path.is_dir()),
+            );
+        }
+    };
+    if let Some(game_data) = game_data {
+        subfolders(game_data);
+    }
+    if let Some(my_games) = my_games {
+        for home in HOME_FOLDERS {
+            subfolders(&my_games.join(home));
+        }
+    }
+    let mut found: Vec<Detected> = folders
+        .iter()
+        .filter(|folder| {
+            !folder
+                .file_name()
+                .is_some_and(|name| name.eq_ignore_ascii_case("SJK"))
+        })
+        .flat_map(|folder| {
+            CLIENT_CONFIGS
+                .iter()
+                .map(move |(file, client)| (folder.join(file), *client))
+        })
+        .filter_map(|(path, client)| detected(path, client))
+        .collect();
+    found.sort_by_key(|config| std::cmp::Reverse(config.modified));
+    found.truncate(MAX_DETECTED);
+    found
+}
+
+/// `path` as a [`Detected`] config of `client`, when it is one worth offering.
+fn detected(path: PathBuf, client: &str) -> Option<Detected> {
+    let metadata = std::fs::metadata(&path).ok()?;
+    if !metadata.is_file() {
+        return None;
+    }
+    let found = read(&path).ok()?;
+    let modified = metadata.modified().ok()?;
+    let folder = path
+        .parent()
+        .and_then(Path::file_name)
+        .map(|name| name.to_string_lossy().into_owned())
+        .unwrap_or_default();
+    let own = OWN_FOLDERS
+        .iter()
+        .any(|own| folder.eq_ignore_ascii_case(own));
+    let client = if folder.is_empty() || own {
+        client.to_owned()
+    } else {
+        format!("{client} ({folder})")
+    };
+    let seconds = modified
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_or(0, |since| since.as_secs() as i64);
+    Some(Detected {
+        client,
+        name: found
+            .name
+            .as_deref()
+            .map(crate::console::config_import_panel::plain),
+        date: crate::medals::date_text(seconds),
+        path,
+        modified,
+    })
+}
+
+/// `Documents/My Games` of the player, where OpenJK-based clients write when they
+/// are not portable.
+pub(crate) fn my_games() -> Option<PathBuf> {
+    let profile = std::env::var_os("USERPROFILE").or_else(|| std::env::var_os("HOME"))?;
+    let folder = PathBuf::from(profile).join("Documents").join("My Games");
+    folder.is_dir().then_some(folder)
 }
 
 /// `line` up to a `//` comment outside quotes.
@@ -306,5 +467,54 @@ mod tests {
         let empty = directory.path().join("autoexec.cfg");
         std::fs::write(&empty, "seta snaps 40").unwrap();
         assert!(read(&empty).is_err());
+    }
+
+    #[test]
+    fn the_frame_rate_and_jof_command_rate_are_read() {
+        let found = parse("seta com_maxfps \"333\"\nseta cl_cmdratecap \"0\"\n");
+        assert_eq!(found.max_fps, Some(333));
+        assert_eq!(found.cmd_rate_cap, Some(false));
+        assert!(found.has(Item::FpsCap));
+        assert_eq!(origin("jampconfig.cfg", &found).old_fps(), Some(333));
+        // An uncapped client (0) imports its cap, but says nothing of its movement.
+        let found = parse("seta com_maxfps 0\nseta cl_cmdratecap 1\n");
+        assert_eq!(found.max_fps, Some(0));
+        let jof = origin("eternaljk.cfg", &found);
+        assert_eq!(jof.max_fps, None);
+        assert_eq!(jof.old_fps(), Some(125), "cl_cmdratecap moved at 125");
+        assert!(parse("seta com_maxfps fast").max_fps.is_none());
+    }
+
+    #[test]
+    fn installed_clients_configs_are_found_newest_first() {
+        let root = tempfile::tempdir().unwrap();
+        let game_data = root.path().join("GameData");
+        let my_games = root.path().join("My Games");
+        let write = |path: std::path::PathBuf, text: &str| {
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(path, text).unwrap();
+        };
+        write(game_data.join("base/jampconfig.cfg"), "seta name ^1Old\n");
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        write(
+            game_data.join("japlus/jampconfig.cfg"),
+            "seta com_maxfps 333\n",
+        );
+        std::thread::sleep(std::time::Duration::from_millis(20));
+        write(my_games.join("TaystJK/base/taystjk.cfg"), "seta name Sol\n");
+        // Nothing to import, another file name, and SJK's own folder are left out.
+        write(game_data.join("EternalJK/eternaljk.cfg"), "seta snaps 40\n");
+        write(game_data.join("base/autoexec.cfg"), "seta name Nope\n");
+        write(game_data.join("SJK/jampconfig.cfg"), "seta name Me\n");
+        let found = detect(Some(&game_data), Some(&my_games));
+        let clients: Vec<&str> = found.iter().map(|config| config.client.as_str()).collect();
+        assert_eq!(
+            clients,
+            ["TaystJK", "Jedi Academy (japlus)", "Jedi Academy"]
+        );
+        assert_eq!(found[0].name.as_deref(), Some("Sol"));
+        assert_eq!(found[2].name.as_deref(), Some("Old"));
+        assert_eq!(found[0].date.len(), "dd/mm/yyyy".len());
+        assert!(detect(None, None).is_empty());
     }
 }

@@ -640,6 +640,7 @@ impl SettingsMenu {
                 | ValueKind::IdentityPage
                 | ValueKind::ImportPage
                 | ValueKind::AssetBrowser
+                | ValueKind::GameplayFps
                 | ValueKind::Quality => {
                     let open = self.dropdown.as_ref().is_some_and(|open| open.row == row);
                     place.choice_field(
@@ -800,7 +801,10 @@ impl SettingsMenu {
             part(facts, format_args!("In {group}"));
         }
         if self.section == Section::Group(Group::Quick) {
-            part(facts, format_args!("Import a .cfg below, or drop one here"));
+            part(
+                facts,
+                format_args!("New here? Start with the first row, or drop a .cfg"),
+            );
         }
     }
 
@@ -850,7 +854,10 @@ impl SettingsMenu {
             ValueKind::HudPicker => "LEFT or RIGHT to step, ENTER to pick from pictures",
             ValueKind::WheelPages => "ENTER to edit the pages and their choices",
             ValueKind::IdentityPage => "ENTER to open your key's page; the key stays hidden",
-            ValueKind::ImportPage => "ENTER to choose a .cfg from another client",
+            ValueKind::ImportPage => "ENTER to bring your setup from another client",
+            ValueKind::GameplayFps => {
+                "LEFT or RIGHT for 125, 142, 250 or 333, ENTER to explain it and type any value"
+            }
             ValueKind::AssetBrowser => {
                 "ENTER to enable or disable installed PK3 packs for the next start"
             }

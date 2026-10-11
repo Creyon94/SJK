@@ -138,7 +138,11 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         "com_maxfps",
-        "Most frames drawn per second. AUTO is 125, or the monitor's refresh rate with Detect refresh rate on; 0 is uncapped.",
+        "Most frames drawn a second; your movement is Gameplay FPS. AUTO is 125, or the monitor's rate with Detect refresh rate; 0 is off.",
+    ),
+    (
+        crate::gameplay_fps::CVAR,
+        "The FPS your movement runs at (125, 142, 250, 333), apart from the frames drawn. Enter explains it and takes any value.",
     ),
     (
         crate::runtime_settings::MONITOR_CAP_CVAR,
@@ -469,7 +473,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         super::catalog::IMPORT_ROW,
-        "Bring your name, model, field of view and keys from another client's .cfg, such as jampconfig.cfg. Enter picks the file.",
+        "Bring name, model, FOV, FPS and keys from Base, EJK, TaystJK or any .cfg. Enter shows the configs found.",
     ),
     (
         "assetbrowser",

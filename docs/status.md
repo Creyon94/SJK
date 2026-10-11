@@ -1,5 +1,31 @@
 # Status and priorities
 
+## Gameplay FPS and importing from other clients
+
+Branch `personal/gameplay-fps` (11/10/2026, based on `491ee67c`, Windows 11). Sol asked
+for First setup to start with importing a config from another client (base, EJK,
+TaystJK) and, above all, for the frame rate's split from movement to be explained,
+since players keep asking, with an easy choice of the movement they are used to and an
+advanced mode for any value. User commands now run at the gameplay FPS
+(`cl_gameplayFps`, 125 by default as before; a `pmove_fixed` server's step wins)
+instead of a fixed 8 ms; the Import page lists the configs found from installed
+clients, imports the FPS cap, and asks for the gameplay FPS with the old config's
+picked; the `gameplayfps` command and a Video setting open the same card
+([client.md](client.md#gameplay-fps),
+[networking.md](networking.md#user-commands-and-move-packets)). Prediction keeps 512
+pending commands instead of 128.
+
+Verified: unit tests (steps of 8, 7, 4 and 3 ms for the presets, 2 ms for 400, the
+clamp, the server's step winning, a 3 ms grid filling a 60 FPS frame's five slots, a
+changed step never resending a slot, the old config's frame rate picked or 125 under
+`cl_cmdratecap`, digits into Other, Left/Right through the presets, the import of
+`com_maxfps`, configs found newest first with their client, name and date and SJK's
+own left out), the settings catalogue tests, and world shots of First setup in both
+styles, the Import page on Sol's installed configs, the gameplay FPS step after an
+import and on its own with Other typed. Not verified: movement in a game at 142, 250
+or 333 (jump heights and strafes against an EJK client at that FPS on a server without
+`pmove_fixed`), prediction at those rates with high ping, and the file dialog.
+
 ## Mimic
 
 Since branch `personal/experimental-showcase` (11/10/2026) `ghost` and `mimic` are

@@ -664,7 +664,15 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "cl_maxpackets",
             DEFAULT_MAX_PACKETS,
             archive,
-            "Most move packets sent a second (15 to 1000); user commands are made 125 times a second and wait for the next packet",
+            "Most move packets sent a second (15 to 1000); user commands are made at your gameplay FPS (cl_gameplayFps) and wait for the next packet",
+        ),
+        // SJK's: the frame rate whose movement the player wants, apart from the
+        // frames drawn (`command_rate`, `gameplay_fps.rs`).
+        CvarDefinition::new(
+            crate::gameplay_fps::CVAR,
+            sjk_client::command_rate::DEFAULT_GAMEPLAY_FPS,
+            archive,
+            "Gameplay FPS: the frame rate your movement runs at (125, 142, 250, 333 or 20 to 1000), whatever FPS you draw; a pmove_fixed server's step wins; gameplayfps explains it",
         ),
         // Stock default "1", clamped 0..5 (`codemp/client/cl_input.cpp:1539`).
         CvarDefinition::new(

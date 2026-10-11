@@ -3,16 +3,25 @@
 //! JoF EJK's `cl_cmdratecap` (`codemp/client/cl_input.cpp`
 //! `CL_CreateNewCommands`) makes usercmds on a fixed 8 ms step, 125 a second,
 //! however fast the client renders, so the server moves the player in the same
-//! steps as a 125 FPS client. Stock makes one per rendered frame, which on a
-//! `pmove_fixed` server loses input above 125 FPS: `ClientThink_real` rounds a
-//! command's time up to the `pmove_msec` grid (`g_active.c`) and drops one that
-//! lands in a slot already run (`msec < 1`), button presses included.
+//! steps as a 125 FPS client. Stock makes one per rendered frame, so its frame
+//! rate is also its movement: `com_maxfps` 125, 142, 250 and 333 give commands
+//! of 8, 7, 4 and 3 ms (`1000 / com_maxfps`, `Com_Frame`), and the movement code's
+//! rounding makes jumps, acceleration and strafes differ between them. On a
+//! `pmove_fixed` server a stock client above 125 FPS loses input:
+//! `ClientThink_real` rounds a command's time up to the `pmove_msec` grid
+//! (`g_active.c`) and drops one that lands in a slot already run (`msec < 1`),
+//! button presses included.
 //!
-//! [`CommandSchedule`] stamps every command on an 8 ms boundary of server time,
-//! one per slot, so no two commands share a slot on any `pmove_msec` 8 grid. A
-//! frame slower than 8 ms makes a command for each slot it passed, up to
-//! [`MAX_CATCH_UP`]; after a longer hitch the older slots are skipped rather
-//! than sent as a burst.
+//! SJK keeps the two apart, as `cl_cmdratecap` does, but lets the player pick
+//! the step: the gameplay FPS (`cl_gameplayFps`, [`gameplay_step`]) is the frame
+//! rate whose movement they want, 125 by default, whatever they draw. On a
+//! `pmove_fixed` server the server's own step wins ([`command_step`]).
+//!
+//! [`CommandSchedule`] stamps every command on a boundary of the step in server
+//! time, one per slot, so no two commands share a slot on the server's grid. A
+//! frame slower than a step makes a command for each slot it passed, up to
+//! [`CATCH_UP_MILLIS`] of them; after a longer hitch the older slots are skipped
+//! rather than sent as a burst.
 //!
 //! [`PacketPacer`] is `cl_maxpackets` (`CL_ReadyToSendPacket`): commands wait
 //! for a packet, which leaves at most every `1000 / cl_maxpackets` ms and
@@ -20,16 +29,48 @@
 
 use std::time::{Duration, Instant};
 
-/// Milliseconds between user commands (125 a second).
+/// Milliseconds between user commands at the default gameplay FPS (125 a second).
 pub const COMMAND_MILLIS: i32 = 8;
+/// The gameplay FPS a new profile gets: JoF EJK's `cl_cmdratecap` rate.
+pub const DEFAULT_GAMEPLAY_FPS: i64 = 125;
+/// The gameplay FPS range: stock's 1 ms floor, and no step longer than 50 ms.
+pub const MIN_GAMEPLAY_FPS: i64 = 20;
+pub const MAX_GAMEPLAY_FPS: i64 = 1000;
+/// The frame rates players lock for their movement, in the order the menus offer them.
+pub const GAMEPLAY_FPS_PRESETS: [i64; 4] = [125, 142, 250, 333];
 /// Most commands one frame makes to fill the slots it passed.
-pub const MAX_CATCH_UP: usize = 4;
+pub const MAX_CATCH_UP: usize = 16;
+/// Slots further back than this are skipped after a slow frame: four commands
+/// at 125 a second.
+pub const CATCH_UP_MILLIS: i32 = 32;
 /// Stock `cl_maxpackets` clamp (`cl_input.cpp` `CL_ReadyToSendPacket`; JoF EJK
 /// and EternalJK raise the stock 125 ceiling to 1000).
 pub const MIN_PACKETS: i64 = 15;
 pub const MAX_PACKETS: i64 = 1000;
 /// A stamp this far behind the previous one is a new time line.
 const RESTART_MILLIS: i32 = 500;
+
+/// The command step of a gameplay FPS: stock's `1000 / com_maxfps` whole
+/// milliseconds, so 142 is 7 ms and 333 is 3 ms, as those frame rates moved.
+/// Out-of-range values are clamped to [`MIN_GAMEPLAY_FPS`]..=[`MAX_GAMEPLAY_FPS`].
+pub fn gameplay_step(fps: i64) -> i32 {
+    (1000 / fps.clamp(MIN_GAMEPLAY_FPS, MAX_GAMEPLAY_FPS)) as i32
+}
+
+/// Commands a second at a gameplay FPS: what its step really makes (400 makes 500).
+pub fn commands_per_second(fps: i64) -> i64 {
+    1000 / i64::from(gameplay_step(fps))
+}
+
+/// The step commands are made at: the gameplay FPS's, or on a `pmove_fixed`
+/// server its `pmove_msec` (`pmove_fixed` = `Some(msec)`), since the server moves
+/// every player in those steps and drops a second command in one.
+pub fn command_step(gameplay_fps: i64, pmove_fixed: Option<i32>) -> i32 {
+    match pmove_fixed {
+        Some(msec) => msec.clamp(1, 1000 / MIN_GAMEPLAY_FPS as i32),
+        None => gameplay_step(gameplay_fps),
+    }
+}
 
 /// The server times of the commands due this frame, oldest first.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -49,11 +90,11 @@ impl DueCommands {
     }
 }
 
-/// The 125 Hz command clock.
+/// The command clock.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct CommandSchedule {
-    /// The slot of the newest command stamped on an anchored clock.
-    last_slot: Option<i32>,
+    /// The stamp of the newest command made on an anchored clock.
+    last_stamp: Option<i32>,
     /// While the clock stamps 0, the next command is due at this instant.
     unanchored_due: Option<Instant>,
 }
@@ -64,39 +105,50 @@ impl CommandSchedule {
         *self = Self::default();
     }
 
-    /// Commands due at `now`, given the server time the clock reads now and
-    /// whether it is anchored. An unanchored clock stamps 0 (stock
-    /// `cl.serverTime` during a map load); its commands still leave every
-    /// 8 ms of real time, so packets keep acknowledging the server.
-    pub fn due(&mut self, server_time: i32, anchored: bool, now: Instant) -> DueCommands {
+    /// Commands due at `now` with commands `step` ms apart ([`command_step`]),
+    /// given the server time the clock reads now and whether it is anchored. An
+    /// unanchored clock stamps 0 (stock `cl.serverTime` during a map load); its
+    /// commands still leave every step of real time, so packets keep
+    /// acknowledging the server. A changed step starts its grid at the next
+    /// boundary after the last command, never on a slot already sent.
+    pub fn due(
+        &mut self,
+        server_time: i32,
+        anchored: bool,
+        now: Instant,
+        step: i32,
+    ) -> DueCommands {
+        let step = step.max(1);
         let mut due = DueCommands::default();
         if !anchored {
-            self.last_slot = None;
+            self.last_stamp = None;
             if self.unanchored_due.is_none_or(|at| now >= at) {
-                let step = Duration::from_millis(COMMAND_MILLIS as u64);
-                let next = self.unanchored_due.unwrap_or(now) + step;
+                let interval = Duration::from_millis(step as u64);
+                let next = self.unanchored_due.unwrap_or(now) + interval;
                 // Behind by more than a step after a hitch: start again from now.
-                self.unanchored_due = Some(if next < now { now + step } else { next });
+                self.unanchored_due = Some(if next < now { now + interval } else { next });
                 due.push(0);
             }
             return due;
         }
         self.unanchored_due = None;
-        let slot = server_time.div_euclid(COMMAND_MILLIS);
-        let first = match self.last_slot {
-            Some(last) if slot <= last => {
-                if (last - slot) * COMMAND_MILLIS <= RESTART_MILLIS {
+        let slot = server_time.div_euclid(step);
+        let newest = slot * step;
+        let catch_up = (CATCH_UP_MILLIS / step).clamp(1, MAX_CATCH_UP as i32);
+        let first = match self.last_stamp {
+            Some(last) if newest <= last => {
+                if last - newest <= RESTART_MILLIS {
                     return due;
                 }
                 slot
             }
-            Some(last) => (last + 1).max(slot - (MAX_CATCH_UP as i32 - 1)),
+            Some(last) => (last.div_euclid(step) + 1).max(slot - (catch_up - 1)),
             None => slot,
         };
         for slot in first..=slot {
-            due.push(slot * COMMAND_MILLIS);
+            due.push(slot * step);
         }
-        self.last_slot = Some(slot);
+        self.last_stamp = Some(newest);
         due
     }
 }
@@ -135,7 +187,7 @@ mod tests {
 
     fn stamps(schedule: &mut CommandSchedule, server_time: i32) -> Vec<i32> {
         schedule
-            .due(server_time, true, Instant::now())
+            .due(server_time, true, Instant::now(), COMMAND_MILLIS)
             .as_slice()
             .to_vec()
     }
@@ -178,14 +230,87 @@ mod tests {
         let mut schedule = CommandSchedule::default();
         let start = Instant::now();
         let at = |ms| start + Duration::from_millis(ms);
-        assert_eq!(schedule.due(0, false, at(0)).as_slice(), [0]);
-        assert!(schedule.due(0, false, at(5)).as_slice().is_empty());
-        assert_eq!(schedule.due(0, false, at(8)).as_slice(), [0]);
+        assert_eq!(
+            schedule.due(0, false, at(0), COMMAND_MILLIS).as_slice(),
+            [0]
+        );
+        assert!(
+            schedule
+                .due(0, false, at(5), COMMAND_MILLIS)
+                .as_slice()
+                .is_empty()
+        );
+        assert_eq!(
+            schedule.due(0, false, at(8), COMMAND_MILLIS).as_slice(),
+            [0]
+        );
         // After a long stall, one command, not a burst.
-        assert_eq!(schedule.due(0, false, at(500)).as_slice(), [0]);
-        assert!(schedule.due(0, false, at(503)).as_slice().is_empty());
+        assert_eq!(
+            schedule.due(0, false, at(500), COMMAND_MILLIS).as_slice(),
+            [0]
+        );
+        assert!(
+            schedule
+                .due(0, false, at(503), COMMAND_MILLIS)
+                .as_slice()
+                .is_empty()
+        );
         // Anchoring starts the grid at once.
-        assert_eq!(schedule.due(12_345, true, at(504)).as_slice(), [12_344]);
+        assert_eq!(
+            schedule
+                .due(12_345, true, at(504), COMMAND_MILLIS)
+                .as_slice(),
+            [12_344]
+        );
+    }
+
+    #[test]
+    fn gameplay_fps_steps_like_the_stock_frame_rates() {
+        let steps: Vec<i32> = GAMEPLAY_FPS_PRESETS.map(gameplay_step).to_vec();
+        assert_eq!(steps, [8, 7, 4, 3]);
+        assert_eq!(gameplay_step(DEFAULT_GAMEPLAY_FPS), COMMAND_MILLIS);
+        // 400 cannot be made in whole milliseconds: 2 ms steps, 500 a second.
+        assert_eq!(commands_per_second(400), 500);
+        assert_eq!(gameplay_step(0), 50, "clamped to 20");
+        assert_eq!(gameplay_step(5_000), 1, "clamped to 1000");
+        // A pmove_fixed server's step wins over the player's choice.
+        assert_eq!(command_step(333, Some(8)), 8);
+        assert_eq!(command_step(333, None), 3);
+    }
+
+    #[test]
+    fn a_333_grid_makes_a_command_every_3_ms() {
+        let mut schedule = CommandSchedule::default();
+        let mut at = |time| {
+            schedule
+                .due(time, true, Instant::now(), gameplay_step(333))
+                .as_slice()
+                .to_vec()
+        };
+        assert_eq!(at(3_001), [3_000]);
+        assert_eq!(at(3_002), [] as [i32; 0]);
+        assert_eq!(at(3_003), [3_003]);
+        // A 60 FPS frame fills the five slots it passed.
+        assert_eq!(at(3_020), [3_006, 3_009, 3_012, 3_015, 3_018]);
+        // A hitch keeps 32 ms of the newest slots.
+        assert_eq!(at(3_400).len(), 10);
+    }
+
+    #[test]
+    fn a_changed_step_never_resends_a_slot() {
+        let mut schedule = CommandSchedule::default();
+        let step = gameplay_step(333);
+        assert_eq!(
+            schedule.due(1_002, true, Instant::now(), step).as_slice(),
+            [1_002]
+        );
+        // Now 125: the next 8 ms boundary after 1_002 is 1_008.
+        let due = schedule.due(1_004, true, Instant::now(), 8);
+        assert!(due.as_slice().is_empty());
+        assert_eq!(
+            schedule.due(1_009, true, Instant::now(), 8).as_slice(),
+            [1_008]
+        );
     }
 
     #[test]

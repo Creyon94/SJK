@@ -99,7 +99,7 @@ impl SettingsMenu {
             &mut self.ui,
             TextFamily::Body,
             format_args!(
-                "Coming from another client? Import a config file, near the end, or drop its .cfg on the window."
+                "Coming from another client? Start with the first row: your setup, and the FPS your movement felt like."
             ),
             frame.rect(TEXT_X, CARD[1] + 116.0, TEXT_WIDTH, 24.0),
             15.0 * s,

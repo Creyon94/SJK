@@ -188,6 +188,7 @@ impl Group {
             // Its headings are its tabs' names ([`graphics_tabs`]).
             Self::Scoreboard | Self::Graphics => &[],
             Self::Quick => &[
+                (super::catalog::IMPORT_ROW, "From another client"),
                 (crate::graphics_quality::ROW_NAME, "Graphics"),
                 (crate::menu::style::CVAR, "Styles"),
                 ("r_resolution", "Display"),

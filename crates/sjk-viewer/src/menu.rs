@@ -628,14 +628,19 @@ impl ClientMenu {
                 console.open_identity_panel();
                 MenuAction::None
             }
-            // First setup's "Import a config file" row: the Import page with
-            // the file dialog, over the settings.
             SettingsResult::OpenAssets => {
                 console.execute_console_line("assetbrowser", None);
                 MenuAction::None
             }
+            // First setup's "Import from another client" row: the Import page
+            // with the configs found (or the file dialog), over the settings.
             SettingsResult::OpenImport => {
                 console.browse_config_import();
+                MenuAction::None
+            }
+            // The Gameplay FPS row: its card, over the settings.
+            SettingsResult::OpenGameplayFps => {
+                console.open_gameplay_fps();
                 MenuAction::None
             }
             SettingsResult::Classic(index) => self.classic_panel_button(index, console),

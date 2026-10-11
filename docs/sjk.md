@@ -63,6 +63,7 @@ migrated, except where the table says so. Where each is documented:
 | `com_maxfpsUnfocused` | 30 | [Configuration](client.md#configuration-and-content) |
 | `com_maxfpsMonitor` | off (`com_maxfps` AUTO caps at 125, the monitor's rate unread) | [Configuration](client.md#configuration-and-content) |
 | `cl_maxpackets` | 125 | [User commands and move packets](networking.md#user-commands-and-move-packets) |
+| `cl_gameplayFps` | 125 (JoF EJK's `cl_cmdratecap`), apart from `com_maxfps` | [Gameplay FPS](client.md#gameplay-fps) |
 | rendering profile | noon, bloom, dust, material maps | [Default visual profile](rendering.md#default-visual-profile) |
 | `cl_consoleUseScanCode` | 1, saved 0 moved to 1 once | [Useful console commands](client.md#useful-console-commands) |
 | `mod_japlus`, `mod_jof` | on (each mod loads on its servers only), saved 0 moved to 1 once | [Client mods](mods.md) |

@@ -30,10 +30,10 @@ mod reconcile;
 #[path = "prediction_miss.rs"]
 pub(crate) mod telemetry;
 
-/// Commands kept for re-prediction: about a second at 125 a second
-/// (`command_rate`). Stock's `CMD_BACKUP` 64 holds half that at 125 FPS; JoF
-/// EJK raises it with `cl_commandsize`.
-const COMMAND_BACKUP: usize = 128;
+/// Commands kept for re-prediction: about 1.5 s at a gameplay FPS of 333, 4 s at
+/// 125 (`command_rate`). Stock's `CMD_BACKUP` 64 holds half a second at 125 FPS;
+/// JoF EJK raises it with `cl_commandsize`, up to this 512.
+const COMMAND_BACKUP: usize = 512;
 
 /// How the server's `ps.commandTime` relates to the commands this client sent
 /// (`ClientThink_real` clamps a stamp to `[level.time - 1000, level.time + 200]`
@@ -476,7 +476,7 @@ impl LocalPrediction {
     /// usercmd every frame and predicts through all of them
     /// (`cl_input.cpp` `CL_CreateNewCommands`, `cg_predict.c:1124-1237`)
     /// while packets leave at `cl_maxpackets`; SJK makes a command every
-    /// 8 ms (`command_rate`), so at higher frame rates the presented state
+    /// gameplay FPS step (`command_rate`), so at higher frame rates the presented state
     /// would otherwise stand still between commands and then step. Returns
     /// the eye position.
     pub(crate) fn preview_command(
