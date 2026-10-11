@@ -128,11 +128,13 @@ pub(crate) fn trail(line: &str) {
     let seconds = STARTED
         .get()
         .map_or(0.0, |started| started.elapsed().as_secs_f64());
+    let line = format!("[{seconds:9.1}] {line}");
+    crate::session_log::write(&line);
     if let Some(mut trail) = try_lock(&TRAIL) {
         if trail.len() == TRAIL_LINES {
             trail.pop_front();
         }
-        trail.push_back(format!("[{seconds:9.1}] {line}"));
+        trail.push_back(line);
     }
 }
 
@@ -174,11 +176,14 @@ fn trail_tail(lines: usize) -> String {
 }
 
 /// The folder reports go to: `crashes` beside the configuration. Starts this
-/// session's marker there.
+/// session's marker there, and the session log beside it with the lines so far.
 pub(crate) fn set_directory(config_directory: &Path) {
     if cfg!(test) {
         return;
     }
+    let earlier: Vec<String> =
+        try_lock(&TRAIL).map_or_else(Vec::new, |trail| trail.iter().cloned().collect());
+    crate::session_log::start(config_directory, &earlier);
     let dir = config_directory.join("crashes");
     let mut state = lock(&STATE);
     if state.dir.is_some() {
@@ -199,6 +204,20 @@ pub(crate) fn set_gpu(info: &wgpu::AdapterInfo) {
     }
     gpu.push(')');
     lock(&STATE).gpu = gpu;
+}
+
+/// What a log request sends (`session_log::gather`), with what the session knows.
+pub(crate) fn log_upload() -> sjk_identity::LogUpload {
+    let context = {
+        let state = lock(&STATE);
+        crate::session_log::Context {
+            gpu: state.gpu.clone(),
+            os: os(),
+            map: state.map.clone(),
+            server: state.server.clone(),
+        }
+    };
+    crate::session_log::gather(&context, &home())
 }
 
 /// The operating system, as far as the standard library tells.

@@ -452,6 +452,8 @@ mod tests {
             crashes_sent: 0,
             crash_note: None,
             holocrons: None,
+            log_requests: Vec::new(),
+            log_answer: None,
         };
         let online = snapshot(Status::Online, Some(me));
         assert_eq!(Holdings::of(false, Some(&online)), Holdings::IdentityOff);

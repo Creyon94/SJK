@@ -912,6 +912,8 @@ pub(crate) mod tests {
             crashes_sent: 0,
             crash_note: None,
             holocrons: None,
+            log_requests: Vec::new(),
+            log_answer: None,
         }
     }
 

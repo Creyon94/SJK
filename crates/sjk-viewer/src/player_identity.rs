@@ -597,6 +597,31 @@ pub(crate) fn staff(request: sjk_identity::StaffRequest) -> bool {
         .is_some()
 }
 
+/// Send a staff query about logs or crash reports; false when the service has not
+/// started.
+pub(crate) fn staff_query(query: sjk_identity::StaffQuery) -> bool {
+    lock()
+        .service
+        .as_ref()
+        .map(|service| service.staff_query(query))
+        .is_some()
+}
+
+/// The logs or crash report a staff query opened, once.
+pub(crate) fn take_opened() -> Option<sjk_identity::OpenedText> {
+    lock()
+        .service
+        .as_ref()
+        .and_then(sjk_identity::Service::take_opened)
+}
+
+/// Answer the SJK team's log request `id`: send `upload`, or decline with `None`.
+pub(crate) fn answer_logs(id: i64, upload: Option<sjk_identity::LogUpload>) {
+    if let Some(service) = lock().service.as_ref() {
+        service.answer_logs(id, upload);
+    }
+}
+
 /// What staff requests brought back, once the service started.
 pub(crate) fn staff_state() -> Option<sjk_identity::StaffState> {
     lock()

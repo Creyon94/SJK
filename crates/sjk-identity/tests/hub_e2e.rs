@@ -1004,3 +1004,134 @@ fn a_new_key_has_no_holocrons_and_active_claims_start_its_progress() {
     assert!(state.daily_cap >= 1);
     hub.release(&me, &server).unwrap();
 }
+
+/// Log requests and crash reports through the staff key (`SJK_HUB_TEST_STAFF_SEED`): a
+/// request listed for the player, logs as big as the client sends taken whole, a second
+/// request declined, and a crash report read back in its group.
+#[test]
+#[ignore = "needs a running hub (SJK_HUB_TEST_URL) and its staff key (SJK_HUB_TEST_STAFF_SEED)"]
+fn a_staff_key_asks_for_logs_and_reads_them_and_crash_reports() {
+    use sjk_identity::{LogUpload, StaffAnswer, StaffQuery};
+    let mut hub = hub();
+    let hex = std::env::var("SJK_HUB_TEST_STAFF_SEED").expect("SJK_HUB_TEST_STAFF_SEED");
+    let mut seed = [0_u8; 32];
+    for (index, byte) in seed.iter_mut().enumerate() {
+        *byte = u8::from_str_radix(&hex[index * 2..index * 2 + 2], 16).unwrap();
+    }
+    let staff = Identity::from_seed(seed);
+    let player = Identity::generate().unwrap();
+    hub.register(&staff, Some("^1Staffer")).unwrap();
+    hub.register(&player, Some("^6Friend")).unwrap();
+    assert!(
+        hub.profile(&staff.key_id()).unwrap().staff,
+        "make {} staff",
+        staff.key_id()
+    );
+    // A player cannot ask staff things.
+    let refused = hub
+        .staff_query(&player, &StaffQuery::LogRequests)
+        .unwrap_err();
+    assert!(
+        matches!(refused, HubError::Rejected { ref code, .. } if code == "not_staff"),
+        "{refused:?}"
+    );
+
+    let ask = StaffQuery::RequestLogs {
+        key_id: player.key_id(),
+        note: "The freeze on ffa3".to_owned(),
+    };
+    let StaffAnswer::LogRequest(row) = hub.staff_query(&staff, &ask).unwrap() else {
+        panic!("a request row");
+    };
+    assert_eq!(
+        (row.key_id.as_str(), row.state.as_str()),
+        (player.key_id().as_str(), "open")
+    );
+    let twice = hub.staff_query(&staff, &ask).unwrap_err();
+    assert!(
+        matches!(twice, HubError::Rejected { ref code, .. } if code == "request_open"),
+        "{twice:?}"
+    );
+    let listed = hub.log_requests(&player).unwrap();
+    assert_eq!(listed.len(), 1);
+    assert_eq!(listed[0].id, row.id);
+    assert_eq!(listed[0].note, "The freeze on ffa3");
+    assert_eq!(listed[0].from, "^1Staffer");
+    // Nobody else's.
+    assert!(hub.log_requests(&staff).unwrap().is_empty());
+
+    // As much as the client sends: multi-byte text, tabs and quotes, fitted.
+    let line = "[   12.5] é ü \"quoted\"\tand a tab, ünïcödé text to fill the line\n";
+    let upload = LogUpload {
+        logs: line.repeat(12_000),
+        build: "2026.1011.2".to_owned(),
+        os: "windows x86_64".to_owned(),
+        gpu: "NVIDIA GeForce GTX 1660 (Vulkan)".to_owned(),
+    }
+    .fitted();
+    hub.send_logs(&player, row.id, &upload).unwrap();
+    let again = hub.send_logs(&player, row.id, &upload).unwrap_err();
+    assert!(
+        matches!(again, HubError::Rejected { ref code, .. } if code == "request_closed"),
+        "{again:?}"
+    );
+    assert!(hub.log_requests(&player).unwrap().is_empty());
+    let StaffAnswer::LogRequest(read) = hub.staff_query(&staff, &StaffQuery::Log(row.id)).unwrap()
+    else {
+        panic!("the request with its logs");
+    };
+    assert_eq!(read.state, "sent");
+    assert_eq!(read.logs, upload.logs);
+    assert_eq!(read.gpu, upload.gpu);
+    assert_eq!(read.size as usize, upload.logs.len());
+
+    // Declined.
+    let StaffAnswer::LogRequest(second) = hub.staff_query(&staff, &ask).unwrap() else {
+        panic!("a request row");
+    };
+    hub.decline_logs(&player, second.id).unwrap();
+    let StaffAnswer::LogRequests(rows) = hub.staff_query(&staff, &StaffQuery::LogRequests).unwrap()
+    else {
+        panic!("the requests");
+    };
+    let states: Vec<&str> = rows
+        .iter()
+        .filter(|listed| listed.key_id == player.key_id())
+        .map(|listed| listed.state.as_str())
+        .collect();
+    assert_eq!(states, ["declined", "sent"], "newest first");
+
+    // A crash report, read back by staff.
+    let unique = format!("e2e crash {}", &player.key_id()[..8]);
+    let report = sjk_identity::CrashReport {
+        kind: sjk_identity::crash::Kind::Panic,
+        build: "2026.1011.2".to_owned(),
+        location: "crates/sjk-viewer/src/e2e.rs:1:2".to_owned(),
+        message: unique.clone(),
+        log: "the last lines".to_owned(),
+        ..sjk_identity::CrashReport::default()
+    };
+    let id = hub.crash(&player, &report.fitted()).unwrap();
+    let StaffAnswer::CrashGroups(groups) =
+        hub.staff_query(&staff, &StaffQuery::CrashGroups).unwrap()
+    else {
+        panic!("the groups");
+    };
+    let group = groups
+        .iter()
+        .find(|group| group.message == unique)
+        .expect("the crash's group");
+    let StaffAnswer::Crashes(crashes) = hub
+        .staff_query(&staff, &StaffQuery::Crashes(group.signature.clone()))
+        .unwrap()
+    else {
+        panic!("the reports");
+    };
+    assert_eq!(crashes[0].id, id);
+    let StaffAnswer::Crash(detail) = hub.staff_query(&staff, &StaffQuery::Crash(id)).unwrap()
+    else {
+        panic!("the report");
+    };
+    assert_eq!(detail.log, "the last lines");
+    assert!(detail.readable().contains(&unique));
+}

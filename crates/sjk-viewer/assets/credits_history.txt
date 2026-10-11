@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 11/10/2026 | - | Staff ask players for their logs; crash reports on the Staff page
+- f3ffc20 |  | Log requests: staff ask a player for their logs; staff read crash reports
 + 11/10/2026 | - | Doors, lifts, buttons and trains in the brush view
 - 5930851 |  | Brush view: doors, lifts, buttons, trains and their travel boxes
 + 11/10/2026 | - | Rate and snaps sent clamped instead of refused

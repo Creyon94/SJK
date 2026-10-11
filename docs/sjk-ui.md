@@ -1476,6 +1476,28 @@ are not drawn and take no input. The same look in every menu style, on the 16:9 
   the right; keys bottom right: D don't suggest, Esc not now, Enter use EJK (turn
   off).
 
+## Log request
+
+[log_request_card.rs](../crates/sjk-viewer/src/log_request_card.rs): the pop-up a
+player gets when the SJK team asks for their game's logs
+([identity.md](identity.md#log-requests)); Sol asked on 11/10/2026 for a way to
+collect a friend's logs through the hub. It shows on the main page or over the game
+menu, never in the middle of play (the console says a request came in), after the
+medal, holocron, reload and FPS cards and not while the window is away; the menus
+under it are not drawn and take no input. The same look in every menu style, on the
+16:9 frame:
+
+- **Card:** the kit's card over its scrim, 800 wide from x 560, y 300, as tall as
+  its words.
+- **Words:** "SJK team" in gold (Rajdhani 22), "Send your game's logs?" (Rajdhani 36),
+  then up to nine lines of Exo 2 18 (muted): who asks and their note in quotes, what
+  the logs hold (console lines of this session and the one before without chat, the
+  last crash report, build, system and graphics card), that the Windows user name is
+  left out, and that nothing is sent unless the player chooses Send logs.
+- **Buttons:** Don't send (outlined, 170) and Send logs (gold, 200), right-aligned along
+  the foot; focus starts on Don't send. Keys bottom right: Enter send logs, Esc don't
+  send; Space does nothing, so sending takes a deliberate key.
+
 ## Implementation
 
 - `ui_menuStyle sjk` (`menu::style::MenuStyle::Sjk`) is the default beside

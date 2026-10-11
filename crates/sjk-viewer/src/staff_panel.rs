@@ -1,11 +1,12 @@
 //! The Staff page: for a player the hub's operator made staff, the SJK team's tools
 //! in the game (`docs/identity.md`, "Staff"): find a player, verify them, give or take
 //! back their medals, unlock or relock their unlockables, give or take back their
-//! holocrons, clear their achievements, list their keys and unlink one, and merge
-//! another player into them (a player who reset their key). Every action is a request
-//! signed by the
-//! player's own key (`sjk_identity::StaffRequest`); the hub refuses it from any other
-//! key, and the page only opens for a key whose profile says staff.
+//! holocrons, clear their achievements, list their keys and unlink one, merge
+//! another player into them (a player who reset their key), ask them for their game's
+//! logs and read the logs players sent and their crash reports. Every action is a
+//! request signed by the player's own key (`sjk_identity::StaffRequest`,
+//! `sjk_identity::StaffQuery`); the hub refuses it from any other key, and the page
+//! only opens for a key whose profile says staff.
 //!
 //! Opened by the Profile page's Staff tools button or the `staff` command. Like the
 //! Profile page it lives in the console and has the SJK UI's look ([`view`]). Tab
@@ -14,7 +15,7 @@
 //! players found; Escape goes back (or lets go of a merge being confirmed or picked).
 
 use crate::menu_widgets::{BACK_TOKEN, MenuCanvas};
-use sjk_identity::{Profile, StaffRequest, StaffState};
+use sjk_identity::{Profile, StaffQuery, StaffRequest, StaffState};
 use sjk_ui::{InputEvent, UiEventKind};
 use std::time::{Duration, Instant};
 use winit::event::{ElementState, KeyEvent};
@@ -62,6 +63,23 @@ const MERGE_CANCEL_TOKEN: u16 = 1_407;
 /// Unlink, one token per linked key listed.
 const UNLINK_BASE: u16 = 1_410;
 const LINKED_SHOWN: usize = 6;
+/// The right column's Logs and Crashes views.
+const LOGS_TAB_TOKEN: u16 = 1_420;
+const CRASHES_TAB_TOKEN: u16 = 1_421;
+/// Request logs of the chosen player, and the list read again.
+const REQUEST_LOGS_TOKEN: u16 = 1_422;
+const LOGS_REFRESH_TOKEN: u16 = 1_423;
+/// Open, one token per log request listed (only sent ones have it).
+const LOG_OPEN_BASE: u16 = 1_430;
+const LOG_ROWS_SHOWN: usize = 12;
+/// The crash groups read again, and back from one group's reports to the groups.
+const CRASHES_REFRESH_TOKEN: u16 = 1_450;
+const CRASHES_BACK_TOKEN: u16 = 1_451;
+/// A crash group, one token each, and Open, one token per report of a group.
+const CRASH_GROUP_BASE: u16 = 1_460;
+const CRASH_GROUPS_SHOWN: usize = 9;
+const CRASH_OPEN_BASE: u16 = 1_480;
+const CRASH_ROWS_SHOWN: usize = 12;
 /// Longest text the merge field takes (a pasted key id with spaces round it).
 const MERGE_FIELD_MAX: usize = 40;
 /// Longest search, as the hub takes it.
@@ -78,6 +96,8 @@ pub(crate) enum PanelAction {
     Close,
     /// Send this to the hub.
     Request(StaffRequest),
+    /// And this, about logs and crash reports.
+    Query(StaffQuery),
 }
 
 /// What the page knows this frame.
@@ -93,6 +113,10 @@ enum RightView {
     #[default]
     Achievements,
     Keys,
+    /// The log requests, with Request logs for the chosen player.
+    Logs,
+    /// The crash reports of every player: the groups, or one group's reports.
+    Crashes,
 }
 
 /// A merge waiting for its confirmation: who is kept and who goes.
@@ -153,6 +177,11 @@ struct Shown {
     linked: Vec<String>,
     /// Why the merge field's key cannot be merged in, or `None` when it can.
     merge_problem: Option<MergeProblem>,
+    /// The log requests listed, by number, and whether each has logs to open.
+    log_rows: Vec<(i64, bool)>,
+    /// The crash groups listed, by signature, and one group's reports, by number.
+    crash_groups: Vec<String>,
+    crash_rows: Vec<i64>,
 }
 
 pub(crate) struct Panel {
@@ -180,6 +209,8 @@ pub(crate) struct Panel {
     picking: bool,
     /// A merge waiting for Merge for good or Cancel.
     pending_merge: Option<PendingMerge>,
+    /// The crash group whose reports the Crashes view lists, or none for the groups.
+    crash_group: Option<String>,
     shown: Shown,
     epoch: Instant,
     /// What a world shot shows in place of the live profile and answers.
@@ -224,6 +255,7 @@ impl Panel {
             merge_from: String::new(),
             picking: false,
             pending_merge: None,
+            crash_group: None,
             shown: Shown::default(),
             epoch: Instant::now(),
             #[cfg(test)]
@@ -353,6 +385,59 @@ impl Panel {
             KEYS_TAB_TOKEN => {
                 self.right = RightView::Keys;
                 PanelAction::None
+            }
+            // The Logs and Crashes views read their lists from the hub as they open.
+            LOGS_TAB_TOKEN | LOGS_REFRESH_TOKEN => {
+                self.right = RightView::Logs;
+                PanelAction::Query(StaffQuery::LogRequests)
+            }
+            CRASHES_TAB_TOKEN | CRASHES_REFRESH_TOKEN | CRASHES_BACK_TOKEN => {
+                self.right = RightView::Crashes;
+                self.crash_group = None;
+                PanelAction::Query(StaffQuery::CrashGroups)
+            }
+            REQUEST_LOGS_TOKEN => match target {
+                Some(key_id) => PanelAction::Query(StaffQuery::RequestLogs {
+                    key_id,
+                    note: self.note.trim().to_owned(),
+                }),
+                None => PanelAction::None,
+            },
+            token if (LOG_OPEN_BASE..LOG_OPEN_BASE + LOG_ROWS_SHOWN as u16).contains(&token) => {
+                match self.shown.log_rows.get(usize::from(token - LOG_OPEN_BASE)) {
+                    Some(&(id, true)) => PanelAction::Query(StaffQuery::Log(id)),
+                    _ => PanelAction::None,
+                }
+            }
+            token
+                if (CRASH_GROUP_BASE..CRASH_GROUP_BASE + CRASH_GROUPS_SHOWN as u16)
+                    .contains(&token) =>
+            {
+                match self
+                    .shown
+                    .crash_groups
+                    .get(usize::from(token - CRASH_GROUP_BASE))
+                {
+                    Some(signature) => {
+                        self.crash_group = Some(signature.clone());
+                        self.focus = CRASHES_BACK_TOKEN;
+                        PanelAction::Query(StaffQuery::Crashes(signature.clone()))
+                    }
+                    None => PanelAction::None,
+                }
+            }
+            token
+                if (CRASH_OPEN_BASE..CRASH_OPEN_BASE + CRASH_ROWS_SHOWN as u16)
+                    .contains(&token) =>
+            {
+                match self
+                    .shown
+                    .crash_rows
+                    .get(usize::from(token - CRASH_OPEN_BASE))
+                {
+                    Some(&id) => PanelAction::Query(StaffQuery::Crash(id)),
+                    None => PanelAction::None,
+                }
             }
             MERGE_FIELD_TOKEN => PanelAction::None,
             MERGE_PICK_TOKEN => {
@@ -570,6 +655,18 @@ impl Panel {
         }
     }
 
+    /// Show the Logs view, or the Crashes view (one kind's reports with `group`), for a
+    /// world shot.
+    #[cfg(test)]
+    pub(crate) fn view_for_shot(&mut self, logs: bool, group: Option<&str>) {
+        self.right = if logs {
+            RightView::Logs
+        } else {
+            RightView::Crashes
+        };
+        self.crash_group = group.map(str::to_owned);
+    }
+
     /// Move the keyboard `by` controls along the order the last frame laid out.
     fn step(&mut self, forward: bool) {
         if self.order.is_empty() {
@@ -737,6 +834,82 @@ mod tests {
             [1920.0, 1080.0],
         );
         (panel, me, staff)
+    }
+
+    #[test]
+    fn logs_and_crashes_are_asked_for_and_opened() {
+        use sjk_identity::logs::{CrashGroup, CrashSummary, LogRequestRow};
+        let (mut panel, me, _) = drawn(Vec::new());
+        // Opening the views reads their lists.
+        assert_eq!(
+            panel.activate(LOGS_TAB_TOKEN),
+            PanelAction::Query(StaffQuery::LogRequests)
+        );
+        panel.note = " the freeze ".into();
+        assert_eq!(
+            panel.activate(REQUEST_LOGS_TOKEN),
+            PanelAction::Query(StaffQuery::RequestLogs {
+                key_id: me.key_id.clone(),
+                note: "the freeze".into(),
+            })
+        );
+        let row = |id, key_id: &str, state: &str| LogRequestRow {
+            id,
+            key_id: key_id.into(),
+            state: state.into(),
+            ..LogRequestRow::default()
+        };
+        let staff = StaffState {
+            log_requests: vec![
+                row(9, &me.key_id, "open"),
+                row(8, "bbbbbbbbbbbbbbbb", "sent"),
+            ],
+            crash_groups: vec![CrashGroup {
+                signature: "00ff00ff00ff00ff".into(),
+                ..CrashGroup::default()
+            }],
+            crashes: vec![CrashSummary {
+                id: 77,
+                ..CrashSummary::default()
+            }],
+            crashes_of: "00ff00ff00ff00ff".into(),
+            ..StaffState::default()
+        };
+        let fonts = crate::text::load_modern(1.0, None).expect("Inter");
+        let inputs = Inputs {
+            me: Some(&me),
+            staff: &staff,
+        };
+        panel.build(&inputs, &fonts.font, [1920.0, 1080.0]);
+        // One request open for this player: no second one; only sent logs open.
+        assert!(!panel.order.contains(&REQUEST_LOGS_TOKEN));
+        assert!(!panel.order.contains(&LOG_OPEN_BASE));
+        assert_eq!(
+            panel.activate(LOG_OPEN_BASE + 1),
+            PanelAction::Query(StaffQuery::Log(8))
+        );
+        assert_eq!(panel.activate(LOG_OPEN_BASE), PanelAction::None);
+        // A kind of crash lists its reports, whose Open reads one whole.
+        assert_eq!(
+            panel.activate(CRASHES_TAB_TOKEN),
+            PanelAction::Query(StaffQuery::CrashGroups)
+        );
+        panel.build(&inputs, &fonts.font, [1920.0, 1080.0]);
+        assert_eq!(
+            panel.activate(CRASH_GROUP_BASE),
+            PanelAction::Query(StaffQuery::Crashes("00ff00ff00ff00ff".into()))
+        );
+        panel.build(&inputs, &fonts.font, [1920.0, 1080.0]);
+        assert!(panel.order.contains(&CRASHES_BACK_TOKEN));
+        assert_eq!(
+            panel.activate(CRASH_OPEN_BASE),
+            PanelAction::Query(StaffQuery::Crash(77))
+        );
+        assert_eq!(
+            panel.activate(CRASHES_BACK_TOKEN),
+            PanelAction::Query(StaffQuery::CrashGroups)
+        );
+        assert_eq!(panel.crash_group, None);
     }
 
     #[test]

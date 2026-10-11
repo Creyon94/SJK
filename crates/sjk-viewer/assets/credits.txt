@@ -72,6 +72,7 @@ did: The Sun's orbiting glints, circling its blade below the tip
 did: The Void's black holes orbiting its blade, bending the world behind them
 did: SJK chat GIFs, who is online, chat sounds, reply and the last channel remembered
 did: Crash reports to the SJK team, and world notes: tell the team what is wrong on a map
+did: Log requests: the SJK team asks a player for their logs, and reads crash reports in game
 did: The quick wheel's live Force page and Toys page, Illuminate as a toy
 did: The pilot's vehicle HUD and crosshair, jetpacks, the spawn bubble and Force spheres
 did: Create game and its map picker, Import and the test list in the SJK look
