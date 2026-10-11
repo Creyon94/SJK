@@ -154,6 +154,10 @@ pub struct LegacyUserInfo {
     /// protection layers in front of them use it to recognise a returning
     /// player; a client that sends none is logged as `NOGUID`.
     pub guid: Option<String>,
+    /// The player's own values for game adapter extension keys (case ignored),
+    /// each replacing the adapter's value where the adapter sends that key, and
+    /// sent nowhere else; an invalid value leaves the adapter's.
+    pub extension_overrides: Vec<(String, String)>,
 }
 
 impl LegacyUserInfo {
@@ -178,6 +182,7 @@ impl LegacyUserInfo {
             plugin_disable: None,
             password: None,
             guid: None,
+            extension_overrides: Vec::new(),
         }
     }
 }
@@ -762,6 +767,13 @@ pub fn legacy_userinfo_payload_with_extensions(
         result.push_str(&format!("\\cp_pluginDisable\\{bits}"));
     }
     for (key, value) in extensions {
+        let value = user
+            .extension_overrides
+            .iter()
+            .find(|(name, _)| name.eq_ignore_ascii_case(key))
+            .map(|(_, value)| value.as_str())
+            .filter(|value| valid_userinfo_value(value))
+            .unwrap_or(value);
         result.push('\\');
         result.push_str(key);
         result.push('\\');

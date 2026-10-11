@@ -31,6 +31,17 @@ impl ViewerConsole {
             .integer_cvar("cp_pluginDisable")
             .and_then(|bits| u32::try_from(bits).ok());
         self.force_profile.apply_to_userinfo(&mut userinfo);
+        // The player's plugin name, where the server profile sends one.
+        let identity = sjk_client::PLUGIN_IDENTITY_KEY;
+        if let Some(value) = self
+            .text_value(identity)
+            .map(str::trim)
+            .filter(|value| !value.is_empty())
+        {
+            userinfo
+                .extension_overrides
+                .push((identity.to_owned(), value.to_owned()));
+        }
         Ok(userinfo)
     }
 
@@ -88,6 +99,18 @@ mod tests {
         console.set_cvar("snaps", "70000");
         console.set_cvar("rate", "-5");
         assert_eq!(console.rate_and_snaps(), (1_000, 1_000));
+    }
+
+    #[test]
+    fn the_plugin_name_setting_goes_into_the_userinfo_only_when_set() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        assert!(console.userinfo().unwrap().extension_overrides.is_empty());
+        assert!(console.set_cvar(sjk_client::PLUGIN_IDENTITY_KEY, "1.6.5 JoF"));
+        assert_eq!(
+            console.userinfo().unwrap().extension_overrides,
+            [("cjp_client".to_owned(), "1.6.5 JoF".to_owned())]
+        );
     }
 
     #[test]

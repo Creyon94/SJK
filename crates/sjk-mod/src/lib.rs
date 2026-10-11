@@ -12,8 +12,10 @@
 //! The mods are built into the client (see `docs/mods.md`); this crate is the line
 //! they are written against.
 
+pub mod known_servers;
 mod player;
 
+pub use known_servers::{KNOWN_SERVERS, KnownServer};
 pub use player::{Drawn, Player, resolve_player, strip_colours};
 
 /// A console command a mod adds, or a server command it completes.
@@ -59,6 +61,11 @@ pub struct Server {
 }
 
 impl Server {
+    /// The family this server belongs to, if SJK knows it ([`known_servers`]).
+    pub fn family(&self) -> Option<&'static KnownServer> {
+        known_servers::identify(self)
+    }
+
     /// The value of `key` in the server info (keys ignore case).
     pub fn info(&self, key: &str) -> Option<&str> {
         let mut parts = self

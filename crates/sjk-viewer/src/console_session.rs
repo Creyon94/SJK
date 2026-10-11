@@ -38,6 +38,13 @@ impl ViewerConsole {
                 "Maximum connection data rate (bytes a second); servers cap it with sv_maxRate",
             ),
             CvarDefinition::new("snaps", 120_i64, user, "Requested server snapshot rate"),
+            // Not USER_INFO: sent only where the server profile sends the key.
+            CvarDefinition::new(
+                sjk_client::PLUGIN_IDENTITY_KEY,
+                "",
+                CvarFlags::ARCHIVE,
+                "The client plugin name sent to JA+ and jaPRO servers (what admins' amstatus shows); empty sends SJK's default for the server",
+            ),
             CvarDefinition::new(
                 "forcepowers",
                 "7-1-032330000000001333",
@@ -167,7 +174,12 @@ impl ViewerConsole {
         let userinfo_dirty = Arc::new(AtomicBool::new(true));
         let overlay_dirty = Arc::clone(&userinfo_dirty);
         // Nameplate bars for teammates read the team overlay's `tinfo` too.
-        for name in ["cg_drawTeamOverlay", "cg_nameplate", "cg_nameplateBars"] {
+        for name in [
+            "cg_drawTeamOverlay",
+            "cg_nameplate",
+            "cg_nameplateBars",
+            sjk_client::PLUGIN_IDENTITY_KEY,
+        ] {
             let dirty = Arc::clone(&overlay_dirty);
             cvars.on_change(name, move |_| dirty.store(true, Ordering::Release))?;
         }
@@ -853,7 +865,12 @@ impl ViewerConsole {
     ) {
         self.refresh_movement_cvars(game);
         let raw = String::from_utf8_lossy(game.config_string(0).unwrap_or_default());
-        self.server_cap = crate::server_caps::find(profile, &raw);
+        let server_info = sjk_mod::Server {
+            kind: crate::mods::server_kind(profile),
+            address: server.to_string(),
+            info: raw.clone().into_owned(),
+        };
+        self.server_cap = crate::server_caps::find(&server_info);
         if let Some(cap) = self.server_cap {
             self.shell.push_log(format!(
                 "gameplay FPS: {} servers take {} commands a second at most{}",
@@ -873,11 +890,7 @@ impl ViewerConsole {
         if let Ok(mut status) = self.server_status.write() {
             *status = value.clone();
         }
-        self.mods.set_server(Some(sjk_mod::Server {
-            kind: crate::mods::server_kind(profile),
-            address: server.to_string(),
-            info: raw.into_owned(),
-        }));
+        self.mods.set_server(Some(server_info));
         self.server_profile = Some(profile.clone());
         // The mods made for this server load now; the others' commands go.
         self.mods.sync(&mut self.shell);

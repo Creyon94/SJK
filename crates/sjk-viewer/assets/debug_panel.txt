@@ -1145,6 +1145,14 @@ test: The log says session content: download ... stripped of ...; the map loads 
 test: Put a pak with autoexec.cfg on the local server: exec autoexec.cfg does not run its lines.
 note: JoF servers have downloads off and list no paks: nothing can download from them.
 
+[known-servers]
+area: Gameplay
+title: Known servers in one table; cjp_client sets the plugin name sent to JA+ servers
+change: JoF servers are told in one table the jof mod and the command caps both read.
+change: cjp_client (empty = default 1.6.4 JoF on JA+) replaces the plugin name sent.
+test: Join JoF: jof.commands says it is a JoF server; the Video row still says JoF server 8 ms.
+test: cjp_client "test", rejoin JA+: an admin's /amstatus shows test. Clear it after.
+
 [rate-90000]
 area: Gameplay
 title: rate defaults to 90000; a saved 25000 moves to 90000 once

@@ -28,7 +28,12 @@ On JA+ and TaystJK/jaPRO servers the client identifies as a client-plugin user
 through extra userinfo keys. JA+ gets `cp_clanPwd none` and JoF EJK's
 `cjp_client` (`1.6.4 JoF`, the value JoF EJK's latest release sends there), so
 an admin's `amstatus` lists an SJK player as a JoF EJK one until SJK is
-announced; it was the JA+ 1.4B4 plugin's `1.4B4` before 11/10/2026. Both plugin profiles also get the player's
+announced; it was the JA+ 1.4B4 plugin's `1.4B4` before 11/10/2026. The player's
+`cjp_client` setting (archived, empty by default) replaces the plugin name on both
+plugin profiles, to match a new JoF EJK release or show another name, without a new
+build; it is sent nowhere else, and a value the info string cannot carry (`\`, `;`,
+`"`) leaves the default. The userinfo carries it as a generic override of an adapter
+extension (`LegacyUserInfo::extension_overrides`). Both plugin profiles also get the player's
 `cp_pluginDisable` cvar (archived; a set bit switches a plugin feature off),
 from the connect packet on and in every later `userinfo` update; stock and
 unknown servers never receive it. Its default is EternalJK's 1536, which opts
@@ -267,10 +272,13 @@ stock rounds it (400 makes 2 ms steps, 500 a second); and on Auto (`gameplay_fps
 the default, Sol's choice on 11/10/2026) the FPS cap's step, so `com_maxfps 333` moves
 like 333 and AUTO's 125 like 125, as in the other clients (uncapped is 1 ms, the
 shortest a server takes; the unfocused and minimized caps are not followed). Never
-shorter than the step of a server known to cap commands, from the list in
-[server_caps.rs](../crates/sjk-viewer/src/server_caps.rs) (`KNOWN`: a name, the game
-module, a serverinfo key and value, the step). Its one entry so far is JoF's servers
-(JA+ with serverinfo `V` 2.5B0) at 8 ms: they are not `pmove_fixed` (they report 0),
+shorter than the step of a server family known to cap commands. Families are told
+apart in one table, [known_servers.rs](../crates/sjk-mod/src/known_servers.rs)
+(`KNOWN_SERVERS`: an id, a name, the game module, a serverinfo key and value), which
+the client and the mods (the `jof` mod's `is_jof`) both read; the caps are a second
+table keyed by family id, [server_caps.rs](../crates/sjk-viewer/src/server_caps.rs)
+(`KNOWN`: the family, the step). Its one entry so far is JoF's servers (JA+ with
+serverinfo `V` 2.5B0) at 8 ms: they are not `pmove_fixed` (they report 0),
 yet faster commands made the game unplayable there (Sol, 11/10/2026), and JoF EJK
 sends them 125 a second. The player lifts every listed cap with `gameplay_fps_nocap 1`
 (archived, 0; Settings > Video > Ignore server caps), and the log names the cap when
