@@ -184,6 +184,7 @@ mod platform;
 mod player_animation;
 mod player_assets;
 mod player_identity;
+mod player_ids;
 mod player_menu;
 #[cfg(test)]
 mod player_model_scan;

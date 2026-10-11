@@ -1,5 +1,13 @@
 # Status and priorities
 
+## showplayerid
+
+Branch `feat/showplayerid` (11/10/2026, based on `9dbbdf19`, Linux): Creyon asked for JoF
+EternalJK's `showPlayerId`. The console command `showplayerid` prints each player's client
+number, coloured team letter and name (` (bot)` after bots) from the player configstrings,
+then `Listed N clients`, in EternalJK's format ([client.md](client.md)). Verified: unit tests
+for the lines and an empty server, and the workspace checks; in game on Windows 11 by Creyon.
+
 ## Downloads that work, and what they may bring
 
 Branch `personal/allow-download` (12/10/2026, based on `c2016fbf`, Windows 11). Sol

@@ -1852,6 +1852,11 @@ Your own whispers, which the server echoes back, do not count; when nobody has
 whispered, or the player left or renamed, `reply` says so and sends nothing
 ([chat/reply.rs](../crates/sjk-viewer/src/chat/reply.rs)).
 
+`showplayerid` (JoF EternalJK's `showPlayerId`) lists each player in the console: the
+client number, a team letter (F free, R red, B blue, S spectator), the name
+and ` (bot)` after bots, then `Listed N clients`. Commands that take a client number
+use it ([player_ids.rs](../crates/sjk-viewer/src/player_ids.rs)).
+
 `cg_chatRememberChannel` (default 1, Settings > HUD > Remember chat channel)
 makes the chat key (`messagemode`) open the composer on the channel of the last
 message sent from it: All, Team, SJK, or a whisper to a player still in the game
