@@ -12,6 +12,8 @@ pub(super) const FAVOURITE_TOKEN: u16 = 11;
 pub(super) const BACK_TOKEN: u16 = 12;
 pub(super) const JOIN_TOKEN: u16 = 13;
 pub(super) const ADDRESS_TOKEN: u16 = 15;
+/// The SJK UI browser's Add a favourite (by its address).
+pub(super) const ADD_FAVOURITE_TOKEN: u16 = 26;
 pub(super) const FILTER_TOKEN: u16 = 20;
 /// The server sources, all servers and favourites; source `i` answers to
 /// `TAB_BASE + i`.

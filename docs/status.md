@@ -1,5 +1,18 @@
 # Status and priorities
 
+## Server browser: add a favourite by its address
+
+Branch `feat/browser-favourite-by-address` (11/10/2026, based on `9dbbdf19`, Linux): Sol
+asked for favourites added by hand. The SJK UI browser's left column gains Add a favourite
+(and the key A): a prompt like Join by address that keeps the address as a favourite, then
+shows the favourites and refreshes ([sjk-ui.md](sjk-ui.md#servers)). Every refresh now asks
+the favourites for their info directly as well as the master's list, so a server no master
+lists still answers; when the master fails the favourites are still asked. Verified: a test
+of the prompt (Add, a bad address and a duplicate refused, the address kept and saved, the
+favourites shown, Join by address unchanged), a test that unlisted favourites are asked
+once, a test that the browser's controls have distinct tokens, the screen test with the new
+button and the workspace checks; in game on Windows 11 by Creyon.
+
 ## Downloads that work, and what they may bring
 
 Branch `personal/allow-download` (12/10/2026, based on `c2016fbf`, Windows 11). Sol

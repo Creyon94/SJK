@@ -730,7 +730,11 @@ as Settings is, on the main page's 16:9 frame. The camera keeps touring behind i
 - **Left:** where the servers come from down a lit rail, All servers and
   Favourites with how many of each answered; under "Show", switches for empty,
   full and locked servers and the game type as a cycler (All, then each type);
-  at its foot Refresh the list and Join by address.
+  at its foot Refresh the list, Join by address and Add a favourite (Sol's
+  request, 11/10/2026): its prompt takes an address and keeps it as a favourite,
+  then shows the favourites and asks the servers again. Favourites are asked for
+  their info directly, so one no master server lists (a private server) still
+  answers in the list.
 - **List:** a header line of sortable columns (Server, Mode, Map, Players,
   Ping; the sorted one gold with a sort mark after it, three stacked bars
   longest at the top when descending, at the bottom when ascending; a click
@@ -761,8 +765,8 @@ as Settings is, on the main page's 16:9 frame. The camera keeps touring behind i
   field is empty).
 
 Keys: the list has the shared browser keys (Up and Down, Page Up and Down, Home
-and End, Enter joins, F favourite, Tab between all servers and favourites, R
-refresh, C an address, `/` search, 1 to 5 sort); Left moves to the left column,
+and End, Enter joins, F favourite, A add a favourite by its address, Tab between
+all servers and favourites, R refresh, C an address, `/` search, 1 to 5 sort); Left moves to the left column,
 where Up and Down choose, Enter shows a source or flips a switch, Left and Right
 step the game type, and Right or Escape return to the list. While the search is
 typed, Enter, Down or Tab return to the list (keeping it); Escape clears it.

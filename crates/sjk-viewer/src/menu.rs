@@ -180,6 +180,8 @@ pub(crate) struct ClientMenu {
     password_target: Option<String>,
     password: String,
     address_editing: bool,
+    /// What the address prompt is for ([`controller::AddressPurpose`]).
+    address_purpose: controller::AddressPurpose,
     address_input: String,
     address_error: String,
     backdrop: Option<crate::menu_backdrop::Backdrop>,
@@ -263,6 +265,7 @@ impl ClientMenu {
             first_setup_offered: false,
             password: String::with_capacity(64),
             address_editing: false,
+            address_purpose: controller::AddressPurpose::Join,
             address_input: String::with_capacity(256),
             address_error: String::with_capacity(96),
             backdrop: None,
@@ -785,6 +788,10 @@ impl ClientMenu {
             }
             KeyCode::KeyC => {
                 self.open_address_entry();
+                MenuAction::None
+            }
+            KeyCode::KeyA if self.menu_style == MenuStyle::Sjk => {
+                self.open_favourite_entry();
                 MenuAction::None
             }
             KeyCode::KeyR => {
