@@ -1092,6 +1092,7 @@ area: Gameplay
 title: Mimic: copy another player's moves and saber attacks live, as their mirror
 change: mimic <player> [delay] [mirror|copy] copies view, movement, jumps, crouches, sabers.
 change: Mirror (default) swaps left and right so you stay face to face; copy keeps sides.
+test: Settings > Gameplay: Experimental: showcase tools on (off by default; mimic refuses).
 test: Face the other player, mimic <name> 0.3: walk, strafe, jump, crouch; you follow.
 test: Do a saber chain: you do the same attacks, mirrored (their left swing is your right).
 test: Change stance or holster the saber: yours follows.
@@ -1106,6 +1107,7 @@ area: Gameplay
 title: Ghost replay: record your run, replay it on the server to film a showcase
 change: ghost record <name> keeps your commands; ghost stop saves (ghosts\<name>.ghost).
 change: ghost play <name> walks to the start, then replays; drift is steered out on the ground.
+test: Settings > Gameplay: Experimental: showcase tools on (off by default; ghost refuses).
 test: On your server, stand still, ghost record pillars, do the run, ghost stop.
 test: Walk a few steps away, ghost play pillars: it walks back, faces the start, replays.
 test: Have the other player film you: the run looks like yours, landing every pillar.

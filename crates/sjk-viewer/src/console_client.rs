@@ -259,6 +259,12 @@ pub(super) fn register(shell: &mut Shell, commands: &Commands) -> Result<(), Box
             CvarFlags::ARCHIVE,
             "Play private duel music",
         ),
+        (
+            crate::ghost_replay::SHOWCASE_CVAR,
+            false,
+            CvarFlags::ARCHIVE,
+            "Experimental: the ghost and mimic showcase commands",
+        ),
     ] {
         shell
             .cvars
@@ -744,6 +750,9 @@ impl crate::GpuState {
                     .set_minimized(true);
             }
             "fakenoclip" => return self.fake_noclip_command(),
+            crate::ghost_replay::COMMAND | crate::mimic::COMMAND if !self.showcase_enabled() => {
+                return Err(crate::ghost_replay::showcase_off(&name));
+            }
             crate::ghost_replay::COMMAND => return self.ghost_command(args),
             crate::mimic::COMMAND => return self.mimic_command(args),
             crate::fps_help::COMMAND => return self.fps_help_command(),

@@ -225,8 +225,23 @@ impl crate::GpuState {
         )
     }
 
-    /// Save a recording that ended on its own and print the ghost's lines.
+    /// Whether the experimental showcase tools are switched on.
+    pub(crate) fn showcase_enabled(&self) -> bool {
+        self.console
+            .as_ref()
+            .and_then(|console| console.integer_cvar(SHOWCASE_CVAR))
+            .unwrap_or(0)
+            != 0
+    }
+
+    /// Save a recording that ended on its own and print the ghost's lines; switching
+    /// the showcase tools off ends whatever runs (a recording is kept).
     pub(crate) fn ghost_frame(&mut self) {
+        if !self.showcase_enabled() {
+            self.ghost.interrupt("the showcase tools were switched off");
+            self.mimic
+                .stop_with("^3mimic: stopped, the showcase tools were switched off.");
+        }
         let Some(console) = &mut self.console else {
             return;
         };

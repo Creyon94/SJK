@@ -94,6 +94,7 @@ impl Group {
                 "mod_japlus",
                 "mod_jof",
                 crate::brush_view::CVAR,
+                crate::ghost_replay::SHOWCASE_CVAR,
             ],
             Self::Interface => &[
                 crate::menu::style::CVAR,
