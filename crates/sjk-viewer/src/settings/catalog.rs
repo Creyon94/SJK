@@ -227,6 +227,11 @@ pub(super) const HUD_OPTIONS: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Strafe lines",
+        cvar: crate::hud::movement::LINES_ROW,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Scoreboard style",
         cvar: crate::scoreboard::style::CVAR,
         kind: ValueKind::Choice(&crate::scoreboard::style::ScoreboardStyle::NAMES),

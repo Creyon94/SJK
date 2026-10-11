@@ -662,8 +662,8 @@ impl SettingsMenu {
         let Some(setting) = self.rows().get(self.selected) else {
             return;
         };
-        if setting.cvar == crate::graphics_quality::EJK_ROW {
-            crate::graphics_quality::toggle_ejk(console);
+        if let Some(switch) = derived_switch(setting.cvar) {
+            (switch.toggle)(console);
             self.refresh(console);
             return;
         }
@@ -792,8 +792,8 @@ impl SettingsMenu {
         self.hud.read(console);
         let hud = self.hud.label();
         self.values.clear();
-        self.values.extend(self.rows().iter().map(|setting| {
-            match setting.kind {
+        self.values
+            .extend(self.rows().iter().map(|setting| match setting.kind {
                 ValueKind::DisplayMode => display.label().to_owned(),
                 ValueKind::HudPicker => hud.clone(),
                 ValueKind::WheelPages => wheel_pages_text(console),
@@ -801,18 +801,14 @@ impl SettingsMenu {
                 ValueKind::ImportPage => IMPORT_TEXT.to_owned(),
                 ValueKind::AssetBrowser => "Browse packs".to_owned(),
                 ValueKind::Quality => crate::graphics_quality::shown(console).to_owned(),
-                ValueKind::Bool if setting.cvar == crate::graphics_quality::EJK_ROW => {
-                    if crate::graphics_quality::ejk(console) {
-                        "ON"
-                    } else {
-                        "OFF"
-                    }
-                    .to_owned()
+                ValueKind::Bool if derived_switch(setting.cvar).is_some() => {
+                    let on =
+                        derived_switch(setting.cvar).is_some_and(|switch| (switch.on)(console));
+                    if on { "ON" } else { "OFF" }.to_owned()
                 }
                 ValueKind::Bool => toggle_text(console, setting.cvar),
                 _ => row_text(console, setting),
-            }
-        }));
+            }));
         self.defaults.clear();
         self.defaults.extend(
             self.rows()
@@ -884,6 +880,31 @@ fn settings(tab: usize) -> &'static [Setting] {
 /// A negative minimum on an integer row is one special value below the range,
 /// shown as AUTO (`com_maxfps -1`). Stepping moves between it and zero, then
 /// along the row's step.
+/// A switch row whose state other cvars hold, not a cvar of its own (its name is
+/// the row's stand-in): reading and flipping it go through these.
+#[derive(Clone, Copy)]
+pub(super) struct DerivedSwitch {
+    /// Whether the switch shows on.
+    pub(super) on: fn(&ViewerConsole) -> bool,
+    /// Flip it.
+    pub(super) toggle: fn(&mut ViewerConsole),
+}
+
+/// The derived switch row `cvar` names, if it is one: EJK graphics and the strafe lines.
+pub(super) fn derived_switch(cvar: &str) -> Option<DerivedSwitch> {
+    match cvar {
+        crate::graphics_quality::EJK_ROW => Some(DerivedSwitch {
+            on: crate::graphics_quality::ejk,
+            toggle: crate::graphics_quality::toggle_ejk,
+        }),
+        crate::hud::movement::LINES_ROW => Some(DerivedSwitch {
+            on: crate::hud::movement::lines_on,
+            toggle: crate::hud::movement::toggle_lines,
+        }),
+        _ => None,
+    }
+}
+
 fn step_integer(value: i64, direction: i32, min: i64, max: i64, step: i64) -> i64 {
     if min < 0 {
         if value < 0 {
@@ -1031,7 +1052,7 @@ mod tests {
         for setting in rows() {
             // Rows whose value is not one cvar's (resolution, display mode, HUD,
             // the quick wheel's pages, graphics quality and its EJK graphics switch).
-            if setting.cvar == crate::graphics_quality::EJK_ROW {
+            if derived_switch(setting.cvar).is_some() {
                 continue;
             }
             if matches!(

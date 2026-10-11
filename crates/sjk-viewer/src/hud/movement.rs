@@ -1,4 +1,5 @@
-//! First-person JKA airborne CGAZ and snap guides; no simulation or wire changes.
+//! JKA strafe guides (JoF EJK's lines, CGAZ markers) and snap zones; no simulation or
+//! wire changes.
 use super::*;
 use sjk_ui::{Color, DrawCommand, Rect};
 
@@ -6,7 +7,7 @@ use sjk_ui::{Color, DrawCommand, Rect};
 pub(crate) mod math;
 #[path = "movement_settings.rs"]
 mod settings;
-pub(crate) use settings::register;
+pub(crate) use settings::{LINES_ROW, lines_on, register, toggle_lines};
 
 /// Retained guide input and settings, populated from the existing prediction/snapshot projection.
 pub(super) struct Guides {
@@ -58,8 +59,8 @@ impl Guides {
             self.reported_helper = Some(self.settings.helper);
             if self.settings.helper != 0 {
                 eprintln!(
-                    "strafe helper: first-person airborne JKA CGAZ front markers only; \
-                    other styles, ground guidance, rear/max/centre lines and sounds unavailable"
+                    "strafe helper: JKA lines (option 1) and airborne CGAZ markers (option 2); \
+                    original, Warsow and Weze styles, sounds, accel bar and centre line unavailable"
                 );
             }
         }
@@ -79,7 +80,7 @@ impl Guides {
             && player.zoom_mode() == 0;
     }
 
-    /// Disable guides when the viewer is not using the supported first-person JKA camera/physics.
+    /// Disable guides when the server's movement physics are not JKA's.
     pub(super) fn restrict(&mut self, supported: bool) {
         self.allowed &= supported;
     }
@@ -97,6 +98,9 @@ impl Guides {
         } else {
             s.fov
         };
+        if s.helper & 2 != 0 {
+            self.emit_lines(draw, viewport, fov);
+        }
         if s.helper & 4 != 0 && self.airborne {
             let speed = self.velocity[0].hypot(self.velocity[1]);
             let delta = math::optimal(speed, self.speed / s.helper_fps, self.speed) + s.offset;
@@ -184,6 +188,66 @@ impl Guides {
     }
 }
 
+impl Guides {
+    /// JoF EJK's "updated style" (`cg_strafeHelper` option 1, `DrawStrafeLine` and
+    /// `CG_StrafeHelper` in JoF's `cg_draw.c`): one line per enabled key from the bottom
+    /// centre of the screen up to just above the crosshair, where the best heading for
+    /// that key projects. On the ground too, with JKA's ground acceleration and friction.
+    fn emit_lines(&self, draw: &mut DrawList, viewport: [f32; 2], fov: f32) {
+        let s = &self.settings;
+        let speed = self.velocity[0].hypot(self.velocity[1]);
+        let base = self.speed;
+        if speed < base - 1.0 {
+            return;
+        }
+        let frame = 1.0 / s.helper_fps;
+        let optimal = if self.airborne {
+            math::optimal(speed, base * frame, base)
+        } else {
+            math::optimal(speed * (1.0 - 6.0 * frame), 10.0 * base * frame, base)
+        };
+        let delta = optimal + s.offset;
+        let velocity_yaw = self.velocity[1].atan2(self.velocity[0]).to_degrees();
+        // JoF's line top, a little above the crosshair so it stays on the line.
+        const TOP: f32 = 230.0;
+        let cutoff = (480.0 - s.cutoff.trunc()).clamp(TOP + 20.0, 480.0);
+        let width = s.width * viewport[0] / 640.0;
+        let scale = |p: [f32; 2]| [p[0] * viewport[0] / 640.0, p[1] * viewport[1] / 480.0];
+        for (bit, offset, key, tint) in math::jof_lines(delta) {
+            if s.helper & bit == 0 {
+                continue;
+            }
+            let projected = if let Some((forward, left, _)) = self.projection {
+                math::project_basis(velocity_yaw + offset, s.precision, forward, left, fov)
+            } else {
+                math::project(
+                    velocity_yaw + offset - self.angles[1],
+                    -self.angles[0],
+                    s.precision,
+                    fov,
+                )
+            };
+            let Some(x) = projected else {
+                continue;
+            };
+            let x = x.clamp(-20_000.0, 20_000.0);
+            let color = if key == self.direction {
+                s.active
+            } else {
+                Color::new(tint[0], tint[1], tint[2], s.inactive)
+            };
+            // JoF draws only the part above the cutoff height.
+            let start = 320.0 + (x - 320.0) * (480.0 - cutoff) / (480.0 - TOP);
+            let _ = draw.push(DrawCommand::Line {
+                from: scale([start, cutoff]),
+                to: scale([x, TOP]),
+                width,
+                color,
+            });
+        }
+    }
+}
+
 impl HudOverlay {
     /// Apply the camera/physics safety gate and real keyboard direction after projection.
     pub(crate) fn restrict_guides(&mut self, supported: bool, keys: Option<[i8; 2]>) {
@@ -243,4 +307,60 @@ fn rect(draw: &mut DrawList, viewport: [f32; 2], r: [f32; 4], color: Color) {
         ),
         color,
     });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn jof_lines_rise_from_the_bottom_to_each_side_of_the_crosshair() {
+        // Sol's JoF EJK value: lines style, WA, WD and the centre (not drawn for JKA).
+        let mut guides = Guides {
+            velocity: [400.0, 0.0, 0.0],
+            speed: 250.0,
+            airborne: true,
+            allowed: true,
+            direction: 1,
+            ..Guides::default()
+        };
+        guides.settings.helper = 2242;
+        let mut draw = DrawList::new(16);
+        guides.emit(&mut draw, [640.0, 480.0]);
+        let lines: Vec<_> = draw
+            .commands()
+            .iter()
+            .filter_map(|command| match *command {
+                DrawCommand::Line {
+                    from, to, color, ..
+                } => Some((from, to, color)),
+                _ => None,
+            })
+            .collect();
+        assert_eq!(lines.len(), 2);
+        let (wa_from, wa_to, wa_color) = lines[0];
+        let (_, wd_to, wd_color) = lines[1];
+        assert_eq!(wa_from, [320.0, 480.0]);
+        assert_eq!(wa_to[1], 230.0);
+        // WA's best heading is left of the velocity, WD's right, mirrored.
+        assert!(wa_to[0] < 320.0 && wd_to[0] > 320.0);
+        assert!((wa_to[0] + wd_to[0] - 640.0).abs() < 0.01);
+        // Holding WA lights its line.
+        assert_eq!(wa_color, guides.settings.active);
+        assert_eq!(wd_color.a, guides.settings.inactive);
+    }
+
+    #[test]
+    fn jof_lines_wait_for_running_speed() {
+        let mut guides = Guides {
+            velocity: [200.0, 0.0, 0.0],
+            speed: 250.0,
+            allowed: true,
+            ..Guides::default()
+        };
+        guides.settings.helper = 2242;
+        let mut draw = DrawList::new(16);
+        guides.emit(&mut draw, [640.0, 480.0]);
+        assert!(draw.is_empty());
+    }
 }

@@ -129,6 +129,14 @@ pub enum DrawCommand {
         color: Color,
         knockout: Option<Rect>,
     },
+    /// Straight stroke from `from` to `to` with square ends, anti-aliased along its
+    /// sides by the renderer. `width` is the stroke thickness in pixels.
+    Line {
+        from: [f32; 2],
+        to: [f32; 2],
+        width: f32,
+        color: Color,
+    },
     /// Begin clipping descendants.
     PushClip(Rect),
     /// End the most recent clip.

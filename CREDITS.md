@@ -126,7 +126,9 @@ Sol develops SJK and sets its direction. Sol's work includes:
 - the invisible-brush view (`r_showBrushes`): clip, trigger, ladder, nodrop and the
   other tool brushes drawn see-through with labelled tiles, as Radiant shows them;
 - weather drawn under sabers and effects, the shield-hit flash's brightness, `cl_idrive`
-  and `+duck` (after JoF EJK), the update check every 30 minutes and its Update card.
+  and `+duck` (after JoF EJK), the update check every 30 minutes and its Update card;
+- the strafe helper's lines (`cg_strafeHelper` option 1), JoF EJK's two lines to the
+  best strafe heading, in third person and on the ground too (after JoF EJK).
 
 ## Contributors to SJK
 

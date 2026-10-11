@@ -9,7 +9,7 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         (
             "cg_strafeHelper",
             3008,
-            "Airborne JKA CGAZ (bit 4), with direction bits",
+            "JKA lines (2) or CGAZ markers (4), with direction bits",
         ),
         ("cg_snapHud", 0, "JKA velocity snap zones"),
         (
@@ -34,12 +34,12 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         (
             "cg_strafeHelperCutoff",
             0.0,
-            "CGAZ marker height adjustment",
+            "Line cutoff from the bottom; CGAZ marker height",
         ),
         (
             "cg_strafeHelperLineWidth",
             1.0,
-            "Marker width in virtual pixels",
+            "Line and marker width in virtual pixels",
         ),
         (
             "cg_strafeHelperOffset",
@@ -90,6 +90,39 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         cvars.register(definition)?;
     }
     Ok(())
+}
+
+/// The Settings row of the JoF EJK lines (not a cvar): on is `cg_strafeHelper`
+/// option 1, the lines style.
+pub(crate) const LINES_ROW: &str = "strafelines";
+/// The styles `cg_strafeHelper` draws one at a time (options 0-3 and 13, as JoF's
+/// `strafeHelper` command switches them).
+const STYLES: i64 = 0b1111 | (1 << 13);
+/// The keys JoF EJK's profile draws lines for when none is picked: WA and WD.
+const DEFAULT_KEYS: i64 = (1 << 6) | (1 << 7);
+/// Every key option the lines can show (W, WA, WD, A, D, rear).
+const LINE_KEYS: i64 = 0b11111 << 5 | (1 << 10);
+
+/// Whether the strafe helper draws JoF EJK's lines.
+pub(crate) fn lines_on(console: &ViewerConsole) -> bool {
+    console.integer_cvar("cg_strafeHelper").unwrap_or(0) & 2 != 0
+}
+
+/// Switch JoF EJK's lines on (in place of another style, with WA and WD when no
+/// key is picked) or off.
+pub(crate) fn toggle_lines(console: &mut ViewerConsole) {
+    let value = console.integer_cvar("cg_strafeHelper").unwrap_or(0);
+    console.set_cvar("cg_strafeHelper", &lines_value(value).to_string());
+}
+
+fn lines_value(value: i64) -> i64 {
+    if value & 2 != 0 {
+        value & !2
+    } else if value & LINE_KEYS == 0 {
+        (value & !STYLES) | 2 | DEFAULT_KEYS
+    } else {
+        (value & !STYLES) | 2
+    }
 }
 
 /// Immutable settings consumed by guide projection.
@@ -195,4 +228,20 @@ fn rgba(console: Option<&ViewerConsole>, name: &str, fallback: [f32; 4]) -> Colo
     }
     let v = values.map(|v| v.clamp(0.0, 255.0) / 255.0);
     Color::new(v[0], v[1], v[2], v[3])
+}
+
+#[cfg(test)]
+mod tests {
+    use super::lines_value;
+
+    #[test]
+    fn the_lines_switch_keeps_keys_and_replaces_the_style() {
+        // SJK's default (keys, no style) gets the lines; JoF's 2242 is that plus the centre.
+        assert_eq!(lines_value(3008), 3010);
+        assert_eq!(lines_value(2242), 2240);
+        // CGAZ markers give way to the lines, as JoF's radio options do.
+        assert_eq!(lines_value(3044), 3042);
+        // No key picked: WA and WD, as Sol's JoF EJK profile.
+        assert_eq!(lines_value(0), 194);
+    }
 }

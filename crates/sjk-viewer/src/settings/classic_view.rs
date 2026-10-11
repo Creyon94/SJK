@@ -467,9 +467,9 @@ impl SettingsMenu {
         }
         if matches!(setting.kind, ValueKind::Quality) {
             Level::High.apply(console);
-        } else if setting.cvar == crate::graphics_quality::EJK_ROW {
-            if crate::graphics_quality::ejk(console) {
-                crate::graphics_quality::toggle_ejk(console);
+        } else if let Some(switch) = super::derived_switch(setting.cvar) {
+            if (switch.on)(console) {
+                (switch.toggle)(console);
             }
         } else if let Some(default) = console.cvar_default(setting.cvar).map(CvarValue::as_text) {
             console.set_cvar(setting.cvar, &default);
@@ -969,10 +969,10 @@ pub(super) fn row_default(console: &ViewerConsole, setting: &Setting) -> RowDefa
             changed: Level::current(console) != Some(Level::High),
         };
     }
-    if setting.cvar == crate::graphics_quality::EJK_ROW {
+    if let Some(switch) = super::derived_switch(setting.cvar) {
         return RowDefault {
             text: Some("Off".to_owned()),
-            changed: crate::graphics_quality::ejk(console),
+            changed: (switch.on)(console),
         };
     }
     // The HUD row names a HUD that two cvars select together; the quick

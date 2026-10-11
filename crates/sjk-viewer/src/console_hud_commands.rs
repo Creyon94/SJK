@@ -8,12 +8,14 @@ const SPEED: &[(u32, &str)] = &[
     (15, "XYZ speed"),
 ];
 const STRAFE: &[(u32, &str)] = &[
+    (1, "Lines (JoF EJK updated style)"),
     (2, "Airborne CGAZ"),
     (5, "W"),
     (6, "WA"),
     (7, "WD"),
     (8, "A"),
     (9, "D"),
+    (10, "Rear (lines)"),
     (15, "S"),
     (16, "SA"),
     (17, "SD"),
@@ -59,7 +61,7 @@ pub(super) fn execute(
 fn toggled(command: &str, value: i64, bit: u32) -> i64 {
     let group = if command == "speedometer" && matches!(bit, 8 | 9) {
         (1 << 8) | (1 << 9)
-    } else if command == "strafehelper" && bit == 2 {
+    } else if command == "strafehelper" && matches!(bit, 1 | 2) {
         15 | (1 << 13)
     } else {
         0

@@ -91,6 +91,9 @@ const MAX_SHAPE_VERTICES: usize = 16_384;
 /// `parameters.y` value that selects the arc shader path (`ui_shapes.wgsl`).
 const ARC_MODE: f32 = 3.0;
 
+/// `parameters.y` value that selects the line shader path (`ui_shapes.wgsl`).
+const LINE_MODE: f32 = 4.0;
+
 #[repr(C)]
 #[derive(Clone, Copy, Pod, Zeroable)]
 pub(super) struct ShapeVertex {
@@ -638,6 +641,12 @@ impl ShapeRenderer {
                         viewport,
                     );
                 }
+                DrawCommand::Line {
+                    from,
+                    to,
+                    width,
+                    color,
+                } => self.push_line(from, to, width, color, opacity[opacity_depth], viewport),
                 DrawCommand::Text { .. }
                 | DrawCommand::PushClip(_)
                 | DrawCommand::PushOpacity(_) => {}
@@ -847,6 +856,55 @@ impl ShapeRenderer {
                 end_color: [radius, width, start, sweep],
                 parameters: [stripe_left, ARC_MODE],
                 uv: [stripe_right, stripe_half],
+            }));
+    }
+
+    /// A square-ended stroke as one quad along it, one pixel wider on each side for
+    /// the anti-aliased edges the shader fades (mode 4, stroke width in `end_color.x`).
+    fn push_line(
+        &mut self,
+        from: [f32; 2],
+        to: [f32; 2],
+        width: f32,
+        color: Color,
+        opacity: f32,
+        viewport: [f32; 2],
+    ) {
+        let along = [to[0] - from[0], to[1] - from[1]];
+        let length = along[0].hypot(along[1]);
+        if !length.is_finite()
+            || length < 0.01
+            || width.is_nan()
+            || width <= 0.0
+            || self.vertices.len() + 6 > MAX_SHAPE_VERTICES
+        {
+            return;
+        }
+        art::untextured(&mut self.runs, self.vertices.len());
+        let half = width * 0.5 + 1.0;
+        let side = [-along[1] / length * half, along[0] / length * half];
+        let position = |x: f32, y: f32| [x / viewport[0] * 2.0 - 1.0, 1.0 - y / viewport[1] * 2.0];
+        let tint = [color.r, color.g, color.b, color.a * opacity];
+        let corner = |point: [f32; 2], sign: f32| {
+            position(point[0] + side[0] * sign, point[1] + side[1] * sign)
+        };
+        let points = [
+            (corner(from, -1.0), [0.0, 0.0]),
+            (corner(to, -1.0), [1.0, 0.0]),
+            (corner(to, 1.0), [1.0, 1.0]),
+            (corner(from, -1.0), [0.0, 0.0]),
+            (corner(to, 1.0), [1.0, 1.0]),
+            (corner(from, 1.0), [0.0, 1.0]),
+        ];
+        self.vertices
+            .extend(points.map(|(position, local)| ShapeVertex {
+                position,
+                local,
+                size: [length, half * 2.0],
+                start_color: tint,
+                end_color: [width, 0.0, 0.0, 0.0],
+                parameters: [0.0, LINE_MODE],
+                uv: local,
             }));
     }
 

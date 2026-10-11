@@ -497,7 +497,7 @@ pub(crate) fn update(
         .live_session
         .as_ref()
         .and_then(|_| gpu.local_prediction.guide_input());
-    gpu.hud.restrict_guides(!gpu.third_person && !japro, keys);
+    gpu.hud.restrict_guides(!japro, keys);
     gpu.hud.guide_camera(
         view_target - view_position,
         view_up,
