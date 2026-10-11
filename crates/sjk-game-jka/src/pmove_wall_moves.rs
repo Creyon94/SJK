@@ -248,6 +248,7 @@ fn runnable(normal_z: f32) -> bool {
 /// stays as it is, whatever the command turns — `delta_angles` absorbs the difference.
 fn hold_view(state: &mut MovementState, command: &UserCommand) {
     crate::pmove_input_freeze::set_view_angle(state, command);
+    state.wall_view_locked = true;
 }
 
 /// Turn to face `yaw` and hold the view there, as each wall move does:
@@ -1066,6 +1067,102 @@ mod tests {
         normal: [-1.0, 0.0, 0.0],
         distance: -40.0,
     };
+
+    #[test]
+    fn wall_runs_and_the_ledge_flip_report_their_held_view() {
+        for step in [8, 7, 4, 3] {
+            for (animation, yaw, forward) in [
+                (BOTH_WALL_RUN_RIGHT, 90.0, 127),
+                (BOTH_WALL_RUN_LEFT, 270.0, 127),
+                (BOTH_FORCEWALLRUNFLIP_START, 0.0, 127),
+                (BOTH_FORCEWALLRUNFLIP_ALT, 0.0, 0),
+            ] {
+                let mut predictor = Predictor::from_state(
+                    MovementState {
+                        health: 100,
+                        gravity: 800.0,
+                        speed: 250.0,
+                        ground_entity_number: ENTITY_NUMBER_NONE,
+                        legs_anim: animation,
+                        torso_anim: animation,
+                        legs_timer: 600,
+                        torso_timer: 600,
+                        view_angles: [12.0, yaw, 0.0],
+                        ..MovementState::default()
+                    },
+                    Default::default(),
+                );
+                predictor.predict_command(
+                    UserCommand {
+                        server_time: step,
+                        angles: [0, 4096, 0],
+                        forward_move: forward,
+                        ..Default::default()
+                    },
+                    &EAST,
+                );
+                assert!(predictor.state.wall_view_locked, "{animation} at {step} ms");
+                assert!((predictor.state.view_angles[1].rem_euclid(360.0) - yaw).abs() < 0.006);
+            }
+        }
+    }
+
+    #[test]
+    fn wall_rebound_locks_the_view_until_release_but_japlus_leaves_it_free() {
+        for step in [8, 7, 4, 3] {
+            for free_wall_look in [false, true] {
+                let mut predictor = Predictor::from_state(
+                    MovementState {
+                        health: 100,
+                        gravity: 800.0,
+                        speed: 250.0,
+                        ground_entity_number: ENTITY_NUMBER_NONE,
+                        legs_anim: BOTH_FORCEWALLREBOUND_FORWARD,
+                        torso_anim: BOTH_FORCEWALLREBOUND_FORWARD,
+                        legs_timer: 600,
+                        torso_timer: 600,
+                        view_angles: [12.0, 0.0, 0.0],
+                        movement_flags: PMF_STUCK_TO_WALL,
+                        ..MovementState::default()
+                    },
+                    super::super::MovementConfig {
+                        debug_melee: crate::pmove_debug_melee::DebugMelee {
+                            free_wall_look,
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                );
+                let command = UserCommand {
+                    server_time: step,
+                    angles: [0, 4096, 0],
+                    ..Default::default()
+                };
+                predictor.predict_command(command, &EAST);
+                assert_eq!(predictor.state.wall_view_locked, !free_wall_look);
+                assert_ne!(predictor.state.movement_flags & PMF_STUCK_TO_WALL, 0);
+                if !free_wall_look {
+                    assert_eq!(predictor.state.view_angles[1], 0.0);
+                    assert!((predictor.state.view_angles[0] - 12.0).abs() < 0.006);
+                } else {
+                    assert_eq!(predictor.state.view_angles[1], 22.5);
+                }
+                // No new slice: keep the last slice's lock for presentation.
+                predictor.predict_command(command, &EAST);
+                assert_eq!(predictor.state.wall_view_locked, !free_wall_look);
+                predictor.state.legs_timer = 100;
+                predictor.predict_command(
+                    UserCommand {
+                        server_time: step * 2,
+                        ..command
+                    },
+                    &EAST,
+                );
+                assert!(!predictor.state.wall_view_locked);
+                assert_eq!(predictor.state.movement_flags & PMF_STUCK_TO_WALL, 0);
+            }
+        }
+    }
 
     fn yaw(legs: u16, view_yaw: f32, wall: &Wall) -> Option<f32> {
         wall_hold_yaw(legs, view_yaw, [0.0; 3], wall).map(|yaw| yaw.rem_euclid(360.0))

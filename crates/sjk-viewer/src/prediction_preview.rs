@@ -57,16 +57,8 @@ pub(crate) fn tick(
         gpu.camera_position = position;
     }
     if let Some(predicted) = gpu.local_prediction.predicted_state() {
-        let (client, delta, angles) = (
-            i32::from(predicted.client_num),
-            predicted.delta_angles,
-            predicted.view_angles,
-        );
-        gpu.gameplay_input.view_authority.observe(
-            client,
-            delta,
-            angles,
-            true,
+        gpu.gameplay_input.view_authority.observe_prediction(
+            predicted,
             &mut gpu.camera_pitch,
             &mut gpu.camera_yaw,
         );

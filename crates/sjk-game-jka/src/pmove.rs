@@ -426,6 +426,9 @@ pub struct MovementState {
     pub saber_special_deferred: u32,
     /// Whether the last command lost nonzero movement to the input-freeze rules.
     pub input_freeze_active: bool,
+    /// Whether the last simulated slice held the view in a wall move. Presentation
+    /// must keep this view even on frames that cannot advance prediction. Local only.
+    pub wall_view_locked: bool,
     /// Whether the last command encountered a deferred saber weapon slice.
     pub saber_deferred_active: bool,
     /// Whether a private duel is active (`bg_pmove.c:6996-7000`).
@@ -655,6 +658,7 @@ impl MovementState {
             saber_anim_speed_scales: HiltSpeedScales::default(),
             saber_special_deferred: 0,
             input_freeze_active: false,
+            wall_view_locked: false,
             saber_deferred_active: false,
             duel_in_progress: player.duel_in_progress(),
             duel_time: player.duel_time(),
@@ -1243,6 +1247,7 @@ impl Predictor {
         outcome: &mut crate::pmove_saber_lock::LockOutcome,
         mut game: Option<&mut (dyn vehicle::VehicleGame + 'd)>,
     ) {
+        self.state.wall_view_locked = false;
         // `PmoveSingle` opens by cancelling an attack pressed together with a holdable
         // (`bg_pmove.c:10173-10183`), before anything reads the buttons: a spectator
         // holding both does not get alt-attack's turbo. A JA+ client leaves melee's

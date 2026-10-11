@@ -25,6 +25,29 @@ pub(crate) struct Authority {
 }
 
 impl Authority {
+    /// Present a predicted wall hold from its actual view, including frames with no
+    /// new simulation slice. Delta changes alone cannot cancel fresh mouse movement
+    /// when a preview is reused at the same command time.
+    pub(crate) fn observe_prediction(
+        &mut self,
+        state: &sjk_game_jka::pmove::MovementState,
+        pitch: &mut f32,
+        yaw: &mut f32,
+    ) {
+        self.observe(
+            i32::from(state.client_num),
+            state.delta_angles,
+            state.view_angles,
+            true,
+            pitch,
+            yaw,
+        );
+        if state.wall_view_locked {
+            *pitch = (-state.view_angles[0].to_radians()).clamp(-PITCH_LIMIT, PITCH_LIMIT);
+            *yaw = state.view_angles[1].to_radians();
+        }
+    }
+
     /// Observe a snapshot once, preserving newer mouse motion on ordinary input echoes.
     ///
     /// Follow/intermission retain their existing authoritative presentation paths. Leaving
@@ -75,5 +98,43 @@ impl Authority {
     /// snapshot's delta serves.
     pub(crate) fn command_delta(&self) -> Option<[i32; 3]> {
         self.previous.map(|(_, delta)| delta)
+    }
+}
+
+#[cfg(test)]
+mod wall_tests {
+    use super::*;
+    use sjk_game_jka::pmove::MovementState;
+
+    #[test]
+    fn repeated_wall_view_cancels_mouse_motion_without_a_delta_change() {
+        for step in [8, 7, 4, 3] {
+            let mut authority = Authority::default();
+            let state = MovementState {
+                command_time: step,
+                view_angles: [12.0, 90.0, 0.0],
+                wall_view_locked: true,
+                ..MovementState::default()
+            };
+            let (mut pitch, mut yaw) = (0.0, 0.0);
+            authority.observe_prediction(&state, &mut pitch, &mut yaw);
+            for _ in 0..3 {
+                pitch += 0.3;
+                yaw -= 0.5;
+                authority.observe_prediction(&state, &mut pitch, &mut yaw);
+                assert_eq!(pitch, -12.0_f32.to_radians());
+                assert_eq!(yaw, 90.0_f32.to_radians());
+            }
+            // A released wall, and JA+'s free look, retain local mouse movement.
+            let free = MovementState {
+                wall_view_locked: false,
+                ..state
+            };
+            pitch += 0.1;
+            yaw += 0.2;
+            let expected = (pitch, yaw);
+            authority.observe_prediction(&free, &mut pitch, &mut yaw);
+            assert_eq!((pitch, yaw), expected);
+        }
     }
 }
