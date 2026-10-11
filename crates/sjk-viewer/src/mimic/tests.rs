@@ -16,7 +16,8 @@ fn the_command_takes_a_player_a_delay_and_a_side() {
         Ok(Request::Follow {
             player: "Sol".into(),
             delay: 500,
-            mirror: true
+            mirror: true,
+            walk: false
         })
     );
     assert_eq!(
@@ -24,7 +25,17 @@ fn the_command_takes_a_player_a_delay_and_a_side() {
         Ok(Request::Follow {
             player: "3".into(),
             delay: 2_000,
-            mirror: false
+            mirror: false,
+            walk: false
+        })
+    );
+    assert_eq!(
+        parse(&words("Sol walk 0.3")),
+        Ok(Request::Follow {
+            player: "Sol".into(),
+            delay: 300,
+            mirror: true,
+            walk: true
         })
     );
     assert!(parse(&words("Sol 11")).is_err());
@@ -84,7 +95,7 @@ fn samples_interpolate_and_extrapolate_a_little() {
 #[test]
 fn a_held_key_stops_the_copy() {
     let mut mimic = Mimic::default();
-    mimic.start(1, "Leader".into(), 0, true);
+    mimic.start(1, "Leader".into(), 0, true, false);
     mimic.push(Sample {
         time: 10,
         on_ground: true,
@@ -199,6 +210,20 @@ fn leader_command(time: i32) -> UserCommand {
     }
 }
 
+/// The walking choreography: the same moves as [`leader_command`] at walking pace (the
+/// walk key's 46, `BUTTON_WALKING` held), without the jump, attacks included.
+fn walking_leader_command(time: i32) -> UserCommand {
+    let mut command = leader_command(time);
+    let walk = |key: i8| (i32::from(key) * 46 / 127) as i8;
+    command.forward_move = walk(command.forward_move);
+    command.right_move = walk(command.right_move);
+    if command.up_move > 0 {
+        command.up_move = 0;
+    }
+    command.buttons |= BUTTON_WALKING;
+    command
+}
+
 fn sample_of(time: i32, state: &MovementState) -> Sample {
     Sample {
         time,
@@ -239,16 +264,25 @@ struct Showcase {
     worst_tracking: f32,
     /// How much later than intended each attack began.
     attack_lag: Vec<i32>,
+    /// Commands the mimic sent with the walk held but a key past half (Pmove would
+    /// clear the walk), and ground commands without the walk when walking always.
+    walk_broken: usize,
+    walk_missing: usize,
 }
 
 /// Run the leader's script and a mimic facing them 128 units away, copying after
 /// `delay` ms, with snapshots every 25 ms that reach the mimic 60 ms late.
 fn showcase(delay: i32, mirror: bool) -> Showcase {
+    showcase_with(delay, mirror, false, leader_command)
+}
+
+/// [`showcase`] with the mimic walking always or not, and the leader's script.
+fn showcase_with(delay: i32, mirror: bool, walk: bool, script: fn(i32) -> UserCommand) -> Showcase {
     let mut leader = duelist([0.0, 0.0, 24.0], 0.0);
     // The mimic faces the leader.
     let mut follower = duelist([128.0, 0.0, 24.0], 180.0);
     let mut mimic = Mimic::default();
-    mimic.start(1, "Leader".into(), delay, mirror);
+    mimic.start(1, "Leader".into(), delay, mirror, walk);
     let mut in_flight: VecDeque<Sample> = VecDeque::new();
     let mut run = Showcase {
         leader_moves: Vec::new(),
@@ -260,12 +294,14 @@ fn showcase(delay: i32, mirror: bool) -> Showcase {
         messages: Vec::new(),
         worst_tracking: 0.0,
         attack_lag: Vec::new(),
+        walk_broken: 0,
+        walk_missing: 0,
     };
     let mut leader_path: Vec<[f32; 3]> = Vec::new();
     let side = if mirror { -1.0 } else { 1.0 };
     for stamp in (8..=6_000 + delay).step_by(8) {
         if stamp <= 6_000 {
-            leader.predict_command(leader_command(stamp), &Floor);
+            leader.predict_command(script(stamp), &Floor);
             run.leader_moves.push(leader.state().saber_move);
             leader_path.push(leader.state().origin);
             if stamp % 24 == 0 {
@@ -286,6 +322,18 @@ fn showcase(delay: i32, mirror: bool) -> Showcase {
         let drive = mimic
             .drive(&input, follower.state())
             .expect("still copying");
+        let sent = drive.command;
+        if sent.buttons & BUTTON_WALKING != 0
+            && (sent.forward_move.unsigned_abs() > 64 || sent.right_move.unsigned_abs() > 64)
+        {
+            run.walk_broken += 1;
+        }
+        if walk
+            && follower.state().ground_entity_number != NO_GROUND
+            && sent.buttons & BUTTON_WALKING == 0
+        {
+            run.walk_missing += 1;
+        }
         follower.predict_command(drive.command, &Floor);
         let state = follower.state();
         run.mimic_moves.push(state.saber_move);
@@ -376,4 +424,46 @@ fn the_copy_keeps_the_leaders_sides() {
         "{} units off",
         run.worst_tracking
     );
+}
+
+#[test]
+fn walking_keeps_every_key_within_half_so_the_walk_holds() {
+    // Pmove clears the walk past a key of 64: the automatic walk caps its keys too.
+    let run = showcase(300, true);
+    assert_eq!(run.walk_broken, 0, "commands whose walk Pmove would clear");
+    assert_eq!(cap_keys(127, -127, 64), (64, -64));
+    assert_eq!(cap_keys(127, 10, 64), (64, 5));
+    assert_eq!(cap_keys(127, 1, 64), (64, 1), "a key does not vanish");
+    assert_eq!(cap_keys(40, -30, 64), (40, -30));
+}
+
+#[test]
+fn walking_always_copies_a_walking_choreography_attacks_and_all() {
+    for delay in [0, 300] {
+        let run = showcase_with(delay, true, true, walking_leader_command);
+        assert!(run.messages.is_empty(), "{:?}", run.messages);
+        assert_eq!(
+            run.walk_missing, 0,
+            "{delay} ms: ground commands without the walk"
+        );
+        assert_eq!(run.walk_broken, 0, "{delay} ms: walks Pmove would clear");
+        assert_eq!(attacks(&run.leader_moves), [4, 8, 10]);
+        assert_eq!(attacks(&run.mimic_moves), [9, 5, 10], "{delay} ms");
+        assert!(run.mimic_crouched, "{delay} ms");
+        let moved = from_frame(sub(run.leader.origin, [0.0, 0.0, 24.0]), 0.0, -1.0);
+        let expected = add([128.0, 0.0, 24.0], to_frame(moved, 180.0));
+        let off = (expected[0] - run.mimic.origin[0]).hypot(expected[1] - run.mimic.origin[1]);
+        assert!(off < 3.0, "{delay} ms: {off} units from {expected:?}");
+        // Walking pace is easier to match (measured: 8 units with no delay, 5 with).
+        assert!(
+            run.worst_tracking < 12.0,
+            "{delay} ms: {} units off during the run",
+            run.worst_tracking
+        );
+        assert!(
+            run.attack_lag.iter().all(|lag| (-16..=40).contains(lag)),
+            "{delay} ms: attacks off by {:?} ms",
+            run.attack_lag
+        );
+    }
 }

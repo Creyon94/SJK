@@ -1097,6 +1097,8 @@ test: Do a saber chain: you do the same attacks, mirrored (their left swing is y
 test: Change stance or holster the saber: yours follows.
 test: Try mimic <name> 0, then mimic <name> 2 copy: no delay, then sides kept after 2 s.
 test: Press any key: it stops. mimic off also stops it.
+test: mimic <name> 0.3 walk, both walking the choreography: you walk the whole time.
+test: Without walk, while they walk slowly: you walk too, not run (no catch-up run).
 note: A 0.2-0.3 s delay or more keeps it tight; with 0 it reacts after your pings.
 
 [ghost-replay]
