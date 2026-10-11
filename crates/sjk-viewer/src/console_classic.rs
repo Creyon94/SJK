@@ -158,14 +158,14 @@ pub(super) fn ratio_fix_range(fraction: f32, viewport: [f32; 2], enabled: bool) 
 }
 
 /// Open fraction for a console key: Ctrl opens it full screen, Shift a quarter,
-/// otherwise `base` (`con_height`, 0.5 like EternalJK); Shift+Escape always
-/// opens `base`.
-pub(super) fn open_height(escape: bool, control: bool, shift: bool, base: f32) -> f32 {
+/// otherwise follow the live `con_height` setting (`None`). Shift+Escape also
+/// clears the override, rather than caching the setting's current value.
+pub(super) fn open_height(escape: bool, control: bool, shift: bool) -> Option<f32> {
     match (escape, control, shift) {
-        (true, ..) => base,
-        (false, true, _) => FULL_HEIGHT,
-        (false, false, true) => QUARTER_HEIGHT,
-        _ => base,
+        (true, ..) => None,
+        (false, true, _) => Some(FULL_HEIGHT),
+        (false, false, true) => Some(QUARTER_HEIGHT),
+        _ => None,
     }
 }
 
@@ -1255,13 +1255,16 @@ mod tests {
 
     #[test]
     fn console_key_heights() {
-        assert_eq!(open_height(false, false, false, 0.5), 0.5);
-        assert_eq!(open_height(false, true, false, 0.5), 1.0);
-        assert_eq!(open_height(false, false, true, 0.5), 0.25);
+        assert_eq!(open_height(false, false, false), None);
+        assert_eq!(open_height(false, true, false), Some(1.0));
+        assert_eq!(open_height(false, false, true), Some(0.25));
         // Ctrl wins over Shift; Shift+Escape is the plain height.
-        assert_eq!(open_height(false, true, true, 0.5), 1.0);
-        assert_eq!(open_height(true, false, true, 0.5), 0.5);
-        assert_eq!(open_height(false, false, false, 0.7), 0.7);
+        assert_eq!(open_height(false, true, true), Some(1.0));
+        assert_eq!(open_height(true, false, true), None);
+        // A normal opening follows subsequent changes, even without reopening.
+        let height = open_height(false, false, false);
+        assert_eq!(height.unwrap_or(0.5), 0.5);
+        assert_eq!(height.unwrap_or(0.75), 0.75);
     }
 
     #[test]

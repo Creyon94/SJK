@@ -449,6 +449,20 @@ clippy passed (existing warnings; the viewer tests have 75 existing ignored
 cases). In-game reproduction of the reported turning, remote-server
 behavior and full wall-acrobatics parity remain unverified.
 
+## Live console height
+
+Branch `fix/console-height-setting` (2026-10-11, based on `3654f5b2`,
+Windows, Rust 1.99): a normal console opening now follows the current
+`con_height` in both styles instead of caching its value at opening. Changing
+the setting while the console is open therefore changes its target height;
+`toggleconsole` also follows the current setting when reusing a normal opening.
+Ctrl's full-screen and Shift's quarter-screen overrides remain explicit and
+are cleared by a normal opening or Shift+Escape. See [client console keys](client.md#console-styles).
+The updated key-height unit test covers normal mode and modifier overrides.
+Workspace fmt, locked build, locked tests and all-targets clippy passed with
+existing warnings.
+The reported resize has not been checked in the game window.
+
 ## Graphics reload
 
 Branch `personal/graphics-reload` (10/10/2026, based on `5faf4944`, Windows 11, RTX

@@ -2974,7 +2974,11 @@ never shows through an opaque console.
 | Ctrl+L | Clear the scrollback |
 | Insert | Toggle overstrike: typing replaces the character after the cursor |
 
-A `toggleconsole` bind reopens at the last height a console key chose. The console
+A normal console opening follows `con_height` live, so changing it while the
+console is open resizes it in both styles. Ctrl and Shift openings keep their
+full-screen and quarter-screen overrides; a normal opening or Shift+Escape
+clears that override. A `toggleconsole` bind reuses the last opening mode,
+following the current `con_height` when that mode was normal. The console
 slides at `scr_conspeed` screens per second and is drawn from its first pixel.
 A disconnected client whose menu
 is closed shows the console full screen, as `Con_DrawConsole` does; the map

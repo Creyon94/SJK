@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 11/10/2026 | - | The Sun's orbit pack deployed
+- f380020 |  | Sun orbit: the hub's pack is deployed
 + 11/10/2026 | - | The Sun's glints circle the blade below the tip
 - a81a873 |  | Sun: glints circling the blade below the tip
 + 11/10/2026 | - | Release 2026.1011.2 notes, fuller credits
