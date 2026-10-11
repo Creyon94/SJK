@@ -689,27 +689,6 @@ pub(crate) fn material(
     })
 }
 
-/// Evaluate both hand attachments from the same actor pose.
-pub(crate) fn actor_attachments(
-    preview: &PlayerPreview,
-    lower_sample: (usize, usize, f32),
-    upper_sample: (usize, usize, f32),
-) -> [Option<Attachment>; 2] {
-    let matrices = preview
-        .animation
-        .split_interpolated_frame_matrices(
-            (lower_sample.0, lower_sample.1),
-            lower_sample.2,
-            (upper_sample.0, upper_sample.1),
-            upper_sample.2,
-            "lower_lumbar",
-        )
-        .ok();
-    matrices.map_or([None; 2], |matrices| {
-        attachments_from_matrices(preview, &matrices)
-    })
-}
-
 /// Resolve the right and left hand from one already-evaluated pose.
 pub(crate) fn attachments_from_matrices(
     preview: &PlayerPreview,

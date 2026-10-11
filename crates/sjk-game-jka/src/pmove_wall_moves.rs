@@ -884,7 +884,11 @@ impl Predictor {
 
     /// `PM_GroundDistance` (`bg_saber.c:1936-1950`): how far below the player, box and
     /// all, the solid ground is.
-    fn ground_distance(&self, bounds: Bounds, collision: &impl MovementCollision) -> f32 {
+    pub(super) fn ground_distance(
+        &self,
+        bounds: Bounds,
+        collision: &impl MovementCollision,
+    ) -> f32 {
         let mut down = self.state.origin;
         down[2] -= 4_096.0;
         let trace = collision.trace(

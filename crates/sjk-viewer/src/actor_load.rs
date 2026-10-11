@@ -43,7 +43,24 @@ pub(crate) fn build_actor_mesh(
     preview.yaw = 0.0;
     let frame = preview.sequence.first_frame;
     let sample = (frame, frame, 0.0);
-    let weapon_attachments = saber::actor_attachments(&preview, sample, sample);
+    let matrices = preview
+        .animation
+        .split_interpolated_frame_matrices(
+            (sample.0, sample.1),
+            sample.2,
+            (sample.0, sample.1),
+            sample.2,
+            "lower_lumbar",
+        )
+        .ok();
+    // Non-humanoid skeletons may lack the split root; keep loading their bodies
+    // even when humanoid attachments cannot be evaluated.
+    let weapon_attachments = matrices.as_ref().map_or([None; 2], |matrices| {
+        saber::attachments_from_matrices(&preview, matrices)
+    });
+    let jetpack = matrices.as_ref().map_or_else(Default::default, |matrices| {
+        crate::jetpack::Worn::new(&preview, matrices)
+    });
     // Cap surfaces ride along, hidden until a limb is cut (`dismember`).
     let default_flags = crate::dismember::reveal_caps(&mut preview.mesh.hierarchy);
     let (draws, vertex_ranges) = append_actor_mesh(scene, &preview, frame)?;
@@ -83,7 +100,7 @@ pub(crate) fn build_actor_mesh(
         gpu_palette: None,
         retained_pose,
         cosmetics: Default::default(),
-        jetpack: Default::default(),
+        jetpack,
         disintegration: None,
         surfaces,
         limb: None,

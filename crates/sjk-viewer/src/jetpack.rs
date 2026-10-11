@@ -94,14 +94,36 @@ pub(crate) struct Worn {
 }
 
 impl Worn {
+    /// Keep a valid resting bolt even for the shared, unanimated fallback body.
+    pub(crate) fn new(preview: &crate::PlayerPreview, matrices: &[[[f32; 4]; 3]]) -> Self {
+        Self {
+            wanted: Cell::new(false),
+            chest: saber::attachment_from_matrices(preview, matrices, CHEST_BOLT),
+        }
+    }
+
+    /// Equipping happens after pose evaluation. Resolve this frame's bolt immediately
+    /// on that edge, rather than waiting for another pose upload.
+    pub(crate) fn attachment(
+        &self,
+        worn: bool,
+        current_pose: impl FnOnce() -> Option<Attachment>,
+    ) -> Option<Attachment> {
+        let previously_worn = self.wanted.replace(worn);
+        if !worn {
+            None
+        } else if !previously_worn {
+            current_pose().or(self.chest)
+        } else {
+            self.chest
+        }
+    }
     /// Refresh the chest bolt from one evaluated pose; nothing is computed for an
     /// actor without a pack.
     pub(crate) fn update(&mut self, preview: &crate::PlayerPreview, matrices: &[[[f32; 4]; 3]]) {
-        self.chest = if self.wanted.get() {
-            saber::attachment_from_matrices(preview, matrices, CHEST_BOLT)
-        } else {
-            None
-        };
+        if self.wanted.get() {
+            self.chest = saber::attachment_from_matrices(preview, matrices, CHEST_BOLT);
+        }
     }
 }
 
@@ -153,6 +175,137 @@ impl Sounds {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn equip_resolves_the_current_pose_without_waiting_for_upload() {
+        let resting = Attachment {
+            grip: [0.0; 3],
+            rotation: Quat::IDENTITY.to_array(),
+        };
+        let current = Attachment {
+            grip: [1.0, 2.0, 3.0],
+            ..resting
+        };
+        let worn = Worn {
+            chest: Some(resting),
+            ..Worn::default()
+        };
+        assert_eq!(
+            worn.attachment(true, || Some(current)).unwrap().grip,
+            current.grip
+        );
+        assert!(
+            worn.attachment(false, || panic!("unequipped pack never resolves a bolt"))
+                .is_none()
+        );
+        assert_eq!(worn.attachment(true, || None).unwrap().grip, resting.grip);
+        assert_eq!(
+            worn.attachment(true, || panic!("cached pose reused"))
+                .unwrap()
+                .grip,
+            resting.grip
+        );
+    }
+
+    #[test]
+    #[ignore = "requires installed game data and a GPU"]
+    fn equipped_pack_on_duel6() {
+        crate::world_shot::on_big_stack(|| {
+            use sjk_runtime::{Appearance, EntityId, EntityKind, MotionSample, Transform};
+            let (mut input, _profile) =
+                crate::world_shot::world_input("maps/mp/duel6.bsp", None, &[]);
+            // Keep the reference asset independent of personal replacement PK3s.
+            let mut vfs = VirtualFileSystem::new();
+            for name in ["assets0.pk3", "assets1.pk3", "assets2.pk3", "assets3.pk3"] {
+                vfs.mount_pk3(input.game_data.join("base").join(name))
+                    .unwrap();
+            }
+            input.shaders = crate::assets::load_shaders(&vfs);
+            input.vfs = std::sync::Arc::new(vfs);
+            input.build_game_state = Some(sjk_protocol::GameState::empty_local(0));
+            let mut gpu =
+                pollster::block_on(crate::GpuState::new_for_target(None, [1280, 720], input))
+                    .expect("GPU startup");
+            gpu.is_menu_world = true;
+            crate::world_shot::attach_target(&mut gpu, [1280, 720]);
+            let (spawn, yaw) = crate::assets::initial_camera(&gpu.bsp).unwrap();
+            let turn = Quat::from_rotation_z(yaw);
+            let origin = Vec3::from_array(spawn) + turn * Vec3::new(85.0, 0.0, -32.0);
+            let body = Transform {
+                translation: origin.to_array(),
+                rotation: turn.to_array(),
+                scale: [1.0; 3],
+            };
+            gpu.live_world.upsert(
+                EntityId::new(1),
+                EntityKind::Actor,
+                MotionSample {
+                    time_millis: 0,
+                    transform: body,
+                },
+            );
+            let fallback = gpu
+                .actor_meshes
+                .iter()
+                .find(|actor| actor.entity_id.is_none() && !actor.corpse_pool)
+                .unwrap();
+            let chest = fallback
+                .jetpack
+                .attachment(true, || None)
+                .expect("fallback pack attaches on its first frame");
+            let (pack_origin, pack_rotation) = saber::world_attachment(
+                origin,
+                crate::weapon_view::actor_world_rotation(body.rotation),
+                chest,
+            );
+            let mesh = gpu.jetpack.mesh.expect("stock jetpack mesh");
+            assert!(
+                gpu.jetpack.jets.iter().all(Option::is_some),
+                "stock flame bolts"
+            );
+            let directory = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../target/parity-reports");
+            std::fs::create_dir_all(&directory).unwrap();
+            let before = crate::world_shot::frame(&mut gpu, 1);
+            before
+                .save(directory.join("jetpack-unequipped.png"))
+                .unwrap();
+            gpu.live_world.upsert(
+                EntityId::new(2),
+                EntityKind::Other,
+                MotionSample {
+                    time_millis: 0,
+                    transform: Transform {
+                        translation: pack_origin.to_array(),
+                        rotation: pack_rotation.to_array(),
+                        scale: [1.0; 3],
+                    },
+                },
+            );
+            gpu.live_world.set_appearance(
+                EntityId::new(2),
+                Some(Appearance {
+                    model: MODEL.to_owned(),
+                    variant: String::new(),
+                }),
+            );
+            let after = crate::world_shot::frame(&mut gpu, 1);
+            assert_eq!(
+                gpu.object_groups[mesh].len(),
+                1,
+                "pack reached the actual model pass"
+            );
+            assert!(
+                before
+                    .pixels()
+                    .zip(after.pixels())
+                    .filter(|(a, b)| a != b)
+                    .count()
+                    > 100
+            );
+            after.save(directory.join("jetpack-equipped.png")).unwrap();
+        });
+    }
 
     #[test]
     fn on_then_off_once_each() {

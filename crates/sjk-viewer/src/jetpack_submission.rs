@@ -23,7 +23,11 @@ pub(super) fn submit(sinks: &mut Sinks<'_>, body: Body, time: i32, now: Instant)
     let jetpack = sjk_client::LegacyJetpack::from_flags(body.e_flags);
     let meshes = sinks.actor_meshes;
     let actor = &meshes[body.mesh];
-    actor.jetpack.wanted.set(jetpack.worn);
+    let chest = actor.jetpack.attachment(jetpack.worn, || {
+        actor.animator.requested.and_then(|_| {
+            saber::attachment_from_matrices(&actor.preview, actor.animator.matrices(), "*chestg")
+        })
+    });
     let cue =
         sinks
             .jetpack_sounds
@@ -41,7 +45,7 @@ pub(super) fn submit(sinks: &mut Sinks<'_>, body: Body, time: i32, now: Instant)
             sjk_audio::ChannelId(1),
         );
     }
-    let Some(chest) = actor.jetpack.chest.filter(|_| jetpack.worn) else {
+    let Some(chest) = chest else {
         return;
     };
     let rotation = weapon_view::actor_world_rotation(body.transform.rotation);
