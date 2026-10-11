@@ -4,7 +4,7 @@
 // the face's main axis as Radiant's default texture projection does; edges
 // outline each face. Scene depth is tested, never written.
 
-const KINDS: u32 = 17u;
+const KINDS: u32 = 24u;
 // World units one tile covers: a 128-pixel editor image at Radiant's default
 // 0.5 scale.
 const TILE: f32 = 64.0;

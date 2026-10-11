@@ -57,10 +57,24 @@ pub(crate) enum Kind {
     Caulk,
     /// Any other face that draws nothing (hint, skip, areaportal, origin…).
     Nodraw,
+    /// A `func_door`: shown at the place the map file puts it.
+    Door,
+    /// A `func_plat` lift.
+    Lift,
+    /// A `func_button`.
+    Button,
+    /// A `func_train`.
+    Train,
+    /// A `func_rotating`, `func_pendulum` or `func_bobbing`: moves for good.
+    Endless,
+    /// A `func_breakable` or `func_glass`.
+    Breakable,
+    /// The box a door, lift or button moves through.
+    Travel,
 }
 
 impl Kind {
-    pub(crate) const ALL: [Self; 17] = [
+    pub(crate) const ALL: [Self; 24] = [
         Self::Clip,
         Self::PlayerClip,
         Self::NpcClip,
@@ -78,6 +92,13 @@ impl Kind {
         Self::BotClip,
         Self::Caulk,
         Self::Nodraw,
+        Self::Door,
+        Self::Lift,
+        Self::Button,
+        Self::Train,
+        Self::Endless,
+        Self::Breakable,
+        Self::Travel,
     ];
 
     /// What `r_showBrushes 1` shows: every kind that changes how a player
@@ -96,6 +117,11 @@ impl Kind {
         Self::NoDrop,
         Self::Slick,
         Self::Cushion,
+        Self::Door,
+        Self::Lift,
+        Self::Button,
+        Self::Train,
+        Self::Endless,
     ]);
 
     pub(crate) fn index(self) -> usize {
@@ -122,6 +148,13 @@ impl Kind {
             Self::BotClip => "botclip",
             Self::Caulk => "caulk",
             Self::Nodraw => "nodraw",
+            Self::Door => "door",
+            Self::Lift => "lift",
+            Self::Button => "button",
+            Self::Train => "train",
+            Self::Endless => "endless",
+            Self::Breakable => "breakable",
+            Self::Travel => "travel",
         }
     }
 
@@ -145,6 +178,13 @@ impl Kind {
             Self::BotClip => &["BOT", "CLIP"],
             Self::Caulk => &["CAULK"],
             Self::Nodraw => &["NODRAW"],
+            Self::Door => &["DOOR"],
+            Self::Lift => &["LIFT"],
+            Self::Button => &["BUTTON"],
+            Self::Train => &["TRAIN"],
+            Self::Endless => &["ALWAYS", "MOVING"],
+            Self::Breakable => &["BREAKABLE"],
+            Self::Travel => &["TRAVEL"],
         }
     }
 
@@ -168,6 +208,13 @@ impl Kind {
             Self::BotClip => [0.30, 0.76, 0.76],
             Self::Caulk => [1.0, 0.56, 0.72],
             Self::Nodraw => [0.86, 0.80, 0.40],
+            Self::Door => [0.20, 0.86, 0.96],
+            Self::Lift => [0.70, 0.86, 0.20],
+            Self::Button => [1.0, 0.40, 0.62],
+            Self::Train => [0.82, 0.66, 0.30],
+            Self::Endless => [0.40, 0.50, 0.95],
+            Self::Breakable => [0.70, 0.78, 0.90],
+            Self::Travel => [0.95, 0.95, 0.95],
         }
     }
 
@@ -179,6 +226,20 @@ impl Kind {
             "trigger_hurt" => Self::Hurt,
             _ => Self::Trigger,
         }
+    }
+
+    /// The kind of every face of a brush entity that moves or breaks, by
+    /// classname; `None` for an entity whose brushes the map draws and keeps still.
+    pub(crate) fn of_mover(classname: &str) -> Option<Self> {
+        Some(match classname.to_ascii_lowercase().as_str() {
+            "func_door" | "func_door_rotating" => Self::Door,
+            "func_plat" => Self::Lift,
+            "func_button" => Self::Button,
+            "func_train" => Self::Train,
+            "func_rotating" | "func_pendulum" | "func_bobbing" => Self::Endless,
+            "func_breakable" | "func_glass" => Self::Breakable,
+            _ => return None,
+        })
     }
 
     /// The kind of a world brush's face: `contents` are its brush's, `surface`
@@ -368,6 +429,18 @@ mod tests {
     }
 
     #[test]
+    fn movers_take_their_entity_kind() {
+        assert_eq!(Kind::of_mover("func_door"), Some(Kind::Door));
+        assert_eq!(Kind::of_mover("FUNC_PLAT"), Some(Kind::Lift));
+        assert_eq!(Kind::of_mover("func_button"), Some(Kind::Button));
+        assert_eq!(Kind::of_mover("func_train"), Some(Kind::Train));
+        assert_eq!(Kind::of_mover("func_bobbing"), Some(Kind::Endless));
+        assert_eq!(Kind::of_mover("func_glass"), Some(Kind::Breakable));
+        assert_eq!(Kind::of_mover("func_static"), None);
+        assert_eq!(Kind::of_mover("trigger_hurt"), None);
+    }
+
+    #[test]
     fn modes_and_type_lists_choose_the_kinds() {
         assert_eq!(KindSet::chosen(0, "clip"), KindSet::EMPTY);
         assert_eq!(KindSet::chosen(1, ""), Kind::GAMEPLAY);
@@ -376,6 +449,10 @@ mod tests {
         assert!(listed.contains(Kind::Clip) && listed.contains(Kind::Teleport));
         assert!(!listed.contains(Kind::Trigger));
         assert!(!Kind::GAMEPLAY.contains(Kind::Caulk));
+        // Movers are gameplay; their travel boxes and breakables need mode 2.
+        assert!(Kind::GAMEPLAY.contains(Kind::Door));
+        assert!(!Kind::GAMEPLAY.contains(Kind::Travel));
+        assert!(!Kind::GAMEPLAY.contains(Kind::Breakable));
     }
 
     #[test]

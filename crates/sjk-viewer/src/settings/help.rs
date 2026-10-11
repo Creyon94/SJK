@@ -416,7 +416,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::brush_view::CVAR,
-        "Shows clip, trigger, ladder and other invisible map brushes see-through, as Radiant does. 1 gameplay ones, 2 all.",
+        "Shows invisible brushes (clip, trigger...) and movers (doors, lifts) see-through, as Radiant does. 1 gameplay, 2 all.",
     ),
     (
         crate::rarity_fx::CVAR,

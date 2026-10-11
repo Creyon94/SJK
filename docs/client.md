@@ -1669,10 +1669,17 @@ collision already.
 | `nodrop` | Death pits and other nodrop volumes | 1 |
 | `slick` | Slick floors | 1 |
 | `cushion` | No falling damage (`cushion`) | 1 |
+| `door` | `func_door` and `func_door_rotating` brushes | 1 |
+| `lift` | `func_plat` | 1 |
+| `button` | `func_button` | 1 |
+| `train` | `func_train` | 1 |
+| `endless` | `func_rotating`, `func_pendulum` and `func_bobbing`, which never stop | 1 |
 | `weather` | `outside` / `inside` weather volumes | 2 |
 | `botclip` | Bot navigation hints (`do_not_enter`) | 2 |
 | `caulk` | Caulk faces | 2 |
 | `nodraw` | Every other face that draws nothing (hint, skip, areaportal, origin…) | 2 |
+| `breakable` | `func_breakable` and `func_glass` | 2 |
+| `travel` | The box a door, lift or button moves through, from `reach()` in [mover_occlusion.rs](../crates/sjk-viewer/src/mover_occlusion.rs) | 2 |
 
 A face counts when its shader has `surfaceparm nodraw`; its kind comes from its
 brush's contents and its own surface flags as q3map2 compiled them
@@ -1689,8 +1696,12 @@ world: tested against the scene depth without writing it, lifted 0.35 units off
 their plane toward the camera so a clip brush flush with a wall still shows, from
 both sides ([brush_view.rs](../crates/sjk-viewer/src/brush_view.rs),
 [brush_view.wgsl](../crates/sjk-viewer/src/brush_view.wgsl)). Brushes of entities
-other than `trigger_*` (doors, lifts, glass) are left out because they may move, and
-a brush behind a wall stays hidden behind it. The view is off on the menu map.
+of other entities are left out (the map draws them). Movers are drawn once, where the
+map file puts them, not where they are now: a door open at that moment still shows
+closed, and its `travel` box shows how far it goes. A brush model with an origin brush
+(rotating doors, trains) is stored relative to its `origin` key, so its faces are shifted
+back by it; a `func_train` shows where the map file puts it, not at its first path
+corner. A brush behind a wall stays hidden behind it. The view is off on the menu map.
 
 Checked 11/10/2026 with world shots (`world_shot_brushes.rs`, `SJK_BRUSH_MAPS`,
 `SJK_BRUSH_MODE`) on `mp/ffa3` (clips, a trigger, solid) and `mp/ffa5` (its death pit

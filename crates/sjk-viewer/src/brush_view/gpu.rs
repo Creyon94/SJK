@@ -297,7 +297,7 @@ mod tests {
     fn the_program_has_a_colour_per_kind() {
         let program = include_str!("../brush_view.wgsl");
         assert!(program.contains(&format!("const KINDS: u32 = {}u;", Kind::ALL.len())));
-        // `Look` is 17 colours and the opacities, all vec4.
+        // `Look` is one colour per kind and the opacities, all vec4.
         assert_eq!(std::mem::size_of::<Look>(), (Kind::ALL.len() + 1) * 16);
         assert_eq!(std::mem::size_of::<Vertex>(), 28);
     }

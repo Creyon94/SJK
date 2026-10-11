@@ -344,13 +344,13 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             crate::brush_view::CVAR,
             0_i64,
             archive,
-            "Invisible brushes (clip, trigger, ladder...) drawn see-through: 0 off, 1 gameplay, 2 all",
+            "Invisible brushes (clip, trigger, ladder...) and movers (door, lift...) drawn see-through: 0 off, 1 gameplay, 2 all",
         ),
         CvarDefinition::new(
             crate::brush_view::TYPES_CVAR,
             "",
             archive,
-            "Brush kinds r_showBrushes shows instead of its set: clip playerclip npcclip shotclip              solid trigger teleport push hurt ladder nodrop slick cushion weather botclip caulk nodraw",
+            "Brush kinds r_showBrushes shows instead of its set: clip playerclip npcclip shotclip              solid trigger teleport push hurt ladder nodrop slick cushion door lift button train endless weather botclip caulk nodraw breakable travel",
         ),
         CvarDefinition::new(
             crate::ground_hud::CVAR,

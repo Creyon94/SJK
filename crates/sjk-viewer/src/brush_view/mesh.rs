@@ -2,8 +2,10 @@
 //! every brush for collision but makes no drawn surface for a tool texture.
 
 use super::kinds::Kind;
+use crate::world_materials::mover_occlusion::reach;
 use bytemuck::{Pod, Zeroable};
-use sjk_bsp::Bsp;
+use glam::Vec3;
+use sjk_bsp::{Bsp, Model};
 use std::ops::Range;
 
 /// Vertex shared by faces and edges; layout of `brush_view.wgsl`'s `VertexIn`.
@@ -29,21 +31,26 @@ pub(super) struct Mesh {
 }
 
 impl Mesh {
-    /// Build from the world's brushes and those of `trigger_*` entities. Other
-    /// entities' brushes (doors, lifts, glass) are left out: they may move.
+    /// Build from the world's brushes and those of `trigger_*` entities and of
+    /// movers (doors, lifts, buttons, trains…), the movers where the map file
+    /// puts them, plus the box a door, lift or button moves through. Other
+    /// entities' brushes are left out: the map draws them.
     pub(super) fn build(bsp: &Bsp) -> Self {
         let mut faces: Vec<Vec<Vertex>> = vec![Vec::new(); Kind::ALL.len()];
         let mut edges: Vec<Vec<Vertex>> = vec![Vec::new(); Kind::ALL.len()];
         let models = bsp.render().models();
-        let triggers = trigger_models(bsp, models.len());
+        let placed = placed_models(bsp, models);
         for (model_index, model) in models.iter().enumerate() {
-            let trigger = if model_index == 0 {
-                None
-            } else if let Some(kind) = triggers[model_index] {
-                Some(kind)
+            let (trigger, origin) = if model_index == 0 {
+                (None, [0.0; 3])
+            } else if let Some(placed) = &placed[model_index] {
+                (Some(placed.kind), placed.origin)
             } else {
                 continue;
             };
+            if let Some((lower, upper)) = placed.get(model_index).and_then(|p| p.as_ref()?.travel) {
+                push_box(&mut faces, &mut edges, lower, upper);
+            }
             for brush_index in model.brushes.clone() {
                 let Some(brush) = bsp.brushes().get(brush_index) else {
                     continue;
@@ -58,7 +65,12 @@ impl Mesh {
                     }) else {
                         continue;
                     };
-                    let points = bsp.brush_side_polygon(brush_index, side_index);
+                    let mut points = bsp.brush_side_polygon(brush_index, side_index);
+                    for point in &mut points {
+                        for axis in 0..3 {
+                            point[axis] += origin[axis];
+                        }
+                    }
                     if area(&points) < MIN_AREA {
                         continue;
                     }
@@ -90,28 +102,98 @@ impl Mesh {
     }
 }
 
-/// The trigger kind of each inline model a `trigger_*` entity uses.
-fn trigger_models(bsp: &Bsp, count: usize) -> Vec<Option<Kind>> {
-    let mut triggers = vec![None; count];
+/// Where an entity's inline model is drawn and what it is.
+struct Placed {
+    kind: Kind,
+    /// The entity's `origin` key: a brush model with an origin brush is stored
+    /// relative to it (q3map2 moves it), so its faces are shifted back.
+    origin: [f32; 3],
+    /// The world box a door, lift or button moves through, when it moves.
+    travel: Option<(Vec3, Vec3)>,
+}
+
+/// The `trigger_*` entities and movers each inline model belongs to.
+fn placed_models(bsp: &Bsp, models: &[Model]) -> Vec<Option<Placed>> {
+    let mut placed: Vec<Option<Placed>> = (0..models.len()).map(|_| None).collect();
     let entities = sjk_entity::parse_entity_lump(bsp.entities()).unwrap_or_default();
     for entity in &entities {
-        let Some(classname) = entity
-            .classname()
-            .filter(|name| name.len() > 8 && name[..8].eq_ignore_ascii_case("trigger_"))
-        else {
+        let Some(classname) = entity.classname() else {
             continue;
         };
-        if let Some(slot) = entity
+        let kind = if classname.len() > 8 && classname[..8].eq_ignore_ascii_case("trigger_") {
+            Kind::of_trigger(classname)
+        } else if let Some(kind) = Kind::of_mover(classname) {
+            kind
+        } else {
+            continue;
+        };
+        let Some(index) = entity
             .get("model")
             .and_then(|model| model.strip_prefix('*'))
             .and_then(|index| index.parse::<usize>().ok())
-            .filter(|&index| index > 0)
-            .and_then(|index| triggers.get_mut(index))
-        {
-            *slot = Some(Kind::of_trigger(classname));
+            .filter(|&index| index > 0 && index < models.len())
+        else {
+            continue;
+        };
+        let origin = entity.vector("origin").ok().flatten().unwrap_or([0.0; 3]);
+        let model = &models[index];
+        let (lower, upper) = (
+            Vec3::from_array(model.minimums) + Vec3::from_array(origin),
+            Vec3::from_array(model.maximums) + Vec3::from_array(origin),
+        );
+        // The box the mover can reach, only when it is more than where it rests.
+        let travel = matches!(kind, Kind::Door | Kind::Lift | Kind::Button)
+            .then(|| {
+                reach(
+                    Some(entity),
+                    Vec3::from_array(model.minimums),
+                    Vec3::from_array(model.maximums),
+                )
+            })
+            .filter(|(low, high)| {
+                (*low - lower).abs().max_element() > 1.0
+                    || (*high - upper).abs().max_element() > 1.0
+            });
+        placed[index] = Some(Placed {
+            kind,
+            origin,
+            travel,
+        });
+    }
+    placed
+}
+
+/// A box as the `Travel` kind's faces and outline.
+fn push_box(faces: &mut [Vec<Vertex>], edges: &mut [Vec<Vertex>], lower: Vec3, upper: Vec3) {
+    let kind = Kind::Travel.index() as u32;
+    let corner = |i: usize| {
+        Vec3::new(
+            if i & 1 == 0 { lower.x } else { upper.x },
+            if i & 2 == 0 { lower.y } else { upper.y },
+            if i & 4 == 0 { lower.z } else { upper.z },
+        )
+    };
+    // Per axis: the face at the low and at the high end, as its four corners
+    // in order around it.
+    const SIDES: [([usize; 4], [f32; 3]); 6] = [
+        ([0, 2, 6, 4], [-1.0, 0.0, 0.0]),
+        ([1, 3, 7, 5], [1.0, 0.0, 0.0]),
+        ([0, 1, 5, 4], [0.0, -1.0, 0.0]),
+        ([2, 3, 7, 6], [0.0, 1.0, 0.0]),
+        ([0, 1, 3, 2], [0.0, 0.0, -1.0]),
+        ([4, 5, 7, 6], [0.0, 0.0, 1.0]),
+    ];
+    for (ring, normal) in SIDES {
+        let vertex = |i: usize| Vertex {
+            position: corner(ring[i]).to_array(),
+            normal,
+            kind,
+        };
+        faces[Kind::Travel.index()].extend([0, 1, 2, 0, 2, 3].map(vertex));
+        for i in 0..4 {
+            edges[Kind::Travel.index()].extend([vertex(i), vertex((i + 1) % 4)]);
         }
     }
-    triggers
 }
 
 fn concatenate(buckets: Vec<Vec<Vertex>>) -> (Vec<Vertex>, Vec<Range<u32>>) {
