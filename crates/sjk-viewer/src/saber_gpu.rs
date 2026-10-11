@@ -43,9 +43,10 @@ pub(crate) struct Runtime {
     any_haze: bool,
 }
 
-/// Blade instances the model preview can draw: two sabers of eight blades, four
-/// instances each (glow, core, a skin's glint and echo).
-pub(crate) const PREVIEW_BLADES: usize = 2 * 8 * 4;
+/// Blade instances the model preview can draw: two sabers of eight blades, each its glow,
+/// core and echo and a skin's glints.
+pub(crate) const PREVIEW_BLADES: usize =
+    2 * 8 * (3 + crate::blade_skin_file::extras::MAX_GLINTS as usize);
 
 impl Runtime {
     pub(crate) fn new(

@@ -85,7 +85,11 @@ the hub's, described in its `scripts/blade_skin_sounds.py` and `saber_skin_sound
   smooth gold loops slowly leaving the blade and falling back), rising sparks, and, for
   the clients that read the additions file, a four-ray glint turning at the tip and heat
   haze bending what is behind the blade ([Options](#options): each can be switched
-  off); a warm flickering light; a solar roar.
+  off); a warm flickering light; a solar roar. Since 11/10/2026 (Sol's request), for the
+  clients that read the later additions file, the glint is two, a smaller companion
+  opposite it, circling the blade 9 units below the tip (`orbit`: 4.5 units out, 0.45
+  turns a second, tilted 0.35 rad; rays 6.5 long instead of 9); the part is "Orbiting
+  glints", the same `glint` id, so a wearer's choice stays.
 - **Storm**: a white-blue core in a violet-to-electric-blue corona that crackles; a few
   thin, jagged white-blue lightning arcs at a time, struck again and again at random
   places, leaving the blade, bulging out to one side and coming back further along,
@@ -510,6 +514,14 @@ it and draws the skin file alone, so a pack can grow without blanking a skin for
 clients; an additions file without its skin file is no skin. The same rules hold: each
 section optional, every field of it required.
 
+The fourth set (11/10/2026): `orbit`. A client of the third set refuses a field it does
+not know in the additions file too, so it lives in a **later additions file**,
+`skins/blades/<id>.bladeextra2`, laid over the skin file after the first one (a field in
+it replaces the same field whole, so it may also give the `star` and `options` the newer
+clients draw: the Sun's gives shorter rays and renames the part). A client of the third
+set never opens it and draws the first additions file's glint at the tip. The same
+rules hold. A later set goes in a file of the next number.
+
 | Field | Meaning | Range |
 | --- | --- | --- |
 | `version` | Format version | 1 |
@@ -569,6 +581,8 @@ section optional, every field of it required.
 | `star.color`, `brightness` | The tip's glint: its colour and brightness | 0-4, 0-10 |
 | `star.rays`, `length`, `width` | Its rays, how far they reach from the tip (units, every other one 0.55 of that from four rays up) and how thick (a share of their length, tapering) | 2-8, 1-24, 0.01-0.3 |
 | `star.spin`, `twinkle`, `depth`, `halo` | Turns a second; about how many times a second it twinkles and how deep; the round glow at its heart (a share of the rays' brightness) | -4-4, 0-20, 0-1, 0-2 |
+| `orbit.at`, `count` | The glints circle the blade `at` units below the tip (0: round the tip), `count` of them evenly round the circle, every other one 0.7 the size; needs `star` | 0-40, 1-4 |
+| `orbit.radius`, `rate`, `tilt` | How far out from the axis (units), turns a second (negative: the other way), and the circle's tilt (radians, the near side higher, so it shows as a ring); a glint behind the blade, near its axis, shows at 0.3 | 0-16, -4-4, 0-1 |
 | `wisps.color`, `brightness` | Smoke rising off the blade, whichever way it is held: its colour and brightness | 0-4, 0-10 |
 | `wisps.rise`, `speed` | How high it rises before it is gone (units; the glow's quad reaches that much further) and how fast (units a second) | 1-16, 0-60 |
 | `wisps.scale`, `curl`, `density` | Noise cells a unit, how much the smoke curls (the noise warped) and how much of it there is | 0.02-2, 0-2, 0-1 |
@@ -591,7 +605,7 @@ off, and every other SJK player then draws the blade the same way.
 
 | Skin | Parts (id: what it switches) |
 | --- | --- |
-| Sun | `prominences` Prominences (arcs), `sparks` Rising sparks (motes), `glint` Tip glint (star), `haze` Heat haze (haze) |
+| Sun | `prominences` Prominences (arcs), `sparks` Rising sparks (motes), `glint` Tip glint (star; "Orbiting glints" since the later additions file, its orbit going with the star), `haze` Heat haze (haze) |
 | Spectral | `wisps` Wisps (wisps), `spirits` Souls (motes), `smoke` Smoky edge (sputter), `rim` Cold rim (hue), `echo` Echo (echo), `afterimages` Afterimages (ghosts) |
 
 - Kept in `cg_saberSkinOptions` (archived, default empty;
@@ -758,6 +772,6 @@ Achievements granting unlockables (with harder goals), holocrons dropping blade 
 be the hub's too, to roll a shader of a holocron's tier), Uncommon shaders (colours
 only), other kinds of unlockable (holocron
 skins, trails, emotes). Up to 16 blade skins load at once (the renderer's slots; the
-uniform array is 15104 bytes of the 16 KiB WebGPU guarantees since the third set, so
-a seventeenth skin, or four more lanes a skin, needs fewer lanes or a storage buffer
+uniform array is 15360 bytes of the 16 KiB WebGPU guarantees since the glint's orbit,
+so a seventeenth skin, or five more lanes a skin, needs fewer lanes or a storage buffer
 first).

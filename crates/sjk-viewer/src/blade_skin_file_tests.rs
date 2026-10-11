@@ -434,6 +434,100 @@ fn the_third_set_and_the_options_are_checked_strictly_by_name() {
     );
 }
 
+/// A made-up later additions file (no real skin's values): the glint's orbit.
+pub(crate) const LATER_ADDITIONS: &str = r#"{
+  "orbit": {"at": 10.0, "count": 2, "radius": 4.5, "rate": 0.4, "tilt": 0.3}
+}"#;
+
+#[test]
+fn the_orbit_needs_a_star_and_is_checked_strictly() {
+    let orbit = |later: &str| {
+        let text = extras::merged(&sample_with_additions(), later).unwrap();
+        parse("saber_test", &text)
+    };
+    let def = orbit(LATER_ADDITIONS).unwrap();
+    let o = def.orbit.unwrap();
+    assert_eq!(
+        (o.at, o.count, o.radius, o.rate, o.tilt),
+        (10.0, 2, 4.5, 0.4, 0.3)
+    );
+    // The rest of the file is as the first additions left it.
+    assert_eq!(def.star.unwrap().length, 8.0);
+    let refused = |old: &str, new: &str, why: &str| {
+        assert!(LATER_ADDITIONS.contains(old), "{old}");
+        let error = orbit(&LATER_ADDITIONS.replacen(old, new, 1)).unwrap_err();
+        assert!(error.contains(why), "{new}: {error}");
+    };
+    refused(
+        r#""count": 2"#,
+        r#""count": 0"#,
+        "orbit.count must be 1 to 4",
+    );
+    refused(
+        r#""count": 2"#,
+        r#""count": 5"#,
+        "orbit.count must be 1 to 4",
+    );
+    refused(r#""at": 10.0"#, r#""at": 50.0"#, "orbit.at");
+    refused(r#""radius": 4.5"#, r#""radius": 20.0"#, "orbit.radius");
+    refused(r#""rate": 0.4"#, r#""rate": 5.0"#, "orbit.rate");
+    refused(r#""tilt": 0.3"#, r#""tilt": 1.5"#, "orbit.tilt");
+    refused(r#", "tilt": 0.3"#, "", "missing field `tilt`");
+    refused(
+        r#""tilt": 0.3"#,
+        r#""tilt": 0.3, "wobble": 1"#,
+        "unknown field `wobble`",
+    );
+    // Nothing to circle without a star.
+    let text = extras::merged(&sample_with_effects(), LATER_ADDITIONS).unwrap();
+    assert!(
+        parse("saber_test", &text)
+            .unwrap_err()
+            .contains("orbit needs a star")
+    );
+}
+
+#[test]
+fn the_later_additions_file_is_laid_over_the_first() {
+    let mut vfs = sjk_vfs::VirtualFileSystem::new();
+    let later = r#"{"orbit": {"at": 10.0, "count": 2, "radius": 4.5, "rate": 0.4, "tilt": 0.3},
+        "trail": [1.0, 0.0, 0.0]}"#;
+    vfs.mount_memory(
+        "pack",
+        [
+            (
+                "skins/blades/saber_test.bladeskin",
+                sample_with_effects().into_bytes(),
+            ),
+            (
+                "skins/blades/saber_test.bladeextra",
+                ADDITIONS.as_bytes().to_vec(),
+            ),
+            (
+                "skins/blades/saber_test.bladeextra2",
+                later.as_bytes().to_vec(),
+            ),
+            // The later file without the first one's star is refused, as a whole.
+            (
+                "skins/blades/saber_lone.bladeskin",
+                sample_with_effects().into_bytes(),
+            ),
+            (
+                "skins/blades/saber_lone.bladeextra2",
+                LATER_ADDITIONS.as_bytes().to_vec(),
+            ),
+        ],
+    )
+    .unwrap();
+    let skins = load(&vfs);
+    let ids: Vec<&str> = skins.iter().map(|(id, _)| id.as_str()).collect();
+    assert_eq!(ids, ["saber_test"]);
+    let def = &skins[0].1;
+    assert_eq!(def.orbit.unwrap().count, 2);
+    assert!(def.star.is_some() && def.options.len() == 4);
+    assert_eq!(def.trail, [1.0, 0.0, 0.0], "the later file's field wins");
+}
+
 #[test]
 fn the_loader_lays_an_additions_file_over_its_skin_and_older_names_are_left() {
     let mut vfs = sjk_vfs::VirtualFileSystem::new();

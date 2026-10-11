@@ -244,6 +244,7 @@ fn the_uniform_holds_the_files_parameters_where_the_shader_reads_them() {
         (one.star_color, "star_color"),
         (one.star_shape, "star_shape"),
         (one.star_motion, "star_motion"),
+        (one.star_orbit, "star_orbit"),
         (one.wisp_color, "wisp_color"),
         (one.wisp_shape, "wisp_shape"),
         (one.wisp_field, "wisp_field"),
@@ -254,7 +255,7 @@ fn the_uniform_holds_the_files_parameters_where_the_shader_reads_them() {
     // Past the loaded skins, zeros.
     assert!(uniforms[1..].iter().all(|u| *u == SkinUniform::default()));
     let bytes: &[u8] = bytemuck::cast_slice(&uniforms);
-    assert_eq!(bytes.len(), MAX_SKINS * 59 * 16);
+    assert_eq!(bytes.len(), MAX_SKINS * 60 * 16);
     // The sixteen skins' array stays inside the smallest uniform binding WebGPU
     // guarantees (16 KiB).
     assert!(bytes.len() <= 16 * 1024);
@@ -758,6 +759,28 @@ fn each_saber_of_a_pair_takes_its_own_colour() {
 }
 
 #[test]
+fn the_orbit_moves_the_glints_below_the_tip_for_the_cpu_and_the_gpu() {
+    let text = crate::blade_skin_file::extras::merged(
+        &crate::blade_skin_file::tests::sample_with_additions(),
+        crate::blade_skin_file::tests::LATER_ADDITIONS,
+    )
+    .unwrap();
+    let def = crate::blade_skin_file::parse("saber_sun", &text).unwrap();
+    let one = SkinUniform::of(&def);
+    assert_eq!(one.star_motion[3], 2.0, "two glints");
+    assert_eq!(one.star_orbit, [10.0, 4.5, 0.4, 0.3]);
+    let skin = LoadedSkin::new("saber_sun", def, &VirtualFileSystem::new()).unwrap();
+    let glint = skin.color(0, 0).star.unwrap();
+    assert_eq!((glint.length, glint.at, glint.count), (8.0, 10.0, 2));
+    // The circle's reach, its tilt included.
+    assert!((glint.reach - 4.5 / 0.3_f32.cos()).abs() < 1e-5);
+    // Without an orbit: one glint at the tip, and the orbit's lanes zeros.
+    let plain = crate::blade_skin_file::tests::sample_with_additions();
+    let one = SkinUniform::of(&crate::blade_skin_file::parse("saber_sun", &plain).unwrap());
+    assert_eq!((one.star_motion[3], one.star_orbit), (0.0, [0.0; 4]));
+}
+
+#[test]
 fn a_wearers_options_leave_out_their_parts_on_the_cpu_and_the_gpu() {
     use crate::blade_skin_file::extras::{Section, option_bit};
     let text = crate::blade_skin_file::tests::sample_with_additions().replacen(
@@ -769,7 +792,8 @@ fn a_wearers_options_leave_out_their_parts_on_the_cpu_and_the_gpu() {
     let skin = LoadedSkin::new("saber_sun", def, &VirtualFileSystem::new()).unwrap();
     let all = skin.color(0, 0);
     assert_eq!(all.off, 0);
-    assert_eq!(all.star, Some(8.0));
+    let glint = all.star.unwrap();
+    assert_eq!((glint.length, glint.at, glint.count), (8.0, 0.0, 1));
     assert!(all.echo.is_some() && all.ghosts.is_some());
     assert_eq!(all.room, 9.0);
     assert_ne!(all.hue, [0.0; 2]);

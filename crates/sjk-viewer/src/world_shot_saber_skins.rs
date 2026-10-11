@@ -488,6 +488,56 @@ fn duel6_mythical_parts() {
     });
 }
 
+/// The Sun's glints circling its blade below the tip (11/10/2026): an upright blade up
+/// close, one orbit in 36 frames, cropped round the glints into `duel6-sun-orbit.gif`, and
+/// four of them side by side (`duel6-sun-orbit`).
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_sun_orbit() {
+    on_big_stack(|| {
+        mount_test_packs();
+        let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", [1280, 720], None, &[]) else {
+            return;
+        };
+        let (spawn, yaw) = assets::initial_camera(&gpu.bsp).expect("a spawn point");
+        let turn = glam::Quat::from_rotation_z(yaw);
+        let eye = Vec3::from_array(spawn);
+        let ahead = |x: f32, y: f32, z: f32| eye + turn * Vec3::new(x, y, z);
+        let blade = Blade {
+            base: ahead(34.0, 0.0, -34.0).to_array(),
+            direction: (turn * Vec3::new(0.0, 0.1, 1.0)).normalize().to_array(),
+            length: 40.0,
+            radius: 3.0,
+        };
+        gpu.saber_skins.shot_blades = vec![(blade, ShotColor::Skin("saber_sun"), 2)];
+        let (look_yaw, look_pitch) = look(eye.to_array(), ahead(34.0, 3.0, -4.0).to_array());
+        aim(&mut gpu, eye.to_array(), look_yaw, look_pitch);
+        // One turn of an orbit at the Sun's 0.45 turns a second.
+        let period = 1.0 / 0.45;
+        let mut frames = Vec::new();
+        for step in 0..36 {
+            gpu.saber_skins.shot_seconds = Some(3.0 + period * f64::from(step) / 36.0);
+            let full = frame(&mut gpu, if step == 0 { 40 } else { 2 });
+            frames.push(image::imageops::crop_imm(&full, 400, 200, 480, 400).to_image());
+        }
+        let path = super::directory().join("duel6-sun-orbit.gif");
+        let file = std::fs::File::create(&path).expect("the gif");
+        let mut encoder = image::codecs::gif::GifEncoder::new_with_speed(file, 10);
+        encoder
+            .set_repeat(image::codecs::gif::Repeat::Infinite)
+            .expect("repeat");
+        for shot in &frames {
+            let delay = image::Delay::from_numer_denom_ms((period * 1000.0 / 36.0) as u32, 1);
+            encoder
+                .encode_frame(image::Frame::from_parts(shot.clone(), 0, 0, delay))
+                .expect("a frame");
+        }
+        println!("{}", path.display());
+        let four: Vec<_> = frames.iter().step_by(9).cloned().collect();
+        println!("{}", sheet(&four, 4, 480, "duel6-sun-orbit").display());
+    });
+}
+
 /// The chromas ([`crate::unlockables::Unlockable::chroma`]) take their saber's colour:
 /// each in a row of the six retail colours and a custom white (which leaves the skin's
 /// own), standing on duel6 as the lineup does.

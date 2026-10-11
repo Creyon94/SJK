@@ -105,6 +105,9 @@ pub(crate) struct BladeSkinDef {
     /// The third set ([`extras`]), from the additions file; each none when absent.
     #[serde(default)]
     pub(crate) star: Option<extras::Star>,
+    /// The fourth set, from the later additions file: the glint's orbit; none when absent.
+    #[serde(default)]
+    pub(crate) orbit: Option<extras::Orbit>,
     #[serde(default)]
     pub(crate) wisps: Option<extras::Wisps>,
     #[serde(default)]
@@ -691,7 +694,8 @@ impl Motes {
 }
 
 /// Every `skins/blades/<id>.bladeskin` in `vfs` that reads, by id, with its additions
-/// file (`<id>.bladeextra`, [`extras::ADDITIONS`]) laid over it when there is one; the
+/// file (`<id>.bladeextra`, [`extras::ADDITIONS`]) and then its later one
+/// (`<id>.bladeextra2`, [`extras::LATER_ADDITIONS`]) laid over it when there are some; the
 /// ones that do not read are reported to the log by name.
 pub(crate) fn load(vfs: &sjk_vfs::VirtualFileSystem) -> Vec<(String, BladeSkinDef)> {
     let mut skins = Vec::new();
@@ -704,13 +708,17 @@ pub(crate) fn load(vfs: &sjk_vfs::VirtualFileSystem) -> Vec<(String, BladeSkinDe
     for listed in vfs.list_files(FOLDER, EXTENSION) {
         let path = format!("{FOLDER}/{listed}");
         let id = listed.trim_end_matches(EXTENSION);
-        // The additions file, laid over the skin file when there is one.
-        let additions = format!("{FOLDER}/{id}{}", extras::ADDITIONS);
-        let read = text_of(&path)
-            .and_then(|text| match vfs.read(&additions) {
+        // The additions files, laid over the skin file in turn when there are some.
+        let lay_over = |text: String, extension: &str| {
+            let additions = format!("{FOLDER}/{id}{extension}");
+            match vfs.read(&additions) {
                 Ok(Some(_)) => extras::merged(&text, &text_of(&additions)?),
                 _ => Ok(text),
-            })
+            }
+        };
+        let read = text_of(&path)
+            .and_then(|text| lay_over(text, extras::ADDITIONS))
+            .and_then(|text| lay_over(text, extras::LATER_ADDITIONS))
             .and_then(|text| parse(id, &text));
         match read {
             Ok(def) => skins.push((id.to_owned(), def)),

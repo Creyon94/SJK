@@ -66,6 +66,7 @@ did: Low FPS help (help_fps): EJK graphics offered on heavy maps
 did: Lighter memory on servers: the menu world dropped during matches
 did: Client mods: JA+ tools (admin teleports after JoF EJK) and JoF tools, loaded on their servers
 did: Mythical shader parts: the Sun's and the Spectral's effects, each switched on or off
+did: The Sun's orbiting glints, circling its blade below the tip
 did: SJK chat GIFs, who is online, chat sounds, reply and the last channel remembered
 did: Crash reports to the SJK team, and world notes: tell the team what is wrong on a map
 did: The quick wheel's live Force page and Toys page, Illuminate as a toy

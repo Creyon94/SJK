@@ -1,5 +1,23 @@
 # Status and priorities
 
+## The Sun's orbiting glints
+
+Branch `personal/sun-orbit` (11/10/2026, based on `3654f5b2`, Windows 11), with the hub's
+`feat/sun-orbit`. Sol asked for the Sun's tip glint lower on the blade, circling it with
+a second glint. The blade-skin format gains a fourth set, `orbit` (glints `at` units
+below the tip, `count` of them, `radius` out, `rate` turns a second, `tilt`), read from
+a later additions file, `<id>.bladeextra2`, that clients of the third set never open
+(they keep the glint at the tip) ([unlockables.md](unlockables.md#blade-skin-files),
+[rendering.md](rendering.md#saber-blade-skins)). The Sun's: two glints, the second
+smaller, 9 units below the tip, 4.5 out, 0.45 turns a second; they dim behind the blade.
+The skin uniform grows to 60 lanes (15360 bytes of the 16 KiB).
+
+Verified: unit tests (the orbit's fields and ranges, the later file laid over the first,
+the uniform lanes, one instance per glint with its number and bounds) and `saber.wgsl`
+validated by naga; world shots with the hub branch's built pack: `duel6_mythical_parts`
+and `duel6_sun_orbit` (an upright Sun up close over one orbit, `duel6-sun-orbit.gif`).
+Not verified: in a live match, against the deployed hub (the pack is not deployed yet).
+
 ## Mythical shader parts
 
 Branch `personal/shader-options` (11/10/2026, based on `5dadea06`, Windows 11), with the

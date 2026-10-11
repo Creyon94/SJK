@@ -144,10 +144,12 @@ struct Skin {
     glyph_shape: vec4<f32>,
     // The third set (blade_skin_extras.rs); each zeros when absent.
     // Star (the tip's glint): colour and brightness; rays, length, width, halo; spin,
-    // twinkle, depth.
+    // twinkle, depth, and the glints circling the blade (0: one at the tip). Their orbit:
+    // how far below the tip (units), how far out (units), turns a second, tilt (radians).
     star_color: vec4<f32>,
     star_shape: vec4<f32>,
     star_motion: vec4<f32>,
+    star_orbit: vec4<f32>,
     // Wisps: colour and brightness; rise, speed, scale, curl; density.
     wisp_color: vec4<f32>,
     wisp_shape: vec4<f32>,
@@ -164,6 +166,7 @@ struct VertexOutput {
     @location(0) color: vec3<f32>,
     // Across and along the projected blade, world units; along is 0 at the hilt.
     @location(1) blade: vec2<f32>,
+    // The projected shaft's length; for a glint, how bright it shows.
     @location(2) @interpolate(flat) shaft: f32,
     @location(3) @interpolate(flat) radius: f32,
     @location(4) @interpolate(flat) length: f32,
@@ -196,9 +199,11 @@ const MAX_SKINS: u32 = 16u;
 const KIND_RETAIL: u32 = 0u;
 const KIND_NEUTRAL: u32 = 1u;
 const KIND_SKIN: u32 = 2u;
-// Colour alpha of a skin's glint at the tip (saber.rs `STAR`); a glow's is its hilt
-// sprite's radius, a core's zero.
+// Colour alpha of a skin's first glint (saber.rs `STAR`), glint n's `STAR - n`; a glow's
+// is its hilt sprite's radius, a core's zero.
 const STAR: f32 = -1.0;
+// How bright a glint shows behind the blade, where its glow covers it.
+const GLINT_BEHIND: f32 = 0.3;
 // The sections a wearer may switch off, a bit each (blade_skin_extras.rs `Section`).
 const OFF_ARCS: u32 = 1u;
 const OFF_MOTES: u32 = 2u;
@@ -303,6 +308,8 @@ fn blade_vertex(vertex_index: u32, blade: BladeInstance) -> VertexOutput {
     var reach = 1.0;
     var room = 0.0;
     var star = 0.0;
+    var glints = 0.0;
+    var orbit = vec4(0.0);
     output.off = 0u;
     if blade_material >= SKIN_MATERIAL && blade_material < SKIN_MATERIAL + MAX_SKINS {
         output.kind = KIND_SKIN + (blade_material - SKIN_MATERIAL);
@@ -313,21 +320,40 @@ fn blade_vertex(vertex_index: u32, blade: BladeInstance) -> VertexOutput {
         reach = skin.swell.x;
         room = skin_room(skin, blade.off);
         star = skin.star_shape.y;
+        glints = skin.star_motion.w;
+        orbit = skin.star_orbit;
     }
     output.animation = blade_animation;
     output.persona = blade_persona;
     output.chroma = blade_chroma;
     output.down = vec2(-side.z, -up.z);
     var world: vec3<f32>;
-    if hilt == STAR {
-        // A skin's glint: a square round the tip facing the camera, as wide as the rays
-        // are long; `blade` is the place on it from the tip.
-        let size = max(star, 0.001);
-        let tip = blade_base + direction * blade_length;
+    if hilt <= STAR {
+        // A skin's glint: a square facing the camera, as wide as the rays are long, round
+        // the tip, or round its place on the orbit below it; `blade` is the place on it
+        // from its heart, `shaft` how bright it shows.
+        let n = STAR - hilt;
+        let size = max(star, 0.001) * glint_scale(n);
+        var heart = blade_base + direction * blade_length;
+        output.shaft = 1.0;
+        if glints > 0.0 {
+            // Round the blade's axis, measured from the camera's side of it (the near side
+            // at a quarter turn), so the circle reads as a ring however the blade is seen;
+            // the tilt lifts the near side and drops the far one.
+            let toward = normalize(cross(side, direction));
+            let angle = TAU * (blade_animation.x * orbit.z + blade_animation.y + n / glints);
+            let across = cos(angle);
+            let near = sin(angle);
+            heart += direction * (orbit.y * tan(orbit.w) * near - min(orbit.x, blade_length))
+                + (side * across + toward * near) * orbit.y;
+            // Behind the blade, and close enough to its axis for the glow to cover it.
+            let behind = smoothstep(0.1, -0.5, near);
+            let covered = 1.0 - smoothstep(0.6, 1.6, abs(across) * orbit.y / max(blade_radius, 0.001));
+            output.shaft = 1.0 - (1.0 - GLINT_BEHIND) * behind * covered;
+        }
         let corner = vec2(local.x, local.y * 2.0 - 1.0);
-        world = tip + (side * corner.x + up * corner.y) * size;
+        world = heart + (side * corner.x + up * corner.y) * size;
         output.blade = corner * size;
-        output.shaft = 0.0;
     } else if hilt > 0.0 {
         // Wide enough for the grown hilt-end sprites and the hilt sprite itself, and the
         // skin's room.
@@ -1217,20 +1243,27 @@ fn core_split(input: VertexOutput) -> f32 {
     return 1.5 * skin_glitch(skin, along, input.animation.x, input.animation.y).y;
 }
 
+// Glint n's size: every other one of an orbit is smaller, a companion to the first.
+fn glint_scale(n: f32) -> f32 {
+    return select(1.0, 0.7, (i32(round(n)) & 1) == 1);
+}
+
 // A skin's glint, coloured as its glow is (the wearer's tint and chroma, an afterimage's
-// fading).
+// fading), dimmed behind the blade; each of an orbit twinkles and turns at its own pace.
 fn star_glow(input: VertexOutput, pixel: f32) -> vec3<f32> {
     let skin = skin_at(input);
     if skin.star_color.w <= 0.0 {
         return vec3(0.0);
     }
-    var glint = skin_star(skin, input.blade, input.animation.x, input.animation.y, pixel)
-        * skin.star_color.rgb * skin.star_color.w;
+    let n = STAR - input.hilt;
+    let scale = glint_scale(n);
+    var glint = skin_star(skin, input.blade / scale, input.animation.x,
+        input.animation.y + n * 0.37, pixel / scale) * skin.star_color.rgb * skin.star_color.w;
     glint = skin_apply_tint(glint, skin_tint(skin, input));
     if input.chroma != 0.0 {
         glint = skin_turn_hue(glint, input.chroma);
     }
-    return glint * persona_fade(input);
+    return glint * persona_fade(input) * input.shaft;
 }
 
 // Dynamic glow: the glow capsule only; the core line's shader has no `glow` stage.
@@ -1238,7 +1271,7 @@ fn star_glow(input: VertexOutput, pixel: f32) -> vec3<f32> {
 fn fragment_glow(input: VertexOutput) -> @location(0) vec4<f32> {
     // Taken before any branch (uniform control flow).
     let pixel = fwidth(input.blade.x);
-    if input.hilt == STAR { return vec4(star_glow(input, pixel), 1.0); }
+    if input.hilt <= STAR { return vec4(star_glow(input, pixel), 1.0); }
     if input.hilt <= 0.0 { discard; }
     if input.kind >= KIND_SKIN { return vec4(skin_glow(input, pixel), 1.0); }
     return vec4(glow_capsule(input) * input.color, 1.0);
@@ -1253,7 +1286,7 @@ fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
     let core_dx = dpdx(core_uv);
     let core_dy = dpdy(core_uv);
     let pixel = fwidth(input.blade.x);
-    if input.hilt == STAR {
+    if input.hilt <= STAR {
         return vec4(star_glow(input, pixel), 1.0);
     }
     if input.hilt > 0.0 {

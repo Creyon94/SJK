@@ -18,6 +18,10 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- The Sun's glint leaves the tip: two glints, one smaller, circle the blade a little below it, dimming as they pass behind; the part is now Orbiting glints _(Sol)_
+
 ## 2026.1011.2 (Alpha) | 11/10/2026
 
 The Mythical saber shaders grow: the Sun and the Spectral get new effects, and you choose which parts your blade shows, for every SJK player. Also reply and remembered chat channels, jetpacks and the spawn bubble back, weather that no longer covers sabers, sounds on the right side again, and fuller credits.
