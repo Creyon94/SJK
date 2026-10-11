@@ -812,7 +812,7 @@ test: Look at a wall through a hole: the wall bends into a ring round the black 
 test: Swing the blade: dark-violet afterimages follow it; held still it pulses slowly.
 test: Collection > Shaders, Void: untick each of the 5 parts in turn: only that one goes.
 test: A 2026.1011.2 client sees the warp, pulse and afterimages, but no black holes.
-note: Needs the hub's feat/void-holes pack (saber_void.bladeextra and .bladeextra2).
+note: Hub deployed 11/10/2026 with the Void's two additions files.
 
 [sun-orbit]
 area: Rendering & effects
