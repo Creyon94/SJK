@@ -10,12 +10,20 @@ use std::path::Path;
 pub(crate) struct Selection {
     checksums: Vec<i32>,
     map_checksum: Option<i32>,
+    /// `mapname` from the server info, for a cached map nobody referenced.
+    map: Option<String>,
 }
 
 impl Selection {
     /// Parse stock's references, which sv_init.cpp publishes on both pure and unpure servers.
     pub(crate) fn from_game(game: &GameState) -> Result<Self, Box<dyn Error>> {
-        Self::from_system_info(game.config_string(1).unwrap_or(b""))
+        let mut selection = Self::from_system_info(game.config_string(1).unwrap_or(b""))?;
+        selection.map = std::str::from_utf8(game.config_string(0).unwrap_or(b""))
+            .ok()
+            .and_then(|text| InfoString::parse(text).ok())
+            .and_then(|info| info.get("mapname").map(str::to_owned))
+            .filter(|map| sjk_vfs::VirtualPath::new(&format!("maps/{map}.bsp")).is_ok());
+        Ok(selection)
     }
 
     fn from_system_info(raw: &[u8]) -> Result<Self, Box<dyn Error>> {
@@ -37,12 +45,13 @@ impl Selection {
             .transpose()?;
         if checksums.is_empty() {
             crate::log::progress(format_args!(
-                "session content: no pak references; cached downloads excluded"
+                "session content: no pak references; downloads only for a missing map"
             ));
         }
         Ok(Self {
             checksums,
             map_checksum,
+            map: None,
         })
     }
 
@@ -66,7 +75,12 @@ impl Selection {
         vfs: &mut VirtualFileSystem,
         directory: &Path,
     ) -> Result<(), Box<dyn Error>> {
-        if self.checksums.is_empty() {
+        let map = self.map.as_ref().map(|map| format!("maps/{map}.bsp"));
+        let map_missing = |vfs: &VirtualFileSystem| {
+            map.as_deref()
+                .is_some_and(|path| !vfs.contains(path).unwrap_or(true))
+        };
+        if self.checksums.is_empty() && !map_missing(vfs) {
             return Ok(());
         }
         let mut files = if directory.is_dir() {
@@ -81,6 +95,8 @@ impl Selection {
                 .is_some_and(|e| e.eq_ignore_ascii_case("pk3"))
         });
         files.sort();
+        // Downloads are screened against the content mounted before them.
+        let base = vfs.clone();
         let mut candidates = Vec::new();
         let installed: Vec<_> = vfs
             .mounts()
@@ -104,16 +120,18 @@ impl Selection {
         // Installed references also participate: a cached pak may be LOWER priority than
         // retail in the server list. Simply appending that pak would select the wrong BSP.
         for checksum in self.checksums.iter().rev() {
-            if let Some((_, path)) = installed
-                .iter()
-                .chain(&candidates)
-                .find(|(sum, _)| sum == checksum)
-            {
+            if let Some((_, path)) = installed.iter().find(|(sum, _)| sum == checksum) {
                 let canonical = std::fs::canonicalize(path)?;
                 vfs.mount_pk3(&canonical)?;
                 crate::log::progress(format_args!(
                     "session content: selected {} checksum={checksum}",
                     canonical.display()
+                ));
+            } else if let Some((_, path)) = candidates.iter().find(|(sum, _)| sum == checksum) {
+                mount_download(vfs, &base, path)?;
+                crate::log::progress(format_args!(
+                    "session content: selected download {} checksum={checksum}",
+                    path.display()
                 ));
             } else {
                 // References describe content the server touched, not a required
@@ -123,6 +141,30 @@ impl Selection {
                 crate::log::progress(format_args!(
                     "session content: referenced pak checksum {checksum} unavailable; using available content"
                 ));
+            }
+        }
+        // A server that lists no paks (JoF's send an empty list) still names its
+        // map: a download holding a map that nothing installed has is the only
+        // copy there is. The newest wins; the map checksum, when sent, still
+        // guards collision.
+        if let Some(path) = map.as_deref()
+            && map_missing(vfs)
+        {
+            candidates.sort_by_key(|(_, pak)| {
+                std::fs::metadata(pak)
+                    .and_then(|metadata| metadata.modified())
+                    .ok()
+            });
+            for (checksum, pak) in candidates.iter().rev() {
+                let mut probe = VirtualFileSystem::new();
+                if probe.mount_pk3(pak).is_ok() && probe.contains(path).unwrap_or(false) {
+                    mount_download(vfs, &base, pak)?;
+                    crate::log::progress(format_args!(
+                        "session content: {path} is in no listed pak; using download {} checksum={checksum}",
+                        pak.display()
+                    ));
+                    break;
+                }
             }
         }
         Ok(())
@@ -153,6 +195,33 @@ impl Selection {
         ));
         Ok(sjk_bsp::Bsp::parse(&asset.bytes)?)
     }
+}
+
+/// Mount a downloaded pak over `base` without what the download policy refuses.
+fn mount_download(
+    vfs: &mut VirtualFileSystem,
+    base: &VirtualFileSystem,
+    path: &Path,
+) -> Result<(), Box<dyn Error>> {
+    let canonical = std::fs::canonicalize(path)?;
+    let mut tally = super::downloads::policy::Tally::default();
+    vfs.mount_pk3_filtered(
+        &canonical,
+        |entry| match super::downloads::policy::refusal(entry, base) {
+            Some(refusal) => {
+                tally.add(refusal, entry);
+                false
+            }
+            None => true,
+        },
+    )?;
+    if let Some(summary) = tally.summary() {
+        crate::log::progress(format_args!(
+            "session content: download {} stripped of {summary}",
+            canonical.display()
+        ));
+    }
+    Ok(())
 }
 
 /// codemp CM_LoadMap: XOR the four little-endian words of MD4 over the entire BSP file.

@@ -1,5 +1,29 @@
 # Status and priorities
 
+## Downloads that work, and what they may bring
+
+Branch `personal/allow-download` (12/10/2026, based on `c2016fbf`, Windows 11). Sol
+asked for `cl_allowDownload` to work and for downloads to be stripped of anything
+harmful, such as shaders and scripts. Found: JoF's March 2026 reference list had a
+pak name with a space (`base/{JoF}Sentinel Nexus`), which shifted every later name
+onto the next checksum, and names with braces and apostrophes failed the filename
+check; any one refused or bad pak ended the join. Now names are rejoined, the
+filename rule takes community names, requests are quoted, a failed pak is skipped,
+a map nothing installed has is taken from an earlier download when the server lists
+no paks, and a download only adds content: programs, configs, ICARUS scripts, menus,
+nested archives and replacements of installed files are hidden at mount, and its
+shader scripts may not redefine installed shaders or texture-named ones
+([client.md](client.md#what-a-download-may-bring)). The archives stay as downloaded,
+so their checksums (and pure proofs) are unchanged.
+
+Not a fix for: JoF's servers today send `sv_allowdownload 0` and an empty
+`sv_referencedPakNames` (Sol's 11/10 logs, both JoF addresses and 135.125.145.49), so
+no client can download from them; EternalJK and JoF EJK download over UDP only, as SJK
+does. Verified: unit tests (name rejoining on JoF's real list, the filtered mount, the
+policy's kinds and replacements, the shader screening), the workspace's tests. Not
+verified: a download from a server, the skip-and-continue path against a stock server,
+the map fallback in a game, and FFA3 Night under the policy.
+
 ## Log requests
 
 Branch `personal/log-requests` (11/10/2026, based on `491ee67c`, Windows 11), with the

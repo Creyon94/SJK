@@ -151,7 +151,19 @@ impl VirtualFileSystem {
     }
 
     pub fn mount_pk3(&mut self, archive: impl AsRef<Path>) -> Result<MountId, VfsError> {
-        let source = Pk3Source::open(archive.as_ref())?;
+        let source = Pk3Source::open(archive.as_ref(), |_| true)?;
+        self.add_mount(source.name.clone(), Arc::new(source))
+    }
+
+    /// Mounts an archive with only the entries `keep` accepts: the others are
+    /// not read, listed or counted, as if the archive lacked them. The file is
+    /// not changed, so its checksums (and a pure server's proof) stay the same.
+    pub fn mount_pk3_filtered(
+        &mut self,
+        archive: impl AsRef<Path>,
+        keep: impl FnMut(&VirtualPath) -> bool,
+    ) -> Result<MountId, VfsError> {
+        let source = Pk3Source::open(archive.as_ref(), keep)?;
         self.add_mount(source.name.clone(), Arc::new(source))
     }
 
@@ -563,7 +575,10 @@ struct Pk3Source {
 }
 
 impl Pk3Source {
-    fn open(archive_path: &Path) -> Result<Self, VfsError> {
+    fn open(
+        archive_path: &Path,
+        mut keep: impl FnMut(&VirtualPath) -> bool,
+    ) -> Result<Self, VfsError> {
         let archive_path = archive_path.canonicalize().map_err(|source| VfsError::Io {
             operation: "canonicalize PK3",
             path: archive_path.to_owned(),
@@ -595,6 +610,9 @@ impl Pk3Source {
                     entry: name.to_owned(),
                     source,
                 })?;
+            if !keep(&virtual_path) {
+                continue;
+            }
             // A later entry wins, matching the VFS mount precedence rule.
             entries.insert(virtual_path, index);
         }
@@ -903,5 +921,47 @@ mod read_path_tests {
             vfs.mount_memory("test", [("/models/a.md3", Vec::new())])
                 .is_err()
         );
+    }
+}
+
+#[cfg(test)]
+mod filtered_pk3_tests {
+    use super::*;
+    use std::io::Write;
+
+    #[test]
+    fn rejected_entries_are_neither_read_nor_listed() {
+        let path = std::env::temp_dir().join(format!(
+            "sjk-vfs-filtered-{}-{:?}.pk3",
+            std::process::id(),
+            std::thread::current().id()
+        ));
+        {
+            let mut zip = zip::ZipWriter::new(File::create(&path).unwrap());
+            for (name, bytes) in [
+                ("maps/new.bsp", &b"bsp"[..]),
+                ("autoexec.cfg", b"quit"),
+                ("cgamex86.dll", b"MZ"),
+            ] {
+                zip.start_file(name, zip::write::SimpleFileOptions::default())
+                    .unwrap();
+                zip.write_all(bytes).unwrap();
+            }
+            zip.finish().unwrap();
+        }
+        let mut vfs = VirtualFileSystem::new();
+        let mut asked = Vec::new();
+        vfs.mount_pk3_filtered(&path, |entry| {
+            asked.push(entry.as_str().to_owned());
+            entry.as_str().starts_with("maps/")
+        })
+        .unwrap();
+        std::fs::remove_file(&path).unwrap();
+        assert_eq!(asked, ["maps/new.bsp", "autoexec.cfg", "cgamex86.dll"]);
+        assert_eq!(vfs.read("maps/new.bsp").unwrap().unwrap().bytes, b"bsp");
+        assert!(vfs.read("autoexec.cfg").unwrap().is_none());
+        assert!(!vfs.contains("cgamex86.dll").unwrap());
+        assert_eq!(vfs.paths().len(), 1);
+        assert_eq!(vfs.mounts().next().unwrap().entries, 1);
     }
 }
