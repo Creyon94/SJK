@@ -130,6 +130,56 @@ pub(crate) fn camera_trace(
     }
 }
 
+/// A rain strike needs open sky and a dry point, including presented inline doors
+/// and baseline-only permanent models. Packed player hulls do not stop rain.
+pub(crate) fn rain_exposed(
+    bsp: &Bsp,
+    scratch: &mut sjk_bsp::TraceScratch,
+    colliders: &[Collider],
+    owner: u16,
+    point: Vec3,
+) -> bool {
+    const REJECT: u32 = 1 | 0x1000_0000 | 0x20000 | 2 | 4;
+    let mut contents = bsp.point_contents(point.to_array(), u32::MAX);
+    if contents & REJECT != 0 {
+        return false;
+    }
+    let end = point + Vec3::Z * 65536.0;
+    let mut hit = bsp.trace_box_with(
+        scratch,
+        point.to_array(),
+        end.to_array(),
+        Aabb::POINT,
+        0x1001,
+    );
+    for collider in colliders {
+        if collider.entity == owner {
+            continue;
+        }
+        contents |= inline::contents(bsp, collider, point.to_array());
+        if contents & REJECT != 0 {
+            return false;
+        }
+        let other = inline::trace(
+            bsp,
+            collider,
+            point.to_array(),
+            end.to_array(),
+            Aabb::POINT,
+            0x1001,
+        );
+        hit.start_solid |= other.start_solid;
+        hit.all_solid |= other.all_solid;
+        if other.fraction < hit.fraction {
+            hit.fraction = other.fraction;
+            hit.surface_flags = other.surface_flags;
+        }
+    }
+    !hit.start_solid
+        && !hit.all_solid
+        && (hit.surface_flags & 0x2000 != 0 || (hit.fraction == 1.0 && contents & 0x10000 != 0))
+}
+
 /// [`camera_trace`] against the world and the inline-model solids among `entities`,
 /// skipping the local client `local`.
 fn camera_trace_through<'a>(

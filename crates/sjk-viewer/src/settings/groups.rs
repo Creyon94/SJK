@@ -80,6 +80,7 @@ impl Group {
                 "cg_simpleItems",
                 "cg_forceModel",
                 "cg_saberTrail",
+                crate::effect_aux::saber_rain_steam::CVAR,
                 "cg_speedTrail",
                 "cg_auraShell",
                 "cg_spProtAbsColor",

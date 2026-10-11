@@ -27,6 +27,7 @@ pub(crate) fn finish(
         append(snapshot, world, time, &mut gpu.dynamic_lights);
     }
     crate::effect_aux::saber_contacts::frame(gpu, time, now, audio);
+    crate::effect_aux::saber_rain_steam::frame(gpu, time, now, audio);
 }
 
 /// Rebuild from current authority each frame; clearing/dropping needs no persistent light handle.

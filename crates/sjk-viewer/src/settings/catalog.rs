@@ -541,6 +541,15 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Saber rain steam (0 off / 1 on / 2 only me)",
+        cvar: crate::effect_aux::saber_rain_steam::CVAR,
+        kind: ValueKind::Integer {
+            min: 0,
+            max: 2,
+            step: 1,
+        },
+    },
+    Setting {
         label: "Force Speed trail",
         cvar: "cg_speedTrail",
         kind: ValueKind::Bool,

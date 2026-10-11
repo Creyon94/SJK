@@ -73,6 +73,7 @@ pub(crate) const STOCK_EFFECTS: &[&str] = &[
     "rocket/muzzle_flash",
     "rocket/altmuzzle_flash",
     "saber/saber_cut",
+    "saber/fizz",
     "saber/saber_block",
     "saber/blood_sparks_mp",
     "saber/blood_sparks_25_mp",
