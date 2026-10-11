@@ -810,6 +810,13 @@ mod tests {
             }
             let path = shoot(&mut gpu, 6, "duel6-gameplay-fps-other");
             println!("{}", path.display());
+            // Opened by itself: the inputs were not going through.
+            if let Some(console) = gpu.console.as_mut() {
+                console.set_frame_cap(0);
+                console.open_gameplay_fps_alert();
+            }
+            let path = shoot(&mut gpu, 6, "duel6-gameplay-fps-alert");
+            println!("{}", path.display());
             if let Some(console) = gpu.console.as_mut() {
                 console.open_config_import(Some(std::path::Path::new(
                     "C:/no/such/folder/jampconfig.cfg",

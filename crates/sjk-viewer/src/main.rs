@@ -110,6 +110,7 @@ mod impact_spawn;
 mod impacts;
 mod ingame_menu;
 mod input;
+mod input_health;
 mod jof_tag;
 mod keybind_editor;
 mod lamp_lights;

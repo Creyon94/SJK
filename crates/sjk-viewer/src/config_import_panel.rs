@@ -60,6 +60,8 @@ pub(crate) struct FpsInfo {
     pub(crate) cap: String,
     /// The server's step while it is `pmove_fixed`.
     pub(crate) server_fixed: Option<i32>,
+    /// Why the card opened by itself: the inputs were not going through.
+    pub(crate) alert: Option<String>,
 }
 
 /// What the file dialog gave once it closed ([`Panel::take_browsed`]).
@@ -241,6 +243,15 @@ impl Panel {
             info,
             imported: None,
         };
+    }
+
+    /// The card opened because the inputs were not going through: say so and
+    /// pick `suggested`.
+    pub(crate) fn alert_fps(&mut self, alert: String, suggested: i64) {
+        if let State::Fps { choice, info, .. } = &mut self.state {
+            info.alert = Some(alert);
+            choice.suggest(suggested);
+        }
     }
 
     /// The import is done (its `lines`): ask for the gameplay FPS with what

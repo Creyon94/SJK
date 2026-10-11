@@ -7,8 +7,10 @@
 //! acceleration. Players lock those numbers for that feel. SJK makes commands on
 //! their own clock, as JoF EJK's `cl_cmdratecap`. On Auto (`gameplay_fps 0`, the
 //! default) the clock runs at the FPS cap, so the movement is what the other
-//! clients give at that cap, and a server that fixes the step (JoF's
-//! `pmove_fixed`) uses its own; a number keeps that movement whatever the FPS cap.
+//! clients give at that cap; a `pmove_fixed` server uses its own step, and JoF's
+//! servers take 125 a second at most; a number keeps that movement whatever the FPS
+//! cap. Inputs a server does not take open the card by themselves
+//! (`input_health.rs`).
 //!
 //! The choice is a step of the Import card (`config_import_panel.rs`), after a
 //! config from another client is read; the `help_gameplay_fps` command and the
@@ -34,7 +36,7 @@ pub(crate) const EXPLANATION: &str = "In the original game your FPS was also you
 
 /// The note on servers that fix the movement step.
 pub(crate) const FIXED_NOTE: &str =
-    "Servers that fix the movement step (pmove_fixed, as JoF's) move everyone in their own step.";
+    "Servers that fix the step (pmove_fixed) or cap it (JoF's, at 125) use their own step.";
 
 /// The choices in the card's order: Auto, then the presets; "Other" comes after.
 const CHOICES: [i64; 5] = [
@@ -112,6 +114,11 @@ impl Choice {
         };
         choice.pick(start);
         choice
+    }
+
+    /// Select `fps` for the player (the card opened to suggest it).
+    pub(crate) fn suggest(&mut self, fps: i64) {
+        self.pick(fps);
     }
 
     /// Select `fps`: Auto or its preset, or "Other" holding it.
@@ -234,7 +241,7 @@ pub(crate) fn row_text(console: &crate::console::ViewerConsole) -> String {
         AUTO_GAMEPLAY_FPS => format!("Auto ({})", console.frame_cap()),
         fps => fps.to_string(),
     };
-    match console.pmove_fixed_msec() {
+    match console.pmove_fixed_msec().or(console.server_step_floor()) {
         Some(step) => format!("{shown}, this server {step} ms"),
         None => shown,
     }

@@ -68,6 +68,21 @@ impl ViewerConsole {
         self.config_import.open_fps(owns_console, choice, info);
     }
 
+    /// The server has not been taking the inputs at this step
+    /// ([`crate::input_health`]): the gameplay FPS card, saying so, with 125
+    /// suggested; and a line in the console.
+    pub(crate) fn open_gameplay_fps_alert(&mut self) {
+        let made = 1000 / self.command_step().max(1);
+        let alert = format!(
+            "Your inputs are not going through on this server at {made} a second: it takes \
+             fewer. 125, what JoF EJK sends, works everywhere."
+        );
+        self.shell.push_log(format!("^3{alert}"));
+        self.open_gameplay_fps();
+        self.config_import
+            .alert_fps(alert, sjk_client::command_rate::DEFAULT_GAMEPLAY_FPS);
+    }
+
     /// The FPS cap and the server's fixed step, for the gameplay FPS step.
     fn fps_info(&self) -> FpsInfo {
         let cap = match self.integer_cvar("com_maxfps") {
@@ -77,7 +92,8 @@ impl ViewerConsole {
         };
         FpsInfo {
             cap,
-            server_fixed: self.pmove_fixed_msec(),
+            server_fixed: self.pmove_fixed_msec().or(self.server_step_floor()),
+            alert: None,
         }
     }
 

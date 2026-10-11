@@ -385,6 +385,14 @@ impl GpuState {
                     .apply_snapshot(snapshot, &self.bsp, &mut self.trace_scratch);
             self.net_timing
                 .prediction(self.local_prediction.last_sample());
+            // Inputs that do not go through at the gameplay FPS open its card.
+            let sample = self.local_prediction.last_sample();
+            if let Some(console) = &mut self.console
+                && console.observe_input_health(&sample, std::time::Instant::now())
+            {
+                console.open_gameplay_fps_alert();
+                self.sync_cursor_policy();
+            }
         }
         // After the replay: a predicted local view follows the predicted `delta_angles`.
         super::prediction_preview::observe_view(

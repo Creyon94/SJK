@@ -207,6 +207,11 @@ pub(crate) struct ViewerConsole {
     /// The FPS cap Auto follows, as the frame pacer last read it
     /// ([`Self::set_frame_cap`]).
     frame_cap: u32,
+    /// The shortest step the server takes (JoF's 8 ms), from its serverinfo
+    /// (`jof_step_floor`).
+    server_step_floor: Option<i32>,
+    /// Whether the server takes the inputs at that step ([`crate::input_health`]).
+    input_health: crate::input_health::InputHealth,
     pmove_fixed: console_cvars::IntegerSetting,
     pmove_msec: console_cvars::IntegerSetting,
     pub(crate) geometry_controls: crate::shared_geometry::environment::Cvars,
@@ -331,7 +336,24 @@ impl ViewerConsole {
             self.gameplay_fps(),
             self.pmove_fixed_msec(),
             self.frame_cap,
+            self.server_step_floor,
         )
+    }
+
+    /// The shortest step this server takes, when it is known to cap commands.
+    pub(crate) fn server_step_floor(&self) -> Option<i32> {
+        self.server_step_floor
+    }
+
+    /// One predicted snapshot's verdict at the step in use: true once when the
+    /// server has not been taking the inputs (open the gameplay FPS card).
+    pub(crate) fn observe_input_health(
+        &mut self,
+        sample: &crate::local_prediction::PredictionSample,
+        now: std::time::Instant,
+    ) -> bool {
+        let step = self.command_step();
+        self.input_health.observe(sample, step, now)
     }
 
     pub(crate) fn config_directory(&self) -> &std::path::Path {

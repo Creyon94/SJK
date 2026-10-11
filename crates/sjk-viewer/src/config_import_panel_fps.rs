@@ -58,10 +58,17 @@ impl Panel {
         let wrapped = |text: &str, most: usize| -> Vec<String> {
             wrap(text, WRAP).take(most).map(str::to_owned).collect()
         };
-        let summary = imported
-            .as_ref()
-            .map(|lines| wrapped(&imported_summary(lines), SHORT_LINES))
-            .unwrap_or_default();
+        // Why the card opened by itself, or what the import changed.
+        let summary = match (&info.alert, &imported) {
+            (Some(alert), _) => wrapped(alert, SHORT_LINES),
+            (None, Some(lines)) => wrapped(&imported_summary(lines), SHORT_LINES),
+            (None, None) => Vec::new(),
+        };
+        let summary_colour = if info.alert.is_some() {
+            color::EMBER
+        } else {
+            color::GOLD
+        };
         let explanation = wrapped(EXPLANATION, EXPLANATION_LINES);
         let origin_line = choice
             .origin
@@ -72,7 +79,10 @@ impl Panel {
         let mut notes = wrapped(FIXED_NOTE, 2);
         if let Some(step) = info.server_fixed {
             notes.extend(wrapped(
-                &format!("This server fixes it at {step} ms: here everyone moves the same."),
+                &format!(
+                    "This server takes a command every {step} ms at most: here you move at {}.",
+                    1000 / step.max(1)
+                ),
                 1,
             ));
         }
@@ -134,7 +144,7 @@ impl Panel {
         );
         let mut y = BODY_TOP;
         for line in &summary {
-            self.fps_line(&frame, line, y, color::GOLD);
+            self.fps_line(&frame, line, y, summary_colour);
             y += LINE;
         }
         y += gap(&summary);
