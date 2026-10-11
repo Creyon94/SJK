@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 11/10/2026 | - | Release 2026.1011.3 notes
+- ff33f66 |  | Release 2026.1011.3 (Alpha)
 + 11/10/2026 | - | The Void's pack deployed
 - ea697bb |  | Void holes: the hub's pack is deployed
 + 11/10/2026 | - | The Void's orbiting black holes and more effects
