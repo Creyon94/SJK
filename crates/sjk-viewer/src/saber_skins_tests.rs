@@ -245,6 +245,8 @@ fn the_uniform_holds_the_files_parameters_where_the_shader_reads_them() {
         (one.star_shape, "star_shape"),
         (one.star_motion, "star_motion"),
         (one.star_orbit, "star_orbit"),
+        (one.hole_color, "hole_color"),
+        (one.hole_shape, "hole_shape"),
         (one.wisp_color, "wisp_color"),
         (one.wisp_shape, "wisp_shape"),
         (one.wisp_field, "wisp_field"),
@@ -255,7 +257,7 @@ fn the_uniform_holds_the_files_parameters_where_the_shader_reads_them() {
     // Past the loaded skins, zeros.
     assert!(uniforms[1..].iter().all(|u| *u == SkinUniform::default()));
     let bytes: &[u8] = bytemuck::cast_slice(&uniforms);
-    assert_eq!(bytes.len(), MAX_SKINS * 60 * 16);
+    assert_eq!(bytes.len(), MAX_SKINS * 62 * 16);
     // The sixteen skins' array stays inside the smallest uniform binding WebGPU
     // guarantees (16 KiB).
     assert!(bytes.len() <= 16 * 1024);
@@ -756,6 +758,32 @@ fn each_saber_of_a_pair_takes_its_own_colour() {
             second.chroma.turn.to_ne_bytes()
         );
     }
+}
+
+#[test]
+fn black_holes_reach_the_uniform_and_take_the_glints_places() {
+    use crate::blade_skin_file::extras::{Section, option_bit};
+    let text = crate::blade_skin_file::extras::merged(
+        &crate::blade_skin_file::tests::sample_with_additions(),
+        crate::blade_skin_file::tests::HOLES,
+    )
+    .unwrap();
+    let def = crate::blade_skin_file::parse("saber_void", &text).unwrap();
+    let one = SkinUniform::of(&def);
+    assert_eq!(one.hole_color, [0.8, 0.6, 1.0, 2.0]);
+    assert_eq!(one.hole_shape[..3], [1.2, 1.0, 0.5]);
+    assert!((one.hole_shape[3] - 5.4).abs() < 1e-6, "the quad's reach");
+    assert_eq!(one.star_color, [0.0; 4], "no glint");
+    assert_eq!(one.star_motion[3], 2.0, "two holes");
+    assert_eq!(one.star_orbit, [12.0, 5.0, 0.3, 0.25]);
+    let skin = LoadedSkin::new("saber_void", def, &VirtualFileSystem::new()).unwrap();
+    let holes = skin.color(0, 0).star.unwrap();
+    assert_eq!((holes.at, holes.count), (12.0, 2));
+    assert!((holes.length - 5.4).abs() < 1e-6);
+    // Switched off, they are not made at all.
+    let off = skin.color(0, option_bit("holes"));
+    assert_eq!(off.star, None);
+    assert_eq!(off.off, Section::Holes.bit());
 }
 
 #[test]

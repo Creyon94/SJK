@@ -1283,8 +1283,8 @@ the CPU (`SkinColor::light_color`, `trail_color`).
   neutral pair (`generated_glow`/`generated_core`; the neutral pair's bytes are
   unchanged and pinned by a test). Retail and RGB blades keep their materials and
   shading unchanged.
-- **Parameters.** The skins' parameters are a uniform array of 16 `Skin` structs of 60
-  `vec4`s (`SkinUniform`, 15360 bytes in all since the glint's orbit, bind group 2 of the
+- **Parameters.** The skins' parameters are a uniform array of 16 `Skin` structs of 62
+  `vec4`s (`SkinUniform`, 15872 bytes in all since the black holes, bind group 2 of the
   saber pipelines),
   written only when skins load (`saber_gpu::Runtime::upload_skins`), never per frame.
   Each instance's material slot selects its skin. The lanes of a section a file leaves
@@ -1369,7 +1369,18 @@ the CPU (`SkinColor::light_color`, `trail_color`).
   turns), the tilt lifting the near side; every other glint is 0.7 the size, each
   twinkles on its own seed, and one behind the blade and close to its axis shows at 0.3
   (`GLINT_BEHIND`, carried to the fragment in `shaft`). Each glint's bounds are the
-  point on the axis widened by the circle's reach. Wisps are drawn in the glow (`skin_wisps`): the world's up in the blade's plane
+  point on the axis widened by the circle's reach. A skin with `holes` (11/10/2026) draws
+  black holes in the glints' places, with the same instances (`hole_color`,
+  `hole_shape`: size, lens, spin, the quad's reach): in the glow passes a thin photon ring
+  just outside the horizon and a two-armed swirl round it (`hole_ring`); with the haze,
+  before any glow, the lens (`vertex_hole`, `fragment_lens`, a pipeline of its own drawn
+  after the haze's so it lies over it, alpha-blended): the scene image sampled as a
+  point mass bends light, `p − p̂ E²/max(r, R)` with `E` the ring's radius, fading to the
+  scene unbent at the quad's edge; and after the blades, in the main pass, the model
+  preview and the dynamic glow image, the horizon (`fragment_shade`, alpha-blended
+  black), so a hole in front of the blade hides its glow and bloom, and one behind it
+  close to its axis (`shaft`, how hidden it is) lets the glow show. The effect layer's
+  merge keeps a black pixel black (`post_aa.wgsl` `with_effects`). Wisps are drawn in the glow (`skin_wisps`): the world's up in the blade's plane
   (`down`, as the embers), a point's height above the nearest point of the blade and
   its distance aside give a column that widens as it rises and fades by the top, filled
   by rising, warped two-octave noise (`skin_rising`). The glow's quad reaches further by

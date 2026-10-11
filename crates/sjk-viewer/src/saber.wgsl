@@ -150,6 +150,11 @@ struct Skin {
     star_shape: vec4<f32>,
     star_motion: vec4<f32>,
     star_orbit: vec4<f32>,
+    // Black holes in the glints' places: the ring's colour and brightness; the horizon's
+    // radius (units), the lens (horizon radii), the swirl's turns a second, the quad's
+    // reach (units).
+    hole_color: vec4<f32>,
+    hole_shape: vec4<f32>,
     // Wisps: colour and brightness; rise, speed, scale, curl; density.
     wisp_color: vec4<f32>,
     wisp_shape: vec4<f32>,
@@ -166,7 +171,7 @@ struct VertexOutput {
     @location(0) color: vec3<f32>,
     // Across and along the projected blade, world units; along is 0 at the hilt.
     @location(1) blade: vec2<f32>,
-    // The projected shaft's length; for a glint, how bright it shows.
+    // The projected shaft's length; for a glint or hole, how hidden it is behind the blade.
     @location(2) @interpolate(flat) shaft: f32,
     @location(3) @interpolate(flat) radius: f32,
     @location(4) @interpolate(flat) length: f32,
@@ -220,6 +225,7 @@ const OFF_GLYPHS: u32 = 4096u;
 const OFF_STAR: u32 = 8192u;
 const OFF_WISPS: u32 = 16384u;
 const OFF_HAZE: u32 = 32768u;
+const OFF_HOLES: u32 = 131072u;
 // RB_SurfaceSaberGlow: sprite spacing and per-sprite growth.
 const SPACING: f32 = 0.65;
 const GROWTH: f32 = 0.017;
@@ -320,6 +326,7 @@ fn blade_vertex(vertex_index: u32, blade: BladeInstance) -> VertexOutput {
         reach = skin.swell.x;
         room = skin_room(skin, blade.off);
         star = skin.star_shape.y;
+        if skin.hole_shape.x > 0.0 { star = skin.hole_shape.w; }
         glints = skin.star_motion.w;
         orbit = skin.star_orbit;
     }
@@ -329,13 +336,13 @@ fn blade_vertex(vertex_index: u32, blade: BladeInstance) -> VertexOutput {
     output.down = vec2(-side.z, -up.z);
     var world: vec3<f32>;
     if hilt <= STAR {
-        // A skin's glint: a square facing the camera, as wide as the rays are long, round
-        // the tip, or round its place on the orbit below it; `blade` is the place on it
-        // from its heart, `shaft` how bright it shows.
+        // A skin's glint (or black hole): a square facing the camera, as wide as the rays
+        // are long (the hole's reach), round the tip, or round its place on the orbit
+        // below it; `blade` is the place on it from its heart, `shaft` how hidden it is.
         let n = STAR - hilt;
         let size = max(star, 0.001) * glint_scale(n);
         var heart = blade_base + direction * blade_length;
-        output.shaft = 1.0;
+        output.shaft = 0.0;
         if glints > 0.0 {
             // Round the blade's axis, measured from the camera's side of it (the near side
             // at a quarter turn), so the circle reads as a ring however the blade is seen;
@@ -349,7 +356,7 @@ fn blade_vertex(vertex_index: u32, blade: BladeInstance) -> VertexOutput {
             // Behind the blade, and close enough to its axis for the glow to cover it.
             let behind = smoothstep(0.1, -0.5, near);
             let covered = 1.0 - smoothstep(0.6, 1.6, abs(across) * orbit.y / max(blade_radius, 0.001));
-            output.shaft = 1.0 - (1.0 - GLINT_BEHIND) * behind * covered;
+            output.shaft = behind * covered;
         }
         let corner = vec2(local.x, local.y * 2.0 - 1.0);
         world = heart + (side * corner.x + up * corner.y) * size;
@@ -489,6 +496,10 @@ fn skin_at(input: VertexOutput) -> Skin {
     if (off & OFF_STAR) != 0u { skin.star_color = vec4(0.0); }
     if (off & OFF_WISPS) != 0u { skin.wisp_color = vec4(0.0); }
     if (off & OFF_HAZE) != 0u { skin.haze = vec4(0.0); }
+    if (off & OFF_HOLES) != 0u {
+        skin.hole_color = vec4(0.0);
+        skin.hole_shape = vec4(0.0);
+    }
     return skin;
 }
 
@@ -1248,22 +1259,45 @@ fn glint_scale(n: f32) -> f32 {
     return select(1.0, 0.7, (i32(round(n)) & 1) == 1);
 }
 
+// A black hole's light at `p` (units from its heart, facing the camera): a thin photon
+// ring just outside the horizon and a fainter accretion swirl round it, two spiral arms
+// turning `spin` turns a second; nothing inside the horizon.
+fn hole_ring(skin: Skin, p: vec2<f32>, time: f32, seed: f32, pixel: f32) -> f32 {
+    let size = skin.hole_shape.x;
+    let r = length(p);
+    let width = max(0.07 * size, pixel);
+    let ring = exp(-pow((r - 1.15 * size) / width, 2.0));
+    let turn = atan2(p.y, p.x) / TAU;
+    let arms = 0.5 + 0.5 * sin(TAU * (2.0 * turn + time * skin.hole_shape.z + seed)
+        + 2.5 * r / size);
+    let swirl = exp(-pow((r - 1.7 * size) / (0.55 * size), 2.0)) * (0.3 + 0.7 * arms) * 0.6;
+    return (ring + swirl) * smoothstep(0.9 * size, 1.05 * size, r);
+}
+
 // A skin's glint, coloured as its glow is (the wearer's tint and chroma, an afterimage's
 // fading), dimmed behind the blade; each of an orbit twinkles and turns at its own pace.
+// A black hole's ring and swirl instead when the skin has holes.
 fn star_glow(input: VertexOutput, pixel: f32) -> vec3<f32> {
     let skin = skin_at(input);
-    if skin.star_color.w <= 0.0 {
-        return vec3(0.0);
-    }
     let n = STAR - input.hilt;
     let scale = glint_scale(n);
-    var glint = skin_star(skin, input.blade / scale, input.animation.x,
-        input.animation.y + n * 0.37, pixel / scale) * skin.star_color.rgb * skin.star_color.w;
+    var glint: vec3<f32>;
+    if skin.hole_shape.x > 0.0 {
+        glint = hole_ring(skin, input.blade / scale, input.animation.x,
+            input.animation.y + n * 0.37, pixel / scale) * skin.hole_color.rgb
+            * skin.hole_color.w;
+    } else if skin.star_color.w > 0.0 {
+        glint = skin_star(skin, input.blade / scale, input.animation.x,
+            input.animation.y + n * 0.37, pixel / scale) * skin.star_color.rgb
+            * skin.star_color.w;
+    } else {
+        return vec3(0.0);
+    }
     glint = skin_apply_tint(glint, skin_tint(skin, input));
     if input.chroma != 0.0 {
         glint = skin_turn_hue(glint, input.chroma);
     }
-    return glint * persona_fade(input) * input.shaft;
+    return glint * persona_fade(input) * (1.0 - (1.0 - GLINT_BEHIND) * input.shaft);
 }
 
 // Dynamic glow: the glow capsule only; the core line's shader has no `glow` stage.
@@ -1357,18 +1391,74 @@ fn fragment_haze(input: VertexOutput) -> @location(0) vec4<f32> {
     let a = skin_rising(input.blade, up, h.y, h.z, 0.6, time, seed);
     let b = skin_rising(input.blade + vec2(17.3, -9.1), up, h.y, h.z, 0.6, time, seed);
     let shift = (vec2(a, b) - 0.5) * 2.0 * h.x * fall * rising;
-    // Units to pixels: the inverse of the quad's Jacobian.
+    // Never more than a few dozen pixels, however close.
+    let pixels = to_pixels(shift, dx, dy, 0.02 * max(size.x, size.y));
+    let uv = (here + pixels) / size;
+    return vec4(textureSampleLevel(haze_scene, haze_sampler, uv, 0.0).rgb, 1.0);
+}
+
+// `shift` in the quad's units as pixels (the inverse of its Jacobian `dx`, `dy`), at
+// most `most` long.
+fn to_pixels(shift: vec2<f32>, dx: vec2<f32>, dy: vec2<f32>, most: f32) -> vec2<f32> {
     let det = dx.x * dy.y - dx.y * dy.x;
     var pixels = vec2(0.0);
     if abs(det) > 1e-8 {
         pixels = vec2(shift.x * dy.y - shift.y * dy.x, -shift.x * dx.y + shift.y * dx.x) / det;
     }
-    // Never more than a few dozen pixels, however close.
-    let most = 0.02 * max(size.x, size.y);
     let len = length(pixels);
     if len > most {
         pixels *= most / len;
     }
-    let uv = (here + pixels) / size;
-    return vec4(textureSampleLevel(haze_scene, haze_sampler, uv, 0.0).rgb, 1.0);
+    return pixels;
+}
+
+// The black holes' quads (the lens and the shade): a skin's glint instances when it has
+// holes its wearer left on; every other instance is folded away.
+@vertex
+fn vertex_hole(@builtin(vertex_index) vertex_index: u32, blade: BladeInstance) -> VertexOutput {
+    var output = blade_vertex(vertex_index, blade);
+    var hole = output.kind >= KIND_SKIN && output.hilt <= STAR && (blade.off & OFF_HOLES) == 0u;
+    if hole {
+        hole = skins[skin_index(output)].hole_shape.x > 0.0;
+    }
+    if !hole {
+        output.clip_position = vec4(0.0, 0.0, 0.0, 1.0);
+    }
+    return output;
+}
+
+// A black hole's lens, drawn with the haze before any glow: the scene round it bent as
+// a point mass bends light, what is behind it drawn into a ring (`lens` horizon radii
+// past the horizon) and squeezed toward it, fading to the scene unbent at the quad's
+// edge (its alpha), and weaker while it is behind the blade.
+@fragment
+fn fragment_lens(input: VertexOutput) -> @location(0) vec4<f32> {
+    // Taken before any branch (uniform control flow).
+    let dx = dpdx(input.blade);
+    let dy = dpdy(input.blade);
+    let size = vec2<f32>(textureDimensions(haze_scene));
+    let skin = skin_at(input);
+    let scale = glint_scale(STAR - input.hilt);
+    let horizon = skin.hole_shape.x * scale;
+    let reach = skin.hole_shape.w * scale;
+    let ring = horizon * (1.0 + skin.hole_shape.y);
+    let p = input.blade;
+    let r = length(p);
+    let fade = 1.0 - smoothstep(0.6 * reach, reach, r);
+    let shift = -p / max(r, 0.0001) * (ring * ring / max(r, horizon)) * fade;
+    let pixels = to_pixels(shift, dx, dy, 0.06 * max(size.x, size.y));
+    let uv = (input.clip_position.xy + pixels) / size;
+    let seen = textureSampleLevel(haze_scene, haze_sampler, uv, 0.0).rgb;
+    return vec4(seen, fade * (1.0 - 0.6 * input.shaft));
+}
+
+// A black hole's horizon, drawn after the glow: black, over the blade's glow when the
+// hole is in front of it; behind the blade (and close to its axis) the glow shows.
+@fragment
+fn fragment_shade(input: VertexOutput) -> @location(0) vec4<f32> {
+    let pixel = fwidth(input.blade.x);
+    let skin = skin_at(input);
+    let horizon = skin.hole_shape.x * glint_scale(STAR - input.hilt);
+    let disc = clamp((horizon - length(input.blade)) / max(pixel, 0.0001) + 0.5, 0.0, 1.0);
+    return vec4(0.0, 0.0, 0.0, disc * (1.0 - input.shaft));
 }

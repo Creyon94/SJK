@@ -101,7 +101,8 @@ Sol develops SJK and sets its direction. Sol's work includes:
   (`japlus.*`: admin teleports, auto login and plugin options, after JoF EJK) and
   JoF tools (`jof.*`, completion of the JoF servers' commands);
 - Mythical shader parts: the Sun's prominences, rising sparks, glints circling its
-  blade below the tip and heat haze, the Spectral's wisps, souls, smoky edge, cold rim and swaying echo, each a part
+  blade below the tip and heat haze, the Void's orbiting black holes, warped space,
+  gravity pulse and afterimages, the Spectral's wisps, souls, smoky edge, cold rim and swaying echo, each a part
   its wearer can switch off, seen so by every SJK player;
 - the SJK chat's GIFs (GIPHY links show their GIF), who is online on the chat page,
   its chat sounds, `reply` (after JoF EJK), the last channel remembered and SJK's

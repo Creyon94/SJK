@@ -1,5 +1,25 @@
 # Status and priorities
 
+## The Void's black holes and more effects
+
+Branch `personal/void-holes` (11/10/2026, based on `ac84cbc0`, Windows 11), with the
+hub's `feat/void-holes`. Sol asked for more effects on the Void and, like the Sun's
+glints, two small black holes orbiting it. The format's fourth set gains `holes`, drawn
+in the glints' places (`orbit` places them), in the later additions file
+([unlockables.md](unlockables.md#blade-skin-files),
+[rendering.md](rendering.md#saber-blade-skins)): a photon ring and swirl in the glow, a
+lens bending the scene with the haze, and a black horizon drawn after the glow (two new
+pipelines). The Void's first additions file adds warped space (haze), a gravity pulse
+and afterimages, which 2026.1011.x clients draw too; its later one the holes. The skin
+uniform grows to 62 lanes (15872 bytes of the 16 KiB).
+
+Verified: unit tests (the holes' fields, ranges, star and holes exclusive, the orbit
+needing one, the uniform lanes, the option leaving the instances out) and `saber.wgsl`
+validated by naga; world shots with the hub branch's built pack: `duel6_mythical_parts`
+(the Void all parts on beside all off, close up, upright) and `duel6_orbits`
+(`duel6-void-orbit.gif`: the horizons black, the ring violet, the pedestal behind bent).
+Not verified: in a live match, the lens's and horizon's cost on a GPU, the deployed hub.
+
 ## The Sun's orbiting glints
 
 Branch `personal/sun-orbit` (11/10/2026, based on `3654f5b2`, Windows 11), with the hub's

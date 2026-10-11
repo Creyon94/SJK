@@ -20,6 +20,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- The Void gets more effects: two small black holes orbit its blade below the tip, bending the world behind them, plus warped space, a gravity pulse beating with its drone and afterimages; each is a part you can switch off _(Sol)_
 - Wall runs, run-ups, ledge flips and rebounds hold the view every frame, so fresh mouse movement no longer turns the camera or your character while the wall move holds the view; JA+ free look is unchanged _(Lumaya, after OpenJK)_
 - Changing con_height while the console is open resizes it at once, and a toggleconsole bind follows the setting; Ctrl (full) and Shift (quarter) still force their height _(Lumaya)_
 - Saber steam in rain: exposed blades give off the stock steam and sizzle under open sky, not under roofs or in water; Settings > Game > Saber rain steam (cg_saberRainSteam: 0 off, 1 everyone, 2 only your blades) _(Lumaya, after JoF EJK)_
