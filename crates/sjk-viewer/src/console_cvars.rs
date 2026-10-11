@@ -341,6 +341,18 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Draw text with the game's own fonts where retail did (menus, chat, HUD text, scoreboard, console), else Inter",
         ),
         CvarDefinition::new(
+            crate::brush_view::CVAR,
+            0_i64,
+            archive,
+            "Invisible brushes (clip, trigger, ladder...) drawn see-through: 0 off, 1 gameplay, 2 all",
+        ),
+        CvarDefinition::new(
+            crate::brush_view::TYPES_CVAR,
+            "",
+            archive,
+            "Brush kinds r_showBrushes shows instead of its set: clip playerclip npcclip shotclip              solid trigger teleport push hurt ladder nodrop slick cushion weather botclip caulk nodraw",
+        ),
+        CvarDefinition::new(
             crate::ground_hud::CVAR,
             false,
             archive,

@@ -93,6 +93,7 @@ impl Group {
                 "cg_errorDecay",
                 "mod_japlus",
                 "mod_jof",
+                crate::brush_view::CVAR,
             ],
             Self::Interface => &[
                 crate::menu::style::CVAR,
@@ -168,6 +169,7 @@ impl Group {
                 ("cg_simpleItems", "Items and models"),
                 ("cg_saberTrail", "Effects"),
                 (crate::camera::STYLE_CVAR, "Camera and prediction"),
+                (crate::brush_view::CVAR, "Map tools"),
             ],
             Self::Interface => &[
                 (crate::menu::style::CVAR, "Menus"),

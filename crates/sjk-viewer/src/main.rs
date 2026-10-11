@@ -15,6 +15,7 @@ mod auto_switch;
 mod avatar_command;
 mod avatars;
 mod bolt;
+mod brush_view;
 mod build_info;
 mod camera;
 mod camera_uniform;
@@ -494,6 +495,8 @@ struct GpuState {
     /// The game's menu-file status HUD (`cg_hudStyle game`).
     menu_hud: menu_hud::MenuHud,
     ground_hud: ground_hud::GroundHud,
+    /// Invisible brushes (`r_showBrushes`).
+    brush_view: brush_view::BrushView,
     /// Display mode last applied to the window; `None` forces a reapply.
     applied_display: Option<settings::DisplayMode>,
     /// Exclusive fullscreen is paused while the window lacks focus, so Alt+Tab
@@ -1367,6 +1370,7 @@ impl GpuState {
             console_layer,
             menu_hud,
             ground_hud,
+            brush_view: Default::default(),
             applied_display: Some(settings::DisplayMode::Windowed),
             display_suspended: false,
             display_changed_at: Instant::now(),
@@ -1648,6 +1652,7 @@ impl GpuState {
         self.update_auto_switch();
         let mut hud_visibility =
             ground_hud::frame(self, intermission_view.is_some(), presentation_time as i32);
+        brush_view::frame(self);
         // The quick wheel's middle shows its names where the crosshair would be.
         if self.quick_wheel.is_open()
             || (self.scope.mode != 0 && cgame_options::scope_style(self.console.as_ref()) != 1)

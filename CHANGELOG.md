@@ -18,6 +18,10 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Invisible brushes: clip, trigger, teleport, push, hurt, ladder, nodrop, slick and other brushes a map hides are drawn see-through with their names, as the Radiant map editor shows them; Settings > Game options > Invisible brushes (r_showBrushes: 0 off, 1 the ones that change play, 2 all; r_showBrushesTypes picks kinds), on any server _(Sol)_
+
 ## 2026.1011.3 (Alpha) | 11/10/2026
 
 The Void and the Sun get new orbiting effects, and Lumaya's contributions land: jetpack flight prediction, a JoF EJK-style classic scoreboard, saber steam in rain, a lagometer scale, console height and wall-move view fixes.

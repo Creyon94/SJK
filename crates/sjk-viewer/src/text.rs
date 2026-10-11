@@ -38,7 +38,7 @@ pub(crate) const ATLAS_MIP_LEVELS: u32 = 4;
 const INTER_REGULAR: &[u8] = include_bytes!("../assets/fonts/Inter-Regular.ttf");
 const INTER_SEMIBOLD: &[u8] = include_bytes!("../assets/fonts/Inter-SemiBold.ttf");
 const RAJDHANI_SEMIBOLD: &[u8] = include_bytes!("../assets/fonts/Rajdhani-SemiBold.ttf");
-const RAJDHANI_BOLD: &[u8] = include_bytes!("../assets/fonts/Rajdhani-Bold.ttf");
+pub(crate) const RAJDHANI_BOLD: &[u8] = include_bytes!("../assets/fonts/Rajdhani-Bold.ttf");
 const EXO2_REGULAR: &[u8] = include_bytes!("../assets/fonts/Exo2-Regular.ttf");
 const EXO2_SEMIBOLD: &[u8] = include_bytes!("../assets/fonts/Exo2-SemiBold.ttf");
 
