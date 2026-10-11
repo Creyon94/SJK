@@ -486,6 +486,10 @@ const HELP: &[(&str, &str)] = &[
     ),
     ("cg_speedometer", "Shows how fast you move."),
     (
+        crate::hud::movement::LINES_ROW,
+        "JoF EJK's strafe helper: a line to the best heading for each strafe key. Keep the crosshair on the green one to gain speed.",
+    ),
+    (
         crate::scoreboard::style::CVAR,
         "Auto matches the menus: SJK's own with the SJK UI, else the classic one after the original game's.",
     ),

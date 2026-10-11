@@ -29,6 +29,26 @@ pub fn direction(delta: f32, key: usize) -> f32 {
     }
 }
 
+/// JoF EJK's JKA-physics lines (`CG_StrafeHelper`, JoF `cg_draw.c`): the
+/// `cg_strafeHelper` bit, yaw offset from the velocity, the movement direction that
+/// lights the line (numbered as in [`direction`]) and the inactive RGB tint. JoF draws
+/// the centre line only for other physics, so it is not here.
+pub fn jof_lines(delta: f32) -> [(i64, f32, usize, [f32; 3]); 8] {
+    const WHITE: [f32; 3] = [1.0, 1.0, 1.0];
+    const CYAN: [f32; 3] = [0.5, 1.0, 1.0];
+    const PINK: [f32; 3] = [1.0, 0.5, 0.5];
+    [
+        (1 << 6, delta, 1, WHITE),
+        (1 << 7, -delta, 7, WHITE),
+        (1 << 8, -(45.0 - delta), 2, CYAN),
+        (1 << 9, 45.0 - delta, 6, CYAN),
+        (1 << 10, 225.0 - delta, 2, CYAN),
+        (1 << 10, 135.0 + delta, 6, CYAN),
+        (1 << 5, 45.0 + delta, 0, PINK),
+        (1 << 5, -45.0 - delta, 0, PINK),
+    ]
+}
+
 /// First-person projection of a horizontal ray, preserving the reference depth cutoff.
 pub fn project(angle: f32, pitch: f32, distance: f32, fov: f32) -> Option<f32> {
     let angle = angle.to_radians();

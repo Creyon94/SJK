@@ -139,6 +139,7 @@ impl Group {
                 "cg_drawTimer",
                 crate::version_overlay::CVAR,
                 "cg_speedometer",
+                crate::hud::movement::LINES_ROW,
                 "cg_drawTeamOverlay",
                 "cg_lagometer",
                 "cg_lagometerScale",

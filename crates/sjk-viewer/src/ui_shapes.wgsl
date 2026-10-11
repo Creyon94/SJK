@@ -36,6 +36,17 @@ fn vertex_main(input: VertexInput) -> VertexOutput {
 
 @fragment
 fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
+    if input.parameters.y > 3.5 {
+        // Straight stroke: the quad runs along the line with one pixel of margin on
+        // each side; coverage fades across one pixel at the stroke's edges.
+        // end_color.x = stroke width in pixels.
+        let across = abs(input.local.y - 0.5) * input.size.y - input.end_color.x * 0.5;
+        let coverage = clamp(0.5 - across, 0.0, 1.0);
+        if coverage <= 0.0 {
+            discard;
+        }
+        return vec4(input.start_color.rgb, input.start_color.a * coverage);
+    }
     if input.parameters.y > 2.5 {
         // Arc stroke with round caps: distance to the nearest point of the centre
         // line, which is the circle's arc clamped to its angular range.

@@ -1845,6 +1845,36 @@ custom layouts that use the `lagometer` binding, on top of their layout dimensio
 It preserves the number and order of visible samples and the graph's millisecond
 ranges, so a larger graph does not show a longer history.
 
+## Strafe helper
+
+`cg_strafeHelper` draws guides for strafe-jumping with JKA's movement physics, as
+JAPRO-derived clients do; its options are bits, listed and toggled by the
+`strafehelper` command (`strafehelper 1` switches the lines style on). Two styles
+are drawn, one at a time (the command switches between them as JoF EJK's does):
+
+- option 1, the lines (JoF EJK's "updated style", `DrawStrafeLine` and
+  `CG_StrafeHelper` in JoF's `cg_draw.c`): one line per enabled key, from the bottom
+  centre of the screen up to just above the crosshair (virtual height 230), aimed at
+  where the best heading for that key projects from the camera at 256 units
+  (`cg_strafeHelperPrecision`). Keys: W (option 5, two lines), WA (6), WD (7), A (8),
+  D (9) and the rear A/D lines (10); the centre line (11) is drawn only for other
+  physics, so not here. The line of the keys held takes `cg_strafeHelperActiveColor`;
+  the others keep JoF's tints at `cg_strafeHelperInactiveAlpha`. They show in first
+  and third person, airborne and on the ground (JKA's ground acceleration 10 and
+  friction 6), once the horizontal speed reaches the player's speed;
+  `cg_strafeHelperCutoff` hides that many virtual pixels from the bottom (at most up
+  to 20 below the line top), `cg_strafeHelperLineWidth` sets the thickness;
+- option 2, CGAZ markers (TaystJK's `hud_strafehelper.c`): short ticks across the
+  crosshair at the same headings, airborne only.
+
+Settings > HUD+ > "Strafe lines" switches option 1 (a derived switch: on replaces
+the other style and adds WA and WD when no key is picked, off clears it). The
+default value, 3008, picks keys but no style, so nothing is drawn; JoF EJK's
+profile value `2242` (lines, WA, WD, centre) draws the same two lines here. Nothing
+is drawn on JAPRO servers (their serverinfo names `japro`), whose movement styles
+change the physics, while in a vehicle, zoomed or in a special movement type. The
+helper's sound, accel bar, Weze, Warsow and original styles are not drawn.
+
 ## Scoreboard styles
 
 `cg_scoreboardStyle` (Settings > Scoreboard > "Scoreboard style") picks the

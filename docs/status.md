@@ -3288,8 +3288,19 @@ move and turn while `sjk` trails, and the cvar's registration and saving; the
 sjk-viewer tests passed. No game was started: how `ejk` feels in play and whether
 it matches Sol's JoF EJK are unverified. Left as they were: SJK clamps the pitch
 to 89 degrees on a reset frame (EternalJK 80), and `sjk` does not apply
-EternalJK's strafe helper rule (SJK draws only the CGaz style, bit 2, which
-would turn damping off in EternalJK).
+EternalJK's strafe helper rule (the lines and CGaz styles, bits 1 and 2, would
+turn damping off in EternalJK).
+
+## Strafe lines (JoF EJK's strafe helper)
+
+Branch `personal/strafe-lines` (11/10/2026, based on `059f347f`, Windows 11): the
+strafe helper's lines style (`cg_strafeHelper` option 1), JoF EJK's two lines, in
+first and third person, airborne and on the ground; the guides are no longer
+limited to first person. A `Line` draw command (anti-aliased stroke) was added to
+the UI renderer and the menu snapshot rasterizer. Unit tests pin the lines'
+geometry and colours for Sol's JoF value 2242, the speed gate and the Settings
+switch's bits; the workspace checks passed. No game was started: how the lines
+look and whether they match JoF EJK in play are unverified.
 
 ## SJK UI: text centred in its controls
 

@@ -640,6 +640,16 @@ test: High, JoFTemple great hall: FPS about doubles; the floor's light looks the
 
 # ---- HUD ----
 
+[strafe-lines]
+area: HUD
+title: Strafe lines (JoF EJK strafe helper), in third person and on the ground
+change: cg_strafeHelper option 1 draws JoF's lines: bottom centre up to the best heading.
+change: Settings > HUD+ > Strafe lines; 2242 (your JoF value) gives WA and WD lines.
+test: Settings > HUD+ > Strafe lines on (or cg_strafeHelper 2242); run and strafe-jump.
+test: Two lines rise from the bottom; holding W+A or W+D turns its line green.
+test: Third and first person both show them; on the ground too once at running speed.
+test: Compare with JoF EJK: the crosshair on the green line should gain speed the same way.
+
 [card-profile]
 area: HUD
 title: Player card: saber shader, picture, SJK TEAM, holocron gem; pinned: achievements, bio

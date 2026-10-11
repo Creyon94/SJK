@@ -370,6 +370,41 @@ fn raster(
                     }
                 }
             }
+            DrawCommand::Line {
+                from,
+                to,
+                width,
+                color: c,
+            } => {
+                // The renderer's line: full inside the stroke, fading across one pixel.
+                let along = [to[0] - from[0], to[1] - from[1]];
+                let length = along[0].hypot(along[1]);
+                if length < 0.01 {
+                    continue;
+                }
+                let half = width * 0.5 + 1.0;
+                let area = Rect::new(
+                    from[0].min(to[0]) - half,
+                    from[1].min(to[1]) - half,
+                    along[0].abs() + half * 2.0,
+                    along[1].abs() + half * 2.0,
+                );
+                let (xs, ys) = span(area, clip);
+                for y in ys {
+                    for x in xs.clone() {
+                        let point = [x as f32 + 0.5 - from[0], y as f32 + 0.5 - from[1]];
+                        let t = (point[0] * along[0] + point[1] * along[1]) / length;
+                        if !(0.0..=length).contains(&t) {
+                            continue;
+                        }
+                        let across = (point[0] * along[1] - point[1] * along[0]).abs() / length;
+                        let coverage = (0.5 - (across - width * 0.5)).clamp(0.0, 1.0);
+                        if coverage > 0.0 {
+                            blend(image, x, y, color(*c, o * coverage));
+                        }
+                    }
+                }
+            }
             DrawCommand::PushClip(rect) => {
                 let x = rect.x.max(clip.x);
                 let y = rect.y.max(clip.y);
