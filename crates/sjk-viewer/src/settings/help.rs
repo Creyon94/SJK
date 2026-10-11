@@ -515,6 +515,10 @@ const HELP: &[(&str, &str)] = &[
         "Thinner rows on SJK's scoreboard, so every player fits in one column, in a board as wide as its names, centred.",
     ),
     (
+        crate::scoreboard::style::FPS_CVAR,
+        "Shows your frame rate on SJK's scoreboard, left of the match clock.",
+    ),
+    (
         "cg_showClientIDs",
         "Shows each player's client number on the scoreboard.",
     ),

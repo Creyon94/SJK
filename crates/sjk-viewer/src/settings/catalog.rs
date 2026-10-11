@@ -259,6 +259,11 @@ pub(super) const HUD_OPTIONS: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Scoreboard frame rate",
+        cvar: crate::scoreboard::style::FPS_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Scoreboard client IDs",
         cvar: "cg_showClientIDs",
         kind: ValueKind::Bool,
