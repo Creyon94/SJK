@@ -120,8 +120,7 @@ impl ClientMenu {
         let server = entry.address;
         let map = entry.map.clone();
         if entry.password {
-            self.password.clear();
-            self.password_target = Some(server.to_string());
+            self.open_password_prompt(server.to_string());
             self.destination_map = Some(map);
             return MenuAction::None;
         }
@@ -149,6 +148,16 @@ impl ClientMenu {
             }
             _ => self.join_selected(),
         }
+    }
+
+    /// Ask for `address`'s password, the one remembered on this PC already typed.
+    pub(super) fn open_password_prompt(&mut self, address: String) {
+        self.password.clear();
+        if let Some(remembered) = self.server_passwords.get(&address) {
+            self.password.push_str(remembered);
+        }
+        self.remember_password = true;
+        self.password_target = Some(address);
     }
 
     pub(super) fn open_address_entry(&mut self) {

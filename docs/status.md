@@ -1,5 +1,15 @@
 # Status and priorities
 
+## Server browser: remembered passwords
+
+Branch `feat/browser-saved-passwords` (11/10/2026, based on `9dbbdf19`, Linux): Sol asked
+for a password option for locked servers such as Temple. The password prompt opens with the
+password remembered for that server already typed and has a "Remember on this PC" switch,
+on by default; joining keeps or forgets it ([sjk-ui.md](sjk-ui.md#servers)). Verified: tests
+of the store (kept on disk, forgotten, empty never kept, a bad file read as none) and of the
+prompt (typed next time, the switch above the buttons, switching off forgets); an off-screen
+render of the card (reviewed); the workspace checks; in game on Windows 11 by Creyon.
+
 ## Downloads that work, and what they may bring
 
 Branch `personal/allow-download` (12/10/2026, based on `c2016fbf`, Windows 11). Sol

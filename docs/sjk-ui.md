@@ -754,6 +754,12 @@ as Settings is, on the main page's 16:9 frame. The camera keeps touring behind i
   then "and n more" past six.
 - **Keys:** bottom right, what has the keyboard's; bottom left, how the list
   stands ("12 servers answered", "Asking the master server...").
+- **Remembered passwords** (Sol's request, 11/10/2026): the password card has a
+  "Remember on this PC" switch (on by default); joining with it on keeps the
+  password for that server ([server_passwords.rs](../crates/sjk-viewer/src/server_passwords.rs),
+  `server-passwords.json` beside `config.cfg`, plain text as `config.cfg` keeps the
+  last `password`), and the card then opens with it typed, so Enter joins; joining
+  with it off forgets it. The classic prompt remembers the same way, without a switch.
 - **Prompts:** the password and the address open a card over the darkened map
   (the list is left out under it, since text draws over every shape): its
   title, a line saying what to type, the field (the password as dots), the
