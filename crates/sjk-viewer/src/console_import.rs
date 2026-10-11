@@ -94,6 +94,12 @@ impl ViewerConsole {
             cap,
             server_fixed: self.pmove_fixed_msec().or(self.server_step_floor()),
             alert: None,
+            cap_name: self
+                .pmove_fixed_msec()
+                .is_none()
+                .then(|| self.server_step_floor().and(self.server_cap()))
+                .flatten()
+                .map(|cap| cap.name),
         }
     }
 
@@ -358,6 +364,21 @@ mod tests {
             .restore_text("pmove_fixed", "1")
             .unwrap();
         assert_eq!(console.command_step(), 8);
+    }
+
+    #[test]
+    fn a_known_server_cap_holds_unless_lifted() {
+        let (_directory, mut console) = console();
+        console.set_frame_cap(0);
+        assert_eq!(console.command_step(), 1, "Auto uncapped");
+        console.server_cap = crate::server_caps::find(
+            &sjk_client::CompatProfile::JaPlus { version: None },
+            "\\V\\2.5B0",
+        );
+        assert_eq!(console.command_step(), 8, "JoF takes 125 a second");
+        assert!(console.set_cvar(crate::server_caps::OVERRIDE_CVAR, "1"));
+        assert_eq!(console.command_step(), 1, "lifted by the player");
+        assert_eq!(console.server_step_floor(), None);
     }
 
     #[test]

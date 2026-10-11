@@ -1170,7 +1170,8 @@ change: A pmove_fixed server's own step wins; prediction keeps 512 commands.
 test: help_gameplay_fps: the console explains it and the card opens; type 400: 2 ms steps, 500/s.
 test: No pmove_fixed server, Auto with com_maxfps 333: jumps and strafes feel like EJK at 333.
 test: gameplay_fps 125 with com_maxfps 240: smooth view, movement like 125.
-test: JoF server, Auto with com_maxfps 0: playable; the Video row says "this server 8 ms".
+test: JoF server, Auto with com_maxfps 0: playable; the Video row says "JoF server 8 ms".
+test: Ignore server caps on (gameplay_fps_nocap 1): the row says "JoF cap lifted".
 test: Non-JoF server dropping fast inputs: within ~6 s the card opens by itself, 125 picked.
 test: flipkick at 333 lasts as long as at 125.
 note: High ping at 333 (300+ ms) is unchecked: watch for prediction snapping.

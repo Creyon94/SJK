@@ -675,6 +675,14 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             archive,
             "Most move packets sent a second (15 to 1000); user commands are made at your gameplay FPS (gameplay_fps) and wait for the next packet",
         ),
+        // SJK's: the servers known to cap commands keep their cap unless lifted
+        // (`server_caps.rs`).
+        CvarDefinition::new(
+            crate::server_caps::OVERRIDE_CVAR,
+            0_i64,
+            archive,
+            "1 ignores the servers SJK knows to cap commands (JoF's at 125 a second): gameplay_fps applies as set there too",
+        ),
         // SJK's: the frame rate whose movement the player wants, apart from the
         // frames drawn, or 0 to follow the FPS cap (`command_rate`, `gameplay_fps.rs`).
         CvarDefinition::new(

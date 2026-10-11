@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 12/10/2026 | - | Known server caps as a list; gameplay_fps_nocap lifts them
+- a88ca23 |  | Server caps as a list, and a way to lift them
 + 12/10/2026 | - | Downloads: spaced pak names, skip a refused pak, add-only content
 - 82a6058 |  | Downloads that work, and only add content
 + 11/10/2026 | - | Player card outline: outer ring only, thicker, same width near and far
