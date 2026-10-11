@@ -2596,11 +2596,18 @@ are in [identity.md](identity.md).
 
 Look at a player, keeping the view steady, and a card appears beside their hips
 ([player_card.rs](../crates/sjk-viewer/src/hud/player_card.rs)): a leader runs from a
-dot at the player's origin (their hips; a crouch lowers it by half the box's drop) to
-the card, centred on it. It shows what the server already publishes to every client
-(name with its colour codes, model and its head icon, saber hilts with their blade
-colours, the hat and cape worn, bot skill; not the duel wins and losses), the saber
-shader they wear (a live swatch, as the Collection draws it, and its name; only when it
+dot at the player's hips (10 units above the origin, near the humanoid skeleton's
+pelvis; a crouch lowers it by half the box's drop) to the card, centred on it. While
+the card is up the player's body is outlined in the card's accent colour (red or blue
+by team, else SJK's light blue), fading with it
+([card_outline.rs](../crates/sjk-viewer/src/card_outline.rs)): the body is drawn again
+from a bundled shader as an inverted hull (back faces only, pushed out along the
+normals, depth tested, so no outline shows through walls), its push one of ten levels
+from 0.2 to 4.1 units picked by distance to keep the rim about the same width on
+screen (11/10/2026). Hats, capes and sabers are not outlined. It shows what the server
+already publishes to every client (name with its colour codes, model and its head
+icon, saber hilts with their blade colours, the hat and cape worn, bot skill; not the
+duel wins and losses), the saber shader they wear (a live swatch, as the Collection draws it, and its name; only when it
 draws on their blade on this PC: worn by their look, its pack loaded) and, when the hub
 knows the player, their profile picture in place of the head icon (the icon then sits
 small on its lower left corner), SJK's emblem, their hub name, a gold VERIFIED, a teal
@@ -2620,6 +2627,7 @@ position.
   the crosshair must stay on the player before the card fades in. Turning the view
   more than 6 degrees, or losing the player for over 0.3 seconds, starts the wait
   again and the card fades out.
+- `cg_playerCardOutline` (default 1; Settings > HUD+ > Card outline) draws the outline.
 - `inspect` (Settings > Key bindings > Interaction > Inspect player; bound to X by default,
   or `bind <key> inspect`) pins the card to the player under the crosshair at once, with
   no wait. It stays when you look away or the player moves, follows them (kept inside the

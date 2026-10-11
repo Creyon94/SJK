@@ -10,7 +10,8 @@
 //! `inspect` is pressed again or Escape is. A pinned card adds what takes reading:
 //! the medals' names in small print, the achievements unlocked out of the catalogue
 //! with the three rarest as medallions, the first line of their bio and since when
-//! they are in SJK.
+//! they are in SJK. While the card is up, the player's body is drawn with an outline
+//! in the card's accent colour (`cg_playerCardOutline`, [`crate::card_outline`]).
 //!
 //! Everything shown is already public to every client (the player's `CS_PLAYERS`
 //! string, the hub's public profile and the looks every SJK player sees), so the card
@@ -40,8 +41,11 @@ const GAP_MS: i32 = 300;
 const STEADY_DEGREES: f32 = 6.0;
 const FADE_IN_MS: f32 = 180.0;
 const FADE_OUT_MS: f32 = 120.0;
-/// Share of a crouch's drop of the box top (below standing) the hips drop too; standing,
-/// the hips are at the origin, 24 units above the feet.
+/// Height of the hips above the origin, standing: the humanoid skeleton's pelvis is
+/// 35.6 units above the soles in its base pose, the origin 24, and a stance bends the
+/// knees a little.
+const HIP_HEIGHT: f32 = 10.0;
+/// Share of a crouch's drop of the box top (below standing) the hips drop too.
 const HIP_DROP: f32 = 0.5;
 /// World units from the hips to the side of the body the card keeps clear of.
 const BODY_SIDE: f32 = 22.0;
@@ -64,6 +68,12 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         1.5_f64,
         CvarFlags::ARCHIVE,
         "Seconds you must look at a player, steady, before their card shows",
+    ))?;
+    cvars.register(CvarDefinition::new(
+        "cg_playerCardOutline",
+        true,
+        CvarFlags::ARCHIVE,
+        "Outline the player whose card is up",
     ))
 }
 
@@ -473,6 +483,15 @@ pub(crate) struct Placement {
     pub(crate) right: bool,
 }
 
+/// The card's accent for a player of `team`: red, blue, or SJK's light blue.
+fn accent_rgb(team: u8) -> [f32; 3] {
+    match team {
+        1 => [0.95, 0.28, 0.30],
+        2 => [0.30, 0.60, 1.0],
+        _ => [0.55, 0.78, 0.95],
+    }
+}
+
 /// Put a card of `size` beside `anchor`, to its right unless that leaves the
 /// screen, kept inside the viewport.
 pub(crate) fn place(
@@ -562,6 +581,7 @@ pub(crate) struct Input<'a> {
 /// The card's state: settings, dwell, fade and the draw list.
 pub(crate) struct State {
     enabled: bool,
+    outline: bool,
     delay_ms: i32,
     dwell: Dwell,
     pin: Pin,
@@ -582,6 +602,7 @@ impl Default for State {
     fn default() -> Self {
         Self {
             enabled: true,
+            outline: true,
             delay_ms: 1_500,
             dwell: Dwell::default(),
             pin: Pin::default(),
@@ -602,6 +623,9 @@ impl State {
         self.enabled = console
             .and_then(|c| c.bool_cvar("cg_playercard"))
             .unwrap_or(true);
+        self.outline = console
+            .and_then(|c| c.bool_cvar("cg_playercardoutline"))
+            .unwrap_or(true);
         let seconds = crate::cgame_options::scalar(console, "cg_playercarddelay", 1.5);
         self.delay_ms = (seconds.clamp(0.3, 10.0) * 1_000.0) as i32;
     }
@@ -620,6 +644,15 @@ impl State {
     /// The player whose card is up, so their model icon can be resolved.
     pub(crate) fn shown_client(&self) -> Option<u16> {
         self.shown.filter(|_| self.alpha > 0.0)
+    }
+
+    /// The player to outline and the outline's colour (the card's accent, at the card's
+    /// fade), while the card is up and `cg_playerCardOutline` is on.
+    pub(crate) fn outline(&self) -> Option<(u16, [u8; 4])> {
+        let client = self.shown_client().filter(|_| self.outline)?;
+        let [r, g, b] = accent_rgb(self.card.team);
+        let byte = |value: f32| (value * 255.0).round() as u8;
+        Some((client, [byte(r), byte(g), byte(b), byte(self.alpha)]))
     }
 
     /// Forget everything shown (no session).
@@ -715,7 +748,7 @@ impl State {
                 super::nameplate_math::head_height(entity.solid())
             });
         let limit = if pinned.is_some() { PINNED_LIMIT } else { 1.2 };
-        let anchor = origin + Vec3::Z * (top - standing).min(0.0) * HIP_DROP;
+        let anchor = origin + Vec3::Z * (HIP_HEIGHT + (top - standing).min(0.0) * HIP_DROP);
         let Some((hips, side)) = anchor_on_screen(input.camera, anchor, limit) else {
             return;
         };
@@ -833,11 +866,8 @@ impl State {
         let rect = placed.card;
         let white = |alpha: f32| Color::new(1.0, 1.0, 1.0, alpha * a);
         let muted = Color::new(0.74, 0.78, 0.86, a);
-        let accent = match card.team {
-            1 => Color::new(0.95, 0.28, 0.30, a),
-            2 => Color::new(0.30, 0.60, 1.0, a),
-            _ => Color::new(0.55, 0.78, 0.95, a),
-        };
+        let [r, g, b] = accent_rgb(card.team);
+        let accent = Color::new(r, g, b, a);
         // The leader from the hips to the card.
         let (from, to) = if placed.right {
             (anchor[0], rect.x)

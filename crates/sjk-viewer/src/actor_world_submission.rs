@@ -98,6 +98,8 @@ struct Sinks<'a> {
     /// Client slots muted on this PC (bits): drawn with the default saber colour
     /// and without hat or cape (`muted_players.rs`).
     muted: u32,
+    /// The player whose card is up and the outline's colour (`card_outline.rs`).
+    card_outline: Option<(u16, [u8; 4])>,
 }
 
 /// Submit all presented actor-like entities without allocating frame storage.
@@ -289,6 +291,7 @@ pub(crate) fn submit(
                 .and_then(|_| gpu.local_prediction.predicted_state()),
         ),
         muted: gpu.muted_players.slots().muted,
+        card_outline: gpu.hud.card.outline(),
     };
     let thrown = snapshot
         .zip(game_state)
@@ -630,6 +633,25 @@ fn submit_actor(
             }
         } else {
             sinks.actor_groups[mesh].push(instance);
+            if draw_actor
+                && let Some((_, color)) = sinks
+                    .card_outline
+                    .filter(|(client, _)| u64::from(*client) + 1 == entity.id.get())
+                && sinks.overrides.len() < sinks.overrides.capacity()
+            {
+                let distance = sinks
+                    .camera_position
+                    .distance(Vec3::from_array(transform.translation));
+                sinks.overrides.push(entity_materials::OverrideInstance {
+                    mesh: entity_materials::OverrideMesh::Actor(mesh),
+                    material: Some(
+                        sinks.material_overrides.card_outline[crate::card_outline::level(distance)],
+                    ),
+                    instance: instance.with_entity_color(color),
+                    no_depth: false,
+                    forced_alpha: false,
+                });
+            }
         }
         // JoF EJK's hat and cape, on the body's bolts (`CG_Player`); none on a
         // player muted on this PC.

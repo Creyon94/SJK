@@ -286,10 +286,11 @@ impl Options {
             .ok_or("SJK_MAX_ASSET_MIB must be positive and fit in u64")?;
         let mut vfs = VirtualFileSystem::with_max_asset_bytes(limit);
         vfs.set_read_diagnostics(self.debug);
-        // SJK's own content (Illuminate's holocron, the hub's packs with the
-        // unlockables' art), below everything so game data with the same paths
+        // SJK's own content (Illuminate's holocron, the card's outline, the hub's
+        // packs with the unlockables' art), below everything so game data with the same paths
         // replaces it.
         crate::illuminate::mount(&mut vfs)?;
+        crate::card_outline::mount(&mut vfs)?;
         crate::sjk_packs::mount_below_game_data(&mut vfs);
         // JoF EJK's hats and capes, below everything else so they never
         // replace other content.

@@ -352,6 +352,11 @@ pub(super) const HUD: &[Setting] = &[
         },
     },
     Setting {
+        label: "Card outline",
+        cvar: "cg_playerCardOutline",
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Nameplates",
         cvar: "cg_nameplate",
         kind: ValueKind::Bool,

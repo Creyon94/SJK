@@ -717,6 +717,17 @@ test: Pin a player with several medals: the names are small, about 52 characters
 test: cg_playerCard 0, then Escape: the game menu opens as before.
 note: Not tried in a running client; how far a crouch drops the hips (HIP_DROP 0.5) is an estimate.
 
+[card-outline]
+area: HUD
+title: Player card: line meets the hips, outline on the inspected player
+change: The card's dot and line sit 10 units higher, on the hips (the skeleton's pelvis height).
+change: The player whose card is up is outlined in the card's colour; cg_playerCardOutline 0 hides it.
+test: Inspect (X) a standing player: the dot sits on the belt, not below it; crouching, lower.
+test: The outline hugs the body, about as thick near as far; no outline through walls.
+test: Team game: red or blue outline; FFA: light blue. It fades with the card.
+test: Settings > HUD+ > Card outline off: no outline, the card stays.
+note: Not tried in a running client: the outline's width and seams on some models are guesses.
+
 [compact-scoreboard]
 area: HUD
 title: Compact SJK scoreboard; the HUD hides while scores are held (SJK PR #42)
