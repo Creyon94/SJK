@@ -23,6 +23,13 @@ multiplayer. Read [docs/status.md](docs/status.md),
   with its SJK UI version in the same change; a classic+-only addition is not
   accepted, while an SJK UI-only one is (it then shows its SJK look in every menu
   style). See [the rule in sjk-ui.md](docs/sjk-ui.md#sjk-ui).
+- No hardcoded special cases (Sol's rule, 12/10/2026). Behavior tied to a
+  particular server, mod, client, map or community (its version string, gamename,
+  address, name or a magic value) never lives as an inline check or a one-off
+  function. It goes in a named, documented table, one entry per case with why and
+  the evidence, read by generic code, and the player can override it with a cvar or
+  setting. Supporting a new case means adding an entry, not code. Example:
+  [server_caps.rs](crates/sjk-viewer/src/server_caps.rs) and `gameplay_fps_nocap`.
 - Avoid new allocation, locking and quadratic work in per-frame paths. Measure
   performance-sensitive changes in release builds; 500+ FPS is a target, not a
   blanket claim about current performance.
