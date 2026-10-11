@@ -519,6 +519,10 @@ const HELP: &[(&str, &str)] = &[
         "Shows each player's client number on the scoreboard.",
     ),
     (
+        crate::jof_tag::CVAR,
+        "Shows a clan's emblem (JoF, JoFA) left of a tagged player's name in the chat, on the scoreboard and on player cards.",
+    ),
+    (
         "cg_drawScoreboardIcons",
         "Shows each player's head icon on the scoreboard.",
     ),

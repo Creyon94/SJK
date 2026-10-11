@@ -700,10 +700,14 @@ impl Painter<'_> {
 
     /// The JoF emblem ([`crate::jof_tag`]) `side` tall with its ink from `x`, centred
     /// on `middle`, in the board's units.
-    fn jof(&mut self, x: f32, middle: f32, side: f32) {
+    fn jof(&mut self, name: &str, x: f32, middle: f32, side: f32) {
+        let Some(clan) = crate::jof_tag::clan(name) else {
+            return;
+        };
         let emblem = self.frame.rect(x, middle - side * 0.5, side, side);
         let list = self.ui.draw_list_mut();
         crate::jof_tag::draw(
+            clan,
             emblem.x,
             emblem.y + emblem.height * 0.5,
             emblem.height,
@@ -1314,7 +1318,7 @@ impl Painter<'_> {
             } else {
                 x + width - text_width - jof
             };
-            self.jof(start, name_y, crate::jof_tag::side(name_size));
+            self.jof(&row.name, start, name_y, crate::jof_tag::side(name_size));
         }
         let name_width = text_width + jof;
         if let Some(tag) = row.identity {
@@ -1644,7 +1648,12 @@ impl Painter<'_> {
         } + ready_width;
         let name_width = full_name.min((room - marks).max(0.0));
         if jof > 0.0 {
-            self.jof(columns.name, middle, crate::jof_tag::side(name_size));
+            self.jof(
+                &row.name,
+                columns.name,
+                middle,
+                crate::jof_tag::side(name_size),
+            );
         }
         self.run(
             TextFamily::Body,
@@ -1857,11 +1866,7 @@ impl fmt::Display for Facts {
 /// The room the JoF emblem takes before `name` set at `size` ([`crate::jof_tag`]), or
 /// 0 when the name has no JoF tag.
 fn jof_room(name: &str, size: f32) -> f32 {
-    if crate::jof_tag::tagged(name) {
-        crate::jof_tag::room(crate::jof_tag::side(size))
-    } else {
-        0.0
-    }
+    crate::jof_tag::room_for(name, crate::jof_tag::side(size))
 }
 
 #[cfg(test)]

@@ -523,8 +523,8 @@ impl Lay<'_> {
 
     /// The room the JoF emblem takes before the name ([`crate::jof_tag`]), if any.
     fn jof_room(&self, line: &DockLine<'_>) -> f32 {
-        if crate::jof_tag::tagged(line.name) {
-            crate::jof_tag::room(crate::jof_tag::side(self.size))
+        if let Some(clan) = crate::jof_tag::clan(line.name) {
+            crate::jof_tag::room(clan, crate::jof_tag::side(self.size))
         } else {
             0.0
         }
@@ -851,8 +851,9 @@ fn message(
         );
     };
     let jof = lay.jof_room(line);
-    if jof > 0.0 {
+    if let Some(clan) = crate::jof_tag::clan(line.name) {
         crate::jof_tag::draw(
+            clan,
             first.x,
             first.y + first.height * 0.5,
             crate::jof_tag::side(lay.size),

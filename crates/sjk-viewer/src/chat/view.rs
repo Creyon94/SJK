@@ -264,19 +264,14 @@ impl ChatOverlay {
                     .is_some_and(|name| self.friends.contains(name));
                 // A friend's star, then the JoF emblem for the clan's tag, then the name.
                 let jof_x = x + if friend { 14.0 * g.scale } else { 0.0 };
-                let jof = crate::jof_tag::tagged(&line.name);
+                let clan = crate::jof_tag::clan(&line.name);
                 let jof_side = crate::jof_tag::side(16.0 * g.scale);
-                let name_x = jof_x
-                    + if jof {
-                        crate::jof_tag::room(jof_side)
-                    } else {
-                        0.0
-                    };
+                let name_x = jof_x + clan.map_or(0.0, |clan| crate::jof_tag::room(clan, jof_side));
                 let text_rect = Rect::new(name_x, y, width + 1.0, 24.0 * g.scale);
                 let rect = name::ink_bounds(font, name, [name_x, y], 16.0 * g.scale);
-                if jof {
+                if let Some(clan) = clan {
                     let middle = y + font.capital_middle(16.0 * g.scale / font.height.max(1.0));
-                    crate::jof_tag::draw(jof_x, middle, jof_side, alpha, |command| {
+                    crate::jof_tag::draw(clan, jof_x, middle, jof_side, alpha, |command| {
                         let _ = self.ui.draw_list_mut().push(command);
                     });
                 }

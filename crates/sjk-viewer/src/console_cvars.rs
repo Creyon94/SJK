@@ -793,6 +793,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Classic scoreboard: show each player's client ID",
         ),
         CvarDefinition::new(
+            crate::jof_tag::CVAR,
+            true,
+            archive,
+            "Show a known clan's emblem left of names carrying its tag (JoF, JoFA)",
+        ),
+        CvarDefinition::new(
             "cg_drawScoreboardIcons",
             true,
             archive,

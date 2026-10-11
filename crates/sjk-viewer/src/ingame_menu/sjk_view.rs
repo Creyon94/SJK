@@ -1199,10 +1199,11 @@ fn player_card(
     };
     let name_width = CARD_X + CARD_WIDTH - name_x;
     // The JoF emblem on the name's left ([`crate::jof_tag`]).
-    let jof = if crate::jof_tag::tagged(&player.name) {
+    let jof = if let Some(clan) = crate::jof_tag::clan(&player.name) {
         let side = crate::jof_tag::side(38.0);
         let emblem = frame.rect(name_x, y + 23.0 - side * 0.5, side, side);
         crate::jof_tag::draw(
+            clan,
             emblem.x,
             emblem.y + emblem.height * 0.5,
             emblem.height,
@@ -1211,7 +1212,7 @@ fn player_card(
                 let _ = canvas.draw_list_mut().push(command);
             },
         );
-        crate::jof_tag::room(side)
+        crate::jof_tag::room(clan, side)
     } else {
         0.0
     };

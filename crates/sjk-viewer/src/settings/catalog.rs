@@ -264,6 +264,11 @@ pub(super) const HUD_OPTIONS: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Clan emblems",
+        cvar: crate::jof_tag::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Scoreboard head icons",
         cvar: "cg_drawScoreboardIcons",
         kind: ValueKind::Bool,

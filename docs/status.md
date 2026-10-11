@@ -1,5 +1,20 @@
 # Status and priorities
 
+## Clan emblems: a table, the JoFA tag, JoF in teal, tags as players write them
+
+Branch `feat/jofa-tag` (11/10/2026, based on `9dbbdf19`, Linux): Sol asked for JoF
+Academy's tag to be read like JoF's, with the academy's logo, and Creyon for JoF's emblem
+in the clan's teal and for the tags players write to count. The clans are now the entries
+of a documented table (`jof_tag::KNOWN`: tag, emblem, tint, ink width, how a stuck tag
+counts) read by generic code, with `cg_clanEmblems` to turn every emblem off
+([identity.md](identity.md#clan-tags)). A name tagged `JoFA` gets the academy's HD logo; JoF's
+emblem is tinted `#02B99D`; look-alike letters (`jøf'p Evi`, `J0F`, `Jöƒ`, `jøfå`) and tags
+stuck to the name (`JoFSanjiJ`, `jofsanji`, `JoFAKen`; not `Joffrey`) count. Verified: tag
+tests (JoFA names, look-alikes, stuck tags, near misses, the wider room, the table's order,
+emblems and letters, the setting), previews at 20 to 48 pixels and the workspace checks. In
+game on Windows 11 Creyon saw the HD JoFA emblem, the teal JoF emblem, look-alike tags and
+the setting at work.
+
 ## Downloads that work, and what they may bring
 
 Branch `personal/allow-download` (12/10/2026, based on `c2016fbf`, Windows 11). Sol
