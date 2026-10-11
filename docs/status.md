@@ -16,7 +16,8 @@ Verified: unit tests (the orbit's fields and ranges, the later file laid over th
 the uniform lanes, one instance per glint with its number and bounds) and `saber.wgsl`
 validated by naga; world shots with the hub branch's built pack: `duel6_mythical_parts`
 and `duel6_sun_orbit` (an upright Sun up close over one orbit, `duel6-sun-orbit.gif`).
-Not verified: in a live match, against the deployed hub (the pack is not deployed yet).
+The hub (`feat/sun-orbit`, merged `8568413`) was deployed on 11/10/2026 and serves the
+new pack. Not verified: in a live match.
 
 ## Mythical shader parts
 

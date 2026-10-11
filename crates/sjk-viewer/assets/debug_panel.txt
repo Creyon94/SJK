@@ -810,7 +810,7 @@ test: Wear the Sun, hold the blade up: two stars circle it a little below the ti
 test: Walk round the blade: they read as a ring from every side, no jumps when it turns.
 test: Collection > Shaders, Sun: untick Orbiting glints: both go; tick it: both come back.
 test: A 2026.1011.2 client on the same server still sees the glint at the tip.
-note: Needs the hub's feat/sun-orbit pack (saber_sun.bladeextra2) deployed or mounted.
+note: Hub deployed 11/10/2026 with the pack holding saber_sun.bladeextra2.
 
 [chroma-shaders]
 area: Rendering & effects
