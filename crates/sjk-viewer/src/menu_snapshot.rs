@@ -1224,6 +1224,8 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
         crashes_sent: 0,
         crash_note: None,
         holocrons: None,
+        log_requests: Vec::new(),
+        log_answer: None,
     };
     let online = hub(Status::Online, "^1Sol", &["^4Vulpes", "Padawan"]);
     let fresh = hub(Status::Online, "Padawan", &[]);
@@ -2344,6 +2346,8 @@ fn medals_snapshot() {
         crashes_sent: 0,
         crash_note: None,
         holocrons: None,
+        log_requests: Vec::new(),
+        log_answer: None,
     };
     let with = hub(shot_medals());
     let without = hub(Vec::new());

@@ -3,8 +3,12 @@
 use crate::assets::{PACK_MAX, Pack};
 use crate::crash::CrashReport;
 use crate::keys::{Identity, random_bytes};
+use crate::logs::{
+    CrashDetail, CrashGroups, CrashSummaries, LogRequest, LogRequestRow, LogRequestRows,
+    LogRequests, LogUpload,
+};
 use crate::report::{BugReport, PlayerReport, WorldNote};
-use crate::staff::StaffRequest;
+use crate::staff::{StaffAnswer, StaffQuery, StaffRequest};
 use crate::wire::{
     Achievement, Achievements, Feed, HolocronState, Look, Players, Presence, Profile, authorization,
 };
@@ -17,6 +21,11 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 const TIMEOUT: Duration = Duration::from_secs(10);
 /// Largest answer read, in bytes.
 const ANSWER_MAX: u64 = 256 * 1024;
+/// Largest answer to a staff query: one request's logs, up to 400 000 characters of
+/// any script, escaped in JSON.
+const STAFF_ANSWER_MAX: u64 = 4 * 1024 * 1024;
+/// Longest a log upload may take (up to half a megabyte on a slow line).
+const LOGS_TIMEOUT: Duration = Duration::from_secs(60);
 /// Longest a pack's download may take (up to [`PACK_MAX`] bytes).
 const ASSET_TIMEOUT: Duration = Duration::from_secs(120);
 
@@ -80,6 +89,40 @@ pub trait Hub: Send {
     ) -> Result<Vec<Profile>, HubError> {
         Err(HubError::Protocol(
             "this hub client does not send staff requests".to_owned(),
+        ))
+    }
+    /// A staff query signed by the identity (`PROTOCOL.md`, "Log requests"): asking a
+    /// player for their logs, reading the requests and their logs, and crash reports.
+    fn staff_query(
+        &mut self,
+        _identity: &Identity,
+        _query: &StaffQuery,
+    ) -> Result<StaffAnswer, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not send staff queries".to_owned(),
+        ))
+    }
+    /// The SJK team's open requests for the identity's logs, oldest first.
+    fn log_requests(&mut self, _identity: &Identity) -> Result<Vec<LogRequest>, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not read log requests".to_owned(),
+        ))
+    }
+    /// Send `upload` (already [`LogUpload::fitted`]) for request `id`.
+    fn send_logs(
+        &mut self,
+        _identity: &Identity,
+        _id: i64,
+        _upload: &LogUpload,
+    ) -> Result<(), HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not send logs".to_owned(),
+        ))
+    }
+    /// Decline request `id`.
+    fn decline_logs(&mut self, _identity: &Identity, _id: i64) -> Result<(), HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not send logs".to_owned(),
         ))
     }
     /// Send an SJK chat message (already checked by [`crate::chat::check`]) signed by
@@ -241,10 +284,19 @@ fn read_json(
     response: &mut ureq::http::Response<ureq::Body>,
     status: u16,
 ) -> Result<Value, HubError> {
+    read_json_up_to(response, status, ANSWER_MAX)
+}
+
+/// [`read_json`] of an answer of at most `limit` bytes.
+fn read_json_up_to(
+    response: &mut ureq::http::Response<ureq::Body>,
+    status: u16,
+    limit: u64,
+) -> Result<Value, HubError> {
     let text = response
         .body_mut()
         .with_config()
-        .limit(ANSWER_MAX)
+        .limit(limit)
         .read_to_string()
         .map_err(|error| HubError::Network(error.to_string()))?;
     serde_json::from_str(&text)
@@ -323,14 +375,31 @@ impl HttpHub {
         body: &[u8],
         content_type: &str,
     ) -> Result<Value, HubError> {
+        self.send_with(signer, method, path, body, content_type, ANSWER_MAX, None)
+    }
+
+    /// [`HttpHub::send_bytes`] reading an answer of up to `limit` bytes, with its own
+    /// `timeout` when given.
+    #[allow(clippy::too_many_arguments)]
+    fn send_with(
+        &mut self,
+        signer: Option<&Identity>,
+        method: &str,
+        path: &str,
+        body: &[u8],
+        content_type: &str,
+        limit: u64,
+        timeout: Option<Duration>,
+    ) -> Result<Value, HubError> {
         for attempt in 0..2 {
             let url = format!("{}{path}", self.base);
             let header = signer
                 .map(|identity| self.authorization(identity, method, path, body))
                 .transpose()?;
-            let mut response = self.call(method, &url, header.as_deref(), body, content_type)?;
+            let mut response =
+                self.call(method, &url, header.as_deref(), body, content_type, timeout)?;
             let status = response.status().as_u16();
-            let value = read_json(&mut response, status)?;
+            let value = read_json_up_to(&mut response, status, limit)?;
             if status < 400 {
                 return Ok(value);
             }
@@ -457,6 +526,7 @@ impl HttpHub {
         authorization: Option<&str>,
         body: &[u8],
         content_type: &str,
+        timeout: Option<Duration>,
     ) -> Result<ureq::http::Response<ureq::Body>, HubError> {
         let network = |error: ureq::Error| HubError::Network(error.to_string());
         let with_header =
@@ -464,6 +534,15 @@ impl HttpHub {
                 Some(value) => builder.header("Authorization", value),
                 None => builder,
             };
+        if let Some(timeout) = timeout {
+            return with_header(self.agent.post(url))
+                .header("Content-Type", content_type)
+                .config()
+                .timeout_global(Some(timeout))
+                .build()
+                .send(body)
+                .map_err(network);
+        }
         match method {
             "GET" => {
                 let mut request = self.agent.get(url);
@@ -626,6 +705,21 @@ fn staff_call(request: &StaffRequest) -> (&'static str, Value) {
     }
 }
 
+/// A staff query's path and body.
+fn staff_query_call(query: &StaffQuery) -> (&'static str, Value) {
+    match query {
+        StaffQuery::RequestLogs { key_id, note } => (
+            "/v1/staff/log-request",
+            json!({ "key_id": key_id, "note": note }),
+        ),
+        StaffQuery::LogRequests => ("/v1/staff/log-requests", json!({})),
+        StaffQuery::Log(id) => ("/v1/staff/log", json!({ "id": id })),
+        StaffQuery::CrashGroups => ("/v1/staff/crash-groups", json!({})),
+        StaffQuery::Crashes(signature) => ("/v1/staff/crashes", json!({ "signature": signature })),
+        StaffQuery::Crash(id) => ("/v1/staff/crash", json!({ "id": id })),
+    }
+}
+
 fn parse<T: DeserializeOwned>(value: Value) -> Result<T, HubError> {
     serde_json::from_value(value).map_err(|error| HubError::Protocol(error.to_string()))
 }
@@ -744,6 +838,74 @@ impl Hub for HttpHub {
             StaffRequest::ChatDelete { .. } | StaffRequest::ChatMute { .. } => Ok(Vec::new()),
             _ => Ok(vec![parse(answer)?]),
         }
+    }
+
+    fn staff_query(
+        &mut self,
+        identity: &Identity,
+        query: &StaffQuery,
+    ) -> Result<StaffAnswer, HubError> {
+        let (path, body) = staff_query_call(query);
+        let body = body.to_string();
+        let answer = self.send_with(
+            Some(identity),
+            "POST",
+            path,
+            body.as_bytes(),
+            "application/json",
+            STAFF_ANSWER_MAX,
+            None,
+        )?;
+        Ok(match query {
+            StaffQuery::RequestLogs { .. } | StaffQuery::Log(_) => {
+                StaffAnswer::LogRequest(Box::new(parse::<LogRequestRow>(answer)?))
+            }
+            StaffQuery::LogRequests => {
+                StaffAnswer::LogRequests(parse::<LogRequestRows>(answer)?.requests)
+            }
+            StaffQuery::CrashGroups => {
+                StaffAnswer::CrashGroups(parse::<CrashGroups>(answer)?.groups)
+            }
+            StaffQuery::Crashes(_) => {
+                StaffAnswer::Crashes(parse::<CrashSummaries>(answer)?.crashes)
+            }
+            StaffQuery::Crash(_) => StaffAnswer::Crash(Box::new(parse::<CrashDetail>(answer)?)),
+        })
+    }
+
+    fn log_requests(&mut self, identity: &Identity) -> Result<Vec<LogRequest>, HubError> {
+        let answer: LogRequests =
+            parse(self.send(Some(identity), "GET", "/v1/log-requests", None)?)?;
+        Ok(answer.requests)
+    }
+
+    fn send_logs(
+        &mut self,
+        identity: &Identity,
+        id: i64,
+        upload: &LogUpload,
+    ) -> Result<(), HubError> {
+        let body = upload.body(id).to_string();
+        self.send_with(
+            Some(identity),
+            "POST",
+            "/v1/logs",
+            body.as_bytes(),
+            "application/json",
+            ANSWER_MAX,
+            Some(LOGS_TIMEOUT),
+        )
+        .map(|_| ())
+    }
+
+    fn decline_logs(&mut self, identity: &Identity, id: i64) -> Result<(), HubError> {
+        self.send(
+            Some(identity),
+            "POST",
+            "/v1/logs/decline",
+            Some(json!({ "request": id })),
+        )
+        .map(|_| ())
     }
 
     fn set_avatar(&mut self, identity: &Identity, png: &[u8]) -> Result<Profile, HubError> {
@@ -1102,6 +1264,55 @@ mod tests {
                 key_id: "fedcba9876543210".into(),
             }),
             ("/v1/staff/unlink", json!({"key_id": "fedcba9876543210"}))
+        );
+    }
+
+    #[test]
+    fn staff_queries_send_the_protocols_fields() {
+        assert_eq!(
+            staff_query_call(&StaffQuery::RequestLogs {
+                key_id: "0123456789abcdef".into(),
+                note: "your freeze".into(),
+            }),
+            (
+                "/v1/staff/log-request",
+                json!({"key_id": "0123456789abcdef", "note": "your freeze"})
+            )
+        );
+        assert_eq!(
+            staff_query_call(&StaffQuery::LogRequests),
+            ("/v1/staff/log-requests", json!({}))
+        );
+        assert_eq!(
+            staff_query_call(&StaffQuery::Log(4)),
+            ("/v1/staff/log", json!({"id": 4}))
+        );
+        assert_eq!(
+            staff_query_call(&StaffQuery::CrashGroups),
+            ("/v1/staff/crash-groups", json!({}))
+        );
+        assert_eq!(
+            staff_query_call(&StaffQuery::Crashes(String::new())),
+            ("/v1/staff/crashes", json!({"signature": ""}))
+        );
+        assert_eq!(
+            staff_query_call(&StaffQuery::Crash(7)),
+            ("/v1/staff/crash", json!({"id": 7}))
+        );
+    }
+
+    #[test]
+    fn a_log_upload_sends_the_protocols_fields() {
+        let upload = LogUpload {
+            logs: "a\n".into(),
+            build: "2026.1011.2".into(),
+            os: "Windows 11".into(),
+            gpu: "RTX".into(),
+        };
+        assert_eq!(
+            upload.body(5),
+            json!({"request": 5, "logs": "a\n", "build": "2026.1011.2",
+                   "os": "Windows 11", "gpu": "RTX"})
         );
     }
 

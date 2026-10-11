@@ -12,8 +12,9 @@
 use crate::feed::{ChatState, FeedShared, FeedWorker, QueuedLook, ReceivedLooks};
 use crate::hub::{Hub, HubError};
 use crate::keys::Identity;
+use crate::logs::{LogRequest, LogUpload};
 use crate::report::{BugReport, PlayerReport, WorldNote};
-use crate::staff::{StaffRequest, StaffState};
+use crate::staff::{OpenedText, StaffQuery, StaffRequest, StaffState};
 use crate::wire::{
     Achievement, Emote, HolocronState, Look, Presence, Profile, Unlock, names_match,
 };
@@ -65,6 +66,10 @@ const CRASHES_EVERY: Duration = Duration::from_secs(3_600);
 /// How long reports the hub could not take wait before the next try.
 const CRASHES_AGAIN: Duration = Duration::from_secs(600);
 const ASSETS_RETRY_MIN: Duration = Duration::from_secs(60);
+/// How often the SJK team's requests for the player's logs are looked for.
+const LOG_REQUESTS_EVERY: Duration = Duration::from_secs(120);
+/// How long a hub that refused the reading (from before log requests) is left alone.
+const LOG_REQUESTS_AGAIN: Duration = Duration::from_secs(3_600);
 
 /// What the player has configured.
 #[derive(Clone, Debug, Default, Eq, PartialEq)]
@@ -158,6 +163,12 @@ pub struct Snapshot {
     /// [`Service::refresh_holocrons`]). `None` before the hub answered, or from a hub
     /// older than holocrons. Cosmetic: a failure leaves [`Snapshot::status`] alone.
     pub holocrons: Option<HolocronProgress>,
+    /// The SJK team's open requests for the player's logs (oldest first), as the hub
+    /// last listed them, without the ones the player answered: the game asks the
+    /// player about each ([`Service::answer_logs`]).
+    pub log_requests: Vec<LogRequest>,
+    /// What became of the last answer to a log request.
+    pub log_answer: Option<ReportOutcome>,
 }
 
 /// How far the player's key is from its next holocron (`GET /v1/holocrons`).
@@ -236,6 +247,8 @@ impl Snapshot {
             crashes_sent: 0,
             crash_note: None,
             holocrons: None,
+            log_requests: Vec::new(),
+            log_answer: None,
         }
     }
 
@@ -278,6 +291,10 @@ enum Command {
     Achievements(BTreeMap<String, u64>),
     /// A staff request.
     Staff(StaffRequest),
+    /// A staff query about logs and crash reports.
+    StaffQuery(StaffQuery),
+    /// The player's answer to log request `id`: the logs to send, or none to decline.
+    AnswerLogs(i64, Option<LogUpload>),
     LookUp(String),
     Report(BugReport),
     PlayerReport(PlayerReport),
@@ -396,6 +413,11 @@ struct Worker {
     /// be read early.
     due_holocrons: Instant,
     holocrons_soon_after: Instant,
+    /// When the requests for the player's logs are next looked for.
+    due_log_requests: Instant,
+    /// Log requests the player answered, kept out of what the hub lists until it
+    /// stops listing them.
+    logs_answered: Vec<i64>,
 }
 
 /// What the hub holds as the player's look.
@@ -517,6 +539,8 @@ impl Worker {
             active: false,
             due_holocrons: now,
             holocrons_soon_after: now,
+            due_log_requests: now,
+            logs_answered: Vec::new(),
         }
     }
 
@@ -708,6 +732,8 @@ impl Worker {
             Command::SetBio(bio) => self.set_bio(&bio),
             Command::Achievements(counts) => self.counts = counts,
             Command::Staff(request) => self.staff(&request),
+            Command::StaffQuery(query) => self.staff_query(&query),
+            Command::AnswerLogs(id, upload) => self.answer_logs(id, upload.as_ref()),
             Command::Report(mut report) => {
                 if report.name.is_empty() {
                     report.name = self.name.clone().unwrap_or_default();
@@ -973,6 +999,110 @@ impl Worker {
         }
     }
 
+    /// Send a staff query: only once registered, and only for a key whose profile
+    /// says staff (the hub refuses the others too).
+    fn staff_query(&mut self, query: &StaffQuery) {
+        let staff_key = lock(&self.snapshot).me.as_ref().is_some_and(|me| me.staff);
+        let outcome = match (self.hub.as_mut(), self.registered, staff_key) {
+            (Some(hub), true, true) => hub.staff_query(&self.identity, query),
+            (Some(_), true, false) => Err(HubError::Rejected {
+                status: 403,
+                code: "not_staff".to_owned(),
+                message: "only SJK staff can do this".to_owned(),
+            }),
+            _ => Err(not_connected()),
+        };
+        let mut staff = self
+            .staff
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner());
+        staff.serial += 1;
+        staff.busy = false;
+        match outcome {
+            Ok(answer) => {
+                staff.failed = false;
+                staff.answered(query, answer);
+            }
+            Err(HubError::Rejected {
+                status: 404, code, ..
+            }) if code == "not_found" => {
+                staff.failed = true;
+                staff.message = match query {
+                    StaffQuery::RequestLogs { .. } => "The hub does not know that player",
+                    _ => "The hub no longer has it",
+                }
+                .to_owned();
+            }
+            Err(HubError::Rejected { message, .. }) => {
+                staff.failed = true;
+                staff.message = message;
+            }
+            Err(error) => {
+                staff.failed = true;
+                staff.message = error.to_string();
+            }
+        }
+    }
+
+    /// Look for the SJK team's requests for the player's logs if it is due. Like the
+    /// holocrons, a hub that refuses (from before log requests) is left alone a while.
+    fn keep_log_requests(&mut self, now: Instant) {
+        if now < self.due_log_requests {
+            return;
+        }
+        let Some(hub) = self.hub.as_mut() else {
+            return;
+        };
+        match hub.log_requests(&self.identity) {
+            Ok(requests) => {
+                self.due_log_requests = now + LOG_REQUESTS_EVERY;
+                self.logs_answered
+                    .retain(|id| requests.iter().any(|request| request.id == *id));
+                let open: Vec<LogRequest> = requests
+                    .into_iter()
+                    .filter(|request| !self.logs_answered.contains(&request.id))
+                    .collect();
+                self.update(|snapshot| {
+                    if snapshot.log_requests != open {
+                        snapshot.log_requests = open;
+                    }
+                });
+            }
+            Err(HubError::Network(_)) => self.due_log_requests = now + RETRY_MAX,
+            Err(_) => self.due_log_requests = now + LOG_REQUESTS_AGAIN,
+        }
+    }
+
+    /// Send the player's answer to log request `id`: `upload` (fitted here) or, with
+    /// none, a refusal. The request leaves the list whatever the hub says, unless it
+    /// could not be reached: a request the hub no longer holds open is done with too.
+    fn answer_logs(&mut self, id: i64, upload: Option<&LogUpload>) {
+        if !self.logs_answered.contains(&id) {
+            self.logs_answered.push(id);
+        }
+        self.update(|snapshot| snapshot.log_requests.retain(|request| request.id != id));
+        let outcome = match (self.hub.as_mut(), self.registered, upload) {
+            (Some(hub), true, Some(upload)) => hub
+                .send_logs(&self.identity, id, &upload.fitted())
+                .map(|()| "logs sent".to_owned()),
+            (Some(hub), true, None) => hub
+                .decline_logs(&self.identity, id)
+                .map(|()| "declined".to_owned()),
+            _ => Err(not_connected()),
+        };
+        // Not reached: the request comes back with the next listing, to answer again.
+        if matches!(outcome, Err(HubError::Network(_))) {
+            self.logs_answered.retain(|answered| *answered != id);
+        }
+        self.update(|snapshot| {
+            let serial = snapshot
+                .log_answer
+                .as_ref()
+                .map_or(1, |last| last.serial + 1);
+            snapshot.log_answer = Some(outcome_of(serial, outcome));
+        });
+    }
+
     /// Do whatever is due at `now`; return how long to wait for the next thing.
     fn tick(&mut self, now: Instant) -> Duration {
         let wait = self.tick_due(now);
@@ -1013,6 +1143,7 @@ impl Worker {
                     self.due_profile = now + PROFILE_EVERY;
                     self.due_assets = now;
                     self.due_holocrons = now;
+                    self.due_log_requests = now;
                     self.update(|snapshot| {
                         snapshot.set_me(profile);
                         snapshot.status = Status::Online;
@@ -1027,6 +1158,7 @@ impl Worker {
         }
         self.run_due(now);
         self.keep_holocrons(now);
+        self.keep_log_requests(now);
         self.keep_assets(now);
         self.send_crashes(now);
         let mut wait = IDLE_MAX;
@@ -1055,6 +1187,7 @@ impl Worker {
             wait = wait.min(self.due_crashes.saturating_duration_since(now));
         }
         wait.min(self.due_holocrons.saturating_duration_since(now))
+            .min(self.due_log_requests.saturating_duration_since(now))
     }
 
     /// Read the progress toward the next holocron if it is due. Cosmetic, like the asset
@@ -1600,7 +1733,37 @@ impl Service {
         let _ = self.commands.send(Command::Staff(request));
     }
 
-    /// What staff requests brought back.
+    /// Send a staff query about logs or crash reports; its answer arrives in
+    /// [`Service::staff_state`], and a text opened in [`Service::take_opened`].
+    pub fn staff_query(&self, query: StaffQuery) {
+        self.staff
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .busy = true;
+        let _ = self.commands.send(Command::StaffQuery(query));
+    }
+
+    /// The logs or crash report a staff query opened, once.
+    pub fn take_opened(&self) -> Option<OpenedText> {
+        self.staff
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .opened
+            .take()
+    }
+
+    /// Answer the SJK team's log request `id`: send `upload`, or decline with `None`.
+    /// The request leaves [`Snapshot::log_requests`] at once; the outcome arrives in
+    /// [`Snapshot::log_answer`].
+    pub fn answer_logs(&self, id: i64, upload: Option<LogUpload>) {
+        lock(&self.snapshot)
+            .log_requests
+            .retain(|request| request.id != id);
+        let _ = self.commands.send(Command::AnswerLogs(id, upload));
+    }
+
+    /// What staff requests brought back (without a text opened, which
+    /// [`Service::take_opened`] hands over).
     pub fn staff_state(&self) -> StaffState {
         self.staff
             .lock()
@@ -1759,6 +1922,11 @@ mod tests {
         progress: Arc<Mutex<Option<HolocronState>>>,
         /// How many times the holocron progress was asked for.
         holocron_reads: Arc<Mutex<usize>>,
+        /// The open log requests the fake hub lists; none is a hub from before log
+        /// requests, which refuses the reading.
+        log_asks: Arc<Mutex<Option<Vec<LogRequest>>>>,
+        /// How many times the log requests were looked for.
+        log_ask_reads: Arc<Mutex<usize>>,
     }
 
     impl Fake {
@@ -1884,6 +2052,59 @@ mod tests {
             }
             let state = *self.progress.lock().unwrap();
             state.ok_or_else(|| refused(404, "not_found"))
+        }
+        fn log_requests(&mut self, _: &Identity) -> Result<Vec<LogRequest>, HubError> {
+            // Counted apart from the log, which the other tests read whole.
+            *self.log_ask_reads.lock().unwrap() += 1;
+            if self.fail.load(Ordering::SeqCst) {
+                return Err(HubError::Network("down".to_owned()));
+            }
+            let asks = self.log_asks.lock().unwrap().clone();
+            asks.ok_or_else(|| refused(404, "not_found"))
+        }
+        fn send_logs(&mut self, _: &Identity, id: i64, upload: &LogUpload) -> Result<(), HubError> {
+            self.record(format!("logs {id} {} {}", upload.build, upload.logs))?;
+            if let Some(asks) = self.log_asks.lock().unwrap().as_mut() {
+                asks.retain(|ask| ask.id != id);
+            }
+            Ok(())
+        }
+        fn decline_logs(&mut self, _: &Identity, id: i64) -> Result<(), HubError> {
+            self.record(format!("decline {id}"))?;
+            if let Some(asks) = self.log_asks.lock().unwrap().as_mut() {
+                asks.retain(|ask| ask.id != id);
+            }
+            Ok(())
+        }
+        fn staff_query(
+            &mut self,
+            _: &Identity,
+            query: &StaffQuery,
+        ) -> Result<crate::staff::StaffAnswer, HubError> {
+            use crate::logs::LogRequestRow;
+            use crate::staff::StaffAnswer;
+            self.record(format!("staff {query:?}"))?;
+            Ok(match query {
+                StaffQuery::RequestLogs { key_id, note } => {
+                    StaffAnswer::LogRequest(Box::new(LogRequestRow {
+                        id: 12,
+                        key_id: key_id.clone(),
+                        name: "Friend".into(),
+                        note: note.clone(),
+                        state: "open".into(),
+                        ..LogRequestRow::default()
+                    }))
+                }
+                StaffQuery::Log(id) => StaffAnswer::LogRequest(Box::new(LogRequestRow {
+                    id: *id,
+                    name: "Friend".into(),
+                    state: "sent".into(),
+                    logs: "the lines".into(),
+                    ..LogRequestRow::default()
+                })),
+                StaffQuery::Crash(_) => return Err(refused(404, "not_found")),
+                _ => StaffAnswer::LogRequests(Vec::new()),
+            })
         }
         fn release(&mut self, _: &Identity, server: &str) -> Result<(), HubError> {
             self.record(format!("release {server}"))
@@ -2276,6 +2497,119 @@ mod tests {
             2,
             "a refresh is not a profile reading"
         );
+    }
+
+    #[test]
+    fn log_requests_are_listed_answered_once_and_older_hubs_left_alone() {
+        let fake = Fake::default();
+        let ask = |id| LogRequest {
+            id,
+            from: "Sol".into(),
+            note: "the freeze".into(),
+            created: 1,
+        };
+        *fake.log_asks.lock().unwrap() = Some(vec![ask(3), ask(4)]);
+        let t0 = Instant::now();
+        let (mut worker, snapshot) = worker(&fake, t0);
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.tick(t0);
+        assert_eq!(*fake.log_ask_reads.lock().unwrap(), 1);
+        assert_eq!(lock(&snapshot).log_requests, vec![ask(3), ask(4)]);
+        // Sent: it leaves the list, and the hub hears the logs fitted.
+        worker.handle(
+            Command::AnswerLogs(
+                3,
+                Some(LogUpload {
+                    logs: "line\r\nnext\u{0}".into(),
+                    build: "2026.1011.2".into(),
+                    ..LogUpload::default()
+                }),
+            ),
+            t0,
+        );
+        assert!(
+            fake.log()
+                .contains(&"logs 3 2026.1011.2 line\nnext".to_owned())
+        );
+        assert_eq!(lock(&snapshot).log_requests, vec![ask(4)]);
+        assert_eq!(
+            lock(&snapshot).log_answer.clone().unwrap().message,
+            "logs sent"
+        );
+        // Declined, then a listing that still has it (read before the answer) keeps it out.
+        worker.handle(Command::AnswerLogs(4, None), t0);
+        assert!(fake.log().contains(&"decline 4".to_owned()));
+        fake.log_asks.lock().unwrap().as_mut().unwrap().push(ask(4));
+        worker.tick(t0 + LOG_REQUESTS_EVERY);
+        assert!(lock(&snapshot).log_requests.is_empty());
+        // A new one shows at the next look.
+        fake.log_asks.lock().unwrap().as_mut().unwrap().push(ask(5));
+        worker.tick(t0 + LOG_REQUESTS_EVERY * 2);
+        assert_eq!(lock(&snapshot).log_requests, vec![ask(5)]);
+        // A hub from before log requests is asked again hours later only.
+        *fake.log_asks.lock().unwrap() = None;
+        let t1 = t0 + LOG_REQUESTS_EVERY * 3;
+        worker.tick(t1);
+        let reads = *fake.log_ask_reads.lock().unwrap();
+        worker.tick(t1 + LOG_REQUESTS_EVERY);
+        assert_eq!(*fake.log_ask_reads.lock().unwrap(), reads);
+        worker.tick(t1 + LOG_REQUESTS_AGAIN);
+        assert_eq!(*fake.log_ask_reads.lock().unwrap(), reads + 1);
+    }
+
+    #[test]
+    fn an_answer_the_hub_could_not_hear_comes_back_to_answer_again() {
+        let fake = Fake::default();
+        let ask = LogRequest {
+            id: 8,
+            from: "Sol".into(),
+            note: String::new(),
+            created: 1,
+        };
+        *fake.log_asks.lock().unwrap() = Some(vec![ask.clone()]);
+        let t0 = Instant::now();
+        let (mut worker, snapshot) = worker(&fake, t0);
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.tick(t0);
+        fake.fail.store(true, Ordering::SeqCst);
+        worker.handle(Command::AnswerLogs(8, None), t0);
+        assert!(!lock(&snapshot).log_answer.clone().unwrap().sent);
+        assert!(lock(&snapshot).log_requests.is_empty());
+        fake.fail.store(false, Ordering::SeqCst);
+        worker.tick(t0 + RETRY_MAX + LOG_REQUESTS_EVERY);
+        assert_eq!(lock(&snapshot).log_requests, vec![ask]);
+    }
+
+    #[test]
+    fn staff_queries_go_for_staff_only_and_opened_logs_are_handed_over() {
+        let fake = Fake::default();
+        let t0 = Instant::now();
+        let (mut worker, snapshot) = worker(&fake, t0);
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.tick(t0);
+        let staff = Arc::clone(&worker.staff);
+        worker.handle(
+            Command::StaffQuery(StaffQuery::RequestLogs {
+                key_id: "0123456789abcdef".into(),
+                note: "your freeze".into(),
+            }),
+            t0,
+        );
+        assert_eq!(staff.lock().unwrap().message, "Asked Friend for their logs");
+        assert_eq!(staff.lock().unwrap().log_requests[0].id, 12);
+        worker.handle(Command::StaffQuery(StaffQuery::Log(12)), t0);
+        let opened = staff.lock().unwrap().opened.take().unwrap();
+        assert_eq!(opened.text, "the lines");
+        assert_eq!(staff.lock().unwrap().log_requests[0].state, "sent");
+        worker.handle(Command::StaffQuery(StaffQuery::Crash(1)), t0);
+        assert!(staff.lock().unwrap().failed);
+        assert_eq!(staff.lock().unwrap().message, "The hub no longer has it");
+        // A plain key is refused here, before the hub hears it.
+        lock(&snapshot).me.as_mut().unwrap().staff = false;
+        let before = fake.log().len();
+        worker.handle(Command::StaffQuery(StaffQuery::CrashGroups), t0);
+        assert_eq!(fake.log().len(), before);
+        assert_eq!(staff.lock().unwrap().message, "only SJK staff can do this");
     }
 
     #[test]

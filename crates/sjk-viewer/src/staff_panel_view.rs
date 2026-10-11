@@ -5,7 +5,9 @@
 //! achievements with Clear on the right. Under the players, the holocrons: a tier to
 //! choose, Give holocron (with the note) and the chosen player's recent holocrons with
 //! Remove. Verify sits beside Take picture down; the right column's Keys and merge tab
-//! lists the player's keys with Unlink and merges another player into them.
+//! lists the player's keys with Unlink and merges another player into them, its Logs
+//! tab asks the player for their game's logs and lists the requests with Open, and its
+//! Crashes tab lists every player's crash reports by kind, then one kind's with Open.
 
 use super::*;
 use crate::achievements;
@@ -36,7 +38,10 @@ const MEDAL_ROW: f32 = 76.0;
 const UNLOCK_ROW: f32 = 36.0;
 const UNLOCK_GAP: f32 = 14.0;
 const ACHIEVEMENT_ROW: f32 = 34.0;
-const ACHIEVEMENTS_SHOWN: usize = 18;
+const ACHIEVEMENTS_SHOWN: usize = 16;
+/// The Logs and Crashes views' rows.
+const LOG_ROW: f32 = 36.0;
+const CRASH_GROUP_ROW: f32 = 52.0;
 /// The holocrons' section under the players: its heading, the tier chips, and its rows.
 const HOLOCRONS_TOP: f32 = 770.0;
 const TIER_CHIP: [f32; 2] = [104.0, 42.0];
@@ -111,6 +116,9 @@ impl Panel {
         self.shown.holocron_rows = 0;
         self.shown.verified = target.as_ref().is_some_and(|profile| profile.verified);
         self.shown.linked.clear();
+        self.shown.log_rows.clear();
+        self.shown.crash_groups.clear();
+        self.shown.crash_rows.clear();
         if let Some(profile) = &target {
             self.shown
                 .linked
@@ -150,6 +158,8 @@ impl Panel {
             match self.right {
                 RightView::Achievements => self.achievements(&frame, profile, mine),
                 RightView::Keys => self.keys_and_merge(&frame, profile, &inputs.staff.players),
+                RightView::Logs => self.logs(&frame, profile, inputs.staff),
+                RightView::Crashes => self.crashes(&frame, inputs.staff),
             }
         }
         self.status(&frame, inputs.staff);
@@ -750,9 +760,9 @@ impl Panel {
             frame,
             [
                 RIGHT_X + RIGHT_WIDTH - 140.0,
-                SECTION_TOP - 40.0,
+                SECTION_TOP + 4.0,
                 140.0,
-                38.0,
+                34.0,
             ],
             if confirming {
                 "Press again"
@@ -767,7 +777,7 @@ impl Panel {
         if !profile.achievements.is_empty() {
             self.order.push(CLEAR_ALL_TOKEN);
         }
-        let mut y = SECTION_TOP + 10.0;
+        let mut y = SECTION_TOP + 54.0;
         let listed: Vec<(usize, &sjk_identity::Achievement)> = achievements::ALL
             .iter()
             .enumerate()
@@ -874,17 +884,19 @@ impl Panel {
         }
     }
 
-    /// The right column's two tabs, the one shown filled gold.
+    /// The right column's four tabs, the one shown filled gold.
     fn right_tabs(&mut self, frame: &Frame) {
         let mut x = RIGHT_X;
         for (label, width, view, token) in [
             (
                 "Achievements",
-                170.0,
+                156.0,
                 RightView::Achievements,
                 ACHIEVEMENTS_TAB_TOKEN,
             ),
-            ("Keys and merge", 190.0, RightView::Keys, KEYS_TAB_TOKEN),
+            ("Keys and merge", 176.0, RightView::Keys, KEYS_TAB_TOKEN),
+            ("Logs", 72.0, RightView::Logs, LOGS_TAB_TOKEN),
+            ("Crashes", 96.0, RightView::Crashes, CRASHES_TAB_TOKEN),
         ] {
             kit::button(
                 &mut self.ui,
@@ -897,7 +909,298 @@ impl Panel {
                 token,
             );
             self.order.push(token);
-            x += width + 10.0;
+            x += width + 8.0;
+        }
+    }
+
+    /// One line of quiet text in the right column at `y`.
+    fn right_line(&mut self, frame: &Frame, y: f32, line: &str, colour: Color) {
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("{line}"),
+            frame.rect(RIGHT_X, y, RIGHT_WIDTH, 22.0),
+            14.0 * frame.s,
+            colour,
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+    }
+
+    /// Request logs for the chosen player (with the note), then the log requests,
+    /// newest first, each sent one with Open.
+    fn logs(&mut self, frame: &Frame, profile: &Profile, staff: &StaffState) {
+        let s = frame.s;
+        let name = if profile.name.is_empty() {
+            "this player".to_owned()
+        } else {
+            cut(&crate::medals::plain_note(&profile.name), 24)
+        };
+        let mut y = SECTION_TOP + 6.0;
+        let open = staff
+            .log_requests
+            .iter()
+            .any(|row| row.key_id == profile.key_id && row.state == "open");
+        kit::button(
+            &mut self.ui,
+            frame,
+            [RIGHT_X, y, 200.0, 38.0],
+            "Request logs",
+            true,
+            !open,
+            self.focus == REQUEST_LOGS_TOKEN,
+            REQUEST_LOGS_TOKEN,
+        );
+        if !open {
+            self.order.push(REQUEST_LOGS_TOKEN);
+        }
+        kit::button(
+            &mut self.ui,
+            frame,
+            [RIGHT_X + RIGHT_WIDTH - 120.0, y, 120.0, 38.0],
+            "Refresh",
+            false,
+            true,
+            self.focus == LOGS_REFRESH_TOKEN,
+            LOGS_REFRESH_TOKEN,
+        );
+        self.order.push(LOGS_REFRESH_TOKEN);
+        y += 50.0;
+        let explain = if open {
+            format!("{name} has a request open; their game asks them when they are in the menu.")
+        } else {
+            format!(
+                "Asks {name} for their game's logs, with the note under the medals. Their \
+                 game asks them first; nothing comes without their yes."
+            )
+        };
+        for part in wrap(&explain, 72).take(2) {
+            self.right_line(frame, y, part, color::QUIET);
+            y += 22.0;
+        }
+        y += 18.0;
+        kit::heading(&mut self.ui, frame, RIGHT_X, y, RIGHT_WIDTH, "Log requests");
+        y += 26.0;
+        if staff.log_requests.is_empty() {
+            self.right_line(
+                frame,
+                y,
+                "None yet, or not read: Refresh reads them.",
+                color::MUTED,
+            );
+        }
+        for (row, request) in staff.log_requests.iter().take(LOG_ROWS_SHOWN).enumerate() {
+            let token = LOG_OPEN_BASE + row as u16;
+            let row_y = y + row as f32 * LOG_ROW;
+            let sent = request.state == "sent";
+            self.shown.log_rows.push((request.id, sent));
+            text(
+                &mut self.ui,
+                TextFamily::Display,
+                format_args!("{}", cut(&crate::medals::plain_note(&request.name), 18)),
+                frame.rect(RIGHT_X, row_y + 2.0, 190.0, 26.0),
+                18.0 * s,
+                color::TEXT,
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+            let mut state = match request.state.as_str() {
+                "sent" => format!(
+                    "sent {}, {} KB",
+                    crate::medals::date_text(request.answered),
+                    request.size.div_ceil(1024)
+                ),
+                "open" => format!("asked {}", crate::medals::date_text(request.created)),
+                other => format!("{other} {}", crate::medals::date_text(request.created)),
+            };
+            if !request.staff_name.is_empty() {
+                state = format!(
+                    "{state}, by {}",
+                    cut(&crate::medals::plain_note(&request.staff_name), 10)
+                );
+            }
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("{state}"),
+                frame.rect(RIGHT_X + 196.0, row_y + 4.0, 230.0, 24.0),
+                14.0 * s,
+                if sent {
+                    color::GOLD_BRIGHT
+                } else {
+                    color::QUIET
+                },
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+            if sent {
+                kit::button(
+                    &mut self.ui,
+                    frame,
+                    [RIGHT_X + RIGHT_WIDTH - 84.0, row_y - 1.0, 84.0, 30.0],
+                    "Open",
+                    false,
+                    true,
+                    self.focus == token,
+                    token,
+                );
+                self.order.push(token);
+            }
+        }
+    }
+
+    /// Every player's crash reports: the kinds (newest first) to choose, or the chosen
+    /// kind's reports with Open, which saves one as a text file and opens it.
+    fn crashes(&mut self, frame: &Frame, staff: &StaffState) {
+        let s = frame.s;
+        let mut y = SECTION_TOP + 6.0;
+        let group = self
+            .crash_group
+            .clone()
+            .filter(|signature| *signature == staff.crashes_of);
+        let (token, label) = if self.crash_group.is_some() {
+            (CRASHES_BACK_TOKEN, "All kinds")
+        } else {
+            (CRASHES_REFRESH_TOKEN, "Refresh")
+        };
+        kit::button(
+            &mut self.ui,
+            frame,
+            [RIGHT_X + RIGHT_WIDTH - 140.0, y, 140.0, 38.0],
+            label,
+            false,
+            true,
+            self.focus == token,
+            token,
+        );
+        self.order.push(token);
+        let title = if self.crash_group.is_some() {
+            "Reports of this kind"
+        } else {
+            "Kinds of crash, newest first"
+        };
+        text(
+            &mut self.ui,
+            TextFamily::Display,
+            format_args!("{title}"),
+            frame.rect(RIGHT_X, y + 4.0, RIGHT_WIDTH - 150.0, 30.0),
+            20.0 * s,
+            color::TEXT,
+            FontWeight::Semibold,
+            TextAlign::Start,
+        );
+        y += 54.0;
+        match group {
+            Some(_) => {
+                if staff.crashes.is_empty() {
+                    self.right_line(frame, y, "No report of this kind any more.", color::MUTED);
+                }
+                for (row, crash) in staff.crashes.iter().take(CRASH_ROWS_SHOWN).enumerate() {
+                    let token = CRASH_OPEN_BASE + row as u16;
+                    let row_y = y + row as f32 * LOG_ROW;
+                    self.shown.crash_rows.push(crash.id);
+                    text(
+                        &mut self.ui,
+                        TextFamily::Display,
+                        format_args!("{}", cut(&crate::medals::plain_note(&crash.name), 16)),
+                        frame.rect(RIGHT_X, row_y + 2.0, 170.0, 26.0),
+                        18.0 * s,
+                        color::TEXT,
+                        FontWeight::Regular,
+                        TextAlign::Start,
+                    );
+                    text(
+                        &mut self.ui,
+                        TextFamily::Body,
+                        format_args!(
+                            "{}, {}",
+                            crate::medals::date_text(crash.created),
+                            cut(&crash.build, 14)
+                        ),
+                        frame.rect(RIGHT_X + 176.0, row_y + 4.0, 250.0, 24.0),
+                        14.0 * s,
+                        color::QUIET,
+                        FontWeight::Regular,
+                        TextAlign::Start,
+                    );
+                    kit::button(
+                        &mut self.ui,
+                        frame,
+                        [RIGHT_X + RIGHT_WIDTH - 84.0, row_y - 1.0, 84.0, 30.0],
+                        "Open",
+                        false,
+                        true,
+                        self.focus == token,
+                        token,
+                    );
+                    self.order.push(token);
+                }
+            }
+            None if self.crash_group.is_some() => {
+                self.right_line(frame, y, "Reading...", color::MUTED);
+            }
+            None => {
+                if staff.crash_groups.is_empty() {
+                    self.right_line(
+                        frame,
+                        y,
+                        "No crash reports, or not read: Refresh reads them.",
+                        color::MUTED,
+                    );
+                }
+                for (row, kind) in staff
+                    .crash_groups
+                    .iter()
+                    .take(CRASH_GROUPS_SHOWN)
+                    .enumerate()
+                {
+                    let token = CRASH_GROUP_BASE + row as u16;
+                    let row_y = y + row as f32 * CRASH_GROUP_ROW;
+                    self.shown.crash_groups.push(kind.signature.clone());
+                    let place = kind.location.rsplit(['/', '\\']).next().unwrap_or_default();
+                    kit::button(
+                        &mut self.ui,
+                        frame,
+                        [RIGHT_X, row_y - 2.0, RIGHT_WIDTH, CRASH_GROUP_ROW - 6.0],
+                        "",
+                        false,
+                        true,
+                        self.focus == token,
+                        token,
+                    );
+                    self.order.push(token);
+                    text(
+                        &mut self.ui,
+                        TextFamily::Body,
+                        format_args!(
+                            "{}{}{}, {} report{} from {} player{}, last {}",
+                            kind.kind,
+                            if place.is_empty() { "" } else { " in " },
+                            cut(place, 24),
+                            kind.count,
+                            if kind.count == 1 { "" } else { "s" },
+                            kind.keys,
+                            if kind.keys == 1 { "" } else { "s" },
+                            crate::medals::date_text(kind.last)
+                        ),
+                        frame.rect(RIGHT_X + 12.0, row_y + 1.0, RIGHT_WIDTH - 24.0, 22.0),
+                        15.0 * s,
+                        color::TEXT,
+                        FontWeight::Regular,
+                        TextAlign::Start,
+                    );
+                    text(
+                        &mut self.ui,
+                        TextFamily::Body,
+                        format_args!("{}", cut(&kind.message, 62)),
+                        frame.rect(RIGHT_X + 12.0, row_y + 22.0, RIGHT_WIDTH - 24.0, 20.0),
+                        13.0 * s,
+                        color::QUIET,
+                        FontWeight::Regular,
+                        TextAlign::Start,
+                    );
+                }
+            }
         }
     }
 
@@ -1382,21 +1685,60 @@ mod tests {
                 )
             })
             .collect();
-        for staff in [
-            StaffState {
-                players: players.clone(),
-                message: "x".repeat(200),
-                failed: true,
-                ..StaffState::default()
-            },
-            StaffState::default(),
-        ]
-        .into_iter()
-        .flat_map(|staff| {
+        let long = "^3Someone^7 with a long name here".to_owned();
+        let log_requests: Vec<sjk_identity::logs::LogRequestRow> = (0..40)
+            .map(|index| sjk_identity::logs::LogRequestRow {
+                id: index,
+                key_id: format!("{index:016x}"),
+                name: long.clone(),
+                staff_name: long.clone(),
+                state: ["sent", "open", "declined", "expired"][index as usize % 4].to_owned(),
+                created: 1_791_720_000,
+                answered: 1_791_720_000,
+                size: 400_000,
+                ..Default::default()
+            })
+            .collect();
+        let crash_groups: Vec<sjk_identity::logs::CrashGroup> = (0..40)
+            .map(|index| sjk_identity::logs::CrashGroup {
+                signature: format!("{index:016x}"),
+                kind: "exception".to_owned(),
+                location: "crates/sjk-viewer/src/a_very_long_file_name_for_a_crash.rs:1:2"
+                    .to_owned(),
+                message: "m".repeat(300),
+                count: 12_345,
+                keys: 678,
+                last: 1_791_720_000,
+                ..Default::default()
+            })
+            .collect();
+        let crashes: Vec<sjk_identity::logs::CrashSummary> = (0..60)
+            .map(|index| sjk_identity::logs::CrashSummary {
+                id: index,
+                name: long.clone(),
+                created: 1_791_720_000,
+                build: "2026.1011.2-with-a-long-tail".to_owned(),
+                ..Default::default()
+            })
+            .collect();
+        let full = StaffState {
+            players: players.clone(),
+            message: "x".repeat(200),
+            failed: true,
+            log_requests,
+            crash_groups,
+            crashes,
+            crashes_of: "0000000000000001".to_owned(),
+            ..StaffState::default()
+        };
+        for staff in [full, StaffState::default()].into_iter().flat_map(|staff| {
             [
                 (staff.clone(), RightView::Achievements, false),
                 (staff.clone(), RightView::Keys, false),
-                (staff, RightView::Keys, true),
+                (staff.clone(), RightView::Keys, true),
+                (staff.clone(), RightView::Logs, false),
+                (staff.clone(), RightView::Crashes, false),
+                (staff, RightView::Crashes, true),
             ]
         }) {
             let (staff, right, pending) = staff;
@@ -1406,7 +1748,10 @@ mod tests {
             panel.query = "q".repeat(64);
             panel.right = right;
             panel.merge_from = "m".repeat(MERGE_FIELD_MAX);
-            if pending {
+            // In the Crashes view, `pending` shows one kind's reports.
+            if pending && right == RightView::Crashes {
+                panel.crash_group = Some("0000000000000001".into());
+            } else if pending {
                 panel.merge_from = "0000000000000003".into();
                 panel.pending_merge = Some(PendingMerge {
                     kept: me.key_id.clone(),

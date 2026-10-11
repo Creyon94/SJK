@@ -20,6 +20,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+- Log requests: when you have a problem, the SJK team can ask for your game's logs; a card on the menu asks you first and nothing is sent unless you choose Send logs. SJK now keeps the console lines of this session and the last one (no chat) in logs/ beside your settings _(Sol)_
 - Typing rate 0 or snaps 0 in the console no longer stops you joining servers or changing your name in a game: they are sent as the lowest values servers accept _(Sol)_
 - Gameplay FPS: your movement no longer depends on your frame rate, and you can pick the one you are used to. In the original game your FPS was also your physics (jumps and strafes differ at 125, 142, 250 or 333); SJK draws frames up to your FPS cap and moves you at your gameplay FPS: 125 by default, or 142, 250, 333 or any value from 20 to 1000. Settings > Video > Gameplay FPS, First setup, or gameplayfps to read why and choose (gameplayfps 333 sets it); servers that fix the movement step (pmove_fixed) keep theirs _(Sol, after JoF EJK)_
 - First setup starts with Import from a client: it finds the configs of Jedi Academy, JA+, OpenJK, EternalJK / JoF EJK and TaystJK on your computer and brings your name, model, field of view, FPS cap and keys, then asks for your gameplay FPS with your old frame rate picked _(Sol)_
