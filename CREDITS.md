@@ -59,7 +59,10 @@ Sol develops SJK and sets its direction. Sol's work includes:
 - nameplates with estimated health, shield and Force, held-weapon and Force
   power icons, and player cards;
 - 125 Hz user commands on the server's 8 ms grid (after JoF EJK's
-  `cl_cmdratecap`) and a working `cl_maxpackets`;
+  `cl_cmdratecap`) and a working `cl_maxpackets`; then the gameplay FPS, the
+  movement of 125, 142, 250, 333 or any frame rate apart from the frames drawn,
+  explained and asked in First setup with the configs of installed clients
+  imported;
 - weather: rain, snow and mist kept under open sky, 3D splashes, ground fog and
   volumetric clouds;
 - SJK identity: the identity key, the SJK hub, its verified badges, bug reports

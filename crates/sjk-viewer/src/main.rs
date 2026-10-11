@@ -91,6 +91,7 @@ mod frame_target;
 mod free_camera;
 mod game_font;
 mod game_menu_actions;
+mod gameplay_fps;
 mod ghost_replay;
 mod glow_pass;
 mod gpu_context;
@@ -666,6 +667,10 @@ impl GpuState {
             game_fonts: preload_game_fonts,
             completed_map_changes,
         } = input;
+        // The Import page looks for other clients' configs beside SJK's.
+        if let Some(console) = &mut console {
+            console.set_game_data(&game_data);
+        }
         let mut load_profile = load_profile::LoadProfile::start(cancelled);
         let session_active =
             live_session.is_some() || demo_session.is_some() || build_game_state.is_some();

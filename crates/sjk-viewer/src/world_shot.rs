@@ -776,13 +776,36 @@ mod tests {
             std::fs::write(
                 &config,
                 "unbindall\nbind w \"+forward\"\nbind NOSUCHKEY \"+use\"\n\
-                 seta name \"^1Sol^7Fox\"\nseta model \"kyle/default\"\nseta cg_fov \"100\"\n",
+                 seta name \"^1Sol^7Fox\"\nseta model \"kyle/default\"\nseta cg_fov \"100\"\n\
+                 seta com_maxfps \"333\"\n",
             )
             .expect("write the config");
             if let Some(console) = gpu.console.as_mut() {
                 console.open_config_import(Some(&config));
             }
             let path = shoot(&mut gpu, 6, "duel6-import-page-loaded");
+            println!("{}", path.display());
+            // Imported: the gameplay FPS step with the file's 333 picked, then on its
+            // own (gameplayfps) with Other typed.
+            if let Some(console) = gpu.console.as_mut() {
+                console.import_for_shot();
+            }
+            let path = shoot(&mut gpu, 6, "duel6-gameplay-fps-imported");
+            println!("{}", path.display());
+            if let Some(console) = gpu.console.as_mut() {
+                console.config_import_done_for_shot();
+            }
+            let path = shoot(&mut gpu, 6, "duel6-import-page-done");
+            println!("{}", path.display());
+            if let Some(console) = gpu.console.as_mut() {
+                console.open_gameplay_fps();
+            }
+            let path = shoot(&mut gpu, 6, "duel6-gameplay-fps");
+            println!("{}", path.display());
+            if let Some(console) = gpu.console.as_mut() {
+                console.type_gameplay_fps_for_shot("400");
+            }
+            let path = shoot(&mut gpu, 6, "duel6-gameplay-fps-other");
             println!("{}", path.display());
             if let Some(console) = gpu.console.as_mut() {
                 console.open_config_import(Some(std::path::Path::new(

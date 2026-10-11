@@ -1,10 +1,11 @@
 //! Per-frame extrapolation of the local prediction between network packets.
 //!
-//! The viewer makes a user command every 8 ms (`command_rate`); the stock
+//! The viewer makes a user command every gameplay FPS step, 8 ms at its
+//! default 125 (`command_rate`); the stock
 //! client predicts through a fresh usercmd every rendered frame
 //! (`cl_input.cpp` `CL_CreateNewCommands`, `cg_predict.c:1124-1237`). Without
 //! this the presented origin holds still for up to a command interval and then
-//! steps, which reads as movement jitter at frame rates above 125.
+//! steps, which reads as movement jitter at frame rates above the gameplay FPS.
 
 #[path = "interpolated_view.rs"]
 pub(crate) mod interpolated;

@@ -45,9 +45,11 @@ pub(crate) enum SettingsResult {
     OpenWheelPages,
     /// The "SJK identity key" row: the Identity page, over the settings.
     OpenIdentity,
-    /// First setup's "Import a config file" row: the Import page and the
-    /// file dialog, over the settings.
+    /// First setup's "Import from another client" row: the Import page with
+    /// the configs found (or the file dialog), over the settings.
     OpenImport,
+    /// The Gameplay FPS row's Enter: the card that explains it, over the settings.
+    OpenGameplayFps,
     /// The installed-pack browser, over the settings.
     OpenAssets,
     /// A button of the classic panel screen around the options: index into
@@ -641,6 +643,8 @@ impl SettingsMenu {
                         return SettingsResult::OpenAssets;
                     } else if matches!(setting.kind, ValueKind::ImportPage) {
                         return SettingsResult::OpenImport;
+                    } else if matches!(setting.kind, ValueKind::GameplayFps) {
+                        return SettingsResult::OpenGameplayFps;
                     } else if classic && self.open_dropdown(console, self.selected) {
                         // Classic+: a choice opens its list; nothing changes yet.
                     } else if !self.begin_numeric(console, self.selected) {
@@ -703,6 +707,9 @@ impl SettingsMenu {
                     .store(console);
                 self.refresh(console);
                 return;
+            }
+            (ValueKind::GameplayFps, Some(CvarValue::Integer(value))) => {
+                crate::gameplay_fps::step_preset(*value, direction).to_string()
             }
             (ValueKind::Quality, _) => {
                 // Custom settings step from the level they are nearest.
@@ -799,6 +806,7 @@ impl SettingsMenu {
                 ValueKind::WheelPages => wheel_pages_text(console),
                 ValueKind::IdentityPage => IDENTITY_TEXT.to_owned(),
                 ValueKind::ImportPage => IMPORT_TEXT.to_owned(),
+                ValueKind::GameplayFps => crate::gameplay_fps::row_text(console),
                 ValueKind::AssetBrowser => "Browse packs".to_owned(),
                 ValueKind::Quality => crate::graphics_quality::shown(console).to_owned(),
                 ValueKind::Bool if derived_switch(setting.cvar).is_some() => {
@@ -944,7 +952,7 @@ fn float_text(value: f64) -> String {
 
 /// What the "SJK identity key" row shows: never the key itself.
 const IDENTITY_TEXT: &str = "Hidden: open to see";
-const IMPORT_TEXT: &str = "Choose a .cfg";
+const IMPORT_TEXT: &str = "Base, EJK, TaystJK...";
 
 /// What the "Quick wheel pages" row shows: how many pages, and whether they
 /// are the defaults.
@@ -1086,6 +1094,7 @@ mod tests {
                 // Choices cycle the cvar's text form, whatever its type.
                 (ValueKind::Choice(values), value) => values.contains(&value.as_text().as_str()),
                 (ValueKind::Text, CvarValue::Text(_)) => true,
+                (ValueKind::GameplayFps, CvarValue::Integer(_)) => true,
                 _ => false,
             };
             assert!(

@@ -1,9 +1,10 @@
 //! The Import page in the SJK UI (`docs/sjk-ui.md`, SJK's pages): a pop-up card
 //! over the darkened map, as Update's and First setup's. Import and the file's
 //! name over a headline; then the parts the file holds, one row each with its
-//! switch, or what to do (no file yet), why nothing was imported, or what
-//! changed; then the actions along the card's foot: Browse, and Import (gold)
-//! with Cancel. The state and its actions are the page's own.
+//! switch, or the configs found from other clients (no file yet), what to do,
+//! why nothing was imported, or what changed; then the actions along the card's
+//! foot: Browse, and Import (gold) with Cancel. The gameplay FPS step is drawn
+//! by `config_import_panel_fps.rs`. The state and its actions are the page's own.
 
 use super::*;
 use crate::menu::sjk::{Frame, TextTarget, color, key_hint, key_hint_width, kit, text, wrap};
@@ -44,13 +45,19 @@ struct Buttons {
 impl Panel {
     /// Draw the page in the SJK UI.
     pub(crate) fn append_sjk(&mut self, target: TextTarget<'_>, viewport: [f32; 2]) {
+        if matches!(self.state, State::Fps { .. }) {
+            self.append_sjk_fps(target, viewport);
+            return;
+        }
         let frame = Frame::new(viewport);
         let s = frame.s;
         let (headline, lines) = self.sjk_words();
+        let detected = matches!(self.state, State::Waiting) && !self.detected.is_empty();
         let body_height = match &self.state {
             State::Loaded(found) => {
                 self.rows.len() as f32 * ROW + if found.unknown_keys > 0 { LINE } else { 0.0 }
             }
+            _ if detected => self.detected.len() as f32 * ROW + LINE,
             _ => lines.len() as f32 * LINE,
         };
         let buttons_y = BODY_TOP + body_height + BUTTONS_GAP;
@@ -90,6 +97,8 @@ impl Panel {
         );
         if matches!(self.state, State::Loaded(_)) {
             self.sjk_rows(&frame);
+        } else if detected {
+            self.sjk_detected(&frame);
         } else {
             let mut y = BODY_TOP;
             for line in &lines {
@@ -124,6 +133,9 @@ impl Panel {
                      GameData/base/jampconfig.cfg, or the one in your mod's folder.",
                 ),
             ),
+            State::Waiting if !self.detected.is_empty() => {
+                ("Bring your setup from another client", Vec::new())
+            }
             State::Waiting => (
                 "Bring your setup from another client",
                 wrapped(
@@ -144,6 +156,7 @@ impl Panel {
                 wrapped("What you ticked was already your setup."),
             ),
             State::Done(done) => ("Imported", done.clone()),
+            State::Fps { .. } => ("", Vec::new()),
         };
         lines.truncate(LINES);
         (headline, lines)
@@ -219,8 +232,83 @@ impl Panel {
         }
     }
 
+    /// The configs other clients wrote, one row each: the client, then the name it
+    /// holds and when it was saved; the selected one banded. A click reads it. A
+    /// line under them says how to give another.
+    fn sjk_detected(&mut self, frame: &Frame) {
+        let s = frame.s;
+        let rows: Vec<(String, String)> = self
+            .detected
+            .iter()
+            .map(|config| {
+                let saved = format!("saved {}", config.date);
+                let value = match &config.name {
+                    Some(name) => format!("{name}  -  {saved}"),
+                    None => saved,
+                };
+                (config.client.clone(), value)
+            })
+            .collect();
+        let mut top = BODY_TOP;
+        for (row, (client, value)) in rows.into_iter().enumerate() {
+            let focused = row == self.selected;
+            let middle = top + ROW * 0.5;
+            if focused {
+                kit::band(
+                    &mut self.ui,
+                    frame,
+                    [TEXT_X - 16.0, top, TEXT_WIDTH + 32.0, ROW],
+                );
+            }
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("{client}"),
+                frame.rect(TEXT_X + 8.0, middle - 13.0, 340.0, 26.0),
+                19.0 * s,
+                if focused {
+                    color::TEXT
+                } else {
+                    color::alpha(color::TEXT, 0.9)
+                },
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("{value}"),
+                frame.rect(TEXT_X + 360.0, middle - 12.0, TEXT_WIDTH - 368.0, 24.0),
+                17.0 * s,
+                color::MUTED,
+                FontWeight::Regular,
+                TextAlign::End,
+            );
+            self.ui.hit_region(
+                row as u16,
+                frame.rect(TEXT_X - 16.0, top, TEXT_WIDTH + 32.0, ROW),
+            );
+            top += ROW;
+        }
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("Not here? Browse for its .cfg, or drop it on this window."),
+            frame.rect(TEXT_X + 8.0, top + 4.0, TEXT_WIDTH, 24.0),
+            16.0 * s,
+            color::QUIET,
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+    }
+
     fn sjk_buttons_shown(&self) -> Buttons {
         match &self.state {
+            State::Waiting if !self.detected.is_empty() => Buttons {
+                left: Some(("Browse...", BROWSE_TOKEN)),
+                primary: Some(("Import", IMPORT_TOKEN, true)),
+                close: Some("Close"),
+            },
             State::Waiting | State::Failed(_) => Buttons {
                 left: None,
                 primary: Some(("Browse...", BROWSE_TOKEN, self.browsing.is_none())),
@@ -231,7 +319,7 @@ impl Panel {
                 primary: Some(("Import", IMPORT_TOKEN, self.chosen().is_some())),
                 close: Some("Cancel"),
             },
-            State::Done(_) => Buttons {
+            State::Done(_) | State::Fps { .. } => Buttons {
                 left: None,
                 primary: Some(("Done", IMPORT_TOKEN, true)),
                 close: None,
@@ -292,6 +380,11 @@ impl Panel {
     fn sjk_keys(&mut self, frame: &Frame) {
         let s = frame.s;
         let keys: &[(&[&str], &str)] = match &self.state {
+            State::Waiting if !self.detected.is_empty() => &[
+                (&["Enter"], "import"),
+                (&["B"], "browse"),
+                (&["Esc"], "close"),
+            ],
             State::Waiting | State::Failed(_) => &[(&["Enter"], "browse"), (&["Esc"], "close")],
             State::Loaded(_) => &[
                 (&["Enter"], "import"),
@@ -299,7 +392,7 @@ impl Panel {
                 (&["B"], "other file"),
                 (&["Esc"], "cancel"),
             ],
-            State::Done(_) => &[(&["Enter"], "done")],
+            State::Done(_) | State::Fps { .. } => &[(&["Enter"], "done")],
         };
         let gap = 30.0 * s;
         let width: f32 = keys
@@ -315,9 +408,10 @@ impl Panel {
     }
 }
 
-// At its tallest (every part and the unknown keys' note, or every line) the card
-// ends above the keys.
+// At its tallest (every part and the unknown keys' note, every config found and
+// its note, or every line) the card ends above the keys.
 const _: () =
-    assert!(BODY_TOP + 4.0 * ROW + LINE + BUTTONS_GAP + BUTTON_HEIGHT + MARGIN < KEYS_Y - 20.0);
+    assert!(BODY_TOP + 5.0 * ROW + LINE + BUTTONS_GAP + BUTTON_HEIGHT + MARGIN < KEYS_Y - 20.0);
+const _: () = assert!(crate::config_import::MAX_DETECTED <= 5);
 const _: () =
     assert!(BODY_TOP + LINES as f32 * LINE + BUTTONS_GAP + BUTTON_HEIGHT + MARGIN < KEYS_Y - 20.0);

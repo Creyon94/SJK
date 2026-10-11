@@ -149,6 +149,13 @@ impl ViewerConsole {
             "cl_maxpackets",
             console_cvars::DEFAULT_MAX_PACKETS,
         )?;
+        let gameplay_fps = console_cvars::IntegerSetting::bind(
+            &mut cvars,
+            crate::gameplay_fps::CVAR,
+            sjk_client::command_rate::DEFAULT_GAMEPLAY_FPS,
+        )?;
+        let pmove_fixed = console_cvars::IntegerSetting::bind(&mut cvars, "pmove_fixed", 0)?;
+        let pmove_msec = console_cvars::IntegerSetting::bind(&mut cvars, "pmove_msec", 8)?;
         let socket = super::socket::State::bind(&mut cvars)?;
         let userinfo_dirty = Arc::new(AtomicBool::new(true));
         let overlay_dirty = Arc::clone(&userinfo_dirty);
@@ -531,6 +538,9 @@ impl ViewerConsole {
             remap_blocked_maps,
             packet_dup,
             max_packets,
+            gameplay_fps,
+            pmove_fixed,
+            pmove_msec,
             post_color,
             dynamic_light_settings,
             soft_particles,

@@ -1,8 +1,9 @@
 //! Console side of the Import page (see `config_import_panel.rs`): opening it on a
-//! dropped or browsed file, copying the ticked parts into the profile, and routing keys and
-//! pointer events to it while it is open, as for the Update page.
+//! dropped, browsed or found file, copying the ticked parts into the profile, setting
+//! the gameplay FPS asked after it (or on its own, `gameplayfps`), and routing keys
+//! and pointer events to it while it is open, as for the Update page.
 
-use super::config_import_panel::{Browsed, PanelAction};
+use super::config_import_panel::{Browsed, FpsInfo, PanelAction};
 use super::*;
 use crate::config_import::{self, COLOR_CVARS, Found, Item};
 use sjk_ui::InputEvent;
@@ -39,11 +40,56 @@ impl ViewerConsole {
             .open(owns_console, file, path.map(config_import::read));
     }
 
-    /// Show the Import page and the file dialog over it at once: First setup's
-    /// "Import a config file" row.
+    /// First setup's "Import from another client" row: the Import page with the
+    /// configs found from other clients, or the file dialog over it when none are.
     pub(crate) fn browse_config_import(&mut self) {
         self.open_config_import(None);
-        self.config_import.browse();
+        if !self.config_import.has_detected() {
+            self.config_import.browse();
+        }
+    }
+
+    /// The game folder, where the Import page looks for other clients' configs.
+    pub(crate) fn set_game_data(&mut self, game_data: &Path) {
+        self.config_import.set_game_data(game_data);
+    }
+
+    /// Show the gameplay FPS step on its own: `gameplayfps` and the Gameplay FPS
+    /// setting. Opens the console if needed.
+    pub(crate) fn open_gameplay_fps(&mut self) {
+        let owns_console = !self.open;
+        if !self.open {
+            self.set_open(true);
+        }
+        self.browser.close();
+        self.dead_key.settle();
+        let choice = crate::gameplay_fps::Choice::new(self.gameplay_fps(), None);
+        let info = self.fps_info();
+        self.config_import.open_fps(owns_console, choice, info);
+    }
+
+    /// The FPS cap and the server's fixed step, for the gameplay FPS step.
+    fn fps_info(&self) -> FpsInfo {
+        let cap = match self.integer_cvar("com_maxfps") {
+            Some(0) => "uncapped".to_owned(),
+            Some(cap) if cap > 0 => cap.to_string(),
+            _ => "AUTO".to_owned(),
+        };
+        FpsInfo {
+            cap,
+            server_fixed: self.pmove_fixed_msec(),
+        }
+    }
+
+    /// Set the gameplay FPS; the line saying to what.
+    pub(crate) fn set_gameplay_fps(&mut self, fps: i64) -> Option<String> {
+        if !self.set_cvar(crate::gameplay_fps::CVAR, &fps.to_string()) {
+            return None;
+        }
+        Some(format!(
+            "Gameplay FPS: {}",
+            crate::gameplay_fps::describe(fps)
+        ))
     }
 
     /// Read the file the dialog gave, as a dropped one; called every frame the page
@@ -92,6 +138,13 @@ impl ViewerConsole {
                         && self.set_cvar("cg_fov", fov)
                     {
                         lines.push(format!("Field of view: {fov}"));
+                    }
+                }
+                Item::FpsCap => {
+                    if let Some(fps) = found.max_fps
+                        && self.set_cvar("com_maxfps", &fps.to_string())
+                    {
+                        lines.push(format!("FPS cap: {fps}"));
                     }
                 }
                 Item::Binds => {
@@ -149,18 +202,53 @@ impl ViewerConsole {
         match action {
             PanelAction::None => {}
             PanelAction::Close => self.close_config_import(),
+            PanelAction::ImportDetected(path) => self.open_config_import(Some(&path)),
+            // Copy the ticked parts, then ask for the gameplay FPS with the file's
+            // old frame rate picked; a finished page's Done closes it.
             PanelAction::Import => {
                 let chosen = self
                     .config_import
                     .chosen()
                     .map(|(found, items)| (found.clone(), items));
-                let lines = match chosen {
-                    Some((found, items)) => self.import_config(&found, &items),
-                    None => Vec::new(),
+                let Some((found, items)) = chosen else {
+                    self.close_config_import();
+                    return;
                 };
-                self.config_import.finish(lines);
+                let origin = self.config_import.origin();
+                let lines = self.import_config(&found, &items);
+                let choice = crate::gameplay_fps::Choice::new(self.gameplay_fps(), origin);
+                let info = self.fps_info();
+                self.config_import.ask_fps(lines, choice, info);
+            }
+            PanelAction::UseFps(fps) => {
+                let line = self.set_gameplay_fps(fps);
+                if let Some(line) = &line {
+                    self.shell.push_log(line.clone());
+                }
+                if self.config_import.fps_done(line) {
+                    self.close_config_import();
+                }
             }
         }
+    }
+
+    /// Import the loaded file's ticked parts, as Enter does, for the world shots.
+    #[cfg(test)]
+    pub(crate) fn import_for_shot(&mut self) {
+        self.config_import_action(PanelAction::Import);
+    }
+
+    /// Use the gameplay FPS chosen, as Enter does, for the world shots.
+    #[cfg(test)]
+    pub(crate) fn config_import_done_for_shot(&mut self) {
+        let action = self.config_import.primary_for_shot();
+        self.config_import_action(action);
+    }
+
+    /// Type `digits` on the gameplay FPS step, for the world shots.
+    #[cfg(test)]
+    pub(crate) fn type_gameplay_fps_for_shot(&mut self, digits: &str) {
+        self.config_import.type_fps_for_shot(digits);
     }
 
     /// Give a pressed key to the open page; false when the page is closed.
@@ -225,6 +313,26 @@ mod tests {
         assert_eq!(console.shell.binds.get("ESCAPE").map(str::to_owned), escape);
         // +forward lost its key to the file, so it is not given one back on W.
         assert!(console.keys_for_command("+forward").is_empty());
+    }
+
+    #[test]
+    fn the_fps_cap_is_copied_and_the_gameplay_fps_set_apart() {
+        let (_directory, mut console) = console();
+        let found = parse("seta com_maxfps 333\n");
+        let lines = console.import_config(&found, &[Item::FpsCap]);
+        assert_eq!(lines, ["FPS cap: 333"]);
+        assert_eq!(console.integer_cvar("com_maxfps"), Some(333));
+        assert_eq!(console.gameplay_fps(), 125, "the movement is asked apart");
+        let line = console.set_gameplay_fps(333).unwrap();
+        assert_eq!(line, "Gameplay FPS: 333 (3 ms steps)");
+        assert_eq!(console.command_step(), 3);
+        // A pmove_fixed server's step wins.
+        console
+            .shell
+            .cvars
+            .restore_text("pmove_fixed", "1")
+            .unwrap();
+        assert_eq!(console.command_step(), 8);
     }
 
     #[test]

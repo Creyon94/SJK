@@ -202,6 +202,10 @@ pub(crate) struct ViewerConsole {
     remap_blocked_maps: console_cvars::RevisionSetting,
     packet_dup: console_cvars::IntegerSetting,
     max_packets: console_cvars::IntegerSetting,
+    /// `cl_gameplayFps`, and the server's `pmove_fixed`/`pmove_msec` that override it.
+    gameplay_fps: console_cvars::IntegerSetting,
+    pmove_fixed: console_cvars::IntegerSetting,
+    pmove_msec: console_cvars::IntegerSetting,
     pub(crate) geometry_controls: crate::shared_geometry::environment::Cvars,
     pub(crate) post_color: crate::frame_target::aa::color::Settings,
     /// Seeded scene-light control shared with graphics contexts and map-install workers.
@@ -293,6 +297,23 @@ impl ViewerConsole {
     /// Cached `cl_maxpackets`; [`sjk_client::command_rate::PacketPacer`] clamps it.
     pub(crate) fn max_packets(&self) -> i64 {
         self.max_packets.value()
+    }
+
+    /// Cached `cl_gameplayFps`: the frame rate whose movement the player wants.
+    pub(crate) fn gameplay_fps(&self) -> i64 {
+        self.gameplay_fps.value()
+    }
+
+    /// The server's `pmove_msec` while it fixes the movement step (`pmove_fixed`).
+    pub(crate) fn pmove_fixed_msec(&self) -> Option<i32> {
+        self.pmove_fixed
+            .enabled()
+            .then(|| self.pmove_msec.value().clamp(1, 50) as i32)
+    }
+
+    /// Milliseconds between user commands ([`sjk_client::command_rate::command_step`]).
+    pub(crate) fn command_step(&self) -> i32 {
+        sjk_client::command_rate::command_step(self.gameplay_fps(), self.pmove_fixed_msec())
     }
 
     pub(crate) fn config_directory(&self) -> &std::path::Path {
@@ -448,10 +469,11 @@ impl ViewerConsole {
                 .map_or(default, |value| value.clamp(0, i64::from(u32::MAX)) as u32)
         };
         // The cvars are EJK's frames; the run counts user commands.
+        let step = self.command_step();
         Timing {
-            duration: commands(count(DURATION_CVAR, 50)),
-            first_jump: commands(count(FIRST_JUMP_CVAR, 0)),
-            second_jump_delay: commands(count(SECOND_JUMP_CVAR, 0)),
+            duration: commands(count(DURATION_CVAR, 50), step),
+            first_jump: commands(count(FIRST_JUMP_CVAR, 0), step),
+            second_jump_delay: commands(count(SECOND_JUMP_CVAR, 0), step),
         }
     }
 

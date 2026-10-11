@@ -58,20 +58,31 @@ pub(super) enum ValueKind {
     /// The SJK identity's key (not a cvar): Enter opens the Identity page, where the
     /// key's id and file stay hidden until shown.
     IdentityPage,
-    /// Import a config file (not a cvar): Enter opens the Import page with
-    /// the file dialog over it ([`crate::config_import`]).
+    /// Import from another client (not a cvar): Enter opens the Import page with
+    /// the configs found, or the file dialog over it ([`crate::config_import`]).
     ImportPage,
     /// Open the installed PK3 pack browser.
     AssetBrowser,
+    /// `cl_gameplayFps`: Left/Right step through the presets (125, 142, 250,
+    /// 333); Enter opens the card that explains it and takes any value
+    /// ([`crate::gameplay_fps`]).
+    GameplayFps,
 }
 
 /// The "SJK identity key" row's name in place of a cvar: the command that opens the
 /// same page.
 pub(crate) const IDENTITY_ROW: &str = "identity";
 
-/// The "Import a config file" row's name in place of a cvar: the command that
+/// The "Import from a client" row's name in place of a cvar: the command that
 /// opens the same page.
 pub(crate) const IMPORT_ROW: &str = "firstsetup import";
+
+/// The Gameplay FPS row, shared by Video and First setup.
+pub(super) const GAMEPLAY_FPS_ROW: Setting = Setting {
+    label: "Gameplay FPS",
+    cvar: crate::gameplay_fps::CVAR,
+    kind: ValueKind::GameplayFps,
+};
 
 #[derive(Clone, Copy)]
 pub(super) struct Setting {
@@ -122,6 +133,7 @@ pub(super) const VIDEO: &[Setting] = &[
             step: 25,
         },
     },
+    GAMEPLAY_FPS_ROW,
     Setting {
         label: "Detect refresh rate",
         cvar: crate::runtime_settings::MONITOR_CAP_CVAR,

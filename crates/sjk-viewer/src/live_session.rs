@@ -150,13 +150,17 @@ impl GpuState {
             &mut self.clientinfo_watch,
         );
 
-        // User commands are made on the 125 Hz grid and wait for the next
+        // User commands are made on the gameplay FPS's grid and wait for the next
         // `cl_maxpackets` packet (`command_rate`).
         let now = Instant::now();
         let server_time = self.server_clock.server_time(now);
+        let step = self.console.as_ref().map_or(
+            sjk_client::command_rate::COMMAND_MILLIS,
+            crate::console::ViewerConsole::command_step,
+        );
         let due = self
             .command_schedule
-            .due(server_time, self.server_clock.anchored(), now);
+            .due(server_time, self.server_clock.anchored(), now, step);
         if let Some(console) = &self.console {
             session.set_packet_dup(console.packet_dup());
         }

@@ -1463,7 +1463,10 @@ not yet checked on other GPUs or maps.
 The tabbed settings screen's last tab, FIRST SETUP (called Quick setup before
 06/10/2026)
 ([quick.rs](../crates/sjk-viewer/src/settings/quick.rs)), gathers the settings worth
-choosing on a first start: first, under a Graphics heading, the graphics quality
+choosing on a first start: first, under a "From another client" heading, Import from
+a client ([Importing from another client](#importing-from-another-client)) and the
+Gameplay FPS ([Gameplay FPS](#gameplay-fps)), which players coming from another
+client ask about most (Sol, 11/10/2026); under a Graphics heading, the graphics quality
 ([Graphics quality](#graphics-quality)) and its EJK graphics switch; under a Styles heading, the menu style
 (SJK or Classic) and the camera style (EJK or SJK, [Camera
 style](#camera-style));
@@ -1474,7 +1477,8 @@ Force aura and the combined Protect+Absorb shell, and the update and identity
 opt-ins, then its own "Don't show at start" row (`ui_hideFirstSetup`), ending in a
 Key bindings row. Its other rows are the catalogue's own, looked up by cvar, so a
 change there is the same change the other tabs make; it is the last tab so the
-other tabs keep their numbers.
+other tabs keep their numbers. The SJK UI pop-up's line under its title points at
+the first row.
 
 With the classic menus the same rows are the first group of the
 Setup page, FIRST SETUP (`Group::Quick`, [groups.rs](../crates/sjk-viewer/src/settings/groups.rs)),
@@ -1501,31 +1505,47 @@ command a `q` completes to. Not yet run in a game window.
 
 ### Importing from another client
 
+First setup's first row, Import from a client (its `firstsetup import` row, in
+every menu style), opens the Import page on the configs the clients installed beside
+SJK wrote, newest first, at most four: retail Jedi Academy and JA+
+(`jampconfig.cfg`), OpenJK (`openjk.cfg`), EternalJK and JoF EJK (`eternaljk.cfg`)
+and TaystJK (`taystjk.cfg`), in any folder of GameData (portable installs) or of
+`Documents/My Games/OpenJK`, `EternalJK` or `TaystJK`, SJK's own folder left out
+([config_import.rs](../crates/sjk-viewer/src/config_import.rs) `detect`). Each row
+names the client (and the mod folder when it is not the client's own), the player
+name the config holds and the day it was saved; Enter or a click reads it. Configs
+holding nothing to import are not offered. With none found, the row opens the
+system's file dialog as before.
+
 A `.cfg` file dropped on the window (winit's `DroppedFile`), at any time, opens the
 Import page over whatever is on show (a picture file, PNG, JPEG or TGA, opens the
 Profile page's picture panel instead, as does any other file dropped while that page
 shows: [Identity](#identity))
 ([config_import.rs](../crates/sjk-viewer/src/config_import.rs),
-[config_import_panel.rs](../crates/sjk-viewer/src/config_import_panel.rs)). First
-setup's "Import a config file" row (its `firstsetup import` row, near the end, in
-every menu style) opens the page with the system's file dialog over it, listing
-`.cfg` files (`rfd`, on a worker thread, as the profile picture's Browse); the
-page's Browse (B, or its footer button) opens the dialog again, and the file chosen
-is read as a dropped one. The screen's text says so. `firstsetup import <path>` does
+[config_import_panel.rs](../crates/sjk-viewer/src/config_import_panel.rs)). The
+page's Browse (B, or its footer button) opens the system's file dialog, listing
+`.cfg` files (`rfd`, on a worker thread, as the profile picture's Browse), and the
+file chosen is read as a dropped one. The screen's text says so. `firstsetup import <path>` does
 the same from the console (a path's words may be left unquoted, or quoted as
 Explorer's Copy as path gives them: the path is taken as typed, without the
 console's backslash escapes, and one pair of surrounding quotes is dropped), and
 `firstsetup import` alone opens the page without a file. The file is read, never run: only `seta`/`set`/`sets`/`setu`, a
-bare `name`, `model` or `cg_fov`, `bind`, `unbind` and `unbindall` count, `//`
+bare `name`, `model` or `cg_fov`, `bind`, `unbind` and `unbindall` count (of the
+cvars, `name`, `model`, the `char_color_*` tint, `cg_fov`, `com_maxfps` and JoF EJK's
+`cl_cmdratecap`), `//`
 comments are skipped, and a file that is not UTF-8 is read as Latin-1, as the
 legacy game wrote names. Files over 1 MB, other extensions, and configs holding
 none of the parts are refused with the reason.
 
 The page lists the parts found, each ticked at first: Name (`name`), Model
 (`model`, with `char_color_red`/`_green`/`_blue` when the file sets them), Field
-of view (`cg_fov`) and Key bindings. Space, Left/Right or a click ticks a row;
-Enter copies the ticked parts into the profile and shows what changed (also logged
-to the console). A file that clears every binding first (`unbindall`, as a saved
+of view (`cg_fov`), FPS cap (`com_maxfps`, the frames drawn) and Key bindings.
+Space, Left/Right or a click ticks a row; Enter copies the ticked parts into the
+profile (also logged to the console), then asks for the gameplay FPS with what the
+file's frame rate meant for its movement picked ([Gameplay FPS](#gameplay-fps)):
+its `com_maxfps` (333 picks 333), or 125 when it had `cl_cmdratecap 1`, as JoF EJK
+moved at 125 whatever it drew. Use sets it, Skip (Escape) leaves it; either way the
+page ends on everything that changed. A file that clears every binding first (`unbindall`, as a saved
 `jampconfig.cfg` does) replaces the player's table: the keys the binding editor
 locks keep their binding, and SJK's own actions get their default key back when
 the file left both the action and its key free. A file without `unbindall` only
@@ -1533,6 +1553,33 @@ adds its keys. Bindings on keys SJK does not know are left out and counted. The
 page is the SJK UI's pop-up card in every menu style, as Update's
 ([config_import_panel_sjk.rs](../crates/sjk-viewer/src/config_import_panel_sjk.rs),
 [SJK UI](sjk-ui.md)). With no file yet or after a refused one, Enter browses.
+
+### Gameplay FPS
+
+In the original game the frame rate is also the movement: every rendered frame makes
+one user command, and the movement code's rounding makes jumps, strafes and
+acceleration differ at 125, 142, 250 or 333 FPS, so players lock `com_maxfps` at the
+one they are used to. SJK makes commands on their own clock
+([networking.md](networking.md#user-commands-and-move-packets)): the FPS cap only sets
+the frames drawn, and the gameplay FPS (`cl_gameplayFps`, archived, default 125, 20 to
+1000) the movement, whatever the frame rate. Players kept asking Sol why SJK draws
+200 frames yet moves like 125 (11/10/2026), so it is asked where they arrive: First
+setup's second row, the step after an import, Settings > Video > Gameplay FPS beside
+the FPS cap (Left/Right step through 125, 142, 250 and 333, Enter opens the card),
+and the `gameplayfps` command ([gameplay_fps.rs](../crates/sjk-viewer/src/gameplay_fps.rs)).
+
+The card ([config_import_panel_fps.rs](../crates/sjk-viewer/src/config_import_panel_fps.rs),
+the Import page's step, an SJK UI pop-up in every menu style) explains it in four
+lines, says what the imported config had and why that is picked, and offers the four
+presets as tiles (JoF EJK under 125, "your old one" or "in use" under the matching
+one) and Other: typing digits (top row or keypad) fills Other with any value from 20
+to 1000 and says what it moves like (400 moves in 2 ms steps, 500 a second, as stock
+rounds `1000 / fps`). Left/Right choose, Enter uses, Escape cancels (Skip after an
+import). Its notes: a `pmove_fixed` server moves everyone in its own step (named when
+the current server does), and the frames drawn are the FPS cap, shown with its value.
+`gameplayfps` prints the explanation and the value in use to the console and opens the
+card; `gameplayfps <fps>` sets it directly. The settings row shows the server's step
+beside the value while a `pmove_fixed` server overrides it.
 
 ## Slider values
 

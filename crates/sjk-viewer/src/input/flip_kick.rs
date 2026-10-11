@@ -6,22 +6,24 @@
 //! EJK counts cgame frames and sends `+moveup`/`-moveup` once per frame, one user
 //! command each. SJK counts user commands instead: each one carries the run's
 //! jump state, which is what the server sees. The cvars stay in EJK's frames and
-//! are read as time at EJK's 125 fps ([`commands`]); SJK makes its commands at
-//! that same rate (`command_rate`), so one frame is one command and
-//! `cg_fkDuration` 50 is 0.4 s. A server forbids the bind with bit 7 of
+//! are read as time at EJK's 125 fps ([`commands`]), whatever the gameplay FPS
+//! (`command_rate`): at the default 125 one frame is one command, and
+//! `cg_fkDuration` 50 is 0.4 s at any gameplay FPS. A server forbids the bind with bit 7 of
 //! serverinfo `restricts` (`RESTRICT_FLIPKICKBIND`).
 
 /// Milliseconds of one EJK frame at the 125 fps its defaults were tuned for.
 const FRAME_MILLIS: u64 = 8;
-/// Milliseconds between the user commands SJK makes.
-const COMMAND_MILLIS: u64 = sjk_client::command_rate::COMMAND_MILLIS as u64;
-
-/// User commands that last as long as `frames` EJK frames, rounded up.
-pub(crate) fn commands(frames: u32) -> u32 {
+/// User commands `step` ms apart (`command_rate`) that last as long as `frames`
+/// EJK frames, rounded up.
+pub(crate) fn commands(frames: u32, step: i32) -> u32 {
     (u64::from(frames) * FRAME_MILLIS)
-        .div_ceil(COMMAND_MILLIS)
+        .div_ceil(u64::from(step.max(1).unsigned_abs()))
         .min(u64::from(u32::MAX)) as u32
 }
+
+/// The default gameplay FPS's step.
+#[cfg(test)]
+const COMMAND_MILLIS: i32 = sjk_client::command_rate::COMMAND_MILLIS;
 
 /// The run's length and its first press, in user commands
 /// (`cg_fkDuration`, `cg_fkFirstJumpDuration`, `cg_fkSecondJumpDelay`).
@@ -38,7 +40,7 @@ impl Default for Timing {
     /// EJK's defaults (`cg_xcvar.h`): 50, 0, 0 frames.
     fn default() -> Self {
         Self {
-            duration: commands(50),
+            duration: commands(50, sjk_client::command_rate::COMMAND_MILLIS),
             first_jump: 0,
             second_jump_delay: 0,
         }
@@ -123,10 +125,18 @@ mod tests {
 
     #[test]
     fn frames_are_read_as_time_at_125_fps() {
-        assert_eq!(commands(0), 0);
-        assert_eq!(commands(50), 50, "0.4 s, one command a frame");
-        assert_eq!(commands(1), 1);
-        assert!(commands(u32::MAX) > 1_000_000_000, "no overflow");
+        assert_eq!(commands(0, COMMAND_MILLIS), 0);
+        assert_eq!(
+            commands(50, COMMAND_MILLIS),
+            50,
+            "0.4 s, one command a frame"
+        );
+        assert_eq!(commands(1, COMMAND_MILLIS), 1);
+        assert_eq!(commands(50, 3), 134, "still 0.4 s at a gameplay FPS of 333");
+        assert!(
+            commands(u32::MAX, COMMAND_MILLIS) > 1_000_000_000,
+            "no overflow"
+        );
         assert_eq!(Timing::default().duration, 50);
     }
 
@@ -134,7 +144,7 @@ mod tests {
     fn the_default_run_ends_before_a_missed_jump_lands() {
         // A jump stays in the air well over half a second (8 ms per command).
         let steps = run(Timing::default());
-        assert!(steps.len() as u64 * COMMAND_MILLIS < 500);
+        assert!(steps.len() as u64 * (COMMAND_MILLIS as u64) < 500);
     }
 
     fn run(timing: Timing) -> Vec<Step> {

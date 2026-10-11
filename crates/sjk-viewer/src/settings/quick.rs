@@ -1,9 +1,10 @@
 //! The FIRST SETUP tab of Settings: the few settings worth choosing once on a first
-//! start (graphics quality and its EJK graphics switch, the menu and camera styles,
-//! display, aim, sound, the HUD, nameplates, the Force shells and the network
-//! opt-ins). The rows are the catalogue's own, looked up by
-//! cvar, so a change here is the same change the other tabs make; the last row,
-//! whether the screen opens at start, is the tab's own.
+//! start (first, bringing the setup from another client and the gameplay FPS it
+//! moved at; then graphics quality and its EJK graphics switch, the menu and
+//! camera styles, display, aim, sound, the HUD, nameplates, the Force shells and
+//! the network opt-ins). The rows are the catalogue's own, looked up by cvar, so a
+//! change here is the same change the other tabs make; the import row and the
+//! last row, whether the screen opens at start, are the tab's own.
 
 use super::catalog::*;
 use std::sync::OnceLock;
@@ -18,15 +19,17 @@ const HIDE_ROW: Setting = Setting {
     kind: ValueKind::Bool,
 };
 
-/// The tab's own row that imports a setup from another client's `.cfg`.
+/// The tab's own first row: the setup from another client's `.cfg`, from the
+/// configs found on this computer or a file.
 const IMPORT_ROW: Setting = Setting {
-    label: "Import a config file",
+    label: "Import from a client",
     cvar: super::catalog::IMPORT_ROW,
     kind: ValueKind::ImportPage,
 };
 
-/// The tab's cvars, in order.
+/// The tab's cvars, in order, after the import row.
 const CVARS: &[&str] = &[
+    crate::gameplay_fps::CVAR,
     crate::graphics_quality::ROW_NAME,
     crate::graphics_quality::EJK_ROW,
     crate::menu::style::CVAR,
@@ -58,16 +61,17 @@ const CVARS: &[&str] = &[
 pub(super) fn rows() -> &'static [Setting] {
     static ROWS: OnceLock<Vec<Setting>> = OnceLock::new();
     ROWS.get_or_init(|| {
-        CVARS
-            .iter()
-            .filter_map(|cvar| {
-                // Not the QUICK tab itself, which is what is being built.
-                (0..QUICK_TAB)
-                    .flat_map(super::settings)
-                    .find(|setting| setting.cvar.eq_ignore_ascii_case(cvar))
-                    .copied()
-            })
-            .chain([IMPORT_ROW, HIDE_ROW])
+        let found = CVARS.iter().filter_map(|cvar| {
+            // Not the QUICK tab itself, which is what is being built.
+            (0..QUICK_TAB)
+                .flat_map(super::settings)
+                .find(|setting| setting.cvar.eq_ignore_ascii_case(cvar))
+                .copied()
+        });
+        [IMPORT_ROW]
+            .into_iter()
+            .chain(found)
+            .chain([HIDE_ROW])
             .collect()
     })
 }
@@ -83,11 +87,13 @@ mod tests {
     }
 
     #[test]
-    fn graphics_quality_comes_first_then_the_styles_under_their_headings() {
-        let cvars: Vec<_> = rows().iter().take(4).map(|row| row.cvar).collect();
+    fn the_import_and_gameplay_fps_come_first_then_graphics_and_the_styles() {
+        let cvars: Vec<_> = rows().iter().take(6).map(|row| row.cvar).collect();
         assert_eq!(
             cvars,
             [
+                super::super::catalog::IMPORT_ROW,
+                crate::gameplay_fps::CVAR,
                 crate::graphics_quality::ROW_NAME,
                 crate::graphics_quality::EJK_ROW,
                 crate::menu::style::CVAR,
@@ -95,14 +101,17 @@ mod tests {
             ]
         );
         assert_eq!(
-            super::super::Group::Quick.lines()[..6],
+            super::super::Group::Quick.lines()[..9],
             [
-                super::super::Line::Heading("Graphics"),
+                super::super::Line::Heading("From another client"),
                 super::super::Line::Row(0),
                 super::super::Line::Row(1),
-                super::super::Line::Heading("Styles"),
+                super::super::Line::Heading("Graphics"),
                 super::super::Line::Row(2),
                 super::super::Line::Row(3),
+                super::super::Line::Heading("Styles"),
+                super::super::Line::Row(4),
+                super::super::Line::Row(5),
             ]
         );
     }

@@ -252,16 +252,27 @@ do not reset the inactivity timer, as with fake noclip.
 
 ## User commands and move packets
 
-The client makes a user command every 8 ms, 125 a second, whatever its frame rate,
-as JoF EternalJK's `cl_cmdratecap 1` does; the server then moves the player in the
-steps of a 125 FPS client. Each command is stamped on an 8 ms boundary of server
-time, one per slot ([command_rate.rs](../crates/sjk-client/src/command_rate.rs)).
+The client makes user commands on a clock of their own, whatever its frame rate,
+as JoF EternalJK's `cl_cmdratecap 1` does: by default one every 8 ms, 125 a second,
+so the server moves the player in the steps of a 125 FPS client. In the original
+game the frame rate is the movement (one command a frame, `1000 / com_maxfps`
+whole milliseconds), and players lock 125, 142, 250 or 333 for how jumps and strafes
+feel at 8, 7, 4 or 3 ms. SJK keeps that choice apart from the frames drawn: the
+gameplay FPS (`cl_gameplayFps`, archived, default 125, 20 to 1000; Settings > Video
+> Gameplay FPS, the `gameplayfps` command, and the step after an import,
+[client.md](client.md#gameplay-fps)) sets the step, `1000 / cl_gameplayFps` whole
+milliseconds as stock rounds it (400 makes 2 ms steps, 500 a second). On a
+`pmove_fixed` server the server's `pmove_msec` is the step instead: it moves
+everyone in those steps and would drop a second command in one. Each command is
+stamped on a boundary of the step in server time, one per slot
+([command_rate.rs](../crates/sjk-client/src/command_rate.rs)); a changed step starts
+at the next boundary after the last command sent.
 Above 125 FPS a stock client makes a command per frame, and a `pmove_fixed` server,
 which rounds a command's time up to its `pmove_msec` grid, drops the one that lands
 in a slot it already ran (`msec < 1` in `ClientThink_real`), button presses
-included; the 8 ms grid never shares a slot. A frame slower than 8 ms makes a
-command for each slot it passed, up to four; after a longer hitch the older slots
-are skipped instead of sent as a burst. Until the clock is anchored on the new
+included; a grid on the server's own step never shares a slot. A frame slower than
+a step makes a command for each slot it passed, back to 32 ms (four at 125, ten at
+333); after a longer hitch the older slots are skipped instead of sent as a burst. Until the clock is anchored on the new
 timeline (a map load), commands are stamped 0 and still made every 8 ms of real
 time, so packets keep acknowledging the server. Every command is predicted when
 it is made; between commands the frame presents a preview through its own input
@@ -275,7 +286,9 @@ packets as well, at most 32 (`MAX_PACKET_USERCMDS`)
 ([command_history.rs](../crates/sjk-client/src/command_history.rs)). At 125 or
 more each command leaves in a packet of its own; stock's 30 batches about four.
 Losing window focus lets the next packet leave at once with the released keys.
-Prediction keeps 128 unacknowledged commands, about a second.
+Prediction keeps 512 unacknowledged commands (JoF EJK's `cl_commandsize` ceiling),
+1.5 seconds at a gameplay FPS of 333. The flip kick's frame cvars stay EJK's frames
+at 125 FPS, converted to commands at the step in use.
 
 ## Parity requirements
 
