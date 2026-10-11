@@ -18,6 +18,9 @@ use std::fmt;
 const TAYSTJK_USERINFO: [(&str, &str); 5] = [
     ("cg_displayCameraPosition", "1 80 16"),
     ("cg_displayNetSettings", "125 0 125"),
+    // Not a name but a switch: a jaPRO server enables its client support (the
+    // deaths column, client-predicted moves such as `amrun`) only for this exact
+    // value (`strcmp(s, "1.4JAPRO")`, TaystJK `codemp/game/g_client.c:2342`).
     ("cjp_client", "1.4JAPRO"),
     ("cp_clanPwd", "none"),
     ("cp_cosmetics", "0"),
@@ -26,12 +29,11 @@ const TAYSTJK_USERINFO: [(&str, &str); 5] = [
 /// JA+ client-plugin USERINFO keys, by which a JA+ server recognises a plugin
 /// user and serves it plugin features such as custom RGB blades.
 ///
-/// - `cjp_client` is the value JoF EJK sends on JA+ servers
-///   ([`JOF_EJK_CLIENT`]), so an admin's `amstatus` lists an SJK player as a
-///   JoF EJK one until SJK is announced (Sol, 11/10/2026). SJK sent the JA+
-///   1.4B4 plugin's own `1.4B4` before; JA+ servers take any value as a plugin
-///   user, as they take JoF EJK's and EternalJK's `1.4JAPRO`. The player's
-///   `cjp_client` setting replaces it ([`PLUGIN_IDENTITY_KEY`]).
+/// - `cjp_client` is [`SJK_CLIENT`], so an admin's `amstatus` shows SJK (Sol,
+///   12/10/2026; it was JoF EJK's `1.6.4 JoF` for a day, the JA+ 1.4B4
+///   plugin's `1.4B4` before). JA+ servers take any name as a plugin user, as
+///   they take JoF EJK's and EternalJK's `1.4JAPRO`. The player's `cjp_client`
+///   setting replaces it ([`PLUGIN_IDENTITY_KEY`]).
 /// - `cp_clanPwd` `"none"` is the default of both the plugin and EternalJK.
 ///
 /// `cp_pluginDisable` is the player's setting and is added per profile by
@@ -40,18 +42,15 @@ const TAYSTJK_USERINFO: [(&str, &str); 5] = [
 /// `cp_sbRGB1`/`cp_sbRGB2` are added by the userinfo codec whenever a blade
 /// selects RGB, for every profile. The plugin's other USERINFO cvars
 /// (`cp_login`, `cp_holster`) are left out, as EternalJK leaves them out.
-const JAPLUS_USERINFO: [(&str, &str); 2] = [("cjp_client", JOF_EJK_CLIENT), ("cp_clanPwd", "none")];
+const JAPLUS_USERINFO: [(&str, &str); 2] = [("cjp_client", SJK_CLIENT), ("cp_clanPwd", "none")];
 
 /// The userinfo key a client plugin names itself with (both plugin profiles send
 /// it); the player's cvar of the same name, when set, replaces the profile's value
 /// (`LegacyUserInfo::extension_overrides`).
 pub const PLUGIN_IDENTITY_KEY: &str = "cjp_client";
 
-/// JoF EJK's `cjp_client` on JA+ servers: its `JOFCLIENTVERSION`, the release
-/// number then ` JoF` (`codemp/qcommon/q_shared.h:36`, set in
-/// `cg_servercmds.c:317`), here its latest release, 1.6.4: the default, which the
-/// player's `cjp_client` replaces without a new build.
-const JOF_EJK_CLIENT: &str = "1.6.4 JoF";
+/// SJK's plugin name on JA+ servers; the player's `cjp_client` replaces it.
+const SJK_CLIENT: &str = "SJK";
 
 /// `cp_pluginDisable` sent to plugin servers when the player has not set one:
 /// EternalJK's value (`codemp/cgame/cg_xcvar.h:166`) rather than the JA+
@@ -241,7 +240,7 @@ mod tests {
     #[test]
     fn ja_plus_identifies_as_the_client_plugin() {
         let keys = CompatProfile::JaPlus { version: None }.userinfo_extensions();
-        assert_eq!(keys, &[("cjp_client", "1.6.4 JoF"), ("cp_clanPwd", "none")]);
+        assert_eq!(keys, &[("cjp_client", "SJK"), ("cp_clanPwd", "none")]);
         // 1536 opts out of exactly holstered sabers (bit 9) and ledge grab (bit 10).
         assert_eq!(PLUGIN_DISABLE_DEFAULT, (1 << 9) | (1 << 10));
         assert!(CompatProfile::BaseJka.userinfo_extensions().is_empty());
@@ -274,7 +273,7 @@ mod tests {
         // A value the info string cannot carry leaves the default.
         user.extension_overrides[0].1 = "bad\\value".to_owned();
         let ja_plus = info(&payload(&user, CompatProfile::JaPlus { version: None }));
-        assert_eq!(ja_plus.get(PLUGIN_IDENTITY_KEY), Some(JOF_EJK_CLIENT));
+        assert_eq!(ja_plus.get(PLUGIN_IDENTITY_KEY), Some(SJK_CLIENT));
     }
 
     #[test]
@@ -289,7 +288,7 @@ mod tests {
         )
         .unwrap();
         let parsed = info(&payload);
-        assert_eq!(parsed.get("cjp_client"), Some("1.6.4 JoF"));
+        assert_eq!(parsed.get("cjp_client"), Some("SJK"));
         assert_eq!(parsed.get("cp_pluginDisable"), Some("1536"));
         assert_eq!(parsed.get("cp_clanPwd"), Some("none"));
         assert_eq!(parsed.get("color1"), Some("6"));

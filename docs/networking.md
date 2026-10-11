@@ -25,13 +25,13 @@ Profile detection and implemented adapter behavior are not a promise that every
 feature of those servers is reproduced by SJK's dedicated server.
 
 On JA+ and TaystJK/jaPRO servers the client identifies as a client-plugin user
-through extra userinfo keys. JA+ gets `cp_clanPwd none` and JoF EJK's
-`cjp_client` (`1.6.4 JoF`, the value JoF EJK's latest release sends there), so
-an admin's `amstatus` lists an SJK player as a JoF EJK one until SJK is
-announced; it was the JA+ 1.4B4 plugin's `1.4B4` before 11/10/2026. The player's
-`cjp_client` setting (archived, empty by default) replaces the plugin name on both
-plugin profiles, to match a new JoF EJK release or show another name, without a new
-build; it is sent nowhere else, and a value the info string cannot carry (`\`, `;`,
+through extra userinfo keys. JA+ gets `cp_clanPwd none` and `cjp_client SJK`, so an
+admin's `amstatus` shows SJK (Sol, 12/10/2026; JA+ servers take any name as a plugin
+user). jaPRO gets `cjp_client 1.4JAPRO`, which is a switch rather than a name: a jaPRO
+server enables its client support (the deaths column, client-predicted moves such as
+`amrun`) only for that exact value (TaystJK `g_client.c:2342`). The player's
+`cjp_client` setting (archived, empty by default) replaces the value on both plugin
+profiles; it is sent nowhere else, and a value the info string cannot carry (`\`, `;`,
 `"`) leaves the default. The userinfo carries it as a generic override of an adapter
 extension (`LegacyUserInfo::extension_overrides`). Both plugin profiles also get the player's
 `cp_pluginDisable` cvar (archived; a set bit switches a plugin feature off),
