@@ -90,6 +90,7 @@ mod frame_target;
 mod free_camera;
 mod game_font;
 mod game_menu_actions;
+mod ghost_replay;
 mod glow_pass;
 mod gpu_context;
 mod gpu_phases;
@@ -558,6 +559,8 @@ struct GpuState {
     /// its entity transform instead of pinning it under the camera.
     detached_camera: bool,
     peek: peek::State,
+    /// `ghost`: recording and replaying the player's own run.
+    ghost: ghost_replay::Ghost,
 
     selected_weapon: Option<u8>,
     weapon_selected_at: Option<Instant>,
@@ -1409,6 +1412,7 @@ impl GpuState {
             zoom_first_person: false,
             detached_camera: false,
             peek: peek::State::default(),
+            ghost: ghost_replay::Ghost::default(),
 
             selected_weapon: None,
             weapon_selected_at: None,

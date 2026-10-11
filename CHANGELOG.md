@@ -18,6 +18,10 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- Ghost replay for filming showcases: ghost record <name> records your run, ghost play <name> walks you to its start and replays it on the same server while someone films, correcting small drift on the ground; any key stops it _(Sol)_
+
 ## 2026.1011.3 (Alpha) | 11/10/2026
 
 The Void and the Sun get new orbiting effects, and Lumaya's contributions land: jetpack flight prediction, a JoF EJK-style classic scoreboard, saber steam in rain, a lagometer scale, console height and wall-move view fixes.

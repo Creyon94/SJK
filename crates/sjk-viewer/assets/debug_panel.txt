@@ -1065,6 +1065,18 @@ test: Fire at a wall on your left: the impact plays mostly in the left ear.
 
 # ---- Gameplay ----
 
+[ghost-replay]
+area: Gameplay
+title: Ghost replay: record your run, replay it on the server to film a showcase
+change: ghost record <name> keeps your commands; ghost stop saves (ghosts\<name>.ghost).
+change: ghost play <name> walks to the start, then replays; drift is steered out on the ground.
+test: On your server, stand still, ghost record pillars, do the run, ghost stop.
+test: Walk a few steps away, ghost play pillars: it walks back, faces the start, replays.
+test: Have the other player film you: the run looks like yours, landing every pillar.
+test: Press any movement key mid-replay: it stops and you have control.
+test: Start farther than 192 units: it prints the start to teleport to (ghost info too).
+note: Console only, no menu entry. Force-wheel Stasis/Repulse/Dash picks are not recorded.
+
 [join-retries]
 area: Gameplay
 title: Joining resends lost packets and never hangs as a floating camera

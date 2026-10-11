@@ -256,6 +256,7 @@ impl GpuState {
             return;
         }
         self.sync_fake_noclip(&snapshot.player);
+        self.ghost.snapshot(&snapshot.player);
         let Some(session) = self.live_session.as_ref() else {
             return;
         };
