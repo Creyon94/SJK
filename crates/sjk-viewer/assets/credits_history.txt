@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 11/10/2026 | - | Invisible brushes drawn as Radiant shows them
+- c07bcdb |  | Invisible brushes: show clip, trigger, ladder and other tool brushes as Radiant does
 + 11/10/2026 | - | Record a run, replay it on the server to film showcases
 - d46fa56 |  | Ghost replay: record a run and replay it on the server to film showcases
 + 11/10/2026 | - | Credits history for the 2026.1011.3 release

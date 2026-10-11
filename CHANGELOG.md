@@ -21,6 +21,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 ## Unreleased
 
 - Ghost replay for filming showcases: ghost record <name> records your run, ghost play <name> walks you to its start and replays it on the same server while someone films, correcting small drift on the ground; any key stops it _(Sol)_
+- Invisible brushes: clip, trigger, teleport, push, hurt, ladder, nodrop, slick and other brushes a map hides are drawn see-through with their names, as the Radiant map editor shows them; Settings > Game options > Invisible brushes (r_showBrushes: 0 off, 1 the ones that change play, 2 all; r_showBrushesTypes picks kinds), on any server _(Sol)_
 
 ## 2026.1011.3 (Alpha) | 11/10/2026
 

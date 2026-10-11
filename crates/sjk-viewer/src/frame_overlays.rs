@@ -36,7 +36,8 @@ impl GpuState {
             && !self.world_hidden
             && self.world_materials.has_flares()
             && self.geometry.environment.data.control[3] != 0.;
-        if !hud && !flares && self.post_aa.is_none() && self.render_scale.is_none() {
+        let brushes = self.brush_view.active();
+        if !hud && !flares && !brushes && self.post_aa.is_none() && self.render_scale.is_none() {
             return;
         }
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -85,6 +86,7 @@ impl GpuState {
             );
         }
         // In-world, so before FXAA and the unfiltered HUD layer.
+        self.brush_view.draw(&mut pass, &self.camera_bind_group);
         self.ground_hud.draw(
             &mut pass,
             &self.depth.sample_bind_group,

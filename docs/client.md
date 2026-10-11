@@ -1514,6 +1514,60 @@ development. Run `noclip` again to return to ordinary movement; spawning again
 clears it. Normal servers still require their own cheat permission. `god` remains
 unimplemented on the native server.
 
+## Invisible brushes
+
+`r_showBrushes` draws the brushes a map is built with but never shows (clip,
+trigger, ladder, nodrop…) see-through over the world, the way Radiant shows them:
+each face in its kind's colour with a framed tile carrying its name, 64 units to
+a tile, projected on the face's main axis as Radiant's default projection is, and
+each face outlined. **0** is off (the default), **1** shows the kinds that change
+play, **2** every kind. Settings > Game options > Map tools > Invisible brushes sets
+it in both menu styles. `r_showBrushesTypes` replaces the set with the kinds it
+lists (spaces or commas between names), for instance `r_showBrushesTypes "clip
+trigger"`. It works on any server: the client loads every brush for its own
+collision already.
+
+| Name | Shows | Set |
+| --- | --- | --- |
+| `clip` | Player and NPC clip (`textures/system/clip`) | 1 |
+| `playerclip` | Player clip only (`blockplayer`) | 1 |
+| `npcclip` | NPC clip only (`blocknpc`) | 1 |
+| `shotclip` | Stops shots, not players (`shotonlyclip`) | 1 |
+| `solid` | Solid with no drawn face: invisible walls (`physics_clip`, `nodraw_solid`) | 1 |
+| `trigger`, `teleport`, `push`, `hurt` | `trigger_*` entities, by classname; other trigger-textured brushes are `trigger` | 1 |
+| `ladder` | Ladders | 1 |
+| `nodrop` | Death pits and other nodrop volumes | 1 |
+| `slick` | Slick floors | 1 |
+| `cushion` | No falling damage (`cushion`) | 1 |
+| `weather` | `outside` / `inside` weather volumes | 2 |
+| `botclip` | Bot navigation hints (`do_not_enter`) | 2 |
+| `caulk` | Caulk faces | 2 |
+| `nodraw` | Every other face that draws nothing (hint, skip, areaportal, origin…) | 2 |
+
+A face counts when its shader has `surfaceparm nodraw`; its kind comes from its
+brush's contents and its own surface flags as q3map2 compiled them
+([kinds.rs](../crates/sjk-viewer/src/brush_view/kinds.rs)). Caulk and an invisible
+wall share their flags, so a shader whose name contains `caulk` is caulk. Fog, water,
+lava, slime and terrain volumes are left out, as they show anyway. Retail does not
+ship Radiant's `textures/system` editor images, so the tiles are SJK's own, written
+with the bundled Rajdhani Bold.
+
+The faces are rebuilt from each brush's planes
+([brush_winding.rs](../crates/sjk-bsp/src/brush_winding.rs)) the first time the view
+is switched on for a map, never before, and drawn in the overlay pass after the
+world: tested against the scene depth without writing it, lifted 0.35 units off
+their plane toward the camera so a clip brush flush with a wall still shows, from
+both sides ([brush_view.rs](../crates/sjk-viewer/src/brush_view.rs),
+[brush_view.wgsl](../crates/sjk-viewer/src/brush_view.wgsl)). Brushes of entities
+other than `trigger_*` (doors, lifts, glass) are left out because they may move, and
+a brush behind a wall stays hidden behind it. The view is off on the menu map.
+
+Checked 11/10/2026 with world shots (`world_shot_brushes.rs`, `SJK_BRUSH_MAPS`,
+`SJK_BRUSH_MODE`) on `mp/ffa3` (clips, a trigger, solid) and `mp/ffa5` (its death pit
+as `hurt`, clips); not yet in a game. `mp/ffa5` wraps much of its detail in
+`physics_clip`, so `solid` shows white over those walls at 1: that is where players
+collide.
+
 ## Talk balloons
 
 Opening chat, the console or a menu sends the stock talk button and disables

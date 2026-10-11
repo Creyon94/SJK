@@ -660,6 +660,15 @@ pub(super) const GAME: &[Setting] = &[
         cvar: "mod_jof",
         kind: ValueKind::Bool,
     },
+    Setting {
+        label: "Invisible brushes (0 off / 1 gameplay / 2 all)",
+        cvar: crate::brush_view::CVAR,
+        kind: ValueKind::Integer {
+            min: 0,
+            max: 2,
+            step: 1,
+        },
+    },
 ];
 pub(super) const NETWORK: &[Setting] = &[
     Setting {

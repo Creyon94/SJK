@@ -402,6 +402,10 @@ const HELP: &[(&str, &str)] = &[
         "On JoF servers: jof.commands and completion of their own commands (gun admin commands, jetpack, emotes).",
     ),
     (
+        crate::brush_view::CVAR,
+        "Shows clip, trigger, ladder and other invisible map brushes see-through, as Radiant does. 1 gameplay ones, 2 all.",
+    ),
+    (
         crate::rarity_fx::CVAR,
         "Animates rarity: Rare frames breathe, Legendary ones catch a sheen, Mythical ones a running spark. Off keeps the tier frames still.",
     ),

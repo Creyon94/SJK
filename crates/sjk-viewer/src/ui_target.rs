@@ -70,7 +70,6 @@ pub(crate) fn surface_view(
 }
 
 /// Linear-light value of one sRGB-encoded (display) channel.
-#[cfg(test)]
 pub(crate) fn srgb_to_linear(value: f32) -> f32 {
     if value <= 0.04045 {
         value / 12.92

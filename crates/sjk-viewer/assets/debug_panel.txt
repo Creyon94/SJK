@@ -712,6 +712,18 @@ note: Alt+Tab while holding Tab leaves the board and the hidden HUD up until Tab
 
 # ---- Rendering & effects ----
 
+[show-brushes]
+area: Rendering & effects
+title: Invisible brushes: clips, triggers, ladders... drawn see-through as in Radiant
+change: r_showBrushes 1 draws the brushes that change play (clips, triggers, ladders, nodrop...).
+change: Each kind has its colour and a tile with its name; 2 adds caulk, nodraw, weather, botclip.
+change: Settings > Game options > Map tools > Invisible brushes; r_showBrushesTypes picks kinds.
+test: devmap mp/ffa3, then r_showBrushes 1: clips and triggers show with their names.
+test: Walk into a trigger: its far faces show from inside; text reads left to right.
+test: r_showBrushesTypes "teleport push": only those; empty it to get the set back.
+test: Settings > Game options: the row steps 0/1/2 in both menu styles.
+note: Off on the menu map. Doors and lifts' own brushes are left out (they move).
+
 [map-change-resize]
 area: Rendering & effects
 title: No crash when the window is resized while a map loads
