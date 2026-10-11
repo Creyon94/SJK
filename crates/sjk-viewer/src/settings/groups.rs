@@ -140,6 +140,7 @@ impl Group {
                 "cg_speedometer",
                 "cg_drawTeamOverlay",
                 "cg_lagometer",
+                "cg_lagometerScale",
                 "cg_killfeed",
                 "cg_drawChat",
                 crate::chat::emoji::CVAR,
