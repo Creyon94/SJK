@@ -426,6 +426,15 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Lagometer scale",
+        cvar: "cg_lagometerScale",
+        kind: ValueKind::Float {
+            min: 0.25,
+            max: 4.0,
+            step: 0.25,
+        },
+    },
+    Setting {
         label: "Kill feed",
         cvar: "cg_killfeed",
         kind: ValueKind::Bool,

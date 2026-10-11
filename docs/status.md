@@ -1,5 +1,23 @@
 # Status and priorities
 
+## Lagometer scale
+
+Branch `feat/lagometer-scale` (11/10/2026, based on `3654f5b2`, Windows 11 Pro,
+Rust 1.99.0) adds archived `cg_lagometerScale`, default `1`, range 0.25–4, in both
+settings interfaces. It scales the graph around its existing bottom-right corner
+and preserves the displayed sample count and millisecond ranges; X/Y positioning
+still applies. See [client.md](client.md#lagometer-size).
+
+Verified: formatting, locked workspace build/tests and all-target clippy pass
+(existing warnings remain). Unit checks cover default size, scaling and anchoring
+with custom offsets at 640×480, 1920×1080 and 2560×1080, range limits, live reads and
+archived restoration. A GPU check starts `mp/duel6` at 960×540 and draws synthetic
+frame/ping samples through the retained UI pipeline at 0.5/1/2 in the classic,
+game and radial HUDs. Sample counts stay fixed, bar widths scale, the GPU draws
+green ping bars, and the comparison images were reviewed (RTX 5070 Ti).
+Unverified: live-network use, custom HUD files and other GPUs. The UI comparison
+uses its own render target because a snapshot-less world suppresses gameplay UI.
+
 ## Mythical shader parts
 
 Branch `personal/shader-options` (11/10/2026, based on `5dadea06`, Windows 11), with the

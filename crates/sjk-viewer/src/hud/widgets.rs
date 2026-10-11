@@ -143,8 +143,10 @@ pub(super) fn emit(
         // readouts, not by a layout widget; one left in a `hud.json` draws nothing.
         HudWidgetKind::Repeater if binding == Some("kill_feed") => {}
         HudWidgetKind::Repeater if binding == Some("lagometer") => {
+            // Scaling changes presentation, not the number of retained samples shown.
+            let samples = rect.width.floor().clamp(1.0, 64.0) as usize;
             let rect = context.targeting.lagometer_rect(rect, context.viewport);
-            emit_lagometer(draw_list, theme, widget, rect, context)
+            emit_lagometer(draw_list, theme, widget, rect, samples, context)
         }
         HudWidgetKind::Repeater => emit_team(draw_list, theme, widget, rect, context),
         HudWidgetKind::Arc => super::radial::emit(draw_list, theme, widget, rect, context),
@@ -202,6 +204,7 @@ fn emit_lagometer(
     theme: Theme,
     widget: &HudWidget,
     rect: Rect,
+    samples: usize,
     context: &EmitContext<'_>,
 ) {
     emit_panel(
@@ -211,7 +214,7 @@ fn emit_lagometer(
         rect,
         widget.style.radius.unwrap_or(theme.radii.sm),
     );
-    let width = rect.width.floor().clamp(1.0, 64.0) as usize;
+    let width = samples;
     let bar_width = rect.width / width as f32;
     let frame_range = rect.height / 3.0;
     let middle = rect.y + frame_range;
@@ -227,7 +230,7 @@ fn emit_lagometer(
                 (middle, Color::new(0.25, 0.55, 1.0, 0.9))
             };
             let _ = draw_list.push(DrawCommand::SolidRect {
-                rect: Rect::new(x, y, bar_width.max(1.0), height),
+                rect: Rect::new(x, y, bar_width, height),
                 color,
             });
         }
@@ -247,7 +250,7 @@ fn emit_lagometer(
         };
         if height > 0.0 {
             let _ = draw_list.push(DrawCommand::SolidRect {
-                rect: Rect::new(x, rect.bottom() - height, bar_width.max(1.0), height),
+                rect: Rect::new(x, rect.bottom() - height, bar_width, height),
                 color,
             });
         }

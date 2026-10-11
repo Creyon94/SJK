@@ -274,6 +274,10 @@ const HELP: &[(&str, &str)] = &[
         "A small graph of interpolation and snapshot delay, for spotting network trouble.",
     ),
     (
+        "cg_lagometerScale",
+        "Size of the lagometer: 1 normal, 2 double. Keeps its bottom-right corner fixed.",
+    ),
+    (
         "cg_killfeed",
         "The last kills at the top right: killer, weapon icon, victim; a skull for suicides and falls.",
     ),

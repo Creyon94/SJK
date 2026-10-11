@@ -39,6 +39,11 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
             144.0,
             "Lagometer top edge measured from the bottom",
         ),
+        (
+            "cg_lagometerScale",
+            1.0,
+            "Lagometer size multiplier (0.25 to 4), anchored at its bottom right",
+        ),
     ] {
         cvars.register(CvarDefinition::new(name, value, CvarFlags::ARCHIVE, help))?;
     }
@@ -85,6 +90,7 @@ pub(crate) struct Policy {
     style: bool,
     showpos: bool,
     lagometer: [f32; 2],
+    lagometer_scale: f32,
     color: [f32; 4],
     /// The classic crosshair's picture and size.
     pub(crate) look: super::crosshair::Look,
@@ -112,6 +118,7 @@ impl Policy {
             style: b("cg_crosshairsaberstylecolor", false),
             showpos: b("cg_showpos", false),
             lagometer: [f("cg_lagometerx", 48.0), f("cg_lagometery", 144.0)],
+            lagometer_scale: f("cg_lagometerscale", 1.0).clamp(0.25, 4.0),
             color: crate::cgame_options::crosshair_color(console),
             look: super::crosshair::Look::new(
                 console
@@ -139,15 +146,20 @@ impl Policy {
         ]
     }
 
-    /// Preserve the modern graph's dimensions and the reference's right/bottom anchor.
+    /// Scale the graph around its existing bottom-right corner, retaining X/Y offsets.
     pub(super) fn lagometer_rect(self, rect: Rect, viewport: [f32; 2]) -> Rect {
         // TaystJK cg_draw.c:7175-7176; horizontal virtual units are aspect corrected.
         let scale = viewport[1] / 480.0;
+        let width = rect.width * self.lagometer_scale;
+        let height = rect.height * self.lagometer_scale;
         Rect::new(
-            viewport[0] - self.lagometer[0] * scale - (rect.width - 48.0 * scale).max(0.0),
-            viewport[1] - self.lagometer[1] * scale,
-            rect.width,
-            rect.height,
+            viewport[0]
+                - self.lagometer[0] * scale
+                - (rect.width - 48.0 * scale).max(0.0)
+                - (width - rect.width),
+            viewport[1] - self.lagometer[1] * scale - (height - rect.height),
+            width,
+            height,
         )
     }
 }
@@ -275,5 +287,188 @@ fn style_color(style: u32, alpha: f32) -> [f32; 4] {
         2 | 6 | 7 => [1.0, 1.0, 0.0, alpha],
         3 | 4 => [1.0, 0.0, 0.0, alpha],
         _ => [1.0, 1.0, 1.0, alpha],
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn lagometer_scale_keeps_the_default_anchor_and_history_dimensions() {
+        let default =
+            Policy::read(None).lagometer_rect(Rect::new(0.0, 0.0, 48.0, 48.0), [640.0, 480.0]);
+        assert_eq!(
+            [default.x, default.y, default.width, default.height],
+            [592.0, 336.0, 48.0, 48.0]
+        );
+        for viewport in [[640.0, 480.0], [1920.0, 1080.0], [2560.0, 1080.0]] {
+            for size in [48.0, 64.0] {
+                let rect = Rect::new(0.0, 0.0, size, size);
+                let mut policy = Policy::read(None);
+                policy.lagometer = [80.0, 160.0];
+                let normal = policy.lagometer_rect(rect, viewport);
+                assert_eq!(normal.width, size);
+                assert_eq!(normal.height, size);
+                for scale in [0.25, 0.5, 2.0, 4.0] {
+                    policy.lagometer_scale = scale;
+                    let scaled = policy.lagometer_rect(rect, viewport);
+                    assert_eq!(scaled.width, normal.width * scale);
+                    assert_eq!(scaled.height, normal.height * scale);
+                    assert_eq!(scaled.right(), normal.right());
+                    assert_eq!(scaled.bottom(), normal.bottom());
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn lagometer_scale_is_live_bounded_and_archived() {
+        let profile = tempfile::tempdir().unwrap();
+        let path = profile.path().join("config.cfg");
+        let mut console = ViewerConsole::new(path.clone()).unwrap();
+        assert_eq!(Policy::read(Some(&console)).lagometer_scale, 1.0);
+        for (value, expected) in [
+            ("0", 0.25),
+            ("-1", 0.25),
+            ("100", 4.0),
+            ("0.5", 0.5),
+            ("2", 2.0),
+        ] {
+            assert!(console.set_cvar("cg_lagometerScale", value));
+            assert_eq!(Policy::read(Some(&console)).lagometer_scale, expected);
+        }
+        console.flush_config();
+        let console = ViewerConsole::new(path).unwrap();
+        assert_eq!(Policy::read(Some(&console)).lagometer_scale, 2.0);
+    }
+
+    #[test]
+    #[ignore = "requires GPU and retail assets in JKA_GAME_DATA"]
+    fn lagometer_scale_gpu() {
+        crate::world_shot::on_big_stack(|| {
+            let (mut gpu, _profile) = crate::world_shot::open(
+                "maps/mp/duel6.bsp",
+                [960, 540],
+                None,
+                &[("cg_lagometer", "1"), ("r_clouds", "0"), ("r_weather", "0")],
+            )
+            .expect("GPU startup");
+            gpu.is_menu_world = false;
+            gpu.console.as_mut().unwrap().close_for_connection();
+            for sample in 0..64 {
+                gpu.hud.lagometer.add_frame(20 + sample);
+                gpu.hud.lagometer.add_snapshot(150 + sample * 8, 0);
+            }
+            let _ = crate::world_shot::frame(&mut gpu, 30);
+            // A snapshot-less world suppresses the gameplay UI layer. Render its
+            // retained commands through the real UI pipeline into our own target.
+            let target = gpu.device.create_texture(&wgpu::TextureDescriptor {
+                label: Some("lagometer scale comparison"),
+                size: wgpu::Extent3d {
+                    width: 960,
+                    height: 540,
+                    depth_or_array_layers: 1,
+                },
+                mip_level_count: 1,
+                sample_count: 1,
+                dimension: wgpu::TextureDimension::D2,
+                format: crate::ui_target::format(gpu.context.format),
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT | wgpu::TextureUsages::COPY_SRC,
+                view_formats: &[],
+            });
+            let view = target.create_view(&Default::default());
+            let mut sheet = image::RgbaImage::new(1080, 870);
+            for (row, style) in ["classic", "game", "radial"].into_iter().enumerate() {
+                gpu.console.as_mut().unwrap().set_cvar("cg_hudStyle", style);
+                let mut previous: Option<(usize, f32)> = None;
+                for (column, scale) in ["0.5", "1", "2"].into_iter().enumerate() {
+                    gpu.console
+                        .as_mut()
+                        .unwrap()
+                        .set_cvar("cg_lagometerScale", scale);
+                    gpu.hud.targeting.policy = Policy::read(gpu.console.as_ref());
+                    let _ = crate::world_shot::frame(&mut gpu, 2);
+                    gpu.ui_shapes
+                        .prepare_layers(&gpu.queue, [gpu.hud.draw_list()], [960.0, 540.0]);
+                    let mut encoder = gpu.device.create_command_encoder(&Default::default());
+                    {
+                        let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                            label: Some("lagometer retained UI"),
+                            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                                view: &view,
+                                depth_slice: None,
+                                resolve_target: None,
+                                ops: wgpu::Operations {
+                                    load: wgpu::LoadOp::Clear(wgpu::Color {
+                                        r: 0.08,
+                                        g: 0.08,
+                                        b: 0.08,
+                                        a: 1.0,
+                                    }),
+                                    store: wgpu::StoreOp::Store,
+                                },
+                            })],
+                            depth_stencil_attachment: Some(
+                                wgpu::RenderPassDepthStencilAttachment {
+                                    view: gpu
+                                        .render_scale
+                                        .as_ref()
+                                        .map_or(&gpu.depth.view, |scale| &scale.hud_depth.view),
+                                    depth_ops: None,
+                                    stencil_ops: None,
+                                },
+                            ),
+                            timestamp_writes: None,
+                            occlusion_query_set: None,
+                            multiview_mask: None,
+                        });
+                        gpu.ui_shapes.draw(&mut pass);
+                    }
+                    gpu.queue.submit([encoder.finish()]);
+                    let image = crate::world_shot::read_back(&gpu.device, &gpu.queue, &target);
+                    let bars: Vec<_> = gpu
+                        .hud
+                        .draw_list()
+                        .commands()
+                        .iter()
+                        .filter_map(|command| match command {
+                            DrawCommand::SolidRect { rect, color }
+                                if color.r == 0.28 && color.g == 0.95 =>
+                            {
+                                Some(*rect)
+                            }
+                            _ => None,
+                        })
+                        .collect();
+                    assert!(!bars.is_empty(), "lagometer must be drawn in {style}");
+                    if let Some((count, width)) = previous {
+                        assert_eq!(bars.len(), count, "scaling preserves displayed history");
+                        assert!((bars[0].width - width * 2.0).abs() < 0.001);
+                    }
+                    previous = Some((bars.len(), bars[0].width));
+                    let crop = image::imageops::crop_imm(&image, 600, 250, 360, 290).to_image();
+                    assert!(
+                        crop.pixels()
+                            .any(|pixel| pixel[1] > 160 && pixel[0] < 100 && pixel[2] < 150),
+                        "GPU must draw green lagometer bars in {style} at scale {scale}"
+                    );
+                    image::imageops::overlay(
+                        &mut sheet,
+                        &crop,
+                        column as i64 * 360,
+                        row as i64 * 290,
+                    );
+                }
+            }
+            let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join("../../target/parity-reports/lagometer-scale.png");
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            sheet.save(&path).unwrap();
+            println!(
+                "lagometer scales 0.5/1/2, rows classic/game/radial: {}",
+                path.display()
+            );
+        });
     }
 }

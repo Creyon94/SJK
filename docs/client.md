@@ -428,7 +428,7 @@ one group and regroups the settings screen's GAME, HUD, HUD+ and TEXT tabs by su
     gathers the menus' and console's look (menu style, contrast, game fonts, menu
     text size and spacing, console style and text size); HUD the HUD style, files
     and scale, status, weapon bar, crosshair and its size, names, nameplates,
-    timer, speedometer, team overlay, lagometer, chat and ground readout;
+    timer, speedometer, team overlay, lagometer and its scale, chat and ground readout;
     Scoreboard its style, the SJK one's compact rows, client numbers, head
     icons and small rows. Network
     follows.
@@ -1635,6 +1635,20 @@ with the HUD). Optional snapshot diagnostics, inventory and the automatically
 positioned team overlay flow below that block. Explicit team-overlay coordinates
 remain authoritative. Visibility and server-selected leader/opponent rules are
 unchanged.
+
+## Lagometer size
+
+`cg_lagometerScale` changes the lagometer's width and height: `1` (default) is
+normal size, `0.5` half size, `2` double size. Settings > HUD > **Lagometer scale**
+offers 0.25–4 in both menu interfaces; values outside that range are clamped when
+drawn. The setting is archived and takes effect immediately. Enable the graph with
+`cg_lagometer 1`.
+
+Scaling keeps the graph's existing bottom-right corner fixed, including custom
+`cg_lagometerX` and `cg_lagometerY` offsets. It applies to every built-in HUD and
+custom layouts that use the `lagometer` binding, on top of their layout dimensions.
+It preserves the number and order of visible samples and the graph's millisecond
+ranges, so a larger graph does not show a longer history.
 
 ## Scoreboard styles
 
