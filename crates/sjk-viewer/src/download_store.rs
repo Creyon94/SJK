@@ -10,6 +10,9 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::mpsc::SyncSender;
 use std::time::{Duration, Instant};
 
+#[path = "download_policy.rs"]
+pub(crate) mod policy;
+
 const FILE_LIMIT: u64 = 256 * 1024 * 1024;
 const CONNECT_LIMIT: u64 = 1024 * 1024 * 1024;
 const EXPANDED_LIMIT: u64 = 2 * 1024 * 1024 * 1024;
@@ -34,6 +37,26 @@ pub(crate) fn home() -> Result<PathBuf, String> {
         .or_else(|| std::env::var_os("HOME").map(|p| PathBuf::from(p).join(".local/share")))
         .ok_or("cannot determine download home; set SJK_DOWNLOAD_HOME")?;
     Ok(root.join("SJK/downloads/base"))
+}
+
+/// Whether `archive` (a mounted pak's path) lives in the download home, so the
+/// download policy applies to it.
+pub(crate) fn is_download(archive: &Path) -> bool {
+    // Kept once found: the folder only exists after the first download.
+    static HOME: std::sync::OnceLock<PathBuf> = std::sync::OnceLock::new();
+    let home = match HOME.get() {
+        Some(home) => home,
+        None => {
+            match home().and_then(|home| std::fs::canonicalize(home).map_err(|e| e.to_string())) {
+                Ok(home) => HOME.get_or_init(|| home),
+                Err(_) => return false,
+            }
+        }
+    };
+    // Mount names are canonical already; compare canonically all the same.
+    archive.parent().is_some_and(|parent| {
+        parent == home || std::fs::canonicalize(parent).is_ok_and(|parent| &parent == home)
+    })
 }
 
 /// Cached comparison plus temporary output. No ambient remote paths reach filesystem calls.
@@ -124,15 +147,20 @@ impl Store {
 }
 
 /// Validate a plain filename, including script/command metacharacters and platform aliases.
+///
+/// Community paks use spaces, braces and apostrophes (`{JoF}Sentinel Nexus.pk3`,
+/// `{JoF}'s-GWing.pk3`), so those pass; quotes, separators, `;`, `%`, `$`,
+/// wildcards and control bytes never do. The request is sent quoted.
 pub(crate) fn valid_filename(name: &str) -> bool {
     name.len() > 4
         && name.len() <= 180
         && name.ends_with(".pk3")
         && !name.contains("..")
-        && !name.starts_with('.')
+        && !name.starts_with(['.', ' '])
+        && !name.trim_end_matches(".pk3").ends_with([' ', '.'])
         && name
             .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || b"_-.()+".contains(&b))
+            .all(|b| b.is_ascii_alphanumeric() || b"_-.()+{}[]' !,&~".contains(&b))
         && !matches!(
             name.split('.')
                 .next()
@@ -353,6 +381,16 @@ impl DownloadStorage for Store {
 
     fn abort(&mut self) {
         self.active = None;
+    }
+
+    fn skipped(&mut self, request: &PakRequest, reason: &str) {
+        crate::log::progress(format_args!(
+            "session content: skipped download {}: {reason}",
+            request.remote
+        ));
+        let _ = self
+            .progress
+            .try_send(format!("Skipped {}: {reason}", request.filename));
     }
 }
 

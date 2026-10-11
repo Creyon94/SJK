@@ -1134,6 +1134,17 @@ test: Fire at a wall on your left: the impact plays mostly in the left ear.
 
 # ---- Gameplay ----
 
+[allow-download]
+area: Gameplay
+title: Downloads: spaced names, skip a refused pak, add-only content
+change: Pak names with spaces/braces/apostrophes download; one failed pak no longer ends the join.
+change: Downloads hide their configs, scripts, menus, programs and replacements of your files.
+change: A map downloaded once loads on a server that lists no paks (e.g. JoF today).
+test: Move a custom map pk3 out of GameData/base, join a local server running it (downloads on).
+test: The log says session content: download ... stripped of ...; the map loads and looks right.
+test: Put a pak with autoexec.cfg on the local server: exec autoexec.cfg does not run its lines.
+note: JoF servers have downloads off and list no paks: nothing can download from them.
+
 [rate-90000]
 area: Gameplay
 title: rate defaults to 90000; a saved 25000 moves to 90000 once

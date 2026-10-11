@@ -3220,7 +3220,11 @@ root (the implementation appends `base`). See
 
 Server reference lists use OpenJK's positional common-prefix rule: extra pak
 names or checksums without a counterpart are ignored, including when one list
-is empty. Download comparison and session cache selection share
+is empty. A name token without a `/` is the rest of the name before it (stock
+servers write every name as `game/basename` and separate them with spaces), so
+`base/{JoF}Sentinel Nexus` keeps its own checksum instead of shifting every later
+name onto its neighbour's, as JoF's lists did in March 2026 (21 names for 20
+checksums). Download comparison and session cache selection share
 [the compatibility parser](../crates/sjk-client/src/referenced_paks.rs), so a
 connection cannot pass one check only to fail the other on list length.
 Paired checksums, download paths and file contents remain validated; advertised
@@ -3230,10 +3234,59 @@ References are not a mandatory client install manifest. When the server sets
 `sv_allowDownload 0`, or the client sets `cl_allowDownload 0`, UDP transfers are
 skipped and joining proceeds with available content. Missing directory names,
 unsafe download names and retail packs never produce a download request.
+Pak names may hold spaces, braces, brackets, apostrophes and `!,&~` (JoF's
+`{JoF}'s-GWing`); quotes, separators, `;`, `%`, `$`, wildcards and control bytes
+are refused. The request is sent quoted (`download "base/{JoF}Sentinel Nexus.pk3"`),
+since a stock server reads the name as `Cmd_Argv(1)`. A pak the server refuses
+(it answers with a reason) or that fails verification (size caps, checksum, a
+broken archive) is skipped with a `session content: skipped download` log line and
+the join goes on with the others; before 12/10/2026 any one failure ended the
+connection. 30 s without a block still ends it, as the server has stopped
+answering ([download.rs](../crates/sjk-client/src/download.rs)).
 Unavailable referenced archives do not abort world mounting; only locally
 available checksum matches are selected from the cache. The actual map must
 still exist and match its advertised BSP checksum. HTTP downloading remains
 unsupported, and this policy does not disable pure-server admission checks.
+
+A server that lists no paks still names its map. When no installed content has
+`maps/<mapname>.bsp`, the newest download holding it is mounted (with the policy
+below), so a map downloaded once stays playable on servers that stopped listing
+their paks; JoF's servers send `sv_allowdownload 0` and an empty list since at least
+October 2026. A map that is installed is never replaced this way.
+
+### What a download may bring
+
+A downloaded pak only adds content, and only to the sessions whose server
+references it (or whose map it alone has). The archive is kept exactly as
+downloaded, because its checksums are what servers compare (pure servers
+included); what the policy refuses is hidden when it is mounted
+(`VirtualFileSystem::mount_pk3_filtered`), so nothing reads, lists or `exec`s it:
+
+| Hidden | Examples |
+| --- | --- |
+| Programs and host scripts | `cgamex86.dll`, `.so`, `.exe`, `.bat`, `.ps1`, `.js`, `.qvm` |
+| Console scripts | every `.cfg` (`autoexec.cfg`, `mpdefault.cfg`) but the model tables `models/**/animation.cfg`, `animevents.cfg` and `sounds.cfg`; ICARUS `.ibi` |
+| Menus | everything under `ui/` and any `.menu` (menus run commands) |
+| Archives | a `.pk3`, `.zip`, `.7z` or `.rar` inside the pak |
+| Replacements | any file the game data or an installed pack already has (sounds, textures, models, levelshots, sabers) |
+
+Two kinds are exceptions to the replacement rule. A map (`.bsp`) may replace an
+installed one of the same name, as the server runs it (JoF's FFA3 Night ships as
+`maps/mp/ffa3.bsp`); the session still checks it against the server's map
+checksum when one is sent. Shader scripts always mount, and their definitions are
+screened one by one: the shader catalogue is loaded from the game and installed
+packs as before, then a download's scripts may add new shaders but never redefine
+one those define, nor one named after an installed texture (an implicit shader
+every map using that texture would take up). Each download logs what it lost
+(`session content: download ... stripped of 1 scripts, 2 replacements (...)` and
+`shader authority: download ... may not redefine N shaders`). See
+[download_policy.rs](../crates/sjk-viewer/src/download_policy.rs),
+[session_content.rs](../crates/sjk-viewer/src/session_content.rs) and
+[shader_authority.rs](../crates/sjk-viewer/src/shader_authority.rs).
+
+A map that changes retail textures for its own look loses those changes: the
+installed texture is used. Installed packs (in `GameData`) are the player's own
+choice and are not screened.
 
 ## Key names and binds
 

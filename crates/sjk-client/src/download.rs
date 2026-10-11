@@ -41,6 +41,11 @@ pub trait DownloadStorage: Send {
     fn finish(&mut self) -> Result<(), String>;
     /// Remove temporary output on refusal, timeout, cancellation or malformed data.
     fn abort(&mut self);
+    /// `request` was given up (refused by the server or failed verification)
+    /// and the join goes on without it.
+    fn skipped(&mut self, request: &PakRequest, reason: &str) {
+        let _ = (request, reason);
+    }
 }
 
 /// Parsed download block; the small payload is bounded by the stock message size.
@@ -121,60 +126,15 @@ pub(crate) fn run(
     exchange.acknowledge(initial.reliable_acknowledge);
     let result = (|| {
         for request in &requests {
-            storage.begin(request).map_err(ClientError::Download)?;
-            exchange.queue(format!("download {}", request.remote).into_bytes())?;
-            let mut expected = 0_u32;
-            let mut progress = Instant::now();
-            let deadline = progress + Duration::from_secs(1800);
-            loop {
+            // One refused or unusable pak skips that pak, never the join: the
+            // references are not a required install list.
+            if let Err(reason) = transfer(&mut exchange, storage, request, &initial.game_state)? {
+                storage.abort();
                 storage.check().map_err(ClientError::Download)?;
-                if progress.elapsed() > Duration::from_secs(30) || Instant::now() > deadline {
-                    return Err(ClientError::Download("download timed out".into()));
-                }
+                // Stop any blocks still coming for it before asking for the next.
+                exchange.queue(b"stopdl".to_vec())?;
                 exchange.send()?;
-                let Some(message) = exchange.receive()? else {
-                    continue;
-                };
-                let mut reader = MessageReader::new(&message.payload);
-                exchange.acknowledge(reader.read_i32()?);
-                let mut complete = false;
-                loop {
-                    match reader.read_service_command()? {
-                        ServiceCommand::End => break,
-                        ServiceCommand::Nop => {}
-                        ServiceCommand::ServerCommand => exchange.server_command(&mut reader)?,
-                        ServiceCommand::SetGame => {
-                            reader.read_c_string(256)?;
-                        }
-                        ServiceCommand::Snapshot => {
-                            skip_snapshot(&mut reader, &message, &initial.game_state)?;
-                        }
-                        ServiceCommand::Download => {
-                            let block = block(&mut reader, expected == 0)?;
-                            if block.number != expected as u16 {
-                                continue; // Stock ignores repeats/out-of-order blocks.
-                            }
-                            if let Some(size) = block.size {
-                                storage.size(size).map_err(ClientError::Download)?;
-                            }
-                            storage.append(&block.data).map_err(ClientError::Download)?;
-                            exchange.queue(format!("nextdl {expected}").into_bytes())?;
-                            expected += 1;
-                            progress = Instant::now();
-                            if block.data.is_empty() {
-                                storage.finish().map_err(ClientError::Download)?;
-                                exchange.send()?;
-                                exchange.send()?;
-                                complete = true;
-                                break;
-                            }
-                        }
-                        command => return Err(ClientError::UnexpectedCommand(command)),
-                    }
-                }
-                if complete {
-                    break;
-                }
+                storage.skipped(request, &reason);
             }
         }
         // cl_main.cpp:1342-1353: filesystem restart, donedl, wait for gamestate.
@@ -187,10 +147,16 @@ pub(crate) fn run(
                 continue;
             };
             if let Ok(initial) = sjk_protocol::decode_initial_gamestate(&message.payload) {
+                let attempted = |missing: &PakRequest| {
+                    requests
+                        .iter()
+                        .any(|tried| tried.checksum == missing.checksum)
+                };
                 if !storage
                     .missing(&initial.game_state)
                     .map_err(ClientError::Download)?
-                    .is_empty()
+                    .iter()
+                    .all(attempted)
                 {
                     return Err(ClientError::Download(
                         "server changed required paks during download; reconnect to retry".into(),
@@ -233,6 +199,83 @@ pub(crate) fn run(
         let _ = exchange.send();
     }
     result
+}
+
+/// Request one pak and store it, verified. `Ok(Err(reason))` gives up this pak
+/// alone; `Err` ends the connection (network failure, timeout, disconnect, cancel).
+fn transfer(
+    exchange: &mut Exchange<'_, impl Transport>,
+    storage: &mut dyn DownloadStorage,
+    request: &PakRequest,
+    game: &GameState,
+) -> Result<Result<(), String>, ClientError> {
+    // Quoted: a stock server reads the name as Cmd_Argv(1), and pak names can
+    // hold spaces. Storage validation keeps quotes and control bytes out.
+    if request.remote.bytes().any(|b| b == b'"' || b < b' ') {
+        return Ok(Err("unsafe pak name".into()));
+    }
+    if let Err(reason) = storage.begin(request) {
+        return Ok(Err(reason));
+    }
+    exchange.queue(format!("download \"{}\"", request.remote).into_bytes())?;
+    let mut expected = 0_u32;
+    let mut progress = Instant::now();
+    let deadline = progress + Duration::from_secs(1800);
+    loop {
+        storage.check().map_err(ClientError::Download)?;
+        // Silence means the server, not this pak: end the join as before.
+        if progress.elapsed() > Duration::from_secs(30) || Instant::now() > deadline {
+            return Err(ClientError::Download("download timed out".into()));
+        }
+        exchange.send()?;
+        let Some(message) = exchange.receive()? else {
+            continue;
+        };
+        let mut reader = MessageReader::new(&message.payload);
+        exchange.acknowledge(reader.read_i32()?);
+        loop {
+            match reader.read_service_command()? {
+                ServiceCommand::End => break,
+                ServiceCommand::Nop => {}
+                ServiceCommand::ServerCommand => exchange.server_command(&mut reader)?,
+                ServiceCommand::SetGame => {
+                    reader.read_c_string(256)?;
+                }
+                ServiceCommand::Snapshot => {
+                    skip_snapshot(&mut reader, &message, game)?;
+                }
+                ServiceCommand::Download => {
+                    // A refusal (`sv_client.cpp` writes size -1 and a reason).
+                    let block = match block(&mut reader, expected == 0) {
+                        Ok(block) => block,
+                        Err(ClientError::Download(reason)) => return Ok(Err(reason)),
+                        Err(error) => return Err(error),
+                    };
+                    if block.number != expected as u16 {
+                        continue; // Stock ignores repeats/out-of-order blocks.
+                    }
+                    if let Some(size) = block.size
+                        && let Err(reason) = storage.size(size)
+                    {
+                        return Ok(Err(reason));
+                    }
+                    if let Err(reason) = storage.append(&block.data) {
+                        return Ok(Err(reason));
+                    }
+                    exchange.queue(format!("nextdl {expected}").into_bytes())?;
+                    expected += 1;
+                    progress = Instant::now();
+                    if block.data.is_empty() {
+                        let stored = storage.finish();
+                        exchange.send()?;
+                        exchange.send()?;
+                        return Ok(stored);
+                    }
+                }
+                command => return Err(ClientError::UnexpectedCommand(command)),
+            }
+        }
+    }
 }
 
 // SV_SendClientSnapshot writes a full, NOT_ACTIVE snapshot before download blocks

@@ -94,4 +94,118 @@ impl ShaderCatalog {
         }
         catalog
     }
+
+    /// Adds the definitions of the visible scripts that `added` mounts supply, without
+    /// replacing any name already in the catalogue or any name `claimed` reports: content
+    /// mounted last may bring shaders of its own but not redefine anyone else's. Between
+    /// added scripts the usual order wins. Each refused definition goes to `refused`.
+    pub fn add_unclaimed(
+        &mut self,
+        vfs: &VirtualFileSystem,
+        added: impl Fn(&AssetSource) -> bool,
+        mut claimed: impl FnMut(&str) -> bool,
+        mut warning: impl FnMut(&VirtualPath, &ShaderError),
+        mut refused: impl FnMut(&str, &DefinitionSource),
+    ) {
+        let mut own = std::collections::HashSet::new();
+        for path in shader_paths(vfs) {
+            let asset = match vfs.read(path.as_str()) {
+                Ok(Some(asset)) if added(&asset.source) => asset,
+                Ok(_) => continue,
+                Err(error) => {
+                    warning(&path, &ShaderError::Vfs(error));
+                    continue;
+                }
+            };
+            let source = DefinitionSource {
+                script: path.clone(),
+                asset: asset.source,
+            };
+            for definition in crate::recovery::parse_recovering(&asset.bytes, &path, |error| {
+                warning(&path, &error)
+            }) {
+                let name = normalize_name(&definition.name);
+                if !own.contains(&name) && (self.definitions.contains_key(&name) || claimed(&name))
+                {
+                    refused(&name, &source);
+                    continue;
+                }
+                own.insert(name.clone());
+                self.definitions.insert(name, definition);
+            }
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn added_scripts_bring_new_shaders_but_cannot_redefine_others() {
+        let mut vfs = VirtualFileSystem::new();
+        vfs.mount_memory(
+            "base",
+            [(
+                "shaders/walls.shader",
+                b"textures/base/wall
+{
+	surfaceparm nonsolid
+}
+"
+                .to_vec(),
+            )],
+        )
+        .unwrap();
+        let base = vfs.clone();
+        let download = vfs
+            .mount_memory(
+                "download",
+                [(
+                    "shaders/walls.shader",
+                    b"textures/base/wall
+{
+	surfaceparm trans
+}
+                      textures/base/floor
+{
+}
+                      textures/map/new
+{
+}
+"
+                    .to_vec(),
+                )],
+            )
+            .unwrap();
+        let mut catalog = ShaderCatalog::load_with_warnings(&base, |_, _| {});
+        let mut refusals = Vec::new();
+        catalog.add_unclaimed(
+            &vfs,
+            |source| source.mount_id == download,
+            |name| name == "textures/base/floor",
+            |_, _| {},
+            |name, source| refusals.push((name.to_owned(), source.script.as_str().to_owned())),
+        );
+        assert_eq!(
+            refusals,
+            [
+                (
+                    "textures/base/wall".to_owned(),
+                    "shaders/walls.shader".to_owned()
+                ),
+                (
+                    "textures/base/floor".to_owned(),
+                    "shaders/walls.shader".to_owned()
+                ),
+            ]
+        );
+        assert!(catalog.get("textures/map/new").is_some());
+        assert!(catalog.get("textures/base/floor").is_none());
+        let original = ShaderCatalog::load_with_warnings(&base, |_, _| {});
+        assert_eq!(
+            catalog.get("textures/base/wall"),
+            original.get("textures/base/wall")
+        );
+    }
 }
