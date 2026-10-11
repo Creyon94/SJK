@@ -77,7 +77,7 @@ did: The pilot's vehicle HUD and crosshair, jetpacks, the spawn bubble and Force
 did: Create game and its map picker, Import and the test list in the SJK look
 did: Faster play: players' models loaded off the render thread, no hitch when players join
 did: Lighting that stops at walls, doors that block lamps, a faster JoFTemple
-did: Invisible brushes: clips, triggers, ladders and nodrop shown as Radiant shows them
+did: Invisible brushes: clips, triggers, ladders, nodrop and movers (doors, lifts) shown as Radiant shows them
 did: Weather under sabers and effects, shield hits, idrive and +duck after JoF EJK
 did: Ghost replay: record a run once, replay it on the server to film a showcase
 did: Mimic: copy another player's moves and saber attacks live, as their mirror image

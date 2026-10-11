@@ -754,7 +754,18 @@ test: devmap mp/ffa3, then r_showBrushes 1: clips and triggers show with their n
 test: Walk into a trigger: its far faces show from inside; text reads left to right.
 test: r_showBrushesTypes "teleport push": only those; empty it to get the set back.
 test: Settings > Game options: the row steps 0/1/2 in both menu styles.
-note: Off on the menu map. Doors and lifts' own brushes are left out (they move).
+note: Off on the menu map. Movers show where the map file puts them, not live (see show-movers).
+
+[show-movers]
+area: Rendering & effects
+title: Movers in the brush view: doors, lifts, buttons, trains and their travel boxes
+change: r_showBrushes 1 also draws doors, lifts, buttons, trains and always-moving brushes.
+change: 2 adds breakable/glass and a travel box: where a door, lift or button can reach.
+change: r_showBrushesTypes takes door lift button train endless breakable travel.
+test: devmap mp/ffa3, r_showBrushes 1: its doors and lifts are tiled DOOR and LIFT.
+test: r_showBrushes 2, r_showBrushesTypes "door travel": the door and its box.
+test: Open a door: it moves inside the box; the overlay stays at its closed place.
+note: Static: movers show where the map file puts them; a train not at its first corner.
 
 [map-change-resize]
 area: Rendering & effects
