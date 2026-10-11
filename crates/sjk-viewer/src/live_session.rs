@@ -224,12 +224,18 @@ impl GpuState {
             // A ghost replay sends the recorded command instead (`ghost_replay`).
             if self.local_prediction.fake_noclip() {
                 self.ghost.interrupt("you are flying");
+                self.mimic.stop_with("^3mimic: stopped, you are flying.");
             }
             let pose = self
                 .local_prediction
                 .committed_state()
                 .map(crate::ghost_replay::Pose::of);
             let replay = pose.and_then(|pose| self.ghost.drive(&command, &pose));
+            // Or the mimic copies another player (`mimic`).
+            let replay = replay.or_else(|| {
+                let state = self.local_prediction.committed_state()?;
+                self.mimic.drive(&command, state)
+            });
             if let Some(drive) = &replay {
                 command = drive.command;
                 if let Some([pitch, yaw]) = drive.view {

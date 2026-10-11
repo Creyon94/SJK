@@ -111,6 +111,9 @@ Sol develops SJK and sets its direction. Sol's work includes:
   SJK hub from the inspect key;
 - ghost replay (`ghost`): a run recorded once and replayed on the same server to film
   a showcase, walking to its start and correcting drift through the movement keys;
+- the mimic (`mimic`): another player's view, movement, jumps, crouches, saber attacks,
+  stance and holster copied live, facing them as a mirror image or a copy, after a set
+  delay;
 - the quick wheel's live Force page and Toys page, with Illuminate as a toy;
 - the pilot's vehicle HUD and crosshair, and jetpacks, the spawn bubble and the Force
   spheres drawn again (after JoF EJK);

@@ -1104,6 +1104,74 @@ second takeoff's command and a command in the air, it lands every pillar and end
 it ends 7 units off where an unsteered replay ends 46 off. Not yet tried on a live
 server.
 
+## Mimic
+
+`mimic <player> [delay] [mirror|copy]` copies another player's moves live: their view,
+movement, jumps, crouches, saber attacks, stance and holster
+([mimic.rs](../crates/sjk-viewer/src/mimic.rs)). It is meant for a saber showcase with
+two players facing each other. The player is a slot number or part of a name (as
+`tell` takes it); the delay goes from 0 to 10 seconds (`0.5`, `2s`); `mirror`, the
+default, copies like a reflection, and `copy` keeps the leader's sides. `mimic off`
+stops it and `mimic` alone says what it does. It has no menu entry.
+
+The client never sees another player's keys, only what they lead to: each snapshot
+carries their origin and velocity (`trBase`, `trDelta`), view angles (`apos.trBase`),
+ground entity, linked box (`solid`'s top tells a crouch, 16, from standing, 40), saber
+move, stance (`fireflag`), holster and weapon. The mimic keeps these samples, plays them
+back on its own timeline after the delay (interpolated, extrapolated at most 100 ms past
+the newest) and rebuilds commands:
+
+- **Facing each other.** Where both stood and faced when it began are the anchors. The
+  leader's motion since then, in their own frame, becomes the mimic's in its frame: the
+  leader stepping toward the mimic makes the mimic step toward them. `mirror` swaps
+  left and right, so a step to the leader's left is a step to the mimic's right and both
+  stay face to face; their yaw turns mirror too. Pitch is copied.
+- **Movement.** On the ground the keys aim for the leader's velocity, read 80 ms ahead
+  where the delay leaves samples there (so a turn starts when theirs did, not an
+  acceleration later), plus a return toward their mapped position at 4 units a second
+  per unit beyond 2, with part of the gap to the current velocity added to take a
+  sideways speed out. A slight backward component is dropped, since any backward key
+  slows the player (`BG_AdjustClientSpeed`: 0.75, 0.45-0.75 in an attack). Walking
+  pace (under 140) sets `BUTTON_WALKING` for the walk animation. In the air the keys
+  follow the leader's horizontal acceleration (air control pushes along the keys), not
+  the offset.
+- **Jumps and crouches.** A takeoff faster than 100 upward is a jump, held while the
+  leader rises (a Force jump's height follows), let go for a command first if jump is
+  still held. A crouched box crouches once the mimic is under walking pace: crouching
+  while running rolls (`PM_Footsteps`), so a crouch waits for the mimic to slow down,
+  unless the leader moves faster than 200 and is rolling too.
+- **Saber.** The leader's saber move names the controls that ask for it, the inverse of
+  `PM_SaberAttackForMovement`: a directional attack, its start or a transition into it
+  holds attack with the keys of the quadrant it starts from (right and forward for the
+  top-left start, right alone for the left, forward for the overhead); `mirror` swaps
+  the quadrants and the specials' left and right forms. Those keys are pressed only where
+  a move is chosen, starting from the ready or a return and in the last 24 ms of an
+  attack (`PM_WeaponLightsaber`), where the leader 32 ms ahead says what comes next; in
+  between the keys follow. Specials hold their controls throughout: the backstabs (back),
+  the lunge and spins (crouch and forward), the DFA, flip over and jump attacks (jump
+  and forward), the cartwheels and butterflies (jump and a side), the backflip, the
+  kicks (alternate attack and a direction), the katas (both buttons); the others hold
+  attack. A bounce keeps the buttons; parries, knockaways and locks, the fight's and not
+  inputs, let go. A different stance presses `saberAttackCycle` (every 400 ms, eight
+  tries for a stance this player lacks) and a different holster `sv_saberswitch`.
+
+With no delay the copy runs as soon as the leader is seen, which is after their ping,
+the snapshot interval and this client's ping, and nothing ahead is known. It stops on any
+key or button the player presses, death, spectating, flight, a duel, leaving, a map
+change or the leader out of sight for three seconds; it refuses to start in a duel, on
+oneself or during a ghost replay. Taking damage does not stop it: blades meet in a
+mirrored showcase.
+
+The tests run the real Pmove for both players on a flat floor: a scripted leader turns,
+walks, strafes, jumps, crouch-walks and attacks (two chained attacks, then an overhead),
+with snapshots every 24 ms reaching the mimic 60 ms late, the mimic facing them 128 units
+away. With delays of 0, 0.3 and 1 second the mirror does every saber move mirrored (top
+right, from the left, then the overhead), each attack starting 4 to 24 ms after it
+should, jumps and crouches, turns its view 30 degrees the other way and ends within 2
+units of the mirrored spot; during the run it stays within 10 units with a delay and 31
+with none (a full-speed leader cannot be caught up). `copy` keeps the sides. Not yet
+tried in a game.
+
 ## Saber ignition and retraction sounds
 
 Two sources voice a saber turning on or off, as in OpenJK `codemp`. The server
@@ -3327,7 +3395,8 @@ It adds to the map's own weather until the next map; see
 `connect host:port`, `disconnect` and `reconnect` control the session.
 `record`, `stoprecord`, `demo` and `playdemo` control demos.
 `ghost record`, `ghost stop` and `ghost play` record and replay the player's own run
-([Ghost replay](#ghost-replay)).
+([Ghost replay](#ghost-replay)); `mimic <player> [delay] [mirror|copy]` copies another
+player's moves live ([Mimic](#mimic)).
 `screenshot` and `screenshotJPEG` request captures; `condump filename` saves
 console output. A capture copies the final swapchain image into a buffer that is
 mapped over the next frames; frames keep running meanwhile, and the readback stays

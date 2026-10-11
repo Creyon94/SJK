@@ -180,6 +180,7 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
         "Fly locally while the server sees you standing still (toggle)",
     ),
     (crate::ghost_replay::COMMAND, crate::ghost_replay::HELP),
+    (crate::mimic::COMMAND, crate::mimic::HELP),
     ("colorname", "Apply selected name colors"),
     ("colorstring", "Configure outgoing chat colors"),
     ("vid_restart", "Reapply video settings (device is retained)"),
@@ -744,6 +745,7 @@ impl crate::GpuState {
             }
             "fakenoclip" => return self.fake_noclip_command(),
             crate::ghost_replay::COMMAND => return self.ghost_command(args),
+            crate::mimic::COMMAND => return self.mimic_command(args),
             crate::fps_help::COMMAND => return self.fps_help_command(),
             "freecam" => return self.free_camera_command(args),
             "peek" => return self.peek_command(args),
