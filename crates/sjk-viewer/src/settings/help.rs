@@ -217,6 +217,10 @@ const HELP: &[(&str, &str)] = &[
         "Seconds you must keep looking at a player, steady, before the card shows.",
     ),
     (
+        "cg_playerCardOutline",
+        "Outline the player whose card is up, in the card's colour.",
+    ),
+    (
         "cg_drawFriend",
         "A marker over allies: your team, your duel partner, or Jedi Master's foes.",
     ),

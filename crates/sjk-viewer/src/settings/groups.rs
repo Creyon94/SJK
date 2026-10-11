@@ -125,6 +125,7 @@ impl Group {
                 "cg_drawFriend",
                 "cg_playerCard",
                 "cg_playerCardDelay",
+                "cg_playerCardOutline",
                 "cg_nameplate",
                 "cg_nameplateRange",
                 "cg_nameplateNear",
