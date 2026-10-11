@@ -63,6 +63,34 @@ green ping bars, and the comparison images were reviewed (RTX 5070 Ti).
 Unverified: live-network use, custom HUD files and other GPUs. The UI comparison
 uses its own render target because a snapshot-less world suppresses gameplay UI.
 
+## Classic scoreboard interactions
+
+Branch `feat/classic-scoreboard-behavior` (11/10/2026, based on `3654f5b2`,
+Windows 11 Pro), compared against JoF EJK `codemp/cgame` revision
+`bd5e202dfedd49500f1b7aadd655619bac152167`. Classic uses JoF's bottom-left chat,
+held-board chat suppression above 25 connected players, compact automatic
+intermission list with a full-list hint, instant opening/reordering, score-request
+gate and duel intermission headers. JoF's automatic death board and selective
+HUD visibility are deliberately excluded: the chosen SJK behavior remains
+held/intermission only and hides the whole HUD. The SJK board keeps its side-column
+chat and animated presentation ([client.md](client.md#scoreboard-styles)).
+
+Verified with Rust 1.99.0: `cargo fmt --all --check`,
+`cargo build --locked --workspace`, `cargo test --locked --workspace` and
+`cargo clippy --locked --workspace --all-targets` pass (existing warnings remain).
+Focused tests cover roster changes without score rows, 20/21 and 25/26-player
+boundaries, compact/full lists, losing-team room, empty score caches, two-second
+requests and rewinds, duel-header precedence, manual death's retained killer and
+classic motion. GPU startup and three 1920x1080 `mp/duel6` frames with synthetic
+rosters/chat passed on RTX 5070 Ti, driver 32.0.16.1714, Ryzen 7 5800X3D; inspected
+ordinary chat, compact intermission/chat and full held list without chat.
+
+Not verified in a live match, against a running JoF client, on another GPU or for
+performance. Existing plugin death-handshake, Siege class/winner presentation and
+recorded demo score-row gaps remain; the UI does not fabricate missing server
+facts. The source comparison and synthetic frames establish these interaction
+decisions, not full JoF compatibility.
+
 ## Mythical shader parts
 
 Branch `personal/shader-options` (11/10/2026, based on `5dadea06`, Windows 11), with the

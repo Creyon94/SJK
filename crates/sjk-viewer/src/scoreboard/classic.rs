@@ -7,7 +7,7 @@
 //! score, captures, assists, defends, ping, time at 47/59/66/73/80/90 %), the
 //! header bar at y 81, rows from y 118 in 25-unit rows, 15-unit interleaved rows
 //! once more than 12 players are listed (or always with `cg_smallScoreboard`,
-//! and in CTF), and 12-unit rows with the header moved up from 20 clients.
+//! and in CTF), and 12-unit rows with the header moved up above 20 clients.
 //! Team games list the leading team first over translucent team bands, then the
 //! spectators; free-for-all lists the players, then the spectators. Your row is
 //! highlighted in your rank's colour, and is added at the bottom when the list
@@ -19,9 +19,8 @@
 //! in its retail font. Horizontal positions spread up to 1.25x on wide screens,
 //! as EternalJK's widescreen correction does, while text keeps its proportions.
 //!
-//! Beyond retail: the board fades in and out ([`super::motion`]), rows glide to
-//! their new places when the order changes, pings are coloured by quality, and
-//! rows alternate a faint stripe for reading across.
+//! Presence, chat and crowded-server rules follow JoF's classic board. SJK's
+//! existing ping colours, row stripes and identity marks remain presentation.
 
 use super::ScoreRow;
 use super::icons::HeadIcons;
@@ -57,7 +56,7 @@ const BOTTOM_Y: f32 = 470.0;
 /// Most players listed at the large row size (`SB_MAXCLIENTS_NORMAL`).
 const LARGE_ROWS: usize = 12;
 /// Clients from which every metric shrinks (`cgs.numClients >= 20`).
-const MANY_CLIENTS: usize = 20;
+const MANY_CLIENTS: usize = 21;
 /// Inter's capital height as a share of its line box; text sizes are given
 /// as line boxes, so a retail capital height `c` is drawn at `c / CAP`.
 const CAP: f32 = 0.6;
@@ -75,6 +74,15 @@ pub(super) struct ClassicHeader<'a> {
     pub(super) local: LocalStatus,
     /// Who last killed you, while you are dead.
     pub(super) killer: Option<&'a str>,
+    pub(super) context: super::behavior::Context,
+    pub(super) duel_result: Option<DuelResult<'a>>,
+}
+
+/// Intermission's winner takes precedence over the next duel's participants.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(super) enum DuelResult<'a> {
+    Winner(&'a str),
+    Versus(&'a str, &'a str, Option<&'a str>),
 }
 
 /// The viewing player's state, from the latest snapshot.
@@ -168,6 +176,7 @@ pub(super) struct Plan {
     pub(super) band_len: usize,
     /// The local row was appended below the list.
     pub(super) local_appended: bool,
+    pub(super) hint_y: Option<f32>,
 }
 
 /// Lay out the rows: groups in retail order, then your row if not reached.
@@ -177,12 +186,12 @@ pub(super) fn plan(rows: &[ScoreRow], header: &ClassicHeader<'_>, small: bool) -
     let (top_border, bottom_border) = size.borders();
     let team_game = header.gametype >= TEAM;
     let red_leads = header.team_scores[0] >= header.team_scores[1];
-    let groups: [u8; 3] = if !team_game {
-        [FREE, SPECTATOR, u8::MAX]
+    let groups: [u8; 4] = if !team_game {
+        [FREE, SPECTATOR, u8::MAX, u8::MAX]
     } else if red_leads {
-        [RED, BLUE, SPECTATOR]
+        [RED, BLUE, FREE, SPECTATOR]
     } else {
-        [BLUE, RED, SPECTATOR]
+        [BLUE, RED, FREE, SPECTATOR]
     };
     let mut out = Plan {
         size,
@@ -191,11 +200,38 @@ pub(super) fn plan(rows: &[ScoreRow], header: &ClassicHeader<'_>, small: bool) -
         bands: [(0, 0.0, 0.0); 2],
         band_len: 0,
         local_appended: false,
+        hint_y: None,
     };
-    // Many clients: retail starts at `SB_TOP - 62`, under the moved-up bar's
-    // lower edge; start 2 units below it instead.
+    let compact = header.context.compact();
+    let max_rows = if compact {
+        24
+    } else {
+        match size {
+            RowSize::Large => 12,
+            RowSize::Small => 18,
+            RowSize::Many => 32,
+        }
+    };
+    let mut remaining = max_rows;
+    let count = |team| {
+        rows.iter()
+            .filter(|row| row.has_score && row.team == team)
+            .count()
+    };
+    let leading = count(groups[0]).min(max_rows);
+    let losing = count(groups[1]).min(max_rows);
+    let leading_max = if team_game && leading > 10 && leading + losing > max_rows {
+        leading.saturating_sub(losing).max(10)
+    } else {
+        leading
+    };
+    let local_row = rows
+        .iter()
+        .position(|row| row.has_score && u16::from(row.client_num) == header.local.client);
+    let has_scores = rows.iter().any(|row| row.has_score);
+    // CG_DrawOldScoreboard starts the crowded list at SB_TOP - 62.
     let mut y = if size == RowSize::Many {
-        TOP_Y - 57.0
+        TOP_Y - 62.0
     } else {
         TOP_Y
     };
@@ -203,19 +239,43 @@ pub(super) fn plan(rows: &[ScoreRow], header: &ClassicHeader<'_>, small: bool) -
         y += line / 2.0;
     }
     let mut local_listed = false;
-    for team in groups {
+    for (group, team) in groups.into_iter().enumerate() {
         if team == u8::MAX {
             continue;
         }
         let start = out.len;
+        let reserve_local =
+            !local_listed && local_row.is_some_and(|index| rows[index].team != SPECTATOR);
+        let cap = if compact && team == SPECTATOR {
+            remaining.saturating_sub(1 + usize::from(reserve_local))
+        } else if team_game && group == 0 {
+            leading_max
+        } else if team_game && group == 1 {
+            max_rows.saturating_sub(leading_max)
+        } else if compact || !team_game {
+            remaining
+        } else {
+            max_rows
+        };
+        let gap = if compact && group == 1 {
+            GROUP_GAP
+        } else {
+            size.gap()
+        };
+        let has_group = rows
+            .iter()
+            .any(|row| row.team == team && (row.has_score || has_scores));
+        if cap > 0 && has_group && out.len > 0 {
+            y += gap;
+        }
         for (index, row) in rows.iter().enumerate() {
-            // Free-for-all lists everyone who is not spectating as players.
-            let member = if team == FREE {
-                row.team != SPECTATOR
-            } else {
-                row.team == team
-            };
-            if !member || y + line > BOTTOM_Y || out.len >= 32 {
+            let member = row.team == team;
+            if !member
+                || (!row.has_score && !has_scores)
+                || out.len - start >= cap
+                || y + line > BOTTOM_Y
+                || out.len >= 32
+            {
                 continue;
             }
             out.placed[out.len] = (index as u8, y);
@@ -224,6 +284,7 @@ pub(super) fn plan(rows: &[ScoreRow], header: &ClassicHeader<'_>, small: bool) -
             y += line;
         }
         let count = out.len - start;
+        remaining = remaining.saturating_sub(count);
         if count == 0 {
             continue;
         }
@@ -232,21 +293,34 @@ pub(super) fn plan(rows: &[ScoreRow], header: &ClassicHeader<'_>, small: bool) -
             out.bands[out.band_len] = (team, top, count as f32 * line + bottom_border);
             out.band_len += 1;
         }
-        y += size.gap();
     }
     // `CG_DrawOldScoreboard`: your row at the bottom when the list stops short
     // of it (not with the many-clients layout or at intermission).
     if !local_listed
         && size != RowSize::Many
         && !header.local.intermission
+        && !header.context.dead
         && y + line <= BOTTOM_Y + GROUP_GAP
         && let Some(index) = rows
             .iter()
-            .position(|row| u16::from(row.client_num) == header.local.client)
+            .position(|row| row.has_score && u16::from(row.client_num) == header.local.client)
     {
+        y += size.gap();
         out.placed[out.len] = (index as u8, y);
         out.len += 1;
         out.local_appended = true;
+    }
+    if compact {
+        if !local_listed
+            && !out.local_appended
+            && let Some(index) = local_row.filter(|index| rows[*index].team != SPECTATOR)
+        {
+            out.placed[out.len] = (index as u8, y);
+            out.len += 1;
+            y += line;
+            out.local_appended = true;
+        }
+        out.hint_y = Some(y);
     }
     out
 }
@@ -385,7 +459,7 @@ pub(super) fn build(
 ) {
     ui.begin_transparent(viewport);
     let opacity = motion.opacity();
-    let frame = Frame::new(viewport, -(1.0 - opacity) * 8.0);
+    let frame = Frame::new(viewport, 0.0);
     ui.push_opacity(opacity);
     let layout = plan(rows, header, options.small);
     let many = layout.size == RowSize::Many;
@@ -439,6 +513,21 @@ pub(super) fn build(
             TextAlign::Start,
         );
     }
+    if let Some(y) = layout.hint_y {
+        ui.accent_bar(
+            frame.rect(LINE_X - 40.0, y, LINE_WIDTH + 80.0, 20.0),
+            Color::new(0.0, 0.165, 0.39, 0.85),
+        );
+        ui.text_aligned(
+            "HOLD TAB TO VIEW FULL SCOREBOARD",
+            frame.rect(LINE_X, y - 1.0, LINE_WIDTH, 20.0),
+            frame.text(MEDIUM_CAP * 0.75),
+            WHITE,
+            FontWeight::Semibold,
+            0.0,
+            TextAlign::Start,
+        );
+    }
     ui.pop_opacity();
 }
 
@@ -468,9 +557,23 @@ fn header_lines(
     };
     let count = |team: u8| rows.iter().filter(|row| row.team == team).count();
     let team_game = header.gametype >= TEAM;
-    if let Some(killer) = header.killer {
+    if let Some(result) = header.duel_result {
+        match result {
+            DuelResult::Winner(name) => centered(ui, format_args!("{name}^7 wins"), first),
+            DuelResult::Versus(first_name, second_name, Some(third)) => centered(
+                ui,
+                format_args!("{first_name}^7 versus {second_name}^7 and {third}"),
+                first,
+            ),
+            DuelResult::Versus(first_name, second_name, None) => centered(
+                ui,
+                format_args!("{first_name}^7 versus {second_name}"),
+                first,
+            ),
+        }
+    } else if let Some(killer) = header.killer {
         centered(ui, format_args!("Killed by {killer}"), first);
-    } else if team_game {
+    } else if options.player_count != 0 && team_game {
         let (red, blue) = (count(RED), count(BLUE));
         let (mine, theirs) = match header.local.team {
             BLUE => (blue, red),
@@ -753,7 +856,20 @@ impl RowDraw<'_> {
         let ctf = self.columns.ctf;
         let gametype = self.header.gametype;
         if !row.has_score {
-            for x in [self.columns.score, self.columns.ping, self.columns.time] {
+            let shows_score = row.team != SPECTATOR || gametype == DUEL || gametype == POWER_DUEL;
+            for x in [self.columns.score, self.columns.ping, self.columns.time]
+                .into_iter()
+                .chain(
+                    ctf.unwrap_or([f32::NAN; 3])
+                        .into_iter()
+                        .filter(|x| !x.is_nan()),
+                )
+                .filter(|x| shows_score || *x == self.columns.ping || *x == self.columns.time)
+            {
+                if x == self.columns.ping && row.bot {
+                    numbers(ui, format_args!("BOT"), x, WHITE);
+                    continue;
+                }
                 numbers(ui, format_args!("N/A"), x, WHITE);
             }
         } else if row.ping == -1 {
@@ -816,7 +932,7 @@ impl RowDraw<'_> {
                 WHITE,
             );
         }
-        if self.header.local.intermission && self.header.local.ready & (1 << row.client_num) != 0 {
+        if self.header.local.ready & (1 << row.client_num) != 0 {
             ui.text_aligned(
                 "READY",
                 frame.rect(LINE_X - 64.0, y + 2.0, 60.0, line),
@@ -909,7 +1025,55 @@ mod tests {
                 ..LocalStatus::default()
             },
             killer: None,
+            context: super::super::behavior::Context::default(),
+            duel_result: None,
         }
+    }
+
+    #[test]
+    fn compact_death_board_keeps_chat_room_and_a_cut_local_row() {
+        let rows: Vec<_> = (0..32).map(|client| row(client, FREE)).collect();
+        let mut h = header(0, 31);
+        h.context = super::super::behavior::Context {
+            connected: 32,
+            dead: true,
+            ..Default::default()
+        };
+        let compact = plan(&rows, &h, false);
+        assert_eq!(compact.len, 25);
+        assert_eq!(compact.placed[24].0, 31);
+        assert!(compact.local_appended);
+        assert!(compact.hint_y.unwrap() + 20.0 < 400.0);
+        h.context.held = true;
+        let full = plan(&rows, &h, false);
+        assert_eq!(full.len, 32);
+        assert!(full.hint_y.is_none());
+    }
+
+    #[test]
+    fn losing_team_has_reserved_rows_and_empty_score_cache_has_no_fake_rows() {
+        let mut rows: Vec<_> = (0..14).map(|client| row(client, RED)).collect();
+        rows.extend((14..20).map(|client| row(client, BLUE)));
+        let h = header(TEAM, 0);
+        let p = plan(&rows, &h, true);
+        assert_eq!(
+            p.placed[..p.len]
+                .iter()
+                .filter(|(index, _)| rows[*index as usize].team == RED)
+                .count(),
+            10
+        );
+        assert_eq!(
+            p.placed[..p.len]
+                .iter()
+                .filter(|(index, _)| rows[*index as usize].team == BLUE)
+                .count(),
+            6
+        );
+        for row in &mut rows {
+            row.has_score = false;
+        }
+        assert_eq!(plan(&rows, &h, true).len, 0);
     }
 
     #[test]
@@ -937,7 +1101,8 @@ mod tests {
         assert_eq!(RowSize::choose(13, false, 0), RowSize::Small);
         assert_eq!(RowSize::choose(4, true, 0), RowSize::Small);
         assert_eq!(RowSize::choose(4, false, CTF), RowSize::Small);
-        assert_eq!(RowSize::choose(20, false, 0), RowSize::Many);
+        assert_eq!(RowSize::choose(20, false, 0), RowSize::Small);
+        assert_eq!(RowSize::choose(21, false, 0), RowSize::Many);
     }
 
     #[test]
@@ -977,7 +1142,7 @@ mod tests {
         let plan = plan(&rows, &header(0, 0), false);
         assert_eq!(plan.size, RowSize::Many);
         assert_eq!(plan.len, 24);
-        assert_eq!(plan.placed[0].1, TOP_Y - 57.0);
+        assert_eq!(plan.placed[0].1, TOP_Y - 62.0);
         assert!(plan.placed[23].1 + 12.0 <= BOTTOM_Y);
     }
 
