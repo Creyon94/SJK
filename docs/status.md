@@ -1,5 +1,16 @@
 # Status and priorities
 
+## Door sounds
+
+Branch `fix/door-sounds` (12/10/2026, based on `9dbbdf19`, Linux): Creyon heard doors open
+silently on some maps where JoF EternalJK plays their sound. `G_PlayDoorSound` raises
+`EV_PLAYDOORSOUND`, event 71, but SJK's sound events answered only 73 (`EV_BMODEL_SOUND`),
+which a test had taken for the door event. 71 now plays the mover's soundset sound for the
+stage as `CG_PlayDoorSound` does, and nothing without a soundset
+([client.md](client.md#door-and-mover-sounds)). Verified: the door test with the right event
+number, a test for 73 and a door without a soundset, the workspace checks, and in game on
+Windows 11 by Creyon (the silent doors sound).
+
 ## Downloads that work, and what they may bring
 
 Branch `personal/allow-download` (12/10/2026, based on `c2016fbf`, Windows 11). Sol

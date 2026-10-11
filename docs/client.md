@@ -1280,6 +1280,13 @@ from the same point. That origin is the entity's `pos.trBase`, where codemp
 evaluates its trajectory, so a door that turns back halfway sounds from where
 its move began.
 
+The start and end sounds come from the mover's soundset (`CS_AMBIENT_SET`): `G_PlayDoorSound`
+raises `EV_PLAYDOORSOUND` (71) on a door, plat or button with one, and scripts and
+breakables raise `EV_BMODEL_SOUND` (73); both play the soundset's sound for the stage, and
+`EV_PLAYDOORSOUND` nothing without a soundset (`CG_PlayDoorSound`). Until 12/10/2026 SJK
+answered only 73, taking it for the door event, so doors with a soundset were silent on
+every server (Creyon's report: some maps' doors).
+
 A vehicle's own `EV_FIRE_WEAPON` and `EV_ALT_FIRE` (an `ET_NPC` of `CLASS_VEHICLE`)
 play nothing, as in `CG_EntityEvent` (`cg_event.c:2751-2760`, `:2779-2784`): they used
 to play the flash sound of whichever ordinary gun the vehicle's `weapon` field named.
