@@ -278,6 +278,12 @@ time, so packets keep acknowledging the server. Every command is predicted when
 it is made; between commands the frame presents a preview through its own input
 ([prediction_preview.rs](../crates/sjk-viewer/src/prediction_preview.rs)).
 
+The userinfo's `rate` and `snaps` are sent clamped to what a server accepts (a rate
+of at least 1000, 1 to 1000 snapshots; OpenJK's `SV_UserinfoChanged` raises lower
+values the same way), so `rate 0` or `snaps 0` typed in the console no longer stops
+joins and every later userinfo update (until 11/10/2026 the client refused them).
+The server still applies its own `sv_maxRate` and `sv_fps`.
+
 Commands wait for a move packet. `cl_maxpackets` (SJK default 125, clamped 15 to
 1000 like JoF EternalJK) sets how often one may leave: at most every
 `1000 / cl_maxpackets` whole milliseconds, carrying every command made since the
