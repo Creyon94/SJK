@@ -137,10 +137,13 @@ pub(crate) struct Instance {
     /// How far (units) a skin's glow quad reaches past its glow, or a glint's rays' length;
     /// for the bounds, not a GPU attribute.
     room: f32,
+    /// A glint's place ([`Instance::stars`]): how far below the tip (units) and how far
+    /// out it circles; for the bounds, not a GPU attribute.
+    glint: [f32; 2],
 }
 
-/// Colour alpha marking a skin's glint at the tip ([`Instance::star`]): neither a glow
-/// (a hilt sprite's radius) nor a core (zero).
+/// Colour alpha marking a skin's first glint ([`Instance::stars`]): neither a glow (a hilt
+/// sprite's radius) nor a core (zero). Glint `n` of an orbit is `STAR - n`.
 const STAR: f32 = -1.0;
 
 /// `CG_DoSaber`'s per-frame random draws (`cg_players.c:5359-5469`): `crandom()` for the
@@ -237,6 +240,7 @@ impl Instance {
             nominal_radius: blade.radius,
             maximum_length: max_length,
             room,
+            glint: [0.0; 2],
         };
         [
             make(
@@ -263,19 +267,30 @@ impl Instance {
         }
     }
 
-    /// A skin's glint at `blade`'s tip, when its skin has one switched on: a quad facing
-    /// the camera, as wide as the rays are long, drawn by the glow pipelines.
-    pub(crate) fn star(blade: Blade, color: BladeColor) -> Option<Self> {
-        let BladeColor::Skin(skin) = color else {
-            return None;
+    /// A skin's glints, when its skin has them switched on: the one at `blade`'s tip, or
+    /// each circling the blade below it (`saber.wgsl` moves them round); a quad facing the
+    /// camera each, as wide as the rays are long, drawn by the glow pipelines.
+    pub(crate) fn stars(blade: Blade, color: BladeColor) -> impl Iterator<Item = Self> {
+        let glint = match color {
+            BladeColor::Skin(skin) => skin.star,
+            _ => None,
         };
-        let length = skin.star?;
-        let [glow, _core] = Self::pair(blade, color);
-        Some(Self {
-            color: [glow.color[0], glow.color[1], glow.color[2], STAR],
-            room: length,
-            ..glow
-        })
+        glint
+            .map(|glint| (glint, Self::pair(blade, color)[0]))
+            .into_iter()
+            .flat_map(|(glint, glow)| {
+                (0..glint.count).map(move |n| Self {
+                    color: [
+                        glow.color[0],
+                        glow.color[1],
+                        glow.color[2],
+                        STAR - f32::from(n),
+                    ],
+                    room: glint.length,
+                    glint: [glint.at, glint.reach],
+                    ..glow
+                })
+            })
     }
 
     /// A skin's echo of `blade` at `seconds`, when its skin has one switched on: the glow
@@ -312,10 +327,10 @@ impl Instance {
         Some(Self::ghost(swayed, color, echo.fade))
     }
 
-    /// Whether this is a glint ([`Self::star`]).
+    /// Whether this is a glint ([`Self::stars`]).
     #[cfg(test)]
     pub(crate) fn is_star(&self) -> bool {
-        self.color[3] == STAR
+        self.color[3] <= STAR
     }
 
     /// The persona lanes, for the tests.
@@ -444,11 +459,13 @@ impl Instance {
         } else {
             1.0
         };
-        if self.color[3] == STAR {
-            // A quad round the tip, as wide as the rays are long.
-            let tip = base + direction * self.length;
-            let reach = self.room * std::f32::consts::SQRT_2;
-            return (tip.to_array(), tip.to_array(), reach);
+        if self.color[3] <= STAR {
+            // A quad as wide as the rays are long, round the tip or anywhere on the
+            // glints' circle below it.
+            let [at, out] = self.glint;
+            let centre = base + direction * (self.length - at.min(self.length));
+            let reach = self.room * std::f32::consts::SQRT_2 + out;
+            return (centre.to_array(), centre.to_array(), reach);
         }
         let reach = if self.color[3] > 0.0 {
             // saber.wgsl `chain_radius` at the hilt, or the hilt sprite, and a skin's room
@@ -467,8 +484,8 @@ impl Instance {
     }
 }
 
-/// A skinned blade's instances beyond its glow and core: its glint at the tip and its
-/// echo, each when its skin has it switched on, at `seconds` with the blade's `seed`
+/// A skinned blade's instances beyond its glow and core: its glints and its echo, each
+/// when its skin has it switched on, at `seconds` with the blade's `seed`
 /// (their animation stamped as the blade's). Never contact sources.
 pub(crate) fn skin_extras(
     blade: Blade,
@@ -476,8 +493,7 @@ pub(crate) fn skin_extras(
     seconds: f64,
     seed: u32,
 ) -> impl Iterator<Item = Instance> {
-    Instance::star(blade, color)
-        .into_iter()
+    Instance::stars(blade, color)
         .chain(Instance::echo(blade, color, seconds, seed))
         .map(move |instance| instance.with_animation(seconds, seed))
 }
@@ -810,15 +826,15 @@ mod cutoff_tests {
             crate::saber_skins::MAX_SKINS
         )));
         assert!(shader.contains("var<uniform> skins: array<Skin, MAX_SKINS>;"));
-        // `Skin` is 59 vec4s, as `SkinUniform`, and the array fits WebGPU's 16 KiB.
+        // `Skin` is 60 vec4s, as `SkinUniform`, and the array fits WebGPU's 16 KiB.
         assert_eq!(
             std::mem::size_of::<crate::saber_skins::SkinUniform>(),
-            59 * 16
+            60 * 16
         );
-        const { assert!(59 * 16 * crate::saber_skins::MAX_SKINS <= 16 * 1024) };
+        const { assert!(60 * 16 * crate::saber_skins::MAX_SKINS <= 16 * 1024) };
         let skin = &shader[shader.find("struct Skin {").unwrap()..];
         let skin = &skin[..skin.find('}').unwrap()];
-        assert_eq!(skin.matches(": vec4<f32>,").count(), 59);
+        assert_eq!(skin.matches(": vec4<f32>,").count(), 60);
         // In `SkinUniform`'s order (its lanes are pinned by `saber_skins`' tests).
         let lanes: Vec<&str> = skin
             .lines()
@@ -882,6 +898,7 @@ mod cutoff_tests {
                 "star_color",
                 "star_shape",
                 "star_motion",
+                "star_orbit",
                 "wisp_color",
                 "wisp_shape",
                 "wisp_field",
@@ -1024,9 +1041,19 @@ mod cutoff_tests {
 #[cfg(test)]
 mod skin_extras_tests {
     use super::*;
-    use crate::saber_skins::SkinColor;
+    use crate::saber_skins::{Glint, SkinColor};
 
-    fn skin(star: Option<f32>, echo: Option<crate::blade_skin_file::extras::Echo>) -> BladeColor {
+    /// A glint at the tip with rays `length` long.
+    fn at_tip(length: f32) -> Option<Glint> {
+        Some(Glint {
+            length,
+            at: 0.0,
+            count: 1,
+            reach: 0.0,
+        })
+    }
+
+    fn skin(star: Option<Glint>, echo: Option<crate::blade_skin_file::extras::Echo>) -> BladeColor {
         let BladeColor::Skin(base) =
             BladeColor::from_material(crate::saber_rgb::SKIN_MATERIAL, [1.0; 3])
         else {
@@ -1052,7 +1079,9 @@ mod skin_extras_tests {
 
     #[test]
     fn the_glint_is_a_quad_round_the_tip_and_never_a_contact() {
-        let star = Instance::star(blade(), skin(Some(9.0), None)).unwrap();
+        let stars: Vec<_> = Instance::stars(blade(), skin(at_tip(9.0), None)).collect();
+        assert_eq!(stars.len(), 1);
+        let star = stars[0];
         assert!(star.is_star());
         assert_eq!(star.off, 0b101, "the wearer's mask rides along");
         let (start, end, reach) = star.extent();
@@ -1060,8 +1089,42 @@ mod skin_extras_tests {
         assert_eq!(end, start);
         assert!((reach - 9.0 * std::f32::consts::SQRT_2).abs() < 1e-4);
         assert!(star.with_contact(1, 0, 0, true, false).contact().is_none());
-        assert!(Instance::star(blade(), skin(None, None)).is_none());
-        assert!(Instance::star(blade(), BladeColor::from_rgb([0, 0, 255])).is_none());
+        assert_eq!(Instance::stars(blade(), skin(None, None)).count(), 0);
+        assert_eq!(
+            Instance::stars(blade(), BladeColor::from_rgb([0, 0, 255])).count(),
+            0
+        );
+    }
+
+    #[test]
+    fn orbiting_glints_are_numbered_and_bounded_round_their_circle() {
+        let orbit = Glint {
+            length: 6.0,
+            at: 10.0,
+            count: 2,
+            reach: 5.0,
+        };
+        let stars: Vec<_> = Instance::stars(blade(), skin(Some(orbit), None)).collect();
+        assert_eq!(stars.len(), 2);
+        assert!(stars.iter().all(Instance::is_star));
+        // Glint n is `STAR - n`, which the shader reads back.
+        assert_eq!([stars[0].color[3], stars[1].color[3]], [STAR, STAR - 1.0]);
+        // Each one's bounds: round the point 10 units below the tip, wide enough for its
+        // rays anywhere on the circle.
+        let (start, end, reach) = stars[1].extent();
+        assert_eq!(start, [10.0, 20.0, 60.0]);
+        assert_eq!(end, start);
+        assert!((reach - (6.0 * std::f32::consts::SQRT_2 + 5.0)).abs() < 1e-4);
+        // Never below the hilt on a short blade.
+        let short = Blade {
+            length: 4.0,
+            ..blade()
+        };
+        let (start, _, _) = Instance::stars(short, skin(Some(orbit), None))
+            .next()
+            .unwrap()
+            .extent();
+        assert_eq!(start, [10.0, 20.0, 30.0]);
     }
 
     #[test]

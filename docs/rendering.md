@@ -1278,8 +1278,8 @@ the CPU (`SkinColor::light_color`, `trail_color`).
   neutral pair (`generated_glow`/`generated_core`; the neutral pair's bytes are
   unchanged and pinned by a test). Retail and RGB blades keep their materials and
   shading unchanged.
-- **Parameters.** The skins' parameters are a uniform array of 16 `Skin` structs of 59
-  `vec4`s (`SkinUniform`, 15104 bytes in all since the third set, bind group 2 of the
+- **Parameters.** The skins' parameters are a uniform array of 16 `Skin` structs of 60
+  `vec4`s (`SkinUniform`, 15360 bytes in all since the glint's orbit, bind group 2 of the
   saber pipelines),
   written only when skins load (`saber_gpu::Runtime::upload_skins`), never per frame.
   Each instance's material slot selects its skin. The lanes of a section a file leaves
@@ -1355,7 +1355,16 @@ the CPU (`SkinColor::light_color`, `trail_color`).
   stage, world shots): a camera-facing square round the tip as wide as the rays are
   long, drawn by the main and the dynamic glow pipelines; its rays (every other one
   shorter) taper and soften to a pixel, turn with time and the seed and twinkle on two
-  sines. Wisps are drawn in the glow (`skin_wisps`): the world's up in the blade's plane
+  sines. With an `orbit` (the fourth set, 11/10/2026) there is an instance per glint
+  (`Instance::stars`, glint n's alpha `STAR - n`; `star_motion.w` the count and
+  `star_orbit` its place, at, radius, rate and tilt): the vertex shader puts glint n
+  `at` units below the tip on a circle round the axis, its angle `time × rate + seed +
+  n / count` turns measured from the camera's side of the blade (the near side at a
+  quarter turn, so the circle reads as a ring from any side and never jumps as the blade
+  turns), the tilt lifting the near side; every other glint is 0.7 the size, each
+  twinkles on its own seed, and one behind the blade and close to its axis shows at 0.3
+  (`GLINT_BEHIND`, carried to the fragment in `shaft`). Each glint's bounds are the
+  point on the axis widened by the circle's reach. Wisps are drawn in the glow (`skin_wisps`): the world's up in the blade's plane
   (`down`, as the embers), a point's height above the nearest point of the blade and
   its distance aside give a column that widens as it rises and fades by the top, filled
   by rising, warped two-octave noise (`skin_rising`). The glow's quad reaches further by

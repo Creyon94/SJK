@@ -801,6 +801,17 @@ test: Console: saberskin saber_sun parts lists them; saberskin saber_sun haze on
 test: With a second SJK client on the server: it sees your blade with the parts you chose.
 note: Hub deployed 11/10/2026 with the new pack and the look field.
 
+[sun-orbit]
+area: Rendering & effects
+title: Sun: two glints circle the blade below the tip
+change: The Sun's tip glint is now two glints (one smaller) orbiting the blade 9 units down.
+change: They dim behind the blade; the part is named Orbiting glints (same choice kept).
+test: Wear the Sun, hold the blade up: two stars circle it a little below the tip.
+test: Walk round the blade: they read as a ring from every side, no jumps when it turns.
+test: Collection > Shaders, Sun: untick Orbiting glints: both go; tick it: both come back.
+test: A 2026.1011.2 client on the same server still sees the glint at the tip.
+note: Needs the hub's feat/sun-orbit pack (saber_sun.bladeextra2) deployed or mounted.
+
 [chroma-shaders]
 area: Rendering & effects
 title: Chroma saber shaders take your saber colour, marked with a colour wheel

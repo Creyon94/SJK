@@ -9,12 +9,21 @@
 //! are laid over the skin file's before it is read, and an older client never opens it
 //! (`blade_skin_file::load`). As before, a section left out draws nothing and, when
 //! present, every field of it is required.
+//!
+//! The fourth set (11/10/2026) is the glint's `orbit`, lower on the blade and circling it.
+//! A client of the third set refuses a field it does not know there too, so it lives in a
+//! later additions file (`<id>.bladeextra2`, [`LATER_ADDITIONS`]), laid over the first:
+//! a client of the third set draws the glint at the tip as before.
 
 use super::{BladeSkinDef, Rgb, colour, within};
 use serde::Deserialize;
 
 /// The additions file's extension: `skins/blades/<id>.bladeextra`.
 pub(crate) const ADDITIONS: &str = ".bladeextra";
+/// The later additions file's (the fourth set's), laid over the first: `<id>.bladeextra2`.
+pub(crate) const LATER_ADDITIONS: &str = ".bladeextra2";
+/// Most glints an orbit has.
+pub(crate) const MAX_GLINTS: u32 = 4;
 /// Most options a skin may offer, and most sections one switches.
 pub(crate) const MAX_OPTIONS: usize = 6;
 const MAX_OPTION_SECTIONS: usize = 4;
@@ -46,6 +55,21 @@ pub(crate) struct Star {
     pub(crate) depth: f32,
     /// The round glow at its heart, a share of the rays' brightness.
     pub(crate) halo: f32,
+}
+
+/// The glint's orbit (the fourth set): `count` glints `at` units below the tip, circling
+/// the blade `radius` units out, `rate` turns a second, their circle tilted by `tilt`
+/// (radians: the near side higher) so it shows as a ring round the blade. Every other glint
+/// is smaller, and one behind the blade dims. Without it the one glint stays at the tip.
+#[derive(Clone, Copy, Debug, Deserialize, PartialEq)]
+#[serde(deny_unknown_fields)]
+pub(crate) struct Orbit {
+    pub(crate) at: f32,
+    /// 1 to [`MAX_GLINTS`], evenly round the circle.
+    pub(crate) count: u32,
+    pub(crate) radius: f32,
+    pub(crate) rate: f32,
+    pub(crate) tilt: f32,
 }
 
 /// Wisps: thin smoke curling off the blade and rising, whichever way the blade is held.
@@ -265,6 +289,21 @@ impl BladeSkinDef {
             within("star.depth", s.depth, 0.0, 1.0)?;
             within("star.halo", s.halo, 0.0, 2.0)?;
         }
+        if let Some(o) = &self.orbit {
+            if self.star.is_none() {
+                return Err("orbit needs a star to circle the blade".to_owned());
+            }
+            within("orbit.at", o.at, 0.0, 40.0)?;
+            if !(1..=MAX_GLINTS).contains(&o.count) {
+                return Err(format!(
+                    "orbit.count must be 1 to {MAX_GLINTS}, not {}",
+                    o.count
+                ));
+            }
+            within("orbit.radius", o.radius, 0.0, 16.0)?;
+            within("orbit.rate", o.rate, -4.0, 4.0)?;
+            within("orbit.tilt", o.tilt, 0.0, 1.0)?;
+        }
         if let Some(w) = &self.wisps {
             colour("wisps.color", w.color, 4.0)?;
             within("wisps.brightness", w.brightness, 0.0, 10.0)?;
@@ -344,17 +383,16 @@ impl BladeSkinDef {
     }
 }
 
-/// Lay the additions file's fields (`additions`, a JSON object) over the skin file's
-/// (`text`): a field in both is the addition's. Either one not an object is refused.
+/// Lay an additions file's fields (`additions`, a JSON object) over the skin file's
+/// (`text`): a field in both is the addition's (a section replaced whole). Either one not
+/// an object is refused.
 pub(crate) fn merged(text: &str, additions: &str) -> Result<String, String> {
     let mut base: serde_json::Value =
         serde_json::from_str(text).map_err(|error| error.to_string())?;
     let more: serde_json::Value =
-        serde_json::from_str(additions).map_err(|error| format!("{ADDITIONS} file: {error}"))?;
+        serde_json::from_str(additions).map_err(|error| format!("additions file: {error}"))?;
     let (Some(base_fields), serde_json::Value::Object(more)) = (base.as_object_mut(), more) else {
-        return Err(format!(
-            "the skin and its {ADDITIONS} file must both be objects"
-        ));
+        return Err("the skin and its additions file must both be objects".to_owned());
     };
     for (key, value) in more {
         base_fields.insert(key, value);
