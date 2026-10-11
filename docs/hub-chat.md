@@ -194,7 +194,9 @@ feed: the hub took them, so the sound says the message went out.
   servers say, so no time zone is needed); the field (the keyboard is there when the page opens), Send and the
   character count. Up from the field chooses the newest message, Up and Down move,
   Page Up and Page Down scroll, Tab walks every control. Resting the pointer on a name
-  shows the sender's sender card with Mute or Unmute. A chosen message offers Mute on
+  shows the sender's sender card with Mute or Unmute; the page's text whose ink reaches
+  the card is left out while it shows, since text draws over every shape and the times
+  and messages showed through it (Sol's report, 11/10/2026). A chosen message offers Mute on
   this PC ([Muting a player](#muting-a-player)); for staff, Delete for everyone, Mute at the hub and Unmute
   at the hub (the client does not know a key's mute flag); under them, what the request
   came to (sending, done, or the hub's refusal). It opens from the dock's

@@ -232,8 +232,8 @@ impl MenuCanvas {
         id
     }
 
-    /// The text stored under `id`, for tests that check what was drawn.
-    #[cfg(test)]
+    /// The text stored under `id`: for tests that check what was drawn, and for a
+    /// screen measuring what a card drawn later would cover.
     pub(crate) fn stored_text(&self, id: TextId) -> &str {
         self.resolve(id)
     }
