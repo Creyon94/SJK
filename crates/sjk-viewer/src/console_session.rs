@@ -159,6 +159,8 @@ impl ViewerConsole {
             crate::gameplay_fps::CVAR,
             sjk_client::command_rate::AUTO_GAMEPLAY_FPS,
         )?;
+        let caps_lifted =
+            console_cvars::IntegerSetting::bind(&mut cvars, crate::server_caps::OVERRIDE_CVAR, 0)?;
         let pmove_fixed = console_cvars::IntegerSetting::bind(&mut cvars, "pmove_fixed", 0)?;
         let pmove_msec = console_cvars::IntegerSetting::bind(&mut cvars, "pmove_msec", 8)?;
         let socket = super::socket::State::bind(&mut cvars)?;
@@ -563,7 +565,8 @@ impl ViewerConsole {
             max_packets,
             gameplay_fps,
             frame_cap: crate::runtime_settings::STOCK_FPS_CAP,
-            server_step_floor: None,
+            server_cap: None,
+            caps_lifted,
             input_health: Default::default(),
             pmove_fixed,
             pmove_msec,
@@ -850,7 +853,19 @@ impl ViewerConsole {
     ) {
         self.refresh_movement_cvars(game);
         let raw = String::from_utf8_lossy(game.config_string(0).unwrap_or_default());
-        self.server_step_floor = jof_step_floor(profile, &raw);
+        self.server_cap = crate::server_caps::find(profile, &raw);
+        if let Some(cap) = self.server_cap {
+            self.shell.push_log(format!(
+                "gameplay FPS: {} servers take {} commands a second at most{}",
+                cap.name,
+                cap.per_second(),
+                if self.server_caps_lifted() {
+                    ", but gameplay_fps_nocap 1 lifts the cap"
+                } else {
+                    " (gameplay_fps_nocap 1 lifts it)"
+                }
+            ));
+        }
         self.input_health.reset();
         self.force_profile.reset();
         self.saber_change.reset();
@@ -1011,42 +1026,8 @@ fn renamed_illuminate_command(command: &str) -> Option<String> {
     changed.then(|| parts.join(";"))
 }
 
-/// The shortest command step a JoF server takes: 8 ms. JoF's JA+ servers (serverinfo
-/// `V` 2.5B0, as JoF EJK's `CL_JoFTrustedServer` and the `jof` mod tell them) are not
-/// `pmove_fixed`, yet faster commands make the game unplayable there; JoF EJK sends
-/// 125 a second (`cl_cmdratecap`). Other servers have no known floor.
-fn jof_step_floor(profile: &sjk_client::CompatProfile, server_info: &str) -> Option<i32> {
-    let ja_plus = matches!(profile, sjk_client::CompatProfile::JaPlus { .. });
-    let jof = sjk_protocol::InfoString::parse(server_info)
-        .ok()
-        .and_then(|info| {
-            info.get("V")
-                .map(|version| version.trim().eq_ignore_ascii_case("2.5B0"))
-        })
-        .unwrap_or(false);
-    (ja_plus && jof).then_some(sjk_client::command_rate::COMMAND_MILLIS)
-}
-
 #[cfg(test)]
 mod tests {
-    #[test]
-    fn jof_servers_take_125_commands_a_second() {
-        use super::jof_step_floor;
-        let ja_plus = sjk_client::CompatProfile::JaPlus { version: None };
-        assert_eq!(
-            jof_step_floor(&ja_plus, r"\gamename\JA+ Mod v2.5\V\2.5B0"),
-            Some(8)
-        );
-        assert_eq!(
-            jof_step_floor(&ja_plus, r"\gamename\JA+ Mod v2.4\V\2.4B7"),
-            None
-        );
-        assert_eq!(
-            jof_step_floor(&sjk_client::CompatProfile::BaseJka, r"\V\2.5B0"),
-            None
-        );
-    }
-
     use crate::console::ViewerConsole;
 
     /// A new profile keeps the default 5; a profile saved before the stock units

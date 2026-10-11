@@ -241,9 +241,13 @@ pub(crate) fn row_text(console: &crate::console::ViewerConsole) -> String {
         AUTO_GAMEPLAY_FPS => format!("Auto ({})", console.frame_cap()),
         fps => fps.to_string(),
     };
-    match console.pmove_fixed_msec().or(console.server_step_floor()) {
-        Some(step) => format!("{shown}, this server {step} ms"),
-        None => shown,
+    match (console.pmove_fixed_msec(), console.server_cap()) {
+        (Some(step), _) => format!("{shown}, this server {step} ms"),
+        (None, Some(cap)) if console.server_caps_lifted() => {
+            format!("{shown}, {} cap lifted", cap.name)
+        }
+        (None, Some(cap)) => format!("{shown}, {} server {} ms", cap.name, cap.step),
+        (None, None) => shown,
     }
 }
 

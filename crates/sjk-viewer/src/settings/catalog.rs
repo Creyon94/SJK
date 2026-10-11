@@ -135,6 +135,11 @@ pub(super) const VIDEO: &[Setting] = &[
     },
     GAMEPLAY_FPS_ROW,
     Setting {
+        label: "Ignore server caps",
+        cvar: crate::server_caps::OVERRIDE_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Detect refresh rate",
         cvar: crate::runtime_settings::MONITOR_CAP_CVAR,
         kind: ValueKind::Bool,

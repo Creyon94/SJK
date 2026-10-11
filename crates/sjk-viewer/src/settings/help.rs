@@ -141,6 +141,10 @@ const HELP: &[(&str, &str)] = &[
         "Most frames drawn a second; your movement is Gameplay FPS. AUTO is 125, or the monitor's rate with Detect refresh rate; 0 is off.",
     ),
     (
+        crate::server_caps::OVERRIDE_CVAR,
+        "On, Gameplay FPS applies on servers SJK knows to cap commands (JoF's: 125) too. Inputs may stop going through.",
+    ),
+    (
         crate::gameplay_fps::CVAR,
         "Auto moves you at your FPS cap; 125, 142, 250 or 333 keep that movement at any FPS. Enter explains it and takes any value.",
     ),

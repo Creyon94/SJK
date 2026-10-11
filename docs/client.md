@@ -1563,8 +1563,11 @@ one they are used to. SJK makes commands on their own clock
 ([networking.md](networking.md#user-commands-and-move-packets)). The gameplay FPS
 (`gameplay_fps`, archived) sets it: on Auto (0, the default) the clock follows the
 FPS cap, so the movement is what the other clients give at that cap, and a server that
-fixes the step (`pmove_fixed`) uses its own, and JoF's servers take 125 a second at
-most; a number from 20 to 1000 keeps that
+fixes the step (`pmove_fixed`) uses its own, and the servers known to cap commands
+(JoF's, at 125 a second; the list in
+[server_caps.rs](../crates/sjk-viewer/src/server_caps.rs)) keep their cap unless
+Settings > Video > Ignore server caps (`gameplay_fps_nocap 1`) lifts it; a number from
+20 to 1000 keeps that
 movement whatever the FPS cap. Players kept asking Sol how the frame rate and the
 movement relate (11/10/2026), so it is asked where they arrive: First setup's second
 row, the step after an import, Settings > Video > Gameplay FPS beside the FPS cap

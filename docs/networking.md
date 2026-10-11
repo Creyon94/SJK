@@ -267,9 +267,15 @@ stock rounds it (400 makes 2 ms steps, 500 a second); and on Auto (`gameplay_fps
 the default, Sol's choice on 11/10/2026) the FPS cap's step, so `com_maxfps 333` moves
 like 333 and AUTO's 125 like 125, as in the other clients (uncapped is 1 ms, the
 shortest a server takes; the unfocused and minimized caps are not followed). Never
-shorter than 8 ms on JoF's servers (JA+ with serverinfo `V` 2.5B0): they are not
-`pmove_fixed` (they report 0), yet faster commands made the game unplayable there
-(Sol, 11/10/2026), and JoF EJK sends them 125 a second. On any other server, inputs
+shorter than the step of a server known to cap commands, from the list in
+[server_caps.rs](../crates/sjk-viewer/src/server_caps.rs) (`KNOWN`: a name, the game
+module, a serverinfo key and value, the step). Its one entry so far is JoF's servers
+(JA+ with serverinfo `V` 2.5B0) at 8 ms: they are not `pmove_fixed` (they report 0),
+yet faster commands made the game unplayable there (Sol, 11/10/2026), and JoF EJK
+sends them 125 a second. The player lifts every listed cap with `gameplay_fps_nocap 1`
+(archived, 0; Settings > Video > Ignore server caps), and the log names the cap when
+a listed server is joined. A `pmove_fixed` server's step is not lifted: the server
+itself moves everyone in it. On any other server, inputs
 that do not go through at a step shorter than 8 ms open the gameplay FPS card by
 themselves with 125 suggested
 ([input_health.rs](../crates/sjk-viewer/src/input_health.rs)): over two windows of 3

@@ -77,14 +77,22 @@ impl Panel {
             .map(|line| wrapped(&line, SHORT_LINES))
             .unwrap_or_default();
         let mut notes = wrapped(FIXED_NOTE, 2);
-        if let Some(step) = info.server_fixed {
-            notes.extend(wrapped(
+        match (info.server_fixed, info.cap_name) {
+            (Some(step), Some(name)) => notes.extend(wrapped(
+                &format!(
+                    "{name} servers take {} a second at most; Ignore server caps lifts it.",
+                    1000 / step.max(1)
+                ),
+                1,
+            )),
+            (Some(step), None) => notes.extend(wrapped(
                 &format!(
                     "This server takes a command every {step} ms at most: here you move at {}.",
                     1000 / step.max(1)
                 ),
                 1,
-            ));
+            )),
+            (None, _) => {}
         }
         notes.extend(wrapped(
             &format!(

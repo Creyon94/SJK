@@ -154,6 +154,7 @@ mod prediction_preview;
 mod scene_views;
 mod scope;
 mod sender_card;
+mod server_caps;
 mod surface_tables;
 mod trip_mine_lasers;
 mod viewer_app;

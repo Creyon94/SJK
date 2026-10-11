@@ -62,6 +62,9 @@ pub(crate) struct FpsInfo {
     pub(crate) server_fixed: Option<i32>,
     /// Why the card opened by itself: the inputs were not going through.
     pub(crate) alert: Option<String>,
+    /// The known server family whose cap [`Self::server_fixed`] is, which
+    /// Ignore server caps lifts ([`crate::server_caps`]).
+    pub(crate) cap_name: Option<&'static str>,
 }
 
 /// What the file dialog gave once it closed ([`Panel::take_browsed`]).

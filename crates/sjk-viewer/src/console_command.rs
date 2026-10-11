@@ -314,7 +314,7 @@ impl ViewerConsole {
         // Off a server no mod is loaded.
         self.mods.set_server(None);
         self.server_profile = None;
-        self.server_step_floor = None;
+        self.server_cap = None;
         self.input_health.reset();
         self.mods.sync(&mut self.shell);
         self.refresh_server_help();
