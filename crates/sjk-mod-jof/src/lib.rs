@@ -1,13 +1,13 @@
 //! JoF tools: support for the JoF community's JA+ servers as an SJK mod (`jof.*`,
 //! `docs/mods.md`).
 //!
-//! A JoF server is a JA+ server whose serverinfo `V` is `2.5B0` (JoF EternalJK's
-//! `CL_JoFTrustedServer`, `codemp/client/cl_main.cpp:1793-1800`). Its extra
+//! A JoF server is one of the `jof` family in SJK's table of known servers
+//! (`sjk_mod::known_servers`): a JA+ server whose serverinfo `V` is `2.5B0`. Its extra
 //! commands run on the server, which checks every right: the mod completes them
 //! (`gcmds[]`, `cgame/cg_consolecmds.c:3262-3303`) and lists them with
 //! `jof.commands`.
 
-use sjk_mod::{ClientMod, Command, Host, Server, ServerKind, command};
+use sjk_mod::{ClientMod, Command, Host, Server, command};
 
 /// The mod's id and prefix.
 pub const ID: &str = "jof";
@@ -78,12 +78,12 @@ const SERVER_COMMANDS: &[Command] = &[
     command("amwon", "JoF emote: won"),
 ];
 
+/// The family in `sjk_mod::known_servers` this mod is made for.
+pub const FAMILY: &str = "jof";
+
 /// Whether `server` is a JoF JA+ server.
 pub fn is_jof(server: &Server) -> bool {
-    server.kind == ServerKind::JaPlus
-        && server
-            .info("V")
-            .is_some_and(|version| version.trim().eq_ignore_ascii_case("2.5B0"))
+    server.family().is_some_and(|family| family.id == FAMILY)
 }
 
 /// The JoF tools mod.
@@ -155,6 +155,7 @@ impl ClientMod for JoF {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use sjk_mod::ServerKind;
 
     fn server(kind: ServerKind, info: &str) -> Server {
         Server {

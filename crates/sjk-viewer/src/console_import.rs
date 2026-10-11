@@ -371,10 +371,11 @@ mod tests {
         let (_directory, mut console) = console();
         console.set_frame_cap(0);
         assert_eq!(console.command_step(), 1, "Auto uncapped");
-        console.server_cap = crate::server_caps::find(
-            &sjk_client::CompatProfile::JaPlus { version: None },
-            "\\V\\2.5B0",
-        );
+        console.server_cap = crate::server_caps::find(&sjk_mod::Server {
+            kind: sjk_mod::ServerKind::JaPlus,
+            address: "127.0.0.1:29070".into(),
+            info: "\\V\\2.5B0".into(),
+        });
         assert_eq!(console.command_step(), 8, "JoF takes 125 a second");
         assert!(console.set_cvar(crate::server_caps::OVERRIDE_CVAR, "1"));
         assert_eq!(console.command_step(), 1, "lifted by the player");

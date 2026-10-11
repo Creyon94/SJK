@@ -30,7 +30,8 @@ const TAYSTJK_USERINFO: [(&str, &str); 5] = [
 ///   ([`JOF_EJK_CLIENT`]), so an admin's `amstatus` lists an SJK player as a
 ///   JoF EJK one until SJK is announced (Sol, 11/10/2026). SJK sent the JA+
 ///   1.4B4 plugin's own `1.4B4` before; JA+ servers take any value as a plugin
-///   user, as they take JoF EJK's and EternalJK's `1.4JAPRO`.
+///   user, as they take JoF EJK's and EternalJK's `1.4JAPRO`. The player's
+///   `cjp_client` setting replaces it ([`PLUGIN_IDENTITY_KEY`]).
 /// - `cp_clanPwd` `"none"` is the default of both the plugin and EternalJK.
 ///
 /// `cp_pluginDisable` is the player's setting and is added per profile by
@@ -41,10 +42,15 @@ const TAYSTJK_USERINFO: [(&str, &str); 5] = [
 /// (`cp_login`, `cp_holster`) are left out, as EternalJK leaves them out.
 const JAPLUS_USERINFO: [(&str, &str); 2] = [("cjp_client", JOF_EJK_CLIENT), ("cp_clanPwd", "none")];
 
+/// The userinfo key a client plugin names itself with (both plugin profiles send
+/// it); the player's cvar of the same name, when set, replaces the profile's value
+/// (`LegacyUserInfo::extension_overrides`).
+pub const PLUGIN_IDENTITY_KEY: &str = "cjp_client";
+
 /// JoF EJK's `cjp_client` on JA+ servers: its `JOFCLIENTVERSION`, the release
 /// number then ` JoF` (`codemp/qcommon/q_shared.h:36`, set in
-/// `cg_servercmds.c:317`), here its latest release, 1.6.4. Follow JoF EJK's
-/// releases to keep matching it.
+/// `cg_servercmds.c:317`), here its latest release, 1.6.4: the default, which the
+/// player's `cjp_client` replaces without a new build.
 const JOF_EJK_CLIENT: &str = "1.6.4 JoF";
 
 /// `cp_pluginDisable` sent to plugin servers when the player has not set one:
@@ -244,6 +250,31 @@ mod tests {
                 .userinfo_extensions()
                 .is_empty()
         );
+    }
+
+    #[test]
+    fn the_players_plugin_name_replaces_the_default_where_it_is_sent() {
+        let mut user = sjk_network::LegacyUserInfo::with_name("Sol");
+        user.extension_overrides
+            .push(("CJP_CLIENT".to_owned(), "1.6.5 JoF".to_owned()));
+        let payload = |user: &sjk_network::LegacyUserInfo, profile: CompatProfile| {
+            sjk_network::legacy_userinfo_payload_with_extensions(
+                &profile.userinfo_for(user),
+                profile.userinfo_extensions(),
+            )
+            .unwrap()
+        };
+        let ja_plus = info(&payload(&user, CompatProfile::JaPlus { version: None }));
+        assert_eq!(ja_plus.get(PLUGIN_IDENTITY_KEY), Some("1.6.5 JoF"));
+        let japro = info(&payload(&user, CompatProfile::TaystJk));
+        assert_eq!(japro.get(PLUGIN_IDENTITY_KEY), Some("1.6.5 JoF"));
+        // Never sent to a server whose profile sends no plugin name.
+        let base = info(&payload(&user, CompatProfile::BaseJka));
+        assert_eq!(base.get(PLUGIN_IDENTITY_KEY), None);
+        // A value the info string cannot carry leaves the default.
+        user.extension_overrides[0].1 = "bad\\value".to_owned();
+        let ja_plus = info(&payload(&user, CompatProfile::JaPlus { version: None }));
+        assert_eq!(ja_plus.get(PLUGIN_IDENTITY_KEY), Some(JOF_EJK_CLIENT));
     }
 
     #[test]

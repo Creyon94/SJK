@@ -142,7 +142,7 @@ pub use chat::{
     chat_display_text, chat_input_cost, chat_name_key, chat_plain_text, chat_unescape,
 };
 pub use client_commands::{CompatConsoleCommand, console_commands as compat_console_commands};
-pub use compat_profile::{CompatProfile, PLUGIN_DISABLE_DEFAULT};
+pub use compat_profile::{CompatProfile, PLUGIN_DISABLE_DEFAULT, PLUGIN_IDENTITY_KEY};
 pub use crosshair_target::{CrosshairCandidate, CrosshairName, crosshair_name};
 pub use demo_playback::{DemoAdvance, DemoPlayback, DemoPlaybackError, legacy_presentation_times};
 pub use demo_recorder::{

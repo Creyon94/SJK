@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 12/10/2026 | - | Known servers in one table; cjp_client as a setting
+- 873f210 |  | Known servers in one table; cjp_client is a player setting
 + 12/10/2026 | - | AGENTS.md: no hardcoded special cases
 - 21cbe7f |  | AGENTS.md: no hardcoded special cases
 + 12/10/2026 | - | Known server caps as a list; gameplay_fps_nocap lifts them
