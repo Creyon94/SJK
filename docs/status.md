@@ -1,5 +1,15 @@
 # Status and priorities
 
+## A dropped saber stays visible
+
+Branch `fix/dropped-saber` (12/10/2026, based on `9dbbdf19`, Linux): Creyon saw his thrown
+saber vanish once it fell to the ground, until it came back to his hand. A saber that is
+knocked down becomes an `ET_MISSILE` with `WP_SABER`, and the projectile drawing had no
+model for that weapon. It now draws the saber's hilt from `CS_MODELS`, as `CG_Missile` does
+([rendering.md](rendering.md)). Verified: unit tests (the hilt from its model index, the
+default saber without one, nothing while `EF_NODRAW`), the workspace checks, and in game on
+Windows 11 by Creyon (the hilt stays on the ground until pulled back).
+
 ## Downloads that work, and what they may bring
 
 Branch `personal/allow-download` (12/10/2026, based on `c2016fbf`, Windows 11). Sol

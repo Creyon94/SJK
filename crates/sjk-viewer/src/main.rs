@@ -2344,6 +2344,14 @@ impl GpuState {
         projectiles::append_models(
             &self.projectiles,
             &self.missile_effects,
+            self.live_session
+                .as_ref()
+                .map(ClientSession::game_state)
+                .or_else(|| {
+                    self.demo_session
+                        .as_ref()
+                        .map(demo_playback::Session::game_state)
+                }),
             &self.object_meshes,
             object_groups,
         );

@@ -16,6 +16,11 @@ const EF_ALT_FIRING: u32 = 1 << 10; // codemp/game/bg_public.h:649
 const EF_MISSILE_STICK: u32 = 1 << 22; // codemp/game/bg_public.h:666
 const TR_STATIONARY: u8 = 0; // codemp/qcommon/q_shared.h:1542-1545
 const TR_INTERPOLATE: u8 = 1; // codemp/qcommon/q_shared.h:1542-1545
+const EF_NODRAW: u32 = 1 << 8; // codemp/game/bg_public.h:645
+/// `WP_SABER` (`codemp/game/bg_weapons.h`).
+const WP_SABER: u8 = 3;
+/// `CG_Missile` falls back to `DEFAULT_SABER_MODEL` (`bg_public.h`).
+const DEFAULT_SABER_MODEL: &str = "models/weapons2/saber_1/saber_1.glm";
 
 /// Original visual selected by one weapon firing mode.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -26,6 +31,10 @@ pub(crate) enum Visual {
     VehicleModel(usize),
     /// A representative component of the retail repeating projectile EFX.
     Effect(EffectVisual),
+    /// A saber knocked away or dropped (`saberKnockDown` makes it an `ET_MISSILE` with
+    /// `WP_SABER`): `CG_Missile` draws its hilt, the `CS_MODELS` entry `modelindex` names
+    /// (`DEFAULT_SABER_MODEL` without one), with no blade.
+    Saber(i16),
     /// Intentionally not drawn by codemp (the flying tripmine case).
     None,
 }
@@ -92,7 +101,13 @@ fn present(state: &EntityState, at_time: i32) -> Presented {
     Presented {
         origin,
         rotation: rotation.to_array(),
-        visual: if state.other_entity_num2() != 0 && state.weapon() != 3 {
+        visual: if state.weapon() == WP_SABER {
+            if state.e_flags() & EF_NODRAW != 0 {
+                Visual::None
+            } else {
+                Visual::Saber(state.model_index())
+            }
+        } else if state.other_entity_num2() != 0 {
             if state.e_flags() & (1 << 11) != 0 {
                 Visual::VehicleModel(usize::from(state.other_entity_num2()))
             } else {
@@ -159,12 +174,20 @@ impl Visual {}
 pub(crate) fn append_models(
     projectiles: &[Presented],
     effects: &sjk_client::LegacyMissileEffects,
+    game_state: Option<&sjk_protocol::GameState>,
     meshes: &[crate::object_meshes::StaticModelMesh],
     groups: &mut [Vec<crate::ActorInstance>],
 ) {
     for missile in projectiles {
+        let saber;
         let model = match missile.visual {
             Visual::Model(model) => Some(model),
+            Visual::Saber(index) => {
+                saber = game_state
+                    .and_then(|game| sjk_client::legacy_model_appearance(game, index))
+                    .map(|appearance| appearance.model);
+                Some(saber.as_deref().unwrap_or(DEFAULT_SABER_MODEL))
+            }
             Visual::VehicleModel(index) => effects
                 .vehicle_weapon(index)
                 .and_then(|weapon| weapon.model.as_deref()),
@@ -181,5 +204,76 @@ pub(crate) fn append_models(
                 [1.0; 3],
             ));
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::object_meshes::StaticModelMesh;
+    use sjk_protocol::{GameState, LEGACY_ENTITY_FIELDS};
+    use sjk_runtime::Appearance;
+
+    // entityState_t netfields (`codemp/qcommon/msg.cpp`).
+    const TYPE: usize = 8;
+    const WEAPON: usize = 14;
+    const EFLAGS: usize = 19;
+    const MODEL_INDEX: usize = 46;
+    const CS_MODELS: usize = 298;
+    const HILT: &str = "models/weapons2/saber_2/saber_2.glm";
+
+    /// A saber `saberKnockDown` left on the ground: a missile with the saber's model.
+    fn dropped_saber(model_index: i16) -> EntityState {
+        let mut state = EntityState::zero(100, &LEGACY_ENTITY_FIELDS);
+        state.set_raw_field(TYPE, u32::from(ET_MISSILE));
+        state.set_raw_field(WEAPON, u32::from(WP_SABER));
+        state.set_raw_field(MODEL_INDEX, model_index as u16 as u32);
+        state
+    }
+
+    fn mesh(model: &str) -> StaticModelMesh {
+        StaticModelMesh {
+            appearance: Appearance {
+                model: model.to_owned(),
+                variant: String::new(),
+            },
+            draws: Vec::new(),
+            center: [0.0; 3],
+            flash_bolt: None,
+        }
+    }
+
+    /// The instances each of `meshes` gets for `states`.
+    fn drawn(states: &[EntityState], meshes: &[StaticModelMesh]) -> Vec<usize> {
+        let mut game = GameState::empty_local(0);
+        game.replace_config_string(CS_MODELS + 7, HILT.as_bytes().to_vec())
+            .unwrap();
+        let presented: Vec<_> = states.iter().map(|state| present(state, 0)).collect();
+        let mut groups = vec![Vec::new(); meshes.len()];
+        append_models(
+            &presented,
+            &sjk_client::LegacyMissileEffects::empty(),
+            Some(&game),
+            meshes,
+            &mut groups,
+        );
+        groups.iter().map(Vec::len).collect()
+    }
+
+    #[test]
+    fn a_dropped_saber_draws_its_hilt() {
+        let meshes = [mesh(HILT), mesh(DEFAULT_SABER_MODEL)];
+        assert_eq!(present(&dropped_saber(7), 0).visual, Visual::Saber(7));
+        assert_eq!(drawn(&[dropped_saber(7)], &meshes), [1, 0]);
+        // Without a model of its own, `CG_Missile`'s default saber.
+        assert_eq!(drawn(&[dropped_saber(0)], &meshes), [0, 1]);
+    }
+
+    #[test]
+    fn a_hidden_dropped_saber_draws_nothing() {
+        let mut hidden = dropped_saber(7);
+        hidden.set_raw_field(EFLAGS, EF_NODRAW);
+        assert_eq!(present(&hidden, 0).visual, Visual::None);
+        assert_eq!(drawn(&[hidden], &[mesh(HILT)]), [0]);
     }
 }
