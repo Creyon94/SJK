@@ -256,36 +256,51 @@ on the 16:9 frame, dark behind the form on the left and clear over the model.
   Force, the one on show gold and underlined. As the Profile screen (the SJK UI
   always opens it so) the row holds the screen's four tabs instead
   ([Profile screen](#profile-screen)).
-- **Character:** Name (a field; Enter types), Team colour, Search (a field that
-  filters the grid), the model grid (eight
-  icons a row, as many rows as fit, the current one ringed gold, scrolled by
-  the wheel), then a species' head, torso, legs and skin colour and the hat and
-  cape, two to a line. The Model row that stepped to the next model of the grid
-  (‹ ›) is gone (Sol's decision, 11/10/2026): the grid chooses the model.
-- **Turning the model and the hat and cape picker** (Sol's request, 10/10/2026:
-  "rotate model with mouse click, better cosmetic picker";
+- **Character** (Sol's request, 12/10/2026: "a better character creator and also hat/cape
+  picker, not just arrow things with text"; [sjk_creator.rs](../crates/sjk-viewer/src/player_menu/sjk_creator.rs)):
+  Name (a field; Enter types) and Search (a field that filters what is listed), then a
+  strip of categories, Model, a species' Head, Torso, Legs and Skin (only while the
+  model is a species), Hat and Cape, over one grid of tiles for the one on show, and
+  the Apply button. The tiles: the models' icons (eight a row), a species' part
+  pictures, the skin colours as swatches, the hats and capes as tiles four to a line
+  (None first); the one chosen is ringed gold, the pointer or the keys' tile white,
+  the wheel scrolls. A title line names the category and counts what is listed (and
+  "found" under a search); the models' line holds the team (Default, Red, Blue)
+  as segments. **Jedi Academy first:** the models list the retail game's own under a
+  "Jedi Academy" heading with a count, the community's after them under "Community"
+  (the rule in [AGENTS.md](../AGENTS.md); `LegacyAssetCatalog::retail_characters`).
+  Keys: the rows are Name, Search, the strip, the team (models), the grid and Apply;
+  Left and Right step the strip or the tile, Up and Down the tile by a line (and leave
+  the grid at its ends), Enter on the strip goes to the grid, on a tile chooses it. The
+  Model row that stepped to the next model of the grid is gone (Sol's decision,
+  11/10/2026): the grid chooses the model. The Head row that drew as a model cycler
+  after that removal is the Head category now.
+- **Apply** (a friend's request, 12/10/2026): a model chosen (the grid, a species' head,
+  torso, legs or skin colour, the team colour) shows on the stage at once but is not worn:
+  the `model` and `char_color_*` cvars keep the old one until the button under the grid
+  ("Apply", "Applied" and dimmed when they are the same; the Apply row, chosen after a
+  pick so Enter wears it) writes them (`apply_look`). Leaving the screen without it
+  drops the choice (`discard_look`, from `settle_force_page` once the screen is not
+  shown). The name, hats and capes are written at once as before, and the classic
+  menus write the model at once.
+- **Turning the model** (Sol's request, 10/10/2026: "rotate model with mouse click";
   [sjk_outfit.rs](../crates/sjk-viewer/src/player_menu/sjk_outfit.rs)): opened from a
   game, on every page, dragging over the model turns it (about 0.45 degrees a pixel):
   the live preview's camera goes round it. Under the model's feet, drawn as the
   screen's keys are, "Drag" in a key cap and "turn the model" say so on every page.
   The turn holds from page to page; opening the screen again faces it front. On the
   menu map's stage the model does not turn (Creyon's tests, 12/10/2026: a raised blade
-  turned end on to the stage's camera looked far too long). Enter or a click on the
-  Hat or Cape row opens a picker in place of the model grid (Left and Right on the row
-  still step): "Wear" and how many the slot has installed, Hats and Capes as two
-  segments, and Done; then None and every installed piece as named chips three to a
-  line, the one worn ringed gold, scrolled by the wheel, with a line under them when
-  none or not all of JoF's pieces are installed. A click wears a chip at once (written
-  to `color1` or `color2` as the rows do); the arrows choose one (Up and Down a line)
-  and Enter wears it; Tab switches between hats and capes; Escape or Done closes it.
-  Where the model turns, it shows its back to the camera while the capes are shown,
-  and its front again for the hats and when the picker closes.
+  turned end on to the stage's camera looked far too long). Where the model turns, it
+  shows its back to the camera on the Cape category, and its front on the others. The
+  chips picker of Creyon's #97 (10/10/2026) is the Hat and Cape categories now.
 - **Saber:** Style as three buttons (Single, Staff, Dual); the hilts as a list
   under a sub-heading (Hilt, or Staff), in two columns, six lines on show,
   scrolled by the wheel or its bar, the chosen one gold with a dot and kept in
   view (in the middle when the list first shows); for Dual two lists side by
   side, Right hand and Left hand, four lines each. The hilts come in the game's
-  load order, as JoF EJK lists them (`legacy_saber_load_order`). The hilt search
+  load order, as JoF EJK lists them (`legacy_saber_load_order`), the retail game's
+  first under a "Jedi Academy" line with their count and the community's after them
+  under "Community" (`HiltLines`; the rule in [AGENTS.md](../AGENTS.md)). The hilt search
   (10/10/2026, Sol's request) is a field at the right of the lists' heading line
   (beside Left hand for Dual), drawn as the Character page's Search ("Search
   hilts", then the words typed and "N found"): Enter or a click types in it, and

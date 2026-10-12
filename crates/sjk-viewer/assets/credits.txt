@@ -47,6 +47,7 @@ did: The loot table: every chance a holocron brings
 did: Hover cards: how every collected thing is obtained
 did: Settings in Simple and Advanced, Vanilla or the SJK renderer, anonymous settings usage
 did: Card faces and the first card, art by Sol
+did: Character creator: tile grids, Apply, the Jedi Academy's own models first
 did: 125 Hz user commands, so every tap reaches the server
 did: Gameplay FPS: the movement of 125, 142, 250 or 333 at any frame rate, explained
 did: Import from Base, JA+, OpenJK, EJK and TaystJK configs found on your computer

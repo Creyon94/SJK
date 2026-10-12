@@ -63,6 +63,10 @@ Sol develops SJK and sets its direction. Sol's work includes:
 - card faces (12/10/2026): cards picked by the hub drawn as trading cards from a card
   pack the hub serves, revealing sealed cards, and the first card, "Sol and Toxiee
   on JoF Memorial" (art and words by Sol);
+- the character creator (12/10/2026): tile grids for models, species parts, skins,
+  hats and capes, an Apply button (the idea of a friend of Sol's), the head picker fixed,
+  and the retail game's own models, species and saber hilts listed first under a
+  "Jedi Academy" heading (Sol's request);
 - hover cards in the Collection: how every medal, achievement, shader, toy, card
   and holocron tier is obtained (Sol's request, 12/10/2026);
 - Settings in two modes, Simple (the settings that matter most) and Advanced

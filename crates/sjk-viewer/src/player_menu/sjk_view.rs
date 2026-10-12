@@ -13,7 +13,6 @@
 
 use super::force::{GT_TEAM, NextLevel, POWER_NAMES, POWER_NOTES};
 use super::force_icons::{power_texture, side_texture};
-use super::grid::{COLUMNS, GRID_SCROLL_TOKEN, MAX_VISIBLE_TILES, PART_ROW, TILE_BASE};
 use super::rows::{
     CharacterRow, FORCE_APPLY_ROW, FORCE_DISCARD_ROW, FORCE_POWER_ROW, FORCE_RESET_ROW,
     FORCE_SIDE_ROW, SaberRow, saber_color,
@@ -43,11 +42,13 @@ const CONTROL_RIGHT: f32 = COLUMN_X + COLUMN_WIDTH - 10.0;
 const CONTROL_WIDTH: f32 = 330.0;
 /// A control's height inside its row.
 const CONTROL: f32 = 38.0;
-/// The model grid's tiles.
-const TILE_GAP: f32 = 8.0;
-const TILE: f32 = (COLUMN_WIDTH - TILE_GAP * (COLUMNS - 1) as f32) / COLUMNS as f32;
 /// The rows end above this; the keys' line below it.
 const BOTTOM: f32 = 960.0;
+/// The Character page's Apply button: its height, and the room it takes under the rows.
+const APPLY_HEIGHT: f32 = 46.0;
+const APPLY_LINE: f32 = APPLY_HEIGHT + 12.0;
+/// The category strip's height.
+const STRIP: f32 = 46.0;
 const KEYS_Y: f32 = 992.0;
 /// A slider's track and its number.
 const TRACK_WIDTH: f32 = 230.0;
@@ -133,6 +134,75 @@ fn hilt_rows(style: SaberStyle) -> usize {
         DUAL_HILT_ROWS
     } else {
         HILT_ROWS
+    }
+}
+
+/// A hilt list's lines when the retail game's hilts are told from the community's
+/// (the rule in `AGENTS.md`): the retail ones under a "Jedi Academy" line, the
+/// community's under "Community", each section's hilts `columns` to a line.
+#[derive(Clone, Copy, Debug)]
+struct HiltLines {
+    /// Hilts listed, and how many of them (the first) are the retail game's.
+    total: usize,
+    retail: usize,
+    columns: usize,
+    /// Whether the headings show: the game's retail hilts are known.
+    headed: bool,
+}
+
+impl HiltLines {
+    fn retail_lines(self) -> usize {
+        self.retail.div_ceil(self.columns)
+    }
+
+    /// Lines of the retail section: its heading and its rows.
+    fn retail_span(self) -> usize {
+        if self.retail == 0 {
+            0
+        } else {
+            usize::from(self.headed) + self.retail_lines()
+        }
+    }
+
+    /// Lines in all.
+    fn lines(self) -> usize {
+        let community = self.total - self.retail;
+        self.retail_span()
+            + if community == 0 {
+                0
+            } else {
+                usize::from(self.headed) + community.div_ceil(self.columns)
+            }
+    }
+
+    /// Line and column of the `at`th hilt listed.
+    fn place(self, at: usize) -> (usize, usize) {
+        if at < self.retail {
+            (
+                usize::from(self.headed) + at / self.columns,
+                at % self.columns,
+            )
+        } else {
+            let k = at - self.retail;
+            (
+                self.retail_span() + usize::from(self.headed) + k / self.columns,
+                k % self.columns,
+            )
+        }
+    }
+
+    /// The heading standing on `line`, with the hilts under it.
+    fn heading(self, line: usize) -> Option<(&'static str, usize)> {
+        if !self.headed {
+            return None;
+        }
+        if self.retail > 0 && line == 0 {
+            Some(("Jedi Academy", self.retail))
+        } else if self.retail < self.total && line == self.retail_span() {
+            Some(("Community", self.total - self.retail))
+        } else {
+            None
+        }
     }
 }
 
@@ -431,7 +501,7 @@ impl PlayerMenu {
                     return None;
                 }
             }
-            ProfilePage::Character => return None,
+            ProfilePage::Character => return self.creator_pointer(kind, token),
         }
         Some(PlayerMenuResult::None)
     }
@@ -627,36 +697,11 @@ impl PlayerMenu {
             .hit_region(token, frame.rect(area[0], area[1], area[2], area[3]));
     }
 
-    /// The character page: name, team, search and model, the model grid, then
-    /// a species' parts and the hat and cape in two columns.
+    /// The character page: the name and the search, the strip of categories, the
+    /// tiles of the one on show ([`Self::sjk_creator_grid`]) and the Apply button.
     fn sjk_character(&mut self, frame: &Frame) {
         let rows = self.character_rows();
-        let catalog = catalog_of(&self.loader);
-        let species = match self.choice {
-            Some(Choice::Species(index)) => catalog.and_then(|catalog| catalog.species.get(index)),
-            _ => None,
-        };
-        let model_label = match (self.choice, catalog) {
-            (Some(Choice::Character(index)), Some(catalog)) => catalog
-                .characters
-                .get(index)
-                .map_or(self.draft.model.clone(), |entry| entry.cvar_value.clone()),
-            _ => species.map_or(self.draft.model.clone(), |species| species.model.clone()),
-        };
-        let part_labels: [String; 3] = std::array::from_fn(|axis| {
-            species
-                .and_then(|species| {
-                    let parts = match axis {
-                        0 => &species.heads,
-                        1 => &species.torsos,
-                        _ => &species.legs,
-                    };
-                    parts.get(self.variants[axis]).cloned()
-                })
-                .unwrap_or_else(|| "-".to_owned())
-        });
-        let skins = species.map_or(0, |species| species.colors.len());
-        for (index, row) in rows.iter().enumerate().take(PART_ROW) {
+        for (index, row) in rows.iter().enumerate().take(2) {
             let top = ROWS_TOP + index as f32 * ROW;
             let area = [COLUMN_X, top, COLUMN_WIDTH, ROW];
             let focused = self.sjk_row(frame, index, area, row.label());
@@ -678,7 +723,7 @@ impl PlayerMenu {
                         false,
                     );
                 }
-                CharacterRow::Search => {
+                _ => {
                     if self.search.is_empty() && !self.search_editing {
                         kit::field(
                             &mut self.canvas,
@@ -694,132 +739,43 @@ impl PlayerMenu {
                             &mut self.canvas,
                             frame,
                             control,
-                            format_args!("{}{caret}   {} found", self.search, self.tiles.len()),
+                            format_args!("{}{caret}", self.search),
                             focused || self.search_editing,
                             false,
                         );
                     }
                 }
-                CharacterRow::Team => {
-                    kit::cycler(
-                        &mut self.canvas,
-                        frame,
-                        control,
-                        format_args!(
-                            "{}",
-                            crate::menu::classic::view::Sentence(
-                                &self.team.label().to_ascii_lowercase()
-                            )
-                        ),
-                        None,
-                        focused,
-                    );
-                }
-                _ => {
-                    kit::cycler(
-                        &mut self.canvas,
-                        frame,
-                        control,
-                        format_args!("{model_label}"),
-                        None,
-                        focused,
-                    );
-                }
             }
             self.sjk_targets(frame, index, control, area);
         }
-        let part_rows = rows.len().saturating_sub(PART_ROW);
-        let part_lines = part_rows.div_ceil(2) as f32;
-        let grid_top = ROWS_TOP + PART_ROW as f32 * ROW + 8.0;
-        let grid_bottom = if self.outfit.is_some() {
-            self.sjk_outfit_picker(
-                frame,
-                COLUMN_X,
-                COLUMN_WIDTH,
-                grid_top,
-                BOTTOM - part_lines * ROW - 12.0,
-            )
-        } else {
-            self.sjk_grid(frame, grid_top, BOTTOM - part_lines * ROW - 12.0)
-        };
-        let half = (COLUMN_WIDTH - GUTTER) * 0.5;
-        for (offset, row) in rows.iter().enumerate().skip(PART_ROW) {
-            let local = offset - PART_ROW;
-            let x = COLUMN_X + (local % 2) as f32 * (half + GUTTER);
-            let top = grid_bottom + 12.0 + (local / 2) as f32 * ROW;
-            let area = [x, top, half, ROW];
-            let focused = self.sjk_row(frame, offset, area, row.label());
-            let control = [
-                x + half - 10.0 - 190.0,
-                top + (ROW - CONTROL) * 0.5,
-                190.0,
-                CONTROL,
-            ];
-            match row {
-                CharacterRow::Hat | CharacterRow::Cape => {
-                    let slot = row.cosmetic().unwrap_or(sjk_client::CosmeticSlot::Hat);
-                    let worn = self.cosmetics.worn_label(slot);
-                    kit::cycler(
-                        &mut self.canvas,
-                        frame,
-                        control,
-                        format_args!("{}", worn.as_deref().unwrap_or("None")),
-                        None,
-                        focused,
-                    );
-                }
-                CharacterRow::Skin => {
-                    let swatch = Some(rgb_color(self.draft.rgb));
-                    if skins == 0 {
-                        kit::cycler(
-                            &mut self.canvas,
-                            frame,
-                            control,
-                            format_args!("-"),
-                            swatch,
-                            focused,
-                        );
-                    } else {
-                        kit::cycler(
-                            &mut self.canvas,
-                            frame,
-                            control,
-                            format_args!("{} of {skins}", self.variants[3] + 1),
-                            swatch,
-                            focused,
-                        );
-                    }
-                }
-                part => {
-                    let label = &part_labels[part.axis().unwrap_or(0).min(2)];
-                    kit::cycler(
-                        &mut self.canvas,
-                        frame,
-                        control,
-                        format_args!("{label}"),
-                        None,
-                        focused,
-                    );
-                }
-            }
-            self.sjk_targets(frame, offset, control, area);
+        // The strip: its row is chosen by a click beside its segments.
+        let strip_top = ROWS_TOP + 2.0 * ROW + 6.0;
+        let strip = [COLUMN_X, strip_top, COLUMN_WIDTH, STRIP];
+        if rows.get(self.selected) == Some(&CharacterRow::Category) {
+            kit::band(&mut self.canvas, frame, strip);
         }
-        if let Some(line) = self.catalogue_line().map(str::to_owned) {
-            text(
-                &mut self.canvas,
-                TextFamily::Body,
-                format_args!("{line}"),
-                frame.rect(LABEL_X, grid_top + 8.0, COLUMN_WIDTH - 44.0, 24.0),
-                17.0 * frame.s,
-                color::MUTED,
-                FontWeight::Regular,
-                TextAlign::Start,
-            );
-        }
+        self.canvas
+            .hit_region(2, frame.rect(strip[0], strip[1], strip[2], strip[3]));
+        self.sjk_category_strip(frame, COLUMN_X, strip_top);
+        let grid_top = strip_top + STRIP + 6.0;
+        self.sjk_creator_grid(frame, COLUMN_X, COLUMN_WIDTH, grid_top, BOTTOM - APPLY_LINE);
+        // The model chosen shows on the stage and is worn on Apply.
+        let pending = self.look_pending();
+        let apply = self.apply_row();
+        kit::button(
+            &mut self.canvas,
+            frame,
+            [COLUMN_X, BOTTOM - APPLY_HEIGHT, COLUMN_WIDTH, APPLY_HEIGHT],
+            if pending { "Apply" } else { "Applied" },
+            true,
+            pending,
+            self.selected == apply,
+            apply as u16,
+        );
     }
 
     /// What the catalogue's state says while it is not ready.
-    fn catalogue_line(&self) -> Option<&str> {
+    pub(super) fn catalogue_line(&self) -> Option<&str> {
         match self.status() {
             LegacyCatalogStatus::Ready => None,
             LegacyCatalogStatus::Idle | LegacyCatalogStatus::Loading => {
@@ -832,93 +788,6 @@ impl PlayerMenu {
                     .unwrap_or("The character catalogue is unavailable."),
             ),
         }
-    }
-
-    /// The model grid from `top`, as many rows as fit above `bottom`; returns
-    /// the grid's bottom.
-    fn sjk_grid(&mut self, frame: &Frame, top: f32, bottom: f32) -> f32 {
-        let s = frame.s;
-        let step = TILE + TILE_GAP;
-        let tiles = self.tiles.len();
-        let total_rows = tiles.div_ceil(COLUMNS);
-        let fit = ((bottom - top + TILE_GAP) / step).floor().max(1.0) as usize;
-        let visible_rows = fit.min(total_rows).max(1);
-        let current = self.tile_position();
-        self.grid_max_scroll = total_rows.saturating_sub(visible_rows);
-        if self.grid_follow {
-            self.grid_follow = false;
-            let row = current.unwrap_or(0) / COLUMNS;
-            if row < self.grid_scroll {
-                self.grid_scroll = row;
-            } else if row >= self.grid_scroll + visible_rows {
-                self.grid_scroll = row + 1 - visible_rows;
-            }
-        }
-        self.grid_scroll = self.grid_scroll.min(self.grid_max_scroll);
-        let height = visible_rows as f32 * step - TILE_GAP;
-        self.canvas.scroll_region(
-            GRID_SCROLL_TOKEN,
-            frame.rect(COLUMN_X, top, COLUMN_WIDTH, height),
-        );
-        self.hovered_entry = None;
-        let first = self.grid_scroll * COLUMNS;
-        let last = (first + visible_rows * COLUMNS)
-            .min(tiles)
-            .min(first + usize::from(MAX_VISIBLE_TILES));
-        for slot in first..last {
-            let local = slot - first;
-            let x = COLUMN_X + (local % COLUMNS) as f32 * step;
-            let y = top + (local / COLUMNS) as f32 * step;
-            let absolute = self.tiles[slot];
-            let token = TILE_BASE + local as u16;
-            let hovered = self.canvas.token_hovered(token);
-            if hovered {
-                self.hovered_entry = Some(absolute);
-            }
-            let chosen = current == Some(slot);
-            let rect = frame.rect(x, y, TILE, TILE);
-            let _ = self.canvas.draw_list_mut().push(DrawCommand::RoundedRect {
-                rect,
-                radius: 8.0 * s,
-                color: color::alpha(color::SPACE, 0.6),
-            });
-            match self.icons.icon(absolute) {
-                Some(texture) => {
-                    let _ = self.canvas.draw_list_mut().push(DrawCommand::TexturedQuad {
-                        rect,
-                        texture,
-                        color: Color::new(1.0, 1.0, 1.0, if chosen || hovered { 1.0 } else { 0.8 }),
-                    });
-                }
-                None if self.icons.failed(absolute) => {
-                    self.tile_name(absolute, rect, 11.0 * s, color::TEXT, 0.2 * s);
-                }
-                None => {}
-            }
-            if chosen || hovered {
-                let _ = self.canvas.draw_list_mut().push(DrawCommand::Border {
-                    rect,
-                    radius: 8.0 * s,
-                    width: if chosen { 2.5 * s } else { 1.5 * s },
-                    color: if chosen {
-                        color::GOLD_BRIGHT
-                    } else {
-                        Color::new(1.0, 1.0, 1.0, 0.6)
-                    },
-                });
-            }
-            self.canvas.hit_region(token, rect);
-        }
-        if total_rows > visible_rows {
-            self.canvas.scrollbar(
-                GRID_SCROLL_TOKEN,
-                frame.rect(COLUMN_X + COLUMN_WIDTH + 12.0, top, 4.0, height),
-                self.grid_scroll,
-                visible_rows,
-                total_rows,
-            );
-        }
-        top + height
     }
 
     /// The saber page: the style as three buttons, the hilts as a list (two
@@ -1092,17 +961,22 @@ impl PlayerMenu {
             .unwrap_or(1);
         let shown_lines = hilt_rows(self.saber.style());
         // How many hilts the search lists, and where the chosen one is among them.
-        let (count, chosen) = catalog_of(&self.loader).map_or((0, None), |catalog| {
-            let mut count = 0;
-            let mut chosen = None;
-            for (_, hilt) in self.saber.listed(catalog, second) {
-                if hilt.name.eq_ignore_ascii_case(self.saber.hilt(second)) {
-                    chosen = Some(count);
+        let (count, chosen, retail, headed) =
+            catalog_of(&self.loader).map_or((0, None, 0, false), |catalog| {
+                let mut count = 0;
+                let mut chosen = None;
+                let mut retail = 0;
+                for (index, hilt) in self.saber.listed(catalog, second) {
+                    if hilt.name.eq_ignore_ascii_case(self.saber.hilt(second)) {
+                        chosen = Some(count);
+                    }
+                    if index < catalog.retail_saber_hilts {
+                        retail += 1;
+                    }
+                    count += 1;
                 }
-                count += 1;
-            }
-            (count, chosen)
-        });
+                (count, chosen, retail, catalog.retail_saber_hilts > 0)
+            });
         let [x, y, width, height] = area;
         if self.selected == row {
             kit::band(&mut self.canvas, frame, area);
@@ -1136,7 +1010,13 @@ impl PlayerMenu {
             let control = [field_x, y + 1.0, field, HILT_HEAD - 2.0];
             self.sjk_hilt_search(frame, search_row, control, count);
         }
-        let lines = count.div_ceil(columns);
+        let sections = HiltLines {
+            total: count,
+            retail,
+            columns,
+            headed,
+        };
+        let lines = sections.lines();
         let state = &mut self.sjk_hilts[list];
         let query = self.saber.search();
         let searched = state.query != query;
@@ -1155,7 +1035,7 @@ impl PlayerMenu {
             state.columns = columns;
             state.chosen.clear();
             state.chosen.push_str(self.saber.hilt(second));
-            if let Some(line) = chosen.map(|index| index / columns) {
+            if let Some(line) = chosen.map(|index| sections.place(index).0) {
                 if first_show {
                     state.first = line.saturating_sub(shown_lines / 2);
                 } else if line < state.first {
@@ -1195,14 +1075,28 @@ impl PlayerMenu {
         }
         let cell_width = (width - 24.0) / columns as f32;
         if let Some(catalog) = catalog_of(&self.loader) {
-            let listed = self
-                .saber
-                .listed(catalog, second)
-                .enumerate()
-                .skip(first * columns)
-                .take(shown_lines * columns);
+            // The sections' headings, where they stand among the lines on show.
+            for line in first..(first + shown_lines).min(lines) {
+                if let Some((name, members)) = sections.heading(line) {
+                    let top = y + HILT_HEAD + 6.0 + (line - first) as f32 * HILT_ROW;
+                    text(
+                        &mut self.canvas,
+                        TextFamily::Display,
+                        format_args!("{name}  ·  {members}"),
+                        frame.rect(x + 16.0, top, width - 32.0, HILT_ROW - 2.0),
+                        16.0 * s,
+                        color::GOLD,
+                        FontWeight::Regular,
+                        TextAlign::Start,
+                    );
+                }
+            }
+            let listed = self.saber.listed(catalog, second).enumerate();
             for (at, (index, hilt)) in listed {
-                let (line, column) = (at / columns, at % columns);
+                let (line, column) = sections.place(at);
+                if line < first || line >= first + shown_lines {
+                    continue;
+                }
                 let cell = [
                     x + 12.0 + column as f32 * cell_width,
                     y + HILT_HEAD + 6.0 + (line - first) as f32 * HILT_ROW,
@@ -2266,23 +2160,12 @@ impl PlayerMenu {
         let mut keys: Vec<(&[&str], &str)> = Vec::with_capacity(4);
         if self.name_editing || self.search_editing || self.numeric.is_some() {
             keys.extend([(&["Enter"][..], "done"), (&["Esc"][..], "cancel")]);
-        } else if let Some(picker) = self.outfit {
-            keys.extend([
-                (&["Enter"][..], "wear"),
-                (
-                    &["Tab"][..],
-                    match picker.slot {
-                        sjk_client::CosmeticSlot::Hat => "capes",
-                        sjk_client::CosmeticSlot::Cape => "hats",
-                    },
-                ),
-                (&["Esc"][..], "done"),
-            ]);
         } else {
             let row = self.sjk_row_kind();
             keys.push(match row {
                 RowKind::Type => (&["Enter"][..], "type"),
                 RowKind::Act => (&["Enter"][..], "do it"),
+                RowKind::Pick => (&["Arrows"][..], "choose"),
                 RowKind::Step => (&["Left", "Right"][..], "change"),
             });
             let next = if self.hub {
@@ -2312,6 +2195,8 @@ impl PlayerMenu {
         match self.page {
             ProfilePage::Character => match self.character_rows().get(self.selected) {
                 Some(CharacterRow::Name | CharacterRow::Search) => RowKind::Type,
+                Some(CharacterRow::Apply) => RowKind::Act,
+                Some(CharacterRow::Grid) => RowKind::Pick,
                 _ => RowKind::Step,
             },
             ProfilePage::Saber => match self.saber_rows().get(self.selected) {
@@ -2338,6 +2223,8 @@ enum RowKind {
     Type,
     Step,
     Act,
+    /// The Character page's tiles: the arrows choose one, Enter picks it.
+    Pick,
 }
 
 /// A power's name in sentence case ("Mind trick").
@@ -2369,7 +2256,7 @@ fn blade_word(index: u8) -> &'static str {
     }
 }
 
-fn rgb_color(rgb: [u8; 3]) -> Color {
+pub(super) fn rgb_color(rgb: [u8; 3]) -> Color {
     Color::new(
         f32::from(rgb[0]) / 255.0,
         f32::from(rgb[1]) / 255.0,
@@ -2416,7 +2303,6 @@ mod tests {
     use super::*;
 
     // The grid's eight tiles fill the column.
-    const _: () = assert!(TILE > 70.0 && TILE < 80.0);
     // Dual sabers (the style, the hilt lists, the blade and eight blade colour
     // rows) end above the keys, as one saber with its six-line list does.
     const _: () = assert!(
@@ -2529,6 +2415,47 @@ mod tests {
             }
         }
         const _: () = assert!(crate::profile_hub::TOKEN > HILT_BASE + 2 * HILT_STRIDE);
+    }
+
+    /// The retail hilts stand under their heading, the community's under theirs, each
+    /// section starting on a line of its own; with no retail known the list is as before.
+    #[test]
+    fn hilt_sections_place_each_hilt_under_its_heading() {
+        let lines = HiltLines {
+            total: 7,
+            retail: 3,
+            columns: 2,
+            headed: true,
+        };
+        // 0 heading, 1 and 2 the retail rows, 3 heading, 4 and 5 the community's.
+        assert_eq!(lines.lines(), 6);
+        assert_eq!(lines.place(0), (1, 0));
+        assert_eq!(lines.place(1), (1, 1));
+        assert_eq!(lines.place(2), (2, 0));
+        assert_eq!(lines.place(3), (4, 0));
+        assert_eq!(lines.place(6), (5, 1));
+        assert_eq!(lines.heading(0), Some(("Jedi Academy", 3)));
+        assert_eq!(lines.heading(3), Some(("Community", 4)));
+        assert_eq!(lines.heading(1), None);
+        let plain = HiltLines {
+            total: 5,
+            retail: 0,
+            columns: 2,
+            headed: false,
+        };
+        assert_eq!(plain.lines(), 3);
+        assert_eq!(plain.place(3), (1, 1));
+        assert_eq!(plain.heading(0), None);
+        // Only retail ones listed (a search): one heading.
+        let only = HiltLines {
+            total: 3,
+            retail: 3,
+            columns: 2,
+            headed: true,
+        };
+        assert_eq!(only.lines(), 3);
+        assert_eq!(only.heading(0), Some(("Jedi Academy", 3)));
+        assert_eq!(only.heading(2), None);
     }
 
     #[test]
@@ -3048,5 +2975,42 @@ mod tests {
             assert!(text < slots, "mask {mask:b}: {text} of {slots} text runs");
         }
         assert_eq!(server_off_list(0b100_0011), "Heal, Jump 1, Grip");
+    }
+
+    /// A model chosen on the Character page shows (it is the stage's model) but the
+    /// `model` cvar keeps the one worn until the Apply button is pressed; leaving the
+    /// screen drops it.
+    #[test]
+    fn a_model_chosen_waits_for_apply() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        console.set_cvar("model", "kyle/default");
+        let mut menu = drawn(ProfilePage::Character, false);
+        menu.open(&console, ReturnTarget::MainMenu);
+        assert!(!menu.look_pending());
+
+        menu.draft.model = "jan/default".to_owned();
+        draw(&mut menu);
+        assert!(!menu.canvas.overflowed());
+        assert!(menu.look_pending());
+        assert_eq!(menu.stage_model(), "jan/default");
+        assert_eq!(console.text_value("model"), Some("kyle/default"));
+
+        let apply = menu
+            .character_rows()
+            .iter()
+            .position(|row| *row == CharacterRow::Apply)
+            .expect("an Apply row");
+        let rect = menu.canvas.rect_for(apply as u16).expect("the button");
+        let centre = sjk_ui::Vec2::new(rect.x + rect.width * 0.5, rect.y + rect.height * 0.5);
+        click(&mut menu, &mut console, centre);
+        assert_eq!(console.text_value("model"), Some("jan/default"));
+        assert!(!menu.look_pending());
+
+        menu.draft.model = "kyle/default".to_owned();
+        assert!(menu.look_pending());
+        menu.settle_force_page(false, &mut console);
+        assert_eq!(menu.stage_model(), "jan/default");
+        assert_eq!(console.text_value("model"), Some("jan/default"));
     }
 }

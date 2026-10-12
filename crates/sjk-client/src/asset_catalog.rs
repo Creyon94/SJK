@@ -27,12 +27,21 @@ pub const LEGACY_SABER_COLORS: [SaberColor; 6] = [
 /// Fully parsed compatibility catalogue used by player-profile screens.
 #[derive(Clone, Debug, PartialEq)]
 pub struct LegacyAssetCatalog {
-    /// Icon-backed ordinary player model/skin choices.
+    /// Icon-backed ordinary player model/skin choices, the retail game's first
+    /// ([`Self::retail_characters`] of them), then the community's, each in
+    /// alphabetical order.
     pub characters: Vec<LegacyCharacter>,
-    /// Multipart customisable species choices.
+    /// How many of `characters`, from the first, are the retail game's own.
+    pub retail_characters: usize,
+    /// Multipart customisable species choices, the retail game's first.
     pub species: Vec<LegacySpecies>,
-    /// Saber definitions accepted by `UI_SaberValidForPlayerInMP`.
+    /// How many of `species`, from the first, are the retail game's own.
+    pub retail_species: usize,
+    /// Saber definitions accepted by `UI_SaberValidForPlayerInMP`, in the game's
+    /// load order with the retail game's first.
     pub saber_hilts: Vec<LegacySaberDefinition>,
+    /// How many of `saber_hilts`, from the first, are the retail game's own.
+    pub retail_saber_hilts: usize,
     /// Definitions excluded because their raw `notInMP` value is non-zero.
     pub excluded_saber_hilts: usize,
     /// The six numeric saber-colour choices sent in `color1` and `color2`.
@@ -78,10 +87,44 @@ pub fn legacy_asset_catalog(
             .copied()
             .unwrap_or(usize::MAX)
     });
+    // The retail game's own items go first ([`crate::retail_assets`]): what the
+    // retail archives alone catalogue, even where a community archive changes it.
+    let mut characters = characters;
+    let (retail_characters, retail_species, retail_saber_hilts) =
+        match crate::retail_assets::retail_view(vfs) {
+            Some(retail) => {
+                let own = legacy_character_catalog(&retail)?;
+                let own_hilts = legacy_saber_definitions(&retail)
+                    .map_err(|error| std::io::Error::other(error.to_string()))?;
+                let own_characters: std::collections::HashSet<&str> = own
+                    .characters
+                    .iter()
+                    .map(|each| each.cvar_value.as_str())
+                    .collect();
+                let own_species: std::collections::HashSet<&str> =
+                    own.species.iter().map(|each| each.model.as_str()).collect();
+                let characters_first =
+                    crate::retail_assets::retail_first(&mut characters.characters, |character| {
+                        own_characters.contains(character.cvar_value.as_str())
+                    });
+                let species_first =
+                    crate::retail_assets::retail_first(&mut characters.species, |species| {
+                        own_species.contains(species.model.as_str())
+                    });
+                let hilts_first = crate::retail_assets::retail_first(&mut saber_hilts, |hilt| {
+                    own_hilts.contains_key(&hilt.name.to_ascii_lowercase())
+                });
+                (characters_first, species_first, hilts_first)
+            }
+            None => (0, 0, 0),
+        };
     Ok(LegacyAssetCatalog {
         characters: characters.characters,
+        retail_characters,
         species: characters.species,
+        retail_species,
         saber_hilts,
+        retail_saber_hilts,
         excluded_saber_hilts,
         saber_colors: LEGACY_SABER_COLORS,
     })
@@ -178,5 +221,64 @@ impl LegacyAssetCatalogLoader {
     /// Returns the stable worker diagnostic after the loader reaches `Failed`.
     pub fn error(&self) -> Option<&str> {
         self.error.as_deref()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Against the installed game (`JKA_GAME_DATA`): the retail items come first,
+    /// then the community's, and a hilt of each kind sits on its side of the line.
+    #[test]
+    #[ignore = "reads the installed game data named by JKA_GAME_DATA"]
+    fn retail_items_lead_the_catalogue() {
+        let Ok(data) = std::env::var("JKA_GAME_DATA") else {
+            return;
+        };
+        let mut vfs = VirtualFileSystem::new();
+        vfs.mount_pk3_directory(std::path::Path::new(&data).join("base"))
+            .unwrap();
+        let catalog = legacy_asset_catalog(&vfs).unwrap();
+        println!(
+            "characters {} (retail {}), species {} (retail {}), hilts {} (retail {})",
+            catalog.characters.len(),
+            catalog.retail_characters,
+            catalog.species.len(),
+            catalog.retail_species,
+            catalog.saber_hilts.len(),
+            catalog.retail_saber_hilts
+        );
+        let names = |count: usize| {
+            catalog.characters[..count.min(6)]
+                .iter()
+                .map(|each| each.cvar_value.clone())
+                .collect::<Vec<_>>()
+        };
+        println!("first {:?}", names(catalog.retail_characters));
+        println!(
+            "first community {:?}",
+            catalog.characters[catalog.retail_characters..]
+                .iter()
+                .take(4)
+                .map(|each| each.cvar_value.clone())
+                .collect::<Vec<_>>()
+        );
+        println!(
+            "hilts {:?} / {:?}",
+            catalog
+                .saber_hilts
+                .iter()
+                .take(4)
+                .map(|hilt| hilt.name.clone())
+                .collect::<Vec<_>>(),
+            catalog.saber_hilts[catalog.retail_saber_hilts..]
+                .iter()
+                .take(4)
+                .map(|hilt| hilt.name.clone())
+                .collect::<Vec<_>>()
+        );
+        assert!(catalog.retail_characters > 0);
+        assert!(catalog.retail_characters < catalog.characters.len());
     }
 }
