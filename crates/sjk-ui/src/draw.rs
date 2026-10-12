@@ -177,6 +177,12 @@ impl DrawList {
         true
     }
 
+    /// Keep only the commands `keep` accepts, in their order, without releasing
+    /// storage: for a screen that leaves out what a card drawn later covers.
+    pub fn retain(&mut self, keep: impl FnMut(&DrawCommand) -> bool) {
+        self.commands.retain(keep);
+    }
+
     /// Commands in submission order.
     pub fn commands(&self) -> &[DrawCommand] {
         &self.commands

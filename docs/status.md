@@ -85,6 +85,17 @@ the keys, off the profile card and over no text at six window sizes; the existin
 overlaps another; off-screen CPU renders at 1920x1080 with and without a vote and with a
 sender card (reviewed); the workspace checks. In game (Windows 11, Creyon) the layout, the
 card's grace and the main page's card placement work.
+## SJK chat page: the sender card covers its text
+
+Branch `fix/sjk-chat-card-overlap` (11/10/2026, based on `9dbbdf19`, Linux): Sol saw the
+times and messages of the SJK chat page show through a sender's card. Text draws over every
+shape, so the page now leaves out the text runs whose measured ink reaches the card while it
+shows ([hub-chat.md](hub-chat.md#in-the-menus)); runs beside it stay. `sjk_ui` gains
+`DrawList::retain` and `Rect::overlaps`. Verified: a unit test (it fails without the change)
+that no history text or time lies under a message sender's card while the history away from
+it still shows, a test of `Rect::overlaps`, an off-screen CPU render of the page at
+1920x1080 with a card over the history (reviewed) and the workspace checks; in game on Windows 11 by
+Creyon.
 
 ## Downloads that work, and what they may bring
 

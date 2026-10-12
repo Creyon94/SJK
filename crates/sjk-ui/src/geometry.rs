@@ -60,6 +60,14 @@ impl Rect {
             && point.y <= self.bottom()
     }
 
+    /// Whether the two rectangles share some area (touching edges do not count).
+    pub fn overlaps(self, other: Self) -> bool {
+        self.x < other.right()
+            && other.x < self.right()
+            && self.y < other.bottom()
+            && other.y < self.bottom()
+    }
+
     /// Inset the rectangle, saturating negative extents at zero.
     pub fn inset(self, insets: Insets) -> Self {
         Self {
@@ -124,5 +132,26 @@ impl Color {
     /// Construct a color.
     pub const fn new(r: f32, g: f32, b: f32, a: f32) -> Self {
         Self { r, g, b, a }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Rect;
+
+    #[test]
+    fn rectangles_overlap_only_when_they_share_area() {
+        let card = Rect::new(10.0, 10.0, 100.0, 50.0);
+        assert!(card.overlaps(Rect::new(100.0, 50.0, 40.0, 20.0)));
+        assert!(card.overlaps(Rect::new(0.0, 0.0, 300.0, 300.0)));
+        assert!(
+            !card.overlaps(Rect::new(110.0, 10.0, 40.0, 20.0)),
+            "touching on the right"
+        );
+        assert!(
+            !card.overlaps(Rect::new(10.0, 60.0, 40.0, 20.0)),
+            "touching below"
+        );
+        assert!(!card.overlaps(Rect::new(200.0, 200.0, 5.0, 5.0)));
     }
 }
