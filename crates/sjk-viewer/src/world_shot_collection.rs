@@ -192,7 +192,7 @@ fn duel6_sjk_collection() {
                 console.preview_collection(Some(vec![sun()]), 0.8);
             }
             // Ctrl+Tab goes on to Holocrons (the Holocrons page, under the same row) and
-            // comes round to Medals, on the same screen.
+            // on to Cards, on the same screen.
             gpu.profile_hub_show_for_shot(Tab::Nameplates);
             gpu.profile_hub_next_for_shot();
             assert_eq!(gpu.profile_hub_tab(), Some(Tab::Holocrons));
@@ -202,7 +202,7 @@ fn duel6_sjk_collection() {
             );
             assert!(!overflowed(&gpu), "Holocrons");
             gpu.profile_hub_next_for_shot();
-            assert_eq!(gpu.profile_hub_tab(), Some(Tab::Medals));
+            assert_eq!(gpu.profile_hub_tab(), Some(Tab::Cards));
         }
         // From the game menu, over a "match" (no server): the live preview.
         let Some((mut gpu, _profile)) = open(

@@ -2639,8 +2639,9 @@ character is shown, and emoji from a colour atlas beside it
   SJK HUD), then Noto Sans JP for kana and kanji (and most hanzi: 5,279 of Big5's
   5,401 common Traditional characters, 4,548 of GB 2312's 6,763 Simplified ones),
   Noto Sans SC for the other 2,215 GB 2312 hanzi, and Noto Sans KR for Hangul (all
-  11,172 syllables and the compatibility jamo). A shared hanzi takes Noto Sans JP's
-  Japanese form. A character none of them has draws the face's `?`; joiners,
+  11,172 syllables and the compatibility jamo), then SJK Symbols for SJK's own
+  symbols in the Private Use Area ([sjk-ui.md](sjk-ui.md#symbols)). A shared hanzi
+  takes Noto Sans JP's Japanese form. A character none of them has draws the face's `?`; joiners,
   variation selectors and tags outside an emoji take no room.
 - A wide glyph is scaled so its font's capitals match the face's `H` and sits on the
   face's baseline, so `Ж` is as tall as `H` beside it and a kanji takes the size Noto

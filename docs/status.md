@@ -1,5 +1,17 @@
 # Status and priorities
 
+## SJK Symbols
+
+Branch `personal/sjk-symbols` (13/10/2026), Sol's request: coloured special characters to
+mark qualities, a font of SJK's own that keeps growing. Kanji and Aurebesh were set aside
+(the setting, and Lucasfilm's), three families drafted, Sol picked the holocron one.
+`scripts/sjk_symbols.py` draws the symbols from strokes and builds
+`assets/fonts/SJKSymbols.ttf` (Private Use Area, U+E000 rarities, U+E010 finishes); the
+client lends it to every face through the wide-glyph atlas; `symbols.rs` names them; they
+mark cards, the loot table and the Shaders tab. See [sjk-ui.md](sjk-ui.md#symbols).
+Verified: unit tests (every named symbol in the font, the ranks), `--check` of the font,
+world shots of cards, the loot table and the Collection looked at. Not tried in a game.
+
 ## Card corners and the first card's words
 
 Branch `personal/card-corners` (12/10/2026), Sol's report: on a Holo card the sheen ran

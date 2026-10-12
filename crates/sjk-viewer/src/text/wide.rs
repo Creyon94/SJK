@@ -9,8 +9,10 @@
 //!
 //! - A font face names the fonts that lend it wide glyphs, in order ([`Source`]):
 //!   its own family when that has Cyrillic (Inter, Exo 2, JetBrains Mono), else the
-//!   closest that does, then Noto Sans JP for kana and kanji. The first that has the
-//!   character draws it; a character none has draws the face's `?`.
+//!   closest that does, then Noto Sans JP for kana and kanji, Noto Sans SC for the
+//!   hanzi it lacks, Noto Sans KR for Hangul, then SJK Symbols for SJK's own symbols
+//!   ([`crate::symbols`]). The first that has the character draws it; a character none
+//!   has draws the face's `?`.
 //! - Looking a character up ([`lookup`]) costs a hash lookup under a lock. The first
 //!   time, it reads the advance from the font (a table read, no outline), so layout is
 //!   right from the first frame, and queues the glyph. [`rasterize_pending`] outlines
@@ -62,6 +64,8 @@ const NOTO_SANS_JP: &[u8] = include_bytes!("../../assets/fonts/NotoSansJP-Regula
 const NOTO_SANS_SC: &[u8] = include_bytes!("../../assets/fonts/NotoSansSC-Regular.otf");
 /// Noto Sans KR Regular, subset to Hangul (syllables and jamo).
 const NOTO_SANS_KR: &[u8] = include_bytes!("../../assets/fonts/NotoSansKR-Regular.otf");
+/// SJK Symbols, SJK's own symbol font (`scripts/sjk_symbols.py`).
+const SJK_SYMBOLS: &[u8] = include_bytes!("../../assets/fonts/SJKSymbols.ttf");
 
 /// A font that lends wide glyphs.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -77,10 +81,12 @@ pub(crate) enum Source {
     NotoSansSc,
     /// Hangul.
     NotoSansKr,
+    /// SJK's own symbols, in the Private Use Area ([`crate::symbols`]).
+    SjkSymbols,
 }
 
 impl Source {
-    const ALL: [Self; 8] = [
+    const ALL: [Self; 9] = [
         Self::InterRegular,
         Self::InterSemibold,
         Self::Exo2Regular,
@@ -89,6 +95,7 @@ impl Source {
         Self::NotoSansJp,
         Self::NotoSansSc,
         Self::NotoSansKr,
+        Self::SjkSymbols,
     ];
 
     const fn index(self) -> usize {
@@ -105,6 +112,7 @@ impl Source {
             Self::NotoSansJp => NOTO_SANS_JP,
             Self::NotoSansSc => NOTO_SANS_SC,
             Self::NotoSansKr => NOTO_SANS_KR,
+            Self::SjkSymbols => SJK_SYMBOLS,
         }
     }
 
@@ -118,23 +126,28 @@ impl Source {
             Self::Exo2Regular | Self::Exo2Semibold => 0.69,
             Self::JetBrainsMono => 0.73,
             Self::NotoSansJp | Self::NotoSansSc | Self::NotoSansKr => 0.733,
+            // Its capitals' height, which the symbols are drawn to.
+            Self::SjkSymbols => 0.7,
         }
     }
 }
 
-/// Inter's faces, then kana and kanji, the hanzi Japanese lacks and Hangul.
+/// Inter's faces, then kana and kanji, the hanzi Japanese lacks, Hangul and SJK's
+/// symbols.
 pub(crate) const INTER: [&[Source]; 2] = [
     &[
         Source::InterRegular,
         Source::NotoSansJp,
         Source::NotoSansSc,
         Source::NotoSansKr,
+        Source::SjkSymbols,
     ],
     &[
         Source::InterSemibold,
         Source::NotoSansJp,
         Source::NotoSansSc,
         Source::NotoSansKr,
+        Source::SjkSymbols,
     ],
 ];
 /// Exo 2's faces, then the CJK fonts; also Rajdhani's, which has no Cyrillic and
@@ -145,12 +158,14 @@ pub(crate) const EXO2: [&[Source]; 2] = [
         Source::NotoSansJp,
         Source::NotoSansSc,
         Source::NotoSansKr,
+        Source::SjkSymbols,
     ],
     &[
         Source::Exo2Semibold,
         Source::NotoSansJp,
         Source::NotoSansSc,
         Source::NotoSansKr,
+        Source::SjkSymbols,
     ],
 ];
 /// JetBrains Mono, then the CJK fonts: the console's, and SJK Chat's (OCR-A, which
@@ -160,6 +175,7 @@ pub(crate) const MONO: &[Source] = &[
     Source::NotoSansJp,
     Source::NotoSansSc,
     Source::NotoSansKr,
+    Source::SjkSymbols,
 ];
 /// For a face with no wide glyphs (test fonts): every wide character draws `?`.
 #[cfg(test)]

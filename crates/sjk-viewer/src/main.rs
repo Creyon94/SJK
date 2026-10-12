@@ -239,6 +239,7 @@ mod sjk_packs;
 mod sky_stage;
 mod snapshot_presentation;
 mod static_models;
+mod symbols;
 mod text;
 mod text_dialog;
 mod text_entry;

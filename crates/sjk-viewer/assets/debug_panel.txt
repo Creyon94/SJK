@@ -445,6 +445,7 @@ test: Advanced > Network: SJK online and Connection headings, Share settings usa
 test: Advanced > Sound: a Notifications heading with the SJK chat and quick wheel sounds.
 test: Advanced: Chat and Mods categories; HUD ends with Scoreboard; search 'chat' shows Chat.
 test: Rename config.cfg away and start: Settings opens Simple, the renderer reads Vanilla.
+test: Every rail icon is the gold and navy set: Chat a speech bubble, Mods a puzzle piece.
 note: Usage goes to the hub only once its endpoint is deployed (log: 'settings usage: sent').
 
 [force-hold-repeat]
@@ -491,6 +492,15 @@ change: Every card (rarity x finish) per holocron found, as a share and as 1 in 
 test: Collection > Holocrons > Loot table: the numbers match docs/holocrons.md, Loot table.
 test: Escape, L, Enter or Back go back to the tab; the tab's keys do nothing meanwhile.
 test: The pace line says 30 minutes and 8 a day once the hub answered.
+
+[sjk-symbols]
+area: Menus & settings
+title: SJK Symbols: our own font of rarity and finish marks
+change: Rarity marks (Common to Mythical) and finish marks drawn in the text's colour.
+change: On cards (corner, footer, sealed back), the loot table and the Shaders tab.
+test: Collection > Cards: card 001's corner and footer show the Legendary mark in purple.
+test: Holocrons > Loot table: each rarity and finish heading starts with its mark.
+test: Collection > Shaders: each row's tier starts with its mark; small text stays clean.
 
 [card-corners]
 area: Menus & settings

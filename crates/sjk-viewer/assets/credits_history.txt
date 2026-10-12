@@ -9,6 +9,12 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 13/10/2026 | - | Clean gold icons, a gold quick wheel
+- 03bdeff |  | Settings icons drawn clean: gold symbols on a flat navy disc, a gold quick wheel
++ 13/10/2026 | - | Settings icons in gold and navy
+- 6dff278 |  | Settings icons in gold and navy, from Sol's five icon sheets
++ 13/10/2026 | - | SJK Symbols, our own font of rarity and finish marks
+- c6294d2 |  | SJK Symbols: SJK's own symbol font for rarities and finishes
 + 12/10/2026 | - | SJK channel and bios take Japanese
 - b8c6814 |  | SJK channel and bios take Japanese: kana, kanji and Japanese punctuation
 + 12/10/2026 | - | Card light inside rounded corners, card 001 renamed

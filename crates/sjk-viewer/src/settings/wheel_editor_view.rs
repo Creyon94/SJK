@@ -1295,7 +1295,7 @@ mod tests {
         let mut menu = SettingsMenu::new();
         let font = crate::text::load_modern(1.0, None).expect("Inter");
         let rail = Rail {
-            categories: &[("Quick wheel", "options"); 12],
+            categories: &[("Quick wheel", "mods"); 12],
             current: Some(9),
             back: "Main menu",
             mode: crate::settings::mode::SettingsMode::Advanced,
