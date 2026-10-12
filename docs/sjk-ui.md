@@ -262,6 +262,24 @@ on the 16:9 frame, dark behind the form on the left and clear over the model.
   the wheel), then a species' head, torso, legs and skin colour and the hat and
   cape, two to a line. The Model row that stepped to the next model of the grid
   (‹ ›) is gone (Sol's decision, 11/10/2026): the grid chooses the model.
+- **Turning the model and the hat and cape picker** (Sol's request, 10/10/2026:
+  "rotate model with mouse click, better cosmetic picker";
+  [sjk_outfit.rs](../crates/sjk-viewer/src/player_menu/sjk_outfit.rs)): opened from a
+  game, on every page, dragging over the model turns it (about 0.45 degrees a pixel):
+  the live preview's camera goes round it. Under the model's feet, drawn as the
+  screen's keys are, "Drag" in a key cap and "turn the model" say so on every page.
+  The turn holds from page to page; opening the screen again faces it front. On the
+  menu map's stage the model does not turn (Creyon's tests, 12/10/2026: a raised blade
+  turned end on to the stage's camera looked far too long). Enter or a click on the
+  Hat or Cape row opens a picker in place of the model grid (Left and Right on the row
+  still step): "Wear" and how many the slot has installed, Hats and Capes as two
+  segments, and Done; then None and every installed piece as named chips three to a
+  line, the one worn ringed gold, scrolled by the wheel, with a line under them when
+  none or not all of JoF's pieces are installed. A click wears a chip at once (written
+  to `color1` or `color2` as the rows do); the arrows choose one (Up and Down a line)
+  and Enter wears it; Tab switches between hats and capes; Escape or Done closes it.
+  Where the model turns, it shows its back to the camera while the capes are shown,
+  and its front again for the hats and when the picker closes.
 - **Saber:** Style as three buttons (Single, Staff, Dual); the hilts as a list
   under a sub-heading (Hilt, or Staff), in two columns, six lines on show,
   scrolled by the wheel or its bar, the chosen one gold with a dot and kept in

@@ -850,7 +850,9 @@ number or a name they wear one (the same again takes it off), `cosmetics
 clear` takes both off and `cosmetics visibility [off|on|onlyme]` shows or sets
 `cg_cosmetics` ([command.rs](../crates/sjk-viewer/src/cosmetics/command.rs)).
 The classic profile's Cosmetics window does the same, and the SJK UI's
-Character page has Hat and Cape rows (None, then each installed piece). The menu stage model wears what `color1` and `color2`
+Character page has Hat and Cape rows (None, then each installed piece; Enter or a
+click opens a picker of named chips, [sjk-ui.md](sjk-ui.md#character)). The menu stage
+model wears what `color1` and `color2`
 name, placed on the bolts of the pose it is skinned with like its hilts
 ([menu_stage/cosmetics.rs](../crates/sjk-viewer/src/menu_stage/cosmetics.rs)),
 unless `cg_cosmetics` is 0.

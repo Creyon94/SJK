@@ -40,6 +40,8 @@ impl PlayerMenu {
         self.blade_choice.read(console);
         self.page = ProfilePage::Character;
         self.selected = 0;
+        self.outfit = None;
+        self.turn.reset();
         self.resolved_catalogue = false;
         if let Some(loader) = &mut self.loader {
             loader.request();
@@ -375,6 +377,16 @@ impl PlayerMenu {
                 self.name_editing = true;
             }
             _ if search_row => self.begin_search(),
+            (ProfilePage::Character, row) if self.is_sjk() => {
+                match self
+                    .character_rows()
+                    .get(row)
+                    .and_then(|row| row.cosmetic())
+                {
+                    Some(slot) => self.open_outfit(slot),
+                    None => self.adjust(console, 1),
+                }
+            }
             (ProfilePage::Force, FORCE_SIDE_ROW) => {
                 let direction = match self.force.allocation().side {
                     ForceSide::Light => 1,
@@ -391,6 +403,9 @@ impl PlayerMenu {
 
     pub(super) fn set_page(&mut self, page: ProfilePage) {
         self.numeric = None;
+        if self.page != page {
+            self.close_outfit();
+        }
         self.page = page;
         self.selected = 0;
         self.name_editing = false;
@@ -425,6 +440,10 @@ impl PlayerMenu {
             return PlayerMenuResult::None;
         }
         if event.repeat {
+            return PlayerMenuResult::None;
+        }
+        // SJK: the hat and cape picker, while open, takes its keys.
+        if self.outfit_key(key, console) {
             return PlayerMenuResult::None;
         }
         // SJK: a digit typed on a selected RGB row opens entry with it.
