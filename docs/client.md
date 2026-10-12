@@ -1926,9 +1926,10 @@ clients' text: Auto, Western, Cyrillic) says how text from other clients is read
 when the guess is wrong ([player text](networking.md#player-text)). Japanese goes as
 UTF-8: SJK players read it, retail and EternalJK players see other characters. The
 chat field stops where the server would cut the line (149 bytes as sent: 149 Russian
-letters, about 49 Japanese characters). The hub's SJK channel already took Cyrillic
-and now draws it; it does not take Japanese yet (its letter rules,
-[hub-chat.md](hub-chat.md)).
+letters, about 49 Japanese characters). The hub's SJK channel takes both too:
+Cyrillic it already took, and Japanese since 12/10/2026 (kana, kanji and Japanese
+punctuation, in the letter rules it shares with bios,
+[identity.md](identity.md#the-bios-rules)); every SJK player reads them.
 
 ### Chat player actions
 

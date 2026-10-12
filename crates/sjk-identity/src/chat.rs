@@ -281,6 +281,10 @@ mod tests {
             Ok("^2gg wp :poop: #>:D ^7(nice)")
         );
         assert_eq!(check("Привет, Ça va?").as_deref(), Ok("Привет, Ça va?"));
+        assert_eq!(
+            check("日本語のチャット、OK！").as_deref(),
+            Ok("日本語のチャット、OK！")
+        );
         assert_eq!(check("hi \u{1F600}"), Err(ChatError::Characters));
         assert_eq!(check("a^"), Err(ChatError::Characters));
         assert_eq!(check("^xa"), Err(ChatError::Characters));

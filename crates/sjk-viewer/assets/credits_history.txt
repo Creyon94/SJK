@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 12/10/2026 | - | SJK channel and bios take Japanese
+- b8c6814 |  | SJK channel and bios take Japanese: kana, kanji and Japanese punctuation
 + 12/10/2026 | - | Card light inside rounded corners, card 001 renamed
 - 35017c7 |  | Cards: Holo and Solar light kept inside the rounded corners; card 001 renamed
 + 12/10/2026 | - | Russian and Japanese text: wide-glyph atlas, Windows-1251 like EternalJK

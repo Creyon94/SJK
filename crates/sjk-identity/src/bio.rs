@@ -4,8 +4,8 @@
 //!
 //! A bio is plain text other players read, so it keeps to what SJK's fonts draw and
 //! nothing that hides, reorders or piles up: letters of the Latin and Cyrillic
-//! alphabets, digits, a space, a little punctuation, Quake colour codes (`^` and a
-//! digit) and at most [`LINES_MAX`] lines. Everything else is refused, including
+//! alphabets and Japanese's kana and kanji, digits, a space, a little punctuation
+//! (Japanese's own marks included), Quake colour codes (`^` and a digit) and at most [`LINES_MAX`] lines. Everything else is refused, including
 //! emoji, invisible and direction-changing characters, combining marks, private-use
 //! and unassigned code points. The page filters what is typed with [`allowed`]; the
 //! hub refuses a bio that breaks a rule; a bio read from a hub is shown through
@@ -18,8 +18,9 @@ pub const BIO_MAX: usize = 500;
 pub const LINES_MAX: usize = 6;
 /// Longest run of one character (`!!!!!!!!!`, `aaaaaaaaa` is noise).
 pub const RUN_MAX: usize = 8;
-/// The punctuation a bio may use besides letters, digits and spaces.
-pub const PUNCTUATION: &str = ".,!?'\"-:;()[]&/+#@%*_=~<>|$";
+/// The punctuation a bio may use besides letters, digits and spaces: ASCII's, and the
+/// marks Japanese is typed with (`、。「」『』・`, full-width `！？（）～`).
+pub const PUNCTUATION: &str = ".,!?'\"-:;()[]&/+#@%*_=~<>|$、。「」『』・！？（）～";
 
 /// Why a bio was refused; the hub answers each with its `error` code.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -66,7 +67,9 @@ impl std::fmt::Display for BioError {
 }
 
 /// Whether `c` is a letter of the alphabets SJK's fonts draw: Latin (with its
-/// accented and extended letters, Vietnamese's included) and Cyrillic.
+/// accented and extended letters, Vietnamese's included), Cyrillic, and Japanese
+/// (hiragana, katakana with its prolonged-sound mark, kanji and the `々` repeat mark;
+/// the kanji are the CJK ideographs, which Chinese shares).
 pub fn letter(c: char) -> bool {
     if c.is_ascii_alphabetic() {
         return true;
@@ -74,7 +77,11 @@ pub fn letter(c: char) -> bool {
     let code = u32::from(c);
     let latin = matches!(code, 0x00C0..=0x024F | 0x1E00..=0x1EFF) && c != '×' && c != '÷';
     let cyrillic = matches!(code, 0x0400..=0x04FF);
-    (latin || cyrillic) && c.is_alphabetic()
+    let japanese = matches!(
+        code,
+        0x3005 | 0x3041..=0x30FF | 0x31F0..=0x31FF | 0x3400..=0x4DBF | 0x4E00..=0x9FFF | 0xF900..=0xFAFF
+    );
+    (latin || cyrillic || japanese) && c.is_alphabetic()
 }
 
 /// Whether a bio may hold `c` (newlines aside, which [`tidy`] counts as lines; `^`
@@ -247,7 +254,7 @@ mod tests {
             "bell \u{7}",
             "nul \u{0}",
             "arabic \u{0627}",
-            "cjk \u{4E2D}",
+            "hangul \u{D55C}",
             "greek \u{03B1}",
             "fullwidth \u{FF21}",
             "math \u{1D400}",
@@ -302,10 +309,20 @@ mod tests {
     }
 
     #[test]
-    fn letters_are_latin_and_cyrillic_only() {
+    fn letters_are_latin_cyrillic_and_japanese_only() {
         assert!(letter('a') && letter('Z') && letter('é') && letter('ß') && letter('Ж'));
         assert!(letter('ẞ') && letter('ơ'));
-        assert!(!letter('×') && !letter('÷') && !letter('α') && !letter('中'));
+        for c in ['あ', 'カ', 'ー', '日', '漢', '々', 'ㇰ'] {
+            assert!(letter(c), "{c}");
+        }
+        // The middle dot and the voicing marks are no letters; Greek and Hangul are not drawn.
+        assert!(!letter('・') && !letter('゛') && !letter('α') && !letter('한'));
+        assert!(allowed('。') && allowed('、') && allowed('！') && allowed('「'));
+        assert_eq!(
+            check("こんにちは、日本語のチャットです。"),
+            Ok("こんにちは、日本語のチャットです。".to_owned())
+        );
+        assert!(!letter('×') && !letter('÷') && !letter('😀'));
         assert!(!letter('1') && !letter(' '));
     }
 
