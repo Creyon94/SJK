@@ -483,6 +483,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         ),
         CvarDefinition::new("cg_drawTimer", true, archive, "Display elapsed match time"),
         CvarDefinition::new(
+            "cg_drawTimerUpperRight",
+            false,
+            archive,
+            "Show the match time in the upper right under the frame rate, as JoF EJK does, not in the HUD layout",
+        ),
+        CvarDefinition::new(
             crate::version_overlay::CVAR,
             true,
             archive,

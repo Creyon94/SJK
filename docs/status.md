@@ -1,5 +1,18 @@
 # Status and priorities
 
+## Creyon's PRs #78-#94 merged
+
+Branch `personal/creyon-78-94` (12/10/2026): Sol asked for the review and merge of Creyon's
+seventeen open pull requests (CI green on each, unpushed and not played here). Three pairs
+overlapped and were merged by hand: #87 and #89 both changed `discover()` (every master is
+asked, then the favourites join the list), #89 and #90 both changed the browser's prompts,
+and #82 and #92 both added the frame rate to `FramePacer` (#92's version stands, #82's
+scoreboard header reads it). Sol's decisions on the review: the match clock joins the upper
+right only with the new `cg_drawTimerUpperRight` (off by default; #92 had removed the
+layouts' clock for everyone), the second master `cl_master2` (`master.ouned.de:29060`) and the
+plain-text remembered passwords stay as built, and #89's host name lookup runs off the menu
+thread so a slow DNS answer cannot freeze it.
+
 ## Standing on a ledge: no leg stutter
 
 Branch `fix/slope-stand-prediction` (11/10/2026, based on `9dbbdf19`, Linux): Creyon saw his
@@ -11,6 +24,7 @@ Prediction now keeps the server's slope pose while the player stands still
 8, 7, 4 and 3 ms command steps (the pose holds; before, it stepped back at the first
 command), the workspace checks, and in game on Windows 11 by Creyon (no stutter standing
 still or on a ledge, the foot hanging).
+
 ## A dropped saber stays visible
 
 Branch `fix/dropped-saber` (12/10/2026, based on `9dbbdf19`, Linux): Creyon saw his thrown
@@ -20,6 +34,7 @@ model for that weapon. It now draws the saber's hilt from `CS_MODELS`, as `CG_Mi
 ([rendering.md](rendering.md)). Verified: unit tests (the hilt from its model index, the
 default saber without one, nothing while `EF_NODRAW`), the workspace checks, and in game on
 Windows 11 by Creyon (the hilt stays on the ground until pulled back).
+
 ## Door sounds
 
 Branch `fix/door-sounds` (12/10/2026, based on `9dbbdf19`, Linux): Creyon heard doors open
@@ -30,6 +45,7 @@ stage as `CG_PlayDoorSound` does, and nothing without a soundset
 ([client.md](client.md#door-and-mover-sounds)). Verified: the door test with the right event
 number, a test for 73 and a door without a soundset, the workspace checks, and in game on
 Windows 11 by Creyon (the silent doors sound).
+
 ## Guns sound once
 
 Branch `fix/muzzle-sound-double` (12/10/2026, based on `9dbbdf19`, Linux): Creyon heard
@@ -42,6 +58,7 @@ start it again ([rendering.md](rendering.md)). Verified: tests (a predicted shot
 once; neither its replay nor its confirmation flashes again; a followed or unpredicted
 player's shot flashes from the snapshot), the workspace checks, and in game on Windows 11 by
 Creyon (each shot heard once).
+
 ## SJK scoreboard: the frame rate on its header
 
 Branch `feat/scoreboard-fps` (11/10/2026, based on `9dbbdf19`, Linux): Sol asked for the
@@ -52,6 +69,7 @@ Settings > Scoreboard) turns it off. Verified: a test at eight window sizes that
 "fps" stand in the clock's type left of the clock and right of the mode, and that nothing
 shows without a reading; an off-screen CPU render at 1920x1080 (reviewed); the workspace
 checks; in game on Windows 11 by Creyon.
+
 ## Clan emblems: a table, the JoFA tag, JoF in teal, tags as players write them
 
 Branch `feat/jofa-tag` (11/10/2026, based on `9dbbdf19`, Linux): Sol asked for JoF
@@ -66,6 +84,7 @@ tests (JoFA names, look-alikes, stuck tags, near misses, the wider room, the tab
 emblems and letters, the setting), previews at 20 to 48 pixels and the workspace checks. In
 game on Windows 11 Creyon saw the HD JoFA emblem, the teal JoF emblem, look-alike tags and
 the setting at work.
+
 ## SJK UI in-game menu: the chat under the match card
 
 Branch `feat/ingame-menu-chat-layout` (11/10/2026, based on `9dbbdf19`, Linux): Sol asked
@@ -85,6 +104,7 @@ the keys, off the profile card and over no text at six window sizes; the existin
 overlaps another; off-screen CPU renders at 1920x1080 with and without a vote and with a
 sender card (reviewed); the workspace checks. In game (Windows 11, Creyon) the layout, the
 card's grace and the main page's card placement work.
+
 ## SJK chat page: the sender card covers its text
 
 Branch `fix/sjk-chat-card-overlap` (11/10/2026, based on `9dbbdf19`, Linux): Sol saw the
@@ -96,6 +116,7 @@ that no history text or time lies under a message sender's card while the histor
 it still shows, a test of `Rect::overlaps`, an off-screen CPU render of the page at
 1920x1080 with a card over the history (reviewed) and the workspace checks; in game on Windows 11 by
 Creyon.
+
 ## Character page: no Model row
 
 Branch `fix/character-model-row` (11/10/2026, based on `9dbbdf19`, Linux): Sol asked to
@@ -103,6 +124,7 @@ remove the Character page's Model row (‹ olol/dark ›), which only stepped to
 like a next button; the grid chooses the model ([sjk-ui.md](sjk-ui.md#character)). The
 classic profile's own model controls are unchanged. Verified: the workspace checks; in game on
 Windows 11 by Creyon.
+
 ## Server browser: a second master server
 
 Branch `fix/server-browser-masters` (11/10/2026, based on `9dbbdf19`, Linux): Sol saw
@@ -113,6 +135,7 @@ a master that fails is passed over ([client.md](client.md#menu-style)). Verified
 of the list's splitting and of the merge (duplicates, one master down, both down) and the
 workspace checks; in game on Windows 11 by Creyon, the browser filling in from both
 masters.
+
 ## Server browser: names in the game's charset
 
 Branch `fix/browser-name-symbols` (11/10/2026, based on `9dbbdf19`, Linux): Creyon saw
@@ -124,6 +147,7 @@ chat (`sjk_protocol::decode_legacy_text`: UTF-8 when valid, else byte by byte)
 ([client.md](client.md#menu-style)). Verified: tests that a host name with `»«§` keeps its
 server and that a status's player names keep `·§`, and the workspace checks; in game on
 Windows 11 by Creyon, the names showing right and those servers listed.
+
 ## Server browser: add a favourite by its address
 
 Branch `feat/browser-favourite-by-address` (11/10/2026, based on `9dbbdf19`, Linux): Sol
@@ -136,6 +160,7 @@ of the prompt (Add, a bad address and a duplicate refused, the address kept and 
 favourites shown, Join by address unchanged), a test that unlisted favourites are asked
 once, a test that the browser's controls have distinct tokens, the screen test with the new
 button and the workspace checks; in game on Windows 11 by Creyon.
+
 ## Server browser: remembered passwords
 
 Branch `feat/browser-saved-passwords` (11/10/2026, based on `9dbbdf19`, Linux): Sol asked
@@ -145,6 +170,7 @@ on by default; joining keeps or forgets it ([sjk-ui.md](sjk-ui.md#servers)). Ver
 of the store (kept on disk, forgotten, empty never kept, a bad file read as none) and of the
 prompt (typed next time, the switch above the buttons, switching off forgets); an off-screen
 render of the card (reviewed); the workspace checks; in game on Windows 11 by Creyon.
+
 ## Server browser: the players scroll
 
 Branch `feat/browser-players-scroll` (12/10/2026, based on `9dbbdf19`, Linux): Creyon asked
@@ -154,16 +180,20 @@ where the rows in view are; it starts at the top for each server ([sjk-ui.md](sj
 Verified: a test wheeling through ten players (down, clamped at the last row, up, the server
 table unmoved, everything fitting) and the workspace checks; in game on Windows 11 by
 Creyon.
+
 ## Upper right: the frame rate and the match clock as in JoF EJK
 
 Branch `feat/upper-right-fps-timer` (11/10/2026, based on `9dbbdf19`, Linux): `cg_drawFPS`
 showed one long line ("125 FPS host 2.44 ms p99 3.83 max 4.87 1%low 115", wrapping at the
 edge) and `cg_drawTimer` nothing with the game-data HUD. The upper right now stacks them as
 JoF EJK does: "125fps" in big console characters, the frame times smaller under it, then
-the match clock, right-aligned, in every HUD style; the layouts' top-centre clock is retired
+the match clock, right-aligned, in every HUD style. Sol kept the layouts' top-centre clock
+by default (12/10/2026): the clock joins the stack only with `cg_drawTimerUpperRight`
+(Settings > HUD, off by default), and then the layouts' own clock steps aside
 ([client.md](client.md#hud-style)). Verified: a test of the stack's order and height, an
 off-screen render of the three lines in the console font (reviewed) and the workspace
 checks; in game on Windows 11 by Creyon.
+
 ## showplayerid
 
 Branch `feat/showplayerid` (11/10/2026, based on `9dbbdf19`, Linux): Creyon asked for JoF
@@ -171,6 +201,7 @@ EternalJK's `showPlayerId`. The console command `showplayerid` prints each playe
 number, coloured team letter and name (` (bot)` after bots) from the player configstrings,
 then `Listed N clients`, in EternalJK's format ([client.md](client.md)). Verified: unit tests
 for the lines and an empty server, and the workspace checks; in game on Windows 11 by Creyon.
+
 ## amcolor kept across reconnects
 
 Branch `fix/amcolors-saved` (11/10/2026, based on `9dbbdf19`, Linux): Creyon reported that a

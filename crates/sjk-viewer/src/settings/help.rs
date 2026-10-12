@@ -279,6 +279,10 @@ const HELP: &[(&str, &str)] = &[
     ),
     ("cg_drawTimer", "Shows the match time."),
     (
+        "cg_drawTimerUpperRight",
+        "Puts the match time in the upper right under the frame rate, as JoF EJK does, instead of in the HUD layout.",
+    ),
+    (
         crate::version_overlay::CVAR,
         "Shows SJK's version, build date and commit at the top, so screenshots say which build.",
     ),

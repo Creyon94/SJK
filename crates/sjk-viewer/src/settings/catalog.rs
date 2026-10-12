@@ -453,6 +453,11 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Upper right clock",
+        cvar: "cg_drawTimerUpperRight",
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Version and date",
         cvar: crate::version_overlay::CVAR,
         kind: ValueKind::Bool,

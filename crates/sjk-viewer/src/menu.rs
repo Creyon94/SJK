@@ -182,6 +182,8 @@ pub(crate) struct ClientMenu {
     address_editing: bool,
     /// What the address prompt is for ([`controller::AddressPurpose`]).
     address_purpose: controller::AddressPurpose,
+    /// The answer of the host name lookup of a favourite being added.
+    favourite_lookup: Option<std::sync::mpsc::Receiver<Result<std::net::SocketAddr, String>>>,
     /// Passwords of locked servers remembered on this PC ([`crate::server_passwords`]).
     server_passwords: crate::server_passwords::ServerPasswords,
     /// Whether the open password prompt remembers what is typed (on unless switched off).
@@ -270,6 +272,7 @@ impl ClientMenu {
             password: String::with_capacity(64),
             address_editing: false,
             address_purpose: controller::AddressPurpose::Join,
+            favourite_lookup: None,
             server_passwords: crate::server_passwords::ServerPasswords::load(),
             remember_password: true,
             address_input: String::with_capacity(256),
@@ -740,6 +743,7 @@ impl ClientMenu {
             self.keybinds.poll_icons();
         }
         self.poll_local_server();
+        self.poll_favourite_lookup();
         let browser_visible = matches!(self.state.phase(), ClientPhase::Browser);
         if browser_visible {
             self.browser.tick_details();

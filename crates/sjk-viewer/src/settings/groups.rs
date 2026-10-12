@@ -139,6 +139,7 @@ impl Group {
                 "cg_nameplateWalls",
                 "cg_nameplateNpcs",
                 "cg_drawTimer",
+                "cg_drawTimerUpperRight",
                 crate::version_overlay::CVAR,
                 "cg_speedometer",
                 crate::hud::movement::LINES_ROW,

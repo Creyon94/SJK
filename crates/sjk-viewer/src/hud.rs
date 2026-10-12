@@ -381,8 +381,10 @@ impl HudOverlay {
         visibility: HudVisibility,
         time_ms: u64,
     ) -> HudLayout {
-        self.upper_right_timer =
-            visibility.timer && self.family.upper && !self.match_timer.is_empty();
+        self.upper_right_timer = visibility.timer
+            && self.family.upper
+            && self.family.timer_upper_right
+            && !self.match_timer.is_empty();
         self.displayed_ratios = self.ratios.map(|tween| tween.sample(time_ms));
         self.displayed_ammo = self.ammo_ratio.sample(time_ms);
         self.weapon_alpha = self.weapon_shown_ms.map_or(0.0, |shown| {

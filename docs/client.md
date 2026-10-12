@@ -2104,11 +2104,12 @@ HUD style ([console_overlay.rs](../crates/sjk-viewer/src/console_overlay.rs)): w
 `cg_drawFPS` the frame rate ("125fps", JoF EJK's big console characters, measured over
 half a second) and, smaller under it, the frame times ("host 2.44 ms · p99 3.83 · max
 4.87 · 1% low 115"; Sol's request, 11/10/2026: the long single line, tidier); then with
-`cg_drawTimer` the match clock ("0:04.419" with `cg_drawTimerMsec`, counting down with
-`cg_drawTimerCountdown`), right-aligned 5 of 480 from the edge, under `cg_drawUpperRight`.
-The layouts' own clock at the top centre is gone; the game-data HUD drew none, so
-`cg_drawTimer` showed nothing there (Creyon's report, 11/10/2026). The kill feed stands
-under the stack.
+`cg_drawTimer` with `cg_drawTimerUpperRight` (off by default) the match clock ("0:04.419"
+with `cg_drawTimerMsec`, counting down with `cg_drawTimerCountdown`), right-aligned 5 of
+480 from the edge, under `cg_drawUpperRight`. Without that option the layouts keep their own
+clock at the top centre (Sol's choice, 12/10/2026); with it that clock steps aside. The
+game-data HUD draws no clock of its own, so `cg_drawTimer` showed nothing there until the
+option existed (Creyon's report, 11/10/2026). The kill feed stands under the stack.
 
 In SJK's own layouts, health and armour over the maximum (125 health at spawn, up
 to 199 armour from a large shield picked up at 99) show on their meter: the meter

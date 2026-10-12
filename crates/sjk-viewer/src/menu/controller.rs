@@ -169,6 +169,7 @@ impl ClientMenu {
     }
 
     pub(super) fn open_address_entry(&mut self) {
+        self.favourite_lookup = None;
         self.address_editing = true;
         self.address_purpose = AddressPurpose::Join;
         self.address_error.clear();
@@ -206,19 +207,65 @@ impl ClientMenu {
 
     /// Keep the typed address as a favourite, show the favourites and ask the
     /// servers again, so it answers in the list; or say what was wrong.
+    ///
+    /// A host name is looked up off the menu thread (a slow DNS answer would freeze the
+    /// menu), the prompt staying open until [`Self::poll_favourite_lookup`] has its
+    /// answer; an address of numbers needs no lookup.
     fn submit_favourite(&mut self) {
         use std::fmt::Write as _;
         use std::net::ToSocketAddrs as _;
-        let resolved = sjk_client::LegacyServerAddress::parse(&self.address_input)
-            .map_err(|error| format!("Bad server address: {error}"))
-            .and_then(|address| {
-                address
-                    .into_string()
-                    .to_socket_addrs()
-                    .ok()
-                    .and_then(|mut found| found.next())
-                    .ok_or_else(|| "That address could not be found".to_owned())
-            });
+        if self.favourite_lookup.is_some() {
+            return;
+        }
+        self.address_error.clear();
+        let address = match sjk_client::LegacyServerAddress::parse(&self.address_input) {
+            Ok(address) => address.into_string(),
+            Err(error) => {
+                let _ = write!(self.address_error, "Bad server address: {error}");
+                return;
+            }
+        };
+        if let Ok(numbers) = address.parse::<std::net::SocketAddr>() {
+            self.finish_favourite(Ok(numbers));
+            return;
+        }
+        let (sender, receiver) = std::sync::mpsc::channel();
+        std::thread::spawn(move || {
+            let found = address
+                .to_socket_addrs()
+                .ok()
+                .and_then(|mut found| found.next())
+                .ok_or_else(|| "That address could not be found".to_owned());
+            let _ = sender.send(found);
+        });
+        self.favourite_lookup = Some(receiver);
+        let _ = write!(self.address_error, "Looking up that address...");
+    }
+
+    /// Take the host name lookup's answer once it has come.
+    pub(super) fn poll_favourite_lookup(&mut self) {
+        let Some(receiver) = &self.favourite_lookup else {
+            return;
+        };
+        if !self.address_editing {
+            // The prompt was cancelled while the name was being looked up.
+            self.favourite_lookup = None;
+            return;
+        }
+        let found = match receiver.try_recv() {
+            Ok(found) => found,
+            Err(std::sync::mpsc::TryRecvError::Empty) => return,
+            Err(std::sync::mpsc::TryRecvError::Disconnected) => {
+                Err("That address could not be found".to_owned())
+            }
+        };
+        self.favourite_lookup = None;
+        self.finish_favourite(found);
+    }
+
+    /// Keep the resolved `resolved` address as a favourite, or say what was wrong.
+    fn finish_favourite(&mut self, resolved: Result<std::net::SocketAddr, String>) {
+        use std::fmt::Write as _;
         let added = resolved.and_then(|address| {
             if self.browser.is_favorite(address) {
                 Err("That server is already a favourite".to_owned())
