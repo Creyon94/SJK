@@ -781,13 +781,16 @@ impl ViewerConsole {
             .to_owned();
         let line = match self.force_profile.profile_applied() {
             ProfileApplied::Queued => format!(
-                "^5Force profile: ^7{value} sent; the server reads it at once while you                  spectate and at your next respawn in play"
+                "^5Force profile: ^7{value} sent; the server reads it at once while you \
+                 spectate and at your next respawn in play"
             ),
             ProfileApplied::AlreadyQueued => format!(
-                "^5Force profile: ^7{value} sent; a Force-profile reply is already waiting                  and makes the server read it"
+                "^5Force profile: ^7{value} sent; a Force-profile reply is already waiting \
+                 and makes the server read it"
             ),
             ProfileApplied::NotOnServer => format!(
-                "^3Force profile: ^7{value} not announced to the server: its Force rules                  are not known yet; the join sends the profile"
+                "^3Force profile: ^7{value} not announced to the server: its Force rules \
+                 are not known yet; the join sends the profile"
             ),
         };
         self.shell.push_log(line);
@@ -1103,6 +1106,43 @@ mod tests {
             let console = ViewerConsole::new(path).unwrap();
             assert_eq!(console.integer_cvar("cg_shieldBrightness"), Some(1));
         }
+    }
+
+    /// Leaving the player screen's Force page on a server, by another page or by
+    /// closing the screen, has the server read the profile even when nothing
+    /// changed; staying on it sends nothing.
+    #[test]
+    fn leaving_the_force_page_on_a_server_sends_forcechanged() {
+        use crate::player_menu::{PlayerMenu, ReturnTarget};
+        use sjk_client::ForceLegalizeRules;
+        use std::time::Instant;
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        let own = "7-1-330000000330000333";
+        assert!(console.set_cvar("forcepowers", own));
+        console.note_forcepowers_change();
+        console
+            .force_profile
+            .set_server_rules(Some(ForceLegalizeRules::default()));
+        let now = Instant::now();
+        let poll = |console: &mut ViewerConsole| console.force_profile.poll(now, true, false);
+        assert!(poll(&mut console).commands.is_empty());
+        let mut menu = PlayerMenu::new();
+        menu.open(&console, ReturnTarget::InGame);
+        menu.show_page(2);
+        menu.settle_force_page(true, &mut console);
+        menu.settle_force_page(true, &mut console);
+        assert!(poll(&mut console).commands.is_empty(), "still on the page");
+        menu.show_page(0);
+        menu.settle_force_page(true, &mut console);
+        assert_eq!(poll(&mut console).commands, vec![b"forcechanged".to_vec()]);
+        assert_eq!(console.text_value("forcepowers"), Some(own));
+        menu.show_page(2);
+        menu.settle_force_page(true, &mut console);
+        menu.settle_force_page(false, &mut console);
+        assert_eq!(poll(&mut console).commands, vec![b"forcechanged".to_vec()]);
+        menu.settle_force_page(false, &mut console);
+        assert!(poll(&mut console).commands.is_empty(), "closed already");
     }
 
     /// The nameplate's own powers are what the server grants the profile that is

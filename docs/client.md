@@ -273,8 +273,8 @@ Settings and SJK in place of retail's Controls and Setup:
     did; a click on a star sets that level (on the power's top star, one
     below). Left and Right step the focused power. Reset, Discard and Apply
     Powers act on the draft; the points line says "not applied" until it is
-    written, Escape keeps the draft until the screen closes, and the profile
-    page's APPLY (or Apply on lightsaber creation) writes a pending draft too.
+    written, and leaving the Force window (Escape, Back, another page, the
+    screen closing) applies it, as retail's did on close.
     The main menu shows the window over the backdrop with the navigation row
     and Back.
   - Cosmetics (JoF EJK's `ingame_cosmetics`): the installed hats and
@@ -673,8 +673,16 @@ Planned follow-ups, each a new page or screen module, following the retail
 
 The player screen's Character and Saber pages write their cvars as soon as a
 value changes. The Force page edits a draft instead: Apply writes `forcepowers`
-once, in the stock format and legalized as before, Discard returns to the applied
-profile, and leaving the screen drops unapplied changes. While a draft is pending,
+once, in the stock format and legalized as before, and Discard returns to the
+applied profile. Leaving the Force page, however it is left (another page or
+tab, Back, Escape, the screen closing for the game), applies it as retail's
+Force menu did on close: the draft when it changed, else the profile
+`forcepowers` already holds, so a server is told to read it (`forcechanged`)
+either way, unless Apply sent it during that visit
+(`PlayerMenu::settle_force_page`, run once a frame). The unchanged profile is
+sent as the player wrote it, not as the page fitted it to a server's lower
+rank. Before 12/10/2026 leaving dropped an unapplied draft, and players who
+edited and closed the screen kept their old powers. While a draft is pending,
 the page says it is not applied yet (the SJK UI's points line, the classic Force
 window's status). Power icons (`gfx/mp/f_icon_*`) and side emblems
 (`gfx/hud/mpi_jlight`, `gfx/hud/mpi_dklight`) come from the installed game data;

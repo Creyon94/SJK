@@ -1262,6 +1262,12 @@ impl ClientMenu {
         self.player.set_hub(sjk);
     }
 
+    /// Once a frame: apply the player screen's Force page when it was left.
+    pub(crate) fn settle_force_page(&mut self, console: &mut ViewerConsole) {
+        let visible = self.is_visible() && matches!(self.state.phase(), ClientPhase::Player);
+        self.player.settle_force_page(visible, console);
+    }
+
     /// Where the player screen returns when it closes.
     pub(crate) fn player_return_target(&self) -> ReturnTarget {
         self.player.return_target()

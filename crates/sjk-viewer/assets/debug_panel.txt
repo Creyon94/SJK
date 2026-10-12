@@ -387,6 +387,16 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 # ---- Menus & settings ----
 
+[force-apply-on-leave]
+area: Menus & settings
+title: Force powers apply when you leave the Force page, even unchanged
+change: Escape, Back, another page or tab, or closing the screen applies the Force draft.
+change: Leaving unchanged still sends forcechanged, so the server reads your powers again.
+test: On JoF, change powers, press Escape (no Apply): the server says changes apply on respawn.
+test: Then accept a Full Force duel: the new powers are there at its start.
+test: Open the Force page and leave it unchanged: the respawn message comes again.
+test: Press Apply, then leave: the message comes once, not twice.
+
 [holocron-opening]
 area: Menus & settings
 title: Holocrons open: a sealed card and credits each, and a Cards tab in the Collection
