@@ -3,7 +3,8 @@
 //! in the SJK UI: the Holocrons tab with its Open buttons and the credits; the ceremony at
 //! each moment of a card's entrance (the burst, the card turning in, the credits counting,
 //! the words) in each finish; the wait for the hub and a refusal; then the Cards tab with
-//! every kind of sealed card, a Solar one chosen, and with none. Made-up holdings; they
+//! every kind of sealed card, a Solar one chosen, and with none; and the loot table over
+//! the Holocrons tab. Made-up holdings; they
 //! are off-screen renders (no game window), ignored like the other world shots: they need
 //! a GPU adapter and the installed game data named by `JKA_GAME_DATA`.
 //!
@@ -63,7 +64,8 @@ fn sjk_cvars() -> [(&'static str, &'static str); 3] {
     ]
 }
 
-/// The main menu over duel6 in `size`, the Collection open on its Holocrons tab.
+/// The main menu over duel6 in `size`, the Collection open on its Holocrons tab (the
+/// loot table shown by [`duel6_sjk_loot_table`]).
 fn open_holocrons(size: [u32; 2]) -> Option<GpuState> {
     let menu = menu::ClientMenu::new(true, String::new());
     let (mut gpu, profile) = open("maps/mp/duel6.bsp", size, Some(menu), &sjk_cvars())?;
@@ -197,5 +199,29 @@ fn duel6_sjk_cards_tab() {
         gpu.open_profile_hub(Tab::Cards);
         let _ = frame(&mut gpu, 120);
         println!("{}", shoot(&mut gpu, 2, "duel6-cards-none").display());
+    });
+}
+
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_sjk_loot_table() {
+    on_big_stack(|| {
+        for (size, name) in [([1920, 1080], "1080p"), ([1440, 1080], "4x3")] {
+            let Some(mut gpu) = open_holocrons(size) else {
+                return;
+            };
+            if size[0] == 1920 {
+                // The tab with its Loot table button.
+                println!("{}", shoot(&mut gpu, 2, "duel6-loot-button").display());
+            }
+            if let Some(console) = gpu.console.as_mut() {
+                console.preview_loot(true);
+            }
+            println!(
+                "{}",
+                shoot(&mut gpu, 2, &format!("duel6-loot-table-{name}")).display()
+            );
+            assert!(!overflowed(&gpu), "{name}");
+        }
     });
 }

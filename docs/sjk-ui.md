@@ -1285,9 +1285,11 @@ for the run.
   team" with the note; an opened one dimmed with "Opened". Under the caption, centred on
   the holocron, Open (gold, the oldest of the tier chosen) and Open all (n) (outlined, up
   to twenty), dimmed when there is nothing to open; their ceremony takes the whole window
-  ([cards.md](cards.md#in-the-client)). Keys: Up and Down (Left and Right, Tab, the wheel,
+  ([cards.md](cards.md#in-the-client)). Loot table (outlined, at the right of what the
+  tier holds; L) shows every chance over the whole window, Back or Escape returns
+  ([holocrons.md](holocrons.md#loot-table)). Keys: Up and Down (Left and Right, Tab, the wheel,
   1 to 4, Home, End) choose the tier, which swaps the 3D holocron at once (it shrinks away
-  and the new look grows in); Enter opens one, A opens all; a click on a row chooses it;
+  and the new look grows in); Enter opens one, A opens all, L shows the loot table; a click on a row chooses it;
   Ctrl+Tab goes on to Cards; Escape leaves. The `holocrons` command opens it as the
   Collection's tab (again to close); the SJK Profile tab's Holocrons block has See holocrons
   (the classic menus' Profile page too, opening the page on its own). Until the

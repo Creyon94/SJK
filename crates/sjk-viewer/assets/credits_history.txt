@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 12/10/2026 | - | The Holocrons tab's loot table: every chance a holocron brings
+- bd555ae |  | Holocrons tab: a loot table with every chance a holocron brings
 + 12/10/2026 | - | Force page applies when left, even unchanged
 - 2242d33 |  | Apply the Force page when it is left, even unchanged
 + 12/10/2026 | - | dead-code warning on push_filter

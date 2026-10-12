@@ -5,8 +5,9 @@
 //! known), the four tiers (picture, name in the tier's colour, the count held or a dash,
 //! the odds of a drop), what the chosen tier is and holds, how long to the next holocron
 //! and how many dropped today, and the newest ten. The player's credits stand at the
-//! panel's top right, and Open and Open all under the holocron's caption. While the
-//! opening's ceremony shows, only it is drawn ([`super::opening`]).
+//! panel's top right, Loot table beside what the chosen tier holds, and Open and Open all
+//! under the holocron's caption. While the opening's ceremony or the loot table shows,
+//! only it is drawn ([`super::opening`], [`super::loot`]).
 //!
 //! Every position is on the 16:9 frame ([`Frame`]); under the Profile screen's row of
 //! tabs the page moves down [`crate::profile_hub::SHIFT`] pixels. The pictures and
@@ -56,6 +57,9 @@ const BUTTON_HEIGHT: f32 = 48.0;
 pub(super) const KEYS_Y: f32 = 1_010.0;
 /// Characters a line of the description holds (Exo 2 at 16 over the panel's width).
 const ABOUT_CHARS: usize = 100;
+/// Loot table, at the right of the line saying what the chosen tier holds.
+const LOOT_WIDTH: f32 = 160.0;
+const LOOT_HEIGHT: f32 = 34.0;
 
 /// `text` cut to `chars` characters with an ellipsis.
 fn cut(text: &str, chars: usize) -> String {
@@ -156,7 +160,7 @@ fn padlock(canvas: &mut MenuCanvas, frame: &Frame, x: f32, y: f32, size: f32, co
 
 /// Tier `index`'s picture over the square of side `2 * half` frame pixels centred on
 /// (`x`, `y`), at `alpha`: its icon, or its gem where the icon did not load.
-fn picture(
+pub(super) fn picture(
     canvas: &mut MenuCanvas,
     frame: &Frame,
     index: usize,
@@ -204,6 +208,11 @@ impl Panel {
         if self.ceremony.is_some() {
             self.draw_ceremony(&frame, viewport, now);
             self.ui.finish(super::opening::NEXT_TOKEN);
+            return;
+        }
+        if self.loot {
+            self.draw_loot(&frame, viewport);
+            self.ui.finish(LOOT_BACK_TOKEN);
             return;
         }
         if self.hub {
@@ -478,11 +487,26 @@ impl Panel {
             &mut self.ui,
             TextFamily::Body,
             format_args!("{}", crate::cards::inside(self.selected)),
-            frame.rect(RIGHT_X, ABOUT_Y + 52.0, RIGHT_WIDTH, 24.0),
+            frame.rect(RIGHT_X, ABOUT_Y + 52.0, RIGHT_WIDTH - LOOT_WIDTH, 24.0),
             15.0 * s,
             color::GOLD,
             FontWeight::Regular,
             TextAlign::Start,
+        );
+        kit::button(
+            &mut self.ui,
+            frame,
+            [
+                RIGHT_X + RIGHT_WIDTH - LOOT_WIDTH,
+                ABOUT_Y + 50.0,
+                LOOT_WIDTH,
+                LOOT_HEIGHT,
+            ],
+            "Loot table",
+            false,
+            true,
+            false,
+            LOOT_TOKEN,
         );
         let _ = self.ui.draw_list_mut().push(DrawCommand::SolidRect {
             rect: frame.rect(RIGHT_X, RULE_Y, RIGHT_WIDTH, 1.0),
@@ -750,7 +774,7 @@ impl Panel {
     /// The keys, right-aligned at the bottom.
     fn keys(&mut self, frame: &Frame) {
         let s = frame.s;
-        let mut keys: [(&[&str], &str); 6] = [(&[], ""); 6];
+        let mut keys: [(&[&str], &str); 7] = [(&[], ""); 7];
         let mut count = 0;
         let mut add = |caps: &'static [&'static str], action: &'static str| {
             keys[count] = (caps, action);
@@ -764,6 +788,7 @@ impl Panel {
         if self.data.openable() > 1 {
             add(&["A"], "open all");
         }
+        add(&["L"], "loot table");
         if self.hub {
             add(
                 &["Ctrl", "Tab"],

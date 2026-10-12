@@ -51,7 +51,10 @@ drop caps. Removing an opened holocron (staff) leaves its card and credits.
 
 ## Odds
 
-The hub's tables (`src/cards.rs` there); the holocron's tier picks the row.
+The hub's tables (`src/cards.rs` there); the holocron's tier picks the row. Players see
+them, with the chances per holocron found, on the Holocrons tab's loot table
+([holocrons.md](holocrons.md#loot-table)); the client's copy (`cards::ODDS`,
+`cards::CREDITS`) is pinned to these by a test.
 
 Rarity of the card:
 

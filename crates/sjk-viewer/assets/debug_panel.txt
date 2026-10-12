@@ -407,7 +407,17 @@ test: debug_open all, then debug_open mythical x3 solar: watch every finish and 
 test: Enter or a click skips the entrance, Escape ends it; the page shows again under it.
 test: Collection > Cards before opening any: 'No cards yet' and an empty outline.
 test: Once the hub is deployed: Open one holocron, the count drops, credits rise, Cards shows it.
-note: Needs the hub's feat/holocron-opening deployed; before that Open says the hub cannot yet.
+note: The hub's opening is deployed (12/10/2026).
+
+[loot-table]
+area: Menus & settings
+title: Holocrons tab: a Loot table with every chance a holocron brings
+change: Loot table (beside what the tier holds) or L shows the odds over the whole window.
+change: Per tier: drop chance, card rarity and finish, credits; then any holocron found.
+change: Every card (rarity x finish) per holocron found, as a share and as 1 in N.
+test: Collection > Holocrons > Loot table: the numbers match docs/holocrons.md, Loot table.
+test: Escape, L, Enter or Back go back to the tab; the tab's keys do nothing meanwhile.
+test: The pace line says 30 minutes and 8 a day once the hub answered.
 
 [import-clients]
 area: Menus & settings
