@@ -479,6 +479,15 @@ test: Collection > Holocrons > Loot table: the numbers match docs/holocrons.md, 
 test: Escape, L, Enter or Back go back to the tab; the tab's keys do nothing meanwhile.
 test: The pace line says 30 minutes and 8 a day once the hub answered.
 
+[sjk-symbols]
+area: Menus & settings
+title: SJK Symbols: our own font of rarity and finish marks
+change: Rarity marks (Common to Mythical) and finish marks drawn in the text's colour.
+change: On cards (corner, footer, sealed back), the loot table and the Shaders tab.
+test: Collection > Cards: card 001's corner and footer show the Legendary mark in purple.
+test: Holocrons > Loot table: each rarity and finish heading starts with its mark.
+test: Collection > Shaders: each row's tier starts with its mark; small text stays clean.
+
 [card-corners]
 area: Menus & settings
 title: Card corners: Holo and Solar light stay inside the rounded corners; card 001 renamed

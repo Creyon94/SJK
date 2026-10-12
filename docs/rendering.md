@@ -2634,8 +2634,9 @@ filled the first time each character is shown:
 - Each face names the fonts that lend it wide glyphs, in order: its own family when
   it has Cyrillic (Inter, Exo 2, JetBrains Mono), else the closest that does (Exo 2
   for Rajdhani and SJK Menu, JetBrains Mono for SJK Chat's OCR-A, Inter SemiBold for
-  SJK HUD), then Noto Sans JP for kana and kanji. A character none of them has (an
-  emoji) draws the face's `?`.
+  SJK HUD), then Noto Sans JP for kana and kanji, then SJK Symbols for SJK's own
+  symbols in the Private Use Area ([sjk-ui.md](sjk-ui.md#symbols)). A character none
+  of them has (an emoji) draws the face's `?`.
 - A wide glyph is scaled so its font's capitals match the face's `H` and sits on the
   face's baseline, so `Ж` is as tall as `H` beside it and a kanji takes the size Noto
   Sans JP gives it next to its own Latin capitals. The classic console shrinks a glyph
