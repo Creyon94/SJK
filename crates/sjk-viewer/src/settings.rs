@@ -35,7 +35,7 @@ pub(crate) use display::{
     DisplayMode, EXCLUSIVE_CVAR, MonitorModes, exclusive_supported, exclusive_video_mode,
     suspended_after_focus,
 };
-pub(crate) use groups::{Group, Simple};
+pub(crate) use groups::{Advanced, Group, Simple};
 use resolution::{PickResult, ResolutionChoice, ResolutionPicker};
 pub(crate) use sjk_view::Rail;
 pub(crate) use wheel_editor::WheelMode;

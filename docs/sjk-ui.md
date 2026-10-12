@@ -626,7 +626,9 @@ that mode for the visit and leaves the player's choice as it was.
     settings usage, SJK identity key). They are `settings::Group::Simple`.
   - Advanced: First setup, Display, Graphics, Sound, Controls (Mouse until
     12/10/2026: it holds keyboard rows too), Key bindings, Gameplay, Interface,
-    HUD, Quick wheel, Scoreboard, Network.
+    HUD, Chat, Quick wheel, Mods, Network (Chat and Mods since 12/10/2026, when
+    Scoreboard became a sub-heading of HUD: 13 categories fit the rail above the
+    keys' line, 14 would not).
   Network's SJK identity key row (09/10/2026, Sol's request: the key out of the
   Profile screen and hidden, for streaming) reads "Hidden: open to see" and Enter
   opens the Identity page over Settings ([SJK's pages](#sjks-pages)), which shows
@@ -634,16 +636,26 @@ that mode for the visit and leaves the player's choice as it was.
   Quick wheel wears the wheel's own icon, a ring of discs from its second board
   (`quick_wheel::catalog::WHEEL_ICON`; `settings_icons::texture` falls back to
   the wheel's icons), since 08/10/2026.
-  - Advanced's are the classic+ Setup page's groups (`settings::Group` and
-    tabs), but Graphics leads with a Quality heading (the renderer, SJK quality,
-    impact marks and player shadows, out of Video) and then gathers the
-    renderer's four tabs (image, lighting, shadows, weather) under their names
-    (`Group::Graphics`); Display is Video's other rows under Screen, Frame rate
-    and View (`Group::Display`); Network is the Network tab's rows under SJK
-    online, SJK chat and Connection (`Group::Network`). HUD's Readouts start at
-    the FPS readout (moved there from Video, as the first-person weapon moved to
-    Gameplay's camera rows) and its chat rows have a Chat sub-heading. The
-    classic+ panels show the Video and Network tabs as they were.
+  - Advanced regroups the classic+ Setup page's groups and tabs by subject
+    (`settings::Group::Advanced`, `Group::Display`, `Group::Graphics`,
+    `Group::Network`), each category's classic+ panel named for the hand-over
+    to the classic style. Graphics leads with a Quality heading (the renderer,
+    SJK quality, impact marks and player shadows, out of Video) and then
+    gathers the renderer's four tabs (image, lighting, shadows, weather) under
+    their names; Display is Video's other rows under Screen, Frame rate and
+    View; Sound holds every sound, the game's under Game, then the unlock
+    sound, the SJK chat sound and the quick wheel's sounds under
+    Notifications; Gameplay is Game options without the packs and mods;
+    Interface the menus and the console (the quick wheel's rows are its
+    category's and Sound's); HUD its classic rows without the chat box, the FPS
+    readout opening its Readouts (moved there from Video, as the first-person
+    weapon moved to Gameplay's camera rows), and the scoreboard's rows under a
+    Scoreboard heading; Chat the chat box (Chat box) and the SJK chat (SJK
+    chat, its GIFs and the GIPHY key); Mods the asset browser (Packs), JA+ and
+    JoF tools (Server mods), invisible brushes (Map tools) and the showcase
+    tools (Experimental); Network SJK online and Connection. A test checks that
+    every setting is on exactly one of Advanced's categories. The classic+
+    panels keep their groups as they were.
   - Key bindings shows every action under its group's sub-heading (Movement,
     Interaction, Weapons, Force powers, Other), its picture before its name
     where it has one, its two keys as caps on the right (a dash for an empty
@@ -718,7 +730,8 @@ panels' own; only the drawing and the frame are the SJK UI's. The search finds
 every setting in both modes ([search.rs](../crates/sjk-viewer/src/settings/search.rs)),
 its results under the names of Advanced's categories: Display, Graphics,
 Graphics: image, Graphics: lighting, Graphics: shadows, Graphics: weather, Sound,
-Controls, Gameplay, Interface, HUD, Scoreboard, Network, First setup. What the
+Controls, Gameplay, Interface, HUD (the scoreboard's rows too), Chat, Quick
+wheel, Mods, Network, First setup. What the
 player changes and searches here is recorded for [settings
 usage](client.md#settings-usage). Changing Menu
 style on the screen (it is on Interface) hands over to the classic+ panel of the
@@ -1017,7 +1030,7 @@ and out as the classic board does, settling into place as it opens.
   Your row has the UI's band with its gold bar, and its place, score, bars and
   ping in gold. Bots and players still joining are muted, with "Bot", "Joining"
   or "Connecting" for their ping.
-- **Compact** (`cg_compactScoreboard`, Settings > Scoreboard > "Compact SJK
+- **Compact** (`cg_compactScoreboard`, Settings > HUD > Scoreboard > "Compact SJK
   scoreboard", on by default): rows are 32 tall at most and as thin as 20, and
   a list splits in two only when even 20 would not fit, so a full server (32 in
   free for all, or 32 on one team) stands in one column. Names and numbers scale

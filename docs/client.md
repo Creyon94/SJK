@@ -16,7 +16,7 @@ damage-direction indicator near the crosshair when you take damage. It defaults
 to `0` (off); `cg_hitMarker 1` enables it immediately and saves the choice.
 It does not change damage camera kick, hit sounds or damage-event timing.
 
-Settings > Game > Asset browser or `assetbrowser` opens SJK's installed PK3 browser (also discoverable through F3
+Settings > Mods > Asset browser or `assetbrowser` opens SJK's installed PK3 browser (also discoverable through F3
 in the console's command browser). Select a pack with the arrow keys or wheel;
 Enter, Space or a click toggles it. Choices save immediately and apply at the
 next client start. The page lists configured game directories and supplemental
@@ -1074,7 +1074,7 @@ was removed on 10/10/2026.
 film a showcase: the player records a run once, then replays it while another player
 films ([ghost_replay.rs](../crates/sjk-viewer/src/ghost_replay.rs)).
 
-`ghost` and [`mimic`](#mimic) are experimental and off by default: Settings > Gameplay >
+`ghost` and [`mimic`](#mimic) are experimental and off by default: Settings > Mods >
 "Experimental: showcase tools (ghost, mimic)" (`cl_experimentalShowcase`, archived;
 "Experimental showcase" in the classic menus) turns both on. Off, either command says
 so and where to turn it on; switching it off ends a replay or a copy, and a recording
@@ -1156,7 +1156,7 @@ two players facing each other. The player is a slot number or part of a name (as
 default, copies like a reflection, and `copy` keeps the leader's sides; `walk` walks
 always, for a choreography done at walking pace, instead of walking only while the
 leader moves slower than 140. `mimic off` stops it and `mimic` alone says what it does.
-Like `ghost`, it is experimental and off until Settings > Gameplay > "Experimental:
+Like `ghost`, it is experimental and off until Settings > Mods > "Experimental:
 showcase tools" turns it on ([Ghost replay](#ghost-replay)).
 
 The client never sees another player's keys, only what they lead to: each snapshot
@@ -2059,7 +2059,7 @@ helper's sound, accel bar, Weze, Warsow and original styles are not drawn.
 
 ## Scoreboard styles
 
-`cg_scoreboardStyle` (Settings > Scoreboard > "Scoreboard style") picks the
+`cg_scoreboardStyle` (Settings > HUD > Scoreboard > "Scoreboard style") picks the
 scoreboard layout. While either scoreboard is held, the HUD steps
 aside as for the quick wheel (status, weapon, timers, vote and kill lines,
 crosshair, the team overlay, lagometer, speedometer, warmup line, Force and item
@@ -2076,7 +2076,7 @@ and the game-data HUD; chat stays, `scoreboard::hides_hud`), unless
   compact rows (`cg_compactScoreboard`, on by default) keep a full server in
   one column, in a board as wide as its names, centred clear of the chat; its
   header shows the frame rate left of the clock (`cg_scoreboardFps`, on by
-  default; Settings > Scoreboard > "Scoreboard frame rate");
+  default; Settings > HUD > Scoreboard > "Scoreboard frame rate");
 - `classic`, the retail scoreboard as EternalJK-derived clients such as JoF EJK
   draw it (below).
 
@@ -3954,7 +3954,7 @@ pixels apart, `CG_ChatBox_DrawStrings`), and descenders clear the next row by
 messages are 8 px apart (were 10 after a named message, 14 otherwise); see
 [chat/layout.rs](../crates/sjk-viewer/src/chat/layout.rs).
 
-`cg_chatBoxLetterSpacing` (default -0.5, archived; also Settings > HUD > Chat letter
+`cg_chatBoxLetterSpacing` (default -0.5, archived; also Settings > Chat > Chat letter
 spacing, -2 to 8 in steps of 0.5) adds that many 1080p pixels after each character of
 a message body, scaled with the viewport and `cg_chatBoxFontSize`; below zero packs
 the letters closer; the default -0.5 tightens the fixed-width game chat font a
@@ -3992,7 +3992,7 @@ accepting characters where the sent message would otherwise be cut
 
 ### Chat emojis
 
-`cg_chatBoxEmojis 1` (default 0, also Settings > HUD > Chat emojis) shows JoF
+`cg_chatBoxEmojis 1` (default 0, also Settings > Chat > Chat emojis) shows JoF
 EternalJK's chat emojis: each `gfx/emoji/*.png` is drawn in place of its name in
 messages that arrive while the option is on, and shows while it stays on. Names are
 made as JoF EternalJK makes them (`CG_LoadEmojis`, `cg_main.c:2767-2827` at
