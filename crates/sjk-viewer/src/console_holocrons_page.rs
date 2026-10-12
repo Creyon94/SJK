@@ -205,6 +205,12 @@ impl ViewerConsole {
         self.holocrons_panel.show_loot(show);
     }
 
+    /// Show the hover card of tier row `index` on the open page, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn holocron_hover_for_shot(&mut self, index: Option<usize>) {
+        self.holocrons_panel.hover_for_shot(index);
+    }
+
     /// Choose tier `index` on the open page, for a world shot.
     #[cfg(test)]
     pub(crate) fn select_holocron(&mut self, index: usize) {

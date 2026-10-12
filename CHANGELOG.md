@@ -26,8 +26,10 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 ## Unreleased
 
 > Force: Hold push or pull to use it again the moment it is ready, as in JoF EJK.
+> Collection: Rest the pointer on anything you collect to see how you get it.
 
 - Holding a push or pull key pushes or pulls again as soon as the power is ready, as in JoF EJK, keyboard or mouse; Settings > Controls > Hold push/pull repeats (`cl_forceRepeat`, on by default) turns it off _(Sol, after JoF EJK)_
+- Hover cards in the Collection: rest the pointer on a medal, an achievement, a saber shader, the toy, a card or a holocron tier and a card beside it says how you get it, and where you stand (when it was given, how far along you are, how many you hold, how rare it is) _(Sol)_
 
 ## 2026.1012.2 (Alpha) | 12/10/2026
 

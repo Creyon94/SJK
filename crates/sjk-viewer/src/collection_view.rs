@@ -303,6 +303,7 @@ impl Panel {
             _ => self.nameplates(&frame, inputs),
         }
         self.keys(&frame, inputs);
+        self.hover_card(&frame, inputs);
         self.ui.finish(self.focus_token());
     }
 

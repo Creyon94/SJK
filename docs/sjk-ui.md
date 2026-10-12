@@ -1341,9 +1341,35 @@ for the run.
   on the Profile screen; a click on a tab shows it; hovering a thing chooses it; a
   click on Equip, Unequip, the toy or its switch acts.
 
-World shot: `world_shot::collection::duel6_sjk_collection` (every tab from the main
+### Hover cards
+
+[menu/sjk/hover.rs](../crates/sjk-viewer/src/menu/sjk/hover.rs) and
+[collection_hover.rs](../crates/sjk-viewer/src/collection_hover.rs), 12/10/2026, Sol's
+request: every achievement and every thing in the Collection says, under the pointer, how
+it is obtained. When the pointer rests on a thing for 0.3 s a small card fades in beside
+it (on its right when there is room, else on its left, kept inside the frame): the
+thing's name in its colour, how it is obtained, then where the player stands with it.
+Moving to another thing starts again; a key hides the card until the pointer moves. It
+takes no input.
+
+| Thing | How it is obtained | Then |
+| --- | --- | --- |
+| Medal | `Medal::how_to_get` (given by the SJK team, and for what) | the blade it brings while held; "Yours: given dd/mm/yyyy" or "Not given to you yet" |
+| Achievement | its goal | who counts it (SJK in matches, or the hub); "Unlocked dd/mm/yyyy" or "n of goal so far" |
+| Shader | the stock blade is everyone's; a blade skin's `how_to_get` | its tier; "Yours since dd/mm/yyyy", or locked (try it on here), or why holdings are not known |
+| Toy | everyone's, and where to light it | "Yours" |
+| Card | from opening holocrons | how many holocrons found hold that kind ([loot table](holocrons.md#loot-table)); sealed; how many the player holds |
+| Holocron tier (Holocrons tab) | found by playing, the pace and the daily cap | the tier's share of drops and staff gifts; how many held |
+
+Nameplates have no things yet, so no cards. Text draws over every shape, so the card
+asks its canvas to leave out the page's glyphs under it (`MenuCanvas::cover`, dropping
+those glyph quads in the text pass); its own text draws in full. Any SJK UI screen can
+use it: follow the hovered token, then `hover::draw` as the page's last drawing.
+
+World shots: `world_shot::collection::duel6_sjk_collection` (every tab from the main
 page, the Storm previewed, a 4:3 window, the in-game preview, and the page on its own
-in the classic menus; the blade skins from `SJK_TEST_PACKS`).
+in the classic menus; the blade skins from `SJK_TEST_PACKS`) and
+`duel6_sjk_hover_cards` (a card on a thing of each tab and on a holocron tier).
 
 ## Camera control
 

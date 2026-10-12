@@ -289,6 +289,12 @@ impl ViewerConsole {
         self.collection_panel.choose_card_for_shot(index);
     }
 
+    /// Show the hover card of the Collection tab's thing `index`, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn collection_hover_for_shot(&mut self, index: Option<usize>) {
+        self.collection_panel.hover_for_shot(index);
+    }
+
     /// Choose the Collection's shader row `row` (0 the stock blade), for a world shot.
     #[cfg(test)]
     pub(crate) fn collection_shader_for_shot(&mut self, row: usize) {

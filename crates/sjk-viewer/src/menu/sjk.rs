@@ -21,6 +21,7 @@
 pub(crate) mod browser;
 pub(crate) mod chat_dock;
 pub(crate) mod home;
+pub(crate) mod hover;
 pub(crate) mod kit;
 pub(crate) mod loading;
 pub(crate) mod recent;
