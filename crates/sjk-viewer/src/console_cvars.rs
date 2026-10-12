@@ -588,6 +588,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Internal migration marker for the two-pass shield flash default",
         ),
         CvarDefinition::new(
+            crate::whats_new_card::SEEN_CVAR,
+            "",
+            archive,
+            "The SJK version whose update recap (the what's-new card) you closed; empty shows the current one once",
+        ),
+        CvarDefinition::new(
             "ui_hideFirstSetup",
             false,
             archive,

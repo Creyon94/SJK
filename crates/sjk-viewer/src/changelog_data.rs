@@ -14,9 +14,28 @@ pub(super) struct Release {
     pub(super) date: String,
     /// Introduction paragraphs, each joined into one line.
     pub(super) intro: Vec<String>,
+    /// The short recap the what's-new card shows after an update.
+    pub(super) recap: Vec<Recap>,
     pub(super) changes: Vec<Change>,
     /// "<date>   /   <n> changes" for the list row.
     pub(super) meta: String,
+}
+
+/// One line of a release's recap: a short heading and a sentence.
+#[derive(Debug)]
+pub(super) struct Recap {
+    pub(super) heading: String,
+    pub(super) text: String,
+}
+
+impl Release {
+    /// "2026.1011.3" for "2026.1011.3 (Alpha)"; "Unreleased" has none.
+    pub(super) fn version(&self) -> Option<&str> {
+        if self.title == "Unreleased" {
+            return None;
+        }
+        self.title.split(' ').next()
+    }
 }
 
 #[derive(Debug)]
@@ -69,6 +88,7 @@ pub(super) fn parse(text: &str) -> Result<Vec<Release>, String> {
                 title: title.to_owned(),
                 date: date.to_owned(),
                 intro: Vec::new(),
+                recap: Vec::new(),
                 changes: Vec::new(),
                 meta: String::new(),
             });
@@ -89,6 +109,21 @@ pub(super) fn parse(text: &str) -> Result<Vec<Release>, String> {
             release.changes.push(Change {
                 text: plain(text.trim()),
                 credit: credit.trim().to_owned(),
+            });
+        } else if let Some(entry) = line.strip_prefix("> ") {
+            flush(&mut releases, &mut paragraph);
+            let release = releases.last_mut().expect("checked above");
+            if !release.changes.is_empty() {
+                return Err(format!(
+                    "CHANGELOG.md line {number}: a recap line comes before a release's changes"
+                ));
+            }
+            let (heading, text) = entry.split_once(": ").ok_or_else(|| {
+                format!("CHANGELOG.md line {number}: a recap line is \"> <heading>: <text>\"")
+            })?;
+            release.recap.push(Recap {
+                heading: plain(heading.trim()),
+                text: plain(text.trim()),
             });
         } else if line.trim().is_empty() {
             flush(&mut releases, &mut paragraph);
@@ -163,6 +198,65 @@ mod tests {
         for release in &releases[1..] {
             assert_ne!(release.title, "Unreleased");
         }
+    }
+
+    /// Sol's rule (12/10/2026): every release carries a short recap, which the
+    /// what's-new card shows when a player updates. "Unreleased" gains its recap
+    /// when the release is cut, so the rule holds for every release dated 12/10/2026
+    /// or later.
+    #[test]
+    fn every_release_since_the_rule_has_a_short_recap() {
+        let releases = parse(EMBEDDED).unwrap();
+        let day = |date: &str| {
+            let parts: Vec<u32> = date.split('/').map(|p| p.parse().unwrap()).collect();
+            (parts[2], parts[1], parts[0])
+        };
+        for release in &releases {
+            for line in &release.recap {
+                assert!(
+                    (1..=28).contains(&line.heading.len()),
+                    "{}: heading {:?}",
+                    release.title,
+                    line.heading
+                );
+                assert!(
+                    (1..=160).contains(&line.text.len()),
+                    "{}: {:?} is not short",
+                    release.title,
+                    line.text
+                );
+            }
+            assert!(
+                release.recap.len() <= 6,
+                "{}: too long a recap",
+                release.title
+            );
+            if release.version().is_some() && day(&release.date) >= (2026, 10, 12) {
+                assert!(
+                    (3..=6).contains(&release.recap.len()),
+                    "{} needs a recap of 3 to 6 lines (\"> Heading: sentence\" under its title)",
+                    release.title
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn recap_lines_are_headings_and_sentences() {
+        let text = "## 1.0 | 05/10/2026\n\nIntro.\n\n> Servers: Downloads `work`.\n> Cards: Two cards.\n\n- x _(Sol)_\n";
+        let releases = parse(text).unwrap();
+        let release = &releases[0];
+        assert_eq!(release.version(), Some("1.0"));
+        assert_eq!(release.intro, ["Intro."]);
+        assert_eq!(release.recap.len(), 2);
+        assert_eq!(release.recap[0].heading, "Servers");
+        assert_eq!(release.recap[0].text, "Downloads work.");
+        assert!(parse("## 1.0 | 05/10/2026\n> no heading\n- x _(Sol)_\n").is_err());
+        assert!(parse("## 1.0 | 05/10/2026\n- x _(Sol)_\n> late: line\n").is_err());
+        assert_eq!(
+            parse("## Unreleased\n- x _(Sol)_\n").unwrap()[0].version(),
+            None
+        );
     }
 
     #[test]

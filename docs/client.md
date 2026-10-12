@@ -2395,7 +2395,10 @@ pop-up ([changelog_classic.rs](../crates/sjk-viewer/src/changelog_classic.rs)):
 the in-game pop-up box and title band, a retail list box of releases, a detail
 box with the release and its credits in gold, a Close button and the
 description line, in the menus' retail font. How the file is kept is in
-[SJK conventions](sjk.md#changelog).
+[SJK conventions](sjk.md#changelog). A release's `> Heading: sentence` recap lines are
+not drawn here: they feed the [what's-new card](sjk-ui.md#whats-new-card), the pop-up
+shown once after an update (`cl_whatsNewSeen` remembers the version; `whatsnew` previews
+the newest recap).
 
 ## Updates
 

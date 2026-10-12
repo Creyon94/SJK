@@ -302,6 +302,9 @@ mod brushes;
 #[path = "world_shot_log_requests.rs"]
 mod log_requests;
 
+#[path = "world_shot_whats_new.rs"]
+mod whats_new;
+
 #[cfg(test)]
 mod tests {
     use super::*;
