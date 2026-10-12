@@ -262,6 +262,14 @@ on the 16:9 frame, dark behind the form on the left and clear over the model.
   the wheel), then a species' head, torso, legs and skin colour and the hat and
   cape, two to a line. The Model row that stepped to the next model of the grid
   (‹ ›) is gone (Sol's decision, 11/10/2026): the grid chooses the model.
+- **Apply** (a friend's request, 12/10/2026): a model chosen (the grid, a species' head,
+  torso, legs or skin colour, the team colour) shows on the stage at once but is not worn:
+  the `model` and `char_color_*` cvars keep the old one until the button under the rows
+  ("Apply", "Applied" and dimmed when they are the same; the Apply row, so Enter on it
+  works and a click on a grid tile chooses it) writes them (`apply_look`). Leaving the
+  screen without it drops the choice (`discard_look`, from `settle_force_page` once the
+  screen is not shown). The name, hats and capes are written at once as before, and the
+  classic menus write the model at once.
 - **Turning the model and the hat and cape picker** (Sol's request, 10/10/2026:
   "rotate model with mouse click, better cosmetic picker";
   [sjk_outfit.rs](../crates/sjk-viewer/src/player_menu/sjk_outfit.rs)): opened from a

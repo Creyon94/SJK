@@ -10,8 +10,8 @@
 //! of it that was hit and a chip row picks the chip drawn under the pointer
 //! ([`half_direction`], [`chip_index`]).
 
-use super::grid::{GRID_SCROLL_TOKEN, MODEL_ROW, TILE_BASE};
-use super::rows::FORCE_SIDE_ROW;
+use super::grid::{GRID_SCROLL_TOKEN, TILE_BASE};
+use super::rows::{CharacterRow, FORCE_SIDE_ROW};
 use super::saber::PALETTE;
 use super::*;
 use crate::menu_widgets::{BACK_TOKEN, TAB_BASE, cycler_direction, palette_index};
@@ -215,30 +215,29 @@ impl PlayerMenu {
         true
     }
 
-    /// Hovering a tile selects the Model row; a click makes it the model.
+    /// A click on a tile makes it the model, shown but not worn until Apply: the
+    /// Apply row is chosen, so Enter wears it.
     fn tile_event(
         &mut self,
         kind: UiEventKind,
         tile: usize,
         console: &mut ViewerConsole,
     ) -> PlayerMenuResult {
-        match kind {
-            UiEventKind::HoverEnter | UiEventKind::Hover
-                if !self.name_editing && !self.search_editing =>
+        if kind == UiEventKind::Activate {
+            if self.name_editing {
+                self.name_editing = false;
+                self.apply(console);
+            }
+            self.search_editing = false;
+            let slot = self.visible_slot(tile);
+            self.pick_tile(console, slot);
+            if let Some(row) = self
+                .character_rows()
+                .iter()
+                .position(|row| *row == CharacterRow::Apply)
             {
-                self.selected = MODEL_ROW;
+                self.selected = row;
             }
-            UiEventKind::Activate => {
-                if self.name_editing {
-                    self.name_editing = false;
-                    self.apply(console);
-                }
-                self.search_editing = false;
-                self.selected = MODEL_ROW;
-                let slot = self.visible_slot(tile);
-                self.pick_tile(console, slot);
-            }
-            _ => {}
         }
         PlayerMenuResult::None
     }

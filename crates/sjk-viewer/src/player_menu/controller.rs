@@ -128,15 +128,44 @@ impl PlayerMenu {
             cvar_u8(console, "char_color_green", 255),
             cvar_u8(console, "char_color_blue", 255),
         ];
+        self.applied_model.clone_from(&self.draft.model);
+        self.applied_rgb = self.draft.rgb;
     }
 
-    /// Write the character values to the console. Called after every change.
+    /// Write the character values to the console. Called after every change. The SJK
+    /// UI keeps the model (and its team colour) in the draft, shown on the stage, until
+    /// [`Self::apply_look`]; the name is written at once.
     pub(super) fn apply(&mut self, console: &mut ViewerConsole) {
         console.set_cvar("name", &self.draft.name);
+        if !self.is_sjk() {
+            self.apply_look(console);
+        }
+    }
+
+    /// Write the draft's model and team colour to the console: the model is worn.
+    pub(super) fn apply_look(&mut self, console: &mut ViewerConsole) {
         console.set_cvar("model", &self.draft.model);
         console.set_cvar("char_color_red", &self.draft.rgb[0].to_string());
         console.set_cvar("char_color_green", &self.draft.rgb[1].to_string());
         console.set_cvar("char_color_blue", &self.draft.rgb[2].to_string());
+        self.applied_model.clone_from(&self.draft.model);
+        self.applied_rgb = self.draft.rgb;
+    }
+
+    /// Whether the SJK UI shows a model that is not the one worn yet.
+    pub(super) fn look_pending(&self) -> bool {
+        self.is_sjk()
+            && (self.draft.model != self.applied_model || self.draft.rgb != self.applied_rgb)
+    }
+
+    /// Drop a model chosen and not applied: the draft is the worn one again.
+    pub(super) fn discard_look(&mut self) {
+        if !self.look_pending() {
+            return;
+        }
+        self.draft.model.clone_from(&self.applied_model);
+        self.draft.rgb = self.applied_rgb;
+        self.resolved_catalogue = false;
     }
 
     /// Match the `model` cvar against the catalogue once it is available.
@@ -234,7 +263,8 @@ impl PlayerMenu {
         self.grid_follow = true;
     }
 
-    /// Pointer pick of grid slot `slot`: make it the model and write it.
+    /// Pointer pick of grid slot `slot`: make it the model; the SJK UI shows it, the
+    /// others write it.
     pub(super) fn pick_tile(&mut self, console: &mut ViewerConsole, slot: usize) {
         let Some(&absolute) = self.tiles.get(slot) else {
             return;
@@ -313,7 +343,7 @@ impl PlayerMenu {
                     return;
                 }
                 match row {
-                    CharacterRow::Name | CharacterRow::Search => return,
+                    CharacterRow::Name | CharacterRow::Search | CharacterRow::Apply => return,
                     CharacterRow::Team => self.cycle_team(direction),
                     _ => self.cycle_variant(row.axis().unwrap_or(0), direction),
                 }
@@ -378,6 +408,10 @@ impl PlayerMenu {
             }
             _ if search_row => self.begin_search(),
             (ProfilePage::Character, row) if self.is_sjk() => {
+                if self.character_rows().get(row) == Some(&CharacterRow::Apply) {
+                    self.apply_look(console);
+                    return;
+                }
                 match self
                     .character_rows()
                     .get(row)

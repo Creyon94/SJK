@@ -18,6 +18,8 @@ pub(super) enum CharacterRow {
     Skin,
     Hat,
     Cape,
+    /// SJK UI: wears the model chosen (the `model` cvar); until then it only shows.
+    Apply,
 }
 
 impl CharacterRow {
@@ -32,6 +34,7 @@ impl CharacterRow {
             Self::Skin => "Skin colour",
             Self::Hat => "Hat",
             Self::Cape => "Cape",
+            Self::Apply => "Apply",
         }
     }
 
@@ -51,21 +54,22 @@ impl CharacterRow {
             Self::Torso => Some(1),
             Self::Legs => Some(2),
             Self::Skin => Some(3),
-            Self::Name | Self::Team | Self::Search | Self::Hat | Self::Cape => None,
+            Self::Name | Self::Team | Self::Search | Self::Hat | Self::Cape | Self::Apply => None,
         }
     }
 }
 
 // No Model row (Sol's decision, 11/10/2026): it only stepped to the next model, like a
 // next button; the grid chooses the model.
-const CHARACTER_ROWS: [CharacterRow; 5] = [
+const CHARACTER_ROWS: [CharacterRow; 6] = [
     CharacterRow::Name,
     CharacterRow::Team,
     CharacterRow::Search,
     CharacterRow::Hat,
     CharacterRow::Cape,
+    CharacterRow::Apply,
 ];
-const SPECIES_ROWS: [CharacterRow; 9] = [
+const SPECIES_ROWS: [CharacterRow; 10] = [
     CharacterRow::Name,
     CharacterRow::Team,
     CharacterRow::Search,
@@ -75,6 +79,7 @@ const SPECIES_ROWS: [CharacterRow; 9] = [
     CharacterRow::Skin,
     CharacterRow::Hat,
     CharacterRow::Cape,
+    CharacterRow::Apply,
 ];
 
 /// Rows of the saber page; the second-saber rows only exist for Dual, the
@@ -231,10 +236,12 @@ impl PlayerMenu {
     /// field or an action).
     pub(super) fn selected_is_cycler(&self) -> bool {
         match self.page {
-            ProfilePage::Character => self
-                .character_rows()
-                .get(self.selected)
-                .is_some_and(|row| !matches!(row, CharacterRow::Name | CharacterRow::Search)),
+            ProfilePage::Character => self.character_rows().get(self.selected).is_some_and(|row| {
+                !matches!(
+                    row,
+                    CharacterRow::Name | CharacterRow::Search | CharacterRow::Apply
+                )
+            }),
             ProfilePage::Saber => self.saber_rows().get(self.selected).is_some_and(|row| {
                 row.channel().is_none()
                     && !row.is_blade()

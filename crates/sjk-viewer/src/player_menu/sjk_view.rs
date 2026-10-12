@@ -48,6 +48,9 @@ const TILE_GAP: f32 = 8.0;
 const TILE: f32 = (COLUMN_WIDTH - TILE_GAP * (COLUMNS - 1) as f32) / COLUMNS as f32;
 /// The rows end above this; the keys' line below it.
 const BOTTOM: f32 = 960.0;
+/// The Character page's Apply button: its height, and the room it takes under the rows.
+const APPLY_HEIGHT: f32 = 46.0;
+const APPLY_LINE: f32 = APPLY_HEIGHT + 12.0;
 const KEYS_Y: f32 = 992.0;
 /// A slider's track and its number.
 const TRACK_WIDTH: f32 = 230.0;
@@ -728,22 +731,33 @@ impl PlayerMenu {
             }
             self.sjk_targets(frame, index, control, area);
         }
-        let part_rows = rows.len().saturating_sub(PART_ROW);
+        // The Apply row is the button under them, not one of the two columns.
+        let part_rows = rows.len().saturating_sub(PART_ROW + 1);
         let part_lines = part_rows.div_ceil(2) as f32;
         let grid_top = ROWS_TOP + PART_ROW as f32 * ROW + 8.0;
+        let grid_limit = BOTTOM - part_lines * ROW - 12.0 - APPLY_LINE;
         let grid_bottom = if self.outfit.is_some() {
-            self.sjk_outfit_picker(
-                frame,
-                COLUMN_X,
-                COLUMN_WIDTH,
-                grid_top,
-                BOTTOM - part_lines * ROW - 12.0,
-            )
+            self.sjk_outfit_picker(frame, COLUMN_X, COLUMN_WIDTH, grid_top, grid_limit)
         } else {
-            self.sjk_grid(frame, grid_top, BOTTOM - part_lines * ROW - 12.0)
+            self.sjk_grid(frame, grid_top, grid_limit)
         };
         let half = (COLUMN_WIDTH - GUTTER) * 0.5;
         for (offset, row) in rows.iter().enumerate().skip(PART_ROW) {
+            if *row == CharacterRow::Apply {
+                // The model chosen shows on the stage and is worn on Apply.
+                let pending = self.look_pending();
+                kit::button(
+                    &mut self.canvas,
+                    frame,
+                    [COLUMN_X, BOTTOM - APPLY_HEIGHT, COLUMN_WIDTH, APPLY_HEIGHT],
+                    if pending { "Apply" } else { "Applied" },
+                    true,
+                    pending,
+                    self.selected == offset,
+                    offset as u16,
+                );
+                continue;
+            }
             let local = offset - PART_ROW;
             let x = COLUMN_X + (local % 2) as f32 * (half + GUTTER);
             let top = grid_bottom + 12.0 + (local / 2) as f32 * ROW;
@@ -2312,6 +2326,7 @@ impl PlayerMenu {
         match self.page {
             ProfilePage::Character => match self.character_rows().get(self.selected) {
                 Some(CharacterRow::Name | CharacterRow::Search) => RowKind::Type,
+                Some(CharacterRow::Apply) => RowKind::Act,
                 _ => RowKind::Step,
             },
             ProfilePage::Saber => match self.saber_rows().get(self.selected) {
@@ -3048,5 +3063,42 @@ mod tests {
             assert!(text < slots, "mask {mask:b}: {text} of {slots} text runs");
         }
         assert_eq!(server_off_list(0b100_0011), "Heal, Jump 1, Grip");
+    }
+
+    /// A model chosen on the Character page shows (it is the stage's model) but the
+    /// `model` cvar keeps the one worn until the Apply button is pressed; leaving the
+    /// screen drops it.
+    #[test]
+    fn a_model_chosen_waits_for_apply() {
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        console.set_cvar("model", "kyle/default");
+        let mut menu = drawn(ProfilePage::Character, false);
+        menu.open(&console, ReturnTarget::MainMenu);
+        assert!(!menu.look_pending());
+
+        menu.draft.model = "jan/default".to_owned();
+        draw(&mut menu);
+        assert!(!menu.canvas.overflowed());
+        assert!(menu.look_pending());
+        assert_eq!(menu.stage_model(), "jan/default");
+        assert_eq!(console.text_value("model"), Some("kyle/default"));
+
+        let apply = menu
+            .character_rows()
+            .iter()
+            .position(|row| *row == CharacterRow::Apply)
+            .expect("an Apply row");
+        let rect = menu.canvas.rect_for(apply as u16).expect("the button");
+        let centre = sjk_ui::Vec2::new(rect.x + rect.width * 0.5, rect.y + rect.height * 0.5);
+        click(&mut menu, &mut console, centre);
+        assert_eq!(console.text_value("model"), Some("jan/default"));
+        assert!(!menu.look_pending());
+
+        menu.draft.model = "kyle/default".to_owned();
+        assert!(menu.look_pending());
+        menu.settle_force_page(false, &mut console);
+        assert_eq!(menu.stage_model(), "jan/default");
+        assert_eq!(console.text_value("model"), Some("jan/default"));
     }
 }

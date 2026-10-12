@@ -4174,3 +4174,15 @@ test: Browser search (/), Settings search and a text setting, Character name and
 test: Create game name, report or note dialog, your bio: Ctrl+V pastes, Ctrl+C copies the text.
 test: In any of them press Ctrl+A, then type a letter (replaces all) or Backspace (clears all).
 note: Not covered: the F8 screenshot panel numbers and the First setup FPS box (digits only).
+
+[character-apply]
+area: Menus & settings
+title: Profile > Character: a model chosen is worn only when you press Apply
+change: Picking a model, a head, torso, legs or a skin colour showed and wore it at once.
+change: Now the stage shows it and an Apply button under the rows wears it (Applied when equal).
+change: Leaving the screen without Apply drops the choice. The name, hats and capes stay immediate.
+test: Profile > Character: click a model in the grid: the stage model changes, the button reads Apply.
+test: In a game, check the body others see: it is still the old model until you press Apply.
+test: Click Apply (or press Enter on it, the row is chosen after a pick): the game model changes.
+test: Pick a model, press Back without Apply, reopen Profile: the worn model is shown again.
+note: The classic menus keep writing the model at once.
