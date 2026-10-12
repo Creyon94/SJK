@@ -145,6 +145,15 @@ on by default; joining keeps or forgets it ([sjk-ui.md](sjk-ui.md#servers)). Ver
 of the store (kept on disk, forgotten, empty never kept, a bad file read as none) and of the
 prompt (typed next time, the switch above the buttons, switching off forgets); an off-screen
 render of the card (reviewed); the workspace checks; in game on Windows 11 by Creyon.
+## Server browser: the players scroll
+
+Branch `feat/browser-players-scroll` (12/10/2026, based on `9dbbdf19`, Linux): Creyon asked
+for the SJK browser's "Playing now" list to scroll instead of ending in "and 16 more". Past
+six players the wheel over the list scrolls it, two rows a notch, with a thin bar showing
+where the rows in view are; it starts at the top for each server ([sjk-ui.md](sjk-ui.md)).
+Verified: a test wheeling through ten players (down, clamped at the last row, up, the server
+table unmoved, everything fitting) and the workspace checks; in game on Windows 11 by
+Creyon.
 
 ## Downloads that work, and what they may bring
 

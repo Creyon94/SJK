@@ -758,8 +758,11 @@ as Settings is, on the main page's 16:9 frame. The camera keeps touring behind i
   own name for its mod once its status answers); its address, "Needs a
   password" in gold when it does, its limits in words ("30 frags, 20
   minutes"); Join (gold) and Add to favourites or Remove favourite; then
-  "Playing now", its players with their colours and scores, bots muted, five
-  then "and n more" past six.
+  "Playing now", its players with their colours and scores, bots muted, six
+  at a time: past six the wheel over the list scrolls it two rows a notch (the
+  server table stays put) and a thin bar on its right shows where the rows in view
+  are; it starts at the top for each server (Creyon's request, 12/10/2026; it ended
+  in "and n more").
 - **Keys:** bottom right, what has the keyboard's; bottom left, how the list
   stands ("12 servers answered", "Asking the master server...").
 - **Remembered passwords** (Sol's request, 11/10/2026): the password card has a

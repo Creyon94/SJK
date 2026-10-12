@@ -66,7 +66,11 @@ const ADDRESS_Y: f32 = 604.0;
 const BUTTONS_TOP: f32 = 664.0;
 const PLAYERS_Y: f32 = 748.0;
 const PLAYER_LINE: f32 = 28.0;
-const PLAYER_LINES: usize = 6;
+pub(crate) const PLAYER_LINES: usize = 6;
+/// The details panel's player list, which the wheel scrolls.
+pub(crate) const PLAYERS_TOKEN: u16 = 27;
+/// Rows of players one wheel notch moves.
+pub(crate) const PLAYER_WHEEL_ROWS: i32 = 2;
 /// The keys' and the status's line at the bottom.
 const KEYS_Y: f32 = 992.0;
 /// The password and address prompts' card.
@@ -1359,13 +1363,23 @@ fn draw_detail(
             if view.players.is_empty() {
                 note(ui, "Nobody is playing.");
             }
-            let more = view.players.len() > PLAYER_LINES;
-            let shown = if more {
-                PLAYER_LINES - 1
-            } else {
-                view.players.len()
-            };
-            for player in &view.players[..shown] {
+            // The wheel scrolls the list (`PLAYERS_TOKEN`); a thin bar on the right
+            // shows where the rows in view are.
+            let scrolls = view.players.len() > PLAYER_LINES;
+            let first = browser
+                .player_scroll()
+                .min(view.players.len().saturating_sub(PLAYER_LINES));
+            let bar = if scrolls { 14.0 } else { 0.0 };
+            ui.scroll_region(
+                PLAYERS_TOKEN,
+                frame.rect(
+                    DETAIL_X,
+                    line_y,
+                    DETAIL_WIDTH,
+                    PLAYER_LINES as f32 * PLAYER_LINE,
+                ),
+            );
+            for player in view.players.iter().skip(first).take(PLAYER_LINES) {
                 let bot = player.ping == 0;
                 text(
                     ui,
@@ -1385,7 +1399,12 @@ fn draw_detail(
                     ui,
                     TextFamily::Display,
                     format_args!("{}", player.score),
-                    frame.rect(DETAIL_X + DETAIL_WIDTH - 100.0, line_y, 100.0, PLAYER_LINE),
+                    frame.rect(
+                        DETAIL_X + DETAIL_WIDTH - 100.0 - bar,
+                        line_y,
+                        100.0,
+                        PLAYER_LINE,
+                    ),
                     18.0 * s,
                     color::MUTED,
                     FontWeight::Regular,
@@ -1393,17 +1412,28 @@ fn draw_detail(
                 );
                 line_y += PLAYER_LINE;
             }
-            if more {
-                let rest = view.players.len() - shown;
-                text(
+            if scrolls {
+                let track = PLAYER_LINES as f32 * PLAYER_LINE;
+                let total = view.players.len() as f32;
+                let top = PLAYERS_Y + 22.0;
+                push(
                     ui,
-                    TextFamily::Body,
-                    format_args!("and {rest} more"),
-                    frame.rect(DETAIL_X + 12.0, line_y, DETAIL_WIDTH, PLAYER_LINE),
-                    16.0 * s,
-                    color::MUTED,
-                    FontWeight::Regular,
-                    TextAlign::Start,
+                    DrawCommand::SolidRect {
+                        rect: frame.rect(DETAIL_X + DETAIL_WIDTH - 4.0, top, 3.0, track),
+                        color: color::alpha(color::HOLO, 0.15),
+                    },
+                );
+                push(
+                    ui,
+                    DrawCommand::SolidRect {
+                        rect: frame.rect(
+                            DETAIL_X + DETAIL_WIDTH - 4.0,
+                            top + track * first as f32 / total,
+                            3.0,
+                            track * PLAYER_LINES as f32 / total,
+                        ),
+                        color: color::alpha(color::HOLO, 0.7),
+                    },
                 );
             }
         }
@@ -1711,6 +1741,7 @@ const _: () = assert!(PLAYERS_Y + 22.0 + PLAYER_LINES as f32 * PLAYER_LINE < KEY
 mod tests {
     use super::*;
     use crate::menu::ClientPhase;
+    use crate::server_browser::{DetailPlayer, DetailsView};
 
     fn entry(address: &str, name: &str, map: &str, players: u16, ping: u32) -> ServerEntry {
         ServerEntry::for_test(
@@ -1960,6 +1991,57 @@ mod tests {
         assert!(!tokens(&menu, SCROLLBAR_TOKEN));
         assert_eq!(menu.browser.page(), VISIBLE);
         // Every text run fitted the canvas.
+        assert!(!menu.ui.overflowed());
+    }
+
+    #[test]
+    fn the_wheel_scrolls_a_long_player_list() {
+        let (mut menu, mut console, _profile) = browsing();
+        let players = (0..10)
+            .map(|index| DetailPlayer {
+                score: index,
+                ping: 50,
+                name: format!("Player {index}"),
+            })
+            .collect();
+        menu.browser.answer_for_test(DetailsView {
+            address: "192.0.2.1:29070".parse().unwrap(),
+            hostname: "JoF".to_owned(),
+            map: "mp/ffa3".to_owned(),
+            facts: Vec::new(),
+            players,
+            bots: 0,
+        });
+        let shown = |menu: &mut ClientMenu| {
+            menu.build_sjk_browser([1920.0, 1080.0]);
+            (0..10)
+                .filter(|index| {
+                    let name = format!("Player {index}");
+                    menu.ui.text_runs().any(|text| text == name)
+                })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(shown(&mut menu), [0, 1, 2, 3, 4, 5]);
+        assert!(menu.ui.rect_for(PLAYERS_TOKEN).is_some());
+        let wheel = |menu: &mut ClientMenu, console: &mut ViewerConsole, y: f32| {
+            menu.handle_browser_pointer(
+                PLAYERS_TOKEN,
+                sjk_ui::UiEventKind::Wheel,
+                None,
+                Some(sjk_ui::Vec2 { x: 0.0, y }),
+                console,
+            );
+        };
+        // Down two rows a notch, no further than the last row at the bottom.
+        wheel(&mut menu, &mut console, -1.0);
+        assert_eq!(shown(&mut menu), [2, 3, 4, 5, 6, 7]);
+        wheel(&mut menu, &mut console, -1.0);
+        wheel(&mut menu, &mut console, -1.0);
+        assert_eq!(shown(&mut menu), [4, 5, 6, 7, 8, 9]);
+        // The server table stays where it was.
+        assert_eq!(menu.browser.selected(), 0);
+        wheel(&mut menu, &mut console, 1.0);
+        assert_eq!(shown(&mut menu), [2, 3, 4, 5, 6, 7]);
         assert!(!menu.ui.overflowed());
     }
 
