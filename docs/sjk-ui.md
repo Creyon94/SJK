@@ -336,8 +336,8 @@ the Force groups' powers in their order, the other side's skipped), Left and
 Right change it (a hilt list's choice moves one hilt, the Blade row's one
 blade), Enter types or acts, Tab
 and `[` `]` change page (on the Profile screen, its tabs: from Force on to SJK
-Profile), Escape returns to the main page (dropping an
-unapplied Force draft, as before). The pointer: a click on a control acts (‹ ›
+Profile), Escape returns to the main page (leaving the Force page applies its
+draft, see [client.md](client.md)). The pointer: a click on a control acts (‹ ›
 by the half of the control it lands on, a chip picks the colour drawn under
 it, a slider follows, a style button, a hilt, a blade, a level, the search
 field types), a click elsewhere on a

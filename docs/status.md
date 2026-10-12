@@ -1,5 +1,22 @@
 # Status and priorities
 
+## Force powers apply when the Force page is left
+
+Branch `personal/force-apply-on-close` (12/10/2026), Sol's report: on the JoF JA+ server
+Force changes made in game did not reach Full Force duels. The client log showed one
+`forcechanged` in a whole session of tries: the Force page kept edits as a draft that
+only its Apply button wrote, and Escape, Back, another page or closing the screen
+dropped it silently. Leaving the page now applies it, as retail's Force menu did on
+close, and, at Sol's request, sends the profile again with `forcechanged` even when
+nothing changed (not twice after an Apply in the same visit); an unchanged profile is
+sent as the player wrote it, not fitted to the server's rank
+(`PlayerMenu::settle_force_page`, once a frame, so every way out is covered). Sol
+confirmed JA+ reads a profile changed before a Full Force duel at its start, as at a
+respawn (the server sends `nfr` at each duel's start and end). The console's
+"Force profile: ... sent" lines lost a run of spaces. Verified: unit tests (a changed
+draft applied on leaving, the own profile resent, nothing more after Apply,
+`forcechanged` queued on leaving by page or by closing). Not tried in a game.
+
 ## Opening holocrons: sealed cards and credits
 
 Branch `personal/holocron-opening` (12/10/2026), Sol's request: holocrons open, each

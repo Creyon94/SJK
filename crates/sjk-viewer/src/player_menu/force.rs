@@ -1,9 +1,11 @@
 //! Legal Force-profile editing state backed solely by `ForceAllocation`.
 //!
 //! The page edits a draft. Unlike the rest of the player screen, nothing is
-//! written while the player picks: Apply writes `forcepowers` once, Discard
-//! returns the draft to what was last applied, and closing the screen
-//! drops an unapplied draft (the next open reads the cvar again).
+//! written while the player picks: Apply writes `forcepowers` once and Discard
+//! returns the draft to what was last applied. Leaving the page, by another
+//! page or by closing the screen, applies as retail's Force menu did on close
+//! ([`ForceMenu::leave`]): the draft when it changed, else the profile again,
+//! so the server is told to read it (`forcechanged`) either way.
 //!
 //! On a server the draft takes the server's rank ceiling and free saber
 //! skills, which decide whether it keeps the profile it is sent
@@ -131,6 +133,8 @@ pub(super) struct ForceMenu {
     encoded: String,
     /// The template the draft was last loaded from, until it is edited.
     template: Option<String>,
+    /// Apply already sent the profile during this visit of the page.
+    sent_this_visit: bool,
 }
 
 impl ForceMenu {
@@ -143,6 +147,7 @@ impl ForceMenu {
             rules: ForceLegalizeRules::default(),
             server: None,
             template: None,
+            sent_this_visit: false,
         }
     }
 
@@ -362,7 +367,30 @@ impl ForceMenu {
     pub(super) fn apply(&mut self, console: &mut ViewerConsole) {
         if let Some(value) = self.commit() {
             console.apply_forcepowers(value);
+            self.sent_this_visit = true;
         }
+    }
+
+    /// The page came on show: a new visit, which [`Self::leave`] closes.
+    pub(super) fn enter(&mut self) {
+        self.sent_this_visit = false;
+    }
+
+    /// The page went off show: apply the draft when it changed, else send the
+    /// profile `forcepowers` holds again, unless Apply already sent it during
+    /// this visit. The unchanged profile is resent as the player wrote it, not
+    /// as the draft fitted it to the server's rank.
+    pub(super) fn leave(&mut self, console: &mut ViewerConsole) {
+        if self.is_dirty() {
+            self.apply(console);
+        } else if !self.sent_this_visit {
+            let current = console
+                .text_value("forcepowers")
+                .unwrap_or(DEFAULT_FORCEPOWERS)
+                .to_owned();
+            console.apply_forcepowers(&current);
+        }
+        self.sent_this_visit = false;
     }
 
     /// Mark the draft applied and return its `forcepowers` value, or `None`
@@ -528,5 +556,56 @@ mod tests {
         assert_eq!(menu.allocation().levels[11], 1);
         assert_eq!(menu.remaining_points(), 13);
         assert_eq!(menu.commit(), Some("4-1-210000000001000220"));
+    }
+
+    fn console() -> (tempfile::TempDir, ViewerConsole) {
+        let directory = tempfile::tempdir().unwrap();
+        let console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        (directory, console)
+    }
+
+    /// Leaving the page applies a changed draft, as retail's Force menu did on close.
+    #[test]
+    fn leaving_the_page_applies_a_changed_draft() {
+        let (_directory, mut console) = console();
+        assert!(console.set_cvar("forcepowers", DEFAULT_FORCEPOWERS));
+        let mut menu = ForceMenu::new();
+        menu.open(&console);
+        menu.enter();
+        assert!(menu.step(2, false)); // Speed 2 -> 1
+        menu.leave(&mut console);
+        assert_eq!(
+            console.text_value("forcepowers"),
+            Some("7-1-031330000000001333")
+        );
+        assert!(!menu.is_dirty());
+    }
+
+    /// Leaving unchanged sends the player's own profile again, not the draft
+    /// fitted to a lower server rank; after Apply in the same visit, nothing more.
+    #[test]
+    fn leaving_unchanged_resends_the_players_own_profile() {
+        let (_directory, mut console) = console();
+        let own = "7-1-330000000330000333";
+        assert!(console.set_cvar("forcepowers", own));
+        let mut menu = ForceMenu::new();
+        menu.load_on_server(own, adept_server());
+        menu.enter();
+        menu.leave(&mut console);
+        assert_eq!(console.text_value("forcepowers"), Some(own));
+        menu.enter();
+        menu.reset();
+        assert!(menu.is_dirty());
+        menu.apply(&mut console);
+        assert!(menu.sent_this_visit);
+        let applied = console.text_value("forcepowers").unwrap().to_owned();
+        assert!(console.set_cvar("forcepowers", own));
+        menu.leave(&mut console);
+        assert_eq!(
+            console.text_value("forcepowers"),
+            Some(own),
+            "Apply already sent this visit's profile ({applied})"
+        );
+        assert!(!menu.sent_this_visit);
     }
 }

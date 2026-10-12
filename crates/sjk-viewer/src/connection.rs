@@ -184,6 +184,7 @@ impl crate::GpuState {
         if let Some(menu) = &mut self.client_menu {
             if let Some(console) = &mut self.console {
                 menu.configure_browser(console);
+                menu.settle_force_page(console);
             }
             menu.poll();
         }

@@ -212,6 +212,8 @@ pub(crate) struct PlayerMenu {
     /// ([`crate::profile_hub`]): the SJK UI's view draws the screen's row of tabs in
     /// place of its own three.
     hub: bool,
+    /// The Force page showed last frame ([`Self::settle_force_page`]).
+    force_shown: bool,
 }
 
 impl PlayerMenu {
@@ -254,6 +256,7 @@ impl PlayerMenu {
             classic_dirty: false,
             preview_ready: false,
             hub: false,
+            force_shown: false,
         }
     }
 
@@ -276,6 +279,29 @@ impl PlayerMenu {
     /// Show page `index` (Character, Saber, Force), its first row chosen.
     pub(crate) fn show_page(&mut self, index: usize) {
         self.set_page(ProfilePage::ALL[index.min(2)]);
+    }
+
+    /// Whether the page on show is the Force page, the classic one or the
+    /// SJK UI's.
+    fn force_page_on_show(&self) -> bool {
+        if self.classic_style {
+            self.classic.page == classic::ClassicPage::Force
+        } else {
+            self.page == ProfilePage::Force
+        }
+    }
+
+    /// Once a frame: `visible` says whether the screen shows. Leaving the Force
+    /// page applies it ([`force::ForceMenu::leave`]), however it was left: another
+    /// page, Back, Escape, another Profile tab or the screen closed for the game.
+    pub(crate) fn settle_force_page(&mut self, visible: bool, console: &mut ViewerConsole) {
+        let shown = visible && self.force_page_on_show();
+        match (self.force_shown, shown) {
+            (false, true) => self.force.enter(),
+            (true, false) => self.force.leave(console),
+            _ => {}
+        }
+        self.force_shown = shown;
     }
 
     /// Read the blade skins the player owns and wears for the Saber page's blade
