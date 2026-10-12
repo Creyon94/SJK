@@ -6,7 +6,8 @@
 //! name, in the chat or the window, shows that player's sender card with Mute or
 //! Unmute ([`crate::sender_card`], "Muting a player"). GIF beside Send opens the GIF
 //! picker over the messages ([`gif_picker`]): favourites, GIPHY's search and the GIFs
-//! seen in the chat; a chosen message's GIF can be made a favourite.
+//! seen in the chat; a chosen message's GIF can be made a favourite. Search needs the
+//! player's own GIPHY key: without one the key card says how to get it and takes it.
 //!
 //! Opened by the main page's docked chat (Open chat), the `sjkchat` command or the
 //! in-game SJK menu. Like the Staff page it lives in the console and has the SJK UI's
@@ -71,6 +72,8 @@ pub(crate) enum PanelAction {
     },
     /// A staff request to the hub.
     Staff(StaffRequest),
+    /// Save this as the player's GIPHY key (`cl_giphyKey`), from the key card.
+    GiphyKey(String),
 }
 
 /// What the page knows this frame.
@@ -87,7 +90,7 @@ pub(crate) struct Inputs<'a> {
     pub(crate) now: u64,
     /// What the staff requests came to, for a staff key.
     pub(crate) staff_state: Option<StaffShown<'a>>,
-    /// `cl_giphyKey`, the player's own GIPHY key for the picker's search (empty: SJK's).
+    /// `cl_giphyKey`, the player's own GIPHY key for the picker's search (empty: none).
     pub(crate) giphy_key: &'a str,
 }
 
@@ -153,6 +156,8 @@ pub(crate) struct Panel {
     epoch: Instant,
     /// The GIF picker.
     gifs: gif_picker::Picker,
+    /// `cl_giphyKey` as the last frame had it, for the key card's Change GIPHY key.
+    giphy_key: String,
     /// The chat to show in place of the live one, for a world shot.
     #[cfg(test)]
     pub(crate) preview: Option<ChatState>,
@@ -202,6 +207,7 @@ impl Panel {
             previous_people: Vec::with_capacity(PEOPLE_SHOWN),
             epoch: Instant::now(),
             gifs: gif_picker::Picker::new(),
+            giphy_key: String::new(),
             #[cfg(test)]
             preview: None,
         }
@@ -314,6 +320,16 @@ impl Panel {
         self.focus = gif_picker::TILE_BASE + 1;
     }
 
+    /// Open the GIF picker's key card with `typed` in its field, the keyboard on it,
+    /// for a world shot.
+    #[cfg(test)]
+    pub(crate) fn open_key_card_for_shot(&mut self, typed: &str) {
+        let _ = self.gifs.open();
+        self.gifs.choose_tab(gif_picker::Tab::Search);
+        self.gifs.open_key_card(typed);
+        self.focus = gif_picker::KEY_FIELD_TOKEN;
+    }
+
     /// Answer the picker's search on its way with `ids` of `total`, for a world shot.
     #[cfg(test)]
     pub(crate) fn answer_gif_search_for_shot(
@@ -339,9 +355,43 @@ impl Panel {
     /// What a click (or Enter) on one of the picker's controls does; `None` for a token
     /// that is not the picker's.
     fn activate_gifs(&mut self, token: u16) -> Option<PanelAction> {
-        use gif_picker::{SEARCH_TOKEN, STAR_BASE, TAB_BASE, TILE_BASE, TILES, Tab};
+        use gif_picker::{
+            KEY_ASK_TOKEN, KEY_FIELD_TOKEN, KEY_LATER_TOKEN, KEY_OPEN_TOKEN, KEY_SAVE_TOKEN,
+            SEARCH_TOKEN, STAR_BASE, TAB_BASE, TILE_BASE, TILES, Tab,
+        };
         if !self.gifs.open {
             return None;
+        }
+        match token {
+            KEY_ASK_TOKEN => {
+                self.gifs.open_key_card(&self.giphy_key);
+                self.focus = KEY_FIELD_TOKEN;
+                return Some(PanelAction::None);
+            }
+            KEY_FIELD_TOKEN | KEY_OPEN_TOKEN | KEY_SAVE_TOKEN | KEY_LATER_TOKEN
+                if self.gifs.key_card.is_some() =>
+            {
+                self.focus = token;
+                match token {
+                    KEY_OPEN_TOKEN if !cfg!(test) => {
+                        crate::update::open_page(crate::chat_gifs::search::KEY_PAGE);
+                    }
+                    KEY_SAVE_TOKEN => {
+                        if let Some(key) = self.gifs.save_key() {
+                            self.focus = SEARCH_TOKEN;
+                            return Some(PanelAction::GiphyKey(key));
+                        }
+                        self.focus = KEY_FIELD_TOKEN;
+                    }
+                    KEY_LATER_TOKEN => {
+                        self.gifs.put_off_key_card();
+                        self.focus = SEARCH_TOKEN;
+                    }
+                    _ => {}
+                }
+                return Some(PanelAction::None);
+            }
+            _ => {}
         }
         if let Some(index) = token
             .checked_sub(TAB_BASE)
@@ -391,14 +441,44 @@ impl Panel {
         shift: bool,
         control: bool,
     ) -> Option<PanelAction> {
-        use gif_picker::{SEARCH_TOKEN, TAB_BASE, TILE_BASE, TILES, Tab};
+        use gif_picker::{
+            KEY_FIELD_TOKEN, KEY_LATER_TOKEN, SEARCH_TOKEN, TAB_BASE, TILE_BASE, TILES, Tab,
+        };
         if !self.gifs.open {
             return None;
+        }
+        if self.gifs.key_card.is_some() {
+            // The key card has the keyboard: Escape is Not now, Enter in the field saves,
+            // and the field takes typing, Ctrl+A, Ctrl+C, Ctrl+V and Backspace.
+            let in_field = self.focus == KEY_FIELD_TOKEN;
+            return match key {
+                KeyCode::Escape => self.activate_gifs(KEY_LATER_TOKEN),
+                KeyCode::Enter | KeyCode::NumpadEnter if in_field => {
+                    self.activate_gifs(gif_picker::KEY_SAVE_TOKEN)
+                }
+                KeyCode::Tab
+                | KeyCode::Enter
+                | KeyCode::NumpadEnter
+                | KeyCode::ArrowUp
+                | KeyCode::ArrowDown => None,
+                KeyCode::Space if !in_field => None,
+                _ if in_field => {
+                    self.gifs.edit_key(key, text, shift, control);
+                    Some(PanelAction::None)
+                }
+                _ => Some(PanelAction::None),
+            };
         }
         let on_tile = (TILE_BASE..TILE_BASE + TILES as u16).contains(&self.focus);
         let on_tabs = (TAB_BASE..TAB_BASE + Tab::ALL.len() as u16).contains(&self.focus);
         let searching = self.focus == SEARCH_TOKEN;
         if searching && self.gifs.before_edit(key, text, shift, control) {
+            return Some(PanelAction::None);
+        }
+        if searching && crate::text_entry::is_copy(key, text, control) {
+            if !self.gifs.typed.is_empty() {
+                let _ = crate::console::clipboard::copy(&self.gifs.typed);
+            }
             return Some(PanelAction::None);
         }
         match key {
@@ -616,7 +696,12 @@ impl Panel {
             return PanelAction::None;
         };
         // Held keys repeat in the fields (Backspace); elsewhere a key acts once.
-        if event.repeat && self.focus != FIELD_TOKEN && self.focus != gif_picker::SEARCH_TOKEN {
+        let field = [
+            FIELD_TOKEN,
+            gif_picker::SEARCH_TOKEN,
+            gif_picker::KEY_FIELD_TOKEN,
+        ];
+        if event.repeat && !field.contains(&self.focus) {
             return PanelAction::None;
         }
         self.edit(key, event.text.as_deref(), shift, control)
@@ -636,6 +721,12 @@ impl Panel {
         }
         let typing = self.focus == FIELD_TOKEN;
         if typing && crate::text_entry::before_edit(&mut self.draft, key, text, shift, control) {
+            return PanelAction::None;
+        }
+        if typing && crate::text_entry::is_copy(key, text, control) {
+            if !self.draft.is_empty() {
+                let _ = crate::console::clipboard::copy(&self.draft);
+            }
             return PanelAction::None;
         }
         let in_list = (MESSAGE_BASE..MESSAGE_BASE + MESSAGES_SHOWN as u16).contains(&self.focus);

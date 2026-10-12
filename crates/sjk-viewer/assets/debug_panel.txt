@@ -166,7 +166,10 @@ test: Star a tile (or F on it): gold star; Favourites lists it; restart: still t
 test: Choose a message with a GIF: Add GIF to favourites under Mute; press it, then Remove.
 test: Search with a key (Settings > Network > GIPHY key): type, wait: tiles; PgDn loads more.
 test: Arrows, Tab, Left/Right on the tabs, / for search, Esc closes the picker then the page.
-note: SJK's own GIPHY key is not set yet: search needs cl_giphyKey. Off-screen shots only.
+test: No key: Search shows the key card. Open developers.giphy.com opens the browser.
+test: Make a key, Ctrl+V it in the card, Save key: trending GIFs come. Esc on the card: Not now.
+test: Not now, then Get a GIPHY key on Search: the card again. A bad key: Change GIPHY key.
+note: Players use their own GIPHY key only (no SJK key). Off-screen shots only.
 
 [console-feed]
 area: Console & chat

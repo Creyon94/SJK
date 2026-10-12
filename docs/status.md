@@ -926,15 +926,24 @@ world shots of the box with test GIFs, in play and typing, at 1080p and 4K
 Branch `personal/gif-picker` (12/10/2026, based on `fa9f4295`, Windows 11), Sol's request
 for a GIF picker with favourites in SJK chat: GIF beside Send on the SJK chat page opens
 a picker over the messages with Favourites (kept in `gif-favourites.txt` beside
-`config.cfg`), Search (GIPHY's search API from this PC with SJK's key or `cl_giphyKey`,
-debounced, paged, cached) and Seen in chat, as animated tiles of GIPHY's preview file;
-picking writes the GIF's link in the message ([hub-chat.md](hub-chat.md#the-gif-picker)).
-SJK's own GIPHY key is not registered yet (`SJK_KEY` empty), so search needs
-`cl_giphyKey` until it is. Verified by unit tests (favourites file, search addresses and
-paging, the cache keeping tiles apart, the grid's keys, picking into the draft) and
-off-screen world shots of the picker at 1080p and 4K with test GIFs
-(`duel6_sjk_chat_gif_picker`). No real search was made against GIPHY's API (no key);
-not tried in the game window.
+`config.cfg`), Search (GIPHY's search API from this PC with `cl_giphyKey`, debounced,
+paged, cached) and Seen in chat, as animated tiles of GIPHY's preview file; picking
+writes the GIF's link in the message ([hub-chat.md](hub-chat.md#the-gif-picker)).
+Verified by unit tests (favourites file, search addresses and paging, the cache keeping
+tiles apart, the grid's keys, picking into the draft) and off-screen world shots of the
+picker at 1080p and 4K with test GIFs (`duel6_sjk_chat_gif_picker`). No real search was
+made against GIPHY's API (no key); not tried in the game window.
+
+Branch `personal/gif-own-key` (12/10/2026, based on `46953c53`, Windows 11), Sol's
+decision that players use only their own GIPHY key: SJK's shared key is gone, and Search
+without a key shows the key card (why, three steps, Open developers.giphy.com, a paste
+field, Save key, Not now), which sets `cl_giphyKey`
+([hub-chat.md](hub-chat.md#the-gif-picker)). The chat page's field and the picker's
+search field copy with Ctrl+C now. Verified by unit tests (only the player's key is
+used, a new key forgets refusals, the card shows until put off, Save key refuses what is
+not a key) and off-screen world shots of the card at 1080p and 4K (`key-card`,
+`key-card-pasted`). GIPHY's dashboard steps were read from its documentation (Create an
+API Key), not walked through; not tried in the game window.
 
 ## Stutters on joins
 

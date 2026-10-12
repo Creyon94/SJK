@@ -315,7 +315,9 @@ fn duel6_sjk_chat_gif_picker() {
         for (tab, typed, key, shot) in [
             (2, "", "", "seen"),
             (1, "lightsaber", "test-key", "search"),
-            (1, "", "", "search-no-key"),
+            // Search without a key: the key card shows by itself.
+            (1, "", "", "key-card"),
+            (1, "", "", "key-card-pasted"),
         ] {
             let state = state.clone();
             on_big_stack(move || {
@@ -336,7 +338,12 @@ fn duel6_sjk_chat_gif_picker() {
                     crate::chat_gifs::favourites::set(id, true);
                 }
                 if let Some(console) = gpu.console.as_mut() {
-                    console.preview_sjk_chat_gifs(state, tab, typed);
+                    if shot == "key-card-pasted" {
+                        console
+                            .preview_sjk_chat_key_card(state, "0123456789abcdefGHIJKL0123456789");
+                    } else {
+                        console.preview_sjk_chat_gifs(state, tab, typed);
+                    }
                 }
                 let _ = frame(&mut gpu, 2);
                 if !key.is_empty()

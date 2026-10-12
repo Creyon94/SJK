@@ -4,7 +4,8 @@
 //!
 //! - Favourites, kept on this PC ([`chat_gifs::favourites`]);
 //! - Search, GIPHY's search for the words typed, or its trending GIFs for none
-//!   ([`chat_gifs::search`]), asked once the typing stops;
+//!   ([`chat_gifs::search`]), asked once the typing stops, with the player's own GIPHY
+//!   key: without one, the key card says how to get it, free, and takes it pasted;
 //! - Seen in chat, the GIFs of the chat's messages, newest first (muted senders' left
 //!   out), which needs no key and asks GIPHY nothing but the GIFs.
 //!
@@ -25,6 +26,13 @@ pub(super) const TAB_BASE: u16 = 1_500;
 pub(super) const SEARCH_TOKEN: u16 = 1_504;
 pub(super) const TILE_BASE: u16 = 1_510;
 pub(super) const STAR_BASE: u16 = 1_530;
+/// The key card's field, Open GIPHY, Save key and Not now; Get a GIPHY key (or Change
+/// GIPHY key) on the Search tab, which opens the card.
+pub(super) const KEY_FIELD_TOKEN: u16 = 1_545;
+pub(super) const KEY_OPEN_TOKEN: u16 = 1_546;
+pub(super) const KEY_SAVE_TOKEN: u16 = 1_547;
+pub(super) const KEY_LATER_TOKEN: u16 = 1_548;
+pub(super) const KEY_ASK_TOKEN: u16 = 1_549;
 /// The grid.
 pub(super) const COLUMNS: usize = 5;
 pub(super) const ROWS: usize = 3;
@@ -43,6 +51,19 @@ const SEARCH_WIDTH: f32 = 620.0;
 /// A tile's star: its side and its inset from the tile's top right corner.
 const STAR: f32 = 26.0;
 const STAR_INSET: f32 = 8.0;
+/// The key card (frame pixels), in the middle of the page.
+const CARD_X: f32 = 420.0;
+const CARD_Y: f32 = 220.0;
+const CARD_WIDTH: f32 = 1_080.0;
+const CARD_HEIGHT: f32 = 600.0;
+const CARD_PAD: f32 = 56.0;
+
+/// The key card's steps: what to do on GIPHY's site, one line each.
+const KEY_STEPS: [&str; 3] = [
+    "Open GIPHY's developer site, then log in or sign up: it's free.",
+    "Press Create an API Key, choose API, and give it any name, such as SJK chat.",
+    "Copy the key GIPHY shows, paste it below with Ctrl+V, and press Save key.",
+];
 
 /// The picker's tabs.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -81,6 +102,13 @@ struct Made {
     key: bool,
 }
 
+/// The key card on show: what was typed or pasted into its field, and what it says of
+/// it.
+pub(super) struct KeyCard {
+    pub(super) typed: String,
+    pub(super) notice: Option<&'static str>,
+}
+
 /// The picker's state, kept by the page.
 pub(super) struct Picker {
     pub(super) open: bool,
@@ -102,6 +130,10 @@ pub(super) struct Picker {
     results: search::Results,
     /// What the last pick could not do, until the next.
     pub(super) notice: Option<&'static str>,
+    /// The key card, while it is on show.
+    pub(super) key_card: Option<KeyCard>,
+    /// Not now was chosen: the card opens again only from Get a GIPHY key.
+    key_card_put_off: bool,
 }
 
 impl Picker {
@@ -119,6 +151,8 @@ impl Picker {
             made: None,
             results: search::Results::default(),
             notice: None,
+            key_card: None,
+            key_card_put_off: false,
         }
     }
 
@@ -139,6 +173,79 @@ impl Picker {
 
     pub(super) fn close(&mut self) {
         self.open = false;
+        self.key_card = None;
+    }
+
+    /// Show the key card when Search is on show without a key and the player has not
+    /// put it off; whether it opened.
+    pub(super) fn key_card_due(&mut self, has_key: bool) -> bool {
+        let due = self.open
+            && self.tab == Tab::Search
+            && !has_key
+            && !self.key_card_put_off
+            && self.key_card.is_none();
+        if due {
+            self.open_key_card("");
+        }
+        due
+    }
+
+    /// Show the key card, its field holding `current` (the key saved, if any).
+    pub(super) fn open_key_card(&mut self, current: &str) {
+        self.key_card = Some(KeyCard {
+            typed: current.trim().to_owned(),
+            notice: None,
+        });
+    }
+
+    /// Not now: the card goes, until Get a GIPHY key opens it again.
+    pub(super) fn put_off_key_card(&mut self) {
+        self.key_card = None;
+        self.key_card_put_off = true;
+    }
+
+    /// Save key: the key typed, trimmed, and the card goes; `None` (the card saying
+    /// why) when it does not look like a GIPHY key.
+    pub(super) fn save_key(&mut self) -> Option<String> {
+        let card = self.key_card.as_mut()?;
+        let typed = card.typed.trim();
+        if typed.is_empty() {
+            card.notice = Some("Paste your key first: copy it on GIPHY's page, then Ctrl+V here.");
+            return None;
+        }
+        if !search::looks_like_key(typed) {
+            card.notice = Some(
+                "That doesn't look like a GIPHY key: copy the whole key, letters and digits only.",
+            );
+            return None;
+        }
+        let key = typed.to_owned();
+        self.key_card = None;
+        self.made = None;
+        Some(key)
+    }
+
+    /// A key typed, pasted, copied or taken back in the key card's field.
+    pub(super) fn edit_key(
+        &mut self,
+        key: winit::keyboard::KeyCode,
+        text: Option<&str>,
+        shift: bool,
+        control: bool,
+    ) {
+        if let Some(card) = self.key_card.as_mut()
+            && crate::text_entry::edit(
+                &mut card.typed,
+                key,
+                text,
+                shift,
+                control,
+                search::KEY_MAX,
+                true,
+            )
+        {
+            card.notice = None;
+        }
     }
 
     /// The control the keyboard goes to on this tab: the search field, else the first
@@ -408,9 +515,8 @@ impl Panel {
             ];
             self.gif_tile(frame, &id, rect, index as u16);
         }
-        let own_key = !inputs.giphy_key.trim().is_empty();
-        self.picker_empty(frame, own_key);
-        self.picker_foot(frame, own_key);
+        self.picker_empty(frame);
+        self.picker_foot(frame);
     }
 
     /// One tile: the GIF fitted in it, a band when the keyboard or the pointer is on
@@ -510,9 +616,30 @@ impl Panel {
     }
 
     /// What the grid says when it has no tile: why, or what to do.
-    fn picker_empty(&mut self, frame: &Frame, own_key: bool) {
+    fn picker_empty(&mut self, frame: &Frame) {
         if !self.gifs.ids.is_empty() {
             return;
+        }
+        // Without a key, or with one GIPHY refused: the way to the key card.
+        let ask = match self.gifs.results.failure {
+            Some(search::Failure::NoKey) if self.gifs.tab == Tab::Search => Some("Get a GIPHY key"),
+            Some(search::Failure::BadKey) if self.gifs.tab == Tab::Search => {
+                Some("Change GIPHY key")
+            }
+            _ => None,
+        };
+        if let Some(label) = ask {
+            kit::button(
+                &mut self.ui,
+                frame,
+                [LIST_X, GRID_TOP + 64.0, 280.0, 46.0],
+                label,
+                true,
+                true,
+                self.focus == KEY_ASK_TOKEN,
+                KEY_ASK_TOKEN,
+            );
+            self.order.push(KEY_ASK_TOKEN);
         }
         let picker = &self.gifs;
         let line = match picker.tab {
@@ -521,7 +648,7 @@ impl Panel {
             }
             Tab::Seen => "No GIFs in SJK chat yet.".to_owned(),
             Tab::Search => match &picker.results.failure {
-                Some(failure) => failure.message(own_key),
+                Some(failure) => failure.message(),
                 None if picker.results.loading => "Asking GIPHY...".to_owned(),
                 None if picker.searched.is_empty() => "Nothing trending on GIPHY.".to_owned(),
                 None => format!("GIPHY found nothing for \"{}\".", picker.searched),
@@ -546,14 +673,14 @@ impl Panel {
 
     /// The line under the grid: which tiles are on show, or what the last pick could
     /// not do, and GIPHY's mark.
-    fn picker_foot(&mut self, frame: &Frame, own_key: bool) {
+    fn picker_foot(&mut self, frame: &Frame) {
         let s = frame.s;
         let picker = &self.gifs;
         let count = picker.ids.len();
         let (line, colour) = if let Some(notice) = picker.notice {
             (notice.to_owned(), color::EMBER)
         } else if let Some(failure) = picker.results.failure.as_ref().filter(|_| count > 0) {
-            (failure.message(own_key), color::EMBER)
+            (failure.message(), color::EMBER)
         } else if count > TILES {
             let first = picker.row * COLUMNS + 1;
             let last = ((picker.row + ROWS) * COLUMNS).min(count);
@@ -589,6 +716,172 @@ impl Panel {
             color::MUTED,
             FontWeight::Semibold,
             TextAlign::End,
+        );
+    }
+}
+
+impl Panel {
+    /// The key card, in the page's place while it is on show: why search needs the
+    /// player's own key, the steps on GIPHY's site with a button to it, the field the key
+    /// is pasted into, Save key and Not now.
+    pub(super) fn key_card(&mut self, frame: &Frame) {
+        let s = frame.s;
+        let Some(card) = self.gifs.key_card.as_ref() else {
+            return;
+        };
+        let typed = card.typed.clone();
+        let notice = card.notice;
+        kit::card(
+            &mut self.ui,
+            frame,
+            [CARD_X, CARD_Y, CARD_WIDTH, CARD_HEIGHT],
+        );
+        let x = CARD_X + CARD_PAD;
+        let width = CARD_WIDTH - 2.0 * CARD_PAD;
+        let mut y = CARD_Y + 44.0;
+        text(
+            &mut self.ui,
+            TextFamily::Display,
+            format_args!("Search GIFs with your own GIPHY key"),
+            frame.rect(x, y, width, 40.0),
+            32.0 * s,
+            color::TEXT,
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+        y += 52.0;
+        for line in [
+            "GIPHY's search needs a key, and each player uses their own. It's free and takes",
+            "about two minutes. Favourites and Seen in chat work without one.",
+        ] {
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("{line}"),
+                frame.rect(x, y, width, 24.0),
+                18.0 * s,
+                color::MUTED,
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+            y += 26.0;
+        }
+        y += 24.0;
+        for (step, line) in KEY_STEPS.iter().enumerate() {
+            let mark = frame.rect(x, y, 34.0, 34.0);
+            let _ = self.ui.draw_list_mut().push(DrawCommand::RoundedRect {
+                rect: mark,
+                radius: mark.width * 0.5,
+                color: color::alpha(color::GOLD, 0.18),
+            });
+            text(
+                &mut self.ui,
+                TextFamily::Display,
+                format_args!("{}", step + 1),
+                frame.rect(x, y + 4.0, 34.0, 26.0),
+                20.0 * s,
+                color::GOLD_BRIGHT,
+                FontWeight::Regular,
+                TextAlign::Center,
+            );
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("{line}"),
+                frame.rect(x + 52.0, y + 5.0, width - 52.0, 24.0),
+                18.0 * s,
+                color::TEXT,
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+            y += 46.0;
+            if step == 0 {
+                kit::button(
+                    &mut self.ui,
+                    frame,
+                    [x + 52.0, y - 4.0, 380.0, 44.0],
+                    "Open developers.giphy.com",
+                    false,
+                    true,
+                    self.focus == KEY_OPEN_TOKEN,
+                    KEY_OPEN_TOKEN,
+                );
+                self.order.push(KEY_OPEN_TOKEN);
+                y += 58.0;
+            }
+        }
+        y += 12.0;
+        let focused = self.focus == KEY_FIELD_TOKEN;
+        let caret = focused && (self.epoch.elapsed().as_millis() / 500).is_multiple_of(2);
+        let shown = if typed.is_empty() && !focused {
+            "Paste your GIPHY key here"
+        } else {
+            typed.as_str()
+        };
+        let field = [x, y, width, 48.0];
+        kit::field(
+            &mut self.ui,
+            frame,
+            field,
+            format_args!("{shown}{}", if caret { "|" } else { "" }),
+            focused,
+            false,
+        );
+        self.ui.hit_region(
+            KEY_FIELD_TOKEN,
+            frame.rect(field[0], field[1], field[2], field[3]),
+        );
+        self.order.push(KEY_FIELD_TOKEN);
+        y += 60.0;
+        let (line, colour) = match notice {
+            Some(notice) => (notice, color::EMBER),
+            None => (
+                "Kept on this PC only, in Settings > Network > GIPHY key. It allows 100 searches an hour.",
+                color::QUIET,
+            ),
+        };
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("{line}"),
+            frame.rect(x, y, width, 22.0),
+            15.0 * s,
+            colour,
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+        let buttons_y = CARD_Y + CARD_HEIGHT - 44.0 - 40.0;
+        kit::button(
+            &mut self.ui,
+            frame,
+            [x + width - 200.0, buttons_y, 200.0, 44.0],
+            "Save key",
+            true,
+            !typed.trim().is_empty(),
+            self.focus == KEY_SAVE_TOKEN,
+            KEY_SAVE_TOKEN,
+        );
+        kit::button(
+            &mut self.ui,
+            frame,
+            [x + width - 200.0 - 16.0 - 160.0, buttons_y, 160.0, 44.0],
+            "Not now",
+            false,
+            true,
+            self.focus == KEY_LATER_TOKEN,
+            KEY_LATER_TOKEN,
+        );
+        self.order.push(KEY_SAVE_TOKEN);
+        self.order.push(KEY_LATER_TOKEN);
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("Powered by GIPHY"),
+            frame.rect(x, buttons_y + 12.0, 300.0, 20.0),
+            14.0 * s,
+            color::MUTED,
+            FontWeight::Semibold,
+            TextAlign::Start,
         );
     }
 }
@@ -664,6 +957,43 @@ mod tests {
         assert_eq!(picker.typed, "", "the selection is replaced");
         assert!(picker.typed_at.is_some(), "a search follows");
         crate::text_entry::deselect();
+    }
+
+    #[test]
+    fn search_without_a_key_shows_the_key_card_until_put_off() {
+        let mut picker = Picker::new();
+        assert!(!picker.key_card_due(false), "closed");
+        let _ = picker.open();
+        picker.choose_tab(Tab::Search);
+        assert!(!picker.key_card_due(true), "a key: no card");
+        assert!(picker.key_card_due(false));
+        assert!(!picker.key_card_due(false), "already on show");
+        picker.put_off_key_card();
+        assert!(picker.key_card.is_none());
+        assert!(!picker.key_card_due(false), "put off");
+        // Get a GIPHY key opens it again, the key saved in its field.
+        picker.open_key_card(" saved ");
+        assert_eq!(picker.key_card.as_ref().unwrap().typed, "saved");
+    }
+
+    #[test]
+    fn save_key_takes_only_what_looks_like_a_key() {
+        use winit::keyboard::KeyCode;
+        let mut picker = Picker::new();
+        picker.open_key_card("");
+        assert_eq!(picker.save_key(), None);
+        assert!(picker.key_card.as_ref().unwrap().notice.is_some());
+        picker.edit_key(KeyCode::KeyA, Some("not a key!"), false, false);
+        assert!(
+            picker.key_card.as_ref().unwrap().notice.is_none(),
+            "typing clears it"
+        );
+        assert_eq!(picker.save_key(), None);
+        picker.open_key_card("");
+        let key = "0123456789abcdefABCDEF0123456789";
+        picker.edit_key(KeyCode::KeyA, Some(key), false, false);
+        assert_eq!(picker.save_key().as_deref(), Some(key));
+        assert!(picker.key_card.is_none(), "saved: the card goes");
     }
 
     #[test]

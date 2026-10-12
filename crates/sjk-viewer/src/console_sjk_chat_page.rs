@@ -65,6 +65,10 @@ impl ViewerConsole {
                 name,
                 muted,
             } => crate::player_mutes::set_muted(Some(&key_id), &name, muted),
+            PanelAction::GiphyKey(key) => {
+                // Saved with the profile; never logged.
+                self.set_cvars([(crate::chat_gifs::search::KEY_CVAR, key.as_str())]);
+            }
             PanelAction::Staff(request) => {
                 let serial = crate::player_identity::staff_state().map_or(0, |state| state.serial);
                 if crate::player_identity::staff(request) {
@@ -166,6 +170,14 @@ impl ViewerConsole {
     ) {
         self.preview_sjk_chat(chat, None);
         self.sjk_chat_panel.open_gifs_for_shot(tab, typed);
+    }
+
+    /// Open the page on `chat` with the GIF picker's key card, `typed` in its field, for
+    /// a world shot.
+    #[cfg(test)]
+    pub(crate) fn preview_sjk_chat_key_card(&mut self, chat: sjk_identity::ChatState, typed: &str) {
+        self.preview_sjk_chat(chat, None);
+        self.sjk_chat_panel.open_key_card_for_shot(typed);
     }
 
     /// Answer the open picker's search with `ids` of `total`, for a world shot.
