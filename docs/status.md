@@ -26,8 +26,9 @@ chat budget, `text.wgsl` validated by naga) and the GPU world shots
 `chat_in_russian_and_japanese` (an EternalJK Windows-1251 line, UTF-8 Russian and
 Japanese, a typed draft, at 1080p, 4K and with the game fonts) looked at. Not tried in
 a game, nor against an EternalJK client with `se_language russian`. The hub's SJK
-channel draws Cyrillic it already accepted; it refuses Japanese until its letter rules
-(`sjk-identity` `bio::letter`, shared with the hub) allow it.
+channel and bios take Japanese too since 12/10/2026 (`personal/hub-japanese`: kana,
+kanji and Japanese punctuation in `sjk-identity` `bio.rs`, word for word in the hub's
+copy, deployed): unit tests on both sides; not tried from a game.
 
 ## Card faces and the first card
 

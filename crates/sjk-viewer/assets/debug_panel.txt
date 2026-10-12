@@ -35,7 +35,8 @@ test: Type Japanese (Windows IME) in chat: kana and kanji show; another SJK play
 test: An EternalJK player with se_language russian: you read each other's Russian.
 test: A Russian line is not cut early: about 149 letters fit, as in EternalJK.
 test: Console and SJK channel: Cyrillic shows there too; ui_gameFont 1 and 0 both draw it.
-note: Japanese is read only by SJK players; the SJK channel does not take Japanese yet.
+test: SJK channel: send a Japanese line (and a bio in Japanese): the hub takes it.
+note: Japanese is read only by SJK players (retail and EternalJK show other characters).
 
 [own-chat-sound]
 area: Console & chat

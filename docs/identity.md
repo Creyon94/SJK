@@ -615,9 +615,10 @@ to nothing that hides, reorders or piles characters up. Before it is checked, li
 ends become `\n`, each line's runs of spaces and tabs become one space and its ends
 are trimmed, and runs of blank lines become one. Then it must hold at most 500
 characters, at most 6 lines, no run of one character longer than 8, and only Latin
-letters (with their accented and extended forms, Vietnamese included) and Cyrillic
-ones, ASCII digits, the space, newlines, ``. , ! ? ' " - : ; ( ) [ ] & / + # @ % * _ =
-~ < > | $`` and colour codes (`^` and a digit). That refuses emoji, symbols, combining
+letters (with their accented and extended forms, Vietnamese included), Cyrillic
+ones and Japanese ones (hiragana, katakana, kanji and `々`; since 12/10/2026), ASCII
+digits, the space, newlines, ``. , ! ? ' " - : ; ( ) [ ] & / + # @ % * _ = ~ < > | $``,
+Japanese punctuation (`、。「」『』・！？（）～`) and colour codes (`^` and a digit). That refuses emoji, symbols, combining
 marks (no piled-up "Zalgo" text), zero-width and direction-changing characters, other
 spaces, private-use and unassigned code points and control characters.
 
