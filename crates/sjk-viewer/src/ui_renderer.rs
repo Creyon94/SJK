@@ -5,6 +5,7 @@ use bytemuck::{Pod, Zeroable};
 use sjk_ui::{Color, DrawCommand, DrawList, FontWeight, Rect, TextAlign, TextId};
 
 pub(crate) mod art;
+mod card_art;
 mod emblem;
 mod gif_textures;
 mod icons;
@@ -182,6 +183,9 @@ pub(crate) fn texture_switches(lists: &[&DrawList]) -> usize {
             None if crate::chat_gifs::slot_of(texture).is_some() => {
                 Source::Gif(crate::chat_gifs::slot_of(texture).unwrap_or_default() as u8)
             }
+            None if crate::cards::faces::index_of(texture).is_some() => {
+                Source::Card(crate::cards::faces::index_of(texture).unwrap_or_default() as u16)
+            }
             None => match crate::medals::Medal::from_art(texture) {
                 Some(medal) => Source::Medal(medal),
                 None => crate::menu::emblem::EmblemLayer::from_texture(texture)
@@ -220,6 +224,8 @@ pub(crate) struct ShapeRenderer {
     emblem: EmblemTextures,
     /// The medals' whole pictures, one texture each, once a screen drew one.
     medals: MedalTextures,
+    /// The card faces' pictures, one texture each, as they decode.
+    cards: card_art::CardTextures,
     /// The SJK chat's GIFs on screen, one texture each.
     gifs: GifTextures,
     /// The current map preview at its own resolution.
@@ -378,6 +384,7 @@ impl ShapeRenderer {
             art: ArtTextures::new(),
             emblem: EmblemTextures::new(),
             medals: MedalTextures::new(),
+            cards: card_art::CardTextures::new(),
             gifs: GifTextures::new(),
             levelshot,
             hud_preview,
@@ -443,6 +450,15 @@ impl ShapeRenderer {
             self.medals
                 .install(device, queue, &self.texture_layout, decoded);
         }
+    }
+
+    /// Upload the card faces' pictures decoded since the last frame.
+    pub(crate) fn install_cards(
+        &mut self,
+        device: &wgpu::Device,
+        queue: &crate::frame_queue::FrameQueue,
+    ) {
+        self.cards.install(device, queue, &self.texture_layout);
     }
 
     /// Classic menu art pieces this renderer can draw.
@@ -577,6 +593,7 @@ impl ShapeRenderer {
                         Source::Art(_)
                         | Source::Emblem(_)
                         | Source::Medal(_)
+                        | Source::Card(_)
                         | Source::Gif(_)
                         | Source::Levelshot
                         | Source::HudPreview
@@ -609,6 +626,7 @@ impl ShapeRenderer {
                         Source::Art(_)
                         | Source::Emblem(_)
                         | Source::Medal(_)
+                        | Source::Card(_)
                         | Source::Gif(_)
                         | Source::Levelshot
                         | Source::HudPreview
@@ -719,6 +737,12 @@ impl ShapeRenderer {
                 self.gifs.group(slot)?;
                 Source::Gif(slot as u8)
             }
+            None if crate::cards::faces::index_of(texture).is_some() => {
+                let index = crate::cards::faces::index_of(texture).unwrap_or_default();
+                // Not uploaded yet: the window stays dark until it is.
+                self.cards.group(index)?;
+                Source::Card(index as u16)
+            }
             None => match crate::menu::emblem::EmblemLayer::from_texture(texture) {
                 Some(layer) if self.emblem.group(layer).is_some() => Source::Emblem(layer),
                 Some(_) => return None,
@@ -767,6 +791,7 @@ impl ShapeRenderer {
                 Source::Art(piece) => self.art.group(piece),
                 Source::Emblem(layer) => self.emblem.group(layer),
                 Source::Medal(medal) => self.medals.group(medal),
+                Source::Card(index) => self.cards.group(usize::from(index)),
                 Source::Gif(slot) => self.gifs.group(usize::from(slot)),
                 Source::Levelshot => Some(self.levelshot.bind_group()),
                 Source::HudPreview => Some(self.hud_preview.bind_group()),

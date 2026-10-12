@@ -84,6 +84,7 @@ pub(crate) fn mount(directory: &Path) -> Arc<LoadedSkins> {
     let count = packs.mounts().count();
     let mut current = lock();
     let generation = GENERATION.load(Ordering::Acquire) + 1;
+    crate::cards::faces::install(&packs, generation);
     let skins = Arc::new(LoadedSkins::load(packs, generation));
     if count > 0 {
         crate::log::progress(format_args!(

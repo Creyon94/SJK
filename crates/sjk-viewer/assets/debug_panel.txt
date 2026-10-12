@@ -463,6 +463,17 @@ test: Collection > Holocrons > Loot table: the numbers match docs/holocrons.md, 
 test: Escape, L, Enter or Back go back to the tab; the tab's keys do nothing meanwhile.
 test: The pace line says 30 minutes and 8 a day once the hub answered.
 
+[card-faces]
+area: Menus & settings
+title: Card faces and the first card (Sol lore 001), revealing sealed cards
+change: Cards picked by the hub show their face: name, picture, set, lore, number, artist.
+change: Cards tab: bigger card up close; Reveal (or R) turns sealed cards into cards.
+change: Opening a holocron shows the picked card's face; the faces come in the hub's pack.
+test: Log: "SJK packs: card faces: sol_lore_001" once the pack downloaded.
+test: As staff: Collection > Cards > Reveal: your sealed Legendary cards become card 001.
+test: Open holocrons (staff): a Legendary card shows the face in the ceremony.
+test: debug_open legendary shows the face offline; other rarities stay sealed.
+
 [hover-cards]
 area: Menus & settings
 title: Collection hover cards: how every thing is obtained

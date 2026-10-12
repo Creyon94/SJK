@@ -1,5 +1,18 @@
 # Status and priorities
 
+## Card faces and the first card
+
+Branch `personal/card-face` (12/10/2026), Sol's request: Sol made the first card
+("Sol and Toxiee on JoF Memorial", Sol lore 001, Legendary) in `card_import/`
+(git-ignored) and asked for everything it needs. Hub branch `feat/card-catalogue` in
+Sol-Vulpes/SJK-hub: the catalogue (`cards.json`), a card picked at opening, `POST
+/v1/cards/reveal`, `scripts/import_cards.py`, and the `sjk_cards` pack with the first
+card. Client: faces read from the packs and their pictures uploaded, the face drawn as
+a trading card on the Cards tab (bigger up close) and in the ceremony, Reveal (R), the
+loot table's note. See [cards.md](cards.md#faces-and-the-first-card). Verified: unit
+tests on both sides, the world shots `duel6_sjk_card_faces` with the real pack looked
+at. Not tried: in a game against the deployed hub.
+
 ## Settings: Simple and Advanced, Vanilla and the SJK renderer, settings usage
 
 Branch `personal/settings-simple` (12/10/2026), Sol's request: a clearer Settings.

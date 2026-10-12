@@ -228,6 +228,18 @@ pub trait Hub: Send {
             "this hub client does not open holocrons".to_owned(),
         ))
     }
+
+    /// Reveal the identity's sealed card copies whose rarity has cards in the hub's
+    /// catalogue (`POST /v1/cards/reveal`). The hub answers what each became and the
+    /// person's profile after.
+    fn reveal_cards(
+        &mut self,
+        _identity: &Identity,
+    ) -> Result<crate::wire::RevealAnswer, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not reveal cards".to_owned(),
+        ))
+    }
     /// Withdraw the identity's claim on `server`.
     fn release(&mut self, identity: &Identity, server: &str) -> Result<(), HubError>;
     /// The live claims on `server`.
@@ -989,6 +1001,10 @@ impl Hub for HttpHub {
     fn open_holocrons(&mut self, identity: &Identity, ids: &[u64]) -> Result<OpenAnswer, HubError> {
         let (path, body) = open_call(ids);
         parse(self.send(Some(identity), "POST", path, Some(body))?)
+    }
+
+    fn reveal_cards(&mut self, identity: &Identity) -> Result<crate::wire::RevealAnswer, HubError> {
+        parse(self.send(Some(identity), "POST", "/v1/cards/reveal", Some(json!({})))?)
     }
 
     fn release(&mut self, identity: &Identity, server: &str) -> Result<(), HubError> {

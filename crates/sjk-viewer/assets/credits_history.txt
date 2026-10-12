@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 12/10/2026 | - | Card faces, the first card, revealing sealed cards
+- 23bee8f |  | Cards have faces: the first card, revealing sealed cards
 + 12/10/2026 | - | Settings in Simple and Advanced, Vanilla or the SJK renderer, anonymous settings usage
 - 36ab218 |  | Settings in Simple and Advanced, Vanilla or the SJK renderer, anonymous settings usage
 + 12/10/2026 | - | Ignore card_import/
