@@ -315,6 +315,11 @@ impl GpuState {
             self.log_request_card_choice(choice);
             return true;
         }
+        if self.whats_new_card.is_open() {
+            let choice = self.whats_new_card.handle_pointer(event);
+            self.whats_new_card_choice(choice);
+            return true;
+        }
         if self
             .client_menu
             .as_ref()

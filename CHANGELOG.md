@@ -14,12 +14,23 @@ tests check this file):
 - "## <version> | <dd/mm/yyyy>" starts a release ("## Unreleased" for main
   after the last release, without a date);
 - other lines up to the first item are the release's introduction;
+- "> <Heading>: <sentence>" lines before the first item are the release's short
+  recap (3 to 6 lines, shown by the what's-new card after an update); every release
+  dated 12/10/2026 or later needs one;
 - "- <change> _(<credit>)_" is one change; every change ends with its credit;
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
 ## Unreleased
 
+> Servers: Downloads work with spaced pak names, JoF servers get 125 commands a second and known servers sit in one table.
+> Gameplay FPS: Your physics follow your FPS cap on Auto, and First setup starts with an import from other clients.
+> Showcase tools: Mimic and ghost replay (experimental, off by default), strafe helper lines and the invisible brushes view.
+> Player card: The line meets the hips and the player you inspect gets an outline ring.
+> SJK team: Staff can ask for your game's logs; nothing is sent unless you choose Send logs.
+> Updates: After an update a card recaps what changed; the whatsnew command shows it again.
+
+- After an update, a What's new card recaps what changed in a few short lines the first time you reach the menu, with a button to the full changelog; every release now carries that recap in CHANGELOG.md, and whatsnew shows the newest again _(Sol)_
 - cjp_client sets the client plugin name sent to JA+ and jaPRO servers (what admins see in amstatus); empty keeps SJK's default for the server _(Sol)_
 - Downloads (cl_allowDownload 1): server paks with spaces, braces or apostrophes in their names now download (JoF's did not), one pak the server refuses no longer stops you joining, and a map you downloaded once still loads on a server that stops listing its paks. A download only adds content now: its configs, scripts, menus and programs are never loaded, it cannot replace your game's or your packs' files, and its shaders cannot change existing ones _(Sol)_
 - Log requests: when you have a problem, the SJK team can ask for your game's logs; a card on the menu asks you first and nothing is sent unless you choose Send logs. SJK now keeps the console lines of this session and the last one (no chat) in logs/ beside your settings _(Sol)_
@@ -36,6 +47,11 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 ## 2026.1011.3 (Alpha) | 11/10/2026
 
 The Void and the Sun get new orbiting effects, and Lumaya's contributions land: jetpack flight prediction, a JoF EJK-style classic scoreboard, saber steam in rain, a lagometer scale, console height and wall-move view fixes.
+
+> Saber shaders: The Void gets orbiting black holes and the Sun's glints circle the blade below the tip.
+> Jetpacks: Flight is predicted as the original game does, which should end corrections on JA+ servers.
+> Classic scoreboard: A JoF EJK-style scoreboard with chat, a compact list on busy servers and duel winners.
+> Small fixes: Wall moves hold the view, the console resizes at once, saber steam in rain, a lagometer scale.
 
 - The Void gets more effects: two small black holes orbit its blade below the tip, bending the world behind them, plus warped space, a gravity pulse beating with its drone and afterimages; each is a part you can switch off _(Sol)_
 - Wall runs, run-ups, ledge flips and rebounds hold the view every frame, so fresh mouse movement no longer turns the camera or your character while the wall move holds the view; JA+ free look is unchanged _(Lumaya, after OpenJK)_

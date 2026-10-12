@@ -30,6 +30,11 @@ multiplayer. Read [docs/status.md](docs/status.md),
   the evidence, read by generic code, and the player can override it with a cvar or
   setting. Supporting a new case means adding an entry, not code. Example:
   [server_caps.rs](crates/sjk-viewer/src/server_caps.rs) and `gameplay_fps_nocap`.
+- Every release carries a short player-facing recap in `CHANGELOG.md` (Sol's rule,
+  12/10/2026): three to six `> Heading: sentence` lines under the release title, which
+  the client's what's-new card shows after an update. Write it in the commit that
+  renames "Unreleased" to the version; the tests reject a release without one. See
+  [the rule in sjk.md](docs/sjk.md#changelog).
 - Avoid new allocation, locking and quadratic work in per-frame paths. Measure
   performance-sensitive changes in release builds; 500+ FPS is a target, not a
   blanket claim about current performance.

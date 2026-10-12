@@ -1498,6 +1498,36 @@ under it are not drawn and take no input. The same look in every menu style, on 
   the foot; focus starts on Don't send. Keys bottom right: Enter send logs, Esc don't
   send; Space does nothing, so sending takes a deliberate key.
 
+## What's new card
+
+[whats_new_card.rs](../crates/sjk-viewer/src/whats_new_card.rs): the pop-up a player
+gets the first time they reach the menu after an update (Sol, 12/10/2026: "a popup
+for updates that would show short recaps"). It tells what the update brought in a few
+short lines, the release's recap in [CHANGELOG.md](../CHANGELOG.md)
+([sjk.md](sjk.md#changelog)). It shows on the main page or over the game menu, never in
+the middle of play, after the medal, holocron, reload, FPS and log-request cards and
+not while the window is away; the menus under it are not drawn and take no input. The
+same look in every menu style, on the 16:9 frame:
+
+- **When:** `cl_whatsNewSeen` holds the version whose card the player closed. The card
+  shows when the installed version differs and the changelog lists it: the recaps of
+  every release since the seen one, newest first, at most three (each named with its
+  date); with no marker only the installed release's. A new installation (no marker,
+  and First setup not yet ticked away) writes the marker and shows nothing, and a
+  local build no release lists shows nothing. Closing writes the marker; quitting with
+  the card up shows it again next time. `whatsnew` shows the newest recap again,
+  "Unreleased" included, as a preview that writes nothing.
+- **Card:** the kit's card over its scrim, 920 wide from x 500, centred vertically, as
+  tall as its recap.
+- **Words:** "SJK updated" (or "Preview") in gold (Rajdhani 22), "What's new in
+  <release>" ("What's coming next" for the unreleased preview; Rajdhani 36), then one row per recap line: its heading in gold (Exo 2 18,
+  semibold, a 210 wide column) and its sentence (Exo 2 18, up to 76 characters a line).
+  A release without a recap shows its introduction (three lines at most) in muted text;
+  after 16 sentence lines the card says "More in the full changelog."
+- **Buttons:** Full changelog (outlined, 230) opens the changelog page, Close (gold, 150)
+  puts the card away; focus starts on Close. Keys bottom right: Enter, Space, Esc or
+  Backspace close, C opens the changelog.
+
 ## Implementation
 
 - `ui_menuStyle sjk` (`menu::style::MenuStyle::Sjk`) is the default beside

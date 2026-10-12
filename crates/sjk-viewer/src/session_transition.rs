@@ -438,6 +438,7 @@ impl GpuState {
         }
         to.graphics_reload.card = std::mem::take(&mut self.graphics_reload.card);
         to.log_request_card = std::mem::take(&mut self.log_request_card);
+        to.whats_new_card = std::mem::take(&mut self.whats_new_card);
         to.load_event_gap = self.load_event_gap.clone();
         to.hitches = std::mem::take(&mut self.hitches);
         to.hitches.settle(now);

@@ -212,6 +212,17 @@ under "Unreleased"; tagging a release renames that section to
 `<version> | <dd/mm/yyyy>` and its lines become the release notes' "New since"
 list. The Discord changelog posts are made from the same file.
 
+Every release carries a short recap (Sol's rule, 12/10/2026): three to six lines
+`> <Heading>: <one sentence>` between the release's title and its changes, in player
+words, each heading at most 28 characters and each sentence at most 160, grouped by
+what a player notices (servers, gameplay, tools, cards) rather than commit by commit.
+The client's what's-new card shows them to a player the first time they open the game
+after updating ([sjk-ui.md](sjk-ui.md#whats-new-card)). Write the recap when the
+release is cut, from the "Unreleased" lines, in the same commit that renames the
+section; the tests reject a dated release from 12/10/2026 on without one, and the
+release notes' introduction may repeat it. A player who skips releases sees the recaps
+of each, so a recap must read on its own.
+
 ## Credits
 
 [credits.txt](../crates/sjk-viewer/assets/credits.txt) feeds the client's credits

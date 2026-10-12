@@ -247,6 +247,7 @@ mod weapon_select;
 mod weapon_view;
 mod weather;
 mod wgsl_source;
+mod whats_new_card;
 mod window_icon;
 mod world_materials;
 mod world_notes;
@@ -337,6 +338,8 @@ struct GpuState {
     fps_card: fps_help::card::Card,
     /// The SJK team's request for the player's logs ([`log_request_card`]).
     log_request_card: log_request_card::Card,
+    /// What the update brought ([`whats_new_card`]).
+    whats_new_card: whats_new_card::Card,
     window: Option<Arc<Window>>,
     post_aa: Option<frame_target::aa::Runtime>,
     render_scale: Option<frame_target::scale::Runtime>,
@@ -1259,6 +1262,7 @@ impl GpuState {
             fps_help: fps_help::State::default(),
             fps_card: fps_help::card::Card::default(),
             log_request_card: log_request_card::Card::default(),
+            whats_new_card: whats_new_card::Card::default(),
 
             screenshots: screenshot_setup.manager,
             headless_frame: None,
@@ -1821,7 +1825,19 @@ impl GpuState {
                 || self.medal_popup.pending()
                 || self.holocron_popup.pending(),
         );
-        let medal_popup = medal_shown || holocron_shown || reload_shown || fps_shown || logs_shown;
+        // And what the update brought, last.
+        let news_shown = self.prepare_whats_new_card(
+            console_covers_frame
+                || medal_shown
+                || holocron_shown
+                || reload_shown
+                || fps_shown
+                || logs_shown
+                || self.medal_popup.pending()
+                || self.holocron_popup.pending(),
+        );
+        let medal_popup =
+            medal_shown || holocron_shown || reload_shown || fps_shown || logs_shown || news_shown;
         // Nor under the SJK UI's report card, as under its other cards.
         let report_card = self.text_dialog.is_open() && self.text_dialog.is_sjk();
         self.text_vertices.clear();
@@ -1993,6 +2009,8 @@ impl GpuState {
             self.append_fps_card(viewport);
         } else if logs_shown {
             self.append_log_request_card(viewport);
+        } else if news_shown {
+            self.append_whats_new_card(viewport);
         }
         // An achievement unlocked, or a medal or holocron in a match: its card over play or
         // the menus, never input-taking.
@@ -2040,6 +2058,7 @@ impl GpuState {
             reload_shown.then(|| self.graphics_reload.card.draw_list()),
             fps_shown.then(|| self.fps_card.draw_list()),
             logs_shown.then(|| self.log_request_card.draw_list()),
+            news_shown.then(|| self.whats_new_card.draw_list()),
             unlock_toast.then(|| self.unlock_toast.draw_list()),
         ];
         self.ui_shapes

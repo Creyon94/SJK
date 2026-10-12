@@ -80,6 +80,12 @@ impl GpuState {
             self.log_request_card_choice(choice);
             return;
         }
+        // And the what's-new card.
+        if !console_open && self.whats_new_card.is_open() {
+            let choice = self.whats_new_card.handle_key(&event);
+            self.whats_new_card_choice(choice);
+            return;
+        }
         // Ctrl+Tab changes the Profile screen's tab, whichever screen shows it.
         if self.profile_hub_key(&event) {
             return;

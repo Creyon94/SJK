@@ -662,6 +662,16 @@ change: Surfaces up to 4x coarser than the cache's spacing are cached (3x before
 change: JoFTemple's hall floor was lit lamp by lamp: 7.5 ms a frame becomes 3.6 ms at 4K.
 test: High, JoFTemple great hall: FPS about doubles; the floor's light looks the same.
 
+[whats-new-card]
+area: Menus & settings
+title: What's new card: after an update, a recap of what changed
+change: First time on the menu after an update, a card lists the release's short recap.
+change: Closing it remembers the version (cl_whatsNewSeen); Full changelog opens the page.
+test: Console: whatsnew. The card shows the unreleased recap (Preview), Close puts it away.
+test: Press C on the card: the changelog page opens. Enter, Space, Esc close it.
+test: After installing the next release: the card shows once on the menu, not again on restart.
+note: A local build is -dev and no release lists it, so only whatsnew shows the card there.
+
 # ---- HUD ----
 
 [strafe-lines]

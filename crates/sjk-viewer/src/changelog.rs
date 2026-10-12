@@ -41,6 +41,63 @@ const PANE_BAR_TOKEN: u16 = 910;
 /// Pane lines one wheel notch scrolls.
 const WHEEL_LINES: usize = 3;
 
+/// Releases the what's-new card stacks at most, newest first.
+pub(crate) const DIGEST_LIMIT: usize = 3;
+
+/// A release as the what's-new card (`whats_new_card.rs`) shows it.
+#[derive(Debug, Eq, PartialEq)]
+pub(crate) struct Digest {
+    /// "2026.1011.3 (Alpha)", or "Unreleased".
+    pub(crate) title: String,
+    /// dd/mm/yyyy; empty for "Unreleased".
+    pub(crate) date: String,
+    /// The release's first introduction paragraph, which stands in when it has no recap.
+    pub(crate) intro: String,
+    /// The recap: a heading and a sentence each.
+    pub(crate) lines: Vec<(String, String)>,
+}
+
+/// What an update brought: the recaps of the releases after `seen` up to
+/// `installed` (newest first, at most [`DIGEST_LIMIT`]). With no `seen`, or one
+/// the file does not list, only `installed`'s. Empty when `installed` is not a
+/// release the changelog lists (a local build).
+pub(crate) fn digests(installed: &str, seen: &str) -> Vec<Digest> {
+    data::parse(data::EMBEDDED)
+        .map(|releases| digests_of(&releases, installed, seen))
+        .unwrap_or_default()
+}
+
+/// The newest release's recap, "Unreleased" included: the `whatsnew` command's preview.
+pub(crate) fn newest_digest() -> Option<Digest> {
+    let releases = data::parse(data::EMBEDDED).ok()?;
+    releases.first().map(digest)
+}
+
+fn digests_of(releases: &[data::Release], installed: &str, seen: &str) -> Vec<Digest> {
+    let Some(newest) = releases.iter().position(|r| r.version() == Some(installed)) else {
+        return Vec::new();
+    };
+    let first_seen = releases
+        .iter()
+        .position(|r| !seen.is_empty() && r.version() == Some(seen))
+        .filter(|at| *at > newest);
+    let end = first_seen.unwrap_or(newest + 1).min(newest + DIGEST_LIMIT);
+    releases[newest..end].iter().map(digest).collect()
+}
+
+fn digest(release: &data::Release) -> Digest {
+    Digest {
+        title: release.title.clone(),
+        date: release.date.clone(),
+        intro: release.intro.first().cloned().unwrap_or_default(),
+        lines: release
+            .recap
+            .iter()
+            .map(|line| (line.heading.clone(), line.text.clone()))
+            .collect(),
+    }
+}
+
 /// What the console does after the page handled an event.
 #[derive(Debug, Eq, PartialEq)]
 pub(crate) enum PanelAction {
@@ -339,6 +396,34 @@ pub(crate) fn wrap_words(text: &str, width: f32, measure: impl Fn(&str) -> f32) 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn digests_cover_the_releases_since_the_last_seen_one() {
+        let text = "## Unreleased\n\n> Next: soon\n\n- x _(Sol)_\n\n## 3.0 (Alpha) | 03/10/2026\n\nThird.\n\n> Three: third\n\n- x _(Sol)_\n\n## 2.0 | 02/10/2026\n\n> Two: second\n\n- x _(Sol)_\n\n## 1.0 | 01/10/2026\n\nFirst.\n\n- x _(Sol)_\n";
+        let releases = data::parse(text).unwrap();
+        let titles = |installed, seen| -> Vec<String> {
+            digests_of(&releases, installed, seen)
+                .into_iter()
+                .map(|digest| digest.title)
+                .collect()
+        };
+        assert_eq!(titles("3.0", "2.0"), ["3.0 (Alpha)"]);
+        assert_eq!(titles("3.0", "1.0"), ["3.0 (Alpha)", "2.0"]);
+        // No marker, an unknown one or a newer one: only the installed release.
+        assert_eq!(titles("3.0", ""), ["3.0 (Alpha)"]);
+        assert_eq!(titles("3.0", "0.5"), ["3.0 (Alpha)"]);
+        assert_eq!(titles("2.0", "3.0"), ["2.0"]);
+        // A local build, or "Unreleased", is not a release.
+        assert!(titles("0.1.0-dev", "1.0").is_empty());
+        assert!(titles("Unreleased", "").is_empty());
+        let third = &digests_of(&releases, "3.0", "2.0")[0];
+        assert_eq!(third.intro, "Third.");
+        assert_eq!(third.lines, [("Three".to_owned(), "third".to_owned())]);
+        // A release without a recap still has its introduction.
+        let first = &digests_of(&releases, "1.0", "")[0];
+        assert!(first.lines.is_empty());
+        assert_eq!(first.intro, "First.");
+    }
 
     #[test]
     fn words_wrap_at_the_width() {
