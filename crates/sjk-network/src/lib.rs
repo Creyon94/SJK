@@ -920,59 +920,131 @@ pub fn query_master(
     Ok(servers.into_iter().collect())
 }
 
-/// Ask every server for its info at once from one socket and hand each
-/// answer to `found` (with the round-trip time) as it arrives. Returns once
-/// all have answered or `timeout` has passed since the last was asked;
+/// Ask every server for its info at once and hand each answer to `found` (with the
+/// round-trip time) as it arrives. Returns once all have answered or the asking is over;
 /// servers that never answer are simply absent.
+///
+/// Answers already waiting are read after every [`INFO_SEND_BATCH`] requests, so a long
+/// list's early answers do not pile up in the socket's buffer (and overflow it) while the
+/// rest are still being asked. A server that has not answered `timeout` after the last
+/// request is asked again, [`INFO_RESENDS`] times, waiting two thirds of `timeout` each
+/// time: a lost packet, or a busy server whose `getinfo` rate limit (`SVC_Info`) dropped
+/// the request, would otherwise leave it out of this refresh, and a list that changed
+/// from one refresh to the next. The round trip is timed from the latest request.
 pub fn query_server_infos(
     servers: &[SocketAddr],
     timeout: Duration,
     mut found: impl FnMut(SocketAddr, InfoString, Duration),
 ) -> Result<(), NetworkError> {
-    let mut sockets = Vec::with_capacity(2);
+    let mut sockets: [Option<UdpSocket>; 2] = [None, None];
     let mut asked = BTreeMap::new();
-    for &server in servers {
-        let (socket, bind_address) = match server {
-            SocketAddr::V4(_) => (0, "0.0.0.0:0"),
-            SocketAddr::V6(_) => (1, "[::]:0"),
-        };
-        while sockets.len() <= socket {
-            sockets.push(None);
-        }
-        let socket = match &mut sockets[socket] {
-            Some(socket) => socket,
-            slot => {
-                let socket = UdpSocket::bind(bind_address)?;
-                socket.set_read_timeout(Some(Duration::from_millis(50)))?;
-                slot.insert(socket)
-            }
-        };
-        socket.send_to(&connectionless_packet("getinfo sjk")?, server)?;
-        asked.insert(server, Instant::now());
-    }
-    let deadline = Instant::now() + timeout;
     let mut packet = [0_u8; MAX_UDP_PACKET_BYTES];
-    while !asked.is_empty() && Instant::now() < deadline {
-        for socket in sockets.iter().flatten() {
-            match socket.recv_from(&mut packet) {
-                Ok((length, source)) => {
-                    let Some(sent) = asked.remove(&source) else {
-                        continue;
-                    };
-                    if let Ok(info) = parse_info_response(&packet[..length]) {
-                        found(source, info, sent.elapsed());
-                    }
+    let request = connectionless_packet("getinfo sjk")?;
+    let mut wait = timeout;
+    for round in 0..=INFO_RESENDS {
+        let targets: Vec<SocketAddr> = if round == 0 {
+            servers.to_vec()
+        } else {
+            asked.keys().copied().collect()
+        };
+        if targets.is_empty() {
+            break;
+        }
+        for (sent, server) in targets.into_iter().enumerate() {
+            let socket = info_socket(&mut sockets, server)?;
+            socket.send_to(&request, server)?;
+            asked.insert(server, Instant::now());
+            if (sent + 1).is_multiple_of(INFO_SEND_BATCH) {
+                for socket in sockets.iter().flatten() {
+                    socket.set_nonblocking(true)?;
+                    let read = read_info_answers(socket, &mut asked, &mut packet, &mut found);
+                    socket.set_nonblocking(false)?;
+                    read?;
                 }
-                Err(error)
-                    if matches!(
-                        error.kind(),
-                        io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut
-                    ) => {}
-                Err(error) => return Err(error.into()),
             }
         }
+        let deadline = Instant::now() + wait;
+        while !asked.is_empty() && Instant::now() < deadline {
+            for socket in sockets.iter().flatten() {
+                match socket.recv_from(&mut packet) {
+                    Ok((length, source)) => {
+                        let Some(sent) = asked.remove(&source) else {
+                            continue;
+                        };
+                        if let Ok(info) = parse_info_response(&packet[..length]) {
+                            found(source, info, sent.elapsed());
+                        }
+                    }
+                    Err(error) if info_read_goes_on(&error) => {}
+                    Err(error) => return Err(error.into()),
+                }
+            }
+        }
+        wait = timeout * 2 / 3;
     }
     Ok(())
+}
+
+/// The socket that asks `server`, one for IPv4 and one for IPv6, bound on first use.
+fn info_socket(
+    sockets: &mut [Option<UdpSocket>; 2],
+    server: SocketAddr,
+) -> Result<&UdpSocket, NetworkError> {
+    let (slot, bind_address) = match server {
+        SocketAddr::V4(_) => (0, "0.0.0.0:0"),
+        SocketAddr::V6(_) => (1, "[::]:0"),
+    };
+    match &mut sockets[slot] {
+        Some(socket) => Ok(socket),
+        slot => {
+            let socket = UdpSocket::bind(bind_address)?;
+            socket.set_read_timeout(Some(Duration::from_millis(50)))?;
+            Ok(slot.insert(socket))
+        }
+    }
+}
+
+/// Whether a failed read of info answers leaves the others to come: nothing in yet
+/// (`WouldBlock`, `TimedOut`), or a server that is gone (`ConnectionReset`). Windows
+/// hands an unconnected UDP socket the "port unreachable" a dead server's address sent
+/// back for an earlier request as a reset on its next read, as the engine's
+/// `NET_GetPacket` knows (`WSAECONNRESET`, `net_ip.cpp:265-273`); taken as an error it ended the whole query,
+/// and every server that had not answered yet was missing from the list.
+fn info_read_goes_on(error: &io::Error) -> bool {
+    matches!(
+        error.kind(),
+        io::ErrorKind::WouldBlock | io::ErrorKind::TimedOut | io::ErrorKind::ConnectionReset
+    )
+}
+
+/// Info requests [`query_server_infos`] sends before it reads the answers already in.
+pub const INFO_SEND_BATCH: usize = 32;
+/// How often [`query_server_infos`] asks a server again that has not answered.
+pub const INFO_RESENDS: usize = 2;
+
+/// Read the info answers waiting on a non-blocking `socket`, handing the ones from
+/// servers in `asked` to `found` and taking them off it, until none is left.
+fn read_info_answers(
+    socket: &UdpSocket,
+    asked: &mut BTreeMap<SocketAddr, Instant>,
+    packet: &mut [u8; MAX_UDP_PACKET_BYTES],
+    found: &mut impl FnMut(SocketAddr, InfoString, Duration),
+) -> Result<(), NetworkError> {
+    loop {
+        match socket.recv_from(packet) {
+            Ok((length, source)) => {
+                let Some(sent) = asked.remove(&source) else {
+                    continue;
+                };
+                if let Ok(info) = parse_info_response(&packet[..length]) {
+                    found(source, info, sent.elapsed());
+                }
+            }
+            Err(error) if error.kind() == io::ErrorKind::ConnectionReset => {}
+            Err(error) if info_read_goes_on(&error) => return Ok(()),
+            Err(error) => return Err(error.into()),
+        }
+    }
 }
 
 pub fn query_server_info(
@@ -1549,5 +1621,100 @@ mod legacy_text_packet_tests {
     fn rcon_text_leaves_in_windows_1252() {
         let packet = connectionless_packet("rcon secret say ¤").unwrap();
         assert_eq!(packet, b"\xff\xff\xff\xffrcon secret say \xa4");
+    }
+}
+
+#[cfg(test)]
+mod info_query_tests {
+    use super::{INFO_RESENDS, INFO_SEND_BATCH, info_read_goes_on, query_server_infos};
+    use std::io;
+    use std::net::{SocketAddr, UdpSocket};
+    use std::time::Duration;
+
+    /// A dead server's "port unreachable", which Windows hands over as a reset on the next
+    /// read, does not end the query: the servers still to answer are waited for.
+    #[test]
+    fn a_reset_from_a_dead_server_leaves_the_others_to_come() {
+        for kind in [
+            io::ErrorKind::WouldBlock,
+            io::ErrorKind::TimedOut,
+            io::ErrorKind::ConnectionReset,
+        ] {
+            assert!(info_read_goes_on(&io::Error::from(kind)), "{kind:?}");
+        }
+        assert!(!info_read_goes_on(&io::Error::from(
+            io::ErrorKind::PermissionDenied
+        )));
+    }
+
+    /// A server that drops the first request (a lost packet, a rate limit) is asked
+    /// again and listed; one that never answers is asked [`INFO_RESENDS`] more times.
+    #[test]
+    fn a_server_that_missed_the_first_request_is_asked_again() {
+        let lossy = UdpSocket::bind("127.0.0.1:0").expect("a lossy server");
+        let silent = UdpSocket::bind("127.0.0.1:0").expect("a silent server");
+        let addresses = [lossy.local_addr().unwrap(), silent.local_addr().unwrap()];
+        let answering = std::thread::spawn(move || {
+            let mut packet = [0_u8; 1_400];
+            lossy
+                .set_read_timeout(Some(Duration::from_secs(5)))
+                .unwrap();
+            let _ = lossy.recv_from(&mut packet).expect("the first getinfo");
+            let (_, client) = lossy.recv_from(&mut packet).expect("the second getinfo");
+            let mut answer = vec![0xff; 4];
+            answer.extend(b"infoResponse\n\\hostname\\lossy\n");
+            lossy.send_to(&answer, client).unwrap();
+            silent
+                .set_read_timeout(Some(Duration::from_millis(600)))
+                .unwrap();
+            std::iter::from_fn(|| silent.recv_from(&mut packet).ok()).count()
+        });
+        let mut names = Vec::new();
+        query_server_infos(&addresses, Duration::from_millis(300), |_, info, _| {
+            names.push(info.get("hostname").unwrap_or_default().to_owned());
+        })
+        .expect("the query");
+        assert_eq!(names, ["lossy"]);
+        assert_eq!(answering.join().unwrap(), 1 + INFO_RESENDS);
+    }
+
+    /// Every one of several batches of servers answering at once is listed, with a
+    /// silent address among them.
+    #[test]
+    fn every_server_of_a_long_list_answers() {
+        let count = INFO_SEND_BATCH * 3 + 5;
+        let servers: Vec<UdpSocket> = (0..count)
+            .map(|_| UdpSocket::bind("127.0.0.1:0").expect("a local server"))
+            .collect();
+        let silent = UdpSocket::bind("127.0.0.1:0").expect("a silent server");
+        let mut addresses: Vec<SocketAddr> = servers
+            .iter()
+            .map(|server| server.local_addr().unwrap())
+            .collect();
+        addresses.insert(count / 2, silent.local_addr().unwrap());
+        let answering = std::thread::spawn(move || {
+            let mut packet = [0_u8; 1_400];
+            for (index, server) in servers.iter().enumerate() {
+                server
+                    .set_read_timeout(Some(Duration::from_secs(5)))
+                    .unwrap();
+                let (_, client) = server.recv_from(&mut packet).expect("a getinfo");
+                let mut answer = vec![0xff; 4];
+                answer.extend(
+                    format!("infoResponse\n\\hostname\\server {index}\\clients\\0\n").bytes(),
+                );
+                server.send_to(&answer, client).unwrap();
+            }
+        });
+        let mut names = Vec::new();
+        query_server_infos(&addresses, Duration::from_millis(500), |_, info, _| {
+            names.push(info.get("hostname").unwrap_or_default().to_owned());
+        })
+        .expect("the query");
+        answering.join().unwrap();
+        names.sort();
+        let mut wanted: Vec<String> = (0..count).map(|index| format!("server {index}")).collect();
+        wanted.sort();
+        assert_eq!(names, wanted);
     }
 }

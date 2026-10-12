@@ -360,6 +360,19 @@ the refresh time, and the description line shows the hovered item's
 description. The screen is in
 [menu/classic/browser.rs](../crates/sjk-viewer/src/menu/classic/browser.rs).
 
+Both browsers list what one refresh finds: the master's list, up to 1,000 servers
+(256 cut off the end of a long list, whose servers never showed; stock keeps 2,048),
+each asked for its info at once, the answers already in read after every 32 requests
+so they do not pile up in the socket, and every answer within 0.9 seconds of the last
+request listed ([lib.rs](../crates/sjk-network/src/lib.rs) `query_server_infos`). A
+server that has not answered by then is asked twice more, 0.6 seconds apart: a lost
+packet, or a busy server's `getinfo` rate limit (`SVC_Info`), left it out of that
+refresh, so the count changed from one refresh to the next and a favourite came and
+went. A dead server's "port unreachable", which Windows reports as a reset on the next
+read, no longer ends the refresh: it used to, so on Windows every server that had not
+answered by then was missing, a different set each time (the engine ignores it too,
+`NET_GetPacket`).
+
 Retail entries SJK has no screen for yet (Play Demo, Rules) are shown dimmed,
 and their description line says so; retail's Mods and Defaults are left out of
 Settings (Backspace restores one setting's default).
