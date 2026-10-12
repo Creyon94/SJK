@@ -216,6 +216,8 @@ Every release carries a short recap (Sol's rule, 12/10/2026): three to six lines
 `> <Heading>: <one sentence>` between the release's title and its changes, in player
 words, each heading at most 28 characters and each sentence at most 160, grouped by
 what a player notices (servers, gameplay, tools, cards) rather than commit by commit.
+Put a command or cvar the player can type in backticks (`` `whatsnew` ``): the card
+draws it in a chip.
 The client's what's-new card shows them to a player the first time they open the game
 after updating ([sjk-ui.md](sjk-ui.md#whats-new-card)). Write the recap when the
 release is cut, from the "Unreleased" lines, in the same commit that renames the

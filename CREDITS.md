@@ -30,7 +30,8 @@ Sol develops SJK and sets its direction. Sol's work includes:
   of every installed HUD (`cg_hudPack`);
 - the `debug_panel` console command, an in-game checklist of the changes in a
   build and how to test them;
-- the changelog ([CHANGELOG.md](CHANGELOG.md)) and its page in the client;
+- the changelog ([CHANGELOG.md](CHANGELOG.md)), its page in the client and the What's new
+  card that recaps each update, commands drawn in chips;
 - the in-game credits page, fed by
   [credits.txt](crates/sjk-viewer/assets/credits.txt), with links to GitHub;
 - self-updates (`cl_autoUpdate`, main menu > Update);

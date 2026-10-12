@@ -672,6 +672,15 @@ test: Press C on the card: the changelog page opens. Enter, Space, Esc close it.
 test: After installing the next release: the card shows once on the menu, not again on restart.
 note: A local build is -dev and no release lists it, so only whatsnew shows the card there.
 
+[whats-new-layout]
+area: Menus & settings
+title: What's new card: headings above their lines, commands in chips
+change: Each recap heading sits above its sentence, which takes the card's full width.
+change: Commands and cvars in backticks in CHANGELOG.md recaps are drawn in boxed chips.
+change: Release names on a card that stacks several are muted, with a rule to the edge.
+test: Console: whatsnew. Headings sit above their lines; the Updates line boxes whatsnew.
+test: Settings > Interface > Menu text size up, then whatsnew: lines rewrap, no chip cut.
+
 # ---- HUD ----
 
 [strafe-lines]

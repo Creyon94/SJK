@@ -5,6 +5,11 @@
 //! (C) opens the changelog page. A player who skipped releases sees the recaps of those
 //! releases, newest first, up to `changelog::DIGEST_LIMIT`.
 //!
+//! Each recap line is its heading over its sentence, and a command or cvar the sentence
+//! marks in backticks (`` `whatsnew` ``) is drawn in a chip, as messaging apps draw
+//! inline code. The sentences are wrapped by their measured width when the card is
+//! drawn, so a chip is never cut and a line ends where the card does.
+//!
 //! `cl_whatsNewSeen` holds the version whose recap the player closed. The card shows on
 //! the main menu or over the game menu, never in the middle of play. A new installation
 //! (no marker and First setup still to do) writes the marker without showing the card;
@@ -14,9 +19,11 @@
 //! as under the other cards.
 
 use crate::console::changelog::Digest;
-use crate::menu::sjk::{Frame, TextTarget, color, key_hint, key_hint_width, kit, text, wrap};
+use crate::menu::sjk::{Frame, TextTarget, color, key_hint, key_hint_width, kit, text};
 use crate::menu_widgets::{MenuCanvas, TextFamily};
-use sjk_ui::{FontWeight, InputEvent, TextAlign, UiEventKind};
+use crate::sjk_chat_look::Measure;
+use crate::text::TextFace;
+use sjk_ui::{DrawCommand, FontWeight, InputEvent, TextAlign, UiEventKind};
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{KeyCode, PhysicalKey};
 
@@ -42,17 +49,22 @@ const FRAME_HEIGHT: f32 = 1080.0;
 /// The headline block above the recap, and the recap's rows.
 const HEAD_HEIGHT: f32 = 134.0;
 const LINE: f32 = 28.0;
-const ROW_GAP: f32 = 12.0;
+const ROW_GAP: f32 = 16.0;
 const RELEASE_HEIGHT: f32 = 40.0;
-/// A recap row's heading column, and the characters a line of its sentence holds.
-const HEADING_WIDTH: f32 = 210.0;
-const TEXT_CHARS: usize = 76;
-/// Characters a line of a release's introduction holds (the full width).
-const INTRO_CHARS: usize = 84;
+/// A recap line's heading, over its sentence.
+const HEADING_HEIGHT: f32 = 28.0;
+const HEADING_SIZE: f32 = 21.0;
+/// The sentences' text, and a chip's: its text, the room either side of it, its height
+/// and corners.
+const SIZE: f32 = 18.0;
+const CHIP_SIZE: f32 = 17.0;
+const CHIP_PAD: f32 = 7.0;
+const CHIP_HEIGHT: f32 = 25.0;
+const CHIP_RADIUS: f32 = 6.0;
 /// Introduction lines shown for a release without a recap.
 const INTRO_LINES: usize = 3;
-/// Sentence lines the card holds before it points to the changelog.
-const LINES: usize = 16;
+/// How tall the recap may grow before the card points to the changelog.
+const BODY_MAX: f32 = 700.0;
 /// The buttons along the card's foot, this far under the recap.
 const BUTTONS_GAP: f32 = 26.0;
 const BUTTON_HEIGHT: f32 = 46.0;
@@ -70,15 +82,37 @@ pub(crate) enum Choice {
     Changelog,
 }
 
-/// One block of the card's recap, wrapped.
+/// One block of the card as offered, before it is wrapped to the card's width.
 #[derive(Debug, Eq, PartialEq)]
-enum Item {
+enum Block {
     /// A release's name and date, when the card holds several.
     Release(String),
-    /// A recap line: its heading and the sentence's lines.
-    Line(String, Vec<String>),
+    /// A recap line: its heading and its sentence, code in backticks.
+    Line(String, String),
     /// A release's introduction, standing in for a recap it lacks.
-    Intro(Vec<String>),
+    Intro(String),
+}
+
+/// A piece of a wrapped line: plain text, or a chip's text. `x` and `width` are frame
+/// pixels from the text's left edge.
+#[derive(Debug, PartialEq)]
+struct Run {
+    x: f32,
+    width: f32,
+    text: String,
+    code: bool,
+}
+
+type Row = Vec<Run>;
+
+/// One block of the card's recap, wrapped.
+#[derive(Debug, PartialEq)]
+enum Item {
+    Release(String),
+    /// A recap line: its heading and the sentence's rows.
+    Line(String, Vec<Row>),
+    /// An introduction's rows, in muted text.
+    Intro(Vec<Row>),
     /// What did not fit.
     More,
 }
@@ -87,7 +121,8 @@ impl Item {
     fn height(&self) -> f32 {
         match self {
             Self::Release(_) => RELEASE_HEIGHT,
-            Self::Line(_, lines) | Self::Intro(lines) => lines.len() as f32 * LINE + ROW_GAP,
+            Self::Line(_, rows) => HEADING_HEIGHT + rows.len() as f32 * LINE + ROW_GAP,
+            Self::Intro(rows) => rows.len() as f32 * LINE + ROW_GAP,
             Self::More => LINE + ROW_GAP,
         }
     }
@@ -101,7 +136,11 @@ pub(crate) struct Card {
     /// What it shows: the first release's name, and its blocks.
     title: String,
     kicker: &'static str,
+    blocks: Vec<Block>,
+    /// The blocks wrapped, and the measure they were wrapped with
+    /// ([`Card::lay_out`]).
     items: Vec<Item>,
+    laid_for: Option<u32>,
     /// Shown this frame.
     open: bool,
     ui: MenuCanvas,
@@ -114,9 +153,11 @@ impl Default for Card {
             version: String::new(),
             title: String::new(),
             kicker: "SJK updated",
+            blocks: Vec::new(),
             items: Vec::new(),
+            laid_for: None,
             open: false,
-            ui: MenuCanvas::with_capacities(64, 200, 96),
+            ui: MenuCanvas::with_capacities(96, 200, 96),
         }
     }
 }
@@ -130,7 +171,9 @@ impl Card {
     /// Put `digests` (newest first) on the card for the player's `version`, or take the
     /// card away with none. `preview` is a recap shown on request, not an update.
     pub(crate) fn offer(&mut self, version: &str, digests: &[Digest], preview: bool) {
+        self.blocks.clear();
         self.items.clear();
+        self.laid_for = None;
         self.version = version.to_owned();
         self.kicker = if preview { "Preview" } else { "SJK updated" };
         let Some(first) = digests.first() else {
@@ -138,54 +181,33 @@ impl Card {
             return;
         };
         self.title = first.title.clone();
-        let mut spent = 0;
-        let mut more = false;
-        'releases: for digest in digests {
+        for digest in digests {
             if digests.len() > 1 {
-                self.items.push(Item::Release(release_label(digest)));
+                self.blocks.push(Block::Release(release_label(digest)));
             }
             if digest.lines.is_empty() {
-                let mut lines: Vec<String> = wrap(&digest.intro, INTRO_CHARS)
-                    .map(str::to_owned)
-                    .collect();
-                if lines.len() > INTRO_LINES {
-                    // Cut short, so it says so.
-                    lines.truncate(INTRO_LINES);
-                    if let Some(last) = lines.last_mut() {
-                        let keep = INTRO_CHARS.saturating_sub(3);
-                        let cut: String = last.chars().take(keep).collect();
-                        *last = format!("{}...", cut.trim_end());
-                    }
-                }
-                spent += lines.len();
-                if !lines.is_empty() {
-                    self.items.push(Item::Intro(lines));
+                if !digest.intro.trim().is_empty() {
+                    self.blocks.push(Block::Intro(digest.intro.clone()));
                 }
                 continue;
             }
             for (heading, sentence) in &digest.lines {
-                let lines: Vec<String> = wrap(sentence, TEXT_CHARS).map(str::to_owned).collect();
-                if spent + lines.len().max(1) > LINES {
-                    more = true;
-                    break 'releases;
-                }
-                spent += lines.len().max(1);
-                self.items.push(Item::Line(heading.clone(), lines));
+                self.blocks
+                    .push(Block::Line(heading.clone(), sentence.clone()));
             }
-        }
-        if more {
-            self.items.push(Item::More);
         }
     }
 
     /// Whether the card has something to show.
     pub(crate) fn wants(&self) -> bool {
-        !self.items.is_empty()
+        !self.blocks.is_empty()
     }
 
     /// The card is answered: it puts the recap away.
     fn put_away(&mut self) {
+        self.blocks.clear();
         self.items.clear();
+        self.laid_for = None;
     }
 
     pub(crate) fn set_open(&mut self, open: bool) {
@@ -241,8 +263,44 @@ impl Card {
         self.items.iter().map(Item::height).sum()
     }
 
+    /// Wrap the blocks to the card's width as `measure` draws text, once for each
+    /// measure (the menu text style changes it), and stop with a pointer to the changelog
+    /// when the recap would grow taller than [`BODY_MAX`].
+    fn lay_out(&mut self, measure: &Measure<'_>) {
+        // How the font and the text style measure, to tell when they changed.
+        let key = measure.width("Mm `", SIZE, TextFace::Regular).to_bits();
+        if self.laid_for == Some(key) {
+            return;
+        }
+        self.laid_for = Some(key);
+        self.items.clear();
+        let room = BODY_MAX - Item::More.height();
+        let mut height = 0.0;
+        for block in &self.blocks {
+            let item = match block {
+                Block::Release(label) => Item::Release(label.clone()),
+                Block::Line(heading, sentence) => {
+                    Item::Line(heading.clone(), flow(sentence, TEXT_WIDTH, measure))
+                }
+                Block::Intro(intro) => Item::Intro(intro_rows(intro, measure)),
+            };
+            if height + item.height() > room {
+                self.items.push(Item::More);
+                break;
+            }
+            height += item.height();
+            self.items.push(item);
+        }
+        // A release name with nothing under it says nothing.
+        if let Some(Item::Release(_)) = self.items.last() {
+            self.items.pop();
+            self.items.push(Item::More);
+        }
+    }
+
     /// Draw the card over the whole frame.
     pub(crate) fn append(&mut self, target: TextTarget<'_>, viewport: [f32; 2]) {
+        self.lay_out(&target.body_measure());
         let frame = Frame::new(viewport);
         let s = frame.s;
         let body = self.body_height();
@@ -281,67 +339,45 @@ impl Card {
         for item in &self.items {
             match item {
                 Item::Release(label) => {
+                    // Muted, with a rule to the card's edge, so it reads as a divider
+                    // above the gold headings rather than as one of them.
                     text(
                         ui,
                         TextFamily::Display,
                         format_args!("{label}"),
                         frame.rect(TEXT_X, y + 6.0, TEXT_WIDTH, 28.0),
-                        20.0 * s,
-                        color::GOLD,
+                        19.0 * s,
+                        color::MUTED,
                         FontWeight::Semibold,
                         TextAlign::Start,
                     );
+                    let rule_x = TEXT_X + crate::text::display_width(label, 19.0) + 16.0;
+                    let _ = ui.draw_list_mut().push(DrawCommand::SolidRect {
+                        rect: frame.rect(rule_x, y + 20.0, TEXT_X + TEXT_WIDTH - rule_x, 1.0),
+                        color: color::alpha(color::HOLO, 0.25),
+                    });
                 }
-                Item::Line(heading, lines) => {
+                Item::Line(heading, rows) => {
                     text(
                         ui,
-                        TextFamily::Body,
+                        TextFamily::Display,
                         format_args!("{heading}"),
-                        frame.rect(TEXT_X, y, HEADING_WIDTH - 12.0, LINE),
-                        18.0 * s,
+                        frame.rect(TEXT_X, y, TEXT_WIDTH, HEADING_HEIGHT),
+                        HEADING_SIZE * s,
                         color::GOLD_BRIGHT,
                         FontWeight::Semibold,
                         TextAlign::Start,
                     );
-                    for (index, line) in lines.iter().enumerate() {
-                        text(
-                            ui,
-                            TextFamily::Body,
-                            format_args!("{line}"),
-                            frame.rect(
-                                TEXT_X + HEADING_WIDTH,
-                                y + index as f32 * LINE,
-                                TEXT_WIDTH - HEADING_WIDTH,
-                                LINE,
-                            ),
-                            18.0 * s,
-                            color::TEXT,
-                            FontWeight::Regular,
-                            TextAlign::Start,
-                        );
-                    }
+                    draw_rows(ui, &frame, rows, y + HEADING_HEIGHT, color::TEXT);
                 }
-                Item::Intro(lines) => {
-                    for (index, line) in lines.iter().enumerate() {
-                        text(
-                            ui,
-                            TextFamily::Body,
-                            format_args!("{line}"),
-                            frame.rect(TEXT_X, y + index as f32 * LINE, TEXT_WIDTH, LINE),
-                            18.0 * s,
-                            color::MUTED,
-                            FontWeight::Regular,
-                            TextAlign::Start,
-                        );
-                    }
-                }
+                Item::Intro(rows) => draw_rows(ui, &frame, rows, y, color::MUTED),
                 Item::More => {
                     text(
                         ui,
                         TextFamily::Body,
                         format_args!("More in the full changelog."),
                         frame.rect(TEXT_X, y, TEXT_WIDTH, LINE),
-                        18.0 * s,
+                        SIZE * s,
                         color::MUTED,
                         FontWeight::Regular,
                         TextAlign::Start,
@@ -388,7 +424,177 @@ impl Card {
     }
 }
 
-/// "2026.1011.3 (Alpha)   -   11/10/2026", or just the name when it has no date.
+/// Draw wrapped `rows` from the line whose top is `y` (frame pixels), plain text in
+/// `colour` and code in chips.
+fn draw_rows(ui: &mut MenuCanvas, frame: &Frame, rows: &[Row], y: f32, colour: sjk_ui::Color) {
+    let s = frame.s;
+    for (index, row) in rows.iter().enumerate() {
+        let line_y = y + index as f32 * LINE;
+        for run in row {
+            if !run.code {
+                // A little room past the measured end, so no letter is clipped.
+                text(
+                    ui,
+                    TextFamily::Body,
+                    format_args!("{}", run.text),
+                    frame.rect(TEXT_X + run.x, line_y, run.width + 8.0, LINE),
+                    SIZE * s,
+                    colour,
+                    FontWeight::Regular,
+                    TextAlign::Start,
+                );
+                continue;
+            }
+            let chip = frame.rect(
+                TEXT_X + run.x,
+                line_y + (LINE - CHIP_HEIGHT) * 0.5,
+                run.width,
+                CHIP_HEIGHT,
+            );
+            let _ = ui.draw_list_mut().push(DrawCommand::RoundedRect {
+                rect: chip,
+                radius: CHIP_RADIUS * s,
+                color: color::alpha(color::HOLO, 0.12),
+            });
+            let _ = ui.draw_list_mut().push(DrawCommand::Border {
+                rect: chip,
+                radius: CHIP_RADIUS * s,
+                width: s.max(1.0),
+                color: color::alpha(color::HOLO, 0.4),
+            });
+            text(
+                ui,
+                TextFamily::Body,
+                format_args!("{}", run.text),
+                frame.rect(TEXT_X + run.x, line_y, run.width, LINE),
+                CHIP_SIZE * s,
+                color::TEXT,
+                FontWeight::Semibold,
+                TextAlign::Center,
+            );
+        }
+    }
+}
+
+/// A word of a sentence, or a code span; `glued` when nothing parts it from the one
+/// before (a full stop after a chip), so a line never breaks between them.
+struct Token<'a> {
+    text: &'a str,
+    code: bool,
+    glued: bool,
+}
+
+/// `sentence`'s words and code spans: what backticks enclose is code, kept whole.
+fn tokens(sentence: &str) -> Vec<Token<'_>> {
+    let mut tokens = Vec::new();
+    // Whether a space came since the last token.
+    let mut spaced = true;
+    for (index, part) in sentence.split('`').enumerate() {
+        if index % 2 == 1 {
+            let code = part.trim();
+            if !code.is_empty() {
+                tokens.push(Token {
+                    text: code,
+                    code: true,
+                    glued: !spaced,
+                });
+                spaced = false;
+            }
+            continue;
+        }
+        let mut rest = part;
+        loop {
+            let word = rest.trim_start();
+            spaced |= word.len() != rest.len();
+            if word.is_empty() {
+                break;
+            }
+            let end = word.find(char::is_whitespace).unwrap_or(word.len());
+            tokens.push(Token {
+                text: &word[..end],
+                code: false,
+                glued: !spaced,
+            });
+            spaced = false;
+            rest = &word[end..];
+        }
+    }
+    tokens
+}
+
+/// `sentence` wrapped into rows `width` wide (frame pixels) as `measure` draws it: at
+/// spaces, never inside a code span or between glued tokens; a group wider than a row
+/// stands alone. Neighbouring words share one run.
+fn flow(sentence: &str, width: f32, measure: &Measure<'_>) -> Vec<Row> {
+    let space = measure.width(" ", SIZE, TextFace::Regular);
+    let token_width = |token: &Token<'_>| {
+        if token.code {
+            measure.width(token.text, CHIP_SIZE, TextFace::Semibold) + CHIP_PAD * 2.0
+        } else {
+            measure.width(token.text, SIZE, TextFace::Regular)
+        }
+    };
+    let tokens = tokens(sentence);
+    let mut rows: Vec<Row> = vec![Vec::new()];
+    let mut x = 0.0;
+    let mut start = 0;
+    while start < tokens.len() {
+        // The group: this token and those glued after it.
+        let end = tokens[start + 1..]
+            .iter()
+            .position(|token| !token.glued)
+            .map_or(tokens.len(), |at| start + 1 + at);
+        let group = &tokens[start..end];
+        let group_width: f32 = group.iter().map(token_width).sum();
+        let mut gap = if x > 0.0 { space } else { 0.0 };
+        if x > 0.0 && x + gap + group_width > width {
+            rows.push(Vec::new());
+            x = 0.0;
+            gap = 0.0;
+        }
+        let row = rows.last_mut().expect("one row at least");
+        for (index, token) in group.iter().enumerate() {
+            let token_gap = if index == 0 { gap } else { 0.0 };
+            let token_width = token_width(token);
+            match row.last_mut() {
+                Some(run) if !run.code && !token.code => {
+                    if token_gap > 0.0 {
+                        run.text.push(' ');
+                    }
+                    run.text.push_str(token.text);
+                    run.width += token_gap + token_width;
+                }
+                _ => row.push(Run {
+                    x: x + token_gap,
+                    width: token_width,
+                    text: token.text.to_owned(),
+                    code: token.code,
+                }),
+            }
+            x += token_gap + token_width;
+        }
+        start = end;
+    }
+    rows
+}
+
+/// An introduction's rows: [`INTRO_LINES`] at most, the last ending in "..." when it was
+/// cut short. Code marks are dropped, as introductions draw no chips.
+fn intro_rows(intro: &str, measure: &Measure<'_>) -> Vec<Row> {
+    let plain = intro.replace('`', "");
+    let ellipsis = measure.width("...", SIZE, TextFace::Regular);
+    let mut rows = flow(&plain, TEXT_WIDTH - ellipsis, measure);
+    if rows.len() > INTRO_LINES {
+        rows.truncate(INTRO_LINES);
+        if let Some(run) = rows.last_mut().and_then(|row| row.last_mut()) {
+            run.text.push_str("...");
+            run.width += ellipsis;
+        }
+    }
+    rows
+}
+
+/// "2026.1011.3 (Alpha)   /   11/10/2026", or just the name when it has no date.
 fn release_label(digest: &Digest) -> String {
     if digest.date.is_empty() {
         digest.title.clone()
@@ -498,6 +704,7 @@ impl crate::GpuState {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::text::{TextStyle, test_font};
 
     fn digest(title: &str, lines: &[(&str, &str)]) -> Digest {
         Digest {
@@ -509,6 +716,12 @@ mod tests {
                 .map(|(heading, sentence)| ((*heading).to_owned(), (*sentence).to_owned()))
                 .collect(),
         }
+    }
+
+    /// Lay `card` out with test glyphs, 12 frame pixels a character at the text size.
+    fn laid_out(card: &mut Card) {
+        let font = test_font();
+        card.lay_out(&Measure::new(&font, TextStyle::NEUTRAL));
     }
 
     #[test]
@@ -552,6 +765,7 @@ mod tests {
             ],
             false,
         );
+        laid_out(&mut card);
         assert!(matches!(card.items[0], Item::Release(_)));
         assert!(matches!(card.items[1], Item::Line(..)));
         assert!(matches!(card.items[2], Item::Release(_)));
@@ -563,12 +777,85 @@ mod tests {
             ..digest("1.0", &[])
         };
         card.offer("1.0", &[long], false);
-        let Some(Item::Intro(lines)) = card.items.first() else {
+        laid_out(&mut card);
+        let Some(Item::Intro(rows)) = card.items.first() else {
             panic!("{:?}", card.items);
         };
-        assert_eq!(lines.len(), INTRO_LINES);
-        assert!(lines[INTRO_LINES - 1].ends_with("..."), "{lines:?}");
-        assert!(lines[INTRO_LINES - 1].chars().count() <= INTRO_CHARS);
+        assert_eq!(rows.len(), INTRO_LINES);
+        let last = rows[INTRO_LINES - 1].last().unwrap();
+        assert!(last.text.ends_with("..."), "{rows:?}");
+        assert!(last.x + last.width <= TEXT_WIDTH);
+    }
+
+    #[test]
+    fn the_heading_sits_over_a_sentence_that_takes_the_card_width() {
+        let mut card = Card::default();
+        let sentence = "word ".repeat(30);
+        card.offer("2.0", &[digest("2.0", &[("Servers", &sentence)])], false);
+        laid_out(&mut card);
+        let Some(Item::Line(heading, rows)) = card.items.first() else {
+            panic!("{:?}", card.items);
+        };
+        assert_eq!(heading, "Servers");
+        // 150 characters of 12 pixels in rows 832 wide: three rows, starting at the
+        // text's left edge, each one run.
+        assert_eq!(rows.len(), 3, "{rows:?}");
+        for row in rows {
+            assert_eq!(row.len(), 1);
+            assert_eq!(row[0].x, 0.0);
+            assert!(row[0].width <= TEXT_WIDTH, "{row:?}");
+        }
+        assert_eq!(
+            card.items[0].height(),
+            HEADING_HEIGHT + 3.0 * LINE + ROW_GAP
+        );
+    }
+
+    #[test]
+    fn code_in_backticks_is_drawn_in_chips_that_are_never_cut() {
+        let font = test_font();
+        let measure = Measure::new(&font, TextStyle::NEUTRAL);
+        let rows = flow(
+            "Type `whatsnew`, or `cl_allowDownload 1`.",
+            TEXT_WIDTH,
+            &measure,
+        );
+        assert_eq!(rows.len(), 1);
+        let texts: Vec<(&str, bool)> = rows[0]
+            .iter()
+            .map(|run| (run.text.as_str(), run.code))
+            .collect();
+        assert_eq!(
+            texts,
+            [
+                ("Type", false),
+                ("whatsnew", true),
+                (", or", false),
+                ("cl_allowDownload 1", true),
+                (".", false),
+            ]
+        );
+        let chip = &rows[0][1];
+        // Its letters (8 of 17 / 12 * 8 wide) and the padding either side.
+        let letters = 8.0 * 8.0 * CHIP_SIZE / 12.0;
+        assert!(
+            (chip.width - letters - CHIP_PAD * 2.0).abs() < 0.01,
+            "{chip:?}"
+        );
+        // The comma is glued to the chip and shares a run with the next word; the next
+        // chip is a space after it.
+        assert_eq!(rows[0][2].x, chip.x + chip.width);
+        let space = 12.0;
+        assert_eq!(rows[0][3].x, rows[0][2].x + rows[0][2].width + space);
+
+        // A chip that does not fit the rest of a row moves to the next one whole, with
+        // the full stop glued to it.
+        let narrow = flow("aaaa `bbbb cccc`.", 150.0, &measure);
+        assert_eq!(narrow.len(), 2, "{narrow:?}");
+        assert_eq!(narrow[0][0].text, "aaaa");
+        assert_eq!(narrow[1][0].text, "bbbb cccc");
+        assert!(narrow[1][0].code);
+        assert_eq!(narrow[1][1].text, ".");
     }
 
     #[test]
@@ -577,17 +864,33 @@ mod tests {
         let lines: Vec<(&str, &str)> = (0..8).map(|_| ("Heading", long.as_str())).collect();
         let mut card = Card::default();
         card.offer("3.0", &[digest("3.0", &lines)], false);
+        laid_out(&mut card);
         assert_eq!(card.items.last(), Some(&Item::More));
-        let spent: usize = card
-            .items
-            .iter()
-            .map(|item| match item {
-                Item::Line(_, lines) => lines.len(),
-                _ => 0,
-            })
-            .sum();
-        assert!(spent <= LINES, "{spent}");
+        assert!(card.body_height() <= BODY_MAX, "{}", card.body_height());
         assert!(card.body_height() < FRAME_HEIGHT - HEAD_HEIGHT - 200.0);
+    }
+
+    #[test]
+    fn the_layout_is_kept_until_the_measure_changes() {
+        let font = test_font();
+        let mut card = Card::default();
+        card.offer(
+            "2.0",
+            &[digest("2.0", &[("Servers", "Downloads work.")])],
+            false,
+        );
+        card.lay_out(&Measure::new(&font, TextStyle::NEUTRAL));
+        let first = card.laid_for;
+        card.items.clear();
+        card.lay_out(&Measure::new(&font, TextStyle::NEUTRAL));
+        assert!(card.items.is_empty(), "laid out once for a measure");
+        let larger = TextStyle {
+            scale: 1.25,
+            ..TextStyle::NEUTRAL
+        };
+        card.lay_out(&Measure::new(&font, larger));
+        assert_ne!(card.laid_for, first);
+        assert!(!card.items.is_empty());
     }
 
     #[test]
@@ -596,6 +899,7 @@ mod tests {
         assert!(!newest.lines.is_empty(), "{} has no recap", newest.title);
         let mut card = Card::default();
         card.offer("", &[newest], true);
+        laid_out(&mut card);
         assert!(card.wants());
         assert!(!card.items.contains(&Item::More), "{:?}", card.items);
         assert!(card.body_height() < FRAME_HEIGHT - HEAD_HEIGHT - 200.0);
