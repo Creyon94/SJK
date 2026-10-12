@@ -648,6 +648,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Show the GIF of a GIPHY link in SJK chat, fetched from GIPHY by this PC, which GIPHY sees (0 keeps links as text and fetches nothing)",
         ),
         CvarDefinition::new(
+            crate::chat_gifs::search::KEY_CVAR,
+            "",
+            archive,
+            "Your own GIPHY API key for the SJK chat's GIF search (empty uses SJK's, shared by every SJK player)",
+        ),
+        CvarDefinition::new(
             "cl_updateAs",
             "",
             CvarFlags::NONE,

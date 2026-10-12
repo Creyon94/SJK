@@ -171,6 +171,7 @@ mod holocrons_frame;
 mod identity_command;
 mod identity_frame;
 mod illuminate;
+mod inline_code;
 mod jetpack;
 mod live_session;
 mod looks;

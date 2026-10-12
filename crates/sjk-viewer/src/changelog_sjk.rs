@@ -6,7 +6,8 @@
 //! differs.
 
 use super::*;
-use crate::menu::sjk::{Frame, TextTarget, color, key_hint, key_hint_width, kit, text, wrap};
+use crate::inline_code::{self, Look, Measures, Place};
+use crate::menu::sjk::{Frame, TextTarget, color, key_hint, key_hint_width, kit, text};
 use crate::menu_widgets::TextFamily;
 
 /// The releases' rail: its line, the first release's top and the step.
@@ -20,8 +21,15 @@ const NOTES_X: f32 = 520.0;
 const NOTES_WIDTH: f32 = 960.0;
 const NOTES_TOP: f32 = 190.0;
 const NOTES_BOTTOM: f32 = 950.0;
-/// Characters a line of the notes holds (Exo 2 at 19, 960 wide).
-const NOTES_CHARS: usize = 96;
+/// The notes' text and their chips (`inline_code`).
+const NOTES_LOOK: Look = Look {
+    size: 19.0,
+    line: 30.0,
+    chip_size: 17.5,
+    chip_pad: 7.0,
+    chip_height: 25.0,
+    chip_radius: 6.0,
+};
 /// A change's text starts after its dot.
 const INDENT: f32 = 26.0;
 /// The keys' line.
@@ -41,6 +49,7 @@ impl LineKind {
 impl Panel {
     /// Draw the page in the SJK UI.
     pub(crate) fn append_sjk(&mut self, target: TextTarget<'_>, viewport: [f32; 2]) {
+        let measures = target.inline_measures();
         let frame = Frame::new(viewport);
         let s = frame.s;
         self.ui.begin_transparent(viewport);
@@ -60,7 +69,7 @@ impl Panel {
             TextAlign::Start,
         );
         self.sjk_releases(&frame);
-        self.sjk_notes(&frame);
+        self.sjk_notes(&frame, &measures);
         self.sjk_keys(&frame);
         let selected = self.selected.saturating_sub(self.first);
         self.ui
@@ -137,7 +146,7 @@ impl Panel {
     }
 
     /// The chosen release's notes in the reading column, scrolled.
-    fn sjk_notes(&mut self, frame: &Frame) {
+    fn sjk_notes(&mut self, frame: &Frame, measures: &Measures<'_>) {
         let s = frame.s;
         if let Some(error) = self.error.clone() {
             text(
@@ -186,7 +195,7 @@ impl Panel {
             TextAlign::Start,
         );
         let top = NOTES_TOP + 108.0;
-        self.wrap_sjk();
+        self.wrap_sjk(measures);
         let available = (NOTES_BOTTOM - top) * s;
         self.fit_scroll(available, |kind| kind.sjk_height() * s);
         self.ui.scroll_region(
@@ -195,23 +204,30 @@ impl Panel {
         );
         let mut y = top;
         let mut shown = 0_usize;
+        self.chips.clear();
+        let mut chip_token = CHIP_BASE;
         for line in &self.lines[self.scroll..] {
             let height = line.kind.sjk_height();
             if y + height > NOTES_BOTTOM + 0.5 {
                 break;
             }
             shown += 1;
+            self.chips
+                .extend(inline_code::chips(std::slice::from_ref(&line.row)).map(str::to_owned));
             match line.kind {
                 LineKind::Gap => {}
-                LineKind::Intro => text(
+                LineKind::Intro => inline_code::draw_rows(
                     &mut self.ui,
-                    TextFamily::Body,
-                    format_args!("{}", line.text),
-                    frame.rect(NOTES_X, y, NOTES_WIDTH, height),
-                    19.0 * s,
-                    color::MUTED,
-                    FontWeight::Regular,
-                    TextAlign::Start,
+                    frame,
+                    std::slice::from_ref(&line.row),
+                    &NOTES_LOOK,
+                    &Place {
+                        x: NOTES_X,
+                        y,
+                        colour: color::MUTED,
+                        code_family: TextFamily::Code,
+                    },
+                    Some(&mut chip_token),
                 ),
                 LineKind::Change | LineKind::More => {
                     if line.kind == LineKind::Change {
@@ -225,15 +241,18 @@ impl Panel {
                                 color: color::GOLD,
                             });
                     }
-                    text(
+                    inline_code::draw_rows(
                         &mut self.ui,
-                        TextFamily::Body,
-                        format_args!("{}", line.text),
-                        frame.rect(NOTES_X + INDENT, y, NOTES_WIDTH - INDENT, height),
-                        19.0 * s,
-                        color::alpha(color::TEXT, 0.92),
-                        FontWeight::Regular,
-                        TextAlign::Start,
+                        frame,
+                        std::slice::from_ref(&line.row),
+                        &NOTES_LOOK,
+                        &Place {
+                            x: NOTES_X + INDENT,
+                            y,
+                            colour: color::alpha(color::TEXT, 0.92),
+                            code_family: TextFamily::Code,
+                        },
+                        Some(&mut chip_token),
                     );
                 }
                 LineKind::Credit => text(
@@ -261,11 +280,11 @@ impl Panel {
         }
     }
 
-    /// Wrap the chosen release for the reading column by characters (its
-    /// families are not measured here); credits keep their own case.
-    fn wrap_sjk(&mut self) {
+    /// Wrap the chosen release for the reading column as `measures` draw it, its code
+    /// in chips; credits keep their own case.
+    fn wrap_sjk(&mut self, measures: &Measures<'_>) {
         // Keyed apart from the classic+ pane's measured wrap.
-        let key = (self.selected, u32::MAX, NOTES_CHARS as u32);
+        let key = (self.selected, u32::MAX, measures.key(&NOTES_LOOK));
         if self.wrapped_for == Some(key) {
             return;
         }
@@ -274,39 +293,35 @@ impl Panel {
         let Some(release) = self.releases.get(self.selected) else {
             return;
         };
+        let line = |kind, row| Line {
+            kind,
+            text: String::new(),
+            row,
+        };
         for paragraph in &release.intro {
-            for line in wrap(paragraph, NOTES_CHARS) {
-                self.lines.push(Line {
-                    kind: LineKind::Intro,
-                    text: line.to_owned(),
-                });
+            for row in inline_code::flow(paragraph, NOTES_WIDTH, measures, &NOTES_LOOK) {
+                self.lines.push(line(LineKind::Intro, row));
             }
-            self.lines.push(Line {
-                kind: LineKind::Gap,
-                text: String::new(),
-            });
+            self.lines.push(line(LineKind::Gap, Vec::new()));
         }
         for change in &release.changes {
-            for (index, line) in wrap(&change.text, NOTES_CHARS - 3).enumerate() {
-                self.lines.push(Line {
-                    kind: if index == 0 {
-                        LineKind::Change
-                    } else {
-                        LineKind::More
-                    },
-                    text: line.to_owned(),
-                });
+            let rows = inline_code::flow(&change.text, NOTES_WIDTH - INDENT, measures, &NOTES_LOOK);
+            for (index, row) in rows.into_iter().enumerate() {
+                let kind = if index == 0 {
+                    LineKind::Change
+                } else {
+                    LineKind::More
+                };
+                self.lines.push(line(kind, row));
             }
             if !change.credit.is_empty() {
                 self.lines.push(Line {
                     kind: LineKind::Credit,
                     text: change.credit.clone(),
+                    row: Vec::new(),
                 });
             }
-            self.lines.push(Line {
-                kind: LineKind::Gap,
-                text: String::new(),
-            });
+            self.lines.push(line(LineKind::Gap, Vec::new()));
         }
         self.lines.pop();
     }

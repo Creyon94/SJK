@@ -111,7 +111,8 @@ Sol develops SJK and sets its direction. Sol's work includes:
   blade below the tip and heat haze, the Void's orbiting black holes, warped space,
   gravity pulse and afterimages, the Spectral's wisps, souls, smoky edge, cold rim and swaying echo, each a part
   its wearer can switch off, seen so by every SJK player;
-- the SJK chat's GIFs (GIPHY links show their GIF), who is online on the chat page,
+- the SJK chat's GIFs (GIPHY links show their GIF) and its GIF picker (favourites,
+  GIPHY search, the GIFs seen in the chat), who is online on the chat page,
   its chat sounds, `reply` (after JoF EJK), the last channel remembered and SJK's
   emblem on SJK lines;
 - crash reports sent to the SJK team at the next start, and world notes sent to the
@@ -272,7 +273,7 @@ Gama), keep theirs ([Rajdhani](crates/sjk-viewer/assets/fonts/Rajdhani-OFL.txt),
 of its variable font, unchanged otherwise), the game fonts
 SJK Menu and SJK HUD are traced from the JoF HD Fonts & Icons pack (author unknown)
 and SJK Chat is OCR-A by John Sauter (public domain), as
-[SJK-fonts.txt](crates/sjk-viewer/assets/fonts/SJK-fonts.txt) describes, GIFs in the SJK chat come from [GIPHY](https://giphy.com), fetched by
+[SJK-fonts.txt](crates/sjk-viewer/assets/fonts/SJK-fonts.txt) describes, GIFs in the SJK chat and the GIF picker's search come from [GIPHY](https://giphy.com), fetched by
 each player's client, the radial HUD is SJK's own take on TheRisqe's Radial HUD (none
 of its pictures included), the website's effects use
 the [Shaders](https://github.com/shader-effects-inc/shaders) library by Shader

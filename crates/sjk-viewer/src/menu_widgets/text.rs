@@ -9,12 +9,16 @@ use std::fmt::{Arguments, Write as _};
 
 /// The family a text run is drawn in on screens of the SJK UI: its display
 /// type (Rajdhani) for navigation and titles, its body type (Exo 2) for the
-/// rest. Other screens draw every run in one font whatever its family.
+/// rest, and its code type (JetBrains Mono, the console's font) for commands
+/// and cvars in chips (`inline_code`). Other screens draw every run in one font
+/// whatever its family; code falls back to the body type where its font is not
+/// loaded.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) enum TextFamily {
     #[default]
     Body,
     Display,
+    Code,
 }
 
 impl MenuCanvas {
@@ -25,7 +29,8 @@ impl MenuCanvas {
     }
 
     /// Append retained text in the SJK UI's families: display runs to
-    /// `fonts.display`, body runs to `fonts.body`, in the player's menu text
+    /// `fonts.display`, body runs to `fonts.body`, code runs to `fonts.code`
+    /// (or the body's when it is not loaded), in the player's menu text
     /// `style`, colour codes lifted to read on the UI's navy
     /// ([`crate::text::CodePalette::Legible`]).
     pub(crate) fn append_text_families(
@@ -34,19 +39,31 @@ impl MenuCanvas {
         viewport: [f32; 2],
         style: TextStyle,
     ) {
-        let SjkFonts { display, body } = fonts;
-        for ((vertices, font), family) in [(display, TextFamily::Display), (body, TextFamily::Body)]
+        let SjkFonts {
+            display,
+            body,
+            code,
+        } = fonts;
+        let has_code = code.is_some();
+        let family_of = |id: TextId| match self
+            .families
+            .get(id.0 as usize)
+            .copied()
+            .unwrap_or_default()
         {
+            TextFamily::Code if !has_code => TextFamily::Body,
+            family => family,
+        };
+        let targets = [
+            Some((display, TextFamily::Display)),
+            Some((body, TextFamily::Body)),
+            code.map(|code| (code, TextFamily::Code)),
+        ];
+        for ((vertices, font), family) in targets.into_iter().flatten() {
             ui_renderer::append_text_commands_where(
                 &self.draw,
                 |id| self.resolve(id),
-                |id, _| {
-                    self.families
-                        .get(id.0 as usize)
-                        .copied()
-                        .unwrap_or_default()
-                        == family
-                },
+                |id, _| family_of(id) == family,
                 vertices,
                 font,
                 viewport,

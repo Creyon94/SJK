@@ -50,7 +50,7 @@ pub(super) fn ink_bounds(font: &UiFont, name: &str, origin: [f32; 2], size: f32)
 
 /// Fixed scanline spans draw a five-point star without relying on a Unicode
 /// glyph absent from the legacy Latin-1 atlas. No per-frame tessellation/storage.
-pub(super) fn star(ui: &mut crate::menu_widgets::MenuCanvas, rect: Rect, color: Color) {
+pub(crate) fn star(ui: &mut crate::menu_widgets::MenuCanvas, rect: Rect, color: Color) {
     for &(row, left, right) in STAR {
         ui.accent_bar(
             Rect::new(

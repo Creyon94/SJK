@@ -81,7 +81,7 @@ impl Measure<'_> {
     ) -> impl Fn(u8) -> f32 + '_ {
         let font = match family {
             TextFamily::Display => self.display,
-            TextFamily::Body => self.body,
+            TextFamily::Body | TextFamily::Code => self.body,
         };
         let styled = size * self.style.scale;
         let scale = styled / font.height.max(1.0);

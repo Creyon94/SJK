@@ -9,6 +9,14 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 12/10/2026 | - | GIF picker search field takes Ctrl+A
+- 3d846f8 |  | GIF picker search field: Ctrl+A selects its words, as every field does
++ 12/10/2026 | - | SJK chat GIF picker: favourites, GIPHY search, GIFs seen in chat
+- 86789d0 |  | SJK chat GIF picker: favourites, GIPHY search, GIFs seen in chat
++ 12/10/2026 | - | What's new card: pages, heading icons, credits, clickable mono chips; chips on the changelog page
+- 12adca5 |  | What's new card: pages, heading icons, credits and clickable chips
+- b14a649 |  | Chips in JetBrains Mono: a code family for the SJK UI
+- a8e2f1d |  | Changelog credits: rank with sort_by_key
 + 12/10/2026 | - | Ctrl+A selects all the text of a field
 - 8efdab7 |  | Ctrl+A selects all the text of a field, everywhere
 + 12/10/2026 | - | What's new card: headings on top, command chips

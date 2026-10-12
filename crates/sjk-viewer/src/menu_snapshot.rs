@@ -1646,6 +1646,7 @@ fn sjk_home_snapshot() {
             SjkFonts {
                 display: (&mut display_text, &display.font),
                 body: (&mut body_text, &body.font),
+                code: None,
             },
             viewport,
             crate::text::TextStyle::NEUTRAL,
@@ -1792,6 +1793,7 @@ fn sjk_settings_snapshot() {
                 SjkFonts {
                     display: (&mut display_text, &display.font),
                     body: (&mut body_text, &body.font),
+                    code: None,
                 },
                 crate::text::TextStyle::NEUTRAL,
             ),
@@ -2407,6 +2409,7 @@ fn medals_snapshot() {
                 SjkFonts {
                     display: (&mut display_text, &display.font),
                     body: (&mut body_text, &body.font),
+                    code: None,
                 },
                 crate::text::TextStyle::NEUTRAL,
             ),
@@ -2474,6 +2477,7 @@ fn medals_snapshot() {
                 SjkFonts {
                     display: (&mut display_text, &display.font),
                     body: (&mut body_text, &body.font),
+                    code: None,
                 },
                 crate::text::TextStyle::NEUTRAL,
             ),

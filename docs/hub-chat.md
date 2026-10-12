@@ -45,6 +45,7 @@ The hub's side is described in Sol-Vulpes/SJK-hub (`PROTOCOL.md`, "Chat", "Emote
 | SJK chat page | [sjk_chat_panel.rs](../crates/sjk-viewer/src/sjk_chat_panel.rs), [sjk_chat_panel_view.rs](../crates/sjk-viewer/src/sjk_chat_panel_view.rs), [console_sjk_chat_page.rs](../crates/sjk-viewer/src/console_sjk_chat_page.rs) |
 | Emotes | [emotes.rs](../crates/sjk-viewer/src/emotes.rs), [emotes_frame.rs](../crates/sjk-viewer/src/emotes_frame.rs) |
 | GIFs from GIPHY: links, fetching, decoding, the cache, drawing | [chat_gifs.rs](../crates/sjk-viewer/src/chat_gifs.rs) and its `link`, `fetch`, `decode`, `draw` modules; textures in [gif_textures.rs](../crates/sjk-viewer/src/ui_renderer/gif_textures.rs) |
+| The GIF picker: tabs, tiles, picking; favourites; GIPHY's search | [sjk_chat_gif_picker.rs](../crates/sjk-viewer/src/sjk_chat_gif_picker.rs); [chat_gifs/favourites.rs](../crates/sjk-viewer/src/chat_gifs/favourites.rs); [chat_gifs/search.rs](../crates/sjk-viewer/src/chat_gifs/search.rs) |
 
 ## Hub protocol (additions to version 1)
 
@@ -303,6 +304,66 @@ Only GIPHY: Tenor's API shut down on 30/06/2026.
   shortest address, `https://giphy.com/gifs/<id>` (`link::shortened`), so a copied share
   link fits; a link typed by hand is sent as typed.
 
+## The GIF picker
+
+Sol's request, 12/10/2026: "a gif picker to the SJK chat and a way to also save gifs as
+favorites". Decided with Sol the same day: search uses GIPHY's API with SJK's key, or the
+player's own (`cl_giphyKey`); favourites stay on this PC.
+
+- **Where**: the SJK chat page only. GIF, between the field and Send, opens it (and
+  closes it); it takes the messages' place until it closes, so the field, Send and the
+  right column stay. The docks have Open chat for it. With `cl_sjkChatGifs 0` GIF is
+  off and the picker does not open.
+- **Tabs**: Favourites (opened on when there are any, else Search), Search, and Seen in
+  chat: the GIFs of the chat's messages, newest first, each once, at most 60, muted
+  senders' left out. Seen in chat and Favourites ask GIPHY's API nothing.
+- **Tiles**: five columns by three rows, each GIF whole and animated in its tile.
+  A tile shows GIPHY's preview file, `200w_d.gif` (200 pixels wide at a lower frame rate,
+  a third of `200.gif`'s bytes, seen 12/10/2026), falling back to `200.gif`, then the
+  original, on a 404, with the same rules as a message's GIF (rebuilt address, 4 MiB,
+  no redirect). Tiles are cached apart from messages' GIFs, in the same cache: it holds
+  48 GIFs and 128 MiB of pixels now, 24 can be drawn at once, and three workers fetch, so
+  a page of tiles fills together; a tile scrolled away before its turn is not fetched.
+- **Picking** (a click, or Enter on a tile) writes the GIF's shortest link
+  (`https://giphy.com/gifs/<id>`, 37 characters at most for a 14-letter id) at the end of
+  the message, in place of any GIPHY link already in it, closes the picker and gives the
+  field the keyboard: Enter sends, so text can go with it. When the link does not fit
+  the 150 characters, the picker says so and nothing changes.
+- **Favourites**: the star in a tile's corner (shown on the tile under the pointer or
+  the keyboard, gold on a favourite), or F on a tile, adds or removes it; the chosen
+  message has Add GIF to favourites (or Remove) under Mute when its line shows a GIF.
+  Kept in `gif-favourites.txt` beside `config.cfg`: one id a line, newest first, at
+  most 500 (adding past that lets the oldest go), written through a temporary file at
+  every change. Nothing is sent anywhere
+  ([favourites.rs](../crates/sjk-viewer/src/chat_gifs/favourites.rs)).
+- **Search** ([search.rs](../crates/sjk-viewer/src/chat_gifs/search.rs)): the field
+  (Search tab) asks `api.giphy.com/v1/gifs/search` for the words, or
+  `/v1/gifs/trending` with none, 25 a page, `rating=pg-13`, from this PC: GIPHY's terms
+  ask for requests from the client and forbid proxying them, so the hub is not used.
+  The words are tidied (lower case, spaces made one, 50 characters at most) and asked
+  700 ms after the last key, or at once with Enter. Only the GIFs' ids are read from the
+  answer; nothing else in it is used. The next page is asked when the grid's last row
+  comes on show (Page Down, the wheel, the arrows), up to 100 GIFs a search. One request
+  at a time, HTTPS only, no redirect, 10 seconds, 1 MiB read at most. Answers are kept
+  15 minutes and refusals 60 seconds (32 kept), so going back to a search asks nothing.
+  "Powered by GIPHY" stands under the grid, as GIPHY's terms ask.
+- **The key**: `cl_giphyKey` (archived, empty by default; Settings > Network > GIPHY
+  key, under SJK chat GIFs) is the player's own, from developers.giphy.com; empty uses
+  SJK's (`search::SJK_KEY`), shared by every SJK player. GIPHY gives a new key 100
+  requests an hour; more needs GIPHY's production approval. Until SJK's app is
+  registered `SJK_KEY` is empty and search says it needs a key (Favourites and Seen in
+  chat work). A refused key (401, 403) and a spent hour (429) are said in the picker;
+  the key travels in the request's address and is never logged.
+- **Keys**: Tab walks the tabs, the search field, the tiles, the field, GIF and Send;
+  Left and Right change tab on the tabs; the arrows move through the tiles, scrolling,
+  and Up from the top row goes to the search field (or the tabs); Down from the search
+  field or the tabs goes to the first tile; Up from the message field goes to the tiles;
+  `/` goes to the search field; Page Up and Page Down scroll a page of rows and the wheel
+  one row; Escape closes the picker (a second Escape leaves the page). The keys line
+  says Enter pick, F favourite, PgUp/PgDn scroll, Esc close GIFs. The search field
+  takes Ctrl+A (typing then replaces the words), Ctrl+V and a held Backspace as the
+  message field does.
+
 ## Who is online
 
 The SJK chat page (not the docks, which stay small) has a small window at the top of its
@@ -510,6 +571,13 @@ with its own privacy policy), so GIPHY sees the player's IP address, the GIF's i
 when, as for any picture a browser loads from it. The hub is not involved and learns
 nothing of it. Nothing else is sent: no cookie, key or name. GIFs stay in memory only.
 `cl_sjkChatGifs 0` stops every request to GIPHY.
+
+The GIF picker ([The GIF picker](#the-gif-picker)): a search sends GIPHY the words typed
+(after 700 ms without a key, or Enter), the key (SJK's or the player's own) and, as any
+request, the player's IP address; opening the Search tab with nothing typed asks for
+GIPHY's trending GIFs. No name, SJK key or cookie is sent. Favourites stay on this PC
+(`gif-favourites.txt`, GIPHY ids only) and are never sent; Seen in chat and Favourites
+ask GIPHY only for the GIFs themselves.
 
 ## Verification
 

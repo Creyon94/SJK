@@ -2431,7 +2431,9 @@ CHANGELOG on the classic page), the in-game SJK pop-up's Changelog and the
 [changelog_data.rs](../crates/sjk-viewer/src/changelog_data.rs)). Releases are
 listed newest first on the left, "Unreleased" (the changes on `main` since the
 last release) on top; the right pane shows the selected release's introduction
-and its changes, wrapped to the pane, each followed by its credit in capitals.
+and its changes, wrapped to the pane, each followed by its credit in capitals
+(the SJK UI's look draws what a change puts in backticks as a chip; a click opens
+Settings on that setting or types it on the console's input line).
 Up and Down (or a click) pick a release; Page Up, Page Down, the wheel over the
 pane and its scrollbar scroll it; Escape closes. Like the `debug_panel` list the
 page lives in the console and is drawn in its place, so it opens over the menus

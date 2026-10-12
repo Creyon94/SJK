@@ -154,6 +154,20 @@ test: Mute the sender, then turn SJK chat GIFs off: no GIF, and off shows the li
 test: A server say with a GIPHY link: stays text.
 note: Unit tests and off-screen shots (duel6_sjk_chat_gifs_feed) only; not tried in a match.
 
+[sjk-chat-gif-picker]
+area: Console & chat
+title: SJK chat GIF picker: favourites, GIPHY search, seen in chat (cl_giphyKey)
+change: GIF beside Send on the SJK chat page opens a picker over the messages: Favourites,
+change: Search (GIPHY, trending when empty) and Seen in chat. Picking puts the link in the message.
+change: Star, F, or Add GIF to favourites on a chosen message keeps it in gif-favourites.txt.
+test: sjkchat, GIF: Seen in chat shows the chat's GIFs moving; click one: its link is in the field.
+test: Enter sends it. Pick another with text typed: the text stays, the old link is replaced.
+test: Star a tile (or F on it): gold star; Favourites lists it; restart: still there.
+test: Choose a message with a GIF: Add GIF to favourites under Mute; press it, then Remove.
+test: Search with a key (Settings > Network > GIPHY key): type, wait: tiles; PgDn loads more.
+test: Arrows, Tab, Left/Right on the tabs, / for search, Esc closes the picker then the page.
+note: SJK's own GIPHY key is not set yet: search needs cl_giphyKey. Off-screen shots only.
+
 [console-feed]
 area: Console & chat
 title: Console feed (top left notify lines) off by default, con_drawNotify
@@ -686,12 +700,13 @@ note: A local build is -dev and no release lists it, so only whatsnew shows the 
 
 [whats-new-layout]
 area: Menus & settings
-title: What's new card: headings above their lines, commands in chips
-change: Each recap heading sits above its sentence, which takes the card's full width.
-change: Commands and cvars in backticks in CHANGELOG.md recaps are drawn in boxed chips.
-change: Release names on a card that stacks several are muted, with a rule to the edge.
-test: Console: whatsnew. Headings sit above their lines; the Updates line boxes whatsnew.
-test: Settings > Interface > Menu text size up, then whatsnew: lines rewrap, no chip cut.
+title: What's new card: headings on top, chips, pages, icons, credits
+change: Headings (with an icon) sit above their lines; commands and cvars show as chips.
+change: Skipped releases are pages (Left/Right, arrows, dots); "By ..." names the makers.
+change: Chips on the card and the changelog page: click = Settings search, or console.
+test: Console: whatsnew. Icons, headings on top, the Updates line boxes whatsnew.
+test: Click the whatsnew chip: the card closes, the console opens with whatsnew typed.
+test: Changelog (Unreleased): click cg_clanEmblems: Settings opens searched for it.
 
 # ---- HUD ----
 

@@ -760,6 +760,11 @@ pub(super) const NETWORK: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "GIPHY key",
+        cvar: crate::chat_gifs::search::KEY_CVAR,
+        kind: ValueKind::Text,
+    },
+    Setting {
         label: "Send crash reports",
         cvar: crate::crash_report::CVAR,
         kind: ValueKind::Bool,

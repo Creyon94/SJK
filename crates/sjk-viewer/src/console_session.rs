@@ -569,6 +569,7 @@ impl ViewerConsole {
             holocrons_last: false,
             illuminate_lit: false,
             pending_illuminate: None,
+            pending_settings_search: None,
             sjk_chat_panel: super::sjk_chat_panel::Panel::new(),
             config_import: super::config_import_panel::Panel::new(),
             userinfo_dirty,
