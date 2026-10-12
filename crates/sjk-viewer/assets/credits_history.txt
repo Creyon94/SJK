@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 12/10/2026 | - | Ignore card_import/
+- 5b04b39 |  | Ignore card_import/, Sol's card art and texts before they go into a pack
 + 12/10/2026 | - | Collection hover cards: how every thing is obtained
 - 5af2de8 |  | Collection: hover cards say how every thing is obtained
 + 12/10/2026 | - | Holding push or pull uses it again as soon as it is ready
