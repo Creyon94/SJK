@@ -257,10 +257,11 @@ on the 16:9 frame, dark behind the form on the left and clear over the model.
   always opens it so) the row holds the screen's four tabs instead
   ([Profile screen](#profile-screen)).
 - **Character:** Name (a field; Enter types), Team colour, Search (a field that
-  filters the grid), Model (‹ › steps through the grid), the model grid (eight
+  filters the grid), the model grid (eight
   icons a row, as many rows as fit, the current one ringed gold, scrolled by
   the wheel), then a species' head, torso, legs and skin colour and the hat and
-  cape, two to a line.
+  cape, two to a line. The Model row that stepped to the next model of the grid
+  (‹ ›) is gone (Sol's decision, 11/10/2026): the grid chooses the model.
 - **Saber:** Style as three buttons (Single, Staff, Dual); the hilts as a list
   under a sub-heading (Hilt, or Staff), in two columns, six lines on show,
   scrolled by the wheel or its bar, the chosen one gold with a dot and kept in

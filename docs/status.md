@@ -96,6 +96,13 @@ that no history text or time lies under a message sender's card while the histor
 it still shows, a test of `Rect::overlaps`, an off-screen CPU render of the page at
 1920x1080 with a card over the history (reviewed) and the workspace checks; in game on Windows 11 by
 Creyon.
+## Character page: no Model row
+
+Branch `fix/character-model-row` (11/10/2026, based on `9dbbdf19`, Linux): Sol asked to
+remove the Character page's Model row (‹ olol/dark ›), which only stepped to the next model
+like a next button; the grid chooses the model ([sjk-ui.md](sjk-ui.md#character)). The
+classic profile's own model controls are unchanged. Verified: the workspace checks; in game on
+Windows 11 by Creyon.
 
 ## Downloads that work, and what they may bring
 

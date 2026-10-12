@@ -313,7 +313,6 @@ impl PlayerMenu {
                 match row {
                     CharacterRow::Name | CharacterRow::Search => return,
                     CharacterRow::Team => self.cycle_team(direction),
-                    CharacterRow::Model => self.cycle_model(direction),
                     _ => self.cycle_variant(row.axis().unwrap_or(0), direction),
                 }
                 self.apply(console);
