@@ -205,6 +205,9 @@ impl ServerBrowser {
         self.reveal_selection();
     }
 
+    /// Type `text` into the search (the tests and world shots; the field itself goes through
+    /// [`Self::edit_filter`]).
+    #[cfg(test)]
     pub(crate) fn push_filter(&mut self, text: &str) {
         self.filter.push_str(text);
         self.rebuild_visible();
