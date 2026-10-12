@@ -292,6 +292,20 @@ impl PlayerMenu {
         self.name_editing || self.search_editing || self.numeric.is_some()
     }
 
+    /// The text of the field that has the keys, for Ctrl+C.
+    pub(crate) fn field_text(&self) -> Option<&str> {
+        if self.name_editing {
+            return Some(&self.draft.name);
+        }
+        if self.search_editing {
+            return Some(match self.page {
+                ProfilePage::Saber => self.saber.search(),
+                _ => &self.search,
+            });
+        }
+        None
+    }
+
     pub(crate) fn draw_list(&self) -> &DrawList {
         self.canvas.draw_list()
     }

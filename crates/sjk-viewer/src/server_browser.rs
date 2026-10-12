@@ -206,6 +206,24 @@ impl ServerBrowser {
         self.filter.push_str(text);
         self.rebuild_visible();
     }
+    /// A key in the search field: pasted, copied, deleted back or typed ([`crate::text_entry`]).
+    /// Whether the search text changed or the key was the field's own (copy), so the menu
+    /// does not read it again as a command.
+    pub(crate) fn edit_filter(
+        &mut self,
+        key: winit::keyboard::KeyCode,
+        text: Option<&str>,
+        shift: bool,
+        control: bool,
+    ) -> bool {
+        let copy = crate::text_entry::is_copy(key, text, control);
+        let changed =
+            crate::text_entry::edit(&mut self.filter, key, text, shift, control, 64, true);
+        if changed {
+            self.rebuild_visible();
+        }
+        changed || copy
+    }
     pub(crate) fn pop_filter(&mut self) {
         self.filter.pop();
         self.rebuild_visible();

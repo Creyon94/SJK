@@ -237,6 +237,7 @@ mod snapshot_presentation;
 mod static_models;
 mod text;
 mod text_dialog;
+mod text_entry;
 mod text_select;
 mod ui_renderer;
 mod ui_scale;
