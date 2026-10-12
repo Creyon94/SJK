@@ -1097,7 +1097,9 @@ mod tests {
         let names: Vec<_> = panel.ui.text_runs().collect();
         let at = |name: &str| names.iter().position(|run| *run == name).unwrap();
         assert!(at("Sun blade") < at("Void blade"));
-        assert!(at("Mythical") < at("Legendary"), "{names:?}");
+        let mythical = format!("{} Mythical", crate::symbols::tier(3));
+        let legendary = format!("{} Legendary", crate::symbols::tier(2));
+        assert!(at(&mythical) < at(&legendary), "{names:?}");
     }
 
     /// The panel on Shaders in the grid after one frame.

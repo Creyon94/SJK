@@ -1724,6 +1724,47 @@ same look in every menu style, on the 16:9 frame:
   puts the card away; focus starts on Close. Keys bottom right: Left and Right turn the
   pages (with several), Enter, Space, Esc or Backspace close, C opens the changelog.
 
+## Symbols
+
+[symbols.rs](../crates/sjk-viewer/src/symbols.rs), the font
+[SJKSymbols.ttf](../crates/sjk-viewer/assets/fonts/SJKSymbols.ttf) and its builder
+[scripts/sjk_symbols.py](../scripts/sjk_symbols.py), 13/10/2026, Sol's request: SJK's own
+symbol font, to mark qualities in coloured text and to grow. Sol first asked about
+kanji; they read as cyberpunk rather than Star Wars, and Japanese players read them as
+words. Aurebesh belongs to Lucasfilm, so SJK draws its own symbols. Sol picked the
+holocron family out of three drafts.
+
+Each symbol is a character in Unicode's Private Use Area, so any text can hold one and
+draws it in its own colour; the client draws it from SJK Symbols through the wide-glyph
+atlas, after each face's own fonts ([rendering.md](rendering.md#characters-beyond-the-code-page)).
+A symbol keeps its code point for good; a new one takes the next free point of its
+group in the script (`SYMBOLS`) and gets its name in `symbols.rs`.
+
+| Code point | Symbol | Meaning |
+| --- | --- | --- |
+| U+E000 | empty octagon | Common |
+| U+E001 | octagon round a diamond core | Uncommon |
+| U+E002 | octagon with one upright bar | Rare |
+| U+E003 | octagon with a cross round a core | Legendary |
+| U+E004 | the Legendary mark in a second, outer octagon | Mythical |
+| U+E010 | a card's outline | Normal finish |
+| U+E011 | a card with two slanting bands | Holo finish |
+| U+E012 | a card with a sun at its heart | Solar finish |
+
+- **Drawn from strokes:** the script draws every symbol from lines with round ends,
+  polygon rings and diamonds in font units (1000 to the em, capitals 700 high, the
+  symbol 780 high on their middle), turns the strokes into outlines and merges them
+  (fontTools and skia-pathops), so the font is clean TrueType built the same way every
+  time; `python scripts/sjk_symbols.py --check` says when the committed font is out of
+  date, and a test checks every symbol `symbols.rs` names is in it. The strokes are
+  about two pixels thick in 16 to 20 pixel text.
+- **Where they show:** a card's corner and its footer's rarity (the face), the sealed
+  back's rarity, the loot table's rarity and finish headings and its cards' rows, the
+  Shaders tab's tier on each row. The rarity's word and colour stay beside the symbol:
+  it is never the only sign.
+- **Not in it:** the credits' sign, Lucasfilm's, stays drawn from shapes
+  ([cards.md](cards.md#in-the-client)).
+
 ## Implementation
 
 - `ui_menuStyle sjk` (`menu::style::MenuStyle::Sjk`) is the default beside

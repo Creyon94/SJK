@@ -284,17 +284,17 @@ impl Panel {
         );
         for rarity in &RARITIES {
             let x = RARITY_X + rarity.index as f32 * CELL_WIDTH;
-            name(&mut self.ui, rarity.name, x, CELL_WIDTH, rarity.colour);
+            let words = format!(
+                "{} {}",
+                crate::symbols::card_rarity(rarity.index),
+                rarity.name
+            );
+            name(&mut self.ui, &words, x, CELL_WIDTH, rarity.colour);
         }
         for finish in &FINISHES {
             let x = FINISH_X + finish.index as f32 * CELL_WIDTH;
-            name(
-                &mut self.ui,
-                finish.name,
-                x,
-                CELL_WIDTH,
-                finish_colour(finish),
-            );
+            let words = format!("{} {}", crate::symbols::finish(finish.index), finish.name);
+            name(&mut self.ui, &words, x, CELL_WIDTH, finish_colour(finish));
         }
         name(
             &mut self.ui,
@@ -442,10 +442,11 @@ impl Panel {
             "Every card, per holocron found",
         );
         for finish in &FINISHES {
+            let words = format!("{} {}", crate::symbols::finish(finish.index), finish.name);
             centred(
                 &mut self.ui,
                 frame,
-                finish.name,
+                &words,
                 [
                     DROP_X + finish.index as f32 * GRID_CELL,
                     GRID_COLUMNS_Y + 10.0,
@@ -463,7 +464,11 @@ impl Panel {
             text(
                 &mut self.ui,
                 TextFamily::Display,
-                format_args!("{} card", rarity.name),
+                format_args!(
+                    "{} {} card",
+                    crate::symbols::card_rarity(rarity.index),
+                    rarity.name
+                ),
                 frame.rect(LEFT + 16.0, y + 8.0, TIER_WIDTH - 16.0, 28.0),
                 22.0 * s,
                 rarity.colour,

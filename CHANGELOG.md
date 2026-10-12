@@ -28,10 +28,11 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 > Force: Hold push or pull to use it again the moment it is ready, as in JoF EJK.
 > Collection: Rest the pointer on anything you collect to see how you get it.
 > Settings: Simple or Advanced, Ctrl+F finds any; new players start on Vanilla.
-> Cards: Cards have faces now, starting with Toxiee and Sol on JoF Memorial, tested by the SJK team.
+> Cards: Cards have faces and SJK's own rarity symbols, starting with Toxiee and Sol on JoF Memorial.
 > Character: Pick models and hats from tiles; Apply wears them.
 > Chat: Russian and Japanese now show instead of question marks.
 
+- SJK Symbols, SJK's own symbol font: marks for the rarities (Common to Mythical, one holocron octagon whose marks grow with rank) and the cards' finishes, drawn in the colour of the text around them on cards, the loot table and the Shaders tab, beside the rarity's name _(Sol)_
 - Russian and Japanese text: chat, names, the console and every other text draw Cyrillic, kana and kanji instead of question marks (Noto Sans JP is bundled for Japanese); Russian is sent and read in Windows-1251 as EternalJK sends it, so SJK and EternalJK players with `se_language russian` read each other, and Settings > Chat > Other clients' text (`cl_charset`: Auto, Western, Cyrillic) fixes a wrong guess; Japanese goes as UTF-8, read by SJK players, and the SJK channel and bios take it too; the chat field now stops where the server would cut the line, so a Russian line holds 149 letters _(Sol, after EternalJK)_
 - Holding a push or pull key pushes or pulls again as soon as the power is ready, as in JoF EJK, keyboard or mouse; Settings > Controls > Hold push/pull repeats (`cl_forceRepeat`, on by default) turns it off _(Sol, after JoF EJK)_
 - Settings in two modes: Simple, the default, shows the settings that matter most in eight plain categories (Display, Graphics, Sound, Controls, Key bindings, Gameplay, HUD, General), and Advanced every setting, regrouped (Display and Network under sub-headings, Graphics led by the renderer, the FPS readout with the HUD's readouts, the first-person weapon with the camera); the top bar or F2 switches, and `ui_settingsMode` keeps the choice _(Sol)_

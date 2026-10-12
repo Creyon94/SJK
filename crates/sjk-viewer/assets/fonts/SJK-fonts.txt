@@ -28,3 +28,11 @@ the retail fonts carry there, which players use in their names.
 
 SJK's own work on these fonts is distributed with SJK under the GNU General
 Public License, version 2 (see LICENSE at the repository root).
+
+SJK Symbols
+===========
+
+SJKSymbols.ttf is SJK's own symbol font: marks for rarities and finishes in
+Unicode's Private Use Area, drawn for SJK and built by scripts/sjk_symbols.py
+(docs/sjk-ui.md "Symbols"). Nothing in it is traced or taken from another font.
+It is distributed with SJK under the GNU General Public License, version 2.

@@ -60,6 +60,8 @@ Sol develops SJK and sets its direction. Sol's work includes:
   table with every chance; credits will buy droppable cosmetics as a fix for bad
   luck (Sol's design, 12/10/2026); opening stays with the SJK team while it is
   tested, until the hub opens it to everyone;
+- SJK Symbols (13/10/2026), SJK's own symbol font: rarity and finish marks drawn for
+  SJK, Sol's pick of the holocron family;
 - card faces (12/10/2026): cards picked by the hub drawn as trading cards from a card
   pack the hub serves, revealing sealed cards, and the first card, "Toxiee and Sol
   on JoF Memorial" (art by Sol, AI-assisted; words by Sol);

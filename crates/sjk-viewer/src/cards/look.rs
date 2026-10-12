@@ -93,9 +93,9 @@ pub(crate) fn face_commands(finish: &Finish, width: f32) -> usize {
         _ => 1 + CORONA + 3 + 1,
     };
     let boxes = if width >= WORDS { 2 } else { 0 };
-    // Opacity, plate, wash, edge, the dot, the window's dark, picture and gold edge,
-    // the lore box, clip.
-    2 + 1 + 1 + 1 + 1 + 3 + boxes + 2 + finish
+    // Opacity, plate, wash, edge, the window's dark, picture and gold edge, the lore
+    // box, clip.
+    2 + 1 + 1 + 1 + 3 + boxes + 2 + finish
 }
 
 /// `colour` at `alpha` times its own.
@@ -257,7 +257,11 @@ pub(crate) fn draw(
     text(
         canvas,
         TextFamily::Display,
-        format_args!("{}", rarity.name.to_uppercase()),
+        format_args!(
+            "{} {}",
+            crate::symbols::card_rarity(rarity.index),
+            rarity.name.to_uppercase()
+        ),
         frame.rect(x, y + 16.0 * unit, width, 28.0 * unit),
         19.0 * unit * s,
         faded(rarity.colour, ink),
@@ -308,18 +312,6 @@ fn face(
     // Across the card as it turns: a share of the width from its left.
     let across = |share: f32| left + share * shown;
     let list = canvas.draw_list_mut();
-    // The rarity's dot by the name.
-    let dot = width * 0.02;
-    let _ = list.push(DrawCommand::RoundedRect {
-        rect: frame.rect(
-            across(0.927) - dot * turn,
-            y + width * 0.073 - dot,
-            (dot * 2.0 * turn).max(1.0),
-            dot * 2.0,
-        ),
-        radius: dot * s,
-        color: rarity.colour,
-    });
     // The picture's window: dark until its picture is uploaded, then the picture.
     let art = [
         across(0.0413),
@@ -420,6 +412,22 @@ fn face(
         FontWeight::Semibold,
         TextAlign::Start,
     );
+    // The rarity's symbol in the corner, in its colour.
+    text(
+        canvas,
+        TextFamily::Display,
+        format_args!("{}", crate::symbols::card_rarity(rarity.index)),
+        frame.rect(
+            x + width * 0.82,
+            y + width * 0.03,
+            width * 0.13,
+            width * 0.08,
+        ),
+        width * 0.06 * s,
+        faded(rarity.colour, ink),
+        FontWeight::Semibold,
+        TextAlign::End,
+    );
     if width < WORDS {
         return;
     }
@@ -499,7 +507,11 @@ fn face(
     text(
         canvas,
         TextFamily::Body,
-        format_args!("{}", rarity.name),
+        format_args!(
+            "{} {}",
+            crate::symbols::card_rarity(rarity.index),
+            rarity.name
+        ),
         frame.rect(x + width * 0.6, foot_y, width * 0.351, width * 0.04),
         small * s,
         faded(rarity.colour, ink),
