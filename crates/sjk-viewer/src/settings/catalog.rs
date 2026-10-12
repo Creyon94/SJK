@@ -569,6 +569,11 @@ pub(super) const CONTROLS: &[Setting] = &[
             step: 5,
         },
     },
+    Setting {
+        label: "Hold push/pull repeats",
+        cvar: crate::input::force_repeat::CVAR,
+        kind: ValueKind::Bool,
+    },
 ];
 pub(super) const GAME: &[Setting] = &[
     Setting {

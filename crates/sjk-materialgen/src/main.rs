@@ -1,6 +1,7 @@
 //! `sjk-materialgen` command: see the library documentation and `--help`.
 
 use sjk_materialgen::cli::{Command, USAGE, parse};
+use sjk_materialgen::mount::client_loads;
 use sjk_materialgen::package::NOTICE;
 use sjk_materialgen::run::{Summary, describe_candidate, run};
 use std::collections::BTreeMap;
@@ -37,7 +38,7 @@ fn main() -> ExitCode {
 fn report(options: &sjk_materialgen::run::Options, summary: &Summary) {
     let selection = &summary.selection;
     for archive in &summary.excluded {
-        println!("left out earlier output: {}", archive.display());
+        println!("left out earlier generated pack: {}", archive.display());
     }
     println!(
         "maps: {} ({})",
@@ -92,15 +93,16 @@ fn report(options: &sjk_materialgen::run::Options, summary: &Summary) {
         .parent()
         .map_or_else(|| ".".into(), |p| p.display().to_string());
     println!();
-    println!("To try the maps without touching the game folder, start SJK with");
-    println!("  SJK_CONTENT={directory}");
-    println!(
-        "(cmd: set \"SJK_CONTENT={directory}\"; PowerShell: $env:SJK_CONTENT=\"{directory}\")."
-    );
-    println!(
-        "Or copy the pk3 into {}/base yourself; its zzz_ name loads after the retail pk3s.",
-        options.game_data.display()
-    );
+    if client_loads(&options.out, &options.game_data) {
+        println!("SJK loads it from {directory} above every other pack and leaves out");
+        println!("older generated packs in the game folders.");
+    } else {
+        println!("To try the maps, start SJK with");
+        println!("  SJK_CONTENT={directory}");
+        println!(
+            "(cmd: set \"SJK_CONTENT={directory}\"; PowerShell: $env:SJK_CONTENT=\"{directory}\")."
+        );
+    }
     println!("Then: seta r_normalMapping 1; seta r_specularMapping 1; restart.");
     println!("Emission maps show with r_emissiveMaps 1 (the default).");
     println!();

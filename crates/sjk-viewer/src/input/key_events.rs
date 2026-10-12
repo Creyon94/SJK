@@ -4,6 +4,13 @@ use crate::*;
 
 impl GpuState {
     pub(crate) fn keyboard(&mut self, event: KeyEvent) {
+        // Whoever takes the release, a held push or pull key stops repeating.
+        if event.state == ElementState::Released
+            && let PhysicalKey::Code(code) = event.physical_key
+            && let Some(console) = &mut self.console
+        {
+            console.force_repeat_key_up(code, crate::input::keys::key_name(&event));
+        }
         let typing = self.text_has_keyboard();
         match self.alt_code.key(&event, typing) {
             alt_code::Step::Pass => self.route_keyboard(event),

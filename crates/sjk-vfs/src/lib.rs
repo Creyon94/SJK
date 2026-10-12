@@ -225,6 +225,16 @@ impl VirtualFileSystem {
             .any(|mount| mount.source.contains(&path)))
     }
 
+    /// Whether the mount `id` holds `path`, without reading it; false for a missing mount.
+    pub fn mount_contains(&self, id: MountId, path: &str) -> Result<bool, VfsError> {
+        let path = VirtualPath::for_read(path)?;
+        Ok(self
+            .mounts
+            .iter()
+            .find(|mount| mount.id == id)
+            .is_some_and(|mount| mount.source.contains(&path)))
+    }
+
     /// Reads from one explicitly selected mount, without changing normal search precedence.
     /// Missing mounts or paths return `None`; normal asset size limits still apply.
     pub fn read_from_mount(&self, id: MountId, path: &str) -> Result<Option<Asset>, VfsError> {
@@ -963,5 +973,28 @@ mod filtered_pk3_tests {
         assert!(!vfs.contains("cgamex86.dll").unwrap());
         assert_eq!(vfs.paths().len(), 1);
         assert_eq!(vfs.mounts().next().unwrap().entries, 1);
+    }
+}
+
+#[cfg(test)]
+mod mount_contains_tests {
+    use super::*;
+
+    #[test]
+    fn only_the_named_mount_is_asked() {
+        let mut vfs = VirtualFileSystem::new();
+        let lower = vfs
+            .mount_memory("lower", [("tool/manifest.json", b"{}".to_vec())])
+            .unwrap();
+        let upper = vfs
+            .mount_memory("upper", [("textures/a.png", b"x".to_vec())])
+            .unwrap();
+        assert!(vfs.mount_contains(lower, "TOOL/manifest.json").unwrap());
+        assert!(!vfs.mount_contains(upper, "tool/manifest.json").unwrap());
+        assert!(
+            !vfs.without_mounts(&[lower])
+                .mount_contains(lower, "tool/manifest.json")
+                .unwrap()
+        );
     }
 }

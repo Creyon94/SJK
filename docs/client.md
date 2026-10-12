@@ -3739,6 +3739,23 @@ delay is counted per command, so a frame that makes several commands (below 125 
 spaces them out. Both apply from the next frame and are in Settings > Controls. See
 [idrive.rs](../crates/sjk-viewer/src/input/idrive.rs).
 
+`cl_forceRepeat` (archived, default 1, Settings > Controls) makes a held push or pull
+key use its power again as soon as it can, as JoF EJK does: there, as in every OpenJK
+client, the system's key repeats run a plain bind command again (`CL_ParseBinding` on
+every press), while SJK drops them for binds. While a key or mouse button whose bind
+runs `force_throw` or `force_pull` is held, every user command no press filled carries
+that power's `generic_cmd`; the last such key pressed wins. The server decides when it
+fires: codemp takes push and pull on every command (`lastGenCmd` spares only those
+two) and `ForceThrow` refuses while the hand is still out or the power is not usable,
+so it fires on the first command after the cooldown. The other powers' keys do not
+repeat: speed, rage, protect, absorb and seeing are toggles a second command switches
+off, and heal, mind trick and the team powers would spend the pool unasked. A key's
+release stops it even when a menu or the chat took the release, losing the window
+stops every key, and nothing is sent while the console, chat or a menu has the
+keyboard. `+useforce` does not repeat (the server waits for its release). An alias
+that runs push is not followed. The table of repeated commands, with why each is safe,
+is in [force_repeat.rs](../crates/sjk-viewer/src/input/force_repeat.rs).
+
 `+duck` is JoF EJK's crouch without a roll (`CG_NorollDown_f`). Its press lets go
 of jump and walks for one user command, then it crouches like `+movedown`, sharing
 its key state. Crouching while moving rolls only from a running legs animation

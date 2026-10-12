@@ -144,7 +144,9 @@ Sol develops SJK and sets its direction. Sol's work includes:
 - weather drawn under sabers and effects, the shield-hit flash's brightness, `cl_idrive`
   and `+duck` (after JoF EJK), the update check every 30 minutes and its Update card;
 - the strafe helper's lines (`cg_strafeHelper` option 1), JoF EJK's two lines to the
-  best strafe heading, in third person and on the ground too (after JoF EJK).
+  best strafe heading, in third person and on the ground too (after JoF EJK);
+- a held push or pull key that pushes or pulls again as soon as it can
+  (`cl_forceRepeat`, after JoF EJK).
 
 ## Contributors to SJK
 

@@ -1,5 +1,18 @@
 # Status and priorities
 
+## Holding push or pull repeats it
+
+Branch `personal/force-hold-repeat` (12/10/2026), Sol's request: a held Force key
+should use its power again once it is ready, as in JoF EJK. EJK does it with the
+system's key repeats, which re-run a plain bind; SJK drops those, so a held key that
+binds `force_throw` or `force_pull` now puts its `generic_cmd` in every user command
+until let go (`cl_forceRepeat`, default 1, Settings > Controls), and the server fires
+it on the first command after the cooldown. Only push and pull: codemp takes them on
+every command, while the toggles would switch off and the other powers would spend
+the pool. See [client.md](client.md) (`cl_forceRepeat`). Verified: unit tests (the
+repeated table, last key wins, release taken by a menu, window lost, setting off, a
+bind with other commands). Not tried on a server.
+
 ## Force powers apply when the Force page is left
 
 Branch `personal/force-apply-on-close` (12/10/2026), Sol's report: on the JoF JA+ server

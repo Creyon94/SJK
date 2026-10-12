@@ -57,11 +57,13 @@
 //!
 //! # Using the output
 //!
-//! The default output is `<SJK user data>/generated/zzz_sjk_materials.pk3`
-//! (`%APPDATA%\SJK\generated` on Windows), never the game folder. Either set
-//! `SJK_CONTENT` to that directory, which the client mounts above the game
-//! data, or copy the pk3 into `GameData/base` (the `zzz_` name sorts after the
-//! retail `assets*.pk3`). Then set `r_normalMapping 1`, `r_specularMapping 1`
+//! The default output is `generated/zzz_sjk_materials.pk3` in the client's folder
+//! (`GameData/SJK` when the client keeps its `config.cfg` there, else the per-user
+//! SJK folder, `%APPDATA%\SJK` on Windows), never elsewhere in the game folder. The
+//! client mounts the packs of both `generated` folders by itself, above every game,
+//! server and downloaded pack, and then leaves out older generated packs (known by
+//! their manifest) copied into a game directory. Output written elsewhere needs
+//! `SJK_CONTENT` set to its directory. Then set `r_normalMapping 1`, `r_specularMapping 1`
 //! and optionally `r_parallaxMapping 1` and restart. Emission maps need only
 //! `r_emissiveMaps`, which is on by default.
 //!

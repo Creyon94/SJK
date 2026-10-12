@@ -403,6 +403,19 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 # ---- Menus & settings ----
 
+[force-hold-repeat]
+area: Input
+title: Holding push or pull uses it again as soon as it is ready (after JoF EJK)
+change: A held key or mouse button bound to force_throw or force_pull repeats it until let go.
+change: The server fires it the moment the cooldown ends; other powers' keys still send once.
+change: Settings > Controls > Hold push/pull repeats (cl_forceRepeat, on by default).
+test: Bind MOUSE4 to Push, hold it near a player: you push again each time push is ready.
+test: Same with Pull on a key; press Protect while holding: protect stays on, push goes on.
+test: Hold push, open chat or Escape, let go, close it: the pushing has stopped.
+test: Hold push, Alt+Tab away, come back: the pushing has stopped.
+test: cl_forceRepeat 0: a held push key pushes once per press again.
+note: Not tried on a server; only push and pull repeat (the toggles would switch off).
+
 [force-apply-on-leave]
 area: Menus & settings
 title: Force powers apply when you leave the Force page, even unchanged
@@ -4186,3 +4199,16 @@ test: In a game, check the body others see: it is still the old model until you 
 test: Click Apply (or press Enter on it, the row is chosen after a pick): the game model changes.
 test: Pick a model, press Back without Apply, reopen Profile: the worn model is shown again.
 note: The classic menus keep writing the model at once.
+
+[sjk-materials-pack]
+area: Rendering & effects
+title: Material maps load from SJK's own pack, above every other pack
+change: sjk-materialgen writes GameData/SJK/generated/zzz_sjk_materials.pk3 by default.
+change: The client loads that folder last, above game, server and downloaded packs.
+change: An old generated pack in base (zzz_jkr_materials.pk3) is then left out.
+test: Start SJK: the log has 'generated pack ...SJK/generated/zzz_sjk_materials.pk3'.
+test: It also says 'generated pack ...base/zzz_jkr_materials.pk3 left out'.
+test: No 'generation 5 ... expects 6' material maps warning in the log any more.
+test: JoF ffa1: s_ylight_red, s_squareslight_y, s_vjun_light_vjun(y) lamps glow.
+test: JoF ffa1: the blue brick wall (newfloor_vjun remap) is it still too shiny?
+note: byss/lights (ceiling grid) has its own faint glow, so it gets no emission map.
