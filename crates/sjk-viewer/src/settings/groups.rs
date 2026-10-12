@@ -157,6 +157,7 @@ impl Group {
                 crate::scoreboard::style::COMPACT_CVAR,
                 crate::scoreboard::style::FPS_CVAR,
                 "cg_showClientIDs",
+                crate::jof_tag::CVAR,
                 "cg_drawScoreboardIcons",
                 "cg_smallScoreboard",
             ],

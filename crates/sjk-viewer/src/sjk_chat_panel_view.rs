@@ -113,8 +113,8 @@ fn lay(message: &ChatMessage, inputs: &Inputs<'_>, measure: &Measure<'_>, s: f32
     } else {
         name
     };
-    let jof = if crate::jof_tag::tagged(&message.name) {
-        crate::jof_tag::room(crate::jof_tag::side(NAME_SIZE))
+    let jof = if let Some(clan) = crate::jof_tag::clan(&message.name) {
+        crate::jof_tag::room(clan, crate::jof_tag::side(NAME_SIZE))
     } else {
         0.0
     };
@@ -380,8 +380,9 @@ impl Panel {
     fn message(&mut self, frame: &Frame, laid: &Laid, y: f32) {
         let s = frame.s;
         let first = frame.rect(LIST_X, y, LIST_WIDTH, NAME_ROW - 2.0);
-        if laid.jof > 0.0 {
+        if let Some(clan) = crate::jof_tag::clan(&laid.name) {
             crate::jof_tag::draw(
+                clan,
                 first.x,
                 first.y + first.height * 0.5,
                 crate::jof_tag::side(NAME_SIZE * s),

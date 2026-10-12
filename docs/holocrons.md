@@ -145,7 +145,7 @@ goes, in all three places the SJK chat shows ([hub-chat.md](hub-chat.md#how-a-li
   There is no sender column, no colon and no tick.
 - The chat page: the name in its column, the gem, then `found a Legendary Holocron!`, with
   no colon; a tier the page does not know reads `found a holocron.`. A name with the JoF
-  clan's tag keeps its emblem before it there ([identity.md](identity.md#jof-clan-tag)); the
+  clan's tag keeps its emblem before it there ([identity.md](identity.md#clan-tags)); the
   feed and the dock word the name inside the sentence, so they draw no emblem.
 - A muted player's drops are not shown, and a drop of an unknown tier is left out of the
   feed and the dock. A drop is not a message, though it shares the feed's numbers and is
