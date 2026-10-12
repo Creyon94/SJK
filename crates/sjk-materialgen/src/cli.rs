@@ -1,7 +1,7 @@
 //! Command-line parsing and help text.
 
 use crate::generate::Settings;
-use crate::mount::{DEFAULT_FILE_NAME, default_output, find_game_data, is_inside};
+use crate::mount::{CLIENT_FOLDER, DEFAULT_FILE_NAME, default_output, find_game_data, is_inside};
 use crate::overrides::Overrides;
 use crate::run::{Options, normalize_map};
 use std::path::{Path, PathBuf};
@@ -27,8 +27,9 @@ OPTIONS:
                       (see the crate documentation); default: sjk-materialgen-overrides.txt
                       next to the output pk3, when it exists
     --dry-run         list what would be generated and what is skipped; write nothing
-    --out FILE        output pk3 (default: <SJK user data>/generated/zzz_sjk_materials.pk3,
-                      i.e. %APPDATA%\\SJK\\generated on Windows); never inside GameData
+    --out FILE        output pk3 (default: generated/zzz_sjk_materials.pk3 in the client's
+                      folder, GameData/SJK or %APPDATA%\\SJK, which SJK mounts above every
+                      other pack); never elsewhere in the game installation
     -h, --help        print this help
 
 For each world texture that installed maps draw on lightmapped surfaces, the tool
@@ -43,8 +44,9 @@ Shaders with a tcGen environment stage are treated as polished (glossier). Skies
 interface images, effects, glowing, animated and alpha-tested foliage stages, and
 textures that already have rend2 maps get none. Game data is only read.
 
-To use the maps, either point the client at the output directory
-(SJK_CONTENT=<directory>) or copy the pk3 into GameData/base yourself, then enable
+SJK loads a pack in its generated folder by itself, above every game, server and
+downloaded pack, and leaves out older generated packs copied into a game folder.
+Elsewhere, point the client at the output directory (SJK_CONTENT=<directory>). Enable
 r_normalMapping, r_specularMapping and optionally r_parallaxMapping. Emission maps
 show with r_emissiveMaps (on by default).
 
@@ -125,7 +127,7 @@ pub fn parse(arguments: impl IntoIterator<Item = String>) -> Result<Command, Str
     let out = match out {
         Some(out) if out.is_dir() => out.join(DEFAULT_FILE_NAME),
         Some(out) => out,
-        None => default_output()?,
+        None => default_output(&game_data)?,
     };
     check_output(&out, &game_data)?;
     let overrides_file = overrides_file.or_else(|| {
@@ -156,7 +158,8 @@ pub fn parse(arguments: impl IntoIterator<Item = String>) -> Result<Command, Str
 /// The overrides file read by default, next to the output pk3.
 pub const OVERRIDES_FILE_NAME: &str = "sjk-materialgen-overrides.txt";
 
-/// The output must be a `.pk3` outside the game installation.
+/// The output must be a `.pk3` outside the game installation, or in the client's
+/// own folder there (`GameData/SJK`, where the default output goes).
 fn check_output(out: &Path, game_data: &Path) -> Result<(), String> {
     let is_pk3 = out
         .extension()
@@ -168,11 +171,13 @@ fn check_output(out: &Path, game_data: &Path) -> Result<(), String> {
         ));
     }
     let install = game_data.parent().unwrap_or(game_data);
-    if is_inside(out, game_data) || is_inside(out, install) {
+    let client = game_data.join(CLIENT_FOLDER);
+    if !is_inside(out, &client) && (is_inside(out, game_data) || is_inside(out, install)) {
         return Err(format!(
-            "refusing to write into the game installation ({}): write elsewhere and copy \
-             the pk3 into base yourself",
-            install.display()
+            "refusing to write into the game installation ({}) outside {}: leave --out \
+             out to write where SJK loads it",
+            install.display(),
+            client.display()
         ));
     }
     Ok(())
@@ -189,6 +194,7 @@ mod tests {
         assert!(check_output(&root.join("out/x.pk3"), &game_data).is_ok());
         assert!(check_output(&root.join("out/x.zip"), &game_data).is_err());
         assert!(check_output(&game_data.join("base/zzz.pk3"), &game_data).is_err());
+        assert!(check_output(&game_data.join("SJK/generated/zzz.pk3"), &game_data).is_ok());
         assert!(check_output(&root.join("Jedi Academy/zzz.pk3"), &game_data).is_err());
     }
 

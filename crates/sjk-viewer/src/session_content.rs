@@ -66,7 +66,12 @@ impl Selection {
         cache: &Path,
     ) -> Result<VirtualFileSystem, Box<dyn Error>> {
         let mut vfs = super::mount_game_data(game_data)?;
+        let mounts = vfs.mounts().count();
         self.mount_cache(&mut vfs, cache)?;
+        // The server's packs went above the generated ones: put those back on top.
+        if vfs.mounts().count() != mounts {
+            super::generated::mount_on_top(&mut vfs);
+        }
         Ok(vfs)
     }
 

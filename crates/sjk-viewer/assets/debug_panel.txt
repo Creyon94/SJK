@@ -4174,3 +4174,16 @@ test: Browser search (/), Settings search and a text setting, Character name and
 test: Create game name, report or note dialog, your bio: Ctrl+V pastes, Ctrl+C copies the text.
 test: In any of them press Ctrl+A, then type a letter (replaces all) or Backspace (clears all).
 note: Not covered: the F8 screenshot panel numbers and the First setup FPS box (digits only).
+
+[sjk-materials-pack]
+area: Rendering & effects
+title: Material maps load from SJK's own pack, above every other pack
+change: sjk-materialgen writes GameData/SJK/generated/zzz_sjk_materials.pk3 by default.
+change: The client loads that folder last, above game, server and downloaded packs.
+change: An old generated pack in base (zzz_jkr_materials.pk3) is then left out.
+test: Start SJK: the log has 'generated pack ...SJK/generated/zzz_sjk_materials.pk3'.
+test: It also says 'generated pack ...base/zzz_jkr_materials.pk3 left out'.
+test: No 'generation 5 ... expects 6' material maps warning in the log any more.
+test: JoF ffa1: s_ylight_red, s_squareslight_y, s_vjun_light_vjun(y) lamps glow.
+test: JoF ffa1: the blue brick wall (newfloor_vjun remap) is it still too shiny?
+note: byss/lights (ceiling grid) has its own faint glow, so it gets no emission map.

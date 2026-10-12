@@ -44,6 +44,8 @@ pub(super) fn run() -> Result<(), Box<dyn Error>> {
     assets::search_paths::initialize(&console)?;
     // SJK's packs from the hub, cached beside identity.key, before any world mounts.
     crate::sjk_packs::mount_at_start(console.config_directory());
+    // The material maps sjk-materialgen wrote beside the settings, above all packs.
+    assets::generated::locate_at_start(console.config_directory());
     // The menu goes up first so its master-server fetch runs while the map
     // loads: the browser has servers by the time the main menu is on screen.
     let mut client_menu = menu::ClientMenu::new(open_main_menu, console.master_server()?);

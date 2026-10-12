@@ -308,6 +308,10 @@ impl Options {
                 )),
             }
         }
+        // Older generated packs in the game directories, left out when SJK's own
+        // folder has one (`generated_packs.rs`).
+        let generated = super::generated::present();
+        let mut replaced = Vec::new();
         for directory in self.directories(install)? {
             if !directory.is_dir() {
                 continue;
@@ -317,11 +321,16 @@ impl Options {
             }
             for archive in sjk_vfs::pk3_search_order(&directory)? {
                 if self.disabled.allows(&archive) {
-                    if let Err(error) = vfs.mount_pk3(&archive) {
-                        crate::log::progress(format_args!(
+                    match vfs.mount_pk3(&archive) {
+                        Ok(id) if generated && super::generated::is_generated(&vfs, id) => {
+                            super::generated::log_replaced(&archive);
+                            replaced.push(id);
+                        }
+                        Ok(_) => {}
+                        Err(error) => crate::log::progress(format_args!(
                             "warning: skipping PK3 {}: {error}",
                             archive.display()
-                        ));
+                        )),
                     }
                 }
             }
@@ -374,6 +383,11 @@ impl Options {
             })?;
             vfs.mount_directory(&directory)?;
         }
+        if !replaced.is_empty() {
+            vfs = vfs.without_mounts(&replaced);
+        }
+        // The player's generated packs, above everything: no other pack replaces them.
+        super::generated::mount_on_top(&mut vfs);
         if self.debug {
             for mount in vfs.mounts() {
                 crate::log::progress(format_args!(

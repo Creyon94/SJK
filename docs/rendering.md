@@ -2812,8 +2812,10 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
 - **Input.** GameData is found like the client finds it (`--game-data`,
   `JKA_GAME_DATA`, the config's `fs_gameData`, then the usual Steam paths).
   `base`, an optional `--fs-game` directory and `SJK_CONTENT` are mounted in
-  the client's order, case-insensitive. The tool's own earlier output is left
-  out. The installed maps (or `--maps`) supply the shaders actually drawn: BSP
+  the client's order, case-insensitive. The tool's own earlier output and every
+  other generated pack (one with a `sjk-materialgen` or `jkr-materialgen`
+  manifest, whatever its name) are left out, so an old pack's maps never count as
+  a texture's existing ones. The installed maps (or `--maps`) supply the shaders actually drawn: BSP
   shader lumps and surfaces plus the shader scripts.
 - **Selection** ([select.rs](../crates/sjk-materialgen/src/select.rs)). A texture
   qualifies when a shader draws it on lightmapped surfaces with lightmap and
@@ -2924,11 +2926,18 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
 - **Output.** One pk3 of PNGs plus `sjk-materialgen/manifest.json` (every
   source, its outputs, class, maps and shaders, skipped shaders with reasons,
   all settings). The archive is deterministic. The default path is
-  `<per-user SJK folder>/generated/zzz_sjk_materials.pk3`, `%APPDATA%\SJK\generated`
-  on Windows. The tool refuses to write into the game installation. To use it,
-  set `SJK_CONTENT` to that directory (the client mounts it above the game
-  data), or copy the pk3 into `GameData/base` by hand; the `zzz_` name loads
-  after the retail pk3s. `--dry-run` lists the choices (with polished textures
+  `generated/zzz_sjk_materials.pk3` in the client's folder: `GameData/SJK` when the
+  client keeps its `config.cfg` there, else the per-user SJK folder
+  (`%APPDATA%\SJK` on Windows). The tool refuses to write anywhere else in the game
+  installation. Output written elsewhere needs `SJK_CONTENT` set to its directory.
+- **Loading** ([generated_packs.rs](../crates/sjk-viewer/src/generated_packs.rs)).
+  The client mounts every pk3 in both `generated` folders last, above every game
+  directory, `SJK_CONTENT` and a server's listed or downloaded packs (it mounts them
+  again after those), so no other pack replaces a generated map. When a `generated`
+  folder holds a pack, an older generated pack left in a game directory (a
+  `zzz_jkr_materials.pk3` or `zzz_sjk_materials.pk3` copied into `base` by hand,
+  known by its manifest) is left out, and the log names it, so its stale maps do not
+  fill in for textures the new pack decided against. `--dry-run` lists the choices (with polished textures
   and applied override lines), and `--limit` takes only the most-used textures.
 
 **Regenerating.** The manifest records the generation of the tuning
@@ -2940,15 +2949,19 @@ is generation 1 of sjk-materialgen, this client expects 6 ...` once when the mou
 pack is older. Emission decisions depend on every map read: a texture drawn plainly on
 one map and through a glowing shader on another gets its `_e`, and the client ignores
 it where the shader glows.
-Run the generator again for the same maps, then replace the old pk3 where the
-client reads it (for example `GameData/base/zzz_sjk_materials.pk3`):
+Run the generator again; without `--out` it replaces the pack in the client's
+`generated` folder:
 
 ```sh
-cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1 --out <folder>/zzz_sjk_materials.pk3
+cargo run --release -p sjk-materialgen
 ```
 
-The tool leaves a pk3 of its output's name out of its input, so the old pack's maps
-do not count as existing rend2 maps. Restart the client after replacing it.
+The tool leaves every generated pack out of its input, so an old pack's maps do not
+count as existing rend2 maps. Restart the client after regenerating. On 12/10/2026
+the pack in Sol's `GameData/base` (`zzz_jkr_materials.pk3`) was still generation 5,
+which is why the light fixtures noted on 07/10 still did not glow there, and its
+name had kept it in the input of later runs, so 61 textures of `mp/ffa1` counted as
+already having maps.
 
 The generated images are derived from retail textures. They stay on the
 player's machine and must not be shared, uploaded or committed; the tests use

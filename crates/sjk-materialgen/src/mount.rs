@@ -6,8 +6,21 @@ use std::env;
 use std::path::{Path, PathBuf};
 
 /// File name of the generated archive: `zzz_` sorts after the retail
-/// `assets*.pk3`, so the maps load after (and never replace) retail content.
+/// `assets*.pk3`, so the maps load after (and never replace) retail content when
+/// the pk3 is copied into `base` by hand.
 pub const DEFAULT_FILE_NAME: &str = "zzz_sjk_materials.pk3";
+/// The client's folder in `GameData`, where it keeps `config.cfg` when it can write
+/// there.
+pub const CLIENT_FOLDER: &str = "SJK";
+/// The folder in the client's folder (`GameData/SJK` or the per-user SJK folder) that
+/// the client mounts generated packs from, above every other pack.
+pub const GENERATED_FOLDER: &str = "generated";
+/// The manifest every generated pack carries, by today's tool and its JKR-era name:
+/// such a pack is never read as input.
+pub const MANIFESTS: [&str; 2] = [
+    "sjk-materialgen/manifest.json",
+    "jkr-materialgen/manifest.json",
+];
 
 /// Whether `path` looks like a Jedi Academy `GameData` directory.
 pub fn is_game_data(path: &Path) -> bool {
@@ -97,11 +110,37 @@ pub fn user_data_root() -> Option<PathBuf> {
     Some(root.join("SJK"))
 }
 
-/// `<user data>/generated/zzz_sjk_materials.pk3`.
-pub fn default_output() -> Result<PathBuf, String> {
-    user_data_root()
-        .map(|root| root.join("generated").join(DEFAULT_FILE_NAME))
+/// Where the client keeps its files: `GameData/SJK` when its `config.cfg` is there,
+/// else the per-user SJK folder.
+pub fn client_folder(game_data: &Path) -> Option<PathBuf> {
+    let portable = game_data.join(CLIENT_FOLDER);
+    if portable.join("config.cfg").is_file() {
+        Some(portable)
+    } else {
+        user_data_root()
+    }
+}
+
+/// `<client folder>/generated/zzz_sjk_materials.pk3`, which the client mounts above
+/// every other pack.
+pub fn default_output(game_data: &Path) -> Result<PathBuf, String> {
+    client_folder(game_data)
+        .map(|root| root.join(GENERATED_FOLDER).join(DEFAULT_FILE_NAME))
         .ok_or_else(|| "no per-user data directory (APPDATA/HOME unset): pass --out".into())
+}
+
+/// Whether the client mounts `out` by itself: a pk3 directly in `GameData/SJK/generated`
+/// or in the per-user SJK folder's `generated`.
+pub fn client_loads(out: &Path, game_data: &Path) -> bool {
+    let Some(folder) = out.parent() else {
+        return false;
+    };
+    std::iter::once(game_data.join(CLIENT_FOLDER))
+        .chain(user_data_root())
+        .any(|root| {
+            let generated = root.join(GENERATED_FOLDER);
+            is_inside(folder, &generated) && is_inside(&generated, folder)
+        })
 }
 
 /// Whether `path` is `directory` or inside it, after resolving both as far as
@@ -138,7 +177,9 @@ pub fn is_inside(path: &Path, directory: &Path) -> bool {
 /// Mount `GameData/base`, then `GameData/<fs_game>`, then every `SJK_CONTENT`
 /// directory, as the client does (loose files below each directory's pk3s,
 /// pk3s in Quake 3 order; `SJK_CONTENT` pk3s below its loose files). Archives
-/// named `exclude` (the tool's own earlier output) are left out and returned.
+/// named `exclude` (the tool's own earlier output) and every other generated pack
+/// (one with a [manifest](MANIFESTS), whatever its name) are left out and returned,
+/// so their maps never count as a texture's existing ones.
 pub fn mount_game_data(
     game_data: &Path,
     fs_game: Option<&str>,
@@ -146,6 +187,7 @@ pub fn mount_game_data(
 ) -> Result<(VirtualFileSystem, Vec<PathBuf>), VfsError> {
     let mut vfs = VirtualFileSystem::new();
     let mut excluded = Vec::new();
+    let mut hidden = Vec::new();
     let mut mount_pk3s = |vfs: &mut VirtualFileSystem, directory: &Path| -> Result<(), VfsError> {
         for archive in pk3_search_order(directory)? {
             let name = archive
@@ -155,8 +197,13 @@ pub fn mount_game_data(
                 excluded.push(archive);
                 continue;
             }
-            if let Err(error) = vfs.mount_pk3(&archive) {
-                eprintln!("warning: skipping {}: {error}", archive.display());
+            match vfs.mount_pk3(&archive) {
+                Ok(id) if is_generated(vfs, id) => {
+                    hidden.push(id);
+                    excluded.push(archive);
+                }
+                Ok(_) => {}
+                Err(error) => eprintln!("warning: skipping {}: {error}", archive.display()),
             }
         }
         Ok(())
@@ -177,7 +224,14 @@ pub fn mount_game_data(
         mount_pk3s(&mut vfs, &directory)?;
         vfs.mount_directory(&directory)?;
     }
-    Ok((vfs, excluded))
+    Ok((vfs.without_mounts(&hidden), excluded))
+}
+
+/// Whether the mount `id` of `vfs` is a generated pack (it has a manifest).
+fn is_generated(vfs: &VirtualFileSystem, id: sjk_vfs::MountId) -> bool {
+    MANIFESTS
+        .iter()
+        .any(|manifest| vfs.mount_contains(id, manifest).unwrap_or(false))
 }
 
 #[cfg(test)]
@@ -192,6 +246,59 @@ mod tests {
             Some(PathBuf::from("C:\\Games\\JA\\GameData"))
         );
         assert_eq!(config_game_data("seta fs_game \"x\"\n"), None);
+    }
+
+    #[test]
+    fn generated_packs_are_never_input_whatever_their_name() {
+        use std::io::Write as _;
+        let game_data = env::temp_dir().join(format!(
+            "sjk-materialgen-generated-input-{}",
+            std::process::id()
+        ));
+        let base = game_data.join("base");
+        std::fs::create_dir_all(&base).unwrap();
+        let pk3 = |name: &str, entries: &[&str]| {
+            let file = std::fs::File::create(base.join(name)).unwrap();
+            let mut zip = zip::ZipWriter::new(file);
+            for entry in entries {
+                zip.start_file(*entry, zip::write::SimpleFileOptions::default())
+                    .unwrap();
+                zip.write_all(b"x").unwrap();
+            }
+            zip.finish().unwrap();
+        };
+        pk3("assets0.pk3", &["textures/a.jpg"]);
+        pk3(
+            "zzz_jkr_materials.pk3",
+            &["jkr-materialgen/manifest.json", "textures/a_n.png"],
+        );
+        pk3("zzz_sjk_materials.pk3", &["textures/b_n.png"]);
+        let (vfs, excluded) = mount_game_data(&game_data, None, DEFAULT_FILE_NAME).unwrap();
+        let names: Vec<_> = excluded
+            .iter()
+            .map(|path| path.file_name().unwrap().to_string_lossy().into_owned())
+            .collect();
+        assert_eq!(names, ["zzz_jkr_materials.pk3", "zzz_sjk_materials.pk3"]);
+        assert!(vfs.contains("textures/a.jpg").unwrap());
+        assert!(!vfs.contains("textures/a_n.png").unwrap());
+        assert!(!vfs.contains("textures/b_n.png").unwrap());
+        std::fs::remove_dir_all(&game_data).unwrap();
+    }
+
+    #[test]
+    fn the_default_output_is_the_client_folder_when_it_holds_the_config() {
+        let game_data = env::temp_dir().join(format!(
+            "sjk-materialgen-client-folder-{}",
+            std::process::id()
+        ));
+        let client = game_data.join(CLIENT_FOLDER);
+        std::fs::create_dir_all(&client).unwrap();
+        std::fs::write(client.join("config.cfg"), "").unwrap();
+        let out = default_output(&game_data).unwrap();
+        assert_eq!(out, client.join(GENERATED_FOLDER).join(DEFAULT_FILE_NAME));
+        assert!(client_loads(&out, &game_data));
+        assert!(!client_loads(&game_data.join("base/x.pk3"), &game_data));
+        std::fs::remove_dir_all(&game_data).unwrap();
     }
 
     #[test]
