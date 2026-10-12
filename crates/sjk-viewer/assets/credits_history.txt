@@ -1161,6 +1161,8 @@
 - 0d215f1 |  | Initial JKR source
 
 = Creyon
++ 12/10/2026 | SJK #95 | Crackle while a player is electrified (the JoF amlogin sound)
+- 3623d1e |  | Crackle while a player is electrified (the JoF amlogin sound)
 + 12/10/2026 | SJK #94 | Keep the amcolor tint across reconnects
 - df744da |  | Keep the amcolor tint across reconnects
 + 12/10/2026 | SJK #93 | Add JoF EJK's showplayerid console command

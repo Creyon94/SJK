@@ -143,7 +143,7 @@ Sol develops SJK and sets its direction. Sol's work includes:
 Creyon and Lumaya wear the SJK team's Early Contributor medal, shown on their
 cards of the in-game credits page.
 
-Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 41
+Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 42
 pull requests merged into SJK, most of them bringing SJK in line with EternalJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ACreyon94)):
 
@@ -187,7 +187,8 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
 - #87 a second master server (`cl_master2`) with merged lists; #88 server and player names
   read in the game's charset; #89 a favourite added by its address; #90 a locked server's
   password remembered on this PC; #91 the browser's player list scrolled with the wheel;
-- #93 the `showplayerid` command; #94 `amcolor` set and kept across reconnects.
+- #93 the `showplayerid` command; #94 `amcolor` set and kept across reconnects; #95 the
+  crackle of an electrified player (a DEMP2 hit, a JoF admin login).
 
 Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 17 pull requests
 merged into SJK
