@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 12/10/2026 | - | Russian and Japanese text: wide-glyph atlas, Windows-1251 like EternalJK
+- 0a9526b |  | Russian and Japanese text: wide-glyph atlas, Windows-1251 like EternalJK
 + 12/10/2026 | - | Advanced settings regrouped: Sound, Chat, Mods, Scoreboard in HUD
 - 4aeb4e5 |  | Advanced settings regrouped: Sound holds every sound, Chat and Mods categories, Scoreboard in HUD
 + 12/10/2026 | - | Character creator with tile grids, Apply, the Jedi Academy's own assets first

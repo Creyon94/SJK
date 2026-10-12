@@ -833,6 +833,11 @@ pub(super) const TEXT: &[Setting] = &[
         cvar: crate::console::console_options::DRAW_NOTIFY_CVAR,
         kind: ValueKind::Bool,
     },
+    Setting {
+        label: "Other clients' text",
+        cvar: crate::text::charset::CVAR,
+        kind: ValueKind::Choice(&crate::text::charset::NAMES),
+    },
 ];
 
 // Renderer settings. "(reload)" marks cvars the renderer reads only when its graphics

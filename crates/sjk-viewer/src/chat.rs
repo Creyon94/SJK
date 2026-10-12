@@ -363,6 +363,15 @@ impl ChatOverlay {
         self.opened_ms = self.millis(Instant::now());
     }
 
+    /// Open the field and type `text` into it, for world shots.
+    #[cfg(test)]
+    pub(crate) fn draft_for_shot(&mut self, text: &str) {
+        self.open(false);
+        if let Some(input) = &mut self.input {
+            input.insert(text);
+        }
+    }
+
     pub(crate) fn is_typing(&self) -> bool {
         self.input.is_some()
     }

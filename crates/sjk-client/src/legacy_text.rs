@@ -1,9 +1,9 @@
 //! Player-authored text that predates Unicode, in both directions.
 //!
 //! JKA is a pre-Unicode engine: names, chat and client info are byte strings rendered through
-//! a codepage font, so a byte above 0x7F means the Latin-1 character of that value, not part
-//! of a UTF-8 sequence. Treating those bytes as UTF-8 and replacing what does not decode
-//! turns a name like `Marañ` into `Maraï¿½` on screen, which is what the owner saw in the
+//! a codepage font, so a byte above 0x7F means the Latin-1 (or, for Russian players,
+//! Windows-1251) character of that value, not part of a UTF-8 sequence. Treating those
+//! bytes as UTF-8 and replacing what does not decode turns a name like `Marañ` into `Maraï¿½` on screen, which is what the owner saw in the
 //! kill announcement; validating strictly instead loses the name entirely, which is what the
 //! crosshair used to do. Text the client sends goes the other way through
 //! [`sjk_protocol::encode_legacy_text`], so legacy clients read it too.
@@ -13,14 +13,12 @@ use std::borrow::Cow;
 /// Decode player-authored bytes for display.
 ///
 /// Valid UTF-8 is returned borrowed and unchanged, which covers ASCII and any client that
-/// genuinely sends UTF-8. Anything else is decoded as Latin-1, where each byte is the
-/// character of the same value — the meaning JKA's own font gives it. Pure ASCII is identical
-/// under both readings, so the common case never allocates and never changes.
+/// genuinely sends UTF-8. Anything else is one character per byte, as JKA's own font gives
+/// it: Latin-1, or Windows-1251 when the text reads as Russian
+/// ([`sjk_protocol::decode_legacy_text`]). Pure ASCII is identical under every reading, so
+/// the common case never allocates and never changes.
 pub fn decode_legacy(bytes: &[u8]) -> Cow<'_, str> {
-    match std::str::from_utf8(bytes) {
-        Ok(text) => Cow::Borrowed(text),
-        Err(_) => Cow::Owned(bytes.iter().map(|&byte| char::from(byte)).collect()),
-    }
+    sjk_protocol::decode_legacy_text(bytes)
 }
 
 /// The bytes a reliable command leaves with.

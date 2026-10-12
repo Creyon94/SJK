@@ -481,6 +481,8 @@ struct GpuState {
     text_bind_group: wgpu::BindGroup,
     text_layout: wgpu::BindGroupLayout,
     text_sampler: wgpu::Sampler,
+    /// Glyphs beyond the code-page atlases, bound with every text atlas.
+    wide_text: text::wide_texture::WideTexture,
     /// The retail `¬` logo spliced into the Inter atlas, kept for DPI rebuilds.
     logo_glyph: Option<text::LogoGlyph>,
     classic_text_bind_group: Option<wgpu::BindGroup>,
@@ -937,6 +939,7 @@ impl GpuState {
             true,
             text::ATLAS_MIP_LEVELS,
         );
+        // The font's atlas, its sampler and the wide-glyph atlas (`text::wide_texture`).
         let text_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("SJK text layout"),
             entries: &[
@@ -947,8 +950,10 @@ impl GpuState {
                     ty: wgpu::BindingType::Sampler(wgpu::SamplerBindingType::Filtering),
                     count: None,
                 },
+                texture_layout_entry(2),
             ],
         });
+        let wide_text = text::wide_texture::WideTexture::new(&device);
         let text_sampler = device.create_sampler(&wgpu::SamplerDescriptor {
             label: Some("SJK text sampler"),
             address_mode_u: wgpu::AddressMode::ClampToEdge,
@@ -959,20 +964,14 @@ impl GpuState {
             mipmap_filter: wgpu::MipmapFilterMode::Linear,
             ..Default::default()
         });
-        let text_bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("SJK text bind group"),
-            layout: &text_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&font_view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&text_sampler),
-                },
-            ],
-        });
+        let text_bind_group = text::wide_texture::bind_group(
+            &device,
+            "SJK text bind group",
+            &text_layout,
+            &font_view,
+            &text_sampler,
+            wide_text.view(),
+        );
         let classic_atlas = text::load_classic()
             .inspect_err(|error| {
                 log::progress(format_args!("warning: no classic HUD font: {error}"))
@@ -991,20 +990,14 @@ impl GpuState {
                     true,
                     game_font::mip_levels(atlas.image.width(), atlas.image.height()),
                 );
-                let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
-                    label: Some("SJK classic HUD text bind group"),
-                    layout: &text_layout,
-                    entries: &[
-                        wgpu::BindGroupEntry {
-                            binding: 0,
-                            resource: wgpu::BindingResource::TextureView(&view),
-                        },
-                        wgpu::BindGroupEntry {
-                            binding: 1,
-                            resource: wgpu::BindingResource::Sampler(&text_sampler),
-                        },
-                    ],
-                });
+                let bind_group = text::wide_texture::bind_group(
+                    &device,
+                    "SJK classic HUD text bind group",
+                    &text_layout,
+                    &view,
+                    &text_sampler,
+                    wide_text.view(),
+                );
                 (Some(atlas.font), Some(bind_group))
             });
         let game_fonts = game_font::GameFonts::preload(
@@ -1015,6 +1008,7 @@ impl GpuState {
                 queue: &queue,
                 layout: &text_layout,
                 sampler: &text_sampler,
+                wide: wide_text.view(),
             },
         );
         let (mut world_materials, resolved_world_stages) =
@@ -1373,6 +1367,7 @@ impl GpuState {
             text_bind_group,
             text_layout,
             text_sampler,
+            wide_text,
             logo_glyph,
             classic_text_bind_group,
             classic_text_sdf,
@@ -1513,20 +1508,14 @@ impl GpuState {
             true,
             text::ATLAS_MIP_LEVELS,
         );
-        self.text_bind_group = self.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("SJK text bind group"),
-            layout: &self.text_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&self.text_sampler),
-                },
-            ],
-        });
+        self.text_bind_group = text::wide_texture::bind_group(
+            &self.device,
+            "SJK text bind group",
+            &self.text_layout,
+            &view,
+            &self.text_sampler,
+            self.wide_text.view(),
+        );
         self.ui_font = atlas.font;
         Ok(())
     }
@@ -2074,6 +2063,8 @@ impl GpuState {
         ];
         self.ui_shapes
             .prepare_layers(&self.queue, layers.into_iter().flatten(), viewport);
+        // Wide glyphs this frame asked for first draw next frame.
+        self.wide_text.update(&self.queue);
         let text_vertex_count = u32::try_from(self.text_vertices.len()).unwrap_or(0);
         if !self.text_vertices.is_empty() {
             self.queue.write_buffer(

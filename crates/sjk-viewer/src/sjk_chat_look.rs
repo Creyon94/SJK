@@ -190,9 +190,7 @@ impl<'a> Measure<'a> {
         };
         let size = size * self.style.scale;
         let scale = size / self.font.height.max(1.0);
-        let glyph = self
-            .font
-            .glyph(face, crate::text::glyph_byte_at(text, at).0);
+        let glyph = self.font.glyph_of(face, crate::text::glyph_at(text, at).0);
         let after =
             (glyph.advance - glyph.offset_x - glyph.width) * scale + self.style.tracking * size;
         (width - after).max(0.0)

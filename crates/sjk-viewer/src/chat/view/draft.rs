@@ -9,7 +9,7 @@ impl ChatOverlay {
         let cursor = input.edit.cursor(&input.text);
         let size = 21.0 * g.scale;
         let width = (g.width - 20.0 * g.scale).max(1.0);
-        let advance = |byte| font.glyph(TextFace::Regular, byte).advance * size / font.height;
+        let advance = |key| font.glyph_of(TextFace::Regular, key).advance * size / font.height;
         let start = scroll_start(&input.text, cursor, width, advance);
         let end = start + layout::fitting_end(&input.text[start..], font, width, size);
         let draft = &input.text[start..end];

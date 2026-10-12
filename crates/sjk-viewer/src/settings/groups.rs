@@ -80,12 +80,14 @@ impl Advanced {
 }
 
 /// The rows Chat gathers: the in-game chat box's (HUD's in the classic
-/// groups) and the SJK chat's (Network's).
+/// groups, the code page of other clients' text Interface's) and the SJK chat's
+/// (Network's).
 const CHAT_ROWS: &[&str] = &[
     "cg_drawChat",
     crate::chat::emoji::CVAR,
     crate::chat::reply::REMEMBER_CVAR,
     "cg_chatBoxLetterSpacing",
+    crate::text::charset::CVAR,
     "cl_sjkChat",
     crate::chat_gifs::CVAR,
     crate::chat_gifs::search::KEY_CVAR,
@@ -233,7 +235,10 @@ impl Group {
         };
         match self {
             Self::Advanced(Advanced::Gameplay) => without(Self::GameOptions, MODS_ROWS),
-            Self::Advanced(Advanced::Interface) => without(Self::Interface, WHEEL_ROWS),
+            Self::Advanced(Advanced::Interface) => without(Self::Interface, WHEEL_ROWS)
+                .into_iter()
+                .filter(|cvar| !CHAT_ROWS.contains(cvar))
+                .collect(),
             Self::Advanced(Advanced::Hud) => {
                 let mut cvars = without(Self::Hud, CHAT_ROWS);
                 cvars.extend_from_slice(Self::Scoreboard.cvars());
@@ -287,6 +292,7 @@ impl Group {
                 crate::console::console_options::STYLE_CVAR,
                 "con_scale",
                 crate::console::console_options::DRAW_NOTIFY_CVAR,
+                crate::text::charset::CVAR,
                 crate::quick_wheel::pages::FILE,
                 crate::quick_wheel::SOUNDS_CVAR,
             ],

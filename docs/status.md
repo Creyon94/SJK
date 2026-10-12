@@ -1,5 +1,23 @@
 # Status and priorities
 
+## Russian and Japanese text
+
+Branch `personal/unicode-text` (12/10/2026), Sol's request after Russian friends saw
+their chat as `?`: every font atlas had 256 Windows-1252 slots and drew `?` for
+anything else. Implemented: a shared wide-glyph atlas filled on first use (Cyrillic
+from each face's own family or the closest, kana and kanji from a bundled Noto Sans JP
+subset; [rendering.md](rendering.md#characters-beyond-the-code-page)); Russian sent and
+read in Windows-1251 as EternalJK sends it, guessed from the text with `cl_charset` to
+override ([networking.md](networking.md#player-text)); the chat field counting the
+bytes a line is sent with. Verified: unit tests (both code pages, the guess and its
+round trip, glyph scale and baseline, atlas packing and mips, the console cell, the
+chat budget, `text.wgsl` validated by naga) and the GPU world shots
+`chat_in_russian_and_japanese` (an EternalJK Windows-1251 line, UTF-8 Russian and
+Japanese, a typed draft, at 1080p, 4K and with the game fonts) looked at. Not tried in
+a game, nor against an EternalJK client with `se_language russian`. The hub's SJK
+channel draws Cyrillic it already accepted; it refuses Japanese until its letter rules
+(`sjk-identity` `bio::letter`, shared with the hub) allow it.
+
 ## Card faces and the first card
 
 Branch `personal/card-face` (12/10/2026), Sol's request: Sol made the first card

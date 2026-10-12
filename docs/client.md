@@ -1915,6 +1915,21 @@ before expiry. Players outside the
 received snapshot cannot be watched. Player input and server authority remain
 unchanged. The command is bindable under Settings > Key bindings > Other.
 
+### Chat in other alphabets
+
+Chat, names and every other text show Russian and Japanese (and any character a
+bundled font has) instead of `?` (Sol's request, 12/10/2026; drawn from the
+wide-glyph atlas, [rendering.md](rendering.md#characters-beyond-the-code-page)).
+Russian travels as EternalJK sends it, in Windows-1251, so SJK and EternalJK players
+with `se_language russian` read each other; `cl_charset` (Settings > Chat > Other
+clients' text: Auto, Western, Cyrillic) says how text from other clients is read
+when the guess is wrong ([player text](networking.md#player-text)). Japanese goes as
+UTF-8: SJK players read it, retail and EternalJK players see other characters. The
+chat field stops where the server would cut the line (149 bytes as sent: 149 Russian
+letters, about 49 Japanese characters). The hub's SJK channel already took Cyrillic
+and now draws it; it does not take Japanese yet (its letter rules,
+[hub-chat.md](hub-chat.md)).
+
 ### Chat player actions
 
 U defaults to crosshair-target private chat (`messagemode3`): aim at a player,
@@ -3677,8 +3692,9 @@ by `
 `, with `^n` colour codes; lines printed before it authenticated are not
 sent. Each line the app sends runs as a console command, as if typed (`say hi`
 chats). Text uses Windows-1252 bytes, like chat on the wire
-([legacy_text.rs](../crates/sjk-protocol/src/legacy_text.rs)); text with a
-character outside it is sent as UTF-8.
+([legacy_text.rs](../crates/sjk-protocol/src/legacy_text.rs)), or Windows-1251
+for Russian ([player text](networking.md#player-text)); other text is sent as
+UTF-8.
 
 Chat lines carry the stock `0x19` separator before the colon (`Name^7<0x19>: hi`),
 which is how an app tells chat from other output; the console shows the line

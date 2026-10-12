@@ -3,7 +3,7 @@
 use super::Channel;
 use crate::console::line_edit::{LineEdit, Motion};
 use crate::input::dead_key::{DeadKey, TypingField, keep_caret};
-use sjk_client::{CHAT_INPUT_BYTES, ChatTarget, chat_input_cost};
+use sjk_client::{CHAT_INPUT_BYTES, ChatTarget, chat_input_fits};
 use std::ops::Range;
 use winit::keyboard::{Key, KeyCode};
 
@@ -36,12 +36,12 @@ impl Editor {
         self.dead = dead;
     }
 
-    /// Insert typed or pasted text. The draft's length counts the escapes it
-    /// is sent with (`%` takes four bytes, `"` two), as EternalJK's chat field
-    /// does, so a full field is never cut short when it is sent.
+    /// Insert typed or pasted text. The draft's length counts the bytes it is
+    /// sent with, escapes included (`%` takes three bytes, `"` two), as EternalJK's
+    /// chat field does, so a full field is never cut short when it is sent.
     pub(super) fn insert(&mut self, value: &str) {
         self.edit
-            .insert_counted(&mut self.text, value, CHAT_INPUT_BYTES, chat_input_cost);
+            .insert_fitting(&mut self.text, value, chat_input_fits);
     }
 
     pub(super) fn key(&mut self, key: KeyCode, control: bool, shift: bool) -> bool {
@@ -96,7 +96,7 @@ mod length_tests {
     fn the_field_stops_where_the_sent_message_would_be_cut() {
         let mut editor = Editor::new(Channel::Global);
         editor.insert(&"%".repeat(CHAT_INPUT_BYTES));
-        assert_eq!(editor.text, "%".repeat(CHAT_INPUT_BYTES / 4));
+        assert_eq!(editor.text, "%".repeat(CHAT_INPUT_BYTES / 3));
 
         let mut editor = Editor::new(Channel::Global);
         editor.insert(&"a".repeat(CHAT_INPUT_BYTES - 2));

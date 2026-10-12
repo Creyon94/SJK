@@ -159,7 +159,9 @@ Sol develops SJK and sets its direction. Sol's work includes:
 - the strafe helper's lines (`cg_strafeHelper` option 1), JoF EJK's two lines to the
   best strafe heading, in third person and on the ground too (after JoF EJK);
 - a held push or pull key that pushes or pulls again as soon as it can
-  (`cl_forceRepeat`, after JoF EJK).
+  (`cl_forceRepeat`, after JoF EJK);
+- Russian and Japanese text drawn everywhere, Russian sent and read in Windows-1251 as
+  EternalJK sends it (`cl_charset`, after EternalJK).
 
 ## Contributors to SJK
 
@@ -292,7 +294,10 @@ Mono by The JetBrains Mono Project Authors, keeps its
 fonts, Rajdhani by the Indian Type Foundry and Exo 2 by the Exo 2 Project Authors (Natanael
 Gama), keep theirs ([Rajdhani](crates/sjk-viewer/assets/fonts/Rajdhani-OFL.txt),
 [Exo 2](crates/sjk-viewer/assets/fonts/Exo2-OFL.txt); Exo 2's static weights are instances
-of its variable font, unchanged otherwise), the game fonts
+of its variable font, unchanged otherwise), Noto Sans JP by Adobe and Google, which draws
+kana and kanji, keeps its
+[SIL Open Font License](crates/sjk-viewer/assets/fonts/NotoSansJP-OFL.txt) (subset to
+kana, kanji, CJK punctuation and full-width forms, unchanged otherwise), the game fonts
 SJK Menu and SJK HUD are traced from the JoF HD Fonts & Icons pack (author unknown)
 and SJK Chat is OCR-A by John Sauter (public domain), as
 [SJK-fonts.txt](crates/sjk-viewer/assets/fonts/SJK-fonts.txt) describes, GIFs in the SJK chat and the GIF picker's search come from [GIPHY](https://giphy.com), fetched by

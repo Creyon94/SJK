@@ -16,7 +16,7 @@
 
 use super::{
     FontAtlas, FontGlyph, GLYPH_COUNT, RasterizedGlyph, TextStyle, UiFont, paint_atlas,
-    slot_character,
+    slot_character, wide,
 };
 use fontdue::{Font, FontSettings};
 use std::error::Error;
@@ -36,6 +36,9 @@ pub(crate) struct RetailFace {
     height: f32,
     /// Baseline below the line top, in retail pixels.
     baseline: f32,
+    /// Fonts lending it the characters beyond its slots ([`super::wide`]), the
+    /// closest in style that has Cyrillic, then kana and kanji.
+    wide: &'static [wide::Source],
 }
 
 /// SJK Menu, in place of `ergoec` (`FONT_MEDIUM`): `mHeight` 22, `mAscender` 17.
@@ -44,6 +47,7 @@ pub(crate) const MENU: RetailFace = RetailFace {
     bytes: include_bytes!("../../assets/fonts/SJKMenu.ttf"),
     height: 22.0,
     baseline: 17.0,
+    wide: wide::EXO2[0],
 };
 
 /// SJK Chat, in place of `ocr_a` (`FONT_SMALL`): `mHeight` 21, `mAscender` 17.
@@ -52,6 +56,7 @@ pub(crate) const CHAT: RetailFace = RetailFace {
     bytes: include_bytes!("../../assets/fonts/SJKChat.ttf"),
     height: 21.0,
     baseline: 17.0,
+    wide: wide::MONO,
 };
 
 /// SJK HUD, in place of `arialnb`, the classic status HUD's font. Its header
@@ -61,6 +66,7 @@ pub(crate) const HUD: RetailFace = RetailFace {
     bytes: include_bytes!("../../assets/fonts/SJKHud.ttf"),
     height: 14.0,
     baseline: 14.0,
+    wide: wide::INTER[1],
 };
 
 impl RetailFace {
@@ -107,6 +113,7 @@ pub(crate) fn load(face: &RetailFace) -> Result<FontAtlas, Box<dyn Error>> {
     Ok(FontAtlas {
         font: UiFont {
             glyphs,
+            wide: [face.wide; 2],
             height: face.height,
             modern: false,
             style: TextStyle::NEUTRAL,

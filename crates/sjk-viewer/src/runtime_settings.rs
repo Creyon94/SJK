@@ -26,6 +26,7 @@ impl GpuState {
         );
         self.ui_font.set_style(text_style);
         crate::text::style::publish(text_style);
+        crate::text::charset::sync(console.text_value(crate::text::charset::CVAR));
         self.mouse_look = MouseLook {
             sensitivity: console.float_cvar("sensitivity").unwrap_or(5.0) as f32,
             yaw_scale: console.float_cvar("m_yaw").unwrap_or(0.022) as f32,

@@ -66,18 +66,44 @@ quotes and dashes) as those bytes rather than UTF-8
 ([legacy_text.rs](../crates/sjk-protocol/src/legacy_text.rs)), in the connect
 packet's userinfo, every reliable command (chat, `userinfo` updates, forwarded
 console commands) and `rcon` lines, so retail and EternalJK players read `ø` as
-`ø`, not `Ã¸`. Text with any other character (Cyrillic, CJK, emoji) is still sent
-as UTF-8, which only SJK clients decode; EternalJK's Windows-1251 and
-Windows-1250 mappings are not reproduced. Incoming text, including the
+`ø`, not `Ã¸`.
+
+Russian goes the way EternalJK sends it: `ConvertUTF32ToExpectedCharset` maps
+`А`..`я` to the Windows-1251 bytes 0xC0..=0xFF, and its players with `se_language
+russian` draw those bytes with a Cyrillic character set (`charsgrid_med_cyr`,
+`CVU_LanguageModified`). The bytes cannot say which code page they are in, so
+`cl_charset` (archived, Settings > Chat > Other clients' text) decides: `auto`
+(default), `western` (always Windows-1252) or `cyrillic` (always Windows-1251).
+Under `auto`, text that is not UTF-8 reads as Windows-1251 when one of its words is
+made of high letter bytes only (0xC0..=0xFF, `Ё` 0xA8, `ё` 0xB8) and is two of them
+with a lower-case one (`да`) or four or more (`ПРИВЕТ`), and as Latin-1 otherwise:
+a word of a Latin-script language mixes accented letters with ASCII ones (`été`,
+`Größe`), and decorated names (`ÐÄRK`, `ÆØ`) stay Latin-1 (`looks_cyrillic`). Text
+leaves in Windows-1252 when every character has a byte there, else in Windows-1251
+when every one has a byte there; under `auto` a single-byte encoding is used only
+when it reads back as the same text, so SJK players always read each other exactly
+(a short capital `ДА` or a Latin `àé` goes as UTF-8). Any other text (Japanese,
+Cyrillic mixed with `é`, emoji) is sent as UTF-8, which only SJK clients decode;
+EternalJK's Windows-1250 mapping is not reproduced. Incoming text, including the
 names servers embed in `print` and `cp` commands, is decoded by
 [decode_legacy](../crates/sjk-client/src/legacy_text.rs): valid UTF-8 as UTF-8,
-anything else as Latin-1. A byte in 0x80..=0x9F therefore stays the C1 character
-of that value, draws the font glyph of that byte and is sent back as the same
-byte, so a name copied from the game round-trips exactly. The renderer picks a
-glyph by Windows-1252 byte ([text.rs](../crates/sjk-viewer/src/text.rs)), so a
-typed `€` or `’` draws the same glyph as byte 0x80 or 0x92 from another client,
-and the modern font fills those slots with the Windows-1252 characters instead
-of blank C1 controls.
+anything else one character per byte as above. A byte in 0x80..=0x9F of Latin-1
+text therefore stays the C1 character of that value, draws the font glyph of that
+byte and is sent back as the same byte, so a name copied from the game round-trips
+exactly. The renderer picks a glyph by Windows-1252 byte
+([text.rs](../crates/sjk-viewer/src/text.rs)), so a typed `€` or `’` draws the
+same glyph as byte 0x80 or 0x92 from another client, and the modern font fills
+those slots with the Windows-1252 characters instead of blank C1 controls; any
+other character (Cyrillic, Japanese) is drawn from the wide-glyph atlas
+([rendering.md](rendering.md#characters-beyond-the-code-page)).
+
+A chat line holds at most `MAX_SAY_TEXT` - 1 (149) bytes; the server cuts a
+longer one (`Cmd_Say_f`). The chat field counts a draft by the bytes it is sent
+with, escapes included and the whole line encoded as above
+(`chat_input_fits`, [chat.rs](../crates/sjk-client/src/chat.rs)): a Russian line
+in Windows-1251 holds 149 letters as EternalJK's does, a Japanese line in UTF-8
+about 49 characters, and the sent command is cut at a whole character, never in
+the middle of one.
 
 A player's name is read from the bytes of the `n` key of its `CS_PLAYERS`
 configstring and decoded on its own (`LegacyClientInfo::name`,

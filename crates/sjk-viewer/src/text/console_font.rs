@@ -15,7 +15,7 @@
 
 use super::{
     FontAtlas, FontGlyph, GLYPH_COUNT, RasterizedGlyph, TextStyle, UiFont, paint_atlas,
-    slot_character,
+    slot_character, wide,
 };
 use fontdue::{Font, FontSettings};
 use std::error::Error;
@@ -76,6 +76,7 @@ pub(crate) fn load() -> Result<FontAtlas, Box<dyn Error>> {
     Ok(FontAtlas {
         font: UiFont {
             glyphs,
+            wide: [wide::MONO; 2],
             height: HEIGHT,
             modern: false,
             style: TextStyle::NEUTRAL,

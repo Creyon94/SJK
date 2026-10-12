@@ -2623,6 +2623,39 @@ logo themselves, SJK HUD a not-sign as `arialnb` did, and the console font
 JetBrains Mono's `¬`. Outgoing chat and names send `¬` as the single byte 0xAC
 ([player text](networking.md#player-text)), so other clients draw the logo too.
 
+### Characters beyond the code page
+
+Every font atlas holds the 256 characters of Windows-1252, one per byte. Any other
+character, Cyrillic from a Russian player ([player text](networking.md#player-text))
+or Japanese sent as UTF-8 by an SJK player, drew `?` until 12/10/2026. They now come
+from one shared wide-glyph atlas ([wide.rs](../crates/sjk-viewer/src/text/wide.rs)),
+filled the first time each character is shown:
+
+- Each face names the fonts that lend it wide glyphs, in order: its own family when
+  it has Cyrillic (Inter, Exo 2, JetBrains Mono), else the closest that does (Exo 2
+  for Rajdhani and SJK Menu, JetBrains Mono for SJK Chat's OCR-A, Inter SemiBold for
+  SJK HUD), then Noto Sans JP for kana and kanji. A character none of them has (an
+  emoji) draws the face's `?`.
+- A wide glyph is scaled so its font's capitals match the face's `H` and sits on the
+  face's baseline, so `Ж` is as tall as `H` beside it and a kanji takes the size Noto
+  Sans JP gives it next to its own Latin capitals. The classic console shrinks a glyph
+  wider than its cell (a kanji) into the cell, keeping one character per cell.
+- The first lookup reads the glyph's advance from the font, so layout is right at
+  once, and queues it. Once a frame, before the text vertices are uploaded,
+  queued glyphs are outlined with `ab_glyph` (which reads outlines on demand;
+  `fontdue` would outline all 16,000 of Noto Sans JP's glyphs when loading it) for at
+  most 2 ms and packed into the atlas, so a new character shows from the next frame.
+  A frame with no new character does no work beyond a hash lookup per wide glyph.
+- The atlas is one 4096x2048 R8 texture with the code-page atlases' four mip levels,
+  glyphs rasterized at 96 pixels per em on an 8-texel grid so every level's copy of
+  a cell is whole texels, also kept on the CPU for menu snapshots. When it is full
+  it starts over and the glyphs on screen come back over the next frames.
+- Every text bind group carries it at binding 2
+  ([wide_texture.rs](../crates/sjk-viewer/src/text/wide_texture.rs)); a glyph's
+  vertices hold `u` offset by 2, and `text.wgsl` samples the wide atlas for those
+  (coverage, also under the distance-field entry), so every batch keeps its own
+  atlas and draw order.
+
 ### Game-data HUD
 
 `cg_hudStyle game` (the default) replaces the engine-drawn health, armor, Force

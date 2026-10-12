@@ -242,8 +242,9 @@ const QUOTE_ESCAPE: &str = "''";
 /// Construct one quoted stock command. Controls become spaces; `%` and `"` are
 /// escaped as EternalJK's chat sends them (`Message_Key`, `cl_keys.cpp:896-930`
 /// at JoF EternalJK bd5e202), so EternalJK clients and SJK show them again
-/// ([`chat_unescape`]). The byte budget always ends at a UTF-8 boundary and
-/// never splits an escape.
+/// ([`chat_unescape`]). The byte budget counts the bytes the text leaves with
+/// ([`sjk_protocol::encode_legacy_text`]: one per Latin-1 or Russian letter, UTF-8
+/// otherwise), always ends at a character boundary and never splits an escape.
 pub fn chat_command(destination: ChatDestination, text: &str) -> Option<String> {
     if matches!(destination, ChatDestination::Player(slot) if usize::from(slot) >= MAX_CLIENTS) {
         return None;
@@ -251,11 +252,12 @@ pub fn chat_command(destination: ChatDestination, text: &str) -> Option<String> 
     let mut payload = String::with_capacity(CHAT_INPUT_BYTES);
     let mut buffer = [0; 4];
     for c in text.chars() {
-        let piece = chat_piece(c, &mut buffer);
-        if payload.len() + piece.len() > CHAT_INPUT_BYTES {
+        let before = payload.len();
+        payload.push_str(chat_piece(c, &mut buffer));
+        if sent_bytes(&payload) > CHAT_INPUT_BYTES {
+            payload.truncate(before);
             break;
         }
-        payload.push_str(piece);
     }
     let payload = payload.trim();
     if payload.is_empty() {
@@ -279,11 +281,23 @@ fn chat_piece(c: char, buffer: &mut [u8; 4]) -> &str {
     }
 }
 
-/// How much of the [`CHAT_INPUT_BYTES`] budget `c` takes once escaped, so the
-/// chat field stops where the sent message would be cut, as EternalJK's field
-/// leaves room for its escapes (`cl_keys.cpp:645-650`).
-pub fn chat_input_cost(c: char) -> usize {
-    chat_piece(c, &mut [0; 4]).len()
+/// Bytes an escaped chat payload leaves with.
+fn sent_bytes(payload: &str) -> usize {
+    sjk_protocol::encode_legacy_text(payload).len()
+}
+
+/// Whether a draft fits the [`CHAT_INPUT_BYTES`] budget once escaped and encoded
+/// as it is sent, so the chat field stops where the sent message would be cut, as
+/// EternalJK's field leaves room for its escapes (`cl_keys.cpp:645-650`). The whole
+/// line counts, since it picks the encoding: Russian takes a byte a letter when the
+/// line leaves in Windows-1251, two in UTF-8, and a kanji three.
+pub fn chat_input_fits(text: &str) -> bool {
+    let mut payload = String::with_capacity(text.len() + 8);
+    let mut buffer = [0; 4];
+    for c in text.chars() {
+        payload.push_str(chat_piece(c, &mut buffer));
+    }
+    sent_bytes(&payload) <= CHAT_INPUT_BYTES
 }
 
 /// Show EternalJK's chat escapes as what was typed: `°/.` as `%` and `''` as
@@ -402,23 +416,37 @@ mod escape_tests {
     }
 
     #[test]
-    fn the_input_cost_is_the_sent_length() {
-        assert_eq!(chat_input_cost('a'), 1);
-        assert_eq!(chat_input_cost('%'), PERCENT_ESCAPE.len());
-        assert_eq!(chat_input_cost('"'), 2);
-        assert_eq!(chat_input_cost('\u{e9}'), 2);
-        let text = "50% \"ok\" caf\u{e9}";
-        let command = chat_command(ChatDestination::Global, text).unwrap();
-        let cost: usize = text.chars().map(chat_input_cost).sum();
-        assert_eq!(command.len(), "say \"\"".len() + cost);
+    fn the_input_fits_what_is_sent() {
+        let full = |text: &str| {
+            assert!(chat_input_fits(text), "{text}");
+            let command = chat_command(ChatDestination::Global, text).unwrap();
+            let sent = crate::legacy_text::legacy_command(command.as_bytes());
+            assert_eq!(sent.len(), "say \"\"".len() + CHAT_INPUT_BYTES, "{text}");
+            assert!(!chat_input_fits(&format!("{text}a")), "{text}");
+        };
+        full(&"a".repeat(CHAT_INPUT_BYTES));
+        // `é` and Russian leave a byte a letter, as EternalJK sends them.
+        full(&format!("{}caf\u{e9}", "caf\u{e9} ".repeat(29)));
+        full(&"\u{436}".repeat(CHAT_INPUT_BYTES));
+        // `%` leaves as `°/.`, three bytes; a kanji as three bytes of UTF-8.
+        assert!(chat_input_fits(&"%".repeat(CHAT_INPUT_BYTES / 3)));
+        assert!(!chat_input_fits(&"%".repeat(CHAT_INPUT_BYTES / 3 + 1)));
+        assert!(chat_input_fits(&"\u{65e5}".repeat(CHAT_INPUT_BYTES / 3)));
+        assert!(!chat_input_fits(
+            &"\u{65e5}".repeat(CHAT_INPUT_BYTES / 3 + 1)
+        ));
     }
 
     #[test]
-    fn the_budget_never_splits_an_escape() {
+    fn the_budget_never_splits_an_escape_or_a_character() {
         let text = format!("{}%", "a".repeat(CHAT_INPUT_BYTES - 2));
         let command = chat_command(ChatDestination::Global, &text).unwrap();
         assert!(!command.contains('\u{b0}'), "{command}");
         assert_eq!(command.len(), "say \"\"".len() + CHAT_INPUT_BYTES - 2);
+        // Kanji are cut whole: 49 of them (147 bytes), not 49 and two thirds.
+        let text = "\u{65e5}".repeat(60);
+        let command = chat_command(ChatDestination::Global, &text).unwrap();
+        assert_eq!(command, format!("say \"{}\"", "\u{65e5}".repeat(49)));
     }
 
     /// What arrives back at a client when `text` is typed in SJK's chat: the

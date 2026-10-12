@@ -34,17 +34,18 @@ pub(crate) fn append_bounded(
             index += 2;
             continue;
         }
-        let (byte, step) = super::glyph_byte_at(value, index);
+        let (key, step) = super::glyph_at(value, index);
         index += step;
-        let glyph = font.glyph(face, byte);
+        let glyph = font.glyph_of(face, key);
         let advance = glyph.advance * scale + spacing;
-        if byte == b'\n' || cursor[0] + advance > right {
+        let newline = key == GlyphKey::Slot(b'\n');
+        if newline || cursor[0] + advance > right {
             if overflow == TextOverflow::Wrap {
                 cursor = [rect.x, cursor[1] + font.height * scale * 1.18];
-                if byte == b'\n' {
+                if newline {
                     continue;
                 }
-            } else if byte == b'\n' || truncate {
+            } else if newline || truncate {
                 if truncate {
                     for _ in 0..3 {
                         glyph_quad(
