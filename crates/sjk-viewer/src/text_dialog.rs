@@ -436,6 +436,12 @@ impl TextDialog {
             // The arrows walk the buttons as Tab does.
             KeyCode::ArrowLeft | KeyCode::ArrowUp => self.step_focus(true),
             KeyCode::ArrowRight | KeyCode::ArrowDown => self.step_focus(false),
+            _ if self.focus == Focus::Field
+                && crate::text_entry::is_select_all(key, text, self.control) =>
+            {
+                self.edit.select_all(&self.text);
+                self.moved();
+            }
             _ if self.focus == Focus::Field => {
                 if crate::text_entry::is_copy(key, text, self.control) {
                     let _ = crate::console::clipboard::copy(&self.text);

@@ -4087,8 +4087,9 @@ note: Your own jetpack flight is not predicted with JA+ physics yet (server corr
 area: Input
 title: Every text field pastes, copies and repeats a held Backspace
 change: The address, password and search fields of the menus had no Ctrl+V and no held Backspace.
-change: Now every field does: Ctrl+V (Shift+Insert) pastes, Ctrl+C copies (not passwords).
+change: Now every field does: Ctrl+A selects all, Ctrl+V pastes, Ctrl+C copies (not passwords).
 test: Server browser > Add a favourite: paste an IP:port with Ctrl+V, hold Backspace to erase it.
 test: Browser search (/), Settings search and a text setting, Character name and search: same.
 test: Create game name, report or note dialog, your bio: Ctrl+V pastes, Ctrl+C copies the text.
+test: In any of them press Ctrl+A, then type a letter (replaces all) or Backspace (clears all).
 note: Not covered: the F8 screenshot panel numbers and the First setup FPS box (digits only).

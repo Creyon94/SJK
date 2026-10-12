@@ -6,11 +6,91 @@
 //! 12/10/2026, `AGENTS.md`). The menu lets key repeats through for a field that is open
 //! ([`crate::menu::ClientMenu::handle_key`]); this module is what such a field calls.
 
+use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use winit::event::KeyEvent;
 use winit::keyboard::{Key, KeyCode, SmolStr};
 
 /// Ctrl+C on Windows types this character.
 const CONTROL_C: &str = "\u{3}";
+/// Ctrl+A on Windows types this character.
+const CONTROL_A: &str = "\u{1}";
+
+/// Whether a field's whole text is selected (Ctrl+A), and which text: its address and
+/// length, so a selection never outlives a change of field or of text. A one-line field
+/// has no caret movement, so a selection is all or nothing: Backspace or Delete clears the
+/// field, typed text or a paste replaces it, Ctrl+C copies it, any other key drops it.
+static SELECTED: AtomicBool = AtomicBool::new(false);
+static SELECTED_AT: AtomicUsize = AtomicUsize::new(0);
+static SELECTED_LEN: AtomicUsize = AtomicUsize::new(0);
+
+/// Whether a pressed `key` that typed `text` selects all: Ctrl+A. Like
+/// [`crate::sjk_chat_field::is_paste`], Windows may hand the letter without Ctrl, or the
+/// Ctrl character itself.
+pub(crate) fn is_select_all(key: KeyCode, text: Option<&str>, control: bool) -> bool {
+    text == Some(CONTROL_A)
+        || (control && text.is_some_and(|text| text.eq_ignore_ascii_case("a")))
+        || (control && key == KeyCode::KeyA && text.is_none())
+}
+
+/// Select all of `field`'s text (nothing to select in an empty field).
+pub(crate) fn select_all(field: &str) {
+    if field.is_empty() {
+        deselect();
+        return;
+    }
+    SELECTED_AT.store(field.as_ptr() as usize, Ordering::Relaxed);
+    SELECTED_LEN.store(field.len(), Ordering::Relaxed);
+    SELECTED.store(true, Ordering::Relaxed);
+}
+
+/// Drop the selection.
+pub(crate) fn deselect() {
+    SELECTED.store(false, Ordering::Relaxed);
+}
+
+/// Whether all of `field`'s text is selected.
+pub(crate) fn is_selected(field: &str) -> bool {
+    SELECTED.load(Ordering::Relaxed)
+        && SELECTED_AT.load(Ordering::Relaxed) == field.as_ptr() as usize
+        && SELECTED_LEN.load(Ordering::Relaxed) == field.len()
+}
+
+/// Whether some field's text is selected: the field being typed in draws it highlighted.
+pub(crate) fn selection_shown() -> bool {
+    SELECTED.load(Ordering::Relaxed)
+}
+
+/// Whether `text` types characters (not Ctrl+letter, not a control character).
+fn types(text: Option<&str>, control: bool) -> bool {
+    !control && text.is_some_and(|text| !text.is_empty() && text.chars().all(|c| !c.is_control()))
+}
+
+/// What the selection does to the key about to edit `field`: Ctrl+A selects all of it;
+/// with all of it selected Backspace and Delete clear it, and typed text or a paste
+/// replaces it (the field is emptied and the key goes on typing); Ctrl+C keeps the selection
+/// for the caller to copy; any other key drops it. Whether the key is spent.
+pub(crate) fn before_edit(
+    field: &mut String,
+    key: KeyCode,
+    text: Option<&str>,
+    shift: bool,
+    control: bool,
+) -> bool {
+    if is_select_all(key, text, control) {
+        select_all(field);
+        return true;
+    }
+    if !is_selected(field) || is_copy(key, text, control) {
+        return false;
+    }
+    let erases = matches!(key, KeyCode::Backspace | KeyCode::Delete);
+    if erases || types(text, control) || crate::sjk_chat_field::is_paste(key, text, shift, control)
+    {
+        field.clear();
+    }
+    deselect();
+    erases
+}
 
 /// Whether a pressed `key` that typed `text` copies: Ctrl+C, or Ctrl+Insert. Like
 /// [`crate::sjk_chat_field::is_paste`], Windows may hand the letter without Ctrl, or the
@@ -50,6 +130,10 @@ pub(crate) fn edit(
     max: usize,
     copyable: bool,
 ) -> bool {
+    let before = field.len();
+    if before_edit(field, key, text, shift, control) {
+        return field.len() != before;
+    }
     if key == KeyCode::Backspace {
         return field.pop().is_some();
     }
@@ -99,6 +183,71 @@ mod tests {
         assert!(is_copy(KeyCode::Insert, None, true));
         assert!(!is_copy(KeyCode::KeyC, Some("c"), false));
         assert!(!is_copy(KeyCode::KeyC, Some("k"), true));
+    }
+
+    #[test]
+    fn ctrl_a_selects_all_and_the_next_key_replaces_or_clears_it() {
+        assert!(is_select_all(KeyCode::KeyA, Some("\u{1}"), true));
+        assert!(is_select_all(KeyCode::KeyA, Some("a"), true));
+        assert!(is_select_all(KeyCode::KeyA, None, true));
+        assert!(!is_select_all(KeyCode::KeyA, Some("a"), false));
+        let mut field = "192.0.2.1:29070".to_owned();
+        assert!(before_edit(
+            &mut field,
+            KeyCode::KeyA,
+            Some("a"),
+            false,
+            true
+        ));
+        assert!(is_selected(&field));
+        // Typing replaces it.
+        assert!(!before_edit(
+            &mut field,
+            KeyCode::KeyX,
+            Some("x"),
+            false,
+            false
+        ));
+        assert_eq!(field, "");
+        // Backspace clears it and is spent.
+        let mut field = "abc".to_owned();
+        select_all(&field);
+        assert!(before_edit(
+            &mut field,
+            KeyCode::Backspace,
+            None,
+            false,
+            false
+        ));
+        assert_eq!(field, "");
+        // Another key drops the selection and leaves the text.
+        let mut field = "abc".to_owned();
+        select_all(&field);
+        assert!(!before_edit(
+            &mut field,
+            KeyCode::ArrowLeft,
+            None,
+            false,
+            false
+        ));
+        assert_eq!(field, "abc");
+        assert!(!is_selected(&field));
+        // The selection belongs to its text: a change of text drops it, and copying keeps it.
+        select_all(&field);
+        assert!(!before_edit(
+            &mut field,
+            KeyCode::KeyC,
+            Some("c"),
+            false,
+            true
+        ));
+        assert!(is_selected(&field));
+        field.push('d');
+        assert!(!is_selected(&field));
+        // An empty field selects nothing.
+        let mut empty = String::new();
+        before_edit(&mut empty, KeyCode::KeyA, Some("a"), false, true);
+        assert!(!selection_shown());
     }
 
     #[test]

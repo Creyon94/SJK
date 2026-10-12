@@ -446,6 +446,11 @@ impl Browser {
             };
         }
         if let Some(value) = &mut self.editing {
+            if !event.repeat
+                && crate::text_entry::before_edit(value, key, event.text.as_deref(), shift, control)
+            {
+                return BrowserAction::None;
+            }
             match key {
                 KeyCode::Escape => return self.cancel(),
                 KeyCode::F3 if !event.repeat => return BrowserAction::Close,
@@ -474,6 +479,17 @@ impl Browser {
             } else {
                 self.tab + 1
             }),
+            _ if !event.repeat
+                && crate::text_entry::before_edit(
+                    &mut self.filter,
+                    key,
+                    event.text.as_deref(),
+                    shift,
+                    control,
+                ) =>
+            {
+                self.rebuild_visible(None);
+            }
             KeyCode::Backspace => {
                 if self.filter.pop().is_some() {
                     self.rebuild_visible(None);

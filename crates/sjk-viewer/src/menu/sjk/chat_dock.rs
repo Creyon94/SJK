@@ -257,6 +257,9 @@ impl Dock {
         control: bool,
     ) -> Option<DockAction> {
         let draft = self.draft.as_mut()?;
+        if crate::text_entry::before_edit(draft, key, text, shift, control) {
+            return None;
+        }
         match key {
             KeyCode::Escape => self.draft = None,
             KeyCode::Enter | KeyCode::NumpadEnter => {
