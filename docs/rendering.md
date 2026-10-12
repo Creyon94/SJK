@@ -2137,6 +2137,16 @@ can bypass recording once pending submissions have completed.
 The crosshair is retail's `gfx/2d/crosshair*` picture, drawn by the HUD draw list
 as a textured quad ([hud/crosshair.rs](../crates/sjk-viewer/src/hud/crosshair.rs));
 the in-game HUD shader draws its procedural cross only when that picture is missing.
+The rocket launcher's lock-on ([hud/rocket_lock.rs](../crates/sjk-viewer/src/hud/rocket_lock.rs))
+is drawn as JoF EJK's `CG_DrawRocketLocking`: from `ps.rocketLockIndex` and
+`ps.rocketLockTime`, one red `gfx/2d/wedge` slice per 75 ms (150 in Siege) around the
+target, each turned another 45 degrees about the ring's centre with the
+`TexturedQuadTurned` draw command (`R_DrawRotatePic`'s turn about a corner), up to
+eight, then the additive `gfx/2d/lock` pulsing over them (its brightness becomes its
+coverage, as the HUD blends by alpha). Each new slice plays
+`sound/weapons/rocket/tick.wav` at the target and the eighth `lock.wav`. The ring stays
+square on wide screens; a teammate's lock is not drawn in team games; vehicle weapons'
+own lock times are not covered.
 The in-game HUD shader is restricted to crosshair and damage-indicator regions.
 Intersecting regions become one rectangle so translucent pixels blend once.
 Menus and the shader's status-bar fallback retain full-screen coverage.

@@ -21,6 +21,7 @@ pub(crate) mod options;
 pub(crate) mod player_card;
 pub(crate) mod portrait;
 mod radial;
+pub(crate) mod rocket_lock;
 mod selection;
 pub(crate) mod targeting;
 mod text_values;
@@ -167,6 +168,8 @@ pub(crate) struct HudOverlay {
     pub(crate) crosshair_pictures: [Option<sjk_ui::TextureId>; crosshair::PICTURES],
     /// The last layout drew the crosshair picture, so `hud.wgsl` skips its own.
     pub(crate) crosshair_picture_drawn: bool,
+    /// The rocket launcher's lock-on around its target.
+    pub(crate) rocket_lock: rocket_lock::State,
     /// JA+ merc mode's flamethrower, latched across snapshots.
     flamethrower: sjk_client::force_wheel::FlamethrowerOverride,
     /// The selector shows Force Lightning as the flamethrower.
@@ -311,6 +314,7 @@ impl HudOverlay {
             force_wheel_icons: [None; force_wheel::ICONS],
             holocron_icons: [None; crate::holocrons::COUNT],
             crosshair_pictures: [None; crosshair::PICTURES],
+            rocket_lock: rocket_lock::State::default(),
             crosshair_picture_drawn: false,
             flamethrower: Default::default(),
             flamethrower_shown: false,
@@ -486,6 +490,7 @@ impl HudOverlay {
         );
         self.draw_list.clear();
         self.tints.emit(&mut self.draw_list, viewport);
+        self.rocket_lock.emit(&mut self.draw_list);
         // A pilot's crosshair is doubled, and is the vehicle's own picture when its
         // `.veh` names one that loaded.
         let crosshair_look = self.vehicle.crosshair_look(self.targeting.policy.look);

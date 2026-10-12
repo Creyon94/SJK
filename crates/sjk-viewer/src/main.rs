@@ -1720,6 +1720,18 @@ impl GpuState {
             presentation_time as i32,
             intermission_view.is_some(),
         );
+        // `CG_DrawRocketLocking`'s tick and lock, at the target (`CHAN_AUTO`).
+        if let Some((sound, origin)) = self.hud.rocket_lock.take_sound()
+            && let Some(audio) = game_audio.as_mut()
+        {
+            audio.play_on_channel(
+                sound,
+                1.0,
+                origin,
+                sjk_audio::SourceId(1022),
+                sjk_audio::ChannelId(0),
+            );
+        }
         // A vehicle that hides its rider takes the player's status and weapon HUD.
         let hud_visibility = self.hud.vehicle.apply(hud_visibility);
         let hud_style = menu_hud::HudStyle::read(self.console.as_ref());

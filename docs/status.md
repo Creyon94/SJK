@@ -1,5 +1,21 @@
 # Status and priorities
 
+## Rocket launcher: the lock-on ring and its sounds
+
+Branch `feat/rocket-lock-on` (12/10/2026, based on `c6ce9485`, Linux): Creyon's video
+showed the rocket launcher's alternate attack locking on with nothing on screen and no
+sound, where JoF EJK draws a ring round the target and ticks. The game already sent and
+predicted the lock (`rocketLockIndex`, `rocketLockTime`); nothing drew it. The HUD now
+draws `CG_DrawRocketLocking`: a red `gfx/2d/wedge` slice per 75 ms (150 in Siege), each
+turned another 45 degrees, up to eight, then `gfx/2d/lock` pulsing, sized by the target's
+distance; each new slice plays `tick.wav` at the target and the eighth `lock.wav`. The
+HUD gains a turned-picture draw command (`TexturedQuadTurned`) and two atlas cells
+([rendering.md](rendering.md)). Live and in demos; the ring is square on wide screens,
+a teammate's lock is not drawn in team games, vehicle weapons' lock times are not covered.
+Verified: tests (slices and sounds over time, turns and opacity, placement and size by
+distance, no ring without a lock, for a teammate or behind the view, a held lock, the
+additive picture, the turned corners); the workspace checks. Not tried in game.
+
 ## Force powers apply when the Force page is left
 
 Branch `personal/force-apply-on-close` (12/10/2026), Sol's report: on the JoF JA+ server

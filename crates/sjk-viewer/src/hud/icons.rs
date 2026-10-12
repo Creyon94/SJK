@@ -57,6 +57,10 @@ pub(crate) fn install(
     hud.crosshair_pictures = super::crosshair::load(vfs, shaders, |id, rgba| {
         renderer.upload_icon(queue, id, rgba)
     });
+    hud.rocket_lock
+        .set_pictures(super::rocket_lock::load(vfs, shaders, |id, rgba| {
+            renderer.upload_icon(queue, id, rgba)
+        }));
     (renderer, hud)
 }
 

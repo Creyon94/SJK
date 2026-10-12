@@ -19,7 +19,7 @@ pub(crate) use icons::{
     ATLAS_CELLS, BIND_ICON_CELLS, BIND_ICON_FIRST, CROSSHAIR_ICON_CELLS, CROSSHAIR_ICON_FIRST,
     EMOJI_ICON_CELLS, EMOJI_ICON_FIRST, FORCE_ICON_CELLS, FORCE_ICON_FIRST, FORCE_WHEEL_ICON_CELLS,
     FORCE_WHEEL_ICON_FIRST, HOLOCRON_ICON_FIRST, ICON_CELLS, ICON_SIZE, LOGO_ICON, PART_ICON_CELLS,
-    PART_ICON_FIRST, SCOREBOARD_ICON_CELLS, VEHICLE_CROSSHAIR_ICON,
+    PART_ICON_FIRST, ROCKET_LOCK_ICON_FIRST, SCOREBOARD_ICON_CELLS, VEHICLE_CROSSHAIR_ICON,
 };
 pub(crate) use levelshot::LEVELSHOT_TEXTURE;
 use medal_art::MedalTextures;
@@ -166,7 +166,8 @@ pub(crate) fn texture_switches(lists: &[&DrawList]) -> usize {
         };
         let texture = match command {
             DrawCommand::TexturedQuad { texture, .. }
-            | DrawCommand::TexturedQuadUv { texture, .. } => *texture,
+            | DrawCommand::TexturedQuadUv { texture, .. }
+            | DrawCommand::TexturedQuadTurned { texture, .. } => *texture,
             // A shape after the emblem's light goes back to alpha blending.
             _ => {
                 art::untextured(&mut runs, vertices);
@@ -586,6 +587,31 @@ impl ShapeRenderer {
                     icons::push_quad(
                         &mut self.vertices,
                         clipped(rect, clips[clip_depth]),
+                        uv,
+                        color,
+                        opacity[opacity_depth],
+                        viewport,
+                        MAX_SHAPE_VERTICES,
+                    );
+                }
+                DrawCommand::TexturedQuadTurned {
+                    rect,
+                    texture,
+                    color,
+                    pivot,
+                    degrees,
+                } => {
+                    let Some(source) = self.texture_source(queue, texture, now) else {
+                        continue;
+                    };
+                    let uv = match source {
+                        Source::Atlas => icons::uv_range(texture),
+                        _ => ([0.0, 0.0], [1.0, 1.0]),
+                    };
+                    // Like explicit coordinates, a turned quad is not clipped.
+                    icons::push_quad_at(
+                        &mut self.vertices,
+                        icons::turned_corners(rect, pivot, degrees),
                         uv,
                         color,
                         opacity[opacity_depth],

@@ -117,6 +117,13 @@ impl SoundPrefetch {
         paths.extend(crate::effect_aux::saber_contacts::SOUNDS.map(str::to_owned));
         paths.extend(crate::jetpack::SOUNDS.map(str::to_owned));
         paths.push(crate::electrify::CRACKLE.to_owned());
+        paths.extend(
+            [
+                crate::hud::rocket_lock::TICK_SOUND,
+                crate::hud::rocket_lock::LOCK_SOUND,
+            ]
+            .map(str::to_owned),
+        );
         if let Some(music) = music {
             paths.push(default_music_extension(&music.intro));
             paths.push(default_music_extension(&music.repeating));

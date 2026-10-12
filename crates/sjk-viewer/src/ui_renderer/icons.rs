@@ -85,8 +85,13 @@ pub(crate) const CLAN_ICON_CELLS: u32 = 4;
 pub(crate) const HOLOCRON_ICON_FIRST: u32 = CLAN_ICON_FIRST + CLAN_ICON_CELLS;
 /// Holocron cells: one per tier, with room for the same again.
 pub(crate) const HOLOCRON_ICON_CELLS: u32 = 8;
+/// First of the rocket lock-on's cells (`gfx/2d/wedge` and `gfx/2d/lock`,
+/// `hud::rocket_lock`), after the holocrons'.
+pub(crate) const ROCKET_LOCK_ICON_FIRST: u32 = HOLOCRON_ICON_FIRST + HOLOCRON_ICON_CELLS;
+/// Rocket lock-on cells: the wedge and the lock.
+pub(crate) const ROCKET_LOCK_ICON_CELLS: u32 = 2;
 /// Every icon cell.
-pub(crate) const ATLAS_CELLS: u32 = HOLOCRON_ICON_FIRST + HOLOCRON_ICON_CELLS;
+pub(crate) const ATLAS_CELLS: u32 = ROCKET_LOCK_ICON_FIRST + ROCKET_LOCK_ICON_CELLS;
 const TOTAL_CELLS: u32 = ATLAS_CELLS;
 const ATLAS_HEIGHT: u32 = TOTAL_CELLS.div_ceil(COLUMNS) * ICON_SIZE;
 
@@ -249,8 +254,74 @@ pub(super) fn push_quad_corners(
     }));
 }
 
+/// The corners of `rect` (top-left, top-right, bottom-right, bottom-left) turned
+/// `degrees` about `pivot`, clockwise on a screen whose y grows downwards, as
+/// `RB_RotatePic` turns them.
+pub(super) fn turned_corners(rect: Rect, pivot: [f32; 2], degrees: f32) -> [[f32; 2]; 4] {
+    let (sin, cos) = degrees.to_radians().sin_cos();
+    [
+        [rect.x, rect.y],
+        [rect.right(), rect.y],
+        [rect.right(), rect.bottom()],
+        [rect.x, rect.bottom()],
+    ]
+    .map(|[x, y]| {
+        let (dx, dy) = (x - pivot[0], y - pivot[1]);
+        [
+            pivot[0] + dx * cos - dy * sin,
+            pivot[1] + dx * sin + dy * cos,
+        ]
+    })
+}
+
+/// Push a textured quad whose corners (top-left, top-right, bottom-right,
+/// bottom-left) are at `corners`, sampling `uv` (its top-left and bottom-right).
+pub(super) fn push_quad_at(
+    vertices: &mut Vec<ShapeVertex>,
+    corners: [[f32; 2]; 4],
+    (uv0, uv1): ([f32; 2], [f32; 2]),
+    color: Color,
+    opacity: f32,
+    viewport: [f32; 2],
+    capacity: usize,
+) {
+    if vertices.len() + 6 > capacity {
+        return;
+    }
+    let position = |[x, y]: [f32; 2]| [x / viewport[0] * 2.0 - 1.0, 1.0 - y / viewport[1] * 2.0];
+    let tint = [color.r, color.g, color.b, color.a * opacity];
+    let uv = [uv0, [uv1[0], uv0[1]], uv1, [uv0[0], uv1[1]]];
+    let width = (corners[1][0] - corners[0][0]).hypot(corners[1][1] - corners[0][1]);
+    let height = (corners[3][0] - corners[0][0]).hypot(corners[3][1] - corners[0][1]);
+    vertices.extend([0, 1, 2, 0, 2, 3].map(|corner| ShapeVertex {
+        position: position(corners[corner]),
+        local: [0.0, 0.0],
+        size: [width, height],
+        start_color: tint,
+        end_color: tint,
+        parameters: [0.0, 2.0],
+        uv: uv[corner],
+    }));
+}
+
 #[cfg(test)]
 mod tests {
+    use super::*;
+
+    /// `RB_RotatePic` turns about the given point: a quarter turn of a square to the
+    /// left of its pivot puts it above the pivot.
+    #[test]
+    fn a_quarter_turn_moves_the_square_around_its_pivot() {
+        let corners = turned_corners(Rect::new(-10.0, 0.0, 10.0, 10.0), [0.0, 0.0], 90.0);
+        let expected = [[0.0, -10.0], [0.0, 0.0], [-10.0, 0.0], [-10.0, -10.0]];
+        for (corner, expected) in corners.iter().zip(expected) {
+            assert!((corner[0] - expected[0]).abs() < 1e-4, "{corners:?}");
+            assert!((corner[1] - expected[1]).abs() < 1e-4, "{corners:?}");
+        }
+        let unturned = turned_corners(Rect::new(1.0, 2.0, 3.0, 4.0), [5.0, 5.0], 0.0);
+        assert_eq!(unturned, [[1.0, 2.0], [4.0, 2.0], [4.0, 6.0], [1.0, 6.0]]);
+    }
+
     #[test]
     fn the_atlas_fits_the_texture_size_the_client_asks_for() {
         // The device is created with wgpu's default limits (`gpu_context.rs`),
