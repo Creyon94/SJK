@@ -527,6 +527,8 @@ struct GpuState {
     /// Monitor refresh rate behind `com_maxfps -1`, re-read at most once a second.
     refresh_cap: std::cell::Cell<Option<(Instant, u32)>>,
     frame_pacer: frame_pacing::FramePacer,
+    /// Storage for the upper right's "125fps" line (`console_overlay`).
+    upper_right_rate: String,
     /// Always-on gameplay hitch lines (`hitch_log.rs`).
     hitches: hitch_log::Recorder,
     /// Optional per-pass GPU timing printed with the frame-budget report.
@@ -1406,6 +1408,7 @@ impl GpuState {
             applied_resolution: [size.width, size.height],
             refresh_cap: std::cell::Cell::new(None),
             frame_pacer: frame_pacing::FramePacer::new(),
+            upper_right_rate: String::with_capacity(16),
             hitches: hitch_log::Recorder::default(),
             gpu_phases,
             third_person_camera: camera::State::default(),

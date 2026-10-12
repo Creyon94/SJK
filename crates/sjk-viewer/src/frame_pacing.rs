@@ -18,7 +18,8 @@ pub(crate) struct FramePacer {
     frames: u32,
     /// The frames per second measured over the last half second, when there was one.
     fps: Option<u32>,
-    label: String,
+    /// The measured frame times under the rate, for `cg_drawFPS`'s second line.
+    details: String,
     /// Retained measured work; also consumed by the headless budget harness.
     pub(crate) budget: budget::Window,
     /// Last completed frame, for allocation-free diagnostic sampling.
@@ -43,7 +44,7 @@ impl FramePacer {
             sample_started: now,
             frames: 0,
             fps: None,
-            label: String::with_capacity(512),
+            details: String::with_capacity(96),
             budget: budget::Window::new(),
             last: budget::Sample::default(),
             report,
@@ -73,7 +74,7 @@ impl FramePacer {
         self.budget.push(sample);
     }
 
-    /// Update pacing and the measured label. No reciprocal-FPS millisecond estimate.
+    /// Update pacing and the measured rate and frame times. No reciprocal-FPS millisecond estimate.
     pub(crate) fn frame_rendered(&mut self, maximum_fps: u32) {
         let now = Instant::now();
         self.frames += 1;
@@ -83,10 +84,10 @@ impl FramePacer {
             self.fps = Some(fps.round() as u32);
             let stats = self.budget.stats();
             let cadence = self.budget.cadence_stats();
-            self.label.clear();
+            self.details.clear();
             let _ = write!(
-                self.label,
-                "^7{fps:.0} FPS  host {:.2} ms  p99 {:.2}  max {:.2}  1%low {:.0}",
+                self.details,
+                "host {:.2} ms · p99 {:.2} · max {:.2} · 1% low {:.0}",
                 stats.mean, stats.p99, stats.worst.work, cadence.low
             );
             if self.report {
@@ -144,15 +145,16 @@ impl FramePacer {
     pub(crate) fn deadline(&self) -> Instant {
         self.next
     }
-    /// Cached label, formatted only at the statistics refresh interval.
-    pub(crate) fn label(&self) -> &str {
-        &self.label
-    }
-
     /// The frames per second measured over the last half second (the `cg_drawFPS`
     /// line's first number), once a half second has passed.
     pub(crate) fn fps(&self) -> Option<u32> {
         self.fps
+    }
+
+    /// The frame times measured with [`Self::fps`]: the mean host time, its 99th
+    /// percentile and worst, and the 1% low rate.
+    pub(crate) fn details(&self) -> &str {
+        &self.details
     }
 }
 

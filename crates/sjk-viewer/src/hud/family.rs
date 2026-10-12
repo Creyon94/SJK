@@ -135,7 +135,10 @@ impl Policy {
     pub(super) fn visible(self, binding: Option<&str>) -> bool {
         match binding {
             Some("vote_panel") => self.vote,
-            Some("match_timer" | "team_rows") => self.upper,
+            // The match clock stands in the upper right under the frame rate, as JoF
+            // EJK draws it (`console_overlay`), not in a layout's middle.
+            Some("match_timer") => false,
+            Some("team_rows") => self.upper,
             _ => true,
         }
     }
