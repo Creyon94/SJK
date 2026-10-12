@@ -3,8 +3,10 @@
 //! the chosen tier's name, a padlock when none is held and how many are, under it. On the
 //! right, over a dark panel: how many holocrons the player holds (or why that is not
 //! known), the four tiers (picture, name in the tier's colour, the count held or a dash,
-//! the odds of a drop), what the chosen tier is, how long to the next holocron and how
-//! many dropped today, and the newest ten.
+//! the odds of a drop), what the chosen tier is and holds, how long to the next holocron
+//! and how many dropped today, and the newest ten. The player's credits stand at the
+//! panel's top right, and Open and Open all under the holocron's caption. While the
+//! opening's ceremony shows, only it is drawn ([`super::opening`]).
 //!
 //! Every position is on the 16:9 frame ([`Frame`]); under the Profile screen's row of
 //! tabs the page moves down [`crate::profile_hub::SHIFT`] pixels. The pictures and
@@ -28,10 +30,8 @@ const LINE_Y: f32 = 216.0;
 const ROWS_TOP: f32 = 262.0;
 const ROW_HEIGHT: f32 = 60.0;
 const ROW_GAP: f32 = 8.0;
-/// The chosen tier's description, the standing line about opening, and the rule under.
+/// The chosen tier's description, what it holds, and the rule under.
 const ABOUT_Y: f32 = 542.0;
-const NOT_OPENABLE: &str =
-    "Holocrons cannot be opened yet: the SJK team will announce what they hold.";
 const RULE_Y: f32 = 632.0;
 /// The progress line, its bar, and the recent list's heading and first row.
 const NEXT_Y: f32 = 642.0;
@@ -46,8 +46,14 @@ const RECENT_WIDTH: f32 = RIGHT_WIDTH / RECENT_COLUMNS as f32;
 const LOCK_Y: f32 = 706.0;
 const NAME_Y: f32 = 726.0;
 const HELD_Y: f32 = 788.0;
+/// Open and Open all under the caption, and their widths.
+const BUTTONS_Y: f32 = 838.0;
+const OPEN_WIDTH: f32 = 190.0;
+const OPEN_ALL_WIDTH: f32 = 230.0;
+const BUTTON_GAP: f32 = 20.0;
+const BUTTON_HEIGHT: f32 = 48.0;
 /// The keys' line.
-const KEYS_Y: f32 = 1_010.0;
+pub(super) const KEYS_Y: f32 = 1_010.0;
 /// Characters a line of the description holds (Exo 2 at 16 over the panel's width).
 const ABOUT_CHARS: usize = 100;
 
@@ -187,9 +193,19 @@ impl Panel {
 
     /// Lay the page out for a window of `viewport` pixels.
     pub(super) fn build(&mut self, viewport: [f32; 2]) {
+        self.build_at(viewport, Instant::now());
+    }
+
+    /// Lay the page out for a window of `viewport` pixels at `now`.
+    pub(super) fn build_at(&mut self, viewport: [f32; 2], now: Instant) {
         let frame = Frame::new(viewport);
         self.ui.begin_transparent(viewport);
         backdrop(&mut self.ui, viewport);
+        if self.ceremony.is_some() {
+            self.draw_ceremony(&frame, viewport, now);
+            self.ui.finish(super::opening::NEXT_TOKEN);
+            return;
+        }
         if self.hub {
             crate::profile_hub::collection_header(
                 &mut self.ui,
@@ -220,6 +236,7 @@ impl Panel {
             self.recent(&frame);
         }
         self.caption(&frame);
+        self.buttons(&frame);
         self.keys(&keys);
         self.ui.finish(ROW_BASE + self.selected as u16);
     }
@@ -269,6 +286,45 @@ impl Panel {
             color::MUTED,
             FontWeight::Regular,
             TextAlign::Start,
+        );
+        if let Some(credits) = self.data.credits {
+            self.credits(frame, credits);
+        }
+    }
+
+    /// The player's credits at the panel's top right: the mark and the sum, the word
+    /// under them.
+    fn credits(&mut self, frame: &Frame, credits: u64) {
+        let s = frame.s;
+        let words = crate::cards::credits_text(credits);
+        let size = 30.0;
+        let width = crate::text::display_width(&words, size) * crate::text::style::current().scale;
+        let right = RIGHT_X + RIGHT_WIDTH;
+        text(
+            &mut self.ui,
+            TextFamily::Display,
+            format_args!("{words}"),
+            frame.rect(right - width - 8.0, HEAD_Y + 4.0, width + 8.0, 38.0),
+            size * s,
+            color::GOLD_BRIGHT,
+            FontWeight::Semibold,
+            TextAlign::End,
+        );
+        let mark = 24.0;
+        let [x, y] = frame.point(
+            right - width - 8.0 - 10.0 - crate::cards::mark::width(mark),
+            HEAD_Y + 10.0,
+        );
+        crate::cards::mark::draw(self.ui.draw_list_mut(), [x, y], mark * s, color::GOLD);
+        text(
+            &mut self.ui,
+            TextFamily::Body,
+            format_args!("credits"),
+            frame.rect(right - 200.0, LINE_Y, 200.0, 26.0),
+            15.0 * s,
+            color::QUIET,
+            FontWeight::Regular,
+            TextAlign::End,
         );
     }
 
@@ -400,7 +456,7 @@ impl Panel {
         }
     }
 
-    /// What the chosen tier is, and that nothing opens yet.
+    /// What the chosen tier is, and what opening one gives.
     fn about(&mut self, frame: &Frame) {
         let s = frame.s;
         let tier = self.selected();
@@ -421,10 +477,10 @@ impl Panel {
         text(
             &mut self.ui,
             TextFamily::Body,
-            format_args!("{NOT_OPENABLE}"),
+            format_args!("{}", crate::cards::inside(self.selected)),
             frame.rect(RIGHT_X, ABOUT_Y + 52.0, RIGHT_WIDTH, 24.0),
             15.0 * s,
-            color::QUIET,
+            color::GOLD,
             FontWeight::Regular,
             TextAlign::Start,
         );
@@ -539,10 +595,22 @@ impl Panel {
                 format_args!("{}", tier.name),
                 frame.rect(x + 38.0, y + 3.0, 210.0, 22.0),
                 18.0 * s,
-                tier.colour,
+                tier.colour_alpha(if recent.opened { 0.55 } else { 1.0 }),
                 FontWeight::Semibold,
                 TextAlign::Start,
             );
+            if recent.opened && !recent.gift {
+                text(
+                    &mut self.ui,
+                    TextFamily::Body,
+                    format_args!("Opened"),
+                    frame.rect(x + 38.0, y + 22.0, RECENT_WIDTH - 50.0, 16.0),
+                    13.0 * s,
+                    color::QUIET,
+                    FontWeight::Regular,
+                    TextAlign::Start,
+                );
+            }
             text(
                 &mut self.ui,
                 TextFamily::Body,
@@ -640,10 +708,49 @@ impl Panel {
         }
     }
 
+    /// Open (the oldest of the tier chosen) and Open all, under the caption, centred on
+    /// the holocron; dimmed when there is nothing to open.
+    fn buttons(&mut self, frame: &Frame) {
+        let one = self.open_one().is_some();
+        let all = self.data.openable();
+        let total = OPEN_WIDTH + BUTTON_GAP + OPEN_ALL_WIDTH;
+        let left = STAGE_AT[0] - total * 0.5;
+        kit::button(
+            &mut self.ui,
+            frame,
+            [left, BUTTONS_Y, OPEN_WIDTH, BUTTON_HEIGHT],
+            "Open",
+            true,
+            one,
+            false,
+            OPEN_TOKEN,
+        );
+        let label = if all > 1 {
+            format!("Open all ({})", all.min(sjk_identity::OPEN_MAX))
+        } else {
+            "Open all".to_owned()
+        };
+        kit::button(
+            &mut self.ui,
+            frame,
+            [
+                left + OPEN_WIDTH + BUTTON_GAP,
+                BUTTONS_Y,
+                OPEN_ALL_WIDTH,
+                BUTTON_HEIGHT,
+            ],
+            &label,
+            false,
+            all > 1,
+            false,
+            OPEN_ALL_TOKEN,
+        );
+    }
+
     /// The keys, right-aligned at the bottom.
     fn keys(&mut self, frame: &Frame) {
         let s = frame.s;
-        let mut keys: [(&[&str], &str); 4] = [(&[], ""); 4];
+        let mut keys: [(&[&str], &str); 6] = [(&[], ""); 6];
         let mut count = 0;
         let mut add = |caps: &'static [&'static str], action: &'static str| {
             keys[count] = (caps, action);
@@ -651,6 +758,12 @@ impl Panel {
         };
         add(&["Up", "Down"], "choose");
         add(&["Tab"], "next");
+        if self.open_one().is_some() {
+            add(&["Enter"], "open");
+        }
+        if self.data.openable() > 1 {
+            add(&["A"], "open all");
+        }
         if self.hub {
             add(
                 &["Ctrl", "Tab"],
@@ -686,12 +799,14 @@ mod tests {
                     when: "10/10/2026 14:05".into(),
                     gift: true,
                     note: "n ".repeat(100),
+                    opened: false,
                 },
                 Recent {
                     tier: 0,
                     when: "09/10/2026 21:40".into(),
                     gift: false,
                     note: String::new(),
+                    opened: true,
                 },
             ],
             next: "Next holocron in about 20 minutes of play".into(),
@@ -714,6 +829,7 @@ mod tests {
                 } else {
                     String::new()
                 },
+                opened: index % 4 == 1,
             })
             .collect();
         data

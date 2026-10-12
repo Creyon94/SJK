@@ -20,7 +20,7 @@ and changed together. Begin with the status page, then the architecture.
 | [Player identity](identity.md) | SJK's identity key, the hub, scoreboard badges, medals, clan tags: design, limits and privacy |
 | [SJK chat and emotes](hub-chat.md) | The chat every SJK player shares through the hub, and the emotes path |
 | [Holocron drops](holocrons.md) | Loot earned by playing: tiers, odds, caps, the active flag, the pop-up, chat lines, the staff tools and the list other screens read |
-| [Cards](cards.md) | Planned: what opening a holocron will give (collectible cards, finishes, editions, odds); not built |
+| [Cards and credits](cards.md) | Opening holocrons: sealed cards (rarity, finish, edition), credits and their sign, the ceremony, the Cards tab, odds; the first set and the shop planned |
 | [Client mods](mods.md) | Mods kept out of the core client (`japlus.*`, `jof.*`): switches, names, what they may do |
 | [Unlockables and looks](unlockables.md) | Blade skins and other unlockables, and looks every SJK player sees through the hub |
 

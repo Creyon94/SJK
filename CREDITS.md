@@ -55,6 +55,9 @@ Sol develops SJK and sets its direction. Sol's work includes:
   the chats, on the scoreboard and on player cards;
 - holocron drops, loot boxes earned by playing: four tiers, drops announced in
   the SJK chat and a Holocrons tab on the Profile screen with a 3D holocron;
+- opening holocrons: sealed cards (Normal, Holo and Solar finishes, the Alpha
+  Edition) and credits, the ceremony and the Collection's Cards tab; credits will
+  buy droppable cosmetics as a fix for bad luck (Sol's design, 12/10/2026);
 - the radial HUD (`cg_hudStyle radial`, after TheRisqe's Radial HUD) and the
   HUD meters' overheal bands;
 - nameplates with estimated health, shield and Force, held-weapon and Force
@@ -274,8 +277,10 @@ and SJK Chat is OCR-A by John Sauter (public domain), as
 each player's client, the radial HUD is SJK's own take on TheRisqe's Radial HUD (none
 of its pictures included), the website's effects use
 the [Shaders](https://github.com/shader-effects-inc/shaders) library by Shader
-Effects Inc. under its [MIT license](site/assets/vendor/shaders/LICENSE), and
-other dependencies keep their respective licenses.
+Effects Inc. under its [MIT license](site/assets/vendor/shaders/LICENSE), the
+credits' sign is the galactic credit's of the Star Wars setting, its outline after
+the one drawn on Wikipedia and redrawn by SJK from shapes, and other dependencies
+keep their respective licenses.
 
 Star Wars, Jedi Knight and Jedi Academy are trademarks of their respective
 owners. SJK is a fan project and is not affiliated with or endorsed by Lucasfilm,

@@ -55,6 +55,14 @@ pub struct Profile {
     /// from hubs older than holocrons).
     #[serde(default)]
     pub holocrons: Vec<Holocron>,
+    /// The person's credits (`PROTOCOL.md`, "Holocrons", "Opening"): what opening
+    /// holocrons brought, never below 0 (absent from hubs older than opening).
+    #[serde(default)]
+    pub credits: u64,
+    /// The person's cards, one entry per kind of copy held, the best first (absent from
+    /// hubs older than opening).
+    #[serde(default)]
+    pub cards: Vec<CardStack>,
     /// The person's keys: the main key first, then the keys linked to it (absent from
     /// hubs older than linked keys). A linked key signs as its person, so the hub
     /// answers the person's [`Profile::key_id`] for it everywhere.
@@ -81,8 +89,9 @@ impl Profile {
 /// The most holocrons a profile lists, as the hub caps them.
 pub const HOLOCRONS_LISTED: usize = 100;
 
-/// How many holocrons of each tier a key has earned (`PROTOCOL.md`, "Holocrons"). All
-/// four are always present on the wire; a count the client does not know is none.
+/// How many holocrons of each tier a key holds unopened (`PROTOCOL.md`, "Holocrons"):
+/// what it can still open. All four are always present on the wire; a count the client
+/// does not know is none.
 #[derive(Clone, Copy, Debug, Default, Deserialize, Eq, PartialEq)]
 pub struct HolocronCounts {
     /// Uncommon holocrons.
@@ -121,8 +130,9 @@ impl HolocronCounts {
     }
 }
 
-/// One holocron a key earned by playing, or that staff gave. It cannot be opened yet
-/// and grants nothing; it is only collected and shown.
+/// One holocron a key earned by playing, or that staff gave. Opening it
+/// ([`crate::Hub::open_holocrons`]) brings a card and credits; an opened one stays
+/// listed, with [`Holocron::opened`].
 #[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
 pub struct Holocron {
     /// Its number at the hub, which only rises: a client remembers the highest it has
@@ -139,6 +149,83 @@ pub struct Holocron {
     /// Public plain text from the team, only on a gift; often empty. Never markup.
     #[serde(default)]
     pub note: String,
+    /// When it was opened, unix seconds; `None` while it can still be opened (and from
+    /// hubs older than opening).
+    #[serde(default)]
+    pub opened: Option<i64>,
+}
+
+impl Holocron {
+    /// Whether it can still be opened.
+    pub fn is_sealed(&self) -> bool {
+        self.opened.is_none()
+    }
+}
+
+/// The most holocrons one opening takes (`POST /v1/holocrons/open`).
+pub const OPEN_MAX: usize = 20;
+
+/// Copies of one kind a person holds (`PROTOCOL.md`, "Holocrons", "Opening"): a card
+/// (or a sealed one), its rarity, finish and edition, and how many.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct CardStack {
+    /// The card's id in the catalogue; `None` for a sealed card, whose face is chosen
+    /// when it is revealed.
+    #[serde(default)]
+    pub card: Option<String>,
+    /// `common`, `uncommon`, `rare` or `legendary`; a client shows only the ids it knows.
+    pub rarity: String,
+    /// `normal`, `holo` or `solar`.
+    pub finish: String,
+    /// The era it was opened in (`alpha`).
+    #[serde(default)]
+    pub edition: String,
+    /// How many such copies.
+    #[serde(default)]
+    pub count: u32,
+    /// When the first of them was obtained, unix seconds.
+    #[serde(default)]
+    pub first: i64,
+    /// When the newest of them was obtained, unix seconds.
+    #[serde(default)]
+    pub last: i64,
+}
+
+/// The copy one opening brought.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct OpenedCard {
+    /// The copy's number at the hub.
+    pub id: u64,
+    /// The card's rarity (as [`CardStack::rarity`]).
+    pub rarity: String,
+    /// The copy's finish (as [`CardStack::finish`]).
+    pub finish: String,
+    /// The copy's edition (as [`CardStack::edition`]).
+    #[serde(default)]
+    pub edition: String,
+}
+
+/// What opening one holocron brought.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct Opened {
+    /// The holocron opened.
+    pub holocron: u64,
+    /// Its tier's wire id.
+    pub tier: String,
+    /// The (sealed) card it held.
+    pub card: OpenedCard,
+    /// The credits it held.
+    pub credits: u64,
+}
+
+/// The hub's answer to `POST /v1/holocrons/open`: what each holocron brought, in the
+/// order asked, and the person's profile after.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct OpenAnswer {
+    /// What each holocron brought.
+    pub opened: Vec<Opened>,
+    /// The person's profile after the opening.
+    pub profile: Profile,
 }
 
 /// The hub's answer to `GET /v1/holocrons` (`PROTOCOL.md`, "Holocrons"): how far the

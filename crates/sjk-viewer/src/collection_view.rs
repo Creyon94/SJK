@@ -56,7 +56,7 @@ impl Count {
 }
 
 /// Each tab's count, in the row's order.
-pub(super) fn counts(inputs: &Inputs<'_>) -> [Count; 6] {
+pub(super) fn counts(inputs: &Inputs<'_>) -> [Count; 7] {
     let medals = medals::held(inputs);
     let achievements = inputs
         .standings
@@ -102,6 +102,11 @@ pub(super) fn counts(inputs: &Inputs<'_>) -> [Count; 6] {
                         .iter()
                         .sum::<u32>() as usize
                 }),
+            total: 0,
+        },
+        // The cards held, and no total until a set is out.
+        Count {
+            held: cards::held(inputs),
             total: 0,
         },
     ]
@@ -294,6 +299,7 @@ impl Panel {
             Tab::Achievements => self.achievements(&frame, inputs),
             Tab::Shaders => self.shaders(&frame, inputs, seconds),
             Tab::Toys => self.toys(&frame, inputs),
+            Tab::Cards => self.cards(&frame, inputs, seconds),
             _ => self.nameplates(&frame, inputs),
         }
         self.keys(&frame, inputs);
@@ -302,7 +308,7 @@ impl Panel {
 
     /// How many of all the things the player holds, at the top right: the words, and a
     /// tick for each thing, lit for the ones held, a group to a tab.
-    fn tally(&mut self, frame: &Frame, counts: &[Count; 6]) {
+    fn tally(&mut self, frame: &Frame, counts: &[Count; 7]) {
         let s = frame.s;
         // Only the things with a set total: the holocrons are opened, not collected.
         let total: usize = counts.iter().map(|count| count.total).sum();
@@ -379,6 +385,7 @@ impl Panel {
         let mut keys: Vec<(&[&str], &str)> = Vec::with_capacity(6);
         match self.tab {
             Tab::Medals => keys.push((&["Left", "Right"], "choose")),
+            Tab::Cards if self.cards_shown > 1 => keys.push((&["Left", "Right"], "choose")),
             Tab::Achievements => keys.push((&["Arrows"], "choose")),
             Tab::Shaders => {
                 if self.grid {

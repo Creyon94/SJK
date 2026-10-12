@@ -30,11 +30,12 @@ pub use keys::{Identity, KeyError};
 pub use logs::{LogRequest, LogUpload};
 pub use report::{BugReport, Category, PlayerReport, WorldNote};
 pub use service::{
-    HolocronProgress, HubFactory, Location, ReportOutcome, Service, Settings, Snapshot, Status,
+    HolocronProgress, HubFactory, Location, OpenOutcome, ReportOutcome, Service, Settings,
+    Snapshot, Status,
 };
 pub use staff::{OpenedText, StaffAnswer, StaffQuery, StaffRequest, StaffState};
 pub use wire::{
-    Achievement, ChatMessage, DropEvent, DropMark, Emote, Feed, HOLOCRONS_LISTED, Holocron,
-    HolocronCounts, HolocronState, Look, LookEvent, Medal, People, Person, Presence, Profile,
-    Unlock, WornName, names_match, normal_form,
+    Achievement, CardStack, ChatMessage, DropEvent, DropMark, Emote, Feed, HOLOCRONS_LISTED,
+    Holocron, HolocronCounts, HolocronState, Look, LookEvent, Medal, OPEN_MAX, OpenAnswer, Opened,
+    OpenedCard, People, Person, Presence, Profile, Unlock, WornName, names_match, normal_form,
 };

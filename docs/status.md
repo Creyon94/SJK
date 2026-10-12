@@ -1,5 +1,19 @@
 # Status and priorities
 
+## Opening holocrons: sealed cards and credits
+
+Branch `personal/holocron-opening` (12/10/2026), Sol's request: holocrons open, each
+giving a TCG-style card and credits; the cards are placeholders (sealed: rarity, finish and
+edition rolled now, the face chosen when the first set is out) and credits will buy
+droppable cosmetics as a fix for bad luck (planned). The design and what is built are in
+[cards.md](cards.md). Client: wire and worker (`Service::open_holocrons`), Open and Open
+all with a ceremony on the Holocrons tab, the Collection's Cards tab, the credits' sign
+drawn from shapes, `debug_open`; the UI renderer now cuts strokes to the clip rectangle as
+it cut rectangles. Hub: branch `feat/holocron-opening` in Sol-Vulpes/SJK-hub, not merged
+or deployed: until it is, Open answers "This SJK hub cannot open holocrons yet.".
+Verified: the workspace checks, the hub's tests and the world shots `cards_shots`
+looked at. Not tried: against a running hub, in a game.
+
 ## Text fields: Ctrl+A, paste, copy and a held Backspace everywhere
 
 Ctrl+A followed (12/10/2026, branch `personal/select-all`): Sol added Ctrl+A to the rule.

@@ -415,6 +415,8 @@ mod tests {
             medal: None,
         };
         let me = Profile {
+            credits: 0,
+            cards: Vec::new(),
             keys: Vec::new(),
             key_id: "0123456789abcdef".into(),
             key: String::new(),
@@ -432,6 +434,7 @@ mod tests {
             holocrons: Vec::new(),
         };
         let snapshot = |status, me| Snapshot {
+            opening: None,
             local_key_id: "0123456789abcdef".into(),
             status,
             key_id: "0123456789abcdef".into(),

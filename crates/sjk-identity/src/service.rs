@@ -169,6 +169,19 @@ pub struct Snapshot {
     pub log_requests: Vec<LogRequest>,
     /// What became of the last answer to a log request.
     pub log_answer: Option<ReportOutcome>,
+    /// What became of the last opening of holocrons ([`Service::open_holocrons`]).
+    pub opening: Option<OpenOutcome>,
+}
+
+/// What became of an opening of holocrons.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct OpenOutcome {
+    /// Counts openings asked for, so a reader can tell a new outcome from the last one.
+    pub serial: u64,
+    /// What each holocron brought, in the order asked; empty when nothing was opened.
+    pub opened: Vec<crate::wire::Opened>,
+    /// Why nothing was opened; empty when it worked.
+    pub message: String,
 }
 
 /// How far the player's key is from its next holocron (`GET /v1/holocrons`).
@@ -249,6 +262,7 @@ impl Snapshot {
             holocrons: None,
             log_requests: Vec::new(),
             log_answer: None,
+            opening: None,
         }
     }
 
@@ -326,6 +340,8 @@ enum Command {
     OwnDrop,
     /// The viewer wants fresh holocron progress.
     RefreshHolocrons,
+    /// Open these holocrons of the player's.
+    OpenHolocrons(Vec<u64>),
     Stop,
 }
 
@@ -460,6 +476,26 @@ fn older_hub(error: HubError) -> HubError {
             }
         }
         other => other,
+    }
+}
+
+/// What the player reads when the hub did not open the holocrons.
+fn opening_refusal(error: &HubError) -> String {
+    match error {
+        HubError::Rejected { code, .. } if code == "holocron_opened" => {
+            "That holocron was already opened.".to_owned()
+        }
+        HubError::Rejected { code, .. } if code == "not_found" => {
+            "That holocron is not yours any more.".to_owned()
+        }
+        HubError::Rejected { message, .. } => message.clone(),
+        // A hub from before opening has no such route.
+        HubError::Protocol(why)
+            if why.starts_with("status 404") || why.starts_with("status 405") =>
+        {
+            "This SJK hub cannot open holocrons yet.".to_owned()
+        }
+        other => other.to_string(),
     }
 }
 
@@ -777,6 +813,7 @@ impl Worker {
             Command::Active(active) => self.active = active,
             Command::OwnDrop => self.own_drop(now),
             Command::RefreshHolocrons => self.holocrons_soon(now),
+            Command::OpenHolocrons(ids) => self.open_holocrons(&ids, now),
             Command::Stop => self.release(),
         }
         self.publish_feed();
@@ -911,6 +948,46 @@ impl Worker {
                 done.to_owned()
             });
             snapshot.avatar = Some(outcome_of(serial, outcome));
+        });
+    }
+
+    /// Open holocrons `ids` (the first [`crate::wire::OPEN_MAX`]): the outcome goes in
+    /// [`Snapshot::opening`], the hub's profile after it in [`Snapshot::me`]. When the hub
+    /// refuses (one was opened meanwhile, from another PC of the person's, or is gone),
+    /// the own profile is read again soon so the pages show what is really left.
+    fn open_holocrons(&mut self, ids: &[u64], now: Instant) {
+        let ids = &ids[..ids.len().min(crate::wire::OPEN_MAX)];
+        let outcome = match (self.hub.as_mut(), self.registered) {
+            (_, _) if ids.is_empty() => Err(HubError::Rejected {
+                status: 400,
+                code: "bad_ids".to_owned(),
+                message: "there is no holocron to open".to_owned(),
+            }),
+            (Some(hub), true) => hub.open_holocrons(&self.identity, ids),
+            _ => Err(not_connected()),
+        };
+        if let Err(HubError::Rejected { code, .. }) = &outcome
+            && (code == "holocron_opened" || code == "not_found")
+        {
+            self.profile_soon(now);
+        }
+        self.update(|snapshot| {
+            let serial = snapshot.opening.as_ref().map_or(1, |last| last.serial + 1);
+            snapshot.opening = Some(match outcome {
+                Ok(answer) => {
+                    snapshot.set_me(answer.profile);
+                    OpenOutcome {
+                        serial,
+                        opened: answer.opened,
+                        message: String::new(),
+                    }
+                }
+                Err(error) => OpenOutcome {
+                    serial,
+                    opened: Vec::new(),
+                    message: opening_refusal(&error),
+                },
+            });
         });
     }
 
@@ -1684,6 +1761,13 @@ impl Service {
         let _ = self.commands.send(Command::RefreshHolocrons);
     }
 
+    /// Open the player's holocrons `ids` (their own, not opened yet; at most
+    /// [`crate::wire::OPEN_MAX`] are taken): what they brought arrives in
+    /// [`Snapshot::opening`], and the profile after it.
+    pub fn open_holocrons(&self, ids: Vec<u64>) {
+        let _ = self.commands.send(Command::OpenHolocrons(ids));
+    }
+
     /// The player is on a game server (call again if `slot` or `name` changes).
     pub fn enter(&self, location: Location) {
         let _ = self.commands.send(Command::Enter(location));
@@ -1996,6 +2080,8 @@ mod tests {
             unlocks: Vec::new(),
             holocron_counts: crate::wire::HolocronCounts::default(),
             holocrons: Vec::new(),
+            credits: 0,
+            cards: Vec::new(),
             keys: Vec::new(),
         }
     }
@@ -2043,6 +2129,34 @@ mod tests {
         ) -> Result<(), HubError> {
             let tail = if active { " active" } else { "" };
             self.record(format!("claim {server} {slot} {name}{tail}"))
+        }
+        fn open_holocrons(
+            &mut self,
+            _: &Identity,
+            ids: &[u64],
+        ) -> Result<crate::wire::OpenAnswer, HubError> {
+            let list: Vec<String> = ids.iter().map(u64::to_string).collect();
+            self.record(format!("open {}", list.join(",")))?;
+            if ids.contains(&99) {
+                return Err(refused(409, "holocron_opened"));
+            }
+            let opened: Vec<crate::wire::Opened> = ids
+                .iter()
+                .map(|&id| crate::wire::Opened {
+                    holocron: id,
+                    tier: "rare".to_owned(),
+                    card: crate::wire::OpenedCard {
+                        id: 1_000 + id,
+                        rarity: "common".to_owned(),
+                        finish: "holo".to_owned(),
+                        edition: "alpha".to_owned(),
+                    },
+                    credits: 40,
+                })
+                .collect();
+            let mut profile = profile("Sol");
+            profile.credits = 40 * ids.len() as u64;
+            Ok(crate::wire::OpenAnswer { opened, profile })
         }
         fn holocrons(&mut self, _: &Identity) -> Result<HolocronState, HubError> {
             // Counted apart from the log, which the other tests read whole.
@@ -2254,6 +2368,7 @@ mod tests {
                         dropped: 1,
                         source: "staff".to_owned(),
                         note: note.clone(),
+                        opened: None,
                     }],
                     ..profile("Target")
                 }],
@@ -2679,6 +2794,52 @@ mod tests {
             older_hub(HubError::Network("down".to_owned())),
             HubError::Network(_)
         ));
+    }
+
+    /// Opening waits for the registration, sends at most twenty ids, keeps what they
+    /// brought and the profile after; a refusal says why in words and reads the profile
+    /// again soon.
+    #[test]
+    fn holocrons_open_once_registered_and_what_they_brought_is_kept() {
+        let fake = Fake::default();
+        let t0 = Instant::now();
+        let (mut worker, snapshot) = worker(&fake, t0);
+        worker.handle(Command::OpenHolocrons(vec![7]), t0);
+        let first = lock(&snapshot).opening.clone().unwrap();
+        assert!(first.opened.is_empty() && first.message.contains("not connected"));
+        assert!(
+            fake.log().is_empty(),
+            "nothing goes before the registration"
+        );
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.tick(t0);
+        let ids: Vec<u64> = (1..=25).collect();
+        worker.handle(Command::OpenHolocrons(ids), t0);
+        let opened = lock(&snapshot).opening.clone().unwrap();
+        assert_eq!(opened.serial, 2);
+        assert!(opened.message.is_empty());
+        assert_eq!(opened.opened.len(), crate::wire::OPEN_MAX, "twenty at most");
+        assert_eq!(opened.opened[0].card.id, 1_001);
+        assert_eq!(lock(&snapshot).me.as_ref().unwrap().credits, 800);
+        assert!(
+            fake.log()
+                .iter()
+                .any(|line| line == "open 1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20")
+        );
+        worker.handle(Command::OpenHolocrons(vec![99]), t0);
+        let refused = lock(&snapshot).opening.clone().unwrap();
+        assert_eq!(refused.serial, 3);
+        assert!(refused.opened.is_empty());
+        assert_eq!(refused.message, "That holocron was already opened.");
+        assert!(
+            worker.due_profile <= t0 + PROFILE_SOON,
+            "the profile is read again soon"
+        );
+        worker.handle(Command::OpenHolocrons(Vec::new()), t0);
+        assert_eq!(
+            lock(&snapshot).opening.clone().unwrap().message,
+            "there is no holocron to open"
+        );
     }
 
     #[test]

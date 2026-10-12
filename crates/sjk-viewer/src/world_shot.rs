@@ -281,6 +281,9 @@ mod collection;
 #[path = "world_shot_holocrons.rs"]
 mod holocrons_tab;
 
+#[path = "world_shot_cards.rs"]
+mod cards_shots;
+
 #[path = "world_shot_create_game.rs"]
 mod create_game;
 
@@ -1096,6 +1099,8 @@ mod tests {
             note: note.to_owned(),
         };
         let me = sjk_identity::Profile {
+            credits: 0,
+            cards: Vec::new(),
             keys: Vec::new(),
             key_id: "44f3d0b36c9b2510".to_owned(),
             key: String::new(),
@@ -1135,6 +1140,7 @@ Found the fog bug, ask me about it!"
             holocrons: Vec::new(),
         };
         let snapshot = sjk_identity::Snapshot {
+            opening: None,
             status: sjk_identity::Status::Online,
             key_id: me.key_id.clone(),
             local_key_id: me.key_id.clone(),
@@ -1256,6 +1262,8 @@ like this one.",
     #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
     fn duel6_sjk_staff() {
         let profile = |key: &str, name: &str| sjk_identity::Profile {
+            credits: 0,
+            cards: Vec::new(),
             keys: Vec::new(),
             key_id: key.to_owned(),
             key: String::new(),

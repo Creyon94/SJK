@@ -484,6 +484,8 @@ mod tests {
 
     fn me() -> Profile {
         Profile {
+            credits: 0,
+            cards: Vec::new(),
             keys: Vec::new(),
             key_id: "0123456789abcdef".to_owned(),
             key: String::new(),
@@ -512,6 +514,7 @@ mod tests {
 
     fn snapshot(status: Status, me: Option<Profile>) -> Snapshot {
         Snapshot {
+            opening: None,
             local_key_id: "0123456789abcdef".to_owned(),
             status,
             key_id: "0123456789abcdef".to_owned(),
