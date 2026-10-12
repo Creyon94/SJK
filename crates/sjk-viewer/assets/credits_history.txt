@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 13/10/2026 | - | Release 2026.1013.1 notes
+- 3de45c6 |  | Release 2026.1013.1 (Alpha)
 + 13/10/2026 | - | Settings icons as holocron faces
 - a12546b |  | Settings icons as holocron faces, from Sol's board of 32
 + 13/10/2026 | - | Chinese, Korean and colour emoji in every text, the SJK channel and bios
