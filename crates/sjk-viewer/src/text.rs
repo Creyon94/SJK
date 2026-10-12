@@ -456,6 +456,41 @@ pub(crate) fn quake_color(index: u8) -> [f32; 4] {
     }
 }
 
+/// Leave out the glyphs from `vertices[from..]` that touch `rect` (window pixels in a
+/// `viewport`): the page's text under a card laid over it
+/// ([`crate::menu_widgets::MenuCanvas::cover`]). Every glyph is one quad of six
+/// vertices ([`push_quad`]).
+pub(crate) fn drop_quads_under(
+    vertices: &mut Vec<TextVertex>,
+    from: usize,
+    rect: sjk_ui::Rect,
+    viewport: [f32; 2],
+) {
+    let left = rect.x / viewport[0] * 2.0 - 1.0;
+    let right = rect.right() / viewport[0] * 2.0 - 1.0;
+    let top = 1.0 - rect.y / viewport[1] * 2.0;
+    let bottom = 1.0 - (rect.y + rect.height) / viewport[1] * 2.0;
+    let mut kept = from;
+    let mut quad = from;
+    while quad + 6 <= vertices.len() {
+        let corners = &vertices[quad..quad + 6];
+        let (mut min, mut max) = ([f32::MAX; 2], [f32::MIN; 2]);
+        for vertex in corners {
+            for axis in 0..2 {
+                min[axis] = min[axis].min(vertex.position[axis]);
+                max[axis] = max[axis].max(vertex.position[axis]);
+            }
+        }
+        let under = max[0] > left && min[0] < right && max[1] > bottom && min[1] < top;
+        if !under {
+            vertices.copy_within(quad..quad + 6, kept);
+            kept += 6;
+        }
+        quad += 6;
+    }
+    vertices.truncate(kept);
+}
+
 fn push_quad(
     vertices: &mut Vec<TextVertex>,
     rectangle: [f32; 4],

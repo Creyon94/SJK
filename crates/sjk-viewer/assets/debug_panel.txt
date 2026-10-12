@@ -435,6 +435,15 @@ test: Collection > Holocrons > Loot table: the numbers match docs/holocrons.md, 
 test: Escape, L, Enter or Back go back to the tab; the tab's keys do nothing meanwhile.
 test: The pace line says 30 minutes and 8 a day once the hub answered.
 
+[hover-cards]
+area: Menus & settings
+title: Collection hover cards: how every thing is obtained
+change: Rest the pointer on a thing for a moment: a card beside it says how you get it.
+change: Medals, achievements, shaders, the toy, cards and the Holocrons tab's tiers.
+test: Each tab: hover a thing held and one not held; the words match, nothing shows through.
+test: Near the right edge the card flips to the left; low down it stays on screen.
+test: A key hides the card; moving the pointer brings it back.
+
 [opening-staff]
 area: Menus & settings
 title: Opening holocrons is for the SJK team until the hub opens it to everyone

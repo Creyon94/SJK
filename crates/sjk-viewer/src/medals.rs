@@ -123,6 +123,21 @@ impl Medal {
         }
     }
 
+    /// How a player comes to hold it, in a sentence (the Collection's hover card).
+    pub(crate) const fn how_to_get(self) -> &'static str {
+        match self {
+            Self::EarlyTester => {
+                "Given by the SJK team to players who helped test SJK in its early days."
+            }
+            Self::EarlyContributor => {
+                "Given by the SJK team to players who contributed to SJK's code in its early days."
+            }
+            Self::BugHunter => {
+                "Given by the SJK team when a bug you found gets fixed; it can be given again."
+            }
+        }
+    }
+
     /// The saber blade (an unlockable's id) the medal brings while held: the hub's
     /// `MedalKind::grants`.
     pub(crate) const fn blade(self) -> &'static str {

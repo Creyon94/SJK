@@ -23,6 +23,12 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+> Collection: Rest the pointer on anything you collect to see how you get it.
+
+- Hover cards in the Collection: rest the pointer on a medal, an achievement, a saber shader, the toy, a card or a holocron tier and a card beside it says how you get it, and where you stand (when it was given, how far along you are, how many you hold, how rare it is) _(Sol)_
+
 ## 2026.1012.2 (Alpha) | 12/10/2026
 
 GIFs in the SJK chat, a loot table for holocrons, and Creyon's pull requests: fixes for ledges, dropped sabers, doors and muzzle flashes, a server browser that finds more servers and keeps your favourites and passwords, clan emblems, and the frame rate and clock where JoF EJK puts them.

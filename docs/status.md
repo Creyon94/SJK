@@ -1,5 +1,15 @@
 # Status and priorities
 
+## Hover cards in the Collection
+
+Branch `personal/hover-cards` (12/10/2026), Sol's request: every achievement and thing
+in the Collection says on mouse hover how it is obtained. A shared SJK UI hover card
+([sjk-ui.md](sjk-ui.md#hover-cards)) on medals, achievements, shaders, the toy, cards and
+the Holocrons tab's tiers; the page's text under it is left out so it does not show
+through. Verified: unit tests (timing, placement, wrapping, every medal, achievement and
+shader has its words, a card's odds) and the world shots `duel6_sjk_hover_cards` looked
+at. Not tried in a game.
+
 ## Force powers apply when the Force page is left
 
 Branch `personal/force-apply-on-close` (12/10/2026), Sol's report: on the JoF JA+ server

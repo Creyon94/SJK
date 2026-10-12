@@ -60,10 +60,37 @@ impl MenuCanvas {
             code.map(|code| (code, TextFamily::Code)),
         ];
         for ((vertices, font), family) in targets.into_iter().flatten() {
+            // Under a card: the page's runs first, less what the card covers, then the
+            // card's.
+            let Some((rect, first)) = self.cover else {
+                ui_renderer::append_text_commands_where(
+                    &self.draw,
+                    |id| self.resolve(id),
+                    |id, _| family_of(id) == family,
+                    vertices,
+                    font,
+                    viewport,
+                    style,
+                    crate::text::CodePalette::Legible,
+                );
+                continue;
+            };
+            let start = vertices.len();
             ui_renderer::append_text_commands_where(
                 &self.draw,
                 |id| self.resolve(id),
-                |id, _| family_of(id) == family,
+                |id, _| id.0 < first && family_of(id) == family,
+                vertices,
+                font,
+                viewport,
+                style,
+                crate::text::CodePalette::Legible,
+            );
+            crate::text::drop_quads_under(vertices, start, rect, viewport);
+            ui_renderer::append_text_commands_where(
+                &self.draw,
+                |id| self.resolve(id),
+                |id, _| id.0 >= first && family_of(id) == family,
                 vertices,
                 font,
                 viewport,
@@ -168,14 +195,34 @@ impl MenuCanvas {
         viewport: [f32; 2],
         style: TextStyle,
     ) {
-        ui_renderer::append_text_commands(
-            &self.draw,
-            |id| self.resolve(id),
-            vertices,
-            font,
-            viewport,
-            style,
-        );
+        let Some((rect, first)) = self.cover else {
+            ui_renderer::append_text_commands(
+                &self.draw,
+                |id| self.resolve(id),
+                vertices,
+                font,
+                viewport,
+                style,
+            );
+            return;
+        };
+        // Under a card: the page's runs, less what the card covers, then the card's.
+        for card in [false, true] {
+            let start = vertices.len();
+            ui_renderer::append_text_commands_where(
+                &self.draw,
+                |id| self.resolve(id),
+                |id, _| (id.0 >= first) == card,
+                vertices,
+                font,
+                viewport,
+                style,
+                crate::text::CodePalette::Game,
+            );
+            if !card {
+                crate::text::drop_quads_under(vertices, start, rect, viewport);
+            }
+        }
     }
 
     /// Append retained text, each command in the game font `font_of` names for

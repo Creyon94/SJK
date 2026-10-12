@@ -249,7 +249,29 @@ impl Panel {
         self.caption(&frame);
         self.buttons(&frame);
         self.keys(&keys);
+        self.tier_hover(&keys, now);
         self.ui.finish(ROW_BASE + self.selected as u16);
+    }
+
+    /// The hover card of the tier row the pointer rests on, over the page: how
+    /// holocrons of that tier are found. `frame` is the window's, not the page's moved one.
+    fn tier_hover(&mut self, frame: &Frame, now: Instant) {
+        self.hover.follow(self.ui.hovered(), now);
+        let Some((token, alpha)) = self.hover.showing(now) else {
+            return;
+        };
+        let Some(index) = token
+            .checked_sub(ROW_BASE)
+            .map(usize::from)
+            .filter(|index| *index < COUNT)
+        else {
+            return;
+        };
+        let Some(anchor) = self.ui.rect_for(token) else {
+            return;
+        };
+        let card = tier_card(index, &self.data);
+        crate::menu::sjk::hover::draw(&mut self.ui, frame, anchor, &card, alpha);
     }
 
     /// How many holocrons the player holds, or why that is not known.
@@ -827,9 +849,59 @@ impl Panel {
     }
 }
 
+/// What the hover card of tier `index` says: how holocrons are found, how often one is
+/// of this tier, and how many the player holds.
+pub(super) fn tier_card(index: usize, data: &Data) -> crate::menu::sjk::hover::Card {
+    use crate::menu::sjk::hover::{Card, Line};
+    let tier = &crate::holocrons::TIERS[index.min(COUNT - 1)];
+    let minutes = data.every.map_or(30, |every| (every / 60).max(1));
+    let cap = data.today.map_or(8, |(_, cap)| cap);
+    let mut lines = vec![
+        Line::how(format!(
+            "Found by playing on a server: one holocron every {minutes} minutes of active play, at most {cap} a day."
+        )),
+        Line::status(format!(
+            "{} of drops are {}. The SJK team can also give one.",
+            tier.odds, tier.label
+        )),
+    ];
+    match data.count(tier.index) {
+        Some(0) => lines.push(Line::status("None held yet")),
+        Some(count) => lines.push(Line::held(format!("You hold {count}"))),
+        None => {}
+    }
+    Card {
+        title: tier.name.to_owned(),
+        colour: tier.colour,
+        lines,
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// A tier's hover card says how holocrons are found, the tier's share and how many
+    /// the player holds.
+    #[test]
+    fn a_tier_card_says_how_holocrons_are_found() {
+        let mut data = Data::nothing(State::Known);
+        data.counts = Some([3, 0, 0, 1]);
+        data.every = Some(1_800);
+        let card = tier_card(1, &data);
+        assert_eq!(card.title, "Rare Holocron");
+        assert_eq!(
+            card.lines[0].words,
+            "Found by playing on a server: one holocron every 30 minutes of active play, at most 8 a day."
+        );
+        assert_eq!(
+            card.lines[1].words,
+            "28% of drops are Rare. The SJK team can also give one."
+        );
+        assert_eq!(card.lines[2].words, "None held yet");
+        assert_eq!(tier_card(0, &data).lines[2].words, "You hold 3");
+        assert_eq!(tier_card(0, &Data::nothing(State::Waiting)).lines.len(), 2);
+    }
 
     fn counts(counts: [u32; COUNT]) -> Data {
         Data {

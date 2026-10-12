@@ -4,8 +4,9 @@
 //! stage behind Shaders (the Sun, then the locked Storm previewed on the saber), Toys
 //! (the Illuminate holocron by it) and Nameplates (the plate over its head); the same
 //! in a 4:3 window; then from the game menu over a match, the model in the page's live
-//! preview; and the page on its own as the classic menus open it. The blade skins' looks
-//! come from the packs `SJK_TEST_PACKS` names. Ignored like the other world shots.
+//! preview; and the page on its own as the classic menus open it. Then the hover cards:
+//! one on a thing of each tab, and one on a tier of the Holocrons tab. The blade skins'
+//! looks come from the packs `SJK_TEST_PACKS` names. Ignored like the other world shots.
 
 use super::*;
 use crate::player_menu::ReturnTarget;
@@ -339,5 +340,87 @@ fn duel6_sjk_rarity_effects() {
             shoot(&mut gpu, 150, "duel6-rarity-holocrons").display()
         );
         assert!(!overflowed(&gpu), "Holocrons");
+    });
+}
+
+/// The hover cards: one on a thing of each tab (a medal, an achievement half done, a
+/// locked blade skin, the toy, a card) and one on a tier of the Holocrons tab, each shot
+/// alone and all in one sheet.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_sjk_hover_cards() {
+    on_big_stack(|| {
+        super::saber_skins::mount_test_packs();
+        let cvars = [
+            ("ui_menuStyle", "sjk"),
+            (crate::settings::quick::HIDE_CVAR, "1"),
+            (crate::unlockables::SABER_SKIN_CVAR, "saber_sun"),
+            ("name", "^1Sol^7Vulpes"),
+        ];
+        let Some((mut gpu, _profile)) = open(
+            "maps/mp/duel6.bsp",
+            [1920, 1080],
+            Some(menu::ClientMenu::new(true, String::new())),
+            &cvars,
+        ) else {
+            return;
+        };
+        gpu.looks.shot_owns_unlocks = true;
+        let _ = frame(&mut gpu, 10);
+        let cards = vec![sjk_identity::CardStack {
+            card: None,
+            rarity: "legendary".to_owned(),
+            finish: "holo".to_owned(),
+            edition: "alpha".to_owned(),
+            count: 2,
+            first: 1_791_641_100,
+            last: 1_791_641_100,
+        }];
+        if let Some(console) = gpu.console.as_mut() {
+            console.preview_profile(preview());
+            console.preview_collection(Some(vec![sun()]), 0.8);
+            console.preview_cards(cards, 1_340);
+            console.open_profile_hub_page(Tab::Medals, ReturnTarget::MainMenu);
+        }
+        for _ in 0..240 {
+            let _ = frame(&mut gpu, 1);
+            if crate::medals::art::decoded().is_some() {
+                break;
+            }
+        }
+        let mut images = Vec::new();
+        for (tab, index) in [
+            (Tab::Medals, 2),
+            (Tab::Achievements, 5),
+            (Tab::Shaders, 3),
+            (Tab::Toys, 0),
+            (Tab::Cards, 0),
+        ] {
+            gpu.profile_hub_show_for_shot(tab);
+            if let Some(console) = gpu.console.as_mut() {
+                console.collection_hover_for_shot(Some(index));
+            }
+            let frames = if tab.index() >= 2 { 150 } else { 8 };
+            let name = format!("duel6-hover-{}", part(tab));
+            let path = shoot(&mut gpu, frames, &name);
+            println!("{}", path.display());
+            assert!(!overflowed(&gpu), "{tab:?}");
+            images.push(image::open(path).expect("the shot").to_rgba8());
+            if let Some(console) = gpu.console.as_mut() {
+                console.collection_hover_for_shot(None);
+            }
+        }
+        gpu.profile_hub_show_for_shot(Tab::Nameplates);
+        gpu.profile_hub_next_for_shot();
+        assert_eq!(gpu.profile_hub_tab(), Some(Tab::Holocrons));
+        if let Some(console) = gpu.console.as_mut() {
+            console.preview_holocrons(super::holocrons_tab::holdings(), 1);
+            console.holocron_hover_for_shot(Some(3));
+        }
+        let path = shoot(&mut gpu, 150, "duel6-hover-holocrons");
+        println!("{}", path.display());
+        assert!(!overflowed(&gpu), "Holocrons");
+        images.push(image::open(path).expect("the shot").to_rgba8());
+        println!("{}", sheet(&images, 2, 960, "duel6-hover-sheet").display());
     });
 }

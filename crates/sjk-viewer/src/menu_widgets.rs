@@ -45,6 +45,9 @@ pub(crate) struct MenuCanvas {
     dropped: u32,
     /// Whether a release build has logged an overflow of this canvas yet.
     overflow_logged: bool,
+    /// A card laid over the page this frame ([`Self::cover`]): where it lies (window
+    /// pixels) and the id of its first text run.
+    cover: Option<(Rect, u32)>,
 }
 
 impl MenuCanvas {
@@ -86,6 +89,7 @@ impl MenuCanvas {
             viewport: [1.0, 1.0],
             dropped: 0,
             overflow_logged: false,
+            cover: None,
         }
     }
 
@@ -113,6 +117,19 @@ impl MenuCanvas {
         self.tokens.clear();
         self.text_len = 0;
         self.family = TextFamily::Body;
+        self.cover = None;
+    }
+
+    /// Lay a card over the page from here on (a hover card): text draws over every
+    /// shape, so the page's glyphs under `rect` (window pixels) are left out and do not
+    /// show through it; the text runs added from now on are the card's and draw in full.
+    pub(crate) fn cover(&mut self, rect: Rect) {
+        self.cover = Some((rect, self.text_len as u32));
+    }
+
+    /// The token the pointer rests on, as this frame began.
+    pub(crate) fn hovered(&self) -> Option<MenuToken> {
+        self.hovered_token
     }
 
     /// Draw a draggable scrollbar and register its entire track for pointer input.

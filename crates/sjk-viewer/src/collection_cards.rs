@@ -112,7 +112,7 @@ impl Panel {
     }
 
     /// The player's cards and credits, once known (a world shot's own in its place).
-    fn holdings(&self, inputs: &Inputs<'_>) -> (Option<Vec<Stack>>, Option<u64>) {
+    pub(super) fn holdings(&self, inputs: &Inputs<'_>) -> (Option<Vec<Stack>>, Option<u64>) {
         #[cfg(test)]
         if let Some((list, credits)) = &self.preview_cards {
             return (Some(cards::stacks(list)), Some(*credits));

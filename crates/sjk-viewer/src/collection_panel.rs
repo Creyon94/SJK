@@ -36,6 +36,8 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 mod achievements;
 #[path = "collection_cards.rs"]
 mod cards;
+#[path = "collection_hover.rs"]
+mod hover;
 #[path = "collection_medals.rs"]
 mod medals;
 #[path = "collection_nameplates.rs"]
@@ -213,6 +215,8 @@ pub(crate) struct Panel {
     shader_options: Vec<(&'static str, String, bool)>,
     /// Where the model stands this frame.
     backstage: Backstage,
+    /// The thing the pointer rests on, for its hover card.
+    hover: crate::menu::sjk::hover::Hover,
     /// How much wider than the display family the page's text face is drawn.
     widen: f32,
     epoch: Instant,
@@ -259,6 +263,7 @@ impl Panel {
             shader_rows: [ShaderRow::default(); SHADER_ROWS],
             shader_options: Vec::new(),
             backstage: Backstage::None,
+            hover: Default::default(),
             widen: 1.0,
             epoch: Instant::now(),
             skins: Default::default(),
@@ -440,6 +445,7 @@ impl Panel {
         let PhysicalKey::Code(key) = event.physical_key else {
             return PanelAction::None;
         };
+        self.hover.keyed();
         self.key(key, shift, illuminate)
     }
 
@@ -536,6 +542,7 @@ impl Panel {
     /// [`DOUBLE_CLICK`] wears it, as Equip does (an owned one only; a locked one stays a
     /// preview, the worn one stays worn).
     fn pointer_at(&mut self, event: InputEvent, illuminate: bool, now: Instant) -> PanelAction {
+        self.hover.moved();
         if let InputEvent::PointerWheel { delta, .. } = event
             && self.tab == Tab::Shaders
         {
@@ -658,6 +665,20 @@ impl Panel {
     #[cfg(test)]
     pub(crate) fn choose_card_for_shot(&mut self, index: usize) {
         self.card = index;
+    }
+
+    /// Show the hover card of the tab's thing `index` (the toy for Toys; `None` for none),
+    /// for a world shot.
+    #[cfg(test)]
+    pub(crate) fn hover_for_shot(&mut self, index: Option<usize>) {
+        let base = match self.tab {
+            Tab::Medals => MEDAL_BASE,
+            Tab::Achievements => ACHIEVEMENT_BASE,
+            Tab::Shaders => SHADER_BASE,
+            Tab::Cards => CARD_BASE,
+            _ => TOY_TOKEN,
+        };
+        self.hover.pin(index.map(|index| base + index as u16));
     }
 
     /// Choose shader row `row` (0 the stock blade), for a world shot.
