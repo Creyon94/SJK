@@ -220,6 +220,7 @@ mod scoreboard;
 mod screenshot;
 mod server_browser;
 mod server_commands;
+mod server_passwords;
 mod session_log;
 mod session_transition;
 mod settings;

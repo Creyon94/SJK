@@ -72,8 +72,10 @@ const KEYS_Y: f32 = 992.0;
 /// The password and address prompts' card.
 const CARD: [f32; 4] = [640.0, 352.0, 640.0, 330.0];
 
-/// The password prompt's tokens: the backdrop, the field, Cancel and Join.
+/// The password prompt's tokens: the backdrop, the field, Cancel and Join; then its
+/// Remember on this PC switch.
 const PASSWORD_TOKENS: [u16; 4] = [33, 30, 31, 32];
+const REMEMBER_TOKEN: u16 = 34;
 /// The address prompt's: the backdrop, the field, Cancel and Connect.
 const ADDRESS_TOKENS: [u16; 4] = [40, 41, 42, 43];
 
@@ -186,8 +188,13 @@ pub(crate) struct BrowserPage {
 
 /// A prompt over the browser.
 enum Dialog<'a> {
-    /// The password of `server` (its name, or address), `length` typed.
-    Password { server: String, length: usize },
+    /// The password of `server` (its name, or address), `length` typed, and
+    /// whether it is to be remembered on this PC.
+    Password {
+        server: String,
+        length: usize,
+        remember: bool,
+    },
     /// An address being typed, with what was wrong with the last one, to join it
     /// or (`favourite`) to keep it as a favourite.
     Address {
@@ -230,6 +237,7 @@ impl ClientMenu {
                 Dialog::Password {
                     server,
                     length: self.password.chars().count(),
+                    remember: self.remember_password,
                 }
             })
         };
@@ -1516,10 +1524,15 @@ fn draw_dialog(ui: &mut MenuCanvas, frame: &Frame, viewport: [f32; 2], dialog: &
         Dialog::Address { .. } => ADDRESS_TOKENS,
     };
     ui.hit_region(backdrop, Rect::new(0.0, 0.0, viewport[0], viewport[1]));
-    let [x, y, width, height] = CARD;
-    kit::card(ui, frame, CARD);
+    // The password's card is taller, for its Remember on this PC line.
+    let card = match dialog {
+        Dialog::Password { .. } => [CARD[0], CARD[1] - 26.0, CARD[2], CARD[3] + 52.0],
+        Dialog::Address { .. } => CARD,
+    };
+    let [x, y, width, height] = card;
+    kit::card(ui, frame, card);
     let (title, body, value, error, action, ready) = match dialog {
-        Dialog::Password { server, length } => (
+        Dialog::Password { server, length, .. } => (
             "Password",
             format!("{server} needs a password to join."),
             String::new(),
@@ -1623,6 +1636,26 @@ fn draw_dialog(ui: &mut MenuCanvas, frame: &Frame, viewport: [f32; 2], dialog: &
             color::GOLD_BRIGHT,
             FontWeight::Regular,
             TextAlign::Start,
+        );
+    }
+    if let Dialog::Password { remember, .. } = dialog {
+        // Remember on this PC: the switch at its right, the whole line its target.
+        let line = y + 250.0;
+        text(
+            ui,
+            TextFamily::Body,
+            format_args!("Remember on this PC"),
+            frame.rect(x + 40.0, line - 12.0, 300.0, 24.0),
+            17.0 * s,
+            if *remember { color::TEXT } else { color::MUTED },
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+        let hovered = ui.token_hovered(REMEMBER_TOKEN);
+        kit::switch(ui, frame, x + 40.0 + 300.0, line, *remember, hovered);
+        ui.hit_region(
+            REMEMBER_TOKEN,
+            frame.rect(x + 34.0, line - 18.0, 312.0, 36.0),
         );
     }
     let buttons = y + height - 40.0 - 46.0;
@@ -1839,6 +1872,61 @@ mod tests {
         menu.open_address_entry();
         menu.address_input = "192.0.2.9:29070".to_owned();
         assert!(matches!(menu.submit_address(), MenuAction::Connect(_)));
+    }
+
+    /// Sol's request (11/10/2026): a locked server's password can be remembered on
+    /// this PC; the prompt then opens with it typed, and switching Remember off
+    /// forgets it when the player joins.
+    #[test]
+    fn a_locked_servers_password_is_remembered_on_this_pc() {
+        let (mut menu, mut console, profile) = browsing();
+        let kept = profile.path().join("server-passwords.json");
+        menu.server_passwords =
+            crate::server_passwords::ServerPasswords::load_from(Some(kept.clone()));
+        let temple = "192.0.2.1:29070";
+        menu.open_password_prompt(temple.to_owned());
+        assert!(menu.password.is_empty() && menu.remember_password);
+        menu.build_sjk_browser([1920.0, 1080.0]);
+        let switch = menu
+            .ui
+            .rect_for(REMEMBER_TOKEN)
+            .expect("Remember on this PC");
+        let join = menu.ui.rect_for(PASSWORD_TOKENS[3]).expect("Join");
+        assert!(switch.bottom() <= join.y, "{switch:?} {join:?}");
+        menu.password = "temple".to_owned();
+        assert!(matches!(
+            menu.handle_browser_pointer(
+                PASSWORD_TOKENS[3],
+                sjk_ui::UiEventKind::Activate,
+                None,
+                None,
+                &mut console
+            ),
+            MenuAction::Connect(_)
+        ));
+        assert_eq!(console.text_value("password"), Some("temple"));
+        let reloaded = crate::server_passwords::ServerPasswords::load_from(Some(kept.clone()));
+        assert_eq!(reloaded.get(temple), Some("temple"));
+        // Next time: typed already. Switched off and joined: forgotten.
+        menu.open_password_prompt(temple.to_owned());
+        assert_eq!(menu.password, "temple");
+        let _ = menu.handle_browser_pointer(
+            REMEMBER_TOKEN,
+            sjk_ui::UiEventKind::Activate,
+            None,
+            None,
+            &mut console,
+        );
+        assert!(!menu.remember_password);
+        let _ = menu.handle_browser_pointer(
+            PASSWORD_TOKENS[3],
+            sjk_ui::UiEventKind::Activate,
+            None,
+            None,
+            &mut console,
+        );
+        let reloaded = crate::server_passwords::ServerPasswords::load_from(Some(kept));
+        assert_eq!(reloaded.get(temple), None);
     }
 
     #[test]

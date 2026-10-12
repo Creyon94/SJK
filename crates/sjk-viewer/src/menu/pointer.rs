@@ -89,7 +89,7 @@ impl ClientMenu {
         }
     }
 
-    fn handle_browser_pointer(
+    pub(super) fn handle_browser_pointer(
         &mut self,
         token: u16,
         kind: UiEventKind,
@@ -177,6 +177,7 @@ impl ClientMenu {
                 self.password.clear();
             }
             32 => return self.submit_password(console),
+            34 => self.remember_password = !self.remember_password,
             41 => self.address_editing = true,
             42 => {
                 self.address_editing = false;
@@ -215,6 +216,8 @@ impl ClientMenu {
             return MenuAction::None;
         }
         console.set_cvar("password", &self.password);
+        self.server_passwords
+            .update(&address, &self.password, self.remember_password);
         self.password_target = None;
         self.state.connecting(address.clone());
         MenuAction::Connect(address)

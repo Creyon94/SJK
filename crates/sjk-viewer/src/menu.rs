@@ -182,6 +182,10 @@ pub(crate) struct ClientMenu {
     address_editing: bool,
     /// What the address prompt is for ([`controller::AddressPurpose`]).
     address_purpose: controller::AddressPurpose,
+    /// Passwords of locked servers remembered on this PC ([`crate::server_passwords`]).
+    server_passwords: crate::server_passwords::ServerPasswords,
+    /// Whether the open password prompt remembers what is typed (on unless switched off).
+    remember_password: bool,
     address_input: String,
     address_error: String,
     backdrop: Option<crate::menu_backdrop::Backdrop>,
@@ -266,6 +270,8 @@ impl ClientMenu {
             password: String::with_capacity(64),
             address_editing: false,
             address_purpose: controller::AddressPurpose::Join,
+            server_passwords: crate::server_passwords::ServerPasswords::load(),
+            remember_password: true,
             address_input: String::with_capacity(256),
             address_error: String::with_capacity(96),
             backdrop: None,
@@ -906,6 +912,8 @@ impl ClientMenu {
                 }
                 KeyCode::Enter | KeyCode::NumpadEnter if !self.password.is_empty() => {
                     console.set_cvar("password", &self.password);
+                    self.server_passwords
+                        .update(&address, &self.password, self.remember_password);
                     self.password_target = None;
                     self.state.connecting(address.clone());
                     return MenuAction::Connect(address);
