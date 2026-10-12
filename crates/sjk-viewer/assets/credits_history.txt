@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 12/10/2026 | - | SJK chat from binds: sjksay, sjkgif, the GIF wheel, sjkchat in Keys
+- 1376d25 |  | SJK chat from binds: sjksay, sjkgif and the GIF wheel
 + 12/10/2026 | - | Credits history reads "Merge Creyon's PR #N" merges
 - f72a335 |  | Credits history: "Merge Creyon's PR #96 (...)" counts as SJK #96
 + 12/10/2026 | - | GIF search with the player's own GIPHY key, and the key card

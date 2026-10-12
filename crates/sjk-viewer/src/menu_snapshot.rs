@@ -1957,9 +1957,11 @@ fn quick_wheels(shots: &mut Snapshot) {
                         command: slot.command().to_owned(),
                         icon: slot.icon().map(crate::ui_renderer::wheel_icon),
                         on: marked.contains(&index),
+                        gif: None,
                     })
                     .collect(),
                 force: false,
+                gifs: false,
             })
             .collect()
     };

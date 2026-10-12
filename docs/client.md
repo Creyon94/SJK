@@ -3023,6 +3023,21 @@ is Illuminate, which runs `toy_illuminate` (the toggle the bind uses) with the
 Illuminate holocron's picture. Its gold dot marks a lit holocron (the client's own
 state; no cvar holds it).
 
+### GIF wheel
+
+The GIF wheel (Sol's request, 12/10/2026: "maybe a wheel even of gifs / favorite
+gifs") is the quick wheel opened by `+gifwheel` (Settings > Keys > Other > GIF wheel,
+unbound by default) on the player's favourite GIFs from the SJK chat's
+[GIF picker](hub-chat.md#the-gif-picker), newest first: ten a page, up to eight pages
+("Favourite GIFs", then "Favourite GIFs 2" and on), each choice the GIF's preview
+moving, drawn whole on a dark disc in its place on the ring, and "GIF 1", "GIF 2"... in
+the middle (the number `sjkgif` takes). Letting go on one runs `sjkgif <id>`: the GIF
+goes to the SJK chat ([From a bind](hub-chat.md#from-a-bind)). Its pages are made as it
+opens ([`gif_pages`](../crates/sjk-viewer/src/quick_wheel.rs)), are not in
+`wheel.json` and are not editable; a bare `+wheel` still opens on the page shown last
+before it. Without favourites it says "No favourite GIFs yet". A GIF not loaded yet (or
+with `cl_sjkChatGifs 0`) shows a disc with its name; it is sent all the same.
+
 ### Look
 
 The ring is drawn in the SJK UI's look ([ring.rs](../crates/sjk-viewer/src/quick_wheel/ring.rs),

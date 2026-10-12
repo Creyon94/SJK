@@ -68,7 +68,9 @@ pub(crate) use collection_page::{
     UNLOCKABLES_COMMAND, UNLOCKABLES_HELP,
 };
 pub(crate) use holocrons_page::{HOLOCRONS_COMMAND, HOLOCRONS_HELP};
-pub(crate) use sjk_chat_page::{SJK_CHAT_COMMAND, SJK_CHAT_HELP};
+pub(crate) use sjk_chat_page::{
+    SJK_CHAT_COMMAND, SJK_CHAT_HELP, SJK_GIF_COMMAND, SJK_GIF_HELP, SJK_SAY_COMMAND, SJK_SAY_HELP,
+};
 pub(crate) use staff_page::{STAFF_COMMAND, STAFF_HELP};
 #[path = "profile_panel.rs"]
 pub(crate) mod profile_panel;
