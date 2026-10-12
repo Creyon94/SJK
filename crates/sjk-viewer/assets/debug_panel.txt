@@ -493,6 +493,16 @@ test: Collection > Holocrons > Loot table: the numbers match docs/holocrons.md, 
 test: Escape, L, Enter or Back go back to the tab; the tab's keys do nothing meanwhile.
 test: The pace line says 30 minutes and 8 a day once the hub answered.
 
+[card-tilt]
+area: Menus & settings
+title: Cards tilt towards the pointer; Holo light clean and paced
+change: A card under the pointer on Collection > Cards turns towards it a little, in 3D.
+change: Its Holo or Solar light follows the pointer, with a soft glare under it.
+change: Holo stays inside the edge and corners; the sweep crosses, then waits, no jump.
+test: Collection > Cards: move over the card up close; it tilts and eases back when left.
+test: Holo card: no band ends or light over the coloured edge; the sweep never jumps back.
+test: Grid cards tilt too when hovered; text and picture tilt with the card.
+
 [sjk-symbols]
 area: Menus & settings
 title: SJK Symbols: our own font of rarity and finish marks

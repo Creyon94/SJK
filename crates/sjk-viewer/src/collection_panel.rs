@@ -174,6 +174,22 @@ pub(crate) struct Inputs<'a> {
     pub(crate) options: &'a str,
 }
 
+/// A card tilting towards the pointer ([`crate::cards::look::Tilt`]): which, where the
+/// pointer is on it and where the tilt has eased to.
+#[derive(Clone, Copy, Debug, Default)]
+struct CardTilt {
+    /// The card (0 up close, 1 and up the grid's), `None` while none tilts.
+    key: Option<usize>,
+    /// The pointer on it, -1 to 1 from its middle each way.
+    target: [f32; 2],
+    /// The tilt eased towards `target`, and how far in it is (0 to 1).
+    value: [f32; 2],
+    strength: f32,
+    /// Whether the pointer is on it, and the page's time at the last frame.
+    over: bool,
+    at: f32,
+}
+
 /// What the last frame showed of a shader's row, for keys and clicks.
 #[derive(Clone, Copy, Debug, Default)]
 struct ShaderRow {
@@ -225,6 +241,10 @@ pub(crate) struct Panel {
     backstage: Backstage,
     /// The thing the pointer rests on, for its hover card.
     hover: crate::menu::sjk::hover::Hover,
+    /// Where the pointer is (window pixels), while it is over the window.
+    pointer: Option<[f32; 2]>,
+    /// The card tilting towards the pointer on Cards.
+    tilt: CardTilt,
     /// How much wider than the display family the page's text face is drawn.
     widen: f32,
     epoch: Instant,
@@ -274,6 +294,8 @@ impl Panel {
             shader_options: Vec::new(),
             backstage: Backstage::None,
             hover: Default::default(),
+            pointer: None,
+            tilt: CardTilt::default(),
             widen: 1.0,
             epoch: Instant::now(),
             skins: Default::default(),
@@ -554,6 +576,14 @@ impl Panel {
     /// preview, the worn one stays worn).
     fn pointer_at(&mut self, event: InputEvent, illuminate: bool, now: Instant) -> PanelAction {
         self.hover.moved();
+        match event {
+            InputEvent::PointerMove(at)
+            | InputEvent::PointerPress { position: at, .. }
+            | InputEvent::PointerRelease { position: at, .. }
+            | InputEvent::PointerWheel { position: at, .. } => self.pointer = Some([at.x, at.y]),
+            InputEvent::PointerLeave => self.pointer = None,
+            InputEvent::Action(_) => {}
+        }
         if let InputEvent::PointerWheel { delta, .. } = event
             && self.tab == Tab::Shaders
         {
@@ -688,6 +718,20 @@ impl Panel {
     #[cfg(test)]
     pub(crate) fn choose_card_for_shot(&mut self, index: usize) {
         self.card = index;
+    }
+
+    /// Tilt card `key` (0 up close, 1 and up the grid's) as though the pointer had rested
+    /// at `at` on it for a while, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn tilt_card_for_shot(&mut self, key: usize, at: [f32; 2]) {
+        self.tilt = CardTilt {
+            key: Some(key),
+            target: at,
+            value: at,
+            strength: 1.0,
+            over: true,
+            at: self.shot_seconds.unwrap_or(0.0),
+        };
     }
 
     /// Show the hover card of the tab's thing `index` (the toy for Toys; `None` for none),

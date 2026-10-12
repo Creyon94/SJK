@@ -145,6 +145,14 @@ pub enum DrawCommand {
     PushRoundedClip { rect: Rect, radius: f32 },
     /// End the most recent clip.
     PopClip,
+    /// Draw descendants through `matrix`, a projective transform of window points
+    /// (row-major 3x3, applied to `(x, y, 1)` and divided by the third coordinate), for
+    /// a card tilted in perspective: shapes, pictures and text are laid out as usual,
+    /// then every corner is mapped. Clips are taken before the mapping. Ended by
+    /// [`DrawCommand::PopTransform`]; nested ones compose.
+    PushTransform([f32; 9]),
+    /// End the most recent transform.
+    PopTransform,
     /// Multiply descendant opacity.
     PushOpacity(f32),
     /// End the most recent opacity group.

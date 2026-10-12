@@ -1,5 +1,17 @@
 # Status and priorities
 
+## Cards tilt towards the pointer, cleaner Holo
+
+Branch `personal/card-tilt` (13/10/2026), Sol's report and request: Holo's bands showed
+their square ends inside the card and over its edge, the sweep restarted while bands were
+still on the card, and the card should move a little in 3D under the pointer. The light now
+stays inside the rarity's edge, its strokes reach far off the card, and the sweep crosses,
+then waits off the card. `sjk-ui` gained `PushTransform`/`PopTransform` (a projective
+transform applied to shape vertices and text glyphs), and a Cards tab card under the
+pointer tilts towards it, its light following the pointer, with a glare. See
+[cards.md](cards.md#in-the-client). Verified: unit tests (the perspective, the sweep, the
+strokes' ends) and the world shots of the tilted card looked at. Not tried in a game.
+
 ## SJK Symbols
 
 Branch `personal/sjk-symbols` (13/10/2026), Sol's request: coloured special characters to
