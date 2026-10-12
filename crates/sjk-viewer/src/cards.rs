@@ -410,7 +410,7 @@ mod tests {
         ];
         let stacks = stacks(&list);
         let names: Vec<String> = stacks.iter().map(|stack| stack.name_in(&faces)).collect();
-        assert!(names.contains(&"Sol and Toxiee on JoF Memorial".to_owned()));
+        assert!(names.contains(&"Toxiee and Sol on JoF Memorial".to_owned()));
         assert!(names.contains(&"Unknown card sol_lore_099".to_owned()));
         assert!(names.contains(&"Legendary card".to_owned()));
         assert_eq!(

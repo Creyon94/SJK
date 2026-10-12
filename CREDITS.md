@@ -61,8 +61,8 @@ Sol develops SJK and sets its direction. Sol's work includes:
   luck (Sol's design, 12/10/2026); opening stays with the SJK team while it is
   tested, until the hub opens it to everyone;
 - card faces (12/10/2026): cards picked by the hub drawn as trading cards from a card
-  pack the hub serves, revealing sealed cards, and the first card, "Sol and Toxiee
-  on JoF Memorial" (art and words by Sol);
+  pack the hub serves, revealing sealed cards, and the first card, "Toxiee and Sol
+  on JoF Memorial" (art by Sol, AI-assisted; words by Sol);
 - the character creator (12/10/2026): tile grids for models, species parts, skins,
   hats and capes, an Apply button (the idea of a friend of Sol's), the head picker fixed,
   and the retail game's own models, species and saber hilts listed first under a
