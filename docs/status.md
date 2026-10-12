@@ -867,6 +867,19 @@ line, muted and switched-off lines, the history while typing, a game line) and o
 world shots of the box with test GIFs, in play and typing, at 1080p and 4K
 (`duel6_sjk_chat_gifs_feed`). Not tried in a match.
 
+Branch `personal/gif-picker` (12/10/2026, based on `fa9f4295`, Windows 11), Sol's request
+for a GIF picker with favourites in SJK chat: GIF beside Send on the SJK chat page opens
+a picker over the messages with Favourites (kept in `gif-favourites.txt` beside
+`config.cfg`), Search (GIPHY's search API from this PC with SJK's key or `cl_giphyKey`,
+debounced, paged, cached) and Seen in chat, as animated tiles of GIPHY's preview file;
+picking writes the GIF's link in the message ([hub-chat.md](hub-chat.md#the-gif-picker)).
+SJK's own GIPHY key is not registered yet (`SJK_KEY` empty), so search needs
+`cl_giphyKey` until it is. Verified by unit tests (favourites file, search addresses and
+paging, the cache keeping tiles apart, the grid's keys, picking into the draft) and
+off-screen world shots of the picker at 1080p and 4K with test GIFs
+(`duel6_sjk_chat_gif_picker`). No real search was made against GIPHY's API (no key);
+not tried in the game window.
+
 ## Stutters on joins
 
 Branch `personal/player-async` (10/10/2026, based on `a4ea2316`, Windows 11, RTX 5080),

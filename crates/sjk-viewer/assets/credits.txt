@@ -71,6 +71,7 @@ did: Mythical shader parts: the Sun's and the Spectral's effects, each switched 
 did: The Sun's orbiting glints, circling its blade below the tip
 did: The Void's black holes orbiting its blade, bending the world behind them
 did: SJK chat GIFs, who is online, chat sounds, reply and the last channel remembered
+did: The SJK chat GIF picker: favourites, GIPHY search and the GIFs seen in the chat
 did: Crash reports to the SJK team, and world notes: tell the team what is wrong on a map
 did: Log requests: the SJK team asks a player for their logs, and reads crash reports in game
 did: The quick wheel's live Force page and Toys page, Illuminate as a toy
@@ -170,6 +171,7 @@ link: https://fonts.google.com/specimen/Exo+2
 [GIPHY]
 role: Where the GIFs in SJK chat come from
 did: A GIPHY link in an SJK chat message shows its GIF, fetched from GIPHY by each player
+did: The GIF picker's search and trending GIFs, powered by GIPHY
 link: https://giphy.com
 
 [TheRisqe]

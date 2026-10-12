@@ -17,6 +17,8 @@ mod social;
 
 mod view;
 
+pub(crate) use view::star;
+
 pub(crate) mod combat;
 
 use crate::game_font::{GameFonts, RetailFont};
