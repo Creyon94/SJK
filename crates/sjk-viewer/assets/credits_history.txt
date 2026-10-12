@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 12/10/2026 | - | Credits history for the 2026.1012.1 release
+- 9dbbdf1 |  | Credits history for the 2026.1012.1 release
 + 12/10/2026 | - | Release 2026.1012.1 notes
 - f096ef9 |  | Release 2026.1012.1 (Alpha)
 + 12/10/2026 | - | A What's new card recaps each update; every release carries a recap
@@ -1147,6 +1149,40 @@
 - 0d215f1 |  | Initial JKR source
 
 = Creyon
++ 12/10/2026 | SJK #94 | Keep the amcolor tint across reconnects
+- df744da |  | Keep the amcolor tint across reconnects
++ 12/10/2026 | SJK #93 | Add JoF EJK's showplayerid console command
+- f7b12e3 |  | Add JoF EJK's showplayerid console command
++ 12/10/2026 | SJK #92 | Stack the frame rate and match clock in the upper right
+- 1e47f63 |  | Stack the frame rate and match clock in the upper right
++ 12/10/2026 | SJK #91 | Scroll the browser's player list
+- 4d83dd9 |  | Scroll the browser's player list
++ 12/10/2026 | SJK #90 | Remember a locked server's password on this PC
+- 067fe40 |  | Remember a locked server's password on this PC
++ 12/10/2026 | SJK #89 | Add a favourite server by its address
+- 00e40ff |  | Add a favourite server by its address
++ 12/10/2026 | SJK #88 | Read server names in the game's charset in the browser
+- 1c4dbac |  | Read server names in the game's charset in the browser
++ 12/10/2026 | SJK #86 | Remove the Character page's Model row
+- 0dae20e |  | Remove the Character page's Model row
++ 12/10/2026 | SJK #87 | Ask a second master server and merge the lists
+- 18ed1e2 |  | Ask a second master server and merge the lists
++ 12/10/2026 | SJK #85 | Leave out the chat page's text under a sender's card
+- 780bdf3 |  | Leave out the chat page's text under a sender's card
++ 12/10/2026 | SJK #84 | Dock the in-game menu's SJK chat under the match card
+- f1d07c9 |  | Dock the in-game menu's SJK chat under the match card
++ 12/10/2026 | SJK #83 | Read clan tags from a table; add JoFA, teal JoF, more spellings
+- 7ccef3a |  | Read clan tags from a table; add JoFA, teal JoF, more spellings
++ 12/10/2026 | SJK #82 | Show the frame rate on the SJK scoreboard's header
+- f2adcc9 |  | Show the frame rate on the SJK scoreboard's header
++ 12/10/2026 | SJK #80 | Play door sounds (EV_PLAYDOORSOUND)
+- e7843cd |  | Play door sounds (EV_PLAYDOORSOUND)
++ 12/10/2026 | SJK #81 | Start the local muzzle flash with the predicted shot
+- 9e81eb5 |  | Start the local muzzle flash with the predicted shot
++ 12/10/2026 | SJK #79 | Draw a dropped saber's hilt
+- b882b6e |  | Draw a dropped saber's hilt
++ 12/10/2026 | SJK #78 | Keep the server's slope pose while predicting a stand
+- 0680c40 |  | Keep the server's slope pose while predicting a stand
 + 08/10/2026 | SJK #44 | Send and show % and quotes in chat as EternalJK does
 - 3dc0fdb |  | Send and show % and quotes in chat as EternalJK does
 + 08/10/2026 | SJK #30 | Show JoF EternalJK's chat emojis
