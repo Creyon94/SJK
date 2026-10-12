@@ -398,6 +398,9 @@ impl Panel {
         let on_tile = (TILE_BASE..TILE_BASE + TILES as u16).contains(&self.focus);
         let on_tabs = (TAB_BASE..TAB_BASE + Tab::ALL.len() as u16).contains(&self.focus);
         let searching = self.focus == SEARCH_TOKEN;
+        if searching && self.gifs.before_edit(key, text, shift, control) {
+            return Some(PanelAction::None);
+        }
         match key {
             KeyCode::Escape => {
                 self.toggle_gifs();

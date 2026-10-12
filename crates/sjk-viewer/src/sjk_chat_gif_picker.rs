@@ -177,6 +177,23 @@ impl Picker {
         }
     }
 
+    /// Ctrl+A and what a selection does to the key about to edit the search field
+    /// ([`crate::text_entry::before_edit`]); whether the key is spent.
+    pub(super) fn before_edit(
+        &mut self,
+        key: winit::keyboard::KeyCode,
+        text: Option<&str>,
+        shift: bool,
+        control: bool,
+    ) -> bool {
+        let before = self.typed.len();
+        let spent = crate::text_entry::before_edit(&mut self.typed, key, text, shift, control);
+        if self.typed.len() != before {
+            self.typed_at = Some(Instant::now());
+        }
+        spent
+    }
+
     pub(super) fn backspace(&mut self) {
         if self.typed.pop().is_some() {
             self.typed_at = Some(Instant::now());
@@ -635,6 +652,18 @@ mod tests {
         assert_eq!(picker.row, 0);
         picker.scroll(100);
         assert_eq!(picker.row, 40_usize.div_ceil(COLUMNS) - ROWS);
+    }
+
+    #[test]
+    fn ctrl_a_then_typing_replaces_the_words() {
+        use winit::keyboard::KeyCode;
+        let mut picker = Picker::new();
+        picker.typed = "cats".to_owned();
+        assert!(picker.before_edit(KeyCode::KeyA, Some("a"), false, true));
+        assert!(!picker.before_edit(KeyCode::KeyD, Some("d"), false, false));
+        assert_eq!(picker.typed, "", "the selection is replaced");
+        assert!(picker.typed_at.is_some(), "a search follows");
+        crate::text_entry::deselect();
     }
 
     #[test]
