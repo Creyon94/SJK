@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 12/10/2026 | - | cjp_client 1.4 SJK on JA+: the grapple rope and button12 hold come back
+- 8299703 |  | cjp_client defaults to 1.4 SJK on JA+ servers
 + 12/10/2026 | - | Paste, copy and a held Backspace in every text field
 - 4edb3ff |  | Text fields: paste, copy and a held Backspace everywhere
 + 12/10/2026 | - | Credits and changelog for Creyon's PRs #78-#94

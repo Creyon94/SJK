@@ -25,9 +25,12 @@ Profile detection and implemented adapter behavior are not a promise that every
 feature of those servers is reproduced by SJK's dedicated server.
 
 On JA+ and TaystJK/jaPRO servers the client identifies as a client-plugin user
-through extra userinfo keys. JA+ gets `cp_clanPwd none` and `cjp_client SJK`, so an
-admin's `amstatus` shows SJK (Sol, 12/10/2026; JA+ servers take any name as a plugin
-user). jaPRO gets `cjp_client 1.4JAPRO`, which is a switch rather than a name: a jaPRO
+through extra userinfo keys. JA+ gets `cp_clanPwd none` and `cjp_client 1.4 SJK`, so an
+admin's `amstatus` shows SJK (Sol, 12/10/2026). A JA+ server takes the value for a
+plugin user only when it starts with a version number (`1.4B4`, `1.6.4 JoF`,
+`1.4JAPRO`): a bare `SJK` made the JoF server treat SJK as a client without the
+plugin, which drew no grapple rope and let go of the hook when `+button12` was
+released. jaPRO gets `cjp_client 1.4JAPRO`, which is a switch rather than a name: a jaPRO
 server enables its client support (the deaths column, client-predicted moves such as
 `amrun`) only for that exact value (TaystJK `g_client.c:2342`). The player's
 `cjp_client` setting (archived, empty by default) replaces the value on both plugin
