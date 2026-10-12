@@ -21,7 +21,9 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1012.1 (Alpha) | 12/10/2026
+
+Downloads that work on JoF servers, your physics following your FPS cap, showcase tools for filming sabers (mimic, ghost replay, strafe lines, invisible brushes), logs the SJK team can ask for, and a card that recaps each update, like this one.
 
 > Servers: Downloads work with spaced pak names, JoF servers get 125 commands a second, known servers sit in one table and JA+ admins see SJK in amstatus.
 > Gameplay FPS: Your physics follow your FPS cap on Auto, and First setup starts with an import from other clients.
