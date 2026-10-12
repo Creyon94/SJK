@@ -153,6 +153,8 @@ pub(crate) struct ViewerConsole {
     shift: bool,
     /// Bind names that held keys were pressed under.
     held_keys: crate::input::keys::HeldKeys,
+    /// Held keys whose bind repeats push or pull (`cl_forceRepeat`).
+    force_repeat: crate::input::force_repeat::ForceRepeat,
     input: String,
     history: Vec<String>,
     history_index: Option<usize>,
@@ -466,6 +468,33 @@ impl ViewerConsole {
         }
     }
 
+    /// A key went up, wherever the release was routed: a held push or pull key stops
+    /// repeating even when a menu or the chat took the release.
+    pub(crate) fn force_repeat_key_up(
+        &mut self,
+        code: KeyCode,
+        name: Option<crate::input::keys::KeyName>,
+    ) {
+        if let Some(name) = self.held_keys.name(code).or(name) {
+            self.force_repeat.release(name.as_str());
+        }
+    }
+
+    /// A mouse button bound under `key` went up, wherever the release was routed.
+    pub(crate) fn force_repeat_button_up(&mut self, key: &str) {
+        self.force_repeat.release(key);
+    }
+
+    /// Every key was let go of: the window lost the keyboard.
+    pub(crate) fn clear_force_repeat(&mut self) {
+        self.force_repeat.clear();
+    }
+
+    /// The `generic_cmd` a held push or pull key repeats in the next user command.
+    pub(crate) fn force_repeat_command(&self) -> Option<u8> {
+        self.force_repeat.command()
+    }
+
     /// Add text to the scrollback without showing it among the notify lines.
     pub(crate) fn push_log_quiet(&mut self, text: impl Into<String>) {
         self.shell.push_log_quiet(text);
@@ -484,9 +513,16 @@ impl ViewerConsole {
         let id = key
             .bytes()
             .fold(0_u64, |hash, byte| hash.wrapping_mul(31) + u64::from(byte));
+        if !pressed {
+            self.force_repeat.release(key);
+        }
+        let repeat = pressed && self.bool_cvar(crate::input::force_repeat::CVAR) != Some(false);
         match self.shell.binds.commands_for_event(key, pressed) {
             Ok(commands) => {
                 for command in commands {
+                    if repeat && let Some(value) = crate::input::force_repeat::repeated(&command) {
+                        self.force_repeat.press(key, value);
+                    }
                     let command = if command.starts_with(['+', '-']) {
                         format!("{command} {id} {time}")
                     } else {

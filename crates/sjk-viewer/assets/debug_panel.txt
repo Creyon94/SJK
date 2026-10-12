@@ -403,6 +403,19 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 # ---- Menus & settings ----
 
+[force-hold-repeat]
+area: Input
+title: Holding push or pull uses it again as soon as it is ready (after JoF EJK)
+change: A held key or mouse button bound to force_throw or force_pull repeats it until let go.
+change: The server fires it the moment the cooldown ends; other powers' keys still send once.
+change: Settings > Controls > Hold push/pull repeats (cl_forceRepeat, on by default).
+test: Bind MOUSE4 to Push, hold it near a player: you push again each time push is ready.
+test: Same with Pull on a key; press Protect while holding: protect stays on, push goes on.
+test: Hold push, open chat or Escape, let go, close it: the pushing has stopped.
+test: Hold push, Alt+Tab away, come back: the pushing has stopped.
+test: cl_forceRepeat 0: a held push key pushes once per press again.
+note: Not tried on a server; only push and pull repeat (the toggles would switch off).
+
 [force-apply-on-leave]
 area: Menus & settings
 title: Force powers apply when you leave the Force page, even unchanged

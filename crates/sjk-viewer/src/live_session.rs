@@ -119,6 +119,15 @@ impl GpuState {
         let talking = self.talk_button();
         // The FPS cap the gameplay FPS's Auto follows (`command_rate`).
         let frame_cap = self.frame_cap();
+        // A held push or pull key fills every command no press filled
+        // (`input::force_repeat`), while the keys are the game's.
+        let force_repeat = if self.text_has_keyboard() {
+            None
+        } else {
+            self.console
+                .as_ref()
+                .and_then(crate::console::ViewerConsole::force_repeat_command)
+        };
         let Some(session) = &mut self.live_session else {
             return;
         };
@@ -220,7 +229,10 @@ impl GpuState {
                 delta_angles,
                 weapon,
                 force_power,
-                self.pending_generic_command,
+                match self.pending_generic_command {
+                    0 => force_repeat.unwrap_or(0),
+                    pressed => pressed,
+                },
             );
             self.gameplay_input.apply_flip_kick(&mut command, flip_kick);
             command.buttons = sjk_game_jka::pmove_talk::command_buttons(command.buttons, talking);

@@ -23,6 +23,12 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+> Force: Hold push or pull to use it again the moment it is ready, as in JoF EJK.
+
+- Holding a push or pull key pushes or pulls again as soon as the power is ready, as in JoF EJK, keyboard or mouse; Settings > Controls > Hold push/pull repeats (`cl_forceRepeat`, on by default) turns it off _(Sol, after JoF EJK)_
+
 ## 2026.1012.2 (Alpha) | 12/10/2026
 
 GIFs in the SJK chat, a loot table for holocrons, and Creyon's pull requests: fixes for ledges, dropped sabers, doors and muzzle flashes, a server browser that finds more servers and keeps your favourites and passwords, clan emblems, and the frame rate and clock where JoF EJK puts them.

@@ -425,6 +425,13 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             archive,
             "Last-pressed movement key wins: 0 off, 1 all directions, 2 jump/crouch only",
         ),
+        // A held push or pull key, as JoF EJK's key repeats do ([`crate::input::force_repeat`]).
+        CvarDefinition::new(
+            crate::input::force_repeat::CVAR,
+            true,
+            archive,
+            "Holding a push or pull key uses it again as soon as its cooldown is over",
+        ),
         CvarDefinition::new(
             crate::input::idrive::DELAY_CVAR,
             0_i64,
