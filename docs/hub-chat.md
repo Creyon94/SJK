@@ -177,16 +177,18 @@ feed: the hub took them, so the sound says the message went out.
   one was cut to one row), so a long message pushes older ones out; a message taller
   than the whole box (150 characters at a larger `ui_textScale`) shows its first rows
   with its name, the last one ending in an ellipsis, and Open chat shows the rest.
-  Resting the pointer on a name shows the sender's sender card with Mute. Down past the
+  Resting the pointer on a name shows the sender's sender card with Mute, left of the
+  dock and above the keys (beside the name it covered the dock's lines). Down past the
   last server (or a click) reaches the field; Enter types (every key goes to the
   field), Enter sends, Escape stops. Open chat opens the page. A line under the field
   says why a message could not go.
 - SJK UI in-game menu (Escape in a match): the same dock, drawn by the same code
-  ([chat_dock.rs](../crates/sjk-viewer/src/menu/sjk/chat_dock.rs)), under the match
-  between the row of icons and the card ([sjk-ui.md](sjk-ui.md#in-game-menu)). Tab
+  ([chat_dock.rs](../crates/sjk-viewer/src/menu/sjk/chat_dock.rs)), in the match card's
+  column under its controls ([sjk-ui.md](sjk-ui.md#in-game-menu)). Tab
   reaches its field after the card; Enter types, and while typing every key goes to
   the field, the console key and the game's bindings included; Escape stops typing.
-  The sender card shows above the dock and says where the player is on the server.
+  The sender card shows left of the dock and says where the player is on the server;
+  it stays 0.6 seconds after the pointer leaves the name, so the pointer can cross to it.
   The classic in-game menu has no dock.
 - The SJK chat page (a console page in the SJK UI's look in every menu style): the
   history, newest at the bottom, each a flowing line (name, tick, text) with Staff and
@@ -194,7 +196,9 @@ feed: the hub took them, so the sound says the message went out.
   servers say, so no time zone is needed); the field (the keyboard is there when the page opens), Send and the
   character count. Up from the field chooses the newest message, Up and Down move,
   Page Up and Page Down scroll, Tab walks every control. Resting the pointer on a name
-  shows the sender's sender card with Mute or Unmute. A chosen message offers Mute on
+  shows the sender's sender card with Mute or Unmute; the page's text whose ink reaches
+  the card is left out while it shows, since text draws over every shape and the times
+  and messages showed through it (Sol's report, 11/10/2026). A chosen message offers Mute on
   this PC ([Muting a player](#muting-a-player)); for staff, Delete for everyone, Mute at the hub and Unmute
   at the hub (the client does not know a key's mute flag); under them, what the request
   came to (sending, done, or the hub's refusal). It opens from the dock's

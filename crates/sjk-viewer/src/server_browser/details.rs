@@ -113,6 +113,8 @@ pub(crate) struct ServerDetails {
     shown: Option<DetailsView>,
     failed: Option<(SocketAddr, String)>,
     offline: bool,
+    /// The first of the shown server's players in view, wheeled through its list.
+    player_scroll: usize,
 }
 
 impl ServerDetails {
@@ -123,6 +125,7 @@ impl ServerDetails {
             shown: None,
             failed: None,
             offline: false,
+            player_scroll: 0,
         }
     }
 
@@ -134,7 +137,10 @@ impl ServerDetails {
     fn tick_at(&mut self, selected: Option<SocketAddr>, now: Instant) {
         match (selected, self.wanted) {
             (Some(address), Some((wanted, _))) if wanted == address => {}
-            (Some(address), _) => self.wanted = Some((address, now)),
+            (Some(address), _) => {
+                self.wanted = Some((address, now));
+                self.player_scroll = 0;
+            }
             (None, _) => self.wanted = None,
         }
         self.poll();
@@ -179,6 +185,7 @@ impl ServerDetails {
             Ok(status) => {
                 self.failed = None;
                 self.shown = Some(DetailsView::from_status(address, &status));
+                self.player_scroll = 0;
             }
             Err(error) => self.failed = Some((address, error)),
         }
@@ -197,6 +204,25 @@ impl ServerDetails {
         self.pending = None;
         self.failed = None;
         self.shown = Some(view);
+        self.player_scroll = 0;
+    }
+
+    /// The first player in view on the details panel.
+    pub(crate) fn player_scroll(&self) -> usize {
+        self.player_scroll
+    }
+
+    /// Wheel the shown server's players `by` rows, `page` of them in view: kept so the
+    /// last row stays at the bottom.
+    pub(crate) fn scroll_players(&mut self, by: i32, page: usize) {
+        let Some(view) = self.shown.as_ref() else {
+            return;
+        };
+        let last = view.players.len().saturating_sub(page);
+        self.player_scroll = self
+            .player_scroll
+            .saturating_add_signed(by as isize)
+            .min(last);
     }
 
     pub(crate) fn state(&self) -> DetailsState<'_> {

@@ -1242,6 +1242,14 @@ flash never shakes the camera (JoF's HD muzzle effects carry a radius-60
 in first or third person); other players' flashes and all other effects shake by
 distance as in the reference.
 
+The local player's muzzle flash starts with the predicted shot, as `CG_FireWeapon` runs
+for predicted events, and the snapshot that confirms the shot does not start it again
+([muzzle_effects.rs](../crates/sjk-client/src/muzzle_effects.rs)). The flash replays its
+effect every frame for 30 ms, and an effect's `Sound` plays each time: JoF's HD muzzle
+effects carry the weapon's fire sound, which so lands on the event's own fire sound. Until
+12/10/2026 the local flash waited for the snapshot, a round trip after the shot, so every
+gun sounded twice (Creyon's report). Other players' flashes still start from the snapshot.
+
 ## First-person saber body
 
 First-person saber mode draws the local posed body and arms instead of hiding
@@ -2965,6 +2973,13 @@ gathered once per frame into a fixed table. The effect atlas builds a generated
 white tile for `$whiteimage`/`*white` stages so the `white` shader keeps its alpha
 blend instead of falling back to the additive spark. The JA+ client plugin's hook
 model is not drawn, as in EternalJK.
+
+A saber knocked out of the hand or dropped after a throw (`saberKnockDown` turns its entity
+into an `ET_MISSILE` with `WP_SABER`) is drawn as `CG_Missile` draws it: its hilt, the
+`CS_MODELS` model the server names (`DEFAULT_SABER_MODEL` without one), with no blade,
+turned along its flight as other missiles are, and nothing while `EF_NODRAW`
+([projectiles.rs](../crates/sjk-viewer/src/projectiles.rs)). Before 12/10/2026 a missile
+saber drew nothing, so a dropped saber vanished until its owner pulled it back.
 
 ## Shader test maps
 

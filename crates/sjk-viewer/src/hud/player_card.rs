@@ -1016,12 +1016,12 @@ impl State {
             (None, None) => inner,
         };
         // The JoF emblem on the name's left ([`crate::jof_tag`]).
-        let jof = if crate::jof_tag::tagged(&card.texts[T_NAME]) {
+        let jof = if let Some(clan) = crate::jof_tag::clan(&card.texts[T_NAME]) {
             let side = crate::jof_tag::side(23.0 * unit);
-            crate::jof_tag::draw(left, y + row(30.0) * 0.5, side, a, |command| {
+            crate::jof_tag::draw(clan, left, y + row(30.0) * 0.5, side, a, |command| {
                 let _ = self.list.push(command);
             });
-            crate::jof_tag::room(side)
+            crate::jof_tag::room(clan, side)
         } else {
             0.0
         };

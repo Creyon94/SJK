@@ -812,10 +812,11 @@ impl RowDraw<'_> {
             name_rect
         };
         // The JoF emblem on the name's left ([`crate::jof_tag`]).
-        let name_rect = if crate::jof_tag::tagged(&row.name) {
+        let name_rect = if let Some(clan) = crate::jof_tag::clan(&row.name) {
             let side = crate::jof_tag::side(name_size);
-            let room = crate::jof_tag::room(side);
+            let room = crate::jof_tag::room(clan, side);
             crate::jof_tag::draw(
+                clan,
                 name_rect.x,
                 name_rect.y + name_rect.height * 0.5,
                 side,

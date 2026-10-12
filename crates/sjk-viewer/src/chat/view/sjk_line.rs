@@ -27,7 +27,7 @@ pub(in crate::chat) struct Prefix {
     name_width: f32,
     verified: bool,
     /// The name carries the JoF tag: the clan's emblem comes before it.
-    jof: bool,
+    jof: Option<crate::jof_tag::Clan>,
     colon_width: f32,
     /// The line is a holocron drop: its mark is the tier's gem, not the verified tick.
     tier: Option<&'static Tier>,
@@ -51,7 +51,7 @@ impl Prefix {
             name_width: visible_text_width_face(font, &name[..name_end], scale, TextFace::Semibold),
             verified: verified || tier.is_some(),
             tier,
-            jof: crate::jof_tag::tagged(name),
+            jof: crate::jof_tag::clan(name),
             colon_width: if name.is_empty() {
                 0.0
             } else {
@@ -68,8 +68,8 @@ impl Prefix {
     /// Where the name starts after the SJK and JoF emblems.
     fn name_x(&self) -> f32 {
         self.jof_x()
-            + if self.jof {
-                crate::jof_tag::room(crate::jof_tag::side(self.size))
+            + if let Some(clan) = self.jof {
+                crate::jof_tag::room(clan, crate::jof_tag::side(self.size))
             } else {
                 0.0
             }
@@ -126,8 +126,9 @@ pub(in crate::chat) fn draw(
         texture: crate::ui_renderer::LOGO_TEXTURE,
         color: Color::new(1.0, 1.0, 1.0, alpha),
     });
-    if prefix.jof {
+    if let Some(clan) = prefix.jof {
         crate::jof_tag::draw(
+            clan,
             x + prefix.jof_x(),
             middle,
             crate::jof_tag::side(size),

@@ -33,6 +33,8 @@ const WRAP: f32 = 20.0;
 const BOX: f32 = LINES as f32 * ROW;
 /// The messages' text size.
 const TEXT_SIZE: f32 = 15.0;
+/// How far the field reaches left of the dock's text.
+const FIELD_OVERHANG: f32 = 14.0;
 /// How the dock shows a message's GIF: smaller than the page.
 const GIF: gif_draw::Look = gif_draw::DOCK;
 
@@ -85,15 +87,17 @@ pub(crate) const BLANK: DockLine<'static> = DockLine {
 };
 
 /// Where a page docks the chat, in frame pixels: the left edge of its text, its top
-/// and its text's width (the field reaches a little past both sides); and whether a
-/// sender's card shows above the dock (where the page leaves room: shapes never cover
-/// text, so the card must not lie over the dock's own lines) or beside the name.
+/// and its text's width (the field reaches a little past both sides); and the floor its
+/// sender card's foot stays above (where the page's own text starts below it). The card
+/// shows left of the dock, level with the name: shapes never cover text, so it goes
+/// where it leaves the dock's lines and its field clear (to the name's right it covered
+/// the message and the lines under it).
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Place {
     pub(crate) x: f32,
     pub(crate) top: f32,
     pub(crate) width: f32,
-    pub(crate) card_above: bool,
+    pub(crate) card_floor: f32,
 }
 
 impl Place {
@@ -148,7 +152,14 @@ pub(super) struct SenderCard {
     pub(super) person: crate::sender_card::Person,
     anchor: Rect,
     located: bool,
+    /// When the pointer left the name and the card, while it is off them.
+    left_at: Option<std::time::Instant>,
 }
+
+/// How long a sender card stays once the pointer is off its name and itself: long enough
+/// to cross from the name to a card shown left of the dock (Creyon's report, 11/10/2026:
+/// it closed on the way).
+const CARD_GRACE: std::time::Duration = std::time::Duration::from_millis(600);
 
 /// What a page keeps of its dock between frames.
 #[derive(Debug, Default)]
@@ -181,6 +192,14 @@ impl Dock {
     /// Stop typing, what was typed dropped.
     pub(crate) fn stop_typing(&mut self) {
         self.draft = None;
+    }
+
+    /// End a sender card's grace at once, as if it had run out.
+    #[cfg(test)]
+    pub(crate) fn expire_card_for_test(&mut self) {
+        if let Some(card) = &mut self.sender_card {
+            card.left_at = Some(std::time::Instant::now() - CARD_GRACE);
+        }
     }
 
     /// The page no longer shows the dock: no typing, no card.
@@ -238,6 +257,9 @@ impl Dock {
         control: bool,
     ) -> Option<DockAction> {
         let draft = self.draft.as_mut()?;
+        if crate::text_entry::before_edit(draft, key, text, shift, control) {
+            return None;
+        }
         match key {
             KeyCode::Escape => self.draft = None,
             KeyCode::Enter | KeyCode::NumpadEnter => {
@@ -523,8 +545,8 @@ impl Lay<'_> {
 
     /// The room the JoF emblem takes before the name ([`crate::jof_tag`]), if any.
     fn jof_room(&self, line: &DockLine<'_>) -> f32 {
-        if crate::jof_tag::tagged(line.name) {
-            crate::jof_tag::room(crate::jof_tag::side(self.size))
+        if let Some(clan) = crate::jof_tag::clan(line.name) {
+            crate::jof_tag::room(clan, crate::jof_tag::side(self.size))
         } else {
             0.0
         }
@@ -634,7 +656,7 @@ pub(crate) fn draw(
     }
     messages(canvas, frame, place, dock, view, tokens);
     let field_top = place.field_top();
-    let field = frame.rect(x - 14.0, field_top, width + 24.0, 34.0);
+    let field = frame.rect(x - FIELD_OVERHANG, field_top, width + 24.0, 34.0);
     let lit = focused || dock.is_typing() || canvas.token_hovered(tokens.field);
     let _ = canvas.draw_list_mut().push(DrawCommand::RoundedRect {
         rect: field,
@@ -643,7 +665,7 @@ pub(crate) fn draw(
     });
     if lit {
         let _ = canvas.draw_list_mut().push(DrawCommand::RoundedRect {
-            rect: frame.rect(x - 14.0, field_top + 6.0, 3.0, 22.0),
+            rect: frame.rect(x - FIELD_OVERHANG, field_top + 6.0, 3.0, 22.0),
             radius: 1.5 * s,
             color: color::GOLD_BRIGHT,
         });
@@ -851,8 +873,9 @@ fn message(
         );
     };
     let jof = lay.jof_room(line);
-    if jof > 0.0 {
+    if let Some(clan) = crate::jof_tag::clan(line.name) {
         crate::jof_tag::draw(
+            clan,
             first.x,
             first.y + first.height * 0.5,
             crate::jof_tag::side(lay.size),
@@ -932,11 +955,11 @@ fn message(
 
 /// Follow the pointer over the dock's names (the last frame's): the sender card of the
 /// sender under it, kept while the pointer is on the card, else none; then draw it
-/// beside the name, over the page. Called after everything else the page draws.
+/// left of the dock ([`Place`]), over the page. Called after everything else the page
+/// draws.
 pub(crate) fn sender_card(
     canvas: &mut MenuCanvas,
     frame: &Frame,
-    viewport: [f32; 2],
     place: Place,
     dock: &mut Dock,
     view: &ChatDock<'_>,
@@ -953,33 +976,45 @@ pub(crate) fn sender_card(
                         && card.person.key_id.as_deref() == Some(line.key_id) =>
                 {
                     card.anchor = anchor;
+                    card.left_at = None;
                 }
                 _ => {
                     dock.sender_card = Some(SenderCard {
                         person: person(line),
                         anchor,
                         located: false,
+                        left_at: None,
                     });
                 }
             }
         }
-        None if canvas.token_hovered(tokens.card) || canvas.token_hovered(tokens.mute) => {}
-        None => dock.sender_card = None,
+        None if canvas.token_hovered(tokens.card) || canvas.token_hovered(tokens.mute) => {
+            if let Some(card) = &mut dock.sender_card {
+                card.left_at = None;
+            }
+        }
+        None => {
+            let now = std::time::Instant::now();
+            let gone = dock.sender_card.as_mut().is_some_and(|card| {
+                let left = *card.left_at.get_or_insert(now);
+                now.duration_since(left) >= CARD_GRACE
+            });
+            if gone {
+                dock.sender_card = None;
+            }
+        }
     }
     let Some(card) = dock.sender_card.as_ref() else {
         return;
     };
     let size = crate::sender_card::size(&card.person, frame.s);
     let gap = 12.0 * frame.s;
-    let origin = if place.card_above {
-        let [_, top] = frame.point(0.0, place.top);
-        [
-            card.anchor.x.min(viewport[0] - size[0]).max(0.0),
-            (top - gap - size[1]).max(0.0),
-        ]
-    } else {
-        crate::sender_card::beside(card.anchor, size, viewport, gap)
-    };
+    // Left of the field, which reaches a little past the dock's text.
+    let [left, floor] = frame.point(place.x - FIELD_OVERHANG, place.card_floor);
+    let origin = [
+        (left - gap - size[0]).max(0.0),
+        card.anchor.y.min(floor - gap - size[1]).max(0.0),
+    ];
     crate::sender_card::draw(
         canvas,
         &crate::sender_card::Card {
@@ -1028,7 +1063,7 @@ mod tests {
         x: 1500.0,
         top: 700.0,
         width: 324.0,
-        card_above: false,
+        card_floor: 1_080.0,
     };
     const VIEWPORT: [f32; 2] = [1920.0, 1080.0];
 
@@ -1258,7 +1293,7 @@ mod tests {
                 x: 1500.0,
                 top: 700.0,
                 width: 324.0,
-                card_above: false,
+                card_floor: 1_080.0,
             };
             let lines = [
                 line("Kyle", "first"),

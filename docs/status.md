@@ -14,6 +14,247 @@ gates, of its rate over the demo's four seconds, of the same rate at 125 to 1000
 second and of its draws; the workspace checks; in game on Windows 11 by Creyon (the
 crackle on `amlogin` on JoF).
 
+## Text fields: Ctrl+A, paste, copy and a held Backspace everywhere
+
+Ctrl+A followed (12/10/2026, branch `personal/select-all`): Sol added Ctrl+A to the rule.
+A one-line field has no caret movement, so [text_entry.rs](../crates/sjk-viewer/src/text_entry.rs)
+keeps one selection, all of one field's text (its address and length, so it never outlives a
+change of text or field): Backspace or Delete clears it, typing or a paste replaces it,
+Ctrl+C copies it and any other key drops it. The menu pages' fields get it through
+`ClientMenu::handle_key` (the field is erased with Backspaces), the prompts, bios, staff
+panel, console browser and SJK chat fields through `before_edit`, the report dialog through
+its line editor's own selection; the console and the game chat had it. The SJK UI's
+`kit::field` and the classic+ `choice_field` draw a highlight over a selected field's text;
+the fields that draw their own text with a trailing `_` show no highlight. Verified: unit
+tests of the selection and the workspace checks. Not tried in game.
+
+Branch `personal/text-input` (12/10/2026): Sol could not paste an IP into the new
+"Add a favourite" prompt, and a held Backspace erased one character; he made it a rule
+that every text field pastes, copies and repeats Backspace ([AGENTS.md](../AGENTS.md)).
+An audit of the typing handlers found the menu's `if event.repeat` return ahead of every
+field behind `ClientMenu::handle_key`, and Ctrl+V handled in only some panels. Now the
+menu lets Backspace and typed keys through while a field is open (`menu.rs`), the address,
+password and browser search use the new one-line helper
+([text_entry.rs](../crates/sjk-viewer/src/text_entry.rs): paste, copy, Backspace, typing),
+the settings, character, create game and key binding fields get a paste as the typed text
+of the clipboard's first line and Ctrl+C of the field, and the bio, report dialog and
+console browser fields accept Ctrl+V as the letter Windows reports and Shift+Insert.
+Verified: unit tests of the helper and the workspace checks. Not covered: the F8
+screenshot panel's numbers and the First setup FPS box (digits only), the wheel editor's
+Ctrl+C. Not tried in game.
+
+## Creyon's PRs #78-#94 merged
+
+Branch `personal/creyon-78-94` (12/10/2026): Sol asked for the review and merge of Creyon's
+seventeen open pull requests (CI green on each, unpushed and not played here). Three pairs
+overlapped and were merged by hand: #87 and #89 both changed `discover()` (every master is
+asked, then the favourites join the list), #89 and #90 both changed the browser's prompts,
+and #82 and #92 both added the frame rate to `FramePacer` (#92's version stands, #82's
+scoreboard header reads it). Sol's decisions on the review: the match clock joins the upper
+right only with the new `cg_drawTimerUpperRight` (off by default; #92 had removed the
+layouts' clock for everyone), the second master `cl_master2` (`master.ouned.de:29060`) and the
+plain-text remembered passwords stay as built, and #89's host name lookup runs off the menu
+thread so a slow DNS answer cannot freeze it.
+
+## Standing on a ledge: no leg stutter
+
+Branch `fix/slope-stand-prediction` (11/10/2026, based on `9dbbdf19`, Linux): Creyon saw his
+legs stutter standing still, worst with one foot over a ledge. His trace showed the server
+sending a slope pose (`LEGS_S1_LUP5`, the foot hanging) while the client, predicting without
+the model's feet, stepped it back to `BOTH_STAND1` within a few commands, every snapshot.
+Prediction now keeps the server's slope pose while the player stands still
+([networking.md](networking.md#standing-on-uneven-ground)). Verified: a predictor test at
+8, 7, 4 and 3 ms command steps (the pose holds; before, it stepped back at the first
+command), the workspace checks, and in game on Windows 11 by Creyon (no stutter standing
+still or on a ledge, the foot hanging).
+
+## A dropped saber stays visible
+
+Branch `fix/dropped-saber` (12/10/2026, based on `9dbbdf19`, Linux): Creyon saw his thrown
+saber vanish once it fell to the ground, until it came back to his hand. A saber that is
+knocked down becomes an `ET_MISSILE` with `WP_SABER`, and the projectile drawing had no
+model for that weapon. It now draws the saber's hilt from `CS_MODELS`, as `CG_Missile` does
+([rendering.md](rendering.md)). Verified: unit tests (the hilt from its model index, the
+default saber without one, nothing while `EF_NODRAW`), the workspace checks, and in game on
+Windows 11 by Creyon (the hilt stays on the ground until pulled back).
+
+## Door sounds
+
+Branch `fix/door-sounds` (12/10/2026, based on `9dbbdf19`, Linux): Creyon heard doors open
+silently on some maps where JoF EternalJK plays their sound. `G_PlayDoorSound` raises
+`EV_PLAYDOORSOUND`, event 71, but SJK's sound events answered only 73 (`EV_BMODEL_SOUND`),
+which a test had taken for the door event. 71 now plays the mover's soundset sound for the
+stage as `CG_PlayDoorSound` does, and nothing without a soundset
+([client.md](client.md#door-and-mover-sounds)). Verified: the door test with the right event
+number, a test for 73 and a door without a soundset, the workspace checks, and in game on
+Windows 11 by Creyon (the silent doors sound).
+
+## Guns sound once
+
+Branch `fix/muzzle-sound-double` (12/10/2026, based on `9dbbdf19`, Linux): Creyon heard
+every gun fire twice. His sound trace showed the fire sound played by the predicted
+`EV_FIRE_WEAPON`, then the same sound three more times about a round trip later: JoF's HD
+muzzle effects carry the fire sound, and SJK started the local player's muzzle flash only
+when the snapshot confirmed the shot, where `CG_FireWeapon` starts it with the predicted
+event. The local flash now starts with the predicted shot, and the confirmation does not
+start it again ([rendering.md](rendering.md)). Verified: tests (a predicted shot flashes
+once; neither its replay nor its confirmation flashes again; a followed or unpredicted
+player's shot flashes from the snapshot), the workspace checks, and in game on Windows 11 by
+Creyon (each shot heard once).
+
+## SJK scoreboard: the frame rate on its header
+
+Branch `feat/scoreboard-fps` (11/10/2026, based on `9dbbdf19`, Linux): Sol asked for the
+frame rate on the SJK scoreboard's header line, left of the clock, in the same type, on by
+default ([sjk-ui.md](sjk-ui.md#scoreboard)). The number is the one the `cg_drawFPS` line
+measures over half a second (`FramePacer::fps`); `cg_scoreboardFps` (archived, default 1,
+Settings > Scoreboard) turns it off. Verified: a test at eight window sizes that "240" and
+"fps" stand in the clock's type left of the clock and right of the mode, and that nothing
+shows without a reading; an off-screen CPU render at 1920x1080 (reviewed); the workspace
+checks; in game on Windows 11 by Creyon.
+
+## Clan emblems: a table, the JoFA tag, JoF in teal, tags as players write them
+
+Branch `feat/jofa-tag` (11/10/2026, based on `9dbbdf19`, Linux): Sol asked for JoF
+Academy's tag to be read like JoF's, with the academy's logo, and Creyon for JoF's emblem
+in the clan's teal and for the tags players write to count. The clans are now the entries
+of a documented table (`jof_tag::KNOWN`: tag, emblem, tint, ink width, how a stuck tag
+counts) read by generic code, with `cg_clanEmblems` to turn every emblem off
+([identity.md](identity.md#clan-tags)). A name tagged `JoFA` gets the academy's HD logo; JoF's
+emblem is tinted `#02B99D`; look-alike letters (`jøf'p Evi`, `J0F`, `Jöƒ`, `jøfå`) and tags
+stuck to the name (`JoFSanjiJ`, `jofsanji`, `JoFAKen`; not `Joffrey`) count. Verified: tag
+tests (JoFA names, look-alikes, stuck tags, near misses, the wider room, the table's order,
+emblems and letters, the setting), previews at 20 to 48 pixels and the workspace checks. In
+game on Windows 11 Creyon saw the HD JoFA emblem, the teal JoF emblem, look-alike tags and
+the setting at work.
+
+## SJK UI in-game menu: the chat under the match card
+
+Branch `feat/ingame-menu-chat-layout` (11/10/2026, based on `9dbbdf19`, Linux): Sol asked
+for the match card to move up and the docked SJK chat to sit under it, in its column, rather
+than in the middle under the match ([sjk-ui.md](sjk-ui.md#in-game-menu)). The card starts at
+y 218 (was 318), the vote over it at 66 and the side's line at 600 (100 higher each); the
+dock is at x 1360, the card's width, from y 770. A sender's card now shows left of the dock
+and above the keys (`chat_dock::Place::card_floor`), since above it lies the match card's
+text, and stays 0.6 seconds after the pointer leaves the name and the card, so the pointer
+can cross the dock to it. The main page's dock does the same: its sender card went beside
+the name, on its right where it fitted, over the message and the dock's lines under it
+(Creyon, 12/10/2026). Verified: tests that the dock lies under the card's lowest control
+with and without a vote, inside the window and right of the keys, at five window sizes; that
+a sender's card lies left of the dock, above the keys and off the list and profile card, and
+stays until its grace has run out; that on the main page it lies left of the dock, above
+the keys, off the profile card and over no text at six window sizes; the existing tests that no control, icon or chat area
+overlaps another; off-screen CPU renders at 1920x1080 with and without a vote and with a
+sender card (reviewed); the workspace checks. In game (Windows 11, Creyon) the layout, the
+card's grace and the main page's card placement work.
+
+## SJK chat page: the sender card covers its text
+
+Branch `fix/sjk-chat-card-overlap` (11/10/2026, based on `9dbbdf19`, Linux): Sol saw the
+times and messages of the SJK chat page show through a sender's card. Text draws over every
+shape, so the page now leaves out the text runs whose measured ink reaches the card while it
+shows ([hub-chat.md](hub-chat.md#in-the-menus)); runs beside it stay. `sjk_ui` gains
+`DrawList::retain` and `Rect::overlaps`. Verified: a unit test (it fails without the change)
+that no history text or time lies under a message sender's card while the history away from
+it still shows, a test of `Rect::overlaps`, an off-screen CPU render of the page at
+1920x1080 with a card over the history (reviewed) and the workspace checks; in game on Windows 11 by
+Creyon.
+
+## Character page: no Model row
+
+Branch `fix/character-model-row` (11/10/2026, based on `9dbbdf19`, Linux): Sol asked to
+remove the Character page's Model row (‹ olol/dark ›), which only stepped to the next model
+like a next button; the grid chooses the model ([sjk-ui.md](sjk-ui.md#character)). The
+classic profile's own model controls are unchanged. Verified: the workspace checks; in game on
+Windows 11 by Creyon.
+
+## Server browser: a second master server
+
+Branch `fix/server-browser-masters` (11/10/2026, based on `9dbbdf19`, Linux): Sol saw
+servers missing from the server list. SJK asked one master (`master.jkhub.org`); stock and
+EternalJK clients know `master.ouned.de` too, which JKHub recommends beside its own. Both are
+now asked at once (`cl_master`, new `cl_master2`) and their lists merged, each server once;
+a master that fails is passed over ([client.md](client.md#menu-style)). Verified: unit tests
+of the list's splitting and of the merge (duplicates, one master down, both down) and the
+workspace checks; in game on Windows 11 by Creyon, the browser filling in from both
+masters.
+
+## Server browser: names in the game's charset
+
+Branch `fix/browser-name-symbols` (11/10/2026, based on `9dbbdf19`, Linux): Creyon saw
+`?jof?entinel?rollem2` in the browser for `jof§entinel·rollem2`, and servers missing from
+the list. Server replies carry names as Windows-1252 bytes; the browser refused a server
+info that was not UTF-8 (the server vanished from the list) and replaced such bytes in
+players' names with `?`. Infos, statuses and printed replies are now read as the game reads
+chat (`sjk_protocol::decode_legacy_text`: UTF-8 when valid, else byte by byte)
+([client.md](client.md#menu-style)). Verified: tests that a host name with `»«§` keeps its
+server and that a status's player names keep `·§`, and the workspace checks; in game on
+Windows 11 by Creyon, the names showing right and those servers listed.
+
+## Server browser: add a favourite by its address
+
+Branch `feat/browser-favourite-by-address` (11/10/2026, based on `9dbbdf19`, Linux): Sol
+asked for favourites added by hand. The SJK UI browser's left column gains Add a favourite
+(and the key A): a prompt like Join by address that keeps the address as a favourite, then
+shows the favourites and refreshes ([sjk-ui.md](sjk-ui.md#servers)). Every refresh now asks
+the favourites for their info directly as well as the master's list, so a server no master
+lists still answers; when the master fails the favourites are still asked. Verified: a test
+of the prompt (Add, a bad address and a duplicate refused, the address kept and saved, the
+favourites shown, Join by address unchanged), a test that unlisted favourites are asked
+once, a test that the browser's controls have distinct tokens, the screen test with the new
+button and the workspace checks; in game on Windows 11 by Creyon.
+
+## Server browser: remembered passwords
+
+Branch `feat/browser-saved-passwords` (11/10/2026, based on `9dbbdf19`, Linux): Sol asked
+for a password option for locked servers such as Temple. The password prompt opens with the
+password remembered for that server already typed and has a "Remember on this PC" switch,
+on by default; joining keeps or forgets it ([sjk-ui.md](sjk-ui.md#servers)). Verified: tests
+of the store (kept on disk, forgotten, empty never kept, a bad file read as none) and of the
+prompt (typed next time, the switch above the buttons, switching off forgets); an off-screen
+render of the card (reviewed); the workspace checks; in game on Windows 11 by Creyon.
+
+## Server browser: the players scroll
+
+Branch `feat/browser-players-scroll` (12/10/2026, based on `9dbbdf19`, Linux): Creyon asked
+for the SJK browser's "Playing now" list to scroll instead of ending in "and 16 more". Past
+six players the wheel over the list scrolls it, two rows a notch, with a thin bar showing
+where the rows in view are; it starts at the top for each server ([sjk-ui.md](sjk-ui.md)).
+Verified: a test wheeling through ten players (down, clamped at the last row, up, the server
+table unmoved, everything fitting) and the workspace checks; in game on Windows 11 by
+Creyon.
+
+## Upper right: the frame rate and the match clock as in JoF EJK
+
+Branch `feat/upper-right-fps-timer` (11/10/2026, based on `9dbbdf19`, Linux): `cg_drawFPS`
+showed one long line ("125 FPS host 2.44 ms p99 3.83 max 4.87 1%low 115", wrapping at the
+edge) and `cg_drawTimer` nothing with the game-data HUD. The upper right now stacks them as
+JoF EJK does: "125fps" in big console characters, the frame times smaller under it, then
+the match clock, right-aligned, in every HUD style. Sol kept the layouts' top-centre clock
+by default (12/10/2026): the clock joins the stack only with `cg_drawTimerUpperRight`
+(Settings > HUD, off by default), and then the layouts' own clock steps aside
+([client.md](client.md#hud-style)). Verified: a test of the stack's order and height, an
+off-screen render of the three lines in the console font (reviewed) and the workspace
+checks; in game on Windows 11 by Creyon.
+
+## showplayerid
+
+Branch `feat/showplayerid` (11/10/2026, based on `9dbbdf19`, Linux): Creyon asked for JoF
+EternalJK's `showPlayerId`. The console command `showplayerid` prints each player's client
+number, coloured team letter and name (` (bot)` after bots) from the player configstrings,
+then `Listed N clients`, in EternalJK's format ([client.md](client.md)). Verified: unit tests
+for the lines and an empty server, and the workspace checks; in game on Windows 11 by Creyon.
+
+## amcolor kept across reconnects
+
+Branch `fix/amcolors-saved` (11/10/2026, based on `9dbbdf19`, Linux): Creyon reported that a
+tint set with `amcolor` was gone after reconnecting. SJK had EternalJK's `amColor` only as
+the JA+ mod's `japlus.color`, so `amcolor` went to the server, which applied it for that
+connection only. The console command `amcolor <r> <g> <b>` now sets the archived
+`char_color_*` userinfo cvars, as EternalJK does ([client.md](client.md)). Verified: unit
+tests (set, saved and read back by a new console; bad values change nothing) and the
+workspace checks; in game on Windows 11 by Creyon (kept across a reconnect).
+
 ## Downloads that work, and what they may bring
 
 Branch `personal/allow-download` (12/10/2026, based on `c2016fbf`, Windows 11). Sol

@@ -31,8 +31,10 @@ const TAYSTJK_USERINFO: [(&str, &str); 5] = [
 ///
 /// - `cjp_client` is [`SJK_CLIENT`], so an admin's `amstatus` shows SJK (Sol,
 ///   12/10/2026; it was JoF EJK's `1.6.4 JoF` for a day, the JA+ 1.4B4
-///   plugin's `1.4B4` before). JA+ servers take any name as a plugin user, as
-///   they take JoF EJK's and EternalJK's `1.4JAPRO`. The player's `cjp_client`
+///   plugin's `1.4B4` before). A JA+ server takes it for a plugin user only when
+///   it starts with a version number, as `1.4B4`, `1.6.4 JoF` and EternalJK's
+///   `1.4JAPRO` do: a bare `SJK` lost the grapple hook's rope and its hold after
+///   `+button12` was released on JoF (Sol, 12/10/2026). The player's `cjp_client`
 ///   setting replaces it ([`PLUGIN_IDENTITY_KEY`]).
 /// - `cp_clanPwd` `"none"` is the default of both the plugin and EternalJK.
 ///
@@ -49,8 +51,9 @@ const JAPLUS_USERINFO: [(&str, &str); 2] = [("cjp_client", SJK_CLIENT), ("cp_cla
 /// (`LegacyUserInfo::extension_overrides`).
 pub const PLUGIN_IDENTITY_KEY: &str = "cjp_client";
 
-/// SJK's plugin name on JA+ servers; the player's `cjp_client` replaces it.
-const SJK_CLIENT: &str = "SJK";
+/// SJK's plugin name on JA+ servers, led by the plugin version the server checks;
+/// the player's `cjp_client` replaces it.
+const SJK_CLIENT: &str = "1.4 SJK";
 
 /// `cp_pluginDisable` sent to plugin servers when the player has not set one:
 /// EternalJK's value (`codemp/cgame/cg_xcvar.h:166`) rather than the JA+
@@ -240,7 +243,7 @@ mod tests {
     #[test]
     fn ja_plus_identifies_as_the_client_plugin() {
         let keys = CompatProfile::JaPlus { version: None }.userinfo_extensions();
-        assert_eq!(keys, &[("cjp_client", "SJK"), ("cp_clanPwd", "none")]);
+        assert_eq!(keys, &[("cjp_client", "1.4 SJK"), ("cp_clanPwd", "none")]);
         // 1536 opts out of exactly holstered sabers (bit 9) and ledge grab (bit 10).
         assert_eq!(PLUGIN_DISABLE_DEFAULT, (1 << 9) | (1 << 10));
         assert!(CompatProfile::BaseJka.userinfo_extensions().is_empty());
@@ -288,7 +291,7 @@ mod tests {
         )
         .unwrap();
         let parsed = info(&payload);
-        assert_eq!(parsed.get("cjp_client"), Some("SJK"));
+        assert_eq!(parsed.get("cjp_client"), Some("1.4 SJK"));
         assert_eq!(parsed.get("cp_pluginDisable"), Some("1536"));
         assert_eq!(parsed.get("cp_clanPwd"), Some("none"));
         assert_eq!(parsed.get("color1"), Some("6"));

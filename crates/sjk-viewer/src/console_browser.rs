@@ -446,6 +446,11 @@ impl Browser {
             };
         }
         if let Some(value) = &mut self.editing {
+            if !event.repeat
+                && crate::text_entry::before_edit(value, key, event.text.as_deref(), shift, control)
+            {
+                return BrowserAction::None;
+            }
             match key {
                 KeyCode::Escape => return self.cancel(),
                 KeyCode::F3 if !event.repeat => return BrowserAction::Close,
@@ -453,7 +458,7 @@ impl Browser {
                 KeyCode::Backspace => {
                     value.pop();
                 }
-                _ if !event.repeat => type_into(value, event, VALUE_LIMIT),
+                _ if !event.repeat => type_into(value, event, key, shift, control, VALUE_LIMIT),
                 _ => {}
             }
             return BrowserAction::None;
@@ -474,6 +479,17 @@ impl Browser {
             } else {
                 self.tab + 1
             }),
+            _ if !event.repeat
+                && crate::text_entry::before_edit(
+                    &mut self.filter,
+                    key,
+                    event.text.as_deref(),
+                    shift,
+                    control,
+                ) =>
+            {
+                self.rebuild_visible(None);
+            }
             KeyCode::Backspace => {
                 if self.filter.pop().is_some() {
                     self.rebuild_visible(None);
@@ -481,7 +497,7 @@ impl Browser {
             }
             _ if !event.repeat => {
                 let before = self.filter.len();
-                type_into(&mut self.filter, event, FILTER_LIMIT);
+                type_into(&mut self.filter, event, key, shift, control, FILTER_LIMIT);
                 if self.filter.len() != before {
                     self.rebuild_visible(None);
                 }
@@ -516,10 +532,18 @@ fn entry(name: &str, description: &str, kind: Kind) -> Entry {
 
 /// Append the key's text to `field`, or the clipboard's on Ctrl+V; control characters
 /// are dropped and `field` stays within `limit` bytes.
-fn type_into(field: &mut String, event: &KeyEvent, limit: usize) {
+fn type_into(
+    field: &mut String,
+    event: &KeyEvent,
+    key: KeyCode,
+    shift: bool,
+    control: bool,
+    limit: usize,
+) {
     let pasted;
     let text = match event.text.as_deref() {
-        Some("\u{16}") => {
+        // Ctrl+V (Windows hands the letter without Ctrl) or Shift+Insert.
+        text if crate::sjk_chat_field::is_paste(key, text, shift, control) => {
             pasted = super::clipboard::paste().unwrap_or_default();
             pasted.as_str()
         }

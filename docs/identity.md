@@ -371,7 +371,7 @@ name, description, ribbon colours and two pictures in `assets/medals` (`<id>.png
 whole medal on its ribbon, 512 square; `<id>_small.png`, the medallion alone, 128
 square, for anything under about 64 pixels). A new medal is one entry there and two
 pictures; new art is a file replacement. The JoF Clan medal (`jof_clan`) was dropped on
-10/10/2026 for the [JoF clan tag](#jof-clan-tag); a client ignores an old award of it as
+10/10/2026 for the [JoF clan tag](#clan-tags); a client ignores an old award of it as
 an unknown id.
 
 Where they show:
@@ -449,25 +449,44 @@ so a player's medals, counts, dates and notes are visible to everyone, as their 
 name and verified flag are. The client sends nothing about medals.
 
 
-## JoF clan tag
+## Clan tags
 
-A player whose name carries the JoF clan's tag gets the clan's emblem (J, o, F) on the
-left of their name, tinted crimson. It is read from the name alone, so it shows what a
-player says, not something the hub vouches for; it needs no hub and no SJK identity.
-[jof_tag.rs](../crates/sjk-viewer/src/jof_tag.rs) holds the rule, the size and the drawing.
+A player whose name carries a known clan's tag gets the clan's emblem on the left of their
+name. It is read from the name alone, so it shows what a player says, not something the
+hub vouches for; it needs no hub and no SJK identity.
+[jof_tag.rs](../crates/sjk-viewer/src/jof_tag.rs) holds the clans, the rule, the size and
+the drawing. `cg_clanEmblems` (archived, default 1, Settings > Scoreboard > Clan emblems)
+0 turns every emblem off.
 
-The rule (the clan's): `jof` in any case, with no letter right before the J (the name
-starts there or a separator comes first: a space, a bracket, a dot, a digit...) and no
-letter right after the F. Colour codes are dropped first. `{JoF}Name`, `jof.Name`,
-`[JOF] Name`, `Name-JoF` and `^1J^7oF` count; `Joffrey`, `MrJoF` and `Jofa` do not. Any
-Unicode letter counts as a letter.
+The clans are the entries of `jof_tag::KNOWN`, each with its tag, its emblem, its tint,
+the share of the emblem's square its ink spans and how a tag stuck to a name counts,
+with the reason and who asked; supporting a clan means adding an entry and its emblem
+(an icon atlas cell each, room for four). Longer tags come first, so `JoFA` is read
+before `JoF`.
+
+| Clan | Tag | Emblem | Stuck to a name |
+| --- | --- | --- | --- |
+| JoF Academy (Sol's request, 11/10/2026) | `JoFA` | `jofa-emblem.png`, the academy's HD logo in its own colours | with the tag's capitals and a capitalised word after it (`JoFAKen`) |
+| JoF, Jedi of Freedom | `JoF` | `jof-emblem.png`, J o F, tinted in the teal of the clan's logo (`#02B99D`; crimson until 11/10/2026) | in any case, unless a second f follows (`JoFSanjiJ`, `jofsanji`; not `Joffrey`) |
+
+The rule, for every clan: the tag's letters in any case, with no letter right before the
+first (the name starts there or a separator comes first: a space, a bracket, a dot, a
+digit...). Colour codes are dropped first. `{JoF}Name`, `jof.Name`, `[JOF] Name`,
+`Name-JoF`, `^1J^7oF`, `JoFA}Ken`, `^5JoFA^7<3Toad` and `[jofa] Ken` count; `MrJoF` does
+not, and `JoFAx` reads as JoF. Any Unicode letter counts as a letter. Each tag letter may
+be written with a look-alike, as players do (Creyon's request, 11/10/2026): `jøf'p Evi`,
+`J0F`, `Jöƒ`, `{J°F}` and `jøfå` count. The look-alikes are accented and stroked forms,
+Greek, Cyrillic and full-width letters, `0`, `°` and `º` for the o and `Λ`, `Δ` for the A
+(`looks_like`); a clan whose tag has other letters may need theirs added.
 
 Where it shows: the game chat's name rows, SJK chat lines in the feed, the SJK UI's chat
 dock and chat page, the scoreboard (classic and SJK, list rows and duel cards), the player
 card (`inspect`) and the SJK UI Players page's card. Not on nameplates.
 
-The emblem is `assets/branding/jof-emblem.png` (128 square, white on transparent, one icon
-atlas cell), rendered from the clan's SVG path by `scripts/jof_emblem.py`.
+The emblems are 128-pixel squares in `assets/branding` ([README](../assets/branding/README.md)):
+JoF's rendered from the clan's SVG path by `scripts/jof_emblem.py`, the academy's shrunk
+from its HD logo (1295 by 1214) by `scripts/clan_emblem.py` (cropped to its ink, centred
+and scaled with Lanczos on premultiplied alpha).
 
 ## Unlocks and looks
 

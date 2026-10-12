@@ -25,6 +25,17 @@ const WINDOWS_1252_HIGH: [char; 32] = [
     '\u{2dc}', '\u{2122}', '\u{161}', '\u{203a}', '\u{153}', '\u{9d}', '\u{17e}', '\u{178}',
 ];
 
+/// Decode text a server sent: UTF-8 when the bytes are UTF-8 (SJK and some mods send
+/// it), else one character per byte, Latin-1, as the rest of the client reads incoming
+/// text (`sjk_client::decode_legacy`). A name such as `jof§entinel` (byte 0xA7) then reads
+/// as its glyph instead of being refused or replaced by a question mark.
+pub fn decode_legacy_text(bytes: &[u8]) -> Cow<'_, str> {
+    match std::str::from_utf8(bytes) {
+        Ok(text) => Cow::Borrowed(text),
+        Err(_) => Cow::Owned(bytes.iter().map(|&byte| char::from(byte)).collect()),
+    }
+}
+
 /// Encode text for the wire as legacy clients read it.
 ///
 /// Text whose every character has a Windows-1252 byte is sent as those bytes: ASCII

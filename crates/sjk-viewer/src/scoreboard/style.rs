@@ -29,6 +29,17 @@ pub(crate) fn compact(console: Option<&ViewerConsole>) -> bool {
         .unwrap_or(true)
 }
 
+/// Whether the SJK look shows the frame rate on its header line, left of the clock
+/// (Sol's request, 11/10/2026: on by default).
+pub(crate) const FPS_CVAR: &str = "cg_scoreboardFps";
+
+/// Whether the SJK look shows the frame rate (`cg_scoreboardFps`, on unless set off).
+pub(crate) fn fps(console: Option<&ViewerConsole>) -> bool {
+    console
+        .and_then(|console| console.bool_cvar(FPS_CVAR))
+        .unwrap_or(true)
+}
+
 /// Layout family of the scoreboard, as drawn.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub(crate) enum ScoreboardStyle {

@@ -12,7 +12,8 @@ them is edited by hand.
 | `emblem-core.png` | 512, additive | The menu emblem's pulsing orange core and ring |
 | `emblem-lights.png` | 512, additive | The menu emblem's shimmering cyan blade lights |
 | `icon-32.png`, `icon-64.png` | 32, 64 | The client's window icons ([window_icon.rs](../../crates/sjk-viewer/src/window_icon.rs)) |
-| `jof-emblem.png` | 128, white on transparent | The JoF clan's emblem beside tagged names ([jof_tag.rs](../../crates/sjk-viewer/src/jof_tag.rs)); rendered from the clan's SVG path by `python scripts/jof_emblem.py` (not SJK's emblem) |
+| `jof-emblem.png` | 128, white on transparent | The JoF clan's emblem beside tagged names, drawn tinted teal ([jof_tag.rs](../../crates/sjk-viewer/src/jof_tag.rs)); rendered from the clan's SVG path by `python scripts/jof_emblem.py` (not SJK's emblem) |
+| `jofa-emblem.png` | 128, full colour | JoF Academy's emblem beside JoFA-tagged names ([jof_tag.rs](../../crates/sjk-viewer/src/jof_tag.rs)); the academy's HD logo (1295x1214, supplied by the clan, not kept here) shrunk by `python scripts/clan_emblem.py <logo.png> <out.png>` (not SJK's emblem) |
 | `sjk.ico` | 16 to 256 | Windows icon of `sjk.exe` and `sjk-server.exe` (the crates' `build.rs`) |
 | `site/assets/sjk-logo-512.png` | 512 | The site's hero |
 | `site/assets/favicon.ico`, `favicon-32.png` | 16 to 48 | The site's favicon and navigation mark |

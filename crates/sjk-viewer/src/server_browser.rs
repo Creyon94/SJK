@@ -148,6 +148,16 @@ impl ServerBrowser {
         self.details.state()
     }
 
+    /// The first of the selected server's players the details panel shows.
+    pub(crate) fn player_scroll(&self) -> usize {
+        self.details.player_scroll()
+    }
+
+    /// Wheel the selected server's players `by` rows, `page` in view.
+    pub(crate) fn scroll_players(&mut self, by: i32, page: usize) {
+        self.details.scroll_players(by, page);
+    }
+
     pub(crate) fn entries(&self) -> &[ServerEntry] {
         &self.entries
     }
@@ -195,6 +205,24 @@ impl ServerBrowser {
     pub(crate) fn push_filter(&mut self, text: &str) {
         self.filter.push_str(text);
         self.rebuild_visible();
+    }
+    /// A key in the search field: pasted, copied, deleted back or typed ([`crate::text_entry`]).
+    /// Whether the search text changed or the key was the field's own (copy), so the menu
+    /// does not read it again as a command.
+    pub(crate) fn edit_filter(
+        &mut self,
+        key: winit::keyboard::KeyCode,
+        text: Option<&str>,
+        shift: bool,
+        control: bool,
+    ) -> bool {
+        let copy = crate::text_entry::is_copy(key, text, control);
+        let changed =
+            crate::text_entry::edit(&mut self.filter, key, text, shift, control, 64, true);
+        if changed {
+            self.rebuild_visible();
+        }
+        changed || copy
     }
     pub(crate) fn pop_filter(&mut self) {
         self.filter.pop();
@@ -450,6 +478,11 @@ impl ServerBrowser {
         self.entries = entries;
         self.fetched_at = Some(Instant::now());
         self.rebuild_visible();
+    }
+
+    /// Keep favourites in `path` from now on, as a profile does.
+    pub(crate) fn keep_favourites_for_test(&mut self, path: std::path::PathBuf) {
+        self.favorites_path = Some(path);
     }
 
     /// Show `view` as the answer of the selected server's status query.

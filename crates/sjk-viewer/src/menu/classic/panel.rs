@@ -1058,6 +1058,18 @@ impl PanelPlace {
         let width = self.controls_end() - x;
         let field = self.centred(slot, x, width, self.control_height());
         self.frame_control(canvas, self.place.rect(field), focused);
+        if focused && !caret && crate::text_entry::selection_shown() {
+            // Ctrl+A: the field's text is selected.
+            let _ = canvas.draw_list_mut().push(DrawCommand::SolidRect {
+                rect: self.place.rect([
+                    field[0] + 2.0,
+                    field[1] + 2.0,
+                    field[2] - 4.0,
+                    field[3] - 4.0,
+                ]),
+                color: Color::new(0.35, 0.55, 1.0, 0.4),
+            });
+        }
         let text_end = x + width - if caret { 10.0 } else { 3.0 };
         canvas.text_fmt_aligned(
             text,

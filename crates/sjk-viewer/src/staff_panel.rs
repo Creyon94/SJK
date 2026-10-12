@@ -696,6 +696,16 @@ impl Panel {
         };
         let typing = matches!(self.focus, SEARCH_TOKEN | NOTE_TOKEN | MERGE_FIELD_TOKEN);
         let in_list = (PLAYER_BASE..PLAYER_BASE + PLAYERS_SHOWN as u16).contains(&self.focus);
+        if typing && !event.repeat {
+            let field = match self.focus {
+                SEARCH_TOKEN => &mut self.query,
+                MERGE_FIELD_TOKEN => &mut self.merge_from,
+                _ => &mut self.note,
+            };
+            if crate::text_entry::before_edit(field, key, event.text.as_deref(), shift, control) {
+                return PanelAction::None;
+            }
+        }
         match key {
             // A merge being confirmed or picked is let go first.
             KeyCode::Escape if self.pending_merge.is_some() => {

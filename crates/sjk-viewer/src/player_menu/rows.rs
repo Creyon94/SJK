@@ -12,7 +12,6 @@ pub(super) enum CharacterRow {
     Team,
     /// SJK: words the grid's models must contain.
     Search,
-    Model,
     Head,
     Torso,
     Legs,
@@ -27,7 +26,6 @@ impl CharacterRow {
             Self::Name => "Name",
             Self::Team => "Team colour",
             Self::Search => "Search",
-            Self::Model => "Model",
             Self::Head => "Head",
             Self::Torso => "Torso",
             Self::Legs => "Legs",
@@ -53,24 +51,24 @@ impl CharacterRow {
             Self::Torso => Some(1),
             Self::Legs => Some(2),
             Self::Skin => Some(3),
-            Self::Name | Self::Team | Self::Search | Self::Model | Self::Hat | Self::Cape => None,
+            Self::Name | Self::Team | Self::Search | Self::Hat | Self::Cape => None,
         }
     }
 }
 
-const CHARACTER_ROWS: [CharacterRow; 6] = [
+// No Model row (Sol's decision, 11/10/2026): it only stepped to the next model, like a
+// next button; the grid chooses the model.
+const CHARACTER_ROWS: [CharacterRow; 5] = [
     CharacterRow::Name,
     CharacterRow::Team,
     CharacterRow::Search,
-    CharacterRow::Model,
     CharacterRow::Hat,
     CharacterRow::Cape,
 ];
-const SPECIES_ROWS: [CharacterRow; 10] = [
+const SPECIES_ROWS: [CharacterRow; 9] = [
     CharacterRow::Name,
     CharacterRow::Team,
     CharacterRow::Search,
-    CharacterRow::Model,
     CharacterRow::Head,
     CharacterRow::Torso,
     CharacterRow::Legs,

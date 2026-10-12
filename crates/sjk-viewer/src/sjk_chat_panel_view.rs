@@ -113,8 +113,8 @@ fn lay(message: &ChatMessage, inputs: &Inputs<'_>, measure: &Measure<'_>, s: f32
     } else {
         name
     };
-    let jof = if crate::jof_tag::tagged(&message.name) {
-        crate::jof_tag::room(crate::jof_tag::side(NAME_SIZE))
+    let jof = if let Some(clan) = crate::jof_tag::clan(&message.name) {
+        crate::jof_tag::room(clan, crate::jof_tag::side(NAME_SIZE))
     } else {
         0.0
     };
@@ -174,6 +174,53 @@ fn lay(message: &ChatMessage, inputs: &Inputs<'_>, measure: &Measure<'_>, s: f32
         drop,
         gif,
     }
+}
+
+/// Leave out of `canvas` the text runs whose ink reaches `card` (measured with
+/// `measure`): text draws over every shape, so a run under a card drawn later would
+/// show through it. A run's rectangle can be far wider than its ink (a message's is
+/// the whole list's width), so the ink is measured, else short lines beside the card
+/// would vanish too.
+fn leave_out_text_under(canvas: &mut MenuCanvas, measure: &Measure<'_>, card: sjk_ui::Rect) {
+    let mut covered = Vec::new();
+    for command in canvas.draw_list().commands() {
+        let &DrawCommand::Text {
+            rect,
+            text,
+            size,
+            align,
+            weight,
+            ..
+        } = command
+        else {
+            continue;
+        };
+        if !rect.overlaps(card) {
+            continue;
+        }
+        let face = if matches!(weight, FontWeight::Regular) {
+            TextFace::Regular
+        } else {
+            TextFace::Semibold
+        };
+        // A little room for the face's own spacing and weight.
+        let ink =
+            (measure.width(canvas.stored_text(text), size, face) * 1.05 + 2.0).min(rect.width);
+        let x = match align {
+            TextAlign::Start => rect.x,
+            TextAlign::End => rect.right() - ink,
+            _ => rect.x + (rect.width - ink) * 0.5,
+        };
+        if sjk_ui::Rect::new(x, rect.y, ink, rect.height).overlaps(card) {
+            covered.push(text);
+        }
+    }
+    if covered.is_empty() {
+        return;
+    }
+    canvas.draw_list_mut().retain(
+        |command| !matches!(command, DrawCommand::Text { text, .. } if covered.contains(text)),
+    );
 }
 
 impl Panel {
@@ -380,8 +427,9 @@ impl Panel {
     fn message(&mut self, frame: &Frame, laid: &Laid, y: f32) {
         let s = frame.s;
         let first = frame.rect(LIST_X, y, LIST_WIDTH, NAME_ROW - 2.0);
-        if laid.jof > 0.0 {
+        if let Some(clan) = crate::jof_tag::clan(&laid.name) {
             crate::jof_tag::draw(
+                clan,
                 first.x,
                 first.y + first.height * 0.5,
                 crate::jof_tag::side(NAME_SIZE * s),
@@ -1076,6 +1124,13 @@ impl Panel {
                 crate::sender_card::beside(card.anchor, size, viewport, 12.0 * s)
             }
         };
+        // Text draws over every shape: the page's text under the card is left out, or
+        // the times and messages showed through it (Sol, 11/10/2026).
+        leave_out_text_under(
+            &mut self.ui,
+            measure,
+            sjk_ui::Rect::new(origin[0], origin[1], size[0], size[1]),
+        );
         crate::sender_card::draw(
             &mut self.ui,
             &crate::sender_card::Card {
@@ -1760,6 +1815,50 @@ mod tests {
         panel.selected = None;
         let _ = panel.activate(PERSON_BASE + 1);
         assert_eq!(panel.selected, None);
+    }
+
+    /// A sender's card over the history leaves out the text it covers (text draws over
+    /// every shape, so the times and messages showed through it, Sol 11/10/2026); the
+    /// rest of the page keeps its text.
+    #[test]
+    fn a_senders_card_leaves_out_the_text_it_covers() {
+        let fonts = crate::text::load_modern(1.0, None).expect("Inter");
+        let state = chat(12);
+        let mut panel = Panel::new();
+        panel.open(true);
+        let inputs = inputs(&state, &[], false);
+        panel.build_with(&inputs, &fonts.font, [1920.0, 1080.0]);
+        let name = panel
+            .ui
+            .rect_for(NAME_BASE + 6)
+            .expect("a name in the middle of the history");
+        let before = texts(&panel).len();
+        point_at(
+            &mut panel,
+            &inputs,
+            &fonts.font,
+            [name.x + 4.0, name.y + name.height * 0.5],
+        );
+        assert!(matches!(
+            panel.card.as_ref().map(|card| &card.source),
+            Some(CardSource::Message(_))
+        ));
+        let card = panel.ui.rect_for(CARD_TOKEN).expect("the card's target");
+        let shown = texts(&panel);
+        let history: Vec<_> = (1..=12).map(|id| format!("message {id}")).collect();
+        let page_text = |text: &str| {
+            history.iter().any(|line| line == text) || text.ends_with(" ago") || text == "just now"
+        };
+        let under: Vec<_> = shown
+            .iter()
+            .filter(|(text, rect, _)| rect.overlaps(card) && page_text(text))
+            .collect();
+        assert!(under.is_empty(), "page text under the card: {under:?}");
+        assert!(
+            shown.iter().any(|(text, ..)| history.contains(text)),
+            "the history away from the card still shows"
+        );
+        assert!(shown.len() < before + 20, "nothing doubled");
     }
 
     /// When the faces change under a pointer that does not move, what it rests on is

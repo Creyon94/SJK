@@ -368,8 +368,7 @@ impl ClientMenu {
         if entry.is_some_and(|entry| entry.password) {
             // The browser draws the password prompt.
             self.open_browser();
-            self.password.clear();
-            self.password_target = Some(address);
+            self.open_password_prompt(address);
             return MenuAction::None;
         }
         self.state.connecting(address.clone());

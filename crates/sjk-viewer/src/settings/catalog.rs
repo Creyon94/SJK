@@ -259,8 +259,18 @@ pub(super) const HUD_OPTIONS: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Scoreboard frame rate",
+        cvar: crate::scoreboard::style::FPS_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Scoreboard client IDs",
         cvar: "cg_showClientIDs",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Clan emblems",
+        cvar: crate::jof_tag::CVAR,
         kind: ValueKind::Bool,
     },
     Setting {
@@ -440,6 +450,11 @@ pub(super) const HUD: &[Setting] = &[
     Setting {
         label: "Match timer",
         cvar: "cg_drawTimer",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Upper right clock",
+        cvar: "cg_drawTimerUpperRight",
         kind: ValueKind::Bool,
     },
     Setting {
@@ -707,6 +722,11 @@ pub(super) const NETWORK: &[Setting] = &[
     Setting {
         label: "Master server",
         cvar: "cl_master",
+        kind: ValueKind::Text,
+    },
+    Setting {
+        label: "Second master server",
+        cvar: "cl_master2",
         kind: ValueKind::Text,
     },
     Setting {

@@ -88,6 +88,9 @@ pub(super) struct Policy {
     pub(super) inventory: bool,
     /// Match clock direction and precision.
     pub(super) timer: [bool; 2],
+    /// The match clock stands in the upper right under the frame rate
+    /// (`cg_drawTimerUpperRight`), not in the layout.
+    pub(super) timer_upper_right: bool,
     /// Whether names retain colors.
     pub(super) name_colors: bool,
     /// Name alpha multiplier.
@@ -120,6 +123,7 @@ impl Policy {
                 i("cg_drawtimercountdown", 0) != 0,
                 i("cg_drawtimermsec", 0) != 0,
             ],
+            timer_upper_right: i("cg_drawtimerupperright", 0) != 0,
             name_colors: i("cg_drawcrosshairnamescolours", 1) != 0,
             name_alpha: f("cg_drawcrosshairnamesopacity", 1.0).clamp(0.0, 1.0),
             team: [
@@ -135,7 +139,11 @@ impl Policy {
     pub(super) fn visible(self, binding: Option<&str>) -> bool {
         match binding {
             Some("vote_panel") => self.vote,
-            Some("match_timer" | "team_rows") => self.upper,
+            // With `cg_drawTimerUpperRight` the match clock stands in the upper right
+            // under the frame rate, as JoF EJK draws it (`console_overlay`), not in the
+            // layout.
+            Some("match_timer") => self.upper && !self.timer_upper_right,
+            Some("team_rows") => self.upper,
             _ => true,
         }
     }
@@ -347,5 +355,22 @@ pub(super) fn name(text: &mut String, value: &str, colors: bool) {
         } else {
             text.push(c);
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// The layouts keep their own match clock unless `cg_drawTimerUpperRight` moves it to
+    /// the upper right (Sol, 12/10/2026: the clock stays in the layout by default).
+    #[test]
+    fn the_layout_clock_steps_aside_only_for_the_upper_right_clock() {
+        let mut policy = Policy::default();
+        assert!(!policy.timer_upper_right);
+        assert!(policy.visible(Some("match_timer")));
+        policy.timer_upper_right = true;
+        assert!(!policy.visible(Some("match_timer")));
+        assert!(policy.visible(Some("vote_panel")));
     }
 }

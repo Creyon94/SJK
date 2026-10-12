@@ -34,8 +34,13 @@ pub(crate) const HUD_PREVIEW_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(u32:
 pub(crate) const LOGO_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(LOGO_ICON);
 /// `TexturedQuad` texture naming the gold verified badge, drawn once at start.
 pub(crate) const VERIFIED_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(icons::VERIFIED_ICON);
-/// `TexturedQuad` texture naming the JoF clan's emblem (`jof_tag`): white, drawn tinted.
-pub(crate) const JOF_TEXTURE: sjk_ui::TextureId = sjk_ui::TextureId(icons::JOF_ICON);
+/// Atlas cells reserved for the clan emblems (`jof_tag::KNOWN`).
+pub(crate) const CLAN_ICON_CELLS: usize = icons::CLAN_ICON_CELLS as usize;
+
+/// `TexturedQuad` texture naming the emblem of `jof_tag::KNOWN[index]`, uploaded at start.
+pub(crate) fn clan_texture(index: usize) -> sjk_ui::TextureId {
+    sjk_ui::TextureId(icons::CLAN_ICON_FIRST + index.min(CLAN_ICON_CELLS - 1) as u32)
+}
 
 /// Atlas cells reserved for the quick wheels' icons.
 pub(crate) const WHEEL_ICON_CELLS: usize = icons::WHEEL_ICON_CELLS as usize;
@@ -328,9 +333,17 @@ impl ShapeRenderer {
             VERIFIED_TEXTURE,
             &verified_badge::pixels(icons::ICON_SIZE),
         );
-        match image::load_from_memory(crate::jof_tag::EMBLEM_PNG) {
-            Ok(emblem) => icons.upload(queue, JOF_TEXTURE, emblem.into_rgba8().as_raw()),
-            Err(error) => eprintln!("JoF emblem: {error}"),
+        for (index, clan) in crate::jof_tag::KNOWN
+            .iter()
+            .take(CLAN_ICON_CELLS)
+            .enumerate()
+        {
+            match image::load_from_memory(clan.emblem) {
+                Ok(emblem) => {
+                    icons.upload(queue, clan_texture(index), emblem.into_rgba8().as_raw())
+                }
+                Err(error) => eprintln!("{} emblem: {error}", clan.name),
+            }
         }
         let wheel = crate::quick_wheel::ICONS.iter().enumerate();
         let wheel = wheel.map(|(index, icon)| ("quick wheel", wheel_icon(index), icon));

@@ -489,6 +489,23 @@ impl SettingsMenu {
     pub(crate) fn visual_selection(&self) -> (usize, bool) {
         (self.selected, false)
     }
+    /// Whether a field takes the keys: the search, a text row, a number typed or the
+    /// wheel editor's name and command fields.
+    pub(crate) fn typing(&self) -> bool {
+        self.searching
+            || self.editing.is_some()
+            || self.numeric.is_some()
+            || self.wheel.is_open() && self.wheel.typing.is_some()
+    }
+
+    /// The text of the field that has the keys, for Ctrl+C.
+    pub(crate) fn field_text(&self) -> Option<&str> {
+        if self.searching {
+            return Some(&self.search);
+        }
+        self.editing.as_ref().map(|draft| draft.text.as_str())
+    }
+
     pub(crate) fn draw_list(&self) -> &DrawList {
         if self.wheel.is_open() {
             return self.wheel.draw_list();

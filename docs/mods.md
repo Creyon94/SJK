@@ -63,7 +63,7 @@ decimals, as EternalJK's `%f` does.
 | `japlus.autologin` | `autoLogin` | Sends `amlogin <password>` with the password saved for the current server in `japlus.loginServer1-3` / `japlus.loginPass1-3`. A server without a port is `:29070`, and a host name is looked up when the command runs. Like EJK it runs only when asked, not during the intermission, and the passwords are saved as plain text |
 | `japlus.serverconfig` | `serverconfig` | Lists a JA+ server's `jp_cinfo` options (flip kick, roll fix mode, DFA variants, kata, ledge grab, alternate dimension); on jaPRO/TaystJK asks the server |
 | `japlus.plugin [id]` | `pluginDisable` | Lists the fifteen JA+ plugin features as Allowed/Disallowed, or toggles one bit of `cp_pluginDisable` |
-| `japlus.color <r> <g> <b>` | `amColor` | Sets `char_color_red/green/blue`, each 0 to 255 |
+| `japlus.color <r> <g> <b>` | `amColor` | Sets `char_color_red/green/blue`, each 0 to 255; the core `amcolor` does the same on any server ([client.md](client.md)) |
 
 A player is named by client number, by name (colours and case ignored) or by a
 fragment of exactly one name. On a JA+ server the mod also completes JA+'s server

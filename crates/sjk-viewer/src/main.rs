@@ -5,6 +5,7 @@ mod actor_mesh;
 mod actor_pose;
 mod actor_tint;
 mod actor_world_submission;
+mod am_color;
 mod animation_timing;
 mod app_launch;
 mod assets;
@@ -185,6 +186,7 @@ mod platform;
 mod player_animation;
 mod player_assets;
 mod player_identity;
+mod player_ids;
 mod player_menu;
 #[cfg(test)]
 mod player_model_scan;
@@ -221,6 +223,7 @@ mod scoreboard;
 mod screenshot;
 mod server_browser;
 mod server_commands;
+mod server_passwords;
 mod session_log;
 mod session_transition;
 mod settings;
@@ -235,6 +238,7 @@ mod snapshot_presentation;
 mod static_models;
 mod text;
 mod text_dialog;
+mod text_entry;
 mod text_select;
 mod ui_renderer;
 mod ui_scale;
@@ -527,6 +531,8 @@ struct GpuState {
     /// Monitor refresh rate behind `com_maxfps -1`, re-read at most once a second.
     refresh_cap: std::cell::Cell<Option<(Instant, u32)>>,
     frame_pacer: frame_pacing::FramePacer,
+    /// Storage for the upper right's "125fps" line (`console_overlay`).
+    upper_right_rate: String,
     /// Always-on gameplay hitch lines (`hitch_log.rs`).
     hitches: hitch_log::Recorder,
     /// Optional per-pass GPU timing printed with the frame-budget report.
@@ -1406,6 +1412,7 @@ impl GpuState {
             applied_resolution: [size.width, size.height],
             refresh_cap: std::cell::Cell::new(None),
             frame_pacer: frame_pacing::FramePacer::new(),
+            upper_right_rate: String::with_capacity(16),
             hitches: hitch_log::Recorder::default(),
             gpu_phases,
             third_person_camera: camera::State::default(),
@@ -2345,6 +2352,14 @@ impl GpuState {
         projectiles::append_models(
             &self.projectiles,
             &self.missile_effects,
+            self.live_session
+                .as_ref()
+                .map(ClientSession::game_state)
+                .or_else(|| {
+                    self.demo_session
+                        .as_ref()
+                        .map(demo_playback::Session::game_state)
+                }),
             &self.object_meshes,
             object_groups,
         );

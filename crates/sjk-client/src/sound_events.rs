@@ -45,7 +45,7 @@ const CHAN_MENU1: u32 = 11;
 const CHAN_LOCAL: u32 = 1;
 pub(crate) const CHAN_ANNOUNCER: u32 = 9;
 const CS_AMBIENT_SET: usize = 37;
-const EVENT_KIND_COUNT: usize = 58;
+const EVENT_KIND_COUNT: usize = 59;
 const EV_PLAYDOORLOOPSOUND: u16 = 72;
 const EV_MUTE_SOUND: u16 = 74;
 const EV_GENERAL_SOUND: u16 = 76;
@@ -211,6 +211,8 @@ pub enum LegacySoundEvent {
     ItemPop,
     TeleportIn,
     TeleportOut,
+    /// `EV_PLAYDOORSOUND`: a mover's soundset start or end sound (`CG_PlayDoorSound`).
+    PlayDoorSound,
     Bmodel,
     VoiceCommand,
     General,
@@ -304,6 +306,7 @@ impl LegacySoundEvent {
             Self::ItemPop => "EV_ITEM_POP",
             Self::TeleportIn => "EV_PLAYER_TELEPORT_IN",
             Self::TeleportOut => "EV_PLAYER_TELEPORT_OUT",
+            Self::PlayDoorSound => "EV_PLAYDOORSOUND",
             Self::Bmodel => "EV_BMODEL_SOUND",
             Self::VoiceCommand => "EV_VOICECMD_SOUND",
             Self::General => "EV_GENERAL_SOUND",
@@ -1411,13 +1414,21 @@ impl LegacySoundAdapter {
                 CHAN_AUTO,
                 false,
             )),
-            73 => self.ambient_stages[usize::from(entity.soundset)]
+            // `CG_PlayDoorSound` (`cg_ents.c:2796-2821`) for `EV_PLAYDOORSOUND`, which
+            // `G_PlayDoorSound` raises on doors, plats and buttons with a soundset, and
+            // `EV_BMODEL_SOUND` (`cg_event.c`): the soundset's sound for the stage.
+            71 if entity.soundset == 0 => None,
+            71 | 73 => self.ambient_stages[usize::from(entity.soundset)]
                 .get(usize::from(parameter))
                 .copied()
                 .flatten()
                 .map(|sound| {
                     (
-                        LegacySoundEvent::Bmodel,
+                        if event == 71 {
+                            LegacySoundEvent::PlayDoorSound
+                        } else {
+                            LegacySoundEvent::Bmodel
+                        },
                         Some(sound),
                         source,
                         CHAN_AUTO,

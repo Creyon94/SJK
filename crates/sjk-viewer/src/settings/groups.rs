@@ -139,6 +139,7 @@ impl Group {
                 "cg_nameplateWalls",
                 "cg_nameplateNpcs",
                 "cg_drawTimer",
+                "cg_drawTimerUpperRight",
                 crate::version_overlay::CVAR,
                 "cg_speedometer",
                 crate::hud::movement::LINES_ROW,
@@ -155,7 +156,9 @@ impl Group {
             Self::Scoreboard => &[
                 crate::scoreboard::style::CVAR,
                 crate::scoreboard::style::COMPACT_CVAR,
+                crate::scoreboard::style::FPS_CVAR,
                 "cg_showClientIDs",
+                crate::jof_tag::CVAR,
                 "cg_drawScoreboardIcons",
                 "cg_smallScoreboard",
             ],

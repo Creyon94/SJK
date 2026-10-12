@@ -12,7 +12,10 @@ const MODEL_INDEX: usize = 46;
 const SOUND_SET_INDEX: usize = 78;
 const ET_GENERAL: u32 = 0;
 const ET_MOVER: u32 = 6;
-const EV_PLAYDOORSOUND: u32 = 73;
+/// `entity_event_t` (`codemp/game/bg_public.h`): 71 is what `G_PlayDoorSound` raises,
+/// 73 the script and `func_breakable` bmodel sound.
+const EV_PLAYDOORSOUND: u32 = 71;
+const EV_BMODEL_SOUND: u32 = 73;
 const EV_EVENT_BIT1: u32 = 0x100;
 const EV_EVENT_BIT2: u32 = 0x200;
 const BMS_START: u32 = 0;
@@ -94,11 +97,30 @@ fn a_door_sounds_from_the_middle_of_its_model() {
         let [decision] = adapter.decisions() else {
             panic!("one door sound: {:?}", adapter.decisions());
         };
-        assert_eq!(decision.event, LegacySoundEvent::Bmodel);
+        assert_eq!(decision.event, LegacySoundEvent::PlayDoorSound);
         assert!(decision.handle.is_some());
         assert_eq!(decision.request.source, SourceId(u32::from(DOOR)));
         assert_eq!(decision.request.origin, Some(DOOR_MIDPOINT));
     }
+}
+
+#[test]
+fn a_bmodel_sound_and_a_door_without_a_soundset() {
+    let mut adapter = adapter();
+    adapter.observe_snapshot(&snapshot(1_000, vec![door(0, 0)]));
+    adapter.observe_snapshot(&snapshot(
+        1_050,
+        vec![door(EV_EVENT_BIT1 | EV_BMODEL_SOUND, BMS_END)],
+    ));
+    let [decision] = adapter.decisions() else {
+        panic!("one bmodel sound: {:?}", adapter.decisions());
+    };
+    assert_eq!(decision.event, LegacySoundEvent::Bmodel);
+    // `CG_PlayDoorSound` plays nothing for a mover with no soundset.
+    let mut silent = door(EV_EVENT_BIT2 | EV_PLAYDOORSOUND, BMS_START);
+    silent.set_raw_field(SOUND_SET_INDEX, 0);
+    adapter.observe_snapshot(&snapshot(1_100, vec![silent]));
+    assert!(adapter.decisions().is_empty());
 }
 
 #[test]

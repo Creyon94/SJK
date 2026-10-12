@@ -16,8 +16,8 @@ use crate::console::ViewerConsole;
 use crate::menu::browser_filters::BASE as FILTER_BASE;
 use crate::menu::browser_table::TABLE_TOKEN;
 use crate::menu::browser_view::{
-    ADDRESS_TOKEN, BACK_TOKEN, FAVOURITE_TOKEN, FILTER_TOKEN, HEADER_TOKEN, JOIN_TOKEN,
-    REFRESH_TOKEN, ROW_TOKEN, SCROLLBAR_TOKEN,
+    ADD_FAVOURITE_TOKEN, ADDRESS_TOKEN, BACK_TOKEN, FAVOURITE_TOKEN, FILTER_TOKEN, HEADER_TOKEN,
+    JOIN_TOKEN, REFRESH_TOKEN, ROW_TOKEN, SCROLLBAR_TOKEN,
 };
 use crate::menu::levelshot::{Preview, cover_uv};
 use crate::menu::{ClientMenu, MenuAction};
@@ -42,8 +42,9 @@ const SHOW_Y: f32 = 352.0;
 const FILTERS_TOP: f32 = 374.0;
 const FILTER_STEP: f32 = 56.0;
 const FILTER_HEIGHT: f32 = 52.0;
-/// The column's two actions at its foot: refresh, join by address.
-const ACTIONS_TOP: f32 = 842.0;
+/// The column's three actions at its foot: refresh, join by address, add a
+/// favourite by its address.
+const ACTIONS_TOP: f32 = 786.0;
 const ACTION_HEIGHT: f32 = 44.0;
 /// The list: its column, the header line, the rows and how many show.
 const LIST_X: f32 = 470.0;
@@ -65,14 +66,20 @@ const ADDRESS_Y: f32 = 604.0;
 const BUTTONS_TOP: f32 = 664.0;
 const PLAYERS_Y: f32 = 748.0;
 const PLAYER_LINE: f32 = 28.0;
-const PLAYER_LINES: usize = 6;
+pub(crate) const PLAYER_LINES: usize = 6;
+/// The details panel's player list, which the wheel scrolls.
+pub(crate) const PLAYERS_TOKEN: u16 = 27;
+/// Rows of players one wheel notch moves.
+pub(crate) const PLAYER_WHEEL_ROWS: i32 = 2;
 /// The keys' and the status's line at the bottom.
 const KEYS_Y: f32 = 992.0;
 /// The password and address prompts' card.
 const CARD: [f32; 4] = [640.0, 352.0, 640.0, 330.0];
 
-/// The password prompt's tokens: the backdrop, the field, Cancel and Join.
+/// The password prompt's tokens: the backdrop, the field, Cancel and Join; then its
+/// Remember on this PC switch.
 const PASSWORD_TOKENS: [u16; 4] = [33, 30, 31, 32];
+const REMEMBER_TOKEN: u16 = 34;
 /// The address prompt's: the backdrop, the field, Cancel and Connect.
 const ADDRESS_TOKENS: [u16; 4] = [40, 41, 42, 43];
 
@@ -185,10 +192,20 @@ pub(crate) struct BrowserPage {
 
 /// A prompt over the browser.
 enum Dialog<'a> {
-    /// The password of `server` (its name, or address), `length` typed.
-    Password { server: String, length: usize },
-    /// An address being typed, with what was wrong with the last one.
-    Address { input: &'a str, error: &'a str },
+    /// The password of `server` (its name, or address), `length` typed, and
+    /// whether it is to be remembered on this PC.
+    Password {
+        server: String,
+        length: usize,
+        remember: bool,
+    },
+    /// An address being typed, with what was wrong with the last one, to join it
+    /// or (`favourite`) to keep it as a favourite.
+    Address {
+        input: &'a str,
+        error: &'a str,
+        favourite: bool,
+    },
 }
 
 impl ClientMenu {
@@ -207,6 +224,8 @@ impl ClientMenu {
             Some(Dialog::Address {
                 input: &self.address_input,
                 error: &self.address_error,
+                favourite: self.address_purpose
+                    == super::super::controller::AddressPurpose::Favourite,
             })
         } else {
             self.password_target.as_deref().map(|address| {
@@ -222,6 +241,7 @@ impl ClientMenu {
                 Dialog::Password {
                     server,
                     length: self.password.chars().count(),
+                    remember: self.remember_password,
                 }
             })
         };
@@ -598,7 +618,7 @@ impl ClientMenu {
 /// What has the keyboard, for the keys at the bottom.
 enum Focus {
     Password,
-    Address,
+    Address { favourite: bool },
     Search,
     Side(Side),
     List { searched: bool, favourites: bool },
@@ -614,7 +634,9 @@ impl Focus {
     ) -> Self {
         match (dialog, side) {
             (Some(Dialog::Password { .. }), _) => Self::Password,
-            (Some(Dialog::Address { .. }), _) => Self::Address,
+            (Some(Dialog::Address { favourite, .. }), _) => Self::Address {
+                favourite: *favourite,
+            },
             (None, _) if searching => Self::Search,
             (None, Some(index)) => Self::Side(SIDE[index]),
             (None, None) => Self::List {
@@ -761,6 +783,21 @@ fn draw_side(ui: &mut MenuCanvas, frame: &Frame, browser: &ServerBrowser, focus:
         true,
         false,
         ADDRESS_TOKEN,
+    );
+    kit::button(
+        ui,
+        frame,
+        [
+            SIDE_X,
+            ACTIONS_TOP + 2.0 * (ACTION_HEIGHT + 12.0),
+            SIDE_WIDTH,
+            ACTION_HEIGHT,
+        ],
+        "Add a favourite",
+        false,
+        true,
+        false,
+        ADD_FAVOURITE_TOKEN,
     );
 }
 
@@ -1326,13 +1363,23 @@ fn draw_detail(
             if view.players.is_empty() {
                 note(ui, "Nobody is playing.");
             }
-            let more = view.players.len() > PLAYER_LINES;
-            let shown = if more {
-                PLAYER_LINES - 1
-            } else {
-                view.players.len()
-            };
-            for player in &view.players[..shown] {
+            // The wheel scrolls the list (`PLAYERS_TOKEN`); a thin bar on the right
+            // shows where the rows in view are.
+            let scrolls = view.players.len() > PLAYER_LINES;
+            let first = browser
+                .player_scroll()
+                .min(view.players.len().saturating_sub(PLAYER_LINES));
+            let bar = if scrolls { 14.0 } else { 0.0 };
+            ui.scroll_region(
+                PLAYERS_TOKEN,
+                frame.rect(
+                    DETAIL_X,
+                    line_y,
+                    DETAIL_WIDTH,
+                    PLAYER_LINES as f32 * PLAYER_LINE,
+                ),
+            );
+            for player in view.players.iter().skip(first).take(PLAYER_LINES) {
                 let bot = player.ping == 0;
                 text(
                     ui,
@@ -1352,7 +1399,12 @@ fn draw_detail(
                     ui,
                     TextFamily::Display,
                     format_args!("{}", player.score),
-                    frame.rect(DETAIL_X + DETAIL_WIDTH - 100.0, line_y, 100.0, PLAYER_LINE),
+                    frame.rect(
+                        DETAIL_X + DETAIL_WIDTH - 100.0 - bar,
+                        line_y,
+                        100.0,
+                        PLAYER_LINE,
+                    ),
                     18.0 * s,
                     color::MUTED,
                     FontWeight::Regular,
@@ -1360,17 +1412,28 @@ fn draw_detail(
                 );
                 line_y += PLAYER_LINE;
             }
-            if more {
-                let rest = view.players.len() - shown;
-                text(
+            if scrolls {
+                let track = PLAYER_LINES as f32 * PLAYER_LINE;
+                let total = view.players.len() as f32;
+                let top = PLAYERS_Y + 22.0;
+                push(
                     ui,
-                    TextFamily::Body,
-                    format_args!("and {rest} more"),
-                    frame.rect(DETAIL_X + 12.0, line_y, DETAIL_WIDTH, PLAYER_LINE),
-                    16.0 * s,
-                    color::MUTED,
-                    FontWeight::Regular,
-                    TextAlign::Start,
+                    DrawCommand::SolidRect {
+                        rect: frame.rect(DETAIL_X + DETAIL_WIDTH - 4.0, top, 3.0, track),
+                        color: color::alpha(color::HOLO, 0.15),
+                    },
+                );
+                push(
+                    ui,
+                    DrawCommand::SolidRect {
+                        rect: frame.rect(
+                            DETAIL_X + DETAIL_WIDTH - 4.0,
+                            top + track * first as f32 / total,
+                            3.0,
+                            track * PLAYER_LINES as f32 / total,
+                        ),
+                        color: color::alpha(color::HOLO, 0.7),
+                    },
                 );
             }
         }
@@ -1431,7 +1494,10 @@ fn draw_keys(ui: &mut MenuCanvas, frame: &Frame, focus: &Focus) {
     let mut keys: Vec<(&[&str], &str)> = Vec::with_capacity(5);
     match focus {
         Focus::Password => keys.extend([(&["Enter"][..], "join"), (&["Esc"][..], "cancel")]),
-        Focus::Address => keys.extend([(&["Enter"][..], "connect"), (&["Esc"][..], "cancel")]),
+        Focus::Address { favourite } => keys.extend([
+            (&["Enter"][..], if *favourite { "add" } else { "connect" }),
+            (&["Esc"][..], "cancel"),
+        ]),
         Focus::Search => keys.extend([(&["Enter"][..], "servers"), (&["Esc"][..], "clear")]),
         Focus::Side(side) => {
             keys.push(match side {
@@ -1447,6 +1513,7 @@ fn draw_keys(ui: &mut MenuCanvas, frame: &Frame, focus: &Focus) {
             favourites,
         } => {
             keys.extend([(&["Enter"][..], "join"), (&["F"][..], "favourite")]);
+            keys.push((&["A"][..], "add by address"));
             if !searched {
                 keys.push((
                     &["Tab"][..],
@@ -1487,10 +1554,15 @@ fn draw_dialog(ui: &mut MenuCanvas, frame: &Frame, viewport: [f32; 2], dialog: &
         Dialog::Address { .. } => ADDRESS_TOKENS,
     };
     ui.hit_region(backdrop, Rect::new(0.0, 0.0, viewport[0], viewport[1]));
-    let [x, y, width, height] = CARD;
-    kit::card(ui, frame, CARD);
+    // The password's card is taller, for its Remember on this PC line.
+    let card = match dialog {
+        Dialog::Password { .. } => [CARD[0], CARD[1] - 26.0, CARD[2], CARD[3] + 52.0],
+        Dialog::Address { .. } => CARD,
+    };
+    let [x, y, width, height] = card;
+    kit::card(ui, frame, card);
     let (title, body, value, error, action, ready) = match dialog {
-        Dialog::Password { server, length } => (
+        Dialog::Password { server, length, .. } => (
             "Password",
             format!("{server} needs a password to join."),
             String::new(),
@@ -1498,12 +1570,28 @@ fn draw_dialog(ui: &mut MenuCanvas, frame: &Frame, viewport: [f32; 2], dialog: &
             "Join",
             *length > 0,
         ),
-        Dialog::Address { input, error } => (
+        Dialog::Address {
+            input,
+            error,
+            favourite: false,
+        } => (
             "Join by address",
             "Type the server's address, with its port if it is not 29070.".to_owned(),
             (*input).to_owned(),
             *error,
             "Connect",
+            !input.trim().is_empty(),
+        ),
+        Dialog::Address {
+            input,
+            error,
+            favourite: true,
+        } => (
+            "Add a favourite",
+            "Type the server's address, with its port if it is not 29070. It is kept and asked for whether a master server lists it or not.".to_owned(),
+            (*input).to_owned(),
+            *error,
+            "Add",
             !input.trim().is_empty(),
         ),
     };
@@ -1580,6 +1668,26 @@ fn draw_dialog(ui: &mut MenuCanvas, frame: &Frame, viewport: [f32; 2], dialog: &
             TextAlign::Start,
         );
     }
+    if let Dialog::Password { remember, .. } = dialog {
+        // Remember on this PC: the switch at its right, the whole line its target.
+        let line = y + 250.0;
+        text(
+            ui,
+            TextFamily::Body,
+            format_args!("Remember on this PC"),
+            frame.rect(x + 40.0, line - 12.0, 300.0, 24.0),
+            17.0 * s,
+            if *remember { color::TEXT } else { color::MUTED },
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+        let hovered = ui.token_hovered(REMEMBER_TOKEN);
+        kit::switch(ui, frame, x + 40.0 + 300.0, line, *remember, hovered);
+        ui.hit_region(
+            REMEMBER_TOKEN,
+            frame.rect(x + 34.0, line - 18.0, 312.0, 36.0),
+        );
+    }
     let buttons = y + height - 40.0 - 46.0;
     kit::button(
         ui,
@@ -1623,7 +1731,7 @@ const _: () = assert!(super::SEARCH_PILL[1] + super::SEARCH_PILL[3] < HEADER_TOP
 const _: () = assert!(HEADER_TOP + HEADER_HEIGHT < ROWS_TOP);
 const _: () = assert!(ROWS_TOP + VISIBLE as f32 * ROW < KEYS_Y - 20.0);
 const _: () = assert!(FILTERS_TOP + 4.0 * FILTER_STEP < ACTIONS_TOP);
-const _: () = assert!(ACTIONS_TOP + 2.0 * ACTION_HEIGHT + 12.0 < KEYS_Y - 20.0);
+const _: () = assert!(ACTIONS_TOP + 3.0 * ACTION_HEIGHT + 24.0 < KEYS_Y - 20.0);
 const _: () = assert!(PICTURE[1] + PICTURE[3] < NAME_TOP && NAME_TOP + 72.0 < STATS_TOP);
 const _: () = assert!(STATS_TOP + 112.0 <= ADDRESS_Y && ADDRESS_Y + 52.0 < BUTTONS_TOP);
 const _: () = assert!(BUTTONS_TOP + 46.0 < PLAYERS_Y - 20.0);
@@ -1633,6 +1741,7 @@ const _: () = assert!(PLAYERS_Y + 22.0 + PLAYER_LINES as f32 * PLAYER_LINE < KEY
 mod tests {
     use super::*;
     use crate::menu::ClientPhase;
+    use crate::server_browser::{DetailPlayer, DetailsView};
 
     fn entry(address: &str, name: &str, map: &str, players: u16, ping: u32) -> ServerEntry {
         ServerEntry::for_test(
@@ -1664,6 +1773,26 @@ mod tests {
         );
         menu.open_browser();
         (menu, console, directory)
+    }
+
+    #[test]
+    fn the_browser_tokens_are_all_different() {
+        // The add-favourite button once shared the server table's token, so a click
+        // on the table's empty rows opened its prompt.
+        let tokens = [
+            BACK_TOKEN,
+            FILTER_TOKEN,
+            JOIN_TOKEN,
+            FAVOURITE_TOKEN,
+            REFRESH_TOKEN,
+            ADDRESS_TOKEN,
+            ADD_FAVOURITE_TOKEN,
+            TABLE_TOKEN,
+            SCROLLBAR_TOKEN,
+        ];
+        for (at, token) in tokens.iter().enumerate() {
+            assert!(!tokens[at + 1..].contains(token), "token {token}");
+        }
     }
 
     #[test]
@@ -1724,6 +1853,113 @@ mod tests {
         assert_eq!(limits(&facts[..1]), None);
     }
 
+    /// Sol's request (11/10/2026): a favourite added by its address is kept, the
+    /// favourites show, the prompt closes; the same address again, or a bad one, is
+    /// refused in the prompt; the prompt says Add, not Connect.
+    #[test]
+    fn a_favourite_is_added_by_its_address() {
+        let (mut menu, _console, profile) = browsing();
+        let stored = profile.path().join("favorites.json");
+        menu.browser.keep_favourites_for_test(stored.clone());
+        menu.open_favourite_entry();
+        menu.build_sjk_browser([1920.0, 1080.0]);
+        let texts: Vec<String> = menu
+            .ui
+            .draw_list()
+            .commands()
+            .iter()
+            .filter_map(|command| match command {
+                DrawCommand::Text { text, .. } => Some(menu.ui.stored_text(*text).to_owned()),
+                _ => None,
+            })
+            .collect();
+        assert!(
+            texts.iter().any(|text| text == "Add a favourite"),
+            "{texts:?}"
+        );
+        assert!(texts.iter().any(|text| text == "Add"), "{texts:?}");
+        assert!(!texts.iter().any(|text| text == "Connect"), "{texts:?}");
+        menu.address_input = "not an address::".to_owned();
+        assert_eq!(menu.submit_address(), MenuAction::None);
+        assert!(menu.address_editing && !menu.address_error.is_empty());
+        let private: std::net::SocketAddr = "198.51.100.7:29071".parse().unwrap();
+        menu.address_input = "198.51.100.7:29071".to_owned();
+        assert_eq!(menu.submit_address(), MenuAction::None);
+        assert!(!menu.address_editing, "{}", menu.address_error);
+        assert!(menu.browser.is_favorite(private));
+        assert!(menu.browser.favorites_only());
+        assert!(
+            std::fs::read_to_string(&stored)
+                .unwrap()
+                .contains("198.51.100.7:29071")
+        );
+        // Again: refused, and the prompt stays.
+        menu.open_favourite_entry();
+        menu.address_input = "198.51.100.7:29071".to_owned();
+        let _ = menu.submit_address();
+        assert!(menu.address_editing);
+        assert_eq!(menu.address_error, "That server is already a favourite");
+        // Joining by address still connects.
+        menu.open_address_entry();
+        menu.address_input = "192.0.2.9:29070".to_owned();
+        assert!(matches!(menu.submit_address(), MenuAction::Connect(_)));
+    }
+
+    /// Sol's request (11/10/2026): a locked server's password can be remembered on
+    /// this PC; the prompt then opens with it typed, and switching Remember off
+    /// forgets it when the player joins.
+    #[test]
+    fn a_locked_servers_password_is_remembered_on_this_pc() {
+        let (mut menu, mut console, profile) = browsing();
+        let kept = profile.path().join("server-passwords.json");
+        menu.server_passwords =
+            crate::server_passwords::ServerPasswords::load_from(Some(kept.clone()));
+        let temple = "192.0.2.1:29070";
+        menu.open_password_prompt(temple.to_owned());
+        assert!(menu.password.is_empty() && menu.remember_password);
+        menu.build_sjk_browser([1920.0, 1080.0]);
+        let switch = menu
+            .ui
+            .rect_for(REMEMBER_TOKEN)
+            .expect("Remember on this PC");
+        let join = menu.ui.rect_for(PASSWORD_TOKENS[3]).expect("Join");
+        assert!(switch.bottom() <= join.y, "{switch:?} {join:?}");
+        menu.password = "temple".to_owned();
+        assert!(matches!(
+            menu.handle_browser_pointer(
+                PASSWORD_TOKENS[3],
+                sjk_ui::UiEventKind::Activate,
+                None,
+                None,
+                &mut console
+            ),
+            MenuAction::Connect(_)
+        ));
+        assert_eq!(console.text_value("password"), Some("temple"));
+        let reloaded = crate::server_passwords::ServerPasswords::load_from(Some(kept.clone()));
+        assert_eq!(reloaded.get(temple), Some("temple"));
+        // Next time: typed already. Switched off and joined: forgotten.
+        menu.open_password_prompt(temple.to_owned());
+        assert_eq!(menu.password, "temple");
+        let _ = menu.handle_browser_pointer(
+            REMEMBER_TOKEN,
+            sjk_ui::UiEventKind::Activate,
+            None,
+            None,
+            &mut console,
+        );
+        assert!(!menu.remember_password);
+        let _ = menu.handle_browser_pointer(
+            PASSWORD_TOKENS[3],
+            sjk_ui::UiEventKind::Activate,
+            None,
+            None,
+            &mut console,
+        );
+        let reloaded = crate::server_passwords::ServerPasswords::load_from(Some(kept));
+        assert_eq!(reloaded.get(temple), None);
+    }
+
     #[test]
     fn the_screen_draws_every_server_on_show_and_its_controls() {
         let (mut menu, _console, _profile) = browsing();
@@ -1742,6 +1978,7 @@ mod tests {
             FAVOURITE_TOKEN,
             REFRESH_TOKEN,
             ADDRESS_TOKEN,
+            ADD_FAVOURITE_TOKEN,
             TABLE_TOKEN,
         ]
         .into_iter()
@@ -1754,6 +1991,57 @@ mod tests {
         assert!(!tokens(&menu, SCROLLBAR_TOKEN));
         assert_eq!(menu.browser.page(), VISIBLE);
         // Every text run fitted the canvas.
+        assert!(!menu.ui.overflowed());
+    }
+
+    #[test]
+    fn the_wheel_scrolls_a_long_player_list() {
+        let (mut menu, mut console, _profile) = browsing();
+        let players = (0..10)
+            .map(|index| DetailPlayer {
+                score: index,
+                ping: 50,
+                name: format!("Player {index}"),
+            })
+            .collect();
+        menu.browser.answer_for_test(DetailsView {
+            address: "192.0.2.1:29070".parse().unwrap(),
+            hostname: "JoF".to_owned(),
+            map: "mp/ffa3".to_owned(),
+            facts: Vec::new(),
+            players,
+            bots: 0,
+        });
+        let shown = |menu: &mut ClientMenu| {
+            menu.build_sjk_browser([1920.0, 1080.0]);
+            (0..10)
+                .filter(|index| {
+                    let name = format!("Player {index}");
+                    menu.ui.text_runs().any(|text| text == name)
+                })
+                .collect::<Vec<_>>()
+        };
+        assert_eq!(shown(&mut menu), [0, 1, 2, 3, 4, 5]);
+        assert!(menu.ui.rect_for(PLAYERS_TOKEN).is_some());
+        let wheel = |menu: &mut ClientMenu, console: &mut ViewerConsole, y: f32| {
+            menu.handle_browser_pointer(
+                PLAYERS_TOKEN,
+                sjk_ui::UiEventKind::Wheel,
+                None,
+                Some(sjk_ui::Vec2 { x: 0.0, y }),
+                console,
+            );
+        };
+        // Down two rows a notch, no further than the last row at the bottom.
+        wheel(&mut menu, &mut console, -1.0);
+        assert_eq!(shown(&mut menu), [2, 3, 4, 5, 6, 7]);
+        wheel(&mut menu, &mut console, -1.0);
+        wheel(&mut menu, &mut console, -1.0);
+        assert_eq!(shown(&mut menu), [4, 5, 6, 7, 8, 9]);
+        // The server table stays where it was.
+        assert_eq!(menu.browser.selected(), 0);
+        wheel(&mut menu, &mut console, 1.0);
+        assert_eq!(shown(&mut menu), [2, 3, 4, 5, 6, 7]);
         assert!(!menu.ui.overflowed());
     }
 

@@ -30,7 +30,8 @@ Sol develops SJK and sets its direction. Sol's work includes:
   of every installed HUD (`cg_hudPack`);
 - the `debug_panel` console command, an in-game checklist of the changes in a
   build and how to test them;
-- the changelog ([CHANGELOG.md](CHANGELOG.md)) and its page in the client;
+- the changelog ([CHANGELOG.md](CHANGELOG.md)), its page in the client and the What's new
+  card that recaps each update, commands drawn in chips;
 - the in-game credits page, fed by
   [credits.txt](crates/sjk-viewer/assets/credits.txt), with links to GitHub;
 - self-updates (`cl_autoUpdate`, main menu > Update);
@@ -142,7 +143,7 @@ Sol develops SJK and sets its direction. Sol's work includes:
 Creyon and Lumaya wear the SJK team's Early Contributor medal, shown on their
 cards of the in-game credits page.
 
-Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 24
+Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 41
 pull requests merged into SJK, most of them bringing SJK in line with EternalJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ACreyon94)):
 
@@ -174,7 +175,19 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
 - #31 the console input row drawn in its colour codes, as EternalJK;
 - #44 `%` and `"` in chat sent as EternalJK sends them (a degree sign, slash and dot,
   and two apostrophes) and shown as typed, so SJK and EternalJK players see each
-  other's percent signs and quotes.
+  other's percent signs and quotes;
+- #78 the legs keep the server's slope pose while you stand still on a ledge; #79 a dropped
+  saber draws its hilt; #80 door, plat and button sounds (`EV_PLAYDOORSOUND`); #81 the muzzle
+  flash starts with the predicted shot;
+- #82 the frame rate on the SJK scoreboard's header (`cg_scoreboardFps`); #92 the frame rate
+  and match clock stacked in the upper right as in JoF EJK;
+- #83 clan emblems from a table (JoFA, teal JoF, look-alike letters, `cg_clanEmblems`);
+- #84 the in-game menu's chat docked under the match card; #85 the chat page's text left out
+  under a sender's card; #86 the Character page without its Model row;
+- #87 a second master server (`cl_master2`) with merged lists; #88 server and player names
+  read in the game's charset; #89 a favourite added by its address; #90 a locked server's
+  password remembered on this PC; #91 the browser's player list scrolled with the wheel;
+- #93 the `showplayerid` command; #94 `amcolor` set and kept across reconnects.
 
 Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 17 pull requests
 merged into SJK

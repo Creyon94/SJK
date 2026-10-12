@@ -375,9 +375,12 @@ impl ViewerConsole {
         &self.config_directory
     }
 
-    /// Master server address used by the browser.
+    /// The master servers the browser asks, apart by spaces: `cl_master` then
+    /// `cl_master2` (either may be empty).
     pub(crate) fn master_server(&self) -> Result<String, Box<dyn Error>> {
-        Ok(self.text_cvar("cl_master")?.to_owned())
+        let first = self.text_cvar("cl_master")?;
+        let second = self.text_value("cl_master2").unwrap_or("");
+        Ok(format!("{first} {second}").trim().to_owned())
     }
 
     pub(crate) fn text_value(&self, name: &str) -> Option<&str> {
