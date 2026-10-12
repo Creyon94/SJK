@@ -135,7 +135,7 @@ fn credited<'a>(credits: impl Iterator<Item = &'a str>) -> (Vec<String>, Vec<Str
     }
     let ranked = |mut list: Vec<(String, usize)>| {
         // A stable sort keeps the first named first on a tie.
-        list.sort_by(|a, b| b.1.cmp(&a.1));
+        list.sort_by_key(|(_, times)| std::cmp::Reverse(*times));
         list.into_iter().map(|(name, _)| name).collect()
     };
     (ranked(people), ranked(after))
