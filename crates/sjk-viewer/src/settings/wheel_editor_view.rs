@@ -614,6 +614,7 @@ impl WheelEditor {
                 .map(|choice| ring::Choice {
                     label: &choice.label,
                     icon: choice.icon,
+                    size: None,
                     on: choice.on,
                 })
                 .collect()
@@ -623,6 +624,7 @@ impl WheelEditor {
                 .map(|slot| ring::Choice {
                     label: slot.label(),
                     icon: slot.icon().map(crate::ui_renderer::wheel_icon),
+                    size: None,
                     on: false,
                 })
                 .collect()

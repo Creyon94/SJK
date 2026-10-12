@@ -945,6 +945,16 @@ not a key) and off-screen world shots of the card at 1080p and 4K (`key-card`,
 `key-card-pasted`). GIPHY's dashboard steps were read from its documentation (Create an
 API Key), not walked through; not tried in the game window.
 
+Branch `personal/sjk-chat-binds` (12/10/2026, on `personal/gif-own-key`, Windows 11),
+Sol's request for SJK chat binds: `sjksay`, `sjkgif` (a favourite's number, an id or a
+link, with text), `+gifwheel` (the quick wheel on the favourite GIFs, their previews
+moving) and Keys rows for `sjkchat` and the GIF wheel
+([hub-chat.md](hub-chat.md#from-a-bind), [client.md](client.md#gif-wheel)). Verified
+by unit tests (the words as the chat takes them, which GIF `sjkgif` names, the GIF
+wheel's pages and its choice's command, the last page kept) and off-screen world shots
+of the GIF wheel at 1080p and 4K (`duel6_gif_wheel`). Nothing was sent to the hub, and
+it was not tried in the game window.
+
 ## Stutters on joins
 
 Branch `personal/player-async` (10/10/2026, based on `a4ea2316`, Windows 11, RTX 5080),

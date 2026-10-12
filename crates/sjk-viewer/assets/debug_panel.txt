@@ -171,6 +171,19 @@ test: Make a key, Ctrl+V it in the card, Save key: trending GIFs come. Esc on th
 test: Not now, then Get a GIPHY key on Search: the card again. A bad key: Change GIPHY key.
 note: Players use their own GIPHY key only (no SJK key). Off-screen shots only.
 
+[sjk-chat-binds]
+area: Console & chat
+title: SJK chat from binds: sjksay, sjkgif, the GIF wheel (+gifwheel), sjkchat in Keys
+change: sjksay <text> says it in the SJK chat; sjkgif <favourite number | id> [text] sends a GIF.
+change: +gifwheel opens the quick wheel on your favourite GIFs, moving; let go to send one.
+change: Settings > Keys > Other: SJK chat page (sjkchat) and GIF wheel (hold).
+test: Console: sjksay hello: it shows in the SJK chat (dock, page, in-game chat).
+test: sjkgif 1 gg: your newest favourite with gg before it. sjkgif 99: says the range.
+test: Bind a key to +gifwheel in Settings > Keys; in a match hold it: favourites move on the ring.
+test: Point at one and let go: it is sent. Wheel scroll: next page past ten favourites.
+test: Bind SJK chat page, press it in a match: the big chat opens; press again: closed.
+note: Off-screen shots (duel6_gif_wheel) and unit tests only.
+
 [console-feed]
 area: Console & chat
 title: Console feed (top left notify lines) off by default, con_drawNotify

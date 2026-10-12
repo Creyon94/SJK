@@ -378,6 +378,28 @@ new GIPHY key allows 100 requests an hour, too few for every player to share.
   takes Ctrl+A (typing then replaces the words), Ctrl+V and a held Backspace as the
   message field does.
 
+## From a bind
+
+Sol's request, 12/10/2026: "a cmd like say ... so people can make binds of premade
+messages or gifs ... + a cmd we can bind to open the sjk chat big in one press while
+in game". Three commands, for binds, quick wheel choices and the console, in a game or
+in the menus ([console_sjk_chat_page.rs](../crates/sjk-viewer/src/console_sjk_chat_page.rs)):
+
+- `sjksay <text>` says the text in the SJK chat, as the page's Send does (the hub's rules
+  and limits apply). It is tidied as a paste is (spaces made one, characters the chat
+  refuses left out, 150 characters at most). The console reads `//` as the start of a
+  comment, so a link written in `sjksay` is cut: GIFs go with `sjkgif`.
+- `sjkgif <which> [text]` sends a GIF, with the text before it if any: `which` is a
+  favourite's number (1 the newest, as the GIF wheel numbers them), a GIF's id, or a
+  quoted GIPHY link. `bind F5 "sjkgif 1 gg"` sends the newest favourite after "gg".
+- `sjkchat` opens the SJK chat page, big, over the game or the menus, and closes it:
+  Settings > Keys > Other > SJK chat page (unbound by default; I is still the game
+  chat's SJK channel, `messagemode5`).
+
+Quick wheel pages take `sjksay` and `sjkgif` choices like any command (Settings > Quick
+wheel, a custom choice), and `+gifwheel` opens the
+[GIF wheel](client.md#gif-wheel) on the favourites.
+
 ## Who is online
 
 The SJK chat page (not the docks, which stay small) has a small window at the top of its

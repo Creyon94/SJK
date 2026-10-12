@@ -113,7 +113,8 @@ Sol develops SJK and sets its direction. Sol's work includes:
   its wearer can switch off, seen so by every SJK player;
 - the SJK chat's GIFs (GIPHY links show their GIF) and its GIF picker (favourites,
   GIPHY search with each player's own key and the card that says how to get one,
-  the GIFs seen in the chat), who is online on the chat page,
+  the GIFs seen in the chat), `sjksay`, `sjkgif` and the GIF wheel for binds, who is
+  online on the chat page,
   its chat sounds, `reply` (after JoF EJK), the last channel remembered and SJK's
   emblem on SJK lines;
 - crash reports sent to the SJK team at the next start, and world notes sent to the
