@@ -2,7 +2,8 @@
 //! under one row of tabs. Medals (given by the SJK team, hanging from a rail),
 //! Achievements (a wall of medallions by category), Shaders (the saber's looks: the
 //! stock blade and every blade skin, owned or locked), Toys (the Illuminate holocron)
-//! and Nameplates (ornaments for the plate over the player's head; none yet). Every
+//! Nameplates (ornaments for the plate over the player's head; none yet) and Cards (the
+//! sealed cards opening holocrons brought, and the credits). Every
 //! tab shows its things on the left, each in its place from the start (the ones the
 //! player lacks dimmed), and the one chosen up close on the right; on Shaders, Toys and
 //! Nameplates that is the player's own model, on the menu map's stage or in a live
@@ -33,6 +34,8 @@ use winit::keyboard::{KeyCode, PhysicalKey};
 
 #[path = "collection_achievements.rs"]
 mod achievements;
+#[path = "collection_cards.rs"]
+mod cards;
 #[path = "collection_medals.rs"]
 mod medals;
 #[path = "collection_nameplates.rs"]
@@ -64,6 +67,9 @@ const LIST_VIEW_TOKEN: u16 = 1_312;
 const GRID_VIEW_TOKEN: u16 = 1_313;
 /// The chosen shader's options (its parts the wearer may switch off), one each.
 const OPTION_BASE: u16 = 1_320;
+/// The Cards tab's kinds, one each.
+const CARD_BASE: u16 = 1_330;
+const _: () = assert!(OPTION_BASE as usize + OPTION_TOKENS <= CARD_BASE as usize);
 const OPTION_TOKENS: usize = crate::blade_skin_file::extras::MAX_OPTIONS;
 /// The Shaders tab's rows: the stock blade, then every blade skin, the rarest first
 /// ([`unlockables::blade_skins_by_tier`]).
@@ -186,6 +192,9 @@ pub(crate) struct Panel {
     medal: usize,
     achievement: usize,
     shader: usize,
+    /// The kind of card chosen on Cards, and how many kinds the last frame showed.
+    card: usize,
+    cards_shown: usize,
     /// The first shader row the rack shows (it scrolls, [`RACK_SHOWN`] at a time).
     shader_first: usize,
     /// The Shaders tab shows the grid of cards, as the last frame's inputs said (or a
@@ -216,6 +225,9 @@ pub(crate) struct Panel {
     /// The time a world shot draws the swatches at, instead of the page's.
     #[cfg(test)]
     pub(crate) shot_seconds: Option<f32>,
+    /// What a world shot shows in place of the own profile's cards and credits.
+    #[cfg(test)]
+    pub(crate) preview_cards: Option<(Vec<sjk_identity::CardStack>, u64)>,
 }
 
 impl Default for Panel {
@@ -237,6 +249,8 @@ impl Panel {
             // The first frame chooses the one nearest to unlocking.
             achievement: usize::MAX,
             shader: 0,
+            card: 0,
+            cards_shown: 0,
             shader_first: 0,
             grid: false,
             grid_first: 0,
@@ -252,6 +266,8 @@ impl Panel {
             preview: None,
             #[cfg(test)]
             shot_seconds: None,
+            #[cfg(test)]
+            preview_cards: None,
         }
     }
 
@@ -376,6 +392,7 @@ impl Panel {
             Tab::Medals => self.medals_shown,
             Tab::Achievements => crate::achievements::ALL.len(),
             Tab::Shaders => SHADER_ROWS,
+            Tab::Cards => self.cards_shown,
             _ => 0,
         }
     }
@@ -386,6 +403,7 @@ impl Panel {
             Tab::Medals => Some(&mut self.medal),
             Tab::Achievements => Some(&mut self.achievement),
             Tab::Shaders => Some(&mut self.shader),
+            Tab::Cards => Some(&mut self.card),
             _ => None,
         }
     }
@@ -628,10 +646,18 @@ impl Panel {
             self.achievement = index;
         } else if let Some(index) = within(SHADER_BASE, SHADER_ROWS) {
             self.shader = index;
+        } else if let Some(index) = within(CARD_BASE, self.cards_shown) {
+            self.card = index;
         } else {
             return false;
         }
         true
+    }
+
+    /// Choose the Cards tab's kind `index`, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn choose_card_for_shot(&mut self, index: usize) {
+        self.card = index;
     }
 
     /// Choose shader row `row` (0 the stock blade), for a world shot.
@@ -649,6 +675,7 @@ impl Panel {
             }
             Tab::Shaders => SHADER_BASE + self.shader as u16,
             Tab::Toys => TOY_TOKEN,
+            Tab::Cards if self.cards_shown > 0 => CARD_BASE + self.card as u16,
             _ => BACK_TOKEN,
         }
     }

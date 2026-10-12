@@ -1160,10 +1160,13 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
     use crate::console::identity_panel::{Inputs, Panel};
     use sjk_identity::{Presence, Profile, Snapshot as Hub, Status, WornName};
     let hub = |status: Status, name: &str, earlier: &[&str]| Hub {
+        opening: None,
         local_key_id: "44f3d0b36c9b2510".to_owned(),
         status,
         key_id: "44f3d0b36c9b2510".to_owned(),
         me: Some(Profile {
+            credits: 0,
+            cards: Vec::new(),
             keys: Vec::new(),
             key_id: "44f3d0b36c9b2510".to_owned(),
             key: String::new(),
@@ -1442,6 +1445,8 @@ fn player_card_profile(shots: &mut Snapshot) {
         unlocked,
     };
     let profile = sjk_identity::Profile {
+        credits: 0,
+        cards: Vec::new(),
         keys: Vec::new(),
         key_id: "0123456789abcdef".to_owned(),
         key: String::new(),
@@ -2310,10 +2315,13 @@ fn medals_snapshot() {
     }
     // The Identity page.
     let hub = |medals: Vec<sjk_identity::Medal>| Hub {
+        opening: None,
         local_key_id: "44f3d0b36c9b2510".to_owned(),
         status: Status::Online,
         key_id: "44f3d0b36c9b2510".to_owned(),
         me: Some(Profile {
+            credits: 0,
+            cards: Vec::new(),
             keys: Vec::new(),
             key_id: "44f3d0b36c9b2510".to_owned(),
             key: String::new(),

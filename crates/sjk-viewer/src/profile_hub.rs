@@ -74,25 +74,29 @@ pub(crate) enum Tab {
     Nameplates,
     /// The player's holocrons, the loot-box drops, a 3D holocron cycled by tier.
     Holocrons,
+    /// The cards opening holocrons brought, and the credits.
+    Cards,
 }
 
 const PROFILE_TABS: [Tab; 4] = [Tab::Character, Tab::Saber, Tab::Force, Tab::Profile];
-const COLLECTION_TABS: [Tab; 6] = [
+const COLLECTION_TABS: [Tab; 7] = [
     Tab::Medals,
     Tab::Achievements,
     Tab::Shaders,
     Tab::Toys,
     Tab::Nameplates,
     Tab::Holocrons,
+    Tab::Cards,
 ];
 const PROFILE_LABELS: [&str; 4] = ["Character", "Saber", "Force", "SJK Profile"];
-const COLLECTION_LABELS: [&str; 6] = [
+const COLLECTION_LABELS: [&str; 7] = [
     "Medals",
     "Achievements",
     "Shaders",
     "Toys",
     "Nameplates",
     HOLOCRONS,
+    "Cards",
 ];
 
 /// The Collection screen's title: one place to rename it.
@@ -103,7 +107,7 @@ pub(crate) const HOLOCRONS: &str = "Holocrons";
 
 impl Tab {
     #[cfg(test)]
-    pub(crate) const ALL: [Self; 10] = [
+    pub(crate) const ALL: [Self; 11] = [
         Self::Character,
         Self::Saber,
         Self::Force,
@@ -114,6 +118,7 @@ impl Tab {
         Self::Toys,
         Self::Nameplates,
         Self::Holocrons,
+        Self::Cards,
     ];
 
     /// The screen the tab is on.
@@ -133,6 +138,7 @@ impl Tab {
             Self::Profile | Self::Toys => 3,
             Self::Nameplates => 4,
             Self::Holocrons => 5,
+            Self::Cards => 6,
         }
     }
 
@@ -674,9 +680,10 @@ mod tests {
         assert_eq!(Tab::Force.next(true), Tab::Profile);
         assert_eq!(Tab::Profile.next(true), Tab::Character);
         assert_eq!(Tab::Character.next(false), Tab::Profile);
-        assert_eq!(Tab::Medals.next(false), Tab::Holocrons);
+        assert_eq!(Tab::Medals.next(false), Tab::Cards);
         assert_eq!(Tab::Nameplates.next(true), Tab::Holocrons);
-        assert_eq!(Tab::Holocrons.next(true), Tab::Medals);
+        assert_eq!(Tab::Holocrons.next(true), Tab::Cards);
+        assert_eq!(Tab::Cards.next(true), Tab::Medals);
         assert_eq!(Tab::Achievements.next(true), Tab::Shaders);
         for screen in [Screen::Profile, Screen::Collection] {
             for (index, tab) in screen.tabs().iter().enumerate() {
@@ -694,7 +701,8 @@ mod tests {
         assert_eq!(Tab::Nameplates.label(), "Nameplates");
         assert_eq!(collection_tab_of(TOKEN + 2), Some(Tab::Shaders));
         assert_eq!(collection_tab_of(TOKEN + 5), Some(Tab::Holocrons));
-        assert_eq!(collection_tab_of(TOKEN + 6), None);
+        assert_eq!(collection_tab_of(TOKEN + 6), Some(Tab::Cards));
+        assert_eq!(collection_tab_of(TOKEN + 7), None);
         assert_eq!(collection_tab_of(TOKEN - 1), None);
     }
 

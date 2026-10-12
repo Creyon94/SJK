@@ -10,7 +10,8 @@ use crate::logs::{
 use crate::report::{BugReport, PlayerReport, WorldNote};
 use crate::staff::{StaffAnswer, StaffQuery, StaffRequest};
 use crate::wire::{
-    Achievement, Achievements, Feed, HolocronState, Look, Players, Presence, Profile, authorization,
+    Achievement, Achievements, Feed, HolocronState, Look, OpenAnswer, Players, Presence, Profile,
+    authorization,
 };
 use serde::de::DeserializeOwned;
 use serde_json::{Value, json};
@@ -213,6 +214,18 @@ pub trait Hub: Send {
     fn holocrons(&mut self, _identity: &Identity) -> Result<HolocronState, HubError> {
         Err(HubError::Protocol(
             "this hub client does not read holocrons".to_owned(),
+        ))
+    }
+    /// Open the identity's holocrons `ids` (1 to [`crate::wire::OPEN_MAX`], its own, not
+    /// opened yet), all or none (`POST /v1/holocrons/open`): each brings a sealed card and
+    /// credits. The hub answers what each brought and the person's profile after.
+    fn open_holocrons(
+        &mut self,
+        _identity: &Identity,
+        _ids: &[u64],
+    ) -> Result<OpenAnswer, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not open holocrons".to_owned(),
         ))
     }
     /// Withdraw the identity's claim on `server`.
@@ -642,6 +655,11 @@ fn claim_body(server: &str, slot: u8, name: &str, active: bool) -> Value {
     body
 }
 
+/// `POST /v1/holocrons/open`'s path and body.
+fn open_call(ids: &[u64]) -> (&'static str, Value) {
+    ("/v1/holocrons/open", json!({ "ids": ids }))
+}
+
 /// A staff request's path and body.
 fn staff_call(request: &StaffRequest) -> (&'static str, Value) {
     match request {
@@ -956,6 +974,11 @@ impl Hub for HttpHub {
         parse(self.send(Some(identity), "GET", "/v1/holocrons", None)?)
     }
 
+    fn open_holocrons(&mut self, identity: &Identity, ids: &[u64]) -> Result<OpenAnswer, HubError> {
+        let (path, body) = open_call(ids);
+        parse(self.send(Some(identity), "POST", path, Some(body))?)
+    }
+
     fn release(&mut self, identity: &Identity, server: &str) -> Result<(), HubError> {
         self.send(
             Some(identity),
@@ -1209,6 +1232,42 @@ mod tests {
             claim_body("1.2.3.4:29070", 3, "Sol", true),
             json!({"server": "1.2.3.4:29070", "slot": 3, "name": "Sol", "active": true})
         );
+    }
+
+    #[test]
+    fn opening_sends_the_ids_and_reads_what_they_brought() {
+        assert_eq!(
+            open_call(&[7, 9]),
+            ("/v1/holocrons/open", json!({ "ids": [7, 9] }))
+        );
+        let answer: OpenAnswer = serde_json::from_str(
+            r#"{"opened":[{"holocron":7,"tier":"rare","card":{"id":31,"rarity":"uncommon","finish":"holo","edition":"alpha"},"credits":42}],
+                "profile":{"key_id":"0123456789abcdef","key":"k","name":"Sol","bio":"","verified":false,"created":1,
+                  "credits":42,"cards":[{"card":null,"rarity":"uncommon","finish":"holo","edition":"alpha","count":1,"first":5,"last":5}],
+                  "holocron_counts":{"uncommon":0,"rare":0,"legendary":0,"mythical":0},
+                  "holocrons":[{"id":7,"tier":"rare","dropped":1,"source":"play","note":"","opened":5}]}}"#,
+        )
+        .unwrap();
+        assert_eq!(answer.opened.len(), 1);
+        let opened = &answer.opened[0];
+        assert_eq!(
+            (opened.holocron, opened.tier.as_str(), opened.credits),
+            (7, "rare", 42)
+        );
+        assert_eq!(
+            (
+                opened.card.id,
+                opened.card.rarity.as_str(),
+                opened.card.finish.as_str(),
+                opened.card.edition.as_str()
+            ),
+            (31, "uncommon", "holo", "alpha")
+        );
+        assert_eq!(answer.profile.credits, 42);
+        assert_eq!(answer.profile.cards[0].card, None, "sealed");
+        assert_eq!(answer.profile.cards[0].count, 1);
+        assert_eq!(answer.profile.holocrons[0].opened, Some(5));
+        assert!(!answer.profile.holocrons[0].is_sealed());
     }
 
     #[test]

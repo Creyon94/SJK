@@ -276,6 +276,19 @@ impl ViewerConsole {
         self.preview_collection(unlocks, seconds);
     }
 
+    /// Show `cards` and `credits` on the Cards tab in place of the own profile's, for a
+    /// world shot.
+    #[cfg(test)]
+    pub(crate) fn preview_cards(&mut self, cards: Vec<sjk_identity::CardStack>, credits: u64) {
+        self.collection_panel.preview_cards = Some((cards, credits));
+    }
+
+    /// Choose the Cards tab's kind `index`, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn collection_card_for_shot(&mut self, index: usize) {
+        self.collection_panel.choose_card_for_shot(index);
+    }
+
     /// Choose the Collection's shader row `row` (0 the stock blade), for a world shot.
     #[cfg(test)]
     pub(crate) fn collection_shader_for_shot(&mut self, row: usize) {

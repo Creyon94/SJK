@@ -92,6 +92,10 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
         crate::holocrons::rehearsal::HELP,
     ),
     (
+        crate::cards::rehearsal::COMMAND,
+        crate::cards::rehearsal::HELP,
+    ),
+    (
         crate::unlock_toast::UPDATE_COMMAND,
         crate::unlock_toast::UPDATE_HELP,
     ),
@@ -660,6 +664,7 @@ impl crate::GpuState {
             crate::emotes::COMMAND => return self.emote_command(args),
             crate::medal_popup::rehearsal::COMMAND => return self.debug_medal_command(args),
             crate::holocrons::rehearsal::COMMAND => return self.debug_holocron_command(args),
+            crate::cards::rehearsal::COMMAND => return self.debug_open_command(args),
             crate::unlock_toast::UPDATE_COMMAND => return self.debug_update_command(args),
             crate::saber_skin_command::COMMAND => return self.saber_skin_command(args),
             crate::console::SJK_CHAT_COMMAND => {

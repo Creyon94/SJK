@@ -373,6 +373,18 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 # ---- Menus & settings ----
 
+[holocron-opening]
+area: Menus & settings
+title: Holocrons open: a sealed card and credits each, and a Cards tab in the Collection
+change: Collection > Holocrons: Open (oldest of the tier) and Open all (up to 20), Enter / A.
+change: A ceremony per holocron: burst, the card turns in (Normal, Holo, Solar), credits count.
+change: Collection > Cards: the sealed cards by kind with x3, the chosen one up close, credits.
+test: debug_open all, then debug_open mythical x3 solar: watch every finish and Next / Done.
+test: Enter or a click skips the entrance, Escape ends it; the page shows again under it.
+test: Collection > Cards before opening any: 'No cards yet' and an empty outline.
+test: Once the hub is deployed: Open one holocron, the count drops, credits rise, Cards shows it.
+note: Needs the hub's feat/holocron-opening deployed; before that Open says the hub cannot yet.
+
 [import-clients]
 area: Menus & settings
 title: First setup starts with Import from a client: configs found, FPS cap, gameplay FPS

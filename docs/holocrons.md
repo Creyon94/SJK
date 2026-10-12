@@ -1,8 +1,8 @@
 # Holocron drops
 
 A holocron is loot a player earns by playing SJK. The SJK hub rolls and stores them and
-the client shows them. They cannot be opened yet, grant nothing and are only collected
-and shown (Sol's decision, 10/10/2026). This page is the design, the decisions and what
+the client shows them. Since 12/10/2026 a holocron can be opened: it gives a sealed card
+and credits ([cards.md](cards.md)), and nothing else (no power or setting). This page is the design, the decisions and what
 is checked; the wire is the hub's `PROTOCOL.md` ("Holocrons") in Sol-Vulpes/SJK-hub,
 decided together with the client and built in parallel. Players read the pop-up, the chat
 lines and the Collection's Holocrons tab.
@@ -185,12 +185,16 @@ the tier's colour, how many are held or a dash while the hub has not answered, a
 of a drop), what the chosen tier is, "Next holocron in about N minutes of play" with a bar
 and "n of 8 today", the newest ten holocrons (tier, `dd/mm/yyyy HH:MM` in UTC, and for a gift
 "Gift from the SJK team" with the note) and, when the identity is off, no hub is set or the
-hub has not answered, the reason ("Holocrons need the SJK identity"). There is no button
-that opens a holocron: opening does not exist yet and the page says so.
+hub has not answered, the reason ("Holocrons need the SJK identity"). Since 12/10/2026 the
+counts are the holocrons not opened yet, the player's credits stand at the panel's top
+right, the chosen tier says what opening one gives, Open and Open all stand under the
+holocron's caption and opened holocrons are marked in the recent list; opening and its
+ceremony are in [cards.md](cards.md#in-the-client).
 
 - **Keys and pointer:** Up and Down (or Left and Right, Tab and Shift+Tab, the wheel, 1 to
   4, Home and End) choose the tier; Escape goes back; a click on a row chooses it; Ctrl+Tab
-  is the Profile screen's. Enter does nothing.
+  is the Profile screen's. Enter opens the oldest holocron of the tier chosen, A opens up
+  to twenty.
 - **The 3D holocron** is a normal object of the world pass, not a stage of the Character
   tab: an instance of the chosen look's model and a point light in the tier's colour
   ([holocrons/stage.rs](../crates/sjk-viewer/src/holocrons/stage.rs)), floating before the
@@ -278,4 +282,6 @@ the world shot `duel6_sjk_collection` renders it from the game menu at a match's
 
 ## Planned, not built
 
-Opening holocrons and anything a holocron grants.
+What opened holocrons will also give: the cards' faces and the shop credits buy from
+([cards.md](cards.md#planned-not-built)); saber shaders dropping from holocrons at a low
+chance is Sol's idea for later, undecided.

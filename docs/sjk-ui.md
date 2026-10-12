@@ -1166,12 +1166,14 @@ grown to four. The same module serves the Collection screen's row
 
 [collection_panel.rs](../crates/sjk-viewer/src/collection_panel.rs) and its views
 (`collection_view.rs`, `collection_medals.rs`, `collection_achievements.rs`,
-`collection_shaders.rs`, `collection_toys.rs`, `collection_nameplates.rs`), 10/10/2026,
+`collection_shaders.rs`, `collection_toys.rs`, `collection_nameplates.rs`,
+`collection_cards.rs`), 10/10/2026,
 Sol's request: take the achievements, medals and unlockables out of the Profile screen
 into a screen of their own, "a real collection, things players can collect in the
 future", with tabs Medals, Achievements, Shaders (the blade skins, renamed: saber now,
 body later), Toys and Nameplates (ornaments for the nameplate), then Holocrons (the
-loot-box drops, built the same day as a Profile tab and moved here). Sol picked the
+loot-box drops, built the same day as a Profile tab and moved here) and, since
+12/10/2026, Cards (what opening holocrons brings, [cards.md](cards.md)). Sol picked the
 direction from a design canvas (`the vault`): every thing has its place from the
 start, the ones the player lacks dimmed; each tab shows its things on the left and
 the one chosen up close on the right.
@@ -1272,14 +1274,19 @@ for the run.
   "Contacting the hub..." with the reason under it), the four tiers as rows of 60 (the
   tier's picture, its name at 27 in its colour, "60% of drops", the count held at 32 with
   "held" under it, or a dash before the hub answers, a padlock by a zero; the chosen row
-  tinted in its colour with a white ring), the chosen tier's description, that holocrons
-  cannot be opened yet, "Next holocron in about 20 minutes of play" with "3 of 8 today" and
+  tinted in its colour with a white ring; the counts are the holocrons not opened yet),
+  the player's credits at the panel's top right (the credits' mark and the sum, "credits"
+  under), the chosen tier's description and in gold what opening one gives ("Opening it
+  gives a sealed card and 30 to 50 credits."), "Next holocron in about 20 minutes of play" with "3 of 8 today" and
   a gold bar, and "Recent holocrons" (times in UTC): the newest ten in two columns, each a
   small picture, the tier's name, `dd/mm/yyyy HH:MM` and, for a gift, "Gift from the SJK
-  team" with the note. Keys: Up and Down (Left and Right, Tab, the wheel, 1 to 4, Home, End)
-  choose the tier, which swaps the 3D holocron at once (it shrinks away and the new look
-  grows in); a click on a row chooses it; Ctrl+Tab goes on to Medals; Escape leaves.
-  There is no Open: opening does not exist yet. The `holocrons` command opens it as the
+  team" with the note; an opened one dimmed with "Opened". Under the caption, centred on
+  the holocron, Open (gold, the oldest of the tier chosen) and Open all (n) (outlined, up
+  to twenty), dimmed when there is nothing to open; their ceremony takes the whole window
+  ([cards.md](cards.md#in-the-client)). Keys: Up and Down (Left and Right, Tab, the wheel,
+  1 to 4, Home, End) choose the tier, which swaps the 3D holocron at once (it shrinks away
+  and the new look grows in); Enter opens one, A opens all; a click on a row chooses it;
+  Ctrl+Tab goes on to Cards; Escape leaves. The `holocrons` command opens it as the
   Collection's tab (again to close); the SJK Profile tab's Holocrons block has See holocrons
   (the classic menus' Profile page too, opening the page on its own). Until the
   Collection (10/10/2026, the same day) it was the Profile screen's eighth tab. The classic Profile
@@ -1287,6 +1294,17 @@ for the run.
   `world_shot::holocrons_tab` (`duel6_sjk_holocrons`: each tier, one held none of, the
   identity off, waiting; `duel6_sjk_holocrons_windows`: 4:3, 21:9, 4K, `ui_textScale 1.2`,
   the classic style). Not tried in a game.
+- **Cards** ([collection_cards.rs](../crates/sjk-viewer/src/collection_cards.rs),
+  [cards.md](cards.md#in-the-client), 12/10/2026): "N cards" (or why they are not known)
+  with "Sealed until the first set of cards is out" under it, the player's credits at the
+  right of the headline (x up to 1080), up to twelve kinds of card on the left (128 wide,
+  six by two from y 330, the best first, each drawn card with "x3" and its finish under
+  it; more counted under them; none: a dark outline where the first will lie and "Open a
+  holocron on the Holocrons tab"), and the kind chosen up close on the right (290 wide
+  from y 200) in its finish's light, with its title in its rarity's colour (gold for
+  Solar), edition, how many and when the first was found, what the finish is and that it
+  is sealed. Left and Right (Tab, the pointer) choose; Ctrl+Tab goes on to Medals. The
+  row's count is the cards held. World shots: `world_shot::cards_shots`.
 - **The model:** behind Shaders, Toys and Nameplates the page darkens only the left
   and the bottom. From the main page the backdrop camera goes to the player's shot
   (`ClientMenu::set_collection_stage`, which first reads the model, sabers and

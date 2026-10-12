@@ -8,13 +8,15 @@
 //! ([`crate::holocrons::stage`]) wearing the look of the tier chosen; right, the four
 //! tiers in a list (picture, name in the tier's colour, how many are held, the odds of a
 //! drop), what the chosen tier is, how long to the next holocron, and the newest ten. A
-//! tier held none of shows dimmed, never hidden. Nothing here opens a holocron, which
-//! cannot be done yet.
+//! tier held none of shows dimmed, never hidden. Under the holocron, Open opens the
+//! oldest of the tier chosen and Open all up to twenty, in a ceremony over the page
+//! ([`opening`]): each brings a sealed card and credits (`docs/cards.md`).
 //!
 //! Up and Down (or Left and Right, or the mouse wheel) choose a tier, Tab and Shift+Tab
-//! walk them round, 1 to 4 and Home and End jump, Escape goes back; a click on a tier
-//! chooses it. The hub's counts and list are read twice a second ([`Data::read`]), never
-//! per frame.
+//! walk them round, 1 to 4 and Home and End jump, Enter opens one, A opens all, Escape
+//! goes back; a click on a tier chooses it. The hub's counts and list are read twice a
+//! second ([`Data::read`]), never per frame; while the ceremony waits for the hub its
+//! answer is looked for every frame.
 
 use crate::holocrons::{self, COUNT, Tier};
 use crate::menu_widgets::{BACK_TOKEN, MenuCanvas};
@@ -23,6 +25,8 @@ use std::time::{Duration, Instant};
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{KeyCode, PhysicalKey};
 
+#[path = "holocrons_panel_opening.rs"]
+pub(crate) mod opening;
 #[path = "holocrons_panel_view.rs"]
 mod view;
 
@@ -36,6 +40,9 @@ pub(crate) const STAGE_AT: [f32; 2] = [540.0, 480.0];
 pub(crate) const RECENT_SHOWN: usize = 10;
 /// How often the hub's counts and list are read again while the page is open.
 const REFRESH: Duration = Duration::from_millis(500);
+/// The buttons under the holocron: Open (one of the tier chosen) and Open all.
+pub(crate) const OPEN_TOKEN: u16 = 1_320;
+pub(crate) const OPEN_ALL_TOKEN: u16 = 1_321;
 
 /// What the page knows of the player's holocrons: whether the hub could say, and what.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -61,6 +68,8 @@ pub(crate) struct Recent {
     pub(crate) gift: bool,
     /// The team's note, plain text; empty without one.
     pub(crate) note: String,
+    /// It was opened.
+    pub(crate) opened: bool,
 }
 
 /// What the page shows of the identity and the hub, read by [`Data::read`].
@@ -77,6 +86,11 @@ pub(crate) struct Data {
     pub(crate) today: Option<(u32, u32)>,
     /// How far along the next one is, 0 to 1.
     pub(crate) fraction: Option<f32>,
+    /// The ids of the holocrons of each tier the profile lists that can still be
+    /// opened, the oldest first.
+    pub(crate) sealed: [Vec<u64>; COUNT],
+    /// The player's credits, once known.
+    pub(crate) credits: Option<u64>,
 }
 
 impl Data {
@@ -89,6 +103,8 @@ impl Data {
             next: String::new(),
             today: None,
             fraction: None,
+            sealed: Default::default(),
+            credits: None,
         }
     }
 
@@ -105,14 +121,29 @@ impl Data {
         let (Some(me), State::Known) = (&snapshot.me, state) else {
             return Self::nothing(state);
         };
-        let recent = holocrons::entries(&me.holocrons)
+        let known: Vec<(holocrons::Entry, bool)> = me
+            .holocrons
+            .iter()
+            .filter_map(|wire| {
+                holocrons::Entry::from_wire(wire).map(|entry| (entry, !wire.is_sealed()))
+            })
+            .collect();
+        let mut sealed: [Vec<u64>; COUNT] = Default::default();
+        // The list is the newest first: the oldest go first when opening.
+        for (entry, opened) in known.iter().rev() {
+            if !opened {
+                sealed[entry.tier.index].push(entry.id);
+            }
+        }
+        let recent = known
             .into_iter()
             .take(RECENT_SHOWN)
-            .map(|entry| Recent {
+            .map(|(entry, opened)| Recent {
                 tier: entry.tier.index,
                 when: holocrons::when_text(entry.dropped),
                 gift: entry.gift,
                 note: entry.note,
+                opened,
             })
             .collect();
         let progress = snapshot.holocrons;
@@ -130,6 +161,8 @@ impl Data {
                 .map(|progress| {
                     (progress.progress_secs as f32 / progress.every_secs as f32).clamp(0.0, 1.0)
                 }),
+            sealed,
+            credits: Some(me.credits),
         }
     }
 
@@ -148,6 +181,11 @@ impl Data {
     pub(crate) fn count(&self, index: usize) -> Option<u32> {
         self.counts.and_then(|counts| counts.get(index).copied())
     }
+
+    /// How many holocrons the page can open now (those the profile lists).
+    pub(crate) fn openable(&self) -> usize {
+        self.sealed.iter().map(Vec::len).sum()
+    }
 }
 
 /// What the console does after the page handled an event.
@@ -157,6 +195,8 @@ pub(crate) enum PanelAction {
     Close,
     /// Show another of the Collection screen's tabs (a click on the row).
     Hub(crate::profile_hub::Tab),
+    /// Ask the hub to open these holocrons ([`opening`]).
+    Open(Vec<u64>),
 }
 
 pub(crate) struct Panel {
@@ -175,9 +215,22 @@ pub(crate) struct Panel {
     /// What the hub last said, and when it was read.
     data: Data,
     refreshed: Option<Instant>,
+    /// The opening's ceremony, or the wait for the hub, while it shows.
+    ceremony: Option<opening::Ceremony>,
+    /// The serial of the identity's last opening the page saw, so a new one is its
+    /// answer.
+    opening_serial: u64,
+    /// The page's clock, for the finishes' motion.
+    epoch: Instant,
     /// The data is a world shot's own, never read again.
     #[cfg(test)]
     pinned: bool,
+    /// The time a world shot draws the ceremony's finishes at.
+    #[cfg(test)]
+    pub(crate) shot_seconds: Option<f32>,
+    /// How far into its entrance a world shot draws the ceremony's card.
+    #[cfg(test)]
+    pub(crate) shot_elapsed: Option<f32>,
 }
 
 impl Default for Panel {
@@ -198,8 +251,15 @@ impl Panel {
             selected: 0,
             data: Data::nothing(State::Waiting),
             refreshed: None,
+            ceremony: None,
+            opening_serial: 0,
+            epoch: Instant::now(),
             #[cfg(test)]
             pinned: false,
+            #[cfg(test)]
+            shot_seconds: None,
+            #[cfg(test)]
+            shot_elapsed: None,
         }
     }
 
@@ -215,6 +275,7 @@ impl Panel {
         self.hub = false;
         self.selected = 0;
         self.refreshed = None;
+        self.ceremony = None;
     }
 
     /// Show the page as the Profile screen's Holocrons tab (`true`), or on its own;
@@ -247,6 +308,7 @@ impl Panel {
     pub(crate) fn close(&mut self) -> bool {
         let owned = self.open && self.owns_console;
         self.open = false;
+        self.ceremony = None;
         self.owns_console = false;
         owned
     }
@@ -337,6 +399,10 @@ impl Panel {
 
     /// A pressed key, by its code.
     fn key(&mut self, key: KeyCode, shift: bool) -> PanelAction {
+        let now = Instant::now();
+        if self.ceremony.is_some() {
+            return self.ceremony_key(key, now);
+        }
         match key {
             KeyCode::Escape => return PanelAction::Close,
             KeyCode::Tab => self.step(if shift { -1 } else { 1 }, true),
@@ -348,7 +414,16 @@ impl Panel {
             KeyCode::Digit2 | KeyCode::Numpad2 => self.select(1),
             KeyCode::Digit3 | KeyCode::Numpad3 => self.select(2),
             KeyCode::Digit4 | KeyCode::Numpad4 => self.select(3),
-            // There is nothing to open yet: Enter and Space do nothing.
+            KeyCode::Enter | KeyCode::NumpadEnter | KeyCode::Space => {
+                if let Some(ids) = self.open_one() {
+                    return self.ask(ids, now);
+                }
+            }
+            KeyCode::KeyA => {
+                if let Some(ids) = self.open_every() {
+                    return self.ask(ids, now);
+                }
+            }
             _ => {}
         }
         PanelAction::None
@@ -356,6 +431,17 @@ impl Panel {
 
     /// A pointer event.
     pub(crate) fn handle_pointer(&mut self, event: InputEvent) -> PanelAction {
+        let now = Instant::now();
+        if self.ceremony.is_some() {
+            // Any click moves the ceremony on, its button or not.
+            if let InputEvent::PointerRelease { .. } = event {
+                let _ = self.ui.pointer(event);
+                self.advance(now);
+            } else if !matches!(event, InputEvent::PointerWheel { .. }) {
+                let _ = self.ui.pointer(event);
+            }
+            return PanelAction::None;
+        }
         if let InputEvent::PointerWheel { delta, .. } = event {
             // Up (positive) goes to the tier above.
             if delta.y > 0.0 {
@@ -377,6 +463,12 @@ impl Panel {
                 self.select(usize::from(token - ROW_BASE));
                 PanelAction::None
             }
+            Some(OPEN_TOKEN) => self
+                .open_one()
+                .map_or(PanelAction::None, |ids| self.ask(ids, now)),
+            Some(OPEN_ALL_TOKEN) => self
+                .open_every()
+                .map_or(PanelAction::None, |ids| self.ask(ids, now)),
             Some(token) if self.hub => match crate::profile_hub::collection_tab_of(token) {
                 Some(tab) if tab != crate::profile_hub::Tab::Holocrons => PanelAction::Hub(tab),
                 _ => PanelAction::None,
@@ -530,6 +622,7 @@ mod tests {
         me: Option<sjk_identity::Profile>,
     ) -> sjk_identity::Snapshot {
         sjk_identity::Snapshot {
+            opening: None,
             local_key_id: "0123456789abcdef".into(),
             status,
             key_id: "0123456789abcdef".into(),
@@ -557,6 +650,8 @@ mod tests {
 
     fn profile(holocrons: Vec<sjk_identity::Holocron>) -> sjk_identity::Profile {
         sjk_identity::Profile {
+            credits: 0,
+            cards: Vec::new(),
             keys: Vec::new(),
             key_id: "0123456789abcdef".into(),
             key: String::new(),
@@ -582,6 +677,7 @@ mod tests {
 
     fn holocron(id: u64, tier: &str, source: &str, note: &str) -> sjk_identity::Holocron {
         sjk_identity::Holocron {
+            opened: None,
             id,
             tier: tier.to_owned(),
             dropped: 1_791_641_100,
@@ -649,6 +745,175 @@ mod tests {
         assert_eq!(data.next, "Next holocron in about 20 minutes of play");
         assert_eq!(data.today, Some((3, 8)));
         assert!((data.fraction.unwrap() - 1.0 / 3.0).abs() < 1e-6);
+    }
+
+    fn openable() -> Data {
+        let mut data = held([2, 1, 0, 0]);
+        data.sealed = [vec![3, 8], vec![5], Vec::new(), Vec::new()];
+        data.credits = Some(120);
+        data
+    }
+
+    fn opened(tier: &str, finish: &str) -> sjk_identity::Opened {
+        sjk_identity::Opened {
+            holocron: 3,
+            tier: tier.to_owned(),
+            card: sjk_identity::OpenedCard {
+                id: 1,
+                rarity: "rare".to_owned(),
+                finish: finish.to_owned(),
+                edition: "alpha".to_owned(),
+            },
+            credits: 42,
+        }
+    }
+
+    /// Enter opens the oldest of the tier chosen and A every one, the oldest first; the
+    /// page then waits for the hub, whose new answer starts the ceremony, which Enter
+    /// moves on card by card and ends.
+    #[test]
+    fn opening_asks_the_hub_and_plays_its_answer() {
+        let mut panel = Panel::new();
+        panel.open(true);
+        panel.data = openable();
+        panel.select(2);
+        assert_eq!(
+            panel.key(KeyCode::Enter, false),
+            PanelAction::None,
+            "none held"
+        );
+        panel.select(0);
+        assert_eq!(panel.open_every(), Some(vec![3, 5, 8]));
+        assert_eq!(panel.key(KeyCode::Enter, false), PanelAction::Open(vec![3]));
+        assert!(panel.opening());
+        assert_eq!(
+            panel.key(KeyCode::KeyA, false),
+            PanelAction::None,
+            "one at a time"
+        );
+        let now = Instant::now();
+        // An old outcome (the serial seen before) is not this page's answer.
+        panel.opening_serial = 4;
+        let old = sjk_identity::OpenOutcome {
+            serial: 4,
+            opened: vec![opened("rare", "holo")],
+            message: String::new(),
+        };
+        panel.follow_opening(now, Some(&old));
+        assert!(matches!(
+            panel.ceremony,
+            Some(opening::Ceremony::Waiting { .. })
+        ));
+        let answer = sjk_identity::OpenOutcome {
+            serial: 5,
+            opened: vec![
+                opened("uncommon", "holo"),
+                opened("uncommon", "glitter"),
+                opened("rare", "solar"),
+            ],
+            message: String::new(),
+        };
+        panel.follow_opening(now, Some(&answer));
+        let Some(opening::Ceremony::Showing { shown, index, .. }) = &panel.ceremony else {
+            panic!("the ceremony shows");
+        };
+        assert_eq!(
+            shown.len(),
+            2,
+            "a finish the client does not know is left out"
+        );
+        assert_eq!(
+            (*index, shown[1].finish.id, shown[1].credits),
+            (0, "solar", 42)
+        );
+        assert_eq!(shown[0].edition, "Alpha Edition");
+        // The first press finishes the entrance, the next goes on, the last ends it.
+        panel.advance(now);
+        assert!(matches!(
+            panel.ceremony,
+            Some(opening::Ceremony::Showing { index: 0, .. })
+        ));
+        panel.advance(now);
+        assert!(matches!(
+            panel.ceremony,
+            Some(opening::Ceremony::Showing { index: 1, .. })
+        ));
+        panel.advance(now);
+        panel.advance(now);
+        assert!(!panel.opening(), "Done after the last");
+        assert!(panel.refreshed.is_none(), "the page reads the hub again");
+    }
+
+    /// A refusal or no answer says why; Escape ends the ceremony at any card.
+    #[test]
+    fn a_refusal_or_no_answer_says_why() {
+        let mut panel = Panel::new();
+        panel.open(true);
+        panel.data = openable();
+        let now = Instant::now();
+        let _ = panel.ask(vec![3], now);
+        let refused = sjk_identity::OpenOutcome {
+            serial: 1,
+            opened: Vec::new(),
+            message: "That holocron was already opened.".to_owned(),
+        };
+        panel.follow_opening(now, Some(&refused));
+        assert!(matches!(
+            &panel.ceremony,
+            Some(opening::Ceremony::Failed { message, .. }) if message == "That holocron was already opened."
+        ));
+        panel.advance(now);
+        assert!(!panel.opening());
+        let _ = panel.ask(vec![3], now);
+        panel.follow_opening(now + Duration::from_secs(5), None);
+        assert!(matches!(
+            panel.ceremony,
+            Some(opening::Ceremony::Waiting { .. })
+        ));
+        panel.follow_opening(now + Duration::from_secs(16), None);
+        assert!(matches!(
+            panel.ceremony,
+            Some(opening::Ceremony::Failed { .. })
+        ));
+        panel.show(
+            vec![opening::Shown::of(&opened("rare", "holo")).unwrap()],
+            now,
+        );
+        assert_eq!(panel.key(KeyCode::Escape, false), PanelAction::None);
+        assert!(!panel.opening(), "Escape ends it, the page stays");
+        assert!(panel.is_open());
+    }
+
+    /// Every moment of the ceremony fits the canvas, in every finish and window.
+    #[test]
+    fn the_ceremony_fits_the_canvas() {
+        let mut panel = Panel::new();
+        panel.open(true);
+        panel.data = openable();
+        let start = Instant::now();
+        for viewport in [[1920.0, 1080.0], [3840.0, 2160.0], [1440.0, 1080.0]] {
+            for finish in ["normal", "holo", "solar"] {
+                let shown = vec![
+                    opening::Shown::of(&opened("mythical", finish)).unwrap(),
+                    opening::Shown::of(&opened("rare", finish)).unwrap(),
+                ];
+                panel.show(shown, start);
+                for tenth in 0..30 {
+                    panel.build_at(viewport, start + Duration::from_millis(tenth * 100));
+                    assert!(!panel.overflowed(), "{finish} at {tenth} in {viewport:?}");
+                }
+            }
+            let _ = panel.ask(vec![3], start);
+            panel.ceremony = Some(opening::Ceremony::Waiting {
+                tier: 3,
+                since: start,
+            });
+            panel.build_at(viewport, start);
+            panel.refused("No.", start);
+            panel.build_at(viewport, start);
+            assert!(!panel.overflowed());
+            panel.end_ceremony();
+        }
     }
 
     #[test]

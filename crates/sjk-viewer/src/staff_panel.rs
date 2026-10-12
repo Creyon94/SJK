@@ -788,6 +788,8 @@ mod tests {
 
     pub(super) fn profile(key_id: &str, name: &str) -> Profile {
         Profile {
+            credits: 0,
+            cards: Vec::new(),
             keys: Vec::new(),
             key_id: key_id.to_owned(),
             key: String::new(),
@@ -1046,6 +1048,7 @@ mod tests {
 
     fn wire_holocron(id: u64, tier: &str) -> sjk_identity::Holocron {
         sjk_identity::Holocron {
+            opened: None,
             id,
             tier: tier.to_owned(),
             dropped: 1_791_641_100,

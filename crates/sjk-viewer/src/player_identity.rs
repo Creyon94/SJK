@@ -567,6 +567,22 @@ pub(crate) fn with_own_holocrons<R>(
     })
 }
 
+/// Ask the hub to open the player's holocrons `ids` (at most
+/// [`sjk_identity::OPEN_MAX`] are taken); false when the service has not started. What
+/// they brought arrives in [`opening_outcome`].
+pub(crate) fn open_holocrons(ids: Vec<u64>) -> bool {
+    lock()
+        .service
+        .as_ref()
+        .map(|service| service.open_holocrons(ids))
+        .is_some()
+}
+
+/// What became of the last opening of holocrons, if the service has started.
+pub(crate) fn opening_outcome() -> Option<sjk_identity::OpenOutcome> {
+    with_snapshot(|snapshot| snapshot.opening.clone()).flatten()
+}
+
 /// Ask the service for fresh holocron progress (it reads at most every 30 seconds).
 pub(crate) fn refresh_holocrons() {
     if let Some(service) = lock().service.as_ref() {

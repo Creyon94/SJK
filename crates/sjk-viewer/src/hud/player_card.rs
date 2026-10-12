@@ -235,8 +235,16 @@ impl ProfileFacts {
             .filter_map(|got| find(&got.id).map(|kind| (kind, got.unlocked)))
             .collect();
         done.sort_by(|a, b| step(b.0).cmp(&step(a.0)).then(b.1.cmp(&a.1)));
+        // The rarest holocron ever found: the counts are the unopened ones only, so the
+        // listed ones (opened too) count as well.
         let counts = &profile.holocron_counts;
-        let holocron = [
+        let listed = profile
+            .holocrons
+            .iter()
+            .filter_map(|holocron| crate::holocrons::Tier::from_id(&holocron.tier))
+            .map(|tier| tier.index)
+            .max();
+        let held = [
             counts.uncommon,
             counts.rare,
             counts.legendary,
@@ -244,6 +252,7 @@ impl ProfileFacts {
         ]
         .iter()
         .rposition(|count| *count > 0);
+        let holocron = held.max(listed);
         Self {
             staff: profile.staff,
             bio: profile
@@ -1709,6 +1718,8 @@ mod tests {
             unlocked,
         };
         sjk_identity::Profile {
+            credits: 0,
+            cards: Vec::new(),
             keys: Vec::new(),
             key_id: "0123456789abcdef".to_owned(),
             key: String::new(),

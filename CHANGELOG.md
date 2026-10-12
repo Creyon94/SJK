@@ -31,7 +31,9 @@ Creyon's seventeen pull requests: fixes for ledges, dropped sabers, doors and mu
 > Clans: JoF and JoFA emblems come from a table, with look-alike letters.
 > Fixes: Ledge legs, dropped sabers, door sounds and the muzzle flash.
 > Updates: This card puts each heading above its line and shows commands such as `whatsnew` in chips.
+> Holocrons: Open them on the Holocrons tab for a sealed card and credits, and see your cards on the Collection's Cards tab.
 
+- Holocrons open: Open or Open all on the Collection's Holocrons tab plays a ceremony and gives each one a sealed card (Normal, Holo or Solar, Alpha Edition; its face comes with the first set of cards) and credits, kept on the SJK hub; the new Cards tab shows them, and debug_open rehearses it _(Sol)_
 - Standing on a ledge no longer makes the legs stutter: prediction keeps the server's slope pose while you stand still _(Creyon)_
 - A dropped or knocked-away saber stays visible on the ground, hilt only _(Creyon, after OpenJK)_
 - Doors, plats and buttons play their start and end sounds again (EV_PLAYDOORSOUND) _(Creyon, after OpenJK)_

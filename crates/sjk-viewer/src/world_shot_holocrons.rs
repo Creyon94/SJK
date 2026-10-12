@@ -16,12 +16,13 @@ use crate::profile_hub::Tab;
 
 /// Made-up holdings: 12 uncommon, 3 rare, no legendary, 1 mythical; ten recent ones
 /// (a gift with a long note among them), the next one a third of the way, 3 of 8 today.
-fn holdings() -> Data {
+pub(super) fn holdings() -> Data {
     let recent = |tier: usize, when: &str, note: Option<&str>| Recent {
         tier,
         when: when.to_owned(),
         gift: note.is_some(),
         note: note.unwrap_or_default().to_owned(),
+        opened: false,
     };
     Data {
         counts: Some([12, 3, 0, 1]),
