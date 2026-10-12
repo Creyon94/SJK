@@ -81,6 +81,10 @@ const MODEL_ROOM: f32 = 1.35;
 /// Where the feet fall in the area: the body's 64 units from 24 below the
 /// framed middle's origin, in a frame `MODEL_ROOM` times retail's 80.
 const MODEL_FEET_Y: f32 = MODEL_AREA[1] + MODEL_AREA[3] * (0.5 + 32.0 / (80.0 * MODEL_ROOM));
+/// The preview's shadow: its layers and each one's darkness, so the middle (all of
+/// them) is about as dark as the single bar it replaces at its edges' faintest.
+const SHADOW_LAYERS: usize = 7;
+const SHADOW_ALPHA: f32 = 0.08;
 /// Level `l` (1 to 3) of power `p` answers to `LEVEL_BASE + p * 3 + l - 1`.
 const LEVEL_BASE: u16 = 1_000;
 /// The saber styles as the Style row's buttons offer them.
@@ -522,12 +526,25 @@ impl PlayerMenu {
     fn sjk_preview(&mut self, frame: &Frame) {
         let s = frame.s;
         let [x, y, width, height] = MODEL_AREA;
-        let shadow = [x + width * 0.34, MODEL_FEET_Y - 12.0, width * 0.32, 24.0];
-        let _ = self.canvas.draw_list_mut().push(DrawCommand::RoundedRect {
-            rect: frame.rect(shadow[0], shadow[1], shadow[2], shadow[3]),
-            radius: 14.0 * s,
-            color: color::alpha(color::SPACE, 0.55),
-        });
+        // A soft shadow under the feet: pills from wide and faint to narrow, each
+        // adding a little dark, so it is darkest in the middle and fades out at its
+        // ends (one dark pill read as a hard black bar, Creyon 12/10/2026).
+        let middle = x + width * 0.5;
+        for layer in 0..SHADOW_LAYERS {
+            let t = layer as f32 / (SHADOW_LAYERS - 1) as f32;
+            let half_width = width * (0.21 - 0.13 * t);
+            let half_height = 13.0 - 7.0 * t;
+            let _ = self.canvas.draw_list_mut().push(DrawCommand::RoundedRect {
+                rect: frame.rect(
+                    middle - half_width,
+                    MODEL_FEET_Y - half_height,
+                    half_width * 2.0,
+                    half_height * 2.0,
+                ),
+                radius: half_height * s,
+                color: color::alpha(color::SPACE, SHADOW_ALPHA),
+            });
+        }
         let _ = self.canvas.draw_list_mut().push(DrawCommand::SolidRect {
             rect: frame.rect(x + width * 0.25, MODEL_FEET_Y, width * 0.5, 1.5),
             color: color::alpha(color::GOLD, 0.35),
@@ -2481,6 +2498,40 @@ mod tests {
     const _: () = assert!(SKIN_BASE + (crate::unlockables::ALL.len() + 1) as u16 <= STYLE_BASE);
     const _: () = assert!(STYLE_BASE + 3 <= HILT_SCROLL);
     const _: () = assert!(HILT_SCROLL + 2 <= HILT_BASE);
+
+    /// Opened from a game, the preview's shadow fades: several faint pills, none dark
+    /// on its own, each narrower than the last, all centred under the feet.
+    #[test]
+    fn the_preview_shadow_fades_out_to_its_ends() {
+        let mut menu = PlayerMenu::new();
+        menu.set_sjk(true);
+        menu.return_target = ReturnTarget::InGame;
+        menu.set_page(ProfilePage::Character);
+        draw(&mut menu);
+        let frame = Frame::new([1920.0, 1080.0]);
+        let [_, feet] = frame.point(0.0, MODEL_FEET_Y);
+        let pills: Vec<sjk_ui::Rect> = menu
+            .canvas
+            .draw_list()
+            .commands()
+            .iter()
+            .filter_map(|command| match command {
+                DrawCommand::RoundedRect { rect, color, .. }
+                    if (rect.y + rect.height * 0.5 - feet).abs() < 0.5 =>
+                {
+                    assert!(color.a <= SHADOW_ALPHA + 1e-3, "{color:?}");
+                    Some(*rect)
+                }
+                _ => None,
+            })
+            .collect();
+        assert_eq!(pills.len(), SHADOW_LAYERS);
+        for pair in pills.windows(2) {
+            assert!(pair[1].width < pair[0].width && pair[1].height < pair[0].height);
+            let centre = |rect: sjk_ui::Rect| rect.x + rect.width * 0.5;
+            assert!((centre(pair[0]) - centre(pair[1])).abs() < 0.5);
+        }
+    }
 
     /// The screen in the SJK UI on `page`, Dual sabers when `dual`, drawn at
     /// 1080 lines with a rank 7 profile that has bought nothing.

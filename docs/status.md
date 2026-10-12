@@ -2,20 +2,21 @@
 
 ## Profile: turn the model in game, pick hats and capes from chips
 
-Branch `feat/character-model-picker` (12/10/2026, based on `3ab63816`, Linux): Sol asked
+Branch `feat/character-model-picker` (12/10/2026, on `main` at `8170d049`, Linux): Sol asked
 (10/10/2026) for the model picker to "rotate model with mouse click, better cosmetic
 picker". Opened from a game, on the SJK UI's Character, Saber and Force pages, dragging
 over the model turns it (the live preview's camera goes round it; the turn holds from page
 to page), and under its feet "Drag" in a key cap and "turn the model" say so, drawn as the
 screen's keys are. On the menu map's stage it does not turn: Creyon's tests found a raised
-blade turned end on to the stage's camera looked far too long. Enter or a click on the Hat
-or Cape row opens a picker in place of the model grid: Hats and Capes, None and every
+blade turned end on to the stage's camera looked far too long. The preview's shadow under
+the feet fades out to its ends instead of a hard dark bar. Enter or a click on the Hat or
+Cape row opens a picker in place of the model grid: Hats and Capes, None and every
 installed piece as named chips, the worn one ringed gold; a click wears it, and in game
 the model shows its back for capes ([sjk-ui.md](sjk-ui.md#character)). Verified: tests of
 the turn (a drag on each page in game, none on the menu map, easing the short way, whole
-turns dropped, the preview's angle, the hint) and of the picker (its chips, wearing by
-click and by key, Tab to capes turning the model, Escape); the workspace checks; in game
-on Windows 11 by Creyon, the drag in the in-game menu.
+turns dropped, the preview's angle, the hint, the shadow's fade) and of the picker (its
+chips, wearing by click and by key, Tab to capes turning the model, Escape); the workspace
+checks; in game on Windows 11 by Creyon, the drag in the in-game menu.
 
 ## Force powers apply when the Force page is left
 

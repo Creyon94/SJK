@@ -377,8 +377,10 @@ own (`menu_stage::preview`, the classic pages' preview, asked for by
 draft lit in its style's stance, held still at a three-quarter angle (28 degrees
 to its right) rather than turning as retail's did, framed with 1.35 times
 retail's room so a raised blade stays in the picture, on a soft shadow and a
-thin gold line at its feet. `ClientMenu::stage_model` never stages a screen
-opened from a game.
+thin gold line at its feet. The shadow is seven faint pills, each narrower than
+the last, so it is darkest under the feet and fades out at its ends (it was one
+dark pill, which read as a black bar; Creyon, 12/10/2026). `ClientMenu::stage_model`
+never stages a screen opened from a game.
 
 ## SJK's pages
 
