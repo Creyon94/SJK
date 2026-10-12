@@ -147,7 +147,7 @@ const CATEGORIES: [Category; 20] = [
     ),
     // With the scoreboard's rows under their own heading.
     regrouped("HUD", "hud", Advanced::Hud, Panel::Group(Group::Hud)),
-    regrouped("Chat", "text", Advanced::Chat, Panel::Group(Group::Hud)),
+    regrouped("Chat", "chat", Advanced::Chat, Panel::Group(Group::Hud)),
     // The wheel's own icon, a ring of discs, from the wheel's second board.
     advanced(
         "Quick wheel",
@@ -156,7 +156,7 @@ const CATEGORIES: [Category; 20] = [
     ),
     regrouped(
         "Mods",
-        "options",
+        "mods",
         Advanced::Mods,
         Panel::Group(Group::GameOptions),
     ),
@@ -173,7 +173,7 @@ const CATEGORIES: [Category; 20] = [
     simple("Controls", "mouse_joystick", Simple::Controls),
     simple("Gameplay", "game_options", Simple::Gameplay),
     simple("HUD", "hud", Simple::Hud),
-    simple("General", "interface", Simple::General),
+    simple("General", "settings", Simple::General),
 ];
 
 /// The categories on mode `mode`'s rail, top to bottom: Simple's keeps Key
