@@ -78,7 +78,7 @@ impl Measure<'_> {
         family: TextFamily,
         size: f32,
         weight: FontWeight,
-    ) -> impl Fn(u8) -> f32 + '_ {
+    ) -> impl Fn(crate::text::GlyphKey) -> f32 + '_ {
         let font = match family {
             TextFamily::Display => self.display,
             TextFamily::Body | TextFamily::Code => self.body,
@@ -90,7 +90,7 @@ impl Measure<'_> {
             FontWeight::Regular => TextFace::Regular,
             FontWeight::Semibold => TextFace::Semibold,
         };
-        move |glyph| font.glyph(face, glyph).advance * scale + spacing
+        move |glyph| font.glyph_of(face, glyph).advance * scale + spacing
     }
 }
 

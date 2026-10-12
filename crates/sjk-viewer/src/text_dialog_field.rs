@@ -11,7 +11,7 @@
 //! dialog rebuilds it each frame it draws; the keys that move by lines (Up, Down, Home, End)
 //! and the pointer read what the last frame left.
 
-use crate::text::{TextFace, TextStyle, UiFont, glyph_byte_at};
+use crate::text::{TextFace, TextStyle, UiFont, glyph_at};
 use std::ops::Range;
 
 /// How the field's text is drawn: the font, the player's text style, the size and the extra
@@ -41,8 +41,8 @@ impl<'a> Face<'a> {
     /// How far drawing `character` moves the pen.
     pub(super) fn advance(&self, character: char) -> f32 {
         let mut buffer = [0; 4];
-        let (byte, _) = glyph_byte_at(character.encode_utf8(&mut buffer), 0);
-        self.font.glyph(TextFace::Regular, byte).advance * self.scale + self.pen
+        let (key, _) = glyph_at(character.encode_utf8(&mut buffer), 0);
+        self.font.glyph_of(TextFace::Regular, key).advance * self.scale + self.pen
     }
 
     /// The width of `text` drawn on one line.

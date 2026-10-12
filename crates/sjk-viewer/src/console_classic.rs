@@ -31,7 +31,7 @@ use super::ViewerConsole;
 use super::line_edit::token_at;
 use super::selection::{Gesture, Mark, PromptPointer, floor_boundary};
 use crate::console_backdrop::{Background, ConsoleFrame, MAX_TEXT_VERTICES, SolidQuad, TextAtlas};
-use crate::text::{CodePalette, UiFont, append_cell, glyph_byte_at, quake_color};
+use crate::text::{CodePalette, GlyphKey, UiFont, append_cell, glyph_at, quake_color};
 use sjk_shell::local_time::LocalTime;
 use sjk_shell::{ConsoleLine, ConsoleLineKind};
 use sjk_ui::{Rect, Vec2};
@@ -477,6 +477,12 @@ struct Painter<'a> {
 impl Painter<'_> {
     /// Draw `byte` in the cell of the row whose top is `y`.
     fn glyph(&self, frame: &mut ConsoleFrame, byte: u8, x: f32, y: f32, color: [f32; 4]) {
+        self.glyph_key(frame, GlyphKey::Slot(byte), x, y, color);
+    }
+
+    /// Draw `key` in the cell at `x`, `y`: a code-page cell, or a wide character
+    /// shrunk into the cell ([`append_cell`]).
+    fn glyph_key(&self, frame: &mut ConsoleFrame, key: GlyphKey, x: f32, y: f32, color: [f32; 4]) {
         let y = y + self.grid.inset();
         if y + self.grid.height <= 0.0 || y >= self.viewport[1] {
             return;
@@ -484,7 +490,7 @@ impl Painter<'_> {
         append_cell(
             &mut frame.text,
             self.font,
-            byte,
+            key,
             [x, y, self.grid.width, self.grid.height],
             color,
             self.viewport,
@@ -497,8 +503,8 @@ impl Painter<'_> {
     fn raw(&self, frame: &mut ConsoleFrame, text: &str, column: usize, y: f32, color: [f32; 4]) {
         let visible = text.chars().filter(|&character| !hidden(character));
         for (offset, character) in visible.enumerate() {
-            let byte = console_byte(character);
-            self.glyph(frame, byte, self.grid.x(column + offset), y, color);
+            let key = console_key(character);
+            self.glyph_key(frame, key, self.grid.x(column + offset), y, color);
         }
     }
 
@@ -508,17 +514,17 @@ impl Painter<'_> {
         let visible = input_colours(text, color, self.ink.palette)
             .filter(|&(character, _)| !hidden(character));
         for (offset, (character, color)) in visible.enumerate() {
-            let byte = console_byte(character);
-            self.glyph(frame, byte, self.grid.x(column + offset), y, color);
+            let key = console_key(character);
+            self.glyph_key(frame, key, self.grid.x(column + offset), y, color);
         }
     }
 
     /// Draw `text` raw from `x` (pixels) on, in the bar colour.
     fn right(&self, frame: &mut ConsoleFrame, text: &str, x: f32, y: f32) {
         for (offset, character) in text.chars().enumerate() {
-            let byte = console_byte(character);
+            let key = console_key(character);
             let left = x + offset as f32 * self.grid.width;
-            self.glyph(frame, byte, left, y, BAR_COLOR);
+            self.glyph_key(frame, key, left, y, BAR_COLOR);
         }
     }
 
@@ -540,12 +546,12 @@ impl Painter<'_> {
                 index += 2;
                 continue;
             }
-            let (byte, step) = glyph_byte_at(text, index);
+            let (key, step) = glyph_at(text, index);
             index += step;
             if text[index - step..].chars().next().is_some_and(hidden) {
                 continue;
             }
-            self.glyph(frame, byte, self.grid.x(column + offset), y, color);
+            self.glyph_key(frame, key, self.grid.x(column + offset), y, color);
             offset += 1;
         }
     }
@@ -1099,12 +1105,12 @@ impl ViewerConsole {
                     index += 2;
                     continue;
                 }
-                let (byte, step) = glyph_byte_at(text, index);
+                let (key, step) = glyph_at(text, index);
                 index += step;
                 if text[index - step..].chars().next().is_some_and(hidden) {
                     continue;
                 }
-                painter.glyph(frame, byte, x, y, color);
+                painter.glyph_key(frame, key, x, y, color);
                 x += grid.width;
             }
             y += grid.height;
@@ -1115,11 +1121,11 @@ impl ViewerConsole {
     }
 }
 
-/// The character-set cell that draws `character`: its Windows-1252 byte, as
-/// [`crate::text::glyph_byte_at`] picks it, so a typed `’` uses cell 0x92 like
-/// the same byte from another player; `?` for a character with no such byte.
-fn console_byte(character: char) -> u8 {
-    sjk_protocol::windows_1252_byte(character).unwrap_or(b'?')
+/// The glyph that draws `character` in its cell: its Windows-1252 byte's, as
+/// [`crate::text::glyph_at`] picks it, so a typed `’` uses cell 0x92 like the same
+/// byte from another player; a character with no such byte (`ж`, `日`) is wide.
+fn console_key(character: char) -> GlyphKey {
+    sjk_protocol::windows_1252_byte(character).map_or(GlyphKey::Wide(character), GlyphKey::Slot)
 }
 
 #[cfg(test)]
@@ -1180,8 +1186,10 @@ mod tests {
 
     #[test]
     fn typed_symbols_use_their_windows_1252_cells() {
-        let cells: Vec<u8> = "a×’‘€…♥".chars().map(console_byte).collect();
-        assert_eq!(cells, [b'a', 0xd7, 0x92, 0x91, 0x80, 0x85, b'?']);
+        let cells: Vec<GlyphKey> = "a×’‘€…ж".chars().map(console_key).collect();
+        let slots = [b'a', 0xd7, 0x92, 0x91, 0x80, 0x85].map(GlyphKey::Slot);
+        assert_eq!(cells[..6], slots);
+        assert_eq!(cells[6], GlyphKey::Wide('ж'));
     }
 
     fn rows(text: &str, width: usize) -> Vec<String> {

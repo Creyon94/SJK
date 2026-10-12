@@ -85,6 +85,8 @@ pub(crate) struct Device<'a> {
     /// The text pipeline's atlas bind group layout.
     pub(crate) layout: &'a wgpu::BindGroupLayout,
     pub(crate) sampler: &'a wgpu::Sampler,
+    /// The wide-glyph atlas every text bind group carries.
+    pub(crate) wide: &'a wgpu::TextureView,
 }
 
 impl Layer {
@@ -142,20 +144,14 @@ impl Layer {
             true,
             mip_levels(field.width(), field.height()),
         );
-        let bind_group = gpu.device.create_bind_group(&wgpu::BindGroupDescriptor {
-            label: Some("SJK game font bind group"),
-            layout: gpu.layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(gpu.sampler),
-                },
-            ],
-        });
+        let bind_group = text::wide_texture::bind_group(
+            gpu.device,
+            "SJK game font bind group",
+            gpu.layout,
+            &view,
+            gpu.sampler,
+            gpu.wide,
+        );
         let buffer = gpu.device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("SJK game font text vertices"),
             size: (MAX_TEXT_VERTICES * std::mem::size_of::<TextVertex>()) as u64,
@@ -523,6 +519,7 @@ pub(crate) fn prepare(gpu: &mut GpuState) {
             queue: &gpu.queue,
             layout: &gpu.text_layout,
             sampler: &gpu.text_sampler,
+            wide: gpu.wide_text.view(),
         };
         if load {
             fonts.load(&device);

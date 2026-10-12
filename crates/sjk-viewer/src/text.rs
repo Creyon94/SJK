@@ -7,14 +7,19 @@
 //! game fonts ([`retail_font`]), which the classic HUD font and the optional game
 //! fonts ([`crate::game_font`]) use, are rasterized the same way. The retail fonts'
 //! `¬` logo, bundled as a vector glyph, replaces Inter's ([`logo_glyph`]).
+//! Characters outside those atlases' 256 code-page slots (Cyrillic, Japanese) come
+//! from one shared atlas filled as they first appear ([`wide`]).
 
 mod bounded;
 mod cell;
+pub(crate) mod charset;
 pub(crate) mod console_font;
 pub(crate) mod logo_glyph;
 pub(crate) mod retail_font;
 pub(crate) mod sdf;
 pub(crate) mod style;
+pub(crate) mod wide;
+pub(crate) mod wide_texture;
 pub(crate) use bounded::append_bounded;
 pub(crate) use cell::append_cell;
 pub(crate) use logo_glyph::LogoGlyph;
@@ -49,6 +54,8 @@ pub(crate) struct Family {
     pub(crate) name: &'static str,
     faces: [&'static [u8]; 2],
     fallback: Option<[&'static [u8]; 2]>,
+    /// Fonts lending each face the characters beyond its code-page slots.
+    wide: [&'static [wide::Source]; 2],
 }
 
 /// Inter, the HUD's, chat's and SJK's own screens' font.
@@ -56,6 +63,7 @@ pub(crate) const INTER: Family = Family {
     name: "Inter",
     faces: [INTER_REGULAR, INTER_SEMIBOLD],
     fallback: None,
+    wide: wide::INTER,
 };
 
 /// The SJK UI's display family, as on SJK's site: Rajdhani SemiBold and Bold
@@ -65,6 +73,7 @@ pub(crate) const DISPLAY: Family = Family {
     name: "Rajdhani",
     faces: [RAJDHANI_SEMIBOLD, RAJDHANI_BOLD],
     fallback: Some([EXO2_SEMIBOLD, EXO2_SEMIBOLD]),
+    wide: [wide::EXO2[1], wide::EXO2[1]],
 };
 
 /// The SJK UI's body family, as on SJK's site: Exo 2 Regular and SemiBold
@@ -73,6 +82,7 @@ pub(crate) const BODY: Family = Family {
     name: "Exo 2",
     faces: [EXO2_REGULAR, EXO2_SEMIBOLD],
     fallback: None,
+    wide: wide::EXO2,
 };
 
 /// Font weight available in the modern UI atlas.
@@ -112,6 +122,8 @@ pub(crate) struct FontGlyph {
 /// Immutable glyph metrics used by all menu, console, HUD, and chat layout.
 pub(crate) struct UiFont {
     glyphs: [[FontGlyph; GLYPH_COUNT]; 2],
+    /// Fonts lending each face the characters beyond its slots ([`wide`]).
+    wide: [&'static [wide::Source]; 2],
     /// Baseline-to-baseline line height in physical framebuffer pixels.
     pub(crate) height: f32,
     modern: bool,
@@ -123,7 +135,37 @@ impl UiFont {
     /// Metrics and atlas rectangle of `byte` (Latin-1) in `face`, for layouts
     /// outside the 2D text path such as the ground HUD's world-space numbers.
     pub(crate) fn glyph(&self, face: TextFace, byte: u8) -> FontGlyph {
-        self.glyphs[if self.modern { face.index() } else { 0 }][usize::from(byte)]
+        self.glyphs[self.face_index(face)][usize::from(byte)]
+    }
+
+    /// Metrics and atlas rectangle of `key` in `face`: a code-page slot from the
+    /// font's own atlas, a wide character from the wide atlas ([`wide`]), scaled so its
+    /// capitals match this font's (`H`) and set on the same baseline. A character no
+    /// font of the face has draws `?`.
+    pub(crate) fn glyph_of(&self, face: TextFace, key: GlyphKey) -> FontGlyph {
+        let character = match key {
+            GlyphKey::Slot(byte) => return self.glyph(face, byte),
+            GlyphKey::Wide(character) => character,
+        };
+        let index = self.face_index(face);
+        let Some(glyph) = wide::lookup(self.wide[index], character) else {
+            return self.glyph(face, b'?');
+        };
+        let capital = self.glyphs[index][usize::from(b'H')];
+        let ratio = glyph.source.map_or(1.0, wide::Source::cap_ratio);
+        let unit = capital.height / (ratio * wide::RASTER_EM);
+        FontGlyph {
+            width: glyph.width * unit,
+            height: glyph.height * unit,
+            advance: glyph.advance * unit,
+            offset_x: glyph.left * unit,
+            offset_y: capital.offset_y + capital.height - glyph.top * unit,
+            uv: glyph.uv,
+        }
+    }
+
+    fn face_index(&self, face: TextFace) -> usize {
+        if self.modern { face.index() } else { 0 }
     }
 
     /// How far below the top of a line drawn at `scale` the middle of the
@@ -311,6 +353,7 @@ pub(crate) fn load_family(
     Ok(FontAtlas {
         font: UiFont {
             glyphs,
+            wide: family.wide,
             height: line_metrics.new_line_size / MODERN_RASTER_SCALE,
             modern: true,
             style: TextStyle::NEUTRAL,
@@ -602,17 +645,18 @@ pub(crate) fn append_text_style(
             index += 2;
             continue;
         }
-        let (character, step) = glyph_byte_at(text, index);
+        let (key, step) = glyph_at(text, index);
         index += step;
-        if character == b'\n' || cursor[0] + font.height * scale > viewport[0] {
+        let newline = key == GlyphKey::Slot(b'\n');
+        if newline || cursor[0] + font.height * scale > viewport[0] {
             cursor[0] = origin[0];
             cursor[1] += font.height * scale * 1.18;
             lines += 1;
-            if character == b'\n' {
+            if newline {
                 continue;
             }
         }
-        let glyph = font.glyph(face, character);
+        let glyph = font.glyph_of(face, key);
         let rectangle = [
             cursor[0] + glyph.offset_x * scale,
             cursor[1] + glyph.offset_y * scale,
@@ -660,25 +704,35 @@ fn slot_glyph<'a>(font: &'a Font, fallback: Option<&'a Font>, byte: u8) -> (&'a 
     }
 }
 
-/// Take the atlas index that draws the character at `index`, and its UTF-8 length.
+/// Which glyph draws a character: a slot of the font's own atlas, or a wide one.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum GlyphKey {
+    /// The code-page slot of this Windows-1252 byte.
+    Slot(u8),
+    /// A character with no Windows-1252 byte, from the wide atlas ([`wide`]).
+    Wide(char),
+}
+
+/// Take the glyph that draws the character at `index`, and its UTF-8 length.
 ///
-/// The atlas holds 256 glyphs indexed by Windows-1252 byte, matching how JKA's own fonts are
+/// The atlases hold 256 glyphs indexed by Windows-1252 byte, matching how JKA's own fonts are
 /// laid out. Text reaching the renderer is a Rust `str`, so any character above ASCII occupies
 /// several UTF-8 bytes, and indexing the atlas with those bytes drew one character as two
 /// glyphs: `ñ` became `Ã±`, and U+FFFD became `ï¿½` — the trailing `½` players kept seeing in
 /// names. A character is drawn with the glyph of its Windows-1252 byte, so `€` typed here and
-/// byte 0x80 from another client (decoded as U+0080) both draw slot 0x80. Characters with no
-/// Windows-1252 byte have no glyph in a 256-entry atlas and fall back to `?`.
+/// byte 0x80 from another client (decoded as U+0080) both draw slot 0x80. Any other character
+/// (`ж`, `日`) is wide and comes from the wide atlas.
 ///
 /// `index` must be a character boundary, which holds because every caller advances by whole
 /// characters or by an ASCII colour escape.
-pub(crate) fn glyph_byte_at(text: &str, index: usize) -> (u8, usize) {
+pub(crate) fn glyph_at(text: &str, index: usize) -> (GlyphKey, usize) {
     match text[index..].chars().next() {
         Some(character) => (
-            sjk_protocol::windows_1252_byte(character).unwrap_or(b'?'),
+            sjk_protocol::windows_1252_byte(character)
+                .map_or(GlyphKey::Wide(character), GlyphKey::Slot),
             character.len_utf8(),
         ),
-        None => (b'?', 1),
+        None => (GlyphKey::Slot(b'?'), 1),
     }
 }
 
@@ -717,8 +771,8 @@ pub(crate) fn visible_text_width_style(
             width = 0.0;
             index += 1;
         } else {
-            let (character, step) = glyph_byte_at(text, index);
-            width += font.glyph(face, character).advance * scale + letter_spacing;
+            let (key, step) = glyph_at(text, index);
+            width += font.glyph_of(face, key).advance * scale + letter_spacing;
             index += step;
         }
     }
@@ -741,6 +795,7 @@ pub(crate) fn test_font() -> UiFont {
     }
     UiFont {
         glyphs,
+        wide: wide::NONE,
         height: 12.0,
         modern: true,
         style: TextStyle::NEUTRAL,
@@ -837,13 +892,16 @@ mod tests {
         assert_eq!(Plain("^1J^7o^1F").to_string(), "JoF");
     }
 
-    /// Glyph bytes of `text`, walking it as the renderer does.
+    /// Glyph bytes of `text`, walking it as the renderer does; a wide character is `?`.
     fn glyph_bytes(text: &str) -> Vec<u8> {
         let mut bytes = Vec::new();
         let mut index = 0;
         while index < text.len() {
-            let (byte, step) = glyph_byte_at(text, index);
-            bytes.push(byte);
+            let (key, step) = glyph_at(text, index);
+            bytes.push(match key {
+                GlyphKey::Slot(byte) => byte,
+                GlyphKey::Wide(_) => b'?',
+            });
             index += step;
         }
         bytes
@@ -852,13 +910,50 @@ mod tests {
     #[test]
     fn typed_and_received_symbols_draw_their_windows_1252_glyph() {
         let symbols = "×¥’¡²³‘€½¼©ñæ§®™£°µ·«»ÄäÖöÜüßÆØøÑ…";
-        let expected = sjk_protocol::encode_legacy_text(symbols);
+        let expected: Vec<u8> = symbols
+            .chars()
+            .map(|character| sjk_protocol::windows_1252_byte(character).unwrap())
+            .collect();
         // Typed here: Unicode characters.
-        assert_eq!(glyph_bytes(symbols), *expected);
+        assert_eq!(glyph_bytes(symbols), expected);
         // Received from a legacy client: the same bytes, decoded as Latin-1.
         let received: String = expected.iter().map(|&byte| char::from(byte)).collect();
-        assert_eq!(glyph_bytes(&received), *expected);
-        assert_eq!(glyph_bytes("♥"), [b'?']);
+        assert_eq!(glyph_bytes(&received), expected);
+        assert_eq!(glyph_at("♥", 0), (GlyphKey::Wide('♥'), 3));
+        assert_eq!(glyph_at("жa", 0), (GlyphKey::Wide('ж'), 2));
+    }
+
+    #[test]
+    fn wide_characters_match_the_capitals_and_sit_on_the_baseline() {
+        let font = load_modern(1.0, None).unwrap().font;
+        let capital = font.glyph(TextFace::Regular, b'H');
+        let baseline = capital.offset_y + capital.height;
+        let drawn = |character| {
+            // The advance is known before the glyph is rasterized.
+            let pending = font.glyph_of(TextFace::Regular, GlyphKey::Wide(character));
+            while wide::rasterize_pending(std::time::Duration::from_secs(1)) {}
+            let glyph = font.glyph_of(TextFace::Regular, GlyphKey::Wide(character));
+            assert_eq!(pending.advance, glyph.advance);
+            glyph
+        };
+        // `Ж` is a capital of Inter's own Cyrillic: as tall as `H`, on its baseline.
+        let zhe = drawn('Ж');
+        assert!(zhe.advance > capital.advance * 0.8, "{zhe:?}");
+        assert!(
+            (zhe.height - capital.height).abs() < 0.5,
+            "{zhe:?} {capital:?}"
+        );
+        assert!((zhe.offset_y + zhe.height - baseline).abs() < 0.5);
+        assert!(zhe.uv[0] >= wide::U_OFFSET);
+        // A kanji is wider and taller than a capital.
+        let kanji = drawn('漢');
+        assert!(
+            kanji.width > capital.width && kanji.height > capital.height,
+            "{kanji:?}"
+        );
+        // No font has it: the face's `?`.
+        let missing = font.glyph_of(TextFace::Regular, GlyphKey::Wide('😀'));
+        assert_eq!(missing.uv, font.glyph(TextFace::Regular, b'?').uv);
     }
 
     #[test]

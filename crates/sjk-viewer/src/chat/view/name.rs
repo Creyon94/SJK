@@ -23,8 +23,8 @@ pub(super) fn ink_bounds(font: &UiFont, name: &str, origin: [f32; 2], size: f32)
             index += 2;
             continue;
         }
-        let (byte, step) = crate::text::glyph_byte_at(name, index);
-        let glyph = font.glyph(TextFace::Semibold, byte);
+        let (key, step) = crate::text::glyph_at(name, index);
+        let glyph = font.glyph_of(TextFace::Semibold, key);
         if glyph.width > 0.0 && glyph.height > 0.0 {
             let x = pen + glyph.offset_x * scale;
             let y = origin[1] + glyph.offset_y * scale;

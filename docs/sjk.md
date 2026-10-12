@@ -97,6 +97,12 @@ credits.txt.
 | `arialnb` | Classic status HUD (`cg_classicHudFont`) | SJK HUD: traced from the JoF HD pack's atlas |
 | `logo` glyph (0xAC) | The "WSI fonts" logo in Inter's atlas | SJK Menu's vector logo ([logo_glyph.rs](../crates/sjk-viewer/src/text/logo_glyph.rs)) |
 
+Characters outside the 256 code-page slots (Cyrillic, Japanese) come from the
+same vector fonts, Cyrillic from Inter, Exo 2 or JetBrains Mono, kana and kanji
+from Noto Sans JP (OFL), subset to kana, kanji, CJK punctuation and full-width
+forms (3 MB) with fontTools
+([rendering.md](rendering.md#characters-beyond-the-code-page)).
+
 SJK Menu, SJK Chat and SJK HUD keep the retail layout (advances, glyph positions,
 line height and baseline), so every surface lays out as it did with the bitmaps.
 [game_fonts.py](../scripts/game_fonts.py) rebuilds them from a player's install

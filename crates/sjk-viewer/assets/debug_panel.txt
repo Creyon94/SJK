@@ -24,6 +24,19 @@
 
 # ---- Console & chat ----
 
+[russian-japanese-text]
+area: Console & chat
+title: Russian and Japanese show in chat and names instead of question marks
+change: Cyrillic, kana and kanji are drawn everywhere (Japanese from the bundled Noto Sans JP).
+change: Russian goes and comes in Windows-1251 like EternalJK; Japanese as UTF-8.
+change: Settings > Text > Other clients' text (cl_charset): Auto, Western, Cyrillic.
+test: Type Russian in chat: your line and the typing field show it, not ???.
+test: Type Japanese (Windows IME) in chat: kana and kanji show; another SJK player reads it.
+test: An EternalJK player with se_language russian: you read each other's Russian.
+test: A Russian line is not cut early: about 149 letters fit, as in EternalJK.
+test: Console and SJK channel: Cyrillic shows there too; ui_gameFont 1 and 0 both draw it.
+note: Japanese is read only by SJK players; the SJK channel does not take Japanese yet.
+
 [own-chat-sound]
 area: Console & chat
 title: Your own SJK chat message plays the SJK chat sound when it goes out

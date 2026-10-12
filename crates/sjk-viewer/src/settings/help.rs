@@ -100,6 +100,9 @@ const CHOICE_NAMES: &[(&str, &str, &str)] = &[
         crate::graphics_quality::SJK,
         "SJK (alpha)",
     ),
+    (crate::text::charset::CVAR, "auto", "Auto"),
+    (crate::text::charset::CVAR, "western", "Western"),
+    (crate::text::charset::CVAR, "cyrillic", "Cyrillic"),
     (crate::input::idrive::CVAR, "0", "Off"),
     (crate::input::idrive::CVAR, "1", "All keys"),
     (crate::input::idrive::CVAR, "2", "Jump, crouch"),
@@ -633,6 +636,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::console::console_options::DRAW_NOTIFY_CVAR,
         "Shows the newest console lines at the top left while playing. Chat keeps its own box.",
+    ),
+    (
+        crate::text::charset::CVAR,
+        "Chat and names of EternalJK and retail players: Auto spots Russian, Cyrillic always reads it as Russian, Western never.",
     ),
     // IMAGE
     (

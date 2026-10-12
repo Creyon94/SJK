@@ -29,7 +29,9 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 > Collection: Rest the pointer on anything you collect to see how you get it.
 > Settings: Simple shows the settings that matter most, Advanced every one; Ctrl+F or F3 finds any.
 > Graphics: New players start on Vanilla, the original look; the SJK renderer is one click away, in alpha.
+> Chat: Russian and Japanese now show in chat and names instead of question marks.
 
+- Russian and Japanese text: chat, names, the console and every other text draw Cyrillic, kana and kanji instead of question marks (Noto Sans JP is bundled for Japanese); Russian is sent and read in Windows-1251 as EternalJK sends it, so SJK and EternalJK players with `se_language russian` read each other, and Settings > Text > Other clients' text (`cl_charset`: Auto, Western, Cyrillic) fixes a wrong guess; Japanese goes as UTF-8, read by SJK players; the chat field now stops where the server would cut the line, so a Russian line holds 149 letters _(Sol, after EternalJK)_
 - Holding a push or pull key pushes or pulls again as soon as the power is ready, as in JoF EJK, keyboard or mouse; Settings > Controls > Hold push/pull repeats (`cl_forceRepeat`, on by default) turns it off _(Sol, after JoF EJK)_
 - Settings in two modes: Simple, the default, shows the settings that matter most in eight plain categories (Display, Graphics, Sound, Controls, Key bindings, Gameplay, HUD, General), and Advanced every setting, regrouped (Display and Network under sub-headings, Graphics led by the renderer, the FPS readout with the HUD's readouts, the first-person weapon with the camera); the top bar or F2 switches, and `ui_settingsMode` keeps the choice _(Sol)_
 - Settings' search: Ctrl+F and F3 open it as `/` does, with what was typed selected so typing replaces it, in Settings and Key bindings; it finds every setting in both modes, under the new category names _(Sol)_

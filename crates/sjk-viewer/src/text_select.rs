@@ -97,7 +97,7 @@ impl TextSelect {
         band: Rect,
         x: f32,
         text: &str,
-        advance: impl Fn(u8) -> f32,
+        advance: impl Fn(crate::text::GlyphKey) -> f32,
         joiner: Joiner,
         highlight: Color,
     ) {

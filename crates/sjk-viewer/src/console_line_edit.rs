@@ -126,6 +126,32 @@ impl LineEdit {
         self.insert_counted(text, value, limit, char::len_utf8);
     }
 
+    /// [`Self::insert`], keeping only what leaves the whole line `fits`: for a
+    /// line whose length depends on all of it, such as chat, whose encoding the
+    /// whole line picks.
+    pub(crate) fn insert_fitting(
+        &mut self,
+        text: &mut String,
+        value: &str,
+        fits: impl Fn(&str) -> bool,
+    ) {
+        if let Some(range) = self.selection(text) {
+            text.replace_range(range.clone(), "");
+            self.cursor = range.start;
+        }
+        self.anchor = None;
+        let mut cursor = self.cursor(text);
+        for character in value.chars().filter(|character| !character.is_control()) {
+            text.insert(cursor, character);
+            if !fits(text) {
+                text.remove(cursor);
+                break;
+            }
+            cursor += character.len_utf8();
+        }
+        self.cursor = cursor;
+    }
+
     /// [`Self::insert`], with the line's length counted by `cost` per
     /// character instead of its UTF-8 bytes.
     pub(crate) fn insert_counted(
