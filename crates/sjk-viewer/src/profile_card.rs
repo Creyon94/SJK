@@ -515,6 +515,7 @@ mod tests {
     fn snapshot(status: Status, me: Option<Profile>) -> Snapshot {
         Snapshot {
             opening: None,
+            reveal: None,
             local_key_id: "0123456789abcdef".to_owned(),
             status,
             key_id: "0123456789abcdef".to_owned(),

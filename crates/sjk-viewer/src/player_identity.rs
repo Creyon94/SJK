@@ -578,6 +578,21 @@ pub(crate) fn open_holocrons(ids: Vec<u64>) -> bool {
         .is_some()
 }
 
+/// Ask the hub to reveal the player's sealed cards; false when the service has not
+/// started. What they became arrives in [`reveal_outcome`].
+pub(crate) fn reveal_cards() -> bool {
+    lock()
+        .service
+        .as_ref()
+        .map(sjk_identity::Service::reveal_cards)
+        .is_some()
+}
+
+/// What became of the last reveal of sealed cards, if the service has started.
+pub(crate) fn reveal_outcome() -> Option<sjk_identity::RevealOutcome> {
+    with_snapshot(|snapshot| snapshot.reveal.clone()).flatten()
+}
+
 /// What became of the last opening of holocrons, if the service has started.
 pub(crate) fn opening_outcome() -> Option<sjk_identity::OpenOutcome> {
     with_snapshot(|snapshot| snapshot.opening.clone()).flatten()

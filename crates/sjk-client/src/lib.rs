@@ -81,6 +81,7 @@ pub mod string_table;
 pub use permanent_entities::{legacy_permanent_visible, legacy_scene_entities};
 mod presentation_equipment;
 mod reliable_pacing;
+mod retail_assets;
 mod saber_clash_flare;
 mod saber_command;
 mod saber_definitions;
@@ -242,6 +243,7 @@ pub use presentation::{
 };
 pub use presentation::{LegacyWorldAdapter, legacy_predicted_equipment};
 pub use pure_checksums::{legacy_pure_checksum_command, legacy_server_is_pure};
+pub use retail_assets::{RETAIL_ARCHIVES, RETAIL_DIRECTORY, is_retail_mount};
 pub use saber_clash_flare::{
     LegacySaberClashFlare, LegacySaberClashSample, LegacySaberClashVisibility,
 };

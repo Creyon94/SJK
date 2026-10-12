@@ -9,12 +9,24 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 12/10/2026 | - | Advanced settings regrouped: Sound, Chat, Mods, Scoreboard in HUD
+- 4aeb4e5 |  | Advanced settings regrouped: Sound holds every sound, Chat and Mods categories, Scoreboard in HUD
++ 12/10/2026 | - | Character creator with tile grids, Apply, the Jedi Academy's own assets first
+- d6d1381 |  | Profile > Character: a model chosen is worn only on Apply
+- ef70517 |  | Character page: a creator with tile grids, Jedi Academy first
+- 5b17d75 |  | Saber hilts: the retail game's first under a Jedi Academy heading
+- 1f9c151 |  | Credits and changelog for the character creator
+- 48f56c7 |  | Shorten the Character recap so the what's-new card keeps it
++ 12/10/2026 | - | Card faces, the first card, revealing sealed cards
+- 23bee8f |  | Cards have faces: the first card, revealing sealed cards
 + 12/10/2026 | - | Settings in Simple and Advanced, Vanilla or the SJK renderer, anonymous settings usage
 - 36ab218 |  | Settings in Simple and Advanced, Vanilla or the SJK renderer, anonymous settings usage
 + 12/10/2026 | - | Ignore card_import/
 - 5b04b39 |  | Ignore card_import/, Sol's card art and texts before they go into a pack
 + 12/10/2026 | - | Collection hover cards: how every thing is obtained
 - 5af2de8 |  | Collection: hover cards say how every thing is obtained
++ 12/10/2026 | - | Catalogue the retail game's models, species and hilts first
+- 6321b91 |  | Catalogue the retail game's models, species and hilts first
 + 12/10/2026 | - | Holding push or pull uses it again as soon as it is ready
 - 9535109 |  | Holding push or pull uses it again as soon as it is ready (cl_forceRepeat)
 + 12/10/2026 | - | Generated material maps load from SJK's own pack, above every other pack

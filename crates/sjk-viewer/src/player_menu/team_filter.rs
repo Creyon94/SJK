@@ -22,15 +22,7 @@ pub(super) enum TeamSkin {
 }
 
 impl TeamSkin {
-    const ALL: [Self; 3] = [Self::Default, Self::Red, Self::Blue];
-
-    pub(super) fn label(self) -> &'static str {
-        match self {
-            Self::Default => "Default",
-            Self::Red => "Red team",
-            Self::Blue => "Blue team",
-        }
-    }
+    pub(super) const ALL: [Self; 3] = [Self::Default, Self::Red, Self::Blue];
 
     /// The set a catalogue skin belongs to; anything but a team skin is
     /// Default.
@@ -51,7 +43,7 @@ impl TeamSkin {
         }
     }
 
-    fn index(self) -> usize {
+    pub(super) fn index(self) -> usize {
         Self::ALL.iter().position(|team| *team == self).unwrap_or(0)
     }
 }
@@ -62,26 +54,47 @@ impl PlayerMenu {
     /// matching species.
     pub(super) fn rebuild_tiles(&mut self) {
         self.tiles.clear();
+        self.retail_tiles = 0;
         let Some(catalog) = catalog_of(&self.loader) else {
             return;
         };
         let team = self.team;
         let search = self.search.as_str();
-        let characters = catalog
-            .characters
-            .iter()
-            .enumerate()
-            .filter(|(_, entry)| {
-                TeamSkin::of(&entry.skin) == team && search_matches(search, &entry.cvar_value)
-            })
-            .map(|(index, _)| index);
+        let characters = catalog.characters.iter().enumerate().filter(|(_, entry)| {
+            TeamSkin::of(&entry.skin) == team && search_matches(search, &entry.cvar_value)
+        });
         let species = catalog
             .species
             .iter()
             .enumerate()
             .filter(|(_, species)| search_matches(search, &species.model))
-            .map(|(index, _)| catalog.characters.len() + index);
-        self.tiles.extend(characters.chain(species));
+            .map(|(index, _)| (catalog.characters.len() + index, index));
+        // The retail game's own first (its characters, then its species), then the
+        // community's in the same order: the catalogue lists each retail first.
+        let retail = |index: usize, count: usize| index < count;
+        self.tiles.extend(
+            characters
+                .clone()
+                .filter(|(index, _)| retail(*index, catalog.retail_characters))
+                .map(|(index, _)| index),
+        );
+        self.tiles.extend(
+            species
+                .clone()
+                .filter(|(_, index)| retail(*index, catalog.retail_species))
+                .map(|(absolute, _)| absolute),
+        );
+        self.retail_tiles = self.tiles.len();
+        self.tiles.extend(
+            characters
+                .filter(|(index, _)| !retail(*index, catalog.retail_characters))
+                .map(|(index, _)| index),
+        );
+        self.tiles.extend(
+            species
+                .filter(|(_, index)| !retail(*index, catalog.retail_species))
+                .map(|(absolute, _)| absolute),
+        );
     }
 
     /// Change the search to `text` and list what matches it from the top
@@ -95,6 +108,7 @@ impl PlayerMenu {
         self.rebuild_tiles();
         self.grid_scroll = 0;
         self.grid_follow = true;
+        self.creator.back_to_top();
     }
 
     /// Start typing the search.

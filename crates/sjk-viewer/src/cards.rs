@@ -11,10 +11,12 @@
 //! | piece | module |
 //! | --- | --- |
 //! | a card drawn from shapes, its finishes' light | [`look`] |
+//! | revealed cards' faces, from the SJK packs | [`faces`] |
 //! | the credits' mark | [`mark`] |
 //! | the loot table's odds, worked out | [`loot`] |
 //! | `debug_open` | [`rehearsal`] |
 
+pub(crate) mod faces;
 pub(crate) mod look;
 pub(crate) mod loot;
 pub(crate) mod mark;
@@ -240,6 +242,40 @@ pub(crate) fn stacks(list: &[CardStack]) -> Vec<Stack> {
     stacks
 }
 
+impl Stack {
+    /// What players read it as: its face's name once revealed ("Unknown card <id>" when
+    /// the packs have no face of it), else its sealed title.
+    pub(crate) fn name_in(&self, faces: &faces::Faces) -> String {
+        match &self.card {
+            None => self.title(),
+            Some(id) => faces.find(id).map_or_else(
+                || format!("Unknown card {id}"),
+                |(_, face)| face.name.clone(),
+            ),
+        }
+    }
+}
+
+/// How a card `card` (its id, `None` while sealed) shows its face, when the packs have it.
+pub(crate) fn shown<'a>(faces: &'a faces::Faces, card: Option<&str>) -> Option<look::Shown<'a>> {
+    let (index, face) = faces.find(card?)?;
+    Some(look::Shown {
+        face,
+        index,
+        of: faces.in_set(&face.set),
+    })
+}
+
+/// How many sealed copies of `stacks` the hub could reveal now: those of a rarity the
+/// packs have faces of.
+pub(crate) fn revealable(stacks: &[Stack], faces: &faces::Faces) -> u32 {
+    stacks
+        .iter()
+        .filter(|stack| stack.sealed() && faces.has_rarity(stack.rarity))
+        .map(|stack| stack.count)
+        .sum()
+}
+
 /// How many cards the stacks hold in all.
 pub(crate) fn total(stacks: &[Stack]) -> u32 {
     stacks.iter().map(|stack| stack.count).sum()
@@ -354,6 +390,41 @@ mod tests {
         assert_eq!(stacks[0].edition, "Alpha Edition");
         assert_eq!(stacks[0].title(), "Uncommon card, Solar");
         assert_eq!(stacks[2].title(), "Legendary card");
+    }
+
+    /// Revealed copies read as their face's name (or say they are unknown), and only
+    /// sealed copies of a rarity the packs have faces of can be revealed.
+    #[test]
+    fn faces_name_copies_and_say_what_can_be_revealed() {
+        let face = look::tests::face();
+        let faces = faces::Faces::of_list(vec![face]);
+        let mut known = wire("legendary", "holo", "alpha", 1);
+        known.card = Some("sol_lore_001".to_owned());
+        let mut unknown = wire("rare", "normal", "alpha", 1);
+        unknown.card = Some("sol_lore_099".to_owned());
+        let list = [
+            known,
+            unknown,
+            wire("legendary", "normal", "alpha", 2),
+            wire("rare", "normal", "alpha", 3),
+        ];
+        let stacks = stacks(&list);
+        let names: Vec<String> = stacks.iter().map(|stack| stack.name_in(&faces)).collect();
+        assert!(names.contains(&"Sol and Toxiee on JoF Memorial".to_owned()));
+        assert!(names.contains(&"Unknown card sol_lore_099".to_owned()));
+        assert!(names.contains(&"Legendary card".to_owned()));
+        assert_eq!(
+            revealable(&stacks, &faces),
+            2,
+            "the sealed Legendaries only"
+        );
+        let shown = shown(&faces, Some("sol_lore_001")).unwrap();
+        assert_eq!((shown.index, shown.of), (0, 1));
+        assert!(shown_none(&faces));
+    }
+
+    fn shown_none(faces: &faces::Faces) -> bool {
+        shown(faces, None).is_none() && shown(faces, Some("sol_lore_099")).is_none()
     }
 
     #[test]

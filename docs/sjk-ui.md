@@ -256,36 +256,51 @@ on the 16:9 frame, dark behind the form on the left and clear over the model.
   Force, the one on show gold and underlined. As the Profile screen (the SJK UI
   always opens it so) the row holds the screen's four tabs instead
   ([Profile screen](#profile-screen)).
-- **Character:** Name (a field; Enter types), Team colour, Search (a field that
-  filters the grid), the model grid (eight
-  icons a row, as many rows as fit, the current one ringed gold, scrolled by
-  the wheel), then a species' head, torso, legs and skin colour and the hat and
-  cape, two to a line. The Model row that stepped to the next model of the grid
-  (‹ ›) is gone (Sol's decision, 11/10/2026): the grid chooses the model.
-- **Turning the model and the hat and cape picker** (Sol's request, 10/10/2026:
-  "rotate model with mouse click, better cosmetic picker";
+- **Character** (Sol's request, 12/10/2026: "a better character creator and also hat/cape
+  picker, not just arrow things with text"; [sjk_creator.rs](../crates/sjk-viewer/src/player_menu/sjk_creator.rs)):
+  Name (a field; Enter types) and Search (a field that filters what is listed), then a
+  strip of categories, Model, a species' Head, Torso, Legs and Skin (only while the
+  model is a species), Hat and Cape, over one grid of tiles for the one on show, and
+  the Apply button. The tiles: the models' icons (eight a row), a species' part
+  pictures, the skin colours as swatches, the hats and capes as tiles four to a line
+  (None first); the one chosen is ringed gold, the pointer or the keys' tile white,
+  the wheel scrolls. A title line names the category and counts what is listed (and
+  "found" under a search); the models' line holds the team (Default, Red, Blue)
+  as segments. **Jedi Academy first:** the models list the retail game's own under a
+  "Jedi Academy" heading with a count, the community's after them under "Community"
+  (the rule in [AGENTS.md](../AGENTS.md); `LegacyAssetCatalog::retail_characters`).
+  Keys: the rows are Name, Search, the strip, the team (models), the grid and Apply;
+  Left and Right step the strip or the tile, Up and Down the tile by a line (and leave
+  the grid at its ends), Enter on the strip goes to the grid, on a tile chooses it. The
+  Model row that stepped to the next model of the grid is gone (Sol's decision,
+  11/10/2026): the grid chooses the model. The Head row that drew as a model cycler
+  after that removal is the Head category now.
+- **Apply** (a friend's request, 12/10/2026): a model chosen (the grid, a species' head,
+  torso, legs or skin colour, the team colour) shows on the stage at once but is not worn:
+  the `model` and `char_color_*` cvars keep the old one until the button under the grid
+  ("Apply", "Applied" and dimmed when they are the same; the Apply row, chosen after a
+  pick so Enter wears it) writes them (`apply_look`). Leaving the screen without it
+  drops the choice (`discard_look`, from `settle_force_page` once the screen is not
+  shown). The name, hats and capes are written at once as before, and the classic
+  menus write the model at once.
+- **Turning the model** (Sol's request, 10/10/2026: "rotate model with mouse click";
   [sjk_outfit.rs](../crates/sjk-viewer/src/player_menu/sjk_outfit.rs)): opened from a
   game, on every page, dragging over the model turns it (about 0.45 degrees a pixel):
   the live preview's camera goes round it. Under the model's feet, drawn as the
   screen's keys are, "Drag" in a key cap and "turn the model" say so on every page.
   The turn holds from page to page; opening the screen again faces it front. On the
   menu map's stage the model does not turn (Creyon's tests, 12/10/2026: a raised blade
-  turned end on to the stage's camera looked far too long). Enter or a click on the
-  Hat or Cape row opens a picker in place of the model grid (Left and Right on the row
-  still step): "Wear" and how many the slot has installed, Hats and Capes as two
-  segments, and Done; then None and every installed piece as named chips three to a
-  line, the one worn ringed gold, scrolled by the wheel, with a line under them when
-  none or not all of JoF's pieces are installed. A click wears a chip at once (written
-  to `color1` or `color2` as the rows do); the arrows choose one (Up and Down a line)
-  and Enter wears it; Tab switches between hats and capes; Escape or Done closes it.
-  Where the model turns, it shows its back to the camera while the capes are shown,
-  and its front again for the hats and when the picker closes.
+  turned end on to the stage's camera looked far too long). Where the model turns, it
+  shows its back to the camera on the Cape category, and its front on the others. The
+  chips picker of Creyon's #97 (10/10/2026) is the Hat and Cape categories now.
 - **Saber:** Style as three buttons (Single, Staff, Dual); the hilts as a list
   under a sub-heading (Hilt, or Staff), in two columns, six lines on show,
   scrolled by the wheel or its bar, the chosen one gold with a dot and kept in
   view (in the middle when the list first shows); for Dual two lists side by
   side, Right hand and Left hand, four lines each. The hilts come in the game's
-  load order, as JoF EJK lists them (`legacy_saber_load_order`). The hilt search
+  load order, as JoF EJK lists them (`legacy_saber_load_order`), the retail game's
+  first under a "Jedi Academy" line with their count and the community's after them
+  under "Community" (`HiltLines`; the rule in [AGENTS.md](../AGENTS.md)). The hilt search
   (10/10/2026, Sol's request) is a field at the right of the lists' heading line
   (beside Left hand for Dual), drawn as the Character page's Search ("Search
   hilts", then the words typed and "N found"): Enter or a click types in it, and
@@ -611,7 +626,9 @@ that mode for the visit and leaves the player's choice as it was.
     settings usage, SJK identity key). They are `settings::Group::Simple`.
   - Advanced: First setup, Display, Graphics, Sound, Controls (Mouse until
     12/10/2026: it holds keyboard rows too), Key bindings, Gameplay, Interface,
-    HUD, Quick wheel, Scoreboard, Network.
+    HUD, Chat, Quick wheel, Mods, Network (Chat and Mods since 12/10/2026, when
+    Scoreboard became a sub-heading of HUD: 13 categories fit the rail above the
+    keys' line, 14 would not).
   Network's SJK identity key row (09/10/2026, Sol's request: the key out of the
   Profile screen and hidden, for streaming) reads "Hidden: open to see" and Enter
   opens the Identity page over Settings ([SJK's pages](#sjks-pages)), which shows
@@ -619,16 +636,26 @@ that mode for the visit and leaves the player's choice as it was.
   Quick wheel wears the wheel's own icon, a ring of discs from its second board
   (`quick_wheel::catalog::WHEEL_ICON`; `settings_icons::texture` falls back to
   the wheel's icons), since 08/10/2026.
-  - Advanced's are the classic+ Setup page's groups (`settings::Group` and
-    tabs), but Graphics leads with a Quality heading (the renderer, SJK quality,
-    impact marks and player shadows, out of Video) and then gathers the
-    renderer's four tabs (image, lighting, shadows, weather) under their names
-    (`Group::Graphics`); Display is Video's other rows under Screen, Frame rate
-    and View (`Group::Display`); Network is the Network tab's rows under SJK
-    online, SJK chat and Connection (`Group::Network`). HUD's Readouts start at
-    the FPS readout (moved there from Video, as the first-person weapon moved to
-    Gameplay's camera rows) and its chat rows have a Chat sub-heading. The
-    classic+ panels show the Video and Network tabs as they were.
+  - Advanced regroups the classic+ Setup page's groups and tabs by subject
+    (`settings::Group::Advanced`, `Group::Display`, `Group::Graphics`,
+    `Group::Network`), each category's classic+ panel named for the hand-over
+    to the classic style. Graphics leads with a Quality heading (the renderer,
+    SJK quality, impact marks and player shadows, out of Video) and then
+    gathers the renderer's four tabs (image, lighting, shadows, weather) under
+    their names; Display is Video's other rows under Screen, Frame rate and
+    View; Sound holds every sound, the game's under Game, then the unlock
+    sound, the SJK chat sound and the quick wheel's sounds under
+    Notifications; Gameplay is Game options without the packs and mods;
+    Interface the menus and the console (the quick wheel's rows are its
+    category's and Sound's); HUD its classic rows without the chat box, the FPS
+    readout opening its Readouts (moved there from Video, as the first-person
+    weapon moved to Gameplay's camera rows), and the scoreboard's rows under a
+    Scoreboard heading; Chat the chat box (Chat box) and the SJK chat (SJK
+    chat, its GIFs and the GIPHY key); Mods the asset browser (Packs), JA+ and
+    JoF tools (Server mods), invisible brushes (Map tools) and the showcase
+    tools (Experimental); Network SJK online and Connection. A test checks that
+    every setting is on exactly one of Advanced's categories. The classic+
+    panels keep their groups as they were.
   - Key bindings shows every action under its group's sub-heading (Movement,
     Interaction, Weapons, Force powers, Other), its picture before its name
     where it has one, its two keys as caps on the right (a dash for an empty
@@ -703,7 +730,8 @@ panels' own; only the drawing and the frame are the SJK UI's. The search finds
 every setting in both modes ([search.rs](../crates/sjk-viewer/src/settings/search.rs)),
 its results under the names of Advanced's categories: Display, Graphics,
 Graphics: image, Graphics: lighting, Graphics: shadows, Graphics: weather, Sound,
-Controls, Gameplay, Interface, HUD, Scoreboard, Network, First setup. What the
+Controls, Gameplay, Interface, HUD (the scoreboard's rows too), Chat, Quick
+wheel, Mods, Network, First setup. What the
 player changes and searches here is recorded for [settings
 usage](client.md#settings-usage). Changing Menu
 style on the screen (it is on Interface) hands over to the classic+ panel of the
@@ -1002,7 +1030,7 @@ and out as the classic board does, settling into place as it opens.
   Your row has the UI's band with its gold bar, and its place, score, bars and
   ping in gold. Bots and players still joining are muted, with "Bot", "Joining"
   or "Connecting" for their ping.
-- **Compact** (`cg_compactScoreboard`, Settings > Scoreboard > "Compact SJK
+- **Compact** (`cg_compactScoreboard`, Settings > HUD > Scoreboard > "Compact SJK
   scoreboard", on by default): rows are 32 tall at most and as thin as 20, and
   a list splits in two only when even 20 would not fit, so a full server (32 in
   free for all, or 32 on one team) stands in one column. Names and numbers scale

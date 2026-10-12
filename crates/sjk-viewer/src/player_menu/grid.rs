@@ -15,16 +15,16 @@ pub(super) const TILE_BASE: u16 = 100;
 pub(super) const MAX_VISIBLE_TILES: u16 = 200;
 /// Token of the wheel target covering the grid.
 pub(super) const GRID_SCROLL_TOKEN: u16 = 902;
-/// Row index of the Model row the grid belongs to.
-pub(super) const MODEL_ROW: usize = 3;
-/// Row index of the first row under the grid (a species' head, else the hat).
-pub(super) const PART_ROW: usize = 4;
 /// Tiles per grid row.
 pub(super) const COLUMNS: usize = 8;
 
 impl PlayerMenu {
     /// Scroll the grid by `rows` (negative = up) within its bounds.
     pub(super) fn scroll_grid(&mut self, rows: i32) {
+        if self.is_sjk() {
+            self.scroll_creator(rows);
+            return;
+        }
         let target = (self.grid_scroll as i32 + rows).max(0) as usize;
         self.grid_scroll = target.min(self.grid_max_scroll);
     }

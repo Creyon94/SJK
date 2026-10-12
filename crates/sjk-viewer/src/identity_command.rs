@@ -161,6 +161,7 @@ mod tests {
     fn snapshot() -> Snapshot {
         Snapshot {
             opening: None,
+            reveal: None,
             local_key_id: "0123456789abcdef".to_owned(),
             status: Status::Online,
             key_id: "0123456789abcdef".to_owned(),

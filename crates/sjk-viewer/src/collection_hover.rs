@@ -183,14 +183,25 @@ fn card_card(stack: &crate::cards::Stack) -> Card {
             loot::percent(chance)
         ),
     };
+    let faces = crate::cards::faces::current();
     let mut lines = vec![
-        Line::how("Opening a holocron gives one sealed card and some credits."),
+        Line::how("Opening a holocron gives one card and some credits."),
         Line::status(odds),
     ];
-    if stack.sealed() {
-        lines.push(Line::status(
-            "Sealed: its face comes with the first set of cards.",
-        ));
+    match crate::cards::shown(&faces, stack.card.as_deref()) {
+        Some(shown) => lines.push(Line::status(format!(
+            "{}, {}: card {} of {}.",
+            shown.face.kind.name(),
+            shown.face.set_name,
+            shown.face.number,
+            shown.of
+        ))),
+        None if stack.sealed() => {
+            lines.push(Line::status(
+                "Sealed: its card is picked when it is revealed.",
+            ));
+        }
+        None => lines.push(Line::status("Its face is not in your card pack yet.")),
     }
     let date = crate::medals::date_text(stack.first);
     lines.push(Line::held(match (stack.count, date.is_empty()) {
@@ -200,7 +211,7 @@ fn card_card(stack: &crate::cards::Stack) -> Card {
         (count, false) => format!("You hold {count}, the first since {date}"),
     }));
     Card {
-        title: stack.title(),
+        title: stack.name_in(&faces),
         colour: stack.rarity.colour,
         lines,
     }

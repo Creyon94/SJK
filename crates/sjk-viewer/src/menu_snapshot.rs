@@ -1181,6 +1181,7 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
     use sjk_identity::{Presence, Profile, Snapshot as Hub, Status, WornName};
     let hub = |status: Status, name: &str, earlier: &[&str]| Hub {
         opening: None,
+        reveal: None,
         local_key_id: "44f3d0b36c9b2510".to_owned(),
         status,
         key_id: "44f3d0b36c9b2510".to_owned(),
@@ -1808,11 +1809,19 @@ fn sjk_settings_snapshot() {
     // Advanced's categories, then Simple's: Display, and Graphics on Vanilla and
     // on the SJK renderer, whose alpha warning the detail column shows.
     SettingsMode::Advanced.store(&mut console);
-    let simple: [Case; 3] = [
+    let simple: [Case; 4] = [
+        (
+            "sjk-settings-chat",
+            VIEWPORT_WIDE,
+            9,
+            Some("cl_sjkChat"),
+            false,
+            None,
+        ),
         (
             "sjk-settings-simple",
             VIEWPORT_WIDE,
-            12,
+            13,
             Some("cg_fov"),
             false,
             None,
@@ -1820,7 +1829,7 @@ fn sjk_settings_snapshot() {
         (
             "sjk-settings-simple-vanilla",
             VIEWPORT_WIDE,
-            13,
+            14,
             Some(crate::graphics_quality::RENDERER_ROW),
             false,
             None,
@@ -1828,7 +1837,7 @@ fn sjk_settings_snapshot() {
         (
             "sjk-settings-simple-alpha",
             VIEWPORT_WIDE,
-            13,
+            14,
             Some(crate::graphics_quality::RENDERER_ROW),
             false,
             None,
@@ -2379,6 +2388,7 @@ fn medals_snapshot() {
     // The Identity page.
     let hub = |medals: Vec<sjk_identity::Medal>| Hub {
         opening: None,
+        reveal: None,
         local_key_id: "44f3d0b36c9b2510".to_owned(),
         status: Status::Online,
         key_id: "44f3d0b36c9b2510".to_owned(),

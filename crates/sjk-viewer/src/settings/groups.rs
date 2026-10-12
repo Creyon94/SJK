@@ -32,9 +32,11 @@ pub(crate) enum Group {
     /// classic pages show the Video tab.
     Display,
     /// The SJK UI's Network (Advanced): the Network tab's rows under
-    /// sub-headings (SJK's services, its chat, the connection). Not one of
-    /// [`Group::ALL`]: the classic pages show the tab.
+    /// sub-headings (SJK's services, the connection), the SJK chat's left to
+    /// Chat. Not one of [`Group::ALL`]: the classic pages show the tab.
     Network,
+    /// Advanced's own regroupings of the classic groups and tabs, SJK UI only.
+    Advanced(Advanced),
     /// Simple mode's categories ([`super::mode`]): the settings that matter
     /// most, a few to a category. SJK UI only.
     Simple(Simple),
@@ -51,6 +53,67 @@ pub(crate) enum Simple {
     Hud,
     General,
 }
+
+/// Advanced's categories that regroup the classic groups' rows by subject
+/// (`docs/sjk-ui.md`, Settings): every sound in Sound, the chats in Chat, the
+/// packs, mods and tools in Mods, so Gameplay, Interface and HUD keep what is
+/// theirs (HUD with the scoreboard's rows).
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum Advanced {
+    Sound,
+    Gameplay,
+    Interface,
+    Hud,
+    Chat,
+    Mods,
+}
+
+impl Advanced {
+    pub(crate) const ALL: [Self; 6] = [
+        Self::Sound,
+        Self::Gameplay,
+        Self::Interface,
+        Self::Hud,
+        Self::Chat,
+        Self::Mods,
+    ];
+}
+
+/// The rows Chat gathers: the in-game chat box's (HUD's in the classic
+/// groups, the code page of other clients' text Interface's) and the SJK chat's
+/// (Network's).
+const CHAT_ROWS: &[&str] = &[
+    "cg_drawChat",
+    crate::chat::emoji::CVAR,
+    crate::chat::reply::REMEMBER_CVAR,
+    "cg_chatBoxLetterSpacing",
+    crate::text::charset::CVAR,
+    "cl_sjkChat",
+    crate::chat_gifs::CVAR,
+    crate::chat_gifs::search::KEY_CVAR,
+];
+
+/// The rows Mods gathers from the classic Game options.
+const MODS_ROWS: &[&str] = &[
+    "assetbrowser",
+    "mod_japlus",
+    "mod_jof",
+    crate::brush_view::CVAR,
+    crate::ghost_replay::SHOWCASE_CVAR,
+];
+
+/// The sounds Sound gathers from Network and Interface after the Sound tab's.
+const NOTIFICATION_SOUNDS: &[&str] = &[
+    crate::sjk_chat_frame::SOUND_CVAR,
+    crate::quick_wheel::SOUNDS_CVAR,
+];
+
+/// The quick wheel's rows of the classic Interface, which Advanced's Quick
+/// wheel category and Sound hold.
+const WHEEL_ROWS: &[&str] = &[
+    crate::quick_wheel::pages::FILE,
+    crate::quick_wheel::SOUNDS_CVAR,
+];
 
 impl Simple {
     pub(crate) const ALL: [Self; 7] = [
@@ -116,8 +179,8 @@ impl Group {
         Self::Scoreboard,
     ];
 
-    /// How many groups there are, Simple's included.
-    const COUNT: usize = 8 + Simple::ALL.len();
+    /// How many groups there are, Simple's and Advanced's included.
+    const COUNT: usize = 8 + Simple::ALL.len() + Advanced::ALL.len();
 
     /// The group's name, as the one tab of the tabbed screen showing it.
     const CAPTIONS: [&'static str; Self::COUNT] = [
@@ -136,6 +199,12 @@ impl Group {
         "GAMEPLAY",
         "HUD",
         "GENERAL",
+        "SOUND",
+        "GAMEPLAY",
+        "INTERFACE",
+        "HUD",
+        "CHAT",
+        "MODS",
     ];
 
     fn index(self) -> usize {
@@ -149,6 +218,38 @@ impl Group {
             Self::Display => 6,
             Self::Network => 7,
             Self::Simple(simple) => 8 + simple as usize,
+            Self::Advanced(advanced) => 8 + Simple::ALL.len() + advanced as usize,
+        }
+    }
+
+    /// The cvars of the group's rows, in order: [`Self::cvars`], or for one of
+    /// Advanced's, the classic groups' rows it takes.
+    fn cvar_list(self) -> Vec<&'static str> {
+        let without = |group: Self, left: &[&str]| -> Vec<&'static str> {
+            group
+                .cvars()
+                .iter()
+                .copied()
+                .filter(|cvar| !left.contains(cvar))
+                .collect()
+        };
+        match self {
+            Self::Advanced(Advanced::Gameplay) => without(Self::GameOptions, MODS_ROWS),
+            Self::Advanced(Advanced::Interface) => without(Self::Interface, WHEEL_ROWS)
+                .into_iter()
+                .filter(|cvar| !CHAT_ROWS.contains(cvar))
+                .collect(),
+            Self::Advanced(Advanced::Hud) => {
+                let mut cvars = without(Self::Hud, CHAT_ROWS);
+                cvars.extend_from_slice(Self::Scoreboard.cvars());
+                cvars
+            }
+            Self::Advanced(Advanced::Sound) => {
+                let mut cvars: Vec<&str> = AUDIO.iter().map(|setting| setting.cvar).collect();
+                cvars.extend_from_slice(NOTIFICATION_SOUNDS);
+                cvars
+            }
+            _ => self.cvars().to_vec(),
         }
     }
 
@@ -268,10 +369,6 @@ impl Group {
                 "cl_hubUrl",
                 crate::crash_report::CVAR,
                 crate::settings_usage::CVAR,
-                "cl_sjkChat",
-                crate::sjk_chat_frame::SOUND_CVAR,
-                crate::chat_gifs::CVAR,
-                crate::chat_gifs::search::KEY_CVAR,
                 "rate",
                 "snaps",
                 "cl_master",
@@ -325,7 +422,10 @@ impl Group {
                 crate::settings_usage::CVAR,
                 super::catalog::IDENTITY_ROW,
             ],
-            Self::Quick | Self::Graphics => &[],
+            Self::Advanced(Advanced::Chat) => CHAT_ROWS,
+            Self::Advanced(Advanced::Mods) => MODS_ROWS,
+            // Their rows are taken from the classic groups ([`Self::cvar_list`]).
+            Self::Advanced(_) | Self::Quick | Self::Graphics => &[],
         }
     }
 
@@ -358,10 +458,36 @@ impl Group {
                 ("com_maxfps", "Frame rate"),
                 ("cg_fov", "View"),
             ],
-            Self::Network => &[
-                ("cl_autoUpdate", "SJK online"),
-                ("cl_sjkChat", "SJK chat"),
-                ("rate", "Connection"),
+            Self::Network => &[("cl_autoUpdate", "SJK online"), ("rate", "Connection")],
+            Self::Advanced(Advanced::Sound) => &[
+                ("s_volume", "Game"),
+                (crate::unlock_toast::SOUND_CVAR, "Notifications"),
+            ],
+            Self::Advanced(Advanced::Gameplay) => &[
+                ("cg_simpleItems", "Items and models"),
+                ("cg_saberTrail", "Effects"),
+                (crate::camera::STYLE_CVAR, "Camera and prediction"),
+            ],
+            Self::Advanced(Advanced::Interface) => &[
+                (crate::menu::style::CVAR, "Menus"),
+                (crate::console::console_options::STYLE_CVAR, "Console"),
+            ],
+            Self::Advanced(Advanced::Hud) => &[
+                ("cg_drawHud", "Layout"),
+                ("cg_crosshair", "Crosshair"),
+                ("cg_drawCrosshairNames", "Names and cards"),
+                ("cg_nameplate", "Nameplates"),
+                ("cg_drawFps", "Readouts"),
+                (crate::scoreboard::style::CVAR, "Scoreboard"),
+            ],
+            Self::Advanced(Advanced::Chat) => {
+                &[("cg_drawChat", "Chat box"), ("cl_sjkChat", "SJK chat")]
+            }
+            Self::Advanced(Advanced::Mods) => &[
+                ("assetbrowser", "Packs"),
+                ("mod_japlus", "Server mods"),
+                (crate::brush_view::CVAR, "Map tools"),
+                (crate::ghost_replay::SHOWCASE_CVAR, "Experimental"),
             ],
             Self::Simple(Simple::Graphics) => &[
                 (crate::graphics_quality::RENDERER_ROW, "Renderer"),
@@ -443,7 +569,10 @@ impl Group {
                     )
                     .collect();
             }
-            self.cvars().iter().filter_map(|cvar| find(cvar)).collect()
+            self.cvar_list()
+                .iter()
+                .filter_map(|cvar| find(cvar))
+                .collect()
         })
     }
 
@@ -454,6 +583,23 @@ impl Group {
         [Self::Graphics, Self::Display, Self::Network]
             .into_iter()
             .chain(Simple::ALL.map(Self::Simple))
+            .chain(Advanced::ALL.map(Self::Advanced))
+    }
+
+    /// The groups of rows Advanced's rail shows, First setup's aside.
+    #[cfg(test)]
+    pub(super) fn advanced_rail() -> [Self; 9] {
+        [
+            Self::Display,
+            Self::Graphics,
+            Self::Advanced(Advanced::Sound),
+            Self::Advanced(Advanced::Gameplay),
+            Self::Advanced(Advanced::Interface),
+            Self::Advanced(Advanced::Hud),
+            Self::Advanced(Advanced::Chat),
+            Self::Advanced(Advanced::Mods),
+            Self::Network,
+        ]
     }
 }
 
@@ -468,7 +614,7 @@ mod tests {
             .chain(Group::sjk_only())
             .filter(|group| *group != Group::Graphics)
         {
-            assert_eq!(group.rows().len(), group.cvars().len(), "{group:?}");
+            assert_eq!(group.rows().len(), group.cvar_list().len(), "{group:?}");
         }
     }
 
@@ -490,12 +636,62 @@ mod tests {
                 setting.cvar
             );
         }
+        // Network: the tab's rows, but the SJK chat's (Chat) and its sound (Sound).
         let network = shown(Group::Network);
-        let mut expected: Vec<&str> = tab("NETWORK").iter().map(|setting| setting.cvar).collect();
+        let mut expected: Vec<&str> = tab("NETWORK")
+            .iter()
+            .map(|setting| setting.cvar)
+            .filter(|cvar| !CHAT_ROWS.contains(cvar) && !NOTIFICATION_SOUNDS.contains(cvar))
+            .collect();
         let mut found = network.clone();
         expected.sort_unstable();
         found.sort_unstable();
         assert_eq!(found, expected, "Network holds the tab's rows, once each");
+    }
+
+    /// Every setting is on exactly one of Advanced's categories (First setup's
+    /// rows are its others'): the groups of rows, the Controls tab, and the
+    /// quick wheel's pages, which its own category edits.
+    #[test]
+    fn advanced_shows_every_setting_once() {
+        let mut shown: Vec<&str> = Group::advanced_rail()
+            .iter()
+            .flat_map(|group| group.rows())
+            .map(|setting| setting.cvar)
+            .collect();
+        let controls =
+            super::super::settings(TABS.iter().position(|tab| *tab == "CONTROLS").unwrap());
+        shown.extend(controls.iter().map(|setting| setting.cvar));
+        shown.push(crate::quick_wheel::pages::FILE);
+        let every = (0..TABS.len())
+            .filter(|tab| *tab != QUICK_TAB)
+            .flat_map(super::super::settings)
+            .chain(
+                [
+                    RENDER_IMAGE,
+                    RENDER_LIGHTING,
+                    RENDER_SHADOWS,
+                    RENDER_WEATHER,
+                ]
+                .into_iter()
+                .flatten(),
+            );
+        for setting in every {
+            let count = shown.iter().filter(|cvar| **cvar == setting.cvar).count();
+            assert_eq!(count, 1, "{} is shown {count} times", setting.cvar);
+        }
+        // Only First setup's own rows are First setup's alone.
+        for setting in Group::Quick.rows() {
+            let own = [
+                super::super::catalog::IMPORT_ROW,
+                super::super::quick::HIDE_CVAR,
+            ];
+            assert!(
+                own.contains(&setting.cvar) || shown.contains(&setting.cvar),
+                "{} is only in First setup",
+                setting.cvar
+            );
+        }
     }
 
     #[test]

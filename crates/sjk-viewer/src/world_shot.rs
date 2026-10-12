@@ -663,7 +663,7 @@ mod tests {
             shoot(&mut gpu, 4, "duel6-menu-settings");
             // Network, with the SJK identity key's row, the key itself hidden.
             if let (Some(menu), Some(console)) = (gpu.client_menu.as_mut(), gpu.console.as_ref()) {
-                menu.open_sjk_settings(console, 11, crate::player_menu::ReturnTarget::MainMenu);
+                menu.open_sjk_settings(console, 12, crate::player_menu::ReturnTarget::MainMenu);
             }
             shoot(&mut gpu, 4, "duel6-menu-settings-network");
             if let (Some(menu), Some(console)) = (gpu.client_menu.as_mut(), gpu.console.as_ref()) {
@@ -1141,6 +1141,7 @@ Found the fog bug, ask me about it!"
         };
         let snapshot = sjk_identity::Snapshot {
             opening: None,
+            reveal: None,
             status: sjk_identity::Status::Online,
             key_id: me.key_id.clone(),
             local_key_id: me.key_id.clone(),
@@ -1914,6 +1915,56 @@ like this one.",
                 "{}",
                 shoot(&mut gpu, 6, "duel6-profile-tabs-styled-sjk-profile").display()
             );
+        });
+    }
+
+    /// The SJK UI's Character creator over duel6, one shot per category: models,
+    /// hats and capes of a plain model, then a species' head, torso, legs and skin.
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_sjk_creator() {
+        on_big_stack(|| {
+            let cvars = [
+                ("ui_menuStyle", "sjk"),
+                (crate::settings::quick::HIDE_CVAR, "1"),
+                ("name", "^1Sol^7Vulpes"),
+            ];
+            let menu = menu::ClientMenu::new(false, String::new());
+            let Some((mut gpu, _profile)) =
+                open("maps/mp/duel6.bsp", [1920, 1080], Some(menu), &cvars)
+            else {
+                return;
+            };
+            let shots = menu_backdrop::tour_for("Yavin Training Grounds").expect("duel6's tour");
+            let (yaw, pitch) = look(shots[3].from, shots[3].at);
+            aim(&mut gpu, shots[3].from, yaw, pitch);
+            gpu.is_menu_world = false;
+            gpu.game_menu = true;
+            if let Some(console) = gpu.console.as_mut() {
+                console.close_for_connection();
+                console.preview_profile(profile_preview());
+            }
+            let _ = frame(&mut gpu, 20);
+            gpu.open_profile_hub_from_game(None);
+            let _ = frame(&mut gpu, 80);
+            for (name, species, index) in [
+                ("hats", false, 1),
+                ("capes", false, 2),
+                ("models", false, 0),
+                ("head", true, 1),
+                ("torso", true, 2),
+                ("legs", true, 3),
+                ("skin", true, 4),
+            ] {
+                if let Some(menu) = gpu.client_menu.as_mut() {
+                    menu.creator_for_shot(species, index);
+                }
+                let _ = frame(&mut gpu, 40);
+                println!(
+                    "{}",
+                    shoot(&mut gpu, 4, &format!("duel6-creator-{name}")).display()
+                );
+            }
         });
     }
 

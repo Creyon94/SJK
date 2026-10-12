@@ -29,7 +29,7 @@ area: Console & chat
 title: Russian and Japanese show in chat and names instead of question marks
 change: Cyrillic, kana and kanji are drawn everywhere (Japanese from the bundled Noto Sans JP).
 change: Russian goes and comes in Windows-1251 like EternalJK; Japanese as UTF-8.
-change: Settings > Text > Other clients' text (cl_charset): Auto, Western, Cyrillic.
+change: Settings > Chat > Other clients' text (cl_charset): Auto, Western, Cyrillic.
 test: Type Russian in chat: your line and the typing field show it, not ???.
 test: Type Japanese (Windows IME) in chat: kana and kanji show; another SJK player reads it.
 test: An EternalJK player with se_language russian: you read each other's Russian.
@@ -427,7 +427,9 @@ test: Simple > Graphics: Renderer Vanilla/SJK (alpha); on SJK the detail shows t
 test: Pick SJK, then the reload card: the SJK look comes back; Vanilla again restores Vanilla.
 test: SJK quality: Off under Vanilla; Right starts Performance; Backspace on Renderer = Vanilla.
 test: Ctrl+F and F3 in Settings and Key bindings: search gets the keys, typed text replaced.
-test: Advanced > Network: SJK online / SJK chat / Connection headings, Share settings usage row.
+test: Advanced > Network: SJK online and Connection headings, Share settings usage row.
+test: Advanced > Sound: a Notifications heading with the SJK chat and quick wheel sounds.
+test: Advanced: Chat and Mods categories; HUD ends with Scoreboard; search 'chat' shows Chat.
 test: Rename config.cfg away and start: Settings opens Simple, the renderer reads Vanilla.
 note: Usage goes to the hub only once its endpoint is deployed (log: 'settings usage: sent').
 
@@ -475,6 +477,17 @@ change: Every card (rarity x finish) per holocron found, as a share and as 1 in 
 test: Collection > Holocrons > Loot table: the numbers match docs/holocrons.md, Loot table.
 test: Escape, L, Enter or Back go back to the tab; the tab's keys do nothing meanwhile.
 test: The pace line says 30 minutes and 8 a day once the hub answered.
+
+[card-faces]
+area: Menus & settings
+title: Card faces and the first card (Sol lore 001), revealing sealed cards
+change: Cards picked by the hub show their face: name, picture, set, lore, number, artist.
+change: Cards tab: bigger card up close; Reveal (or R) turns sealed cards into cards.
+change: Opening a holocron shows the picked card's face; the faces come in the hub's pack.
+test: Log: "SJK packs: card faces: sol_lore_001" once the pack downloaded.
+test: As staff: Collection > Cards > Reveal: your sealed Legendary cards become card 001.
+test: Open holocrons (staff): a Legendary card shows the face in the ceremony.
+test: debug_open legendary shows the face offline; other rarities stay sealed.
 
 [hover-cards]
 area: Menus & settings
@@ -4237,3 +4250,18 @@ test: No 'generation 5 ... expects 6' material maps warning in the log any more.
 test: JoF ffa1: s_ylight_red, s_squareslight_y, s_vjun_light_vjun(y) lamps glow.
 test: JoF ffa1: the blue brick wall (newfloor_vjun remap) is it still too shiny?
 note: byss/lights (ceiling grid) has its own faint glow, so it gets no emission map.
+
+[character-creator]
+area: Menus & settings
+title: Profile > Character: a creator with tile grids, Jedi Academy first, Apply to wear
+change: Model, Head, Torso, Legs, Skin, Hat, Cape: a strip over one grid of tiles; search filters.
+change: Models and hilts list the retail Jedi Academy under a heading first, then Community.
+change: A model, part or colour shows on the stage; Apply wears it. Hats and capes are worn at once.
+test: Profile > Character: the models start under "Jedi Academy" (retail), then "Community".
+test: Pick a species (a multipart one): Head, Torso, Legs and Skin tabs appear, with pictures.
+test: Click a model, a head or a skin: the stage changes, the button reads Apply; press it.
+test: Pick a model, press Back without Apply, reopen: the worn model shows again.
+test: Hat and Cape tabs: a click wears the piece at once; Cape turns the model to its back.
+test: Keys: Left and Right on the strip, Enter goes to the tiles, arrows choose, Enter picks.
+test: Profile > Saber: the hilts start under "Jedi Academy", then "Community".
+note: Hat and cape tiles show names only; thumbnails come in a later change.

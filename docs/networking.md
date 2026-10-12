@@ -72,7 +72,7 @@ Russian goes the way EternalJK sends it: `ConvertUTF32ToExpectedCharset` maps
 `А`..`я` to the Windows-1251 bytes 0xC0..=0xFF, and its players with `se_language
 russian` draw those bytes with a Cyrillic character set (`charsgrid_med_cyr`,
 `CVU_LanguageModified`). The bytes cannot say which code page they are in, so
-`cl_charset` (archived, Settings > Text > Other clients' text) decides: `auto`
+`cl_charset` (archived, Settings > Chat > Other clients' text) decides: `auto`
 (default), `western` (always Windows-1252) or `cyrillic` (always Windows-1251).
 Under `auto`, text that is not UTF-8 reads as Windows-1251 when one of its words is
 made of high letter bytes only (0xC0..=0xFF, `Ё` 0xA8, `ё` 0xB8) and is two of them

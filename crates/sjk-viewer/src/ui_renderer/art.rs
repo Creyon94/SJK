@@ -272,6 +272,8 @@ pub(super) enum Source {
     Emblem(EmblemLayer),
     /// One medal's whole picture.
     Medal(crate::medals::Medal),
+    /// One card face's picture, by its position among the faces.
+    Card(u16),
     /// One SJK chat GIF's texture, by its slot.
     Gif(u8),
     /// The map preview's own texture.

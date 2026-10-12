@@ -463,7 +463,7 @@ A player whose name carries a known clan's tag gets the clan's emblem on the lef
 name. It is read from the name alone, so it shows what a player says, not something the
 hub vouches for; it needs no hub and no SJK identity.
 [jof_tag.rs](../crates/sjk-viewer/src/jof_tag.rs) holds the clans, the rule, the size and
-the drawing. `cg_clanEmblems` (archived, default 1, Settings > Scoreboard > Clan emblems)
+the drawing. `cg_clanEmblems` (archived, default 1, Settings > HUD > Scoreboard > Clan emblems)
 0 turns every emblem off.
 
 The clans are the entries of `jof_tag::KNOWN`, each with its tag, its emblem, its tint,
@@ -916,7 +916,7 @@ once.
 - `cl_shareUsage` (default 1; Settings > Network > Share settings usage) sends the
   settings changed and searched in Settings, anonymously, without the key
   ([client.md](client.md#settings-usage)); 0 sends nothing.
-- `cl_sjkChat` (default 1; Settings > Network > SJK chat) shows the SJK chat and reads
+- `cl_sjkChat` (default 1; Settings > Chat > SJK chat) shows the SJK chat and reads
   it; `sjkchat` opens its page, `messagemode5` (I) its composer in a game, and
   `sjkemote <id>` sends an emote ([hub-chat.md](hub-chat.md)).
 - `cg_achievementSound` (default 1; Settings > Sound > Unlock sound) plays the

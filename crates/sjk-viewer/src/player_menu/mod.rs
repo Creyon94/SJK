@@ -21,6 +21,7 @@ mod part_icons;
 mod pointer;
 mod rows;
 mod saber;
+mod sjk_creator;
 mod sjk_outfit;
 mod sjk_view;
 mod team_filter;
@@ -175,6 +176,10 @@ pub(crate) struct PlayerMenu {
     /// choice changes without the pointer, so wheel browsing is not undone).
     grid_follow: bool,
     draft: Draft,
+    /// The `model` and team colour the cvars hold: the SJK UI's Character page shows
+    /// the draft's model but wears this one until Apply ([`Self::apply_look`]).
+    applied_model: String,
+    applied_rgb: [u8; 3],
     choice: Option<Choice>,
     /// Selected head, torso, legs and skin colour of the current species.
     variants: [usize; 4],
@@ -202,8 +207,10 @@ pub(crate) struct PlayerMenu {
     blade_choice: blade_skins::BladeChoice,
     /// The SJK UI Character page's turn of the model (dragged with the pointer).
     turn: sjk_outfit::Turn,
-    /// The SJK UI Character page's hat and cape picker, while open.
-    outfit: Option<sjk_outfit::Picker>,
+    /// The SJK UI Character page's creator: the category on show and its grid.
+    creator: sjk_creator::Creator,
+    /// How many of `tiles`, from the first, are the retail game's.
+    retail_tiles: usize,
     /// The Force level last bought and when (menu clock seconds), for the
     /// ring the SJK UI sends out from it.
     sjk_burst: Option<(usize, u8, f64)>,
@@ -239,6 +246,8 @@ impl PlayerMenu {
             grid_max_scroll: 0,
             grid_follow: true,
             draft: Draft::default(),
+            applied_model: "kyle/default".to_owned(),
+            applied_rgb: [255; 3],
             choice: None,
             variants: [0; 4],
             selected: 0,
@@ -257,7 +266,8 @@ impl PlayerMenu {
             sjk_hilts: Default::default(),
             blade_choice: blade_skins::BladeChoice::new(),
             turn: sjk_outfit::Turn::default(),
-            outfit: None,
+            creator: sjk_creator::Creator::default(),
+            retail_tiles: 0,
             sjk_burst: None,
             classic: classic::ClassicState::default(),
             classic_dirty: false,
@@ -302,6 +312,10 @@ impl PlayerMenu {
     /// page applies it ([`force::ForceMenu::leave`]), however it was left: another
     /// page, Back, Escape, another Profile tab or the screen closed for the game.
     pub(crate) fn settle_force_page(&mut self, visible: bool, console: &mut ViewerConsole) {
+        if !visible {
+            // A model chosen and not applied is dropped with the screen.
+            self.discard_look();
+        }
         let shown = visible && self.force_page_on_show();
         match (self.force_shown, shown) {
             (false, true) => self.force.enter(),

@@ -329,8 +329,11 @@ mod tests {
                     icon: format!("models/players/m{index}/icon_default.png"),
                 })
                 .collect(),
+            retail_characters: 0,
             species: Vec::new(),
+            retail_species: 0,
             saber_hilts: Vec::new(),
+            retail_saber_hilts: 0,
             excluded_saber_hilts: 0,
             saber_colors: sjk_client::LEGACY_SABER_COLORS,
         })

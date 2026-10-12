@@ -10,7 +10,7 @@
 //! of it that was hit and a chip row picks the chip drawn under the pointer
 //! ([`half_direction`], [`chip_index`]).
 
-use super::grid::{GRID_SCROLL_TOKEN, MODEL_ROW, TILE_BASE};
+use super::grid::{GRID_SCROLL_TOKEN, TILE_BASE};
 use super::rows::FORCE_SIDE_ROW;
 use super::saber::PALETTE;
 use super::*;
@@ -63,7 +63,7 @@ impl PlayerMenu {
             return PlayerMenuResult::None;
         }
         if self.is_sjk()
-            && let Some(result) = self.outfit_pointer(event.kind, token, event.delta, console)
+            && let Some(result) = self.outfit_pointer(event.kind, token, event.delta)
         {
             return result;
         }
@@ -215,31 +215,15 @@ impl PlayerMenu {
         true
     }
 
-    /// Hovering a tile selects the Model row; a click makes it the model.
+    /// A tile of the creator's grid: hovering puts the cursor on it, a click chooses
+    /// it ([`Self::creator_tile`]).
     fn tile_event(
         &mut self,
         kind: UiEventKind,
         tile: usize,
         console: &mut ViewerConsole,
     ) -> PlayerMenuResult {
-        match kind {
-            UiEventKind::HoverEnter | UiEventKind::Hover
-                if !self.name_editing && !self.search_editing =>
-            {
-                self.selected = MODEL_ROW;
-            }
-            UiEventKind::Activate => {
-                if self.name_editing {
-                    self.name_editing = false;
-                    self.apply(console);
-                }
-                self.search_editing = false;
-                self.selected = MODEL_ROW;
-                let slot = self.visible_slot(tile);
-                self.pick_tile(console, slot);
-            }
-            _ => {}
-        }
+        self.creator_tile(kind, tile, console);
         PlayerMenuResult::None
     }
 }

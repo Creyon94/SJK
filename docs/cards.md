@@ -121,6 +121,33 @@ it. The rules agreed:
 
 No player text promises the shop until it exists.
 
+## Faces and the first card
+
+Since 12/10/2026 (Sol's first card, "Sol and Toxiee on JoF Memorial", Sol lore 001,
+Legendary) a sealed copy can become a real card.
+
+- **Where cards are made:** Sol keeps each card's picture and words in `card_import/`
+  at the repository's root, which git ignores (`card_import/README.txt` says the format):
+  `cards/card1.png` (1020 x 850, the 6:5 art window, framed as it will show) and
+  `cards/card1.txt` (`number`, `collection`, `kind`, `rarity`, `title`, `art`,
+  `description`, optional `artist`), the full paintings in `sources/`, a white canvas
+  and a frame overlay to frame new ones in `templates/`.
+- **How they reach players:** the hub's `scripts/import_cards.py <card_import>` writes
+  them into the hub's `sjk_cards` pack sources (`cards/<id>.card` JSON and
+  `cards/<id>.jpg`, id `<set>_<NNN>` such as `sol_lore_001`), and its
+  `scripts/build_packs.py` builds `sjk_cards.pk3` and the hub's catalogue
+  `cards.json` (id, set, number, rarity). The hub serves the pack like the blade skins'
+  (`GET /v1/assets`), so every SJK client downloads it into `assets/` beside
+  `identity.key` and mounts it; adding a card is a new pack and a hub restart, no client
+  release.
+- **The hub picks:** opening a holocron rolls the copy's rarity and finish as before,
+  then picks a card of that rarity from the catalogue (evenly); a rarity with no card
+  yet stays sealed. `POST /v1/cards/reveal` gives the person's sealed copies of a
+  rarity that has cards a card each (oldest first). Both follow who may open
+  holocrons (staff only for now).
+- **Each card has one rarity** (Sol lore 001 is Legendary): the first set needs cards
+  of every rarity before every copy can be revealed.
+
 ## In the client
 
 | Piece | Where |
@@ -132,6 +159,9 @@ No player text promises the shop until it exists.
 | Open, Open all and the ceremony on the Holocrons tab | [holocrons_panel_opening.rs](../crates/sjk-viewer/src/holocrons_panel_opening.rs), [holocrons_panel.rs](../crates/sjk-viewer/src/holocrons_panel.rs), [holocrons_panel_view.rs](../crates/sjk-viewer/src/holocrons_panel_view.rs) |
 | The Collection's Cards tab | [collection_cards.rs](../crates/sjk-viewer/src/collection_cards.rs) |
 | `debug_open` | [cards/rehearsal.rs](../crates/sjk-viewer/src/cards/rehearsal.rs) |
+| The faces from the packs, their pictures decoded on a worker | [cards/faces.rs](../crates/sjk-viewer/src/cards/faces.rs), mounted by [sjk_packs.rs](../crates/sjk-viewer/src/sjk_packs.rs) |
+| The pictures' textures | [ui_renderer/card_art.rs](../crates/sjk-viewer/src/ui_renderer/card_art.rs) |
+| Reveal (`Service::reveal_cards`, `Snapshot::reveal`) | [service.rs](../crates/sjk-identity/src/service.rs), [player_identity.rs](../crates/sjk-viewer/src/player_identity.rs) |
 
 - **Rarities' colours:** Common silver `#B4C0D4`, then the holocron tiers' green, blue
   and purple for Uncommon, Rare and Legendary.
@@ -143,6 +173,19 @@ No player text promises the shop until it exists.
   edge. The light is cut to the card: the UI renderer cuts strokes to the clip
   rectangle since this change ([ui_renderer.rs](../crates/sjk-viewer/src/ui_renderer.rs)
   `clip_polygon`), as it always cut rectangles.
+- **A revealed card** shows its face as a trading card: its name and a dot of its
+  rarity's colour on top, its picture in a gold-edged 6:5 window (dark until the
+  picture is decoded and uploaded), a strip with its kind and set ("Community ·
+  Sol lore") and its edition and finish, its lore in a box (cut into lines at spaces,
+  seven at most), and at the foot its number in its set ("001 / 001", counting the
+  set's cards the packs hold), its artist and its rarity. The plate, the rarity's edge
+  and the finishes' light are the sealed card's. A card narrower than 200 frame pixels
+  shows the picture without words, and below 300 only the name. A copy whose face is
+  not in the packs reads "Unknown card <id>" and keeps its sealed back.
+- **The pictures** are decoded on a worker thread when the packs are mounted, cut to
+  6:5 about their middle if they are not, squeezed into a 1024 square with its mip
+  chain and drawn back into the 6:5 window (which undoes the squeeze); the renderer
+  uploads two a frame. 512 faces at most.
 - **The credits' mark** is the sign's outline in shapes: the crossbar and four short
   bars as rectangles, the slanting leg one stroke cut level at the bar's top and the
   foot. Eight commands, sharp at every size.
@@ -163,26 +206,31 @@ No player text promises the shop until it exists.
   fanfare, another card the unlocks' chime. A refusal says why ("That holocron was
   already opened."; a hub from before opening: "This SJK hub cannot open holocrons
   yet.") and the profile is read again soon.
-- **The Cards tab** (the Collection's seventh): "N cards" with the line that they are
-  sealed until the first set, the credits at the right of the headline, up to twelve
-  kinds (six by two, the best first, each with "x3" and its finish; more are counted
-  under them), and the kind chosen up close on the right with its title, edition,
-  how many and when the first was found, what its finish is and that it is sealed.
-  Left and Right choose. The tab's count in the row is the cards held.
+- **The Cards tab** (the Collection's seventh): "N cards" and a line about sealed cards
+  while there are some, the credits at the right of the headline, up to twelve kinds
+  (six by two, the best first, each with "x3" and its finish; more are counted under
+  them), and the kind chosen up close on the right, 470 frame pixels wide so a face's
+  lore reads at 1080p (290 before faces), with its name, rarity, finish, edition, how
+  many and when the first was found, and its set and number (a sealed one: what its
+  finish is and that it is sealed). **Reveal N sealed cards** (or R) stands under the
+  grid when the hub lets the player open holocrons and the packs have faces of a sealed
+  copy's rarity; it says "Revealing..." until the hub answers, then a line says how
+  many were revealed or why not. Left and Right choose. The tab's count in the row is
+  the cards held.
+- **The ceremony** shows a card the hub picked with its face, bigger (400 wide) and
+  higher, its name as the title, "Legendary, Holo. Alpha Edition. From a Mythical
+  Holocron" and its set and number in place of the sealed line.
 - **The player card's** rarest holocron gem counts opened holocrons too, as the
   counts now hold only the unopened ones.
 - `debug_open <tier|all> [x<count>] [normal|holo|solar]` plays the ceremony with
-  made-up cards on the Holocrons tab; nothing is sent or kept.
+  made-up cards on the Holocrons tab; nothing is sent or kept. A rarity the packs have
+  faces of shows one of them, as the hub would pick.
 
 ## Planned, not built
 
-1. The first set: the card catalogue at the hub (`cards/<set>.json`: id, set,
-   rarity, the optional `community` flag), `GET /v1/cards`, and the reveal (a sealed
-   copy picks a card of its rarity from the first set). The faces come from an asset
-   pack, `sjk_cards`: `cards/<id>.card` (strict JSON like a blade-skin file: `name`
-   up to 40 characters, `kind` `place`/`personality`/`game`/`community`, `lore` up
-   to 400 characters, `art` a PNG or JPEG up to 1024 on a side). A card whose file is
-   missing shows "Unknown card" with its id.
+1. The rest of the first set: cards of every rarity (only Sol lore 001, Legendary,
+   exists), so every sealed copy can be revealed; a reveal ceremony (the copies turn
+   over one by one, as an opening's cards turn in).
 2. The Cards tab as a binder by set with progress ("Places 7 of 12"), missing cards
    as dark outlines.
 3. The shop and the duplicate payout ([Credits](#credits)); a staff control for
