@@ -176,6 +176,16 @@ impl KeybindEditor {
         self.classic.is_some()
     }
 
+    /// Whether the classic list's search field has the keys.
+    pub(crate) fn typing(&self) -> bool {
+        self.classic.as_ref().is_some_and(|list| list.searching)
+    }
+
+    /// The text of the search field that has the keys, for Ctrl+C.
+    pub(crate) fn field_text(&self) -> Option<&str> {
+        self.typing().then(|| self.search_text())
+    }
+
     pub(crate) fn draw_list(&self) -> &DrawList {
         self.ui.draw_list()
     }
@@ -185,7 +195,8 @@ impl KeybindEditor {
         event: &KeyEvent,
         console: &mut ViewerConsole,
     ) -> EditorResult {
-        if event.state != ElementState::Pressed || event.repeat {
+        // A held Backspace or letter goes on in the search field; every other key acts once.
+        if event.state != ElementState::Pressed || (event.repeat && !self.typing()) {
             return EditorResult::None;
         }
         let PhysicalKey::Code(key) = event.physical_key else {

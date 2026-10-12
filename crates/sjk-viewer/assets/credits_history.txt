@@ -9,6 +9,12 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 12/10/2026 | - | Paste, copy and a held Backspace in every text field
+- 4edb3ff |  | Text fields: paste, copy and a held Backspace everywhere
++ 12/10/2026 | - | Credits and changelog for Creyon's PRs #78-#94
+- db260ca |  | Credits and changelog for Creyon's PRs #78-#94
++ 12/10/2026 | - | Review of Creyon's PRs #78-#94: upper right clock as an option, favourite lookup off the menu thread
+- bc5116f |  | Review of Creyon's PRs #78-#94: upper right clock as an option, favourite lookup off the menu thread
 + 12/10/2026 | - | Credits history for the 2026.1012.1 release
 - 9dbbdf1 |  | Credits history for the 2026.1012.1 release
 + 12/10/2026 | - | Release 2026.1012.1 notes

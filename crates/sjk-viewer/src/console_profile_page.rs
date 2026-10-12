@@ -225,9 +225,9 @@ impl ViewerConsole {
         if !self.profile_panel.is_open() {
             return false;
         }
-        let action = self
-            .profile_panel
-            .handle_key(event, self.shift, Self::profile_notice());
+        let action =
+            self.profile_panel
+                .handle_key(event, self.shift, self.control, Self::profile_notice());
         self.profile_panel_action(action);
         true
     }

@@ -311,6 +311,19 @@ impl CreateGameMenu {
     }
 
     /// The screen's retained draw list.
+    /// Whether a field takes the keys: the server name or the map list's search.
+    pub(crate) fn typing(&self) -> bool {
+        self.editing.is_some() || self.picker.is_open()
+    }
+
+    /// The text of the field that has the keys, for Ctrl+C.
+    pub(crate) fn field_text(&self) -> Option<&str> {
+        if self.picker.is_open() {
+            return Some(self.picker.filter());
+        }
+        self.editing.as_deref()
+    }
+
     pub(crate) fn draw_list(&self) -> &sjk_ui::DrawList {
         self.ui.draw_list()
     }

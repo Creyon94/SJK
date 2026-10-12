@@ -1,5 +1,22 @@
 # Status and priorities
 
+## Text fields: paste, copy and a held Backspace everywhere
+
+Branch `personal/text-input` (12/10/2026): Sol could not paste an IP into the new
+"Add a favourite" prompt, and a held Backspace erased one character; he made it a rule
+that every text field pastes, copies and repeats Backspace ([AGENTS.md](../AGENTS.md)).
+An audit of the typing handlers found the menu's `if event.repeat` return ahead of every
+field behind `ClientMenu::handle_key`, and Ctrl+V handled in only some panels. Now the
+menu lets Backspace and typed keys through while a field is open (`menu.rs`), the address,
+password and browser search use the new one-line helper
+([text_entry.rs](../crates/sjk-viewer/src/text_entry.rs): paste, copy, Backspace, typing),
+the settings, character, create game and key binding fields get a paste as the typed text
+of the clipboard's first line and Ctrl+C of the field, and the bio, report dialog and
+console browser fields accept Ctrl+V as the letter Windows reports and Shift+Insert.
+Verified: unit tests of the helper and the workspace checks. Not covered: the F8
+screenshot panel's numbers and the First setup FPS box (digits only), the wheel editor's
+Ctrl+C. Not tried in game.
+
 ## Creyon's PRs #78-#94 merged
 
 Branch `personal/creyon-78-94` (12/10/2026): Sol asked for the review and merge of Creyon's

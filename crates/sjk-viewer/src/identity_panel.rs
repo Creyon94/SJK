@@ -495,7 +495,12 @@ impl Panel {
         }
     }
 
-    pub(crate) fn handle_key(&mut self, event: &KeyEvent, shift: bool) -> PanelAction {
+    pub(crate) fn handle_key(
+        &mut self,
+        event: &KeyEvent,
+        shift: bool,
+        control: bool,
+    ) -> PanelAction {
         if event.state != ElementState::Pressed {
             return PanelAction::None;
         }
@@ -517,9 +522,14 @@ impl Panel {
                 }
             }
             _ if typing && !event.repeat => {
+                if crate::text_entry::is_copy(key, event.text.as_deref(), control) {
+                    let _ = crate::console::clipboard::copy(&self.bio);
+                    return PanelAction::None;
+                }
                 let pasted;
                 let text = match event.text.as_deref() {
-                    Some("\u{16}") => {
+                    // Ctrl+V (Windows hands the letter without Ctrl) or Shift+Insert.
+                    text if crate::sjk_chat_field::is_paste(key, text, shift, control) => {
                         pasted = crate::console::clipboard::paste().unwrap_or_default();
                         pasted.as_str()
                     }
