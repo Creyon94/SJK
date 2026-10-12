@@ -1309,6 +1309,21 @@ the `muzzleFX` effect that `EV_VEH_FIRE` plays bolted to the vehicle
 (`CG_VehMuzzleFireFX`); SJK does not play that effect yet, so vehicle fire is silent
 until it does.
 
+## Electrified players' crackle
+
+A player whose `ps.electrifyTime` (`emplacedOwner` on other players) is ahead of the
+clock wears the electric shell and crackles: on each frame the shell is drawn, one draw
+in ten starts `sound/effects/energy_crackle.wav` on the player (`CG_Player`,
+`cg_players.c:11060-11098`). A DEMP2 hit sets that time, and a JoF server sets it for
+about four seconds when an admin logs in with `amlogin` (its only login sound: the rest
+is a print). SJK had the shell but not the sound. It now plays it, your own in first
+person too, but rolls on the 8 ms effect cadence instead of every rendered frame, so it
+crackles about seven times a second at any frame rate, as stock does at
+`com_maxfps 125`. A muted player and one hidden from you by a mind trick make no crackle
+([electrify.rs](../crates/sjk-viewer/src/electrify.rs)). JoF EJK's skip while a saber
+deflects lightning (`CG_LightningDeflectionActive`) is not followed, as the shell does
+not follow it either.
+
 ## Renderer settings
 
 SJK's own cvars have engine names: rendering ones are `r_*` (`r_sceneHdr`,
