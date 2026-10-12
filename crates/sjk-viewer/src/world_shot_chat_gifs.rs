@@ -1,7 +1,8 @@
 //! World shots of GIFs in SJK chat ([`crate::chat_gifs`]) over duel6: the SJK chat page
 //! with a GIF shown, one loading and one that could not be had; the main page's dock and
 //! the in-game menu's dock with a GIF; the in-play chat box with GIF lines, in play and
-//! with the composer open over its history. The GIFs are small test animations made here and
+//! with the composer open over its history; the GIF picker on Seen in chat, on Search with
+//! GIPHY's answer and on Search without a key. The GIFs are small test animations made here and
 //! put in the cache as if fetched: nothing is downloaded. Off-screen renders (no game
 //! window), ignored like the other world shots: they need a GPU adapter and the installed
 //! game data named by `JKA_GAME_DATA`.
@@ -266,5 +267,93 @@ fn duel6_sjk_chat_gifs_feed() {
             let name = format!("duel6-chat-box-gifs-typing-{suffix}");
             println!("{}", shoot(&mut gpu, 12, &name).display());
         });
+    }
+}
+
+/// The picker's test tiles, of several shapes, as if their previews were fetched.
+fn tiles() -> Vec<GifId> {
+    let shapes = [[200, 112], [200, 200], [200, 150], [200, 260], [200, 90]];
+    let ids: Vec<GifId> = (0..25)
+        .map(|n| GifId::new(&format!("ShotPick{n:02}X")).unwrap())
+        .collect();
+    for (n, id) in ids.iter().enumerate() {
+        let frames = 4 + n % 4;
+        crate::chat_gifs::insert_preview_for_shot(
+            id,
+            &decode::test_animation(shapes[n % shapes.len()], frames, 90),
+            250,
+        );
+    }
+    ids
+}
+
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_sjk_chat_gif_picker() {
+    let messages = (0..12_u64)
+        .map(|n| sjk_identity::ChatMessage {
+            id: n + 1,
+            at: 0,
+            key_id: format!("{:016x}", n + 1),
+            name: format!("^{}Player {n}", n % 7 + 1),
+            verified: n % 3 == 0,
+            staff: false,
+            text: format!("look https://giphy.com/gifs/ShotPick{:02}X", n),
+            holocron: None,
+        })
+        .collect();
+    let state = sjk_identity::ChatState {
+        messages,
+        revision: 1,
+        online: 7,
+        people: None,
+        live: true,
+        outcome: None,
+        loaded: Some(1),
+    };
+    for (size, suffix) in [([1920, 1080], "1080p"), ([3840, 2160], "4k")] {
+        for (tab, typed, key, shot) in [
+            (2, "", "", "seen"),
+            (1, "lightsaber", "test-key", "search"),
+            // Search without a key: the key card shows by itself.
+            (1, "", "", "key-card"),
+            (1, "", "", "key-card-pasted"),
+        ] {
+            let state = state.clone();
+            on_big_stack(move || {
+                let ids = tiles();
+                let menu = menu::ClientMenu::new(true, String::new());
+                let cvars = [
+                    ("ui_menuStyle", "sjk"),
+                    (crate::settings::quick::HIDE_CVAR, "1"),
+                    (crate::chat_gifs::search::KEY_CVAR, key),
+                ];
+                let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", size, Some(menu), &cvars)
+                else {
+                    return;
+                };
+                let _ = frame(&mut gpu, 10);
+                // After the first frames, which read the (empty) favourites file.
+                for id in [&ids[1], &ids[4]] {
+                    crate::chat_gifs::favourites::set(id, true);
+                }
+                if let Some(console) = gpu.console.as_mut() {
+                    if shot == "key-card-pasted" {
+                        console
+                            .preview_sjk_chat_key_card(state, "0123456789abcdefGHIJKL0123456789");
+                    } else {
+                        console.preview_sjk_chat_gifs(state, tab, typed);
+                    }
+                }
+                let _ = frame(&mut gpu, 2);
+                if !key.is_empty()
+                    && let Some(console) = gpu.console.as_mut()
+                {
+                    console.answer_sjk_chat_gif_search(ids, 100);
+                }
+                let name = format!("duel6-sjk-chat-gif-picker-{shot}-{suffix}");
+                println!("{}", shoot(&mut gpu, 8, &name).display());
+            });
+        }
     }
 }

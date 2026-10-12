@@ -45,6 +45,7 @@ The hub's side is described in Sol-Vulpes/SJK-hub (`PROTOCOL.md`, "Chat", "Emote
 | SJK chat page | [sjk_chat_panel.rs](../crates/sjk-viewer/src/sjk_chat_panel.rs), [sjk_chat_panel_view.rs](../crates/sjk-viewer/src/sjk_chat_panel_view.rs), [console_sjk_chat_page.rs](../crates/sjk-viewer/src/console_sjk_chat_page.rs) |
 | Emotes | [emotes.rs](../crates/sjk-viewer/src/emotes.rs), [emotes_frame.rs](../crates/sjk-viewer/src/emotes_frame.rs) |
 | GIFs from GIPHY: links, fetching, decoding, the cache, drawing | [chat_gifs.rs](../crates/sjk-viewer/src/chat_gifs.rs) and its `link`, `fetch`, `decode`, `draw` modules; textures in [gif_textures.rs](../crates/sjk-viewer/src/ui_renderer/gif_textures.rs) |
+| The GIF picker: tabs, tiles, picking; favourites; GIPHY's search | [sjk_chat_gif_picker.rs](../crates/sjk-viewer/src/sjk_chat_gif_picker.rs); [chat_gifs/favourites.rs](../crates/sjk-viewer/src/chat_gifs/favourites.rs); [chat_gifs/search.rs](../crates/sjk-viewer/src/chat_gifs/search.rs) |
 
 ## Hub protocol (additions to version 1)
 
@@ -217,7 +218,9 @@ feed: the hub took them, so the sound says the message went out.
   nothing) are dropped, a `^` stays only before a digit, and the paste stops at 150
   characters (a colour code counts as its two and is never cut in half). Typed keys
   are not filtered, as before; the rules still refuse what was typed before sending.
-  Ctrl+A, Ctrl+C and Ctrl+X do nothing there (the fields have no selection). The game's
+  Ctrl+A selects the whole draft (typing or a paste then replaces it, Backspace clears
+  it) and Ctrl+C copies it, on the page's field and the GIF picker's; Ctrl+X does
+  nothing (no caret, no partial selection). The game's
   own chat composer (`messagemode`, SJK channel included) already had all four, with a
   caret and a selection ([chat/editing.rs](../crates/sjk-viewer/src/chat/editing.rs)).
 
@@ -302,6 +305,100 @@ Only GIPHY: Tenor's API shut down on 30/06/2026.
   media link without its query fits. Pasting (Ctrl+V) writes every GIPHY link as its
   shortest address, `https://giphy.com/gifs/<id>` (`link::shortened`), so a copied share
   link fits; a link typed by hand is sent as typed.
+
+## The GIF picker
+
+Sol's request, 12/10/2026: "a gif picker to the SJK chat and a way to also save gifs as
+favorites". Decided with Sol the same day: search uses GIPHY's API; favourites stay on
+this PC. The key is the player's own (Sol, 12/10/2026: "make it they only use their own
+gif key and we give them an easy popup with the link and easy steps"): SJK has none, as a
+new GIPHY key allows 100 requests an hour, too few for every player to share.
+
+- **Where**: the SJK chat page only. GIF, between the field and Send, opens it (and
+  closes it); it takes the messages' place until it closes, so the field, Send and the
+  right column stay. The docks have Open chat for it. With `cl_sjkChatGifs 0` GIF is
+  off and the picker does not open.
+- **Tabs**: Favourites (opened on when there are any, else Search), Search, and Seen in
+  chat: the GIFs of the chat's messages, newest first, each once, at most 60, muted
+  senders' left out. Seen in chat and Favourites ask GIPHY's API nothing.
+- **Tiles**: five columns by three rows, each GIF whole and animated in its tile.
+  A tile shows GIPHY's preview file, `200w_d.gif` (200 pixels wide at a lower frame rate,
+  a third of `200.gif`'s bytes, seen 12/10/2026), falling back to `200.gif`, then the
+  original, on a 404, with the same rules as a message's GIF (rebuilt address, 4 MiB,
+  no redirect). Tiles are cached apart from messages' GIFs, in the same cache: it holds
+  48 GIFs and 128 MiB of pixels now, 24 can be drawn at once, and three workers fetch, so
+  a page of tiles fills together; a tile scrolled away before its turn is not fetched.
+- **Picking** (a click, or Enter on a tile) writes the GIF's shortest link
+  (`https://giphy.com/gifs/<id>`, 37 characters at most for a 14-letter id) at the end of
+  the message, in place of any GIPHY link already in it, closes the picker and gives the
+  field the keyboard: Enter sends, so text can go with it. When the link does not fit
+  the 150 characters, the picker says so and nothing changes.
+- **Favourites**: the star in a tile's corner (shown on the tile under the pointer or
+  the keyboard, gold on a favourite), or F on a tile, adds or removes it; the chosen
+  message has Add GIF to favourites (or Remove) under Mute when its line shows a GIF.
+  Kept in `gif-favourites.txt` beside `config.cfg`: one id a line, newest first, at
+  most 500 (adding past that lets the oldest go), written through a temporary file at
+  every change. Nothing is sent anywhere
+  ([favourites.rs](../crates/sjk-viewer/src/chat_gifs/favourites.rs)).
+- **Search** ([search.rs](../crates/sjk-viewer/src/chat_gifs/search.rs)): the field
+  (Search tab) asks `api.giphy.com/v1/gifs/search` for the words, or
+  `/v1/gifs/trending` with none, 25 a page, `rating=pg-13`, from this PC: GIPHY's terms
+  ask for requests from the client and forbid proxying them, so the hub is not used.
+  The words are tidied (lower case, spaces made one, 50 characters at most) and asked
+  700 ms after the last key, or at once with Enter. Only the GIFs' ids are read from the
+  answer; nothing else in it is used. The next page is asked when the grid's last row
+  comes on show (Page Down, the wheel, the arrows), up to 100 GIFs a search. One request
+  at a time, HTTPS only, no redirect, 10 seconds, 1 MiB read at most. Answers are kept
+  15 minutes and refusals 60 seconds (32 kept), so going back to a search asks nothing.
+  "Powered by GIPHY" stands under the grid, as GIPHY's terms ask.
+- **The key**: `cl_giphyKey` (archived, empty by default; Settings > Network > GIPHY
+  key, under SJK chat GIFs), the player's own, free from GIPHY's developer dashboard.
+  Search asks nothing without it; Favourites and Seen in chat need none. GIPHY gives a
+  new key 100 requests an hour. A refused key (401, 403) and a spent hour (429) are said
+  in the picker; the key travels in the request's address and is never logged. A new
+  key forgets the refusals kept, so it is tried at once.
+- **The key card**: opening Search without a key shows a card in the page's place (the
+  page's other parts are not drawn under it, since text draws over every shape): why
+  search needs the player's own key, three steps (open GIPHY's developer site and log in
+  or sign up; Create an API Key, choose API, any name; copy the key, paste it with
+  Ctrl+V, Save key), Open developers.giphy.com (`search::KEY_PAGE`, in the browser), the
+  field the key is pasted into (Ctrl+A, Ctrl+C, Ctrl+V, a held Backspace), Save key and
+  Not now. Save key takes 16 to 64 letters and digits (GIPHY's keys are 32), else the
+  card says it doesn't look like a key; it sets `cl_giphyKey` and saves the profile, and
+  the search goes. Not now (or Escape) puts the card off until the picker's Get a GIPHY
+  key opens it again; a refused key shows Change GIPHY key, which opens it on the key
+  saved. Keys: Ctrl+V paste, Enter save, Tab next, Esc not now.
+- **Keys**: Tab walks the tabs, the search field, the tiles, the field, GIF and Send;
+  Left and Right change tab on the tabs; the arrows move through the tiles, scrolling,
+  and Up from the top row goes to the search field (or the tabs); Down from the search
+  field or the tabs goes to the first tile; Up from the message field goes to the tiles;
+  `/` goes to the search field; Page Up and Page Down scroll a page of rows and the wheel
+  one row; Escape closes the picker (a second Escape leaves the page). The keys line
+  says Enter pick, F favourite, PgUp/PgDn scroll, Esc close GIFs. The search field
+  takes Ctrl+A (typing then replaces the words), Ctrl+V and a held Backspace as the
+  message field does.
+
+## From a bind
+
+Sol's request, 12/10/2026: "a cmd like say ... so people can make binds of premade
+messages or gifs ... + a cmd we can bind to open the sjk chat big in one press while
+in game". Three commands, for binds, quick wheel choices and the console, in a game or
+in the menus ([console_sjk_chat_page.rs](../crates/sjk-viewer/src/console_sjk_chat_page.rs)):
+
+- `sjksay <text>` says the text in the SJK chat, as the page's Send does (the hub's rules
+  and limits apply). It is tidied as a paste is (spaces made one, characters the chat
+  refuses left out, 150 characters at most). The console reads `//` as the start of a
+  comment, so a link written in `sjksay` is cut: GIFs go with `sjkgif`.
+- `sjkgif <which> [text]` sends a GIF, with the text before it if any: `which` is a
+  favourite's number (1 the newest, as the GIF wheel numbers them), a GIF's id, or a
+  quoted GIPHY link. `bind F5 "sjkgif 1 gg"` sends the newest favourite after "gg".
+- `sjkchat` opens the SJK chat page, big, over the game or the menus, and closes it:
+  Settings > Keys > Other > SJK chat page (unbound by default; I is still the game
+  chat's SJK channel, `messagemode5`).
+
+Quick wheel pages take `sjksay` and `sjkgif` choices like any command (Settings > Quick
+wheel, a custom choice), and `+gifwheel` opens the
+[GIF wheel](client.md#gif-wheel) on the favourites.
 
 ## Who is online
 
@@ -510,6 +607,13 @@ with its own privacy policy), so GIPHY sees the player's IP address, the GIF's i
 when, as for any picture a browser loads from it. The hub is not involved and learns
 nothing of it. Nothing else is sent: no cookie, key or name. GIFs stay in memory only.
 `cl_sjkChatGifs 0` stops every request to GIPHY.
+
+The GIF picker ([The GIF picker](#the-gif-picker)): a search sends GIPHY the words typed
+(after 700 ms without a key, or Enter), the player's own key and, as any
+request, the player's IP address; opening the Search tab with nothing typed asks for
+GIPHY's trending GIFs. No name, SJK key or cookie is sent. Favourites stay on this PC
+(`gif-favourites.txt`, GIPHY ids only) and are never sent; Seen in chat and Favourites
+ask GIPHY only for the GIFs themselves.
 
 ## Verification
 

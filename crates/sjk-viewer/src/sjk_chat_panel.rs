@@ -4,13 +4,17 @@
 //! online and who was seen most recently ([`people`]); and, for a chosen message, Mute
 //! on this PC, and for SJK staff Delete and Mute at the hub. Resting the pointer on a
 //! name, in the chat or the window, shows that player's sender card with Mute or
-//! Unmute ([`crate::sender_card`], "Muting a player").
+//! Unmute ([`crate::sender_card`], "Muting a player"). GIF beside Send opens the GIF
+//! picker over the messages ([`gif_picker`]): favourites, GIPHY's search and the GIFs
+//! seen in the chat; a chosen message's GIF can be made a favourite. Search needs the
+//! player's own GIPHY key: without one the key card says how to get it and takes it.
 //!
 //! Opened by the main page's docked chat (Open chat), the `sjkchat` command or the
 //! in-game SJK menu. Like the Staff page it lives in the console and has the SJK UI's
 //! look ([`view`]). The field has the keyboard when the page opens: typing goes to
 //! it, Enter sends, Up goes to the newest message; Up and Down move through the
-//! messages, Page Up and Page Down scroll, Tab walks every control, Escape goes back.
+//! messages, Page Up and Page Down scroll, Tab walks every control, Escape goes back
+//! (or closes the GIF picker first).
 
 use crate::menu_widgets::{BACK_TOKEN, MenuCanvas};
 use sjk_identity::{ChatState, StaffRequest};
@@ -19,6 +23,8 @@ use std::time::Instant;
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{KeyCode, PhysicalKey};
 
+#[path = "sjk_chat_gif_picker.rs"]
+mod gif_picker;
 #[path = "sjk_chat_people.rs"]
 mod people;
 #[path = "sjk_chat_panel_view.rs"]
@@ -30,6 +36,9 @@ const MUTE_TOKEN: u16 = 1_302;
 const DELETE_TOKEN: u16 = 1_303;
 const HUB_MUTE_TOKEN: u16 = 1_304;
 const HUB_UNMUTE_TOKEN: u16 = 1_305;
+/// GIF beside Send (the picker), and the chosen message's Add GIF to favourites.
+const GIF_TOKEN: u16 = 1_306;
+const FAVOURITE_TOKEN: u16 = 1_307;
 /// Messages on show, one token each.
 const MESSAGE_BASE: u16 = 1_310;
 const MESSAGES_SHOWN: usize = 40;
@@ -63,6 +72,8 @@ pub(crate) enum PanelAction {
     },
     /// A staff request to the hub.
     Staff(StaffRequest),
+    /// Save this as the player's GIPHY key (`cl_giphyKey`), from the key card.
+    GiphyKey(String),
 }
 
 /// What the page knows this frame.
@@ -79,6 +90,8 @@ pub(crate) struct Inputs<'a> {
     pub(crate) now: u64,
     /// What the staff requests came to, for a staff key.
     pub(crate) staff_state: Option<StaffShown<'a>>,
+    /// `cl_giphyKey`, the player's own GIPHY key for the picker's search (empty: none).
+    pub(crate) giphy_key: &'a str,
 }
 
 /// The part of `sjk_identity::StaffState` the page shows.
@@ -100,6 +113,8 @@ struct Shown {
     /// The chosen message's id, its sender's key and name, and whether they are
     /// muted here.
     chosen: Option<(u64, String, String, bool)>,
+    /// The chosen message's GIF, when it has one on show.
+    chosen_gif: Option<crate::chat_gifs::GifId>,
     /// How many messages there are in all.
     total: usize,
     /// Whether the sender card's player is muted here.
@@ -139,6 +154,10 @@ pub(crate) struct Panel {
     pointer: Option<sjk_ui::Vec2>,
     previous_people: Vec<String>,
     epoch: Instant,
+    /// The GIF picker.
+    gifs: gif_picker::Picker,
+    /// `cl_giphyKey` as the last frame had it, for the key card's Change GIPHY key.
+    giphy_key: String,
     /// The chat to show in place of the live one, for a world shot.
     #[cfg(test)]
     pub(crate) preview: Option<ChatState>,
@@ -187,6 +206,8 @@ impl Panel {
             pointer: None,
             previous_people: Vec::with_capacity(PEOPLE_SHOWN),
             epoch: Instant::now(),
+            gifs: gif_picker::Picker::new(),
+            giphy_key: String::new(),
             #[cfg(test)]
             preview: None,
         }
@@ -203,6 +224,7 @@ impl Panel {
         self.owns_console = owns_console;
         self.focus = FIELD_TOKEN;
         self.scroll = 0;
+        self.gifs.close();
     }
 
     /// Hide the page; returns whether it had opened the console.
@@ -287,9 +309,256 @@ impl Panel {
         self.ui.draw_list()
     }
 
+    /// Open the GIF picker on tab `tab` (0 Favourites, 1 Search, 2 Seen in chat), the
+    /// words `typed` searched, the keyboard on the second tile, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn open_gifs_for_shot(&mut self, tab: usize, typed: &str) {
+        let _ = self.gifs.open();
+        self.gifs.choose_tab(gif_picker::Tab::ALL[tab]);
+        self.gifs.typed = typed.to_owned();
+        self.gifs.search_now();
+        self.focus = gif_picker::TILE_BASE + 1;
+    }
+
+    /// Open the GIF picker's key card with `typed` in its field, the keyboard on it,
+    /// for a world shot.
+    #[cfg(test)]
+    pub(crate) fn open_key_card_for_shot(&mut self, typed: &str) {
+        let _ = self.gifs.open();
+        self.gifs.choose_tab(gif_picker::Tab::Search);
+        self.gifs.open_key_card(typed);
+        self.focus = gif_picker::KEY_FIELD_TOKEN;
+    }
+
+    /// Answer the picker's search on its way with `ids` of `total`, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn answer_gif_search_for_shot(
+        &mut self,
+        ids: Vec<crate::chat_gifs::GifId>,
+        total: usize,
+    ) {
+        self.gifs
+            .searcher
+            .answer_for_test(Ok(crate::chat_gifs::search::Page { ids, total }));
+    }
+
+    /// Open or close the GIF picker; the keyboard goes into it, or back to the field.
+    fn toggle_gifs(&mut self) {
+        if self.gifs.open {
+            self.gifs.close();
+            self.focus = FIELD_TOKEN;
+        } else if crate::chat_gifs::enabled() {
+            self.focus = self.gifs.open();
+        }
+    }
+
+    /// What a click (or Enter) on one of the picker's controls does; `None` for a token
+    /// that is not the picker's.
+    fn activate_gifs(&mut self, token: u16) -> Option<PanelAction> {
+        use gif_picker::{
+            KEY_ASK_TOKEN, KEY_FIELD_TOKEN, KEY_LATER_TOKEN, KEY_OPEN_TOKEN, KEY_SAVE_TOKEN,
+            SEARCH_TOKEN, STAR_BASE, TAB_BASE, TILE_BASE, TILES, Tab,
+        };
+        if !self.gifs.open {
+            return None;
+        }
+        match token {
+            KEY_ASK_TOKEN => {
+                self.gifs.open_key_card(&self.giphy_key);
+                self.focus = KEY_FIELD_TOKEN;
+                return Some(PanelAction::None);
+            }
+            KEY_FIELD_TOKEN | KEY_OPEN_TOKEN | KEY_SAVE_TOKEN | KEY_LATER_TOKEN
+                if self.gifs.key_card.is_some() =>
+            {
+                self.focus = token;
+                match token {
+                    KEY_OPEN_TOKEN if !cfg!(test) => {
+                        crate::update::open_page(crate::chat_gifs::search::KEY_PAGE);
+                    }
+                    KEY_SAVE_TOKEN => {
+                        if let Some(key) = self.gifs.save_key() {
+                            self.focus = SEARCH_TOKEN;
+                            return Some(PanelAction::GiphyKey(key));
+                        }
+                        self.focus = KEY_FIELD_TOKEN;
+                    }
+                    KEY_LATER_TOKEN => {
+                        self.gifs.put_off_key_card();
+                        self.focus = SEARCH_TOKEN;
+                    }
+                    _ => {}
+                }
+                return Some(PanelAction::None);
+            }
+            _ => {}
+        }
+        if let Some(index) = token
+            .checked_sub(TAB_BASE)
+            .map(usize::from)
+            .filter(|index| *index < Tab::ALL.len())
+        {
+            self.gifs.choose_tab(Tab::ALL[index]);
+            self.focus = TAB_BASE + index as u16;
+            return Some(PanelAction::None);
+        }
+        if token == SEARCH_TOKEN {
+            self.focus = SEARCH_TOKEN;
+            self.gifs.search_now();
+            return Some(PanelAction::None);
+        }
+        if (TILE_BASE..TILE_BASE + TILES as u16).contains(&token) {
+            let id = self.gifs.tile(token)?.clone();
+            match gif_picker::with_gif(&self.draft, &id) {
+                Some(draft) => {
+                    self.draft = draft;
+                    self.gifs.close();
+                    self.focus = FIELD_TOKEN;
+                }
+                None => {
+                    self.gifs.notice =
+                        Some("No room for the GIF's link: make the message shorter first");
+                }
+            }
+            return Some(PanelAction::None);
+        }
+        if (STAR_BASE..STAR_BASE + TILES as u16).contains(&token) {
+            if let Some(id) = self.gifs.tile(TILE_BASE + (token - STAR_BASE)).cloned() {
+                let favourite = crate::chat_gifs::favourites::contains(&id);
+                crate::chat_gifs::favourites::set(&id, !favourite);
+            }
+            return Some(PanelAction::None);
+        }
+        None
+    }
+
+    /// A key while the GIF picker is open, before the page's own; `None` lets the page
+    /// have it.
+    fn edit_gifs(
+        &mut self,
+        key: KeyCode,
+        text: Option<&str>,
+        shift: bool,
+        control: bool,
+    ) -> Option<PanelAction> {
+        use gif_picker::{
+            KEY_FIELD_TOKEN, KEY_LATER_TOKEN, SEARCH_TOKEN, TAB_BASE, TILE_BASE, TILES, Tab,
+        };
+        if !self.gifs.open {
+            return None;
+        }
+        if self.gifs.key_card.is_some() {
+            // The key card has the keyboard: Escape is Not now, Enter in the field saves,
+            // and the field takes typing, Ctrl+A, Ctrl+C, Ctrl+V and Backspace.
+            let in_field = self.focus == KEY_FIELD_TOKEN;
+            return match key {
+                KeyCode::Escape => self.activate_gifs(KEY_LATER_TOKEN),
+                KeyCode::Enter | KeyCode::NumpadEnter if in_field => {
+                    self.activate_gifs(gif_picker::KEY_SAVE_TOKEN)
+                }
+                KeyCode::Tab
+                | KeyCode::Enter
+                | KeyCode::NumpadEnter
+                | KeyCode::ArrowUp
+                | KeyCode::ArrowDown => None,
+                KeyCode::Space if !in_field => None,
+                _ if in_field => {
+                    self.gifs.edit_key(key, text, shift, control);
+                    Some(PanelAction::None)
+                }
+                _ => Some(PanelAction::None),
+            };
+        }
+        let on_tile = (TILE_BASE..TILE_BASE + TILES as u16).contains(&self.focus);
+        let on_tabs = (TAB_BASE..TAB_BASE + Tab::ALL.len() as u16).contains(&self.focus);
+        let searching = self.focus == SEARCH_TOKEN;
+        if searching && self.gifs.before_edit(key, text, shift, control) {
+            return Some(PanelAction::None);
+        }
+        if searching && crate::text_entry::is_copy(key, text, control) {
+            if !self.gifs.typed.is_empty() {
+                let _ = crate::console::clipboard::copy(&self.gifs.typed);
+            }
+            return Some(PanelAction::None);
+        }
+        match key {
+            KeyCode::Escape => {
+                self.toggle_gifs();
+            }
+            KeyCode::PageUp => self.gifs.scroll(-(gif_picker::ROWS as isize)),
+            KeyCode::PageDown => self.gifs.scroll(gif_picker::ROWS as isize),
+            KeyCode::Enter | KeyCode::NumpadEnter if searching => self.gifs.search_now(),
+            KeyCode::Backspace if searching => self.gifs.backspace(),
+            KeyCode::ArrowDown if searching || on_tabs => {
+                if self.gifs.tile(TILE_BASE).is_some() {
+                    self.focus = TILE_BASE;
+                }
+            }
+            KeyCode::ArrowLeft | KeyCode::ArrowRight if on_tabs => {
+                let at = self.gifs.tab.index();
+                let count = Tab::ALL.len();
+                let next = if key == KeyCode::ArrowRight {
+                    (at + 1) % count
+                } else {
+                    (at + count - 1) % count
+                };
+                return self.activate_gifs(TAB_BASE + next as u16);
+            }
+            KeyCode::Tab => return None,
+            _ if searching => self.gifs.type_key(key, text, shift, control),
+            KeyCode::ArrowLeft | KeyCode::ArrowRight | KeyCode::ArrowUp | KeyCode::ArrowDown
+                if on_tile =>
+            {
+                let (dx, dy) = match key {
+                    KeyCode::ArrowLeft => (-1, 0),
+                    KeyCode::ArrowRight => (1, 0),
+                    KeyCode::ArrowUp => (0, -1),
+                    _ => (0, 1),
+                };
+                self.focus = match self.gifs.step(self.focus, dx, dy) {
+                    Some(token) => token,
+                    None if self.gifs.tab == Tab::Search => SEARCH_TOKEN,
+                    None => TAB_BASE + self.gifs.tab.index() as u16,
+                };
+            }
+            KeyCode::KeyF if on_tile && !control => {
+                return self.activate_gifs(gif_picker::STAR_BASE + (self.focus - TILE_BASE));
+            }
+            KeyCode::Slash if !searching && self.focus != FIELD_TOKEN => {
+                let _ = self.activate_gifs(TAB_BASE + Tab::Search.index() as u16);
+                self.focus = SEARCH_TOKEN;
+            }
+            KeyCode::ArrowUp if self.focus == FIELD_TOKEN => {
+                self.focus = if self.gifs.tile(TILE_BASE).is_some() {
+                    TILE_BASE
+                } else {
+                    self.gifs.first_control()
+                };
+            }
+            _ => return None,
+        }
+        Some(PanelAction::None)
+    }
+
     /// What Enter (or a click) on `token` does.
     fn activate(&mut self, token: u16) -> PanelAction {
         if token == CARD_TOKEN {
+            return PanelAction::None;
+        }
+        if let Some(action) = self.activate_gifs(token) {
+            return action;
+        }
+        if token == GIF_TOKEN {
+            self.toggle_gifs();
+            return PanelAction::None;
+        }
+        if token == FAVOURITE_TOKEN {
+            // The chosen message's GIF; the keyboard stays on the button.
+            self.focus = token;
+            if let Some(id) = self.shown.chosen_gif.clone() {
+                let favourite = crate::chat_gifs::favourites::contains(&id);
+                crate::chat_gifs::favourites::set(&id, !favourite);
+            }
             return PanelAction::None;
         }
         if token == CARD_MUTE_TOKEN {
@@ -426,8 +695,13 @@ impl Panel {
         let PhysicalKey::Code(key) = event.physical_key else {
             return PanelAction::None;
         };
-        // Held keys repeat in the field (Backspace); elsewhere a key acts once.
-        if event.repeat && self.focus != FIELD_TOKEN {
+        // Held keys repeat in the fields (Backspace); elsewhere a key acts once.
+        let field = [
+            FIELD_TOKEN,
+            gif_picker::SEARCH_TOKEN,
+            gif_picker::KEY_FIELD_TOKEN,
+        ];
+        if event.repeat && !field.contains(&self.focus) {
             return PanelAction::None;
         }
         self.edit(key, event.text.as_deref(), shift, control)
@@ -442,8 +716,17 @@ impl Panel {
         shift: bool,
         control: bool,
     ) -> PanelAction {
+        if let Some(action) = self.edit_gifs(key, text, shift, control) {
+            return action;
+        }
         let typing = self.focus == FIELD_TOKEN;
         if typing && crate::text_entry::before_edit(&mut self.draft, key, text, shift, control) {
+            return PanelAction::None;
+        }
+        if typing && crate::text_entry::is_copy(key, text, control) {
+            if !self.draft.is_empty() {
+                let _ = crate::console::clipboard::copy(&self.draft);
+            }
             return PanelAction::None;
         }
         let in_list = (MESSAGE_BASE..MESSAGE_BASE + MESSAGES_SHOWN as u16).contains(&self.focus);
@@ -488,6 +771,13 @@ impl Panel {
     /// A pointer event.
     pub(crate) fn handle_pointer(&mut self, event: InputEvent) -> PanelAction {
         if let InputEvent::PointerWheel { delta, .. } = event {
+            if self.gifs.open {
+                // Over the picker, the wheel scrolls its tiles.
+                if delta.y != 0.0 {
+                    self.gifs.scroll(if delta.y > 0.0 { -1 } else { 1 });
+                }
+                return PanelAction::None;
+            }
             if delta.y > 0.0 {
                 let most = self.shown.total.saturating_sub(1);
                 self.scroll = (self.scroll + 1).min(most);
@@ -553,6 +843,7 @@ mod tests {
             enabled: true,
             now: 1_791_400_000,
             staff_state: None,
+            giphy_key: "",
         }
     }
 

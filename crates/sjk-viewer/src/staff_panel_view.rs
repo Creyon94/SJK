@@ -1618,6 +1618,7 @@ mod tests {
             },
             holocrons: (0..30)
                 .map(|id| sjk_identity::Holocron {
+                    opened: None,
                     id: 1_000 - id,
                     tier: crate::holocrons::TIERS[id as usize % crate::holocrons::COUNT]
                         .id

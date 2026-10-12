@@ -570,6 +570,31 @@ fn submit_actor(
     if trick.hidden {
         return 0;
     }
+    // An electrified player crackles (`electrify.rs`), the local one in first person too.
+    if entity.kind == EntityKind::Actor
+        && !muted
+        && let Some(snapshot) = snapshot
+    {
+        let until = if local {
+            snapshot.player.electrify_time()
+        } else {
+            state.map_or(0, sjk_protocol::EntityState::emplaced_owner)
+        };
+        let now = presentation_time as i32;
+        if until > now
+            && sinks.effect_aux.continuous.due(visual_now)
+            && crate::electrify::crackles(until, now, crate::electrify::draws(number, now))
+            && let Some(audio) = sinks.game_audio.as_mut()
+        {
+            audio.play_on_channel(
+                crate::electrify::CRACKLE,
+                1.0,
+                transform.translation,
+                sjk_audio::SourceId(u32::from(number)),
+                sjk_audio::ChannelId(0),
+            );
+        }
+    }
     // `CG_DrawPlayerSphere`, the local player's included in first person.
     if entity.kind == EntityKind::Actor
         && let Some(snapshot) = snapshot

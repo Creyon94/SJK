@@ -38,6 +38,9 @@ pub(crate) struct Choice<'a> {
     /// Its picture in the UI atlas (a wheel icon, a Force power's); without one,
     /// a disc with its name.
     pub(crate) icon: Option<TextureId>,
+    /// The picture's size in pixels when it is not square (a favourite GIF): it is
+    /// drawn whole inside the choice's square, on a dark disc.
+    pub(crate) size: Option<[u32; 2]>,
     /// In effect: a gold dot outside the band.
     pub(crate) on: bool,
 }
@@ -120,6 +123,19 @@ fn towards(centre: [f32; 2], angle: f32, radius: f32) -> [f32; 2] {
         centre[0] + angle.sin() * radius,
         centre[1] - angle.cos() * radius,
     ]
+}
+
+/// A picture of `pixels` drawn whole in the middle of `square`, keeping its shape.
+fn fit_inside(square: Rect, pixels: [u32; 2]) -> Rect {
+    let [w, h] = [pixels[0].max(1) as f32, pixels[1].max(1) as f32];
+    let scale = (square.width / w).min(square.height / h);
+    let [w, h] = [w * scale, h * scale];
+    Rect::new(
+        square.x + (square.width - w) * 0.5,
+        square.y + (square.height - h) * 0.5,
+        w,
+        h,
+    )
 }
 
 /// The ease of a page arriving: quick, then settling.
@@ -264,14 +280,23 @@ pub(crate) fn draw(canvas: &mut MenuCanvas, ring: &Ring<'_>) {
         }
         let rect = Rect::new(spot[0] - size * 0.5, spot[1] - size * 0.5, size, size);
         match choice.icon {
-            Some(texture) => push(
-                canvas,
-                DrawCommand::TexturedQuad {
-                    rect,
-                    texture,
-                    color: Color::new(1.0, 1.0, 1.0, if lit { 1.0 } else { 0.86 }),
-                },
-            ),
+            Some(texture) => {
+                let rect = match choice.size {
+                    Some(pixels) => {
+                        disc(canvas, spot, size, color::alpha(color::SPACE, 0.75));
+                        fit_inside(rect, pixels)
+                    }
+                    None => rect,
+                };
+                push(
+                    canvas,
+                    DrawCommand::TexturedQuad {
+                        rect,
+                        texture,
+                        color: Color::new(1.0, 1.0, 1.0, if lit { 1.0 } else { 0.86 }),
+                    },
+                );
+            }
             None => name_disc(canvas, choice.label, rect, lit, u),
         }
         if choice.on {

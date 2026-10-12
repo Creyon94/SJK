@@ -14,12 +14,18 @@
 //!
 //! The decoded GIFs stay in memory only, by id, so a GIF in several messages loads once:
 //! at most [`ENTRIES`] GIFs and [`BUDGET`] bytes of pixels, those used least recently
-//! making room. [`GPU_SLOTS`] of them can be on screen at once.
+//! making room. [`GPU_SLOTS`] of them can be on screen at once. The GIF picker's tiles
+//! ([`show_preview`]) are kept apart from the messages' GIFs, as GIPHY's smaller
+//! preview file ([`link::Rendition::Preview`]); [`WORKERS`] threads fetch, so a page of
+//! tiles fills together. [`favourites`] keeps the player's favourite GIFs and
+//! [`search`] asks GIPHY's search for the picker.
 
 pub(crate) mod decode;
 pub(crate) mod draw;
+pub(crate) mod favourites;
 pub(crate) mod fetch;
 pub(crate) mod link;
+pub(crate) mod search;
 
 pub(crate) use link::GifId;
 
@@ -32,13 +38,16 @@ use std::time::{Duration, Instant};
 
 /// `cl_sjkChatGifs`: whether GIPHY links in SJK chat show their GIF.
 pub(crate) const CVAR: &str = "cl_sjkChatGifs";
-/// GIFs kept decoded at once.
-pub(crate) const ENTRIES: usize = 24;
-/// Bytes of pixels kept for every decoded GIF together (three GIFs at the largest
+/// GIFs kept decoded at once, the picker's tiles included.
+pub(crate) const ENTRIES: usize = 48;
+/// Bytes of pixels kept for every decoded GIF together (four GIFs at the largest
 /// [`decode::MAX_DECODED`]).
-pub(crate) const BUDGET: usize = 96 << 20;
-/// GIFs drawn at once, each with a texture of its own.
-pub(crate) const GPU_SLOTS: usize = 8;
+pub(crate) const BUDGET: usize = 128 << 20;
+/// GIFs drawn at once, each with a texture of its own: a page of the picker's tiles
+/// and the messages' GIFs.
+pub(crate) const GPU_SLOTS: usize = 24;
+/// Threads fetching and decoding GIFs.
+pub(crate) const WORKERS: usize = 3;
 /// How long a GIF that could not be had waits before it is asked for again.
 const RETRY_AFTER: Duration = Duration::from_secs(300);
 /// Where the GIF textures' ids begin (see [`slot_texture`]).
@@ -69,6 +78,23 @@ fn for_message_with(text: &str, muted: bool, on: bool) -> (String, Option<GifId>
         return (text.to_owned(), None);
     }
     link::with_label(text)
+}
+
+/// A GIF as the cache keeps it: a message's GIF, or a picker tile's (`preview`), the
+/// smaller file.
+#[derive(Clone, Debug, Eq, PartialEq)]
+struct Key {
+    id: GifId,
+    preview: bool,
+}
+
+impl Key {
+    fn chat(id: &GifId) -> Self {
+        Self {
+            id: id.clone(),
+            preview: false,
+        }
+    }
 }
 
 /// What a screen draws for a GIF.
@@ -107,7 +133,7 @@ enum State {
 /// One GIF in the cache.
 #[derive(Debug)]
 struct Entry {
-    id: GifId,
+    key: Key,
     state: State,
     /// The frame it was last asked for in.
     used: u64,
@@ -116,7 +142,7 @@ struct Entry {
 /// A GIF texture of the renderer and the GIF it holds.
 #[derive(Clone, Debug)]
 struct Slot {
-    id: GifId,
+    key: Key,
     used: u64,
     /// The renderer that has it, and the frame of the GIF it was given.
     uploaded: Option<(u64, usize)>,
@@ -130,8 +156,8 @@ struct Gifs {
     frame: u64,
     /// The renderer the last frame drew with.
     renderer: Option<u64>,
-    requests: Option<Sender<GifId>>,
-    answers: Option<Receiver<(GifId, Option<Gif>)>>,
+    requests: Option<Sender<Key>>,
+    answers: Option<Receiver<(Key, Option<Gif>)>>,
     /// When the animations began (the first [`service`]).
     started: Option<Instant>,
     /// The animations held at this time (the world shots).
@@ -159,11 +185,11 @@ impl Gifs {
     }
 
     /// What to draw for `id`, asking for it when the cache does not have it.
-    fn show(&mut self, id: &GifId) -> Shown {
+    fn show(&mut self, id: &Key) -> Shown {
         let frame = self.frame;
-        let Some(index) = self.entries.iter().position(|entry| entry.id == *id) else {
+        let Some(index) = self.entries.iter().position(|entry| entry.key == *id) else {
             self.entries.push(Entry {
-                id: id.clone(),
+                key: id.clone(),
                 state: State::Loading,
                 used: frame,
             });
@@ -204,12 +230,12 @@ impl Gifs {
 
     /// The GPU slot holding `id`, given one if it has none: a free one, else the one
     /// used longest ago, as long as it was not used this frame or the last.
-    fn slot_for(&mut self, id: &GifId) -> Option<usize> {
+    fn slot_for(&mut self, id: &Key) -> Option<usize> {
         let frame = self.frame;
         if let Some(index) = self
             .slots
             .iter()
-            .position(|slot| slot.as_ref().is_some_and(|slot| slot.id == *id))
+            .position(|slot| slot.as_ref().is_some_and(|slot| slot.key == *id))
         {
             if let Some(slot) = self.slots[index].as_mut() {
                 slot.used = frame;
@@ -226,15 +252,15 @@ impl Gifs {
                 .map(|(index, _)| index)
         })?;
         self.slots[index] = Some(Slot {
-            id: id.clone(),
+            key: id.clone(),
             used: frame,
             uploaded: None,
         });
         Some(index)
     }
 
-    /// Ask the worker for `id`, starting it the first time.
-    fn ask(&mut self, id: &GifId) {
+    /// Ask the workers for `id`, starting them the first time.
+    fn ask(&mut self, id: &Key) {
         // The tests never reach GIPHY: without a worker of their own, a GIF stays loading.
         if cfg!(test) && self.requests.is_none() {
             return;
@@ -242,11 +268,22 @@ impl Gifs {
         if self.requests.is_none() {
             let (requests, inbox) = channel();
             let (outbox, answers) = channel();
-            let spawned = std::thread::Builder::new()
-                .name("sjk-chat-gifs".to_owned())
-                .spawn(move || work(&inbox, &outbox));
-            if let Err(error) = spawned {
-                crate::log::progress(format_args!("warning: SJK chat GIFs off: {error}"));
+            let inbox = Arc::new(Mutex::new(inbox));
+            let mut started = 0;
+            for worker in 0..WORKERS {
+                let (inbox, outbox) = (Arc::clone(&inbox), outbox.clone());
+                let spawned = std::thread::Builder::new()
+                    .name(format!("sjk-chat-gifs-{worker}"))
+                    .spawn(move || work(&inbox, &outbox));
+                match spawned {
+                    Ok(_) => started += 1,
+                    Err(error) => crate::log::progress(format_args!(
+                        "warning: an SJK chat GIF worker did not start: {error}"
+                    )),
+                }
+            }
+            if started == 0 {
+                crate::log::progress(format_args!("warning: SJK chat GIFs off"));
                 self.fail(id);
                 return;
             }
@@ -262,8 +299,8 @@ impl Gifs {
         }
     }
 
-    fn fail(&mut self, id: &GifId) {
-        if let Some(entry) = self.entries.iter_mut().find(|entry| entry.id == *id) {
+    fn fail(&mut self, id: &Key) {
+        if let Some(entry) = self.entries.iter_mut().find(|entry| entry.key == *id) {
             entry.state = State::Failed(Instant::now());
         }
     }
@@ -296,7 +333,7 @@ impl Gifs {
             };
             let gone = self.entries.swap_remove(index);
             for slot in &mut self.slots {
-                if slot.as_ref().is_some_and(|slot| slot.id == gone.id) {
+                if slot.as_ref().is_some_and(|slot| slot.key == gone.key) {
                     *slot = None;
                 }
             }
@@ -313,7 +350,7 @@ impl Gifs {
             if let Some(entry) = self
                 .entries
                 .iter_mut()
-                .find(|entry| entry.id == id && matches!(entry.state, State::Loading))
+                .find(|entry| entry.key == id && matches!(entry.state, State::Loading))
             {
                 entry.state = match gif {
                     Some(gif) => State::Ready(Arc::new(gif)),
@@ -346,7 +383,7 @@ impl Gifs {
                 continue;
             };
             let gif = self.entries.iter().find_map(|entry| match &entry.state {
-                State::Ready(gif) if entry.id == held.id => Some(gif),
+                State::Ready(gif) if entry.key == held.key => Some(gif),
                 _ => None,
             });
             let Some(gif) = gif else {
@@ -366,7 +403,25 @@ impl Gifs {
 /// What to draw for GIF `id` this frame ([`Shown`]). The first call for a GIF asks the
 /// worker for it.
 pub(crate) fn show(id: &GifId) -> Shown {
-    lock().show(id)
+    lock().show(&Key::chat(id))
+}
+
+/// What to draw for GIF `id` as a picker's tile this frame: its preview, the smaller
+/// file GIPHY makes ([`link::Rendition::Preview`]).
+pub(crate) fn show_preview(id: &GifId) -> Shown {
+    lock().show(&Key {
+        id: id.clone(),
+        preview: true,
+    })
+}
+
+/// Whether the cache still waits for `key`: a GIF dropped while it waited in the queue
+/// (the picker scrolled past it) is not fetched.
+fn wanted(key: &Key) -> bool {
+    lock()
+        .entries
+        .iter()
+        .any(|entry| entry.key == *key && matches!(entry.state, State::Loading))
 }
 
 /// Once a frame: take what the worker finished and give `renderer` the frame each GIF
@@ -389,11 +444,22 @@ pub(crate) fn service(
     }
 }
 
-/// The worker: fetch and decode each GIF asked for, until the cache is gone.
-fn work(inbox: &Receiver<GifId>, outbox: &Sender<(GifId, Option<Gif>)>) {
+/// A worker: fetch and decode each GIF asked for, until the cache is gone.
+fn work(inbox: &Mutex<Receiver<Key>>, outbox: &Sender<(Key, Option<Gif>)>) {
     let mut http = fetch::Http::new();
-    while let Ok(id) = inbox.recv() {
-        let gif = match fetch::fetch(&mut http, &id) {
+    loop {
+        let next = inbox
+            .lock()
+            .unwrap_or_else(|poisoned| poisoned.into_inner())
+            .recv();
+        let Ok(key) = next else {
+            return;
+        };
+        if !wanted(&key) {
+            continue;
+        }
+        let id = &key.id;
+        let gif = match fetch::fetch(&mut http, id, key.preview) {
             Ok(bytes) => {
                 let gif = decode::decode(&bytes);
                 if gif.is_none() {
@@ -409,7 +475,7 @@ fn work(inbox: &Receiver<GifId>, outbox: &Sender<(GifId, Option<Gif>)>) {
                 None
             }
         };
-        if outbox.send((id, gif)).is_err() {
+        if outbox.send((key, gif)).is_err() {
             return;
         }
     }
@@ -419,13 +485,28 @@ fn work(inbox: &Receiver<GifId>, outbox: &Sender<(GifId, Option<Gif>)>) {
 /// hold the animations at `held_ms`, for a world shot.
 #[cfg(test)]
 pub(crate) fn insert_for_shot(id: &GifId, bytes: &[u8], held_ms: u64) {
+    insert_key_for_shot(Key::chat(id), bytes, held_ms);
+}
+
+/// [`insert_for_shot`] for a picker's tile.
+#[cfg(test)]
+pub(crate) fn insert_preview_for_shot(id: &GifId, bytes: &[u8], held_ms: u64) {
+    let key = Key {
+        id: id.clone(),
+        preview: true,
+    };
+    insert_key_for_shot(key, bytes, held_ms);
+}
+
+#[cfg(test)]
+fn insert_key_for_shot(key: Key, bytes: &[u8], held_ms: u64) {
     let gif = decode::decode(bytes).expect("a GIF for the shot");
     let mut gifs = lock();
     gifs.held_ms = Some(held_ms);
-    gifs.entries.retain(|entry| entry.id != *id);
+    gifs.entries.retain(|entry| entry.key != key);
     let used = gifs.frame;
     gifs.entries.push(Entry {
-        id: id.clone(),
+        key,
         state: State::Ready(Arc::new(gif)),
         used,
     });
@@ -434,17 +515,18 @@ pub(crate) fn insert_for_shot(id: &GifId, bytes: &[u8], held_ms: u64) {
 /// Whether the cache holds or asked for `id`'s GIF, for the tests.
 #[cfg(test)]
 pub(crate) fn asked_for(id: &GifId) -> bool {
-    lock().entries.iter().any(|entry| entry.id == *id)
+    lock().entries.iter().any(|entry| entry.key.id == *id)
 }
 
 /// Mark `id`'s GIF as one that could not be had, for a world shot.
 #[cfg(test)]
 pub(crate) fn fail_for_shot(id: &GifId) {
+    let key = Key::chat(id);
     let mut gifs = lock();
-    gifs.entries.retain(|entry| entry.id != *id);
+    gifs.entries.retain(|entry| entry.key != key);
     let used = gifs.frame;
     gifs.entries.push(Entry {
-        id: id.clone(),
+        key,
         state: State::Failed(Instant::now()),
         used,
     });
@@ -455,10 +537,10 @@ mod tests {
     use super::*;
 
     /// Where the tests answer for the worker.
-    type Outbox = Sender<(GifId, Option<Gif>)>;
+    type Outbox = Sender<(Key, Option<Gif>)>;
 
     /// A cache with no worker: requests are kept to answer by hand.
-    fn cache() -> (Gifs, Receiver<GifId>, Outbox) {
+    fn cache() -> (Gifs, Receiver<Key>, Outbox) {
         let (requests, inbox) = channel();
         let (outbox, answers) = channel();
         let mut gifs = Gifs::new();
@@ -469,8 +551,8 @@ mod tests {
         (gifs, inbox, outbox)
     }
 
-    fn id(n: usize) -> GifId {
-        GifId::new(&format!("Gif{n:04}abc")).unwrap()
+    fn id(n: usize) -> Key {
+        Key::chat(&GifId::new(&format!("Gif{n:04}abc")).unwrap())
     }
 
     fn small_gif() -> Gif {
@@ -557,24 +639,24 @@ mod tests {
         }
         assert_eq!(gifs.entries.len(), ENTRIES);
         for n in 0..4 {
-            assert!(gifs.entries.iter().all(|entry| entry.id != id(n)), "{n}");
+            assert!(gifs.entries.iter().all(|entry| entry.key != id(n)), "{n}");
         }
-        // By bytes: two GIFs of 40 MiB and a third make 120, over 96; the oldest goes.
+        // By bytes: two GIFs of 50 MiB and a third make 150, over 128; the oldest goes.
         let (mut gifs, _inbox, outbox) = cache();
         for n in 0..3 {
             let _ = gifs.show(&id(n));
-            outbox.send((id(n), Some(gif_of(40 << 20)))).unwrap();
+            outbox.send((id(n), Some(gif_of(50 << 20)))).unwrap();
             let _ = frame(&mut gifs);
             let _ = frame(&mut gifs);
         }
-        let kept: Vec<GifId> = gifs.entries.iter().map(|entry| entry.id.clone()).collect();
+        let kept: Vec<Key> = gifs.entries.iter().map(|entry| entry.key.clone()).collect();
         assert_eq!(kept.len(), 2);
         assert!(!kept.contains(&id(0)));
         // A GIF on screen (used this frame or the last) is never dropped.
         let (mut gifs, _inbox, outbox) = cache();
         for n in 0..3 {
             let _ = gifs.show(&id(n));
-            outbox.send((id(n), Some(gif_of(40 << 20)))).unwrap();
+            outbox.send((id(n), Some(gif_of(50 << 20)))).unwrap();
         }
         let _ = frame(&mut gifs);
         assert_eq!(gifs.entries.len(), 3, "all three on screen");
@@ -601,8 +683,23 @@ mod tests {
             gifs.slots
                 .iter()
                 .flatten()
-                .any(|slot| slot.id == id(GPU_SLOTS))
+                .any(|slot| slot.key == id(GPU_SLOTS))
         );
+    }
+
+    #[test]
+    fn a_tile_and_a_message_keep_the_same_gif_apart() {
+        let (mut gifs, inbox, _outbox) = cache();
+        let chat = id(1);
+        let tile = Key {
+            id: chat.id.clone(),
+            preview: true,
+        };
+        let _ = gifs.show(&chat);
+        let _ = gifs.show(&tile);
+        assert_eq!(inbox.try_recv().ok(), Some(chat));
+        assert_eq!(inbox.try_recv().ok(), Some(tile));
+        assert_eq!(gifs.entries.len(), 2);
     }
 
     #[test]

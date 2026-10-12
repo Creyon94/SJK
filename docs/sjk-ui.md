@@ -354,8 +354,8 @@ the Force groups' powers in their order, the other side's skipped), Left and
 Right change it (a hilt list's choice moves one hilt, the Blade row's one
 blade), Enter types or acts, Tab
 and `[` `]` change page (on the Profile screen, its tabs: from Force on to SJK
-Profile), Escape returns to the main page (dropping an
-unapplied Force draft, as before). The pointer: a click on a control acts (‹ ›
+Profile), Escape returns to the main page (leaving the Force page applies its
+draft, see [client.md](client.md)). The pointer: a click on a control acts (‹ ›
 by the half of the control it lands on, a chip picks the colour drawn under
 it, a slider follows, a style button, a hilt, a blade, a level, the search
 field types), a click elsewhere on a
@@ -400,7 +400,9 @@ overlay routes their text to the UI's families (`console_sjk_pages.rs`).
   "Not released yet" in gold), the chosen one gold; beside them a reading
   column with its date and number of changes, its name, its introduction, then
   each change after a gold dot with its credit under it, scrolled by Page Up
-  and Down or the wheel. Lines are wrapped by characters.
+  and Down or the wheel. Lines are wrapped by their measured width, and what a
+  change puts in backticks is drawn as a chip, clickable as on the
+  [what's-new card](#whats-new-card) (`inline_code.rs`).
 - **Update** ([update_panel_sjk.rs](../crates/sjk-viewer/src/update_panel_sjk.rs)):
   a pop-up card (840 wide, as tall as what it says) over the map darkened all
   over, since 08/10/2026 (Sol asked for it with First setup's). Update (gold)
@@ -1184,12 +1186,14 @@ grown to four. The same module serves the Collection screen's row
 
 [collection_panel.rs](../crates/sjk-viewer/src/collection_panel.rs) and its views
 (`collection_view.rs`, `collection_medals.rs`, `collection_achievements.rs`,
-`collection_shaders.rs`, `collection_toys.rs`, `collection_nameplates.rs`), 10/10/2026,
+`collection_shaders.rs`, `collection_toys.rs`, `collection_nameplates.rs`,
+`collection_cards.rs`), 10/10/2026,
 Sol's request: take the achievements, medals and unlockables out of the Profile screen
 into a screen of their own, "a real collection, things players can collect in the
 future", with tabs Medals, Achievements, Shaders (the blade skins, renamed: saber now,
 body later), Toys and Nameplates (ornaments for the nameplate), then Holocrons (the
-loot-box drops, built the same day as a Profile tab and moved here). Sol picked the
+loot-box drops, built the same day as a Profile tab and moved here) and, since
+12/10/2026, Cards (what opening holocrons brings, [cards.md](cards.md)). Sol picked the
 direction from a design canvas (`the vault`): every thing has its place from the
 start, the ones the player lacks dimmed; each tab shows its things on the left and
 the one chosen up close on the right.
@@ -1290,14 +1294,21 @@ for the run.
   "Contacting the hub..." with the reason under it), the four tiers as rows of 60 (the
   tier's picture, its name at 27 in its colour, "60% of drops", the count held at 32 with
   "held" under it, or a dash before the hub answers, a padlock by a zero; the chosen row
-  tinted in its colour with a white ring), the chosen tier's description, that holocrons
-  cannot be opened yet, "Next holocron in about 20 minutes of play" with "3 of 8 today" and
+  tinted in its colour with a white ring; the counts are the holocrons not opened yet),
+  the player's credits at the panel's top right (the credits' mark and the sum, "credits"
+  under), the chosen tier's description and in gold what opening one gives ("Opening it
+  gives a sealed card and 30 to 50 credits."), "Next holocron in about 20 minutes of play" with "3 of 8 today" and
   a gold bar, and "Recent holocrons" (times in UTC): the newest ten in two columns, each a
   small picture, the tier's name, `dd/mm/yyyy HH:MM` and, for a gift, "Gift from the SJK
-  team" with the note. Keys: Up and Down (Left and Right, Tab, the wheel, 1 to 4, Home, End)
-  choose the tier, which swaps the 3D holocron at once (it shrinks away and the new look
-  grows in); a click on a row chooses it; Ctrl+Tab goes on to Medals; Escape leaves.
-  There is no Open: opening does not exist yet. The `holocrons` command opens it as the
+  team" with the note; an opened one dimmed with "Opened". Under the caption, centred on
+  the holocron, Open (gold, the oldest of the tier chosen) and Open all (n) (outlined, up
+  to twenty), dimmed when there is nothing to open; their ceremony takes the whole window
+  ([cards.md](cards.md#in-the-client)). Loot table (outlined, at the right of what the
+  tier holds; L) shows every chance over the whole window, Back or Escape returns
+  ([holocrons.md](holocrons.md#loot-table)). Keys: Up and Down (Left and Right, Tab, the wheel,
+  1 to 4, Home, End) choose the tier, which swaps the 3D holocron at once (it shrinks away
+  and the new look grows in); Enter opens one, A opens all, L shows the loot table; a click on a row chooses it;
+  Ctrl+Tab goes on to Cards; Escape leaves. The `holocrons` command opens it as the
   Collection's tab (again to close); the SJK Profile tab's Holocrons block has See holocrons
   (the classic menus' Profile page too, opening the page on its own). Until the
   Collection (10/10/2026, the same day) it was the Profile screen's eighth tab. The classic Profile
@@ -1305,6 +1316,17 @@ for the run.
   `world_shot::holocrons_tab` (`duel6_sjk_holocrons`: each tier, one held none of, the
   identity off, waiting; `duel6_sjk_holocrons_windows`: 4:3, 21:9, 4K, `ui_textScale 1.2`,
   the classic style). Not tried in a game.
+- **Cards** ([collection_cards.rs](../crates/sjk-viewer/src/collection_cards.rs),
+  [cards.md](cards.md#in-the-client), 12/10/2026): "N cards" (or why they are not known)
+  with "Sealed until the first set of cards is out" under it, the player's credits at the
+  right of the headline (x up to 1080), up to twelve kinds of card on the left (128 wide,
+  six by two from y 330, the best first, each drawn card with "x3" and its finish under
+  it; more counted under them; none: a dark outline where the first will lie and "Open a
+  holocron on the Holocrons tab"), and the kind chosen up close on the right (290 wide
+  from y 200) in its finish's light, with its title in its rarity's colour (gold for
+  Solar), edition, how many and when the first was found, what the finish is and that it
+  is sealed. Left and Right (Tab, the pointer) choose; Ctrl+Tab goes on to Medals. The
+  row's count is the cards held. World shots: `world_shot::cards_shots`.
 - **The model:** behind Shaders, Toys and Nameplates the page darkens only the left
   and the bottom. From the main page the backdrop camera goes to the player's shot
   (`ClientMenu::set_collection_stage`, which first reads the model, sabers and
@@ -1551,34 +1573,46 @@ same look in every menu style, on the 16:9 frame:
 
 - **When:** `cl_whatsNewSeen` holds the version whose card the player closed. The card
   shows when the installed version differs and the changelog lists it: the recaps of
-  every release since the seen one, newest first, at most three (each named with its
-  date); with no marker only the installed release's. A new installation (no marker,
-  and First setup not yet ticked away) writes the marker and shows nothing, and a
-  local build no release lists shows nothing. Closing writes the marker; quitting with
-  the card up shows it again next time. `whatsnew` shows the newest recap again,
-  "Unreleased" included, as a preview that writes nothing.
+  every release since the seen one, newest first, at most five, a page each; with no
+  marker only the installed release's. A new installation (no marker, and First setup
+  not yet ticked away) writes the marker and shows nothing, and a local build no
+  release lists shows nothing. Closing writes the marker; quitting with the card up
+  shows it again next time. `whatsnew` shows the newest recap again, "Unreleased"
+  included, as a preview that writes nothing.
 - **Card:** the kit's card over its scrim, 920 wide from x 500, centred vertically, as
-  tall as its recap.
-- **Words:** "SJK updated" (or "Preview") in gold (Rajdhani 22), "What's new in
-  <release>" ("What's coming next" for the unreleased preview; Rajdhani 36), then one
-  block per recap line: its heading in bright gold (Rajdhani 21, semibold) on a line of
-  its own, and under it its sentence over the card's full text width (Exo 2 18, 28 a
-  line, 16 between blocks; Sol, 12/10/2026: "the titles shouldn't be on the left but on
-  the top"). The sentences are wrapped by their measured width when the card is drawn,
-  again whenever the menu text size or spacing changes. A card that stacks several
-  releases names each in muted Rajdhani 19 with a faint holo rule to the card's edge. A
-  release without a recap shows its introduction (three lines at most, "..." when cut)
-  in muted text; once the recap would pass 700 pixels the card says "More in the full
-  changelog."
+  tall as its tallest page, so the buttons stay put while the pages turn.
+- **Words:** "SJK updated" (or "Preview") in gold (Rajdhani 22) and, right-aligned on
+  the same line, the release's date (with "Release 2 of 3" when there are pages; muted
+  Rajdhani 19); "What's new in <release>" ("What's coming next" for the unreleased
+  preview; Rajdhani 36); then one block per recap line: its heading's icon (26, a
+  settings or quick wheel icon, chosen by the words of the heading from
+  `HEADING_ICONS`, the changelog icon when none match), its heading in bright gold
+  (Rajdhani 21, semibold) beside the icon, and under the heading its sentence (Exo 2
+  18, 28 a line, 16 between blocks; Sol, 12/10/2026: "the titles shouldn't be on the
+  left but on the top"). The sentences are wrapped by their measured width when the
+  card is drawn, again whenever the menu text size or spacing changes. A release
+  without a recap shows its introduction (six lines at most, "..." when cut) in muted
+  text; once a page's recap would pass 640 pixels it says "More in the full
+  changelog." Under the recap, in gold Exo 2 16, who made the release's changes and
+  the clients they follow, from the changes' credits, most credited first: "By Creyon
+  and Sol, after OpenJK and JoF EJK".
 - **Chips:** what a recap sentence puts in backticks (a command or cvar: `` `whatsnew` ``)
-  is drawn as a chip, as messaging apps draw inline code (Sol, 12/10/2026): Exo 2 17
-  semibold on a faint holo fill with a holo edge, 25 high, rounded 6, 7 of room each
-  side. A chip is never split across lines; a full stop or comma written against it
-  stays with it. The changelog's parser keeps the backticks in recap sentences (it drops
-  them everywhere else) and rejects a recap line that leaves one open.
+  is drawn as a chip, as messaging apps draw inline code (Sol, 12/10/2026;
+  [inline_code.rs](../crates/sjk-viewer/src/inline_code.rs), shared with the changelog
+  page): JetBrains Mono 17 on a faint holo fill with a holo edge, 25 high, rounded 6, 7
+  of room each side. A chip is never split across lines; a full stop or comma written
+  against it stays with it, 3 apart. The changelog's parser keeps the backticks (it
+  drops them in introductions and headings, and the classic+ page drops them) and
+  rejects a line that leaves one open. A chip lights gold under the pointer; a click
+  closes the card and follows it: a cvar Settings has a row for (`settings::has_row`)
+  opens Settings with it searched (the SJK UI's Settings, or the classic Setup panel
+  under the classic style), anything else (a command, a cvar with a value) is typed on
+  the console's input line, not run (`ViewerConsole::follow_chip`).
+- **Pages:** with several releases, the foot's left holds a previous arrow, a dot per
+  release (the one on show gold) and a next arrow; Left and Right turn the pages too.
 - **Buttons:** Full changelog (outlined, 230) opens the changelog page, Close (gold, 150)
-  puts the card away; focus starts on Close. Keys bottom right: Enter, Space, Esc or
-  Backspace close, C opens the changelog.
+  puts the card away; focus starts on Close. Keys bottom right: Left and Right turn the
+  pages (with several), Enter, Space, Esc or Backspace close, C opens the changelog.
 
 ## Implementation
 

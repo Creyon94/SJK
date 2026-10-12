@@ -96,6 +96,23 @@ impl<'a> TextTarget<'a> {
         }
     }
 
+    /// How chips' text (`inline_code`) measures as this target draws it, and the body
+    /// family's text beside it.
+    pub(crate) fn inline_measures(&self) -> crate::inline_code::Measures<'a> {
+        let body = self.body_measure();
+        let code = match *self {
+            Self::Families(ref fonts, style) => fonts
+                .code
+                .as_ref()
+                .map(|code| crate::sjk_chat_look::Measure::new(code.1, style)),
+            Self::Inter(..) => None,
+        };
+        crate::inline_code::Measures {
+            body,
+            code: code.unwrap_or(body),
+        }
+    }
+
     /// Append `canvas`'s text runs, each in its family.
     pub(crate) fn append(self, canvas: &MenuCanvas, viewport: [f32; 2]) {
         match self {
@@ -438,6 +455,9 @@ pub(crate) fn fade_across(canvas: &mut MenuCanvas, rect: Rect, left: Color, righ
 /// 0.542 and 0.629.
 pub(crate) const DISPLAY_CENTRE: f32 = 0.489;
 pub(crate) const BODY_CENTRE: f32 = 0.563;
+/// The code family's (JetBrains Mono, set in the console's cell): measured as
+/// the others.
+pub(crate) const CODE_CENTRE: f32 = 0.511;
 
 /// Text in `family`, its letters centred on `rect`'s middle line (the
 /// renderer otherwise sets a run's line box from its rectangle's top, which
@@ -456,6 +476,7 @@ pub(crate) fn text(
 ) {
     let centre = match family {
         TextFamily::Display => DISPLAY_CENTRE,
+        TextFamily::Code => CODE_CENTRE,
         TextFamily::Body => BODY_CENTRE,
     };
     let top = rect.y + rect.height * 0.5 - centre * size;
@@ -711,6 +732,18 @@ mod tests {
                 "{measured} against {centre}"
             );
         }
+        let code = crate::text::console_font::load()
+            .expect("the console font")
+            .font;
+        let middle = |byte| {
+            let glyph = code.glyph(crate::text::TextFace::Regular, byte);
+            (glyph.offset_y + glyph.height * 0.5) / code.height
+        };
+        let measured = middle(b'H') * 0.75 + middle(b'x') * 0.25;
+        assert!(
+            (measured - CODE_CENTRE).abs() < 0.005,
+            "{measured} against {CODE_CENTRE}"
+        );
         // A run's line box is placed so that point lands on the middle.
         let mut canvas = MenuCanvas::new();
         canvas.begin_transparent([1920.0, 1080.0]);

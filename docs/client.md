@@ -273,8 +273,8 @@ Settings and SJK in place of retail's Controls and Setup:
     did; a click on a star sets that level (on the power's top star, one
     below). Left and Right step the focused power. Reset, Discard and Apply
     Powers act on the draft; the points line says "not applied" until it is
-    written, Escape keeps the draft until the screen closes, and the profile
-    page's APPLY (or Apply on lightsaber creation) writes a pending draft too.
+    written, and leaving the Force window (Escape, Back, another page, the
+    screen closing) applies it, as retail's did on close.
     The main menu shows the window over the backdrop with the navigation row
     and Back.
   - Cosmetics (JoF EJK's `ingame_cosmetics`): the installed hats and
@@ -359,6 +359,19 @@ The status line under the list shows the fetch progress where retail showed
 the refresh time, and the description line shows the hovered item's
 description. The screen is in
 [menu/classic/browser.rs](../crates/sjk-viewer/src/menu/classic/browser.rs).
+
+Both browsers list what one refresh finds: the master's list, up to 1,000 servers
+(256 cut off the end of a long list, whose servers never showed; stock keeps 2,048),
+each asked for its info at once, the answers already in read after every 32 requests
+so they do not pile up in the socket, and every answer within 0.9 seconds of the last
+request listed ([lib.rs](../crates/sjk-network/src/lib.rs) `query_server_infos`). A
+server that has not answered by then is asked twice more, 0.6 seconds apart: a lost
+packet, or a busy server's `getinfo` rate limit (`SVC_Info`), left it out of that
+refresh, so the count changed from one refresh to the next and a favourite came and
+went. A dead server's "port unreachable", which Windows reports as a reset on the next
+read, no longer ends the refresh: it used to, so on Windows every server that had not
+answered by then was missing, a different set each time (the engine ignores it too,
+`NET_GetPacket`).
 
 Retail entries SJK has no screen for yet (Play Demo, Rules) are shown dimmed,
 and their description line says so; retail's Mods and Defaults are left out of
@@ -660,8 +673,16 @@ Planned follow-ups, each a new page or screen module, following the retail
 
 The player screen's Character and Saber pages write their cvars as soon as a
 value changes. The Force page edits a draft instead: Apply writes `forcepowers`
-once, in the stock format and legalized as before, Discard returns to the applied
-profile, and leaving the screen drops unapplied changes. While a draft is pending,
+once, in the stock format and legalized as before, and Discard returns to the
+applied profile. Leaving the Force page, however it is left (another page or
+tab, Back, Escape, the screen closing for the game), applies it as retail's
+Force menu did on close: the draft when it changed, else the profile
+`forcepowers` already holds, so a server is told to read it (`forcechanged`)
+either way, unless Apply sent it during that visit
+(`PlayerMenu::settle_force_page`, run once a frame). The unchanged profile is
+sent as the player wrote it, not as the page fitted it to a server's lower
+rank. Before 12/10/2026 leaving dropped an unapplied draft, and players who
+edited and closed the screen kept their old powers. While a draft is pending,
 the page says it is not applied yet (the SJK UI's points line, the classic Force
 window's status). Power icons (`gfx/mp/f_icon_*`) and side emblems
 (`gfx/hud/mpi_jlight`, `gfx/hud/mpi_dklight`) come from the installed game data;
@@ -1310,6 +1331,21 @@ A rider's own events are unchanged. Stock gives a vehicle's guns their sound thr
 the `muzzleFX` effect that `EV_VEH_FIRE` plays bolted to the vehicle
 (`CG_VehMuzzleFireFX`); SJK does not play that effect yet, so vehicle fire is silent
 until it does.
+
+## Electrified players' crackle
+
+A player whose `ps.electrifyTime` (`emplacedOwner` on other players) is ahead of the
+clock wears the electric shell and crackles: on each frame the shell is drawn, one draw
+in ten starts `sound/effects/energy_crackle.wav` on the player (`CG_Player`,
+`cg_players.c:11060-11098`). A DEMP2 hit sets that time, and a JoF server sets it for
+about four seconds when an admin logs in with `amlogin` (its only login sound: the rest
+is a print). SJK had the shell but not the sound. It now plays it, your own in first
+person too, but rolls on the 8 ms effect cadence instead of every rendered frame, so it
+crackles about seven times a second at any frame rate, as stock does at
+`com_maxfps 125`. A muted player and one hidden from you by a mind trick make no crackle
+([electrify.rs](../crates/sjk-viewer/src/electrify.rs)). JoF EJK's skip while a saber
+deflects lightning (`CG_LightningDeflectionActive`) is not followed, as the shell does
+not follow it either.
 
 ## Renderer settings
 
@@ -2433,7 +2469,9 @@ CHANGELOG on the classic page), the in-game SJK pop-up's Changelog and the
 [changelog_data.rs](../crates/sjk-viewer/src/changelog_data.rs)). Releases are
 listed newest first on the left, "Unreleased" (the changes on `main` since the
 last release) on top; the right pane shows the selected release's introduction
-and its changes, wrapped to the pane, each followed by its credit in capitals.
+and its changes, wrapped to the pane, each followed by its credit in capitals
+(the SJK UI's look draws what a change puts in backticks as a chip; a click opens
+Settings on that setting or types it on the console's input line).
 Up and Down (or a click) pick a release; Page Up, Page Down, the wheel over the
 pane and its scrollbar scroll it; Escape closes. Like the `debug_panel` list the
 page lives in the console and is drawn in its place, so it opens over the menus
@@ -2986,6 +3024,21 @@ per toy, so a toy deleted from the page is added again in Settings > Quick wheel
 is Illuminate, which runs `toy_illuminate` (the toggle the bind uses) with the
 Illuminate holocron's picture. Its gold dot marks a lit holocron (the client's own
 state; no cvar holds it).
+
+### GIF wheel
+
+The GIF wheel (Sol's request, 12/10/2026: "maybe a wheel even of gifs / favorite
+gifs") is the quick wheel opened by `+gifwheel` (Settings > Keys > Other > GIF wheel,
+unbound by default) on the player's favourite GIFs from the SJK chat's
+[GIF picker](hub-chat.md#the-gif-picker), newest first: ten a page, up to eight pages
+("Favourite GIFs", then "Favourite GIFs 2" and on), each choice the GIF's preview
+moving, drawn whole on a dark disc in its place on the ring, and "GIF 1", "GIF 2"... in
+the middle (the number `sjkgif` takes). Letting go on one runs `sjkgif <id>`: the GIF
+goes to the SJK chat ([From a bind](hub-chat.md#from-a-bind)). Its pages are made as it
+opens ([`gif_pages`](../crates/sjk-viewer/src/quick_wheel.rs)), are not in
+`wheel.json` and are not editable; a bare `+wheel` still opens on the page shown last
+before it. Without favourites it says "No favourite GIFs yet". A GIF not loaded yet (or
+with `cl_sjkChatGifs 0`) shows a disc with its name; it is sent all the same.
 
 ### Look
 

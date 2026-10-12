@@ -1,5 +1,6 @@
 //! Holocrons (`docs/holocrons.md`): loot a player earns by playing. The SJK hub rolls and
-//! stores them; the client shows them. They cannot be opened yet and grant nothing.
+//! stores them; the client shows them. Opening one gives a sealed card and credits
+//! ([`crate::cards`]).
 //!
 //! This is the one place that says which tiers the client knows and how each looks: its
 //! wire id, name, colour and odds ([`TIERS`]), and how a profile's entries and the hub's
@@ -134,8 +135,8 @@ impl Tier {
         format!("gfx/sjk/holocron_{}", self.id)
     }
 
-    /// What the Profile screen says of the tier under its list: how often it drops, who
-    /// hears of a drop, and nothing a holocron grants (it grants nothing yet).
+    /// What the Profile screen says of the tier under its list: how often it drops and who
+    /// hears of a drop (what opening one gives is [`crate::cards::inside`]).
     pub(crate) const fn about(&self) -> &'static str {
         match self.index {
             0 => "The commonest holocron: about 6 in 10 drops.",
@@ -364,6 +365,7 @@ mod tests {
 
     fn wire(id: u64, tier: &str, source: &str, note: &str) -> Holocron {
         Holocron {
+            opened: None,
             id,
             tier: tier.to_owned(),
             dropped: 1_791_641_100,

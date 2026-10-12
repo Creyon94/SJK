@@ -7,6 +7,9 @@ const MAX_ACTIONS_PER_FRAME: usize = 64;
 impl GpuState {
     /// Execute cfg and bind scripts once per rendered frame.
     pub(crate) fn run_console_command_buffer(&mut self, audio: &mut Option<GameAudio>) {
+        // A chip naming a setting (the changelog page's, the what's-new card's) opens
+        // Settings on it.
+        self.open_chip_settings();
         let Some(console) = &mut self.console else {
             return;
         };

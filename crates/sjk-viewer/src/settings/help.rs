@@ -484,6 +484,10 @@ const HELP: &[(&str, &str)] = &[
         "GIPHY links in SJK chat show their GIF. Your PC loads it from GIPHY, which sees your address. Off keeps links as text.",
     ),
     (
+        crate::chat_gifs::search::KEY_CVAR,
+        "Your own GIPHY key, which GIF search needs: free at developers.giphy.com. The GIF picker's Search shows how.",
+    ),
+    (
         super::catalog::IDENTITY_ROW,
         "Your SJK key: switch it on, back it up, copy its id. Enter opens it; the key stays hidden until Show.",
     ),

@@ -51,6 +51,9 @@ pub(crate) enum Rendition {
     Small,
     /// `giphy.gif`, the original, fetched only when the small one is not there.
     Original,
+    /// `200w_d.gif`: 200 pixels wide at a lower frame rate, the GIF picker's tiles
+    /// (a third of `200.gif`'s bytes, typically).
+    Preview,
 }
 
 /// The one address fetched for `id`'s `rendition`, on [`MEDIA_HOST`].
@@ -58,6 +61,7 @@ pub(crate) fn media_url(id: &GifId, rendition: Rendition) -> String {
     let file = match rendition {
         Rendition::Small => "200.gif",
         Rendition::Original => "giphy.gif",
+        Rendition::Preview => "200w_d.gif",
     };
     format!("https://{MEDIA_HOST}/media/{}/{file}", id.as_str())
 }
@@ -73,7 +77,9 @@ pub(crate) fn fetchable(url: &str) -> bool {
         return false;
     };
     match path.split_once('/') {
-        Some((id, file)) => GifId::new(id).is_some() && matches!(file, "200.gif" | "giphy.gif"),
+        Some((id, file)) => {
+            GifId::new(id).is_some() && matches!(file, "200.gif" | "giphy.gif" | "200w_d.gif")
+        }
         None => false,
     }
 }
@@ -185,15 +191,17 @@ pub(crate) fn find(text: &str) -> Option<(GifId, Range<usize>)> {
 pub(crate) fn shortened(text: &str) -> String {
     text.split(' ')
         .map(|word| match parse(word) {
-            Some(id) => format!(
-                "https://giphy.com/gifs/{}{}",
-                id.as_str(),
-                &word[trim_end(word).len()..]
-            ),
+            Some(id) => format!("{}{}", page_url(&id), &word[trim_end(word).len()..]),
             None => word.to_owned(),
         })
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+/// `id`'s shortest link, `https://giphy.com/gifs/<id>`: what a pasted link becomes and
+/// what the GIF picker writes in the message.
+pub(crate) fn page_url(id: &GifId) -> String {
+    format!("https://giphy.com/gifs/{}", id.as_str())
 }
 
 /// What a message link to a GIF shows in place of the address.
@@ -324,8 +332,14 @@ mod tests {
             original,
             format!("https://media.giphy.com/media/{ID}/giphy.gif")
         );
-        assert!(fetchable(&small) && fetchable(&original));
-        // Whatever was pasted, only those two are ever fetched.
+        let preview = media_url(&found, Rendition::Preview);
+        assert_eq!(
+            preview,
+            format!("https://media.giphy.com/media/{ID}/200w_d.gif")
+        );
+        assert!(fetchable(&small) && fetchable(&original) && fetchable(&preview));
+        assert_eq!(page_url(&found), format!("https://giphy.com/gifs/{ID}"));
+        // Whatever was pasted, only those three are ever fetched.
         let pasted = "https://media2.giphy.com/media/v1.Y2lk/3o7TKSjRrfIPjeiVyM/giphy.gif?x=1";
         assert_eq!(media_url(&parse(pasted).unwrap(), Rendition::Small), small);
         for url in [

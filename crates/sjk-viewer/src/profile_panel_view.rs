@@ -1081,6 +1081,8 @@ mod tests {
 
     fn full_profile() -> Profile {
         Profile {
+            credits: 0,
+            cards: Vec::new(),
             keys: Vec::new(),
             key_id: "0123456789abcdef".to_owned(),
             key: String::new(),

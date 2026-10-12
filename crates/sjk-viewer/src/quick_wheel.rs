@@ -46,6 +46,19 @@ pub(crate) const OPEN_HELP: &str = "Hold to open the quick wheel: +wheel <page> 
 pub(crate) const RUN_HELP: &str = "Run the quick wheel's highlighted choice and close it";
 /// Whether the wheel plays its sounds (archived, on by default).
 pub(crate) const SOUNDS_CVAR: &str = "cg_wheelSounds";
+/// The GIF wheel's commands: held, the wheel opens on the player's favourite GIFs
+/// ([`gif_pages`]); let go on one, it goes to the SJK chat (`sjkgif`).
+pub(crate) const GIF_OPEN_COMMAND: &str = "+gifwheel";
+pub(crate) const GIF_RUN_COMMAND: &str = "-gifwheel";
+pub(crate) const GIF_OPEN_HELP: &str =
+    "Hold to open the GIF wheel on your favourite GIFs; let go on one to send it to the SJK chat";
+pub(crate) const GIF_RUN_HELP: &str =
+    "Send the GIF wheel's highlighted GIF to the SJK chat and close it";
+/// What the GIF wheel says without favourites.
+const GIFS_EMPTY: [&str; 2] = [
+    "No favourite GIFs yet",
+    "Star some in SJK chat's GIF picker",
+];
 
 /// Mouse counts from the middle before a choice is highlighted, and the farthest the
 /// pointer goes: any further movement only turns it.
@@ -80,6 +93,8 @@ pub(crate) struct ShownPage {
     pub(crate) choices: Vec<ShownChoice>,
     /// The Force page (or its second page): the player's powers.
     pub(crate) force: bool,
+    /// A page of the GIF wheel: the player's favourite GIFs ([`gif_pages`]).
+    pub(crate) gifs: bool,
 }
 
 /// A choice as the open wheel shows it.
@@ -90,6 +105,8 @@ pub(crate) struct ShownChoice {
     /// Its picture in the UI atlas: a wheel icon, or a Force power's.
     pub(crate) icon: Option<TextureId>,
     pub(crate) on: bool,
+    /// A favourite GIF, drawn as its picture moving (in place of `icon`).
+    pub(crate) gif: Option<crate::chat_gifs::GifId>,
 }
 
 /// The open wheel: its page, its pointer and when that page arrived.
@@ -173,7 +190,7 @@ impl QuickWheel {
         }
         let page = page.min(pages.len() - 1);
         self.pages = pages;
-        self.last.clone_from(&self.pages[page].id);
+        self.remember(page);
         match &mut self.open {
             Some(open) if open.page != page => {
                 let direction = if page > open.page { 1.0 } else { -1.0 };
@@ -191,6 +208,14 @@ impl QuickWheel {
                     highlighted: None,
                 });
             }
+        }
+    }
+
+    /// Page `page` is the one a bare `+wheel` opens on next, unless it is the GIF
+    /// wheel's: that one opens with `+gifwheel` alone.
+    fn remember(&mut self, page: usize) {
+        if let Some(page) = self.pages.get(page).filter(|page| !page.gifs) {
+            self.last.clone_from(&page.id);
         }
     }
 
@@ -261,7 +286,8 @@ impl QuickWheel {
         }
         open.page = (open.page as i64 + i64::from(direction)).rem_euclid(count as i64) as usize;
         open.arrived = Some((now, direction.signum() as f32));
-        self.last.clone_from(&self.pages[open.page].id);
+        let page = open.page;
+        self.remember(page);
         self.page_changed();
     }
 
@@ -345,6 +371,7 @@ impl QuickWheel {
             let mut choices = [ring::Choice {
                 label: "",
                 icon: None,
+                size: None,
                 on: false,
             }; MAX_FORCE_CHOICES];
             let most = if page.force {
@@ -354,9 +381,20 @@ impl QuickWheel {
             };
             let count = page.choices.len().min(most);
             for (slot, choice) in choices.iter_mut().zip(&page.choices) {
+                // A favourite GIF shows its preview's frame of the moment, once loaded.
+                let (icon, size) = match &choice.gif {
+                    Some(id) => match crate::chat_gifs::show_preview(id) {
+                        crate::chat_gifs::Shown::Ready { texture, size } => {
+                            (Some(texture), Some(size))
+                        }
+                        _ => (None, None),
+                    },
+                    None => (choice.icon, None),
+                };
                 *slot = ring::Choice {
                     label: &choice.label,
-                    icon: choice.icon,
+                    icon,
+                    size,
                     on: choice.on,
                 };
             }
@@ -397,6 +435,8 @@ impl QuickWheel {
                     hint: true,
                     empty: if page.force {
                         &[force_page::EMPTY]
+                    } else if page.gifs {
+                        &GIFS_EMPTY
                     } else {
                         &ring::EMPTY
                     },
@@ -487,12 +527,52 @@ pub(crate) fn shown_pages(
                     command: slot.command().to_owned(),
                     icon: slot.icon().map(crate::ui_renderer::wheel_icon),
                     on: in_effect(console, slot.state(), illuminate),
+                    gif: None,
                 })
                 .collect(),
             force: false,
+            gifs: false,
         });
     }
     shown
+}
+
+/// The GIF wheel's pages: the player's favourite GIFs (`favourites`, newest first),
+/// [`MAX_CHOICES`] a page, up to [`pages::MAX_PAGES`] pages; one empty page without
+/// any. A choice sends its GIF to the SJK chat (`sjkgif <id>`).
+pub(crate) fn gif_pages(favourites: &[crate::chat_gifs::GifId]) -> Vec<ShownPage> {
+    let chunks: Vec<_> = favourites
+        .chunks(MAX_CHOICES)
+        .take(pages::MAX_PAGES)
+        .collect();
+    let count = chunks.len().max(1);
+    (0..count)
+        .map(|page| ShownPage {
+            id: format!("gifs{}", page + 1),
+            name: if count == 1 {
+                "Favourite GIFs".to_owned()
+            } else {
+                format!("Favourite GIFs {}", page + 1)
+            },
+            choices: chunks
+                .get(page)
+                .map(|ids| {
+                    ids.iter()
+                        .enumerate()
+                        .map(|(at, id)| ShownChoice {
+                            label: format!("GIF {}", page * MAX_CHOICES + at + 1),
+                            command: format!("{} {}", crate::console::SJK_GIF_COMMAND, id.as_str()),
+                            icon: None,
+                            on: false,
+                            gif: Some(id.clone()),
+                        })
+                        .collect()
+                })
+                .unwrap_or_default(),
+            force: false,
+            gifs: true,
+        })
+        .collect()
 }
 
 /// Where in `shown` the page with id `id` is; the Force page's second page,
@@ -584,6 +664,16 @@ impl crate::GpuState {
         self.quick_wheel
             .set_sounds(console.bool_cvar(SOUNDS_CVAR).unwrap_or(true));
         self.quick_wheel.open(pages, page, Instant::now());
+        Ok(Vec::new())
+    }
+
+    /// `+gifwheel`: open the wheel on the player's favourite GIFs.
+    pub(crate) fn open_gif_wheel(&mut self) -> Result<Vec<String>, String> {
+        let console = self.console.as_ref().ok_or("no console")?;
+        let pages = gif_pages(&crate::chat_gifs::favourites::list());
+        self.quick_wheel
+            .set_sounds(console.bool_cvar(SOUNDS_CVAR).unwrap_or(true));
+        self.quick_wheel.open(pages, 0, Instant::now());
         Ok(Vec::new())
     }
 
@@ -956,12 +1046,49 @@ mod tests {
     }
 
     #[test]
+    fn the_gif_wheel_sends_a_favourite_and_leaves_the_last_page_alone() {
+        use crate::chat_gifs::GifId;
+        let ids: Vec<GifId> = (0..23)
+            .map(|n| GifId::new(&format!("Wheel{n:02}xyz")).unwrap())
+            .collect();
+        let pages = gif_pages(&ids);
+        assert_eq!(pages.len(), 3, "ten a page");
+        assert!(pages.iter().all(|page| page.gifs && !page.force));
+        assert_eq!(pages[2].choices.len(), 3);
+        assert_eq!(pages[1].choices[0].label, "GIF 11");
+        assert_eq!(pages[0].choices[0].gif.as_ref(), Some(&ids[0]));
+        let empty = gif_pages(&[]);
+        assert_eq!(empty.len(), 1);
+        assert!(empty[0].choices.is_empty() && empty[0].name == "Favourite GIFs");
+        // Up is the first GIF: letting go sends it.
+        let now = Instant::now();
+        let mut wheel = QuickWheel::default();
+        wheel.open(shown(), WEATHER, now);
+        wheel.cancel();
+        wheel.open(pages, 0, now);
+        wheel.turn(1, now);
+        wheel.turn(-1, now);
+        wheel.moved([0.0, -80.0]);
+        assert_eq!(wheel.release().as_deref(), Some("sjkgif Wheel00xyz"));
+        assert_eq!(
+            wheel.last_page(),
+            "weather",
+            "a bare +wheel still opens on Weather"
+        );
+        // Drawn with its GIFs still loading: a disc with each name.
+        wheel.open(gif_pages(&ids), 0, now);
+        wheel.build([1920.0, 1080.0], now + Duration::from_millis(400));
+        assert!(!wheel.canvas.overflowed());
+    }
+
+    #[test]
     fn a_full_page_of_custom_choices_fits_the_canvas() {
         let choice = ShownChoice {
             label: "A long custom name here".to_owned(),
             command: "say hi".to_owned(),
             icon: None,
             on: true,
+            gif: None,
         };
         let pages: Vec<ShownPage> = (0..=pages::MAX_PAGES)
             .map(|index| ShownPage {
@@ -969,6 +1096,7 @@ mod tests {
                 name: "Twenty characters ok".to_owned(),
                 choices: vec![choice.clone(); MAX_FORCE_CHOICES],
                 force: index == 4,
+                gifs: false,
             })
             .collect();
         let mut wheel = QuickWheel::default();

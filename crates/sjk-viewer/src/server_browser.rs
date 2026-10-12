@@ -27,7 +27,10 @@ const MASTER_TIMEOUT: Duration = Duration::from_secs(2);
 const INFO_TIMEOUT: Duration = Duration::from_millis(900);
 /// How old a fetched list may be before opening the browser fetches again.
 const FRESH_FOR: Duration = Duration::from_secs(60);
-const MAX_BROWSER_SERVERS: usize = 256;
+/// The most servers the browser asks and lists: one per row token
+/// (`menu::browser_table::ROW_TOKENS`). Stock keeps 2,048 (`MAX_GLOBAL_SERVERS`); 256
+/// cut off the end of a master's list, whose servers never showed.
+const MAX_BROWSER_SERVERS: usize = crate::menu::browser_table::ROW_TOKENS as usize;
 
 /// One fully queried row, including a preformatted allocation-free render line.
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -202,6 +205,9 @@ impl ServerBrowser {
         self.reveal_selection();
     }
 
+    /// Type `text` into the search (the tests and world shots; the field itself goes through
+    /// [`Self::edit_filter`]).
+    #[cfg(test)]
     pub(crate) fn push_filter(&mut self, text: &str) {
         self.filter.push_str(text);
         self.rebuild_visible();

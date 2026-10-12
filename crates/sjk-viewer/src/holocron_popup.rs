@@ -515,6 +515,27 @@ impl crate::GpuState {
         self.sync_cursor_policy();
         Ok(lines)
     }
+
+    /// `debug_open`: play the Holocrons tab's opening of made-up holocrons
+    /// ([`crate::cards::rehearsal`]); alone, list the tiers. In the SJK UI the
+    /// Collection's Holocrons tab shows it, in the classic menus the page on its own.
+    /// Nothing is sent.
+    pub(crate) fn debug_open_command(&mut self, args: &[String]) -> Result<Vec<String>, String> {
+        if args.is_empty() {
+            return Ok(crate::cards::rehearsal::listing());
+        }
+        // Check the words before any screen changes.
+        crate::cards::rehearsal::parse(args)?;
+        if self.in_game_menu.is_sjk() {
+            self.open_profile_hub(crate::profile_hub::Tab::Holocrons);
+        }
+        let result = self.console.as_mut().map_or_else(
+            || Err("the console is not ready".to_owned()),
+            |console| console.debug_open(args),
+        );
+        self.sync_cursor_policy();
+        result
+    }
 }
 
 /// What the look's tests share: the fonts and a held pop-up.
@@ -571,6 +592,7 @@ mod tests {
 
     fn wire(id: u64, tier: &str) -> Holocron {
         Holocron {
+            opened: None,
             id,
             tier: tier.to_owned(),
             dropped: 1_791_641_100,

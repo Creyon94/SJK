@@ -911,6 +911,16 @@ pub(crate) fn search(
     let hovered = canvas.token_hovered(token);
     pill(canvas, frame, rect, color::alpha(color::SPACE, 0.6));
     outline(canvas, frame, rect, edge(active || hovered));
+    if active && !query.is_empty() && crate::text_entry::selection_shown() {
+        // Ctrl+A: the typed words are selected.
+        push(
+            canvas,
+            DrawCommand::SolidRect {
+                rect: frame.rect(x + 42.0, y + 6.0, width - 160.0, height - 12.0),
+                color: color::alpha(color::HOLO, 0.32),
+            },
+        );
+    }
     // The lens: a ring and a short handle of dots.
     let lens = frame.point(x + 26.0, y + height * 0.5 - 1.0);
     push(

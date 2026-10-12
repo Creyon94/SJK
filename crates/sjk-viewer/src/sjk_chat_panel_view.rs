@@ -7,6 +7,8 @@
 //! the chosen message, a small window shows who is online and who was seen last as
 //! faces, their pictures or initials ([`super::people`]). A name in the chat or a face
 //! in the window under the pointer shows that player's sender card over the page.
+//! While the GIF picker is open it takes the messages' place
+//! ([`super::gif_picker`]), and its key card takes the whole page's.
 
 use super::*;
 use crate::menu::sjk::recent::ago;
@@ -20,8 +22,8 @@ use sjk_ui::{DrawCommand, FontWeight, TextAlign};
 use std::ops::Range;
 
 /// The columns (frame pixels).
-const LIST_X: f32 = 96.0;
-const LIST_WIDTH: f32 = 1_180.0;
+pub(super) const LIST_X: f32 = 96.0;
+pub(super) const LIST_WIDTH: f32 = 1_180.0;
 const SIDE_X: f32 = 1_340.0;
 const SIDE_WIDTH: f32 = 484.0;
 const TOP: f32 = 170.0;
@@ -36,9 +38,11 @@ const GAP: f32 = 12.0;
 const NAME_SIZE: f32 = 19.0;
 const TEXT_SIZE: f32 = 17.0;
 const META_SIZE: f32 = 15.0;
-/// The field and Send.
+/// The field, GIF and Send.
 const FIELD_Y: f32 = 900.0;
-const FIELD_WIDTH: f32 = 1_040.0;
+const FIELD_WIDTH: f32 = 936.0;
+const GIF_X: f32 = LIST_X + FIELD_WIDTH + 16.0;
+const SEND_X: f32 = LIST_X + 1_060.0;
 /// The keys' line.
 const KEYS_Y: f32 = 1_010.0;
 /// The who-is-online window: its left, top and width (its height follows what it
@@ -244,8 +248,31 @@ impl Panel {
         self.ui.begin_transparent(viewport);
         crate::settings::sjk_view::backdrop(&mut self.ui, viewport);
         top_bar(&mut self.ui, &frame, "Back", BACK_TOKEN, "SJK chat", None);
+        inputs.giphy_key.clone_into(&mut self.giphy_key);
+        let has_key = crate::chat_gifs::search::key(inputs.giphy_key).is_some();
+        if self.gifs.key_card_due(has_key) {
+            self.focus = super::gif_picker::KEY_FIELD_TOKEN;
+        }
+        if self.gifs.key_card.is_some() {
+            // The card alone: text draws over every shape, so nothing goes under it.
+            self.card = None;
+            self.key_card(&frame);
+            self.keys(&frame);
+            if !self.order.contains(&self.focus) {
+                self.focus = super::gif_picker::KEY_FIELD_TOKEN;
+            }
+            self.ui.finish(self.focus);
+            return;
+        }
         self.status(&frame, inputs);
-        let named = self.messages(&frame, inputs, measure);
+        let named = if self.gifs.open {
+            self.shown.messages.clear();
+            self.shown.total = inputs.chat.map_or(0, |chat| chat.messages.len());
+            self.gif_picker(&frame, inputs);
+            None
+        } else {
+            self.messages(&frame, inputs, measure)
+        };
         let (listed, bottom) = self.people(&frame, inputs);
         self.follow_card(named.or(listed));
         self.composer(&frame, inputs);
@@ -868,10 +895,25 @@ impl Panel {
         );
         self.order.push(FIELD_TOKEN);
         let can_send = !self.draft.trim().is_empty() && inputs.enabled && inputs.chat.is_some();
+        // GIF opens the picker (closes it when open); off with the chat's GIFs.
+        let gifs_on = crate::chat_gifs::enabled();
         kit::button(
             &mut self.ui,
             frame,
-            [LIST_X + FIELD_WIDTH + 20.0, FIELD_Y + 2.0, 120.0, 42.0],
+            [GIF_X, FIELD_Y + 2.0, 88.0, 42.0],
+            "GIF",
+            false,
+            gifs_on,
+            self.focus == GIF_TOKEN || self.gifs.open,
+            GIF_TOKEN,
+        );
+        if gifs_on {
+            self.order.push(GIF_TOKEN);
+        }
+        kit::button(
+            &mut self.ui,
+            frame,
+            [SEND_X, FIELD_Y + 2.0, 120.0, 42.0],
             "Send",
             true,
             can_send,
@@ -921,6 +963,7 @@ impl Panel {
                 .chat
                 .and_then(|chat| chat.messages.iter().find(|message| message.id == id))
         });
+        self.shown.chosen_gif = None;
         let Some(message) = message else {
             self.shown.chosen = None;
             for (row, line) in [
@@ -1010,6 +1053,30 @@ impl Panel {
             FontWeight::Regular,
             TextAlign::Start,
         );
+        // The message's GIF, as its line shows it (none for a muted sender), can be made
+        // a favourite for the GIF picker.
+        if let (_, Some(gif)) = crate::chat_gifs::for_message(&message.text, muted) {
+            let at = y + 84.0;
+            let favourite = crate::chat_gifs::favourites::contains(&gif);
+            kit::button(
+                &mut self.ui,
+                frame,
+                [SIDE_X, at, 300.0, 42.0],
+                if favourite {
+                    "Remove GIF from favourites"
+                } else {
+                    "Add GIF to favourites"
+                },
+                false,
+                true,
+                self.focus == FAVOURITE_TOKEN,
+                FAVOURITE_TOKEN,
+            );
+            self.order.push(FAVOURITE_TOKEN);
+            self.shown.chosen_gif = Some(gif);
+            // Staff's part goes under the button, as far below it as under Mute's line.
+            y = at - 30.0;
+        }
         if !inputs.staff {
             return;
         }
@@ -1147,15 +1214,31 @@ impl Panel {
         );
     }
 
-    /// The keys of the page, bottom right.
+    /// The keys of the page, bottom right: the picker's while it is open.
     fn keys(&mut self, frame: &Frame) {
         let s = frame.s;
-        let keys: [(&[&str], &str); 4] = [
-            (&["Enter"], "send"),
-            (&["Up", "Down"], "messages"),
-            (&["PgUp", "PgDn"], "scroll"),
-            (&["Esc"], "back"),
-        ];
+        let keys: [(&[&str], &str); 4] = if self.gifs.key_card.is_some() {
+            [
+                (&["Ctrl", "V"], "paste"),
+                (&["Enter"], "save"),
+                (&["Tab"], "next"),
+                (&["Esc"], "not now"),
+            ]
+        } else if self.gifs.open {
+            [
+                (&["Enter"], "pick"),
+                (&["F"], "favourite"),
+                (&["PgUp", "PgDn"], "scroll"),
+                (&["Esc"], "close GIFs"),
+            ]
+        } else {
+            [
+                (&["Enter"], "send"),
+                (&["Up", "Down"], "messages"),
+                (&["PgUp", "PgDn"], "scroll"),
+                (&["Esc"], "back"),
+            ]
+        };
         let gap = 30.0 * s;
         let width: f32 = keys
             .iter()

@@ -1,8 +1,8 @@
 # Holocron drops
 
 A holocron is loot a player earns by playing SJK. The SJK hub rolls and stores them and
-the client shows them. They cannot be opened yet, grant nothing and are only collected
-and shown (Sol's decision, 10/10/2026). This page is the design, the decisions and what
+the client shows them. Since 12/10/2026 a holocron can be opened: it gives a sealed card
+and credits ([cards.md](cards.md)), and nothing else (no power or setting). This page is the design, the decisions and what
 is checked; the wire is the hub's `PROTOCOL.md` ("Holocrons") in Sol-Vulpes/SJK-hub,
 decided together with the client and built in parallel. Players read the pop-up, the chat
 lines and the Collection's Holocrons tab.
@@ -21,6 +21,7 @@ lines and the Collection's Holocrons tab.
 | The chat lines' words and the tier gem | [holocrons/line.rs](../crates/sjk-viewer/src/holocrons/line.rs), [holocrons/gem.rs](../crates/sjk-viewer/src/holocrons/gem.rs), [sjk_chat_look.rs](../crates/sjk-viewer/src/sjk_chat_look.rs) |
 | The tiers' pictures in the UI atlas | [holocrons/icons.rs](../crates/sjk-viewer/src/holocrons/icons.rs), [ui_renderer/icons.rs](../crates/sjk-viewer/src/ui_renderer/icons.rs), [hud/icons.rs](../crates/sjk-viewer/src/hud/icons.rs) |
 | The Holocrons tab (the page, its drawing, the console side) | [holocrons_panel.rs](../crates/sjk-viewer/src/holocrons_panel.rs), [holocrons_panel_view.rs](../crates/sjk-viewer/src/holocrons_panel_view.rs), [console_holocrons_page.rs](../crates/sjk-viewer/src/console_holocrons_page.rs) |
+| The loot table (the page, the odds worked out) | [holocrons_panel_loot.rs](../crates/sjk-viewer/src/holocrons_panel_loot.rs), [cards/loot.rs](../crates/sjk-viewer/src/cards/loot.rs) |
 | The tab's 3D holocron, the camera's shot behind it | [holocrons/stage.rs](../crates/sjk-viewer/src/holocrons/stage.rs), [menu_backdrop/routes.rs](../crates/sjk-viewer/src/menu_backdrop/routes.rs) |
 | `debug_holocron` | [holocrons/rehearsal.rs](../crates/sjk-viewer/src/holocrons/rehearsal.rs) |
 | Give holocron and Remove on the Staff page | [staff_panel.rs](../crates/sjk-viewer/src/staff_panel.rs), [staff_panel_view.rs](../crates/sjk-viewer/src/staff_panel_view.rs) |
@@ -52,6 +53,47 @@ The Holocrons tab's tier rows carry the tiers' rarity effects (10/10/2026): from
 a breathing frame, Legendary's sheen, Mythical's running spark and motes, faint for a
 tier not held ([unlockables.md](unlockables.md#rarity-effects), off with
 `ui_rarityEffects 0`).
+
+## Loot table
+
+Every chance a holocron brings, as players see it on the Holocrons tab's loot table
+(12/10/2026, Sol's request; Loot table or L). The client works it out from its copy of the
+hub's tables: the tiers' odds above, the card's odds and the credits in
+[cards.md](cards.md#odds) (`cards::ODDS` and `cards::CREDITS`, pinned to the hub's by a
+test). A card's rarity and its finish are rolled apart, so a kind is the two chances
+multiplied; "per holocron found" weighs each tier by how often it drops.
+
+Per holocron:
+
+| Holocron | Drop chance | Common | Uncommon | Rare | Legendary | Normal | Holo | Solar | Credits (average) |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Uncommon | 60% | 70% | 24% | 5.5% | 0.5% | 97% | 3% | 0% | 10 to 20 (15) |
+| Rare | 28% | 50% | 33% | 15% | 2% | 90% | 10% | 0% | 30 to 50 (40) |
+| Legendary | 10.5% | 30% | 38% | 26% | 6% | 70% | 29% | 1% | 80 to 120 (100) |
+| Mythical | 1.5% | 10% | 30% | 45% | 15% | 40% | 55% | 5% | 250 to 350 (300) |
+| Any holocron found | 100% | 59.3% | 28.1% | 10.9% | 1.72% | 91.4% | 8.47% | 0.18% | 10 to 350 (35) |
+
+Every card, per holocron found:
+
+| Card | Normal | Holo | Solar |
+| --- | --- | --- | --- |
+| Common (59.3%) | 55.6% | 3.66% (1 in 27) | 0.039% (1 in 2 564) |
+| Uncommon (28.1%) | 25.3% (1 in 4) | 2.76% (1 in 36) | 0.0624% (1 in 1 603) |
+| Rare (10.9%) | 9.16% (1 in 11) | 1.68% (1 in 59) | 0.0611% (1 in 1 638) |
+| Legendary (1.72%) | 1.33% (1 in 75) | 0.371% (1 in 269) | 0.0176% (1 in 5 698) |
+
+The page: over the darkened tab, the title, what it is and the hub's pace ("One holocron
+about every 30 minutes of active play on a server, at most 8 a day", once the hub has said;
+else "Holocrons are found by playing on a server."); "Per holocron", the first table, each
+tier's row in its colour with its picture, the row for any holocron found in gold under a
+rule, credits as the range with the average under it, a chance of none quiet; "Every card,
+per holocron found", the second table as a grid of cells in the rarity's colour, each its
+share and "1 in N" (left out above one in two); "How it rolls", notes: the rolls made
+apart, credits rolled evenly, the rarest card ("a Legendary Solar: about 1 in 5 698
+holocrons", worked out), cards sealed until the first set, gifts given and not found. Back
+(or Escape, L, Enter) goes back to the tab. Shares read with three figures at most, halves
+rounded up (`cards::loot::percent`). A change to the hub's tables needs the client's copy
+changed with it: until then the page shows the old odds.
 
 ## Earning
 
@@ -185,12 +227,17 @@ the tier's colour, how many are held or a dash while the hub has not answered, a
 of a drop), what the chosen tier is, "Next holocron in about N minutes of play" with a bar
 and "n of 8 today", the newest ten holocrons (tier, `dd/mm/yyyy HH:MM` in UTC, and for a gift
 "Gift from the SJK team" with the note) and, when the identity is off, no hub is set or the
-hub has not answered, the reason ("Holocrons need the SJK identity"). There is no button
-that opens a holocron: opening does not exist yet and the page says so.
+hub has not answered, the reason ("Holocrons need the SJK identity"). Since 12/10/2026 the
+counts are the holocrons not opened yet, the player's credits stand at the panel's top
+right, the chosen tier says what opening one gives, Open and Open all stand under the
+holocron's caption and opened holocrons are marked in the recent list; opening and its
+ceremony are in [cards.md](cards.md#in-the-client).
 
 - **Keys and pointer:** Up and Down (or Left and Right, Tab and Shift+Tab, the wheel, 1 to
   4, Home and End) choose the tier; Escape goes back; a click on a row chooses it; Ctrl+Tab
-  is the Profile screen's. Enter does nothing.
+  is the Profile screen's. Enter opens the oldest holocron of the tier chosen, A opens up
+  to twenty. L, or Loot table at the right of what the chosen tier holds, shows the
+  [loot table](#loot-table).
 - **The 3D holocron** is a normal object of the world pass, not a stage of the Character
   tab: an instance of the chosen look's model and a point light in the tier's colour
   ([holocrons/stage.rs](../crates/sjk-viewer/src/holocrons/stage.rs)), floating before the
@@ -278,4 +325,6 @@ the world shot `duel6_sjk_collection` renders it from the game menu at a match's
 
 ## Planned, not built
 
-Opening holocrons and anything a holocron grants.
+What opened holocrons will also give: the cards' faces and the shop credits buy from
+([cards.md](cards.md#planned-not-built)); saber shaders dropping from holocrons at a low
+chance is Sol's idea for later, undecided.

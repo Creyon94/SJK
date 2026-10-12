@@ -64,7 +64,37 @@ impl ViewerConsole {
                 let target = self.profile_hub_return;
                 self.open_profile_hub_page(tab, target);
             }
+            PanelAction::Open(ids) => {
+                if !crate::player_identity::open_holocrons(ids) {
+                    self.holocrons_panel.refused(
+                        "Holocrons need the SJK identity: switch it on in Settings, Network.",
+                        std::time::Instant::now(),
+                    );
+                }
+            }
         }
+    }
+
+    /// `debug_open`: show the Holocrons page and play the opening of made-up holocrons
+    /// (`crate::cards::rehearsal`); alone, list the tiers. Nothing is sent.
+    pub(crate) fn debug_open(&mut self, args: &[String]) -> Result<Vec<String>, String> {
+        if args.is_empty() {
+            return Ok(crate::cards::rehearsal::listing());
+        }
+        let opened = crate::cards::rehearsal::parse(args)?;
+        let shown: Vec<_> = opened
+            .iter()
+            .filter_map(super::holocrons_panel::opening::Shown::of)
+            .collect();
+        let count = shown.len();
+        if !self.holocrons_panel.is_open() {
+            self.open_holocrons_panel();
+        }
+        self.holocrons_panel.show(shown, std::time::Instant::now());
+        Ok(vec![format!(
+            "Opening {count} rehearsed holocron{} (nothing sent).",
+            if count == 1 { "" } else { "s" }
+        )])
     }
 
     /// Give a pressed key to the open page; false when the page is closed.
@@ -116,8 +146,13 @@ impl ViewerConsole {
             let row = super::collection_panel::row_labels(enabled, snapshot.as_ref(), &standings);
             self.holocrons_panel.set_collection_row(row);
         }
-        self.holocrons_panel
-            .refresh(std::time::Instant::now(), || Data::read(enabled));
+        let now = std::time::Instant::now();
+        self.holocrons_panel.refresh(now, || Data::read(enabled));
+        // The opening's answer is looked for every frame only while the page waits.
+        if self.holocrons_panel.opening() {
+            let outcome = crate::player_identity::opening_outcome();
+            self.holocrons_panel.follow_opening(now, outcome.as_ref());
+        }
         self.holocrons_panel.append_sjk(target, viewport);
     }
 
@@ -133,6 +168,41 @@ impl ViewerConsole {
     pub(crate) fn preview_holocrons(&mut self, data: Data, index: usize) {
         self.holocrons_panel.pin(data);
         self.holocrons_panel.select(index);
+    }
+
+    /// Play the ceremony of `shown` on the page, drawn `elapsed` seconds into its card's
+    /// entrance with its finish at `seconds`, for a world shot; `None` ends it.
+    #[cfg(test)]
+    pub(crate) fn preview_opening(
+        &mut self,
+        shown: Option<Vec<super::holocrons_panel::opening::Shown>>,
+        elapsed: f32,
+        seconds: f32,
+    ) {
+        self.holocrons_panel.shot_elapsed = Some(elapsed);
+        self.holocrons_panel.shot_seconds = Some(seconds);
+        match shown {
+            Some(shown) => self.holocrons_panel.show(shown, std::time::Instant::now()),
+            None => self.holocrons_panel.end_ceremony(),
+        }
+    }
+
+    /// Show the opening's wait for the hub (`None`) or its refusal, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn preview_opening_state(&mut self, refusal: Option<&str>) {
+        let now = std::time::Instant::now();
+        match refusal {
+            Some(message) => self.holocrons_panel.refused(message, now),
+            None => {
+                let _ = self.holocrons_panel.ask(vec![1], now);
+            }
+        }
+    }
+
+    /// Show the loot table over the open page, or go back to it, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn preview_loot(&mut self, show: bool) {
+        self.holocrons_panel.show_loot(show);
     }
 
     /// Choose tier `index` on the open page, for a world shot.

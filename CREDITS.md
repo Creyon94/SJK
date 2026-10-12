@@ -55,6 +55,10 @@ Sol develops SJK and sets its direction. Sol's work includes:
   the chats, on the scoreboard and on player cards;
 - holocron drops, loot boxes earned by playing: four tiers, drops announced in
   the SJK chat and a Holocrons tab on the Profile screen with a 3D holocron;
+- opening holocrons: sealed cards (Normal, Holo and Solar finishes, the Alpha
+  Edition) and credits, the ceremony and the Collection's Cards tab, and a loot
+  table with every chance; credits will buy droppable cosmetics as a fix for bad
+  luck (Sol's design, 12/10/2026);
 - the radial HUD (`cg_hudStyle radial`, after TheRisqe's Radial HUD) and the
   HUD meters' overheal bands;
 - nameplates with estimated health, shield and Force, held-weapon and Force
@@ -108,7 +112,10 @@ Sol develops SJK and sets its direction. Sol's work includes:
   blade below the tip and heat haze, the Void's orbiting black holes, warped space,
   gravity pulse and afterimages, the Spectral's wisps, souls, smoky edge, cold rim and swaying echo, each a part
   its wearer can switch off, seen so by every SJK player;
-- the SJK chat's GIFs (GIPHY links show their GIF), who is online on the chat page,
+- the SJK chat's GIFs (GIPHY links show their GIF) and its GIF picker (favourites,
+  GIPHY search with each player's own key and the card that says how to get one,
+  the GIFs seen in the chat), `sjksay`, `sjkgif` and the GIF wheel for binds, who is
+  online on the chat page,
   its chat sounds, `reply` (after JoF EJK), the last channel remembered and SJK's
   emblem on SJK lines;
 - crash reports sent to the SJK team at the next start, and world notes sent to the
@@ -143,7 +150,7 @@ Sol develops SJK and sets its direction. Sol's work includes:
 Creyon and Lumaya wear the SJK team's Early Contributor medal, shown on their
 cards of the in-game credits page.
 
-Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 41
+Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 43
 pull requests merged into SJK, most of them bringing SJK in line with EternalJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ACreyon94)):
 
@@ -187,7 +194,9 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
 - #87 a second master server (`cl_master2`) with merged lists; #88 server and player names
   read in the game's charset; #89 a favourite added by its address; #90 a locked server's
   password remembered on this PC; #91 the browser's player list scrolled with the wheel;
-- #93 the `showplayerid` command; #94 `amcolor` set and kept across reconnects.
+- #93 the `showplayerid` command; #94 `amcolor` set and kept across reconnects; #95 the
+  crackle of an electrified player (a DEMP2 hit, a JoF admin login); #96 the server
+  browser listing the same servers on every refresh.
 
 Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 17 pull requests
 merged into SJK
@@ -269,12 +278,14 @@ Gama), keep theirs ([Rajdhani](crates/sjk-viewer/assets/fonts/Rajdhani-OFL.txt),
 of its variable font, unchanged otherwise), the game fonts
 SJK Menu and SJK HUD are traced from the JoF HD Fonts & Icons pack (author unknown)
 and SJK Chat is OCR-A by John Sauter (public domain), as
-[SJK-fonts.txt](crates/sjk-viewer/assets/fonts/SJK-fonts.txt) describes, GIFs in the SJK chat come from [GIPHY](https://giphy.com), fetched by
+[SJK-fonts.txt](crates/sjk-viewer/assets/fonts/SJK-fonts.txt) describes, GIFs in the SJK chat and the GIF picker's search come from [GIPHY](https://giphy.com), fetched by
 each player's client, the radial HUD is SJK's own take on TheRisqe's Radial HUD (none
 of its pictures included), the website's effects use
 the [Shaders](https://github.com/shader-effects-inc/shaders) library by Shader
-Effects Inc. under its [MIT license](site/assets/vendor/shaders/LICENSE), and
-other dependencies keep their respective licenses.
+Effects Inc. under its [MIT license](site/assets/vendor/shaders/LICENSE), the
+credits' sign is the galactic credit's of the Star Wars setting, its outline after
+the one drawn on Wikipedia and redrawn by SJK from shapes, and other dependencies
+keep their respective licenses.
 
 Star Wars, Jedi Knight and Jedi Academy are trademarks of their respective
 owners. SJK is a fan project and is not affiliated with or endorsed by Lucasfilm,

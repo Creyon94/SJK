@@ -42,6 +42,8 @@ did: Illuminate, SJK's own toy: a holocron that lights the way, art by Sol
 did: Medals from the SJK team, with medal pictures generated and chosen by Sol
 did: The JoF clan tag: the clan's emblem beside tagged names
 did: Holocron drops: loot boxes earned by playing, in four tiers, with a Holocrons tab
+did: Opening holocrons: sealed cards in Normal, Holo and Solar, and credits
+did: The loot table: every chance a holocron brings
 did: 125 Hz user commands, so every tap reaches the server
 did: Gameplay FPS: the movement of 125, 142, 250 or 333 at any frame rate, explained
 did: Import from Base, JA+, OpenJK, EJK and TaystJK configs found on your computer
@@ -71,6 +73,8 @@ did: Mythical shader parts: the Sun's and the Spectral's effects, each switched 
 did: The Sun's orbiting glints, circling its blade below the tip
 did: The Void's black holes orbiting its blade, bending the world behind them
 did: SJK chat GIFs, who is online, chat sounds, reply and the last channel remembered
+did: The SJK chat GIF picker: favourites, GIPHY search with your own key, the GIFs seen in the chat
+did: SJK chat from binds: sjksay, sjkgif and the GIF wheel of favourite GIFs
 did: Crash reports to the SJK team, and world notes: tell the team what is wrong on a map
 did: Log requests: the SJK team asks a player for their logs, and reads crash reports in game
 did: The quick wheel's live Force page and Toys page, Illuminate as a toy
@@ -90,7 +94,7 @@ link: https://sol-vulpes.github.io/SJK/
 
 [Creyon]
 github: Creyon94
-role: Contributor and tester: 41 merged pull requests, EternalJK parity
+role: Contributor and tester: 43 merged pull requests, EternalJK parity
 medal: early_contributor
 did: #2 #7 Duel challenges from names with symbols, centre prints kept whole
 did: #3 The third-person camera damped per frame as EternalJK (cg_cameraFPS)
@@ -114,7 +118,7 @@ did: #82 #92 The frame rate on the scoreboard and in the upper right, as JoF EJK
 did: #83 Clan emblems from a table: JoFA, teal JoF, look-alike letters
 did: #84 #85 #86 The in-game chat under the match card, the Character page without Model
 did: #87 #88 #89 #90 #91 Server browser: second master, charsets, favourites by address, saved passwords, player scroll
-did: #93 #94 showplayerid and amcolor
+did: #93 #94 #95 #96 showplayerid, amcolor, the electrified crackle and a steady server list
 link: Creyon's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ACreyon94
 
 [Lumaya]
@@ -170,6 +174,7 @@ link: https://fonts.google.com/specimen/Exo+2
 [GIPHY]
 role: Where the GIFs in SJK chat come from
 did: A GIPHY link in an SJK chat message shows its GIF, fetched from GIPHY by each player
+did: The GIF picker's search and trending GIFs, powered by GIPHY
 link: https://giphy.com
 
 [TheRisqe]

@@ -281,6 +281,9 @@ mod collection;
 #[path = "world_shot_holocrons.rs"]
 mod holocrons_tab;
 
+#[path = "world_shot_cards.rs"]
+mod cards_shots;
+
 #[path = "world_shot_create_game.rs"]
 mod create_game;
 
@@ -1096,6 +1099,8 @@ mod tests {
             note: note.to_owned(),
         };
         let me = sjk_identity::Profile {
+            credits: 0,
+            cards: Vec::new(),
             keys: Vec::new(),
             key_id: "44f3d0b36c9b2510".to_owned(),
             key: String::new(),
@@ -1135,6 +1140,7 @@ Found the fog bug, ask me about it!"
             holocrons: Vec::new(),
         };
         let snapshot = sjk_identity::Snapshot {
+            opening: None,
             status: sjk_identity::Status::Online,
             key_id: me.key_id.clone(),
             local_key_id: me.key_id.clone(),
@@ -1256,6 +1262,8 @@ like this one.",
     #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
     fn duel6_sjk_staff() {
         let profile = |key: &str, name: &str| sjk_identity::Profile {
+            credits: 0,
+            cards: Vec::new(),
             keys: Vec::new(),
             key_id: key.to_owned(),
             key: String::new(),
@@ -2593,6 +2601,59 @@ like this one.",
         });
     }
 
+    /// The GIF wheel (`+gifwheel`) on twelve favourite test GIFs of several shapes,
+    /// moving, the pointer on the first, then on its second page; at 1080p and 4K.
+    #[test]
+    #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+    fn duel6_gif_wheel() {
+        use crate::chat_gifs::{GifId, decode};
+        use std::time::{Duration, Instant};
+        on_big_stack(|| {
+            for (size, suffix) in [([1920, 1080], "1080p"), ([3840, 2160], "4k")] {
+                let cvars = [
+                    ("ui_menuStyle", "sjk"),
+                    (crate::settings::quick::HIDE_CVAR, "1"),
+                ];
+                let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", size, None, &cvars)
+                else {
+                    return;
+                };
+                let shots = menu_backdrop::tour_for("Yavin Training Grounds").expect("the tour");
+                let (yaw, pitch) = look(shots[0].from, shots[0].at);
+                aim(&mut gpu, shots[0].from, yaw, pitch);
+                if let Some(console) = gpu.console.as_mut() {
+                    console.close_for_connection();
+                }
+                gpu.quick_wheel.shot = true;
+                let _ = frame(&mut gpu, 60);
+                // After the first frames, which read the (empty) favourites file.
+                let shapes = [[200, 112], [200, 200], [200, 150], [200, 260], [200, 90]];
+                for n in (0..12).rev() {
+                    let id = GifId::new(&format!("ShotWheel{n:02}X")).unwrap();
+                    crate::chat_gifs::insert_preview_for_shot(
+                        &id,
+                        &decode::test_animation(shapes[n % shapes.len()], 4 + n % 4, 90),
+                        250,
+                    );
+                    crate::chat_gifs::favourites::set(&id, true);
+                }
+                gpu.quick_wheel.cancel();
+                gpu.open_gif_wheel().expect("the wheel opens");
+                gpu.quick_wheel.moved([0.0, -90.0]);
+                let name = format!("duel6-gif-wheel-{suffix}");
+                println!("{}", shoot(&mut gpu, 8, &name).display());
+                gpu.quick_wheel
+                    .turn(1, Instant::now() - Duration::from_secs(1));
+                let name = format!("duel6-gif-wheel-2-{suffix}");
+                println!("{}", shoot(&mut gpu, 8, &name).display());
+                for n in 0..12 {
+                    let id = GifId::new(&format!("ShotWheel{n:02}X")).unwrap();
+                    crate::chat_gifs::favourites::set(&id, false);
+                }
+            }
+        });
+    }
+
     /// Three pages holding every action of the wheel's second icon board, the
     /// custom command's icon and, to compare, three of the first board's.
     fn second_board_pages() -> Vec<crate::quick_wheel::ShownPage> {
@@ -2665,10 +2726,12 @@ like this one.",
                             command: slot.command().to_owned(),
                             icon: slot.icon().map(crate::ui_renderer::wheel_icon),
                             on: false,
+                            gif: None,
                         }
                     })
                     .collect(),
                 force: false,
+                gifs: false,
             })
             .collect()
     }

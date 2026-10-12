@@ -99,6 +99,7 @@ pub(crate) fn choices(powers: &Powers) -> Vec<ShownChoice> {
             command: command(slot),
             icon: bar::icon(&powers.icons, slot, powers.flamethrower),
             on: slot == powers.selected,
+            gif: None,
         })
         .collect()
 }
@@ -114,6 +115,7 @@ pub(crate) fn pages(id: &str, name: &str, powers: Option<&Powers>) -> Vec<ShownP
         name: name.to_owned(),
         choices,
         force: true,
+        gifs: false,
     }];
     if !rest.is_empty() {
         pages.push(ShownPage {
@@ -121,6 +123,7 @@ pub(crate) fn pages(id: &str, name: &str, powers: Option<&Powers>) -> Vec<ShownP
             name: format!("{name} 2"),
             choices: rest,
             force: true,
+            gifs: false,
         });
     }
     pages

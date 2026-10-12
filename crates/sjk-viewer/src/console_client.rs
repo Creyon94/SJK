@@ -92,6 +92,10 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
         crate::holocrons::rehearsal::HELP,
     ),
     (
+        crate::cards::rehearsal::COMMAND,
+        crate::cards::rehearsal::HELP,
+    ),
+    (
         crate::unlock_toast::UPDATE_COMMAND,
         crate::unlock_toast::UPDATE_HELP,
     ),
@@ -102,6 +106,14 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
     (
         crate::quick_wheel::RUN_COMMAND,
         crate::quick_wheel::RUN_HELP,
+    ),
+    (
+        crate::quick_wheel::GIF_OPEN_COMMAND,
+        crate::quick_wheel::GIF_OPEN_HELP,
+    ),
+    (
+        crate::quick_wheel::GIF_RUN_COMMAND,
+        crate::quick_wheel::GIF_RUN_HELP,
     ),
     (crate::weather::COMMAND, crate::weather::HELP),
     (super::changelog::COMMAND, super::changelog::HELP),
@@ -130,6 +142,14 @@ pub(super) const COMMANDS: &[(&str, &str)] = &[
     (
         crate::console::SJK_CHAT_COMMAND,
         crate::console::SJK_CHAT_HELP,
+    ),
+    (
+        crate::console::SJK_SAY_COMMAND,
+        crate::console::SJK_SAY_HELP,
+    ),
+    (
+        crate::console::SJK_GIF_COMMAND,
+        crate::console::SJK_GIF_HELP,
     ),
     (crate::emotes::COMMAND, crate::emotes::HELP),
     (
@@ -660,6 +680,7 @@ impl crate::GpuState {
             crate::emotes::COMMAND => return self.emote_command(args),
             crate::medal_popup::rehearsal::COMMAND => return self.debug_medal_command(args),
             crate::holocrons::rehearsal::COMMAND => return self.debug_holocron_command(args),
+            crate::cards::rehearsal::COMMAND => return self.debug_open_command(args),
             crate::unlock_toast::UPDATE_COMMAND => return self.debug_update_command(args),
             crate::saber_skin_command::COMMAND => return self.saber_skin_command(args),
             crate::console::SJK_CHAT_COMMAND => {
@@ -711,7 +732,18 @@ impl crate::GpuState {
             crate::avatar_command::COMMAND => return self.avatar_command(args),
             crate::weather::COMMAND => return self.weather_command(args),
             crate::quick_wheel::OPEN_COMMAND => return self.open_quick_wheel(args),
-            crate::quick_wheel::RUN_COMMAND => return self.release_quick_wheel(),
+            crate::quick_wheel::RUN_COMMAND | crate::quick_wheel::GIF_RUN_COMMAND => {
+                return self.release_quick_wheel();
+            }
+            crate::quick_wheel::GIF_OPEN_COMMAND => return self.open_gif_wheel(),
+            crate::console::SJK_SAY_COMMAND => {
+                let console = self.console.as_mut().ok_or("Console unavailable")?;
+                return console.sjk_say_command(args);
+            }
+            crate::console::SJK_GIF_COMMAND => {
+                let console = self.console.as_mut().ok_or("Console unavailable")?;
+                return console.sjk_gif_command(args);
+            }
             crate::hud::nameplate::COMMAND => return self.nameplate_command(args),
             crate::graphics_quality::COMMAND => {
                 let console = self.console.as_mut().ok_or("Console unavailable")?;

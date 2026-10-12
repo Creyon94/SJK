@@ -226,10 +226,13 @@ struct SjkLayers {
 const SJK_RASTER_SCALE: f64 = 1.5;
 
 /// Where an SJK UI screen appends its text this frame: the display family
-/// (Rajdhani) and the body family (Exo 2), each with its own vertices.
+/// (Rajdhani) and the body family (Exo 2), each with its own vertices, and the
+/// code family (JetBrains Mono, the console font's layer, drawn after the other
+/// text) when it is loaded.
 pub(crate) struct SjkFonts<'a> {
     pub(crate) display: (&'a mut Vec<TextVertex>, &'a UiFont),
     pub(crate) body: (&'a mut Vec<TextVertex>, &'a UiFont),
+    pub(crate) code: Option<(&'a mut Vec<TextVertex>, &'a UiFont)>,
 }
 
 impl GameFonts {
@@ -253,9 +256,11 @@ impl GameFonts {
         self.load_console(gpu);
     }
 
-    /// Load the SJK UI's families, once.
+    /// Load the SJK UI's families, once, with the console font its code family
+    /// draws in.
     fn load_sjk(&mut self, gpu: &Device<'_>, logo: Option<&text::LogoGlyph>) {
         self.sjk_attempted = true;
+        self.load_console(gpu);
         let layer = |family: &text::Family| match text::load_family(family, SJK_RASTER_SCALE, logo)
         {
             Ok(atlas) => Some(Layer::upload(family.name, atlas.font, atlas.image, gpu)),
@@ -293,6 +298,10 @@ impl GameFonts {
         Some(SjkFonts {
             display: (&mut layers.display.vertices, &layers.display.font),
             body: (&mut layers.body.vertices, &layers.body.font),
+            code: self
+                .console
+                .as_mut()
+                .map(|layer| (&mut layer.vertices, &layer.font)),
         })
     }
 

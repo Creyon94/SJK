@@ -154,6 +154,36 @@ test: Mute the sender, then turn SJK chat GIFs off: no GIF, and off shows the li
 test: A server say with a GIPHY link: stays text.
 note: Unit tests and off-screen shots (duel6_sjk_chat_gifs_feed) only; not tried in a match.
 
+[sjk-chat-gif-picker]
+area: Console & chat
+title: SJK chat GIF picker: favourites, GIPHY search, seen in chat (cl_giphyKey)
+change: GIF beside Send on the SJK chat page opens a picker over the messages: Favourites,
+change: Search (GIPHY, trending when empty) and Seen in chat. Picking puts the link in the message.
+change: Star, F, or Add GIF to favourites on a chosen message keeps it in gif-favourites.txt.
+test: sjkchat, GIF: Seen in chat shows the chat's GIFs moving; click one: its link is in the field.
+test: Enter sends it. Pick another with text typed: the text stays, the old link is replaced.
+test: Star a tile (or F on it): gold star; Favourites lists it; restart: still there.
+test: Choose a message with a GIF: Add GIF to favourites under Mute; press it, then Remove.
+test: Search with a key (Settings > Network > GIPHY key): type, wait: tiles; PgDn loads more.
+test: Arrows, Tab, Left/Right on the tabs, / for search, Esc closes the picker then the page.
+test: No key: Search shows the key card. Open developers.giphy.com opens the browser.
+test: Make a key, Ctrl+V it in the card, Save key: trending GIFs come. Esc on the card: Not now.
+test: Not now, then Get a GIPHY key on Search: the card again. A bad key: Change GIPHY key.
+note: Players use their own GIPHY key only (no SJK key). Off-screen shots only.
+
+[sjk-chat-binds]
+area: Console & chat
+title: SJK chat from binds: sjksay, sjkgif, the GIF wheel (+gifwheel), sjkchat in Keys
+change: sjksay <text> says it in the SJK chat; sjkgif <favourite number | id> [text] sends a GIF.
+change: +gifwheel opens the quick wheel on your favourite GIFs, moving; let go to send one.
+change: Settings > Keys > Other: SJK chat page (sjkchat) and GIF wheel (hold).
+test: Console: sjksay hello: it shows in the SJK chat (dock, page, in-game chat).
+test: sjkgif 1 gg: your newest favourite with gg before it. sjkgif 99: says the range.
+test: Bind a key to +gifwheel in Settings > Keys; in a match hold it: favourites move on the ring.
+test: Point at one and let go: it is sent. Wheel scroll: next page past ten favourites.
+test: Bind SJK chat page, press it in a match: the big chat opens; press again: closed.
+note: Off-screen shots (duel6_gif_wheel) and unit tests only.
+
 [console-feed]
 area: Console & chat
 title: Console feed (top left notify lines) off by default, con_drawNotify
@@ -372,6 +402,38 @@ test: With cl_idrive 2: hold C, then SPACE: you jump; let go of SPACE: you crouc
 note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK either.
 
 # ---- Menus & settings ----
+
+[force-apply-on-leave]
+area: Menus & settings
+title: Force powers apply when you leave the Force page, even unchanged
+change: Escape, Back, another page or tab, or closing the screen applies the Force draft.
+change: Leaving unchanged still sends forcechanged, so the server reads your powers again.
+test: On JoF, change powers, press Escape (no Apply): the server says changes apply on respawn.
+test: Then accept a Full Force duel: the new powers are there at its start.
+test: Open the Force page and leave it unchanged: the respawn message comes again.
+test: Press Apply, then leave: the message comes once, not twice.
+
+[holocron-opening]
+area: Menus & settings
+title: Holocrons open: a sealed card and credits each, and a Cards tab in the Collection
+change: Collection > Holocrons: Open (oldest of the tier) and Open all (up to 20), Enter / A.
+change: A ceremony per holocron: burst, the card turns in (Normal, Holo, Solar), credits count.
+change: Collection > Cards: the sealed cards by kind with x3, the chosen one up close, credits.
+test: debug_open all, then debug_open mythical x3 solar: watch every finish and Next / Done.
+test: Enter or a click skips the entrance, Escape ends it; the page shows again under it.
+test: Collection > Cards before opening any: 'No cards yet' and an empty outline.
+test: Once the hub is deployed: Open one holocron, the count drops, credits rise, Cards shows it.
+note: The hub's opening is deployed (12/10/2026).
+
+[loot-table]
+area: Menus & settings
+title: Holocrons tab: a Loot table with every chance a holocron brings
+change: Loot table (beside what the tier holds) or L shows the odds over the whole window.
+change: Per tier: drop chance, card rarity and finish, credits; then any holocron found.
+change: Every card (rarity x finish) per holocron found, as a share and as 1 in N.
+test: Collection > Holocrons > Loot table: the numbers match docs/holocrons.md, Loot table.
+test: Escape, L, Enter or Back go back to the tab; the tab's keys do nothing meanwhile.
+test: The pace line says 30 minutes and 8 a day once the hub answered.
 
 [import-clients]
 area: Menus & settings
@@ -674,12 +736,13 @@ note: A local build is -dev and no release lists it, so only whatsnew shows the 
 
 [whats-new-layout]
 area: Menus & settings
-title: What's new card: headings above their lines, commands in chips
-change: Each recap heading sits above its sentence, which takes the card's full width.
-change: Commands and cvars in backticks in CHANGELOG.md recaps are drawn in boxed chips.
-change: Release names on a card that stacks several are muted, with a rule to the edge.
-test: Console: whatsnew. Headings sit above their lines; the Updates line boxes whatsnew.
-test: Settings > Interface > Menu text size up, then whatsnew: lines rewrap, no chip cut.
+title: What's new card: headings on top, chips, pages, icons, credits
+change: Headings (with an icon) sit above their lines; commands and cvars show as chips.
+change: Skipped releases are pages (Left/Right, arrows, dots); "By ..." names the makers.
+change: Chips on the card and the changelog page: click = Settings search, or console.
+test: Console: whatsnew. Icons, headings on top, the Updates line boxes whatsnew.
+test: Click the whatsnew chip: the card closes, the console opens with whatsnew typed.
+test: Changelog (Unreleased): click cg_clanEmblems: Settings opens searched for it.
 
 # ---- HUD ----
 

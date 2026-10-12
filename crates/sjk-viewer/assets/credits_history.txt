@@ -9,6 +9,31 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 12/10/2026 | - | SJK chat from binds: sjksay, sjkgif, the GIF wheel, sjkchat in Keys
+- 1376d25 |  | SJK chat from binds: sjksay, sjkgif and the GIF wheel
++ 12/10/2026 | - | Credits history reads "Merge Creyon's PR #N" merges
+- f72a335 |  | Credits history: "Merge Creyon's PR #96 (...)" counts as SJK #96
++ 12/10/2026 | - | GIF search with the player's own GIPHY key, and the key card
+- bd180c9 |  | GIF search uses only the player's own GIPHY key, with a key card
+- 9dad3fb |  | Credits: GIF search with the player's own key
++ 12/10/2026 | - | The Holocrons tab's loot table: every chance a holocron brings
+- bd555ae |  | Holocrons tab: a loot table with every chance a holocron brings
++ 12/10/2026 | - | Force page applies when left, even unchanged
+- 2242d33 |  | Apply the Force page when it is left, even unchanged
++ 12/10/2026 | - | dead-code warning on push_filter
+- 20ce2f3 |  | Server browser: push_filter only exists for tests (the field uses edit_filter), clearing the dead-code warning
++ 12/10/2026 | - | Creyon's PR #95: crackle while electrified
+- 4715192 |  | Credits and changelog for Creyon's PR #95
++ 12/10/2026 | - | Holocrons open: sealed cards, credits, the ceremony and a Cards tab
+- 7a03c82 |  | Open holocrons: sealed cards and credits, the ceremony and a Cards tab
++ 12/10/2026 | - | GIF picker search field takes Ctrl+A
+- 3d846f8 |  | GIF picker search field: Ctrl+A selects its words, as every field does
++ 12/10/2026 | - | SJK chat GIF picker: favourites, GIPHY search, GIFs seen in chat
+- 86789d0 |  | SJK chat GIF picker: favourites, GIPHY search, GIFs seen in chat
++ 12/10/2026 | - | What's new card: pages, heading icons, credits, clickable mono chips; chips on the changelog page
+- 12adca5 |  | What's new card: pages, heading icons, credits and clickable chips
+- b14a649 |  | Chips in JetBrains Mono: a code family for the SJK UI
+- a8e2f1d |  | Changelog credits: rank with sort_by_key
 + 12/10/2026 | - | Ctrl+A selects all the text of a field
 - 8efdab7 |  | Ctrl+A selects all the text of a field, everywhere
 + 12/10/2026 | - | What's new card: headings on top, command chips
@@ -1161,6 +1186,10 @@
 - 0d215f1 |  | Initial JKR source
 
 = Creyon
++ 12/10/2026 | SJK #96 | Keep listing servers after a lost answer or a dead one's reset
+- 3fe2012 |  | Keep listing servers after a lost answer or a dead one's reset
++ 12/10/2026 | SJK #95 | Crackle while a player is electrified (the JoF amlogin sound)
+- 3623d1e |  | Crackle while a player is electrified (the JoF amlogin sound)
 + 12/10/2026 | SJK #94 | Keep the amcolor tint across reconnects
 - df744da |  | Keep the amcolor tint across reconnects
 + 12/10/2026 | SJK #93 | Add JoF EJK's showplayerid console command

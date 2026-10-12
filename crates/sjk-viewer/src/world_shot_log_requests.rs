@@ -12,6 +12,8 @@ use sjk_identity::logs::{CrashGroup, CrashSummary, LogRequestRow};
 
 fn profile(key: &str, name: &str) -> sjk_identity::Profile {
     sjk_identity::Profile {
+        credits: 0,
+        cards: Vec::new(),
         keys: Vec::new(),
         key_id: key.to_owned(),
         key: String::new(),

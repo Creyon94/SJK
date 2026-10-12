@@ -17,6 +17,56 @@ turns dropped, the preview's angle, the hint) and of the picker (its chips, wear
 click and by key, Tab to capes turning the model, Escape); the workspace checks; in game
 on Windows 11 by Creyon, the drag in the in-game menu.
 
+## Force powers apply when the Force page is left
+
+Branch `personal/force-apply-on-close` (12/10/2026), Sol's report: on the JoF JA+ server
+Force changes made in game did not reach Full Force duels. The client log showed one
+`forcechanged` in a whole session of tries: the Force page kept edits as a draft that
+only its Apply button wrote, and Escape, Back, another page or closing the screen
+dropped it silently. Leaving the page now applies it, as retail's Force menu did on
+close, and, at Sol's request, sends the profile again with `forcechanged` even when
+nothing changed (not twice after an Apply in the same visit); an unchanged profile is
+sent as the player wrote it, not fitted to the server's rank
+(`PlayerMenu::settle_force_page`, once a frame, so every way out is covered). Sol
+confirmed JA+ reads a profile changed before a Full Force duel at its start, as at a
+respawn (the server sends `nfr` at each duel's start and end). The console's
+"Force profile: ... sent" lines lost a run of spaces. Verified: unit tests (a changed
+draft applied on leaving, the own profile resent, nothing more after Apply,
+`forcechanged` queued on leaving by page or by closing). Not tried in a game.
+
+## Opening holocrons: sealed cards and credits
+
+Branch `personal/holocron-opening` (12/10/2026), Sol's request: holocrons open, each
+giving a TCG-style card and credits; the cards are placeholders (sealed: rarity, finish and
+edition rolled now, the face chosen when the first set is out) and credits will buy
+droppable cosmetics as a fix for bad luck (planned). The design and what is built are in
+[cards.md](cards.md). Client: wire and worker (`Service::open_holocrons`), Open and Open
+all with a ceremony on the Holocrons tab, the Collection's Cards tab, the credits' sign
+drawn from shapes, `debug_open`; the UI renderer now cuts strokes to the clip rectangle as
+it cut rectangles. Hub: branch `feat/holocron-opening` in Sol-Vulpes/SJK-hub, merged
+and deployed 12/10/2026. Then (branch `personal/loot-table`, Sol's request) the Holocrons
+tab's loot table: every chance a holocron brings, per tier and per holocron found
+([holocrons.md](holocrons.md#loot-table)). Verified: the workspace checks, the hub's tests
+and the world shots `cards_shots` looked at. Not tried: against the running hub, in a
+game.
+
+## Server browser: servers missing at random
+
+Branch `fix/browser-missing-servers` (12/10/2026, based on `9dbbdf19`, Linux): Creyon saw
+the number of servers change from one refresh to the next and favourites come and go. On
+Windows a dead server's "port unreachable" comes back as a reset on the socket's next
+read, and `query_server_infos` took it for an error and ended the refresh, so every
+server that had not answered yet was missing; the engine ignores it (`NET_GetPacket`).
+It is now passed over; a server that has not answered is asked twice more (a lost
+packet or a busy server's `getinfo` rate limit left it out); the answers already in are
+read after every 32 requests; and the list takes up to 1,000 servers (it cut a master's
+list at 256) ([client.md](client.md)). Verified: a test that the reset and the other
+waits go on, a test of a server answering only the second request, a test with 101
+loopback servers answering and one silent, the workspace checks; in game on Windows 11
+by Creyon (the count steady from one refresh to the next, favourites staying).
+`{JoF}Temple Server` shows only as a favourite: none of `master.jkhub.org`,
+`master.ouned.de` and `masterjk3.ravensoft.com` (which lists nothing) lists it.
+
 ## Text fields: Ctrl+A, paste, copy and a held Backspace everywhere
 
 Ctrl+A followed (12/10/2026, branch `personal/select-all`): Sol added Ctrl+A to the rule.
@@ -257,6 +307,19 @@ connection only. The console command `amcolor <r> <g> <b>` now sets the archived
 `char_color_*` userinfo cvars, as EternalJK does ([client.md](client.md)). Verified: unit
 tests (set, saved and read back by a new console; bad values change nothing) and the
 workspace checks; in game on Windows 11 by Creyon (kept across a reconnect).
+## Electrified players crackle (the JoF amlogin sound)
+
+Branch `fix/electrify-crackle` (12/10/2026, based on `9dbbdf19`, Linux): Creyon heard no
+sound when logging in with `amlogin` on JoF, where JoF EJK buzzes like a DEMP2 alt hit.
+His demo shows the server sends a print and sets `ps.electrifyTime` about four seconds
+ahead; stock's `CG_Player` then crackles (`sound/effects/energy_crackle.wav`) on one
+frame in ten of the electric shell, which SJK drew without the sound. It now plays it
+for every electrified player, the local one in first person too, on the 8 ms effect
+cadence rather than every rendered frame, and not for a muted or mind-tricking player
+([client.md](client.md#electrified-players-crackle)). Verified: tests of the crackle's
+gates, of its rate over the demo's four seconds, of the same rate at 125 to 1000 frames a
+second and of its draws; the workspace checks; in game on Windows 11 by Creyon (the
+crackle on `amlogin` on JoF).
 
 ## Downloads that work, and what they may bring
 
@@ -895,6 +958,38 @@ Verified by unit tests (room under the line at 1080p and 4K, fading and moving w
 line, muted and switched-off lines, the history while typing, a game line) and off-screen
 world shots of the box with test GIFs, in play and typing, at 1080p and 4K
 (`duel6_sjk_chat_gifs_feed`). Not tried in a match.
+
+Branch `personal/gif-picker` (12/10/2026, based on `fa9f4295`, Windows 11), Sol's request
+for a GIF picker with favourites in SJK chat: GIF beside Send on the SJK chat page opens
+a picker over the messages with Favourites (kept in `gif-favourites.txt` beside
+`config.cfg`), Search (GIPHY's search API from this PC with `cl_giphyKey`, debounced,
+paged, cached) and Seen in chat, as animated tiles of GIPHY's preview file; picking
+writes the GIF's link in the message ([hub-chat.md](hub-chat.md#the-gif-picker)).
+Verified by unit tests (favourites file, search addresses and paging, the cache keeping
+tiles apart, the grid's keys, picking into the draft) and off-screen world shots of the
+picker at 1080p and 4K with test GIFs (`duel6_sjk_chat_gif_picker`). No real search was
+made against GIPHY's API (no key); not tried in the game window.
+
+Branch `personal/gif-own-key` (12/10/2026, based on `46953c53`, Windows 11), Sol's
+decision that players use only their own GIPHY key: SJK's shared key is gone, and Search
+without a key shows the key card (why, three steps, Open developers.giphy.com, a paste
+field, Save key, Not now), which sets `cl_giphyKey`
+([hub-chat.md](hub-chat.md#the-gif-picker)). The chat page's field and the picker's
+search field copy with Ctrl+C now. Verified by unit tests (only the player's key is
+used, a new key forgets refusals, the card shows until put off, Save key refuses what is
+not a key) and off-screen world shots of the card at 1080p and 4K (`key-card`,
+`key-card-pasted`). GIPHY's dashboard steps were read from its documentation (Create an
+API Key), not walked through; not tried in the game window.
+
+Branch `personal/sjk-chat-binds` (12/10/2026, on `personal/gif-own-key`, Windows 11),
+Sol's request for SJK chat binds: `sjksay`, `sjkgif` (a favourite's number, an id or a
+link, with text), `+gifwheel` (the quick wheel on the favourite GIFs, their previews
+moving) and Keys rows for `sjkchat` and the GIF wheel
+([hub-chat.md](hub-chat.md#from-a-bind), [client.md](client.md#gif-wheel)). Verified
+by unit tests (the words as the chat takes them, which GIF `sjkgif` names, the GIF
+wheel's pages and its choice's command, the last page kept) and off-screen world shots
+of the GIF wheel at 1080p and 4K (`duel6_gif_wheel`). Nothing was sent to the hub, and
+it was not tried in the game window.
 
 ## Stutters on joins
 

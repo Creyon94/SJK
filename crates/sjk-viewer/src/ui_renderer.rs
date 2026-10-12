@@ -659,7 +659,15 @@ impl ShapeRenderer {
                     to,
                     width,
                     color,
-                } => self.push_line(from, to, width, color, opacity[opacity_depth], viewport),
+                } => self.push_line(
+                    from,
+                    to,
+                    width,
+                    color,
+                    opacity[opacity_depth],
+                    clips[clip_depth],
+                    viewport,
+                ),
                 DrawCommand::Text { .. }
                 | DrawCommand::PushClip(_)
                 | DrawCommand::PushOpacity(_) => {}
@@ -874,6 +882,9 @@ impl ShapeRenderer {
 
     /// A square-ended stroke as one quad along it, one pixel wider on each side for
     /// the anti-aliased edges the shader fades (mode 4, stroke width in `end_color.x`).
+    /// A straight stroke's quad, cut to `clip` (window pixels) as every shape is: the
+    /// part outside is left out, a stroke wholly outside draws nothing.
+    #[allow(clippy::too_many_arguments)]
     fn push_line(
         &mut self,
         from: [f32; 2],
@@ -881,6 +892,7 @@ impl ShapeRenderer {
         width: f32,
         color: Color,
         opacity: f32,
+        clip: Rect,
         viewport: [f32; 2],
     ) {
         let along = [to[0] - from[0], to[1] - from[1]];
@@ -889,36 +901,43 @@ impl ShapeRenderer {
             || length < 0.01
             || width.is_nan()
             || width <= 0.0
-            || self.vertices.len() + 6 > MAX_SHAPE_VERTICES
+            || self.vertices.len() + 3 * (CLIPPED_MAX - 2) > MAX_SHAPE_VERTICES
         {
             return;
         }
-        art::untextured(&mut self.runs, self.vertices.len());
         let half = width * 0.5 + 1.0;
         let side = [-along[1] / length * half, along[0] / length * half];
-        let position = |x: f32, y: f32| [x / viewport[0] * 2.0 - 1.0, 1.0 - y / viewport[1] * 2.0];
-        let tint = [color.r, color.g, color.b, color.a * opacity];
-        let corner = |point: [f32; 2], sign: f32| {
-            position(point[0] + side[0] * sign, point[1] + side[1] * sign)
-        };
-        let points = [
+        let corner =
+            |point: [f32; 2], sign: f32| [point[0] + side[0] * sign, point[1] + side[1] * sign];
+        let quad = [
             (corner(from, -1.0), [0.0, 0.0]),
             (corner(to, -1.0), [1.0, 0.0]),
             (corner(to, 1.0), [1.0, 1.0]),
-            (corner(from, -1.0), [0.0, 0.0]),
-            (corner(to, 1.0), [1.0, 1.0]),
             (corner(from, 1.0), [0.0, 1.0]),
         ];
-        self.vertices
-            .extend(points.map(|(position, local)| ShapeVertex {
-                position,
-                local,
-                size: [length, half * 2.0],
-                start_color: tint,
-                end_color: [width, 0.0, 0.0, 0.0],
-                parameters: [0.0, LINE_MODE],
-                uv: local,
-            }));
+        let (points, count) = clip_polygon(quad, clip);
+        if count < 3 {
+            return;
+        }
+        art::untextured(&mut self.runs, self.vertices.len());
+        let position =
+            |[x, y]: [f32; 2]| [x / viewport[0] * 2.0 - 1.0, 1.0 - y / viewport[1] * 2.0];
+        let tint = [color.r, color.g, color.b, color.a * opacity];
+        let vertex = |(point, local): ([f32; 2], [f32; 2])| ShapeVertex {
+            position: position(point),
+            local,
+            size: [length, half * 2.0],
+            start_color: tint,
+            end_color: [width, 0.0, 0.0, 0.0],
+            parameters: [0.0, LINE_MODE],
+            uv: local,
+        };
+        // A fan from the first corner.
+        for index in 1..count - 1 {
+            self.vertices.push(vertex(points[0]));
+            self.vertices.push(vertex(points[index]));
+            self.vertices.push(vertex(points[index + 1]));
+        }
     }
 
     fn push_shape(
@@ -1032,6 +1051,70 @@ impl ShapeRenderer {
         self.hud_preview
             .upload(device, queue, &self.texture_layout, image);
     }
+}
+
+/// The most corners a quad cut by a rectangle keeps.
+const CLIPPED_MAX: usize = 8;
+
+/// A corner of a stroke's quad: its place (window pixels) and its local coordinates.
+type Corner = ([f32; 2], [f32; 2]);
+
+/// A convex quad (window pixels, each corner with its local coordinates) cut to `clip`
+/// (Sutherland and Hodgman, one edge of the rectangle at a time): the corners left, in
+/// order, and how many. The local coordinates are carried along the cut edges, which is
+/// exact for a parallelogram's (they are affine in the position).
+fn clip_polygon(quad: [Corner; 4], clip: Rect) -> ([Corner; CLIPPED_MAX], usize) {
+    let mut points: [Corner; CLIPPED_MAX] = [([0.0; 2], [0.0; 2]); CLIPPED_MAX];
+    points[..4].copy_from_slice(&quad);
+    let mut count = 4;
+    // Each edge: the axis (0 x, 1 y), the bound, and whether inside is above it.
+    let edges = [
+        (0, clip.x, true),
+        (0, clip.right(), false),
+        (1, clip.y, true),
+        (1, clip.bottom(), false),
+    ];
+    for (axis, bound, above) in edges {
+        let inside = |point: &Corner| {
+            if above {
+                point.0[axis] >= bound
+            } else {
+                point.0[axis] <= bound
+            }
+        };
+        let mut out: [Corner; CLIPPED_MAX] = [([0.0; 2], [0.0; 2]); CLIPPED_MAX];
+        let mut kept = 0;
+        for index in 0..count {
+            let current = points[index];
+            let previous = points[(index + count - 1) % count];
+            let (now_in, was_in) = (inside(&current), inside(&previous));
+            if now_in != was_in && kept < CLIPPED_MAX {
+                let span = current.0[axis] - previous.0[axis];
+                let t = if span.abs() > f32::EPSILON {
+                    (bound - previous.0[axis]) / span
+                } else {
+                    0.0
+                };
+                let mix =
+                    |a: [f32; 2], b: [f32; 2]| [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+                let mut point = mix(previous.0, current.0);
+                // Exactly on the edge, whatever the rounding.
+                point[axis] = bound;
+                out[kept] = (point, mix(previous.1, current.1));
+                kept += 1;
+            }
+            if now_in && kept < CLIPPED_MAX {
+                out[kept] = current;
+                kept += 1;
+            }
+        }
+        points = out;
+        count = kept;
+        if count == 0 {
+            break;
+        }
+    }
+    (points, count)
 }
 
 fn clipped(left: Rect, right: Rect) -> Rect {
@@ -1161,5 +1244,54 @@ pub(crate) fn append_text_commands_where<'a>(
             *overflow,
             palette,
         );
+    }
+}
+
+#[cfg(test)]
+mod line_clip_tests {
+    use super::*;
+
+    fn quad(x: f32, y: f32, width: f32, height: f32) -> [([f32; 2], [f32; 2]); 4] {
+        [
+            ([x, y], [0.0, 0.0]),
+            ([x + width, y], [1.0, 0.0]),
+            ([x + width, y + height], [1.0, 1.0]),
+            ([x, y + height], [0.0, 1.0]),
+        ]
+    }
+
+    /// A stroke inside the clip keeps its four corners, one across an edge is cut there
+    /// with its local coordinates carried along, one outside keeps nothing, and a slanted
+    /// one cut at a corner keeps at most eight.
+    #[test]
+    fn a_strokes_quad_is_cut_to_the_clip() {
+        let clip = Rect::new(0.0, 0.0, 100.0, 100.0);
+        let (points, count) = clip_polygon(quad(10.0, 10.0, 20.0, 20.0), clip);
+        assert_eq!(count, 4);
+        assert_eq!(points[..4], quad(10.0, 10.0, 20.0, 20.0));
+        let (points, count) = clip_polygon(quad(80.0, 10.0, 40.0, 20.0), clip);
+        assert_eq!(count, 4);
+        let right = points[..count]
+            .iter()
+            .map(|(point, _)| point[0])
+            .fold(f32::MIN, f32::max);
+        assert_eq!(right, 100.0, "cut at the clip's edge");
+        let cut = points[..count]
+            .iter()
+            .find(|(point, _)| point[0] == 100.0)
+            .unwrap();
+        assert!((cut.1[0] - 0.5).abs() < 1e-5, "half way along");
+        assert_eq!(clip_polygon(quad(200.0, 10.0, 20.0, 20.0), clip).1, 0);
+        let diamond = [
+            ([50.0, -40.0], [0.0, 0.0]),
+            ([140.0, 50.0], [1.0, 0.0]),
+            ([50.0, 140.0], [1.0, 1.0]),
+            ([-40.0, 50.0], [0.0, 1.0]),
+        ];
+        let (points, count) = clip_polygon(diamond, clip);
+        assert_eq!(count, CLIPPED_MAX);
+        for (point, _) in &points[..count] {
+            assert!((0.0..=100.0).contains(&point[0]) && (0.0..=100.0).contains(&point[1]));
+        }
     }
 }
