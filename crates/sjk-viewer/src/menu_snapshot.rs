@@ -1789,11 +1789,19 @@ fn sjk_settings_snapshot() {
     // Advanced's categories, then Simple's: Display, and Graphics on Vanilla and
     // on the SJK renderer, whose alpha warning the detail column shows.
     SettingsMode::Advanced.store(&mut console);
-    let simple: [Case; 3] = [
+    let simple: [Case; 4] = [
+        (
+            "sjk-settings-chat",
+            VIEWPORT_WIDE,
+            9,
+            Some("cl_sjkChat"),
+            false,
+            None,
+        ),
         (
             "sjk-settings-simple",
             VIEWPORT_WIDE,
-            12,
+            13,
             Some("cg_fov"),
             false,
             None,
@@ -1801,7 +1809,7 @@ fn sjk_settings_snapshot() {
         (
             "sjk-settings-simple-vanilla",
             VIEWPORT_WIDE,
-            13,
+            14,
             Some(crate::graphics_quality::RENDERER_ROW),
             false,
             None,
@@ -1809,7 +1817,7 @@ fn sjk_settings_snapshot() {
         (
             "sjk-settings-simple-alpha",
             VIEWPORT_WIDE,
-            13,
+            14,
             Some(crate::graphics_quality::RENDERER_ROW),
             false,
             None,

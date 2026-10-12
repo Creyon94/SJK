@@ -663,7 +663,7 @@ mod tests {
             shoot(&mut gpu, 4, "duel6-menu-settings");
             // Network, with the SJK identity key's row, the key itself hidden.
             if let (Some(menu), Some(console)) = (gpu.client_menu.as_mut(), gpu.console.as_ref()) {
-                menu.open_sjk_settings(console, 11, crate::player_menu::ReturnTarget::MainMenu);
+                menu.open_sjk_settings(console, 12, crate::player_menu::ReturnTarget::MainMenu);
             }
             shoot(&mut gpu, 4, "duel6-menu-settings-network");
             if let (Some(menu), Some(console)) = (gpu.client_menu.as_mut(), gpu.console.as_ref()) {

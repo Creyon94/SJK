@@ -5,7 +5,7 @@
 //! say where a setting lives.
 
 use super::catalog::*;
-use super::{Group, help, settings};
+use super::{Advanced, Group, help, settings};
 use std::sync::OnceLock;
 
 /// Every searchable setting, in the OPTIONS groups' order, and its group.
@@ -19,7 +19,8 @@ fn searchable() -> &'static Searchable {
     SEARCHABLE.get_or_init(|| {
         let tab =
             |caption: &str| settings(TABS.iter().position(|tab| *tab == caption).unwrap_or(0));
-        let sources: [(&'static str, &'static [Setting]); 14] = [
+        let advanced = |group| Group::Advanced(group).rows();
+        let sources: [(&'static str, &'static [Setting]); 16] = [
             ("Display", Group::Display.rows()),
             // The renderer and the Video rows Display leaves to Graphics.
             ("Graphics", tab("VIDEO")),
@@ -27,12 +28,15 @@ fn searchable() -> &'static Searchable {
             ("Graphics: lighting", RENDER_LIGHTING),
             ("Graphics: shadows", RENDER_SHADOWS),
             ("Graphics: weather", RENDER_WEATHER),
-            ("Sound", tab("AUDIO")),
+            ("Sound", advanced(Advanced::Sound)),
             ("Controls", tab("CONTROLS")),
-            ("Gameplay", Group::GameOptions.rows()),
-            ("Interface", Group::Interface.rows()),
-            ("HUD", Group::Hud.rows()),
-            ("Scoreboard", Group::Scoreboard.rows()),
+            ("Gameplay", advanced(Advanced::Gameplay)),
+            ("Interface", advanced(Advanced::Interface)),
+            ("HUD", advanced(Advanced::Hud)),
+            ("Chat", advanced(Advanced::Chat)),
+            // The quick wheel's pages, the one row of Interface left.
+            ("Quick wheel", Group::Interface.rows()),
+            ("Mods", advanced(Advanced::Mods)),
             ("Network", Group::Network.rows()),
             // Its rows are the others' but for its own last one.
             ("First setup", Group::Quick.rows()),
@@ -147,8 +151,10 @@ mod tests {
         assert!(super::lines("no such setting at all").is_empty());
         assert_eq!(count("no such setting at all"), 0);
         assert!(count("fov") >= 1);
-        // A group name lists the group.
-        let hud = super::lines("scoreboard");
-        assert!(hud.contains(&super::super::Line::Heading("Scoreboard")));
+        // A group name lists the group; the scoreboard's rows are HUD's.
+        let chat = super::lines("chat");
+        assert!(chat.contains(&super::super::Line::Heading("Chat")));
+        let scoreboard = super::lines("scoreboard");
+        assert!(scoreboard.contains(&super::super::Line::Heading("HUD")));
     }
 }

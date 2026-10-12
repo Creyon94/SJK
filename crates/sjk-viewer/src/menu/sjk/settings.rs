@@ -15,7 +15,7 @@ use super::TextTarget;
 use crate::console::ViewerConsole;
 use crate::player_menu::ReturnTarget;
 use crate::settings::mode::SettingsMode;
-use crate::settings::{Group, SettingsMenu, SettingsResult, Simple};
+use crate::settings::{Advanced, Group, SettingsMenu, SettingsResult, Simple};
 
 /// What a category of the rail shows.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -95,7 +95,21 @@ const fn simple(label: &'static str, icon: &'static str, simple: Simple) -> Cate
 
 /// Every category: Advanced's rail, top to bottom, then Simple's own (Key
 /// bindings is on both).
-const CATEGORIES: [Category; 19] = [
+/// A category of Advanced's rail regrouping classic rows (`regrouped`), whose
+/// classic+ panel is `classic`.
+const fn regrouped(
+    label: &'static str,
+    icon: &'static str,
+    regrouped: Advanced,
+    classic: Panel,
+) -> Category {
+    Category {
+        classic: Some(classic),
+        ..advanced(label, icon, group(Group::Advanced(regrouped)))
+    }
+}
+
+const CATEGORIES: [Category; 20] = [
     advanced("First setup", "first_setup", group(Group::Quick)),
     Category {
         classic: Some(Panel::Settings {
@@ -105,22 +119,47 @@ const CATEGORIES: [Category; 19] = [
         ..advanced("Display", "video", group(Group::Display))
     },
     advanced("Graphics", "graphics", group(Group::Graphics)),
-    advanced("Sound", "sound", tab("AUDIO")),
+    regrouped(
+        "Sound",
+        "sound",
+        Advanced::Sound,
+        Panel::Settings {
+            caption: "AUDIO",
+            span: Span::ALL,
+        },
+    ),
     advanced("Controls", "mouse_joystick", tab("CONTROLS")),
     Category {
         on: On::Both,
         ..advanced("Key bindings", "key_bindings", Shows::Keys)
     },
-    advanced("Gameplay", "game_options", group(Group::GameOptions)),
-    advanced("Interface", "interface", group(Group::Interface)),
-    advanced("HUD", "hud", group(Group::Hud)),
+    regrouped(
+        "Gameplay",
+        "game_options",
+        Advanced::Gameplay,
+        Panel::Group(Group::GameOptions),
+    ),
+    regrouped(
+        "Interface",
+        "interface",
+        Advanced::Interface,
+        Panel::Group(Group::Interface),
+    ),
+    // With the scoreboard's rows under their own heading.
+    regrouped("HUD", "hud", Advanced::Hud, Panel::Group(Group::Hud)),
+    regrouped("Chat", "text", Advanced::Chat, Panel::Group(Group::Hud)),
     // The wheel's own icon, a ring of discs, from the wheel's second board.
     advanced(
         "Quick wheel",
         crate::quick_wheel::catalog::WHEEL_ICON,
         Shows::Wheel,
     ),
-    advanced("Scoreboard", "scoreboard", group(Group::Scoreboard)),
+    regrouped(
+        "Mods",
+        "options",
+        Advanced::Mods,
+        Panel::Group(Group::GameOptions),
+    ),
     Category {
         classic: Some(Panel::Settings {
             caption: "NETWORK",
@@ -145,8 +184,8 @@ const fn rail_of(mode: SettingsMode) -> &'static [usize] {
         SettingsMode::Advanced => &ADVANCED_RAIL,
     }
 }
-const ADVANCED_RAIL: [usize; 12] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
-const SIMPLE_RAIL: [usize; 8] = [12, 13, 14, 15, KEYS, 16, 17, 18];
+const ADVANCED_RAIL: [usize; 13] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12];
+const SIMPLE_RAIL: [usize; 8] = [13, 14, 15, 16, KEYS, 17, 18, 19];
 const _: () = {
     let mut index = 0;
     while index < ADVANCED_RAIL.len() {
@@ -189,10 +228,10 @@ const _: () = assert!(matches!(
 pub(crate) const KEYS: usize = 5;
 const _: () = assert!(matches!(CATEGORIES[KEYS].shows, Shows::Keys));
 /// The category the quick wheel's pages are.
-pub(crate) const QUICK_WHEEL: usize = 9;
+pub(crate) const QUICK_WHEEL: usize = 10;
 const _: () = assert!(matches!(CATEGORIES[QUICK_WHEEL].shows, Shows::Wheel));
 /// Simple's Graphics: the renderer first.
-pub(crate) const SIMPLE_GRAPHICS: usize = 13;
+pub(crate) const SIMPLE_GRAPHICS: usize = 14;
 const _: () = assert!(matches!(
     CATEGORIES[SIMPLE_GRAPHICS].shows,
     Shows::Rows(Panel::Group(Group::Simple(Simple::Graphics)))
@@ -605,8 +644,8 @@ fn category_of_tab(caption: &str) -> usize {
     let group = match caption {
         "GAME" => Some(Group::GameOptions),
         "TEXT" => Some(Group::Interface),
-        "HUD" => Some(Group::Hud),
-        "HUD+" => Some(Group::Scoreboard),
+        // The scoreboard's rows are HUD's.
+        "HUD" | "HUD+" => Some(Group::Hud),
         crate::settings::FIRST_SETUP_CAPTION => Some(Group::Quick),
         _ => None,
     };
@@ -617,6 +656,7 @@ fn category_of_tab(caption: &str) -> usize {
             let category = &CATEGORIES[*index];
             match (category.classic, category.shows, group) {
                 (Some(Panel::Settings { caption: shown, .. }), _, None) => shown == caption,
+                (Some(Panel::Group(shown)), _, Some(wanted)) => shown == wanted,
                 (_, Shows::Rows(Panel::Group(shown)), Some(wanted)) => shown == wanted,
                 (_, Shows::Rows(Panel::Settings { caption: shown, .. }), None) => shown == caption,
                 _ => false,
@@ -763,8 +803,8 @@ mod tests {
             Entry::MouseJoystick,
             Entry::GameOptions,
             Entry::Interface,
+            // Scoreboard's rows are HUD's, under their own heading.
             Entry::Hud,
-            Entry::Scoreboard,
             Entry::Network,
         ] {
             assert!(
@@ -797,8 +837,9 @@ mod tests {
         let advanced = |category| page(SettingsMode::Advanced, category);
         assert_eq!(next_category(&advanced(KEYS - 1), 1), KEYS);
         assert_eq!(next_category(&advanced(KEYS), 1), KEYS + 1);
-        assert_eq!(next_category(&advanced(ADVANCED_RAIL[11]), 1), 0);
-        assert_eq!(next_category(&advanced(0), -1), ADVANCED_RAIL[11]);
+        let last = ADVANCED_RAIL[ADVANCED_RAIL.len() - 1];
+        assert_eq!(next_category(&advanced(last), 1), 0);
+        assert_eq!(next_category(&advanced(0), -1), last);
         // Simple's rail goes through Key bindings, its own, and wraps.
         let simple = |category| page(SettingsMode::Simple, category);
         let controls = SIMPLE_RAIL[3];
@@ -976,7 +1017,7 @@ mod tests {
                 ("CONTROLS", "Controls"),
                 ("GAME", "Gameplay"),
                 ("NETWORK", "Network"),
-                ("HUD+", "Scoreboard"),
+                ("HUD+", "HUD"),
                 ("TEXT", "Interface"),
                 (crate::settings::FIRST_SETUP_CAPTION, "First setup"),
             ] {
