@@ -2492,6 +2492,60 @@ health strip, text only, off by default); they are hidden while nameplates are o
 tagged and nothing is allocated per frame. Not tested in game yet; the estimates
 are unit-tested against synthetic snapshots only.
 
+## World pings
+
+A world ping marks a point in the map for other SJK players on the same server, as
+modern games ping (Sol's request, 13/10/2026): a gold ring at the point, seen through
+walls, with the pinger's name above it and the distance under it, a short sound, and
+gone after 7 seconds (it fades over the last 1.5). Players on other clients and game
+servers see nothing: pings travel through the SJK hub ([hub-chat.md](hub-chat.md#pings)).
+Code: [world_ping.rs](../crates/sjk-viewer/src/world_ping.rs) (rules, limits, drawing)
+and [world_ping_frame.rs](../crates/sjk-viewer/src/world_ping_frame.rs) (the press, what
+arrives, the HUD pass).
+
+- **Pinging:** `+ping` (Settings > Key bindings > Interaction > World ping; the middle
+  mouse button, `MOUSE3`, in a new profile and in one where it is free, as retail binds it
+  to the saber style, which SJK binds to L) pings on the press; `worldping` does the same
+  from the console or a [quick wheel](#quick-wheels) choice (`ping` is the engine's server
+  query). The point is where the screen's centre meets the map: a ray from the camera to
+  16,384 units against solid brushes (not clips; the sky and nothing in reach say
+  "Nothing to ping there"). It shows at once for the pinger, a paler gold, and goes to
+  the hub in whole units; in a local game nothing is sent.
+- **Who sees it** ([`Scope`](../crates/sjk-viewer/src/world_ping.rs)): in a game without
+  teams (FFA, Holocron, Jedi Master, Duel) every SJK player on the server; in a team game
+  (Team FFA, Siege, CTF, CTY) the pinger's team only; in Power Duel the pinger's side
+  (the lone duelist, or the pair). Spectators see the players' pings in a game without
+  teams, never a team's, and spectators' pings reach only other spectators, so a
+  spectator cannot guide a player. The sender names its scope from its own team; each
+  reader shows a ping only when the game shows, in the ping's slot, the name the
+  sender's hub claim was made under (as badges and emotes check) and the team that scope
+  belongs to, and when its own team sees that scope. A ping sent before a team change and
+  read after it is dropped.
+- **Limits:** a player sends at most one ping a second and four in ten seconds ("Too many
+  pings: wait a moment"), under the hub's five in ten. On arrival each sender is held to
+  one every half second and five in ten seconds whatever the hub let through, at most two
+  of a sender's pings show (a third replaces their oldest) and 24 in all. The sound plays
+  at most every 0.3 seconds. When the hub refuses a ping (no identity, not claimed on the
+  server yet), the chat says why in an `SJK ping:` line, once in 30 seconds for the same
+  words.
+- **Hiding and muting:** `cg_worldPings` (archived, default 1; Settings > HUD > World
+  pings > Others' world pings) 0 hides other players' pings; one's own still show and
+  are still sent. A player muted on this PC ([hub-chat.md](hub-chat.md#muting-a-player))
+  shows no pings. `cg_worldPingSound` (archived, default 1; Settings > HUD, and in the
+  SJK UI's Advanced Sound under Notifications) plays `sound/interface/update` from the
+  game's own data, the player's own pings included.
+- **On screen:** the ring, its centre dot and, for the first 0.8 seconds, a ring that
+  grows out of it; a point off the screen or behind the camera sits on the screen's edge
+  (44 pixels in at 1080p) toward it, smaller, with only its distance. The distance is from
+  the camera, in metres of 39.37 units (a unit an inch). Pings hide with the HUD's
+  information: in the menus, the console, the scoreboard, the intermission and with
+  `cg_draw2D 0`. Another server, or leaving it, clears them.
+- **Not built:** SJK has no minimap or radar to show them on; a ping cannot name a player
+  or an item (only a point); the team rule is enforced by honest clients only, since the
+  hub knows no teams ([hub-chat.md](hub-chat.md#pings)).
+
+World shot: `world_shot::pings::duel6_world_pings` (1080p and 4K).
+
 ## Version label
 
 The client draws its build label small at the top centre of every frame, in

@@ -84,6 +84,15 @@ pub(crate) const ACTIONS: &[BindableAction] = &[
     action(Interaction, "Inspect player", "inspect", "x"),
     // SJK: select the surface under the crosshair; press again to write a world note.
     action(Interaction, "World note", "worldnote", "o"),
+    // SJK: mark the point under the crosshair for the SJK players who may see it.
+    // Middle mouse, as modern games ping, where it is free (retail binds it to the
+    // saber style, which SJK binds to L).
+    action(
+        Interaction,
+        "World ping",
+        crate::world_ping::PRESS_COMMAND,
+        "MOUSE3",
+    ),
     // SJK's toys are `toy_<name>` commands: light the Illuminate holocron or put it out.
     action(Interaction, "Toy: Illuminate", "toy_illuminate", ""),
     action(Interaction, "Item: Bacta", "use_bacta", ""),
@@ -276,6 +285,23 @@ mod tests {
         custom.bind("o", "messagemode5").unwrap();
         migrate_missing_defaults(&mut custom);
         assert_eq!(custom.get("i"), None);
+    }
+
+    #[test]
+    fn the_world_ping_defaults_to_the_middle_mouse_button_when_free() {
+        assert_eq!(default_bindings().get("MOUSE3"), Some("+ping"));
+        let mut old = BindTable::new();
+        migrate_missing_defaults(&mut old);
+        assert_eq!(old.get("MOUSE3"), Some("+ping"));
+        // A retail config keeps its saber style on the middle button.
+        let mut retail = BindTable::new();
+        retail.bind("MOUSE3", "saberAttackCycle").unwrap();
+        migrate_missing_defaults(&mut retail);
+        assert_eq!(retail.get("MOUSE3"), Some("saberAttackCycle"));
+        let mut custom = BindTable::new();
+        custom.bind("z", "+ping").unwrap();
+        migrate_missing_defaults(&mut custom);
+        assert_eq!(custom.get("MOUSE3"), None);
     }
 
     #[test]

@@ -6,7 +6,8 @@
 //! (`profile_card.rs`), and the hub whether the player is actively playing
 //! (`holocrons_frame.rs`). Each frame it also lets the chat feed follow the SJK chat
 //! (`sjk_chat_frame.rs`), keeps crash reports up to date and sent
-//! (`crash_report.rs`), starts and ends emotes (`emotes_frame.rs`), keeps the
+//! (`crash_report.rs`), starts and ends emotes (`emotes_frame.rs`), shows the pings
+//! relayed for this server (`world_ping_frame.rs`), keeps the
 //! players' looks (`looks_frame.rs`), follows the players muted on this PC
 //! (`muted_players_frame.rs`), notes the Profile screen's tab on show
 //! (`profile_hub.rs`), puts the pictures that finished loading into the UI's atlas and
@@ -22,6 +23,7 @@ impl GpuState {
         self.remember_profile_hub_tab();
         self.update_sjk_chat();
         self.update_emotes();
+        self.update_world_pings();
         self.update_muted_players();
         avatars::service(&self.ui_shapes, &self.queue);
         if let Some(console) = self.console.as_ref() {

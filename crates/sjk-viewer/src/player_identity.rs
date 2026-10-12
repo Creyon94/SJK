@@ -27,7 +27,7 @@ const SYNC_EVERY: Duration = Duration::from_millis(500);
 /// Longest the exit waits for the service to withdraw the player's claim.
 const SHUTDOWN_WAIT: Duration = Duration::from_secs(2);
 /// `CS_PLAYERS`: the first player's configstring.
-const CS_PLAYERS: usize = 1131;
+pub(crate) const CS_PLAYERS: usize = 1131;
 /// Clients the legacy protocol numbers (0 to 31).
 const MAX_CLIENTS: usize = 32;
 
@@ -680,6 +680,36 @@ pub(crate) fn emote(id: String) -> bool {
     };
     service.emote(id);
     true
+}
+
+/// Ping `pos` (whole game units) for `scope` from the player's slot
+/// (`world_ping.rs`); false when the service has not started. What became of it
+/// arrives in [`ping_outcome`].
+pub(crate) fn ping(pos: [i32; 3], scope: &str) -> bool {
+    let runtime = lock();
+    let Some(service) = runtime.service.as_ref() else {
+        return false;
+    };
+    service.ping(pos, scope.to_owned());
+    true
+}
+
+/// What became of the player's last ping; `None` before one, or when the service has
+/// not started.
+pub(crate) fn ping_outcome() -> Option<sjk_identity::ReportOutcome> {
+    lock()
+        .service
+        .as_ref()
+        .and_then(sjk_identity::Service::ping_outcome)
+}
+
+/// The pings the feed received for `server` since the last call (none for another).
+pub(crate) fn take_pings(server: Option<SocketAddr>) -> Vec<sjk_identity::Ping> {
+    lock()
+        .service
+        .as_ref()
+        .map(|service| service.take_pings(server))
+        .unwrap_or_default()
 }
 
 /// Read the SJK chat; `None` when the service has not started. Keep `read` short.

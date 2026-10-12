@@ -345,6 +345,14 @@ const HELP: &[(&str, &str)] = &[
         "cg_nameplateNpcs",
         "Nameplates on NPCs with their class and health, such as Stormtrooper.",
     ),
+    (
+        crate::world_ping::SHOW_CVAR,
+        "Shows other SJK players' pings (+ping, middle mouse): your team's in team games, everyone's otherwise. Off hides them.",
+    ),
+    (
+        crate::world_ping::SOUND_CVAR,
+        "A short sound when a world ping appears, yours or another player's.",
+    ),
     ("cg_drawTimer", "Shows the match time."),
     (
         "cg_drawTimerUpperRight",

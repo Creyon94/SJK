@@ -145,6 +145,19 @@ pub trait Hub: Send {
             "this hub client does not send emotes".to_owned(),
         ))
     }
+    /// Mark `pos` (whole game units) for `scope` from the slot the identity claims on
+    /// `server` (`PROTOCOL.md`, "Pings"); the hub answers with the ping's feed id.
+    fn ping(
+        &mut self,
+        _identity: &Identity,
+        _server: &str,
+        _pos: [i32; 3],
+        _scope: &str,
+    ) -> Result<u64, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not send pings".to_owned(),
+        ))
+    }
     /// Wear `look` for the claim the identity holds on `server` (`PROTOCOL.md`,
     /// "Looks"); the hub answers with the feed id of its event.
     fn look(&mut self, _identity: &Identity, _server: &str, _look: &Look) -> Result<u64, HubError> {
@@ -1040,6 +1053,20 @@ impl Hub for HttpHub {
         answer["id"]
             .as_u64()
             .ok_or_else(|| HubError::Protocol("the emote answer has no id".to_owned()))
+    }
+
+    fn ping(
+        &mut self,
+        identity: &Identity,
+        server: &str,
+        pos: [i32; 3],
+        scope: &str,
+    ) -> Result<u64, HubError> {
+        let body = json!({ "server": server, "pos": pos, "scope": scope });
+        let answer = self.send(Some(identity), "POST", "/v1/ping", Some(body))?;
+        answer["id"]
+            .as_u64()
+            .ok_or_else(|| HubError::Protocol("the ping answer has no id".to_owned()))
     }
 
     fn look(&mut self, identity: &Identity, server: &str, look: &Look) -> Result<u64, HubError> {

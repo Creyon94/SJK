@@ -519,6 +519,27 @@ pub struct Emote {
     pub emote: String,
 }
 
+/// One ping on a game server (`PROTOCOL.md`, "Pings"): a point a player marked in the
+/// world. The slot and name come from the sender's claim; `scope` is the sender's own
+/// word for who should see it, which the reader checks against what its game shows.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct Ping {
+    /// Its id in the feed's sequence.
+    pub id: u64,
+    /// When the hub took it, unix seconds.
+    pub at: i64,
+    /// The sender's slot on the server, from their claim.
+    pub slot: u8,
+    /// The name the sender claimed the game shows there.
+    pub claimed_name: String,
+    /// The sender's key id.
+    pub key_id: String,
+    /// The point, in whole game units.
+    pub pos: [i32; 3],
+    /// Who the sender meant it for (`all`, `red`, `blue`, `lone`, `double`, `spec`).
+    pub scope: String,
+}
+
 /// The hub's answer to `GET /v1/feed` (`PROTOCOL.md`, "The feed").
 #[derive(Clone, Debug, Default, Deserialize, Eq, PartialEq)]
 pub struct Feed {
@@ -530,6 +551,9 @@ pub struct Feed {
     /// New emotes on the server asked about.
     #[serde(default)]
     pub emotes: Vec<Emote>,
+    /// New pings on the server asked about (absent from hubs older than pings).
+    #[serde(default)]
+    pub pings: Vec<Ping>,
     /// New looks on the server asked about (absent from hubs older than looks).
     #[serde(default)]
     pub looks: Vec<LookEvent>,
@@ -804,6 +828,22 @@ mod tests {
         assert_eq!(options.looks[0].look().saber_off, ["wisps"]);
         let quiet: Feed = serde_json::from_str(r#"{"next":3,"emotes":[]}"#).unwrap();
         assert!(quiet.looks.is_empty(), "an older hub sends no looks");
+    }
+
+    #[test]
+    fn a_feed_answer_with_pings_parses() {
+        let feed: Feed = serde_json::from_str(
+            r#"{"next":17,"pings":[{"id":17,"at":9,"slot":3,"claimed_name":"^2Sol",
+                "key_id":"aa","pos":[10,-20,30],"scope":"red"}]}"#,
+        )
+        .unwrap();
+        let ping = &feed.pings[0];
+        assert_eq!(
+            (ping.slot, ping.pos, ping.scope.as_str()),
+            (3, [10, -20, 30], "red")
+        );
+        let quiet: Feed = serde_json::from_str(r#"{"next":3}"#).unwrap();
+        assert!(quiet.pings.is_empty(), "an older hub sends no pings");
     }
 
     #[test]
