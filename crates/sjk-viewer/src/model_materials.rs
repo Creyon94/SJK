@@ -5,8 +5,8 @@
 //! shaders selected directly by cgame are present in that shared material
 //! table. Item overrides follow `cg_ents.c:2162-2197`; player force shells
 //! follow `cg_players.c:9673-9723,10857-11119`, and the shaders of
-//! `CG_DrawPlayerSphere` (`player_spheres.rs`) share the same table, as does SJK's
-//! player card outline (`card_outline.rs`).
+//! `CG_DrawPlayerSphere` (`player_spheres.rs`) share the same table, as do SJK's
+//! player outlines (`card_outline.rs`).
 
 use super::ViewerMaterial;
 
@@ -21,6 +21,25 @@ pub(crate) struct Overrides {
     force: [usize; 15],
     /// The player card outline's mask ([`crate::card_outline`]).
     pub(crate) card_outline: usize,
+    /// The team outlines' masks, teammates' and enemies'.
+    pub(crate) friend_outline: usize,
+    pub(crate) enemy_outline: usize,
+}
+
+impl Overrides {
+    /// The outline mask material of `group`.
+    pub(crate) const fn outline(&self, group: crate::card_outline::Group) -> usize {
+        match group {
+            crate::card_outline::Group::Card => self.card_outline,
+            crate::card_outline::Group::Friend => self.friend_outline,
+            crate::card_outline::Group::Enemy => self.enemy_outline,
+        }
+    }
+
+    /// Every outline mask material with the value its bodies write into the mask.
+    pub(crate) fn outline_groups(&self) -> [(usize, f64); 3] {
+        crate::card_outline::Group::ALL.map(|group| (self.outline(group), group.mask_value()))
+    }
 }
 
 /// Append or reuse the cgame entity-override materials before the shared Q3
@@ -32,7 +51,9 @@ pub(crate) fn append_overrides(materials: &mut Vec<ViewerMaterial>) -> Overrides
         dark_disabled: ensure(materials, "gfx/misc/mp_dark_enlight_disable"),
         disruptor_burn: ensure(materials, crate::disintegration::BURN_SHADER),
         force: [0; 15],
-        card_outline: ensure(materials, crate::card_outline::MASK_SHADER),
+        card_outline: ensure(materials, crate::card_outline::Group::Card.shader()),
+        friend_outline: ensure(materials, crate::card_outline::Group::Friend.shader()),
+        enemy_outline: ensure(materials, crate::card_outline::Group::Enemy.shader()),
     };
     for (slot, shader) in result.force.iter_mut().zip(FORCE_SHADERS) {
         *slot = ensure(materials, shader);

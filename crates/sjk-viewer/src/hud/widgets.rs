@@ -3,7 +3,7 @@
 use super::{HudLayout, WidgetData, text_id};
 use sjk_ui::{
     Color, DrawCommand, DrawList, FontWeight, Gradient, HudDataSource, HudWidget, HudWidgetKind,
-    Insets, Rect, TextAlign, TextId, TextOverflow, TextureId, Theme,
+    Rect, TextAlign, TextId, TextOverflow, TextureId, Theme,
 };
 
 pub(super) struct EmitContext<'a> {
@@ -20,8 +20,6 @@ pub(super) struct EmitContext<'a> {
     pub(super) low_health: bool,
     pub(super) low_ammo: bool,
     pub(super) pulse: f32,
-    pub(super) team_side: u8,
-    pub(super) team_len: usize,
     pub(super) crosshair_alpha: f32,
     pub(super) crosshair_teammate: bool,
     pub(super) lagometer: &'a sjk_client::LagometerSamples,
@@ -148,7 +146,10 @@ pub(super) fn emit(
             let rect = context.targeting.lagometer_rect(rect, context.viewport);
             emit_lagometer(draw_list, theme, widget, rect, samples, context)
         }
-        HudWidgetKind::Repeater => emit_team(draw_list, theme, widget, rect, context),
+        // The team overlay ("team_rows") was removed (Sol's request, 13/10/2026): team
+        // games show teammates by their logos and outlines instead. A repeater left in
+        // a `hud.json` with that or another binding draws nothing.
+        HudWidgetKind::Repeater => {}
         HudWidgetKind::Arc => super::radial::emit(draw_list, theme, widget, rect, context),
         HudWidgetKind::Image => {
             let _ = draw_list.push(DrawCommand::TexturedQuad {
@@ -283,117 +284,6 @@ fn emit_panel(draw_list: &mut DrawList, theme: Theme, widget: &HudWidget, rect: 
             color,
         });
     }
-}
-
-/// The team overlay's heading height and row pitch, at its own scale.
-const TEAM_HEADING: f32 = 44.0;
-const TEAM_ROW: f32 = 66.0;
-
-/// Bottom of the `rows` rows [`emit_team`] draws in `rect` at `scale` (the HUD's
-/// hero scale times `cg_drawTeamOverlayScale`).
-pub(super) fn team_bottom(rect: Rect, scale: f32, rows: usize) -> f32 {
-    rect.y + (TEAM_HEADING + rows as f32 * TEAM_ROW) * scale
-}
-
-fn emit_team(
-    draw_list: &mut DrawList,
-    theme: Theme,
-    _widget: &HudWidget,
-    rect: Rect,
-    context: &EmitContext<'_>,
-) {
-    let s = context.hero_scale * context.family.team[2];
-    let rect = Rect::new(rect.right() - 640.0 * s, rect.y, 640.0 * s, 580.0 * s);
-    let _ = draw_list.push(DrawCommand::Text {
-        rect: rect.inset(Insets::all(theme.spacing.sm)),
-        text: TextId(100),
-        size: 26.0 * s,
-        color: theme.muted,
-        align: TextAlign::Start,
-        overflow: TextOverflow::Clip,
-        weight: FontWeight::Semibold,
-        letter_spacing: 1.2,
-    });
-    let accent = if context.team_side == 1 {
-        Color::new(0.98, 0.25, 0.20, 1.0)
-    } else {
-        Color::new(0.20, 0.55, 1.0, 1.0)
-    };
-    for row in 0..context.team_len {
-        let row_y = rect.y + TEAM_HEADING * s + row as f32 * TEAM_ROW * s;
-        let _ = draw_list.push(DrawCommand::RoundedRect {
-            rect: Rect::new(rect.x + 8.0 * s, row_y, 3.0 * s, 56.0 * s),
-            radius: 1.5,
-            color: accent,
-        });
-        emit_team_text(
-            draw_list,
-            Rect::new(rect.x + 20.0 * s, row_y, rect.width * 0.65, 28.0 * s),
-            TextId(101 + row as u32),
-            26.0 * s,
-            theme.foreground,
-            FontWeight::Semibold,
-            TextAlign::Start,
-        );
-        emit_team_text(
-            draw_list,
-            Rect::new(
-                rect.x + 20.0 * s,
-                row_y + 28.0 * s,
-                rect.width - 28.0 * s,
-                18.0 * s,
-            ),
-            TextId(111 + row as u32),
-            18.0 * s,
-            theme.muted,
-            FontWeight::Regular,
-            TextAlign::Start,
-        );
-        emit_team_text(
-            draw_list,
-            Rect::new(
-                rect.x + 20.0 * s,
-                row_y + 46.0 * s,
-                rect.width - 28.0 * s,
-                18.0 * s,
-            ),
-            TextId(131 + row as u32),
-            18.0 * s,
-            theme.muted,
-            FontWeight::Regular,
-            TextAlign::Start,
-        );
-        emit_team_text(
-            draw_list,
-            Rect::new(rect.right() - 180.0 * s, row_y, 172.0 * s, 24.0 * s),
-            TextId(121 + row as u32),
-            24.0 * s,
-            theme.muted,
-            FontWeight::Semibold,
-            TextAlign::End,
-        );
-    }
-}
-
-fn emit_team_text(
-    draw_list: &mut DrawList,
-    rect: Rect,
-    text: TextId,
-    size: f32,
-    color: Color,
-    weight: FontWeight,
-    align: TextAlign,
-) {
-    let _ = draw_list.push(DrawCommand::Text {
-        rect,
-        text,
-        size,
-        color,
-        align,
-        overflow: TextOverflow::Ellipsis,
-        weight,
-        letter_spacing: 0.0,
-    });
 }
 
 #[cfg(test)]

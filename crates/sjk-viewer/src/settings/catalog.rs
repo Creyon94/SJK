@@ -231,11 +231,6 @@ pub(super) const HUD_OPTIONS: &[Setting] = &[
         },
     },
     Setting {
-        label: "Team status",
-        cvar: "cg_drawTeamOverlay",
-        kind: ValueKind::Bool,
-    },
-    Setting {
         label: "Speedometer",
         cvar: "cg_speedometer",
         kind: ValueKind::Bool,
@@ -345,7 +340,7 @@ pub(super) const HUD: &[Setting] = &[
         },
     },
     Setting {
-        label: "Ally markers",
+        label: "Team logos",
         cvar: "cg_drawFriend",
         kind: ValueKind::Bool,
     },
@@ -366,6 +361,11 @@ pub(super) const HUD: &[Setting] = &[
     Setting {
         label: "Card outline",
         cvar: "cg_playerCardOutline",
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Team outlines",
+        cvar: crate::hud::team_outline::CVAR,
         kind: ValueKind::Bool,
     },
     Setting {

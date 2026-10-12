@@ -37,8 +37,6 @@ pub(super) struct WidgetData<'a> {
     /// Retail's weapon selection row shows; it draws the weapon name itself, so the
     /// layouts' own weapon-name widgets step aside. Ammunition never does.
     pub(super) weapon_row: bool,
-    /// team len binding supplied by the owning HUD.
-    pub(super) team_len: usize,
     /// vote active binding supplied by the owning HUD.
     pub(super) vote_active: bool,
     /// team vote active binding supplied by the owning HUD.
@@ -110,7 +108,6 @@ impl HudDataSource for WidgetData<'_> {
                     && self.saber_style.is_some(),
             ),
             "draw_crosshair" => Some(self.visibility.crosshair),
-            "draw_team" => Some(self.visibility.team_overlay && self.team_len != 0),
             "draw_vote" => Some(self.visibility.hud && (self.vote_active || self.team_vote_active)),
             "draw_crosshair_name" => Some(self.visibility.crosshair_names && self.crosshair_name),
             "draw_timer" => Some(self.visibility.timer && self.timer),
@@ -147,13 +144,6 @@ pub(super) fn load_override(path: &Path) -> Option<HudLayoutDocument> {
     let source = std::fs::read_to_string(path).ok()?;
     let document = HudLayoutDocument::from_json(&source).ok()?;
     (document.version == 1 && document.widgets.len() <= WIDGET_LIMIT).then_some(document)
-}
-
-pub(super) fn localized_location<'a>(localization: &'a Localization, location: &'a str) -> &'a str {
-    let Some(key) = location.strip_prefix('@') else {
-        return location;
-    };
-    localization.strings.get(key).map_or(key, String::as_str)
 }
 
 pub(super) fn client_name_and_team(
@@ -194,31 +184,4 @@ pub(super) fn parse_client_info(bytes: &[u8]) -> Option<(std::borrow::Cow<'_, st
     // Latin-1, not UTF-8 with replacement marks: a name byte above 0x7F is the character of
     // that value in JKA's font, so lossy conversion rendered `Mara\xf1` as `Marai¿½`.
     Some((sjk_client::decode_legacy(name?), team))
-}
-
-pub(super) fn format_team_row(target: &mut String, name: &str, location: &str, entry: TeamInfo) {
-    use std::fmt::Write as _;
-    target.clear();
-    let _ = write!(
-        target,
-        "^7{name:<18.18} ^3{location:<20.20} ^7{:>3} / {:>3}",
-        entry.health, entry.armor
-    );
-}
-
-pub(super) fn format_team_parts(
-    name_target: &mut String,
-    location_target: &mut String,
-    stats_target: &mut String,
-    name: &str,
-    location: &str,
-    entry: TeamInfo,
-) {
-    use std::fmt::Write as _;
-    name_target.clear();
-    location_target.clear();
-    stats_target.clear();
-    name_target.push_str(name);
-    location_target.push_str(location);
-    let _ = write!(stats_target, "{} / {}", entry.health, entry.armor);
 }

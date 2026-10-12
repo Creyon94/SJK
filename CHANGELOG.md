@@ -23,6 +23,15 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+> Team games: Red outlines on enemies, green on teammates, your team's logo over their heads, and no more team overlay.
+
+- Team games: enemies get a thin red outline and teammates a green one, only where you can see them; Settings > HUD+ > Team outlines (`cg_teamOutline`, on by default) _(Sol)_
+- Team logos over your teammates' heads, as JoF EJK floats them: the Imperial or Rebel logo, readable at any range and hidden behind walls, under the nameplate; Settings > HUD+ > Team logos (`cg_drawFriend`) _(Sol, after JoF EJK)_
+- The player card's outline is half as thick _(Sol)_
+- The team status overlay at the top right is gone, with `cg_drawTeamOverlay` _(Sol)_
+
 ## 2026.1013.1 (Alpha) | 13/10/2026
 
 Settings in two modes, Simple and Advanced, with new holocron icons and the choice of Vanilla or the SJK renderer, trading cards with faces, a character creator of tiles, and chat in Russian, Japanese, Chinese, Korean and emoji.

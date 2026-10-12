@@ -1,5 +1,23 @@
 # Status and priorities
 
+## Team outlines and logos
+
+Branch `personal/team-outline` (13/10/2026), Sol's request: the player card's ring at
+half its width (2 pixels of a 1080-line screen, 4 at 2160, from 4 and 8), the same ring
+in team games around every enemy in red and every teammate in green (`cg_teamOutline`),
+the team logos over allies' heads as JoF EJK floats them, readable and hidden behind
+walls (`cg_drawFriend`, a small coloured square before), and no team overlay at the top
+right (`cg_drawTeamOverlay` and its position settings unregistered). The outline mask
+holds each body's group and the ring is drawn only in merged boxes around the outlined
+players. See [client.md](client.md#team-outlines-and-logos). Verified: unit tests (the
+groups' mask values against the ring's thresholds, scissor merging, the ring's width,
+who is outlined in which game type, the logos' rules and sizes, the settings tests),
+naga validation of the ring program, and the ignored world shots
+`card_outline_on_a_demo` and `team_outlines_on_a_demo` (a CTF game staged over Sol's
+FFA demo: green and red rings, the Imperial logo under the nameplate, the card's ring
+winning on its player) looked at. Not tried in a game; the frame cost on a full server
+is unmeasured.
+
 ## SJK Symbols
 
 Branch `personal/sjk-symbols` (13/10/2026), Sol's request: coloured special characters to
@@ -6369,7 +6387,8 @@ settings Sol had chosen into defaults for a new profile: the classic scoreboard
 the modern one) and the retail fonts (`ui_gameFont`) to go with the classic menus
 and console; the match timer and team overlay on (`cg_drawTimer`,
 `cg_drawTeamOverlay`; the overlay draws only for a player on the red or blue
-team, so free-for-all is unchanged); cut-off limbs shown (`cg_dismember 2`);
+team, so free-for-all is unchanged; the overlay was removed on 13/10/2026, see
+[Team outlines and logos](#team-outlines-and-logos)); cut-off limbs shown (`cg_dismember 2`);
 `snaps` 120, with the Settings slider raised from 60 to 125 so the default lies
 on it; and a 30 FPS cap while the window has no focus (`com_maxfpsUnfocused`).
 Saved `config.cfg` values still win; nothing is migrated. The values were chosen

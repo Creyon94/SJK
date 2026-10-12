@@ -9,6 +9,7 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
     super::identification::register(cvars)?;
     super::player_card::register(cvars)?;
     super::nameplate::register(cvars)?;
+    super::team_outline::register(cvars)?;
     super::tints::register(cvars)?;
     super::enemy_info::register(cvars)?;
     cvars.register(CvarDefinition::new(

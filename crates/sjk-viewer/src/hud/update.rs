@@ -6,12 +6,10 @@ impl HudOverlay {
     pub(crate) fn update(
         &mut self,
         session: &ClientSession,
-        localization: &Localization,
         time_ms: u64,
         predicted: Option<&MovementState>,
         console: Option<&ViewerConsole>,
     ) -> ClientHudData {
-        self.update_team_overlay(session, localization);
         let player = &session.latest_snapshot().player;
         self.guides.update(player, predicted, console);
         self.speed
@@ -132,42 +130,5 @@ impl HudOverlay {
             }
         }
         self.values = Some(values);
-    }
-
-    fn update_team_overlay(&mut self, session: &ClientSession, localization: &Localization) {
-        let revision = session.team_info().revision();
-        let team_side = session.latest_snapshot().player.team();
-        self.team_revision = revision;
-        self.team_side = team_side;
-        self.team_len = 0;
-        if !matches!(team_side, 1 | 2) {
-            return;
-        }
-        for entry in session.team_info().entries().iter().take(8) {
-            let (name, side) =
-                client_name_and_team(session.game_state(), u16::from(entry.client_num));
-            if side != team_side {
-                continue;
-            }
-            let location = localized_location(
-                localization,
-                legacy_team_location(session.game_state(), entry.location),
-            );
-            format_team_row(&mut self.team_rows[self.team_len], &name, location, *entry);
-            format_team_parts(
-                &mut self.team_names[self.team_len],
-                &mut self.team_locations[self.team_len],
-                &mut self.team_stats[self.team_len],
-                &name,
-                location,
-                *entry,
-            );
-            family::gear(
-                &mut self.team_gear[self.team_len],
-                *entry,
-                self.family.team_weapons,
-            );
-            self.team_len += 1;
-        }
     }
 }

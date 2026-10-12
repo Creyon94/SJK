@@ -103,6 +103,11 @@ impl Icons {
         (item != 0).then(|| self.handles[item]).flatten()
     }
 
+    /// The loaded picture of team logo `logo`, if any.
+    pub(crate) fn team_logo(&self, logo: super::team_logo::Logo) -> Option<TextureId> {
+        self.handles[assets::TEAM_LOGO_FIRST + logo as usize]
+    }
+
     /// The loaded cause-of-death picture of `means` (`meansOfDeath_t`): an icon
     /// pack's `hud/mod/*`, else the picture of the weapon that deals it.
     pub(crate) fn means(&self, means: u8) -> Option<TextureId> {

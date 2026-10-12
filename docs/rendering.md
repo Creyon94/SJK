@@ -2567,7 +2567,7 @@ font, following OpenJK `codemp`:
 | --- | --- | --- |
 | `ergoec` (`FONT_MEDIUM`) | SJK Menu | Menus, crosshair name, centre prints, warmup text, match timer, enemy info, scoreboard names and headings |
 | `ocr_a` (`FONT_SMALL`) | SJK Chat | Chat box and typing line, weapon/Force/inventory selection names, scoreboard numbers |
-| Console character set (`gfx/2d/charsgrid_med`) | JetBrains Mono | Console and notify lines, FPS, snapshot, vote, team overlay, connection interrupted |
+| Console character set (`gfx/2d/charsgrid_med`) | JetBrains Mono | Console and notify lines, FPS, snapshot, vote, connection interrupted |
 
 The routing is per text run: the HUD maps its text ids in
 [text_values.rs](../crates/sjk-viewer/src/hud/text_values.rs), chat marks its

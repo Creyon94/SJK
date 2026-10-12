@@ -23,6 +23,8 @@ pub(crate) mod portrait;
 mod radial;
 mod selection;
 pub(crate) mod targeting;
+pub(crate) mod team_logo;
+pub(crate) mod team_outline;
 mod text_values;
 pub(crate) mod tints;
 mod update;
@@ -32,13 +34,12 @@ mod vitals_estimate;
 mod vote;
 mod widgets;
 
-use super::{Localization, TextVertex, UiFont};
+use super::{TextVertex, UiFont};
 use crate::game_font::RetailFont;
 use crate::{console::ViewerConsole, ui_renderer};
 use sjk_client::pmove::MovementState;
 use sjk_client::{
-    ClientSession, HudDataSource as ClientHudData, TeamInfo, legacy_hud_data,
-    legacy_predicted_hud_data, legacy_team_location,
+    ClientSession, HudDataSource as ClientHudData, legacy_hud_data, legacy_predicted_hud_data,
 };
 use sjk_protocol::{GameState, PlayerState};
 use sjk_ui::{
@@ -79,8 +80,6 @@ pub(crate) struct HudVisibility {
     pub(crate) crosshair_names: bool,
     pub(crate) timer: bool,
     pub(crate) lagometer: bool,
-    /// Team-status visibility, independent of the other HUD widgets.
-    pub(crate) team_overlay: bool,
     /// The third-person ground HUD stands in for health, shield, Force and
     /// stance this frame (`crate::ground_hud`), so those widgets hide.
     pub(crate) ground_hud: bool,
@@ -109,11 +108,6 @@ impl HudVisibility {
             crosshair_names: hud && enabled("cg_drawCrosshairNames", true),
             timer: hud && enabled("cg_drawTimer", true),
             lagometer: hud && enabled("cg_lagometer", false),
-            team_overlay: hud
-                && console
-                    .and_then(|c| c.integer_cvar("cg_drawteamoverlay"))
-                    .unwrap_or(1)
-                    > 0,
             ground_hud: false,
             menu_hud: false,
         }
@@ -128,7 +122,6 @@ impl HudVisibility {
         crosshair_names: false,
         timer: false,
         lagometer: false,
-        team_overlay: false,
         ground_hud: false,
         menu_hud: false,
     };
@@ -145,6 +138,10 @@ pub(crate) struct HudOverlay {
     pub(crate) card: player_card::State,
     /// MMO-style nameplates, drawn in the classic font; they replace the labels above.
     pub(crate) nameplate: nameplate::State,
+    /// Team logos over allies' heads, under the labels and nameplates.
+    pub(crate) team_logo: team_logo::State,
+    /// Who the team outlines ring this frame.
+    pub(crate) team_outline: team_outline::State,
     guides: movement::Guides,
     family: family::Policy,
     pub(crate) targeting: targeting::State,
@@ -189,14 +186,6 @@ pub(crate) struct HudOverlay {
     /// Retail's weapon selection row (`crate::weapon_select`) and its names.
     pub(crate) weapon_select: crate::weapon_select::State,
     weapon_alpha: f32,
-    team_revision: u64,
-    team_side: u8,
-    team_rows: [String; 8],
-    team_names: [String; 8],
-    team_locations: [String; 8],
-    team_stats: [String; 8],
-    team_gear: [String; 8],
-    team_len: usize,
     vote_active: bool,
     team_vote_active: bool,
     vote_heading: String,
@@ -288,6 +277,8 @@ impl HudOverlay {
             identification: identification::State::default(),
             card: player_card::State::default(),
             nameplate: nameplate::State::default(),
+            team_logo: team_logo::State::default(),
+            team_outline: team_outline::State::default(),
             score_text: String::with_capacity(80),
             snapshot_text: String::with_capacity(96),
 
@@ -315,14 +306,6 @@ impl HudOverlay {
             flamethrower: Default::default(),
             flamethrower_shown: false,
 
-            team_revision: 0,
-            team_side: 0,
-            team_rows: std::array::from_fn(|_| String::with_capacity(96)),
-            team_names: std::array::from_fn(|_| String::with_capacity(32)),
-            team_locations: std::array::from_fn(|_| String::with_capacity(32)),
-            team_stats: std::array::from_fn(|_| String::with_capacity(16)),
-            team_gear: std::array::from_fn(|_| String::with_capacity(256)),
-            team_len: 0,
             vote_active: false,
             team_vote_active: false,
             vote_heading: String::with_capacity(64),
@@ -434,7 +417,6 @@ impl HudOverlay {
             saber_style: self.values.and_then(|values| values.saber_style),
             weapon_alpha: self.weapon_alpha,
             weapon_row: self.weapon_select.shown.is_some(),
-            team_len: self.team_len,
             vote_active: self.vote_active,
             team_vote_active: self.team_vote_active,
             crosshair_name: !self.crosshair_name.is_empty(),
@@ -473,8 +455,6 @@ impl HudOverlay {
                 z: widget.layer,
             });
         }
-        let upper_right_bottom =
-            self.upper_right_stack()[2] * crate::ui_scale::height_scale(viewport[1]);
         let rectangles = LayoutEngine.layout(
             &self.tree,
             LayoutContext {
@@ -520,25 +500,11 @@ impl HudOverlay {
             if !visible[index] {
                 continue;
             }
-            let rect = if widget.binding.as_deref() == Some("team_rows") {
-                let mut rect = self.family.team_rect(*rect, viewport);
-                if self.family.team[1] == 0.0 {
-                    rect.y = rect.y.max(upper_right_bottom);
-                }
-                top_right = top_right.max(widgets::team_bottom(
-                    rect,
-                    hero_scale * self.family.team[2],
-                    self.team_len,
-                ));
-                rect
-            } else {
-                *rect
-            };
             widgets::emit(
                 &mut self.draw_list,
                 self.theme,
                 widget,
-                rect,
+                *rect,
                 &widgets::EmitContext {
                     data: &data,
                     family: self.family,
@@ -549,8 +515,6 @@ impl HudOverlay {
                     low_health,
                     low_ammo,
                     pulse,
-                    team_side: self.team_side,
-                    team_len: self.team_len,
                     crosshair_alpha: self.crosshair_alpha,
                     crosshair_teammate: self.crosshair_teammate,
                     lagometer: &self.lagometer,

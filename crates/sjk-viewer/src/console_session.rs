@@ -185,9 +185,8 @@ impl ViewerConsole {
         let socket = super::socket::State::bind(&mut cvars)?;
         let userinfo_dirty = Arc::new(AtomicBool::new(true));
         let overlay_dirty = Arc::clone(&userinfo_dirty);
-        // Nameplate bars for teammates read the team overlay's `tinfo` too.
+        // Nameplate bars for teammates read the server's team overlay data (`tinfo`).
         for name in [
-            "cg_drawTeamOverlay",
             "cg_nameplate",
             "cg_nameplateBars",
             sjk_client::PLUGIN_IDENTITY_KEY,
@@ -661,9 +660,8 @@ impl ViewerConsole {
                     .update_userinfo_options(
                         &userinfo,
                         Some(
-                            self.integer_cvar("cg_drawTeamOverlay").unwrap_or(0) > 0
-                                || (self.bool_cvar("cg_nameplate").unwrap_or(false)
-                                    && self.integer_cvar("cg_nameplateBars").unwrap_or(0) > 0),
+                            self.bool_cvar("cg_nameplate").unwrap_or(false)
+                                && self.integer_cvar("cg_nameplateBars").unwrap_or(0) > 0,
                         ),
                         now,
                     )

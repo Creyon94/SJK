@@ -16,8 +16,9 @@ use glam::Vec3;
 use std::ops::Range;
 
 const MAX_ENTITY_DRAWS: usize = 16_384;
-/// Surfaces of the one outlined body (player models have a few dozen).
-const OUTLINE_DRAWS: usize = 256;
+/// Surfaces of the outlined bodies: the card's player and every team-outlined one
+/// (player models have a few dozen surfaces each).
+const OUTLINE_DRAWS: usize = 2_048;
 
 /// One extra entity draw of an existing mesh: a cgame custom shader replacing
 /// every surface shader, or the surfaces' own shaders drawn with forced alpha.
@@ -83,7 +84,7 @@ impl Submission {
 pub(crate) struct Queue {
     opaque: Vec<Draw>,
     blended: Vec<Draw>,
-    /// The player card outline's mask draws, kept out of every scene pass
+    /// The player outlines' mask draws, kept out of every scene pass
     /// (`card_outline.rs`).
     outline: Vec<Draw>,
     dropped: usize,
@@ -100,7 +101,8 @@ impl Queue {
     }
 
     /// Rebuild draw references without cloning meshes or growing storage. Overrides
-    /// drawn with `outline` (the card outline's mask material) go to [`Self::outline`].
+    /// drawn with one of `outlines` (the player outlines' mask materials) go to
+    /// [`Self::outline`].
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn rebuild(
         &mut self,
@@ -112,7 +114,7 @@ impl Queue {
         overrides: &[OverrideRange],
         instances: &[ActorInstance],
         camera: Vec3,
-        outline: usize,
+        outlines: [usize; 3],
     ) {
         self.opaque.clear();
         self.blended.clear();
@@ -152,7 +154,10 @@ impl Queue {
             let Some((draws, visible)) = draws else {
                 continue;
             };
-            if entry.material == Some(outline) {
+            if let Some(outline) = entry
+                .material
+                .filter(|material| outlines.contains(material))
+            {
                 for (index, surface) in draws.iter().enumerate() {
                     if visible.get(index).copied().unwrap_or(true)
                         && self.outline.len() < self.outline.capacity()
@@ -292,7 +297,8 @@ impl Queue {
         &self.blended
     }
 
-    /// The card outline's mask draws: the body's visible surfaces, one instance.
+    /// The player outlines' mask draws: each body's visible surfaces, one instance each,
+    /// with its group's mask material.
     pub(crate) fn outline(&self) -> &[Draw] {
         &self.outline
     }

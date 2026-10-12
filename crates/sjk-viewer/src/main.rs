@@ -514,7 +514,7 @@ struct GpuState {
     field_of_view: f32,
     scope: scope::Zoom,
     scope_mask: Option<scope::Mask>,
-    /// The player card outline's mask and ring (`card_outline.rs`).
+    /// The player outlines' mask and rings, the card's and the teams' (`card_outline.rs`).
     card_outline: card_outline::Gpu,
     /// The classic console's background, bar and text, drawn over all other 2D.
     console_layer: console_backdrop::ConsoleLayer,
@@ -2032,6 +2032,7 @@ impl GpuState {
                 .map(menu::ClientMenu::world_fade),
             self.world_notes.fill(),
             self.world_notes.highlight(),
+            information_visible.then(|| &self.hud.team_logo.list),
             information_visible.then(|| &self.hud.nameplate.list),
             information_visible.then(|| &self.hud.identification.list),
             information_visible.then(|| &self.hud.card.list),
@@ -2313,6 +2314,7 @@ impl GpuState {
             &self.device,
             &self.queue,
             self.hud.card.outline().map(|(_, frame)| frame),
+            self.hud.team_outline.areas(),
             [depth_size.width, depth_size.height],
             [self.configuration.width, self.configuration.height],
         );
@@ -2497,7 +2499,8 @@ impl GpuState {
             &self.pickup_override_ranges,
             actor_instances,
             self.camera_position,
-            self.model_material_overrides.card_outline,
+            crate::card_outline::Group::ALL
+                .map(|group| self.model_material_overrides.outline(group)),
         );
         self.saber_gpu.prepare(
             &self.queue,

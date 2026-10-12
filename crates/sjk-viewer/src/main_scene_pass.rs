@@ -258,8 +258,9 @@ impl GpuState {
 }
 
 impl GpuState {
-    /// Draw the inspected player's body into the card outline's mask, against the
-    /// finished scene depth (`card_outline.rs`). Cleared even with no body this frame.
+    /// Draw the outlined bodies (the inspected player's, the team outlines') into the
+    /// outlines' mask, against the finished scene depth (`card_outline.rs`). Cleared
+    /// even with no body this frame.
     fn encode_card_outline_mask(
         &self,
         encoder: &mut wgpu::CommandEncoder,
@@ -302,8 +303,12 @@ impl GpuState {
             visibility: self.bsp.render().visibility(),
             entities: &[],
         };
-        self.world_materials
-            .draw_card_outline_mask(&mut pass, &frame, draws);
+        self.world_materials.draw_card_outline_mask(
+            &mut pass,
+            &frame,
+            draws,
+            &self.model_material_overrides.outline_groups(),
+        );
     }
 }
 
