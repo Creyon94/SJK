@@ -156,6 +156,10 @@ pub(crate) fn deliver_events(state: &mut GpuState, audio: &mut Option<GameAudio>
             .first_person_view
             .view
             .observe_predicted_event(event, time, &snapshot.player);
+        // The muzzle flash starts with the predicted shot, as its sound does.
+        state
+            .muzzle_effects
+            .observe_predicted(event.client, event.sequence, event.event, time);
         if let Some(audio) = audio {
             audio.observe_predicted_event(event, snapshot);
         }
