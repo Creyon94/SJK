@@ -1,7 +1,8 @@
-//! Classic+ search over every setting of Settings' OPTIONS tab: the rows of
-//! each OPTIONS group in the group list's order, each with its group's name,
-//! so a search shows its results under their groups' headings and the detail
-//! box can say where a setting lives.
+//! Search over every setting, in both of the SJK UI's modes and the classic+
+//! panels: the rows of each of Advanced's categories in the rail's order (the
+//! renderer's tabs under Graphics), each with its category's name, so a search
+//! shows its results under their categories' headings and the detail box can
+//! say where a setting lives.
 
 use super::catalog::*;
 use super::{Group, help, settings};
@@ -18,19 +19,21 @@ fn searchable() -> &'static Searchable {
     SEARCHABLE.get_or_init(|| {
         let tab =
             |caption: &str| settings(TABS.iter().position(|tab| *tab == caption).unwrap_or(0));
-        let sources: [(&'static str, &'static [Setting]); 13] = [
-            ("Video", tab("VIDEO")),
+        let sources: [(&'static str, &'static [Setting]); 14] = [
+            ("Display", Group::Display.rows()),
+            // The renderer and the Video rows Display leaves to Graphics.
+            ("Graphics", tab("VIDEO")),
+            ("Graphics: image", RENDER_IMAGE),
+            ("Graphics: lighting", RENDER_LIGHTING),
+            ("Graphics: shadows", RENDER_SHADOWS),
+            ("Graphics: weather", RENDER_WEATHER),
             ("Sound", tab("AUDIO")),
-            ("Mouse", tab("CONTROLS")),
-            ("Game options", Group::GameOptions.rows()),
+            ("Controls", tab("CONTROLS")),
+            ("Gameplay", Group::GameOptions.rows()),
             ("Interface", Group::Interface.rows()),
             ("HUD", Group::Hud.rows()),
             ("Scoreboard", Group::Scoreboard.rows()),
-            ("Network", tab("NETWORK")),
-            ("Renderer: image", RENDER_IMAGE),
-            ("Renderer: lighting", RENDER_LIGHTING),
-            ("Renderer: shadows", RENDER_SHADOWS),
-            ("Weather", RENDER_WEATHER),
+            ("Network", Group::Network.rows()),
             // Its rows are the others' but for its own last one.
             ("First setup", Group::Quick.rows()),
         ];
@@ -126,7 +129,10 @@ mod tests {
     #[test]
     fn results_sit_under_their_groups() {
         let lines = lines("fov");
-        assert_eq!(lines[0], super::super::Line::Heading("Video"));
+        assert_eq!(lines[0], super::super::Line::Heading("Display"));
+        // The renderer is Graphics'.
+        let renderer = super::lines("renderer");
+        assert!(renderer.contains(&super::super::Line::Heading("Graphics")));
         assert!(lines.iter().any(|line| matches!(
             line,
             super::super::Line::Row(row) if rows()[*row].cvar == "cg_fov"

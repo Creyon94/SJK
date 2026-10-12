@@ -33,7 +33,7 @@ fn graphics_reload_menu() {
 
         // EJK, as the switch sets it: the card offers the reload on the main menu.
         if let Some(console) = gpu.console.as_mut() {
-            crate::graphics_quality::Level::Ejk.apply(console);
+            crate::graphics_quality::Level::Vanilla.apply(console);
         }
         shoot(&mut gpu, 4, "graphics-reload-card");
         assert!(gpu.graphics_reload.card.is_open(), "the card shows");
@@ -166,7 +166,7 @@ fn graphics_reload_on_server() {
         let server = gpu.live_session.as_ref().map(|s| s.server().to_string());
 
         if let Some(console) = gpu.console.as_mut() {
-            crate::graphics_quality::Level::Ejk.apply(console);
+            crate::graphics_quality::Level::Vanilla.apply(console);
         }
         queue(&mut gpu, "vid_restart");
         until(&mut gpu, &mut parked, size, 120, "ffa3 reloaded", |gpu| {

@@ -60,6 +60,15 @@ Sol develops SJK and sets its direction. Sol's work includes:
   table with every chance; credits will buy droppable cosmetics as a fix for bad
   luck (Sol's design, 12/10/2026); opening stays with the SJK team while it is
   tested, until the hub opens it to everyone;
+- card faces (12/10/2026): cards picked by the hub drawn as trading cards from a card
+  pack the hub serves, revealing sealed cards, and the first card, "Sol and Toxiee
+  on JoF Memorial" (art and words by Sol);
+- hover cards in the Collection: how every medal, achievement, shader, toy, card
+  and holocron tier is obtained (Sol's request, 12/10/2026);
+- Settings in two modes, Simple (the settings that matter most) and Advanced
+  (every setting, regrouped), Ctrl+F and F3 for its search, named choices, the
+  renderer choice of Vanilla (a new profile's) or the SJK renderer in alpha, and
+  anonymous settings usage to make Settings clearer (Sol's request, 12/10/2026);
 - the radial HUD (`cg_hudStyle radial`, after TheRisqe's Radial HUD) and the
   HUD meters' overheal bands;
 - nameplates with estimated health, shield and Force, held-weapon and Force

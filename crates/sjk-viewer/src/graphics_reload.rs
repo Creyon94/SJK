@@ -1,7 +1,7 @@
 //! The graphics reload (`docs/rendering.md`, "Graphics reload"): the settings the
 //! renderer reads only when its graphics context is made (scene HDR, FXAA,
 //! supersampling, sun and sky, sun shadows, light shafts, material maps, reflection
-//! probes and texture filtering, so the EJK graphics switch and the graphics quality
+//! probes and texture filtering, so the renderer choice and the graphics quality
 //! levels too) apply without restarting SJK.
 //!
 //! The device, window and surface stay; a new [`Context`] on them reads those settings
@@ -440,7 +440,7 @@ mod tests {
     fn ejk_names_what_it_turns_off() {
         let (_directory, mut console) = console();
         let before = Startup::read(&console, 16);
-        crate::graphics_quality::Level::Ejk.apply(&mut console);
+        crate::graphics_quality::Level::Vanilla.apply(&mut console);
         let changes = before.changes(Startup::read(&console, 16));
         for name in [
             "HDR",

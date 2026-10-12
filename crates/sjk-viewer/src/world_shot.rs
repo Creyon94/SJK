@@ -1141,6 +1141,7 @@ Found the fog bug, ask me about it!"
         };
         let snapshot = sjk_identity::Snapshot {
             opening: None,
+            reveal: None,
             status: sjk_identity::Status::Online,
             key_id: me.key_id.clone(),
             local_key_id: me.key_id.clone(),

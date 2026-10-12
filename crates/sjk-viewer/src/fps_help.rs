@@ -1,8 +1,8 @@
 //! The low-FPS help (`docs/client.md`, "Low FPS help"): SJK's real-time lighting is
-//! most of what a heavy map costs, and EJK graphics turn it off. A few seconds after
+//! most of what a heavy map costs, and Vanilla graphics turn it off. A few seconds after
 //! a server's map is in, the GPU times of some frames ([`crate::gpu_phases`]) say
 //! whether the frame misses the player's FPS target with the lighting a large part of
-//! it; then a card over the game menu ([`card`]) offers EJK graphics, once per map,
+//! it; then a card over the game menu ([`card`]) offers Vanilla graphics, once per map,
 //! until the player ticks "Don't suggest this again" (`cg_fpsHelp 0`). `help_fps`
 //! opens the same card at any time, with this map's numbers when it has them.
 
@@ -16,7 +16,7 @@ pub(crate) mod card;
 pub(crate) const COMMAND: &str = "help_fps";
 /// Help text for completion and `cmdlist`.
 pub(crate) const HELP: &str =
-    "Low FPS? Shows what SJK's lighting costs here and offers EJK graphics";
+    "Low FPS? Shows what SJK's lighting costs here and offers Vanilla graphics";
 /// Whether the card is offered when a map's lighting is heavy.
 pub(crate) const CVAR: &str = "cg_fpsHelp";
 
@@ -92,9 +92,9 @@ impl crate::GpuState {
         let wanted = console
             .and_then(|console| console.bool_cvar(CVAR))
             .unwrap_or(true);
-        let ejk = console.is_some_and(crate::graphics_quality::ejk);
+        let vanilla = console.is_some_and(crate::graphics_quality::vanilla);
         let card_open = self.fps_card.wants();
-        let checking = on_map && wanted && !ejk && !self.fps_help.checked;
+        let checking = on_map && wanted && !vanilla && !self.fps_help.checked;
         phases.watch(checking || card_open);
         if card_open {
             if let Some(sample) = phases.take_sample() {
@@ -141,7 +141,7 @@ impl crate::GpuState {
             sample.light_ms,
             finding.target_fps,
             if heavy {
-                "EJK graphics offered"
+                "Vanilla graphics offered"
             } else {
                 "fine"
             }

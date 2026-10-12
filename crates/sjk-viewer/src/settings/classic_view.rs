@@ -284,6 +284,7 @@ impl SettingsMenu {
         if search == self.search && !search.is_empty() {
             return;
         }
+        self.search_moves(&search);
         self.search = search;
         self.dropdown = None;
         self.editing = None;
@@ -343,12 +344,12 @@ impl SettingsMenu {
                     .map(Pick::Mode)
                     .collect()
             }
-            ValueKind::Quality => Level::ALL.into_iter().map(Pick::Quality).collect(),
+            ValueKind::Quality => Level::SJK.into_iter().map(Pick::Quality).collect(),
             _ => return false,
         };
         let current = match setting.kind {
             ValueKind::Choice(values) => {
-                let value = console.cvar(setting.cvar).map(CvarValue::as_text);
+                let value = super::choice_value(console, setting.cvar);
                 values
                     .iter()
                     .position(|candidate| Some(*candidate) == value.as_deref())
@@ -414,19 +415,18 @@ impl SettingsMenu {
             return;
         };
         match pick {
-            Pick::Value(value) => {
-                console.set_cvar(setting.cvar, value);
-            }
+            Pick::Value(value) => super::set_choice(console, setting.cvar, value),
             Pick::Mode(mode) => mode.store(console),
             Pick::Quality(level) => level.apply(console),
         }
         self.refresh(console);
     }
 
-    /// The label of dropdown choice `pick` as the row would show it.
-    pub(super) fn pick_label(pick: Pick) -> &'static str {
+    /// The label of dropdown choice `pick` of setting `cvar` as the row would
+    /// show it.
+    pub(super) fn pick_label(cvar: &str, pick: Pick) -> &'static str {
         match pick {
-            Pick::Value(value) => value,
+            Pick::Value(value) => choice_label(cvar, value),
             Pick::Mode(mode) => mode.label(),
             Pick::Quality(level) => level.label(),
         }
@@ -447,7 +447,7 @@ impl SettingsMenu {
                 if let Some(value) =
                     segment_choices(setting.kind).and_then(|values| values.get(index))
                 {
-                    console.set_cvar(setting.cvar, value);
+                    super::set_choice(console, setting.cvar, value);
                     self.refresh(console);
                 }
             }
@@ -456,8 +456,10 @@ impl SettingsMenu {
     }
 
     /// Return row `row` to its default value. Rows whose value is not one
-    /// cvar's (resolution, display mode) are left alone; graphics quality's
-    /// default is High, the fresh profile's values.
+    /// cvar's (resolution, display mode) are left alone; SJK quality's default
+    /// is High, the SJK renderer's own values, and Vanilla keeps it off; the
+    /// renderer's is Vanilla, a new profile's, and under Vanilla a renderer
+    /// setting's is Vanilla's value ([`crate::graphics_quality::row_default`]).
     pub(super) fn reset_to_default(&mut self, console: &mut ViewerConsole, row: usize) {
         let Some(setting) = self.rows().get(row) else {
             return;
@@ -466,7 +468,13 @@ impl SettingsMenu {
             return;
         }
         if matches!(setting.kind, ValueKind::Quality) {
-            Level::High.apply(console);
+            if !crate::graphics_quality::vanilla(console) {
+                Level::High.apply(console);
+            }
+        } else if let Some(choice) = super::derived_choice(setting.cvar) {
+            (choice.set)(console, choice.default);
+        } else if let Some(default) = crate::graphics_quality::row_default(console, setting.cvar) {
+            console.set_cvar(setting.cvar, default);
         } else if let Some(switch) = super::derived_switch(setting.cvar) {
             if (switch.on)(console) {
                 (switch.toggle)(console);
@@ -627,7 +635,9 @@ impl SettingsMenu {
                         .unwrap_or(0);
                     let base = RowControl::Segment { row, index: 0 }.token();
                     let labels: [&str; MAX_SEGMENTS] = std::array::from_fn(|index| {
-                        values.get(index).map_or("", |v| choice_label(v))
+                        values
+                            .get(index)
+                            .map_or("", |v| choice_label(setting.cvar, v))
                     });
                     let labels = &labels[..values.len()];
                     place.segments(&mut self.ui, slot, labels, current, focused, base);
@@ -646,7 +656,7 @@ impl SettingsMenu {
                     place.choice_field(
                         &mut self.ui,
                         slot,
-                        format_args!("{}", Sentence(value)),
+                        format_args!("{}", Sentence(choice_label(setting.cvar, value))),
                         focused || open,
                         true,
                     );
@@ -723,10 +733,11 @@ impl SettingsMenu {
         if let Some(dropdown) = &self.dropdown {
             match slots.iter().find(|(row, _)| *row == dropdown.row) {
                 Some(&(_, slot)) => {
+                    let cvar = self.rows().get(dropdown.row).map_or("", |row| row.cvar);
                     let labels: Vec<&str> = dropdown
                         .picks
                         .iter()
-                        .map(|pick| Self::pick_label(*pick))
+                        .map(|pick| Self::pick_label(cvar, *pick))
                         .collect();
                     place.dropdown(
                         &mut self.ui,
@@ -794,6 +805,9 @@ impl SettingsMenu {
         }
         if let Some(note) = help::timing(setting.label).1.note() {
             part(facts, format_args!("{note}"));
+        }
+        if self.alpha && super::renderer_setting(setting.cvar) {
+            part(facts, format_args!("SJK renderer: alpha"));
         }
         if self.section == Section::Search
             && let Some(group) = search::group(self.selected)
@@ -876,13 +890,16 @@ impl SettingsMenu {
 /// `name` (any case): `HUD+` is the scoreboard's, `TEXT` the interface's.
 pub(super) fn group_icon(name: &str) -> Option<&'static str> {
     let name = name.to_ascii_lowercase();
-    let name = name.strip_prefix("renderer: ").unwrap_or(&name);
+    let name = name
+        .strip_prefix("renderer: ")
+        .or_else(|| name.strip_prefix("graphics: "))
+        .unwrap_or(&name);
     Some(match name {
-        "video" => "video",
+        "video" | "display" => "video",
         "audio" | "sound" => "sound",
         "hud" => "hud",
         "controls" | "mouse" => "mouse_joystick",
-        "game" | "game options" => "game_options",
+        "game" | "game options" | "gameplay" => "game_options",
         "network" => "network",
         "hud+" | "scoreboard" => "scoreboard",
         "text" | "interface" => "interface",
@@ -936,9 +953,14 @@ fn detail_of<'a>(
     }
 }
 
-/// How a choice's value is named on its segment: as written (in sentence
-/// case), but for a name that is an initialism.
-pub(super) fn choice_label(value: &str) -> &str {
+/// How choice `value` of setting `cvar` is named on its segment, list or
+/// field: its own name when it has one ([`help::choice_name`]: a number or a
+/// code), else as written (in sentence case), but for a name that is an
+/// initialism.
+pub(super) fn choice_label<'a>(cvar: &str, value: &'a str) -> &'a str {
+    if let Some(name) = help::choice_name(cvar, value) {
+        return name;
+    }
     // Client names stay in capitals: the menu style's "sjk", the camera style's.
     ["SJK", "EJK"]
         .into_iter()
@@ -971,9 +993,35 @@ impl std::fmt::Display for Number {
 /// differs from it. Rows whose value is not one cvar's have neither.
 pub(super) fn row_default(console: &ViewerConsole, setting: &Setting) -> RowDefault {
     if matches!(setting.kind, ValueKind::Quality) {
+        // Off under Vanilla, as the renderer row says, not a change of its own.
         return RowDefault {
             text: Some(Level::High.label().to_owned()),
-            changed: Level::current(console) != Some(Level::High),
+            changed: !crate::graphics_quality::vanilla(console)
+                && Level::current(console) != Some(Level::High),
+        };
+    }
+    if let Some(choice) = super::derived_choice(setting.cvar) {
+        return RowDefault {
+            text: Some(choice.default.to_owned()),
+            changed: !(choice.get)(console).eq_ignore_ascii_case(choice.default),
+        };
+    }
+    if let (Some(default), Some(value)) = (
+        crate::graphics_quality::row_default(console, setting.cvar),
+        console.cvar(setting.cvar),
+    ) {
+        let text = match setting.kind {
+            ValueKind::Bool => if default == "0" { "Off" } else { "On" }.to_owned(),
+            _ => default.to_owned(),
+        };
+        let value = value.as_text();
+        let changed = match (value.trim().parse::<f64>(), default.parse::<f64>()) {
+            (Ok(value), Ok(default)) => (value - default).abs() > 1e-6,
+            _ => !value.trim().eq_ignore_ascii_case(default),
+        };
+        return RowDefault {
+            text: Some(text),
+            changed,
         };
     }
     if let Some(switch) = super::derived_switch(setting.cvar) {
@@ -1183,9 +1231,9 @@ mod tests {
         // The list opens on the level in use; picking one sets it.
         assert!(menu.open_dropdown(&console, row));
         let open = menu.dropdown.as_ref().unwrap();
-        assert_eq!(open.picks, Level::ALL.map(Pick::Quality));
-        assert_eq!(open.current, 3);
-        menu.apply_pick(&mut console, 4);
+        assert_eq!(open.picks, Level::SJK.map(Pick::Quality));
+        assert_eq!(open.current, 2);
+        menu.apply_pick(&mut console, 3);
         assert_eq!(Level::current(&console), Some(Level::Ultra));
         assert_eq!(menu.values[row], "Ultra");
         assert!(menu.defaults[row].changed);
@@ -1203,6 +1251,26 @@ mod tests {
         menu.reset_to_default(&mut console, row);
         assert_eq!(Level::current(&console), Some(Level::High));
         assert!(!menu.defaults[row].changed);
+        // Under Vanilla the row is off, unchanged, and Backspace leaves it so;
+        // the renderer's rows read Vanilla's values as their defaults.
+        let renderer = row_of(&menu, crate::graphics_quality::RENDERER_ROW);
+        menu.selected = renderer;
+        menu.adjust(&mut console, -1);
+        assert!(crate::graphics_quality::vanilla(&console));
+        assert_eq!(menu.values[renderer], crate::graphics_quality::VANILLA);
+        assert!(!menu.defaults[renderer].changed);
+        assert_eq!(menu.values[row], "Off");
+        assert!(!menu.defaults[row].changed);
+        menu.reset_to_default(&mut console, row);
+        assert!(crate::graphics_quality::vanilla(&console));
+        // Right on the quality starts the SJK renderer at Performance.
+        menu.selected = row;
+        menu.adjust(&mut console, 1);
+        assert_eq!(Level::current(&console), Some(Level::Performance));
+        assert!(menu.defaults[renderer].changed);
+        // Backspace on the renderer: Vanilla again.
+        menu.reset_to_default(&mut console, renderer);
+        assert!(crate::graphics_quality::vanilla(&console));
     }
 
     #[test]

@@ -228,6 +228,18 @@ pub trait Hub: Send {
             "this hub client does not open holocrons".to_owned(),
         ))
     }
+
+    /// Reveal the identity's sealed card copies whose rarity has cards in the hub's
+    /// catalogue (`POST /v1/cards/reveal`). The hub answers what each became and the
+    /// person's profile after.
+    fn reveal_cards(
+        &mut self,
+        _identity: &Identity,
+    ) -> Result<crate::wire::RevealAnswer, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not reveal cards".to_owned(),
+        ))
+    }
     /// Withdraw the identity's claim on `server`.
     fn release(&mut self, identity: &Identity, server: &str) -> Result<(), HubError>;
     /// The live claims on `server`.
@@ -248,6 +260,13 @@ pub trait Hub: Send {
     fn report(&mut self, _identity: &Identity, _report: &BugReport) -> Result<i64, HubError> {
         Err(HubError::Protocol(
             "this hub client does not send reports".to_owned(),
+        ))
+    }
+    /// Send anonymous settings usage, unsigned (`PROTOCOL.md`, "Settings usage"):
+    /// `body` is [`crate::usage::body`]'s. Answers how many events the hub kept.
+    fn settings_usage(&mut self, _body: &Value) -> Result<u64, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not send settings usage".to_owned(),
         ))
     }
     /// Send a crash report (already [`CrashReport::fitted`]) signed by the identity;
@@ -768,6 +787,11 @@ impl Hub for HttpHub {
             .ok_or_else(|| HubError::Protocol("the report answer has no id".to_owned()))
     }
 
+    fn settings_usage(&mut self, body: &Value) -> Result<u64, HubError> {
+        let answer = self.send(None, "POST", "/v1/usage/settings", Some(body.clone()))?;
+        Ok(answer["stored"].as_u64().unwrap_or(0))
+    }
+
     fn crash(&mut self, identity: &Identity, report: &CrashReport) -> Result<i64, HubError> {
         let answer = self.send(Some(identity), "POST", "/v1/crash", Some(report.body()))?;
         answer
@@ -977,6 +1001,10 @@ impl Hub for HttpHub {
     fn open_holocrons(&mut self, identity: &Identity, ids: &[u64]) -> Result<OpenAnswer, HubError> {
         let (path, body) = open_call(ids);
         parse(self.send(Some(identity), "POST", path, Some(body))?)
+    }
+
+    fn reveal_cards(&mut self, identity: &Identity) -> Result<crate::wire::RevealAnswer, HubError> {
+        parse(self.send(Some(identity), "POST", "/v1/cards/reveal", Some(json!({})))?)
     }
 
     fn release(&mut self, identity: &Identity, server: &str) -> Result<(), HubError> {

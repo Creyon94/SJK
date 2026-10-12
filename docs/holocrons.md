@@ -90,7 +90,7 @@ rule, credits as the range with the average under it, a chance of none quiet; "E
 per holocron found", the second table as a grid of cells in the rarity's colour, each its
 share and "1 in N" (left out above one in two); "How it rolls", notes: the rolls made
 apart, credits rolled evenly, the rarest card ("a Legendary Solar: about 1 in 5 698
-holocrons", worked out), cards sealed until the first set, gifts given and not found. Back
+holocrons", worked out), how the card is picked among its rarity's (sealed while the rarity has none), gifts given and not found. Back
 (or Escape, L, Enter) goes back to the tab. Shares read with three figures at most, halves
 rounded up (`cards::loot::percent`). A change to the hub's tables needs the client's copy
 changed with it: until then the page shows the old odds.

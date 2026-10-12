@@ -8,6 +8,10 @@
 //! are off-screen renders (no game window), ignored like the other world shots: they need
 //! a GPU adapter and the installed game data named by `JKA_GAME_DATA`.
 //!
+//! Then the first revealed card's face (`duel6_sjk_card_faces`), from the `sjk_cards` pack
+//! in the folder `SJK_TEST_PACKS` names (the hub's `assets/dist`): up close on the Cards
+//! tab in each finish, and coming out of a holocron.
+//!
 //! Run: `JKA_GAME_DATA=<GameData> cargo test -p sjk-viewer cards_shots -- --ignored
 //! --test-threads=1 --nocapture`; the pictures are in `target/world-shots`.
 
@@ -34,6 +38,7 @@ fn shown(tier: usize, rarity: usize, finish: usize, credits: u64) -> Shown {
         finish: &FINISHES[finish],
         edition: "Alpha Edition".to_owned(),
         credits,
+        card: None,
     }
 }
 
@@ -239,5 +244,89 @@ fn duel6_sjk_loot_table() {
             );
             assert!(!overflowed(&gpu), "{name}");
         }
+    });
+}
+
+/// The first card, revealed, in `finish`, beside sealed ones.
+fn with_face(finish: &str) -> Vec<sjk_identity::CardStack> {
+    let mut list = vec![sjk_identity::CardStack {
+        card: Some("sol_lore_001".to_owned()),
+        rarity: "legendary".to_owned(),
+        finish: finish.to_owned(),
+        edition: "alpha".to_owned(),
+        count: 1,
+        first: 1_791_830_000,
+        last: 1_791_830_000,
+    }];
+    list.extend(every_kind().into_iter().take(5));
+    list
+}
+
+/// Mount the test packs and wait for the first card's picture to decode; false (and a
+/// line) when the packs have no such card.
+fn faces_ready() -> bool {
+    super::saber_skins::mount_test_packs();
+    for _ in 0..200 {
+        let faces = crate::cards::faces::current();
+        match faces.find("sol_lore_001") {
+            Some((index, _)) if faces.art(index).is_some() => return true,
+            Some(_) => std::thread::sleep(std::time::Duration::from_millis(25)),
+            None => break,
+        }
+    }
+    println!("no sol_lore_001 face in SJK_TEST_PACKS: skipped");
+    false
+}
+
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_sjk_card_faces() {
+    on_big_stack(|| {
+        if !faces_ready() {
+            return;
+        }
+        let mut images = Vec::new();
+        for finish in ["holo", "normal", "solar"] {
+            let menu = menu::ClientMenu::new(true, String::new());
+            let Some((mut gpu, _profile)) =
+                open("maps/mp/duel6.bsp", [1920, 1080], Some(menu), &sjk_cvars())
+            else {
+                return;
+            };
+            let _ = frame(&mut gpu, 10);
+            let list = with_face(finish);
+            // The revealed card, wherever the best-first order puts it.
+            let revealed = crate::cards::stacks(&list)
+                .iter()
+                .position(|stack| !stack.sealed())
+                .unwrap_or(0);
+            if let Some(console) = gpu.console.as_mut() {
+                console.preview_cards(list, 1_340);
+                console.preview_collection(Some(Vec::new()), 3.1);
+            }
+            gpu.open_profile_hub(Tab::Cards);
+            if let Some(console) = gpu.console.as_mut() {
+                console.collection_card_for_shot(revealed);
+            }
+            let _ = frame(&mut gpu, 120);
+            let path = shoot(&mut gpu, 4, &format!("duel6-card-face-{finish}"));
+            println!("{}", path.display());
+            assert!(!overflowed(&gpu), "{finish}");
+            images.push(image::open(path).expect("the shot").to_rgba8());
+        }
+        println!(
+            "{}",
+            sheet(&images, 3, 640, "duel6-card-face-finishes").display()
+        );
+        // Coming out of a Mythical Holocron.
+        let Some(mut gpu) = open_holocrons([1920, 1080]) else {
+            return;
+        };
+        let mut card = shown(3, 3, 1, 311);
+        card.card = Some("sol_lore_001".to_owned());
+        ceremony(&mut gpu, vec![card, shown(0, 0, 0, 14)], 3.0);
+        let path = shoot(&mut gpu, 4, "duel6-card-face-opening");
+        println!("{}", path.display());
+        assert!(!overflowed(&gpu));
     });
 }

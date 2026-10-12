@@ -5,7 +5,8 @@
 //!
 //! Nothing is sent: the command never reaches the identity service, and nothing is kept.
 //! The cards it makes go round the rarities and finishes so a few show them all; a finish
-//! named among the words makes every card that finish.
+//! named among the words makes every card that finish. A rarity the card packs have faces
+//! of shows one of them, as the hub would pick; the others stay sealed.
 //!
 //! ```text
 //! debug_open                     the tiers and how to use it
@@ -77,19 +78,23 @@ pub(crate) fn parse(args: &[String]) -> Result<Vec<Opened>, String> {
         }
     }
     let mut opened = Vec::new();
+    // A rarity with faces in the packs shows one of them, as the hub would pick.
+    let faces = super::faces::current();
     for tier in tiers {
         for _ in 0..count {
             if opened.len() >= MOST as usize {
                 break;
             }
             let at = opened.len();
+            let rarity = &RARITIES[(tier.index + at) % RARITIES.len()];
             let (least, most) = CREDITS[tier.index];
             opened.push(Opened {
                 holocron: crate::holocrons::rehearsal::FIRST_ID + at as u64,
                 tier: tier.id.to_owned(),
                 card: OpenedCard {
                     id: at as u64,
-                    rarity: RARITIES[(tier.index + at) % RARITIES.len()].id.to_owned(),
+                    card: face_of(&faces, rarity, at),
+                    rarity: rarity.id.to_owned(),
                     finish: finish
                         .unwrap_or(&FINISHES[(tier.index + at) % FINISHES.len()])
                         .id
@@ -101,6 +106,19 @@ pub(crate) fn parse(args: &[String]) -> Result<Vec<Opened>, String> {
         }
     }
     Ok(opened)
+}
+
+/// The face a rehearsed copy of `rarity` shows, going round that rarity's faces by
+/// `at`; `None` (sealed) when the packs have none of it.
+fn face_of(faces: &super::faces::Faces, rarity: &super::Rarity, at: usize) -> Option<String> {
+    let of_rarity: Vec<&super::faces::Face> = faces
+        .list
+        .iter()
+        .filter(|face| face.rarity.id == rarity.id)
+        .collect();
+    of_rarity
+        .get(at % of_rarity.len().max(1))
+        .map(|face| face.id.clone())
 }
 
 #[cfg(test)]

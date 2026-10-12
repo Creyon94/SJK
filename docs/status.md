@@ -1,5 +1,45 @@
 # Status and priorities
 
+## Card faces and the first card
+
+Branch `personal/card-face` (12/10/2026), Sol's request: Sol made the first card
+("Sol and Toxiee on JoF Memorial", Sol lore 001, Legendary) in `card_import/`
+(git-ignored) and asked for everything it needs. Hub branch `feat/card-catalogue` in
+Sol-Vulpes/SJK-hub: the catalogue (`cards.json`), a card picked at opening, `POST
+/v1/cards/reveal`, `scripts/import_cards.py`, and the `sjk_cards` pack with the first
+card. Client: faces read from the packs and their pictures uploaded, the face drawn as
+a trading card on the Cards tab (bigger up close) and in the ceremony, Reveal (R), the
+loot table's note. See [cards.md](cards.md#faces-and-the-first-card). Verified: unit
+tests on both sides, the world shots `duel6_sjk_card_faces` with the real pack looked
+at. Not tried: in a game against the deployed hub.
+
+## Settings: Simple and Advanced, Vanilla and the SJK renderer, settings usage
+
+Branch `personal/settings-simple` (12/10/2026), Sol's request: a clearer Settings.
+Implemented: Simple (default) and Advanced modes in the SJK UI's Settings
+(`ui_settingsMode`, top bar segments, F2), Simple's eight short categories, Advanced's
+Display and Network regrouped under sub-headings and Graphics led by the renderer; the
+EJK level renamed Vanilla, a Renderer row (Vanilla | SJK (alpha)) in place of the EJK
+graphics switch, an alpha warning on renderer settings, and a new profile started on
+Vanilla (existing profiles keep their settings); number-coded choices given names;
+F3 and Ctrl+F for the search; anonymous settings usage (`cl_shareUsage`,
+[client.md](client.md#settings-usage)). Verified: unit tests (modes and rails, the
+renderer and quality rows and their defaults, the usage queue and what a change or a
+search records, F3/Ctrl+F/F2) and the off-screen settings snapshots
+(`sjk_settings_snapshot`, Simple Display and Graphics on Vanilla and on the SJK
+renderer) looked at. Not tried in game. The hub's endpoint is built on a hub branch and
+not deployed, so no usage reaches it yet.
+
+## Hover cards in the Collection
+
+Branch `personal/hover-cards` (12/10/2026), Sol's request: every achievement and thing
+in the Collection says on mouse hover how it is obtained. A shared SJK UI hover card
+([sjk-ui.md](sjk-ui.md#hover-cards)) on medals, achievements, shaders, the toy, cards and
+the Holocrons tab's tiers; the page's text under it is left out so it does not show
+through. Verified: unit tests (timing, placement, wrapping, every medal, achievement and
+shader has its words, a card's odds) and the world shots `duel6_sjk_hover_cards` looked
+at. Not tried in a game.
+
 ## Holding push or pull repeats it
 
 Branch `personal/force-hold-repeat` (12/10/2026), Sol's request: a held Force key

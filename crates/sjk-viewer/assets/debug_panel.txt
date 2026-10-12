@@ -403,6 +403,21 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 # ---- Menus & settings ----
 
+[settings-simple-advanced]
+area: Menus & settings
+title: Settings: Simple and Advanced, Vanilla or SJK renderer, Ctrl+F/F3, usage sent anonymously
+change: Simple (default) shows 8 short categories; Advanced every setting, regrouped. F2 switches.
+change: Renderer row: Vanilla or SJK (alpha), with an alpha warning; a new profile starts Vanilla.
+change: Ctrl+F and F3 open the search; choices show names (Off, Sabers...) instead of 0/1/2.
+test: Main menu > Settings: Simple rail (Display ... General); click Advanced, then F2 back.
+test: Simple > Graphics: Renderer Vanilla/SJK (alpha); on SJK the detail shows the gold warning.
+test: Pick SJK, then the reload card: the SJK look comes back; Vanilla again restores Vanilla.
+test: SJK quality: Off under Vanilla; Right starts Performance; Backspace on Renderer = Vanilla.
+test: Ctrl+F and F3 in Settings and Key bindings: search gets the keys, typed text replaced.
+test: Advanced > Network: SJK online / SJK chat / Connection headings, Share settings usage row.
+test: Rename config.cfg away and start: Settings opens Simple, the renderer reads Vanilla.
+note: Usage goes to the hub only once its endpoint is deployed (log: 'settings usage: sent').
+
 [force-hold-repeat]
 area: Input
 title: Holding push or pull uses it again as soon as it is ready (after JoF EJK)
@@ -447,6 +462,26 @@ change: Every card (rarity x finish) per holocron found, as a share and as 1 in 
 test: Collection > Holocrons > Loot table: the numbers match docs/holocrons.md, Loot table.
 test: Escape, L, Enter or Back go back to the tab; the tab's keys do nothing meanwhile.
 test: The pace line says 30 minutes and 8 a day once the hub answered.
+
+[card-faces]
+area: Menus & settings
+title: Card faces and the first card (Sol lore 001), revealing sealed cards
+change: Cards picked by the hub show their face: name, picture, set, lore, number, artist.
+change: Cards tab: bigger card up close; Reveal (or R) turns sealed cards into cards.
+change: Opening a holocron shows the picked card's face; the faces come in the hub's pack.
+test: Log: "SJK packs: card faces: sol_lore_001" once the pack downloaded.
+test: As staff: Collection > Cards > Reveal: your sealed Legendary cards become card 001.
+test: Open holocrons (staff): a Legendary card shows the face in the ceremony.
+test: debug_open legendary shows the face offline; other rarities stay sealed.
+
+[hover-cards]
+area: Menus & settings
+title: Collection hover cards: how every thing is obtained
+change: Rest the pointer on a thing for a moment: a card beside it says how you get it.
+change: Medals, achievements, shaders, the toy, cards and the Holocrons tab's tiers.
+test: Each tab: hover a thing held and one not held; the words match, nothing shows through.
+test: Near the right edge the card flips to the left; low down it stays on screen.
+test: A key hides the card; moving the pointer brings it back.
 
 [opening-staff]
 area: Menus & settings

@@ -227,6 +227,8 @@ pub(crate) enum PanelAction {
 }
 
 pub(crate) struct Panel {
+    /// The tier row the pointer rests on, for its hover card.
+    hover: crate::menu::sjk::hover::Hover,
     open: bool,
     owns_console: bool,
     /// Shown as the Profile screen's Holocrons tab: its title and row of tabs at the top,
@@ -271,6 +273,7 @@ impl Default for Panel {
 impl Panel {
     pub(crate) fn new() -> Self {
         Self {
+            hover: Default::default(),
             open: false,
             owns_console: false,
             hub: false,
@@ -389,6 +392,12 @@ impl Panel {
         &holocrons::TIERS[self.selected]
     }
 
+    /// Show the hover card of tier row `index` (`None` for none), for a world shot.
+    #[cfg(test)]
+    pub(crate) fn hover_for_shot(&mut self, index: Option<usize>) {
+        self.hover.pin(index.map(|index| ROW_BASE + index as u16));
+    }
+
     /// Choose tier `index` (kept to the tiers there are), for a world shot and the keys.
     pub(crate) fn select(&mut self, index: usize) {
         self.selected = index.min(COUNT - 1);
@@ -426,6 +435,7 @@ impl Panel {
         let PhysicalKey::Code(key) = event.physical_key else {
             return PanelAction::None;
         };
+        self.hover.keyed();
         self.key(key, shift)
     }
 
@@ -468,6 +478,7 @@ impl Panel {
     /// A pointer event.
     pub(crate) fn handle_pointer(&mut self, event: InputEvent) -> PanelAction {
         let now = Instant::now();
+        self.hover.moved();
         if self.ceremony.is_some() {
             // Any click moves the ceremony on, its button or not.
             if let InputEvent::PointerRelease { .. } = event {
@@ -666,6 +677,7 @@ mod tests {
     ) -> sjk_identity::Snapshot {
         sjk_identity::Snapshot {
             opening: None,
+            reveal: None,
             local_key_id: "0123456789abcdef".into(),
             status,
             key_id: "0123456789abcdef".into(),
@@ -808,6 +820,7 @@ mod tests {
             tier: tier.to_owned(),
             card: sjk_identity::OpenedCard {
                 id: 1,
+                card: None,
                 rarity: "rare".to_owned(),
                 finish: finish.to_owned(),
                 edition: "alpha".to_owned(),

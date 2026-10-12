@@ -148,6 +148,8 @@ const INPUT_LIMIT: usize = 512;
 /// Toggleable console state owned by the viewer frontend.
 pub(crate) struct ViewerConsole {
     shell: Shell,
+    /// The profile had no config when the console started: a player's first start.
+    new_profile: bool,
     open: bool,
     /// Shift held, for the Shift+Escape console toggle.
     shift: bool,

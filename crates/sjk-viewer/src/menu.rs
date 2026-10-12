@@ -675,7 +675,11 @@ impl ClientMenu {
             return action;
         }
         match result {
-            EditorResult::Back => self.close_keybinds(),
+            EditorResult::Back => {
+                // What Settings recorded before Key bindings goes out as it closes.
+                crate::settings_usage::flush(console);
+                self.close_keybinds()
+            }
             EditorResult::Classic(index) => self.classic_panel_button(index, console),
             EditorResult::ClassicCycle(direction) => {
                 self.classic_panel_cycle(direction, console);

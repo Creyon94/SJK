@@ -246,10 +246,17 @@ impl KeybindEditor {
                 self.clear_both(console);
                 EditorResult::None
             }
-            KeyCode::Slash | KeyCode::NumpadDivide => {
+            // Ctrl+F and F3 find an action too, as in other programs.
+            KeyCode::Slash | KeyCode::NumpadDivide | KeyCode::F3 => {
                 self.begin_search();
                 EditorResult::None
             }
+            KeyCode::KeyF if console.control_held() => {
+                self.begin_search();
+                EditorResult::None
+            }
+            // The SJK UI's other mode (a classic+ page has no slot for it).
+            KeyCode::F2 => EditorResult::Classic(crate::menu::sjk::settings::MODE_TOGGLE_SLOT),
             KeyCode::ArrowUp | KeyCode::KeyW
                 if self
                     .classic
@@ -317,6 +324,8 @@ impl KeybindEditor {
         if let Some(list) = &mut self.classic {
             list.searching = true;
             self.capture = false;
+            // Typing or a paste replaces what was typed before.
+            crate::text_entry::select_all(&list.search);
         }
     }
 

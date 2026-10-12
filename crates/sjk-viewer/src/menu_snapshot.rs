@@ -1161,6 +1161,7 @@ fn identity_page(shots: &Snapshot, art: ArtSet) {
     use sjk_identity::{Presence, Profile, Snapshot as Hub, Status, WornName};
     let hub = |status: Status, name: &str, earlier: &[&str]| Hub {
         opening: None,
+        reveal: None,
         local_key_id: "44f3d0b36c9b2510".to_owned(),
         status,
         key_id: "44f3d0b36c9b2510".to_owned(),
@@ -1712,6 +1713,7 @@ fn save_sjk_shot(
 fn sjk_settings_snapshot() {
     use crate::game_font::SjkFonts;
     use crate::menu::sjk::TextTarget;
+    use crate::settings::mode::SettingsMode;
     let (_, vfs) = art();
     let display = crate::text::load_family(&crate::text::DISPLAY, 1.0, None).expect("Rajdhani");
     let body = crate::text::load_family(&crate::text::BODY, 1.0, None).expect("Exo 2");
@@ -1784,7 +1786,45 @@ fn sjk_settings_snapshot() {
             None,
         ),
     ];
-    for (name, viewport, category, cvar, list, search) in cases {
+    // Advanced's categories, then Simple's: Display, and Graphics on Vanilla and
+    // on the SJK renderer, whose alpha warning the detail column shows.
+    SettingsMode::Advanced.store(&mut console);
+    let simple: [Case; 3] = [
+        (
+            "sjk-settings-simple",
+            VIEWPORT_WIDE,
+            12,
+            Some("cg_fov"),
+            false,
+            None,
+        ),
+        (
+            "sjk-settings-simple-vanilla",
+            VIEWPORT_WIDE,
+            13,
+            Some(crate::graphics_quality::RENDERER_ROW),
+            false,
+            None,
+        ),
+        (
+            "sjk-settings-simple-alpha",
+            VIEWPORT_WIDE,
+            13,
+            Some(crate::graphics_quality::RENDERER_ROW),
+            false,
+            None,
+        ),
+    ];
+    for (name, viewport, category, cvar, list, search) in cases.into_iter().chain(simple) {
+        if name.starts_with("sjk-settings-simple") {
+            SettingsMode::Simple.store(&mut console);
+        }
+        let renderer = if name.ends_with("-vanilla") {
+            crate::graphics_quality::VANILLA
+        } else {
+            crate::graphics_quality::SJK
+        };
+        crate::graphics_quality::set_renderer(&mut console, renderer);
         let mut menu = crate::menu::ClientMenu::new(true, String::new());
         menu.sjk_settings_for_snapshot(&console, category, cvar, list, search);
         let (mut display_text, mut body_text) = (Vec::new(), Vec::new());
@@ -2320,6 +2360,7 @@ fn medals_snapshot() {
     // The Identity page.
     let hub = |medals: Vec<sjk_identity::Medal>| Hub {
         opening: None,
+        reveal: None,
         local_key_id: "44f3d0b36c9b2510".to_owned(),
         status: Status::Online,
         key_id: "44f3d0b36c9b2510".to_owned(),

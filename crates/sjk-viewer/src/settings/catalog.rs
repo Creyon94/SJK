@@ -77,6 +77,13 @@ pub(crate) const IDENTITY_ROW: &str = "identity";
 /// opens the same page.
 pub(crate) const IMPORT_ROW: &str = "firstsetup import";
 
+/// The renderer's two choices ([`crate::graphics_quality`]), named "Vanilla"
+/// and "SJK (alpha)" on their segments ([`super::help::choice_name`]).
+pub(super) const RENDERERS: [&str; 2] = [
+    crate::graphics_quality::VANILLA,
+    crate::graphics_quality::SJK,
+];
+
 /// The Gameplay FPS row, shared by Video and First setup.
 pub(super) const GAMEPLAY_FPS_ROW: Setting = Setting {
     label: "Gameplay FPS",
@@ -100,14 +107,14 @@ pub(crate) const RESOLUTIONS: &[&str] = &[
 ];
 pub(super) const VIDEO: &[Setting] = &[
     Setting {
-        label: "Graphics quality",
-        cvar: crate::graphics_quality::ROW_NAME,
-        kind: ValueKind::Quality,
+        label: "Renderer (reload)",
+        cvar: crate::graphics_quality::RENDERER_ROW,
+        kind: ValueKind::Choice(&RENDERERS),
     },
     Setting {
-        label: "EJK graphics (reload)",
-        cvar: crate::graphics_quality::EJK_ROW,
-        kind: ValueKind::Bool,
+        label: "SJK quality (reload)",
+        cvar: crate::graphics_quality::ROW_NAME,
+        kind: ValueKind::Quality,
     },
     Setting {
         label: "Resolution",
@@ -164,17 +171,7 @@ pub(super) const VIDEO: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
-        label: "First-person weapon",
-        cvar: "cg_drawGun",
-        kind: ValueKind::Bool,
-    },
-    Setting {
-        label: "FPS / frame-time readout",
-        cvar: "cg_drawFps",
-        kind: ValueKind::Bool,
-    },
-    Setting {
-        label: "Display gamma",
+        label: "Brightness",
         cvar: "r_gamma",
         kind: ValueKind::Float {
             min: 0.5,
@@ -448,6 +445,11 @@ pub(super) const HUD: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "FPS / frame-time readout",
+        cvar: "cg_drawFps",
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Match timer",
         cvar: "cg_drawTimer",
         kind: ValueKind::Bool,
@@ -552,13 +554,9 @@ pub(super) const CONTROLS: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
-        label: "Last key wins (0 off, 1 all, 2 jump/crouch)",
+        label: "Last key wins",
         cvar: crate::input::idrive::CVAR,
-        kind: ValueKind::Integer {
-            min: 0,
-            max: 2,
-            step: 1,
-        },
+        kind: ValueKind::Choice(&["0", "1", "2"]),
     },
     Setting {
         label: "Last key wins delay (ms)",
@@ -597,13 +595,9 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
-        label: "Saber rain steam (0 off / 1 on / 2 only me)",
+        label: "Saber rain steam",
         cvar: crate::effect_aux::saber_rain_steam::CVAR,
-        kind: ValueKind::Integer {
-            min: 0,
-            max: 2,
-            step: 1,
-        },
+        kind: ValueKind::Choice(&["0", "1", "2"]),
     },
     Setting {
         label: "Force Speed trail",
@@ -636,18 +630,19 @@ pub(super) const GAME: &[Setting] = &[
     },
     Setting {
         // SJK defaults to 2 (EternalJK); 1 excludes player-texture configstring remaps.
-        label: "Shader remaps (0 off / 1 map / 2 all)",
+        label: "Shader remaps",
         cvar: "cg_remaps",
-        kind: ValueKind::Integer {
-            min: 0,
-            max: 2,
-            step: 1,
-        },
+        kind: ValueKind::Choice(&["0", "1", "2"]),
     },
     Setting {
         label: "Camera style",
         cvar: crate::camera::STYLE_CVAR,
         kind: ValueKind::Choice(&crate::camera::Style::NAMES),
+    },
+    Setting {
+        label: "First-person weapon",
+        cvar: "cg_drawGun",
+        kind: ValueKind::Bool,
     },
     Setting {
         label: "Third-person camera damping",
@@ -708,13 +703,9 @@ pub(super) const GAME: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
-        label: "Invisible brushes (0 off / 1 gameplay / 2 all)",
+        label: "Invisible brushes",
         cvar: crate::brush_view::CVAR,
-        kind: ValueKind::Integer {
-            min: 0,
-            max: 2,
-            step: 1,
-        },
+        kind: ValueKind::Choice(&["0", "1", "2"]),
     },
     // Experimental features, off by default.
     Setting {
@@ -772,6 +763,11 @@ pub(super) const NETWORK: &[Setting] = &[
     Setting {
         label: "Send crash reports",
         cvar: crate::crash_report::CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Share settings usage",
+        cvar: crate::settings_usage::CVAR,
         kind: ValueKind::Bool,
     },
     Setting {
@@ -893,22 +889,14 @@ pub(super) const RENDER_IMAGE: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
-        label: "Dynamic glow (0 off, 2 sabers)",
+        label: "Dynamic glow",
         cvar: "r_DynamicGlow",
-        kind: ValueKind::Integer {
-            min: 0,
-            max: 3,
-            step: 1,
-        },
+        kind: ValueKind::Choice(&["0", "1", "2"]),
     },
     Setting {
-        label: "Glow style (0 retail, 1 Vulkan)",
+        label: "Glow style",
         cvar: "r_dynamicGlowStyle",
-        kind: ValueKind::Integer {
-            min: 0,
-            max: 1,
-            step: 1,
-        },
+        kind: ValueKind::Choice(&["0", "1"]),
     },
     Setting {
         label: "FXAA (reload)",
@@ -1082,13 +1070,9 @@ pub(super) const RENDER_LIGHTING: &[Setting] = &[
         },
     },
     Setting {
-        label: "Light shafts 0-3 (reload)",
+        label: "Light shafts (reload)",
         cvar: "r_volumetrics",
-        kind: ValueKind::Integer {
-            min: 0,
-            max: 3,
-            step: 1,
-        },
+        kind: ValueKind::Choice(&["0", "1", "2", "3"]),
     },
     Setting {
         label: "Light shaft clarity",
@@ -1181,31 +1165,19 @@ pub(super) const RENDER_WEATHER: &[Setting] = &[
         },
     },
     Setting {
-        label: "Weather quality (0 low, 3 ultra)",
+        label: "Weather quality",
         cvar: crate::weather::QUALITY_CVAR,
-        kind: ValueKind::Integer {
-            min: 0,
-            max: 3,
-            step: 1,
-        },
+        kind: ValueKind::Choice(&["0", "1", "2", "3"]),
     },
     Setting {
-        label: "Force weather (0 the map's)",
+        label: "Force weather",
         cvar: crate::weather::FORCE_CVAR,
-        kind: ValueKind::Integer {
-            min: 0,
-            max: crate::weather::settings::FORCE_MAX,
-            step: 1,
-        },
+        kind: ValueKind::Choice(&["0", "1", "2", "3", "4"]),
     },
     Setting {
-        label: "Ground fog (0 off, 1 map, 2 always)",
+        label: "Ground fog",
         cvar: crate::weather::FOG_CVAR,
-        kind: ValueKind::Integer {
-            min: 0,
-            max: 2,
-            step: 1,
-        },
+        kind: ValueKind::Choice(&["0", "1", "2"]),
     },
     Setting {
         label: "Volumetric clouds",
