@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 12/10/2026 | - | Credits history reads "Merge Creyon's PR #N" merges
+- f72a335 |  | Credits history: "Merge Creyon's PR #96 (...)" counts as SJK #96
 + 12/10/2026 | - | GIF search with the player's own GIPHY key, and the key card
 - bd180c9 |  | GIF search uses only the player's own GIPHY key, with a key card
 - 9dad3fb |  | Credits: GIF search with the player's own key
@@ -1182,7 +1184,7 @@
 - 0d215f1 |  | Initial JKR source
 
 = Creyon
-+ 12/10/2026 | - | Keep listing servers after a lost answer or a dead one's reset
++ 12/10/2026 | SJK #96 | Keep listing servers after a lost answer or a dead one's reset
 - 3fe2012 |  | Keep listing servers after a lost answer or a dead one's reset
 + 12/10/2026 | SJK #95 | Crackle while a player is electrified (the JoF amlogin sound)
 - 3623d1e |  | Crackle while a player is electrified (the JoF amlogin sound)
