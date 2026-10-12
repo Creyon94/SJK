@@ -121,9 +121,15 @@ pub(super) fn parse(text: &str) -> Result<Vec<Release>, String> {
             let (heading, text) = entry.split_once(": ").ok_or_else(|| {
                 format!("CHANGELOG.md line {number}: a recap line is \"> <heading>: <text>\"")
             })?;
+            if text.matches('`').count() % 2 == 1 {
+                return Err(format!(
+                    "CHANGELOG.md line {number}: a recap line leaves a ` code span open"
+                ));
+            }
+            // The card draws the sentence's code spans in chips, so they stay marked.
             release.recap.push(Recap {
                 heading: plain(heading.trim()),
-                text: plain(text.trim()),
+                text: text.trim().to_owned(),
             });
         } else if line.trim().is_empty() {
             flush(&mut releases, &mut paragraph);
@@ -250,8 +256,9 @@ mod tests {
         assert_eq!(release.intro, ["Intro."]);
         assert_eq!(release.recap.len(), 2);
         assert_eq!(release.recap[0].heading, "Servers");
-        assert_eq!(release.recap[0].text, "Downloads work.");
+        assert_eq!(release.recap[0].text, "Downloads `work`.");
         assert!(parse("## 1.0 | 05/10/2026\n> no heading\n- x _(Sol)_\n").is_err());
+        assert!(parse("## 1.0 | 05/10/2026\n> Open: a `span\n- x _(Sol)_\n").is_err());
         assert!(parse("## 1.0 | 05/10/2026\n- x _(Sol)_\n> late: line\n").is_err());
         assert_eq!(
             parse("## Unreleased\n- x _(Sol)_\n").unwrap()[0].version(),

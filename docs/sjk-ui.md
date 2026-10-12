@@ -1542,10 +1542,22 @@ same look in every menu style, on the 16:9 frame:
 - **Card:** the kit's card over its scrim, 920 wide from x 500, centred vertically, as
   tall as its recap.
 - **Words:** "SJK updated" (or "Preview") in gold (Rajdhani 22), "What's new in
-  <release>" ("What's coming next" for the unreleased preview; Rajdhani 36), then one row per recap line: its heading in gold (Exo 2 18,
-  semibold, a 210 wide column) and its sentence (Exo 2 18, up to 76 characters a line).
-  A release without a recap shows its introduction (three lines at most) in muted text;
-  after 16 sentence lines the card says "More in the full changelog."
+  <release>" ("What's coming next" for the unreleased preview; Rajdhani 36), then one
+  block per recap line: its heading in bright gold (Rajdhani 21, semibold) on a line of
+  its own, and under it its sentence over the card's full text width (Exo 2 18, 28 a
+  line, 16 between blocks; Sol, 12/10/2026: "the titles shouldn't be on the left but on
+  the top"). The sentences are wrapped by their measured width when the card is drawn,
+  again whenever the menu text size or spacing changes. A card that stacks several
+  releases names each in muted Rajdhani 19 with a faint holo rule to the card's edge. A
+  release without a recap shows its introduction (three lines at most, "..." when cut)
+  in muted text; once the recap would pass 700 pixels the card says "More in the full
+  changelog."
+- **Chips:** what a recap sentence puts in backticks (a command or cvar: `` `whatsnew` ``)
+  is drawn as a chip, as messaging apps draw inline code (Sol, 12/10/2026): Exo 2 17
+  semibold on a faint holo fill with a holo edge, 25 high, rounded 6, 7 of room each
+  side. A chip is never split across lines; a full stop or comma written against it
+  stays with it. The changelog's parser keeps the backticks in recap sentences (it drops
+  them everywhere else) and rejects a recap line that leaves one open.
 - **Buttons:** Full changelog (outlined, 230) opens the changelog page, Close (gold, 150)
   puts the card away; focus starts on Close. Keys bottom right: Enter, Space, Esc or
   Backspace close, C opens the changelog.

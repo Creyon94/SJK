@@ -39,5 +39,12 @@ fn whats_new_shots() {
             shoot(&mut gpu, 6, "duel6-whats-new-skipped").display()
         );
         assert!(gpu.whats_new_card.is_open(), "the card shows");
+
+        // A recap whose sentences name commands, drawn in chips.
+        let digests = crate::console::changelog::digests("2026.1012.1", "2026.1011.3");
+        assert_eq!(digests.len(), 1, "{digests:?}");
+        gpu.whats_new_card.offer("2026.1012.1", &digests, false);
+        println!("{}", shoot(&mut gpu, 6, "duel6-whats-new-chips").display());
+        assert!(gpu.whats_new_card.is_open(), "the card shows");
     });
 }

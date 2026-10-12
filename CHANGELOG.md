@@ -16,7 +16,8 @@ tests check this file):
 - other lines up to the first item are the release's introduction;
 - "> <Heading>: <sentence>" lines before the first item are the release's short
   recap (3 to 6 lines, shown by the what's-new card after an update); every release
-  dated 12/10/2026 or later needs one;
+  dated 12/10/2026 or later needs one; a command or cvar in backticks
+  (`whatsnew`) is drawn in a chip on the card;
 - "- <change> _(<credit>)_" is one change; every change ends with its credit;
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
@@ -29,6 +30,7 @@ Creyon's seventeen pull requests: fixes for ledges, dropped sabers, doors and mu
 > HUD: The frame rate on the scoreboard and in the upper right, with an optional match clock under it.
 > Clans: JoF and JoFA emblems come from a table, with look-alike letters.
 > Fixes: Ledge legs, dropped sabers, door sounds and the muzzle flash.
+> Updates: This card puts each heading above its line and shows commands such as `whatsnew` in chips.
 
 - Standing on a ledge no longer makes the legs stutter: prediction keeps the server's slope pose while you stand still _(Creyon)_
 - A dropped or knocked-away saber stays visible on the ground, hilt only _(Creyon, after OpenJK)_
@@ -43,17 +45,18 @@ Creyon's seventeen pull requests: fixes for ledges, dropped sabers, doors and mu
 - Every text field takes Ctrl+V (or Shift+Insert) to paste, Ctrl+C to copy (not passwords) and a held Backspace to delete on: the server address and password prompts, the browser, settings, character, create game and key binding searches and names, the report dialog and bios _(Sol)_
 - Console: showplayerid lists each player's client number, team and name; amcolor sets and saves your player tint, so it survives a reconnect _(Creyon, after JoF EJK)_
 - JA+ grapple hook: its rope shows again and the hook holds after you release +button12. SJK names itself 1.4 SJK to JA+ servers (amstatus), as a bare SJK made them treat it as a client without the JA+ plugin _(Sol)_
+- The What's new card puts each recap heading above its sentence, and shows commands and settings named in it (such as `whatsnew`) in chips _(Sol)_
 
 ## 2026.1012.1 (Alpha) | 12/10/2026
 
 Downloads that work on JoF servers, your physics following your FPS cap, showcase tools for filming sabers (mimic, ghost replay, strafe lines, invisible brushes), logs the SJK team can ask for, and a card that recaps each update, like this one.
 
-> Servers: Downloads work with spaced pak names, JoF servers get 125 commands a second, known servers sit in one table and JA+ admins see SJK in amstatus.
+> Servers: Downloads work with spaced pak names, JoF servers get 125 commands a second, known servers sit in one table and JA+ admins see SJK in `amstatus`.
 > Gameplay FPS: Your physics follow your FPS cap on Auto, and First setup starts with an import from other clients.
 > Showcase tools: Mimic and ghost replay (experimental, off by default), strafe helper lines and the invisible brushes view.
 > Player card: The line meets the hips and the player you inspect gets an outline ring.
 > SJK team: Staff can ask for your game's logs; nothing is sent unless you choose Send logs.
-> Updates: After an update a card recaps what changed; the whatsnew command shows it again.
+> Updates: After an update a card recaps what changed; the `whatsnew` command shows it again.
 
 - After an update, a What's new card recaps what changed in a few short lines the first time you reach the menu, with a button to the full changelog; every release now carries that recap in CHANGELOG.md, and whatsnew shows the newest again _(Sol)_
 - JA+ server admins see SJK in amstatus; cjp_client sets another name (sent to JA+ and jaPRO servers; jaPRO servers keep 1.4JAPRO by default, the value their client support needs) _(Sol)_
