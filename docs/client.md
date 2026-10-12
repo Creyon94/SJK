@@ -314,6 +314,14 @@ Settings and SJK in place of retail's Controls and Setup:
   its cells, since the menu canvas gives the pointer to the region registered
   last.
 
+Both browsers ask two master servers at once and list every server either knows,
+each once ([discover.rs](../crates/sjk-viewer/src/server_browser/discover.rs)):
+`cl_master` (`master.jkhub.org:29060`) and `cl_master2` (`master.ouned.de:29060`,
+the second master JKHub recommends; empty asks only the first), both in Settings >
+Network. A master that fails is passed over while the other answers. With
+`master.jkhub.org` alone, servers that list themselves only with the other master
+were missing (Sol's report, 11/10/2026).
+
 Join Server opens retail's join-server screen (`ui/jamp/joinserver.menu`) on
 the same browser as the SJK UI's, so the list, favourites, filters and sorting
 carry over between styles. Labels and buttons are in capitals:

@@ -103,6 +103,16 @@ remove the Character page's Model row (‹ olol/dark ›), which only stepped to
 like a next button; the grid chooses the model ([sjk-ui.md](sjk-ui.md#character)). The
 classic profile's own model controls are unchanged. Verified: the workspace checks; in game on
 Windows 11 by Creyon.
+## Server browser: a second master server
+
+Branch `fix/server-browser-masters` (11/10/2026, based on `9dbbdf19`, Linux): Sol saw
+servers missing from the server list. SJK asked one master (`master.jkhub.org`); stock and
+EternalJK clients know `master.ouned.de` too, which JKHub recommends beside its own. Both are
+now asked at once (`cl_master`, new `cl_master2`) and their lists merged, each server once;
+a master that fails is passed over ([client.md](client.md#menu-style)). Verified: unit tests
+of the list's splitting and of the merge (duplicates, one master down, both down) and the
+workspace checks; in game on Windows 11 by Creyon, the browser filling in from both
+masters.
 
 ## Downloads that work, and what they may bring
 

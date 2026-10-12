@@ -720,6 +720,11 @@ pub(super) const NETWORK: &[Setting] = &[
         kind: ValueKind::Text,
     },
     Setting {
+        label: "Second master server",
+        cvar: "cl_master2",
+        kind: ValueKind::Text,
+    },
+    Setting {
         label: "Check for updates",
         cvar: "cl_autoUpdate",
         kind: ValueKind::Bool,

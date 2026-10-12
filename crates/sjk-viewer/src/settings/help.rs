@@ -444,6 +444,10 @@ const HELP: &[(&str, &str)] = &[
         "The master server the server browser asks for its list of servers.",
     ),
     (
+        "cl_master2",
+        "A second master server, asked at the same time; servers either one knows are listed. Empty asks only the first.",
+    ),
+    (
         "cl_autoUpdate",
         "Looks for a newer SJK release at start and every 30 minutes while SJK runs, and says so with a card. Install it from the Update page.",
     ),
