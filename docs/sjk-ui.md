@@ -382,7 +382,9 @@ overlay routes their text to the UI's families (`console_sjk_pages.rs`).
   "Not released yet" in gold), the chosen one gold; beside them a reading
   column with its date and number of changes, its name, its introduction, then
   each change after a gold dot with its credit under it, scrolled by Page Up
-  and Down or the wheel. Lines are wrapped by characters.
+  and Down or the wheel. Lines are wrapped by their measured width, and what a
+  change puts in backticks is drawn as a chip, clickable as on the
+  [what's-new card](#whats-new-card) (`inline_code.rs`).
 - **Update** ([update_panel_sjk.rs](../crates/sjk-viewer/src/update_panel_sjk.rs)):
   a pop-up card (840 wide, as tall as what it says) over the map darkened all
   over, since 08/10/2026 (Sol asked for it with First setup's). Update (gold)
@@ -1533,34 +1535,46 @@ same look in every menu style, on the 16:9 frame:
 
 - **When:** `cl_whatsNewSeen` holds the version whose card the player closed. The card
   shows when the installed version differs and the changelog lists it: the recaps of
-  every release since the seen one, newest first, at most three (each named with its
-  date); with no marker only the installed release's. A new installation (no marker,
-  and First setup not yet ticked away) writes the marker and shows nothing, and a
-  local build no release lists shows nothing. Closing writes the marker; quitting with
-  the card up shows it again next time. `whatsnew` shows the newest recap again,
-  "Unreleased" included, as a preview that writes nothing.
+  every release since the seen one, newest first, at most five, a page each; with no
+  marker only the installed release's. A new installation (no marker, and First setup
+  not yet ticked away) writes the marker and shows nothing, and a local build no
+  release lists shows nothing. Closing writes the marker; quitting with the card up
+  shows it again next time. `whatsnew` shows the newest recap again, "Unreleased"
+  included, as a preview that writes nothing.
 - **Card:** the kit's card over its scrim, 920 wide from x 500, centred vertically, as
-  tall as its recap.
-- **Words:** "SJK updated" (or "Preview") in gold (Rajdhani 22), "What's new in
-  <release>" ("What's coming next" for the unreleased preview; Rajdhani 36), then one
-  block per recap line: its heading in bright gold (Rajdhani 21, semibold) on a line of
-  its own, and under it its sentence over the card's full text width (Exo 2 18, 28 a
-  line, 16 between blocks; Sol, 12/10/2026: "the titles shouldn't be on the left but on
-  the top"). The sentences are wrapped by their measured width when the card is drawn,
-  again whenever the menu text size or spacing changes. A card that stacks several
-  releases names each in muted Rajdhani 19 with a faint holo rule to the card's edge. A
-  release without a recap shows its introduction (three lines at most, "..." when cut)
-  in muted text; once the recap would pass 700 pixels the card says "More in the full
-  changelog."
+  tall as its tallest page, so the buttons stay put while the pages turn.
+- **Words:** "SJK updated" (or "Preview") in gold (Rajdhani 22) and, right-aligned on
+  the same line, the release's date (with "Release 2 of 3" when there are pages; muted
+  Rajdhani 19); "What's new in <release>" ("What's coming next" for the unreleased
+  preview; Rajdhani 36); then one block per recap line: its heading's icon (26, a
+  settings or quick wheel icon, chosen by the words of the heading from
+  `HEADING_ICONS`, the changelog icon when none match), its heading in bright gold
+  (Rajdhani 21, semibold) beside the icon, and under the heading its sentence (Exo 2
+  18, 28 a line, 16 between blocks; Sol, 12/10/2026: "the titles shouldn't be on the
+  left but on the top"). The sentences are wrapped by their measured width when the
+  card is drawn, again whenever the menu text size or spacing changes. A release
+  without a recap shows its introduction (six lines at most, "..." when cut) in muted
+  text; once a page's recap would pass 640 pixels it says "More in the full
+  changelog." Under the recap, in gold Exo 2 16, who made the release's changes and
+  the clients they follow, from the changes' credits, most credited first: "By Creyon
+  and Sol, after OpenJK and JoF EJK".
 - **Chips:** what a recap sentence puts in backticks (a command or cvar: `` `whatsnew` ``)
-  is drawn as a chip, as messaging apps draw inline code (Sol, 12/10/2026): Exo 2 17
-  semibold on a faint holo fill with a holo edge, 25 high, rounded 6, 7 of room each
-  side. A chip is never split across lines; a full stop or comma written against it
-  stays with it. The changelog's parser keeps the backticks in recap sentences (it drops
-  them everywhere else) and rejects a recap line that leaves one open.
+  is drawn as a chip, as messaging apps draw inline code (Sol, 12/10/2026;
+  [inline_code.rs](../crates/sjk-viewer/src/inline_code.rs), shared with the changelog
+  page): JetBrains Mono 17 on a faint holo fill with a holo edge, 25 high, rounded 6, 7
+  of room each side. A chip is never split across lines; a full stop or comma written
+  against it stays with it, 3 apart. The changelog's parser keeps the backticks (it
+  drops them in introductions and headings, and the classic+ page drops them) and
+  rejects a line that leaves one open. A chip lights gold under the pointer; a click
+  closes the card and follows it: a cvar Settings has a row for (`settings::has_row`)
+  opens Settings with it searched (the SJK UI's Settings, or the classic Setup panel
+  under the classic style), anything else (a command, a cvar with a value) is typed on
+  the console's input line, not run (`ViewerConsole::follow_chip`).
+- **Pages:** with several releases, the foot's left holds a previous arrow, a dot per
+  release (the one on show gold) and a next arrow; Left and Right turn the pages too.
 - **Buttons:** Full changelog (outlined, 230) opens the changelog page, Close (gold, 150)
-  puts the card away; focus starts on Close. Keys bottom right: Enter, Space, Esc or
-  Backspace close, C opens the changelog.
+  puts the card away; focus starts on Close. Keys bottom right: Left and Right turn the
+  pages (with several), Enter, Space, Esc or Backspace close, C opens the changelog.
 
 ## Implementation
 

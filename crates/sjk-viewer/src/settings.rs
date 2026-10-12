@@ -842,6 +842,14 @@ fn section_settings(section: Section, tab: usize) -> &'static [Setting] {
     }
 }
 
+/// Whether `cvar` has a row a Settings search finds (any case), so a chip naming it
+/// (`inline_code`) can open Settings on it.
+pub(crate) fn has_row(cvar: &str) -> bool {
+    search::rows()
+        .iter()
+        .any(|setting| setting.cvar.eq_ignore_ascii_case(cvar))
+}
+
 /// Whether `cvar` has a row on a general or renderer tab that can show
 /// `value`: a switch's 0 or 1, or a number within its slider's range.
 #[cfg(test)]

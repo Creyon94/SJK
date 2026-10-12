@@ -40,9 +40,11 @@ const PANE_TOKEN: u16 = 906;
 const PANE_BAR_TOKEN: u16 = 910;
 /// Pane lines one wheel notch scrolls.
 const WHEEL_LINES: usize = 3;
+/// The notes' chips answer to `CHIP_BASE + n`, in reading order (the SJK UI's look).
+const CHIP_BASE: u16 = 3_000;
 
-/// Releases the what's-new card stacks at most, newest first.
-pub(crate) const DIGEST_LIMIT: usize = 3;
+/// Releases the what's-new card pages through at most, newest first.
+pub(crate) const DIGEST_LIMIT: usize = 5;
 
 /// A release as the what's-new card (`whats_new_card.rs`) shows it.
 #[derive(Debug, Eq, PartialEq)]
@@ -55,6 +57,10 @@ pub(crate) struct Digest {
     pub(crate) intro: String,
     /// The recap: a heading and a sentence each.
     pub(crate) lines: Vec<(String, String)>,
+    /// Who made the release's changes, and the clients they follow ("after OpenJK"),
+    /// each by how many changes they credit, most first.
+    pub(crate) people: Vec<String>,
+    pub(crate) after: Vec<String>,
 }
 
 /// What an update brought: the recaps of the releases after `seen` up to
@@ -86,6 +92,7 @@ fn digests_of(releases: &[data::Release], installed: &str, seen: &str) -> Vec<Di
 }
 
 fn digest(release: &data::Release) -> Digest {
+    let (people, after) = credited(release.changes.iter().map(|change| change.credit.as_str()));
     Digest {
         title: release.title.clone(),
         date: release.date.clone(),
@@ -95,7 +102,43 @@ fn digest(release: &data::Release) -> Digest {
             .iter()
             .map(|line| (line.heading.clone(), line.text.clone()))
             .collect(),
+        people,
+        after,
     }
+}
+
+/// The people and the followed clients `credits` name, each by how many credits name
+/// it, most first (the first named first on a tie). A credit is "<name>[, after
+/// <client>][; <name>...]" (`CHANGELOG.md`'s format); other notes in it are left out.
+fn credited<'a>(credits: impl Iterator<Item = &'a str>) -> (Vec<String>, Vec<String>) {
+    let mut people: Vec<(String, usize)> = Vec::new();
+    let mut after: Vec<(String, usize)> = Vec::new();
+    let count = |list: &mut Vec<(String, usize)>, name: &str| {
+        if name.is_empty() {
+            return;
+        }
+        match list.iter_mut().find(|(known, _)| known == name) {
+            Some((_, times)) => *times += 1,
+            None => list.push((name.to_owned(), 1)),
+        }
+    };
+    for credit in credits {
+        for part in credit.split(';') {
+            let mut pieces = part.split(',').map(str::trim);
+            count(&mut people, pieces.next().unwrap_or_default());
+            for piece in pieces {
+                if let Some(client) = piece.strip_prefix("after ") {
+                    count(&mut after, client.trim());
+                }
+            }
+        }
+    }
+    let ranked = |mut list: Vec<(String, usize)>| {
+        // A stable sort keeps the first named first on a tie.
+        list.sort_by(|a, b| b.1.cmp(&a.1));
+        list.into_iter().map(|(name, _)| name).collect()
+    };
+    (ranked(people), ranked(after))
 }
 
 /// What the console does after the page handled an event.
@@ -103,6 +146,8 @@ fn digest(release: &data::Release) -> Digest {
 pub(crate) enum PanelAction {
     None,
     Close,
+    /// A chip was clicked: its text (`ViewerConsole::follow_chip`).
+    Chip(String),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -119,6 +164,9 @@ enum LineKind {
 struct Line {
     kind: LineKind,
     text: String,
+    /// The line laid out with its chips, in the SJK UI's look (`changelog_sjk.rs`);
+    /// empty in the classic+ look, which draws `text`.
+    row: crate::inline_code::Row,
 }
 
 pub(crate) struct Panel {
@@ -145,6 +193,8 @@ pub(crate) struct Panel {
     art: ArtSet,
     /// The SJK UI's look (`changelog_sjk.rs`), else the classic+ one.
     sjk: bool,
+    /// The chips drawn this frame, by token from [`CHIP_BASE`].
+    chips: Vec<String>,
     ui: MenuCanvas,
 }
 
@@ -175,6 +225,7 @@ impl Panel {
             page_lines: 1,
             art: ArtSet::default(),
             sjk: false,
+            chips: Vec::new(),
             ui: MenuCanvas::with_text_capacity(256),
         }
     }
@@ -271,6 +322,10 @@ impl Panel {
                 self.select(self.first + usize::from(token - ROW_BASE));
                 PanelAction::None
             }
+            Some(token) if token >= CHIP_BASE => self
+                .chips
+                .get(usize::from(token - CHIP_BASE))
+                .map_or(PanelAction::None, |chip| PanelAction::Chip(chip.clone())),
             _ => PanelAction::None,
         }
     }
@@ -325,15 +380,18 @@ impl Panel {
                 self.lines.push(Line {
                     kind: LineKind::Intro,
                     text: line.to_owned(),
+                    row: Vec::new(),
                 });
             }
             self.lines.push(Line {
                 kind: LineKind::Gap,
                 text: String::new(),
+                row: Vec::new(),
             });
         }
         for change in &release.changes {
-            for (index, line) in wrap_words(&change.text, width - indent, body)
+            let text = crate::inline_code::plain(&change.text);
+            for (index, line) in wrap_words(&text, width - indent, body)
                 .into_iter()
                 .enumerate()
             {
@@ -344,15 +402,18 @@ impl Panel {
                         LineKind::More
                     },
                     text: line.to_owned(),
+                    row: Vec::new(),
                 });
             }
             self.lines.push(Line {
                 kind: LineKind::Credit,
                 text: change.credit.to_ascii_uppercase(),
+                row: Vec::new(),
             });
             self.lines.push(Line {
                 kind: LineKind::Gap,
                 text: String::new(),
+                row: Vec::new(),
             });
         }
         self.lines.pop();
@@ -416,6 +477,18 @@ mod tests {
         // A local build, or "Unreleased", is not a release.
         assert!(titles("0.1.0-dev", "1.0").is_empty());
         assert!(titles("Unreleased", "").is_empty());
+        let (people, after) = credited(
+            [
+                "Sol",
+                "Creyon, after OpenJK",
+                "Creyon, after JoF EJK; Sol",
+                "Sol, fonts traced from a pack",
+                "Lumaya, after OpenJK",
+            ]
+            .into_iter(),
+        );
+        assert_eq!(people, ["Sol", "Creyon", "Lumaya"]);
+        assert_eq!(after, ["OpenJK", "JoF EJK"]);
         let third = &digests_of(&releases, "3.0", "2.0")[0];
         assert_eq!(third.intro, "Third.");
         assert_eq!(third.lines, [("Three".to_owned(), "third".to_owned())]);

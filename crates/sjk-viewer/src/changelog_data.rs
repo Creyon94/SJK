@@ -40,14 +40,15 @@ impl Release {
 
 #[derive(Debug)]
 pub(super) struct Change {
+    /// What changed, code in backticks (`inline_code`).
     pub(super) text: String,
     /// Who made it: "Sol", "Creyon", "Sol, after JoF EJK".
     pub(super) credit: String,
 }
 
-/// Inline markdown the page does not draw: code spans become plain text.
+/// Inline markdown a surface does not draw: code spans become plain text.
 fn plain(text: &str) -> String {
-    text.replace('`', "")
+    crate::inline_code::plain(text)
 }
 
 pub(super) fn parse(text: &str) -> Result<Vec<Release>, String> {
@@ -105,9 +106,15 @@ pub(super) fn parse(text: &str) -> Result<Vec<Release>, String> {
                 .ok_or_else(|| {
                     format!("CHANGELOG.md line {number}: a change must end with \" _(<credit>)_\"")
                 })?;
+            if crate::inline_code::unbalanced(text) {
+                return Err(format!(
+                    "CHANGELOG.md line {number}: a change leaves a ` code span open"
+                ));
+            }
             let release = releases.last_mut().expect("checked above");
+            // The SJK UI draws code spans in chips; the classic+ page drops the marks.
             release.changes.push(Change {
-                text: plain(text.trim()),
+                text: text.trim().to_owned(),
                 credit: credit.trim().to_owned(),
             });
         } else if let Some(entry) = line.strip_prefix("> ") {
@@ -121,7 +128,7 @@ pub(super) fn parse(text: &str) -> Result<Vec<Release>, String> {
             let (heading, text) = entry.split_once(": ").ok_or_else(|| {
                 format!("CHANGELOG.md line {number}: a recap line is \"> <heading>: <text>\"")
             })?;
-            if text.matches('`').count() % 2 == 1 {
+            if crate::inline_code::unbalanced(text) {
                 return Err(format!(
                     "CHANGELOG.md line {number}: a recap line leaves a ` code span open"
                 ));
@@ -197,7 +204,11 @@ mod tests {
             );
             for change in &release.changes {
                 assert!(!change.credit.is_empty(), "{}", change.text);
-                assert!(!change.text.contains('`'), "{}", change.text);
+                assert!(
+                    !crate::inline_code::unbalanced(&change.text),
+                    "{}",
+                    change.text
+                );
             }
         }
         // Only the first section may be the unreleased one.
@@ -280,6 +291,22 @@ mod tests {
         assert_eq!(release.changes[0].text, "Did a thing");
         assert_eq!(release.changes[0].credit, "Sol, after JoF EJK");
         assert_eq!(release.meta, "05/10/2026   /   2 changes");
+        // A change keeps its code marks for the chips, and one left open is refused.
+        let code = parse(
+            "## 1.0 | 05/10/2026
+- Type `whatsnew` _(Sol)_
+",
+        )
+        .unwrap();
+        assert_eq!(code[0].changes[0].text, "Type `whatsnew`");
+        assert!(
+            parse(
+                "## 1.0 | 05/10/2026
+- Type `whatsnew _(Sol)_
+"
+            )
+            .is_err()
+        );
 
         assert!(parse("## 1.0 | 2026-10-05\n- x _(Sol)_\n").is_err());
         assert!(parse("## 1.0\n- x _(Sol)_\n").is_err());

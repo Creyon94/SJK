@@ -96,6 +96,13 @@ impl<'a> TextTarget<'a> {
         }
     }
 
+    /// How chips' text (`inline_code`) measures as this target draws it, and the body
+    /// family's text beside it.
+    pub(crate) fn inline_measures(&self) -> crate::inline_code::Measures<'a> {
+        let body = self.body_measure();
+        crate::inline_code::Measures { body, code: body }
+    }
+
     /// Append `canvas`'s text runs, each in its family.
     pub(crate) fn append(self, canvas: &MenuCanvas, viewport: [f32; 2]) {
         match self {

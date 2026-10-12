@@ -254,6 +254,31 @@ impl ClientMenu {
         self.settings.open_first_setup_popup(console);
     }
 
+    /// Open Settings with `query` searched, returning to `target` when it closes (a chip
+    /// naming a setting, on the what's-new card or the changelog page): the SJK UI's
+    /// Settings on the category last shown, or the classic Setup panel under the
+    /// classic style.
+    pub(crate) fn open_settings_search(
+        &mut self,
+        console: &ViewerConsole,
+        query: &str,
+        target: ReturnTarget,
+    ) {
+        let classic = self.menu_style != super::super::MenuStyle::Sjk
+            && Page::Setup.opening_panel().is_some_and(|entry| {
+                let frame = match target {
+                    ReturnTarget::MainMenu => PanelFrame::Main,
+                    ReturnTarget::InGame => PanelFrame::InGame,
+                };
+                self.open_classic_panel(console, Page::Setup, entry, frame, target)
+            });
+        if !classic {
+            let category = self.sjk_settings.category();
+            self.open_sjk_settings(console, category, target);
+        }
+        self.settings.carry_search(console, query);
+    }
+
     /// Open the SJK UI's Settings over a match, from its in-game menu, on the
     /// category last shown; it returns to the in-game menu.
     pub(crate) fn open_sjk_settings_from_game(&mut self, console: &ViewerConsole) {
