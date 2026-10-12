@@ -30,10 +30,11 @@ multiplayer. Read [docs/status.md](docs/status.md),
   the evidence, read by generic code, and the player can override it with a cvar or
   setting. Supporting a new case means adding an entry, not code. Example:
   [server_caps.rs](crates/sjk-viewer/src/server_caps.rs) and `gameplay_fps_nocap`.
-- Every text field takes Ctrl+C and Ctrl+V and repeats a held Backspace (Sol's rule,
-  12/10/2026), in every screen, pop-up and prompt, SJK UI and classic alike: Ctrl+V
-  (and Shift+Insert) pastes, Ctrl+C (and Ctrl+Insert) copies the field (never a
-  password), and Backspace held deletes on, typed keys held repeat. A menu handler
+- Every text field takes Ctrl+A, Ctrl+C and Ctrl+V and repeats a held Backspace (Sol's
+  rule, 12/10/2026), in every screen, pop-up and prompt, SJK UI and classic alike:
+  Ctrl+A selects all the text (typing or a paste then replaces it, Backspace clears
+  it), Ctrl+V (and Shift+Insert) pastes, Ctrl+C (and Ctrl+Insert) copies the field
+  (never a password), and Backspace held deletes on, typed keys held repeat. A menu handler
   that drops `event.repeat` must let an open field's Backspace and typed keys through.
   A new field uses [text_entry.rs](crates/sjk-viewer/src/text_entry.rs) (one line) or
   [sjk_chat_field.rs](crates/sjk-viewer/src/sjk_chat_field.rs) (chat), not its own

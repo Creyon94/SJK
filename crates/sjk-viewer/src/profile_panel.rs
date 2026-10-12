@@ -733,6 +733,19 @@ impl Panel {
             return PanelAction::None;
         };
         let typing = self.focus == Focus::Bio && self.writable;
+        if typing
+            && !event.repeat
+            && crate::text_entry::before_edit(
+                &mut self.bio,
+                key,
+                event.text.as_deref(),
+                shift,
+                control,
+            )
+        {
+            self.edited = true;
+            return PanelAction::None;
+        }
         match key {
             KeyCode::Escape => return self.escape(),
             KeyCode::Tab => self.step(!shift),

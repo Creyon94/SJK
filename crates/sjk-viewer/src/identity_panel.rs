@@ -508,6 +508,15 @@ impl Panel {
             return PanelAction::None;
         };
         let typing = self.field().is_some();
+        if typing
+            && !event.repeat
+            && self.field().is_some_and(|(field, _)| {
+                crate::text_entry::before_edit(field, key, event.text.as_deref(), shift, control)
+            })
+        {
+            self.edited = true;
+            return PanelAction::None;
+        }
         match key {
             KeyCode::Escape => return PanelAction::Close,
             KeyCode::Tab => self.focus = step(self.focus, !shift, self.fields, self.offer_hub),

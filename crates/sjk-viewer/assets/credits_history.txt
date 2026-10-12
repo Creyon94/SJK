@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 12/10/2026 | - | Ctrl+A selects all the text of a field
+- 8efdab7 |  | Ctrl+A selects all the text of a field, everywhere
 + 12/10/2026 | - | What's new card: headings on top, command chips
 - 62962a4 |  | What's new card: headings above their lines, commands in chips
 + 12/10/2026 | - | cjp_client 1.4 SJK on JA+: the grapple rope and button12 hold come back

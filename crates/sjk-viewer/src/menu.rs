@@ -744,6 +744,10 @@ impl ClientMenu {
         }
         self.poll_local_server();
         self.poll_favourite_lookup();
+        if !self.field_open() {
+            // A selection ends with the field.
+            crate::text_entry::deselect();
+        }
         let browser_visible = matches!(self.state.phase(), ClientPhase::Browser);
         if browser_visible {
             self.browser.tick_details();
@@ -884,16 +888,7 @@ impl ClientMenu {
         }
         // A field that is open takes held keys (Backspace deletes on, a letter types on);
         // every other key acts once.
-        let field_open = self.address_editing
-            || self.password_target.is_some()
-            || match self.state.phase() {
-                ClientPhase::Browser => self.filter_editing,
-                ClientPhase::Settings => self.settings.typing(),
-                ClientPhase::Keybinds => self.keybinds.typing(),
-                ClientPhase::Player => self.player.typing(),
-                ClientPhase::CreateGame => self.create_game.typing(),
-                _ => false,
-            };
+        let field_open = self.field_open();
         let (shift, control) = (console.shift_held(), console.control_held());
         if event.repeat && !(field_open && repeats_in_a_field(event, control)) {
             return MenuAction::None;
@@ -908,6 +903,34 @@ impl ClientMenu {
             && let PhysicalKey::Code(key) = event.physical_key
         {
             let text = event.text.as_deref();
+            if let Some(field) = self.page_field_text() {
+                if crate::text_entry::is_select_all(key, text, control) {
+                    crate::text_entry::select_all(field);
+                    return MenuAction::None;
+                }
+                if crate::text_entry::is_selected(field)
+                    && !crate::text_entry::is_copy(key, text, control)
+                {
+                    // All of it is selected: Backspace or Delete clears it, typing or a
+                    // paste replaces it; the field is erased with Backspaces, whatever
+                    // it is, and the key goes on.
+                    let chars = field.chars().count();
+                    let erases = matches!(key, KeyCode::Backspace | KeyCode::Delete);
+                    let replaces = erases
+                        || crate::sjk_chat_field::is_paste(key, text, shift, control)
+                        || (!control
+                            && text.is_some_and(|text| {
+                                !text.is_empty() && text.chars().all(|c| !c.is_control())
+                            }));
+                    crate::text_entry::deselect();
+                    if replaces {
+                        self.erase_field(event, console, chars);
+                    }
+                    if erases {
+                        return MenuAction::None;
+                    }
+                }
+            }
             if crate::text_entry::is_copy(key, text, control) {
                 if let Some(field) = self.page_field_text()
                     && !field.is_empty()
@@ -1053,6 +1076,33 @@ impl ClientMenu {
             ClientPhase::Connecting(_) | ClientPhase::ConnectionError | ClientPhase::InGame => {
                 MenuAction::None
             }
+        }
+    }
+
+    /// Whether a field takes the keys: the address or password prompt, the browser's
+    /// search, or a field of the page on show.
+    fn field_open(&self) -> bool {
+        self.address_editing
+            || self.password_target.is_some()
+            || match self.state.phase() {
+                ClientPhase::Browser => self.filter_editing,
+                ClientPhase::Settings => self.settings.typing(),
+                ClientPhase::Keybinds => self.keybinds.typing(),
+                ClientPhase::Player => self.player.typing(),
+                ClientPhase::CreateGame => self.create_game.typing(),
+                _ => false,
+            }
+    }
+
+    /// Erase `chars` characters of the field that has the keys, as that many Backspaces.
+    fn erase_field(&mut self, event: &KeyEvent, console: &mut ViewerConsole, chars: usize) {
+        let mut backspace = event.clone();
+        backspace.physical_key = PhysicalKey::Code(KeyCode::Backspace);
+        backspace.logical_key = winit::keyboard::Key::Named(winit::keyboard::NamedKey::Backspace);
+        backspace.text = None;
+        backspace.repeat = false;
+        for _ in 0..chars {
+            let _ = self.key_event(&backspace, console, true);
         }
     }
 

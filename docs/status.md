@@ -1,6 +1,18 @@
 # Status and priorities
 
-## Text fields: paste, copy and a held Backspace everywhere
+## Text fields: Ctrl+A, paste, copy and a held Backspace everywhere
+
+Ctrl+A followed (12/10/2026, branch `personal/select-all`): Sol added Ctrl+A to the rule.
+A one-line field has no caret movement, so [text_entry.rs](../crates/sjk-viewer/src/text_entry.rs)
+keeps one selection, all of one field's text (its address and length, so it never outlives a
+change of text or field): Backspace or Delete clears it, typing or a paste replaces it,
+Ctrl+C copies it and any other key drops it. The menu pages' fields get it through
+`ClientMenu::handle_key` (the field is erased with Backspaces), the prompts, bios, staff
+panel, console browser and SJK chat fields through `before_edit`, the report dialog through
+its line editor's own selection; the console and the game chat had it. The SJK UI's
+`kit::field` and the classic+ `choice_field` draw a highlight over a selected field's text;
+the fields that draw their own text with a trailing `_` show no highlight. Verified: unit
+tests of the selection and the workspace checks. Not tried in game.
 
 Branch `personal/text-input` (12/10/2026): Sol could not paste an IP into the new
 "Add a favourite" prompt, and a held Backspace erased one character; he made it a rule

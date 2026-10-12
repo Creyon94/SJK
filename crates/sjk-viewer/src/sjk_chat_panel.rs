@@ -443,6 +443,9 @@ impl Panel {
         control: bool,
     ) -> PanelAction {
         let typing = self.focus == FIELD_TOKEN;
+        if typing && crate::text_entry::before_edit(&mut self.draft, key, text, shift, control) {
+            return PanelAction::None;
+        }
         let in_list = (MESSAGE_BASE..MESSAGE_BASE + MESSAGES_SHOWN as u16).contains(&self.focus);
         match key {
             KeyCode::Escape => return PanelAction::Close,
