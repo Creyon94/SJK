@@ -8,7 +8,7 @@
 //! faces, their pictures or initials ([`super::people`]). A name in the chat or a face
 //! in the window under the pointer shows that player's sender card over the page.
 //! While the GIF picker is open it takes the messages' place
-//! ([`super::gif_picker`]).
+//! ([`super::gif_picker`]), and its key card takes the whole page's.
 
 use super::*;
 use crate::menu::sjk::recent::ago;
@@ -248,6 +248,22 @@ impl Panel {
         self.ui.begin_transparent(viewport);
         crate::settings::sjk_view::backdrop(&mut self.ui, viewport);
         top_bar(&mut self.ui, &frame, "Back", BACK_TOKEN, "SJK chat", None);
+        inputs.giphy_key.clone_into(&mut self.giphy_key);
+        let has_key = crate::chat_gifs::search::key(inputs.giphy_key).is_some();
+        if self.gifs.key_card_due(has_key) {
+            self.focus = super::gif_picker::KEY_FIELD_TOKEN;
+        }
+        if self.gifs.key_card.is_some() {
+            // The card alone: text draws over every shape, so nothing goes under it.
+            self.card = None;
+            self.key_card(&frame);
+            self.keys(&frame);
+            if !self.order.contains(&self.focus) {
+                self.focus = super::gif_picker::KEY_FIELD_TOKEN;
+            }
+            self.ui.finish(self.focus);
+            return;
+        }
         self.status(&frame, inputs);
         let named = if self.gifs.open {
             self.shown.messages.clear();
@@ -1201,7 +1217,14 @@ impl Panel {
     /// The keys of the page, bottom right: the picker's while it is open.
     fn keys(&mut self, frame: &Frame) {
         let s = frame.s;
-        let keys: [(&[&str], &str); 4] = if self.gifs.open {
+        let keys: [(&[&str], &str); 4] = if self.gifs.key_card.is_some() {
+            [
+                (&["Ctrl", "V"], "paste"),
+                (&["Enter"], "save"),
+                (&["Tab"], "next"),
+                (&["Esc"], "not now"),
+            ]
+        } else if self.gifs.open {
             [
                 (&["Enter"], "pick"),
                 (&["F"], "favourite"),

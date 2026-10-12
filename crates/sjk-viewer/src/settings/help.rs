@@ -485,7 +485,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::chat_gifs::search::KEY_CVAR,
-        "Your own GIPHY key for GIF search (free at developers.giphy.com). Empty uses SJK's, 100 searches an hour for all.",
+        "Your own GIPHY key, which GIF search needs: free at developers.giphy.com. The GIF picker's Search shows how.",
     ),
     (
         super::catalog::IDENTITY_ROW,

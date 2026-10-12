@@ -9,6 +9,9 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 12/10/2026 | - | GIF search with the player's own GIPHY key, and the key card
+- bd180c9 |  | GIF search uses only the player's own GIPHY key, with a key card
+- 9dad3fb |  | Credits: GIF search with the player's own key
 + 12/10/2026 | - | The Holocrons tab's loot table: every chance a holocron brings
 - bd555ae |  | Holocrons tab: a loot table with every chance a holocron brings
 + 12/10/2026 | - | Force page applies when left, even unchanged

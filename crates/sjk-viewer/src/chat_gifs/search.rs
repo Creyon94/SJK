@@ -4,9 +4,10 @@
 //! hub). Only the GIFs' ids are read from the answer: what is fetched for each is
 //! rebuilt from its id on GIPHY's media host ([`super::link::media_url`]).
 //!
-//! The key is the player's own (`cl_giphyKey`) or else SJK's ([`SJK_KEY`]), which every
-//! SJK player shares: GIPHY allows a new key 100 requests an hour. So a search is asked
-//! only once the player stops typing (the picker waits [`DEBOUNCE`]), a page of
+//! The key is the player's own (`cl_giphyKey`): SJK has none of its own (Sol's decision,
+//! 12/10/2026), as GIPHY allows a new key 100 requests an hour, too few for every SJK
+//! player to share. The picker's key card says how to get one ([`KEY_PAGE`]). A search
+//! is asked only once the player stops typing (the picker waits [`DEBOUNCE`]), a page of
 //! [`PAGE_SIZE`] at a time and no more than [`MOST`] for one search, and answers are
 //! kept [`KEEP_FOR`] ([`Searcher`]); one request is on its way at a time. A refusal is
 //! kept too, so a spent key is not asked again at once.
@@ -15,11 +16,12 @@ use super::GifId;
 use std::sync::mpsc::{Receiver, Sender, channel};
 use std::time::{Duration, Instant};
 
-/// `cl_giphyKey`: the player's own GIPHY API key, in place of SJK's.
+/// `cl_giphyKey`: the player's own GIPHY API key, which search needs.
 pub(crate) const KEY_CVAR: &str = "cl_giphyKey";
-/// SJK's GIPHY API key, shared by every SJK player without one of their own. Empty
-/// until SJK's GIPHY app is registered: search then needs `cl_giphyKey`.
-pub(crate) const SJK_KEY: &str = "";
+/// GIPHY's developer dashboard, where a player makes their key.
+pub(crate) const KEY_PAGE: &str = "https://developers.giphy.com/dashboard/";
+/// The most characters a key may have (GIPHY's are 32 letters and digits).
+pub(crate) const KEY_MAX: usize = 64;
 /// GIPHY's API host, and nothing else.
 pub(crate) const API_HOST: &str = "api.giphy.com";
 /// GIFs asked for at a time.
@@ -43,14 +45,18 @@ const TIMEOUT: Duration = Duration::from_secs(10);
 /// The most bytes read of an answer (a page of 25 is about 60 KiB).
 const MAX_BYTES: u64 = 1 << 20;
 
-/// The key searches use: the player's own (`own`, `cl_giphyKey`), else SJK's; `None`
-/// when neither is set.
+/// The key searches use: the player's own (`own`, `cl_giphyKey`), trimmed; `None` when
+/// it is not set.
 pub(crate) fn key(own: &str) -> Option<&str> {
     let own = own.trim();
-    if !own.is_empty() {
-        return Some(own);
-    }
-    (!SJK_KEY.is_empty()).then_some(SJK_KEY)
+    (!own.is_empty()).then_some(own)
+}
+
+/// Whether `typed` looks like a GIPHY key, so a paste of something else is caught
+/// before it is saved: 16 to [`KEY_MAX`] letters and digits.
+pub(crate) fn looks_like_key(typed: &str) -> bool {
+    let typed = typed.trim();
+    (16..=KEY_MAX).contains(&typed.len()) && typed.bytes().all(|byte| byte.is_ascii_alphanumeric())
 }
 
 /// A search as it is asked: the words, tidied (lower case, spaces made one, at most
@@ -83,7 +89,7 @@ pub(crate) struct Page {
 /// Why a search could not be had.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum Failure {
-    /// Neither `cl_giphyKey` nor SJK's key is set.
+    /// `cl_giphyKey` is not set.
     NoKey,
     /// GIPHY refused the key (401, 403).
     BadKey,
@@ -99,19 +105,12 @@ pub(crate) enum Failure {
 
 impl Failure {
     /// What the picker says.
-    pub(crate) fn message(&self, own_key: bool) -> String {
+    pub(crate) fn message(&self) -> String {
         match self {
-            Self::NoKey => {
-                "GIF search needs a GIPHY key: Settings > Network > GIPHY key".to_owned()
-            }
-            Self::BadKey if own_key => "GIPHY refused your key (cl_giphyKey)".to_owned(),
-            Self::BadKey => "GIPHY refused SJK's key: try again later".to_owned(),
-            Self::Limited if own_key => {
-                "Your GIPHY key's searches for this hour are spent".to_owned()
-            }
+            Self::NoKey => "GIF search needs your own GIPHY key: it's free.".to_owned(),
+            Self::BadKey => "GIPHY refused your key: check it, or make a new one.".to_owned(),
             Self::Limited => {
-                "SJK's GIF searches for this hour are spent: try later, or set your own GIPHY key"
-                    .to_owned()
+                "Your GIPHY key's searches for this hour are spent: try again later.".to_owned()
             }
             Self::Status(status) => format!("GIPHY answered {status}"),
             Self::Network(error) => format!("GIPHY not reached: {error}"),
@@ -266,6 +265,8 @@ pub(crate) struct Searcher {
     answers: Option<Receiver<(Ask, Result<Page, Failure>)>>,
     /// Counts answers taken, so the picker knows when its tiles changed.
     revision: u64,
+    /// The key the last search was asked with: a new one forgets the refusals kept.
+    key: Option<String>,
 }
 
 impl Searcher {
@@ -312,9 +313,17 @@ impl Searcher {
     }
 
     /// The first `pages` pages of the search for `words` ([`tidy`]), with `key` (None:
-    /// neither key is set), asking GIPHY for the first page not had when nothing is on
+    /// not set), asking GIPHY for the first page not had when nothing is on
     /// its way.
     pub(crate) fn results(&mut self, key: Option<&str>, words: &str, pages: usize) -> Results {
+        if self.key.as_deref() != key {
+            self.key = key.map(str::to_owned);
+            let before = self.kept.len();
+            self.kept.retain(|kept| kept.answer.is_ok());
+            if self.kept.len() != before {
+                self.revision += 1;
+            }
+        }
         let mut results = Results::default();
         for page in 0..pages.max(1) {
             let ask = Ask {
@@ -421,9 +430,13 @@ mod tests {
     }
 
     #[test]
-    fn the_players_key_comes_before_sjks() {
+    fn only_the_players_own_key_is_used() {
         assert_eq!(key("  mykey "), Some("mykey"));
-        assert_eq!(key(""), (!SJK_KEY.is_empty()).then_some(SJK_KEY));
+        assert_eq!(key("  "), None, "SJK has no key of its own");
+        assert!(looks_like_key(" 0123456789abcdefABCDEF0123456789 "));
+        assert!(!looks_like_key("short"));
+        assert!(!looks_like_key("https://developers.giphy.com/dashboard/"));
+        assert!(!looks_like_key(&"a".repeat(KEY_MAX + 1)));
     }
 
     #[test]
@@ -522,6 +535,9 @@ mod tests {
         let shown = searcher.results(Some("k"), "cats", 1);
         assert_eq!(shown.failure, Some(Failure::Limited));
         assert_eq!(searcher.pending_for_test(), None, "not asked again at once");
-        assert!(Failure::Limited.message(false).contains("own GIPHY key"));
+        assert!(Failure::NoKey.message().contains("own GIPHY key"));
+        // A new key forgets the refusal: it is asked at once.
+        let _ = searcher.results(Some("k2"), "cats", 1);
+        assert_eq!(searcher.pending_for_test(), Some(("cats", 0)));
     }
 }

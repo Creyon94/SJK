@@ -218,7 +218,9 @@ feed: the hub took them, so the sound says the message went out.
   nothing) are dropped, a `^` stays only before a digit, and the paste stops at 150
   characters (a colour code counts as its two and is never cut in half). Typed keys
   are not filtered, as before; the rules still refuse what was typed before sending.
-  Ctrl+A, Ctrl+C and Ctrl+X do nothing there (the fields have no selection). The game's
+  Ctrl+A selects the whole draft (typing or a paste then replaces it, Backspace clears
+  it) and Ctrl+C copies it, on the page's field and the GIF picker's; Ctrl+X does
+  nothing (no caret, no partial selection). The game's
   own chat composer (`messagemode`, SJK channel included) already had all four, with a
   caret and a selection ([chat/editing.rs](../crates/sjk-viewer/src/chat/editing.rs)).
 
@@ -307,8 +309,10 @@ Only GIPHY: Tenor's API shut down on 30/06/2026.
 ## The GIF picker
 
 Sol's request, 12/10/2026: "a gif picker to the SJK chat and a way to also save gifs as
-favorites". Decided with Sol the same day: search uses GIPHY's API with SJK's key, or the
-player's own (`cl_giphyKey`); favourites stay on this PC.
+favorites". Decided with Sol the same day: search uses GIPHY's API; favourites stay on
+this PC. The key is the player's own (Sol, 12/10/2026: "make it they only use their own
+gif key and we give them an easy popup with the link and easy steps"): SJK has none, as a
+new GIPHY key allows 100 requests an hour, too few for every player to share.
 
 - **Where**: the SJK chat page only. GIF, between the field and Send, opens it (and
   closes it); it takes the messages' place until it closes, so the field, Send and the
@@ -348,12 +352,22 @@ player's own (`cl_giphyKey`); favourites stay on this PC.
   15 minutes and refusals 60 seconds (32 kept), so going back to a search asks nothing.
   "Powered by GIPHY" stands under the grid, as GIPHY's terms ask.
 - **The key**: `cl_giphyKey` (archived, empty by default; Settings > Network > GIPHY
-  key, under SJK chat GIFs) is the player's own, from developers.giphy.com; empty uses
-  SJK's (`search::SJK_KEY`), shared by every SJK player. GIPHY gives a new key 100
-  requests an hour; more needs GIPHY's production approval. Until SJK's app is
-  registered `SJK_KEY` is empty and search says it needs a key (Favourites and Seen in
-  chat work). A refused key (401, 403) and a spent hour (429) are said in the picker;
-  the key travels in the request's address and is never logged.
+  key, under SJK chat GIFs), the player's own, free from GIPHY's developer dashboard.
+  Search asks nothing without it; Favourites and Seen in chat need none. GIPHY gives a
+  new key 100 requests an hour. A refused key (401, 403) and a spent hour (429) are said
+  in the picker; the key travels in the request's address and is never logged. A new
+  key forgets the refusals kept, so it is tried at once.
+- **The key card**: opening Search without a key shows a card in the page's place (the
+  page's other parts are not drawn under it, since text draws over every shape): why
+  search needs the player's own key, three steps (open GIPHY's developer site and log in
+  or sign up; Create an API Key, choose API, any name; copy the key, paste it with
+  Ctrl+V, Save key), Open developers.giphy.com (`search::KEY_PAGE`, in the browser), the
+  field the key is pasted into (Ctrl+A, Ctrl+C, Ctrl+V, a held Backspace), Save key and
+  Not now. Save key takes 16 to 64 letters and digits (GIPHY's keys are 32), else the
+  card says it doesn't look like a key; it sets `cl_giphyKey` and saves the profile, and
+  the search goes. Not now (or Escape) puts the card off until the picker's Get a GIPHY
+  key opens it again; a refused key shows Change GIPHY key, which opens it on the key
+  saved. Keys: Ctrl+V paste, Enter save, Tab next, Esc not now.
 - **Keys**: Tab walks the tabs, the search field, the tiles, the field, GIF and Send;
   Left and Right change tab on the tabs; the arrows move through the tiles, scrolling,
   and Up from the top row goes to the search field (or the tabs); Down from the search
@@ -573,7 +587,7 @@ nothing of it. Nothing else is sent: no cookie, key or name. GIFs stay in memory
 `cl_sjkChatGifs 0` stops every request to GIPHY.
 
 The GIF picker ([The GIF picker](#the-gif-picker)): a search sends GIPHY the words typed
-(after 700 ms without a key, or Enter), the key (SJK's or the player's own) and, as any
+(after 700 ms without a key, or Enter), the player's own key and, as any
 request, the player's IP address; opening the Search tab with nothing typed asks for
 GIPHY's trending GIFs. No name, SJK key or cookie is sent. Favourites stay on this PC
 (`gif-favourites.txt`, GIPHY ids only) and are never sent; Seen in chat and Favourites
