@@ -2966,6 +2966,13 @@ white tile for `$whiteimage`/`*white` stages so the `white` shader keeps its alp
 blend instead of falling back to the additive spark. The JA+ client plugin's hook
 model is not drawn, as in EternalJK.
 
+A saber knocked out of the hand or dropped after a throw (`saberKnockDown` turns its entity
+into an `ET_MISSILE` with `WP_SABER`) is drawn as `CG_Missile` draws it: its hilt, the
+`CS_MODELS` model the server names (`DEFAULT_SABER_MODEL` without one), with no blade,
+turned along its flight as other missiles are, and nothing while `EF_NODRAW`
+([projectiles.rs](../crates/sjk-viewer/src/projectiles.rs)). Before 12/10/2026 a missile
+saber drew nothing, so a dropped saber vanished until its owner pulled it back.
+
 ## Shader test maps
 
 [shader_testmap.py](../scripts/shader_testmap.py) builds galleries of every

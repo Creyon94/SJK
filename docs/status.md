@@ -11,6 +11,15 @@ Prediction now keeps the server's slope pose while the player stands still
 8, 7, 4 and 3 ms command steps (the pose holds; before, it stepped back at the first
 command), the workspace checks, and in game on Windows 11 by Creyon (no stutter standing
 still or on a ledge, the foot hanging).
+## A dropped saber stays visible
+
+Branch `fix/dropped-saber` (12/10/2026, based on `9dbbdf19`, Linux): Creyon saw his thrown
+saber vanish once it fell to the ground, until it came back to his hand. A saber that is
+knocked down becomes an `ET_MISSILE` with `WP_SABER`, and the projectile drawing had no
+model for that weapon. It now draws the saber's hilt from `CS_MODELS`, as `CG_Missile` does
+([rendering.md](rendering.md)). Verified: unit tests (the hilt from its model index, the
+default saber without one, nothing while `EF_NODRAW`), the workspace checks, and in game on
+Windows 11 by Creyon (the hilt stays on the ground until pulled back).
 
 ## Downloads that work, and what they may bring
 
