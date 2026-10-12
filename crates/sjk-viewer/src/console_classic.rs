@@ -1125,7 +1125,8 @@ impl ViewerConsole {
 /// [`crate::text::glyph_at`] picks it, so a typed `’` uses cell 0x92 like the same
 /// byte from another player; a character with no such byte (`ж`, `日`) is wide.
 fn console_key(character: char) -> GlyphKey {
-    sjk_protocol::windows_1252_byte(character).map_or(GlyphKey::Wide(character), GlyphKey::Slot)
+    let mut buffer = [0; 4];
+    crate::text::glyph_at(character.encode_utf8(&mut buffer), 0).0
 }
 
 #[cfg(test)]

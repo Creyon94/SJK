@@ -167,16 +167,21 @@ link: https://github.com/Bishop-R/JKR
 role: Coding assistant, by Anthropic
 did: Wrote many of Sol's changes together with Sol
 
-[Inter, JetBrains Mono, Rajdhani, Exo 2 and Noto Sans JP]
+[Inter, JetBrains Mono, Rajdhani, Exo 2 and Noto Sans]
 role: The fonts of the menus, the SJK UI and the console, under the SIL Open Font License
 did: Inter by The Inter Project Authors, JetBrains Mono by The JetBrains Mono Project Authors
 did: Rajdhani by the Indian Type Foundry, Exo 2 by the Exo 2 Project Authors (Natanael Gama)
-did: Noto Sans JP by Adobe and Google, for Japanese kana and kanji
+did: Noto Sans JP, SC and KR by Adobe and Google, for Japanese, Chinese and Korean
 link: https://rsms.me/inter/
 link: https://www.jetbrains.com/lp/mono/
 link: https://fonts.google.com/specimen/Rajdhani
 link: https://fonts.google.com/specimen/Exo+2
 link: https://fonts.google.com/noto/specimen/Noto+Sans+JP
+
+[Twemoji]
+role: The colour emoji in chat, names and every text, under CC-BY 4.0
+did: Twemoji 17.0.3 by Twitter, Inc and other contributors
+link: https://github.com/jdecked/twemoji
 
 [GIPHY]
 role: Where the GIFs in SJK chat come from

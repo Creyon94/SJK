@@ -32,6 +32,26 @@ fn is_wide(uv: vec2<f32>) -> bool {
     return uv.x >= WIDE_U_OFFSET - 0.5;
 }
 
+// Colour emoji (`text/emoji.rs`): RGBA display values, at u - this offset.
+@group(0) @binding(3)
+var emoji_texture: texture_2d<f32>;
+
+const EMOJI_U_OFFSET: f32 = 4.0;
+
+fn is_emoji(uv: vec2<f32>) -> bool {
+    return uv.x >= EMOJI_U_OFFSET - 0.5;
+}
+
+// What a fragment draws: an emoji's own colours (black for the shadow quad, whose
+// colour is black, and for black text), faded by the text's alpha; else the text
+// colour over `coverage`, the font's or the wide atlas's.
+fn shade(input: VertexOutput, coverage: f32) -> vec4<f32> {
+    let picture = textureSample(emoji_texture, font_sampler, input.uv - vec2(EMOJI_U_OFFSET, 0.0));
+    let shadow = max(max(input.color.r, input.color.g), input.color.b) < 0.004;
+    let emoji = vec4(select(picture.rgb, vec3(0.0), shadow), input.color.a * picture.a);
+    return select(vec4(input.color.rgb, input.color.a * coverage), emoji, is_emoji(input.uv));
+}
+
 @vertex
 fn vertex_main(input: VertexInput) -> VertexOutput {
     var output: VertexOutput;
@@ -43,10 +63,9 @@ fn vertex_main(input: VertexInput) -> VertexOutput {
 
 @fragment
 fn fragment_main(input: VertexOutput) -> @location(0) vec4<f32> {
-    // Both atlases are sampled in uniform control flow; the vertex's u picks one.
+    // Every atlas is sampled in uniform control flow; the vertex's u picks one.
     let font = textureSample(font_texture, font_sampler, input.uv).a;
-    let coverage = select(font, wide_coverage(input.uv), is_wide(input.uv));
-    return vec4(input.color.rgb, input.color.a * coverage);
+    return shade(input, select(font, wide_coverage(input.uv), is_wide(input.uv)));
 }
 
 // Retail bitmap fonts are uploaded as signed distance fields (`text/sdf.rs`): alpha
@@ -60,6 +79,5 @@ fn fragment_sdf(input: VertexOutput) -> @location(0) vec4<f32> {
     let pixel = clamp(length(vec2(dpdx(distance), dpdy(distance))), 1.0e-4, 0.5);
     let field = clamp((distance - 0.5) / pixel + 0.5, 0.0, 1.0);
     // Wide glyphs are coverage, not distance.
-    let coverage = select(field, wide_coverage(input.uv), is_wide(input.uv));
-    return vec4(input.color.rgb, input.color.a * coverage);
+    return shade(input, select(field, wide_coverage(input.uv), is_wide(input.uv)));
 }

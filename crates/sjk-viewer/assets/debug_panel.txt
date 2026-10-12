@@ -38,6 +38,19 @@ test: Console and SJK channel: Cyrillic shows there too; ui_gameFont 1 and 0 bot
 test: SJK channel: send a Japanese line (and a bio in Japanese): the hub takes it.
 note: Japanese is read only by SJK players (retail and EternalJK show other characters).
 
+[cjk-emoji-text]
+area: Console & chat
+title: Chinese, Korean and colour emoji show in chat, names and the SJK channel
+change: Simplified Chinese and Hangul from bundled Noto Sans SC and KR; Twemoji colour emoji.
+change: Skin tones, families and flags are one picture; caret and Backspace take them whole.
+change: The SJK channel and bios take Korean, Chinese punctuation and emoji (hub deployed).
+test: Type Chinese and Korean (Windows IME) in chat: they show, not ???.
+test: Win+. emoji panel in chat: emoji show in colour, a thumbs-up with a skin tone as one.
+test: Backspace after a flag or a family emoji removes it whole.
+test: SJK channel and Profile bio: Korean and emoji are taken by the hub.
+test: Names with emoji (another SJK player's) show the emoji on scoreboard and nameplates.
+note: Read only by SJK players; retail and EternalJK show other characters.
+
 [own-chat-sound]
 area: Console & chat
 title: Your own SJK chat message plays the SJK chat sound when it goes out

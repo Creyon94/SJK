@@ -278,7 +278,7 @@ mod tests {
     #[test]
     fn a_message_is_shown_without_its_colour_codes() {
         assert_eq!(message_text("hello ^1there ^2^3you"), "hello there you");
-        assert_eq!(message_text("bad \u{1F600}x"), "bad x");
+        assert_eq!(message_text("bad \u{221E}x"), "bad x");
         assert_eq!(message_text("100% sure"), "100% sure");
     }
 

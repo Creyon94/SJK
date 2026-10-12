@@ -2627,15 +2627,21 @@ JetBrains Mono's `¬`. Outgoing chat and names send `¬` as the single byte 0xAC
 
 Every font atlas holds the 256 characters of Windows-1252, one per byte. Any other
 character, Cyrillic from a Russian player ([player text](networking.md#player-text))
-or Japanese sent as UTF-8 by an SJK player, drew `?` until 12/10/2026. They now come
-from one shared wide-glyph atlas ([wide.rs](../crates/sjk-viewer/src/text/wide.rs)),
-filled the first time each character is shown:
+or Japanese, Chinese, Korean or an emoji sent as UTF-8 by an SJK player, drew `?`
+until 12/10/2026. Letters now come from one shared wide-glyph atlas
+([wide.rs](../crates/sjk-viewer/src/text/wide.rs)), filled the first time each
+character is shown, and emoji from a colour atlas beside it
+([below](#emoji)):
 
 - Each face names the fonts that lend it wide glyphs, in order: its own family when
   it has Cyrillic (Inter, Exo 2, JetBrains Mono), else the closest that does (Exo 2
   for Rajdhani and SJK Menu, JetBrains Mono for SJK Chat's OCR-A, Inter SemiBold for
-  SJK HUD), then Noto Sans JP for kana and kanji. A character none of them has (an
-  emoji) draws the face's `?`.
+  SJK HUD), then Noto Sans JP for kana and kanji (and most hanzi: 5,279 of Big5's
+  5,401 common Traditional characters, 4,548 of GB 2312's 6,763 Simplified ones),
+  Noto Sans SC for the other 2,215 GB 2312 hanzi, and Noto Sans KR for Hangul (all
+  11,172 syllables and the compatibility jamo). A shared hanzi takes Noto Sans JP's
+  Japanese form. A character none of them has draws the face's `?`; joiners,
+  variation selectors and tags outside an emoji take no room.
 - A wide glyph is scaled so its font's capitals match the face's `H` and sits on the
   face's baseline, so `Ж` is as tall as `H` beside it and a kanji takes the size Noto
   Sans JP gives it next to its own Latin capitals. The classic console shrinks a glyph
@@ -2655,6 +2661,29 @@ filled the first time each character is shown:
   vertices hold `u` offset by 2, and `text.wgsl` samples the wide atlas for those
   (coverage, also under the distance-field entry), so every batch keeps its own
   atlas and draw order.
+
+#### Emoji
+
+Emoji are Twemoji's colour pictures (17.0.3, 4,009 of them, CC-BY 4.0), packed by
+[twemoji_pack.py](../scripts/twemoji_pack.py) into `assets/emoji` (the 72-pixel PNGs
+one after another, 4.2 MB, and an index) and drawn by
+[emoji.rs](../crates/sjk-viewer/src/text/emoji.rs):
+
+- An emoji is often several code points drawn as one picture: a skin tone after a
+  hand, people joined by U+200D into a family, two regional indicators into a flag,
+  a digit with U+FE0F and U+20E3 into a keycap. The layout walk (`glyph_at`) takes the
+  longest sequence of the pack at each place as one glyph, U+FE0F ignored when
+  matching (as Twemoji's own lookup does) and taken into the glyph it follows, so
+  measuring, wrapping, the caret and Backspace treat it as one character. A character
+  with a Windows-1252 byte (`©`, `™`, a digit) is an emoji only with U+FE0F or U+20E3
+  after it, so plain text never turns into pictures.
+- An emoji is a square one em of the face wide (the em taken from its capitals),
+  sitting a tenth of itself below the baseline, with a twentieth either side.
+- Its picture is decoded the first time it is shown, within the same 2 ms a frame as
+  the wide glyphs, into a 2048x1024 RGBA atlas (253 pictures, display values as every
+  picture the 2D layer samples, mips averaged by alpha), bound at binding 3; its
+  vertices hold `u` offset by 4. `text.wgsl` draws its own colours faded by the text's
+  alpha, and black for the shadow quad (and for black text, `^0`).
 
 ### Game-data HUD
 

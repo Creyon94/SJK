@@ -156,7 +156,7 @@ mod tests {
 
     #[test]
     fn what_the_hub_refuses_is_dropped() {
-        assert_eq!(pasted("", "smile \u{1f600}!"), "smile !");
+        assert_eq!(pasted("", "smile \u{221E}!"), "smile !");
         assert_eq!(pasted("", "a\u{200b}b\u{202e}c"), "abc");
         assert_eq!(pasted("", r"{tag} \o/ `x`"), "tag o/ x");
         assert_eq!(

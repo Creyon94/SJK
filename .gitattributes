@@ -5,3 +5,5 @@
 # Rust sources are normalised by rustc, and the embedded HUD layouts (*.json)
 # are parsed, never matched by text.
 *.wgsl text eol=lf
+# The emoji pack (scripts/twemoji_pack.py): PNG bytes and their LF index.
+crates/sjk-viewer/assets/emoji/twemoji.bin binary

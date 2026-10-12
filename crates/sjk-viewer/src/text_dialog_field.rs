@@ -47,7 +47,15 @@ impl<'a> Face<'a> {
 
     /// The width of `text` drawn on one line.
     pub(super) fn width(&self, text: &str) -> f32 {
-        text.chars().map(|character| self.advance(character)).sum()
+        // Glyph by glyph, so an emoji of several characters counts once.
+        let mut width = 0.0;
+        let mut index = 0;
+        while index < text.len() {
+            let (key, step) = glyph_at(text, index);
+            width += self.font.glyph_of(TextFace::Regular, key).advance * self.scale + self.pen;
+            index += step;
+        }
+        width
     }
 
     /// The styled text size, in pixels.

@@ -85,8 +85,8 @@ pub(crate) struct Device<'a> {
     /// The text pipeline's atlas bind group layout.
     pub(crate) layout: &'a wgpu::BindGroupLayout,
     pub(crate) sampler: &'a wgpu::Sampler,
-    /// The wide-glyph atlas every text bind group carries.
-    pub(crate) wide: &'a wgpu::TextureView,
+    /// The wide-glyph and emoji atlases every text bind group carries.
+    pub(crate) wide: &'a text::wide_texture::WideTexture,
 }
 
 impl Layer {
@@ -519,7 +519,7 @@ pub(crate) fn prepare(gpu: &mut GpuState) {
             queue: &gpu.queue,
             layout: &gpu.text_layout,
             sampler: &gpu.text_sampler,
-            wide: gpu.wide_text.view(),
+            wide: &gpu.wide_text,
         };
         if load {
             fonts.load(&device);

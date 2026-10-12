@@ -226,14 +226,18 @@ fn is_word(character: char) -> bool {
 /// Where `motion` takes a caret at `cursor` in `text`.
 fn target(text: &str, cursor: usize, motion: Motion) -> usize {
     match motion {
-        Motion::Left => text[..cursor]
-            .char_indices()
-            .next_back()
-            .map_or(0, |(index, _)| index),
-        Motion::Right => text[cursor..]
-            .chars()
-            .next()
-            .map_or(cursor, |character| cursor + character.len_utf8()),
+        // By glyph, so the caret steps over an emoji of several characters (`👍🏽`, a
+        // flag) at once and Backspace takes it whole.
+        Motion::Left => {
+            let (mut index, mut last) = (0, 0);
+            while index < cursor {
+                last = index;
+                index += crate::text::glyph_at(text, index).1;
+            }
+            last
+        }
+        Motion::Right if cursor < text.len() => cursor + crate::text::glyph_at(text, cursor).1,
+        Motion::Right => cursor,
         Motion::Home => 0,
         Motion::End => text.len(),
         Motion::WordLeft => {
@@ -279,4 +283,18 @@ pub(crate) fn token_at(text: &str, at: usize) -> Range<usize> {
         .find(|(_, character)| character.is_whitespace())
         .map_or(text.len(), |(index, _)| at + index);
     start..end
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_caret_steps_over_a_whole_emoji() {
+        let thumb = "a\u{1F44D}\u{1F3FD}b";
+        assert_eq!(target(thumb, 1, Motion::Right), 9);
+        assert_eq!(target(thumb, 9, Motion::Left), 1);
+        assert_eq!(target(thumb, 10, Motion::Left), 9);
+        assert_eq!(target("\u{436}a", 2, Motion::Left), 0);
+    }
 }

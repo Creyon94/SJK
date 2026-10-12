@@ -58,6 +58,10 @@ const EXO2_SEMIBOLD: &[u8] = include_bytes!("../../assets/fonts/Exo2-SemiBold.tt
 const JETBRAINS_MONO: &[u8] = include_bytes!("../../assets/fonts/JetBrainsMono-Regular.ttf");
 /// Noto Sans JP Regular, subset to kana, kanji, CJK punctuation and full-width forms.
 const NOTO_SANS_JP: &[u8] = include_bytes!("../../assets/fonts/NotoSansJP-Regular.otf");
+/// Noto Sans SC Regular, subset to the 2,215 GB 2312 hanzi Noto Sans JP lacks.
+const NOTO_SANS_SC: &[u8] = include_bytes!("../../assets/fonts/NotoSansSC-Regular.otf");
+/// Noto Sans KR Regular, subset to Hangul (syllables and jamo).
+const NOTO_SANS_KR: &[u8] = include_bytes!("../../assets/fonts/NotoSansKR-Regular.otf");
 
 /// A font that lends wide glyphs.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq)]
@@ -69,16 +73,22 @@ pub(crate) enum Source {
     JetBrainsMono,
     /// Kana and kanji (and the Chinese characters they share).
     NotoSansJp,
+    /// The Simplified Chinese characters Noto Sans JP lacks.
+    NotoSansSc,
+    /// Hangul.
+    NotoSansKr,
 }
 
 impl Source {
-    const ALL: [Self; 6] = [
+    const ALL: [Self; 8] = [
         Self::InterRegular,
         Self::InterSemibold,
         Self::Exo2Regular,
         Self::Exo2Semibold,
         Self::JetBrainsMono,
         Self::NotoSansJp,
+        Self::NotoSansSc,
+        Self::NotoSansKr,
     ];
 
     const fn index(self) -> usize {
@@ -93,6 +103,8 @@ impl Source {
             Self::Exo2Semibold => EXO2_SEMIBOLD,
             Self::JetBrainsMono => JETBRAINS_MONO,
             Self::NotoSansJp => NOTO_SANS_JP,
+            Self::NotoSansSc => NOTO_SANS_SC,
+            Self::NotoSansKr => NOTO_SANS_KR,
         }
     }
 
@@ -105,25 +117,50 @@ impl Source {
             Self::InterRegular | Self::InterSemibold => 1_490.0 / 2_048.0,
             Self::Exo2Regular | Self::Exo2Semibold => 0.69,
             Self::JetBrainsMono => 0.73,
-            Self::NotoSansJp => 0.733,
+            Self::NotoSansJp | Self::NotoSansSc | Self::NotoSansKr => 0.733,
         }
     }
 }
 
-/// Inter's faces, then kana and kanji.
+/// Inter's faces, then kana and kanji, the hanzi Japanese lacks and Hangul.
 pub(crate) const INTER: [&[Source]; 2] = [
-    &[Source::InterRegular, Source::NotoSansJp],
-    &[Source::InterSemibold, Source::NotoSansJp],
+    &[
+        Source::InterRegular,
+        Source::NotoSansJp,
+        Source::NotoSansSc,
+        Source::NotoSansKr,
+    ],
+    &[
+        Source::InterSemibold,
+        Source::NotoSansJp,
+        Source::NotoSansSc,
+        Source::NotoSansKr,
+    ],
 ];
-/// Exo 2's faces, then kana and kanji; also Rajdhani's, which has no Cyrillic and
+/// Exo 2's faces, then the CJK fonts; also Rajdhani's, which has no Cyrillic and
 /// borrows Exo 2 for what it lacks already.
 pub(crate) const EXO2: [&[Source]; 2] = [
-    &[Source::Exo2Regular, Source::NotoSansJp],
-    &[Source::Exo2Semibold, Source::NotoSansJp],
+    &[
+        Source::Exo2Regular,
+        Source::NotoSansJp,
+        Source::NotoSansSc,
+        Source::NotoSansKr,
+    ],
+    &[
+        Source::Exo2Semibold,
+        Source::NotoSansJp,
+        Source::NotoSansSc,
+        Source::NotoSansKr,
+    ],
 ];
-/// JetBrains Mono, then kana and kanji: the console's, and SJK Chat's (OCR-A, which
+/// JetBrains Mono, then the CJK fonts: the console's, and SJK Chat's (OCR-A, which
 /// has no Cyrillic; a monospace face stands in best).
-pub(crate) const MONO: &[Source] = &[Source::JetBrainsMono, Source::NotoSansJp];
+pub(crate) const MONO: &[Source] = &[
+    Source::JetBrainsMono,
+    Source::NotoSansJp,
+    Source::NotoSansSc,
+    Source::NotoSansKr,
+];
 /// For a face with no wide glyphs (test fonts): every wide character draws `?`.
 #[cfg(test)]
 pub(crate) const NONE: [&[Source]; 2] = [&[], &[]];
@@ -446,6 +483,11 @@ mod tests {
         for character in ['日', 'あ', 'カ', '。', '漢'] {
             assert_eq!(has(INTER[0], character), Some(Source::NotoSansJp));
         }
+        // Simplified hanzi Japanese lacks, and Hangul (syllables and compatibility jamo).
+        assert_eq!(has(INTER[0], '们'), Some(Source::NotoSansSc));
+        assert_eq!(has(INTER[0], '这'), Some(Source::NotoSansSc));
+        assert_eq!(has(MONO, '한'), Some(Source::NotoSansKr));
+        assert_eq!(has(EXO2[0], 'ㅋ'), Some(Source::NotoSansKr));
         assert_eq!(has(INTER[0], '😀'), None);
     }
 

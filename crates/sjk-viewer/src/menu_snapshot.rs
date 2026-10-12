@@ -437,35 +437,56 @@ fn raster_text(image: &mut RgbaImage, vertices: &[crate::text::TextVertex], atla
     // Each glyph is six vertices `[x, y, u, v, r, g, b, a]` in clip space,
     // top-left first and bottom-right third; its coverage is the atlas
     // alpha averaged over each pixel's footprint. A wide glyph's coverage is the
-    // wide atlas's (`text::wide`), as `text.wgsl` picks it.
-    use crate::text::wide;
+    // wide atlas's (`text::wide`), and an emoji draws its own colours from the emoji
+    // atlas (`text::emoji`; black for a shadow), as `text.wgsl` picks them.
+    use crate::text::{emoji, wide};
     let floats: &[[f32; 8]] = bytemuck::cast_slice(vertices);
     let [width, height] = [image.width() as f32, image.height() as f32];
     let wide_pixels = wide::mirror(<[u8]>::to_vec);
+    let emoji_pixels = emoji::mirror(<[u8]>::to_vec);
     for quad in floats.chunks_exact(6) {
         let pixel = |v: &[f32; 8]| [(v[0] + 1.0) * 0.5 * width, (1.0 - v[1]) * 0.5 * height];
         let [x0, y0] = pixel(&quad[0]);
         let [x1, y1] = pixel(&quad[2]);
         let (mut u0, v0, mut u1, v1) = (quad[0][2], quad[0][3], quad[2][2], quad[2][3]);
-        let is_wide = u0 >= wide::U_OFFSET - 0.5;
-        let (atlas_width, atlas_height) = if is_wide {
+        let tint = [quad[0][4], quad[0][5], quad[0][6], quad[0][7]];
+        let is_emoji = u0 >= emoji::U_OFFSET - 0.5;
+        let is_wide = !is_emoji && u0 >= wide::U_OFFSET - 0.5;
+        let (atlas_width, atlas_height) = if is_emoji {
+            (u0, u1) = (u0 - emoji::U_OFFSET, u1 - emoji::U_OFFSET);
+            (emoji::ATLAS_WIDTH, emoji::ATLAS_HEIGHT)
+        } else if is_wide {
             (u0, u1) = (u0 - wide::U_OFFSET, u1 - wide::U_OFFSET);
             (wide::ATLAS_WIDTH, wide::ATLAS_HEIGHT)
         } else {
             (atlas.width(), atlas.height())
         };
-        let texel = |tx: u32, ty: u32| {
-            if is_wide {
-                wide_pixels
+        let shadow = tint[0].max(tint[1]).max(tint[2]) < 0.004;
+        // A texel's colour and coverage.
+        let texel = |tx: u32, ty: u32| -> ([f32; 3], f32) {
+            if is_emoji {
+                let at = ((ty * emoji::ATLAS_WIDTH + tx) * 4) as usize;
+                let Some(rgba) = emoji_pixels.get(at..at + 4) else {
+                    return ([0.0; 3], 0.0);
+                };
+                let colour = rgba[..3].iter().map(|&c| f32::from(c) / 255.0);
+                let mut rgb = [0.0; 3];
+                for (out, c) in rgb.iter_mut().zip(colour) {
+                    *out = if shadow { 0.0 } else { c };
+                }
+                (rgb, f32::from(rgba[3]) / 255.0)
+            } else if is_wide {
+                let coverage = wide_pixels
                     .get((ty * wide::ATLAS_WIDTH + tx) as usize)
                     .copied()
-                    .unwrap_or(0)
+                    .unwrap_or(0);
+                ([tint[0], tint[1], tint[2]], f32::from(coverage) / 255.0)
             } else {
-                atlas.get_pixel(tx, ty).0[3]
+                let coverage = atlas.get_pixel(tx, ty).0[3];
+                ([tint[0], tint[1], tint[2]], f32::from(coverage) / 255.0)
             }
         };
         let (atlas_width, atlas_height) = (atlas_width as f32, atlas_height as f32);
-        let tint = [quad[0][4], quad[0][5], quad[0][6], quad[0][7]];
         for y in y0.floor() as i64..y1.ceil() as i64 {
             let texel_y = |py: f32| {
                 let t = ((py - y0) / (y1 - y0)).clamp(0.0, 1.0);
@@ -484,6 +505,7 @@ fn raster_text(image: &mut RgbaImage, vertices: &[crate::text::TextVertex], atla
                     texel_x(x as f32) as i64,
                     texel_x(x as f32 + 1.0).ceil() as i64,
                 );
+                let mut colour = [0.0_f32; 3];
                 let mut sum = 0.0_f32;
                 let mut count = 0.0_f32;
                 for ty in ty0..ty1.max(ty0 + 1) {
@@ -491,13 +513,20 @@ fn raster_text(image: &mut RgbaImage, vertices: &[crate::text::TextVertex], atla
                         if (0..atlas_width as i64).contains(&tx)
                             && (0..atlas_height as i64).contains(&ty)
                         {
-                            sum += f32::from(texel(tx as u32, ty as u32)) / 255.0;
+                            let (rgb, coverage) = texel(tx as u32, ty as u32);
+                            for (out, c) in colour.iter_mut().zip(rgb) {
+                                *out += c * coverage;
+                            }
+                            sum += coverage;
                         }
                         count += 1.0;
                     }
                 }
-                let coverage = sum / count.max(1.0);
-                blend(image, x, y, [tint[0], tint[1], tint[2], tint[3] * coverage]);
+                if sum <= 0.0 {
+                    continue;
+                }
+                let [r, g, b] = colour.map(|c| c / sum);
+                blend(image, x, y, [r, g, b, tint[3] * sum / count.max(1.0)]);
             }
         }
     }

@@ -86,6 +86,9 @@ pub fn check(raw: &str) -> Result<String, ChatError> {
             _ => return Err(ChatError::Characters),
         }
     }
+    if !crate::emoji::marks_in_place(&text) {
+        return Err(ChatError::Characters);
+    }
     let mut run = (None, 0);
     for c in text.chars() {
         run = if run.0 == Some(c) {
@@ -147,6 +150,7 @@ fn shown(raw: &str, allowed: fn(char) -> bool, max: usize) -> String {
             _ => {}
         }
     }
+    let kept = crate::emoji::without_stray_marks(&kept);
     let mut out = String::with_capacity(kept.len());
     let mut run = (None, 0);
     let mut count = 0;
@@ -184,7 +188,14 @@ mod tests {
 
     #[test]
     fn display_keeps_only_what_the_rules_allow() {
-        assert_eq!(for_display("hi\u{202E}there \u{1F600}!"), "hithere !");
+        assert_eq!(
+            for_display("hi\u{202E}there \u{1F600}!"),
+            "hithere \u{1F600}!"
+        );
+        assert_eq!(
+            for_display("a\u{200D}b \u{1F44D}\u{1F3FD}"),
+            "ab \u{1F44D}\u{1F3FD}"
+        );
         assert_eq!(for_display("a\nb\r\nc"), "a b c");
         assert_eq!(for_display("^1red ^x no ^"), "^1red x no");
         assert_eq!(for_display(&"!".repeat(30)), "!".repeat(RUN_MAX));
@@ -231,7 +242,10 @@ mod tests {
     #[test]
     fn names_drop_what_prints_nothing_or_reorders() {
         assert_eq!(name_for_display("a\u{AD}b\u{200B}c"), "abc");
-        assert_eq!(name_for_display("x\u{202E}y\u{0301} \u{1F600}"), "xy");
+        assert_eq!(
+            name_for_display("x\u{202E}y\u{0301} \u{1F600}"),
+            "xy \u{1F600}"
+        );
         assert_eq!(name_for_display("Sol\u{A0}\u{A0}Fox"), "Sol Fox");
         assert_eq!(name_for_display("a\u{7}\u{85}b"), "ab");
         assert_eq!(name_for_display("^1red ^x ^"), "^1red x");
@@ -240,12 +254,14 @@ mod tests {
             name_for_display(&"ab".repeat(100)).chars().count(),
             NAME_MAX
         );
-        // Every character comes out only where the alphabet allows it.
+        // Every character comes out only where the alphabet allows it; an emoji mark
+        // between letters is out of place and dropped.
         for c in (0..0x3000).filter_map(char::from_u32).filter(|&c| c != '^') {
             let shown = name_for_display(&format!("a{c}b"));
             assert!(
                 shown == format!("a{c}b") && name_allowed(c)
-                    || ["ab", "a b"].contains(&shown.as_str()) && !name_allowed(c),
+                    || ["ab", "a b"].contains(&shown.as_str())
+                        && (!name_allowed(c) || crate::emoji::mark(c)),
                 "{c:?} -> {shown:?}"
             );
         }
@@ -285,7 +301,12 @@ mod tests {
             check("日本語のチャット、OK！").as_deref(),
             Ok("日本語のチャット、OK！")
         );
-        assert_eq!(check("hi \u{1F600}"), Err(ChatError::Characters));
+        assert_eq!(check("hi \u{1F600}").as_deref(), Ok("hi \u{1F600}"));
+        assert_eq!(
+            check("안녕 你好 👨\u{200D}👩\u{200D}👧").as_deref(),
+            Ok("안녕 你好 👨\u{200D}👩\u{200D}👧")
+        );
+        assert_eq!(check("a\u{200D}b"), Err(ChatError::Characters));
         assert_eq!(check("a^"), Err(ChatError::Characters));
         assert_eq!(check("^xa"), Err(ChatError::Characters));
         assert_eq!(check("a\u{200B}b"), Err(ChatError::Characters));

@@ -97,10 +97,12 @@ credits.txt.
 | `arialnb` | Classic status HUD (`cg_classicHudFont`) | SJK HUD: traced from the JoF HD pack's atlas |
 | `logo` glyph (0xAC) | The "WSI fonts" logo in Inter's atlas | SJK Menu's vector logo ([logo_glyph.rs](../crates/sjk-viewer/src/text/logo_glyph.rs)) |
 
-Characters outside the 256 code-page slots (Cyrillic, Japanese) come from the
-same vector fonts, Cyrillic from Inter, Exo 2 or JetBrains Mono, kana and kanji
-from Noto Sans JP (OFL), subset to kana, kanji, CJK punctuation and full-width
-forms (3 MB) with fontTools
+Characters outside the 256 code-page slots (Cyrillic, Japanese, Chinese, Korean)
+come from the same vector fonts, Cyrillic from Inter, Exo 2 or JetBrains Mono, kana
+and kanji from Noto Sans JP (OFL), subset to kana, kanji, CJK punctuation and
+full-width forms (3 MB), the GB 2312 hanzi Noto Sans JP lacks from Noto Sans SC
+(0.5 MB) and Hangul from Noto Sans KR (1.1 MB), all three subset with fontTools.
+Emoji are Twemoji's colour pictures (CC-BY 4.0), not a font
 ([rendering.md](rendering.md#characters-beyond-the-code-page)).
 
 SJK Menu, SJK Chat and SJK HUD keep the retail layout (advances, glyph positions,

@@ -3008,7 +3008,7 @@ mod tests {
         worker.handle(Command::Configure(on("https://hub")), t0);
         worker.tick(t0);
         // The rules are checked here first; nothing goes.
-        worker.handle(Command::Chat("hi \u{1F600}".into()), t0);
+        worker.handle(Command::Chat("hi a\u{200D}b".into()), t0);
         let refused = chat_outcome(&worker);
         assert_eq!(
             (refused.serial, refused.sent, refused.message.as_str()),
@@ -3496,7 +3496,7 @@ mod tests {
         let (mut worker, snapshot) = worker(&fake, t0);
         worker.handle(Command::Configure(on("https://hub")), t0);
         worker.tick(t0);
-        worker.handle(Command::SetBio("hi \u{1F600}".to_owned()), t0);
+        worker.handle(Command::SetBio("hi a\u{200D}b".to_owned()), t0);
         assert!(!fake.log().iter().any(|line| line.starts_with("bio")));
         assert_eq!(
             lock(&snapshot).notice.as_deref(),
