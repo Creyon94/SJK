@@ -129,7 +129,7 @@ Old clients ignore all of it, so it stays `/v1/`.
   card with Mute or Unmute. Joining a game
   does not replay the hub's backlog in the feed (the dock and the page show it). A
   refusal (quota, rules) shows as an `SJK chat:` line.
-- `cl_sjkChat` (default 1, Settings > Network > SJK chat) shows SJK chat and runs the
+- `cl_sjkChat` (default 1, Settings > Chat > SJK chat) shows SJK chat and runs the
   feed; 0 hides it. On a game server the feed still reads, for the players' looks and
   emotes, but no message reaches the game's feed, the dock or the page; in the menus it
   stops.
@@ -163,7 +163,7 @@ feed: the hub took them, so the sound says the message went out.
 - **How it plays:** as the game's chat beep does, beside the listener at full volume
   under `s_volume`, through the interface cues' mailbox (`ui_cues::Cue::SjkChat`) on a
   channel of its own, so it never cuts a menu sound or the game's beep.
-- **Switches:** `cl_sjkChatSound` (archived, default 1; Settings > Network > SJK chat
+- **Switches:** `cl_sjkChatSound` (archived, default 1; Settings > Chat > SJK chat
   sound, under SJK chat, so in every settings screen and settings search). The master
   chat sound switch `cg_chatSounds` gates it too: 0 silences every chat sound, the
   game's `cg_chatBeep` and `cg_teamChatBeep` already, and SJK chat is chat. With
@@ -292,7 +292,7 @@ Only GIPHY: Tenor's API shut down on 30/06/2026.
   the page shows "Muted on this PC" in place of the text, so their links are never read
   for a GIF (`chat_gifs::for_message`); the chat box shows "Messages hidden on this
   client" and never asks for a muted line's GIF.
-- **Switch**: `cl_sjkChatGifs` (archived, default 1; Settings > Network > SJK chat GIFs,
+- **Switch**: `cl_sjkChatGifs` (archived, default 1; Settings > Chat > SJK chat GIFs,
   under SJK chat sound, so in every settings screen and settings search). 0 keeps links
   as text and fetches nothing. With `cl_sjkChat 0` no message shows, so nothing is
   fetched either.

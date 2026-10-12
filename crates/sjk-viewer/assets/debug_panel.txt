@@ -414,7 +414,9 @@ test: Simple > Graphics: Renderer Vanilla/SJK (alpha); on SJK the detail shows t
 test: Pick SJK, then the reload card: the SJK look comes back; Vanilla again restores Vanilla.
 test: SJK quality: Off under Vanilla; Right starts Performance; Backspace on Renderer = Vanilla.
 test: Ctrl+F and F3 in Settings and Key bindings: search gets the keys, typed text replaced.
-test: Advanced > Network: SJK online / SJK chat / Connection headings, Share settings usage row.
+test: Advanced > Network: SJK online and Connection headings, Share settings usage row.
+test: Advanced > Sound: a Notifications heading with the SJK chat and quick wheel sounds.
+test: Advanced: Chat and Mods categories; HUD ends with Scoreboard; search 'chat' shows Chat.
 test: Rename config.cfg away and start: Settings opens Simple, the renderer reads Vanilla.
 note: Usage goes to the hub only once its endpoint is deployed (log: 'settings usage: sent').
 
