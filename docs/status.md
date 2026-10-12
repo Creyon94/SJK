@@ -1,5 +1,16 @@
 # Status and priorities
 
+## JA+ grapple rope: no flicker at a distance
+
+Branch `fix/grapple-rope-flicker` (12/10/2026, based on `c6ce9485`, Linux): Creyon's video
+on the JoF server showed the hook's rope flickering, only its stretch near the hand steady,
+where JoF EJK draws it whole. Stock's rope is a one-unit line, under a pixel beyond about
+700 units; SJK draws effects without multisampling, so the far rope fell between pixels as
+the player moved. The rope is now drawn in pieces of at most 128 units, each at least about
+a pixel wide for its distance from the view; near the view it keeps stock's one unit
+([rendering.md](rendering.md)). Verified: tests of the pieces (one-unit width near, wider
+with distance, joined hand to hook, capped at 32); the workspace checks. Not tried in game.
+
 ## Force powers apply when the Force page is left
 
 Branch `personal/force-apply-on-close` (12/10/2026), Sol's report: on the JoF JA+ server

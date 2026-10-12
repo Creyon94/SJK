@@ -2973,6 +2973,12 @@ gathered once per frame into a fixed table. The effect atlas builds a generated
 white tile for `$whiteimage`/`*white` stages so the `white` shader keeps its alpha
 blend instead of falling back to the additive spark. The JA+ client plugin's hook
 model is not drawn, as in EternalJK.
+Effects are drawn without multisampling, so a one-unit line farther than about 700
+units fell between pixels and flickered as the player moved (a multisampled OpenGL
+client such as JoF EJK blends it in). The rope is therefore drawn as pieces of at most
+128 units (32 at most), each at least about a pixel wide for its distance from the
+view (half-width 0.0007 per unit, about one pixel at 1080p and a 75° vertical field of
+view); near the view it keeps stock's one unit.
 
 A saber knocked out of the hand or dropped after a throw (`saberKnockDown` turns its entity
 into an `ET_MISSILE` with `WP_SABER`) is drawn as `CG_Missile` draws it: its hilt, the
