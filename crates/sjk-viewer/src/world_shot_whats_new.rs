@@ -1,6 +1,6 @@
 //! World shots of the what's-new card over duel6 under the SJK UI: one release's recap
-//! (the newest, as `whatsnew` previews it) and an update that skipped releases (three
-//! stacked). Off-screen renders (no game window), ignored like the other world shots:
+//! (the newest, as `whatsnew` previews it), an update that skipped a release (two pages,
+//! both shot) and a recap with chips. Off-screen renders (no game window), ignored like the other world shots:
 //! they need a GPU adapter and the installed game data named by `JKA_GAME_DATA`.
 //!
 //! Run: `JKA_GAME_DATA=<GameData> cargo test -p sjk-viewer whats_new_shots --
@@ -39,6 +39,11 @@ fn whats_new_shots() {
             shoot(&mut gpu, 6, "duel6-whats-new-skipped").display()
         );
         assert!(gpu.whats_new_card.is_open(), "the card shows");
+        gpu.whats_new_card.turn(1);
+        println!(
+            "{}",
+            shoot(&mut gpu, 6, "duel6-whats-new-skipped-2").display()
+        );
 
         // A recap whose sentences name commands, drawn in chips.
         let digests = crate::console::changelog::digests("2026.1012.1", "2026.1011.3");

@@ -161,7 +161,7 @@ impl Measure<'_> {
     fn width(&self, family: TextFamily, value: &str, size: f32, weight: FontWeight) -> f32 {
         let font = match family {
             TextFamily::Display => self.display,
-            TextFamily::Body => self.body,
+            TextFamily::Body | TextFamily::Code => self.body,
         };
         let face = match weight {
             FontWeight::Regular => TextFace::Regular,
@@ -174,7 +174,7 @@ impl Measure<'_> {
             None => {
                 let share = match family {
                     TextFamily::Display => 0.5,
-                    TextFamily::Body => 0.56,
+                    TextFamily::Body | TextFamily::Code => 0.56,
                 };
                 visible_chars(value) as f32 * size * share
             }

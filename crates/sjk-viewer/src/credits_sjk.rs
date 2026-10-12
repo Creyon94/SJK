@@ -130,7 +130,7 @@ impl<'a> Measure<'a> {
     fn width(&self, family: TextFamily, value: &str, size: f32, weight: FontWeight) -> f32 {
         let font = match family {
             TextFamily::Display => self.display,
-            TextFamily::Body => self.body,
+            TextFamily::Body | TextFamily::Code => self.body,
         };
         let face = match weight {
             FontWeight::Regular => TextFace::Regular,
@@ -1620,6 +1620,7 @@ mod tests {
             SjkFonts {
                 display: (&mut display, &fonts.0),
                 body: (&mut body, &fonts.1),
+                code: None,
             },
             TextStyle::NEUTRAL,
         );

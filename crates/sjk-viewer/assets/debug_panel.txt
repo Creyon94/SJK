@@ -674,12 +674,13 @@ note: A local build is -dev and no release lists it, so only whatsnew shows the 
 
 [whats-new-layout]
 area: Menus & settings
-title: What's new card: headings above their lines, commands in chips
-change: Each recap heading sits above its sentence, which takes the card's full width.
-change: Commands and cvars in backticks in CHANGELOG.md recaps are drawn in boxed chips.
-change: Release names on a card that stacks several are muted, with a rule to the edge.
-test: Console: whatsnew. Headings sit above their lines; the Updates line boxes whatsnew.
-test: Settings > Interface > Menu text size up, then whatsnew: lines rewrap, no chip cut.
+title: What's new card: headings on top, chips, pages, icons, credits
+change: Headings (with an icon) sit above their lines; commands and cvars show as chips.
+change: Skipped releases are pages (Left/Right, arrows, dots); "By ..." names the makers.
+change: Chips on the card and the changelog page: click = Settings search, or console.
+test: Console: whatsnew. Icons, headings on top, the Updates line boxes whatsnew.
+test: Click the whatsnew chip: the card closes, the console opens with whatsnew typed.
+test: Changelog (Unreleased): click cg_clanEmblems: Settings opens searched for it.
 
 # ---- HUD ----
 

@@ -186,6 +186,9 @@ pub(crate) struct ViewerConsole {
     illuminate_lit: bool,
     /// The Toys tab asked to light the holocron (`true`) or put it out, not yet taken.
     pending_illuminate: Option<bool>,
+    /// A chip naming a setting was clicked (`console_changelog.rs`): the cvar to search
+    /// Settings for, not yet taken.
+    pending_settings_search: Option<String>,
     sjk_chat_panel: sjk_chat_panel::Panel,
     /// The Import page (a dropped `.cfg`), drawn in place of the console while open.
     config_import: config_import_panel::Panel,
