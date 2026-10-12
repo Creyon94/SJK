@@ -292,6 +292,13 @@ impl ViewerConsole {
         self.collection_panel.choose_card_for_shot(index);
     }
 
+    /// Tilt the Cards tab's card `key` (0 up close) as though the pointer rested at `at`
+    /// on it, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn collection_tilt_for_shot(&mut self, key: usize, at: [f32; 2]) {
+        self.collection_panel.tilt_card_for_shot(key, at);
+    }
+
     /// Show the hover card of the Collection tab's thing `index`, for a world shot.
     #[cfg(test)]
     pub(crate) fn collection_hover_for_shot(&mut self, index: Option<usize>) {

@@ -37,6 +37,14 @@ const HOLO_BANDS: [[f32; 3]; 6] = [
 ];
 /// A card's corner radius against its width.
 const CORNER: f32 = 0.07;
+/// How far a card turns towards the pointer at its edge, radians (about 9 degrees), and
+/// the eye's distance for the perspective, in card heights.
+const TILT_MAX: f32 = 0.16;
+const EYE: f32 = 2.6;
+/// The Holo sweep: seconds from one pass to the next, and the share of them it takes to
+/// cross the card (the rest, it waits off the card).
+const HOLO_PERIOD: f32 = 7.0;
+const HOLO_CROSSING: f32 = 0.6;
 /// The Solar corona's arcs.
 const CORONA: usize = 3;
 /// A face's name shows on a card this wide (frame pixels) or wider, and all its words
@@ -58,6 +66,17 @@ pub(crate) struct Card<'a> {
     pub(crate) edition: &'a str,
     /// Its face, once revealed and in the packs; `None` draws the sealed back.
     pub(crate) face: Option<Shown<'a>>,
+    /// Where the pointer rests on it, when it does: the card tilts towards it and its
+    /// light follows it.
+    pub(crate) tilt: Option<Tilt>,
+}
+
+/// Where the pointer rests on a card, from its middle: -1 at its left (top) edge, 1 at
+/// its right (bottom) edge.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub(crate) struct Tilt {
+    pub(crate) x: f32,
+    pub(crate) y: f32,
 }
 
 /// A revealed card's face as a card draws it.
@@ -109,6 +128,72 @@ fn faded(colour: Color, alpha: f32) -> Color {
 /// and its words show only once it faces.
 #[allow(clippy::too_many_arguments)]
 pub(crate) fn draw(
+    canvas: &mut MenuCanvas,
+    frame: &Frame,
+    [x, y, width]: [f32; 3],
+    card: Card<'_>,
+    seconds: f32,
+    alpha: f32,
+    turn: f32,
+) {
+    let Some(tilt) = card.tilt else {
+        draw_flat(canvas, frame, [x, y, width], card, seconds, alpha, turn);
+        return;
+    };
+    let height = width * ASPECT;
+    let centre = frame.point(x + width * 0.5, y + height * 0.5);
+    let _ = canvas
+        .draw_list_mut()
+        .push(DrawCommand::PushTransform(tilt_matrix(
+            centre,
+            height * frame.s,
+            tilt,
+        )));
+    draw_flat(canvas, frame, [x, y, width], card, seconds, alpha, turn);
+    let _ = canvas.draw_list_mut().push(DrawCommand::PopTransform);
+}
+
+/// The perspective that turns a card about `centre` (window pixels) towards the pointer
+/// at `tilt`, the eye [`EYE`] times its `height` away: the side under the pointer
+/// recedes, as if pressed.
+pub(crate) fn tilt_matrix(centre: [f32; 2], height: f32, tilt: Tilt) -> [f32; 9] {
+    let (yaw, pitch) = (
+        tilt.x.clamp(-1.0, 1.0) * TILT_MAX,
+        -tilt.y.clamp(-1.0, 1.0) * TILT_MAX,
+    );
+    let (sy, cy) = yaw.sin_cos();
+    let (sp, cp) = pitch.sin_cos();
+    let eye = height * EYE;
+    let [ox, oy] = centre;
+    // A point (u, v) of the card from its middle turns to x = u cos(yaw),
+    // y = u sin(yaw) sin(pitch) + v cos(pitch), z = v sin(pitch) - u sin(yaw) cos(pitch),
+    // and shows at the middle plus (x, y) times eye / (eye - z).
+    let (zu, zv) = (-sy * cp, sp);
+    let local = [
+        eye * cy - ox * zu,
+        -ox * zv,
+        ox * eye,
+        eye * sy * sp - oy * zu,
+        eye * cp - oy * zv,
+        oy * eye,
+        -zu,
+        -zv,
+        eye,
+    ];
+    // Then from window points: (u, v) = (x - ox, y - oy).
+    let mut out = [0.0; 9];
+    for row in 0..3 {
+        let [a, b, c] = [local[row * 3], local[row * 3 + 1], local[row * 3 + 2]];
+        out[row * 3] = a;
+        out[row * 3 + 1] = b;
+        out[row * 3 + 2] = c - a * ox - b * oy;
+    }
+    out
+}
+
+/// [`draw`] without the tilt: the card as laid out, upright.
+#[allow(clippy::too_many_arguments)]
+fn draw_flat(
     canvas: &mut MenuCanvas,
     frame: &Frame,
     [x, y, width]: [f32; 3],
@@ -220,34 +305,15 @@ pub(crate) fn draw(
         },
     });
     // The finish over everything, inside the card.
-    let _ = list.push(DrawCommand::PushRoundedClip {
-        rect: frame.rect(
-            left + 2.0 * unit,
-            y + 2.0 * unit,
-            (shown - 4.0 * unit).max(1.0),
-            height - 4.0 * unit,
-        ),
-        radius: ((width * CORNER - 2.0 * unit) * frame.s).max(0.0),
-    });
-    match card.finish.index {
-        0 => {}
-        1 => holo(
-            list,
-            frame,
-            [left, y, shown, height],
-            width * CORNER,
-            seconds,
-        ),
-        _ => solar(
-            list,
-            frame,
-            [left, y, shown, height],
-            [cx, cy],
-            width,
-            seconds,
-        ),
-    }
-    let _ = list.push(DrawCommand::PopClip);
+    finish_light(
+        list,
+        frame,
+        card,
+        [left, y, shown, height],
+        width,
+        [cx, cy],
+        seconds,
+    );
     let _ = list.push(DrawCommand::PopOpacity);
     if turn < 0.92 {
         return;
@@ -361,37 +427,17 @@ fn face(
             color: Color::new(0.23, 0.28, 0.43, 0.9),
         });
     }
-    // The finish over everything, inside the card.
-    let unit = width / 220.0;
-    let _ = list.push(DrawCommand::PushRoundedClip {
-        rect: frame.rect(
-            left + 2.0 * unit,
-            y + 2.0 * unit,
-            (shown - 4.0 * unit).max(1.0),
-            height - 4.0 * unit,
-        ),
-        radius: ((width * CORNER - 2.0 * unit) * frame.s).max(0.0),
-    });
-    let [cx, cy] = frame.point(x + width * 0.5, art[1] + art[3] * 0.5);
-    match card.finish.index {
-        0 => {}
-        1 => holo(
-            list,
-            frame,
-            [left, y, shown, height],
-            width * CORNER,
-            seconds,
-        ),
-        _ => solar(
-            list,
-            frame,
-            [left, y, shown, height],
-            [cx, cy],
-            width,
-            seconds,
-        ),
-    }
-    let _ = list.push(DrawCommand::PopClip);
+    // The finish over everything, inside the card, its light about the picture.
+    let centre = frame.point(x + width * 0.5, art[1] + art[3] * 0.5);
+    finish_light(
+        list,
+        frame,
+        card,
+        [left, y, shown, height],
+        width,
+        centre,
+        seconds,
+    );
     let _ = list.push(DrawCommand::PopOpacity);
     if turn < 0.92 || width < TITLE {
         return;
@@ -520,35 +566,162 @@ fn face(
     );
 }
 
+/// The finish's light over a card at `[x, y, width, height]` (frame pixels, `full` its
+/// unturned width), inside its border and rounded corners, about `centre` (window
+/// pixels): Holo's bands or Solar's sun, following the pointer while it rests on the
+/// card ([`Card::tilt`]), and a soft glare under the pointer whatever the finish.
+fn finish_light(
+    list: &mut sjk_ui::DrawList,
+    frame: &Frame,
+    card: Card<'_>,
+    [x, y, width, height]: [f32; 4],
+    full: f32,
+    centre: [f32; 2],
+    seconds: f32,
+) {
+    let s = frame.s;
+    let unit = full / 220.0;
+    // Inside the rarity's edge, so the light never lies over it.
+    let inset = 3.5 * unit;
+    let _ = list.push(DrawCommand::PushRoundedClip {
+        rect: frame.rect(
+            x + inset,
+            y + inset,
+            (width - inset * 2.0).max(1.0),
+            height - inset * 2.0,
+        ),
+        radius: ((full * CORNER - inset) * s).max(0.0),
+    });
+    // Where the pointer is on the card, 0 to 1 each way: the light passes through it.
+    let light = card.tilt.map(|tilt| {
+        [
+            0.5 + 0.5 * tilt.x.clamp(-1.0, 1.0),
+            0.5 + 0.5 * tilt.y.clamp(-1.0, 1.0),
+        ]
+    });
+    match card.finish.index {
+        0 => {}
+        1 => holo(
+            list,
+            frame,
+            [x, y, width, height],
+            full * CORNER,
+            seconds,
+            light,
+        ),
+        _ => solar(
+            list,
+            frame,
+            [x, y, width, height],
+            centre,
+            full,
+            seconds,
+            light,
+        ),
+    }
+    if let Some(tilt) = card.tilt {
+        // The glare: soft discs stacked under the pointer.
+        let [gx, gy] = frame.point(
+            x + width * (0.5 + 0.5 * tilt.x.clamp(-1.0, 1.0)),
+            y + height * (0.5 + 0.5 * tilt.y.clamp(-1.0, 1.0)),
+        );
+        for step in 0..4 {
+            let radius = full * (0.55 - step as f32 * 0.12) * s;
+            let _ = list.push(DrawCommand::RoundedRect {
+                rect: sjk_ui::Rect::new(gx - radius, gy - radius, radius * 2.0, radius * 2.0),
+                radius,
+                color: Color::new(1.0, 1.0, 1.0, 0.04),
+            });
+        }
+    }
+    let _ = list.push(DrawCommand::PopClip);
+}
+
+/// Where a sweeping light's middle is at `seconds` (`period` seconds a pass): from
+/// `from` to `to` over the first [`HOLO_CROSSING`] of the period, then off the card
+/// until the next pass. `light` (0 to 1 across the card, the pointer's) holds it there
+/// instead, at `x` plus that share of `width`.
+fn sweep(
+    seconds: f32,
+    period: f32,
+    [from, to]: [f32; 2],
+    light: Option<f32>,
+    [x, width]: [f32; 2],
+) -> f32 {
+    if let Some(light) = light {
+        return x + width * light;
+    }
+    let phase = (seconds / period).fract() / HOLO_CROSSING;
+    if phase >= 1.0 {
+        return to;
+    }
+    // Eased in and out, so it does not start or stop all at once.
+    let eased = phase * phase * (3.0 - 2.0 * phase);
+    from + (to - from) * eased
+}
+
+/// A slanting stroke through `middle` (frame pixels, its point at the card's middle
+/// height), long enough that its square ends lie far off a card `height` tall.
+fn slanted(frame: &Frame, [mx, my]: [f32; 2], slope: f32, height: f32) -> ([f32; 2], [f32; 2]) {
+    let reach = height * 1.2;
+    (
+        frame.point(mx + slope * reach, my - reach),
+        frame.point(mx - slope * reach, my + reach),
+    )
+}
+
 /// Holo: bands of the rainbow slanting across the card, drifting over it, and a bright
 /// line where the light catches; `corner` is the card's corner radius (frame pixels).
 /// The caller's rounded clip keeps the bands inside the card's corners.
+#[allow(clippy::too_many_arguments)]
 fn holo(
     list: &mut sjk_ui::DrawList,
     frame: &Frame,
     [x, y, width, height]: [f32; 4],
     corner: f32,
     seconds: f32,
+    light: Option<[f32; 2]>,
 ) {
     let s = frame.s;
     let band = width * 0.16;
-    let sweep = (seconds * 0.18).fract();
-    let start = x - width * 0.8 + sweep * width * 1.6;
-    let slant = height * 0.42;
+    // How far the bands lean across the card's height.
+    let slope = 0.42 * 2.0;
+    let lean = height * 0.42;
+    let spread = band * 0.85 * (HOLO_BANDS.len() - 1) as f32;
+    // The glint's place: from where every band is off the card on the left to where
+    // every one is off it on the right.
+    let glint = sweep(
+        seconds,
+        HOLO_PERIOD,
+        [
+            x - lean - band - spread * 0.5,
+            x + width + lean + band + spread * 0.5,
+        ],
+        light.map(|[across, _]| across),
+        [x, width],
+    );
+    // The bands pass through the pointer's height, or the card's middle.
+    let middle = y + height * light.map_or(0.5, |[_, down]| down);
+    let start = glint - spread * 0.5;
     for (index, [r, g, b]) in HOLO_BANDS.iter().enumerate() {
-        let bx = start + index as f32 * band * 0.85;
+        let (from, to) = slanted(
+            frame,
+            [start + index as f32 * band * 0.85, middle],
+            slope,
+            height,
+        );
         let _ = list.push(DrawCommand::Line {
-            from: frame.point(bx + slant, y - 10.0),
-            to: frame.point(bx - slant, y + height + 10.0),
+            from,
+            to,
             width: band * s,
             color: Color::new(*r, *g, *b, 0.13),
         });
     }
     // The glint: a thin white line at the bands' middle.
-    let glint = start + band * 2.5;
+    let (from, to) = slanted(frame, [glint, middle], slope, height);
     let _ = list.push(DrawCommand::Line {
-        from: frame.point(glint + slant, y - 10.0),
-        to: frame.point(glint - slant, y + height + 10.0),
+        from,
+        to,
         width: band * 0.18 * s,
         color: Color::new(1.0, 1.0, 1.0, 0.28),
     });
@@ -566,6 +739,7 @@ fn holo(
 
 /// Solar: a warm wash from the top, a corona of arcs turning round the gem, a band of
 /// sunlight passing over, and embers' glow at the foot.
+#[allow(clippy::too_many_arguments)]
 fn solar(
     list: &mut sjk_ui::DrawList,
     frame: &Frame,
@@ -573,6 +747,7 @@ fn solar(
     centre: [f32; 2],
     full: f32,
     seconds: f32,
+    light: Option<[f32; 2]>,
 ) {
     let s = frame.s;
     let corner = full * CORNER;
@@ -599,18 +774,25 @@ fn solar(
             knockout: None,
         });
     }
-    let sweep = (seconds * 0.13).fract();
-    let bx = x - width * 0.6 + sweep * width * 2.2;
-    let slant = height * 0.35;
+    let lean = height * 0.35;
+    let bx = sweep(
+        seconds,
+        HOLO_PERIOD * 1.4,
+        [x - lean - width * 0.12, x + width + lean + width * 0.12],
+        light.map(|[across, _]| across),
+        [x, width],
+    );
+    let middle = y + height * light.map_or(0.5, |[_, down]| down);
+    let (from, to) = slanted(frame, [bx, middle], 0.7, height);
     let _ = list.push(DrawCommand::Line {
-        from: frame.point(bx + slant, y - 10.0),
-        to: frame.point(bx - slant, y + height + 10.0),
+        from,
+        to,
         width: width * 0.22 * s,
         color: faded(SUN, 0.16),
     });
     let _ = list.push(DrawCommand::Line {
-        from: frame.point(bx + slant, y - 10.0),
-        to: frame.point(bx - slant, y + height + 10.0),
+        from,
+        to,
         width: width * 0.04 * s,
         color: Color::new(1.0, 0.97, 0.85, 0.35),
     });
@@ -654,6 +836,7 @@ pub(crate) mod tests {
                             finish,
                             edition: "Alpha Edition",
                             face: None,
+                            tilt: None,
                         },
                         1.5,
                         1.0,
@@ -669,6 +852,78 @@ pub(crate) mod tests {
                 }
             }
         }
+    }
+
+    fn map(m: [f32; 9], [x, y]: [f32; 2]) -> [f32; 2] {
+        let w = m[6] * x + m[7] * y + m[8];
+        [
+            (m[0] * x + m[1] * y + m[2]) / w,
+            (m[3] * x + m[4] * y + m[5]) / w,
+        ]
+    }
+
+    /// Upright, a card maps to itself; tilted towards the pointer at its right edge, the
+    /// right side recedes (narrower and nearer the middle) and the left comes forward,
+    /// the middle staying where it is.
+    #[test]
+    fn a_tilt_turns_the_side_under_the_pointer_away() {
+        let centre = [960.0, 540.0];
+        let flat = tilt_matrix(centre, 600.0, Tilt::default());
+        for point in [[700.0, 300.0], [1_200.0, 800.0], centre] {
+            let [x, y] = map(flat, point);
+            assert!((x - point[0]).abs() < 1e-3 && (y - point[1]).abs() < 1e-3);
+        }
+        let right = tilt_matrix(centre, 600.0, Tilt { x: 1.0, y: 0.0 });
+        let middle = map(right, centre);
+        assert!((middle[0] - centre[0]).abs() < 1e-3 && (middle[1] - centre[1]).abs() < 1e-3);
+        let near_right = map(right, [1_160.0, 540.0]);
+        let near_left = map(right, [760.0, 540.0]);
+        assert!(near_right[0] - centre[0] < 200.0, "the right side recedes");
+        assert!(
+            centre[0] - near_left[0] > near_right[0] - centre[0],
+            "the left comes forward"
+        );
+        // The receding side is shorter: its corners come together.
+        let top = map(right, [1_160.0, 240.0]);
+        let bottom = map(right, [1_160.0, 840.0]);
+        assert!(bottom[1] - top[1] < 600.0);
+        // Pointer at the foot: the foot recedes.
+        let foot = tilt_matrix(centre, 600.0, Tilt { x: 0.0, y: 1.0 });
+        let low = map(foot, [960.0, 840.0]);
+        assert!(low[1] - centre[1] < 300.0);
+    }
+
+    /// The sweep crosses from one end to the other, eased, then waits off the card; the
+    /// pointer holds it where it is.
+    #[test]
+    fn the_sweep_crosses_then_waits_and_the_pointer_holds_it() {
+        let ends = [-100.0, 500.0];
+        assert_eq!(sweep(0.0, 10.0, ends, None, [0.0, 400.0]), -100.0);
+        let crossing = HOLO_CROSSING * 10.0;
+        let halfway = sweep(crossing * 0.5, 10.0, ends, None, [0.0, 400.0]);
+        assert!((halfway - 200.0).abs() < 1e-3);
+        assert_eq!(
+            sweep(crossing + 0.5, 10.0, ends, None, [0.0, 400.0]),
+            500.0,
+            "waiting"
+        );
+        assert_eq!(sweep(9.9, 10.0, ends, None, [0.0, 400.0]), 500.0);
+        assert_eq!(
+            sweep(10.0, 10.0, ends, None, [0.0, 400.0]),
+            -100.0,
+            "the next pass"
+        );
+        assert_eq!(sweep(3.0, 10.0, ends, Some(0.25), [0.0, 400.0]), 100.0);
+    }
+
+    /// A slanting stroke's ends lie far off the card, so its square ends never show.
+    #[test]
+    fn slanted_strokes_end_far_off_the_card() {
+        let frame = Frame::new([1920.0, 1080.0]);
+        let (from, to) = slanted(&frame, [500.0, 400.0], 0.84, 300.0);
+        let [_, top] = frame.point(0.0, 400.0 - 150.0);
+        let [_, bottom] = frame.point(0.0, 400.0 + 150.0);
+        assert!(from[1] < top - 100.0 && to[1] > bottom + 100.0);
     }
 
     pub(crate) fn face() -> Face {
@@ -710,6 +965,7 @@ pub(crate) mod tests {
                             index: 0,
                             of: 1,
                         }),
+                        tilt: None,
                     },
                     1.5,
                     1.0,

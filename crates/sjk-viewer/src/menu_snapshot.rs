@@ -420,6 +420,8 @@ fn raster(
                     clips.pop();
                 }
             }
+            // Snapshots draw a tilted card flat: its parts as laid out.
+            DrawCommand::PushTransform(_) | DrawCommand::PopTransform => {}
             DrawCommand::PushOpacity(value) => opacity.push(o * value),
             DrawCommand::PopOpacity => {
                 if opacity.len() > 1 {

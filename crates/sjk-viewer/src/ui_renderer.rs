@@ -487,15 +487,54 @@ impl ShapeRenderer {
         // The rounded clip in force at each depth, if any: its rectangle and radius.
         let mut rounds: [Option<(Rect, f32)>; 8] = [None; 8];
         let mut clip_depth = 0_usize;
+        // The transform in force at each depth ([`DrawCommand::PushTransform`]), and the
+        // first vertex not yet mapped by it.
+        let mut transforms: [Option<Transform>; 4] = [None; 4];
+        let mut transform_depth = 0_usize;
+        let mut mapped = 0_usize;
         let commands = draw_lists.into_iter().flat_map(|list| {
             // Marks where a layer begins; `None` is never a command.
             std::iter::once(None).chain(list.commands().iter().map(Some))
         });
         for command in commands {
             let Some(command) = command else {
+                // A new layer starts untransformed.
+                map_shapes(
+                    &mut self.vertices[mapped..],
+                    transforms[transform_depth],
+                    viewport,
+                );
+                mapped = self.vertices.len();
+                transform_depth = 0;
                 art::begin_layer(&mut self.runs, self.vertices.len());
                 continue;
             };
+            if matches!(
+                command,
+                DrawCommand::PushTransform(_) | DrawCommand::PopTransform
+            ) {
+                // What came before is mapped by the transform it was drawn under.
+                map_shapes(
+                    &mut self.vertices[mapped..],
+                    transforms[transform_depth],
+                    viewport,
+                );
+                mapped = self.vertices.len();
+                match *command {
+                    DrawCommand::PushTransform(matrix)
+                        if transform_depth + 1 < transforms.len() =>
+                    {
+                        transform_depth += 1;
+                        transforms[transform_depth] =
+                            Some(Transform::compose(transforms[transform_depth - 1], matrix));
+                    }
+                    DrawCommand::PopTransform => {
+                        transform_depth = transform_depth.saturating_sub(1)
+                    }
+                    _ => {}
+                }
+                continue;
+            }
             match *command {
                 DrawCommand::SolidRect { rect, color }
                 | DrawCommand::RoundedRect {
@@ -697,9 +736,16 @@ impl ShapeRenderer {
                 DrawCommand::Text { .. }
                 | DrawCommand::PushClip(_)
                 | DrawCommand::PushRoundedClip { .. }
-                | DrawCommand::PushOpacity(_) => {}
+                | DrawCommand::PushOpacity(_)
+                | DrawCommand::PushTransform(_)
+                | DrawCommand::PopTransform => {}
             }
         }
+        map_shapes(
+            &mut self.vertices[mapped..],
+            transforms[transform_depth],
+            viewport,
+        );
         if self.vertices.len() + 6 > MAX_SHAPE_VERTICES {
             self.log_overflow("shape vertices");
         }
@@ -1087,6 +1133,55 @@ impl ShapeRenderer {
     }
 }
 
+/// A projective transform of window points ([`DrawCommand::PushTransform`]).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct Transform([f32; 9]);
+
+impl Transform {
+    /// `inner` applied first, then `outer` (none: `inner` alone).
+    fn compose(outer: Option<Self>, inner: [f32; 9]) -> Self {
+        let Some(Self(a)) = outer else {
+            return Self(inner);
+        };
+        let b = inner;
+        let mut out = [0.0; 9];
+        for row in 0..3 {
+            for column in 0..3 {
+                out[row * 3 + column] = (0..3).map(|k| a[row * 3 + k] * b[k * 3 + column]).sum();
+            }
+        }
+        Self(out)
+    }
+
+    /// Window point `[x, y]` mapped.
+    pub(crate) fn map(self, [x, y]: [f32; 2]) -> [f32; 2] {
+        let m = self.0;
+        let w = m[6] * x + m[7] * y + m[8];
+        let w = if w.abs() < 1e-6 { 1e-6 } else { w };
+        [
+            (m[0] * x + m[1] * y + m[2]) / w,
+            (m[3] * x + m[4] * y + m[5]) / w,
+        ]
+    }
+
+    /// A point in normalized device coordinates of a `viewport` mapped.
+    pub(crate) fn map_ndc(self, [x, y]: [f32; 2], viewport: [f32; 2]) -> [f32; 2] {
+        let window = [(x + 1.0) * 0.5 * viewport[0], (1.0 - y) * 0.5 * viewport[1]];
+        let [x, y] = self.map(window);
+        [x / viewport[0] * 2.0 - 1.0, 1.0 - y / viewport[1] * 2.0]
+    }
+}
+
+/// Map `vertices` (shape vertices just written) by `transform`, if any.
+fn map_shapes(vertices: &mut [ShapeVertex], transform: Option<Transform>, viewport: [f32; 2]) {
+    let Some(transform) = transform else {
+        return;
+    };
+    for vertex in vertices {
+        vertex.position = transform.map_ndc(vertex.position, viewport);
+    }
+}
+
 /// Chords along each corner of a rounded clip ([`DrawCommand::PushRoundedClip`]).
 const CORNER_CHORDS: usize = 4;
 /// The most corners a quad cut by a rectangle, and by a rounded clip's corners, keeps:
@@ -1250,6 +1345,8 @@ pub(crate) fn append_text_commands_where<'a>(
     let mut opacity_depth = 0_usize;
     let mut clips = [Rect::new(0.0, 0.0, viewport[0], viewport[1]); 8];
     let mut clip_depth = 0_usize;
+    let mut transforms: [Option<Transform>; 4] = [None; 4];
+    let mut transform_depth = 0_usize;
     for command in draw_list.commands() {
         let DrawCommand::Text {
             rect,
@@ -1268,6 +1365,12 @@ pub(crate) fn append_text_commands_where<'a>(
                     opacity[opacity_depth] = opacity[opacity_depth - 1] * value.clamp(0.0, 1.0);
                 }
                 DrawCommand::PopOpacity => opacity_depth = opacity_depth.saturating_sub(1),
+                DrawCommand::PushTransform(matrix) if transform_depth + 1 < transforms.len() => {
+                    transform_depth += 1;
+                    transforms[transform_depth] =
+                        Some(Transform::compose(transforms[transform_depth - 1], *matrix));
+                }
+                DrawCommand::PopTransform => transform_depth = transform_depth.saturating_sub(1),
                 DrawCommand::PushClip(rect) | DrawCommand::PushRoundedClip { rect, .. }
                     if clip_depth + 1 < clips.len() =>
                 {
@@ -1302,6 +1405,7 @@ pub(crate) fn append_text_commands_where<'a>(
             TextAlign::Center => rect.x + (rect.width - width) * 0.5,
             TextAlign::End => rect.right() - width,
         };
+        let start = vertices.len();
         text::append_bounded(
             vertices,
             font,
@@ -1317,6 +1421,11 @@ pub(crate) fn append_text_commands_where<'a>(
             *overflow,
             palette,
         );
+        if let Some(transform) = transforms[transform_depth] {
+            text::map_vertices(&mut vertices[start..], |point| {
+                transform.map_ndc(point, viewport)
+            });
+        }
     }
 }
 

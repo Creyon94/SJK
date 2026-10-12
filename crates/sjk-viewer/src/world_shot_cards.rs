@@ -318,6 +318,40 @@ fn duel6_sjk_card_faces() {
             "{}",
             sheet(&images, 3, 640, "duel6-card-face-finishes").display()
         );
+        // Tilted towards the pointer, up close: Holo, the pointer at the upper right.
+        let menu = menu::ClientMenu::new(true, String::new());
+        let Some((mut gpu, _profile)) =
+            open("maps/mp/duel6.bsp", [1920, 1080], Some(menu), &sjk_cvars())
+        else {
+            return;
+        };
+        let _ = frame(&mut gpu, 10);
+        let list = with_face("holo");
+        let revealed = crate::cards::stacks(&list)
+            .iter()
+            .position(|stack| !stack.sealed())
+            .unwrap_or(0);
+        if let Some(console) = gpu.console.as_mut() {
+            console.preview_cards(list, 1_340);
+            console.preview_collection(Some(Vec::new()), 3.1);
+        }
+        gpu.open_profile_hub(Tab::Cards);
+        let mut tilts = Vec::new();
+        for (name, at) in [("right", [0.7, -0.5]), ("left", [-0.8, 0.6])] {
+            if let Some(console) = gpu.console.as_mut() {
+                console.collection_card_for_shot(revealed);
+                console.collection_tilt_for_shot(0, at);
+            }
+            let _ = frame(&mut gpu, 120);
+            let path = shoot(&mut gpu, 4, &format!("duel6-card-face-tilt-{name}"));
+            println!("{}", path.display());
+            assert!(!overflowed(&gpu), "{name}");
+            tilts.push(image::open(path).expect("the shot").to_rgba8());
+        }
+        println!(
+            "{}",
+            sheet(&tilts, 2, 960, "duel6-card-face-tilts").display()
+        );
         // Coming out of a Mythical Holocron.
         let Some(mut gpu) = open_holocrons([1920, 1080]) else {
             return;

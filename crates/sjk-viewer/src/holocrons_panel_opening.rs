@@ -476,6 +476,7 @@ impl Panel {
                     finish: shown.finish,
                     edition: &shown.edition,
                     face: cards::shown(&faces, shown.card.as_deref()),
+                    tilt: None,
                 },
                 seconds,
                 eased,

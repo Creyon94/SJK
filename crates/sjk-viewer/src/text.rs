@@ -559,6 +559,14 @@ pub(crate) fn drop_quads_under(
     vertices.truncate(kept);
 }
 
+/// Move every vertex of `vertices` by `map` (normalized device coordinates in and out):
+/// text drawn under a transform ([`sjk_ui::DrawCommand::PushTransform`]).
+pub(crate) fn map_vertices(vertices: &mut [TextVertex], map: impl Fn([f32; 2]) -> [f32; 2]) {
+    for vertex in vertices {
+        vertex.position = map(vertex.position);
+    }
+}
+
 fn push_quad(
     vertices: &mut Vec<TextVertex>,
     rectangle: [f32; 4],

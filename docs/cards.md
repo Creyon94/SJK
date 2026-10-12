@@ -176,9 +176,20 @@ how its art was made; the footer reads "Art: <artist>".
   under a rounded clip (`DrawCommand::PushRoundedClip`), and the UI renderer cuts
   strokes to it, each corner as four chords of its arc
   ([ui_renderer.rs](../crates/sjk-viewer/src/ui_renderer.rs) `clip_polygon`); the
-  finish's washes take the card's corner radius themselves.
-- **A revealed card** shows its face as a trading card: its name and a dot of its
-  rarity's colour on top, its picture in a gold-edged 6:5 window (dark until the
+  finish's washes take the card's corner radius themselves. The light stays inside the
+  rarity's edge, its slanting strokes reach far past the card so their square ends never
+  show, and Holo's sweep crosses the card in about four seconds, eased, then waits off
+  it for about three before the next pass (Solar's sun the same, slower).
+- **Tilt (13/10/2026, Sol's request):** while the pointer rests on a card of the Cards
+  tab (the one up close or one of the grid), the card turns towards it in perspective,
+  up to about 9 degrees at its edges, the side under the pointer receding as if pressed;
+  its light follows the pointer across it (Holo's bands, Solar's sun) and a soft glare
+  sits under the pointer. It eases in and out in about a tenth of a second. The card is
+  drawn as usual under `DrawCommand::PushTransform` (a projective transform the UI
+  renderer applies to every shape vertex and text glyph drawn inside it, after clipping;
+  `look::tilt_matrix`).
+- **A revealed card** shows its face as a trading card: its name and its rarity's
+  symbol ([sjk-ui.md](sjk-ui.md#symbols)) on top, its picture in a gold-edged 6:5 window (dark until the
   picture is decoded and uploaded), a strip with its kind and set ("Community ·
   Sol lore") and its edition and finish, its lore in a box (cut into lines at spaces,
   seven at most), and at the foot its number in its set ("001 / 001", counting the
