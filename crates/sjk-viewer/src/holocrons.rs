@@ -424,6 +424,7 @@ mod tests {
             today,
             daily_cap: 8,
             server_time: 0,
+            can_open: true,
             read_at: std::time::Instant::now(),
         }
     }

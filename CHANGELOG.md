@@ -32,10 +32,11 @@ Creyon's seventeen pull requests: fixes for ledges, dropped sabers, doors and mu
 > Clans: JoF and JoFA emblems come from a table, with look-alike letters.
 > Fixes: Ledge legs, dropped sabers, door sounds and the muzzle flash.
 > Updates: This card pages through skipped releases, says who made them and shows commands such as `whatsnew` in chips you can click.
-> Holocrons: Open them for a sealed card and credits, see your cards on the Cards tab and every chance on the Loot table.
+> Holocrons: The Loot table shows every chance a holocron brings; opening them is being tested by the SJK team and comes soon.
 
 - Force powers apply when you leave the Force page, as the original game's Force menu did on close: Escape, Back, another page or closing the screen no longer drops your changes, and leaving tells the server to read your powers even when nothing changed, so your next respawn or Full Force duel uses them _(Sol)_
 - Loot table: the Holocrons tab's Loot table (or L) shows every chance a holocron brings: how often each tier drops, the card's rarity and finish and the credits inside each, the same for any holocron found, and every kind of card as a share and as "1 in N" _(Sol)_
+- Opening holocrons is being tested: for now only the SJK team can open theirs, and the Holocrons tab says opening comes soon in place of Open and Open all for everyone else; your holocrons wait for you _(Sol)_
 - Holocrons open: Open or Open all on the Collection's Holocrons tab plays a ceremony and gives each one a sealed card (Normal, Holo or Solar, Alpha Edition; its face comes with the first set of cards) and credits, kept on the SJK hub; the new Cards tab shows them, and debug_open rehearses it _(Sol)_
 - Standing on a ledge no longer makes the legs stutter: prediction keeps the server's slope pose while you stand still _(Creyon)_
 - A dropped or knocked-away saber stays visible on the ground, hilt only _(Creyon, after OpenJK)_

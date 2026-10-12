@@ -231,12 +231,14 @@ hub has not answered, the reason ("Holocrons need the SJK identity"). Since 12/1
 counts are the holocrons not opened yet, the player's credits stand at the panel's top
 right, the chosen tier says what opening one gives, Open and Open all stand under the
 holocron's caption and opened holocrons are marked in the recent list; opening and its
-ceremony are in [cards.md](cards.md#in-the-client).
+ceremony are in [cards.md](cards.md#in-the-client). While the hub keeps opening to staff
+(`can_open` false, [cards.md](cards.md#opening)) a line says opening comes soon in place of
+the buttons.
 
 - **Keys and pointer:** Up and Down (or Left and Right, Tab and Shift+Tab, the wheel, 1 to
   4, Home and End) choose the tier; Escape goes back; a click on a row chooses it; Ctrl+Tab
   is the Profile screen's. Enter opens the oldest holocron of the tier chosen, A opens up
-  to twenty. L, or Loot table at the right of what the chosen tier holds, shows the
+  to twenty (both only when the hub lets the player open). L, or Loot table at the right of what the chosen tier holds, shows the
   [loot table](#loot-table).
 - **The 3D holocron** is a normal object of the world pass, not a stage of the Character
   tab: an instance of the chosen look's model and a point light in the tier's colour

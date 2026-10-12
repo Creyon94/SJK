@@ -245,6 +245,10 @@ pub struct HolocronState {
     /// The hub's clock, unix seconds.
     #[serde(default)]
     pub server_time: i64,
+    /// Whether the person may open holocrons now: only staff while opening is tested.
+    /// Hubs before it leave it out, read as `false`.
+    #[serde(default)]
+    pub can_open: bool,
 }
 
 /// A holocron dropping for a key, as the feed relays it (`PROTOCOL.md`, "The feed").
@@ -845,8 +849,14 @@ mod tests {
                 today: 3,
                 daily_cap: 8,
                 server_time: 1_791_000_000,
+                can_open: false,
             }
         );
+        let staff: HolocronState = serde_json::from_str(
+            r#"{"progress_secs":0,"every_secs":1800,"today":0,"daily_cap":8,"server_time":1,"can_open":true}"#,
+        )
+        .unwrap();
+        assert!(staff.can_open);
         let feed: Feed = serde_json::from_str(
             r#"{"next":21,"drops":[{"id":20,"at":1791000001,"key_id":"aa","name":"^2Sol",
                 "tier":"legendary","verified":true},
