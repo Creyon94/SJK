@@ -89,7 +89,7 @@ impl Icon {
             Self::WhatsNew => "whats_new",
             Self::Credits => "credits",
             Self::ReportBug => "other_controls",
-            Self::Chat => "text",
+            Self::Chat => "chat",
             Self::Staff => "identity",
         }
     }
