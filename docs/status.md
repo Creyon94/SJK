@@ -171,6 +171,15 @@ EternalJK's `showPlayerId`. The console command `showplayerid` prints each playe
 number, coloured team letter and name (` (bot)` after bots) from the player configstrings,
 then `Listed N clients`, in EternalJK's format ([client.md](client.md)). Verified: unit tests
 for the lines and an empty server, and the workspace checks; in game on Windows 11 by Creyon.
+## amcolor kept across reconnects
+
+Branch `fix/amcolors-saved` (11/10/2026, based on `9dbbdf19`, Linux): Creyon reported that a
+tint set with `amcolor` was gone after reconnecting. SJK had EternalJK's `amColor` only as
+the JA+ mod's `japlus.color`, so `amcolor` went to the server, which applied it for that
+connection only. The console command `amcolor <r> <g> <b>` now sets the archived
+`char_color_*` userinfo cvars, as EternalJK does ([client.md](client.md)). Verified: unit
+tests (set, saved and read back by a new console; bad values change nothing) and the
+workspace checks; in game on Windows 11 by Creyon (kept across a reconnect).
 
 ## Downloads that work, and what they may bring
 
