@@ -1984,7 +1984,9 @@ and the game-data HUD; chat stays, `scoreboard::hides_hud`), unless
   ([SJK UI](sjk-ui.md#scoreboard)): columns floating over the darkened game in
   the UI's type, the teams side by side, the duelists as facing cards. Its
   compact rows (`cg_compactScoreboard`, on by default) keep a full server in
-  one column, in a board as wide as its names, centred clear of the chat;
+  one column, in a board as wide as its names, centred clear of the chat; its
+  header shows the frame rate left of the clock (`cg_scoreboardFps`, on by
+  default; Settings > Scoreboard > "Scoreboard frame rate");
 - `classic`, the retail scoreboard as EternalJK-derived clients such as JoF EJK
   draw it (below).
 

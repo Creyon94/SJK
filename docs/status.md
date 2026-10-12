@@ -42,6 +42,16 @@ start it again ([rendering.md](rendering.md)). Verified: tests (a predicted shot
 once; neither its replay nor its confirmation flashes again; a followed or unpredicted
 player's shot flashes from the snapshot), the workspace checks, and in game on Windows 11 by
 Creyon (each shot heard once).
+## SJK scoreboard: the frame rate on its header
+
+Branch `feat/scoreboard-fps` (11/10/2026, based on `9dbbdf19`, Linux): Sol asked for the
+frame rate on the SJK scoreboard's header line, left of the clock, in the same type, on by
+default ([sjk-ui.md](sjk-ui.md#scoreboard)). The number is the one the `cg_drawFPS` line
+measures over half a second (`FramePacer::fps`); `cg_scoreboardFps` (archived, default 1,
+Settings > Scoreboard) turns it off. Verified: a test at eight window sizes that "240" and
+"fps" stand in the clock's type left of the clock and right of the mode, and that nothing
+shows without a reading; an off-screen CPU render at 1920x1080 (reviewed); the workspace
+checks; in game on Windows 11 by Creyon.
 
 ## Downloads that work, and what they may bring
 

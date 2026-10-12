@@ -888,7 +888,10 @@ and out as the classic board does, settling into place as it opens.
 - **Header line:** across the top, as the other screens' top bar: the map
   without `mp/` (Rajdhani 48), then the mode and its limits in words ("Free for
   all · 30 frags · 20 minutes", as the browser words them); on the right the
-  time left in a timed match ("12:12 left", else "3:12 played") and your place,
+  frame rate ("240 fps", the number in the clock's type and "fps" muted after it,
+  the `cg_drawFPS` line's measured rate; Sol's request of 11/10/2026, on by default,
+  `cg_scoreboardFps`), the time left in a timed match ("12:12 left", else "3:12
+  played") and your place,
   the screen's one memorable thing, in gold ("3rd", "of 14" after it, "of 14,
   tied" on a tie; "Spectating" when you watch). Team games say "Your team leads
   by 2", "trails by", "Tied at 5" (or which team leads, for a spectator). Under

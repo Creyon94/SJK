@@ -16,6 +16,8 @@ pub(crate) struct FramePacer {
     interval: f64,
     sample_started: Instant,
     frames: u32,
+    /// The frames per second measured over the last half second, when there was one.
+    fps: Option<u32>,
     label: String,
     /// Retained measured work; also consumed by the headless budget harness.
     pub(crate) budget: budget::Window,
@@ -40,6 +42,7 @@ impl FramePacer {
             interval: 0.0,
             sample_started: now,
             frames: 0,
+            fps: None,
             label: String::with_capacity(512),
             budget: budget::Window::new(),
             last: budget::Sample::default(),
@@ -77,6 +80,7 @@ impl FramePacer {
         let elapsed = now.duration_since(self.sample_started);
         if elapsed >= Duration::from_millis(500) {
             let fps = self.frames as f64 / elapsed.as_secs_f64();
+            self.fps = Some(fps.round() as u32);
             let stats = self.budget.stats();
             let cadence = self.budget.cadence_stats();
             self.label.clear();
@@ -143,6 +147,12 @@ impl FramePacer {
     /// Cached label, formatted only at the statistics refresh interval.
     pub(crate) fn label(&self) -> &str {
         &self.label
+    }
+
+    /// The frames per second measured over the last half second (the `cg_drawFPS`
+    /// line's first number), once a half second has passed.
+    pub(crate) fn fps(&self) -> Option<u32> {
+        self.fps
     }
 }
 
