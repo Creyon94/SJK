@@ -14,6 +14,7 @@ mod display;
 mod groups;
 mod help;
 mod hud_picker;
+pub(crate) mod mode;
 mod numeric;
 mod pointer;
 pub(crate) mod quick;
@@ -22,6 +23,7 @@ mod resolution_list;
 mod search;
 mod sjk_popup;
 pub(crate) mod sjk_view;
+mod usage;
 mod wheel_editor;
 mod wheel_editor_view;
 
@@ -33,7 +35,7 @@ pub(crate) use display::{
     DisplayMode, EXCLUSIVE_CVAR, MonitorModes, exclusive_supported, exclusive_video_mode,
     suspended_after_focus,
 };
-pub(crate) use groups::Group;
+pub(crate) use groups::{Group, Simple};
 use resolution::{PickResult, ResolutionChoice, ResolutionPicker};
 pub(crate) use sjk_view::Rail;
 pub(crate) use wheel_editor::WheelMode;
@@ -258,6 +260,16 @@ pub(crate) struct SettingsMenu {
     ui: MenuCanvas,
     /// The quick wheel's page editor, drawn in place of the rows while open.
     wheel: wheel_editor::WheelEditor,
+    /// The SJK renderer is on (not Vanilla): renderer settings carry its alpha
+    /// warning. Read with the values.
+    alpha: bool,
+    /// The SJK UI's Settings shows the rows, in this mode: the top bar offers
+    /// the other mode (F2). `None` for a classic+ panel.
+    screen: Option<mode::SettingsMode>,
+    /// The SJK UI's category on show, for settings usage.
+    screen_label: &'static str,
+    /// What the player does, for settings usage ([`usage`]).
+    usage: usage::UsageTrack,
 }
 
 impl SettingsMenu {
@@ -329,6 +341,10 @@ impl SettingsMenu {
             sjk_controls: None,
             ui: MenuCanvas::new(),
             wheel: wheel_editor::WheelEditor::default(),
+            alpha: false,
+            screen: None,
+            screen_label: "",
+            usage: usage::UsageTrack::default(),
         }
     }
 
@@ -518,6 +534,15 @@ impl SettingsMenu {
         event: &KeyEvent,
         console: &mut ViewerConsole,
     ) -> SettingsResult {
+        let was_searching = self.searching;
+        self.usage.recording = true;
+        let result = self.key(event, console);
+        self.usage.recording = false;
+        self.after_input(console, was_searching, &result);
+        result
+    }
+
+    fn key(&mut self, event: &KeyEvent, console: &mut ViewerConsole) -> SettingsResult {
         if event.state != ElementState::Pressed {
             return SettingsResult::None;
         }
@@ -589,11 +614,10 @@ impl SettingsMenu {
             // Classic+: `/` or Up from the first row gives the search field
             // the keyboard; Escape clears a search before it leaves.
             let at_top = self.classic.as_ref().and_then(|c| c.rows().next()) == Some(self.selected);
+            if let Some(result) = self.screen_key(key, console.control_held()) {
+                return result;
+            }
             match key {
-                KeyCode::Slash | KeyCode::NumpadDivide => {
-                    self.searching = true;
-                    return SettingsResult::None;
-                }
                 KeyCode::ArrowUp | KeyCode::KeyW if at_top => {
                     self.searching = true;
                     return SettingsResult::None;
@@ -688,6 +712,20 @@ impl SettingsMenu {
             self.refresh(console);
             return;
         }
+        // Choices name text or integer cvars (`cg_saberTrail` is an integer), or
+        // a value other cvars hold (the renderer).
+        if let ValueKind::Choice(values) = setting.kind {
+            let cvar = setting.cvar;
+            let value = choice_value(console, cvar).unwrap_or_default();
+            let index = values
+                .iter()
+                .position(|candidate| candidate.eq_ignore_ascii_case(&value))
+                .unwrap_or(0);
+            let next = values[(index as i32 + direction).rem_euclid(values.len() as i32) as usize];
+            set_choice(console, cvar, next);
+            self.refresh(console);
+            return;
+        }
         let next = match (setting.kind, console.cvar(setting.cvar)) {
             (ValueKind::Bool, Some(CvarValue::Bool(value))) => (!value).to_string(),
             (ValueKind::Bool, Some(value)) => if switch_on(value) { "0" } else { "1" }.to_owned(),
@@ -699,16 +737,6 @@ impl SettingsMenu {
                     Some(next) => next,
                     None => return,
                 }
-            }
-            (ValueKind::Choice(values), Some(value)) => {
-                // Choices name text or integer cvars (`cg_saberTrail` is an integer).
-                let value = value.as_text();
-                let index = values
-                    .iter()
-                    .position(|candidate| *candidate == value)
-                    .unwrap_or(0);
-                values[(index as i32 + direction).rem_euclid(values.len() as i32) as usize]
-                    .to_owned()
             }
             (ValueKind::Resolution, _) => {
                 self.step_resolution(console, direction);
@@ -812,9 +840,17 @@ impl SettingsMenu {
     }
 
     fn refresh(&mut self, console: &ViewerConsole) {
+        self.alpha = !crate::graphics_quality::vanilla(console);
         let display = DisplayMode::requested(console).effective(self.exclusive_available());
         self.hud.read(console);
         let hud = self.hud.label();
+        // While the player acts on the same rows, their values before, to
+        // record what changed ([`usage`]).
+        let rows = self.rows();
+        let read_for = (rows.as_ptr() as usize, rows.len());
+        let before = (self.usage.recording && self.usage.rows == read_for)
+            .then(|| std::mem::take(&mut self.values));
+        self.usage.rows = read_for;
         self.values.clear();
         self.values
             .extend(self.rows().iter().map(|setting| match setting.kind {
@@ -840,6 +876,38 @@ impl SettingsMenu {
                 .iter()
                 .map(|setting| classic_view::row_default(console, setting)),
         );
+        if let Some(before) = before {
+            self.record_change(&before);
+        }
+    }
+
+    /// What `key` (with Ctrl held when `control`) asks of the screen around
+    /// the rows: `/`, F3 and Ctrl+F find a setting, as in other programs; F2
+    /// shows the SJK UI's other mode. `None` for a key the rows take.
+    fn screen_key(&mut self, key: KeyCode, control: bool) -> Option<SettingsResult> {
+        match key {
+            KeyCode::Slash | KeyCode::NumpadDivide | KeyCode::F3 => {
+                self.begin_search();
+                Some(SettingsResult::None)
+            }
+            KeyCode::KeyF if control => {
+                self.begin_search();
+                Some(SettingsResult::None)
+            }
+            KeyCode::F2 if self.screen.is_some() => Some(SettingsResult::Classic(
+                crate::menu::sjk::settings::MODE_TOGGLE_SLOT,
+            )),
+            _ => None,
+        }
+    }
+
+    /// Give the search field the keyboard, what is typed in it selected so
+    /// typing or a paste replaces it.
+    fn begin_search(&mut self) {
+        self.numeric = None;
+        self.editing = None;
+        self.searching = true;
+        crate::text_entry::select_all(&self.search);
     }
 }
 
@@ -886,6 +954,7 @@ pub(crate) fn row_takes(cvar: &str, value: &str) -> bool {
     };
     let number = value.parse::<f64>();
     match (row.kind, number) {
+        (ValueKind::Choice(values), _) => values.contains(&value),
         (ValueKind::Bool, Ok(number)) => number == 0.0 || number == 1.0,
         (ValueKind::Integer { min, max, .. }, Ok(number)) => {
             number.fract() == 0.0 && (min as f64..=max as f64).contains(&number)
@@ -923,13 +992,71 @@ pub(super) struct DerivedSwitch {
     pub(super) toggle: fn(&mut ViewerConsole),
 }
 
-/// The derived switch row `cvar` names, if it is one: EJK graphics and the strafe lines.
+/// A choice row whose value other cvars hold, not a cvar of its own (its name
+/// is the row's stand-in), like [`DerivedSwitch`].
+#[derive(Clone, Copy)]
+pub(super) struct DerivedChoice {
+    /// The choice in use, one of the row's values.
+    pub(super) get: fn(&ViewerConsole) -> &'static str,
+    /// Make a choice.
+    pub(super) set: fn(&mut ViewerConsole, &str),
+    /// The choice of a new profile, which Backspace returns to.
+    pub(super) default: &'static str,
+}
+
+/// The derived choice row `cvar` names, if it is one: the renderer.
+pub(super) fn derived_choice(cvar: &str) -> Option<DerivedChoice> {
+    match cvar {
+        crate::graphics_quality::RENDERER_ROW => Some(DerivedChoice {
+            get: crate::graphics_quality::renderer_value,
+            set: crate::graphics_quality::set_renderer,
+            default: crate::graphics_quality::VANILLA,
+        }),
+        _ => None,
+    }
+}
+
+/// The value choice row `cvar` holds: its cvar's text, or a derived choice's.
+fn choice_value(console: &ViewerConsole, cvar: &str) -> Option<String> {
+    match derived_choice(cvar) {
+        Some(choice) => Some((choice.get)(console).to_owned()),
+        None => console.cvar(cvar).map(CvarValue::as_text),
+    }
+}
+
+/// Make choice `value` of row `cvar`: set its cvar, or a derived choice.
+fn set_choice(console: &mut ViewerConsole, cvar: &str, value: &str) {
+    match derived_choice(cvar) {
+        Some(choice) => (choice.set)(console, value),
+        None => {
+            console.set_cvar(cvar, value);
+        }
+    }
+}
+
+/// Whether `cvar` is one of the renderer's settings: the renderer and its
+/// quality, and every row of Graphics' image, lighting, shadows and weather.
+fn renderer_setting(cvar: &str) -> bool {
+    [
+        crate::graphics_quality::RENDERER_ROW,
+        crate::graphics_quality::ROW_NAME,
+    ]
+    .iter()
+    .any(|row| row.eq_ignore_ascii_case(cvar))
+        || [
+            RENDER_IMAGE,
+            RENDER_LIGHTING,
+            RENDER_SHADOWS,
+            RENDER_WEATHER,
+        ]
+        .iter()
+        .flat_map(|tab| tab.iter())
+        .any(|setting| setting.cvar.eq_ignore_ascii_case(cvar))
+}
+
+/// The derived switch row `cvar` names, if it is one: the strafe lines.
 pub(super) fn derived_switch(cvar: &str) -> Option<DerivedSwitch> {
     match cvar {
-        crate::graphics_quality::EJK_ROW => Some(DerivedSwitch {
-            on: crate::graphics_quality::ejk,
-            toggle: crate::graphics_quality::toggle_ejk,
-        }),
         crate::hud::movement::LINES_ROW => Some(DerivedSwitch {
             on: crate::hud::movement::lines_on,
             toggle: crate::hud::movement::toggle_lines,
@@ -954,6 +1081,9 @@ fn step_integer(value: i64, direction: i32, min: i64, max: i64, step: i64) -> i6
 /// The value a row shows: AUTO for the one special value below a negative
 /// minimum (`com_maxfps -1`), otherwise the cvar's text.
 fn row_text(console: &ViewerConsole, setting: &Setting) -> String {
+    if let Some(choice) = derived_choice(setting.cvar) {
+        return (choice.get)(console).to_owned();
+    }
     match (setting.kind, console.cvar(setting.cvar)) {
         (ValueKind::Integer { min, .. }, Some(CvarValue::Integer(value)))
             if min < 0 && *value < 0 =>
@@ -1031,6 +1161,36 @@ mod tests {
     use super::*;
 
     #[test]
+    fn f3_and_ctrl_f_find_a_setting_and_f2_switches_the_sjk_uis_mode() {
+        let (_directory, console) = console();
+        let mut menu = SettingsMenu::new();
+        menu.open_classic_group(
+            &console,
+            Group::Hud,
+            crate::menu::classic::panel::Frame::Main,
+        );
+        for (key, control) in [(KeyCode::F3, false), (KeyCode::KeyF, true)] {
+            menu.searching = false;
+            menu.search = "fov".to_owned();
+            assert!(menu.screen_key(key, control).is_some());
+            assert!(menu.searching, "{key:?}");
+            // What was typed is selected: typing replaces it.
+            assert!(crate::text_entry::is_selected(&menu.search));
+        }
+        menu.searching = false;
+        // F alone is a row's key; F2 only on the SJK UI's screen.
+        assert!(menu.screen_key(KeyCode::KeyF, false).is_none());
+        assert!(menu.screen_key(KeyCode::F2, false).is_none());
+        menu.set_screen(Some(mode::SettingsMode::Simple), "HUD");
+        assert!(matches!(
+            menu.screen_key(KeyCode::F2, false),
+            Some(SettingsResult::Classic(
+                crate::menu::sjk::settings::MODE_TOGGLE_SLOT
+            ))
+        ));
+    }
+
+    #[test]
     fn slider_numbers_lose_float_noise() {
         assert_eq!(float_text(f64::from(0.9_f32)), "0.9");
         assert_eq!(float_text(100.0), "100.0");
@@ -1084,8 +1244,8 @@ mod tests {
         let (_directory, console) = console();
         for setting in rows() {
             // Rows whose value is not one cvar's (resolution, display mode, HUD,
-            // the quick wheel's pages, graphics quality and its EJK graphics switch).
-            if derived_switch(setting.cvar).is_some() {
+            // the quick wheel's pages, graphics quality and the renderer).
+            if derived_switch(setting.cvar).is_some() || derived_choice(setting.cvar).is_some() {
                 continue;
             }
             if matches!(

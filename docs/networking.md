@@ -280,7 +280,7 @@ and strafes feel at 8, 7, 4 or 3 ms. The step
 ([command_rate.rs](../crates/sjk-client/src/command_rate.rs) `command_step`) is, in
 order: on a `pmove_fixed` server its `pmove_msec`, since it moves everyone in those
 steps and would drop a second command in one; the gameplay FPS
-when the player set one (`gameplay_fps`, archived, 20 to 1000; Settings > Video >
+when the player set one (`gameplay_fps`, archived, 20 to 1000; Settings > Display >
 Gameplay FPS, `help_gameplay_fps`, the step after an import,
 [client.md](client.md#gameplay-fps)), `1000 / gameplay_fps` whole milliseconds as
 stock rounds it (400 makes 2 ms steps, 500 a second); and on Auto (`gameplay_fps 0`,
@@ -296,7 +296,7 @@ table keyed by family id, [server_caps.rs](../crates/sjk-viewer/src/server_caps.
 serverinfo `V` 2.5B0) at 8 ms: they are not `pmove_fixed` (they report 0),
 yet faster commands made the game unplayable there (Sol, 11/10/2026), and JoF EJK
 sends them 125 a second. The player lifts every listed cap with `gameplay_fps_nocap 1`
-(archived, 0; Settings > Video > Ignore server caps), and the log names the cap when
+(archived, 0; Settings > Display > Ignore server caps), and the log names the cap when
 a listed server is joined. A `pmove_fixed` server's step is not lifted: the server
 itself moves everyone in it. On any other server, inputs
 that do not go through at a step shorter than 8 ms open the gameplay FPS card by

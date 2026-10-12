@@ -14,6 +14,12 @@ impl ViewerConsole {
     }
 
     /// Build the stock multiplayer cvars/binds and restore the user config.
+    /// Whether the profile had no config when the console started: the player's
+    /// first start with it.
+    pub(crate) fn new_profile(&self) -> bool {
+        self.new_profile
+    }
+
     pub(crate) fn new(config_path: PathBuf) -> Result<Self, Box<dyn Error>> {
         let mut cvars = CvarRegistry::new();
         let user = CvarFlags::ARCHIVE | CvarFlags::USER_INFO;
@@ -544,6 +550,7 @@ impl ViewerConsole {
         mods.migrate_defaults(&mut shell);
         Ok(Self {
             shell,
+            new_profile,
             open: false,
             shift: false,
             held_keys: Default::default(),

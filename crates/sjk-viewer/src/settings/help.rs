@@ -86,6 +86,71 @@ pub(super) fn classic_label<'a>(cvar: &str, label: &'a str) -> (&'a str, Timing)
     (short, timing)
 }
 
+/// What a choice row's value is called where the value itself is a number or
+/// a code: each `(cvar, value, name)`. A value not listed is shown as it is
+/// written ([`super::classic_view::choice_label`]).
+const CHOICE_NAMES: &[(&str, &str, &str)] = &[
+    (
+        crate::graphics_quality::RENDERER_ROW,
+        crate::graphics_quality::VANILLA,
+        "Vanilla",
+    ),
+    (
+        crate::graphics_quality::RENDERER_ROW,
+        crate::graphics_quality::SJK,
+        "SJK (alpha)",
+    ),
+    (crate::input::idrive::CVAR, "0", "Off"),
+    (crate::input::idrive::CVAR, "1", "All keys"),
+    (crate::input::idrive::CVAR, "2", "Jump, crouch"),
+    (crate::effect_aux::saber_rain_steam::CVAR, "0", "Off"),
+    (crate::effect_aux::saber_rain_steam::CVAR, "1", "Everyone"),
+    (crate::effect_aux::saber_rain_steam::CVAR, "2", "Only mine"),
+    ("cg_remaps", "0", "Never"),
+    ("cg_remaps", "1", "Not players"),
+    ("cg_remaps", "2", "Always"),
+    (crate::brush_view::CVAR, "0", "Off"),
+    (crate::brush_view::CVAR, "1", "Gameplay"),
+    (crate::brush_view::CVAR, "2", "All"),
+    ("r_DynamicGlow", "0", "Off"),
+    ("r_DynamicGlow", "1", "On"),
+    ("r_DynamicGlow", "2", "Sabers"),
+    ("r_dynamicGlowStyle", "0", "Original"),
+    ("r_dynamicGlowStyle", "1", "Vulkan"),
+    ("r_volumetrics", "0", "Off"),
+    ("r_volumetrics", "1", "Low"),
+    ("r_volumetrics", "2", "Medium"),
+    ("r_volumetrics", "3", "High"),
+    (crate::weather::QUALITY_CVAR, "0", "Low"),
+    (crate::weather::QUALITY_CVAR, "1", "Medium"),
+    (crate::weather::QUALITY_CVAR, "2", "High"),
+    (crate::weather::QUALITY_CVAR, "3", "Ultra"),
+    (crate::weather::FORCE_CVAR, "0", "The map's"),
+    (crate::weather::FORCE_CVAR, "1", "Drizzle"),
+    (crate::weather::FORCE_CVAR, "2", "Rain"),
+    (crate::weather::FORCE_CVAR, "3", "Storm"),
+    (crate::weather::FORCE_CVAR, "4", "Snow"),
+    (crate::weather::FOG_CVAR, "0", "Never"),
+    (crate::weather::FOG_CVAR, "1", "Map's fog"),
+    (crate::weather::FOG_CVAR, "2", "Always"),
+];
+
+/// What choice `value` of setting `cvar` is called, when it has a name of its own.
+pub(super) fn choice_name(cvar: &str, value: &str) -> Option<&'static str> {
+    CHOICE_NAMES
+        .iter()
+        .find(|(name, choice, _)| {
+            name.eq_ignore_ascii_case(cvar) && choice.eq_ignore_ascii_case(value.trim())
+        })
+        .map(|(_, _, shown)| *shown)
+}
+
+/// What the detail column says, in gold, while the SJK renderer is on and a
+/// renderer setting is focused ([`super::renderer_row`]).
+pub(super) const ALPHA_WARNING: &str = "The SJK renderer is in alpha: some maps can show glitches \
+    (lighting, shadows, missing surfaces) or run slower. Report them from the SJK menu's Report a \
+    bug; Vanilla is the safe choice.";
+
 /// The description of setting `cvar`.
 pub(super) fn help(cvar: &str) -> Option<&'static str> {
     HELP.iter()
@@ -117,12 +182,12 @@ pub(super) fn lines(text: &str) -> [&str; HELP_LINES] {
 const HELP: &[(&str, &str)] = &[
     // VIDEO
     (
-        crate::graphics_quality::ROW_NAME,
-        "Sets the costly graphics together: EJK for the most FPS (the original look), Ultra for the best look, after a graphics reload.",
+        crate::graphics_quality::RENDERER_ROW,
+        "Vanilla: the original game's look and frame rate. SJK: SJK's own renderer (sun, shadows, reflections), in alpha.",
     ),
     (
-        crate::graphics_quality::EJK_ROW,
-        "The original game's look: baked map lighting, no sun, shadows, reflections or material maps. Off restores your settings.",
+        crate::graphics_quality::ROW_NAME,
+        "How much the SJK renderer draws: Performance for the most FPS, Ultra for the best look. Picking one turns the SJK renderer on.",
     ),
     (
         "r_resolution",
@@ -343,7 +408,7 @@ const HELP: &[(&str, &str)] = &[
     ("cl_run", "Run by default; the Walk key walks."),
     (
         crate::input::idrive::CVAR,
-        "Opposite movement keys move toward the one pressed last instead of cancelling. 1 all, 2 jump/crouch.",
+        "Opposite movement keys move toward the one pressed last instead of cancelling: all of them, or jump and crouch only.",
     ),
     (
         crate::input::idrive::DELAY_CVAR,
@@ -368,7 +433,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::effect_aux::saber_rain_steam::CVAR,
-        "Steam and sizzle in rain on exposed blades. 0: off, 1: everyone, 2: only you.",
+        "Steam and sizzle in rain on exposed blades: everyone's, or only your own.",
     ),
     (
         "cg_speedTrail",
@@ -396,7 +461,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         "cg_remaps",
-        "Lets the server swap textures: 0 never, 1 all but player models, 2 always. Maps' own always apply.",
+        "Lets the server swap textures: never, all but player models, or always. Maps' own always apply.",
     ),
     (
         crate::camera::STYLE_CVAR,
@@ -428,7 +493,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::brush_view::CVAR,
-        "Shows invisible brushes (clip, trigger...) and movers (doors, lifts) see-through, as Radiant does. 1 gameplay, 2 all.",
+        "Shows invisible brushes (clip, trigger...) and movers (doors, lifts) see-through, as Radiant does: those of gameplay, or all.",
     ),
     (
         crate::rarity_fx::CVAR,
@@ -474,6 +539,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::crash_report::CVAR,
         "After a crash, the next start sends the SJK team a report: system, map, the error, recent console lines (no chat). Off sends none.",
+    ),
+    (
+        crate::settings_usage::CVAR,
+        "Tells the SJK team anonymously what you change and search for here, to make Settings clearer. No key or name sent.",
     ),
     (
         "cl_sjkChat",
@@ -596,11 +665,11 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         "r_DynamicGlow",
-        "The glow around sabers and glowing surfaces: 0 off, 1 everything that glows, 2 sabers only.",
+        "The glow around sabers and glowing surfaces: on everything that glows, or on sabers only.",
     ),
     (
         "r_dynamicGlowStyle",
-        "How the glow is blurred: 0 like the original renderer, 1 like EternalJK's Vulkan one.",
+        "How the glow is blurred: like the original renderer, or like EternalJK's Vulkan one.",
     ),
     ("r_fxaa", "Smooths jagged edges with a light filter."),
     (
@@ -629,16 +698,16 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         crate::weather::QUALITY_CVAR,
-        "0 low, 1 splashes, 3D fog, wet ground, 2 distant rain, water running down walls, \
-         3 ultra: puddles, finer fog and clouds.",
+        "Medium adds splashes, 3D fog and wet ground; High distant rain and water down walls; \
+         Ultra puddles, finer fog and clouds.",
     ),
     (
         crate::weather::FORCE_CVAR,
-        "Weather on every map with sky: 0 the map's own, 1 drizzle, 2 rain, 3 storm, 4 snow.",
+        "Weather on every map with sky: the map's own, or drizzle, rain, a storm or snow everywhere.",
     ),
     (
         crate::weather::FOG_CVAR,
-        "Fog lying on the ground outdoors: 0 never, 1 where the map has fog, 2 on every map \
+        "Fog lying on the ground outdoors: never, where the map has fog, or on every map \
          with sky. Works with rain and forced weather.",
     ),
     (
@@ -724,7 +793,7 @@ const HELP: &[(&str, &str)] = &[
     ),
     (
         "r_volumetrics",
-        "Light shafts through the air: 0 off, higher levels finer and more costly.",
+        "Light shafts through the air; each level up is finer and costs more.",
     ),
     (
         "r_volumetricClarity",
@@ -865,8 +934,8 @@ mod tests {
             ("Dynamic glow", Timing::Now)
         );
         assert_eq!(
-            row_label("Light shafts 0-3 (reload)"),
-            ("Light shafts 0-3", Timing::Reload)
+            row_label("Light shafts (reload)"),
+            ("Light shafts", Timing::Reload)
         );
         assert_eq!(
             row_label("Adaptation: max darken, EV (HDR)"),

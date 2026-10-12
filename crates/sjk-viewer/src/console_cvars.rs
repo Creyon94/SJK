@@ -92,13 +92,13 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             crate::fps_help::CVAR,
             true,
             archive,
-            "Offer EJK graphics when a map's SJK lighting keeps the FPS low (help_fps shows it)",
+            "Offer Vanilla graphics when a map's SJK lighting keeps the FPS low (help_fps shows it)",
         ),
         CvarDefinition::new(
             crate::graphics_quality::RESTORE_CVAR,
             "",
             archive,
-            "The graphics settings the EJK graphics switch turned off, restored when it is turned off",
+            "The SJK renderer settings put aside while the renderer is Vanilla, restored when the SJK renderer is turned on again",
         ),
         CvarDefinition::new(
             crate::remap_blocked_maps::CVAR,
@@ -629,6 +629,18 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             true,
             archive,
             "Send a report to the SJK team when SJK crashes (build, system, graphics card, map, server, the error and the last console lines without chat), at the next start through the SJK hub (0 keeps it on this PC only)",
+        ),
+        CvarDefinition::new(
+            crate::settings_usage::CVAR,
+            true,
+            archive,
+            "Tell the SJK team anonymously which settings you change and what you search for in Settings (no key, name or server is sent; 0 sends nothing)",
+        ),
+        CvarDefinition::new(
+            crate::settings::mode::CVAR,
+            crate::settings::mode::SettingsMode::Simple.name(),
+            archive,
+            "Settings shows the settings that matter most (simple) or every setting (advanced)",
         ),
         CvarDefinition::new(
             "cl_hubUrl",

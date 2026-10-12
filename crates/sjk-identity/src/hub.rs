@@ -250,6 +250,13 @@ pub trait Hub: Send {
             "this hub client does not send reports".to_owned(),
         ))
     }
+    /// Send anonymous settings usage, unsigned (`PROTOCOL.md`, "Settings usage"):
+    /// `body` is [`crate::usage::body`]'s. Answers how many events the hub kept.
+    fn settings_usage(&mut self, _body: &Value) -> Result<u64, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not send settings usage".to_owned(),
+        ))
+    }
     /// Send a crash report (already [`CrashReport::fitted`]) signed by the identity;
     /// the hub answers with its number.
     fn crash(&mut self, _identity: &Identity, _report: &CrashReport) -> Result<i64, HubError> {
@@ -766,6 +773,11 @@ impl Hub for HttpHub {
             .get("id")
             .and_then(serde_json::Value::as_i64)
             .ok_or_else(|| HubError::Protocol("the report answer has no id".to_owned()))
+    }
+
+    fn settings_usage(&mut self, body: &Value) -> Result<u64, HubError> {
+        let answer = self.send(None, "POST", "/v1/usage/settings", Some(body.clone()))?;
+        Ok(answer["stored"].as_u64().unwrap_or(0))
     }
 
     fn crash(&mut self, identity: &Identity, report: &CrashReport) -> Result<i64, HubError> {

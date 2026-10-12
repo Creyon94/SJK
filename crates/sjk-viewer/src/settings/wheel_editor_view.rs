@@ -1298,6 +1298,7 @@ mod tests {
             categories: &[("Quick wheel", "options"); 12],
             current: Some(9),
             back: "Main menu",
+            mode: crate::settings::mode::SettingsMode::Advanced,
         };
         for viewport in [[1920.0, 1080.0], [1440.0, 1080.0], [3840.0, 2160.0]] {
             for mode in [WheelMode::Category, WheelMode::Overlay] {

@@ -10,6 +10,15 @@ impl SettingsMenu {
         event: InputEvent,
         console: &mut ViewerConsole,
     ) -> SettingsResult {
+        let was_searching = self.searching;
+        self.usage.recording = true;
+        let result = self.pointer(event, console);
+        self.usage.recording = false;
+        self.after_input(console, was_searching, &result);
+        result
+    }
+
+    fn pointer(&mut self, event: InputEvent, console: &mut ViewerConsole) -> SettingsResult {
         if self.wheel.is_open() {
             return self.wheel_pointer(event, console);
         }

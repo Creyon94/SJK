@@ -403,6 +403,21 @@ note: A roll on landing while crouched (PM_CrashLand) is not prevented, in EJK e
 
 # ---- Menus & settings ----
 
+[settings-simple-advanced]
+area: Menus & settings
+title: Settings: Simple and Advanced, Vanilla or SJK renderer, Ctrl+F/F3, usage sent anonymously
+change: Simple (default) shows 8 short categories; Advanced every setting, regrouped. F2 switches.
+change: Renderer row: Vanilla or SJK (alpha), with an alpha warning; a new profile starts Vanilla.
+change: Ctrl+F and F3 open the search; choices show names (Off, Sabers...) instead of 0/1/2.
+test: Main menu > Settings: Simple rail (Display ... General); click Advanced, then F2 back.
+test: Simple > Graphics: Renderer Vanilla/SJK (alpha); on SJK the detail shows the gold warning.
+test: Pick SJK, then the reload card: the SJK look comes back; Vanilla again restores Vanilla.
+test: SJK quality: Off under Vanilla; Right starts Performance; Backspace on Renderer = Vanilla.
+test: Ctrl+F and F3 in Settings and Key bindings: search gets the keys, typed text replaced.
+test: Advanced > Network: SJK online / SJK chat / Connection headings, Share settings usage row.
+test: Rename config.cfg away and start: Settings opens Simple, the renderer reads Vanilla.
+note: Usage goes to the hub only once its endpoint is deployed (log: 'settings usage: sent').
+
 [force-hold-repeat]
 area: Input
 title: Holding push or pull uses it again as soon as it is ready (after JoF EJK)

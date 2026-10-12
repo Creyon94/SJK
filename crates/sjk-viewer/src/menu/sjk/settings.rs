@@ -1,5 +1,7 @@
-//! The SJK UI's Settings screen (`docs/sjk-ui.md`, Settings): every category
-//! of settings down one rail, opened from the main page's Settings; First
+//! The SJK UI's Settings screen (`docs/sjk-ui.md`, Settings): the categories
+//! of settings down one rail, opened from the main page's Settings, in one of
+//! two modes ([`SettingsMode`]): Simple, the default, with the settings that
+//! matter most in a few categories, or Advanced, with every setting; First
 //! setup at start (and the `firstsetup` command) shows its category as a
 //! pop-up instead ([`crate::settings::SettingsMenu::append_sjk_popup`]). The rows are the classic+ panels' groups
 //! ([`crate::settings::SettingsMenu`] draws them in [`crate::settings::Rail`]'s
@@ -12,7 +14,8 @@ use super::super::{ClientMenu, ClientPhase, MenuAction};
 use super::TextTarget;
 use crate::console::ViewerConsole;
 use crate::player_menu::ReturnTarget;
-use crate::settings::{Group, SettingsMenu, SettingsResult};
+use crate::settings::mode::SettingsMode;
+use crate::settings::{Group, SettingsMenu, SettingsResult, Simple};
 
 /// What a category of the rail shows.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -26,12 +29,35 @@ enum Shows {
     Wheel,
 }
 
-/// One category of the rail: its name, its settings icon and what it shows.
+/// One category: its name, its settings icon, what it shows, which modes'
+/// rails it is on and, for one whose rows are regrouped from a tab, the
+/// classic+ panel that tab is.
 #[derive(Clone, Copy, Debug)]
 struct Category {
     label: &'static str,
     icon: &'static str,
     shows: Shows,
+    on: On,
+    classic: Option<Panel>,
+}
+
+/// Which modes' rails a category is on.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+enum On {
+    Simple,
+    Advanced,
+    Both,
+}
+
+impl On {
+    const fn has(self, mode: SettingsMode) -> bool {
+        matches!(
+            (self, mode),
+            (Self::Both, _)
+                | (Self::Simple, SettingsMode::Simple)
+                | (Self::Advanced, SettingsMode::Advanced)
+        )
+    }
 }
 
 const fn tab(caption: &'static str) -> Shows {
@@ -41,81 +67,115 @@ const fn tab(caption: &'static str) -> Shows {
     })
 }
 
-/// The rail, top to bottom.
-const CATEGORIES: [Category; 12] = [
+const fn group(group: Group) -> Shows {
+    Shows::Rows(Panel::Group(group))
+}
+
+/// A category of Advanced's rail.
+const fn advanced(label: &'static str, icon: &'static str, shows: Shows) -> Category {
     Category {
-        label: "First setup",
-        icon: "first_setup",
-        shows: Shows::Rows(Panel::Group(Group::Quick)),
-    },
+        label,
+        icon,
+        shows,
+        on: On::Advanced,
+        classic: None,
+    }
+}
+
+/// A category of Simple's rail.
+const fn simple(label: &'static str, icon: &'static str, simple: Simple) -> Category {
     Category {
-        label: "Display",
-        icon: "video",
-        shows: tab("VIDEO"),
-    },
+        label,
+        icon,
+        shows: group(Group::Simple(simple)),
+        on: On::Simple,
+        classic: None,
+    }
+}
+
+/// Every category: Advanced's rail, top to bottom, then Simple's own (Key
+/// bindings is on both).
+const CATEGORIES: [Category; 19] = [
+    advanced("First setup", "first_setup", group(Group::Quick)),
     Category {
-        label: "Graphics",
-        icon: "graphics",
-        shows: Shows::Rows(Panel::Group(Group::Graphics)),
+        classic: Some(Panel::Settings {
+            caption: "VIDEO",
+            span: Span::ALL,
+        }),
+        ..advanced("Display", "video", group(Group::Display))
     },
+    advanced("Graphics", "graphics", group(Group::Graphics)),
+    advanced("Sound", "sound", tab("AUDIO")),
+    advanced("Controls", "mouse_joystick", tab("CONTROLS")),
     Category {
-        label: "Sound",
-        icon: "sound",
-        shows: tab("AUDIO"),
+        on: On::Both,
+        ..advanced("Key bindings", "key_bindings", Shows::Keys)
     },
-    Category {
-        label: "Mouse",
-        icon: "mouse_joystick",
-        shows: tab("CONTROLS"),
-    },
-    Category {
-        label: "Key bindings",
-        icon: "key_bindings",
-        shows: Shows::Keys,
-    },
-    Category {
-        label: "Gameplay",
-        icon: "game_options",
-        shows: Shows::Rows(Panel::Group(Group::GameOptions)),
-    },
-    Category {
-        label: "Interface",
-        icon: "interface",
-        shows: Shows::Rows(Panel::Group(Group::Interface)),
-    },
-    Category {
-        label: "HUD",
-        icon: "hud",
-        shows: Shows::Rows(Panel::Group(Group::Hud)),
-    },
+    advanced("Gameplay", "game_options", group(Group::GameOptions)),
+    advanced("Interface", "interface", group(Group::Interface)),
+    advanced("HUD", "hud", group(Group::Hud)),
     // The wheel's own icon, a ring of discs, from the wheel's second board.
+    advanced(
+        "Quick wheel",
+        crate::quick_wheel::catalog::WHEEL_ICON,
+        Shows::Wheel,
+    ),
+    advanced("Scoreboard", "scoreboard", group(Group::Scoreboard)),
     Category {
-        label: "Quick wheel",
-        icon: crate::quick_wheel::catalog::WHEEL_ICON,
-        shows: Shows::Wheel,
+        classic: Some(Panel::Settings {
+            caption: "NETWORK",
+            span: Span::ALL,
+        }),
+        ..advanced("Network", "network", group(Group::Network))
     },
-    Category {
-        label: "Scoreboard",
-        icon: "scoreboard",
-        shows: Shows::Rows(Panel::Group(Group::Scoreboard)),
-    },
-    Category {
-        label: "Network",
-        icon: "network",
-        shows: tab("NETWORK"),
-    },
+    simple("Display", "video", Simple::Display),
+    simple("Graphics", "graphics", Simple::Graphics),
+    simple("Sound", "sound", Simple::Sound),
+    simple("Controls", "mouse_joystick", Simple::Controls),
+    simple("Gameplay", "game_options", Simple::Gameplay),
+    simple("HUD", "hud", Simple::Hud),
+    simple("General", "interface", Simple::General),
 ];
 
-/// The rail's names and icons, as the view takes them.
-const RAIL: [(&str, &str); CATEGORIES.len()] = {
-    let mut rail = [("", ""); CATEGORIES.len()];
+/// The categories on mode `mode`'s rail, top to bottom: Simple's keeps Key
+/// bindings after Controls.
+const fn rail_of(mode: SettingsMode) -> &'static [usize] {
+    match mode {
+        SettingsMode::Simple => &SIMPLE_RAIL,
+        SettingsMode::Advanced => &ADVANCED_RAIL,
+    }
+}
+const ADVANCED_RAIL: [usize; 12] = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11];
+const SIMPLE_RAIL: [usize; 8] = [12, 13, 14, 15, KEYS, 16, 17, 18];
+const _: () = {
     let mut index = 0;
-    while index < CATEGORIES.len() {
-        rail[index] = (CATEGORIES[index].label, CATEGORIES[index].icon);
+    while index < ADVANCED_RAIL.len() {
+        assert!(
+            CATEGORIES[ADVANCED_RAIL[index]]
+                .on
+                .has(SettingsMode::Advanced)
+        );
         index += 1;
     }
-    rail
+    let mut index = 0;
+    while index < SIMPLE_RAIL.len() {
+        assert!(CATEGORIES[SIMPLE_RAIL[index]].on.has(SettingsMode::Simple));
+        index += 1;
+    }
 };
+
+/// The rail's names and icons, as the view takes them, for each mode.
+const fn names<const N: usize>(rail: [usize; N]) -> [(&'static str, &'static str); N] {
+    let mut names = [("", ""); N];
+    let mut index = 0;
+    while index < N {
+        names[index] = (CATEGORIES[rail[index]].label, CATEGORIES[rail[index]].icon);
+        index += 1;
+    }
+    names
+}
+const ADVANCED_NAMES: [(&str, &str); ADVANCED_RAIL.len()] = names(ADVANCED_RAIL);
+const SIMPLE_NAMES: [(&str, &str); SIMPLE_RAIL.len()] = names(SIMPLE_RAIL);
 
 /// The category First setup is.
 pub(crate) const FIRST_SETUP: usize = 0;
@@ -131,32 +191,74 @@ const _: () = assert!(matches!(CATEGORIES[KEYS].shows, Shows::Keys));
 /// The category the quick wheel's pages are.
 pub(crate) const QUICK_WHEEL: usize = 9;
 const _: () = assert!(matches!(CATEGORIES[QUICK_WHEEL].shows, Shows::Wheel));
-/// The category the screen opens on first in a run.
-const OPENING: usize = 1;
+/// Simple's Graphics: the renderer first.
+pub(crate) const SIMPLE_GRAPHICS: usize = 13;
+const _: () = assert!(matches!(
+    CATEGORIES[SIMPLE_GRAPHICS].shows,
+    Shows::Rows(Panel::Group(Group::Simple(Simple::Graphics)))
+));
+/// The category the screen opens on first in a run: the mode's first.
+fn opening(mode: SettingsMode) -> usize {
+    rail_of(mode)[0]
+}
 
-/// Whether the screen is open and on which category.
+/// Chrome slots past the rail's: the top bar's Simple and Advanced segments,
+/// and the key that switches between them (F2), as the rows' and key
+/// bindings' screens report them ([`SettingsResult::Classic`]).
+pub(crate) const MODE_SLOT: usize = 30;
+pub(crate) const MODE_TOGGLE_SLOT: usize = 29;
+const _: () = assert!(CATEGORIES.len() < MODE_TOGGLE_SLOT);
+
+/// Whether the screen is open, on which category and in which mode.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct SettingsPage {
     /// The settings phase shows this screen (not a classic+ panel).
     open: bool,
     /// The category on show, or last shown: the screen opens on it again.
     category: usize,
+    /// The mode shown: the player's ([`SettingsMode::of`]), or the other one
+    /// for a visit to a category only it has (the renderer's rows from the
+    /// classic Graphics page, First setup's All settings).
+    mode: SettingsMode,
 }
 
 impl Default for SettingsPage {
     fn default() -> Self {
         Self {
             open: false,
-            category: OPENING,
+            category: opening(SettingsMode::Simple),
+            mode: SettingsMode::Simple,
         }
     }
 }
 
 impl SettingsPage {
     /// The category on show, or the one the screen opens on next.
+    #[cfg(test)]
     pub(crate) fn category(&self) -> usize {
         self.category
     }
+
+    /// The category on show's place on its mode's rail.
+    fn rail_index(&self) -> Option<usize> {
+        rail_of(self.mode)
+            .iter()
+            .position(|index| *index == self.category)
+    }
+}
+
+/// The category of mode `mode` that matches category `index`: itself when the
+/// mode's rail has it, else the one of the same name, else the mode's first.
+fn in_mode(index: usize, mode: SettingsMode) -> usize {
+    let rail = rail_of(mode);
+    if rail.contains(&index) {
+        return index;
+    }
+    let label = CATEGORIES.get(index).map_or("", |category| category.label);
+    rail.iter()
+        .copied()
+        .find(|other| CATEGORIES[*other].label == label)
+        .unwrap_or(rail[0])
 }
 
 impl ClientMenu {
@@ -169,6 +271,19 @@ impl ClientMenu {
         target: ReturnTarget,
     ) {
         let index = index.min(CATEGORIES.len() - 1);
+        // The mode on show while the screen is open, else the player's, unless
+        // the category is only the other's.
+        let chosen = if self.sjk_settings.open {
+            self.sjk_settings.mode
+        } else {
+            SettingsMode::of(console)
+        };
+        let mode = if CATEGORIES[index].on.has(chosen) {
+            chosen
+        } else {
+            chosen.other()
+        };
+        let label = CATEGORIES[index].label;
         let panel = match CATEGORIES[index].shows {
             Shows::Rows(panel) => panel,
             // The editor shows over Interface's rows, which hold its row.
@@ -184,6 +299,7 @@ impl ClientMenu {
                 self.sjk_settings = SettingsPage {
                     open: true,
                     category: index,
+                    mode,
                 };
                 self.state.open_keybinds();
                 return;
@@ -218,8 +334,43 @@ impl ClientMenu {
         self.sjk_settings = SettingsPage {
             open: true,
             category: index,
+            mode,
         };
+        self.settings.set_screen(Some(mode), label);
         self.state.open_settings();
+    }
+
+    /// Open the SJK UI's Settings where the player left it: the category last
+    /// shown, or its match in the player's mode ([`in_mode`]).
+    pub(crate) fn open_sjk_settings_resumed(
+        &mut self,
+        console: &ViewerConsole,
+        target: ReturnTarget,
+    ) {
+        let category = in_mode(self.sjk_settings.category, SettingsMode::of(console));
+        self.open_sjk_settings(console, category, target);
+    }
+
+    /// Show mode `mode` (kept as the player's), on the category of it that
+    /// matches the one on show.
+    fn switch_sjk_settings_mode(&mut self, console: &mut ViewerConsole, mode: SettingsMode) {
+        if mode != SettingsMode::of(console) {
+            mode.store(console);
+        }
+        self.sjk_settings.mode = mode;
+        let target = self.settings_return;
+        let category = in_mode(self.sjk_settings.category, mode);
+        self.open_sjk_settings(console, category, target);
+    }
+
+    /// What a chrome slot past the rail's asks (the mode's segments, F2), as
+    /// the rows and the key bindings report it; `None` for a slot of the rail.
+    fn sjk_mode_slot(&self, slot: usize) -> Option<SettingsMode> {
+        match slot {
+            MODE_TOGGLE_SLOT => Some(self.sjk_settings.mode.other()),
+            MODE_SLOT.. => SettingsMode::ALL.get(slot - MODE_SLOT).copied(),
+            _ => None,
+        }
     }
 
     /// Open the SJK UI's Settings on the category holding the rows of the
@@ -231,7 +382,8 @@ impl ClientMenu {
         tab: usize,
         target: ReturnTarget,
     ) {
-        let category = SettingsMenu::tab_caption(tab).map_or(OPENING, category_of_tab);
+        let category =
+            SettingsMenu::tab_caption(tab).map_or(opening(SettingsMode::Advanced), category_of_tab);
         self.open_sjk_settings(console, category, target);
     }
 
@@ -273,8 +425,7 @@ impl ClientMenu {
                 self.open_classic_panel(console, Page::Setup, entry, frame, target)
             });
         if !classic {
-            let category = self.sjk_settings.category();
-            self.open_sjk_settings(console, category, target);
+            self.open_sjk_settings_resumed(console, target);
         }
         self.settings.carry_search(console, query);
     }
@@ -282,8 +433,7 @@ impl ClientMenu {
     /// Open the SJK UI's Settings over a match, from its in-game menu, on the
     /// category last shown; it returns to the in-game menu.
     pub(crate) fn open_sjk_settings_from_game(&mut self, console: &ViewerConsole) {
-        let category = self.sjk_settings.category();
-        self.open_sjk_settings(console, category, ReturnTarget::InGame);
+        self.open_sjk_settings_resumed(console, ReturnTarget::InGame);
     }
 
     /// The way back the screen's top bar names: the game menu over a match,
@@ -311,6 +461,7 @@ impl ClientMenu {
     /// The screen is left (to the main menu or the game): it is no longer open.
     pub(in crate::menu) fn close_sjk_settings(&mut self) {
         self.sjk_settings.open = false;
+        self.settings.set_screen(None, "");
     }
 
     /// Another settings screen opened: this one is not the one on show.
@@ -323,15 +474,23 @@ impl ClientMenu {
     pub(in crate::menu) fn sjk_keys_result(
         &mut self,
         result: &crate::keybind_editor::EditorResult,
-        console: &ViewerConsole,
+        console: &mut ViewerConsole,
     ) -> Option<MenuAction> {
         use crate::keybind_editor::EditorResult;
         if !self.sjk_settings_on_show() {
             return None;
         }
         let target = self.settings_return;
+        let rail = rail_of(self.sjk_settings.mode);
         match *result {
-            EditorResult::Classic(index) if index < CATEGORIES.len() => {
+            EditorResult::Classic(slot) if self.sjk_mode_slot(slot).is_some() => {
+                if let Some(mode) = self.sjk_mode_slot(slot) {
+                    self.switch_sjk_settings_mode(console, mode);
+                }
+                Some(MenuAction::None)
+            }
+            EditorResult::Classic(slot) if slot < rail.len() => {
+                let index = rail[slot];
                 if index != self.sjk_settings.category
                     || !self.keybinds.search_text().trim().is_empty()
                 {
@@ -341,7 +500,7 @@ impl ClientMenu {
             }
             EditorResult::Classic(_) => Some(MenuAction::None),
             EditorResult::ClassicCycle(direction) => {
-                let next = next_category(self.sjk_settings.category, direction);
+                let next = next_category(&self.sjk_settings, direction);
                 self.open_sjk_settings(console, next, target);
                 Some(MenuAction::None)
             }
@@ -349,15 +508,28 @@ impl ClientMenu {
         }
     }
 
+    /// The rail of the mode on show, `searched` lighting none of it.
+    fn sjk_rail(&self, searched: bool) -> crate::settings::Rail<'static> {
+        crate::settings::Rail {
+            categories: match self.sjk_settings.mode {
+                SettingsMode::Simple => &SIMPLE_NAMES,
+                SettingsMode::Advanced => &ADVANCED_NAMES,
+            },
+            current: if searched {
+                None
+            } else {
+                self.sjk_settings.rail_index()
+            },
+            back: self.sjk_settings_back(),
+            mode: self.sjk_settings.mode,
+        }
+    }
+
     /// Draw the SJK UI's Key bindings.
     pub(crate) fn append_sjk_keys(&mut self, target: TextTarget<'_>, viewport: [f32; 2]) {
         let reveal = self.screen_reveal();
         let searched = !self.keybinds.search_text().trim().is_empty();
-        let rail = crate::settings::Rail {
-            categories: &RAIL,
-            current: (!searched).then_some(self.sjk_settings.category),
-            back: self.sjk_settings_back(),
-        };
+        let rail = self.sjk_rail(searched);
         self.keybinds.append_sjk(target, viewport, reveal, &rail);
     }
 
@@ -367,14 +539,22 @@ impl ClientMenu {
     pub(in crate::menu) fn sjk_settings_result(
         &mut self,
         result: &SettingsResult,
-        console: &ViewerConsole,
+        console: &mut ViewerConsole,
     ) -> Option<MenuAction> {
         if !self.sjk_settings_on_show() {
             return None;
         }
         let target = self.settings_return;
+        let rail = rail_of(self.sjk_settings.mode);
         match *result {
-            SettingsResult::Classic(index) if index < CATEGORIES.len() => {
+            SettingsResult::Classic(slot) if self.sjk_mode_slot(slot).is_some() => {
+                if let Some(mode) = self.sjk_mode_slot(slot) {
+                    self.switch_sjk_settings_mode(console, mode);
+                }
+                Some(MenuAction::None)
+            }
+            SettingsResult::Classic(slot) if slot < rail.len() => {
+                let index = rail[slot];
                 if index != self.sjk_settings.category || self.settings.searching_results() {
                     self.open_sjk_settings(console, index, target);
                 }
@@ -382,10 +562,12 @@ impl ClientMenu {
             }
             SettingsResult::Classic(_) => Some(MenuAction::None),
             SettingsResult::ClassicCycle(direction) => {
-                let next = next_category(self.sjk_settings.category, direction);
+                let next = next_category(&self.sjk_settings, direction);
                 self.open_sjk_settings(console, next, target);
                 Some(MenuAction::None)
             }
+            // The pop-up's All settings: its rows on the whole screen, among
+            // every setting (Advanced, for the visit).
             SettingsResult::AllSettings => {
                 self.open_sjk_settings(console, FIRST_SETUP, target);
                 Some(MenuAction::None)
@@ -412,11 +594,7 @@ impl ClientMenu {
             self.settings.append_sjk_popup(target, viewport, reveal);
             return;
         }
-        let rail = crate::settings::Rail {
-            categories: &RAIL,
-            current: (!self.settings.searching_results()).then_some(self.sjk_settings.category),
-            back: self.sjk_settings_back(),
-        };
+        let rail = self.sjk_rail(self.settings.searching_results());
         self.settings.append_sjk(target, viewport, reveal, &rail);
     }
 }
@@ -432,14 +610,19 @@ fn category_of_tab(caption: &str) -> usize {
         crate::settings::FIRST_SETUP_CAPTION => Some(Group::Quick),
         _ => None,
     };
-    CATEGORIES
+    ADVANCED_RAIL
         .iter()
-        .position(|category| match (category.shows, group) {
-            (Shows::Rows(Panel::Group(shown)), Some(wanted)) => shown == wanted,
-            (Shows::Rows(Panel::Settings { caption: shown, .. }), None) => shown == caption,
-            _ => false,
+        .copied()
+        .find(|index| {
+            let category = &CATEGORIES[*index];
+            match (category.classic, category.shows, group) {
+                (Some(Panel::Settings { caption: shown, .. }), _, None) => shown == caption,
+                (_, Shows::Rows(Panel::Group(shown)), Some(wanted)) => shown == wanted,
+                (_, Shows::Rows(Panel::Settings { caption: shown, .. }), None) => shown == caption,
+                _ => false,
+            }
         })
-        .unwrap_or(OPENING)
+        .unwrap_or(opening(SettingsMode::Advanced))
 }
 
 #[cfg(test)]
@@ -511,16 +694,20 @@ impl ClientMenu {
     }
 }
 
-/// The category `direction` steps from `index` along the rail, wrapping.
-fn next_category(index: usize, direction: i32) -> usize {
-    (index as i32 + direction.signum()).rem_euclid(CATEGORIES.len() as i32) as usize
+/// The category `direction` steps from `page`'s along its mode's rail, wrapping.
+fn next_category(page: &SettingsPage, direction: i32) -> usize {
+    let rail = rail_of(page.mode);
+    let at = page.rail_index().unwrap_or(0) as i32;
+    rail[(at + direction.signum()).rem_euclid(rail.len() as i32) as usize]
 }
 
 /// The classic Setup page and entry whose panel is category `index`'s, if one
 /// is (the classic pages have no Graphics of all four renderer tabs); Key
 /// bindings is the Controls page's.
 fn classic_place(index: usize) -> Option<(Page, Entry)> {
-    let panel = match CATEGORIES.get(index)?.shows {
+    let category = CATEGORIES.get(index)?;
+    let panel = match category.shows {
+        _ if category.classic.is_some() => category.classic?,
         Shows::Rows(panel) => panel,
         // Interface holds the row that opens the quick wheel's pages.
         Shows::Wheel => Panel::Group(Group::Interface),
@@ -588,7 +775,7 @@ mod tests {
         }
         assert_eq!(CATEGORIES[FIRST_SETUP].label, "First setup");
         // Every category has its icon: a settings one, or the wheel's own.
-        for (label, icon) in RAIL {
+        for (label, icon) in ADVANCED_NAMES.into_iter().chain(SIMPLE_NAMES) {
             assert!(
                 crate::settings_icons::texture(icon).is_some(),
                 "{label}: {icon}"
@@ -601,15 +788,76 @@ mod tests {
     }
 
     #[test]
-    fn tab_steps_along_every_category_and_wraps() {
-        let keys = CATEGORIES
-            .iter()
-            .position(|category| category.shows == Shows::Keys)
-            .unwrap();
-        assert_eq!(next_category(keys - 1, 1), keys);
-        assert_eq!(next_category(keys, 1), keys + 1);
-        assert_eq!(next_category(CATEGORIES.len() - 1, 1), 0);
-        assert_eq!(next_category(0, -1), CATEGORIES.len() - 1);
+    fn tab_steps_along_the_modes_rail_and_wraps() {
+        let page = |mode, category| SettingsPage {
+            open: true,
+            category,
+            mode,
+        };
+        let advanced = |category| page(SettingsMode::Advanced, category);
+        assert_eq!(next_category(&advanced(KEYS - 1), 1), KEYS);
+        assert_eq!(next_category(&advanced(KEYS), 1), KEYS + 1);
+        assert_eq!(next_category(&advanced(ADVANCED_RAIL[11]), 1), 0);
+        assert_eq!(next_category(&advanced(0), -1), ADVANCED_RAIL[11]);
+        // Simple's rail goes through Key bindings, its own, and wraps.
+        let simple = |category| page(SettingsMode::Simple, category);
+        let controls = SIMPLE_RAIL[3];
+        assert_eq!(CATEGORIES[controls].label, "Controls");
+        assert_eq!(next_category(&simple(controls), 1), KEYS);
+        assert_eq!(next_category(&simple(KEYS), 1), SIMPLE_RAIL[5]);
+        assert_eq!(next_category(&simple(SIMPLE_RAIL[7]), 1), SIMPLE_RAIL[0]);
+    }
+
+    #[test]
+    fn each_mode_maps_a_category_to_its_own_of_the_same_name() {
+        // Advanced's Sound is Simple's Sound, and back.
+        let sound = in_mode(3, SettingsMode::Simple);
+        assert_eq!(CATEGORIES[sound].label, "Sound");
+        assert!(SIMPLE_RAIL.contains(&sound));
+        assert_eq!(in_mode(sound, SettingsMode::Advanced), 3);
+        // Key bindings is on both rails; Scoreboard has no Simple match.
+        assert_eq!(in_mode(KEYS, SettingsMode::Simple), KEYS);
+        assert_eq!(in_mode(10, SettingsMode::Simple), SIMPLE_RAIL[0]);
+        // Simple's General has no Advanced match: Advanced's first.
+        assert_eq!(in_mode(SIMPLE_RAIL[7], SettingsMode::Advanced), 0);
+    }
+
+    #[test]
+    fn a_new_profile_opens_simple_and_the_top_bar_switches_modes() {
+        let (_directory, mut console) = console();
+        let mut menu = menu();
+        menu.open_sjk_settings_resumed(&console, ReturnTarget::MainMenu);
+        assert_eq!(menu.sjk_settings.mode, SettingsMode::Simple);
+        assert_eq!(menu.sjk_settings.category, SIMPLE_RAIL[0]);
+        // Simple's Graphics, the rail's second, leads with the renderer.
+        menu.settings_result(SettingsResult::Classic(1), &mut console);
+        assert_eq!(menu.sjk_settings.category, SIMPLE_GRAPHICS);
+        // Advanced's segment: kept, and Advanced's Graphics shows.
+        menu.settings_result(SettingsResult::Classic(MODE_SLOT + 1), &mut console);
+        assert_eq!(SettingsMode::of(&console), SettingsMode::Advanced);
+        assert_eq!(menu.sjk_settings.mode, SettingsMode::Advanced);
+        assert_eq!(menu.sjk_settings.category, GRAPHICS);
+        assert!(menu.settings.renderer_open());
+        // F2 (the toggle slot) goes back to Simple.
+        menu.settings_result(SettingsResult::Classic(MODE_TOGGLE_SLOT), &mut console);
+        assert_eq!(SettingsMode::of(&console), SettingsMode::Simple);
+        assert_eq!(menu.sjk_settings.category, SIMPLE_GRAPHICS);
+        // A category only Advanced has shows Advanced for the visit, and the
+        // player's mode stays Simple.
+        menu.open_sjk_settings(&console, QUICK_WHEEL, ReturnTarget::MainMenu);
+        assert_eq!(menu.sjk_settings.mode, SettingsMode::Advanced);
+        assert_eq!(SettingsMode::of(&console), SettingsMode::Simple);
+        // Closed and opened again on Key bindings, the player's mode; the
+        // toggle works there too.
+        menu.settings_result(SettingsResult::Back, &mut console);
+        menu.open_sjk_settings(&console, KEYS, ReturnTarget::MainMenu);
+        assert_eq!(menu.sjk_settings.mode, SettingsMode::Simple);
+        menu.keybinds_result(
+            crate::keybind_editor::EditorResult::Classic(MODE_TOGGLE_SLOT),
+            &mut console,
+        );
+        assert_eq!(SettingsMode::of(&console), SettingsMode::Advanced);
+        assert_eq!(menu.sjk_settings.category, KEYS);
     }
 
     #[test]
@@ -639,6 +887,7 @@ mod tests {
     #[test]
     fn opened_from_a_game_it_names_and_returns_to_the_game_menu() {
         let (_directory, mut console) = console();
+        SettingsMode::Advanced.store(&mut console);
         let mut menu = menu();
         menu.open_sjk_settings(&console, 3, ReturnTarget::MainMenu);
         assert_eq!(menu.sjk_settings_back(), "Main menu");
@@ -724,7 +973,7 @@ mod tests {
                 ("VIDEO", "Display"),
                 ("AUDIO", "Sound"),
                 ("HUD", "HUD"),
-                ("CONTROLS", "Mouse"),
+                ("CONTROLS", "Controls"),
                 ("GAME", "Gameplay"),
                 ("NETWORK", "Network"),
                 ("HUD+", "Scoreboard"),

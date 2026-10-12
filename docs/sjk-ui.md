@@ -571,19 +571,47 @@ console's full-width rows, and the other two were removed.
 [sjk_view.rs](../crates/sjk-viewer/src/settings/sjk_view.rs) draws it, and
 [settings.rs](../crates/sjk-viewer/src/menu/sjk/settings.rs) lists its
 categories and opens, switches and closes it. The main page's Settings opens it
-on the category last shown (Display the first time in a run); First setup at
-start and the `firstsetup` command open First setup as a pop-up
+on the category last shown (the mode's first the first time in a run); First
+setup at start and the `firstsetup` command open First setup as a pop-up
 ([First setup](#first-setup)). It is laid out on the main page's 16:9 frame,
 over the map darkened from the left (95 %) to the right (80 %), as the Settings
 mock-up draws it.
 
+Since 12/10/2026 (Sol's request) it has two modes ([mode.rs](../crates/sjk-viewer/src/settings/mode.rs),
+`ui_settingsMode`, archived, `simple` or `advanced`): **Simple**, the default,
+shows the settings that matter most in a few plain categories; **Advanced** shows
+every setting. The main page, the game menu's Settings and a chip naming a
+setting open the screen in the player's mode, on the category last shown or its
+match of the same name in that mode (Advanced's Sound is Simple's Sound; a
+category with no match opens the mode's first). A way to a category only the
+other mode has (the classic Graphics page's renderer entry, First setup's All
+settings, Interface's Quick wheel pages row, a classic Setup destination) shows
+that mode for the visit and leaves the player's choice as it was.
+
 - **Top:** the way back (an Esc key cap, "Main menu", also a click target) and
-  the screen's name, top left; the search pill, top right ("Find a setting", its
-  `/` key, then the number found).
-- **Rail:** the categories down a lit holo line on the left, each with its
-  settings icon: First setup, Display, Graphics, Sound, Mouse, Key bindings,
-  Gameplay, Interface, HUD, Quick wheel, Scoreboard, Network. The one on show is
-  gold with a gold bar on the line; none is lit while a search shows its results.
+  the screen's name, top left; the Simple and Advanced segments (the mode on
+  show gold), ending 28 pixels left of the search pill, which a click switches
+  and stores; the search pill, top right ("Find a setting", its `/` key, then
+  the number found). The segments answer to chrome slots 30 and 31
+  (`menu::sjk::settings::MODE_SLOT`) on the rows and on Key bindings alike; F2
+  (slot 29) switches to the other mode, on the category of the same name.
+- **Rail:** the mode's categories down a lit holo line on the left, each with its
+  settings icon. The one on show is gold with a gold bar on the line; none is lit
+  while a search shows its results.
+  - Simple: Display (resolution, display mode, vertical sync, FPS cap, field of
+    view, brightness), Graphics (under Renderer: the renderer and SJK quality;
+    under Effects: weather, dynamic glow, impact marks, player shadows), Sound
+    (effects and music volume, mute in background), Controls (sensitivity,
+    invert mouse, always run), Key bindings, Gameplay (camera style, gameplay
+    FPS, first-person weapon, saber trail, everyone as my model, Force Seeing
+    aura), HUD (under HUD: HUD look and scale; Crosshair: crosshair, its size,
+    damage hitmarker; Over the game: nameplates, FPS readout, speedometer, kill
+    feed, chat) and General (Menus: menu style and text size; From another
+    client: import; SJK online: check for updates, SJK chat, crash reports,
+    settings usage, SJK identity key). They are `settings::Group::Simple`.
+  - Advanced: First setup, Display, Graphics, Sound, Controls (Mouse until
+    12/10/2026: it holds keyboard rows too), Key bindings, Gameplay, Interface,
+    HUD, Quick wheel, Scoreboard, Network.
   Network's SJK identity key row (09/10/2026, Sol's request: the key out of the
   Profile screen and hidden, for streaming) reads "Hidden: open to see" and Enter
   opens the Identity page over Settings ([SJK's pages](#sjks-pages)), which shows
@@ -591,9 +619,16 @@ mock-up draws it.
   Quick wheel wears the wheel's own icon, a ring of discs from its second board
   (`quick_wheel::catalog::WHEEL_ICON`; `settings_icons::texture` falls back to
   the wheel's icons), since 08/10/2026.
-  - They are the classic+ Setup page's groups (`settings::Group` and tabs), but
-    Graphics gathers the renderer's four tabs (image, lighting, shadows, weather)
-    under their names (`Group::Graphics`).
+  - Advanced's are the classic+ Setup page's groups (`settings::Group` and
+    tabs), but Graphics leads with a Quality heading (the renderer, SJK quality,
+    impact marks and player shadows, out of Video) and then gathers the
+    renderer's four tabs (image, lighting, shadows, weather) under their names
+    (`Group::Graphics`); Display is Video's other rows under Screen, Frame rate
+    and View (`Group::Display`); Network is the Network tab's rows under SJK
+    online, SJK chat and Connection (`Group::Network`). HUD's Readouts start at
+    the FPS readout (moved there from Video, as the first-person weapon moved to
+    Gameplay's camera rows) and its chat rows have a Chat sub-heading. The
+    classic+ panels show the Video and Network tabs as they were.
   - Key bindings shows every action under its group's sub-heading (Movement,
     Interaction, Weapons, Force powers, Other), its picture before its name
     where it has one, its two keys as caps on the right (a dash for an empty
@@ -613,6 +648,12 @@ mock-up draws it.
     or a typed digit opens for typing); segments for a choice of up to three; a
     field with a caret for a longer list, the display mode, the resolution and
     the HUD (the last two open their pickers); a field for text.
+  - A choice whose values are numbers or codes shows names on its segments, list,
+    field and detail (`settings::help::CHOICE_NAMES`): Shader remaps Never, Not
+    players, Always; Dynamic glow Off, On, Sabers; Light shafts Off to High;
+    Weather quality Low to Ultra; Force weather The map's, Drizzle, Rain, Storm,
+    Snow; and so on. These rows were sliders labelled "0 off / 1 map / 2 all"
+    and the like until 12/10/2026; their cvars keep their numbers.
   - The resolution list is a pop-up card over the darkened map (x 600, 720
     wide, as tall as its rows, `settings/resolution_list.rs`), in every menu
     style since 10/10/2026 (it was the old hero form): Resolution and what the
@@ -633,24 +674,38 @@ mock-up draws it.
 - **Detail:** on the right (x 1360, 464 wide), the focused setting: its
   category's icon (a search result's own group's) and its name, what it does,
   then its default, range or choices, when a change applies (gold), where a
-  search found it and its console name (holo). First setup adds how to import
-  another client's .cfg.
+  search found it and its console name (holo). While the SJK renderer is on, every
+  renderer setting (the renderer, SJK quality and Graphics' image, lighting,
+  shadows and weather rows) has the alpha warning in gold under what it does: the
+  renderer is in alpha, some maps can show glitches or run slower, report them
+  from the SJK menu's Report a bug, Vanilla is the safe choice. First setup adds
+  how to import another client's .cfg.
 - **Keys:** bottom right, the keys of what has the keyboard: the focused row's
   (Enter switch, Left Right change, Enter choices...), Backspace for the default
-  when it changed, Tab for the next category; a list's, a search's or a typed
-  value's own while they are open.
+  when it changed, Tab for the next category, F2 for the other mode ("F2
+  advanced" or "F2 simple"); a list's, a search's or a typed value's own while
+  they are open.
 
-Keys: Up and Down choose a row (Up from the first, or `/`, goes to the search);
+Keys: Up and Down choose a row (Up from the first, or `/`, F3 or Ctrl+F, goes to
+the search, its text selected so typing or a paste replaces it; the same keys
+find an action on Key bindings);
 Left and Right change it; Enter switches, opens a list or starts typing;
 Backspace returns it to its default; Tab and `]` (`[` back) open the next
-category, past Key bindings; Escape closes a list, clears a search, then returns
+category of the mode's rail, past Key bindings; F2 shows the other mode; Escape
+closes a list, clears a search, then returns
 to the main page. Hovering a row chooses it; a click on a control acts, a click
 on a row's name only chooses it (a switch flips from anywhere on its row); the
 right button returns a row to its default.
 
 The rows are a classic+ panel's (`settings::ClassicRows`), so the search over
 every setting, the lists, the defaults and typed numbers are the classic+
-panels' own; only the drawing and the frame are the SJK UI's. Changing Menu
+panels' own; only the drawing and the frame are the SJK UI's. The search finds
+every setting in both modes ([search.rs](../crates/sjk-viewer/src/settings/search.rs)),
+its results under the names of Advanced's categories: Display, Graphics,
+Graphics: image, Graphics: lighting, Graphics: shadows, Graphics: weather, Sound,
+Controls, Gameplay, Interface, HUD, Scoreboard, Network, First setup. What the
+player changes and searches here is recorded for [settings
+usage](client.md#settings-usage). Changing Menu
 style on the screen (it is on Interface) hands over to the classic+ panel of the
 same group (Graphics: the renderer's image tab).
 
@@ -675,9 +730,9 @@ Settings screen.
 - **Top:** "First setup", what it is for, and how to bring another client's
   .cfg over.
 - **Rows:** First setup's rows as Settings draws them, its column moved into
-  the card, under its sub-headings (Graphics first, the [graphics
-  quality](client.md#graphics-quality) level, whose list opens on Enter; then
-  Styles: menu and camera style).
+  the card, under its sub-headings (Graphics first: the Renderer row, Vanilla
+  or SJK (alpha), then SJK quality, whose list opens on Enter; see [graphics
+  quality](client.md#graphics-quality); then Styles: menu and camera style).
   Eleven lines show; the rest scroll inside the card. The focused row's help
   sits in two lines under them (left out while a list is open).
 - **Foot,** always in view under a rule: the "Don't show at start" tick box
@@ -690,7 +745,8 @@ The tick is First setup's own last row (`ui_hideFirstSetup`), pinned out of the
 scrolling lines (`ClassicRows::pinned`): the keyboard reaches it after the last
 row (Up from the first wraps to it), Enter or a click flips it, Backspace
 returns it to its default. Done or Escape goes back to the main page; All
-settings or Tab opens the Settings screen on First setup. The pop-up has no
+settings or Tab opens the Settings screen on First setup (Advanced, for the
+visit, in Simple). The pop-up has no
 search. Picking the classic style on its Menu style row goes on as that style's
 First setup, and picking the SJK UI on the classic one comes back to the pop-up. In a game the SJK UI's First setup is still the classic panel.
 
@@ -1524,8 +1580,8 @@ nine moments, 1080p, 4K, 4:3, 21:9 and 720 lines, in the families and in Inter).
 [graphics_reload_card.rs](../crates/sjk-viewer/src/graphics_reload_card.rs): the pop-up
 that offers the [graphics reload](client.md#graphics-reload) once a setting the
 graphics read only at their start changed (Sol asked on 10/10/2026 for a warning and a
-reload instead of a restart, after turning Ultra low, now EJK graphics, on mid-game
-changed nothing). It
+reload instead of a restart, after turning Ultra low, now Vanilla graphics, on
+mid-game changed nothing). It
 shows on the main page or over the game menu, never inside Settings, so several rows
 can be changed first, and after the medal and holocron pop-ups; the menus under it are
 not drawn and take no input. The same look in every menu style, on the 16:9 frame:
@@ -1533,7 +1589,7 @@ not drawn and take no input. The same look in every menu style, on the 16:9 fram
 - **Card:** the kit's card over its scrim, 760 wide from x 580, y 372, as tall as
   its words.
 - **Words:** "Graphics" in gold (Rajdhani 22), "Reload the graphics?" (Rajdhani 36),
-  then up to three lines of Exo 2 18 (muted): what changed ("EJK graphics", "Balanced
+  then up to three lines of Exo 2 18 (muted): what changed ("Vanilla graphics", "Balanced
   graphics quality", or up to three settings by name, then "and N more") "applies
   after a graphics reload", and that the map (or the menu map) loads again in a few
   seconds, on a server without leaving it.
@@ -1555,14 +1611,14 @@ are not drawn and take no input. The same look in every menu style, on the 16:9 
 - **Card:** the kit's card over its scrim, 800 wide from x 560, y 330, as tall as
   its words.
 - **Words:** "FPS" in gold (Rajdhani 22), then (Rajdhani 36) "This map is heavy on
-  SJK's lighting" when offered, "Low FPS?" when asked, "EJK graphics are on" under
+  SJK's lighting" when offered, "Low FPS?" when asked, "Vanilla graphics are on" under
   them; up to six lines of Exo 2 18 (muted): this map's GPU frame and lighting times
-  and the FPS they allow, when measured, then what EJK graphics turn off and that the
+  and the FPS they allow, when measured, then what Vanilla graphics turn off and that the
   map loads again, on a server without leaving it.
 - **Foot:** the kit's tick and "Don't suggest this again" at the left; Not now
-  (outlined, 150) and Use EJK graphics (gold, 260; Turn EJK graphics off when on) at
-  the right; keys bottom right: D don't suggest, Esc not now, Enter use EJK (turn
-  off).
+  (outlined, 150) and Use Vanilla graphics (gold, 260; Turn Vanilla graphics off when on) at
+  the right; keys bottom right: D don't suggest, Esc not now, Enter use Vanilla (turn
+  off). "EJK graphics" was the name until 12/10/2026.
 
 ## Log request
 

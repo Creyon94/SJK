@@ -71,6 +71,7 @@ impl KeybindEditor {
             list.searching,
             "Find an action or a key",
             found,
+            rail.mode,
         );
         draw_rail(&mut self.ui, &frame, rail);
         self.sjk_rows(&frame, &target.body_measure(), &list);
@@ -78,7 +79,7 @@ impl KeybindEditor {
         let searching = list.searching;
         self.classic = Some(list);
         self.sjk_detail(&frame, focused);
-        self.sjk_keys(&frame, searching);
+        self.sjk_keys(&frame, searching, rail.mode);
         self.ui.pop_opacity();
         self.ui.finish(self.selected as u16);
         target.append(&self.ui, viewport);
@@ -297,8 +298,14 @@ impl KeybindEditor {
     }
 
     /// The keys of what has the keyboard, right-aligned at the bottom.
-    fn sjk_keys(&mut self, frame: &Frame, searching: bool) {
+    fn sjk_keys(
+        &mut self,
+        frame: &Frame,
+        searching: bool,
+        mode: crate::settings::mode::SettingsMode,
+    ) {
         let s = frame.s;
+        let other = mode.other().hint();
         let keys: &[(&[&str], &str)] = if self.capture {
             &[(&["Esc"], "cancel"), (&["Backspace"], "clear")]
         } else if searching {
@@ -308,6 +315,7 @@ impl KeybindEditor {
                 (&["Enter"], "bind a key"),
                 (&["Backspace"], "clear"),
                 (&["Tab"], "next group"),
+                (&["F2"], other),
             ]
         };
         let gap = 30.0 * s;

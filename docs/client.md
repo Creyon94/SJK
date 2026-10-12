@@ -1387,21 +1387,42 @@ See [catalog.rs](../crates/sjk-viewer/src/settings/catalog.rs).
 
 ### Graphics quality
 
-The first row of VIDEO, and of [First setup](#first-setup), is Graphics quality
-([graphics_quality.rs](../crates/sjk-viewer/src/graphics_quality.rs)): one choice
-of five levels that sets the costly rendering settings together, from EJK
-(the most frames per second, the original game's look, named after EternalJK, the
-client closest to it that players know; it was Ultra low until 10/10/2026) to Ultra
-(the best look). The level is not saved
-on its own: the row shows whichever level the settings match, and Custom once
-one of them has been changed on its own; stepping from Custom starts at the
-level the settings are nearest. High is the [default visual
-profile](rendering.md#default-visual-profile), so a fresh profile reads High,
-and Backspace (classic+) returns to it. The `graphicsquality` command names the
-level, or sets it with `graphicsquality ejk|performance|balanced|high|ultra`
-(`ultralow` still names EJK).
+The first two rows of VIDEO, of [First setup](#first-setup), of the SJK UI's
+Graphics (Advanced, under Quality) and of Simple's Graphics are the renderer and
+its quality ([graphics_quality.rs](../crates/sjk-viewer/src/graphics_quality.rs),
+since 12/10/2026, Sol's request):
 
-| Setting | EJK | Performance | Balanced | High | Ultra |
+- **Renderer** (stand-in `renderer`): Vanilla or SJK (alpha), two segments.
+  Vanilla is the original game's look at the most frames per second; it is the
+  level called EJK from 10/10/2026 (after EternalJK, the client closest to it that
+  players know) and Ultra low before. SJK is SJK's own renderer (sun, shadows,
+  reflections, material maps), still in alpha: while it is on, the detail column
+  of every renderer setting carries a warning in gold ([sjk-ui.md](sjk-ui.md#settings)).
+  The `renderer` command names it or sets it (`renderer vanilla|sjk`; `ejk` names
+  Vanilla).
+- **SJK quality** (stand-in `graphicsquality`): the SJK renderer's four levels,
+  Performance, Balanced, High and Ultra, each one choice that sets the costly
+  rendering settings together. Under Vanilla it reads Off and is not a change of
+  its own; Right from Vanilla starts the SJK renderer at Performance, Left at High,
+  and a step stops at either end. Backspace returns it to High, and does nothing
+  under Vanilla.
+
+The level is not saved on its own: the rows show whichever level the settings
+match, and Custom once one of them has been changed on its own; stepping from
+Custom starts at the level the settings are nearest. A new profile (no
+`config.cfg` when SJK starts, applied in
+[app_launch.rs](../crates/sjk-viewer/src/app_launch.rs)) starts on Vanilla; the
+renderer cvars' registered defaults are still the SJK renderer's High, the
+[default visual profile](rendering.md#default-visual-profile), so an existing
+profile keeps its settings and turning the SJK renderer on gives the look it was
+tuned for. Backspace on the Renderer row returns to Vanilla. Under Vanilla a
+renderer setting's row reads Vanilla's value as its default
+(`graphics_quality::row_default`), so its rows do not all carry the changed dot.
+The `graphicsquality` command names the level, or sets it with
+`graphicsquality vanilla|performance|balanced|high|ultra` (`ejk` and `ultralow`
+still name Vanilla).
+
+| Setting | Vanilla | Performance | Balanced | High | Ultra |
 | --- | --- | --- | --- | --- | --- |
 | HDR scene, bloom, FXAA, soft particles, per-pixel model lighting | off | off | on | on | on |
 | Ambient occlusion (`r_ssao`) | off | on | on | on | on |
@@ -1424,18 +1445,20 @@ Performance is close to the retail look: baked lightmaps without SJK's sun,
 shadows or light shafts, and no post-processing. Balanced keeps the sun, its shadows
 and the post-processing but, since 11/10/2026, neither of the two largest costs a
 setting removes in the 09/10/2026 frame test (JoFTemple, 4K, RTX 5080): light shafts
-(0.79 ms) and floor mirrors (0.64 ms). EJK is the retail look
+(0.79 ms) and floor mirrors (0.64 ms). Vanilla is the retail look
 itself: Performance with a material pack's normal and specular maps and ambient
 occlusion off too, so surfaces show their lightmap and paint only. Under both, a
 map loads without building its lamps (see [rendering](rendering.md#default-visual-profile)),
 which no pass reads there.
 
-The row under Graphics quality, **EJK graphics** (VIDEO and First setup), is the
-same level as a switch: on while every setting matches EJK. Turning it on
+The Renderer row is Vanilla while every setting matches Vanilla (it replaced the
+**EJK graphics** switch on 12/10/2026, with the same behaviour). Choosing Vanilla
 keeps the player's values of every setting in the table (`r_ultraLowRestore`,
-archived, its name from before the rename) before applying EJK; turning it off
-puts them back, custom values included, or High when EJK was picked as a level
-and nothing was kept. The [low-FPS help](#low-fps-help) offers the same switch. Like the level, it needs a [graphics reload](#graphics-reload) for the lighting to change. Everything else is left as the
+archived, its name from before the renames) before applying Vanilla; choosing SJK
+puts them back, custom values included, or High when Vanilla was picked as a level
+and nothing was kept. The [low-FPS help](#low-fps-help) offers the same choice. Like
+the level, it needs a [graphics reload](#graphics-reload) for the lighting to
+change. Everything else is left as the
 player set it: the FPS cap, vertical sync, resolution and supersampling (which
 multiplies the pixels drawn, so even Ultra leaves it to the player), the taste
 settings (exposure, time of day, tone curve, glow style, parallax depth,
@@ -1454,7 +1477,7 @@ yet measured.
 Some renderer settings are read only when the graphics start: HDR scene, FXAA,
 supersampling, sun and sky, sun shadows and their quality, light shafts, normal,
 specular, parallax and emission maps, reflection probes and texture filtering,
-so the graphics quality levels and the EJK graphics switch too. They apply with a
+so the graphics quality levels and the renderer choice too. They apply with a
 graphics reload rather than a restart of SJK
 ([graphics_reload.rs](../crates/sjk-viewer/src/graphics_reload.rs), [how it
 works](rendering.md#graphics-reload)):
@@ -1464,8 +1487,8 @@ works](rendering.md#graphics-reload)):
   first).
 - When one of them changed and the player is back on the main menu or the game
   menu (not in Settings, so changing several rows is not interrupted), a pop-up
-  card in the SJK UI's look, in every menu style, says what changed ("EJK graphics
-  apply after a graphics reload", or the settings by name) with **Reload now**
+  card in the SJK UI's look, in every menu style, says what changed ("Vanilla
+  graphics apply after a graphics reload", or the settings by name) with **Reload now**
   (Enter) and **Later** (Escape). Later puts it away until another such setting
   changes; it waits for the medal and holocron pop-ups and the console.
 - On a server (or in a local game) the map loads again under the loading screen,
@@ -1488,7 +1511,8 @@ The console notices say so: `HDR setting changed: reload the graphics to apply
 SJK's real-time lighting (lamps, sun, sky light, shadows, light shafts) is most of
 what a heavy map costs: on `JoFTemple` at 4K it was 5.6 of the frame's 8.1 ms before
 its floor fix, and turning its parts off one at a time barely changed it
-([status](status.md#joftemple-frame-rate-and-ultra-low)). EJK graphics turn it off as
+([status](status.md#joftemple-frame-rate-and-ultra-low)). Vanilla graphics (EJK
+graphics until 12/10/2026) turn it off as
 a whole. The low-FPS help
 ([fps_help.rs](../crates/sjk-viewer/src/fps_help.rs)) offers them when it matters:
 
@@ -1496,21 +1520,22 @@ a whole. The low-FPS help
   GPU times of eight sampled frames, one every 32 frames
   ([gpu_phases.rs](../crates/sjk-viewer/src/gpu_phases.rs), timestamps when the GPU
   has them), give the median frame and the part of it spent in the `light-...`
-  sections. The check is done once per map (each new world), not under EJK graphics,
+  sections. The check is done once per map (each new world), not under Vanilla,
   and gives up 30 s after the map came in.
-- It offers EJK graphics when the frame misses the player's FPS target and the
+- It offers Vanilla graphics when the frame misses the player's FPS target and the
   lighting is at least 40% of it. The target is the FPS cap (`com_maxfps`, or the
   monitor's rate for auto), kept between 60 and 144: an uncapped player is offered
   them below 144 FPS of GPU time, not because the frame could be faster still. The
   log says what it found: `fps help: frame 8.07 ms, SJK lighting 5.64 ms, target 144
-  FPS: EJK graphics offered` (or `fine`).
+  FPS: Vanilla graphics offered` (or `fine`).
 - The offer is an SJK pop-up card over the game menu, which it opens and closes
-  again with it ([sjk-ui.md](sjk-ui.md#low-fps-help)): this map's numbers, what EJK
-  graphics turn off, **Use EJK graphics** (Enter: the switch, then `vid_restart`;
+  again with it ([sjk-ui.md](sjk-ui.md#low-fps-help)): this map's numbers, what
+  Vanilla graphics turn off, **Use Vanilla graphics** (Enter: the renderer choice,
+  then `vid_restart`;
   the map loads again and the player stays on the server) or **Not now** (Escape),
   and a **Don't suggest this again** tick (D, `cg_fpsHelp 0`).
 - `help_fps` opens the same card at any time, on the menus or in a match, with the
-  numbers once the frames it times while open come in. With EJK graphics on, its
+  numbers once the frames it times while open come in. With Vanilla graphics on, its
   button turns them off and the player's settings come back.
 
 The 40% share and the 60 to 144 target were chosen from JoFTemple's numbers before
@@ -1525,8 +1550,9 @@ The tabbed settings screen's last tab, FIRST SETUP (called Quick setup before
 choosing on a first start: first, under a "From another client" heading, Import from
 a client ([Importing from another client](#importing-from-another-client)) and the
 Gameplay FPS ([Gameplay FPS](#gameplay-fps)), which players coming from another
-client ask about most (Sol, 11/10/2026); under a Graphics heading, the graphics quality
-([Graphics quality](#graphics-quality)) and its EJK graphics switch; under a Styles heading, the menu style
+client ask about most (Sol, 11/10/2026); under a Graphics heading, the renderer
+(Vanilla or SJK (alpha)) and its SJK quality ([Graphics
+quality](#graphics-quality)); under a Styles heading, the menu style
 (SJK or Classic) and the camera style (EJK or SJK, [Camera
 style](#camera-style));
 then resolution, display mode, vsync, field of view, mouse
@@ -1625,11 +1651,12 @@ FPS cap, so the movement is what the other clients give at that cap, and a serve
 fixes the step (`pmove_fixed`) uses its own, and the servers known to cap commands
 (JoF's, at 125 a second; the list in
 [server_caps.rs](../crates/sjk-viewer/src/server_caps.rs)) keep their cap unless
-Settings > Video > Ignore server caps (`gameplay_fps_nocap 1`) lifts it; a number from
+Settings > Display > Ignore server caps (`gameplay_fps_nocap 1`) lifts it; a number from
 20 to 1000 keeps that
 movement whatever the FPS cap. Players kept asking Sol how the frame rate and the
 movement relate (11/10/2026), so it is asked where they arrive: First setup's second
-row, the step after an import, Settings > Video > Gameplay FPS beside the FPS cap
+row, the step after an import, Settings > Display > Gameplay FPS beside the FPS cap
+(Simple's Gameplay has it too)
 (Left/Right step through Auto, 125, 142, 250 and 333, Enter opens the card), and the
 `help_gameplay_fps` command ([gameplay_fps.rs](../crates/sjk-viewer/src/gameplay_fps.rs)).
 
@@ -2583,6 +2610,41 @@ Escape, Enter or CLOSE closes it. Like the changelog it lives in the console, so
 the menus and in a match. How the files are kept is in
 [SJK conventions](sjk.md#credits).
 
+## Settings usage
+
+Since 12/10/2026 (Sol's request) the client tells the SJK hub, anonymously, which
+settings players change and what they search for in Settings, so the team can see
+which settings matter and what players look for
+([settings_usage.rs](../crates/sjk-viewer/src/settings_usage.rs), recorded by
+[settings/usage.rs](../crates/sjk-viewer/src/settings/usage.rs), the wire format in
+[sjk-identity's usage.rs](../crates/sjk-identity/src/usage.rs)).
+
+- `cl_shareUsage` (archived, default 1; Settings > Network > Share settings usage,
+  and Simple's General) turns it on. At 0 nothing is sent and nothing is kept.
+- A change records the setting's console name (or its row's stand-in, such as
+  `renderer`), the category it was shown under (a search's group for a result),
+  the mode on show (simple or advanced; a classic+ panel counts as advanced), its
+  value before and after as the row shows them (On, Off, a choice's name, a
+  number) and the search showing, if one was. A text setting (an address, the
+  GIPHY key) sends `(text)`, never its value. Only the row the player acted on is
+  recorded, though a quality level changes many rows at once. A change of the same
+  setting within 4 s updates the last event (a slider dragged, a key held), and one
+  brought back where it started is dropped.
+- A search is recorded once it settles: the longest text typed in one go (a
+  shorter correction is not recorded again) and how many settings it finds, when
+  the field is left, a result is changed or Settings closes.
+- What was recorded goes to the hub (`POST /v1/usage/settings`, unsigned) when
+  Settings closes, also from Key bindings, on a thread of its own: batches of up to
+  100 events with the build and a random id drawn once per run, so one run's events
+  read together without linking runs. No identity key, signature, name or server is
+  sent. Up to 400 events wait (the oldest go first); what the hub cannot take is
+  dropped, not retried, as these are statistics. `cl_hubUrl` empty sends nothing.
+
+The hub's side (the endpoint, its storage without the sender's address, and the
+operator's summary of the most changed settings and searches) is built on a branch
+of the hub and not deployed yet, so nothing reaches it until it is; nothing of this
+was tested in game.
+
 ## Identity
 
 SJK keeps an identity key and can mark other SJK players on a server with SJK's
@@ -3235,7 +3297,7 @@ the console), on `writeconfig`, and before `exec config.cfg` reads it back. Unti
 on the main thread. See [config_saver.rs](../crates/sjk-shell/src/config_saver.rs)
 and `Shell::autosave` in [shell.rs](../crates/sjk-shell/src/shell.rs).
 
-`com_maxfps` defaults to `-1` (AUTO in Settings > Video); `0` is uncapped. The
+`com_maxfps` defaults to `-1` (AUTO in Settings > Display); `0` is uncapped. The
 old default, 1000, saved in every existing profile, is reset to AUTO once on
 first launch (marker `com_maxfpsDefaultVersion`); a cap chosen afterwards is
 kept. The default is not saved to the configuration. On the slider
@@ -3246,7 +3308,7 @@ frames (OBS reported 83% skipped for encoding lag against an uncapped client at
 4K). See [runtime_settings.rs](../crates/sjk-viewer/src/runtime_settings.rs).
 
 AUTO caps frames at stock's 125 unless `com_maxfpsMonitor` (archived, default 0;
-Settings > Video > Detect refresh rate) is 1: then AUTO is the refresh rate of
+Settings > Display > Detect refresh rate) is 1: then AUTO is the refresh rate of
 the monitor holding the window, rounded to whole hertz and re-read once a second,
 or 125 when the monitor reports none. At 0 the monitor's rate is never read, so
 AUTO caps as it does for a monitor that reports none. Sol asked for the detection

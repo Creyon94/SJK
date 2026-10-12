@@ -1,5 +1,22 @@
 # Status and priorities
 
+## Settings: Simple and Advanced, Vanilla and the SJK renderer, settings usage
+
+Branch `personal/settings-simple` (12/10/2026), Sol's request: a clearer Settings.
+Implemented: Simple (default) and Advanced modes in the SJK UI's Settings
+(`ui_settingsMode`, top bar segments, F2), Simple's eight short categories, Advanced's
+Display and Network regrouped under sub-headings and Graphics led by the renderer; the
+EJK level renamed Vanilla, a Renderer row (Vanilla | SJK (alpha)) in place of the EJK
+graphics switch, an alpha warning on renderer settings, and a new profile started on
+Vanilla (existing profiles keep their settings); number-coded choices given names;
+F3 and Ctrl+F for the search; anonymous settings usage (`cl_shareUsage`,
+[client.md](client.md#settings-usage)). Verified: unit tests (modes and rails, the
+renderer and quality rows and their defaults, the usage queue and what a change or a
+search records, F3/Ctrl+F/F2) and the off-screen settings snapshots
+(`sjk_settings_snapshot`, Simple Display and Graphics on Vanilla and on the SJK
+renderer) looked at. Not tried in game. The hub's endpoint is built on a hub branch and
+not deployed, so no usage reaches it yet.
+
 ## Hover cards in the Collection
 
 Branch `personal/hover-cards` (12/10/2026), Sol's request: every achievement and thing

@@ -62,6 +62,10 @@ Sol develops SJK and sets its direction. Sol's work includes:
   tested, until the hub opens it to everyone;
 - hover cards in the Collection: how every medal, achievement, shader, toy, card
   and holocron tier is obtained (Sol's request, 12/10/2026);
+- Settings in two modes, Simple (the settings that matter most) and Advanced
+  (every setting, regrouped), Ctrl+F and F3 for its search, named choices, the
+  renderer choice of Vanilla (a new profile's) or the SJK renderer in alpha, and
+  anonymous settings usage to make Settings clearer (Sol's request, 12/10/2026);
 - the radial HUD (`cg_hudStyle radial`, after TheRisqe's Radial HUD) and the
   HUD meters' overheal bands;
 - nameplates with estimated health, shield and Force, held-weapon and Force
