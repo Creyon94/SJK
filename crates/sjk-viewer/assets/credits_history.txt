@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 12/10/2026 | - | SJK chat GIF picker: favourites, GIPHY search, GIFs seen in chat
+- 86789d0 |  | SJK chat GIF picker: favourites, GIPHY search, GIFs seen in chat
 + 12/10/2026 | - | What's new card: pages, heading icons, credits, clickable mono chips; chips on the changelog page
 - 12adca5 |  | What's new card: pages, heading icons, credits and clickable chips
 - b14a649 |  | Chips in JetBrains Mono: a code family for the SJK UI

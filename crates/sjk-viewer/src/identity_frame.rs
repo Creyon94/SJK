@@ -26,6 +26,7 @@ impl GpuState {
         avatars::service(&self.ui_shapes, &self.queue);
         if let Some(console) = self.console.as_ref() {
             chat_gifs::set_enabled(console.bool_cvar(chat_gifs::CVAR) != Some(false));
+            chat_gifs::favourites::load(console.config_directory());
             crate::jof_tag::set_shown(console.bool_cvar(crate::jof_tag::CVAR) != Some(false));
         }
         chat_gifs::service(&mut self.ui_shapes, &self.device, &self.queue);

@@ -128,6 +128,10 @@ impl ViewerConsole {
         let chat = crate::player_identity::with_chat(Clone::clone);
         #[cfg(test)]
         let chat = self.sjk_chat_panel.preview.clone().or(chat);
+        let giphy_key = self
+            .text_cvar(crate::chat_gifs::search::KEY_CVAR)
+            .map(str::to_owned)
+            .unwrap_or_default();
         let inputs = Inputs {
             chat: chat.as_ref(),
             muted: &muted,
@@ -135,6 +139,7 @@ impl ViewerConsole {
             enabled,
             now,
             staff_state: staff_shown,
+            giphy_key: &giphy_key,
         };
         self.sjk_chat_panel.append_sjk(&inputs, target, viewport);
     }
@@ -148,6 +153,29 @@ impl ViewerConsole {
         if let Some(id) = chosen {
             self.sjk_chat_panel.choose_for_shot(id);
         }
+    }
+
+    /// Open the page on `chat` with the GIF picker on tab `tab`, `typed` searched, for a
+    /// world shot.
+    #[cfg(test)]
+    pub(crate) fn preview_sjk_chat_gifs(
+        &mut self,
+        chat: sjk_identity::ChatState,
+        tab: usize,
+        typed: &str,
+    ) {
+        self.preview_sjk_chat(chat, None);
+        self.sjk_chat_panel.open_gifs_for_shot(tab, typed);
+    }
+
+    /// Answer the open picker's search with `ids` of `total`, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn answer_sjk_chat_gif_search(
+        &mut self,
+        ids: Vec<crate::chat_gifs::GifId>,
+        total: usize,
+    ) {
+        self.sjk_chat_panel.answer_gif_search_for_shot(ids, total);
     }
 
     /// Rest the pointer on a player of the open page's who-is-online window, for a world

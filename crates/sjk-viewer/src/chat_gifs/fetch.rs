@@ -2,8 +2,8 @@
 //! [`super::link::media_url`] rebuilds from an id (checked by
 //! [`super::link::fetchable`] before each request), over HTTPS, with no redirect
 //! followed, a [`TIMEOUT`] and at most [`MAX_BYTES`] read. The small rendition is
-//! asked first; the original only when GIPHY has no small one (404), within the same
-//! cap. GIPHY serves a "not found" picture with a 200 for the original of an id it does
+//! asked first (the GIF picker's tiles ask the preview before it); the original only
+//! when GIPHY has no small one (404), within the same cap. GIPHY serves a "not found" picture with a 200 for the original of an id it does
 //! not know; its marking header makes that a 404 too.
 
 use super::link::{self, GifId, Rendition};
@@ -97,12 +97,21 @@ impl Get for Http {
 }
 
 /// The file of `id`'s GIF: the small rendition, or the original when GIPHY has no
-/// small one.
-pub(crate) fn fetch(get: &mut impl Get, id: &GifId) -> Result<Vec<u8>, Failure> {
-    match one(get, &link::media_url(id, Rendition::Small)) {
-        Err(Failure::Status(404)) => one(get, &link::media_url(id, Rendition::Original)),
-        other => other,
+/// small one; for a picker's tile (`preview`), the preview before them.
+pub(crate) fn fetch(get: &mut impl Get, id: &GifId, preview: bool) -> Result<Vec<u8>, Failure> {
+    let renditions: &[Rendition] = if preview {
+        &[Rendition::Preview, Rendition::Small, Rendition::Original]
+    } else {
+        &[Rendition::Small, Rendition::Original]
+    };
+    let mut answer = Err(Failure::Status(404));
+    for rendition in renditions {
+        answer = one(get, &link::media_url(id, *rendition));
+        if answer != Err(Failure::Status(404)) {
+            break;
+        }
     }
+    answer
 }
 
 /// One request to `url`, which must be one SJK fetches.
@@ -158,7 +167,7 @@ mod tests {
     fn the_small_rendition_is_asked_first() {
         let small = link::media_url(&id(), Rendition::Small);
         let mut get = script(vec![(small.clone(), Ok((200, b"GIF89a".to_vec())))]);
-        assert_eq!(fetch(&mut get, &id()), Ok(b"GIF89a".to_vec()));
+        assert_eq!(fetch(&mut get, &id(), false), Ok(b"GIF89a".to_vec()));
         assert_eq!(get.asked, [small]);
     }
 
@@ -167,21 +176,34 @@ mod tests {
         let small = link::media_url(&id(), Rendition::Small);
         let original = link::media_url(&id(), Rendition::Original);
         let mut get = script(vec![(original.clone(), Ok((200, b"GIF87a".to_vec())))]);
-        assert_eq!(fetch(&mut get, &id()), Ok(b"GIF87a".to_vec()));
+        assert_eq!(fetch(&mut get, &id(), false), Ok(b"GIF87a".to_vec()));
         assert_eq!(get.asked, [small.clone(), original.clone()]);
         // Any other refusal, a redirect included, ends there.
         for status in [301, 302, 403, 500] {
             let mut get = script(vec![(small.clone(), Ok((status, Vec::new())))]);
-            assert_eq!(fetch(&mut get, &id()), Err(Failure::Status(status)));
+            assert_eq!(fetch(&mut get, &id(), false), Err(Failure::Status(status)));
             assert_eq!(get.asked, std::slice::from_ref(&small));
         }
         let mut get = script(vec![(small.clone(), Err(Failure::TooLarge))]);
-        assert_eq!(fetch(&mut get, &id()), Err(Failure::TooLarge));
+        assert_eq!(fetch(&mut get, &id(), false), Err(Failure::TooLarge));
         assert_eq!(get.asked.len(), 1);
         // Neither there.
         let mut get = script(Vec::new());
-        assert_eq!(fetch(&mut get, &id()), Err(Failure::Status(404)));
+        assert_eq!(fetch(&mut get, &id(), false), Err(Failure::Status(404)));
         assert_eq!(get.asked, [small, original]);
+    }
+
+    #[test]
+    fn a_tile_asks_the_preview_first() {
+        let preview = link::media_url(&id(), Rendition::Preview);
+        let small = link::media_url(&id(), Rendition::Small);
+        let mut get = script(vec![(preview.clone(), Ok((200, b"GIF89a".to_vec())))]);
+        assert_eq!(fetch(&mut get, &id(), true), Ok(b"GIF89a".to_vec()));
+        assert_eq!(get.asked, std::slice::from_ref(&preview));
+        // No preview: the small one, as a message's GIF.
+        let mut get = script(vec![(small.clone(), Ok((200, b"GIF87a".to_vec())))]);
+        assert_eq!(fetch(&mut get, &id(), true), Ok(b"GIF87a".to_vec()));
+        assert_eq!(get.asked, [preview, small]);
     }
 
     #[test]
@@ -189,7 +211,7 @@ mod tests {
         let small = link::media_url(&id(), Rendition::Small);
         let big = vec![0_u8; MAX_BYTES as usize + 1];
         let mut get = script(vec![(small, Ok((200, big)))]);
-        assert_eq!(fetch(&mut get, &id()), Err(Failure::TooLarge));
+        assert_eq!(fetch(&mut get, &id(), false), Err(Failure::TooLarge));
     }
 
     /// One real GIF from GIPHY, to see that the addresses SJK makes are served:
@@ -199,7 +221,7 @@ mod tests {
     fn a_real_gif_from_giphy() {
         let mut http = Http::new();
         let started = std::time::Instant::now();
-        let bytes = fetch(&mut http, &id()).expect("fetched");
+        let bytes = fetch(&mut http, &id(), false).expect("fetched");
         let gif = super::super::decode::decode(&bytes).expect("decoded");
         println!(
             "{} bytes in {:?}: {}x{}, {} frames, {} ms",
@@ -212,6 +234,6 @@ mod tests {
         );
         assert!(gif.frames.len() > 1);
         let missing = GifId::new("notarealid123XYZ").unwrap();
-        assert_eq!(fetch(&mut http, &missing), Err(Failure::Status(404)));
+        assert_eq!(fetch(&mut http, &missing, false), Err(Failure::Status(404)));
     }
 }

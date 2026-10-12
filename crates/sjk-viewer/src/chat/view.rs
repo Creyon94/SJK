@@ -6,6 +6,9 @@ mod name;
 mod player_menu;
 mod sjk_line;
 
+/// The friend's star, also the GIF picker's favourite mark.
+pub(crate) use name::star;
+
 use super::*;
 use crate::menu_widgets::MenuCanvas;
 use crate::text::{Carry, TextFace, visible_text_width_face, visible_text_width_style};
