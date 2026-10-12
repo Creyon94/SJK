@@ -25,9 +25,11 @@ pub(crate) const ICONS: [(&str, &[u8]); 32] = [
         include_bytes!("../assets/settings/graphics.png"),
     ),
     ("sound", include_bytes!("../assets/settings/sound.png")),
+    // Settings' Quick wheel category, in the set's gold (the wheel's own grey
+    // icon stays the wheel's).
     (
-        "gameplay",
-        include_bytes!("../assets/settings/gameplay.png"),
+        crate::quick_wheel::catalog::WHEEL_ICON,
+        include_bytes!("../assets/settings/quick_wheel.png"),
     ),
     ("network", include_bytes!("../assets/settings/network.png")),
     (
@@ -96,8 +98,8 @@ pub(crate) const ICONS: [(&str, &[u8]); 32] = [
 ];
 
 /// The atlas texture of icon `name`, if there is one by that name: a settings
-/// icon, else a quick wheel icon (Settings' Quick wheel category wears the
-/// wheel's own, [`crate::quick_wheel::catalog::WHEEL_ICON`]).
+/// icon (Settings' Quick wheel category's is one, in gold), else a quick wheel
+/// icon.
 pub(crate) fn texture(name: &str) -> Option<sjk_ui::TextureId> {
     ICONS
         .iter()

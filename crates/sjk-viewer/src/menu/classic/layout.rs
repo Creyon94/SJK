@@ -377,7 +377,8 @@ impl Entry {
             Self::FirstSetup => "first_setup",
             Self::Graphics => "graphics",
             Self::Sound => "sound",
-            Self::Gameplay => "gameplay",
+            // Game options wear the laser sword; the page holding them, the gear.
+            Self::Gameplay => "settings",
             Self::Video => "video",
             Self::RenderImage => "image",
             Self::RenderLighting => "lighting",

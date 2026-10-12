@@ -130,7 +130,7 @@ const HEADING_ICONS: &[(&[&str], &str)] = &[
         "graphics",
     ),
     (&["sound", "audio", "music", "voice"], "sound"),
-    (&["gameplay", "fps", "physics"], "gameplay"),
+    (&["gameplay", "fps", "physics"], "game_options"),
     (&["movement", "jetpack", "grapple", "strafe"], "movement"),
     (&["camera"], "camera"),
     (&["chat", "text", "font"], "chat"),
@@ -982,7 +982,7 @@ mod tests {
         assert_eq!(heading_icon("Browser"), "network");
         assert_eq!(heading_icon("Saber shaders"), "saber_style");
         assert_eq!(heading_icon("Small fixes"), "mods");
-        assert_eq!(heading_icon("Gameplay FPS"), "gameplay");
+        assert_eq!(heading_icon("Gameplay FPS"), "game_options");
         assert_eq!(heading_icon("HUD"), "hud");
         // A word inside another is no match ("ui" in "build").
         assert_eq!(heading_icon("Builds"), HEADING_ICON);

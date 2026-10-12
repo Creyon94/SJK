@@ -26,13 +26,23 @@ The script finds each sheet's eight discs (two rows of four) and names them in
 sheet order:
 
 1. first_setup, video, graphics, sound, mouse_joystick, key_bindings,
-   game_options (also saved as gameplay), interface;
+   game_options (also the classic Gameplay page's), interface;
 2. hud, chat, mods, network, (sliders, unused), scoreboard, identity, settings;
 3. image, lighting, shadows, weather, camera, crosshair, nameplates, (quill, unused);
 4. movement, interaction, weapons, force_powers, other_controls, changelog,
    credits, update;
 5. import, then seven spares (shield, holocron, trophy, bell, globe, lightning
    bolt, key), unused.
+
+The quick wheel's icon (`quick_wheel`, Settings' Quick wheel category) is on no
+sheet: the script draws it, eight small gold discs on a ring round a centre one.
+
+The sheets' discs carry fine detail (spokes on the face, tick marks on a double
+rim) that turned to noise at the rail's 38 pixels, and metallic shading that read
+as streaks. So the script keeps only each disc's gold symbol, as a shape,
+thickened a little, fills it with one gold gradient, and draws the disc again: a
+flat navy face lighter in the middle and one smooth gold rim, the same on every
+icon (13/10/2026).
 
 ## The sheets' prompt
 
