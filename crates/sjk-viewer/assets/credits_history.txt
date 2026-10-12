@@ -1182,7 +1182,7 @@
 - 0d215f1 |  | Initial JKR source
 
 = Creyon
-+ 12/10/2026 | - | Keep listing servers after a lost answer or a dead one's reset
++ 12/10/2026 | SJK #96 | Keep listing servers after a lost answer or a dead one's reset
 - 3fe2012 |  | Keep listing servers after a lost answer or a dead one's reset
 + 12/10/2026 | SJK #95 | Crackle while a player is electrified (the JoF amlogin sound)
 - 3623d1e |  | Crackle while a player is electrified (the JoF amlogin sound)
