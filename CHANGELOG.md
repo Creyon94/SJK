@@ -23,14 +23,14 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1012.2 (Alpha) | 12/10/2026
 
-Creyon's seventeen pull requests: fixes for ledges, dropped sabers, doors and muzzle flashes, a server browser that finds more servers and keeps your favourites and passwords, clan emblems, and the frame rate and clock where JoF EJK puts them.
+GIFs in the SJK chat, a loot table for holocrons, and Creyon's pull requests: fixes for ledges, dropped sabers, doors and muzzle flashes, a server browser that finds more servers and keeps your favourites and passwords, clan emblems, and the frame rate and clock where JoF EJK puts them.
 
 > Browser: A second master server, favourites by address, saved passwords, a scrolling player list and names read in the right charset.
 > HUD: The frame rate on the scoreboard and in the upper right, with an optional match clock under it.
-> Clans: JoF and JoFA emblems come from a table, with look-alike letters.
-> Fixes: Ledge legs, dropped sabers, door sounds and the muzzle flash.
+> SJK chat: Favourite GIFs, a GIPHY search, `sjksay` and `sjkgif`.
+> Fixes: Ledges, dropped sabers, doors, the muzzle flash and grapple rope.
 > Updates: This card pages through skipped releases, says who made them and shows commands such as `whatsnew` in chips you can click.
 > Holocrons: The Loot table shows every chance a holocron brings; opening them is being tested by the SJK team and comes soon.
 
