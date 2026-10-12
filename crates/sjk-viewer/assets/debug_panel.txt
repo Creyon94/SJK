@@ -445,7 +445,7 @@ test: Advanced > Network: SJK online and Connection headings, Share settings usa
 test: Advanced > Sound: a Notifications heading with the SJK chat and quick wheel sounds.
 test: Advanced: Chat and Mods categories; HUD ends with Scoreboard; search 'chat' shows Chat.
 test: Rename config.cfg away and start: Settings opens Simple, the renderer reads Vanilla.
-test: Every rail icon is the gold and navy set: Chat a speech bubble, Mods a puzzle piece.
+test: Every rail icon is a blue holocron face: Chat a speech bubble, Graphics a prism.
 note: Usage goes to the hub only once its endpoint is deployed (log: 'settings usage: sent').
 
 [force-hold-repeat]
