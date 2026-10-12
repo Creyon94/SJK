@@ -137,6 +137,75 @@ fn hilt_rows(style: SaberStyle) -> usize {
     }
 }
 
+/// A hilt list's lines when the retail game's hilts are told from the community's
+/// (the rule in `AGENTS.md`): the retail ones under a "Jedi Academy" line, the
+/// community's under "Community", each section's hilts `columns` to a line.
+#[derive(Clone, Copy, Debug)]
+struct HiltLines {
+    /// Hilts listed, and how many of them (the first) are the retail game's.
+    total: usize,
+    retail: usize,
+    columns: usize,
+    /// Whether the headings show: the game's retail hilts are known.
+    headed: bool,
+}
+
+impl HiltLines {
+    fn retail_lines(self) -> usize {
+        self.retail.div_ceil(self.columns)
+    }
+
+    /// Lines of the retail section: its heading and its rows.
+    fn retail_span(self) -> usize {
+        if self.retail == 0 {
+            0
+        } else {
+            usize::from(self.headed) + self.retail_lines()
+        }
+    }
+
+    /// Lines in all.
+    fn lines(self) -> usize {
+        let community = self.total - self.retail;
+        self.retail_span()
+            + if community == 0 {
+                0
+            } else {
+                usize::from(self.headed) + community.div_ceil(self.columns)
+            }
+    }
+
+    /// Line and column of the `at`th hilt listed.
+    fn place(self, at: usize) -> (usize, usize) {
+        if at < self.retail {
+            (
+                usize::from(self.headed) + at / self.columns,
+                at % self.columns,
+            )
+        } else {
+            let k = at - self.retail;
+            (
+                self.retail_span() + usize::from(self.headed) + k / self.columns,
+                k % self.columns,
+            )
+        }
+    }
+
+    /// The heading standing on `line`, with the hilts under it.
+    fn heading(self, line: usize) -> Option<(&'static str, usize)> {
+        if !self.headed {
+            return None;
+        }
+        if self.retail > 0 && line == 0 {
+            Some(("Jedi Academy", self.retail))
+        } else if self.retail < self.total && line == self.retail_span() {
+            Some(("Community", self.total - self.retail))
+        } else {
+            None
+        }
+    }
+}
+
 /// The pointer token of hilt `index` in the first saber's list, or the
 /// second's.
 fn hilt_token(second: bool, index: usize) -> u16 {
@@ -892,17 +961,22 @@ impl PlayerMenu {
             .unwrap_or(1);
         let shown_lines = hilt_rows(self.saber.style());
         // How many hilts the search lists, and where the chosen one is among them.
-        let (count, chosen) = catalog_of(&self.loader).map_or((0, None), |catalog| {
-            let mut count = 0;
-            let mut chosen = None;
-            for (_, hilt) in self.saber.listed(catalog, second) {
-                if hilt.name.eq_ignore_ascii_case(self.saber.hilt(second)) {
-                    chosen = Some(count);
+        let (count, chosen, retail, headed) =
+            catalog_of(&self.loader).map_or((0, None, 0, false), |catalog| {
+                let mut count = 0;
+                let mut chosen = None;
+                let mut retail = 0;
+                for (index, hilt) in self.saber.listed(catalog, second) {
+                    if hilt.name.eq_ignore_ascii_case(self.saber.hilt(second)) {
+                        chosen = Some(count);
+                    }
+                    if index < catalog.retail_saber_hilts {
+                        retail += 1;
+                    }
+                    count += 1;
                 }
-                count += 1;
-            }
-            (count, chosen)
-        });
+                (count, chosen, retail, catalog.retail_saber_hilts > 0)
+            });
         let [x, y, width, height] = area;
         if self.selected == row {
             kit::band(&mut self.canvas, frame, area);
@@ -936,7 +1010,13 @@ impl PlayerMenu {
             let control = [field_x, y + 1.0, field, HILT_HEAD - 2.0];
             self.sjk_hilt_search(frame, search_row, control, count);
         }
-        let lines = count.div_ceil(columns);
+        let sections = HiltLines {
+            total: count,
+            retail,
+            columns,
+            headed,
+        };
+        let lines = sections.lines();
         let state = &mut self.sjk_hilts[list];
         let query = self.saber.search();
         let searched = state.query != query;
@@ -955,7 +1035,7 @@ impl PlayerMenu {
             state.columns = columns;
             state.chosen.clear();
             state.chosen.push_str(self.saber.hilt(second));
-            if let Some(line) = chosen.map(|index| index / columns) {
+            if let Some(line) = chosen.map(|index| sections.place(index).0) {
                 if first_show {
                     state.first = line.saturating_sub(shown_lines / 2);
                 } else if line < state.first {
@@ -995,14 +1075,28 @@ impl PlayerMenu {
         }
         let cell_width = (width - 24.0) / columns as f32;
         if let Some(catalog) = catalog_of(&self.loader) {
-            let listed = self
-                .saber
-                .listed(catalog, second)
-                .enumerate()
-                .skip(first * columns)
-                .take(shown_lines * columns);
+            // The sections' headings, where they stand among the lines on show.
+            for line in first..(first + shown_lines).min(lines) {
+                if let Some((name, members)) = sections.heading(line) {
+                    let top = y + HILT_HEAD + 6.0 + (line - first) as f32 * HILT_ROW;
+                    text(
+                        &mut self.canvas,
+                        TextFamily::Display,
+                        format_args!("{name}  ·  {members}"),
+                        frame.rect(x + 16.0, top, width - 32.0, HILT_ROW - 2.0),
+                        16.0 * s,
+                        color::GOLD,
+                        FontWeight::Regular,
+                        TextAlign::Start,
+                    );
+                }
+            }
+            let listed = self.saber.listed(catalog, second).enumerate();
             for (at, (index, hilt)) in listed {
-                let (line, column) = (at / columns, at % columns);
+                let (line, column) = sections.place(at);
+                if line < first || line >= first + shown_lines {
+                    continue;
+                }
                 let cell = [
                     x + 12.0 + column as f32 * cell_width,
                     y + HILT_HEAD + 6.0 + (line - first) as f32 * HILT_ROW,
@@ -2321,6 +2415,47 @@ mod tests {
             }
         }
         const _: () = assert!(crate::profile_hub::TOKEN > HILT_BASE + 2 * HILT_STRIDE);
+    }
+
+    /// The retail hilts stand under their heading, the community's under theirs, each
+    /// section starting on a line of its own; with no retail known the list is as before.
+    #[test]
+    fn hilt_sections_place_each_hilt_under_its_heading() {
+        let lines = HiltLines {
+            total: 7,
+            retail: 3,
+            columns: 2,
+            headed: true,
+        };
+        // 0 heading, 1 and 2 the retail rows, 3 heading, 4 and 5 the community's.
+        assert_eq!(lines.lines(), 6);
+        assert_eq!(lines.place(0), (1, 0));
+        assert_eq!(lines.place(1), (1, 1));
+        assert_eq!(lines.place(2), (2, 0));
+        assert_eq!(lines.place(3), (4, 0));
+        assert_eq!(lines.place(6), (5, 1));
+        assert_eq!(lines.heading(0), Some(("Jedi Academy", 3)));
+        assert_eq!(lines.heading(3), Some(("Community", 4)));
+        assert_eq!(lines.heading(1), None);
+        let plain = HiltLines {
+            total: 5,
+            retail: 0,
+            columns: 2,
+            headed: false,
+        };
+        assert_eq!(plain.lines(), 3);
+        assert_eq!(plain.place(3), (1, 1));
+        assert_eq!(plain.heading(0), None);
+        // Only retail ones listed (a search): one heading.
+        let only = HiltLines {
+            total: 3,
+            retail: 3,
+            columns: 2,
+            headed: true,
+        };
+        assert_eq!(only.lines(), 3);
+        assert_eq!(only.heading(0), Some(("Jedi Academy", 3)));
+        assert_eq!(only.heading(2), None);
     }
 
     #[test]

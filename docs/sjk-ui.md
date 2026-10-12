@@ -298,7 +298,9 @@ on the 16:9 frame, dark behind the form on the left and clear over the model.
   scrolled by the wheel or its bar, the chosen one gold with a dot and kept in
   view (in the middle when the list first shows); for Dual two lists side by
   side, Right hand and Left hand, four lines each. The hilts come in the game's
-  load order, as JoF EJK lists them (`legacy_saber_load_order`). The hilt search
+  load order, as JoF EJK lists them (`legacy_saber_load_order`), the retail game's
+  first under a "Jedi Academy" line with their count and the community's after them
+  under "Community" (`HiltLines`; the rule in [AGENTS.md](../AGENTS.md)). The hilt search
   (10/10/2026, Sol's request) is a field at the right of the lists' heading line
   (beside Left hand for Dual), drawn as the Character page's Search ("Search
   hilts", then the words typed and "N found"): Enter or a click types in it, and
