@@ -1918,18 +1918,21 @@ unchanged. The command is bindable under Settings > Key bindings > Other.
 
 ### Chat in other alphabets
 
-Chat, names and every other text show Russian and Japanese (and any character a
-bundled font has) instead of `?` (Sol's request, 12/10/2026; drawn from the
-wide-glyph atlas, [rendering.md](rendering.md#characters-beyond-the-code-page)).
+Chat, names and every other text show Russian, Japanese, Chinese, Korean and colour
+emoji (and any character a bundled font has) instead of `?` (Sol's requests,
+12/10/2026; drawn from the wide-glyph and emoji atlases,
+[rendering.md](rendering.md#characters-beyond-the-code-page)). An emoji is typed as
+any character (Windows' emoji panel, Win+.); skin tones, families and flags draw as
+one picture, and the caret and Backspace take them whole.
 Russian travels as EternalJK sends it, in Windows-1251, so SJK and EternalJK players
 with `se_language russian` read each other; `cl_charset` (Settings > Chat > Other
 clients' text: Auto, Western, Cyrillic) says how text from other clients is read
-when the guess is wrong ([player text](networking.md#player-text)). Japanese goes as
-UTF-8: SJK players read it, retail and EternalJK players see other characters. The
-chat field stops where the server would cut the line (149 bytes as sent: 149 Russian
-letters, about 49 Japanese characters). The hub's SJK channel takes both too:
-Cyrillic it already took, and Japanese since 12/10/2026 (kana, kanji and Japanese
-punctuation, in the letter rules it shares with bios,
+when the guess is wrong ([player text](networking.md#player-text)). Japanese,
+Chinese, Korean and emoji go as UTF-8: SJK players read them, retail and EternalJK
+players see other characters. The chat field stops where the server would cut the
+line (149 bytes as sent: 149 Russian letters, about 49 Japanese, Chinese or Korean
+characters). The hub's SJK channel and bios take them too since 12/10/2026 (Cyrillic
+they already took; the letter rules they share,
 [identity.md](identity.md#the-bios-rules)); every SJK player reads them.
 
 ### Chat player actions

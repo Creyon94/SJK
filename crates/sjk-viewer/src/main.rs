@@ -940,7 +940,8 @@ impl GpuState {
             true,
             text::ATLAS_MIP_LEVELS,
         );
-        // The font's atlas, its sampler and the wide-glyph atlas (`text::wide_texture`).
+        // The font's atlas, its sampler and the wide-glyph and emoji atlases
+        // (`text::wide_texture`).
         let text_layout = device.create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
             label: Some("SJK text layout"),
             entries: &[
@@ -952,6 +953,7 @@ impl GpuState {
                     count: None,
                 },
                 texture_layout_entry(2),
+                texture_layout_entry(3),
             ],
         });
         let wide_text = text::wide_texture::WideTexture::new(&device);
@@ -971,7 +973,7 @@ impl GpuState {
             &text_layout,
             &font_view,
             &text_sampler,
-            wide_text.view(),
+            &wide_text,
         );
         let classic_atlas = text::load_classic()
             .inspect_err(|error| {
@@ -997,7 +999,7 @@ impl GpuState {
                     &text_layout,
                     &view,
                     &text_sampler,
-                    wide_text.view(),
+                    &wide_text,
                 );
                 (Some(atlas.font), Some(bind_group))
             });
@@ -1009,7 +1011,7 @@ impl GpuState {
                 queue: &queue,
                 layout: &text_layout,
                 sampler: &text_sampler,
-                wide: wide_text.view(),
+                wide: &wide_text,
             },
         );
         let (mut world_materials, resolved_world_stages) =
@@ -1515,7 +1517,7 @@ impl GpuState {
             &self.text_layout,
             &view,
             &self.text_sampler,
-            self.wide_text.view(),
+            &self.wide_text,
         );
         self.ui_font = atlas.font;
         Ok(())

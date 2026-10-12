@@ -14,6 +14,7 @@ mod bounded;
 mod cell;
 pub(crate) mod charset;
 pub(crate) mod console_font;
+pub(crate) mod emoji;
 pub(crate) mod logo_glyph;
 pub(crate) mod retail_font;
 pub(crate) mod sdf;
@@ -146,7 +147,11 @@ impl UiFont {
         let character = match key {
             GlyphKey::Slot(byte) => return self.glyph(face, byte),
             GlyphKey::Wide(character) => character,
+            GlyphKey::Emoji(id) => return self.emoji_glyph(face, id),
         };
+        if invisible(character) {
+            return FontGlyph::default();
+        }
         let index = self.face_index(face);
         let Some(glyph) = wide::lookup(self.wide[index], character) else {
             return self.glyph(face, b'?');
@@ -161,6 +166,26 @@ impl UiFont {
             offset_x: glyph.left * unit,
             offset_y: capital.offset_y + capital.height - glyph.top * unit,
             uv: glyph.uv,
+        }
+    }
+
+    /// Emoji `id` ([`emoji`]) in `face`: a square an em of this font wide (the em
+    /// taken from its capitals, at Inter's 0.73 of an em), sitting a tenth of itself
+    /// below the baseline as emoji fonts set it, with a twentieth of itself either side.
+    /// It has no picture (`uv` all 0) until the picture is decoded.
+    fn emoji_glyph(&self, face: TextFace, id: u16) -> FontGlyph {
+        let capital = self.glyphs[self.face_index(face)][usize::from(b'H')];
+        let side = capital.height / 0.73;
+        let baseline = capital.offset_y + capital.height;
+        let uv = emoji::picture(id);
+        let size = if uv.is_some() { side } else { 0.0 };
+        FontGlyph {
+            width: size,
+            height: size,
+            advance: side * 1.1,
+            offset_x: side * 0.05,
+            offset_y: baseline + side * 0.1 - side,
+            uv: uv.unwrap_or_default(),
         }
     }
 
@@ -704,6 +729,17 @@ fn slot_glyph<'a>(font: &'a Font, fallback: Option<&'a Font>, byte: u8) -> (&'a 
     }
 }
 
+/// Whether `character` prints nothing: the joiners, variation selectors and tags
+/// emoji sequences are made of, and the other zero-width marks. Inside an emoji they
+/// are part of its glyph; on their own (a stray U+FE0F, a joiner between letters)
+/// they take no room instead of drawing `?`.
+fn invisible(character: char) -> bool {
+    matches!(
+        u32::from(character),
+        0x200B..=0x200F | 0x2060..=0x2064 | 0xFE00..=0xFE0F | 0xE0020..=0xE007F
+    )
+}
+
 /// Which glyph draws a character: a slot of the font's own atlas, or a wide one.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum GlyphKey {
@@ -711,6 +747,8 @@ pub(crate) enum GlyphKey {
     Slot(u8),
     /// A character with no Windows-1252 byte, from the wide atlas ([`wide`]).
     Wide(char),
+    /// An emoji of the pack, one or more code points drawn as one picture ([`emoji`]).
+    Emoji(u16),
 }
 
 /// Take the glyph that draws the character at `index`, and its UTF-8 length.
@@ -720,13 +758,23 @@ pub(crate) enum GlyphKey {
 /// several UTF-8 bytes, and indexing the atlas with those bytes drew one character as two
 /// glyphs: `ñ` became `Ã±`, and U+FFFD became `ï¿½` — the trailing `½` players kept seeing in
 /// names. A character is drawn with the glyph of its Windows-1252 byte, so `€` typed here and
-/// byte 0x80 from another client (decoded as U+0080) both draw slot 0x80. Any other character
-/// (`ж`, `日`) is wide and comes from the wide atlas.
+/// byte 0x80 from another client (decoded as U+0080) both draw slot 0x80. An emoji, which
+/// may be several characters (`👍🏽`, a flag), is one glyph from the emoji atlas
+/// ([`emoji::match_at`]); any other character (`ж`, `日`) is wide and comes from the wide
+/// atlas.
 ///
 /// `index` must be a character boundary, which holds because every caller advances by whole
 /// characters or by an ASCII colour escape.
 pub(crate) fn glyph_at(text: &str, index: usize) -> (GlyphKey, usize) {
-    match text[index..].chars().next() {
+    let rest = &text[index..];
+    if !rest.as_bytes().first().is_some_and(u8::is_ascii)
+        || rest.as_bytes().get(1).is_some_and(|byte| *byte >= 0x80)
+    {
+        if let Some((id, length)) = emoji::match_at(rest) {
+            return (GlyphKey::Emoji(id), length);
+        }
+    }
+    match rest.chars().next() {
         Some(character) => (
             sjk_protocol::windows_1252_byte(character)
                 .map_or(GlyphKey::Wide(character), GlyphKey::Slot),
@@ -900,7 +948,7 @@ mod tests {
             let (key, step) = glyph_at(text, index);
             bytes.push(match key {
                 GlyphKey::Slot(byte) => byte,
-                GlyphKey::Wide(_) => b'?',
+                GlyphKey::Wide(_) | GlyphKey::Emoji(_) => b'?',
             });
             index += step;
         }
@@ -919,8 +967,37 @@ mod tests {
         // Received from a legacy client: the same bytes, decoded as Latin-1.
         let received: String = expected.iter().map(|&byte| char::from(byte)).collect();
         assert_eq!(glyph_bytes(&received), expected);
-        assert_eq!(glyph_at("♥", 0), (GlyphKey::Wide('♥'), 3));
+        assert_eq!(glyph_at("α", 0), (GlyphKey::Wide('α'), 2));
+        // A pictograph is an emoji even without U+FE0F after it.
+        assert!(matches!(glyph_at("♥", 0), (GlyphKey::Emoji(_), 3)));
         assert_eq!(glyph_at("жa", 0), (GlyphKey::Wide('ж'), 2));
+        // An emoji sequence is one glyph; ASCII before it stays a slot.
+        let (key, step) = glyph_at("a👍🏽", 1);
+        assert!(
+            matches!(key, GlyphKey::Emoji(_)) && step == 8,
+            "{key:?} {step}"
+        );
+        assert_eq!(glyph_at("a👍🏽", 0), (GlyphKey::Slot(b'a'), 1));
+        assert_eq!(glyph_at("©", 0), (GlyphKey::Slot(0xA9), 2));
+    }
+
+    #[test]
+    fn an_emoji_is_an_em_square_on_the_baseline() {
+        let font = load_modern(1.0, None).unwrap().font;
+        let (key, _) = glyph_at("😀", 0);
+        let capital = font.glyph(TextFace::Regular, b'H');
+        // Its advance holds before its picture is decoded.
+        let pending = font.glyph_of(TextFace::Regular, key);
+        while emoji::rasterize_pending(
+            std::time::Instant::now() + std::time::Duration::from_secs(1),
+        ) {}
+        let face = font.glyph_of(TextFace::Regular, key);
+        assert_eq!(pending.advance, face.advance);
+        assert!(face.uv[0] >= emoji::U_OFFSET, "{face:?}");
+        assert!((face.width - capital.height / 0.73).abs() < 0.01);
+        assert!(face.advance > face.width);
+        let baseline = capital.offset_y + capital.height;
+        assert!(face.offset_y + face.height > baseline && face.offset_y < capital.offset_y);
     }
 
     #[test]
@@ -951,6 +1028,9 @@ mod tests {
             kanji.width > capital.width && kanji.height > capital.height,
             "{kanji:?}"
         );
+        // A stray joiner or selector takes no room.
+        let joiner = font.glyph_of(TextFace::Regular, GlyphKey::Wide('\u{200D}'));
+        assert_eq!((joiner.advance, joiner.width), (0.0, 0.0));
         // No font has it: the face's `?`.
         let missing = font.glyph_of(TextFace::Regular, GlyphKey::Wide('😀'));
         assert_eq!(missing.uv, font.glyph(TextFace::Regular, b'?').uv);

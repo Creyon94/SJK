@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 13/10/2026 | - | Chinese, Korean and colour emoji in every text, the SJK channel and bios
+- cb6e7f3 |  | Chinese, Korean and colour emoji in every text, the SJK channel and bios
 + 13/10/2026 | - | Clean gold icons, a gold quick wheel
 - 03bdeff |  | Settings icons drawn clean: gold symbols on a flat navy disc, a gold quick wheel
 + 13/10/2026 | - | Settings icons in gold and navy

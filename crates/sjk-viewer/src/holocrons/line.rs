@@ -109,7 +109,7 @@ mod tests {
     #[test]
     fn the_sender_is_plain_text_and_never_nothing() {
         assert_eq!(
-            said(&drop("^1S^2o^3l \u{1F600}", "legendary", false)),
+            said(&drop("^1S^2o^3l \u{221E}", "legendary", false)),
             "Sol found a Legendary Holocron!"
         );
         assert_eq!(

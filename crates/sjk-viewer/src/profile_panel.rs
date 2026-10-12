@@ -959,9 +959,9 @@ pub(crate) mod tests {
     #[test]
     fn typing_keeps_to_what_a_bio_may_hold() {
         let mut field = String::new();
-        assert!(type_into(&mut field, "Hi \u{1F600}\u{200B}there\u{202E}!"));
+        assert!(type_into(&mut field, "Hi \u{221E}\u{200B}there\u{202E}!"));
         assert_eq!(field, "Hi there!");
-        assert!(!type_into(&mut field, "\u{1F600}"));
+        assert!(!type_into(&mut field, "\u{221E}"));
         type_into(&mut field, "\tok\r\nnext");
         assert_eq!(field, "Hi there! ok\nnext");
         // Six lines at most.

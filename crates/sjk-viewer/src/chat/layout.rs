@@ -199,15 +199,21 @@ pub(super) fn fitting_end_spaced(
     spacing: f32,
 ) -> usize {
     let mut used = 0.0;
-    let mut chars = value.char_indices().peekable();
+    let bytes = value.as_bytes();
+    let mut i = 0;
     // Colour codes are zero-width, and truncating between `^` and its digit
-    // would leave a stray caret in the drawn name.
-    while let Some((i, c)) = chars.next() {
-        if c == '^' && chars.peek().is_some_and(|(_, n)| n.is_ascii_digit()) {
-            chars.next();
+    // would leave a stray caret in the drawn name. A glyph of several characters (an
+    // emoji sequence, `👍🏽`) is measured and kept whole.
+    while let Some(c) = value[i..].chars().next() {
+        if c == '^' && bytes.get(i + 1).is_some_and(u8::is_ascii_digit) {
+            i += 2;
             continue;
         }
-        let end = i + c.len_utf8();
+        let end = if super::emoji::mark_index(c).is_some() {
+            i + c.len_utf8()
+        } else {
+            i + text::glyph_at(value, i).1
+        };
         used += if super::emoji::mark_index(c).is_some() {
             super::emoji::advance(size)
         } else {
@@ -222,6 +228,7 @@ pub(super) fn fitting_end_spaced(
         if (used > width || end > 480) && i > 0 {
             return i;
         }
+        i = end;
     }
     value.len()
 }

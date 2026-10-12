@@ -13,6 +13,7 @@ pub mod avatar;
 pub mod bio;
 pub mod chat;
 pub mod crash;
+pub mod emoji;
 pub mod feed;
 pub mod hub;
 mod keys;

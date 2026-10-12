@@ -83,7 +83,8 @@ leaves in Windows-1252 when every character has a byte there, else in Windows-12
 when every one has a byte there; under `auto` a single-byte encoding is used only
 when it reads back as the same text, so SJK players always read each other exactly
 (a short capital `ДА` or a Latin `àé` goes as UTF-8). Any other text (Japanese,
-Cyrillic mixed with `é`, emoji) is sent as UTF-8, which only SJK clients decode;
+Chinese, Korean, emoji, Cyrillic mixed with `é`) is sent as UTF-8, which only SJK
+clients decode;
 EternalJK's Windows-1250 mapping is not reproduced. Incoming text, including the
 names servers embed in `print` and `cp` commands, is decoded by
 [decode_legacy](../crates/sjk-client/src/legacy_text.rs): valid UTF-8 as UTF-8,
@@ -101,9 +102,9 @@ A chat line holds at most `MAX_SAY_TEXT` - 1 (149) bytes; the server cuts a
 longer one (`Cmd_Say_f`). The chat field counts a draft by the bytes it is sent
 with, escapes included and the whole line encoded as above
 (`chat_input_fits`, [chat.rs](../crates/sjk-client/src/chat.rs)): a Russian line
-in Windows-1251 holds 149 letters as EternalJK's does, a Japanese line in UTF-8
-about 49 characters, and the sent command is cut at a whole character, never in
-the middle of one.
+in Windows-1251 holds 149 letters as EternalJK's does, a Japanese, Chinese or
+Korean line in UTF-8 about 49 characters (an emoji takes 4 bytes, a family up to 25),
+and the sent command is cut at a whole character, never in the middle of one.
 
 A player's name is read from the bytes of the `n` key of its `CS_PLAYERS`
 configstring and decoded on its own (`LegacyClientInfo::name`,

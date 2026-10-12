@@ -23,6 +23,22 @@ the card's radius. Sol also renamed the first card "Toxiee and Sol on JoF Memori
 `sjk_cards` pack (hub branch `feat/card-001-words`). Verified: unit tests (the rounded
 clip keeps a stroke off the corners), the world shots looked at, corners zoomed in.
 
+## Chinese, Korean and emoji
+
+Branch `personal/cjk-emoji` (13/10/2026), Sol's request after the Russian and Japanese
+work, with Sol's picks: colour Twemoji, the common Chinese and Korean sets, and the
+hub taking them in chat and bios. Implemented: Noto Sans SC (the 2,215 GB 2312 hanzi
+Noto Sans JP lacks) and Noto Sans KR (Hangul) in the wide-glyph fallback; a Twemoji
+17.0.3 pack (`scripts/twemoji_pack.py`), emoji sequences matched as one glyph in the
+layout walk, and an RGBA emoji atlas at text binding 3
+([rendering.md](rendering.md#emoji)); chat wrapping, dialog widths and the caret by
+glyph; the shared bio and chat rules taking Korean, Chinese punctuation and emoji
+(`sjk-identity` `emoji.rs`, generated, and the hub's copy). Verified: unit tests (the
+sequence matcher, atlas decoding, metrics, caret steps, the rules on both sides) and
+the GPU world shots `chat_in_russian_and_japanese` (now with Chinese, Korean and emoji
+lines, a typed draft, at 1080p, 4K and with the game fonts) looked at. Not tried in a
+game.
+
 ## Russian and Japanese text
 
 Branch `personal/unicode-text` (12/10/2026), Sol's request after Russian friends saw

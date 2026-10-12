@@ -325,7 +325,7 @@ mod tests {
         let mut chat = ChatOverlay::new();
         let now = Instant::now();
         chat.sync_sjk(&hub(&[]), |_| false, now);
-        let messages = hub(&[(1, "hello ^1there"), (2, "bad \u{1F600}x")]);
+        let messages = hub(&[(1, "hello ^1there"), (2, "bad \u{221E}x")]);
         chat.sync_sjk(&messages, |_| false, now);
         chat.sync_sjk(&messages, |_| false, now);
         // The text is drawn in the SJK chat's gold, without its colour codes; the

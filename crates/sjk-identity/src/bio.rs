@@ -4,8 +4,9 @@
 //!
 //! A bio is plain text other players read, so it keeps to what SJK's fonts draw and
 //! nothing that hides, reorders or piles up: letters of the Latin and Cyrillic
-//! alphabets and Japanese's kana and kanji, digits, a space, a little punctuation
-//! (Japanese's own marks included), Quake colour codes (`^` and a digit) and at most [`LINES_MAX`] lines. Everything else is refused, including
+//! alphabets, Japanese's kana and kanji (the Chinese characters too) and Korean's
+//! Hangul, emoji ([`crate::emoji`]), digits, a space, a little punctuation (Japanese's
+//! and Chinese's own marks included), Quake colour codes (`^` and a digit) and at most [`LINES_MAX`] lines. Everything else is refused, including
 //! emoji, invisible and direction-changing characters, combining marks, private-use
 //! and unassigned code points. The page filters what is typed with [`allowed`]; the
 //! hub refuses a bio that breaks a rule; a bio read from a hub is shown through
@@ -18,9 +19,10 @@ pub const BIO_MAX: usize = 500;
 pub const LINES_MAX: usize = 6;
 /// Longest run of one character (`!!!!!!!!!`, `aaaaaaaaa` is noise).
 pub const RUN_MAX: usize = 8;
-/// The punctuation a bio may use besides letters, digits and spaces: ASCII's, and the
-/// marks Japanese is typed with (`、。「」『』・`, full-width `！？（）～`).
-pub const PUNCTUATION: &str = ".,!?'\"-:;()[]&/+#@%*_=~<>|$、。「」『』・！？（）～";
+/// The punctuation a bio may use besides letters, digits and spaces: ASCII's, the
+/// marks Japanese is typed with (`、。「」『』・`, full-width `！？（）～`) and Chinese's
+/// (full-width `，：；`, `《》`, curly quotes).
+pub const PUNCTUATION: &str = ".,!?'\"-:;()[]&/+#@%*_=~<>|$、。「」『』・！？（）～，：；《》“”‘’";
 
 /// Why a bio was refused; the hub answers each with its `error` code.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -52,7 +54,7 @@ impl BioError {
         match self {
             Self::Length => "a bio is at most 500 characters",
             Self::Character => {
-                "a bio uses letters, digits, spaces and simple punctuation (no emoji or symbols)"
+                "a bio uses letters, digits, spaces, emoji and simple punctuation (no symbols)"
             }
             Self::Lines => "a bio is at most 6 lines",
             Self::Noise => "a bio repeats no character more than 8 times in a row",
@@ -67,9 +69,11 @@ impl std::fmt::Display for BioError {
 }
 
 /// Whether `c` is a letter of the alphabets SJK's fonts draw: Latin (with its
-/// accented and extended letters, Vietnamese's included), Cyrillic, and Japanese
+/// accented and extended letters, Vietnamese's included), Cyrillic, Japanese
 /// (hiragana, katakana with its prolonged-sound mark, kanji and the `々` repeat mark;
-/// the kanji are the CJK ideographs, which Chinese shares).
+/// the kanji are the CJK ideographs, which Chinese shares) and Korean (the Hangul
+/// syllables and the compatibility jamo typed alone, as in `ㅋㅋ`; not the conjoining
+/// jamo, which pile up into syllables).
 pub fn letter(c: char) -> bool {
     if c.is_ascii_alphabetic() {
         return true;
@@ -81,13 +85,19 @@ pub fn letter(c: char) -> bool {
         code,
         0x3005 | 0x3041..=0x30FF | 0x31F0..=0x31FF | 0x3400..=0x4DBF | 0x4E00..=0x9FFF | 0xF900..=0xFAFF
     );
-    (latin || cyrillic || japanese) && c.is_alphabetic()
+    let korean = matches!(code, 0xAC00..=0xD7A3 | 0x3131..=0x318E);
+    (latin || cyrillic || japanese || korean) && c.is_alphabetic()
 }
 
 /// Whether a bio may hold `c` (newlines aside, which [`tidy`] counts as lines; `^`
 /// aside, which must start a colour code).
 pub fn allowed(c: char) -> bool {
-    letter(c) || c.is_ascii_digit() || c == ' ' || PUNCTUATION.contains(c)
+    letter(c)
+        || c.is_ascii_digit()
+        || c == ' '
+        || PUNCTUATION.contains(c)
+        || crate::emoji::pictograph(c)
+        || crate::emoji::mark(c)
 }
 
 /// The bio as stored and shown: line ends unified, each line's spaces and tabs
@@ -130,6 +140,9 @@ pub fn check(raw: &str) -> Result<String, BioError> {
             c if allowed(c) => {}
             _ => return Err(BioError::Character),
         }
+    }
+    if !crate::emoji::marks_in_place(&bio) {
+        return Err(BioError::Character);
     }
     if bio.split('\n').count() > LINES_MAX {
         return Err(BioError::Lines);
@@ -178,7 +191,7 @@ pub fn for_display(raw: &str) -> String {
             _ => {}
         }
     }
-    let tidied = tidy(&kept);
+    let tidied = tidy(&crate::emoji::without_stray_marks(&kept));
     let mut out = String::with_capacity(tidied.len());
     let mut run = (None, 0);
     let mut count = 0;
@@ -242,7 +255,8 @@ mod tests {
     #[test]
     fn weird_characters_are_refused() {
         for bio in [
-            "emoji \u{1F600}",
+            "stray joiner a\u{200D}b",
+            "stray selector x\u{FE0F}",
             "zero\u{200B}width",
             "right\u{202E}to left",
             "isolate\u{2066}x",
@@ -254,7 +268,7 @@ mod tests {
             "bell \u{7}",
             "nul \u{0}",
             "arabic \u{0627}",
-            "hangul \u{D55C}",
+            "thai \u{0E01}",
             "greek \u{03B1}",
             "fullwidth \u{FF21}",
             "math \u{1D400}",
@@ -288,7 +302,14 @@ mod tests {
 
     #[test]
     fn display_keeps_only_what_the_rules_allow() {
-        assert_eq!(for_display("hi\u{202E}there \u{1F600}!"), "hithere !");
+        assert_eq!(
+            for_display("hi\u{202E}there \u{1F600}!"),
+            "hithere \u{1F600}!"
+        );
+        assert_eq!(
+            for_display("x\u{FE0F} \u{2764}\u{FE0F}"),
+            "x \u{2764}\u{FE0F}"
+        );
         assert_eq!(for_display("a\u{200B}b\u{0301}c"), "abc");
         assert_eq!(for_display("^1red ^x no ^"), "^1red x no");
         assert_eq!(for_display("1\n2\n3\n4\n5\n6\n7\n8"), "1\n2\n3\n4\n5\n6");
@@ -315,8 +336,21 @@ mod tests {
         for c in ['あ', 'カ', 'ー', '日', '漢', '々', 'ㇰ'] {
             assert!(letter(c), "{c}");
         }
-        // The middle dot and the voicing marks are no letters; Greek and Hangul are not drawn.
-        assert!(!letter('・') && !letter('゛') && !letter('α') && !letter('한'));
+        for c in ['한', '국', 'ㅋ', 'ㅎ'] {
+            assert!(letter(c), "{c}");
+        }
+        // The middle dot, the voicing marks and conjoining jamo are no letters; Greek is
+        // not drawn.
+        assert!(!letter('・') && !letter('゛') && !letter('\u{1100}') && !letter('α'));
+        assert!(allowed('，') && allowed('《') && allowed('😀') && allowed('\u{200D}'));
+        assert_eq!(
+            check("你好，我们说中文。"),
+            Ok("你好，我们说中文。".to_owned())
+        );
+        assert_eq!(
+            check("안녕하세요 ㅋㅋㅋ 👍🏽"),
+            Ok("안녕하세요 ㅋㅋㅋ 👍🏽".to_owned())
+        );
         assert!(allowed('。') && allowed('、') && allowed('！') && allowed('「'));
         assert_eq!(
             check("こんにちは、日本語のチャットです。"),
