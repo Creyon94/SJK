@@ -66,6 +66,25 @@ tests (JoFA names, look-alikes, stuck tags, near misses, the wider room, the tab
 emblems and letters, the setting), previews at 20 to 48 pixels and the workspace checks. In
 game on Windows 11 Creyon saw the HD JoFA emblem, the teal JoF emblem, look-alike tags and
 the setting at work.
+## SJK UI in-game menu: the chat under the match card
+
+Branch `feat/ingame-menu-chat-layout` (11/10/2026, based on `9dbbdf19`, Linux): Sol asked
+for the match card to move up and the docked SJK chat to sit under it, in its column, rather
+than in the middle under the match ([sjk-ui.md](sjk-ui.md#in-game-menu)). The card starts at
+y 218 (was 318), the vote over it at 66 and the side's line at 600 (100 higher each); the
+dock is at x 1360, the card's width, from y 770. A sender's card now shows left of the dock
+and above the keys (`chat_dock::Place::card_floor`), since above it lies the match card's
+text, and stays 0.6 seconds after the pointer leaves the name and the card, so the pointer
+can cross the dock to it. The main page's dock does the same: its sender card went beside
+the name, on its right where it fitted, over the message and the dock's lines under it
+(Creyon, 12/10/2026). Verified: tests that the dock lies under the card's lowest control
+with and without a vote, inside the window and right of the keys, at five window sizes; that
+a sender's card lies left of the dock, above the keys and off the list and profile card, and
+stays until its grace has run out; that on the main page it lies left of the dock, above
+the keys, off the profile card and over no text at six window sizes; the existing tests that no control, icon or chat area
+overlaps another; off-screen CPU renders at 1920x1080 with and without a vote and with a
+sender card (reviewed); the workspace checks. In game (Windows 11, Creyon) the layout, the
+card's grace and the main page's card placement work.
 
 ## Downloads that work, and what they may bring
 

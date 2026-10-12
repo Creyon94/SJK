@@ -350,21 +350,27 @@ const ENTRY_REACH: f32 = 680.0;
 /// The match card's column.
 const CARD_X: f32 = 1360.0;
 const CARD_WIDTH: f32 = 464.0;
-const CARD_TOP: f32 = 318.0;
+const CARD_TOP: f32 = 218.0;
 /// A line of medals on the Players page's card.
 const MEDAL_PITCH: f32 = 44.0;
 /// The keys' line.
 const KEYS_Y: f32 = 1004.0;
 /// Pointer token of the player's profile card, bottom left (`profile_card`).
 pub(crate) const CARD_TOKEN: u16 = 900;
-/// The docked SJK chat on the main page: under the match, between the row of icons and
-/// the card, its last line above the keys; and its pointer tokens.
+/// The docked SJK chat on the main page: in the match card's column, under its controls
+/// (Sol's layout, 11/10/2026: the card moved up and the chat squeezed in under it, so
+/// the middle of the screen shows the match), its last line near the frame's foot, right
+/// of the keys; a sender's card shows on its left, over the clear match and above the
+/// keys. Its pointer
+/// tokens follow.
 pub(crate) const CHAT_PLACE: chat_dock::Place = chat_dock::Place {
-    x: 860.0,
-    top: 750.0,
-    width: 420.0,
-    card_above: true,
+    x: CARD_X,
+    top: CHAT_TOP,
+    width: CARD_WIDTH,
+    card_floor: KEYS_Y - 24.0,
 };
+/// The docked chat's top: under Call a vote, the card's last line.
+const CHAT_TOP: f32 = 770.0;
 pub(crate) const CHAT_TOKENS: chat_dock::Tokens = chat_dock::Tokens {
     field: 940,
     open: 941,
@@ -592,7 +598,6 @@ pub(super) fn build(
         chat_dock::sender_card(
             canvas,
             &frame,
-            viewport,
             CHAT_PLACE,
             chat.dock,
             &chat.view,
@@ -2265,11 +2270,12 @@ mod tests {
         }
     }
 
-    /// Resting the pointer on a name in the docked chat shows the sender's card above
-    /// the dock (over none of its lines), left of the match card and clear of the
-    /// profile card, inside the window; it stays while the pointer is on it.
+    /// Resting the pointer on a name in the docked chat shows the sender's card left of
+    /// the dock (over none of its lines, nor the match card's), above the keys, clear of
+    /// the profile card and the list, inside the window; it stays while the pointer is on
+    /// it.
     #[test]
-    fn the_chat_sender_card_shows_above_the_dock() {
+    fn the_chat_sender_card_shows_left_of_the_dock() {
         use sjk_ui::{InputEvent, Vec2};
         let card = Card::for_shot(false, false);
         let roster = players::State::for_shot(8, true, players::Gate::Open);
@@ -2315,12 +2321,17 @@ mod tests {
                 assert!(!canvas.overflowed(), "{viewport:?}");
                 let sender = canvas.rect_for(CHAT_TOKENS.card).expect("the sender card");
                 let frame = Frame::new(viewport);
-                let [dock_left, dock_top] = frame.point(CHAT_PLACE.x - 14.0, CHAT_PLACE.top);
-                let [card_left, _] = frame.point(CARD_X, 0.0);
-                assert!(sender.bottom() <= dock_top, "{viewport:?}: {sender:?}");
-                assert!(sender.x >= dock_left - 0.5, "{viewport:?}: {sender:?}");
-                assert!(sender.right() < card_left, "{viewport:?}: {sender:?}");
-                assert!(sender.y >= 0.0, "{viewport:?}: {sender:?}");
+                let [dock_left, keys_top] = frame.point(CHAT_PLACE.x - 14.0, KEYS_Y - 24.0);
+                assert!(sender.right() <= dock_left, "{viewport:?}: {sender:?}");
+                assert!(sender.bottom() <= keys_top, "{viewport:?}: {sender:?}");
+                assert!(
+                    sender.x >= 0.0 && sender.y >= 0.0,
+                    "{viewport:?}: {sender:?}"
+                );
+                for row in 0..labels.len() {
+                    let entry = canvas.rect_for(row as u16).expect("an entry");
+                    assert!(!overlaps(sender, entry), "{viewport:?}: over entry {row}");
+                }
                 let profile = canvas.rect_for(CARD_TOKEN).expect("the profile card");
                 assert!(!overlaps(sender, profile), "{viewport:?}");
                 // Onto the card: it stays.
@@ -2328,12 +2339,74 @@ mod tests {
                 canvas.pointer(InputEvent::PointerMove(centre(mute)));
                 draw(&mut canvas, &mut dock);
                 assert!(canvas.rect_for(CHAT_TOKENS.card).is_some(), "{viewport:?}");
+                // Off the name and the card: it stays a moment, for the way across,
+                // then goes.
                 canvas.pointer(InputEvent::PointerMove(Vec2::new(1.0, 1.0)));
+                draw(&mut canvas, &mut dock);
+                assert!(canvas.rect_for(CHAT_TOKENS.card).is_some(), "{viewport:?}");
+                dock.expire_card_for_test();
                 draw(&mut canvas, &mut dock);
                 assert!(canvas.rect_for(CHAT_TOKENS.card).is_none(), "{viewport:?}");
             }
         }
         assert!(hovered >= VIEWPORTS.len() * 2, "{hovered} names hovered");
+    }
+
+    /// Sol's layout (11/10/2026): the chat docks in the match card's column, under its
+    /// last control (Call a vote, or the side's buttons while a vote is on), inside the
+    /// window and right of the keys.
+    #[test]
+    fn the_chat_docks_under_the_match_card() {
+        let card = Card::for_shot(false, false);
+        let roster = players::State::for_shot(8, true, players::Gate::Open);
+        let labels: Vec<String> = Entry::MAIN.map(Entry::label).map(str::to_owned).to_vec();
+        let hints = vec!["What it opens".to_owned(); labels.len()];
+        let enabled = vec![true; labels.len()];
+        for vote in [false, true] {
+            let controls = Controls::for_match(super::super::sjk_focus::Match {
+                known: true,
+                team_game: true,
+                siege: false,
+                team: 2,
+                vote,
+            });
+            for viewport in VIEWPORTS {
+                let mut canvas = MenuCanvas::new();
+                let mut dock = Dock::default();
+                let mut shown = view(Page::Main, 0, true, 2);
+                shown.vote_active = vote;
+                build(
+                    &mut canvas,
+                    &shown,
+                    &Rows {
+                        labels: &labels,
+                        hints: &hints,
+                        enabled: &enabled,
+                    },
+                    &Sides {
+                        card: &card,
+                        players: &roster,
+                    },
+                    &mut main_extras(&controls, Focus::List, &mut dock),
+                    &mut Motion::default(),
+                    viewport,
+                );
+                let frame = Frame::new(viewport);
+                let lowest = (0..controls.as_slice().len())
+                    .filter_map(|index| canvas.rect_for(CONTROL_TOKEN + index as u16))
+                    .map(Rect::bottom)
+                    .fold(0.0, f32::max);
+                let field = canvas.rect_for(CHAT_TOKENS.field).expect("the field");
+                let open = canvas.rect_for(CHAT_TOKENS.open).expect("Open chat");
+                let first = canvas.rect_for(CHAT_TOKENS.name(0)).expect("a name");
+                let [column, _] = frame.point(CARD_X - 20.0, 0.0);
+                let [keys_right, _] = frame.point(1_290.0, 0.0);
+                assert!(first.y > lowest, "{vote} {viewport:?}: {first:?} {lowest}");
+                assert!(field.x >= column && field.x >= keys_right, "{viewport:?}");
+                assert!(open.bottom() <= viewport[1], "{viewport:?}: {open:?}");
+                assert!(field.right() <= viewport[0], "{viewport:?}: {field:?}");
+            }
+        }
     }
 
     #[test]

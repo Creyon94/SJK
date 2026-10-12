@@ -194,9 +194,12 @@ one (4:3, 5:4) scales the frame down to its width.
   it, which opens the SJK chat page. The same dock, drawn by the same code
   ([chat_dock.rs](../crates/sjk-viewer/src/menu/sjk/chat_dock.rs)), sits in the
   [in-game menu](#in-game-menu). Resting the pointer on a name shows the sender's
-  [sender card](#sjks-pages) beside it, with Mute
-  ([hub-chat.md](hub-chat.md#muting-a-player)). It keeps clear of the profile card
-  bottom left in every window (`the_sender_card_keeps_clear_of_the_profile_card`); its
+  [sender card](#sjks-pages) with Mute
+  ([hub-chat.md](hub-chat.md#muting-a-player)), left of the dock, level with the name
+  and above the keys (shapes never cover text: beside the name it lay over the message
+  and the lines under it). It keeps clear of the dock, the keys, the arc's labels and
+  the profile card bottom left in every window
+  (`the_sender_card_keeps_clear_of_the_profile_card`); its
   targets are the page's own (60 to 64 the names, 70 the card, 71 Mute).
   Down past the last server reaches the field
   (the gold arc turns to it); Enter types and every key goes to the field until Enter
@@ -1029,11 +1032,13 @@ entry of its own under Profile, making seven.
   bug opens the report card; Camera control its panel.
 - **SJK chat:** the main page's docked chat ([Main page](#main-page),
   [hub-chat.md](hub-chat.md#in-the-menus)), on the main page only and while
-  `cl_sjkChat` is on: under the match between the row of icons and the card (x 860,
-  420 wide, from y 750, its Open chat line above the keys), over a soft dark pool of
-  rounded layers so it reads over the match. Its messages, field, Open chat and sender
-  cards behave as on the main page; a sender's card shows above the dock, where the
-  match is clear (shapes never cover text, so beside the name it would lie over the
+  `cl_sjkChat` is on: in the match card's column under its last control (x 1360, the
+  card's 464 wide, from y 770, its Open chat line near the frame's foot, right of the
+  keys; Sol's layout of 11/10/2026, which raised the card and left the middle of the
+  screen to the match), over a soft dark pool of rounded layers so it reads over the
+  match. Its messages, field, Open chat and sender cards behave as on the main page; a
+  sender's card shows left of the dock, level with the name and above the keys, where
+  the match is clear (shapes never cover text, so beside the name it would lie over the
   dock's lines). Without the identity it says "Turn the SJK identity on to chat", as
   the main page does. Typing in it, every key goes to the field before the console
   key and the game's bindings (`GpuState::sjk_chat_typing`, ahead of
@@ -1044,7 +1049,7 @@ entry of its own under Profile, making seven.
   and player card take the screen). Hovering lights it, a click opens the Profile
   screen on its SJK Profile tab. The Players page's player card shows the chosen
   player's picture (or their initial) before their name when the hub knows them.
-- **Match card:** on the right (x 1360, 464 wide) over its own fade: the
+- **Match card:** on the right (x 1360, 464 wide, from y 218) over its own fade: the
   server's name with its colours and its address, a rule, the map without
   `mp/`, its mode and limits in words ("FFA, 30 frags, 20 minutes"), then the
   numbers: the player's score and place ("3rd", "of 14"; "Tied" when tied) or,
@@ -1053,11 +1058,11 @@ entry of its own under Profile, making seven.
   a rule how many play, watch and fit. It reads the live session each frame and
   the server's info once a second; without a server (a map explored alone) it
   hides, with its controls. On the main page it carries the controls:
-  - **The vote on**, over the card from y 166: "A vote is on" in gold with the count
+  - **The vote on**, over the card from y 66: "A vote is on" in gold with the count
     ("4 yes, 1 no") at the right, the question (Rajdhani 30, two lines at most), and
     Yes and No as gold kit buttons (140 by 40). Voting returns to the match, as
     retail's pop-up does.
-  - **Your side**, from y 700 under the numbers: "Your side" and the side (Red team
+  - **Your side**, from y 600 under the numbers: "Your side" and the side (Red team
     or Blue team in its colour, Playing, or Watching), then the kit's buttons, three
     to the card's width: Join red and Join blue (a mark of the side's colour on each)
     and Spectate in a team game, Join and Spectate otherwise, Class and side (200
