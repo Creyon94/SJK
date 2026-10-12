@@ -1,5 +1,23 @@
 # Status and priorities
 
+## Standing still and grappling: the model no longer twitches
+
+Branch `fix/standing-legs` (12/10/2026, based on `c6ce9485`, Linux): Creyon's video on a
+snowy JoF map showed his legs shifting about while he stood still, where JoF EJK stands
+calm. His trace showed why: the server switches the legs between a slope pose
+(`LEGS_RIGHTUP1`) and the stance about three times a second on uneven ground, and the
+client, which cannot read its model's feet in prediction, keeps whichever the server sent
+last (the 11/10/2026 ledge fix), so every switch showed. JoF EJK computes the pose from
+its own model each frame and never follows the switches. The local player's legs are now
+drawn in the stance the torso holds while the predicted legs are in a slope pose, on the
+torso's clock; prediction is unchanged
+([networking.md](networking.md#standing-on-uneven-ground)). The feet no longer follow a
+ledge or slope. With a JA+ grapple hook out the same trace showed the replay playing
+whole-body parries the server never showed, so the model twitched while hooked; the local
+model now shows the server's legs and torso while its hook is out, turned by the
+predicted view. Verified: tests (a slope pose under a standing torso is drawn as that
+stance on the torso's clock; hooks are told apart per player); the workspace checks.
+
 ## Force powers apply when the Force page is left
 
 Branch `personal/force-apply-on-close` (12/10/2026), Sol's report: on the JoF JA+ server

@@ -70,20 +70,26 @@ pub(crate) fn update(gpu: &mut GpuState, presentation_time: i64) -> Result<(), B
         .as_ref()
         .map(|session| session.latest_snapshot().player.saber_move());
     let detached_flight = gpu.free_camera_active();
-    let local_animation = local_entity.and_then(|entity| {
-        gpu.local_actor_state.resolve(
-            entity,
-            gpu.local_prediction
-                .predicted_state()
-                .filter(|_| !detached_flight),
-            authoritative,
-            authoritative_saber_move,
-        )
+    // With a JA+ hook out the local model shows the server's animations
+    // (`local_actor_state::with_server_animations`).
+    let hooked = gpu.live_session.as_ref().and_then(|session| {
+        let snapshot = session.latest_snapshot();
+        crate::actor_world_submission::local_hook_out(Some(snapshot), Some(session.game_state()))
+            .then_some(&snapshot.player)
     });
-    let predicted = gpu
+    let hooked_state = gpu
         .local_prediction
         .predicted_state()
+        .zip(hooked)
+        .map(|(state, server)| crate::local_actor_state::with_server_animations(state, server));
+    let predicted = hooked_state
+        .as_ref()
+        .or_else(|| gpu.local_prediction.predicted_state())
         .filter(|_| !detached_flight);
+    let local_animation = local_entity.and_then(|entity| {
+        gpu.local_actor_state
+            .resolve(entity, predicted, authoritative, authoritative_saber_move)
+    });
     // The entity states and configstrings `CG_G2ServerBoneAngles` reads.
     let snapshot = crate::first_person_view::presented_snapshot(
         gpu.live_session.as_ref(),

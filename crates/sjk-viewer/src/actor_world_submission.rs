@@ -26,6 +26,7 @@ pub(crate) mod speed_trail;
 
 #[path = "grapple_rope.rs"]
 mod grapple_rope;
+pub(crate) use grapple_rope::local_hook_out;
 
 #[path = "jetpack_submission.rs"]
 mod jetpack_submission;

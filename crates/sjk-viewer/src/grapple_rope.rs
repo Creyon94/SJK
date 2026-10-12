@@ -80,12 +80,27 @@ impl Hooks {
         hooks
     }
 
+    /// Whether `client` has a hook out.
+    pub(super) fn holds(&self, client: u16) -> bool {
+        self.of(client).next().is_some()
+    }
+
     fn of(&self, client: u16) -> impl Iterator<Item = [f32; 3]> + '_ {
         self.entries[..self.len]
             .iter()
             .filter(move |(hooked, _)| *hooked == client)
             .map(|(_, position)| *position)
     }
+}
+
+/// Whether the local player has a JA+ hook out in `snapshot`.
+pub(crate) fn local_hook_out(snapshot: Option<&Snapshot>, game_state: Option<&GameState>) -> bool {
+    let Some(snapshot) = snapshot else {
+        return false;
+    };
+    // The time only places the hooks; whether one is out does not depend on it.
+    Hooks::collect(Some(snapshot), game_state, snapshot.server_time)
+        .holds(snapshot.player.client_num())
 }
 
 /// Draw the ropes of `client`'s hooks from its right `hand`.
@@ -153,6 +168,12 @@ mod tests {
         assert_eq!(hooks.of(3).collect::<Vec<_>>(), [[0.0; 3], [2.0; 3]]);
         assert_eq!(hooks.of(7).collect::<Vec<_>>(), [[1.0; 3]]);
         assert_eq!(hooks.of(0).count(), 0);
+        assert!(hooks.holds(7) && !hooks.holds(0));
+    }
+
+    #[test]
+    fn no_snapshot_means_no_hook_out() {
+        assert!(!local_hook_out(None, None));
     }
 
     #[test]

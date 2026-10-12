@@ -205,6 +205,33 @@ fn slope_back_transition(state: &mut MovementState, command: &UserCommand, desir
     }
 }
 
+/// The legs to draw for the local player whose predicted legs are `legs` while the
+/// torso plays `torso`: a slope pose shows as the standing stance the torso holds.
+///
+/// A client predicting without the model cannot read its feet, so it keeps the slope
+/// pose the server sends (see [`footsteps`]). The server itself switches between that
+/// pose and the stance while the player stands still on uneven ground, and every switch
+/// showed as the legs twitching (Creyon's trace on a snowy map, 12/10/2026: the stance
+/// and `LEGS_RIGHTUP1` in turn, three times a second). JoF EternalJK reads its own
+/// model's feet every frame and so never follows the switches. Drawing the stance keeps
+/// the legs still; prediction itself is unchanged, so movement stays in step.
+pub fn standing_legs_for_display(legs: u16, torso: u16) -> u16 {
+    let standing = matches!(
+        torso,
+        BOTH_STAND1
+            | BOTH_STAND2
+            | BOTH_SABERFAST_STANCE
+            | BOTH_SABERSLOW_STANCE
+            | BOTH_SABERDUAL_STANCE
+            | BOTH_SABERSTAFF_STANCE
+    );
+    if standing && SLOPE_POSES.contains(&legs) {
+        torso
+    } else {
+        legs
+    }
+}
+
 /// What a mover standing at rest needs for `PM_AdjustStandAnimForSlope`: the bottom of
 /// its box (`pm->mins[2]`), its feet on its model, and the world to drop them in.
 pub(crate) struct Slope<'a> {
@@ -698,6 +725,28 @@ mod tests {
         state.legs_anim = legs;
         state.torso_anim = BOTH_STAND1;
         predictor
+    }
+
+    /// A slope pose under a standing torso is drawn as that stance; anything else as it
+    /// is.
+    #[test]
+    fn slope_poses_are_drawn_as_the_stance() {
+        const LEGS_RIGHTUP1: u16 = 1_427;
+        assert_eq!(
+            standing_legs_for_display(LEGS_RIGHTUP1, BOTH_SABERFAST_STANCE),
+            BOTH_SABERFAST_STANCE
+        );
+        assert_eq!(
+            standing_legs_for_display(*SLOPE_POSES.end(), BOTH_SABERSTAFF_STANCE),
+            BOTH_SABERSTAFF_STANCE
+        );
+        // A torso busy with something else keeps the legs' own pose.
+        assert_eq!(standing_legs_for_display(LEGS_RIGHTUP1, 115), LEGS_RIGHTUP1);
+        // Legs not in a slope pose are left alone.
+        assert_eq!(
+            standing_legs_for_display(BOTH_STAND2, BOTH_SABERFAST_STANCE),
+            BOTH_STAND2
+        );
     }
 
     #[test]

@@ -219,6 +219,29 @@ used to step the pose back to the stance, so the legs flicked between the hangin
 the stance after every snapshot. A new pose or the return to the stance arrives with the
 next snapshot rather than at once, as it would if the client read its own feet.
 
+The server itself switches between a slope pose and the stance while the player stands
+still on uneven ground, and the kept pose followed every switch: the legs twitched
+(Creyon's trace on a snowy map, 12/10/2026: the stance and `LEGS_RIGHTUP1` in turn,
+three times a second). JoF EternalJK reads its own model's feet every frame and never
+follows them. So the local player's legs are drawn in the stance the torso holds while
+the predicted legs are in a slope pose, on the torso's clock so they do not restart at
+each switch ([pmove_locomotion.rs](../crates/sjk-game-jka/src/pmove_locomotion.rs)
+`standing_legs_for_display`, used by
+[animation_selection.rs](../crates/sjk-client/src/animation_selection.rs) for the clip and
+by [local_actor_state.rs](../crates/sjk-viewer/src/local_actor_state.rs) for the angles);
+prediction is unchanged, so movement stays in step with the server. The feet no longer
+follow a ledge or a slope; reading the local model's feet would bring that back.
+
+With a JA+ grapple hook out (an `ET_MISSILE` of `WP_STUN_BATON` whose `otherEntityNum` is
+the local player) the local model shows the server's legs and torso instead of the
+predicted ones, still turned by the predicted view
+([actor_pose.rs](../crates/sjk-viewer/src/actor_pose.rs),
+`local_actor_state::with_server_animations`). The hook's server pulls the player and the
+saber may flick up at the hook as at a missile; the server answers that itself and keeps
+the stance, but the replay played whole-body parries (`BOTH_P1_S1_*`) the server never
+showed, so the model twitched between parry and stance while hanging or standing on the
+hook (Creyon's trace on JoF, 12/10/2026). JoF EternalJK's player stands still there.
+
 ### When prediction steps aside
 
 Three cases show the server's state instead of predicting, as JoF EternalJK's

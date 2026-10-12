@@ -84,6 +84,25 @@ pub(crate) fn equipment(
     )
 }
 
+/// The predicted state with the server's legs and torso, for while the local player
+/// has a JA+ hook out. The hook's server pulls the player, and its saber may flick up at
+/// the hook as at a missile: the game answers on the server, which keeps the stance (or
+/// the hook's own pose), while the replay played whole-body parries the server never
+/// showed, and the model twitched between them (Creyon's trace on JoF, 12/10/2026).
+/// JoF EternalJK's player stands still there, so the local model shows the server's
+/// animations, still turned by the predicted view.
+pub(crate) fn with_server_animations(
+    predicted: &MovementState,
+    server: &sjk_protocol::PlayerState,
+) -> MovementState {
+    let mut shown = predicted.clone();
+    shown.legs_anim = server.leg_animation();
+    shown.legs_flip = server.leg_flip();
+    shown.torso_anim = server.torso_animation();
+    shown.torso_flip = server.torso_flip();
+    shown
+}
+
 /// Pose the local actor from the predicted view angles so the model turns in
 /// the same frame as the camera (`cg_ents.c:3454-3476`); the interpolated
 /// snapshot pose is a network round-trip behind the mouse.
@@ -94,9 +113,15 @@ pub(crate) fn pose(
     let Some(predicted) = predicted else {
         return authoritative;
     };
+    // Legs in a slope pose under a standing torso are drawn standing: without the model
+    // the prediction follows the server's switches between the two, which twitched.
+    let legs = sjk_game_jka::pmove_locomotion::standing_legs_for_display(
+        predicted.legs_anim,
+        predicted.torso_anim,
+    );
     // EternalJK remaps the animations before `CG_G2PlayerAngles` reads them.
     let (legs_animation, torso_animation) = sjk_client::legacy_ejk_animation_fixes(
-        predicted.legs_anim,
+        legs,
         predicted.torso_anim,
         predicted.weapon,
         predicted.saber_in_flight,

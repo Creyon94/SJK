@@ -114,8 +114,20 @@ impl LegacyAnimationSelection {
 
     /// Decode the predicted fields copied by `BG_PlayerStateToEntityState`.
     fn from_movement(state: &MovementState) -> Self {
-        let (legs, torso) = ejk_animation_fixes(
+        // Legs in a slope pose under a standing torso are drawn in the torso's stance, on
+        // the torso's clock: the prediction follows the server's switches between the two
+        // while the player stands still, and the legs twitched with them.
+        let shown_legs = sjk_game_jka::pmove_locomotion::standing_legs_for_display(
             state.legs_anim,
+            state.torso_anim,
+        );
+        let legs_flip = if shown_legs == state.legs_anim {
+            state.legs_flip
+        } else {
+            state.torso_flip
+        };
+        let (legs, torso) = ejk_animation_fixes(
+            shown_legs,
             state.torso_anim,
             state.weapon,
             state.saber_in_flight,
@@ -126,7 +138,7 @@ impl LegacyAnimationSelection {
         Self {
             lower: LegacyTrackSelection {
                 clip: lower_clip,
-                revision: animation_revision(legs, state.legs_flip),
+                revision: animation_revision(legs, legs_flip),
                 speed_milli: legacy_animation_speed(
                     lower_clip,
                     state.force_powers_active,
@@ -525,5 +537,32 @@ mod ejk_fix_tests {
         );
         // A thrown saber's standing torso follows the legs.
         assert_eq!(ejk_animation_fixes(1102, 915, 3, true, false), (1102, 1102));
+    }
+}
+
+#[cfg(test)]
+mod standing_tests {
+    use super::*;
+
+    /// A slope pose under the saber stance is drawn as the stance, on the torso's clock,
+    /// so the legs do not restart each time the server switches between the two.
+    #[test]
+    fn predicted_slope_legs_under_a_stance_are_drawn_standing() {
+        let mut state = MovementState {
+            legs_anim: 1_427,
+            torso_anim: 850,
+            legs_flip: false,
+            torso_flip: true,
+            weapon: 3,
+            ..MovementState::default()
+        };
+        let sloped = LegacyAnimationSelection::from_movement(&state);
+        assert_eq!(sloped.lower.clip, 850);
+        assert_eq!(sloped.lower.revision, sloped.upper.revision);
+        // Running legs are left as they are.
+        state.legs_anim = 1_114;
+        let running = LegacyAnimationSelection::from_movement(&state);
+        assert_eq!(running.lower.clip, 1_114);
+        assert_eq!(running.lower.revision, animation_revision(1_114, false));
     }
 }
