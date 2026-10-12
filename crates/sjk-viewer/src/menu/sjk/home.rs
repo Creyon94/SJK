@@ -519,12 +519,14 @@ const COLUMN_X: f32 = 1500.0;
 const COLUMN_WIDTH: f32 = 324.0;
 const COLUMN_TOP: f32 = 236.0;
 const SERVER_HEIGHT: f32 = 96.0;
-/// The docked chat, under the servers.
+/// The keys' line.
+const KEYS_Y: f32 = 1004.0;
+/// The docked chat, under the servers; a sender's card shows on its left, above the keys.
 const DOCK: chat_dock::Place = chat_dock::Place {
     x: COLUMN_X,
     top: 700.0,
     width: COLUMN_WIDTH,
-    card_above: false,
+    card_floor: KEYS_Y - 24.0,
 };
 
 /// Degrees between entries along an arc of `count`.
@@ -722,15 +724,7 @@ pub(crate) fn build(
     // The card goes over everything, its targets last.
     match &view.chat {
         Some(dock) => {
-            chat_dock::sender_card(
-                canvas,
-                &frame,
-                viewport,
-                DOCK,
-                &mut home.chat,
-                dock,
-                DOCK_TOKENS,
-            );
+            chat_dock::sender_card(canvas, &frame, DOCK, &mut home.chat, dock, DOCK_TOKENS);
         }
         None => home.chat.sender_card = None,
     }
@@ -977,7 +971,7 @@ fn hints(canvas: &mut MenuCanvas, frame: &Frame, home: &Home, servers: bool) {
         .map(|(keys, action)| key_hint_width(keys, action, s))
         .sum::<f32>()
         + gap * (rows.len() - 1) as f32;
-    let [centre, y] = frame.point(960.0, 1004.0);
+    let [centre, y] = frame.point(960.0, KEYS_Y);
     let mut x = centre - total * 0.5;
     for (keys, action) in rows {
         x = key_hint(canvas, keys, action, x, y, s) + gap;
@@ -1363,8 +1357,11 @@ mod tests {
         canvas.pointer(InputEvent::PointerMove(centre(mute)));
         draw(&mut canvas, &mut home);
         assert!(home.chat.sender_card.is_some());
-        // Away from both: gone.
+        // Away from both: it stays a moment for the way across, then goes.
         canvas.pointer(InputEvent::PointerMove(Vec2::new(4.0, 4.0)));
+        draw(&mut canvas, &mut home);
+        assert!(home.chat.sender_card.is_some());
+        home.chat.expire_card_for_test();
         draw(&mut canvas, &mut home);
         assert!(home.chat.sender_card.is_none());
         canvas.pointer(InputEvent::PointerMove(centre(name)));
@@ -1412,6 +1409,45 @@ mod tests {
                     !overlaps(sender, profile),
                     "{viewport:?} row {row}: {sender:?} over {profile:?}"
                 );
+                // Left of the dock and its field, above the keys, over no text drawn
+                // before it (text shows through shapes).
+                let frame = Frame::new(viewport);
+                let [dock_left, keys_top] = frame.point(DOCK.x - 14.0, KEYS_Y - 24.0);
+                assert!(
+                    sender.right() <= dock_left && sender.bottom() <= keys_top,
+                    "{viewport:?} row {row}: {sender:?} over the dock or the keys"
+                );
+                let commands = canvas.draw_list().commands();
+                let card_at = commands
+                    .iter()
+                    .position(|command| {
+                        matches!(command, DrawCommand::RoundedRect { rect, .. } if *rect == sender)
+                    })
+                    .expect("the card's shape");
+                for command in &commands[..card_at] {
+                    if let DrawCommand::Text {
+                        rect,
+                        text,
+                        size,
+                        align,
+                        ..
+                    } = command
+                    {
+                        // Its ink, at a generous width a character, in its box.
+                        let text = canvas.stored_text(*text);
+                        let ink = (text.chars().count() as f32 * size * 0.62).min(rect.width);
+                        let x = match align {
+                            TextAlign::Start => rect.x,
+                            TextAlign::Center => rect.x + (rect.width - ink) * 0.5,
+                            TextAlign::End => rect.right() - ink,
+                        };
+                        let ink = Rect::new(x, rect.y, ink, rect.height);
+                        assert!(
+                            !overlaps(ink, sender),
+                            "{viewport:?} row {row}: {text:?} {ink:?} under the card {sender:?}"
+                        );
+                    }
+                }
                 assert!(
                     sender.x >= 0.0
                         && sender.y >= 0.0

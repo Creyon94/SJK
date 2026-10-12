@@ -194,9 +194,12 @@ one (4:3, 5:4) scales the frame down to its width.
   it, which opens the SJK chat page. The same dock, drawn by the same code
   ([chat_dock.rs](../crates/sjk-viewer/src/menu/sjk/chat_dock.rs)), sits in the
   [in-game menu](#in-game-menu). Resting the pointer on a name shows the sender's
-  [sender card](#sjks-pages) beside it, with Mute
-  ([hub-chat.md](hub-chat.md#muting-a-player)). It keeps clear of the profile card
-  bottom left in every window (`the_sender_card_keeps_clear_of_the_profile_card`); its
+  [sender card](#sjks-pages) with Mute
+  ([hub-chat.md](hub-chat.md#muting-a-player)), left of the dock, level with the name
+  and above the keys (shapes never cover text: beside the name it lay over the message
+  and the lines under it). It keeps clear of the dock, the keys, the arc's labels and
+  the profile card bottom left in every window
+  (`the_sender_card_keeps_clear_of_the_profile_card`); its
   targets are the page's own (60 to 64 the names, 70 the card, 71 Mute).
   Down past the last server reaches the field
   (the gold arc turns to it); Enter types and every key goes to the field until Enter
@@ -254,10 +257,11 @@ on the 16:9 frame, dark behind the form on the left and clear over the model.
   always opens it so) the row holds the screen's four tabs instead
   ([Profile screen](#profile-screen)).
 - **Character:** Name (a field; Enter types), Team colour, Search (a field that
-  filters the grid), Model (‹ › steps through the grid), the model grid (eight
+  filters the grid), the model grid (eight
   icons a row, as many rows as fit, the current one ringed gold, scrolled by
   the wheel), then a species' head, torso, legs and skin colour and the hat and
-  cape, two to a line.
+  cape, two to a line. The Model row that stepped to the next model of the grid
+  (‹ ›) is gone (Sol's decision, 11/10/2026): the grid chooses the model.
 - **Saber:** Style as three buttons (Single, Staff, Dual); the hilts as a list
   under a sub-heading (Hilt, or Staff), in two columns, six lines on show,
   scrolled by the wheel or its bar, the chosen one gold with a dot and kept in
@@ -730,7 +734,11 @@ as Settings is, on the main page's 16:9 frame. The camera keeps touring behind i
 - **Left:** where the servers come from down a lit rail, All servers and
   Favourites with how many of each answered; under "Show", switches for empty,
   full and locked servers and the game type as a cycler (All, then each type);
-  at its foot Refresh the list and Join by address.
+  at its foot Refresh the list, Join by address and Add a favourite (Sol's
+  request, 11/10/2026): its prompt takes an address and keeps it as a favourite,
+  then shows the favourites and asks the servers again. Favourites are asked for
+  their info directly, so one no master server lists (a private server) still
+  answers in the list.
 - **List:** a header line of sortable columns (Server, Mode, Map, Players,
   Ping; the sorted one gold with a sort mark after it, three stacked bars
   longest at the top when descending, at the bottom when ascending; a click
@@ -750,10 +758,19 @@ as Settings is, on the main page's 16:9 frame. The camera keeps touring behind i
   own name for its mod once its status answers); its address, "Needs a
   password" in gold when it does, its limits in words ("30 frags, 20
   minutes"); Join (gold) and Add to favourites or Remove favourite; then
-  "Playing now", its players with their colours and scores, bots muted, five
-  then "and n more" past six.
+  "Playing now", its players with their colours and scores, bots muted, six
+  at a time: past six the wheel over the list scrolls it two rows a notch (the
+  server table stays put) and a thin bar on its right shows where the rows in view
+  are; it starts at the top for each server (Creyon's request, 12/10/2026; it ended
+  in "and n more").
 - **Keys:** bottom right, what has the keyboard's; bottom left, how the list
   stands ("12 servers answered", "Asking the master server...").
+- **Remembered passwords** (Sol's request, 11/10/2026): the password card has a
+  "Remember on this PC" switch (on by default); joining with it on keeps the
+  password for that server ([server_passwords.rs](../crates/sjk-viewer/src/server_passwords.rs),
+  `server-passwords.json` beside `config.cfg`, plain text as `config.cfg` keeps the
+  last `password`), and the card then opens with it typed, so Enter joins; joining
+  with it off forgets it. The classic prompt remembers the same way, without a switch.
 - **Prompts:** the password and the address open a card over the darkened map
   (the list is left out under it, since text draws over every shape): its
   title, a line saying what to type, the field (the password as dots), the
@@ -761,8 +778,8 @@ as Settings is, on the main page's 16:9 frame. The camera keeps touring behind i
   field is empty).
 
 Keys: the list has the shared browser keys (Up and Down, Page Up and Down, Home
-and End, Enter joins, F favourite, Tab between all servers and favourites, R
-refresh, C an address, `/` search, 1 to 5 sort); Left moves to the left column,
+and End, Enter joins, F favourite, A add a favourite by its address, Tab between
+all servers and favourites, R refresh, C an address, `/` search, 1 to 5 sort); Left moves to the left column,
 where Up and Down choose, Enter shows a source or flips a switch, Left and Right
 step the game type, and Right or Escape return to the list. While the search is
 typed, Enter, Down or Tab return to the list (keeping it); Escape clears it.
@@ -888,7 +905,10 @@ and out as the classic board does, settling into place as it opens.
 - **Header line:** across the top, as the other screens' top bar: the map
   without `mp/` (Rajdhani 48), then the mode and its limits in words ("Free for
   all · 30 frags · 20 minutes", as the browser words them); on the right the
-  time left in a timed match ("12:12 left", else "3:12 played") and your place,
+  frame rate ("240 fps", the number in the clock's type and "fps" muted after it,
+  the `cg_drawFPS` line's measured rate; Sol's request of 11/10/2026, on by default,
+  `cg_scoreboardFps`), the time left in a timed match ("12:12 left", else "3:12
+  played") and your place,
   the screen's one memorable thing, in gold ("3rd", "of 14" after it, "of 14,
   tied" on a tie; "Spectating" when you watch). Team games say "Your team leads
   by 2", "trails by", "Tied at 5" (or which team leads, for a spectator). Under
@@ -1026,11 +1046,13 @@ entry of its own under Profile, making seven.
   bug opens the report card; Camera control its panel.
 - **SJK chat:** the main page's docked chat ([Main page](#main-page),
   [hub-chat.md](hub-chat.md#in-the-menus)), on the main page only and while
-  `cl_sjkChat` is on: under the match between the row of icons and the card (x 860,
-  420 wide, from y 750, its Open chat line above the keys), over a soft dark pool of
-  rounded layers so it reads over the match. Its messages, field, Open chat and sender
-  cards behave as on the main page; a sender's card shows above the dock, where the
-  match is clear (shapes never cover text, so beside the name it would lie over the
+  `cl_sjkChat` is on: in the match card's column under its last control (x 1360, the
+  card's 464 wide, from y 770, its Open chat line near the frame's foot, right of the
+  keys; Sol's layout of 11/10/2026, which raised the card and left the middle of the
+  screen to the match), over a soft dark pool of rounded layers so it reads over the
+  match. Its messages, field, Open chat and sender cards behave as on the main page; a
+  sender's card shows left of the dock, level with the name and above the keys, where
+  the match is clear (shapes never cover text, so beside the name it would lie over the
   dock's lines). Without the identity it says "Turn the SJK identity on to chat", as
   the main page does. Typing in it, every key goes to the field before the console
   key and the game's bindings (`GpuState::sjk_chat_typing`, ahead of
@@ -1041,7 +1063,7 @@ entry of its own under Profile, making seven.
   and player card take the screen). Hovering lights it, a click opens the Profile
   screen on its SJK Profile tab. The Players page's player card shows the chosen
   player's picture (or their initial) before their name when the hub knows them.
-- **Match card:** on the right (x 1360, 464 wide) over its own fade: the
+- **Match card:** on the right (x 1360, 464 wide, from y 218) over its own fade: the
   server's name with its colours and its address, a rule, the map without
   `mp/`, its mode and limits in words ("FFA, 30 frags, 20 minutes"), then the
   numbers: the player's score and place ("3rd", "of 14"; "Tied" when tied) or,
@@ -1050,11 +1072,11 @@ entry of its own under Profile, making seven.
   a rule how many play, watch and fit. It reads the live session each frame and
   the server's info once a second; without a server (a map explored alone) it
   hides, with its controls. On the main page it carries the controls:
-  - **The vote on**, over the card from y 166: "A vote is on" in gold with the count
+  - **The vote on**, over the card from y 66: "A vote is on" in gold with the count
     ("4 yes, 1 no") at the right, the question (Rajdhani 30, two lines at most), and
     Yes and No as gold kit buttons (140 by 40). Voting returns to the match, as
     retail's pop-up does.
-  - **Your side**, from y 700 under the numbers: "Your side" and the side (Red team
+  - **Your side**, from y 600 under the numbers: "Your side" and the side (Red team
     or Blue team in its colour, Playing, or Watching), then the kit's buttons, three
     to the card's width: Join red and Join blue (a mark of the side's colour on each)
     and Spectate in a team game, Join and Spectate otherwise, Class and side (200
@@ -1520,10 +1542,22 @@ same look in every menu style, on the 16:9 frame:
 - **Card:** the kit's card over its scrim, 920 wide from x 500, centred vertically, as
   tall as its recap.
 - **Words:** "SJK updated" (or "Preview") in gold (Rajdhani 22), "What's new in
-  <release>" ("What's coming next" for the unreleased preview; Rajdhani 36), then one row per recap line: its heading in gold (Exo 2 18,
-  semibold, a 210 wide column) and its sentence (Exo 2 18, up to 76 characters a line).
-  A release without a recap shows its introduction (three lines at most) in muted text;
-  after 16 sentence lines the card says "More in the full changelog."
+  <release>" ("What's coming next" for the unreleased preview; Rajdhani 36), then one
+  block per recap line: its heading in bright gold (Rajdhani 21, semibold) on a line of
+  its own, and under it its sentence over the card's full text width (Exo 2 18, 28 a
+  line, 16 between blocks; Sol, 12/10/2026: "the titles shouldn't be on the left but on
+  the top"). The sentences are wrapped by their measured width when the card is drawn,
+  again whenever the menu text size or spacing changes. A card that stacks several
+  releases names each in muted Rajdhani 19 with a faint holo rule to the card's edge. A
+  release without a recap shows its introduction (three lines at most, "..." when cut)
+  in muted text; once the recap would pass 700 pixels the card says "More in the full
+  changelog."
+- **Chips:** what a recap sentence puts in backticks (a command or cvar: `` `whatsnew` ``)
+  is drawn as a chip, as messaging apps draw inline code (Sol, 12/10/2026): Exo 2 17
+  semibold on a faint holo fill with a holo edge, 25 high, rounded 6, 7 of room each
+  side. A chip is never split across lines; a full stop or comma written against it
+  stays with it. The changelog's parser keeps the backticks in recap sentences (it drops
+  them everywhere else) and rejects a recap line that leaves one open.
 - **Buttons:** Full changelog (outlined, 230) opens the changelog page, Close (gold, 150)
   puts the card away; focus starts on Close. Keys bottom right: Enter, Space, Esc or
   Backspace close, C opens the changelog.

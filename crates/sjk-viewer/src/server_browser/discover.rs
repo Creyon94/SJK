@@ -6,15 +6,42 @@ use sjk_network::{query_master, query_server_infos};
 use sjk_protocol::InfoString;
 use std::net::SocketAddr;
 
-/// Ask the master for its list and every server on it for its info, handing
-/// each row to `found` as it answers so the browser fills in while slow and
-/// dead servers are still timing out.
+/// Ask every master in `masters` (addresses apart by spaces, as
+/// [`crate::console::ViewerConsole::master_server`] joins `cl_master` and `cl_master2`)
+/// for its list at once, and every server on any of them, and every favourite
+/// (`favourites`, which no master need list: one added by its address), for its info,
+/// handing each row to `found` as it answers so the browser fills in while slow and
+/// dead servers are still timing out. A server some masters do not know still shows
+/// (Sol's report, 11/10/2026: servers were missing with one master); a master that
+/// fails is passed over while another answers. When every master fails the favourites
+/// are still asked, and the masters' error is returned after them.
 pub(super) fn discover(
-    master: &str,
+    masters: &str,
+    favourites: &[SocketAddr],
     found: impl FnMut(ServerEntry),
 ) -> Result<(), Box<dyn std::error::Error>> {
-    let mut addresses = query_master(master, MASTER_TIMEOUT)?;
+    let masters = master_list(masters);
+    let answers = std::thread::scope(|scope| {
+        let asking: Vec<_> = masters
+            .iter()
+            .map(|master| scope.spawn(move || query_master(*master, MASTER_TIMEOUT)))
+            .collect();
+        asking
+            .into_iter()
+            .map(|asked| {
+                asked
+                    .join()
+                    .unwrap_or(Err(sjk_network::NetworkError::NoResolvedAddress))
+            })
+            .collect::<Vec<_>>()
+    });
+    let (mut addresses, failure) = match merged(answers) {
+        Ok(addresses) => (addresses, None),
+        Err(error) if !favourites.is_empty() => (Vec::new(), Some(error)),
+        Err(error) => return Err(error.into()),
+    };
     addresses.truncate(MAX_BROWSER_SERVERS);
+    with_favourites(&mut addresses, favourites);
     if addresses.is_empty() {
         return Ok(());
     }
@@ -23,7 +50,19 @@ pub(super) fn discover(
         let ping_millis = round_trip.as_millis().min(u128::from(u32::MAX)) as u32;
         found(entry_from_info(address, &info, ping_millis));
     })?;
-    Ok(())
+    match failure {
+        Some(error) => Err(error.into()),
+        None => Ok(()),
+    }
+}
+
+/// Add the favourites the master did not list to `addresses`, each once.
+fn with_favourites(addresses: &mut Vec<SocketAddr>, favourites: &[SocketAddr]) {
+    for favourite in favourites {
+        if !addresses.contains(favourite) {
+            addresses.push(*favourite);
+        }
+    }
 }
 
 pub(crate) fn entry_from_info(
@@ -71,6 +110,44 @@ pub(crate) fn entry_from_info(
     }
 }
 
+/// The masters named in `list`, apart by spaces or commas, each once, in order.
+fn master_list(list: &str) -> Vec<&str> {
+    let mut masters: Vec<&str> = Vec::new();
+    for master in list.split(|c: char| c.is_whitespace() || c == ',') {
+        if !master.is_empty() && !masters.contains(&master) {
+            masters.push(master);
+        }
+    }
+    masters
+}
+
+/// Every address the masters answered with, each once, in order: an error only when no
+/// master answered (the first master's, which says why best).
+fn merged<E>(answers: Vec<Result<Vec<SocketAddr>, E>>) -> Result<Vec<SocketAddr>, E> {
+    let mut addresses = Vec::new();
+    let mut first_error = None;
+    let mut answered = false;
+    for answer in answers {
+        match answer {
+            Ok(list) => {
+                answered = true;
+                for address in list {
+                    if !addresses.contains(&address) {
+                        addresses.push(address);
+                    }
+                }
+            }
+            Err(error) => {
+                first_error.get_or_insert(error);
+            }
+        }
+    }
+    match first_error {
+        Some(error) if !answered => Err(error),
+        _ => Ok(addresses),
+    }
+}
+
 /// Bots among `players`, for stock's "real players" browser test.
 ///
 /// Stock's UI reads `filterBots` (`ui_main.c:9162`), but that key exists only inside the
@@ -108,5 +185,56 @@ pub(crate) fn gametype_name(value: Option<i32>) -> &'static str {
         Some(8) => "CTF",
         Some(9) => "CTY",
         _ => "Unknown",
+    }
+}
+
+#[cfg(test)]
+mod master_tests {
+    use super::{master_list, merged};
+    use std::net::SocketAddr;
+
+    #[test]
+    fn the_master_list_splits_on_spaces_and_commas_once_each() {
+        assert_eq!(
+            master_list(" master.jkhub.org:29060  master.ouned.de:29060,master.jkhub.org:29060 "),
+            ["master.jkhub.org:29060", "master.ouned.de:29060"]
+        );
+        assert!(master_list("  ").is_empty());
+    }
+
+    #[test]
+    fn the_masters_lists_merge_and_one_failing_master_is_passed_over() {
+        let a: SocketAddr = "192.0.2.1:29070".parse().unwrap();
+        let b: SocketAddr = "192.0.2.2:29070".parse().unwrap();
+        let c: SocketAddr = "192.0.2.3:29071".parse().unwrap();
+        assert_eq!(
+            merged::<&str>(vec![Ok(vec![a, b]), Ok(vec![b, c])]),
+            Ok(vec![a, b, c])
+        );
+        assert_eq!(merged(vec![Err("down"), Ok(vec![c])]), Ok(vec![c]));
+        assert_eq!(
+            merged::<&str>(vec![Err("first"), Err("second")]),
+            Err("first")
+        );
+        assert_eq!(merged::<&str>(Vec::new()), Ok(Vec::new()));
+    }
+}
+
+#[cfg(test)]
+mod favourite_tests {
+    use super::with_favourites;
+    use std::net::SocketAddr;
+
+    /// A favourite added by its address is asked even when no master lists it, once.
+    #[test]
+    fn favourites_no_master_lists_are_asked_too() {
+        let listed: SocketAddr = "192.0.2.1:29070".parse().unwrap();
+        let private: SocketAddr = "198.51.100.7:29071".parse().unwrap();
+        let mut addresses = vec![listed];
+        with_favourites(&mut addresses, &[listed, private]);
+        assert_eq!(addresses, [listed, private]);
+        let mut none = Vec::new();
+        with_favourites(&mut none, &[private]);
+        assert_eq!(none, [private]);
     }
 }

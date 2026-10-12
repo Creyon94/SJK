@@ -298,6 +298,15 @@ pub(crate) fn footsteps(
             state.read_foot_bolts |= state.weapon == WP_SABER;
             if state.weapon == WP_SABER {
                 let feet = (slope.feet)(state.origin, state.view_angles[1]);
+                if feet.is_none() && SLOPE_POSES.contains(&state.legs_anim) {
+                    // A client predicting without the model (no feet to read) keeps the
+                    // slope pose the server sent while it stands still. The cgame reads
+                    // its own model here; stepping back to the stance instead made the
+                    // legs flick between the pose and the stance after every snapshot
+                    // (Creyon's ledge and idle stutter, 11/10/2026).
+                    continue_legs(state, state.legs_anim);
+                    return;
+                }
                 if crate::pmove_slope::adjust_stand_for_slope(
                     state,
                     command,
@@ -628,5 +637,90 @@ pub(crate) fn idle_torso(state: &mut MovementState, command: &UserCommand) {
         );
     } else if !scoped_pose && scoped {
         start_torso(state, TORSO_WEAPONREADY4);
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::pmove::{
+        ENTITY_NUMBER_WORLD, MovementCollision, MovementConfig, MovementTrace, Predictor,
+    };
+    use sjk_protocol::PlayerState;
+
+    /// A floor at height 0.
+    struct Floor;
+    impl MovementCollision for Floor {
+        fn trace(
+            &self,
+            start: [f32; 3],
+            mins: [f32; 3],
+            _: [f32; 3],
+            end: [f32; 3],
+            _: u32,
+        ) -> MovementTrace {
+            if end[2] + mins[2] < 0.0 {
+                let fraction = (start[2] + mins[2]) / (start[2] - end[2]);
+                MovementTrace {
+                    fraction,
+                    end_position: [end[0], end[1], -mins[2]],
+                    plane_normal: [0.0, 0.0, 1.0],
+                    entity_number: ENTITY_NUMBER_WORLD,
+                    ..MovementTrace::miss(end)
+                }
+            } else {
+                MovementTrace::miss(end)
+            }
+        }
+    }
+
+    /// A saber carrier standing on the floor in the slope pose `legs`, as a snapshot from
+    /// a server that reads the feet on its model sends it.
+    fn standing_in(legs: u16) -> Predictor {
+        let mut player = PlayerState::default();
+        player.stats[0] = 100;
+        player.set_origin([0.0, 0.0, 24.0]);
+        player.set_gravity(800);
+        player.set_speed(250.0);
+        player.set_base_speed(250);
+        player.set_ground_entity_num(ENTITY_NUMBER_WORLD);
+        let mut predictor = Predictor::from_player_state(&player, MovementConfig::default());
+        // Every animation a second long: footsteps run only with the model's timings.
+        let timing = crate::pmove_anim::AnimationTiming {
+            frame_count: 20,
+            frame_lerp_ms: 50,
+        };
+        predictor.set_animation_lengths(std::sync::Arc::new(
+            crate::pmove_anim::AnimationLengthTable::new(vec![timing; 1_600]),
+        ));
+        let state = predictor.state_mut();
+        state.weapon = WP_SABER;
+        state.legs_anim = legs;
+        state.torso_anim = BOTH_STAND1;
+        predictor
+    }
+
+    #[test]
+    fn a_client_without_the_model_keeps_the_servers_slope_pose() {
+        // `LEGS_S1_LUP5`: one foot hanging over a ledge. Stepping back to the stance
+        // made the legs flick between the two after every snapshot. Every command step
+        // (125, 142, 250 and 333 FPS) keeps it.
+        for step in [8, 7, 4, 3] {
+            let mut predictor = standing_in(1_436);
+            for time in (step..=200).step_by(step as usize) {
+                predictor.predict_command(
+                    UserCommand {
+                        server_time: time,
+                        ..UserCommand::default()
+                    },
+                    &Floor,
+                );
+                assert_eq!(
+                    predictor.state().legs_anim,
+                    1_436,
+                    "at {time} ms, {step} ms steps"
+                );
+            }
+        }
     }
 }

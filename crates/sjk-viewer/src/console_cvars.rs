@@ -483,6 +483,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         ),
         CvarDefinition::new("cg_drawTimer", true, archive, "Display elapsed match time"),
         CvarDefinition::new(
+            "cg_drawTimerUpperRight",
+            false,
+            archive,
+            "Show the match time in the upper right under the frame rate, as JoF EJK does, not in the HUD layout",
+        ),
+        CvarDefinition::new(
             crate::version_overlay::CVAR,
             true,
             archive,
@@ -781,6 +787,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "SJK scoreboard: thin rows, so every player fits in one column, as wide as the names and centred",
         ),
         CvarDefinition::new(
+            crate::scoreboard::style::FPS_CVAR,
+            true,
+            archive,
+            "SJK scoreboard: show the frame rate on the header line, left of the clock",
+        ),
+        CvarDefinition::new(
             "cg_smallScoreboard",
             false,
             archive,
@@ -791,6 +803,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             true,
             archive,
             "Classic scoreboard: show each player's client ID",
+        ),
+        CvarDefinition::new(
+            crate::jof_tag::CVAR,
+            true,
+            archive,
+            "Show a known clan's emblem left of names carrying its tag (JoF, JoFA)",
         ),
         CvarDefinition::new(
             "cg_drawScoreboardIcons",

@@ -65,7 +65,7 @@ migrated, except where the table says so. Where each is documented:
 | `cl_maxpackets` | 125 | [User commands and move packets](networking.md#user-commands-and-move-packets) |
 | `gameplay_fps` | 0, Auto: movement at the FPS cap, a `pmove_fixed` server's step wins | [Gameplay FPS](client.md#gameplay-fps) |
 | `gameplay_fps_nocap` | 0: the known server caps (JoF's 125) hold | [User commands and move packets](networking.md#user-commands-and-move-packets) |
-| `cjp_client` | empty: `SJK` on JA+, `1.4JAPRO` on jaPRO (its client-support switch) | [Networking](networking.md) |
+| `cjp_client` | empty: `1.4 SJK` on JA+, `1.4JAPRO` on jaPRO (its client-support switch) | [Networking](networking.md) |
 | `rate` | 90000 (stock 25000), saved 25000 moved to 90000 once | [User commands and move packets](networking.md#user-commands-and-move-packets) |
 | rendering profile | noon, bloom, dust, material maps | [Default visual profile](rendering.md#default-visual-profile) |
 | `cl_consoleUseScanCode` | 1, saved 0 moved to 1 once | [Useful console commands](client.md#useful-console-commands) |
@@ -216,6 +216,8 @@ Every release carries a short recap (Sol's rule, 12/10/2026): three to six lines
 `> <Heading>: <one sentence>` between the release's title and its changes, in player
 words, each heading at most 28 characters and each sentence at most 160, grouped by
 what a player notices (servers, gameplay, tools, cards) rather than commit by commit.
+Put a command or cvar the player can type in backticks (`` `whatsnew` ``): the card
+draws it in a chip.
 The client's what's-new card shows them to a player the first time they open the game
 after updating ([sjk-ui.md](sjk-ui.md#whats-new-card)). Write the recap when the
 release is cut, from the "Unreleased" lines, in the same commit that renames the

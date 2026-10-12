@@ -23,8 +23,8 @@ pub(crate) const CONTROL_TOKEN: u16 = 820;
 
 /// The vote's block over the card: its top, and the side's line under the card's
 /// numbers.
-const VOTE_TOP: f32 = 166.0;
-const SIDE_TOP: f32 = 700.0;
+const VOTE_TOP: f32 = 66.0;
+const SIDE_TOP: f32 = 600.0;
 /// The card's buttons: their height and gap.
 const BUTTON: f32 = 40.0;
 const BUTTON_GAP: f32 = 12.0;

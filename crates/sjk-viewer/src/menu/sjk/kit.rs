@@ -393,6 +393,13 @@ pub(crate) fn field(
     let [x, y, width, height] = rect;
     pill(canvas, frame, rect, color::alpha(color::SPACE, 0.6));
     outline(canvas, frame, rect, edge(focused));
+    if focused && !caret && crate::text_entry::selection_shown() {
+        // Ctrl+A: the field's text is selected.
+        let _ = canvas.draw_list_mut().push(DrawCommand::SolidRect {
+            rect: frame.rect(x + 10.0, y + 6.0, width - 20.0, height - 12.0),
+            color: color::alpha(color::HOLO, 0.32),
+        });
+    }
     text(
         canvas,
         TextFamily::Body,

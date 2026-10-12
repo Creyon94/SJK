@@ -279,6 +279,10 @@ const HELP: &[(&str, &str)] = &[
     ),
     ("cg_drawTimer", "Shows the match time."),
     (
+        "cg_drawTimerUpperRight",
+        "Puts the match time in the upper right under the frame rate, as JoF EJK does, instead of in the HUD layout.",
+    ),
+    (
         crate::version_overlay::CVAR,
         "Shows SJK's version, build date and commit at the top, so screenshots say which build.",
     ),
@@ -444,6 +448,10 @@ const HELP: &[(&str, &str)] = &[
         "The master server the server browser asks for its list of servers.",
     ),
     (
+        "cl_master2",
+        "A second master server, asked at the same time; servers either one knows are listed. Empty asks only the first.",
+    ),
+    (
         "cl_autoUpdate",
         "Looks for a newer SJK release at start and every 30 minutes while SJK runs, and says so with a card. Install it from the Update page.",
     ),
@@ -515,8 +523,16 @@ const HELP: &[(&str, &str)] = &[
         "Thinner rows on SJK's scoreboard, so every player fits in one column, in a board as wide as its names, centred.",
     ),
     (
+        crate::scoreboard::style::FPS_CVAR,
+        "Shows your frame rate on SJK's scoreboard, left of the match clock.",
+    ),
+    (
         "cg_showClientIDs",
         "Shows each player's client number on the scoreboard.",
+    ),
+    (
+        crate::jof_tag::CVAR,
+        "Shows a clan's emblem (JoF, JoFA) left of a tagged player's name in the chat, on the scoreboard and on player cards.",
     ),
     (
         "cg_drawScoreboardIcons",

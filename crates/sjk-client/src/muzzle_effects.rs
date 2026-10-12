@@ -131,6 +131,9 @@ pub struct LegacyMuzzleEffects {
     seen_entity_epoch: [u32; MAX_LEGACY_ENTITIES],
     entity_epoch: u32,
     player_event_sequence: i32,
+    /// The last local fire event prediction flashed (its playerstate event sequence):
+    /// the snapshot that confirms it does not flash again.
+    predicted_through: Option<(u16, u16)>,
     requests: [Option<LegacyMuzzleEffectRequest>; MAX_CLIENTS],
     request_count: usize,
 }
@@ -150,9 +153,38 @@ impl LegacyMuzzleEffects {
             seen_entity_epoch: [0; MAX_LEGACY_ENTITIES],
             entity_epoch: 0,
             player_event_sequence: 0,
+            predicted_through: None,
             requests: [None; MAX_CLIENTS],
             request_count: 0,
         }
+    }
+
+    /// A fire event the local player's prediction raised, at presentation `time`:
+    /// `CG_FireWeapon` runs for predicted events (`CG_CheckPlayerstateEvents` on the
+    /// predicted state), so the flash starts with the shot and its sound, not when the
+    /// snapshot confirms it a round trip later. A replay of the same event (a sequence
+    /// already flashed) changes nothing.
+    pub fn observe_predicted(&mut self, client: u16, sequence: u16, event: u16, time: i32) {
+        if !matches!(event & EVENT_VALUE_MASK, EV_FIRE_WEAPON | EV_ALT_FIRE) {
+            return;
+        }
+        if self.predicted_covers(client, sequence) {
+            return;
+        }
+        let Some(state) = self.events.get_mut(usize::from(client)) else {
+            return;
+        };
+        state.fired_at = Some(time);
+        self.predicted_through = Some((client, sequence));
+    }
+
+    /// Whether prediction already flashed `client`'s event `sequence`: at or a little
+    /// before the last one it flashed (a far older number is a new session's; another
+    /// client is one being followed, whose events are not predicted).
+    fn predicted_covers(&self, client: u16, sequence: u16) -> bool {
+        self.predicted_through.is_some_and(|(predicted, through)| {
+            predicted == client && (0..64).contains(&(through.wrapping_sub(sequence) as i16))
+        })
     }
 
     /// Consume new `EV_FIRE_WEAPON`/`EV_ALT_FIRE` occurrences at a snapshot.
@@ -204,7 +236,9 @@ impl LegacyMuzzleEffects {
             let Some(event) = snapshot.player.event(slot) else {
                 continue;
             };
-            if matches!(event & EVENT_VALUE_MASK, EV_FIRE_WEAPON | EV_ALT_FIRE) {
+            if matches!(event & EVENT_VALUE_MASK, EV_FIRE_WEAPON | EV_ALT_FIRE)
+                && !self.predicted_covers(snapshot.player.client_num(), event_sequence as u16)
+            {
                 let client = usize::from(snapshot.player.client_num());
                 if client < MAX_CLIENTS {
                     self.events[client].fired_at = Some(snapshot.server_time);
@@ -275,5 +309,76 @@ impl LegacyMuzzleEffects {
     pub fn request(&self, client_num: u16) -> Option<LegacyMuzzleEffectRequest> {
         self.requests()
             .find(|request| request.client_num == client_num)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use sjk_protocol::PlayerState;
+
+    const WP_BRYAR_PISTOL: u32 = 4;
+
+    /// A snapshot at `time` whose player, client `client`, carries a Bryar shot at
+    /// event sequence `sequence` (the ring holds it in slot `sequence & 1`).
+    fn shot(client: u16, sequence: u32, time: i32) -> Snapshot {
+        let mut player = PlayerState::zero();
+        player.set_client_num(client);
+        player.set_raw_field(19, sequence + 1); // eventSequence
+        player.set_raw_field(27 + (sequence & 1) as usize, u32::from(EV_FIRE_WEAPON));
+        player.set_raw_field(47, WP_BRYAR_PISTOL);
+        Snapshot {
+            message_sequence: sequence as i32,
+            reliable_acknowledge: 0,
+            server_commands: Vec::new(),
+            server_time: time,
+            delta_from: None,
+            flags: 0,
+            area_mask: Vec::new(),
+            player,
+            vehicle_player: None,
+            entities: Vec::new(),
+            consumed_bits: 0,
+        }
+    }
+
+    fn flashing(muzzles: &mut LegacyMuzzleEffects, snapshot: &Snapshot, time: i32) -> bool {
+        muzzles.update(snapshot, time);
+        muzzles.request(snapshot.player.client_num()).is_some()
+    }
+
+    #[test]
+    fn a_predicted_shot_flashes_once_and_its_confirmation_adds_nothing() {
+        let mut muzzles = LegacyMuzzleEffects::new();
+        let before = shot(0, 0, 900);
+        muzzles.observe(&before);
+        // The shot is predicted at 1000, and replayed by a later prediction.
+        muzzles.observe_predicted(0, 1, EV_FIRE_WEAPON, 1_000);
+        assert!(flashing(&mut muzzles, &before, 1_010));
+        muzzles.observe_predicted(0, 1, EV_FIRE_WEAPON, 1_040);
+        assert!(!flashing(&mut muzzles, &before, 1_045));
+        // The snapshot confirming it, a round trip later, does not flash again: that
+        // second flash played the muzzle effect's sound a second time.
+        let confirmed = shot(0, 1, 1_080);
+        muzzles.observe(&confirmed);
+        assert!(!flashing(&mut muzzles, &confirmed, 1_090));
+        // The next shot, predicted, flashes.
+        muzzles.observe_predicted(0, 2, EV_ALT_FIRE, 1_200);
+        assert!(flashing(&mut muzzles, &confirmed, 1_205));
+    }
+
+    #[test]
+    fn an_unpredicted_or_followed_players_shot_flashes_from_the_snapshot() {
+        let mut muzzles = LegacyMuzzleEffects::new();
+        muzzles.observe_predicted(0, 1, EV_FIRE_WEAPON, 1_000);
+        // Following client 3, whose events have the same numbers.
+        let followed = shot(3, 1, 1_080);
+        muzzles.observe(&followed);
+        assert!(flashing(&mut muzzles, &followed, 1_090));
+        // No prediction at all (a demo): every snapshot shot flashes.
+        let mut demo = LegacyMuzzleEffects::new();
+        let first = shot(0, 1, 500);
+        demo.observe(&first);
+        assert!(flashing(&mut demo, &first, 505));
     }
 }

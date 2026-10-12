@@ -89,7 +89,7 @@ impl ClientMenu {
         }
     }
 
-    fn handle_browser_pointer(
+    pub(super) fn handle_browser_pointer(
         &mut self,
         token: u16,
         kind: UiEventKind,
@@ -109,6 +109,14 @@ impl ClientMenu {
                 return MenuAction::None;
             }
             let direction = delta.map_or(0, |delta| -delta.y.signum() as i32);
+            if self.menu_style == MenuStyle::Sjk && token == super::sjk::browser::PLAYERS_TOKEN {
+                // The details panel's players, not the server table.
+                self.browser.scroll_players(
+                    direction * super::sjk::browser::PLAYER_WHEEL_ROWS,
+                    super::sjk::browser::PLAYER_LINES,
+                );
+                return MenuAction::None;
+            }
             self.browser.scroll_by(direction * WHEEL_ROWS);
             return MenuAction::None;
         }
@@ -156,6 +164,7 @@ impl ClientMenu {
         };
         match token {
             ADDRESS_TOKEN => self.open_address_entry(),
+            super::browser_view::ADD_FAVOURITE_TOKEN => self.open_favourite_entry(),
             REFRESH_TOKEN | REFRESH_LIST_TOKEN => self.refresh(),
             INFO_TOKEN => self.classic_info = true,
             INFO_CLOSE_TOKEN => self.classic_info = false,
@@ -176,6 +185,7 @@ impl ClientMenu {
                 self.password.clear();
             }
             32 => return self.submit_password(console),
+            34 => self.remember_password = !self.remember_password,
             41 => self.address_editing = true,
             42 => {
                 self.address_editing = false;
@@ -214,6 +224,8 @@ impl ClientMenu {
             return MenuAction::None;
         }
         console.set_cvar("password", &self.password);
+        self.server_passwords
+            .update(&address, &self.password, self.remember_password);
         self.password_target = None;
         self.state.connecting(address.clone());
         MenuAction::Connect(address)

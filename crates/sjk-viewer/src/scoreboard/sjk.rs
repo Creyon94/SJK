@@ -142,6 +142,9 @@ pub(super) struct SjkHeader<'a> {
     pub(super) duel: Duelists,
     /// `cg_compactScoreboard`: thin rows, every player in one column.
     pub(super) compact: bool,
+    /// The frame rate to show left of the clock (`cg_scoreboardFps`), when on and
+    /// measured.
+    pub(super) fps: Option<u32>,
 }
 
 /// Measures runs before they are drawn, so what follows them can be placed:
@@ -700,10 +703,14 @@ impl Painter<'_> {
 
     /// The JoF emblem ([`crate::jof_tag`]) `side` tall with its ink from `x`, centred
     /// on `middle`, in the board's units.
-    fn jof(&mut self, x: f32, middle: f32, side: f32) {
+    fn jof(&mut self, name: &str, x: f32, middle: f32, side: f32) {
+        let Some(clan) = crate::jof_tag::clan(name) else {
+            return;
+        };
         let emblem = self.frame.rect(x, middle - side * 0.5, side, side);
         let list = self.ui.draw_list_mut();
         crate::jof_tag::draw(
+            clan,
             emblem.x,
             emblem.y + emblem.height * 0.5,
             emblem.height,
@@ -990,7 +997,31 @@ impl Painter<'_> {
             );
         }
         let standing_left = self.standing(rows);
-        self.clock(standing_left - 44.0);
+        let clock_left = self.clock(standing_left - 44.0);
+        self.frame_rate(clock_left - 44.0);
+    }
+
+    /// The frame rate ("240 fps") as the clock reads, ending at `right` (Sol's request,
+    /// 11/10/2026).
+    fn frame_rate(&mut self, right: f32) {
+        let Some(fps) = self.header.fps else {
+            return;
+        };
+        let word = "fps";
+        let word_width = self.width(TextFamily::Body, word, 17.0, FontWeight::Regular);
+        self.run(
+            TextFamily::Body,
+            format_args!("{word}"),
+            right - word_width - 4.0,
+            BAR_Y + 3.0,
+            word_width + 4.0,
+            17.0,
+            color::MUTED,
+            FontWeight::Regular,
+            TextAlign::End,
+        );
+        let value = Short::of(format_args!("{fps}"));
+        self.right_run(value.as_str(), right - word_width - 10.0, 32.0, color::TEXT);
     }
 
     /// Your place ("3rd of 14"), the teams' standing, or that you watch,
@@ -1064,11 +1095,11 @@ impl Painter<'_> {
     }
 
     /// The time left in a timed match ("14:32 left"), or the time played,
-    /// ending at `right`.
-    fn clock(&mut self, right: f32) {
+    /// ending at `right`; returns where it starts (`right` without a clock).
+    fn clock(&mut self, right: f32) -> f32 {
         let header = self.header;
         let Some(elapsed) = header.elapsed.map(|elapsed| elapsed.max(0)) else {
-            return;
+            return right;
         };
         let limit = header.limits.minutes.saturating_mul(60_000);
         let (time, word) = if limit > 0 && elapsed <= limit {
@@ -1089,7 +1120,7 @@ impl Painter<'_> {
             TextAlign::End,
         );
         let clock = Short::of(format_args!("{}:{:02}", time / 60_000, time / 1_000 % 60));
-        self.right_run(clock.as_str(), right - word_width - 10.0, 32.0, color::TEXT);
+        self.right_run(clock.as_str(), right - word_width - 10.0, 32.0, color::TEXT)
     }
 
     /// Before the server's first scores.
@@ -1314,7 +1345,7 @@ impl Painter<'_> {
             } else {
                 x + width - text_width - jof
             };
-            self.jof(start, name_y, crate::jof_tag::side(name_size));
+            self.jof(&row.name, start, name_y, crate::jof_tag::side(name_size));
         }
         let name_width = text_width + jof;
         if let Some(tag) = row.identity {
@@ -1644,7 +1675,12 @@ impl Painter<'_> {
         } + ready_width;
         let name_width = full_name.min((room - marks).max(0.0));
         if jof > 0.0 {
-            self.jof(columns.name, middle, crate::jof_tag::side(name_size));
+            self.jof(
+                &row.name,
+                columns.name,
+                middle,
+                crate::jof_tag::side(name_size),
+            );
         }
         self.run(
             TextFamily::Body,
@@ -1857,11 +1893,7 @@ impl fmt::Display for Facts {
 /// The room the JoF emblem takes before `name` set at `size` ([`crate::jof_tag`]), or
 /// 0 when the name has no JoF tag.
 fn jof_room(name: &str, size: f32) -> f32 {
-    if crate::jof_tag::tagged(name) {
-        crate::jof_tag::room(crate::jof_tag::side(size))
-    } else {
-        0.0
-    }
+    crate::jof_tag::room_for(name, crate::jof_tag::side(size))
 }
 
 #[cfg(test)]
@@ -1914,6 +1946,7 @@ mod tests {
             killer: None,
             duel: Duelists::default(),
             compact: false,
+            fps: None,
         }
     }
 
@@ -1944,6 +1977,54 @@ mod tests {
             .iter()
             .filter(|command| matches!(command, DrawCommand::Text { .. }))
             .count()
+    }
+
+    /// Sol's request (11/10/2026): the frame rate stands on the header line left of the
+    /// clock, its number in the clock's type with "fps" after it, clear of the mode on
+    /// the left; without a reading (or with `cg_scoreboardFps 0`) nothing shows.
+    #[test]
+    fn the_header_shows_the_frame_rate_left_of_the_clock() {
+        let rows: Vec<ScoreRow> = (0..8)
+            .map(|client| row(client, 0, 30 - client as i32))
+            .collect();
+        let runs = |ui: &MenuCanvas| -> Vec<(String, Rect, f32)> {
+            ui.draw_list()
+                .commands()
+                .iter()
+                .filter_map(|command| match *command {
+                    DrawCommand::Text {
+                        rect, text, size, ..
+                    } => Some((ui.stored_text(text).to_owned(), rect, size)),
+                    _ => None,
+                })
+                .collect()
+        };
+        for viewport in VIEWPORTS {
+            let mut shown = header(0, 0);
+            shown.fps = Some(240);
+            let ui = draw(&rows, &shown, viewport);
+            let texts = runs(&ui);
+            let find = |text: &str| {
+                texts
+                    .iter()
+                    .find(|(drawn, ..)| drawn == text)
+                    .unwrap_or_else(|| panic!("{text:?} not in {texts:?}"))
+                    .clone()
+            };
+            let (_, number, number_size) = find("240");
+            let (_, word, _) = find("fps");
+            let (_, clock, clock_size) = find("14:32");
+            let (_, mode, _) = find("Free for all · 30 frags · 20 minutes");
+            assert_eq!(number_size, clock_size, "{viewport:?}: the clock's type");
+            assert!(number.right() <= word.x + 1.0, "{viewport:?}");
+            assert!(word.right() < clock.x, "{viewport:?}: {word:?} {clock:?}");
+            assert!(mode.right() < number.x, "{viewport:?}: {mode:?} {number:?}");
+            let without = draw(&rows, &header(0, 0), viewport);
+            assert!(
+                runs(&without).iter().all(|(text, ..)| text != "fps"),
+                "{viewport:?}"
+            );
+        }
     }
 
     /// 16:9 at 1080 lines and 4K, 5:4, 4:3, 21:9 and 32:9.

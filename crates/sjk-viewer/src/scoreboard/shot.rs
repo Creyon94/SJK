@@ -339,6 +339,7 @@ pub(super) fn append(gpu: &mut crate::GpuState, viewport: [f32; 2]) {
         killer: shot.killer,
         duel: shot.duel,
         compact: super::style::compact(gpu.console.as_ref()),
+        fps: super::style::fps(gpu.console.as_ref()).then_some(240),
     };
     let measure = match gpu.game_fonts.sjk_metrics() {
         Some((display, body)) => Measure {
@@ -436,6 +437,7 @@ mod tests {
             killer: shot.killer,
             duel: shot.duel,
             compact,
+            fps: Some(240),
         }
     }
 

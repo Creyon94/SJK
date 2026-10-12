@@ -32,12 +32,14 @@ impl ServerBrowser {
         }
         self.details.retry();
         let master = self.master.clone();
+        let favourites: Vec<_> = self.favorites.iter().copied().collect();
         let (sender, receiver) = mpsc::channel();
         thread::spawn(move || {
             let found = |entry| {
                 let _ = sender.send(Fetched::Row(entry));
             };
-            let result = discover::discover(&master, found).map_err(|error| error.to_string());
+            let result =
+                discover::discover(&master, &favourites, found).map_err(|error| error.to_string());
             let _ = sender.send(Fetched::Done(result));
         });
         self.replace_on_first_row = true;

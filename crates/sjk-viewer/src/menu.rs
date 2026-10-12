@@ -180,6 +180,14 @@ pub(crate) struct ClientMenu {
     password_target: Option<String>,
     password: String,
     address_editing: bool,
+    /// What the address prompt is for ([`controller::AddressPurpose`]).
+    address_purpose: controller::AddressPurpose,
+    /// The answer of the host name lookup of a favourite being added.
+    favourite_lookup: Option<std::sync::mpsc::Receiver<Result<std::net::SocketAddr, String>>>,
+    /// Passwords of locked servers remembered on this PC ([`crate::server_passwords`]).
+    server_passwords: crate::server_passwords::ServerPasswords,
+    /// Whether the open password prompt remembers what is typed (on unless switched off).
+    remember_password: bool,
     address_input: String,
     address_error: String,
     backdrop: Option<crate::menu_backdrop::Backdrop>,
@@ -263,6 +271,10 @@ impl ClientMenu {
             first_setup_offered: false,
             password: String::with_capacity(64),
             address_editing: false,
+            address_purpose: controller::AddressPurpose::Join,
+            favourite_lookup: None,
+            server_passwords: crate::server_passwords::ServerPasswords::load(),
+            remember_password: true,
             address_input: String::with_capacity(256),
             address_error: String::with_capacity(96),
             backdrop: None,
@@ -731,6 +743,11 @@ impl ClientMenu {
             self.keybinds.poll_icons();
         }
         self.poll_local_server();
+        self.poll_favourite_lookup();
+        if !self.field_open() {
+            // A selection ends with the field.
+            crate::text_entry::deselect();
+        }
         let browser_visible = matches!(self.state.phase(), ClientPhase::Browser);
         if browser_visible {
             self.browser.tick_details();
@@ -785,6 +802,10 @@ impl ClientMenu {
             }
             KeyCode::KeyC => {
                 self.open_address_entry();
+                MenuAction::None
+            }
+            KeyCode::KeyA if self.menu_style == MenuStyle::Sjk => {
+                self.open_favourite_entry();
                 MenuAction::None
             }
             KeyCode::KeyR => {
@@ -844,6 +865,17 @@ impl ClientMenu {
         event: &KeyEvent,
         console: &mut ViewerConsole,
     ) -> MenuAction {
+        self.key_event(event, console, false)
+    }
+
+    /// `handle_key`; `pasted` for the event a paste made of the clipboard's text, which is
+    /// typed as it is and never read as another paste.
+    fn key_event(
+        &mut self,
+        event: &KeyEvent,
+        console: &mut ViewerConsole,
+        pasted: bool,
+    ) -> MenuAction {
         if !self.is_visible() || event.state != ElementState::Pressed {
             return MenuAction::None;
         }
@@ -854,8 +886,67 @@ impl ClientMenu {
         {
             return self.sjk_home_typing(event, console);
         }
-        if event.repeat {
+        // A field that is open takes held keys (Backspace deletes on, a letter types on);
+        // every other key acts once.
+        let field_open = self.field_open();
+        let (shift, control) = (console.shift_held(), console.control_held());
+        if event.repeat && !(field_open && repeats_in_a_field(event, control)) {
             return MenuAction::None;
+        }
+        // The pages' own fields (settings, key bindings, character, create game) read
+        // `event.text`: Ctrl+C copies the field, Ctrl+V types the clipboard's line.
+        if field_open
+            && !pasted
+            && !self.address_editing
+            && self.password_target.is_none()
+            && !matches!(self.state.phase(), ClientPhase::Browser)
+            && let PhysicalKey::Code(key) = event.physical_key
+        {
+            let text = event.text.as_deref();
+            if let Some(field) = self.page_field_text() {
+                if crate::text_entry::is_select_all(key, text, control) {
+                    crate::text_entry::select_all(field);
+                    return MenuAction::None;
+                }
+                if crate::text_entry::is_selected(field)
+                    && !crate::text_entry::is_copy(key, text, control)
+                {
+                    // All of it is selected: Backspace or Delete clears it, typing or a
+                    // paste replaces it; the field is erased with Backspaces, whatever
+                    // it is, and the key goes on.
+                    let chars = field.chars().count();
+                    let erases = matches!(key, KeyCode::Backspace | KeyCode::Delete);
+                    let replaces = erases
+                        || crate::sjk_chat_field::is_paste(key, text, shift, control)
+                        || (!control
+                            && text.is_some_and(|text| {
+                                !text.is_empty() && text.chars().all(|c| !c.is_control())
+                            }));
+                    crate::text_entry::deselect();
+                    if replaces {
+                        self.erase_field(event, console, chars);
+                    }
+                    if erases {
+                        return MenuAction::None;
+                    }
+                }
+            }
+            if crate::text_entry::is_copy(key, text, control) {
+                if let Some(field) = self.page_field_text()
+                    && !field.is_empty()
+                {
+                    let _ = crate::console::clipboard::copy(field);
+                }
+                return MenuAction::None;
+            }
+            if crate::sjk_chat_field::is_paste(key, text, shift, control) {
+                let typed = crate::console::clipboard::paste()
+                    .and_then(|clipboard| crate::text_entry::pasted_event(event, &clipboard));
+                return match typed {
+                    Some(typed) => self.key_event(&typed, console, true),
+                    None => MenuAction::None,
+                };
+            }
         }
         if self.address_editing {
             let PhysicalKey::Code(key) = event.physical_key else {
@@ -866,19 +957,17 @@ impl ClientMenu {
                     self.address_editing = false;
                     self.address_error.clear();
                 }
-                KeyCode::Backspace => {
-                    self.address_input.pop();
-                    self.address_error.clear();
-                }
                 KeyCode::Enter | KeyCode::NumpadEnter => return self.submit_address(),
                 _ => {
-                    if let Some(text) = event
-                        .text
-                        .as_deref()
-                        .filter(|text| text.chars().all(|character| !character.is_control()))
-                    {
-                        let remaining = 255_usize.saturating_sub(self.address_input.len());
-                        self.address_input.extend(text.chars().take(remaining));
+                    if crate::text_entry::edit(
+                        &mut self.address_input,
+                        key,
+                        event.text.as_deref(),
+                        shift,
+                        control,
+                        255,
+                        true,
+                    ) {
                         self.address_error.clear();
                     }
                 }
@@ -894,34 +983,35 @@ impl ClientMenu {
                     self.password_target = None;
                     self.password.clear();
                 }
-                KeyCode::Backspace => {
-                    self.password.pop();
-                }
                 KeyCode::Enter | KeyCode::NumpadEnter if !self.password.is_empty() => {
                     console.set_cvar("password", &self.password);
+                    self.server_passwords
+                        .update(&address, &self.password, self.remember_password);
                     self.password_target = None;
                     self.state.connecting(address.clone());
                     return MenuAction::Connect(address);
                 }
                 _ => {
-                    if let Some(text) = event
-                        .text
-                        .as_deref()
-                        .filter(|text| text.chars().all(|character| !character.is_control()))
-                    {
-                        self.password.push_str(text);
-                    }
+                    // A password is typed and pasted, never copied back out.
+                    crate::text_entry::edit(
+                        &mut self.password,
+                        key,
+                        event.text.as_deref(),
+                        shift,
+                        control,
+                        128,
+                        false,
+                    );
                 }
             }
             return MenuAction::None;
         }
         if matches!(self.state.phase(), ClientPhase::Browser) && self.filter_editing {
-            if let Some(text) = event
-                .text
-                .as_deref()
-                .filter(|text| text.chars().all(|character| !character.is_control()))
+            if let PhysicalKey::Code(key) = event.physical_key
+                && self
+                    .browser
+                    .edit_filter(key, event.text.as_deref(), shift, control)
             {
-                self.browser.push_filter(text);
                 return MenuAction::None;
             }
         }
@@ -986,6 +1076,44 @@ impl ClientMenu {
             ClientPhase::Connecting(_) | ClientPhase::ConnectionError | ClientPhase::InGame => {
                 MenuAction::None
             }
+        }
+    }
+
+    /// Whether a field takes the keys: the address or password prompt, the browser's
+    /// search, or a field of the page on show.
+    fn field_open(&self) -> bool {
+        self.address_editing
+            || self.password_target.is_some()
+            || match self.state.phase() {
+                ClientPhase::Browser => self.filter_editing,
+                ClientPhase::Settings => self.settings.typing(),
+                ClientPhase::Keybinds => self.keybinds.typing(),
+                ClientPhase::Player => self.player.typing(),
+                ClientPhase::CreateGame => self.create_game.typing(),
+                _ => false,
+            }
+    }
+
+    /// Erase `chars` characters of the field that has the keys, as that many Backspaces.
+    fn erase_field(&mut self, event: &KeyEvent, console: &mut ViewerConsole, chars: usize) {
+        let mut backspace = event.clone();
+        backspace.physical_key = PhysicalKey::Code(KeyCode::Backspace);
+        backspace.logical_key = winit::keyboard::Key::Named(winit::keyboard::NamedKey::Backspace);
+        backspace.text = None;
+        backspace.repeat = false;
+        for _ in 0..chars {
+            let _ = self.key_event(&backspace, console, true);
+        }
+    }
+
+    /// The text of the open field of the page on show, for Ctrl+C.
+    fn page_field_text(&self) -> Option<&str> {
+        match self.state.phase() {
+            ClientPhase::Settings => self.settings.field_text(),
+            ClientPhase::Keybinds => self.keybinds.field_text(),
+            ClientPhase::Player => self.player.field_text(),
+            ClientPhase::CreateGame => self.create_game.field_text(),
+            _ => None,
         }
     }
 
@@ -1249,4 +1377,15 @@ impl ClientMenu {
     ) {
         self.player.saber_for_shot(console, search, typing, unlocks);
     }
+}
+
+/// Whether a held `event` repeats in an open text field: Backspace, or a key that types
+/// (not with Ctrl held: a held Ctrl+V pastes once).
+fn repeats_in_a_field(event: &KeyEvent, control: bool) -> bool {
+    matches!(event.physical_key, PhysicalKey::Code(KeyCode::Backspace))
+        || (!control
+            && event
+                .text
+                .as_deref()
+                .is_some_and(|text| !text.is_empty() && text.chars().all(|c| !c.is_control())))
 }

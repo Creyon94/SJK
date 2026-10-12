@@ -171,6 +171,7 @@ impl Scoreboard {
         fonts: &mut GameFonts,
         options: Option<&crate::console::ViewerConsole>,
         flags: classic::FlagIcons,
+        fps: Option<u32>,
         vertices: &mut Vec<TextVertex>,
         font: &UiFont,
         viewport: [f32; 2],
@@ -220,6 +221,7 @@ impl Scoreboard {
                     ..duelists(game)
                 },
                 compact: style::compact(options),
+                fps: fps.filter(|_| style::fps(options)),
             };
             // Measured in the families that will draw the text.
             let measure = match fonts.sjk_metrics() {
@@ -528,11 +530,13 @@ pub(crate) fn append_overlay(gpu: &mut crate::GpuState, viewport: [f32; 2], scal
         blue: gpu.hud.icons.powerup(5),
         neutral: gpu.hud.icons.powerup(6),
     };
+    let fps = gpu.frame_pacer.fps();
     gpu.scoreboard.append(
         session,
         &mut gpu.game_fonts,
         options,
         flags,
+        fps,
         &mut gpu.text_vertices,
         &gpu.ui_font,
         viewport,

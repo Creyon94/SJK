@@ -117,6 +117,12 @@ impl ViewerConsole {
                 "Legacy protocol-26 master server",
             ),
             CvarDefinition::new(
+                "cl_master2",
+                "master.ouned.de:29060",
+                CvarFlags::ARCHIVE,
+                "Second protocol-26 master server, asked with cl_master and its list merged",
+            ),
+            CvarDefinition::new(
                 "ui_rankChange",
                 0_i64,
                 CvarFlags::NONE,

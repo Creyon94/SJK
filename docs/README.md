@@ -17,7 +17,7 @@ and changed together. Begin with the status page, then the architecture.
 | [SJK conventions](sjk.md) | Branches, names, defaults, versions, releases, changelog, credits and debug panel |
 | [Classic+ menus](classic-plus.md) | SJK's modernised classic pages: rules, layout and code recipe |
 | [SJK UI](sjk-ui.md) | SJK's own menus (`ui_menuStyle sjk`): design, tokens, screens and plan |
-| [Player identity](identity.md) | SJK's identity key, the hub, scoreboard badges, medals, the JoF clan tag: design, limits and privacy |
+| [Player identity](identity.md) | SJK's identity key, the hub, scoreboard badges, medals, clan tags: design, limits and privacy |
 | [SJK chat and emotes](hub-chat.md) | The chat every SJK player shares through the hub, and the emotes path |
 | [Holocron drops](holocrons.md) | Loot earned by playing: tiers, odds, caps, the active flag, the pop-up, chat lines, the staff tools and the list other screens read |
 | [Cards](cards.md) | Planned: what opening a holocron will give (collectible cards, finishes, editions, odds); not built |

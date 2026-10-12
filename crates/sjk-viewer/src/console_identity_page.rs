@@ -84,7 +84,9 @@ impl ViewerConsole {
         if !self.identity_panel.is_open() {
             return false;
         }
-        let action = self.identity_panel.handle_key(event, self.shift);
+        let action = self
+            .identity_panel
+            .handle_key(event, self.shift, self.control);
         self.identity_panel_action(action);
         true
     }

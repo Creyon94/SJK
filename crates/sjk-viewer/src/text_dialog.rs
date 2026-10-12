@@ -436,10 +436,27 @@ impl TextDialog {
             // The arrows walk the buttons as Tab does.
             KeyCode::ArrowLeft | KeyCode::ArrowUp => self.step_focus(true),
             KeyCode::ArrowRight | KeyCode::ArrowDown => self.step_focus(false),
+            _ if self.focus == Focus::Field
+                && crate::text_entry::is_select_all(key, text, self.control) =>
+            {
+                self.edit.select_all(&self.text);
+                self.moved();
+            }
             _ if self.focus == Focus::Field => {
+                if crate::text_entry::is_copy(key, text, self.control) {
+                    let _ = crate::console::clipboard::copy(&self.text);
+                    return Action::None;
+                }
                 let pasted;
                 let text = match text {
-                    Some("\u{16}") => {
+                    // Ctrl+V (Windows hands the letter without Ctrl) or Shift+Insert.
+                    text if crate::sjk_chat_field::is_paste(
+                        key,
+                        text,
+                        self.shift,
+                        self.control,
+                    ) =>
+                    {
                         pasted = crate::console::clipboard::paste().unwrap_or_default();
                         pasted.as_str()
                     }

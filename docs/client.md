@@ -314,6 +314,14 @@ Settings and SJK in place of retail's Controls and Setup:
   its cells, since the menu canvas gives the pointer to the region registered
   last.
 
+Both browsers ask two master servers at once and list every server either knows,
+each once ([discover.rs](../crates/sjk-viewer/src/server_browser/discover.rs)):
+`cl_master` (`master.jkhub.org:29060`) and `cl_master2` (`master.ouned.de:29060`,
+the second master JKHub recommends; empty asks only the first), both in Settings >
+Network. A master that fails is passed over while the other answers. With
+`master.jkhub.org` alone, servers that list themselves only with the other master
+were missing (Sol's report, 11/10/2026).
+
 Join Server opens retail's join-server screen (`ui/jamp/joinserver.menu`) on
 the same browser as the SJK UI's, so the list, favourites, filters and sorting
 carry over between styles. Labels and buttons are in capitals:
@@ -340,6 +348,12 @@ carry over between styles. Labels and buttons are in capitals:
 - BACK returns to the Play page, EXIT to the quit page (not shown when the
   browser was opened from the game menu), JOIN joins the selected server (a
   double-click on a row too).
+
+Server names, rules and players' names arrive in the game's byte charset, not UTF-8:
+the browser reads them byte by byte as the game reads chat (UTF-8 when the bytes are
+UTF-8), so `»`, `«`, `§` or `·` show as themselves. Until 11/10/2026 a server whose host
+name had such a byte was dropped from the list (its info was refused as not UTF-8), and
+players' names showed `?` for them.
 
 The status line under the list shows the fetch progress where retail showed
 the refresh time, and the description line shows the hovered item's
@@ -1293,6 +1307,13 @@ from the same point. That origin is the entity's `pos.trBase`, where codemp
 evaluates its trajectory, so a door that turns back halfway sounds from where
 its move began.
 
+The start and end sounds come from the mover's soundset (`CS_AMBIENT_SET`): `G_PlayDoorSound`
+raises `EV_PLAYDOORSOUND` (71) on a door, plat or button with one, and scripts and
+breakables raise `EV_BMODEL_SOUND` (73); both play the soundset's sound for the stage, and
+`EV_PLAYDOORSOUND` nothing without a soundset (`CG_PlayDoorSound`). Until 12/10/2026 SJK
+answered only 73, taking it for the door event, so doors with a soundset were silent on
+every server (Creyon's report: some maps' doors).
+
 A vehicle's own `EV_FIRE_WEAPON` and `EV_ALT_FIRE` (an `ET_NPC` of `CLASS_VEHICLE`)
 play nothing, as in `CG_EntityEvent` (`cg_event.c:2751-2760`, `:2779-2784`): they used
 to play the flash sound of whichever ordinary gun the vehicle's `weapon` field named.
@@ -1857,6 +1878,12 @@ restore Y global chat if needed and free; other occupied keys stay unchanged.
 This migration advances `cl_bindDefaultsVersion` to 3. Use
 `bind u messagemode3` to select U explicitly. No message is sent until Enter.
 
+`amcolor <red> <green> <blue>` (EternalJK's `amColor`) sets the player tint, the archived
+`char_color_red`, `_green` and `_blue` userinfo cvars, each 0 to 255, so the server gets
+it at once and it is kept for the next connect; bare, it prints the current tint
+([am_color.rs](../crates/sjk-viewer/src/am_color.rs)). Before, `amcolor` went to the
+server as an unknown command and the tint was lost on reconnect.
+
 `reply <message>` (JoF EternalJK's) whispers to the last player who whispered to
 you; a bare `reply`, bindable as "Reply to last whisper" in Settings > Key bindings >
 Other (unbound by default), opens the composer on that whisper instead. Tab in the
@@ -1864,6 +1891,11 @@ composer reaches the same whisper after SJK (All, Team, SJK, the last whisperer)
 Your own whispers, which the server echoes back, do not count; when nobody has
 whispered, or the player left or renamed, `reply` says so and sends nothing
 ([chat/reply.rs](../crates/sjk-viewer/src/chat/reply.rs)).
+
+`showplayerid` (JoF EternalJK's `showPlayerId`) lists each player in the console: the
+client number, a team letter (F free, R red, B blue, S spectator), the name
+and ` (bot)` after bots, then `Listed N clients`. Commands that take a client number
+use it ([player_ids.rs](../crates/sjk-viewer/src/player_ids.rs)).
 
 `cg_chatRememberChannel` (default 1, Settings > HUD > Remember chat channel)
 makes the chat key (`messagemode`) open the composer on the channel of the last
@@ -1990,7 +2022,9 @@ and the game-data HUD; chat stays, `scoreboard::hides_hud`), unless
   ([SJK UI](sjk-ui.md#scoreboard)): columns floating over the darkened game in
   the UI's type, the teams side by side, the duelists as facing cards. Its
   compact rows (`cg_compactScoreboard`, on by default) keep a full server in
-  one column, in a board as wide as its names, centred clear of the chat;
+  one column, in a board as wide as its names, centred clear of the chat; its
+  header shows the frame rate left of the clock (`cg_scoreboardFps`, on by
+  default; Settings > Scoreboard > "Scoreboard frame rate");
 - `classic`, the retail scoreboard as EternalJK-derived clients such as JoF EJK
   draw it (below).
 
@@ -2077,6 +2111,18 @@ installed. `cg_hudPack` names the PK3 whose HUD to use when several replace
 `ui/hud.menu` (`assets1.pk3` is the original); empty, the one installed last
 wins, as in the game. See [game-data HUD](rendering.md#game-data-hud) for what
 is drawn.
+
+The upper right stacks the readouts as JoF EJK's `CG_DrawUpperRight` does, in every
+HUD style ([console_overlay.rs](../crates/sjk-viewer/src/console_overlay.rs)): with
+`cg_drawFPS` the frame rate ("125fps", JoF EJK's big console characters, measured over
+half a second) and, smaller under it, the frame times ("host 2.44 ms · p99 3.83 · max
+4.87 · 1% low 115"; Sol's request, 11/10/2026: the long single line, tidier); then with
+`cg_drawTimer` with `cg_drawTimerUpperRight` (off by default) the match clock ("0:04.419"
+with `cg_drawTimerMsec`, counting down with `cg_drawTimerCountdown`), right-aligned 5 of
+480 from the edge, under `cg_drawUpperRight`. Without that option the layouts keep their own
+clock at the top centre (Sol's choice, 12/10/2026); with it that clock steps aside. The
+game-data HUD draws no clock of its own, so `cg_drawTimer` showed nothing there until the
+option existed (Creyon's report, 11/10/2026). The kill feed stands under the stack.
 
 In SJK's own layouts, health and armour over the maximum (125 health at spawn, up
 to 199 armour from a large shield picked up at 99) show on their meter: the meter
