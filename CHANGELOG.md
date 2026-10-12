@@ -51,6 +51,7 @@ Creyon's seventeen pull requests: fixes for ledges, dropped sabers, doors and mu
 - JA+ grapple hook: its rope shows again and the hook holds after you release `+button12`. SJK names itself 1.4 SJK to JA+ servers (`amstatus`), as a bare SJK made them treat it as a client without the JA+ plugin _(Sol)_
 - The What's new card puts each recap heading, with an icon, above its sentence, turns through the releases you skipped a page each (Left and Right), says who made each release, and shows commands and settings (such as `whatsnew`) in chips: click one to open its setting, or to type it in the console _(Sol)_
 - The changelog page shows commands and settings in chips too, clickable the same way _(Sol)_
+- An electrified player crackles (a DEMP2 hit, a JoF admin login), at the same rate at any frame rate _(Creyon, after JoF EJK)_
 
 ## 2026.1012.1 (Alpha) | 12/10/2026
 

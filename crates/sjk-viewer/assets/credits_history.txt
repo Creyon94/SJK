@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 12/10/2026 | - | Creyon's PR #95: crackle while electrified
+- 4715192 |  | Credits and changelog for Creyon's PR #95
 + 12/10/2026 | - | Holocrons open: sealed cards, credits, the ceremony and a Cards tab
 - 7a03c82 |  | Open holocrons: sealed cards and credits, the ceremony and a Cards tab
 + 12/10/2026 | - | GIF picker search field takes Ctrl+A
@@ -1171,6 +1173,8 @@
 - 0d215f1 |  | Initial JKR source
 
 = Creyon
++ 12/10/2026 | SJK #95 | Crackle while a player is electrified (the JoF amlogin sound)
+- 3623d1e |  | Crackle while a player is electrified (the JoF amlogin sound)
 + 12/10/2026 | SJK #94 | Keep the amcolor tint across reconnects
 - df744da |  | Keep the amcolor tint across reconnects
 + 12/10/2026 | SJK #93 | Add JoF EJK's showplayerid console command
