@@ -500,7 +500,7 @@ impl Card {
                             x: TEXT_X + INDENT,
                             y: y + HEADING_HEIGHT,
                             colour: color::TEXT,
-                            code_family: TextFamily::Body,
+                            code_family: TextFamily::Code,
                         },
                         Some(&mut chip_token),
                     );
@@ -514,7 +514,7 @@ impl Card {
                         x: TEXT_X,
                         y,
                         colour: color::MUTED,
-                        code_family: TextFamily::Body,
+                        code_family: TextFamily::Code,
                     },
                     Some(&mut chip_token),
                 ),
@@ -543,7 +543,7 @@ impl Card {
                     x: TEXT_X,
                     y: y + CREDIT_GAP,
                     colour: color::alpha(color::GOLD, 0.85),
-                    code_family: TextFamily::Body,
+                    code_family: TextFamily::Code,
                 },
                 None,
             );

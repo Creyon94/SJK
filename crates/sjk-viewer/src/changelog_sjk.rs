@@ -225,7 +225,7 @@ impl Panel {
                         x: NOTES_X,
                         y,
                         colour: color::MUTED,
-                        code_family: TextFamily::Body,
+                        code_family: TextFamily::Code,
                     },
                     Some(&mut chip_token),
                 ),
@@ -250,7 +250,7 @@ impl Panel {
                             x: NOTES_X + INDENT,
                             y,
                             colour: color::alpha(color::TEXT, 0.92),
-                            code_family: TextFamily::Body,
+                            code_family: TextFamily::Code,
                         },
                         Some(&mut chip_token),
                     );
