@@ -150,6 +150,45 @@ impl CosmeticsMenu {
         self.set(console, slot, name.as_deref());
     }
 
+    /// Wear piece `index` of `slot`, or nothing in it (`None`): the SJK UI's
+    /// picker, where a click on a piece always wears it.
+    pub(super) fn wear(
+        &mut self,
+        console: &mut ViewerConsole,
+        slot: CosmeticSlot,
+        index: Option<usize>,
+    ) {
+        let name = match index {
+            Some(index) => {
+                let Some(name) = self
+                    .catalog()
+                    .and_then(|catalog| catalog.pieces(slot).get(index))
+                    .map(|piece| piece.name.clone())
+                else {
+                    return;
+                };
+                self.cursor[slot.index()] = index;
+                Some(name)
+            }
+            None => None,
+        };
+        self.set(console, slot, name.as_deref());
+    }
+
+    /// Whether JoF's catalogue has pieces of `slot` this client has not installed.
+    pub(super) fn has_missing(&self, slot: CosmeticSlot) -> bool {
+        self.catalog()
+            .is_some_and(|catalog| catalog.has_missing(slot))
+    }
+
+    /// The listed name of piece `index` of `slot`.
+    pub(super) fn display(&self, slot: CosmeticSlot, index: usize) -> Option<&str> {
+        self.catalog()?
+            .pieces(slot)
+            .get(index)
+            .map(|piece| piece.display.as_str())
+    }
+
     /// Take off both pieces (JoF's Remove All).
     pub(super) fn clear(&mut self, console: &mut ViewerConsole) {
         for slot in CosmeticSlot::ALL {

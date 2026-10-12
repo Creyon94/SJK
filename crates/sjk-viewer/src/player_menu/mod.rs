@@ -21,6 +21,7 @@ mod part_icons;
 mod pointer;
 mod rows;
 mod saber;
+mod sjk_outfit;
 mod sjk_view;
 mod team_filter;
 
@@ -199,6 +200,10 @@ pub(crate) struct PlayerMenu {
     sjk_hilts: [sjk_view::HiltList; 2],
     /// The SJK UI Saber page's blade: the stock one or a blade skin owned.
     blade_choice: blade_skins::BladeChoice,
+    /// The SJK UI Character page's turn of the model (dragged with the pointer).
+    turn: sjk_outfit::Turn,
+    /// The SJK UI Character page's hat and cape picker, while open.
+    outfit: Option<sjk_outfit::Picker>,
     /// The Force level last bought and when (menu clock seconds), for the
     /// ring the SJK UI sends out from it.
     sjk_burst: Option<(usize, u8, f64)>,
@@ -251,6 +256,8 @@ impl PlayerMenu {
             sjk: false,
             sjk_hilts: Default::default(),
             blade_choice: blade_skins::BladeChoice::new(),
+            turn: sjk_outfit::Turn::default(),
+            outfit: None,
             sjk_burst: None,
             classic: classic::ClassicState::default(),
             classic_dirty: false,

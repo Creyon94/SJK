@@ -63,6 +63,11 @@ impl PlayerMenu {
             return PlayerMenuResult::None;
         }
         if self.is_sjk()
+            && let Some(result) = self.outfit_pointer(event.kind, token, event.delta, console)
+        {
+            return result;
+        }
+        if self.is_sjk()
             && !self.name_editing
             && !self.search_editing
             && let Some(result) = self.sjk_pointer(

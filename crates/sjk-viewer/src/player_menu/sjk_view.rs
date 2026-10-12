@@ -299,12 +299,23 @@ impl PlayerMenu {
             self.sjk_preview(&frame);
         }
         self.sjk_top(&frame);
+        self.turn.advance(crate::menu::art::motion::seconds());
+        if self.model_turns() {
+            // First, so every control over the model keeps the pointer.
+            self.outfit_turn_area(&frame, MODEL_AREA);
+        }
         match self.page {
             ProfilePage::Character => self.sjk_character(&frame),
             ProfilePage::Saber => self.sjk_saber(&frame),
             ProfilePage::Force => self.sjk_force(&frame),
         }
         self.sjk_caption(&frame);
+        // Under the model's feet: it turns when dragged (`sjk_outfit.rs`).
+        self.sjk_turn_hint(
+            &frame,
+            MODEL_AREA[0] + MODEL_AREA[2] * 0.5,
+            MODEL_FEET_Y + 26.0,
+        );
         self.sjk_keys(&frame);
         self.canvas.pop_opacity();
         self.canvas.finish(self.selected as u16);
@@ -500,8 +511,10 @@ impl PlayerMenu {
             sabers: true,
             showcase: false,
             room: MODEL_ROOM,
-            // Still, as the stage model stands, a little to its right.
-            angle: Some(-28.0),
+            // Still, as the stage model stands, a little to its right; the camera goes
+            // round the model the other way to turn it as the pointer does
+            // ([`Self::model_turn`]).
+            angle: Some(-28.0 - self.model_turn()),
         })
     }
 
@@ -718,7 +731,17 @@ impl PlayerMenu {
         let part_rows = rows.len().saturating_sub(PART_ROW);
         let part_lines = part_rows.div_ceil(2) as f32;
         let grid_top = ROWS_TOP + PART_ROW as f32 * ROW + 8.0;
-        let grid_bottom = self.sjk_grid(frame, grid_top, BOTTOM - part_lines * ROW - 12.0);
+        let grid_bottom = if self.outfit.is_some() {
+            self.sjk_outfit_picker(
+                frame,
+                COLUMN_X,
+                COLUMN_WIDTH,
+                grid_top,
+                BOTTOM - part_lines * ROW - 12.0,
+            )
+        } else {
+            self.sjk_grid(frame, grid_top, BOTTOM - part_lines * ROW - 12.0)
+        };
         let half = (COLUMN_WIDTH - GUTTER) * 0.5;
         for (offset, row) in rows.iter().enumerate().skip(PART_ROW) {
             let local = offset - PART_ROW;
@@ -2243,6 +2266,18 @@ impl PlayerMenu {
         let mut keys: Vec<(&[&str], &str)> = Vec::with_capacity(4);
         if self.name_editing || self.search_editing || self.numeric.is_some() {
             keys.extend([(&["Enter"][..], "done"), (&["Esc"][..], "cancel")]);
+        } else if let Some(picker) = self.outfit {
+            keys.extend([
+                (&["Enter"][..], "wear"),
+                (
+                    &["Tab"][..],
+                    match picker.slot {
+                        sjk_client::CosmeticSlot::Hat => "capes",
+                        sjk_client::CosmeticSlot::Cape => "hats",
+                    },
+                ),
+                (&["Esc"][..], "done"),
+            ]);
         } else {
             let row = self.sjk_row_kind();
             keys.push(match row {
