@@ -171,6 +171,19 @@ pub struct Snapshot {
     pub log_answer: Option<ReportOutcome>,
     /// What became of the last opening of holocrons ([`Service::open_holocrons`]).
     pub opening: Option<OpenOutcome>,
+    /// What became of the last reveal of sealed cards ([`Service::reveal_cards`]).
+    pub reveal: Option<RevealOutcome>,
+}
+
+/// What became of a reveal of sealed cards.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct RevealOutcome {
+    /// Counts reveals asked for, so a reader can tell a new outcome from the last one.
+    pub serial: u64,
+    /// The copies revealed; empty when none could be (or it failed).
+    pub revealed: Vec<crate::wire::Revealed>,
+    /// Why it failed; empty when it worked.
+    pub message: String,
 }
 
 /// What became of an opening of holocrons.
@@ -266,6 +279,7 @@ impl Snapshot {
             log_requests: Vec::new(),
             log_answer: None,
             opening: None,
+            reveal: None,
         }
     }
 
@@ -345,6 +359,8 @@ enum Command {
     RefreshHolocrons,
     /// Open these holocrons of the player's.
     OpenHolocrons(Vec<u64>),
+    /// Reveal the player's sealed cards.
+    RevealCards,
     Stop,
 }
 
@@ -497,6 +513,20 @@ fn opening_refusal(error: &HubError) -> String {
             if why.starts_with("status 404") || why.starts_with("status 405") =>
         {
             "This SJK hub cannot open holocrons yet.".to_owned()
+        }
+        other => other.to_string(),
+    }
+}
+
+/// Why a reveal failed, as the Cards tab says it.
+fn reveal_refusal(error: &HubError) -> String {
+    match error {
+        HubError::Rejected { message, .. } => message.clone(),
+        // A hub from before the card catalogue has no such route.
+        HubError::Protocol(why)
+            if why.starts_with("status 404") || why.starts_with("status 405") =>
+        {
+            "This SJK hub cannot reveal cards yet.".to_owned()
         }
         other => other.to_string(),
     }
@@ -817,6 +847,7 @@ impl Worker {
             Command::OwnDrop => self.own_drop(now),
             Command::RefreshHolocrons => self.holocrons_soon(now),
             Command::OpenHolocrons(ids) => self.open_holocrons(&ids, now),
+            Command::RevealCards => self.reveal_cards(),
             Command::Stop => self.release(),
         }
         self.publish_feed();
@@ -989,6 +1020,33 @@ impl Worker {
                     serial,
                     opened: Vec::new(),
                     message: opening_refusal(&error),
+                },
+            });
+        });
+    }
+
+    /// Reveal the player's sealed cards: the outcome goes in [`Snapshot::reveal`], the
+    /// hub's profile after it in [`Snapshot::me`].
+    fn reveal_cards(&mut self) {
+        let outcome = match (self.hub.as_mut(), self.registered) {
+            (Some(hub), true) => hub.reveal_cards(&self.identity),
+            _ => Err(not_connected()),
+        };
+        self.update(|snapshot| {
+            let serial = snapshot.reveal.as_ref().map_or(1, |last| last.serial + 1);
+            snapshot.reveal = Some(match outcome {
+                Ok(answer) => {
+                    snapshot.set_me(answer.profile);
+                    RevealOutcome {
+                        serial,
+                        revealed: answer.revealed,
+                        message: String::new(),
+                    }
+                }
+                Err(error) => RevealOutcome {
+                    serial,
+                    revealed: Vec::new(),
+                    message: reveal_refusal(&error),
                 },
             });
         });
@@ -1771,6 +1829,12 @@ impl Service {
         let _ = self.commands.send(Command::OpenHolocrons(ids));
     }
 
+    /// Reveal the player's sealed cards whose rarity has cards at the hub: what they
+    /// became arrives in [`Snapshot::reveal`], and the profile after it.
+    pub fn reveal_cards(&self) {
+        let _ = self.commands.send(Command::RevealCards);
+    }
+
     /// The player is on a game server (call again if `slot` or `name` changes).
     pub fn enter(&self, location: Location) {
         let _ = self.commands.send(Command::Enter(location));
@@ -2150,6 +2214,7 @@ mod tests {
                     tier: "rare".to_owned(),
                     card: crate::wire::OpenedCard {
                         id: 1_000 + id,
+                        card: None,
                         rarity: "common".to_owned(),
                         finish: "holo".to_owned(),
                         edition: "alpha".to_owned(),
@@ -2160,6 +2225,19 @@ mod tests {
             let mut profile = profile("Sol");
             profile.credits = 40 * ids.len() as u64;
             Ok(crate::wire::OpenAnswer { opened, profile })
+        }
+        fn reveal_cards(&mut self, _: &Identity) -> Result<crate::wire::RevealAnswer, HubError> {
+            self.record("reveal".to_owned())?;
+            Ok(crate::wire::RevealAnswer {
+                revealed: vec![crate::wire::Revealed {
+                    id: 1_007,
+                    card: "sol_lore_001".to_owned(),
+                    rarity: "legendary".to_owned(),
+                    finish: "holo".to_owned(),
+                    edition: "alpha".to_owned(),
+                }],
+                profile: profile("Sol"),
+            })
         }
         fn holocrons(&mut self, _: &Identity) -> Result<HolocronState, HubError> {
             // Counted apart from the log, which the other tests read whole.
@@ -2798,6 +2876,30 @@ mod tests {
             older_hub(HubError::Network("down".to_owned())),
             HubError::Network(_)
         ));
+    }
+
+    /// Revealing waits for the registration, then keeps what the copies became and the
+    /// profile after; each reveal counts up.
+    #[test]
+    fn sealed_cards_reveal_once_registered() {
+        let fake = Fake::default();
+        let t0 = Instant::now();
+        let (mut worker, snapshot) = worker(&fake, t0);
+        worker.handle(Command::RevealCards, t0);
+        let first = lock(&snapshot).reveal.clone().unwrap();
+        assert!(first.revealed.is_empty() && first.message.contains("not connected"));
+        assert!(
+            fake.log().is_empty(),
+            "nothing goes before the registration"
+        );
+        worker.handle(Command::Configure(on("https://hub")), t0);
+        worker.tick(t0);
+        worker.handle(Command::RevealCards, t0);
+        let revealed = lock(&snapshot).reveal.clone().unwrap();
+        assert_eq!(revealed.serial, 2);
+        assert!(revealed.message.is_empty());
+        assert_eq!(revealed.revealed[0].card, "sol_lore_001");
+        assert!(fake.log().iter().any(|line| line == "reveal"));
     }
 
     /// Opening waits for the registration, sends at most twenty ids, keeps what they

@@ -27,8 +27,10 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 > Force: Hold push or pull to use it again the moment it is ready, as in JoF EJK.
 > Collection: Rest the pointer on anything you collect to see how you get it.
+> Cards: Cards have faces now, starting with Sol and Toxiee on JoF Memorial, tested by the SJK team.
 
 - Holding a push or pull key pushes or pulls again as soon as the power is ready, as in JoF EJK, keyboard or mouse; Settings > Controls > Hold push/pull repeats (`cl_forceRepeat`, on by default) turns it off _(Sol, after JoF EJK)_
+- Cards have faces: a card the SJK hub picks shows as a trading card, its name, its picture, its kind and set, its lore, its number in its set and its artist, under its finish's light, on the Collection's Cards tab (whose card up close is bigger, to be read) and when a holocron opens. The faces download from the SJK hub like the blade skins. Reveal (or R) on the Cards tab turns sealed cards into cards of their rarity once there are some. The first card is Sol and Toxiee on JoF Memorial (Sol lore 1, Legendary); opening holocrons is still for the SJK team's tests _(Sol)_
 - Hover cards in the Collection: rest the pointer on a medal, an achievement, a saber shader, the toy, a card or a holocron tier and a card beside it says how you get it, and where you stand (when it was given, how far along you are, how many you hold, how rare it is) _(Sol)_
 
 ## 2026.1012.2 (Alpha) | 12/10/2026

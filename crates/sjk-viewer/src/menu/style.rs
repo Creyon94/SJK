@@ -126,6 +126,7 @@ impl crate::GpuState {
         crate::menu::emblem::request();
         self.ui_shapes.install_emblem(&self.device, &self.queue);
         self.ui_shapes.install_medals(&self.device, &self.queue);
+        self.ui_shapes.install_cards(&self.device, &self.queue);
         if let Some(vfs) = &self.vfs {
             art::request(vfs);
         }

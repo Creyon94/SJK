@@ -677,6 +677,7 @@ mod tests {
     ) -> sjk_identity::Snapshot {
         sjk_identity::Snapshot {
             opening: None,
+            reveal: None,
             local_key_id: "0123456789abcdef".into(),
             status,
             key_id: "0123456789abcdef".into(),
@@ -819,6 +820,7 @@ mod tests {
             tier: tier.to_owned(),
             card: sjk_identity::OpenedCard {
                 id: 1,
+                card: None,
                 rarity: "rare".to_owned(),
                 finish: finish.to_owned(),
                 edition: "alpha".to_owned(),

@@ -41,12 +41,16 @@ const WORDS: f32 = 1.85;
 /// The entrance of each when more than [`SHORT_AFTER`] were opened at once, as a share.
 const SHORT: f32 = 0.55;
 const SHORT_AFTER: usize = 3;
-/// The card on show: its middle and width (frame pixels).
+/// The card on show: its middle and width (frame pixels); a revealed card's face is
+/// bigger, to be read, and higher.
 const CARD_X: f32 = 960.0;
 const CARD_TOP: f32 = 190.0;
 const CARD_WIDTH: f32 = 300.0;
+const FACE_TOP: f32 = 62.0;
+const FACE_WIDTH: f32 = 400.0;
 /// The words' lines under the card.
 const CREDITS_Y: f32 = 636.0;
+const FACE_CREDITS_Y: f32 = 650.0;
 const TITLE_Y: f32 = 700.0;
 const EDITION_Y: f32 = 752.0;
 const ABOUT_Y: f32 = 790.0;
@@ -65,6 +69,20 @@ pub(crate) struct Shown {
     /// "Alpha Edition", or empty.
     pub(crate) edition: String,
     pub(crate) credits: u64,
+    /// The card it is, picked by the hub; `None` while sealed.
+    pub(crate) card: Option<String>,
+}
+
+impl Shown {
+    /// Where the card stands: its top and width (frame pixels), bigger for a face the
+    /// packs have.
+    fn place(&self, faces: &cards::faces::Faces) -> (f32, f32) {
+        if cards::shown(faces, self.card.as_deref()).is_some() {
+            (FACE_TOP, FACE_WIDTH)
+        } else {
+            (CARD_TOP, CARD_WIDTH)
+        }
+    }
 }
 
 impl Shown {
@@ -77,6 +95,7 @@ impl Shown {
             finish: Finish::from_id(&opened.card.finish)?,
             edition: cards::edition_name(&opened.card.edition),
             credits: opened.credits,
+            card: opened.card.card.clone(),
         })
     }
 }
@@ -381,8 +400,10 @@ impl Panel {
     fn entrance(&mut self, frame: &Frame, shown: &Shown, elapsed: f32, seconds: f32) {
         let s = frame.s;
         let tier = &holocrons::TIERS[shown.tier];
-        let height = CARD_WIDTH * cards::look::ASPECT;
-        let middle = [CARD_X, CARD_TOP + height * 0.47];
+        let faces = cards::faces::current();
+        let (top, card_width) = shown.place(&faces);
+        let height = card_width * cards::look::ASPECT;
+        let middle = [CARD_X, top + height * 0.47];
         let [cx, cy] = frame.point(middle[0], middle[1]);
         // The burst: the gem flares and goes while rings run out and rays turn.
         if elapsed < BURST_END + 0.6 {
@@ -441,19 +462,20 @@ impl Panel {
             // Ease out: fast at first, settling.
             let eased = 1.0 - (1.0 - turn).powi(3);
             let grow = 0.85 + 0.15 * eased;
-            let width = CARD_WIDTH * grow;
+            let width = card_width * grow;
             cards::look::draw(
                 &mut self.ui,
                 frame,
                 [
                     CARD_X - width * 0.5,
-                    CARD_TOP + (CARD_WIDTH - width) * cards::look::ASPECT * 0.5,
+                    top + (card_width - width) * cards::look::ASPECT * 0.5,
                     width,
                 ],
                 cards::look::Card {
                     rarity: shown.rarity,
                     finish: shown.finish,
                     edition: &shown.edition,
+                    face: cards::shown(&faces, shown.card.as_deref()),
                 },
                 seconds,
                 eased,
@@ -468,7 +490,11 @@ impl Panel {
                 &mut self.ui,
                 frame,
                 CARD_X,
-                CREDITS_Y,
+                if top == FACE_TOP {
+                    FACE_CREDITS_Y
+                } else {
+                    CREDITS_Y
+                },
                 &format!("+{}", cards::credits_text(counted)),
                 38.0,
                 (t * 3.0).min(1.0),
@@ -482,15 +508,17 @@ impl Panel {
         let card = &shown[index];
         let alpha = ((elapsed - WORDS) / 0.4).clamp(0.0, 1.0);
         let fade = |colour: Color| Color::new(colour.r, colour.g, colour.b, colour.a * alpha);
-        let title = cards::Stack {
+        let faces = cards::faces::current();
+        let face = cards::shown(&faces, card.card.as_deref());
+        let stack = cards::Stack {
             rarity: card.rarity,
             finish: card.finish,
             edition: card.edition.clone(),
-            card: None,
+            card: card.card.clone(),
             count: 1,
             first: 0,
-        }
-        .title();
+        };
+        let title = stack.name_in(&faces);
         text(
             &mut self.ui,
             TextFamily::Display,
@@ -510,7 +538,12 @@ impl Panel {
             &mut self.ui,
             TextFamily::Body,
             format_args!(
-                "{}From {} {}",
+                "{}{}From {} {}",
+                if stack.sealed() {
+                    String::new()
+                } else {
+                    format!("{}, {}. ", card.rarity.name, card.finish.name)
+                },
                 if card.edition.is_empty() {
                     String::new()
                 } else {
@@ -535,10 +568,21 @@ impl Panel {
             FontWeight::Regular,
             TextAlign::Center,
         );
+        let last_line = match face {
+            Some(face) => format!(
+                "{}, {}: card {} of {}",
+                face.face.kind.name(),
+                face.face.set_name,
+                face.face.number,
+                face.of
+            ),
+            None if stack.sealed() => "Sealed: its card is picked when it is revealed.".to_owned(),
+            None => "Its face is not in your card pack yet.".to_owned(),
+        };
         text(
             &mut self.ui,
             TextFamily::Body,
-            format_args!("Sealed: its face is chosen when the first set of cards comes out."),
+            format_args!("{last_line}"),
             frame.rect(CARD_X - 500.0, SEALED_Y, 1_000.0, 26.0),
             17.0 * s,
             fade(color::QUIET),
@@ -550,7 +594,12 @@ impl Panel {
                 &mut self.ui,
                 TextFamily::Display,
                 format_args!("{} of {}", index + 1, shown.len()),
-                frame.rect(CARD_X - 300.0, 120.0, 600.0, 34.0),
+                frame.rect(
+                    CARD_X - 300.0,
+                    if face.is_some() { 20.0 } else { 120.0 },
+                    600.0,
+                    34.0,
+                ),
                 24.0 * s,
                 fade(color::MUTED),
                 FontWeight::Regular,

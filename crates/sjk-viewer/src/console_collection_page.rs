@@ -101,6 +101,9 @@ impl ViewerConsole {
                     &crate::saber_skin_options::with(&setting, skin, &option, on),
                 );
             }
+            PanelAction::RevealCards => {
+                let _ = crate::player_identity::reveal_cards();
+            }
             PanelAction::ShaderView(grid) => {
                 self.set_cvar(
                     super::collection_panel::SHADER_VIEW_CVAR,

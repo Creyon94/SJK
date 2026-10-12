@@ -69,8 +69,9 @@ const LIST_VIEW_TOKEN: u16 = 1_312;
 const GRID_VIEW_TOKEN: u16 = 1_313;
 /// The chosen shader's options (its parts the wearer may switch off), one each.
 const OPTION_BASE: u16 = 1_320;
-/// The Cards tab's kinds, one each.
+/// The Cards tab's kinds, one each, and its Reveal button.
 const CARD_BASE: u16 = 1_330;
+const REVEAL_TOKEN: u16 = 1_350;
 const _: () = assert!(OPTION_BASE as usize + OPTION_TOKENS <= CARD_BASE as usize);
 const OPTION_TOKENS: usize = crate::blade_skin_file::extras::MAX_OPTIONS;
 /// The Shaders tab's rows: the stock blade, then every blade skin, the rarest first
@@ -112,6 +113,8 @@ pub(crate) enum PanelAction {
     },
     /// Set [`SHADER_VIEW_CVAR`]: the grid of cards (`true`) or the rack.
     ShaderView(bool),
+    /// Ask the hub to reveal the player's sealed cards.
+    RevealCards,
 }
 
 /// Where the player's model stands behind Shaders, Toys and Nameplates this frame, as
@@ -197,6 +200,11 @@ pub(crate) struct Panel {
     /// The kind of card chosen on Cards, and how many kinds the last frame showed.
     card: usize,
     cards_shown: usize,
+    /// How many sealed copies the last frame offered to reveal (0: no Reveal button).
+    revealable: u32,
+    /// The identity's last reveal when Reveal was pressed: the line under the button
+    /// says what the next one brought.
+    reveal_asked: Option<u64>,
     /// The first shader row the rack shows (it scrolls, [`RACK_SHOWN`] at a time).
     shader_first: usize,
     /// The Shaders tab shows the grid of cards, as the last frame's inputs said (or a
@@ -255,6 +263,8 @@ impl Panel {
             shader: 0,
             card: 0,
             cards_shown: 0,
+            revealable: 0,
+            reveal_asked: None,
             shader_first: 0,
             grid: false,
             grid_first: 0,
@@ -483,6 +493,7 @@ impl Panel {
         match key {
             KeyCode::Escape => return PanelAction::Close,
             KeyCode::KeyV if self.tab == Tab::Shaders => return self.set_grid(!self.grid),
+            KeyCode::KeyR if self.tab == Tab::Cards => return self.reveal(),
             KeyCode::Tab => self.step(if shift { -1 } else { 1 }, true),
             KeyCode::ArrowLeft if !vertical => self.step(-1, false),
             KeyCode::ArrowRight if !vertical => self.step(1, false),
@@ -628,6 +639,7 @@ impl Panel {
             LIST_VIEW_TOKEN => self.set_grid(false),
             GRID_VIEW_TOKEN => self.set_grid(true),
             WEAR_TOKEN | TOY_TOKEN | TOY_SWITCH_TOKEN => self.activate(illuminate),
+            REVEAL_TOKEN => self.reveal(),
             token => match crate::profile_hub::collection_tab_of(token) {
                 Some(Tab::Holocrons) => PanelAction::Hub(Tab::Holocrons),
                 Some(tab) => {
@@ -637,6 +649,17 @@ impl Panel {
                 None => PanelAction::None,
             },
         }
+    }
+
+    /// Reveal the sealed cards, when the last frame offered it: the line under the button
+    /// waits for the identity's answer.
+    fn reveal(&mut self) -> PanelAction {
+        if self.revealable == 0 {
+            return PanelAction::None;
+        }
+        self.reveal_asked =
+            Some(crate::player_identity::reveal_outcome().map_or(0, |outcome| outcome.serial));
+        PanelAction::RevealCards
     }
 
     /// Choose the thing `token` stands for; whether it is one.
@@ -745,6 +768,25 @@ mod tests {
         let fonts = crate::text::load_modern(1.0, None).expect("Inter");
         panel.build(inputs, &fonts.font, [1920.0, 1080.0]);
         panel
+    }
+
+    /// R on Cards (or Reveal) asks the hub only when the last frame offered something to
+    /// reveal, and then waits for the answer.
+    #[test]
+    fn reveal_asks_only_when_there_is_something_to_reveal() {
+        let mut panel = drawn(Tab::Cards, &inputs(Holdings::Known(&[]), ""));
+        assert_eq!(panel.revealable, 0, "no identity, nothing to reveal");
+        assert_eq!(panel.key(KeyCode::KeyR, false, true), PanelAction::None);
+        assert_eq!(panel.reveal_asked, None);
+        panel.revealable = 3;
+        assert_eq!(
+            panel.key(KeyCode::KeyR, false, true),
+            PanelAction::RevealCards
+        );
+        assert_eq!(panel.reveal_asked, Some(0), "no reveal before this one");
+        // Not on another tab.
+        panel.tab = Tab::Medals;
+        assert_eq!(panel.key(KeyCode::KeyR, false, true), PanelAction::None);
     }
 
     #[test]

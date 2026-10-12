@@ -196,6 +196,10 @@ pub struct CardStack {
 pub struct OpenedCard {
     /// The copy's number at the hub.
     pub id: u64,
+    /// The card it is, picked from the hub's catalogue; `None` while sealed (no card of
+    /// its rarity yet, or a hub from before the catalogue).
+    #[serde(default)]
+    pub card: Option<String>,
     /// The card's rarity (as [`CardStack::rarity`]).
     pub rarity: String,
     /// The copy's finish (as [`CardStack::finish`]).
@@ -216,6 +220,32 @@ pub struct Opened {
     pub card: OpenedCard,
     /// The credits it held.
     pub credits: u64,
+}
+
+/// A sealed copy the hub revealed (`POST /v1/cards/reveal`): the card it turned out to be.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct Revealed {
+    /// The copy's number at the hub.
+    pub id: u64,
+    /// The card it is now.
+    pub card: String,
+    /// Its rarity, as it was sealed.
+    pub rarity: String,
+    /// Its finish, as it was sealed.
+    pub finish: String,
+    /// Its edition, as it was sealed.
+    #[serde(default)]
+    pub edition: String,
+}
+
+/// The hub's answer to `POST /v1/cards/reveal`: the copies revealed (none when no sealed
+/// copy has a card of its rarity yet) and the person's profile after.
+#[derive(Clone, Debug, Deserialize, Eq, PartialEq)]
+pub struct RevealAnswer {
+    /// The copies revealed, oldest first.
+    pub revealed: Vec<Revealed>,
+    /// The person's profile after the reveal.
+    pub profile: Profile,
 }
 
 /// The hub's answer to `POST /v1/holocrons/open`: what each holocron brought, in the

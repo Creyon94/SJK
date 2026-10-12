@@ -71,7 +71,7 @@ fn notes() -> [String; 5] {
             FINISHES[finish].name,
             loot::one_in(chance)
         ),
-        "Cards stay sealed until the first set is out; their faces are chosen then.".to_owned(),
+        "The card is picked evenly among the cards of its rarity; a rarity with no card yet stays sealed.".to_owned(),
         "Gifts from the SJK team are given, not found; they open the same way.".to_owned(),
     ]
 }
