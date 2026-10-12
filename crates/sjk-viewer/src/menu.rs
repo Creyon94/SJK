@@ -1315,6 +1315,13 @@ impl ClientMenu {
         self.player.overflowed()
     }
 
+    /// The player screen's creator on a species' (or the model's) category `index`
+    /// (world shots).
+    #[cfg(test)]
+    pub(crate) fn creator_for_shot(&mut self, species: bool, index: usize) {
+        self.player.creator_for_shot(species, index);
+    }
+
     /// Select the settings row of `cvar`, scrolled into view (world shots).
     #[cfg(test)]
     pub(crate) fn select_setting_for_shot(&mut self, cvar: &str) {

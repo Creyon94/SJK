@@ -3,21 +3,20 @@
 
 use super::*;
 use sjk_client::SaberColor;
-
-/// Rows of the character page; the part rows only exist for a species.
-/// JoF EJK's hat and cape follow, on every model.
+/// Rows of the character page: the name and the search (the words the items listed
+/// must contain), the category strip, the team (models only), the tile grid of the
+/// category on show and the Apply button.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(super) enum CharacterRow {
     Name,
-    Team,
-    /// SJK: words the grid's models must contain.
     Search,
-    Head,
-    Torso,
-    Legs,
-    Skin,
-    Hat,
-    Cape,
+    /// SJK UI: Model, a species' Head, Torso, Legs and Skin, Hat and Cape
+    /// ([`sjk_creator::Category`]).
+    Category,
+    /// SJK UI: the skin set the models are listed for (Default, Red or Blue team).
+    Team,
+    /// SJK UI: the tiles of the category on show.
+    Grid,
     /// SJK UI: wears the model chosen (the `model` cvar); until then it only shows.
     Apply,
 }
@@ -26,59 +25,30 @@ impl CharacterRow {
     pub(super) fn label(self) -> &'static str {
         match self {
             Self::Name => "Name",
-            Self::Team => "Team colour",
             Self::Search => "Search",
-            Self::Head => "Head",
-            Self::Torso => "Torso",
-            Self::Legs => "Legs",
-            Self::Skin => "Skin colour",
-            Self::Hat => "Hat",
-            Self::Cape => "Cape",
+            Self::Category => "Choose",
+            Self::Team => "Team colour",
+            Self::Grid => "Pick",
             Self::Apply => "Apply",
-        }
-    }
-
-    /// The cosmetic slot this row wears, if it is the Hat or Cape row.
-    pub(super) fn cosmetic(self) -> Option<sjk_client::CosmeticSlot> {
-        match self {
-            Self::Hat => Some(sjk_client::CosmeticSlot::Hat),
-            Self::Cape => Some(sjk_client::CosmeticSlot::Cape),
-            _ => None,
-        }
-    }
-
-    /// Species variant axis this row cycles, if any.
-    pub(super) fn axis(self) -> Option<usize> {
-        match self {
-            Self::Head => Some(0),
-            Self::Torso => Some(1),
-            Self::Legs => Some(2),
-            Self::Skin => Some(3),
-            Self::Name | Self::Team | Self::Search | Self::Hat | Self::Cape | Self::Apply => None,
         }
     }
 }
 
-// No Model row (Sol's decision, 11/10/2026): it only stepped to the next model, like a
-// next button; the grid chooses the model.
-const CHARACTER_ROWS: [CharacterRow; 6] = [
+// No Model row (Sol's decision, 11/10/2026): the grid chooses the model. Models also
+// list for a team's skins; the other categories have no team.
+const MODEL_ROWS: [CharacterRow; 6] = [
     CharacterRow::Name,
-    CharacterRow::Team,
     CharacterRow::Search,
-    CharacterRow::Hat,
-    CharacterRow::Cape,
+    CharacterRow::Category,
+    CharacterRow::Team,
+    CharacterRow::Grid,
     CharacterRow::Apply,
 ];
-const SPECIES_ROWS: [CharacterRow; 10] = [
+const OTHER_ROWS: [CharacterRow; 5] = [
     CharacterRow::Name,
-    CharacterRow::Team,
     CharacterRow::Search,
-    CharacterRow::Head,
-    CharacterRow::Torso,
-    CharacterRow::Legs,
-    CharacterRow::Skin,
-    CharacterRow::Hat,
-    CharacterRow::Cape,
+    CharacterRow::Category,
+    CharacterRow::Grid,
     CharacterRow::Apply,
 ];
 
@@ -190,9 +160,10 @@ const FORCE_ROWS: usize = 22;
 
 impl PlayerMenu {
     pub(super) fn character_rows(&self) -> &'static [CharacterRow] {
-        match self.choice {
-            Some(Choice::Species(_)) => &SPECIES_ROWS,
-            _ => &CHARACTER_ROWS,
+        if self.category() == sjk_creator::Category::Model {
+            &MODEL_ROWS
+        } else {
+            &OTHER_ROWS
         }
     }
 
@@ -236,12 +207,8 @@ impl PlayerMenu {
     /// field or an action).
     pub(super) fn selected_is_cycler(&self) -> bool {
         match self.page {
-            ProfilePage::Character => self.character_rows().get(self.selected).is_some_and(|row| {
-                !matches!(
-                    row,
-                    CharacterRow::Name | CharacterRow::Search | CharacterRow::Apply
-                )
-            }),
+            // The strip, the team and the tiles have controls of their own.
+            ProfilePage::Character => false,
             ProfilePage::Saber => self.saber_rows().get(self.selected).is_some_and(|row| {
                 row.channel().is_none()
                     && !row.is_blade()

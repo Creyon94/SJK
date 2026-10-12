@@ -125,31 +125,6 @@ impl CosmeticsMenu {
         self.set(console, slot, (!wearing).then_some(name.as_str()));
     }
 
-    /// Step `slot` through None and the installed pieces (the player
-    /// screen's Hat and Cape rows), wearing each.
-    pub(super) fn cycle(
-        &mut self,
-        console: &mut ViewerConsole,
-        slot: CosmeticSlot,
-        direction: isize,
-    ) {
-        let count = self.count(slot);
-        if count == 0 {
-            return;
-        }
-        // Position 0 is None, piece `i` is position `i + 1`.
-        let current = self.worn_position(slot).map_or(0, |index| index + 1);
-        let next = super::controller::wrap(current, direction, count + 1);
-        let name = next
-            .checked_sub(1)
-            .and_then(|index| self.catalog()?.pieces(slot).get(index))
-            .map(|piece| piece.name.clone());
-        if let Some(index) = next.checked_sub(1) {
-            self.cursor[slot.index()] = index;
-        }
-        self.set(console, slot, name.as_deref());
-    }
-
     /// Wear piece `index` of `slot`, or nothing in it (`None`): the SJK UI's
     /// picker, where a click on a piece always wears it.
     pub(super) fn wear(

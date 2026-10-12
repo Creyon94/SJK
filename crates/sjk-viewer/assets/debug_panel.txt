@@ -4188,18 +4188,6 @@ test: Create game name, report or note dialog, your bio: Ctrl+V pastes, Ctrl+C c
 test: In any of them press Ctrl+A, then type a letter (replaces all) or Backspace (clears all).
 note: Not covered: the F8 screenshot panel numbers and the First setup FPS box (digits only).
 
-[character-apply]
-area: Menus & settings
-title: Profile > Character: a model chosen is worn only when you press Apply
-change: Picking a model, a head, torso, legs or a skin colour showed and wore it at once.
-change: Now the stage shows it and an Apply button under the rows wears it (Applied when equal).
-change: Leaving the screen without Apply drops the choice. The name, hats and capes stay immediate.
-test: Profile > Character: click a model in the grid: the stage model changes, the button reads Apply.
-test: In a game, check the body others see: it is still the old model until you press Apply.
-test: Click Apply (or press Enter on it, the row is chosen after a pick): the game model changes.
-test: Pick a model, press Back without Apply, reopen Profile: the worn model is shown again.
-note: The classic menus keep writing the model at once.
-
 [sjk-materials-pack]
 area: Rendering & effects
 title: Material maps load from SJK's own pack, above every other pack
@@ -4212,3 +4200,18 @@ test: No 'generation 5 ... expects 6' material maps warning in the log any more.
 test: JoF ffa1: s_ylight_red, s_squareslight_y, s_vjun_light_vjun(y) lamps glow.
 test: JoF ffa1: the blue brick wall (newfloor_vjun remap) is it still too shiny?
 note: byss/lights (ceiling grid) has its own faint glow, so it gets no emission map.
+
+[character-creator]
+area: Menus & settings
+title: Profile > Character: a creator with tile grids, Jedi Academy first, Apply to wear
+change: Model, Head, Torso, Legs, Skin, Hat and Cape are a strip over one grid of tiles (pictures).
+change: Models list the retail Jedi Academy under a heading first, then Community. Search filters.
+change: A model, part or colour shows on the stage; the Apply button under the grid wears it.
+change: Hats and capes are worn at once. The head picker (a model cycler since 11/10) works again.
+test: Profile > Character: the models start under "Jedi Academy" (retail), then "Community".
+test: Pick a species (Jedi, Kyle-like multipart): Head, Torso, Legs and Skin tabs appear with pictures.
+test: Click a model, a head or a skin: the stage changes, the button reads Apply; press it.
+test: Pick a model, press Back without Apply, reopen: the worn model shows again.
+test: Hat and Cape tabs: a click wears the piece at once; Cape turns the model to its back.
+test: Keys: Left and Right on the strip, Enter goes to the tiles, arrows choose, Enter picks.
+note: Hat and cape tiles show names only; thumbnails come in a later change.

@@ -11,7 +11,7 @@
 //! ([`half_direction`], [`chip_index`]).
 
 use super::grid::{GRID_SCROLL_TOKEN, TILE_BASE};
-use super::rows::{CharacterRow, FORCE_SIDE_ROW};
+use super::rows::FORCE_SIDE_ROW;
 use super::saber::PALETTE;
 use super::*;
 use crate::menu_widgets::{BACK_TOKEN, TAB_BASE, cycler_direction, palette_index};
@@ -63,7 +63,7 @@ impl PlayerMenu {
             return PlayerMenuResult::None;
         }
         if self.is_sjk()
-            && let Some(result) = self.outfit_pointer(event.kind, token, event.delta, console)
+            && let Some(result) = self.outfit_pointer(event.kind, token, event.delta)
         {
             return result;
         }
@@ -215,30 +215,15 @@ impl PlayerMenu {
         true
     }
 
-    /// A click on a tile makes it the model, shown but not worn until Apply: the
-    /// Apply row is chosen, so Enter wears it.
+    /// A tile of the creator's grid: hovering puts the cursor on it, a click chooses
+    /// it ([`Self::creator_tile`]).
     fn tile_event(
         &mut self,
         kind: UiEventKind,
         tile: usize,
         console: &mut ViewerConsole,
     ) -> PlayerMenuResult {
-        if kind == UiEventKind::Activate {
-            if self.name_editing {
-                self.name_editing = false;
-                self.apply(console);
-            }
-            self.search_editing = false;
-            let slot = self.visible_slot(tile);
-            self.pick_tile(console, slot);
-            if let Some(row) = self
-                .character_rows()
-                .iter()
-                .position(|row| *row == CharacterRow::Apply)
-            {
-                self.selected = row;
-            }
-        }
+        self.creator_tile(kind, tile, console);
         PlayerMenuResult::None
     }
 }
