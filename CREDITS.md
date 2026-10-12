@@ -56,8 +56,9 @@ Sol develops SJK and sets its direction. Sol's work includes:
 - holocron drops, loot boxes earned by playing: four tiers, drops announced in
   the SJK chat and a Holocrons tab on the Profile screen with a 3D holocron;
 - opening holocrons: sealed cards (Normal, Holo and Solar finishes, the Alpha
-  Edition) and credits, the ceremony and the Collection's Cards tab; credits will
-  buy droppable cosmetics as a fix for bad luck (Sol's design, 12/10/2026);
+  Edition) and credits, the ceremony and the Collection's Cards tab, and a loot
+  table with every chance; credits will buy droppable cosmetics as a fix for bad
+  luck (Sol's design, 12/10/2026);
 - the radial HUD (`cg_hudStyle radial`, after TheRisqe's Radial HUD) and the
   HUD meters' overheal bands;
 - nameplates with estimated health, shield and Force, held-weapon and Force

@@ -10,11 +10,12 @@
 //! drop), what the chosen tier is, how long to the next holocron, and the newest ten. A
 //! tier held none of shows dimmed, never hidden. Under the holocron, Open opens the
 //! oldest of the tier chosen and Open all up to twenty, in a ceremony over the page
-//! ([`opening`]): each brings a sealed card and credits (`docs/cards.md`).
+//! ([`opening`]): each brings a sealed card and credits (`docs/cards.md`). Loot table (or
+//! L) shows the odds of everything a holocron brings over the page ([`loot`]).
 //!
 //! Up and Down (or Left and Right, or the mouse wheel) choose a tier, Tab and Shift+Tab
-//! walk them round, 1 to 4 and Home and End jump, Enter opens one, A opens all, Escape
-//! goes back; a click on a tier chooses it. The hub's counts and list are read twice a
+//! walk them round, 1 to 4 and Home and End jump, Enter opens one, A opens all, L shows
+//! the loot table, Escape goes back; a click on a tier chooses it. The hub's counts and list are read twice a
 //! second ([`Data::read`]), never per frame; while the ceremony waits for the hub its
 //! answer is looked for every frame.
 
@@ -25,6 +26,8 @@ use std::time::{Duration, Instant};
 use winit::event::{ElementState, KeyEvent};
 use winit::keyboard::{KeyCode, PhysicalKey};
 
+#[path = "holocrons_panel_loot.rs"]
+mod loot;
 #[path = "holocrons_panel_opening.rs"]
 pub(crate) mod opening;
 #[path = "holocrons_panel_view.rs"]
@@ -43,6 +46,9 @@ const REFRESH: Duration = Duration::from_millis(500);
 /// The buttons under the holocron: Open (one of the tier chosen) and Open all.
 pub(crate) const OPEN_TOKEN: u16 = 1_320;
 pub(crate) const OPEN_ALL_TOKEN: u16 = 1_321;
+/// Loot table, beside what the chosen tier holds, and the loot table's Back.
+pub(crate) const LOOT_TOKEN: u16 = 1_323;
+pub(crate) const LOOT_BACK_TOKEN: u16 = 1_324;
 
 /// What the page knows of the player's holocrons: whether the hub could say, and what.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -91,6 +97,8 @@ pub(crate) struct Data {
     pub(crate) sealed: [Vec<u64>; COUNT],
     /// The player's credits, once known.
     pub(crate) credits: Option<u64>,
+    /// Seconds of play a holocron takes, once the hub said.
+    pub(crate) every: Option<u64>,
 }
 
 impl Data {
@@ -105,6 +113,7 @@ impl Data {
             fraction: None,
             sealed: Default::default(),
             credits: None,
+            every: None,
         }
     }
 
@@ -163,6 +172,9 @@ impl Data {
                 }),
             sealed,
             credits: Some(me.credits),
+            every: progress
+                .map(|progress| progress.every_secs)
+                .filter(|&every| every > 0),
         }
     }
 
@@ -217,6 +229,8 @@ pub(crate) struct Panel {
     refreshed: Option<Instant>,
     /// The opening's ceremony, or the wait for the hub, while it shows.
     ceremony: Option<opening::Ceremony>,
+    /// The loot table shows over the page.
+    loot: bool,
     /// The serial of the identity's last opening the page saw, so a new one is its
     /// answer.
     opening_serial: u64,
@@ -247,11 +261,12 @@ impl Panel {
             hub: false,
             hub_header: crate::profile_hub::Header::default(),
             row: Vec::new(),
-            ui: MenuCanvas::with_capacities(96, 160, 1_100),
+            ui: MenuCanvas::with_capacities(160, 160, 1_100),
             selected: 0,
             data: Data::nothing(State::Waiting),
             refreshed: None,
             ceremony: None,
+            loot: false,
             opening_serial: 0,
             epoch: Instant::now(),
             #[cfg(test)]
@@ -276,6 +291,7 @@ impl Panel {
         self.selected = 0;
         self.refreshed = None;
         self.ceremony = None;
+        self.loot = false;
     }
 
     /// Show the page as the Profile screen's Holocrons tab (`true`), or on its own;
@@ -309,6 +325,7 @@ impl Panel {
         let owned = self.open && self.owns_console;
         self.open = false;
         self.ceremony = None;
+        self.loot = false;
         self.owns_console = false;
         owned
     }
@@ -403,6 +420,9 @@ impl Panel {
         if self.ceremony.is_some() {
             return self.ceremony_key(key, now);
         }
+        if self.loot {
+            return self.loot_key(key);
+        }
         match key {
             KeyCode::Escape => return PanelAction::Close,
             KeyCode::Tab => self.step(if shift { -1 } else { 1 }, true),
@@ -424,6 +444,7 @@ impl Panel {
                     return self.ask(ids, now);
                 }
             }
+            KeyCode::KeyL => self.show_loot(true),
             _ => {}
         }
         PanelAction::None
@@ -441,6 +462,9 @@ impl Panel {
                 let _ = self.ui.pointer(event);
             }
             return PanelAction::None;
+        }
+        if self.loot {
+            return self.loot_pointer(event);
         }
         if let InputEvent::PointerWheel { delta, .. } = event {
             // Up (positive) goes to the tier above.
@@ -469,6 +493,10 @@ impl Panel {
             Some(OPEN_ALL_TOKEN) => self
                 .open_every()
                 .map_or(PanelAction::None, |ids| self.ask(ids, now)),
+            Some(LOOT_TOKEN) => {
+                self.show_loot(true);
+                PanelAction::None
+            }
             Some(token) if self.hub => match crate::profile_hub::collection_tab_of(token) {
                 Some(tab) if tab != crate::profile_hub::Tab::Holocrons => PanelAction::Hub(tab),
                 _ => PanelAction::None,

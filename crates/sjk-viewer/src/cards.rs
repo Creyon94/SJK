@@ -12,9 +12,11 @@
 //! | --- | --- |
 //! | a card drawn from shapes, its finishes' light | [`look`] |
 //! | the credits' mark | [`mark`] |
+//! | the loot table's odds, worked out | [`loot`] |
 //! | `debug_open` | [`rehearsal`] |
 
 pub(crate) mod look;
+pub(crate) mod loot;
 pub(crate) mod mark;
 pub(crate) mod rehearsal;
 
@@ -146,6 +148,36 @@ pub(crate) fn edition_name(id: &str) -> String {
 /// on the Holocrons tab. The hub decides; this only says it.
 pub(crate) const CREDITS: [(u32, u32); COUNT] = [(10, 20), (30, 50), (80, 120), (250, 350)];
 
+/// The odds of the card inside a holocron of one tier, in parts per thousand: its rarity
+/// (in [`RARITIES`] order) and its finish (in [`FINISHES`] order), rolled apart.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) struct Odds {
+    pub(crate) rarity: [u16; RARITIES.len()],
+    pub(crate) finish: [u16; FINISHES.len()],
+}
+
+/// The card's odds inside a holocron of each tier, in [`crate::holocrons::TIERS`] order:
+/// the hub's table (`src/cards.rs`, `TABLES`; `PROTOCOL.md`, "Opening"), shown by the loot
+/// table. The hub decides; this only says it.
+pub(crate) const ODDS: [Odds; COUNT] = [
+    Odds {
+        rarity: [700, 240, 55, 5],
+        finish: [970, 30, 0],
+    },
+    Odds {
+        rarity: [500, 330, 150, 20],
+        finish: [900, 100, 0],
+    },
+    Odds {
+        rarity: [300, 380, 260, 60],
+        finish: [700, 290, 10],
+    },
+    Odds {
+        rarity: [100, 300, 450, 150],
+        finish: [400, 550, 50],
+    },
+];
+
 /// What a holocron of tier `index` holds, one line: "A sealed card and 30 to 50 credits."
 pub(crate) fn inside(index: usize) -> String {
     let (least, most) = CREDITS[index.min(COUNT - 1)];
@@ -216,7 +248,12 @@ pub(crate) fn total(stacks: &[Stack]) -> u32 {
 /// `credits` as players read it: digits in groups of three, apart by a space ("12 340"),
 /// as French and most of Europe write them.
 pub(crate) fn credits_text(credits: u64) -> String {
-    let digits = credits.to_string();
+    grouped(credits)
+}
+
+/// `number` in groups of three digits, apart by a space ("5 698").
+pub(crate) fn grouped(number: u64) -> String {
+    let digits = number.to_string();
     let mut out = String::with_capacity(digits.len() + digits.len() / 3);
     for (index, digit) in digits.chars().enumerate() {
         if index > 0 && (digits.len() - index).is_multiple_of(3) {
@@ -263,6 +300,28 @@ mod tests {
             [(10, 20), (30, 50), (80, 120), (250, 350)],
             "the hub's ranges"
         );
+        let odds: Vec<([u16; 4], [u16; 3])> =
+            ODDS.iter().map(|odds| (odds.rarity, odds.finish)).collect();
+        assert_eq!(
+            odds,
+            [
+                ([700, 240, 55, 5], [970, 30, 0]),
+                ([500, 330, 150, 20], [900, 100, 0]),
+                ([300, 380, 260, 60], [700, 290, 10]),
+                ([100, 300, 450, 150], [400, 550, 50]),
+            ],
+            "the hub's tables"
+        );
+        for odds in &ODDS {
+            assert_eq!(
+                odds.rarity.iter().map(|&p| u32::from(p)).sum::<u32>(),
+                1_000
+            );
+            assert_eq!(
+                odds.finish.iter().map(|&p| u32::from(p)).sum::<u32>(),
+                1_000
+            );
+        }
     }
 
     #[test]

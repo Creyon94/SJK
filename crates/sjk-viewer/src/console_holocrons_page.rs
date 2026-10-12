@@ -199,6 +199,12 @@ impl ViewerConsole {
         }
     }
 
+    /// Show the loot table over the open page, or go back to it, for a world shot.
+    #[cfg(test)]
+    pub(crate) fn preview_loot(&mut self, show: bool) {
+        self.holocrons_panel.show_loot(show);
+    }
+
     /// Choose tier `index` on the open page, for a world shot.
     #[cfg(test)]
     pub(crate) fn select_holocron(&mut self, index: usize) {

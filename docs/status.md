@@ -9,10 +9,12 @@ droppable cosmetics as a fix for bad luck (planned). The design and what is buil
 [cards.md](cards.md). Client: wire and worker (`Service::open_holocrons`), Open and Open
 all with a ceremony on the Holocrons tab, the Collection's Cards tab, the credits' sign
 drawn from shapes, `debug_open`; the UI renderer now cuts strokes to the clip rectangle as
-it cut rectangles. Hub: branch `feat/holocron-opening` in Sol-Vulpes/SJK-hub, not merged
-or deployed: until it is, Open answers "This SJK hub cannot open holocrons yet.".
-Verified: the workspace checks, the hub's tests and the world shots `cards_shots`
-looked at. Not tried: against a running hub, in a game.
+it cut rectangles. Hub: branch `feat/holocron-opening` in Sol-Vulpes/SJK-hub, merged
+and deployed 12/10/2026. Then (branch `personal/loot-table`, Sol's request) the Holocrons
+tab's loot table: every chance a holocron brings, per tier and per holocron found
+([holocrons.md](holocrons.md#loot-table)). Verified: the workspace checks, the hub's tests
+and the world shots `cards_shots` looked at. Not tried: against the running hub, in a
+game.
 
 ## Server browser: servers missing at random
 

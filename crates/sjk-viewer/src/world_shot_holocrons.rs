@@ -45,6 +45,7 @@ pub(super) fn holdings() -> Data {
         next: "Next holocron in about 20 minutes of play".to_owned(),
         today: Some((3, 8)),
         fraction: Some(1.0 / 3.0),
+        every: Some(1_800),
         ..Data::nothing(State::Known)
     }
 }
