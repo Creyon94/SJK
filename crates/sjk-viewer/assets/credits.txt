@@ -42,7 +42,7 @@ did: Illuminate, SJK's own toy: a holocron that lights the way, art by Sol
 did: Medals from the SJK team, with medal pictures generated and chosen by Sol
 did: The JoF clan tag: the clan's emblem beside tagged names
 did: Holocron drops: loot boxes earned by playing, in four tiers, with a Holocrons tab
-did: Opening holocrons: sealed cards in Normal, Holo and Solar, and credits
+did: Opening holocrons: sealed cards in Normal, Holo and Solar, and credits (in testing)
 did: The loot table: every chance a holocron brings
 did: 125 Hz user commands, so every tap reaches the server
 did: Gameplay FPS: the movement of 125, 142, 250 or 333 at any frame rate, explained

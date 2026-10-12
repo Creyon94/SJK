@@ -49,6 +49,14 @@ All decided by the hub, in one transaction:
 Opening counts toward no cap, and an opened holocron still counts toward the day's
 drop caps. Removing an opened holocron (staff) leaves its card and credits.
 
+**Staff only for now.** Since 12/10/2026 (Sol's request, while opening is worked on)
+the hub lets only staff open holocrons unless its operator opens it to everyone
+(`--opening everyone`, or `SJK_HUB_OPENING=everyone`, on the hub; no client release is
+needed). Anyone else gets 403 `opening_staff_only` and keeps their holocrons. The
+progress answer (`GET /v1/holocrons`) says `can_open`; the Holocrons tab hides Open and
+Open all, and Enter and A do nothing, when it is false (or not read yet), and says
+"Opening comes soon: keep your holocrons, they will wait." in their place.
+
 ## Odds
 
 The hub's tables (`src/cards.rs` there); the holocron's tier picks the row. Players see

@@ -58,7 +58,8 @@ Sol develops SJK and sets its direction. Sol's work includes:
 - opening holocrons: sealed cards (Normal, Holo and Solar finishes, the Alpha
   Edition) and credits, the ceremony and the Collection's Cards tab, and a loot
   table with every chance; credits will buy droppable cosmetics as a fix for bad
-  luck (Sol's design, 12/10/2026);
+  luck (Sol's design, 12/10/2026); opening stays with the SJK team while it is
+  tested, until the hub opens it to everyone;
 - the radial HUD (`cg_hudStyle radial`, after TheRisqe's Radial HUD) and the
   HUD meters' overheal bands;
 - nameplates with estimated health, shield and Force, held-weapon and Force

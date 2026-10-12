@@ -132,14 +132,21 @@ impl Panel {
         self.ceremony.is_some()
     }
 
-    /// The holocrons Open would open: the oldest of the tier chosen.
+    /// The holocrons Open would open: the oldest of the tier chosen; none while the hub
+    /// keeps opening to staff.
     pub(super) fn open_one(&self) -> Option<Vec<u64>> {
+        if !self.data.can_open {
+            return None;
+        }
         self.data.sealed[self.selected].first().map(|id| vec![*id])
     }
 
     /// The holocrons Open all would open: every one listed, the oldest first, at most
     /// as many as one opening takes.
     pub(super) fn open_every(&self) -> Option<Vec<u64>> {
+        if !self.data.can_open {
+            return None;
+        }
         let mut ids: Vec<u64> = self.data.sealed.iter().flatten().copied().collect();
         ids.sort_unstable();
         ids.truncate(sjk_identity::OPEN_MAX);
@@ -148,7 +155,7 @@ impl Panel {
 
     /// Ask the hub to open `ids` (`Open` or `Open all`): the page waits for its answer.
     pub(crate) fn ask(&mut self, ids: Vec<u64>, now: Instant) -> PanelAction {
-        if self.ceremony.is_some() || self.data.state != State::Known {
+        if self.ceremony.is_some() || self.data.state != State::Known || !self.data.can_open {
             return PanelAction::None;
         }
         let first = ids.first().copied();

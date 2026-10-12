@@ -435,6 +435,15 @@ test: Collection > Holocrons > Loot table: the numbers match docs/holocrons.md, 
 test: Escape, L, Enter or Back go back to the tab; the tab's keys do nothing meanwhile.
 test: The pace line says 30 minutes and 8 a day once the hub answered.
 
+[opening-staff]
+area: Menus & settings
+title: Opening holocrons is for the SJK team until the hub opens it to everyone
+change: The hub refuses an opening from anyone but staff (hub setting --opening).
+change: For the others the tab shows "Opening comes soon" in place of Open and Open all.
+test: As staff (Sol): Collection > Holocrons shows Open and Open all, and opening works.
+test: As a player who is not staff: the line shows, Enter and A do nothing.
+test: Loot table still opens with L for everyone.
+
 [import-clients]
 area: Menus & settings
 title: First setup starts with Import from a client: configs found, FPS cap, gameplay FPS

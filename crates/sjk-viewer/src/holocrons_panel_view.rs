@@ -51,6 +51,8 @@ const HELD_Y: f32 = 788.0;
 const BUTTONS_Y: f32 = 838.0;
 const OPEN_WIDTH: f32 = 190.0;
 const OPEN_ALL_WIDTH: f32 = 230.0;
+/// In place of Open and Open all while the hub keeps opening to staff.
+pub(crate) const CLOSED_LINE: &str = "Opening comes soon: keep your holocrons, they will wait.";
 const BUTTON_GAP: f32 = 20.0;
 const BUTTON_HEIGHT: f32 = 48.0;
 /// The keys' line.
@@ -733,8 +735,22 @@ impl Panel {
     }
 
     /// Open (the oldest of the tier chosen) and Open all, under the caption, centred on
-    /// the holocron; dimmed when there is nothing to open.
+    /// the holocron; dimmed when there is nothing to open. While the hub keeps opening to
+    /// staff, a line saying so instead.
     fn buttons(&mut self, frame: &Frame) {
+        if self.data.opening_closed() {
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("{CLOSED_LINE}"),
+                frame.rect(STAGE_AT[0] - 380.0, BUTTONS_Y, 760.0, BUTTON_HEIGHT),
+                19.0 * frame.s,
+                color::MUTED,
+                FontWeight::Regular,
+                TextAlign::Center,
+            );
+            return;
+        }
         let one = self.open_one().is_some();
         let all = self.data.openable();
         let total = OPEN_WIDTH + BUTTON_GAP + OPEN_ALL_WIDTH;

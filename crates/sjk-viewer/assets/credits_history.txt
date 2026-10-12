@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 12/10/2026 | - | Opening holocrons only for staff until the hub opens it to everyone
+- d68c4d4 |  | Holocrons: opening only for staff until the hub opens it to everyone
 + 12/10/2026 | - | SJK chat from binds: sjksay, sjkgif, the GIF wheel, sjkchat in Keys
 - 1376d25 |  | SJK chat from binds: sjksay, sjkgif and the GIF wheel
 + 12/10/2026 | - | Credits history reads "Merge Creyon's PR #N" merges
@@ -1186,6 +1188,8 @@
 - 0d215f1 |  | Initial JKR source
 
 = Creyon
++ 12/10/2026 | SJK #97 | Turn the model in game by dragging it; pick hats and capes from chips
+- f52b606 |  | Turn the model in game by dragging it; pick hats and capes from chips
 + 12/10/2026 | SJK #96 | Keep listing servers after a lost answer or a dead one's reset
 - 3fe2012 |  | Keep listing servers after a lost answer or a dead one's reset
 + 12/10/2026 | SJK #95 | Crackle while a player is electrified (the JoF amlogin sound)

@@ -46,6 +46,7 @@ pub(super) fn holdings() -> Data {
         today: Some((3, 8)),
         fraction: Some(1.0 / 3.0),
         every: Some(1_800),
+        can_open: true,
         ..Data::nothing(State::Known)
     }
 }

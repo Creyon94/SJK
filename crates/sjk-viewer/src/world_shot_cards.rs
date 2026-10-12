@@ -104,6 +104,22 @@ fn duel6_sjk_opening() {
         };
         println!("{}", shoot(&mut gpu, 2, "duel6-opening-page").display());
         assert!(!overflowed(&gpu));
+        // A player while the hub keeps opening to staff: a line in place of the buttons.
+        if let Some(console) = gpu.console.as_mut() {
+            console.preview_holocrons(
+                Data {
+                    can_open: false,
+                    ..holdings()
+                },
+                0,
+            );
+        }
+        let _ = frame(&mut gpu, 4);
+        println!("{}", shoot(&mut gpu, 2, "duel6-opening-closed").display());
+        assert!(!overflowed(&gpu));
+        if let Some(console) = gpu.console.as_mut() {
+            console.preview_holocrons(holdings(), 0);
+        }
         // A Holo card's entrance, moment by moment.
         let mut moments = Vec::new();
         for (elapsed, name) in [

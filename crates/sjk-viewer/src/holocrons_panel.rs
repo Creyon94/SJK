@@ -99,6 +99,9 @@ pub(crate) struct Data {
     pub(crate) credits: Option<u64>,
     /// Seconds of play a holocron takes, once the hub said.
     pub(crate) every: Option<u64>,
+    /// Whether the hub lets the player open holocrons now: only staff while opening is
+    /// tested (`docs/holocrons.md`, "Opening"). False until the hub said.
+    pub(crate) can_open: bool,
 }
 
 impl Data {
@@ -114,6 +117,7 @@ impl Data {
             sealed: Default::default(),
             credits: None,
             every: None,
+            can_open: false,
         }
     }
 
@@ -175,6 +179,7 @@ impl Data {
             every: progress
                 .map(|progress| progress.every_secs)
                 .filter(|&every| every > 0),
+            can_open: progress.is_some_and(|progress| progress.can_open),
         }
     }
 
@@ -194,9 +199,19 @@ impl Data {
         self.counts.and_then(|counts| counts.get(index).copied())
     }
 
-    /// How many holocrons the page can open now (those the profile lists).
+    /// How many holocrons the page can open now (those the profile lists, none while the
+    /// hub keeps opening to staff).
     pub(crate) fn openable(&self) -> usize {
+        if !self.can_open {
+            return 0;
+        }
         self.sealed.iter().map(Vec::len).sum()
+    }
+
+    /// Whether the hub said opening is not for the player yet (so the page says so in
+    /// place of Open and Open all).
+    pub(crate) fn opening_closed(&self) -> bool {
+        self.state == State::Known && self.every.is_some() && !self.can_open
     }
 }
 
@@ -760,9 +775,12 @@ mod tests {
             today: 3,
             daily_cap: 8,
             server_time: 0,
+            can_open: false,
             read_at: Instant::now(),
         });
         let data = Data::of(true, &snapshot);
+        assert!(data.opening_closed(), "a player while opening is for staff");
+        assert_eq!(data.openable(), 0);
         assert_eq!(data.recent.len(), RECENT_SHOWN);
         assert_eq!(data.recent[0].tier, 2);
         assert!(data.recent[0].gift);
@@ -779,6 +797,8 @@ mod tests {
         let mut data = held([2, 1, 0, 0]);
         data.sealed = [vec![3, 8], vec![5], Vec::new(), Vec::new()];
         data.credits = Some(120);
+        data.every = Some(1_800);
+        data.can_open = true;
         data
     }
 
@@ -794,6 +814,22 @@ mod tests {
             },
             credits: 42,
         }
+    }
+
+    /// While the hub keeps opening to staff, neither Enter nor A asks it anything and the
+    /// page says why.
+    #[test]
+    fn a_player_cannot_open_while_opening_is_for_staff() {
+        let mut panel = Panel::new();
+        panel.open(true);
+        panel.data = openable();
+        panel.data.can_open = false;
+        assert!(panel.data.opening_closed());
+        assert_eq!(panel.data.openable(), 0);
+        assert_eq!(panel.key(KeyCode::Enter, false), PanelAction::None);
+        assert_eq!(panel.key(KeyCode::KeyA, false), PanelAction::None);
+        assert_eq!(panel.ask(vec![3], Instant::now()), PanelAction::None);
+        assert!(!panel.opening());
     }
 
     /// Enter opens the oldest of the tier chosen and A every one, the oldest first; the

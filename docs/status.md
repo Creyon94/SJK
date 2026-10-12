@@ -31,7 +31,10 @@ and deployed 12/10/2026. Then (branch `personal/loot-table`, Sol's request) the 
 tab's loot table: every chance a holocron brings, per tier and per holocron found
 ([holocrons.md](holocrons.md#loot-table)). Verified: the workspace checks, the hub's tests
 and the world shots `cards_shots` looked at. Not tried: against the running hub, in a
-game.
+game. Then (branch `personal/opening-staff`, Sol's request, 12/10/2026) opening is for
+staff only until the hub's operator opens it to everyone (hub `--opening everyone`; hub
+branch `feat/opening-staff`, deployed 12/10/2026): the tab hides Open for the others and
+says opening comes soon ([cards.md](cards.md#opening)).
 
 ## Server browser: servers missing at random
 

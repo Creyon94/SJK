@@ -197,6 +197,8 @@ pub struct HolocronProgress {
     pub daily_cap: u32,
     /// The hub's clock when it answered, unix seconds.
     pub server_time: i64,
+    /// Whether the person may open holocrons now (only staff while opening is tested).
+    pub can_open: bool,
     /// When this client read it.
     pub read_at: Instant,
 }
@@ -209,6 +211,7 @@ impl HolocronProgress {
             today: state.today,
             daily_cap: state.daily_cap,
             server_time: state.server_time,
+            can_open: state.can_open,
             read_at,
         }
     }
@@ -2464,6 +2467,7 @@ mod tests {
             today: 2,
             daily_cap: 8,
             server_time: 1_791_000_000,
+            can_open: true,
         }
     }
 
