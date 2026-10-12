@@ -1232,11 +1232,13 @@ test: Join several public servers a few times each: no "timed out waiting for ch
 test: If a join stalls, it ends with an error within ~15 s instead of floating on the map.
 test: After any failed join, logs\last-client.log shows the last join: step reached.
 
-[amstatus-jof]
+[amstatus-plugin-version]
 area: Gameplay
-title: Admins' amstatus shows SJK on JA+ servers
-change: cjp_client is now SJK instead of the old JA+ plugin's "1.4B4" (JoF EJK's for a day).
-test: Join a JoF server and ask an admin for /amstatus: your client reads SJK.
+title: Admins' amstatus shows 1.4 SJK on JA+ servers; the grapple works as a plugin client
+change: cjp_client is now "1.4 SJK" instead of the old JA+ plugin's "1.4B4".
+change: A bare "SJK" lost the plugin: no grapple rope, +button12 release dropped the hook.
+test: Join a JoF server and ask an admin for /amstatus: your client reads 1.4 SJK.
+test: Hook with +button12 and release: the hook holds and the dark rope is drawn (others too).
 test: Join a JA+ server: no "You haven't the JA+ client plugin installed" message.
 test: Set an RGB saber on JA+: others still see your RGB blade; the scoreboard reads right.
 

@@ -41,6 +41,7 @@ Creyon's seventeen pull requests: fixes for ledges, dropped sabers, doors and mu
 - The server browser asks a second master (Settings > Network > Second master server, cl_master2) and merges the lists, reads server and player names in the game's charset (no more missing servers or ? in names), adds a favourite by its address (Add a favourite, or A), remembers a locked server's password on this PC (Remember on this PC), and scrolls a long player list with the wheel _(Creyon)_
 - The frame rate stacks in the upper right as in JoF EJK, with its frame times smaller under it; Settings > HUD > Upper right clock (cg_drawTimerUpperRight, off by default) adds the match clock under it in place of the layout's clock _(Creyon, after JoF EJK; Sol)_
 - Console: showplayerid lists each player's client number, team and name; amcolor sets and saves your player tint, so it survives a reconnect _(Creyon, after JoF EJK)_
+- JA+ grapple hook: its rope shows again and the hook holds after you release +button12. SJK names itself 1.4 SJK to JA+ servers (amstatus), as a bare SJK made them treat it as a client without the JA+ plugin _(Sol)_
 
 ## 2026.1012.1 (Alpha) | 12/10/2026
 
