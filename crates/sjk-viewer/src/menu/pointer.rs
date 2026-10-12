@@ -138,7 +138,7 @@ impl ClientMenu {
         if token != FILTER_TOKEN {
             self.filter_editing = false;
         }
-        if (ROW_TOKEN..ROW_TOKEN + 1_000).contains(&token) {
+        if (ROW_TOKEN..ROW_TOKEN + super::browser_table::ROW_TOKENS).contains(&token) {
             return self.click_browser_row(token);
         }
         if (HEADER_TOKEN..HEADER_TOKEN + 5).contains(&token) {

@@ -1,5 +1,22 @@
 # Status and priorities
 
+## Server browser: servers missing at random
+
+Branch `fix/browser-missing-servers` (12/10/2026, based on `9dbbdf19`, Linux): Creyon saw
+the number of servers change from one refresh to the next and favourites come and go. On
+Windows a dead server's "port unreachable" comes back as a reset on the socket's next
+read, and `query_server_infos` took it for an error and ended the refresh, so every
+server that had not answered yet was missing; the engine ignores it (`NET_GetPacket`).
+It is now passed over; a server that has not answered is asked twice more (a lost
+packet or a busy server's `getinfo` rate limit left it out); the answers already in are
+read after every 32 requests; and the list takes up to 1,000 servers (it cut a master's
+list at 256) ([client.md](client.md)). Verified: a test that the reset and the other
+waits go on, a test of a server answering only the second request, a test with 101
+loopback servers answering and one silent, the workspace checks; in game on Windows 11
+by Creyon (the count steady from one refresh to the next, favourites staying).
+`{JoF}Temple Server` shows only as a favourite: none of `master.jkhub.org`,
+`master.ouned.de` and `masterjk3.ravensoft.com` (which lists nothing) lists it.
+
 ## Downloads that work, and what they may bring
 
 Branch `personal/allow-download` (12/10/2026, based on `c2016fbf`, Windows 11). Sol
