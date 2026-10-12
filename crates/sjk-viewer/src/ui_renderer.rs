@@ -484,6 +484,8 @@ impl ShapeRenderer {
         let mut opacity = [1.0_f32; 8];
         let mut opacity_depth = 0_usize;
         let mut clips = [Rect::new(0.0, 0.0, viewport[0], viewport[1]); 8];
+        // The rounded clip in force at each depth, if any: its rectangle and radius.
+        let mut rounds: [Option<(Rect, f32)>; 8] = [None; 8];
         let mut clip_depth = 0_usize;
         let commands = draw_lists.into_iter().flat_map(|list| {
             // Marks where a layer begins; `None` is never a command.
@@ -574,6 +576,12 @@ impl ShapeRenderer {
                 DrawCommand::PushClip(rect) if clip_depth + 1 < clips.len() => {
                     clip_depth += 1;
                     clips[clip_depth] = clipped(clips[clip_depth - 1], rect);
+                    rounds[clip_depth] = rounds[clip_depth - 1];
+                }
+                DrawCommand::PushRoundedClip { rect, radius } if clip_depth + 1 < clips.len() => {
+                    clip_depth += 1;
+                    clips[clip_depth] = clipped(clips[clip_depth - 1], rect);
+                    rounds[clip_depth] = Some((rect, radius));
                 }
                 DrawCommand::PopClip => clip_depth = clip_depth.saturating_sub(1),
                 DrawCommand::PushOpacity(value) if opacity_depth + 1 < opacity.len() => {
@@ -683,11 +691,12 @@ impl ShapeRenderer {
                     width,
                     color,
                     opacity[opacity_depth],
-                    clips[clip_depth],
+                    (clips[clip_depth], rounds[clip_depth]),
                     viewport,
                 ),
                 DrawCommand::Text { .. }
                 | DrawCommand::PushClip(_)
+                | DrawCommand::PushRoundedClip { .. }
                 | DrawCommand::PushOpacity(_) => {}
             }
         }
@@ -917,7 +926,7 @@ impl ShapeRenderer {
         width: f32,
         color: Color,
         opacity: f32,
-        clip: Rect,
+        (clip, round): (Rect, Option<(Rect, f32)>),
         viewport: [f32; 2],
     ) {
         let along = [to[0] - from[0], to[1] - from[1]];
@@ -940,7 +949,7 @@ impl ShapeRenderer {
             (corner(to, 1.0), [1.0, 1.0]),
             (corner(from, 1.0), [0.0, 1.0]),
         ];
-        let (points, count) = clip_polygon(quad, clip);
+        let (points, count) = clip_polygon(quad, clip, round);
         if count < 3 {
             return;
         }
@@ -1078,53 +1087,90 @@ impl ShapeRenderer {
     }
 }
 
-/// The most corners a quad cut by a rectangle keeps.
-const CLIPPED_MAX: usize = 8;
+/// Chords along each corner of a rounded clip ([`DrawCommand::PushRoundedClip`]).
+const CORNER_CHORDS: usize = 4;
+/// The most corners a quad cut by a rectangle, and by a rounded clip's corners, keeps:
+/// one more for each edge it is cut by.
+const CLIPPED_MAX: usize = 4 + 4 + 4 * CORNER_CHORDS;
 
 /// A corner of a stroke's quad: its place (window pixels) and its local coordinates.
 type Corner = ([f32; 2], [f32; 2]);
 
 /// A convex quad (window pixels, each corner with its local coordinates) cut to `clip`
-/// (Sutherland and Hodgman, one edge of the rectangle at a time): the corners left, in
-/// order, and how many. The local coordinates are carried along the cut edges, which is
-/// exact for a parallelogram's (they are affine in the position).
-fn clip_polygon(quad: [Corner; 4], clip: Rect) -> ([Corner; CLIPPED_MAX], usize) {
+/// and, under a rounded clip (`round`: its rectangle and radius), to that rectangle's
+/// rounded corners, each drawn as [`CORNER_CHORDS`] chords of its arc (Sutherland and
+/// Hodgman, one edge at a time): the corners left, in order, and how many. The local
+/// coordinates are carried along the cut edges, which is exact for a parallelogram's
+/// (they are affine in the position).
+fn clip_polygon(
+    quad: [Corner; 4],
+    clip: Rect,
+    round: Option<(Rect, f32)>,
+) -> ([Corner; CLIPPED_MAX], usize) {
     let mut points: [Corner; CLIPPED_MAX] = [([0.0; 2], [0.0; 2]); CLIPPED_MAX];
     points[..4].copy_from_slice(&quad);
     let mut count = 4;
-    // Each edge: the axis (0 x, 1 y), the bound, and whether inside is above it.
-    let edges = [
-        (0, clip.x, true),
-        (0, clip.right(), false),
-        (1, clip.y, true),
-        (1, clip.bottom(), false),
-    ];
-    for (axis, bound, above) in edges {
-        let inside = |point: &Corner| {
-            if above {
-                point.0[axis] >= bound
-            } else {
-                point.0[axis] <= bound
+    // Each edge as a half plane: inside where `normal . point >= bound`.
+    let mut edges = [([0.0_f32; 2], 0.0_f32); 4 + 4 * CORNER_CHORDS];
+    edges[..4].copy_from_slice(&[
+        ([1.0, 0.0], clip.x),
+        ([-1.0, 0.0], -clip.right()),
+        ([0.0, 1.0], clip.y),
+        ([0.0, -1.0], -clip.bottom()),
+    ]);
+    let mut edge_count = 4;
+    if let Some((rect, radius)) = round {
+        let r = radius.min(rect.width * 0.5).min(rect.height * 0.5);
+        if r > 0.5 {
+            // Each corner's centre and the angle its arc starts at (y grows downwards).
+            let corners = [
+                ([rect.x + r, rect.y + r], std::f32::consts::PI),
+                ([rect.right() - r, rect.y + r], std::f32::consts::PI * 1.5),
+                ([rect.right() - r, rect.bottom() - r], 0.0),
+                ([rect.x + r, rect.bottom() - r], std::f32::consts::FRAC_PI_2),
+            ];
+            for (centre, start) in corners {
+                for chord in 0..CORNER_CHORDS {
+                    let step = std::f32::consts::FRAC_PI_2 / CORNER_CHORDS as f32;
+                    let at =
+                        |angle: f32| [centre[0] + r * angle.cos(), centre[1] + r * angle.sin()];
+                    let (a, b) = (
+                        at(start + step * chord as f32),
+                        at(start + step * (chord + 1) as f32),
+                    );
+                    // The chord's inward normal points at the corner's centre.
+                    let middle = [(a[0] + b[0]) * 0.5, (a[1] + b[1]) * 0.5];
+                    let normal = [centre[0] - middle[0], centre[1] - middle[1]];
+                    edges[edge_count] = (normal, normal[0] * a[0] + normal[1] * a[1]);
+                    edge_count += 1;
+                }
             }
-        };
+        }
+    }
+    for &(normal, bound) in &edges[..edge_count] {
+        let side = |point: &Corner| normal[0] * point.0[0] + normal[1] * point.0[1] - bound;
         let mut out: [Corner; CLIPPED_MAX] = [([0.0; 2], [0.0; 2]); CLIPPED_MAX];
         let mut kept = 0;
         for index in 0..count {
             let current = points[index];
             let previous = points[(index + count - 1) % count];
-            let (now_in, was_in) = (inside(&current), inside(&previous));
+            let (now, was) = (side(&current), side(&previous));
+            let (now_in, was_in) = (now >= 0.0, was >= 0.0);
             if now_in != was_in && kept < CLIPPED_MAX {
-                let span = current.0[axis] - previous.0[axis];
-                let t = if span.abs() > f32::EPSILON {
-                    (bound - previous.0[axis]) / span
+                let t = if (was - now).abs() > f32::EPSILON {
+                    was / (was - now)
                 } else {
                     0.0
                 };
                 let mix =
                     |a: [f32; 2], b: [f32; 2]| [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
                 let mut point = mix(previous.0, current.0);
-                // Exactly on the edge, whatever the rounding.
-                point[axis] = bound;
+                // On a rectangle's edge exactly, whatever the rounding.
+                if normal[1] == 0.0 {
+                    point[0] = bound / normal[0];
+                } else if normal[0] == 0.0 {
+                    point[1] = bound / normal[1];
+                }
                 out[kept] = (point, mix(previous.1, current.1));
                 kept += 1;
             }
@@ -1222,7 +1268,9 @@ pub(crate) fn append_text_commands_where<'a>(
                     opacity[opacity_depth] = opacity[opacity_depth - 1] * value.clamp(0.0, 1.0);
                 }
                 DrawCommand::PopOpacity => opacity_depth = opacity_depth.saturating_sub(1),
-                DrawCommand::PushClip(rect) if clip_depth + 1 < clips.len() => {
+                DrawCommand::PushClip(rect) | DrawCommand::PushRoundedClip { rect, .. }
+                    if clip_depth + 1 < clips.len() =>
+                {
                     clip_depth += 1;
                     clips[clip_depth] = clipped(clips[clip_depth - 1], *rect);
                 }
@@ -1291,10 +1339,10 @@ mod line_clip_tests {
     #[test]
     fn a_strokes_quad_is_cut_to_the_clip() {
         let clip = Rect::new(0.0, 0.0, 100.0, 100.0);
-        let (points, count) = clip_polygon(quad(10.0, 10.0, 20.0, 20.0), clip);
+        let (points, count) = clip_polygon(quad(10.0, 10.0, 20.0, 20.0), clip, None);
         assert_eq!(count, 4);
         assert_eq!(points[..4], quad(10.0, 10.0, 20.0, 20.0));
-        let (points, count) = clip_polygon(quad(80.0, 10.0, 40.0, 20.0), clip);
+        let (points, count) = clip_polygon(quad(80.0, 10.0, 40.0, 20.0), clip, None);
         assert_eq!(count, 4);
         let right = points[..count]
             .iter()
@@ -1306,17 +1354,46 @@ mod line_clip_tests {
             .find(|(point, _)| point[0] == 100.0)
             .unwrap();
         assert!((cut.1[0] - 0.5).abs() < 1e-5, "half way along");
-        assert_eq!(clip_polygon(quad(200.0, 10.0, 20.0, 20.0), clip).1, 0);
+        assert_eq!(clip_polygon(quad(200.0, 10.0, 20.0, 20.0), clip, None).1, 0);
         let diamond = [
             ([50.0, -40.0], [0.0, 0.0]),
             ([140.0, 50.0], [1.0, 0.0]),
             ([50.0, 140.0], [1.0, 1.0]),
             ([-40.0, 50.0], [0.0, 1.0]),
         ];
-        let (points, count) = clip_polygon(diamond, clip);
-        assert_eq!(count, CLIPPED_MAX);
+        let (points, count) = clip_polygon(diamond, clip, None);
+        assert_eq!(count, 8);
         for (point, _) in &points[..count] {
             assert!((0.0..=100.0).contains(&point[0]) && (0.0..=100.0).contains(&point[1]));
         }
+    }
+
+    /// Under a rounded clip a stroke keeps off the corners: nothing is left outside the
+    /// arc, while the middle of an edge is cut as a plain rectangle would cut it.
+    #[test]
+    fn a_rounded_clip_keeps_strokes_off_the_corners() {
+        let clip = Rect::new(0.0, 0.0, 100.0, 100.0);
+        let round = Some((clip, 20.0));
+        // A square over the top-left corner.
+        let (points, count) = clip_polygon(quad(-10.0, -10.0, 30.0, 30.0), clip, round);
+        assert!(count >= 3);
+        for (point, _) in &points[..count] {
+            let from_centre = (point[0] - 20.0).hypot(point[1] - 20.0);
+            let in_corner = point[0] < 20.0 && point[1] < 20.0;
+            assert!(
+                !in_corner || from_centre <= 20.01,
+                "{point:?} is past the arc"
+            );
+        }
+        // Along the middle of the top edge, the cut is the rectangle's.
+        let (points, count) = clip_polygon(quad(40.0, -10.0, 20.0, 30.0), clip, round);
+        assert_eq!(count, 4);
+        let top = points[..count]
+            .iter()
+            .map(|(point, _)| point[1])
+            .fold(f32::MAX, f32::min);
+        assert_eq!(top, 0.0);
+        // Wholly in the corner, outside the arc: nothing.
+        assert_eq!(clip_polygon(quad(0.0, 0.0, 3.0, 3.0), clip, round).1, 0);
     }
 }

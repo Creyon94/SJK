@@ -139,6 +139,10 @@ pub enum DrawCommand {
     },
     /// Begin clipping descendants.
     PushClip(Rect),
+    /// Begin clipping descendants to `rect` with its corners rounded by `radius`: strokes
+    /// ([`DrawCommand::Line`]) are cut to the rounded shape, everything else to the
+    /// rectangle. Ended by [`DrawCommand::PopClip`] like a plain clip.
+    PushRoundedClip { rect: Rect, radius: f32 },
     /// End the most recent clip.
     PopClip,
     /// Multiply descendant opacity.

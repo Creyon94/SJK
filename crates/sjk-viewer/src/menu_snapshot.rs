@@ -405,7 +405,7 @@ fn raster(
                     }
                 }
             }
-            DrawCommand::PushClip(rect) => {
+            DrawCommand::PushClip(rect) | DrawCommand::PushRoundedClip { rect, .. } => {
                 let x = rect.x.max(clip.x);
                 let y = rect.y.max(clip.y);
                 clips.push(Rect::new(

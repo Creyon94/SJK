@@ -478,6 +478,14 @@ test: Collection > Holocrons > Loot table: the numbers match docs/holocrons.md, 
 test: Escape, L, Enter or Back go back to the tab; the tab's keys do nothing meanwhile.
 test: The pace line says 30 minutes and 8 a day once the hub answered.
 
+[card-corners]
+area: Menus & settings
+title: Card corners: Holo and Solar light stay inside the rounded corners; card 001 renamed
+change: A card's sheen and sunlight are cut to its rounded corners, not a square.
+change: Card 001 is "Toxiee and Sol on JoF Memorial", Art: Sol (AI-assisted).
+test: Collection > Cards: a Holo and a Solar card, the corners stay clean as the light moves.
+test: Card 001 shows the new title and "Art: Sol (AI-assisted)" once the new pack downloaded.
+
 [card-faces]
 area: Menus & settings
 title: Card faces and the first card (Sol lore 001), revealing sealed cards

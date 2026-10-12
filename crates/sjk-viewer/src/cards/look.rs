@@ -35,6 +35,8 @@ const HOLO_BANDS: [[f32; 3]; 6] = [
     [0.45, 0.5, 1.0],
     [0.85, 0.45, 1.0],
 ];
+/// A card's corner radius against its width.
+const CORNER: f32 = 0.07;
 /// The Solar corona's arcs.
 const CORONA: usize = 3;
 /// A face's name shows on a card this wide (frame pixels) or wider, and all its words
@@ -121,7 +123,7 @@ pub(crate) fn draw(
     let shown = (width * turn).max(1.0);
     let left = x + (width - shown) * 0.5;
     let rect = frame.rect(left, y, shown, height);
-    let radius = width * 0.07 * s;
+    let radius = width * CORNER * s;
     let unit = width / 220.0;
     let rarity = card.rarity;
     let edge = if card.finish.index == 2 {
@@ -218,15 +220,24 @@ pub(crate) fn draw(
         },
     });
     // The finish over everything, inside the card.
-    let _ = list.push(DrawCommand::PushClip(frame.rect(
-        left + 2.0 * unit,
-        y + 2.0 * unit,
-        (shown - 4.0 * unit).max(1.0),
-        height - 4.0 * unit,
-    )));
+    let _ = list.push(DrawCommand::PushRoundedClip {
+        rect: frame.rect(
+            left + 2.0 * unit,
+            y + 2.0 * unit,
+            (shown - 4.0 * unit).max(1.0),
+            height - 4.0 * unit,
+        ),
+        radius: ((width * CORNER - 2.0 * unit) * frame.s).max(0.0),
+    });
     match card.finish.index {
         0 => {}
-        1 => holo(list, frame, [left, y, shown, height], seconds),
+        1 => holo(
+            list,
+            frame,
+            [left, y, shown, height],
+            width * CORNER,
+            seconds,
+        ),
         _ => solar(
             list,
             frame,
@@ -360,16 +371,25 @@ fn face(
     }
     // The finish over everything, inside the card.
     let unit = width / 220.0;
-    let _ = list.push(DrawCommand::PushClip(frame.rect(
-        left + 2.0 * unit,
-        y + 2.0 * unit,
-        (shown - 4.0 * unit).max(1.0),
-        height - 4.0 * unit,
-    )));
+    let _ = list.push(DrawCommand::PushRoundedClip {
+        rect: frame.rect(
+            left + 2.0 * unit,
+            y + 2.0 * unit,
+            (shown - 4.0 * unit).max(1.0),
+            height - 4.0 * unit,
+        ),
+        radius: ((width * CORNER - 2.0 * unit) * frame.s).max(0.0),
+    });
     let [cx, cy] = frame.point(x + width * 0.5, art[1] + art[3] * 0.5);
     match card.finish.index {
         0 => {}
-        1 => holo(list, frame, [left, y, shown, height], seconds),
+        1 => holo(
+            list,
+            frame,
+            [left, y, shown, height],
+            width * CORNER,
+            seconds,
+        ),
         _ => solar(
             list,
             frame,
@@ -489,8 +509,15 @@ fn face(
 }
 
 /// Holo: bands of the rainbow slanting across the card, drifting over it, and a bright
-/// line where the light catches.
-fn holo(list: &mut sjk_ui::DrawList, frame: &Frame, [x, y, width, height]: [f32; 4], seconds: f32) {
+/// line where the light catches; `corner` is the card's corner radius (frame pixels).
+/// The caller's rounded clip keeps the bands inside the card's corners.
+fn holo(
+    list: &mut sjk_ui::DrawList,
+    frame: &Frame,
+    [x, y, width, height]: [f32; 4],
+    corner: f32,
+    seconds: f32,
+) {
     let s = frame.s;
     let band = width * 0.16;
     let sweep = (seconds * 0.18).fract();
@@ -513,10 +540,10 @@ fn holo(list: &mut sjk_ui::DrawList, frame: &Frame, [x, y, width, height]: [f32;
         width: band * 0.18 * s,
         color: Color::new(1.0, 1.0, 1.0, 0.28),
     });
-    // A faint pearl over the whole card.
+    // A faint pearl over the whole card, rounded as the card is.
     let _ = list.push(DrawCommand::GradientRect {
         rect: frame.rect(x, y, width, height),
-        radius: 0.0,
+        radius: corner * s,
         gradient: Gradient {
             start: Color::new(0.75, 0.85, 1.0, 0.05),
             end: Color::new(1.0, 0.7, 0.95, 0.08),
@@ -536,9 +563,10 @@ fn solar(
     seconds: f32,
 ) {
     let s = frame.s;
+    let corner = full * CORNER;
     let _ = list.push(DrawCommand::GradientRect {
         rect: frame.rect(x, y, width, height),
-        radius: 0.0,
+        radius: corner * s,
         gradient: Gradient {
             start: faded(SUN, 0.24),
             end: faded(EMBER, 0.06),
@@ -576,7 +604,7 @@ fn solar(
     });
     let _ = list.push(DrawCommand::GradientRect {
         rect: frame.rect(x, y + height * 0.72, width, height * 0.28),
-        radius: 0.0,
+        radius: corner * s,
         gradient: Gradient {
             start: faded(EMBER, 0.0),
             end: faded(EMBER, 0.2),
@@ -586,7 +614,7 @@ fn solar(
     let glow = 0.5 + 0.5 * (seconds * 2.3).sin();
     let _ = list.push(DrawCommand::Border {
         rect: frame.rect(x, y, width, height),
-        radius: full * 0.07 * s,
+        radius: corner * s,
         width: (3.5 * s * full / 220.0).max(1.5),
         color: faded(SUN, 0.35 + 0.4 * glow),
     });
@@ -634,7 +662,7 @@ pub(crate) mod tests {
     pub(crate) fn face() -> Face {
         Face {
             id: "sol_lore_001".to_owned(),
-            name: "Sol and Toxiee on JoF Memorial".to_owned(),
+            name: "Toxiee and Sol on JoF Memorial".to_owned(),
             set: "sol_lore".to_owned(),
             set_name: "Sol lore".to_owned(),
             number: 1,
@@ -691,7 +719,7 @@ pub(crate) mod tests {
                 if words == 0 {
                     assert!(runs.is_empty(), "{runs:?}");
                 } else {
-                    assert_eq!(runs[0], "Sol and Toxiee on JoF Memorial");
+                    assert_eq!(runs[0], "Toxiee and Sol on JoF Memorial");
                 }
                 if width >= WORDS {
                     assert!(runs.contains(&"001 / 001"), "{runs:?}");

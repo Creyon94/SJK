@@ -420,7 +420,8 @@ mod tests {
                 | DrawCommand::RoundedRect { rect, .. }
                 | DrawCommand::GradientRect { rect, .. }
                 | DrawCommand::Border { rect, .. }
-                | DrawCommand::PushClip(rect) => Some(rect),
+                | DrawCommand::PushClip(rect)
+                | DrawCommand::PushRoundedClip { rect, .. } => Some(rect),
                 _ => None,
             })
             .collect()

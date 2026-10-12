@@ -1,5 +1,16 @@
 # Status and priorities
 
+## Card corners and the first card's words
+
+Branch `personal/card-corners` (12/10/2026), Sol's report: on a Holo card the sheen ran
+over the card's rounded corners. Clips were rectangles only; `sjk-ui` gained
+`PushRoundedClip` (strokes cut to the rounded shape, each corner four chords of its arc,
+everything else to the rectangle) and cards draw their finish under it, the washes with
+the card's radius. Sol also renamed the first card "Toxiee and Sol on JoF Memorial"
+(Toxiee is on the left) and its art reads "Sol (AI-assisted)": re-imported into the hub's
+`sjk_cards` pack (hub branch `feat/card-001-words`). Verified: unit tests (the rounded
+clip keeps a stroke off the corners), the world shots looked at, corners zoomed in.
+
 ## Russian and Japanese text
 
 Branch `personal/unicode-text` (12/10/2026), Sol's request after Russian friends saw
@@ -21,7 +32,7 @@ channel draws Cyrillic it already accepted; it refuses Japanese until its letter
 ## Card faces and the first card
 
 Branch `personal/card-face` (12/10/2026), Sol's request: Sol made the first card
-("Sol and Toxiee on JoF Memorial", Sol lore 001, Legendary) in `card_import/`
+("Toxiee and Sol on JoF Memorial", Sol lore 001, Legendary) in `card_import/`
 (git-ignored) and asked for everything it needs. Hub branch `feat/card-catalogue` in
 Sol-Vulpes/SJK-hub: the catalogue (`cards.json`), a card picked at opening, `POST
 /v1/cards/reveal`, `scripts/import_cards.py`, and the `sjk_cards` pack with the first

@@ -330,7 +330,7 @@ mod tests {
     use super::*;
 
     const FILE: &str = r#"{
-  "name": "Sol and Toxiee on JoF Memorial",
+  "name": "Toxiee and Sol on JoF Memorial",
   "set": "sol_lore",
   "set_name": "Sol lore",
   "number": 1,
@@ -345,7 +345,7 @@ mod tests {
     #[test]
     fn a_card_file_reads_and_bad_ones_are_refused() {
         let face = parse("sol_lore_001", FILE).unwrap();
-        assert_eq!(face.name, "Sol and Toxiee on JoF Memorial");
+        assert_eq!(face.name, "Toxiee and Sol on JoF Memorial");
         assert_eq!((face.set.as_str(), face.number), ("sol_lore", 1));
         assert_eq!(face.kind, Kind::Community);
         assert_eq!(face.rarity.id, "legendary");
@@ -354,7 +354,7 @@ mod tests {
             ("\"legendary\"", "\"mythic\""),
             ("\"community\"", "\"memes\""),
             ("\"number\": 1", "\"number\": 0"),
-            ("Sol and Toxiee on JoF Memorial", ""),
+            ("Toxiee and Sol on JoF Memorial", ""),
         ] {
             assert!(parse("x", &FILE.replace(from, to)).is_err(), "{to}");
         }

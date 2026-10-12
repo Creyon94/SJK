@@ -123,8 +123,10 @@ No player text promises the shop until it exists.
 
 ## Faces and the first card
 
-Since 12/10/2026 (Sol's first card, "Sol and Toxiee on JoF Memorial", Sol lore 001,
-Legendary) a sealed copy can become a real card.
+Since 12/10/2026 (Sol's first card, "Toxiee and Sol on JoF Memorial", Sol lore 001,
+Legendary, its art by "Sol (AI-assisted)": the names in the title follow the picture,
+Toxiee on the left) a sealed copy can become a real card. A card's `artist` line says
+how its art was made; the footer reads "Art: <artist>".
 
 - **Where cards are made:** Sol keeps each card's picture and words in `card_import/`
   at the repository's root, which git ignores (`card_import/README.txt` says the format):
@@ -170,9 +172,11 @@ Legendary) a sealed copy can become a real card.
   gem and the edition stamped at the foot. Holo lays slanted bands of the rainbow
   drifting across it with a glint; Solar a warm wash, a corona of arcs turning round
   the gem, a band of sunlight passing over, embers at the foot and a breathing gold
-  edge. The light is cut to the card: the UI renderer cuts strokes to the clip
-  rectangle since this change ([ui_renderer.rs](../crates/sjk-viewer/src/ui_renderer.rs)
-  `clip_polygon`), as it always cut rectangles.
+  edge. The light is cut to the card, rounded corners included: the finish draws
+  under a rounded clip (`DrawCommand::PushRoundedClip`), and the UI renderer cuts
+  strokes to it, each corner as four chords of its arc
+  ([ui_renderer.rs](../crates/sjk-viewer/src/ui_renderer.rs) `clip_polygon`); the
+  finish's washes take the card's corner radius themselves.
 - **A revealed card** shows its face as a trading card: its name and a dot of its
   rarity's colour on top, its picture in a gold-edged 6:5 window (dark until the
   picture is decoded and uploaded), a strip with its kind and set ("Community ·
