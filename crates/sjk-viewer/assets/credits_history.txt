@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 12/10/2026 | - | Release 2026.1012.1 notes
+- f096ef9 |  | Release 2026.1012.1 (Alpha)
 + 12/10/2026 | - | A What's new card recaps each update; every release carries a recap
 - e86e608 |  | What's new card: a recap of each update, and a rule that every release has one
 + 12/10/2026 | - | cjp_client SJK on JA+, jaPRO keeps 1.4JAPRO
