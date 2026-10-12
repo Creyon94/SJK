@@ -361,7 +361,8 @@ player's own (`cl_giphyKey`); favourites stay on this PC.
   `/` goes to the search field; Page Up and Page Down scroll a page of rows and the wheel
   one row; Escape closes the picker (a second Escape leaves the page). The keys line
   says Enter pick, F favourite, PgUp/PgDn scroll, Esc close GIFs. The search field
-  takes Ctrl+V and a held Backspace as the message field does.
+  takes Ctrl+A (typing then replaces the words), Ctrl+V and a held Backspace as the
+  message field does.
 
 ## Who is online
 
