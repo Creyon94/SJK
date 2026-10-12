@@ -23,6 +23,10 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+- The Supporter medal, for players who donate more than 1 euro to SJK: given by the SJK team, shown with the other medals on the profile, the player card, the Collection and the scoreboard (placeholder art) _(Sol)_
+
 ## 2026.1013.1 (Alpha) | 13/10/2026
 
 Settings in two modes, Simple and Advanced, with new holocron icons and the choice of Vanilla or the SJK renderer, trading cards with faces, a character creator of tiles, and chat in Russian, Japanese, Chinese, Korean and emoji.

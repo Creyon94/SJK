@@ -79,6 +79,17 @@ pub(crate) fn newest_digest() -> Option<Digest> {
     releases.first().map(digest)
 }
 
+/// The newest dated release's recap: what the what's-new card shows after an update.
+/// "Unreleased" has none until the release is cut.
+#[cfg(test)]
+pub(crate) fn newest_release_digest() -> Option<Digest> {
+    let releases = data::parse(data::EMBEDDED).ok()?;
+    releases
+        .iter()
+        .find(|release| release.version().is_some())
+        .map(digest)
+}
+
 fn digests_of(releases: &[data::Release], installed: &str, seen: &str) -> Vec<Digest> {
     let Some(newest) = releases.iter().position(|r| r.version() == Some(installed)) else {
         return Vec::new();

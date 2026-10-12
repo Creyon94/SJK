@@ -356,9 +356,10 @@ menu's row of icons): [sjk-ui.md](sjk-ui.md#report-a-bug-and-its-dialogs).
 ## Medals
 
 A medal is recognition the SJK team gives a player by hand: for testing SJK early,
-contributing to its code or finding bugs. Since 10/10/2026 (Sol's decision) each medal
-brings one saber shader for as long as the player holds it: Early Tester the Hologram
-blade, Early Contributor the Runic blade, Bug Hunter the Glitch blade. The hub derives
+contributing to its code, finding bugs or donating to SJK. Since 10/10/2026 (Sol's decision)
+a medal may bring one saber shader for as long as the player holds it: Early Tester the
+Hologram blade, Early Contributor the Runic blade, Bug Hunter the Glitch blade; Supporter
+brings none. The hub derives
 it from the medal and takes it back with the medal's last award, off the player's look
 too ([unlockables.md](unlockables.md#decisions)). Nothing else comes with a medal: no
 setting, power or right, on any server. Players do not ask for medals or choose them;
@@ -369,6 +370,7 @@ the SJK team gives them.
 | Early Tester | `early_tester` | Helped test SJK in its early days. | no |
 | Early Contributor | `early_contributor` | Contributed to SJK's code in its early days. | no |
 | Bug Hunter | `bug_hunter` | Found bugs that got fixed. | yes, with a count ("Bug Hunter x2") |
+| Supporter | `supporter` | Donated to SJK's development (more than 1 euro, since 13/10/2026; [sjk.md](sjk.md#donations)). | no |
 
 The hub lists a key's medals in its profile (`"medals":[{"id","count","awarded","note"}]`:
 the count, when it was last given and a short note from the team, often empty) and in its
@@ -378,7 +380,8 @@ send none. The catalogue is [medals.rs](../crates/sjk-viewer/src/medals.rs): eac
 name, description, ribbon colours and two pictures in `assets/medals` (`<id>.png`, the
 whole medal on its ribbon, 512 square; `<id>_small.png`, the medallion alone, 128
 square, for anything under about 64 pixels). A new medal is one entry there and two
-pictures; new art is a file replacement. The JoF Clan medal (`jof_clan`) was dropped on
+pictures; new art is a file replacement. Supporter's pictures are a drawn placeholder (a
+gold medallion with a heart on a violet ribbon, 13/10/2026) until Sol picks its art. The JoF Clan medal (`jof_clan`) was dropped on
 10/10/2026 for the [JoF clan tag](#clan-tags); a client ignores an old award of it as
 an unknown id.
 
@@ -388,7 +391,7 @@ Where they show:
   rows whose claim the emblem trusts (the claimed name matches the name the game shows).
   They are coloured rectangles drawn from the catalogue (Early Tester amber with black
   stripes, Early Contributor navy with a white centre stripe, Bug Hunter emerald with
-  black edges), sized after the emblem; they take room from the name,
+  black edges, Supporter violet with gold edges and a gold centre stripe), sized after the emblem; they take room from the name,
   never the columns, and fewer show where the name would keep less than half its room
   (the SJK UI: a third). Derived only when the roster or the rows change.
 - The player card (`inspect`): the medallions in a row under the hub name; a pinned card

@@ -1074,7 +1074,8 @@ mod tests {
 
     #[test]
     fn the_real_changelog_recaps_fit_the_card() {
-        let newest = crate::console::changelog::newest_digest().unwrap();
+        // "Unreleased", when main has one, gets its recap when the release is cut.
+        let newest = crate::console::changelog::newest_release_digest().unwrap();
         assert!(!newest.lines.is_empty(), "{} has no recap", newest.title);
         let mut card = Card::default();
         card.offer("", &[newest], true);

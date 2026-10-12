@@ -176,7 +176,7 @@ timestamps in logs and JSON, and file names meant to sort.
 | [SJK release](../.github/workflows/release.yml) | Tags `sjk-v<version>` | Builds and publishes the release ZIPs |
 
 The site is static: `index.html`, `assets/style.css` and `assets/site.js` (release
-list, download entry, screenshot gallery). It wears the SJK UI's look
+list, download entry, screenshot gallery, donation card). It wears the SJK UI's look
 ([sjk-ui.md](sjk-ui.md), Sol's request of 09/10/2026): the home page is the
 client's main page, SJK's emblem in its turning ring with a plain menu beside it
 (a gold Download button, then the sections in one column; Sol found the first
@@ -206,6 +206,29 @@ Release tags exist only on SJK and are created on Sol's request. The release
 title carries the stage, "Sol JK 2026.1005.1 (Alpha)" (`STAGE` in the workflow).
 Alphas are not marked as pre-releases, so the site's download link
 (`releases/latest`) finds them; their name and notes say "Alpha" instead.
+
+## Donations
+
+The site's Support SJK section (Sol's request, 13/10/2026) says what donations are for:
+a full Claude plan used only for SJK, so more of the tasks Sol has ready can run as
+parallel agents. A Claude plan is billed monthly, so the goal is monthly ("0 € of 200 € this
+month" on the page) and its bar starts again each month. Every
+value is in one place, `DONATION` at the top of
+[site.js](../site/assets/site.js):
+
+| Field | Is | Edit when |
+| --- | --- | --- |
+| `url` | The donation page, an https address; anything else (the placeholder `PLACEHOLDER-DONATION-URL`) shows "Donation link coming soon" instead of the button | Sol has a donation page |
+| `goal` | The monthly goal in whole euros (200) | The plan's price changes |
+| `raised` | What came in this month, in whole euros; the bar fills to `raised / goal` and stops full | A donation arrives; back to 0 on the 1st |
+
+Pushing `main` publishes the change (the Pages workflow). Without JavaScript the card
+says the goal and link need it. A donation of more than 1 euro earns the Supporter medal
+([identity.md](identity.md#medals)): the donor puts their in-game name or SJK key id in
+the donation's message and the SJK team gives the medal by hand. The page shows the
+medallion from `site/assets/medal-supporter.png`, a copy of the client's
+`supporter_small.png`: replace both when the art changes. The page promises nothing
+else: no feature is sold and a donation brings no advantage in the game.
 
 ## Changelog
 

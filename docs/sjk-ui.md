@@ -1298,7 +1298,7 @@ for the run.
   Rajdhani ("2/3", "11/21", how many holocrons for Holocrons; nothing while unknown or empty), the one on show gold and
   underlined. Drawn in Inter (the families not loaded, the classic menus), the row
   makes room for the wider face.
-- **Medals:** "2 of 3 medals" (or why they are not known) over a line; every medal
+- **Medals:** "2 of 4 medals" (or why they are not known) over a line; every medal
   the client knows hangs by its ribbon from a lit holo rail (x 96 to 1000, y 336, a
   bead at each end), up to 226 apart, the ones given first in colour on a soft gold
   glow, the others dark; under each its name (with the count for one given again) and
@@ -1306,7 +1306,7 @@ for the run.
   mark on the rail at its clasp and a brighter glow; up close on the right (x 1120 to
   1824) the whole medal at 400 on its glow, its name at 54 (gold when given), when it
   was given, what it is for with the saber shader it brings ("Comes with the Glitch
-  blade, a saber shader."), the team's note in quotes under "From the SJK team", and
+  blade, a saber shader."; nothing for a medal that brings none, Supporter), the team's note in quotes under "From the SJK team", and
   who sees it. A dotted rail and "More medals will hang here as the SJK team adds
   them." stand under the rail. Left and Right choose; hovering chooses.
 - **Achievements:** "11 of 21 unlocked" with a gold bar; then a wall, a row to each

@@ -161,10 +161,18 @@ mod tests {
     fn all_gives_every_medal_in_the_catalogues_order() {
         let list = parse(&words("all x2 Well done"), NOW).unwrap();
         let ids: Vec<&str> = list.iter().map(|medal| medal.id.as_str()).collect();
-        assert_eq!(ids, ["early_tester", "early_contributor", "bug_hunter"]);
+        assert_eq!(
+            ids,
+            [
+                "early_tester",
+                "early_contributor",
+                "bug_hunter",
+                "supporter"
+            ]
+        );
         assert!(list.iter().all(|medal| medal.note == "Well done"));
         let counts: Vec<u32> = list.iter().map(|medal| medal.count).collect();
-        assert_eq!(counts, [1, 1, 2]);
+        assert_eq!(counts, [1, 1, 2, 1]);
     }
 
     #[test]

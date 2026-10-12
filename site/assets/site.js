@@ -6,6 +6,16 @@ const REPO = "Sol-Vulpes/SJK";
 const RELEASES_API = `https://api.github.com/repos/${REPO}/releases?per_page=6`;
 const RELEASES_PAGE = `https://github.com/${REPO}/releases`;
 
+// Donations: the one place to edit (docs/sjk.md, "Donations"). `url` is the donation page,
+// an https address; until it is one, the card says the link is coming instead of
+// linking. `goal` is the monthly goal and `raised` what came in this month, both
+// whole euros: set `raised` back to 0 at the start of each month.
+const DONATION = {
+  url: "PLACEHOLDER-DONATION-URL",
+  goal: 200,
+  raised: 0,
+};
+
 /** Escape text for safe insertion as HTML. */
 function escapeHtml(text) {
   return String(text).replace(/[&<>"']/g, (c) => ({
@@ -133,6 +143,55 @@ function enhanceDownload(release) {
     links.push(`<a href="${escapeHtml(release.html_url)}">all files &amp; checksums</a>`);
     files.innerHTML = links.join(" · ");
     files.hidden = false;
+  }
+}
+
+/** A whole number of euros as SJK's site writes them: "1 200 €". */
+function euros(amount) {
+  const whole = Math.max(0, Math.round(Number(amount) || 0));
+  const narrowSpace = String.fromCharCode(0x202f);
+  const noBreak = String.fromCharCode(0xa0);
+  return `${String(whole).replace(/\B(?=(\d{3})+(?!\d))/g, narrowSpace)}${noBreak}€`;
+}
+
+/** What the donation card shows for `donation`: the amount line, the bar's fill
+ * (0 to 1) and the link, or null while the link is not an https address. */
+function donationState(donation) {
+  const goal = Math.max(1, Math.round(Number(donation.goal) || 0));
+  const raised = Math.max(0, Math.round(Number(donation.raised) || 0));
+  const url = /^https:\/\/\S+$/.test(String(donation.url || "")) ? donation.url : null;
+  return {
+    amount: `${euros(raised)} of ${euros(goal)} this month`,
+    fill: Math.min(1, raised / goal),
+    goal,
+    raised,
+    url,
+  };
+}
+
+/** The donation card: the goal, the bar and the button from DONATION. */
+function setUpDonation() {
+  const amount = document.getElementById("donation-amount");
+  const bar = document.getElementById("donation-bar");
+  const note = document.getElementById("donation-note");
+  const link = document.getElementById("donation-link");
+  if (!amount || !bar || !link) return;
+  const state = donationState(DONATION);
+  amount.textContent = state.amount;
+  bar.hidden = false;
+  bar.setAttribute("aria-valuemin", "0");
+  bar.setAttribute("aria-valuemax", String(state.goal));
+  bar.setAttribute("aria-valuenow", String(Math.min(state.raised, state.goal)));
+  bar.style.setProperty("--fill", String(state.fill));
+  if (note) note.hidden = false;
+  link.hidden = false;
+  if (state.url) {
+    link.href = state.url;
+    link.rel = "noopener";
+  } else {
+    link.textContent = "Donation link coming soon";
+    link.classList.add("waiting");
+    link.setAttribute("aria-disabled", "true");
   }
 }
 
@@ -325,11 +384,15 @@ if (typeof document !== "undefined") {
     setUpBackdrop();
     setUpNav();
     setUpSettings();
+    setUpDonation();
     loadReleases();
     loadGallery();
   });
 }
 
 if (typeof module !== "undefined") {
-  module.exports = { escapeHtml, inline, renderMarkdown, latestRelease, assetFor, versionOf, euDate };
+  module.exports = {
+    escapeHtml, inline, renderMarkdown, latestRelease, assetFor, versionOf, euDate,
+    euros, donationState, DONATION,
+  };
 }
