@@ -30,6 +30,12 @@ multiplayer. Read [docs/status.md](docs/status.md),
   the evidence, read by generic code, and the player can override it with a cvar or
   setting. Supporting a new case means adding an entry, not code. Example:
   [server_caps.rs](crates/sjk-viewer/src/server_caps.rs) and `gameplay_fps_nocap`.
+- The retail Jedi Academy's own assets ("OG") come first in every list of installed
+  content a menu offers (models, species, saber hilts, and what a later list adds), under
+  an "Jedi Academy" heading with the community's after it under "Community" (Sol's rule,
+  12/10/2026). Retail is told by the archive (`assets0.pk3` to `assets3.pk3` of `base`,
+  [retail_assets.rs](crates/sjk-client/src/retail_assets.rs)), never by an asset's name;
+  a catalogue puts the retail ones first and says how many they are.
 - Every text field takes Ctrl+A, Ctrl+C and Ctrl+V and repeats a held Backspace (Sol's
   rule, 12/10/2026), in every screen, pop-up and prompt, SJK UI and classic alike:
   Ctrl+A selects all the text (typing or a paste then replaces it, Backspace clears
