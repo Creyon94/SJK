@@ -390,7 +390,7 @@ clock for capture, omit populated-match workload, and establish integration and
 indicative GPU cost only. No verification hooks or fixtures are shipped.
 
 These and the other SJK rendering cvars can also be changed in the client's
-renderer settings page (Settings > VIDEO > Renderer; see
+renderer settings (Settings > Graphics, in Advanced; see
 [client.md](client.md#renderer-settings)), with the same ranges and timing.
 
 ## Geometry and pipelines added during a match
@@ -2108,7 +2108,7 @@ with the stage's untransformed texture coordinates; floors whose diffuse stage
 scrolls or scales (`tcMod`) read them slightly misaligned. Floors without maps draw
 exactly as before.
 
-`r_floorReflections 0` (live, archived; Settings > VIDEO > Renderer, IMAGE tab, "Floor
+`r_floorReflections 0` (live, archived; Settings > Graphics > Image in Advanced, "Floor
 mirrors") leaves polished floors with their ordinary material and renders no mirror.
 The environment variable `SJK_FLOOR_REFLECTIONS=0`, which predates the cvar, still
 forces them off whatever the cvar says; `SJK_FLOOR_COMMANDS=0` disables only the GPU
@@ -3047,10 +3047,13 @@ dust and material maps are SJK's defaults (Sol's own settings). Emission maps
 (`r_emissiveMaps 1`) are on too and only act where a pack has `_e` images.
 These are ordinary cvar defaults, not a config imported at launch. They are the
 High level of [graphics quality](client.md#graphics-quality), which sets the
-costly ones together.
+costly ones together, and the look the SJK renderer (alpha) is tuned for. Since
+12/10/2026 a new profile (no `config.cfg` at start) begins on Vanilla instead, the
+original look, and the player turns the SJK renderer on in Settings; the cvars'
+defaults stay these, so an existing profile keeps its settings.
 
 When sun and sky, light shafts and both sun shadows are off (the Performance and
-EJK levels), a map loads without extracting its lamps (`Lamps: none` in the
+Vanilla levels, Vanilla called EJK until 12/10/2026), a map loads without extracting its lamps (`Lamps: none` in the
 log): no pass reads them there, the shadow runtime is never installed and the
 world shows its lightmaps. Lamp extraction, its grid and refinement took about
 4.5 s of `JoFTemple`'s load on 09/10/2026 (see [status](status.md#joftemple-frame-rate-and-ultra-low)).

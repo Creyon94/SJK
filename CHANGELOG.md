@@ -27,8 +27,15 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 > Force: Hold push or pull to use it again the moment it is ready, as in JoF EJK.
 > Collection: Rest the pointer on anything you collect to see how you get it.
+> Settings: Simple shows the settings that matter most, Advanced every one; Ctrl+F or F3 finds any.
+> Graphics: New players start on Vanilla, the original look; the SJK renderer is one click away, in alpha.
 
 - Holding a push or pull key pushes or pulls again as soon as the power is ready, as in JoF EJK, keyboard or mouse; Settings > Controls > Hold push/pull repeats (`cl_forceRepeat`, on by default) turns it off _(Sol, after JoF EJK)_
+- Settings in two modes: Simple, the default, shows the settings that matter most in eight plain categories (Display, Graphics, Sound, Controls, Key bindings, Gameplay, HUD, General), and Advanced every setting, regrouped (Display and Network under sub-headings, Graphics led by the renderer, the FPS readout with the HUD's readouts, the first-person weapon with the camera); the top bar or F2 switches, and `ui_settingsMode` keeps the choice _(Sol)_
+- Settings' search: Ctrl+F and F3 open it as `/` does, with what was typed selected so typing replaces it, in Settings and Key bindings; it finds every setting in both modes, under the new category names _(Sol)_
+- Renderer: Vanilla (the EJK level, renamed) or SJK (alpha), one row in Graphics and First setup in place of the EJK graphics switch; SJK quality picks the SJK renderer's level (Performance to Ultra), and a warning in the detail column says the SJK renderer is in alpha. A new profile starts on Vanilla; existing profiles keep their settings. `renderer vanilla|sjk` in the console; `graphicsquality vanilla` (ejk still works) _(Sol)_
+- Choices are named: Dynamic glow, Glow style, Light shafts, Weather quality, Force weather, Ground fog, Shader remaps, Invisible brushes, Saber rain steam and Last key wins show Off, Sabers, Never, Map's fog and the like instead of 0, 1 and 2; Display gamma is now Brightness _(Sol)_
+- Settings usage: what players change in Settings and what they search for goes to the SJK team anonymously (no key, name or server) when Settings closes, to make it clearer; Settings > Network > Share settings usage (`cl_shareUsage`) turns it off _(Sol)_
 - Hover cards in the Collection: rest the pointer on a medal, an achievement, a saber shader, the toy, a card or a holocron tier and a card beside it says how you get it, and where you stand (when it was given, how far along you are, how many you hold, how rare it is) _(Sol)_
 
 ## 2026.1012.2 (Alpha) | 12/10/2026

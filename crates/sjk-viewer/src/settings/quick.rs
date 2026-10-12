@@ -1,6 +1,6 @@
 //! The FIRST SETUP tab of Settings: the few settings worth choosing once on a first
 //! start (first, bringing the setup from another client and the gameplay FPS it
-//! moved at; then graphics quality and its EJK graphics switch, the menu and
+//! moved at; then the renderer and its quality, the menu and
 //! camera styles, display, aim, sound, the HUD, nameplates, the Force shells and
 //! the network opt-ins). The rows are the catalogue's own, looked up by cvar, so a
 //! change here is the same change the other tabs make; the import row and the
@@ -30,8 +30,8 @@ const IMPORT_ROW: Setting = Setting {
 /// The tab's cvars, in order, after the import row.
 const CVARS: &[&str] = &[
     crate::gameplay_fps::CVAR,
+    crate::graphics_quality::RENDERER_ROW,
     crate::graphics_quality::ROW_NAME,
-    crate::graphics_quality::EJK_ROW,
     crate::menu::style::CVAR,
     crate::camera::STYLE_CVAR,
     "r_resolution",
@@ -94,8 +94,8 @@ mod tests {
             [
                 super::super::catalog::IMPORT_ROW,
                 crate::gameplay_fps::CVAR,
+                crate::graphics_quality::RENDERER_ROW,
                 crate::graphics_quality::ROW_NAME,
-                crate::graphics_quality::EJK_ROW,
                 crate::menu::style::CVAR,
                 crate::camera::STYLE_CVAR
             ]

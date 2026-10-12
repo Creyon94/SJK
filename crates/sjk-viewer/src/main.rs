@@ -230,6 +230,7 @@ mod session_log;
 mod session_transition;
 mod settings;
 mod settings_icons;
+mod settings_usage;
 mod shared_geometry;
 mod sjk_chat_field;
 mod sjk_chat_frame;

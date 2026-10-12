@@ -172,13 +172,13 @@ impl Card {
                     .to_owned(),
             );
         }
-        let ejk = self.level == Some(crate::graphics_quality::Level::Ejk.label());
+        let vanilla = self.level == Some(crate::graphics_quality::Level::Vanilla.label());
         let what = match self.level {
-            Some(level) if ejk => format!("{level} graphics"),
+            Some(level) if vanilla => format!("{level} graphics"),
             Some(level) => format!("{level} graphics quality"),
             None => super::summary(&self.changes),
         };
-        let verb = if !ejk && (self.level.is_some() || self.changes.len() == 1) {
+        let verb = if !vanilla && (self.level.is_some() || self.changes.len() == 1) {
             "applies"
         } else {
             "apply"
@@ -394,8 +394,8 @@ mod tests {
         card.offer(&["HDR", "FXAA"], None);
         assert!(card.words(false).1.starts_with("HDR and FXAA apply"));
         // A graphics quality level is named.
-        card.offer(&["HDR", "FXAA", "sun and sky"], Some("EJK"));
-        assert!(card.words(false).1.starts_with("EJK graphics apply"));
+        card.offer(&["HDR", "FXAA", "sun and sky"], Some("Vanilla"));
+        assert!(card.words(false).1.starts_with("Vanilla graphics apply"));
         card.offer(&["HDR", "FXAA", "sun and sky"], Some("Balanced"));
         assert!(
             card.words(false)

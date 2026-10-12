@@ -295,8 +295,7 @@ impl ClientMenu {
                 None => MenuAction::None,
             },
             home::Action::Open(super::destination::MainDestination::Settings { .. }) => {
-                let category = self.sjk_settings.category();
-                self.open_sjk_settings(console, category, ReturnTarget::MainMenu);
+                self.open_sjk_settings_resumed(console, ReturnTarget::MainMenu);
                 MenuAction::None
             }
             home::Action::Open(destination) => self.open_main_destination(destination, console),

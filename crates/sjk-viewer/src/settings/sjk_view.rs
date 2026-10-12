@@ -31,6 +31,8 @@ pub(crate) struct Rail<'a> {
     pub(crate) current: Option<usize>,
     /// Where the way back leads: "Main menu", or "Game menu" over a match.
     pub(crate) back: &'a str,
+    /// The mode shown, whose segment the top bar lights.
+    pub(crate) mode: super::mode::SettingsMode,
 }
 
 /// The back key's target, as the settings form's back cap.
@@ -38,6 +40,8 @@ const BACK_TOKEN: u16 = 900;
 
 /// The search pill (`menu::sjk::top_bar`'s).
 const SEARCH: [f32; 4] = SEARCH_PILL;
+/// Where the Simple and Advanced segments end, left of the search.
+const MODES_RIGHT: f32 = SEARCH[0] - 28.0;
 /// The rail's line, its first category's top and the step between them.
 const RAIL_X: f32 = 96.0;
 const RAIL_TOP: f32 = 210.0;
@@ -151,7 +155,7 @@ impl SettingsMenu {
         self.ui.begin_transparent(viewport);
         self.ui.push_opacity(reveal);
         backdrop(&mut self.ui, viewport);
-        self.top_bar(&frame, rail.back);
+        self.top_bar(&frame, rail.back, rail.mode);
         draw_rail(&mut self.ui, &frame, rail);
         let measure = target.body_measure();
         let slots = self.sjk_rows(&frame, &measure, VISIBLE, LIST_BOTTOM);
@@ -164,8 +168,9 @@ impl SettingsMenu {
         self.sjk_controls = Some(frame.point(CONTROL_LEFT, 0.0)[0]);
     }
 
-    /// The way back (to `back`), the screen's name and the search.
-    fn top_bar(&mut self, frame: &Frame, back: &str) {
+    /// The way back (to `back`), the screen's name, the modes (`mode` lit)
+    /// and the search.
+    fn top_bar(&mut self, frame: &Frame, back: &str, mode: super::mode::SettingsMode) {
         let found = (!self.search.trim().is_empty()).then(|| {
             self.classic
                 .as_ref()
@@ -179,6 +184,7 @@ impl SettingsMenu {
             self.searching,
             "Find a setting",
             found,
+            mode,
         );
     }
 
@@ -361,8 +367,11 @@ impl SettingsMenu {
                     .iter()
                     .position(|candidate| candidate.eq_ignore_ascii_case(&value))
                     .unwrap_or(0);
-                let labels: [&str; MAX_SEGMENTS] =
-                    std::array::from_fn(|index| values.get(index).map_or("", |v| choice_label(v)));
+                let labels: [&str; MAX_SEGMENTS] = std::array::from_fn(|index| {
+                    values
+                        .get(index)
+                        .map_or("", |v| choice_label(setting.cvar, v))
+                });
                 kit::segments(
                     &mut self.ui,
                     frame,
@@ -399,7 +408,10 @@ impl SettingsMenu {
                     field,
                     format_args!(
                         "{}",
-                        crate::menu::classic::view::Sentence(&shown_value(&value))
+                        crate::menu::classic::view::Sentence(&shown_value(choice_label(
+                            setting.cvar,
+                            &value
+                        )))
                     ),
                     focused || open,
                     true,
@@ -531,10 +543,11 @@ impl SettingsMenu {
         let Some(rect) = self.list_rect(shown, bottom) else {
             return;
         };
+        let cvar = self.rows().get(dropdown.row).map_or("", |row| row.cvar);
         let labels: Vec<&str> = dropdown
             .picks
             .iter()
-            .map(|pick| Self::pick_label(*pick))
+            .map(|pick| Self::pick_label(cvar, *pick))
             .collect();
         let (highlighted, current) = (dropdown.highlighted, dropdown.current);
         kit::list(
@@ -621,6 +634,22 @@ impl SettingsMenu {
             }
             y += 22.0;
         }
+        if self.alpha && renderer_setting(setting.cvar) {
+            for line in wrap(help::ALPHA_WARNING, 44).take(5) {
+                text(
+                    &mut self.ui,
+                    TextFamily::Body,
+                    format_args!("{line}"),
+                    frame.rect(DETAIL_X, y, DETAIL_WIDTH, 28.0),
+                    17.0 * s,
+                    color::GOLD_BRIGHT,
+                    FontWeight::Regular,
+                    TextAlign::Start,
+                );
+                y += 28.0;
+            }
+            y += 18.0;
+        }
         let default = self
             .defaults
             .get(self.selected)
@@ -630,7 +659,13 @@ impl SettingsMenu {
                 frame,
                 &mut y,
                 "Default",
-                format_args!("{}", shown_value(&default)),
+                format_args!(
+                    "{}",
+                    crate::menu::classic::view::Sentence(&shown_value(choice_label(
+                        setting.cvar,
+                        &default
+                    )))
+                ),
                 color::TEXT,
             );
         }
@@ -667,7 +702,7 @@ impl SettingsMenu {
                     frame,
                     &mut y,
                     "Choices",
-                    format_args!("{}", Choices(choices)),
+                    format_args!("{}", Choices(setting.cvar, choices)),
                     color::TEXT,
                 );
             }
@@ -805,6 +840,9 @@ impl SettingsMenu {
             } else {
                 keys.push((&["Tab"][..], "next group"));
             }
+            if let Some(mode) = self.screen.filter(|_| !self.popup()) {
+                keys.push((&["F2"][..], mode.other().hint()));
+            }
         }
         let gap = 30.0 * s;
         let width: f32 = keys
@@ -821,9 +859,12 @@ impl SettingsMenu {
 }
 
 /// The Settings screen's top bar, the key bindings' too: the way back to
-/// `back` (the back token 900), the screen's name and the search pill showing
-/// `search` (with its cursor while `searching`), `prompt` when empty and how
-/// many were `found` while a search is typed.
+/// `back` (the back token 900), the screen's name, the Simple and Advanced
+/// segments left of the search, `mode` lit (chrome slots from
+/// [`MODE_SLOT`](crate::menu::sjk::settings::MODE_SLOT)), and the search pill
+/// showing `search` (with its cursor while `searching`), `prompt` when empty
+/// and how many were `found` while a search is typed.
+#[allow(clippy::too_many_arguments)]
 pub(crate) fn top_bar(
     canvas: &mut crate::menu_widgets::MenuCanvas,
     frame: &Frame,
@@ -832,7 +873,23 @@ pub(crate) fn top_bar(
     searching: bool,
     prompt: &str,
     found: Option<usize>,
+    mode: super::mode::SettingsMode,
 ) {
+    let modes = super::mode::SettingsMode::ALL.map(super::mode::SettingsMode::label);
+    let current = super::mode::SettingsMode::ALL
+        .iter()
+        .position(|shown| *shown == mode)
+        .unwrap_or(0);
+    kit::segments(
+        canvas,
+        frame,
+        MODES_RIGHT,
+        SEARCH[1] + SEARCH[3] * 0.5,
+        &modes,
+        current,
+        false,
+        CHROME_BASE + crate::menu::sjk::settings::MODE_SLOT as u16,
+    );
     crate::menu::sjk::top_bar(
         canvas,
         frame,
@@ -859,19 +916,19 @@ fn shown_value(value: &str) -> std::borrow::Cow<'_, str> {
     }
 }
 
-/// A list of choices, in sentence case, separated by commas.
-struct Choices(&'static [&'static str]);
+/// A setting's list of choices, as named, in sentence case, separated by commas.
+struct Choices(&'static str, &'static [&'static str]);
 
 impl std::fmt::Display for Choices {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        for (index, choice) in self.0.iter().enumerate() {
+        for (index, choice) in self.1.iter().enumerate() {
             if index > 0 {
                 formatter.write_str(", ")?;
             }
             write!(
                 formatter,
                 "{}",
-                crate::menu::classic::view::Sentence(choice_label(choice))
+                crate::menu::classic::view::Sentence(choice_label(self.0, choice))
             )?;
         }
         Ok(())
@@ -975,8 +1032,20 @@ mod tests {
         assert_eq!(shown_value("AUTO"), "Auto");
         assert_eq!(shown_value("1920x1080"), "1920x1080");
         assert_eq!(
-            Choices(&["off", "sjk", "strong"]).to_string(),
+            Choices("cg_example", &["off", "sjk", "strong"]).to_string(),
             "Off, SJK, Strong"
+        );
+        assert_eq!(
+            Choices("cg_remaps", &["0", "1", "2"]).to_string(),
+            "Never, Not players, Always"
+        );
+        assert_eq!(
+            Choices(
+                crate::graphics_quality::RENDERER_ROW,
+                &super::super::catalog::RENDERERS
+            )
+            .to_string(),
+            "Vanilla, SJK (alpha)"
         );
     }
 

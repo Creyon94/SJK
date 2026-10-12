@@ -1,9 +1,9 @@
 //! The low-FPS card (`docs/sjk-ui.md`, "Low FPS help"): an SJK pop-up card over the
 //! darkened screen, as the graphics reload card, that says what SJK's lighting costs
-//! on this map and offers EJK graphics (gold, Enter) or Not now (Escape), with a
-//! "Don't suggest this again" tick (D) for the card that comes by itself. EJK graphics
-//! is the Settings switch: it keeps the player's settings and `vid_restart` applies
-//! it; with EJK on, the same button turns it off and the settings come back.
+//! on this map and offers Vanilla graphics (gold, Enter) or Not now (Escape), with a
+//! "Don't suggest this again" tick (D) for the card that comes by itself. Vanilla graphics
+//! is the Settings renderer choice: it keeps the player's settings and `vid_restart` applies
+//! it; with Vanilla on, the same button turns it off and the settings come back.
 
 use crate::menu::sjk::{Frame, TextTarget, color, key_hint, key_hint_width, kit, text, wrap};
 use crate::menu_widgets::{MenuCanvas, TextFamily};
@@ -47,7 +47,7 @@ pub(crate) enum Mode {
 /// What the player chose on the card.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Choice {
-    /// Turn EJK graphics on, or off when they are.
+    /// Turn Vanilla graphics on, or off when they are.
     Switch,
     Close,
     /// Flip "Don't suggest this again".
@@ -58,7 +58,7 @@ pub(crate) enum Choice {
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub(crate) struct Facts {
     pub(crate) finding: Option<super::Finding>,
-    pub(crate) ejk: bool,
+    pub(crate) vanilla: bool,
     pub(crate) suggest: bool,
     pub(crate) on_server: bool,
 }
@@ -148,8 +148,8 @@ impl Card {
 
     /// The headline, the paragraphs and the main button's label.
     fn words(&self, facts: Facts) -> (&'static str, Vec<String>, &'static str) {
-        let headline = match (self.mode, facts.ejk) {
-            (_, true) => "EJK graphics are on",
+        let headline = match (self.mode, facts.vanilla) {
+            (_, true) => "Vanilla graphics are on",
             (Some(Mode::Offered), false) => "This map is heavy on SJK's lighting",
             _ => "Low FPS?",
         };
@@ -168,19 +168,19 @@ impl Card {
         } else {
             "The menu map loads again in a few seconds."
         };
-        let button = if facts.ejk {
+        let button = if facts.vanilla {
             paragraphs.push(format!(
-                "SJK's lighting, sun, shadows, reflections and material maps are off. Turning EJK \
+                "SJK's lighting, sun, shadows, reflections and material maps are off. Turning Vanilla \
                  graphics off brings your own settings back. {reload}"
             ));
-            "Turn EJK graphics off"
+            "Turn Vanilla graphics off"
         } else {
             paragraphs.push(format!(
-                "EJK graphics turn off SJK's lighting, sun, shadows, reflections and material \
+                "Vanilla graphics turn off SJK's lighting, sun, shadows, reflections and material \
                  maps: the maps' baked lighting, as in EternalJK, and the most FPS. Your \
                  settings are kept for when you turn it off (Settings > Video). {reload}"
             ));
-            "Use EJK graphics"
+            "Use Vanilla graphics"
         };
         (headline, paragraphs, button)
     }
@@ -288,7 +288,14 @@ impl Card {
         let hints: [(&[&str], &str); 3] = [
             (&["D"], "don't suggest"),
             (&["Esc"], "not now"),
-            (&["Enter"], if facts.ejk { "turn off" } else { "use EJK" }),
+            (
+                &["Enter"],
+                if facts.vanilla {
+                    "turn off"
+                } else {
+                    "use Vanilla"
+                },
+            ),
         ];
         let width: f32 = hints
             .iter()
@@ -309,7 +316,7 @@ impl crate::GpuState {
         let console = self.console.as_ref();
         Facts {
             finding: self.fps_help.finding,
-            ejk: console.is_some_and(crate::graphics_quality::ejk),
+            vanilla: console.is_some_and(crate::graphics_quality::vanilla),
             suggest: console
                 .and_then(|console| console.bool_cvar(super::CVAR))
                 .unwrap_or(true),
@@ -369,11 +376,11 @@ impl crate::GpuState {
         };
         match choice {
             Some(Choice::Switch) => {
-                crate::graphics_quality::toggle_ejk(console);
+                crate::graphics_quality::toggle_vanilla(console);
                 let _ = console.queue_command("vid_restart");
                 crate::log::progress(format_args!(
-                    "fps help: EJK graphics {}",
-                    if crate::graphics_quality::ejk(console) {
+                    "fps help: Vanilla graphics {}",
+                    if crate::graphics_quality::vanilla(console) {
                         "on"
                     } else {
                         "off"
@@ -403,7 +410,7 @@ mod tests {
                 },
                 target_fps: 144,
             }),
-            ejk: false,
+            vanilla: false,
             suggest: true,
             on_server: true,
         }
@@ -434,7 +441,7 @@ mod tests {
         assert!(paragraphs[0].contains("5.6 ms"), "{paragraphs:?}");
         assert!(paragraphs[0].ends_with("about 125 FPS."), "{paragraphs:?}");
         assert!(paragraphs[1].ends_with("you stay on the server."));
-        assert_eq!(button, "Use EJK graphics");
+        assert_eq!(button, "Use Vanilla graphics");
         // Asked, with nothing measured yet, in the menu.
         card.show(Mode::Asked);
         let facts = Facts {
@@ -446,12 +453,12 @@ mod tests {
         assert_eq!(headline, "Low FPS?");
         assert_eq!(paragraphs.len(), 1);
         assert!(paragraphs[0].ends_with("The menu map loads again in a few seconds."));
-        // EJK on: the button turns it off.
+        // Vanilla on: the button turns it off.
         let (headline, _, button) = card.words(Facts {
-            ejk: true,
+            vanilla: true,
             ..heavy()
         });
-        assert_eq!(headline, "EJK graphics are on");
-        assert_eq!(button, "Turn EJK graphics off");
+        assert_eq!(headline, "Vanilla graphics are on");
+        assert_eq!(button, "Turn Vanilla graphics off");
     }
 }

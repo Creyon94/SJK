@@ -34,6 +34,11 @@ pub(super) fn run() -> Result<(), Box<dyn Error>> {
     };
     platform::initialize_storage(&game_data)?;
     let mut console = console::ViewerConsole::new(platform::user_config_file()?)?;
+    // A player's first start is on Vanilla; the SJK renderer (alpha) is theirs to
+    // turn on in Settings.
+    if console.new_profile() {
+        crate::graphics_quality::apply_new_profile(&mut console);
+    }
     for line in notice::LINES {
         log::progress(format_args!("{line}"));
         console.push_log_quiet(line);

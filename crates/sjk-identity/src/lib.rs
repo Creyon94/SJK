@@ -20,6 +20,7 @@ pub mod logs;
 pub mod report;
 pub mod service;
 pub mod staff;
+pub mod usage;
 pub mod wire;
 
 pub use assets::Pack;

@@ -134,6 +134,14 @@ player's key. The hub keeps the newest 5000 until the operator removes them. Wit
 `cl_crashReports 0` nothing is sent and the report stays on the PC
 (`crashes/last-crash.txt`).
 
+Settings usage ([client.md](client.md#settings-usage), since 12/10/2026) is the one
+thing the client sends with no identity at all, and whether identity is on or not:
+while `cl_shareUsage` (default 1) is on, closing Settings sends which settings were
+changed (their console names and values before and after as the rows show them, a
+text setting's value never) and what was searched there, with the client build and
+a random id drawn once per game run. No key, signature, name, server or map goes with
+it, and the hub keeps no address for it. With `cl_shareUsage 0` nothing is sent.
+
 Logs ([Log requests](#log-requests)) are sent only when the SJK team asked for them and
 the player chose Send logs on the card that asks: the newest console and diagnostic
 lines of this session and the one before (chat lines left out, the player's folder
@@ -905,6 +913,9 @@ once.
 - `cl_crashReports` (default 1; Settings > Network > Send crash reports) sends crash
   reports to the hub at the next start ([Crash reports](#crash-reports)); 0 keeps them on
   the PC.
+- `cl_shareUsage` (default 1; Settings > Network > Share settings usage) sends the
+  settings changed and searched in Settings, anonymously, without the key
+  ([client.md](client.md#settings-usage)); 0 sends nothing.
 - `cl_sjkChat` (default 1; Settings > Network > SJK chat) shows the SJK chat and reads
   it; `sjkchat` opens its page, `messagemode5` (I) its composer in a game, and
   `sjkemote <id>` sends an emote ([hub-chat.md](hub-chat.md)).
