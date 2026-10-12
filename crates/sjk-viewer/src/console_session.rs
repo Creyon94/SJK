@@ -547,6 +547,7 @@ impl ViewerConsole {
             open: false,
             shift: false,
             held_keys: Default::default(),
+            force_repeat: Default::default(),
             input: String::with_capacity(INPUT_LIMIT),
             history: Vec::new(),
             history_index: None,
@@ -1143,6 +1144,40 @@ mod tests {
         assert_eq!(poll(&mut console).commands, vec![b"forcechanged".to_vec()]);
         menu.settle_force_page(false, &mut console);
         assert!(poll(&mut console).commands.is_empty(), "closed already");
+    }
+
+    /// A held key bound to push or pull repeats it until the key is let go of,
+    /// whoever takes the release, and not with `cl_forceRepeat 0`; other powers'
+    /// keys, and a press among other commands that are not push or pull, do not.
+    #[test]
+    fn a_held_push_or_pull_key_repeats_until_let_go() {
+        use winit::keyboard::KeyCode;
+        let directory = tempfile::tempdir().unwrap();
+        let mut console = ViewerConsole::new(directory.path().join("config.cfg")).unwrap();
+        console.execute_console_line("bind mouse4 force_throw", None);
+        console.execute_console_line("bind f \"forceselect 4; force_pull\"", None);
+        console.execute_console_line("bind g force_protect", None);
+        console.queue_bound_script("MOUSE4", true);
+        assert_eq!(console.force_repeat_command(), Some(5));
+        let f = crate::input::keys::KeyName::Fixed("f");
+        console.queue_bound_key(KeyCode::KeyF, Some(f), true);
+        assert_eq!(console.force_repeat_command(), Some(6), "the last pressed");
+        console.queue_bound_script("MOUSE4", false);
+        assert_eq!(console.force_repeat_command(), Some(6));
+        console.force_repeat_key_up(KeyCode::KeyF, None);
+        assert_eq!(
+            console.force_repeat_command(),
+            None,
+            "release taken elsewhere"
+        );
+        console.queue_bound_script("g", true);
+        assert_eq!(console.force_repeat_command(), None, "protect toggles");
+        console.queue_bound_script("MOUSE4", true);
+        console.clear_force_repeat();
+        assert_eq!(console.force_repeat_command(), None, "window lost");
+        assert!(console.set_cvar(crate::input::force_repeat::CVAR, "0"));
+        console.queue_bound_script("MOUSE4", true);
+        assert_eq!(console.force_repeat_command(), None, "turned off");
     }
 
     /// The nameplate's own powers are what the server grants the profile that is

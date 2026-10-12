@@ -4,6 +4,7 @@ use sjk_protocol::UserCommand;
 pub(crate) mod alt_code;
 pub(crate) mod dead_key;
 pub(crate) mod flip_kick;
+pub(crate) mod force_repeat;
 pub(crate) mod idrive;
 pub(crate) mod motion;
 

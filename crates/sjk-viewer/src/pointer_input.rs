@@ -90,6 +90,13 @@ impl GpuState {
     }
 
     pub(crate) fn pointer_button(&mut self, button: MouseButton, state: ElementState) {
+        // Whoever takes the release, a held push or pull button stops repeating.
+        if state == ElementState::Released
+            && let Some(key) = input::keys::name(input::keys::Source::Mouse(button))
+            && let Some(console) = &mut self.console
+        {
+            console.force_repeat_button_up(key);
+        }
         // An open quick wheel takes the left and right buttons: they change its
         // page, and neither attacks.
         let side = match button {
@@ -179,6 +186,9 @@ impl GpuState {
         self.gameplay_input.focus(focused);
         if !focused {
             self.pending_generic_command = 0;
+            if let Some(console) = &mut self.console {
+                console.clear_force_repeat();
+            }
             // The released keys reach the server with the next command, at once.
             self.packet_pacer.reset();
         }

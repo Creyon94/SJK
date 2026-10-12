@@ -349,6 +349,10 @@ const HELP: &[(&str, &str)] = &[
         crate::input::idrive::DELAY_CVAR,
         "Stand still this long after pressing the opposite key before it takes over; some servers punish instant flips.",
     ),
+    (
+        crate::input::force_repeat::CVAR,
+        "Keep a push or pull key held to use the power again the moment its cooldown ends, as in JoF EJK.",
+    ),
     // GAME
     (
         "cg_simpleItems",
