@@ -156,6 +156,7 @@ impl ClientMenu {
         };
         match token {
             ADDRESS_TOKEN => self.open_address_entry(),
+            super::browser_view::ADD_FAVOURITE_TOKEN => self.open_favourite_entry(),
             REFRESH_TOKEN | REFRESH_LIST_TOKEN => self.refresh(),
             INFO_TOKEN => self.classic_info = true,
             INFO_CLOSE_TOKEN => self.classic_info = false,

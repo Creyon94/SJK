@@ -2,6 +2,14 @@
 
 use super::*;
 
+/// What the address prompt is for: joining the server, or keeping it as a favourite.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub(crate) enum AddressPurpose {
+    #[default]
+    Join,
+    Favourite,
+}
+
 impl ClientMenu {
     /// Share the browser's favorites persistence with addFavorite.
     pub(crate) fn add_favorite(&mut self, address: std::net::SocketAddr) -> Result<(), String> {
@@ -153,10 +161,22 @@ impl ClientMenu {
 
     pub(super) fn open_address_entry(&mut self) {
         self.address_editing = true;
+        self.address_purpose = AddressPurpose::Join;
         self.address_error.clear();
     }
 
+    /// The address prompt, to add a favourite by its address (Sol's request,
+    /// 11/10/2026): a server no master lists can be kept and joined.
+    pub(super) fn open_favourite_entry(&mut self) {
+        self.open_address_entry();
+        self.address_purpose = AddressPurpose::Favourite;
+    }
+
     pub(super) fn submit_address(&mut self) -> MenuAction {
+        if self.address_purpose == AddressPurpose::Favourite {
+            self.submit_favourite();
+            return MenuAction::None;
+        }
         match sjk_client::LegacyServerAddress::parse(&self.address_input) {
             Ok(address) => {
                 let address = address.into_string();
@@ -171,6 +191,42 @@ impl ClientMenu {
                 use std::fmt::Write as _;
                 let _ = write!(self.address_error, "Bad server address: {error}");
                 MenuAction::None
+            }
+        }
+    }
+
+    /// Keep the typed address as a favourite, show the favourites and ask the
+    /// servers again, so it answers in the list; or say what was wrong.
+    fn submit_favourite(&mut self) {
+        use std::fmt::Write as _;
+        use std::net::ToSocketAddrs as _;
+        let resolved = sjk_client::LegacyServerAddress::parse(&self.address_input)
+            .map_err(|error| format!("Bad server address: {error}"))
+            .and_then(|address| {
+                address
+                    .into_string()
+                    .to_socket_addrs()
+                    .ok()
+                    .and_then(|mut found| found.next())
+                    .ok_or_else(|| "That address could not be found".to_owned())
+            });
+        let added = resolved.and_then(|address| {
+            if self.browser.is_favorite(address) {
+                Err("That server is already a favourite".to_owned())
+            } else {
+                self.browser.add_favorite(address)
+            }
+        });
+        self.address_error.clear();
+        match added {
+            Ok(()) => {
+                self.address_editing = false;
+                self.address_input.clear();
+                self.browser.set_favorites_only(true);
+                self.refresh();
+            }
+            Err(error) => {
+                let _ = write!(self.address_error, "{error}");
             }
         }
     }

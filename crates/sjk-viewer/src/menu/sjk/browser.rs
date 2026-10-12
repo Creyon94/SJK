@@ -16,8 +16,8 @@ use crate::console::ViewerConsole;
 use crate::menu::browser_filters::BASE as FILTER_BASE;
 use crate::menu::browser_table::TABLE_TOKEN;
 use crate::menu::browser_view::{
-    ADDRESS_TOKEN, BACK_TOKEN, FAVOURITE_TOKEN, FILTER_TOKEN, HEADER_TOKEN, JOIN_TOKEN,
-    REFRESH_TOKEN, ROW_TOKEN, SCROLLBAR_TOKEN,
+    ADD_FAVOURITE_TOKEN, ADDRESS_TOKEN, BACK_TOKEN, FAVOURITE_TOKEN, FILTER_TOKEN, HEADER_TOKEN,
+    JOIN_TOKEN, REFRESH_TOKEN, ROW_TOKEN, SCROLLBAR_TOKEN,
 };
 use crate::menu::levelshot::{Preview, cover_uv};
 use crate::menu::{ClientMenu, MenuAction};
@@ -42,8 +42,9 @@ const SHOW_Y: f32 = 352.0;
 const FILTERS_TOP: f32 = 374.0;
 const FILTER_STEP: f32 = 56.0;
 const FILTER_HEIGHT: f32 = 52.0;
-/// The column's two actions at its foot: refresh, join by address.
-const ACTIONS_TOP: f32 = 842.0;
+/// The column's three actions at its foot: refresh, join by address, add a
+/// favourite by its address.
+const ACTIONS_TOP: f32 = 786.0;
 const ACTION_HEIGHT: f32 = 44.0;
 /// The list: its column, the header line, the rows and how many show.
 const LIST_X: f32 = 470.0;
@@ -187,8 +188,13 @@ pub(crate) struct BrowserPage {
 enum Dialog<'a> {
     /// The password of `server` (its name, or address), `length` typed.
     Password { server: String, length: usize },
-    /// An address being typed, with what was wrong with the last one.
-    Address { input: &'a str, error: &'a str },
+    /// An address being typed, with what was wrong with the last one, to join it
+    /// or (`favourite`) to keep it as a favourite.
+    Address {
+        input: &'a str,
+        error: &'a str,
+        favourite: bool,
+    },
 }
 
 impl ClientMenu {
@@ -207,6 +213,8 @@ impl ClientMenu {
             Some(Dialog::Address {
                 input: &self.address_input,
                 error: &self.address_error,
+                favourite: self.address_purpose
+                    == super::super::controller::AddressPurpose::Favourite,
             })
         } else {
             self.password_target.as_deref().map(|address| {
@@ -598,7 +606,7 @@ impl ClientMenu {
 /// What has the keyboard, for the keys at the bottom.
 enum Focus {
     Password,
-    Address,
+    Address { favourite: bool },
     Search,
     Side(Side),
     List { searched: bool, favourites: bool },
@@ -614,7 +622,9 @@ impl Focus {
     ) -> Self {
         match (dialog, side) {
             (Some(Dialog::Password { .. }), _) => Self::Password,
-            (Some(Dialog::Address { .. }), _) => Self::Address,
+            (Some(Dialog::Address { favourite, .. }), _) => Self::Address {
+                favourite: *favourite,
+            },
             (None, _) if searching => Self::Search,
             (None, Some(index)) => Self::Side(SIDE[index]),
             (None, None) => Self::List {
@@ -761,6 +771,21 @@ fn draw_side(ui: &mut MenuCanvas, frame: &Frame, browser: &ServerBrowser, focus:
         true,
         false,
         ADDRESS_TOKEN,
+    );
+    kit::button(
+        ui,
+        frame,
+        [
+            SIDE_X,
+            ACTIONS_TOP + 2.0 * (ACTION_HEIGHT + 12.0),
+            SIDE_WIDTH,
+            ACTION_HEIGHT,
+        ],
+        "Add a favourite",
+        false,
+        true,
+        false,
+        ADD_FAVOURITE_TOKEN,
     );
 }
 
@@ -1431,7 +1456,10 @@ fn draw_keys(ui: &mut MenuCanvas, frame: &Frame, focus: &Focus) {
     let mut keys: Vec<(&[&str], &str)> = Vec::with_capacity(5);
     match focus {
         Focus::Password => keys.extend([(&["Enter"][..], "join"), (&["Esc"][..], "cancel")]),
-        Focus::Address => keys.extend([(&["Enter"][..], "connect"), (&["Esc"][..], "cancel")]),
+        Focus::Address { favourite } => keys.extend([
+            (&["Enter"][..], if *favourite { "add" } else { "connect" }),
+            (&["Esc"][..], "cancel"),
+        ]),
         Focus::Search => keys.extend([(&["Enter"][..], "servers"), (&["Esc"][..], "clear")]),
         Focus::Side(side) => {
             keys.push(match side {
@@ -1447,6 +1475,7 @@ fn draw_keys(ui: &mut MenuCanvas, frame: &Frame, focus: &Focus) {
             favourites,
         } => {
             keys.extend([(&["Enter"][..], "join"), (&["F"][..], "favourite")]);
+            keys.push((&["A"][..], "add by address"));
             if !searched {
                 keys.push((
                     &["Tab"][..],
@@ -1498,12 +1527,28 @@ fn draw_dialog(ui: &mut MenuCanvas, frame: &Frame, viewport: [f32; 2], dialog: &
             "Join",
             *length > 0,
         ),
-        Dialog::Address { input, error } => (
+        Dialog::Address {
+            input,
+            error,
+            favourite: false,
+        } => (
             "Join by address",
             "Type the server's address, with its port if it is not 29070.".to_owned(),
             (*input).to_owned(),
             *error,
             "Connect",
+            !input.trim().is_empty(),
+        ),
+        Dialog::Address {
+            input,
+            error,
+            favourite: true,
+        } => (
+            "Add a favourite",
+            "Type the server's address, with its port if it is not 29070. It is kept and asked for whether a master server lists it or not.".to_owned(),
+            (*input).to_owned(),
+            *error,
+            "Add",
             !input.trim().is_empty(),
         ),
     };
@@ -1623,7 +1668,7 @@ const _: () = assert!(super::SEARCH_PILL[1] + super::SEARCH_PILL[3] < HEADER_TOP
 const _: () = assert!(HEADER_TOP + HEADER_HEIGHT < ROWS_TOP);
 const _: () = assert!(ROWS_TOP + VISIBLE as f32 * ROW < KEYS_Y - 20.0);
 const _: () = assert!(FILTERS_TOP + 4.0 * FILTER_STEP < ACTIONS_TOP);
-const _: () = assert!(ACTIONS_TOP + 2.0 * ACTION_HEIGHT + 12.0 < KEYS_Y - 20.0);
+const _: () = assert!(ACTIONS_TOP + 3.0 * ACTION_HEIGHT + 24.0 < KEYS_Y - 20.0);
 const _: () = assert!(PICTURE[1] + PICTURE[3] < NAME_TOP && NAME_TOP + 72.0 < STATS_TOP);
 const _: () = assert!(STATS_TOP + 112.0 <= ADDRESS_Y && ADDRESS_Y + 52.0 < BUTTONS_TOP);
 const _: () = assert!(BUTTONS_TOP + 46.0 < PLAYERS_Y - 20.0);
@@ -1664,6 +1709,26 @@ mod tests {
         );
         menu.open_browser();
         (menu, console, directory)
+    }
+
+    #[test]
+    fn the_browser_tokens_are_all_different() {
+        // The add-favourite button once shared the server table's token, so a click
+        // on the table's empty rows opened its prompt.
+        let tokens = [
+            BACK_TOKEN,
+            FILTER_TOKEN,
+            JOIN_TOKEN,
+            FAVOURITE_TOKEN,
+            REFRESH_TOKEN,
+            ADDRESS_TOKEN,
+            ADD_FAVOURITE_TOKEN,
+            TABLE_TOKEN,
+            SCROLLBAR_TOKEN,
+        ];
+        for (at, token) in tokens.iter().enumerate() {
+            assert!(!tokens[at + 1..].contains(token), "token {token}");
+        }
     }
 
     #[test]
@@ -1724,6 +1789,58 @@ mod tests {
         assert_eq!(limits(&facts[..1]), None);
     }
 
+    /// Sol's request (11/10/2026): a favourite added by its address is kept, the
+    /// favourites show, the prompt closes; the same address again, or a bad one, is
+    /// refused in the prompt; the prompt says Add, not Connect.
+    #[test]
+    fn a_favourite_is_added_by_its_address() {
+        let (mut menu, _console, profile) = browsing();
+        let stored = profile.path().join("favorites.json");
+        menu.browser.keep_favourites_for_test(stored.clone());
+        menu.open_favourite_entry();
+        menu.build_sjk_browser([1920.0, 1080.0]);
+        let texts: Vec<String> = menu
+            .ui
+            .draw_list()
+            .commands()
+            .iter()
+            .filter_map(|command| match command {
+                DrawCommand::Text { text, .. } => Some(menu.ui.stored_text(*text).to_owned()),
+                _ => None,
+            })
+            .collect();
+        assert!(
+            texts.iter().any(|text| text == "Add a favourite"),
+            "{texts:?}"
+        );
+        assert!(texts.iter().any(|text| text == "Add"), "{texts:?}");
+        assert!(!texts.iter().any(|text| text == "Connect"), "{texts:?}");
+        menu.address_input = "not an address::".to_owned();
+        assert_eq!(menu.submit_address(), MenuAction::None);
+        assert!(menu.address_editing && !menu.address_error.is_empty());
+        let private: std::net::SocketAddr = "198.51.100.7:29071".parse().unwrap();
+        menu.address_input = "198.51.100.7:29071".to_owned();
+        assert_eq!(menu.submit_address(), MenuAction::None);
+        assert!(!menu.address_editing, "{}", menu.address_error);
+        assert!(menu.browser.is_favorite(private));
+        assert!(menu.browser.favorites_only());
+        assert!(
+            std::fs::read_to_string(&stored)
+                .unwrap()
+                .contains("198.51.100.7:29071")
+        );
+        // Again: refused, and the prompt stays.
+        menu.open_favourite_entry();
+        menu.address_input = "198.51.100.7:29071".to_owned();
+        let _ = menu.submit_address();
+        assert!(menu.address_editing);
+        assert_eq!(menu.address_error, "That server is already a favourite");
+        // Joining by address still connects.
+        menu.open_address_entry();
+        menu.address_input = "192.0.2.9:29070".to_owned();
+        assert!(matches!(menu.submit_address(), MenuAction::Connect(_)));
+    }
+
     #[test]
     fn the_screen_draws_every_server_on_show_and_its_controls() {
         let (mut menu, _console, _profile) = browsing();
@@ -1742,6 +1859,7 @@ mod tests {
             FAVOURITE_TOKEN,
             REFRESH_TOKEN,
             ADDRESS_TOKEN,
+            ADD_FAVOURITE_TOKEN,
             TABLE_TOKEN,
         ]
         .into_iter()

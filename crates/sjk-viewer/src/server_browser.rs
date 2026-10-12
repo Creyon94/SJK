@@ -452,6 +452,11 @@ impl ServerBrowser {
         self.rebuild_visible();
     }
 
+    /// Keep favourites in `path` from now on, as a profile does.
+    pub(crate) fn keep_favourites_for_test(&mut self, path: std::path::PathBuf) {
+        self.favorites_path = Some(path);
+    }
+
     /// Show `view` as the answer of the selected server's status query.
     pub(crate) fn answer_for_test(&mut self, view: DetailsView) {
         self.details.answer_for_test(view);
