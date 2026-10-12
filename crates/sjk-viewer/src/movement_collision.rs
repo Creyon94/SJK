@@ -50,7 +50,7 @@ impl MovementCollision for BspMovementCollision<'_> {
     fn point_contents(&self, point: [f32; 3]) -> u32 {
         // Water-jump ledge probes need SOLID/PLAYERCLIP/BODY as well as liquids.
         let mut contents = self.bsp.point_contents(point, u32::MAX);
-        for mover in self.movers {
+        for mover in self.movers.iter().filter(|mover| !mover.unlaunched) {
             contents |= inline::contents(self.bsp, mover, point);
         }
         contents
@@ -86,7 +86,7 @@ impl MovementCollision for BspMovementCollision<'_> {
                 sjk_protocol::ENTITY_NUMBER_NONE
             },
         };
-        for mover in self.movers {
+        for mover in self.movers.iter().filter(|mover| !mover.unlaunched) {
             let trace = inline::trace(self.bsp, mover, start, end, bounds, content_mask);
             // CG_ClipMoveToEntities also identifies an overlapping entity
             // when another surface supplied the nearer trace fraction.
@@ -310,6 +310,60 @@ mod bsp_instance_tests {
             blocked.x > ORIGIN[0] + 190.0 && blocked.x < ORIGIN[0] + 200.0,
             "{blocked}"
         );
+    }
+
+    /// A rocket fired along +x at 900 units a second from x 100 at 1000 ms, a solid
+    /// 3-unit box as the game makes it (`r.contents = MASK_SHOT`).
+    fn rocket() -> EntityState {
+        let mut state = EntityState::zero(INSTANCE, &LEGACY_ENTITY_FIELDS);
+        state.set_raw_field(8, 3); // ET_MISSILE
+        state.set_raw_field(26, 3 | 3 << 8 | 35 << 16);
+        state.set_raw_field(0, 1_000); // pos.trTime
+        state.set_raw_field(23, 2); // TR_LINEAR
+        state.set_raw_field(2, 100.0_f32.to_bits());
+        state.set_raw_field(4, 64.0_f32.to_bits());
+        state.set_raw_field(6, 900.0_f32.to_bits());
+        state
+    }
+
+    fn snapshot(entities: Vec<EntityState>) -> Snapshot {
+        let mut player = PlayerState::zero();
+        player.set_client_num(0);
+        Snapshot {
+            message_sequence: 1,
+            reliable_acknowledge: 0,
+            server_commands: Vec::new(),
+            server_time: 1_000,
+            delta_from: None,
+            flags: 0,
+            area_mask: Vec::new(),
+            player,
+            vehicle_player: None,
+            entities,
+            consumed_bits: 0,
+        }
+    }
+
+    /// A rocket never blocks the predicted player: before its launch its trajectory
+    /// runs back into its shooter, and after it the server lets its owner through.
+    #[test]
+    fn a_rocket_never_blocks_the_runner() {
+        let bsp = map(&[box_brush([-512.0, -512.0, -64.0], [512.0, 512.0, 0.0], 0)]);
+        let mut scratch = bsp.trace_scratch();
+        for time in [950, 1_010, 1_100] {
+            let mut movers = Movers::new();
+            movers.update(&snapshot(vec![rocket()]), time);
+            assert!(movers.colliders.is_empty(), "{time}");
+            let trace = BspMovementCollision::with_movers(&bsp, &mut scratch, &movers.colliders)
+                .trace(
+                    [0.0, 0.0, 64.0],
+                    [-15.0, -15.0, -24.0],
+                    [15.0, 15.0, 40.0],
+                    [200.0, 0.0, 64.0],
+                    sjk_client::pmove::PLAYER_CONTENT_MASK,
+                );
+            assert_eq!(trace.fraction, 1.0, "{time}");
+        }
     }
 
     #[test]

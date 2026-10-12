@@ -7,6 +7,11 @@ use sjk_protocol::{ENTITY_NUMBER_NONE, EntityState, Snapshot};
 const ENTITY_SLOTS: usize = ENTITY_NUMBER_NONE as usize + 1;
 const SOLID_BMODEL: u32 = 0x00ff_ffff;
 const ET_MOVER: u8 = 6;
+/// `ET_MISSILE`.
+const ET_MISSILE: u8 = 3;
+/// `TR_LINEAR` to `TR_GRAVITY`: the trajectories that move from their start time.
+const TR_LINEAR: u8 = 2;
+const TR_GRAVITY: u8 = 6;
 
 #[derive(Clone, Copy, Debug)]
 struct Trajectory {
@@ -57,6 +62,16 @@ pub(crate) struct Collider {
     teleport: bool,
     actor: bool,
     original_kind: u8,
+    /// A box whose trajectory starts after the time it is placed at, such as a rocket
+    /// fired in this snapshot: not yet launched there, so prediction ignores it.
+    ///
+    /// Evaluated before its start, a missile's trajectory runs backwards behind the
+    /// muzzle, through its shooter. Stock builds the solid list from `cg.nextSnap` too,
+    /// but places a packed box at `cent->lerpOrigin`, which an entity seen only in the
+    /// next snapshot has not been given yet, so a fresh rocket never blocked its
+    /// shooter; SJK placed it, and a player running while firing kept bumping into his
+    /// own rocket (`r.contents = MASK_SHOT` makes rockets solid, to be shot down).
+    pub(crate) unlaunched: bool,
 }
 
 impl Collider {
@@ -82,6 +97,7 @@ impl Collider {
             teleport: false,
             actor: false,
             original_kind: ET_MOVER,
+            unlaunched: false,
         }
     }
 
@@ -138,6 +154,7 @@ impl Collider {
             teleport: state.e_flags() & (1 << 3) != 0,
             actor,
             original_kind: state.trajectory_type(),
+            unlaunched: false,
         };
         result.set_angle_time(angle_time);
         Some(result)
@@ -147,6 +164,10 @@ impl Collider {
         if self.bounds.is_some() {
             // Encoded boxes are axis-aligned, regardless of entity angles.
             self.origin = self.position.position(time);
+            self.unlaunched = !self.actor
+                && !self.mover
+                && (TR_LINEAR..=TR_GRAVITY).contains(&self.position.kind)
+                && time < self.position.start;
             return;
         }
         let angles = self.angular.angles(time);
@@ -220,6 +241,16 @@ impl Movers {
         {
             if matches!(state.entity_type(), 2 | 4 | 5) {
                 self.triggers.push(state.into());
+                continue;
+            }
+            // Missiles never block the predicted player. Rockets are solid (`r.contents
+            // = MASK_SHOT`, to be shot down), but the server's traces pass through what
+            // the mover owns, so a player never runs into his own, and another's
+            // explodes on touching him rather than stopping him. Predicted as solid, the
+            // player running after his own rocket kept clipping on it and was corrected
+            // back and forth (Creyon's trace, 12/10/2026: predicted 20 to 50 units/s
+            // where the server kept 250).
+            if state.entity_type() == ET_MISSILE {
                 continue;
             }
             if self.by_entity[usize::from(state.number())].is_some() {
