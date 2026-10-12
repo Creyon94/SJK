@@ -162,6 +162,7 @@ use object_meshes::StaticModelMesh;
 mod achievements_frame;
 mod blade_skin_file;
 mod bug_report;
+mod electrify;
 mod emotes;
 mod emotes_frame;
 mod gi_voxels;

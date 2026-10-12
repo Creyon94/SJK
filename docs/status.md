@@ -1,5 +1,19 @@
 # Status and priorities
 
+## Electrified players crackle (the JoF amlogin sound)
+
+Branch `fix/electrify-crackle` (12/10/2026, based on `9dbbdf19`, Linux): Creyon heard no
+sound when logging in with `amlogin` on JoF, where JoF EJK buzzes like a DEMP2 alt hit.
+His demo shows the server sends a print and sets `ps.electrifyTime` about four seconds
+ahead; stock's `CG_Player` then crackles (`sound/effects/energy_crackle.wav`) on one
+frame in ten of the electric shell, which SJK drew without the sound. It now plays it
+for every electrified player, the local one in first person too, on the 8 ms effect
+cadence rather than every rendered frame, and not for a muted or mind-tricking player
+([client.md](client.md#electrified-players-crackle)). Verified: tests of the crackle's
+gates, of its rate over the demo's four seconds, of the same rate at 125 to 1000 frames a
+second and of its draws; the workspace checks; in game on Windows 11 by Creyon (the
+crackle on `amlogin` on JoF).
+
 ## Downloads that work, and what they may bring
 
 Branch `personal/allow-download` (12/10/2026, based on `c2016fbf`, Windows 11). Sol
