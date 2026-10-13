@@ -23,7 +23,9 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
-## Unreleased
+## 2026.1013.2 (Alpha) | 13/10/2026
+
+World pings for the SJK players on your server, red and green outlines with team logos in team games, world notes that take a page with the remaps in play and the map's models, and cards that tilt towards the pointer.
 
 > Pings: Middle mouse marks a spot for the SJK players on your server, your team only in team games.
 > Team games: Red outlines on enemies, green on teammates, your team's logo over their heads, and no more team overlay.
