@@ -4407,3 +4407,13 @@ test: Type "medpac", "crate" or "w_": md3/glm items and props turn slowly at pla
 test: Up/Down, Page Up/Down, Home/End, the wheel and a click choose; Ctrl+V pastes a search.
 test: Open it during a match: the model shows in a preview on the right. Esc closes it.
 note: A model that cannot be drawn leaves the stage empty (see logs\last-client.log).
+
+[common-shaders]
+area: Menus & settings
+title: Common tier and nine plain saber shaders (needs the hub deployed)
+change: Saber shaders now have a white Common tier; nine plain ones join, Tidal to Firefly.
+change: The skin slots hold 256 shaders, the Staff page lists unlockables on pages.
+test: As staff, unlock Tidal and Nebula for yourself, then open the Collection > Shaders.
+test: Tidal is Common (white), Nebula Uncommon (green). Wear each: a teal wave, then indigo stars.
+test: Staff page: the unlockables list shows a page counter and < > buttons.
+note: Blades wear stock saber sounds; the files arrive with the hub pack (hub branch common-shaders).
