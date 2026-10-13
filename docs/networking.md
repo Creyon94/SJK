@@ -246,6 +246,22 @@ used to step the pose back to the stance, so the legs flicked between the hangin
 the stance after every snapshot. A new pose or the return to the stance arrives with the
 next snapshot rather than at once, as it would if the client read its own feet.
 
+### Own rockets
+
+A rocket is solid (`r.contents = MASK_SHOT`, so it can be shot down) and so came into
+the prediction's solid list, which, as stock `CG_BuildSolidList`, is built from the
+newest snapshot. Firing while moving, the player kept bumping into his own rocket and
+prediction corrected him back and forth (Creyon on JoF). First, a rocket fired in that
+snapshot was placed at the presentation time, before its launch, where its trajectory
+runs back behind the muzzle through the shooter; a moving box (not a player, not a
+mover) whose trajectory has not started when placed is left out until it has. Then
+Creyon's trace showed the launched rocket still blocking: predicted 20 to 50 units/s
+where the server kept 250. The server's traces pass through what the mover owns, so a
+player never runs into his own missile, and another's explodes on touching him rather
+than stopping him: missiles (`ET_MISSILE`) are now left out of the prediction's solid
+list altogether
+([prediction_movers.rs](../crates/sjk-viewer/src/prediction_movers.rs)).
+
 ### When prediction steps aside
 
 Three cases show the server's state instead of predicting, as JoF EternalJK's

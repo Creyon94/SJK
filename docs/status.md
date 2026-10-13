@@ -297,6 +297,22 @@ the pool. See [client.md](client.md) (`cl_forceRepeat`). Verified: unit tests (t
 repeated table, last key wins, release taken by a menu, window lost, setting off, a
 bind with other commands). Not tried on a server.
 
+## Firing rockets while moving: no stutter
+
+Branch `fix/own-rocket-prediction` (12/10/2026, based on `c6ce9485`, Linux): Creyon's
+videos on JoF showed the player shaking forward and back, in first and third person, as
+soon as he fired rockets while moving; standing still, and in JoF EJK, there was none.
+Rockets are solid (`r.contents = MASK_SHOT`, to be shot down), so they came into the
+prediction's solid list, built from the newest snapshot as `CG_BuildSolidList` builds
+it. A rocket fired in that snapshot was placed before its launch, where its trajectory
+runs back through the shooter; and Creyon's trace of the first fix showed the launched
+rocket still blocking him (predicted 20 to 50 units/s where the server kept 250). The
+server's traces pass through what the mover owns, and another's missile explodes on
+touching a player rather than stopping him: missiles are now left out of the
+prediction's solid list, and any other moving box until its trajectory has started
+([networking.md](networking.md#own-rockets)). Verified: tests (a rocket blocks the
+runner neither before nor after its launch); the workspace checks; Creyon's trace.
+
 ## Force powers apply when the Force page is left
 
 Branch `personal/force-apply-on-close` (12/10/2026), Sol's report: on the JoF JA+ server
