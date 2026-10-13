@@ -9,8 +9,12 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 14/10/2026 | - | Add the modelviewer page: a searchable list of player models on the stage
+- b0c8d8d |  | Add the modelviewer page: a searchable list of player models on the stage
 + 14/10/2026 | - | Add r_showEntities: map entity markers a world note can pick
 - e9f2366 |  | Add r_showEntities: map entity markers a world note can pick
++ 14/10/2026 | - | Fix ghost and mimic always refusing: read the showcase switch as a bool
+- e6d4fe4 |  | Fix ghost and mimic always refusing: read the showcase switch as a bool
 + 13/10/2026 | - | Order the credits history by commit date
 - 794cceb |  | Order the credits history by commit date
 + 13/10/2026 | - | Allow the euro sign in chat and add a Retry button for refused messages

@@ -4395,3 +4395,14 @@ test: Hat and Cape tabs: a click wears the piece at once; Cape turns the model t
 test: Keys: Left and Right on the strip, Enter goes to the tiles, arrows choose, Enter picks.
 test: Profile > Saber: the hilts start under "Jedi Academy", then "Community".
 note: Hat and cape tiles show names only; thumbnails come in a later change.
+
+[model-viewer]
+area: Menus & settings
+title: modelviewer lists every player model with a search, on the stage
+change: The modelviewer command opens a page: models and skins in a list, a search above it.
+change: The chosen model stands on the stage beside the list; nothing you wear changes.
+test: Type modelviewer in the console: the page opens, Jedi Academy models first.
+test: Type "luke hoth": only names with both words stay; the model on the stage follows.
+test: Up/Down, Page Up/Down, Home/End, the wheel and a click choose; Ctrl+V pastes a search.
+test: Open it during a match: the model shows in a preview on the right. Esc closes it.
+note: Only models with an icon are listed (the Character page's catalogue). No rotation yet.
