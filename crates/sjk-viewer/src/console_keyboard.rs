@@ -190,6 +190,7 @@ impl ViewerConsole {
             OpenConsoleKey::Edit => {}
         }
         if self.asset_browser_key(event)
+            || self.model_viewer_key(event)
             || self.config_import_key(event)
             || self.credits_key(event)
             || self.changelog_key(event)

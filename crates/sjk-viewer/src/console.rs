@@ -37,6 +37,8 @@ mod console_debug_panel;
 mod console_identity_page;
 #[path = "console_import.rs"]
 mod console_import;
+#[path = "console_model_viewer.rs"]
+mod console_model_viewer;
 #[path = "console_sjk_pages.rs"]
 mod console_sjk_pages;
 #[path = "console_update.rs"]
@@ -53,6 +55,8 @@ mod holocrons_page;
 pub(crate) mod holocrons_panel;
 #[path = "identity_panel.rs"]
 pub(crate) mod identity_panel;
+#[path = "model_viewer.rs"]
+pub(crate) mod model_viewer;
 #[path = "console_profile_page.rs"]
 mod profile_page;
 #[path = "console_sjk_chat_page.rs"]
@@ -170,6 +174,8 @@ pub(crate) struct ViewerConsole {
     asset_browser: asset_browser::Browser,
     /// Personal test list of Sol's build, drawn in place of the console while open.
     debug_panel: debug_panel::Panel,
+    /// The `modelviewer` page, drawn in place of the console while open.
+    model_viewer: model_viewer::Panel,
     changelog: changelog::Panel,
     credits: credits::Panel,
     /// The Update page, drawn in place of the console while open.
@@ -432,6 +438,7 @@ impl ViewerConsole {
             && (self.browser.is_open()
                 || self.asset_browser.open
                 || self.debug_panel.is_open()
+                || self.model_viewer.is_open()
                 || self.changelog.is_open()
                 || self.credits.is_open()
                 || self.update_panel.is_open()
@@ -869,6 +876,9 @@ impl ViewerConsole {
         if self.open && self.asset_browser.open {
             return self.asset_browser.draw_list();
         }
+        if let Some(draw_list) = self.model_viewer_draw_list() {
+            return draw_list;
+        }
         if let Some(draw_list) = self.config_import_draw_list() {
             return draw_list;
         }
@@ -956,6 +966,7 @@ impl ViewerConsole {
             self.asset_browser.open = false;
             self.browser.close();
             self.debug_panel.close();
+            self.model_viewer.close();
             self.changelog.close();
             self.credits.close();
             self.update_panel.close();

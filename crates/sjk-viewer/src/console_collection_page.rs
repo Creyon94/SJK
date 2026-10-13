@@ -170,6 +170,9 @@ impl ViewerConsole {
 
     /// What the page wants the stage to show this frame, while it shows.
     pub(crate) fn collection_stage_wish(&self) -> Option<StageWish> {
+        if let Some(wish) = self.model_viewer_wish() {
+            return Some(wish);
+        }
         (self.open && !self.config_import.is_open())
             .then(|| self.collection_panel.stage_wish())
             .flatten()
@@ -177,6 +180,7 @@ impl ViewerConsole {
 
     /// Where the model stands behind the page this frame.
     pub(crate) fn set_collection_backstage(&mut self, backstage: Backstage) {
+        self.model_viewer.set_backstage(backstage);
         self.collection_panel.set_backstage(backstage);
     }
 
