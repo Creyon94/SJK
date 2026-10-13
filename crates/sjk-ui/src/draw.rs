@@ -111,6 +111,15 @@ pub enum DrawCommand {
         color: Color,
         uv: [[f32; 2]; 4],
     },
+    /// Textured rectangle turned `degrees` about `pivot` (positive turns clockwise, as
+    /// y grows downwards), as the classic HUD's `R_DrawRotatePic` turns a picture.
+    TexturedQuadTurned {
+        rect: Rect,
+        texture: TextureId,
+        color: Color,
+        pivot: [f32; 2],
+        degrees: f32,
+    },
     /// Circular arc stroke with round caps, anti-aliased by the renderer. Angles are
     /// radians in screen space: 0 points right and positive turns clockwise (y grows
     /// downwards). `radius` is the centre line, `width` the stroke thickness.

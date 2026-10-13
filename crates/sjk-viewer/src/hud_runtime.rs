@@ -139,6 +139,13 @@ pub(crate) fn update(
             .is_some_and(|menu| menu.is_visible());
     // A nameplate replaces the plain overhead names.
     let labels_hidden = labels_hidden || gpu.hud.nameplate.enabled();
+    // `CG_DrawRocketLocking` belongs to `CG_Draw2D`: none at intermission or with
+    // `cg_draw2D 0`.
+    let lock_hidden = intermission
+        || gpu
+            .console
+            .as_ref()
+            .is_some_and(|c| !c.bool_cvar("cg_draw2d").unwrap_or(true));
     let camera = hud::identification::Camera {
         eye: view_position,
         target: view_target,
@@ -212,6 +219,16 @@ pub(crate) fn update(
             &gpu.bsp,
             &mut gpu.trace_scratch,
             plates_hidden,
+        );
+        gpu.hud.rocket_lock.update(
+            hud::rocket_lock::input(
+                snapshot,
+                session.game_state(),
+                &gpu.live_world,
+                presentation_time,
+                lock_hidden,
+            ),
+            camera,
         );
         gpu.hud
             .update_family(snapshot, session.game_state(), gpu.console.as_ref());
@@ -368,6 +385,16 @@ pub(crate) fn update(
             &gpu.bsp,
             &mut gpu.trace_scratch,
             plates_hidden,
+        );
+        gpu.hud.rocket_lock.update(
+            hud::rocket_lock::input(
+                snapshot,
+                session.game_state(),
+                session.world(),
+                presentation_time,
+                lock_hidden,
+            ),
+            camera,
         );
         gpu.hud
             .update_family(snapshot, session.game_state(), gpu.console.as_ref());

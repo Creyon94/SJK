@@ -1252,6 +1252,10 @@
 - 0d215f1 |  | Initial JKR source
 
 = Creyon
++ 13/10/2026 | SJK #98 | Firing rockets while moving: no stutter
+- 62cb77b |  | Leave missiles out of the prediction's solid list
++ 13/10/2026 | SJK #99 | Rocket launcher: the lock-on ring and its sounds
+- b5b1a29 |  | Draw the rocket launcher's lock-on and play its sounds
 + 12/10/2026 | SJK #97 | Turn the model in game by dragging it; pick hats and capes from chips
 - f52b606 |  | Turn the model in game by dragging it; pick hats and capes from chips
 + 12/10/2026 | SJK #96 | Keep listing servers after a lost answer or a dead one's reset

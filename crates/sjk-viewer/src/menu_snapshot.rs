@@ -315,6 +315,8 @@ fn raster(
                     );
                 }
             }
+            // Only the in-game HUD turns pictures (the rocket lock-on); no menu does.
+            DrawCommand::TexturedQuadTurned { .. } => {}
             DrawCommand::TexturedQuadUv {
                 rect,
                 texture,
