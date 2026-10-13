@@ -154,7 +154,7 @@ fn shader_card(
     };
     Card {
         title: skin.name.to_owned(),
-        colour: skin.tier.tier().colour,
+        colour: skin.tier.colour(),
         lines: vec![
             Line::how(skin.how_to_get),
             Line::status(format!("{} blade skin", skin.tier.label())),

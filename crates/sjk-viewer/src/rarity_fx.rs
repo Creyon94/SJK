@@ -102,7 +102,7 @@ impl Item {
     /// A saber shader's (or any unlockable's) tier.
     pub(crate) fn of(tier: crate::unlockables::Rarity, owned: bool, size: Size) -> Self {
         Self {
-            rank: tier as usize,
+            rank: tier.effect_rank(),
             colour: tier.colour(),
             owned,
             size,
@@ -397,6 +397,7 @@ mod tests {
     fn every_item() -> Vec<Item> {
         let mut items = Vec::new();
         for tier in [
+            Rarity::Common,
             Rarity::Uncommon,
             Rarity::Rare,
             Rarity::Legendary,
@@ -436,6 +437,7 @@ mod tests {
     fn uncommon_draws_nothing_and_each_tier_up_draws_more() {
         let at = sheen_at(RECT, 0.15); // inside the sheen's crossing
         let count = |tier| commands(Item::of(tier, true, Size::Full), RECT, 1.0, at).len();
+        assert_eq!(count(Rarity::Common), 0);
         assert_eq!(count(Rarity::Uncommon), 0);
         assert!(count(Rarity::Rare) > 0);
         assert!(count(Rarity::Legendary) > count(Rarity::Rare));

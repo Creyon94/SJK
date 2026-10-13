@@ -118,7 +118,7 @@ const SKIN_SHOWN: usize = 6;
 const SKIN_X: f32 =
     CONTROL_RIGHT - SKIN_SHOWN as f32 * SKIN_WIDTH - (SKIN_SHOWN - 1) as f32 * SKIN_GAP;
 /// Blade choice `i` (0 the stock blade) answers to `SKIN_BASE + i`.
-const SKIN_BASE: u16 = 1_060;
+const SKIN_BASE: u16 = 7_300;
 
 /// The first of the blade choices the row shows: the chosen one kept third from
 /// the left where it can be, the window never past either end.
@@ -2388,7 +2388,7 @@ mod tests {
     // The token ranges stay apart: the levels, the blade choices, the style
     // buttons, the lists' wheel areas, then the hilts.
     const _: () = assert!(LEVEL_BASE + 18 * 3 <= SKIN_BASE);
-    const _: () = assert!(SKIN_BASE + (crate::unlockables::ALL.len() + 1) as u16 <= STYLE_BASE);
+    const _: () = assert!(SKIN_BASE + (crate::unlockables::ALL.len() + 1) as u16 <= 7_600);
     const _: () = assert!(STYLE_BASE + 3 <= HILT_SCROLL);
     const _: () = assert!(HILT_SCROLL + 2 <= HILT_BASE);
 

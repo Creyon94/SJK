@@ -636,11 +636,7 @@ impl Panel {
             text(
                 &mut self.ui,
                 TextFamily::Body,
-                format_args!(
-                    "{} {}",
-                    crate::symbols::tier(tier.tier().index),
-                    tier.label()
-                ),
+                format_args!("{} {}", tier.symbol(), tier.label()),
                 frame.rect(status[0], status[1], status[2], status[3]),
                 15.0 * s,
                 color::alpha(tier.colour(), if row.owned { 1.0 } else { 0.6 }),

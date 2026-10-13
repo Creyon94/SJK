@@ -515,12 +515,64 @@ impl Panel {
             "Unlockables",
         );
         let cell = (MIDDLE_WIDTH - UNLOCK_GAP) * 0.5;
-        for (index, unlockable) in crate::unlockables::ALL.iter().enumerate() {
-            let x = MIDDLE_X + (index % 2) as f32 * (cell + UNLOCK_GAP);
-            let y = top + 18.0 + (index / 2) as f32 * UNLOCK_ROW;
-            if y + UNLOCK_ROW > KEYS_Y - 16.0 {
-                break;
+        let rows = ((KEYS_Y - 16.0 - (top + 18.0)) / UNLOCK_ROW).floor() as usize;
+        let per_page = (rows * 2).max(2);
+        self.shown.unlock_per_page = per_page;
+        let pages = crate::unlockables::ALL.len().div_ceil(per_page);
+        self.unlock_page = self.unlock_page.min(pages - 1);
+        if pages > 1 {
+            let page = self.unlock_page;
+            let buttons = [
+                (
+                    UNLOCK_PREV_TOKEN,
+                    "<",
+                    MIDDLE_X + MIDDLE_WIDTH - 148.0,
+                    page > 0,
+                ),
+                (
+                    UNLOCK_NEXT_TOKEN,
+                    ">",
+                    MIDDLE_X + MIDDLE_WIDTH - 40.0,
+                    page + 1 < pages,
+                ),
+            ];
+            for (token, label, x, enabled) in buttons {
+                kit::button(
+                    &mut self.ui,
+                    frame,
+                    [x, top - 4.0, 40.0, 26.0],
+                    label,
+                    false,
+                    enabled,
+                    self.focus == token,
+                    token,
+                );
+                if enabled {
+                    self.order.push(token);
+                }
             }
+            text(
+                &mut self.ui,
+                TextFamily::Body,
+                format_args!("{} / {pages}", page + 1),
+                frame.rect(MIDDLE_X + MIDDLE_WIDTH - 104.0, top, 60.0, 20.0),
+                13.0 * s,
+                color::QUIET,
+                FontWeight::Regular,
+                TextAlign::Center,
+            );
+        }
+        let first = self.unlock_page * per_page;
+        let last = (first + per_page).min(crate::unlockables::ALL.len());
+        for (index, unlockable) in crate::unlockables::ALL
+            .iter()
+            .enumerate()
+            .take(last)
+            .skip(first)
+        {
+            let slot = index - first;
+            let x = MIDDLE_X + (slot % 2) as f32 * (cell + UNLOCK_GAP);
+            let y = top + 18.0 + (slot / 2) as f32 * UNLOCK_ROW;
             let held = self.shown.unlocks[index];
             // Held: gold, with the day it was given; not held: muted.
             let granted = profile
@@ -1650,9 +1702,43 @@ mod tests {
             &inter.font,
             [1920.0, 1080.0],
         );
-        for index in 0..crate::unlockables::ALL.len() as u16 {
-            assert!(panel.order.contains(&(RELOCK_BASE + index)), "row {index}");
+        let per_page = panel.shown.unlock_per_page;
+        assert!(per_page >= 10, "a page shows several rows");
+        let visible = |panel: &Panel, base: u16| -> Vec<u16> {
+            (0..crate::unlockables::ALL.len() as u16)
+                .filter(|index| panel.order.contains(&(base + index)))
+                .collect()
+        };
+        // The first page holds the first rows; the pager reaches the others.
+        assert_eq!(
+            visible(&panel, RELOCK_BASE),
+            (0..per_page.min(crate::unlockables::ALL.len()) as u16).collect::<Vec<_>>()
+        );
+        let mut seen = visible(&panel, RELOCK_BASE);
+        let pages = crate::unlockables::ALL.len().div_ceil(per_page);
+        for _ in 1..pages {
+            panel.activate(UNLOCK_NEXT_TOKEN);
+            panel.build(
+                &Inputs {
+                    me: Some(&me),
+                    staff: &staff,
+                },
+                &inter.font,
+                [1920.0, 1080.0],
+            );
+            seen.extend(visible(&panel, RELOCK_BASE));
         }
+        assert_eq!(
+            seen,
+            (0..crate::unlockables::ALL.len() as u16).collect::<Vec<_>>(),
+            "every row is on some page"
+        );
+        panel.activate(UNLOCK_NEXT_TOKEN);
+        assert_eq!(panel.unlock_page, pages - 1, "stops at the last page");
+        for _ in 0..pages {
+            panel.activate(UNLOCK_PREV_TOKEN);
+        }
+        assert_eq!(panel.unlock_page, 0);
         me.unlocks.clear();
         panel.build(
             &Inputs {
@@ -1662,7 +1748,7 @@ mod tests {
             &inter.font,
             [1920.0, 1080.0],
         );
-        for index in 0..crate::unlockables::ALL.len() as u16 {
+        for index in 0..per_page.min(crate::unlockables::ALL.len()) as u16 {
             assert!(panel.order.contains(&(UNLOCK_BASE + index)), "row {index}");
         }
     }
