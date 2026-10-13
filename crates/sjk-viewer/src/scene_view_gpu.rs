@@ -120,11 +120,14 @@ pub(super) fn sample_layout(device: &wgpu::Device) -> wgpu::BindGroupLayout {
     })
 }
 
+/// The composite of a portal's view (`portal_main`) or of the sky portal's on the sky
+/// faces (`sky_portal_main`, behind them as the sky stage's faces are).
 pub(super) fn pipeline(
     device: &wgpu::Device,
     camera: &wgpu::BindGroupLayout,
     samples: &wgpu::BindGroupLayout,
     format: wgpu::TextureFormat,
+    vertex_entry: &str,
 ) -> wgpu::RenderPipeline {
     let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
         label: Some("SJK portal composite"),
@@ -147,7 +150,7 @@ pub(super) fn pipeline(
         layout: Some(&layout),
         vertex: wgpu::VertexState {
             module: &shader,
-            entry_point: Some("portal_main"),
+            entry_point: Some(vertex_entry),
             compilation_options: Default::default(),
             buffers: &buffers,
         },

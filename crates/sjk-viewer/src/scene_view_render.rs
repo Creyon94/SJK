@@ -375,7 +375,7 @@ impl GpuState {
             );
             return;
         };
-        pass.set_pipeline(&self.scene_views.pipeline);
+        pass.set_pipeline(&self.scene_views.sky_pipeline);
         pass.set_bind_group(0, &self.camera_bind_group, &[]);
         pass.set_bind_group(1, &target.normal_sample, &[]);
         self.world_materials.draw_sky_faces(

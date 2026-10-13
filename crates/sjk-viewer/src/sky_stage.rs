@@ -19,6 +19,9 @@ use wgpu::util::DeviceExt;
 
 #[path = "day_sky.rs"]
 mod day;
+#[cfg(test)]
+#[path = "sky_face_depth_tests.rs"]
+mod face_depth_tests;
 #[path = "sky_gpu.rs"]
 mod gpu;
 #[path = "sky_remaps.rs"]

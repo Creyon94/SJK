@@ -36,6 +36,19 @@ const SHAPE_SCALE: vec3<f32> = vec3(1.0 / 36000.0, 1.0 / 36000.0, 1.0 / 9000.0);
 const DETAIL_SCALE: f32 = 1.0 / 6500.0;
 const PI: f32 = 3.14159265;
 
+// A sky face's depth, pushed back by `SKY_FACE_PUSH` of its distance (the clip-space
+// share between its depth and the far plane's). The world's absolute coordinates round
+// the depth of a far face by some tenths of a percent of its distance, so a ceiling a
+// unit or two under the sky brush it is built against fought with the sky (and the
+// clouds over it) and flickered as the camera moved (jofmemorial, Sol's note of
+// 12/10/2026). rd-vanilla draws its box at the far plane and never covers the world;
+// pushed this little, the sky still covers whatever lies further behind its faces.
+const SKY_FACE_PUSH: f32 = 1.0 / 32.0;
+
+fn sky_face_clip(clip: vec4<f32>, push: f32) -> vec4<f32> {
+    return vec4(clip.xy, clip.z + push * (clip.w - clip.z), clip.w);
+}
+
 struct FaceInput {
     @location(0) position: vec3<f32>,
 };
@@ -47,12 +60,12 @@ struct FaceOutput {
 
 @vertex fn vertex_main(input: FaceInput) -> FaceOutput {
     var output: FaceOutput;
-    var clip = camera.view_projection * vec4<f32>(input.position, 1.0);
-    // A hair nearer than the sky face drawn with the same transform (some tens of depth
-    // steps, a few units 5000 away), so the depth test passes on exactly its pixels
-    // whatever the two programs round.
-    clip.z -= clip.w * 0.000002;
-    output.position = clip;
+    // Half as far behind the face as the sky (`sky_stage.wgsl`'s `SKY_FACE_PUSH`), so
+    // the depth test passes on exactly the sky's pixels whatever the two programs round,
+    // and still fails on a ceiling just under the sky brush. A fixed step nearer (it was
+    // 0.000002 of depth) is thousands of units at the far end of a big map.
+    output.position = sky_face_clip(camera.view_projection * vec4<f32>(input.position, 1.0),
+        SKY_FACE_PUSH * 0.5);
     output.direction = input.position - camera.position;
     return output;
 }

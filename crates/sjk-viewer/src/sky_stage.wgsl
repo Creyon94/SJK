@@ -44,13 +44,27 @@ fn box_fragment(input: BoxOutput) -> @location(0) vec4<f32> {
     return textureSample(sky_images, sky_sampler, input.uv, input.layer);
 }
 
+// A sky face's depth, pushed back by `SKY_FACE_PUSH` of its distance (the clip-space
+// share between its depth and the far plane's). The world's absolute coordinates round
+// the depth of a far face by some tenths of a percent of its distance, so a ceiling a
+// unit or two under the sky brush it is built against fought with the sky (and the
+// clouds over it) and flickered as the camera moved (jofmemorial, Sol's note of
+// 12/10/2026). rd-vanilla draws its box at the far plane and never covers the world;
+// pushed this little, the sky still covers whatever lies further behind its faces.
+const SKY_FACE_PUSH: f32 = 1.0 / 32.0;
+
+fn sky_face_clip(clip: vec4<f32>, push: f32) -> vec4<f32> {
+    return vec4(clip.xy, clip.z + push * (clip.w - clip.z), clip.w);
+}
+
 struct MaskInput {
     @location(0) position: vec3<f32>,
 };
 
 @vertex
 fn mask_vertex(input: MaskInput) -> @builtin(position) vec4<f32> {
-    return camera.view_projection * vec4<f32>(input.position, 1.0);
+    return sky_face_clip(camera.view_projection * vec4<f32>(input.position, 1.0),
+        SKY_FACE_PUSH);
 }
 
 @fragment
@@ -67,8 +81,8 @@ struct FaceOutput {
 
 @vertex
 fn face_vertex(input: MaskInput) -> FaceOutput {
-    return FaceOutput(camera.view_projection * vec4<f32>(input.position, 1.0),
-        input.position - camera.camera_position);
+    return FaceOutput(sky_face_clip(camera.view_projection * vec4<f32>(input.position, 1.0),
+        SKY_FACE_PUSH), input.position - camera.camera_position);
 }
 
 // (u, v, layer) of the box texel seen along `d`.

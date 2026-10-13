@@ -60,6 +60,8 @@ pub(crate) struct Runtime {
     portal_target: Option<gpu::Target>,
     sky_target: Option<gpu::Target>,
     pipeline: wgpu::RenderPipeline,
+    /// The sky portal's composite on the sky faces, pushed behind them like the sky.
+    sky_pipeline: wgpu::RenderPipeline,
     camera_layout: wgpu::BindGroupLayout,
     sample_layout: wgpu::BindGroupLayout,
     format: wgpu::TextureFormat,
@@ -165,7 +167,14 @@ impl Runtime {
             .iter()
             .any(|e| e.classname() == Some("misc_skyportal") && e.get("onlyfoghere") == Some("1"));
         let sample_layout = gpu::sample_layout(device);
-        let pipeline = gpu::pipeline(device, camera_layout, &sample_layout, format);
+        let pipeline = gpu::pipeline(device, camera_layout, &sample_layout, format, "portal_main");
+        let sky_pipeline = gpu::pipeline(
+            device,
+            camera_layout,
+            &sample_layout,
+            format,
+            "sky_portal_main",
+        );
         let sky_visibility = sky_visibility::SkyVisibility::new(scene, bsp, shaders);
         let sky_target = sky_visibility
             .has_candidates()
@@ -206,6 +215,7 @@ impl Runtime {
             portal_target,
             sky_target,
             pipeline,
+            sky_pipeline,
             needs_environment: scene.materials.iter().any(|m| {
                 m.shader.starts_with("@sjk-surface-sprites/") || m.shader.starts_with("@sjk-flare/")
             }),
