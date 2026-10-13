@@ -229,7 +229,7 @@ arms stretched out and swung through the body) ([sjk-ui.md](sjk-ui.md)). Each sa
 swing hands over to the next on reaching its last frame, taking over as the game does
 (100 ms, even pace) or straight on where the two meet (a pause, then a slowed start and
 a hurried middle between Offense's swings, Creyon, 13/10/2026); one swing at a time,
-each back to the idle stance (`BOTH_STAND2`) for 0.3 s before the next start eases in
+each back to the strong style's stance (`BOTH_SABERSLOW_STANCE`) for 0.3 s before the next start eases in
 (waiting where the return ended looked frozen); takeovers between animations blended
 bone by bone in the model, not in the parent's frame (the game's swing starts hold the
 upper arm a half turn about itself from the stance's, and blended in the parent's frame
@@ -248,7 +248,7 @@ at the game's own speed (the skills at 0.9 felt slowed down); Lightning, Drain a
 then let go and again, Rage's shell and spray on 1 s after its gesture; Speed's run at the game's 1.7 times; the throw out longer,
 slowing to its far end; the sabers off in a jump's air (the game's jump holds the blade
 through the head), lit again on landing; the jump on the whole body, arms and all, as
-in the game. Creyon's tests (12/10/2026) shaped it: hover only,
+in the game, its landing as long as `BOTH_LAND1` lasts (held longer it stood crouched). Creyon's tests (12/10/2026) shaped it: hover only,
 smooth movement, see-through and visible speed copies (their middles and jaws once went
 missing, and straight behind they hid behind a model facing the camera), the jump (a
 lifted jump crashed: it wrote the model's instance buffer, made without `COPY_DST`; the
@@ -266,8 +266,11 @@ the model's middle staying on it and keeping its length, a move handing over on 
 frame, a chained move not eased in, the game's even 100 ms takeover, a parry's keep and
 eased takeovers, the blades off and on over a jump, the throw slowing out); the
 workspace checks. In game on Windows 11 by Creyon (13/10/2026, the final build): every
-power's preview, the saber skills, the jump and the throw looked at and approved. Not
-covered: OpenJK side-by-side image comparison; the staff's and dual sabers' skills were
+power's preview, the saber skills, the jump and the throw looked at and approved. Then
+branch `fix/force-preview-stance-landing` (14/10/2026, after PR #100's merge): Offense
+rests in the strong style's stance between swings, as Defense does (it was the medium
+idle), and the jump's landing lasts as long as `BOTH_LAND1` (held 0.5 s it stood
+crouched); tried in game on Windows 11 by Creyon. Not covered: OpenJK side-by-side image comparison; the staff's and dual sabers' skills were
 not singled out in those tests.
 
 ## SJK Symbols
