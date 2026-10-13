@@ -72,6 +72,8 @@ pub(in crate::world_materials) fn compile_material(
     let mut resolved = 0;
     let mut compiled = Vec::new();
     let mut emission = [0.; 3];
+    let mut vertex_emission = [0.; 3];
+    let lamp_gain = super::emission::lamp_gain::gain();
     let mut emission_texture = super::emission::Texture::default();
     let mut fallback_emission = super::emission::Texture::default();
     let mut debug_end = false;
@@ -127,6 +129,23 @@ pub(in crate::world_materials) fn compile_material(
                 sources.swap(0, 1);
             }
             for (source, images, key) in sources.into_iter().flatten() {
+                // Flares coloured by their vertices: an opaque stage covers them.
+                if source.blend == sjk_shader::StageBlend::Replace
+                    && source.alpha_function.is_none()
+                {
+                    vertex_emission = [0.; 3];
+                }
+                if !declared {
+                    let radiance = super::emission::vertex_radiance(
+                        source,
+                        images,
+                        !key.contains("$missing:"),
+                        lamp_gain,
+                    );
+                    for c in 0..3 {
+                        vertex_emission[c] += radiance[c];
+                    }
+                }
                 super::emission::accumulate(
                     &mut emission,
                     source,
@@ -292,6 +311,7 @@ pub(in crate::world_materials) fn compile_material(
         emission,
         emission_texture,
         mapped_emission,
+        vertex_emission,
         stages: compiled,
         resolved,
     })

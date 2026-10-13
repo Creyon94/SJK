@@ -6,6 +6,8 @@ mod effect_lamps;
 mod flare_lamps;
 #[path = "world_static_lamps.rs"]
 mod static_lamps;
+#[path = "world_vertex_lamps.rs"]
+mod vertex_lamps;
 
 /// Map-load filtering policy; the old entry point remains the unmodified baseline.
 #[allow(clippy::too_many_arguments)]
@@ -270,6 +272,7 @@ fn build(
             surface,
             emission_texture: compiled.emission_texture,
             mapped_emission: compiled.mapped_emission,
+            vertex_emission: compiled.vertex_emission,
             sort: compiled.sort,
             stages: compiled.stages,
             static_draws,
@@ -342,6 +345,7 @@ fn build(
             &forge.fallback_lightmap,
         )?);
         extra.extend(flare_lamps::extract(&pending, &positions, geometry.1));
+        extra.extend(vertex_lamps::extract(&pending, geometry.0, geometry.1));
         let lamps = crate::lamp_lights::LampSet::extract(&positions, geometry.1, &emitters, extra);
         let brightest = lamps
             .lamps

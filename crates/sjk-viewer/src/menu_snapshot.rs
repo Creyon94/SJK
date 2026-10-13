@@ -1804,7 +1804,7 @@ fn sjk_settings_snapshot() {
         bool,
         Option<&'a str>,
     );
-    let cases: [Case; 5] = [
+    let cases: [Case; 7] = [
         (
             "sjk-settings",
             VIEWPORT_WIDE,
@@ -1842,6 +1842,22 @@ fn sjk_settings_snapshot() {
             VIEWPORT,
             7,
             Some("con_scale"),
+            false,
+            None,
+        ),
+        (
+            "sjk-settings-lamp-light",
+            VIEWPORT_WIDE,
+            2,
+            Some(crate::world_materials::emission::lamp_gain::CVAR),
+            false,
+            None,
+        ),
+        (
+            "sjk-settings-map-fog",
+            VIEWPORT_WIDE,
+            2,
+            Some("r_drawfog"),
             false,
             None,
         ),

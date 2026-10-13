@@ -48,7 +48,7 @@ pub(crate) struct LampSet {
 }
 
 /// Irradiance below which a lamp's reach ends.
-const FLOOR: f32 = 0.004;
+pub(crate) const FLOOR: f32 = 0.004;
 /// Scale from surface radiance × area to lamp power (calibrated against the bake).
 pub(crate) const POWER_SCALE: f32 = 1.5;
 
