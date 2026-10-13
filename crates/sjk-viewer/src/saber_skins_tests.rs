@@ -258,9 +258,8 @@ fn the_uniform_holds_the_files_parameters_where_the_shader_reads_them() {
     assert!(uniforms[1..].iter().all(|u| *u == SkinUniform::default()));
     let bytes: &[u8] = bytemuck::cast_slice(&uniforms);
     assert_eq!(bytes.len(), MAX_SKINS * 62 * 16);
-    // The sixteen skins' array stays inside the smallest uniform binding WebGPU
-    // guarantees (16 KiB).
-    assert!(bytes.len() <= 16 * 1024);
+    // The array stays inside the storage binding WebGPU guarantees (128 MiB).
+    assert!(bytes.len() <= 128 * 1024 * 1024);
 }
 
 #[test]
@@ -541,7 +540,7 @@ fn a_skin_whose_pack_is_not_loaded_is_the_stock_blade() {
     assert_eq!(none.generation(), 0);
     assert_eq!(none.color_of("saber_sun"), None);
     assert!(none.sound_sets().is_empty());
-    assert_eq!(none.uniforms(), [SkinUniform::default(); MAX_SKINS]);
+    assert_eq!(none.uniforms(), vec![SkinUniform::default(); MAX_SKINS]);
     let mut skins = SaberSkins::default();
     skins.follow_looks(1, none.generation(), |_| none.color_of("saber_sun"));
     assert_eq!(skins.get(1), None);

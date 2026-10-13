@@ -164,7 +164,7 @@ struct Skin {
 }
 
 @group(2) @binding(0)
-var<uniform> skins: array<Skin, MAX_SKINS>;
+var<storage, read> skins: array<Skin, MAX_SKINS>;
 
 struct VertexOutput {
     @builtin(position) clip_position: vec4<f32>,
@@ -200,7 +200,7 @@ const CORE_DRAWS: f32 = 2.0;
 // loaded blade skin's (saber_rgb.rs `SKIN_MATERIAL`); skins loaded at once.
 const NEUTRAL_MATERIAL: u32 = 6u;
 const SKIN_MATERIAL: u32 = 7u;
-const MAX_SKINS: u32 = 16u;
+const MAX_SKINS: u32 = 256u;
 const KIND_RETAIL: u32 = 0u;
 const KIND_NEUTRAL: u32 = 1u;
 const KIND_SKIN: u32 = 2u;

@@ -95,7 +95,7 @@ impl Runtime {
                 binding: 0,
                 visibility: wgpu::ShaderStages::VERTEX_FRAGMENT,
                 ty: wgpu::BindingType::Buffer {
-                    ty: wgpu::BufferBindingType::Uniform,
+                    ty: wgpu::BufferBindingType::Storage { read_only: true },
                     has_dynamic_offset: false,
                     min_binding_size: None,
                 },
@@ -105,7 +105,7 @@ impl Runtime {
         let skins_buffer = device.create_buffer(&wgpu::BufferDescriptor {
             label: Some("SJK saber skins"),
             size: std::mem::size_of::<[SkinUniform; MAX_SKINS]>() as u64,
-            usage: wgpu::BufferUsages::UNIFORM | wgpu::BufferUsages::COPY_DST,
+            usage: wgpu::BufferUsages::STORAGE | wgpu::BufferUsages::COPY_DST,
             mapped_at_creation: false,
         });
         let skins = device.create_bind_group(&wgpu::BindGroupDescriptor {
