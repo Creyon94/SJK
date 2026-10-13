@@ -57,6 +57,8 @@ pub(crate) mod holocrons_panel;
 pub(crate) mod identity_panel;
 #[path = "model_viewer.rs"]
 pub(crate) mod model_viewer;
+#[path = "model_viewer_scan.rs"]
+pub(crate) mod model_viewer_scan;
 #[path = "console_profile_page.rs"]
 mod profile_page;
 #[path = "console_sjk_chat_page.rs"]

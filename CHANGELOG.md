@@ -43,7 +43,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Decals on walls fade into fog with their wall instead of showing through it at full strength, like the Imperial symbol on mp/ctf4 _(Sol)_
 - The sky and its clouds no longer flicker through a ceiling built just under the sky, as on JoF Memorial Grounds _(Sol)_
 - Map entities view: `r_showEntities` marks the lights, spawns, origins, items and targets a map places (2 adds sounds, effects, props and the rest) through walls with their names, and a world note picks the one you aim at; `r_showEntitiesTypes` picks kinds, Settings > Game options > Map entities _(Sol)_
-- Model viewer: `modelviewer` opens a searchable list of every installed player model and skin, the chosen one standing on the stage beside it _(Sol)_
+- Model viewer: `modelviewer` opens a searchable list of every installed model, players and NPCs with each skin, then every md3 and glm (items, weapons, map objects), shown on the stage _(Sol)_
 
 ## 2026.1013.2 (Alpha) | 13/10/2026
 

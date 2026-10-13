@@ -454,40 +454,6 @@ impl PlayerMenu {
         catalog_of(&self.loader)
     }
 
-    /// Start reading the catalogue if it is not, and take in a finished read.
-    pub(crate) fn request_catalog(&mut self) {
-        if let Some(loader) = &mut self.loader {
-            loader.request();
-            loader.poll();
-        }
-    }
-
-    /// Every model the catalogue lists for the `modelviewer` page, the retail game's own
-    /// first (the catalogue's order); `None` until it is read.
-    pub(crate) fn model_list(&self) -> Option<Vec<crate::console::model_viewer::Entry>> {
-        use crate::console::model_viewer::Entry;
-        let catalog = self.catalog()?;
-        let characters = catalog
-            .characters
-            .iter()
-            .enumerate()
-            .map(|(index, character)| Entry {
-                name: character.cvar_value.clone(),
-                retail: index < catalog.retail_characters,
-            });
-        let species = catalog
-            .species
-            .iter()
-            .enumerate()
-            .map(|(index, species)| Entry {
-                name: species.model.clone(),
-                retail: index < catalog.retail_species,
-            });
-        let (mut retail, community): (Vec<_>, Vec<_>) =
-            characters.chain(species).partition(|entry| entry.retail);
-        retail.extend(community);
-        Some(retail)
-    }
 }
 
 /// Borrow the loaded catalogue independently of the mutable menu canvas.

@@ -4398,11 +4398,12 @@ note: Hat and cape tiles show names only; thumbnails come in a later change.
 
 [model-viewer]
 area: Menus & settings
-title: modelviewer lists every player model with a search, on the stage
-change: The modelviewer command opens a page: models and skins in a list, a search above it.
-change: The chosen model stands on the stage beside the list; nothing you wear changes.
+title: modelviewer lists every model, NPCs and md3/glm props too, with a search
+change: The modelviewer command opens a page: every body with each skin, then every md3 and glm.
+change: A player stands on the stage beside the list; a prop replaces it, scaled and turning.
 test: Type modelviewer in the console: the page opens, Jedi Academy models first.
-test: Type "luke hoth": only names with both words stay; the model on the stage follows.
+test: Type "rancor" or "wampa": the NPC bodies show on the stage, posed like a player.
+test: Type "medpac", "crate" or "w_": md3/glm items and props turn slowly at player size.
 test: Up/Down, Page Up/Down, Home/End, the wheel and a click choose; Ctrl+V pastes a search.
 test: Open it during a match: the model shows in a preview on the right. Esc closes it.
-note: Only models with an icon are listed (the Character page's catalogue). No rotation yet.
+note: A model that cannot be drawn leaves the stage empty (see logs\last-client.log).
