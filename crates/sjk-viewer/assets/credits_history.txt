@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 13/10/2026 | - | Credit Creyon's PR #100
+- 32b517d |  | Credit Creyon's PR #100
 + 13/10/2026 | - | Decals in fog, sky behind ceilings under it
 - 4a73576 |  | Fog world decals with the wall under them
 - 685ea7f |  | Keep the sky and clouds behind a ceiling built just under the sky
@@ -1252,10 +1254,12 @@
 - 0d215f1 |  | Initial JKR source
 
 = Creyon
-+ 13/10/2026 | SJK #98 | Firing rockets while moving: no stutter
-- 62cb77b |  | Leave missiles out of the prediction's solid list
++ 13/10/2026 | SJK #100 | Show each Force power on the in-game profile's model
+- d66cff5 |  | Show each Force power on the in-game profile's model
 + 13/10/2026 | SJK #99 | Rocket launcher: the lock-on ring and its sounds
 - b5b1a29 |  | Draw the rocket launcher's lock-on and play its sounds
++ 13/10/2026 | SJK #98 | Firing rockets while moving: no stutter
+- 62cb77b |  | Leave missiles out of the prediction's solid list
 + 12/10/2026 | SJK #97 | Turn the model in game by dragging it; pick hats and capes from chips
 - f52b606 |  | Turn the model in game by dragging it; pick hats and capes from chips
 + 12/10/2026 | SJK #96 | Keep listing servers after a lost answer or a dead one's reset
