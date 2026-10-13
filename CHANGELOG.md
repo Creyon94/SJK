@@ -26,8 +26,11 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 ## Unreleased
 
 > Support: Donate on Ko-fi from the main page; more than 1 euro brings the Supporter medal.
+> Material maps: the generator finds your overrides again, crates read as metal and concrete as concrete.
 
 - The Supporter medal, for players who donate more than 1 euro to SJK on Ko-fi: put your SJK key id in the Ko-fi message and it arrives on its own; shown with the other medals on the profile, the player card, the Collection and the scoreboard (placeholder art) _(Sol)_
+- sjk-materialgen finds its overrides file in the client's generated folder (and copies one left in the old JKR folder there), says which file it read or warns when it found none, and records it in the pack: the 12/10 pack had been built without Sol's rules _(Sol)_
+- Generated material maps (generation 7, regenerate the pack): crates are painted metal rather than wood, a vent in a concrete wall stays concrete, look-alike words (background, rockets, rustic) no longer pick ground, rock or rust, and the overrides take strength= to deepen or soften one texture's relief _(Sol)_
 - The SJK UI's main page shows SJK's monthly donation goal top left, live from the SJK hub, with Donate opening Ko-fi; `ui_donationGoal 0` hides it _(Sol)_
 
 ## 2026.1013.2 (Alpha) | 13/10/2026

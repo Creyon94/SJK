@@ -20,6 +20,22 @@ fn main() -> ExitCode {
         }
     };
     println!("game data: {}", options.game_data.display());
+    // Loud on purpose: a pack built without the player's rules looked like a renderer bug.
+    println!(
+        "overrides: {}, {} rules",
+        options.overrides_found.describe(),
+        options.overrides.rules.len()
+    );
+    if matches!(
+        options.overrides_found,
+        sjk_materialgen::overrides_file::Found::Missing(_)
+    ) {
+        eprintln!(
+            "sjk-materialgen: WARNING: no overrides file; pass --overrides FILE or put {} \
+             in the client's generated folder (--no-overrides silences this)",
+            sjk_materialgen::overrides_file::FILE_NAME
+        );
+    }
     let summary = match run(&options) {
         Ok(summary) => summary,
         Err(error) => {
