@@ -351,6 +351,126 @@ on the 16:9 frame, dark behind the form on the left and clear over the model.
   how many), whether team powers work, and that turned-off powers stay
   pickable for full Force duels and an applied profile counts from the next
   respawn ([client.md](client.md#force-profile-on-a-server)).
+- **The model shows the power** (12/10/2026, Creyon's idea; opened from a game only,
+  where the live model stands): on the Force page the model beside the form shows the
+  power under the pointer, while the pointer is on its row or one of its level marks,
+  and stops when it leaves ([force_pose.rs](../crates/sjk-viewer/src/player_menu/force_pose.rs)).
+  The picture fades out over its outer edge, so a beam, a puff or a blade reaching past
+  it softens away instead of ending in a square cut.
+  The preview is a picture of the model, not of the map the player is on: the model is
+  lit as retail lit a menu model with no world (`R_SetupEntityLighting` without a light
+  grid), and its effects play in an empty world of their own, so it looks the same on
+  every map. The stage's pose is blended between animation frames (most clips run at
+  20 a second), so it moves smoothly at any frame rate. The legs and the torso play their own
+  animations ([menu_stage/tracks.rs](../crates/sjk-viewer/src/menu_stage/tracks.rs)), and
+  a new one takes over from the pose on screen when it begins, held still, as Ghoul2
+  blends from the frame it froze, so nothing steps or jerks, and a takeover begun while
+  another is under way carries on from where that one is (dropping it snapped
+  Lightning's three-frame start, Creyon, 13/10/2026): over 0.25 s, eased in and out,
+  when the pointer moves to another power, and between the saber skills' moves as below. Each joint goes
+  straight from one pose's place to the next's, as when Ghoul2 blends the matrices entry
+  by entry, and the bone turns about it the short way at an even pace (its quaternions
+  blended, as a GLA frame stores them; a GLA bone matrix carries the model's points, so the
+  turn is about the joint's bind-pose place): a swinging arm and body neither shrink as if
+  folding nor come off their joints (blending the turn alone while the matrix's offset went
+  straight stretched the arms out and through the body, Creyon, 13/10/2026; a bone that is
+  not a plain turn keeps its blended matrix squared up to its own axes' lengths and
+  handedness). Between the frames of one animation (close together) each bone blends in
+  its parent's frame; a takeover from one animation to another blends the two whole poses
+  bone by bone as they stand in the model: two poses can hold a bone alike in the model
+  but reach it differently (the game's swing starts turn the upper arm a half turn about
+  itself from the stance's and the forearm back), and blended in the parent's frame the
+  arm and saber swung a full turn round between them (Creyon, 13/10/2026: the saber
+  flickering into the second swing; measured on the game's own animations, the blade's
+  tip travelled about 315 units for a 13-unit move). Each animation keeps the speed it
+  began at, so one
+  fading out does not jump when the next plays at another. A held gesture (Grip's, Lightning's,
+  Drain's) stays held while the pointer is on the power, as in the game.
+  The gesture plays from a script ([menu_stage/force_motion.rs](../crates/sjk-viewer/src/menu_stage/force_motion.rs)
+  `script_at`): a one-shot gesture once, straight back into the stance at an even pace
+  over 0.3 s (keeping Push's and Pull's last frame stopped the hand dead before it went
+  back to the saber, Creyon, 13/10/2026), then the stance for 1.5 s before it plays
+  again, and the power's effect and shell only while it plays (back to back, Push, Pull,
+  Mind Trick, the team powers and Absorb were used over and over, Creyon, 13/10/2026);
+  Mind Trick's confusion and the shells of Protect, Absorb and the team powers staying
+  on 2.5 s after the gesture, Rage's shell and spray 1 s after its long gesture, and
+  then off until the next (the puffs
+  only while the hand is out; Rage's and the team powers' were too short, Creyon,
+  13/10/2026); Sense's shell, with no gesture, on 3 s and off
+  1.5 s in turn; Lightning, Drain and Grip
+  brought up (`BOTH_FORCELIGHTNING_START`, `BOTH_FORCE_DRAIN_START`), held 2.5 s with
+  their beam or puffs, let go (their `_RELEASE`) and the wait (held for good, they
+  never ended, Creyon, 13/10/2026);
+  Speed's run fast with its two copies for 3 s, then at a run's own pace without them
+  for 1.5 s, carrying on in its stride as it speeds up and slows down; Heal whole: down onto a knee, healing there 1.2 s, back up
+  (`BOTH_FORCEHEAL_STOP`), then the wait. Every wait is 1.5 s (2.5 s was too long,
+  Creyon, 13/10/2026). The gestures are the game's where
+  multiplayer has one (Push and Mind Trick `BOTH_FORCEPUSH`, Pull, Grip's hold,
+  Lightning, Drain `BOTH_FORCE_DRAIN_HOLD` as the JoF server plays it), Heal
+  `BOTH_FORCEHEAL_START`, the team powers the quick heal, Rage, Protect and Absorb
+  single player's poses the models carry, Speed a run (`BOTH_RUN1`, at 1.7 times its
+  speed while Speed is on, as `CG_PlayerAnimation` runs a speeding player's legs), Saber Throw
+  `BOTH_SABERPULL`, held out while the saber flies, as the game holds it while
+  `saberInFlight` (it dropped before the saber was back, Creyon, 13/10/2026).
+  It wears the power's shell as `CG_Player` tints it
+  ([menu_stage/shell.rs](../crates/sjk-viewer/src/menu_stage/shell.rs)): Protect's
+  green, Absorb's blue, Rage's red electric body, Team Heal's green and Team
+  Energize's blue `ysalimarishell` (colour and alpha both the tint's), Sense's yellow
+  `sightshell`. And it gives off the power's effect
+  ([menu_stage/force_fx.rs](../crates/sjk-viewer/src/menu_stage/force_fx.rs)), from the
+  game's own effect files in a small silent effect world of the preview's own, drawn
+  with its camera into the layer its blades glow in, in their stock look (a map's
+  recolours of effect pictures, such as one turning the push puffs red, are swapped
+  out while the preview's are built): Lightning's beam from the hand
+  (`force/lightningwide` at level 3), Drain's (`mp/drainwide` at 3), the push puffs
+  for Push, Pull and the team powers, Grip's red and white puffs, JoF EJK's
+  `force/rage2` and `force/heal2` sprays from the chest every 120 ms (now preloaded
+  with the stock effects), Mind Trick's `force/confusion_old` over the head, and
+  Speed's trail: two copies of the body 12 and 24 units behind the runner, seen
+  through at alpha 100 and 50, behind him as the picture shows him (to the side when he
+  faces the camera, where straight behind they hid behind the body) and a little
+  farther from the camera. Each copy is drawn whole, as the body is, into a picture of
+  its own, which the preview lays behind the body at its alpha; drawn see-through
+  surface by surface, a copy's overlapping surfaces stacked and its face lost its jaw.
+  Past the body nothing else counts: a shell's glow there leaves alpha near one over a
+  colour that may be nearly black, and drew a dark rim. Jump plays a jump
+  ([menu_stage/force_motion.rs](../crates/sjk-viewer/src/menu_stage/force_motion.rs))
+  as the game plays one made by holding the jump key while standing still: the body,
+  arms and all, takes off in `BOTH_JUMP1` and keeps its crouch the whole time in the
+  air, then lands (`BOTH_LAND1`), as Creyon's videos of the game show it (13/10/2026: the
+  torso kept in the stance held the hands where a jumping player's are not), timed as long as a jump to the drafted level's
+  height lasts under gravity 800 (66, 130, 226 or 418 units: about 2 seconds in the air
+  at level 3), then standing a moment. The model is seen to rise along the jump, at most 8 units at its top (more took the head out of
+  the picture), and come back down to where it stood,
+  never lower, so the picture never zooms out. Its sabers go off at the take-off (0.15 s)
+  and light again on landing (0.25 s): the game's jump holds the blade through the head
+  (Creyon, 13/10/2026). Saber Throw throws the first saber out spinning flat at 800
+  degrees a second, to the side and towards the camera, as far as 0.4 s at the game's
+  400 units a second goes, but fast at first and slowing to its far end over 0.75 s, so
+  it is out a while before it comes back into the hand (Creyon, 13/10/2026), then rests
+  there 1.5 s. Saber Offense loops three attacks (down from the top, up from the bottom
+  left as the game swings when moving left and back, `LS_A_BL2TR`, Creyon's pick, and
+  from the left), each as the game chains one from
+  the stance: its start (`BOTH_S3_S1_T_`), the attack, and its return, flowing into
+  the next (`BOTH_A3_T__B_` then `BOTH_R3_B__S1`, ...), and Saber Defense raises the
+  parries in turn (`BOTH_P1_S1_T_`, `_TR`, `_TL`, `_BL`, `_BR`), both at the game's
+  own speed, as every preview plays (slowed, they felt slowed down, Creyon, 13/10/2026). Each swing hands over to the next as it reaches
+  its last frame, taking over as the game does, in 100 ms at an even pace (Ghoul2's
+  `BONE_ANIM_BLEND`; most of the game's swings start a few units off where the last
+  ended), or straight on where the two meet; the longer eased takeover between them
+  slowed each swing as it began and hurried it after (Creyon, 13/10/2026). One swing
+  comes at a time, as the strong style fights: after each return the model settles over
+  0.25 s into the stance it idles in (`BOTH_STAND2` with a single saber) and holds it
+  0.3 s (1.5 s after the third), then the next start is eased in from it over 0.25 s
+  (Creyon, 13/10/2026: back to the idle pose after each swing; waiting where the return
+  ended looked frozen). A parry is
+  two frames, so the takeover into it is the whole block: each is raised over 0.25 s,
+  eased, kept 0.3 s as a block is held, and the stance taken again as slowly for 0.3 s
+  (1.5 s after the fifth; the game's 100 ms made the blocks a snap, Creyon,
+  13/10/2026); with a single saber the blocks come from and go back to the strong (red)
+  style's stance `BOTH_SABERSLOW_STANCE` (Creyon, 13/10/2026); the staff (`A7`,
+  `P7_S7`) and the dual sabers (`A6`, `P6_S6`) swing and block in their own, each back
+  to its own stance.
 - **Power box:** on the Force page, bottom right, the power under the pointer
   (or the keyboard) in big: its holocron, name, group, level, what it does in a
   line or two, what the server does with it when it limits it, the next

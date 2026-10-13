@@ -2,7 +2,7 @@
 use super::*;
 
 #[path = "force_sprites.rs"]
-mod sprites;
+pub(crate) mod sprites;
 
 /// Select the activeForcePass graph (cg_players.c:9408-9510).
 pub(crate) fn beam(pass: u8) -> Option<&'static str> {
@@ -22,7 +22,7 @@ pub(crate) fn beam(pass: u8) -> Option<&'static str> {
 /// there, ±2 up), so the axis must stay level. A shortest-arc turn from +X rolls the
 /// frame with the aim instead, by up to half a turn when facing back along -X, and the
 /// fan tilted, stood upright and flipped as the player turned.
-fn beam_rotation(pitch_degrees: f32, yaw_degrees: f32) -> Quat {
+pub(crate) fn beam_rotation(pitch_degrees: f32, yaw_degrees: f32) -> Quat {
     Quat::from_euler(
         glam::EulerRot::ZYX,
         yaw_degrees.to_radians(),

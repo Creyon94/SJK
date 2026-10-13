@@ -189,11 +189,8 @@ impl GpuState {
         if stage.cosmetics.iter().all(Option::is_none) {
             return;
         }
-        let matrices = actor
-            .preview
-            .animation
-            .frame_matrices(actor.current_frame)
-            .ok();
+        // The pose the stage was skinned with, blended between frames.
+        let matrices = Some(&actor.pose);
         for cosmetic in stage.cosmetics.iter_mut().flatten() {
             let bolt = matrices.as_ref().and_then(|matrices| {
                 actor

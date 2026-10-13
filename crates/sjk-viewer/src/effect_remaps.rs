@@ -82,6 +82,19 @@ impl ParticleAtlas {
     }
 }
 
+impl ParticleAtlas {
+    /// Swap every remapped entry with its original stages; a second call swaps them
+    /// back. For a picture that must show stock effects (the Force page's preview),
+    /// around building its draws. Cheap: it swaps the entries' lists in place.
+    pub(crate) fn swap_remap_originals(&mut self) {
+        for (key, original) in &mut self.remaps.originals {
+            if let Some(current) = self.animations.get_mut(key) {
+                std::mem::swap(current, original);
+            }
+        }
+    }
+}
+
 /// Entries whose visible stages or clock differ from their own, sorted by key.
 fn plan<'a>(
     keys: impl Iterator<Item = &'a String>,

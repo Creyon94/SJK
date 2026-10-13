@@ -2,7 +2,7 @@
 use super::*;
 
 /// Emit a stock opposing-velocity puff pair without growing the particle pool.
-pub(super) fn pair(
+pub(crate) fn pair(
     particles: &mut Vec<Particle>,
     effects: &mut EffectLibrary,
     origin: Vec3,
