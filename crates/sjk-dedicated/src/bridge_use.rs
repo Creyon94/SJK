@@ -20,18 +20,30 @@ const HANDEXTEND_DRAGGING: u8 = 15;
 const PMF_FOLLOW: u16 = 4_096;
 
 impl NativeGame {
-    /// The `func_usable` brushes a map places, as the entities the use key reaches for.
-    /// One that starts off is spawned all the same but carries nothing a client draws or
-    /// a trace meets, which is what `SVF_NOCLIENT` and `EF_NODRAW` are for.
+    /// The `func_usable` brushes a map places, as the entities the use key reaches for,
+    /// each at its origin with its `model2` registered (`G_ModelIndex`) for every client
+    /// to draw. One that starts off is spawned all the same but carries nothing a client
+    /// draws or a trace meets, and is not sent: `SVF_NOCLIENT` and `EF_NODRAW`.
     pub(super) fn spawn_usables(&mut self) {
         let Some(map) = self.map.take() else { return };
         for usable in &map.usables {
+            let (models, told) = (&mut self.models, &mut self.told);
+            let model2 = if usable.model2.is_empty() {
+                0
+            } else {
+                models.index(usable.model2.as_bytes(), &mut |index, value| {
+                    told.push(Told::ConfigString {
+                        index,
+                        previous: Vec::new(),
+                        value: value.to_vec(),
+                    })
+                })
+            };
             let mut state = EntityState::zero(0, &sjk_protocol::LEGACY_ENTITY_FIELDS);
-            state.set_raw_field(ES_ENTITY_TYPE, sjk_game_jka::movers::ET_MOVER);
-            sjk_game_jka::triggers::set_brush_model(&mut state, usable.model);
-            state.set_raw_field(ES_EFLAGS, usable.eflags);
+            usable.project(&mut state, model2);
             if let Some(number) = self.pool.spawn_entity(state, 0) {
                 self.pool.set_bounds(number, usable.bounds);
+                self.pool.show(number, usable.present);
                 self.usable_entities.push((number, usable.clone()));
             }
         }
@@ -106,16 +118,17 @@ impl NativeGame {
             }
             return;
         }
-        // A `func_usable` fires what it targets (`func_usable_use`).
+        // A `func_usable` the map made `PLAYER_USE` fires what it targets
+        // (`ValidUseTarget`, `func_usable_use`).
         if let Some((_, usable)) = self
             .usable_entities
             .iter()
-            .find(|(number, _)| number.legacy_number() == found)
+            .find(|(number, usable)| {
+                number.legacy_number() == found && usable.answers_use() && !usable.target.is_empty()
+            })
             .cloned()
         {
-            if !usable.target.is_empty() {
-                self.fire_targets(&usable.target, client, level_time);
-            }
+            self.fire_targets(&usable.target, client, level_time);
         }
     }
 

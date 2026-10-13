@@ -140,6 +140,26 @@ pub fn sweep_obstacle(
     }
 }
 
+/// The `func_usable` brushes that are there (`SP_func_usable` links them solid unless
+/// they start off), each its own model standing at its origin.
+pub fn usable_obstacles(
+    usables: &[(
+        sjk_game_jka::entity_id::EntityId,
+        sjk_game_jka::use_key::Usable,
+    )],
+) -> impl Iterator<Item = BoxObstacle> + '_ {
+    usables
+        .iter()
+        .filter(|(_, usable)| usable.contents != 0)
+        .map(|(number, usable)| BoxObstacle {
+            entity: number.legacy_number(),
+            origin: usable.origin,
+            bounds: usable.bounds,
+            contents: usable.contents,
+            model: Some(usable.model),
+        })
+}
+
 /// The map's brush entities as obstacles, each traced through its own model: the
 /// breakables still standing (solid to everybody, what a bolt strikes) and the doors and
 /// lifts where their last frame left them (`G_RunMover` at `level_time`).

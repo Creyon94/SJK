@@ -120,7 +120,7 @@ pub fn legacy_ejk_animation_fixes(
     animation_selection::ejk_animation_fixes(legs, torso, weapon, saber_in_flight, false)
 }
 
-pub use entity_models::legacy_limb;
+pub use entity_models::{LegacyMoverModel, legacy_limb, legacy_mover_model2};
 
 /// `BG_InDeathAnim`: a death or dead animation.
 pub fn legacy_death_animation(clip: usize) -> bool {

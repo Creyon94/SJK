@@ -140,6 +140,7 @@ mod missile_trails;
 mod model_materials;
 mod mods;
 mod movement_collision;
+mod mover_models;
 mod movers;
 mod muted_players;
 mod muted_players_frame;

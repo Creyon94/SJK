@@ -79,6 +79,42 @@ pub(crate) fn legacy_entity_model_appearance(
     }
 }
 
+/// The second model `CG_Mover` draws with an `ET_MOVER` (`cg_ents.c:3469-3479`):
+/// `modelindex2`, a `CS_MODELS` entry the game set from the entity's `model2` key
+/// (`InitMover`, `SP_func_usable`, `g_mover.c`), at the mover's own origin and
+/// angles, scaled by `iModelScale` percent when that is set.
+///
+/// A `func_usable` table in `t2_rancor` is a clip-only brush (no drawn surface) with
+/// `model2 models/map_objects/nar_shaddar/table01.md3`: the md3 is all a player sees.
+/// `EF_NODRAW` hides it, as it hides the mover's brush in SJK
+/// ([`crate::legacy_present_mover`]).
+pub fn legacy_mover_model2(
+    game_state: &GameState,
+    state: &EntityState,
+) -> Option<LegacyMoverModel> {
+    const EF_NODRAW: u32 = 1 << 8;
+    if state.entity_type() != ET_MOVER || state.e_flags() & EF_NODRAW != 0 {
+        return None;
+    }
+    let appearance = crate::legacy_model_appearance(game_state, i16::from(state.model_index2()))?;
+    let percent = state.model_scale_percent();
+    Some(LegacyMoverModel {
+        appearance,
+        scale: if percent == 0 {
+            1.0
+        } else {
+            percent as f32 / 100.0
+        },
+    })
+}
+
+/// A mover's second model: what to draw and its uniform scale.
+#[derive(Clone, Debug, PartialEq)]
+pub struct LegacyMoverModel {
+    pub appearance: Appearance,
+    pub scale: f32,
+}
+
 /// A dismembered limb entity's part (`G2_MODELPART_HEAD` 10 to `G2_MODELPART_RLEG` 16)
 /// and its owner: `modelindex`, or `otherEntityNum2` when that is negative
 /// (`CG_General`, `cg_ents.c`).
@@ -210,6 +246,31 @@ mod tests {
         let mut empty = entity(ET_MOVER, 0);
         empty.set_raw_field(SOLID, SOLID_BMODEL);
         assert_eq!(model(&empty), None);
+    }
+
+    #[test]
+    fn mover_draws_its_model2_at_its_scale_unless_hidden() {
+        const MODEL2: usize = 41;
+        const EFLAGS: usize = 19;
+        const MODEL_SCALE: usize = 76;
+        let mut table = entity(ET_MOVER, 27);
+        table.set_raw_field(SOLID, SOLID_BMODEL);
+        assert_eq!(legacy_mover_model2(&game_state(), &table), None);
+        table.set_raw_field(MODEL2, 2);
+        let drawn = legacy_mover_model2(&game_state(), &table).unwrap();
+        assert_eq!(drawn.appearance.model, MODEL);
+        assert_eq!(drawn.scale, 1.0);
+        table.set_raw_field(MODEL_SCALE, 150);
+        assert_eq!(
+            legacy_mover_model2(&game_state(), &table).unwrap().scale,
+            1.5
+        );
+        table.set_raw_field(EFLAGS, 1 << 8);
+        assert_eq!(legacy_mover_model2(&game_state(), &table), None);
+        // Only a mover's modelindex2 is a model; an item's or effect's is not.
+        let mut general = entity(ET_GENERAL, 2);
+        general.set_raw_field(MODEL2, 2);
+        assert_eq!(legacy_mover_model2(&game_state(), &general), None);
     }
 
     #[test]

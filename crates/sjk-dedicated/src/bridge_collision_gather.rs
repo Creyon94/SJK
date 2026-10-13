@@ -25,6 +25,7 @@ impl NativeGame {
             stock,
             mounted,
             scripts,
+            usable_entities,
             ..
         } = self;
         obstacles.clear();
@@ -81,7 +82,8 @@ impl NativeGame {
         obstacles.extend(
             crate::collision::brush_obstacles(breakables, doors, *last_frame_time)
                 .chain(stock.obstacles())
-                .chain(scripts.brushes()),
+                .chain(scripts.brushes())
+                .chain(crate::collision::usable_obstacles(usable_entities)),
         );
         map_turrets.add_obstacles(obstacles, client);
         husks.retain(|(_, _, id)| pool.is_linked(*id));

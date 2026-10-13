@@ -78,5 +78,12 @@ pub(crate) fn append_frame(gpu: &mut GpuState, time: i64) {
                 gpu.mover_groups[mesh].push(instance);
             }
         }
+        crate::mover_models::append_frame(
+            &gpu.object_meshes,
+            &mut gpu.object_groups,
+            game,
+            snapshot,
+            time as i32,
+        );
     }
 }

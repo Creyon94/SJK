@@ -66,7 +66,19 @@ impl GpuState {
                         .attempted
                         .contains(*appearance)
             })
-            .cloned();
+            .cloned()
+            .or_else(|| {
+                // A mover's second model (`mover_models`) is not a world appearance.
+                let (game, snapshot) = match (&self.live_session, &self.demo_session) {
+                    (Some(live), _) => (live.game_state(), live.latest_snapshot()),
+                    (None, Some(demo)) => (demo.game_state(), demo.latest_snapshot()),
+                    (None, None) => return None,
+                };
+                let attempted = &self.config_string_refresh.models.attempted;
+                crate::mover_models::wanted(game, snapshot, |appearance| {
+                    attempted.contains(appearance)
+                })
+            });
         let (Some(appearance), Some(vfs)) = (wanted, self.vfs.clone()) else {
             return;
         };

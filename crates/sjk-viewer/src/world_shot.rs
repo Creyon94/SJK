@@ -312,6 +312,9 @@ mod whats_new;
 
 #[path = "world_shot_pings.rs"]
 mod pings;
+#[cfg(test)]
+#[path = "world_shot_mover_models.rs"]
+mod mover_models_shots;
 
 #[cfg(test)]
 mod tests {

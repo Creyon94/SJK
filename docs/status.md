@@ -1,5 +1,22 @@
 # Status and priorities
 
+## World notes: Rancor tables, sand steps and footprints
+
+Branch `personal/world-notes-fixes` (13/10/2026), two of Sol's world notes.
+
+- Fixed, "tables are missing on this map" (`t2_rancor`, 08/10/2026, on a JoF server): the
+  bar tables are `func_usable` clip brushes whose only drawn part is their `model2` md3,
+  which SJK never drew. Movers now draw their `modelindex2` model as `CG_Mover` does, and
+  the native server sends usables at their origin with their `model2`, solid, and fires
+  only `PLAYER_USE` ones ([client.md](client.md#mover-models)). The note's companion
+  "this should be a light" (`flares/solid_blue`, same place) is not addressed.
+
+Verified: unit tests (the mover model rule, the server's usable state and use rule),
+workspace build, tests and clippy, and the world shot `rancor_tables` looked at (the bar
+without and with the usables as the native server sends them: the table under the note's
+light appears). Not run in a game: the tables on a live server and the native server's
+usable collision are untested.
+
 ## Donations and the Supporter medal
 
 Branch `personal/donate-goal` (13/10/2026), Sol's request, with the hub's
@@ -6811,9 +6828,10 @@ remain open.
   are in [entity_models.rs](../crates/sjk-client/src/entity_models.rs). An
   `ET_GENERAL` model takes the server's `iModelScale` (a percentage) as
   `CG_General` does, so a prop a server spawns with `modelscale` has its size
-  (SJK, `presentation.rs`). Models codemp draws that the client still does not: force holocrons, non-brush
-  `ET_MOVER` models and a mover's secondary `modelindex2` model, and the
-  portable shield (`ET_SPECIAL`) and `ET_BEAM` effects.
+  (SJK, `presentation.rs`). A mover's secondary `modelindex2` model is drawn since
+  13/10/2026 ([client.md](client.md#mover-models)). Models codemp draws that the client
+  still does not: force holocrons, non-brush `ET_MOVER` models, and the portable shield
+  (`ET_SPECIAL`) and `ET_BEAM` effects.
 - Mod compatibility is scoped by explicit profiles; broad BaseJKA/JA+/TaystJK
   feature parity is not established by profile detection.
 - Community PK3 compatibility needs broader map/model coverage. One retail map

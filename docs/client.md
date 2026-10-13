@@ -1303,6 +1303,29 @@ possible. Animation selection, movement, saber timing and network events are
 unchanged. Animation-driven effect/footprint marks and gameplay event actions
 remain outside this audio adapter.
 
+## Mover models
+
+A brush entity a map gives a `model2` key draws that model too: the game registers it as
+the mover's `modelindex2` (`InitMover`, `SP_func_usable`, `g_mover.c`) and `CG_Mover`
+draws it at the mover's origin and angles, scaled by `iModelScale` when set
+(`cg_ents.c:3469-3479`). `t2_rancor`'s bar tables are such movers: `func_usable` clip
+brushes, with no drawn face, carrying `models/map_objects/nar_shaddar/table01.md3`, so
+until 13/10/2026 SJK showed no tables at all (Sol's world note, 08/10/2026). The rule is
+`legacy_mover_model2` in [entity_models.rs](../crates/sjk-client/src/entity_models.rs);
+[mover_models.rs](../crates/sjk-viewer/src/mover_models.rs) loads the models (the
+baselines' at map load, later ones on first use) and draws them with the rigid entity
+models, for the snapshot's movers and the permanent ones. `EF_NODRAW` hides the model as
+it hides the brush. Multiplayer ignores a `func_usable`'s `modelAngles` (single player's
+key) and leaves out a `.glm` `model2`; so does SJK. Tables that start off
+(`spawnflags 1`) stay hidden unless a script brings them back.
+
+The native server sends a `func_usable` the same way: at its origin (`s.pos.trBase`),
+with its `model2` registered, solid to players and traces where it stands (it used to be
+neither placed nor solid), and the use key fires one only when the map made it
+`PLAYER_USE` (spawnflag 64) and not `INACTIVE` (128), as `ValidUseTarget` checks. One that
+starts off is not sent (`SVF_NOCLIENT`, `EF_NODRAW`); it used to carry `EF_PERMANENT`
+(bit 7) in the place of `EF_NODRAW` (bit 8).
+
 ## Door and mover sounds
 
 A brush entity (a door, lift, button or breakable) has its entity origin at the

@@ -28,6 +28,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 > Support: Donate on Ko-fi from the main page; more than 1 euro brings the Supporter medal.
 
 - The Supporter medal, for players who donate more than 1 euro to SJK on Ko-fi: put your SJK key id in the Ko-fi message and it arrives on its own; shown with the other medals on the profile, the player card, the Collection and the scoreboard (placeholder art) _(Sol)_
+- Tables and other props a map hangs on a brush entity's model2 are drawn, such as the bar tables of t2_rancor _(Sol, after the original game)_
 - The SJK UI's main page shows SJK's monthly donation goal top left, live from the SJK hub, with Donate opening Ko-fi; `ui_donationGoal 0` hides it _(Sol)_
 
 ## 2026.1013.2 (Alpha) | 13/10/2026
