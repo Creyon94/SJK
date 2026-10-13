@@ -35,6 +35,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - Tables and other props a map hangs on a brush entity's model2 are drawn, such as the bar tables of t2_rancor _(Sol, after the original game)_
 - sjk-materialgen finds its overrides file in the client's generated folder (and copies one left in the old JKR folder there), says which file it read or warns when it found none, and records it in the pack: the 12/10 pack had been built without Sol's rules _(Sol)_
 - Generated material maps (generation 7, regenerate the pack): crates are painted metal rather than wood, a vent in a concrete wall stays concrete, look-alike words (background, rockets, rustic) no longer pick ground, rock or rust, and the overrides take strength= to deepen or soften one texture's relief _(Sol)_
+- Korriban's glossy walls (door, entrance top, the gold-inlaid bases and pillars) take material maps, their shine kept under the paint, and in real-time lighting an environment shine dims with the room's light instead of washing over dark walls such as the obsidian bricks JoF puts on ffa1 _(Sol)_
 - The SJK UI's main page shows SJK's monthly donation goal top left, live from the SJK hub, with Donate opening Ko-fi; `ui_donationGoal 0` hides it _(Sol)_
 
 ## 2026.1013.2 (Alpha) | 13/10/2026
