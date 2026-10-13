@@ -204,6 +204,20 @@ one (4:3, 5:4) scales the frame down to its width.
   Down past the last server reaches the field
   (the gold arc turns to it); Enter types and every key goes to the field until Enter
   sends or Escape stops. Not shown with `cl_sjkChat 0`.
+- **Donation goal:** top left, clear of the ring (x 96 to 516, from y 58;
+  [donation_goal.rs](../crates/sjk-viewer/src/donation_goal.rs), since 13/10/2026,
+  Sol's request): "Support SJK" with a gold Donate pill at its right, then "80 € of
+  200 € this month" and a gold bar on a holo track, then "More than 1 € brings the
+  Supporter medal" in quiet print. Donate opens SJK's Ko-fi page in the browser (the
+  address the SJK hub gives, if it is a plain https one, else
+  `https://ko-fi.com/soljk`). The numbers come from the hub's `GET /v1/donations/goal`
+  ([sjk.md](sjk.md#donations)), asked without the identity key on a thread of its own
+  when the page shows and again after ten minutes (five after a failure), kept in
+  memory: the page never waits. Until the hub answers (or with no hub) the card shows
+  "Help fund SJK's development on Ko-fi" and Donate, without a bar.
+  `ui_donationGoal 0` (Settings, Interface, "Donation goal") hides it and asks the
+  hub nothing. Pointer only: its target is the page's 80. World shot: `duel6-menu`
+  (`world_shot::duel6_sjk_menu`, 80 of 200 euros).
 - **Corners:** the player's [profile card](#profile-card), bottom left; the keys
   of the page, bottom centre; the version and a newer release found, bottom right.
 

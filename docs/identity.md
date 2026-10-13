@@ -370,7 +370,7 @@ the SJK team gives them.
 | Early Tester | `early_tester` | Helped test SJK in its early days. | no |
 | Early Contributor | `early_contributor` | Contributed to SJK's code in its early days. | no |
 | Bug Hunter | `bug_hunter` | Found bugs that got fixed. | yes, with a count ("Bug Hunter x2") |
-| Supporter | `supporter` | Donated to SJK's development (more than 1 euro, since 13/10/2026; [sjk.md](sjk.md#donations)). | no |
+| Supporter | `supporter` | Donated to SJK's development (more than 1 euro on Ko-fi, since 13/10/2026; [sjk.md](sjk.md#donations)): given by the hub itself when the Ko-fi message holds the donor's key id, else by the SJK team. | no |
 
 The hub lists a key's medals in its profile (`"medals":[{"id","count","awarded","note"}]`:
 the count, when it was last given and a short note from the team, often empty) and in its

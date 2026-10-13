@@ -269,6 +269,12 @@ pub trait Hub: Send {
             "this hub client does not send settings usage".to_owned(),
         ))
     }
+    /// The donation goal (`PROTOCOL.md`, "Donations"), asked without a signature.
+    fn donation_goal(&mut self) -> Result<crate::DonationGoal, HubError> {
+        Err(HubError::Protocol(
+            "this hub client does not read the donation goal".to_owned(),
+        ))
+    }
     /// Send a crash report (already [`CrashReport::fitted`]) signed by the identity;
     /// the hub answers with its number.
     fn crash(&mut self, _identity: &Identity, _report: &CrashReport) -> Result<i64, HubError> {
@@ -790,6 +796,12 @@ impl Hub for HttpHub {
     fn settings_usage(&mut self, body: &Value) -> Result<u64, HubError> {
         let answer = self.send(None, "POST", "/v1/usage/settings", Some(body.clone()))?;
         Ok(answer["stored"].as_u64().unwrap_or(0))
+    }
+
+    fn donation_goal(&mut self) -> Result<crate::DonationGoal, HubError> {
+        let answer = self.send(None, "GET", "/v1/donations/goal", None)?;
+        crate::DonationGoal::parse(&answer)
+            .ok_or_else(|| HubError::Protocol("the donation goal answer has no goal".to_owned()))
     }
 
     fn crash(&mut self, identity: &Identity, report: &CrashReport) -> Result<i64, HubError> {

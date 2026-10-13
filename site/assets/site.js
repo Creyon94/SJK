@@ -6,14 +6,17 @@ const REPO = "Sol-Vulpes/SJK";
 const RELEASES_API = `https://api.github.com/repos/${REPO}/releases?per_page=6`;
 const RELEASES_PAGE = `https://github.com/${REPO}/releases`;
 
-// Donations: the one place to edit (docs/sjk.md, "Donations"). `url` is the donation page,
-// an https address; until it is one, the card says the link is coming instead of
-// linking. `goal` is the monthly goal and `raised` what came in this month, both
-// whole euros: set `raised` back to 0 at the start of each month.
+// Donations (docs/sjk.md, "Donations"). The card reads the live goal from the SJK hub
+// (`hub`, which Ko-fi's webhook keeps up to date); the other values are what it shows
+// when the hub cannot be reached: `url` the donation page (an https address; anything
+// else says the link is coming), `goal` the monthly goal and `raised` what came in
+// this month, both whole euros.
 const DONATION = {
-  url: "PLACEHOLDER-DONATION-URL",
+  hub: "https://sjk.dfox.app/v1/donations/goal",
+  url: "https://ko-fi.com/soljk",
   goal: 200,
   raised: 0,
+  monthly: true,
 };
 
 /** Escape text for safe insertion as HTML. */
@@ -160,8 +163,9 @@ function donationState(donation) {
   const goal = Math.max(1, Math.round(Number(donation.goal) || 0));
   const raised = Math.max(0, Math.round(Number(donation.raised) || 0));
   const url = /^https:\/\/\S+$/.test(String(donation.url || "")) ? donation.url : null;
+  const period = donation.monthly === false ? "" : " this month";
   return {
-    amount: `${euros(raised)} of ${euros(goal)} this month`,
+    amount: `${euros(raised)} of ${euros(goal)}${period}`,
     fill: Math.min(1, raised / goal),
     goal,
     raised,
@@ -169,25 +173,59 @@ function donationState(donation) {
   };
 }
 
-/** The donation card: the goal, the bar and the button from DONATION. */
-function setUpDonation() {
+/** The hub's goal answer as DONATION's fields, or null when it is not one. */
+function donationFromHub(answer) {
+  if (!answer || !(Number(answer.goal_cents) > 0)) return null;
+  const url = /^https:\/\/\S+$/.test(String(answer.url || "")) ? answer.url : DONATION.url;
+  return {
+    url,
+    goal: Number(answer.goal_cents) / 100,
+    raised: Math.max(0, Number(answer.raised_cents) || 0) / 100,
+    monthly: answer.period !== "total",
+  };
+}
+
+/** The donation card from DONATION at once, then from the hub's live goal. */
+async function setUpDonation() {
+  showDonation(DONATION);
+  if (!DONATION.hub || typeof fetch !== "function") return;
+  const abort = typeof AbortController === "function" ? new AbortController() : null;
+  const timer = abort ? setTimeout(() => abort.abort(), 6000) : null;
+  try {
+    const response = await fetch(DONATION.hub, abort ? { signal: abort.signal } : {});
+    if (!response.ok) throw new Error(`hub ${response.status}`);
+    const live = donationFromHub(await response.json());
+    if (live) showDonation(live);
+  } catch (error) {
+    // Keep DONATION's values; the link still works.
+    console.info("Donation goal unavailable:", error);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+/** Show `donation` on the card: the goal, the bar and the button. */
+function showDonation(donation) {
   const amount = document.getElementById("donation-amount");
   const bar = document.getElementById("donation-bar");
   const note = document.getElementById("donation-note");
   const link = document.getElementById("donation-link");
   if (!amount || !bar || !link) return;
-  const state = donationState(DONATION);
+  const state = donationState(donation);
   amount.textContent = state.amount;
   bar.hidden = false;
   bar.setAttribute("aria-valuemin", "0");
   bar.setAttribute("aria-valuemax", String(state.goal));
   bar.setAttribute("aria-valuenow", String(Math.min(state.raised, state.goal)));
   bar.style.setProperty("--fill", String(state.fill));
-  if (note) note.hidden = false;
+  if (note) note.hidden = donation.monthly === false;
   link.hidden = false;
   if (state.url) {
     link.href = state.url;
     link.rel = "noopener";
+    link.textContent = "Donate on Ko-fi";
+    link.classList.remove("waiting");
+    link.removeAttribute("aria-disabled");
   } else {
     link.textContent = "Donation link coming soon";
     link.classList.add("waiting");
@@ -393,6 +431,6 @@ if (typeof document !== "undefined") {
 if (typeof module !== "undefined") {
   module.exports = {
     escapeHtml, inline, renderMarkdown, latestRelease, assetFor, versionOf, euDate,
-    euros, donationState, DONATION,
+    euros, donationState, donationFromHub, DONATION,
   };
 }

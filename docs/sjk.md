@@ -72,6 +72,7 @@ migrated, except where the table says so. Where each is documented:
 | `mod_japlus`, `mod_jof` | on (each mod loads on its servers only), saved 0 moved to 1 once | [Client mods](mods.md) |
 | `con_drawNotify` | off (no console feed at the top left; chat keeps its box) | [Classic console](client.md#classic-console) |
 | `cl_experimentalShowcase` | off (the experimental `ghost` and `mimic` commands) | [Ghost replay](client.md#ghost-replay) |
+| `ui_donationGoal` | on (the donation goal on the SJK UI's main page) | [Main page](sjk-ui.md#main-page) |
 
 The HUD look (`cg_hudStyle game`) and the console (`con_style auto`: the SJK UI's
 console with its menus, else the classic one; a saved `classic` moved once to
@@ -209,24 +210,33 @@ Alphas are not marked as pre-releases, so the site's download link
 
 ## Donations
 
-The site's Support SJK section (Sol's request, 13/10/2026) says what donations are for:
-a full Claude plan used only for SJK, so more of the tasks Sol has ready can run as
-parallel agents. A Claude plan is billed monthly, so the goal is monthly ("0 € of 200 € this
-month" on the page) and its bar starts again each month. Every
-value is in one place, `DONATION` at the top of
-[site.js](../site/assets/site.js):
+SJK takes donations on Ko-fi, https://ko-fi.com/soljk (Sol's page, 13/10/2026). The
+site's Support SJK section and the SJK UI's main page ([sjk-ui.md](sjk-ui.md#main-page))
+say what they are for: a full Claude plan used only for SJK, so more of the tasks Sol
+has ready can run as parallel agents. A Claude plan is billed monthly, so the goal is
+monthly ("80 € of 200 € this month") and starts again on the 1st.
 
-| Field | Is | Edit when |
+The goal is live: Ko-fi calls the SJK hub's webhook for every payment and the hub sums
+them (the hub's `PROTOCOL.md`, "Donations"). Ko-fi has no API to read a goal, and its
+public page does not carry it, so the goal set on Ko-fi is repeated in the hub's
+configuration, which the hub operator keeps. Both the site and the client read
+`GET https://sjk.dfox.app/v1/donations/goal` (no key, readable from any origin):
+
+| Reader | Where | Without an answer |
 | --- | --- | --- |
-| `url` | The donation page, an https address; anything else (the placeholder `PLACEHOLDER-DONATION-URL`) shows "Donation link coming soon" instead of the button | Sol has a donation page |
-| `goal` | The monthly goal in whole euros (200) | The plan's price changes |
-| `raised` | What came in this month, in whole euros; the bar fills to `raised / goal` and stops full | A donation arrives; back to 0 on the 1st |
+| Site | `DONATION.hub` at the top of [site.js](../site/assets/site.js), fetched once per visit (6 s at most) | `DONATION`'s own `url`, `goal`, `raised` and `monthly`; without JavaScript, [index.html](../site/index.html)'s "200 € a month" and its Ko-fi link |
+| Client | [donation_goal.rs](../crates/sjk-viewer/src/donation_goal.rs) through `cl_hubUrl`, every ten minutes while the main page shows | The card without numbers, Donate still opening Ko-fi |
 
-Pushing `main` publishes the change (the Pages workflow). Without JavaScript the card
-says the goal and link need it. A donation of more than 1 euro earns the Supporter medal
-([identity.md](identity.md#medals)): the donor puts their in-game name or SJK key id in
-the donation's message and the SJK team gives the medal by hand. The page shows the
-medallion from `site/assets/medal-supporter.png`, a copy of the client's
+The Ko-fi address is written in three places, all for when the hub cannot answer: the
+site's `DONATION.url` and its link in `index.html`, and the client's
+`sjk_identity::donations::DEFAULT_URL`. Changing the page means changing the three and
+the hub's configuration. `ui_donationGoal 0` hides the client's card and asks nothing.
+
+A donation of more than 1 euro earns the Supporter medal
+([identity.md](identity.md#medals)): with the donor's SJK key id in the Ko-fi message
+(Settings, Network, SJK identity key, Copy key id), the hub gives it as soon as Ko-fi
+calls; without one, or in another currency, the SJK team matches it by hand. The site
+shows the medallion from `site/assets/medal-supporter.png`, a copy of the client's
 `supporter_small.png`: replace both when the art changes. The page promises nothing
 else: no feature is sold and a donation brings no advantage in the game.
 

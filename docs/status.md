@@ -3,15 +3,18 @@
 ## Donations and the Supporter medal
 
 Branch `personal/donate-goal` (13/10/2026), Sol's request, with the hub's
-`donate-supporter`: the site gains a Support SJK section (why donations are asked for, a
-monthly goal with its bar, the Donate button, the Supporter medal) and the medal
-catalogue gains `supporter` (Supporter, not repeatable, no blade), on both sides. The
-donation link and the goal live in `DONATION` in `site/assets/site.js`
-([sjk.md](sjk.md#donations)); the link is a placeholder until Sol has one, and the
-button then says the link is coming. The medal's art is a drawn placeholder (a gold
-medallion with a heart on a violet ribbon) until Sol picks real art. Verified: unit tests
-(client and hub), the site's section rendered in headless Chrome at desktop width, with
-and without a link. Not tried in a game; the hub not deployed.
+`donate-supporter`: donations on Ko-fi (https://ko-fi.com/soljk) with a live monthly
+goal of 200 euros, on the site's Support SJK section and top left of the SJK UI's main
+page (`ui_donationGoal`), and the Supporter medal (`supporter`, given once, no blade) in
+the medal catalogue on both sides. Ko-fi's webhook feeds the hub, which sums payments
+for `GET /v1/donations/goal` and gives the medal at once when the Ko-fi message holds a
+registered key id; the rest waits for the SJK team ([sjk.md](sjk.md#donations)). The
+medal's art is a drawn placeholder (a gold medallion with a heart on a violet ribbon)
+until Sol picks real art. Verified: unit tests (client, identity crate and hub, the hub's
+in-process webhook and goal tests), a local hub answering the webhook and the goal, the
+site rendered in headless Chrome reading that hub, and the main page's world shot
+(`duel6-menu`). Not tried in a game; the hub not deployed, so until it is, the site
+shows its fallback numbers and the client's card has none.
 
 ## SJK Symbols
 

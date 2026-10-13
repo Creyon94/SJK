@@ -211,8 +211,9 @@
   </div>
 </section>
 
-<!-- Donations. The link and the goal live in one place: DONATION at the top of
-     assets/site.js (docs/sjk.md, "Donations"). Without the script the card says so. -->
+<!-- Donations (docs/sjk.md, "Donations"): the script fills the card from the SJK hub's
+     live goal, or from DONATION at the top of assets/site.js when the hub cannot be
+     reached. Without the script the card keeps the Ko-fi link below. -->
 <section id="support" class="page" aria-labelledby="support-title">
   <header class="page-head">
     <h2 id="support-title">Support SJK</h2>
@@ -231,17 +232,18 @@
     </div>
     <div class="support-card" id="donation" aria-live="polite">
       <p class="support-label">Monthly goal</p>
-      <p class="support-amount" id="donation-amount">Goal and donation link need JavaScript.</p>
+      <p class="support-amount" id="donation-amount">200&nbsp;€ a month</p>
       <div class="support-bar" id="donation-bar" role="progressbar" aria-labelledby="donation-amount" hidden><span></span></div>
       <p class="support-note" id="donation-note" hidden>A Claude plan is billed every
       month, so the bar starts again each month.</p>
-      <a class="download support-button" id="donation-link" hidden>Donate</a>
+      <a class="download support-button" id="donation-link" href="https://ko-fi.com/soljk" rel="noopener">Donate on Ko-fi</a>
       <div class="medal-note">
         <img src="assets/medal-supporter.png" alt="" width="64" height="64">
-        <p><strong>Supporter medal</strong> Donate more than 1&nbsp;€ and Sol gives you the
-        Supporter medal, shown on your SJK profile, your player card and the scoreboard.
-        Put your in-game name or your SJK key id (Settings › Network › SJK identity key,
-        Copy key id) in the donation's message so it reaches the right player.</p>
+        <p><strong>Supporter medal</strong> Donate more than 1&nbsp;€ with your SJK key id
+        in the Ko-fi message and the Supporter medal is yours as soon as Ko-fi tells the SJK
+        hub, shown on your SJK profile, your player card and the scoreboard. Your key id is
+        in Settings › Network › SJK identity key (Copy key id). Without one, Sol matches the
+        donation by hand.</p>
       </div>
     </div>
   </div>

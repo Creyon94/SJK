@@ -608,6 +608,12 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "The SJK version whose update recap (the what's-new card) you closed; empty shows the current one once",
         ),
         CvarDefinition::new(
+            crate::donation_goal::CVAR,
+            true,
+            archive,
+            "Show SJK's donation goal on the SJK UI's main page, read from the SJK hub, with Donate opening SJK's Ko-fi page (0 hides it and asks the hub nothing)",
+        ),
+        CvarDefinition::new(
             "ui_hideFirstSetup",
             false,
             archive,

@@ -214,6 +214,7 @@ impl ClientMenu {
                 seconds: super::art::motion::seconds(),
                 chat,
                 summary,
+                donation: crate::donation_goal::card(console),
             };
             home::build(&mut self.ui, viewport, &mut self.home, &view, reveal);
         });
@@ -300,6 +301,10 @@ impl ClientMenu {
             }
             home::Action::Open(destination) => self.open_main_destination(destination, console),
             home::Action::Quit => MenuAction::Quit,
+            home::Action::Donate => {
+                crate::donation_goal::open();
+                MenuAction::None
+            }
             home::Action::SendChat => {
                 let text = self.home.take_draft();
                 self.chat_dock
