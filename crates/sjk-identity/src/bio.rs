@@ -21,8 +21,8 @@ pub const LINES_MAX: usize = 6;
 pub const RUN_MAX: usize = 8;
 /// The punctuation a bio may use besides letters, digits and spaces: ASCII's, the
 /// marks Japanese is typed with (`、。「」『』・`, full-width `！？（）～`) and Chinese's
-/// (full-width `，：；`, `《》`, curly quotes).
-pub const PUNCTUATION: &str = ".,!?'\"-:;()[]&/+#@%*_=~<>|$、。「」『』・！？（）～，：；《》“”‘’";
+/// (full-width `，：；`, `《》`, curly quotes), and the euro sign.
+pub const PUNCTUATION: &str = ".,!?'\"-:;()[]&/+#@%*_=~<>|$、。「」『』・！？（）～，：；《》“”‘’€";
 
 /// Why a bio was refused; the hub answers each with its `error` code.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -342,7 +342,7 @@ mod tests {
         // The middle dot, the voicing marks and conjoining jamo are no letters; Greek is
         // not drawn.
         assert!(!letter('・') && !letter('゛') && !letter('\u{1100}') && !letter('α'));
-        assert!(allowed('，') && allowed('《') && allowed('😀') && allowed('\u{200D}'));
+        assert!(allowed('，') && allowed('《') && allowed('😀') && allowed('\u{200D}') && allowed('€'));
         assert_eq!(
             check("你好，我们说中文。"),
             Ok("你好，我们说中文。".to_owned())

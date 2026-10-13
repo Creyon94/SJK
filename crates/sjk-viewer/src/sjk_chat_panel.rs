@@ -39,6 +39,8 @@ const HUB_UNMUTE_TOKEN: u16 = 1_305;
 /// GIF beside Send (the picker), and the chosen message's Add GIF to favourites.
 const GIF_TOKEN: u16 = 1_306;
 const FAVOURITE_TOKEN: u16 = 1_307;
+/// Retry, beside the notice that says the hub did not take the last message.
+const RETRY_TOKEN: u16 = 1_308;
 /// Messages on show, one token each.
 const MESSAGE_BASE: u16 = 1_310;
 const MESSAGES_SHOWN: usize = 40;
@@ -131,6 +133,8 @@ pub(crate) struct Panel {
     owns_console: bool,
     ui: MenuCanvas,
     draft: String,
+    /// The last message handed to the hub, which Retry sends again.
+    last_sent: String,
     /// The control the keyboard is on, by its token.
     focus: u16,
     /// The controls in the order Tab visits them, laid out by the last frame.
@@ -195,6 +199,7 @@ impl Panel {
             owns_console: false,
             ui: MenuCanvas::with_capacities(260, 160, 1_600),
             draft: String::new(),
+            last_sent: String::new(),
             focus: FIELD_TOKEN,
             order: Vec::with_capacity(64),
             selected: None,
@@ -608,7 +613,16 @@ impl Panel {
                 }
                 self.draft.clear();
                 self.focus = FIELD_TOKEN;
+                self.last_sent.clone_from(&text);
                 PanelAction::Send(text)
+            }
+            RETRY_TOKEN => {
+                // Only laid out while a refusal and the text are there.
+                if self.last_sent.is_empty() || !self.order.contains(&RETRY_TOKEN) {
+                    return PanelAction::None;
+                }
+                self.focus = FIELD_TOKEN;
+                PanelAction::Send(self.last_sent.clone())
             }
             MUTE_TOKEN => match chosen {
                 Some((_, key_id, name, muted)) => PanelAction::Mute {

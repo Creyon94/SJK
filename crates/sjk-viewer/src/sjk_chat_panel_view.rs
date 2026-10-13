@@ -944,6 +944,20 @@ impl Panel {
             FontWeight::Regular,
             TextAlign::Start,
         );
+        // A refusal (the hub's too many requests, mostly) can be tried again.
+        if notice.is_some() && !self.last_sent.is_empty() && inputs.enabled {
+            kit::button(
+                &mut self.ui,
+                frame,
+                [SEND_X, FIELD_Y + 52.0, 120.0, 34.0],
+                "Retry",
+                false,
+                true,
+                self.focus == RETRY_TOKEN,
+                RETRY_TOKEN,
+            );
+            self.order.push(RETRY_TOKEN);
+        }
     }
 
     /// The chosen message's sender and what can be done: Mute here, and for staff

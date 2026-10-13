@@ -1,5 +1,20 @@
 # Status and priorities
 
+## Chat: the euro sign and a Retry button
+
+Branch `personal/euro-retry` (13/10/2026):
+
+- The euro sign `€` is in the bio alphabet (`PUNCTUATION` in `bio.rs`), so the SJK chat,
+  bios and notes take it; before, the check answered "a message keeps to letters, digits,
+  common punctuation and colour codes". The hub has the same character on its branch
+  `euro-sign` (`dae0aee`, not deployed: until it is, the hub refuses a message with `€`).
+  Messages to game servers already sent `€` as the Windows-1252 byte 0x80.
+- The SJK chat page keeps the last message it handed to the hub; when the hub did not
+  take it ("Not sent: too many requests; slow down" and the like) a Retry button under
+  Send sends it again. The hub's `Any` allowance is 30 requests a minute per address,
+  shared by everyone behind one address, and `Chat` (messages, emotes, pings, looks)
+  60 a minute.
+
 ## World notes: decals in fog, sky through a ceiling, security glass
 
 Branch `personal/render-notes` (13/10/2026, based on `1b02a8c8`, Windows 11), three of
