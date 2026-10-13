@@ -12,6 +12,7 @@ mod cosmetics;
 mod force_fx;
 mod force_motion;
 pub(crate) mod preview;
+mod prop;
 mod sabers;
 mod shell;
 mod showcase;
@@ -52,6 +53,10 @@ pub(crate) struct MenuStage {
     failed: Option<String>,
     /// `.sab` definitions, read once the first hilt is needed.
     saber_definitions: Option<BTreeMap<String, crate::saber_defs::Definition>>,
+    /// The rigid model the model viewer shows in place of the player, and the path whose
+    /// load failed (not retried until another is chosen).
+    prop: Option<prop::StageProp>,
+    prop_failed: Option<String>,
     /// Right and left hand.
     sabers: [Option<StageSaber>; 2],
     request: sabers::Request,
@@ -172,6 +177,11 @@ impl GpuState {
             menu.set_collection_stage(wish.is_some(), console);
         }
         if let (Some(menu), Some(console)) = (&mut self.client_menu, &mut self.console) {
+            if console.model_viewer_needs_models()
+                && let Some(vfs) = self.vfs.as_deref()
+            {
+                console.set_model_viewer_models(crate::console::model_viewer_scan::scan(vfs));
+            }
             menu.follow_model_viewer(console);
         }
         self.menu_stage.skin_override = wish.map(|wish| wish.skin);
@@ -389,6 +399,7 @@ impl GpuState {
                 }
             }
         }
+        self.sync_stage_prop(now);
         if let Some(request) = request {
             self.sync_stage_sabers(request);
         }
@@ -784,6 +795,11 @@ impl MenuStage {
         let Some(actor) = &self.actor else {
             return;
         };
+        // The model viewer's rigid model stands in for the player, and what it wears.
+        if let Some(prop) = &self.prop {
+            prop.draw(pass, world_materials, camera, blended);
+            return;
+        }
         if self.showcase {
             for saber in self.sabers.iter().flatten() {
                 saber.draw(pass, world_materials, camera, blended);

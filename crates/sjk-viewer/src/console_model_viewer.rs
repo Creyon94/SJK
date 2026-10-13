@@ -89,12 +89,12 @@ impl ViewerConsole {
         self.model_viewer.set_models(entries);
     }
 
-    /// The model the page has chosen, while it shows.
-    pub(crate) fn model_viewer_model(&self) -> Option<&str> {
+    /// The entry the page has chosen, while it shows.
+    pub(crate) fn model_viewer_choice(&self) -> Option<&Entry> {
         if !self.open {
             return None;
         }
-        self.model_viewer.model()
+        self.model_viewer.choice()
     }
 
     /// The page wants the stage while it shows, whether or not a model is chosen yet.
@@ -129,11 +129,15 @@ mod tests {
         console.set_model_viewer_models(vec![Entry {
             name: "kyle/default".into(),
             retail: true,
+            kind: super::model_viewer::Kind::Player,
         }]);
         assert!(!console.model_viewer_needs_models());
-        assert_eq!(console.model_viewer_model(), Some("kyle/default"));
+        assert_eq!(
+            console.model_viewer_choice().map(|e| e.name.as_str()),
+            Some("kyle/default")
+        );
         console.toggle_model_viewer();
         assert!(!console.is_open());
-        assert_eq!(console.model_viewer_model(), None);
+        assert!(console.model_viewer_choice().is_none());
     }
 }

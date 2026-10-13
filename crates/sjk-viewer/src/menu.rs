@@ -205,6 +205,9 @@ pub(crate) struct ClientMenu {
     /// The model the `modelviewer` page has chosen: it stands on the stage in place of
     /// the player's own ([`Self::follow_model_viewer`]).
     viewer_model: Option<String>,
+    /// The rigid model (`.md3` or `.glm`) the page has chosen: the stage shows it in place
+    /// of the player ([`crate::menu_stage`]).
+    viewer_prop: Option<String>,
 }
 
 /// Backdrop shot each client phase is presented over. A connect stays on
@@ -284,6 +287,7 @@ impl ClientMenu {
             uploaded_into: None,
             collection_stage: false,
             viewer_model: None,
+            viewer_prop: None,
         }
     }
 
@@ -453,19 +457,23 @@ impl ClientMenu {
         self.collection_stage = wanted;
     }
 
-    /// Follow the `modelviewer` page: ask for the catalogue and hand it the models once
-    /// it is read, and show the model it has chosen in place of the player's own.
-    pub(crate) fn follow_model_viewer(&mut self, console: &mut ViewerConsole) {
-        if console.model_viewer_needs_models() {
-            self.player.request_catalog();
-            if let Some(models) = self.player.model_list() {
-                console.set_model_viewer_models(models);
-            }
+    /// Follow the `modelviewer` page: show the player model it has chosen in place of the
+    /// player's own, or note the rigid one for the stage to show instead.
+    pub(crate) fn follow_model_viewer(&mut self, console: &ViewerConsole) {
+        let choice = console.model_viewer_choice();
+        let player = choice.filter(|entry| !entry.kind.is_prop());
+        let prop = choice.filter(|entry| entry.kind.is_prop());
+        if self.viewer_model.as_deref() != player.map(|entry| entry.name.as_str()) {
+            self.viewer_model = player.map(|entry| entry.name.clone());
         }
-        let chosen = console.model_viewer_model();
-        if self.viewer_model.as_deref() != chosen {
-            self.viewer_model = chosen.map(str::to_owned);
+        if self.viewer_prop.as_deref() != prop.map(|entry| entry.name.as_str()) {
+            self.viewer_prop = prop.map(|entry| entry.name.clone());
         }
+    }
+
+    /// The rigid model the model viewer has chosen, if it is one.
+    pub(crate) fn viewer_prop(&self) -> Option<&str> {
+        self.viewer_prop.as_deref()
     }
 
     /// The model the stage shows: the model viewer's choice, else the player's own.

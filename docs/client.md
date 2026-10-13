@@ -3977,14 +3977,19 @@ It adds to the map's own weather until the next map; see
 `ghost record`, `ghost stop` and `ghost play` record and replay the player's own run
 ([Ghost replay](#ghost-replay)); `mimic <player> [delay] [mirror|copy] [walk]` copies another
 player's moves live, `walk` to walk always ([Mimic](#mimic)).
-`modelviewer` opens a model viewer (no menu entry): every installed player model and
-skin in a list the search narrows (each word must be in the name, case ignored), the
-chosen one standing on the stage beside it, or in the live preview over a match, as
-the Collection's Shaders tab shows the player's model. Type to search, Up/Down, Page
-Up/Down, Home/End or the wheel choose, Escape closes. It lists the catalogue the
-Character page uses (models with an icon, the retail game's first), changes no setting
-and draws in the SJK UI's look in every menu style
-([model_viewer.rs](../crates/sjk-viewer/src/model_viewer.rs)).
+`modelviewer` opens a model viewer (no menu entry): every installed model in a list the
+search narrows (each word must be in the name, case ignored): each player and NPC body
+with every skin it has, then every rigid `.md3` and `.glm` under `models/` (items,
+weapons, map objects, vehicles, hats), the retail game's first. A player stands on the
+stage beside the list, or in the live preview over a match, as the Collection's Shaders
+tab shows the player's model; a rigid model replaces it, scaled to a player's height
+and turning slowly. Type to search, Up/Down, Page Up/Down, Home/End or the wheel
+choose, Escape closes. The list is read from the mounted files when the page opens
+([model_viewer_scan.rs](../crates/sjk-viewer/src/model_viewer_scan.rs)); a model that
+cannot be drawn is logged and leaves the stage empty. It changes no setting and draws in
+the SJK UI's look in every menu style
+([model_viewer.rs](../crates/sjk-viewer/src/model_viewer.rs),
+[prop.rs](../crates/sjk-viewer/src/menu_stage/prop.rs)).
 `screenshot` and `screenshotJPEG` request captures; `condump filename` saves
 console output. A capture copies the final swapchain image into a buffer that is
 mapped over the next frames; frames keep running meanwhile, and the readback stays

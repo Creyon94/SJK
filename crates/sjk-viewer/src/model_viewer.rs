@@ -27,13 +27,40 @@ const SEARCH_MAX: usize = 40;
 const SEARCH_TOKEN: u16 = 500;
 const WHEEL_TOKEN: u16 = 910;
 
+/// What kind of model an entry is.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub(crate) enum Kind {
+    /// A player or NPC model with its skin (Ghoul2): worn as the player's is, posed.
+    Player,
+    /// A rigid `.md3` (items, weapons, map objects, hats).
+    Md3,
+    /// A rigid `.glm` that is not a player body.
+    Glm,
+}
+
+impl Kind {
+    /// A model shown as a prop (spun), not as a posed player.
+    pub(crate) fn is_prop(self) -> bool {
+        self != Self::Player
+    }
+
+    fn tag(self) -> &'static str {
+        match self {
+            Self::Player => "",
+            Self::Md3 => "md3",
+            Self::Glm => "glm",
+        }
+    }
+}
+
 /// One model the list offers.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) struct Entry {
-    /// The `model` cvar value: `model/skin`, or a species' model alone.
+    /// A player's `model/skin` (or a species' model alone), else the asset's path.
     pub(crate) name: String,
     /// The retail game's own (it comes first).
     pub(crate) retail: bool,
+    pub(crate) kind: Kind,
 }
 
 /// What the page asks of the console.
@@ -117,13 +144,19 @@ impl Panel {
         self.backstage = backstage;
     }
 
-    /// The model chosen, while the page is open.
-    pub(crate) fn model(&self) -> Option<&str> {
+    /// The entry chosen, while the page is open.
+    pub(crate) fn choice(&self) -> Option<&Entry> {
         if !self.open {
             return None;
         }
         let index = *self.shown.get(self.selected)?;
-        Some(self.entries[index].name.as_str())
+        self.entries.get(index)
+    }
+
+    /// The name of the model chosen.
+    #[cfg(test)]
+    fn model(&self) -> Option<&str> {
+        self.choice().map(|entry| entry.name.as_str())
     }
 
     pub(crate) fn draw_list(&self) -> &sjk_ui::DrawList {
@@ -309,11 +342,16 @@ impl Panel {
                 FontWeight::Regular,
                 TextAlign::Start,
             );
-            if entry.retail {
+            if entry.retail || entry.kind.is_prop() {
+                let tag = match (entry.retail, entry.kind.tag()) {
+                    (true, "") => "Jedi Academy".to_owned(),
+                    (true, kind) => format!("Jedi Academy {kind}"),
+                    (false, kind) => kind.to_owned(),
+                };
                 text(
                     &mut self.ui,
                     TextFamily::Body,
-                    format_args!("Jedi Academy"),
+                    format_args!("{tag}"),
                     frame.rect(LEFT_X + LIST_WIDTH - 180.0, top + 11.0, 160.0, 24.0),
                     15.0 * s,
                     color::MUTED,
@@ -338,8 +376,14 @@ impl Panel {
                 TextAlign::Start,
             );
         }
-        if let Some(name) = self.model().map(str::to_owned) {
-            let (model, skin) = name.split_once('/').unwrap_or((&name, ""));
+        if let Some(name) = self.choice().map(|entry| entry.name.clone()) {
+            // A player is its model and skin; a prop is its file and the folder it is in.
+            let (model, skin) = match name.rsplit_once('/') {
+                Some((folder, file)) if self.choice().is_some_and(|e| e.kind.is_prop()) => {
+                    (file, folder)
+                }
+                _ => name.split_once('/').unwrap_or((&name, "")),
+            };
             let [x, y, width, _] = MODEL_AREA;
             text(
                 &mut self.ui,
@@ -442,6 +486,7 @@ mod tests {
         .map(|(index, name)| Entry {
             name: name.to_owned(),
             retail: index < 2,
+            kind: Kind::Player,
         })
         .collect()
     }
