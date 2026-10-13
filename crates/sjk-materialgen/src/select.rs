@@ -306,10 +306,13 @@ pub fn evaluate_shader(
                 Err(reason) => return Ok(Err(reason)),
             };
             let image = catalog.resolve_stage_image(vfs, &stage.images[0])?;
-            let polished = definition
-                .stages
-                .iter()
-                .any(|stage| stage.texture_generator == TextureGenerator::Environment);
+            // A glossy base's shine is masked by the paint's alpha and drawn by its own
+            // pass: it polishes the inlay it shows through, not the whole texture.
+            let polished = glossy_base_paint(&definition.stages).is_none()
+                && definition
+                    .stages
+                    .iter()
+                    .any(|stage| stage.texture_generator == TextureGenerator::Environment);
             (
                 image,
                 stage.alpha_function.is_some(),
@@ -368,6 +371,9 @@ pub fn diffuse_stage(definition: &ShaderDefinition) -> Result<&ShaderStage, Skip
         return Err(SkipReason::Deformed);
     }
     let stages = &definition.stages;
+    if let Some(paint) = glossy_base_paint(stages) {
+        return check_diffuse(paint, false);
+    }
     let mut index = 0;
     while index < stages.len() {
         let Some(second) = stages.get(index + 1) else {
@@ -425,6 +431,39 @@ pub fn vertex_diffuse_stage(definition: &ShaderDefinition) -> Result<&ShaderStag
         return Err(SkipReason::VertexLit);
     }
     check_diffuse(first, true)
+}
+
+/// The paint of a glossy base: an environment stage, the paint alpha-blended over it
+/// (its alpha masks the shine) and the lightmap filtered over both, as Korriban's walls
+/// draw. The client draws it as the lit shine, then the lit paint blended over it, a
+/// lightmapped diffuse pair that takes maps (`world_stage::collapse_multitexture` in
+/// the viewer); the same conditions are checked here.
+pub fn glossy_base_paint(stages: &[ShaderStage]) -> Option<&ShaderStage> {
+    use sjk_shader::{AlphaGen, RgbGen};
+    let [shine, paint, lightmap, ..] = stages else {
+        return None;
+    };
+    let plain = |stage: &ShaderStage| {
+        matches!(
+            stage.resolved_colour.rgb,
+            RgbGen::Identity | RgbGen::IdentityLighting
+        ) && matches!(
+            stage.resolved_colour.alpha,
+            AlphaGen::Identity | AlphaGen::Skip
+        ) && stage.rgb_wave.is_none()
+            && stage.alpha_wave.is_none()
+            && stage.alpha_function.is_none()
+            && stage.depth_function == shine.depth_function
+            && !stage.glow
+    };
+    (shine.texture_generator == TextureGenerator::Environment
+        && shine.blend == StageBlend::Replace
+        && paint.texture_generator == TextureGenerator::Base
+        && paint.blend == StageBlend::Alpha
+        && lightmap.texture_generator == TextureGenerator::Lightmap
+        && lightmap.blend == StageBlend::Filter
+        && [shine, paint, lightmap].into_iter().all(plain))
+    .then_some(paint)
 }
 
 /// rd-vanilla `CollapseMultitexture` (`tr_shader.cpp`) for the one rule that
@@ -788,6 +827,46 @@ mod tests {
             ),
             SkipReason::EnvironmentMapped
         );
+    }
+
+    #[test]
+    fn glossy_bases_qualify_by_their_paint_and_are_not_polished() {
+        // Korriban's walls (Sol's world notes, 07/10/2026: "make this 3d").
+        let script = "textures/korriban/door { { map textures/common/etest4 tcGen environment } \
+                      { map textures/korriban/door blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA } \
+                      { map $lightmap blendFunc GL_DST_COLOR GL_ZERO } }";
+        let definition = shader(script);
+        assert_eq!(
+            diffuse_stage(&definition).expect("qualifies").images,
+            ["textures/korriban/door"]
+        );
+        let mut vfs = VirtualFileSystem::new();
+        vfs.mount_memory(
+            "test",
+            [
+                ("shaders/test.shader", script.as_bytes().to_vec()),
+                ("textures/korriban/door.png", vec![0]),
+            ],
+        )
+        .expect("memory mount");
+        let catalog = ShaderCatalog::load(&vfs).expect("catalog");
+        let choice = evaluate_shader(&vfs, &catalog, "textures/korriban/door", &lit(&["a"], 4))
+            .expect("evaluates")
+            .expect("qualifies");
+        assert_eq!(choice.image, "textures/korriban/door.png");
+        assert!(!choice.polished && !choice.alpha_tested);
+        // Added paint, or an alpha test, keeps the stack out, as in the client.
+        for body in [
+            "{ map textures/a/env tcGen environment } { map textures/a/p blendFunc add } \
+             { map $lightmap blendFunc filter }",
+            "{ map textures/a/env tcGen environment } \
+             { map textures/a/p blendFunc blend alphaFunc GE128 } { map $lightmap blendFunc filter }",
+        ] {
+            assert!(
+                diffuse_stage(&shader(&format!("textures/a/p {{ {body} }}"))).is_err(),
+                "{body}"
+            );
+        }
     }
 
     #[test]

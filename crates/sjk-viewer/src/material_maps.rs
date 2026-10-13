@@ -375,7 +375,8 @@ pub(super) enum Bundle {
 
 /// The diffuse bundle of a stage that can take material maps: a lightmapped
 /// world surface's lightmap and diffuse texture collapsed into one opaque pass
-/// with plain colour generators, or a vertex-lit world surface's opaque texture lit
+/// with plain colour generators (or the paint pass of a glossy base, alpha-blended over
+/// its lit shine), or a vertex-lit world surface's opaque texture lit
 /// by its vertex colours (`rgbGen vertex`/`exactVertex`). The maps then replace the
 /// lightmap's or the vertex light's response (rend2's `CollapseStagesToLightall`
 /// makes the same choice). Everything else, including deforming and sprite stages
@@ -391,9 +392,11 @@ pub(super) fn diffuse_bundle(stage: &CompiledStage, lightmap: i32) -> Option<Bun
             });
         return (vertex_lit && plain_paint(&stage.primary, true)).then_some(Bundle::Primary);
     };
+    // An alpha-blended pair is the paint of a glossy base, blended over its lit shine
+    // (`world_stage::collapse_multitexture`): the maps light the paint, the alpha mixes.
     if lightmap < 0
         || stage.combine != CollapseOperator::Modulate
-        || stage.output_blend != StageBlend::Replace
+        || !matches!(stage.output_blend, StageBlend::Replace | StageBlend::Alpha)
     {
         return None;
     }
@@ -626,6 +629,21 @@ mod tests {
         let reversed =
             stages("textures/a {\n{ map textures/a/floor }\n{ map $lightmap blendFunc filter }\n}");
         assert_eq!(diffuse_bundle(&reversed[0], 2), Some(Bundle::Primary));
+    }
+
+    #[test]
+    fn glossy_base_paint_takes_maps_and_its_shine_none() {
+        // Korriban's walls: the shine pass is environment-mapped, the paint pass is the
+        // lightmapped diffuse pair, blended over it.
+        let compiled = stages(
+            "textures/korriban/door {\n{ map textures/common/etest4 tcGen environment }\n\
+             { map textures/korriban/door blendFunc GL_SRC_ALPHA GL_ONE_MINUS_SRC_ALPHA }\n\
+             { map $lightmap blendFunc GL_DST_COLOR GL_ZERO }\n}",
+        );
+        assert_eq!(compiled.len(), 2);
+        assert_eq!(diffuse_bundle(&compiled[0], 0), None);
+        assert_eq!(diffuse_bundle(&compiled[1], 0), Some(Bundle::Primary));
+        assert_eq!(diffuse_bundle(&compiled[1], -3), None);
     }
 
     #[test]
