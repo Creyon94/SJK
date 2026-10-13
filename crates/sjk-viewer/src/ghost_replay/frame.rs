@@ -229,9 +229,8 @@ impl crate::GpuState {
     pub(crate) fn showcase_enabled(&self) -> bool {
         self.console
             .as_ref()
-            .and_then(|console| console.integer_cvar(SHOWCASE_CVAR))
-            .unwrap_or(0)
-            != 0
+            .and_then(|console| console.bool_cvar(SHOWCASE_CVAR))
+            .unwrap_or(false)
     }
 
     /// Save a recording that ended on its own and print the ghost's lines; switching
