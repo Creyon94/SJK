@@ -187,7 +187,7 @@ Sol develops SJK and sets its direction. Sol's work includes:
 Creyon and Lumaya wear the SJK team's Early Contributor medal, shown on their
 cards of the in-game credits page.
 
-Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 46
+Creyon ([Creyon94](https://github.com/Creyon94)), contributor and tester, has 47
 pull requests merged into SJK, most of them bringing SJK in line with EternalJK
 ([all of them](https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ACreyon94)):
 
@@ -236,7 +236,9 @@ pull requests merged into SJK, most of them bringing SJK in line with EternalJK
   browser listing the same servers on every refresh; #97 the model turned by dragging it
   and hats and capes picked from chips;
 - #98 no stutter when firing rockets while moving (missiles left out of the prediction's
-  solid list); #99 the rocket launcher's lock-on ring and its tick and lock sounds.
+  solid list); #99 the rocket launcher's lock-on ring and its tick and lock sounds;
+- #100 each Force power shown on the in-game profile's model (gestures, effects, shells,
+  saber skills, jump and throw).
 
 Lumaya ([lumayaa](https://github.com/lumayaa)), contributor, has 17 pull requests
 merged into SJK

@@ -108,7 +108,7 @@ link: https://sol-vulpes.github.io/SJK/
 
 [Creyon]
 github: Creyon94
-role: Contributor and tester: 46 merged pull requests, EternalJK parity
+role: Contributor and tester: 47 merged pull requests, EternalJK parity
 medal: early_contributor
 did: #2 #7 Duel challenges from names with symbols, centre prints kept whole
 did: #3 The third-person camera damped per frame as EternalJK (cg_cameraFPS)
@@ -134,6 +134,7 @@ did: #84 #85 #86 The in-game chat under the match card, the Character page witho
 did: #87 #88 #89 #90 #91 Server browser: second master, charsets, favourites by address, saved passwords, player scroll
 did: #93 #94 #95 #96 #97 showplayerid, amcolor, crackle, server list, model turn
 did: #98 #99 Rockets fired while moving no longer stutter, the lock-on ring and its sounds
+did: #100 Each Force power shown on the profile's model
 link: Creyon's pull requests | https://github.com/Sol-Vulpes/SJK/pulls?q=is%3Apr+author%3ACreyon94
 
 [Lumaya]

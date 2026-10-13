@@ -32,6 +32,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 
 - Firing rockets while moving no longer makes you stutter back and forth _(Creyon, after JoF EternalJK)_
 - Rocket launcher lock-on: the red ring builds up around the target with its tick sounds, and the lock pulses and sounds when complete _(Creyon, after JoF EternalJK)_
+- The in-game profile's Force page shows each power on the model under the pointer: the game's gesture, effect and shell, the saber skills, the jump and the throw _(Creyon)_
 - The Supporter medal, for players who donate more than 1 euro to SJK on Ko-fi: put your SJK key id in the Ko-fi message and it arrives on its own; shown with the other medals on the profile, the player card, the Collection and the scoreboard (placeholder art) _(Sol)_
 - Footprints and dust: steps on sand, snow, mud and dirt kick up dust and leave footprints for ten seconds, untagged sand such as siege_desert's included; `cg_footprints 0` turns them off _(Sol, after the original game)_
 - Jumps and forward landings step with both feet, with the ground's sound, dust and prints; `cg_jumpFootsteps 0` keeps the original game's steps alone, and `cg_footstepGuess 0` makes untagged ground stone again _(Sol)_
