@@ -171,6 +171,9 @@ impl GpuState {
         if let (Some(menu), Some(console)) = (&mut self.client_menu, &self.console) {
             menu.set_collection_stage(wish.is_some(), console);
         }
+        if let (Some(menu), Some(console)) = (&mut self.client_menu, &mut self.console) {
+            menu.follow_model_viewer(console);
+        }
         self.menu_stage.skin_override = wish.map(|wish| wish.skin);
         self.menu_stage.holocron_wanted = wish.is_some_and(|wish| wish.holocron);
         let staged = menu_backdrop::standalone_menu_visible(self)

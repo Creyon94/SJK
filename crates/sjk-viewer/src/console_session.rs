@@ -564,6 +564,7 @@ impl ViewerConsole {
             browser: super::browser::Browser::new(),
             asset_browser: Default::default(),
             debug_panel: super::debug_panel::Panel::new(&config_directory),
+            model_viewer: Default::default(),
             changelog: super::changelog::Panel::new(),
             credits: super::credits::Panel::new(),
             update_panel: super::update_panel::Panel::new(),

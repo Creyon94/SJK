@@ -202,6 +202,9 @@ pub(crate) struct ClientMenu {
     /// to the player's shot and the model stands on the stage, or shows in a preview
     /// over a match ([`Self::set_collection_stage`]).
     collection_stage: bool,
+    /// The model the `modelviewer` page has chosen: it stands on the stage in place of
+    /// the player's own ([`Self::follow_model_viewer`]).
+    viewer_model: Option<String>,
 }
 
 /// Backdrop shot each client phase is presented over. A connect stays on
@@ -280,6 +283,7 @@ impl ClientMenu {
             backdrop: None,
             uploaded_into: None,
             collection_stage: false,
+            viewer_model: None,
         }
     }
 
@@ -449,6 +453,28 @@ impl ClientMenu {
         self.collection_stage = wanted;
     }
 
+    /// Follow the `modelviewer` page: ask for the catalogue and hand it the models once
+    /// it is read, and show the model it has chosen in place of the player's own.
+    pub(crate) fn follow_model_viewer(&mut self, console: &mut ViewerConsole) {
+        if console.model_viewer_needs_models() {
+            self.player.request_catalog();
+            if let Some(models) = self.player.model_list() {
+                console.set_model_viewer_models(models);
+            }
+        }
+        let chosen = console.model_viewer_model();
+        if self.viewer_model.as_deref() != chosen {
+            self.viewer_model = chosen.map(str::to_owned);
+        }
+    }
+
+    /// The model the stage shows: the model viewer's choice, else the player's own.
+    fn shown_model(&self) -> &str {
+        self.viewer_model
+            .as_deref()
+            .unwrap_or_else(|| self.player.stage_model())
+    }
+
     /// The model the Collection shows in its own preview where it has no stage (over a
     /// match, or in the classic menus), with the stage it may stand on.
     pub(crate) fn collection_preview(
@@ -471,7 +497,7 @@ impl ClientMenu {
             angle: Some(-28.0),
         };
         let stage = self.backdrop.as_ref().and_then(|backdrop| backdrop.stage());
-        Some((stage, self.player.stage_model(), preview))
+        Some((stage, self.shown_model(), preview))
     }
 
     /// The player model that stands on the backdrop's stage: only while a
@@ -481,7 +507,7 @@ impl ClientMenu {
     pub(crate) fn stage_model(&self) -> Option<(Stage, &str)> {
         if self.collection_stage && !self.player.is_classic() {
             let stage = self.backdrop.as_ref()?.stage()?;
-            return Some((stage, self.player.stage_model()));
+            return Some((stage, self.shown_model()));
         }
         // The classic profile pages draw the model's portrait over retail
         // art; nothing stands on the stage behind them. Opened from a game,
