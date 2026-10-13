@@ -10,8 +10,13 @@ mod parser;
 pub enum Cue {
     /// A random registered sound on a legacy channel.
     Sound { paths: Vec<String>, channel: u8 },
-    /// Ground contact from a named Ghoul2 foot bolt.
-    Footstep { right: bool, heavy: bool },
+    /// Ground contact from a named Ghoul2 foot bolt. `extra` marks SJK's own
+    /// contacts ([`footsteps::JUMP_LAND_STEPS`]), which the model's table does not have.
+    Footstep {
+        right: bool,
+        heavy: bool,
+        extra: bool,
+    },
 }
 
 /// Absolute animation frame and probability (`0` means always).
@@ -51,10 +56,47 @@ impl Events {
             format!("{skeleton}/animevents.cfg")
         };
         parser::load(&mut result, vfs, &path, config, &mut Vec::new());
+        result.add_jump_land_steps(config);
         for track in &mut result.tracks {
             track.sort_by_key(|event| event.frame);
         }
         result
+    }
+
+    /// SJK's jump and landing contacts ([`footsteps::JUMP_LAND_STEPS`]): both feet at
+    /// the listed frame of each listed animation the model has, unless its own table
+    /// already steps somewhere in that animation.
+    fn add_jump_land_steps(&mut self, config: &AnimationConfig) {
+        let legs = &mut self.tracks[0];
+        for &(name, key) in footsteps::JUMP_LAND_STEPS {
+            let Some(sequence) = config.get_exact(name) else {
+                continue;
+            };
+            if key as usize >= sequence.frame_count {
+                continue;
+            }
+            let first = sequence.first_frame as i32;
+            let last = first + sequence.frame_count as i32;
+            if legs.iter().any(|event| {
+                matches!(event.cue, Cue::Footstep { .. }) && (first..last).contains(&event.frame)
+            }) {
+                continue;
+            }
+            for right in [false, true] {
+                let order = legs.len();
+                legs.push(Event {
+                    frame: first + key,
+                    probability: 0,
+                    cue: Cue::Footstep {
+                        right,
+                        heavy: true,
+                        extra: true,
+                    },
+                    kind: "AEV_FOOTSTEP".to_owned(),
+                    order,
+                });
+            }
+        }
     }
 
     /// Sound assets to read on the appearance loader, before frame playback.
@@ -184,5 +226,61 @@ pub fn matches_frame(
         old > key && (frame < key || (sequence.loop_frame != -1 && inside && frame > old))
     } else {
         old < key && (frame > key || (sequence.loop_frame != -1 && inside && frame < old))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn steps(events: &Events) -> Vec<(i32, bool, bool)> {
+        events.tracks[0]
+            .iter()
+            .filter_map(|event| match event.cue {
+                Cue::Footstep { right, extra, .. } => Some((event.frame, right, extra)),
+                Cue::Sound { .. } => None,
+            })
+            .collect()
+    }
+
+    #[test]
+    fn jumps_and_the_forward_landing_get_both_feet_unless_authored() {
+        let config = AnimationConfig::parse(
+            b"BOTH_JUMP1 100 8 -1 20
+BOTH_LAND1 200 5 -1 20
+BOTH_LANDBACK1 300 6 -1 20
+",
+        )
+        .unwrap();
+        let mut events = Events::default();
+        // A model that authored its own landing step keeps it alone.
+        events.tracks[0].push(Event {
+            frame: 202,
+            probability: 0,
+            cue: Cue::Footstep {
+                right: false,
+                heavy: false,
+                extra: false,
+            },
+            kind: "AEV_FOOTSTEP".to_owned(),
+            order: 0,
+        });
+        events.add_jump_land_steps(&config);
+        events.tracks[0].sort_by_key(|event| event.frame);
+        let mut found = steps(&events);
+        found.sort();
+        assert_eq!(
+            found,
+            [(101, false, true), (101, true, true), (202, false, false)]
+        );
+        // The takeoff's frame is reached and both feet step.
+        let mut cursor = Cursor::default();
+        let mut cues = Vec::new();
+        for frame in [100, 101] {
+            cursor.advance(&events, &config, [Some((0, frame)), None], |cue, _| {
+                cues.push(matches!(cue, Cue::Footstep { extra: true, .. }));
+            });
+        }
+        assert_eq!(cues, [true, true]);
     }
 }

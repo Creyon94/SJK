@@ -24,6 +24,11 @@ pub(crate) const STOCK_EFFECTS: &[&str] = &[
     "materials/dirt_large",
     "materials/snow_large",
     "materials/gravel_large",
+    // `cgs.effects.footstep*` (`cg_main.c:1207-1210`): the dust a step kicks up.
+    "materials/mud",
+    "materials/sand",
+    "materials/snow",
+    "materials/gravel",
     "bryar/flesh_impact",
     "bryar/wall_impact",
     "bryar/wall_impact2",
@@ -107,6 +112,11 @@ pub(crate) const CODE_SHADERS: &[&str] = &[
     crate::charge_flash::SHADERS[0],
     crate::charge_flash::SHADERS[1],
     crate::charge_flash::SHADERS[2],
+    // The footprints (`cgs.media.fs*MarkShader`, `footprints.rs`).
+    "footstep_r",
+    "footstep_l",
+    "footstep_heavy_r",
+    "footstep_heavy_l",
 ];
 
 pub(crate) fn required_shaders<'a>(

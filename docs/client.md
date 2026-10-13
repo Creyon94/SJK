@@ -1288,7 +1288,9 @@ shader's file name in SJK (`footsteps::material_from_name`: sand but not sandsto
 snow, grass, gravel, mud, dirt, carpet, wood or plank): retail leaves much of its
 sand untagged, such as `mp/siege_desert`'s `siege/siege2sand`, where Sol asked for
 sand steps (world note, 07/10/2026). The collision trace reports the brush side's
-or patch's shader for this (`CollisionTrace::shader`). `cg_footsteps 0` mutes them. Frame
+or patch's shader for this (`CollisionTrace::shader`); `cg_footstepGuess 0` turns the guess
+off (stone, as retail), and it applies to dust and prints too. As in `_PlayerFootStep`, a
+foot in water (`MASK_WATER`) makes no step. `cg_footsteps 0` mutes them. Frame
 latches prevent repeated playback while an animation frame is held; absent actors,
 teleports, backwards seeks and paused map changes reset the cursor. First-person
 local actors use the same evaluated timing. This restores the blue-stance taunt's
@@ -1300,8 +1302,39 @@ based on samples that actually resolved. The expanded taunt bank is used in FFA
 as in TaystJK, rather than restricting ordinary FFA taunts to `taunt.wav`. Selection
 is replay-stable but is not the legacy global random stream; repeats remain
 possible. Animation selection, movement, saber timing and network events are
-unchanged. Animation-driven effect/footprint marks and gameplay event actions
-remain outside this audio adapter.
+unchanged. Gameplay event actions remain outside this audio adapter.
+
+### Dust and footprints
+
+A step on mud, dirt, sand or snow also kicks up dust and leaves a footprint, as
+`_PlayerFootStep` does with retail's default `cg_footsteps 3` (`cg_players.c:2889-3086`,
+[footprints.rs](../crates/sjk-viewer/src/footprints.rs)): the material's effect
+(`materials/mud`, `materials/sand` for dirt and sand, `materials/snow`) along the ground's
+normal, and the print (`footstep_r`, `footstep_l`, `footstep_heavy_r` or `footstep_heavy_l`
+for a run, radius 6) turned with the legs. Gravel kicks up dust and leaves no print. A
+print is a lasting cgame mark (`CG_ImpactMark` with `temporary` false): it is drawn for
+ten seconds, darkening over the last one, at most 256 mark polys with the oldest mark
+given up for a new one (`CG_AddMarks`, `CG_AllocMark`; the third list of
+[decal_store.rs](../crates/sjk-viewer/src/decal_store.rs)), and `cg_marks 0` drops it.
+The left foot's shader mirrors the right's picture with `tcMod transform -1 0 0 1 1 0`,
+which effect stages now read as a mirror.
+
+SJK saved `cg_footsteps` as an on/off `1`, which retail reads as "sounds only", so the
+dust and prints have their own switch, `cg_footprints` (on; Settings > Sound,
+"Footprints and dust"); `cg_footsteps 0` still turns off all three. Retail's untagged
+sand (`mp/siege_desert`'s `siege/siege2sand`) only gets prints through the texture-name
+guess above.
+
+### Jump and landing steps
+
+Retail's `_humanoid/animevents.cfg` steps in its side, back and Force landings but not
+in the jumps or the forward landing (`BOTH_LAND1`), so a plain jump on sand makes no
+sand sound. SJK adds both feet at the second frame of `BOTH_JUMP1`, `BOTH_JUMPBACK1`,
+`BOTH_JUMPLEFT1`, `BOTH_JUMPRIGHT1`, the four `BOTH_FORCEJUMP*1` and `BOTH_LAND1`, as run
+steps with their sound, dust and print (`JUMP_LAND_STEPS` in
+[footsteps.rs](../crates/sjk-client/src/animation_events/footsteps.rs)), unless the
+model's own table already steps somewhere in that animation. `cg_jumpFootsteps 0`
+(Settings > Sound, "Jump and landing steps") keeps retail's steps alone.
 
 ## Mover models
 

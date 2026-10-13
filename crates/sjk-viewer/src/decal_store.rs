@@ -18,6 +18,12 @@
 //! `CG_PlayerShadow`) bypass the rings: cgame clips them with the same
 //! `R_MarkFragments` and hands the polys to `R_AddPolysToScene` for the
 //! current frame only (`cg_marks.c:131-230`).
+//!
+//! Cgame's own lasting marks (`CG_ImpactMark(..., temporary = qfalse)` with
+//! `cg_marks 1`, such as footprints) live in a third list: at most
+//! `MAX_MARK_POLYS` polys, the oldest mark's polys given up for a new one
+//! (`CG_AllocMark`), each kept `MARK_TOTAL_TIME` and faded over its last
+//! `MARK_FADE_TIME` (`CG_AddMarks`, `cg_marks.c:238-305`).
 
 use super::*;
 use crate::decal_marks::{DecalRequest, DecalScratch, DecalSurfaces, DecalVertex};
@@ -32,6 +38,11 @@ const FADE_TIME_MILLIS: u32 = 1_000;
 const MAX_PENDING_REQUESTS: usize = 64;
 /// Per-frame polys for temporary marks; `MAX_MARK_FRAGMENTS` twice over.
 const MAX_TEMPORARY_POLYS: usize = 256;
+/// `MAX_MARK_POLYS` (`cg_local.h:71`): cgame's lasting mark polys.
+const MAX_MARK_POLYS: usize = 256;
+/// `MARK_TOTAL_TIME` and `MARK_FADE_TIME` (`cg_marks.c:238-239`).
+const MARK_TOTAL_TIME: u32 = 10_000;
+const MARK_FADE_TIME: u32 = 1_000;
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Ring {
@@ -109,6 +120,9 @@ pub(crate) struct DecalStore {
     pending_temporary: Vec<DecalRequest>,
     /// Polys of this frame's temporary marks; replaced by every projection.
     temporary: Vec<DecalPoly>,
+    pending_marks: Vec<DecalRequest>,
+    /// Cgame's lasting marks, oldest first.
+    marks: std::collections::VecDeque<DecalPoly>,
     dropped_requests: usize,
     scratch: DecalScratch,
     epoch: Instant,
@@ -123,6 +137,8 @@ impl Default for DecalStore {
             pending: Vec::with_capacity(MAX_PENDING_REQUESTS),
             pending_temporary: Vec::with_capacity(MAX_PENDING_REQUESTS),
             temporary: Vec::with_capacity(MAX_TEMPORARY_POLYS),
+            pending_marks: Vec::with_capacity(MAX_PENDING_REQUESTS),
+            marks: std::collections::VecDeque::with_capacity(MAX_MARK_POLYS),
             dropped_requests: 0,
             scratch: DecalScratch::default(),
             epoch: Instant::now(),
@@ -159,9 +175,28 @@ impl DecalStore {
         }
     }
 
+    /// Queue a lasting cgame mark (`CG_ImpactMark`, `temporary` false): drawn for ten
+    /// seconds, the last one fading. `cg_marks 0` drops it, as the reference returns.
+    pub(crate) fn request_mark(&mut self, request: DecalRequest) {
+        if !self.marks_enabled {
+            return;
+        }
+        if self.pending_marks.len() < self.pending_marks.capacity() {
+            self.pending_marks.push(request);
+        } else {
+            self.dropped_requests += 1;
+        }
+    }
+
+    /// Lasting cgame mark polys stored and requests waiting (world shots).
+    #[cfg(test)]
+    pub(crate) fn mark_counts(&self) -> (usize, usize) {
+        (self.marks.len(), self.pending_marks.len())
+    }
+
     /// Whether any poly would be emitted this frame.
     pub(crate) fn has_polys(&self) -> bool {
-        self.live_count() != (0, 0) || !self.temporary.is_empty()
+        self.live_count() != (0, 0) || !self.temporary.is_empty() || !self.marks.is_empty()
     }
 
     /// Live polys in the normal and fade rings.
@@ -214,6 +249,19 @@ impl DecalStore {
             });
         }
         self.pending_temporary.clear();
+        for index in 0..self.pending_marks.len() {
+            let request = self.pending_marks[index].clone();
+            let slot = slot_of(&request.shader) as u8;
+            let Self { marks, scratch, .. } = self;
+            crate::decal_marks::project(world, bsp, &request, scratch, |vertices| {
+                let mut poly = DecalPoly::free();
+                poly.time = time;
+                poly.fill(&request, slot, vertices);
+                push_mark(marks, poly);
+                stored += 1;
+            });
+        }
+        self.pending_marks.clear();
         stored
     }
 
@@ -236,6 +284,27 @@ impl DecalStore {
                 shader: &poly.shader,
                 slot: poly.slot,
                 color: poly.color,
+                vertices: &poly.vertices[..usize::from(poly.count)],
+            });
+        }
+        while self
+            .marks
+            .front()
+            .is_some_and(|poly| mark_fade(time.wrapping_sub(poly.time)).is_none())
+        {
+            self.marks.pop_front();
+        }
+        for poly in &self.marks {
+            let fade = mark_fade(time.wrapping_sub(poly.time)).unwrap_or(0.0);
+            draw(DecalDraw {
+                shader: &poly.shader,
+                slot: poly.slot,
+                color: [
+                    poly.color[0] * fade,
+                    poly.color[1] * fade,
+                    poly.color[2] * fade,
+                    poly.color[3],
+                ],
                 vertices: &poly.vertices[..usize::from(poly.count)],
             });
         }
@@ -274,6 +343,34 @@ impl DecalStore {
     fn frame_time(&self, now: Instant) -> u32 {
         (now.saturating_duration_since(self.epoch).as_millis() as u32).max(1)
     }
+}
+
+/// `CG_AllocMark`: with every poly in use, the oldest mark's polys (all those of its
+/// time) are given up first.
+fn push_mark(marks: &mut std::collections::VecDeque<DecalPoly>, poly: DecalPoly) {
+    if marks.len() >= MAX_MARK_POLYS
+        && let Some(oldest) = marks.front().map(|poly| poly.time)
+    {
+        while marks.front().is_some_and(|poly| poly.time == oldest) {
+            marks.pop_front();
+        }
+    }
+    marks.push_back(poly);
+}
+
+/// A lasting mark's colour scale `age` milliseconds on (`CG_AddMarks` without
+/// `alphaFade`: the colour, not the alpha, goes to black over the last second), or
+/// `None` once it is gone.
+fn mark_fade(age: u32) -> Option<f32> {
+    if age > MARK_TOTAL_TIME {
+        return None;
+    }
+    let left = MARK_TOTAL_TIME - age;
+    Some(if left < MARK_FADE_TIME {
+        left as f32 / MARK_FADE_TIME as f32
+    } else {
+        1.0
+    })
 }
 
 /// `RE_AllocDecal`: always succeeds, evicting the head slot's whole
@@ -324,3 +421,34 @@ fn free(rings: &mut [DecalRing; 2], ring: Ring, index: usize, time: u32) {
 
 #[path = "saber_cut_marks.rs"]
 pub(crate) mod saber_cuts;
+
+#[cfg(test)]
+mod mark_tests {
+    use super::*;
+
+    #[test]
+    fn a_mark_lasts_ten_seconds_and_darkens_over_the_last() {
+        assert_eq!(mark_fade(0), Some(1.0));
+        assert_eq!(mark_fade(9_000), Some(1.0));
+        assert_eq!(mark_fade(9_500), Some(0.5));
+        assert_eq!(mark_fade(10_000), Some(0.0));
+        assert_eq!(mark_fade(10_001), None);
+    }
+
+    #[test]
+    fn a_full_list_gives_up_the_oldest_marks_polys_together() {
+        let mut marks = std::collections::VecDeque::new();
+        let poly = |time| DecalPoly {
+            time,
+            ..DecalPoly::free()
+        };
+        for index in 0..MAX_MARK_POLYS {
+            // Three polys per mark: times 1, 1, 1, 2, 2, 2, ...
+            marks.push_back(poly(1 + index as u32 / 3));
+        }
+        push_mark(&mut marks, poly(500));
+        assert_eq!(marks.len(), MAX_MARK_POLYS - 3 + 1);
+        assert_eq!(marks.front().map(|poly| poly.time), Some(2));
+        assert_eq!(marks.back().map(|poly| poly.time), Some(500));
+    }
+}

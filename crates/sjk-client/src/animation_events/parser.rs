@@ -83,6 +83,7 @@ fn event(tokens: &[String], i: &mut usize, sequence: &AnimationSequence) -> Opti
             let cue = Cue::Footstep {
                 right: foot.ends_with("_R"),
                 heavy: foot.contains("HEAVY"),
+                extra: false,
             };
             (cue, number(tokens, i)?)
         }

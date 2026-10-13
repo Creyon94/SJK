@@ -207,6 +207,50 @@ pub fn material_from_name(shader: &str) -> Option<usize> {
     }
 }
 
+/// SJK's ground contacts for the jumps and the forward landing, which the stock
+/// `_humanoid/animevents.cfg` leaves without a footstep (its side, back and Force
+/// landings have them): the animation and the frame, from its first, at which both feet
+/// touch. A jump's takeoff animation is still on the ground at its second frame (50 ms
+/// at 20 fps, about 11 units up: inside the 32-unit trace). Played as run steps, and
+/// only with `cg_jumpFootsteps` (Sol's world note on `mp/siege_desert`, 07/10/2026:
+/// sand sounds "when people walk and jump").
+pub const JUMP_LAND_STEPS: &[(&str, i32)] = &[
+    ("BOTH_JUMP1", 1),
+    ("BOTH_JUMPBACK1", 1),
+    ("BOTH_JUMPLEFT1", 1),
+    ("BOTH_JUMPRIGHT1", 1),
+    ("BOTH_FORCEJUMP1", 1),
+    ("BOTH_FORCEJUMPBACK1", 1),
+    ("BOTH_FORCEJUMPLEFT1", 1),
+    ("BOTH_FORCEJUMPRIGHT1", 1),
+    ("BOTH_LAND1", 1),
+];
+
+/// What a step leaves on ground of a sound family (`_PlayerFootStep`,
+/// `cg_players.c:2889-3086`): the dust effect (`cgs.effects.footstep*`, registered as
+/// `materials/*`) and whether a footprint mark follows. Mud, dirt, sand and snow take
+/// both (dirt kicks up sand), gravel only dust, every other ground nothing.
+pub fn trace_of(family: usize) -> Option<(&'static str, bool)> {
+    match family {
+        1 => Some(("materials/mud", true)),
+        2 | 3 => Some(("materials/sand", true)),
+        4 => Some(("materials/snow", true)),
+        8 => Some(("materials/gravel", false)),
+        _ => None,
+    }
+}
+
+/// The footprint shader of a step (`cgs.media.fs*MarkShader`, `cg_main.c:1608-1611`):
+/// heavy (running) or not, right or left foot.
+pub fn print_shader(right: bool, heavy: bool) -> &'static str {
+    match (heavy, right) {
+        (true, true) => "footstep_heavy_r",
+        (true, false) => "footstep_heavy_l",
+        (false, true) => "footstep_r",
+        (false, false) => "footstep_l",
+    }
+}
+
 /// NPC classes whose cgame footstep routine deliberately remains silent.
 pub fn allowed_class(class: u8) -> bool {
     !matches!(
@@ -235,5 +279,24 @@ mod tests {
         assert!(PATHS[4][0][0].contains("snow"));
         assert!(PATHS[5][0][0].contains("grass"));
         assert!(PATHS[10][0][0].contains("wood"));
+    }
+
+    #[test]
+    fn mud_dirt_sand_and_snow_leave_dust_and_prints_gravel_only_dust() {
+        assert_eq!(trace_of(material(17)), Some(("materials/mud", true)));
+        assert_eq!(trace_of(material(7)), Some(("materials/sand", true)));
+        assert_eq!(trace_of(material(8)), Some(("materials/sand", true)));
+        assert_eq!(trace_of(material(14)), Some(("materials/snow", true)));
+        assert_eq!(trace_of(material(9)), Some(("materials/gravel", false)));
+        // Stone, grass, metal, wood: nothing.
+        for flags in [0, 3, 5, 1] {
+            assert_eq!(trace_of(material(flags)), None, "{flags}");
+        }
+        assert_eq!(
+            trace_of(material_from_name("textures/siege/siege2sand").unwrap()),
+            Some(("materials/sand", true))
+        );
+        assert_eq!(print_shader(false, false), "footstep_l");
+        assert_eq!(print_shader(true, true), "footstep_heavy_r");
     }
 }

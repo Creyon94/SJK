@@ -169,6 +169,7 @@ mod bug_report;
 mod electrify;
 mod emotes;
 mod emotes_frame;
+mod footprints;
 mod gi_voxels;
 mod holocrons_frame;
 mod identity_command;

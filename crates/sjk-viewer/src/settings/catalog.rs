@@ -210,6 +210,21 @@ pub(super) const AUDIO: &[Setting] = &[
         kind: ValueKind::Bool,
     },
     Setting {
+        label: "Footprints and dust",
+        cvar: crate::footprints::PRINTS_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Jump and landing steps",
+        cvar: crate::footprints::JUMP_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
+        label: "Ground by texture name",
+        cvar: crate::footprints::GUESS_CVAR,
+        kind: ValueKind::Bool,
+    },
+    Setting {
         label: "Mute in background",
         cvar: "snd_mute_losefocus",
         kind: ValueKind::Bool,

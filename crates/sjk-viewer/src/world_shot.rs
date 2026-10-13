@@ -310,11 +310,14 @@ mod log_requests;
 #[path = "world_shot_whats_new.rs"]
 mod whats_new;
 
-#[path = "world_shot_pings.rs"]
-mod pings;
+#[cfg(test)]
+#[path = "world_shot_footprints.rs"]
+mod footprints_shots;
 #[cfg(test)]
 #[path = "world_shot_mover_models.rs"]
 mod mover_models_shots;
+#[path = "world_shot_pings.rs"]
+mod pings;
 
 #[cfg(test)]
 mod tests {
