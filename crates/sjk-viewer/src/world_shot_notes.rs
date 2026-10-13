@@ -11,7 +11,10 @@
 //! `SJK_NOTES_CVARS` (`name=value,name=value`) changes some for a comparison;
 //! `SJK_NOTES_REMAP` (`old=new;old=new`) remaps shaders as a server would. A note that
 //! recorded the remaps active when it was taken (`remaps`, since 13/10/2026) has its
-//! server and console ones made again for its views; the map's own apply anyway.
+//! server and console ones made again for its views; the map's own apply anyway. The
+//! player's generated packs (`<GameData>/SJK/generated`) are mounted as the game mounts
+//! them; `SJK_NOTES_GENERATED` names another client folder, whose `generated` folder
+//! holds the packs to use instead (to compare an older pack).
 
 use super::*;
 use crate::dynamic_lights::PointLight;
@@ -155,6 +158,13 @@ fn world_notes() {
             .into_iter()
             .filter(|note| wanted(note, &filter))
             .collect();
+        // The player's generated packs (`generated_packs`), as the game mounts them: the
+        // throwaway profile's own folder has none, so without this the shots showed an
+        // older pack left in `base` instead of the installed one. `SJK_NOTES_GENERATED`
+        // names another client folder (whose `generated` holds the packs) to compare.
+        let client_folder = std::env::var_os("SJK_NOTES_GENERATED")
+            .map_or_else(|| game_data.join("SJK"), PathBuf::from);
+        crate::assets::generated::locate_at_start(&client_folder);
         let mut settings = renderer_settings(&game_data);
         // `SJK_NOTES_CVARS=r_weather=1,r_weatherFog=2` overrides settings for a comparison.
         for pair in std::env::var("SJK_NOTES_CVARS")

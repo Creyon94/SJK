@@ -30,10 +30,11 @@ pub struct Options {
     /// Generate only the this many most-used textures.
     pub limit: Option<usize>,
     pub settings: Settings,
-    /// Per-texture class overrides (`--overrides`, or the file beside the output).
+    /// Per-texture class overrides ([`crate::overrides_file`]).
     pub overrides: Overrides,
-    /// Where the overrides came from, for the manifest.
-    pub overrides_file: Option<PathBuf>,
+    /// Which overrides file was read, or where none was found, for the run's output and
+    /// the manifest.
+    pub overrides_found: crate::overrides_file::Found,
     pub dry_run: bool,
     pub out: PathBuf,
 }
@@ -201,9 +202,11 @@ pub fn run(options: &Options) -> Result<Summary, Box<dyn Error>> {
             coarse_weight: COARSE_WEIGHT,
             min_height_range: MIN_HEIGHT_RANGE,
             overrides: options
-                .overrides_file
-                .as_ref()
+                .overrides_found
+                .path()
                 .map(|path| path.display().to_string()),
+            overrides_found: options.overrides_found.describe(),
+            overrides_rules: options.overrides.rules.len(),
         },
         sources,
         skipped,

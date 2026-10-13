@@ -80,6 +80,7 @@ pub mod filters;
 pub mod generate;
 pub mod mount;
 pub mod overrides;
+pub mod overrides_file;
 pub mod package;
 pub mod run;
 pub mod select;

@@ -2039,6 +2039,16 @@ not read). [sjk-materialgen](#generating-material-maps) writes them.
   that writes only its emission, so only the emitting texels get a halo.
   `r_emissiveGlow 0` leaves these stages out of the glow pass (a bit test per glowing
   pass and frame); a stage with an authored `glow` keeps glowing as before.
+- **Authored glow.** Lamps whose shader adds a `glow` overlay (`byss/lights`,
+  `rooftop/groundlight`, `taspir/light_ceiling`, `taspir/t_wall5`) take no emission map
+  and the generator writes none, even with `emission=on` in the overrides: the overlay is
+  already their visible light and bloom, and in real-time lighting the
+  [fixture inference](#inferring-fixture-light-from-legacy-materials) already makes them
+  sources (16 times the overlay's mean colour). Sol's notes asking these lamps for a
+  "stronger light" (13/10/2026) are about that inferred power, which an emission map
+  would not change. Additive vertex-coloured flares (`flares/solid_blue`, `solid_red`,
+  `rgbGen exactVertex`, no lightmap) are neither: their colour is per vertex, unknown at
+  material load, so they light nothing.
 - **Light, baked lighting.** The lightmaps already hold the light of the map's
   sources, and an emission map adds none: in baked lighting it is only seen.
 - **Light, real-time lighting.** With `r_dayNight 1` the lightmaps are replaced by live
@@ -2892,6 +2902,12 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
   missing kind is written. A shader whose diffuse pair is followed by its own
   `tcGen environment` stage (stock chrome and polished floors) qualifies; the
   environment stage marks the texture polished (below).
+  Korriban's glossy walls (`korriban/door`, `entrance_top`, `os_outsidebased`,
+  `os_basic_pillarb`) draw an environment stage first, their paint over it with alpha
+  blending (the alpha masks the shine) and the lightmap last; such a stack does not
+  collapse, in rend2 either, so they take no maps, and an override cannot give them
+  any (Sol asked for relief and a yellow glow on them, 07/10/2026). Mapping them needs
+  the client to collapse that stack, a renderer change not made.
 - **Generation** ([generate.rs](../crates/sjk-materialgen/src/generate.rs)),
   deterministic and wrap-around, so tiling textures stay seamless. Height comes
   from luminance, high-passed twice at 1/8 of the texture to suppress baked
@@ -2916,14 +2932,17 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
   keep their alpha in the normal map.
 - **Classes** ([classes.rs](../crates/sjk-materialgen/src/classes.rs)): one table
   of strength, parallax, roughness, metalness and occlusion per class. A class is
-  chosen by the BSP material id (`q3map_material`), then path keywords, then
-  `surfaceparm metalsteps`, then the texture set: the Imperial, Rebel and
+  chosen by the BSP material id (`q3map_material`), then path keywords (`concrete`
+  and `cement` first, so a vent in a concrete wall stays concrete; a keyword inside
+  a word that only looks like it does not count: `background` is not ground,
+  `rocket` not rock, `rustic` not rust), then `surfaceparm metalsteps`, then the
+  texture set: the Imperial, Rebel and
   industrial sets (`imperial`, `byss`, `kejim`, `vjun`, `hoth`, `bespin` and
   others) are `panel`, painted metal (metalness 0.35, roughness 0.5), and
   `korriban`, `yavin`, `rift` and `rocky_ruins` stone. Names add metal words
   (beam, brace, casing, hull, tank, barrel, hangar, elevator), electronics
   (control, switch, onoff, terminal) and panel words (panel, trim, door, plate,
-  lift, gate, walkway). Stone, tiles and ground get `<texture>_nh` (height in
+  lift, gate, walkway, crate: Star Wars crates are metal containers, not wood). Stone, tiles and ground get `<texture>_nh` (height in
   alpha for parallax); the rest get `<texture>_n`. Metal gets no height: a
   height guessed from paint made metal panels swim. A texture whose shader has a
   `tcGen environment` stage is
@@ -2964,7 +2983,8 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
   file of per-texture rules fixes what the heuristics get wrong. Each line is a
   path pattern (the diffuse image without extension, case-insensitive, `*` and `?`
   wildcards) followed by `class=`, `roughness=`, `metalness=` (0–1),
-  `height=on|off`, `relief=inverted|normal|auto` (dark parts high, bright parts
+  `strength=` (0.1–4, multiplies the class's normal strength: more for a texture
+  whose shapes read flat, less for overdone relief), `height=on|off`, `relief=inverted|normal|auto` (dark parts high, bright parts
   high, or the painted light decides) or `emission=on|off|<strength>` (0–4, the
   emitted colour's multiplier; 0 is off); `#` starts a comment. Every matching line applies, in order
   (for `emission` the last that sets it):
@@ -2975,12 +2995,23 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
   textures/x/lightwall      emission=off
   textures/x/console2       emission=1.5
   textures/desert/s_floor1  relief=inverted
+  textures/taspir/trim_walk strength=2.5
   ```
 
-  The tool reads `--overrides FILE`, or `sjk-materialgen-overrides.txt` next to the
-  output pk3 when it exists; the manifest records the file and, per texture, the
-  lines that applied, its class, roughness and metalness, and whether it was
-  polished.
+  The file is `sjk-materialgen-overrides.txt`
+  ([overrides_file.rs](../crates/sjk-materialgen/src/overrides_file.rs)). The tool
+  reads `--overrides FILE` (none with `--no-overrides`), else the file next to the
+  output pk3, else the one in the client's `generated` folder (`GameData/SJK/generated`
+  or the per-user one), else one left in an earlier version's folder
+  (`%APPDATA%\jkr\generated`), which a run that writes a pack copies to the client's
+  folder, keeping the old file. Every run prints which file it read and how many
+  rules it has, or `NONE FOUND` with every place it looked (and a warning); the
+  manifest records the same (`overrides`, `overrides_found`, `overrides_rules`) and,
+  per texture, the lines that applied, its class, roughness and metalness, and whether
+  it was polished. Until 13/10/2026 only `--overrides` and the output's folder were
+  read: when the default output moved from `%APPDATA%\jkr\generated` to
+  `GameData/SJK/generated` (12/10/2026), Sol's rules stayed behind and the 12/10 pack
+  was built without them, silently.
 - **Specular layout.** The tool writes `<texture>_rmo` (red roughness, green
   metalness, blue occlusion) rather than `_specGloss`. The heuristics produce
   roughness and metalness directly, and the packed path takes the metal colour
@@ -3004,11 +3035,13 @@ cargo run --release -p sjk-materialgen -- --maps mp/ffa3,mp/duel1
   and applied override lines), and `--limit` takes only the most-used textures.
 
 **Regenerating.** The manifest records the generation of the tuning
-(`"generation": 6` since declared light fixtures without a glowing overlay emit, 5
+(`"generation": 7` since crates are painted metal, concrete is concrete, the overrides
+are found in the client's folder and `strength=` scales relief; 6 declared light
+fixtures without a glowing overlay emit, 5
 maps for vertex-lit paint and indicator lights, 4 the relief orientation and smoother
 metal, 3 emission maps; packs without it are generation 1). With
 material maps or emission maps on, the client logs `material maps: the generated pack
-is generation 1 of sjk-materialgen, this client expects 6 ...` once when the mounted
+is generation 1 of sjk-materialgen, this client expects 7 ...` once when the mounted
 pack is older. Emission decisions depend on every map read: a texture drawn plainly on
 one map and through a glowing shader on another gets its `_e`, and the client ignores
 it where the shader glows.

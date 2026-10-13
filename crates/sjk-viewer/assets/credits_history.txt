@@ -9,6 +9,8 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 13/10/2026 | - | Material maps generation 7, overrides found again
+- e35eb53 |  | Material notes: overrides found again, crates and concrete classed right
 + 13/10/2026 | - | Rancor's tables, footprints and dust, jump steps
 - 5589532 |  | Draw movers' model2: t2_rancor's bar tables
 - 774609c |  | Footprints and dust on sand, snow and mud; jump and landing steps

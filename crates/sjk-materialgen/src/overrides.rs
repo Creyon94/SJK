@@ -12,6 +12,7 @@
 //! textures/kejim/lightpanel*      emission=on
 //! textures/x/lightgreen_wall      emission=off
 //! textures/desert/s_floor1        relief=inverted
+//! textures/taspir/trim_walk       strength=2.5
 //! ```
 //!
 //! The pattern is matched against the diffuse image's path without extension
@@ -21,6 +22,10 @@
 //! - `class`: a class name from [`crate::classes`] (`metal`, `stone`, `tiles`, ...); the
 //!   texture takes that class's whole row.
 //! - `roughness`, `metalness`: the class's base roughness and metalness, 0–1.
+//! - `strength`: multiplies the class's normal strength (the slope of the generated
+//!   relief), from [`MIN_STRENGTH`] to [`MAX_STRENGTH`]: more than 1 for a texture whose
+//!   shapes read flat, less for one whose relief is overdone. Like `--strength`, but for
+//!   the matching textures only; both multiply.
 //! - `height`: `on` writes `_nh` (height for parallax), `off` a plain `_n`.
 //! - `emission`: `on` writes an emission map (`_e`) whatever the evidence, `off`
 //!   never writes one, and a number from 0 to 4 is `on` with that strength (the
@@ -35,6 +40,10 @@
 
 use crate::classes::{MaterialClass, Relief, by_name};
 
+/// Smallest and largest `strength=` multiplier.
+pub const MIN_STRENGTH: f32 = 0.1;
+pub const MAX_STRENGTH: f32 = 4.0;
+
 /// One parsed rule.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Rule {
@@ -43,6 +52,8 @@ pub struct Rule {
     pub class: Option<&'static MaterialClass>,
     pub roughness: Option<f32>,
     pub metalness: Option<f32>,
+    /// Multiplier on the class's normal strength.
+    pub strength: Option<f32>,
     pub height: Option<bool>,
     pub relief: Option<Relief>,
     /// Emission strength: 0 off, 1 on (`on`), up to [`crate::emission::MAX_STRENGTH`].
@@ -74,6 +85,7 @@ impl Overrides {
                 class: None,
                 roughness: None,
                 metalness: None,
+                strength: None,
                 height: None,
                 relief: None,
                 emission: None,
@@ -102,6 +114,20 @@ impl Overrides {
                     }
                     "roughness" => rule.roughness = Some(unit(value)?),
                     "metalness" => rule.metalness = Some(unit(value)?),
+                    "strength" => {
+                        rule.strength = Some(
+                            value
+                                .parse::<f32>()
+                                .ok()
+                                .filter(|v| (MIN_STRENGTH..=MAX_STRENGTH).contains(v))
+                                .ok_or_else(|| {
+                                    format!(
+                                        "line {line_number}: strength needs a number from \
+                                         {MIN_STRENGTH} to {MAX_STRENGTH}"
+                                    )
+                                })?,
+                        )
+                    }
                     "height" => {
                         rule.height = Some(match value.to_ascii_lowercase().as_str() {
                             "on" | "1" | "yes" | "true" => true,
@@ -164,6 +190,9 @@ impl Overrides {
             }
             if let Some(metalness) = rule.metalness {
                 class.metalness = metalness;
+            }
+            if let Some(strength) = rule.strength {
+                class.normal_strength *= strength;
             }
             if let Some(height) = rule.height {
                 class.parallax = height;
@@ -247,6 +276,8 @@ mod tests {
         for (bad, message) in [
             ("x class=chrome", "unknown class"),
             ("x roughness=2", "from 0 to 1"),
+            ("x strength=0", "strength needs a number"),
+            ("x strength=5", "strength needs a number"),
             ("x height=maybe", "on or off"),
             ("x relief=up", "inverted, normal or auto"),
             ("x shiny", "key=value"),
@@ -283,6 +314,24 @@ mod tests {
             (class.name, class.roughness, lines),
             ("generic", 0.6, vec![1])
         );
+    }
+
+    #[test]
+    fn strength_rules_multiply_the_class_strength() {
+        let overrides = Overrides::parse(
+            "textures/taspir/* strength=2\n\
+             textures/taspir/trim_walk class=panel strength=1.5\n",
+        )
+        .expect("parses");
+        let generic = crate::classes::GENERIC.clone();
+        let (class, _) = overrides.apply("textures/taspir/t_wall2", generic.clone());
+        assert_eq!(class.normal_strength, generic.normal_strength * 2.0);
+        // A class rule replaces the whole row (earlier strengths included); the strength
+        // on its own line multiplies the new row.
+        let panel = by_name("panel").unwrap();
+        let (class, lines) = overrides.apply("textures/taspir/trim_walk", generic);
+        assert_eq!(class.normal_strength, panel.normal_strength * 1.5);
+        assert_eq!(lines, vec![1, 2]);
     }
 
     #[test]
