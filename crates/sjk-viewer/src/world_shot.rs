@@ -3349,9 +3349,29 @@ like this one.",
             gpu.text_dialog.open(Kind::Note {
                 subject: "Wall: textures/yavin/wall_3 (lightmapped, BSP surface 812) on mp/duel6"
                     .to_owned(),
+                model: None,
             });
             gpu.text_dialog.caret_for_shot();
             println!("{}", shoot(&mut gpu, 6, "duel6-report-note").display());
+            gpu.text_dialog.open(Kind::Note {
+                subject: concat!(
+                    "misc_model_static models/map_objects/yavin/tree09_b.md3 ",
+                    "(models/map_objects/yavin/tree09_b remapped to textures/video/raven, ",
+                    "1 more shader), 412 units"
+                )
+                .to_owned(),
+                model: Some("models/map_objects/yavin/tree09_b.md3".to_owned()),
+            });
+            gpu.text_dialog.preview(
+                &"The bark looks too flat in this light. ".repeat(14),
+                false,
+                "",
+            );
+            gpu.text_dialog.caret_for_shot();
+            println!(
+                "{}",
+                shoot(&mut gpu, 6, "duel6-report-note-model").display()
+            );
             drop(gpu);
             let Some((mut gpu, _profile)) = in_match([1440, 1080]) else {
                 return;

@@ -161,7 +161,7 @@ key. The hub keeps it until the operator removes it.
 A world note (`worldnote` twice, [client.md](client.md#player-card)) is sent
 only when the player sends it, with `cl_identity` on: its text, the map, the build, the
 game server's address, the in-game name the player wears, where the player stood (`setviewpos`), the aimed point, shader,
-surface and entity, and a smaller copy of its screenshot (at most 1280 x 720), signed
+surface and entity, the shader remaps active then and the model aimed at, and a smaller copy of its screenshot (at most 1280 x 720), signed
 with the player's key. The note dialog says so. The hub keeps it until the operator
 removes it; the full note and screenshot stay on the player's PC either way.
 
@@ -328,13 +328,21 @@ operator reads them with the hub's `player-reports` command or `/admin/v1/player
 [world_notes.rs](../crates/sjk-viewer/src/world_notes.rs). A world note
 ([client.md](client.md#player-card)) is kept on the player's PC as before and, with the
 identity on, also goes to the hub for the SJK team. The note dialog keeps the bug
-reports' alphabet as it is typed, and Send checks the hub's note rules (3 to 500
-characters, at least 2 letters, no long run of one character). The identity service
+reports' alphabet as it is typed, and Send checks the hub's note rules (3 to 4000
+characters since 13/10/2026, 500 before; at least 2 letters, no long run of one
+character). The identity service
 sends `POST /v1/note` with the text and the selection: map, build, server, `view` (the
 `setviewpos` x, y, z and yaw), the aimed point and normal, shader, BSP surface,
 lighting, distance and the entity's class name (a name outside the hub's alphabet is
 left out rather than the note refused), and the in-game name the player wears, as for a
-report. The hub answers with the note's number, which a
+report. Since 13/10/2026 it adds, only when the note has them (so a hub from before
+still takes a note without them): `remapped`, the shader a remap draws over the noted
+one; `remaps`, the remaps active when the note was taken (at most 64, the noted
+shaders' first); and `model`, the model the note is about (path, class, entity number,
+origin, skin and at most 32 surface shaders with their remaps). A hub from before
+13/10/2026 refuses a note carrying them, or longer than 500 characters: the hub goes
+first ([`report.rs`](../crates/sjk-identity/src/report.rs) `NOTE_MAX`, the hub's
+`notes.rs`). The hub answers with the note's number, which a
 centre print and the console show, or why it refused. The screenshot writer also makes a
 smaller JPEG of the same pixels (`capture::preview_jpeg`: fitted within 1280 x 720,
 quality lowered until under 380 KiB) and hands it to the service, which sends it with

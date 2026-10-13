@@ -598,6 +598,16 @@ test: In a match, paste into chat and the console: text comes at once, no hitch 
 test: Accented and emoji text pastes intact; viewpos/mark copies still reach the clipboard.
 note: Was hitch 248 ms between-frames on each paste.
 
+[worldnote-plus]
+area: Rendering & effects
+title: World notes take a page, keep the shader remaps and can note a model
+change: Notes take 4000 characters; each keeps the active remaps; MD3 props can be selected.
+test: Aim at a prop (a duel6 rock or ffa5 lamp) and press O: it is outlined in green.
+test: Press O again: the card shows MODEL and its path; Clear model notes the ground behind it.
+test: Click the scene beside the card: what is under the pointer becomes the note's subject.
+test: On a server with remaps, save a note and check "remaps" in GameData/SJK/notes.jsonl.
+note: The hub must be deployed first, or notes with a model or remaps are not sent.
+
 [model-mips]
 area: Rendering & effects
 title: No hitch when high-resolution player models appear: mip chains built on a worker

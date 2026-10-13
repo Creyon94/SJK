@@ -24,6 +24,10 @@
 //! to change the text and send it again ([`TextDialog::answer`]). The other looks close
 //! on Send and the answer comes as a centre print, as it does when the card was closed
 //! first. A note always closes on Send: its screenshot is taken of the next frame.
+//!
+//! A note's dialog names the model it is about, when the selection has one, with Clear
+//! model to drop it ([`Action::ClearModel`]); a click on the scene round the dialog
+//! asks for what is under the pointer to be noted instead ([`Action::PickAt`]).
 
 use crate::console::line_edit::{LineEdit, Motion};
 use crate::menu::art::ArtSet;
@@ -46,6 +50,8 @@ mod sjk;
 pub(crate) const NOTE_MAX: usize = sjk_identity::report::NOTE_MAX;
 /// Lines of text the box shows; a longer text shows its end.
 const LINES: usize = 6;
+/// Lines a note's box shows in the SJK UI's card: a note may run to a page.
+const NOTE_LINES: usize = 10;
 
 const FIELD_TOKEN: u16 = 960;
 const SEND_TOKEN: u16 = 961;
@@ -54,6 +60,8 @@ const LAUNCH_TOKEN: u16 = 963;
 /// The SJK UI card's Close (Done once sent) and Edit, after Send.
 const CLOSE_TOKEN: u16 = 964;
 const EDIT_TOKEN: u16 = 965;
+/// A note's Clear model.
+const CLEAR_MODEL_TOKEN: u16 = 966;
 
 /// Which look the dialog is drawn in, following `ui_menuStyle`.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
@@ -89,8 +97,11 @@ pub(crate) enum Report {
 /// What the dialog is for.
 #[derive(Clone, Debug, Eq, PartialEq)]
 pub(crate) enum Kind {
-    /// A note about the selection named by `subject`.
-    Note { subject: String },
+    /// A note about the selection named by `subject`, and the path of its model.
+    Note {
+        subject: String,
+        model: Option<String>,
+    },
     /// A bug report for the hub.
     Report,
     /// A report about a player for the hub: `subject` names them and the reason.
@@ -101,13 +112,18 @@ pub(crate) enum Kind {
 }
 
 /// What the caller does after the dialog handled an event.
-#[derive(Debug, Eq, PartialEq)]
+#[derive(Debug, PartialEq)]
 pub(crate) enum Action {
     None,
     /// Closed without sending, or (the SJK UI's card) after its answer.
     Cancel,
     /// Send this text (the dialog has closed).
     Send(Kind, String),
+    /// A note's Clear model: note what is behind the model.
+    ClearModel,
+    /// A click on the scene round a note's dialog, at this point in physical pixels:
+    /// note what is under it.
+    PickAt([f32; 2]),
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -115,6 +131,8 @@ enum Focus {
     Field,
     Send,
     Cancel,
+    /// A note's Clear model, while it has a model.
+    ClearModel,
 }
 
 pub(crate) struct TextDialog {
@@ -139,6 +157,9 @@ pub(crate) struct TextDialog {
     art: ArtSet,
     /// Where a report stands; always [`Phase::Writing`] outside the SJK UI.
     phase: Phase,
+    /// The panel or card the last frame drew, in physical pixels: a note's click
+    /// outside it picks in the scene.
+    card: Option<sjk_ui::Rect>,
 }
 
 impl Default for TextDialog {
@@ -159,6 +180,7 @@ impl Default for TextDialog {
             look: Look::default(),
             art: ArtSet::default(),
             phase: Phase::Writing,
+            card: None,
         }
     }
 }
@@ -246,12 +268,38 @@ impl TextDialog {
         self.focus = Focus::Field;
         self.phase = Phase::Writing;
         self.epoch = Instant::now();
+        self.card = None;
     }
 
     fn close(&mut self) -> Action {
         self.kind = None;
         self.phase = Phase::Writing;
+        self.card = None;
         Action::Cancel
+    }
+
+    /// A note's selection changed (Clear model, or a click on the scene): its new
+    /// subject and model, the text kept.
+    pub(crate) fn set_note(&mut self, subject: String, model: Option<String>) {
+        if let Some(Kind::Note {
+            subject: shown,
+            model: shown_model,
+        }) = &mut self.kind
+        {
+            *shown = subject;
+            *shown_model = model;
+            if self.focus == Focus::ClearModel && shown_model.is_none() {
+                self.focus = Focus::Field;
+            }
+        }
+    }
+
+    /// The open note's model, if it has one.
+    fn note_model(&self) -> Option<&str> {
+        match &self.kind {
+            Some(Kind::Note { model, .. }) => model.as_deref(),
+            _ => None,
+        }
     }
 
     /// Enter or Send: hand the text over, or say why it cannot go. The SJK UI's card
@@ -272,6 +320,7 @@ impl TextDialog {
             return Action::Send(kind, self.text.clone());
         }
         self.kind = None;
+        self.card = None;
         Action::Send(kind, std::mem::take(&mut self.text))
     }
 
@@ -376,20 +425,8 @@ impl TextDialog {
         match key {
             KeyCode::Escape => return self.close(),
             KeyCode::Tab => self.step_focus(shift),
-            KeyCode::Enter | KeyCode::NumpadEnter => {
-                return if self.focus == Focus::Cancel {
-                    self.close()
-                } else {
-                    self.send()
-                };
-            }
-            KeyCode::Space if self.focus != Focus::Field => {
-                return if self.focus == Focus::Cancel {
-                    self.close()
-                } else {
-                    self.send()
-                };
-            }
+            KeyCode::Enter | KeyCode::NumpadEnter => return self.press_focused(),
+            KeyCode::Space if self.focus != Focus::Field => return self.press_focused(),
             KeyCode::Backspace if self.focus == Focus::Field => {
                 let word = self.control;
                 self.erase(if word { Motion::WordLeft } else { Motion::Left });
@@ -495,11 +532,23 @@ impl TextDialog {
         self.epoch = Instant::now();
     }
 
-    /// Tab's order over the field and the two buttons, one step.
+    /// Enter (or Space on a button): what the focused control does.
+    fn press_focused(&mut self) -> Action {
+        match self.focus {
+            Focus::Cancel => self.close(),
+            Focus::ClearModel => Action::ClearModel,
+            Focus::Field | Focus::Send => self.send(),
+        }
+    }
+
+    /// Tab's order over the field and the buttons (a note's Clear model last, while it
+    /// has a model), one step.
     fn step_focus(&mut self, back: bool) {
-        let order = [Focus::Field, Focus::Send, Focus::Cancel];
+        let all = [Focus::Field, Focus::Send, Focus::Cancel, Focus::ClearModel];
+        let count = if self.note_model().is_some() { 4 } else { 3 };
+        let order = &all[..count];
         let at = order.iter().position(|f| *f == self.focus).unwrap_or(0);
-        self.focus = order[if back { at + 2 } else { at + 1 } % 3];
+        self.focus = order[if back { at + count - 1 } else { at + 1 } % count];
     }
 
     /// A key on the SJK UI's card after Send: Escape closes; Enter or Space takes the
@@ -530,6 +579,17 @@ impl TextDialog {
     }
 
     pub(crate) fn handle_pointer(&mut self, event: InputEvent) -> Action {
+        // A note's press on the scene round its card picks there.
+        if let InputEvent::PointerPress {
+            position,
+            button: sjk_ui::PointerButton::Primary,
+        } = event
+            && matches!(self.kind, Some(Kind::Note { .. }))
+            && self.phase == Phase::Writing
+            && self.card.is_some_and(|card| !card.contains(position))
+        {
+            return Action::PickAt([position.x, position.y]);
+        }
         let Some(event) = self.ui.pointer(event) else {
             return Action::None;
         };
@@ -557,6 +617,7 @@ impl TextDialog {
             }
             Some(SEND_TOKEN) if writing => self.send(),
             Some(CANCEL_TOKEN) if writing => self.close(),
+            Some(CLEAR_MODEL_TOKEN) if writing && self.note_model().is_some() => Action::ClearModel,
             Some(CLOSE_TOKEN) => self.close(),
             _ => Action::None,
         }
@@ -655,6 +716,7 @@ mod tests {
         );
         let note = Kind::Note {
             subject: String::new(),
+            model: None,
         };
         assert_eq!(typed(&note, "", "a <b> \"x\"\tz?"), "a b x z?");
         // Nothing past the limit.
@@ -690,6 +752,7 @@ mod tests {
         assert!(!dialog.is_open());
         dialog.open(Kind::Note {
             subject: "wall".into(),
+            model: None,
         });
         assert_eq!(dialog.send(), Action::None, "an empty note waits");
         dialog.text = "too shiny".into();
@@ -697,13 +760,15 @@ mod tests {
             dialog.send(),
             Action::Send(
                 Kind::Note {
-                    subject: "wall".into()
+                    subject: "wall".into(),
+                    model: None,
                 },
                 "too shiny".into()
             )
         );
         dialog.open(Kind::Note {
             subject: "wall".into(),
+            model: None,
         });
         assert_eq!(dialog.close(), Action::Cancel);
         assert!(!dialog.is_open());

@@ -1366,6 +1366,7 @@ fn text_dialog(shots: &Snapshot, art: ArtSet) {
     use crate::text_dialog::{Kind, TextDialog};
     let note = Kind::Note {
         subject: "Wall: textures/mp/ffa_wall2 (lightmapped, BSP surface 1432) on mp/ffa3".into(),
+        model: None,
     };
     let cases = [
         (

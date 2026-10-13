@@ -64,6 +64,8 @@ Sol develops SJK and sets its direction. Sol's work includes:
   through the hub, your team only in team games;
 - team games (13/10/2026): red outlines on enemies and green on teammates where they
   are seen, team logos over teammates' heads after JoF EJK, the team overlay removed;
+- world notes (13/10/2026): up to 4000 characters, the shader remaps in play and the
+  map's MD3 models as a note's subject;
 - cards that tilt towards the pointer in perspective, their Holo and Solar light
   following it (13/10/2026);
 - SJK Symbols (13/10/2026), SJK's own symbol font: rarity and finish marks drawn for

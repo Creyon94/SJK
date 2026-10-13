@@ -50,6 +50,12 @@ impl Spawn {
         if entity.classname() != Some(CLASSNAME) {
             return None;
         }
+        Self::placement(entity)
+    }
+
+    /// The same fields of any entity naming a model, whatever its class: where world
+    /// notes look for the model under the crosshair (`world_notes`).
+    pub(crate) fn placement(entity: &Entity) -> Option<Self> {
         let model = entity.get("model").filter(|model| !model.is_empty())?;
         let origin = entity.vector("origin").ok().flatten().unwrap_or([0.0; 3]);
         let angles = match entity.vector("angles").ok().flatten() {

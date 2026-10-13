@@ -12,7 +12,9 @@
 
 use super::field::Face;
 use super::sjk::Sentence;
-use super::{CANCEL_TOKEN, FIELD_TOKEN, Focus, Kind, LAUNCH_TOKEN, SEND_TOKEN, TextDialog};
+use super::{
+    CANCEL_TOKEN, CLEAR_MODEL_TOKEN, FIELD_TOKEN, Focus, Kind, LAUNCH_TOKEN, SEND_TOKEN, TextDialog,
+};
 use crate::console::browser::classic::{
     FRAME, LABEL, LIST_BACK, LIST_BORDER, VALUE, border, fill, text, with_alpha,
 };
@@ -40,6 +42,8 @@ const MESSAGE: [f32; 4] = [100.0, 290.0, 440.0, 12.0];
 /// The gold buttons.
 const SEND: [f32; 4] = [190.0, 312.0, 120.0, 20.0];
 const CANCEL: [f32; 4] = [330.0, 312.0, 120.0, 20.0];
+/// A note's Clear model, left of Send while the note has a model.
+const CLEAR_MODEL: [f32; 4] = [96.0, 312.0, 84.0, 20.0];
 /// The description line under the box.
 const HINT_Y: f32 = 348.0;
 /// The Report a bug button, centred at the bottom of the canvas.
@@ -51,8 +55,10 @@ const ERROR: Color = Color::new(1.0, 0.3, 0.3, 1.0);
 const _: () = assert!(LINES as f32 * LINE + 8.0 <= FIELD[3]);
 const _: () = assert!(BOX[1] + BOX[3] < HINT_Y && HINT_Y + 14.0 <= LAUNCH[1]);
 const _: () = assert!(LAUNCH[1] + LAUNCH[3] <= 480.0);
-// Send and Cancel share a row, side by side.
+// Clear model, Send and Cancel share a row, side by side, inside the box.
 const _: () = assert!(SEND[0] + SEND[2] <= CANCEL[0] && SEND[1] == CANCEL[1]);
+const _: () = assert!(CLEAR_MODEL[0] + CLEAR_MODEL[2] <= SEND[0] && CLEAR_MODEL[1] == SEND[1]);
+const _: () = assert!(CLEAR_MODEL[0] >= BOX[0]);
 
 impl TextDialog {
     /// Draw the classic+ dialog over the whole frame (see [`TextDialog::append`]).
@@ -67,6 +73,7 @@ impl TextDialog {
         let art = self.art;
         let report = *kind == Kind::Report;
         let mut hint: Option<&'static str> = None;
+        self.card = Some(place.rect(BOX));
         let ui = &mut self.ui;
         ui.begin_transparent(viewport);
 
@@ -106,7 +113,7 @@ impl TextDialog {
         );
         let prompt = match kind {
             Kind::Report => "What went wrong? Where were you, and what did you expect?",
-            Kind::Note { subject } | Kind::PlayerReport { subject, .. } => subject.as_str(),
+            Kind::Note { subject, .. } | Kind::PlayerReport { subject, .. } => subject.as_str(),
         };
         let room = (PROMPT[2] / CHAR_WIDTH) as usize;
         text(
@@ -282,13 +289,29 @@ impl TextDialog {
             "Close without sending (Esc).",
             &mut hint,
         );
+        if matches!(kind, Kind::Note { model: Some(_), .. }) {
+            button(
+                ui,
+                &place,
+                art,
+                CLEAR_MODEL_TOKEN,
+                "Clear",
+                CLEAR_MODEL,
+                self.focus == Focus::ClearModel,
+                "Clear the model: the note is about what is behind it.",
+                &mut hint,
+            );
+        }
+        let idle = match kind {
+            Kind::Note { .. } => {
+                "Enter saves, Tab moves, Esc cancels; click the scene to note something else."
+            }
+            _ => "Enter sends, Tab moves between the controls, Esc cancels.",
+        };
         text(
             ui,
             &place,
-            format_args!(
-                "{}",
-                hint.unwrap_or("Enter sends, Tab moves between the controls, Esc cancels.")
-            ),
+            format_args!("{}", hint.unwrap_or(idle)),
             [0.0, HINT_Y, 640.0, 14.0],
             12.0,
             HINT,
@@ -299,6 +322,7 @@ impl TextDialog {
             Focus::Field => FIELD_TOKEN,
             Focus::Send => SEND_TOKEN,
             Focus::Cancel => CANCEL_TOKEN,
+            Focus::ClearModel => CLEAR_MODEL_TOKEN,
         });
         ui.append_text(vertices, font, viewport);
     }

@@ -13,8 +13,8 @@
 
 use super::field::{Face, FieldLayout};
 use super::{
-    CANCEL_TOKEN, CLOSE_TOKEN, EDIT_TOKEN, FIELD_TOKEN, Focus, Kind, LINES, Phase, SEND_TOKEN,
-    TextDialog,
+    CANCEL_TOKEN, CLEAR_MODEL_TOKEN, CLOSE_TOKEN, EDIT_TOKEN, FIELD_TOKEN, Focus, Kind, LINES,
+    NOTE_LINES, Phase, SEND_TOKEN, TextDialog,
 };
 use crate::menu::sjk::{Frame, TextTarget, color, key_hint, key_hint_width, kit, text, wrap};
 use crate::menu_widgets::{MenuCanvas, TextFamily};
@@ -60,14 +60,76 @@ const TEXT_SIZE: f32 = 19.0;
 /// What the scene keeps of its light under a note's card, whose selection should
 /// still show round it (a report's card takes [`kit::scrim`]'s).
 const NOTE_SCRIM: f32 = 0.5;
+/// A note's model row, between its guidance and its field: the model and Clear model,
+/// or how to pick one. Its button's height.
+const MODEL_ROW: f32 = 48.0;
+const MODEL_BUTTON_HEIGHT: f32 = 36.0;
 /// Why a Send was refused: warm red, as retail's warnings are.
 const WARN: Color = Color::new(1.0, 0.44, 0.4, 1.0);
 /// The rules every kind keeps to as it is typed.
 const RULES: &str = "Letters, digits, spaces and . , ! ? ' - : ( ) only";
 
+/// Where the card's parts sit for one kind. A report's card is the constants' own; a
+/// note's is taller, for its model row and a field of [`NOTE_LINES`], and stays centred.
+#[derive(Clone, Copy, Debug)]
+struct Geometry {
+    top: f32,
+    height: f32,
+    lines: usize,
+    model_row: bool,
+}
+
+impl Geometry {
+    fn of(kind: &Kind) -> Self {
+        let note = matches!(kind, Kind::Note { .. });
+        let lines = if note { NOTE_LINES } else { LINES };
+        let height =
+            CARD_HEIGHT + (lines - LINES) as f32 * LINE + if note { MODEL_ROW } else { 0.0 };
+        Self {
+            top: (1080.0 - height) * 0.5,
+            height,
+            lines,
+            model_row: note,
+        }
+    }
+    fn shift(self) -> f32 {
+        self.top - CARD_TOP
+    }
+    fn eyebrow_y(self) -> f32 {
+        EYEBROW_Y + self.shift()
+    }
+    fn headline_y(self) -> f32 {
+        HEADLINE_Y + self.shift()
+    }
+    fn detail_y(self) -> f32 {
+        DETAIL_Y + self.shift()
+    }
+    /// The model row's top, where a report's field starts.
+    fn model_y(self) -> f32 {
+        FIELD_TOP + self.shift()
+    }
+    fn field_top(self) -> f32 {
+        self.model_y() + if self.model_row { MODEL_ROW } else { 0.0 }
+    }
+    fn field_height(self) -> f32 {
+        self.lines as f32 * LINE + FIELD_PAD_Y * 2.0
+    }
+    fn info_y(self) -> f32 {
+        self.field_top() + self.field_height() + 12.0
+    }
+    fn message_y(self) -> f32 {
+        self.info_y() + 28.0
+    }
+    fn buttons_y(self) -> f32 {
+        self.top + self.height - MARGIN - BUTTON_HEIGHT
+    }
+}
+
 /// What the card shows this frame, borrowed from the dialog.
 struct View<'a> {
     kind: &'a Kind,
+    /// Where its parts sit.
+    geometry: Geometry,
     text: &'a str,
     focus: Focus,
     message: &'a str,
@@ -123,13 +185,16 @@ impl TextDialog {
             ui,
             epoch,
             phase,
+            card,
             ..
         } = self
         else {
             return;
         };
+        let geometry = Geometry::of(kind);
         let view = View {
             kind,
+            geometry,
             text,
             focus: *focus,
             message,
@@ -150,8 +215,16 @@ impl TextDialog {
         } else {
             kit::scrim(ui, viewport);
         }
-        kit::card(ui, &frame, [CARD_X, CARD_TOP, CARD_WIDTH, CARD_HEIGHT]);
+        kit::card(
+            ui,
+            &frame,
+            [CARD_X, geometry.top, CARD_WIDTH, geometry.height],
+        );
+        *card = Some(frame.rect(CARD_X, geometry.top, CARD_WIDTH, geometry.height));
         heading(ui, &frame, display, &view);
+        if geometry.model_row {
+            model_row(ui, &frame, body, &view);
+        }
         field(ui, &frame, body, style, layout, &view);
         if *phase == Phase::Writing {
             info(ui, &frame, &view);
@@ -162,6 +235,7 @@ impl TextDialog {
             (Phase::Writing, Focus::Field) => FIELD_TOKEN,
             (Phase::Writing, Focus::Send) => SEND_TOKEN,
             (Phase::Writing, Focus::Cancel) => CANCEL_TOKEN,
+            (Phase::Writing, Focus::ClearModel) => CLEAR_MODEL_TOKEN,
             (Phase::Failed(_), Focus::Send) => EDIT_TOKEN,
             _ => CLOSE_TOKEN,
         });
@@ -183,7 +257,7 @@ fn heading(ui: &mut MenuCanvas, frame: &Frame, display: &UiFont, view: &View<'_>
         ui,
         TextFamily::Display,
         format_args!("{title}"),
-        frame.rect(TEXT_X, EYEBROW_Y, TEXT_WIDTH, 30.0),
+        frame.rect(TEXT_X, view.geometry.eyebrow_y(), TEXT_WIDTH, 30.0),
         22.0 * s,
         color::GOLD_BRIGHT,
         FontWeight::Semibold,
@@ -193,7 +267,7 @@ fn heading(ui: &mut MenuCanvas, frame: &Frame, display: &UiFont, view: &View<'_>
         ui,
         TextFamily::Body,
         format_args!("{bound}"),
-        frame.rect(TEXT_X, EYEBROW_Y + 3.0, TEXT_WIDTH, 26.0),
+        frame.rect(TEXT_X, view.geometry.eyebrow_y() + 3.0, TEXT_WIDTH, 26.0),
         16.0 * s,
         color::MUTED,
         FontWeight::Regular,
@@ -212,7 +286,7 @@ fn heading(ui: &mut MenuCanvas, frame: &Frame, display: &UiFont, view: &View<'_>
         ui,
         TextFamily::Display,
         format_args!("{shown}{}", if cut { "..." } else { "" }),
-        frame.rect(TEXT_X, HEADLINE_Y, TEXT_WIDTH, 52.0),
+        frame.rect(TEXT_X, view.geometry.headline_y(), TEXT_WIDTH, 52.0),
         HEADLINE_SIZE * s,
         color::TEXT,
         FontWeight::Semibold,
@@ -225,7 +299,7 @@ fn heading(ui: &mut MenuCanvas, frame: &Frame, display: &UiFont, view: &View<'_>
             format_args!("{value}"),
             frame.rect(
                 TEXT_X,
-                DETAIL_Y + line as f32 * DETAIL_LINE,
+                view.geometry.detail_y() + line as f32 * DETAIL_LINE,
                 TEXT_WIDTH,
                 DETAIL_LINE,
             ),
@@ -239,7 +313,7 @@ fn heading(ui: &mut MenuCanvas, frame: &Frame, display: &UiFont, view: &View<'_>
         (Phase::Writing, Kind::Report) => {
             "Where were you, what did you do, and what did you expect? The map, the build and the server you are on go with it."
         }
-        (Phase::Writing, Kind::Note { subject }) => subject.as_str(),
+        (Phase::Writing, Kind::Note { subject, .. }) => subject.as_str(),
         (Phase::Writing, Kind::PlayerReport { .. }) => {
             "What did they do? The report names them with the server, the map and the match clock."
         }
@@ -258,6 +332,70 @@ fn heading(ui: &mut MenuCanvas, frame: &Frame, display: &UiFont, view: &View<'_>
     for (line, part) in wrap(guidance, DETAIL_CHARS).take(DETAIL_LINES).enumerate() {
         detail(line, &part);
     }
+}
+
+/// A note's model row: the model it is about with Clear model at the right, or how to
+/// pick one with the pointer.
+fn model_row(ui: &mut MenuCanvas, frame: &Frame, body: &UiFont, view: &View<'_>) {
+    let s = frame.s;
+    let Kind::Note { model, .. } = view.kind else {
+        return;
+    };
+    let top = view.geometry.model_y();
+    let middle = top + (MODEL_ROW - 12.0) * 0.5;
+    let writing = *view.phase == Phase::Writing;
+    let Some(path) = model else {
+        text(
+            ui,
+            TextFamily::Body,
+            format_args!("Click the scene round this card to note what is there, a model too"),
+            frame.rect(TEXT_X, middle - 12.0, TEXT_WIDTH, 24.0),
+            16.0 * s,
+            color::MUTED,
+            FontWeight::Regular,
+            TextAlign::Start,
+        );
+        return;
+    };
+    let label = "Clear model";
+    let width = button_width(label);
+    text(
+        ui,
+        TextFamily::Display,
+        format_args!("MODEL"),
+        frame.rect(TEXT_X, middle - 12.0, 80.0, 24.0),
+        17.0 * s,
+        color::GOLD_BRIGHT,
+        FontWeight::Semibold,
+        TextAlign::Start,
+    );
+    let room = TEXT_WIDTH - 80.0 - width - BUTTON_GAP;
+    let (shown, cut) = fit(body, path, 17.0 * s, room * s);
+    text(
+        ui,
+        TextFamily::Body,
+        format_args!("{shown}{}", if cut { "..." } else { "" }),
+        frame.rect(TEXT_X + 80.0, middle - 12.0, room, 24.0),
+        17.0 * s,
+        color::TEXT,
+        FontWeight::Regular,
+        TextAlign::Start,
+    );
+    kit::button(
+        ui,
+        frame,
+        [
+            TEXT_X + TEXT_WIDTH - width,
+            middle - MODEL_BUTTON_HEIGHT * 0.5,
+            width,
+            MODEL_BUTTON_HEIGHT,
+        ],
+        label,
+        false,
+        writing,
+        view.focus == Focus::ClearModel,
+        CLEAR_MODEL_TOKEN,
+    );
 }
 
 /// The longest start of `value` that fits `width` pixels at `size` in `font`, and
@@ -294,7 +432,13 @@ fn field(
     let writing = *view.phase == Phase::Writing;
     let focused = writing && view.focus == Focus::Field;
     let hovered = ui.token_hovered(FIELD_TOKEN);
-    let rect = frame.rect(TEXT_X, FIELD_TOP, TEXT_WIDTH, FIELD_HEIGHT);
+    let geometry = view.geometry;
+    let rect = frame.rect(
+        TEXT_X,
+        geometry.field_top(),
+        TEXT_WIDTH,
+        geometry.field_height(),
+    );
     let _ = ui.draw_list_mut().push(DrawCommand::RoundedRect {
         rect,
         radius: 14.0 * s,
@@ -318,7 +462,7 @@ fn field(
     let row = |line: usize| {
         frame.rect(
             left,
-            FIELD_TOP + FIELD_PAD_Y + line as f32 * LINE,
+            geometry.field_top() + FIELD_PAD_Y + line as f32 * LINE,
             inner,
             LINE,
         )
@@ -332,7 +476,7 @@ fn field(
     layout.lay_out(view.text, &face, inner * s);
     let (caret_line, caret_x) = layout.locate(view.text, view.cursor);
     let top = row(0);
-    layout.show(caret_line, LINES, [top.x, top.y], row(1).y - top.y);
+    layout.show(caret_line, geometry.lines, [top.x, top.y], row(1).y - top.y);
     let (first, shown) = layout.visible();
     if view.text.is_empty() {
         // Held clear of the caret whenever the field has the keyboard, so it does not
@@ -396,7 +540,12 @@ fn info(ui: &mut MenuCanvas, frame: &Frame, view: &View<'_>) {
         ui,
         TextFamily::Body,
         format_args!("{RULES}"),
-        frame.rect(TEXT_X + 4.0, INFO_Y, TEXT_WIDTH - 160.0, 24.0),
+        frame.rect(
+            TEXT_X + 4.0,
+            view.geometry.info_y(),
+            TEXT_WIDTH - 160.0,
+            24.0,
+        ),
         15.0 * s,
         color::MUTED,
         FontWeight::Regular,
@@ -408,7 +557,12 @@ fn info(ui: &mut MenuCanvas, frame: &Frame, view: &View<'_>) {
         ui,
         TextFamily::Display,
         format_args!("{count} / {limit}"),
-        frame.rect(TEXT_X + TEXT_WIDTH - 150.0, INFO_Y, 146.0, 24.0),
+        frame.rect(
+            TEXT_X + TEXT_WIDTH - 150.0,
+            view.geometry.info_y(),
+            146.0,
+            24.0,
+        ),
         18.0 * s,
         if count >= limit {
             color::GOLD_BRIGHT
@@ -429,7 +583,8 @@ fn info(ui: &mut MenuCanvas, frame: &Frame, view: &View<'_>) {
         None
     };
     if let Some(reason) = reason {
-        let band = frame.rect(TEXT_X, MESSAGE_Y - 2.0, TEXT_WIDTH, 28.0);
+        let message_y = view.geometry.message_y();
+        let band = frame.rect(TEXT_X, message_y - 2.0, TEXT_WIDTH, 28.0);
         let _ = ui.draw_list_mut().push(DrawCommand::RoundedRect {
             rect: band,
             radius: 8.0 * s,
@@ -439,7 +594,7 @@ fn info(ui: &mut MenuCanvas, frame: &Frame, view: &View<'_>) {
             ui,
             TextFamily::Body,
             format_args!("{}", Sentence(reason)),
-            frame.rect(TEXT_X + 12.0, MESSAGE_Y, TEXT_WIDTH - 24.0, 24.0),
+            frame.rect(TEXT_X + 12.0, message_y, TEXT_WIDTH - 24.0, 24.0),
             16.0 * s,
             WARN,
             FontWeight::Regular,
@@ -457,7 +612,8 @@ fn button_width(label: &str) -> f32 {
 /// Enter takes, gold, at the right end).
 fn foot(ui: &mut MenuCanvas, frame: &Frame, view: &View<'_>) {
     let s = frame.s;
-    let middle = BUTTONS_Y + BUTTON_HEIGHT * 0.5;
+    let buttons_y = view.geometry.buttons_y();
+    let middle = buttons_y + BUTTON_HEIGHT * 0.5;
     let status = |ui: &mut MenuCanvas, x: f32, value: &str, colour: Color| {
         text(
             ui,
@@ -524,7 +680,7 @@ fn foot(ui: &mut MenuCanvas, frame: &Frame, view: &View<'_>) {
         kit::button(
             ui,
             frame,
-            [right, BUTTONS_Y, width, BUTTON_HEIGHT],
+            [right, buttons_y, width, BUTTON_HEIGHT],
             button.label,
             button.primary,
             button.enabled,
@@ -600,6 +756,12 @@ const _: () = assert!(DETAIL_Y + DETAIL_LINES as f32 * DETAIL_LINE <= FIELD_TOP)
 const _: () = assert!(MESSAGE_Y + 24.0 + 12.0 <= BUTTONS_Y);
 const _: () = assert!(CARD_TOP + CARD_HEIGHT < KEYS_Y - 20.0);
 const _: () = assert!(CARD_TOP >= 100.0);
+// A note's card, taller for its field and model row, still sits inside the frame's
+// margins and ends above the keys.
+const NOTE_HEIGHT: f32 = CARD_HEIGHT + (NOTE_LINES - LINES) as f32 * LINE + MODEL_ROW;
+const _: () = assert!((1080.0 + NOTE_HEIGHT) * 0.5 < KEYS_Y - 20.0);
+const _: () = assert!((1080.0 - NOTE_HEIGHT) * 0.5 >= 100.0);
+const _: () = assert!(MODEL_BUTTON_HEIGHT < MODEL_ROW);
 
 #[cfg(test)]
 mod tests {
@@ -638,8 +800,9 @@ mod tests {
 
     fn note() -> Kind {
         Kind::Note {
-            subject: "Wall: textures/mp/ffa_wall2 (lightmapped, BSP surface 1432) on mp/ffa3"
+            subject: "misc_model_static models/map_objects/taspir/lamp2_double.md3 (models/map_objects/taspir/lamp remapped to textures/video/raven), 212 units"
                 .into(),
+            model: Some("models/map_objects/taspir/lamp2_double_with_a_much_longer_name_than_usual.md3".into()),
         }
     }
 
@@ -1118,5 +1281,87 @@ mod tests {
         typed(&mut dialog, " door on ffa3");
         draw(&mut dialog, &fonts, viewport);
         assert!(!band(&dialog), "sendable text has nothing to explain");
+    }
+
+    /// A note's card is taller, for its model row and ten lines of text, and holds Clear
+    /// model while the note has a model; Tab reaches it last and Enter or a click on it
+    /// asks for the model to go; once gone, the row says how to pick one.
+    #[test]
+    fn a_notes_model_row_clears_the_model() {
+        let fonts = fonts();
+        let viewport = [1920.0, 1080.0];
+        let mut dialog = sjk(note());
+        typed(&mut dialog, &format!("{LONG} {LONG} {LONG}"));
+        draw(&mut dialog, &fonts, viewport);
+        let geometry = Geometry::of(&note());
+        assert!(geometry.height > CARD_HEIGHT && geometry.lines == super::super::NOTE_LINES);
+        let card = Rect::new(CARD_X, geometry.top, CARD_WIDTH, geometry.height);
+        assert_eq!(dialog.card, Some(card));
+        let inside = |rect: Rect| {
+            rect.x >= card.x
+                && rect.y >= card.y
+                && rect.right() <= card.right()
+                && rect.bottom() <= card.bottom()
+        };
+        for token in [FIELD_TOKEN, SEND_TOKEN, CANCEL_TOKEN, CLEAR_MODEL_TOKEN] {
+            assert!(inside(dialog.ui.rect_for(token).expect("drawn")), "{token}");
+        }
+        // The field sits under the model row and shows more lines than a report's.
+        let field = dialog.ui.rect_for(FIELD_TOKEN).expect("the field");
+        let clear = dialog.ui.rect_for(CLEAR_MODEL_TOKEN).expect("Clear model");
+        assert!(clear.bottom() <= field.y);
+        assert_eq!(dialog.layout.visible().1.len(), super::super::NOTE_LINES);
+        // Tab: field, Send, Cancel, Clear model, field.
+        for focus in [Focus::Send, Focus::Cancel, Focus::ClearModel, Focus::Field] {
+            dialog.key(KeyCode::Tab, None);
+            assert_eq!(dialog.focus, focus);
+        }
+        dialog.set_shift(true);
+        dialog.key(KeyCode::Tab, None);
+        assert_eq!(dialog.focus, Focus::ClearModel);
+        dialog.set_shift(false);
+        assert_eq!(dialog.key(KeyCode::Enter, None), Action::ClearModel);
+        draw(&mut dialog, &fonts, viewport);
+        assert_eq!(click(&mut dialog, CLEAR_MODEL_TOKEN), Action::ClearModel);
+        // The caller clears it: the row and the focus follow, the text stays.
+        dialog.set_note(
+            "textures/test/wall (surface 3, lightmapped), 400 units".into(),
+            None,
+        );
+        assert_eq!(dialog.focus, Focus::Field);
+        assert!(dialog.text.starts_with("The door"));
+        draw(&mut dialog, &fonts, viewport);
+        assert!(dialog.ui.rect_for(CLEAR_MODEL_TOKEN).is_none());
+        for focus in [Focus::Send, Focus::Cancel, Focus::Field] {
+            dialog.key(KeyCode::Tab, None);
+            assert_eq!(dialog.focus, focus);
+        }
+    }
+
+    /// A press on the scene round a note's card asks to note what is there; inside the
+    /// card, or round a report's, it does not.
+    #[test]
+    fn a_click_round_a_notes_card_picks_in_the_scene() {
+        let fonts = fonts();
+        let viewport = [1920.0, 1080.0];
+        let press = |dialog: &mut TextDialog, at: Vec2| {
+            dialog.handle_pointer(InputEvent::PointerPress {
+                position: at,
+                button: PointerButton::Primary,
+            })
+        };
+        let mut dialog = sjk(note());
+        draw(&mut dialog, &fonts, viewport);
+        assert_eq!(
+            press(&mut dialog, Vec2::new(120.0, 540.0)),
+            Action::PickAt([120.0, 540.0])
+        );
+        assert_ne!(
+            press(&mut dialog, Vec2::new(960.0, 540.0)),
+            Action::PickAt([960.0, 540.0])
+        );
+        let mut report = sjk(Kind::Report);
+        draw(&mut report, &fonts, viewport);
+        assert_eq!(press(&mut report, Vec2::new(120.0, 540.0)), Action::None);
     }
 }

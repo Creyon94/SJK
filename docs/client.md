@@ -2898,25 +2898,44 @@ nothing a glance at the scoreboard would not: no health, Force or position.
   lighting, distance). When a remap (the map's, the server's or a local `remapShader`)
   draws another shader over the surface, the print, `notes.txt` and `notes.jsonl`
   (`surface.remapped_to`) name it too (`<shader> remapped to <target>`): on a server
-  what the player saw is often the remap's target (08/10/2026). The hub still gets the
-  map's own shader. While selected, and while its note is written, the surface's
-  triangle edges (a mover's bounds) are traced over the view in flickering green dots
+  what the player saw is often the remap's target (08/10/2026). Since 13/10/2026 the hub
+  gets both (`shader` and `remapped`), and every note keeps the remaps active when it
+  was taken, as `listRemaps` lists them without those a later remap hides
+  (`remaps`: source `map`, `server` or `local`, `from`, `to`). A model drawn from the
+  map's entities comes first when the view ray meets one of its triangles before the
+  world (13/10/2026): any entity naming an MD3 (`misc_model_static` props, which the
+  client draws from the map, and breakables or other server entities where the map
+  places them), read once per map on a press and tested on its first frame, turned and
+  scaled as the entity says. The print names its class, path and first shader (with
+  its remap); the note keeps `model` (path, class, entity number, targetname, origin,
+  angles, scale, skin key, and every surface's shader with `remapped_to`), names the
+  model's entity in `entity` and leaves `surface` out. A GLM model or a server entity
+  that moved is not picked. While selected, and while its note is written, the surface's
+  triangle edges (a mover's bounds; a model's folds, or its turned bounds when it has
+  more than 512 triangles) are traced over the view in flickering green dots
   (at most 600 a frame) over a green scanline shade of its triangles (horizontal strips
   with a brighter wave running down them, at most 800 a frame; cut where the surface
   passes behind the eye, so a floor underfoot keeps its visible part). Escape before the second press drops the selection (it does not
   open the game menu then). A second press within 20 seconds opens the text dialog
   ([text_dialog.rs](../crates/sjk-viewer/src/text_dialog.rs)): a panel in the middle of
-  the screen with the subject, a text box of six wrapped lines (any printable text, up to
-  500 characters), a character count, Send and Cancel; Tab moves between them. With the
+  the screen with the subject, a text box of wrapped lines (ten in the SJK UI's card,
+  scrolling to keep the caret in view; up to 4000 characters since 13/10/2026, 500
+  before), a character count, Send and Cancel; Tab moves between them. A note about a
+  model shows the model with Clear model (Tab reaches it last), which notes what is
+  behind the model instead; a click on the scene round the dialog selects what is under
+  the pointer (a model too) for the note, the text kept. With the
   classic menus it takes the classic+ look of the in-game pop-ups, eight lines in a
-  retail list box ([identity.md](identity.md#bug-reports)); with the SJK UI it is its
+  retail list box with Clear left of Send ([identity.md](identity.md#bug-reports)); with
+  the SJK UI it is its
   pop-up card over the scene, darkened by half so the selection still shows round it
-  ([sjk-ui.md](sjk-ui.md#report-a-bug-and-its-dialogs)). As it is typed the text
+  ([sjk-ui.md](sjk-ui.md#report-a-bug-and-its-dialogs)). The selection's outline also
+  shows over a map explored without a server. As it is typed the text
   keeps the bug reports' alphabet (letters, digits, spaces and `. , ! ? ' - : ( )`), and
   Send needs 3 characters with 2 letters. Enter or
   Send appends the note to `notes.jsonl` (one JSON object: map, UTC time,
   `setviewpos`, camera pose, hit point and normal, draw surface, collision flags,
-  nearest map entity, screenshot path) and a readable line to `notes.txt` in the config
+  nearest map entity, and since 13/10/2026 `model` and `remaps`, screenshot path; older
+  lines lack the new keys) and a readable line to `notes.txt` in the config
   directory, and takes a silent JPEG of the same view (`note_<unix seconds>.jpg` in the
   screenshots folder; JPEG screenshots drop the alpha channel, which the encoder
   refused before, so `screenshotjpeg` works too). With `cl_identity` on, the note and a

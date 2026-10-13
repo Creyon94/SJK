@@ -1,5 +1,26 @@
 # Status and priorities
 
+## World notes: longer, with remaps and models
+
+Branch `personal/worldnote-plus` (13/10/2026), Sol's request: longer notes, the shader
+remaps in play, and models. A note takes 4000 characters (500 before; the hub's and the
+client's rule together, its body up to 48 KiB), in a note card of ten lines. Every note
+keeps the remaps active when it was taken (`remaps`, as `listRemaps` resolves them) and
+the hub gets the noted shader's remap (`remapped`). A map entity drawing an MD3 is
+selected when the view ray meets its triangles before the world
+([world_notes_models.rs](../crates/sjk-viewer/src/world_notes_models.rs)); the note keeps
+`model` (path, entity, placement, shaders with their remaps), Clear model drops it, and a
+click on the scene round the card selects there. The hub takes the new fields on branch
+`worldnote-plus` of the hub, not deployed: a hub from before refuses a note carrying
+them, so the hub must be deployed before a client with this ships. The world shots of
+notes make each note's recorded server and console remaps again. Verified: unit tests
+(the limit on both sides, the hub client's body, a turned and scaled model picked on its
+triangles, a note about a model, Clear model, a click's ray, the card's model row, keys
+and pointer, the remap listing), the hub's API tests, and the GPU world shots
+`duel6_note_model` (a duel6 rock selected through `worldnote`, outlined, its card,
+then cleared) and `duel6_sjk_report` looked at. Not tried in a game, nor against the
+deployed hub.
+
 ## Team outlines and logos
 
 Branch `personal/team-outline` (13/10/2026), Sol's request: the player card's ring at

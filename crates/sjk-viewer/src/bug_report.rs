@@ -39,6 +39,8 @@ impl crate::GpuState {
             Action::Send(Kind::PlayerReport { category, .. }, text) => {
                 self.send_player_report(category, &text)
             }
+            Action::ClearModel => self.world_note_clear_model(),
+            Action::PickAt(point) => self.world_note_pick_at(point),
         }
         self.sync_cursor_policy();
     }
