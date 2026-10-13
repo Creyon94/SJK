@@ -1043,6 +1043,17 @@ test: r_showBrushesTypes "teleport push": only those; empty it to get the set ba
 test: Settings > Game options: the row steps 0/1/2 in both menu styles.
 note: Off on the menu map. Movers show where the map file puts them, not live (see show-movers).
 
+[entity-view]
+area: Rendering & effects
+title: Map entities: lights, spawns, origins, items marked through walls, pickable by world notes
+change: r_showEntities 1 marks lights, spawns, origins, items, targets; 2 adds sounds, props, more.
+change: r_showEntitiesTypes "light spawn" picks kinds; Settings > Game options > Map entities.
+change: A world note aimed at a marker (even behind a wall) selects that entity: class, name, origin.
+test: devmap mp/ffa3, then r_showEntities 1: coloured squares with class names show through walls.
+test: Aim at a light marker, press World note twice: the subject is that light and its origin.
+test: r_showEntitiesTypes "spawn": only spawns; empty it to get the set back; 0 hides all.
+note: Markers are not depth tested, so they show through walls. Labels only within 1500 units.
+
 [show-movers]
 area: Rendering & effects
 title: Movers in the brush view: doors, lifts, buttons, trains and their travel boxes

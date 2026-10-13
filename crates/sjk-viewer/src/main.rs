@@ -31,6 +31,7 @@ mod cinematic_roq;
 mod client_guid;
 mod client_state;
 mod clientinfo_refresh;
+mod entity_view;
 
 mod shader_image;
 
@@ -450,6 +451,8 @@ struct GpuState {
     trace_scratch: TraceScratch,
     /// `worldnote`: the selection and the note being written.
     world_notes: world_notes::Notes,
+    /// Map entity markers (`r_showEntities`).
+    entity_view: entity_view::EntityView,
     /// `+ping`: the pings on show and their limits (`world_ping`).
     world_pings: world_ping::WorldPings,
     /// The note and bug report panel, and the Report a bug button (`text_dialog`).
@@ -1353,6 +1356,7 @@ impl GpuState {
             bsp: Arc::new(bsp),
             trace_scratch,
             world_notes: world_notes::Notes::default(),
+            entity_view: Default::default(),
             world_pings: world_ping::WorldPings::default(),
             text_dialog: text_dialog::TextDialog::default(),
             medal_popup: medal_popup::MedalPopup::default(),
@@ -1886,6 +1890,10 @@ impl GpuState {
             viewport,
             information_visible && intermission_view.is_none() && !scoreboard_held,
         );
+        self.append_entity_view(
+            viewport,
+            information_visible && intermission_view.is_none() && !scoreboard_held,
+        );
         if information_visible && intermission_view.is_none() {
             hud_runtime::append(
                 self,
@@ -2057,6 +2065,7 @@ impl GpuState {
                 .map(menu::ClientMenu::world_fade),
             self.world_notes.fill(),
             self.world_notes.highlight(),
+            self.entity_view.active().then(|| self.entity_view.list()),
             Some(&self.world_pings.list),
             information_visible.then(|| &self.hud.team_logo.list),
             information_visible.then(|| &self.hud.nameplate.list),

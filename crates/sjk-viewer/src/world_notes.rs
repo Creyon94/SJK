@@ -206,7 +206,16 @@ impl Selection {
                 surface.index,
                 lighting(surface.lightmap)
             ),
-            (None, Some(entity)) => entity.classname.clone(),
+            (None, Some(entity)) => {
+                let mut what = entity.classname.clone();
+                if !entity.targetname.is_empty() {
+                    what.push_str(&format!(" \"{}\"", entity.targetname));
+                }
+                if !entity.origin.is_empty() {
+                    what.push_str(&format!(" at {}", entity.origin));
+                }
+                what
+            }
             (None, None) => "nothing".to_owned(),
         };
         format!("{what}, {:.0} units", self.distance)
@@ -810,6 +819,8 @@ pub(crate) struct Scene<'a> {
     pub(crate) map: &'a str,
     /// The remaps active now ([`Remap`]), in application order.
     pub(crate) remaps: Vec<Remap>,
+    /// The entity markers on show (`r_showEntities`): they are picked before the world.
+    pub(crate) markers: Vec<crate::entity_view::Marker>,
 }
 
 /// The selection's subject and its model's path, for the note dialog.
@@ -862,6 +873,9 @@ impl Notes {
         camera: &CameraUniform,
         direction: Vec3,
     ) -> Option<Selection> {
+        if let Some(selection) = self.select_marker(&scene, camera, direction) {
+            return Some(selection);
+        }
         let world = pick(
             scene.bsp,
             scene.surfaces,
@@ -915,6 +929,47 @@ impl Notes {
         }
         selection.remaps = scene.remaps;
         Some(selection)
+    }
+
+    /// The entity marker the view ray passes closest to, if the markers are on show:
+    /// they draw through walls, so the one aimed at wins over whatever is behind it.
+    fn select_marker(
+        &self,
+        scene: &Scene<'_>,
+        camera: &CameraUniform,
+        direction: Vec3,
+    ) -> Option<Selection> {
+        let eye = Vec3::from_array(camera.camera_position);
+        let direction = direction.normalize_or_zero();
+        let (marker, distance) = crate::entity_view::Marker::aim(&scene.markers, eye, direction)?;
+        let entities = sjk_entity::parse_entity_lump(scene.bsp.entities()).ok()?;
+        let source = entities.get(marker.number)?;
+        let text = |key: &str| source.get(key).unwrap_or("").to_owned();
+        let (low, high) = marker.bounds();
+        Some(Selection {
+            map: scene.map.to_owned(),
+            pose: camera.viewpos(),
+            eye,
+            forward: Vec3::from_array(camera.view_forward),
+            hit: marker.origin,
+            normal: -direction,
+            distance,
+            surface: None,
+            entity: Some(Entity {
+                number: marker.number,
+                classname: text("classname"),
+                targetname: text("targetname"),
+                model: text("model"),
+                origin: text("origin"),
+                shaders: Vec::new(),
+            }),
+            collision: None,
+            edges: box_edges(low, high),
+            triangles: box_triangles(low, high),
+            selected: Instant::now(),
+            model: None,
+            remaps: scene.remaps.clone(),
+        })
     }
 
     /// A click at `point` (physical pixels) on the scene round the note dialog: what is
@@ -1154,6 +1209,7 @@ impl crate::GpuState {
             vfs: self.vfs.as_deref(),
             map: &map,
             remaps,
+            markers: self.entity_view.pickable(),
         });
         let centre = |text: String| (sjk_client::ServerEventKind::CenterPrint, text);
         let (kind, text) = match press {
@@ -1189,6 +1245,7 @@ Press World note again to write a note, Escape to drop it"
                 vfs: self.vfs.as_deref(),
                 map: &map,
                 remaps,
+                markers: self.entity_view.pickable(),
             },
             point,
         );

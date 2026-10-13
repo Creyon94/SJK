@@ -115,6 +115,9 @@ const CHOICE_NAMES: &[(&str, &str, &str)] = &[
     (crate::brush_view::CVAR, "0", "Off"),
     (crate::brush_view::CVAR, "1", "Gameplay"),
     (crate::brush_view::CVAR, "2", "All"),
+    (crate::entity_view::CVAR, "0", "Off"),
+    (crate::entity_view::CVAR, "1", "Common"),
+    (crate::entity_view::CVAR, "2", "All"),
     ("r_DynamicGlow", "0", "Off"),
     ("r_DynamicGlow", "1", "On"),
     ("r_DynamicGlow", "2", "Sabers"),
@@ -521,6 +524,10 @@ const HELP: &[(&str, &str)] = &[
     (
         crate::brush_view::CVAR,
         "Shows invisible brushes (clip, trigger...) and movers (doors, lifts) see-through, as Radiant does: those of gameplay, or all.",
+    ),
+    (
+        crate::entity_view::CVAR,
+        "Marks the map's entities (lights, spawns, origins, items...) through walls with their names. A world note can pick them.",
     ),
     (
         crate::rarity_fx::CVAR,

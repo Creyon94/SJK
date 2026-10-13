@@ -99,6 +99,7 @@ const MODS_ROWS: &[&str] = &[
     "mod_japlus",
     "mod_jof",
     crate::brush_view::CVAR,
+    crate::entity_view::CVAR,
     crate::ghost_replay::SHOWCASE_CVAR,
 ];
 
@@ -285,6 +286,7 @@ impl Group {
                 "mod_japlus",
                 "mod_jof",
                 crate::brush_view::CVAR,
+                crate::entity_view::CVAR,
                 crate::ghost_replay::SHOWCASE_CVAR,
             ],
             Self::Interface => &[

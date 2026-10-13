@@ -9,6 +9,12 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 14/10/2026 | - | Add r_showEntities: map entity markers a world note can pick
+- e9f2366 |  | Add r_showEntities: map entity markers a world note can pick
++ 13/10/2026 | - | Order the credits history by commit date
+- 794cceb |  | Order the credits history by commit date
++ 13/10/2026 | - | Allow the euro sign in chat and add a Retry button for refused messages
+- dc8c507 |  | Allow the euro sign in chat and add a Retry button for refused messages
 + 13/10/2026 | - | Update the credits history
 - 4f28360 |  | Update the credits history
 + 13/10/2026 | - | Credit Creyon's PR #100
@@ -47,8 +53,6 @@
 - 6dff278 |  | Settings icons in gold and navy, from Sol's five icon sheets
 + 13/10/2026 | - | SJK Symbols, our own font of rarity and finish marks
 - c6294d2 |  | SJK Symbols: SJK's own symbol font for rarities and finishes
-+ 13/10/2026 | - | Allow the euro sign in chat and add a Retry button for refused messages
-- dc8c507 |  | Allow the euro sign in chat and add a Retry button for refused messages
 + 12/10/2026 | - | SJK channel and bios take Japanese
 - b8c6814 |  | SJK channel and bios take Japanese: kana, kanji and Japanese punctuation
 + 12/10/2026 | - | Card light inside rounded corners, card 001 renamed

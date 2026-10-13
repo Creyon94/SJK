@@ -737,6 +737,11 @@ pub(super) const GAME: &[Setting] = &[
         cvar: crate::brush_view::CVAR,
         kind: ValueKind::Choice(&["0", "1", "2"]),
     },
+    Setting {
+        label: "Map entities",
+        cvar: crate::entity_view::CVAR,
+        kind: ValueKind::Choice(&["0", "1", "2"]),
+    },
     // Experimental features, off by default.
     Setting {
         label: "Experimental: showcase tools (ghost, mimic)",
