@@ -23,6 +23,12 @@ tests check this file):
 - ASCII only, as the menu font draws bytes.
 Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 -->
+## Unreleased
+
+> World notes: Write up to a page, and note a model too; the note keeps the shader remaps in play.
+
+- World notes take up to 4000 characters (500 before) in a taller note card of ten lines; a note keeps every shader remap active when it was taken (the map's, the server's and the console's, with the remapped shader beside the map's own); aiming at a model drawn from the map (a `misc_model_static` prop, a breakable) selects that model, outlined in green, and the note names its path, entity, placement and every shader with its remap; Clear model in the card notes what is behind it, and a click on the scene round the card notes what is under the pointer; all of it goes to the SJK team with the note _(Sol)_
+
 ## 2026.1013.1 (Alpha) | 13/10/2026
 
 Settings in two modes, Simple and Advanced, with new holocron icons and the choice of Vanilla or the SJK renderer, trading cards with faces, a character creator of tiles, and chat in Russian, Japanese, Chinese, Korean and emoji.

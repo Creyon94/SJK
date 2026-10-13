@@ -195,6 +195,21 @@ impl Runtime {
     ) -> Vec<String> {
         self.remaps.map.listing(server)
     }
+    /// Drop the console's remaps only, the map's kept: the world shots of notes apply
+    /// each note's remaps in turn.
+    #[cfg(test)]
+    pub(crate) fn clear_console_remaps(&mut self) {
+        self.remaps.map.clear_local();
+        self.remaps.applied = None;
+    }
+    /// Map, server and local remaps with their sources, in application order, for
+    /// world notes.
+    pub(crate) fn remap_entries<'a>(
+        &'a self,
+        server: Option<&'a sjk_client::ShaderRemapTable>,
+    ) -> Vec<super::map_remaps::RemapEntry<'a>> {
+        self.remaps.map.entries(server)
+    }
     /// Drop the map's and the console's remaps for `clearRemaps`, as EternalJK's
     /// renderer command resets every shader, worldspawn remaps included.
     pub(crate) fn clear_local_remaps(&mut self) {

@@ -9,7 +9,9 @@
 //! closer, so a surface that dynamic light does not reach stands out. The player's
 //! own renderer settings (`r_*` in `<GameData>/SJK/config.cfg`) apply, and
 //! `SJK_NOTES_CVARS` (`name=value,name=value`) changes some for a comparison;
-//! `SJK_NOTES_REMAP` (`old=new;old=new`) remaps shaders as a server would.
+//! `SJK_NOTES_REMAP` (`old=new;old=new`) remaps shaders as a server would. A note that
+//! recorded the remaps active when it was taken (`remaps`, since 13/10/2026) has its
+//! server and console ones made again for its views; the map's own apply anyway.
 
 use super::*;
 use crate::dynamic_lights::PointLight;
@@ -25,6 +27,10 @@ struct NoteView {
     hit: [f32; 3],
     normal: [f32; 3],
     shader: String,
+    /// The server and console remaps the note recorded: (shader, drawn instead).
+    remaps: Vec<(String, String)>,
+    /// The model the note is about, if any.
+    model: String,
 }
 
 fn read_notes(game_data: &std::path::Path) -> Vec<NoteView> {
@@ -68,6 +74,23 @@ fn read_notes(game_data: &std::path::Path) -> Vec<NoteView> {
             hit,
             normal,
             shader: note["surface"]["shader"]
+                .as_str()
+                .or_else(|| note["model"]["shaders"][0]["shader"].as_str())
+                .unwrap_or_default()
+                .to_owned(),
+            remaps: note["remaps"]
+                .as_array()
+                .into_iter()
+                .flatten()
+                .filter(|remap| remap["source"].as_str() != Some("map"))
+                .filter_map(|remap| {
+                    Some((
+                        remap["from"].as_str()?.to_owned(),
+                        remap["to"].as_str()?.to_owned(),
+                    ))
+                })
+                .collect(),
+            model: note["model"]["path"]
                 .as_str()
                 .unwrap_or_default()
                 .to_owned(),
@@ -155,22 +178,26 @@ fn world_notes() {
             };
             // `SJK_NOTES_REMAP=old=new;old=new`: shader remaps as a server sends them,
             // made as the console's `remapShader` makes them.
-            let remaps = std::env::var("SJK_NOTES_REMAP").unwrap_or_default();
-            for pair in remaps.split(';').filter(|pair| !pair.is_empty()) {
-                let Some((old, new)) = pair.split_once('=') else {
-                    continue;
-                };
-                // The frame's own remap refresh applies it, as after the console command.
-                let vfs = gpu.vfs.clone().expect("a map's files");
-                if let Err(error) = gpu
-                    .world_materials
-                    .local_remap(&vfs, &gpu.shaders, old, new)
-                {
-                    eprintln!("remap {old} -> {new}: {error}");
-                }
-            }
+            let asked: Vec<(String, String)> = std::env::var("SJK_NOTES_REMAP")
+                .unwrap_or_default()
+                .split(';')
+                .filter_map(|pair| pair.split_once('='))
+                .map(|(old, new)| (old.to_owned(), new.to_owned()))
+                .collect();
             let _ = frame(&mut gpu, 30);
             for note in notes.iter().filter(|note| note.map == map) {
+                // The note's own remaps, then the asked ones; the frame's own remap
+                // refresh applies them, as after the console command.
+                gpu.world_materials.clear_console_remaps();
+                let vfs = gpu.vfs.clone().expect("a map's files");
+                for (old, new) in note.remaps.iter().chain(&asked) {
+                    if let Err(error) =
+                        gpu.world_materials
+                            .local_remap(&vfs, &gpu.shaders, old, new)
+                    {
+                        eprintln!("remap {old} -> {new}: {error}");
+                    }
+                }
                 let mut images = Vec::new();
                 aim(&mut gpu, note.eye, note.yaw, -note.pitch_down);
                 gpu.effect_aux.held_lights.clear();
@@ -194,13 +221,91 @@ fn world_notes() {
                 images.push(frame(&mut gpu, 8));
                 let name = format!("note-{:02}", note.line);
                 println!(
-                    "{}: {} {} {}",
+                    "{}: {} {}{} ({} remaps) {}",
                     note.line,
                     map,
                     note.shader,
+                    if note.model.is_empty() {
+                        String::new()
+                    } else {
+                        format!(" on {}", note.model)
+                    },
+                    note.remaps.len(),
                     sheet(&images, 2, 960, &name).display()
                 );
             }
         }
+    });
+}
+
+/// A model noted through the client's own path, over duel6 as in a match with the SJK
+/// UI: aimed at one of its rocks (`misc_model_static` props), the first `worldnote`
+/// press selects the prop, outlined and shaded; the second opens the note card naming
+/// it, with Clear model; Clear model then notes the ground behind it.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn duel6_note_model() {
+    on_big_stack(|| {
+        let cvars = [
+            ("ui_menuStyle", "sjk"),
+            (crate::settings::quick::HIDE_CVAR, "1"),
+        ];
+        let Some((mut gpu, _profile)) = open("maps/mp/duel6.bsp", [1920, 1080], None, &cvars)
+        else {
+            return;
+        };
+        if let Some(console) = gpu.console.as_mut() {
+            console.close_for_connection();
+        }
+        // duel6's three rocks (`models/map_objects/desert/rock.md3`), each seen from a
+        // few places round it: the first view that selects a model is shot.
+        let rocks = [
+            [324.0, -1088.0, 150.0],
+            [1352.0, 388.0, 46.0],
+            [-1740.0, 380.0, 182.0],
+        ];
+        let offsets = [
+            [-200.0, 40.0, 60.0],
+            [200.0, -40.0, 60.0],
+            [40.0, 200.0, 60.0],
+            [-40.0, -200.0, 60.0],
+        ];
+        let mut found = None;
+        'search: for rock in rocks {
+            for offset in offsets {
+                let from: [f32; 3] = std::array::from_fn(|axis| rock[axis] + offset[axis]);
+                let (yaw, pitch) = look(from, rock);
+                aim(&mut gpu, from, yaw, pitch);
+                let _ = frame(&mut gpu, 4);
+                gpu.world_note_press();
+                let summary = gpu.world_notes.waiting().unwrap_or_default();
+                println!("{from:?}: {summary}");
+                if summary.contains(".md3") {
+                    found = Some(summary);
+                    break 'search;
+                }
+                gpu.world_notes.cancel_selection();
+            }
+        }
+        let summary = found.expect("a rock under the crosshair");
+        assert!(summary.contains("rock.md3"), "{summary}");
+        println!(
+            "{}",
+            shoot(&mut gpu, 10, "duel6-note-model-selected").display()
+        );
+        gpu.world_note_press();
+        assert!(gpu.text_dialog.is_open(), "the note card");
+        gpu.text_dialog.preview(
+            "The rock's edges look too sharp against the grass.",
+            false,
+            "",
+        );
+        gpu.text_dialog.caret_for_shot();
+        println!("{}", shoot(&mut gpu, 6, "duel6-note-model-card").display());
+        gpu.world_note_clear_model();
+        println!(
+            "{}",
+            shoot(&mut gpu, 6, "duel6-note-model-cleared").display()
+        );
     });
 }

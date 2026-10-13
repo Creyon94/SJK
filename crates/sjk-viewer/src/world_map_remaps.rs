@@ -15,6 +15,19 @@ use std::collections::BTreeMap;
 
 const MAX_LOCAL_REMAPS: usize = 1024;
 
+/// One remap as [`MapRemaps::entries`] lists it.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct RemapEntry<'a> {
+    /// `map` (a worldspawn key), `server` or `local` (the console's `remapShader`).
+    pub(crate) source: &'static str,
+    pub(crate) from: &'a str,
+    pub(crate) to: &'a str,
+    /// Application order: worldspawn keys first, then by stamp.
+    pub(crate) order: u64,
+    /// No later remap of `from` hides it.
+    pub(crate) active: bool,
+}
+
 /// Remaps that live as long as the loaded map: worldspawn keys and console overrides.
 #[derive(Debug, Default)]
 pub(crate) struct MapRemaps {
@@ -82,33 +95,54 @@ impl MapRemaps {
     ) -> &'a str {
         self.latest(name, server).map_or(name, |(target, _)| target)
     }
-    /// `listRemaps` lines with their source (map, server or local) in application
-    /// order; a remap hidden by a later one of the same shader is marked.
-    pub(crate) fn listing(&self, server: Option<&ShaderRemapTable>) -> Vec<String> {
+    /// Every remap with its source (map, server or local) in application order, each
+    /// marked active unless a later remap of the same shader hides it.
+    pub(crate) fn entries<'a>(
+        &'a self,
+        server: Option<&'a ShaderRemapTable>,
+    ) -> Vec<RemapEntry<'a>> {
         let map = self
             .worldspawn
             .iter()
-            .map(|(old, new)| ("map", old.as_str(), new.as_str(), 0, String::new()));
+            .map(|(old, new)| ("map", old.as_str(), new.as_str(), 0));
         let served = server.into_iter().flat_map(|table| {
-            table.entries().map(|(old, new, order)| {
-                let time = format!(" (time {})", table.time_offset(new));
-                ("server", old, new, order, time)
+            table
+                .entries()
+                .map(|(old, new, order)| ("server", old, new, order))
+        });
+        let local = self
+            .local
+            .iter()
+            .map(|(old, (new, order))| ("local", old.as_str(), new.as_str(), *order));
+        let mut entries: Vec<_> = map
+            .chain(served)
+            .chain(local)
+            .map(|(source, from, to, order)| RemapEntry {
+                source,
+                from,
+                to,
+                order,
+                active: self.latest(from, server).is_some_and(|(_, o)| o == order),
             })
-        });
-        let local = self.local.iter().map(|(old, (new, order))| {
-            ("local", old.as_str(), new.as_str(), *order, String::new())
-        });
-        let mut entries: Vec<_> = map.chain(served).chain(local).collect();
-        entries.sort_by_key(|entry| entry.3);
+            .collect();
+        entries.sort_by_key(|entry| entry.order);
         entries
+    }
+    /// `listRemaps` lines with their source (map, server or local) in application
+    /// order; a remap hidden by a later one of the same shader is marked.
+    pub(crate) fn listing(&self, server: Option<&ShaderRemapTable>) -> Vec<String> {
+        self.entries(server)
             .into_iter()
-            .map(|(source, old, new, order, time)| {
-                let state = if self.latest(old, server).is_some_and(|(_, o)| o == order) {
-                    ""
-                } else {
-                    " (overridden)"
+            .map(|entry| {
+                let time = match (entry.source, server) {
+                    ("server", Some(table)) => format!(" (time {})", table.time_offset(entry.to)),
+                    _ => String::new(),
                 };
-                format!("{source}: {old} -> {new}{time}{state}")
+                let state = if entry.active { "" } else { " (overridden)" };
+                format!(
+                    "{}: {} -> {}{time}{state}",
+                    entry.source, entry.from, entry.to
+                )
             })
             .collect()
     }

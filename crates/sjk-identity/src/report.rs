@@ -14,8 +14,18 @@ const LETTERS_MIN: usize = 5;
 const WORDS_MIN: usize = 2;
 /// Shortest and longest world note text, in characters, after whitespace is normalised.
 pub const NOTE_MIN: usize = 3;
-/// Longest world note text, in characters.
-pub const NOTE_MAX: usize = 500;
+/// Longest world note text, in characters: about a page (650 words), room for several
+/// points about one place. In UTF-8 it is at most 16,000 bytes, which with the note's
+/// context stays inside the hub's 48 KiB note body (`PROTOCOL.md`, "World notes").
+pub const NOTE_MAX: usize = 4_000;
+/// Most remaps a note carries to the hub: the ones of the noted shaders first.
+pub const NOTE_REMAPS_MAX: usize = 64;
+/// Most shaders of a noted model a note carries to the hub.
+pub const NOTE_MODEL_SHADERS_MAX: usize = 32;
+/// Longest shader name a note's context carries.
+pub const NOTE_SHADER_MAX: usize = 64;
+/// Longest model path or skin a note's context carries.
+pub const NOTE_MODEL_PATH_MAX: usize = 96;
 const NOTE_LETTERS_MIN: usize = 2;
 /// Shortest and longest player report reason, in characters, after whitespace is
 /// normalised.
@@ -165,8 +175,54 @@ pub struct WorldNote {
     pub distance: Option<f32>,
     /// The aimed entity's class name.
     pub entity: String,
+    /// The shader a remap draws over [`WorldNote::shader`], what the player saw, or
+    /// empty when none does.
+    pub remapped: String,
+    /// The shader remaps active when the note was taken, at most [`NOTE_REMAPS_MAX`].
+    pub remaps: Vec<NoteRemap>,
+    /// The model the note is about, when the player picked one.
+    pub model: Option<NoteModel>,
     /// The in-game name the player wears; empty takes the one the service knows.
     pub name: String,
+}
+
+/// One shader remap active when a note was taken.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct NoteRemap {
+    /// Who made it: `map` (the worldspawn's keys), `server` or `local` (the console).
+    pub source: String,
+    /// The shader the map or model names.
+    pub from: String,
+    /// The shader drawn instead.
+    pub to: String,
+}
+
+/// A model a note is about: a map entity drawing an MD3.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct NoteModel {
+    /// The model's path (`models/map_objects/...md3`).
+    pub path: String,
+    /// The entity's class name (`misc_model_static`).
+    pub classname: String,
+    /// The entity's number in the map's entity list.
+    pub entity: Option<u32>,
+    /// Where the entity stands.
+    pub origin: Option<[f32; 3]>,
+    /// The entity's skin key, or empty.
+    pub skin: String,
+    /// Its surfaces' shaders, at most [`NOTE_MODEL_SHADERS_MAX`].
+    pub shaders: Vec<NoteModelShader>,
+}
+
+/// One surface of a noted model and the shader it draws.
+#[derive(Clone, Debug, Default, Eq, PartialEq)]
+pub struct NoteModelShader {
+    /// The MD3 surface's name.
+    pub surface: String,
+    /// The shader the model names for it.
+    pub shader: String,
+    /// The shader a remap draws instead, or empty.
+    pub remapped: String,
 }
 
 /// Whether a report may contain `c`.
@@ -189,7 +245,7 @@ pub fn note_text(raw: &str) -> Result<String, &'static str> {
     check(raw, NOTE_MIN, NOTE_MAX, NOTE_LETTERS_MIN, 1).map_err(|refusal| match refusal {
         Refusal::Character => CHARACTERS,
         Refusal::Short => "a note needs at least 3 characters",
-        Refusal::Long => "a note is at most 500 characters",
+        Refusal::Long => "a note is at most 4000 characters",
         Refusal::Noise => "a note needs a few letters",
     })
 }
@@ -317,8 +373,12 @@ mod tests {
     }
 
     #[test]
-    fn notes_take_the_alphabet_with_shorter_bounds() {
+    fn notes_take_the_alphabet_with_their_own_bounds() {
         assert_eq!(note_text(" too  shiny ").as_deref(), Ok("too shiny"));
+        // Up to a page: 4000 characters pass, one more does not.
+        let page = "word ".repeat(800);
+        assert_eq!(note_text(&page).map(|t| t.chars().count()), Ok(3_999));
+        assert!(note_text(&format!("{page}ab")).is_err());
         assert!(note_text("Where video ???").is_ok());
         assert!(note_text("ok").is_err());
         assert!(note_text("1234 5678").is_err());

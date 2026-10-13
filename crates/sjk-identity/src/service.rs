@@ -330,7 +330,7 @@ enum Command {
     Report(BugReport),
     PlayerReport(PlayerReport),
     /// A world note and the tag its picture will come with.
-    Note(u64, WorldNote),
+    Note(u64, Box<WorldNote>),
     /// The picture of the note tagged so.
     NoteImage(u64, Vec<u8>),
     /// An SJK chat message.
@@ -1940,7 +1940,7 @@ impl Service {
             .note_tags
             .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
             + 1;
-        let _ = self.commands.send(Command::Note(tag, note));
+        let _ = self.commands.send(Command::Note(tag, Box::new(note)));
         tag
     }
 
@@ -4070,14 +4070,14 @@ mod tests {
             ..WorldNote::default()
         };
         // Before registering, a note is refused and its picture goes nowhere.
-        worker.handle(Command::Note(1, note.clone()), t0);
+        worker.handle(Command::Note(1, Box::new(note.clone())), t0);
         worker.handle(Command::NoteImage(1, vec![0; 4]), t0);
         assert!(!lock(&snapshot).note.clone().unwrap().sent);
         assert!(fake.log().is_empty());
         worker.handle(Command::Name("^1Sol".to_owned()), t0);
         worker.handle(Command::Configure(on("https://hub")), t0);
         worker.tick(t0);
-        worker.handle(Command::Note(2, note), t0);
+        worker.handle(Command::Note(2, Box::new(note)), t0);
         let outcome = lock(&snapshot).note.clone().unwrap();
         assert!(outcome.sent);
         assert_eq!((outcome.serial, outcome.message.as_str()), (2, "note #9"));

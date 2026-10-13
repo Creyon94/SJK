@@ -1530,8 +1530,13 @@ menus ([identity.md](identity.md#bug-reports)).
   lines scroll to keep the caret in view; a gold caret bar at the insertion
   point while it has the keyboard, lit steadily while typing; "Type here" while
   empty (held clear of the caret); outlined white while focused.
+- **Note:** a note's card is taller (756) and stays centred: under the guidance a
+  model row names the model the note is about ("MODEL" in gold, its path) with
+  Clear model at the right, or, without one, says a click on the scene round the
+  card notes what is there; the field shows ten lines (13/10/2026). A press on the
+  scene round the card selects what is under the pointer for the note.
 - **Under it:** the rules ("Letters, digits, spaces and . , ! ? ' - : ( )
-  only") and the count against the limit (600, 300 for a player report, 500 for
+  only") and the count against the limit (600, 300 for a player report, 4000 for
   a note; gold at the limit), then why a Send is refused in a warm red band just
   above the buttons: after a Send was refused, and already while Send has the
   keyboard or the pointer and the text would not pass.
@@ -1555,8 +1560,8 @@ as a centre print, as the card does when it was closed first:
 A note closes on Send in every look, since its screenshot is taken of the next
 frame; its outcome stays a centre print and a console line.
 
-Keys: Tab and Shift+Tab move between the field, Send and Cancel; Enter sends
-(on Cancel, cancels); Space acts on a button and types in the field; Escape
+Keys: Tab and Shift+Tab move between the field, Send and Cancel (and a note's
+Clear model, last); Enter sends (on Cancel, cancels; on Clear model, clears it); Space acts on a button and types in the field; Escape
 cancels. In the field the text has an insertion point: Left and Right move it
 (with Ctrl by words), Up and Down by wrapped lines (from the first line to the
 start, from the last to the end), Home and End to the ends of the line (with Ctrl

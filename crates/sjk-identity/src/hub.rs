@@ -605,6 +605,47 @@ impl HttpHub {
     }
 }
 
+/// A note's remaps and model (`PROTOCOL.md`, "World notes"), added to `body` only when
+/// it has them: a hub from before them refuses the fields, and still takes a note
+/// without them.
+fn note_context(body: &mut Value, note: &WorldNote) {
+    if !note.remapped.is_empty() {
+        body["remapped"] = json!(note.remapped);
+    }
+    if !note.remaps.is_empty() {
+        body["remaps"] = note
+            .remaps
+            .iter()
+            .map(|remap| json!({"source": remap.source, "from": remap.from, "to": remap.to}))
+            .collect();
+    }
+    if let Some(model) = &note.model {
+        let mut value = json!({
+            "path": model.path,
+            "classname": model.classname,
+            "shaders": model
+                .shaders
+                .iter()
+                .map(|shader| json!({
+                    "surface": shader.surface,
+                    "shader": shader.shader,
+                    "remapped": shader.remapped,
+                }))
+                .collect::<Vec<_>>(),
+        });
+        if let Some(entity) = model.entity {
+            value["entity"] = json!(entity);
+        }
+        if let Some(origin) = model.origin {
+            value["origin"] = json!(origin);
+        }
+        if !model.skin.is_empty() {
+            value["skin"] = json!(model.skin);
+        }
+        body["model"] = value;
+    }
+}
+
 /// `POST /v1/player-report`'s body: empty optional fields are left out.
 fn player_report_body(report: &PlayerReport) -> Value {
     let mut body = json!({
@@ -835,6 +876,7 @@ impl Hub for HttpHub {
         if !note.name.is_empty() {
             body["name"] = json!(note.name);
         }
+        note_context(&mut body, note);
         let answer = self.send(Some(identity), "POST", "/v1/note", Some(body))?;
         answer
             .get("id")
@@ -1132,6 +1174,52 @@ mod tests {
         assert_eq!(body["target_key_id"], "0123456789abcdef");
         assert_eq!(body["server_name"], "^4JoF");
         assert_eq!(body["name"], "^2Sol");
+    }
+
+    #[test]
+    fn a_note_sends_its_remaps_and_model_only_when_it_has_them() {
+        let mut body = json!({"text": "too shiny"});
+        note_context(&mut body, &WorldNote::default());
+        assert_eq!(
+            body,
+            json!({"text": "too shiny"}),
+            "an old hub still takes it"
+        );
+        let note = WorldNote {
+            remapped: "textures/video/raven".into(),
+            remaps: vec![crate::NoteRemap {
+                source: "server".into(),
+                from: "textures/imperial/basic_floor".into(),
+                to: "textures/video/raven".into(),
+            }],
+            model: Some(crate::NoteModel {
+                path: "models/map_objects/taspir/lamp.md3".into(),
+                classname: "misc_model_static".into(),
+                entity: Some(42),
+                origin: Some([1.0, 2.0, 3.0]),
+                skin: String::new(),
+                shaders: vec![crate::NoteModelShader {
+                    surface: "lamp".into(),
+                    shader: "models/map_objects/taspir/lamp".into(),
+                    remapped: String::new(),
+                }],
+            }),
+            ..WorldNote::default()
+        };
+        note_context(&mut body, &note);
+        assert_eq!(body["remapped"], "textures/video/raven");
+        assert_eq!(
+            body["remaps"],
+            json!([{"source": "server", "from": "textures/imperial/basic_floor",
+                    "to": "textures/video/raven"}])
+        );
+        assert_eq!(
+            body["model"],
+            json!({"path": "models/map_objects/taspir/lamp.md3",
+                   "classname": "misc_model_static", "entity": 42, "origin": [1.0, 2.0, 3.0],
+                   "shaders": [{"surface": "lamp", "shader": "models/map_objects/taspir/lamp",
+                                "remapped": ""}]})
+        );
     }
 
     #[test]

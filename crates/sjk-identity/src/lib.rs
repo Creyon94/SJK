@@ -30,7 +30,9 @@ pub use feed::{ChatState, ReceivedLooks};
 pub use hub::{HttpHub, Hub, HubError, valid_base_url};
 pub use keys::{Identity, KeyError};
 pub use logs::{LogRequest, LogUpload};
-pub use report::{BugReport, Category, PlayerReport, WorldNote};
+pub use report::{
+    BugReport, Category, NoteModel, NoteModelShader, NoteRemap, PlayerReport, WorldNote,
+};
 pub use service::{
     HolocronProgress, HubFactory, Location, OpenOutcome, ReportOutcome, RevealOutcome, Service,
     Settings, Snapshot, Status,

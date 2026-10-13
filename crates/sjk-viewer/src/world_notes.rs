@@ -21,14 +21,28 @@
 //! the nearest map entity (an inline model whose bounds hold the hit, or the closest
 //! origin within [`ENTITY_RADIUS`]). When a remap (the map's, the server's or a local
 //! one) draws another shader over the surface, the note names that shader too: what
-//! the player saw is the remap's target, not the map's own shader.
+//! the player saw is the remap's target, not the map's own shader. Every remap active
+//! when the note is taken goes with it ([`Remap`]), with its source.
+//!
+//! A model drawn from the map's entities (an MD3 such as a `misc_model_static` prop,
+//! which is not in the world's triangles) is selected when the view ray meets one of its
+//! triangles before the world ([`pick_model`]): the note then names the model's path, its
+//! entity and placement, and every surface's shader with its remap, and the outline
+//! traces the model. While the note is written, Clear model in the dialog drops the model
+//! for the surface behind it, and a click on the scene round the dialog selects what is
+//! under the pointer instead ([`Notes::pick_at`]).
 
 use crate::camera_uniform::CameraUniform;
 use glam::Vec3;
+use models::{ModelCache, pick_model};
 use sjk_bsp::{Aabb, Bsp, TraceScratch};
+use sjk_vfs::VirtualFileSystem;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 use std::time::{Instant, SystemTime, UNIX_EPOCH};
+
+#[path = "world_notes_models.rs"]
+mod models;
 
 /// How long a selection waits for its confirming press.
 pub(crate) const CONFIRM_MS: u128 = 20_000;
@@ -70,6 +84,57 @@ pub(crate) struct Selection {
     /// The triangles shaded while selected.
     triangles: Vec<[Vec3; 3]>,
     selected: Instant,
+    /// The model the view ray met before the world, if any: the note is about it.
+    model: Option<Model>,
+    /// The shader remaps active when the selection was made.
+    remaps: Vec<Remap>,
+}
+
+/// A shader remap active when a note was taken.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub(crate) struct Remap {
+    /// `map` (a worldspawn key), `server` or `local` (the console's `remapShader`).
+    pub(crate) source: &'static str,
+    /// The shader the map or model names.
+    pub(crate) from: String,
+    /// The shader drawn instead.
+    pub(crate) to: String,
+}
+
+/// The shader a remap in `remaps` draws instead of `name`, when one draws another.
+fn remap_of(remaps: &[Remap], name: &str) -> Option<String> {
+    let name = sjk_client::shader_name(name)?;
+    remaps
+        .iter()
+        .find(|remap| remap.from == name && remap.to != name)
+        .map(|remap| remap.to.clone())
+}
+
+/// A model selected for a note: a map entity drawing an MD3, met on its triangles.
+#[derive(Clone, Debug)]
+struct Model {
+    /// The entity, its `model` key the model's path.
+    entity: Entity,
+    /// Pitch, yaw and roll, and the scale on each axis.
+    angles: [f32; 3],
+    scale: [f32; 3],
+    /// The entity's skin key, or empty.
+    skin: String,
+    shaders: Vec<ModelShader>,
+    hit: Vec3,
+    normal: Vec3,
+    distance: f32,
+    edges: Vec<[Vec3; 2]>,
+    triangles: Vec<[Vec3; 3]>,
+}
+
+/// One surface of a selected model and the shader it draws.
+#[derive(Clone, Debug)]
+struct ModelShader {
+    surface: String,
+    shader: String,
+    /// The shader a remap draws instead.
+    remapped: Option<String>,
 }
 
 #[derive(Clone, Debug)]
@@ -105,6 +170,25 @@ struct Collision {
 impl Selection {
     /// One line naming the selection, for the centre print and the note's subject.
     pub(crate) fn summary(&self) -> String {
+        if let Some(model) = &self.model {
+            let first = model.shaders.first();
+            let more = model.shaders.len().saturating_sub(1);
+            return format!(
+                "{} {} ({}{}{}), {:.0} units",
+                model.entity.classname,
+                model.entity.model,
+                first.map_or("no shader", |shader| shader.shader.as_str()),
+                first
+                    .and_then(|shader| shader.remapped.as_ref())
+                    .map_or_else(String::new, |target| format!(" remapped to {target}")),
+                match more {
+                    0 => String::new(),
+                    1 => ", 1 more shader".to_owned(),
+                    more => format!(", {more} more shaders"),
+                },
+                model.distance
+            );
+        }
         let what = match (&self.surface, &self.entity) {
             (_, Some(entity)) if !entity.shaders.is_empty() => format!(
                 "{} {} ({})",
@@ -128,16 +212,97 @@ impl Selection {
         format!("{what}, {:.0} units", self.distance)
     }
 
+    /// The selected model's path, for the dialog's Clear model.
+    pub(crate) fn model_path(&self) -> Option<String> {
+        self.model.as_ref().map(|model| model.entity.model.clone())
+    }
+
+    /// The aimed point, its normal and its distance: the model's when there is one.
+    fn target(&self) -> (Vec3, Vec3, f32) {
+        self.model
+            .as_ref()
+            .map_or((self.hit, self.normal, self.distance), |model| {
+                (model.hit, model.normal, model.distance)
+            })
+    }
+
+    /// The outline and the shade drawn while selected: the model's when there is one.
+    fn outline(&self) -> (&[[Vec3; 2]], &[[Vec3; 3]]) {
+        self.model.as_ref().map_or(
+            (self.edges.as_slice(), self.triangles.as_slice()),
+            |model| (model.edges.as_slice(), model.triangles.as_slice()),
+        )
+    }
+
+    /// The shaders the note is about, as remaps name them: the surface's, or the
+    /// model's surfaces'.
+    fn noted_shaders(&self) -> Vec<String> {
+        let names: Vec<&str> = match (&self.model, &self.surface, &self.entity) {
+            (Some(model), _, _) => model.shaders.iter().map(|s| s.shader.as_str()).collect(),
+            (None, Some(surface), _) => vec![surface.shader.as_str()],
+            (None, None, Some(entity)) => entity.shaders.iter().map(String::as_str).collect(),
+            (None, None, None) => Vec::new(),
+        };
+        names
+            .into_iter()
+            .filter_map(sjk_client::shader_name)
+            .collect()
+    }
+
     /// The note `text` about this selection as the hub takes it; the build and the
     /// server are the caller's to fill.
     fn world_note(&self, text: String) -> sjk_identity::WorldNote {
-        use sjk_identity::report::field;
-        let shader = match (&self.surface, &self.entity) {
-            (Some(surface), _) => surface.shader.as_str(),
-            (None, Some(entity)) => entity.shaders.first().map_or("", String::as_str),
-            (None, None) => "",
+        use sjk_identity::report::{
+            NOTE_MODEL_PATH_MAX, NOTE_MODEL_SHADERS_MAX, NOTE_REMAPS_MAX, NOTE_SHADER_MAX, field,
+        };
+        let (shader, remapped) = match (&self.model, &self.surface, &self.entity) {
+            (Some(model), _, _) => model.shaders.first().map_or(("", None), |shader| {
+                (shader.shader.as_str(), shader.remapped.as_deref())
+            }),
+            (None, Some(surface), _) => (surface.shader.as_str(), surface.remapped.as_deref()),
+            (None, None, Some(entity)) => (entity.shaders.first().map_or("", String::as_str), None),
+            (None, None, None) => ("", None),
         };
         let vector = |v: Vec3| [v.x, v.y, v.z];
+        let (hit, normal, distance) = self.target();
+        // The remaps of the noted shaders first, then the others, as many as the hub keeps.
+        let noted = self.noted_shaders();
+        let (mut remaps, others): (Vec<&Remap>, Vec<&Remap>) = self
+            .remaps
+            .iter()
+            .partition(|remap| noted.contains(&remap.from));
+        remaps.extend(others);
+        let remaps = remaps
+            .into_iter()
+            .map(|remap| sjk_identity::NoteRemap {
+                source: remap.source.to_owned(),
+                from: field(&remap.from, NOTE_SHADER_MAX),
+                to: field(&remap.to, NOTE_SHADER_MAX),
+            })
+            .filter(|remap| !remap.from.is_empty() && !remap.to.is_empty())
+            .take(NOTE_REMAPS_MAX)
+            .collect();
+        let model = self.model.as_ref().map(|model| sjk_identity::NoteModel {
+            path: field(&model.entity.model, NOTE_MODEL_PATH_MAX),
+            classname: field(&model.entity.classname, 64),
+            entity: u32::try_from(model.entity.number).ok(),
+            origin: parse_vector(Some(&model.entity.origin)).map(vector),
+            skin: field(&model.skin, NOTE_MODEL_PATH_MAX),
+            shaders: model
+                .shaders
+                .iter()
+                .take(NOTE_MODEL_SHADERS_MAX)
+                .map(|shader| sjk_identity::NoteModelShader {
+                    surface: field(&shader.surface, NOTE_SHADER_MAX),
+                    shader: field(&shader.shader, NOTE_SHADER_MAX),
+                    remapped: shader
+                        .remapped
+                        .as_deref()
+                        .map_or_else(String::new, |name| field(name, NOTE_SHADER_MAX)),
+                })
+                .collect(),
+        });
+        let surface = self.surface.as_ref().filter(|_| self.model.is_none());
         sjk_identity::WorldNote {
             text,
             map: field(&self.map, 64),
@@ -147,22 +312,21 @@ impl Selection {
                 (self.eye.z - VIEW_HEIGHT).round(),
                 self.yaw().round(),
             ]),
-            hit: Some(vector(self.hit)),
-            normal: Some(vector(self.normal)),
-            shader: field(shader, 64),
-            surface: self
-                .surface
-                .as_ref()
-                .and_then(|s| u32::try_from(s.index).ok()),
-            lighting: self
-                .surface
-                .as_ref()
-                .map_or_else(String::new, |s| lighting(s.lightmap).to_owned()),
-            distance: Some(self.distance.round()),
+            hit: Some(vector(hit)),
+            normal: Some(vector(normal)),
+            shader: field(shader, NOTE_SHADER_MAX),
+            remapped: remapped.map_or_else(String::new, |name| field(name, NOTE_SHADER_MAX)),
+            surface: surface.and_then(|s| u32::try_from(s.index).ok()),
+            lighting: surface.map_or_else(String::new, |s| lighting(s.lightmap).to_owned()),
+            distance: Some(distance.round()),
             entity: self
-                .entity
+                .model
                 .as_ref()
+                .map(|model| &model.entity)
+                .or(self.entity.as_ref())
                 .map_or_else(String::new, |e| field(&e.classname, 64)),
+            remaps,
+            model,
             ..sjk_identity::WorldNote::default()
         }
     }
@@ -191,8 +355,22 @@ impl Selection {
         )
     }
 
+    /// The note's line of `notes.jsonl`. With a model, `surface` is left out (the note is
+    /// not about the world behind it) and `entity` and `model` name the model's entity.
     fn json(&self, note: &str, time: &str, screenshot: &str) -> serde_json::Value {
         let vector = |v: Vec3| serde_json::json!([round(v.x), round(v.y), round(v.z)]);
+        let entity_json = |e: &Entity| {
+            serde_json::json!({
+                "number": e.number,
+                "classname": e.classname,
+                "targetname": e.targetname,
+                "model": e.model,
+                "origin": e.origin,
+                "shaders": e.shaders,
+            })
+        };
+        let (hit, normal, distance) = self.target();
+        let surface = self.surface.as_ref().filter(|_| self.model.is_none());
         serde_json::json!({
             "time": time,
             "map": self.map,
@@ -200,10 +378,10 @@ impl Selection {
             "selection": self.summary(),
             "setviewpos": self.setviewpos(),
             "pose": self.pose,
-            "hit": vector(self.hit),
-            "normal": vector(self.normal),
-            "distance": round(self.distance),
-            "surface": self.surface.as_ref().map(|s| serde_json::json!({
+            "hit": vector(hit),
+            "normal": vector(normal),
+            "distance": round(distance),
+            "surface": surface.map(|s| serde_json::json!({
                 "index": s.index,
                 "shader": s.shader,
                 "remapped_to": s.remapped,
@@ -213,14 +391,32 @@ impl Selection {
                 "vertices": s.vertices,
                 "bsp_material": s.material,
             })),
-            "entity": self.entity.as_ref().map(|e| serde_json::json!({
-                "number": e.number,
-                "classname": e.classname,
-                "targetname": e.targetname,
-                "model": e.model,
-                "origin": e.origin,
-                "shaders": e.shaders,
+            "entity": self
+                .model
+                .as_ref()
+                .map(|model| &model.entity)
+                .or(self.entity.as_ref())
+                .map(entity_json),
+            "model": self.model.as_ref().map(|model| serde_json::json!({
+                "path": model.entity.model,
+                "classname": model.entity.classname,
+                "entity": model.entity.number,
+                "targetname": model.entity.targetname,
+                "origin": model.entity.origin,
+                "angles": model.angles,
+                "scale": model.scale,
+                "skin": model.skin,
+                "shaders": model.shaders.iter().map(|shader| serde_json::json!({
+                    "surface": shader.surface,
+                    "shader": shader.shader,
+                    "remapped_to": shader.remapped,
+                })).collect::<Vec<_>>(),
             })),
+            "remaps": self.remaps.iter().map(|remap| serde_json::json!({
+                "source": remap.source,
+                "from": remap.from,
+                "to": remap.to,
+            })).collect::<Vec<_>>(),
             "collision": self.collision.as_ref().map(|c| serde_json::json!({
                 "distance": round(c.distance),
                 "surface_flags": format!("{:#x}", c.surface_flags),
@@ -244,21 +440,26 @@ fn round(value: f32) -> f64 {
     (f64::from(value) * 10.0).round() / 10.0
 }
 
-/// The selection under the view ray of `camera`: the nearest draw surface of the world,
-/// unless a mover's bounds come first.
+/// The selection under the ray from the eye of `camera` along `direction` (its view, or
+/// through a point of the screen): the nearest draw surface of the world, unless a
+/// mover's bounds come first. Models are [`pick_model`]'s.
 pub(crate) fn pick(
     bsp: &Bsp,
     surfaces: &crate::decal_marks::DecalSurfaces,
     scratch: &mut TraceScratch,
     camera: &CameraUniform,
     map: &str,
+    direction: Vec3,
 ) -> Option<Selection> {
     let eye = Vec3::from_array(camera.camera_position);
-    let forward = Vec3::from_array(camera.view_forward).normalize_or_zero();
-    if forward == Vec3::ZERO {
+    let view = Vec3::from_array(camera.view_forward).normalize_or_zero();
+    // `setviewpos` keeps the view's yaw; the ray may go elsewhere.
+    let forward = if view == Vec3::ZERO { direction } else { view };
+    let direction = direction.normalize_or_zero();
+    if direction == Vec3::ZERO {
         return None;
     }
-    let world = surfaces.ray_hit(eye, forward, REACH);
+    let world = surfaces.ray_hit(eye, direction, REACH);
     let entities = sjk_entity::parse_entity_lump(bsp.entities()).unwrap_or_default();
     // Movers are not in the world's triangles: the first inline model box the ray meets.
     let mut mover = None;
@@ -276,7 +477,7 @@ pub(crate) fn pick(
         let origin = parse_vector(entity.get("origin")).unwrap_or(Vec3::ZERO);
         let low = Vec3::from_array(model.minimums) + origin;
         let high = Vec3::from_array(model.maximums) + origin;
-        let Some(distance) = ray_box(eye, forward, low, high) else {
+        let Some(distance) = ray_box(eye, direction, low, high) else {
             continue;
         };
         if world.as_ref().is_some_and(|hit| hit.distance < distance)
@@ -291,7 +492,7 @@ pub(crate) fn pick(
     let trace = bsp.trace_box_with(
         scratch,
         eye.to_array(),
-        (eye + forward * REACH).to_array(),
+        (eye + direction * REACH).to_array(),
         Aabb::new([0.0; 3], [0.0; 3]).expect("point bounds are valid"),
         COLLISION_MASK,
     );
@@ -339,6 +540,8 @@ pub(crate) fn pick(
             edges,
             triangles,
             selected: Instant::now(),
+            model: None,
+            remaps: Vec::new(),
         };
     if let Some((number, index, distance)) = mover {
         let shaders = render
@@ -355,7 +558,7 @@ pub(crate) fn pick(
                 names
             })
             .unwrap_or_default();
-        let hit = eye + forward * distance;
+        let hit = eye + direction * distance;
         let outline = render
             .inline_model(index)
             .map_or_else(Default::default, |model| {
@@ -368,7 +571,7 @@ pub(crate) fn pick(
             });
         return Some(selection(
             hit,
-            -forward,
+            -direction,
             distance,
             None,
             Some(entity_of(number, shaders)),
@@ -376,7 +579,7 @@ pub(crate) fn pick(
         ));
     }
     let hit = world?;
-    let point = eye + forward * hit.distance;
+    let point = eye + direction * hit.distance;
     let surface = render.surfaces().get(hit.surface).map(|surface| {
         let shader = bsp.shaders().get(surface.shader);
         Surface {
@@ -530,6 +733,25 @@ fn project(view_projection: &glam::Mat4, viewport: [f32; 2], point: Vec3) -> Opt
         .then(|| [(x + 1.0) * 0.5 * viewport[0], (1.0 - y) * 0.5 * viewport[1]])
 }
 
+/// The direction from the eye of `camera` through `point` of a `viewport`-sized screen
+/// (physical pixels), or `None` before the first frame.
+fn screen_ray(camera: &CameraUniform, viewport: [f32; 2], point: [f32; 2]) -> Option<Vec3> {
+    if viewport[0] <= 0.0 || viewport[1] <= 0.0 {
+        return None;
+    }
+    let inverse = glam::Mat4::from_cols_array_2d(&camera.view_projection).inverse();
+    let x = point[0] / viewport[0] * 2.0 - 1.0;
+    let y = 1.0 - point[1] / viewport[1] * 2.0;
+    // A point inside the frustum, whatever its depth convention.
+    let far = inverse.project_point3(Vec3::new(x, y, 0.5));
+    let eye = Vec3::from_array(camera.camera_position);
+    let mut direction = (far - eye).normalize_or_zero();
+    if direction.dot(Vec3::from_array(camera.view_forward)) < 0.0 {
+        direction = -direction;
+    }
+    (direction != Vec3::ZERO && direction.is_finite()).then_some(direction)
+}
+
 /// Entry distance of the ray into the box, if it meets it ahead.
 fn ray_box(origin: Vec3, direction: Vec3, low: Vec3, high: Vec3) -> Option<f32> {
     let inverse = direction.recip();
@@ -556,6 +778,10 @@ pub(crate) struct Notes {
     sent_waiting: bool,
     /// The serial of the last outcome shown.
     sent_serial: u64,
+    /// The models read for selections on this map.
+    models: ModelCache,
+    /// The last frame's size in physical pixels, for a click's ray.
+    viewport: [f32; 2],
 }
 
 impl Default for Notes {
@@ -569,16 +795,33 @@ impl Default for Notes {
             started: Instant::now(),
             sent_waiting: false,
             sent_serial: 0,
+            models: ModelCache::default(),
+            viewport: [0.0; 2],
         }
     }
 }
+
+/// What a selection is made from: the world, its models and the remaps drawn over them.
+pub(crate) struct Scene<'a> {
+    pub(crate) bsp: &'a Bsp,
+    pub(crate) surfaces: &'a crate::decal_marks::DecalSurfaces,
+    pub(crate) scratch: &'a mut TraceScratch,
+    pub(crate) vfs: Option<&'a VirtualFileSystem>,
+    pub(crate) map: &'a str,
+    /// The remaps active now ([`Remap`]), in application order.
+    pub(crate) remaps: Vec<Remap>,
+}
+
+/// The selection's subject and its model's path, for the note dialog.
+pub(crate) type Subject = (String, Option<String>);
 
 /// What a `worldnote` press did.
 pub(crate) enum Press {
     /// Selected (or reselected) something: show its summary.
     Selected(String),
-    /// Confirmed the selection: open the composer for a note about it.
-    Confirmed(String),
+    /// Confirmed the selection: open the composer for a note about it (its subject and
+    /// its model's path).
+    Confirmed(Subject),
     /// Nothing under the crosshair.
     Nothing,
 }
@@ -590,34 +833,114 @@ impl Notes {
     }
 
     /// A `worldnote` press.
-    pub(crate) fn press(
-        &mut self,
-        bsp: &Bsp,
-        surfaces: &crate::decal_marks::DecalSurfaces,
-        scratch: &mut TraceScratch,
-        map: &str,
-        remapped: impl Fn(&str) -> Option<String>,
-    ) -> Press {
+    pub(crate) fn press(&mut self, scene: Scene<'_>) -> Press {
         let now = Instant::now();
         if let Some(selection) = self.selection.take().filter(|s| s.fresh(now)) {
-            let subject = selection.summary();
+            let subject = (selection.summary(), selection.model_path());
             self.writing = Some(selection);
             return Press::Confirmed(subject);
         }
         let Some(camera) = self.camera else {
             return Press::Nothing;
         };
-        match pick(bsp, surfaces, scratch, &camera, map) {
-            Some(mut selection) => {
-                if let Some(surface) = &mut selection.surface {
-                    surface.remapped = remapped(&surface.shader);
-                }
+        let forward = Vec3::from_array(camera.view_forward);
+        match self.select(scene, &camera, forward) {
+            Some(selection) => {
                 let summary = selection.summary();
                 self.selection = Some(selection);
                 Press::Selected(summary)
             }
             None => Press::Nothing,
         }
+    }
+
+    /// The selection along `direction` from the eye of `camera`: the world's surface or
+    /// mover, unless a model comes first, with the remaps drawn over their shaders.
+    fn select(
+        &mut self,
+        scene: Scene<'_>,
+        camera: &CameraUniform,
+        direction: Vec3,
+    ) -> Option<Selection> {
+        let world = pick(
+            scene.bsp,
+            scene.surfaces,
+            scene.scratch,
+            camera,
+            scene.map,
+            direction,
+        );
+        let eye = Vec3::from_array(camera.camera_position);
+        let direction = direction.normalize_or_zero();
+        let model = scene.vfs.and_then(|vfs| {
+            let entities = sjk_entity::parse_entity_lump(scene.bsp.entities()).ok()?;
+            pick_model(&entities, &mut self.models, vfs, scene.map, eye, direction)
+        });
+        let model = model.filter(|model| {
+            world
+                .as_ref()
+                .is_none_or(|world| model.distance <= world.distance)
+        });
+        let mut selection = match (world, model) {
+            (Some(mut world), model) => {
+                world.model = model;
+                world
+            }
+            (None, Some(model)) => Selection {
+                map: scene.map.to_owned(),
+                pose: camera.viewpos(),
+                eye,
+                forward: Vec3::from_array(camera.view_forward),
+                hit: model.hit,
+                normal: model.normal,
+                distance: model.distance,
+                surface: None,
+                entity: None,
+                collision: None,
+                edges: Vec::new(),
+                triangles: Vec::new(),
+                selected: Instant::now(),
+                model: Some(model),
+                remaps: Vec::new(),
+            },
+            (None, None) => return None,
+        };
+        if let Some(surface) = &mut selection.surface {
+            surface.remapped = remap_of(&scene.remaps, &surface.shader);
+        }
+        if let Some(model) = &mut selection.model {
+            for shader in &mut model.shaders {
+                shader.remapped = remap_of(&scene.remaps, &shader.shader);
+            }
+        }
+        selection.remaps = scene.remaps;
+        Some(selection)
+    }
+
+    /// A click at `point` (physical pixels) on the scene round the note dialog: what is
+    /// under the pointer becomes the note's selection. `None` when nothing is there, and
+    /// the selection stays.
+    pub(crate) fn pick_at(&mut self, scene: Scene<'_>, point: [f32; 2]) -> Option<Subject> {
+        let camera = self.camera?;
+        self.writing.as_ref()?;
+        let direction = screen_ray(&camera, self.viewport, point)?;
+        let selection = self.select(scene, &camera, direction)?;
+        let subject = (selection.summary(), selection.model_path());
+        self.writing = Some(selection);
+        Some(subject)
+    }
+
+    /// Clear model in the note dialog: the note is about what is behind the model.
+    pub(crate) fn clear_model(&mut self) -> Option<Subject> {
+        let selection = self.writing.as_mut()?;
+        selection.model.take()?;
+        Some((selection.summary(), None))
+    }
+
+    /// The waiting selection's summary, for the world shots.
+    #[cfg(test)]
+    pub(crate) fn waiting(&self) -> Option<String> {
+        self.selection.as_ref().map(Selection::summary)
     }
 
     /// Escape before the confirming press: forget the waiting selection. True when there
@@ -633,6 +956,7 @@ impl Notes {
 
     /// Rebuild the outline of the waiting or confirmed selection for this frame.
     pub(crate) fn draw_highlight(&mut self, viewport: [f32; 2]) {
+        self.viewport = viewport;
         self.highlight.clear();
         self.fill.clear();
         let now = Instant::now();
@@ -646,10 +970,10 @@ impl Notes {
             return;
         };
         let view_projection = glam::Mat4::from_cols_array_2d(&camera.view_projection);
+        let (edges, triangles) = selection.outline();
         // Space the dots by the outline's length on screen, so a big surface keeps
         // within the budget and a small one still reads as a line.
-        let lengths: Vec<f32> = selection
-            .edges
+        let lengths: Vec<f32> = edges
             .iter()
             .map(|[a, b]| {
                 match (
@@ -664,16 +988,10 @@ impl Notes {
         let total: f32 = lengths.iter().sum();
         let spacing = (total / HIGHLIGHT_DOTS as f32).max(7.0);
         let time = now.duration_since(self.started).as_secs_f32();
-        Self::draw_fill(
-            &mut self.fill,
-            &selection.triangles,
-            &view_projection,
-            viewport,
-            time,
-        );
+        Self::draw_fill(&mut self.fill, triangles, &view_projection, viewport, time);
         let size = (viewport[1] / 540.0).clamp(2.0, 4.0);
         let mut index = 0u32;
-        for ([a, b], length) in selection.edges.iter().zip(&lengths) {
+        for ([a, b], length) in edges.iter().zip(&lengths) {
             let steps = ((length / spacing).ceil() as usize).clamp(1, 64);
             for step in 0..=steps {
                 let point = a.lerp(*b, step as f32 / steps as f32);
@@ -827,12 +1145,79 @@ impl crate::GpuState {
     /// `worldnote`: select the world under the crosshair, or confirm the selection and
     /// open the note composer.
     pub(crate) fn world_note_press(&mut self) {
-        let map = if self.resident.exploring() {
+        let map = self.note_map();
+        let remaps = self.note_remaps();
+        let press = self.world_notes.press(Scene {
+            bsp: &self.bsp,
+            surfaces: &self.decal_surfaces,
+            scratch: &mut self.trace_scratch,
+            vfs: self.vfs.as_deref(),
+            map: &map,
+            remaps,
+        });
+        let centre = |text: String| (sjk_client::ServerEventKind::CenterPrint, text);
+        let (kind, text) = match press {
+            Press::Selected(summary) => {
+                crate::log::progress(format_args!("note selection: {summary}"));
+                centre(format!(
+                    "{summary}
+Press World note again to write a note, Escape to drop it"
+                ))
+            }
+            Press::Confirmed((subject, model)) => {
+                self.gameplay_input.release_keys();
+                self.text_dialog
+                    .open(crate::text_dialog::Kind::Note { subject, model });
+                self.sync_cursor_policy();
+                return;
+            }
+            Press::Nothing => centre("Nothing under the crosshair to note".to_owned()),
+        };
+        self.chat.receive(kind, text, None, Instant::now());
+    }
+
+    /// A click on the scene round the note dialog at `point` (physical pixels): note
+    /// what is under the pointer instead.
+    pub(crate) fn world_note_pick_at(&mut self, point: [f32; 2]) {
+        let map = self.note_map();
+        let remaps = self.note_remaps();
+        let picked = self.world_notes.pick_at(
+            Scene {
+                bsp: &self.bsp,
+                surfaces: &self.decal_surfaces,
+                scratch: &mut self.trace_scratch,
+                vfs: self.vfs.as_deref(),
+                map: &map,
+                remaps,
+            },
+            point,
+        );
+        if let Some((subject, model)) = picked {
+            crate::log::progress(format_args!("note selection: {subject}"));
+            self.text_dialog.set_note(subject, model);
+        }
+    }
+
+    /// Clear model in the note dialog: the note is about what is behind the model.
+    pub(crate) fn world_note_clear_model(&mut self) {
+        if let Some((subject, model)) = self.world_notes.clear_model() {
+            crate::log::progress(format_args!("note selection: {subject}"));
+            self.text_dialog.set_note(subject, model);
+        }
+    }
+
+    /// The map a note is about: the one explored, or the one loaded.
+    fn note_map(&self) -> String {
+        if self.resident.exploring() {
             self.resident.map.clone()
         } else {
             self.world_load_map.clone()
-        };
-        // The shader a remap draws over the surface, as `listRemaps` resolves it.
+        }
+    }
+
+    /// The shader remaps drawn now, as `listRemaps` lists them, without those a later
+    /// remap of the same shader hides or that restore a shader to itself.
+    fn note_remaps(&mut self) -> Vec<Remap> {
         let mode = self.remap_mode();
         let server = self
             .live_session
@@ -840,37 +1225,16 @@ impl crate::GpuState {
             .map(|session| session.shader_remaps())
             .or_else(|| self.demo_session.as_ref().map(|demo| demo.shader_remaps()))
             .and_then(|remaps| remaps.table(mode));
-        let world = &self.world_materials;
-        let remapped = |name: &str| {
-            let name = sjk_client::shader_name(name)?;
-            let (target, _) = world.remap_target(server, &name);
-            (target != name).then(|| target.to_owned())
-        };
-        let press = self.world_notes.press(
-            &self.bsp,
-            &self.decal_surfaces,
-            &mut self.trace_scratch,
-            &map,
-            remapped,
-        );
-        let centre = |text: String| (sjk_client::ServerEventKind::CenterPrint, text);
-        let (kind, text) = match press {
-            Press::Selected(summary) => {
-                crate::log::progress(format_args!("note selection: {summary}"));
-                centre(format!(
-                    "{summary}\nPress World note again to write a note, Escape to drop it"
-                ))
-            }
-            Press::Confirmed(subject) => {
-                self.gameplay_input.release_keys();
-                self.text_dialog
-                    .open(crate::text_dialog::Kind::Note { subject });
-                self.sync_cursor_policy();
-                return;
-            }
-            Press::Nothing => centre("Nothing under the crosshair to note".to_owned()),
-        };
-        self.chat.receive(kind, text, None, Instant::now());
+        self.world_materials
+            .remap_entries(server)
+            .into_iter()
+            .filter(|entry| entry.active && entry.from != entry.to)
+            .map(|entry| Remap {
+                source: entry.source,
+                from: entry.from.to_owned(),
+                to: entry.to.to_owned(),
+            })
+            .collect()
     }
 
     /// The note composer's Enter: keep the note with its selection and take the
@@ -1082,6 +1446,19 @@ mod tests {
             edges: Vec::new(),
             triangles: Vec::new(),
             selected: Instant::now(),
+            model: None,
+            remaps: vec![
+                Remap {
+                    source: "local",
+                    from: "textures/other/wall".into(),
+                    to: "textures/other/wall_red".into(),
+                },
+                Remap {
+                    source: "server",
+                    from: "textures/imperial/basic_floor".into(),
+                    to: "textures/video/raven".into(),
+                },
+            ],
         });
         let (shot, line, hub) = notes
             .save("  too   shiny  ", &directory, &directory)
@@ -1097,7 +1474,20 @@ mod tests {
         assert_eq!(hub.map, "maps/mp/ffa3.bsp");
         assert!(shot.starts_with("note_"));
         assert!(line.contains("setviewpos 10 20 40 90"), "{line}");
-        // The remap's target is what the player saw; the hub keeps the map's own shader.
+        // The remap's target is what the player saw; the hub has both, and the remaps,
+        // the noted shader's first.
+        assert_eq!(hub.remapped, "textures/video/raven");
+        assert_eq!(
+            hub.remaps
+                .iter()
+                .map(|r| (r.source.as_str(), r.from.as_str()))
+                .collect::<Vec<_>>(),
+            [
+                ("server", "textures/imperial/basic_floor"),
+                ("local", "textures/other/wall")
+            ]
+        );
+        assert!(hub.model.is_none());
         assert!(line.contains(
             "textures/imperial/basic_floor remapped to textures/video/raven (surface 7, lightmapped)"
         ));
@@ -1106,10 +1496,133 @@ mod tests {
         assert_eq!(value["note"], "too   shiny");
         assert_eq!(value["surface"]["shader"], "textures/imperial/basic_floor");
         assert_eq!(value["surface"]["remapped_to"], "textures/video/raven");
+        assert_eq!(value["remaps"][1]["source"], "server");
+        assert_eq!(value["remaps"][1]["to"], "textures/video/raven");
+        assert!(value["model"].is_null());
         let shot_path = directory.join(format!("{shot}.jpg")).display().to_string();
         assert_eq!(value["screenshot"], shot_path);
         // Saving consumes the selection.
         assert!(notes.save("again", &directory, &directory).is_none());
         let _ = std::fs::remove_dir_all(&directory);
+    }
+
+    /// A note about a model names it, its shaders with their remaps, and leaves the
+    /// surface behind it out; Clear model notes that surface again.
+    #[test]
+    fn a_note_about_a_model_names_it_and_clear_model_drops_it() {
+        let (entities, mut cache) = models::tests::cube_map();
+        let vfs = VirtualFileSystem::new();
+        let mut model = pick_model(
+            &entities,
+            &mut cache,
+            &vfs,
+            "maps/test.bsp",
+            Vec3::ZERO,
+            Vec3::X,
+        )
+        .expect("the crate");
+        let remaps = vec![Remap {
+            source: "server",
+            from: "models/test/crate".into(),
+            to: "textures/video/raven".into(),
+        }];
+        model.shaders[0].remapped = remap_of(&remaps, &model.shaders[0].shader);
+        assert_eq!(
+            model.shaders[0].remapped.as_deref(),
+            Some("textures/video/raven")
+        );
+        let mut notes = Notes {
+            writing: Some(Selection {
+                map: "maps/test.bsp".into(),
+                pose: "(0 0 -36) : 0 0".into(),
+                eye: Vec3::ZERO,
+                forward: Vec3::X,
+                hit: Vec3::new(400.0, 0.0, 0.0),
+                normal: -Vec3::X,
+                distance: 400.0,
+                surface: Some(Surface {
+                    index: 3,
+                    shader: "textures/test/wall".into(),
+                    remapped: None,
+                    kind: "planar",
+                    lightmap: 0,
+                    vertices: 4,
+                    material: 0,
+                }),
+                entity: None,
+                collision: None,
+                edges: Vec::new(),
+                triangles: Vec::new(),
+                selected: Instant::now(),
+                model: Some(model),
+                remaps,
+            }),
+            ..Notes::default()
+        };
+        let selection = notes.writing.as_ref().expect("writing");
+        let summary = selection.summary();
+        assert!(
+            summary.starts_with(
+                "misc_model_static models/test/crate.md3 \
+                 (models/test/crate remapped to textures/video/raven)"
+            ),
+            "{summary}"
+        );
+        assert_eq!(
+            selection.model_path().as_deref(),
+            Some("models/test/crate.md3")
+        );
+        let hub = selection.world_note("crate too dark".into());
+        assert_eq!(hub.shader, "models/test/crate");
+        assert_eq!(hub.remapped, "textures/video/raven");
+        assert_eq!((hub.surface, hub.lighting.as_str()), (None, ""));
+        assert_eq!(hub.entity, "misc_model_static");
+        let noted = hub.model.expect("the model");
+        assert_eq!(noted.path, "models/test/crate.md3");
+        assert_eq!(noted.entity, Some(1));
+        assert_eq!(noted.origin, Some([100.0, 0.0, 0.0]));
+        assert_eq!(noted.shaders[0].remapped, "textures/video/raven");
+        let json = selection.json("crate too dark", "now", "shot.jpg");
+        assert!(json["surface"].is_null());
+        assert_eq!(json["entity"]["classname"], "misc_model_static");
+        assert_eq!(json["model"]["path"], "models/test/crate.md3");
+        assert_eq!(json["model"]["angles"], serde_json::json!([0.0, 45.0, 0.0]));
+        assert_eq!(json["model"]["scale"], serde_json::json!([2.0, 2.0, 2.0]));
+        assert_eq!(
+            json["model"]["shaders"][0]["remapped_to"],
+            "textures/video/raven"
+        );
+        assert!(json["distance"].as_f64().expect("distance") < 100.0);
+        // Clear model: the surface behind it again, and no model to clear twice.
+        let (subject, model) = notes.clear_model().expect("cleared");
+        assert!(
+            subject.starts_with("textures/test/wall (surface 3"),
+            "{subject}"
+        );
+        assert_eq!(model, None);
+        assert!(notes.clear_model().is_none());
+    }
+
+    /// A click's ray leaves the eye through the clicked pixel: the centre is the view.
+    #[test]
+    fn a_click_casts_a_ray_through_its_pixel() {
+        let eye = Vec3::new(0.0, 0.0, 50.0);
+        let view = glam::camera::rh::view::look_at_mat4(eye, eye + Vec3::X, Vec3::Z);
+        let projection =
+            glam::camera::rh::proj::directx::perspective(1.2, 16.0 / 9.0, 2.0, 8_192.0);
+        let camera = CameraUniform {
+            view_projection: (projection * view).to_cols_array_2d(),
+            camera_position: eye.to_array(),
+            view_forward: Vec3::X.to_array(),
+            ..bytemuck::Zeroable::zeroed()
+        };
+        let viewport = [1920.0, 1080.0];
+        let centre = screen_ray(&camera, viewport, [960.0, 540.0]).expect("a ray");
+        assert!(centre.dot(Vec3::X) > 0.9999, "{centre:?}");
+        let left = screen_ray(&camera, viewport, [100.0, 540.0]).expect("a ray");
+        assert!(left.y > 0.1 && left.x > 0.0, "{left:?}");
+        let low = screen_ray(&camera, viewport, [960.0, 1000.0]).expect("a ray");
+        assert!(low.z < -0.1, "{low:?}");
+        assert!(screen_ray(&camera, [0.0, 0.0], [1.0, 1.0]).is_none());
     }
 }
