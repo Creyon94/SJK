@@ -143,10 +143,18 @@ parents weighted by alpha. The effect mips are generated premultiplied, unlike t
 plain `box_mip_chain` of the other mipmapped path.
 
 World decals (`polygonOffset` shaders, sort `decal`) are drawn with rd-vanilla's
--1/-2 depth bias, their fog pass included: rd-vanilla's `RB_FogPass` runs before the
-offset is disabled, and an unbiased `Equal` fog draw fights with the surface under the
-decal pixel by pixel inside fog. Flicker of decals outside fog is not explained by
-this; it is open in [status](status.md).
+-1/-2 depth bias. A decal whose stages write no depth (`underlay` in
+[world_materials.rs](../crates/sjk-viewer/src/world_materials.rs): nearly all of them,
+which multiply or blend over their wall) is drawn in a phase of its own, after the opaque
+world and before the opaque world's fog pass (`draw_decals`, in the main view, floor
+mirrors, portals and reflection captures). The wall's `Equal` fog draw then covers the
+wall and its decal alike, so a decal fades into fog with its wall. The decal's own fog
+pass is left out: with the decal's bias and no depth of its own, its `Equal` test meets
+nothing, in rd-vanilla too (whose `RB_FogPass` runs before the offset is disabled), and
+until 13/10/2026 such a decal kept its full strength in fog, taking about 40% of the fog
+of its wall (`textures/decals/mp_imperial_symbol` on `mp/ctf4`). A decal that writes
+depth keeps its biased fog pass, which meets its own depth. Flicker of decals outside fog
+is not explained by this; it is open in [status](status.md).
 
 An effect atlas stage takes the effect's own colour (its EFX `rgb` and the fade of an
 effect without `useAlpha`) except where it multiplies the scene (`GL_DST_COLOR` with
@@ -2350,7 +2358,8 @@ with sky, so it never falls indoors on a map without one.
 [clouds.wgsl](../crates/sjk-viewer/src/clouds.wgsl), `r_clouds`, on by default).
 A layer of cloud 6000 units above the camera and 3200 deep covers every map with sky
 faces, except maps whose weather is space dust. It is drawn on the visible sky faces
-right after the sky, with the sky faces' own geometry and depth test, so it never
+right after the sky, with the sky faces' own geometry and depth test, half as far
+pushed back as the sky (see [Sky faces' depth](#sky-faces-depth)), so it never
 covers the world: each pixel marches its view ray through the layer (fading out
 towards the horizon and with distance), with two looks towards the sun for its
 shadowing, a forward-scattering rim, darker dense insides and skylight. The sun is
@@ -2442,6 +2451,29 @@ Formatting, locked workspace build, all nine existing tests and doc-test targets
 and the optimized owner client build passed. Native owner confirmation and wider
 map/hardware coverage remain open. Verification overlays and assets stay outside
 versioned source.
+
+### Sky faces' depth
+
+The main view shades the sky on its faces after the opaque world, depth-tested, so the
+sky still covers whatever lies behind a face. rd-vanilla instead draws its box at the far
+plane, where it never covers the world. The faces' depth is computed from absolute world
+coordinates, which round it by some tenths of a percent of its distance: a ceiling built
+a unit or two under the sky brush it lies against (`jofmemorial`, z 832 under a sky face
+at 834, seen 2300 units away) lost the depth test to the sky in places, and with the
+clouds on, which were drawn a fixed depth step nearer than the sky, it showed as white
+sky flickering as the camera moved (Sol's note of 12/10/2026). Every program that draws
+on the sky faces now pushes their depth back by 1/32 of the way to the far plane
+(`sky_face_clip`, `SKY_FACE_PUSH`): the sky faces and their depth mask
+([sky_stage.wgsl](../crates/sjk-viewer/src/sky_stage.wgsl)), the sky portal's composite
+on them (`sky_portal_main` in [scene_view.wgsl](../crates/sjk-viewer/src/scene_view.wgsl),
+a pipeline of its own beside the map portals') and the clouds, at half that push
+([clouds.wgsl](../crates/sjk-viewer/src/clouds.wgsl)). The push is about 3% of the
+distance, ten times the rounding; geometry that close behind a sky face now shows
+through it, as everything behind the faces does in rd-vanilla.
+[sky_face_depth_tests.rs](../crates/sjk-viewer/src/sky_face_depth_tests.rs) checks the
+programs agree and, with the client's projection in f32 at the jofmemorial note, that the
+pushed sky and clouds stay behind the ceiling over 2000 camera positions (unpushed, the
+sky came in front at 17 of them).
 
 ## UI ownership
 

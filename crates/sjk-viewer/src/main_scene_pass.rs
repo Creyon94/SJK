@@ -185,6 +185,17 @@ impl GpuState {
                     wgpu::LoadOp::Load,
                 );
             }
+            self.world_materials.draw_decals(
+                &mut pass,
+                &self.camera_bind_group,
+                &self.geometry.vertex_buffer,
+                &self.geometry.index_buffer,
+                &self.actor_instance_buffer,
+                &self.mover_instance_ranges,
+                source_cluster,
+                visibility,
+                true,
+            );
             self.world_materials.draw_fog(&mut pass, &fog_frame);
             self.menu_stage.draw(
                 &mut pass,

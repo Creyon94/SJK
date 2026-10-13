@@ -105,11 +105,14 @@ impl Runtime {
         }
         if changed != 0 {
             self.rebuild_remapped_fog(visibility);
-            self.opaque_order = build_draw_order(&self.materials, false);
-            self.blended_order = build_draw_order(&self.materials, true);
             // SJK's dynamic glow keeps its own (material, stage) list: a remap can
             // change a slot's stages, so it is rebuilt with the draw orders.
-            self.glow_order = glow::order(&self.materials, &self.opaque_order, &self.blended_order);
+            (
+                self.opaque_order,
+                self.decal_order,
+                self.blended_order,
+                self.glow_order,
+            ) = draw_orders(&self.materials, &self.forge.pipeline_keys);
             self.prepare_camera_ranges();
             self.active.get_mut().invalidate();
             self.caster_runs.take();

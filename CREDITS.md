@@ -72,6 +72,8 @@ Sol develops SJK and sets its direction. Sol's work includes:
   map hangs on movers drawn, such as t2_rancor's bar tables (13/10/2026);
 - material maps generation 7 (13/10/2026): the generator finds its overrides again and
   says which file it used; crates and concrete read right;
+- decals that fade into fog with their walls, and no sky flicker through a ceiling
+  built just under the sky (13/10/2026);
 - cards that tilt towards the pointer in perspective, their Holo and Solar light
   following it (13/10/2026);
 - SJK Symbols (13/10/2026), SJK's own symbol font: rarity and finish marks drawn for

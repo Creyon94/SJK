@@ -208,6 +208,38 @@ impl Runtime {
         );
     }
 
+    /// The world's decals ([`super::underlay`]), drawn before [`Self::draw_fog`] so the
+    /// fog of the surface under each covers it too; `main_view` as `draw_main_opaque`.
+    #[allow(clippy::too_many_arguments)]
+    pub(crate) fn draw_decals<'pass>(
+        &'pass self,
+        pass: &mut wgpu::RenderPass<'pass>,
+        camera: &'pass wgpu::BindGroup,
+        vertices: &'pass wgpu::Buffer,
+        indices: &'pass wgpu::Buffer,
+        instances: &'pass wgpu::Buffer,
+        mover_ranges: &'pass [Range<u32>],
+        source_cluster: Option<usize>,
+        visibility: Option<&'pass Visibility>,
+        main_view: bool,
+    ) {
+        if self.decal_order.is_empty() {
+            return;
+        }
+        self.draw_order(
+            pass,
+            camera,
+            vertices,
+            indices,
+            instances,
+            mover_ranges,
+            source_cluster,
+            visibility,
+            &self.decal_order,
+            main_view,
+        );
+    }
+
     /// Main-view blended world surfaces; see `draw_main_opaque`.
     #[allow(clippy::too_many_arguments)]
     pub(crate) fn draw_main_blended<'pass>(

@@ -609,6 +609,17 @@ test: In a match, paste into chat and the console: text comes at once, no hitch 
 test: Accented and emoji text pastes intact; viewpos/mark copies still reach the clipboard.
 note: Was hitch 248 ms between-frames on each paste.
 
+[render-notes]
+area: Rendering & effects
+title: Decals fade into fog; no sky flicker through ceilings under the sky
+change: Wall decals take their wall's fog instead of showing through it at full strength.
+change: The sky and clouds stay behind a ceiling built just under the sky brush.
+test: mp/ctf4 with r_drawfog 1 then 2: the Imperial symbol fades with its wall from afar.
+test: Decals elsewhere (no fog): unchanged, no new flicker.
+test: jofmemorial, setviewpos -14578 1692 -1250 163, r_clouds 1: dark ceiling, no white flashes.
+test: Open sky on any map with r_clouds 1: clouds still drawn; sky portals still shown.
+note: vjun3 glass_security_square unchanged: compare r_dayNight 0 and 1 behind the window.
+
 [material-notes-gen7]
 area: Rendering & effects
 title: Material maps gen 7: your overrides apply again; crates, concrete, taspir

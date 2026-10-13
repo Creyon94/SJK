@@ -9,6 +9,10 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 13/10/2026 | - | Decals in fog, sky behind ceilings under it
+- 4a73576 |  | Fog world decals with the wall under them
+- 685ea7f |  | Keep the sky and clouds behind a ceiling built just under the sky
+- cbe1056 |  | Record Sol's decal, sky and glass notes; hunt flicker in note shots
 + 13/10/2026 | - | Material maps generation 7, overrides found again
 - e35eb53 |  | Material notes: overrides found again, crates and concrete classed right
 + 13/10/2026 | - | Rancor's tables, footprints and dust, jump steps

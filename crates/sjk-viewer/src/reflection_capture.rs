@@ -162,6 +162,17 @@ impl GpuState {
                     cluster,
                     visibility,
                 );
+                world.draw_decals(
+                    &mut pass,
+                    color_camera,
+                    vertices,
+                    indices,
+                    &self.actor_instance_buffer,
+                    &self.mover_instance_ranges,
+                    cluster,
+                    visibility,
+                    true,
+                );
                 world.draw_main_blended(
                     &mut pass,
                     color_camera,

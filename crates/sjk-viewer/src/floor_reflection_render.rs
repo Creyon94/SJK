@@ -152,6 +152,17 @@ impl GpuState {
                     main.instances,
                     self.entity_draw_queue.opaque(),
                 );
+                world.draw_decals(
+                    &mut pass,
+                    camera,
+                    main.vertices,
+                    main.indices,
+                    main.instances,
+                    main.mover_ranges,
+                    floors.cluster,
+                    visibility,
+                    true,
+                );
                 world.draw_fog(&mut pass, &input);
                 world.draw_main_blended(
                     &mut pass,

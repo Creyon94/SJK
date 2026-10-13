@@ -280,6 +280,17 @@ impl GpuState {
                 visibility,
                 entities: self.entity_draw_queue.opaque(),
             };
+            self.world_materials.draw_decals(
+                &mut pass,
+                camera,
+                &geometry.vertex_buffer,
+                &geometry.index_buffer,
+                &self.actor_instance_buffer,
+                &self.mover_instance_ranges,
+                cluster,
+                visibility,
+                false,
+            );
             self.world_materials.draw_fog(&mut pass, &fog);
             self.world_materials.draw_blended(
                 &mut pass,
@@ -364,7 +375,7 @@ impl GpuState {
             );
             return;
         };
-        pass.set_pipeline(&self.scene_views.pipeline);
+        pass.set_pipeline(&self.scene_views.sky_pipeline);
         pass.set_bind_group(0, &self.camera_bind_group, &[]);
         pass.set_bind_group(1, &target.normal_sample, &[]);
         self.world_materials.draw_sky_faces(

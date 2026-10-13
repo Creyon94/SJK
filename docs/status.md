@@ -1,5 +1,43 @@
 # Status and priorities
 
+## World notes: decals in fog, sky through a ceiling, security glass
+
+Branch `personal/render-notes` (13/10/2026, based on `1b02a8c8`, Windows 11), three of
+Sol's world notes:
+
+- Fixed, the decal "like there is no fog" (`mp/ctf4`, `textures/decals/mp_imperial_symbol`,
+  07/10/2026): decals that write no depth are drawn before the opaque world's fog pass,
+  whose `Equal` draw on the wall then fogs the decal with it; their own fog pass, which
+  met nothing, is gone ([rendering.md](rendering.md), world decals).
+  World shots of the note with `r_drawfog 1` and `2`, before and after: the symbol stood
+  out black in the fog, now it fades with its wall; without fog the decal is unchanged.
+- Fixed, "something is flickering around here" (`jofmemorial`, 12/10/2026): the ceiling
+  there lies two units under its sky brush, 2300 units up, and the sky faces, drawn
+  depth-tested after the world from absolute coordinates, rounded in front of it in
+  places; the clouds (`r_clouds 1`), drawn a fixed depth step nearer than the sky, covered
+  it with white sky beyond about 2000 units, the edge of it moving with the camera. The
+  sky faces, their mask, the sky portal's composite and the clouds now push their depth
+  back by 1/32 of the way to the far plane
+  ([rendering.md](rendering.md#sky-faces-depth)). World shots: the ceiling white with
+  clouds before, dark after, over eight camera steps; open sky keeps its clouds. A unit
+  test reproduces the rounding with the client's projection (17 of 2000 points lost
+  unpushed, none pushed). The 3% push lets geometry just behind a sky face show through.
+- Not changed, the security glass that "looks too white" (`vjun3`,
+  `textures/common/glass_security_square`, 08/10/2026): SJK draws its two stages as
+  rd-vanilla does (environment map added, then `sglass5`, black at 20% alpha: the glass
+  is 0.8 x (scene behind + reflection)); world shots with and without the glass agree with
+  that to a few levels. It reads white because with `r_dayNight 1` the hangar behind it,
+  lit in the lightmap by its lamps, is almost black, so the fixed reflection is all that
+  shows; with `r_dayNight 0` the hangar and its crates show through as tinted glass. The
+  cause is the real-time lighting of that interior, not the glass. Sol's EJK also runs
+  `r_gamma` 1.31, which lifts dark rooms against the reflection.
+
+The world shots of notes pick notes by map, shader or time too (`SJK_NOTES=09:41:20`),
+since removing done notes renumbers them, and `world_note_flicker` holds a note's view
+still and steps it a few units at a time to find what flickers. Not tried in a game.
+Decals flickering outside fog (below) stays open: eight 0.37-unit steps at the `mp/ctf4`
+decal showed none.
+
 ## Material notes: overrides found again, crates and concrete
 
 Branch `personal/material-notes` (13/10/2026), from Sol's world notes about relief,
@@ -3834,11 +3872,12 @@ with remaps (`SJK_NOTES`, `SJK_NOTES_CVARS`, `SJK_NOTES_REMAP`; see its rustdoc)
   textures, 70 emission maps) was written to the per-user folder's `generated\gen6`
   for Sol to install. Most "too shiny" notes were made with `r_specularMapping 0`, where the
   pack's roughness and metalness do not apply.
-- Open: the decal of `mp/ctf4` that "appears like there is no fog". Measured in a
-  world shot, the decal takes about 40% of the fog its wall takes: as in rd-vanilla,
-  its `Equal` fog pass with the decal's bias meets no depth (decals write none), so the
-  fogged wall is only multiplied by the decal. Korriban's environment-mapped
-  `glossyBase` shaders (`door`, `entrance_top`, `os_outsidebased`, `os_basic_pillarb`)
+- Fixed on 13/10/2026 (branch `personal/render-notes`): the decal of `mp/ctf4` that
+  "appears like there is no fog", which took about 40% of the fog its wall took: as in
+  rd-vanilla, its `Equal` fog pass with the decal's bias met no depth. Decals are now
+  drawn before the opaque world's fog.
+- Open: Korriban's environment-mapped `glossyBase` shaders (`door`, `entrance_top`,
+  `os_outsidebased`, `os_basic_pillarb`)
   still take no material maps (their stages do not collapse).
 
 ## SJK UI: coloured names and the browser's sort mark
@@ -5578,6 +5617,12 @@ Sol is reviewing every retail world shader on the test maps of
   shader, and the three that do not have no lights painted. 31 textures emit.
   Not yet looked at in game.
 - Open: decals flicker on every map (Sol). Their bias matches rd-vanilla; only the
+  fog pass lacked it (fixed, and since 13/10/2026 decals take their wall's fog). The
+  cause outside fog needs a reproduction (map, decal, distance): `world_note_flicker`
+  at the `mp/ctf4` decal showed none, and the sky flicker found on `jofmemorial` was the
+  sky, not a decal.
+- Open: sand footprints (untagged sand takes sand footsteps since 08/10/2026), glass with
+
   fog pass lacked it (fixed). The cause outside fog needs a reproduction (map,
   decal, distance).
 - Open: glass with
