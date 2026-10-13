@@ -214,7 +214,6 @@ mod tests {
             crosshair_names: false,
             timer: false,
             lagometer: false,
-            team_overlay: false,
             ground_hud: false,
             menu_hud: false,
         };
@@ -339,7 +338,6 @@ mod tests {
                 crosshair_names: false,
                 timer: false,
                 lagometer: false,
-                team_overlay: false,
                 ground_hud: false,
                 menu_hud: false,
             };

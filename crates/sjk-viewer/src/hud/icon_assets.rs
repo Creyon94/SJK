@@ -6,8 +6,8 @@ use sjk_vfs::VirtualFileSystem;
 
 /// Existing item catalogue, then 43 cause-of-death cells, then two CTY flag variants,
 /// then the weapon selection row's art: each weapon's `_na` (no ammo) icon and the
-/// staff and dual saber icons.
-pub(super) const COUNT: usize = 117;
+/// staff and dual saber icons, then the team logos floated over allies.
+pub(super) const COUNT: usize = 120;
 /// First of the cause-of-death cells, by `meansOfDeath_t`: an icon pack's
 /// `hud/mod/*`, else the weapon's own picture ([`MOD_ITEMS`]); the kill feed's icons.
 pub(super) const MEANS_FIRST: usize = 51;
@@ -18,6 +18,8 @@ pub(super) const EMPTY_WEAPONS: usize = 96;
 /// `cgs.media.weaponIconsStaff` and `weaponIconsAkimbo` (JoF EJK `cg_main.c`).
 pub(super) const SABER_STAFF: usize = 115;
 pub(super) const SABER_DUAL: usize = 116;
+/// First of the team logos' cells, in [`super::team_logo::Logo`]'s order.
+pub(super) const TEAM_LOGO_FIRST: usize = 117;
 
 /// Stock weapon ordinals -> existing bg_itemlist entries (bg_misc.c:1241-1619).
 pub(crate) const WEAPONS: [usize; 19] = [
@@ -120,7 +122,10 @@ pub(super) fn load(
                 }
             }
             SABER_STAFF => "gfx/hud/w_icon_saberstaff".to_owned(),
-            _ => "gfx/hud/w_icon_duallightsaber".to_owned(),
+            SABER_DUAL => "gfx/hud/w_icon_duallightsaber".to_owned(),
+            _ => super::team_logo::Logo::ALL[slot - TEAM_LOGO_FIRST]
+                .shader()
+                .to_owned(),
         };
         if name.is_empty() {
             return None;

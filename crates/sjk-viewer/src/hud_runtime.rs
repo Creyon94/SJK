@@ -128,6 +128,8 @@ pub(crate) fn update(
     gpu.hud.identification.sample(gpu.console.as_ref());
     gpu.hud.nameplate.sample(gpu.console.as_ref());
     gpu.hud.card.sample(gpu.console.as_ref());
+    gpu.hud.team_logo.sample(gpu.console.as_ref());
+    gpu.hud.team_outline.sample(gpu.console.as_ref());
     // Nameplate text is in the classic stream, which draws over the menus' text.
     let plates_hidden = labels_hidden
         || gpu.game_menu
@@ -155,6 +157,29 @@ pub(crate) fn update(
             session.game_state(),
             gpu.console.as_ref(),
         );
+        // Team logos first: the overhead names and plates stand above them.
+        gpu.hud.team_logo.update(
+            snapshot,
+            session.game_state(),
+            &gpu.live_world,
+            i64::from(presentation_time),
+            camera,
+            &gpu.bsp,
+            &mut gpu.trace_scratch,
+            plates_hidden,
+            |logo| gpu.hud.icons.team_logo(logo),
+        );
+        gpu.hud.team_outline.update(
+            snapshot,
+            session.game_state(),
+            &gpu.live_world,
+            i64::from(presentation_time),
+            camera,
+            plates_hidden,
+        );
+        let logo_tops = gpu.hud.team_logo.tops();
+        gpu.hud.identification.set_logo_tops(logo_tops);
+        gpu.hud.nameplate.set_logo_tops(logo_tops);
         gpu.hud.identification.update(
             snapshot,
             session.game_state(),
@@ -276,7 +301,6 @@ pub(crate) fn update(
         }
         gpu.hud.update(
             session,
-            &gpu.localization,
             presentation_time.max(0) as u64,
             gpu.local_prediction.predicted_state(),
             gpu.console.as_ref(),
@@ -299,6 +323,28 @@ pub(crate) fn update(
             session.game_state(),
             gpu.console.as_ref(),
         );
+        gpu.hud.team_logo.update(
+            snapshot,
+            session.game_state(),
+            session.world(),
+            i64::from(presentation_time),
+            camera,
+            &gpu.bsp,
+            &mut gpu.trace_scratch,
+            plates_hidden,
+            |logo| gpu.hud.icons.team_logo(logo),
+        );
+        gpu.hud.team_outline.update(
+            snapshot,
+            session.game_state(),
+            session.world(),
+            i64::from(presentation_time),
+            camera,
+            plates_hidden,
+        );
+        let logo_tops = gpu.hud.team_logo.tops();
+        gpu.hud.identification.set_logo_tops(logo_tops);
+        gpu.hud.nameplate.set_logo_tops(logo_tops);
         gpu.hud.identification.update(
             snapshot,
             session.game_state(),
@@ -447,6 +493,8 @@ pub(crate) fn update(
             gpu.hud.identification.list.clear();
             gpu.hud.nameplate.clear();
             gpu.hud.card.clear();
+            gpu.hud.team_logo.clear();
+            gpu.hud.team_outline.clear();
         }
     }
     if let Some(game) = game {

@@ -23,7 +23,6 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
             "Show owned inventory and the inventory selector",
         ),
         ("cg_drawCrosshairNamesColours", 1, "Colored target names"),
-        ("cg_drawTeamOverlayWeapons", 0, "Show teammate weapons"),
     ] {
         cvars.register(CvarDefinition::new(
             name,
@@ -36,17 +35,6 @@ pub(crate) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         ("cg_drawScoreX", 0.0, "Personal score horizontal offset"),
         ("cg_drawScoreY", 0.0, "Personal score upward offset"),
         ("cg_drawCrosshairNamesOpacity", 1.0, "Target name opacity"),
-        (
-            "cg_drawTeamOverlayX",
-            640.0,
-            "Team overlay right edge in virtual units",
-        ),
-        (
-            "cg_drawTeamOverlayY",
-            0.0,
-            "Team overlay top; zero preserves HUD layout",
-        ),
-        ("cg_drawTeamOverlayScale", 1.0, "Team overlay scale"),
         ("cg_gunX", 0.0, "View weapon forward offset"),
         ("cg_gunY", 0.0, "View weapon left offset"),
         ("cg_gunZ", 0.0, "View weapon upward offset"),
@@ -95,10 +83,6 @@ pub(super) struct Policy {
     pub(super) name_colors: bool,
     /// Name alpha multiplier.
     pub(super) name_alpha: f32,
-    /// Team overlay right/top coordinates and size multiplier.
-    pub(super) team: [f32; 3],
-    /// Include weapons in teammate gear text.
-    pub(super) team_weapons: bool,
 }
 
 impl Default for Policy {
@@ -126,12 +110,6 @@ impl Policy {
             timer_upper_right: i("cg_drawtimerupperright", 0) != 0,
             name_colors: i("cg_drawcrosshairnamescolours", 1) != 0,
             name_alpha: f("cg_drawcrosshairnamesopacity", 1.0).clamp(0.0, 1.0),
-            team: [
-                f("cg_drawteamoverlayx", 640.0),
-                f("cg_drawteamoverlayy", 0.0),
-                f("cg_drawteamoverlayscale", 1.0).clamp(0.1, 4.0),
-            ],
-            team_weapons: i("cg_drawteamoverlayweapons", 0) != 0,
         }
     }
 
@@ -143,23 +121,8 @@ impl Policy {
             // under the frame rate, as JoF EJK draws it (`console_overlay`), not in the
             // layout.
             Some("match_timer") => self.upper && !self.timer_upper_right,
-            Some("team_rows") => self.upper,
             _ => true,
         }
-    }
-
-    /// Position the team group in the viewport, retaining hero row sizing.
-    pub(super) fn team_rect(self, rect: Rect, viewport: [f32; 2]) -> Rect {
-        Rect::new(
-            rect.x + (self.team[0] - 640.0) * viewport[0] / 640.0,
-            if self.team[1] == 0.0 {
-                rect.y
-            } else {
-                self.team[1] * viewport[1] / 480.0
-            },
-            rect.width,
-            rect.height,
-        )
     }
 }
 
@@ -203,26 +166,14 @@ impl HudOverlay {
         );
     }
 
-    /// Optional right-side readouts follow the leader block; explicit team
-    /// overlay coordinates remain the player's choice.
-    pub(super) fn upper_right_stack(&self) -> [f32; 3] {
+    /// Optional right-side readouts follow the leader block: the snapshot line's and
+    /// the inventory's tops.
+    pub(super) fn upper_right_stack(&self) -> [f32; 2] {
         let bottom = self.enemy_info.bottom();
         let snapshot = if bottom > 0.0 { bottom + 16.0 } else { 50.0 };
         let after_snapshot = snapshot + if self.family.snapshot { 28.0 } else { 0.0 };
         let inventory = 100.0_f32.max(after_snapshot);
-        let items = if self.family.upper && self.family.inventory {
-            (self.inventory_bits & 0x0ffe).count_ones()
-        } else {
-            0
-        };
-        let team = if bottom == 0.0 {
-            0.0
-        } else if items > 0 {
-            inventory + items as f32 * 26.0 + 12.0
-        } else {
-            after_snapshot
-        };
-        [snapshot, inventory, team]
+        [snapshot, inventory]
     }
 
     /// Append independent score and diagnostic text without a backplate; returns
@@ -234,7 +185,7 @@ impl HudOverlay {
         self.enemy_info
             .emit(&mut self.draw_list, viewport, self.theme);
         let s = crate::ui_scale::height_scale(viewport[1]);
-        let [snapshot_top, inventory_top, _] = self.upper_right_stack();
+        let [snapshot_top, inventory_top] = self.upper_right_stack();
         let mut bottom = self.enemy_info.bottom() * s;
         if self.family.upper && self.family.snapshot {
             bottom = bottom.max((snapshot_top + 28.0) * s);
@@ -306,15 +257,6 @@ fn config_number(game: &GameState, index: usize) -> i32 {
         .and_then(|s| std::str::from_utf8(s).ok())
         .and_then(|s| s.parse().ok())
         .unwrap_or(0)
-}
-
-/// Retain powerup text while hiding the optional teammate weapon label.
-pub(super) fn gear(text: &mut String, entry: TeamInfo, weapons: bool) {
-    options::format_team_gear(text, entry);
-    if !weapons {
-        let end = text.find(" · ").map_or(text.len(), |i| i + " · ".len());
-        text.drain(..end);
-    }
 }
 
 /// Reformat the retained match clock, including optional countdown and milliseconds.

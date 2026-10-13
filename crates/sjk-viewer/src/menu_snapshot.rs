@@ -2103,7 +2103,6 @@ fn radial_hud(shots: &mut Snapshot) {
         crosshair_names: false,
         timer: false,
         lagometer: false,
-        team_overlay: false,
         ground_hud: false,
         menu_hud: false,
     };

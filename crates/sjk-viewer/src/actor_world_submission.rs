@@ -100,6 +100,8 @@ struct Sinks<'a> {
     muted: u32,
     /// The player whose card is up with its outline on (`card_outline.rs`).
     card_outline: Option<u16>,
+    /// The players outlined as teammates and enemies (`hud::team_outline`).
+    team_outline: crate::hud::team_outline::Groups,
 }
 
 /// Submit all presented actor-like entities without allocating frame storage.
@@ -292,6 +294,7 @@ pub(crate) fn submit(
         ),
         muted: gpu.muted_players.slots().muted,
         card_outline: gpu.hud.card.outline().map(|(client, _)| client),
+        team_outline: gpu.hud.team_outline.groups(),
     };
     let thrown = snapshot
         .zip(game_state)
@@ -658,16 +661,24 @@ fn submit_actor(
             }
         } else {
             sinks.actor_groups[mesh].push(instance);
-            // The card outline's mask: the body again, drawn only into the mask.
+            // A player outline's mask: the body again, drawn only into the mask; the
+            // card's outline before a team's.
+            let client = entity.id.get().wrapping_sub(1);
+            let outline = if sinks
+                .card_outline
+                .is_some_and(|card| u64::from(card) == client)
+            {
+                Some(crate::card_outline::Group::Card)
+            } else {
+                sinks.team_outline.group(client)
+            };
             if draw_actor
-                && sinks
-                    .card_outline
-                    .is_some_and(|client| u64::from(client) + 1 == entity.id.get())
+                && let Some(group) = outline
                 && sinks.overrides.len() < sinks.overrides.capacity()
             {
                 sinks.overrides.push(entity_materials::OverrideInstance {
                     mesh: entity_materials::OverrideMesh::Actor(mesh),
-                    material: Some(sinks.material_overrides.card_outline),
+                    material: Some(sinks.material_overrides.outline(group)),
                     instance,
                     no_depth: false,
                     forced_alpha: false,

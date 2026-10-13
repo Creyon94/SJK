@@ -872,6 +872,19 @@ test: Changelog (Unreleased): click cg_clanEmblems: Settings opens searched for 
 
 # ---- HUD ----
 
+[team-outline]
+area: HUD
+title: Team games: red/green outlines, team logos over allies, no team overlay
+change: Enemies get a thin red ring, teammates a green one, only where you see them.
+change: Your team's logo floats over teammates' heads (JoF EJK); walls hide it.
+change: The card outline is half as thick; the top-right team overlay is gone.
+test: CTF or TDM: enemies ringed red, teammates green; nothing through walls.
+test: FFA and duel: no rings, no logos.
+test: A teammate's logo sits under their nameplate, readable near and far; a wall hides it.
+test: Inspect (X) an enemy: the card's colour replaces the red ring.
+test: Settings > HUD+ > Team outlines / Team logos off: each one goes away.
+note: Seen in off-screen demo renders only (staged CTF over an FFA demo).
+
 [strafe-lines]
 area: HUD
 title: Strafe lines (JoF EJK strafe helper), in third person and on the ground

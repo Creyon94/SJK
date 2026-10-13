@@ -13,7 +13,7 @@
 use super::estimate::Range;
 use super::force_estimate::{self, Calibration, Estimator};
 use super::force_streams;
-use super::identification::{Camera, friend_icon, info_number, unoccluded};
+use super::identification::{Camera, info_number, unoccluded};
 use super::nameplate_math::{self as math, Rows, Stack};
 use super::vitals_estimate;
 use crate::{TextVertex, UiFont, chat::ChatOverlay, console::ViewerConsole};
@@ -331,7 +331,6 @@ struct Entry {
     style: u8,
     holstered: bool,
     accent: Color,
-    icon: Option<Color>,
     names_allowed: bool,
     /// The SJK hub's operator vouches for this player: the gold badge after the name.
     verified: bool,
@@ -382,6 +381,9 @@ pub(crate) struct State {
     focus: Option<(u16, i64)>,
     /// The mode just chosen and when, to show its name for a moment.
     announced: Option<(Mode, i64)>,
+    /// Each slot's team logo top this frame ([`super::team_logo`]): the plate stands
+    /// above it.
+    logo_tops: [Option<f32>; MAX_PLAYER_TAGS],
 }
 
 impl Default for State {
@@ -405,6 +407,7 @@ impl Default for State {
             own_origin: None,
             focus: None,
             announced: None,
+            logo_tops: [None; MAX_PLAYER_TAGS],
         }
     }
 }
@@ -613,6 +616,11 @@ impl State {
         fade.alpha
     }
 
+    /// This frame's team logo tops, by client slot.
+    pub(crate) fn set_logo_tops(&mut self, tops: [Option<f32>; MAX_PLAYER_TAGS]) {
+        self.logo_tops = tops;
+    }
+
     /// Collect visible players using fixed scratch and the actual rendered camera.
     pub(crate) fn update(
         &mut self,
@@ -680,15 +688,15 @@ impl State {
             {
                 continue;
             }
-            let (accent, icon, names_allowed, ally) = if player {
+            let (accent, names_allowed, ally) = if player {
                 let Some(who) =
                     identify(game, &settings, &standing, number, entity.is_jedi_master())
                 else {
                     continue;
                 };
-                (who.accent, who.icon, who.names_allowed, who.ally)
+                (who.accent, who.names_allowed, who.ally)
             } else {
-                (NPC_ACCENT, None, true, false)
+                (NPC_ACCENT, true, false)
             };
             let presented = |id: u16| {
                 world
@@ -803,7 +811,6 @@ impl State {
                 style: entity.fire_flag(),
                 holstered: entity.saber_holstered() != 0,
                 accent,
-                icon,
                 names_allowed,
                 verified: player && self.verified & (1 << number) != 0,
             });
@@ -926,7 +933,6 @@ impl State {
                 style: 0,
                 holstered: false,
                 accent: who.accent,
-                icon: who.icon,
                 names_allowed: who.names_allowed,
                 verified: self.verified & (1 << number) != 0,
             });
@@ -1005,7 +1011,6 @@ impl State {
             style: player.saber_style(),
             holstered: player.saber_holstered() != 0,
             accent: team_accent(mode, player.team() as i32),
-            icon: None,
             names_allowed: true,
             verified: self.verified & (1 << local) != 0,
         };
@@ -1209,16 +1214,17 @@ impl State {
                 Rows::default()
             };
             let [x, y] = entry.point;
-            let marker = entry.icon.map(|color| (color, 7.0 * u));
-            let marker_height = marker.map_or(0.0, |(_, side)| side + 2.0 * u);
+            // Over a team logo (drawn by `super::team_logo` at the same anchor).
+            let logo_top = if entry.npc_class == 0 {
+                self.logo_tops
+                    .get(usize::from(entry.number))
+                    .copied()
+                    .flatten()
+            } else {
+                None
+            };
             let _ = self.list.push(DrawCommand::PushOpacity(entry.alpha));
-            if let Some((color, side)) = marker {
-                let _ = self.list.push(DrawCommand::SolidRect {
-                    rect: Rect::new(x - side * 0.5, y - side, side, side),
-                    color,
-                });
-            }
-            let bottom = y - marker_height - 2.0 * u;
+            let bottom = logo_top.map_or(y, |top| top.min(y)) - 2.0 * u;
             let stack_height = Stack::height(rows, u);
             // The name rises as the plate fades in beneath it.
             let line = size * 1.15;
@@ -1700,7 +1706,6 @@ struct Standing {
 /// How a player's plate is drawn for the viewer.
 struct Identity {
     accent: Color,
-    icon: Option<Color>,
     names_allowed: bool,
     ally: bool,
 }
@@ -1719,8 +1724,10 @@ fn identify(
     if info.is_none() || team == 3 {
         return None;
     }
-    let icon = if settings.friends {
-        friend_icon(
+    // An ally with a team logo keeps his plate where a server's restrictions hide
+    // names, as stock keeps the ally marker.
+    let logo = settings.friends
+        && super::team_logo::ally_logo(
             standing.mode,
             standing.local_team,
             team,
@@ -1730,15 +1737,12 @@ fn identify(
             standing.local_master,
             jedi_master,
         )
-    } else {
-        None
-    };
-    if icon.is_none() && standing.restrictions & 64 != 0 {
+        .is_some();
+    if !logo && standing.restrictions & 64 != 0 {
         return None;
     }
     Some(Identity {
         accent: team_accent(standing.mode, team),
-        icon,
         names_allowed: standing.restrictions & 64 == 0,
         ally: standing.mode >= GT_TEAM && (team == 1 || team == 2) && team == standing.local_team,
     })
@@ -1890,7 +1894,6 @@ impl State {
                     Some(red) => team_accent(GT_TEAM, if red { 1 } else { 2 }),
                     None => NEUTRAL_ACCENT,
                 },
-                icon: None,
                 names_allowed: true,
                 verified: plate.verified,
             });

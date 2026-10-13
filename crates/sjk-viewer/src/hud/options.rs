@@ -3,36 +3,6 @@ use super::*;
 use sjk_ui::{DrawCommand, FontWeight, Rect, TextAlign, TextOverflow};
 use std::fmt::Write;
 
-/// Text equivalents of CG_DrawTeamOverlay's weapon and powerup icons (cg_draw.c:3949-3995).
-pub(super) fn format_team_gear(text: &mut String, entry: TeamInfo) {
-    const POWERUPS: [&str; 16] = [
-        "",
-        "Quad",
-        "Battlesuit",
-        "Pull",
-        "Red flag",
-        "Blue flag",
-        "Neutral flag",
-        "Shield",
-        "Speed burst",
-        "Push",
-        "Speed",
-        "Cloak",
-        "Light",
-        "Dark",
-        "Boon",
-        "Ysalamiri",
-    ];
-    text.clear();
-    text.push_str(crate::ingame_menu::weapon_name(entry.weapon as u8));
-    for (bit, name) in POWERUPS.iter().enumerate().skip(1) {
-        if entry.powerups & (1 << bit) != 0 {
-            text.push_str(" · ");
-            text.push_str(name);
-        }
-    }
-}
-
 /// Stock cg_draw.c:5194-5199 sizes the crosshair in virtual screen coordinates.
 pub(crate) fn crosshair_size(console: Option<&ViewerConsole>, visible: bool) -> f32 {
     if !visible {

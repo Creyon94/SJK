@@ -24,7 +24,7 @@ pub(super) fn register(cvars: &mut CvarRegistry) -> Result<(), sjk_shell::CvarEr
         "cg_drawFriend",
         true,
         CvarFlags::ARCHIVE,
-        "Overhead ally markers",
+        "Team logos over allies' heads",
     ))?;
     Ok(())
 }
@@ -80,7 +80,9 @@ pub(crate) struct State {
     pub(crate) list: DrawList,
     names: i64,
     scale: f32,
-    friends: bool,
+    /// Each slot's team logo top this frame ([`super::team_logo`]): the name stands
+    /// above it.
+    logo_tops: [Option<f32>; 32],
 }
 
 impl Default for State {
@@ -89,7 +91,7 @@ impl Default for State {
             list: DrawList::new(256),
             names: 0,
             scale: 0.5,
-            friends: true,
+            logo_tops: [None; 32],
         }
     }
 }
@@ -102,9 +104,11 @@ impl State {
             .unwrap_or(0);
         self.scale =
             crate::cgame_options::scalar(console, "cg_drawplayernamesscale", 0.5).clamp(0.1, 3.0);
-        self.friends = console
-            .and_then(|c| c.bool_cvar("cg_drawfriend"))
-            .unwrap_or(true);
+    }
+
+    /// This frame's team logo tops, by client slot, before [`Self::update`].
+    pub(crate) fn set_logo_tops(&mut self, tops: [Option<f32>; 32]) {
+        self.logo_tops = tops;
     }
 
     /// Collect visible players using fixed scratch and the actual rendered camera.
@@ -120,19 +124,11 @@ impl State {
         hidden: bool,
     ) {
         self.list.clear();
-        if hidden || (self.names == 0 && !self.friends) {
+        let restrictions = info_number(game.config_string(0), "restricts");
+        if hidden || self.names == 0 || restrictions & 64 != 0 {
             return;
         }
-        let restrictions = info_number(game.config_string(0), "restricts");
-        let mode = info_number(game.config_string(0), "g_gametype");
         let local = snapshot.player.client_num();
-        let local_team = snapshot.player.team() as i32;
-        let local_duel = info_number(game.config_string(1131 + usize::from(local)), "ds");
-        let master = snapshot
-            .entities
-            .iter()
-            .any(|e| e.number() < 32 && e.is_jedi_master());
-        let local_master = snapshot.player.is_jedi_master();
         for entity in &snapshot.entities {
             let slot = entity.number();
             if slot >= 32
@@ -145,25 +141,7 @@ impl State {
                 continue;
             }
             let info = game.config_string(1131 + usize::from(slot));
-            let team = info_number(info, "t");
-            if info.is_none() || team == 3 {
-                continue;
-            }
-            let icon = if self.friends {
-                friend_icon(
-                    mode,
-                    local_team,
-                    team,
-                    local_duel,
-                    info_number(info, "ds"),
-                    master,
-                    local_master,
-                    entity.is_jedi_master(),
-                )
-            } else {
-                None
-            };
-            if icon.is_none() && (self.names == 0 || restrictions & 64 != 0) {
+            if info.is_none() || info_number(info, "t") == 3 {
                 continue;
             }
             let Some(presented) = world.entity(sjk_runtime::EntityId::new(u64::from(slot) + 1))
@@ -193,61 +171,49 @@ impl State {
                 slot,
                 screen,
                 camera.viewport,
-                restrictions & 64 == 0,
                 (maximum > 0.0).then_some((health / maximum).clamp(0.0, 1.0)),
-                icon,
             );
         }
     }
 
     /// Emit retained IDs; the standard glyph shadow provides contrast without a panel.
+    /// A name over a team logo stands above it.
     pub(crate) fn emit(
         &mut self,
         slot: u16,
         point: [f32; 2],
         viewport: [f32; 2],
-        names_allowed: bool,
         health: Option<f32>,
-        icon: Option<Color>,
     ) {
         let unit = crate::ui_scale::height_scale(viewport[1]);
         let size = 36.0 * self.scale * unit;
-        if self.names != 0 && names_allowed {
-            let width = (320.0 * unit).min(viewport[0]);
-            let x = (point[0] - width * 0.5).clamp(0.0, viewport[0] - width);
-            let _ = self.list.push(DrawCommand::Text {
-                rect: Rect::new(x, point[1], width, size * 1.5),
-                text: TextId(u32::from(slot)),
-                size,
-                color: Color::new(1.0, 1.0, 1.0, 1.0),
-                align: TextAlign::Center,
-                overflow: TextOverflow::Ellipsis,
-                weight: FontWeight::Regular,
-                letter_spacing: 0.0,
-            });
-            if self.names > 1
-                && let Some(ratio) = health
-            {
-                let _ = self.list.push(DrawCommand::SolidRect {
-                    rect: Rect::new(
-                        point[0] - 25.0 * unit,
-                        point[1] - 7.0 * unit,
-                        50.0 * unit * ratio,
-                        3.0 * unit,
-                    ),
-                    color: Color::new(1.0 - ratio, ratio, 0.1, 1.0),
-                });
-            }
+        let mut point = point;
+        if let Some(top) = self.logo_tops.get(usize::from(slot)).copied().flatten() {
+            point[1] = point[1].min(top - size * 1.5);
         }
-        if let Some(color) = icon {
+        let width = (320.0 * unit).min(viewport[0]);
+        let x = (point[0] - width * 0.5).clamp(0.0, viewport[0] - width);
+        let _ = self.list.push(DrawCommand::Text {
+            rect: Rect::new(x, point[1], width, size * 1.5),
+            text: TextId(u32::from(slot)),
+            size,
+            color: Color::new(1.0, 1.0, 1.0, 1.0),
+            align: TextAlign::Center,
+            overflow: TextOverflow::Ellipsis,
+            weight: FontWeight::Regular,
+            letter_spacing: 0.0,
+        });
+        if self.names > 1
+            && let Some(ratio) = health
+        {
             let _ = self.list.push(DrawCommand::SolidRect {
                 rect: Rect::new(
-                    point[0] - 4.0 * unit,
-                    point[1] - 20.0 * unit,
-                    8.0 * unit,
-                    8.0 * unit,
+                    point[0] - 25.0 * unit,
+                    point[1] - 7.0 * unit,
+                    50.0 * unit * ratio,
+                    3.0 * unit,
                 ),
-                color,
+                color: Color::new(1.0 - ratio, ratio, 0.1, 1.0),
             });
         }
     }
@@ -269,35 +235,6 @@ impl State {
             crate::text::TextStyle::NEUTRAL,
         );
     }
-}
-
-// TaystJK cg_players.c:11074-11155: team, Power Duel, and Jedi Master are distinct.
-pub(super) fn friend_icon(
-    mode: i32,
-    local: i32,
-    team: i32,
-    local_duel: i32,
-    duel: i32,
-    master: bool,
-    local_master: bool,
-    target_master: bool,
-) -> Option<Color> {
-    let ally = if mode >= 6 {
-        local == 3 || local == team
-    } else if mode == 4 {
-        if local == 3 {
-            duel == 2
-        } else {
-            local_duel == duel
-        }
-    } else {
-        mode == 2 && (local == 3 || local == team) && master && !local_master && !target_master
-    };
-    ally.then_some(if team == 2 {
-        Color::new(0.2, 0.55, 1.0, 1.0)
-    } else {
-        Color::new(1.0, 0.25, 0.2, 1.0)
-    })
 }
 
 pub(super) fn info_number(bytes: Option<&[u8]>, key: &str) -> i32 {

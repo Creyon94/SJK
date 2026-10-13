@@ -62,6 +62,8 @@ Sol develops SJK and sets its direction. Sol's work includes:
   tested, until the hub opens it to everyone;
 - world pings (13/10/2026): `+ping` marks a spot for the SJK players on the server,
   through the hub, your team only in team games;
+- team games (13/10/2026): red outlines on enemies and green on teammates where they
+  are seen, team logos over teammates' heads after JoF EJK, the team overlay removed;
 - cards that tilt towards the pointer in perspective, their Holo and Solar light
   following it (13/10/2026);
 - SJK Symbols (13/10/2026), SJK's own symbol font: rarity and finish marks drawn for

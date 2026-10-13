@@ -455,7 +455,7 @@ one group and regroups the settings screen's GAME, HUD, HUD+ and TEXT tabs by su
     gathers the menus' and console's look (menu style, contrast, game fonts, menu
     text size and spacing, console style and text size); HUD the HUD style, files
     and scale, status, weapon bar, crosshair and its size, names, nameplates,
-    timer, speedometer, team overlay, lagometer and its scale, chat and ground readout;
+    timer, speedometer, lagometer and its scale, chat and ground readout;
     Scoreboard its style, the SJK one's compact rows, client numbers, head
     icons and small rows. Network
     follows.
@@ -2028,10 +2028,9 @@ slot reuse cannot be distinguished. No transport or protocol encoding changed.
 
 The leader/opponent portrait and its name/score occupy the top-right corner,
 with a 32-unit top margin and the existing 40-unit right margin at 1080p (scaled
-with the HUD). Optional snapshot diagnostics, inventory and the automatically
-positioned team overlay flow below that block. Explicit team-overlay coordinates
-remain authoritative. Visibility and server-selected leader/opponent rules are
-unchanged.
+with the HUD). Optional snapshot diagnostics and inventory flow below that block.
+Visibility and server-selected leader/opponent rules are unchanged. There is no team
+overlay ([Team outlines and logos](#team-outlines-and-logos)).
 
 ## Lagometer size
 
@@ -2082,7 +2081,7 @@ helper's sound, accel bar, Weze, Warsow and original styles are not drawn.
 `cg_scoreboardStyle` (Settings > HUD > Scoreboard > "Scoreboard style") picks the
 scoreboard layout. While either scoreboard is held, the HUD steps
 aside as for the quick wheel (status, weapon, timers, vote and kill lines,
-crosshair, the team overlay, lagometer, speedometer, warmup line, Force and item
+crosshair, lagometer, speedometer, warmup line, Force and item
 selectors, movement guides, the red damage-direction flash, the ground readout
 and the game-data HUD; chat stays, `scoreboard::hides_hud`), unless
 `cg_drawScores 0` leaves the key drawing nothing:
@@ -2244,7 +2243,7 @@ short word instead (`SABER`, `ROCKET`, `FORCE`).
 Up to five entries show, the newest at the top so it is always right under the
 readouts above; each holds five seconds of server time and fades out over one.
 The feed stands under whatever the HUD already
-draws at the top right — the FPS readout, team overlay, duel portrait, snapshot,
+draws at the top right — the FPS readout, duel portrait, snapshot,
 inventory and powerup column — and never reaches left of the vote panel's right
 edge, so it does not cover the top centre's vote and timer. It is part of the
 HUD's draw list, so it hides whenever the HUD does: scoreboard held,
@@ -2355,9 +2354,9 @@ that font is not loaded), whatever `cg_classicHudFont` says.
 
 Where the numbers come from, and what is not known:
 
-- **Teammates** in team games: health and shield from the team overlay's `tinfo`
-  command, exact. The client asks for it (`teamoverlay` userinfo) whenever nameplate
-  bars are on, not only with `cg_drawTeamOverlay`.
+- **Teammates** in team games: health and shield from the server's team overlay data
+  (the `tinfo` command), exact. The client asks for it (`teamoverlay` userinfo)
+  whenever nameplate bars are on; SJK draws no team overlay of its own.
 - **NPCs** (and any entity whose `entityState_t::health`/`maxhealth` the server
   sets): exact. The SJK server sets them for NPCs, breakables and emplaced guns, not
   for clients; stock JKA does not either.
@@ -2488,8 +2487,9 @@ Where the numbers come from, and what is not known:
 
 `cg_drawPlayerNames` keeps TaystJK's plain overhead names (0 off, 1 names, 2 adds a
 health strip, text only, off by default); they are hidden while nameplates are on.
-`cg_drawFriend` draws the ally marker for either. At most 32 players and 16 NPCs are
-tagged and nothing is allocated per frame. Not tested in game yet; the estimates
+Both stand above an ally's team logo
+([Team outlines and logos](#team-outlines-and-logos)). At most 32 players and 16 NPCs
+are tagged and nothing is allocated per frame. Not tested in game yet; the estimates
 are unit-tested against synthetic snapshots only.
 
 ## World pings
@@ -2852,9 +2852,12 @@ outside: no line where an arm crosses the chest
 ([card_outline.rs](../crates/sjk-viewer/src/card_outline.rs)). After the scene the body
 is drawn again, with its usual vertex path, into a one-channel mask against the scene's
 depth, so only the part in view counts and nothing shows through walls; the 2D layer
-then draws every pixel outside the mask within 4 pixels of a 1080-line screen (scaled
-with the height, 8 at 2160) in a scissor around the player, after anti-aliasing so the
-colour is the card's (11/10/2026). Hats, capes and sabers are not outlined. The ignored
+then draws every pixel outside the mask within 2 pixels of a 1080-line screen (scaled
+with the height, 4 at 2160; it was 4 and 8 until Sol halved it on 13/10/2026) in a
+scissor around the player, after anti-aliasing so the colour is the card's
+(11/10/2026). The team outlines share the ring
+([Team outlines and logos](#team-outlines-and-logos)); on the card's player the
+card's colour wins. Hats, capes and sabers are not outlined. The ignored
 world shot `card_outline_on_a_demo`
 ([world_shot_card_outline.rs](../crates/sjk-viewer/src/world_shot_card_outline.rs))
 plays the demo `SJK_TEST_DEMO` names off screen, pins the card on another player and
@@ -2931,6 +2934,53 @@ nothing a glance at the scoreboard would not: no health, Force or position.
   capes are models without pictures, so they are named in text (`c1`, `c2` after the colour
   digits).
 - A hub bio is not shown yet.
+
+### Team outlines and logos
+
+In team games (Team FFA, Siege, Capture the Flag, Capture the Ysalamiri) every enemy
+gets a red ring around the outside of their body and every teammate a green one, the
+player card's ring at its width (Sol's request, 13/10/2026;
+[team_outline.rs](../crates/sjk-viewer/src/hud/team_outline.rs),
+[card_outline.rs](../crates/sjk-viewer/src/card_outline.rs)). Like the card's, a ring
+follows only the part of a body that is in view: the bodies are drawn into the mask
+against the scene's depth, so nobody is outlined through a wall and the rings show
+nothing the screen does not. Each body writes its group (card, enemy, teammate) into
+the one-channel mask through the blend constant, and the ring takes the colour of the
+nearest body; the ring is drawn only inside a box around each outlined player, boxes
+that overlap merged so no pixel is drawn twice, with about one mask lookup per pixel of
+its circumference (8 to 16 a step). Nobody is outlined in free-for-all, duel or power
+duel, while spectating freely (a followed player's team is the viewer's), nor a dead,
+cloaked or mind-tricking player, nor anyone off screen. Hats, capes and sabers are not
+outlined. The rings hide with the overhead labels (menus, the scoreboard,
+intermission, `cg_drawHud 0`, `cg_draw2D 0`).
+
+- `cg_teamOutline` (default 1; Settings > HUD+ > Team outlines, and Simple > HUD)
+  turns them on.
+
+Over each teammate's head stands their team's logo, as JoF EJK floats it
+(`CG_PlayerFloatSprite` in `CG_Player`): the Imperial logo (`sprites/team_red`) over a
+red teammate, the Rebel one (`sprites/team_blue`) over a blue one, every player's while
+spectating freely, the duel partner's icon (`gfx/mp/pduel_icon_double`) in power duel
+and the master's foes in Jedi Master, as stock does; Siege's per-map team icons are not
+read, so Siege shows the red and blue logos, stock's fallback
+([team_logo.rs](../crates/sjk-viewer/src/hud/team_logo.rs)). EJK's sprite is 20 units
+across in the world and hidden by the depth; SJK's logo is a picture on the screen as
+large as a 24-unit sprite, held between 20 and 40 pixels of a 1080-line screen so it
+stays readable far away and never outgrows a name up close, its foot just over the head
+(over the talk balloon or connection icon when one floats there), and a trace from the
+eye to that point hides it behind walls. The nameplate, or the plain overhead name,
+stands above it. It hides with the nameplates (menus, the scoreboard, intermission,
+`cg_drawHud 0`).
+
+- `cg_drawFriend` (default 1; Settings > HUD+ > Team logos, and Simple > HUD) turns
+  them on. It was a small coloured square until 13/10/2026.
+
+The team overlay at the top right (`cg_drawTeamOverlay`, teammates' names, health and
+location) was removed the same day at Sol's request: the outlines and logos show who
+is who. The setting and its position settings (`cg_drawTeamOverlayX`, `Y`, `Scale`,
+`Weapons`) are no longer registered (a saved line becomes an unused cvar), a layout's
+`team_rows` widget draws nothing, and the client asks the server for the team data
+only for the nameplates' bars.
 
 ## Force wheel
 
@@ -3685,7 +3735,7 @@ shows: server `print`s (joins, team changes, votes, command replies, server
 announcements), the one-line obituary of each kill, the client's own messages
 (errors, demo and download notices, cvar replies). Chat never goes through it: it
 keeps its chat box (`cg_drawChat`), and centre prints, the kill feed
-(`cg_killfeed`), the vote and team overlays are drawn by the HUD, so all of them
+(`cg_killfeed`) and the vote panel are drawn by the HUD, so all of them
 stay with the feed off. The open console still shows every line. Dragging the mouse selects
 scrollback text and Ctrl+C copies it; the selection does not include the time
 column.

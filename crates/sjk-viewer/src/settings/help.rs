@@ -297,8 +297,12 @@ const HELP: &[(&str, &str)] = &[
         "Outline the player whose card is up, in the card's colour.",
     ),
     (
+        crate::hud::team_outline::CVAR,
+        "In team games, a red outline around enemies and a green one around teammates, only where you can see them.",
+    ),
+    (
         "cg_drawFriend",
-        "A marker over allies: your team, your duel partner, or Jedi Master's foes.",
+        "Your team's logo over teammates' heads (everyone's while spectating), your partner's in power duel.",
     ),
     (
         "cg_nameplate",
@@ -593,10 +597,6 @@ const HELP: &[(&str, &str)] = &[
     ),
     // HUD+
     ("cg_crosshairSize", "Size of the crosshair."),
-    (
-        "cg_drawTeamOverlay",
-        "In team games, your teammates with their health and where they are.",
-    ),
     ("cg_speedometer", "Shows how fast you move."),
     (
         crate::hud::movement::LINES_ROW,

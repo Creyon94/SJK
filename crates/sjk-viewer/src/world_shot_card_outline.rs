@@ -45,7 +45,7 @@ fn card_outline_on_a_demo() {
 
 /// A windowless client playing `demo` with `camera`, its map and content from the
 /// demo's game state, as `sjk --demo` starts.
-fn open_demo(
+pub(super) fn open_demo(
     demo: &std::path::Path,
     camera: demo_playback::Camera,
     size: [u32; 2],

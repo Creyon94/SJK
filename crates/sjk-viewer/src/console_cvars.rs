@@ -775,12 +775,6 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Crosshair size in 640x480 units",
         ),
         CvarDefinition::new(
-            "cg_drawTeamOverlay",
-            1_i64,
-            archive,
-            "Team status: 0 off, 1 on",
-        ),
-        CvarDefinition::new(
             "cg_speedometer",
             0_i64,
             archive,

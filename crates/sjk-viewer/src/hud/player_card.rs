@@ -544,8 +544,8 @@ fn anchor_on_screen(camera: Camera, anchor: Vec3, limit: f32) -> Option<([f32; 2
 
 /// The screen area (`[x, y, width, height]`) a body at `origin` whose box top is `top`
 /// may cover: its reach projected, or the whole screen when part of it is behind the
-/// eye or far off screen.
-fn body_area(camera: Camera, origin: Vec3, top: f32) -> [f32; 4] {
+/// eye or far off screen. The team outlines use it too.
+pub(super) fn body_area(camera: Camera, origin: Vec3, top: f32) -> [f32; 4] {
     let [width, height] = camera.viewport;
     let mut low = [f32::MAX; 2];
     let mut high = [f32::MIN; 2];

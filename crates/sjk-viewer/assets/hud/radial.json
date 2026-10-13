@@ -621,47 +621,6 @@
    }
   },
   {
-   "id": "team_rows",
-   "kind": "repeater",
-   "binding": "team_rows",
-   "anchor": "top_right",
-   "offset": {
-    "x": -32.0,
-    "y": 32.0
-   },
-   "size": {
-    "width": {
-     "unit": "px",
-     "value": 380.0
-    },
-    "height": {
-     "unit": "px",
-     "value": 324.0
-    }
-   },
-   "visibility": {
-    "kind": "flag",
-    "binding": "draw_team"
-   },
-   "layer": 4,
-   "style": {
-    "background": {
-     "r": 0.0,
-     "g": 0.0,
-     "b": 0.0,
-     "a": 0.3
-    },
-    "border": {
-     "r": 1.0,
-     "g": 1.0,
-     "b": 1.0,
-     "a": 0.06
-    },
-    "border_width": 1.0,
-    "radius": 12.0
-   }
-  },
-  {
    "id": "vote_panel",
    "kind": "repeater",
    "binding": "vote_panel",

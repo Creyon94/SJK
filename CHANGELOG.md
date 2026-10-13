@@ -26,9 +26,14 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 ## Unreleased
 
 > Pings: Middle mouse marks a spot for the SJK players on your server, your team only in team games.
+> Team games: Red outlines on enemies, green on teammates, your team's logo over their heads, and no more team overlay.
 > Cards: Cards tilt towards the pointer, their light following it.
 
 - World pings: `+ping` (middle mouse in a new profile) marks the point under the crosshair for the other SJK players on the server, your team only in team games, with a gold ring seen through walls, your name, the distance and a short sound for 7 seconds; Settings > HUD > World pings hides others' pings (`cg_worldPings`) or the sound (`cg_worldPingSound`), and muted players' pings never show _(Sol)_
+- Team games: enemies get a thin red outline and teammates a green one, only where you can see them; Settings > HUD+ > Team outlines (`cg_teamOutline`, on by default) _(Sol)_
+- Team logos over your teammates' heads, as JoF EJK floats them: the Imperial or Rebel logo, readable at any range and hidden behind walls, under the nameplate; Settings > HUD+ > Team logos (`cg_drawFriend`) _(Sol, after JoF EJK)_
+- The player card's outline is half as thick _(Sol)_
+- The team status overlay at the top right is gone, with `cg_drawTeamOverlay` _(Sol)_
 - Cards tilt towards the pointer: on the Collection's Cards tab a card under the pointer turns towards it a little in perspective, its Holo or Solar light following the pointer under a soft glare; Holo's light stays inside the card's edge and corners and its sweep crosses the card, then waits, instead of jumping back _(Sol)_
 
 ## 2026.1013.1 (Alpha) | 13/10/2026
