@@ -47,9 +47,16 @@ pub fn reach(eyes: [f32; 3], view_angles: [f32; 3]) -> ([f32; 3], [f32; 3]) {
 /// fire its targets, and which a map may start hidden and bring back solid.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Usable {
-    /// The inline model it is made of, and that model's box.
+    /// The inline model it is made of, and that model's box around [`Self::origin`].
     pub model: usize,
     pub bounds: ([f32; 3], [f32; 3]),
+    /// `s.origin`, copied to `s.pos.trBase` and `r.currentOrigin`: where the brush and
+    /// its second model stand (an origin brush compiles the model around it).
+    pub origin: [f32; 3],
+    /// `model2`: an md3 every client draws with the brush (`modelindex2`, `CG_Mover`),
+    /// such as a table over a clip-only brush; empty for none, and for a `.glm`, which
+    /// the reference leaves out in multiplayer.
+    pub model2: String,
     /// What it fires when used.
     pub target: String,
     pub targetname: String,
@@ -63,13 +70,54 @@ pub struct Usable {
     pub wait: i32,
 }
 
+/// The wire fields [`Usable::project`] writes (`msg.cpp`'s entity fields).
+mod es {
+    pub const TYPE: usize = 8;
+    pub const EFLAGS: usize = 19;
+    pub const MODEL2: usize = 41;
+    pub const POS_TYPE: usize = 23;
+    pub const POS_BASE: [usize; 3] = [2, 1, 4];
+}
+
+impl Usable {
+    /// Its wire state (`InitMover`, then `SP_func_usable`): an `ET_MOVER` of its inline
+    /// model standing still (`TR_STATIONARY`) at its origin, with `model2` the registered
+    /// index of [`Self::model2`] (zero for none).
+    pub fn project(&self, state: &mut sjk_protocol::EntityState, model2: u16) {
+        state.set_raw_field(es::TYPE, crate::path_movers::ET_MOVER);
+        crate::triggers::set_brush_model(state, self.model);
+        state.set_raw_field(es::MODEL2, u32::from(model2));
+        state.set_raw_field(es::EFLAGS, self.eflags);
+        state.set_raw_field(es::POS_TYPE, crate::path_movers::TR_STATIONARY);
+        for (field, value) in es::POS_BASE.into_iter().zip(self.origin) {
+            state.set_raw_field(field, value.to_bits());
+        }
+    }
+
+    /// Whether the use key reaches it and fires it (`ValidUseTarget`,
+    /// `g_utils.c:1628-1646`): a mover the map made `PLAYER_USE`, not deactivated.
+    pub fn answers_use(&self) -> bool {
+        let flags = if self.spawnflags & USABLE_INACTIVE != 0 {
+            FL_INACTIVE
+        } else {
+            0
+        };
+        answers_use(true, flags, self.svflags)
+    }
+}
+
 /// `SP_func_usable`'s own spawnflags.
 const USABLE_START_OFF: u32 = 1;
 /// `ALWAYS_ON` (8): using it fires its targets and it never goes away.
 pub const USABLE_ALWAYS_ON: u32 = 8;
-/// `SVF_NOCLIENT` and `EF_NODRAW`, which a hidden one wears.
+/// `MOVER_PLAYER_USE` (64, `g_mover.c:52`): `InitMover` makes it `SVF_PLAYER_USABLE`.
+const USABLE_PLAYER_USE: u32 = 64;
+/// `MOVER_INACTIVE` (128, `g_mover.c:53`): `InitMover` makes it `FL_INACTIVE`.
+const USABLE_INACTIVE: u32 = 128;
+/// `SVF_NOCLIENT` and `EF_NODRAW` (`bg_public.h`: bit 8; bit 7 is `EF_PERMANENT`),
+/// which a hidden one wears.
 const SVF_NOCLIENT: u32 = 0x0001;
-const EF_NODRAW: u32 = 1 << 7;
+const EF_NODRAW: u32 = 1 << 8;
 /// `CONTENTS_SOLID`.
 const CONTENTS_SOLID: u32 = 1;
 
@@ -91,16 +139,104 @@ pub fn spawn_usable(entity: &sjk_entity::Entity, bounds: ([f32; 3], [f32; 3])) -
     };
     let spawnflags = number("spawnflags") as u32;
     let off = spawnflags & USABLE_START_OFF != 0;
+    let origin = std::array::from_fn(|axis| {
+        entity
+            .get("origin")
+            .and_then(|text| text.split_whitespace().nth(axis))
+            .and_then(|value| value.parse::<f32>().ok())
+            .unwrap_or(0.0)
+    });
+    let model2 = entity.get("model2").unwrap_or_default();
+    let player_use = if spawnflags & USABLE_PLAYER_USE != 0 {
+        SVF_PLAYER_USABLE
+    } else {
+        0
+    };
     Some(Usable {
         model,
         bounds,
+        origin,
+        model2: if model2.contains(".glm") {
+            String::new()
+        } else {
+            model2.to_owned()
+        },
         target: entity.get("target").unwrap_or_default().to_owned(),
         targetname: entity.get("targetname").unwrap_or_default().to_owned(),
         spawnflags,
         present: !off,
         contents: if off { 0 } else { CONTENTS_SOLID },
-        svflags: if off { SVF_NOCLIENT } else { SVF_PLAYER_USABLE },
+        svflags: player_use | if off { SVF_NOCLIENT } else { 0 },
         eflags: if off { EF_NODRAW } else { 0 },
         wait: (number("wait") * 1_000.0) as i32,
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn usable(pairs: &[(&str, &str)]) -> Usable {
+        let mut text = String::from(
+            "{
+\"classname\" \"func_usable\"
+",
+        );
+        for (key, value) in pairs {
+            text.push_str(&format!(
+                "\"{key}\" \"{value}\"
+"
+            ));
+        }
+        text.push_str(
+            "}
+",
+        );
+        let entity = sjk_entity::parse_entity_lump(text.as_bytes())
+            .unwrap()
+            .remove(0);
+        spawn_usable(&entity, ([-22.0, -20.0, -1.0], [20.0, 20.0, 43.0])).unwrap()
+    }
+
+    #[test]
+    fn a_table_stands_at_its_origin_with_its_model2() {
+        // `t2_rancor`'s entity 231: a clip-only brush with a table md3.
+        let table = usable(&[
+            ("model", "*27"),
+            ("model2", "models/map_objects/nar_shaddar/table01.md3"),
+            ("origin", "-2839 2228 1072"),
+        ]);
+        assert_eq!(table.origin, [-2839.0, 2228.0, 1072.0]);
+        assert_eq!(table.model2, "models/map_objects/nar_shaddar/table01.md3");
+        assert!(table.present);
+        assert_eq!(table.eflags, 0);
+        let mut state = sjk_protocol::EntityState::zero(0, &sjk_protocol::LEGACY_ENTITY_FIELDS);
+        table.project(&mut state, 5);
+        assert_eq!(state.entity_type(), 6);
+        assert_eq!(state.model_index(), 27);
+        assert_eq!(state.model_index2(), 5);
+        assert_eq!(state.trajectory_base(), [-2839.0, 2228.0, 1072.0]);
+    }
+
+    #[test]
+    fn a_start_off_usable_is_hidden_by_nodraw_not_permanent() {
+        let hidden = usable(&[("model", "*17"), ("spawnflags", "1")]);
+        assert!(!hidden.present);
+        assert_eq!(hidden.eflags, 1 << 8);
+        assert_eq!(hidden.contents, 0);
+        assert_eq!(hidden.svflags & SVF_NOCLIENT, SVF_NOCLIENT);
+    }
+
+    #[test]
+    fn only_player_use_usables_answer_the_use_key() {
+        assert!(!usable(&[("model", "*1")]).answers_use());
+        assert!(usable(&[("model", "*1"), ("spawnflags", "64")]).answers_use());
+        assert!(!usable(&[("model", "*1"), ("spawnflags", "192")]).answers_use());
+    }
+
+    #[test]
+    fn a_glm_model2_is_left_out_as_in_multiplayer() {
+        let usable = usable(&[("model", "*1"), ("model2", "models/x/model.glm")]);
+        assert!(usable.model2.is_empty());
+    }
 }

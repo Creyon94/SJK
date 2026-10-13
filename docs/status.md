@@ -1,5 +1,33 @@
 # Status and priorities
 
+## World notes: Rancor tables, sand steps and footprints
+
+Branch `personal/world-notes-fixes` (13/10/2026), two of Sol's world notes.
+
+- Fixed, "tables are missing on this map" (`t2_rancor`, 08/10/2026, on a JoF server): the
+  bar tables are `func_usable` clip brushes whose only drawn part is their `model2` md3,
+  which SJK never drew. Movers now draw their `modelindex2` model as `CG_Mover` does, and
+  the native server sends usables at their origin with their `model2`, solid, and fires
+  only `PLAYER_USE` ones ([client.md](client.md#mover-models)). The note's companion
+  "this should be a light" (`flares/solid_blue`, same place) is not addressed.
+- Done, sand on `mp/siege_desert` (07/10/2026): steps on mud, dirt, sand and snow kick
+  up dust and leave footprints as retail's `cg_footsteps 3` does, on untagged sand
+  through the texture-name guess; jumps and forward landings step with both feet (SJK);
+  three switches, `cg_footprints`, `cg_jumpFootsteps`, `cg_footstepGuess`, in Settings >
+  Sound ([client.md](client.md#dust-and-footprints)). The 08/10 sand sounds already
+  covered walking and the side, back and Force landings; plain jumps and the forward
+  landing had no step in retail's table.
+
+Verified: unit tests (the mover model rule, the server's usable state and use rule, the
+jump and landing cues, prints by material, the mark list's lifetime and eviction, the
+mirror transform), workspace build, tests and clippy (no new warnings), and two world
+shots looked at: `rancor_tables` (the bar without and with the usables as the native
+server sends them: the table under the note's light appears) and
+`siege_desert_footprints` (ten steps on `siege2sand` leave faint alternating prints;
+none with the guess off). Not run in a game: the prints and dust on players' feet, the
+jump and landing timing, the native server's usable collision and the tables on a live
+server are untested.
+
 ## Donations and the Supporter medal
 
 Branch `personal/donate-goal` (13/10/2026), Sol's request, with the hub's
@@ -3758,7 +3786,7 @@ with remaps (`SJK_NOTES`, `SJK_NOTES_CVARS`, `SJK_NOTES_REMAP`; see its rustdoc)
   glowing with a generation-6 pack.
 - Fixed, sand steps on `mp/siege_desert`: untagged ground takes its footstep bank
   from its shader's name ([client.md](client.md#animation-sounds-and-voice-variants)).
-  Not heard in a game; footprints are not done.
+  Not heard in a game; footprints followed on 13/10/2026 (top of this page).
 - Changed, notes name a remap's target: several notes from a JA+ server describe
   surfaces ("not affected by light", uniformly pale) that the same views draw normally
   offline, even with Sol's settings and a point light; the server's remaps are the
@@ -5517,7 +5545,7 @@ Sol is reviewing every retail world shader on the test maps of
 - Open: decals flicker on every map (Sol). Their bias matches rd-vanilla; only the
   fog pass lacked it (fixed). The cause outside fog needs a reproduction (map,
   decal, distance).
-- Open: sand footprints (untagged sand takes sand footsteps since 08/10/2026), glass with
+- Open: glass with
   depth (interior mapping), see-through backgrounds on opaque animated fields
   (`byss/static_field`), and parallax that is too deep on sand at grazing angles.
 - Open, found on the way: shaders whose `wave` has fewer than four numbers are
@@ -6805,15 +6833,16 @@ remain open.
   zero decode failures or missing handles. Authored custom saber sound fields
   also passed an external parsing check. Formatting, locked workspace build/tests
   and the optimized Linux client build passed. Native owner listening, broader
-  custom-model coverage and animation effect/footprint rendering remain open.
+  custom-model coverage remain open; footstep dust and prints followed on 13/10/2026.
 - Snapshot entities draw a model from `modelindex` only for the entity types
   whose codemp cgame function does so; the per-type rules and their reference
   are in [entity_models.rs](../crates/sjk-client/src/entity_models.rs). An
   `ET_GENERAL` model takes the server's `iModelScale` (a percentage) as
   `CG_General` does, so a prop a server spawns with `modelscale` has its size
-  (SJK, `presentation.rs`). Models codemp draws that the client still does not: force holocrons, non-brush
-  `ET_MOVER` models and a mover's secondary `modelindex2` model, and the
-  portable shield (`ET_SPECIAL`) and `ET_BEAM` effects.
+  (SJK, `presentation.rs`). A mover's secondary `modelindex2` model is drawn since
+  13/10/2026 ([client.md](client.md#mover-models)). Models codemp draws that the client
+  still does not: force holocrons, non-brush `ET_MOVER` models, and the portable shield
+  (`ET_SPECIAL`) and `ET_BEAM` effects.
 - Mod compatibility is scoped by explicit profiles; broad BaseJKA/JA+/TaystJK
   feature parity is not established by profile detection.
 - Community PK3 compatibility needs broader map/model coverage. One retail map

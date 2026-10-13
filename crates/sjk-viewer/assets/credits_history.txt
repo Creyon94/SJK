@@ -9,6 +9,9 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 13/10/2026 | - | Rancor's tables, footprints and dust, jump steps
+- 5589532 |  | Draw movers' model2: t2_rancor's bar tables
+- 774609c |  | Footprints and dust on sand, snow and mud; jump and landing steps
 + 13/10/2026 | - | Release 2026.1013.2 notes
 - 4e3e428 |  | Release 2026.1013.2 (Alpha)
 + 13/10/2026 | - | Ko-fi donation goal on the site and main page, Supporter medal

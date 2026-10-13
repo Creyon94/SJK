@@ -38,7 +38,7 @@ pub(super) fn load<'a>(
     vfs: &VirtualFileSystem,
     bsp: &Bsp,
     world: &World,
-    _game_state: Option<&GameState>,
+    game_state: Option<&GameState>,
     effect_names: impl Iterator<Item = &'a str>,
     vehicle_models: impl Iterator<Item = &'a str>,
     flattened: &mut FlattenedScene,
@@ -63,6 +63,7 @@ pub(super) fn load<'a>(
         variant: String::new(),
     }));
     static_models::extend_appearances(bsp, &mut appearances);
+    crate::mover_models::extend_appearances(game_state, &mut appearances);
     first_person_weapon::Catalog::extend_appearances(&mut appearances);
     appearances.extend(
         (1..=16)

@@ -1288,7 +1288,9 @@ shader's file name in SJK (`footsteps::material_from_name`: sand but not sandsto
 snow, grass, gravel, mud, dirt, carpet, wood or plank): retail leaves much of its
 sand untagged, such as `mp/siege_desert`'s `siege/siege2sand`, where Sol asked for
 sand steps (world note, 07/10/2026). The collision trace reports the brush side's
-or patch's shader for this (`CollisionTrace::shader`). `cg_footsteps 0` mutes them. Frame
+or patch's shader for this (`CollisionTrace::shader`); `cg_footstepGuess 0` turns the guess
+off (stone, as retail), and it applies to dust and prints too. As in `_PlayerFootStep`, a
+foot in water (`MASK_WATER`) makes no step. `cg_footsteps 0` mutes them. Frame
 latches prevent repeated playback while an animation frame is held; absent actors,
 teleports, backwards seeks and paused map changes reset the cursor. First-person
 local actors use the same evaluated timing. This restores the blue-stance taunt's
@@ -1300,8 +1302,62 @@ based on samples that actually resolved. The expanded taunt bank is used in FFA
 as in TaystJK, rather than restricting ordinary FFA taunts to `taunt.wav`. Selection
 is replay-stable but is not the legacy global random stream; repeats remain
 possible. Animation selection, movement, saber timing and network events are
-unchanged. Animation-driven effect/footprint marks and gameplay event actions
-remain outside this audio adapter.
+unchanged. Gameplay event actions remain outside this audio adapter.
+
+### Dust and footprints
+
+A step on mud, dirt, sand or snow also kicks up dust and leaves a footprint, as
+`_PlayerFootStep` does with retail's default `cg_footsteps 3` (`cg_players.c:2889-3086`,
+[footprints.rs](../crates/sjk-viewer/src/footprints.rs)): the material's effect
+(`materials/mud`, `materials/sand` for dirt and sand, `materials/snow`) along the ground's
+normal, and the print (`footstep_r`, `footstep_l`, `footstep_heavy_r` or `footstep_heavy_l`
+for a run, radius 6) turned with the legs. Gravel kicks up dust and leaves no print. A
+print is a lasting cgame mark (`CG_ImpactMark` with `temporary` false): it is drawn for
+ten seconds, darkening over the last one, at most 256 mark polys with the oldest mark
+given up for a new one (`CG_AddMarks`, `CG_AllocMark`; the third list of
+[decal_store.rs](../crates/sjk-viewer/src/decal_store.rs)), and `cg_marks 0` drops it.
+The left foot's shader mirrors the right's picture with `tcMod transform -1 0 0 1 1 0`,
+which effect stages now read as a mirror.
+
+SJK saved `cg_footsteps` as an on/off `1`, which retail reads as "sounds only", so the
+dust and prints have their own switch, `cg_footprints` (on; Settings > Sound,
+"Footprints and dust"); `cg_footsteps 0` still turns off all three. Retail's untagged
+sand (`mp/siege_desert`'s `siege/siege2sand`) only gets prints through the texture-name
+guess above.
+
+### Jump and landing steps
+
+Retail's `_humanoid/animevents.cfg` steps in its side, back and Force landings but not
+in the jumps or the forward landing (`BOTH_LAND1`), so a plain jump on sand makes no
+sand sound. SJK adds both feet at the second frame of `BOTH_JUMP1`, `BOTH_JUMPBACK1`,
+`BOTH_JUMPLEFT1`, `BOTH_JUMPRIGHT1`, the four `BOTH_FORCEJUMP*1` and `BOTH_LAND1`, as run
+steps with their sound, dust and print (`JUMP_LAND_STEPS` in
+[footsteps.rs](../crates/sjk-client/src/animation_events/footsteps.rs)), unless the
+model's own table already steps somewhere in that animation. `cg_jumpFootsteps 0`
+(Settings > Sound, "Jump and landing steps") keeps retail's steps alone.
+
+## Mover models
+
+A brush entity a map gives a `model2` key draws that model too: the game registers it as
+the mover's `modelindex2` (`InitMover`, `SP_func_usable`, `g_mover.c`) and `CG_Mover`
+draws it at the mover's origin and angles, scaled by `iModelScale` when set
+(`cg_ents.c:3469-3479`). `t2_rancor`'s bar tables are such movers: `func_usable` clip
+brushes, with no drawn face, carrying `models/map_objects/nar_shaddar/table01.md3`, so
+until 13/10/2026 SJK showed no tables at all (Sol's world note, 08/10/2026). The rule is
+`legacy_mover_model2` in [entity_models.rs](../crates/sjk-client/src/entity_models.rs);
+[mover_models.rs](../crates/sjk-viewer/src/mover_models.rs) loads the models (the
+baselines' at map load, later ones on first use) and draws them with the rigid entity
+models, for the snapshot's movers and the permanent ones. `EF_NODRAW` hides the model as
+it hides the brush. Multiplayer ignores a `func_usable`'s `modelAngles` (single player's
+key) and leaves out a `.glm` `model2`; so does SJK. Tables that start off
+(`spawnflags 1`) stay hidden unless a script brings them back.
+
+The native server sends a `func_usable` the same way: at its origin (`s.pos.trBase`),
+with its `model2` registered, solid to players and traces where it stands (it used to be
+neither placed nor solid), and the use key fires one only when the map made it
+`PLAYER_USE` (spawnflag 64) and not `INACTIVE` (128), as `ValidUseTarget` checks. One that
+starts off is not sent (`SVF_NOCLIENT`, `EF_NODRAW`); it used to carry `EF_PERMANENT`
+(bit 7) in the place of `EF_NODRAW` (bit 8).
 
 ## Door and mover sounds
 

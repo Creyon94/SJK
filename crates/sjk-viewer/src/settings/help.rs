@@ -250,6 +250,18 @@ const HELP: &[(&str, &str)] = &[
     ),
     ("cg_footsteps", "Footstep sounds, yours and other players'."),
     (
+        crate::footprints::PRINTS_CVAR,
+        "Steps on sand, snow, mud and dirt kick up dust and leave footprints for ten seconds, as in the original game.",
+    ),
+    (
+        crate::footprints::JUMP_CVAR,
+        "A jump and a forward landing step with both feet: the ground's sound, dust and prints. Not in the original game.",
+    ),
+    (
+        crate::footprints::GUESS_CVAR,
+        "Untagged ground (much original sand and snow) sounds and marks as its texture name says. Off: stone, as originally.",
+    ),
+    (
         "snd_mute_losefocus",
         "Silences the game while its window is alt-tabbed out or minimised.",
     ),

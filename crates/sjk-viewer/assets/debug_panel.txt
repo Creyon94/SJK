@@ -609,6 +609,16 @@ test: In a match, paste into chat and the console: text comes at once, no hitch 
 test: Accented and emoji text pastes intact; viewpos/mark copies still reach the clipboard.
 note: Was hitch 248 ms between-frames on each paste.
 
+[world-notes-tables-prints]
+area: Rendering & effects
+title: Rancor bar tables; footprints and dust on sand, snow and mud
+change: Movers draw their model2 (t2_rancor's bar tables); steps leave dust and 10 s prints
+change: Jumps and forward landings step with both feet (cg_jumpFootsteps)
+test: t2_rancor: setviewpos -2846 2334 1093 277, the table under the blue light shows
+test: mp/siege_desert: walk, run and jump on the sand: sand sounds, dust, faint prints
+test: Settings > Sound: turn off Footprints and dust, Jump and landing steps, Ground by texture name
+note: Prints use the retail texture, which is faint by design
+
 [worldnote-plus]
 area: Rendering & effects
 title: World notes take a page, keep the shader remaps and can note a model

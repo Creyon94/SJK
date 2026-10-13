@@ -388,6 +388,24 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
         CvarDefinition::new("s_doppler", true, archive, "Legacy looping-sound Doppler"),
         CvarDefinition::new("cg_footsteps", true, archive, "Play footstep sounds"),
         CvarDefinition::new(
+            crate::footprints::PRINTS_CVAR,
+            true,
+            archive,
+            "Steps on sand, snow, mud and dirt kick up dust and leave footprints",
+        ),
+        CvarDefinition::new(
+            crate::footprints::JUMP_CVAR,
+            true,
+            archive,
+            "Jumps and forward landings step with both feet (SJK)",
+        ),
+        CvarDefinition::new(
+            crate::footprints::GUESS_CVAR,
+            true,
+            archive,
+            "Ground a map gives no material takes it from its texture name (SJK)",
+        ),
+        CvarDefinition::new(
             crate::unlock_toast::SOUND_CVAR,
             true,
             archive,

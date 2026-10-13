@@ -68,6 +68,8 @@ Sol develops SJK and sets its direction. Sol's work includes:
   map's MD3 models as a note's subject;
 - donations (13/10/2026): SJK's Ko-fi goal live on the site and the main page through
   the hub, and the Supporter medal given on its own for more than 1 euro;
+- footprints and dust on sand, snow and mud, steps on jumps and landings, and props a
+  map hangs on movers drawn, such as t2_rancor's bar tables (13/10/2026);
 - cards that tilt towards the pointer in perspective, their Holo and Solar light
   following it (13/10/2026);
 - SJK Symbols (13/10/2026), SJK's own symbol font: rarity and finish marks drawn for
