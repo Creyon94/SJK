@@ -8,7 +8,7 @@ use super::*;
 pub(crate) mod flags;
 
 #[path = "force_power_submission.rs"]
-mod force_powers;
+pub(crate) mod force_powers;
 
 #[path = "thrown_saber.rs"]
 mod thrown_saber;

@@ -11,8 +11,9 @@
 //! takes them. `preview.wgsl` makes the display values, takes coverage from
 //! depth and adds the blades, their glow beyond the body becoming alpha. The camera frames the
 //! whole body from in front and turns around it at retail's
-//! `model_rotation 50` (a degree every 50 ms). The actor is lit by the map
-//! where it stands, as the stage model is.
+//! `model_rotation 50` (a degree every 50 ms). The actor is lit as retail lit a menu
+//! model with no world, the same on every map: it is a picture of the model, not of
+//! the map the player is on.
 //!
 //! A failure must not take the client down with it: the pipeline and
 //! textures are made inside a validation scope, and the first frame is a
@@ -26,7 +27,7 @@ use crate::camera_uniform::CameraUniform;
 /// Turn rate around the model (`model_rotation 50`).
 const TURN_DEGREES_PER_SECOND: f32 = 20.0;
 /// Vertical field of view.
-const FIELD_OF_VIEW_DEGREES: f32 = 30.0;
+pub(super) const FIELD_OF_VIEW_DEGREES: f32 = 30.0;
 /// Half the height and half the width framed around the model's middle.
 const HALF_HEIGHT: f32 = 40.0;
 const HALF_WIDTH: f32 = 26.0;
@@ -44,6 +45,9 @@ const VIEW_FLAGS: f32 = 17.0;
 struct Encode {
     format: wgpu::TextureFormat,
     pipeline: wgpu::RenderPipeline,
+    /// The same, for while the speed trail's see-through copies are drawn
+    /// (`preview.wgsl`'s `TRAIL`).
+    trail_pipeline: wgpu::RenderPipeline,
     layout: wgpu::BindGroupLayout,
 }
 
@@ -54,6 +58,9 @@ struct Target {
     depth: wgpu::TextureView,
     /// The blades, in the effect layer's 8-bit display values.
     blades: wgpu::TextureView,
+    /// The speed trail's two copies, nearer then farther, each drawn whole on its own
+    /// with its own depth, so the picture fades each as one (`preview.wgsl`'s `TRAIL`).
+    copies: [(wgpu::TextureView, wgpu::TextureView); 2],
     display: wgpu::TextureView,
     camera: wgpu::Buffer,
     camera_bind: wgpu::BindGroup,
@@ -84,6 +91,9 @@ pub(crate) struct Preview {
     /// This frame's showcase of the sabers alone, which the camera frames
     /// instead of the actor (`begin_saber_instances`).
     pub(super) showcase: Option<super::showcase::View>,
+    /// How far above its spot a jumping model is seen this frame
+    /// (`force_motion::rise_seen`): the camera looks that much lower.
+    pub(super) lift: f32,
 }
 
 /// Run `create` inside validation and out-of-memory scopes: `None`, with the
@@ -143,6 +153,20 @@ pub(super) fn camera(
     (projection * view, eye, (middle - eye).normalize_or(Vec3::X))
 }
 
+/// A fragment-visible 2D texture binding of the encode program.
+fn copy_entry(binding: u32, sample_type: wgpu::TextureSampleType) -> wgpu::BindGroupLayoutEntry {
+    wgpu::BindGroupLayoutEntry {
+        binding,
+        visibility: wgpu::ShaderStages::FRAGMENT,
+        count: None,
+        ty: wgpu::BindingType::Texture {
+            multisampled: false,
+            view_dimension: wgpu::TextureViewDimension::D2,
+            sample_type,
+        },
+    }
+}
+
 impl Encode {
     fn new(device: &wgpu::Device, format: wgpu::TextureFormat) -> Self {
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
@@ -182,6 +206,11 @@ impl Encode {
                         sample_type: wgpu::TextureSampleType::Float { filterable: false },
                     },
                 },
+                // The trail's copies: colour and depth of the nearer, then the farther.
+                copy_entry(3, wgpu::TextureSampleType::Float { filterable: false }),
+                copy_entry(4, wgpu::TextureSampleType::Depth),
+                copy_entry(5, wgpu::TextureSampleType::Float { filterable: false }),
+                copy_entry(6, wgpu::TextureSampleType::Depth),
             ],
         });
         let pipeline_layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
@@ -199,38 +228,44 @@ impl Encode {
         } else {
             0.0
         };
-        let constants = [("ENCODING", encoding)];
-        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("SJK model preview encode"),
-            layout: Some(&pipeline_layout),
-            vertex: wgpu::VertexState {
-                module: &shader,
-                entry_point: Some("vs_main"),
-                compilation_options: Default::default(),
-                buffers: &[],
-            },
-            fragment: Some(wgpu::FragmentState {
-                module: &shader,
-                entry_point: Some("fs_main"),
-                compilation_options: wgpu::PipelineCompilationOptions {
-                    constants: &constants,
-                    ..Default::default()
+        let pipeline = |trail: bool| {
+            let constants = [
+                ("ENCODING", encoding),
+                ("TRAIL", f64::from(u8::from(trail))),
+            ];
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("SJK model preview encode"),
+                layout: Some(&pipeline_layout),
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: Some("vs_main"),
+                    compilation_options: Default::default(),
+                    buffers: &[],
                 },
-                targets: &[Some(wgpu::ColorTargetState {
-                    format: crate::ui_target::TEXTURE_FORMAT,
-                    blend: None,
-                    write_mask: wgpu::ColorWrites::ALL,
-                })],
-            }),
-            primitive: Default::default(),
-            depth_stencil: None,
-            multisample: Default::default(),
-            multiview_mask: None,
-            cache: None,
-        });
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: Some("fs_main"),
+                    compilation_options: wgpu::PipelineCompilationOptions {
+                        constants: &constants,
+                        ..Default::default()
+                    },
+                    targets: &[Some(wgpu::ColorTargetState {
+                        format: crate::ui_target::TEXTURE_FORMAT,
+                        blend: None,
+                        write_mask: wgpu::ColorWrites::ALL,
+                    })],
+                }),
+                primitive: Default::default(),
+                depth_stencil: None,
+                multisample: Default::default(),
+                multiview_mask: None,
+                cache: None,
+            })
+        };
         Self {
             format,
-            pipeline,
+            pipeline: pipeline(false),
+            trail_pipeline: pipeline(true),
             layout,
         }
     }
@@ -270,6 +305,16 @@ impl Target {
             crate::frame_target::aa::effects::FORMAT,
             attachment,
         );
+        let copies = [
+            "SJK model preview speed trail copy (near)",
+            "SJK model preview speed trail copy (far)",
+        ]
+        .map(|label| {
+            (
+                texture(label, encode.format, attachment),
+                texture(label, DepthTarget::FORMAT, attachment),
+            )
+        });
         let display = texture(
             "SJK model preview display",
             crate::ui_target::TEXTURE_FORMAT,
@@ -305,6 +350,22 @@ impl Target {
                     binding: 2,
                     resource: wgpu::BindingResource::TextureView(&blades),
                 },
+                wgpu::BindGroupEntry {
+                    binding: 3,
+                    resource: wgpu::BindingResource::TextureView(&copies[0].0),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 4,
+                    resource: wgpu::BindingResource::TextureView(&copies[0].1),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 5,
+                    resource: wgpu::BindingResource::TextureView(&copies[1].0),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 6,
+                    resource: wgpu::BindingResource::TextureView(&copies[1].1),
+                },
             ],
         });
         Self {
@@ -312,6 +373,7 @@ impl Target {
             color,
             depth,
             blades,
+            copies,
             display,
             camera,
             camera_bind,
@@ -348,6 +410,11 @@ impl GpuState {
         self.saber_gpu.prepare_preview(&self.queue, &mut blades);
         self.menu_stage.preview.blades = blades;
         if self.menu_stage.preview.probed {
+            // The power's effects, built for this frame's camera (the probe frame has none).
+            if let Some((_, eye, _)) = self.stage_preview_view() {
+                self.prepare_force_fx(encoder, eye);
+                self.place_force_trail(eye);
+            }
             self.record_stage_preview(encoder);
             self.menu_stage.preview.ready = true;
             return;
@@ -408,17 +475,11 @@ impl GpuState {
         true
     }
 
-    /// Record the preview's two passes: the actor with the preview camera,
-    /// then the encode into the display texture.
-    fn record_stage_preview(&self, encoder: &mut wgpu::CommandEncoder) {
+    /// This frame's preview camera: its view projection, eye and forward.
+    fn stage_preview_view(&self) -> Option<(Mat4, Vec3, Vec3)> {
         let preview = &self.menu_stage.preview;
-        let (Some(actor), Some(target), Some(encode)) = (
-            self.menu_stage.actor.as_ref(),
-            preview.target.as_ref(),
-            preview.encode.as_ref(),
-        ) else {
-            return;
-        };
+        let actor = self.menu_stage.actor.as_ref()?;
+        let target = preview.target.as_ref()?;
         // Turning since it started, or held at the angle asked for.
         let seconds = preview.angle.map_or_else(
             || {
@@ -432,9 +493,32 @@ impl GpuState {
         // facing turn (`weapon_view::actor_world_rotation`).
         let facing = actor.rotation * Quat::from_rotation_z(-std::f32::consts::FRAC_PI_2) * Vec3::X;
         let aspect = target.size[0] as f32 / target.size[1] as f32;
-        let (view_projection, eye, forward) = match preview.showcase {
+        Some(match preview.showcase {
             Some(showcase) if self.menu_stage.showcase => showcase.camera(aspect),
-            _ => camera(actor.origin, facing, aspect, seconds, preview.room),
+            // A jumping model is seen above its spot (`force_motion::rise_seen`).
+            _ => camera(
+                actor.origin - Vec3::Z * preview.lift,
+                facing,
+                aspect,
+                seconds,
+                preview.room,
+            ),
+        })
+    }
+
+    /// Record the preview's two passes: the actor with the preview camera,
+    /// then the encode into the display texture.
+    fn record_stage_preview(&self, encoder: &mut wgpu::CommandEncoder) {
+        let preview = &self.menu_stage.preview;
+        let (Some(actor), Some(target), Some(encode)) = (
+            self.menu_stage.actor.as_ref(),
+            preview.target.as_ref(),
+            preview.encode.as_ref(),
+        ) else {
+            return;
+        };
+        let Some((view_projection, eye, forward)) = self.stage_preview_view() else {
+            return;
         };
         let uniform = CameraUniform {
             view_projection: view_projection.to_cols_array_2d(),
@@ -478,6 +562,45 @@ impl GpuState {
                 );
             }
         }
+        // Speed's trail: each copy of the body drawn whole into its own picture, which
+        // the encode fades (only while the trail shows; otherwise they go unread).
+        if self.menu_stage.force_fx.shows_trail() {
+            for (copy, (color, depth)) in target.copies.iter().enumerate() {
+                let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+                    label: Some("SJK model preview speed trail copy"),
+                    color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                        view: color,
+                        depth_slice: None,
+                        resolve_target: None,
+                        ops: wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(wgpu::Color::TRANSPARENT),
+                            store: wgpu::StoreOp::Store,
+                        },
+                    })],
+                    depth_stencil_attachment: Some(wgpu::RenderPassDepthStencilAttachment {
+                        view: depth,
+                        depth_ops: Some(wgpu::Operations {
+                            load: wgpu::LoadOp::Clear(1.0),
+                            store: wgpu::StoreOp::Store,
+                        }),
+                        stencil_ops: None,
+                    }),
+                    timestamp_writes: None,
+                    occlusion_query_set: None,
+                    multiview_mask: None,
+                });
+                for blended in [false, true] {
+                    self.menu_stage.force_fx.draw_copy(
+                        &mut pass,
+                        &self.world_materials,
+                        &target.camera_bind,
+                        actor,
+                        copy,
+                        blended,
+                    );
+                }
+            }
+        }
         {
             // The blades, hidden behind the body as the model's depth says.
             let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
@@ -506,6 +629,13 @@ impl GpuState {
             if !preview.blades.is_empty() {
                 self.saber_gpu.draw_preview(&mut pass, &target.camera_bind);
             }
+            // The power's beam, puffs or spray, in the layer the blades glow in.
+            self.menu_stage.force_fx.draw(
+                &mut pass,
+                &target.camera_bind,
+                &self.particle_atlas.bind_group,
+                &self.particle_pipelines,
+            );
         }
         let mut pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: Some("SJK model preview encode"),
@@ -523,7 +653,11 @@ impl GpuState {
             occlusion_query_set: None,
             multiview_mask: None,
         });
-        pass.set_pipeline(&encode.pipeline);
+        pass.set_pipeline(if self.menu_stage.force_fx.shows_trail() {
+            &encode.trail_pipeline
+        } else {
+            &encode.pipeline
+        });
         pass.set_bind_group(0, &target.encode_bind, &[]);
         pass.draw(0..3, 0..1);
     }

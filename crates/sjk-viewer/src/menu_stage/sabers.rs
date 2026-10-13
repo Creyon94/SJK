@@ -186,6 +186,38 @@ impl GpuState {
     /// is while out of the hand. Two hilts float side by side across the
     /// focus, one alone on it. Without a hand, a hilt or a focus point a
     /// saber simply stays held.
+    /// The Force page's Saber Throw: the first saber flies out of the hand and back
+    /// on a loop, `seconds` into it ([`super::force_motion::throw_at`]). Run after
+    /// [`Self::advance_stage_throw`], which leaves a preview's sabers in hand.
+    pub(super) fn advance_preview_throw(&mut self, seconds: f32) {
+        let stage = &mut self.menu_stage;
+        let Some(actor) = stage.actor.as_ref() else {
+            return;
+        };
+        let Some(bolt) = actor.hands[0] else {
+            return;
+        };
+        let Some(blade) = stage.sabers[0]
+            .as_ref()
+            .and_then(|saber| saber.blades[0].as_ref())
+            .map(|blade| Vec3::from_array(blade.socket.direction))
+        else {
+            return;
+        };
+        let (grip, rotation) = saber::world_attachment(actor.origin, actor.rotation, bolt);
+        // Out to the model's side and towards the camera in front of it, a little up,
+        // so the whole flight stays in the picture.
+        let facing = actor.rotation * Quat::from_rotation_z(-std::f32::consts::FRAC_PI_2) * Vec3::X;
+        let side = Vec3::Z.cross(facing).normalize_or(Vec3::Y);
+        let direction = (facing * 0.6 - side * 0.75 + Vec3::Z * 0.15).normalize_or(facing);
+        let flying =
+            super::force_motion::throw_at(Pose { grip, rotation }, blade, direction, seconds);
+        if flying.is_some() || stage.flying[0].is_some() {
+            stage.sabers_dirty = true;
+        }
+        stage.flying[0] = flying;
+    }
+
     pub(super) fn advance_stage_throw(&mut self, thrown: bool, focus: Option<Focus>, now: Instant) {
         let stage = &mut self.menu_stage;
         let held = stage.sabers.iter().flatten().count();
@@ -276,6 +308,8 @@ impl GpuState {
             .count();
         let seconds = crate::menu::art::motion::seconds();
         let roll = showcase::roll_degrees(seconds as f32);
+        // A jumping preview's blades drawn in (none at all once they are off).
+        let out = 1.0 - stage.blades_in.clamp(0.0, 1.0);
         for (hand, saber) in stage.sabers.iter().enumerate() {
             let Some(saber) = saber else {
                 continue;
@@ -298,7 +332,10 @@ impl GpuState {
                 // In the hand (and on the showcase) the hilt shares the
                 // model's light sample; thrown, the grid is read where the
                 // hilt actually is.
-                let light = match stage.flying[hand].filter(|_| showcase.is_none()) {
+                // A preview's are lit as its actor is, the same on every map.
+                let light = match stage.flying[hand]
+                    .filter(|_| showcase.is_none() && !actor.preview_lit)
+                {
                     Some(pose) => self
                         .entity_lighting
                         .sample(&self.bsp, pose.grip.to_array(), &[]),
@@ -319,9 +356,15 @@ impl GpuState {
                 .take(usize::from(saber.num_blades))
                 .enumerate()
                 .filter_map(|(index, blade)| Some((index, blade.as_ref()?)))
+                .filter(|_| out > 0.0)
             {
-                let blade =
-                    saber::world_blade(grip, rotation, blade.socket, blade.length, blade.radius);
+                let blade = saber::world_blade(
+                    grip,
+                    rotation,
+                    blade.socket,
+                    blade.length * out,
+                    blade.radius,
+                );
                 let seed = (hand * 8 + index) as u32;
                 let pair = saber::Instance::pair(blade, color)
                     .map(|i| i.with_animation(seconds, seed))
@@ -384,6 +427,13 @@ pub(super) fn hand_attachments(preview: &PlayerPreview, frame: usize) -> [Option
     let Ok(matrices) = preview.animation.frame_matrices(frame) else {
         return [None; 2];
     };
-    [HAND_BOLT, LEFT_HAND_BOLT]
-        .map(|bolt| saber::attachment_from_matrices(preview, &matrices, bolt))
+    hand_attachments_at(preview, &matrices)
+}
+
+/// Both hand bolts of the pose `matrices` the stage was skinned with.
+pub(super) fn hand_attachments_at(
+    preview: &PlayerPreview,
+    matrices: &[[[f32; 4]; 3]],
+) -> [Option<Attachment>; 2] {
+    [HAND_BOLT, LEFT_HAND_BOLT].map(|bolt| saber::attachment_from_matrices(preview, matrices, bolt))
 }

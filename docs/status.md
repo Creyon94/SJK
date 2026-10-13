@@ -186,6 +186,75 @@ pointer tilts towards it, its light following the pointer, with a glare. See
 [cards.md](cards.md#in-the-client). Verified: unit tests (the perspective, the sweep, the
 strokes' ends) and the world shots of the tilted card looked at. Not tried in a game.
 
+## Profile in game: the model shows the Force power
+
+Branch `feat/force-power-preview` (12/10/2026, rebased 13/10/2026 onto `b2e8c750`,
+Linux), Creyon's idea: opened from a game, the SJK UI's Force page described each power
+in its box but the model beside it only stood. Now, while the pointer is on a power, the
+model shows it, and stops when the pointer leaves: the game's gesture where multiplayer
+has one (Drain the JoF server's `BOTH_FORCE_DRAIN_HOLD`), single player's poses the
+models carry for Heal, the team powers, Rage, Protect and Absorb; the power's shell as
+`CG_Player` tints it; its effect from the game's own files, in their stock look, in a
+small silent effect world of the preview's own (Lightning's and Drain's beams, wide at
+level 3, the push and grip puffs, JoF EJK's `force/rage2` and `force/heal2` chest
+sprays, now preloaded, Mind Trick's confusion over the head, Speed's two see-through
+copies, each drawn whole and faded, behind the runner as the picture shows him); a
+standing jump as the game plays it (the body takes off, keeps the crouch in the air
+and lands, arms and all), the model seen to rise and land back on its spot; the
+saber thrown out spinning and caught; three looped Saber Offense swings flowing into one
+another and Saber Defense's parries in the strong (red) style with a single saber, a
+little slower than the game's. The preview is the same on every map: the model is lit as
+a menu model with no world and the effects play in an empty world. The legs and the
+torso play their own animations, blended between frames and from one animation into the
+next from the pose on screen, each joint going straight from pose to pose and the bone turning
+about it the short way at an even pace rather than its matrix blended (a swing folded
+the model; turning the bone without moving the joint with it, Creyon found in game on
+13/10/2026, took the joints off their parents between poses far apart, in every move:
+arms stretched out and swung through the body) ([sjk-ui.md](sjk-ui.md)). Each saber
+swing hands over to the next on reaching its last frame, taking over as the game does
+(100 ms, even pace) or straight on where the two meet (a pause, then a slowed start and
+a hurried middle between Offense's swings, Creyon, 13/10/2026); one swing at a time,
+each back to the idle stance (`BOTH_STAND2`) for 0.3 s before the next start eases in
+(waiting where the return ended looked frozen); takeovers between animations blended
+bone by bone in the model, not in the parent's frame (the game's swing starts hold the
+upper arm a half turn about itself from the stance's, and blended in the parent's frame
+the saber swung a full turn round: the blade tip travelled about 315 units for a
+13-unit move, measured on the game's `_humanoid.gla`; now every takeover the skills, the
+throw and the parries make keeps the tip within 1.2 times the straight line); the
+second swing the A+S one (`BOTH_A3_BL_TR`); every preview waiting 1.5 s once it has
+played (gestures, their effects, the skills, the throw), Mind Trick's confusion, Rage's
+spray and the shells of Protect, Absorb, Rage and the team powers on 2.5 s after the
+gesture and then off, Sense's shell on
+3 s and off 1.5 s, Speed fast with its copies for 3 s then slower without them, Push and
+Pull straight back into the stance (their last frame kept stopped the hand), the blocks
+from the strong style's stance, and Heal played whole (down, heal, up); the throwing arm held out until the saber is back; each parry is
+raised over 0.25 s, kept 0.3 s and let go as slowly (the blocks were a snap); every preview
+at the game's own speed (the skills at 0.9 felt slowed down); Lightning, Drain and Grip held 2.5 s
+then let go and again, Rage's shell and spray on 1 s after its gesture; Speed's run at the game's 1.7 times; the throw out longer,
+slowing to its far end; the sabers off in a jump's air (the game's jump holds the blade
+through the head), lit again on landing; the jump on the whole body, arms and all, as
+in the game. Creyon's tests (12/10/2026) shaped it: hover only,
+smooth movement, see-through and visible speed copies (their middles and jaws once went
+missing, and straight behind they hid behind a model facing the camera), the jump (a
+lifted jump crashed: it wrote the model's instance buffer, made without `COPY_DST`; the
+camera moves instead, and no longer lets the model sink below its spot), a real throw,
+the team shells' colours, Heal's effect, no dark rim round Sense's shell, Drain's pose,
+Grip held rather than repeated, white push puffs on a map that recolours them, Absorb's
+shell as the game draws it, the saber skills' red-style swings and parries. Verified:
+tests (every power shows something in every style, the saber skills' animations and
+returns, gestures, shells, tints, effects, beams widening at level 3, the jump's timing
+and height, the rise seen never below the spot, moves in turn with their holds, the
+throw out and back, the trail's copies beside the body, the empty effect world, the 120
+ms sprays, a one-shot gesture replayed, a far turn blended the short way at an even
+pace whichever sign its quaternion is stored with, a bone turned far about a joint off
+the model's middle staying on it and keeping its length, a move handing over on its last
+frame, a chained move not eased in, the game's even 100 ms takeover, a parry's keep and
+eased takeovers, the blades off and on over a jump, the throw slowing out); the
+workspace checks. In game on Windows 11 by Creyon (13/10/2026, the final build): every
+power's preview, the saber skills, the jump and the throw looked at and approved. Not
+covered: OpenJK side-by-side image comparison; the staff's and dual sabers' skills were
+not singled out in those tests.
+
 ## SJK Symbols
 
 Branch `personal/sjk-symbols` (13/10/2026), Sol's request: coloured special characters to

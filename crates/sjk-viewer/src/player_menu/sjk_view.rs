@@ -579,6 +579,17 @@ impl PlayerMenu {
             area: PreviewArea::Sjk(MODEL_AREA),
             stance: "BOTH_STAND2",
             sabers: true,
+            // The Force page's model shows the power under the pointer, and only while
+            // the pointer is on it.
+            pose: self
+                .sjk_pointer_power()
+                .and_then(|(power, _)| super::force_pose::gesture(power, self.saber.style())),
+            shell: self
+                .sjk_pointer_power()
+                .and_then(|(power, _)| super::force_pose::shell(power)),
+            effect: self.sjk_pointer_power().and_then(|(power, level)| {
+                super::force_pose::effect(power, level, self.saber.style())
+            }),
             showcase: false,
             room: MODEL_ROOM,
             // Still, as the stage model stands, a little to its right; the camera goes
@@ -1921,6 +1932,19 @@ impl PlayerMenu {
     pub(super) fn note_level_bought(&mut self, power: usize) {
         let level = self.force.allocation().levels[power];
         self.sjk_burst = Some((power, level, crate::menu::art::motion::seconds()));
+    }
+
+    /// The power under the pointer on the Force page (its row or one of its level
+    /// marks) and its drafted level; none once the pointer leaves it.
+    fn sjk_pointer_power(&self) -> Option<(sjk_client::ForcePower, u8)> {
+        if self.page != ProfilePage::Force {
+            return None;
+        }
+        let index = (0..POWER_NAMES.len())
+            .find(|index| self.canvas.token_hovered((FORCE_POWER_ROW + index) as u16))
+            .or_else(|| self.sjk_hovered_level().map(|(power, _)| power))?;
+        let power = sjk_client::ForcePower::ALL.get(index).copied()?;
+        Some((power, self.force.allocation().levels[index]))
     }
 
     /// The power the box at the bottom right shows: the one whose row has the

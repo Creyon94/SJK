@@ -87,6 +87,10 @@ pub(crate) const STOCK_EFFECTS: &[&str] = &[
     "force/lightning",
     "force/lightningwide",
     "force/confusion_old",
+    // JoF EJK's `CG_ForceAnimFx` sprays (`cgs.effects.rageFX`, `heal2FX`), which the
+    // in-game profile's Force page shows on its model (`menu_stage/force_fx.rs`).
+    "force/rage2",
+    "force/heal2",
     "mp/spawn",
     "mp/jedispawn",
     "chunks/grateexplode",

@@ -9,10 +9,14 @@
 //! lightsaber creation's preview shows the sabers alone ([`showcase`]).
 
 mod cosmetics;
+mod force_fx;
+mod force_motion;
 pub(crate) mod preview;
 mod sabers;
+mod shell;
 mod showcase;
 mod throw;
+mod tracks;
 
 use super::*;
 use crate::actor_instance::EntityLight;
@@ -73,21 +77,45 @@ pub(crate) struct MenuStage {
     skin_override: Option<crate::console::collection_panel::PreviewSkin>,
     /// The Collection's Toys tab: the Illuminate holocron floats by the model.
     holocron_wanted: bool,
+    /// The Force shell the preview's model wears (the Force page's power).
+    shell: Option<shell::StageShell>,
+    /// The beam, puffs, spray or trail the preview's model gives off (the same power).
+    force_fx: force_fx::ForceFx,
+    /// The jump, throw or moves the preview's model shows, and when they began.
+    motion: Option<(Instant, crate::player_menu::force_pose::Effect)>,
+    /// The gesture the preview's model plays (the power under the pointer's), and when
+    /// it began.
+    gesture: Option<(Instant, &'static [crate::player_menu::force_pose::Move])>,
+    /// The shell the preview's model wears with no gesture to time it (Sense's), and
+    /// since when.
+    lone_shell: Option<(Instant, crate::player_menu::force_pose::Shell)>,
+    /// How far the blades are drawn in, from 0 (out) to 1 (off): a jumping preview's
+    /// sabers go off in the air and light again on landing ([`force_motion::blade_in_at`]).
+    blades_in: f32,
+    /// Actors built so far: the shell and the speed trail are made for one of them.
+    actor_builds: u64,
     /// That holocron, lit, fading in and out as the player's own does.
     pub(crate) holocron: crate::illuminate::Holocron,
 }
 
 struct StageActor {
     model: String,
+    /// Which build this is ([`MenuStage::actor_builds`]).
+    build: u64,
+    /// Lit as a preview is ([`EntityLight::FALLBACK`], whatever the map), not by the map
+    /// where it stands.
+    preview_lit: bool,
     /// Animation the actor idles in, by `animation.cfg` name.
     stance: &'static str,
+    /// How fast its animations play (1: the game's speed).
+    rate: f32,
     preview: PlayerPreview,
     origin: Vec3,
     rotation: Quat,
     /// The way it faces, radians round the vertical (the stage's yaw).
     yaw: f32,
     light: EntityLight,
-    /// Right and left hand bolts of `current_frame`.
+    /// Right and left hand bolts of the current pose.
     hands: [Option<Attachment>; 2],
     vertex_ranges: Vec<PreviewVertexRange>,
     draws: Vec<DetachedDraw>,
@@ -96,8 +124,26 @@ struct StageActor {
     geometry_binding: wgpu::BindGroup,
     index_buffer: wgpu::Buffer,
     instance_buffer: wgpu::Buffer,
-    current_frame: usize,
-    started: Instant,
+    /// What `instance_buffer` holds: where the actor stands, turned and lit.
+    instance: ActorInstance,
+    /// The pose skinned last ([`tracks::PoseKey`]); `None` asks for a new skinning.
+    current_sample: Option<tracks::PoseKey>,
+    /// That pose's bone matrices, which the hands, the hat and the cape are bolted to.
+    pose: Vec<[[f32; 4]; 3]>,
+    /// The legs' and the torso's animations ([`tracks`]).
+    lower: tracks::Track,
+    upper: tracks::Track,
+    /// The takeover from the pose on screen when the animation last changed, while it
+    /// is under way ([`tracks::pose_matrices`]).
+    from: Option<Takeover>,
+}
+
+/// A takeover under way: the bone matrices on screen when it began, when, and how the
+/// new animation takes over from them.
+struct Takeover {
+    pose: Vec<[[f32; 4]; 3]>,
+    began: Instant,
+    how: crate::player_menu::force_pose::Takeover,
 }
 
 impl GpuState {
@@ -194,9 +240,115 @@ impl GpuState {
             .client_menu
             .as_ref()
             .and_then(menu::ClientMenu::saber_focus);
+        // A jump, throw or moves preview runs on its own clock from when it began.
+        let moving = preview.and_then(|preview| preview.effect).filter(|effect| {
+            matches!(
+                effect,
+                crate::player_menu::force_pose::Effect::Jump { .. }
+                    | crate::player_menu::force_pose::Effect::Throw
+                    | crate::player_menu::force_pose::Effect::Moves { .. }
+            )
+        });
+        if self.menu_stage.motion.map(|(_, effect)| effect) != moving {
+            self.menu_stage.motion = moving.map(|effect| (now, effect));
+        }
+        let motion_seconds = self.menu_stage.motion.map_or(0.0, |(started, _)| {
+            now.saturating_duration_since(started).as_secs_f32()
+        });
+        // The jump's and the moves' poses come from their script; `Some(None)` stands.
+        let scripted = match self.menu_stage.motion {
+            // A jump moves the whole body, arms and all, as the game's does (Creyon's
+            // videos of the game, 13/10/2026: the torso keeping the stance held the hands
+            // where a jumping player's are not).
+            Some((_, crate::player_menu::force_pose::Effect::Jump { height })) => Some(
+                force_motion::jump_at(height, motion_seconds)
+                    .map(|name| (name, tracks::HOVER_TAKEOVER)),
+            ),
+            // The throwing arm stays out while the saber flies, then rests with it.
+            Some((_, crate::player_menu::force_pose::Effect::Throw)) => Some(
+                force_motion::saber_out_at(motion_seconds)
+                    .then_some((THROW_STANCE, tracks::HOVER_TAKEOVER)),
+            ),
+            Some((_, crate::player_menu::force_pose::Effect::Moves { moves, stance })) => {
+                self.menu_stage.actor.as_ref().map(|actor| {
+                    Some(force_motion::moves_at(
+                        moves,
+                        stance,
+                        |name| actor.preview.config.get(name).map_or(0.0, travel_seconds),
+                        motion_seconds,
+                    ))
+                })
+            }
+            _ => None,
+        };
+        // How the moves' next pose takes over, once the moves are under way; the first,
+        // and anything else, as the pointer's change does.
+        let under_way = match (self.menu_stage.motion, self.menu_stage.actor.as_ref()) {
+            (
+                Some((_, crate::player_menu::force_pose::Effect::Moves { moves, stance })),
+                Some(actor),
+            ) => actor.stance == stance || moves.iter().any(|step| step.animation == actor.stance),
+            _ => false,
+        };
+        let takeover = scripted
+            .flatten()
+            .filter(|_| under_way)
+            .map_or(tracks::HOVER_TAKEOVER, |(_, how)| how);
+        let scripted = scripted.map(|step| step.map(|(name, _)| name));
+        // A jumping model is seen to rise and come back down to its spot.
+        self.menu_stage.preview.lift = match self.menu_stage.motion {
+            Some((_, crate::player_menu::force_pose::Effect::Jump { height })) => {
+                force_motion::rise_seen(height, motion_seconds)
+            }
+            _ => 0.0,
+        };
+        // Its sabers go off for the jump and light again on landing.
+        self.menu_stage.blades_in = match self.menu_stage.motion {
+            Some((_, crate::player_menu::force_pose::Effect::Jump { height })) => {
+                force_motion::blade_in_at(height, motion_seconds)
+            }
+            _ => 0.0,
+        };
+        // A gesture plays from its script on its own clock: once and a wait, held, or
+        // Heal's whole move ([`force_pose::gesture`]).
+        let gesture = preview.and_then(|preview| preview.pose);
+        let same = match (self.menu_stage.gesture, gesture) {
+            (Some((_, old)), Some(new)) => std::ptr::eq(old, new),
+            (None, None) => true,
+            _ => false,
+        };
+        if !same {
+            self.menu_stage.gesture = gesture.map(|moves| (now, moves));
+        }
+        let gesture_step = match (self.menu_stage.gesture, &self.menu_stage.actor) {
+            (Some((started, moves)), Some(actor)) => Some(force_motion::script_at(
+                moves,
+                |name| actor.preview.config.get(name).map_or(0.0, travel_seconds),
+                now.saturating_duration_since(started).as_secs_f32(),
+            )),
+            _ => None,
+        };
+        let takeover = match (scripted, gesture_step) {
+            (None, Some(step)) => step.takeover,
+            _ => takeover,
+        };
+        // The power's effect plays while its gesture does and while the power stays on
+        // after it, not in the wait after that; the puffs come from the hand only while
+        // the gesture puts it out (the team powers' shells stay on, their puffs do not).
+        let emitting = gesture_step.is_none_or(|step| {
+            step.effect
+                && (step.animation.is_some()
+                    || !matches!(
+                        preview.and_then(|preview| preview.effect),
+                        Some(crate::player_menu::force_pose::Effect::Puffs { .. })
+                    ))
+        });
+        let pose = scripted
+            .flatten()
+            .or(gesture_step.and_then(|step| step.animation));
         let (stance, request) = match (wanted, preview) {
             (Some(sabers), _) => (
-                Some(sabers.stance),
+                Some(pose.unwrap_or(sabers.stance)),
                 (!self.menu_stage.request.matches(&sabers)).then(|| sabers::Request::from(&sabers)),
             ),
             (None, Some(preview)) => (
@@ -211,7 +363,13 @@ impl GpuState {
             .actor
             .as_ref()
             .map(|actor| actor.model.as_str());
-        if loaded != Some(model) {
+        // A preview is lit the same on every map; the stage by the map it stands in.
+        let relit = self
+            .menu_stage
+            .actor
+            .as_ref()
+            .is_some_and(|actor| actor.preview_lit != self.menu_stage.preview_only);
+        if loaded != Some(model) || relit {
             if self.menu_stage.failed.as_deref() == Some(model) {
                 return;
             }
@@ -233,10 +391,48 @@ impl GpuState {
         }
         self.sync_stage_cosmetics();
         self.advance_stage_throw(thrown, focus, now);
+        if matches!(
+            self.menu_stage.motion,
+            Some((_, crate::player_menu::force_pose::Effect::Throw))
+        ) {
+            self.advance_preview_throw(motion_seconds);
+        }
+        // Everything plays at the game's own speed, as a player sees it (Creyon,
+        // 13/10/2026: the saber skills at 0.9 felt slowed down), Speed's run fast while
+        // the power is on, at a run's own pace while it is off.
+        let speeding = matches!(
+            preview.and_then(|preview| preview.effect),
+            Some(crate::player_menu::force_pose::Effect::SpeedTrail)
+        ) && emitting;
+        let rate = if speeding {
+            force_motion::SPEED_RUN_RATE
+        } else {
+            1.0
+        };
+        if let Some(actor) = &mut self.menu_stage.actor {
+            actor.rate = rate;
+        }
         if let Some(stance) = stance {
             let held = self.menu_stage.throw.iter().all(throw::Throw::is_held);
-            self.set_stage_stance(if held { stance } else { THROW_STANCE }, now);
+            self.set_stage_stance(if held { stance } else { THROW_STANCE }, now, takeover);
         }
+        // The shell shows while the power is on: with its gesture and a while after, or,
+        // with no gesture (Sense), on and off in turn.
+        let shell = preview.and_then(|preview| preview.shell);
+        let lone = shell.filter(|_| gesture_step.is_none());
+        if self.menu_stage.lone_shell.map(|(_, worn)| worn) != lone {
+            self.menu_stage.lone_shell = lone.map(|worn| (now, worn));
+        }
+        let shell_on = match (gesture_step, self.menu_stage.lone_shell) {
+            (Some(step), _) => step.effect,
+            (None, Some((since, _))) => {
+                force_motion::lone_shell_on(now.saturating_duration_since(since).as_secs_f32())
+            }
+            (None, None) => true,
+        };
+        self.sync_stage_shell(shell.filter(|_| shell_on));
+        self.advance_force_fx(preview.and_then(|preview| preview.effect), emitting, now);
+        self.sync_force_trail(emitting);
         // The showcase draws no actor: its pose and what it wears can wait.
         if self.menu_stage.showcase {
             return;
@@ -275,17 +471,52 @@ impl GpuState {
 
     /// Restart the actor in `stance` when the menu's style changed it. A
     /// model without that sequence keeps the one it has.
-    fn set_stage_stance(&mut self, stance: &'static str, now: Instant) {
+    fn set_stage_stance(
+        &mut self,
+        stance: &'static str,
+        now: Instant,
+        takeover: crate::player_menu::force_pose::Takeover,
+    ) {
         let Some(actor) = &mut self.menu_stage.actor else {
             return;
         };
         if actor.stance == stance {
+            // The same animation at another speed (Speed's run on and off) carries on
+            // where it is, faster or slower.
+            if actor.upper.rate != actor.rate {
+                actor.lower.set_rate(actor.rate, now);
+                actor.upper.set_rate(actor.rate, now);
+                actor.current_sample = None;
+            }
             return;
         }
         if let Some(sequence) = actor.preview.config.get(stance).cloned() {
+            // A move that starts where the shown pose is carries straight on; anything
+            // else takes over as `takeover` says: a saber skill's next move as the game
+            // takes one over from the last (most of the game's swings start a few units
+            // off where the last ended), a change of power over a quarter of a second.
+            // The old sequence's last frame when it ends (the script moves on as it gets
+            // there, give or take a frame), else the frame it shows.
+            let old = &actor.upper.sequence;
+            let shown = if old.loop_frame == -1 {
+                crate::animation_timing::animation_sample(old, f32::MAX / 4.0).0
+            } else {
+                actor.upper.sample(now).0.0
+            };
+            let first = crate::animation_timing::animation_sample(&sequence, 0.0).0;
+            // The takeover starts from the pose on screen, whatever takeover it was in.
+            if !tracks::poses_meet(&actor.preview.animation, shown, first) && !actor.pose.is_empty()
+            {
+                actor.from = Some(Takeover {
+                    pose: actor.pose.clone(),
+                    began: now,
+                    how: takeover,
+                });
+            }
+            actor.lower.start(sequence.clone(), now, actor.rate);
+            actor.upper.start(sequence.clone(), now, actor.rate);
             actor.preview.sequence = sequence;
-            actor.started = now;
-            actor.current_frame = usize::MAX;
+            actor.current_sample = None;
         }
         actor.stance = stance;
     }
@@ -317,6 +548,7 @@ impl GpuState {
             preview.sequence = sequence;
         }
         let started = now;
+        let sequence = preview.sequence.clone();
         let frame = animation_frame(&preview.sequence, 0.0);
         let mut flattened = FlattenedScene::default();
         let (actor_draws, vertex_ranges) = append_actor_mesh(&mut flattened, &preview, frame)?;
@@ -364,7 +596,15 @@ impl GpuState {
         };
         let rotation =
             weapon_view::actor_world_rotation(Quat::from_rotation_z(yaw.to_radians()).to_array());
-        let light = self.entity_lighting.sample(&self.bsp, origin, &[]);
+        // A preview is a picture of the model, not of the map: it is lit as retail lit a
+        // menu model with no world (`R_SetupEntityLighting` without a light grid), the
+        // same on every map. The stage stands in the menu map and takes its light.
+        let preview_lit = self.menu_stage.preview_only;
+        let light = if preview_lit {
+            EntityLight::FALLBACK
+        } else {
+            self.entity_lighting.sample(&self.bsp, origin, &[])
+        };
         let mut instance = ActorInstance::new(origin, rotation.to_array(), [1.0; 3]);
         instance.set_light(light);
         let instance_buffer = self
@@ -375,9 +615,14 @@ impl GpuState {
                 usage: wgpu::BufferUsages::VERTEX,
             });
         self.menu_stage.sabers_dirty = true;
+        let pose = preview.animation.frame_matrices(frame).unwrap_or_default();
+        self.menu_stage.actor_builds += 1;
         Ok(StageActor {
             model: model.to_owned(),
+            build: self.menu_stage.actor_builds,
+            preview_lit,
             stance,
+            rate: 1.0,
             hands: sabers::hand_attachments(&preview, frame),
             preview,
             origin: Vec3::from_array(origin),
@@ -391,8 +636,12 @@ impl GpuState {
             geometry_binding,
             index_buffer,
             instance_buffer,
-            current_frame: frame,
-            started,
+            instance,
+            current_sample: None,
+            pose,
+            lower: tracks::Track::new(sequence.clone(), started),
+            upper: tracks::Track::new(sequence, started),
+            from: None,
         })
     }
 
@@ -433,15 +682,30 @@ impl GpuState {
         let Some(actor) = &mut self.menu_stage.actor else {
             return Ok(());
         };
-        let elapsed = now.saturating_duration_since(actor.started).as_secs_f32();
-        let frame = animation_frame(&actor.preview.sequence, elapsed);
-        if frame == actor.current_frame {
+        // Each half between its clip's frames (most run at 20 a second), and a new clip
+        // taking over from the pose on screen when it began ([`tracks`]), so nothing
+        // steps.
+        let weight = actor.from.as_ref().map_or(1.0, |from| {
+            tracks::takeover(
+                now.saturating_duration_since(from.began).as_secs_f32(),
+                from.how,
+            )
+        });
+        if weight >= 1.0 {
+            actor.from = None;
+        }
+        let key = tracks::PoseKey::new(actor.lower.sample(now), actor.upper.sample(now), weight);
+        if actor.current_sample == Some(key) {
             return Ok(());
         }
         let preview = &actor.preview;
+        let current = key.current();
+        let from = actor.from.as_ref().map(|from| from.pose.as_slice());
+        let matrices = tracks::pose_matrices(&preview.animation, &key, "lower_lumbar", from)
+            .or_else(|_| preview.animation.frame_matrices(current.upper_frames.0))?;
         let surfaces = preview
             .mesh
-            .skin(&preview.animation, &preview.skin, frame, 0)?;
+            .skin_pose_matrices(&preview.skin, 0, &matrices)?;
         for range in &actor.vertex_ranges {
             let surface = surfaces
                 .get(range.surface_index)
@@ -463,12 +727,26 @@ impl GpuState {
                 bytemuck::cast_slice(&vertices),
             );
         }
-        actor.hands = sabers::hand_attachments(preview, frame);
-        actor.current_frame = frame;
+        actor.hands = sabers::hand_attachments_at(preview, &matrices);
+        actor.pose = matrices;
+        actor.current_sample = Some(key);
         self.menu_stage.sabers_dirty = true;
         self.menu_stage.cosmetics_dirty = true;
         Ok(())
     }
+}
+
+/// How long `sequence` takes to reach its last frame, in seconds: one frame less than
+/// its full length (`CG_SetLerpFrameAnimation`'s frame time, each frame rounded up to
+/// whole milliseconds), as its last frame is reached a frame's time before that. The saber skills' moves follow one another after this long;
+/// after the full length each held its last frame a frame's time, a pause between the
+/// swings (Creyon, 13/10/2026).
+fn travel_seconds(sequence: &sjk_model::AnimationSequence) -> f32 {
+    let rate = sequence.frames_per_second.abs();
+    if rate <= 0.0 {
+        return 0.0;
+    }
+    sequence.frame_count.saturating_sub(1) as f32 * (1_000.0 / rate).ceil() / 1_000.0
 }
 
 impl MenuStage {
@@ -526,5 +804,41 @@ impl MenuStage {
         for cosmetic in self.cosmetics.iter().flatten() {
             cosmetic.draw(pass, world_materials, camera, blended);
         }
+        if let Some(shell) = &self.shell {
+            shell.draw(pass, world_materials, camera, actor, blended);
+        }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn sequence(loop_frame: i32) -> sjk_model::AnimationSequence {
+        sjk_model::AnimationSequence {
+            name: "BOTH_FORCEPUSH".into(),
+            first_frame: 0,
+            frame_count: 20,
+            loop_frame,
+            frames_per_second: 20.0,
+        }
+    }
+
+    /// A move hands over to the next as it reaches its last frame: a frame's time
+    /// before its full length, so it does not stand still a frame between swings.
+    #[test]
+    fn a_move_hands_over_on_reaching_its_last_frame() {
+        let once = sequence(-1);
+        assert!((travel_seconds(&once) - 0.95).abs() < 1e-6);
+        let (last, _, _) = crate::animation_timing::animation_sample(&once, 0.95);
+        assert_eq!(last, 19);
+        let (before, _, _) = crate::animation_timing::animation_sample(&once, 0.94);
+        assert_eq!(before, 18);
+    }
+
+    /// Speed's run plays as fast as the game runs a speeding player's legs.
+    #[test]
+    fn speed_runs_as_fast_as_in_the_game() {
+        assert_eq!(force_motion::SPEED_RUN_RATE, 1.7);
     }
 }

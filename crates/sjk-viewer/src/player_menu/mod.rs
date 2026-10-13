@@ -12,6 +12,7 @@ mod controller;
 mod cosmetics;
 mod force;
 pub(crate) mod force_icons;
+pub(crate) mod force_pose;
 mod force_templates;
 mod grid;
 pub(crate) mod icons;
@@ -81,6 +82,15 @@ pub(crate) struct ModelPreview {
     /// The model holds the saber draft's sabers, lit, in their style's
     /// stance (`stance` is then unused).
     pub(crate) sabers: bool,
+    /// A gesture played instead of either stance, then a wait, and again: on the SJK
+    /// UI's Force page, the power under the pointer's ([`force_pose::gesture`]).
+    pub(crate) pose: Option<&'static [force_pose::Move]>,
+    /// A Force shell the model wears: on the SJK UI's Force page, the power under the
+    /// pointer's ([`force_pose::shell`]).
+    pub(crate) shell: Option<force_pose::Shell>,
+    /// What the model gives off: on the SJK UI's Force page, the power under the
+    /// pointer's beam, puffs, spray or trail ([`force_pose::effect`]).
+    pub(crate) effect: Option<force_pose::Effect>,
     /// Only the sabers are drawn, laid on their side and turning as
     /// retail's lightsaber creation spun its hilt.
     pub(crate) showcase: bool,
