@@ -172,6 +172,8 @@ Sol develops SJK and sets its direction. Sol's work includes:
 - the invisible-brush view (`r_showBrushes`): clip, trigger, ladder, nodrop and the
   other tool brushes, and doors, lifts, buttons and trains, drawn see-through with
   labelled tiles, as Radiant shows them;
+- the map-entities view (`r_showEntities`): lights, spawns, origins, items and other
+  point entities marked through walls, and picked by world notes;
 - weather drawn under sabers and effects, the shield-hit flash's brightness, `cl_idrive`
   and `+duck` (after JoF EJK), the update check every 30 minutes and its Update card;
 - the strafe helper's lines (`cg_strafeHelper` option 1), JoF EJK's two lines to the

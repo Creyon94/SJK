@@ -21,6 +21,7 @@ impl GpuState {
             || self.game_menu
             || self.text_dialog.is_open()
             || self.world_notes.highlight().is_some()
+            || self.entity_view.active()
             || self.console.as_ref().is_some_and(|c| c.is_open())
             || !self.console_layer.is_empty()
             || self.client_menu.as_ref().is_some_and(|m| m.is_visible());

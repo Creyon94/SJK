@@ -363,6 +363,18 @@ pub(super) fn register_daily_cvars(cvars: &mut CvarRegistry) -> Result<(), sjk_s
             "Brush kinds r_showBrushes shows instead of its set: clip playerclip npcclip shotclip              solid trigger teleport push hurt ladder nodrop slick cushion door lift button train endless weather botclip caulk nodraw breakable travel",
         ),
         CvarDefinition::new(
+            crate::entity_view::CVAR,
+            0_i64,
+            archive,
+            "Map entities (lights, spawns, origins, items...) marked through walls, pickable with a world note: 0 off, 1 common, 2 all",
+        ),
+        CvarDefinition::new(
+            crate::entity_view::TYPES_CVAR,
+            "",
+            archive,
+            "Entity kinds r_showEntities shows instead of its set: light spawn origin item target sound effect misc other",
+        ),
+        CvarDefinition::new(
             crate::ground_hud::CVAR,
             false,
             archive,

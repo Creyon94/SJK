@@ -1864,6 +1864,38 @@ as `hurt`, clips); not yet in a game. `mp/ffa5` wraps much of its detail in
 `physics_clip`, so `solid` shows white over those walls at 1: that is where players
 collide.
 
+## Map entities
+
+`r_showEntities` marks the point entities a map file places, through walls, with
+their class names (and target names; a light adds its intensity). **0** is off (the
+default), **1** shows lights, spawns, origins, items and targets, **2** every kind.
+`r_showEntitiesTypes` replaces the set with the kinds it lists (spaces or commas), for
+instance `r_showEntitiesTypes "light spawn"`. Settings > Game options > Map entities
+sets the mode. It works on any server: the entity lump is in the BSP the client loads.
+
+| Name | Shows | Set |
+| --- | --- | --- |
+| `light` | `light` and `light_*` | 1 |
+| `spawn` | `info_player_*`, `team_CTF_*`, `info_jedimaster_start` | 1 |
+| `origin` | `info_null`, `info_notnull`, `target_position`, `target_location`, `path_corner`, `ref_tag` | 1 |
+| `item` | `item_*`, `weapon_*`, `ammo_*` | 1 |
+| `target` | every other `target_*` | 1 |
+| `sound` | `target_speaker`, `ambient_*` | 2 |
+| `effect` | `fx_*` | 2 |
+| `misc` | `misc_*` (props, models) | 2 |
+| `other` | any other entity with an origin and no brush model | 2 |
+
+The kind comes from the class name prefix ([entity_view.rs](../crates/sjk-viewer/src/entity_view.rs));
+brush entities (`*N` models) are `r_showBrushes`'. A marker is a coloured square on the
+entity's origin; the 60 nearest within 1500 units carry their label, and at most 220
+within 6000 units are drawn. The markers are drawn in the HUD layer, so they are not
+depth tested and show through walls. The list is read from the entity lump the first
+time the view is on for a map.
+
+A world note picks a marker: the one the view ray passes within about 1.4 degrees of
+beats the wall or model behind it. The note records the entity (number, class name,
+target name, origin) and the outline is a box round its origin.
+
 ## Talk balloons
 
 Opening chat, the console or a menu sends the stock talk button and disables
