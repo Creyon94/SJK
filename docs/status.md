@@ -1,3 +1,12 @@
+## Blade skins: 256 slots
+
+14/10/2026: the skin array (`saber.wgsl` `skins`) is a read-only storage buffer of 256
+`Skin` structs (253952 bytes), no longer a 16-skin uniform capped by 16 KiB; `MAX_SKINS` is 256
+and the material slots follow. Step 1 of the shader catalogue plan (about 200 shaders, a Common
+quality, holocron drops). Checked by the `saber` tests (101 pass, shader text pinned); not run
+on a GPU or in the game. Still per-skin texture pairs (generated), loaded eagerly for catalogue
+ids with a pack file; lazy loading and a texture array come when the catalogue grows.
+
 # Status and priorities
 
 ## Chat: the euro sign and a Retry button

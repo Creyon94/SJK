@@ -29,9 +29,9 @@ use std::sync::Arc;
 
 /// Players a game server can hold (`MAX_CLIENTS`); entity ids 1..=32 are their bodies.
 pub(crate) const MAX_CLIENTS: usize = sjk_client::SABER_SOUND_CLIENTS;
-/// Most blade skins loaded at once: material slots and the uniform array's length
-/// (`MAX_SKINS` in `saber.wgsl`).
-pub(crate) const MAX_SKINS: usize = 16;
+/// Most blade skins loaded at once: material slots and the storage array's length
+/// (`MAX_SKINS` in `saber.wgsl`). 256 skins are 248 KiB, far inside a storage binding.
+pub(crate) const MAX_SKINS: usize = 256;
 /// Widest a skin's glow may reach past the stock capsule (`corona.reach`); the
 /// instances' bounds allow for it ([`crate::saber::Instance::extent`]).
 pub(crate) const MAX_GLOW_REACH: f32 = 2.0;
@@ -247,8 +247,7 @@ pub(crate) fn turn_hue(rgb: [f32; 3], turns: f32) -> [f32; 3] {
 }
 
 /// One skin's parameters as `saber.wgsl`'s `Skin` holds them: 62 `vec4`s (992 bytes, so
-/// the [`MAX_SKINS`] array is 15872 bytes, inside the 16 KiB uniform binding WebGPU
-/// guarantees: three more lanes a skin would not fit). The layout is the shader's; see there for what each lane is. A section
+/// the [`MAX_SKINS`] array is 253952 bytes, a read-only storage binding). The layout is the shader's; see there for what each lane is. A section
 /// the skin's file leaves out (arcs, motes, hue and the later ones) is zeros, which the
 /// shader draws as nothing.
 #[repr(C)]
@@ -756,8 +755,8 @@ impl LoadedSkins {
     }
 
     /// The uniform array `saber.wgsl` reads, zero past the loaded skins.
-    pub(crate) fn uniforms(&self) -> [SkinUniform; MAX_SKINS] {
-        let mut uniforms = [SkinUniform::default(); MAX_SKINS];
+    pub(crate) fn uniforms(&self) -> Vec<SkinUniform> {
+        let mut uniforms = vec![SkinUniform::default(); MAX_SKINS];
         for (uniform, skin) in uniforms.iter_mut().zip(&self.skins) {
             *uniform = SkinUniform::of(&skin.def);
         }

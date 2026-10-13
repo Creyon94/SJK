@@ -781,7 +781,6 @@ Achievements granting unlockables (with harder goals), holocrons dropping blade 
 (parked: pool, odds and duplicates undecided; the shaders' [tiers](#tiers) would then
 be the hub's too, to roll a shader of a holocron's tier), Uncommon shaders (colours
 only), other kinds of unlockable (holocron
-skins, trails, emotes). Up to 16 blade skins load at once (the renderer's slots; the
-uniform array is 15872 bytes of the 16 KiB WebGPU guarantees since the black holes,
-so a seventeenth skin, or three more lanes a skin, needs fewer lanes or a storage buffer
-first).
+skins, trails, emotes). Up to 256 blade skins load at once (the renderer's slots; the
+skin array is a storage buffer of 253952 bytes since 14/10/2026, no longer a 16 KiB uniform,
+so the limit is the material slots, not the lanes).

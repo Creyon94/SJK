@@ -1281,7 +1281,7 @@ Spectral, Glitch, Hologram, Runic, Chameleon, Banner and Heartbeat blades, SJK u
 The renderer is generic and data-driven: a skin's look is a blade-skin file in a pack
 the SJK hub delivers ([unlockables.md](unlockables.md#blade-skin-files)), and no skin's
 values are in the code. [saber_skins.rs](../crates/sjk-viewer/src/saber_skins.rs) holds
-the loaded skins (`LoadedSkins`, at most 16, numbered in id order) and the per-client
+the loaded skins (`LoadedSkins`, at most 256, numbered in id order) and the per-client
 table of who wears which (filled from the hub's looks; ids and names are
 [unlockables.rs](../crates/sjk-viewer/src/unlockables.rs)'s); `BladeColor::Skin` carries
 the skin's number, trail and light wherever a blade colour is chosen (in the hand,
@@ -1299,8 +1299,9 @@ the CPU (`SkinColor::light_color`, `trail_color`).
   neutral pair (`generated_glow`/`generated_core`; the neutral pair's bytes are
   unchanged and pinned by a test). Retail and RGB blades keep their materials and
   shading unchanged.
-- **Parameters.** The skins' parameters are a uniform array of 16 `Skin` structs of 62
-  `vec4`s (`SkinUniform`, 15872 bytes in all since the black holes, bind group 2 of the
+- **Parameters.** The skins' parameters are a read-only storage array of 256 `Skin` structs of 62
+  `vec4`s (`SkinUniform`, 253952 bytes in all since 14/10/2026; a uniform of 16 before, which the
+  16 KiB limit capped; bind group 2 of the
   saber pipelines),
   written only when skins load (`saber_gpu::Runtime::upload_skins`), never per frame.
   Each instance's material slot selects its skin. The lanes of a section a file leaves

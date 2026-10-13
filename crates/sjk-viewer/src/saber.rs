@@ -804,13 +804,13 @@ mod cutoff_tests {
             "const MAX_SKINS: u32 = {}u;",
             crate::saber_skins::MAX_SKINS
         )));
-        assert!(shader.contains("var<uniform> skins: array<Skin, MAX_SKINS>;"));
-        // `Skin` is 62 vec4s, as `SkinUniform`, and the array fits WebGPU's 16 KiB.
+        assert!(shader.contains("var<storage, read> skins: array<Skin, MAX_SKINS>;"));
+        // `Skin` is 62 vec4s, as `SkinUniform`, and the array fits a storage binding.
         assert_eq!(
             std::mem::size_of::<crate::saber_skins::SkinUniform>(),
             62 * 16
         );
-        const { assert!(62 * 16 * crate::saber_skins::MAX_SKINS <= 16 * 1024) };
+        const { assert!(62 * 16 * crate::saber_skins::MAX_SKINS <= 128 * 1024 * 1024) };
         let skin = &shader[shader.find("struct Skin {").unwrap()..];
         let skin = &skin[..skin.find('}').unwrap()];
         assert_eq!(skin.matches(": vec4<f32>,").count(), 62);
