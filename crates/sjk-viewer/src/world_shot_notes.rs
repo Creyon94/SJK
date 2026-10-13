@@ -2,8 +2,10 @@
 //! `<GameData>/SJK/notes.jsonl` seen again from where it was written, to check a
 //! reported surface without starting the game. Ignored like the other world shots.
 //!
-//! `SJK_NOTES` picks notes by their line number (from 0) or by part of a map name
-//! (`SJK_NOTES=12,13` or `SJK_NOTES=ffa1`); without it every note is shot. Each
+//! `SJK_NOTES` picks notes by their line number (from 0) or by part of a map name, a
+//! shader name or the note's time (`SJK_NOTES=12,13`, `SJK_NOTES=ffa1` or
+//! `SJK_NOTES=09:41:20`, which stays right when earlier notes are removed); without it
+//! every note is shot. Each
 //! note gives one sheet of four views: as written, then with a red point light (a
 //! saber's) a little in front of the noted point; and the same two from halfway
 //! closer, so a surface that dynamic light does not reach stands out. The player's
@@ -20,6 +22,8 @@ use crate::dynamic_lights::PointLight;
 struct NoteView {
     line: usize,
     map: String,
+    /// When it was written (`dd/mm/yyyy hh:mm:ss UTC`).
+    time: String,
     eye: [f32; 3],
     yaw: f32,
     /// Degrees down, as the note's pose writes it.
@@ -68,6 +72,7 @@ fn read_notes(game_data: &std::path::Path) -> Vec<NoteView> {
         notes.push(NoteView {
             line,
             map: note["map"].as_str().unwrap_or_default().to_owned(),
+            time: note["time"].as_str().unwrap_or_default().to_owned(),
             eye: [*x, *y, *z],
             yaw: *yaw,
             pitch_down: *pitch_down,
@@ -127,15 +132,41 @@ fn renderer_settings(game_data: &std::path::Path) -> Vec<(String, String)> {
         .collect()
 }
 
+/// The notes `SJK_NOTES` picks and the renderer settings to shoot them with: the
+/// player's own, then `SJK_NOTES_CVARS`.
+fn chosen_notes() -> (Vec<NoteView>, Vec<(String, String)>) {
+    let game_data = PathBuf::from(
+        std::env::var_os("JKA_GAME_DATA").expect("JKA_GAME_DATA names the GameData directory"),
+    );
+    let filter = std::env::var("SJK_NOTES").unwrap_or_default();
+    let notes = read_notes(&game_data)
+        .into_iter()
+        .filter(|note| wanted(note, &filter))
+        .collect();
+    let mut settings = renderer_settings(&game_data);
+    // `SJK_NOTES_CVARS=r_weather=1,r_weatherFog=2` overrides settings for a comparison.
+    for pair in std::env::var("SJK_NOTES_CVARS")
+        .unwrap_or_default()
+        .split(',')
+    {
+        if let Some((name, value)) = pair.split_once('=') {
+            settings.retain(|(known, _)| !known.eq_ignore_ascii_case(name));
+            settings.push((name.to_owned(), value.to_owned()));
+        }
+    }
+    (notes, settings)
+}
+
 fn wanted(note: &NoteView, filter: &str) -> bool {
     filter.is_empty()
         || filter.split(',').any(|part| {
             let part = part.trim();
             part.parse::<usize>().map_or_else(
                 |_| {
-                    note.map
-                        .to_ascii_lowercase()
-                        .contains(&part.to_ascii_lowercase())
+                    let part = part.to_ascii_lowercase();
+                    [&note.map, &note.shader, &note.time]
+                        .iter()
+                        .any(|text| text.to_ascii_lowercase().contains(&part))
                 },
                 |line| line == note.line,
             )
@@ -147,25 +178,7 @@ fn wanted(note: &NoteView, filter: &str) -> bool {
 #[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
 fn world_notes() {
     on_big_stack(|| {
-        let game_data = PathBuf::from(
-            std::env::var_os("JKA_GAME_DATA").expect("JKA_GAME_DATA names the GameData directory"),
-        );
-        let filter = std::env::var("SJK_NOTES").unwrap_or_default();
-        let notes: Vec<NoteView> = read_notes(&game_data)
-            .into_iter()
-            .filter(|note| wanted(note, &filter))
-            .collect();
-        let mut settings = renderer_settings(&game_data);
-        // `SJK_NOTES_CVARS=r_weather=1,r_weatherFog=2` overrides settings for a comparison.
-        for pair in std::env::var("SJK_NOTES_CVARS")
-            .unwrap_or_default()
-            .split(',')
-        {
-            if let Some((name, value)) = pair.split_once('=') {
-                settings.retain(|(known, _)| !known.eq_ignore_ascii_case(name));
-                settings.push((name.to_owned(), value.to_owned()));
-            }
-        }
+        let (notes, settings) = chosen_notes();
         let cvars: Vec<(&str, &str)> = settings
             .iter()
             .map(|(name, value)| (name.as_str(), value.as_str()))
@@ -307,5 +320,120 @@ fn duel6_note_model() {
             "{}",
             shoot(&mut gpu, 6, "duel6-note-model-cleared").display()
         );
+    });
+}
+
+/// Flicker hunt for the chosen notes. From the note's eye (or `SJK_NOTES_BACK` units
+/// behind it along the view), six frames held still and a map of what changed between
+/// them (`note-NN-still`: white where a pixel moved by more than a few levels), then
+/// eight views `SJK_NOTES_STEP` units apart (3 by default) to the right and up
+/// (`note-NN-steps`; with `SJK_NOTES_CROP` only the middle quarter of each, round the
+/// noted point). Z-fighting stays still while the camera does and changes from step to
+/// step. `SJK_NOTES_SWEEP` shoots instead the view from 0 to 90 units behind the eye
+/// (`note-NN-sweep`), the room a third-person camera has.
+#[test]
+#[ignore = "renders with the GPU and the installed game data named by JKA_GAME_DATA"]
+fn world_note_flicker() {
+    on_big_stack(|| {
+        let (notes, settings) = chosen_notes();
+        let cvars: Vec<(&str, &str)> = settings
+            .iter()
+            .map(|(name, value)| (name.as_str(), value.as_str()))
+            .collect();
+        let number = |name: &str, default: f32| -> f32 {
+            std::env::var(name)
+                .ok()
+                .and_then(|value| value.parse().ok())
+                .unwrap_or(default)
+        };
+        let back = number("SJK_NOTES_BACK", 0.0);
+        let stride = number("SJK_NOTES_STEP", 3.0);
+        let crop = std::env::var_os("SJK_NOTES_CROP").is_some();
+        for note in &notes {
+            let Some((mut gpu, _profile)) = open(&note.map, [1280, 720], None, &cvars) else {
+                return;
+            };
+            let _ = frame(&mut gpu, 30);
+            let (yaw, pitch) = (note.yaw.to_radians(), (-note.pitch_down).to_radians());
+            let forward = [
+                yaw.cos() * pitch.cos(),
+                yaw.sin() * pitch.cos(),
+                pitch.sin(),
+            ];
+            let behind = |distance: f32| -> [f32; 3] {
+                std::array::from_fn(|axis| note.eye[axis] - forward[axis] * distance)
+            };
+            let name = format!("note-{:02}", note.line);
+            if std::env::var_os("SJK_NOTES_SWEEP").is_some() {
+                let views: Vec<(String, [f32; 3], [f32; 3])> = (0..16)
+                    .map(|step| {
+                        let distance = step as f32 * 6.0;
+                        let from = behind(distance);
+                        let at = std::array::from_fn(|axis| from[axis] + forward[axis] * 100.0);
+                        (format!("back {distance}"), from, at)
+                    })
+                    .collect();
+                let views: Vec<(&str, [f32; 3], [f32; 3])> = views
+                    .iter()
+                    .map(|(label, from, at)| (label.as_str(), *from, *at))
+                    .collect();
+                sweep(&mut gpu, &views, &format!("{name}-sweep"));
+                continue;
+            }
+            let eye = behind(back);
+            aim(&mut gpu, eye, note.yaw, -note.pitch_down);
+            let still: Vec<image::RgbaImage> = (0..6).map(|_| frame(&mut gpu, 1)).collect();
+            let mut changed =
+                image::RgbaImage::from_fn(still[0].width(), still[0].height(), |x, y| {
+                    let grey = still[0].get_pixel(x, y)[0] / 4;
+                    image::Rgba([grey, grey, grey, 255])
+                });
+            for pair in still.windows(2) {
+                for (x, y, pixel) in changed.enumerate_pixels_mut() {
+                    let (a, b) = (pair[0].get_pixel(x, y), pair[1].get_pixel(x, y));
+                    if (0..3).any(|c| a[c].abs_diff(b[c]) > 6) {
+                        *pixel = image::Rgba([255, 255, 255, 255]);
+                    }
+                }
+            }
+            let right = [yaw.sin(), -yaw.cos(), 0.0];
+            let steps: Vec<image::RgbaImage> = (0..8)
+                .map(|step| {
+                    let offset = step as f32 * stride;
+                    let origin: [f32; 3] = std::array::from_fn(|axis| {
+                        eye[axis]
+                            + right[axis] * offset
+                            + if axis == 2 { offset * 0.5 } else { 0.0 }
+                    });
+                    aim(&mut gpu, origin, note.yaw, -note.pitch_down);
+                    let shot = frame(&mut gpu, 2);
+                    if crop {
+                        let (width, height) = (shot.width() / 4, shot.height() / 4);
+                        image::imageops::crop_imm(
+                            &shot,
+                            width * 3 / 2,
+                            height * 3 / 2,
+                            width,
+                            height,
+                        )
+                        .to_image()
+                    } else {
+                        shot
+                    }
+                })
+                .collect();
+            println!(
+                "{}: still {} steps {}",
+                note.line,
+                sheet(
+                    &[still[0].clone(), changed],
+                    2,
+                    960,
+                    &format!("{name}-still")
+                )
+                .display(),
+                sheet(&steps, 4, 480, &format!("{name}-steps")).display()
+            );
+        }
     });
 }
