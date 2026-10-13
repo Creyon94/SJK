@@ -55,6 +55,7 @@ mod decoded_image_cache;
 mod demo_playback;
 mod disintegration;
 mod dismember;
+mod donation_goal;
 mod dust_motes;
 mod dynamic_lights;
 mod effect_assets;

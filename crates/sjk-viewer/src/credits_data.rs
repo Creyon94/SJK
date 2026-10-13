@@ -393,7 +393,7 @@ mod tests {
         assert!(
             parse("== A\n[X]\nrole: r\nmedal: nope\n")
                 .unwrap_err()
-                .contains("early_tester, early_contributor, bug_hunter")
+                .contains("early_tester, early_contributor, bug_hunter, supporter")
         );
     }
 

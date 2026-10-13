@@ -9,6 +9,9 @@
 #                               made it when that is not the piece's owner.
 
 = Sol
++ 13/10/2026 | - | Ko-fi donation goal on the site and main page, Supporter medal
+- ca97b60 |  | Support SJK on the site, and the Supporter medal
+- d3fb0aa |  | Live donation goal: Ko-fi link, the site and the SJK UI's main page
 + 13/10/2026 | - | World notes: a page of text, remaps and models
 - a1da299 |  | World notes: a page of text, the remaps in play, and models
 + 13/10/2026 | - | Team outlines and logos, thinner card outline, no team overlay

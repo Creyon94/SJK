@@ -289,12 +289,17 @@ impl Panel {
             TextAlign::Center,
         );
         y += 36.0;
-        let blade = crate::unlockables::find(showing.medal.blade())
-            .map_or("a saber shader", |blade| blade.name);
-        let about = format!(
-            "{} Comes with the {blade}, a saber shader.",
-            showing.medal.description()
-        );
+        let about = match showing.medal.blade() {
+            Some(id) => {
+                let blade =
+                    crate::unlockables::find(id).map_or("a saber shader", |blade| blade.name);
+                format!(
+                    "{} Comes with the {blade}, a saber shader.",
+                    showing.medal.description()
+                )
+            }
+            None => showing.medal.description().to_owned(),
+        };
         y = centred_lines(
             &mut self.ui,
             frame,
@@ -412,6 +417,7 @@ mod tests {
                 (Medal::EarlyTester, true),
                 (Medal::BugHunter, true),
                 (Medal::EarlyContributor, false),
+                (Medal::Supporter, false),
             ]
         );
         assert_eq!(

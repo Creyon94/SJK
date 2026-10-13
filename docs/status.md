@@ -1,5 +1,21 @@
 # Status and priorities
 
+## Donations and the Supporter medal
+
+Branch `personal/donate-goal` (13/10/2026), Sol's request, with the hub's
+`donate-supporter`: donations on Ko-fi (https://ko-fi.com/soljk) with a live monthly
+goal of 200 euros, on the site's Support SJK section and top left of the SJK UI's main
+page (`ui_donationGoal`), and the Supporter medal (`supporter`, given once, no blade) in
+the medal catalogue on both sides. Ko-fi's webhook feeds the hub, which sums payments
+for `GET /v1/donations/goal` and gives the medal at once when the Ko-fi message holds a
+registered key id; the rest waits for the SJK team ([sjk.md](sjk.md#donations)). The
+medal's art is a drawn placeholder (a gold medallion with a heart on a violet ribbon)
+until Sol picks real art. Verified: unit tests (client, identity crate and hub, the hub's
+in-process webhook and goal tests), a local hub answering the webhook and the goal, the
+site rendered in headless Chrome reading that hub, and the main page's world shot
+(`duel6-menu`). Not tried in a game; the hub not deployed, so until it is, the site
+shows its fallback numbers and the client's card has none.
+
 ## World notes: longer, with remaps and models
 
 Branch `personal/worldnote-plus` (13/10/2026), Sol's request: longer notes, the shader

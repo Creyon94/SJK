@@ -519,6 +519,10 @@ const HELP: &[(&str, &str)] = &[
         "The SJK UI, SJK's own menus over the live map; or classic menus after the original game's.",
     ),
     (
+        crate::donation_goal::CVAR,
+        "SJK's donation goal at the top left of the SJK UI's main page, read from the SJK hub; Donate opens Ko-fi. Off hides it.",
+    ),
+    (
         crate::quick_wheel::pages::FILE,
         "The quick wheel's pages (+wheel) and the choices on each, kept in wheel.json. Enter edits them.",
     ),

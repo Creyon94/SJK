@@ -9,7 +9,9 @@
 //! quit.
 //!
 //! Under the servers, the SJK chat is docked (`docs/hub-chat.md`): its last lines,
-//! who is online, a field to type in and Open chat for its page.
+//! who is online, a field to type in and Open chat for its page. Top left, the donation
+//! goal (`crate::donation_goal`): how much of the month's goal came in, a bar and Donate,
+//! which opens SJK's Ko-fi page in the browser (`ui_donationGoal 0` hides it).
 //!
 //! Keys: Up and Down move along the arc, Enter takes the entry, Right (or Tab)
 //! moves to the servers and Left (or Escape) back; Down past the last server
@@ -45,6 +47,8 @@ const CARD_TOKEN: u16 = 50;
 const SENDER_NAME_TOKEN: u16 = 60;
 const SENDER_CARD_TOKEN: u16 = 70;
 const SENDER_MUTE_TOKEN: u16 = 71;
+/// The donation goal's Donate button.
+const DONATE_TOKEN: u16 = 80;
 /// The dock's targets ([`chat_dock`]).
 const DOCK_TOKENS: chat_dock::Tokens = chat_dock::Tokens {
     field: CHAT_TOKEN,
@@ -118,6 +122,8 @@ pub(crate) enum Action {
     /// Mute, on this PC, the player whose sender card the dock showed (its Mute,
     /// [`Home::take_mute`]).
     Mute,
+    /// Open the donation page in the browser (the donation goal's Donate).
+    Donate,
     /// Exit to the desktop.
     Quit,
 }
@@ -234,6 +240,8 @@ pub(crate) struct HomeView<'a> {
     pub(crate) chat: Option<ChatDock<'a>>,
     /// What the profile card says of the player's SJK profile.
     pub(crate) summary: &'a crate::profile_card::Summary,
+    /// The donation goal, top left; `None` while it is hidden (`ui_donationGoal 0`).
+    pub(crate) donation: Option<crate::donation_goal::Card>,
 }
 
 pub(crate) use super::chat_dock::ChatDock;
@@ -478,6 +486,7 @@ impl Home {
                 self.focus = Focus::Card;
                 return activate.then_some(Action::Open(MainDestination::Profile));
             }
+            DONATE_TOKEN => return activate.then_some(Action::Donate),
             _ => {}
         }
         let index = usize::from(token.checked_sub(SERVER_TOKEN)?);
@@ -692,6 +701,9 @@ pub(crate) fn build(
     }
 
     servers(canvas, &frame, home, view);
+    if let Some(card) = view.donation {
+        donation(canvas, &frame, card);
+    }
     if let Some(dock) = &view.chat {
         let focused = home.focus == Focus::Chat;
         chat_dock::draw(
@@ -923,6 +935,104 @@ fn servers(canvas: &mut MenuCanvas, frame: &Frame, home: &Home, view: &HomeView<
         }
         canvas.hit_region(token, target);
     }
+}
+
+/// The donation goal's place, top left: its left edge, its top and its width.
+const DONATION: [f32; 3] = [96.0, 58.0, 420.0];
+
+/// The donation goal, top left, clear of the ring: "Support SJK" and Donate, then how
+/// much of the goal came in and its bar, then what a donation over 1 euro brings.
+fn donation(canvas: &mut MenuCanvas, frame: &Frame, card: crate::donation_goal::Card) {
+    use crate::donation_goal::Amount;
+    let s = frame.s;
+    let [x, top, width] = DONATION;
+    let button = 128.0;
+    text(
+        canvas,
+        TextFamily::Display,
+        format_args!("Support SJK"),
+        frame.rect(x, top + 4.0, width - button - 12.0, 32.0),
+        26.0 * s,
+        color::TEXT,
+        FontWeight::Regular,
+        TextAlign::Start,
+    );
+    super::kit::button(
+        canvas,
+        frame,
+        [x + width - button, top, button, 40.0],
+        "Donate",
+        true,
+        true,
+        false,
+        DONATE_TOKEN,
+    );
+    let body =
+        |canvas: &mut MenuCanvas, y: f32, size: f32, colour, value: std::fmt::Arguments<'_>| {
+            text(
+                canvas,
+                TextFamily::Body,
+                value,
+                frame.rect(x, y, width, size + 6.0),
+                size * s,
+                colour,
+                FontWeight::Regular,
+                TextAlign::Start,
+            );
+        };
+    let mut y = top + 48.0;
+    match card.numbers {
+        Some(numbers) => {
+            let raised = Amount {
+                cents: numbers.raised_cents,
+                euros: numbers.euros,
+            };
+            let goal = Amount {
+                cents: numbers.goal_cents,
+                euros: numbers.euros,
+            };
+            let period = if numbers.monthly { " this month" } else { "" };
+            body(
+                canvas,
+                y,
+                17.0,
+                color::MUTED,
+                format_args!("{raised} of {goal}{period}"),
+            );
+            y += 30.0;
+            let _ = canvas.draw_list_mut().push(DrawCommand::RoundedRect {
+                rect: frame.rect(x, y, width, 8.0),
+                radius: 4.0 * s,
+                color: color::alpha(color::HOLO, 0.16),
+            });
+            let fill = numbers.fill();
+            if fill > 0.0 {
+                let _ = canvas.draw_list_mut().push(DrawCommand::RoundedRect {
+                    rect: frame.rect(x, y, (width * fill).max(8.0), 8.0),
+                    radius: 4.0 * s,
+                    color: color::GOLD_BRIGHT,
+                });
+            }
+            y += 18.0;
+        }
+        None => {
+            body(
+                canvas,
+                y,
+                17.0,
+                color::MUTED,
+                format_args!("Help fund SJK's development on Ko-fi"),
+            );
+            y += 28.0;
+        }
+    }
+    body(
+        canvas,
+        y,
+        14.0,
+        color::QUIET,
+        format_args!("More than 1 \u{20ac} brings the Supporter medal"),
+    );
 }
 
 /// The keys of the page, bottom centre.
@@ -1172,7 +1282,40 @@ mod tests {
             seconds: 1.0,
             chat,
             summary: &crate::profile_card::NOBODY,
+            donation: None,
         }
+    }
+
+    // The donation goal's lowest line stays above the ring's top.
+    const _: () = assert!(DONATION[1] + 48.0 + 30.0 + 18.0 + 20.0 < RING[1] - RING_RADIUS - 40.0);
+
+    #[test]
+    fn the_donation_goal_clears_the_ring_and_its_button_donates() {
+        let mut home = Home::default();
+        let servers = [server("JoF")];
+        let mut with = view(&servers, None);
+        with.donation = Some(crate::donation_goal::Card {
+            numbers: Some(crate::donation_goal::Numbers {
+                raised_cents: 8_000,
+                goal_cents: 20_000,
+                monthly: true,
+                euros: true,
+            }),
+        });
+        let mut canvas = MenuCanvas::new();
+        build(&mut canvas, [1920.0, 1080.0], &mut home, &with, 1.0);
+        assert!(canvas.rect_for(DONATE_TOKEN).is_some());
+        assert_eq!(home.pointer(DONATE_TOKEN, false, 1), None);
+        assert_eq!(home.pointer(DONATE_TOKEN, true, 1), Some(Action::Donate));
+        let mut canvas = MenuCanvas::new();
+        build(
+            &mut canvas,
+            [1920.0, 1080.0],
+            &mut home,
+            &view(&servers, None),
+            1.0,
+        );
+        assert!(canvas.rect_for(DONATE_TOKEN).is_none());
     }
 
     #[test]

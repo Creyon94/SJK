@@ -76,7 +76,7 @@ impl Panel {
 fn medal_card(showing: &medals::Showing) -> Card {
     let medal = showing.medal;
     let mut lines = vec![Line::how(medal.how_to_get())];
-    if let Some(blade) = crate::unlockables::find(medal.blade()) {
+    if let Some(blade) = medal.blade().and_then(crate::unlockables::find) {
         lines.push(Line::status(format!(
             "Brings the {} while you hold it.",
             blade.name
@@ -226,7 +226,8 @@ mod tests {
         for medal in crate::medals::Medal::ALL {
             let card = medal_card(&medals::Showing { medal, award: None });
             assert!(card.lines[0].words.starts_with("Given by the SJK team"));
-            assert!(card.lines.iter().any(|line| line.words.contains("blade")));
+            let names_a_blade = card.lines.iter().any(|line| line.words.contains("blade"));
+            assert_eq!(names_a_blade, medal.blade().is_some(), "{medal:?}");
             assert_eq!(card.lines.last().unwrap().words, "Not given to you yet");
         }
     }

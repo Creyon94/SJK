@@ -32,7 +32,7 @@ const PLAYERS_TOP: f32 = 236.0;
 const PLAYER_ROW: f32 = 46.0;
 /// The medals' rows and the achievements' rows.
 const SECTION_TOP: f32 = 330.0;
-const MEDAL_ROW: f32 = 76.0;
+const MEDAL_ROW: f32 = 64.0;
 /// An unlockable's cell, two to a row: compact, so the whole catalogue (fourteen blade
 /// skins since 10/10/2026) fits above the keys.
 const UNLOCK_ROW: f32 = 36.0;
@@ -386,7 +386,7 @@ impl Panel {
             let y = SECTION_TOP + medal.index() as f32 * MEDAL_ROW;
             let held = self.shown.medals[medal.index()];
             let _ = self.ui.draw_list_mut().push(DrawCommand::TexturedQuad {
-                rect: frame.rect(MIDDLE_X, y + 4.0, 60.0, 60.0),
+                rect: frame.rect(MIDDLE_X, y + 4.0, 54.0, 54.0),
                 texture: medal.icon(),
                 color: Color::new(1.0, 1.0, 1.0, if held > 0 { 1.0 } else { 0.35 }),
             });
@@ -394,7 +394,7 @@ impl Panel {
                 &mut self.ui,
                 TextFamily::Display,
                 format_args!("{}", medal.label(held)),
-                frame.rect(MIDDLE_X + 74.0, y + 6.0, 220.0, 28.0),
+                frame.rect(MIDDLE_X + 68.0, y + 4.0, 220.0, 28.0),
                 21.0 * s,
                 if held > 0 {
                     color::GOLD_BRIGHT
@@ -419,7 +419,7 @@ impl Panel {
                 &mut self.ui,
                 TextFamily::Body,
                 format_args!("{line}"),
-                frame.rect(MIDDLE_X + 74.0, y + 36.0, 200.0, 22.0),
+                frame.rect(MIDDLE_X + 68.0, y + 32.0, 200.0, 22.0),
                 14.0 * s,
                 color::QUIET,
                 FontWeight::Regular,
@@ -432,7 +432,7 @@ impl Panel {
             kit::button(
                 &mut self.ui,
                 frame,
-                [right - 236.0, y + 12.0, 96.0, 40.0],
+                [right - 236.0, y + 10.0, 96.0, 40.0],
                 if held > 0 && medal.repeatable() {
                     "Give +1"
                 } else {
@@ -446,7 +446,7 @@ impl Panel {
             kit::button(
                 &mut self.ui,
                 frame,
-                [right - 128.0, y + 12.0, 128.0, 40.0],
+                [right - 128.0, y + 10.0, 128.0, 40.0],
                 "Take back",
                 false,
                 held > 0,

@@ -50,6 +50,7 @@ did: Card faces and the first card, art by Sol (AI-assisted)
 did: World pings: mark a spot for the SJK players on your server
 did: Team games: red and green outlines, team logos over teammates (after JoF EJK)
 did: World notes: a page of text, the shader remaps in play, and map models
+did: Donations on Ko-fi: the live goal on the site and main page, the Supporter medal
 did: Cards that tilt towards the pointer, their light following it
 did: SJK Symbols, our own symbol font for rarities and finishes
 did: Character creator: tile grids, Apply, the Jedi Academy's own models first

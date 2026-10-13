@@ -66,6 +66,8 @@ Sol develops SJK and sets its direction. Sol's work includes:
   are seen, team logos over teammates' heads after JoF EJK, the team overlay removed;
 - world notes (13/10/2026): up to 4000 characters, the shader remaps in play and the
   map's MD3 models as a note's subject;
+- donations (13/10/2026): SJK's Ko-fi goal live on the site and the main page through
+  the hub, and the Supporter medal given on its own for more than 1 euro;
 - cards that tilt towards the pointer in perspective, their Holo and Solar light
   following it (13/10/2026);
 - SJK Symbols (13/10/2026), SJK's own symbol font: rarity and finish marks drawn for

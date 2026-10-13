@@ -28,6 +28,7 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 > Pings: Middle mouse marks a spot for the SJK players on your server, your team only in team games.
 > Team games: Red outlines on enemies, green on teammates, your team's logo over their heads, and no more team overlay.
 > World notes: Write up to a page, and note a model too; the note keeps the shader remaps in play.
+> Support: Donate on Ko-fi from the main page; more than 1 euro brings the Supporter medal.
 > Cards: Cards tilt towards the pointer, their light following it.
 
 - World pings: `+ping` (middle mouse in a new profile) marks the point under the crosshair for the other SJK players on the server, your team only in team games, with a gold ring seen through walls, your name, the distance and a short sound for 7 seconds; Settings > HUD > World pings hides others' pings (`cg_worldPings`) or the sound (`cg_worldPingSound`), and muted players' pings never show _(Sol)_
@@ -36,6 +37,8 @@ Add each release's notes here when it is tagged (docs/sjk.md "Releases").
 - The player card's outline is half as thick _(Sol)_
 - The team status overlay at the top right is gone, with `cg_drawTeamOverlay` _(Sol)_
 - World notes take up to 4000 characters (500 before) in a taller note card of ten lines; a note keeps every shader remap active when it was taken (the map's, the server's and the console's, with the remapped shader beside the map's own); aiming at a model drawn from the map (a `misc_model_static` prop, a breakable) selects that model, outlined in green, and the note names its path, entity, placement and every shader with its remap; Clear model in the card notes what is behind it, and a click on the scene round the card notes what is under the pointer; all of it goes to the SJK team with the note _(Sol)_
+- The Supporter medal, for players who donate more than 1 euro to SJK on Ko-fi: put your SJK key id in the Ko-fi message and it arrives on its own; shown with the other medals on the profile, the player card, the Collection and the scoreboard (placeholder art) _(Sol)_
+- The SJK UI's main page shows SJK's monthly donation goal top left, live from the SJK hub, with Donate opening Ko-fi; `ui_donationGoal 0` hides it _(Sol)_
 - Cards tilt towards the pointer: on the Collection's Cards tab a card under the pointer turns towards it a little in perspective, its Holo or Solar light following the pointer under a soft glare; Holo's light stays inside the card's edge and corners and its sweep crosses the card, then waits, instead of jumping back _(Sol)_
 
 ## 2026.1013.1 (Alpha) | 13/10/2026
